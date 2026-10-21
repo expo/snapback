@@ -1,0 +1,1643 @@
+# LLP 3000.023: Answers stay on screen
+
+**Type:** RFC
+**Status:** Accepted
+**Systems:** Snapback 4 — the client SDK (`ReadObservation`, the local and online clients, the app facade, React hooks), the shared preservation classifier, the client guide
+**Author:** Claude Opus 5.5 (for Charlie Cheever)
+**Date:** 2026-09-27
+**Revised:** 2026-10-21 (Integration 20: reconcile §12 with incoming P1-MR null/absent preservation policy; no new policy decision); 2026-10-08 (SN round 6: custody wakeups retain the publication-race bound; failed reads skip optional discovery; full-suite fixture reconciliation, §11); 2026-10-08 (SN round 5: transaction-wide replay evidence and credential-fenced discovery refusals, §11); 2026-10-08 (SN round 4: pin additive backend envelope bytes and unchanged storage/IR, §11); 2026-10-08 (SN round 2: final generation/store proof, authoritative field-level commit intervals, dispatch-bound receipts, §11); 2026-10-07 (SN round 1: retain complete predictions, prompt offline refusal, qualify sync/POST overlap, §11); 2026-10-07 (SN: dependency-scoped one-shot custody and commits, event-driven observation within one deadline, §11); 2026-10-05 (OP round 2: prediction discovery also fences overtaken queue reads, §10); 2026-10-05 (OP round 1: retained route watermark and queued-prediction publication fences, §10); 2026-10-05 (OP: covered server publication and independent local-input proof, §10); 2026-10-03 (ON2: bytes-once columns qualify for preservation, §12); 2026-10-03 (Lane L round 1: composer recovery, synchronous media reset and complete mounts); 2026-10-03 (Lane L: bounded route-owned composition and decision against an active hook, §13); 2026-10-02 (BG round 8: recognize separate row/count slots in the unconditional held-count proof, §11); 2026-10-02 (RV round 2: initialize server evidence at open, preserve commit plans, §12); 2026-10-02 (RV round 1: field disclosure, bounded evidence history and expanded model, §12); 2026-10-02 (RV: bound only possible row revocation, §12); 2026-10-01 (PRL round 1: isolate subscriber failures, distinguish DOM hosts, recover rejected capacity tasks, §10); 2026-10-01 (PRL: amortize online ready notifications under backlog; preserve all authorization bounds, §10); 2026-09-30 (§10: PR round 6 schedules every invalidated live owner after no-op publication); 2026-09-30 (PR round 5: conservative sync memory invalidation and one authority revision for detached and pending results, §10); 2026-09-30 (QS round 1: terminal refusals across facade deadlines, impossible held reads and mock settlement, §11); 2026-09-30 (QS round 0: bounded settled one-shot reads, §11); 2026-09-30 (PR round 4: owner-independent memory invalidation, scoped inherited cuts, cancellable watermark and linear queue selection); 2026-09-30 (PR round 3: detached evidence epoch, watermark reconciliation and bounded overtaking); 2026-09-30 (PR round 2: saved-handle validation, server/composed scopes, fixed closed deadlines and online priority, §10); 2026-09-30 (PR round 1: audience dependencies, staged removal fencing, immediate feed refusals, online revocation bound and opt-in collection, §10); 2026-09-30 (PR round 0: exclude capacity queue wait from existing episodes, immediate applied scope withdrawal, bounded inspection, §10); 2026-09-29 (LL round 1: held-only parking preserves changing fallback routes and terminal refusals; every pending-cut watch resumes at publication, §10); 2026-09-29 (LL round 0: event-driven pending-cut resumption and media dependency invalidation, §10); 2026-09-29 (PQ round 7: merge RL plain revalidation and PQ queued change bounds into §10); 2026-09-29 (PQ round 6: background presence shares change-version checks through memory and publication, §10); 2026-09-29 (PQ round 5: raw local resubscription applies its retention policy, §10); 2026-09-29 (PQ round 4: queued episodes start at attempt execution; disjoint remembered answers survive commits, §10); 2026-09-27 (Accepted after three dual-family rounds: round 0 NOT READY from both, round 1 NOT READY and READY WITH CHANGES, round 2 READY WITH CHANGES from both, applied in r3: `publish({ loading })` always replaces and retention is its own method; the episode is an absolute timestamp written once; one stable loading snapshot; normalized per-call retention; KG's hold marks `revalidating`, clears on every source withdrawal, and follows `retain`; `usePage` checks its cache's deadlines); 2026-09-27 (r2: round 1 (Grok READY WITH CHANGES, Astra NOT READY): one non-renewable episode deadline per displayed answer, shared by the facade and checked by snapshots and peeks, whose withdrawal lets the in-flight read still publish; three watch keys; `retain: false` wins; the reset fence and re-read for every watch; `usePage` carries `revalidating`; fallback success keeps retaining; presence samples excluded; corrected sites); 2026-09-27 (r1: retention is bounded and marked `revalidating`; unsuccessful re-reads withdraw; `keep` has three states; every protection that followed `keep` follows retention; the facade needs KG's deadline invariant); 2026-09-27 (initial)
+**Related:** [LLP 3000.019](./3000.019-what-the-builder-still-wrote.rfc.md) §3.3 (P3: `keep` is the application's choice, which this RFC revisits), [LLP 3000.021](./3000.021-what-the-comparative-builder-still-wrote.rfc.md), [LLP 3000.013](./3000.013-quarry-states-intent.rfc.md) §6 (the facade's fences)
+
+> **Current model:** §12 narrows the change-evidence policy in §10, which
+> revises the episode and failure policy in §§3–6.
+> The earlier sections retain the original design and review rationale.
+
+## 1. Why
+
+Every Snapback 4 calibration builder has fought the same thing. A live read
+flashes `loading` while it is re-read after an unrelated change. A screen that
+branches on `loading` unmounts its children, and loses their state.
+
+- **Calibration #22 (0.4.3).**
+  - `client_integration` 87: "completeness and pending states needed
+    explicit UI handling".
+  - Its run log records profile-loading remounts (`lane-run-log.md:34`), and
+    transient loading mistaken for a membership loss (`:88`).
+- **Calibration #23 (0.4.4, running as this is written).**
+  - M1: "a duplicate-handle mutation invalidated [the] profile read and
+    unmounted onboarding".
+  - M3: "a withheld or replaced answer could unmount the conversation, losing
+    input or detaching a clicked quote". The DM screen remounted and called
+    `createDm` four times in a burst.
+  - M4: a long-press "did not hold across row replacement", and a video viewer
+    "owned by [a] transient message bubble could unmount".
+  - Its comparison: "compared with Convex, replica reads make transient
+    authority boundaries more explicit".
+- **The guide warns about read gaps.** The builders read it and still paid
+  for them. Each correction loop is a learning cost the scorer charges.
+
+Convex's `useQuery` and Supabase's clients show the previous result until the
+next one arrives.
+
+## 2. Today
+
+- **Local client.** Every `apply`, `admit` and `settle` reloads every watch
+  (`local-reads.ts:120`). `ReadObservation.reload` publishes `{ loading:
+  true }` until the device re-read lands.
+- **Online client.** A watch withdraws its answer on every change
+  notification (`contract.ts:46`), for a whole network round trip.
+- **`keep: true`** retains the last answer through those publications, with
+  no bound, until a replacement, a refusal or a reset. A watch with it also
+  lingers 30 seconds after its last subscriber leaves.
+- **The app facade** withdraws every replacement until its asynchronous
+  authority check returns, even with `keep`. Lane KG (0.4.5) fixes that for
+  kept watches.
+
+LLP 3000.019 §3.3 kept the withdrawing default because the platform cannot
+tell which commit revokes a row. That finding stands. This RFC keeps what it
+protects and bounds what it costs.
+
+## 3. Proposal
+
+### 3.1 Bounded retention by default: one episode, one deadline
+
+A watch opened without `keep` retains its last answer while a re-read runs,
+within one **episode**:
+
+- **When it starts.** An episode starts when the re-read attempt begins for an
+  invalidated retaining watch still showing an answer. While queued, the answer
+  is already marked `revalidating`, but a new episode has no deadline yet
+  (PQ round 4, author ruling 2026-09-29). A replacement at the facade starts
+  its episode when it begins checking that replacement, unless the retained
+  answer already carries a deadline. The time the change took to reach the client
+  (a server round trip, a notification, a process device's IPC reply,
+  `native.ts:80`) comes before that, and the bound does not cover it.
+- **Its deadline.** One second of host time after it starts, written once
+  as an absolute host timestamp onto the retained answer. It is
+  non-renewable:
+  - a `reload`, a rerun that a later commit dirties (a sync burst,
+    `local.ts:321`, `:993–994`), and the facade's hold never restart it;
+  - the deadline travels with the displayed answer through freshness copies
+    and the facade, which copies the timestamp by value, until that answer
+    actually leaves the observer;
+  - only a different answer, a refusal, a hard withdrawal or the deadline
+    itself clears it. The revalidating mark, a burst's `reload` and a
+    `retryExpired` republish are not new answers and do not rearm it. A
+    later answer gets its own episode at the source, which the facade
+    inherits in turn.
+- **How it is marked.** The answer carries `revalidating: true`. `fresh`
+  and `since` keep their meaning, freshness against the server (§3.3). The
+  retained copy keeps its `answerIdentity`, so the facade does not treat
+  the mark as a new answer.
+- **How it ends.** The first of:
+  - a post-commit answer or a refusal, which replaces it;
+  - an unsuccessful end of the **whole** re-read (the device read is
+    unavailable, it throws, or its retries are exhausted), which withdraws
+    to `loading` at once;
+  - the deadline, which withdraws to `loading`. `getSnapshot` and every
+    peek check the deadline as well as the timer, so a suspended or late
+    timer never shows the answer past it; as for expiry, a suspended page
+    runs no code (`CLIENT-AND-OPERATIONS.md:829–831`). The check writes
+    **one** stable `{ loading: true }` snapshot onto the observation and
+    notifies once. Peeks read that snapshot, never allocating a new one per
+    call, because `useSyncExternalStore` (`react.tsx:112`) requires
+    `Object.is` stability and would otherwise re-render forever.
+- **Withdrawal at the deadline is not a reset.** It writes `{ loading: true }`
+  without incrementing `revision` or `resetVersion` and without setting
+  `dirty`. The re-read in flight can still publish its answer if it passes
+  the commit fence, so a slow re-read ends in data, not in `loading` forever.
+
+A changed row can remain visible during queue wait and for at most one second
+of host time after its re-read attempt starts, marked `revalidating` throughout.
+A burst or retry never renews an episode that has already started; this also
+applies to a predicted leave, which needs no network. An ordinary commit whose
+re-read lands within the episode shows no `loading`. Queue wait precedes the
+bound; row expiry and scope resets do not wait for queue service. An online re-read can take four attempts and a round trip
+(`read-observation.ts:38–41`), and on a slow link it may still end in
+`loading`.
+
+**Not a failure: a presence sample.** A failed presence refresh keeps its
+sample, as today, with no cap (`local.ts:977–979`, `client.ts:626`,
+`contract.ts:49–51`).
+
+### 3.2 `keep` has three states
+
+| `keep` | Retains during a re-read | Bound | Lingers after the last subscriber |
+|---|---|---|---|
+| omitted | yes, marked `revalidating` | 1 s, and withdraws on failure | no |
+| `false` | no: withdraws, as the default did before | — | no, and it never shares a watch with an omitted or `true` subscriber |
+| `true` | yes, marked `revalidating` | none, as today | 30 s |
+
+Omission is preserved end to end: through the React hooks (`react.tsx:110`,
+`:219` turn it into `false` today), the observation keys and the peeks. The
+keys take **three** prefixes, one per state (`observe-watch.ts:24`,
+`client.ts:866–867`, `local.ts:1187–1188`), so a screen that omits `keep`
+and an export that passes `keep: false` on the same operation and arguments
+hold two watches. `ReadObservation` stores `retain` and `linger` separately;
+its single `keep` boolean cannot express the table.
+
+**`publish({ loading })` always replaces.** Today `ReadObservation.publish`
+swallows a `loading` into the kept data whenever `keep` is set, and
+increments `revision` (`read-observation.ts:78–81`). Under this RFC,
+`publish` never retains. Retention is a separate method, used only by
+`reload` and the in-episode revalidating mark, and it does not increment
+`revision`. So every loading-shaped withdrawal replaces, for every watch:
+- an offline link (`local.ts:355`, `client.ts:322`);
+- a thrown `rerun` (`local.ts:1014`);
+- `transportOffline` (`read-observation.ts:51`);
+- retry exhaustion;
+- `retain: false`;
+- an **already-expired server or composed candidate**
+  (`local-query.ts:272–297`). This last one is a hard withdrawal, issued
+  before the `retryExpired` pause (`local.ts:1018–1025`), and the
+  `scheduleExpiry` skip does not apply to it.
+
+**A per-call `retain: false` wins.** The deadline retry fetches with
+`retain: false` so an expired value cannot survive the server trip
+(`local-query.ts:278–281`). Today `fetch` lets `keep` override it
+(`read-observation.ts:28`, `retain || this.keep`). Under this RFC,
+`retain: false` withdraws for every watch, `keep: true` included: the
+predicate is `retain !== false && this.retain`.
+
+**Per-call retention is normalized.** Today every local ephemeral server read
+passes `retain: retain && !ephemeral` (`local-query.ts:187`), so an ordinary
+successful ephemeral refresh passes an explicit `false`, the same value as
+the expiry retry. The lane audits every per-call retention argument:
+- an ordinary ephemeral refresh defers to the watch's policy, so typing
+  stays visible through a durable-write burst, as `ephemeral-keep.test.mjs:89`
+  requires;
+- the expiry retry still passes `false`;
+- an incarnation change still resets. `keep: false` is the choice for a screen whose actions must
+never see a revoked row, such as an export, a copy, or playback gated on
+`isReady(read)`.
+
+### 3.3 `revalidating`, not `fresh`
+
+`fresh: false` already means "not confirmed by the server as current". It
+describes a completed offline or local answer (`local-query.ts:303`), and
+waiting for `fresh: true` can block a valid offline workflow indefinitely. A
+retained answer during a re-read gets its own flag instead:
+
+```ts
+{ data, complete, cut, fresh, since?, next?, revalidating?: true }
+```
+
+An application that acts on an answer can wait for `!read.revalidating`,
+which a successful re-read clears within the bound.
+
+### 3.4 Hard withdrawals stay exact
+
+Retention never crosses these; each still withdraws at once, for every watch.
+Their mechanism is `reset` or a `denied` publish (`read-observation.ts:77–84`,
+`:96`), which must never start retaining, and a fetch with `retain: false`
+(the deadline retry, `local-query.ts:185–187`, `:278–281`), which still
+withdraws:
+
+- **Expiry.** An answer's `expire at` deadline withdraws it at that time,
+  with a re-read in flight, through clock corrections and the two-phase sweep
+  (`read-expiry.ts:16`, `:37`; `local.ts:942`; `client.ts:599–601`).
+  - Remembered answers and late bodies keep their expiry barriers across a
+    clock rollback (`local-reads.ts:72`, `:102`; `local-query.ts:264`).
+  - As today, a suspended page runs no timer (`CLIENT-AND-OPERATIONS.md:829`).
+- **Who is looking, and what the store is.** Each withdraws at once:
+  - a credential rotation or a live viewer change;
+  - sign-out, which publishes `denied` (`client.ts:318`, `local.ts:354`);
+  - store replacement or restore (`client.ts:356`, `local.ts:256–270`);
+  - `adopt`, a store reset, a generation change or the first schema
+    installation, each a `reset({ loading: true })` for every watch
+    (`local.ts:330`, `client.ts:221–223`, `:742–747`);
+  - an ephemeral incarnation change (`invalidate(true)`,
+    `ephemeral-reads.ts:62–70`);
+  - `clear_rows` and `settle_exit`, the `reset` branch of `invalidateAnswers`
+    (`local-reads.ts:121`), which must not be caught up in the ordinary
+    branch's change;
+  - client `close` (`resetOnClose`, `observe-watch.ts:48`).
+- **A refusal.** It replaces the answer, and is forwarded by the facade
+  synchronously (`app-client.ts:84`).
+
+### 3.5 `keep` becomes three bits
+
+Today one flag, `keep`, decides seven things: retention, the 30-second linger,
+the watch-map key, timer survival, viewer and credential resets, the
+`resetVersion` fence, and whether `rerun` and `refresh` call `reload()`
+first. A default-retained watch would lose every protection written as `if
+(watch.keep)`. The flag splits into three:
+
+| Bit | Who has it | What it decides |
+|---|---|---|
+| `retain` | every watch except `keep: false` | retention (§3.1), timer survival, the deadline latch that `watch.kept` holds today (`client.ts:632`, `:661`, `:668`; `local.ts:762–766`), `reload()` at re-read start |
+| `linger` | `keep: true` only | the 30-second linger (`observe-watch.ts:71`, `:80`, `:85`), and the watch-map key (`observe-watch.ts:24`, `client.ts:846`, `local.ts:1188`), so a non-lingering subscriber never joins a lingering watch |
+| reset on a viewer or credential change | every watch | `setViewer` and both `refreshCurrent`s reset it **and start its re-read** (`client.ts:193–196`, `:330–334`, `:410`; `local.ts:437`, `:488`, `:497`). The `resetVersion` fence checks every watch (`local.ts:993`, `client.ts:655`), so an evaluation captured before a rotation never publishes after it, whatever the watch's options. Today these reset, fence and notify only kept watches, so a watch opened without options can keep showing the previous viewer's rows until its next re-read. |
+
+`close` does not move with `retain`: `observe-watch.ts:48` resets on close
+when `linger || resetOnClose` (the local client passes `resetOnClose =
+false`, `local.ts:1192`; online defaults it to true, `client.ts:868`).
+
+The sites to retarget, on `e1638c414`:
+
+- **Deadlines survive an ordinary commit.** `local-reads.ts:129` clears them
+  when `watch.keep` is false.
+- **The displayed deadline carries through an unavailable replacement.**
+  `local.ts:971`, `:1002`; `client.ts:631`.
+- **Credential rotation resets and notifies.** `local.ts:437`, `:497`, and
+  its publication fence checks `resetVersion` (`:993`).
+- **Online resets, retries and notifications.** `resetKept` (`client.ts:193–196`),
+  `setViewer` (`:330–334`), `refreshCurrent` (`:410`), notify (`:452`), the
+  fence (`:655`), `reload` (`:644`), deadlines (`:632`, `:652`), and the
+  stale `reload` (`:660`).
+- **The reload at re-read start.** `rerun`'s and `refresh`'s `reload()`
+  (`local.ts:984`, `client.ts:644`).
+- **The server-fallback retention.** `stale()` (`read-observation.ts:72`) is
+  also today's uncapped retention during a local read's server fallback
+  (`local-query.ts:187`, `contract.ts:52–54`). A default watch's fallback
+  joins the same episode and its deadline. `keep: true` stays uncapped.
+  `revalidating` is not implemented with `stale()`, which sets `fresh:
+  false` and moves `since`.
+
+The lane audits every `watch.keep` and `this.keep` branch in
+`packages/snapback4/src/`, and lists each in its report with the bit it now
+depends on.
+
+### 3.6 The facade
+
+Lane KG builds this invariant for `keep: true` watches. This RFC supersedes
+KG's keep-only scope and applies it to every retaining watch. On KG's branch
+(`sb4-intent/kg-kept-through-authority` at `f158627ff`) that means:
+- the hold (`read-approval.ts:44–52`) copies A with `revalidating: true`
+  and A's own `fresh` and `since`, never through `staleAnswer`, which would
+  set `fresh: false` and move `since`;
+- the episode's withdrawal is not `expire()` (`read-observation.ts:113` on
+  KG), which increments `resetVersion`;
+- every source withdrawal synchronously clears the shared approval and its
+  peeks, not only the facade's private snapshot. That covers a source
+  `{ loading: true }` and a source expiry of B while authority is held, and
+  KG's deliberate exception for B's earlier expiry is withdrawn;
+- KG's `options?.keep` gates (`app-client.ts:85`, `:104`, `:113`, `:122`,
+  `:214`) follow `retain`;
+- the round-7 test (`keep-observation.test.mjs:361`, `:396`) lets A appear
+  before A's deadlines, and keeps `{ loading: true }` after them.
+
+When the source replaces approved answer A with B:
+
+- the facade retains A's identity only, marked `revalidating`;
+- it arms **A's own device and server deadlines** (the raw watch has already
+  armed B's and dropped A's, `client.ts:631`, `local.ts:1002`), including
+  through clock corrections. A blocked `refusal()` never outlives them. The
+  lane K round-7 case, `keep-observation.test.mjs:361`, stays and gains a
+  retaining variant;
+- it shows A only until A's **episode deadline** (§3.1), which it inherits
+  and never restarts. A second episode never begins at the facade;
+- every source withdrawal passes through synchronously: resets, refusals,
+  and a source `{ loading: true }` (a timeout, a failure, a link loss),
+  which is forwarded, never retained again;
+- a late authority completion after a reset never resurrects anything.
+
+## 4. Why this is safe
+
+- **Nothing new is disclosed.** A retained answer shows only what the viewer
+  was authorized to read when it was fetched.
+- **Display during an active re-read is bounded.** A new episode starts at
+  attempt execution, after queue wait, and lasts at most one second, marked
+  `revalidating` throughout. Predicted leaves and owner transfers follow the
+  same rule; an already-started episode never renews.
+- **A screen that must never show a revoked row** says `keep: false` and
+  keeps today's behavior exactly.
+- **Deadlines and changes of who is looking** withdraw exactly as before
+  (§3.4), for every watch.
+
+## 5. What changes
+
+Each path that publishes `loading` today, and what it does under this RFC:
+
+| Path | Today | Under this RFC |
+|---|---|---|
+| `read-observation.ts:67` `reload`, from `local-reads.ts:128` on `apply`/`admit`/`settle` | Publishes `loading` | Retains, marked `revalidating`, within the bound |
+| `read-observation.ts:29` (start of `fetch`) | Publishes `loading` | Retains, marked `revalidating`, unless `retain: false` |
+| `read-observation.ts:51` (`transportOffline`), `:40` (retries exhausted); `local.ts:1008–1011` (a thrown `rerun`); `client.ts:660` (a stale or offline result) | Publishes `loading` | An unsuccessful end of the whole re-read: withdraws at once, through a function distinct from the retaining `reload()` |
+| `read-observation.ts:59–62` (`finally`), and a local fallback with `publishResult: false` (`local-query.ts:187`, `:212`) | Publishes `loading` before the caller publishes the real answer | Not a failure: the evaluation is still in flight, so retention continues within the episode. Only the whole evaluation's end decides. |
+| `local-reads.ts:129–133` | Clears the expiry timer unless `watch.keep` | Keeps the timer for every retaining watch |
+| `local.ts:355` (a fresh local answer) and `client.ts:321–324` (every online snapshot with data), when the link goes offline | Publishes `loading` | Unchanged: withdraws, through the non-retaining function |
+| `client.ts:221–223`, `:237–239`, `:742–747` (first schema, schema copy, generation) | `reset` | Unchanged |
+| `app-client.ts:84–92` | Forwards source `loading` and `denied`; withdraws a new identity until `refusal()` | Forwards `denied` and hard resets; retains A under §3.6 |
+| `observe-watch.ts:48` (`close`) | `reset` when `keep` or `resetOnClose` | Unchanged; the linger split must not change `close` |
+| `react.tsx:106–112`, `:186–205` | Return the client's snapshot; `usePage` rebuilds its combined `Read` from selected fields (`:180`, `:203–204`) and returns a cached combined result before consulting its pages (`:177`) | Omission reaches the client. `usePage` carries `revalidating`, true while any page contributing displayed items is revalidating. Before returning its cache, it checks the contributing pages' episode deadlines, keeping a stable snapshot while nothing changes. A later page's withdrawal removes that suffix and keeps the valid prefix. |
+
+**`ReadObservation`** arms the bound's timer when it first retains, clears it
+when an answer publishes, and withdraws when it fires.
+
+**The local and online clients** retarget the §3.5 sites.
+
+**The facade** implements §3.6 on top of KG.
+
+**React hooks** preserve omission. New arguments, a changed client, a cursor
+replacement and a remount remain distinct cases (`react.tsx:80`, `:112`,
+`:146`, `:179`, `:189`, `:192`), and new arguments start from `loading`.
+
+**Docs.** The card and manual still say the default withdraws and that `keep`
+means `fresh: false`: `contract.ts:52–66`, `ObserveOptions` at `:180–182`,
+and `CLIENT-AND-OPERATIONS.md:858` and `:1170–1188`. The lane rewrites them,
+and states that callers gate actions on `isReady(read) && !read.revalidating`.
+
+**Tests.** `answer-withdrawal.test.mjs` stays. Its "loading at commit"
+assertions move to `keep: false`. For omitted options, they become:
+- at the commit, the stale answer with `revalidating`;
+- `null` once the read returns;
+- `loading` if that read fails or the bound or a deadline passes.
+
+## 6. Evidence to build
+
+1. **Replacement always comes.** Every retaining watch eventually publishes
+   the right replacement: data, `null`, empty data or a refusal.
+   - `fresh` and the original `since` are kept, and `revalidating` is
+     cleared.
+   - A response from before the commit is rejected.
+2. **Lane K's cases bound the window.** Membership revocation by `apply`,
+   predicted leave by `admit`, and owner transfer under `read <- .owner =
+   viewer`, each with the replacement held, throwing, unavailable and
+   retry-exhausted.
+   - Pin: the revoked row is visible at most one second, always marked
+     `revalidating`, then withdrawn or replaced.
+   - With `keep: false`, today's withdrawal assertions, unchanged.
+3. **Deadlines and resets with options omitted,** through both raw clients
+   and `createApp`, with reads in flight.
+   - Split clocks, rollback, remembered answers, ephemeral owner and peer
+     changes, and first schema installation.
+   - These are today's `keep-clock`, `keep-incarnation` and `keep-adoption`
+     cases.
+4. **The facade A→B deadline case** (§3.6), with authority failure, expiry
+   during the check, and a late completion after a reset.
+5. **A React witness through real client and facade notifications.**
+   - Covers loaded-page cursor changes and an authoritative row removal.
+   - Checks rendered values and a composer's state.
+   - Plain `useQuery` and `usePage` keep an input's text across 20 updates.
+     It must fail on `main`.
+6. **Remount.**
+   - A subscriber joining a live watch already receives its answer.
+   - After the last one leaves, only `keep: true` lingers.
+   - Check the 30-second boundary and scope isolation.
+7. **No `loading` when a re-read lands inside its episode.** On the local client (wasm and
+   process devices) and the online client, a watch opened without options
+   never publishes `loading` after its first answer, across:
+   - sync pages, local writes, predictions and settlements;
+   - server changes and facade replacements.
+
+   In each case, only a re-read that lands within its episode counts. A
+   burst still running at the deadline, such as a process device re-read
+   waiting on the same IPC chain (`native.ts:80`), must end in `loading`,
+   and that is a pass: the cap working.
+
+8. **The episode deadline.**
+   - The facade under a held `refusal()`, measured from the commit: the
+     revoked row is gone by one second after the client processed the
+     change, not one second after the source's re-read.
+   - A post-commit answer that arrives after the deadline still publishes,
+     rather than being dropped because `revision` moved.
+   - A re-read dirtied by a burst of commits does not extend the deadline.
+   - `getSnapshot` and a peek past the deadline return `loading` even when
+     the timer has not run.
+9. **Keys, the per-call override, pages, and the facade's mark.**
+   - While A is held by the facade, `fresh` and `since` are A's own, and
+     `revalidating` is set.
+   - A warm watch, with options omitted and with `keep: true`, shows no
+     previous row during the whole expired-reply series of
+     `expired-server-watch.test.mjs`.
+   - Omitted, `true` and `false` ephemeral refreshes, with a successful
+     reply held, on both local devices.
+   - `usePage` past a first-page and a later-page deadline, with timer
+     delivery suppressed.
+   - A source expiry, failure, offline transition and `retain: false` while
+     the facade's authority is held, with options omitted and `true`.
+   - Mixed subscribers, omitted and `keep: false` and `keep: true` on one
+     operation and arguments, in both acquisition orders, hold separate
+     watches.
+   - A `retain: false` deadline retry withdraws even under `keep: true`.
+   - `usePage` carries `revalidating` from a later page, and clears it on
+     that page's replacement or withdrawal.
+   - A successful fallback or composition with the later local read held
+     keeps retaining within the episode.
+   - The credential-capture case (`keep-incarnation.test.mjs:61`) passes
+     with options omitted, `false` and `true`.
+   - A live viewer change resets an omitted watch and shows Bob's rows.
+10. **Failures withdraw:** a thrown `rerun`, online retry exhaustion,
+   `transportOffline` and `setLink("offline")`, and a `retain: false` fetch.
+   Each publishes `loading`, even for a retaining watch.
+11. **An in-flight answer never lands after a newer commit** (today's fence in
+   `keep-observation.test.mjs`): a response that started before the revoking
+   commit must not publish after it, with options omitted.
+12. **A live viewer change with options omitted** (the
+    `keep-incarnation.test.mjs:120` case). Alice's rows are gone before Bob's
+    read returns, without a sign-out.
+13. **The facade under a held `refusal()`.** With options omitted, under
+    `createApp`, a child stays mounted across replacements, until the held
+    answer's own deadline or the §3.1 bound.
+14. **Resets that must not retain:** an ephemeral incarnation change,
+    `clear_rows` and `settle_exit`.
+
+## 7. What revision 1 answers
+
+Revision 0 was reviewed NOT READY by Astra and Grok
+(`~/sb4-intent/reviews/rfc023-r0.{astra,grok}.md`). Both agreed a retained
+answer discloses nothing new, and both asked for an explicit withdraw option
+and a flag separate from `fresh`.
+
+| Finding | Revision 1 |
+|---|---|
+| The window is not bounded: unsuccessful re-reads publish `loading`, which retention absorbs, and a predicted leave needs no network (High) | §3.1: a one-second bound, and withdrawal on an unsuccessful completion. §4 drops the claim that propagation delay dominates. |
+| Protections written as `if (watch.keep)` would be lost (High) | §3.5 names each and requires the audit. Linger keeps only the lifetime. |
+| The facade needs a concrete deadline invariant (High) | §3.6, built on KG, keeping lane K's round-7 case. |
+| The option semantics are unresolved, and hooks erase omission (Medium) | §3.2's three states; omission is preserved through the hooks, keys and peeks. |
+| The tests detect flicker, not safe retention or progress (Medium) | §6 covers replacement, the lane K cases under failure, deadlines with options omitted, the facade case, a real React witness and remounts. |
+| §7's open questions | A withdrawing option is preserved (`keep: false`), and `revalidating` is a flag of its own. |
+| A re-read that never lands, and a sync burst that keeps dirtying the watch, leave the row up (Grok, High) | §3.1: the bound runs from the first retained re-read to a publication; failures withdraw (§5's table). |
+| Expiry timers and `retain: false` (Grok, High) | §3.5 keeps the timer for every retaining watch; §3.4 keeps `retain: false` withdrawing. |
+| A live viewer change and credential rotation reset only kept watches (Grok, High) | §3.5's third bit: every watch resets. |
+| `keep` decides seven things (Grok, Medium) | §3.5 splits it into `retain`, `linger` and the reset bit, and names each site. |
+| The facade's held answer needs its own deadlines, for every watch (both) | §3.6 supersedes KG's keep-only scope. |
+| The evidence misses failures, fences, the viewer case and the facade (Grok) | §6 items 8–12. |
+
+## 8. What revision 2 answers
+
+Round 1 (`~/sb4-intent/reviews/rfc023-r1.{astra,grok}.md`: Astra NOT READY,
+Grok READY WITH CHANGES) accepted the design's shape: bounded retention, the
+`revalidating` flag, three `keep` states and the reset inventory. It found:
+
+| Finding | Revision 2 |
+|---|---|
+| Two clocks: the source's and the facade's; a late success dropped at the deadline (both, High) | §3.1: one non-renewable episode deadline, inherited by the facade; withdrawal is not a reset, so the in-flight read still publishes. |
+| The bound's start and a wall-clock guarantee (Astra, High) | §3.1: the episode starts when the client processes the change. Snapshots and peeks check it. The cap is a revocation cap, not a latency budget. |
+| The watch key collapses omitted and `false` (both, High) | §3.2: three key prefixes, and `retain` and `linger` stored separately. |
+| The reset fence and re-read must cover every watch (both, High) | §3.5's third row. |
+| `retain: false` loses to `keep` (Grok, High) | §3.2: the per-call override wins for every watch. |
+| The `kept` latch, `close`, and the `client.ts` sites (Grok) | §3.5: the latch follows `retain`, `close` stays `linger || resetOnClose`, and the sites are re-cited on `e1638c414`. |
+| `usePage` drops the flag; `stale()` is the wrong mark; fallback retention is uncapped (both, Medium) | §5's React row, and §3.5's fallback item. |
+| A successful fallback transport is not a failure (Astra, Medium) | §5: only the whole evaluation's end decides. |
+| Presence samples (Grok, Low) | §3.1: excluded from the failure rule. |
+| §6 misses these (Grok, Medium) | §6 items 8 and 9. |
+
+## 9. What revision 3 answers
+
+Round 2 (`~/sb4-intent/reviews/rfc023-r2.{astra,grok}.md`) returned READY
+WITH CHANGES from both families. Revision 3 applies every change and is
+Accepted.
+
+| Finding | Revision 3 |
+|---|---|
+| `publish` swallows loading-shaped withdrawals, including an already-expired candidate (Grok, High) | §3.2: `publish({ loading })` always replaces; retention is its own method; an expired candidate is a hard withdrawal. |
+| KG's hold marks `fresh: false`, ignores source withdrawals, and gates on `keep` (both, Medium) | §3.6 names each site on KG's branch. |
+| The timer rearms (Grok, Medium) | §3.1: an absolute timestamp written once, copied by value. |
+| The §6.7 wording and an unstable deadline snapshot (Grok, Medium) | §3.1: one stable loading snapshot; §6.7 counts only re-reads inside their episode. |
+| Ephemeral refreshes pass `retain: false` (Astra, Medium) | §3.2: per-call retention normalized. |
+| `usePage`'s cache bypasses the deadline (Astra, Medium) | §5's React row. |
+| Stale cites and the retention predicate (both, Low) | §3.4 re-cited; the predicate is `retain !== false && this.retain`. |
+
+
+## 10. Revalidation, change evidence and queued reads (RL and PQ, 2026-09-29)
+
+The author commissioned this smaller revision after LLP 3000.029 was shelved
+(§0). Implementation: lane RL, rounds 0–3, integrated with PQ rounds 0–8. It retains the pre-LV ordering rules;
+there is no new evidence-ordering system. This section supersedes the universal
+one-second cap and failure withdrawals in §§3–6. The policy and queue rules below form one contract.
+
+For a mounted observation whose operation and arguments have not changed,
+omitted `keep` and `keep: true` keep the displayed answer marked `revalidating`
+until it is replaced during plain revalidation: reconnect, explicit refetch,
+slow reads, transport loss/offline, thrown re-reads and retry exhaustion. These
+paths never introduce `loading` after data. `keep: true` differs only by its
+existing 30-second subscriber-free linger. `keep: false` still withdraws.
+
+`apply`, `admit` and `settle` keep the answer during their existing replica
+re-read with the one-second bound, then replace it directly. An immediate
+successful replica replacement never publishes `loading`. Failure or timeout
+withdraws even when the commit was made by this client. An empty result or
+denial replaces data;
+retention does not suppress a completed answer. An applied membership scope tombstone withdraws affected observations immediately,
+before replacement queue service; an ordinary completed denial/empty answer also
+replaces immediately. Key changes, row deadlines, expiry retries
+with `retain: false`, sign-out, credentials, viewer, store/schema resets,
+`clear_rows`, `settle_exit`, incarnation changes and close keep their existing
+withdrawals and fences.
+
+**Every change-evidence channel is bounded.** Local commits (`apply`, `admit`,
+`settle`), acknowledged online mutation receipts, durable and ephemeral
+`/changes` notifications, and `/sync` publications mark change evidence on the answer, for both retaining
+policies. The replacement attempt starts its one-second episode, excluding time in the
+capacity queue (PR round 0, author ruling 2026-09-30). Periodic
+sampling remains plain revalidation. Known empty or unrelated admission/settlement footprints do not schedule known disjoint
+watches or clear disjoint remembered answers. Applies additionally retire all
+remembered server answers and schedule server-derived and retained-sensitive
+watches, as specified below. Unknown dependencies and footprints
+remain conservative; online mutation receipts bound every watch. Authorization
+inputs are dependencies too, so one row change may affect every watch on a table. An evidence-triggered re-read keeps the
+answer, withdraws on failure or retry exhaustion, and
+withdraws at the deadline if still waiting. A later accepted answer can still
+publish: timeout does not increment the revision/reset fence. A change arriving
+during plain revalidation queues a bounded replacement. A retired attempt cannot
+start that replacement's clock. The bound starts when its attempt (or the online
+sequence retry) begins, even if the answer was already marked `revalidating`. Further
+changes, plain refetches and facade holds neither renew nor erase it.
+
+`reload(bounded = false, { queued = false })` records change evidence separately
+from queue timing. The pending bound survives plain reloads before service;
+execution attaches the budget to the existing answer identity.
+`failed(offline = false)` is separate from `publish`: explicit loading results
+and hard resets still replace exactly. A plain failure retains the answer's
+identity and deadlines; a failure with an episode attached withdraws.
+Facades inherit the answer's episode and its own row deadlines, and no longer
+start a fresh episode merely because an authority check is waiting. Evidence
+arriving while approved A is held behind source B also copies its remaining
+budget onto A, taking the earlier bound. Later successful source replacements
+cannot erase that held deadline.
+
+**Freshness choice:** no public flag or type is added. `revalidating: true`
+means a replacement is still needed. Transport loss also sets `fresh: false`
+and keeps `since`, or supplies the observation's last confirmation time if
+absent. A successful local read can still complete offline, with its ordinary
+freshness. A successful replacement clears `revalidating`. Freshness copies
+preserve identity and ordering; retained failure paths preserve row timers.
+Offline metadata reaches the displayed answer immediately, independently of
+ordered recovery, including an approved facade answer held behind a newer
+source. Each keeps its own confirmation time, identity and deadlines. Newer
+valid memory replaces directly; absent memory (including a later denial)
+remains an explicit replacement. Change evidence forgets affected remembered
+answers using the existing in-flight ticket fence before re-reading. The
+observation change version also fences a pre-change local completion, so it cannot clear the
+new episode while a replacement is pending. Failed sync or recovery cannot reinstall a pre-change answer. Every affected local watch, including locally runnable queries, records a
+reported durable change until the replica publishes that cut. A successful
+read from the older replica cannot settle the episode or reinstall data after
+withdrawal. A whole server answer at or after the reported cut can replace
+the display before sync; a composed answer containing older local fields
+cannot. Even after that server replacement, older replica answers stay
+ineligible until sync publishes the cut. This combines the existing store sequence and pending cut with the commit
+revision, watch reset fence and PQ change version, with no new ordering domain.
+
+**Covered publication (OP, 2026-10-05).** A live whole-server reply may
+cross repeated durable notifications and already published ordinary applies
+when its nonnegative safe-integer cut covers all intervening evidence. The
+client coalesces that evidence into one maximum server cut beside its existing
+revision; it captures a separate hard-boundary epoch before evaluating. An
+ordinary apply qualifies only with explicit `published: true`, no snapshot, staged snapshot or
+snapshot-catchup, known-empty predictions, and a valid `images_at` at least its
+watermark. Images may be newer than the log watermark, so `images_at` is the
+floor. Missing or invalid metadata keeps the hard fence. Merely observing a
+published watermark never undoes an earlier hard boundary.
+
+The evaluator establishes this proof only after decoding a whole-server reply
+with no possible retained dependency, retained component or retained-row mask.
+It rechecks the proof at every subsequent checkpoint and final publication,
+including the caller continuation. A cut newer than the reply still rejects it.
+Local answers, remembered recovery and compositions cannot use that server
+proof. Retained-sensitive routing, ordinary search and ephemeral reads never
+borrow it. Reobserving locally or recovering an answer drops the server proof.
+No old local component
+can use the new reply's cut. Direct one-shots retain their existing bounded
+retry procedure; this exception belongs to live observations and their quiet
+refreshes.
+
+**Disjoint evidence.** Separately, a live evaluator may finish across sequenced
+notifications or published ordinary applies whose known table footprints are
+disjoint from its inputs. The client stamps each changed table with the existing
+local revision and captures an unknown-input barrier before evaluation. Its
+proof checks the union of static program/rule dependencies and observed tables;
+unknown branches retain that static union, and opaque native programs cannot
+qualify. It never uses a server sequence to bless a local component. An
+intersecting footprint, omitted footprint, unknown change, newly discovered queued
+prediction or prediction admission,
+settlement, scope loss, store replacement, snapshot or unpublished cut rejects
+that proof. Publication of the apply's watermark does not invent another row
+change: its committed footprint already invalidated the relevant inputs.
+Ordinary search and ephemeral reads retain their separate strict procedures.
+The final continuation rechecks the same input proof, and pending watch cuts
+still prevent an older replica answer from replacing a newer server answer.
+This prevents Following-only backfill from starving an unrelated history read
+without weakening retained-history routing or introducing a new ordering domain.
+
+A disjoint **replica** footprint certifies only the local inputs. If the
+candidate also uses a server component, that component independently needs
+its own cut to cover all pending server evidence, including published applies
+whose replica footprint omits server-only changes. Both proofs must hold for
+a composition. Remembered recovery keeps its original authority fence rather
+than renewing an old cache ticket from a disjoint apply. The candidate-specific
+proof applies before cache writes and through the caller's final publication.
+
+Retained-sensitive candidates also keep the transaction-bound routing fence in
+LLP 3000.028 §3.2. A process-local maximum published device watermark records
+successful published applies at their commit callback, before fallible follow-up
+work, and again when sync reads the actual publication watermark. A candidate
+whose evaluation watermark is behind that floor cannot publish, even when its
+row inputs are unchanged and its server component covers the cut. Missing
+transaction metadata qualifies only while that floor has not advanced since
+attempt capture. Equal-watermark publications coalesce. Store replacement resets
+this floor under the existing hard barrier; it is not a server authority cut or
+a substitute for reading the shared store's transaction watermark.
+
+Queue discovery fences older attempts when the nonempty set of predictable,
+unobserved write identities and predicted footprints changes, including an
+opaque footprint or a second write to the same table. This discovery fence runs
+on every completed queue read, even if intervening disjoint evidence preserves
+the local candidate. The pre-discovery revision check controls only installation
+of cached prediction state and existence notification: an overtaken queue reply
+must not replace newer state. Successive reads of the same set do not advance
+evidence; out-of-order differing snapshots may conservatively fence again.
+This closes the interval before admission without withholding a new local
+evaluation of an already admitted prediction. Admission and settlement retain
+their unconditional hard boundaries.
+
+Both proofs also account for the watch's change version. Only increments
+recorded by the same evidence path can be covered; an unaccounted version
+advance rejects the attempt even if its cut and table checks pass. Later
+accounted evidence cannot erase that mismatch. This preserves the existing
+callback-boundary fence as well as the authority and input checks.
+
+Prediction admission (before its first await), settlement, unknown or
+unsequenced changes, staged/unpublished applies, scope loss, expiry/reset and
+store/schema/session boundaries cannot be covered by a server sequence. The
+existing prediction gate, reset fence, incarnation, credentials, deadlines,
+scope-removal check and delivery approval still apply. A scope tombstone
+withdraws immediately even when it is already published. Covered replies do
+not lower the replica floor, change the eight-attempt queue or renew retention
+budgets. Memory's cut/ticket ordering and expiry barriers remain independent;
+this proof does not renew an old cache ticket.
+
+The deterministic process and wasm regression publishes the first matching
+reply while forcing sync before every response; the prior client discards six
+successive matching replies. The OP report records the three-browser stage
+traces, measurements and stressed routing/retention controls.
+
+Only a `held` watch parks before evaluation until that pending cut applies.
+Every watch awaiting the cut rejoins read work at publication even if sync's
+eventual footprint is disjoint: an omitted notification
+table list conservatively marked every watch. Other attempts rejected by the
+cut remain dirty and retry with backoff from 25 ms to the existing one-second
+cap, outside active slots. See **Live propagation** below.
+
+A generation mismatch reported by `/changes` is a hard boundary before any
+filtering by touched tables, even when the sequence is unchanged and `tables`
+is empty. It enters the existing incarnation reset: every displayed and
+remembered answer is retired, in-flight evaluations are fenced, and the old
+replica cannot answer until backend adoption completes. A failed sync or
+backend read keeps that withdrawal; a sequence floor cannot stand in for the
+program boundary. On both clients, a notification with an omitted table list
+has unknown dependencies and bounds every watch. An advancing empty list is
+also unknown; a quiet empty poll preserves authority and completed memory. Quiet presence publication also checks any pending durable
+cut, so an older sample cannot settle the episode or restore withdrawn rows.
+
+Ordinary search and ephemeral recovery carry transport failure through final
+candidate selection. Entering ephemeral recovery while already offline is a
+transport failure unless a held read or prediction separately blocks it;
+explicit unavailable results and denials still withdraw. Ephemeral row expiry,
+incarnation resets and notification-triggered bounds remain unchanged.
+
+**Queue and lifetime.** PQ is ported onto the pre-LV client after LLP 3000.029 was shelved. Each client
+coalesces queued observations, starts at most eight attempts per event-loop
+turn and keeps at most eight active. Direct queries and timed presence reads
+remain separate. Cancellation and a 30-second attempt lifetime release capacity
+without waiting for an adapter that ignores abort; retired completions cannot
+publish. Expired attempts rejoin the FIFO queue. Duplicate invalidations keep
+the owner's original queue position. Last-owner close cancels active work;
+lingering owners retain their answer and resume cancelled work on reacquisition.
+Expiry backoff uses cancellable timers outside active slots; when due, retries
+rejoin the queue. An invalidation replaces a pending delay, and a cancelled
+timer callback cannot enqueue work even if it was already delivered by the host.
+
+Every invalidation marks retaining answers `revalidating` before queueing;
+`keep: false` withdraws immediately. Only change evidence requires a bound:
+plain reconnect, sampling and refetch stay unbounded. On local clients, queue wait precedes a
+**new** episode and pauses an existing budget. Online change evidence may be
+revocation: its budget starts on receipt and includes capacity queue wait. Once started, the episode cannot
+be replenished by a retry, cancellation, lifetime release, later change, plain
+reload, facade hold or reacquisition. Only actual capacity queue wait is excluded;
+backoff, pending-sync parking and a running attempt still consume its remainder. Failure or timeout withdraws both omitted `keep`
+and `keep: true`; the change-evidence rule wins over plain retention. The
+facade inherits the same budget and queue timing. Row expiry and scope resets remain
+synchronous even when all eight slots are occupied.
+
+Raw local subscription and resubscription apply that policy before queueing.
+A saved answer resumes an existing deadline without renewal. If evidence
+arrived while its handle was closed, the detach epoch discards that answer
+before reevaluation; otherwise resubscription is plain revalidation. Sweeps and
+already-invalidated retries acquire without repeating the policy transition.
+Relevant local change evidence advances the watch's change version. Evaluation,
+cache writes and final publication reject older versions except for the
+covered-server and independently unchanged-input candidates proved above.
+Remembered recovery keeps the strict revision fence. Ordinary commits keep
+their authority revision and any hard boundary. Background presence captures the same
+watch version for evaluation and both publication checks, and checks the pending
+durable cut. Snapshot identity cannot fence a second change while a watch stays
+queued with the same revalidating or loading snapshot. Presence retains its
+separate evaluation path. Retired observed attempts rejoin the queue; cadence
+alone does not advance the version. Online retries keep their sequence fence
+and start deferred episodes after backoff, before their next request.
+
+Selective memory deletion retains a ticket barrier against older attempts,
+including bodies with a higher cut. Unknown footprints and scope resets clear
+all memory. Warm applies drain affected watches after watermark publication;
+an unknown footprint selects every watch. Cold acquisition stays progressive.
+OP stamps the existing table dependency sets to prove disjoint input changes;
+it does not reinstate LV answer ordering or its retention policy.
+
+Clock corrections check all raw and held deadlines, re-arm future ones, and queue
+only due owners. A sweep requeues acquisition without reapplying invalidation:
+a held-only expiry or local wakeup must preserve an unexpired raw answer. Its
+server fetch likewise skips the invalidation transition; explicit expiry retry
+withdrawal still wins. Dirty attempts requeue acquisition, since any real
+invalidation has already applied its policy. Sign-out preserves its denial
+without scheduling another read. A withdrawn server deadline remains a floor across clock
+rollback until the observation's scope resets. Bodies below that floor are
+discarded without publishing a synthetic loading answer over newer data. Local
+queued and presence completions synchronously check the current matching-owner
+floor after evaluation, before changing the watch; a floor captured during
+evaluation alone cannot cover held expiry in the final continuation gap. An
+already-due completion also cannot publish synthetic loading over an answer
+replaced after its attempt began; it still schedules a paced recovery read.
+Online already-due bodies leave the acceptance loop for that paced expiry
+retry, without exhausting the four-attempt sequence retry round. This applies
+even when the displayed answer's identity has not changed, or it is loading.
+Canonical wire argument keys share observations and preserve React page chains;
+retention policies and array order remain distinct. The client card shows both
+row hooks and a list query. Counts and controlled interleavings live in the PQ
+per-row tests; round-0 through round-8 evidence is in
+`snapback4/reports/20260929-pq-per-row-hooks/`.
+
+**Live propagation (LL round 1, 2026-09-29).** A notified cut cannot be
+satisfied by evaluating the older replica. Queue service starts the same bounded
+episode. Only a currently declared `held` query parks before evaluation: its
+routing contract forbids server fallback regardless of the next branch or
+coverage (LLP 3000.016 §2.2). A previous local answer does not establish this;
+time, coverage and prediction changes can make its next evaluation need the
+server. Ordinary queries continue through the complete local/server routing
+procedure, and a whole server answer at the cut can qualify before sync.
+Terminal session and change-feed refusals reset and notify synchronously,
+bypassing parking and capacity. Partition refusals bypass parking and publish
+through the normal evaluation checkpoints, including after a held watch parks. The backend's current held fact takes precedence over a
+query handle's hint, just as in the evaluator.
+
+Every acquired watch awaiting a notified cut registers for sync publication,
+including ordinary queries that continue evaluating. Applying the cut resumes
+them even when an unknown notification resolves to a disjoint footprint, and
+cancels any obsolete retry delay through the existing work queue. A held watch
+releases its slot without a retry timer; ordinary rejected attempts retain their
+25 ms to one-second backoff. Failed sync cannot publish older data, the episode
+still withdraws after one second outside the capacity queue, and scope resets discard the waiting state.
+Direct reads, cold acquisition, presence, queue capacity and every publication
+fence retain their existing behavior. The round-1 report records the cost of
+restoring ordinary fallback with the same two-client measurement harness.
+
+Retained media uses the interpreter's full `asset_home` read dependencies,
+including authorization tables, carried with the private confirmed home metadata.
+An `apply`, `admit` or `settle` with a known disjoint footprint skips only an
+unexpired confirmed home's redundant recheck. Unknown footprints, legacy or
+malformed dependencies, due authorization/row deadlines, and store/schema/scope
+resets still run the full home check. A footprint is copied before entering the
+serial cache queue. Reads and newly viewed downloads still validate the home;
+no asset bytes, once semantics, revocation or retention authority are relaxed.
+
+The before/after two-session Chromium harness, process-device adapter, 20-run
+stage distributions, causal dependency regressions and limitations are in
+`snapback4/reports/20260929-ll-live-latency/`. Its CPU-affinity runs are Linux
+contention measurements, not M1 qualification or reconstruction of the original
+calibration's UI timings.
+
+**Evidence.** `answers-stay-react.test.mjs` renders every captured observation
+notification through actual React `useQuery`/`usePage` in Chromium, one flush
+per update, from process, wasm and online clients. The profile gate contains a
+stateful route slot with mount/unmount counters. The suite covers a 3 s refetch,
+transport failure, retry exhaustion and reconnect, plus peer sync, own send and
+settlement, edit, delete and membership removal. It deliberately renders even
+updates React might otherwise batch away. It tests routing lifetime, not an
+Expo Router installation or an iOS simulator.
+
+`answers-stay-bound.test.mjs` covers actual online `/changes`, failure, timeout,
+late completion, and evidence arriving during plain revalidation.
+The port of LV's `11af2c7d5` seeded harness runs public client paths on real
+process/wasm devices, replacing LV-only internal reconciliation imports. Its
+reference uses injected fixture commits, membership history, failure times,
+sign-out and row image numbers, independent of admission tickets/cuts or
+implementation output. Every notification is checked during held and failed
+replacement reads against the fixture authority and its allowed deadline,
+including `fresh` and the independently known confirmation time in `since`. It releases old evaluations
+before or after sync, checks direct and observed values, rejects row regressions
+and visibility after removal, and checks that a plain failed re-read cannot
+introduce loading. Mixed server/local branches use independently held HTTP
+completions and device clock inputs, including a current local clock denial. This is a port of the scheduling approach and invariants;
+it does not claim LV's native-plugin or cutless-response coverage.
+The report records 300 seeds per host before and after, affected checks, the
+whole guide, the once-run blocking suite and wasm measurement:
+`snapback4/reports/20260929-rl-answers-stay/REPORT.md`.
+
+Round 1 review corrections and falsification runs are recorded in
+`snapback4/reports/20260929-rl-answers-stay/round1/REPORT.md`.
+
+Round 2 adds a notification followed by failed sync and plain offline ephemeral
+recovery to every schedule seed; deleting `answers.changed(watch, cut)` is
+detected. Evidence and review disposition:
+`snapback4/reports/20260929-rl-answers-stay/round2/REPORT.md`.
+
+Round 3 adds real dev-server program-only adoption followed by failed sync on
+process and wasm, including readable/throwing replicas, held local/server
+completions and remembered-answer recovery. Every schedule seed now includes
+a generation change at an unchanged sequence, against an independent program
+authority reference. The quiet-presence/pending-cut regression detects removal
+of its eligibility guard. Results and mutation evidence:
+`snapback4/reports/20260929-rl-answers-stay/round3/REPORT.md`.
+
+PQ round 7 merges those rules with queued per-row attempts. The schedule fixture
+identifies direct queries independently of observation work, requests a public
+resubscription after ending an injected observation failure, and batches awaited
+sign-out cleanup. Authority assertions, the 300 seeds per host and the model
+timeout are unchanged. The integrated report records each semantic conflict,
+all proof failures and the real-clock 1,000-hook process/wasm/Worker results:
+`snapback4/reports/20260929-pq-per-row-hooks/round7/REPORT.md`.
+
+
+**Subscription pressure (PR round 0, 2026-09-30).** A started attempt can be
+retired by a second commit and rejoin the FIFO behind many other observations.
+The previous absolute wall deadline continued there and withdrew a history
+before its replacement could start. The source and approved facade now share a
+small queue clock with each episode. Entering the capacity queue first checks
+whether the existing budget is already exhausted, then pauses it; leaving resumes
+only the unspent time. Copies retain the same timing object, so facade timers,
+raw snapshots and peeks agree even without another answer notification. A timer
+is disarmed while queued and rearmed at service. Plain revalidation remains
+unbounded; the one-second limit still applies outside queue wait. Retries do not
+receive another second. Backoff and waiting for sync are not capacity queue time.
+The eight-start/eight-active work limits, work lifetime, pending-cut fences and
+LL's ordinary fallback/held parking and media invalidation remain unchanged.
+
+Known scope loss must not inherit this longer queue tolerance. Device reads
+record audience dependencies at storage access, before shaping erases keys.
+Point reads record the row's audience; ranges/counts record their evaluated
+pinned audience dimensions (unbound dimensions match every group in that range).
+Compound groups compare typed wire values by position. This private device
+metadata is not added to public `Read`. Server responses also carry a conservative
+scope plan built from public program inputs: literal, viewer and unshadowed
+argument prefixes across **every** branch, plus the schema's validated audience
+inversion into membership tables. It never inspects hidden row keys or reveals
+which branch ran. Compositions union the local and server scope dependencies;
+remembered server answers preserve theirs. Empty table sets never match a scope.
+
+Server by-ID points without audience prefixes, data-dependent or rebound
+selectors, recursive reads, opaque native queries, derived dependencies without
+an audience mapping and ordinary mixed word-search coordination can lack a
+certified group; those dependencies deliberately retain table-wide withdrawal.
+Legacy devices/servers without metadata also stay conservative. Unpinned scan
+dimensions match every group along that dimension. Optional server metadata
+widens to unknown if its 128 dependency entries or 16 KiB envelope is exceeded;
+no partial certificate is published. These are withdrawal precision limits,
+not changes to read authorization or the query meter.
+
+On successful `apply`, `scope` events reset only intersecting dependencies.
+The reset fences in-flight completions and remembered answers and explicitly
+notifies raw subscribers as well as facade followers, independently of `touched`.
+A `published: false` page records a scope cut and parks the withdrawn watch:
+neither an older replica nor a server replacement may republish it until the
+replica publishes that cut. The pending group cut also fences new mounts and
+one-shot reads, after their evaluated dependencies are known. It survives
+unmounting and clears only at actual publication or a hard store/viewer reset.
+Publication resumes parked watches even with an empty footprint.
+Transport loss while parked reports the transport refusal; reconnect/publication
+resumes the observation without remounting. A subsequent current read can still
+return delivered history according to engine policy. Terminal local change-feed
+refusals synchronously reset/notify all watches, bypassing observation capacity
+and fencing older completions. Other denials, row expiry, explicit non-retention,
+keys, credentials, sign-out, store/schema reset and generation remain immediate.
+Viewer replacement records `viewer`. Closed facade deadlines may shorten but
+cannot extend, including from queue pauses beginning after close. The getter
+captures the first deadline it returns even if revalidation started after close,
+and exposes a copy with a fixed episode deadline; live peers keep their queue clock.
+
+A closed non-lingering local handle records the client's monotonic authority revision
+when detached. Every local commit, accepted change notification, sync publication,
+scope cut, terminal refusal and reset advances that revision, including evidence
+received with no live owners. A saved answer may be exposed only while its detach
+revision still matches. Otherwise the getter discards it and its saved cut/waiting
+state; it never parks a detached owner. The next subscription evaluates first,
+remaining loading without a current answer. This replaces the separate detached
+answer-revision, incarnation and pending-scope checks, conservatively including
+unrelated changes. No registry of closed handles is kept.
+
+A resumed detached owner inherits only unpublished notification cuts whose
+tables intersect its dependencies; unknown dependencies or an omitted table
+list match conservatively. One map stores the highest pending sequence per
+table (and an unknown-table entry), cleared as publication reaches each cut
+or a store/schema reset retires it. Unrelated evidence still discards the saved
+answer through the epoch, but cannot block a current local reevaluation.
+Before its first resumed evaluation, it reads the actual device publication
+watermark to reconcile its cut, then consumes the detach marker. Mounted
+observations keep their existing publication notifications; they do not add
+a metadata read to each ordinary change. An older replica cannot recertify an answer that missed
+`/changes`; a completed publication cannot strand an owner on an old staged cut.
+The metadata wait uses the same cancellation helper as evaluation, so close
+and the 30-second attempt expiry release the owner's running flag even when
+the adapter ignores abort. This pays a device metadata read instead of maintaining
+a separate detach watermark. OP round 1's process-local published floor is only
+a routing fence and cannot reconcile a resumed owner instead of that metadata
+read. Normal query routing and the whole-server cut exception
+remain unchanged. Terminal refusals still take precedence at every getter.
+Lingering handles remain in the live map and receive precise scope withdrawals;
+peeks can only read that map. Facades consult the validated raw handle before
+using their approval. One-shot results still pass the pending-cut fence at
+return. Facade approval rechecks terminal refusals as well as the revision and
+pending-cut fence after its asynchronous authority check. Scope removal also retires intersecting remembered answers even without
+a live watch and fences pre-removal cache writers.
+
+**One authority fence and conservative publication memory (PR round 5).**
+The detached-handle epoch and evaluation authority revision are now the same
+monotonic counter. Every accepted evidence channel advances it: local commits,
+change notifications, publication, scope cuts, terminal refusals,
+credentials and resets. An in-flight evaluation captures it before reading and
+checks it after every wait, before writing remembered memory, and at final raw
+or facade publication, with OP's explicit live-candidate proof above. Clearing a temporary partition refusal never rolls it
+back. Every terminal refusal advances it even without owners or on repetition.
+A detached handle compares against this same counter before reuse. OP's hard
+barriers and table stamps classify these advances in the same evidence method;
+they never replace the detached-handle fence. A pending evaluation without a
+valid OP proof retries; a completed disjoint remembered answer can survive
+known table evidence.
+Per-watch reset/change versions still protect ownership, cancellation and queued
+work; incarnation/credential revisions retain their distinct store/HTTP roles.
+
+Accepted notifications invalidate intersecting remembered server answers before
+scheduling owners. Missing tables are unknown. An empty table list accompanying
+a sequence advance is also unknown: it retires all remembered answers and gives
+live/resumed watches the conservative pending cut. A quiet empty notification
+with no advance preserves authority and completed memory: it contains no change
+evidence. Advancing the shared revision on such a poll exhausted bounded query
+retries in the ordinary-history and unread-badge tests. Unknown or nonempty
+notifications still fence pending/detached work, even without a sequence advance;
+store, generation and restore changes retain their separate reset paths.
+
+Every successful apply and observed sync publication clears **every** remembered
+server answer. A replica footprint cannot certify that online-only authorization
+stayed unchanged: even a nonempty footprint can be unrelated housekeeping
+(the social starter reports `typing` on an empty durable stream), or an unrelated
+replicated write alongside the server-only revocation. Sync needs no earlier
+notification, and recovery can publish a watermark whose original notification
+or apply acknowledgment was missed. Invalidation starts at the committed apply
+callback, before fallible post-commit work; final publication repeats it after
+reading the actual watermark. The same rule deliberately includes **no-op** sync
+and staged applies regardless of OP round 1's separate retained-routing floor;
+memory invalidation keeps no publication history. Local admissions/settlements and actual
+notification table lists retain selective invalidation. Scope loss retains its
+precise immediate audience withdrawal; credentials/refusals/resets clear all.
+
+Mounted answers last obtained from the server, composed with it, or recovered
+from its memory revalidate on apply even when replica tables are disjoint.
+Existing `serverRead` and remembered-wakeup provenance select them; no new answer
+registry or flag is added. They use the existing bounded episode/queue and
+publication procedure. Retained-sensitive watches also rerun on every apply,
+including a purely local answer and an empty footprint, because watermark
+progress can change routing without changing a row. Static and actual dependency
+tables select them; opaque programs conservatively cover every table. Other
+purely local disjoint watches still do no replacement work. This prevents a live server answer from missing the same evidence before
+it is subsequently detached or recovered offline.
+
+Every owner invalidated by apply must receive replacement work (PR round 6),
+even with an empty footprint, `keep: false`, or no change cut. The committed
+callback puts those owners in sync's existing resumption set before fallible
+post-commit work; sync's final scheduling consumes that set. Selection cannot
+be reconstructed from retained data or deadlines after invalidation has cleared
+them. No-op publication therefore cannot leave a withdrawn answer idle.
+
+The cost is lost opportunistic offline fallback for online-only or out-of-horizon
+answers after such a publication, even if they remain authorized. A fresh server
+answer must refill memory; observations without an answer stay loading and direct
+queries refuse `E_OFFLINE`. This does not delete authorized replica rows or turn
+remembered data into durable offline coverage. Existing mounted-answer retention
+still follows the episode, scope and expiry rules above. Round 5 measures both
+normal and out-of-horizon social starter queries plus the unchanged LL flows;
+see `snapback4/reports/20260930-pr-subscription-pressure/round5/REPORT.md`.
+
+Recovery reads the same remembered map, with no separate recovery cache. Copied
+candidates, first server replies, compositions, quiet presence completions and
+facade approval closures all recheck the shared revision. Facade held answers
+consult the validated raw handle and its withdrawal/deadline followers. The
+round-5 publication audit names each reuse route and its remaining distinct
+fences. That audit added no result cache or ordering domain. OP round 1 later
+adds the process-local observed watermark floor described above solely to fence
+retained routing; it does not qualify cached answers.
+
+Online change notifications do not distinguish revocation from edits. Their
+one-second budget starts when evidence arrives and continues while queued, so
+this lane does not lengthen revoked-row visibility online. Plain revalidation
+remains unbounded and local capacity wait still consumes no budget. Evidence
+rereads may overtake ordinary queued work at most eight starts consecutively.
+Each class preserves FIFO order: an ordinary read with N ordinary predecessors
+starts within 9 × (N + 1) freed starts while urgent work continuously requeues.
+The urgent-start counter survives turns and resets only on an ordinary start
+or queue clear; active work is never preempted. Ordinary and priority pending
+work each use an insertion-ordered queue. Selection examines their heads,
+skipping at most eight active owners, without copying the backlog. Priority
+markers on active/delayed work carry into its next enqueue and never enter the
+runnable priority queue until then. Duplicate requests retain their position.
+They do not preempt active work or exceed eight starts per turn/eight active.
+The commit journal behind `/changes` has table names, not per-viewer group
+history; interpreting its bounded/saturated page as precise scope evidence would
+miss removals. Until a separate authenticated group-evidence protocol exists,
+a fully occupied queue can still blank an authorized online sibling at one second.
+A free slot normally services evidence first, subject to that progress bound.
+
+**Per-row publication cost (PRL round 0, 2026-10-01).** The online bound
+above still starts at evidence receipt and expires during capacity wait. PR
+round 1 introduced that necessary fence; its `c3c4ed0976` change exposed an
+existing cost: independently completing row reads each notified React, repeatedly
+walking the whole mounted tree until later rows exceeded the second. An
+unrelated write still performs no evaluations, and the bound is not extended.
+
+Successful online observation results install their answer, row deadlines and
+publication fences immediately. While work has a backlog, their subscriber
+notifications coalesce for at most 50 ms on a host with a DOM document, or one
+timer turn on other hosts (including React Native's `window = global`);
+draining the backlog flushes immediately. Unpressured results
+notify immediately. Empty/partial-empty replacements and either side of a row
+deadline bypass batching. A retiring episode caps the notification timer at its
+original deadline: publishing a replacement cannot extend the displayed
+predecessor's bound. Later completions may shorten that timer, never extend it. The batch holds only owners and callbacks present at the
+publication, never a saved result. Delivery checks live ownership, data presence
+and current subscription membership. A new subscriber already reads the current
+answer and must not receive an older queued notification. Ordinary invalidation,
+denial, refusal, expiry and reset notifications stay synchronous and retire the
+owner's queued notification; close cancels the batch. Raw getters and facade
+followers keep their existing synchronous authority and deadline checks.
+Each captured callback is isolated: a throwing subscriber is reported through
+the existing `snapback4 client listener:` console error channel and cannot
+skip later listeners or escape the batch timer. The timer bound is subject to
+host delivery: a late timer delays paint of the already-published replacement,
+without extending an unanswered owner's queue-inclusive authority budget.
+
+Browser capacity turns use `scheduler.postTask` when available, otherwise a
+`MessageChannel`; timer-based/injected turns remain available on other hosts.
+The host task, not a promise continuation, resets the eight-start allowance.
+If `postTask` rejects before callback entry without cancellation, a cancellable
+timer runs that capacity turn; the rejection microtask grants no new starts.
+Queue clear cancels the task/ports or fallback timer. No ninth active read, priority change,
+polling loop, new authorization revision, recovery memory or deadline tolerance
+is introduced. Local publication and LL's dependency-driven resumption/media
+checks are unchanged. The causal React regression separately counts commits and
+checks that answers publish before their notification turn; the terminal-refusal
+control holds that turn while requiring immediate withdrawal. Direct deadline
+controls cover the retiring episode, old/new row deadlines and empty/null
+replacements; all five fail the initial batching implementation. Evidence is in
+`snapback4/reports/20261001-prl-per-row-loading/`.
+
+`inspect(client)` from `snapback4/inspection` is an auxiliary SDK surface, like
+acquisition inspection; it does not change `Client` or the read vocabulary.
+Local and online clients report source observations grouped by query name, total
+subscribers, queued (including delayed retry) and in-flight counts, revalidating,
+loading, and withdrawn (had data, now loading/denied). Counts include lingering
+observations. Direct queries and timed presence refreshes are outside this queue.
+Collection begins only on the first inspection: beforehand scheduler transitions
+allocate no diagnostic callbacks, read no diagnostic clock and record no timings.
+Already queued work is measured from opt-in, not retroactively.
+The last 64 source withdrawals include host timestamp, query, cause and optional
+refusal code; the last 256 completed attempts supply nearest-rank p50/p95/max
+queue and attempt milliseconds separately. Queue latency excludes retry backoff;
+attempt duration includes its async evaluation/publication work. No arguments,
+row values or credentials are collected. Samples are detached copies. App facades
+forward the current client's inspection and return unsupported after their scope
+ends. A mock/unknown client also reports unsupported. `useInspection(enabled)`
+provides opt-in development overlay data at 250 ms; disabled has no polling timer.
+The client card gives the screen-flash recipe within 130 lines/1,200 words.
+
+The deterministic 81-observation interleaving uses two real server edits: the
+first history evaluation is held, the second edit retires it, then its completion
+is released behind eight held slots and at least 72 queued observations. Main
+withdraws on both wasm and process; the corrected history retains through the
+1.2-second wait and then publishes the second edit. Separate tests pin shared
+facade timing, remaining-budget exhaustion, immediate scope removal, inspection
+counts and the two-device offline scenario with 124 observations per client.
+The Chromium wasm/process-rendered traces and unchanged LL harness before/after
+measurements are in `snapback4/reports/20260930-pr-subscription-pressure/`.
+
+
+The real-time two-device harness attributes gaps to the observation's actual work
+state. Its ordinary run retains all four histories; deliberately holding a live
+attempt past one second still withdraws immediately. Capacity-queued timeout is
+always a failure unless the budget was already exhausted at queue entry. Other
+timeouts must have `inFlight: true`; an idle/backoff gap does not qualify this
+harness assertion. Each
+empty publication needs a recorded legitimate timeout, every render has unique
+IDs, and convergence renders both offline messages once. The separate frozen
+clock and held-slot regressions require no gaps at all during capacity wait. This
+distinction matters under the full suite's host load; an unconditional no-gap
+assertion would incorrectly repeal the retained active-attempt bound.
+
+PR round 1 controls and qualification: `snapback4/reports/20260930-pr-subscription-pressure/round1/REPORT.md`.
+
+## 11. One-shot reads settle (QS, 2026-09-30)
+
+`client.query(op, args)` returns `Promise<SettledRead<R>>`: a ready answer or
+`{ denied: Refusal }`, never loading. `SettledRead<T>` excludes the loading arm
+of `Read<T>`. The `existence` overload excludes `"loading"` for that type;
+its implementation and the sole ready classifier/pending predicate of
+LLP 3000.031 §1.1 are unchanged. Ready still permits partial coverage and stale
+freshness; settlement proves neither completeness nor absence.
+
+A one-shot allows four unsuccessful publication rounds, with 25/50/100 ms
+pauses between them, and one 30-second host timer starting at invocation.
+Waiting for dependent write custody does not consume a round or poll on those
+pauses: subscribe before inspecting the outbox, wake on observation/failure or
+terminal/link state, then recheck custody and the candidate before any
+reevaluation. Notifications racing an asynchronous queue read force a fresh
+inspection. The earlier applicable limit wins.
+The timer includes device/transport queueing, server requests, retry backoff,
+and the app facade's opening and final authority checks. A suspended host runs
+no code; settlement resumes when it runs. Existing evaluator/transport retries
+stay within this one timer. Exhaustion returns `E_QUERY_RETRY`, family client,
+`retryable: true`, guide `client`. Unexpected adapter exceptions become
+`E_CLIENT`. A refused query makes no mutation-outcome claim.
+
+Both clients call the same evaluators and final publication fences as
+observations. A withdrawn deadline, a possibly relevant concurrent commit,
+obsolete scope or internal loading candidate without blocking custody triggers
+another round. A candidate withheld only by dependent custody uses the event wait. A server
+loading reply still spends a round. After an event wait, the same candidate is
+rechecked before reevaluation: waiting spends no round, but any intervening
+commit, generation, deadline or scope invalidation spends the existing race
+bound. Facades repeat asynchronous authority approval after each wait. A commit
+with a known disjoint table/field footprint does not consume a round. Missing,
+unsequenced or incomplete change evidence remains conservative; it is never
+interpreted as an empty footprint. Local one-shots leave
+incarnation retry ownership to this bounded loop. The facade calls the same
+raw attempt through an internal function-identity map, adds authority checks,
+then runs the raw final fence and delivery approval synchronously. There is one
+budget, not a fresh raw budget per facade retry. Terminal store/session/close
+refusals win over timeout. Aborting ends the caller's wait even if an adapter
+ignores abort; existing signal fences prevent its late answer from publishing
+or adopting transport evidence. Raw attempts also observe their client's
+lifetime when entered through the facade. The function-identity map also exposes
+the raw terminal-refusal callback to each facade: a facade timeout can win
+before the raw catch runs. Every tier and facade uses one terminal-source selector: public scope, store,
+close, session, change stream, partition, and inherited raw state. Its required
+fields force adapters to account for every source, including absent ones.
+Online change-stream refusal now wins an outstanding deadline just as it wins a
+fresh invocation. The public scope fence remains first.
+
+**SN custody guarantee (2026-10-07, corrected in round 1).** At successful
+publication, every write admitted to this client whose operation may affect
+any query input has been observed or failed, **or a predictable write is included
+in a complete predicted device answer**. This exception holds online and offline.
+A local success is observed only when the device outbox records `observed_seq`;
+a server acknowledgement alone is insufficient. An online success requires its
+terminal receipt and a query cut covering it. After waiting, the publication
+proof runs again; an invalidated candidate requires reevaluation within the
+remaining rounds. The answer includes the
+write's effects to the extent they belong in this viewer's authorized result.
+
+The implementation narrows the old ready-publication barrier without
+strengthening it: an unobserved write blocks only if its static effects may
+intersect the query's reads **and** `!write.predictable || result.served ||
+result.localWakeup`. Server, composed and remembered candidates retain the old
+observation requirement; a complete predicted device answer settles immediately.
+Unknown dependencies mean possible intersection, not that prediction is forbidden.
+Provably disjoint custody does not block any candidate. This is a conservative
+static proof, not a claim that different rows of one table are independent.
+The evaluator marks a completed pending gate that withholds a candidate, so it
+can wait on custody; an interrupted or expired candidate still spends a retry
+round and can recover a complete prediction on its next evaluation.
+Existence, completeness, freshness and observations' shared pending predicate
+are unchanged; settlement itself still does not certify complete coverage.
+
+Optional online dependency discovery runs only for a data candidate. A refused
+query retains its original transport or session diagnostic and does not wait
+for `/schema`; a loading reply cannot gain more publication attempts by waiting
+on pending custody. Discovery refusals for data candidates still use the
+credential-revision rules below.
+
+The compiler adds `settlement: { reads, writes }` to the existing public program
+envelope, before private maintenance formulas are projected out. This changes
+canonical compiled backend bytes even for unchanged source when the server is
+upgraded. Clients adopt the updated envelope once to obtain these facts on their
+next backend fetch/adoption. The typed device decoder discards the summary;
+it does not enter `Schema`, interpreter `Program` IR, the server's stored
+generation schema/programs, or the device's persisted backend. No storage
+migration or new schema capability is introduced. The capability-free control's
+canonical `/schema` pin is 3,100 bytes (formerly 2,950); its stored-schema pin is
+unchanged. Published 0.2.33 native and WASM devices accepted the additive envelope
+in the Apartment mini's round-3 behavioural checks; the exact backend pin is
+also checked by the Linux compiler tests. Each footprint
+maps a table to all columns (`null`) or a set of columns; absent tables mean no
+effect, and an absent/null/malformed summary means unknown. Exhaustive lowered
+IR effects cover branches, helpers, search and decoration inputs. Read closure
+adds authorization predicates (unique probe keys plus extra equalities), rule
+fields and expiry, `read through` ancestors, aggregate source/recipient/parent
+inputs and inherited Following sources. Write closure adds receipt allocation
+counters, recipient-removal runs, maintained views and their public owner
+columns, inherited descendants and Following effects. Inserts, deletes and
+expiry-producing writes cover the whole table and their derived effects; search
+indexes follow their source table. Compiler-owned `delivered`, `seen` and
+`compactReceipts` recipes alone narrow recipient writes to their actual
+watermark columns. Thus history's key-only membership rule is independent of
+receipt watermarks, while a returned watermark, decorated receipt or maintained
+count remains dependent. Native/opaque programs remain unknown.
+
+Local and online tiers use the same footprint intersection and event waiter. Online clients
+discover summaries through `X-Snapback-Settlement: 1` on ordinary responses,
+then fetch `/schema` within the same timer and bind it to the answer's generation.
+Final publication, including after facade approval, rechecks the installed facts'
+identity, the installed store and the highest generation discovered from that
+store. Newer facts wake custody waiters and retire older candidate proofs; late
+discovery replies cannot replace newer facts. Discovery compares restore evidence
+with its dispatch floor, not a floor advanced while its response was held.
+Discovery handles refusals at the credential revision captured at dispatch before
+considering optional facts. A current non-retryable `E_AUTH` ends credentials
+and retains the exact server reason (LLP 3000.007 §20.2), overriding the earlier
+query answer; a late refusal from an obsolete rotation cannot end its successor.
+Successful facts from an obsolete credential revision are not installed.
+Older servers/adapters make no additional discovery request. Unavailable facts,
+including an offline device cache whose program serialization omits this optional
+envelope, retain the unknown intersection. The mock accepts explicit handler
+effects for concurrent-commit invalidation through the same validator; missing
+or malformed summaries and undeclared JavaScript handlers are opaque. Its handlers have already applied complete local predictions, so pending
+custody does not block their ready answers. The facade propagates the raw wait
+without creating another budget and repeats authority approval before delivery.
+
+Local admission retains the compiler's field sets. Settlement cannot use the
+settled operation's effects alone: it restores all predictions and replays the
+survivors, which can read that operation's rows and change other tables, including
+implicit maintained/receipt effects. The device reports the optional top-level
+`settlement_unchanged: true` only on a successful settlement which restored and
+replayed no prediction rows and whose existing bounded net-transaction recorder
+proves every row unchanged through delivery publication. Any prediction activity
+stays unknown: even equal final rows alone cannot certify the overlay metadata
+used by provisional reads. This is distinct from `preserved`, which certifies
+authority while permitting changed values. Only this affirmative proof permits
+the SDK to retain the settled operation's static footprint (conservatively
+covering its custody/metadata effects); otherwise the local commit is unknown.
+Changed rows, recorder overflow/rollback and old or malformed device evidence
+all widen. Prediction-set, admission, store/generation and final facade fences
+still apply independently. The boolean is transient reply metadata, not stored
+schema, device IR or persistence.
+
+Authoritative `/sync` and `/changes` replies add `changes: { after, through, writes }` from the
+existing bounded net-transaction recorder (§12): inserts/deletes cover a whole
+table; updates name changed columns. Private aggregate effects are projected to
+their public owner columns; unknown private effects cannot certify a footprint.
+The complete interval covers hidden and
+server-only inputs as well as the visible replica. Missing, pruned, gapped,
+over-limit or unknown intervals certify nothing. The client validates the shape,
+interval and already-fenced store/generation. A mutation receipt may still use
+its static write summary only for the next, non-replayed sequence in that same
+known generation. Other evidence stays conservative at table level, or unknown
+when the complete range cannot be established.
+
+Local one-shots keep independent proofs for replica inputs, unsequenced local
+changes and authoritative server cuts. A normal published apply without live
+predictions can use the authoritative fields; additional touched tables,
+acquisition markers and joined scopes widen the local proof. Snapshots, private
+staging and unknown publication remain fenced. A whole server answer may cover
+relevant sequenced evidence with its cut. A composed answer must additionally
+prove its local inputs unchanged. Retained-history routing may survive a higher
+unrelated watermark only when both the local proof and the complete server
+interval are disjoint and the evaluated watermark covered publication at the
+start. A covering server cut alone cannot renew old retained rows. Existing
+scope, identity, deadline, credential and rollback checks still apply. Empty
+same-cut sync preserves an accepted one-shot's delivery approval; a relevant
+commit, expiry or credential change still retires it. Observation policy is
+unchanged.
+
+While a one-shot waits, a known successful dependent write requests observation
+even when the FIFO tail is unresolved. That sync may overlap a held POST.
+`LocalNetwork` coalesces observation rounds; ordinary mutation dispatch remains
+FIFO and explicit `sync()` reserves a round newer than its invocation, including
+when an older overlapping round fails. Ordinary flushing keeps its batching.
+Round 1 found that the existing fences alone do **not** make store replacement
+safe during a POST: a late success can be stamped with the replacement identity
+if the old entry has no receipt binding yet. Before observing an identity change
+or adopting a new generation, `syncRound` now defers that response while
+`ordinarySending` owns a POST. The POST records its outcome first; ordinary sync
+then retries identity observation/adoption in FIFO order. As defence in depth,
+terminal history carries the dispatching `store_id` through failed saves, receipt
+window adoption and recovery. `settle_from` compares that binding with the device
+store in the settlement transaction. A foreign success retires the queued
+prediction without stamping a success sequence into the replacement; the original
+success remains in history. Public lookups and notifications omit this private
+binding and retain the existing `Write` shape. A page without matching
+identity evidence is also deferred. Terminal refusals still pass through their
+normal handler. Same-store, same-generation acquisition can overlap; its ordering
+is protected as follows:
+
+- `Device::begin_send_for` persists `SEND_REVISION` before dispatch.
+  `sync_state` captures that revision, the bounded pending-ID declaration and
+  published/private acquisition cuts. `store_identity::observe` compares those
+  captures to current durable state; `apply_publication_inner` checks again,
+  along with generation, owner, cursor and snapshot continuation. A later send
+  invalidates an earlier page instead of applying an image that omitted it
+  (LLP 3000.001, implementation follow-up and Repair B).
+- Published acquisition applies receipts and row effects together, then replays
+  surviving predictions. Only a matching `sent` qualifier establishes success;
+  an acknowledgement sequence alone cannot turn a refused POST into success.
+  `receipt_store`, `success_seq` and replay eligibility retain the original
+  store binding. `settleReceipt` saves terminal history before settlement, and
+  `call()` drains unpersisted receipts before apply/observation/adoption.
+  `settling` plus emission protection retain the POST owner's notification
+  through overlapping lookup or retirement. Its own success/refusal remains
+  authoritative and emits once (LLP 3000.013 §6; LLP 3000.019 §3.3).
+- Replacement observation fences the old client incarnation at the committed
+  callback before fallible follow-up. Qualified old successes retire as sent;
+  unknown outcomes retain their original outbox binding, never replay into the
+  replacement. `adopt_captured` uses `install_checked` to compare the observation's
+  store, generation, send revision and acquisition metadata atomically with
+  schema installation. Late pages/answers must pass these device fences and
+  the client's incarnation/credential publication fences. A late POST's receipt
+  proves execution in its original store, not an effect in the replacement
+  (LLP 3000.007 §18.2 and §20.4; LLP 3000.001 Repair B).
+
+The round-1 overlap regressions run both device hosts and both app facades:
+a POST's success/refusal arriving after observation; qualified receipt lookup
+while that reply is held; a later send invalidating a captured page; and real
+store replacement or schema deployment discovered while the old POST reply is
+held, verifying adoption waits until that reply has been recorded.
+They assert final rows, original outcomes/sequences, and one terminal notification.
+Observation creates no second outbox and does not await unrelated writes.
+
+`online only` views fall back to the server online. Offline, the local
+evaluator may return a permitted device/remembered answer; an unavailable
+result refuses `E_OFFLINE` in that round. The bare online tier refuses its known
+offline link immediately and starts its existing probe for future calls.
+A dependent custody blocker on a known offline link refuses `E_OFFLINE` in that
+round; it never waits for reconnection or spends the 30-second budget. A link
+change wakes an existing custody wait. Permitted complete predicted device
+answers still settle offline. Closed, signed-out, replaced, restored and
+reset-store refusal codes remain those of the existing fences. A schema reset
+can require another round; it cannot bypass adoption. Held-only queries retain
+their no-server rule. After acquisition, a held loading candidate with no pending
+prediction refuses non-retryable `E_QUERY_HELD` in its first publication round
+only when static shape proves that no time, argument, coverage or membership
+change can make it answerable. Actual read tables do not prove permanence.
+The current proof deliberately recognizes only an unconditional literal-key
+online-only count's compiler lowering (both the earlier reused slot and LLP
+3000.015 §3's separate row/count slots), with no arguments, native body,
+inherited source or parent/own-key aggregate. That shape reaches the engine's
+unsynced-table unknown check before row authorization, independently of membership;
+it cannot route around it or return a different branch. All other forms, including
+ephemeral reads and input-dependent branches, conservatively keep bounded retries.
+This is a shape proof, not another evaluator. Its message says to use the online
+path without `held`, or sync the required data. Possibly relevant concurrent commits still invalidate
+candidates; acquisition and pending writes retain the retry path. Offline
+unavailability remains `E_OFFLINE`.
+Observations keep loading; no evaluator answer or existence predicate changes.
+
+The mock uses the same settlement helper, a dependency-scoped version fence
+around its existing evaluator, and terminal close/sign-out checks. Its handlers return values or
+pages, not `Read` envelopes; it does not emulate Quarry acquisition. Its complete
+predicted answers settle with pending writes, online or offline; a pending
+prediction is not an offline-link diagnosis.
+
+Observations, hooks, retention, withdrawal, queues, row deadlines and existence
+semantics remain §10 and LLP 3000.031. Direct reads share evaluators and
+device/transport resources, not the eight-observation start queue. Occupied
+observation slots alone do not starve them; waiting on a shared host or
+transport consumes their 30-second total. SN round 2 adds the dispatch-store
+check in device settlement and reuses the server recorder; the compiler summary
+design and interpreter semantics are unchanged.
+
+Evidence: `snapback4/reports/20260930-qs-one-shot-settles/`. Causal tests cover
+online, wasm, process and all three app facades, links, final continuation
+retirement, expiry and rollback latches, delivery approval, occupied observation
+slots, ignored aborts, terminal sessions, exhaustion and offline memory. The
+seeded local model interleaves admissions, one-shots, links, deadlines and close
+with an independent admitted-value oracle. Type tests require settled results
+and preserve live loading.
+
+SN evidence: `snapback4/reports/20261007-sn-one-shot-settlement/REPORT.md`.
+Regressions first reproduced held receipt custody, a server aggregate behind an
+unrelated like, and unrelated commits exhausting the old round budget. Negative
+controls cover rows, authorization, maintained counts, returned receipt fields,
+unknown effects, failures and the single 30-second timer. Mixed queues cover
+reads started before and after acknowledgement while an unrelated send is held.
+The round-1 report in that directory records the prediction regression, restored
+one-shot tests, offline wakeups and the overlap qualification. Round 2 records
+the two independent reviews, their round-1 reproductions, generation/facade and
+late-discovery races, receipt commit bursts, field-disjoint/unknown interval
+controls, all six aggregate tiers, malformed mocks and adopted foreign receipts.
+Round 6 attributes all seven qualification files at pre-SN, SN landing and
+merged main, preserves the model's four-request bound across custody waits,
+and keeps failed-query diagnostics ahead of optional discovery. Its Following
+controls run on unchanged SN product, release held sends concurrently with
+dependent one-shots, and retain the sent/observed and mounted-answer assertions.
+The report records the complete suite and the post-wait facade-authority control.
+
+## 12. Bound only possible row revocation (Lane RV, 2026-10-02)
+
+**Author rule.** Answers stay visible and `revalidating` until replaced unless
+change evidence may revoke a row; then the existing one-second withdrawal
+bound applies. Calibration #28's repeated history withdrawal was permitted by
+§10, not a lost message. Compiled rules now supply enough information to avoid
+that withdrawal for certified ordinary changes. §3.1 and §10's universal
+change-evidence wording above is historical where it conflicts with this section.
+
+**Unknown-evidence reconciliation (Integration 20, 2026-10-21).** The
+P1-MR fix round 1 in [LLP 3000.009.001.000 §3.3](3000.009.001.000-the-postgres-store-port.rfc.md)
+qualifies this section's earlier unknown-evidence wording. A null or absent
+`preserved` value certifies neither preservation nor revocation. Change versions,
+pending cuts and memory fences still advance, and the answer refreshes while
+its previous value remains visible. A known empty list retains the existing
+revocation bound. Malformed non-null envelopes keep their existing conservative
+treatment. Hard withdrawals, row deadlines and completed replacements remain
+unchanged. This records the incoming policy; it introduces no further decision.
+
+**Evidence.** Server and device record net transaction row changes. A bounded
+recorder keeps initial/final images for at most 256 ids and 256 KiB of observed
+images; overflow or rollback widens to unknown. Internal prediction restore
+and replay are folded before classification, so deleting and reinstalling the
+same id does not invent a deletion. Physical store clears remain unknown.
+The summary contains only table/column names and population/deletion flags;
+values and ids never cross an evidence channel. Writable server open (including
+in-memory creation) creates the summary table before returning the store,
+upgrading existing server stores there. Commits only write and prune summaries;
+they perform no evidence DDL, preserving cached SQLite plans and schema version.
+The server classifies complete intervals of at most 500 commits; merely opening
+an older native device does not add a metadata table. Each server commit
+prunes summaries older than the last 1,000 commits in that same transaction
+(twice the certification window). Pruned intervals widen exactly like missing
+evidence. The Postgres evaluation backend records commit metadata in its
+transaction tail without `_change_evidence`; it emits no preservation
+certificates; null/absent preservation follows the policy above.
+Legacy, missing, gapped, malformed or oversized intervals certify nothing.
+
+A shared Rust classifier walks the compiled schema: read rules (including
+negative existential probes), sync audiences, inherited authority and deadlines,
+aggregate sources and row-key owners, asset fields and expiry columns. It also
+walks every non-audience `written_by` owner column: preserving means that every
+previously authorized row remains authorized and every previously disclosed
+field remains disclosed to that reader. Values may change. The private value
+itself is not an authorization dependency; `readable by audience` removes the
+owner-dependent read restriction. Disclosure markers are compiled schema facts,
+protected by the existing program/generation fence. A delete
+revokes its own table; any change to a whole-table rule input is conservative.
+An insert into the read table and an update outside those dependencies preserve
+its authorized row population. When a preservation list is available, unknown
+schema dependencies and opaque native queries retain their conservative
+classification. Limit displacement and same-id replacement remain ordinary
+answer replacement, not authority revocation.
+
+**Bytes-once ruling (Charlie, 2026-10-03; ON2).** `once` protects the asset's
+bytes: they are served to a principal once, and a second fetch refuses with
+HTTP 410 `E_ASSET_VIEWED`. It does not hide the handle or metadata (id, type,
+dimensions, byte size) after viewing. Consuming a view changes neither row
+membership, order, other columns nor disclosure of the handle. Therefore a
+`once` column, including optional/list wrappers, qualifies for the preservation
+certificate exactly like an ordinary asset column. Remove only the classifier's
+blanket unknown dependency on the private once ledger. Asset-column edits keep
+their existing conservative dependency; deletes, rule inputs, denied reads,
+revocation deadlines and account/store retirement keep their existing boundaries.
+Server byte authorization, single-serve accounting and second-fetch refusal are
+unchanged. A retained handle never authorizes content: builders render “Opened”
+(or similar) when `useAsset` or the fetch refuses with `E_ASSET_VIEWED`.
+The broader hide-the-handle prototype at `origin/sb5/on-once-masking-parked` was not
+adopted; no masking machinery or per-cell authority protocol is introduced.
+
+LM's base settlement reproduction withdraws the entire history at 1,000 ms on
+both process and wasm devices when an unused nullable `once` column is present.
+ON2's regression retains history and `Pages` past that boundary on both devices;
+the online regression retains a consumed handle during a held write replacement.
+The byte-refusal, real deletion, membership deadline and account/store switch
+controls cover all three tiers. The existing asset soundness test now requires
+preserved row/field disclosure through per-reader consumption while continuing
+to require `E_ASSET_VIEWED` and asset-removal refusals. Evidence is recorded in
+`snapback4/reports/20261003-on2-once-preserve/REPORT.md`.
+
+The private additive `preserved` list certifies table names. Missing or malformed
+lists cannot certify anything. `/changes` and `/sync` carry server certificates;
+mutation acknowledgements carry their committed certificate and generation.
+Ephemeral epochs keep an intersected ring of certificates; incarnation/ring gaps
+widen. Device `apply`, `admit` and `settle` add certification at the top level of
+the reply, keeping every existing `ok` payload and query reply unchanged. An
+ordinary `apply` intersects its local effects with the server's whole interval
+(including an image head ahead of the log watermark). Snapshots and deferred
+intervals conservatively widen. This avoids certifying hidden server-only inputs
+from a device's partial partition. The publication fence permits only this
+additive top-level field on successful replies to those three commit operations
+(with at most 256 strings of at most 128 characters), separately from PR's
+existing query `scopes` allowance; the operator must run it on darwin-arm64.
+
+**Client.** Certification must cover every table in the evaluated answer,
+including rule dependencies. The existing scope plan distinguishes a compiled
+read from an opaque/legacy reply; a rule-input table need not be a displayed
+scope. The local client additionally checks the current program's native fact.
+Evidence still advances all change versions, pending cuts and memory fences.
+The retention choice is the boolean passed to `ReadObservation.reload`.
+Approved facade answers retain their evaluated dependency plans until released;
+selection, classification and scope withdrawal also consult those plans, so
+source B cannot hide the dependencies of still-displayed A. A safe event cannot
+clear or renew a previously started revocation episode. Failures and retry
+exhaustion follow plain revalidation for certified evidence. The facade and
+`usePage` inherit the source episode, so they do not create another timer.
+
+**Unchanged.** Known scope loss withdraws immediately, including staged pages.
+Row expiry, sign-out, credentials, viewer/store/program changes, `clear_rows`,
+`settle_exit` and resets keep their hard boundaries. Online mutation evidence
+also compares the answering generation before retaining. Local revocation
+budgets exclude capacity queue wait; online ones include it. PRL notification
+batching, PQ eight-start/eight-active limits, RL plain revalidation, publication
+fences, and the rule that late accepted results can publish after timeout remain.
+
+**Proof and qualification.** `revocation_soundness.rs` evaluates authorized
+point answers, including their disclosed field sets, through the engine before
+and after randomized storage commits over the published guide corpus, Clique
+and receipts/expiry fixtures. Generated
+physical states deliberately include missing inputs and bypass higher-level
+constraints, so the classifier cannot rely on them. It reports seed and
+non-vacuity counts. Six viewers include owners and strangers. Time advances
+between commits: clock-induced losses must have published a due `nextExpiry`;
+the next commit is then compared at that same clock, so certification cannot
+excuse a missed hard expiry. Real mutations and expiry maintenance supplement
+physical writes; scalar/nested assets and per-reader `once` consumption are
+exercised through the engine. Directed filter exits and ordered-limit displacement
+certify only after unconditional point reads prove row and field access survives.
+The P1 ownership fixture fails the field oracle on round 0, and both public and
+member-readable ownership transfers fail through the real server and public
+online client on round 0. Retained preserving answers still withdraw at exact
+expiry on online, native and wasm clients. Directed tests cover net prediction
+replay, deletes, rule columns, membership inputs and unknown envelopes. Controlled-clock public-client
+regressions fail the lane's main baseline. `scripts/qualify-revocation-retention.mjs`
+runs React hooks and the facade in Chromium on a real wasm device against dev,
+with eight blocked reads and 24 competing observations, busy messages/receipts/
+reactions, and deletion/unsend/rule-column/membership controls. Exact commands,
+results, limitations and wasm measurement are in
+`snapback4/reports/20261001-rv-bound-only-revocation/REPORT.md`.
+
+## 13. Bounded screen ownership (Lane L, 2026-10-03)
+
+Implemented for Charlie's LLP 3000.032 §4.5 commission. The first pilot is the
+installed social starter's `BoundedConversation.tsx` and `PageLifetime.ts`,
+printed verbatim in `guide social` and exercised under real React Strict Mode.
+The actual Cal29 L1–L3 rewrite and measurements are in
+[the lane report](../snapback4/reports/20261003-l-screen-lifetimes/REPORT.md).
+
+**Decision: keep the existing observation and hook signatures.** Route-scoped
+children deliver the requested activation behavior. No `active` option,
+`{inactive:true}` overload or new server Read word is added. This follows §4.5's
+explicit recipe-first condition, despite the common full-proposal commission:
+implementing an unnecessary hook cannot establish value. An active option
+would still require bounded identity selection, application visibility and
+owner reset handling. It removes none of those obligations. `keep:true` keeps
+its existing independent, fenced 30-second linger; an active sibling retains
+its watch when another owner leaves. Shelved LLP 3000.029 remains shelved.
+
+**Implemented recipe.** The shell owns composer intent and submission/recovery
+state, with an explicit key over backend, account, query arguments and client
+identity. Cal29 keeps text, edit mode, attachments and reply IDs there; protected
+reply previews come from live reads. A refused send restores text or offers Edit
+without replacing a newer draft. Hidden recovery stays in this owner; account or
+backend replacement retires it, including late upload/send callbacks. The active route child
+owns membership, the root page marker and requested pages. Closing it releases
+all of those owners. An account/backend/client/argument change while hidden
+still clears the draft. Durable admitted writes stay in the SDK's sole outbox;
+unmounting is not cancellation, resubmission, or authority to replay results.
+
+The marker saves only `{epoch, ready}` and a handle to the ordinary root
+observation. It observes every ready-to-unavailable transition synchronously,
+including a withdrawal and replacement batched into one React render. Generation,
+credential and store resets therefore replace the page/identity owner's key
+without exposing or guessing a server generation. This conservative recipe also
+resets on other hard root withdrawals. Ordinary retaining revalidation keeps
+the owner. It holds no row body, asset metadata, deadline or cursor. It has one
+additional subscriber to the root's shared watch, not a second query evaluation.
+Strict Mode unsubscribe/remount closes and reacquires it correctly.
+
+`usePage` alone owns current cursor suffixes. The starter requests at most three
+20-row pages and mounts at most 20 body readers at a time (plus an optional
+selected-photo reader); a window control selects among the current requested rows. Cal29's rewrite uses a 40-ID window
+within its explicitly requested pages. Neither unions IDs from prior answers.
+A list withdrawal clears identity rows; a point withdrawal shows a neutral
+placeholder, which says nothing about row existence. Each body comes only from
+its current point read. No offscreen point reader is kept to avoid a flash.
+
+The optional once viewer is independent of the row window, records only the
+selected IDs and checks a live `keep:false` read before consuming media.
+Generation/root reset retires that selected owner before paint. Cal29 resets
+its window and selection during render on an epoch change, gates the image on
+selection, and uses `keep:false` for its recheck. A quote jump into a loaded page
+selects the target's 40-row window; it loads more only while the ID is absent
+and continuation exists. Retaining text, a placeholder,
+old ordinal or cached asset metadata never authorizes a new asset request.
+The richer existing conversation/journal and independent receipt composition
+remain available; this bounded alternative is an ownership example.
+
+**Evidence.** Ten successive disjoint 20-row pages in the actual mounted L1/L2
+specimens grow the original to 200 point reads plus one page; the rewrite stays
+at 20 point reads plus one page. The complete published recipe has 22 distinct
+queries / 23 owners on its first page (the shared marker adds one subscriber),
+zero while hidden, and one surviving point when a sibling remains. A coalesced
+root withdrawal resets a three-page chain to one while keeping draft/input identity.
+Code grows; selected-line savings omit visibility and ownership plumbing and are
+not the outcome claim. There is no additive savings claim against A or R.
+
+Real process and wasm devices exercise shared root/sibling watches, changed
+page boundaries, explicit denials, expiry, late responses after route release,
+reactivation under current authority and generation reset. Mounted React also
+checks account change while inactive, backend/client/argument changes, window
+bounds, placeholders without media actions, and native/web visibility cleanup.
+Exact checks, measurement scope and any qualification limits belong to the report.
+
+**Round 1 evidence.** Complete before/after Cal29 components now mount, including
+composer, Bubble, quote jump and once viewer; UI controls have DOM substitutes.
+Ten moving pages leave 200 rows / 407 distinct observations before and 20 rows /
+67 after, with the extra reads from the original receipt/quote/reaction UI. Wide
+input mounts 40 rows / 127 observations. Controlled observations have zero active
+owners hidden; this is not a measurement of the SDK's `keep:true` linger. The
+starter remains 22 observations / 23 owners. Edit, attachments and refused text
+survive backgrounding; both synthetic coalescing and actual wasm program adoption
+commit no stale photo. The report separates baseline reds, killed mutations,
+full-component counts and qualification limits.

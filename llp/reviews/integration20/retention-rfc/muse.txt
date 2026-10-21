@@ -1,0 +1,18 @@
+muse: workspace root: /home/ccheever/projects/snapback-sb4loop (cwd default)
+muse: workspace trust: trusted source=run-flag
+muse: retrying meta model stream in 5000ms (attempt 2/10)
+READY — documentation-only reconciliation, no new decision.
+
+Frozen repo `49ff4203` matches; diff/candidate in `/home/ccheever/sb4-loop/integration20/` not applied.
+
+Findings, checked against [LLP 3000.009.001.000 §3.3](/home/ccheever/projects/snapback-sb4loop/llp/3000.009.001.000-the-postgres-store-port.rfc.md) lines 106-114, [change-evidence.ts](/home/ccheever/projects/snapback-sb4loop/snapback4/packages/snapback4/src/change-evidence.ts), [revocation-retention.test.mjs](/home/ccheever/projects/snapback-sb4loop/snapback4/packages/snapback4/test/revocation-retention.test.mjs), [ephemeral-reads.ts](/home/ccheever/projects/snapback-sb4loop/snapback4/packages/snapback4/src/ephemeral-reads.ts):
+
+- Null/absent wording is faithful. P1-MR: `preserved: null` for unknown, client treats null/absent as unable to certify revocation including opaque/protected reads, still refreshes; known empty list retains withdrawal bound. Code: early `return false` for null/undefined in `canRevoke`/`watchCanRevoke` even when `opaque`, `[]` falls through to `true`, real-known `['messages']` to `false`. Test pins all three plus `legacy`/absent.
+- Malformed non-null stays conservative. Code treats non-array/oversize/bad-entry `preserved` as `true`; test `malformed: 'messages'` withdraws at the 1001 ms bound. Amendment says exactly that.
+- Conditional opaque sentence is correct. Old "remain bounded" would wrongly bound null; new "when a preservation list is available" matches the early-return: null bypasses `opaque`/`canRevoke`, non-null opaque revokes.
+- Postgres sentence is correct. Tail records no footprints so widens (P1-MR lines 134-136); "emits no certificates; null/absent follows policy above" replaces stale "remains bounded" without widening any runtime boundary.
+- No new decision/acceptance/freshness promise. Status stays Accepted; `Revised` line and paragraph state it only records incoming policy. "Versions/cuts/fences still advance, answer refreshes while visible" matches callers: `scheduleRead` still runs `answers.changed`, `reload(false)`, `acquireRead` when `bounded=false`; hard paths (`reset`, generation, scope, expiry) untouched.
+- Tests retain deadlines/assertions and add real certificates. One-second/1501 ms/1600 ms/5000 ms bounds kept; known-withdrawal cases use real wire values: `delete: []` and private-field transfer asserting `!ack.preserved.includes(schema)` and `!evidence.preserved.includes(schema)` with withdrawal then replacement.
+
+No claim made for unfinished full Linux checks; scope was the doc diff only.
+

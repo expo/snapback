@@ -1,0 +1,8 @@
+READY — no material findings.
+
+- The amendment matches LLP 3000.009.001.000 §3.3 and `change-evidence.ts`: null/absent evidence cannot certify revocation, including opaque/protected reads; known empty lists and malformed non-null values retain conservative withdrawal behavior.
+- `ephemeral-reads.ts` still forwards preservation evidence through invalidation. The wording preserves refresh, fences, hard withdrawals, row deadlines and replacements.
+- The retention tests distinguish these cases at the existing one-second boundary.
+- The supplied diff exactly matches the full candidate. It reconciles recorded policy without adding a decision, author acceptance, or stronger freshness/security guarantees.
+
+Read-only review only; no builds or tests run, and no Linux qualification claim.

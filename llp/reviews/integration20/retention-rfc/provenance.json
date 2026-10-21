@@ -1,0 +1,38 @@
+{
+  "recordedAtUTC": "2026-10-21T14:37:50.795698+00:00",
+  "scope": "retention-rfc",
+  "base": "49ff4203ce",
+  "reviewedRevision": "candidate reconciliation",
+  "briefSha256": "d0fc3188503e0acade8d0d05f42eedeb86457c2281f296b7e7860688fbb24fcc",
+  "sources": {
+    "candidateSha256": "00f0c194933fbd2d693674a12bb74a48d4dd206d3e33e2d41e2dad108805e4d3",
+    "diffSha256": "48a6b2ded36b9835b83317248a3209719e35d5c1959a98e2b3b083a4fff28dbc",
+    "governing": {
+      "path": "llp/3000.009.001.000-the-postgres-store-port.rfc.md",
+      "sha256": "2ae02f7444b886107486a014f1f354e2cfa7ea53d17fe24fc38a37d0ae2d38c6"
+    }
+  },
+  "reviews": [
+    {
+      "family": "codex",
+      "model": "gpt-6.1-sol",
+      "reasoningEffort": "high",
+      "freshSession": true,
+      "exitCode": 0,
+      "reviewSha256": "872898bc34e47522a14b9022d80ea888f972fb5b6380a8d8278150d646932cee",
+      "stderrSha256": "2bea4aad354b8e9c673fde82e6499c8f2c2852ffef0e9e1af0088ab12ae0051c",
+      "invocation": "codex exec -m gpt-6.1-sol -c model_reasoning_effort=high --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox - < brief.md"
+    },
+    {
+      "family": "muse",
+      "model": "muse-spark-1.3-contributor",
+      "reasoningEffort": "high",
+      "freshSession": true,
+      "exitCode": 0,
+      "reviewSha256": "6cd61c0b2b41db5ac9cafefd4b8b3d5c27dcd8fdc67d67e7dabf5a0d7670a94b",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "invocation": "~/sb4-loop/muse-exec.sh --yolo --model muse-spark-1.3-contributor --reasoning-effort high --prompt-file brief.md"
+    }
+  ],
+  "acceptance": "Review verdicts only. The documentation reconciliation records existing incoming policy and adds no policy decision or author acceptance."
+}
