@@ -67,6 +67,7 @@ mod activation_access;
 mod dev_reset;
 mod ownership;
 pub(crate) mod release_history;
+mod release_history_access;
 pub use release_history::DormantItem;
 mod sequences;
 mod successor;

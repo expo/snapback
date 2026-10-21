@@ -38,3 +38,8 @@ impl ReleaseTransaction for ReleaseCheck<'_> {
             .optional()?)
     }
 }
+
+impl ReleaseTransaction for super::Tx<'_> {
+    fn selected_release(&self) -> Result<Option<String>, RuntimeError> { self.meta("release") }
+    fn release_revision(&self) -> Result<Option<String>, RuntimeError> { self.meta("release_revision") }
+}

@@ -100011,3 +100011,18 @@ relations, including refusal of parent/child inheritance. Shared generation
 hashing and opening selection/capture checks retain SQLite semantics.
 Validation: Postgres-enabled core compilation; complete contract and required
 suites follow in task 3. One local worker, requested build environment, no push.
+
+
+## 2026-10-21 — P1-RL task 2: release history and selected reopen
+
+Moved event/status operations behind a neutral history contract and supplied
+both adapters. Shared recording checks bounded identities and revision
+exhaustion before writes. Shared release admission refuses NUL in newly
+recorded operation/digest strings. The Postgres evaluator can create a selected
+first release atomically, activate a program-only successor, inspect history
+and reopen with a selected-release fence. Equal-content activations advance
+history revision without advancing generation. Schema-changing activation
+refuses before preparation writes until dormant evolution is ported. Local
+source/host matching, serve/deploy wiring and production fencing remain S10d.
+Postgres-enabled core compilation passed. Task 3 supplies dual-adapter and
+real-cluster evidence; no push or other-machine work.

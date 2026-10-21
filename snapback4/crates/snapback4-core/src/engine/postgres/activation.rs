@@ -9,7 +9,12 @@ pub(super) fn initialize(tx: &Tx<'_>, schema: &Schema, programs: &BTreeMap<Strin
     if tx.meta("store_id")?.is_none() { tx.set_meta("store_id", &format!("{:016x}{:016x}", crate::ids::seed(), crate::ids::seed()))?; }
     // An evaluator's already-qualified internal upgrades precede this record.
     // History is append-only: conflicting bytes for an existing generation refuse.
+    let previous = tx.previous_schema()?.map(|s| super::store::decode::<Schema>(&s)).transpose()?;
     tx.publish_backend(&Backend(signed(generation)?, canonical_json(schema), canonical_json(programs)), now)?;
+    for table in crate::partition::changed_group_audiences(previous.as_ref(), schema) {
+        use crate::partition::PartitionRows;
+        tx.set_audience_epoch(&table, tx.next_seq()?, now.max(tx.time_audience_clock()?))?;
+    }
     tx.set_meta("schema_hash", &schema.hash())?;
     tx.set_meta("activation_hash", &activation::activation_hash(schema, programs, tx.meta("release_native_digest")?.as_deref()))?;
     tx.mark_live_sum_candidates()?;

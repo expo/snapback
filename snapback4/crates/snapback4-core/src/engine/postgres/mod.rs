@@ -29,6 +29,9 @@ mod ledger_schema;
 mod shape;
 mod activation;
 mod activation_schema;
+mod metadata;
+mod release;
+mod release_schema;
 #[cfg(test)]
 mod tests;
 pub use store::{SCAN_MEMORY_GUARD, WriteMode};
@@ -88,12 +91,16 @@ impl PostgresEngine {
         schema.prepare_contribution_indexes();
         let programs: BTreeMap<_, _> = programs.into_iter().map(|p| (p.name.clone(), p)).collect();
         supported(&schema, &programs)?;
-        Self::attach(client, schema, programs, Some(&name))
+        Self::attach(client, schema, programs, Some(&name), None, None)
     }
 
     /// Reopen the persisted compiled generation; subsequent transactions refuse
     /// if another connection activates a successor.
-    pub fn open(mut client: Client, name: &str) -> Result<Self, RuntimeError> {
+    pub fn open(client: Client, name: &str) -> Result<Self, RuntimeError> {
+        Self::open_with_expected(client, name, None)
+    }
+
+    fn open_with_expected(mut client: Client, name: &str, expected_release: Option<u64>) -> Result<Self, RuntimeError> {
         let name = namespace(name)?;
         client.batch_execute(&format!("SET search_path = {name}, pg_catalog;"))?;
         let row = client.query_one("SELECT version,schema,programs FROM _backend WHERE singleton", &[])?;
@@ -111,12 +118,12 @@ impl PostgresEngine {
         )?.first() {
             return Err(crate::rows::index_key_refusal(row.get(0), row.get(1), row.get::<_, i64>(2) as u64));
         }
-        Self::attach(client, schema, programs, None)
+        Self::attach(client, schema, programs, None, None, expected_release)
     }
 
     // @ref LLP 3000.033#1.3 — read-session storage and all other upgrades
     // commit together, only after every open/adoption check has succeeded.
-    fn attach(client: Client, mut schema: Schema, programs: BTreeMap<String, Program>, create: Option<&str>) -> Result<Self, RuntimeError> {
+    fn attach(client: Client, mut schema: Schema, programs: BTreeMap<String, Program>, create: Option<&str>, release: Option<&super::release::ReleaseActivation>, expected_release: Option<u64>) -> Result<Self, RuntimeError> {
         let mut store = Store::new(client);
         let tx = store.opening_transaction()?;
         tx.batch("SET LOCAL statement_timeout = '5s'; SET LOCAL lock_timeout = '5s';")?;
@@ -171,7 +178,18 @@ impl PostgresEngine {
         assets_schema::initialize(&tx)?;
         let generation = contribution_upgrade::install(&tx, &mut schema)?;
         let generation = maintained_identity_upgrade::install(&tx, &schema, create.is_some(), generation)?;
-        activation::initialize(&tx, &schema, &programs, generation, crate::now_ms())?;
+        use crate::activation::{ActivationReader, ActivationPreparation};
+        tx.check_selected_release(expected_release)?;
+        release_schema::initialize(&tx)?;
+        if let Some(options) = release {
+            let prep = activation::Preparation(&tx);
+            options.check(&prep)?;
+            prep.enable_dormant()?;
+            prep.prepare_release_metadata(options.native_digest.as_deref().unwrap_or(""), options.restore_dormant)?;
+        }
+        let now = crate::now_ms();
+        activation::initialize(&tx, &schema, &programs, generation, now)?;
+        if let Some(options) = release { self::release::finish(&tx, options, now)?; }
         // Retain the adapter's ordinary connection limits on successful open.
         tx.batch("SET statement_timeout = '5s'; SET lock_timeout = '5s';")?;
         tx.commit()?;

@@ -13,6 +13,7 @@ impl Engine {
         expected_release: Option<u64>,
         expected_backend: Option<&crate::activation::Backend>,
     ) -> Result<Committed<(u64, crate::store::opening::Metadata)>, RuntimeError> {
+        if let Some(release) = release { release.validate()?; }
         schema.validate_column_owners()?;
         for program in programs.values() {
             crate::schema::ephemeral::admit_program(schema, program)?;
