@@ -58,7 +58,6 @@ fn metadata_shared_contract() {
     test_cases::raw_values_and_worker_fences(&handle);
     test_cases::independent_families(&handle);
     test_cases::admission(&handle);
-    drop(handle);
     let tx = e.store.transaction(Some(WriteMode::Serialized)).unwrap();
     tx.set_dev_value(DevMetadata::Replay, "rolled back")
         .unwrap();
@@ -86,7 +85,6 @@ fn metadata_nul_keys_are_absent_without_queries() {
     let handle = RefCell::new(&mut e.store);
     assert_eq!(handle.worker_status(Some("bad\0key")).unwrap(), None);
     assert_eq!(handle.worker_family_revision("bad\0key").unwrap(), None);
-    drop(handle);
     assert_eq!(e.stats().database_calls, before);
 }
 
@@ -277,7 +275,6 @@ fn receipts_shared_contract() {
         handle.sent_sequence("alice", "nul\0id", i64::MAX).unwrap(),
         None
     );
-    drop(handle);
     assert_eq!(e.stats().database_calls, before);
 }
 
@@ -315,7 +312,6 @@ fn receipts_record_replay_snapshot_additive_reads_and_reopen() {
             .as_deref(),
         Some(r#"{"state":"sent","result":"escaped\u0000text"}"#)
     );
-    drop(handle);
     e.store
         .client
         .batch_execute("ALTER TABLE _ops ADD COLUMN future TEXT")
@@ -375,6 +371,119 @@ fn receipts_attach_refuses_incompatible_shapes() {
             "ALTER TABLE _ops SET UNLOGGED",
             "CREATE RULE suppress AS ON INSERT TO _ops DO INSTEAD NOTHING",
             "ALTER TABLE _ops ENABLE ROW LEVEL SECURITY",
+        ],
+    );
+}
+
+#[test]
+#[ignore = "requires private Postgres; scripts/test-postgres.sh"]
+fn change_evidence_shared_contract_and_boundaries() {
+    use crate::revocation::{ChangeEvidence, evidence_test_cases};
+    let mut e = engine();
+    let tx = e.store.transaction(Some(WriteMode::Serialized)).unwrap();
+    // Seed backwards so physical insertion order cannot accidentally satisfy the ordered contract.
+    for record in evidence_test_cases::records().into_iter().rev() {
+        tx.execute("INSERT INTO _commits(seq,at,program,principal,kind,touched,writes) VALUES ($1,0,'test','test','mutation','[]',0)", &[&(record.seq as i64)]).unwrap();
+        if let Some(footprint) = record.footprint {
+            tx.execute(
+                "INSERT INTO _change_evidence(seq,footprint) VALUES ($1,$2)",
+                &[&(record.seq as i64), &footprint],
+            )
+            .unwrap();
+        }
+    }
+    tx.commit().unwrap();
+    evidence_test_cases::check(&RefCell::new(&mut e.store));
+    let tx = e.store.transaction(None).unwrap();
+    evidence_test_cases::check(&tx);
+    let before = tx.calls.get();
+    assert!(tx.change_evidence(0, u64::MAX, |_| Some(())).is_none());
+    assert_eq!(tx.calls.get(), before);
+    tx.rollback().unwrap();
+}
+
+#[test]
+#[ignore = "requires private Postgres; scripts/test-postgres.sh"]
+fn change_evidence_missing_table_or_rows_always_widen() {
+    use crate::revocation::footprint_between;
+    let mut e = engine();
+    let tx = e.store.transaction(Some(WriteMode::Serialized)).unwrap();
+    tx.record_commit(1, 0, "test", "alice", "mutation", &[], 0)
+        .unwrap();
+    tx.commit().unwrap();
+    assert!(footprint_between(&RefCell::new(&mut e.store), 0, 1).is_none());
+    e.store
+        .client
+        .batch_execute("DROP TABLE _change_evidence")
+        .unwrap();
+    assert!(footprint_between(&RefCell::new(&mut e.store), 0, 1).is_none());
+    let namespace = name(&mut e);
+    let mut reopened = PostgresEngine::open(client(), &namespace).unwrap();
+    assert!(footprint_between(&RefCell::new(&mut reopened.store), 0, 1).is_none());
+    let tx = e.store.transaction(Some(WriteMode::Serialized)).unwrap();
+    tx.set_deployment_environment("discard").unwrap();
+    tx.batch("DROP TABLE _change_evidence").unwrap();
+    assert!(footprint_between(&tx, 0, 1).is_none());
+    // A query failure is never recovered inside the writer.
+    tx.rollback().unwrap();
+    assert_eq!(
+        RefCell::new(&mut e.store).deployment_environment().unwrap(),
+        None
+    );
+}
+
+#[test]
+#[ignore = "requires private Postgres; scripts/test-postgres.sh"]
+fn change_evidence_snapshots_additive_cached_reads_and_reopen() {
+    use crate::revocation::footprint_between;
+    let mut e = engine();
+    let namespace = name(&mut e);
+    let mut peer = PostgresEngine::open(client(), &namespace).unwrap();
+    let tx = e.store.transaction(None).unwrap();
+    assert!(footprint_between(&tx, 0, 1).is_none());
+    let write = peer.store.transaction(Some(WriteMode::Serialized)).unwrap();
+    write
+        .record_commit(1, 0, "test", "alice", "mutation", &[], 0)
+        .unwrap();
+    write
+        .execute(
+            "INSERT INTO _change_evidence(seq,footprint) VALUES (1,$1)",
+            &[&crate::value::canonical_json(
+                &crate::revocation::Footprint::default(),
+            )],
+        )
+        .unwrap();
+    write.commit().unwrap();
+    assert!(footprint_between(&tx, 0, 1).is_none());
+    let reopened = PostgresEngine::open(client(), &namespace).unwrap();
+    drop(reopened);
+    tx.rollback().unwrap();
+    assert!(footprint_between(&RefCell::new(&mut e.store), 0, 1).is_some());
+    e.store.client.batch_execute("ALTER TABLE _change_evidence ADD COLUMN future TEXT; ALTER TABLE _commits ADD COLUMN future TEXT").unwrap();
+    assert!(footprint_between(&RefCell::new(&mut e.store), 0, 1).is_some());
+}
+
+#[test]
+#[ignore = "requires private Postgres; scripts/test-postgres.sh"]
+fn change_evidence_attach_refuses_incompatible_shapes() {
+    shape_refusals(
+        "_change_evidence",
+        &[
+            "ALTER TABLE _change_evidence ALTER COLUMN seq TYPE integer",
+            "ALTER TABLE _change_evidence ALTER COLUMN footprint DROP NOT NULL",
+            "ALTER TABLE _change_evidence ADD CONSTRAINT extra CHECK (seq >= 0)",
+            "CREATE UNIQUE INDEX extra ON _change_evidence(footprint)",
+            "ALTER TABLE _change_evidence ALTER COLUMN footprint SET DEFAULT '{}'",
+            "ALTER TABLE _change_evidence SET UNLOGGED",
+            "CREATE RULE suppress AS ON INSERT TO _change_evidence DO INSTEAD NOTHING",
+            "ALTER TABLE _change_evidence ENABLE ROW LEVEL SECURITY",
+        ],
+    );
+    shape_refusals(
+        "_commits",
+        &[
+            "ALTER TABLE _log SET UNLOGGED; ALTER TABLE _commits SET UNLOGGED",
+            "CREATE RULE suppress AS ON INSERT TO _commits DO INSTEAD NOTHING",
         ],
     );
 }

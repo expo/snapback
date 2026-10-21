@@ -99875,3 +99875,97 @@ API adaptation and caught one remaining NUL-test caller using a digest string.
 That caller was adapted; this run is not counted as full qualification.
 Cluster /tmp/sb4-pg-eval.pgGL6Q stopped with status=3 and no postmaster.pid;
 an independent pg_ctl status returned 3. Final checks are recorded below.
+
+
+## 2026-10-21 — P1-MR: bounded Postgres change evidence
+
+Implemented ChangeEvidence on Postgres Tx and the store reader. Attach installs
+_change_evidence and validates its shape and _commits, using the same structured
+catalog checks as metadata/receipts. No operation performs DDL. The query has
+explicit columns, a LEFT JOIN from commits, total seq order and LIMIT 501.
+Shared policy requires a complete interval of at most 500 commits; missing
+summaries, absent commits, malformed/oversized JSON, unknown footprints, query
+errors and pruned intervals cannot certify retained authority. Query errors
+end the snapshot/writer; tests discard the entire transaction on both stores.
+
+Removed unsigned-to-signed wrapping at the SQLite evidence boundary. Shared
+bounds reject nonempty intervals beyond BIGINT; checked successor arithmetic
+cannot wrap. Empty intervals still need no evidence, including u64::MAX.
+One shared contract covers exactly 500 versus 501 commits, 256 KiB versus
+oversized evidence, middle/tail gaps, malformed and structurally incomplete
+footprints, unknown envelopes, reverse-inserted ordered reads, actual preserved
+classification and signed/unsigned boundary sequences. SQLite and Postgres
+both run it on store and transaction readers. Postgres adds missing-table,
+reopen/install, snapshots, held-reader attach, additive cached reads and shape
+refusals. Its current commit tail does not record footprints, so real commits
+widen; ChangeEvidence has no PostgresEngine host caller before S10. No serve
+or sync wiring and no preservation claim for unsupported commit recording.
+
+Receipts focused checks: nine passed, zero failed, four explicit private-
+Postgres ignores. Metadata focused rerun: eleven passed, zero failed, eight
+explicit Postgres ignores. Full final qualification follows after all three
+families are present. The unavailable S10 census remains the source limitation.
+
+
+## 2026-10-21 — P1-MR: final foundation qualification
+
+Metadata is commit afd39473e6; receipts is e482faa55a; this change lands the
+bounded evidence reader and the complete qualification record. The detailed
+per-family audit of every LLP 3000.009.001.000 §9.1 rule, differences and
+reachability is reports/20261021-p1mr-foundation.md. No serve wiring.
+
+The S10 census branch became available during final verification. Read its
+MetadataReader/MetadataWriter, ReceiptReader and ChangeEvidence rows with the
+requested git show at sb4-pg/s10-design, commit
+11ff7f8d1835cff507909ac2ce00f5a5550b272c. They confirm this lane's reader/typed
+metadata scope and the separate ledger writer/pruning task. This resolves the
+source limitation recorded in the earlier entries. Public PostgresEngine
+receipt replay reaches the trait and shared policy; it still has no public
+metadata getter/setter, sent_sequence caller or change-evidence host caller.
+The current Postgres tail records no footprints, so its committed intervals
+continue to widen. No certificate is inferred from an empty evidence ledger.
+
+Final PostgreSQL 16.15 qualification: both complete scripts exit 0, each
+reporting 253 passed, zero failed, zero ignored: 58 evaluation tests, 176
+selected core Postgres tests and 19 corpus harness tests. All 15 new foundation
+cases run and pass in both scripts; named corpus row exclusions remain
+exclusions. The C run is /tmp/p1mr-postgres-c-qualified.log, cluster
+/tmp/sb4-pg-eval.fhV75z. The en_US.utf8 run is
+/tmp/p1mr-postgres-locale-qualified.log, cluster /tmp/sb4-pg-eval.nKDCJw.
+Each script confirms stop; independent pg_ctl status returns 3 and both
+postmaster.pid files are absent. All four earlier owned clusters were also
+independently rechecked stopped with no PID file: pgGL6Q, SY2hJ6, Ap0T3b and
+Hk3mBa under /tmp/sb4-pg-eval.*. No other cluster was touched.
+
+The final full cargo test -p snapback4-core passes: 1,024 passed, zero failed,
+five existing ignores, including 17 doctests. Unit phase: 614 passed, three
+ignored. The 46 printed summaries include the isolated allocation-probe child;
+its one pass is counted only once in the 1,024 total. Log:
+/tmp/p1mr-core-qualified.log. The no-default-features core check passes
+(/tmp/p1mr-no-default.log). Host ratchets pass unchanged: committer 3/3 and
+store-port 5/5 (/tmp/p1mr-ratchets.log). Root ref-check and git diff --check pass.
+
+The requested Clippy command reports only the inherited errors
+while_immutable_condition at engine/read.rs:780 and never_loop at
+engine/row_views.rs:1014; both files are byte-unchanged from 67fef0dbde.
+A diagnostic run allowing only those two lints completes all library/test
+checking with no diagnostic in the new adapter/shared-contract files
+(/tmp/p1mr-clippy-diagnostic-final.log). Four test-only drop_non_drop warnings
+were removed. No lint suppression was added to source. The exact-command log
+is /tmp/p1mr-clippy-final.log.
+
+Earlier attempts are excluded from final qualification. One Postgres shape
+fixture tried SET UNLOGGED on _commits before changing its logged FK referrer
+_log; the fixture now changes _log first. Overlapping Cargo work across the
+root and experiment workspaces then exposed stale device dependency metadata
+in this checkout's target. Package cleanup rebuilt the device artifact, but
+also removed a same-named pending core integration executable. Final scripts
+were serialized, with a device-package rebuild before each, and the entire
+core command was rerun alone after them. Final qualification needed no product
+change for those artifact failures. All attempts stopped their private cluster.
+
+All Cargo commands used only this checkout's snapback4/target, incremental off,
+line-tables-only dev/test debug and at most 12 build jobs. Final Postgres tests
+used four test threads; final core used twelve. Sampled disk free space stayed
+above the 20 GB stop threshold. No push, stash, clone, second worktree,
+sub-agent, fleet command, publication, gate change or allowance increase.

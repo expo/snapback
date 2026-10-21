@@ -23,6 +23,7 @@ mod assets;
 mod assets_schema;
 mod metadata;
 mod receipts;
+mod change_evidence;
 mod foundation_schema;
 #[cfg(test)]
 mod tests;
@@ -155,6 +156,7 @@ impl PostgresEngine {
         identity_schema::verify_existing(&tx)?;
         metadata::initialize(&tx)?;
         receipts::initialize(&tx)?;
+        change_evidence::initialize(&tx)?;
         tx.batch(store::READ_SESSIONS_DDL)?;
         tx.batch(identity::DDL)?;
         requests::initialize(&tx)?;

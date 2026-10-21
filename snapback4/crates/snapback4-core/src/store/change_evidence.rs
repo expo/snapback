@@ -13,9 +13,10 @@ fn read(
     through: u64,
     mut visit: impl FnMut(EvidenceRecord) -> Option<()>,
 ) -> Option<()> {
+    let (after, through) = revocation::evidence_bounds(after, through)?;
     let mut statement = conn.prepare("SELECT c.seq, e.footprint FROM _commits c LEFT JOIN _change_evidence e ON e.seq=c.seq WHERE c.seq>?1 AND c.seq<=?2 ORDER BY c.seq LIMIT 501").ok()?;
     let rows = statement
-        .query_map(params![after as i64, through as i64], |r| {
+        .query_map(params![after, through], |r| {
             Ok(EvidenceRecord {
                 seq: r.get::<_, i64>(0)? as u64,
                 footprint: r.get(1)?,
@@ -76,7 +77,7 @@ mod tests {
     #[test]
     fn store_and_transaction_share_the_bounded_evidence_contract() {
         let mut store = Store::memory().unwrap();
-        for record in evidence_test_cases::records() {
+        for record in evidence_test_cases::records().into_iter().rev() {
             store.conn().execute("INSERT INTO _commits(seq, at, program, principal, kind, touched, writes) VALUES (?1, 0, 'test', 'test', 'mutation', '[]', 0)", [record.seq as i64]).unwrap();
             if let Some(footprint) = record.footprint {
                 store
@@ -92,5 +93,19 @@ mod tests {
         let tx = store.read_transaction().unwrap();
         evidence_test_cases::check(&tx);
         tx.rollback().unwrap();
+    }
+    #[test]
+    fn missing_evidence_table_widens_and_writer_is_discarded_on_error() {
+        let mut store = Store::memory().unwrap();
+        store.conn().execute("INSERT INTO _commits(seq, at, program, principal, kind, touched, writes) VALUES (1,0,'test','alice','mutation','[]',0)", []).unwrap();
+        assert!(store.footprint_between(0, 1).is_none());
+        let tx = store.transaction().unwrap();
+        tx.set_meta("deployment_environment", "discard").unwrap();
+        tx.conn()
+            .execute_batch("DROP TABLE _change_evidence")
+            .unwrap();
+        assert!(tx.footprint_between(0, 1).is_none());
+        tx.rollback().unwrap();
+        assert_eq!(store.meta("deployment_environment").unwrap(), None);
     }
 }
