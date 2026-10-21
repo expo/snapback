@@ -1586,6 +1586,7 @@ the `Use*` types name a hook's result for a prop. Hover any name for its full co
 | `useAuth()` | `AuthSnapshot` plus `signup`, `login`, `guest`, `logout`, `logoutEverywhere`; `state === "signed-in"` narrows `viewer` |
 | `useClient()`, `useOnline()` | the `Client`; the app's server arm `Online` (under `AppProvider`) |
 | `SignedIn` | auth gate under AppProvider; signed-out fallback, restoring placeholder, signed-in children |
+| `ReadState` | list loading/denied/empty/data rendering; children retain the settled snapshot, including partial/stale metadata |
 | `useQueryData(op, args, options?)` | data or undefined; throws `QueryRefusal` carrying the original typed `why`; partial/stale data stays displayable |
 | `useQueryResult(op, args, options?)` | `{ data, why, read }`; inline refusal and the precise snapshot |
 | `useQuery(op, args, { keep, skip }?)` | `Read<R>` (`UseQuery<typeof op>`): narrow with `matchRead` or the guards; `skip: true` reads nothing (`loading`) |
