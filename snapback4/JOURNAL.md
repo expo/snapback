@@ -99690,3 +99690,14 @@ the first paragraph break, locate the expanded parcels example without assuming
 the old table header, and compact prose/blank recipe lines within unchanged
 budgets. All 127 guide tests pass; language is 824/825 lines, deploy 280/280,
 and the appendix remains within its 100-word allowance. No budget increased.
+
+EVOL final wording-only audit: empty/default values are observational facts, not
+proof of an absent projection or lost data. Preview prose separates values
+matching retained empty images and makes predecessor precedence explicit; it
+conditions scalar-down advice on absence of a winning preimage. JSON counts,
+activation and the SDK are unchanged. Three visibility unit cases and all twelve
+affected client cases pass, including a packed-witness assertion for a retained
+zero. Full Linux consumer qualification remains bound to db62d60459; the final
+wording is requalified through a fresh Linux platform pack on the affected
+EVOL, release-transition and verbatim migration paths. No publication receipt
+is issued or implied by that scoped evidence.

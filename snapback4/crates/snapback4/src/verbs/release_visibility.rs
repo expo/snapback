@@ -96,12 +96,19 @@ impl Visibility {
         }
         for cell in &self.cells {
             let value = if cell.value==Value::Null {"empty (null)".into()} else {format!("the old default {}",snapback4_core::wire::to_json(&cell.value))};
-            let remedy=if cell.projection_supported {"declare a truthful scalar reverse projection, or retain the field in a bridge"} else {"computed down cannot supply files, images, collections or references; generate a loosened bridge to represent absence"};
-            lines.push(format!("  {}.{}: {} surviving records show {value} because the target field has no nonempty carried or projected value ({} restored empty legacy cells); {remedy}",cell.table,cell.column,cell.rows,cell.retained_empty_rows));
+            let mut causes=Vec::new();
+            // @ref LLP 3000.000.000.002#8-wave-21-release-evolution — retained empty images alone do not prove their origin; owned predecessor preimages outrank down.
+            if cell.retained_empty_rows>0 {causes.push(format!("cells matching retained empty/default images: {}; if a predecessor preimage wins, down cannot overwrite it; keep intended values or review an explicit bridge repair",cell.retained_empty_rows));}
+            let other=cell.rows-cell.retained_empty_rows;
+            if other>0 {
+                let remedy=if cell.projection_supported {"keep intended values; review the current projection or declare a truthful scalar down where no predecessor preimage wins, otherwise use a bridge"} else {"computed down cannot supply files, images, collections or references; generate a loosened bridge to represent absence"};
+                causes.push(format!("other empty/default cells: {other}; {remedy}"));
+            }
+            lines.push(format!("  {}.{}: {} surviving records show {value}; {}",cell.table,cell.column,cell.rows,causes.join("; ")));
         }
         lines.push(format!("  {} cells are empty/defaulted; {} rows belong to tables absent from release {target} (newer-only facts)", self.empty_cells, self.newer_only_rows));
         for table in self.tables.iter().filter(|t|!t.target_has_table) {lines.push(format!("  newer-only {}: {} rows retained dormant because release {target} has no table {}; same-table down cannot create a table; preserve it in a bridge or declare a table rename",table.table,table.rows,table.table));}
-        lines.push("  counts are schema populations before read rules, not per-user query results; saved empty cells are not proof of lost text; nothing dormant is deleted by this switch; compatible forward restores retained images".into());
+        lines.push("  counts are schema populations before read rules, not per-user query results; empty/default values alone do not prove lost data; nothing dormant is deleted by this switch; compatible forward restores retained images".into());
         lines
     }
 }
@@ -153,6 +160,10 @@ mod tests {
         // separating retained empty cells without calling them lost text.
         assert_eq!(v.empty_cells,2);
         assert_eq!((v.newly_empty_cells,v.retained_empty_cells),(1,1));
+        let lines=v.lines(2,1).join("\n");
+        assert!(lines.contains("cells matching retained empty/default images: 1; if a predecessor preimage wins, down cannot overwrite it"),"{lines}");
+        assert!(lines.contains("other empty/default cells: 1; keep intended values"),"{lines}");
+        assert!(lines.contains("where no predecessor preimage wins"),"{lines}");
         assert_eq!(v.cells[0].sample_ids,["empty","new"]);
         super::super::release_safeguards::capture(e.store()).unwrap();
         assert_eq!(assess(e.store(),Some(&old.schema),&old.schema).unwrap().empty_cells,0);

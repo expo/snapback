@@ -225,6 +225,10 @@ down consignments oldQuantity(roster: file <=1000 ?):
     const second=await client.upload(new TextEncoder().encode('Bo\nCy\n'),{file:{name:'later.txt',type:'text/plain'}});assert.equal(second.ok,true);
     const nativeFile=await post('/m/add',{names:{id:second.asset.id},quantity:2});assert.equal(nativeFile.state,'sent');
     const strict=JSON.parse((await run(['rollback',deployment,'--to','1','--check','--json'])).stdout);
+    const strictText=(await run(['rollback',deployment,'--to','1','--check'])).stdout;
+    const legacyLine=strictText.split('\n').find(line=>line.includes('.legacyQuantity:'));assert.ok(legacyLine,strictText);
+    assert.match(legacyLine,/preimage/,'empty/default advice accounts for predecessor ownership');
+    assert.doesNotMatch(legacyLine,/because the target field has no nonempty carried/,'values equal to defaults are facts, not proof of an absent projection');
     assert.equal(strict.visibility.hiddenRows,2,'required file hides its row and its typed child');assert.equal(strict.visibility.newerOnlyRows,0,'renamed identity is an old table');
     assert.ok(strict.visibility.tables.some(t=>t.causes.some(([cause])=>cause.includes('hidden parent'))));
     const bridge=join(cwd,'bridge');await run(['rollback',deployment,'--to','1','--check','--bridge',bridge]);await run(['deploy',deployment,'--schema',bridge,'--restore-dormant']);
