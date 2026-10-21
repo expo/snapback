@@ -449,7 +449,9 @@ pub fn operations(bound:&Bound,fixture:&Engine,campaign:&mut Campaign){
                         Ok(result) if matches!(result.state,snapback4_core::WriteState::Sent{..})=>{
                             if let Ok(after)=readback(&engine){
                                 let steps=vec![histories::Step{operation:p.program.name.clone(),viewer:viewer.clone(),args:args.clone(),result:serde_json::to_value(&result.state).unwrap()}];
+                                let first_observation=campaign.violations.len();
                                 executed::record(bound,&p.program,&trace,&result.state,&after,&rows,viewer,&steps,&mut engine,campaign);
+                                if !has_fixture{for v in &mut campaign.violations[first_observation..]{v.reachability=Reachability::SyntheticOperation;v.scope="authored matrix operation on an invented schema snapshot; no trusted fixture or initialization trace".into();}}
                             }
                         },
                         Ok(_)=>campaign.refused+=1,

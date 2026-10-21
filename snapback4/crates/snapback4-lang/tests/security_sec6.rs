@@ -76,3 +76,9 @@ fn seed(e:&mut Engine){e.seed_at([("docs".into(),Value::Row([("id".into(),Value:
   assert!(caught,"{lane}: {}",serde_json::to_string(&c).unwrap());
  }
 }
+
+#[test]fn matrix_snapshot_proposals_cannot_become_reachable_disclosures(){
+ let b=bound("table docs:\n  secret: text <=40\n  read <- allow\n  insert <- deny\n  online only\nmutation observe(doc: docs):\n  return docs[doc]\ninvariant docs.secret read only deny\n");
+ let mut c=Campaign::default();challenges::operations(&b,&fixture(&b),&mut c);
+ assert!(c.violations.iter().all(|v|!v.reachability.is_reachable()),"{c:?}");
+}
