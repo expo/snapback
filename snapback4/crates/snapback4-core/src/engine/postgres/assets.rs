@@ -6,7 +6,7 @@ use crate::{
     RuntimeError,
     assets::{
         self, Asset, AssetIntentReader, AssetKind, AssetTransaction, IntentDeclaration,
-        IntentPlacement, IntentRecord, PendingIntent, UNCLAIMED_TTL_MS, UploadedIntent,
+        IntentPlacement, IntentRecord, PendingIntent, UploadedIntent,
     },
 };
 use std::cell::RefCell;
@@ -78,9 +78,9 @@ impl AssetTransaction for Tx<'_> {
         if nul(&[owner]) {
             return Ok(0);
         }
-        // SUM(bigint) is NUMERIC on Postgres. Cast the exact sum, never through
-        // floating point; an overflowing aggregate is terminal on both stores.
-        Ok(self.query("SELECT COALESCE(SUM(a.bytes),0)::bigint FROM _asset_intents u JOIN _assets a ON a.id=u.asset WHERE u.owner=$1 AND u.state='pending' AND a.home_table IS NULL AND NOT EXISTS(SELECT 1 FROM _ops o WHERE o.principal=u.owner AND o.id=u.intent)", &[&owner])?[0].try_get(0)?)
+        self.query_fold("SELECT a.bytes FROM _asset_intents u JOIN _assets a ON a.id=u.asset WHERE u.owner=$1 AND u.state='pending' AND a.home_table IS NULL AND NOT EXISTS(SELECT 1 FROM _ops o WHERE o.principal=u.owner AND o.id=u.intent) ORDER BY u.intent COLLATE \"C\"", &[&owner], 0, |total, row| {
+            assets::add_pinned_asset_bytes(total, row.try_get(0)?)
+        })
     }
 
     fn record_uploaded_intent(&self, record: &UploadedIntent<'_>) -> Result<(), RuntimeError> {
@@ -230,10 +230,11 @@ impl AssetTransaction for Tx<'_> {
         column: &str,
     ) -> Result<(), RuntimeError> {
         self.require_serialized_head_fence("place asset")?;
+        assets::validate_ledger_text(&[table, column])?;
+        assets::validate_ledger_text(&[row_id])?;
         if nul(&[id]) {
             return Ok(());
         }
-        assets::validate_ledger_text(&[table, row_id, column])?;
         self.execute("UPDATE _assets SET home_table=$2,home_id=$3,home_column=$4,released_at=NULL WHERE id=$1", &[&id,&table,&row_id,&column])?;
         Ok(())
     }
@@ -309,7 +310,7 @@ impl Tx<'_> {
     }
 
     pub(super) fn stale_assets(&self, now: i64) -> Result<Vec<Asset>, RuntimeError> {
-        self.query("SELECT id,owner,kind,content_type,bytes,width,height,duration,created_at,home_table,home_id,home_column,released_at,name FROM _assets WHERE released_at IS NOT NULL OR (home_table IS NULL AND created_at < $1 AND NOT EXISTS(SELECT 1 FROM _asset_intents u WHERE u.asset=_assets.id AND u.state='pending' AND NOT EXISTS(SELECT 1 FROM _ops o WHERE o.principal=u.owner AND o.id=u.intent))) ORDER BY created_at,id LIMIT 256", &[&(now-UNCLAIMED_TTL_MS)])?.iter().map(read).collect()
+        self.query("SELECT id,owner,kind,content_type,bytes,width,height,duration,created_at,home_table,home_id,home_column,released_at,name FROM _assets WHERE released_at IS NOT NULL OR (home_table IS NULL AND created_at < $1 AND NOT EXISTS(SELECT 1 FROM _asset_intents u WHERE u.asset=_assets.id AND u.state='pending' AND NOT EXISTS(SELECT 1 FROM _ops o WHERE o.principal=u.owner AND o.id=u.intent))) ORDER BY created_at,id LIMIT 256", &[&(assets::stale_asset_cutoff(now))])?.iter().map(read).collect()
     }
 
     pub(super) fn stage_stale_assets_for(

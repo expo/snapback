@@ -737,6 +737,19 @@ impl UploadedIntent<'_> {
     }
 }
 
+// @ref LLP 3000.009.001.000#9.1 — signed clock boundaries saturate identically on every store.
+#[cfg(feature = "sqlite")]
+pub(crate) fn stale_asset_cutoff(now: i64) -> i64 {
+    now.saturating_sub(UNCLAIMED_TTL_MS)
+}
+
+// Accumulate in byte-ordered intent order, refusing intermediate overflow even
+// if later signed legacy rows would bring the final mathematical sum in range.
+#[cfg(feature = "sqlite")]
+pub(crate) fn add_pinned_asset_bytes(total: i64, bytes: i64) -> Result<i64, RuntimeError> {
+    total.checked_add(bytes).ok_or_else(|| RuntimeError::Store("asset quota byte sum overflow".into()))
+}
+
 #[cfg(feature = "sqlite")]
 pub(crate) fn require_upload_quota(pinned: i64, bytes: u64) -> Result<(), RuntimeError> {
     if (pinned as u64).checked_add(bytes).is_none_or(|total| total > 128 << 20) {

@@ -16,8 +16,14 @@ if [[ -z "${SNAPBACK4_EVAL_POSTGRES:-}" ]]; then
   if [[ -n "${SNAPBACK4_PG_LOCALE:-}" ]]; then
     locale_args=(--locale="$SNAPBACK4_PG_LOCALE")
   fi
+  # Extracted PostgreSQL packages can carry share files outside initdb's
+  # compiled-in prefix. The ordinary installed/default path stays unchanged.
+  share_args=()
+  if [[ -n "${SNAPBACK4_PG_SHARE:-}" ]]; then
+    share_args=(-L "$SNAPBACK4_PG_SHARE")
+  fi
   echo "Evaluation cluster locale: ${SNAPBACK4_PG_LOCALE:-C (--no-locale)}" >&2
-  initdb -D "$eval_dir/data" -U sb4_eval --auth-local=trust --auth-host=reject --encoding=UTF8 "${locale_args[@]}" >/dev/null
+  initdb -D "$eval_dir/data" -U sb4_eval --auth-local=trust --auth-host=reject --encoding=UTF8 "${locale_args[@]}" "${share_args[@]}" >/dev/null
   cleanup() {
     local stop_status=0 status_status=0
     pg_ctl -D "$eval_dir/data" -m fast -w stop >/dev/null || stop_status=$?

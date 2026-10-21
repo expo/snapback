@@ -6,7 +6,7 @@ use crate::store::{Store, Tx};
 use crate::{
     RuntimeError,
     assets::{
-        Asset, AssetKind, IntentDeclaration, IntentPlacement, PendingIntent, UNCLAIMED_TTL_MS,
+        Asset, AssetKind, IntentDeclaration, IntentPlacement, PendingIntent,
         UploadedIntent,
     },
 };
@@ -53,7 +53,7 @@ fn find(conn: &Connection, id: &str) -> Result<Option<Asset>, RuntimeError> {
 
 fn stale(conn: &Connection, now: i64) -> Result<Vec<Asset>, RuntimeError> {
     let mut statement = conn.prepare(&format!("SELECT {COLUMNS} FROM _assets WHERE released_at IS NOT NULL OR (home_table IS NULL AND created_at < ?1 AND NOT EXISTS (SELECT 1 FROM _asset_intents u WHERE u.asset=_assets.id AND u.state='pending' AND NOT EXISTS (SELECT 1 FROM _ops o WHERE o.principal=u.owner AND o.id=u.intent))) ORDER BY created_at, id LIMIT 256"))?;
-    let rows = statement.query_map([now - UNCLAIMED_TTL_MS], read_asset)?;
+    let rows = statement.query_map([crate::assets::stale_asset_cutoff(now)], read_asset)?;
     Ok(rows.collect::<Result<_, _>>()?)
 }
 
@@ -221,7 +221,10 @@ fn intent_exists(conn: &Connection, owner: &str, id: &str) -> Result<bool, Runti
 // @ref LLP 3000.009.001.000#9.1 — an adapter error is terminal; callers roll back rather than continuing.
 impl crate::assets::AssetTransaction for Tx<'_> {
     fn pinned_asset_bytes(&self, owner: &str) -> Result<i64, RuntimeError> {
-        Ok(self.conn().query_row("SELECT COALESCE(SUM(a.bytes),0) FROM _asset_intents u JOIN _assets a ON a.id=u.asset WHERE u.owner=?1 AND u.state='pending' AND a.home_table IS NULL AND NOT EXISTS(SELECT 1 FROM _ops o WHERE o.principal=u.owner AND o.id=u.intent)", [owner], |r| r.get(0))?)
+        let mut statement = self.conn().prepare("SELECT a.bytes FROM _asset_intents u JOIN _assets a ON a.id=u.asset WHERE u.owner=?1 AND u.state='pending' AND a.home_table IS NULL AND NOT EXISTS(SELECT 1 FROM _ops o WHERE o.principal=u.owner AND o.id=u.intent) ORDER BY u.intent COLLATE BINARY")?;
+        statement.query_map([owner], |r| r.get::<_, i64>(0))?.try_fold(0, |total, bytes| {
+            crate::assets::add_pinned_asset_bytes(total, bytes?)
+        })
     }
 
     fn record_uploaded_intent(&self, record: &UploadedIntent<'_>) -> Result<(), RuntimeError> {
@@ -324,7 +327,12 @@ impl crate::assets::AssetTransaction for Tx<'_> {
         row_id: &str,
         column: &str,
     ) -> Result<(), RuntimeError> {
-        crate::assets::validate_ledger_text(&[table, row_id, column])?;
+        crate::assets::validate_ledger_text(&[table, column])?;
+        if row_id.contains('\0')
+            && !(self.catalog.contains_key(table) && self.get(table, row_id)?.is_some())
+        {
+            crate::assets::validate_ledger_text(&[row_id])?;
+        }
         self.conn().execute("UPDATE _assets SET home_table = ?2, home_id = ?3, home_column = ?4, released_at = NULL WHERE id = ?1", params![id, table, row_id, column])?;
         Ok(())
     }

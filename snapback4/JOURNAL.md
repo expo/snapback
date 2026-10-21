@@ -99559,3 +99559,23 @@ and every suppressing rule. Every named sibling ledger receives persistence
 and rule refusal witnesses. A rule installed after attach exercises the
 asset writer's affected-row defense. Verification is recorded below after
 the complete repair and requested PostgreSQL runs.
+
+## 2026-10-21 — P1-AS fix round 1: shared asset boundaries
+
+Both stores use shared saturating subtraction for stale-sweep cutoffs, with
+shared cases at i64::MIN, the exact TTL boundary and i64::MAX. Quota rows
+are not bounded: SQLite's row iterator and Postgres's driver row stream
+feed the same checked signed accumulator in explicit byte-ordered intent
+order, without materializing the population. The exact MAX, 1, -1 legacy
+case now fails at MAX + 1 on both adapters and rolls back provisional rows.
+The reverse insertion order in that witness also pins the declared order.
+
+SQLite placement permits existing legacy NUL home row keys and still
+refuses new ones; the regression claims an ordinary upload through the
+shared claim_asset policy, then releases it. Both adapters check home
+fields before the absent asset-id no-op. The shared admission fixture
+covers ordinary and NUL absent ids with each invalid home field. The RFC
+now records asset_ids byte order and replaces its old NUMERIC-cast claim
+with the streaming checked-fold contract. The test script's optional
+SNAPBACK4_PG_SHARE supplies initdb -L for extracted PostgreSQL packages;
+the default path is unchanged. Required verification follows below.

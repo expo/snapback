@@ -518,3 +518,21 @@ fn asset_record_refuses_a_write_suppressed_after_attach() {
     let tx = e.store.transaction(None).unwrap();
     assert!(tx.asset("discarded").unwrap().is_none());
 }
+
+#[test]
+#[ignore = "SKIP_POSTGRES_ASSETS_DATABASE: requires private SNAPBACK4_EVAL_POSTGRES"]
+fn asset_shared_stale_cutoff_boundaries() {
+    run(|tx| test_cases::stale_cutoff_boundaries(tx));
+}
+
+#[test]
+#[ignore = "SKIP_POSTGRES_ASSETS_DATABASE: requires private SNAPBACK4_EVAL_POSTGRES"]
+fn asset_shared_intermediate_aggregate_overflow_rolls_back() {
+    let mut e = engine();
+    let tx = e.store.transaction(Some(WriteMode::Serialized)).unwrap();
+    test_cases::intermediate_aggregate_overflow_is_terminal(&tx);
+    drop(tx);
+    let tx = e.store.transaction(None).unwrap();
+    assert!(tx.asset("a_max").unwrap().is_none());
+    assert!(!tx.asset_intent_exists("alice", "a_max").unwrap());
+}

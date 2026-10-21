@@ -246,7 +246,37 @@ pub(crate) fn aggregate_overflow_is_terminal(tx: &impl Ledger) {
     }
     assert!(tx.pinned_asset_bytes("alice").is_err());
     // The harness drops/rolls back immediately; SQLite must not continue after
-    // its SUM error simply because its connection still permits statements.
+    // an adapter error simply because its connection still permits statements.
+}
+
+pub(crate) fn intermediate_aggregate_overflow_is_terminal(tx: &impl Ledger) {
+    // Reverse insertion makes the declared intent ordering observable. The
+    // exact final sum fits, but MAX + 1 must refuse before the -1 is visited.
+    for (id, bytes) in [("c_neg", -1_i64), ("b_one", 1), ("a_max", i64::MAX)] {
+        let mut a = asset(id);
+        a.bytes = bytes as u64;
+        tx.record(&a).unwrap();
+        upload(tx, "alice", id, id, "{}");
+    }
+    let error = tx.pinned_asset_bytes("alice").unwrap_err();
+    assert_eq!(error.code(), "E_STORE");
+    assert!(error.to_string().contains("asset quota byte sum overflow"));
+}
+
+pub(crate) fn stale_cutoff_boundaries(tx: &impl Ledger) {
+    for (id, at) in [("min", i64::MIN), ("min-next", i64::MIN + 1),
+        ("max-before", i64::MAX - UNCLAIMED_TTL_MS - 1),
+        ("max-cut", i64::MAX - UNCLAIMED_TTL_MS)] {
+        let mut a = asset(id);
+        a.created_at = at;
+        tx.record(&a).unwrap();
+    }
+    for now in [i64::MIN, i64::MIN + UNCLAIMED_TTL_MS - 1, i64::MIN + UNCLAIMED_TTL_MS] {
+        assert!(tx.stale(now).is_empty(), "now={now}");
+        assert!(tx.stage(now, std::time::Duration::ZERO).is_empty());
+    }
+    assert_eq!(tx.stale(i64::MIN + UNCLAIMED_TTL_MS + 1).iter().map(|a| a.id.as_str()).collect::<Vec<_>>(), ["min"]);
+    assert_eq!(tx.stale(i64::MAX).iter().map(|a| a.id.as_str()).collect::<Vec<_>>(), ["min", "min-next", "max-before"]);
 }
 
 pub(crate) fn inventory_byte_order(tx: &impl Ledger) {
@@ -492,6 +522,12 @@ pub(crate) fn nul_admission(tx: &impl Ledger) {
                 .code(),
             "E_INPUT"
         );
+    }
+    for id in ["absent", "a\0b"] {
+        for (table, row, column) in [("t\0x", "r", "c"), ("t", "r\0x", "c"), ("t", "r", "c\0x")] {
+            assert_eq!(tx.place_asset(id, table, row, column).unwrap_err().code(), "E_INPUT");
+        }
+        tx.place_asset(id, "docs", "r", "doc").unwrap();
     }
     assert_eq!(tx.view("upload", "a\0b", 1).unwrap_err().code(), "E_INPUT");
     assert_eq!(tx.asset_ids().unwrap(), ["upload"]);

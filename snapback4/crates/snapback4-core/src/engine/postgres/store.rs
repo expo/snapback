@@ -239,6 +239,19 @@ impl Tx<'_> {
         Ok(self.inner.borrow_mut().query(&statement, params)?)
     }
 
+    /// Fold a driver row stream without retaining an unbounded result vector.
+    pub(super) fn query_fold<T>(&self, sql: &'static str, params: &[&(dyn ToSql + Sync)], mut total: T, mut fold: impl FnMut(T, Row) -> Result<T, RuntimeError>) -> Result<T, RuntimeError> {
+        use postgres::fallible_iterator::FallibleIterator;
+        let statement = self.prepared(sql)?;
+        self.calls.set(self.calls.get() + 1);
+        let mut inner = self.inner.borrow_mut();
+        let mut rows = inner.query_raw(&statement, params.iter().copied())?;
+        while let Some(row) = rows.next()? {
+            total = fold(total, row)?;
+        }
+        Ok(total)
+    }
+
     pub fn execute(&self, sql: &'static str, params: &[&(dyn ToSql + Sync)]) -> Result<u64, RuntimeError> {
         let statement = self.prepared(sql)?;
         self.guard_params(&statement, params)?;

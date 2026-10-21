@@ -2,7 +2,7 @@
 // @ref LLP 3000.009.001.000#9.1 — shared cases and adapter-driven observable contention.
 use super::*;
 use crate::assets::{
-    self, AssetIntentReader, AssetTransaction,
+    self, AssetIntentReader, AssetTransaction, UNCLAIMED_TTL_MS,
     test_cases::{self, Ledger},
 };
 use crate::store::test_race::FenceRace;
@@ -249,4 +249,38 @@ fn asset_shared_reads_survive_additive_columns() {
         tx.conn().execute_batch("ALTER TABLE _assets ADD COLUMN future TEXT; ALTER TABLE _asset_intents ADD COLUMN future TEXT; ALTER TABLE _asset_views ADD COLUMN future TEXT; ALTER TABLE _asset_gc ADD COLUMN future TEXT").unwrap();
         test_cases::cached_read_contract(tx);
     });
+}
+
+#[test]
+fn asset_shared_stale_cutoff_boundaries() {
+    run(|tx| test_cases::stale_cutoff_boundaries(tx));
+}
+
+#[test]
+fn asset_shared_intermediate_aggregate_overflow_rolls_back() {
+    let mut store = Store::memory().unwrap();
+    let tx = store.transaction().unwrap();
+    test_cases::intermediate_aggregate_overflow_is_terminal(&tx);
+    drop(tx);
+    assert!(store.asset("a_max").unwrap().is_none());
+    assert!(!store.asset_intent_exists("alice", "a_max").unwrap());
+}
+
+#[test]
+fn asset_claim_accepts_an_existing_legacy_nul_home_key() {
+    let mut store = Store::memory().unwrap();
+    let table = crate::schema::public_table(Default::default(), Default::default());
+    let schema = crate::schema::Schema { tables: [("docs".into(), table.clone())].into(), ..Default::default() };
+    store.install(&schema).unwrap();
+    let tx = store.transaction().unwrap();
+    let row_id = "legacy\0row";
+    let row = crate::value::object([("id", crate::Value::Id(row_id.into()))]);
+    tx.put("docs", &table, &row, None).unwrap();
+    tx.record_asset(&test_cases::asset("ordinary-upload")).unwrap();
+    assets::claim_asset(&tx, "ordinary-upload", "alice", "docs", row_id, "doc").unwrap();
+    assert_eq!(tx.asset("ordinary-upload").unwrap().unwrap().home, Some(("docs".into(), row_id.into(), "doc".into())));
+    tx.release_asset("ordinary-upload", "docs", row_id, "doc", 2).unwrap();
+    assert_eq!(tx.asset("ordinary-upload").unwrap().unwrap().released_at, Some(2));
+    tx.record_asset(&test_cases::asset("new-upload")).unwrap();
+    assert_eq!(assets::claim_asset(&tx, "new-upload", "alice", "docs", "new\0row", "doc").unwrap_err().code(), "E_INPUT");
 }
