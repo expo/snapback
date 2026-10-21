@@ -1,5 +1,5 @@
 // @ref LLP 3000.033#3 — stored authority, fixed caps and writer races.
-use snapback4_core::{identity::{self, SessionScope, ServiceSample}, Store};
+use snapback4_core::{identity::{self, SessionScope, ServiceSample}, store_port::AnyStore as Store};
 use sha2::{Digest, Sha256};
 use rusqlite::params;
 const DAY: i64 = 86_400_000;

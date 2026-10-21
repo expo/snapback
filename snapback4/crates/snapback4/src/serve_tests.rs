@@ -64,10 +64,10 @@ impl Host {
         Self::with_store(dev, snapback4_core::store_port::AnyStore::memory().unwrap(), SCHEMA)
     }
 
-    pub(super) fn with_store(dev: bool, store: snapback4_core::store_port::AnyStore, source: &str) -> Self {
+    pub(super) fn with_store(dev: bool, store: impl Into<snapback4_core::store_port::AnyStore>, source: &str) -> Self {
         Self::with_store_on(dev, store, source, "127.0.0.1")
     }
-    fn with_store_on(dev: bool, store: snapback4_core::store_port::AnyStore, source: &str, bind: &str) -> Self {
+    fn with_store_on(dev: bool, store: impl Into<snapback4_core::store_port::AnyStore>, source: &str, bind: &str) -> Self {
         Self::with_evidence(dev, store, source, bind, None)
     }
     fn request(&self, method: &str, path: &str, headers: &str, body: &str) -> String {

@@ -303,6 +303,10 @@ fn facade_has_no_owner_connection_or_physical_control() {
     impl<'a, T: AsRef<AnyTx<'a>>> Ambiguous<RefEscape> for T {}
     struct BorrowEscape;
     impl<'a, T: std::borrow::Borrow<AnyTx<'a>>> Ambiguous<BorrowEscape> for T {}
+    struct SqliteRefEscape;
+    impl<'a, T: AsRef<crate::store::Tx<'a>>> Ambiguous<SqliteRefEscape> for T {}
+    struct SqliteBorrowEscape;
+    impl<'a, T: std::borrow::Borrow<crate::store::Tx<'a>>> Ambiguous<SqliteBorrowEscape> for T {}
     let _ = <MemberTx<'_, '_> as Ambiguous<_>>::absent;
 
     struct Missing;

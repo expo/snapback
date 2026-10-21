@@ -100290,3 +100290,48 @@ An independent run of the new census matcher against base `8beeb79c52`
 reproduces **79/16 engine + 44/21 host = 123 tokens/37 files**; the migrated
 production trees have **0 tokens/0 files**. The falling census and full
 qualification results follow in the final increment.
+
+### 2026-10-21 — S10a qualification: zero concrete engine/host handles
+
+The SQLite-only handle migration meets the RFC §3.4 target: **123 concrete
+Store/Tx tokens in 37 production engine/host files → 0 in 0**. The sibling
+census has a fixed zero allowance with no raise override. The committer
+ratchet recognizes the scoped authority opener and remains **49 sites in
+11 files**; this is no new K0 producer-routing claim. Store-port access remains
+**0 production / 95 fixture sites**. Owning SQLite bridges remain for S10b;
+MemberTx still has no dereference, raw connection or physical transaction
+control, with negative borrow checks against both AnyTx and SQLite Tx.
+The device crate and the Postgres engine/family sources are unchanged.
+
+Qualification also closed inherited test setup gaps: differential fixtures
+now enable core test-support only in dev-dependencies; the experiment lock
+loses one obsolete direct device/rusqlite edge; five standalone SQLite
+calibration probes use two typed evaluation operations with the same SQL and
+order. The installed Lean 4.34.1 toolchain was added to command-local PATH and
+its no-dependency oracle built here without cache downloads. Mixed metadata
+from the standalone/main Cargo workspaces was cleared only in this worktree's
+own target before the final full differential run. No production default
+feature, Postgres algorithm, absent-evidence policy or transaction order changed.
+
+Final full suites: core **1,024 / 0 failed / 5 ignored**; host **1,398 / 3 /
+15**, with exactly the three author-supplied baseline failures; device
+**1,573 / 0 / 4**; simulator **749 / 0 / 7**; differential with the actual Lean
+oracle **99 / 0 / 0**. Both supplied load-sensitive host fixtures pass in the
+full run, so no isolated flake rerun was necessary. Both existing ratchets and
+the new census pass (12 tests), the requested guide guard passes, and the
+wasm codec census passes all 27 tests. Core no-default, device web/wasm and the
+normal binary build pass again at the end, using only this worktree's target,
+ten jobs, no incremental compilation and line-tables-only dev/test debug.
+Disk space stayed well above the 20 GB stop threshold.
+
+The final PostgreSQL 16.15 script passes: **58 experiment tests + 161 family
+tests + 19 corpus tests**, with existing exclusions retained. All three private
+clusters used during qualification were stopped and independently confirmed
+with status 3 and no postmaster.pid. No other cluster was stopped. Root
+ref-check and diff whitespace validation pass. No push, stash, clone, other
+machine or sub-agent was used. The complete result and the three baseline
+failure names are in [the S10a report](./reports/20261021-s10a-sqlite-store-handles.md).
+
+Final review also preserves ReleaseCheck's original adapter-only connection
+visibility: its conversion to AnyPreparation lives in the SQLite adapter. The
+normal binary rebuild after that visibility-only tightening passes.

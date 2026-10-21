@@ -641,7 +641,7 @@ mod timeline_tests {
     #[test]
     fn timeline_owned_tables_cannot_be_maintain_targets() {
         let schema = crate::engine::timeline_authority::write_tests::schema();
-        let mut store = crate::AnyStore::memory().unwrap(); store.install(&schema).unwrap();
+        let mut store = crate::store_port::AnyStore::memory().unwrap(); store.install(&schema).unwrap();
         let tx = store.transaction().unwrap();
         let mut runner = Runner::new(&tx, &schema, crate::Context::system().at(1), crate::meter::Meter::new(crate::Ceilings::unbounded(),crate::meter::Cut::Abort),0);
         let mut guard = runner.timeline_scope(crate::engine::timeline_authority::Authority::Transition("feed".into()));

@@ -65,6 +65,7 @@ impl AnyTx<'_> {
     pub(crate) fn begin_member_evidence(&self) { match self { Self::Sqlite(tx) => tx.begin_member_evidence() } }
 }
 impl ReadSnapshot<'_> {
+    pub fn commit(self) -> Result<(), RuntimeError> { self.tx.commit() }
     pub fn rollback(self) -> Result<(), RuntimeError> { self.tx.rollback() }
 }
 
@@ -101,7 +102,7 @@ impl AnyStore {
     ) -> Result<Committed<(u64, R)>, RuntimeError> {
         match self { Self::Sqlite(store) => store.activate_at_with_launch(
             schema, programs, reset, now, allow_launch,
-            |preparation| check(&AnyPreparation::Sqlite(sqlite::release::ReleaseCheck(preparation.0))),
+            |preparation| check(&AnyPreparation::from(preparation)),
             build, finish,
         ) }
     }

@@ -1,6 +1,6 @@
 #![cfg(feature = "sqlite")]
 
-use snapback4_core::{Context, Engine, Schema, Store, Value, WriteState, identity};
+use snapback4_core::{Context, Engine, Schema, store_port::AnyStore as Store, Value, WriteState, identity};
 use snapback4_core::ir::{ArgType, Expr, Program, ProgramKind, Stmt};
 use serde_json::json;
 use std::collections::BTreeMap;

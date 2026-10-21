@@ -5,7 +5,7 @@ use crate::{schema::{Index, Table}, assets::Asset, store::LogEvent, engine::acti
 use crate::store_port::{AnyStore, AnyTx, ReadSnapshot, AnyPreparation};
 use std::collections::{BTreeMap};
 
-mod family_0 {
+mod rows {
     use super::*;
     use crate::rows::*;
     impl Rows for AnyTx<'_> {
@@ -104,7 +104,7 @@ mod family_0 {
     }
 }
 
-mod family_1 {
+mod partition {
     use super::*;
     use crate::partition::*;
     impl PartitionRows for AnyTx<'_> {
@@ -129,7 +129,7 @@ mod family_1 {
     }
 }
 
-mod family_2 {
+mod authority {
     use super::*;
     use crate::authority::*;
     impl AuthorityTransaction for AnyTx<'_> {
@@ -143,7 +143,7 @@ mod family_2 {
     }
 }
 
-mod family_3 {
+mod identity_transaction {
     use super::*;
     use crate::identity::*;
     impl IdentityTransaction for AnyTx<'_> {
@@ -156,7 +156,7 @@ mod family_3 {
     }
 }
 
-mod family_4 {
+mod identity_store {
     use super::*;
     use crate::identity::*;
     impl IdentityStore for AnyStore {
@@ -179,7 +179,7 @@ mod family_4 {
     }
 }
 
-mod family_5 {
+mod requests_transaction {
     use super::*;
     use crate::engine::actions::requests::*;
     impl RequestsTransaction for AnyTx<'_> {
@@ -197,7 +197,7 @@ mod family_5 {
     }
 }
 
-mod family_6 {
+mod requests_store {
     use super::*;
     use crate::engine::actions::requests::*;
     impl RequestsStore for AnyStore {
@@ -205,7 +205,7 @@ mod family_6 {
     }
 }
 
-mod family_7 {
+mod job_transaction {
     use super::*;
     use crate::engine::job::*;
     impl JobTransaction for AnyTx<'_> {
@@ -234,7 +234,7 @@ mod family_7 {
     }
 }
 
-mod family_8 {
+mod job_store {
     use super::*;
     use crate::engine::job::*;
     impl JobStore for AnyStore {
@@ -248,7 +248,7 @@ mod family_8 {
     }
 }
 
-mod family_9 {
+mod outbox_transaction {
     use super::*;
     use crate::engine::effects::*;
     impl OutboxTransaction for AnyTx<'_> {
@@ -288,7 +288,7 @@ mod family_9 {
     }
 }
 
-mod family_10 {
+mod outbox_store {
     use super::*;
     use crate::engine::effects::*;
     impl OutboxStore for AnyStore {
@@ -300,7 +300,7 @@ mod family_10 {
     }
 }
 
-mod family_11 {
+mod receipts {
     use super::*;
     use crate::receipts::*;
     impl ReceiptReader for AnyTx<'_> {
@@ -315,7 +315,7 @@ mod family_11 {
     }
 }
 
-mod family_12 {
+mod asset_intents {
     use super::*;
     use crate::assets::*;
     impl AssetIntentReader for AnyTx<'_> {
@@ -326,7 +326,7 @@ mod family_12 {
     }
 }
 
-mod family_13 {
+mod assets {
     use super::*;
     use crate::assets::*;
     impl AssetTransaction for AnyTx<'_> {
@@ -349,7 +349,7 @@ mod family_13 {
     }
 }
 
-mod family_14 {
+mod metadata {
     use super::*;
     use crate::metadata::*;
     impl MetadataReader for AnyTx<'_> {
@@ -394,7 +394,7 @@ mod family_14 {
     }
 }
 
-mod family_15 {
+mod activation {
     use super::*;
     use crate::activation::*;
     impl ActivationReader for AnyTx<'_> {
@@ -422,7 +422,7 @@ mod family_15 {
     }
 }
 
-mod family_16 {
+mod preparation {
     use super::*;
     use crate::activation::*;
     impl ActivationPreparation for AnyPreparation<'_> {
@@ -434,7 +434,7 @@ mod family_16 {
     }
 }
 
-mod family_17 {
+mod release {
     use super::*;
     use crate::engine::release::*;
     impl ReleaseTransaction for AnyPreparation<'_> {
@@ -443,7 +443,7 @@ mod family_17 {
     }
 }
 
-mod family_18 {
+mod timeline {
     use super::*;
     use crate::activation::*;
     impl TimelineWorkReader for AnyStore {
@@ -451,7 +451,7 @@ mod family_18 {
     }
 }
 
-mod family_19 {
+mod evidence {
     use super::*;
     use crate::revocation::*;
     impl ChangeEvidence for AnyTx<'_> {
@@ -483,5 +483,13 @@ mod inspection {
         fn inspection_row_count(&self, name: &str, limit: u64) -> InspectionResult<u64> { match self { Self::Sqlite(inner) => <sqlite::inspect::Inspection as InspectionCatalog>::inspection_row_count(inner, name, limit) } }
         fn inspection_provenance(&self) -> InspectionResult<Option<(i64, String)>> { match self { Self::Sqlite(inner) => <sqlite::inspect::Inspection as InspectionCatalog>::inspection_provenance(inner) } }
         fn inspection_adopted(&self) -> InspectionResult<bool> { match self { Self::Sqlite(inner) => <sqlite::inspect::Inspection as InspectionCatalog>::inspection_adopted(inner) } }
+    }
+}
+
+mod reset {
+    use super::*;
+    use crate::engine::{committer, dev_reset::{DevResetStore, ResetState}};
+    impl DevResetStore for AnyStore {
+        fn dev_reset( &mut self, pin_clock: impl FnOnce(&committer::MemberTx<'_, '_>) -> Result<i64, RuntimeError>, inventory_assets: impl FnOnce(&committer::MemberTx<'_, '_>) -> Result<Vec<String>, RuntimeError>, prime_schedules: impl FnOnce(&committer::MemberTx<'_, '_>, i64) -> Result<(), RuntimeError>, seed: impl FnOnce(&committer::MemberTx<'_, '_>, u64, i64) -> Result<u64, RuntimeError>, ) -> Result<committer::Resolution<ResetState>, RuntimeError> { match self { Self::Sqlite(inner) => DevResetStore::dev_reset(inner, pin_clock, inventory_assets, prime_schedules, seed) } }
     }
 }

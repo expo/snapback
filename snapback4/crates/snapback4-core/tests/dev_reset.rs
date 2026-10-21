@@ -1,7 +1,7 @@
 //! A development reset leaves the store a new store would be: no rows, no
 //! derived data, no queues, no accounts, a new identity, and a head that
 //! keeps counting. A reseed is part of the same transaction.
-use snapback4_core::{Context, Engine, Value, WriteState, identity, store::Store, value::object};
+use snapback4_core::{Context, Engine, Value, WriteState, identity, store_port::AnyStore as Store, value::object};
 
 const SOURCE: &str = "use personas alice
 table lists:

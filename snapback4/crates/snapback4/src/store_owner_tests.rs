@@ -25,7 +25,7 @@ fn database_ownership_preserves_sqlites_posix_locks() {
         owner.path().unwrap();
         assert!(command(&path).is_err());
         assert!(device(&path).is_err());
-        assert!(AnyStore::open_shared(&path).is_err());
+        assert!(snapback4_core::Store::open_shared(&path).is_err());
         announce(&mut owner, "127.0.0.1:4567".parse().unwrap()).unwrap();
         let run = |busy: bool| {
             let mut child = Command::new(std::env::current_exe().unwrap());
@@ -96,7 +96,7 @@ fn busy_missing_database_creates_nothing() {
     fs::rename(&path, &moved).unwrap();
     let record = dir.join("serve.lock");
     let before = fs::read(&record).unwrap();
-    for error in [command(&path).err().unwrap(), device(&path).err().unwrap(), AnyStore::open_shared(&path).err().unwrap().to_string()] {
+    for error in [command(&path).err().unwrap(), device(&path).err().unwrap(), snapback4_core::Store::open_shared(&path).err().unwrap().to_string()] {
         assert!(error.contains("E_STORE_BUSY"), "{error}");
         assert!(error.contains("ends exclusion") && error.contains("does not stop that process"), "{error}");
         assert!(!path.exists(), "busy probe manufactured a database");
@@ -118,7 +118,7 @@ fn hard_linked_databases_refuse_both_paths_and_existing_owners() {
         fs::create_dir_all(other.parent().unwrap()).unwrap();
         fs::hard_link(&path, &other).unwrap();
         for candidate in [&path, &other] {
-            for error in [command(candidate).err().unwrap(), device(candidate).err().unwrap(), AnyStore::open_shared(candidate).err().unwrap().to_string()] {
+            for error in [command(candidate).err().unwrap(), device(candidate).err().unwrap(), snapback4_core::Store::open_shared(candidate).err().unwrap().to_string()] {
                 assert!(error.contains("E_STORE") && error.contains("copy the store, do not hard-link it"), "{error}");
             }
         }
@@ -147,7 +147,7 @@ fn database_renamed_to_auxiliary_name_is_never_opened_or_truncated() {
         assert!(regular(&target, true, &path).is_err());
         assert!(command(&path).is_err());
         assert!(device(&path).is_err());
-        assert!(AnyStore::open_shared(&path).is_err());
+        assert!(snapback4_core::Store::open_shared(&path).is_err());
         assert!(!path.exists());
         let output = Command::new(std::env::current_exe().unwrap())
             .args(["--exact", "store_owner::tests::external_sqlite_writer", "--nocapture"])
