@@ -9,7 +9,12 @@ fn recipe() -> String {
 fn checked(s: &str) -> snapback4_lang::Bound {
     let b = compile(&[("schema.q".into(), s.into())]);
     assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
-    assert!(b.notes.is_empty(), "{:?}", b.notes);
+    for note in &b.notes {
+        assert_eq!(note.code, "N_LOOKUP_FILTERED", "{:?}", b.notes);
+        assert!(["mutation send:", "mutation delivered:", "mutation skipExpiredBefore:"].iter().any(|name| note.message.starts_with(name)), "{note:?}");
+        assert!(s.lines().nth(note.site.line as usize - 1).unwrap().contains("! else NOT_FOUND"));
+        assert!(note.message.contains("read <-") && note.rewrite.contains("do not widen private rows"));
+    }
     b
 }
 fn id(s: &str) -> Value { Value::Id(s.into()) }
@@ -153,9 +158,11 @@ fn deny_and_read_through_scopes_require_authority_before_using_the_prefix() {
         let schema = source.split("mutation gap").next().unwrap();
         let b = compile(&[("schema.q".into(), format!("{schema}\n{}\nmutation gap(conversation: conversations):\n  anchor = messages[conversation = conversation, ordinal = 3] ! else NOT_FOUND\n  return skipExpired_messages(conversation, 0, 3)\n", d.rewrite))]);
         assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
-        assert_eq!(b.notes.len(), 1, "{:?}", b.notes);
-        assert_eq!(b.notes[0].code, "N_UNREADABLE_PROBE");
-        assert!(b.notes[0].message.contains("negative guard"));
+        assert_eq!(b.notes.len(), 2, "{:?}", b.notes);
+        let probe = b.notes.iter().find(|note| note.code == "N_UNREADABLE_PROBE").unwrap();
+        assert!(probe.message.contains("negative guard"));
+        let lookup = b.notes.iter().find(|note| note.code == "N_LOOKUP_FILTERED").unwrap();
+        assert!(lookup.message.contains("lookup of messages") && lookup.rewrite.contains("do not widen private rows"));
         let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
         use snapback4_core::value::object;
         e.seed_at([("conversations".into(), object([("id", id("chat"))]))], 1).unwrap();

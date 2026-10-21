@@ -244,9 +244,6 @@ impl Binder<'_> {
             A::Assert { value, code, message, .. } => {
                 validate_code(site, code)?;
                 let (mut e, t) = self.expr(value, out)?;
-                if let A::Read(read) = value.as_ref() {
-                    self.notes.retain(|note| note.code != "N_LOOKUP_FILTERED" || note.site != read.site);
-                }
                 // A row point may return null because its read meter cut. Do
                 // not turn that unavailable fact into an authored NOT_FOUND.
                 if self.caller_kind == ProgramKind::Query && t.is_optional() && matches!(t.required(), Ty::Row(_)) {

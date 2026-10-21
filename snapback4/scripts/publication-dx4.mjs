@@ -60,7 +60,7 @@ await deploy("staging","snapback",{args:["--staging"]});
 host=await startServe("staging",{seedUsers:{roles:{member:1},provision:{name:"provision"},service:"ops",args:()=>({label:"extra",role:"admin"})}});
 try {
  const user=host.sessions.member[0];const role=await fetch(host.url+"/q/myRole",{method:"POST",headers:{authorization:"Bearer "+user.token},body:'{"args":{}}'}).then(r=>r.json());assert.equal(role.data.role,"admin");
- const before=await host.now();assert.ok(await host.advance("8d")-before>=8*86400000);
+ const before=await host.now();assert.ok((await host.advance("8d")).now-before>=8*86400000);
  assert.equal((await login(host.url,user.email,user.password)).ok,true);
 }finally{await host.stop();}
 host=await startDev({args:["--memory","--unsafe-dev-doors","--no-watch"]});

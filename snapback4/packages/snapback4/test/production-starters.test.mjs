@@ -14,12 +14,12 @@ const starter = join(root, 'crates/snapback4/src/verbs/init/starter');
 // Qualification supplies init's installed recipe files and the packed SDK.
 const clientDist = process.env.SNAPBACK4_PRODUCTION_CLIENT_DIST ?? join(root, 'packages/snapback4/dist');
 
-test('native smoke identifies its own provider error and preserves other failures', () => {
-  const source = readFileSync(process.env.SNAPBACK4_PRODUCTION_NATIVE_SMOKE ?? join(starter, '../native-smoke.ts'), 'utf8').replace(/^import .*;\n/gm, '').replace('export function', 'function');
+test('packaged native smoke preserves provider and other hook failures', () => {
+  const source = readFileSync(process.env.SNAPBACK4_PRODUCTION_NATIVE_SMOKE ?? join(root, 'packages/snapback4-expo/src/native-smoke.ts'), 'utf8').replace(/^import .*;\n/gm, '').replace('export function', 'function');
   for (const missing of [true, false]) {
     const context = vm.createContext({ Error, useAuth() { throw new Error(missing ? 'useAuth: no <AppProvider> above this component' : 'storage failure'); } });
     vm.runInContext(source, context);
-    assert.throws(() => vm.runInContext('useNativeSmokeGuest()', context), missing ? /useNativeSmokeGuest: no <AppProvider>/ : /storage failure/);
+    assert.throws(() => vm.runInContext('useNativeSmoke()', context), missing ? /useAuth: no <AppProvider>/ : /storage failure/);
   }
 });
 

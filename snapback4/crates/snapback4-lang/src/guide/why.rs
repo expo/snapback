@@ -26,6 +26,8 @@ pub(super) fn detail(code: &str) -> Option<&'static str> {
         "N_VACUOUS_RULE" => include_str!("why/N_VACUOUS_RULE.md"),
         "N_QUERY_FALLTHROUGH" => include_str!("why/N_QUERY_FALLTHROUGH.md"),
         "N_QUERY_RESERVATION" => include_str!("why/N_QUERY_RESERVATION.md"),
+        "E_FRONTEND_SCENARIO" => include_str!("why/E_FRONTEND_SCENARIO.md"),
+        "N_UNIQUE_HIDDEN" => include_str!("why/N_UNIQUE_HIDDEN.md"),
         "N_LOOKUP_FILTERED" => include_str!("why/N_LOOKUP_FILTERED.md"),
         "N_LOOKUP_HIDDEN" => include_str!("why/N_LOOKUP_HIDDEN.md"),
         "N_NO_PRODUCTION_WRITER" => include_str!("why/N_NO_PRODUCTION_WRITER.md"),

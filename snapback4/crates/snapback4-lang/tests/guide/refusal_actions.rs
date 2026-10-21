@@ -97,6 +97,8 @@ pub(super) const ACTIONS: &[(&str, &[&str])] = &[
     ("N_VACUOUS_RULE", &["If being one is a role, test it"]),
     ("N_QUERY_FALLTHROUGH", &[ "Add `return []`", "does not prove read completeness" ]),
     ("N_QUERY_RESERVATION", &[ "Reduce real product caps or split independent reads", "cannot spend its reservation twice" ]),
+    ("E_FRONTEND_SCENARIO", &["assert its SDK write receipt", "replace this refusal"]),
+    ("N_UNIQUE_HIDDEN", &["minimal readable key projection", "do not widen private rows"]),
     ("N_LOOKUP_FILTERED", &[ "Review a minimal readable projection", "do not widen private rows blindly", "not evidence that a stored row exists" ]),
     ("N_LOOKUP_HIDDEN", &["A blind mutable update is not a program read", "let them read the intended rows", "Do not widen read access solely to permit a blind patch"]),
     ("N_UNREADABLE_PROBE", &["Use a unique/cap/after insert constraint for an invariant across hidden rows", "caller-visible existence is intended"]),

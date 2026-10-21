@@ -90,6 +90,7 @@ fn wrap(text: &str, width: usize) -> String {
 /// synced when it was written.
 pub(super) fn without_offline(text: &str) -> String {
     let legacy = [
+        ("`metro.config.js` and `metro-wasm-transformer.cjs`: keep both; Metro then\n  ships the web device's wasm and skips the local `.snapback4/` store.", "`metro.config.js`: calls `snapback4-expo/metro`; the package then\n  ships the web device's wasm and skips the local `.snapback4/` store."),
         ("the Snapback 4 web starter. It works offline and syncs when the link returns.\n", "the Snapback 4 web starter.\n\nOFFLINE\n"),
         ("started from the Snapback 4 Expo starter. Development and production builds\nopen the native device and work offline; Expo Go uses the online client; web\nuses the wasm device.\n",
             "started from the Snapback 4 Expo starter. Development and production builds\nopen the native device; Expo Go uses the online client; web uses the wasm\ndevice.\n\nOFFLINE\n"),
@@ -361,13 +362,11 @@ pub(super) fn expo_files(shape: &Shape) -> Vec<(&'static str, String)> {
         ("app.json", super::pretty(&config)),
         ("babel.config.js", include_str!("../../../../../apps/chat-expo/babel.config.js").to_owned()),
         ("metro.config.js", include_str!("metro.config.js").to_owned()),
-        ("metro-wasm-transformer.cjs", include_str!("metro-wasm-transformer.cjs").to_owned()),
         ("index.js", include_str!("../../../../../apps/chat-expo/index.js").to_owned()),
         ("tsconfig.json", include_str!("../../../../../apps/chat-expo/tsconfig.json").to_owned()),
         ("expo-env.d.ts", include_str!("starter/expo-env.d.ts").to_owned()),
         ("App.tsx", app),
         ("src/client.ts", client),
-        ("src/native-smoke.ts", native_smoke(shape.password)),
         ("snapback/schema.q", SCHEMA.to_owned()),
         ("README.md", identity_readme(Platform::Expo, &shape.title, &shape.body, shape.personas.is_some(), &shape.offline, shape.password)),
     ].into_iter().chain(FIXTURES.map(|(name, text)| (name, text.to_owned()))).collect()
@@ -376,7 +375,13 @@ pub(super) fn expo_files(shape: &Shape) -> Vec<(&'static str, String)> {
 pub(super) const EXPO_ENV: &str = include_str!("starter/expo-env.d.ts");
 
 // @ref LLP 3000.011.003.000#8 — password identity gets an executable sign-in screen.
-pub(super) fn identity_screens(platform: Platform, personas: Option<&[String]>, body: &Body, password: bool) -> (String, String) { identity_screens_version(platform, personas, body, password, false) }
+pub(super) fn identity_screens(platform: Platform, personas: Option<&[String]>, body: &Body, password: bool) -> (String, String) {
+    let (app, client) = wave20_screens(platform, personas, body, password);
+    let app = if platform == Platform::Expo { app.replace("import { useNativeSmokeGuest } from \"./src/native-smoke\";", "import { useNativeSmoke } from \"snapback4-expo/native-smoke\";")
+        .replace("useNativeSmokeGuest();", if password { "useNativeSmoke(true);" } else { "useNativeSmoke();" }) } else { app };
+    (app, client)
+}
+pub(super) fn wave20_screens(platform: Platform, personas: Option<&[String]>, body: &Body, password: bool) -> (String, String) { identity_screens_version(platform, personas, body, password, false) }
 // Recognize only complete known templates; edited application source never matches.
 pub(super) fn previous_screens(platform: Platform, personas: Option<&[String]>, body: &Body, password: bool) -> (String, String) { identity_screens_version(platform, personas, body, password, true) }
 fn identity_screens_version(platform: Platform, personas: Option<&[String]>, body: &Body, password: bool, previous: bool) -> (String, String) {
@@ -406,7 +411,7 @@ pub(super) fn identity_readme(platform: Platform, title: &str, body: &Body, pers
     let text = if password { text.replace(GUEST_SIGN_IN, "Sign up or sign in with email and password (`use identity password`); the SDK\nkeeps your session across restarts. See `snapback4 guide client --section password`.")
         .replace("Choose \"Continue as a guest\", then add", "Sign up or sign in with email and password, then add")
         .replace("Choose \"Continue as a\nguest\", then add", "Sign up or sign in with email and password, then add") } else { text };
-    if *body == Body::Todos { super::proof::readme(text) } else { text }
+    super::proof::readme(text)
 }
 
 /// Exact client templates emitted by 0.4.24, before runtime URL/witness additions.
@@ -443,7 +448,7 @@ pub(super) fn native_smoke_version(password: bool, guest: &str) -> String {
 /// Wave 14's previous exact screen bytes remain recognizable after the
 /// improved complete-empty/denied rendering. Edited screens never match.
 pub(super) fn wave14_screens(platform: Platform, personas: Option<&[String]>, body: &Body, password: bool) -> (String, String) {
-    let (app, client) = identity_screens(platform, personas, body, password);
+    let (app, client) = wave20_screens(platform, personas, body, password);
     let (current, previous) = match platform {
         Platform::Web => (include_str!("starter/web/todos.tsx"), include_str!("starter/previous/wave14/web-todos.tsx")),
         Platform::Expo => (include_str!("starter/expo/todos.tsx"), include_str!("starter/previous/wave14/expo-todos.tsx")),

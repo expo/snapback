@@ -148,9 +148,9 @@ test("MIG staging clock is operator-only and production never accepts an offset"
       const response = await fetch(host.url + "/dev/clock/advance", { method: "POST", headers: token ? { Authorization: `Bearer ${token}` } : {}, body: '{"duration":"+1h"}' });
       assert.equal(response.status, 403); assert.equal((await response.json()).denied.code, "E_AUTH");
     }
-    const advanced = await host.advance("+2h"); assert.ok(Math.abs(advanced - before - 7200000) < 5000);
+    const advanced = await host.advance("+2h"); assert.ok(Math.abs(advanced.now - before - 7200000) < 5000);
     const result = await cli(["clock", "advance", "+1h", "--release", "staging"], { cwd });
-    assert.equal(result.code, 0, result.stderr); assert.ok((await host.now()) - advanced >= 3600000);
+    assert.equal(result.code, 0, result.stderr); assert.ok((await host.now()) - advanced.now >= 3600000);
     const token = await host.operatorToken();
     for (const path of ["/seed", "/dev/reset", "/dev/jobs/foo"]) assert.equal((await fetch(host.url + path, { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: "[]" })).status, 403, path);
   } finally { await host.stop(); }

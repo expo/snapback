@@ -1,0 +1,9 @@
+{
+  "status": "passed",
+  "directory": "/home/ccheever/projects/sb4-b20-dx5/snapback4/target/dx5-qualification-6/day2-compatibility",
+  "savedSourceCompatibility": "passed",
+  "expoPrintedWrittenPorts": "passed",
+  "previewNoise": "passed",
+  "helperContracts": "passed",
+  "fixtureAgreement": "passed"
+}

@@ -1,0 +1,11 @@
+Two defects remain:
+
+- **P2 — Older Expo READMEs lose adaptation recognition.** The changed Metro paragraph in [the README template](/home/ccheever/projects/sb4-b20-dx5/snapback4/crates/snapback4/src/verbs/init/starter/expo/README.md:44) has no retained historical variant. [README recognition](/home/ccheever/projects/sb4-b20-dx5/snapback4/crates/snapback4/src/verbs/init/adapt.rs:126) therefore treats previously generated, untouched Todo READMEs as modified. Adapt can rewrite the screen for a new schema while leaving obsolete Todo/guest instructions behind. Preserve recognition of the previous exact text.
+
+- **P2 — A clock consumer still expects a number.** [publication-staging.mjs:63](/home/ccheever/projects/sb4-b20-dx5/snapback4/scripts/publication-staging.mjs:63) subtracts `advanced`, now an object, from `await host.now()`. This produces `NaN` and always fails the assertion. Use `advanced.now`; I reproduced the failure by evaluating that exact line.
+
+I found no additional blocking privacy, authority, `ReadState`, consumer-relative Metro, or warning-delivery defect. Six focused React/warning tests passed. I inspected the real-old-CLI acquisition harness without rerunning acquisition. No files were edited and `test.sh` was not run.
+
+Implementation hashes match `r2-sources.json`; the measurement script has subsequently changed.
+
+NOT READY

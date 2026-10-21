@@ -64,7 +64,28 @@ test('packed rule recipes run as written and preserve authority at boundaries', 
     writeFileSync(join(cwd,'snapback/schema.q'), source);
     const checked = JSON.parse(invoke(process.execPath,[cliPath,'check','--json'],cwd,env));
     assert.equal(checked.ok,true);
-    const notes=checked.notes.filter(n=>n.code!=='N_NO_PRODUCTION_WRITER');
+    const dx5 = {
+      'table rosterFolders:':['N_LOOKUP_FILTERED','mutation addRosterFile:'],
+      'table liveRosterFolders:':['N_LOOKUP_FILTERED','mutation addLiveRosterFile:'],
+      'image: image <=5000000':['N_LOOKUP_FILTERED','mutation addLiveRosterFile:'],
+      'table ladderTickets:':['N_LOOKUP_FILTERED','mutation closeLadderTicket:'],
+      'table ladderKeys:':['N_UNIQUE_HIDDEN',"ladderKeys's unique key"],
+      'table scheduledDrafts:':['N_LOOKUP_FILTERED','mutation editScheduledDraft:'],
+      'table availabilitySlots:':['N_UNIQUE_HIDDEN',"privateBookings's unique slot, principal"],
+      'table ancestorProjects:':['N_LOOKUP_FILTERED','mutation addAncestorFile:'],
+      'table versionedTasks:':['N_LOOKUP_FILTERED','mutation transitionTask:'],
+    }[marker];
+    const advice=checked.notes.filter(n=>['N_LOOKUP_FILTERED','N_UNIQUE_HIDDEN'].includes(n.code));
+    assert.deepEqual(advice.map(n=>n.code),dx5?[dx5[0]]:[],JSON.stringify(checked.notes));
+    for(const note of advice) {
+      assert.ok(note.message.startsWith(dx5[1]),note.message);
+      assert.equal(note.site.file,'schema.q');assert.ok(note.site.col>0);
+      const line=source.split('\n')[note.site.line-1];
+      if(note.code==='N_LOOKUP_FILTERED') {assert.match(line,/! else/);assert.match(note.message,/read/);}
+      else {assert.match(line,/unique .*else/);assert.match(note.message,/generic E_RULE/);}
+      assert.match(note.rewrite,/do not widen private rows/);
+    }
+    const notes=checked.notes.filter(n=>!['N_NO_PRODUCTION_WRITER','N_LOOKUP_FILTERED','N_UNIQUE_HIDDEN'].includes(n.code));
     if(source.includes('read through live .folder')) {
       assert.equal(notes.length,1); assert.equal(notes[0].code,'N_NO_HORIZON');
       assert.doesNotMatch(JSON.stringify(notes),/last 500/);
@@ -400,10 +421,10 @@ query oversized(c: cursor ?):
   });
   await t.test('hidden unique conflicts redact even the authored code', async t=>{
     const p=await project(t,'table ladderKeys:',rules);
-    await p.sent('claimLadderKey','bob',{key:'private'});
-    const hidden=await p.failed('claimLadderKey','alice',{key:'private'},'E_RULE');
-    assert.doesNotMatch(JSON.stringify(hidden.why),/KEY_TAKEN|private/);
-    await p.failed('claimLadderKey','bob',{key:'private'},'KEY_TAKEN');
+    await p.sent('claimLadderKey','bob',{key:'dx5-hidden-claimed-key'});
+    const hidden=await p.failed('claimLadderKey','alice',{key:'dx5-hidden-claimed-key'},'E_RULE');
+    assert.doesNotMatch(JSON.stringify(hidden.why),/KEY_TAKEN|dx5-hidden-claimed-key/);
+    await p.failed('claimLadderKey','bob',{key:'dx5-hidden-claimed-key'},'KEY_TAKEN');
     await p.sent('claimLadderKey','alice',{key:'free'});
   });
   await t.test('rule and program exists deliberately see different populations', async t=>{

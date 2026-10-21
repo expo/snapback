@@ -1,0 +1,104 @@
+[
+  {
+    "lane": "002-snapback-venison-processing-tags",
+    "warnings": [
+      "data --json returns {rows, more, limit} since 0.4.35, replacing the bare array. One-line fix: JSON.parse(stdout).rows (was JSON.parse(stdout)); use more/limit to detect truncation. Review candidate consumers: probe/source/scripts/day2lib.mjs, scripts/day2lib.mjs"
+    ]
+  },
+  {
+    "lane": "005-snapback-recording-studio-lockouts",
+    "warnings": [
+      "data --json returns {rows, more, limit} since 0.4.35, replacing the bare array. One-line fix: JSON.parse(stdout).rows (was JSON.parse(stdout)); use more/limit to detect truncation. Review candidate consumers: probe/source/scripts/production.mjs, scripts/production.mjs"
+    ]
+  },
+  {
+    "lane": "006-snapback-trampoline-park-incidents",
+    "warnings": [
+      "data --json returns {rows, more, limit} since 0.4.35, replacing the bare array. One-line fix: JSON.parse(stdout).rows (was JSON.parse(stdout)); use more/limit to detect truncation. Review candidate consumers: probe/source/scripts/production.ts, scripts/production.ts"
+    ]
+  },
+  {
+    "lane": "016-snapback-turbine-climb-permits",
+    "warnings": [
+      "data --json returns {rows, more, limit} since 0.4.35, replacing the bare array. One-line fix: JSON.parse(stdout).rows (was JSON.parse(stdout)); use more/limit to detect truncation. Review candidate consumers: probe/source/scripts/production.ts, scripts/production.ts"
+    ]
+  },
+  {
+    "lane": "017-snapback-quarry-blast-notices",
+    "warnings": [
+      "data --json returns {rows, more, limit} since 0.4.35, replacing the bare array. One-line fix: JSON.parse(stdout).rows (was JSON.parse(stdout)); use more/limit to detect truncation. Review candidate consumers: probe/source/scripts/prod-users.mjs, scripts/prod-users.mjs"
+    ]
+  },
+  {
+    "lane": "022-snapback-allergy-shot-observation",
+    "warnings": [
+      "data --json returns {rows, more, limit} since 0.4.35, replacing the bare array. One-line fix: JSON.parse(stdout).rows (was JSON.parse(stdout)); use more/limit to detect truncation. Review candidate consumers: probe/source/scripts/production.mjs, scripts/production.mjs"
+    ]
+  },
+  {
+    "lane": "023-snapback-donor-milk-batches",
+    "warnings": [
+      "data --json returns {rows, more, limit} since 0.4.35, replacing the bare array. One-line fix: JSON.parse(stdout).rows (was JSON.parse(stdout)); use more/limit to detect truncation. Review candidate consumers: probe/source/scripts/day2-proof.ts, scripts/day2-proof.ts"
+    ]
+  },
+  {
+    "lane": "024-snapback-teleradiology-read-queue",
+    "warnings": [
+      "data --json returns {rows, more, limit} since 0.4.35, replacing the bare array. One-line fix: JSON.parse(stdout).rows (was JSON.parse(stdout)); use more/limit to detect truncation. Review candidate consumers: probe/source/scripts/production.mjs, scripts/production.mjs"
+    ]
+  },
+  {
+    "lane": "026-snapback-extinguisher-service-tags",
+    "warnings": [
+      "data --json returns {rows, more, limit} since 0.4.35, replacing the bare array. One-line fix: JSON.parse(stdout).rows (was JSON.parse(stdout)); use more/limit to detect truncation. Review candidate consumers: probe/source/scripts/prod-lib.mjs, scripts/prod-lib.mjs"
+    ]
+  },
+  {
+    "lane": "028-snapback-survey-monument-records",
+    "warnings": [
+      "data --json returns {rows, more, limit} since 0.4.35, replacing the bare array. One-line fix: JSON.parse(stdout).rows (was JSON.parse(stdout)); use more/limit to detect truncation. Review candidate consumers: probe/source/scripts/production.ts, scripts/production.ts"
+    ]
+  },
+  {
+    "lane": "034-snapback-gymnastics-meet-scoring",
+    "warnings": [
+      "data --json returns {rows, more, limit} since 0.4.35, replacing the bare array. One-line fix: JSON.parse(stdout).rows (was JSON.parse(stdout)); use more/limit to detect truncation. Review candidate consumers: probe/source/scripts/production.mjs, scripts/production.mjs"
+    ]
+  },
+  {
+    "lane": "036-snapback-feed-mill-medicated-batches",
+    "warnings": [
+      "data --json returns {rows, more, limit} since 0.4.35, replacing the bare array. One-line fix: JSON.parse(stdout).rows (was JSON.parse(stdout)); use more/limit to detect truncation. Review candidate consumers: probe/source/scripts/production.mjs, scripts/production.mjs"
+    ]
+  },
+  {
+    "lane": "038-snapback-dye-house-lab-dips",
+    "warnings": [
+      "data --json returns {rows, more, limit} since 0.4.35, replacing the bare array. One-line fix: JSON.parse(stdout).rows (was JSON.parse(stdout)); use more/limit to detect truncation. Review candidate consumers: probe/source/scripts/production.mjs, scripts/production.mjs"
+    ]
+  },
+  {
+    "lane": "039-snapback-countertop-slab-layouts",
+    "warnings": [
+      "data --json returns {rows, more, limit} since 0.4.35, replacing the bare array. One-line fix: JSON.parse(stdout).rows (was JSON.parse(stdout)); use more/limit to detect truncation. Review candidate consumers: probe/source/scripts/production.mjs, scripts/production.mjs"
+    ]
+  },
+  {
+    "lane": "040-snapback-lifeboat-crew-pagers",
+    "warnings": [
+      "data --json returns {rows, more, limit} since 0.4.35, replacing the bare array. One-line fix: JSON.parse(stdout).rows (was JSON.parse(stdout)); use more/limit to detect truncation. Review candidate consumers: probe/source/scripts/production.mjs, scripts/production.mjs"
+    ]
+  },
+  {
+    "lane": "043-snapback-safe-deposit-access",
+    "warnings": [
+      "data --json returns {rows, more, limit} since 0.4.35, replacing the bare array. One-line fix: JSON.parse(stdout).rows (was JSON.parse(stdout)); use more/limit to detect truncation. Review candidate consumers: probe/source/scripts/production.mjs, scripts/production.mjs"
+    ]
+  },
+  {
+    "lane": "048-snapback-repair-cafe-intake",
+    "warnings": [
+      "data --json returns {rows, more, limit} since 0.4.35, replacing the bare array. One-line fix: JSON.parse(stdout).rows (was JSON.parse(stdout)); use more/limit to detect truncation. Review candidate consumers: probe/source/scripts/prod-lib.mjs, scripts/prod-lib.mjs"
+    ]
+  }
+]

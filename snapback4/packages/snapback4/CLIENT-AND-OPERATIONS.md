@@ -4142,6 +4142,21 @@ export function SharedList<T extends {id: string}>({page, remove, label}: {page:
 ```
 Pass usePage(api.list) and useMutation(api.remove). Match page.read, render page.items. `absent` can be an authorised empty list; query myMembership for roles. createClient takes generated handles (api.op), never names.
 
+## List read state
+
+`ReadState` from snapback4/react renders a list read or `usePage` result in one
+expression. Loading/empty default to null; omitted denied throws QueryRefusal.
+Empty describes returned rows, including partial/stale lists, not proven absence.
+The data renderer receives the same precise read metadata. Supply Text/View
+slots in React Native; the component creates no observation or retained state.
+
+```tsx
+import { ReadState, type Read } from "snapback4/react";
+export function ListScreen({ read }: { read: Read<readonly { id: string; title: string }[]> }) {
+  return <ReadState read={read} loading={<p>Loading…</p>} empty={<p>No results</p>} denied={why => <p role="alert">{why.message}</p>}>{(rows, answer) => <ul data-complete={answer.complete}>{rows.map(row => <li key={row.id}>{row.title}</li>)}</ul>}</ReadState>;
+}
+```
+
 ## Short screens
 
 `useQueryData(op,args)` returns data or undefined while loading. Refusals throw

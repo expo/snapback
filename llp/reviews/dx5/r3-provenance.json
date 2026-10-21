@@ -1,0 +1,20 @@
+{
+  "commands": {
+    "muse": "timeout 1200s ~/sb4-loop/muse-exec.sh --yolo --model muse-spark-1.3-contributor --reasoning-effort high --prompt-file llp/reviews/dx5/r3-brief.md",
+    "codex": "timeout 1200s codex exec -m gpt-6.1-sol -c model_reasoning_effort=high --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox - < llp/reviews/dx5/r3-brief.md"
+  },
+  "submitted": "r3-sources.json",
+  "verdicts": {
+    "muse": "READY",
+    "codex": "NOT READY"
+  },
+  "outputs": {
+    "muse": "r3-muse.txt",
+    "codex": "r3-codex.txt"
+  },
+  "stderr": {
+    "muse": "r3-muse.stderr.txt",
+    "codex": "r3-codex.stderr.txt"
+  },
+  "repairs": "Packed day5/starter expectations now retain and execute the generated frontend scaffold; DX5 qualification is included in result evidence."
+}

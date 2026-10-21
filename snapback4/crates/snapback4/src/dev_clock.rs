@@ -3,7 +3,7 @@ use snapback4_core::error::Refusal;
 use std::time::{Duration, Instant};
 
 // @ref LLP 3000.000.000.001#8-wave-18-developer-loop-amendment-dx4 — preserve expiry tests and tell callers how to recover.
-pub(crate) const SESSION_NOTICE: &str = "Time travel also advances session expiry and unplaced-upload collection: seven-day password sessions may now be expired. Sign in again after the jump and upload unplaced bytes after it; never replay an ambiguous clock advance. Password-only dev clock tools require --unsafe-dev-doors; for real-user previews use guide staging (MIG staging clock).";
+pub(crate) const SESSION_NOTICE: &str = "Time travel also advances session expiry and unplaced-upload collection: seven-day password sessions may now be expired. Sign in again after the jump and upload unplaced bytes after it; never replay an ambiguous clock advance.";
 
 const MAX_TIME: i64 = snapback4_core::value::I53_MAX;
 
@@ -133,7 +133,15 @@ pub fn command(options: &crate::verbs::Options) -> i32 {
             format!("clock advance reply failed at {address}: {error}; time may already have advanced ({evidence}); inspect /dev/status and queued work before retrying; for an isolated dev pass --port N")
         })?;
         if let Some(notice) = json["sessionNotice"].as_str() { eprintln!("clock: {notice}"); }
+        if let Some(held) = json["held"].as_array() {
+            for schedule in held.iter().filter(|s| s["holdCode"] == "saved-boundary") {
+                eprintln!("clock: schedule {}: {}", schedule["name"].as_str().unwrap_or("?"), schedule["reason"].as_str().unwrap_or("held"));
+            }
+        }
         if let Some(denied) = json.get("denied") {
+            if json.get("now").is_some() {
+                eprintln!("clock: incomplete advance report (time already moved): {}", serde_json::json!({"now":json["now"],"fired":json["fired"],"held":json["held"]}));
+            }
             let clock = json["message"].as_str().map(|message| format!("; time remains advanced: {message}")).unwrap_or_default();
             return Err(format!("{}: {}{clock}\n  guide: clock", denied["code"].as_str().unwrap_or("E_CLOCK_INPUT"), denied["message"].as_str().unwrap_or("clock advance failed")));
         }

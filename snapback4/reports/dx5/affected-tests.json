@@ -1,0 +1,31 @@
+{
+  "client": {
+    "files": 13,
+    "passed": 115,
+    "failed": 0,
+    "log": "test-logs/dx5-client-final.log.gz"
+  },
+  "productionStarterTests": {
+    "passed": 5,
+    "failed": 0,
+    "log": "test-logs/dx5-production-tests.log.gz"
+  },
+  "qualificationHarness": {
+    "passed": 55,
+    "failed": 0,
+    "log": "test-logs/dx5-qualify-unit.log.gz"
+  },
+  "mac": {
+    "host": "ccheever@macstudio-charlie-apt101-a",
+    "directory": "~/sb4-ws-dx5",
+    "rustPassed": 109,
+    "clientPassed": 69,
+    "supplementalRustPassed": 17,
+    "logs": [
+      "test-logs/dx5-mac-final.log.gz",
+      "test-logs/dx5-mac-supplemental-3.log.gz"
+    ],
+    "buildOutputsRemoved": true
+  },
+  "scope": "DX5 affected tests; full Rust execution and corrections recorded in full-rust.json; fresh packed consumer cases in qualification/consumer.json"
+}

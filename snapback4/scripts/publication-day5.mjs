@@ -29,9 +29,15 @@ assert.equal((await cli(['test','--residency','--fixture-only','--fixture','fixt
 for(const kind of ['web','expo']){
  const dir=join(cwd,kind);mkdirSync(join(dir,'snapback'),{recursive:true});writeFileSync(join(dir,'snapback/schema.q'),source);
  const init=await cli(['init','--'+kind],{cwd:dir});assert.equal(init.code,0,init.stdout+init.stderr);
- assert.equal(existsSync(join(dir,'scripts/frontend-proof.mjs')),false);
+ assert.equal(existsSync(join(dir,'scripts/frontend-proof.mjs')),true);
+ assert.match(readFileSync(join(dir,'scripts/frontend-proof.mjs'),'utf8'),/E_FRONTEND_SCENARIO/);
+ const packageJson=JSON.parse(readFileSync(join(dir,'package.json')));
+ assert.equal(packageJson.scripts['frontend:proof'],'node scripts/frontend-proof.mjs');
+ assert.equal(packageJson.scripts['proof:web'],packageJson.scripts['frontend:proof']);
+ assert.equal(packageJson.devDependencies['playwright-core'],'1.55.1');
  assert.equal(existsSync(join(dir,'fixtures/todos.jsonl')),false);
- assert.doesNotMatch(readFileSync(join(dir,'README.md'),'utf8'),/npm run frontend:proof|# Todos/);
+ assert.doesNotMatch(readFileSync(join(dir,'README.md'),'utf8'),/# Todos/);
+ assert.match(readFileSync(join(dir,'README.md'),'utf8'),/npm run frontend:proof/);
  const checked=await cli(['check'],{cwd:dir});assert.equal(checked.code,0,checked.stdout+checked.stderr);
 }
 // Execute the changed measurement recipes from the installed cards themselves.

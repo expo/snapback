@@ -26,7 +26,7 @@ fn compile_source(source: &str) -> Bound { compile(&[("schema.q".into(), source.
 fn checked(source: &str) -> Bound {
     let bound = compile_source(source);
     assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
-    assert!(bound.notes.is_empty(), "{:?}", bound.notes);
+    assert!(bound.notes.iter().all(|n| n.code == "N_UNIQUE_HIDDEN"), "{:?}", bound.notes);
     bound
 }
 
@@ -173,8 +173,9 @@ fn writes_card_refuses_a_stranger_inserting_a_night_without_creating_the_booking
     let source = format!("{}\nmutation squat(listing: listings, booking: bookings, day: int):\n  insert nights {{ listing, day, booking }}\n", card_source());
     let bound = compile_source(&source);
     assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
-    assert_eq!(bound.notes.len(), 1, "{:?}", bound.notes);
-    let note = &bound.notes[0];
+    let notes: Vec<_> = bound.notes.iter().filter(|n| n.code != "N_UNIQUE_HIDDEN").collect();
+    assert_eq!(notes.len(), 1, "{:?}", bound.notes);
+    let note = notes[0];
     assert_eq!(note.code, "N_REFERENCE_UNCHECKED", "{note}");
     assert!(note.message.contains("mutation squat") && note.message.contains("listings[listing]"), "{note}");
     let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();

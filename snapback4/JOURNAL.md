@@ -99649,3 +99649,36 @@ No push, stash, git configuration change, sub-agent, other worktree, remote
 machine, new gate, allowance increase, publication or Postgres host wiring
 was used. The remaining verification limitation is the absent contype='n'
 catalog shape on the supplied 17.9 server, as recorded above.
+
+
+## 2026-10-21 — DX5 wave-20 developer loop repairs
+
+The DX5 amendment is LLP 3000.000.000.001 §10, with pointers from the
+backfill, frontend, starter and intent-aware diagnostic LLPs. Both fresh
+review families returned READY on the same final product/amendment revision:
+`llp/reviews/dx5/r5-sources.json`, `r5-muse.txt`, `r5-codex.txt`; exact commands
+and test-only follow-ups are in `r5-provenance.json`.
+
+Staging advance exposes every schedule as fired or held with its reason,
+including the persisted/equal-boundary hold after a restart; maintenance
+failures carry an explicitly incomplete moved-time report. Hidden lookup
+advice now covers asserted and written-table reads; private named unique
+keys get source advice while all undisclosed runtime causes keep generic
+E_RULE. The wrapper scans candidate array consumers of `data --json` and
+repeats first-check advice until visible delivery, covering upgrades executed
+by old quiet CLIs. Changelog 0.4.36 gives the `.rows` migration.
+
+ReadState handles list presentation and retains settled metadata. Expo owns
+Metro/wasm support and the native smoke hook; starters pin Playwright, and
+adapt retains a runnable frontend scaffold that explicitly refuses a missing
+write scenario, including public schemas with no sign-in. Application-owned
+proofs/helpers stay under application custody. Read-only copies of wave-20
+lanes 006/032/033 type-check after saving 1,730/1,824/1,618 frontend characters;
+original hashes stay unchanged. Evidence is in `reports/dx5/frontend.json`.
+
+The commissioned full/affected test commands, packed qualification outcomes,
+Mac Studio evidence, cleanup and acquisition limitations are recorded in
+`WORKSTREAM-REPORT.md` at the repository root. Public npm still lacked 0.4.35
+when old-CLI acquisition was tested; its retained bakeoff artifact has explicit
+registry/integrity provenance. No version bump, push or publication. SEC5 owns
+the companion security intent/campaign/exposure text and behavior.

@@ -116,7 +116,6 @@ pub struct Binder<'a> {
     /// Only direct scanned-row columns get false-on-null ordering in where.
     in_predicate: bool,
     returned_data: bool,
-    optional_lookups: BTreeMap<String, String>,
     shape_field: Option<(String, Site)>,
     variants: Vec<(String, bool)>,
     temps: u32,
@@ -186,7 +185,7 @@ impl<'a> Binder<'a> {
     /// Differential-test control: lowering is identical with the side map disabled.
     #[doc(hidden)]
     pub fn bind_with_ownership(catalog: &'a Catalog, schema: &'a snapback4_core::schema::Schema, module: &str, decl: &ast::ProgramDecl, diagnostics: &mut Vec<Diagnostic>, record_ownership: bool) -> Option<BoundProgram> {
-        let mut binder = Binder { viewer_depth: None, maintenance_scopes: BTreeMap::new(), pure_functions: BTreeMap::new(), call_types: BTreeMap::new(), page_sources: BTreeMap::new(), canonical_sources: BTreeMap::new(), constraint_domains: Default::default(), filters: BTreeMap::new(), variants: Vec::new(), view_types: BTreeMap::new(), sources: BTreeMap::new(), selections: BTreeMap::new(), presence_sources: Vec::new(), receipt_sources: Vec::new(), receipt_returns: Vec::new(), implicit_write_results: Vec::new(), catalog, schema, name: decl.name.clone(), kind: decl.kind, caller_kind: decl.kind, call_chain: Vec::new(), job_bound_helpers: Default::default(), scopes: vec![BTreeMap::new()], focal: None, in_predicate: false, returned_data: false, optional_lookups: BTreeMap::new(), shape_field: None, temps: 0, sites: 0, returns: Vec::new(), depth: 0, loops: 0, loop_transfers: Vec::new(), caller_loops: 0, in_prelude: false, total: None, record_ownership, expanding_feed: None, timeline_scans: Default::default(), notes: Vec::new(), may_have_written: false, errors: Vec::new(), pending_totals: Vec::new() };
+        let mut binder = Binder { viewer_depth: None, maintenance_scopes: BTreeMap::new(), pure_functions: BTreeMap::new(), call_types: BTreeMap::new(), page_sources: BTreeMap::new(), canonical_sources: BTreeMap::new(), constraint_domains: Default::default(), filters: BTreeMap::new(), variants: Vec::new(), view_types: BTreeMap::new(), sources: BTreeMap::new(), selections: BTreeMap::new(), presence_sources: Vec::new(), receipt_sources: Vec::new(), receipt_returns: Vec::new(), implicit_write_results: Vec::new(), catalog, schema, name: decl.name.clone(), kind: decl.kind, caller_kind: decl.kind, call_chain: Vec::new(), job_bound_helpers: Default::default(), scopes: vec![BTreeMap::new()], focal: None, in_predicate: false, returned_data: false, shape_field: None, temps: 0, sites: 0, returns: Vec::new(), depth: 0, loops: 0, loop_transfers: Vec::new(), caller_loops: 0, in_prelude: false, total: None, record_ownership, expanding_feed: None, timeline_scans: Default::default(), notes: Vec::new(), may_have_written: false, errors: Vec::new(), pending_totals: Vec::new() };
         binder.call_chain.push((super::operation_name(module, &decl.name), decl.site.clone()));
         binder.declare(pure_calls::CONSTANTS, Ty::Null);
         let mut args = BTreeMap::new();
@@ -333,8 +332,6 @@ impl<'a> Binder<'a> {
                 format!("query {}: one executable path reserves {work} physical authorization reads, leaving no room in the {allowance}-read allowance; its bounded pages return an empty partial answer before opening", decl.name),
                 "reduce the declared population caps or split independent reads into separate queries; mutually exclusive returning branches already share a reservation; loops retain the sum of their static reads").guide("reads"));
         }
-        let written = ir::write_tables(&program);
-        binder.notes.retain(|note| note.code != "N_LOOKUP_FILTERED" || binder.optional_lookups.get(&note.site.to_string()).is_none_or(|table| !written.iter().any(|(written, _)| written == table)));
         // @ref LLP 3000.036#17.8 — a total behind its grant's guard is the holder's whole total, as the server computes it.
         let mut refused = false;
         for (site, diagnostic) in std::mem::take(&mut binder.pending_totals) {

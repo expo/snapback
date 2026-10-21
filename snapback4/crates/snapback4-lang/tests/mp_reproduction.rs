@@ -141,7 +141,8 @@ fn developer_gets_each_cause_without_changing_one_byte_of_the_refusal() {
     }
     // @ref LLP 3000.036.002#11 — generic layer/recipe help changes; private causes must remain indistinguishable.
     let mut expected: snapback4_core::Refusal = serde_json::from_str(include_str!("../../../reports/wave11-qdiag/public-rule.json")).unwrap();
-    expected.message.insert_str(0, "table authorization layer: ");
+    // DX5 changes only generic public help; all five private causes still match.
+    expected.message = "table authorization layer: members's insert rule does not admit this viewer, or a sequence insert requires read authority independent of its ordinal, or a row you cannot read holds this key (a unique key or cap group), or authorization cannot be established within its physical work allowance. A unique declaration's `else CODE` applies only to a readable conflict; private conflicts keep this generic refusal. Review the authored read/write rules and unique declarations; use an operator-mediated claim or a minimal readable key projection when intended, without exposing private row fields".into();
     expected.rewrite = Some("a mutation require decides intent; each write still passes its table rule; see: guide rule-recipes role-workflow".into());
     assert_eq!(envelopes[0],serde_json::to_vec(&expected).unwrap());
     assert!(envelopes.windows(2).all(|p|p[0]==p[1]),"every private cause keeps the identical caller envelope");

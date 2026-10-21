@@ -30,11 +30,12 @@ fn expo_metro_blocks_store_files_and_preserves_expo_exclusions() {
     // Evaluate the actual configs with Expo's resolver shape, including its
     // single-RegExp and array forms, without starting Metro on the host.
     let script = r#"const fs = require('node:fs'), vm = require('node:vm'), path = require('node:path'), assert = require('node:assert/strict');
-for (const file of process.argv.slice(1)) for (const existing of [undefined, /expo-hidden/, [/expo-hidden/]]) {
-  const config = { resolver: { assetExts: [], blockList: existing }, transformer: {} };
-  const req = name => name === 'expo/metro-config' ? { getDefaultConfig: () => config } : require(name);
+for (const file of process.argv.slice(1, 3)) for (const existing of [undefined, /expo-hidden/, [/expo-hidden/]]) {
+  const original = { resolver: { assetExts: [], blockList: existing }, transformer: {} }; const output = { exports: {} };
+  const req = name => name === 'expo/metro-config' ? { getDefaultConfig: () => original } : name === 'snapback4-expo/metro' ? require(process.argv[3]) : require(name);
   req.resolve = name => name;
-  vm.runInNewContext(fs.readFileSync(file, 'utf8'), { require: req, __dirname: path.dirname(file), module: { exports: {} } });
+  vm.runInNewContext(fs.readFileSync(file, 'utf8'), { require: req, __dirname: path.dirname(file), module: output });
+  const config = output.exports;
   const blocked = file => [].concat(config.resolver.blockList ?? []).some(re => re.test(file));
   for (const file of ['/app/.snapback4/store.sqlite', '/app/.snapback4/store.sqlite-wal', '/workspace/other/.snapback4/assets/bytes', 'C:\\app\\.snapback4\\store.sqlite-shm']) assert.ok(blocked(file), file);
   for (const file of ['/app/snapback/schema.q', '/app/src/client.ts', '/app/.snapback4-not-store/file']) assert.ok(!blocked(file), file);
@@ -42,7 +43,7 @@ for (const file of process.argv.slice(1)) for (const existing of [undefined, /ex
   assert.equal(config.resolver.unstable_enablePackageExports, true);
 }
 console.log('Metro: 2 configs, 3 Expo blockList shapes, store paths excluded and source paths watched');"#;
-    let output = Command::new("node").args(["-e", script]).arg(generated).arg(reference).output().unwrap();
+    let output = Command::new("node").args(["-e", script]).arg(generated).arg(reference).arg(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../packages/snapback4-expo/metro.cjs")).output().unwrap();
     println!("{}{}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr));
     assert!(output.status.success());
 }
@@ -587,7 +588,8 @@ fn expo_starters_pave_native_smoke_and_export_at_every_milestone() {
         assert_eq!(config["expo"]["newArchEnabled"], true);
         assert!(config["expo"]["plugins"].as_array().unwrap().contains(&json!("snapback4-expo/plugin")));
         assert_eq!(config["expo"]["plugins"].as_array().unwrap().iter().filter(|p| **p == json!("snapback4-expo/plugin")).count(), 1);
-        assert!(root.join("src/native-smoke.ts").exists());
+        assert!(!root.join("src/native-smoke.ts").exists());
+        assert!(!root.join("metro-wasm-transformer.cjs").exists());
         let readme = fs::read_to_string(root.join("README.md")).unwrap();
         for text in ["every milestone", "npm run export:ios", "npm run native:smoke", "in the background", "witness status --wait", "doctor", "artifacts/native-smoke/<timestamp>", "offline reopen", "write replay"] {
             assert!(readme.to_lowercase().contains(&text.to_lowercase()), "missing {text}");
@@ -617,7 +619,7 @@ fn web_and_expo_starters_are_one_small_screen_with_product_comments() {
         assert!(!dir.0.join("recipes").exists(), "ordinary starters must not ship unused guide recipes");
         let schema = fs::read_to_string(dir.0.join("snapback/schema.q")).unwrap();
         let bound = snapback4_lang::compile(&[("schema.q".into(), schema)]);
-        assert!(bound.diagnostics.is_empty() && bound.notes.is_empty(), "{:?} {:?}", bound.diagnostics, bound.notes);
+        assert!(bound.diagnostics.is_empty() && bound.notes.iter().all(|n| n.code == "N_LOOKUP_FILTERED"), "{:?} {:?}", bound.diagnostics, bound.notes);
         assert_eq!(bound.schema.tables.len(), 1);
         assert!(bound.schema.auth.guests, "the starter screen signs in as a guest");
         for op in ["list", "add", "toggle", "remove"] { assert!(bound.schema.operations.contains_key(op), "{op}"); }
@@ -905,7 +907,7 @@ fn init_first_then_schema_leftovers_are_named_and_adapted() {
     let adapted = dir.init(&["--adapt", "--apply"]);
     assert!(adapted.status.success(), "{adapted:?}");
     let stdout = String::from_utf8_lossy(&adapted.stdout);
-    assert!(stdout.contains("removed fixtures/todos.jsonl and fixtures/test.cases.jsonl") && stdout.contains("rewrote src/App.tsx and src/client.ts and README.md"), "{stdout}");
+    assert!(stdout.contains("removed fixtures/todos.jsonl and fixtures/test.cases.jsonl") && stdout.contains("rewrote src/App.tsx and src/client.ts and scripts/frontend-proof.mjs and README.md"), "{stdout}");
     // Wave 4 (R1): adapt removes the files it names, never the directory.
     assert!(dir.0.join("fixtures").is_dir() && fs::read_dir(dir.0.join("fixtures")).unwrap().count() == 0);
     assert!(stdout.contains("fixtures/ stays"), "{stdout}");
@@ -1004,7 +1006,7 @@ fn adapt_never_touches_a_file_the_project_changed() {
     assert_eq!(fs::read_to_string(dir.0.join("App.tsx")).unwrap(), app);
     assert_eq!(fs::read_to_string(dir.0.join("src/client.ts")).unwrap(), client);
     let adapted = String::from_utf8_lossy(&adapted.stdout);
-    assert!(adapted.contains("rewrote README.md —") && adapted.contains("application-owned or modified files stay unchanged:") && !adapted.contains("rewrite App.tsx") && !adapted.contains("rewrite src/client.ts"), "{adapted}");
+    assert!((adapted.contains("rewrote scripts/frontend-proof.mjs and README.md") || adapted.contains("rewrote README.md —")) && adapted.contains("application-owned or modified files stay unchanged:") && !adapted.contains("rewrite App.tsx") && !adapted.contains("rewrite src/client.ts"), "{adapted}");
     // An unmodified Expo screen adapts like the web one.
     let dir = Dir::new();
     assert!(dir.init(&["--expo"]).status.success());
@@ -1056,7 +1058,7 @@ fn expo_starters_override_the_config_plugins_uuid() {
 // init names every file it wrote, and each named file exists.
 #[test]
 fn init_lists_the_files_it_wrote() {
-    for (args, expected) in [(&["--web"][..], &["vite.config.mts", "src/{", "App.tsx"][..]), (&["--expo"], &["metro.config.js", "metro-wasm-transformer.cjs", "App.tsx"])] {
+    for (args, expected) in [(&["--web"][..], &["vite.config.mts", "src/{", "App.tsx"][..]), (&["--expo"], &["metro.config.js", "App.tsx"])] {
         let dir = Dir::new();
         let output = dir.init(args);
         assert!(output.status.success(), "{output:?}");

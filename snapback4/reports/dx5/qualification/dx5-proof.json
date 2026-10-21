@@ -1,0 +1,97 @@
+{
+  "status": "passed",
+  "clock": "reused store fired/held/recovery",
+  "diagnostics": "source advice and wire privacy",
+  "readState": "verbatim packed guide snippet, types and all states",
+  "starter": "packaged Metro/smoke, Playwright, retained proof",
+  "upgrades": [
+    {
+      "from": "0.4.33",
+      "flags": [],
+      "candidate": "0.4.36",
+      "oldPackage": {
+        "registry": "https://registry.npmjs.org",
+        "integrity": "sha512-KIsQ9PQYxbufDI9g721LnHoMQ/ZKx4HzFQIT5/kVu1JJXo+6lEWe4nd2fniXzW/f9ByjA8UIJxOVHdWFAwSSVA=="
+      },
+      "oldWrapperSha256": "a602978d6f2bb93ad5580114789d67e8f91d3a4696468476b83b4e9d8149a1be",
+      "status": "passed",
+      "acquisition": "installed old npx snapback4 upgrade",
+      "warnings": "during upgrade and next visible check"
+    },
+    {
+      "from": "0.4.33",
+      "flags": [
+        "--quiet"
+      ],
+      "candidate": "0.4.36",
+      "oldPackage": {
+        "registry": "https://registry.npmjs.org",
+        "integrity": "sha512-KIsQ9PQYxbufDI9g721LnHoMQ/ZKx4HzFQIT5/kVu1JJXo+6lEWe4nd2fniXzW/f9ByjA8UIJxOVHdWFAwSSVA=="
+      },
+      "oldWrapperSha256": "a602978d6f2bb93ad5580114789d67e8f91d3a4696468476b83b4e9d8149a1be",
+      "status": "passed",
+      "acquisition": "installed old npx snapback4 upgrade",
+      "warnings": "deferred to next check"
+    },
+    {
+      "from": "0.4.33",
+      "flags": [
+        "--json",
+        "--quiet"
+      ],
+      "candidate": "0.4.36",
+      "oldPackage": {
+        "registry": "https://registry.npmjs.org",
+        "integrity": "sha512-KIsQ9PQYxbufDI9g721LnHoMQ/ZKx4HzFQIT5/kVu1JJXo+6lEWe4nd2fniXzW/f9ByjA8UIJxOVHdWFAwSSVA=="
+      },
+      "oldWrapperSha256": "a602978d6f2bb93ad5580114789d67e8f91d3a4696468476b83b4e9d8149a1be",
+      "status": "passed",
+      "acquisition": "installed old npx snapback4 upgrade",
+      "warnings": "deferred to next check"
+    },
+    {
+      "from": "0.4.35",
+      "flags": [],
+      "candidate": "0.4.36",
+      "oldPackage": {
+        "registry": "http://127.0.0.1:4873",
+        "integrity": "sha512-G2dF0gdY+Lwl8ZTgczNblP0YSUAVG3RzBbkDNwwT44hSfIe4xGX6B12jsOqAgJ+AviSYYoXSoVJzE2b3FYF2TQ=="
+      },
+      "oldWrapperSha256": "a602978d6f2bb93ad5580114789d67e8f91d3a4696468476b83b4e9d8149a1be",
+      "status": "passed",
+      "acquisition": "installed old npx snapback4 upgrade",
+      "warnings": "during upgrade and next visible check"
+    },
+    {
+      "from": "0.4.35",
+      "flags": [
+        "--quiet"
+      ],
+      "candidate": "0.4.36",
+      "oldPackage": {
+        "registry": "http://127.0.0.1:4873",
+        "integrity": "sha512-G2dF0gdY+Lwl8ZTgczNblP0YSUAVG3RzBbkDNwwT44hSfIe4xGX6B12jsOqAgJ+AviSYYoXSoVJzE2b3FYF2TQ=="
+      },
+      "oldWrapperSha256": "a602978d6f2bb93ad5580114789d67e8f91d3a4696468476b83b4e9d8149a1be",
+      "status": "passed",
+      "acquisition": "installed old npx snapback4 upgrade",
+      "warnings": "deferred to next check"
+    },
+    {
+      "from": "0.4.35",
+      "flags": [
+        "--json",
+        "--quiet"
+      ],
+      "candidate": "0.4.36",
+      "oldPackage": {
+        "registry": "http://127.0.0.1:4873",
+        "integrity": "sha512-G2dF0gdY+Lwl8ZTgczNblP0YSUAVG3RzBbkDNwwT44hSfIe4xGX6B12jsOqAgJ+AviSYYoXSoVJzE2b3FYF2TQ=="
+      },
+      "oldWrapperSha256": "a602978d6f2bb93ad5580114789d67e8f91d3a4696468476b83b4e9d8149a1be",
+      "status": "passed",
+      "acquisition": "installed old npx snapback4 upgrade",
+      "warnings": "deferred to next check"
+    }
+  ]
+}

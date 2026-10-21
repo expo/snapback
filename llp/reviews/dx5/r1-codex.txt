@@ -1,0 +1,13 @@
+One material issue in [§10’s upgrade contract](/home/ccheever/projects/sb4-b20-dx5/llp/3000.000.000.001-staging-with-real-users.rfc.md:385):
+
+**Old quiet upgrades can suppress warnings and falsely acknowledge delivery.** Both the 0.4.33 and 0.4.35 source snapshots capture the newly installed wrapper’s check output, then discard stderr when `--quiet` is set and check succeeds. The behavior remains visible in [upgrade.js](/home/ccheever/projects/sb4-b20-dx5/snapback4/packages/snapback4/bin/upgrade.js:181).
+
+Consequently, an old `upgrade --quiet` or `upgrade --json --quiet` can install the new package, run its wrapper, silently discard the migration warning, and leave a new warning receipt suppressing it on subsequent checks. Fresh-process resolution selects the correct bytes but does not solve delivery.
+
+The amendment needs either a concrete delivery mechanism that survives the old helper’s capture, or an explicit deferred-delivery contract that leaves these warnings unacknowledged until a later check can deliver them. Qualification should cover both quiet combinations from both old versions and verify subsequent warning/receipt behavior.
+
+I found no other material design blocker in the existence-oracle boundary, clock semantics, ReadState, Expo package-resolution requirements, or proof scaffold truthfulness.
+
+This was a read-only semantic review. I inspected historical release-source snapshots; I did not execute published-package upgrades or implementation qualification, and do not count their absence as a finding.
+
+NOT READY

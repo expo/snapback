@@ -13,14 +13,15 @@ pub(super) fn readme(mut text: String) -> String {
 }
 
 pub(super) fn files(files: &mut Vec<(&'static str, String)>, options: &Options, backend: u16, frontend: u16, web: bool, shape: &super::starter::Shape) {
-    let has_frontend = shape.body == super::starter::Body::Todos || options.flags.contains_key("template");
+    let has_frontend = true;
+    let has_write_scenario = shape.body == super::starter::Body::Todos || options.flags.contains_key("template");
     for (_, text) in files.iter_mut().filter(|(name, _)| *name == "README.md") {
         if has_frontend { *text = readme(std::mem::take(text)); }
     }
     for (name, text) in files.iter_mut() {
         if *name == "vite.config.mts" { *text = runtime_vite(text, backend, frontend); }
     }
-    let proof = frontend_proof(include_str!("frontend-proof.mjs"), options.flags.get("template").map(String::as_str), web);
+    let proof = if has_write_scenario { frontend_proof(include_str!("frontend-proof.mjs"), options.flags.get("template").map(String::as_str), web) } else { frontend_scaffold(web) };
     let dir = options.positionals.first().map(std::path::Path::new).unwrap_or_else(|| std::path::Path::new("."));
     let sources = if let Ok(Some(own)) = super::own_schema(dir) {
         own.files.iter().filter_map(|name| std::fs::read_to_string(dir.join("snapback").join(name)).ok().map(|text| (name.clone(), text))).collect::<Vec<_>>()
@@ -113,6 +114,17 @@ pub(super) fn frontend_proof(source: &str, template: Option<&str>, web: bool) ->
     proof
 }
 
+// @ref LLP 3000.000.000.001#10-wave-20-loop-repairs-dx5 — a rendered starter is not an application write proof.
+pub(super) fn frontend_scaffold(web: bool) -> String {
+    let proof = frontend_proof(include_str!("frontend-proof.mjs"), None, web);
+    let (setup, _) = proof.split_once("    const task =").expect("frontend proof's write section");
+    // A public custom schema need not invent identity just to prove rendering.
+    let setup = setup.replace(r#"} else {
+      assert.ok(personas.length, "declare identity or personas before proving the starter");"#, "} else if (personas.length) {")
+        .replace(r#"    await page.getByRole("button", { name: /^(Sign out|Switch persona)$/, exact: true }).waitFor();"#, r#"    if (identity.guests || identity.password || personas.length) await page.getByRole("button", { name: /^(Sign out|Switch persona)$/, exact: true }).waitFor();"#);
+    format!("{setup}    assert.ok((await page.locator('body').innerText()).trim(), 'frontend rendered no content');\n    // Add a real UI write and assert its SDK receipt and fresh rendered result here.\n    throw Error('E_FRONTEND_SCENARIO: frontend rendered; no app-specific write scenario yet. Edit scripts/frontend-proof.mjs and replace this refusal with your write assertions.');\n  }});\n}} finally {{ await cleanup(() => web?.stop(), () => dev.stop()); }}\n")
+}
+
 fn previous_frontend(dir: &std::path::Path, web: bool) -> Option<Option<&'static str>> {
     super::proof_advice::frontend_template(dir, web).filter(|(version,_)| matches!(*version,"0.4.28"|"0.4.29"|"0.4.30"|"0.4.31"|"0.4.32")).map(|(_,template)|template)
 }
@@ -192,11 +204,6 @@ pub(super) fn plan(dir: &std::path::Path, own: &super::OwnSchema, enable_day2: b
         }
     }
     let inherited_frontend = previous_frontend(dir, web).filter(|template| super::adapt::fits_todos(own) || template.is_some());
-    if !super::adapt::fits_todos(own) && super::proof_advice::frontend_template(dir, web).is_some_and(|(_, template)| template.is_none()) {
-        if let Some(scripts) = package["scripts"].as_object_mut() {
-            scripts.retain(|_, value| value.as_str() != Some("node scripts/frontend-proof.mjs"));
-        }
-    }
     if let Some(template) = inherited_frontend {
         if let Some((_, text)) = generated.iter_mut().find(|(name, _)| *name == "scripts/frontend-proof.mjs") {
             *text = frontend_proof(include_str!("frontend-proof.mjs"), template, web);

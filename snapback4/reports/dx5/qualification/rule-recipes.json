@@ -1,0 +1,6 @@
+{
+  "status": "passed",
+  "log": "/home/ccheever/projects/sb4-b20-dx5/snapback4/target/dx5-qualification-6/rule-recipes.log",
+  "client": "/home/ccheever/projects/sb4-b20-dx5/snapback4/target/dx5-final-pack/snapback4-0.4.35.tgz",
+  "platform": "/tmp/snapback4-linux-uqcjdC/snapback4-linux-x64-0.4.35.tgz"
+}

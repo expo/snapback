@@ -1,0 +1,48 @@
+{
+  "command": "timeout 7200s env CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 cargo test --no-fail-fast -p snapback4-core -p snapback4-lang -p snapback4-device -p snapback4-sim -p snapback4",
+  "completed": true,
+  "reportedTargetsFailingBeforeCorrections": [
+    "-p snapback4 --bin snapback4",
+    "-p snapback4-lang --test held_unknown",
+    "-p snapback4-lang --test mp_reproduction",
+    "-p snapback4-lang --test receipt_gaps",
+    "-p snapback4-lang --test wave11_docs",
+    "-p snapback4-lang --test wave12_rule_recipes",
+    "-p snapback4-lang --test wave13_rules",
+    "-p snapback4-lang --test wave14_authorization"
+  ],
+  "rawResultSummaryTotals": {
+    "passed": 7097,
+    "failed": 21,
+    "ignored": 45
+  },
+  "totalsNote": "Result summaries include isolated child probes; these are raw reported counts, not a deduplicated case census. Corrected target reruns are recorded separately.",
+  "result": "Full five-crate run completed. All eight initially failing targets pass after test expectation/fixture corrections; no unresolved failing target.",
+  "correctedTargetReruns": [
+    {
+      "target": "snapback4 bin",
+      "passed": 504,
+      "ignored": 5,
+      "log": "test-logs/dx5-bin-final.log.gz"
+    },
+    {
+      "targets": [
+        "held_unknown",
+        "mp_reproduction",
+        "receipt_gaps"
+      ],
+      "passed": 49,
+      "log": "test-logs/dx5-diagnostic-reruns.log.gz"
+    },
+    {
+      "targets": [
+        "wave11_docs",
+        "wave12_rule_recipes",
+        "wave13_rules",
+        "wave14_authorization"
+      ],
+      "passed": 37,
+      "log": "test-logs/dx5-guide-targets-final.log.gz"
+    }
+  ]
+}

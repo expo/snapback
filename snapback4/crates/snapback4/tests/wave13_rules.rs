@@ -62,7 +62,7 @@ fn exercise(name: &str, marker: &str) {
         assert!(b.notes[0].message.contains("peerCounts.opensAt"));
         assert!(b.notes[0].message.contains("equals the stored value"));
     } else {
-        assert!(b.notes.is_empty(), "{name}: {:?}", b.notes);
+        assert!(b.notes.iter().all(|n| matches!(n.code.as_str(), "N_LOOKUP_FILTERED" | "N_UNIQUE_HIDDEN")), "{name}: {:?}", b.notes);
     }
     let p = Project::new(name, &format!("{source}\nquery rules3Clock():\n  return now\n"));
     let fixtures = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/rules3").join(name);
