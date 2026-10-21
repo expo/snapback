@@ -39,6 +39,11 @@ export async function proveDX5(directory, client, platform, expo) {
 const r=spawnSync(process.execPath,['scripts/frontend-proof.mjs'],{encoding:'utf8',timeout:240000,maxBuffer:8<<20});
 assert.equal(r.status,1,r.stdout+r.stderr);assert.match(r.stderr,/E_FRONTEND_SCENARIO: frontend rendered/);console.log('DX5 adapted proof ran as written and refused the missing write scenario');`);
     await run(["expected-refusal.mjs"],cwd);
+    // Public custom schemas have no sign-in control; their proof still renders.
+    writeFileSync(join(cwd,"snapback/schema.q"),"query alive():\n  return true\n");
+    await run([cli,"init","--adapt","--apply"],cwd);
+    await run([cli,"check"],cwd);
+    await run(["expected-refusal.mjs"],cwd);
     const upgrades=await proveDX5Upgrades(client,platform);
     return {status:"passed",clock:"reused store fired/held/recovery",diagnostics:"source advice and wire privacy",readState:"verbatim packed guide snippet, types and all states",starter:"packaged Metro/smoke, Playwright, retained proof",upgrades};
   } finally {rmSync(scratch,{recursive:true,force:true});}

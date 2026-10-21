@@ -118,6 +118,10 @@ pub(super) fn frontend_proof(source: &str, template: Option<&str>, web: bool) ->
 pub(super) fn frontend_scaffold(web: bool) -> String {
     let proof = frontend_proof(include_str!("frontend-proof.mjs"), None, web);
     let (setup, _) = proof.split_once("    const task =").expect("frontend proof's write section");
+    // A public custom schema need not invent identity just to prove rendering.
+    let setup = setup.replace(r#"} else {
+      assert.ok(personas.length, "declare identity or personas before proving the starter");"#, "} else if (personas.length) {")
+        .replace(r#"    await page.getByRole("button", { name: /^(Sign out|Switch persona)$/, exact: true }).waitFor();"#, r#"    if (identity.guests || identity.password || personas.length) await page.getByRole("button", { name: /^(Sign out|Switch persona)$/, exact: true }).waitFor();"#);
     format!("{setup}    assert.ok((await page.locator('body').innerText()).trim(), 'frontend rendered no content');\n    // Add a real UI write and assert its SDK receipt and fresh rendered result here.\n    throw Error('E_FRONTEND_SCENARIO: frontend rendered; no app-specific write scenario yet. Edit scripts/frontend-proof.mjs and replace this refusal with your write assertions.');\n  }});\n}} finally {{ await cleanup(() => web?.stop(), () => dev.stop()); }}\n")
 }
 
