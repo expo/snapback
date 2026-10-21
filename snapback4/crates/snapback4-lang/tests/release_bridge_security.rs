@@ -62,3 +62,14 @@ fn retained_child_references_and_rule_probes_follow_selected_parent_spelling() {
     assert!(child.contains("exists parents[.parent, owner = viewer]"),"{child}");
     assert!(child.contains("guardians: text <=40 default 'guardians'"),"column names and literals are not table references: {child}");
 }
+
+#[test]
+fn continued_sync_target_keeps_the_selected_parent_identity() {
+    let target="table parents:\n  groupId: text <=40\n  principal: principal\n  unique groupId, principal\n  read <- .principal = viewer\n  sync to .principal\n";
+    let current=format!("{}table children:\n  groupId: text <=40\n  owner: principal\n  read <- .owner = viewer or exists guardians[.groupId, viewer]\n  sync to .owner\n    or guardians[.groupId]\n",target.replace("table parents:","table guardians renamed from parents:"));
+    let checked=compile(&[("schema.q".into(),current.clone())]);assert!(checked.diagnostics.is_empty(),"{:?}",checked.diagnostics);
+    let bridge=release_bridge::loosen(&[("schema.q".into(),target.into())],&[("schema.q".into(),current)]);
+    assert!(bridge.diagnostics.is_empty(),"{:?}\n{:?}",bridge.diagnostics,bridge.sources);
+    let child=&bridge.sources.iter().find(|(_,s)|s.contains("table children:")).unwrap().1;
+    assert!(child.contains("or parents[.groupId]"),"{child}");
+}

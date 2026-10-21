@@ -1,0 +1,65 @@
+{
+  "date": "2026-10-21",
+  "scope": "Integration21 composition review of existing EVOL section8 and SEC6 section15; advisory only, no author acceptance",
+  "codex": {
+    "model": "gpt-6.1-sol",
+    "effort": "high",
+    "fresh": true
+  },
+  "muse": {
+    "model": "muse-spark-1.3-contributor",
+    "effort": "high",
+    "runner": "~/sb4-loop/muse-exec.sh"
+  },
+  "rounds": [
+    {
+      "round": "r1",
+      "kind": "brief",
+      "source": "review-brief.txt",
+      "artifact": "llp/reviews/3000.000.000.002-integration21-r1.brief.txt",
+      "sha256": "716572cb802cc9d97bdaa2cae1a25bcfb4c25670412e8e1a3b21549c356f005b"
+    },
+    {
+      "round": "r1",
+      "kind": "codex",
+      "source": "review-codex-retry.txt",
+      "artifact": "llp/reviews/3000.000.000.002-integration21-r1.codex.txt.gz",
+      "sha256": "92b44f17281d699d379b4bc6ce9b62af1490cc8edc13800f3e165aabeb2252b7"
+    },
+    {
+      "round": "r1",
+      "kind": "muse",
+      "source": "review-muse.txt",
+      "artifact": "llp/reviews/3000.000.000.002-integration21-r1.muse.txt.gz",
+      "sha256": "10d740365ec4b75db6215ba971adbc5cf7555329406f1b5cd3ec660224f59d09"
+    },
+    {
+      "round": "r2",
+      "kind": "brief",
+      "source": "review-r2-brief.txt",
+      "artifact": "llp/reviews/3000.000.000.002-integration21-r2.brief.txt",
+      "sha256": "992f04ea51175663d03d791858f45cf67f5468393f92f1e509674519cd32ac4e"
+    },
+    {
+      "round": "r2",
+      "kind": "codex",
+      "source": "review-r2-codex.txt",
+      "artifact": "llp/reviews/3000.000.000.002-integration21-r2.codex.txt.gz",
+      "sha256": "9d6de0a3d3b90db8e279a9d36cf59d9be4405363f75253641f2f1af9427ff2a3"
+    },
+    {
+      "round": "r2",
+      "kind": "muse",
+      "source": "review-r2-muse.txt",
+      "artifact": "llp/reviews/3000.000.000.002-integration21-r2.muse.txt.gz",
+      "sha256": "424d0ca9d492e1de013711f2447738091ce7750805c5f970c60391b5afbabe1d"
+    }
+  ],
+  "attempts": [
+    {
+      "family": "Codex",
+      "round": "r1",
+      "outcome": "first owned wrapper was bounded to 30 seconds and terminated before a review; fresh full retry preserved, no review fabricated"
+    }
+  ]
+}

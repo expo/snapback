@@ -98,7 +98,12 @@ fn retained_declaration(file:&str,text:&str,table:&ast::TableDecl,aliases:&BTree
     // Sync targets are structural table probes outside the expression AST.
     if let Some(sync)=&decl.sync {
         let (tokens,_)=lexer::lex(file,&source);
-        for pair in tokens.windows(2) {if pair[0].site.line==sync.site.line && pair[1].value=="[" {if let Some(name)=aliases.get(&pair[0].value){let start=offset(&source,pair[0].site.line,pair[0].site.col);edits.push((start,start+pair[0].value.len(),name.clone()));}}}
+        // Lexer continuation rules keep indented `or` arms in this logical
+        // declaration even when their physical line differs from `sync`.
+        if let Some(start)=tokens.iter().position(|t|t.site==sync.site) {
+            let end=tokens[start..].iter().position(|t|matches!(t.kind,Kind::Newline|Kind::Eof)).map_or(tokens.len(),|n|start+n);
+            for pair in tokens[start..end].windows(2) {if pair[0].kind==Kind::Word && pair[1].value=="[" {if let Some(name)=aliases.get(&pair[0].value){let start=offset(&source,pair[0].site.line,pair[0].site.col);edits.push((start,start+pair[0].value.len(),name.clone()));}}}
+        }
     }
     edits.sort();edits.dedup();edits.sort_by_key(|e|std::cmp::Reverse(e.0));
     for (start,end,value) in edits {source.replace_range(start..end,&value);}

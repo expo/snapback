@@ -100668,3 +100668,10 @@ build measures 734,904 gzip bytes; its budget is 735,404 B (measurement + 500 B)
 This whole-artifact increase covers the merged release/security code and newer
 0.4.36 baseline; it does not attribute isolated feature costs or raise runtime
 authority ceilings. Final measurement and qualification evidence follow.
+
+Integration review found and fixed duplicate retained rename aliases, structural
+references and rule probes using the discarded parent name, and a continued
+sync arm outside the original physical-line rewrite. Five focused regressions
+pass, including the independent-identity negative control and guarded/unsafe
+creation campaigns. Review artifacts preserve both model families and prior
+negative findings; reviewer verdicts do not accept an RFC for its author.
