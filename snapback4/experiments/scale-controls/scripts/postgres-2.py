@@ -25,14 +25,19 @@ REMOTE = 'sb4scale/s1pg2-20261022'
 
 class Postgres(snapback.Snapback):
     def __init__(self, args):
-        args.runtime_name = 's1pg2'
+        args.runtime_name = 's1pg2-resumed' if args.resume else 's1pg2'
         super().__init__(args)
-        ROOT.mkdir(mode=0o700)
+        ROOT.mkdir(mode=0o700,exist_ok=bool(args.resume))
         self.socket = ROOT/'s'
         self.upstream = ROOT/'u'
         self.delayed = ROOT/'d'
-        self.socket.mkdir(mode=0o700)
-        self.upstream.mkdir(mode=0o700)
+        self.socket.mkdir(mode=0o700,exist_ok=bool(args.resume))
+        self.upstream.mkdir(mode=0o700,exist_ok=bool(args.resume))
+        if args.resume:
+            self.release=HERE/'target/s1sk/s1pg2/deployment'
+            for p in (self.upstream/'.s.PGSQL.55440',self.delayed/'.s.PGSQL.55440'):
+                p.unlink(missing_ok=True)
+            self.delayed.rmdir()
         self.env.update(PGPASSWORD=(Path.home()/'sb4scale/pw').read_text().strip(),
             PGHOST=str(self.upstream), PGPORT='55440', PGUSER='sb4scale',
             PGAPPNAME='s1pg2_observer',
@@ -43,6 +48,15 @@ class Postgres(snapback.Snapback):
     def sqlpg(self, sql, db=DB):
         return sp.check_output([str(PSQL),'-X','-qAt','-v','ON_ERROR_STOP=1','-d',db],
             input=sql, env=self.env, text=True)
+
+    def cli(self,*args):
+        if args[0]=='token' and 'drain' in args:
+            # The PG profile deliberately excludes the SQLite token CLI. Two
+            # native identity writes cross the same FIFO writer, outside load.
+            status,value=snapback.http('/auth/guest',{})
+            if status!=200 or 'session' not in value:raise RuntimeError('native guest drain barrier refused')
+            return ''
+        return super().cli(*args)
 
     def select_link(self, delay):
         path=self.socket/'.s.PGSQL.55440'
@@ -82,15 +96,20 @@ class Postgres(snapback.Snapback):
             time.sleep(.1)
         assert self.sqlpg('SELECT 1','postgres').strip()=='1'
         self.idle('provision')
-        assert self.sqlpg(f"SELECT count(*) FROM pg_database WHERE datname='{DB}'",'postgres').strip()=='0'
-        assert self.sqlpg(f"SELECT count(*) FROM pg_roles WHERE rolname='{ROLE}'",'postgres').strip()=='0'
-        self.sqlpg(f'CREATE ROLE {ROLE} LOGIN','postgres');self.created_role=True
         password=self.env['PGPASSWORD']
-        result=sp.run([str(PSQL),'-X','-v','ON_ERROR_STOP=1','-d','postgres','-c',f'\\password {ROLE}'],
-            env=self.env,input=password+'\n'+password+'\n',capture_output=True,text=True)
-        if result.returncode: raise RuntimeError('private role password setup failed')
-        self.sqlpg(f'CREATE DATABASE {DB} OWNER {ROLE}','postgres');self.created_db=True
-        self.sqlpg('CREATE EXTENSION pg_stat_statements')
+        if not self.args.resume:
+            assert self.sqlpg(f"SELECT count(*) FROM pg_database WHERE datname='{DB}'",'postgres').strip()=='0'
+            assert self.sqlpg(f"SELECT count(*) FROM pg_roles WHERE rolname='{ROLE}'",'postgres').strip()=='0'
+            self.sqlpg(f'CREATE ROLE {ROLE} LOGIN','postgres');self.created_role=True
+            result=sp.run([str(PSQL),'-X','-v','ON_ERROR_STOP=1','-d','postgres','-c',f'\\password {ROLE}'],
+                env=self.env,input=password+'\n'+password+'\n',capture_output=True,text=True)
+            if result.returncode: raise RuntimeError('private role password setup failed')
+            self.sqlpg(f'CREATE DATABASE {DB} OWNER {ROLE}','postgres');self.created_db=True
+            self.sqlpg('CREATE EXTENSION pg_stat_statements')
+        else:
+            prior=json.loads((Path(self.args.resume)/'ownership.json').read_text())
+            assert prior['database']==DB and prior['role']==ROLE
+            self.created_db=self.created_role=True
         (self.out/'postgres.txt').write_text(self.sqlpg("SELECT version(); SELECT name,setting,unit FROM pg_settings WHERE name IN ('port','fsync','synchronous_commit','full_page_writes','shared_buffers','max_connections','shared_preload_libraries','wal_sync_method','jit','track_io_timing','track_wal_io_timing') ORDER BY name"))
         self.spawn(['taskset','-c',APP_CORES,BIN,'unix-proxy','--socket-dir',self.delayed,
             '--upstream-dir',self.upstream,'--delay-us','500'],self.out,'proxy')
@@ -106,15 +125,16 @@ class Postgres(snapback.Snapback):
             timing=dict(warmup_ms=10000,duration_ms=20000,repeats=3),database=DB,role=ROLE,
             cluster_postmaster_pid=2735539,transport='450b stable symlink -> SSH Unix socket, or +500us proxy -> SSH -> 450a:55440'))
         (self.out/'check.txt').write_text(self.cli('check','--cost'))
-        self.command([snapback.SB,'deploy',self.release,'--json'],'deploy',self.project)
+        if not self.args.resume:self.command([snapback.SB,'deploy',self.release,'--json'],'deploy',self.project)
 
     def fixture(self, rows):
         self.idle('seed')
         binding=json.loads((self.release/'store-binding.json').read_text())
         # The remote config is built remotely from its existing private password.
-        self.command([*SSH,'expo-build-450a',f'mkdir -m 700 ~/{REMOTE}'],'remote-directory')
         seed=snapback.SB.parent/'sb4-postgres-scale-seed'
-        self.command(['scp','-q',str(seed),f'expo-build-450a:{REMOTE}/seed'],'copy-seed')
+        if not self.args.resume:
+            self.command([*SSH,'expo-build-450a',f'mkdir -m 700 ~/{REMOTE}'],'remote-directory')
+            self.command(['scp','-q',str(seed),f'expo-build-450a:{REMOTE}/seed'],'copy-seed')
         code="""import json,os
 from pathlib import Path
 p=Path.home()/'sb4scale/s1pg2-20261022'
@@ -125,11 +145,13 @@ v['tokens_path']=str(p/'tokens.json')
 os.umask(0o077)
 (p/'config.json').write_text(json.dumps(v))
 """
-        p=sp.run([*SSH,'expo-build-450a','python3 -c '+__import__('shlex').quote(code)],
-            input=json.dumps(dict(store_id=binding['store_id'],rows=rows))+'\n',text=True,capture_output=True)
-        if p.returncode:raise RuntimeError('remote private config setup failed')
-        launcher=f'cd ~/{REMOTE}; setsid nohup sh -c \'./seed config.json > seed.stdout 2> seed.stderr; echo $? > seed.exit\' > launcher.stdout 2>&1 < /dev/null & echo $! > seed.pid; cat seed.pid'
-        remote_pid=int(self.command([*SSH,'expo-build-450a',launcher],'seed-launch').strip())
+        if not self.args.resume:
+            p=sp.run([*SSH,'expo-build-450a','python3 -c '+__import__('shlex').quote(code)],
+                input=json.dumps(dict(store_id=binding['store_id'],rows=rows))+'\n',text=True,capture_output=True)
+            if p.returncode:raise RuntimeError('remote private config setup failed')
+            launcher=f'cd ~/{REMOTE}; setsid nohup sh -c \'./seed config.json > seed.stdout 2> seed.stderr; echo $? > seed.exit\' > launcher.stdout 2>&1 < /dev/null & echo $! > seed.pid; cat seed.pid'
+            remote_pid=int(self.command([*SSH,'expo-build-450a',launcher],'seed-launch').strip())
+        else:remote_pid=json.loads((Path(self.args.resume)/'remote-seed.json').read_text())['pid']
         write(self.out/'remote-seed.json',dict(host='expo-build-450a',pid=remote_pid,directory=REMOTE,
             command='setsid nohup seed config.json (password only in mode-600 remote config)',binary_sha256=hashlib.sha256(seed.read_bytes()).hexdigest()))
         while True:
@@ -238,6 +260,7 @@ os.umask(0o077)
 def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--out',required=True)
+    p.add_argument('--resume',help='owned setup evidence; preserve the running native seed')
     p.add_argument('--max-rate',type=int,default=128000)
     p.add_argument('--rates',type=int,nargs='+')
     p.add_argument('--warmup-ms',type=int,default=10000)
