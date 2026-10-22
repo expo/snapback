@@ -48,6 +48,16 @@ def member(r, u, last=0):
     return dict(table='memberships', row=dict(id=f'a{r:04}-{u:04}', room=room(r), principal=principal(u), last_read=last))
 
 
+def wait_channels(pid):
+    channels={}
+    for thread in Path(f'/proc/{pid}/task').iterdir():
+        try:
+            channels[thread.name]=(thread/'wchan').read_text().strip()
+        except FileNotFoundError:
+            pass  # A completed thread is not a failed resource observation.
+    return channels
+
+
 class Snapback(Run):
     def __init__(self, args):
         self.args = args
@@ -222,7 +232,7 @@ class Snapback(Run):
             while p.poll() is None:
                 sample=cpu_sample([self.service[0].pid,p.pid])
                 sample['diskstats']=Path('/proc/diskstats').read_text()
-                sample['server_wchan']={str(t.name):(t/'wchan').read_text().strip() for t in Path(f'/proc/{self.service[0].pid}/task').iterdir() if (t/'wchan').exists()}
+                sample['server_wchan']=wait_channels(self.service[0].pid)
                 samples.append(sample);time.sleep(.25)
             if p.returncode: raise RuntimeError(f'load failed: {err.name}')
         finally:
@@ -282,6 +292,7 @@ def main():
     p.add_argument('--workload',choices=['W1','W2','W3','W4','W5'])
     p.add_argument('--keys',choices=['disjoint','same','hot1'],default='disjoint')
     p.add_argument('--writers',type=int,default=32)
+    p.add_argument('--start-at',choices=['W1','W2','W3','W4','W5'],default='W1',help='first workload in a new matrix campaign')
     args=p.parse_args();args.load_cores=LOAD_CORES
     run=Snapback(args)
     try:
@@ -292,6 +303,7 @@ def main():
         if args.mode=='prepare': return
         matrix=[(w,args.rows,0,128,'disjoint') for w in ('W1','W2','W3')]
         matrix += [(w,args.rows,0,32,k) for w,k in [('W4','disjoint'),('W5','same'),('W5','hot1')]]
+        matrix=matrix[next(i for i,c in enumerate(matrix) if c[0]==args.start_at):]
         if args.mode=='cell': matrix=[(args.workload,args.rows,0,args.writers,args.keys)]
         for cell in matrix: run.cell(*cell)
     finally: run.close()
