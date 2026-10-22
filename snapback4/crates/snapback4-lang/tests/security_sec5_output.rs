@@ -18,6 +18,7 @@ fn audit_leads_with_action_and_keeps_unproved_reasons_in_all_and_json(){
         for reason in &v.reasons {assert!(all.contains(reason),"missing {reason}: {all}");}
     }
     assert!(serde_json::to_value(&r).unwrap().get("exclusions").is_some());
+    assert!(r.notes.iter().any(|n|n.code=="N_INVARIANT_RESTATES_RULE"),"grouping retains the individual structured note");
 }
 
 #[test]

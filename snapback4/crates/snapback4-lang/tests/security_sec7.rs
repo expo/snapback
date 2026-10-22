@@ -45,7 +45,7 @@ const DOCS:&str="table docs:\n  owner: principal\n  photo: image <=10000 ?\n  pr
 #[test]fn directed_wave22_pickup_and_suspension_refute_spec_intent(){
  for (lane,source) in [("026",include_str!("security/wave22/026-spec.q")),("030",include_str!("security/wave22/030-spec.q"))]{
  let b=bound(source);let mut c=Campaign::default();challenges::generated_campaign(&b,&mut c,false);
- assert!(c.violations.iter().any(|v|v.reachability.is_reachable()),"{lane}: {}",serde_json::to_string(&c).unwrap());
+ assert!(c.violations.iter().any(|v|v.reachability.is_reachable()&&v.invariant_site==b.invariants.last().unwrap().site.to_string()),"{lane}: {}",serde_json::to_string(&c).unwrap());
  }
 }
 
