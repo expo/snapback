@@ -733,3 +733,23 @@ fn protected_immutable_patches_never_test_guesses_and_keep_the_stored_cell() {
         }
     }
 }
+
+
+#[test]
+fn protected_immutable_asset_guesses_never_change_placement_or_test_ownership() {
+    let source="table docs:\n  owner: principal\n  document: file <=1000 ('application/pdf') read <- .owner = viewer\n  immutable document\n  read <- allow\n  insert <- allow\n  update <- allow\n  online only\nmutation add(document: file <=1000 ('application/pdf')):\n  return insert docs {owner:viewer,document}\nmutation patch(id: docs, document: file <=1000 ('application/pdf')):\n  return update docs[id] {document}\n";
+    let bound=clean(source);let mut e=Engine::memory(bound.schema,bound.programs.into_iter().map(|p|p.program)).unwrap();
+    let mut upload=|owner|e.store_file(owner,b"%PDF-1.7\n%%EOF\n",Some("application/pdf"),"fixture.pdf",1_800_000_000_000).unwrap();
+    let original=upload("alice");let foreign=upload("alice");
+    let mut c=context("alice");c.args.insert("document".into(),original.column_value());
+    let WriteState::Sent {result,..}=e.mutate("add",None,c).unwrap().state else {panic!("insert failed")};let id=result.field("id").unwrap().clone();
+    let mut outcomes=vec![];
+    for asset in [&original,&foreign] {
+        let mut c=context("bob");c.args.insert("id".into(),id.clone());c.args.insert("document".into(),asset.column_value());
+        let outcome=e.mutate("patch",None,c).unwrap();assert!(matches!(outcome.state,WriteState::Sent {..}));
+        let mut record=serde_json::to_value(outcome).unwrap();record.as_object_mut().unwrap().remove("seq");outcomes.push(record);
+        assert!(e.asset_access("alice",&original.id,1_800_000_000_000).is_ok());
+        assert_eq!(e.asset_access("bob",&original.id,1_800_000_000_000).unwrap_err().code(),"E_ASSET_UNKNOWN");
+    }
+    assert_eq!(outcomes[0],outcomes[1]);
+}

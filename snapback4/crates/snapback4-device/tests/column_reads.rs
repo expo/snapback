@@ -187,3 +187,26 @@ fn witness_cells_stay_off_memory() {
 fn witness_cells_stay_off_sqlite() {
     witnesses(&mut Sqlite::new("column-witness"));
 }
+
+
+fn immutable_cells<H: Host>(host: &mut H) {
+    let source = SOURCE.replace("  public 'identities", "  immutable secret\n  public 'identities")
+        + "\nmutation guess(id: records, secret: text <=80) predicts:\n  return update records[id] {secret}\n";
+    let (mut server, backend) = compile(&source);
+    server.seed([("records".into(),object([("id",id("r")),("owner",id("alice")),("title",Value::String("public".into())),("secret",Value::String("retained private value".into()))]))]).unwrap();
+    for viewer in ["alice","bob"] {
+        let mut device = host.open(viewer,Some(backend.clone())).unwrap();
+        for (index,page) in snapshot_pages(&mut server,viewer,10).iter().enumerate() { device.apply(page,index==0).unwrap(); }
+        let before=device.query("one",viewer,&json!({"id":"r"}),10).unwrap().data;
+        let admitted=device.admit(serde_json::from_value(json!({"id":format!("guess-{viewer}"),"seq":0,"op":"guess","args":{"id":"r","secret":"a supplied guess"},"viewer":viewer,"now":10,"predictable":true,"new_ids":[]})).unwrap()).unwrap();
+        assert!(admitted.predictable,"{admitted:?}");
+        let predicted=device.query("one",viewer,&json!({"id":"r"}),10).unwrap().data;
+        assert_eq!(predicted.field("secret").ok(),before.field("secret").ok(),"{viewer}: a guess never replaces the retained cell or omission");
+        let result=server.mutate("guess",None,context(viewer,&[("id",id("r")),("secret",Value::String("a supplied guess".into()))]).at(10)).unwrap();
+        assert!(matches!(result.state,WriteState::Sent {..}));
+        assert_eq!(server.query("one",context("alice",&[("id",id("r"))]).at(10)).unwrap().data.field("secret").unwrap(),&Value::String("retained private value".into()));
+        host.close(viewer,device);
+    }
+}
+#[test] fn protected_immutable_prediction_on_memory(){immutable_cells(&mut Memory::new());}
+#[test] fn protected_immutable_prediction_on_sqlite(){immutable_cells(&mut Sqlite::new("immutable-column"));}

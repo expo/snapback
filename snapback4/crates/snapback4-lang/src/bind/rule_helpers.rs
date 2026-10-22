@@ -83,6 +83,7 @@ fn expand_value(value: &mut Expr, table: &str, images: &[String], functions: &BT
             if error.is_some() { return; }
             let part_site = part.site().clone();
             match part {
+                Expr::Read(_) | Expr::Write {..} | Expr::If {..} | Expr::Shape {..} | Expr::ShapeUse {..} | Expr::Merge(_) | Expr::Walk {..} | Expr::Array {..} | Expr::Object {..} | Expr::Assert {..} => error=Some(refused(&part_site,format!("rule helper {name} must expand to the rule grammar; ordinary reads, effects and compound values belong in operations"))),
                 Expr::Focal {..} => error=Some(refused(&part_site,format!("rule helper {name} cannot capture the caller's focal row; pass the field as a typed argument"))),
                 Expr::Name {name:free,..} if free != "viewer" && !["allow","deny","public","true","false"].contains(&free.as_str()) && !substitutions.contains_key(free) => error=Some(refused(&part_site,format!("rule helper {name} has free name {free}; pass it explicitly (clock and caller variables are unavailable)"))),
                 _ => {},
