@@ -1,0 +1,12 @@
+{
+  "scope": "Estimates only; no Snapback batch has been implemented or SLO-qualified",
+  "model": "1000*N/(N*E_ms+F_ms)",
+  "F_ms": 8.4814655941255,
+  "E_request_excluding_engine_queue_and_flush_ms": 0.7828805547396573,
+  "E_engine_plus_auth_ms": 0.4673162837116155,
+  "N16_conservative_ops_per_s": 761.6307753898424,
+  "N16_engine_plus_auth_ops_per_s": 1002.5988531861699,
+  "zero_nonflush_one_member_limit": 117.90415098690347,
+  "fast_disk_079ms_conservative_ops_per_s": 1160.2535809640856,
+  "caveat": "Full receipt/keyed-member costs, batch fill, per-member hooks, authority rechecks, tail stalls and SLO qualification remain unmeasured"
+}

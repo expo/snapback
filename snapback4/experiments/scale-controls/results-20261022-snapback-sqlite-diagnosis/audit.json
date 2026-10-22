@@ -1,0 +1,13 @@
+{
+  "trials": 33,
+  "rates": 11,
+  "measured_arrivals": 640920,
+  "all_counter_checks_exact": true,
+  "passing_rates": [
+    100
+  ],
+  "first_failing_rate": 141,
+  "traced_requests": 10139,
+  "engine_trials": 3,
+  "checks": "arrivals; whole-cohort counters; all HDR bucket counts; qualification; stage/flush joins; on-connection WAL/FULL settings; engine commit/session/receipt/maintained-total deltas"
+}

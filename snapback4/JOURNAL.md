@@ -101269,3 +101269,24 @@ reference and whitespace checks pass. The
 [lane report](./reports/20261022-s10d1-direct-members.md) records the complete
 remaining-opener inventory and qualification. Commits remain local, with
 Charlie Cheever as committer and Codex as author/co-author; no stash or agents.
+
+
+## 2026-10-22 — S1-DX: SQLite write ceiling diagnosis
+
+All eleven requested W4 rates, three fresh-process trials each with 10 s
+warm-up and 20 s measurement, confirm 100/s as the highest tested passing
+rate. From 141/s upward both p99 and expired arrivals fail; completions stay
+109–117/s and all counters remain exact. The same deployed 1M fixture and
+program through the engine reach 118–122/s; a SQLite-only WAL/FULL primitive
+reaches 125 transactions/s. Ordinary WAL fsync costs about 7.9 ms on 450b,
+versus S0's 77–79 microseconds on a different datacenter NVMe.
+
+A separate release timing build, using only a local uncommitted patch,
+finds four read-only session resolutions and one durable COMMIT per W4.
+Auth averages 0.22 ms; COMMIT averages 8.55 ms at 100/s. A 403 ms ordinary
+WAL flush adds tail evidence. Profiling changes worker-admission behavior,
+so those diagnostic rows do not replace the unchanged-build bracket. Product
+source is restored. A batch-16 integer primitive reaches 2,051/s; the full
+Snapback K0 queue/K3 batch estimate is 760–1,000/s, pending keyed/full-tail
+and p99 qualification. The RFC receives a short §9 note, not a new gate or
+product implementation. [Report and archive receipt](./experiments/scale-controls/results-20261022-snapback-sqlite-diagnosis/README.md).

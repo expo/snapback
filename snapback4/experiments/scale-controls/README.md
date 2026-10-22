@@ -1,5 +1,46 @@
 # S1: scale controls and native Snapback serve
 
+## S1-DX: SQLite write diagnosis
+
+[Completed diagnosis and archive receipt](./results-20261022-snapback-sqlite-diagnosis/README.md).
+
+`scripts/diagnose-sqlite.py` runs W4 at the eleven prescribed rates, with a
+fresh `serve` process for each repetition, 10 s warm-up, 20 s measurement,
+32 writers, pre-minted sessions and whole-cohort counter checks. Build the
+unchanged product into `snapback4/target/s1dx` and this harness into its own
+`target`, both with `--release --locked` and
+`LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT`. Build
+`diagnosis-engine/Cargo.toml` with `--release --locked` into that owned
+`snapback4/target/s1dx` **before** applying the timing patch.
+
+From this experiment directory, with a private prepared S1-SK fixture:
+
+```sh
+setsid nohup python3 scripts/diagnose-sqlite.py \
+  --out "$HOME/sb4scale/s1dx-NEW/bracket" --fixture /path/to/deployment \
+  >"$HOME/sb4scale/s1dx-NEW-bracket.log" 2>&1 </dev/null &
+echo $! # record and poll; no other benchmark/build should run concurrently
+python3 scripts/instrument-sqlite.py apply --backup-dir ../../target/s1dx-local-patch-NEW
+setsid nohup python3 scripts/diagnosis-layers.py \
+  --out "$HOME/sb4scale/s1dx-NEW/layers" \
+  --baseline "$HOME/sb4scale/s1dx-NEW/bracket" --fixture /path/to/deployment \
+  >"$HOME/sb4scale/s1dx-NEW-layers.log" 2>&1 </dev/null &
+echo $! # waits for bracket cleanup; then runs layers sequentially
+# Poll both done and cleanup.json files, and check all owned PIDs exited.
+python3 scripts/instrument-sqlite.py restore --backup-dir ../../target/s1dx-local-patch-NEW
+python3 scripts/report-sqlite-diagnosis.py "$HOME/sb4scale/s1dx-NEW" /path/to/report
+```
+
+The timing patch is local and uncommitted. It extends the existing opt-in
+trace to record exclusive session resolution, engine/program/COMMIT timing
+and transaction counts. The diagnostic interposer times the real flush calls
+without changing their behavior. `diagnosis-layers.py` runs the same deployed
+fixture through the engine directly, a separately labelled SQLite primitive
+at batch 1/16, and a release timing build. The primitive is a disk floor,
+not a Snapback batch implementation or an RFC §8 batch qualification.
+Runtime databases, tokens and applied product patches stay in ignored owned
+targets; archive raw captures only after cleanup. Never stage product files.
+
 ## S1-SK: native Snapback serve on SQLite
 
 [Completed matched-method report](./results-20261022-snapback-sqlite/README.md):
