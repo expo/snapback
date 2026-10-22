@@ -1,0 +1,26 @@
+{
+  "label": "Hetzner-path flight mechanism statement model",
+  "target": "127.0.0.1:55493",
+  "ssh": "expo-build-450a",
+  "C": 32,
+  "reps": 3,
+  "warmup_ms": 1000,
+  "measure_ms": 4000,
+  "transport": "SSH per connection",
+  "source_commit": "3e945e61465538dfe85dff3cfc259f3ad4084543",
+  "source_dirty": true,
+  "binary_sha256": "901f685e69d7728880fc25820f845f9d1c70e1f1a8d35181e584d2bdc2ca9a45",
+  "source_sha256": {
+    "src/common.rs": "c6d63d100bbd1fb18096e5a0374f7e6fe2f3401370f4ed76ed5a645356030886",
+    "src/execution.rs": "940992d67dd048259e94fe641fca36f54c503acc5c43314385cbf5b40bc613ae",
+    "src/execution_network.rs": "91837cff23e60ba7e15b019bb9220b0be080528a315d316c0a4ccc84fef5f031",
+    "src/flight.rs": "c56e7a1924ec83b98123c77fce43dacdc5b34646d78a10d298690aa49d4cf0d6",
+    "src/main.rs": "3a0664a586d66397641b401f263c972879b7fd1cf01540f687f2388e5484356f",
+    "src/model.rs": "3c488ec6ff32c2e85444931ee7942013725b181b2aa33cae241a5895e67ce580",
+    "src/proxy.rs": "448b9984b8716e85875c4dcf1715fe14f6bb3477fb5e4eaa4a8915e38291bae8",
+    "src/raw.rs": "361172738ba5d5074131aa660f3481a878562490034a7af46371ad46447685da",
+    "src/sqlite.rs": "5a4f81d4dccda309953d2f20f08320e3f1a09d4cf1df8bf7e18cb73ab955dd7f",
+    "src/sqlite_optimistic.rs": "6999e76c39b7185c56186c50441fc2663f7e80b015b9e5ceccea461151f39be8"
+  },
+  "encoder_sha256": "6d8dc93a941994775cfa8d6c942b5d483a62e1abf19f53bdddede5d162b4cf0b"
+}
