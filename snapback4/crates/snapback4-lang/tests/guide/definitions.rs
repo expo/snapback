@@ -141,7 +141,7 @@ const DEFINITIONS: &[(&str, &str)] = &[
     ("N_PRIVATE_CREATE_EDIT_ASYMMETRY", "A caller can initialize a private column without its change guard and outside its column read audience."),
     ("N_EVIDENCE_REMOVAL", "Delete, detachment or explicit clearing can remove parent-linked media evidence."),
     ("N_RETAINED_ROLE_GRANT", "A recipient role required when storing a grant is mutable and missing from a reader branch"),
-    ("N_OPTIONAL_UPLOAD_CREATE", "An optional upload argument can be omitted despite a required media column or explicit non-null integrity intent."),
+    ("N_OPTIONAL_UPLOAD_CREATE", "An optional upload argument can be omitted in a direct nullable-media write or a skipped child that independent intent requires."),
     ("N_CREATION_REASON", "Creating a row accepts a reason argument without a positive non-whitespace minimum."),
     ("N_CREATION_MONEY", "Creating a row accepts omitted money."),
     ("N_CONSTANT_APPROVAL", "Creation stores a constant true approval/payment flag."),

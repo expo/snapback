@@ -70,7 +70,7 @@ pub(super) fn fixture_cases(bound:&Bound,p:&Program,rows:&BTreeMap<String,Vec<Va
         }}
         cases=next;
     }
-    let focused=super::executed::write_arguments(bound,p).into_iter().filter(|a|matches!(p.args.get(a),Some(ir::ArgType::Optional(_)))).collect::<Vec<_>>();
+    let focused=super::executed::write_arguments(bound,p).into_iter().filter(|a|matches!(p.args.get(a),Some(ir::ArgType::Optional(inner)) if !matches!(inner.as_ref(),ir::ArgType::Ref{..}|ir::ArgType::Principal))).collect::<Vec<_>>();
     if focused.is_empty(){return cases;}
     let mut prioritized=Vec::new();
     for case in cases{

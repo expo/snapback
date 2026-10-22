@@ -350,7 +350,7 @@ N_RETAINED_ROLE_GRANT: A recipient role required when storing a grant is mutable
 
 ### N_OPTIONAL_UPLOAD_CREATE
 
-N_OPTIONAL_UPLOAD_CREATE: An optional upload argument can be omitted despite a required media column or explicit non-null integrity intent. Require the upload before creating the parent when independent intent requires child evidence. Optional media columns and guarded optional attachments do not require acknowledgment; a required child column alone does not require a child row. A direct non-null assertion enforces media at the executed write; it does not require a skipped child row. Review an intentional exception with an individual source-bound disposition.
+N_OPTIONAL_UPLOAD_CREATE: An optional upload argument can be omitted in a direct nullable-media write or a skipped child that independent intent requires. Require the upload before creating the parent when independent intent requires child evidence. Optional media columns and guarded optional attachments do not require acknowledgment; a required child column alone does not require a child row. Type-required media is already validated at each executed write. A direct non-null assertion also enforces media at that write; neither requires a skipped child row. Unknown helper returns and nullable expression alternatives remain advisory/test coverage, without an inferred argument-omission gate. Review an intentional exception with an individual source-bound disposition.
 
 ### N_CREATION_REASON
 

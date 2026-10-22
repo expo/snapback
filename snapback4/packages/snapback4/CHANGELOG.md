@@ -5,7 +5,8 @@
 - Security questions lead default check and audit. Result-exposure notes group by
   table; creation advice ignores omitted defaults and literal-only assignments.
 - Check requires an individual, source-bound disposition for retained role grants
-  and uploads required by a media column or explicit integrity intent. Deliberate
+  and optional uploads whose omission conflicts with explicit non-null or parent
+  integrity intent. Deliberate
   optionality and guarded optional attachments need no acknowledgment. Other new questions cover reasons, money,
   approval bypasses, stale eligibility, inconsistent windows and role-wide writes.
 - Column-specific create/edit questions name the edit guard and rank private write-only fields first. Evidence-removal advice names delete/detachment paths; stale eligibility questions group approval sites.

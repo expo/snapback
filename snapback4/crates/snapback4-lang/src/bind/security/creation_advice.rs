@@ -15,7 +15,7 @@ fn nonnull_mode(p:&ast::ProgramDecl,arg:&str,branches:bool)->bool{p.body.iter().
     Expr::Binary{op,left,right,..} if op=="!="=>[(left.as_ref(),right.as_ref()),(right.as_ref(),left.as_ref())].iter().any(|(a,b)|matches!(a,Expr::Name{name,..} if name==arg)&&matches!(b,Expr::Literal{value:ast::Literal::Null,..})),_=>false,
 })}
 fn field_value<'a>(f:&'a ast::ObjectField)->Option<&'a Expr>{f.value.as_ref()}
-struct Write<'a>{p:&'a ast::ProgramDecl,op:WriteOp,table:String,fields:Vec<ast::ObjectField>,keys:Vec<ast::KeyPart>,site:Site,context:ast::ProgramDecl,gate:RuleExpr,conditional:bool}
+struct Write<'a>{p:&'a ast::ProgramDecl,op:WriteOp,table:String,fields:Vec<ast::ObjectField>,keys:Vec<ast::KeyPart>,site:Site,context:ast::ProgramDecl,gate:RuleExpr,conditional:bool,name:String}
 fn bound_role(bound:&Bound,catalog:&Catalog,info:&super::super::catalog::TableInfo,expr:&Expr,recipient:&str)->Option<RuleExpr>{
     let Expr::Exists{read,..}=expr else{return None;};
     // Bind a positive recipient probe after substituting only its principal.
@@ -49,7 +49,7 @@ pub(super) fn notes(sources:&[(String,String)],bound:&Bound)->Vec<Diagnostic>{
                 if let Ok(rule)=super::super::schema::bind_rule(&catalog,info,&ast::RuleDecl{effect:ast::Effect::Read,bindings:Vec::new(),value,site:site.clone()}){requirements.push(rule);}
             }
             let t=&bound.schema.tables[&table];let rule=if op==WriteOp::Update{t.update_rule_judged().into_owned()}else{t.rules.insert.clone()};
-            writes.push(Write{p,op,table,fields,keys,site,context,conditional:if_absent||condition.is_some(),gate:RuleExpr::And(requirements.into_iter().chain([rule]).collect())});
+            writes.push(Write{p,name:super::super::operation_name(std::path::Path::new(&p.site.file).file_stem().and_then(|s|s.to_str()).unwrap_or(""),&p.name),op,table,fields,keys,site,context,conditional:if_absent||condition.is_some(),gate:RuleExpr::And(requirements.into_iter().chain([rule]).collect())});
         }
     }
     // @ref LLP 3000.036.004#168-typed-upsert-key-binding — reuse checked type-directed selection.
@@ -69,20 +69,20 @@ pub(super) fn notes(sources:&[(String,String)],bound:&Bound)->Vec<Diagnostic>{
                     let parent_required=mandatory_parent_for(bound,w,&writes);
                     let asserted=asserted_argument(value,&arg.name);
                     let omittable_attachment=(nonnull_mode(&w.context,&arg.name,true)||asserted)&&(!parent_required||asserted&&ordinary_unconditional(w.p,&w.site));
-                    if arg.type_.optional&&matches!(arg.type_.kind,TypeKind::Image{..}|TypeKind::File{..})&&kind.contains_asset()&&required_media(bound,&w.table,&f.name)&&!omittable_attachment&&!creating_contexts.iter().all(|a|nonnull(&a.context,&arg.name))&&seen.insert((w.p.name.clone(),format!("upload:{}",arg.name))){
-                        note(&mut out,&w.site,"N_OPTIONAL_UPLOAD_CREATE",format!("{}: optional {} can omit media while creating {}; a required media column or explicit non-null intent requires it; can parent creation skip required evidence?",w.p.name,arg.name,w.table),"make the creating mutation's upload argument required, or require it before creating the parent; match the required column/intent at creation; review an intentional exception individually");
+                    if arg.type_.optional&&matches!(arg.type_.kind,TypeKind::Image{..}|TypeKind::File{..})&&kind.contains_asset()&&required_media(bound,&w.table,&f.name)&&(parent_required||kind.is_optional()&&matches!(value,Expr::Name{name,..} if name==&arg.name))&&!omittable_attachment&&!creating_contexts.iter().all(|a|nonnull(&a.context,&arg.name))&&seen.insert((w.name.clone(),format!("upload:{}",arg.name))){
+                        note(&mut out,&w.site,"N_OPTIONAL_UPLOAD_CREATE",format!("{}: optional {} can omit media while creating {}; a required media column or explicit non-null intent requires it; can parent creation skip required evidence?",w.name,arg.name,w.table),"make the creating mutation's upload argument required, or require it before creating the parent; match the required column/intent at creation; review an intentional exception individually");
                     }
-                    if arg.type_.optional&&matches!(arg.type_.kind,TypeKind::Image{..}|TypeKind::File{..})&&kind.contains_asset()&&omittable_attachment&&creating_contexts.iter().any(|p|p.table!=w.table)&&seen.insert((w.p.name.clone(),format!("attachment:{}",arg.name))){
-                        note(&mut out,&w.site,"N_OPTIONAL_EVIDENCE",format!("{}: optional {} conditionally creates {} evidence beside a parent; is that evidence optional in the specification? A required child field does not require a child row.",w.p.name,arg.name,w.table),"keep intentional optional attachments optional; if parent evidence is mandatory, declare independent parent integrity intent and require the upload before parent creation");
+                    if arg.type_.optional&&matches!(arg.type_.kind,TypeKind::Image{..}|TypeKind::File{..})&&kind.contains_asset()&&nonnull_mode(&w.context,&arg.name,true)&&!nonnull(&w.context,&arg.name)&&links_created_parent(w,&creating_contexts)&&seen.insert((w.name.clone(),format!("attachment:{}",arg.name))){
+                        note(&mut out,&w.site,"N_OPTIONAL_EVIDENCE",format!("{}: optional {} conditionally creates {} evidence beside a parent; is that evidence optional in the specification? A required child field does not require a child row.",w.name,arg.name,w.table),"keep intentional optional attachments optional; if parent evidence is mandatory, declare independent parent integrity intent and require the upload before parent creation");
                     }
-                    if f.name.to_lowercase().contains("reason")&&matches!(arg.type_.kind,TypeKind::Text{min:None|Some(0),..})&&seen.insert((w.p.name.clone(),format!("reason:{}",f.name))){
-                        note(&mut out,&w.site,"N_CREATION_REASON",format!("{}: {}.{} accepts an empty/whitespace reason at creation",w.p.name,w.table,f.name),"if the workflow requires justification, use text 1..N (non-whitespace minimum), including on optional reasons when supplied");
+                    if f.name.to_lowercase().contains("reason")&&matches!(arg.type_.kind,TypeKind::Text{min:None|Some(0),..})&&seen.insert((w.name.clone(),format!("reason:{}",f.name))){
+                        note(&mut out,&w.site,"N_CREATION_REASON",format!("{}: {}.{} accepts an empty/whitespace reason at creation",w.name,w.table,f.name),"if the workflow requires justification, use text 1..N (non-whitespace minimum), including on optional reasons when supplied");
                     }
                     let money=matches!(kind.required(),ColumnType::Money{..})||["price","charge","fee","amount"].iter().any(|word|f.name.to_lowercase().contains(word))&&matches!(kind.required(),ColumnType::Int|ColumnType::IntRange{..}|ColumnType::Decimal{..});
-                    if money&&arg.type_.optional&&kind.is_optional()&&seen.insert((w.p.name.clone(),format!("money:{}",f.name))){note(&mut out,&w.site,"N_CREATION_MONEY",format!("{}: {}.{} permits omitted money at creation; is the required amount recorded?",w.p.name,w.table,f.name),"model the amount and require it at the workflow boundary when the spec requires payment or a price");}
+                    if money&&arg.type_.optional&&kind.is_optional()&&seen.insert((w.name.clone(),format!("money:{}",f.name))){note(&mut out,&w.site,"N_CREATION_MONEY",format!("{}: {}.{} permits omitted money at creation; is the required amount recorded?",w.name,w.table,f.name),"model the amount and require it at the workflow boundary when the spec requires payment or a price");}
                 }
                 if matches!(value,Expr::Literal{value:ast::Literal::Bool(true),..})&&["paid","approv","payment"].iter().any(|s|f.name.to_lowercase().contains(s)){
-                    note(&mut out,&w.site,"N_CONSTANT_APPROVAL",format!("{}: {}.{} is stored as constant true; what verifies the payment/approval and its amount? (name-based question)",w.p.name,w.table,f.name),"record the required money/evidence and independently authorized decision; confirm constant flags against the spec");
+                    note(&mut out,&w.site,"N_CONSTANT_APPROVAL",format!("{}: {}.{} is stored as constant true; what verifies the payment/approval and its amount? (name-based question)",w.name,w.table,f.name),"record the required money/evidence and independently authorized decision; confirm constant flags against the spec");
                 }
             }
         }
@@ -93,7 +93,7 @@ pub(super) fn notes(sources:&[(String,String)],bound:&Bound)->Vec<Diagnostic>{
             let relationship=conditions(&w.context).iter().any(|e|conjunction(e).iter().any(|e|if let Expr::Binary{op,left,right,..}=e&&op=="="{
                 [(left.as_ref(),right.as_ref()),(right.as_ref(),left.as_ref())].iter().any(|(a,b)|matches!(a,Expr::Name{name,..} if name=="viewer")&&matches!(b,Expr::Member{base,..} if same_target(base,w)))
             }else{false}));
-            if has_role&&!relationship&&seen.insert((w.p.name.clone(),"wide-write".into())){note(&mut out,&w.site,"N_ROLE_WIDE_WRITE",format!("{}: may any admitted role write any {} row and record themselves? Does the spec mean owner of THIS resource?",w.p.name,w.table),"model the resource-to-owner principal/reference relationship and require it for this row; a global owner role is not ownership of every resource");}
+            if has_role&&!relationship&&seen.insert((w.name.clone(),"wide-write".into())){note(&mut out,&w.site,"N_ROLE_WIDE_WRITE",format!("{}: may any admitted role write any {} row and record themselves? Does the spec mean owner of THIS resource?",w.name,w.table),"model the resource-to-owner principal/reference relationship and require it for this row; a global owner role is not ownership of every resource");}
         }
         // A grant's stored recipient, not its assigner, must have the role.
         if creating||w.op==WriteOp::Update{
@@ -127,7 +127,7 @@ pub(super) fn notes(sources:&[(String,String)],bound:&Bound)->Vec<Diagnostic>{
                         }}}
                         for (effect,branch) in &audiences{
                         let trusts=positive_probes(branch).iter().any(|probe|if let RuleExpr::Exists{table,index,key,..}=probe{table==&w.table&&bound.schema.tables[table].index(index).is_some_and(|idx|idx.components.iter().zip(key).any(|(component,v)|component.column()==Some(column)&&*v==RuleTerm::Viewer))}else{false});
-                        if trusts&&kernel::implies(branch,&role)!=Ok(true)&&seen.insert((name.clone(),format!("grant:{}:{}",w.table,role.quarry()))){note(&mut out,&Site::default(),"N_RETAINED_ROLE_GRANT",format!("{name}.{effect}: retained {} grants are written by {} requiring recipient `{}`, but read branch `{}` does not recheck that mutable current role",w.table,w.p.name,role.quarry(),branch.quarry()),"conjoin the current recipient role at read time, or revoke derived grants on every role change; individually acknowledge intentional retained authority");}
+                        if trusts&&kernel::implies(branch,&role)!=Ok(true)&&seen.insert((name.clone(),format!("grant:{}:{}",w.table,role.quarry()))){note(&mut out,&Site::default(),"N_RETAINED_ROLE_GRANT",format!("{name}.{effect}: retained {} grants are written by {} requiring recipient `{}`, but read branch `{}` does not recheck that mutable current role",w.table,w.name,role.quarry(),branch.quarry()),"conjoin the current recipient role at read time, or revoke derived grants on every role change; individually acknowledge intentional retained authority");}
                     }}
                 }
             }
@@ -137,7 +137,7 @@ pub(super) fn notes(sources:&[(String,String)],bound:&Bound)->Vec<Diagnostic>{
     stale_notes(bound,&writes,&mut out);
     evidence_notes(bound,&writes,&mut out);
     duration_notes(&writes,&mut out);
-    let mut dedup=BTreeSet::new();out.retain(|n|dedup.insert((n.code.clone(),n.message.clone())));out
+    let mut dedup=BTreeSet::new();out.retain(|n|dedup.insert((n.code.clone(),n.message.clone(),n.site.to_string())));out
 }
 fn same_target(base:&Expr,w:&Write<'_>)->bool{match base{
     Expr::Assert{value,..}=>same_target(value,w),
@@ -151,10 +151,10 @@ fn transition_notes(bound:&Bound,_catalog:&Catalog,writes:&[Write<'_>],out:&mut 
             let Some(ColumnType::Enum{..})=t.columns.get(&f.name).map(ColumnType::required)else{continue;};
             let Some(Expr::Name{name,..})=field_value(f)else{continue;};
             let Some(arg)=w.p.args.iter().find(|a|a.name==*name)else{continue;};let TypeKind::Enum{variants}=&arg.type_.kind else{continue;};
-            for other in writes.iter().filter(|o|o.op==WriteOp::Update&&o.table==w.table&&o.p.name!=w.p.name){
+            for other in writes.iter().filter(|o|o.op==WriteOp::Update&&o.table==w.table&&o.name!=w.name){
                 let mut targets=BTreeSet::new();for g in other.fields.iter().filter(|g|g.name==f.name){if let Some(value)=field_value(g){walk(value,|e|if let Expr::Literal{value:ast::Literal::Str(v),..}=e{targets.insert(v.clone());});}}
                 for target in &targets{
-                    if variants.contains(target)&&!conditions(&w.context).iter().any(|e|super::lints::argument_guard(e,name,target)==Some(false))&&kernel::implies(&w.gate,&other.gate)==Ok(false){note(out,&w.site,"N_TRANSITION_BYPASS",format!("{}: generic {}.{} setter includes '{target}', also set by stricter {} ({})",w.p.name,w.table,f.name,other.p.name,other.gate.quarry()),"enforce the decision's authority on every path reaching this status; declare independent transition/column update intent and run test");}
+                    if variants.contains(target)&&!conditions(&w.context).iter().any(|e|super::lints::argument_guard(e,name,target)==Some(false))&&kernel::implies(&w.gate,&other.gate)==Ok(false){note(out,&w.site,"N_TRANSITION_BYPASS",format!("{}: generic {}.{} setter includes '{target}', also set by stricter {} ({})",w.name,w.table,f.name,other.name,other.gate.quarry()),"enforce the decision's authority on every path reaching this status; declare independent transition/column update intent and run test");}
                 }
             }
         }}
@@ -179,9 +179,9 @@ fn duration_notes(writes:&[Write<'_>],out:&mut Vec<Diagnostic>){
             let Some(mut duration)=duration_number(amount)else{continue;};if offset=="-"{duration=-duration;}
             let target=match field{
                 Expr::Member{base,name,..}=>reads(base).into_iter().next().map(|table|(table,name.clone())),
-                Expr::Name{name,..}=>writes.iter().filter(|a|a.p.name==w.p.name).find_map(|a|a.fields.iter().find(|f|field_value(f).is_some_and(|e|matches!(e,Expr::Name{name:n,..} if n==name))).map(|f|(a.table.clone(),f.name.clone()))),_=>None,
+                Expr::Name{name,..}=>writes.iter().filter(|a|a.name==w.name).find_map(|a|a.fields.iter().find(|f|field_value(f).is_some_and(|e|matches!(e,Expr::Name{name:n,..} if n==name))).map(|f|(a.table.clone(),f.name.clone()))),_=>None,
             };
-            if let Some((table,column))=target{let key=(table,column,cmp.to_string());sites.entry(key.clone()).or_insert_with(||w.site.clone());bounds.entry(key).or_default().entry(duration).or_default().insert(w.p.name.clone());}
+            if let Some((table,column))=target{let key=(table,column,cmp.to_string());sites.entry(key.clone()).or_insert_with(||w.site.clone());bounds.entry(key).or_default().entry(duration).or_default().insert(w.name.clone());}
         }
     });}}
     for ((table,column,cmp),values) in bounds{if values.len()<2{continue;}
@@ -198,7 +198,7 @@ fn required_media(bound:&Bound,table:&str,column:&str)->bool{
         pair.is_some_and(|(a,b)|[(a,b),(b,a)].iter().any(|(a,b)|matches!(a,RuleTerm::Field(c) if c==column)&&matches!(b,RuleTerm::Literal(snapback4_core::Value::Null))))
     }
     fn mandatory(kind:&ColumnType)->bool{match kind{ColumnType::Image{..}|ColumnType::File{..}|ColumnType::Video{..}=>true,ColumnType::ListRange{of,min,..}=>*min>0&&mandatory(of),_=>false}}
-    mandatory(&bound.schema.tables[table].columns[column])||bound.invariants.iter().filter(|i|i.table==table&&i.target=="always").filter_map(|i|i.policy.as_ref()).flat_map(conjuncts).any(|r|nonnull(r,column))
+    mandatory(&bound.schema.tables[table].columns[column])||mandatory(bound.schema.tables[table].columns[column].required())&&bound.invariants.iter().filter(|i|i.table==table&&i.target=="always").filter_map(|i|i.policy.as_ref()).flat_map(conjuncts).any(|r|nonnull(r,column))
 }
 fn approves(w:&Write<'_>,bound:&Bound)->bool{
     w.fields.iter().any(|f|match field_value(f){
@@ -208,15 +208,16 @@ fn approves(w:&Write<'_>,bound:&Bound)->bool{
 }
 fn stale_notes(bound:&Bound,writes:&[Write<'_>],out:&mut Vec<Diagnostic>){
     let mut groups=BTreeMap::<(String,String),(Site,BTreeSet<String>,BTreeSet<String>,BTreeSet<String>)>::new();
+    let indexes=eligibility::indexes(bound);
     for w in writes.iter().filter(|w|matches!(w.op,WriteOp::Insert|WriteOp::Upsert)){
-        let dependencies=eligibility::checks(bound,w,w,writes,true);
+        let dependencies=eligibility::checks(bound,&indexes,w,w,writes,true);
         for (dep,checks) in dependencies{
-            let columns=checks.iter().map(|(c,_)|c.clone()).collect::<BTreeSet<_>>();for later in writes.iter().filter(|o|o.p.name!=w.p.name&&approves(o,bound)&&(o.table==w.table&&o.op==WriteOp::Update||matches!(o.op,WriteOp::Insert|WriteOp::Upsert)&&bound.schema.tables[&o.table].columns.values().any(|k|matches!(k.required(),ColumnType::Ref{table} if table==&w.table)))){
-            let rechecked=eligibility::checks(bound,w,later,writes,false);
+            let columns=checks.iter().map(|(c,_)|c.clone()).collect::<BTreeSet<_>>();for later in writes.iter().filter(|o|o.name!=w.name&&approves(o,bound)&&(o.table==w.table&&o.op==WriteOp::Update||matches!(o.op,WriteOp::Insert|WriteOp::Upsert)&&bound.schema.tables[&o.table].columns.values().any(|k|matches!(k.required(),ColumnType::Ref{table} if table==&w.table)))){
+            let rechecked=eligibility::checks(bound,&indexes,w,later,writes,false);
             if rechecked.get(&dep).is_some_and(|current|checks.is_subset(current)){continue;}
             let g=groups.entry((w.table.clone(),dep.clone())).or_insert_with(||(later.site.clone(),BTreeSet::new(),BTreeSet::new(),BTreeSet::new()));
             if (&later.site.file,later.site.line,later.site.col)<(&g.0.file,g.0.line,g.0.col){g.0=later.site.clone();}
-            g.1.insert(format!("{} at {}",w.p.name,w.site));g.2.insert(format!("{} at {}",later.p.name,later.site));g.3.extend(columns.clone());
+            g.1.insert(format!("{} at {}",w.name,w.site));g.2.insert(format!("{} at {}",later.name,later.site));g.3.extend(columns.clone());
         }}
     }
     for ((table,dep),(site,creators,decisions,columns)) in groups{note(out,&site,"N_STALE_CREATION_CHECK",format!("{table}: creation by {} checks mutable {dep}.{}, but approval/activation {} does not recheck every column for the same applicant/resource",creators.into_iter().collect::<Vec<_>>().join(", "),columns.into_iter().collect::<Vec<_>>().join(","),decisions.into_iter().collect::<Vec<_>>().join(", ")),"decide whether eligibility must remain current at this decision; recheck it or declare independent intent and test create -> eligibility change -> approval");}
@@ -233,7 +234,7 @@ fn evidence_notes(bound:&Bound,writes:&[Write<'_>],out:&mut Vec<Diagnostic>){
                 media.contains(&f.name)&&match field_value(f){Some(Expr::Literal{value:ast::Literal::Null,..})=>true,Some(Expr::Array{items,..})=>items.is_empty(),_=>false}
             }))).collect::<Vec<_>>();
             if removing.is_empty(){continue;}
-            let operations=removing.iter().map(|w|format!("{} ({})",w.p.name,if w.op==WriteOp::Delete{"delete"}else{"detach/clear"})).collect::<BTreeSet<_>>().into_iter().collect::<Vec<_>>().join(", ");
+            let operations=removing.iter().map(|w|format!("{} ({})",w.name,if w.op==WriteOp::Delete{"delete"}else{"detach/clear"})).collect::<BTreeSet<_>>().into_iter().collect::<Vec<_>>().join(", ");
             note(out,&removing[0].site,"N_EVIDENCE_REMOVAL",format!("{child}.{reference} -> {parent}: {operations} can remove or move evidence {}; could this remove a parent's last required photo/file? Required child fields alone do not require a surviving child.",media.join(",")),"check the specification for last-child retention; guard deletion/detachment transactionally, replace evidence or retire the parent, then declare independent parent integrity intent and run test");
         }
     }
@@ -287,4 +288,8 @@ fn ordinary_unconditional(p:&ast::ProgramDecl,site:&Site)->bool{
 
 fn asserted_argument(value:&Expr,arg:&str)->bool{
     match value{Expr::Assert{value,..}=>matches!(value.as_ref(),Expr::Name{name,..} if name==arg)||asserted_argument(value,arg),_=>false}
+}
+
+fn links_created_parent(w:&Write<'_>,writes:&[&Write<'_>])->bool{
+    writes.iter().any(|p|w.fields.iter().any(|f|matches!(field_value(f),Some(Expr::Member{base,name,..}) if name=="id"&&matches!(base.as_ref(),Expr::Write{table,site,..} if table==&p.table&&site==&p.site))))
 }
