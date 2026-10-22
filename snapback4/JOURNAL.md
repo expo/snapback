@@ -102176,3 +102176,39 @@ and fault tests now live under `store/`, beside the adapter fixtures. Product
 commands still use the shared port; test paths/names and behavior are unchanged.
 The guard and its allowances remain unchanged. All product tests, including the
 three supplied baselines, passed in that full run; guards and queue tests repeat.
+
+
+K0-Q rebase qualification completes at `07d53b5258`: full core **1,072 / 0 failed /
+5 ignored**, full device **1,573 / 0 / 4**, no-default core, wasm web check,
+compiled handle guards, **127** guide and **27** codec cases pass. The full CLI
+run has **1,405 passes, two census failures and 15 ignored**; all product cases
+and all three supplied baselines pass. The admission-name and fault-fixture
+repairs pass all **16** guard/census cases, with **10 files / 47 durable-opener
+sites** and no allowance changes. No clean full CLI repeat is claimed.
+
+The first Postgres script reproduces the existing evaluator's `40001` retry
+exhaustion; all common-engine stages, **21** ownership cases and all **six**
+queue cases pass. The exact failing binary passes alone (65 increments per
+mode, 95 serializable retries). A single full script repeat with one outer
+case at a time passes **58 evaluator + 209 adapter + 21 ownership + 1 handle +
+38 doctest + 2 member + 6 queue + 1 HTTP + 19 corpus** cases; the unchanged
+four-writer case keeps 65 increments per mode with 69 serializable retries.
+The existing stress ticket gains these observations and remains open. Retry,
+backoff, timeout, workload and durability policies are unchanged.
+
+Fresh adjacent W4 samples give **98.44 → 97.08/s** (-1.38%), p50 **324.07 →
+328.67 ms**, p99 **350.17 → 347.50 ms**. The earlier rebuilt sample is 95.24/s.
+Each run has exactly **4,960** increments. This reduced debug-path comparison
+uses the retained cached baseline; it establishes no production capacity claim.
+All five owned clusters are stopped and independently confirmed, and all six
+benchmark server PIDs are absent. Only the lane's target and ten compiler jobs
+were used; all observed free-space readings stayed above 20 GiB. The
+[lane report](./reports/20261022-k0q/REPORT.md) retains raw samples, initial reds,
+passing repeats, source/binary identities and cleanup receipts. Final root
+reference validation follows. No push or stash.
+
+
+Final K0-Q root `./ref-check` passes **564 LLPs / 11,708 refs / 0 errors /
+0 unchecked**; whitespace checks pass. Five clusters remain independently
+confirmed stopped and all six benchmark PIDs are absent. The code and final
+qualification remain local on `sb4-pg/k0q`; no push or stash.
