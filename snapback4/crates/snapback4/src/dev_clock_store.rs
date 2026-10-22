@@ -262,6 +262,7 @@ pub fn offset_line(offset: i64, running: bool) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    pub(super) fn connection(engine: &Engine) -> &rusqlite::Connection { engine.store().test_support_conn() }
     pub(super) fn engine() -> Engine {
         let bound = snapback4_lang::compile(&[("schema.q".into(), "table alpha:\n  at: time\n  public\ntable beta:\n  at: time\n  public\n".into())]);
         assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
@@ -286,7 +287,7 @@ mod tests {
         assert_eq!(crossed_boundaries(&engine, &before, 60_000, false, true).unwrap().len(), 500);
         let fired = engine.fire_schedules(60_000).unwrap();
         let message = "🧪\n\\".repeat(30_000);
-        (engine.store()).test_support_conn().execute("UPDATE _jobs SET error = ?1 WHERE id = (SELECT id FROM _jobs ORDER BY created_at DESC, id DESC LIMIT 1)", [&message]).unwrap();
+        connection(&engine).execute("UPDATE _jobs SET error = ?1 WHERE id = (SELECT id FROM _jobs ORDER BY created_at DESC, id DESC LIMIT 1)", [&message]).unwrap();
         let report = schedule_report(&engine, &before, &fired, 60_000, 60_000, false, false, None);
         assert_eq!(report.len(), 500);
         assert!(report.iter().all(|s| s["run"]["errorTruncated"] == true));
@@ -373,9 +374,9 @@ mod tests {
         seed(&mut engine, "alpha", 200_000, 200_000);
         for n in 0..RECENT_COMMITS { seed(&mut engine, "beta", 100_000, 300_000 + n as i64); }
         // Deliberately unreadable images: metadata inspection must not deserialize them.
-        (engine.store()).test_support_conn().execute("UPDATE r SET data = 'not json'", []).unwrap();
+        connection(&engine).execute("UPDATE r SET data = 'not json'", []).unwrap();
         assert!(ahead(&engine, 100_000).unwrap().is_none());
-        (engine.store()).test_support_conn().execute("UPDATE _commits SET at = 200000, touched = ?1 WHERE seq = (SELECT MAX(seq) FROM _commits)", ["x".repeat(TABLE_BYTES + 1)]).unwrap();
+        connection(&engine).execute("UPDATE _commits SET at = 200000, touched = ?1 WHERE seq = (SELECT MAX(seq) FROM _commits)", ["x".repeat(TABLE_BYTES + 1)]).unwrap();
         let note = ahead(&engine, 100_000).unwrap().unwrap();
         assert!(note.contains("100000ms") && note.contains("additional tables omitted"), "{note}");
     }
@@ -424,14 +425,23 @@ mod staging_tests {
     fn failed_checkpoint_keeps_the_previous_time_and_pause_record() {
         let mut engine=super::tests::engine();
         engine.store().set_deployment_environment("staging").unwrap();
+        let guest = snapback4_core::identity::guest(engine.store(), 100_000, &mut snapback4_core::ids::Mint::default()).unwrap();
+        let expiry = guest.expires_at;
         let old=StagingClock {offset:10,now:100_010,paused:true};
         engine.checkpoint_staging_clock_at(0,100_000,false,&old).unwrap();
-        engine.store().test_support_conn().execute_batch("CREATE TRIGGER refuse_clock BEFORE INSERT ON _meta WHEN NEW.key = 'dev:staging-clock' BEGIN SELECT RAISE(ABORT,'injected checkpoint failure'); END;").unwrap();
+        super::tests::connection(&engine).execute_batch("CREATE TRIGGER refuse_clock BEFORE INSERT ON _meta WHEN NEW.key = 'dev:staging-clock' BEGIN SELECT RAISE(ABORT,'injected checkpoint failure'); END;").unwrap();
         for paused in [true,false] {
             let next=StagingClock {offset:1000,now:101_000,paused};
-            assert!(engine.checkpoint_staging_clock_at(1000,100_000,false,&next).is_err());
+            assert!(engine.checkpoint_staging_clock_at(if paused {1000}else{0},100_000,true,&next).is_err());
+            assert_eq!(snapback4_core::identity::resolve(engine.store(), &guest.token, 100_000).unwrap().unwrap().expires_at, expiry, "checkpoint failure rolls back credential preservation");
             assert_eq!(staging_clock(engine.store(),0,100_000).unwrap().now,old.now);
             assert!(staging_clock(engine.store(),0,100_000).unwrap().paused);
         }
+        super::tests::connection(&engine).execute_batch("DROP TRIGGER refuse_clock").unwrap();
+        let next = StagingClock {offset:1010,now:101_010,paused:true};
+        engine.checkpoint_staging_clock_at(1000,100_010,true,&next).unwrap();
+        assert_eq!(snapback4_core::identity::resolve(engine.store(), &guest.token, 100_010).unwrap().unwrap().expires_at, expiry + 1000);
+        engine.checkpoint_staging_clock_at(0,101_010,false,&next).unwrap();
+        assert_eq!(snapback4_core::identity::resolve(engine.store(), &guest.token, 101_010).unwrap().unwrap().expires_at, expiry + 1000, "startup does not shift a preserved credential twice");
     }
 }
