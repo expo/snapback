@@ -218,7 +218,7 @@ fn stale_notes(bound:&Bound,writes:&[Write<'_>],out:&mut Vec<Diagnostic>){
             g.1.insert(format!("{} at {}",w.p.name,w.site));g.2.insert(format!("{} at {}",later.p.name,later.site));g.3.extend(columns.clone());
         }}
     }
-    for ((table,dep),(site,creators,decisions,columns)) in groups{note(out,&site,"N_STALE_CREATION_CHECK",format!("{table}: creation by {} checks mutable {dep}.{}, but approval/activation {} does not recheck it",creators.into_iter().collect::<Vec<_>>().join(", "),columns.into_iter().collect::<Vec<_>>().join(","),decisions.into_iter().collect::<Vec<_>>().join(", ")),"decide whether eligibility must remain current at this decision; recheck it or declare independent intent and test create -> eligibility change -> approval");}
+    for ((table,dep),(site,creators,decisions,columns)) in groups{note(out,&site,"N_STALE_CREATION_CHECK",format!("{table}: creation by {} checks mutable {dep}.{}, but approval/activation {} does not recheck every column for the same applicant/resource",creators.into_iter().collect::<Vec<_>>().join(", "),columns.into_iter().collect::<Vec<_>>().join(","),decisions.into_iter().collect::<Vec<_>>().join(", ")),"decide whether eligibility must remain current at this decision; recheck it or declare independent intent and test create -> eligibility change -> approval");}
 }
 fn evidence_notes(bound:&Bound,writes:&[Write<'_>],out:&mut Vec<Diagnostic>){
     for (child,t) in bound.schema.visible_tables(){

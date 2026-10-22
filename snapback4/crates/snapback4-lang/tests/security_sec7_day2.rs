@@ -30,6 +30,11 @@ const CHILD:&str="table parents:\n  n: int default 0\n  read <- allow\n  insert 
  let checkout=s.replace("kind:'return'","kind:'checkout'");assert!(has(&checkout,"N_OPTIONAL_UPLOAD_CREATE"));
  let sibling=checkout.replace("add(photo: image <=10000 ?)","add(photo: image <=10000 ?, required: image <=10000)").replace("  if photo != null:","  insert photos {parent:p.id,kind:'checkout',photo:required}\n  if photo != null:");assert!(!has(&sibling,"N_OPTIONAL_UPLOAD_CREATE"));
 }
+#[test]fn unknown_child_filters_and_a_different_parent_do_not_establish_an_upload_obligation(){
+ let base=CHILD.replace("  parent: parents", "  kind: enum('checkout','return')\n  parent: parents").replace("  unique parent", "  unique parent, kind").replace("add(photo: image <=10000 ?)","add(photo: image <=10000 ?, kind:enum('checkout','return'))").replace("photos {parent:p.id,photo}","photos {parent:p.id,kind,photo}");
+ let unknown=format!("{base}invariant parents always exists photos[parent = .id, kind = 'checkout']\n");assert!(!has(&unknown,"N_OPTIONAL_UPLOAD_CREATE"));
+ let other=format!("{}invariant parents always exists photos[parent = .id]\n",CHILD.replace("add(photo: image <=10000 ?)","add(photo: image <=10000 ?, other:parents)").replace("parent:p.id","parent:other"));assert!(!has(&other,"N_OPTIONAL_UPLOAD_CREATE"));
+}
 #[test]fn zero_iteration_or_expression_conditional_siblings_cannot_discharge_required_evidence(){
  let base=CHILD.replace("add(photo: image <=10000 ?)","add(photo: image <=10000 ?, required: image <=10000, enabled: bool, photos: [image <=10000] <=4)");
  for sibling in ["  for image in photos:\n    insert photos {parent:p.id,photo:image}\n", "  extra = (insert photos {parent:p.id,photo:required}) if enabled else null\n"]{
@@ -52,6 +57,16 @@ const CHILD:&str="table parents:\n  n: int default 0\n  read <- allow\n  insert 
  let dual=s.replace("  suspended: bool", "  disabled: bool default false\n  suspended: bool").replace("flag.suspended = false", "(flag.suspended = false and flag.disabled = false)").replace("suspended: true }", "suspended: true, disabled:true }");
  let partial=dual.replace("  require app.lastPassed else DECISION_CONFLICTS","  require app.lastPassed else DECISION_CONFLICTS\n  require not exists operatorFlags[app.owner, suspended = true] else SUSPENDED");assert!(has(&partial,"N_STALE_CREATION_CHECK"));
  let complete=partial.replace("  require not exists operatorFlags[app.owner, suspended = true] else SUSPENDED","  require not exists operatorFlags[app.owner, suspended = true] else SUSPENDED\n  require not exists operatorFlags[app.owner, disabled = true] else DISABLED");assert!(!has(&complete,"N_STALE_CREATION_CHECK"));
+}
+#[test]fn separate_eligibility_dependencies_remain_two_grouped_questions(){
+ let s=include_str!("security/wave23/030.q").replace("  flag = operatorFlags[viewer]", "  extra = extraFlags[viewer]\n  require extra = null or extra.suspended = false else EXTRA_SUSPENDED\n  flag = operatorFlags[viewer]");
+ let s=format!("{s}\ntable extraFlags:\n  operator:principal\n  suspended:bool\n  unique operator\n  immutable operator\n  read <- allow\n  insert <- allow\n  update <- allow\n  online only\nmutation extraFlag(operator:principal,suspended:bool):\n  upsert extraFlags[operator] {{operator,suspended}}\n");let r=notes(&s);let ns=r.notes.iter().filter(|n|n.code=="N_STALE_CREATION_CHECK").collect::<Vec<_>>();assert_eq!(ns.len(),2,"{ns:?}");assert!(ns.iter().any(|n|n.message.contains("operatorFlags.suspended")));assert!(ns.iter().any(|n|n.message.contains("extraFlags.suspended")));
+}
+#[test]fn unmapped_callers_and_mutable_identity_aliases_never_prove_the_same_entity(){
+ let s=include_str!("security/wave23/030.q");
+ let wrong=s.replace("  require app.lastPassed else DECISION_CONFLICTS","  require app.lastPassed else DECISION_CONFLICTS\n  require not exists operatorFlags[viewer, suspended = true] else SUSPENDED").replace("immutable truck, owner, interiorPhotos", "immutable truck, interiorPhotos");assert!(has(&wrong,"N_STALE_CREATION_CHECK"));
+ let alias=s.replace("  owner: principal\n  interiorPhotos:","  owner: principal\n  eligibilityOwner: principal\n  interiorPhotos:").replace("return insert applications { truck, owner: viewer,", "return insert applications { truck, owner: viewer, eligibilityOwner:viewer,").replace("  require app.lastPassed else DECISION_CONFLICTS","  require app.lastPassed else DECISION_CONFLICTS\n  require not exists operatorFlags[app.eligibilityOwner, suspended = true] else SUSPENDED");
+ let alias=format!("{alias}\nmutation transferEligibility(application:applications, operator:principal):\n  update applications[application] {{eligibilityOwner:operator}}\n");assert!(has(&alias,"N_STALE_CREATION_CHECK"));
 }
 #[test]fn billing_asymmetry_names_the_private_column_and_its_owner_guard(){
  let s=include_str!("security/wave23/042.q");let r=notes(s);let ns=r.notes.iter().filter(|n|n.code=="N_PRIVATE_CREATE_EDIT_ASYMMETRY").collect::<Vec<_>>();assert_eq!(ns.len(),1,"{:?}",r.notes);
@@ -91,6 +106,9 @@ const CHILD:&str="table parents:\n  n: int default 0\n  read <- allow\n  insert 
  assert!(!has(s,"N_PRIVATE_CREATE_EDIT_ASYMMETRY"));
  let condition=s.replace("    require acquire() else ACQUIRE\n", "").replace("  update docs[doc] {secret}", "  if acquire():\n    update docs[doc] {secret}");assert!(!has(&condition,"N_PRIVATE_CREATE_EDIT_ASYMMETRY"));
 }
+#[test]fn an_emit_payload_write_ends_pending_column_authority(){
+ let s=include_str!("security/wave23/042.q").replace("use identity password","use identity password\neffect changed").replace("  update signings[signing] { fee, agencyBillingNotes }", "  emit changed { value: (upsert roles[viewer] {principal:viewer,role:'owner'}) }\n  update signings[signing] { fee, agencyBillingNotes }");let r=notes(&s);assert!(!r.notes.iter().any(|n|n.code=="N_PRIVATE_CREATE_EDIT_ASYMMETRY"));assert!(r.notes.iter().any(|n|n.code=="N_INSERT_WRITE_INTENT"&&n.message.contains("agencyBillingNotes")));
+}
 #[test]fn deleting_the_only_booking_photo_has_a_grouped_evidence_question(){
  let s=include_str!("security/wave23/028.q");let r=notes(s);let ns=r.notes.iter().filter(|n|n.code=="N_EVIDENCE_REMOVAL").collect::<Vec<_>>();assert_eq!(ns.len(),1,"{ns:?}");
  for part in ["vehicles.stay -> stays","removeVehicle","photo","last required"]{assert!(ns[0].message.contains(part),"{ns:?}");}
@@ -106,4 +124,11 @@ const CHILD:&str="table parents:\n  n: int default 0\n  read <- allow\n  insert 
  let detach=format!("{required}mutation move(photo:photos,parent:parents):\n  update photos[photo] {{parent}}\n");assert!(has(&detach,"N_EVIDENCE_REMOVAL"));
  let same=format!("{required}mutation keep(photo:photos):\n  old = photos[photo] ! else MISSING\n  update photos[photo] {{parent:old.parent}}\n");assert!(!has(&same,"N_EVIDENCE_REMOVAL"));
  let clear=format!("{}mutation clear(photo:photos):\n  update photos[photo] {{photo:null}}\ninvariant photos always .photo != null\n",required.replace("  photo: image <=10000\n","  photo: image <=10000 ?\n"));assert!(has(&clear,"N_EVIDENCE_REMOVAL"));
+}
+#[test]fn separate_evidence_relationships_remain_two_questions(){
+ let required=CHILD.replace("add(photo: image <=10000 ?)","add(photo: image <=10000)").replace("  if photo != null:\n    insert photos {parent:p.id,photo}","  insert photos {parent:p.id,photo}");
+ let s=format!("{required}\ntable scans:\n  parent:parents\n  photo:image <=10000\n  read <- allow\n  insert <- allow\n  delete <- allow\n  online only\nmutation addScan(photo:image <=10000):\n  p = insert parents {{}}\n  insert scans {{parent:p.id,photo}}\nmutation removePhoto(photo:photos):\n  delete photos[photo]\nmutation removeScan(scan:scans):\n  delete scans[scan]\n");let r=notes(&s);let ns=r.notes.iter().filter(|n|n.code=="N_EVIDENCE_REMOVAL").collect::<Vec<_>>();assert_eq!(ns.len(),2,"{ns:?}");assert!(ns.iter().any(|n|n.message.contains("photos.parent")));assert!(ns.iter().any(|n|n.message.contains("scans.parent")));
+}
+#[test]fn carried_optional_evidence_keeps_advice_without_an_inferred_gate(){
+ let s=include_str!("security/wave23/018.q");assert!(!has(s,"N_OPTIONAL_UPLOAD_CREATE"));assert!(has(s,"N_OPTIONAL_EVIDENCE"));
 }

@@ -315,7 +315,8 @@ Shape validation grants no authority; the server still decides session validity.
 
 Default check puts likely holes before result inventories and restating questions.
 Questions about retained role grants and uploads with an explicit mandatory-media
-contract require a repair or an individual disposition. They fail check without claiming an invariant refutation.
+contract require a repair or an individual disposition. They fail check without claiming an invariant refutation. Analyzer changes
+invalidate older source-bound reviews; recheck current IDs and decisions.
 Read the note, compare it with the specification, then use
 `check --ack-security ID --reason 'specification rationale'` with its current ID
 from check or check --json. Bulk --ack-notes cannot clear these gates.

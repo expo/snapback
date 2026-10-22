@@ -54,6 +54,11 @@ fn statements(catalog:&Catalog,p:&ProgramDecl,body:&[Stmt],env:&mut Env,guards:&
         },
         Stmt::Return{value,..}=>{expression(catalog,p,value,env,guards,changes,column,depth,out);break;},
         Stmt::Expr{value,..}=>{expression(catalog,p,value,env,guards,changes,column,depth,out);guards.extend(helper_guards(catalog,value,env,0));},
+        Stmt::Emit{payload,once,..}=>{
+            if column.is_some(){changes.clear();}
+            expression(catalog,p,payload,env,guards,changes,column,depth,out);
+            if let Some(once)=once{expression(catalog,p,once,env,guards,changes,column,depth,out);}
+        },
         Stmt::If{condition,then_body,else_body,site}=>{
             if column.is_some()&&changes::expression_effectful(&resolve(condition,env)){changes.clear();}
             expression(catalog,p,condition,env,guards,changes,column,depth,out);

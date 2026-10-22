@@ -24,7 +24,7 @@ pub(super) fn prior_effects(e:&Expr)->bool{
 pub(super) fn effectful(s:&Stmt)->bool{match s{
     Stmt::Expr{value,..}|Stmt::Bind{value,..}|Stmt::Return{value,..}|Stmt::Require{condition:value,..}=>expression_effectful(value),
     Stmt::If{condition,then_body,else_body,..}=>expression_effectful(condition)||then_body.iter().chain(else_body).any(effectful),
-    Stmt::For{..}|Stmt::As{..}=>true,_=>false,
+    Stmt::For{..}|Stmt::As{..}|Stmt::Emit{..}=>true,_=>false,
 }}
 
 fn prefix(_catalog:&Catalog,body:&[Stmt],env:&Env)->Vec<Stmt>{

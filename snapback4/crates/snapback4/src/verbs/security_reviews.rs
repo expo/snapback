@@ -3,7 +3,7 @@
 use super::*;
 use serde::{Serialize,Deserialize};
 use sha2::{Digest,Sha256};
-const ANALYZER:&str="sec7-3";
+const ANALYZER:&str="sec7-4";
 #[derive(Serialize,Deserialize)]
 #[serde(deny_unknown_fields)]
 struct File{version:u32,entries:BTreeMap<String,Entry>}
@@ -67,7 +67,7 @@ struct Scratch(std::path::PathBuf);impl Drop for Scratch{fn drop(&mut self){let 
  assert!(review(&p,&sources,&notes,Some((&id(&a),"  "))).is_err());assert!(review(&p,&sources,&notes,Some(("unknown","intended"))).is_err());
  let ds=review(&p,&sources,&notes,Some((&id(&a),"the specification allows optional draft evidence"))).unwrap();assert!(ds[0].acknowledged);assert!(!ds[1].acknowledged);assert!(pending(&ds));
  let changed=[snapback4_lang::Diagnostic::new(&Default::default(),"N_OPTIONAL_UPLOAD_CREATE","changed","")];assert!(!review(&p,&sources,&changed,None).unwrap()[0].acknowledged);
- let path=p.schema_dir().join("security-reviews.json");let mut f:File=serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();f.entries.get_mut(&id(&a)).unwrap().analyzer="sec7-2".into();std::fs::write(&path,serde_json::to_vec(&f).unwrap()).unwrap();assert!(!review(&p,&sources,&notes,None).unwrap()[0].acknowledged);
+ let path=p.schema_dir().join("security-reviews.json");let mut f:File=serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();for old in ["sec7-2","sec7-3"]{f.entries.get_mut(&id(&a)).unwrap().analyzer=old.into();std::fs::write(&path,serde_json::to_vec(&f).unwrap()).unwrap();assert!(!review(&p,&sources,&notes,None).unwrap()[0].acknowledged);}
  std::fs::write(p.schema_dir().join("schema.q"),"query q():\n  return false\n").unwrap();assert!(review(&p,&sources,&notes,Some((&id(&a),"intended"))).is_err());assert!(!review(&p,&p.sources().unwrap(),&notes,None).unwrap()[0].acknowledged);
  std::fs::write(&path,"{}").unwrap();assert!(review(&p,&p.sources().unwrap(),&notes,None).is_err());std::fs::remove_dir_all(root).unwrap();
 }

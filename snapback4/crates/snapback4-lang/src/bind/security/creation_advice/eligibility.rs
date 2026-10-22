@@ -16,7 +16,7 @@ fn row_id(r:&ast::ReadExpr,p:&ast::ProgramDecl)->Option<String>{
 fn stable_field(bound:&Bound,creator:&Write<'_>,value:&Expr)->Option<String>{
     creator.fields.iter().filter(|f|bound.schema.tables[&creator.table].immutable_fields().any(|c|c==f.name)).find(|f|field_value(f).is_some_and(|e|crate::print::expression(e)==crate::print::expression(value))).map(|f|f.name.clone())
 }
-fn normalize(bound:&Bound,creator:&Write<'_>,current:&Write<'_>,e:&Expr,creation:bool)->String{
+fn normalize(bound:&Bound,creator:&Write<'_>,current:&Write<'_>,e:&Expr,creation:bool)->Option<String>{
     let mut e=e.clone();let origins=if current.table==creator.table&&current.op==WriteOp::Update{
         current.keys.first().filter(|_|current.keys.len()==1).and_then(|k|id_value(&k.value,current.p,&creator.table).or_else(||(k.column.as_deref()==Some("id")).then(||crate::print::expression(&k.value)))).into_iter().collect::<BTreeSet<_>>()
     }else{
@@ -24,10 +24,12 @@ fn normalize(bound:&Bound,creator:&Write<'_>,current:&Write<'_>,e:&Expr,creation
     };
     super::super::super::intent_walk::expression(&mut e,&mut |e|{
         let field=if creation{stable_field(bound,creator,e)}else if let Expr::Member{base,name,..}=e{
-            read(base).filter(|r|r.table==creator.table&&row_id(r,current.p).is_some_and(|id|origins.contains(&id))).and_then(|_|creator.fields.iter().find(|f|f.name==*name)).and_then(field_value).and_then(|v|stable_field(bound,creator,v))
+            read(base).filter(|_|bound.schema.tables[&creator.table].immutable_fields().any(|c|c==name)).filter(|r|r.table==creator.table&&row_id(r,current.p).is_some_and(|id|origins.contains(&id))).and_then(|_|creator.fields.iter().find(|f|f.name==*name)).and_then(field_value).and_then(|v|stable_field(bound,creator,v))
         }else{None};
         if let Some(field)=field{*e=Expr::Name{name:format!("$created_{field}"),site:e.site().clone()};}
-    });crate::print::expression(&e)
+    });
+    fn known(e:&Expr)->bool{match e{Expr::Literal{..}=>true,Expr::Name{name,..}=>name.starts_with("$created_"),Expr::Assert{value,..}=>known(value),_=>false}}
+    known(&e).then(||crate::print::expression(&e))
 }
 fn identity(bound:&Bound,creator:&Write<'_>,current:&Write<'_>,r:&ast::ReadExpr,creation:bool)->Option<String>{
     let t=bound.schema.tables.get(&r.table)?;let positional=r.keys.iter().filter(|k|k.column.is_none()).collect::<Vec<_>>();let mut pins=BTreeMap::new();
@@ -35,7 +37,7 @@ fn identity(bound:&Bound,creator:&Write<'_>,current:&Write<'_>,r:&ast::ReadExpr,
         let candidates=t.indexes.values().filter(|i|i.unique&&i.is_plain()&&i.columns().len()==positional.len()&&!i.columns().iter().any(|c|c=="id")).collect::<Vec<_>>();
         let [index]=candidates.as_slice()else{return None;};index.columns()
     };
-    let mut offset=0;for k in &r.keys{let column=if let Some(c)=&k.column{c.clone()}else{let c=columns.get(offset)?.clone();offset+=1;c};pins.insert(column,normalize(bound,creator,current,&k.value,creation));}
+    let mut offset=0;for k in &r.keys{let column=if let Some(c)=&k.column{c.clone()}else{let c=columns.get(offset)?.clone();offset+=1;c};pins.insert(column,normalize(bound,creator,current,&k.value,creation)?);}
     let mut indexes=t.indexes.values().filter(|i|i.unique&&i.is_plain()&&i.columns().iter().all(|c|pins.contains_key(c))).map(|i|i.columns()).collect::<Vec<_>>();indexes.sort_by_key(|cols|(cols.len(),cols.clone()));let columns=indexes.first()?;
     Some(serde_json::to_string(&columns.iter().map(|c|(c,&pins[c])).collect::<Vec<_>>()).unwrap())
 }
