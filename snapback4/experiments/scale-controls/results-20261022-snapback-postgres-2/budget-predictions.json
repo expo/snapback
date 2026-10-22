@@ -1,0 +1,146 @@
+[
+  {
+    "delay_us": 0,
+    "prepared_rtt_p50_ms": 0.6375,
+    "request_class": "W1",
+    "current_flights": 23,
+    "B1_flights": 6,
+    "B2a_flights": 3,
+    "B2b_flights": [
+      5
+    ],
+    "current_network_ms": 14.6625,
+    "B1_network_ms": 3.8249999999999997,
+    "B2a_network_ms": 1.9124999999999999,
+    "B2b_network_ms": [
+      3.1875
+    ],
+    "B1_network_only_serial_per_s": 261.43790849673206,
+    "B2a_network_only_serial_per_s": 522.8758169934641,
+    "B2b_network_only_serial_per_s": [
+      313.72549019607845
+    ],
+    "caveat": "predicted network floor, excludes execution/flush/queue; W2 B2b=2 conditional on its autocommit open question, otherwise4; W3 program fanout is not this schedule"
+  },
+  {
+    "delay_us": 0,
+    "prepared_rtt_p50_ms": 0.6375,
+    "request_class": "W2",
+    "current_flights": 23,
+    "B1_flights": 6,
+    "B2a_flights": 2,
+    "B2b_flights": [
+      2,
+      4
+    ],
+    "current_network_ms": 14.6625,
+    "B1_network_ms": 3.8249999999999997,
+    "B2a_network_ms": 1.275,
+    "B2b_network_ms": [
+      1.275,
+      2.55
+    ],
+    "B1_network_only_serial_per_s": 261.43790849673206,
+    "B2a_network_only_serial_per_s": 784.3137254901961,
+    "B2b_network_only_serial_per_s": [
+      784.3137254901961,
+      392.15686274509807
+    ],
+    "caveat": "predicted network floor, excludes execution/flush/queue; W2 B2b=2 conditional on its autocommit open question, otherwise4; W3 program fanout is not this schedule"
+  },
+  {
+    "delay_us": 0,
+    "prepared_rtt_p50_ms": 0.6375,
+    "request_class": "unkeyed mutation, three program flights",
+    "current_flights": 57,
+    "B1_flights": 16,
+    "B2a_flights": 8,
+    "B2b_flights": [
+      11
+    ],
+    "current_network_ms": 36.3375,
+    "B1_network_ms": 10.2,
+    "B2a_network_ms": 5.1,
+    "B2b_network_ms": [
+      7.012499999999999
+    ],
+    "B1_network_only_serial_per_s": 98.03921568627452,
+    "B2a_network_only_serial_per_s": 196.07843137254903,
+    "B2b_network_only_serial_per_s": [
+      142.60249554367203
+    ],
+    "caveat": "predicted network floor, excludes execution/flush/queue; W2 B2b=2 conditional on its autocommit open question, otherwise4; W3 program fanout is not this schedule"
+  },
+  {
+    "delay_us": 500,
+    "prepared_rtt_p50_ms": 1.331,
+    "request_class": "W1",
+    "current_flights": 23,
+    "B1_flights": 6,
+    "B2a_flights": 3,
+    "B2b_flights": [
+      5
+    ],
+    "current_network_ms": 30.613,
+    "B1_network_ms": 7.986,
+    "B2a_network_ms": 3.993,
+    "B2b_network_ms": [
+      6.654999999999999
+    ],
+    "B1_network_only_serial_per_s": 125.2191334835963,
+    "B2a_network_only_serial_per_s": 250.4382669671926,
+    "B2b_network_only_serial_per_s": [
+      150.26296018031556
+    ],
+    "caveat": "predicted network floor, excludes execution/flush/queue; W2 B2b=2 conditional on its autocommit open question, otherwise4; W3 program fanout is not this schedule"
+  },
+  {
+    "delay_us": 500,
+    "prepared_rtt_p50_ms": 1.331,
+    "request_class": "W2",
+    "current_flights": 23,
+    "B1_flights": 6,
+    "B2a_flights": 2,
+    "B2b_flights": [
+      2,
+      4
+    ],
+    "current_network_ms": 30.613,
+    "B1_network_ms": 7.986,
+    "B2a_network_ms": 2.662,
+    "B2b_network_ms": [
+      2.662,
+      5.324
+    ],
+    "B1_network_only_serial_per_s": 125.2191334835963,
+    "B2a_network_only_serial_per_s": 375.6574004507889,
+    "B2b_network_only_serial_per_s": [
+      375.6574004507889,
+      187.82870022539444
+    ],
+    "caveat": "predicted network floor, excludes execution/flush/queue; W2 B2b=2 conditional on its autocommit open question, otherwise4; W3 program fanout is not this schedule"
+  },
+  {
+    "delay_us": 500,
+    "prepared_rtt_p50_ms": 1.331,
+    "request_class": "unkeyed mutation, three program flights",
+    "current_flights": 57,
+    "B1_flights": 16,
+    "B2a_flights": 8,
+    "B2b_flights": [
+      11
+    ],
+    "current_network_ms": 75.867,
+    "B1_network_ms": 21.296,
+    "B2a_network_ms": 10.648,
+    "B2b_network_ms": [
+      14.641
+    ],
+    "B1_network_only_serial_per_s": 46.95717505634861,
+    "B2a_network_only_serial_per_s": 93.91435011269722,
+    "B2b_network_only_serial_per_s": [
+      68.30134553650707
+    ],
+    "caveat": "predicted network floor, excludes execution/flush/queue; W2 B2b=2 conditional on its autocommit open question, otherwise4; W3 program fanout is not this schedule"
+  }
+]

@@ -1,5 +1,51 @@
 # S1: scale controls and native Snapback serve
 
+## S1-PG2: admitted maintained columns, unchanged Postgres baseline
+
+[Matched W1–W5 report, comparison and archive](./results-20261022-snapback-postgres-2/README.md)
+measures the unchanged Quarry application at P1-MC `45416b150c`, before the
+request-round-trip reductions. It retains every failed and interrupted segment,
+role/database-scoped statement deltas, per-second cohorts and counter outcomes.
+Read the transport-tail and single-SSH-forward limitations before comparing
+historical controls. The old S1-PG refusal below remains a historical record.
+
+Build product and load harness as under S1-SK, then the independent native seed
+helper (all targets must belong to the current worktree):
+
+```sh
+export PATH="$HOME/.cargo/bin:$HOME/.local/bin:$PATH"
+CARGO_TARGET_DIR="$PWD/../../target/s1sk" \
+  LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT \
+  cargo build --release --locked --manifest-path postgres-seed/Cargo.toml -j 4
+mkdir -p target/pg2-NEW
+setsid nohup sh -c 'python3 scripts/postgres-2.py --out target/pg2-NEW/raw --run-name p4; status=$?; echo "$status" > target/pg2-NEW/run.exit' \
+  > target/pg2-NEW/run.log 2>&1 </dev/null &
+echo $! # record; poll run.exit and cleanup, stop only owned processes
+setsid nohup python3 scripts/postgres-2-observe.py \
+  target/pg2-NEW target/pg2-NEW/raw run.exit \
+  > target/pg2-NEW/observer.log 2>&1 </dev/null &
+echo $! # record and poll this companion to exit too
+```
+
+Use a fresh short socket/runtime name and output; the database/role must be
+absent before provisioning. The runner uses only its fixed owned database
+`sb4_snapback_s1pg2` and role `s1pg2_app`, waits for other database activity,
+seeds through `Engine::seed_at` locally on 450a, and removes them on a completed
+matrix. An interrupted run retains the fixture for diagnosis; never drop a
+fixture whose ownership is uncertain. URLs/passwords remain private environment
+or mode-600 files. Supplemental `postgres-2-observe-local.py` and `postgres-2-observe-wal.py`
+companions take the raw directory and full exit-marker path (two arguments).
+Launch them detached and record their PIDs too. WAL timing is cluster-wide,
+not database-only.
+
+For the archived run, `scripts/combine-postgres-2.py <extracted-s1pg2>` selects
+its twelve complete cells and audits the separately recovered interrupted-write
+offset. `scripts/report-postgres-2.py <campaign> <out>` audits and regenerates
+summaries/plots offline. `scripts/finish-postgres-2.py` is the final custody check
+for that run's recorded directories/exit marker, not a generic cleanup command.
+[ARCHIVE.md](./results-20261022-snapback-postgres-2/ARCHIVE.md) gives the exact
+portable regeneration command and digest.
+
 ## S1-PG: Postgres admission blocks the required application
 
 [Report, ledger and archive](./results-20261022-snapback-postgres/README.md):

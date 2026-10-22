@@ -1,0 +1,98 @@
+{
+  "time": 1792697147.66967,
+  "postmaster_pid": 2735539,
+  "postmaster_alive": true,
+  "cluster": {
+    "settings": {
+      "port": "55440",
+      "fsync": "on",
+      "full_page_writes": "on",
+      "synchronous_commit": "on"
+    },
+    "role_absent": true,
+    "cluster_start": "2026-10-21T13:55:37.846284+02:00",
+    "database_absent": true
+  },
+  "remote_processes": [
+    {
+      "pid": 273865,
+      "present": false,
+      "owned_signature": false
+    },
+    {
+      "pid": 273866,
+      "present": false,
+      "owned_signature": false
+    },
+    {
+      "pid": 274302,
+      "present": false,
+      "owned_signature": false
+    },
+    {
+      "pid": 3990058,
+      "present": false,
+      "owned_signature": false
+    },
+    {
+      "pid": 3990059,
+      "present": false,
+      "owned_signature": false
+    },
+    {
+      "pid": 4038084,
+      "present": false,
+      "owned_signature": false
+    },
+    {
+      "pid": 4043052,
+      "present": false,
+      "owned_signature": false
+    },
+    {
+      "pid": 4043053,
+      "present": false,
+      "owned_signature": false
+    },
+    {
+      "pid": 4071392,
+      "present": false,
+      "owned_signature": false
+    },
+    {
+      "pid": 4071393,
+      "present": false,
+      "owned_signature": false
+    },
+    {
+      "pid": 4071633,
+      "present": false,
+      "owned_signature": false
+    },
+    {
+      "pid": 4089226,
+      "present": false,
+      "owned_signature": false
+    },
+    {
+      "pid": 4089227,
+      "present": false,
+      "owned_signature": false
+    },
+    {
+      "pid": 4089729,
+      "present": false,
+      "owned_signature": false
+    }
+  ],
+  "owned_directory_processes": [],
+  "live_owned": [],
+  "removed_private_files": [
+    "sb4scale/s1pg2-20261022/config.json",
+    "sb4scale/s1pg2-20261022/tokens.json",
+    "sb4scale/s1pg2-20261022-p3/config.json",
+    "sb4scale/s1pg2-20261022-p3/tokens.json",
+    "sb4scale/s1pg2-20261022-p3/barrier-config.json",
+    "sb4scale/s1pg2-20261022-p3/barrier-token"
+  ]
+}

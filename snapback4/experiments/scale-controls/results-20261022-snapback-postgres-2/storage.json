@@ -1,0 +1,393 @@
+{
+  "tables": [
+    {
+      "name": "_release_events",
+      "rows": 1,
+      "heap_bytes": 49152,
+      "indexes_bytes": 16384
+    },
+    {
+      "name": "_asset_views",
+      "rows": 0,
+      "heap_bytes": 8192,
+      "indexes_bytes": 8192
+    },
+    {
+      "name": "_effect_presence",
+      "rows": 0,
+      "heap_bytes": 8192,
+      "indexes_bytes": 16384
+    },
+    {
+      "name": "_principals",
+      "rows": 257,
+      "heap_bytes": 57344,
+      "indexes_bytes": 16384
+    },
+    {
+      "name": "i",
+      "rows": 3030087,
+      "heap_bytes": 331726848,
+      "indexes_bytes": 504889344
+    },
+    {
+      "name": "r",
+      "rows": 1009957,
+      "heap_bytes": 462815232,
+      "indexes_bytes": 74571776
+    },
+    {
+      "name": "_asset_intents",
+      "rows": 0,
+      "heap_bytes": 8192,
+      "indexes_bytes": 8192
+    },
+    {
+      "name": "_log",
+      "rows": 0,
+      "heap_bytes": 8192,
+      "indexes_bytes": 8192
+    },
+    {
+      "name": "_credentials",
+      "rows": 0,
+      "heap_bytes": 8192,
+      "indexes_bytes": 16384
+    },
+    {
+      "name": "_outbox",
+      "rows": 0,
+      "heap_bytes": 8192,
+      "indexes_bytes": 16384
+    },
+    {
+      "name": "_meta",
+      "rows": 10,
+      "heap_bytes": 49152,
+      "indexes_bytes": 16384
+    },
+    {
+      "name": "_backend",
+      "rows": 1,
+      "heap_bytes": 106496,
+      "indexes_bytes": 16384
+    },
+    {
+      "name": "_cap_counts",
+      "rows": 0,
+      "heap_bytes": 8192,
+      "indexes_bytes": 8192
+    },
+    {
+      "name": "_asset_gc",
+      "rows": 0,
+      "heap_bytes": 8192,
+      "indexes_bytes": 8192
+    },
+    {
+      "name": "_effect_keys",
+      "rows": 0,
+      "heap_bytes": 8192,
+      "indexes_bytes": 8192
+    },
+    {
+      "name": "_assets",
+      "rows": 0,
+      "heap_bytes": 8192,
+      "indexes_bytes": 8192
+    },
+    {
+      "name": "_change_evidence",
+      "rows": 0,
+      "heap_bytes": 8192,
+      "indexes_bytes": 8192
+    },
+    {
+      "name": "_generations",
+      "rows": 1,
+      "heap_bytes": 98304,
+      "indexes_bytes": 16384
+    },
+    {
+      "name": "_principal_generations",
+      "rows": 0,
+      "heap_bytes": 8192,
+      "indexes_bytes": 8192
+    },
+    {
+      "name": "_requests",
+      "rows": 0,
+      "heap_bytes": 8192,
+      "indexes_bytes": 24576
+    },
+    {
+      "name": "_read_sessions",
+      "rows": 0,
+      "heap_bytes": 8192,
+      "indexes_bytes": 16384
+    },
+    {
+      "name": "_sequences",
+      "rows": 0,
+      "heap_bytes": 8192,
+      "indexes_bytes": 8192
+    },
+    {
+      "name": "_jobs",
+      "rows": 0,
+      "heap_bytes": 8192,
+      "indexes_bytes": 8192
+    },
+    {
+      "name": "_release_event_items",
+      "rows": 0,
+      "heap_bytes": 8192,
+      "indexes_bytes": 8192
+    },
+    {
+      "name": "_head",
+      "rows": 1,
+      "heap_bytes": 40960,
+      "indexes_bytes": 16384
+    },
+    {
+      "name": "_session_mint_bindings",
+      "rows": 0,
+      "heap_bytes": 8192,
+      "indexes_bytes": 8192
+    },
+    {
+      "name": "_catalog",
+      "rows": 22,
+      "heap_bytes": 49152,
+      "indexes_bytes": 32768
+    },
+    {
+      "name": "_sessions",
+      "rows": 257,
+      "heap_bytes": 98304,
+      "indexes_bytes": 139264
+    },
+    {
+      "name": "_commits",
+      "rows": 258,
+      "heap_bytes": 73728,
+      "indexes_bytes": 16384
+    },
+    {
+      "name": "_ops",
+      "rows": 0,
+      "heap_bytes": 8192,
+      "indexes_bytes": 8192
+    },
+    {
+      "name": "_owner",
+      "rows": 1,
+      "heap_bytes": 49152,
+      "indexes_bytes": 16384
+    }
+  ],
+  "indexes": [
+    {
+      "bytes": 16384,
+      "index": "_owner_pkey",
+      "table": "_owner"
+    },
+    {
+      "bytes": 16384,
+      "index": "_backend_pkey",
+      "table": "_backend"
+    },
+    {
+      "bytes": 16384,
+      "index": "_head_pkey",
+      "table": "_head"
+    },
+    {
+      "bytes": 74571776,
+      "index": "r_pkey",
+      "table": "r"
+    },
+    {
+      "bytes": 504889344,
+      "index": "i_pkey",
+      "table": "i"
+    },
+    {
+      "bytes": 16384,
+      "index": "_commits_pkey",
+      "table": "_commits"
+    },
+    {
+      "bytes": 8192,
+      "index": "_log_pkey",
+      "table": "_log"
+    },
+    {
+      "bytes": 8192,
+      "index": "_ops_pkey",
+      "table": "_ops"
+    },
+    {
+      "bytes": 8192,
+      "index": "_sequences_pkey",
+      "table": "_sequences"
+    },
+    {
+      "bytes": 8192,
+      "index": "_effect_keys_pkey",
+      "table": "_effect_keys"
+    },
+    {
+      "bytes": 8192,
+      "index": "_principal_generations_pkey",
+      "table": "_principal_generations"
+    },
+    {
+      "bytes": 57344,
+      "index": "_sessions_pkey",
+      "table": "_sessions"
+    },
+    {
+      "bytes": 16384,
+      "index": "_sessions_expiry",
+      "table": "_sessions"
+    },
+    {
+      "bytes": 65536,
+      "index": "_sessions_family",
+      "table": "_sessions"
+    },
+    {
+      "bytes": 8192,
+      "index": "_requests_pkey",
+      "table": "_requests"
+    },
+    {
+      "bytes": 8192,
+      "index": "_requests_due",
+      "table": "_requests"
+    },
+    {
+      "bytes": 8192,
+      "index": "_requests_session",
+      "table": "_requests"
+    },
+    {
+      "bytes": 16384,
+      "index": "_meta_pkey",
+      "table": "_meta"
+    },
+    {
+      "bytes": 8192,
+      "index": "_change_evidence_pkey",
+      "table": "_change_evidence"
+    },
+    {
+      "bytes": 8192,
+      "index": "_read_sessions_pkey",
+      "table": "_read_sessions"
+    },
+    {
+      "bytes": 8192,
+      "index": "_read_sessions_family",
+      "table": "_read_sessions"
+    },
+    {
+      "bytes": 16384,
+      "index": "_principals_pkey",
+      "table": "_principals"
+    },
+    {
+      "bytes": 8192,
+      "index": "_credentials_pkey",
+      "table": "_credentials"
+    },
+    {
+      "bytes": 8192,
+      "index": "_credentials_email_key",
+      "table": "_credentials"
+    },
+    {
+      "bytes": 8192,
+      "index": "_session_mint_bindings_pkey",
+      "table": "_session_mint_bindings"
+    },
+    {
+      "bytes": 8192,
+      "index": "_outbox_pkey",
+      "table": "_outbox"
+    },
+    {
+      "bytes": 8192,
+      "index": "_effect_presence_pkey",
+      "table": "_effect_presence"
+    },
+    {
+      "bytes": 8192,
+      "index": "_outbox_due",
+      "table": "_outbox"
+    },
+    {
+      "bytes": 8192,
+      "index": "_effect_presence_id",
+      "table": "_effect_presence"
+    },
+    {
+      "bytes": 8192,
+      "index": "_cap_counts_pkey",
+      "table": "_cap_counts"
+    },
+    {
+      "bytes": 8192,
+      "index": "_jobs_pkey",
+      "table": "_jobs"
+    },
+    {
+      "bytes": 8192,
+      "index": "_assets_pkey",
+      "table": "_assets"
+    },
+    {
+      "bytes": 8192,
+      "index": "_asset_intents_pkey",
+      "table": "_asset_intents"
+    },
+    {
+      "bytes": 8192,
+      "index": "_asset_views_pkey",
+      "table": "_asset_views"
+    },
+    {
+      "bytes": 8192,
+      "index": "_asset_gc_pkey",
+      "table": "_asset_gc"
+    },
+    {
+      "bytes": 16384,
+      "index": "_generations_pkey",
+      "table": "_generations"
+    },
+    {
+      "bytes": 16384,
+      "index": "_catalog_pkey",
+      "table": "_catalog"
+    },
+    {
+      "bytes": 16384,
+      "index": "_catalog_num_key",
+      "table": "_catalog"
+    },
+    {
+      "bytes": 16384,
+      "index": "_release_events_pkey",
+      "table": "_release_events"
+    },
+    {
+      "bytes": 8192,
+      "index": "_release_event_items_pkey",
+      "table": "_release_event_items"
+    }
+  ],
+  "database_bytes": 1383765683
+}

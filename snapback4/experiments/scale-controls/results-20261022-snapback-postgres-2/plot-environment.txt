@@ -1,0 +1,5 @@
+3.12.3 (main, Aug 31 2026, 10:18:26) [GCC 13.3.0]
+Matplotlib 3.11.2
+Font family: DejaVu Sans
+Backend: Agg
+SVG fonttype: none; hashsalt: s1pg2; Date metadata omitted

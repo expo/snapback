@@ -1,0 +1,56 @@
+{
+  "write_trials": 186,
+  "probe_increments": 500,
+  "actual_counter_increments_in_snapshot_intervals": 44804,
+  "acknowledged_load_writes_including_warmup": 7794,
+  "unknown_outcome_trials": 134,
+  "last_counter_sum": 46072,
+  "cross_trial_counter_gaps": [
+    {
+      "after": "w5-n1000000-d0-c32-same/rate-100-r0.json",
+      "before": "w5-n1000000-d0-c32-same/rate-100-r1.json",
+      "increments": 2,
+      "previous_snapshot_sum": 11849,
+      "next_snapshot_sum": 11851,
+      "both_adjacent_trials_already_disqualified": true
+    },
+    {
+      "after": "w4-n1000000-d500-c32-disjoint/rate-400-r2.json",
+      "before": "w4-n1000000-d500-c32-disjoint/rate-200-r0.json",
+      "increments": 4,
+      "previous_snapshot_sum": 31678,
+      "next_snapshot_sum": 31682,
+      "both_adjacent_trials_already_disqualified": true
+    },
+    {
+      "after": "w5-n1000000-d500-c32-hot1/rate-3200-r2.json",
+      "before": "w5-n1000000-d500-c32-hot1/rate-1600-r0.json",
+      "increments": 1,
+      "previous_snapshot_sum": 40336,
+      "next_snapshot_sum": 40337,
+      "both_adjacent_trials_already_disqualified": true
+    },
+    {
+      "after": "w5-n1000000-d500-c32-hot1/rate-800-r1.json",
+      "before": "w5-n1000000-d500-c32-hot1/rate-800-r2.json",
+      "increments": 1,
+      "previous_snapshot_sum": 41350,
+      "next_snapshot_sum": 41351,
+      "both_adjacent_trials_already_disqualified": true
+    }
+  ],
+  "late_increments_between_snapshot_intervals": 8,
+  "aggregate_acknowledgement_deficit": 0,
+  "discarded_write_attempt": {
+    "probe_increments": 70,
+    "completed_unqualified_trials": 3,
+    "completed_actual_increments": 498,
+    "interrupted_trials": 1,
+    "interrupted_actual_increments": 192,
+    "unknown_outcome_trials": 4,
+    "acknowledged_writes": 0,
+    "physical_counter_offset": 760,
+    "source": "raw-tail delayed W4; drain refused; whole cell rerun"
+  },
+  "caveat": "FIFO mints/stability checks do not fence HTTP requests not yet enqueued; spillover remains unassigned; abandoned W4 offset separately recovered; unkeyed counts cannot detect compensating loss/extra-write pairs"
+}

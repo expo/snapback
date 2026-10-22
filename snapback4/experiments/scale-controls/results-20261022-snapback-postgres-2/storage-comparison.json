@@ -1,0 +1,8 @@
+{
+  "snapback_postgres_bytes": 1375338496,
+  "typed_postgres_bytes": 333955072,
+  "ratio": 4.118333905705735,
+  "exceeds_3x": true,
+  "method": "sum pg_table_size + pg_indexes_size after ordinary VACUUM ANALYZE; all Snapback namespace tables versus five typed app tables",
+  "caveat": "includes metadata, generic indexes and allocated free space; native incremental seed and typed bulk seed have different write histories; not a live-byte or layout-only causal attribution"
+}

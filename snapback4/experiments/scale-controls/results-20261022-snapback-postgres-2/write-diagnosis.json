@@ -1,0 +1,452 @@
+[
+  {
+    "cell": {
+      "workload": "W4",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 32,
+      "keys": "disjoint",
+      "target": "snapback",
+      "rerun": [
+        "python3",
+        "scripts/run.py",
+        "cell",
+        "--out",
+        "results-NEW-w4-n1000000-d0-c32-disjoint",
+        "--workload",
+        "W4",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "0",
+        "--writers",
+        "32",
+        "--keys",
+        "disjoint",
+        "--target",
+        "snapback",
+        "--load-cores",
+        "3-5,9-11",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "prepared_rtt_p50_ms": 0.6335,
+    "exchanges": 57.0,
+    "serial_probe_ms": {
+      "min": 38.8878732919693,
+      "median": 80.84319531917572,
+      "max": 170.9001250565052,
+      "mean": 72.53464749082923
+    },
+    "network_only_ms": 36.1095,
+    "server_sql_exec_ms_per_op": 0.5976369500036942,
+    "utility_commit_exec_ms": 0.0004684647887324192,
+    "no_separate_flush_model_ms": 36.707136950003694,
+    "reciprocal_serial_model_per_s": 27.242658596938035,
+    "serial_probe_reciprocal_per_s": 13.78651492207821,
+    "failed_rates_acknowledged_in_window_per_s": {
+      "min": 0.0,
+      "median": 0.0,
+      "max": 11.85
+    },
+    "failed_rates_counter_increments_per_s_between_snapshots": {
+      "min": 1.002753978707056,
+      "median": 11.290290804619616,
+      "max": 13.291519610455145
+    },
+    "highest_tested_offered_per_s": 3200,
+    "highest_rate_acknowledged_in_window_per_s": {
+      "min": 0.0,
+      "median": 0.0,
+      "max": 0.0
+    },
+    "highest_rate_counter_increments_per_s_between_snapshots": {
+      "min": 12.965217459170455,
+      "median": 13.162333213812722,
+      "max": 13.291519610455145
+    },
+    "engine_or_committer_queue_ms": null,
+    "caveat": "statement exec plus k*prepared RTT is a serial request model; COMMIT utility timing does not isolate flush; pipeline overlap, variable RTT and queues prevent treating it as a measured writer ceiling"
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 32,
+      "keys": "same",
+      "target": "snapback",
+      "rerun": [
+        "python3",
+        "scripts/run.py",
+        "cell",
+        "--out",
+        "results-NEW-w5-n1000000-d0-c32-same",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "0",
+        "--writers",
+        "32",
+        "--keys",
+        "same",
+        "--target",
+        "snapback",
+        "--load-cores",
+        "3-5,9-11",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "prepared_rtt_p50_ms": 0.651,
+    "exchanges": 60.0,
+    "serial_probe_ms": {
+      "min": 38.6123638600111,
+      "median": 86.15744952112436,
+      "max": 210.91751381754875,
+      "mean": 90.80715194965403
+    },
+    "network_only_ms": 39.06,
+    "server_sql_exec_ms_per_op": 0.8713289999992718,
+    "utility_commit_exec_ms": 0.0006238219178081917,
+    "no_separate_flush_model_ms": 39.93132899999927,
+    "reciprocal_serial_model_per_s": 25.04299318462499,
+    "serial_probe_reciprocal_per_s": 11.012348460773524,
+    "failed_rates_acknowledged_in_window_per_s": {
+      "min": 0.0,
+      "median": 1.0,
+      "max": 8.0
+    },
+    "failed_rates_counter_increments_per_s_between_snapshots": {
+      "min": 1.0013882092816515,
+      "median": 9.638773486982414,
+      "max": 11.425672325192199
+    },
+    "highest_tested_offered_per_s": 100,
+    "highest_rate_acknowledged_in_window_per_s": {
+      "min": 0.0,
+      "median": 0.0,
+      "max": 0.0
+    },
+    "highest_rate_counter_increments_per_s_between_snapshots": {
+      "min": 9.411532603279802,
+      "median": 9.638773486982414,
+      "max": 11.110401839894173
+    },
+    "engine_or_committer_queue_ms": null,
+    "caveat": "statement exec plus k*prepared RTT is a serial request model; COMMIT utility timing does not isolate flush; pipeline overlap, variable RTT and queues prevent treating it as a measured writer ceiling"
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 32,
+      "keys": "hot1",
+      "target": "snapback",
+      "rerun": [
+        "python3",
+        "scripts/run.py",
+        "cell",
+        "--out",
+        "results-NEW-w5-n1000000-d0-c32-hot1",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "0",
+        "--writers",
+        "32",
+        "--keys",
+        "hot1",
+        "--target",
+        "snapback",
+        "--load-cores",
+        "3-5,9-11",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "prepared_rtt_p50_ms": 0.654,
+    "exchanges": 57.03,
+    "serial_probe_ms": {
+      "min": 39.69074226915836,
+      "median": 86.85825578868389,
+      "max": 256.91073574125767,
+      "mean": 90.74853204190731
+    },
+    "network_only_ms": 37.29762,
+    "server_sql_exec_ms_per_op": 1.0964134900007423,
+    "utility_commit_exec_ms": 0.0008050924369748464,
+    "no_separate_flush_model_ms": 38.394033490000744,
+    "reciprocal_serial_model_per_s": 26.04571359402595,
+    "serial_probe_reciprocal_per_s": 11.019461995684999,
+    "failed_rates_acknowledged_in_window_per_s": {
+      "min": 0.0,
+      "median": 0.0,
+      "max": 12.2
+    },
+    "failed_rates_counter_increments_per_s_between_snapshots": {
+      "min": 0.977174145749832,
+      "median": 11.412893952089133,
+      "max": 12.411859838400979
+    },
+    "highest_tested_offered_per_s": 3200,
+    "highest_rate_acknowledged_in_window_per_s": {
+      "min": 0.0,
+      "median": 0.0,
+      "max": 0.0
+    },
+    "highest_rate_counter_increments_per_s_between_snapshots": {
+      "min": 11.181665567289965,
+      "median": 11.466632822684343,
+      "max": 11.7092869985967
+    },
+    "engine_or_committer_queue_ms": null,
+    "caveat": "statement exec plus k*prepared RTT is a serial request model; COMMIT utility timing does not isolate flush; pipeline overlap, variable RTT and queues prevent treating it as a measured writer ceiling"
+  },
+  {
+    "cell": {
+      "workload": "W4",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 32,
+      "keys": "disjoint",
+      "target": "snapback",
+      "rerun": [
+        "python3",
+        "scripts/run.py",
+        "cell",
+        "--out",
+        "results-NEW-w4-n1000000-d500-c32-disjoint",
+        "--workload",
+        "W4",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "500",
+        "--writers",
+        "32",
+        "--keys",
+        "disjoint",
+        "--target",
+        "snapback",
+        "--load-cores",
+        "3-5,9-11",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "prepared_rtt_p50_ms": 1.3065,
+    "exchanges": 57.0,
+    "serial_probe_ms": {
+      "min": 106.21451400220394,
+      "median": 122.12319485843182,
+      "max": 243.4708420187235,
+      "mean": 138.87620341653624
+    },
+    "network_only_ms": 74.4705,
+    "server_sql_exec_ms_per_op": 0.7050230166675748,
+    "utility_commit_exec_ms": 0.0005170769230768694,
+    "no_separate_flush_model_ms": 75.17552301666758,
+    "reciprocal_serial_model_per_s": 13.302202098125536,
+    "serial_probe_reciprocal_per_s": 7.200657674955767,
+    "failed_rates_acknowledged_in_window_per_s": {
+      "min": 0.0,
+      "median": 0.0,
+      "max": 6.1
+    },
+    "failed_rates_counter_increments_per_s_between_snapshots": {
+      "min": 0.998695178916306,
+      "median": 6.802544479380035,
+      "max": 7.098085246665123
+    },
+    "highest_tested_offered_per_s": 3200,
+    "highest_rate_acknowledged_in_window_per_s": {
+      "min": 0.0,
+      "median": 0.0,
+      "max": 0.0
+    },
+    "highest_rate_counter_increments_per_s_between_snapshots": {
+      "min": 6.939361744462153,
+      "median": 7.013506747707122,
+      "max": 7.098085246665123
+    },
+    "engine_or_committer_queue_ms": null,
+    "caveat": "statement exec plus k*prepared RTT is a serial request model; COMMIT utility timing does not isolate flush; pipeline overlap, variable RTT and queues prevent treating it as a measured writer ceiling"
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 32,
+      "keys": "same",
+      "target": "snapback",
+      "rerun": [
+        "python3",
+        "scripts/run.py",
+        "cell",
+        "--out",
+        "results-NEW-w5-n1000000-d500-c32-same",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "500",
+        "--writers",
+        "32",
+        "--keys",
+        "same",
+        "--target",
+        "snapback",
+        "--load-cores",
+        "3-5,9-11",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "prepared_rtt_p50_ms": 1.333,
+    "exchanges": 60.0,
+    "serial_probe_ms": {
+      "min": 100.68716295063496,
+      "median": 195.46081870794296,
+      "max": 355.10016418993473,
+      "mean": 196.40903531884155
+    },
+    "network_only_ms": 79.98,
+    "server_sql_exec_ms_per_op": 0.83542894999607,
+    "utility_commit_exec_ms": 0.0004955764705884162,
+    "no_separate_flush_model_ms": 80.81542894999608,
+    "reciprocal_serial_model_per_s": 12.37387480327231,
+    "serial_probe_reciprocal_per_s": 5.091415465569826,
+    "failed_rates_acknowledged_in_window_per_s": {
+      "min": 0.0,
+      "median": 0.0,
+      "max": 5.95
+    },
+    "failed_rates_counter_increments_per_s_between_snapshots": {
+      "min": 0.9895104085615842,
+      "median": 5.618467606650953,
+      "max": 6.361813704550982
+    },
+    "highest_tested_offered_per_s": 100,
+    "highest_rate_acknowledged_in_window_per_s": {
+      "min": 0.0,
+      "median": 0.0,
+      "max": 0.0
+    },
+    "highest_rate_counter_increments_per_s_between_snapshots": {
+      "min": 4.937076942729789,
+      "median": 5.958370627476207,
+      "max": 6.361813704550982
+    },
+    "engine_or_committer_queue_ms": null,
+    "caveat": "statement exec plus k*prepared RTT is a serial request model; COMMIT utility timing does not isolate flush; pipeline overlap, variable RTT and queues prevent treating it as a measured writer ceiling"
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 32,
+      "keys": "hot1",
+      "target": "snapback",
+      "rerun": [
+        "python3",
+        "scripts/run.py",
+        "cell",
+        "--out",
+        "results-NEW-w5-n1000000-d500-c32-hot1",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "500",
+        "--writers",
+        "32",
+        "--keys",
+        "hot1",
+        "--target",
+        "snapback",
+        "--load-cores",
+        "3-5,9-11",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "prepared_rtt_p50_ms": 1.3275000000000001,
+    "exchanges": 57.03,
+    "serial_probe_ms": {
+      "min": 71.15967385470867,
+      "median": 148.42737652361393,
+      "max": 225.0339239835739,
+      "mean": 145.26189163327217
+    },
+    "network_only_ms": 75.70732500000001,
+    "server_sql_exec_ms_per_op": 0.6944045599975114,
+    "utility_commit_exec_ms": 0.0005028692307694026,
+    "no_separate_flush_model_ms": 76.40172955999752,
+    "reciprocal_serial_model_per_s": 13.088708930531604,
+    "serial_probe_reciprocal_per_s": 6.884117979990221,
+    "failed_rates_acknowledged_in_window_per_s": {
+      "min": 0.0,
+      "median": 0.0,
+      "max": 6.1
+    },
+    "failed_rates_counter_increments_per_s_between_snapshots": {
+      "min": 1.0040951777167928,
+      "median": 5.789195103585998,
+      "max": 6.815474262571924
+    },
+    "highest_tested_offered_per_s": 3200,
+    "highest_rate_acknowledged_in_window_per_s": {
+      "min": 0.0,
+      "median": 0.0,
+      "max": 0.0
+    },
+    "highest_rate_counter_increments_per_s_between_snapshots": {
+      "min": 6.133016300316738,
+      "median": 6.317570906190445,
+      "max": 6.668247198267086
+    },
+    "engine_or_committer_queue_ms": null,
+    "caveat": "statement exec plus k*prepared RTT is a serial request model; COMMIT utility timing does not isolate flush; pipeline overlap, variable RTT and queues prevent treating it as a measured writer ceiling"
+  }
+]

@@ -53,7 +53,7 @@ def wait_channels(pid):
     for thread in Path(f'/proc/{pid}/task').iterdir():
         try:
             channels[thread.name]=(thread/'wchan').read_text().strip()
-        except FileNotFoundError:
+        except (FileNotFoundError, ProcessLookupError):
             pass  # A completed thread is not a failed resource observation.
     return channels
 
