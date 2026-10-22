@@ -74,3 +74,11 @@ fn notes(s:&str)->security::Report{let b=bound(s);let mut r=security::analyze_ru
   assert!(c.violations.iter().any(|v|v.reachability.is_reachable()&&v.invariant_site==site),"{}",serde_json::to_string(&c).unwrap());
  }
 }
+
+#[test]fn grouping_does_not_promote_restatement_noise_ahead_of_evidence(){
+ let mut report=notes("table docs:\n  owner:principal\n  read <- .owner = viewer\n  online only\n");report.notes.clear();
+ report.notes.push(snapback4_lang::Diagnostic::new(&snapback4_lang::Site::new("schema.q",1,1),"N_INVARIANT_RESTATES_RULE","docs.read matches current enforcement","confirm specification"));
+ report.notes.push(snapback4_lang::Diagnostic::new(&snapback4_lang::Site::new("schema.q",100,1),"N_OPTIONAL_EVIDENCE","photos.image may be omitted","declare presence intent"));
+ let compact=security::questionnaire_notes(&report.notes);let group=compact.iter().find(|n|n.message.starts_with("docs:")).unwrap();assert_eq!(security::note_priority(&group.code),6);
+ let text=report.action_text(10);assert!(text.find("N_OPTIONAL_EVIDENCE")<text.find("docs: confirm"),"{text}");
+}

@@ -1,12 +1,11 @@
-Decide evidence presence from the specification before wiring an upload. If a
-photo must remain present, declare `invariant orders always .photo != null` on
-the application's actual table and column. If presence is required only when
-creating a row, use `invariant orders.insert only .photo != null` instead;
-subsequent redaction can then remain intentional. The generated security draft
-asks this question. An optional creating argument that contradicts this intent
-requires an individual security review. A required photo on a separate child
-does not require a child row: declare the parent's evidence requirement and its
-permitted draft states too. Deliberately optional attachments stay advisory.
+Decide evidence presence from the specification before wiring an upload. In the
+schema below, `invariant documents always .scan != null` states permanent presence.
+Use `invariant documents.insert only .scan != null` for creation-only presence;
+later redaction also needs a nullable column. The generated security draft asks
+this question. An optional creating argument that contradicts this intent requires
+an individual security review. A required photo on a separate child does not
+require a child row: declare the parent's evidence requirement and its permitted
+draft states too. Deliberately optional attachments stay advisory.
 
 Uploads are bound to the uploader: the account that places an asset must upload
 its bytes. One upload has one home; reusing it in another row refuses. To share

@@ -6,7 +6,8 @@
     "workers": 6,
     "exit": 0,
     "binarySha256": "0ac4989a138664d0ed4e62dc24c1b846bf93027c7f1e5eb71339924180940165",
-    "foundFiles": 0
+    "foundFiles": 0,
+    "binaryDigestTiming": "sampled after command completion; final rerun uses an immutable executable snapshot"
   },
   {
     "mode": "run-devices",
@@ -15,7 +16,8 @@
     "workers": 6,
     "exit": 0,
     "binarySha256": "0ac4989a138664d0ed4e62dc24c1b846bf93027c7f1e5eb71339924180940165",
-    "foundFiles": 0
+    "foundFiles": 0,
+    "binaryDigestTiming": "sampled after command completion; final rerun uses an immutable executable snapshot"
   },
   {
     "mode": "run-lean",
@@ -24,6 +26,9 @@
     "workers": 8,
     "exit": 1,
     "binarySha256": "4daadbe5b67677cff479b2ac31d6bcb643ac59b299cfc05c56513b92d3ff281a",
-    "foundFiles": 0
+    "binaryDigestTiming": "sampled after command completion; final rerun uses an immutable executable snapshot",
+    "disagreeing": 761,
+    "signatureCount": 5,
+    "newSignatures": []
   }
 ]

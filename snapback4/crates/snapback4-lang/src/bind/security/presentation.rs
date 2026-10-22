@@ -16,7 +16,8 @@ pub fn questionnaire_notes(notes:&[crate::Diagnostic])->Vec<crate::Diagnostic>{
         let site=notes.iter().map(|n|&n.site).min_by_key(|s|(&s.file,s.line,s.col)).unwrap();
         let subjects=notes.iter().map(|n|n.message.split(": ").next().unwrap_or(&n.message).split(" matches").next().unwrap_or("").to_owned()).collect::<std::collections::BTreeSet<_>>();
         let subjects=subjects.into_iter().filter(|s|s.len()<100).collect::<Vec<_>>().join(", ");
-        out.push(crate::Diagnostic::new(site,"N_TABLE_QUESTIONNAIRE",format!("{table}: confirm role, row relationship, lifecycle and private-column intent ({subjects}; {} underlying questions). Answer the per-table questionnaire in snapback/generated/security-invariants.q.draft; check --json keeps every audience, source site and individual review ID",notes.len()),"keep confirmed specification intent; narrow unintended authority; record individual decisions with check --ack-security <ID> --reason '<spec rationale>'").guide("security"));
+        let code=if notes.iter().any(|n|matches!(n.code.as_str(),"N_ROLE_WIDE_READ"|"N_ROLE_WIDE_WRITE")){"N_TABLE_QUESTIONNAIRE"}else{"N_INVARIANT_RESTATES_RULE"};
+        out.push(crate::Diagnostic::new(site,code,format!("{table}: confirm role, row relationship, lifecycle and private-column intent ({subjects}; {} underlying questions). Answer the per-table questionnaire in snapback/generated/security-invariants.q.draft; check --json keeps every audience, source site and individual review ID",notes.len()),"keep confirmed specification intent; narrow unintended authority; record individual decisions with check --ack-security <ID> --reason '<spec rationale>'").guide("security"));
     }
     out
 }

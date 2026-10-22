@@ -45,12 +45,16 @@ test('packed security card and starter run as written; broad reads refute', {tim
  // SEC8 presence intent is copied verbatim from the installed guide. Both
  // forms must compile and gate an optional creator through the actual pack.
  const uploads=run(process.execPath,[cli,'guide','uploads','--full'],project);
- const presence=uploads.match(/`invariant orders[^`]+`/g);
+ const presence=uploads.match(/`invariant documents[^`]+`/g);
  assert.equal(presence.length,2);
  const presenceDir=join(dir,'presence-intent');mkdirSync(join(presenceDir,'snapback'),{recursive:true});
- const schema="table orders:\n  photo: image <=10000 ?\n  read <- allow\n  insert <- allow\n  online only\nmutation add(photo:image <=10000 ?):\n  return insert orders {photo}\n";
+ const schema=[...uploads.matchAll(/```quarry\n([\s\S]*?)\n```/g)].map(m=>m[1]).find(s=>s.includes('table documents:')&&s.includes('mutation place('));
+ assert.ok(schema,'the installed upload recipe supplies the complete context');
  for(const candidate of presence){
-  writeFileSync(join(presenceDir,'snapback/schema.q'),schema+candidate.slice(1,-1)+'\n');
+  writeFileSync(join(presenceDir,'snapback/schema.q'),schema+'\n'+candidate.slice(1,-1)+'\n');
+  assert.equal(JSON.parse(run(process.execPath,[cli,'check','--json'],presenceDir)).ok,true,'guide source and candidate run verbatim');
+  const optional=schema.replace("  scan: file <=10000 ('application/pdf')","  scan: file <=10000 ('application/pdf') ?").replace("mutation place(scan: file <=10000 ('application/pdf')):","mutation place(scan: file <=10000 ('application/pdf') ?):");
+  writeFileSync(join(presenceDir,'snapback/schema.q'),optional+'\n'+candidate.slice(1,-1)+'\n');
   const result=JSON.parse(run(process.execPath,[cli,'check','--json'],presenceDir,1));
   assert.ok(result.securityReviews.some(r=>r.code==='N_OPTIONAL_UPLOAD_CREATE'&&r.gated));
  }
@@ -86,7 +90,8 @@ test('check keeps invariant details behind verbose and preserves complete JSON',
  const invoke=(...args)=>{const r=spawnSync(binary,args,{cwd:dir,encoding:'utf8',timeout:30000});assert.equal(r.status,0,r.stdout+r.stderr);return r;};
  const compact=invoke('check'),text=compact.stdout+compact.stderr;
  assert.match(text,/security: \d+ proved, \d+ refuted, \d+ unproved/);
- assert.equal((text.match(/— N_INVARIANT_RESTATES_RULE:/g)||[]).length,8,'the selected ordinary code class keeps each site');
+ assert.equal((text.match(/— N_INVARIANT_RESTATES_RULE:/g)||[]).length,1,'restating sites share one table questionnaire');
+ assert.match(text,/8 underlying questions/);
  assert.match(text,/snapback4 test/);assert.match(text,/snapback4 audit/);
  assert.doesNotMatch(text,/security Unproved:|counterexample \{/);
  const full=invoke('check','--verbose');assert.match(full.stdout+full.stderr,/whole-protocol noninterference/);
