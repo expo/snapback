@@ -1,0 +1,29 @@
+[
+  {
+    "mode": "run",
+    "cases": 20000,
+    "seed": 0,
+    "workers": 6,
+    "exit": 0,
+    "binarySha256": "0ac4989a138664d0ed4e62dc24c1b846bf93027c7f1e5eb71339924180940165",
+    "foundFiles": 0
+  },
+  {
+    "mode": "run-devices",
+    "cases": 1000,
+    "seed": 0,
+    "workers": 6,
+    "exit": 0,
+    "binarySha256": "0ac4989a138664d0ed4e62dc24c1b846bf93027c7f1e5eb71339924180940165",
+    "foundFiles": 0
+  },
+  {
+    "mode": "run-lean",
+    "cases": 100000,
+    "seed": 0,
+    "workers": 8,
+    "exit": 1,
+    "binarySha256": "4daadbe5b67677cff479b2ac31d6bcb643ac59b299cfc05c56513b92d3ff281a",
+    "foundFiles": 0
+  }
+]

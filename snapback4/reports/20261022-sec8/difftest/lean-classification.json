@@ -1,0 +1,103 @@
+{
+  "cases": 100000,
+  "disagreeing": 761,
+  "signatures": [
+    {
+      "signature": "lean--code--E_RULE~NOT_FOUND",
+      "count": 33,
+      "existing": true,
+      "existingFiles": [
+        {
+          "path": "snapback4/crates/snapback4-difftest/cases/found/lean--code--E_RULE~NOT_FOUND/DIAGNOSIS.md",
+          "sha256": "89531988ed356dc4b31288494e8166fe4f1a6593a9f3273759657c8b63691d9b"
+        },
+        {
+          "path": "snapback4/crates/snapback4-difftest/cases/found/lean--code--E_RULE~NOT_FOUND/case.json",
+          "sha256": "d14148eea15ac1ca6d01834fab76205600a3486d1f78a7118e380e9e519de1bc"
+        },
+        {
+          "path": "snapback4/crates/snapback4-difftest/cases/found/lean--code--E_RULE~NOT_FOUND/case.q",
+          "sha256": "e713bcaac9ddf9921cccc7e97b32e15933c881fa9d40466b59a08e405d7dbbd0"
+        }
+      ]
+    },
+    {
+      "signature": "lean--continuation-next--next~no-next",
+      "count": 180,
+      "existing": true,
+      "existingFiles": [
+        {
+          "path": "snapback4/crates/snapback4-difftest/cases/found/lean--continuation-next--next~no-next/DIAGNOSIS.md",
+          "sha256": "214168cac60e01e3e600810b2d59b2004891877e4ffcb7ae74dea89a56351a2c"
+        },
+        {
+          "path": "snapback4/crates/snapback4-difftest/cases/found/lean--continuation-next--next~no-next/case.json",
+          "sha256": "ebc7d3d82e28b79c071ff030de14085973408295b1124de489836e97c7b8e1c9"
+        },
+        {
+          "path": "snapback4/crates/snapback4-difftest/cases/found/lean--continuation-next--next~no-next/case.q",
+          "sha256": "7020da6f32e9631275e2a929bc9e0a2f064d5db3d359849b2e3237a005dd32bd"
+        }
+      ]
+    },
+    {
+      "signature": "lean--next--next~no-next",
+      "count": 439,
+      "existing": true,
+      "existingFiles": [
+        {
+          "path": "snapback4/crates/snapback4-difftest/cases/found/lean--next--next~no-next/DIAGNOSIS.md",
+          "sha256": "2db2a0791da808d20e91507ae6c3a65b3f95ff3f987dc12451cf8fb3e0589f29"
+        },
+        {
+          "path": "snapback4/crates/snapback4-difftest/cases/found/lean--next--next~no-next/case.json",
+          "sha256": "bae436d3a7bc17770080fe9e3fa69790c02dd7febfb4a35a9b514e8f5068389d"
+        },
+        {
+          "path": "snapback4/crates/snapback4-difftest/cases/found/lean--next--next~no-next/case.q",
+          "sha256": "5edd4e9bc0760458ac1e50f371592003c0df7c071ea3445a00d318229e9d028e"
+        }
+      ]
+    },
+    {
+      "signature": "lean--next--no-next~next",
+      "count": 1,
+      "existing": true,
+      "existingFiles": [
+        {
+          "path": "snapback4/crates/snapback4-difftest/cases/found/lean--next--no-next~next/DIAGNOSIS.md",
+          "sha256": "a92df19bc43d21dfd3405cd0aa6f8d00b388519655f1c2709178ff752c9a489f"
+        },
+        {
+          "path": "snapback4/crates/snapback4-difftest/cases/found/lean--next--no-next~next/case.json",
+          "sha256": "54eae1bef9c0e5b4d463e6ae82880e8e54e996efeb44d211023f5936d4c96ebb"
+        },
+        {
+          "path": "snapback4/crates/snapback4-difftest/cases/found/lean--next--no-next~next/case.q",
+          "sha256": "1287be5cb28646d5e981f306a8ce12caad7602ed8162585ca3969e06f46eec54"
+        }
+      ]
+    },
+    {
+      "signature": "lean--prelude-code--E_RULE~NOT_FOUND",
+      "count": 108,
+      "existing": true,
+      "existingFiles": [
+        {
+          "path": "snapback4/crates/snapback4-difftest/cases/found/lean--prelude-code--E_RULE~NOT_FOUND/DIAGNOSIS.md",
+          "sha256": "b38159dfbf94fd7c4bb5fbe94f315131df8339b8ec771120a429841ab3975cb4"
+        },
+        {
+          "path": "snapback4/crates/snapback4-difftest/cases/found/lean--prelude-code--E_RULE~NOT_FOUND/case.json",
+          "sha256": "77b9a513899b9de89003cbf70b71dd6bf44770309274fc2fa379947860b6bdea"
+        },
+        {
+          "path": "snapback4/crates/snapback4-difftest/cases/found/lean--prelude-code--E_RULE~NOT_FOUND/case.q",
+          "sha256": "ca65f6f4110539fad8f3d8f7a33c60a3eab15e4adfdb20558a13ad62d7786f23"
+        }
+      ]
+    }
+  ],
+  "newSignatures": [],
+  "verdict": "no new signatures; existing Lean open questions retain exit 1"
+}
