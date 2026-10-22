@@ -57,8 +57,8 @@ See the generated README for residency tables, horizon choices and the
 production offline-reopen journey; fixture residency remains
 `test --residency --fixture <directory> --as <principal>`.
 
-For a browser proof, register the application's own app and generated API
-(starters do this; the hook is active only under `?witness=web`):
+For a direct SDK mutation proof, register the application's own app and generated API
+(the hook is active only under `?witness=web`; ordinary password UI proofs need no registration):
 
 ```ts
 import { registerWebWitness, witnessForm } from "snapback4/witness-web";
@@ -70,6 +70,14 @@ registerWebWitness(app, api);
 export function submitMessage(event: Event, conversationId: string, body: string) {
   return witnessForm(app, event, async mutate => { await mutate(api.send, { conversationId, body }); });
 }
+```
+
+A custom browser driver installs the observer before application scripts; the
+packaged drivers and `withBrowser` do this automatically:
+
+```ts
+import { webWitnessObserverScript } from "snapback4/witness-web";
+const observerScript = webWitnessObserverScript(); // page.addInitScript({ content: observerScript }) before navigation
 ```
 
 `npm run build:web && snapback4 witness web dist` proves the first durable

@@ -47,7 +47,7 @@ test('captured server and external project import run automatically and follow h
  } finally{await host.stop();}
 });
 test('waitForFresh reports its overall deadline without the final 1 ms observation timeout',async()=>{
- const locator={toString:()=>'<status>',count:async()=>1,textContent:()=>new Promise(()=>{})};
+ const locator={toString:()=>'<status>',count:async()=>1,evaluate:()=>new Promise(()=>{})};
  await assert.rejects(waitForFresh(locator,'old',30),error=>{
   assert.match(error.message,/no fresh signal after 30 ms/);assert.doesNotMatch(error.message,/locator text timed out after|timed out after 1 ms/);return true;
  });

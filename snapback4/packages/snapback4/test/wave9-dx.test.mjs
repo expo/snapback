@@ -44,6 +44,12 @@ for (const identity of ['use personas alice', 'use identity password']) test(`ex
   mkdirSync(join(dir, 'snapback')); writeFileSync(join(dir, 'snapback/schema.q'), source(identity));
   success(run(bin, ['init', '--web'], dir));
   symlinkSync(join(root, 'node_modules'), join(dir, 'node_modules'), 'dir');
+  // Direct SDK mutation proof requires an explicit generated API. Password
+  // starters omit this plumbing; their ordinary UI proof is covered by DX6.
+  if (identity.includes('password')) {
+    const appPath = join(dir, 'src/App.tsx');
+    writeFileSync(appPath, 'import { registerWebWitness } from "snapback4/witness-web";\n' + readFileSync(appPath, 'utf8').replace('export default function App()', 'registerWebWitness(app, api);\nexport default function App()'));
+  }
   success(run(bin, ['check'], dir));
   success(run(join(root, 'node_modules/.bin/tsc'), ['--noEmit'], dir));
   success(run(join(root, 'node_modules/.bin/vite'), ['build'], dir));
