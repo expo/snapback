@@ -1,0 +1,10 @@
+2026-10-22T06:51:50Z starting dry run attempt 1 (100%;)
+2026-10-22T08:28:38Z ENVIRONMENT-INVALID att=1 after 5806 s: on battery
+2026-10-22T08:28:49Z waiting att=2 ac=0 lid_open=1
+2026-10-22T08:30:50Z waiting att=2 ac=0 lid_open=1
+2026-10-22T08:32:50Z waiting att=2 ac=0 lid_open=1
+2026-10-22T08:34:50Z waiting att=2 ac=0 lid_open=1
+2026-10-22T08:36:50Z waiting att=2 ac=0 lid_open=1
+2026-10-22T08:38:50Z waiting att=2 ac=0 lid_open=1
+2026-10-22T08:40:52Z starting dry run attempt 2 (97%;)
+2026-10-22T11:27:38Z attempt 2 finished: done after 10006 s

@@ -1,0 +1,43 @@
+runtime changes: 0.4.35 → 0.4.37
+## 0.4.37
+
+- Release re-entry accepts ordinary edits made while a backfill's declaring source is active: native input fingerprints and actually edited non-output migration inputs refresh, and matching recomputation is accepted. Conflicting authored outputs still refuse. A physically absent nullable rename destination no longer conflicts as an invented null.
+- `table observations renamed from behaviors` preserves table, row and reference identities. Asset/file column `renamed from` moves the existing cell and asset home together. Backfill/down expressions support ordinary indexed cross-table reads and bounded migration-only `fileText(file)` UTF-8 input; `nonemptyLines(text)` counts repeated nonempty lines separately. Files remain immutable, meter and ledger checks apply, and scalar down projections cannot invent assets or missing tables.
+- Release previews honor declared down projections and renames, naming narrowed columns, hidden reference parents, retained empty/default images and newer-only tables. `rollback --check --bridge DIR` generates the target's source with compatible value domains loosened and new tables retained under their current rules, plus affected readers/writers and a review checklist. Deploy the reviewed bridge as a new release; frozen old releases and UI assumptions do not change automatically. Restore current safeguards absent from the target and prove affected workflows before activation.
+- Security campaigns inspect every executed insert/update/delete in committed authored multi-write mutations, including both upsert arms. Column write intent covers creation; update-only intent remains edit-only. Advisory notes flag creation/edit authority asymmetry and protected or projection-omitted columns reaching another return, write result or refusal. Column read campaigns inspect actual typed mutation results; query projections alone do not enforce privacy. Rule-changing deploy and deploy --check lead with outstanding FIX/REVIEW items and dated test evidence, marking stale, missing and incomplete records. Deploy --strict refuses reachable refuted intent; unproved intent and notes remain advisory. Passing finite campaigns are not universal security proofs.
+- Online and local clients validate complete supplied sessions before transport, storage, device or timer work and privately copy their primitive fields. Malformed sessions receive E_SESSION repair guidance. Existing complete scope-less sessions and supported online bare-token usage remain valid; expiry authority stays with the server.
+- Existing apps keep their authored rules; stores retain rows, ids, users, dormant values and backfill history through transactional release-store format 8 adoption. Use the newer runtime for subsequent rollback/forward because older binaries refuse the new format. Regenerate declarations and rebuild web, Expo and Exact devices for new capabilities. Upgrade invents no migration or invariant and does not merge already independent table identities.
+
+## 0.4.36
+
+- Staging `advance()` returns `{now, fired, held}`; use `(await host.advance("49h")).now` for the old timestamp. Each schedule reports its window, run state or hold reason. Saved boundaries survive restarts: the helper and CLI explain a reused store's already-processed boundary and how to continue or use a fresh staging deployment. One fire per boundary; missed periods coalesce unless eachBoundary is explicit.
+- Lookup advice names the authored read rule for required and same-table mutation lookups too. Hidden/missing/expired rows remain indistinguishable; an assertion uses its authored code for all three. Private unique conflicts retain generic E_RULE instead of the unique declaration's else code; source diagnostics explain the clause and safe modeling alternatives without revealing stored rows.
+- Upgrade scans candidate `data --json` consumers. One-line migration: `JSON.parse(stdout).rows` replaces `JSON.parse(stdout)`; inspect `more` and `limit` for truncation. First `check` in the newly installed wrapper also prints project warnings, including when upgrade was run by an old 0.4.33/0.4.35 CLI. Captured warnings remain pending so an old quiet upgrade cannot falsely acknowledge delivery.
+- React/Expo `ReadState` renders list loading/denied/empty/data in one expression, retaining partial/stale metadata. Expo starters use packaged Metro and native smoke support and always include playwright-core. Adapt keeps a runnable frontend proof scaffold and its commands; the scaffold explicitly refuses until an app-specific write scenario is added. Edited proofs remain application-owned.
+- Security review starts with actions: role and row-state questions describe what a rule admits, and the generated intent draft asks about every role and column instead of suggesting rule copies. Keep legitimate simple policies after checking them against the specification.
+- Security notes also review broad roster branches inside `or`, lifecycle-wide role reads, self-claimed relationships and caller time flowing into deadlines, without requiring invariants. Notes identify the rule or operation and its repair; they remain advisory.
+- `check` targets contradicted read intent with validated generated fixtures and actual authored reads. `test` preserves non-protected column values and shares verified asset ledgers between paired worlds. Refutations retain their fixture assumptions; finite passing campaigns remain finite evidence.
+- `audit` leads with fixes and ranked reviews; `snapback4 audit --all` and JSON retain full proof blockers and coverage details.
+- Unknown or absent preservation evidence keeps the previous read answer visible while refreshing; a known preservation list still bounds withdrawals for actual policy changes. Shared receipt decoding now rejects malformed stored JSON consistently, and new metadata keys/text refuse NUL while legacy SQLite metadata stays readable.
+- Existing applications retain their rules and data. New security notes are advisory; review them against the product specification. Regenerate declarations after upgrade and review `data --json` scripts and starter adaptations as described above.
+History begins at 0.4.26; earlier changes are not recorded.
+upgrade delta: 0.4.35 → 0.4.37 for snapback/*.q
+  new notes: N_LOOKUP_FILTERED +2
+  new refusals: none
+  generated/api.ts types: unchanged
+  query completeness: unchanged
+  release card: snapback4 guide changes
+check: ok — 5 tables, 1 view (5 synced), 12 operations, compiled, 18 notes, 7543.5 ms
+13 more actionable notes in check --verbose/JSON
+5 things to review (advisory; check --verbose explains each, snapback4 why <CODE> one):
+review — can cost correctness or completeness:
+note: schema.q:115:1 — N_COLUMN_RESULT_EXPOSURE: review: confirm every result/refusal audience. myMembership: return/write result can observe memberships.joinedAt (omitted by inbox), principal (omitted by inbox), role (omitted by inbox); row audience: exists memberships[.conversationId, viewer] — snapback4 why N_COLUMN_RESULT_EXPOSURE
+note: N_COLUMN_RESULT_EXPOSURE (as above) also for room: return/write result can observe memberships.joinedAt (omitted by inbox), principal (omitted by… (schema.q:118:1) — snapback4 why N_COLUMN_RESULT_EXPOSURE
+note: schema.q:16:1 — N_BROAD_READ: review: confirm each admitted audience and row state. profiles.read: branch `public` lets every signed-in user read every row — snapback4 why N_BROAD_READ
+note: schema.q:1:1 — N_BROAD_READ: review: confirm each admitted audience and row state. messageCounts.read: branch `exists memberships[.conversationId, viewer]` lets every memberships member read every row, regardless of ownership — snapback4 why N_BROAD_READ
+note: schema.q:33:3 — N_BROAD_READ: review: confirm each admitted audience and row state. conversations.read: branch `exists memberships[.id, viewer]` lets every memberships member read every row, regardless of ownership — snapback4 why N_BROAD_READ
+1 mutation is server-run (online app: no action): markRead (writes online-only table readMarkers); 1 mutations have insert arms that may queue; 2 eligible mutations may queue past a horizon — snapback4 why <op>
+check --verbose for explanations, rewrites and execution details; why <op> for one operation
+security: 0 proved, 0 refuted, 1 unproved (0 failing)
+  next: snapback4 test; 7 coverage gaps (check --verbose/JSON keeps every reason)
+  review audiences and 16 uncovered exposures: snapback4 audit

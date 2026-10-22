@@ -1,0 +1,15 @@
+{
+  "step": "expo-pack",
+  "command": [
+    "npm",
+    "pack",
+    "--json",
+    "--pack-destination",
+    "../../target/expo-0.4.37"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-pub-0428/snapback4/packages/snapback4-expo",
+  "start": 1792669305.865661,
+  "end": 1792669306.970973,
+  "seconds": 1.105,
+  "exit": 0
+}

@@ -101410,6 +101410,34 @@ profiles and at most 16 jobs were used. Lowest observed free space was about
 91 GiB, above the 30 GiB stop threshold. No push or stash.
 
 
+## 2026-10-22 — 0.4.37 published (snapback4, both platforms, snapback4-expo)
+
+`snapback4`, `snapback4-darwin-arm64`, `snapback4-linux-x64` and
+`snapback4-expo` 0.4.37 are published from `93ede67fe2`, after the wave-22 go.
+All four `latest` = 0.4.37:
+
+| Package | Registry integrity |
+|---|---|
+| `snapback4` | `sha512-zeuJEfMFB45PvthdQPA/VKzjdqOazJaa2ey8R4K49fFFd6/8gPE8mTjlyFd86HboBeBKBK326KwjCuez5G43+Q==` |
+| `snapback4-darwin-arm64` | `sha512-koHXIjetlOEVLGvbfPz6sqP/4wyQ6dGPAYInVSpMaetUYGjQklFl8J6avsq89z2BFeRSVrw6Pm5EgyFFTlRqKA==` |
+| `snapback4-linux-x64` | `sha512-i9aGz6obxX9S30neyfdPt6fU2/BRYqwduToSTwH9LBzLkoYS/4WhpiY/7S8vem2wYNGKmD4cqwdaLBeC01L+Iw==` |
+| `snapback4-expo` | `sha512-rFyz3V5V3/8Dsu/L/fRXMSAEOuTN/jjHEKStwBhK8LsXJRTrfdFo36hLgE/kjWBa4ZWgsLUnQ+36uGbgWZsrrQ==` |
+
+- **Publish commit moved once:** at `ee5a053303`, `wave14-rule-recipes` left an
+  untracked `packages/snapback4/logs/` on every run (the proof kit's `command()`
+  logs to `<cwd>/logs`), so the clean-source check refused any receipt; a
+  `wave12-clauses` stdout/stderr race also flaked once. `93ede67fe2` fixed both
+  (test-only).
+- **Native and Expo witness:** built and witnessed on Xcode 27.1 at `93ede67fe2`.
+- **Linux:** attempt 2 passed, `== 0 failure(s) in 2790 s`, with the new dx5 proof.
+- **Mac dry run:** attempt 1 was environment-invalid (unplugged); attempt 2 passed,
+  `== 0 failure(s) in 9449 s`, at default parallelism with no timing-only red.
+- **Publish:** one `--resume` published the platforms and the client; Expo readable
+  after 385 s; registry bytes equal the qualified bytes; clean installs on Linux and
+  the Mac print 0.4.37 and pass init + check.
+
+Report: `reports/20261022-publication-0.4.37/REPORT.md`.
+
 ## 2026-10-22 — ROLL / wave-23 day-two
 
 Release selection now registers compiled immutable predecessor views with the
@@ -101430,3 +101458,4 @@ and the required Mac Studio attempt are recorded in WORKSTREAM-REPORT.md; this
 entry makes no publication or unrun-test claim.
 
 ROLL qualification follow-up: source-domain admission now uses full structural types (including text minima), caps and unique keys rather than matching advisory prose. Compiled views retain current constraints, read-through syntax and identity-aligned authority. A private read plus quota regression checks actual enforcement. Registry resolution belongs to the active ordinary source or active view's parent; a later branch cannot lend it weaker guards. Equal-source reuse first compares privately prepared view content against that source's own manifest; sourceRelease explains a necessary fresh registration parent. Revision 23 is READY from Muse and fresh Codex. Full client-pool fallout now explicitly separates exact-source hazard tests from default-view tests and uses JSON for complete advice. Final packed qualification is still pending; no publication claim.
+

@@ -1,0 +1,14 @@
+check: ok — 5 tables, 1 view (5 synced), 12 operations, compiled, 18 notes, 7319.1 ms
+13 more actionable notes in check --verbose/JSON
+5 things to review (advisory; check --verbose explains each, snapback4 why <CODE> one):
+review — can cost correctness or completeness:
+note: schema.q:115:1 — N_COLUMN_RESULT_EXPOSURE: review: confirm every result/refusal audience. myMembership: return/write result can observe memberships.joinedAt (omitted by inbox), principal (omitted by inbox), role (omitted by inbox); row audience: exists memberships[.conversationId, viewer] — snapback4 why N_COLUMN_RESULT_EXPOSURE
+note: N_COLUMN_RESULT_EXPOSURE (as above) also for room: return/write result can observe memberships.joinedAt (omitted by inbox), principal (omitted by… (schema.q:118:1) — snapback4 why N_COLUMN_RESULT_EXPOSURE
+note: schema.q:16:1 — N_BROAD_READ: review: confirm each admitted audience and row state. profiles.read: branch `public` lets every signed-in user read every row — snapback4 why N_BROAD_READ
+note: schema.q:1:1 — N_BROAD_READ: review: confirm each admitted audience and row state. messageCounts.read: branch `exists memberships[.conversationId, viewer]` lets every memberships member read every row, regardless of ownership — snapback4 why N_BROAD_READ
+note: schema.q:33:3 — N_BROAD_READ: review: confirm each admitted audience and row state. conversations.read: branch `exists memberships[.id, viewer]` lets every memberships member read every row, regardless of ownership — snapback4 why N_BROAD_READ
+1 mutation is server-run (online app: no action): markRead (writes online-only table readMarkers); 1 mutations have insert arms that may queue; 2 eligible mutations may queue past a horizon — snapback4 why <op>
+check --verbose for explanations, rewrites and execution details; why <op> for one operation
+security: 0 proved, 0 refuted, 1 unproved (0 failing)
+  next: snapback4 test; 6 coverage gaps (check --verbose/JSON keeps every reason)
+  review audiences and 16 uncovered exposures: snapback4 audit
