@@ -157,6 +157,10 @@ pub struct Shared {
     #[cfg(test)]
     pub query_wait: WorkHook,
     #[cfg(test)]
+    pub adoption_committed: WorkHook,
+    #[cfg(test)]
+    pub clock_advanced: WorkHook,
+    #[cfg(test)]
     pub reader_open: WorkHook,
     #[cfg(test)]
     pub changes_refresh: WorkHook,
@@ -642,58 +646,6 @@ impl io::Write for JsonBuffer {
 use crate::sync_wire::{SnapshotReply, SyncEvents, StreamReply};
 
 /// Sample at response construction, after execution and any admission wait.
-pub(crate) fn clock_headers(shared: &Shared) -> [Header; 2] {
-    let clock = lock(&shared.clock);
-    let now = clock.now().max(shared.time_audience_clock.load(Ordering::Acquire));
-    [Header::from_bytes("X-Snapback-Time", now.to_string()).unwrap(),
-     Header::from_bytes("X-Snapback-Clock", clock.revision()).unwrap()]
-}
-
-// @ref LLP 3000.000.000.001#11-wave-22-loop-repairs-dx6 — reconcile the exact bearer before the SDK observes advanced business time.
-fn session_clock_headers(request: &Request, shared: &Shared) -> Vec<Header> {
-    if !shared.staging { return clock_headers(shared).into(); }
-    let Ok(token) = crate::auth::bearer_token(request) else { return clock_headers(shared).into(); };
-    // Detached readers never fall back to the writer: callers may still hold it.
-    // Keep the process clock fixed across the committed authority snapshot, so
-    // preserved lifetime and the clock stamp describe the same staging jump.
-    let Ok((epoch, reader)) = shared.reader() else {
-        return vec![Header::from_bytes("X-Snapback-Session-Timing", "unavailable").unwrap()];
-    };
-    let identity = lock(&shared.wake).store_id.clone();
-    let clock = lock(&shared.clock);
-    let now = clock.now().max(shared.time_audience_clock.load(Ordering::Acquire));
-    let timing = identity.as_deref().ok_or_else(|| snapback4_core::RuntimeError::Auth("store identity unavailable".into()))
-        .and_then(|identity| reader.staging_session_timing(token, now, identity));
-    let headers = match timing {
-        Ok(timing) => {
-            let mut headers = vec![Header::from_bytes("X-Snapback-Session-Timing", "staging").unwrap(),
-                Header::from_bytes("X-Snapback-Time", now.to_string()).unwrap(),
-                Header::from_bytes("X-Snapback-Clock", clock.revision()).unwrap()];
-            if let Some(timing) = timing {
-                headers.push(Header::from_bytes("X-Snapback-Session-Expires", timing.expires_at.to_string()).unwrap());
-                if let Some(cap) = timing.cap_expires_at { headers.push(Header::from_bytes("X-Snapback-Session-Cap", cap.to_string()).unwrap()); }
-            }
-            headers
-        }
-        Err(_) => vec![Header::from_bytes("X-Snapback-Session-Timing", "unavailable").unwrap()],
-    };
-    drop(clock);
-    lock(&shared.readers).put(&epoch, reader.into_inner());
-    headers
-}
-
-// @ref LLP 3000.017#3.3 — advertise only on ephemeral backends; durable-only HTTP bytes stay unchanged.
-// The online tier can discover /schema facts through its ordinary traffic.
-pub(crate) fn ephemeral_headers(shared: &Shared) -> Vec<Header> {
-    if lock(&shared.wake).eph.tables.is_empty() { return Vec::new(); }
-    vec![Header::from_bytes("X-Snapback-Ephemeral", "1").unwrap(),
-         Header::from_bytes("Access-Control-Expose-Headers", "X-Snapback-Ephemeral").unwrap()]
-}
-// @ref LLP 3000.011.003.000#8 — absent request ids stay absent; result.id is the row id.
-pub(crate) fn mutation_reply(mut body: Json) -> Json {
-    if body.get("id").is_some_and(Json::is_null) { body.as_object_mut().unwrap().remove("id"); }
-    body
-}
 pub(crate) fn respond_timed(request: Request, shared: &Shared, status: u16, body: impl latency::Reply) {
     respond_with_sync(request, status, body, true, None, Some(shared))
 }
@@ -841,7 +793,8 @@ pub(crate) fn query_params(url: &str) -> BTreeMap<String, String> {
 // operation. Mutation replay's seq is historical; head is never that receipt.
 #[path = "serve_head.rs"]
 mod head;
-use head::{response_head, intent_store, argument_refusal};
+use head::{response_head, intent_store, argument_refusal, session_clock_headers};
+pub(crate) use head::{ephemeral_headers, mutation_reply};
 
 fn operation_refusal(request: Request, shared: &Shared, status: u16, why: Refusal) {
     let metadata = shared.read_identity();
@@ -1267,14 +1220,20 @@ fn handle(mut request: Request, shared: &Shared) {
                     }
                     context.search_retained_order = Some((order, payload.get("searchRetainedMore").and_then(Json::as_bool).unwrap_or(false)));
                 }
-                let settlement_started = Instant::now();
+                let (settlement_started, mut handoffs) = (Instant::now(), 0);
                 let (outcome, cut, metadata, reads_presence, query_generation, search_current, scopes, decoration_paths) = loop {
-                let reader = shared.reader();
+                let reader = if handoffs == 0 { shared.reader() } else { shared.reader_after_handoff() };
                 let evaluated = match reader {
                     Ok((epoch, mut reader)) => {
                         let metadata = response_head(&mut reader);
+                        if let Err(why) = &metadata && why.code == "E_GENERATION" {
+                            if handoffs < 2 { handoffs += 1; continue; }
+                            return respond_timed(request, shared, 503, json!({"denied":why}));
+                        }
                         #[cfg(test)] test_work(&shared.query_wait);
-                        if let Err(why) = session_identity::persona_read_authority(&request, shared, &reader) {
+                        let authority = if handoffs == 0 { session_identity::persona_read_authority(&request, shared, &reader) }
+                            else { session_identity::Admission::capture(&request, shared).and_then(|admission| admission.check_detached(shared, &reader, &principal)) };
+                        if let Err(why) = authority {
                             return respond_timed(request, shared, 401, json!({"denied":refusal_json(&why)}));
                         }
                         // Take identity from the same reader that evaluates the query,
@@ -1288,11 +1247,15 @@ fn handle(mut request: Request, shared: &Shared) {
                         let (outcome, cut, current) = reader.query_materialized_search_with_delivery_at(&op, context, retained.as_deref(), manifest);
                         trace::mark("query_end");
                         let scopes = read_scopes::complete(scopes, reader.schema(), outcome.as_ref().map_or(&[], |o| &o.tables));
-                        if outcome.is_ok() { lock(&shared.readers).put(&epoch, reader.into_inner()); }
+                        if outcome.is_ok() && metadata.is_ok() { lock(&shared.readers).put(&epoch, reader.into_inner()); }
                         (outcome, cut, metadata, reads_presence, query_generation, current, scopes, decoration_paths)
                     },
                     // Only memory stores lack detached readers by construction.
                     Err(error) if !shared.memory_store() => {
+                        if matches!(error.underlying(), snapback4_core::RuntimeError::Generation(_)) && handoffs < 2 {
+                            handoffs += 1;
+                            continue;
+                        }
                         return respond_timed(request, shared, 503, json!({"denied": error.refusal()}));
                     }
                     Err(_) => {
@@ -1315,6 +1278,10 @@ fn handle(mut request: Request, shared: &Shared) {
 
                     },
                 };
+                if evaluated.0.as_ref().is_err_and(|error| error.code == "E_GENERATION") && handoffs < 2 {
+                    handoffs += 1;
+                    continue;
+                }
                 if let Some((table, id)) = evaluated.0.as_ref().ok().and_then(|outcome| outcome.pending_opening.as_ref()) {
                     if settlement_started.elapsed() >= Duration::from_secs(30) || crate::lifecycle::stopping() {
                         let mut why = Refusal::new("E_QUERY_RETRY", "client", "timed disclosure did not settle within the query wait; retry the query").guide("client");

@@ -270,6 +270,10 @@ pub fn serve(
         #[cfg(test)]
         query_wait: Mutex::new(None),
         #[cfg(test)]
+        adoption_committed: Mutex::new(None),
+        #[cfg(test)]
+        clock_advanced: Mutex::new(None),
+        #[cfg(test)]
         reader_open: Mutex::new(None),
         #[cfg(test)]
         changes_refresh: Mutex::new(None),

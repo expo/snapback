@@ -403,6 +403,12 @@ fn clock_service(request: &Request, shared: &Shared) -> Result<Option<String>, s
         _ => Err(snapback4_core::Refusal::new("E_AUTH", "auth", "staging clock control requires a full service token").guide("clock")),
     }
 }
+fn incomplete_report(cause: &snapback4_core::Refusal) -> snapback4_core::Refusal {
+    snapback4_core::Refusal::new("E_CLOCK_REPORT_INCOMPLETE", "clock",
+        format!("clock already advanced; report incomplete ({cause}); inspect clock or use clock drain (0ms); do not replay the advance"))
+        .guide("clock")
+}
+
 pub(super) fn advance(request: Request, shared: &Shared, body: &str) {
     let service = match clock_service(&request, shared) {
         Ok(service) => service,
@@ -501,6 +507,7 @@ pub(super) fn advance(request: Request, shared: &Shared, body: &str) {
         Ok(result) => result,
         Err(error) => return respond(request, refusal_status(&error, 400), json!({"denied":refusal_json(&error)})),
     };
+    #[cfg(test)] super::test_work(&shared.clock_advanced);
     // @ref LLP 3000#contended-read-serving — a developer is awaiting this
     // request; synchronous clock-advance work intentionally keeps request QoS.
     let drained = (|| {
@@ -523,7 +530,7 @@ pub(super) fn advance(request: Request, shared: &Shared, body: &str) {
             let schedules = shared.engine.call(move |engine, shared| crate::dev_clock_store::schedule_report(engine, &before, &fired, now, raw_now, shared.hold_schedules || !drain, each_boundary, shared.dev_identity.as_ref().map(|i| i.address.port())));
             let schedules = match schedules {
                 Ok(schedules) => schedules,
-                Err(why) => return respond(request, 500, json!({"now":now,"advancedMs":milliseconds,"reportIncomplete":true,"denied":why})),
+                Err(why) => return respond(request, 500, json!({"now":now,"advancedMs":milliseconds,"reportIncomplete":true,"denied":incomplete_report(&why)})),
             };
             let (fired, held) = crate::dev_clock_store::outcomes(&schedules);
             respond(request, 200, json!({"now":now, "advancedMs":milliseconds, "sessionNotice":if preserve_sessions { crate::dev_clock::PRESERVED_SESSION_NOTICE } else { crate::dev_clock::SESSION_NOTICE }, "maintenancePaused":!drain, "sessionsPreserved":preserve_sessions, "offsetMs":offset, "skewMs":skew, "eachBoundary":each_boundary, "message":message, "work":work, "schedules":schedules, "fired":fired, "held":held}))
@@ -548,10 +555,10 @@ pub(super) fn advance(request: Request, shared: &Shared, body: &str) {
             });
             let schedules = match schedules {
                 Ok(schedules) => schedules,
-                Err(why) => return respond(request, 500, json!({"now":now,"advancedMs":milliseconds,"reportIncomplete":true,"denied":why})),
+                Err(why) => return respond(request, 500, json!({"now":now,"advancedMs":milliseconds,"reportIncomplete":true,"denied":incomplete_report(&why)})),
             };
             let (fired, held) = crate::dev_clock_store::outcomes(&schedules);
-            respond(request, 500, json!({"now":now, "advancedMs":milliseconds, "sessionNotice":if preserve_sessions { crate::dev_clock::PRESERVED_SESSION_NOTICE } else { crate::dev_clock::SESSION_NOTICE }, "maintenancePaused":true, "sessionsPreserved":preserve_sessions, "offsetMs":offset, "skewMs":skew, "eachBoundary":each_boundary, "message":message, "schedules":schedules, "fired":fired, "held":held, "reportIncomplete":true, "denied":refusal_json(&error)}))
+            respond(request, 500, json!({"now":now, "advancedMs":milliseconds, "sessionNotice":if preserve_sessions { crate::dev_clock::PRESERVED_SESSION_NOTICE } else { crate::dev_clock::SESSION_NOTICE }, "maintenancePaused":true, "sessionsPreserved":preserve_sessions, "offsetMs":offset, "skewMs":skew, "eachBoundary":each_boundary, "message":message, "schedules":schedules, "fired":fired, "held":held, "reportIncomplete":true, "denied":incomplete_report(&error)}))
         },
     }
 }
@@ -814,42 +821,29 @@ mod tests {
         let held = engine.effects(Some("running"), 1).unwrap();
         assert_eq!(held.len(), 1);
         assert_eq!(held[0].lease_until, Some(floor + 4_000), "leases shift by effective elapsed time once");
-    fn clock_timeout_releases_maintenance_when_admitted_advance_finishes_late() {
+    }
+
+    #[test]
+    fn admitted_clock_waits_past_old_deadline_and_advances_only_once() {
         let host = Host::with_store(true, snapback4_core::store_port::AnyStore::memory().unwrap(),
             "query time():\n  return now\n");
         let shared = host.shared.clone();
-        let advance = lock(&shared.maintenance).advance.clone();
         let held = lock(&shared.engine);
         let address = host.address;
-        let timeout = snapback4_core::engine::command::ACK_TIMEOUT;
         let (finished, response) = std::sync::mpsc::channel();
         let client = std::thread::spawn(move || {
             let payload = r#"{"duration":"1s"}"#;
             let wire = format!("POST /dev/clock/advance HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nContent-Length: {}\r\n\r\n{payload}", payload.len());
-            finished.send(super::super::tests::exchange_held(address, timeout, wire)).unwrap();
+            finished.send(super::super::tests::exchange_held(address, Duration::from_secs(40), wire)).unwrap();
         });
-        let response = response.recv_timeout(timeout + Duration::from_secs(5));
-        // Always release the fixture before assertions or host cleanup.
-        if response.is_err() { drop(held); panic!("clock request did not return its bounded acknowledgement: {response:?}"); }
-        let deadline = Instant::now() + Duration::from_secs(5);
-        let retired_request = loop {
-            if let Ok(guard) = advance.try_lock() { break guard; }
-            assert!(Instant::now() < deadline, "responded clock request retained its serialization guard");
-            std::thread::sleep(Duration::from_millis(1));
-        };
-        // Acquiring the gate proves the request's pause guard has dropped.
+        let early = response.recv_timeout(Duration::from_secs(31));
         drop(held);
-        let response = response.unwrap();
+        let response = response.recv_timeout(Duration::from_secs(10)).unwrap();
         client.join().unwrap();
-        assert_eq!(super::super::tests::status(&response), 500, "{response}");
-        assert_eq!(super::super::tests::body(&response)["denied"]["code"], "E_COMMIT_OUTCOME_UNKNOWN");
-        let deadline = Instant::now() + Duration::from_secs(5);
-        while lock(&shared.clock).offset() != 1_000 && Instant::now() < deadline {
-            std::thread::sleep(Duration::from_millis(1));
-        }
-        assert_eq!(lock(&shared.clock).offset(), 1_000, "timeout must not cancel admitted clock work");
-        assert!(!lock(&shared.maintenance).advancing, "late clock work reacquired an abandoned request's maintenance pause");
-        drop(retired_request);
+        assert!(matches!(early, Err(std::sync::mpsc::RecvTimeoutError::Timeout)));
+        assert_eq!(super::super::tests::status(&response), 200, "{response}");
+        assert_eq!(lock(&shared.clock).offset(), 1_000);
+        assert!(!lock(&shared.maintenance).advancing);
     }
 
     #[test]

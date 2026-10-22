@@ -254,7 +254,10 @@ pub(super) fn queue_error(error: SubmitError) -> snapback4_core::RuntimeError {
         SubmitError::Full => snapback4_core::RuntimeError::Structural {
             code: "E_RATE_LIMIT", message: "HTTP connections or request workers are occupied; wait for pending writes to settle or reduce concurrent clients before retrying".into(),
         },
-        SubmitError::Stopped => snapback4_core::RuntimeError::CommitOutcomeUnknown("committer acknowledgement unavailable after admission; the durable outcome may be unknown".into()),
+        SubmitError::Stopped => snapback4_core::RuntimeError::Structural {
+            code: "E_COMMITTER_STOPPED", message: "committer stopped before execution; command not applied".into(),
+        },
+        SubmitError::OutcomeUnknown => snapback4_core::RuntimeError::CommitOutcomeUnknown("committer worker disconnected after execution started; acknowledgement unavailable; the durable outcome may be unknown".into()),
         SubmitError::OwnershipLost => snapback4_core::RuntimeError::StoreOwnership("store ownership lost; this committer refuses further writes".into()),
     }
 }
@@ -263,6 +266,7 @@ pub(super) fn refusal_status(code: &str) -> Option<u16> {
     match code {
         "E_RATE_LIMIT" => Some(503),
         "E_STORE_OWNERSHIP" => Some(409),
+        "E_COMMITTER_STOPPED" => Some(503),
         "E_COMMIT_OUTCOME_UNKNOWN" => Some(500),
         _ => None,
     }
@@ -283,7 +287,8 @@ impl QueueError for snapback4_core::RuntimeError {
         queue_error(match why.code.as_str() {
             "E_RATE_LIMIT" => SubmitError::Full,
             "E_STORE_OWNERSHIP" => SubmitError::OwnershipLost,
-            _ => SubmitError::Stopped,
+            "E_COMMITTER_STOPPED" => SubmitError::Stopped,
+            _ => SubmitError::OutcomeUnknown,
         })
     }
 }

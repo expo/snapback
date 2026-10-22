@@ -102316,3 +102316,41 @@ Final K0-Q fix-round root validation passes: 564 LLPs, 11,719 references,
 zero errors and zero unchecked. Whitespace checks pass. The qualification
 report retains the single full-CLI adoption race, passing exact/full-target
 repeats, and final clock follow-up content receipts; no push or stash.
+
+
+## 2026-10-22 — K0-Q fix round 2: checkpoint, stopped at RT0 attribution
+
+Rebased the fifteen lane commits from b78ab8f2b2 onto main-mirror 2281138019;
+the rebased prior tip is f7d33edb32. Maintenance conflicts retain DX6's staging
+clock/floor/session behavior inside owned commands. Both test modules and every
+Postgres script stage are retained. JOURNAL keeps both sides, with main an exact
+prefix; the committer RFC has one Revised line containing every entry and RT0's
+sibling link. S10d-3's holder-bound release/known rollback fix remains intact.
+
+The checkpoint removes the acknowledgement deadline, keeps admission/ownership
+bounds, and distinguishes worker death before execution (E_COMMITTER_STOPPED,
+not applied) from death after start (E_COMMIT_OUTCOME_UNKNOWN). It makes
+post-advance clock/report failures non-retryable, fences unknown child mints,
+keeps source watchers alive without replaying an unknown digest, and bounds
+/q/ generation handoff retry behind adoption. Added witnesses cover these
+paths, including COMMIT-before-reader-replacement and genuine foreign adoption.
+The SDK unknown-outcome issue is filed separately; no client source changed.
+The renewal-after-deadline availability tradeoff is documented unchanged.
+
+Twelve focused committer cases passed on an intermediate checkpoint, including
+unknown mint fencing, pre-execution disconnect and post-advance mailbox overload.
+Then the SQLite RT0 ratchet failed: keyed_first expected 87, measured 0; other
+durable mutation/replay classes also measured zero. Its thread-local request
+scope does not cross the committer thread. Detached reads retain their counts.
+This is lost attribution, not evidence of fewer SQL statements. Neither ratchet
+table changed. Under the user's explicit count-change stop rule, verification
+stopped here: the redundant full-scope ratchet invocation was interrupted and
+no later stage started. Final-source focused repeats, long-wait/adoption
+witnesses, full CLI/core/device suites, Postgres and reference checks remain
+unverified. The adoption ticket stays open until those witnesses pass.
+
+Only this lane's target was used, at six build jobs, with incremental off.
+Removed its unused incremental cache before the long suites; lowest recorded
+free disk was 43G, above the 20 GB stop threshold. No RT5 files or processes were
+touched. No cluster was started. Owned runner/test/server PIDs left: none.
+No push or stash. The lane report preserves the failure and rebased hash map.

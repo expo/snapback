@@ -247,7 +247,7 @@ impl RuntimeError {
             Self::Structural { code, .. } if matches!(*code, "E_ACTION_UNKNOWN" | "E_ACTION_LEASE" | "E_ACTION_AUTHORITY") => "action",
             #[cfg(feature = "sqlite")]
             Self::Structural { code, .. } if code.starts_with(concat!("E_", "ROUTE_")) => "route",
-            Self::Structural { code: "E_STORE_RESTORE" | "E_STORE_MEMORY", .. } => "store",
+            Self::Structural { code: "E_STORE_RESTORE" | "E_STORE_MEMORY" | "E_COMMITTER_STOPPED", .. } => "store",
             Self::Structural { code: "E_RULE", .. } => "auth",
             Self::Structural { code: "E_RATE_LIMIT", .. } => "limit",
             Self::Schema(_) | Self::Structural { .. } => "schema",
@@ -288,7 +288,7 @@ impl RuntimeError {
         if matches!(self, Self::Sql(_) | Self::StoreBusy { .. }) {
             return true;
         }
-        matches!(self, Self::Store(_) | Self::TimeAudiencePending | Self::CommitOutcomeUnknown(_))
+        matches!(self, Self::Store(_) | Self::TimeAudiencePending | Self::CommitOutcomeUnknown(_) | Self::Structural { code: "E_COMMITTER_STOPPED", .. })
     }
 
     pub fn is_refusal(&self) -> bool {
@@ -443,7 +443,7 @@ impl RuntimeError {
                 refusal.guide = Some("time".into());
                 refusal.rewrite = Some("retry after the server publishes the next bounded opening".into());
             }
-            Self::Store(_) => refusal.retryable = true,
+            Self::Store(_) | Self::Structural { code: "E_COMMITTER_STOPPED", .. } => refusal.retryable = true,
             Self::Asset { message, .. } => {
                 refusal.message = message.clone();
                 refusal.guide = Some("assets".into());

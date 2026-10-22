@@ -168,27 +168,34 @@ fn control_admission_has_a_deadline_and_does_not_execute_refused_work() {
 }
 
 #[test]
-fn acknowledgement_deadline_reports_unknown_without_cancelling_admitted_work() {
+fn admitted_and_started_work_delivers_real_results_beyond_the_old_deadline() {
     let queue = Queue::start(engine(), 1).unwrap();
     let (entered, started) = mpsc::channel();
     let (release, resume) = mpsc::channel();
+    let reply = queue.submit(Command::new(move |_| {
+        entered.send(()).unwrap();
+        resume.recv_timeout(std::time::Duration::from_secs(40)).unwrap();
+        7
+    })).unwrap();
+    started.recv_timeout(std::time::Duration::from_secs(5)).unwrap();
+    let queued = queue.submit(Command::new(|_| 11)).unwrap();
     let (finished, observed) = mpsc::channel();
-    let reply = queue
-        .submit(Command::new(move |_| {
-            entered.send(()).unwrap();
-            resume
-                .recv_timeout(std::time::Duration::from_secs(5))
-                .unwrap();
-            finished.send(()).unwrap();
-        }))
-        .unwrap();
-    started
-        .recv_timeout(std::time::Duration::from_secs(5))
-        .unwrap();
-    let result = reply.wait_timeout(std::time::Duration::from_millis(10));
+    let waiter = thread::spawn(move || finished.send((reply.wait(), queued.wait())).unwrap());
+    let early = observed.recv_timeout(std::time::Duration::from_secs(31));
     release.send(()).unwrap();
-    observed
-        .recv_timeout(std::time::Duration::from_secs(5))
-        .unwrap();
-    assert_eq!(result, Err(SubmitError::Stopped));
+    let result = observed.recv_timeout(std::time::Duration::from_secs(5)).unwrap();
+    waiter.join().unwrap();
+    assert!(matches!(early, Err(mpsc::RecvTimeoutError::Timeout)));
+    assert_eq!(result, (Ok(7), Ok(11)));
+}
+
+#[test]
+fn disconnected_worker_distinguishes_not_started_from_unknown_execution() {
+    let queue = Queue::start_with(1, |_| ()).unwrap();
+    assert_eq!(queue.call(Command::new(|_| panic!("not started"))), Err(SubmitError::Stopped));
+    // The start marker survives loss of every sender, as it would on worker death.
+    let (sent, receiver) = mpsc::channel::<Result<thread::Result<()>, SubmitError>>();
+    let started = Arc::new(std::sync::atomic::AtomicBool::new(true));
+    drop(sent);
+    assert_eq!(Reply { receiver, started }.wait(), Err(SubmitError::OutcomeUnknown));
 }

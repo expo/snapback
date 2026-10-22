@@ -323,6 +323,19 @@ pub(crate) struct DevWorker {
     revision: usize,
 }
 
+fn fence_revision(shared: &Shared, revision: usize) {
+    let _ = shared.worker_revision.compare_exchange(revision, revision + 1,
+        std::sync::atomic::Ordering::AcqRel, std::sync::atomic::Ordering::Acquire);
+}
+
+pub(crate) fn mint_refusal(shared: &Shared, revision: usize, why: &snapback4_core::Refusal) -> bool {
+    if matches!(why.code.as_str(), "E_RATE_LIMIT" | "E_COMMITTER_STOPPED" | "E_STORE_OWNERSHIP") { return false; }
+    // A lost mint acknowledgement can leave a durable token we cannot revoke
+    // by family. Fence that revision exactly as failed retirement does.
+    fence_revision(shared, revision);
+    true
+}
+
 impl DevWorker {
     // @ref LLP 3000.007#9.2 — dev supervises the application's Node worker, outside the engine.
     pub(crate) fn start(
@@ -646,6 +659,7 @@ impl DevWorker {
             Ok(minted) => minted,
             Err(why) => {
                 snapback4_core::diagnostic!("snapback4 worker: session preparation refused: {why}");
+                if mint_refusal(&self.shared, revision, &why) { self.snapshot = None; }
                 self.retry_later(); return;
             }
         };
@@ -781,12 +795,7 @@ impl DevWorker {
             // children renew under the new revision; manual seats are unchanged.
             // Keep the child's original revision across every retirement retry.
             if let Some(revision) = self.child_revision {
-                let _ = self.shared.worker_revision.compare_exchange(
-                    revision,
-                    revision + 1,
-                    std::sync::atomic::Ordering::AcqRel,
-                    std::sync::atomic::Ordering::Acquire,
-                );
+                fence_revision(&self.shared, revision);
             }
             snapback4_core::diagnostic!(
                 "snapback4 worker: cannot close the child's session; worker stopped, replacement suspended: {error}"

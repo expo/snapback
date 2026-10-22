@@ -50,7 +50,7 @@ fn doors(host: &Host, code: &str, expected_status: u16, retryable: bool) {
         );
         assert_eq!(
             response.to_ascii_lowercase().contains("retry-after: 1\r\n"),
-            retryable
+            retryable && code == "E_RATE_LIMIT"
         );
         if let Some(previous) = &previous {
             assert_eq!(&envelope, previous, "{path}");
@@ -94,7 +94,7 @@ fn writer_call_returns_ownership_loss_and_every_client_gets_the_same_response() 
 }
 
 #[test]
-fn disconnected_acknowledgements_are_unknown_and_never_retryable_on_any_door() {
+fn worker_disconnect_before_execution_reports_not_applied_on_every_door() {
     let host = Host::with_capacity_recent_writer(
         true,
         snapback4_core::Store::memory().unwrap(),
@@ -113,9 +113,13 @@ fn disconnected_acknowledgements_are_unknown_and_never_retryable_on_any_door() {
         },
     );
     let why = host.shared.engine.call(|_, _| ()).unwrap_err();
-    assert_eq!(why.code, "E_COMMIT_OUTCOME_UNKNOWN");
-    assert!(!why.retryable);
-    doors(&host, "E_COMMIT_OUTCOME_UNKNOWN", 500, false);
+    assert_eq!(why.code, "E_COMMITTER_STOPPED");
+    assert!(why.message.contains("not applied"));
+    assert!(why.retryable);
+    doors(&host, "E_COMMITTER_STOPPED", 503, true);
+    let unknown = queue_error(SubmitError::OutcomeUnknown).refusal();
+    assert_eq!(unknown.code, "E_COMMIT_OUTCOME_UNKNOWN");
+    assert!(!unknown.retryable);
 }
 
 #[test]
@@ -306,4 +310,101 @@ fn detached_reads_and_ephemeral_finish_while_the_writer_and_a_mutation_are_block
     });
     drop(host);
     std::fs::remove_dir_all(directory).unwrap();
+}
+
+#[test]
+fn clock_report_overload_after_advance_is_not_retryable_and_drain_does_not_advance_again() {
+    let host = host();
+    let (entered, paused) = mpsc::channel();
+    let (release, resume) = mpsc::channel();
+    let resume = Mutex::new(resume);
+    *lock(&host.shared.clock_advanced) = Some(Arc::new(move || {
+        entered.send(()).unwrap();
+        lock(&resume).recv_timeout(Duration::from_secs(10)).unwrap();
+    }));
+    let address = host.address;
+    let client = std::thread::spawn(move || crate::serve::tests::exchange(address,
+        "POST /dev/clock/advance HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nContent-Length: 17\r\n\r\n{\"duration\":\"1s\"}"));
+    paused.recv_timeout(Duration::from_secs(5)).unwrap();
+    assert_eq!(lock(&host.shared.clock).offset(), 1_000);
+    let (unfill, held) = fill(&host.shared);
+    release.send(()).unwrap();
+    let response = client.join().unwrap();
+    unfill.send(()).unwrap();
+    held.wait().unwrap();
+    *lock(&host.shared.clock_advanced) = None;
+    assert_eq!(status(&response), 500, "{response}");
+    let report = body(&response);
+    assert_eq!(report["advancedMs"], 1_000);
+    assert_eq!(report["reportIncomplete"], true);
+    assert_eq!(report["denied"]["code"], "E_CLOCK_REPORT_INCOMPLETE");
+    assert_ne!(report["denied"]["retryable"], true);
+    assert!(!response.to_ascii_lowercase().contains("retry-after:"));
+    // Follow the recovery instruction once: drain/report pending work with 0ms.
+    // Repeating the original 1s request would intentionally add another second;
+    // clock advances have no idempotency key and this response forbids that retry.
+    let recovered = host.request("POST", "/dev/clock/advance", "", r#"{"duration":"0ms"}"#);
+    assert_eq!(status(&recovered), 200, "{recovered}");
+    assert_eq!(lock(&host.shared.clock).offset(), 1_000);
+}
+
+#[test]
+fn unknown_mint_fences_orphaned_credentials_before_replacement() {
+    let host = Host::with_store(false, snapback4_core::Store::memory().unwrap(),
+        "query who():\n  return viewer\n");
+    let revision = host.shared.worker_revision.load(std::sync::atomic::Ordering::Acquire);
+    let orphan = host.shared.engine.attempt(move |engine, shared| snapback4_core::identity::mint_supervised_child(engine.store(), None, shared.now(), revision)).unwrap();
+    for code in ["E_RATE_LIMIT", "E_COMMITTER_STOPPED", "E_STORE_OWNERSHIP"] {
+        assert!(!crate::dev_worker::mint_refusal(&host.shared, revision, &snapback4_core::Refusal::new(code, "store", "not applied")));
+        assert_eq!(host.shared.worker_revision.load(std::sync::atomic::Ordering::Acquire), revision);
+    }
+    let unknown = snapback4_core::RuntimeError::CommitOutcomeUnknown("mint committed, worker died before reply".into()).refusal();
+    assert!(crate::dev_worker::mint_refusal(&host.shared, revision, &unknown));
+    assert!(crate::dev_worker::mint_refusal(&host.shared, revision, &unknown));
+    assert_eq!(host.shared.worker_revision.load(std::sync::atomic::Ordering::Acquire), revision + 1);
+    let headers = format!("Authorization: Bearer {}\r\n", orphan.token);
+    assert_eq!(crate::serve::tests::status(&host.request("POST", "/q/who", &headers, "{}")), 401);
+    let replacement = host.shared.engine.attempt(move |engine, shared| snapback4_core::identity::mint_supervised_child(engine.store(), None, shared.now(), revision + 1)).unwrap();
+    let headers = format!("Authorization: Bearer {}\r\n", replacement.token);
+    assert_eq!(crate::serve::tests::status(&host.request("POST", "/q/who", &headers, "{}")), 200);
+}
+
+#[test]
+fn source_watcher_retries_overload_and_keeps_watching_later_edits() {
+    let dir = crate::serve::tests::ReaderTestDirectory::new();
+    std::fs::create_dir_all(dir.0.join("snapback")).unwrap();
+    let source = "use personas alice\nquery read():\n  return 1\n";
+    let file = dir.0.join("snapback/schema.q");
+    std::fs::write(&file, source).unwrap();
+    let project = crate::project::Project { root: dir.0.clone() };
+    let stamp = project.sources_stamp();
+    let host = Host::with_store(true, snapback4_core::Store::open(&dir.0.join("watch.sqlite")).unwrap(), source);
+    std::fs::write(&file, source.replace("return 1", "return 2")).unwrap();
+    let (release, held) = fill(&host.shared);
+    let turns = Arc::new(AtomicUsize::new(0));
+    let stopping = Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let (observed, stop, shared) = (turns.clone(), stopping.clone(), host.shared.clone());
+    let watcher = std::thread::spawn(move || crate::serve::adoption::watch_sources_until(project, shared, stamp, false, || {
+        observed.fetch_add(1, Ordering::AcqRel);
+        stop.load(Ordering::Acquire)
+    }));
+    let until = Instant::now() + Duration::from_secs(5);
+    while turns.load(Ordering::Acquire) < 2 && Instant::now() < until { std::thread::sleep(Duration::from_millis(5)); }
+    release.send(()).unwrap(); held.wait().unwrap();
+    let continued = turns.load(Ordering::Acquire) >= 2;
+    let query = |n: i64| {
+        let response = host.request("POST", "/q/read", "x-snapback-persona: alice\r\n", "{}");
+        status(&response) == 200 && body(&response)["data"] == n
+    };
+    let until = Instant::now() + Duration::from_secs(10);
+    while !query(2) && Instant::now() < until { std::thread::sleep(Duration::from_millis(20)); }
+    let adopted = query(2);
+    std::fs::write(&file, source.replace("return 1", "return 3")).unwrap();
+    let until = Instant::now() + Duration::from_secs(10);
+    while !query(3) && Instant::now() < until { std::thread::sleep(Duration::from_millis(20)); }
+    let later = query(3);
+    stopping.store(true, Ordering::Release);
+    watcher.join().unwrap();
+    assert!(continued, "watcher exited on transient refusal");
+    assert!(adopted && later, "watcher must adopt the pending source and a later edit");
 }

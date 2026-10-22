@@ -151,7 +151,7 @@ const DEFINITIONS: &[(&str, &str)] = &[
     ("N_ROLE_WIDE_WRITE", "A global role plus viewer attribution does not identify the owner of this resource."),
     ("E_SECURITY_NOTES", "the individual disposition file is malformed, cannot be written, or sources changed while recording a review."),
     ("E_STORE_OWNERSHIP", "E_STORE_OWNERSHIP means the owner token, logical store binding or bounded takeover is no longer valid."),
-    ("E_COMMIT_OUTCOME_UNKNOWN", "E_COMMIT_OUTCOME_UNKNOWN means COMMIT or an admitted serving command lost its acknowledgement, a synchronous replication wait was cancelled, or the 30-second serving acknowledgement deadline elapsed."),
+    ("E_COMMIT_OUTCOME_UNKNOWN", "E_COMMIT_OUTCOME_UNKNOWN means COMMIT lost its acknowledgement, a synchronous replication wait was cancelled, or the committer worker disconnected after execution started."),
     ("E_WORKER_STORE_ID", "E_WORKER_STORE_ID means the completion ledger has no nonempty logical store identity."),
     ("E_STORE_CONFIG", "E_STORE_CONFIG means store selectors conflict or the deployment binding is missing or invalid."),
     ("E_WORKER_STATE", "E_WORKER_STATE means the Postgres completion ledger has no explicitly configured absolute durable state directory."),

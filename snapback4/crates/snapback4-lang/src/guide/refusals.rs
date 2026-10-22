@@ -10,13 +10,16 @@ query checkedName(name: text <=80):
   return name
 ```
 
-`E_COMMIT_OUTCOME_UNKNOWN` is an unknown durable outcome: a COMMIT or an admitted
-serving command lost its acknowledgement (including the 30-second serving wait
-limit). The work may still complete; it is never cancelled or retried on timeout. Resolve the persisted receipt or operation key
-before retrying. `E_STORE_OWNERSHIP` means the store's owner token or binding
-refused the transaction before its durable work. Neither authorizes a blind
-retry under an old owner. The Postgres adapter disables statement timeouts
-during COMMIT; a cancelled synchronous replication wait remains unacknowledged.
+`E_COMMIT_OUTCOME_UNKNOWN` is an unknown durable outcome: a COMMIT lost its
+acknowledgement or a serving worker disconnected after execution started.
+Admitted commands wait for their real result without an acknowledgement timeout.
+Resolve the persisted receipt or operation key before retrying. A worker
+connection lost before execution returns retryable `E_COMMITTER_STOPPED`: the
+command was not applied. `E_STORE_OWNERSHIP` means the store's owner token or
+binding refused the transaction before its durable work. Neither unknown outcome
+nor ownership loss authorizes a blind retry under an old owner. The Postgres
+adapter disables statement timeouts during COMMIT; a cancelled synchronous
+replication wait remains unacknowledged.
 The retained Postgres evaluator also returns `E_STORE_OWNERSHIP` when opened
 on a unified owner's namespace; use a separate evaluation namespace.
 

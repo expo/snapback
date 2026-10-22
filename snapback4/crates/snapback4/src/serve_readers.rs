@@ -129,6 +129,15 @@ impl Shared {
         // Never acquire the writer to repair that failure under a read permit.
         Err(snapback4_core::RuntimeError::Store("detached reader unavailable; retry the request after the store is available".into()))
     }
+    pub(super) fn reader_after_handoff(&self) -> Result<(Arc<()>, TimedReader), snapback4_core::RuntimeError> {
+        self.engine.attempt(|engine, shared| {
+            let reader = shared.open_reader(engine)?;
+            let readers = lock(&shared.readers);
+            Ok((readers.epoch.clone(), TimedReader { engine: reader,
+                refusal_sites: readers.refusal_sites.clone(), _timing: latency::EngineSpan::new() }))
+        })
+    }
+
     fn acquire_reader<T>(&self, open: impl FnOnce() -> T) -> T {
         latency::acquire(|| {
             #[cfg(test)]

@@ -125,6 +125,8 @@ pub(super) fn adopt_candidate(
         }),
         other => other.map(|generation| (generation, false)),
     };
+    #[cfg(test)]
+    if adopted.is_ok() { super::test_work(&shared.adoption_committed); }
     if let Err(error) = &adopted {
         lock(&shared.readers).finish_adoption();
         lock(&shared.adoption).refused(error, engine.generation());
@@ -134,25 +136,34 @@ pub(super) fn adopt_candidate(
     adopted
 }
 
-pub(super) fn watch_sources(project: Project, shared: Arc<Shared>, mut stamp: crate::project::SourceStamp, verbose: bool) {
+pub(super) fn watch_sources(project: Project, shared: Arc<Shared>, stamp: crate::project::SourceStamp, verbose: bool) {
+    watch_sources_until(project, shared, stamp, verbose, crate::lifecycle::stopping);
+}
+
+pub(super) fn watch_sources_until(project: Project, shared: Arc<Shared>, mut stamp: crate::project::SourceStamp, verbose: bool, stopping: impl Fn() -> bool) {
     let mut retry = false;
+    let mut unknown_stamp = None;
     let mut seen_generation = *lock(&shared.generation);
     loop {
         std::thread::sleep(Duration::from_millis(400));
-        if crate::lifecycle::stopping() { return; }
+        if stopping() { return; }
         let now = project.sources_stamp();
         let stored_generation = shared.engine.call(move |engine, _| engine.store().generation_value().ok().flatten().and_then(|s| s.parse::<u64>().ok()).unwrap_or(seen_generation));
         let stored_generation = match stored_generation {
             Ok(generation) => generation,
             Err(why) => {
                 snapback4_core::diagnostic!("snapback4 dev: source watch refused: {why}");
-                if why.code != "E_RATE_LIMIT" { return; }
                 continue;
             }
         };
+        if unknown_stamp.as_ref() == Some(&now) {
+            seen_generation = stored_generation;
+            continue;
+        }
         if now == stamp && !retry && stored_generation == seen_generation {
             continue;
         }
+        unknown_stamp = None;
         stamp = now;
         seen_generation = stored_generation;
         retry = false;
@@ -197,6 +208,7 @@ pub(super) fn watch_sources(project: Project, shared: Arc<Shared>, mut stamp: cr
                 let adopted = shared.engine.call(move |engine, shared| {
                     let mut seen_generation = seen_generation;
                     let mut retry = false;
+                    let mut unknown = false;
 
                 let adopted = adopt_candidate(shared, engine, &bound, || {
                     shared.owner.as_ref().ok_or_else(|| RuntimeError::Store("temporary server cannot reopen a persisted store".into()))
@@ -239,17 +251,27 @@ pub(super) fn watch_sources(project: Project, shared: Arc<Shared>, mut stamp: cr
                         shared.publish_engine(engine);
                     }
                     Err(error) => {
-                        retry = retryable(&error);
+                        unknown = error.code() == "E_COMMIT_OUTCOME_UNKNOWN";
+                        retry = !unknown && retryable(&error);
                     }
                 }
-                    (seen_generation, retry)
+                    (seen_generation, retry, unknown)
                 });
                 match adopted {
-                    Ok((next_generation, next_retry)) => { seen_generation = next_generation; retry = next_retry; }
+                    Ok((next_generation, next_retry, unknown)) => {
+                        seen_generation = next_generation; retry = next_retry;
+                        if unknown {
+                            unknown_stamp = Some(stamp);
+                            snapback4_core::diagnostic!("snapback4 dev: adoption outcome unknown; continuing to watch, without replaying this source digest");
+                        }
+                    }
                     Err(why) => {
                         snapback4_core::diagnostic!("snapback4 dev: adoption refused: {why}");
-                        if why.code != "E_RATE_LIMIT" { return; }
-                        retry = true;
+                        retry = matches!(why.code.as_str(), "E_RATE_LIMIT" | "E_COMMITTER_STOPPED");
+                        if why.code == "E_COMMIT_OUTCOME_UNKNOWN" {
+                            unknown_stamp = Some(stamp);
+                            snapback4_core::diagnostic!("snapback4 dev: adoption outcome unknown; continuing to watch, without replaying this source digest");
+                        }
                     }
                 }
 

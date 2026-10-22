@@ -1243,9 +1243,9 @@ fn a_refusal_names_the_cut_its_evaluation_read() {
     assert_eq!(gate["seq"].as_u64(), Some(head + 1), "the refusal names its evaluation's cut, past the head taken before it: {gate}");
 }
 
-struct ReaderTestDirectory(std::path::PathBuf);
+pub(super) struct ReaderTestDirectory(pub(super) std::path::PathBuf);
 impl ReaderTestDirectory {
-    fn new() -> Self {
+    pub(super) fn new() -> Self {
         let unique = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
         static NEXT: AtomicUsize = AtomicUsize::new(0);
         let path = std::env::temp_dir().join(format!("sb4-reader-reuse-{}-{unique}-{}", std::process::id(), NEXT.fetch_add(1, Ordering::Relaxed)));

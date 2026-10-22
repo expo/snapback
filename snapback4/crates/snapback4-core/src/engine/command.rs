@@ -34,27 +34,30 @@ type Work = Box<dyn FnOnce(&mut Engine) + Send>;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SubmitError {
     Full,
+    /// Worker disconnected before execution; the command was not applied.
     Stopped,
+    /// Worker disconnected after execution started; reconcile the durable outcome.
+    OutcomeUnknown,
     OwnershipLost,
 }
 
-pub struct Reply<T>(mpsc::Receiver<Result<thread::Result<T>, SubmitError>>);
-/// Leave enough time for the existing 25-second request polls, but never park a
-/// request forever behind an uncancellable COMMIT. Expiry never retries work.
-pub const ACK_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(30);
+pub struct Reply<T> {
+    receiver: mpsc::Receiver<Result<thread::Result<T>, SubmitError>>,
+    started: Arc<std::sync::atomic::AtomicBool>,
+}
 pub const ADMISSION_TIMEOUT: std::time::Duration = std::time::Duration::from_millis(100);
 impl<T> Reply<T> {
     pub fn wait(self) -> Result<T, SubmitError> {
-        self.wait_timeout(ACK_TIMEOUT)
-    }
-    pub fn wait_timeout(self, timeout: std::time::Duration) -> Result<T, SubmitError> {
-        // Once admitted, a missing acknowledgement has an unknown outcome,
-        // including on timeout. Dropping this receiver does not cancel COMMIT.
-        match self
-            .0
-            .recv_timeout(timeout)
-            .map_err(|_| SubmitError::Stopped)??
-        {
+        // Admission has a deadline; execution does not. A slow successful COMMIT
+        // must deliver its real result, never a manufactured unknown outcome.
+        let result = self.receiver.recv().map_err(|_| {
+            if self.started.load(std::sync::atomic::Ordering::Acquire) {
+                SubmitError::OutcomeUnknown
+            } else {
+                SubmitError::Stopped
+            }
+        })??;
+        match result {
             Ok(value) => Ok(value),
             Err(panic) => std::panic::resume_unwind(panic),
         }
@@ -81,13 +84,16 @@ struct Admission {
 struct Ticket {
     admission: Arc<Mutex<Admission>>,
     id: u64,
+    started: Arc<std::sync::atomic::AtomicBool>,
 }
 impl Ticket {
     fn start_execution(&self) -> bool {
         latch_expired(&self.admission);
         let mut state = self.admission.lock().unwrap();
         state.waiting.remove(&self.id);
-        !state.lost
+        if state.lost { return false; }
+        self.started.store(true, std::sync::atomic::Ordering::Release);
+        true
     }
 }
 impl Drop for Ticket {
@@ -125,7 +131,8 @@ impl Queue {
         &self,
         command: Command<T>,
     ) -> Result<(Work, Reply<T>), SubmitError> {
-        let (sent, reply) = mpsc::sync_channel(1);
+        let (sent, receiver) = mpsc::sync_channel(1);
+        let started = Arc::new(std::sync::atomic::AtomicBool::new(false));
         let ticket = {
             let mut state = self.admission.lock().unwrap();
             if state.lost {
@@ -143,6 +150,7 @@ impl Queue {
             Ticket {
                 admission: self.admission.clone(),
                 id,
+                started: started.clone(),
             }
         };
         let work = Box::new(move |engine: &mut Engine| {
@@ -159,7 +167,7 @@ impl Queue {
             // A lost submitter does not cancel an admitted write or its continuation.
             let _ = sent.send(Ok(result));
         });
-        Ok((work, Reply(reply)))
+        Ok((work, Reply { receiver, started }))
     }
     pub fn submit<T: Send + 'static>(&self, command: Command<T>) -> Result<Reply<T>, SubmitError> {
         self.check_admission()?;
