@@ -11,8 +11,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let now = args[4].parse()?;
     let mut engine = Engine::open_at(Store::open(std::path::Path::new(&args[1]))?, now)?;
     if let Ok(kib) = std::env::var("AP_CACHE_KIB") {
-        (match &engine
-            .store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn()
+        (&engine
+            .store()).test_support_conn()
             .pragma_update(None, "cache_size", -kib.parse::<i64>()?)?;
     }
     let start = Instant::now();
@@ -29,8 +29,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         })
     );
     let start = Instant::now();
-    (match &engine
-        .store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn()
+    (&engine
+        .store()).test_support_conn()
         .execute_batch("PRAGMA wal_checkpoint(TRUNCATE)")?;
     eprintln!(
         "checkpoint_ms={:.3}",

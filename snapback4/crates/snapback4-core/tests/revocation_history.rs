@@ -1,5 +1,5 @@
 //! Server summary retention is atomic with its commit; missing intervals widen.
-use snapback4_core::{Store, Value, schema::Schema, value::object};
+use snapback4_core::{Rows, store_port::AnyStore as Store, Value, schema::Schema, value::object};
 
 fn schema() -> Schema {
     let b = snapback4_lang::compile(&[("schema.q".into(), "table docs:\n  body: int\n  public\n  sync public\n".into())]);
@@ -74,14 +74,14 @@ fn accepted_server_backend_migrates_evidence_before_commits() {
     drop(inspection);
     #[cfg(unix)]
     {
-        let device = Store::open_shared(&path).unwrap();
+        let device = Store::from(snapback4_core::Store::open_shared(&path).unwrap());
         assert!(!evidence_exists(&device), "opening an old native device must not add evidence metadata");
         assert_eq!(schema_version(&device), version);
     }
     let store = Store::open(&path).unwrap();
     assert!(!evidence_exists(&store), "low-level open must preserve the predecessor");
     let mut engine = snapback4_core::Engine::new(store, schema.clone(), []).unwrap();
-    let snapback4_core::store_port::AnyStore::Sqlite(store) = engine.store_mut() else { panic!("SQLite fixture") };
+    let store = engine.store_mut();
     assert!(evidence_exists(store), "accepted backend must migrate before commits can run");
     assert_eq!(stats(store).0, 0);
     assert!(store.preserved_between(&schema, 0, 1).is_none());

@@ -11,7 +11,7 @@ fn compile(source:&str)->(Schema,Vec<crate::ir::Program>){
 }
 fn engine(source:&str)->Engine{let(s,p)=compile(source);Engine::new_release(Store::memory().unwrap(),s,p,1,None).unwrap()}
 fn adopt(e:&mut Engine,source:&str,n:u64)->Result<u64,RuntimeError>{
-    let(s,p)=compile(source);let previous=(match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).meta("release").unwrap().map(|s|s.parse().unwrap());
+    let(s,p)=compile(source);let previous=(&e.store()).test_support_meta("release").unwrap().map(|s|s.parse().unwrap());
     e.adopt_release(s,p,&ReleaseActivation::new(n,previous),false)
 }
 fn seed(e:&mut Engine,table:&str,row:Json){let row=wire::row_from_json(&e.schema().tables[table],&row).unwrap();e.seed([(table.into(),row)]).unwrap();}
@@ -59,7 +59,7 @@ fn backfill_and_evidence_roll_back_with_later_unique_failure(){
  let mut e=engine(BASE);for id in["a","b"]{seed(&mut e,"bookings",json!({"id":id,"weight":1000,"length":4}));}
  let bad=ferry().replace("  vehicleClass:","  unique vehicleClass\n  vehicleClass:");let g=e.generation();
  assert!(adopt(&mut e,&bad,2).is_err());assert_eq!(g,e.generation());assert!(row(&mut e,"bookings","a").field("vehicleClass").is_err());
- assert_ne!((match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).meta("version").unwrap().as_deref(),Some(super::backfills::VERSION));
+ assert_ne!((&e.store()).test_support_meta("version").unwrap().as_deref(),Some(super::backfills::VERSION));
  adopt(&mut e,&ferry(),3).unwrap();assert_eq!(field(&mut e,"bookings","a","vehicleClass"),Value::String("car".into()));
 }
 #[test]
@@ -435,8 +435,8 @@ fn source_expiry_observes_children_removed_in_the_same_release() {
   let(s,p)=compile(&next);let result=e.adopt_release_at(s,p,&ReleaseActivation::new(2,Some(1)),false,100);
   if action=="restrict" {let error=result.unwrap_err().to_string();assert!(error.contains("restrict"),"{error}");assert_eq!(e.store().count("parents").unwrap(),1);}else{
    result.unwrap();assert_eq!(e.store().count("parents").unwrap(),0);
-   let tx=e.store_mut().transaction().unwrap();let t=(match &tx { snapback4_core::store_port::AnyTx::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).num("children").unwrap();
-   let saved:Option<String>=(match &tx { snapback4_core::store_port::AnyTx::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).conn().query_row("SELECT data FROM _dormant_rows WHERE t=?1 AND id='c'",[t],|r|r.get(0)).optional().unwrap();
+   let tx=e.store_mut().transaction().unwrap();let t=tx.with_sqlite(|sqlite| sqlite.num("children")).unwrap();
+   let saved:Option<String>=(&tx).test_support_conn().query_row("SELECT data FROM _dormant_rows WHERE t=?1 AND id='c'",[t],|r|r.get(0)).optional().unwrap();
    if action=="cascade" {assert!(saved.is_none());}else{let saved:Value=serde_json::from_str(&saved.unwrap()).unwrap();assert_eq!(*saved.field("parent").unwrap(),Value::Null);}
   }
  }
@@ -677,7 +677,7 @@ fn activation_admits_complete_reversal_evidence_before_committing_the_migration(
  let next=old.replace("  source:","  first: text <=100000\n  second: text <=100000\n  source:")+"backfill items copies(source: text <=100000):\n  {first:source,second:source}\n";
  for size in [30000,100000] {let mut e=engine(old);seed(&mut e,"items",json!({"id":"a","source":"x".repeat(size)}));let generation=e.generation();let result=adopt(&mut e,&next,2);
   if size==30000 {result.unwrap();adopt(&mut e,old,1).unwrap();assert_eq!(field(&mut e,"items","a","source"),Value::String("x".repeat(size)));}
-  else {let error=result.unwrap_err().to_string();assert!(error.contains("evidence")&&error.contains("budget"),"{error}");assert_eq!(e.generation(),generation);assert!(row(&mut e,"items","a").field("first").is_err());assert_ne!((match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).meta("version").unwrap().as_deref(),Some(super::backfills::VERSION));}
+  else {let error=result.unwrap_err().to_string();assert!(error.contains("evidence")&&error.contains("budget"),"{error}");assert_eq!(e.generation(),generation);assert!(row(&mut e,"items","a").field("first").is_err());assert_ne!((&e.store()).test_support_meta("version").unwrap().as_deref(),Some(super::backfills::VERSION));}
  }
 }
 
@@ -705,8 +705,8 @@ fn declared_down_projection_replaces_retained_null_but_preserves_retained_text()
  assert_eq!(field(&mut e,"items","null","reason"),Value::String("projected".into()));
  assert_eq!(field(&mut e,"items","text","reason"),Value::String("retained".into()));
  adopt(&mut e,current,2).unwrap();
- let tx=e.store_mut().transaction().unwrap();let t=(match &tx { snapback4_core::store_port::AnyTx::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).num("items").unwrap();
- let retained_null:bool=(match &tx { snapback4_core::store_port::AnyTx::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).conn().query_row("SELECT EXISTS(SELECT 1 FROM _dormant_values WHERE t=?1 AND id='null' AND column_name='reason' AND data=?2)",rusqlite::params![t,crate::value::canonical_json(&Value::Null)],|r|r.get(0)).unwrap();
+ let tx=e.store_mut().transaction().unwrap();let t=tx.with_sqlite(|sqlite| sqlite.num("items")).unwrap();
+ let retained_null:bool=(&tx).test_support_conn().query_row("SELECT EXISTS(SELECT 1 FROM _dormant_values WHERE t=?1 AND id='null' AND column_name='reason' AND data=?2)",rusqlite::params![t,crate::value::canonical_json(&Value::Null)],|r|r.get(0)).unwrap();
  assert!(retained_null,"forward restores the physical null preimage before archiving it again");tx.rollback().unwrap();
 }
 

@@ -96,5 +96,9 @@ impl<'store> AnyTx<'store> {
     pub(crate) fn effect_steps(&self) -> EffectStepTransaction<'_, 'store> { EffectStepTransaction { tx: self } }
 }
 
+#[cfg(feature = "test-support")]
+#[path = "store/port/fixtures.rs"]
+mod fixtures;
+
 #[cfg(test)]
 mod tests;

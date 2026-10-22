@@ -23,7 +23,7 @@ fn adoption_fences_an_already_established_snapshot_and_rebinds_hub() {
     let original = hub.snapshot().unwrap().version;
     let mut reader = e.reader().unwrap();
     let mut old_store = e.store().reader().unwrap();
-    let tx = (match &mut old_store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).read_transaction().unwrap();
+    let tx = (&mut old_store).read_transaction().unwrap();
     let old_generation = tx
         .test_support_conn()
         .query_row(

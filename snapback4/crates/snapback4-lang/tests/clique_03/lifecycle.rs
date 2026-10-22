@@ -536,7 +536,7 @@ pub fn arrival_days(e: &mut Engine, m: &mut Model) {
     );
 }
 
-fn stored_row(store: &Store, table: &str, key: &str) -> Option<Value> {
+fn stored_row(store: &dyn FixtureStore, table: &str, key: &str) -> Option<Value> {
     store
         .rows(table)
         .unwrap()
@@ -544,7 +544,7 @@ fn stored_row(store: &Store, table: &str, key: &str) -> Option<Value> {
         .find(|r| field(r, "id") == key)
 }
 
-fn stored_int(store: &Store, table: &str, key: &str, column: &str) -> i64 {
+fn stored_int(store: &dyn FixtureStore, table: &str, key: &str, column: &str) -> i64 {
     let row = stored_row(store, table, key).unwrap();
     let Value::Int(value) = row.field(column).unwrap() else {
         panic!("{table}.{column}: expected stored integer")

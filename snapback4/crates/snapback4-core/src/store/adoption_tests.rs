@@ -109,8 +109,8 @@ fn engine(full: bool) -> Engine {
     e
 }
 fn rows(e: &Engine, table: &str) -> Vec<Vec<rusqlite::types::Value>> {
-    let mut stmt = (match &e
-        .store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).conn()
+    let mut stmt = (&e
+        .store()).test_support_conn()
         .prepare(&format!("SELECT * FROM {table} ORDER BY 1,2,3"))
         .unwrap();
     let columns = stmt.column_count();
@@ -130,20 +130,20 @@ fn same(a: &Engine, b: &Engine) {
 #[test]
 fn activation_workspace_rolls_back_and_restores_the_callers_cache() {
     let mut e = engine(false);
-    (match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).conn().pragma_update(None, "cache_size", 7).unwrap();
+    (&e.store()).test_support_conn().pragma_update(None, "cache_size", 7).unwrap();
     let before = [rows(&e, "r"), rows(&e, "i"), rows(&e, "_commits")];
     let generation = e.generation();
     let b = compile(&format!("{BASE}{VIEWS}"));
-    (match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).conn().commit_hook(Some(|| true)).unwrap();
+    (&e.store()).test_support_conn().commit_hook(Some(|| true)).unwrap();
     assert!(e.adopt_at(b.schema.clone(), b.programs.clone(), 20).is_err());
-    (match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).conn().commit_hook(None::<fn() -> bool>).unwrap();
+    (&e.store()).test_support_conn().commit_hook(None::<fn() -> bool>).unwrap();
     assert_eq!(e.generation(), generation);
     for (table, expected) in ["r", "i", "_commits"].into_iter().zip(before) { assert_eq!(rows(&e, table), expected); }
-    let conn = (match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).conn();
+    let conn = (&e.store()).test_support_conn();
     assert_eq!(conn.pragma_query_value(None, "cache_size", |r| r.get::<_, i64>(0)).unwrap(), 7);
     assert_eq!(conn.query_row("SELECT count(*) FROM sqlite_temp_schema WHERE name='_adoption_index'", [], |r| r.get::<_, i64>(0)).unwrap(), 0);
     e.adopt_at(b.schema, b.programs, 20).unwrap();
-    assert_eq!((match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).conn().pragma_query_value(None, "cache_size", |r| r.get::<_, i64>(0)).unwrap(), 7);
+    assert_eq!((&e.store()).test_support_conn().pragma_query_value(None, "cache_size", |r| r.get::<_, i64>(0)).unwrap(), 7);
 }
 
 #[test]
@@ -153,10 +153,10 @@ fn activation_nomem_rolls_back_every_write_then_retries_at_the_original_cache() 
     let programs: BTreeMap<_, _> = next.programs.into_iter().map(|p| (p.name.clone(), p)).collect();
     for (engine, inject) in [(&mut retry, true), (&mut control, false)] {
         let before: Vec<_> = ["r", "i", "_log", "_commits"].map(|t| rows(engine, t)).into();
-        (match &engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).conn().pragma_update(None, "cache_size", 7).unwrap();
-        (match &engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).conn().pragma_update(Some("temp"), "cache_size", 9).unwrap();
+        (&engine.store()).test_support_conn().pragma_update(None, "cache_size", 7).unwrap();
+        (&engine.store()).test_support_conn().pragma_update(Some("temp"), "cache_size", 9).unwrap();
         let mut calls = 0;
-        let generation = (match engine.store_mut() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).with_activation_cache(64, |store| {
+        let generation = engine.store_mut().test_with_sqlite_mut(|sqlite| sqlite.with_activation_cache(64, |store| {
             calls += 1;
             if calls == 2 {
                 assert!(store.conn().is_autocommit());
@@ -182,11 +182,11 @@ fn activation_nomem_rolls_back_every_write_then_retries_at_the_original_cache() 
                 }
                 Ok(())
             })
-        }).unwrap();
+        })).unwrap();
         assert_eq!(generation, 2);
         assert_eq!(calls, if inject { 2 } else { 1 });
-        assert_eq!((match &engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).conn().pragma_query_value(None, "cache_size", |r| r.get::<_, i64>(0)).unwrap(), 7);
-        assert_eq!((match &engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).conn().pragma_query_value(Some("temp"), "cache_size", |r| r.get::<_, i64>(0)).unwrap(), 9);
+        assert_eq!((&engine.store()).test_support_conn().pragma_query_value(None, "cache_size", |r| r.get::<_, i64>(0)).unwrap(), 7);
+        assert_eq!((&engine.store()).test_support_conn().pragma_query_value(Some("temp"), "cache_size", |r| r.get::<_, i64>(0)).unwrap(), 9);
         assert_eq!(engine.store().adoption_report().phases.iter().any(|(name, _)| *name == "memory fallback (rolled back)"), inject);
     }
     same(&retry, &control);
@@ -226,13 +226,13 @@ fn generated_rebuilds_keep_sparse_rows_captures_indexes_and_wide_sum_cancellatio
             for e in [&mut fast, &mut slow] { e.seed_at([("posts".into(), row.clone())], 10).unwrap(); }
         }
         for e in [&fast, &slow] {
-            (match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).conn().execute("UPDATE r SET data=json_remove(data, '$.Row.parent') WHERE t=(SELECT num FROM _catalog WHERE name='posts') AND id LIKE 'generated%'", []).unwrap();
+            (&e.store()).test_support_conn().execute("UPDATE r SET data=json_remove(data, '$.Row.parent') WHERE t=(SELECT num FROM _catalog WHERE name='posts') AND id LIKE 'generated%'", []).unwrap();
         }
         let extra = VIEWS.replace("sum posts of .amount by .author", "sum posts of .amount by .parent");
         let b = compile(&format!("{BASE}{extra}"));
         for e in [&mut fast, &mut slow] { e.adopt_at(b.schema.clone(), b.programs.clone(), 20).unwrap(); }
         same(&fast, &slow);
-        assert_eq!((match &fast.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).conn().query_row("SELECT count(*) FROM r WHERE t=(SELECT num FROM _catalog WHERE name='posts') AND id LIKE 'generated%' AND json_type(data, '$.Row.parent') IS NULL", [], |r| r.get::<_, i64>(0)).unwrap(), 31);
+        assert_eq!((&fast.store()).test_support_conn().query_row("SELECT count(*) FROM r WHERE t=(SELECT num FROM _catalog WHERE name='posts') AND id LIKE 'generated%' AND json_type(data, '$.Row.parent') IS NULL", [], |r| r.get::<_, i64>(0)).unwrap(), 31);
     }
 }
 #[test]
@@ -284,7 +284,7 @@ fn optimized_activation_equals_full_rows_indexes_log_images_and_sequence() {
 #[test]
 fn an_added_view_does_not_touch_an_unrelated_index() {
     let mut e = engine(false);
-    (match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).conn().execute_batch("CREATE TEMP TRIGGER forbid_unrelated_delete BEFORE DELETE ON i WHEN OLD.ti = (SELECT num FROM _catalog WHERE name = 'unrelated.byId') BEGIN SELECT RAISE(ABORT, 'unrelated index was rewritten'); END; CREATE TEMP TRIGGER forbid_unrelated_insert BEFORE INSERT ON i WHEN NEW.ti = (SELECT num FROM _catalog WHERE name = 'unrelated.byId') BEGIN SELECT RAISE(ABORT, 'unrelated index was rewritten'); END;").unwrap();
+    (&e.store()).test_support_conn().execute_batch("CREATE TEMP TRIGGER forbid_unrelated_delete BEFORE DELETE ON i WHEN OLD.ti = (SELECT num FROM _catalog WHERE name = 'unrelated.byId') BEGIN SELECT RAISE(ABORT, 'unrelated index was rewritten'); END; CREATE TEMP TRIGGER forbid_unrelated_insert BEFORE INSERT ON i WHEN NEW.ti = (SELECT num FROM _catalog WHERE name = 'unrelated.byId') BEGIN SELECT RAISE(ABORT, 'unrelated index was rewritten'); END;").unwrap();
     let b = compile(&format!("{BASE}{VIEWS}"));
     e.adopt_at(b.schema, b.programs, 20).unwrap();
 }
@@ -367,14 +367,14 @@ fn validated_keys_skip_rescanning_but_legacy_or_changed_proofs_do_not() {
     e.seed_at([("notes".into(),object([("id",Value::Id("row".into())),("label",Value::String("x".repeat(6000)))]))],2).unwrap();
     // A program-only adoption has no index work. An authorizer proves it does
     // not secretly scan even a single previously admitted key.
-    (match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).conn().authorizer(Some(|ctx: rusqlite::hooks::AuthContext<'_>| {
+    (&e.store()).test_support_conn().authorizer(Some(|ctx: rusqlite::hooks::AuthContext<'_>| {
         if matches!(ctx.action,rusqlite::hooks::AuthAction::Read {table_name:"i",..}) {rusqlite::hooks::Authorization::Deny}
         else {rusqlite::hooks::Authorization::Allow}
     })).unwrap();
     let b = compile(&format!("{source}query one():\n  return 1\n"));
     e.adopt_at(b.schema.clone(),b.programs.clone(),3).unwrap();
-    (match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).conn().authorizer(None::<fn(rusqlite::hooks::AuthContext<'_>)->rusqlite::hooks::Authorization>).unwrap();
-    let proof = (match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).meta("index_keys_validated").unwrap();
+    (&e.store()).test_support_conn().authorizer(None::<fn(rusqlite::hooks::AuthContext<'_>)->rusqlite::hooks::Authorization>).unwrap();
+    let proof = (&e.store()).test_support_meta("index_keys_validated").unwrap();
     // Checking newly generated ordinary keys is required to carry that proof
     // forward, even when the core Schema API bypasses Quarry's static bound.
     let mut indexed = b.schema.clone();
@@ -382,20 +382,20 @@ fn validated_keys_skip_rescanning_but_legacy_or_changed_proofs_do_not() {
     let generation = e.generation();
     assert_eq!(e.adopt_at(indexed,b.programs.clone(),4).unwrap_err().code(),"E_INDEX_KEY_BYTES");
     assert_eq!(e.generation(),generation);
-    assert_eq!((match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).meta("index_keys_validated").unwrap(),proof);
+    assert_eq!((&e.store()).test_support_meta("index_keys_validated").unwrap(),proof);
     // Legacy keys, or keys from an adoption by an older binary that retained
     // an obsolete proof, still receive the same physical-key refusal.
     for stale in [None,Some("2048:obsolete-activation")] {
-        (match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).conn().execute("DELETE FROM _meta WHERE key='index_keys_validated'",[]).unwrap();
-        (match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).conn().execute("INSERT INTO i SELECT num, ?1, 'legacy' FROM _catalog WHERE name='notes.byId'",[vec![b'x';3000]]).unwrap();
-        if let Some(value)=stale {(match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).set_meta("index_keys_validated",value).unwrap();}
+        (&e.store()).test_support_conn().execute("DELETE FROM _meta WHERE key='index_keys_validated'",[]).unwrap();
+        (&e.store()).test_support_conn().execute("INSERT INTO i SELECT num, ?1, 'legacy' FROM _catalog WHERE name='notes.byId'",[vec![b'x';3000]]).unwrap();
+        if let Some(value)=stale {(&e.store()).test_support_set_meta("index_keys_validated",value).unwrap();}
         assert_eq!(e.adopt_at(b.schema.clone(),b.programs.clone(),5).unwrap_err().code(),"E_INDEX_KEY_BYTES");
         assert_eq!(e.generation(),generation);
-        assert_eq!((match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).meta("index_keys_validated").unwrap().as_deref(),stale);
-        (match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).conn().execute("DELETE FROM i WHERE id='legacy'",[]).unwrap();
+        assert_eq!((&e.store()).test_support_meta("index_keys_validated").unwrap().as_deref(),stale);
+        (&e.store()).test_support_conn().execute("DELETE FROM i WHERE id='legacy'",[]).unwrap();
     }
     e.adopt_at(b.schema,b.programs,6).unwrap();
-    assert!((match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).meta("index_keys_validated").unwrap().is_some());
+    assert!((&e.store()).test_support_meta("index_keys_validated").unwrap().is_some());
 }
 
 #[test]
@@ -408,22 +408,22 @@ fn physical_key_edits_invalidate_a_matching_proof() {
             e.seed_at([("notes".into(), object([("id", Value::Id("row".into()))]))], 2).unwrap();
             let generation = e.generation();
             let seq = e.seq().unwrap();
-            let proof = (match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).meta("index_keys_validated").unwrap();
+            let proof = (&e.store()).test_support_meta("index_keys_validated").unwrap();
             assert!(proof.is_some());
             let legacy = missing != "neither";
             if missing == "both" {
                 // Simulate a store blessed by the unguarded predecessor binary.
-                (match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).conn().execute_batch("DROP TRIGGER _index_keys_insert_2048; DROP TRIGGER _index_keys_update_2048;").unwrap();
+                (&e.store()).test_support_conn().execute_batch("DROP TRIGGER _index_keys_insert_2048; DROP TRIGGER _index_keys_update_2048;").unwrap();
             } else if missing == "operation" {
                 // Exactly the guard for the corrupting operation is absent.
-                (match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).conn().execute_batch(if update { "DROP TRIGGER _index_keys_update_2048" }
+                (&e.store()).test_support_conn().execute_batch(if update { "DROP TRIGGER _index_keys_update_2048" }
                     else { "DROP TRIGGER _index_keys_insert_2048" }).unwrap();
             }
             // Leave the matching proof alone: only the physical key changes.
             let sql = if update { "UPDATE i SET k = ?1 WHERE id = 'row'" }
                 else { "INSERT INTO i SELECT num, ?1, 'corrupt' FROM _catalog WHERE name = 'notes.byId'" };
-            assert_eq!((match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).conn().execute(sql, [vec![b'x'; 3000]]).unwrap(), 1);
-            assert_eq!((match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).meta("index_keys_validated").unwrap(), if legacy { proof.clone() } else { None });
+            assert_eq!((&e.store()).test_support_conn().execute(sql, [vec![b'x'; 3000]]).unwrap(), 1);
+            assert_eq!((&e.store()).test_support_meta("index_keys_validated").unwrap(), if legacy { proof.clone() } else { None });
             let guards = rows(&e, "sqlite_master");
             let before: Vec<_> = ["r", "i", "_log", "_commits", "_generations"].map(|t| rows(&e, t)).into();
             let next = compile(&format!("{source}query one():\n  return 1\n"));
@@ -434,7 +434,7 @@ fn physical_key_edits_invalidate_a_matching_proof() {
             for (table, previous) in ["r", "i", "_log", "_commits", "_generations"].into_iter().zip(before) {
                 assert_eq!(rows(&e, table), previous, "{table} rollback");
             }
-            assert_eq!((match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).meta("index_keys_validated").unwrap(), if legacy { proof } else { None });
+            assert_eq!((&e.store()).test_support_meta("index_keys_validated").unwrap(), if legacy { proof } else { None });
         }
     }
 }

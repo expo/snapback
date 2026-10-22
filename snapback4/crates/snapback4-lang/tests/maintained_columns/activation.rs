@@ -14,9 +14,9 @@ fn adopt(e: &mut Engine, source: &str) {
 }
 fn no_events(e: &mut Engine, from: u64) {
     assert_eq!(e.seq().unwrap(), from + 1, "activation always records a commit");
-    let events: i64 = (match e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().query_row("SELECT count(*) FROM _log WHERE seq > ?1", [from as i64], |r| r.get(0)).unwrap();
+    let events: i64 = (e.store()).test_support_conn().query_row("SELECT count(*) FROM _log WHERE seq > ?1", [from as i64], |r| r.get(0)).unwrap();
     assert_eq!(events, 0, "activation mirror emitted row events");
-    let touched: String = (match e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().query_row("SELECT touched FROM _commits ORDER BY seq DESC LIMIT 1", [], |r| r.get(0)).unwrap();
+    let touched: String = (e.store()).test_support_conn().query_row("SELECT touched FROM _commits ORDER BY seq DESC LIMIT 1", [], |r| r.get(0)).unwrap();
     assert!(touched.contains("posts"), "{touched}");
     assert!(!touched.contains("$column:"));
 }
@@ -28,7 +28,7 @@ fn activation_mirror_is_event_free_in_place_and_zero_additions_stay_unwritten() 
         post(&mut e, "p", 17); post(&mut e, "zero", 19);
         if nonzero { like(&mut e, "l", id("p"), true, 7); }
         // Assert at SQLite's row adapter, including REPLACE's insert path.
-        (match e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().execute_batch("CREATE TRIGGER no_parent_delete BEFORE DELETE ON r WHEN OLD.t = (SELECT num FROM _catalog WHERE name = 'posts') BEGIN SELECT RAISE(ABORT, 'mirror deleted parent'); END;
+        (e.store()).test_support_conn().execute_batch("CREATE TRIGGER no_parent_delete BEFORE DELETE ON r WHEN OLD.t = (SELECT num FROM _catalog WHERE name = 'posts') BEGIN SELECT RAISE(ABORT, 'mirror deleted parent'); END;
             CREATE TRIGGER no_parent_insert BEFORE INSERT ON r WHEN NEW.t = (SELECT num FROM _catalog WHERE name = 'posts') AND EXISTS(SELECT 1 FROM r WHERE t=NEW.t AND id=NEW.id) BEGIN SELECT RAISE(ABORT, 'mirror replaced parent'); END;
             CREATE TRIGGER zero_untouched BEFORE UPDATE ON r WHEN OLD.t = (SELECT num FROM _catalog WHERE name = 'posts') AND OLD.id='zero' BEGIN SELECT RAISE(ABORT, 'zero parent written'); END;").unwrap();
         let from = e.seq().unwrap();
@@ -54,13 +54,13 @@ fn activation_mirror_is_event_free_in_place_and_zero_additions_stay_unwritten() 
 fn redefinition_zero_removal_and_readdition_preserve_other_fields() {
     let mut e = engine(&MODEL.replace("  online only", "  sync public"));
     post(&mut e, "p", 17); like(&mut e, "l", id("p"), true, 7);
-    (match e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().execute_batch("CREATE TRIGGER no_parent_delete BEFORE DELETE ON r WHEN OLD.t = (SELECT num FROM _catalog WHERE name = 'posts') BEGIN SELECT RAISE(ABORT, 'mirror deleted parent'); END;
+    (e.store()).test_support_conn().execute_batch("CREATE TRIGGER no_parent_delete BEFORE DELETE ON r WHEN OLD.t = (SELECT num FROM _catalog WHERE name = 'posts') BEGIN SELECT RAISE(ABORT, 'mirror deleted parent'); END;
         CREATE TRIGGER no_parent_insert BEFORE INSERT ON r WHEN NEW.t = (SELECT num FROM _catalog WHERE name = 'posts') AND EXISTS(SELECT 1 FROM r WHERE t=NEW.t AND id=NEW.id) BEGIN SELECT RAISE(ABORT, 'mirror replaced parent'); END;").unwrap();
     let target = e.schema().maintains.iter().find(|m|m.private.as_ref().unwrap().column == "likeCount").unwrap().target.clone();
     let from = e.seq().unwrap();
     adopt(&mut e, &MODEL.replace("count likes by postId", "count likes where .active = false by postId").replace("  online only", "  sync public"));
     no_events(&mut e, from);
-    (match e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().execute_batch("DROP TRIGGER no_parent_delete; DROP TRIGGER no_parent_insert;").unwrap();
+    (e.store()).test_support_conn().execute_batch("DROP TRIGGER no_parent_delete; DROP TRIGGER no_parent_insert;").unwrap();
     assert_eq!(totals(&mut e, "p"), (0,1,7));
     let row = e.store().rows("posts").unwrap().remove(0);
     assert_eq!(row.field("likeCount").unwrap(), &Value::Int(0));
@@ -69,7 +69,7 @@ fn redefinition_zero_removal_and_readdition_preserve_other_fields() {
     adopt(&mut e, &removed);
     assert!(e.schema().table(&target).is_none());
     assert!(e.schema().maintain_for(&target).is_none());
-    let count: i64 = (match e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().query_row("SELECT count(*) FROM r WHERE t=(SELECT num FROM _catalog WHERE name=?1)", [&target], |r|r.get(0)).unwrap();
+    let count: i64 = (e.store()).test_support_conn().query_row("SELECT count(*) FROM r WHERE t=(SELECT num FROM _catalog WHERE name=?1)", [&target], |r|r.get(0)).unwrap();
     assert_eq!(count, 0);
     like(&mut e, "l2", id("p"), false, 4);
     adopt(&mut e, MODEL);
@@ -99,7 +99,7 @@ fn source_default_widened_optional_recounts_missing_references() {
     for m in &b.schema.maintains { b.schema.tables.get_mut(&m.target).unwrap().columns.insert(snapback4_core::schema::columns::GROUP.into(),reference.clone()); }
     let mut e = Engine::memory(b.schema.clone(), b.programs.iter().map(|p|p.program.clone())).unwrap();
     post(&mut e, "p", 1); like(&mut e, "l", id("p"), true, 9);
-    (match e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().execute_batch("UPDATE r SET data=json_remove(data, '$.Row.postId') WHERE t=(SELECT num FROM _catalog WHERE name='likes')").unwrap();
+    (e.store()).test_support_conn().execute_batch("UPDATE r SET data=json_remove(data, '$.Row.postId') WHERE t=(SELECT num FROM _catalog WHERE name='likes')").unwrap();
     b.schema.tables.get_mut("likes").unwrap().columns.insert("postId".into(),ColumnType::Optional(Box::new(reference.clone())));
     for m in &b.schema.maintains { b.schema.tables.get_mut(&m.target).unwrap().columns.insert(snapback4_core::schema::columns::GROUP.into(),ColumnType::Optional(Box::new(reference.clone()))); }
     e.adopt(b.schema,b.programs.into_iter().map(|p|p.program)).unwrap();
@@ -114,13 +114,13 @@ fn expired_parent_skipped_on_activation_then_swept_and_recreated_right() {
     e.load_mode([("posts".into(),object([("id",id("p")),("at",Value::Int(1)),("expiresAt",Value::Int(1))]))],LoadMode::Restore).unwrap();
     like(&mut e,"l",id("p"),true,4);
     post(&mut e,"live",2); like(&mut e,"live-like",id("live"),true,5);
-    (match e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().execute_batch("CREATE TRIGGER no_expired_put BEFORE UPDATE ON r WHEN NEW.t=(SELECT num FROM _catalog WHERE name='posts') AND NEW.id='p' BEGIN SELECT RAISE(ABORT,'expired put'); END").unwrap();
+    (e.store()).test_support_conn().execute_batch("CREATE TRIGGER no_expired_put BEFORE UPDATE ON r WHEN NEW.t=(SELECT num FROM _catalog WHERE name='posts') AND NEW.id='p' BEGIN SELECT RAISE(ABORT,'expired put'); END").unwrap();
     let b = compile(&after);
     e.adopt_at(b.schema, b.programs.into_iter().map(|p| p.program), 1000).unwrap();
     let rows = e.store().rows("posts").unwrap();
     assert!(rows.iter().find(|r| r.field("id").unwrap() == &id("p")).unwrap().field("likeCount").is_err());
     assert_eq!(rows.iter().find(|r| r.field("id").unwrap() == &id("live")).unwrap().field("likeCount").unwrap(), &Value::Int(1));
-    (match e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().execute_batch("DROP TRIGGER no_expired_put").unwrap();
+    (e.store()).test_support_conn().execute_batch("DROP TRIGGER no_expired_put").unwrap();
     e.sweep_expired(1000, 100).unwrap();
     post(&mut e,"p",2);
     assert_eq!(totals(&mut e,"p"),(1,1,4));
@@ -146,7 +146,7 @@ fn activation_uses_host_clock_on_both_sides_of_parent_expiry() {
             e.seed_at([("posts".into(), object([("id",id("p")),("at",Value::Int(17)),("expiresAt",Value::Int(expires))]))], host.min(expires - 1)).unwrap();
             like(&mut e,"l",id("p"),true,4);
             if !live_on_host {
-                (match e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().execute_batch("CREATE TRIGGER no_expired_put BEFORE UPDATE ON r WHEN NEW.t=(SELECT num FROM _catalog WHERE name='posts') BEGIN SELECT RAISE(ABORT,'expired parent written'); END").unwrap();
+                (e.store()).test_support_conn().execute_batch("CREATE TRIGGER no_expired_put BEFORE UPDATE ON r WHEN NEW.t=(SELECT num FROM _catalog WHERE name='posts') BEGIN SELECT RAISE(ABORT,'expired parent written'); END").unwrap();
             }
             let b = compile(&after);
             if reopen {

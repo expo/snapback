@@ -130,7 +130,7 @@ fn report_noop_keeps_receipt_at_head_and_replays_before_body_lookup() {
     let head = e.seq().unwrap();
     let counts = |e: &Engine| {
         ["_commits", "_log", "_outbox"].map(|table| {
-            (match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn()
+            (&e.store()).test_support_conn()
                 .query_row(&format!("SELECT count(*) FROM {table}"), [], |r| {
                     r.get::<_, i64>(0)
                 })

@@ -1,7 +1,7 @@
 //! The K0b facade property on one real Postgres physical transaction.
 // @ref LLP 3000.009.001.000#3.4 — complete each tail inside its member; rollback cannot erase a preceding member.
 use super::*;
-use crate::{Engine, Schema, store_port::{AnyStore, AnyTx}, partition::PartitionRows,
+use crate::{Engine, Schema, store_port::{AnyStore}, partition::PartitionRows,
     receipts::ReceiptReader};
 fn store() -> AnyStore {
     let connection = std::env::var("SNAPBACK4_EVAL_POSTGRES").expect("private scripts/test-postgres.sh database");

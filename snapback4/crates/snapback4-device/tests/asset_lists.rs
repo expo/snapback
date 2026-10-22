@@ -260,7 +260,7 @@ fn overtaken_snapshot<H: Host>(h: &mut H, staged: bool) {
         engine.seed((0..4).map(|n| ("notes".into(), snapback4_core::value::object([
             ("id", id(&format!("n{n}"))), ("body", snapback4_core::value::Value::String("before".into()))
         ])))).unwrap();
-        let store_id = (match &engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).meta("store_id").unwrap().unwrap();
+        let store_id = engine.store().store_identity().unwrap().unwrap();
         let pages = snapshot_pages(&mut engine, "alice", 1);
         let mut first = pages[0].clone();
         first.store_id = Some(store_id.clone());

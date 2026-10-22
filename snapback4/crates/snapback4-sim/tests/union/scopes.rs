@@ -677,7 +677,7 @@ fn a_rebound_already_expired_grant_never_names_its_new_group() {
         let alice=object([("id",id("ma")),("team",Value::String("old-a".into())),("alternate",Value::String("never-held".into())),("person",id(ALICE))]);
         let bob=object([("id",id("mb")),("team",Value::String("old-b".into())),("alternate",Value::String("live-b".into())),("person",id(BOB)),("until",Value::Int(NOW+1000))]);
         engine.seed_at([("members".into(),alice.clone()),("members".into(),bob)],NOW).unwrap();
-        (match &engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().execute("UPDATE r SET data = ?1 WHERE id = 'ma'",[snapback4_core::value::canonical_json(&alice)]).unwrap();
+        (&engine.store()).test_support_conn().execute("UPDATE r SET data = ?1 WHERE id = 'ma'",[snapback4_core::value::canonical_json(&alice)]).unwrap();
         engine.adopt_at(new.0.clone(),new.1.clone(),NOW+100).unwrap();
         let (_,watermark)=engine.snapshot_at(ALICE,NOW+150).unwrap();
         if op != "none" {

@@ -218,7 +218,7 @@ impl Store {
         &mut self,
         at: impl FnOnce() -> i64,
     ) -> Result<u64, RuntimeError> {
-        crate::engine::committer::Committer::run_transaction_value(crate::store_port::AnyTx::Sqlite(self.transaction()?), crate::engine::committer::Member::new(crate::engine::committer::Kind::Engine, |tx| {
+        crate::engine::committer::Committer::run_transaction_value(crate::store_port::AnyTx::from_sqlite(self.transaction()?), crate::engine::committer::Member::new(crate::engine::committer::Kind::Engine, |tx| {
         let seq = tx.next_seq()?;
         tx.record_commit(seq, at(), ("native-smoke", "system", "witness"), &[], 0)?;
         tx.complete(seq)

@@ -101026,3 +101026,37 @@ full script. Every owned cluster is independently confirmed stopped, and the
 shared scale cluster was untouched. See `reports/20261022-s10c-postgres-arm.md`
 for the admission/refusal list, tail evidence, oracles, exact qualifications
 and remaining S10d boundaries.
+
+### 2026-10-22 — S10c fix round 1: close owning payloads and retain driver errors
+
+Rebased the eight S10c commits onto main-mirror `280fbc9774`, preserving the
+measurement/docs additions, preview operations, both journal histories and the
+RFC's single Revised line. Both SQLite and Postgres store/transaction variants
+now carry non-exhaustive wrappers with fields private to the store port. There
+is no backend dereference, extraction or trait-default surface on a payload.
+Postgres raw query/execute/batch and its store's driver client are crate-private.
+Adapter activation uses scoped internal port callbacks; existing corruption
+fixtures use the debug-only port hooks, and Postgres instrumentation is
+crate-test-only. External-consumer compile-fail doctests cover extraction,
+raw statements, backend type names and Rows-default bypasses on both arms;
+the Postgres script now runs them with its existing compiled trait guards.
+
+A missing evidence footprint remains unknown; real driver, snapshot-opening
+and rollback errors now propagate. The new real-cluster regression injects a
+relation-lock timeout for direct and scoped reads, then verifies connection
+reuse. The common/evaluator C1 oracle now asserts the observed 20 off / 23 on
+physical-call ceilings and eight marked reads, preserving the relative bound
+and all outcome/meter comparisons. No retry or production timeout policy changes.
+
+Sol's blind review passed the exact concurrency case 13/13 on `bd4d265df5`
+and 13/13 on `ad87e0ddb3`, always retaining 65 increments. All 461 instrumented
+serialization errors in the first six runs occurred at UPDATE r before the
+tail. The report and existing serialization ticket retain this evidence;
+S10c causation and tail-order contention effects remain unverified.
+
+Binary build, core no-default, device web/wasm, workspace-wide test compilation
+with Postgres and all 27 codec census cases pass. Full suites are in progress;
+the completed qualification is appended separately. Only inactive generated
+incremental caches and pre-task, unmapped/unopened test executables in the owned
+`target` were reclaimed for headroom. Cargo uses ten jobs; the 15 GB stop
+threshold has not been reached. No push, stash or sub-agents.

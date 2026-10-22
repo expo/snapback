@@ -38,15 +38,15 @@ setInterval(()=>{},1000);
         let delayed = Arc::new(std::sync::atomic::AtomicBool::new(false));
         let manual = {
             let engine = lock(&host.shared.engine);
-            (match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().busy_timeout(Duration::from_millis(5)).unwrap();
+            (engine.store()).test_support_conn().busy_timeout(Duration::from_millis(5)).unwrap();
             // Ordinary expiry must not be the reason the retired bearer fails.
-            (match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().execute("UPDATE _sessions SET expires_at=expires_at+86400000 WHERE kind='service'",[]).unwrap();
+            (engine.store()).test_support_conn().execute("UPDATE _sessions SET expires_at=expires_at+86400000 WHERE kind='service'",[]).unwrap();
             let manual = snapback4_core::identity::service_session(engine.store(),"manual",host.shared.now(),3).unwrap();
             if !retirement_delay.is_zero() {
                 let delayed = delayed.clone();
                 // Delay only the first retirement turn, before SQLite reports
                 // the external writer lock. No product scheduling hook needed.
-                (match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().authorizer(Some(move |ctx: rusqlite::hooks::AuthContext<'_>| {
+                (engine.store()).test_support_conn().authorizer(Some(move |ctx: rusqlite::hooks::AuthContext<'_>| {
                     if matches!(ctx.action, rusqlite::hooks::AuthAction::Delete { table_name: "_sessions" })
                         && !delayed.swap(true, Ordering::AcqRel) {
                         thread::sleep(retirement_delay);
@@ -160,7 +160,7 @@ setInterval(() => { if (fs.existsSync('exit')) { Atomics.wait(new Int32Array(new
     let serving = Serving { stop, thread: Some(thread::spawn(move || serve_requests(server, shared, supervisor, Vec::new(), || stopping.load(Ordering::Acquire), crate::host_limits::Capacity::default()))) };
     let worker_status = || -> Json {
         let engine = lock(&host.shared.engine);
-        serde_json::from_str(&(match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_meta("worker:status").unwrap().unwrap_or("{}".into())).unwrap()
+        serde_json::from_str(&(engine.store()).test_support_meta("worker:status").unwrap().unwrap_or("{}".into())).unwrap()
     };
     if hold_ready {
         wait_setup("worker token file opened", || dir.0.join("ready-started").exists());
@@ -168,7 +168,7 @@ setInterval(() => { if (fs.existsSync('exit')) { Atomics.wait(new Int32Array(new
         std::fs::write(dir.0.join("finish-ready"), "").unwrap();
     }
     wait_setup("worker ready", || dir.0.join("ready").exists() && worker_status()["state"] == "running");
-    let family = (match lock(&host.shared.engine).store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_meta("worker:session-family").unwrap().unwrap();
+    let family = (lock(&host.shared.engine).store()).test_support_meta("worker:session-family").unwrap().unwrap();
     let token = std::fs::read_to_string(dir.0.join("ready")).unwrap();
     assert!(!token.is_empty(), "worker readiness must carry its complete bearer");
     let revision = host.shared.worker_revision.load(Ordering::Acquire);
@@ -179,7 +179,7 @@ setInterval(() => { if (fs.existsSync('exit')) { Atomics.wait(new Int32Array(new
     let adoption = thread::spawn(move || {
         let mut engine = lock(&shared.engine);
         let once = std::sync::atomic::AtomicBool::new(false);
-        (match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().authorizer(Some(move |ctx: rusqlite::hooks::AuthContext<'_>| {
+        (engine.store()).test_support_conn().authorizer(Some(move |ctx: rusqlite::hooks::AuthContext<'_>| {
             if matches!(ctx.action, rusqlite::hooks::AuthAction::Insert { table_name: "i" }) && !once.swap(true, Ordering::SeqCst) {
                 held.park();
                 return rusqlite::hooks::Authorization::Deny;
@@ -191,7 +191,7 @@ setInterval(() => { if (fs.existsSync('exit')) { Atomics.wait(new Int32Array(new
         let error = adoption::adopt_candidate(&shared, &mut engine, &candidate, || panic!("not a generation refusal")).unwrap_err();
         assert_eq!(error.refusal().code, "E_STORE");
         assert!(error.to_string().contains("not authorized"), "the held authorizer must cause the refusal: {error}");
-        (match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().authorizer(None::<fn(rusqlite::hooks::AuthContext<'_>) -> rusqlite::hooks::Authorization>).unwrap();
+        (engine.store()).test_support_conn().authorizer(None::<fn(rusqlite::hooks::AuthContext<'_>) -> rusqlite::hooks::Authorization>).unwrap();
     });
     wait_setup("adoption held at the authorizer", || gate.entered.load(Ordering::Acquire) == 1);
     std::fs::write(dir.0.join("exit"), "").unwrap();
@@ -215,8 +215,8 @@ setInterval(() => { if (fs.existsSync('exit')) { Atomics.wait(new Int32Array(new
     let (observed, observation) = mpsc::channel();
     let inspection = thread::spawn(move || {
         let engine = lock(&shared.engine);
-        let remaining: i64 = (match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().query_row("SELECT count(*) FROM _sessions WHERE COALESCE(family, token_digest) = ?1", [&family], |row| row.get(0)).unwrap();
-        let status: Json = serde_json::from_str(&(match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_meta("worker:status").unwrap().unwrap()).unwrap();
+        let remaining: i64 = (engine.store()).test_support_conn().query_row("SELECT count(*) FROM _sessions WHERE COALESCE(family, token_digest) = ?1", [&family], |row| row.get(0)).unwrap();
+        let status: Json = serde_json::from_str(&(engine.store()).test_support_meta("worker:status").unwrap().unwrap()).unwrap();
         observed.send((remaining, status, engine.effects(None, 10).unwrap())).unwrap();
         held.park();
     });
@@ -263,7 +263,7 @@ setInterval(() => { if (fs.existsSync('exit')) { Atomics.wait(new Int32Array(new
     drop(release_on_panic);
     drop(serving);
     assert_eq!(worker_status()["state"], "stopped");
-    assert!((match lock(&host.shared.engine).store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_meta("worker:session-family").unwrap().is_none());
+    assert!((lock(&host.shared.engine).store()).test_support_meta("worker:session-family").unwrap().is_none());
     assert_eq!(unsafe { libc::kill(pid, 0) }, -1, "shutdown must reap the owned child");
     assert_eq!(std::io::Error::last_os_error().raw_os_error(), Some(libc::ESRCH));
 }

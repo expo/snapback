@@ -48,7 +48,7 @@ impl Visitor<'_> for Name {
     fn visit_str<E: de::Error>(self,name: &str) -> Result<Self::Value,E> { Ok(FIELDS.iter().find(|field|**field == name).copied()) }
 }
 
-fn projected(tx: &snapback4_core::store::Tx<'_>,prefix: &[Value],bounds: &rows::Bounds,limit: usize) -> Vec<(Value,Vec<u8>)> {
+fn projected(tx: &snapback4_core::store_port::ReadSnapshot<'_>,prefix: &[Value],bounds: &rows::Bounds,limit: usize) -> Vec<(Value,Vec<u8>)> {
     let (lo,hi) = rows::scan_range(prefix,bounds,rows::Dir::Asc).unwrap();
     let num = |name: &str| tx.test_support_conn().query_row("SELECT num FROM _catalog WHERE name = ?1",[name],|row|row.get::<_,i64>(0)).unwrap();
     let mut statement = tx.test_support_conn().prepare_cached(SQL).unwrap();
@@ -101,7 +101,7 @@ fn matched_period_projection_avoids_rust_payload_but_does_not_prove_engine_capac
     assert_eq!(control.data,Value::Null); assert!(!control.complete);
     assert!(control.metered.heap_bytes > meter::Ceilings::job().heap_bytes);
     println!("CAL18 projection engine control: {:?}, rawJsonBytes={raw_bytes}",control.metered);
-    let tx = (match e.store_mut() { snapback4_core::store_port::AnyStore::Sqlite(store) => store, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).read_transaction().unwrap();
+    let tx = (e.store_mut()).read_transaction().unwrap();
     let prefix = [Value::Id("chat0".into())];
     let bounds = rows::Bounds {gte:Some(Value::Int(10000)),lt:Some(Value::Int(20000)),..Default::default()};
     let control = ||tx.scan("messages","byConversation",&prefix,&bounds,rows::Dir::Asc,5001).unwrap();

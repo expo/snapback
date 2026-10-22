@@ -149,7 +149,7 @@ fn column_lane_ties_rewrite_and_zero_stays_indexed() {
         seed_post(&mut engine, name, at, 2);
     }
     let lane = |engine: &mut Engine| engine.query("lane", Context::new("bob", args(&[("h", Value::Int(2)), ("c", Value::Null)])).at(NOW)).unwrap();
-    let entries = |engine: &Engine| (match &engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().query_row(
+    let entries = |engine: &Engine| (&engine.store()).test_support_conn().query_row(
         "SELECT COUNT(*) FROM i WHERE ti = (SELECT num FROM _catalog WHERE name = 'posts.byHourLikes')", [], |row| row.get::<_, i64>(0)).unwrap();
     assert_eq!(names(&rows(&lane(&mut engine).data)), ["same-time-z", "newer", "older"]);
     assert_eq!(entries(&engine), 3);

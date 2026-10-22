@@ -1,7 +1,7 @@
 //! Tail buffering is independent of the number of admitted effect records.
 // @ref LLP 3000.009.001.000#3.4 — no implicit execute flush and one CTE flight per member.
 use super::super::*;
-use crate::{Engine, store_port::{AnyStore, AnyTx}, engine::effects::{NewEffect, OutboxTransaction, legacy_work}, metadata::DevMetadata};
+use crate::{Engine, store_port::AnyStore, engine::effects::{NewEffect, OutboxTransaction, legacy_work}, metadata::DevMetadata};
 #[test]
 #[ignore = "requires private Postgres; scripts/test-postgres.sh"]
 fn effects_batch_and_unrelated_execute_never_flushes_the_member() {
@@ -11,7 +11,7 @@ fn effects_batch_and_unrelated_execute_never_flushes_the_member() {
     let mut flights = Vec::new();
     for (seq, count) in [(1, 1), (2, 8), (3, 16)] {
         let owner = engine.store_mut().transaction().unwrap();
-        let AnyTx::Postgres(tx) = &owner else { panic!("Postgres fixture") };
+        let tx = owner.test_postgres_tx();
         owner.savepoint("member").unwrap();
         owner.record_commit(seq, 100, "emit", "alice", "mutation", &[], 0).unwrap();
         let before = tx.calls.get();
@@ -41,7 +41,7 @@ fn nested_rollback_invalidates_prefetch_and_terminal_bind_refusal_stays_terminal
     let name = format!("sb4_eval_rollback_{:x}", crate::ids::seed());
     let mut engine = Engine::new(AnyStore::create_postgres(&connection, &name).unwrap(), Schema::default(), []).unwrap();
     let owner = engine.store_mut().transaction().unwrap();
-    let AnyTx::Postgres(tx) = &owner else { panic!("Postgres fixture") };
+    let tx = owner.test_postgres_tx();
     owner.savepoint("member").unwrap(); owner.savepoint("program").unwrap();
     tx.execute("INSERT INTO r(t,id,data) VALUES ('notes','id',$1)", &[&crate::value::canonical_json(&Value::Int(1))]).unwrap();
     Rows::prefetch(&owner, &[crate::rows::PrefetchRequest::Get { table: "notes".into(), id: "id".into() }]);
@@ -61,7 +61,7 @@ fn an_orphan_effect_tail_refuses_without_discarding_records() {
     let name = format!("sb4_eval_orphan_{:x}", crate::ids::seed());
     let mut engine = Engine::new(AnyStore::create_postgres(&connection, &name).unwrap(), Schema::default(), []).unwrap();
     let owner = engine.store_mut().transaction().unwrap();
-    let AnyTx::Postgres(tx) = &owner else { panic!("Postgres fixture") };
+    let tx = owner.test_postgres_tx();
     tx.tail.borrow_mut().effects.push(super::super::tail::Effect { id: "id".into(), effect: "mail".into(), payload: "null".into(), next_at: None, work: "{}".into(), deadline: None, contract: "contract".into(), presence: Vec::new(), release: None });
     assert!(tx.flush_tail().unwrap_err().to_string().contains("no commit slot"));
     assert_eq!(tx.tail.borrow().effects.len(), 1);

@@ -15,7 +15,7 @@ fn sqlite_unified_and_evaluator_overlap_prefetch_on_and_off() {
         let connection = std::env::var("SNAPBACK4_EVAL_POSTGRES").unwrap();
         let mut sqlite = Engine::new_at(AnyStore::memory().unwrap(), schema.clone(), programs.clone(), 1000).unwrap();
         let mut unified = Engine::new_at(AnyStore::create_postgres(&connection, &format!("sb4_eval_oracle_u_{:x}", crate::ids::seed())).unwrap(), schema.clone(), programs.clone(), 1000).unwrap();
-        if let AnyStore::Postgres(handle) = unified.store_mut() { handle.store.get_mut().prefetch = enabled; }
+        { let handle = unified.store_mut().test_postgres_handle_mut(); handle.store.get_mut().prefetch = enabled; }
         let mut evaluator = PostgresEngine::create(Client::connect(&connection, postgres::NoTls).unwrap(), &format!("sb4_eval_oracle_e_{:x}", crate::ids::seed()), schema, programs).unwrap();
         evaluator.set_prefetch(enabled);
         for i in 0..24 {
@@ -72,19 +72,22 @@ fn common_engine_c1_prefetch_forwards_marked_reads_and_bounds_calls() {
     let mut calls = Vec::new();
     for enabled in [false, true] {
         let mut engine = Engine::new_at(AnyStore::create_postgres(&connection, &format!("sb4_eval_c1_u_{:x}", crate::ids::seed())).unwrap(), schema.clone(), programs.clone(), 1000).unwrap();
-        if let AnyStore::Postgres(handle) = engine.store_mut() { handle.store.get_mut().prefetch = enabled; }
+        { let handle = engine.store_mut().test_postgres_handle_mut(); handle.store.get_mut().prefetch = enabled; }
         engine.seed_at(rows.clone(), 1000).unwrap();
         let mut evaluator = PostgresEngine::create(Client::connect(&connection, postgres::NoTls).unwrap(), &format!("sb4_eval_c1_e_{:x}", crate::ids::seed()), schema.clone(), programs.clone()).unwrap();
         evaluator.set_prefetch(enabled); evaluator.seed_at(rows.clone(), 1000).unwrap();
         for _ in 0..2 { engine.query("derived", ctx.clone()).unwrap(); evaluator.query("derived", ctx.clone()).unwrap(); }
-        let before = match engine.store() { AnyStore::Postgres(h) => h.borrow().unwrap().calls.get(), _ => unreachable!() };
+        let before = engine.store().test_postgres_handle().borrow().unwrap().calls.get();
         let before_e = evaluator.stats().database_calls;
         let actual = engine.query("derived", ctx.clone()).unwrap(); let oracle = evaluator.query("derived", ctx.clone()).unwrap();
         assert_eq!(actual, expected);
         assert_eq!((&actual.data, actual.seq, actual.metered, actual.complete), (&oracle.data, oracle.seq, oracle.metered, oracle.complete));
-        let (calls_u, marked) = match engine.store() { AnyStore::Postgres(h) => { let s = h.borrow().unwrap(); (s.calls.get() - before, s.page_reads.get()) }, _ => unreachable!() };
+        let (calls_u, marked) = { let s = engine.store().test_postgres_handle().borrow().unwrap(); (s.calls.get() - before, s.page_reads.get()) };
         let calls_e = evaluator.stats().database_calls - before_e;
-        if enabled { assert!(marked > 0); }
+        if enabled { assert_eq!(marked, 8); }
+        let bound = if enabled { 23 } else { 20 };
+        assert!((1..=bound).contains(&calls_u), "common prefetch={enabled}: {calls_u} > {bound}");
+        assert!((1..=bound).contains(&calls_e), "evaluator prefetch={enabled}: {calls_e} > {bound}");
         calls.push((calls_u, calls_e, marked));
     }
     // The existing C1 rule permits speculative overhead up to marked reads +
@@ -117,7 +120,7 @@ fn existing_evaluator_fixture_matches_common_engine_in_both_prefetch_modes() {
     for enabled in [false, true] {
         let mut sqlite = Engine::new_at(AnyStore::memory().unwrap(), schema.clone(), programs.clone(), 1000).unwrap();
         let mut common = Engine::new_at(AnyStore::create_postgres(&connection, &format!("sb4_eval_fixture_u_{:x}", crate::ids::seed())).unwrap(), schema.clone(), programs.clone(), 1000).unwrap();
-        if let AnyStore::Postgres(h) = common.store_mut() { h.store.get_mut().prefetch = enabled; }
+        { let h = common.store_mut().test_postgres_handle_mut(); h.store.get_mut().prefetch = enabled; }
         let mut evaluator = PostgresEngine::create(Client::connect(&connection, postgres::NoTls).unwrap(), &format!("sb4_eval_fixture_e_{:x}", crate::ids::seed()), schema.clone(), programs.clone()).unwrap();
         evaluator.set_prefetch(enabled);
         let seeded = sqlite.seed_at(rows.clone(), 10).unwrap();

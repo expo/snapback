@@ -21,7 +21,7 @@ fn detached_sync_never_skips_a_commit_after_its_snapshot() {
             let (entered, waiting) = mpsc::channel();
             let (resume, resumed) = mpsc::channel();
             let once = std::sync::atomic::AtomicBool::new(false);
-            (match reader.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().authorizer(Some(move |ctx: rusqlite::hooks::AuthContext<'_>| {
+            (reader.store()).test_support_conn().authorizer(Some(move |ctx: rusqlite::hooks::AuthContext<'_>| {
                 if matches!(ctx.action, rusqlite::hooks::AuthAction::Read { table_name, .. }
                     if table_name == if stream { "_log" } else { "r" })
                     && !once.swap(true, Ordering::SeqCst) {

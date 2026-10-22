@@ -280,7 +280,7 @@ impl Model {
             "thread_rows":rows.len(),"thread_pages":thread_pages,"equal_timestamp_cursor":equal_timestamp_cursor})
         );
     }
-    pub fn check_edges(&self, store: &snapback4_core::Store) -> BTreeSet<(String, String)> {
+    pub fn check_edges(&self, store: &dyn FixtureStore) -> BTreeSet<(String, String)> {
         let rows = store.rows("follows").unwrap();
         let edges: BTreeSet<_> = rows
             .iter()
@@ -295,7 +295,7 @@ impl Model {
         assert_eq!(edges, self.edges, "complete stored follows set");
         edges
     }
-    pub fn source_counts(&self, store: &snapback4_core::Store) -> serde_json::Value {
+    pub fn source_counts(&self, store: &dyn FixtureStore) -> serde_json::Value {
         let mut counts = serde_json::Map::new();
         for (table, expected) in [
             ("profiles", self.profiles.len()),
@@ -317,7 +317,7 @@ impl Model {
         }
         out
     }
-    pub fn check_received_store(&self, store: &snapback4_core::Store) {
+    pub fn check_received_store(&self, store: &dyn FixtureStore) {
         for (table, is_reply, daily) in [
             ("receivedLikes", false, false),
             ("receivedReplies", true, false),
@@ -356,7 +356,7 @@ impl Model {
             );
         }
     }
-    pub fn check_store(&self, store: &snapback4_core::Store) -> serde_json::Value {
+    pub fn check_store(&self, store: &dyn FixtureStore) -> serde_json::Value {
         let expected = self.like_counts();
         let mut counts = BTreeMap::new();
         let mut implicit_zeros = 0;

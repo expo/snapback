@@ -158,7 +158,7 @@ mutation keyMove(rowId: id):
             engine.adopt(candidate.schema, candidate.programs.into_iter().map(|p| p.program)).unwrap();
             println!("REAL adoption source={table} n={count} mode={mode} groups={} ms={:.3} store=sqlite-memory resumable_chunks=0", engine.store().rows("totals").unwrap().len(), start.elapsed().as_secs_f64() * 1000.0);
             // Capture physical source/target index work independently of the meter.
-            (match &engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().execute_batch(&format!(r#"
+            (&engine.store()).test_support_conn().execute_batch(&format!(r#"
 CREATE TEMP TABLE d1_counts(kind TEXT PRIMARY KEY, n INTEGER);
 INSERT INTO d1_counts VALUES ('target_rows',0),('target_index_insert',0),('target_index_delete',0),('source_index_insert',0),('source_index_delete',0);
 CREATE TEMP TRIGGER d1_ri AFTER INSERT ON r WHEN NEW.t = (SELECT num FROM _catalog WHERE name='totals') BEGIN UPDATE d1_counts SET n=n+1 WHERE kind='target_rows'; END;
@@ -168,7 +168,7 @@ CREATE TEMP TRIGGER d1_ii AFTER INSERT ON i BEGIN UPDATE d1_counts SET n=n+1 WHE
 CREATE TEMP TRIGGER d1_id AFTER DELETE ON i BEGIN UPDATE d1_counts SET n=n+1 WHERE kind=CASE WHEN OLD.ti IN (SELECT num FROM _catalog WHERE name LIKE 'totals.%') THEN 'target_index_delete' ELSE 'source_index_delete' END; END;
 "#)).unwrap();
             for op in ["add", "unrelated", "decrease", "enter", "keyMove", "remove"] {
-                (match &engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().execute("UPDATE d1_counts SET n=0", []).unwrap();
+                (&engine.store()).test_support_conn().execute("UPDATE d1_counts SET n=0", []).unwrap();
                 let mut times = Vec::new();
                 let mut metered = None;
                 let mut meter_sum = BTreeMap::<String, u64>::new();
@@ -184,7 +184,7 @@ CREATE TEMP TRIGGER d1_id AFTER DELETE ON i BEGIN UPDATE d1_counts SET n=n+1 WHE
                     }
                     metered = Some(out.metered);
                 }
-                let physical: BTreeMap<String, i64> = (match &engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().prepare("SELECT kind,n FROM d1_counts").unwrap().query_map([], |r| Ok((r.get(0)?, r.get(1)?))).unwrap().collect::<Result<_,_>>().unwrap();
+                let physical: BTreeMap<String, i64> = (&engine.store()).test_support_conn().prepare("SELECT kind,n FROM d1_counts").unwrap().query_map([], |r| Ok((r.get(0)?, r.get(1)?))).unwrap().collect::<Result<_,_>>().unwrap();
                 println!("REAL write source={table} mode={mode} op={op} n=200 p50_us={:.3} p95_us={:.3} last_meter={} meter_sum_200={} physical_200={}", quantile(&mut times,50), quantile(&mut times,95), serde_json::to_string(&metered.unwrap()).unwrap(), serde_json::to_string(&meter_sum).unwrap(), serde_json::to_string(&physical).unwrap());
             }
             if mode == "expiry" {

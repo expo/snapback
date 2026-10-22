@@ -60,7 +60,7 @@ fn engine_refuses_legacy_recorded_and_timeline_store() {
     // Install the exact pre-FENCE stored-schema representation, leaving the
     // engine's real tables, indexes, programs and metadata in place for reopen.
     let wire: serde_json::Value = serde_json::from_str(LEGACY).unwrap();
-    (match &engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().execute("UPDATE _generations SET schema = ?1", [wire["schema"].to_string()]).unwrap();
+    (&engine.store()).test_support_conn().execute("UPDATE _generations SET schema = ?1", [wire["schema"].to_string()]).unwrap();
     drop(engine);
     let error = match Engine::open(Store::open(&path).unwrap()) { Ok(_) => panic!("legacy timeline opened"), Err(error) => error };
     assert_eq!(error.code(), "E_TIMELINE_REDEFINE");

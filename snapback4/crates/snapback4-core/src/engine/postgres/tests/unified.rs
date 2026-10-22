@@ -93,7 +93,7 @@ fn selected_release_refusal_does_not_commit_opening_upgrades() {
     let connection = connection(); let name = name(); let (schema, programs) = bound(SOURCE);
     let mut engine = Engine::new_at(AnyStore::create_postgres(&connection, &name).unwrap(), schema, programs, 1000).unwrap();
     let tx = engine.store_mut().transaction().unwrap(); tx.set_active_release(1).unwrap(); tx.commit().unwrap();
-    if let AnyStore::Postgres(handle) = engine.store_mut() { handle.store.get_mut().client.batch_execute("DROP TABLE _read_sessions").unwrap(); }
+    { let handle = engine.store_mut().test_postgres_handle_mut(); handle.store.get_mut().client.batch_execute("DROP TABLE _read_sessions").unwrap(); }
     drop(engine);
     assert!(Engine::attach_release(AnyStore::open_postgres(&connection, &name).unwrap(), 2).is_err());
     let mut client = Client::connect(&connection, postgres::NoTls).unwrap();
@@ -133,7 +133,7 @@ fn evaluator_admitted_aggregate_and_recorded_shapes_open_on_common_engine() {
 fn common_open_preserves_the_portable_index_key_refusal() {
     let connection = connection(); let name = name(); let (schema, programs) = bound(SOURCE);
     let mut engine = Engine::new_at(AnyStore::create_postgres(&connection, &name).unwrap(), schema, programs, 1000).unwrap();
-    if let AnyStore::Postgres(handle) = engine.store_mut() {
+    { let handle = engine.store_mut().test_postgres_handle_mut();
         handle.store.get_mut().client.execute("INSERT INTO i(t,ix,k,id) VALUES ('notes','byId',$1,'raw')", &[&vec![0u8; crate::rows::MAX_INDEX_KEY_BYTES + 1]]).unwrap();
     }
     drop(engine);

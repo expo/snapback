@@ -114,8 +114,8 @@ struct Oracle {
 }
 impl Oracle {
     fn freeze(e: &Engine) -> Self {
-        let seq: i64 = (match &e
-            .store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).conn()
+        let seq: i64 = (&e
+            .store()).test_support_conn()
             .query_row("SELECT COALESCE(MAX(seq),0) FROM _commits", [], |r| {
                 r.get(0)
             })
@@ -279,7 +279,7 @@ fn exact_first_page_ties_reposts_and_no_persisted_changes() {
         .into_iter()
         .map(|(_, id)| id)
         .collect::<Vec<_>>();
-    let changes = (match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).conn().total_changes();
+    let changes = (&e.store()).test_support_conn().total_changes();
     let schema = serde_json::to_string(e.schema()).unwrap();
     let mut r = Reader::new().unwrap();
     let mut q = request(&mut r, 2);
@@ -291,7 +291,7 @@ fn exact_first_page_ties_reposts_and_no_persisted_changes() {
     let (ids, preparing) = drain(&mut r, &mut e, &mut q, &oracle);
     assert_eq!(ids, expected);
     assert_eq!(preparing, 0);
-    assert_eq!((match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).conn().total_changes(), changes);
+    assert_eq!((&e.store()).test_support_conn().total_changes(), changes);
     assert_eq!(serde_json::to_string(e.schema()).unwrap(), schema);
 }
 

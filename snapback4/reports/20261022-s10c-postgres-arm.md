@@ -200,3 +200,42 @@ untimed bookkeeping), `c104f6b1e6` (member tail), `c90300717a` (portable opening
 key bound), `603afe4154` (HTTP/family/oracle witnesses and adapter-owned
 handle declarations). Final broad-suite results are recorded in the separate
 qualification commit carrying this report.
+
+## S10c fix round 1 — 2026-10-22
+
+Rebased the eight lane commits onto main-mirror `280fbc9774`, retaining main's
+measurement/docs and preview operations, both journal histories and the RFC's
+single Revised line. The rebased series ends at `af4b6f20da`. Preview operations
+retain their SQLite behavior and explicitly refuse on Postgres. No push or stash.
+
+1. **Opaque boundary (Sol P2):** both `AnyStore` and `AnyTx` arms carry
+   non-exhaustive private-field wrappers owned by the port. No backend
+   dereference, extraction, owning conversion or trait-default bridge exists.
+   Adapter-only activation callbacks are crate-private and scoped. Existing
+   corruption fixtures now use the debug-only port hooks; Postgres inspection
+   helpers exist only in crate tests. Raw Postgres `query`, `execute`, `batch`
+   and the store's driver client are crate-private. External-consumer
+   compile-fail doctests guard SQLite and Postgres extraction/raw/default
+   escapes and private Postgres backend type names. The private-cluster script
+   runs these alongside the existing compiled trait guards.
+2. **Evidence errors (Grok):** an absent LEFT JOIN footprint returns `Ok(None)`;
+   real query, snapshot-open and rollback errors propagate. Shared preservation
+   policy continues to widen errors to unknown. A real relation-lock timeout
+   tests direct and scoped reads, rollback and subsequent connection reuse.
+3. **Physical calls (Grok):** the C1 oracle asserts ceilings of 20 off / 23 on
+   in both Postgres engines and exactly eight marked reads when enabled,
+   retaining the relative bound, result and logical-meter comparisons.
+4. **40001 attribution:** Sol passed the exact concurrency case **13/13 on
+   `bd4d265df5` and 13/13 on `ad87e0ddb3`**, retaining 65 increments; both clean
+   evaluator suites passed 58 tests. All **461** instrumented serialization
+   errors in the first six isolated runs occurred at **`UPDATE r`**, before
+   tail completion. Grok independently passed 8/8 HEAD and 2/2 base runs.
+   Persistent exhaustion caused by S10c is not established; contention-timing
+   effects from tail ordering remain unverified. Evidence is appended to the
+   [existing ticket](../../issues/20260916-snapback4-postgres-serializable-benchmark-failures.md).
+   Retry policy, workload and durability are unchanged.
+
+Round-1 transcripts are retained under `/tmp/s10c-r1-checks`. Qualification
+results follow after the requested checks finish. All Cargo commands use only
+this lane's `snapback4/target` and ten build jobs. The disk stop threshold is
+15 GB free on `/home`.

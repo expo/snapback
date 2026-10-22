@@ -143,7 +143,7 @@ impl Store {
             sql.rollback()?;
             return Ok(None);
         }
-        let tx = crate::store_port::AnyTx::Sqlite(Tx { activation_scan: None, changes: Default::default(), sequence_table: Default::default(), tx: sql, page_size: self.page_size,
+        let tx = crate::store_port::AnyTx::from_sqlite(Tx { activation_scan: None, changes: Default::default(), sequence_table: Default::default(), tx: sql, page_size: self.page_size,
             server: self.server, catalog: &self.catalog });
         let resolved = crate::identity::resolve_session_tx(&tx, digest, now, supervisor_revision)?;
         tx.rollback()?;

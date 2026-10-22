@@ -195,14 +195,14 @@ fn adoption_failure_never_publishes_an_empty_key_set() {
     e.seed([row("old","old","alice",1)]).unwrap();
     let old=e.generation();let before=e.schema().clone();
     let (_,b)=compile(SOURCE);
-    (match e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().authorizer(Some(|ctx:AuthContext<'_>| match ctx.action {
+    (e.store()).test_support_conn().authorizer(Some(|ctx:AuthContext<'_>| match ctx.action {
         AuthAction::Insert {table_name:"_generations"} => Authorization::Deny,
         _=>Authorization::Allow,
     }));
     assert!(e.adopt(b.schema.clone(),b.programs.clone()).is_err());
-    (match e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().authorizer(None::<fn(AuthContext<'_>)->Authorization>);
+    (e.store()).test_support_conn().authorizer(None::<fn(AuthContext<'_>)->Authorization>);
     assert_eq!(e.generation(),old);assert_eq!(e.schema(),&before);
-    let count:i64=(match e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().query_row("select count(*) from _catalog where name='$ownKeys:likes'",[],|r|r.get(0)).unwrap();
+    let count:i64=(e.store()).test_support_conn().query_row("select count(*) from _catalog where name='$ownKeys:likes'",[],|r|r.get(0)).unwrap();
     assert_eq!(count,0,"failed activation rolls back the projection and its catalog");
     e.adopt(b.schema,b.programs).unwrap();
     assert_eq!(e.query("own",context("alice",&[("post",id("old"))])).unwrap().data,Value::Bool(true));
@@ -214,7 +214,7 @@ fn source_and_keys_share_the_unchanged_write_meter_and_rollback() {
     e.set_ceilings(snapback4_core::Ceilings {rows_written:1,..e.ceilings()});
     let out=e.mutate("add",None,context("alice",&[("post",id("p"))]).at(1)).unwrap();
     assert!(matches!(out.state,WriteState::Failed {..}),"{out:?}");
-    assert_eq!((match e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().query_row("select count(*) from r",[],|r|r.get::<_,i64>(0)).unwrap(),0);
+    assert_eq!((e.store()).test_support_conn().query_row("select count(*) from r",[],|r|r.get::<_,i64>(0)).unwrap(),0);
     e.set_ceilings(snapback4_core::Ceilings::default());
     let out=e.mutate("add",None,context("alice",&[("post",id("p"))]).at(2)).unwrap();
     assert!(matches!(out.state,WriteState::Sent {..}));

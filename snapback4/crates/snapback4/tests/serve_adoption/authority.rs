@@ -41,7 +41,7 @@ fn bearer_is_checked_after_durable_and_ephemeral_mutation_lock_gaps() {
             lock(&host.shared.readers).replace(&engine, &candidate.refusal_sites);
             let after_adoption = engine.seq().unwrap();
             assert!(after_adoption >= seq);
-            (match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().execute(if revoke {"DELETE FROM _sessions"} else {"UPDATE _sessions SET expires_at = 0"}, []).unwrap();
+            (engine.store()).test_support_conn().execute(if revoke {"DELETE FROM _sessions"} else {"UPDATE _sessions SET expires_at = 0"}, []).unwrap();
             let ephemeral_before = host.shared.ephemeral.snapshot().unwrap().version;
             drop(engine);
             let reply = request.join().unwrap();

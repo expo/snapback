@@ -4,10 +4,10 @@ use crate::rows::Rows;
 
 impl MemberTx<'_, '_> {
     pub(crate) fn meta(&self, key: &str) -> Result<Option<String>, RuntimeError> {
-        match self.tx { AnyTx::Sqlite(inner) => inner.meta(key), #[cfg(feature = "postgres")] AnyTx::Postgres(_) => unreachable!("SQLite fixture") }
+        self.tx.test_support_meta(key)
     }
     pub(crate) fn set_meta(&self, key: &str, value: &str) -> Result<(), RuntimeError> {
-        match self.tx { AnyTx::Sqlite(inner) => inner.set_meta(key, value), #[cfg(feature = "postgres")] AnyTx::Postgres(_) => unreachable!("SQLite fixture") }
+        self.tx.test_support_set_meta(key, value)
     }
 }
 
@@ -48,10 +48,10 @@ fn two_members_keep_the_first_on_second_rollback_drop_or_error() {
             }
         ));
         assert!(
-            !(match &tx { snapback4_core::store_port::AnyTx::Sqlite(inner) => inner, #[cfg(feature = "postgres")] snapback4_core::store_port::AnyTx::Postgres(_) => panic!("SQLite fixture") }).conn().is_autocommit(),
+            !(&tx).test_support_conn().is_autocommit(),
             "RELEASE is not a physical commit"
         );
-        (match &tx { snapback4_core::store_port::AnyTx::Sqlite(inner) => inner, #[cfg(feature = "postgres")] snapback4_core::store_port::AnyTx::Postgres(_) => panic!("SQLite fixture") }).changes.borrow_mut().widen();
+        tx.widen_change_evidence();
         assert!(tx.change_footprint().unknown);
         let second = Committer::execute(
             &tx,
@@ -90,23 +90,23 @@ fn two_members_keep_the_first_on_second_rollback_drop_or_error() {
                 }
             ));
         }
-        assert!(!(match &tx { snapback4_core::store_port::AnyTx::Sqlite(inner) => inner, #[cfg(feature = "postgres")] snapback4_core::store_port::AnyTx::Postgres(_) => panic!("SQLite fixture") }).conn().is_autocommit());
+        assert!(!(&tx).test_support_conn().is_autocommit());
         assert_eq!(tx.sequence_value("parents", "p").unwrap(), 0);
         assert_eq!(tx.sequence_value("parents", "kept").unwrap(), 7);
         // The counter released by member 1 survives member 2's rollback.
         // Inner frame rollbacks above separately exercise lazy-table repair.
         tx.set_sequence("parents", "p", 7).unwrap();
         tx.commit().unwrap();
-        assert_eq!((match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).meta("kept").unwrap().as_deref(), Some("first"));
+        assert_eq!((&store).test_support_meta("kept").unwrap().as_deref(), Some("first"));
         assert_eq!(
-            (match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).meta("time_audience_clock").unwrap().as_deref(),
+            (&store).test_support_meta("time_audience_clock").unwrap().as_deref(),
             Some("10")
         );
         for key in ["discarded", "inner_discarded", "nested_discard"] {
-            assert_eq!((match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).meta(key).unwrap(), None, "{mode}: {key}");
+            assert_eq!((&store).test_support_meta(key).unwrap(), None, "{mode}: {key}");
         }
         for key in ["program", "job_chunk", "timeline_chunk", "seed_sequences"] {
-            assert_eq!((match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).meta(key).unwrap().as_deref(), Some("kept"));
+            assert_eq!((&store).test_support_meta(key).unwrap().as_deref(), Some("kept"));
         }
     }
 }
@@ -128,9 +128,9 @@ fn normal_abort_and_error_discard_pins_and_metadata_in_the_solo_driver() {
             }),
         );
         assert_eq!(result.is_ok(), mode != "error");
-        assert!((match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).conn().is_autocommit());
-        assert_eq!((match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).meta("time_audience_clock").unwrap(), None);
-        assert_eq!((match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).meta("discarded").unwrap(), None);
+        assert!((&store).test_support_conn().is_autocommit());
+        assert_eq!((&store).test_support_meta("time_audience_clock").unwrap(), None);
+        assert_eq!((&store).test_support_meta("discarded").unwrap(), None);
     }
 }
 
@@ -181,9 +181,9 @@ fn failed_abort_keeps_the_rollback_cause_and_runs_no_continuation() {
             assert_eq!(error.refusal(), expected.refusal());
             assert_eq!(error.is_busy(), code == rusqlite::ffi::SQLITE_BUSY);
             assert!(!continued);
-            assert!((match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).conn().is_autocommit());
-            assert_eq!((match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).meta("failed_abort").unwrap(), None);
-            assert_eq!((match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).meta("time_audience_clock").unwrap(), None);
+            assert!((&store).test_support_conn().is_autocommit());
+            assert_eq!((&store).test_support_meta("failed_abort").unwrap(), None);
+            assert_eq!((&store).test_support_meta("time_audience_clock").unwrap(), None);
         }
     }
 }
@@ -203,8 +203,8 @@ fn acknowledgement_and_follow_on_writer_run_after_physical_commit() {
             )
         },
         |store, key, value| {
-            assert!((match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).conn().is_autocommit());
-            assert_eq!((match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).meta(&key)?.as_deref(), Some("committed"));
+            assert!((&store).test_support_conn().is_autocommit());
+            assert_eq!((&store).test_support_meta(&key)?.as_deref(), Some("committed"));
             // A follow-on publication is submitted only after the first COMMIT.
             Committer::run(
                 store,
@@ -219,13 +219,13 @@ fn acknowledgement_and_follow_on_writer_run_after_physical_commit() {
     )
     .unwrap();
     assert_eq!(value, 7);
-    assert_eq!((match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).meta("second").unwrap().as_deref(), Some("committed"));
+    assert_eq!((&store).test_support_meta("second").unwrap().as_deref(), Some("committed"));
 }
 
 #[test]
 fn failed_physical_commit_has_no_acknowledgement_or_hook() {
     let mut store = AnyStore::memory().unwrap();
-    (match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).conn()
+    (&store).test_support_conn()
         .execute_batch(
             "PRAGMA foreign_keys = ON;
         CREATE TABLE parent(id INTEGER PRIMARY KEY);
@@ -260,10 +260,10 @@ fn failed_physical_commit_has_no_acknowledgement_or_hook() {
         matches!(result, Err(RuntimeError::Sql(ref error)) if error.to_string().contains("FOREIGN KEY constraint failed"))
     );
     assert!(!hooked.get());
-    assert!((match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).conn().is_autocommit());
-    assert_eq!((match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).meta("time_audience_clock").unwrap(), None);
+    assert!((&store).test_support_conn().is_autocommit());
+    assert_eq!((&store).test_support_meta("time_audience_clock").unwrap(), None);
     assert_eq!(
-        (match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).conn()
+        (&store).test_support_conn()
             .query_row("SELECT COUNT(*) FROM child", [], |r| r.get::<_, i64>(0))
             .unwrap(),
         0
@@ -290,8 +290,8 @@ fn contradictory_dispositions_are_rejected_before_commit() {
         assert!(
             matches!(result, Err(RuntimeError::Store(ref message)) if message == "member disposition contradicts its frame")
         );
-        assert!((match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).conn().is_autocommit());
-        assert_eq!((match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).meta("contradiction").unwrap(), None);
+        assert!((&store).test_support_conn().is_autocommit());
+        assert_eq!((&store).test_support_meta("contradiction").unwrap(), None);
     }
 }
 
@@ -361,9 +361,9 @@ fn two_committed_continuations_run_in_submission_order_despite_failure() {
     let mut seen = Vec::new();
     let results =
         Committer::run_batch_with(&mut store, [member(1), member(2)], |store, data, id| {
-            assert!((match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).conn().is_autocommit());
-            assert_eq!((match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).meta("1")?.as_deref(), Some("durable"));
-            assert_eq!((match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).meta("2")?.as_deref(), Some("durable"));
+            assert!((&store).test_support_conn().is_autocommit());
+            assert_eq!((&store).test_support_meta("1")?.as_deref(), Some("durable"));
+            assert_eq!((&store).test_support_meta("2")?.as_deref(), Some("durable"));
             seen.push(data);
             if id == 1 {
                 Err(RuntimeError::Store("follow-up failed".into()))
@@ -377,7 +377,7 @@ fn two_committed_continuations_run_in_submission_order_despite_failure() {
         matches!(&results[0], Err(RuntimeError::Continuation(source)) if source.to_string() == "E_STORE: follow-up failed")
     );
     assert_eq!(results[1].as_ref().unwrap(), &2);
-    assert_eq!((match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).meta("1").unwrap().as_deref(), Some("durable"));
+    assert_eq!((&store).test_support_meta("1").unwrap().as_deref(), Some("durable"));
 }
 
 #[test]
@@ -403,7 +403,7 @@ fn normal_abort_runs_no_continuation() {
     .unwrap();
     assert_eq!(value, 7);
     assert!(!ran);
-    assert_eq!((match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).meta("aborted").unwrap(), None);
+    assert_eq!((&store).test_support_meta("aborted").unwrap(), None);
 }
 
 #[test]
@@ -430,7 +430,7 @@ fn continuation_failure_keeps_the_original_error_policy_and_durable_writes() {
     assert_eq!(error.refusal(), expected.refusal());
     assert_eq!(error.is_refusal(), expected.is_refusal());
     assert_eq!(error.is_busy(), expected.is_busy());
-    assert_eq!((match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).meta("durable").unwrap().as_deref(), Some("yes"));
+    assert_eq!((&store).test_support_meta("durable").unwrap().as_deref(), Some("yes"));
 }
 
 #[test]
@@ -453,7 +453,7 @@ fn variant_classification_strips_nested_continuation_wrappers() {
 #[test]
 fn failed_batch_commit_runs_neither_continuation() {
     let mut store = AnyStore::memory().unwrap();
-    (match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).conn()
+    (&store).test_support_conn()
         .execute_batch(
             "PRAGMA foreign_keys = ON;
         CREATE TABLE parent(id INTEGER PRIMARY KEY);
@@ -477,7 +477,7 @@ fn failed_batch_commit_runs_neither_continuation() {
         matches!(result, Err(RuntimeError::Sql(ref error)) if error.to_string().contains("FOREIGN KEY constraint failed"))
     );
     assert!(ran.is_empty());
-    assert!((match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).conn().is_autocommit());
-    assert_eq!((match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).meta("1").unwrap(), None);
-    assert_eq!((match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).meta("2").unwrap(), None);
+    assert!((&store).test_support_conn().is_autocommit());
+    assert_eq!((&store).test_support_meta("1").unwrap(), None);
+    assert_eq!((&store).test_support_meta("2").unwrap(), None);
 }

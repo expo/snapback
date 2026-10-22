@@ -111,7 +111,7 @@ pub fn run_fixture(full: bool) {
     let stats = replay::seed(&mut e, &mut m, full);
     println!(
         "CLIQUE_SEED {}",
-        json!({"full":full,"elapsed_s":start.elapsed().as_secs_f64(),"replay":stats,"stored":m.source_counts(sqlite_store(&e))})
+        json!({"full":full,"elapsed_s":start.elapsed().as_secs_f64(),"replay":stats,"stored":m.source_counts(e.store())})
     );
     drain(&mut e, m.now);
     m.check_following(&mut e);
@@ -124,7 +124,7 @@ pub fn run_fixture(full: bool) {
     measure::writes(&mut e, &mut m, full);
     m.check(&mut e);
     measure::amplification();
-    let counts = m.source_counts(sqlite_store(&e));
+    let counts = m.source_counts(e.store());
     println!(
         "CLIQUE_OK {}",
         json!({"full":full,"elapsed_s":start.elapsed().as_secs_f64(),"posts":counts["posts"],"replies":counts["replies"],"likes":counts["likes"],"edges":counts["follows"]})
@@ -133,6 +133,23 @@ pub fn run_fixture(full: bool) {
 
 fn drain(e: &mut Engine, now:i64) { while e.run_timeline_chunk(now).unwrap().is_some() {} assert_eq!(e.timeline_work_counts().unwrap()[0].2,0); }
 
-fn sqlite_store(engine: &Engine) -> &snapback4_core::Store {
-    match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(store) => store, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }
+
+// The fixture compares server and device stores through owned facts. Neither
+// arm exposes a backend store merely to share these assertions.
+trait FixtureStore {
+    fn rows(&self, table: &str) -> Result<Vec<Value>, snapback4_core::RuntimeError>;
+    fn test_support_conn(&self) -> &rusqlite::Connection;
+    fn store_identity(&self) -> Result<Option<String>, snapback4_core::RuntimeError>;
 }
+macro_rules! fixture_store {
+    ($store:ty) => {
+        impl FixtureStore for $store {
+            fn rows(&self, table: &str) -> Result<Vec<Value>, snapback4_core::RuntimeError> { <$store>::rows(self, table) }
+            fn test_support_conn(&self) -> &rusqlite::Connection { <$store>::test_support_conn(self) }
+            fn store_identity(&self) -> Result<Option<String>, snapback4_core::RuntimeError> { <$store>::test_support_meta(self, "store_id") }
+        }
+    };
+}
+fixture_store!(snapback4_core::Store);
+fixture_store!(snapback4_core::store_port::AnyStore);
+fn sqlite_store(engine: &Engine) -> &dyn FixtureStore { engine.store() }

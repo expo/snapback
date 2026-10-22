@@ -160,8 +160,8 @@ fn existing_once_keys<H:Host>(host:&mut H) {
     let out=e.mutate("burst",None,ctx("alice",&[],NOW)).unwrap();
     assert!(matches!(out.state,WriteState::Sent{..}),"{out:?}");
     assert_eq!(out.metered.rows_written,0,"the device never creates durable effect keys");
-    assert_eq!((match e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().query_row("SELECT count(*) FROM _effect_keys",[],|r|r.get::<_,i64>(0)).unwrap(),1025);
-    assert_eq!((match e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().query_row("SELECT count(*) FROM _outbox",[],|r|r.get::<_,i64>(0)).unwrap(),1025);
+    assert_eq!((e.store()).test_support_conn().query_row("SELECT count(*) FROM _effect_keys",[],|r|r.get::<_,i64>(0)).unwrap(),1025);
+    assert_eq!((e.store()).test_support_conn().query_row("SELECT count(*) FROM _outbox",[],|r|r.get::<_,i64>(0)).unwrap(),1025);
 }
 both!(once_keys_unknown_on_memory,once_keys_unknown_on_sqlite,existing_once_keys);
 

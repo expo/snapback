@@ -292,7 +292,7 @@ fn field(r: &Value, k: &str) -> Value {
     r.field(k).unwrap().clone()
 }
 fn rows_after(e: &Engine, table: &str, after: &str) -> Vec<Value> {
-    (match e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().prepare("SELECT data FROM r WHERE t=(SELECT num FROM _catalog WHERE name=?1) AND id>?2 ORDER BY id LIMIT 32").unwrap().query_map([table,after],|r|r.get::<_,String>(0)).unwrap().map(|r|serde_json::from_str(&r.unwrap()).unwrap()).collect()
+    (e.store()).test_support_conn().prepare("SELECT data FROM r WHERE t=(SELECT num FROM _catalog WHERE name=?1) AND id>?2 ORDER BY id LIMIT 32").unwrap().query_map([table,after],|r|r.get::<_,String>(0)).unwrap().map(|r|serde_json::from_str(&r.unwrap()).unwrap()).collect()
 }
 fn cursor(e: &mut Engine) -> (String, String) {
     let r = e.query("progress", Context::system()).unwrap().data;

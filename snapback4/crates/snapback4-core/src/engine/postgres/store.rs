@@ -73,7 +73,7 @@ pub enum WriteMode {
 pub struct Store {
     pub generation: u64,
     pub(crate) read_only: bool,
-    pub client: Client,
+    pub(crate) client: Client,
     cache: BTreeMap<&'static str, Statement>,
     pub calls: Cell<u64>,
     pub prefetch: bool,
@@ -239,7 +239,7 @@ impl Tx<'_> {
         Ok(statement)
     }
 
-    pub fn query(&self, sql: &'static str, params: &[&(dyn ToSql + Sync)]) -> Result<Vec<Row>, RuntimeError> {
+    pub(crate) fn query(&self, sql: &'static str, params: &[&(dyn ToSql + Sync)]) -> Result<Vec<Row>, RuntimeError> {
         let statement = self.prepared(sql)?;
         self.guard_params(&statement, params)?;
         self.calls.set(self.calls.get() + 1);
@@ -259,7 +259,7 @@ impl Tx<'_> {
         Ok(total)
     }
 
-    pub fn execute(&self, sql: &'static str, params: &[&(dyn ToSql + Sync)]) -> Result<u64, RuntimeError> {
+    pub(crate) fn execute(&self, sql: &'static str, params: &[&(dyn ToSql + Sync)]) -> Result<u64, RuntimeError> {
         let statement = self.prepared(sql)?;
         self.guard_params(&statement, params)?;
         self.calls.set(self.calls.get() + 1);
@@ -275,7 +275,7 @@ impl Tx<'_> {
         Ok(())
     }
 
-    pub fn batch(&self, sql: &str) -> Result<(), RuntimeError> {
+    pub(crate) fn batch(&self, sql: &str) -> Result<(), RuntimeError> {
         self.ensure_active()?;
         if sql.split(|c: char| !c.is_ascii_alphanumeric() && c != '_').any(|token| token.eq_ignore_ascii_case("ROLLBACK")) {
             return Err(RuntimeError::Store("use the explicit transaction/savepoint rollback method".into()));

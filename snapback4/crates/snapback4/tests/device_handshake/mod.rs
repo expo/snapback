@@ -59,10 +59,10 @@ fn a_clock_jump_cannot_be_captured_as_the_revision_of_a_prejump_token() {
         engine.advance_worker_leases_at(1,clock.now()).unwrap();clock.advance(1).unwrap();
     });
     resume.send(()).unwrap();let mut worker=minting.join().unwrap();advance.join().unwrap();
-    let first=(match lock(&host.shared.engine).store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_meta("worker:session-family").unwrap().unwrap();
+    let first=(lock(&host.shared.engine).store()).test_support_meta("worker:session-family").unwrap().unwrap();
     worker.tick();
-    let second=(match lock(&host.shared.engine).store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_meta("worker:session-family").unwrap().unwrap();
+    let second=(lock(&host.shared.engine).store()).test_support_meta("worker:session-family").unwrap().unwrap();
     assert_ne!(first,second,"a small deliberate jump must re-mint, even far from expiration");
-    let state:Json=serde_json::from_str(&(match lock(&host.shared.engine).store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_meta("worker:status").unwrap().unwrap()).unwrap();
+    let state:Json=serde_json::from_str(&(lock(&host.shared.engine).store()).test_support_meta("worker:status").unwrap().unwrap()).unwrap();
     assert_eq!(state["starts"],2);drop(worker);
 }

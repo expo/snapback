@@ -10,11 +10,11 @@ use std::{cell::RefCell, collections::BTreeMap};
 impl AnyStore {
     /// Internal, private-cluster API. No schema is created before Engine admission.
     pub fn create_postgres(connection: &str, namespace: &str) -> Result<Self, RuntimeError> {
-        Handle::connect(connection.parse()?, namespace, true).map(Self::Postgres)
+        Handle::connect(connection.parse()?, namespace, true).map(AnyStore::from_postgres)
     }
     /// Open the persisted generation, using the same connection settings for readers.
     pub fn open_postgres(connection: &str, namespace: &str) -> Result<Self, RuntimeError> {
-        Handle::connect(connection.parse()?, namespace, false).map(Self::Postgres)
+        Handle::connect(connection.parse()?, namespace, false).map(AnyStore::from_postgres)
     }
     pub(crate) fn admit(&self, schema: &Schema, programs: &BTreeMap<String, Program>) -> Result<(), RuntimeError> {
         match self { Self::Sqlite(_) => Ok(()), Self::Postgres(_) => super::profile::admit(schema, programs) }
@@ -83,15 +83,15 @@ impl Handle {
             if fresh { tx.set_meta("store_id", &format!("{:016x}{:016x}", crate::ids::seed(), crate::ids::seed()))?; }
             let changed = fresh || before.2 != crate::value::canonical_json(programs);
             let generation = if !fresh && changed { before.0.checked_add(1).ok_or_else(|| RuntimeError::Generation("generation overflow".into()))? } else { before.0 };
-            let tx = AnyTx::Postgres(tx);
-            if let AnyTx::Postgres(inner) = &tx { check(&AnyPreparation::Postgres(Preparation(inner)))?; }
+            let tx = AnyTx::from_postgres(tx);
+            tx.with_postgres(|inner| check(&AnyPreparation::Postgres(Preparation(inner))))?;
             build(&tx, changed, &mut report)?;
-            if let AnyTx::Postgres(inner) = &tx {
+            tx.with_postgres(|inner| {
                 inner.publish_backend(&Backend(generation, crate::value::canonical_json(schema), crate::value::canonical_json(programs)), now)?;
                 inner.set_meta("schema_hash", &schema.hash())?;
                 inner.set_meta("activation_hash", &crate::activation::activation_hash(schema, programs, inner.release_native_digest()?.as_deref()))?;
-                inner.set_meta("time_audience_publications_v1", "1")?;
-            }
+                inner.set_meta("time_audience_publications_v1", "1")
+            })?;
             let value = finish(&tx)?;
             solo.commit(tx)?;
             Ok(Pending::new((generation as u64, value), generation as u64))

@@ -531,3 +531,30 @@ fn change_evidence_attach_refuses_incompatible_shapes() {
         ],
     );
 }
+
+#[test]
+#[ignore = "requires private Postgres; scripts/test-postgres.sh"]
+fn change_evidence_distinguishes_missing_footprints_from_driver_errors() {
+    use crate::revocation::ChangeEvidence;
+    let mut e = engine();
+    let namespace = name(&mut e);
+    let tx = e.store.transaction(Some(WriteMode::Serialized)).unwrap();
+    tx.record_commit(1, 0, "test", "alice", "mutation", &[], 0).unwrap();
+    tx.commit().unwrap();
+    let tx = e.store.transaction(None).unwrap();
+    assert_eq!(tx.change_evidence(0, 1, |_| panic!("missing footprint must not be visited")).unwrap(), None);
+    tx.rollback().unwrap();
+    assert_eq!(RefCell::new(&mut e.store).change_evidence(0, 1, |_| Some(())).unwrap(), None);
+
+    let mut peer = PostgresEngine::open(client(), &namespace).unwrap();
+    let mut lock = peer.store.client.transaction().unwrap();
+    lock.batch_execute("LOCK TABLE _change_evidence IN ACCESS EXCLUSIVE MODE").unwrap();
+    e.store.client.batch_execute("SET lock_timeout = '25ms'").unwrap();
+    let tx = e.store.transaction(None).unwrap();
+    assert_eq!(tx.change_evidence(0, 1, |_| Some(())).unwrap_err().code(), "E_STORE");
+    tx.rollback().unwrap();
+    assert_eq!(RefCell::new(&mut e.store).change_evidence(0, 1, |_| Some(())).unwrap_err().code(), "E_STORE");
+    lock.rollback().unwrap();
+    // The failed scoped read rolled back and released its connection for reuse.
+    assert_eq!(RefCell::new(&mut e.store).change_evidence(0, 1, |_| Some(())).unwrap(), None);
+}

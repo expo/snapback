@@ -228,7 +228,7 @@ fn seeded_changes_match_the_old_live_recomputation() {
 #[test]
 fn sqlite_041_store_rebuilds_expiry_index_at_open() {
     use snapback4_core::{Store, rows::{Dir, Bounds}};
-    fn assert_no_cap_counters(store: &Store) {
+    fn assert_no_cap_counters(store: &snapback4_core::store_port::AnyStore) {
         assert!(store.schema_marker(snapback4_core::metadata::SchemaMarker::CapCounts).unwrap().is_none());
         let present: bool = store.test_support_conn().query_row(
             "SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE name = '_cap_counts')", [], |row| row.get(0)).unwrap();
@@ -241,7 +241,7 @@ fn sqlite_041_store_rebuilds_expiry_index_at_open() {
     let directory=path;
     let path=directory.join("store.sqlite");
     let mut server=Engine::new_at(Store::open(&path).unwrap(),b.schema,b.programs.into_iter().map(|p|p.program),0).unwrap();
-    assert_no_cap_counters(match server.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") });
+    assert_no_cap_counters(server.store());
     server.seed([row(0,Value::Int(100)),row(1,Value::Int(1000)),row(2,Value::Null)]).unwrap();
     let generation=server.generation();
     let mut legacy=server.schema().clone();
@@ -252,23 +252,23 @@ fn sqlite_041_store_rebuilds_expiry_index_at_open() {
     for m in &legacy.maintains {
         let name=m.contribution_index();
         let full=format!("{}.{}",m.source,name);
-        let num:i64=(match &tx { snapback4_core::store_port::AnyTx::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().query_row("SELECT num FROM _catalog WHERE name=?1",[&full],|r|r.get(0)).unwrap();
-        (match &tx { snapback4_core::store_port::AnyTx::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().execute("DELETE FROM i WHERE ti=?1",[num]).unwrap();
+        let num:i64=(&tx).test_support_conn().query_row("SELECT num FROM _catalog WHERE name=?1",[&full],|r|r.get(0)).unwrap();
+        (&tx).test_support_conn().execute("DELETE FROM i WHERE ti=?1",[num]).unwrap();
         for (source,_) in tx.scan(&m.source,"byId",&[],&Bounds::default(),Dir::Asc,100).unwrap() {
             let source_id=source.field("id").unwrap().as_str().unwrap();
             for key in snapback4_core::rows::index_keys(&legacy.tables[&m.source].indexes[&name],&source,source_id) {
-                (match &tx { snapback4_core::store_port::AnyTx::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().execute("INSERT INTO i(ti,k,id) VALUES(?1,?2,?3)",rusqlite::params![num,key,source_id]).unwrap();
+                (&tx).test_support_conn().execute("INSERT INTO i(ti,k,id) VALUES(?1,?2,?3)",rusqlite::params![num,key,source_id]).unwrap();
             }
         }
 
     }
     let text=serde_json::to_string(&legacy).unwrap();
-    (match &tx { snapback4_core::store_port::AnyTx::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().execute("UPDATE _generations SET schema=?1 WHERE generation=?2",rusqlite::params![text,generation as i64]).unwrap();
-    for key in ["schema_hash","cap_counts_schema"] {(match &tx { snapback4_core::store_port::AnyTx::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().execute("UPDATE _meta SET value=?1 WHERE key=?2",[legacy.hash(),key.into()]).unwrap();}
+    (&tx).test_support_conn().execute("UPDATE _generations SET schema=?1 WHERE generation=?2",rusqlite::params![text,generation as i64]).unwrap();
+    for key in ["schema_hash","cap_counts_schema"] {(&tx).test_support_conn().execute("UPDATE _meta SET value=?1 WHERE key=?2",[legacy.hash(),key.into()]).unwrap();}
     tx.commit().unwrap(); drop(server);
     let mut server=Engine::open_at(Store::open(&path).unwrap(),100).unwrap();
     assert_eq!(server.generation(),generation+1);
-    assert_no_cap_counters(match server.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") });
+    assert_no_cap_counters(server.store());
     let schema_hash = server.schema().hash();
     assert_eq!(server.store().schema_marker(snapback4_core::metadata::SchemaMarker::SchemaHash).unwrap().as_deref(), Some(schema_hash.as_str()));
     for maintain in &server.schema().maintains {
@@ -281,7 +281,7 @@ fn sqlite_041_store_rebuilds_expiry_index_at_open() {
     drop(server);
     let server=Engine::open_at(Store::open(&path).unwrap(),200).unwrap();
     assert_eq!(server.generation(),generation+1,"unchanged reopen does not rebuild");
-    assert_no_cap_counters(match server.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") });
+    assert_no_cap_counters(server.store());
     drop(server); std::fs::remove_dir_all(directory).unwrap();
 }
 
