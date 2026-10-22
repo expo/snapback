@@ -6,19 +6,23 @@ fn id_value(e:&Expr,p:&ast::ProgramDecl,table:&str)->Option<String>{
     match e{
         Expr::Name{name,..} if p.args.iter().any(|a|a.name==*name&&matches!(&a.type_.kind,TypeKind::Ref{table:t} if t==table))=>Some(name.clone()),
         Expr::Member{base,name,..} if name=="id"=>{let r=read(base)?;if r.table!=table||r.keys.len()!=1{return None;}
-            if r.keys[0].column.as_deref()==Some("id"){Some(crate::print::expression(&r.keys[0].value))}else{id_value(&r.keys[0].value,p,table)}},
+            if r.keys[0].column.as_deref()==Some("id"){named_id(&r.keys[0].value,p,table)}else{id_value(&r.keys[0].value,p,table)}},
         Expr::Assert{value,..}=>id_value(value,p,table),_=>None,
     }
 }
 fn row_id(r:&ast::ReadExpr,p:&ast::ProgramDecl)->Option<String>{
-    if r.keys.len()!=1{return None;}if r.keys[0].column.as_deref()==Some("id"){Some(crate::print::expression(&r.keys[0].value))}else{id_value(&r.keys[0].value,p,&r.table)}
+    if r.keys.len()!=1{return None;}if r.keys[0].column.as_deref()==Some("id"){named_id(&r.keys[0].value,p,&r.table)}else{id_value(&r.keys[0].value,p,&r.table)}
+}
+fn named_id(e:&Expr,p:&ast::ProgramDecl,table:&str)->Option<String>{
+    match e{Expr::Literal{value:ast::Literal::Str(_),..}=>Some(crate::print::expression(e)),_=>id_value(e,p,table)}
 }
 fn stable_field(bound:&Bound,creator:&Write<'_>,value:&Expr)->Option<String>{
+    if !matches!(value,Expr::Literal{..})&&!matches!(value,Expr::Name{name,..} if name=="viewer"||creator.p.args.iter().any(|a|a.name==*name)){return None;}
     creator.fields.iter().filter(|f|bound.schema.tables[&creator.table].immutable_fields().any(|c|c==f.name)).find(|f|field_value(f).is_some_and(|e|crate::print::expression(e)==crate::print::expression(value))).map(|f|f.name.clone())
 }
 fn normalize(bound:&Bound,creator:&Write<'_>,current:&Write<'_>,e:&Expr,creation:bool)->Option<String>{
     let mut e=e.clone();let origins=if current.table==creator.table&&current.op==WriteOp::Update{
-        current.keys.first().filter(|_|current.keys.len()==1).and_then(|k|id_value(&k.value,current.p,&creator.table).or_else(||(k.column.as_deref()==Some("id")).then(||crate::print::expression(&k.value)))).into_iter().collect::<BTreeSet<_>>()
+        current.keys.first().filter(|_|current.keys.len()==1).and_then(|k|if k.column.as_deref()==Some("id"){named_id(&k.value,current.p,&creator.table)}else{id_value(&k.value,current.p,&creator.table)}).into_iter().collect::<BTreeSet<_>>()
     }else{
         current.fields.iter().filter(|f|matches!(bound.schema.tables[&current.table].columns.get(&f.name).map(ColumnType::required),Some(ColumnType::Ref{table}) if table==&creator.table)).filter_map(field_value).filter_map(|e|id_value(e,current.p,&creator.table)).collect()
     };
@@ -43,6 +47,8 @@ fn identity(bound:&Bound,creator:&Write<'_>,current:&Write<'_>,r:&ast::ReadExpr,
 }
 pub(super) fn checks(bound:&Bound,creator:&Write<'_>,current:&Write<'_>,writes:&[Write<'_>],creation:bool)->BTreeMap<String,BTreeSet<(String,String)>>{
     let mut out=BTreeMap::<String,BTreeSet<(String,String)>>::new();
+    if !creation&&writes.iter().any(|w|std::ptr::eq(w.p,current.p)&&w.table==creator.table&&matches!(w.op,WriteOp::Insert|WriteOp::Upsert|WriteOp::Delete)){return out;}
+
     let mutable=|table:&str,column:&str|bound.schema.tables.get(table).is_some_and(|t|t.columns.contains_key(column)&&!t.immutable_fields().any(|c|c==column))&&writes.iter().any(|o|o.table==table&&(o.op==WriteOp::Delete||matches!(o.op,WriteOp::Update|WriteOp::Upsert)&&o.fields.iter().any(|f|f.name==column)));
     for condition in conditions(&current.context){walk(condition,|e|{
         let (r,columns)=match e{

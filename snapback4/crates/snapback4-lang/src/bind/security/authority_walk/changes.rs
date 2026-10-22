@@ -5,10 +5,11 @@ use super::*;
 pub(super) struct Change{old:Expr,new:Expr,pub requirements:Vec<Stmt>}
 fn read(e:&Expr)->Option<&ast::ReadExpr>{match e{Expr::Read(r)=>Some(r),Expr::Assert{value,..}=>read(value),_=>None}}
 impl Change{
-    pub fn matches(&self,write:&Expr,column:&str)->bool{
+    pub fn matches(&self,write:&Expr,column:&str,p:&ProgramDecl)->bool{
         let Expr::Write{op:ast::WriteOp::Update,table,keys,fields,..}=write else{return false;};
         let Expr::Member{base,name,..}=&self.old else{return false;};let Some(old)=read(base)else{return false;};
-        name==column&&old.table==*table&&old.keys.len()==keys.len()&&old.keys.iter().zip(keys).all(|(a,b)|a.column==b.column&&crate::print::expression(&a.value)==crate::print::expression(&b.value))&&fields.iter().any(|f|f.name==column&&f.value.as_ref().is_some_and(|v|crate::print::expression(v)==crate::print::expression(&self.new)))
+        fn stable(e:&Expr,p:&ProgramDecl)->bool{match e{Expr::Literal{..}=>true,Expr::Name{name,..}=>name=="viewer"||p.args.iter().any(|a|a.name==*name),Expr::Assert{value,..}=>stable(value,p),_=>false}}
+        old.keys.iter().all(|k|stable(&k.value,p))&&keys.iter().all(|k|stable(&k.value,p))&&name==column&&old.table==*table&&old.keys.len()==keys.len()&&old.keys.iter().zip(keys).all(|(a,b)|a.column==b.column&&crate::print::expression(&a.value)==crate::print::expression(&b.value))&&fields.iter().any(|f|f.name==column&&f.value.as_ref().is_some_and(|v|crate::print::expression(v)==crate::print::expression(&self.new)))
     }
 }
 // Unknown calls and writes end the pending interval; pure leading helper

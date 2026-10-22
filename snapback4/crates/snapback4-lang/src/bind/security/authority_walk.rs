@@ -16,7 +16,7 @@ fn expression(catalog:&Catalog,p:&ProgramDecl,expr:&Expr,env:&Env,guards:&[Stmt]
     let mut expr=resolve(expr,env);
     let changes=if column.is_some()&&changes::prior_effects(&expr){&[][..]}else{changes};
     super::super::intent_walk::expression(&mut expr,&mut |e|match e{
-        Expr::Write{..}=>{let mut context=p.clone();context.prelude=Vec::new();context.body=guards.to_vec();if let Some(column)=column{for change in changes{if change.matches(e,column){context.body.extend(change.requirements.clone());}}}out.push((e.clone(),context));},
+        Expr::Write{..}=>{let mut context=p.clone();context.prelude=Vec::new();context.body=guards.to_vec();if let Some(column)=column{for change in changes{if change.matches(e,column,p){context.body.extend(change.requirements.clone());}}}out.push((e.clone(),context));},
         Expr::Call{name,args,..} if depth<32=>if let Some(f)=catalog.functions.get(name){
             let mut locals=f.args.iter().zip(args).map(|(arg,value)|(arg.name.clone(),value.clone())).collect();
             let mut inherited=guards.to_vec();
@@ -69,9 +69,11 @@ fn statements(catalog:&Catalog,p:&ProgramDecl,body:&[Stmt],env:&mut Env,guards:&
             let mut else_guards=guards.clone();
             else_guards.push(Stmt::Require{condition:Expr::Unary{op:"not".into(),value:Box::new(condition.clone()),site:site.clone()},code:"$advice".into(),message:None,site:site.clone()});
             statements(catalog,p,else_body,&mut env.clone(),&mut else_guards,&mut changes.clone(),column,depth,out);
-            if column.is_some(){changes.extend(changes::after(catalog,&condition,then_body,else_body,env));}
+            let assigned=branch_assignments(then_body).into_iter().chain(branch_assignments(else_body)).collect::<BTreeSet<_>>();
+            if column.is_some()&&assigned.is_empty(){changes.extend(changes::after(catalog,&condition,then_body,else_body,env));}
+            for name in assigned{env.insert(name.clone(),Expr::Name{name:format!("$advice_unknown_{name}"),site:site.clone()});}
         },
-        Stmt::For{domain,name,body,..}=>{expression(catalog,p,domain,env,guards,changes,column,depth,out);let mut local=env.clone();local.remove(name);statements(catalog,p,body,&mut local,&mut guards.clone(),&mut changes.clone(),column,depth,out);},
+        Stmt::For{domain,name,body,site}=>{if column.is_some(){changes.clear();}expression(catalog,p,domain,env,guards,changes,column,depth,out);let mut local=env.clone();local.remove(name);statements(catalog,p,body,&mut local,&mut guards.clone(),&mut Vec::new(),column,depth,out);for name in branch_assignments(body){env.insert(name.clone(),Expr::Name{name:format!("$advice_unknown_{name}"),site:site.clone()});}},
         Stmt::As{body,..}=>statements(catalog,p,body,&mut env.clone(),&mut guards.clone(),&mut changes.clone(),column,depth,out),_=>{}
     }
     if consuming{changes.clear();}
@@ -83,4 +85,8 @@ fn walk_writes(catalog:&Catalog,p:&ProgramDecl,column:Option<&str>)->Vec<(Expr,P
     let mut out=Vec::new();let mut env=Env::new();let mut guards=Vec::new();let mut changes=Vec::new();
     statements(catalog,p,&p.prelude,&mut env,&mut guards,&mut changes,column,0,&mut out);
     statements(catalog,p,&p.body,&mut env,&mut guards,&mut changes,column,0,&mut out);out
+}
+
+fn branch_assignments(body:&[Stmt])->BTreeSet<String>{
+    let mut out=BTreeSet::new();for s in body{match s{Stmt::Bind{names,..}=>out.extend(names.clone()),Stmt::If{then_body,else_body,..}=>{out.extend(branch_assignments(then_body));out.extend(branch_assignments(else_body));},Stmt::For{body,..}|Stmt::As{body,..}=>out.extend(branch_assignments(body)),_=>{}}}out
 }

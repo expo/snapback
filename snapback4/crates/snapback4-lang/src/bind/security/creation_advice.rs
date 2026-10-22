@@ -67,7 +67,8 @@ pub(super) fn notes(sources:&[(String,String)],bound:&Bound)->Vec<Diagnostic>{
             for f in &w.fields{let Some(value)=field_value(f)else{continue;};let Some(kind)=t.columns.get(&f.name)else{continue;};
                 for arg in &w.p.args{if !uses(value,&arg.name){continue;}
                     let parent_required=mandatory_parent_for(bound,w,&writes);
-                    let omittable_attachment=nonnull_mode(&w.context,&arg.name,true)&&!parent_required;
+                    let asserted=asserted_argument(value,&arg.name);
+                    let omittable_attachment=(nonnull_mode(&w.context,&arg.name,true)||asserted)&&(!parent_required||asserted&&ordinary_unconditional(w.p,&w.site));
                     if arg.type_.optional&&matches!(arg.type_.kind,TypeKind::Image{..}|TypeKind::File{..})&&kind.contains_asset()&&required_media(bound,&w.table,&f.name)&&!omittable_attachment&&!creating_contexts.iter().all(|a|nonnull(&a.context,&arg.name))&&seen.insert((w.p.name.clone(),format!("upload:{}",arg.name))){
                         note(&mut out,&w.site,"N_OPTIONAL_UPLOAD_CREATE",format!("{}: optional {} can omit media while creating {}; a required media column or explicit non-null intent requires it; can parent creation skip required evidence?",w.p.name,arg.name,w.table),"make the creating mutation's upload argument required, or require it before creating the parent; match the required column/intent at creation; review an intentional exception individually");
                     }
@@ -282,4 +283,8 @@ fn ordinary_unconditional(p:&ast::ProgramDecl,site:&Site)->bool{
             Stmt::If{..}|Stmt::For{..}|Stmt::As{..}|Stmt::Break{..}|Stmt::Continue{..}=>return false,_=>{},
         }
     }false
+}
+
+fn asserted_argument(value:&Expr,arg:&str)->bool{
+    match value{Expr::Assert{value,..}=>matches!(value.as_ref(),Expr::Name{name,..} if name==arg)||asserted_argument(value,arg),_=>false}
 }

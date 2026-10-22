@@ -350,7 +350,7 @@ N_RETAINED_ROLE_GRANT: A recipient role required when storing a grant is mutable
 
 ### N_OPTIONAL_UPLOAD_CREATE
 
-N_OPTIONAL_UPLOAD_CREATE: An optional upload argument can be omitted despite a required media column or explicit non-null integrity intent. Require the upload before creating the parent when independent intent requires child evidence. Optional media columns and guarded optional attachments do not require acknowledgment; a required child column alone does not require a child row. Review an intentional exception with an individual source-bound disposition.
+N_OPTIONAL_UPLOAD_CREATE: An optional upload argument can be omitted despite a required media column or explicit non-null integrity intent. Require the upload before creating the parent when independent intent requires child evidence. Optional media columns and guarded optional attachments do not require acknowledgment; a required child column alone does not require a child row. A direct non-null assertion enforces media at the executed write; it does not require a skipped child row. Review an intentional exception with an individual source-bound disposition.
 
 ### N_CREATION_REASON
 
@@ -386,7 +386,7 @@ E_SECURITY_NOTES: the individual disposition file is malformed, cannot be writte
 
 ### N_CREATE_EDIT_ASYMMETRY
 
-N_CREATE_EDIT_ASYMMETRY: An argument-supplied column has a specific change guard on edit that creation does not imply. The question names that column, editor and guard, rather than a table-wide permission. Confirm creation authority against the specification; enforce the change guard at creation when required and test independent column write intent with non-null input. Exact changed-field comparisons are supported; mixed conditions, intervening writes and early-return equivalents remain outside this heuristic, with generic insert inventory retained when applicable. Absence of advice is not a safety proof.
+N_CREATE_EDIT_ASYMMETRY: An argument-supplied column has a specific change guard on edit that creation does not imply. The question names that column, editor and guard, rather than a table-wide permission. Confirm creation authority against the specification; enforce the change guard at creation when required and test independent column write intent with non-null input. Exact changed-field comparisons in a stable single-write editor are supported. Target keys must be fixed inputs/IDs, and the editor cannot change its authority dependencies. Mixed conditions, changed branch aliases, mutable selectors, multiple target writes and early-return equivalents remain outside this heuristic, with generic insert inventory retained when applicable. Absence of advice is not a safety proof.
 
 ### N_PRIVATE_CREATE_EDIT_ASYMMETRY
 

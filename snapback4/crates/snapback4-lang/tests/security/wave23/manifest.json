@@ -1,5 +1,5 @@
 {
-  "origin": "wave23-repro/sec/all; schema only; immutable copied evidence",
+  "origin": "wave23-repro/sec/all plus wave18/19 apps/046; schema only; immutable copied evidence",
   "sha256": {
     "003.q": "0d9dc5bb5ea51da9e6967588ecc086ef5c24c76662f121857a66e5cf37742909",
     "007.q": "171872f88748bed65c1f4fbe3fae1a5ab702b6484d4d7171ab65ef2993f816ab",
@@ -17,6 +17,8 @@
     "028.q": "6afa95be63c60036595aa22097a1b5309f6dc4aa1b84f521592161b35eb76cf4",
     "030.q": "e75b3857ece058af81c6d3c2d68618a388db3ad0d627967fc441d4673330a8a7",
     "042.q": "f3b956af45b0d13353481bb12a85a1935a10528f9c5b11643b5e6cd868167f79",
-    "040.q": "05bc2a3b36f1e79aac63c9a3ed75373b31d54bad009e21d50b793fd3f3fc77fd"
+    "040.q": "05bc2a3b36f1e79aac63c9a3ed75373b31d54bad009e21d50b793fd3f3fc77fd",
+    "wave18-046.q": "706aaf95841c810e67b98975281d80f6b6167fb526bbd0cda3c0ad72601ccd54",
+    "wave19-046.q": "678b54f1b133335ce80928aad214ae61489e885015531b9425eacc1032248cc2"
   }
 }
