@@ -58,9 +58,19 @@ class Postgres(snapback.Snapback):
         if args[0]=='token' and 'drain' in args:
             # The PG profile deliberately excludes the SQLite token CLI. Two
             # native identity writes cross the same FIFO writer, outside load.
-            status,value=snapback.http('/auth/session',dict(principal='barrier:drain',kind='member',days=7),self.barrier_token)
-            if status!=200 or 'session' not in value:raise RuntimeError('native service-authorized drain barrier refused')
-            return ''
+            deadline=time.monotonic()+30
+            while True:
+                status,value=snapback.http('/auth/session',dict(principal='barrier:drain',kind='member',days=7),self.barrier_token)
+                if status==200 and 'session' in value:return ''
+                refusal=value.get('denied',value.get('why',{}))
+                code=refusal.get('code') if isinstance(refusal,dict) else None
+                # Never log the full reply: success/session fields may contain
+                # credentials. Retry only explicit, pre-admission refusals.
+                with (self.out/'drain-refusals.jsonl').open('a') as f:
+                    f.write(json.dumps(dict(time=time.time(),context=getattr(self,'drain_context',None),http_status=status,code=code))+'\n')
+                if not (status==429 or (status==503 and code in ('E_RATE_LIMIT','E_STREAMS'))) or time.monotonic()>deadline:
+                    raise RuntimeError(f'native drain barrier refused: HTTP {status}, code {code}')
+                time.sleep(.1)
         return super().cli(*args)
 
     def select_link(self, delay):
@@ -286,6 +296,10 @@ os.umask(0o077);(p/'barrier-config.json').write_text(json.dumps(v))
         # Use the unchanged common search, scheduler, SLO and counter audit.
         Run.cell(self,*args)
 
+    def trial(self,directory,workload,writers,keys,rows,rate,repeat):
+        self.drain_context=dict(cell=directory.name,rate=rate,repeat=repeat)
+        return super().trial(directory,workload,writers,keys,rows,rate,repeat)
+
     def close(self):
         self.stop_service()
         cleanup={}
@@ -314,7 +328,12 @@ def main():
     args=p.parse_args();args.load_cores=LOAD_CORES
     r=Postgres(args)
     try:
-        r.start();r.fixture(1000000)
+        r.start()
+        if args.resume:
+            recovered=int(r.sqlpg("SELECT coalesce(sum((data::jsonb->'Row'->'n'->>'Int')::bigint),0) FROM bench.r WHERE t='counters'").strip())
+            write(r.out/'resume-counter.json',dict(time=time.time(),counter_sum=recovered,source=args.resume,
+                context='after prior server exit, before new probes or load'))
+        r.fixture(1000000)
         matrix=[]
         for delay in (0,500):
             matrix += [(w,1000000,delay,128,'disjoint') for w in ('W1','W2','W3')]

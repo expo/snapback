@@ -95,6 +95,8 @@ def probe(directory,cell):
         sql_exec_ms_per_op=execution,utility_commit_exec_ms=commit_exec,
         db_xact_commit_delta=after['database']['xact_commit']-before['database']['xact_commit'],
         db_xact_rollback_delta=after['database']['xact_rollback']-before['database']['xact_rollback'],
+        db_total_transactions_per_op_uncorrected=((after['database']['xact_commit']-before['database']['xact_commit'])+
+            (after['database']['xact_rollback']-before['database']['xact_rollback']))/n,
         database_stats_caveat='all backends in own database; counter observer adds transactions; idle-backend report lag can shift boundaries',
         statements=ss)
 
@@ -153,6 +155,8 @@ def main():
                     return ticks/capture['clock_ticks']
                 resources.append(dict(serve_cpu_ms_per_op=cpu([app])*1000/max(1,n),
                     load_cpu_ms_per_op=cpu([load])*1000/max(1,n),
+                    serve_mean_logical_cores=cpu([app])/(capture['end']-capture['start']),
+                    load_mean_logical_cores=cpu([load])/(capture['end']-capture['start']),
                     statements_per_op_including_background=sum(s['calls'] for s in ss)/max(1,n),
                     sql_exec_ms_per_op=sum(s['total_exec_time'] for s in ss)/max(1,n),
                     wal_bytes_per_op_role_filtered=sum(s['wal_bytes'] for s in ss)/max(1,n),
@@ -192,12 +196,12 @@ def main():
         b=row['passing']
         if b:table.append(f"| {label(row['cell'])} | {fmt(b['rate'])} | {median(b['p50_ms']):.3f} | {median(b['p99_ms']):.3f} ({min(b['p99_ms']):.3f}–{max(b['p99_ms']):.3f}) | {median(x['serve_cpu_ms_per_op'] for x in b['resources']):.3f} | {median(x['wal_bytes_per_op_role_filtered'] for x in b['resources']):.0f} |")
     (out/'ledger.md').write_text('\n'.join(table)+'\n')
-    table=['| Cell | Statements/op | Starts/op | RO starts/op | COMMIT/op | ROLLBACK/op | Sessions/op | Inferred exchanges/op | RFC envelope |','|---|---:|---:|---:|---:|---:|---:|---:|---:|']
+    table=['| Cell | Statements/op | App starts/op | RO starts/op | COMMIT/op | ROLLBACK/op | Sessions/op | Inferred exchanges/op | PG database tx/op, uncorrected | RFC envelope |','|---|---:|---:|---:|---:|---:|---:|---:|---:|---|']
     for s in statements:
         vals=[s[k] for k in ('statements_per_op','transaction_starts_per_op','readonly_starts_per_op','commits_per_op','rollbacks_per_op','session_resolutions_per_op','inferred_driver_exchanges_per_op')]
         w=s['cell']['workload']
         expected='57–58 tiny/member examples' if w in ('W4','W5') else 'program-dependent; no constant budget' if w=='W3' else '23'
-        table.append('| '+label(s['cell'])+' | '+' | '.join(f'{v:.3f}' for v in vals)+' | '+expected+' |')
+        table.append('| '+label(s['cell'])+' | '+' | '.join(f'{v:.3f}' for v in vals)+f" | {s['db_total_transactions_per_op_uncorrected']:.3f} | "+expected+' |')
     (out/'statements-per-op.md').write_text('\n'.join(table)+'\n')
     table=['| Cell | Offered/s | Second-half ack/s (all reps) | Tail p50 median ms range | Tail p99 median ms range | Exact every second/rep |','|---|---:|---:|---:|---:|---|']
     for s in steady:
@@ -282,18 +286,25 @@ def main():
     for path in paths:
         directory=path.parent;cell=read(directory/'cell.json');summary=read(path)
         best=summary['highest_passing_offered_per_s']
-        if best is None:continue
-        counts=Counter();active=Counter();max_connected=0
-        for i in range(3):
-            capture=read(directory/f'rate-{best}-r{i}.resources.json')
-            for sample in observations:
-                if capture['start']<=sample['time']<=capture['end']:
-                    max_connected=max(max_connected,len(sample['states']))
-                    for s in sample['states']:
-                        key=f"{s['state']}:{s['wait_type']}:{s['wait']}"
-                        counts[key]+=1
-                        if s['state']=='active':active[key]+=1
-        wait_rows.append(dict(cell=cell,max_connections=max_connected,state_wait_samples=dict(counts),active_wait_samples=dict(active)))
+        # Preserve failed write diagnostics too, at both the lowest rate and
+        # highest overload. A sampled backend state is not a request duration.
+        shown=best if best is not None else min(summary['rates'])
+        for rate in sorted({shown,max(summary['rates'])}):
+            counts=Counter();active=Counter();commit_waits=Counter();max_connected=0
+            for i in range(3):
+                capture=read(directory/f'rate-{rate}-r{i}.resources.json')
+                for sample in observations:
+                    if capture['start']<=sample['time']<=capture['end']:
+                        max_connected=max(max_connected,len(sample['states']))
+                        for s in sample['states']:
+                            key=f"{s['state']}:{s['wait_type']}:{s['wait']}"
+                            counts[key]+=1
+                            if s['state']=='active':active[key]+=1
+                            if s.get('query','').startswith('COMMIT') and s['state']=='active':commit_waits[key]+=1
+            wait_rows.append(dict(cell=cell,offered_per_s=rate,qualified_rate=rate==best,
+                max_connections=max_connected,state_wait_samples=dict(counts),
+                active_wait_samples=dict(active),active_commit_samples=dict(commit_waits),
+                caveat='role-filtered 100 ms samples; not queue/flush durations or a wire trace'))
     write(out/'waits.json',wait_rows)
     import matplotlib
     matplotlib.use('Agg');matplotlib.rcParams['svg.fonttype']='none';matplotlib.rcParams['svg.hashsalt']='s1pg2'

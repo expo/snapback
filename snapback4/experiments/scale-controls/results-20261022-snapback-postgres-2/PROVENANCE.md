@@ -23,7 +23,8 @@ All paths below are under archived `target/s1pg2/`.
 | `raw-resumed` | First complete native 1M seed, 1,085.265 s total / 1,079.013 s messages; full image/recount checks pass. First W1 warm probes succeed, then an observer queries `pg_stat_statements` from `postgres`, where its extension is absent (SQLSTATE 42P01). No timed load trial. Cleanup dropped only this owned fixture. |
 | `raw-v2`, `raw-v3`, `raw-v4` | Second seed with setup-only controller handoffs. Native seed continued across every handoff; no timed trials. Native service-authorized account mints replace guest mints, since the unchanged fixture disables guest login. The 1% probe and provenance receipts were completed before measurement. |
 | `raw-final` | Second 1M seed: 916.504 s total / 909.957 s messages, all images and every room/user recount exact. Complete natural W1 and W2 cells retained. W3's first attempt is interrupted by the observer race described below; its partial trials do not qualify a cell. |
-| `raw-tail` | Whole natural W3 rerun with a fresh serve, then the remaining nine cells. Same fixture, release product, scheduler, warm-up, windows, SLO and write audit. |
+| `raw-tail` | Whole natural W3 rerun and six more complete cells. Its first delayed W4 attempt stops at a refused post-load drain request; that whole partial cell is excluded from qualification. |
+| `raw-writes` | Fresh-process rerun of the three delayed write cells. The retained fixture and all nine complete earlier cells are reused. Only the outside-window drain handles explicit 429 / admission-503 refusals with a bounded retry; no timed operation is retried. |
 
 The `raw-resumed` observer failure's minimal command was a read-only
 `SELECT ... FROM pg_stat_statements` with `psql -d postgres`. The extension was
@@ -44,6 +45,20 @@ These are harness/setup interruptions, not Postgres product defects. Expected
 HTTP 503 / `E_RATE_LIMIT` admissions at overload are measured errors, not setup
 interruptions. Source, command, per-process output and exit status remain raw
 rather than being replaced with a passing retry.
+
+The first delayed W4 attempt completed three 3,200/s repetitions, then stopped
+after the next load when the native drain request was refused. That first
+harness version did not retain its HTTP status/code; it must not be assigned a
+product error code retroactively. The corrected drain logs only sanitized
+status/code/context, never a session-bearing reply, and retries explicit
+pre-admission 429 or `E_RATE_LIMIT`/`E_STREAMS` 503 for at most 30 seconds.
+Counter recovery after the stopped server witnesses 760 increments beyond the
+last complete natural write image: 70 clean probes, 498 in completed but
+unqualified cohorts, and 192 in the interrupted cohort; zero acknowledged
+writes in those load cohorts. This offset is separately audited, never used as
+a passing cell or silently assigned to the rerun. Two supplemental observers
+also initially started before the new ownership receipt existed; their startup
+errors are retained, and the guarded restarts precede timed load.
 
 ## Seed and source binding
 

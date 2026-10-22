@@ -9,6 +9,9 @@ import time
 from run import cpu_sample, write
 
 raw=Path(sys.argv[1]).resolve();done=Path(sys.argv[2]).resolve()
+while not (raw/'ownership.json').exists():
+    if done.exists():raise SystemExit('campaign exited before ownership receipt')
+    time.sleep(.1)
 with (raw/'pids.jsonl').open('a') as f:
     f.write(json.dumps(dict(pid=os.getpid(),kind='local-observer',time=time.time()))+'\n')
 count=0

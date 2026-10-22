@@ -10,6 +10,9 @@ import time
 from run import PSQL, write
 
 raw=Path(sys.argv[1]).resolve();done=Path(sys.argv[2]).resolve()
+while not (raw/'ownership.json').exists():
+    if done.exists():raise SystemExit('campaign exited before ownership receipt')
+    time.sleep(.1)
 ownership=json.loads((raw/'ownership.json').read_text())
 env=dict(os.environ,PGPASSWORD=(Path.home()/'sb4scale/pw').read_text().strip(),
     PGUSER='sb4scale',PGHOST=ownership['upstream_path'],PGPORT='55440',PGAPPNAME='s1pg2_observer',
