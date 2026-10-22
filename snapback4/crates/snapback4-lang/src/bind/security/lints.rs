@@ -79,7 +79,7 @@ pub(super) fn notes(bound:&Bound,exposures:&[Exposure])->Vec<Diagnostic>{
         for (column,kind) in &t.columns {
             use snapback4_core::schema::ColumnType as C;
             if kind.contains_asset() && (kind.is_optional() || matches!(kind.required(),C::List{..}|C::ListRange{min:0,..})) {
-                note(&mut notes,&Site::default(),"N_OPTIONAL_EVIDENCE",format!("{name}.{column} permits omitted or empty media evidence"),"if the spec requires evidence, declare a required image/file or [image] 1..N; otherwise retain optionality deliberately (guide security)");
+                note(&mut notes,&Site::default(),"N_OPTIONAL_EVIDENCE",format!("{name}.{column} permits omitted or empty media evidence"),&format!("if the spec requires evidence permanently, declare `invariant {name} always .{column} != null`; for creation-only presence use `invariant {name}.insert only .{column} != null`. Require the creating upload argument accordingly; otherwise record why optionality is intentional (guide security)"));
             }
         }
         for leaf in rule_parts(&t.rules.insert) {

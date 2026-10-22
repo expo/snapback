@@ -28,7 +28,7 @@ impl Reachability {
 #[derive(Clone,Debug,Serialize,serde::Deserialize)]
 pub struct Counterexample {pub reachability:Reachability,pub invariant_site:String,pub args:BTreeMap<String,Value>,pub viewer:String,pub operation:String,pub effect:String,pub row:Value,pub old:Option<Value>,pub supporting_rows:BTreeMap<String,Vec<Value>>,pub rule_path:String,pub scope:String, pub observations:Option<paired::Observations>,pub history:Vec<histories::Step>}
 #[derive(Clone,Debug,Default,Serialize)]
-pub struct Campaign {pub directed_attempts:usize,pub directed_peak_worlds:usize,#[serde(skip)] pub history_limit:usize,#[serde(skip)] pub generated_fixture:bool,#[serde(skip)] pub work_remaining:Option<usize>,#[serde(skip)] pub deadline:Option<std::time::Instant>,pub paired_observer_calls:usize,pub history_observer_calls:usize,pub column_observer_calls:usize,pub operations:BTreeMap<String,usize>,pub sequences:usize,pub attempted:usize,pub admitted:usize,pub refused:usize,pub violations:Vec<Counterexample>,pub boundary_failures:Vec<String>,pub unsupported:BTreeSet<String>}
+pub struct Campaign {#[doc(hidden)] #[serde(skip)] pub time_samples:Option<Vec<Value>>,pub evaluation_unknowns:BTreeSet<String>,pub directed_attempts:usize,pub directed_peak_worlds:usize,#[serde(skip)] pub history_limit:usize,#[serde(skip)] pub generated_fixture:bool,#[serde(skip)] pub work_remaining:Option<usize>,#[serde(skip)] pub deadline:Option<std::time::Instant>,pub paired_observer_calls:usize,pub history_observer_calls:usize,pub column_observer_calls:usize,pub operations:BTreeMap<String,usize>,pub sequences:usize,pub attempted:usize,pub admitted:usize,pub refused:usize,pub violations:Vec<Counterexample>,pub boundary_failures:Vec<String>,pub unsupported:BTreeSet<String>}
 impl Campaign {
     pub fn bounded(milliseconds:u64)->Self {Self{work_remaining:Some(512),deadline:Some(std::time::Instant::now()+std::time::Duration::from_millis(milliseconds)),..Self::default()}}
     pub(super) fn reserve(&mut self,cost:usize)->bool {
@@ -125,6 +125,10 @@ fn policy_in(bound:&Bound,inv:&Invariant,rows:&BTreeMap<String,Vec<Value>>,viewe
     match engine.fixture_policy(p,viewer,old,&image,NOW).map_err(|e|e.to_string())?{
         rules::Verdict::Readable=>Ok(true),rules::Verdict::Denied=>Ok(false),rules::Verdict::Unknown=>Err("policy reference/coverage judgment is unknown; never a refutation".into()),
     }
+}
+fn judged(inv:&Invariant,result:Result<bool,String>,out:&mut Campaign)->Result<bool,String>{
+    if let Err(why)=&result{out.evaluation_unknowns.insert(format!("{} at {}: {why}",inv.target_label(),inv.site));}
+    result
 }
 fn program(name:&str,kind:ProgramKind,body:Vec<Stmt>)->Program{Program{name:name.into(),kind,args:BTreeMap::new(),arg_aliases:BTreeMap::new(),body,read_time_granularity_ms:None,returned_shapes:BTreeMap::new(),native:false}}
 fn engine(bound:&Bound,rows:&BTreeMap<String,Vec<Value>>,probe:Program)->Result<Engine,String>{
@@ -294,7 +298,7 @@ pub fn run_selected_after(bound:&Bound,sites:Option<&BTreeSet<String>>,mut out:C
             for viewer in [VIEWER,OTHER,"account:security-no-role","service:security"]{
                 if !out.reserve(1){break;}
                 if inv.target=="always" {
-                    match policy(bound,inv,&rows,viewer,None,row){
+                    match judged(inv,policy(bound,inv,&rows,viewer,None,row),&mut out){
                         Ok(false)=>{out.attempted+=1;out.admitted+=1;out.violations.push(Counterexample{reachability:Reachability::TrustedSeedOnly,history:Vec::new(),observations:None,invariant_site:inv.site.to_string(),args:BTreeMap::new(),viewer:viewer.into(),operation:"$security.seed_at".into(),effect:"always".into(),row:row.clone(),old:None,supporting_rows:rows.clone(),rule_path:"trusted seed ingress; all typed and final-exists constraints rechecked".into(),scope:"actual seed_at commit/read-back; ordinary application reachability is not claimed".into()});found=true;},
                         Ok(true)=>{out.attempted+=1;},Err(e)=>{out.unsupported.insert(e);}
                     }if found{break;}continue;
@@ -302,7 +306,7 @@ pub fn run_selected_after(bound:&Bound,sites:Option<&BTreeSet<String>>,mut out:C
                 if let Some(operation)=&inv.operation {
                     let Some(p)=bound.programs.iter().find(|p|&p.program.name==operation)else{continue;};
                     if ephemeral_operation(bound,&p.program,&mut out){continue;}
-                    let permitted=match policy(bound,inv,&rows,viewer,None,row){Ok(p)=>p,Err(why)=>{out.unsupported.insert(format!("{operation}: operation intent not judged: {why}"));continue;}};
+                    let permitted=match judged(inv,policy(bound,inv,&rows,viewer,None,row),&mut out){Ok(p)=>p,Err(why)=>{out.unsupported.insert(format!("{operation}: operation intent not judged: {why}"));continue;}};
                     let Some(args)=arguments(&p.program.args,variant)else{out.unsupported.insert(format!("{operation}: arguments need fixture assets or unsupported samples"));continue;};
                     if !out.reserve(1){break;}
                     out.attempted+=1;
@@ -326,8 +330,8 @@ pub fn run_selected_after(bound:&Bound,sites:Option<&BTreeSet<String>>,mut out:C
                 }
                 for word in super::effects(inv){
                     let mut admission_rows=rows.clone();if word=="insert"{admission_rows.remove(&inv.table);}
-                    let judged=if word=="read"{policy_in(bound,inv,&admission_rows,viewer,Some(row),row,&mut seeded)}else{policy(bound,inv,&admission_rows,viewer,(word!="insert").then_some(row),row)};
-                    let allowed=match judged{Ok(v)=>v,Err(e)=>{out.unsupported.insert(e);continue;}};
+                    let result=if word=="read"{policy_in(bound,inv,&admission_rows,viewer,Some(row),row,&mut seeded)}else{policy(bound,inv,&admission_rows,viewer,(word!="insert").then_some(row),row)};
+                    let allowed=match judged(inv,result,&mut out){Ok(v)=>v,Err(e)=>{out.unsupported.insert(e);continue;}};
                     if allowed{continue;}
                     if !out.reserve(1){break;}
                     out.attempted+=1;
@@ -385,6 +389,23 @@ fn materialize_arguments(engine:&mut Engine,args:&BTreeMap<String,ir::ArgType>,v
 
 /// Fixture-free campaigns retain empty-start bootstraps and populated role worlds.
 /// The two initial states share the existing 512-single/512-pair work envelope.
+/// Every declared intent outside the concrete fragment stays visible even when
+/// no generated row reaches its observer. This is coverage, never refutation.
+pub fn evaluation_gaps(bound:&Bound)->Vec<String>{
+    bound.invariants.iter().filter_map(|inv|{
+        let mut reasons=BTreeSet::new();
+        if let Some(policy)=&inv.policy{for dep in kernel::dependencies(policy){if bound.schema.tables.get(&dep).is_some_and(|t|t.through.is_some()){
+            reasons.insert(format!("{dep}: read-through population requires authorized replay; raw invariant evaluator cannot cover it"));
+        }}}
+        if inv.policy.is_none(){
+            if let Some(syntax)=&inv.syntax{reasons.extend(super::concrete::limitations(syntax,&bound.schema,&inv.table));}
+            else{reasons.insert("no concrete predicate syntax is available".into());}
+            if inv.operation.is_some(){reasons.insert("operation write-boundary tracing requires a bound rule policy".into());}
+        }
+        (!reasons.is_empty()).then(||format!("{} at {}: {}",inv.target_label(),inv.site,reasons.into_iter().collect::<Vec<_>>().join("; ")))
+    }).collect()
+}
+
 pub fn generated_campaign(bound:&Bound,campaign:&mut Campaign,matrix:bool){
     for (name,_) in bound.schema.visible_tables().filter(|(_,t)|t.ephemeral.is_some()){campaign.unsupported.insert(format!("ephemeral {name}: generated memory populations and ephemeral mutation histories remain uncovered; durable campaigns use isolated hub copies"));}
     campaign.history_limit=64;campaign.generated_fixture=false;
@@ -509,7 +530,7 @@ fn trusted_reads(bound:&Bound,fixture:&Engine,out:&mut Campaign){
         if rows.get(&inv.table).is_some_and(|rs|rs.len()>1000){out.unsupported.insert(format!("{}: raw authored fixture admission samples the first 1000 rows; remaining rows uncovered",inv.target_label()));}
         'rows:for row in rows.get(&inv.table).into_iter().flatten().take(1000){for viewer in &actors{
             if !out.reserve(1){return;}
-            if !live(&bound.schema.tables[&inv.table],row)||!matches!(judge.fixture_policy(&bound.schema.tables[&inv.table].rules.read,viewer,None,row,NOW),Ok(rules::Verdict::Readable))||policy_in(bound,inv,&rows,viewer,None,row,&mut judge)!=Ok(false){continue;}
+            if !live(&bound.schema.tables[&inv.table],row)||!matches!(judge.fixture_policy(&bound.schema.tables[&inv.table].rules.read,viewer,None,row,NOW),Ok(rules::Verdict::Readable))||judged(inv,policy_in(bound,inv,&rows,viewer,None,row,&mut judge),out)!=Ok(false){continue;}
             out.violations.push(Counterexample{reachability:Reachability::AuthoredFixtureTrace,invariant_site:inv.site.to_string(),args:BTreeMap::new(),viewer:viewer.clone(),operation:"$fixture.read-admission".into(),effect:"read".into(),row:row.clone(),old:None,supporting_rows:rows.clone(),rule_path:"ordinary row-read gate admits authored fixture data contrary to declared intent".into(),scope:"authored fixture initialization is trusted; raw row admission, no initialization history claimed".into(),observations:None,history:Vec::new()});
             break 'rows;
         }}

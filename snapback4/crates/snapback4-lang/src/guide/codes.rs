@@ -1,4 +1,13 @@
 pub const CODES: &[(&str, &str)] = &[
+    ("N_TABLE_QUESTIONNAIRE", "Role-wide access and restating invariants share one table questionnaire. Answer from the specification; JSON retains every underlying note and individual decision ID. The grouped line is advisory and has no separate ID. Advisory only. guide security."),
+    ("N_APPROVAL_NOT_ENFORCED", "An approval flag is written but not inspected by a lifecycle transition. Decide which transitions require approval, declare independent intent, and test both gating boolean values. Advisory only. guide security."),
+    ("N_EDIT_AFTER_APPROVAL", "A checked value or media artifact can change without a positive creation-state restriction. Decide whether approval must be renewed after edits or replacements; declare column update intent. Advisory only. guide security."),
+    ("N_CHILD_EVIDENCE_PRESENCE", "A separately created media child is not required by a parent transition. Required child fields do not require a child row. Declare parent integrity intent with the specification's draft-state exceptions. Advisory only. guide security."),
+    ("N_TIME_TRANSITION", "A missed, overdue or expired state is written without a server-clock comparison. Confirm the relevant deadline against the specification and test both sides of its boundary. Advisory only. guide security."),
+    ("N_GUARD_NOT_CONSUMED", "A transition checks a related state or Boolean without consuming it. Decide whether the guard represents one-use authorization and test repeat transitions. Advisory only. guide security."),
+    ("N_CALENDAR_DURATION", "A 365-day multiple may differ from a calendar anniversary. Decide fixed elapsed days versus a calendar date and test leap-year boundaries. Advisory only. guide security."),
+    ("N_DEPENDENT_WINDOW", "A written deadline is bounded against now without consulting a dependent stored deadline. Confirm the window base and enforce the actual resource deadline when required. Advisory only. guide security."),
+
     ("E_STORE_CONFIG", "store selectors conflict or the deployment binding/configuration is missing or invalid; use one selector with explicit schema and HA mode and the original logical store binding. guide deploy."),
     ("E_STORE_OWNERSHIP", "the Postgres owner token, store binding or bounded takeover is no longer valid; stop admission, renew or reacquire ownership and reopen with its token before writing."),
     ("E_COMMIT_OUTCOME_UNKNOWN", "COMMIT was sent without a reliable acknowledgement, including a cancelled synchronous replication wait. This is an unknown outcome, not a refusal. Resolve the persisted receipt or operation key before any retry; automatic retry is disabled."),
@@ -15,7 +24,7 @@ pub const CODES: &[(&str, &str)] = &[
     ("N_CREATION_MONEY", "a creating mutation accepts omitted money. Confirm the spec records the required amount and payment evidence. guide security."),
     ("N_CONSTANT_APPROVAL", "a name-based question: creation stores a payment/approval flag as constant true. What independently verifies the payment or decision? guide security."),
     ("N_TRANSITION_BYPASS", "a generic enum setter can reach a value also set by a stricter operation. Enforce decision authority on every transition path; declare intent and test. guide security."),
-    ("N_STALE_CREATION_CHECK", "creation checks a mutable eligibility column that an approval-like transition does not recheck; grouped by created table and dependency. Test create -> eligibility change -> approve against independent intent. guide security."),
+    ("N_STALE_CREATION_CHECK", "creation checks a mutable eligibility column that a later literal-state transition does not recheck; grouped by created table and dependency. Test create -> eligibility change -> approve against independent intent. guide security."),
     ("N_DURATION_BOUNDS", "one bound column has different server-now duration windows across operations. Confirm deliberate differences or use the spec duration consistently. guide security."),
     ("N_CREATE_EDIT_ASYMMETRY", "an argument-supplied column has a specific change guard on edit but not creation. Confirm column creation authority, enforce the guard if required, and test independent column write intent with non-null input. guide security."),
     ("N_PRIVATE_CREATE_EDIT_ASYMMETRY", "a caller can initialize a private column without its change guard and outside its read audience. Confirm who may supply this private field at creation. guide security."),

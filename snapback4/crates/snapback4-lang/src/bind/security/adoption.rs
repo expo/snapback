@@ -12,7 +12,7 @@ pub(super) fn missing(bound:&Bound)->Vec<String>{
 /// Specification questions, never proposed enforcement or accepted policy.
 /// The caller must keep this outside the compiled .q source set.
 pub fn draft(bound:&Bound)->String{
-    let mut out=String::from("-- DRAFT: NOT ACCEPTED. Answer from the APP SPECIFICATION, not from the rules.\n-- Each answer needs an audience, a resource relationship and lifecycle/consent conditions.\n-- Use table-read intent for a shared row audience; add column-read intent for distinct privacy boundaries.\n-- Assess every role and column, without automatically declaring one invariant for each question.\n-- Identify each role's positive product/workflow grant before retaining access to other people's private data.\n-- Write confirmed declarations in authored snapback/*.q, then run check -> test -> audit.\n-- This questionnaire is never compiled and does not propose policy.\n-- snapback4 guide security\n\n");
+    let mut out=String::from("-- DRAFT: NOT ACCEPTED. Answer from the APP SPECIFICATION, not from the rules.\n-- Each answer needs an audience, a resource relationship and lifecycle/consent conditions.\n-- Use table-read intent for a shared row audience; add column-read intent for distinct privacy boundaries.\n-- Assess every role and column, without automatically declaring one invariant for each question.\n-- Identify each role's positive product/workflow grant before retaining access to other people's private data.\n-- Write confirmed declarations in authored snapback/*.q, then run check -> test -> audit.\n-- This questionnaire is never compiled and never accepts policy automatically.\n-- snapback4 guide security\n\n");
     let roles=super::intent::roles(bound);
     for (name,t) in bound.schema.visible_tables(){
         out.push_str(&format!("-- {name}: {}\n",super::intent::row_context(t)));
@@ -24,6 +24,9 @@ pub fn draft(bound:&Bound)->String{
         }
         for (column,kind) in &t.columns {
             if column=="id"||t.engine_field(column){continue;}
+            if kind.contains_asset() && kind.is_optional() {
+                out.push_str(&format!("-- Q {name}.{column}: does the SPEC require this upload permanently? If yes, confirm and copy: invariant {name} always .{column} != null\n-- Creation-only presence instead: invariant {name}.insert only .{column} != null\n-- Otherwise record that attachment may follow creation or is optional; do not copy required-presence intent.\n"));
+            }
             for audience in &audiences {
                 out.push_str(&format!("-- Q {name}.{column} ({kind}) / {audience}: may this audience read this value, including downloads and derived values? On which related rows and in which states? If not, which independently confirmed column-read invariant excludes it?\n"));
             }

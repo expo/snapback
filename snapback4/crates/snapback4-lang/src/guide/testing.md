@@ -44,6 +44,14 @@ rows. Test the complete flag as well as the count; do not expect E_RULE for a
 hidden page. For a compiled role workflow see: `guide rule-recipes role-workflow`.
 Use `guide client` for client recipes and the proof helper contracts below.
 
+`test` names invariants it cannot fully evaluate, including unsupported clock,
+typed arithmetic, cross-row and read-through assertions. Runtime unknown judgments
+name the target and source site too. These gaps make the summary incomplete and
+stay non-failing; actual replayed violations fail. Zero violations does not mean
+an unsupported assertion was tested. Generated fixtures use fresh actor-owned
+uploads and try opposite creator booleans before a second actor fills the row
+slots. Finite history, argument and population cuts remain explicit coverage gaps.
+
 ## Fixtures and cases
 
 `test` uses ./fixtures; `--fixture dir` overrides it. A fixture directory has

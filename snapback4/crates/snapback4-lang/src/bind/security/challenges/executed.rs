@@ -36,7 +36,7 @@ pub(super) fn record(bound:&Bound,p:&Program,trace:&Trace,result:&snapback4_core
                 out.unsupported.insert(format!("{} / {}: returned policy image differs from committed image; disclosure boundary uncovered",p.name,inv.target_label()));continue;
             }
             if !out.reserve(1){return;}
-            if policy_in(bound,inv,after,viewer,None,row,engine)!=Ok(false){continue;}
+            if judged(inv,policy_in(bound,inv,after,viewer,None,row,engine),out)!=Ok(false){continue;}
             if histories::violation(out,inv,steps,viewer,row,None,initial,"mutation result"){
                 let v=out.violations.last_mut().unwrap();v.operation=p.name.clone();v.args=steps.last().map(|s|s.args.clone()).unwrap_or_default();v.rule_path="authored mutation returned a compiler-typed protected row/column payload; stable current policy false".into();
             }

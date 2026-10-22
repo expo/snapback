@@ -4,6 +4,7 @@ use super::*;
 use ast::{Expr, Stmt, WriteOp, ProgramKind, TypeKind};
 use snapback4_core::schema::ColumnType;
 mod eligibility;
+mod lifecycle;
 fn note(out:&mut Vec<Diagnostic>,site:&Site,code:&str,message:String,repair:&str){out.push(Diagnostic::new(site,code,message,repair).guide("security"));}
 fn walk(e:&Expr,mut f:impl FnMut(&Expr)){let mut e=e.clone();super::super::intent_walk::expression(&mut e,&mut |e|f(e));}
 fn uses(e:&Expr,arg:&str)->bool{let mut found=false;walk(e,|e|if matches!(e,Expr::Name{name,..} if name==arg){found=true;});found}
@@ -137,6 +138,7 @@ pub(super) fn notes(sources:&[(String,String)],bound:&Bound)->Vec<Diagnostic>{
     stale_notes(bound,&writes,&mut out);
     evidence_notes(bound,&writes,&mut out);
     duration_notes(&writes,&mut out);
+    lifecycle::notes(bound,&writes,&mut out);
     let mut dedup=BTreeSet::new();out.retain(|n|dedup.insert((n.code.clone(),n.message.clone(),n.site.to_string())));out
 }
 fn same_target(base:&Expr,w:&Write<'_>)->bool{match base{
@@ -198,11 +200,15 @@ fn required_media(bound:&Bound,table:&str,column:&str)->bool{
         pair.is_some_and(|(a,b)|[(a,b),(b,a)].iter().any(|(a,b)|matches!(a,RuleTerm::Field(c) if c==column)&&matches!(b,RuleTerm::Literal(snapback4_core::Value::Null))))
     }
     fn mandatory(kind:&ColumnType)->bool{match kind{ColumnType::Image{..}|ColumnType::File{..}|ColumnType::Video{..}=>true,ColumnType::ListRange{of,min,..}=>*min>0&&mandatory(of),_=>false}}
-    mandatory(&bound.schema.tables[table].columns[column])||mandatory(bound.schema.tables[table].columns[column].required())&&bound.invariants.iter().filter(|i|i.table==table&&i.target=="always").filter_map(|i|i.policy.as_ref()).flat_map(conjuncts).any(|r|nonnull(r,column))
+    mandatory(&bound.schema.tables[table].columns[column])||mandatory(bound.schema.tables[table].columns[column].required())&&bound.invariants.iter().filter(|i|i.table==table&&matches!(i.target.as_str(),"always"|"insert"|"write")&&i.column.as_deref().is_none_or(|c|c==column)).filter_map(|i|i.policy.as_ref()).flat_map(conjuncts).any(|r|nonnull(r,column))
 }
 fn approves(w:&Write<'_>,bound:&Bound)->bool{
     w.fields.iter().any(|f|match field_value(f){
-        Some(Expr::Literal{value:ast::Literal::Str(v),..})=>matches!(bound.schema.tables[&w.table].columns.get(&f.name).map(ColumnType::required),Some(ColumnType::Enum{..}))&&["approved","accepted","authorized","granted","issued","active","confirmed","paid","signed"].contains(&v.as_str()),
+        Some(Expr::Literal{value:ast::Literal::Str(value),..})=>{
+            matches!(bound.schema.tables[&w.table].columns.get(&f.name).map(ColumnType::required),Some(ColumnType::Enum{..}))
+                && !super::privilege::role_columns(bound,&w.table).contains(&f.name)
+                && !bound.schema.tables[&w.table].defaults.get(&f.name).is_some_and(|d|d.value(challenges::NOW,"$advisory")==snapback4_core::Value::String(value.clone()))
+        },
         Some(Expr::Literal{value:ast::Literal::Bool(true),..})=>["approv","authoriz"].iter().any(|part|f.name.to_lowercase().contains(part)),_=>false,
     })
 }
@@ -220,7 +226,7 @@ fn stale_notes(bound:&Bound,writes:&[Write<'_>],out:&mut Vec<Diagnostic>){
             g.1.insert(format!("{} at {}",w.name,w.site));g.2.insert(format!("{} at {}",later.name,later.site));g.3.extend(columns.clone());
         }}
     }
-    for ((table,dep),(site,creators,decisions,columns)) in groups{note(out,&site,"N_STALE_CREATION_CHECK",format!("{table}: creation by {} checks mutable {dep}.{}, but approval/activation {} does not recheck every column for the same applicant/resource",creators.into_iter().collect::<Vec<_>>().join(", "),columns.into_iter().collect::<Vec<_>>().join(","),decisions.into_iter().collect::<Vec<_>>().join(", ")),"decide whether eligibility must remain current at this decision; recheck it or declare independent intent and test create -> eligibility change -> approval");}
+    for ((table,dep),(site,creators,decisions,columns)) in groups{note(out,&site,"N_STALE_CREATION_CHECK",format!("{table}: creation by {} checks mutable {dep}.{}, but later state transition {} does not recheck every column for the same applicant/resource",creators.into_iter().collect::<Vec<_>>().join(", "),columns.into_iter().collect::<Vec<_>>().join(","),decisions.into_iter().collect::<Vec<_>>().join(", ")),"decide whether eligibility must remain current at this decision; recheck it or declare independent intent and test create -> eligibility change -> approval");}
 }
 fn evidence_notes(bound:&Bound,writes:&[Write<'_>],out:&mut Vec<Diagnostic>){
     for (child,t) in bound.schema.visible_tables(){

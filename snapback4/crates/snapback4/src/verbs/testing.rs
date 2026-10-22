@@ -104,6 +104,9 @@ pub fn test(options: &Options) -> i32 {
             return 0;
         }
     }
+    let evaluation_gaps=snapback4_lang::security::challenges::evaluation_gaps(&bound);
+    for gap in &evaluation_gaps {println!("security invariant NOT FULLY EVALUATED: {gap}");}
+    println!("security invariant evaluation: {} declared, {} evaluation gaps; zero violations does not establish coverage or safety",bound.invariants.len(),evaluation_gaps.len());
     println!("security: running full finite campaigns; replayed violations fail; coverage limits follow");
     let mut security_campaign = snapback4_lang::security::challenges::Campaign::default();
     let populated_fixture=bound.schema.tables.keys().any(|table|engine.store().rows(table).is_ok_and(|rows|!rows.is_empty()));
@@ -117,6 +120,8 @@ pub fn test(options: &Options) -> i32 {
     }
     let security_campaign=snapback4_lang::security::challenges::run_selected_after(&bound,None,security_campaign);
     let mut security_campaign=security_campaign;
+    for gap in &security_campaign.evaluation_unknowns {println!("security invariant NOT EVALUATED on a visited image: {gap}");}
+    println!("security runtime evaluation: {} unknown judgments (target and source site listed above)",security_campaign.evaluation_unknowns.len());
     let security_http_ok=security::unauthenticated(&bound,&sources);
     if !options.flags.contains_key("residency") {if let Err(why)=security::remember(&project,&evidence_options,&security_campaign,security_http_ok,&consumed){eprintln!("security: campaign record unavailable: {why}; check cannot reuse these refutations");}}
     if security_http_ok{security_campaign.unsupported.retain(|s|!s.starts_with("unauthenticated HTTP attempts require"));}
@@ -272,10 +277,11 @@ pub fn test(options: &Options) -> i32 {
     if generated_only {println!("test not covered: no authored business cases; generated-fixture only");}
     let no_cases = passed + failed_cases == 0 && !options.flags.contains_key("fixture-only") && !generated_only;
     let security_failed = security_campaign.violations.iter().any(|c|c.reachability.is_reachable()) || !security_campaign.boundary_failures.is_empty() || !security_http_ok;
-    let verdict = if failures > 0 || failed_cases > 0 || no_cases || security_failed { "FAIL" } else if !skipped.is_empty() || held_not_run > 0 { "incomplete" } else { "pass" };
+    let verdict = if failures > 0 || failed_cases > 0 || no_cases || security_failed { "FAIL" } else if !skipped.is_empty() || held_not_run > 0 || !evaluation_gaps.is_empty() || !security_campaign.evaluation_unknowns.is_empty() { "incomplete" } else { "pass" };
     // @ref LLP 3000.036.002#9 — derived probe refusals are expected exploration, not failed cases.
     println!("test: {complete} complete, {capped} capped, {expected} refused as your cases expect, {refused_derived} probe refusals on derived arguments (expected), {} not run, {failures} denied{} — {verdict}",
         skipped.len() + held_not_run, if passed + failed_cases > 0 { format!("; cases: {passed} passed, {failed_cases} failed") } else if options.flags.contains_key("fixture") { format!("; no {} (see snapback4 guide testing)", test_cases::FILE) } else { String::new() });
+    if !evaluation_gaps.is_empty() || !security_campaign.evaluation_unknowns.is_empty(){println!("test security coverage: incomplete — {} static invariant gaps; {} runtime unknown judgments; see the named target/sites above",evaluation_gaps.len(),security_campaign.evaluation_unknowns.len());}
     // @ref LLP 3000.011.003.000.000#11-wave-14-truthful-starter-custody-day4 — query-sweep reads are not application business cases.
     if options.flags.contains_key("source") {
         println!("{CASE_SUMMARY} {{\"run\":{},\"skipped\":{skipped_business_cases}}}", passed + failed_cases);

@@ -101985,3 +101985,24 @@ Owned database/role/private setup files are removed; independent custody checks
 confirm no live owned process and shared postmaster 2735539 remains alive with
 durability settings on. No cluster restart/reconfiguration, push, stash, clone,
 sub-agent, sudo, Docker, paid service or production/readiness claim.
+
+
+## 2026-10-22 — SEC8: evidence intent and useful security histories
+
+Wave-24's thirteen non-judgment findings drive LLP 3000.036.004 §17. Presence
+questions distinguish permanent integrity from insert-only requirements and keep
+optional evidence advisory without independent intent. Lifecycle questions name
+child evidence, stale eligibility without approval synonyms, approval edits and
+window bases. Check groups repeated audience/restatement questions by table.
+
+Test names static and visited-image evaluation gaps, preserves creator boolean
+alternatives, and retains parent-only roots and nullable approval times. The
+actual 036 replay required source-derived future boundary arguments to reach its
+14-day approval gate. Eleven SEC8 regressions now pass, including exact appended
+invariant witnesses for 008 and 036 F2; bounded exploration remains unproved.
+Two fresh model families marked the final amendment READY, with verbatim records.
+
+The initial 450-project sweep adds no gates: the same 36 retained-role review
+questions remain on fifteen projects. Final packed measurement/qualification is
+recorded in the workstream report. DX7 owns clock, proof viewport, upgrade/gate
+messages and schema ergonomics. No version bump or push is authorized here.

@@ -36,7 +36,7 @@ A matching or weaker assertion may still be the right simple owner policy:
 keep confirmed intent. The advisory never refuses it or changes its verdict.
 Review `snapback/generated/security-invariants.q.draft`: each role gets a row
 question and a question for every column, including roles absent from the rule.
-It proposes no policy. Use table-read intent for a shared row audience; add
+No candidate is accepted automatically. Use table-read intent for a shared row audience; add
 column-read intent for distinct privacy boundaries. Assess every role and field
 without automatically creating one assertion per question. For each role, identify
 a positive grant from the spec or a necessary described workflow before retaining
@@ -321,9 +321,12 @@ Read the note, compare it with the specification, then use
 `check --ack-security ID --reason 'specification rationale'` with its current ID
 from check or check --json. Bulk --ack-notes cannot clear these gates.
 Commit snapback/security-reviews.json when the decision should travel with source.
-Every Quarry edit, changed diagnostic or security analyzer revision requires review
-again; the record never grants authority or proves safety. Audit retains the full
-notes and dispositions. Declared refutations still fail and cannot be acknowledged.
+Comments, line shifts and independent declarations preserve decisions. Changed
+rule/column dependencies or analyzer revisions require review again; the record never grants authority or proves safety. Audit retains the full
+notes and dispositions. JSON names each decision's exact-column/rule or conservative
+declaration/writer binding scope. Advisories accept individual decisions and stay
+non-failing; the grouped table questionnaire has no separate review ID.
+Declared refutations still fail and cannot be acknowledged.
 Deploy --strict retains its refutation gate; run check in acceptance before deploy.
 
 Optional arguments and optional columns are valid, including deliberate loosening.
@@ -338,7 +341,7 @@ duration windows on one column may be deliberate: confirm them against the spec.
 Role-wide write questions ask whether a global role may write every resource.
 Model the owner of this particular wall; see `guide rule-recipes --section "Wall ownership"`.
 
-Test explores directed status/eligibility histories up to eight mutations with a
+Test explores directed status/eligibility histories up to twelve mutations with a
 separate finite successor bound. Check keeps its shared 512-work/1500ms limit.
 Frontier, argument, signature and attempt cuts remain coverage gaps. Synthetic
 observations are REVIEW, while actual admitted histories from validated generated
@@ -346,11 +349,11 @@ fixtures retain their generated-fixture-trace origin and can fail acceptance.
 
 ### N_RETAINED_ROLE_GRANT
 
-N_RETAINED_ROLE_GRANT: A recipient role required when storing a grant is mutable and missing from a reader branch that trusts that grant, including column payload readers. Recheck current role or revoke derived grants. Intentional retained authority needs an individual source-bound disposition.
+N_RETAINED_ROLE_GRANT: A recipient role required when storing a grant is mutable and missing from a reader branch that trusts that grant, including column payload readers. Recheck current role or revoke derived grants. Intentional retained authority needs an individual dependency-bound disposition.
 
 ### N_OPTIONAL_UPLOAD_CREATE
 
-N_OPTIONAL_UPLOAD_CREATE: An optional upload argument can be omitted in a direct nullable-media write or a skipped child that independent intent requires. When independent intent requires a child, either require the upload before parent creation or always create the child with deliberately optional media; skipping the child on a null upload violates that presence intent. Optional media columns and guarded optional attachments do not require acknowledgment; a required child column alone does not require a child row. Type-required media is already validated at each executed write. A direct non-null assertion also enforces media at that write; neither requires a skipped child row. Unknown helper returns and nullable expression alternatives remain advisory/test coverage, without an inferred argument-omission gate. A parent-omission gate needs a direct straight-line parent insert whose prefix does not inspect the upload argument; helper or conditional parent prefixes require independent integrity tests. Review an intentional exception with an individual source-bound disposition.
+N_OPTIONAL_UPLOAD_CREATE: An optional upload argument can be omitted in a direct nullable-media write or a skipped child that independent intent requires. When independent intent requires a child, either require the upload before parent creation or always create the child with deliberately optional media; skipping the child on a null upload violates that presence intent. Optional media columns and guarded optional attachments do not require acknowledgment; a required child column alone does not require a child row. Type-required media is already validated at each executed write. A direct non-null assertion also enforces media at that write; neither requires a skipped child row. Unknown helper returns and nullable expression alternatives remain advisory/test coverage, without an inferred argument-omission gate. A parent-omission gate needs a direct straight-line parent insert whose prefix does not inspect the upload argument; helper or conditional parent prefixes require independent integrity tests. Review an intentional exception with an individual dependency-bound disposition.
 
 ### N_CREATION_REASON
 
@@ -370,7 +373,7 @@ N_TRANSITION_BYPASS: A generic enum setter reaches a state also reached by a str
 
 ### N_STALE_CREATION_CHECK
 
-N_STALE_CREATION_CHECK: A creator checks a mutable eligibility column that an approval-like transition does not recheck. One question groups the created table, dependency and decision sites; immutable ownership reads and unrelated edits are excluded. Decide whether eligibility must remain current and write independent intent; test create, eligibility change, approval. The named literal-state fragment covers approved/accepted/authorized/granted/issued/active/confirmed/paid/signed and true approval flags; other synonyms are not inferred safe.
+N_STALE_CREATION_CHECK: A creator checks a mutable eligibility column that a later literal-state transition does not recheck. One question groups the created table, dependency and decision sites; immutable ownership reads and non-state payload edits are excluded. Decide whether eligibility must remain current and write independent intent; test create, eligibility change, approval. Any literal enum destination distinct from its default creation state can raise this question, including filled; no approval-word list determines eligibility. True approval flags also qualify.
 
 ### N_DURATION_BOUNDS
 
@@ -395,3 +398,35 @@ N_PRIVATE_CREATE_EDIT_ASYMMETRY: A caller can initialize a private column withou
 ### N_EVIDENCE_REMOVAL
 
 N_EVIDENCE_REMOVAL: Delete, detachment or explicit clearing can remove parent-linked media evidence. The question names removing operations and the parent reference, grouping the evidence columns. Required child fields alone do not require a surviving child; confirm last-child retention against the specification. Guard deletion or detachment transactionally, replace evidence or retire the parent, then declare independent parent integrity intent and run test. Ordinary non-null photo replacement is not removal; optional attachments without required creation linkage or independent integrity intent are excluded. This question is advisory.
+
+### N_TABLE_QUESTIONNAIRE
+
+N_TABLE_QUESTIONNAIRE: Role-wide access and restating invariants share one table questionnaire. Answer from the specification; JSON retains every underlying note and individual decision ID. The grouped line is advisory and has no separate ID. This is a specification question, never a proof or a new gate.
+
+### N_APPROVAL_NOT_ENFORCED
+
+N_APPROVAL_NOT_ENFORCED: An approval flag is written but not inspected by a lifecycle transition. Decide which transitions require approval, declare independent intent, and test both gating boolean values. This is a specification question, never a proof or a new gate.
+
+### N_EDIT_AFTER_APPROVAL
+
+N_EDIT_AFTER_APPROVAL: A checked value or media artifact can change without a positive creation-state restriction. Decide whether approval must be renewed after edits or replacements; declare column update intent. This is a specification question, never a proof or a new gate.
+
+### N_CHILD_EVIDENCE_PRESENCE
+
+N_CHILD_EVIDENCE_PRESENCE: A separately created media child is not required by a parent transition. Required child fields do not require a child row. Declare parent integrity intent with the specification's draft-state exceptions. This is a specification question, never a proof or a new gate.
+
+### N_TIME_TRANSITION
+
+N_TIME_TRANSITION: A missed, overdue or expired state is written without a server-clock comparison. Confirm the relevant deadline against the specification and test both sides of its boundary. This is a specification question, never a proof or a new gate.
+
+### N_GUARD_NOT_CONSUMED
+
+N_GUARD_NOT_CONSUMED: A transition checks a related state or Boolean without consuming it. Decide whether the guard represents one-use authorization and test repeat transitions. This is a specification question, never a proof or a new gate.
+
+### N_CALENDAR_DURATION
+
+N_CALENDAR_DURATION: A 365-day multiple may differ from a calendar anniversary. Decide fixed elapsed days versus a calendar date and test leap-year boundaries. This is a specification question, never a proof or a new gate.
+
+### N_DEPENDENT_WINDOW
+
+N_DEPENDENT_WINDOW: A written deadline is bounded against now without consulting a dependent stored deadline. Confirm the window base and enforce the actual resource deadline when required. This is a specification question, never a proof or a new gate.

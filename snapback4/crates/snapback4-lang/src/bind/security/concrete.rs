@@ -63,3 +63,25 @@ fn value(e:&Expr,row:&Value,rows:&Rows,schema:&Schema,viewer:&str)->Option<Value
     },
     _=>return None,
 })}
+
+/// Syntactic capabilities of this partial evaluator, independent of fixture
+/// reachability. Unknown is never silently counted as an evaluated invariant.
+pub(super) fn limitations(expr:&Expr,schema:&Schema,table:&str)->BTreeSet<String>{
+    let mut out=BTreeSet::new();let mut expr=expr.clone();
+    super::super::intent_walk::expression(&mut expr,&mut |e|match e{
+        Expr::Name{name,..} if name=="viewer"=>{},
+        Expr::Name{name,..}=>{out.insert(if name=="now"{"clock expression is outside the concrete invariant evaluator".into()}else{format!("unbound concrete name {name}")});},
+        Expr::Literal{value:Literal::Number(n),..} if n.parse::<i64>().is_err()=>{out.insert("typed duration/decimal literal is outside the concrete invariant evaluator".into());},
+        Expr::Literal{..}|Expr::Focal{..}|Expr::Array{..}=>{},
+        Expr::Member{base,..} if matches!(base.as_ref(),Expr::Focal{..})=>{},
+        Expr::Member{..}=>{out.insert("cross-row/member comparison is outside the concrete invariant evaluator".into());},
+        Expr::Unary{op,..} if op=="not"=>{},
+        Expr::Binary{left,right,..} if [(left.as_ref(),right.as_ref()),(right.as_ref(),left.as_ref())].iter().any(|(a,b)|matches!(b,Expr::Literal{value:Literal::Str(_),..})&&matches!(a,Expr::Member{base,name,..} if matches!(base.as_ref(),Expr::Focal{..})&&schema.tables.get(table).and_then(|t|t.columns.get(name)).is_some_and(|k|matches!(k.required(),snapback4_core::schema::ColumnType::Id|snapback4_core::schema::ColumnType::Principal|snapback4_core::schema::ColumnType::Ref{..}))))=>{out.insert("contextual principal/id string coercion is outside the concrete invariant evaluator".into());},
+        Expr::Binary{op,..} if ["and","or","+","-","*","=","!=","<","<=",">",">="].contains(&op.as_str())=>{},
+        Expr::Call{name,args,..} if ((name=="count"||name=="len")&&args.len()==1)||(name=="sum"&&args.len()==2)=>{},
+        Expr::Read(read)|Expr::Exists{read,..}=>{
+            if schema.table(&read.table).is_some_and(|t|t.is_expiring()||t.not_before.is_some()||t.through.is_some())||schema.maintain_for(&read.table).is_some(){out.insert(format!("{}: read-through/temporal/maintained population is outside the raw concrete evaluator",read.table));}
+            if read.keys.iter().any(|k|k.column.is_none())||read.filter.is_some()||read.range.is_some()||!read.seeks.is_empty()||read.matching.is_some(){out.insert(format!("{}: concrete population needs named equality keys without filter/range/search",read.table));}
+        },_=>{out.insert("expression form is outside the concrete invariant evaluator".into());}
+    });out
+}

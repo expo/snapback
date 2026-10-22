@@ -8,7 +8,7 @@ use std::collections::{BTreeMap, BTreeSet};
 pub mod kernel;
 mod audit;
 mod presentation;
-pub use presentation::note_priority;
+pub use presentation::{note_priority,questionnaire_notes};
 pub mod challenges;
 mod lints;
 mod write_advice;

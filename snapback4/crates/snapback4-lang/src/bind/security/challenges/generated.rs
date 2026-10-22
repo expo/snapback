@@ -143,7 +143,8 @@ pub fn fixture(bound:&Bound,out:&mut Campaign)->Result<Engine,String>{
             let p=&bp.program;let writes=ir::write_tables(p);
             // Preserve a pre-transition root population. Later derived creators
             // can otherwise consume every pending lifecycle row during setup.
-            if !root_observed&&writes.iter().any(|(_,kind)|matches!(*kind,"update"|"upsert"|"delete")){
+            let related_creator=p.args.values().any(|kind|matches!(kind,ir::ArgType::Ref{table} if created.contains(table)&&engine.store().rows(table).is_ok_and(|rows|!rows.is_empty())));
+            if !root_observed&&(related_creator||writes.iter().any(|(_,kind)|matches!(*kind,"update"|"upsert"|"delete"))){
                 root_observed=true;
                 if out.generated_fixture&&out.work_remaining.is_none()&&validate_fixture(bound,&mut engine).is_ok(){
                     let first=out.violations.len();histories::lifecycle_observers(bound,&engine,out);
@@ -154,9 +155,25 @@ pub fn fixture(bound:&Bound,out:&mut Campaign)->Result<Engine,String>{
             if writes.iter().all(|(t,_)|rosters.contains(t)){continue;}
             let current=readback(&engine)?;
             let targets=writes.iter().filter(|(_,kind)|matches!(*kind,"insert"|"upsert")).map(|(t,_)|t).collect::<Vec<_>>();
-            if targets.iter().all(|t|current.get(*t).map_or(0,Vec::len)>=2){continue;}
-            let cases=histories::fixture_cases(bound,p,&current,&creator_actors,out);
+            if targets.iter().all(|t|current.get(*t).map_or(0,Vec::len)>=2){
+                if p.args.values().any(|kind|matches!(kind,ir::ArgType::Bool)){out.unsupported.insert(format!("{}: two-row target population cap skips creator boolean alternatives; combinations remain uncovered",p.name));}
+                continue;
+            }
+            let mut cases=histories::fixture_cases(bound,p,&current,&creator_actors,out);
+            // Do not let two actors on the first tuple consume both root
+            // slots before the opposite gating boolean is tried.
+            if let Some(first)=cases.first().cloned(){
+                if let Some(index)=cases.iter().position(|case|p.args.iter().any(|(name,kind)|matches!(kind,ir::ArgType::Bool)&&case.get(name)!=first.get(name))){
+                    let alternate=cases.remove(index);cases.insert(1,alternate);
+                    if p.args.values().filter(|kind|matches!(kind,ir::ArgType::Bool)).count()>1{out.unsupported.insert(format!("{}: generated roots keep two boolean tuples; additional correlated boolean combinations remain uncovered",p.name));}
+                }
+            }
+            let boolean_names=p.args.iter().filter(|(_,kind)|matches!(kind,ir::ArgType::Bool)).map(|(name,_)|name.clone()).collect::<Vec<_>>();
+            let projection=|args:&BTreeMap<String,Value>|boolean_names.iter().filter_map(|name|args.get(name).map(|value|(name.clone(),value.clone()))).collect::<BTreeMap<_,_>>();
+            let possible=cases.iter().map(|args|serde_json::to_string(&projection(args)).unwrap()).collect::<BTreeSet<_>>();
+            let mut attempted_booleans=BTreeSet::new();
             'cases:for args in cases.into_iter().take(16){for actor in &creator_actors{
+                attempted_booleans.insert(serde_json::to_string(&projection(&args)).unwrap());
                 if attempts>=2048||!out.reserve(1){out.unsupported.insert("generated authored initialization capped at 2048 calls; remaining creators uncovered".into());validate_fixture(bound,&mut engine)?;return Ok(engine);}
                 attempts+=1;
                 if targets.len()==1{
@@ -170,11 +187,17 @@ pub fn fixture(bound:&Bound,out:&mut Campaign)->Result<Engine,String>{
                 let result=candidate.mutate(&p.name,None,Context::new(actor,args).at(NOW));
                 if matches!(result,Ok(r) if matches!(r.state,snapback4_core::WriteState::Sent{..})) {
                     let after=readback(&candidate)?;
+                    if targets.iter().any(|table|after.get(*table).map_or(0,Vec::len)>2){
+                        out.unsupported.insert(format!("{}: creator result exceeds two-row per-target population cap; this admitted candidate and its alternatives remain uncovered",p.name));
+                        continue;
+                    }
                     if targets.iter().any(|t|after.get(*t).map_or(0,Vec::len)>current.get(*t).map_or(0,Vec::len)) {engine=candidate;}
                     let after=readback(&engine)?;
                     if targets.iter().all(|t|after.get(*t).map_or(0,Vec::len)>=2){break 'cases;}
+                    if targets.iter().any(|t|after.get(*t).map_or(0,Vec::len)>current.get(*t).map_or(0,Vec::len)){continue 'cases;}
                 }
             }}
+            if !boolean_names.is_empty()&&possible.difference(&attempted_booleans).next().is_some(){out.unsupported.insert(format!("{}: creator tuple/population cap omits {} generated boolean projections; remaining combinations uncovered",p.name,possible.difference(&attempted_booleans).count()));}
         }
         if readback(&engine)?==before{break;}
     }
@@ -184,4 +207,12 @@ pub fn fixture(bound:&Bound,out:&mut Campaign)->Result<Engine,String>{
 fn clean_row(bound:&Bound,table:&str,row:&Value)->Value{
     let t=&bound.schema.tables[table];
     match row{Value::Row(fields)=>Value::Row(fields.iter().filter(|(c,_)|!t.engine_field(c)&&!t.recorded.contains_key(*c)&&!t.maintained.contains_key(*c)).map(|(c,v)|(c.clone(),v.clone())).collect()),_=>row.clone()}
+}
+
+#[cfg(test)]mod tests{
+use super::*;
+#[test]fn a_multi_insert_creator_cannot_exceed_the_per_target_population_cap(){
+ let bound=crate::compile(&[("schema.q".into(),"table docs:\n  n:int\n  read <- allow\n  insert <- allow\n  online only\nmutation add():\n  insert docs {n:1}\n  insert docs {n:2}\n  return insert docs {n:3}\n".into())]);assert!(bound.diagnostics.is_empty(),"{:?}",bound.diagnostics);
+ let mut out=Campaign::default();let e=fixture(&bound,&mut out).unwrap();assert!(e.store().rows("docs").unwrap().len()<=2);assert!(out.unsupported.iter().any(|s|s.contains("two-row per-target")),"{:?}",out.unsupported);
+}
 }

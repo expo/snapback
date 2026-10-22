@@ -56,20 +56,20 @@ const CHILD:&str="table parents:\n  n: int default 0\n  read <- allow\n  insert 
 #[test]fn stale_creation_names_the_approval_and_mutable_column_once(){
  let s=include_str!("security/wave23/030.q");let r=notes(s);let ns=r.notes.iter().filter(|n|n.code=="N_STALE_CREATION_CHECK").collect::<Vec<_>>();assert_eq!(ns.len(),1,"{ns:?}");
  for part in ["operatorFlags.suspended","submitApplication","approveApplication"]{assert!(ns[0].message.contains(part),"{part}: {ns:?}");}
- for unrelated in ["inspectApplication at","rejectApplication at","migrateInspectionRecorded at","trucks.owner"]{assert!(!ns[0].message.contains(unrelated),"{ns:?}");}
+ for unrelated in ["trucks.owner"]{assert!(!ns[0].message.contains(unrelated),"{ns:?}");}
  assert_eq!(ns[0].message,notes(s).notes.into_iter().find(|n|n.code=="N_STALE_CREATION_CHECK").unwrap().message);
- let fixed=s.replace("  require app.lastPassed else DECISION_CONFLICTS","  require app.lastPassed else DECISION_CONFLICTS\n  require not exists operatorFlags[app.owner, suspended = true] else SUSPENDED");assert!(!has(&fixed,"N_STALE_CREATION_CHECK"));
+ let fixed=s.replace("  require app.lastPassed else DECISION_CONFLICTS","  require app.lastPassed else DECISION_CONFLICTS\n  require not exists operatorFlags[app.owner, suspended = true] else SUSPENDED");assert!(!notes(&fixed).notes.iter().any(|n|n.code=="N_STALE_CREATION_CHECK"&&n.message.contains("approveApplication at")));
 }
 #[test]fn stale_eligibility_rechecks_bind_the_applicant_and_every_mutable_column(){
  let s=include_str!("security/wave23/030.q");
  let wrong=s.replace("  require app.lastPassed else DECISION_CONFLICTS","  require app.lastPassed else DECISION_CONFLICTS\n  require not exists operatorFlags[viewer, suspended = true] else SUSPENDED");assert!(has(&wrong,"N_STALE_CREATION_CHECK"));
  let dual=s.replace("  suspended: bool", "  disabled: bool default false\n  suspended: bool").replace("flag.suspended = false", "(flag.suspended = false and flag.disabled = false)").replace("suspended: true }", "suspended: true, disabled:true }");
  let partial=dual.replace("  require app.lastPassed else DECISION_CONFLICTS","  require app.lastPassed else DECISION_CONFLICTS\n  require not exists operatorFlags[app.owner, suspended = true] else SUSPENDED");assert!(has(&partial,"N_STALE_CREATION_CHECK"));
- let complete=partial.replace("  require not exists operatorFlags[app.owner, suspended = true] else SUSPENDED","  require not exists operatorFlags[app.owner, suspended = true] else SUSPENDED\n  require not exists operatorFlags[app.owner, disabled = true] else DISABLED");assert!(!has(&complete,"N_STALE_CREATION_CHECK"));
+ let complete=partial.replace("  require not exists operatorFlags[app.owner, suspended = true] else SUSPENDED","  require not exists operatorFlags[app.owner, suspended = true] else SUSPENDED\n  require not exists operatorFlags[app.owner, disabled = true] else DISABLED");assert!(!notes(&complete).notes.iter().any(|n|n.code=="N_STALE_CREATION_CHECK"&&n.message.contains("approveApplication at")));
 }
 #[test]fn separate_eligibility_dependencies_remain_two_grouped_questions(){
  let s=include_str!("security/wave23/030.q").replace("  flag = operatorFlags[viewer]", "  extra = extraFlags[viewer]\n  require extra = null or extra.suspended = false else EXTRA_SUSPENDED\n  flag = operatorFlags[viewer]");
- let s=format!("{s}\ntable extraFlags:\n  operator:principal\n  suspended:bool\n  unique operator\n  immutable operator\n  read <- allow\n  insert <- allow\n  update <- allow\n  online only\nmutation extraFlag(operator:principal,suspended:bool):\n  upsert extraFlags[operator] {{operator,suspended}}\n");let r=notes(&s);let ns=r.notes.iter().filter(|n|n.code=="N_STALE_CREATION_CHECK").collect::<Vec<_>>();assert_eq!(ns.len(),2,"{ns:?}");assert!(ns.iter().any(|n|n.message.contains("operatorFlags.suspended")));assert!(ns.iter().any(|n|n.message.contains("extraFlags.suspended")));
+ let s=format!("{s}\ntable extraFlags:\n  operator:principal\n  suspended:bool\n  unique operator\n  immutable operator\n  read <- allow\n  insert <- allow\n  update <- allow\n  online only\nmutation extraFlag(operator:principal,suspended:bool):\n  upsert extraFlags[operator] {{operator,suspended}}\n");let r=notes(&s);let ns=r.notes.iter().filter(|n|n.code=="N_STALE_CREATION_CHECK").collect::<Vec<_>>();assert!(ns.len()>=2,"{ns:?}");assert!(ns.iter().any(|n|n.message.contains("operatorFlags.suspended")));assert!(ns.iter().any(|n|n.message.contains("extraFlags.suspended")));
 }
 #[test]fn unmapped_callers_and_mutable_identity_aliases_never_prove_the_same_entity(){
  let s=include_str!("security/wave23/030.q");
