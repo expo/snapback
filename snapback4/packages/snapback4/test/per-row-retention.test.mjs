@@ -65,7 +65,7 @@ for (const tier of ['wasm', 'process']) for (const keep of [undefined, false, tr
 
 for (const keep of [undefined, false, true]) test(`online keep=${keep}: held-only expiry preserves the newer raw answer beyond one second`, async t => {
   const wall = Date.now(), deadline = wall + 3_600_000, clock = new ServerClock(() => wall);
-  const live = clock; let calls = 0;
+  let live; const fork = clock.fork.bind(clock); clock.fork = () => live = fork(); let calls = 0;
   const client = createClient({ url: 'http://pq-held.test', persona: 'alice', fetch: clock.wrap(async (input, init) => {
     const path = new URL(input).pathname;
     if (path === '/schema') return Response.json({ schema: { tables: {} }, programs: [], generation: 1 });

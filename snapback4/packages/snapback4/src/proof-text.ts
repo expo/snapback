@@ -1,5 +1,6 @@
 // @ref LLP 3000.000.000.001#11-wave-22-loop-repairs-dx6 — hidden descendants cannot manufacture rendered evidence.
 import { randomUUID } from "node:crypto";
+import { createRequire } from "node:module";
 import type { Locator, Selectors } from "playwright-core";
 
 export const renderedSelector = `sb4rendered${randomUUID().replaceAll("-", "")}`;
@@ -110,6 +111,8 @@ export function visibleText(locator: Locator, timeout: number): Promise<string> 
 }
 
 // Optional peer: CLI/process helpers still import and run when it is absent.
-// Await registration before exposing the synchronous locator constructor.
-try { await registerRenderedSelector((await import("playwright-core")).selectors); }
+// Keep this graph synchronously require-able. Registration starts during import;
+// withBrowser awaits that same promise before creating its context. Caller-owned
+// browsers finish asynchronous launch before running a selector.
+try { void registerRenderedSelector(createRequire(import.meta.url)("playwright-core").selectors).catch(() => {}); }
 catch (error) { if ((error as NodeJS.ErrnoException).code !== "ERR_MODULE_NOT_FOUND" && (error as NodeJS.ErrnoException).code !== "MODULE_NOT_FOUND") throw error; }

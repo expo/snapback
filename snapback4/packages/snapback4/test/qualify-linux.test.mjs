@@ -26,6 +26,7 @@ function qualify(t, scenario = {}) {
   writeFileSync(join(root, "scripts/publication-dormant.mjs"), `export async function proveDormant(){if (${JSON.stringify(scenario.dormantFail ?? false)}) throw Error('deliberately failing packed dormant proof');return {status:'passed'};}`);
   writeFileSync(join(root, "scripts/publication-migrations.mjs"), `export async function proveMigrations(){if (${JSON.stringify(scenario.migrationsFail ?? false)}) throw Error('deliberately failing packed migrations');return {status:'passed'};}`);
   writeFileSync(join(root, "scripts/publication-proof-kit.mjs"), `export async function proveProofKit(){if (${JSON.stringify(scenario.proofKitFail ?? false)}) throw Error('deliberately failing packed proof kit');return {status:'passed'};}`);
+  writeFileSync(join(root, "scripts/publication-dx6.mjs"), `export async function proveDX6(){if (${JSON.stringify(scenario.dx6Fail ?? false)}) throw Error('deliberately failing packed DX6 guide');return {status:"passed"};}`);
   writeFileSync(join(root, "scripts/publication-dx5.mjs"), `export async function proveDX5(){if (${JSON.stringify(scenario.dx5Fail ?? false)}) throw Error('deliberately failing packed DX5 guide');return {status:"passed"};}`);
   writeFileSync(join(root, "scripts/publication-dx4.mjs"), `export async function proveDX4(){if (${JSON.stringify(scenario.dx4Fail ?? false)}) throw Error('deliberately failing packed DX4 guide');return {status:"passed"};}`);
   writeFileSync(join(root, "scripts/publication-staging.mjs"), `export async function proveStaging(){return {status:"passed"};}`);
@@ -513,4 +514,9 @@ for (const consumerOnly of [false, true]) test(`packed dormant failure blocks ${
   const r=qualify(t,{consumerOnly,dormantFail:true});
   assert.notEqual(r.status,0);assert.match(r.stderr,/deliberately failing packed dormant proof/);
   assert.equal(r.receipt,null);assert.equal(existsSync(join(r.root,'out/consumer.json')),false);
+});
+
+for (const consumerOnly of [false, true]) test(`packed DX6 failure blocks ${consumerOnly ? 'consumer' : 'full'} qualification`, t => {
+  const r=qualify(t,{consumerOnly,dx6Fail:true});
+  assert.notEqual(r.status,0);assert.match(r.stderr,/deliberately failing packed DX6 guide/);
 });
