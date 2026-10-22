@@ -511,3 +511,24 @@ fn job_bindings_participate_in_capture_checks_and_plain_text_is_bounded() {
         }
     ));
 }
+
+#[test]
+fn current_closure_accepts_authored_argument_aliases_without_merging_old_positions() {
+    let table="table docs:\n  owner: principal\n  public\n  online only\n";
+    for (before,after) in [
+        ("value: text <=40", "current: text <=80 alias value"),
+        ("value: text <=40 alias legacy", "legacy: text <=80 alias value"),
+    ] {
+        let old=format!("{table}query echo({before}):\n  return value\n");
+        let current=format!("{table}query echo({after}):\n  return {}\ninvariant docs.read only true\n",if after.starts_with("current") {"current"}else{"legacy"});
+        let sources=vec![("schema.q".into(),current)];let checked=compile(&sources);assert!(checked.diagnostics.is_empty(),"{:?}",checked.diagnostics);
+        assert!(checked.programs[0].program.argument("value").is_some(),"the authored current endpoint accepts the old wire name");
+        let bridge=release_bridge::loosen(&[("schema.q".into(),old)],&sources);
+        assert!(bridge.diagnostics.is_empty(),"compatible authored aliases must reuse the current closure: {:?}",bridge.diagnostics);
+        assert_eq!(bridge.sources,sources);
+    }
+    let old=format!("{table}query echo(a: text <=40, b: text <=40):\n  return a\n");
+    let current=format!("{table}query echo(a: text <=40 alias b):\n  return a\ninvariant docs.read only true\n");
+    let bridge=release_bridge::loosen(&[("schema.q".into(),old)],&[("schema.q".into(),current)]);
+    assert!(!bridge.diagnostics.is_empty(),"two independent old positions cannot collapse into one current alias target");
+}

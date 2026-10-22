@@ -115,7 +115,7 @@ mutation create(owner: principal, secret: text <=40):
 query doc(id: docs):
   return docs[id]
 `;
-  const intentNext=intentOld.replace('{owner,secret}','{owner:viewer,secret}')+'invariant docs.secret write only .owner = viewer\n';
+  const intentNext=intentOld.replace('mutation create(owner: principal,','mutation create(actor: principal alias owner,').replace('{owner,secret}','{owner:viewer,secret}')+'invariant docs.secret write only .owner = viewer\n';
   const intentDir=join(cwd,'roll-current-intent');
   await cli('deploy',intentDir,'--schema',source('intent-v1',intentOld));
   host=await startServe(intentDir,hostOptions);

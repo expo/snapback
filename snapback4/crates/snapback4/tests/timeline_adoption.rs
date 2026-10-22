@@ -267,6 +267,7 @@ fn retirement_resets_dependent_aggregates_even_when_all_names_survive() {
         // schema-diff-only aggregate invalidation insufficient.
         let mut next = e.schema().clone(); next.timelines.clear();
         if !keep_aggregate { next.maintains.retain(|m| m.target != "totals"); }
+        next.source_reservations.clear(); next.receipt_dependencies.clear(); next.prepare_receipt_dependencies();
         let steps = snapback4_core::successor::classify(e.schema(), &next);
         assert!(steps.iter().any(|s| s.path == "timelines.following" && s.change == snapback4_core::successor::Change::Destructive));
         let estimate = e.store_mut().adoption_estimate(&next).unwrap().expect("retained names still retire rows");
@@ -600,6 +601,7 @@ fn check_and_adoption_agree_across_expiry_through_changes_and_following_presence
                     for name in &b.schema.timelines[0].owned {
                         b.schema.tables.insert(name.clone(), candidate.schema.tables[name].clone());
                     }
+                    b.schema.source_reservations.clear(); b.schema.receipt_dependencies.clear(); b.schema.prepare_receipt_dependencies();
                 }
                 let mut e = Engine::new(Store::open(&path).unwrap(), b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
                 e.seed_at([("groups".into(), object([("id", id("g")), ("deadline", if expired { Value::Int(2) } else { Value::Null })]))], 1).unwrap();

@@ -101999,3 +101999,12 @@ private residency bulk-load schemas now rederive admission facts after changing
 their declarations; the core's forged-metadata validation stays enforced. The
 production guide exercises both the guarded default view and explicit exact
 rollback within its existing 280-line budget.
+
+Integration 23 alias follow-through: an explicit parameter alias now preserves the
+old wire contract after a canonical rename, while independent old positions
+cannot merge and every old alias/domain still has to survive. The regression
+failed before the fix; all 18 language bridge cases now pass. Fresh Muse and
+Codex reviews both mark revision 8 READY; their actual common snapshot and
+verbatim outputs are retained. Timeline retirement and recorded-attribution raw
+schema fixtures now rederive receipt/reservation facts after declaration edits;
+the original 15 and 19 assertions pass without relaxing production validation.

@@ -1,0 +1,33 @@
+muse: workspace root: /home/ccheever/projects/snapback-sb4loop (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=6f04b111-58d5-48fc-b077-ef1c38527899]: Subscription quota exhausted. Your usage window resets at 2026-10-26T00:00:00Z. (rate_limit_error)
+READY — R8 design is ready. No material blockers.
+
+R8 delta is narrow and correct. [release_bridge_current.rs](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/src/release_bridge_current.rs) `contracts()` now resolves every old canonical and every old alias through actual `Program.argument`:
+
+- Old canonical `name` must resolve via `new.argument(name)`.
+- Every old alias of that position must resolve to the same current canonical `target` with `accepts(kind,next)`.
+- Distinct old positions must be injective via `positions.insert(target)`.
+- Every old domain must be contained via `accepts()`.
+- Every uncovered current required arg refuses.
+
+This does not infer renames or rewrite bodies. It retains the complete current closure verbatim or alpha-rewritten current.
+
+Dropped aliases: refused. Operation aliases are expanded programs in [operation_evolution.rs](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/src/bind/operation_evolution.rs), so a dropped `alias oldRead = one` fails the name lookup. Test `complete_current_contract_includes_expanded_operation_aliases` covers kept vs dropped. Argument-alias drop fails because `new.argument(alias)` is `None`. Correct per “every predecessor alias counts.”
+
+Alias collisions: refused. Merging two old positions into one current target fails injectivity. Test `current_closure_accepts_authored_argument_aliases_without_merging_old_positions` covers canonical/alias swaps passing and `a,b → a alias b` refusing.
+
+Narrowing: refused. `accepts()` admits identical, `Optional` widening, same-format text interval containment, enum superset, int-interval widening, recursive list inclusion with cardinality containment and both-present/both-absent elements. All else refuses. List narrowing, text `<=40 → <=20`, enum narrowing are covered by existing regressions.
+
+Complete boundary preserved:
+
+- Literal-only repair still triggers via `requires_view()` on invariant+text difference, retains current. Test `a_literal_only_policy_repair_registers_a_view_without_any_domain_widening`.
+- Executable-only repair still triggers via `executable_digest` comparison in [rollback_views.rs](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4/src/verbs/rollback_views.rs), refuses without authored worker/native bundle. Tests `unchanged_quarry_cannot_roll_back_an_executable_only_policy_repair`, `current_first_worker_dependency_cannot_disappear_from_an_intent_view`.
+- Capture, nominal-type probe, module-swap, metadata-word spans, job bindings unchanged and covered.
+- Actual definitions hold: `Text.max` is `u32`, plain `text` is `max 10000` in [types.rs](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/src/parser/types.rs) and [ir.rs](/home/ccheever/projects/snapback-sb4loop/snapback4-core/src/ir.rs); aliases expand before binding; jobs are `ProgramDecl` entries.
+- Packed hot/restart repair in [publication-roll.mjs](/home/ccheever/projects/snapback-sb4loop/snapback4/scripts/publication-roll.mjs) sends old `owner` wire name to current `actor alias owner` across rollback and restart, asserting current `owner=viewer` enforcement. Matches `canonicalize_arguments` in `ir.rs`.
+
+No policy synthesis. Unsupported maps refuse to authored guarded source. Unsafe current workflows remain ordinary findings, not fixed here.
+
+Bounded repairs: none required. Native/client/packed qualification remains ongoing and is not claimed.
+

@@ -27,6 +27,7 @@ fn rebuild(e: &mut Engine, revision: usize, now: i64) -> Value {
     for m in &mut b.schema.maintains {
         for _ in 0..revision { m.filter = Some(snapback4_core::maintain::Predicate::And(Box::new(snapback4_core::maintain::Predicate::Bool(true)), Box::new(m.filter.take().unwrap_or(snapback4_core::maintain::Predicate::Bool(true))))); }
     }
+    b.schema.source_reservations.clear(); b.schema.receipt_dependencies.clear(); b.schema.prepare_receipt_dependencies();
     e.adopt(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
     answers(e, now)
 }

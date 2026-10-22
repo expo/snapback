@@ -1,0 +1,10 @@
+READY
+
+No material blockers found in the pinned R8 snapshot. No repair is required for design readiness.
+
+- **Wire compatibility:** `Program.argument` resolves old canonical names and aliases to actual current positions. Same-position consistency and injectivity reject split mappings and merged positions. Dropped aliases, narrowed domains, and uncovered current required arguments refuse.
+- **Current intent:** The invariant-bearing path retains the complete current authored closure. Literal/module changes trigger preparation; executable-digest changes cover worker/native-only repairs. Parameter aliases preserve authored wire names without rewriting bodies or inferring renames.
+- **Closed boundaries:** Missing fields or operations, unsupported domain mappings, and unsafe identity captures refuse. Automatic/named worker checks cover both predecessor and current stages; generated native dependencies also refuse pending bundle support.
+- **Evidence:** The added regressions cover canonical/alias swaps and position merging. The packed scenario sends the old `owner` name after the current `actor alias owner` declaration, including after restart.
+
+This was a read-only source review; I did not execute tests. Native, client, and packed qualification remain ongoing. This verdict establishes design readiness, not author acceptance or release qualification.

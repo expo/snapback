@@ -73,17 +73,30 @@ fn contracts(old: &crate::Bound, new: &crate::Bound) -> bool {
             .find(|n| n.program.name == p.program.name)
             .is_some_and(|n| {
                 let (old, new) = (&p.program, &n.program);
-                old.kind == new.kind
-                    && new.args.iter().all(|(name, kind)| {
-                        old.args.contains_key(name) || matches!(kind, ArgType::Optional(_))
-                    })
-                    && old.args.iter().all(|(name, kind)| {
-                        new.args.get(name).is_some_and(|next| accepts(kind, next))
-                    })
-                    && old.arg_aliases.iter().all(|(alias, name)| {
-                        new.argument(alias)
-                            .is_some_and(|(canonical, _)| canonical == name)
-                    })
+                if old.kind != new.kind {
+                    return false;
+                }
+                // Compare accepted wire names through authored aliases. Distinct
+                // old positions must remain distinct: an old call may send both.
+                let mut positions = BTreeSet::new();
+                for (name, kind) in &old.args {
+                    let Some((target, next)) = new.argument(name) else {
+                        return false;
+                    };
+                    if !accepts(kind, next) || !positions.insert(target) {
+                        return false;
+                    }
+                    if !old.arg_aliases.iter().filter(|(_, owner)| *owner == name).all(|(alias, _)| {
+                        new.argument(alias).is_some_and(|(canonical, next)| {
+                            canonical == target && accepts(kind, next)
+                        })
+                    }) {
+                        return false;
+                    }
+                }
+                new.args.iter().all(|(name, kind)| {
+                    positions.contains(name.as_str()) || matches!(kind, ArgType::Optional(_))
+                })
             })
     })
 }
