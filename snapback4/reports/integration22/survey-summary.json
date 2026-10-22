@@ -1,0 +1,49 @@
+{
+  "projects": 450,
+  "checks": 900,
+  "nonReviewRefusals": 0,
+  "gatedProjects": 15,
+  "gatingCodes": [
+    "N_RETAINED_ROLE_GRANT"
+  ],
+  "waves": {
+    "15": {
+      "projects": 100,
+      "gated": 0
+    },
+    "16": {
+      "projects": 50,
+      "gated": 3
+    },
+    "18": {
+      "projects": 50,
+      "gated": 2
+    },
+    "19": {
+      "projects": 50,
+      "gated": 2
+    },
+    "20": {
+      "projects": 50,
+      "gated": 3
+    },
+    "21": {
+      "projects": 50,
+      "gated": 3
+    },
+    "22": {
+      "projects": 50,
+      "gated": 1
+    },
+    "23": {
+      "projects": 50,
+      "gated": 1
+    }
+  },
+  "acknowledgments": {
+    "projects": 15,
+    "notes": 36,
+    "allPassAfter": true
+  },
+  "interpretation": "Individual acknowledgments apply only to disposable copies and probe the review path. They do not certify authored workflows or change original apps."
+}

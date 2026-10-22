@@ -1,0 +1,219 @@
+-- client file start: packages/snapback4/test/per-row-liveness.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: online keep=undefined: eight closed active reads cannot starve later observations or publish late
+ok 1 - online keep=undefined: eight closed active reads cannot starve later observations or publish late
+  ---
+  duration_ms: 24.994
+  type: 'test'
+  ...
+# Subtest: online keep=false: eight closed active reads cannot starve later observations or publish late
+ok 2 - online keep=false: eight closed active reads cannot starve later observations or publish late
+  ---
+  duration_ms: 3.18225
+  type: 'test'
+  ...
+# Subtest: online keep=true: eight closed active reads cannot starve later observations or publish late
+ok 3 - online keep=true: eight closed active reads cannot starve later observations or publish late
+  ---
+  duration_ms: 2.131917
+  type: 'test'
+  ...
+# Subtest: online keep=undefined: eight expired active reads cannot starve later observations or publish late
+ok 4 - online keep=undefined: eight expired active reads cannot starve later observations or publish late
+  ---
+  duration_ms: 2.647917
+  type: 'test'
+  ...
+# Subtest: wasm keep=undefined: eight closed active reads cannot starve later observations or publish late
+ok 5 - wasm keep=undefined: eight closed active reads cannot starve later observations or publish late
+  ---
+  duration_ms: 459.082542
+  type: 'test'
+  ...
+# Subtest: wasm keep=false: eight closed active reads cannot starve later observations or publish late
+ok 6 - wasm keep=false: eight closed active reads cannot starve later observations or publish late
+  ---
+  duration_ms: 401.210791
+  type: 'test'
+  ...
+# Subtest: wasm keep=true: eight closed active reads cannot starve later observations or publish late
+ok 7 - wasm keep=true: eight closed active reads cannot starve later observations or publish late
+  ---
+  duration_ms: 371.241125
+  type: 'test'
+  ...
+# Subtest: wasm keep=undefined: eight expired active reads cannot starve later observations or publish late
+ok 8 - wasm keep=undefined: eight expired active reads cannot starve later observations or publish late
+  ---
+  duration_ms: 322.177917
+  type: 'test'
+  ...
+# Subtest: process keep=undefined: eight closed active reads cannot starve later observations or publish late
+ok 9 - process keep=undefined: eight closed active reads cannot starve later observations or publish late
+  ---
+  duration_ms: 209.739917
+  type: 'test'
+  ...
+# Subtest: process keep=false: eight closed active reads cannot starve later observations or publish late
+ok 10 - process keep=false: eight closed active reads cannot starve later observations or publish late
+  ---
+  duration_ms: 223.650959
+  type: 'test'
+  ...
+# Subtest: process keep=true: eight closed active reads cannot starve later observations or publish late
+ok 11 - process keep=true: eight closed active reads cannot starve later observations or publish late
+  ---
+  duration_ms: 223.4515
+  type: 'test'
+  ...
+# Subtest: process keep=undefined: eight expired active reads cannot starve later observations or publish late
+ok 12 - process keep=undefined: eight expired active reads cannot starve later observations or publish late
+  ---
+  duration_ms: 232.010292
+  type: 'test'
+  ...
+# Subtest: wasm: acquired unknown apply footprint revalidates and refreshes every owner
+ok 13 - wasm: acquired unknown apply footprint revalidates and refreshes every owner
+  ---
+  duration_ms: 404.566125
+  type: 'test'
+  ...
+# Subtest: process: acquired unknown apply footprint revalidates and refreshes every owner
+ok 14 - process: acquired unknown apply footprint revalidates and refreshes every owner
+  ---
+  duration_ms: 201.036542
+  type: 'test'
+  ...
+# Subtest: online: cancelled transport preserves the earlier failure diagnostic
+ok 15 - online: cancelled transport preserves the earlier failure diagnostic
+  ---
+  duration_ms: 167.545959
+  type: 'test'
+  ...
+# Subtest: wasm: cancelled transport preserves the earlier failure diagnostic
+ok 16 - wasm: cancelled transport preserves the earlier failure diagnostic
+  ---
+  duration_ms: 379.895417
+  type: 'test'
+  ...
+# Subtest: process: cancelled transport preserves the earlier failure diagnostic
+ok 17 - process: cancelled transport preserves the earlier failure diagnostic
+  ---
+  duration_ms: 206.251916
+  type: 'test'
+  ...
+1..17
+# tests 17
+# suites 0
+# pass 17
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 7270.445083
+-- process inspection: {"snapshots":3,"unrelatedRows":13074}
+-- client file ok: packages/snapback4/test/per-row-liveness.test.mjs (7718 ms)
+-- client file start: packages/snapback4/test/per-row-retry.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: online keep=undefined: a due completion preserves a newer answer and retries
+ok 1 - online keep=undefined: a due completion preserves a newer answer and retries
+  ---
+  duration_ms: 155.049625
+  type: 'test'
+  ...
+# Subtest: online keep=false: a due completion preserves a newer answer and retries
+ok 2 - online keep=false: a due completion preserves a newer answer and retries
+  ---
+  duration_ms: 180.843334
+  type: 'test'
+  ...
+# Subtest: online keep=true: a due completion preserves a newer answer and retries
+ok 3 - online keep=true: a due completion preserves a newer answer and retries
+  ---
+  duration_ms: 230.286834
+  type: 'test'
+  ...
+# Subtest: wasm keep=undefined: a due completion preserves a newer answer and retries
+ok 4 - wasm keep=undefined: a due completion preserves a newer answer and retries
+  ---
+  duration_ms: 355.271834
+  type: 'test'
+  ...
+# Subtest: wasm keep=false: a due completion preserves a newer answer and retries
+ok 5 - wasm keep=false: a due completion preserves a newer answer and retries
+  ---
+  duration_ms: 323.646917
+  type: 'test'
+  ...
+# Subtest: wasm keep=true: a due completion preserves a newer answer and retries
+ok 6 - wasm keep=true: a due completion preserves a newer answer and retries
+  ---
+  duration_ms: 369.277291
+  type: 'test'
+  ...
+# Subtest: process keep=undefined: a due completion preserves a newer answer and retries
+ok 7 - process keep=undefined: a due completion preserves a newer answer and retries
+  ---
+  duration_ms: 173.88975
+  type: 'test'
+  ...
+# Subtest: process keep=false: a due completion preserves a newer answer and retries
+ok 8 - process keep=false: a due completion preserves a newer answer and retries
+  ---
+  duration_ms: 202.310584
+  type: 'test'
+  ...
+# Subtest: process keep=true: a due completion preserves a newer answer and retries
+ok 9 - process keep=true: a due completion preserves a newer answer and retries
+  ---
+  duration_ms: 203.28675
+  type: 'test'
+  ...
+# Subtest: wasm: eight expiry backoffs leave capacity for a ninth observation
+ok 10 - wasm: eight expiry backoffs leave capacity for a ninth observation
+  ---
+  duration_ms: 423.069625
+  type: 'test'
+  ...
+# Subtest: process: eight expiry backoffs leave capacity for a ninth observation
+ok 11 - process: eight expiry backoffs leave capacity for a ninth observation
+  ---
+  duration_ms: 196.905417
+  type: 'test'
+  ...
+# Subtest: online keep=undefined: the accept-time floor does not install deadlines or retry
+ok 12 - online keep=undefined: the accept-time floor does not install deadlines or retry
+  ---
+  duration_ms: 12.72675
+  type: 'test'
+  ...
+# Subtest: online keep=false: the accept-time floor does not install deadlines or retry
+ok 13 - online keep=false: the accept-time floor does not install deadlines or retry
+  ---
+  duration_ms: 12.171375
+  type: 'test'
+  ...
+# Subtest: online keep=true: the accept-time floor does not install deadlines or retry
+ok 14 - online keep=true: the accept-time floor does not install deadlines or retry
+  ---
+  duration_ms: 10.684166
+  type: 'test'
+  ...
+# Subtest: delayed retries cancel on close, yield to invalidation and rejoin FIFO
+ok 15 - delayed retries cancel on close, yield to invalidation and rejoin FIFO
+  ---
+  duration_ms: 0.5615
+  type: 'test'
+  ...
+1..15
+# tests 15
+# suites 0
+# pass 15
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 10316.295083
+-- process inspection: {"snapshots":3,"unrelatedRows":13103}
+-- client file ok: packages/snapback4/test/per-row-retry.test.mjs (10783 ms)
+-- client files: 2/2; failed 0; tests {"tests":32,"pass":32,"fail":0,"cancelled":0,"skipped":0,"todo":0}

@@ -1,269 +1,68 @@
-# DX6 workstream report — wave-22 fixes for 0.4.38
+# Integration 22 — Snapback 4 0.4.38
 
-Worktree: /home/ccheever/projects/sb4-b22-dx6; branch: sb4-b22-dx6.
-Base: 4a85340d11; pre-existing 280fbc9774 and 4a85340d11 retained.
-Package version remains **0.4.37**. User-facing changes are under **0.4.38**
-in snapback4/packages/snapback4/CHANGELOG.md, exposed by guide changes.
-Local commits only: no push or publication.
-Final functional source: `0bf50ac18696a2414dd836968ccda17607f0a45c`;
-subsequent commits contain review records and verification evidence.
+Integrated on `sb4-loop` in `/home/ccheever/projects/snapback-sb4loop`. No push or npm publication. Started clean at 93ede67fe2, fetched and fast-forwarded to origin/main bfe435467c. Publication directories/worktrees and other worktrees were not modified. Report conflicts retained the integration side.
 
-## Gate regressions (#5)
+## Commits and behavior
 
-- Seeded accounts include their actual session kind. Legacy partial online
-  session literals use bearer-only transport without inventing local authority
-  or refresh metadata; local/device sessions remain strict. E_SESSION names
-  every invalid/missing field and the one-line token-only repair.
-  Commit: 2f3dfec2d5.
-- Upgrade advice applies to actual transitions crossing its introduction
-  threshold and affected scripts. Fresh init is quiet; nonterminal delivery
-  is acknowledged. Commit: 3a97ce8a8d.
-- Future stores refuse before SQL inspection, name a newer Snapback and return
-  a nonzero SQL exit. Commit: d216820a9b.
-- Clock result valueOf preserves numeric arithmetic and Date use.
-  Commit: 406f5af67a.
-- Packed upgrades run unchanged wave-21 lane 025 acceptance and lane 002
-  prod:serve on isolated upgraded copies with their schema baselines.
-  Commit: 51c5d98c1f.
+| Commit | Change |
+| --- | --- |
+| dee5995046 | Merge DX6 with `--no-ff` |
+| c9fcc5f889 | Merge SEC7, including wave 23 addendum, with `--no-ff` |
+| bd2ca8da8b | `snapback4 0.4.38: actionable security reviews and staging clock repairs`; same 10 files / 23 substitutions as 0.4.37 |
+| f6122b124c | Forward clock transactions through main's opaque SQLite/Postgres store payloads; research §20.7 |
+| f330fe905b,2c87b47d32,0375edb1ba | Remeasured wasm, exact 500-byte allowance and final-source measurement |
+| e2cf2f1f56,d664e56bfa,c7ee509a9c,59d40fc87e | Integrated fixtures, generated timing sites, proof CommonJS compatibility and guide corrections |
+| 5f7949ef5f | Research/revision-date clarification |
+| 882b7e3f42 | Fix late CommonJS selector-registration race; two process-isolated browser regressions; final fixtures/journal/flake ticket |
 
-Focused tests passed: session/upgrade/read-only tests, future-format/SQL native
-tests, six old-CLI upgrade modes, unchanged lane 025 acceptance **80/80**, and
-lane 002 production readiness with **8 users**. Credentials stayed in child
-memory and were never printed. Final fresh-pack results are recorded below.
+One coherent 0.4.38 `guide changes`/CHANGELOG entry explains ranked/grouped security advice, evidence/money/transition/asymmetry/removal questions, deeper directed histories, and upgrade behavior. Retained-role and explicit-integrity upload findings need an individual `check --ack-security ID --reason DECISION`; bulk note acknowledgment does not clear them. Fresh starters pass without stock upload decisions. Numeric `advance()` compatibility returns; staging keeps live sessions by default, with explicit expiry/pause/drain/held-window controls. Seeded accounts include kind; partial online sessions retain bearer-only compatibility. Starters use ReadState; proof matching retains strict ambiguity.
 
-## Staging clock (#6)
+The late CommonJS bug was real: importing the proof helper after opening a page could race selector registration. Locator actions now wait for registration while locator chains stay synchronous. Both fresh-process regressions fail on the rejected earlier pack and pass on the final Linux/Mac code. No new design RFC was authored; merged lane review artifacts retain their provenance.
 
-- Held boundaries refuse E_CLOCK_HELD before effects; allowHeld explicitly
-  accepts them. advance(...,{drain:false}) pauses all maintenance so a mutation
-  reaches its own deadline check. drain() resumes at the same time. Failed
-  maintenance remains paused. CLI offers the equivalent controls.
-- Staging jumps transactionally preserve remaining live full/read session,
-  read-cap and mint-receipt lifetime. Dead, revoked and expired credentials do
-  not revive. Worker leases retain established behavior. sessions:"expire"
-  explicitly tests expiry; dev retains expiry and production refuses controls.
-  Commit: 81fe32fe24.
-- SDK timing reconciliation precedes client clock listeners. Restored read-only
-  credentials recover only through an authenticated staging timing probe.
-  Clocks are isolated and old-token replies cannot restore authority.
-  Commit: 5eb80d8797.
-- Preservation uses effective disclosure-clock delta above the persisted floor.
-  Commit: d11f762263.
-- Shared worker-clock transaction and identity authority-snapshot seams keep
-  the transaction-path ratchet intact, with no allowlist/census increase.
-  Commit: 70e50d228d.
-- Integration, executable qualification and guide text: 406f5af67a,
-  4de255840f. Independent daily-hold test expectation: 6f111ceda3.
-
-Passed: SQLite preservation **5**, actual PostgreSQL preservation **2** (private
-socket-only PostgreSQL 16.15 cluster removed afterward), SDK timing/related
-tests **100**, server custody **39 + 1 expected skip**, maintenance/effective
-floor **13**, final clock **45/45**, shared-seam identity **30**, transaction
-ratchet **3** (11 files/48 sites; identity decreased, no new opener).
-Packed regression covers a 22-day jump, retained/restored read clients, device
-reopen, numeric coercion, mutation-before-sweep, CLI pause/drain, explicit expiry
-and no-effect held refusal.
-
-## Frontend and proof kit (#8)
-
-Both starter lists use SDK ReadState and distinguish partial empty answers.
-Password web clients omit witness registration/persona plumbing; guest clients retain persona
-proof compatibility. Exact historical templates adapt; edited source remains
-application-owned.
-
-Browser drivers install the same immutable public observer before application
-scripts. The first selected App is locked; same-App generated API enrichment
-is allowed; a different explicit App refuses. The observer is a same-origin
-test facility, not an authentication or confidentiality boundary.
-
-Text matching handles composed visible RN/web text, wrapping labels, open
-shadow roots and slots. Hidden/editor values are excluded; strict ambiguity
-and explicit matching modes remain. Freshness uses that same visible text
-after locator chaining. Caller-owned browsers use the installed Playwright
-peer or withBrowser.
-
-Commits: babf5cf562, 129911f3a5, 37aa4103ed, 420c986470.
-Passed: frontend/proof **126/126**, native witness **13/13** including generated
-password UI without registration, shared-driver contract **12/12**, missing-peer
-help, historical starter custody **8/8**. Packed starter qualification also
-runs the generated password UI.
-
-Non-whitespace frontend characters measured on copied wave-22 lanes:
-
-| Lane | Before | After | Delta |
-| --- | ---: | ---: | ---: |
-| 001 stained-glass-restorations | 13,459 | 13,123 | -336 |
-| 037 orthotic-casting-orders | 12,580 | 12,226 | -354 |
-| 040 excavator-rental-returns | 18,874 | 18,520 | -354 |
-
-All authored frontend files were counted. This measures witness removal rather
-than a domain-UI retrofit. Original hashes stayed identical; copies were removed.
-Details: snapback4/reports/20261022-dx6/frontend.md.
-
-## Design review and ownership
-
-Amendment: llp/3000.000.000.001-staging-with-real-users.rfc.md §11.
-The security-invariants LLP has a one-line compatibility pointer. SEC7 owns
-security advice/recipes; DX6 makes no security-hole-free claim for that lane.
-
-Fresh independent Muse and Codex reviews used the exact requested commands.
-Round 1 drove timing reconciliation, the trusted same-origin observer model
-and fail-paused drain behavior. Both round 2 reviews returned **READY** on the
-same frozen proposal, SHA-256
-eacbb1d8c059ee8422c4aa950216d0fc2f8b79e3958b957ee1e43901e93bba03.
-Verbatim artifacts, frozen proposals, briefs and provenance: llp/reviews/dx6/.
-Design readiness is separate from test qualification.
-
-Additional integrated reviews found three implementation gaps: final streaming
-heartbeats omitted credential timing, clock publication preceded durable local
-credential saves, and clipped descendant text could manufacture visible labels.
-Commits 291b4ec653, 2b38769779 and 6df0baa8b2 repair these with regressions.
-The next fresh Muse review was READY; Codex identified App preparation persisting
-a clock before its staged credential was actually committed. Commit 18327ed997
-defers prepared clock persistence through App's real commit boundary, including
-close/detach; all four new crash/commit regressions pass and fail against the
-previous packed implementation. Broader full-count App model checks then exposed
-response-capture cleanup races governed by the existing LLP 3000.013 cutoff;
-the repair is committed as 3383a06262. The full model passes **60/60**, including
-both **5,000-history** tiers (online 98.069 seconds, local 172.006 seconds).
-Expanded App/HTTP/close tests pass **223/223**; three selected-SDK cutoff tests
-pass and the actual-device negative control fails without the admission fix.
-Commit 51b19b0d0c runs those three cases against installed SDK/platform artifacts.
-
-Round 4 Muse returned READY; Codex found an ordinary already-processed current
-schedule window incorrectly classified as a held future boundary, obstructing
-zero-time drain recovery. Commit efcbc21344 repairs it, aligns heldUntil/catch-up with saved boundaries,
-accounts for unchanged raw time in refusal repairs and raw/effective-floor
-differences in accepted reports. The native/guide group passes **202/202**;
-the real-server consumer and refs pass. Both fresh round 5 reviews returned
-**READY** on source efcbc21344665a0720f3afaf1fc216dc81aa8027 and proposal hash
-d6aebe547c3a3c9f1e4f0d7e783cc44a9295d25dd74531795af4344e3dbfb104.
-Commit 02409d2266 aligns startup guidance too (clock **45**, store **7**, ratchets
-**10** passed). Online clocks are volatile; the amendment accurately distinguishes
-existing asynchronous credential listeners from device-clock durability.
-
-The final broader client run then passed **363**, skipped the expected old-binary
-case, and caught **1** stale-auth regression: retaining a superseded bearer's
-E_AUTH incorrectly changed a durable pending write into failure after sign-out.
-That candidate qualifier was cancelled safely before creating consumer scratch;
-the independent Rust run continued untouched. Commit 0bf50ac18696a2414dd836968ccda17607f0a45c
-repairs the rotation fence with a monotonic refusal floor checked at capture and
-delivery. Plain sign-out does not invalidate its own known refusal; intermediate
-retiring-bearer actions stay obsolete, while an adopted successor remains valid
-during delayed persistence. Focused security **26/26**, expanded App/HTTP/close/
-security **329/329**, and the cutoff predicate pass. The new local regression
-fails against the rejected packed candidate. The packed hook now executes the
-entire session-security file using the installed SDK. Fresh R6 proposal SHA-256:
-94921e914251509fb831b2264420f2455a6c2c677514d896c23f01f0b2616fae.
-Both fresh R6 reviewers returned **READY**, with no remaining material findings
-on that exact committed source/proposal. Raw artifacts and provenance are saved.
-Final models pass **60/60**: online **5,000** histories in **97.859 s**, local
-**5,000** in **164.125 s** (total **265.691 s**). Final 23-file client run passes
-**383**, fails **0**, skips **1** expected historical-binary case (**384** total).
-Fresh packed qualification passed the installed DX6 proof and all six old-CLI
-upgrade modes, including wave-21 025 (**80 checks**) and 002 (**8 users**).
-The broader consumer run then stopped at an npm shared-cache ENOENT while
-installing @types/react-dom for a production starter. The retry passed with
-the same tarballs/source using a private temporary npm cache; the interrupted
-run is retained as infrastructure evidence. Final Mac verification remains
-blocked by host reachability.
+LLP 3000.037 §20.7 now covers waves 22/23 on 0.4.37, calibrated findings, earlier evolution repairs and the 0.4.38 response, with bounded-security and comparative-score limits. Diagnostics registry, guide manifest/flat projections, await/delivery censuses and inventories were regenerated. RULES4's 875-item authoring census regenerated byte-identically.
 
 ## Verification
 
-Setup passed: frozen product install, native CLI, wasm (**734,907** gzip bytes
-within **735,407** budget) and TypeScript build. Every shell invocation has a
-timeout. Every Cargo invocation inherits all three required low-disk flags.
+Final product source: `0375edb1ba5881bcb8fb67b7d6435f3054782594`. Evidence/report-only commits do not change these tested semantics.
 
-- Affected clients after timing/text repairs: **21 files; 317 tests; 316 passed, 0 failed,
-  1 expected skip** (verified historical 0.4.13 downgrade binary unavailable).
-- Root frozen install, hoist and generated artifacts passed with repository
-  pinned Bun 1.3.12 after initial Bun 1.4.2 setup lacked root acorn resolution.
-  Root product and dependency sources were unchanged.
-- Root inventories passed: 365 package tests, 35 scripts, 31 demos,
-  487 publication leaves, 162 guide pages and 1,937 snippets.
-- Root guide: **22 passed, 0 failed, 0 skipped, 0 missing preconditions**;
-  121 existing advisories remain advisory.
-- Final ref-check: **564 LLPs, 12,312 refs, 0 errors, 0 unchecked**.
-- Product docs budget: **319/320** README lines; self-containment **1/1**.
-  Evidence and scoped LLP audit: snapback4/reports/20261022-dx6/root-checks.json.
-- Full workspace Rust: **450 target scopes** (444 unit/integration, 6 doc
-  libraries), **7,318 passed, 0 unresolved failed, 47 ignored**. Counts replace
-  initial repaired cases and avoid counting focused reruns twice. This covers
-  all seven workspace crates, exceeding the five requested.
-- Fresh client/Expo pack from **0bf50ac186** passed installed qualify-linux
-  **--consumer-only**, exit **0**, including **Ubuntu 24.04 and Alpine**,
-  all six starter variants, adapted historical templates, all generated
-  frontend proofs, production, security-policy, migrations and staging.
-  Source and tarball identities stayed fixed through qualification.
-  The full scripts/test.sh was expressly prohibited; consumer.json records
-  suite not-run and **publicationQualified:false**, not a publication receipt.
-- The installed DX6 hook passes the clock/session, numeric, composed-text,
-  invocation/credential-cutoff and future-SQL regressions. All six old-CLI
-  modes and requested actual wave-21 scripts pass: **025 80 checks**, **002
-  8 users**. Supplementary packed qualification executes the literal guide
-  CLI **22d --no-drain**, zero-time drain and helper **8d sessions:expire**.
-- Final affected clients: **23 files, 384 tests, 383 passed, 0 failed,
-  1 expected skip**. Full online/local models: **60/60**, **5,000 histories
-  each**. Expanded group **329/329** overlaps these checks; counts are not summed.
-- Final Mac: **106/106** confirmed `check` tests; remaining tests and remote
-  cleanup unverified because the assigned host is unreachable (see below).
-- Compact final evidence: snapback4/reports/20261022-dx6/verification.json,
-  linux-consumer.json, packed-dx6-proof.json, packed-dx5-proof.json and
-  cargo-workspace-completion.json.
+Linux full native: `cargo test -p snapback4-core -p snapback4-lang -p snapback4-device -p snapback4-sim -p snapback4 --no-fail-fast` completed twice, each exit 0 with 452 scopes / 7,310 passed / 0 failed / 47 declared ignored cases. The final complete rerun started after the last fix and took 107.9 minutes against source `0375edb1ba`. No native flake occurred. Environment: `CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 CARGO_PROFILE_DEV_OPT_LEVEL=1 CARGO_BUILD_JOBS=12`, cwd `snapback4/`.
 
-The full workspace run reached its one-hour outer timeout during the device
-unread-range target; remaining targets were resumed without repeating
-completed scopes. Four initial failing targets (clock, committer ratchet,
-historical starter and store-port ratchet) were repaired and passed targeted
-reruns; no assertions/ratchet were weakened. The costly unchanged residency
-case ran once in the full suite; redundant focused execution was interrupted
-and retried with only that unchanged residency scope excluded. The remaining
-full workspace run exposed stale guide budget/diagnostic/public-ReadState assertions; 3c39e40780
-repairs them with no limit increase, all **16 executable fences unchanged**, and
-the complete guide target passes **127/127**. A second bounded run stopped during
-sim union; its two unfinished exhaustive cases passed on resume, followed by all
-remaining targets/docs. Both timeout-owned process groups exited and exact-PID
-scratch was cleaned. No full scripts/test.sh invocation was used.
+Linux full client pool: all 430 files pass in one orchestration (428 ordinary/timer files plus both serial model files), 7,978 tests / 7,922 passed / 56 conditional skips / 0 failed or cancelled. The 17 timer-sensitive files run serially after the parallel pool; models retain full 5,000/3,000 sequence defaults (89 tests passed). Total elapsed 32.4 minutes. The immediate post-pool `git status --porcelain` is exactly ` M WORKSTREAM-REPORT.md`; no test leaked a source file. A second direct status check agrees. Recorded in `client-pool-final.json` and `client-pool-final-status.txt`.
 
-## Decisions and limits
+- Difftest `run` 20k seed 0: 1,222,111 executions, 0 disagreements. `run-devices` seeds 0–999: 27,922 executions, 0 disagreements. Lean model builds; 20k cases/56,917 executions retain 130 mismatches in exactly 4 known signatures. Fresh bfe435467c base rebuild reproduces the identical oracle record: E_RULE~NOT_FOUND 3, continuation-next 35, next 67, prelude E_RULE~NOT_FOUND 25; 0 new. Lean is not claimed all-green.
+- Packed Linux: final fresh `publish.mjs --prepare-client` pack and `qualify-linux.mjs --consumer-only` exit 0; every new DX6/SEC7 case, 6 starter toolchains, 12 generated frontend proofs, Ubuntu/Alpine, security, migrations, staging and rule recipes pass. Supplemental installed security/starter tests 20/20 use byte-identical client/platform artifacts. Unchanged wave 21 lane 025 acceptance 80/80 and lane 002 production launcher 8 users pass. Earlier 59d pack evidence is superseded by the late CommonJS fix.
+- Root: `bun install --frozen-lockfile`, `ensure-workspace-hoist.mjs`, `check-generated-artifacts` and named missing-artifact generators pass. Repeated inventories pass 365 package tests / 35 script tests / 31 demos / 487 publication leaves. Guide 22 passed / 0 failed / 0 skipped / 0 preconditions; 162 pages / 1937 snippets, 121 advisory warnings. `./ref-check`: 564 LLPs / 12,351 refs / 0 errors or unchecked refs. Docs budget 319/320 plus named 1/1 passes. Postgres core all-targets check passes.
+- Delivery fault matrix 445/445, including both new timing sites. Focused final CommonJS/fixture checks 81/81 on Linux and 15/15 on Mac; rejected older pack fails the two new regression cases as expected.
+- Mac: black M5 only, scratch `~/projects/snapback-integ22`, pinned verified Node 24.13.1. Core lib; language lib+SEC6/SEC7/day2/guide; device lib+readauth; CLI bin+clock/check/notes/security reviews/port ratchets; complete sim package all pass. Supplemental changed/affected security/history/output/rule-recipe and starter targets also pass 149 tests across 6 targets. 85 selected client files pass: 82 ordinary files 2,043 passes / 14 conditional skips, full 5,000-sequence session model 60 passes, 2 supplemental timer-sensitive files 32 passes. All 30 platform-mention files are covered. 6,298 semantic source leaves match primary, 0 mismatches. Initial Node 25 precondition failures and a wrong-directory supplemental launch were corrected; only final passes count.
 
-- Published old quiet CLIs capture migration stderr and cannot retroactively
-  print it. Tests document that boundary rather than add process inspection.
-  Ordinary old upgrades/new quiet helper deliver advice; original scripts work.
-- Upgrade tests use a local metadata-only 0.4.38 alias of current tarballs so
-  old CLIs observe a transition. Source versions/publication state do not change.
-- Completed local tests own and clean their scratch/copies. Cargo outputs
-  were cleaned after verification, reclaiming **30.2 GiB**. Final consumer
-  installs/private cache were removed after qualification; compact evidence and
-  fresh tarballs are retained. Mac cleanup cannot be confirmed while offline.
-- No original evidence lane, sibling worktree, ~/projects/snapback,
-  publication MacBook or credential file was changed. Mac work stays in
-  ~/sb4-ws-dx6 on the assigned Mac Studio.
+All Cargo commands use no incremental/dev-debug/test-debug output; Linux full reruns additionally use `CARGO_PROFILE_DEV_OPT_LEVEL=1`. Every shell invocation has a timeout. No full `scripts/test.sh` was run.
 
+## Survey and upgrades
 
-## Mac verification and remaining gap
+450 projects (wave 15: 100; waves 16,18–23: 50 each), 900 authored/no-invariant variants with human and JSON checks agreeing: 0 compiler/non-review refusals or panics. 15 authored projects fail on 36 retained-role review obligations; 0 optional-upload gates. Gated projects by wave 15,16,18,19,20,21,22,23: 0,3,2,2,3,3,1,1. Each concrete retained-role discrepancy is listed with its source hash in `survey-gating-review.md`. Every obligation was individually acknowledged on a disposable copy; all 15 final checks pass with 0 pending. These experimental acknowledgments do not change original apps or certify that their independent policies intend retained access.
 
-The assigned Mac Studio accepted the final functional source archive; all
-**6,105** manifest entries match source 0bf50ac186. Its final-source `check`
-target passed **106/106**, then SSH disconnected during the clock target.
-Earlier **165** native tests passed before the final repairs; those are not
-claimed as final-source clock/init evidence.
+Published 0.4.35 and 0.4.37 actual old `npx snapback4 upgrade` paths pass with final packs. Verified old native versions, retained store rows and IDs, complete/narrowed sessions, production doors/new writes, and Expo typecheck/web export/browser reads before and after with a persistent browser origin/session. Published old helpers emit historical migration advice during upgrade; the new next check is quiet. No change is falsely attributed to already-published helper bytes.
 
-The remaining final-source clock/init, maintenance, clock-store, ratchet and
-23-file client results are unverified. At least **70** bounded SSH attempts,
-longer IPv4/IPv6 attempts and same-node Tailscale checks could not recover the
-connection. The peer reports offline. No other Mac was used.
+50 wave 23 `deploy/` copies are replayed with published 0.4.37 and merged 0.4.38 through 2 cycles each of latest/1/latest. Every active+dormant row-ID union is preserved. 49 lanes activate every switch; 028's duplicate byStay constraint (36 rows, limit 1) refuses release 1 identically on both versions in both cycles. 0 new refusal signatures. Originals are read-only; no invented all-activations-green claim.
 
-The 20-minute root launch loop exited 255. A supervised resume controller has
-an atomic ownership lock, a 5,400-second watchdog, source-manifest checks and
-per-command process keepers; it records durable remote results. No status was
-received, so a launch after a lost connection response and its remote cleanup
-remain uncertain. No duplicate or inferred-process kill was performed. Recovery
-inputs remain in ignored snapback4/reports/20261022-dx6/mac/; inspect only
-~/sb4-ws-dx6/.dx6-r6-resume.lock, its recorded PID, resume status/log and exact
-owned process identity before resuming or cleanup. The maintenance filter was
-corrected to serve::maintenance::tests so a zero-test run cannot count as 14.
+## Fresh Exact apps
 
-All DX6 item fixes are implemented; this assigned-host verification/cleanup gap
-is the remaining deferral. All local monitoring and launch loops have ended;
-no new remote job will be started after handoff. Final source and packed Linux
-results are recorded separately.
+Clean Exact2 origin/main clone `183868caed92040d9c0c69dfe050c05264e193be` in `~/sb4-loop/prewave22/exact2`, including EX10. Only dependency/path+lock overrides bind the final client and merged core/device/lang; Exact product source is unchanged. Candidate musl binary reports 0.4.38; binary/client hashes are in `exact-results.json` and `final-artifacts.json`.
+
+For each fresh parent `~/sb4-loop/prewave22/{synced,online}`: `bun install`; `bun /home/ccheever/sb4-loop/prewave22/exact2/scripts/exact.mjs new app --snapback --port 27380` (synced) or `--port 27381 --online` (online). The actual argv includes separate flag/value arguments, recorded with cwd, exit and logs in `exact-results.json`.
+
+Inside each generated `app/`, literally `bun exact.mjs snapback` and `bun exact.mjs test web` pass. Synced: 2/0, including real writes/persona/offline-reconnect. Online: 1/0 with an actual write, using an authored online-only schema before `new --online`. Fresh r2 apps rerun after the late proof fix. Earlier old-binary/schema-precondition and superseded-pack attempts are not counted. Owned servers stopped in finally; exact cleanup recorded.
+
+## Wasm and retained evidence
+
+Locked final Linux measurement: 2,406,491 B raw / 734,888 B gzip / 553,401 B Brotli. Budget 735,388 B = measured gzip + exactly 500 B. Against 0.4.37 storage-port measurement: +622 B raw, −19 B gzip. Shared format diagnostics/version stamp and merged layout are whole-artifact costs; advice/history search stay server-side. Strict family/absence audits pass. No per-feature cost or runtime ceiling increase is claimed.
+
+Compact logs, receipts, commands, source hashes and per-project results: [snapback4/reports/integration22](snapback4/reports/integration22/manifest.json), with manifest checksums. Final tarballs are retained outside publication directories at `~/sb4-loop/integration22/artifacts/` (client SHA256 5568ed5f7eff8183600dc594ca3d5df3e0f588c87e5de1857accc6c5a18642a4; binary SHA256 b664f123d9ad139daf8dd7dd8978ffcd455c4b9b852851fdae3145e146e02a0b).
+
+## Limits and deferrals
+
+No required verification group remains unrun. The two intermittent export-retention/removal-readiness cases passed alone and in the second complete client pass, satisfying the requested flake rule; the follow-up remains tracked in `issues/20261022-snapback4-export-retention-and-removal-readiness-flakes.md` without weakened assertions. Initial failed candidate runs are retained as diagnostic evidence. The 47 declared ignored native cases and all conditional client skips are listed individually in `native-ignored.json`, `client-conditional-skips.json` and `mac-conditional-skips.json`.
+
+After retaining evidence, `./ref-check` and root `check-inventories` pass again; staged whitespace checks pass. Only the report and evidence change after the tested product source.
+
+Consumer-only intentionally records `publicationQualified:false` and suite `not-run`; it is not a publication receipt. Full `scripts/test.sh`, push and npm publication were expressly excluded. Optional historical 0.2.32/0.2.33/0.4.13 input-dependent and platform-specific client skips remain conditional; detailed skip names are retained. Root guide checks have no skips. Finite security campaigns and mechanical review acknowledgments do not certify application security.

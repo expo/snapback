@@ -1,0 +1,12 @@
+{
+  "source": "0375edb1ba5881bcb8fb67b7d6435f3054782594",
+  "client": {
+    "file": "snapback4-0.4.38.tgz",
+    "sha256": "5568ed5f7eff8183600dc594ca3d5df3e0f588c87e5de1857accc6c5a18642a4"
+  },
+  "platform": {
+    "file": "snapback4-linux-x64-0.4.38.tgz",
+    "sha256": "c7ae35966f45abeee4c6699d4845de540b0842843bebe5136677e23417ece4bb"
+  },
+  "binarySha256": "b664f123d9ad139daf8dd7dd8978ffcd455c4b9b852851fdae3145e146e02a0b"
+}

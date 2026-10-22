@@ -1,0 +1,9 @@
+{
+  "status": "passed",
+  "directory": "/tmp/integ22/qualified38-r2/day2-compatibility",
+  "guideRecipe": "capture-release-and-bridge",
+  "starterCustody": [
+    "web",
+    "expo"
+  ]
+}

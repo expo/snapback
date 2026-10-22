@@ -1,0 +1,6 @@
+{
+  "status": "passed",
+  "log": "/tmp/integ22/qualified38-r2/rule-recipes.log",
+  "client": "/tmp/integ22/pack-final38-r2/snapback4-0.4.38.tgz",
+  "platform": "/tmp/snapback4-linux-jKFWGO/snapback4-linux-x64-0.4.38.tgz"
+}

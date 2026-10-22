@@ -1,0 +1,40 @@
+{
+  "final-build": 0,
+  "final-cli": 0,
+  "final-client-build": 0,
+  "final-clients": 0,
+  "final-compatibility": 0,
+  "final-core": 0,
+  "final-device": 0,
+  "final-lang": 0,
+  "final-sim": 0,
+  "clientSummaries": [
+    "-- client files: 82/82; failed 0; tests {\"tests\":2057,\"pass\":2043,\"fail\":0,\"cancelled\":0,\"skipped\":14,\"todo\":0}",
+    "-- client files: 1/1; failed 0; tests {\"tests\":60,\"pass\":60,\"fail\":0,\"cancelled\":0,\"skipped\":0,\"todo\":0}"
+  ],
+  "sourceManifest": "6298 semantic leaves, zero mismatches; mac-source-verify.log",
+  "host": "charlies-macbook-pro-m5max-black",
+  "scratch": "~/projects/snapback-integ22",
+  "supplementalFiles": 2,
+  "supplementalTests": 32,
+  "supplementalExit": 0,
+  "totalSelectedFiles": 85,
+  "platformMentionAudit": {
+    "files": 30,
+    "omitted": 0
+  },
+  "extraNative": {
+    "lang": {
+      "exit": 0,
+      "scopes": 4,
+      "passed": 90,
+      "failed": 0
+    },
+    "starters": {
+      "exit": 0,
+      "scopes": 2,
+      "passed": 59,
+      "failed": 0
+    }
+  }
+}

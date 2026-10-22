@@ -1,0 +1,42 @@
+{
+  "initialSelectedFiles": 83,
+  "supplementalFiles": [
+    "packages/snapback4/test/per-row-liveness.test.mjs",
+    "packages/snapback4/test/per-row-retry.test.mjs"
+  ],
+  "platformMentionFiles": [
+    "packages/snapback4/test/publish-linux.test.mjs",
+    "packages/snapback4/test/sync-generation.test.mjs",
+    "packages/snapback4/test/test-processes.test.mjs",
+    "packages/snapback4/test/export-background.test.mjs",
+    "packages/snapback4/test/security-packed.test.mjs",
+    "packages/snapback4/test/maintenance-evidence.test.mjs",
+    "packages/snapback4/test/per-row-liveness.test.mjs",
+    "packages/snapback4/test/per-row-retry.test.mjs",
+    "packages/snapback4/test/test-signals.test.mjs",
+    "packages/snapback4/test/wave14-rule-recipes.test.mjs",
+    "packages/snapback4/test/test-file-runner.test.mjs",
+    "packages/snapback4/test/export-native.test.mjs",
+    "packages/snapback4/test/test-platform-audit.test.mjs",
+    "packages/snapback4/test/worker-regressions.test.mjs",
+    "packages/snapback4/test/server-e2e.test.mjs",
+    "packages/snapback4/test/export-publication.test.mjs",
+    "packages/snapback4/test/linux-package.test.mjs",
+    "packages/snapback4/test/qualify-linux.test.mjs",
+    "packages/snapback4/test/expo-media-storage.test.mjs",
+    "packages/snapback4/test/schema-capabilities.test.mjs",
+    "packages/snapback4/test/periphery.test.mjs",
+    "packages/snapback4/test/recorded-compatibility.test.mjs",
+    "packages/snapback4/test/worker.test.mjs",
+    "packages/snapback4/test/wave12-kit.test.mjs",
+    "packages/snapback4/test/live-contention.test.mjs",
+    "packages/snapback4/test/publish-signing.test.mjs",
+    "packages/snapback4/test/proof.test.mjs",
+    "packages/snapback4/test/expo-scenes.test.mjs",
+    "packages/snapback4/test/rx-rule-hop-capability.test.mjs",
+    "packages/snapback4/test/export-failure.test.mjs"
+  ],
+  "missing": [],
+  "supplementalExit": 0,
+  "scope": "Text audit of client test platform guards and macOS timer notes; original selection also includes changed and dependent files."
+}

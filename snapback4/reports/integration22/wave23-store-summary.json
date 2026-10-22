@@ -1,0 +1,43 @@
+{
+  "projects": 50,
+  "before": "published0.4.37",
+  "after": "merged0.4.38 debug",
+  "cyclesPerSide": 2,
+  "targetsPerCycle": [
+    "latest",
+    "1",
+    "latest"
+  ],
+  "allIdentityUnionsPreserved": true,
+  "historicalRefusals": [
+    {
+      "lane": "028-snapback-campground-site-holds",
+      "side": "before",
+      "target": "1",
+      "status": 1,
+      "class": "E_ADOPT duplicate byStay index,36 rows,limit1"
+    },
+    {
+      "lane": "028-snapback-campground-site-holds",
+      "side": "before",
+      "target": "1",
+      "status": 1,
+      "class": "E_ADOPT duplicate byStay index,36 rows,limit1"
+    },
+    {
+      "lane": "028-snapback-campground-site-holds",
+      "side": "after",
+      "target": "1",
+      "status": 1,
+      "class": "E_ADOPT duplicate byStay index,36 rows,limit1"
+    },
+    {
+      "lane": "028-snapback-campground-site-holds",
+      "side": "after",
+      "target": "1",
+      "status": 1,
+      "class": "E_ADOPT duplicate byStay index,36 rows,limit1"
+    }
+  ],
+  "newRefusalSignatures": 0
+}

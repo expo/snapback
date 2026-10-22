@@ -1,0 +1,48 @@
+[
+  {
+    "productionRowsPreserved": 1,
+    "retainedServiceToken": "passed",
+    "oldCompleteSessionSuppliedToUpgradedClient": "passed",
+    "productionNewWrite": "passed",
+    "productionDevDoorsClosed": true,
+    "storeRowsPreserved": 1,
+    "expoTypecheck": "passed before and after",
+    "expoWebExport": "passed before and after",
+    "expoBrowserBeforeAndAfter": "passed with persisted origin/session and real SDK reads",
+    "from": "0.4.35",
+    "oldNativeVersion": "snapback4 0.4.35",
+    "flags": [],
+    "candidate": "0.4.38",
+    "oldPackage": {
+      "registry": "https://registry.npmjs.org",
+      "integrity": "sha512-BazFeTCT34CmRIhvXg37g3TpeaZt7zQRDb65evpysUEJiwE0X/Qausx1yml35RntDv5V7Skp2Wp+BRoH77ScMw=="
+    },
+    "oldWrapperSha256": "a602978d6f2bb93ad5580114789d67e8f91d3a4696468476b83b4e9d8149a1be",
+    "status": "passed",
+    "acquisition": "installed old npx snapback4 upgrade",
+    "warnings": "historical advice from published old helper during upgrade; modern next check quiet and no new refusal"
+  },
+  {
+    "productionRowsPreserved": 1,
+    "retainedServiceToken": "passed",
+    "oldCompleteSessionSuppliedToUpgradedClient": "passed",
+    "productionNewWrite": "passed",
+    "productionDevDoorsClosed": true,
+    "storeRowsPreserved": 1,
+    "expoTypecheck": "passed before and after",
+    "expoWebExport": "passed before and after",
+    "expoBrowserBeforeAndAfter": "passed with persisted origin/session and real SDK reads",
+    "from": "0.4.37",
+    "oldNativeVersion": "snapback4 0.4.37",
+    "flags": [],
+    "candidate": "0.4.38",
+    "oldPackage": {
+      "registry": "https://registry.npmjs.org",
+      "integrity": "sha512-zeuJEfMFB45PvthdQPA/VKzjdqOazJaa2ey8R4K49fFFd6/8gPE8mTjlyFd86HboBeBKBK326KwjCuez5G43+Q=="
+    },
+    "oldWrapperSha256": "920efdcea2a39aebc414df9df5dd01f89ee5c9c8a1b76b9cdb34b09d5c768072",
+    "status": "passed",
+    "acquisition": "installed old npx snapback4 upgrade",
+    "warnings": "historical advice from published old helper during upgrade; modern next check quiet and no new refusal"
+  }
+]

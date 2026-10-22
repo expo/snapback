@@ -1,0 +1,28 @@
+{
+  "groups": [
+    {
+      "tests": 7889,
+      "pass": 7833,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 56,
+      "todo": 0
+    },
+    {
+      "tests": 89,
+      "pass": 89,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  ],
+  "total": {
+    "tests": 7978,
+    "pass": 7922,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 56,
+    "todo": 0
+  }
+}

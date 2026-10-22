@@ -1,0 +1,11 @@
+{
+  "exit": 0,
+  "scopes": 452,
+  "passed": 7310,
+  "failed": 0,
+  "ignored": 47,
+  "statusSet": [
+    "ok"
+  ],
+  "claim": "first completed full run; mandatory final-source full repeat follows"
+}

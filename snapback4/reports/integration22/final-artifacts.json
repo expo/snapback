@@ -1,0 +1,22 @@
+{
+  "source": "0375edb1ba5881bcb8fb67b7d6435f3054782594",
+  "packPrepareLog": "prepare-final38-r2.log",
+  "artifacts": {
+    "/tmp/integ22/pack-final38-r2/snapback4-0.4.38.tgz": {
+      "bytes": 1334086,
+      "sha256": "5568ed5f7eff8183600dc594ca3d5df3e0f588c87e5de1857accc6c5a18642a4"
+    },
+    "/tmp/integ22/pack-final38-r2/snapback4-expo-0.4.38.tgz": {
+      "bytes": 23101,
+      "sha256": "9086f7c4a43736518c3327e923d1680c78b916e75529613ff9151af12ece7d77"
+    },
+    "/tmp/integ22/snapback4-linux-x64-0.4.38.tgz": {
+      "bytes": 14493734,
+      "sha256": "c7ae35966f45abeee4c6699d4845de540b0842843bebe5136677e23417ece4bb"
+    },
+    "snapback4/target/x86_64-unknown-linux-musl/production/snapback4": {
+      "bytes": 34745056,
+      "sha256": "b664f123d9ad139daf8dd7dd8978ffcd455c4b9b852851fdae3145e146e02a0b"
+    }
+  }
+}
