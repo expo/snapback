@@ -20,6 +20,7 @@ export class ServerClock {
   private order = 0;
   private epochBarrier = 0;
   private listeners = new Set<(shift: number, reschedule: boolean) => void>();
+  private responseListeners = new Set<(response: Response, request: { url: string; authorization: string | null }) => void>();
   private save: ((value: string) => Promise<void>) | undefined;
   private saving: Promise<void> = Promise.resolve();
   private lastSave: { owner: (value: string) => Promise<void>; value: string; result: Promise<void> } | undefined;
@@ -82,12 +83,24 @@ export class ServerClock {
       for (const listener of this.listeners) listener(shift, revisionChanged);
     }
   }
+  /** Credential metadata must be reconciled before a business-time sample
+   * can reschedule expiry. The immutable dispatch bearer fences rotations. */
+  beforeSample(listener: (response: Response, request: { url: string; authorization: string | null }) => void): () => void {
+    this.responseListeners.add(listener);
+    return () => { this.responseListeners.delete(listener); };
+  }
   wrap(fetcher: typeof fetch): typeof fetch {
     if (clocks.get(fetcher) === this) return fetcher;
     const wrapped: typeof fetch = async (input, init) => {
       const sent = this.wall(), order = ++this.order;
+      const request = { url: typeof input === "string" ? input : input instanceof URL ? input.href : input.url,
+        authorization: new Headers(init?.headers ?? (input instanceof Request ? input.headers : undefined)).get("authorization") };
       const response = await fetcher(input, init);
       const received = this.wall();
+      // An unavailable staging authority snapshot cannot publish business time
+      // without its credential lifetime. Stream-final samples obey the same rule.
+      if (response.headers.get("x-snapback-session-timing") === "unavailable") return response;
+      for (const listener of this.responseListeners) listener(response, request);
       responses.set(response, { clock: this, order });
       const stamp = response.headers.get("x-snapback-time");
       if (stamp !== null) this.sample(Number(stamp), sent, received, response.headers.get("x-snapback-clock") ?? undefined, order);

@@ -225,6 +225,7 @@ pub fn serve(
         clock,
         time_audience_clock: AtomicI64::new(time_audience_clock),
         maintenance: FairMutex::gate(maintenance::State::default()),
+        staging: !dev && engine.store().deployment_environment().map_err(|e|e.to_string())?.as_deref() == Some("staging"),
         engine: FairMutex::new(engine),
         readers,
         read_cuts: Mutex::new(read_cost::ReadCuts::default()),

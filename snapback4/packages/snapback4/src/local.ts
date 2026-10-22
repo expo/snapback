@@ -1,3 +1,4 @@
+import { reconciledTiming, requestMatchesSession } from "./session-timing.ts";
 import { suppliedSession } from "./session-input.ts";
 import { servedRelease } from "./release.ts";
 import { engineHeaders, unknownEngine, normalizeEngine, deviceVersionState, probeDeviceEngine, DeviceVersionError } from "./device-version.ts";
@@ -85,6 +86,14 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   const version = deviceVersionState(engineInfo ?? unknownEngine(), options.onDeviceVersion), versionBlocked = version.blocked, incompatible = version.refuse;
   const sessions = options.sessionStore ?? defaultSessionStore;
   let session: Session | null = null;
+  // Registered before startup refresh/schema traffic, including restored clocks.
+  let timingChanged = false;
+  const stopSessionTiming = clock.beforeSample((response, request) => {
+    if (!session || !requestMatchesSession(request, base, session)) return;
+    const next = reconciledTiming(session, response);
+    if (next === session) return;
+    session = next; timingChanged = true;
+  });
   if (options.persona) headers["x-snapback-persona"] = options.persona;
   else {
     session = initialSession ?? await restoreSession(base, sessions, () => 0);
@@ -146,8 +155,10 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   const closingResponses = new ClosingResponses();
   const aborter = new AbortController();
   const downloads = assetQueue();
+  if (timingChanged && session) { await keepSession(base, session, sessions); timingChanged = false; }
   const core = await version.run(() => openLocalDevice(options.device, storeName, backend, initial.refusal));
   let stopSuspend: (() => void) | undefined, stopClock: (() => void) | undefined;
+  let stopTimingNotifications: (() => void) | undefined;
   let sendingAllowed = !core.onSuspend;
   let stopOutbox: (() => void) | undefined, flushRecovered: (() => void) | undefined;
   let followingIntents!: FollowingIntents;
@@ -373,6 +384,16 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   let refreshing: Promise<SignIn> | null = null, rotatingSession: Promise<SignIn> | null = null;
   let retireRotation: ((result: SignIn) => void) | undefined;
   let persistingSession: Promise<void> | undefined, endingSession: Promise<void> | undefined;
+  stopTimingNotifications = clock.beforeSample(() => {
+    if (!timingChanged || !session || closed || sessionDead) return;
+    timingChanged = false;
+    const selected = session;
+    persistingSession = (persistingSession ?? Promise.resolve()).catch(() => {}).then(() => { if (!closed && !sessionDead && session?.token === selected.token) return keepSession(base, selected, sessions); });
+    void persistingSession.then(() => {
+      if (!closed && !sessionDead && session?.token === selected.token) for (const listener of [...sessionListeners]) listener(session);
+    }).catch(() => {});
+  });
+
   const signedOut = (): SignIn => ({ ok: false, why: authRefusal ?? { code: "E_AUTH", family: "auth", message: "sign in to continue" } });
   let stopRefresh!: () => void;
   const refreshStopped = new Promise<SignIn>(resolve => { stopRefresh = () => resolve(signedOut()); });
@@ -476,7 +497,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       credentialRevision += 1;
       const refreshedRevision = credentialRevision;
       let persistenceError: unknown;
-      try { await (persistingSession = keepSession(base, session, sessions)); }
+      try { await persistingSession; await (persistingSession = keepSession(base, session, sessions)); }
       catch (error) { persistenceError = error; }
       finally { persistingSession = undefined; }
       if (sessionDead) return signedOut();
@@ -1392,6 +1413,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       stopSuspend?.();
       stopOutbox?.();
       stopClock?.();
+      stopSessionTiming();
+      stopTimingNotifications?.();
       aborter.abort();
       if (retry) clearTimeout(retry);
       if (refreshTimer) clearTimeout(refreshTimer);
@@ -1494,7 +1517,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   return client;
   } catch (error) {
     stopSuspend?.(); stopOutbox?.();
-    stopClock?.();
+    stopClock?.(); stopSessionTiming(); stopTimingNotifications?.();
     await deliveryQueue?.stop();
     aborter.abort();
     // This constructor owns the opened device until return; startup failures release it.

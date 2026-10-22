@@ -1,3 +1,4 @@
+import { restoreStagingTiming } from "./session-timing.ts";
 import { bindSessionRefusal, sessionRefusal } from "./session-refusal.ts";
 import { refuseReadDevice, validateReadOptions, readOnlyRefusal, verifyReadClient } from "./read-only.ts";
 import { routeMutations } from "./ephemeral.ts";
@@ -302,7 +303,14 @@ function createAppInner(options: AppOptions): App {
         else await storage.delete(key);
       })),
     };
-    const session = await restoreSession(url, restoringStore, options.device ? () => 0 : clock.issuedDeviceNow, readOnly);
+    // Keep structurally valid bytes until expired metadata has had one chance
+    // to obtain authoritative staging evidence. Production/offline expiry still
+    // refuses, and cleanup remains conditional on this exact custody snapshot.
+    let session = await restoreSession(url, restoringStore, () => 0, readOnly);
+    if (session && !options.device && session.expiresAt <= clock.issuedDeviceNow()) {
+      session = await restoreStagingTiming(url, session, options.fetch ?? defaultFetch);
+      if (!session) await restoringStore.delete(custodyKey);
+    }
     return { session, epoch };
   }
   let snapshot: AuthSnapshot = { state: "restoring", viewer: null };
@@ -443,7 +451,7 @@ function createAppInner(options: AppOptions): App {
         // I2/I5: no separate epoch write and no fallible opening after this set.
         // Advancing the epoch already fences every opener that captured these
         // watermarks. Same-epoch rotations must keep their principal fences.
-        if (kept?.token !== next.token || replacing) await storage.set(key, JSON.stringify({ ...next, snapback4Epoch: nextEpoch, snapback4Backend: url,
+        if (kept?.token !== next.token || replacing || kept?.expiresAt !== next.expiresAt || kept?.capExpiresAt !== next.capExpiresAt) await storage.set(key, JSON.stringify({ ...next, snapback4Epoch: nextEpoch, snapback4Backend: url,
           ...(nextEpoch === epoch && Object.keys(signOuts(saved)).length ? { snapback4SignOuts: signOuts(saved) } : {}) }));
         lastOwned = { principal: next.principal, epoch: nextEpoch };
         epoch = nextEpoch; scope.epoch = nextEpoch; scope.session = next; scope.consumed = undefined;
@@ -681,7 +689,7 @@ function createAppInner(options: AppOptions): App {
           // The local client already saves through scopedStore before this
           // notification. A second save could commit a rotation after its
           // own save failed, while refreshSession still reports that failure.
-          if (!options.device && !readOnly) void keepSession(url, next, scopedStore, readOnly).catch(error => { if (scope.valid) report(error); });
+          if (!options.device) void keepSession(url, next, scopedStore, readOnly).catch(error => { if (scope.valid) report(error); });
         } else if (scope.valid) {
           const rejected = lastSession.token;
           const rejectionRevision = revision;

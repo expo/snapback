@@ -1,3 +1,4 @@
+import { reconciledTiming, requestMatchesSession } from "./session-timing.ts";
 import { suppliedOnlineSession } from "./session-input.ts";
 import { servedRelease } from "./release.ts";
 import { dependencies, intersects, intervalChanges, readFootprint, type Changes, QueryCuts, waitForQueryWrites } from "./query-dependencies.ts";
@@ -187,7 +188,7 @@ export function createClient(options: ClientOptions): Client {
     warnedBrowserWrites = true;
     console.warn(`snapback4: createClient in a browser reads, but refuses durable writes with E_ADMISSION: it has no synchronous admission journal. For browser writes use ${ONLINE_WRITE_FIX} when no table syncs, otherwise ${BROWSER_WRITE_FIX}. Pass readOnly: true to silence this.`);
   }
-  const clock = serverClock(options.fetch ?? defaultFetch);
+  const clock = serverClock(options.fetch ?? defaultFetch).fork();
   // @ref LLP 3000.017#3.3 — ordinary responses discover schema capability without changing durable traffic.
   const transport = clock.wrap(options.fetch ?? defaultFetch);
   const doFetch: typeof fetch = async (...args) => {
@@ -240,6 +241,13 @@ export function createClient(options: ClientOptions): Client {
   let storeRefusal: Refusal | null = null;
   const linkListeners = new Set<(link: Link) => void>();
   const sessionListeners = new Set<(session: Session | null) => void>();
+  const stopSessionTiming = clock.beforeSample((response, request) => {
+    if (closed || !credentials || !session || !requestMatchesSession(request, base, session)) return;
+    const next = reconciledTiming(session, response);
+    if (next === session) return;
+    session = next;
+    for (const listener of [...sessionListeners]) listener(session);
+  });
   const viewerListeners = new Set<(viewer: Principal | null) => void>();
   const history = options.readOnly ? undefined : new WriteHistory();
   const mutationIds = options.readOnly ? undefined : new MutationIds();
@@ -1310,6 +1318,7 @@ export function createClient(options: ClientOptions): Client {
       closeWatchAnswers(watches, storeRefusal ?? ended())();
       pendingEvents.notify(); pendingEvents.clear();
       stopClock();
+      stopSessionTiming();
       closingResponses.begin();
       stopRefresh(ended());
       aborter.abort();
@@ -1350,7 +1359,8 @@ export function createClient(options: ClientOptions): Client {
   bindWatchPeek(client, watches, () => storeRefusal ?? (closed ? ended() : !credentials ? auth() : null));
   const start = async () => {
     if (closed) return;
-    if (readGate) { scheduleRefresh(); await readGate.verify(); return; }
+    if (readGate) { await readGate.verify(); scheduleRefresh(); return; }
+    if (session && isReadToken(session.token) && session.expiresAt <= clock.issuedDeviceNow()) { await probe(); scheduleRefresh(); return; }
     if (session && !isReadToken(session.token) && session.kind !== "action" && session.expiresAt - clock.issuedDeviceNow() <= refreshBeforeExpiry) void refreshCurrent();
     else scheduleRefresh();
   };
