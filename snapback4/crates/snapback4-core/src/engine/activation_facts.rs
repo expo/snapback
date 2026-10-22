@@ -45,6 +45,15 @@ pub(super) fn prepare(schema: &mut Schema) -> Result<(), RuntimeError> {
 pub(super) fn check_operations(previous: &Schema, next: &Schema,
     before: &BTreeMap<String, Program>, after: &BTreeMap<String, Program>,
 ) -> Result<(), RuntimeError> {
+    // Reopening a stored backend may only refresh derived
+    // layout/reservations. Preserve its historical execution declarations;
+    // it is not a request to replace them with this compiler's newer facts.
+    // One-way equality includes every operation fact, so a caller cannot use
+    // this path to change held, prediction, capability flags or declarations.
+    let mut prepared_previous = previous.clone();
+    prepared_previous.prepare_contribution_indexes();
+    prepared_previous.prepare_delivery_lookup();
+    if before == after && prepared_previous == *next { return Ok(()); }
     // General SQLite evolution may deliberately change residency through rules,
     // sync, etc. This check governs only the otherwise-unchanged declarations
     // admitted by the Postgres column slice, including metadata-only forgeries.
@@ -117,4 +126,41 @@ fn rederive(schema: &Schema, program: &Program, mut fact: Execution) -> Executio
         fact.predicts = Some(if server { "never" } else { "eligible" }.into());
     }
     fact
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn legacy_layout_refresh_preserves_facts_and_rejects_fact_changes() {
+        // Authentic predecessor bytes, not a current schema stripped of facts.
+        let backend: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../snapback4-lang/tests/fixtures/rp-predecessor/backend.json")).unwrap();
+        let before: Schema = crate::json_codec::from_text(&backend["schema"].to_string()).unwrap();
+        let programs: Vec<Program> = crate::json_codec::from_text(&backend["programs"].to_string()).unwrap();
+        let programs: BTreeMap<String, Program> = programs.into_iter().map(|p| (p.name.clone(), p)).collect();
+        let mut refreshed = before.clone();
+        refreshed.prepare_contribution_indexes();
+        refreshed.prepare_delivery_lookup();
+        assert_eq!(refreshed.operations, before.operations);
+        check_operations(&before, &refreshed, &programs, &programs).unwrap();
+        let mut changed_programs = programs.clone();
+        // An unrelated query edit must not authorize the legacy-only repair.
+        changed_programs.get_mut("badge").unwrap().body = vec![crate::ir::Stmt::Return(
+            crate::ir::Expr::Literal(crate::Value::Int(42)))];
+        let error = check_operations(&before, &refreshed, &programs, &changed_programs).unwrap_err();
+        assert!(error.to_string().contains("execution facts changed"), "{error}");
+        for change in 0..4 {
+            let mut forged = refreshed.clone();
+            match change {
+                0 => forged.operations.get_mut("badge").unwrap().held = true,
+                1 => forged.operations.get_mut("badge").unwrap().branch_merge = true,
+                2 => forged.operations.get_mut("send").unwrap().predicts = Some("eligible".into()),
+                _ => { forged.operations.insert("ghost".into(), forged.operations["badge"].clone()); }
+            }
+            let error = check_operations(&before, &forged, &programs, &programs).unwrap_err();
+            assert!(error.to_string().contains("execution facts changed"), "{change}: {error}");
+        }
+    }
 }

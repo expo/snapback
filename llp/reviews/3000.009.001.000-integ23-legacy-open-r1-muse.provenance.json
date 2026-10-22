@@ -1,0 +1,11 @@
+{
+  "topic": "Integration 23 legacy layout reopen",
+  "round": 1,
+  "model": "muse-spark-1.3-contributor",
+  "reasoningEffort": "high",
+  "exit": 0,
+  "briefSha256": "2220ab07e954e81082a4ae24a0500a47608c6a411e81b3888af357921005283b",
+  "verbatimOutputSha256": "67204c4a73024cb96c28d45b3654cb968e9fd6eddafaab4677db3827a858c46d",
+  "scope": "Design/code readiness only; not author acceptance or full qualification",
+  "command": "~/sb4-loop/muse-exec.sh --yolo --model muse-spark-1.3-contributor --reasoning-effort high --prompt-file <common brief>"
+}

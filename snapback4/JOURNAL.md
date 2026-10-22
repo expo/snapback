@@ -102198,3 +102198,21 @@ target executable census is empty. PIDs left: none. Minimum observed disk was
 24 G; inactive completed incremental sessions in this target were removed
 under their session locks (5.34 GB recorded). No other worktree/target,
 PG17/55440, push, stash or Git configuration change was involved.
+
+### 2026-10-23 — Integration 23: preserve admitted predecessor execution facts
+
+The full Linux run reproduced an authentic frozen predecessor failing to open:
+P1-MC's activation guard reclassified unchanged historical execution facts under
+the newer compiler during derived layout repair. Permit the one-way deterministic
+preparation of the predecessor only when the complete stored program map and
+all semantic schema facts remain equal. Metadata edits still take the existing
+strict guard; candidate values never seed normalization. The frozen fixture is
+unchanged. A regression retains the positive repair and rejects held, prediction,
+capability/ghost edits and an unrelated program edit. The source-archive positive
+plus four negative controls and authentic open/install/convergence test pass;
+full primary Rust and Postgres qualification are running. Actual independent
+review artifacts preserve the findings and their disposition; readiness is
+separate from qualification. Main RT5 codec parity was integrated as bacbbb29cd;
+its experiment lock now resolves the local .39 path packages. Wasm remeasurement
+remains 2,406,499 B raw /734,925 B gzip /553,444 B Brotli; budget 735,425 B
+(measured gzip +500 B), unchanged by the native layout repair.
