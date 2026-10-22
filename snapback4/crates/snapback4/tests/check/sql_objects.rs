@@ -79,3 +79,30 @@ fn inspection_materializes_required_literals_but_not_optional_defaults() {
         assert!(!p.run(&["sql", sql, "--json-objects"]).status.success(), "{sql}");
     }
 }
+
+
+#[test]
+fn future_store_formats_refuse_sql_with_nonzero_status_and_upgrade_repair() {
+    for version in ["snapback4-release-store-99", "snapback4-store-2"] {
+        let p = Project::new();
+        drop(p.seed(&p.store(), 1));
+        let conn = rusqlite::Connection::open(p.store()).unwrap();
+        conn.execute("UPDATE _meta SET value=?1 WHERE key='version'", [version]).unwrap();
+        drop(conn);
+        for args in [vec!["sql", "SELECT * FROM messages", "--json"], vec!["sql", "\\dt", "--json"]] {
+            let output = p.run(&args);
+            assert!(!output.status.success(), "{output:?}");
+            let denied = parsed(&output);
+            assert_eq!(denied["denied"]["code"], "E_SCHEMA_CAPABILITY");
+            let message = denied["denied"]["message"].as_str().unwrap();
+            assert!(message.contains(&format!("a newer Snapback ({version})")), "{message}");
+        }
+        let error = Store::open(&p.store()).err().unwrap().to_string();
+        assert!(error.contains("a newer Snapback"), "{error}");
+        let error = Store::open_read_only(&p.store()).err().unwrap().to_string();
+        assert!(error.contains("a newer Snapback"), "{error}");
+        let conn = rusqlite::Connection::open(p.store()).unwrap();
+        let held: String = conn.query_row("SELECT value FROM _meta WHERE key='version'", [], |r| r.get(0)).unwrap();
+        assert_eq!(held, version);
+    }
+}

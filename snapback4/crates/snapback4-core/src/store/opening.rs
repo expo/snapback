@@ -31,10 +31,20 @@ impl Backend {
 impl Store {
     pub(super) fn check_version(conn: &Connection) -> Result<(), RuntimeError> {
         let version: String = conn.query_row("SELECT value FROM _meta WHERE key = 'version'", [], |r| r.get(0))?;
-        if version != STORE_VERSION && version != super::dormant::VERSION && version != "snapback4-release-store-2" && version != "snapback4-release-store-6" && version != super::table_renames::VERSION && version != super::backfills::VERSION {
-            return Err(RuntimeError::Store(format!("store version {version} is not {STORE_VERSION}; this data directory belongs to another Snapback")));
-        }
+        Self::validate_version(&version)?;
         Ok(())
+    }
+
+    // @ref LLP 3000.000.000.001#11-wave-22-loop-repairs-dx6 — later known-family formats require an explicit upgrade repair.
+    pub(super) fn validate_version(version: &str) -> Result<(), RuntimeError> {
+        if [STORE_VERSION, super::dormant::VERSION, "snapback4-release-store-2", "snapback4-release-store-6", super::table_renames::VERSION, super::backfills::VERSION].contains(&version) {
+            return Ok(());
+        }
+        let newer = version.strip_prefix("snapback4-release-store-").and_then(|number| number.parse::<u64>().ok()).is_some_and(|number| number > 8)
+            || version.strip_prefix("snapback4-store-").and_then(|number| number.parse::<u64>().ok()).is_some_and(|number| number > 1);
+        let owner = if newer { format!("a newer Snapback ({version}); upgrade Snapback before opening this data directory") }
+            else { format!("another Snapback ({version}); expected a supported {STORE_VERSION} format") };
+        Err(RuntimeError::Store(format!("this data directory belongs to {owner}")))
     }
 
     pub(crate) fn opening_transaction(&mut self) -> Result<Tx<'_>, RuntimeError> {
