@@ -194,7 +194,7 @@ os.umask(0o077);(p/'barrier-config.json').write_text(json.dumps(v))
 """.replace('REMOTE_PATH',repr(REMOTE))
         result=sp.run([*SSH,'expo-build-450a','python3 -c '+__import__('shlex').quote(setup)],capture_output=True,text=True)
         if result.returncode:raise RuntimeError('private barrier config failed')
-        launch=f'cd ~/{REMOTE}; setsid nohup sh -c \'umask 077; ./barrier-seed barrier-config.json > barrier.stdout 2> barrier.stderr; echo $? > barrier.exit\' > barrier-launcher.stdout 2>&1 < /dev/null & echo $! > barrier.pid; cat barrier.pid'
+        launch=f'cd ~/{REMOTE}; rm -f barrier.exit; setsid nohup sh -c \'umask 077; ./barrier-seed barrier-config.json > barrier.stdout 2> barrier.stderr; echo $? > barrier.exit\' > barrier-launcher.stdout 2>&1 < /dev/null & echo $! > barrier.pid; cat barrier.pid'
         barrier_pid=int(self.command([*SSH,'expo-build-450a',launch],'barrier-launch').strip())
         write(self.out/'remote-barrier.json',dict(host='expo-build-450a',pid=barrier_pid,directory=REMOTE))
         while True:
@@ -245,7 +245,7 @@ os.umask(0o077);(p/'barrier-config.json').write_text(json.dumps(v))
         out.close();err.close();write(path,json.loads(Path(out.name).read_text()))
 
     def snapshot(self):
-        counter=json.loads(self.sqlpg("SELECT jsonb_build_object('sum',coalesce(sum((data::jsonb->'Row'->'n'->>'Int')::bigint),0)) FROM bench.r WHERE data::jsonb->'Row' ? 'n'"))
+        counter=json.loads(self.sqlpg("SELECT jsonb_build_object('sum',coalesce(sum((data::jsonb->'Row'->'n'->>'Int')::bigint),0)) FROM bench.r WHERE t='counters'"))
         # The extension is installed only in our database. Its observer SELECT
         # adds one known transaction; role-filtered statement counts exclude it.
         stats=json.loads(self.sqlpg("""SELECT jsonb_build_object('database',
@@ -303,6 +303,9 @@ def main():
     p.add_argument('--out',required=True)
     p.add_argument('--resume',help='owned setup evidence; preserve the running native seed')
     p.add_argument('--run-name',default='p2',help='new short owned socket/remote seed directory')
+    p.add_argument('--start-workload',choices=['W1','W2','W3','W4','W5'],default='W1')
+    p.add_argument('--start-delay-us',type=int,choices=[0,500],default=0)
+    p.add_argument('--start-keys',choices=['disjoint','same','hot1'],default='disjoint')
     p.add_argument('--max-rate',type=int,default=128000)
     p.add_argument('--rates',type=int,nargs='+')
     p.add_argument('--warmup-ms',type=int,default=10000)
@@ -312,9 +315,12 @@ def main():
     r=Postgres(args)
     try:
         r.start();r.fixture(1000000)
+        matrix=[]
         for delay in (0,500):
-            for w in ('W1','W2','W3'):r.cell(w,1000000,delay,128,'disjoint')
-            for w,k in [('W4','disjoint'),('W5','same'),('W5','hot1')]:r.cell(w,1000000,delay,32,k)
+            matrix += [(w,1000000,delay,128,'disjoint') for w in ('W1','W2','W3')]
+            matrix += [(w,1000000,delay,32,k) for w,k in [('W4','disjoint'),('W5','same'),('W5','hot1')]]
+        start=next(i for i,c in enumerate(matrix) if (c[0],c[2],c[4])==(args.start_workload,args.start_delay_us,args.start_keys))
+        for cell in matrix[start:]:r.cell(*cell)
         write(r.out/'final-equality.json',r.verify_seed(1000000))
         r.completed=True
     finally:r.close()

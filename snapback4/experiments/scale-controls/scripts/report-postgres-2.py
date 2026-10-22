@@ -8,7 +8,7 @@ import os
 from pathlib import Path
 import re
 import shutil
-from statistics import median
+from statistics import mean, median
 import subprocess as sp
 import sys
 
@@ -51,7 +51,7 @@ def probe(directory,cell):
     exchanges=workload_calls-durable
     execution=sum(s['total_exec_time'] for s in ss)/n
     commit_exec=sum(s['total_exec_time'] for s in ss if s['query'].startswith('COMMIT'))/max(1,commits)
-    return dict(cell=cell,operations=n,latencies_ms=span(meta['latencies_ms']),
+    return dict(cell=cell,operations=n,latencies_ms=dict(**span(meta['latencies_ms']),mean=mean(meta['latencies_ms'])),
         statements_per_op=workload_calls/n,inferred_driver_exchanges_per_op=exchanges/n,
         exchange_caveat='warm source inference, one exchange saved by paired commit SETs; not a packet trace',
         transaction_starts_per_op=(starts-renew)/n,readonly_starts_per_op=ro/n,
@@ -145,6 +145,31 @@ def main():
         a=s['tail_acknowledged_per_s'];x=s['tail_p50_ms'];y=s['tail_p99_ms']
         table.append(f"| {label(s['cell'])} | {s['offered_per_s']} | {a['min']}–{a['max']} | {x['min']:.3f}–{x['max']:.3f} | {y['min']:.3f}–{y['max']:.3f} | {s['tail_equals_offered_every_second_every_repetition']} |")
     (out/'steady.md').write_text('\n'.join(table)+'\n')
+    diagnosis=[]
+    for s in statements:
+        c=s['cell']
+        if c['workload'] not in ('W4','W5'):continue
+        rtt=median(x['p50_ms'] for x in rtts if all(x['cell'][k]==c[k] for k in ('workload','keys','delay_us')))
+        curve=next(x for x in curves if x['cell']==c)
+        failed=[r for r in curve['rates'] if not r['pass_all']]
+        model_ms=s['inferred_driver_exchanges_per_op']*rtt+s['sql_exec_ms_per_op']
+        diagnosis.append(dict(cell=c,prepared_rtt_p50_ms=rtt,exchanges=s['inferred_driver_exchanges_per_op'],
+            serial_probe_ms=s['latencies_ms'],network_only_ms=s['inferred_driver_exchanges_per_op']*rtt,
+            server_sql_exec_ms_per_op=s['sql_exec_ms_per_op'],utility_commit_exec_ms=s['utility_commit_exec_ms'],
+            no_separate_flush_model_ms=model_ms,reciprocal_serial_model_per_s=1000/model_ms,
+            serial_probe_reciprocal_per_s=1000/s['latencies_ms']['mean'],
+            overload_completed_per_s=span([v for r in failed for v in r['completed_in_window_per_s']]) if failed else None,
+            engine_or_committer_queue_ms=None,
+            caveat='statement exec plus k*prepared RTT is a serial request model; COMMIT utility timing does not isolate flush; pipeline overlap, variable RTT and queues prevent treating it as a measured writer ceiling'))
+    write(out/'write-diagnosis.json',diagnosis)
+    typed=read(HERE/'results-20261022-fairness/raw-pg/storage-1000000.json')
+    native=read(root/'storage.json')
+    typed_bytes=sum(t['heap_bytes']+t['indexes_bytes'] for t in typed['tables'])
+    native_bytes=sum(t['heap_bytes']+t['indexes_bytes'] for t in native['tables'])
+    write(out/'storage-comparison.json',dict(snapback_postgres_bytes=native_bytes,typed_postgres_bytes=typed_bytes,
+        ratio=native_bytes/typed_bytes,exceeds_3x=native_bytes>3*typed_bytes,
+        method='sum pg_table_size + pg_indexes_size after ordinary VACUUM ANALYZE; all Snapback namespace tables versus five typed app tables',
+        caveat='includes metadata, generic indexes and allocated free space; native incremental seed and typed bulk seed have different write histories; not a live-byte or layout-only causal attribution'))
     for name in ('ownership.json','audit.json','seed.json','seed-equality.json','final-equality.json','storage.json','postgres.txt','cleanup.json','database-cleanup.json','check.txt','lscpu.txt','disks.txt','filesystem.txt'):
         if (root/name).exists():shutil.copyfile(root/name,out/name)
     # Role-filtered activity samples retain ClientRead/ClientWrite, WAL and lock
