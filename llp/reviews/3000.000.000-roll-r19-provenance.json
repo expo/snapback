@@ -19,7 +19,7 @@
       "reasoning_effort": "high",
       "artifact": "3000.000.000-roll-r19-codex.txt",
       "method": "fresh external process; exact stdout/stderr retained",
-      "verdict": "NOT READY",
+      "verdict": "READY",
       "sha256": "8bb16921ecb5ec46dfdd5ad300c60cf88cf6b673fef67c34b0db743b7fc1009d"
     }
   ]
