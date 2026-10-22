@@ -1,15 +1,18 @@
 // @ref LLP 3000.000.000.001#11-wave-22-loop-repairs-dx6 — hidden descendants cannot manufacture rendered evidence.
 import { randomUUID } from "node:crypto";
 import { createRequire } from "node:module";
-import type { Locator, Selectors } from "playwright-core";
+import type { Locator, FrameLocator, Selectors } from "playwright-core";
 
 export const renderedSelector = `sb4rendered${randomUUID().replaceAll("-", "")}`;
 const registrations = new WeakMap<Selectors, Promise<void>>();
+let selectorReady: Promise<void> = Promise.resolve();
 export async function registerRenderedSelector(selectors: Selectors): Promise<void> {
   let registration = registrations.get(selectors);
   if (!registration) {
     registration = selectors.register(renderedSelector, renderedTextEngine, { contentScript: true });
     registrations.set(selectors, registration);
+    selectorReady = Promise.all([selectorReady, registration]).then(() => {});
+    void selectorReady.catch(() => {}); // Observations await and surface this rejection.
   }
   await registration;
 }
@@ -116,3 +119,24 @@ export function visibleText(locator: Locator, timeout: number): Promise<string> 
 // browsers finish asynchronous launch before running a selector.
 try { void registerRenderedSelector(createRequire(import.meta.url)("playwright-core").selectors).catch(() => {}); }
 catch (error) { if ((error as NodeJS.ErrnoException).code !== "ERR_MODULE_NOT_FOUND" && (error as NodeJS.ErrnoException).code !== "MODULE_NOT_FOUND") throw error; }
+
+// Locator construction stays synchronous for CommonJS callers. Actions wait
+// for optional-peer selector registration, including when the page predates
+// the proof import. Preserve synchronous Locator/FrameLocator chaining.
+const locatorWrappers = new WeakMap<object, object>();
+const locatorChains = new Set(["locator", "filter", "describe", "first", "last", "nth", "and", "or", "frameLocator", "contentFrame", "owner"]);
+export function registeredLocator<T extends Locator | FrameLocator>(locator: T): T {
+  const known = locatorWrappers.get(locator);
+  if (known) return known as T;
+  const wrapped = new Proxy(locator, {
+    get(target, key) {
+      const value = Reflect.get(target, key, target);
+      if (typeof value !== "function" || key === "constructor") return value;
+      if (typeof key !== "string" || key === "page" || key === "toString" || key === "_inspect" || key === "_equals") return value.bind(target);
+      if (locatorChains.has(key) || key.startsWith("getBy")) return (...args: unknown[]) => registeredLocator(Reflect.apply(value, target, args));
+      return (...args: unknown[]) => selectorReady.then(() => Reflect.apply(value, target, args));
+    },
+  });
+  locatorWrappers.set(locator, wrapped); locatorWrappers.set(wrapped, wrapped);
+  return wrapped;
+}

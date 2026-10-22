@@ -101530,3 +101530,35 @@ quiet. Review obligations distinguish module, operation, argument, table, column
 and site. Eligibility captures use compiler-selected indexes/source maps and one
 resolved parent identity. Historical generated-table updates remain total in the
 source advice pass. Thirty-seven focused day-two regressions pass.
+
+
+## 2026-10-22 — Integration 22: 0.4.38 and compatibility repairs
+
+Merged DX6 then SEC7, retaining main's opaque store handles and Postgres
+ownership changes. Clock-session transaction forwarding now unwraps adapter
+payloads inside the port boundary, including the Postgres arm. The complete
+Postgres core all-targets check passes. One guide-changes entry describes
+security review decisions, staging clocks, session compatibility and upgrades;
+the separate version commit follows the 0.4.37 ten-file bump.
+
+The integrated client battery exposed stale clock/warning fixtures and a copied
+CLI shim missing release-changes.js. Expiry probes now advance the client-owned
+clock, and direct password SDK witness fixtures explicitly register their API.
+The delivery census includes required receipt-timing and optional heartbeat
+sampling awaits; the complete 445-case matrix passes without weakening custody
+or retry assertions. RULES4's regenerated authoring census is byte-identical.
+
+CommonJS proof imports must remain synchronous. Removing top-level selector
+registration waits restored import compatibility, then an extra real-browser
+probe exposed a late-import race with an already-created page. Rendered Locator
+and FrameLocator actions now await registration while synchronous chaining and
+native constructor identity remain available; waitForFresh also protects scoped
+reconstruction. Two fresh-process regressions fail against the earlier packed
+candidate. The repaired focused Linux group passes 81/81 and the Mac proof/
+CommonJS group passes 15/15. New packed qualification includes those regressions.
+
+The measured web artifact is 2,406,491 B raw / 734,888 B gzip / 553,401 B
+Brotli, with a 735,388 B budget: measurement plus exactly 500 B. This is a
+whole-artifact allowance, not independent feature attribution or a runtime
+ceiling change. Linux/ Mac complete repeats and final packed evidence are
+recorded in the integration report; no push or publication is authorized here.

@@ -9,7 +9,7 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 import type { BrowserContext, BrowserType, LaunchOptions, Locator, Page } from "playwright-core";
-import { renderedSelector, registerRenderedSelector, visibleText } from "./proof-text.ts";
+import { renderedSelector, registerRenderedSelector, registeredLocator, visibleText } from "./proof-text.ts";
 import { webWitnessObserverScript } from "./witness-web.ts";
 import { resolveBinary } from "./bin-path.ts";
 import { bounded, deadline, logged, logText, portRange, ready, stopChild, type ProofHost, type ProofOptions, logsDir } from "./proof-process.ts";
@@ -311,11 +311,11 @@ const substringLocators = new WeakMap<Locator, { locator: Locator; scoped: boole
 // @ref LLP 3000.000.000.001#11-wave-22-loop-repairs-dx6 — composed text preserves exactness and ambiguity.
 export function renderedText(page: Page, text: string | RegExp, options: { within?: Locator; exact?: boolean } = {}): Locator {
   const root = options.within ?? page;
-  const match = (exact: boolean) => root.locator(`${renderedSelector}=${JSON.stringify({
+  const match = (exact: boolean) => registeredLocator(root.locator(`${renderedSelector}=${JSON.stringify({
     source: typeof text === "string" ? text : text.source,
     flags: typeof text === "string" ? "" : text.flags,
     regex: typeof text !== "string", exact,
-  })}`);
+  })}`));
   const locator = match(options.exact ?? true);
   if (typeof text === "string" && options.exact !== false) substringLocators.set(locator, { locator: match(false), scoped: options.within !== undefined });
   return locator;
@@ -329,8 +329,9 @@ export { logsDir } from "./proof-process.ts";
 export async function waitForFresh(locator: Locator, previous: string | null, options: number | { within?: Locator; timeoutMs?: number } = 30_000): Promise<string> {
   const timeoutMs = deadline(typeof options === "number" ? options : options.timeoutMs, 30_000);
   let substring = substringLocators.get(locator);
+  locator = registeredLocator(locator);
   if (typeof options !== "number" && options.within) {
-    locator = options.within.locator(locator);
+    locator = registeredLocator(options.within.locator(locator));
     if (substring) substring = { locator: options.within.locator(substring.locator), scoped: true };
   }
   const end = performance.now() + timeoutMs;

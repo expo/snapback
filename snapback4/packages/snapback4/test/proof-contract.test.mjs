@@ -255,3 +255,19 @@ test('KIT4 waitForClock observes the page client instead of the proof driver clo
 test('KIT4 generated proof API table agrees with every source export', {timeout:60000},()=>{
   execFileSync(process.execPath,[new URL('../../../scripts/generate-proof-api.mjs',import.meta.url).pathname,'--check'],{timeout:50000});
 });
+
+for (const mode of ['count', 'fresh']) test(`late CommonJS proof import waits for rendered selector registration: ${mode}`, {timeout:30000}, async t => {
+  const cwd=mkdtempSync(join(tmpdir(),'proof-late-cjs-'));t.after(()=>rmSync(cwd,{recursive:true,force:true}));
+  const peer=createRequire(join(dist,'proof.js')).resolve('playwright-core');
+  const script=`const assert=require('node:assert/strict');const {chromium}=require(${JSON.stringify(peer)});
+(async()=>{const browser=await chromium.launch({headless:true,executablePath:${JSON.stringify(process.env.CHROME??chromiumExecutable())},args:['--no-sandbox']});
+try {const page=await browser.newPage();await page.setContent('<main><p><span>Late </span><strong>proof</strong><span hidden> noise</span></p></main>');
+const kit=require(${JSON.stringify(join(dist,'proof.js'))});
+const locator=kit.renderedText(page,'Late proof').filter({visible:true}).and(page.locator('p')).first();
+if(process.argv[2]==='count')assert.equal(await locator.count(),1);
+else assert.equal(await kit.waitForFresh(locator,null,{within:page.locator('main'),timeoutMs:1000}),'Late proof');
+} finally {await browser.close();}})().catch(error=>{console.error(error.message);process.exitCode=1;});`;
+  writeFileSync(join(cwd,'probe.cjs'),script);
+  const result=await kit.command(process.execPath,['probe.cjs',mode],{cwd,timeoutMs:20000});
+  assert.equal(result.code,0,result.stdout+result.stderr);
+});

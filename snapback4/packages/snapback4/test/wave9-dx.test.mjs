@@ -48,7 +48,10 @@ for (const identity of ['use personas alice', 'use identity password']) test(`ex
   // starters omit this plumbing; their ordinary UI proof is covered by DX6.
   if (identity.includes('password')) {
     const appPath = join(dir, 'src/App.tsx');
-    writeFileSync(appPath, 'import { registerWebWitness } from "snapback4/witness-web";\n' + readFileSync(appPath, 'utf8').replace('export default function App()', 'registerWebWitness(app, api);\nexport default function App()'));
+    const source = readFileSync(appPath, 'utf8');
+    const registered = source.replace('export function App()', 'registerWebWitness(app, api);\nexport function App()');
+    assert.notEqual(registered, source, 'the fixture registers the named starter App');
+    writeFileSync(appPath, 'import { registerWebWitness } from "snapback4/witness-web";\n' + registered);
   }
   success(run(bin, ['check'], dir));
   success(run(join(root, 'node_modules/.bin/tsc'), ['--noEmit'], dir));
