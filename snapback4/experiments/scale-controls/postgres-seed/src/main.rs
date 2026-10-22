@@ -24,6 +24,13 @@ fn main() {
         while stopped.recv_timeout(Duration::from_millis(700)).is_err() { assert!(lease.renew().unwrap()); }
         assert!(lease.release().unwrap());
     });
+    if config["drain_only"].as_bool()==Some(true) {
+        let session=snapback4_core::identity::service_session(engine.store(),"s1pg2-drain",snapback4_core::now_ms(),7).unwrap();
+        fs::write(config["session_path"].as_str().unwrap(),session.token).unwrap();
+        drop(engine);stop.send(()).unwrap();renew.join().unwrap();
+        println!("native service drain session created");
+        return;
+    }
     let rows = config["rows"].as_u64().unwrap();
     let mut parents = Vec::new();
     for u in 0..256 { parents.push(("users", json!({"id":format!("u{u:04}"),"principal":format!("bench:{u}")}))); }

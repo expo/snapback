@@ -25,7 +25,10 @@ REMOTE = 'sb4scale/s1pg2-20261022'
 
 class Postgres(snapback.Snapback):
     def __init__(self, args):
-        args.runtime_name = 's1pg2-resumed' if args.resume else 's1pg2'
+        global ROOT,REMOTE
+        ROOT=HERE/'target'/args.run_name
+        REMOTE='sb4scale/s1pg2-20261022-'+args.run_name
+        args.runtime_name = 's1pg2-'+Path(args.out).name
         super().__init__(args)
         ROOT.mkdir(mode=0o700,exist_ok=bool(args.resume))
         self.socket = ROOT/'s'
@@ -34,7 +37,8 @@ class Postgres(snapback.Snapback):
         self.socket.mkdir(mode=0o700,exist_ok=bool(args.resume))
         self.upstream.mkdir(mode=0o700,exist_ok=bool(args.resume))
         if args.resume:
-            self.release=HERE/'target/s1sk/s1pg2/deployment'
+            prior=json.loads((Path(args.resume)/'ownership.json').read_text())
+            self.release=Path(prior['release_path'])
             for p in (self.upstream/'.s.PGSQL.55440',self.delayed/'.s.PGSQL.55440'):
                 p.unlink(missing_ok=True)
             self.delayed.rmdir()
@@ -44,6 +48,7 @@ class Postgres(snapback.Snapback):
             LD_LIBRARY_PATH=str(Path.home()/'tools/pg16/usr/lib/x86_64-linux-gnu'),
             SCALE_DB_USER=ROLE, SCALE_DATABASE=DB, SCALE_PASSWORD_FILE=str(Path.home()/'sb4scale/pw'))
         self.created_db = self.created_role = False
+        self.completed=False
 
     def sqlpg(self, sql, db=DB):
         return sp.check_output([str(PSQL),'-X','-qAt','-v','ON_ERROR_STOP=1','-d',db],
@@ -53,8 +58,8 @@ class Postgres(snapback.Snapback):
         if args[0]=='token' and 'drain' in args:
             # The PG profile deliberately excludes the SQLite token CLI. Two
             # native identity writes cross the same FIFO writer, outside load.
-            status,value=snapback.http('/auth/guest',{})
-            if status!=200 or 'session' not in value:raise RuntimeError('native guest drain barrier refused')
+            status,value=snapback.http('/auth/session',dict(principal='barrier:drain',kind='member',days=7),self.barrier_token)
+            if status!=200 or 'session' not in value:raise RuntimeError('native service-authorized drain barrier refused')
             return ''
         return super().cli(*args)
 
@@ -122,6 +127,7 @@ class Postgres(snapback.Snapback):
             source_sha256={str(p.relative_to(HERE)):hashlib.sha256(p.read_bytes()).hexdigest() for p in [HERE/'scripts/postgres-2.py',HERE/'postgres-seed/src/main.rs',HERE/'snapback-app/snapback/schema.q']},
             snapback_binary_sha256=hashlib.sha256(snapback.SB.read_bytes()).hexdigest(),binary_sha256=hashlib.sha256(BIN.read_bytes()).hexdigest(),
             app_cores=APP_CORES,load_cores=LOAD_CORES,ssh_cores=SSH_CORES,product_source_unmodified=True,
+            release_path=str(self.release),socket_path=str(self.socket),upstream_path=str(self.upstream),
             timing=dict(warmup_ms=10000,duration_ms=20000,repeats=3),database=DB,role=ROLE,
             cluster_postmaster_pid=2735539,transport='450b stable symlink -> SSH Unix socket, or +500us proxy -> SSH -> 450a:55440'))
         (self.out/'check.txt').write_text(self.cli('check','--cost'))
@@ -137,14 +143,14 @@ class Postgres(snapback.Snapback):
             self.command(['scp','-q',str(seed),f'expo-build-450a:{REMOTE}/seed'],'copy-seed')
         code="""import json,os
 from pathlib import Path
-p=Path.home()/'sb4scale/s1pg2-20261022'
+p=Path.home()/REMOTE_PATH
 pw=(Path.home()/'sb4scale/pw').read_text().strip()
 v=json.loads(input())
 v['connection']='host=127.0.0.1 port=55440 user=s1pg2_app dbname=sb4_snapback_s1pg2 password='+pw
 v['tokens_path']=str(p/'tokens.json')
 os.umask(0o077)
 (p/'config.json').write_text(json.dumps(v))
-"""
+""".replace('REMOTE_PATH',repr(REMOTE))
         if not self.args.resume:
             p=sp.run([*SSH,'expo-build-450a','python3 -c '+__import__('shlex').quote(code)],
                 input=json.dumps(dict(store_id=binding['store_id'],rows=rows))+'\n',text=True,capture_output=True)
@@ -168,6 +174,31 @@ os.umask(0o077)
         self.command(['scp','-q',f'expo-build-450a:{REMOTE}/tokens.json',str(self.private)],'copy-sessions')
         self.private.chmod(0o600)
         self.tokens=json.loads(self.private.read_text())
+        # Guest login is disabled in the unchanged fixture. Mint only the
+        # operator's service seat through the same native owned setup engine;
+        # native /auth/session then provides FIFO barriers without rotating any
+        # measured member session or changing Quarry identity declarations.
+        self.command(['scp','-q',str(seed),f'expo-build-450a:{REMOTE}/barrier-seed'],'copy-barrier-helper')
+        setup="""import json,os
+from pathlib import Path
+p=Path.home()/REMOTE_PATH
+v=json.loads((p/'config.json').read_text());v.update(drain_only=True,session_path=str(p/'barrier-token'))
+os.umask(0o077);(p/'barrier-config.json').write_text(json.dumps(v))
+""".replace('REMOTE_PATH',repr(REMOTE))
+        result=sp.run([*SSH,'expo-build-450a','python3 -c '+__import__('shlex').quote(setup)],capture_output=True,text=True)
+        if result.returncode:raise RuntimeError('private barrier config failed')
+        launch=f'cd ~/{REMOTE}; setsid nohup sh -c \'umask 077; ./barrier-seed barrier-config.json > barrier.stdout 2> barrier.stderr; echo $? > barrier.exit\' > barrier-launcher.stdout 2>&1 < /dev/null & echo $! > barrier.pid; cat barrier.pid'
+        barrier_pid=int(self.command([*SSH,'expo-build-450a',launch],'barrier-launch').strip())
+        write(self.out/'remote-barrier.json',dict(host='expo-build-450a',pid=barrier_pid,directory=REMOTE))
+        while True:
+            result=sp.run([*SSH,'expo-build-450a',f'cd ~/{REMOTE}; test ! -f barrier.exit || cat barrier.exit'],capture_output=True,text=True)
+            if result.stdout.strip():
+                if result.stdout.strip()!='0':raise RuntimeError('native barrier seat setup failed')
+                break
+            time.sleep(.2)
+        private=self.runtime/'barrier-token'
+        self.command(['scp','-q',f'expo-build-450a:{REMOTE}/barrier-token',str(private)],'copy-barrier-token')
+        private.chmod(0o600);self.barrier_token=private.read_text().strip()
         write(self.out/'seed.json',json.loads((self.out/'seed.stdout').read_text().splitlines()[-1]))
         write(self.out/'seed-equality.json',self.verify_seed(rows))
         self.sqlpg('VACUUM (ANALYZE)')
@@ -208,13 +239,13 @@ os.umask(0o077)
 
     def snapshot(self):
         counter=json.loads(self.sqlpg("SELECT jsonb_build_object('sum',coalesce(sum((data::jsonb->'Row'->'n'->>'Int')::bigint),0)) FROM bench.r WHERE data::jsonb->'Row' ? 'n'"))
-        # Observe statistics from postgres, so these snapshots do not add a
-        # transaction to the benchmark database. Counter-read transactions do.
+        # The extension is installed only in our database. Its observer SELECT
+        # adds one known transaction; role-filtered statement counts exclude it.
         stats=json.loads(self.sqlpg("""SELECT jsonb_build_object('database',
             (SELECT to_jsonb(d) FROM pg_stat_database d WHERE datname='sb4_snapback_s1pg2'),
             'statements',(SELECT coalesce(jsonb_agg(to_jsonb(s)),'[]') FROM pg_stat_statements s
                 WHERE dbid=(SELECT oid FROM pg_database WHERE datname='sb4_snapback_s1pg2')
-                AND userid=(SELECT oid FROM pg_roles WHERE rolname='s1pg2_app')))""",'postgres'))
+                AND userid=(SELECT oid FROM pg_roles WHERE rolname='s1pg2_app')))"""))
         pid=self.service[0].pid
         io={k:int(v) for k,v in (line.split(':') for line in Path(f'/proc/{pid}/io').read_text().splitlines())}
         return dict(counters=counter,process_io=io,files_bytes={},time=time.time(),**stats)
@@ -249,11 +280,12 @@ os.umask(0o077)
     def close(self):
         self.stop_service()
         cleanup={}
-        if self.created_db:
+        if self.created_db and self.completed:
             self.sqlpg(f'DROP DATABASE {DB}','postgres');cleanup['database_dropped']=True
-        if self.created_role:
+        if self.created_role and self.completed:
             self.sqlpg(f'DROP ROLE {ROLE}','postgres');cleanup['role_dropped']=True
         if cleanup:write(self.out/'database-cleanup.json',cleanup)
+        if not self.completed:write(self.out/'database-retained.json',dict(database=DB,role=ROLE,reason='retain owned fixture after harness/cell failure for diagnosis and resume'))
         super().close()
 
 
@@ -261,6 +293,7 @@ def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--out',required=True)
     p.add_argument('--resume',help='owned setup evidence; preserve the running native seed')
+    p.add_argument('--run-name',default='p2',help='new short owned socket/remote seed directory')
     p.add_argument('--max-rate',type=int,default=128000)
     p.add_argument('--rates',type=int,nargs='+')
     p.add_argument('--warmup-ms',type=int,default=10000)
@@ -274,6 +307,7 @@ def main():
             for w in ('W1','W2','W3'):r.cell(w,1000000,delay,128,'disjoint')
             for w,k in [('W4','disjoint'),('W5','same'),('W5','hot1')]:r.cell(w,1000000,delay,32,k)
         write(r.out/'final-equality.json',r.verify_seed(1000000))
+        r.completed=True
     finally:r.close()
 
 

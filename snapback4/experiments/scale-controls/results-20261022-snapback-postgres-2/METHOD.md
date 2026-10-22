@@ -45,8 +45,10 @@ and errors <=0.1%; every repetition must pass. Intended-arrival scheduling,
 expired-arrival accounting, errors, per-second cohorts and complete histograms
 are inherited unchanged from the matched Rust harness.
 
-After each load, two native guest-session writes cross the serving writer
-before counter stability checks. These replace the inherited SQLite runner's
+After each load, two service-authorized native account-session writes cross the serving writer
+before counter stability checks. An operator helper creates the service seat
+through the same owned native engine after seed; no member token is rotated.
+The fixture disables guest sign-in. These barriers replace the inherited SQLite runner's
 `token` CLI drain (explicitly outside the admitted PG CLI profile). They do
 not change counters or the 256 measured sessions. They are outside timed load,
 and their statements remain visible in full trial deltas. The standard
@@ -58,6 +60,8 @@ operations of the same shape. Its `pg_stat_statements` deltas are filtered by
 this database AND application role; lease-renewal statements are explicitly
 accounted for. These clean probes avoid the trial's drain identity writes.
 `pg_stat_database` deltas are database-only and include observers/maintenance;
+the extension exists in the owned database, so each statistics SELECT also
+contributes an observer transaction, excluded from role-filtered statement counts;
 Postgres's backend report lag limits exact transaction boundaries. Cumulative
 statistics are not reset. Counts from START/COMMIT/ROLLBACK statements give the
 independent role-filtered transaction accounting. Inferred driver exchanges

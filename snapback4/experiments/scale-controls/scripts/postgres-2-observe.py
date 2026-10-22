@@ -13,14 +13,17 @@ import time
 from run import PSQL, SSH, write
 
 root=Path(sys.argv[1]).resolve()
-raw=root/('raw-resumed' if (root/'raw-resumed').exists() else 'raw')
+raw=Path(sys.argv[2]).resolve()
+exit_path=root/sys.argv[3]
+cleanup_path=root/(sys.argv[3]+'.observer-cleanup.json')
 children=[]
 try:
     while not (raw/'seed-equality.json').exists():
-        if (root/'run.exit').exists():sys.exit('campaign exited before seed verification')
+        if exit_path.exists():sys.exit('campaign exited before seed verification')
         time.sleep(1)
+    ownership=json.loads((raw/'ownership.json').read_text())
     env=dict(os.environ,PGPASSWORD=(Path.home()/'sb4scale/pw').read_text().strip(),
-        PGUSER='sb4scale',PGHOST=str(root.parent/'p2/u'),PGPORT='55440',
+        PGUSER='sb4scale',PGHOST=ownership['upstream_path'],PGPORT='55440',
         PGAPPNAME='s1pg2_observer',
         LD_LIBRARY_PATH=str(Path.home()/'tools/pg16/usr/lib/x86_64-linux-gnu'))
     sql=raw/'observer.sql'
@@ -37,7 +40,7 @@ try:
         p=sp.Popen(['setsid','nohup',*map(str,command)],env=env,stdin=stdin,stdout=out,stderr=sp.STDOUT)
         children.append((p,out))
         with (raw/'pids.jsonl').open('a') as f:f.write(json.dumps(dict(pid=p.pid,kind=name,time=time.time()))+'\n')
-    while not (root/'run.exit').exists():
+    while not exit_path.exists():
         if any(p.poll() is not None for p,_ in children):raise RuntimeError('observer exited early')
         time.sleep(1)
 finally:
@@ -45,4 +48,4 @@ finally:
         if p.stdin:p.stdin.close()
         elif p.poll() is None:p.terminate()
         p.wait(timeout=30);out.close()
-    write(root/'observer-cleanup.json',dict(pid=os.getpid(),processes=[dict(pid=p.pid,status=p.returncode) for p,_ in children],still_running=[p.pid for p,_ in children if p.poll() is None]))
+    write(cleanup_path,dict(pid=os.getpid(),processes=[dict(pid=p.pid,status=p.returncode) for p,_ in children],still_running=[p.pid for p,_ in children if p.poll() is None]))
