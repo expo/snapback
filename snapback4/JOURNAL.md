@@ -101060,3 +101060,11 @@ the completed qualification is appended separately. Only inactive generated
 incremental caches and pre-task, unmapped/unopened test executables in the owned
 `target` were reclaimed for headroom. Cargo uses ten jobs; the 15 GB stop
 threshold has not been reached. No push, stash or sub-agents.
+
+### 2026-10-22 — S10c fix round 1: standalone evaluator version facts
+
+The separate evaluator workspace had two remaining SQLite payload extractions
+for its JSON version field. Both now use the existing typed
+`store::evaluation::sqlite_version()` fact. The linked version and timed
+workloads are unchanged; neither site needs a backend store. The required
+Postgres script qualifies this workspace after the main suites. No push or stash.

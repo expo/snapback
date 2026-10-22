@@ -217,7 +217,9 @@ retain their SQLite behavior and explicitly refuse on Postgres. No push or stash
    and the store's driver client are crate-private. External-consumer
    compile-fail doctests guard SQLite and Postgres extraction/raw/default
    escapes and private Postgres backend type names. The private-cluster script
-   runs these alongside the existing compiled trait guards.
+   runs these alongside the existing compiled trait guards. The separate
+   evaluator's two SQLite-version report sites use the existing typed version
+   helper, eliminating their payload extraction without changing timed work.
 2. **Evidence errors (Grok):** an absent LEFT JOIN footprint returns `Ok(None)`;
    real query, snapshot-open and rollback errors propagate. Shared preservation
    policy continues to widen errors to unknown. A real relation-lock timeout
