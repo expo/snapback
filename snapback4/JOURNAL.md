@@ -101124,3 +101124,36 @@ Final root `./ref-check` passes: **564 LLPs / 11,693 refs / 0 errors / 0
 unchecked**. Diff whitespace validation passes. The final default CLI rebuild
 passes after the Postgres handoff. About **186 GB** remains free; the 15 GB
 stop threshold was never reached.
+
+## 2026-10-22 — S1-SK implementation checkpoint: Quarry and native serve HTTP
+
+Lane S1-SK, one worker on 450b, implements the scale RFC's W1–W5 SQLite
+cell in experiments/scale-controls. The Quarry fixture uses inferred indexes,
+member message rules, exact owner/shared counter updates, and engine-owned
+room.total/user.sent maintained columns. A deterministic 1M-message seed goes
+through dev /seed, stopped-store backup and deploy; no managed rows are written
+with SQL. Administrative read-only SQL verifies every message image, membership,
+last-read offset, counter image and both maintained totals. The disposable HTTP
+check covers all 256 principals, exact pages/inboxes, denied reads/writes,
+missing/malformed/revoked bearer tokens and atomic post maintenance.
+
+The harness adds a store-independent native /q and /m target. Scheduler,
+arrival assignments, deadlines, search, SLOs and whole-cohort counter equality
+are inherited unchanged. Snapback's application sessions are minted before load
+and resolved per request by shipped serve; no personas are measured. The current
+serve reuses detached query readers while writes queue on its FIFO engine;
+the RFC's one-connection wording predates those readers. No core topology or
+durability change is made. SQLite retains WAL and synchronous=FULL on 450b's
+local Samsung NVMe. The database RTT sweep does not apply to this local cell.
+
+Builds use release mode and separate target directories within this worktree,
+with the packaged SQLite build flag. Both release builds, Quarry check, Python
+compilation, Rust formatting and reference validation pass. Six detached short
+smoke cells pass with zero errors and exact counters; they are method checks,
+not the headline. The matched 10-second warm-up, 20-second window,
+three-repetition natural-link campaign follows this checkpoint. App authoring
+friction: explicit SQL-style index declarations are unnecessary in Quarry;
+the guide points to inferred indexes. Referenced room fields are nullable, so
+the inbox uses the explicit zero default on its known-present fixture rooms.
+The implementation/seed/check/smoke supervisors have exited and their owned
+servers are stopped. No push, stash, clone, sub-agents, sudo, Docker or services.

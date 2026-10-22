@@ -2,6 +2,7 @@ mod auth;
 mod convex;
 mod db;
 mod load;
+mod snapback;
 mod supabase;
 // Same per-chunk, per-direction delay implementation used by S0.
 #[path = "../../postgres-commit-path/src/proxy.rs"]

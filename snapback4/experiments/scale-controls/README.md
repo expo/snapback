@@ -1,5 +1,54 @@
 # S1: scale harness, raw PostgreSQL and Supabase controls
 
+## S1-SK: native Snapback serve on SQLite
+
+The [Quarry application](./snapback-app/README.md) implements the same W1–W5
+fixture with maintained columns and membership/ownership rules. Build both
+release binaries in this worktree:
+
+```sh
+cd snapback4
+PATH="$HOME/.cargo/bin:$PATH" CARGO_TARGET_DIR="$PWD/target/s1sk" \
+  LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT \
+  cargo build --release --locked -p snapback4 -j 4
+cd experiments/scale-controls
+PATH="$HOME/.cargo/bin:$PATH" CARGO_TARGET_DIR="$PWD/target" cargo build --release --locked -j 3
+setsid nohup python3 scripts/snapback.py prepare --out target/s1sk-prepare-NEW >target/s1sk-prepare-NEW.log 2>&1 < /dev/null &
+echo $! # record and poll to completion before continuing
+setsid nohup python3 scripts/check-snapback.py --out target/s1sk-checks-NEW \
+  --fixture target/s1sk/s1sk-prepare-NEW/deployment >target/s1sk-checks-NEW.log 2>&1 < /dev/null &
+echo $! # record and poll; checks use a disposable fixture copy
+setsid nohup python3 scripts/snapback.py matrix --out target/s1sk-campaign-NEW \
+  --fixture target/s1sk/s1sk-prepare-NEW/deployment >target/s1sk-campaign-NEW.log 2>&1 < /dev/null &
+echo $! # record and poll until every cell and cleanup.json completes
+```
+
+`matrix` runs six natural-link cells (W1–W4, exact W5 and nominal 1% W5),
+1M messages, fresh serve per cell, 10 s warm-up / 20 s measurement, three
+repetitions, 128 read clients / 32 writers. It inherits the exact S1 rate search,
+arrival scheduler, one-second deadlines, HDR accounting and qualification.
+The native HTTP target is `--target snapback`; it depends on serve, not SQLite.
+Private application sessions are minted before load and checked by serve per
+request. No token values enter captures. Release process/mutex, detached query
+readers, default SQLite WAL/FULL durability and background work stay unchanged.
+The local SQLite cell has no database network hop: the +0.5 ms sweep applies to
+the future Postgres-backed cell, not to SQLite.
+
+One cell can be replayed with `scripts/snapback.py cell --fixture <prepared-dir>
+--out target/replay-NEW --workload W4 --writers 32 --keys disjoint`; wrap it in
+the same detached launch. `cell.json` retains its full replay command. Resource
+evidence includes process CPU/I/O, diskstats, thread wait channels and WAL file
+sizes. OS write bytes include checkpoint/filesystem effects and are not logical
+PG WAL bytes. Two native operator mint barriers and stable counter snapshots
+drain the writer outside each trial; warm-up plus measured acknowledgements
+must equal committed increments. Unknown outcomes are retained and disqualified.
+
+`scripts/report-snapback.py <campaign> <result-dir>` uses the existing independent
+audit and publishes the matched table, all rate summaries, latency spreads,
+steady-state arrival cohorts and SVGs. Run it in the plot environment pinned by
+`scripts/plot-requirements.txt`. Keep raw cells outside Git; archive them under
+`~/sb4scale/archive/` with SHA-256 in the result's ARCHIVE.md.
+
 Periphery for [LLP 3000.009.001.002](../../../llp/3000.009.001.002-scale-limits-against-postgres-controls.rfc.md),
 §4–§7 and §9. Its own Cargo workspace; no engine or product changes. W6 live
 delivery and the remaining controls belong to later lanes.
