@@ -1,0 +1,233 @@
+{
+  "format": 1,
+  "at": "2026-10-22T00:35:54.653534+00:00",
+  "version": "0.4.37",
+  "mergeCommit": "4414058f21",
+  "incomingMain": "ad87e0ddb38c5143a379d56e1e0bb5a13c0e8cc7",
+  "qualifiedSource": "bf94466fe224e36d54862bb940d65a2ca7ffb6ad",
+  "conflicts": {
+    "snapback4/JOURNAL.md": "Union of both append-only histories.",
+    "snapback4/crates/snapback4-core/src/store/activation.rs": "Retain EVOL rename interpretation and scoped immutable migration asset root on the adapter-owned SQLite transaction."
+  },
+  "cleanMergeRepairs": {
+    "snapback4/crates/snapback4-core/src/store/port/tooling.rs": "Explicit semantic dispatch for EVOL preview identity, asset root and visibility; forward prior_path for renamed-column before images. No dereference or raw-handle bridge.",
+    "snapback4/crates/snapback4-core/src/store/evolution_tests.rs": "Use fallible asset_location().path() for the existing missing-file fixture."
+  },
+  "rust": {
+    "passedExecutions": 7223,
+    "failed": 0,
+    "ignored": 47,
+    "resultSummaries": 449,
+    "command": "CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 RUST_TEST_THREADS=8 cargo test -p snapback4-core -p snapback4-lang -p snapback4-device -p snapback4-sim -p snapback4 --no-fail-fast"
+  },
+  "clients": {
+    "pool": {
+      "files": 425,
+      "failedFiles": 0,
+      "tests": {
+        "tests": 7828,
+        "pass": 7772,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 56,
+        "todo": 0
+      }
+    },
+    "fixtures": {
+      "files": 1,
+      "failedFiles": 0,
+      "tests": {
+        "tests": 9,
+        "pass": 9,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      }
+    },
+    "models": {
+      "files": 2,
+      "failedFiles": 0,
+      "tests": {
+        "tests": 81,
+        "pass": 81,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      }
+    },
+    "typecheck": "passed"
+  },
+  "difftest": {
+    "run": {
+      "generated": 20000,
+      "executed": 1222111,
+      "signatures": {},
+      "matchesIntegration21": true
+    },
+    "run-devices": {
+      "generated": 1000,
+      "executed": 27922,
+      "signatures": {},
+      "matchesIntegration21": true
+    },
+    "run-lean": {
+      "generated": 20000,
+      "executed": 56917,
+      "signatures": {
+        "lean": {
+          "lean--code--E_RULE~NOT_FOUND": 3,
+          "lean--continuation-next--next~no-next": 35,
+          "lean--next--next~no-next": 67,
+          "lean--prelude-code--E_RULE~NOT_FOUND": 25
+        }
+      },
+      "matchesIntegration21": true
+    }
+  },
+  "survey": {
+    "binary": "/home/ccheever/projects/snapback-sb4loop/snapback4/target/x86_64-unknown-linux-musl/production/snapback4",
+    "sha256": "231113418fd90fb2446ed987c2d68d9e838632c13bf863f10e39dde58bd04b0d",
+    "apps": 350,
+    "byWave": {
+      "15": 100,
+      "16": 50,
+      "18": 50,
+      "19": 50,
+      "20": 50,
+      "21": 50
+    },
+    "failures": [],
+    "compilerNotes": {
+      "N_LOOKUP_FILTERED": 1533,
+      "N_NO_PRODUCTION_WRITER": 51,
+      "N_NO_CURSOR": 520,
+      "N_UNIQUE_HIDDEN": 91,
+      "N_SPARSE_FILTER": 97,
+      "N_NEVER_COMPLETE": 106,
+      "N_PATCH_CLEARS": 18,
+      "N_NO_HORIZON": 14,
+      "N_UNREADABLE_PROBE": 71,
+      "N_IMMUTABLE_PATCH": 54,
+      "N_MAINTAIN_DELTA": 25,
+      "N_SWEEP_DEADLINE": 168,
+      "N_QUERY_FILTERED": 161,
+      "N_CASCADE_DORMANT": 9,
+      "N_REFERENCE_UNCHECKED": 11,
+      "N_DELETE_RESTRICTED": 3,
+      "N_CONDITIONAL_COMPLETE": 30,
+      "N_MAINTAIN_AUTHORIZATION": 3,
+      "N_PROBE_ONLY_READ": 2,
+      "N_MAINTAIN_SYNCED": 2,
+      "N_SYNC_ORDER": 7,
+      "N_MAINTAINED_COLUMN_DISCLOSURE": 5,
+      "N_REQUIRE_REFUSED": 1,
+      "N_LOOKUP_HIDDEN": 17,
+      "N_REQUIRE_HIDDEN": 7,
+      "N_WIDE_MERGE": 22
+    },
+    "securityNotes": {
+      "N_SECURITY_INTENT": 309,
+      "N_ARGUMENT_GRANT": 450,
+      "N_COLUMN_RESULT_EXPOSURE": 4231,
+      "N_BROAD_READ": 365,
+      "N_OPTIONAL_EVIDENCE": 154,
+      "N_INSERT_WRITE_INTENT": 646,
+      "N_CALLER_TIME": 74,
+      "N_COLUMN_READ": 176,
+      "N_ROLE_WIDE_READ": 133,
+      "N_GRANT_OUTLIVES_ROLE": 302,
+      "N_SWEEP_ONLY_DEADLINE": 39,
+      "N_PRIVILEGE_ESCALATION": 34,
+      "N_VACUOUS_RULE": 3,
+      "N_INVARIANT_RESTATES_RULE": 810,
+      "N_EXISTENCE_ORACLE": 53,
+      "N_SELF_CLAIMED_RELATIONSHIP": 2
+    },
+    "sourcesUnchanged": true,
+    "noteCountsMatchIntegration21": true,
+    "quarryFiles": 358
+  },
+  "wasm": {
+    "raw": 2405869,
+    "gzip": 734907,
+    "brotli": 553447,
+    "sha256": "e06b8aab8620dbde2abe8d19b48e89275b0f7545caec9514bb3ea7fdab248e68",
+    "budget": 735407
+  },
+  "wasmIdentity": {
+    "source": "e06b8aab8620dbde2abe8d19b48e89275b0f7545caec9514bb3ea7fdab248e68",
+    "dist": "e06b8aab8620dbde2abe8d19b48e89275b0f7545caec9514bb3ea7fdab248e68",
+    "packed": "e06b8aab8620dbde2abe8d19b48e89275b0f7545caec9514bb3ea7fdab248e68",
+    "measured": "e06b8aab8620dbde2abe8d19b48e89275b0f7545caec9514bb3ea7fdab248e68",
+    "bytes": 2405869,
+    "qualifiedSource": "bf94466fe224e36d54862bb940d65a2ca7ffb6ad"
+  },
+  "censuses": {
+    "authoringEntries": 872,
+    "authoringUnchanged": true,
+    "awaitBoundaryFiles": 148,
+    "awaitBoundaryUnchanged": true
+  },
+  "rootChecks": {
+    "frozenInstall": "passed",
+    "workspaceHoist": "passed",
+    "generatedArtifacts": "passed",
+    "diagnosticsRegistryRegenerated": true,
+    "guideManifestRegenerated": true,
+    "inventories": "passed",
+    "guide": {
+      "passed": 22,
+      "failed": 0,
+      "skipped": 0,
+      "preconditions": 0,
+      "inheritedWarnings": 121
+    },
+    "refCheck": {
+      "status": "passed",
+      "llpDocuments": 564,
+      "references": 12292,
+      "errors": 0,
+      "unchecked": 0
+    },
+    "docsBudget": "README 319/320 physical lines"
+  },
+  "packedConsumer": {
+    "mode": "consumer-only",
+    "route": "proot",
+    "source": "bf94466fe224e36d54862bb940d65a2ca7ffb6ad",
+    "platform": {
+      "name": "snapback4-linux-x64",
+      "version": "0.4.37",
+      "filename": "snapback4-linux-x64-0.4.37.tgz",
+      "integrity": "sha512-i9aGz6obxX9S30neyfdPt6fU2/BRYqwduToSTwH9LBzLkoYS/4WhpiY/7S8vem2wYNGKmD4cqwdaLBeC01L+Iw==",
+      "bytes": 14288965
+    },
+    "clientIntegrity": "sha512-9z0IT9oDZxjtDVfyb7CXvYvr43wf7GCobeYnBFpOcZ93E4JnV2jYaxlgaKQcmmkdp316Bj4G23PLotF8zmapJw==",
+    "expoIntegrity": "sha512-OTPBlWLHJo322OnKnDOif5kZSMsfKWduymDFEXkmQKr6s3FB/zIjx0D6sOFsdNdWJqR6YyaKcJXTiPNkYActSg==",
+    "binarySha256": "231113418fd90fb2446ed987c2d68d9e838632c13bf863f10e39dde58bd04b0d",
+    "publicationQualified": false
+  },
+  "attempts": {
+    "initialRust": "Compile failure at the EVOL fixture removed asset_path method; repaired before the full successful run.",
+    "initialClientFailedFiles": [
+      "packages/snapback4/test/astra-invalid-input.test.mjs",
+      "packages/snapback4/test/astra-rebirth.test.mjs",
+      "packages/snapback4/test/expired-server-watch.test.mjs",
+      "packages/snapback4/test/export-publication.test.mjs",
+      "packages/snapback4/test/day3-proofs.test.mjs",
+      "packages/snapback4/test/familiar-forms.test.mjs",
+      "packages/snapback4/test/following-history.test.mjs",
+      "packages/snapback4/test/export-native.test.mjs",
+      "packages/snapback4/test/decorated-search.test.mjs",
+      "packages/snapback4/test/asset-lists.test.mjs"
+    ],
+    "initialClientCause": "Pack preparation rebuilt wasm/dist during active client tests; missing/transient artifacts. Repeated the entire client pool after fresh pack preparation, with stable artifacts.",
+    "firstPack": "Refused client fixture temporary directories as dirty source; retried after fixture cleanup.",
+    "rootSetup": "Corrected workspace hoist command to scripts/ensure-workspace-hoist.mjs."
+  },
+  "mac": "Not required by this task; no Mac qualification claimed.",
+  "rawEvidenceDirectory": "/home/ccheever/sb4-loop/integration21-storage",
+  "deferrals": []
+}

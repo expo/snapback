@@ -100819,3 +100819,15 @@ Locked Linux device: 2,405,869 B raw / 734,907 B gzip; budget 735,407 B is
 measurement + exactly 500 B. The whole-artifact gzip delta is +3 B against
 Integration 21, with unchanged raw size; no independent feature cost or runtime
 ceiling change is claimed. Final Linux qualification is recorded below.
+
+Final storage-port Linux qualification: 7,223 reported Rust passes,
+zero failures, 47 ignores across 449 summaries. The full client pool,
+fixture wrapper, full seeded models and TypeScript pass. Difftest run 20k and
+devices 0–999 have no signatures; Lean exactly reproduces the four existing
+signatures (130 disagreements), with no new one. All 350 apps / 358 Quarry
+files pass with unchanged sources and note counts. Fresh packed consumer-only
+qualification passes via proot at bf94466fe2; no publication
+receipt is claimed. Root checks, strict wasm audits and unchanged censuses pass.
+Attempt failures from an overlapping artifact rebuild are preserved separately;
+the complete final client repeat uses stable artifacts. Safe compact evidence:
+reports/integration21/storage-port-merge.json; full report: ../WORKSTREAM-REPORT.md.
