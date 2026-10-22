@@ -490,6 +490,8 @@ fn cold_basis_single_candidate_reserves_private_witness_before_storage_access() 
     let mut failures = Vec::new();
     for payload in [0, 256 * 1024] {
         schema.tables.get_mut("messages").unwrap().columns.insert("payload".into(), crate::schema::ColumnType::Text { max: payload as u32 });
+        // Resizing a raw fixture changes its row-copy reservation prices too.
+        schema.prepare_write_reservations();
         let decoder = crate::rows::disclosed::decode_reservation(&schema.tables["messages"]);
         let scratch = runner(&MemoryRows::new(), &schema, "reader").rule_scratch(&schema.tables["messages"].rules.read);
         assert!(scratch > 80_000, "exists on non-uniform members needs witness scratch");

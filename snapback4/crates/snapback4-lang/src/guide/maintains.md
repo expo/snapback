@@ -545,8 +545,8 @@ server-run watches re-run. Unchanged declarations preserve totals.
 `check --cost` reports composed source/mirror work and derived byte bounds;
 `why` and `test --residency --fixture-only` attribute values and acquisition to the parent.
 
-The Postgres evaluation backend refuses maintained columns and their private
-maintains with E_POSTGRES_MAINTAINED_COLUMN. Use the SQLite engine for this form.
+Postgres deploy/serve admits ordinary count/sum columns and private maintains, including atomic add/redefine/drop/re-add with other declarations unchanged (`guide release-json`).
+The retained Postgres evaluator refuses ordinary maintained columns with E_POSTGRES_MAINTAINED_COLUMN; use unified deploy/serve.
 
 ## N_PUBLIC_AGGREGATE_COPY: a public derived column keeps ordinary write authority
 
@@ -814,8 +814,8 @@ with E_VIEW_KEY. Pure view existence follows the member's lifetime, including
 when its count is zero. `online only` on the view opts
 out of member-audience delivery. E_VIEW_KEY includes the admitted rewrite.
 
-The Postgres evaluation adapter has no background recount runner and refuses
-this form with E_VIEW_KEY; use the SQLite server and either device store.
+The unified Postgres profile refuses row-keyed views with E_STORE_UNSUPPORTED: view-recount; its background recount runner is unavailable.
+The retained evaluator uses E_VIEW_KEY. Use SQLite for row-keyed views.
 Member rows reserve `member`, `value` and `recountPending` for the generated
 view. The count form is admitted; row-keyed sums are not yet admitted.
 

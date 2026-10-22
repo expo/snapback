@@ -20,7 +20,7 @@ pub(super) const ACTIONS: &[(&str, &[&str])] = &[
     ("E_WORKER_STORE_ID", &["Repair the store binding before starting workers.", "Keep the ledger with the store across releases and backups."]),
     ("E_STORE_CONFIG", &["Use one store selector.", "Restore the matching immutable release and logical store binding before serving."]),
     ("E_WORKER_STATE", &["Configure that directory before starting workers.", "The ledger filename uses the logical store id"]),
-    ("E_STORE_UNSUPPORTED", &["Postgres schema evolution currently refuses before activation preparation writes.", "Keep the current schema or use SQLite for the schema transition.", "Repeating the same activation cannot enable the missing family."]),
+    ("E_STORE_UNSUPPORTED", &["The unified Postgres engine admits ordinary maintained-column additions, redefinitions and removals, with other declarations unchanged.", "Other schema evolution refuses before activation preparation writes; keep the current declarations or use SQLite for that transition.", "Repeating the same activation cannot enable the missing family."]),
     ("E_STORE_GENERATION", &["Opening refuses before trusting that value, and a failed read does not abort its transaction.", "Restore a known-good store backup before reopening; preserve the current store for operator inspection.", "Never delete the store to make adoption pass."]),
     ("E_IDENTITY_TIMEOUT", &["Signup outcome may be unknown: inspect before retrying.", "Increase timeoutMs to allow server retryAfterMs waits.", "seedAccounts maps it to E_STAGING_TIMEOUT"]),
 
@@ -268,7 +268,7 @@ pub(super) const ACTIONS: &[(&str, &[&str])] = &[
     ("E_OP", &["use the generated API's module-qualified names", "Check the HTTP path when the message instead names an unknown route"]),
     ("E_OP_RESERVED", &["Pick an UPPER_SNAKE application code at the use site and handle that code on the client"]),
     ("E_OVERFLOW", &["Bound the inputs and intermediate arithmetic", "reduce its contributions or split the grouping", "without revealing a hidden computed sum, and the failed write rolls back"]),
-    ("E_POSTGRES_MAINTAINED_COLUMN", &["Use the SQLite engine for this form"]),
+    ("E_POSTGRES_MAINTAINED_COLUMN", &["use unified deploy/serve"]),
     ("E_PREDICT", &["Acquire the required partition, or redesign the read to need held facts", "never invent an empty row or mint different IDs on replay"]),
     ("E_QUARRY_AMBIGUOUS", &["Name the key columns for a point", "Same-column indexes need explicit `by`"]),
     ("E_QUARRY_BOUND", &["Declare `cap N by cols` on the table if that is the intended group limit", "Descending reads keep `last N`"]),

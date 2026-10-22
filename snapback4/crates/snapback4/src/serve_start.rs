@@ -253,6 +253,8 @@ pub fn serve(
         #[cfg(test)]
         auth_work: Mutex::new(None),
         #[cfg(test)]
+        round_trips: Mutex::new(None),
+        #[cfg(test)]
         request_work: Mutex::new(None),
         #[cfg(test)]
         upload_work: Mutex::new(None),

@@ -39,6 +39,8 @@ pub mod release_history;
 pub(crate) mod activation;
 pub mod maintain;
 pub mod partition;
+#[cfg(any(test, feature = "test-support"))]
+pub mod round_trips;
 pub mod rows;
 pub mod revocation;
 #[cfg(feature = "sqlite")]

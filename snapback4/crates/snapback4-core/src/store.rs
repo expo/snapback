@@ -164,6 +164,8 @@ impl Store {
     /// running the writable store's initialization and upgrade path.
     pub fn open_read_only(path: &Path) -> Result<Self, RuntimeError> {
         let mut conn = Connection::open_with_flags(path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)?;
+        #[cfg(any(test, feature = "test-support"))]
+        trace_round_trips(&conn);
         #[cfg(unix)]
         let file_identity = file_identity(&conn)?;
         conn.busy_timeout(std::time::Duration::from_secs(5))?;
@@ -286,6 +288,8 @@ impl Store {
     }
 
     fn prepare(mut conn: Connection, assets_dir: PathBuf, ephemeral_assets: bool, server: bool) -> Result<Self, RuntimeError> {
+        #[cfg(any(test, feature = "test-support"))]
+        trace_round_trips(&conn);
         #[cfg(unix)]
         let file_identity = file_identity(&conn)?;
         // Our fixed indexed SQL should reuse its plan when keys or limits
@@ -459,6 +463,8 @@ impl Store {
                 RuntimeError::Store("an in-memory store has no independent reader".into())
             })?;
         let conn = Connection::open_with_flags(path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)?;
+        #[cfg(any(test, feature = "test-support"))]
+        trace_round_trips(&conn);
         // @ref LLP 3000.019#3.4 — detached readers must answer from the owned database, not a replacement at its path.
         // Compare after opening, before reading. Stat only: closing another raw
         // database descriptor would discard this process's SQLite POSIX locks.
@@ -1369,5 +1375,51 @@ impl RuntimeError {
         if let Self::Continuation(source) = self { return source.is_busy(); }
         matches!(self, Self::Sql(error) if matches!(error.sqlite_error_code(),
             Some(rusqlite::ErrorCode::DatabaseBusy | rusqlite::ErrorCode::DatabaseLocked)))
+    }
+}
+
+// @ref LLP 3000.009.001.000.001#5 — keep test-only raw driver tracing inside the SQLite adapter.
+#[cfg(any(test, feature = "test-support"))]
+pub(crate) fn trace_round_trips(conn: &Connection) {
+    conn.trace_v2(
+        rusqlite::trace::TraceEventCodes::SQLITE_TRACE_STMT,
+        Some(|event| {
+            if matches!(event, rusqlite::trace::TraceEvent::Stmt(_, _)) {
+                crate::round_trips::sqlite_statement();
+            }
+        }),
+    );
+}
+
+#[cfg(test)]
+mod round_trip_tests {
+    use super::*;
+    use crate::round_trips::{Scope, CallCounter, RollbackCount, Counts};
+    #[cfg(feature = "sqlite")]
+    #[test]
+    fn driver_units_include_batches_and_error_rollback() {
+        let conn = rusqlite::Connection::open_in_memory().unwrap();
+        trace_round_trips(&conn);
+        let scope = Scope::begin();
+        conn.execute_batch("BEGIN; SELECT 1; SELECT 2; ROLLBACK;")
+            .unwrap();
+        let counter = CallCounter::new(0);
+        counter.set(1);
+        counter.set(3);
+        counter.set(0);
+        {
+            let rollback = RollbackCount::new();
+            rollback.disarm();
+        }
+        {
+            let _rollback = RollbackCount::new();
+        }
+        assert_eq!(
+            scope.counts(),
+            Counts {
+                postgres: 4,
+                sqlite: 4
+            }
+        );
     }
 }

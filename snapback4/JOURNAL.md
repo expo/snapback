@@ -101777,3 +101777,170 @@ All disk readings exceed the stop threshold. No push, stash, cloning, sub-agents
 or other lane's Cargo target use.
 Final reference audit passes: 564 LLP documents, 11,719 references, zero errors
 and zero unchecked references.
+
+## 2026-10-22 — RT0: a request round-trip ratchet on both stores
+
+Lane RT0 implements LLP 3000.009.001.000.001 §5 without changing product
+behavior or budgets. A test-only Cell-compatible Postgres call wrapper and
+SQLite statement traces attribute work to the synchronous HTTP handler; cold
+prepares/reader opening and implicit error rollback are counted, unrelated
+maintenance and renewal threads are excluded. Ordinary builds retain the old
+Cell and have no tracing, TLS or request hook. Two exact tables cover twelve
+classes, with three agreeing warm samples each; both increases and decreases
+fail, the latter requiring an explicit table reduction. SQLite runs in the
+normal CLI suite; the named Postgres ignore is wired into test-postgres.sh.
+
+Warm PG/SQLite: W1 23/31, W2 23/31, unkeyed increment 57/79, one-membership
+increment 58/80, keyed first (SDK id + store_id) 77/87, replay 30/40, W1 with
+an action session and one admission family 29/39, absent bearer 0/0, unknown
+bearer 5/5, rate limit 0/0, unknown operation 26/46, narrowed argument 26/46.
+The keyed path's twenty extra PG flights exceed §2's rough ten-flight estimate.
+First-reader W1 is separately 56/32, reproducing RT-A. B1's 6/16/21/5 targets
+and both B2 mechanisms remain predictions; RT0 implements no savings.
+
+P1-MC is absent at the lane base, so this uses RT-A's admitted S1 shape with
+25 messages, preserving W1/W2 and their membership rules. Postgres still
+refuses action declarations: the action row is a real HTTP W1 using a live
+claim/session seeded through typed store methods, and qualifies the shared
+authority walk only. No public action deployment or full maintained-column S1
+claim follows. The RFC's Today rows and RT0 record are updated in place; its
+proposal status remains Draft. The parallel committer queue files are untouched.
+
+[The RT0 report](./reports/20261022-rt0-ratchet/REPORT.md) records all counts,
+cold surcharges, the prediction comparison, final checks and owned-process
+cleanup. Work stayed on this host and target, one worker, no sub-agents,
+clones, remote commands, push or stash.
+
+RT0 verification: core 1,070 unfiltered passes/five ignores and one subprocess;
+guide 127/127; full Postgres script 354 Rust passes plus the public-serving
+witness. The full four-thread CLI run has 1,405 passes and one new lexical
+store-port census failure, reproduced alone and corrected by moving test-only
+SQLite tracing/raw-driver tests into the adapter. No allowance changed;
+all 16 affected ratchet/census cases, focused counter tests and both HTTP
+ratchets pass afterward. The three supplied baseline cases all pass here.
+Build, repeated no-default core check, both feature guards, inventories and
+final ref-check pass (565 LLPs, 12,334 refs, zero errors/unchecked). The ordinary
+binary has no instrumentation symbols. Both private clusters have independent
+status-3/no-postmaster.pid confirmation; five postmaster lifetimes and five
+serve PIDs are absent, with no lane target executable running. PIDs left: none.
+## 2026-10-22 — P1-MC: ordinary maintained columns on the unified Postgres profile
+
+The scale fixture's maintained-column exclusion was inherited from the retained
+Postgres evaluator. The common engine already runs count/sum deltas, private
+aggregate writes and parent mirrors through `AnyTx`. Removed that evaluator
+exclusion from unified admission, retaining complete-owner validation and the
+`view-recount` refusal. Row-keyed views still need their separate durable recount
+runner. The retained evaluator keeps its original exclusion until S10e; its
+missing initial empty-parent invalidation makes its head differ from the common
+activation builder, so this lane's exact oracle uses the common engine on both
+stores.
+
+Release evolution needed adapter work. Fenced Postgres attach now admits only
+maintained-column additions, redefinitions/removals and indexes using those
+fields, while comparing every remaining ordinary declaration. Compiled operation
+metadata may change with the programs and source locations. Attach projects
+removed fields, clears retired private rows/indexes and builds changed keys;
+the existing common builder recounts sources and mirrors parents before the
+release and generation publish. No aggregate SQL, hot-writer DDL, new physical
+relation, device representation or resource ceiling is introduced. Aggregates
+retain shared checked i128 arithmetic and their 53-bit E_OVERFLOW contract;
+ordinary i64 bookkeeping retains its existing saturation policy.
+
+The store cases cover exact write/read outcomes and meters, parent moves,
+null/selected contributions, deletes, parent rebirth, overflow, rollback,
+nested/member abort, and add/redefine/drop/re-add over existing rows. Both stores'
+same-parent race requires an observable head-fence wait or SQLite busy callback.
+SQLite can restore explicit zero fields from dormant custody on re-add;
+Postgres discards derived fields and recounts them. Logical images and public
+outcomes agree, and an initial zero addition stays sparse on both stores.
+The full default core suite and the first six focused Postgres cases passed.
+Guide cards, CLI help and RFC §9 describe the bounded admission; the lane report
+records evidence, test results and process custody.
+
+Final P1-MC qualification: the unchanged S1 Quarry source deploys with the public
+`--store-url` selector and serves on a private PostgreSQL 16.15 en_US.utf8
+cluster. An acquired-owner engine fixture seeds 24 messages; a native account
+session reads W1/W3 and posts the 25th message over public HTTP. Every room total
+and user sent count equals its source recount. The scale blocker ticket is closed;
+its old measurement ledger is preserved with a link to this resolution, and the
+1M seed / matched W1–W5 rerun remains scale-lane work.
+
+The final complete Postgres script passes: 58 evaluator, 213 adapter, 22 ownership,
+one compiled guard, 37 doctest, three member, two internal-host/startup and 19
+corpus cases (355 visible Rust passes), plus the operator seed helper and public
+CLI witness. The first run reproduced the tracked evaluator SQLSTATE 40001
+exhaustion. Its isolated four-writer rerun passes with 65 increments per mode,
+zero serialized retries and 88 serializable retries. The final complete repeat
+runs one harness case at a time, preserving internal concurrent writers, and
+passes with 92 serializable retries. Added --no-fail-fast to the evaluator
+invocation so a conformance failure cannot skip its later integration targets;
+no retry policy, workload, assertion or durability setting changed.
+
+Default core: 1,068 unfiltered passes plus its filtered subprocess; five ignores.
+CLI: 1,404 unfiltered and 13 filtered passes; its sole initial failure was the
+known Web witness with missing client artifacts, now passing alone after the
+fresh wasm/client build. Guide: final 127 passes, including isolated reruns of
+its three initial failures; the intended refusal pins changed and the maintains
+card stays at 879 lines. Ratchets/census 16, both compiled handle guards, both
+release guards and codec census 27 pass. Wasm is 735,093 B gzip under the unchanged
+735,407 B budget. Both required builds/checks pass. The root Guide remains red
+outside this fence on diagnostics-removal state, absent Contract package and
+missing generated demo artifacts; the report preserves exact results.
+
+Eight owned clusters are independently confirmed stopped, all 22 recorded public
+server PIDs are absent, and no servers remain. Minimum observed disk free space
+was 168G. Only this worktree's Cargo target was used, with at most ten jobs,
+incremental off and line-table dev/test debug info. No clone, sub-agent, stash or
+push. Final reference audit and local commit are recorded in the lane report.
+
+## 2026-10-22 — P1-MC fix round 1: evolution invariants and executable facts
+
+The two blind reviews of `45416b150c` identified gaps in the bounded activation
+comparison and its publication claims. Postgres now checks every unique index
+affected by projection, definition change or rebuild after the common builder
+and before publishing. The key walk is paged and ordered, compares complete
+logical key prefixes, retains null-distinct behavior, and uses SQLite's exact
+duplicate-group refusal. The public schema validator already forbids unique
+keys containing maintained columns; the regression keeps that refusal and
+separately exercises the physical adapter with the same-author/different-room,
+sparse-zero collision, noncollision and null controls. No new unique-maintained
+language form is admitted.
+
+The common engine derives source reservations and receipt dependencies from
+the full schema, refusing supplied nonempty facts that disagree. A normalized
+comparison derives the graph again after removing private maintains, admitting
+the receipt-enabled aggregate addition that the first version refused. For
+unchanged ordinary declarations and IR, the predecessor's execution declarations
+remain fixed (including `held` and branch flags), while the candidate schema and
+IR determine maintenance-dependent receipt/reservation sites and prediction.
+The compiler shares that receipt-maintenance calculation with admission. Checks
+run at ordinary/release adoption and again against persisted activation content;
+normal program changes retain their existing admission path.
+
+Cross-store regressions cover forged flags, prices, prediction and receipt graph,
+and receipt sum addition/count redefinition/removal over existing conversation,
+membership and message rows. The guide's short refusal line now names the admitted
+slice. The sparse-zero wording is qualified as initial addition, preserving the
+explicit zero written on redefinition (LLP 3000.007.001 §3.11). The port RFC's
+single Revised line begins `P1-MC fix round 1`; the lane report records the
+physical/public test distinction, qualification and process custody.
+
+Final fix-round qualification passes: CLI build, no-default core check, the full
+core suite (1,069 visible passes including its filtered subprocess, five ignores),
+127 guide tests, and the complete Postgres script (358 visible Rust passes plus
+operator seed/public serving). The final maintained-column scope passes all nine
+cases, including physical unique-key projection, forged facts through direct
+adapter activation and receipt sum/count/drop over existing rows. The unchanged
+public S1 source serves 24 seeded messages plus one public post; every room/user
+total matches its source recount. The four raw fixture builders now refresh their
+prices after declaration edits, preserving their original assertions and limits.
+LLP 3000.022 §14.3 is aligned with native validation and its existing raw-IR trust
+contract. Fresh Wasm is 735,096 B gzip under the unchanged 735,407 B budget; the
+client build passes. The reference audit is run from the repository root.
+
+Nine owned clusters are independently confirmed stopped, all six recorded public
+server PIDs and all check/restart runners are absent. Owned PIDs left: none.
+Minimum observed disk free space was 64G. Only this worktree's assigned target was
+used, incremental off and dev/test debug at line-tables-only, with at most 16
+build jobs. No clone, remote command, sub-agent, stash, push, publication or budget
+increase. The journal's prior content remains an exact prefix.

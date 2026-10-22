@@ -20,7 +20,6 @@ pub(crate) fn admit(schema: &Schema, programs: &BTreeMap<String, Program>) -> Re
     if programs.values().any(|p| p.kind == ProgramKind::Job) { return refuse("jobs"); }
     if programs.values().any(|p| p.kind == ProgramKind::Action) { return refuse("actions"); }
     if schema.maintains.iter().any(|m| m.row_key.is_some()) { return refuse("view-recount"); }
-    if super::refuse_maintained_columns(schema).is_err() { return refuse("maintained-columns"); }
     // Ephemeral hubs use process-local state and are deliberately admitted.
     schema.validate_column_owners()?;
     if let Some(issue) = crate::schema::validate(schema).first() {

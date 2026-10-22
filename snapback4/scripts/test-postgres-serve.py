@@ -30,10 +30,10 @@ def cli(args, success=True, env=None, url=None):
         assert result.returncode != 0, (args[0], result.stdout, result.stderr)
     return result
 
-def start(label, url, ready=True):
+def start(label, url, ready=True, deployment=None):
     out, err = WORK / (label+'.out'), WORK / (label+'.err')
     with out.open('w') as stdout, err.open('w') as stderr:
-        child = subprocess.Popen([str(BIN), 'serve', str(WORK/'deployment'),
+        child = subprocess.Popen([str(BIN), 'serve', str(deployment or WORK/'deployment'),
             '--worker-state-dir', str(WORK/'worker-state'), '--port', '0'], cwd=WORK/'app',
             env={**ENV, 'SNAPBACK4_STORE_URL':url}, stdout=stdout, stderr=stderr, start_new_session=True)
     children.append(child)
@@ -103,7 +103,9 @@ try:
             raise AssertionError('socket-only refusals attempted a TCP connection')
     print('transport: hostaddr override, TCP host and mixed hosts refused before any TCP connect', flush=True)
     share=['-L',os.environ['SNAPBACK4_PG_SHARE']] if os.environ.get('SNAPBACK4_PG_SHARE') else []
-    result=run(['initdb','-D',DATA,'-U','s10d3','--auth-local=trust','--auth-host=reject','--encoding=UTF8','--no-locale',*share])
+    locale_args=['--locale='+os.environ['SNAPBACK4_PG_LOCALE']] if os.environ.get('SNAPBACK4_PG_LOCALE') else ['--no-locale']
+    print('public witness cluster locale', os.environ.get('SNAPBACK4_PG_LOCALE','C'), flush=True)
+    result=run(['initdb','-D',DATA,'-U','s10d3','--auth-local=trust','--auth-host=reject','--encoding=UTF8',*locale_args,*share])
     assert result.returncode==0,result.stderr
     result=run(['pg_ctl','-D',DATA,'-l',WORK/'postgres.log','-o',f'-k {WORK} -c listen_addresses= -p 55483','-w','start'])
     assert result.returncode==0,result.stderr
@@ -430,6 +432,52 @@ try:
     exists=run(['psql',connection,'-Atc',"SELECT to_regnamespace('outside_profile') IS NULL"])
     assert exists.stdout.strip()=='t',exists
     print('out-of-profile deploy: E_STORE_UNSUPPORTED; no schema/activation published',flush=True)
+    # P1-MC: the unchanged S1 Quarry app, public deploy/serve, a native operator
+    # fixture seeded through the owned Engine, and SQL used only for recounts.
+    scale_source = (ROOT/'experiments/scale-controls/snapback-app/snapback/schema.q').read_bytes()
+    (WORK/'app/snapback/schema.q').write_bytes(scale_source)
+    scale_deployment = WORK/'scale-deployment'
+    scale_url = url.replace('schema=serving', 'schema=p1mc_scale')
+    deployed = cli(['deploy', str(scale_deployment), '--store-url', scale_url, '--json'])
+    assert json.loads(deployed.stdout)['generation'] == 1, deployed.stdout
+    binding = json.loads((scale_deployment/'store-binding.json').read_text())
+    fixture = WORK/'p1mc-seed.json'
+    fixture.write_text(json.dumps({'connection':connection, 'namespace':'p1mc_scale',
+        'store_id':binding['store_id'], 'session_path':str(WORK/'scale-session.json')}))
+    # test-postgres.sh already compiles the CLI unit-test binary. Invoke that
+    # exact helper without taking Cargo's build lock while a server witness runs.
+    seed_test = None
+    for candidate in sorted((TARGET/'debug/deps').glob('snapback4-*'), key=lambda p:p.stat().st_mtime, reverse=True):
+        if candidate.is_file() and candidate.suffix == '' and os.access(candidate,os.X_OK):
+            listing = run([candidate,'--list'])
+            if 'p1mc_seed_public_scale_fixture: test' in listing.stdout:
+                seed_test = candidate
+                break
+    assert seed_test is not None, 'compile the CLI Postgres tests first (scripts/test-postgres.sh)'
+    seeded = run([seed_test,'p1mc_seed_public_scale_fixture','--ignored','--nocapture'],
+        cwd=ROOT,env={**ENV,'SNAPBACK4_P1MC_SEED':str(fixture)})
+    assert seeded.returncode == 0, (seeded.stdout,seeded.stderr)
+    scale_token = json.loads((WORK/'scale-session.json').read_text())['token']
+    scale,base = start('p1mc-scale',scale_url,deployment=scale_deployment)
+    page = http(base,'POST','/q/W3',{'args':{}},scale_token)
+    assert sorted(row['total'] for row in page['data']) == [12,12],page
+    message = http(base,'POST','/q/W1',{'args':{'message':'m000'}},scale_token)
+    assert message['data']['body'] == 'small fixture payload',message
+    posted = http(base,'POST','/m/post',{'id':'p1mc-post','args':{'room':'r0','body':'public post'}},scale_token)
+    assert posted['state']=='sent',posted
+    page = http(base,'POST','/q/W3',{'args':{}},scale_token)
+    assert sorted(row['total'] for row in page['data']) == [12,13],page
+    raw = sql("SELECT data FROM p1mc_scale.r ORDER BY t,id")
+    images = [json.loads(line)['Row'] for line in raw.splitlines()]
+    messages = [row for row in images if 'body' in row]
+    for row in images:
+        if 'total' in row:
+            assert row['total']['Int'] == sum(m['room']['Id']==row['id']['Id'] for m in messages),row
+        if 'sent' in row:
+            assert row['sent']['Int'] == sum(m['sender']['Id']==row['id']['Id'] for m in messages),row
+    assert len(messages)==25
+    stop(scale)
+    print('P1-MC PASS: unchanged S1 Quarry deploy --store-url and public serve; 24 seeded + one public post; every room/user total equals recount',flush=True)
     print('PASS public Postgres serving milestone; artifacts',WORK,flush=True)
 finally:
     for child in children:

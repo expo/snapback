@@ -44,6 +44,7 @@ fn a_request_after_engine_poison_still_serves() {
         worker_prepare: Mutex::new(None),
         #[cfg(test)]
         worker_minted: Mutex::new(None), auth_work: Mutex::new(None),
+        #[cfg(test)] round_trips: Mutex::new(None),
         request_work: Mutex::new(None),
         upload_work: Mutex::new(None),
         effect_wait: Mutex::new(None),

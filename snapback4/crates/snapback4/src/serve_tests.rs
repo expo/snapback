@@ -1516,3 +1516,6 @@ fn kit3_memory_http_retries_publish_only_the_ordinary_prelude_and_encountered_ro
 #[cfg(feature = "postgres")]
 #[path = "../tests/serve_postgres/mod.rs"]
 mod postgres_tests;
+
+#[path = "../tests/round_trips/mod.rs"]
+pub(super) mod round_trip_tests;

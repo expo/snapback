@@ -402,7 +402,7 @@ const DEFINITIONS: &[(&str, &str)] = &[
     ("E_OP", "E_OP means the requested operation or route does not exist, or was called through the wrong door."),
     ("E_OP_RESERVED", "E_OP_RESERVED means an application's refusal code starts with the platform's reserved `E_` prefix."),
     ("E_OVERFLOW", "E_OVERFLOW means integer arithmetic left the value model's range of −9,007,199,254,740,991 through 9,007,199,254,740,991."),
-    ("E_POSTGRES_MAINTAINED_COLUMN", "The Postgres evaluation backend refuses maintained columns and their private maintains with E_POSTGRES_MAINTAINED_COLUMN."),
+    ("E_POSTGRES_MAINTAINED_COLUMN", "The retained Postgres evaluator refuses ordinary maintained columns with E_POSTGRES_MAINTAINED_COLUMN; use unified deploy/serve."),
     ("E_PREDICT", "E_PREDICT means the device cannot establish this call's prediction from its held facts or submission IDs."),
     ("E_QUARRY_AMBIGUOUS", "E_QUARRY_AMBIGUOUS means a read matches several indexes."),
     ("E_QUARRY_BOUND", "E_QUARRY_BOUND means a boundless prefix is not valid in this position: no schema cap covers the group, its cap exceeds the examined ceiling, or a meter-bounded query prefix has a non-uniform read rule."),

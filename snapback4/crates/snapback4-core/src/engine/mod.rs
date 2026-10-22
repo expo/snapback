@@ -14,6 +14,8 @@ pub mod actions;
 #[cfg(feature = "sqlite")]
 mod activation;
 #[cfg(feature = "sqlite")]
+mod activation_facts;
+#[cfg(feature = "sqlite")]
 mod fixture;
 #[cfg(feature = "sqlite")]
 pub mod fixture_trace;
@@ -431,6 +433,7 @@ impl Engine {
         let programs = programs.into_iter().map(|p| (p.name.clone(), p)).collect();
         store.admit(&schema, &programs)?;
         columns::validate_before_prepare(&schema)?;
+        activation_facts::prepare(&mut schema)?;
         schema.check_row_view_audiences()?;
         schema.prepare_contribution_indexes();
         schema.prepare_delivery_lookup();
@@ -600,7 +603,10 @@ impl Engine {
     }
 
     pub fn adopt_at(&mut self, mut schema: Schema, programs: impl IntoIterator<Item = Program>, now: i64) -> Result<u64, RuntimeError> {
+        let programs = programs.into_iter().map(|p| (p.name.clone(), p)).collect();
         columns::validate_before_prepare(&schema)?;
+        activation_facts::prepare(&mut schema)?;
+        activation_facts::check_operations(&self.schema, &schema, &self.programs, &programs)?;
         schema.check_row_view_audiences()?;
         schema.prepare_contribution_indexes();
         schema.prepare_delivery_lookup();
@@ -608,7 +614,6 @@ impl Engine {
         if let Some(issue) = issues.first() {
             return Err(RuntimeError::Schema(format!("{}: {}", issue.path, issue.message)));
         }
-        let programs = programs.into_iter().map(|p| (p.name.clone(), p)).collect();
         drop(self.ephemeral.lock()?);
         Ok(Committer::run_committed_with(self, |engine| {
             Self::activate(&mut engine.store, &schema, &programs, None, now, true, None, None)

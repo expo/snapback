@@ -36,7 +36,7 @@ mod release_schema;
 mod bootstrap;
 mod bootstrap_schema;
 #[cfg(test)]
-mod tests;
+pub(super) mod tests;
 pub use store::{SCAN_MEMORY_GUARD, WriteMode};
 
 use super::{Context, MutationOutcome, QueryOutcome, WriteState, runner::Runner, validate};
@@ -565,6 +565,7 @@ pub use handle::Handle;
 mod semantic;
 
 mod opening;
+mod column_evolution;
 mod profile;
 
 mod deployment;

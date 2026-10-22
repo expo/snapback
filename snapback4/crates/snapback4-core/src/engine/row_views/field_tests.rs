@@ -126,6 +126,7 @@ fn computed_fields_cannot_select_a_stored_index() {
     for field in ["value","recountPending"] {
         let (mut schema,programs)=backend(config(Lifetime::Direct));
         schema.tables.get_mut("unread").unwrap().indexes.insert("unsafe".into(),Index::of(&[field,"id"],false));
+        schema.prepare_contribution_indexes();
         let error=Engine::memory(schema,programs).err().expect("computed cache index must refuse");
         assert!(error.to_string().contains("E_VIEW_KEY"),"{error}");
     }

@@ -113,9 +113,15 @@ pub(super) fn connect(mut config: Config) -> Result<(Client, Arc<AtomicBool>), R
             seen.store(true, Ordering::SeqCst);
         }
     });
+    #[cfg(any(test, feature = "test-support"))]
+    crate::round_trips::postgres(1); // startup through ReadyForQuery
     let mut client = config.connect(NoTls)?;
     // @ref LLP 3000.009.001.000#8 — every serving/lease/reader connection needs session affinity.
+    #[cfg(any(test, feature = "test-support"))]
+    crate::round_trips::postgres(2); // implicit prepare + execute
     let first = client.query_one("SELECT pg_backend_pid(),current_setting('application_name'),current_setting('server_version_num')::int", &[])?;
+    #[cfg(any(test, feature = "test-support"))]
+    crate::round_trips::postgres(2);
     let second = client.query_one("SELECT pg_backend_pid(),current_setting('application_name')", &[])?;
     if first.get::<_, i32>(0) != second.get::<_, i32>(0) || first.get::<_, String>(1) != second.get::<_, String>(1) {
         return Err(RuntimeError::StoreUnsupported { family: "transaction-pooling" });

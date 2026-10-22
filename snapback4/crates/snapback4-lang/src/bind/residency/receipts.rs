@@ -3,7 +3,7 @@
 // @ref LLP 3000.022#14.3 — allocate optimistically, consume accounting on the server.
 use super::*;
 use crate::diag::Site;
-use snapback4_core::{ir::{Builtin, Read}, schema::{Constraint, MaintainKind, RuleTerm}};
+use snapback4_core::{ir::{Builtin, Read}, schema::{Constraint, RuleTerm}};
 
 type Origins = BTreeSet<String>;
 type Env = BTreeMap<String, Origins>;
@@ -323,17 +323,9 @@ impl Walk<'_> {
                 self.rule(table, "read");
                 self.rule(&maintain.source, "read");
             }
-            let reason = if matches!(maintain.kind, MaintainKind::Sum { .. }) {
-                Some("can overflow")
-            } else if maintain.row_key.as_ref().is_some_and(|k| k.table == table) && effect == "update" {
-                Some("can change the member's count domain")
-            } else if self.schema.tables[&maintain.target].constraints.iter().any(|c| !matches!(c, Constraint::Unique { .. }))
-                || self.schema.tables[&maintain.target].indexes.values().any(|index| index.unique
-                    && index.columns() != ["id"] && index.columns() != maintain.group_fields()) {
-                Some("has target constraints")
-            } else { None };
+            let reason = maintain.receipt_write_refusal(self.schema, table, effect);
             if let Some(reason) = reason {
-                self.mark(table, format!("write to {table} evaluates receipt-derived maintenance {} which {reason}", maintain.label()));
+                self.mark(table, reason);
             }
         }
         for path in t.recorded.values() { self.field(&path.table, &path.column); }

@@ -1,4 +1,4 @@
-//! Internal in-process host only: no public serve selector, lease or worker claim.
+//! Postgres HTTP contracts and the owned operator seed for the public CLI witness.
 // @ref LLP 3000.009.001.000#3.4 — identified mutations and queries use the common engine over Postgres.
 use super::*;
 #[test]
@@ -112,4 +112,39 @@ fn admitted_identity_members(host: &Host) {
     assert!(snapback4_core::identity::resolve(engine.store(), &session.token, host.shared.now()).unwrap().is_none());
     snapback4_core::identity::clear_worker_families(engine.store()).unwrap();
     assert_eq!(engine.seq().unwrap(), 1);
+}
+
+// Fixture setup for the separate-process public CLI witness. This is a test-only
+// operator seed through the owned engine, never managed-table SQL or an HTTP bypass.
+#[test]
+#[ignore = "invoked only by scripts/test-postgres-serve.py with explicit private fixture input"]
+fn p1mc_seed_public_scale_fixture() {
+    use snapback4_core::{Engine, store_port::{AnyStore, StoreLease, LeasePolicy}};
+    let path=std::env::var("SNAPBACK4_P1MC_SEED").expect("explicit witness fixture file");
+    let config:serde_json::Value=serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+    let connection=config["connection"].as_str().unwrap();let namespace=config["namespace"].as_str().unwrap();
+    let mut lease=StoreLease::connect(connection,namespace,config["store_id"].as_str().unwrap(),"c001",LeasePolicy::default()).unwrap();
+    assert!(lease.acquire().unwrap().is_some());
+    {
+        let mut engine=Engine::open(AnyStore::open_postgres_owned(connection,namespace,&lease).unwrap()).unwrap();
+        let mut rows=Vec::new();
+        for n in 0..2 {
+            rows.push(("users",json!({"id":format!("u{n}"),"principal":format!("bench:{n}")})));
+            rows.push(("rooms",json!({"id":format!("r{n}")})));
+            rows.push(("memberships",json!({"id":format!("membership{n}"),"room":format!("r{n}"),"principal":"bench:0","last_read":0})));
+            rows.push(("counters",json!({"id":format!("counter{n}"),"room":format!("r{n}"),"owner":"bench:0","n":0})));
+        }
+        for n in 0..24 {
+            rows.push(("messages",json!({"id":format!("m{n:03}"),"room":format!("r{}",n%2),"sender":format!("u{}",n%2),"at":n,"body":"small fixture payload"})));
+        }
+        let rows=rows.into_iter().map(|(table,row)| (table.into(),snapback4_core::wire::row_from_json(&engine.schema().tables[table],&row).unwrap())).collect::<Vec<_>>();
+        engine.seed_at(rows,snapback4_core::now_ms()).unwrap();
+        for (table,field) in [("rooms","total"),("users","sent")] {
+            for row in engine.store().rows(table).unwrap() { assert_eq!(row.field(field).unwrap(),&snapback4_core::Value::Int(12)); }
+        }
+        let session=snapback4_core::identity::open_session(engine.store(),"bench:0","account",snapback4_core::now_ms()).unwrap();
+        std::fs::write(config["session_path"].as_str().unwrap(),serde_json::to_vec(&json!({"token":session.token})).unwrap()).unwrap();
+    }
+    assert!(lease.release().unwrap());
+    eprintln!("P1-MC operator fixture: 24 messages, two rooms/users; native session and all maintained totals verified");
 }

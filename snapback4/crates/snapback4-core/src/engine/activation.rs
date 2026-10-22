@@ -90,6 +90,11 @@ impl Engine {
             let repair_live_sums = tx.live_sum_marker()?.as_deref() != Some("1");
             let previous: Option<String> = tx.previous_schema()?;
             let previous: Option<Schema> = previous.map(|text| serde_json::from_str(&text).map_err(|e| RuntimeError::decode(e, RuntimeError::Store))).transpose()?;
+            if let Some(previous) = &previous {
+                let backend = tx.opening_backend()?;
+                let previous_programs = serde_json::from_str(&backend.2).map_err(|e| RuntimeError::decode(e, RuntimeError::Store))?;
+                super::activation_facts::check_operations(previous, schema, &previous_programs, programs)?;
+            }
             let needs_maintained_id_marker = (schema.maintains.iter().any(|maintain| maintain.row_key.is_none())
                 || previous.as_ref().is_some_and(|old| old.maintains.iter().any(|maintain| maintain.row_key.is_none())))
                 && tx.schema_marker(crate::metadata::SchemaMarker::MaintainedIds)?.as_deref() != Some(crate::schema::MAINTAINED_ID_VERSION);

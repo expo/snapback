@@ -50,6 +50,8 @@ impl Handle {
                 return Err(RuntimeError::Store("Postgres namespace already exists".into()));
             }
         }
+        #[cfg(any(test, feature = "test-support"))]
+        crate::round_trips::postgres(1);
         client.batch_execute(&format!("SET search_path = {quoted}, pg_catalog; SET statement_timeout = '5s'; SET lock_timeout = '5s'"))?;
         let mut store = store::Store::new(client);
         store.unified = true;
@@ -57,10 +59,15 @@ impl Handle {
         store.fence = fence;
         if !fresh {
             if store.fence.is_none() {
+                #[cfg(any(test, feature = "test-support"))]
+                crate::round_trips::postgres(2);
                 let id = store.client.query_opt("SELECT value FROM _meta WHERE key='store_id'", &[])?.map(|r| r.get::<_, String>(0));
                 if let Some(store_id) = id { store.fence = Some(super::ownership::Fence { store_id, holder: "0000".into(), token: 0 }); }
             }
-            if let Some(fence) = &store.fence { store.client.execute("SELECT set_config('application_name',$1,false)", &[&fence.tag()?])?; }
+            if let Some(fence) = &store.fence {
+                #[cfg(any(test, feature = "test-support"))]
+                crate::round_trips::postgres(2);
+                store.client.execute("SELECT set_config('application_name',$1,false)", &[&fence.tag()?])?; }
             let tx = store.opening_transaction()?;
             let row = tx.query("SELECT version,schema,programs,generation FROM _backend WHERE singleton", &[])?.remove(0);
             if row.get::<_, &str>(0) != store::VERSION { return Err(RuntimeError::StoreUnsupported { family: "opening" }); }
@@ -82,6 +89,13 @@ impl Handle {
     ) -> Result<Committed<(u64, R)>, RuntimeError> {
         let programs = programs.ok_or(RuntimeError::StoreUnsupported { family: "release-activation" })?;
         super::profile::admit(schema, programs)?;
+        // The adapter can also be called below Engine's mutable preparation.
+        // Its immutable input must already contain exactly the facts published.
+        let mut derived = schema.clone();
+        crate::engine::activation_facts::prepare(&mut derived)?;
+        if derived.source_reservations != schema.source_reservations || derived.receipt_dependencies != schema.receipt_dependencies {
+            return Err(RuntimeError::Schema("activation requires schema-derived reservations and receipt dependencies".into()));
+        }
         if reset { return Err(RuntimeError::StoreUnsupported { family: "dev-reset" }); }
         let fresh = self.fresh;
         let bootstrap_fence = fresh.then(|| super::ownership::Fence {
@@ -107,8 +121,12 @@ impl Handle {
             let held = tx.query("SELECT generation,schema,programs FROM _backend WHERE singleton", &[])?.remove(0);
             let before = Backend(held.get(0), held.get(1), held.get(2));
             if !fresh && before.0 != expected_generation as i64 { return Err(RuntimeError::Generation("another engine activated this store".into())); }
-            // This slice has no row-evolution runner. Refuse before preparation writes.
-            if !fresh && store::decode::<Schema>(&before.1)?.hash() != schema.hash() { return Err(RuntimeError::StoreUnsupported { family: "release-activation" }); }
+            // Admission precedes every preparation write, under the head fence.
+            let previous: Schema = store::decode(&before.1)?;
+            let previous_programs = store::decode(&before.2)?;
+            crate::engine::activation_facts::check_operations(&previous, schema, &previous_programs, programs)?;
+            let schema_changed = !fresh && previous.hash() != schema.hash();
+            if schema_changed { super::column_evolution::admit(&previous, schema)?; }
             initialize(&tx, schema)?;
             if let Some(fence) = &bootstrap_fence {
                 tx.set_meta("store_id", &fence.store_id)?;
@@ -116,11 +134,13 @@ impl Handle {
             }
             let store_id = tx.meta("store_id")?.ok_or(RuntimeError::WorkerStoreIdentity)?;
             super::ownership::install(&tx, &store_id)?;
-            let changed = fresh || before.2 != crate::value::canonical_json(programs);
+            let changed = fresh || schema_changed || before.2 != crate::value::canonical_json(programs);
             let generation = if !fresh && changed { before.0.checked_add(1).ok_or_else(|| RuntimeError::Generation("generation overflow".into()))? } else { before.0 };
             let tx = AnyTx::from_postgres(tx);
             tx.with_postgres(|inner| check(&AnyPreparation::Postgres(Preparation(inner))))?;
+            if schema_changed { tx.with_postgres(|inner| super::column_evolution::project(inner, &previous, schema))?; }
             build(&tx, changed, &mut report)?;
+            if schema_changed { tx.with_postgres(|inner| super::column_evolution::validate_groups(inner, &previous, schema))?; }
             tx.with_postgres(|inner| {
                 inner.publish_backend(&Backend(generation, crate::value::canonical_json(schema), crate::value::canonical_json(programs)), now)?;
                 inner.set_meta("schema_hash", &schema.hash())?;

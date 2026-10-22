@@ -154,8 +154,9 @@ impl Engine {
         allow_feed_adoption: bool,
         now: i64,
     ) -> Result<u64, RuntimeError> {
-        prepare(&mut schema)?;
         let programs = programs.into_iter().map(|p| (p.name.clone(), p)).collect();
+        prepare(&mut schema)?;
+        super::activation_facts::check_operations(&self.schema, &schema, &self.programs, &programs)?;
         drop(self.ephemeral.lock()?);
         Ok(Committer::run_committed_with(self, |engine| {
             Self::activate(
@@ -189,6 +190,7 @@ impl Engine {
 
 fn prepare(schema: &mut Schema) -> Result<(), RuntimeError> {
     columns::validate_before_prepare(schema)?;
+    super::activation_facts::prepare(schema)?;
     schema.check_row_view_audiences()?;
     schema.prepare_contribution_indexes();
     schema.prepare_delivery_lookup();

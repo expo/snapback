@@ -336,6 +336,7 @@ fn rebuilt_maintains_reject_unchanged_unique_and_cap_violations_atomically() {
                 let target = bound.schema.tables.get_mut("totals").unwrap();
                 target.indexes.insert("valueKey".into(), crate::schema::Index::of(&["value"], unique));
                 if !unique { target.constraints.push(crate::schema::Constraint::Cap {by:vec!["value".into()],max:1}); }
+                bound.schema.prepare_contribution_indexes();
                 bound
             };
             let first = constrained(&old);

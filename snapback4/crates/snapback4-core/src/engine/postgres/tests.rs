@@ -591,3 +591,4 @@ mod unified_tail;
 mod enum_contracts;
 mod oracles;
 mod session_clock;
+pub(in crate::engine) mod maintained_columns;
