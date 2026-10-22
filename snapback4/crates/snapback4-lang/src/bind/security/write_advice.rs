@@ -30,7 +30,8 @@ pub(super) fn notes(sources:&[(String,String)],bound:&Bound)->Vec<Diagnostic>{
             let ast::Expr::Write{op:ast::WriteOp::Update,table,fields,..}=write else{continue;};
             if !fields.iter().any(|f|f.name==column){continue;}
             if plain.iter().filter(|(e,_)|matches!(e,ast::Expr::Write{table:t,..} if t==&table)).count()!=1{continue;}
-            let requirements=super::operation::requirements(&catalog,&catalog.tables[&table],&context);
+            let Some(info)=catalog.tables.get(&table)else{continue;};
+            let requirements=super::operation::requirements(&catalog,info,&context);
             let restriction=RuleExpr::And(requirements.into_iter().chain([bound.schema.tables[&table].update_rule_judged().into_owned()]).collect());
             let entry=specific.entry((p.site.file.clone(),p.name.clone(),table,column.clone())).or_default();entry.0|=context.body.len()>base.body.len();entry.1.push(necessary(&restriction));
         }}

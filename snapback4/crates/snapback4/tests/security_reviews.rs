@@ -34,3 +34,10 @@ fn check(p:&Scratch,args:&[&str])->(i32,Value){let r=Command::new(env!("CARGO_BI
 #[test]fn wave23_lockout_and_loosened_uploads_check_without_acknowledgment(){
  let p=scratch();fs::write(p.0.join("snapback/schema.q"),include_str!("../../snapback4-lang/tests/security/wave23/003.q")).unwrap();let (code,j)=check(&p,&[]);assert_eq!(code,0,"{j}");assert!(!j["securityReviews"].as_array().unwrap().iter().any(|d|d["code"]=="N_OPTIONAL_UPLOAD_CREATE"));
 }
+
+#[test]fn one_upload_argument_at_two_creation_sites_needs_two_individual_reviews(){
+ let p=scratch();let source="table first:\n  photo:image <=10000 ?\n  read <- allow\n  insert <- deny\n  online only\ntable second:\n  photo:image <=10000 ?\n  read <- allow\n  insert <- deny\n  online only\ninvariant first always .photo != null\ninvariant second always .photo != null\nmutation add(photo:image <=10000 ?):\n  insert first {photo}\n  insert second {photo}\n  return null\n";fs::write(p.0.join("snapback/schema.q"),source).unwrap();
+ let (code,j)=check(&p,&[]);assert_eq!(code,1);let ids=j["securityReviews"].as_array().unwrap().iter().filter(|d|d["gated"]==true).map(|d|d["id"].as_str().unwrap().to_owned()).collect::<Vec<_>>();assert_eq!(ids.len(),2);assert_ne!(ids[0],ids[1]);
+ let (code,j)=check(&p,&["--ack-security",&ids[0],"--reason","reviewed first unreachable draft insertion"]);assert_eq!(code,1);assert_eq!(j["securityReviews"].as_array().unwrap().iter().filter(|d|d["gated"]==true&&d["acknowledged"]==false).count(),1);
+ assert_eq!(check(&p,&["--ack-security",&ids[1],"--reason","reviewed second unreachable draft insertion"]).0,0);
+}

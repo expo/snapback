@@ -28,7 +28,8 @@ const CHILD:&str="table parents:\n  n: int default 0\n  read <- allow\n  insert 
  for s in [include_str!("security/wave23/wave18-046.q"),include_str!("security/wave23/wave19-046.q")]{assert!(!has(s,"N_OPTIONAL_UPLOAD_CREATE"));}
  let asserted=OPTIONAL.replace("{photo,owner:viewer}","{photo:photo ! else REQUIRED,owner:viewer}");assert!(!has(&format!("{asserted}invariant docs always .photo != null\n"),"N_OPTIONAL_UPLOAD_CREATE"));
  let unconditional=CHILD.replace("  if photo != null:\n    insert photos {parent:p.id,photo}","  insert photos {parent:p.id,photo:photo ! else REQUIRED}");assert!(!has(&format!("{unconditional}invariant parents always exists photos[parent = .id]\n"),"N_OPTIONAL_UPLOAD_CREATE"));
- let conditional=CHILD.replace("add(photo: image <=10000 ?)","add(photo: image <=10000 ?, enabled:bool)").replace("if photo != null:","if enabled:").replace("parent:p.id,photo}","parent:p.id,photo:photo ! else REQUIRED}");assert!(has(&format!("{conditional}invariant parents always exists photos[parent = .id]\n"),"N_OPTIONAL_UPLOAD_CREATE"));
+ let conditional=CHILD.replace("add(photo: image <=10000 ?)","add(photo: image <=10000 ?, enabled:bool)").replace("if photo != null:","if enabled:").replace("parent:p.id,photo}","parent:p.id,photo:photo ! else REQUIRED}");assert!(!has(&format!("{conditional}invariant parents always exists photos[parent = .id]\n"),"N_OPTIONAL_UPLOAD_CREATE"),"independent boolean skips remain parent integrity/test coverage, not an upload-omission gate");
+ let omitted=CHILD.replace("parent:p.id,photo}","parent:p.id,photo:photo ! else REQUIRED}");assert!(has(&format!("{omitted}invariant parents always exists photos[parent = .id]\n"),"N_OPTIONAL_UPLOAD_CREATE"));
  let helper=OPTIONAL.replace("{photo,owner:viewer}","{photo:checked(photo),owner:viewer}")+"fn checked(photo:image <=10000 ?):\n  return photo ! else REQUIRED\n";assert!(!has(&format!("{helper}invariant docs always .photo != null\n"),"N_OPTIONAL_UPLOAD_CREATE"));
  let nullable=OPTIONAL.replace("add(photo: image <=10000 ?)","add(photo: image <=10000 ?, enabled:bool)").replace("{photo,owner:viewer}","{photo:(photo ! else REQUIRED) if enabled else null,owner:viewer}");assert!(!has(&format!("{nullable}invariant docs always .photo != null\n"),"N_OPTIONAL_UPLOAD_CREATE"),"nullable alternatives remain an integrity/test question, not a proven argument-omission gate");
 }
@@ -166,4 +167,31 @@ const CHILD:&str="table parents:\n  n: int default 0\n  read <- allow\n  insert 
 }
 #[test]fn carried_optional_evidence_keeps_advice_without_an_inferred_gate(){
  let s=include_str!("security/wave23/018.q");assert!(!has(s,"N_OPTIONAL_UPLOAD_CREATE"));assert!(has(s,"N_OPTIONAL_EVIDENCE"));
+}
+
+#[test]fn unconditional_helper_validated_children_do_not_require_upload_review(){
+ let s=CHILD.replace("  if photo != null:\n    insert photos {parent:p.id,photo}","  insert photos {parent:p.id,photo:checked(photo)}");
+ let s=format!("{s}fn checked(photo:image <=10000 ?):\n  return photo ! else REQUIRED\ninvariant parents always exists photos[parent = .id]\n");assert!(!has(&s,"N_OPTIONAL_UPLOAD_CREATE"));
+}
+#[test]fn one_mutation_keeps_independent_upload_sites(){
+ let s="table first:\n  photo:image <=10000 ?\n  read <- allow\n  insert <- deny\n  online only\ntable second:\n  photo:image <=10000 ?\n  read <- allow\n  insert <- deny\n  online only\ninvariant first always .photo != null\ninvariant second always .photo != null\nmutation add(photo:image <=10000 ?):\n  insert first {photo}\n  insert second {photo}\n  return null\n";
+ let r=notes(s);let ns=r.notes.iter().filter(|n|n.code=="N_OPTIONAL_UPLOAD_CREATE").collect::<Vec<_>>();assert_eq!(ns.len(),2,"{ns:?}");assert_ne!(ns[0].site,ns[1].site);
+}
+#[test]fn approval_children_with_two_parent_captures_cannot_suppress_the_target_question(){
+ let s="table flags:\n  owner:principal\n  suspended:bool\n  unique owner\n  immutable owner\n  read <- allow\n  insert <- allow\n  update <- allow\n  online only\ntable apps:\n  owner:principal\n  immutable owner\n  read <- allow\n  insert <- allow\n  online only\ntable approvals:\n  application:apps\n  checkedApplication:apps\n  status:enum('approved','rejected')\n  read <- allow\n  insert <- allow\n  online only\nmutation create():\n  f = flags[viewer]\n  require f = null or f.suspended = false else SUSPENDED\n  return insert apps {owner:viewer}\nmutation flag(owner:principal,suspended:bool):\n  upsert flags[owner] {owner,suspended}\nmutation approve(application:apps,other:apps):\n  target = apps[application] ! else MISSING\n  checked = apps[other] ! else MISSING\n  f = flags[checked.owner]\n  require f = null or f.suspended = false else SUSPENDED\n  return insert approvals {application:target.id,checkedApplication:checked.id,status:'approved'}\n";
+ assert!(has(s,"N_STALE_CREATION_CHECK"));
+}
+
+#[test]fn one_upload_argument_at_one_site_keeps_two_column_obligations(){
+ let s=OPTIONAL.replace("  photo: image <=10000 ?", "  photo: image <=10000 ?\n  other: image <=10000 ?").replace("{photo,owner:viewer}","{photo,other:photo,owner:viewer}");let r=notes(&format!("{s}invariant docs always .photo != null and .other != null\n"));let ns=r.notes.iter().filter(|n|n.code=="N_OPTIONAL_UPLOAD_CREATE").collect::<Vec<_>>();assert_eq!(ns.len(),2,"{ns:?}");assert_ne!(ns[0].message,ns[1].message);
+}
+
+#[test]fn generated_table_updates_keep_source_advice_total_on_historical_corpus(){
+ for s in [include_str!("security/wave23/wave15-027.q"),include_str!("security/wave23/wave15-030.q"),include_str!("security/wave23/wave21-038.q")]{for s in [s.to_string(),s.lines().filter(|l|!l.trim_start().starts_with("invariant ")).collect::<Vec<_>>().join("\n")]{let _=notes(&s);}}
+}
+
+#[test]fn explicit_parent_presence_is_independent_of_nullable_child_media(){
+ let optional=CHILD.replace("  photo: image <=10000\n", "  photo: image <=10000 ?\n");assert!(!has(&optional,"N_OPTIONAL_UPLOAD_CREATE"));
+ assert!(has(&format!("{optional}invariant parents always exists photos[parent = .id]\n"),"N_OPTIONAL_UPLOAD_CREATE"));
+ let always=optional.replace("  if photo != null:\n    insert photos {parent:p.id,photo}","  insert photos {parent:p.id,photo}");assert!(!has(&format!("{always}invariant parents always exists photos[parent = .id]\n"),"N_OPTIONAL_UPLOAD_CREATE"));
 }

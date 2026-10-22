@@ -33,8 +33,9 @@ fn normalize(bound:&Bound,indexes:&Indexes,creator:&Write<'_>,current:&Write<'_>
     let mut e=e.clone();let origins=if current.table==creator.table&&current.op==WriteOp::Update{
         current.keys.first().filter(|_|primary(bound,indexes,&current.table,&current.site,&current.keys)).and_then(|k|if k.column.as_deref()==Some("id"){named_id(bound,indexes,&k.value,current.p,&creator.table)}else{id_value(bound,indexes,&k.value,current.p,&creator.table)}).into_iter().collect::<BTreeSet<_>>()
     }else{
-        current.fields.iter().filter(|f|matches!(bound.schema.tables[&current.table].columns.get(&f.name).map(ColumnType::required),Some(ColumnType::Ref{table}) if table==&creator.table)).filter_map(field_value).filter_map(|e|id_value(bound,indexes,e,current.p,&creator.table)).collect()
+        current.fields.iter().filter(|f|matches!(bound.schema.tables[&current.table].columns.get(&f.name).map(ColumnType::required),Some(ColumnType::Ref{table}) if table==&creator.table)).map(|f|id_value(bound,indexes,field_value(f)?,current.p,&creator.table)).collect::<Option<BTreeSet<_>>>()?
     };
+    if !creation&&origins.len()!=1{return None;}
     super::super::super::intent_walk::expression(&mut e,&mut |e|{
         let field=if creation{stable_field(bound,creator,e)}else if let Expr::Member{base,name,..}=e{
             read(base).filter(|_|bound.schema.tables[&creator.table].immutable_fields().any(|c|c==name)).filter(|r|r.table==creator.table&&row_id(bound,indexes,r,current.p).is_some_and(|id|origins.contains(&id))).and_then(|_|creator.fields.iter().find(|f|f.name==*name)).and_then(field_value).and_then(|v|stable_field(bound,creator,v))
