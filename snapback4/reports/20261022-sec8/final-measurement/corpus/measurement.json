@@ -1,0 +1,6 @@
+{
+  "binarySha256": "fd62f32d5894624e80e508e564a859863caa50c623cad78586b6c48b1cab9a2b",
+  "originalBinary": "/home/ccheever/projects/sb4-b24-sec8/snapback4/target/x86_64-unknown-linux-musl/production/snapback4",
+  "projects": 450,
+  "mode": "corpus"
+}
