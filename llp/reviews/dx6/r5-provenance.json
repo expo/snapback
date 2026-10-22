@@ -1,0 +1,33 @@
+{
+  "sourceCommit": "efcbc21344665a0720f3afaf1fc216dc81aa8027",
+  "proposalSha256": "d6aebe547c3a3c9f1e4f0d7e783cc44a9295d25dd74531795af4344e3dbfb104",
+  "proposalCommittedPath": "llp/reviews/dx6/r5-amendment.md",
+  "startedAt": "2026-10-22T06:16:16.269745+00:00",
+  "completedObservedAt": "2026-10-22T06:27:05.397055+00:00",
+  "authorAcceptanceClaimed": false,
+  "reviews": [
+    {
+      "family": "codex",
+      "requestedModel": "gpt-6.1-sol",
+      "reasoningEffort": "high",
+      "freshSession": true,
+      "command": "timeout 1200s codex exec -m gpt-6.1-sol -c model_reasoning_effort=high --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox - < llp/reviews/dx6/r5-brief.md > llp/reviews/dx6/r5-codex.txt 2>&1",
+      "exitCode": 0,
+      "verdict": "READY",
+      "artifact": "llp/reviews/dx6/r5-codex.txt",
+      "sha256": "26c34f6e4b866ecd645556e93acc59f1fa73c012b8fb43a63fbe110dd2c0ef15"
+    },
+    {
+      "family": "muse",
+      "requestedModel": "muse-spark-1.3-contributor",
+      "reasoningEffort": "high",
+      "freshSession": true,
+      "command": "timeout 1200s /home/ccheever/sb4-loop/muse-exec.sh --yolo --model muse-spark-1.3-contributor --reasoning-effort high --prompt-file /home/ccheever/projects/sb4-b22-dx6/llp/reviews/dx6/r5-brief.md > llp/reviews/dx6/r5-muse.txt 2>&1",
+      "exitCode": 0,
+      "verdict": "READY",
+      "artifact": "llp/reviews/dx6/r5-muse.txt",
+      "sha256": "62f3c4adee2e10fe11a4eaa9b10dcd5cf4cffef39040fbf600bb6ccb8a443fa1"
+    }
+  ],
+  "result": "Both independent reviewers returned READY on the same committed proposal and source. Subsequent broader client verification exposed a stale E_AUTH capture regression; this source is not claimed qualified and is being repaired for R6. Muse also noted inconsistent informational startup held-until wording."
+}
