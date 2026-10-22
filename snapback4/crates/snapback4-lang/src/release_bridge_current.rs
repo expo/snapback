@@ -205,6 +205,21 @@ fn alpha(target: &[Source], current: &[Source]) -> Result<Option<Vec<Source>>, S
     if names.is_empty() {
         return Ok(None);
     }
+    // A legal table name may also spell a primitive type. Reprinting that
+    // identity in an argument/column must never turn a nominal Ref into Int,
+    // Principal, etc. Validate the parser's actual type interpretation.
+    for name in names.values() {
+        let probe = format!("table __rollback_type_probe:\n  value: {name}\n");
+        let (parsed, diagnostics) = parser::parse_document("rollback-type-probe.q", &probe);
+        if !diagnostics.is_empty()
+            || !matches!(parsed.tables.first().and_then(|t|t.columns.first()).map(|c|&c.type_.kind),Some(TypeKind::Ref{table}) if table==name)
+        {
+            return Err(
+                "a table identity spelling reparses as a scalar or unsupported reference type"
+                    .into(),
+            );
+        }
+    }
     let outputs = doc
         .tables
         .iter()
@@ -488,12 +503,12 @@ fn arg_type(
         if depth == 0
             && (matches!(
                 t.value.as_str(),
-                "," | ")" | "=" | "default" | "renamed" | "deprecated"
+                "," | ")" | "=" | "default" | "alias" | "renamed" | "deprecated"
             ) || t.kind == Kind::Newline)
         {
             return Ok((
                 offset(text, start.site.line, start.site.col),
-                offset(text, t.site.line, t.site.col),
+                text[..offset(text, t.site.line, t.site.col)].trim_end().len(),
             ));
         }
         match t.value.as_str() {

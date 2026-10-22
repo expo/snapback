@@ -85,7 +85,9 @@ pub(super) fn prepare(
         if !widening {
             continue;
         }
-        if crate::dev_worker::source(&Project {
+        if crate::dev_worker::source(&Project {root:stage.into()}).is_some()
+            || !crate::dev_worker::declared(&Project {root:stage.into()})?.is_empty()
+            || crate::dev_worker::source(&Project {
             root: old_root.clone(),
         })
         .is_some()

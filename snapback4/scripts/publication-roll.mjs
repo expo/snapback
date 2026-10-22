@@ -127,6 +127,10 @@ query doc(id: docs):
     assert.equal(created.state,'sent');assert.equal(created.result.owner,alice.principal);
     assert.equal((await post(host,alice,'doc',{id:created.result.id},'q')).data.secret,'current-intent');
     assert.equal((await post(host,bob,'doc',{id:created.result.id},'q')).data.secret,undefined);
+    await host.stop();host=await startServe(intentDir,hostOptions);
+    assert.equal((await post(host,alice,'doc',{id:created.result.id},'q')).data.secret,'current-intent');
+    const restarted=await post(host,alice,'create',{owner:bob.principal,secret:'after-restart'});
+    assert.equal(restarted.state,'sent');assert.equal(restarted.result.owner,alice.principal);
     await cli('rollback',intentDir,'--to','latest');
   } finally {await host.stop();}
   return {status:'passed',visibleRollback:true,currentGuards:true,currentIntentWorkflow:true,editedOutputs:true,referenceRename:true,privateFileExtraction:true,cycles:2};

@@ -7,6 +7,21 @@ use std::{
     sync::atomic::{AtomicU64, Ordering},
 };
 const BIN: &str = env!("CARGO_BIN_EXE_snapback4");
+
+#[test]
+fn current_first_worker_dependency_cannot_disappear_from_an_intent_view() {
+    let app=App::new();
+    let old="table docs:\n  owner: principal\n  public\n  online only\nmutation create():\n  return insert docs {owner:viewer}\n";
+    app.source(old);app.ok(&["deploy","deployment"]);
+    app.source(&format!("{old}invariant docs.read only true\n"));
+    fs::write(app.0.join("snapback/worker.mjs"),"export {};\n").unwrap();
+    for check in [true,false] {
+        let args=if check {vec!["deploy","deployment","--check"]}else{vec!["deploy","deployment"]};
+        let out=app.run(&args);assert!(!out.status.success(),"{}",text(&out));
+        assert!(text(&out).contains("authored worker bundle"),"{}",text(&out));
+        assert_eq!(app.json(&["releases","deployment"])["current"],1);
+    }
+}
 struct App(PathBuf);
 impl App {
     fn new() -> Self {

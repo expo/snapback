@@ -346,11 +346,70 @@ fn current_closure_accepts_list_interval_inclusion_and_new_optional_arguments() 
 #[test]
 fn a_literal_only_policy_repair_registers_a_view_without_any_domain_widening() {
     let old="table docs:\n  owner: principal\n  secret: text <=40\n  public\n  online only\nmutation create(owner: principal, secret: text <=40):\n  return insert docs {owner,secret}\ninvariant docs.secret write only .owner = viewer\n";
-    let current=old.replace("{owner,secret}","{owner:viewer,secret}");
-    let before=vec![("schema.q".into(),old.into())];let after=vec![("schema.q".into(),current)];
-    assert!(release_bridge::requires_view(&before,&after));
-    assert!(!release_bridge::requires_view(&after,&after));
-    let renamed_file=vec![("another-path.q".into(),after[0].1.clone())];
-    assert!(!release_bridge::requires_view(&after,&renamed_file));
-    let bridge=release_bridge::loosen(&before,&after);assert!(bridge.diagnostics.is_empty());assert_eq!(bridge.sources,after);
+    let current = old.replace("{owner,secret}", "{owner:viewer,secret}");
+    let before = vec![("schema.q".into(), old.into())];
+    let after = vec![("schema.q".into(), current)];
+    assert!(release_bridge::requires_view(&before, &after));
+    assert!(!release_bridge::requires_view(&after, &after));
+    let renamed_file = vec![("relocated/schema.q".into(), after[0].1.clone())];
+    assert!(!release_bridge::requires_view(&after, &renamed_file));
+    let bridge = release_bridge::loosen(&before, &after);
+    assert!(bridge.diagnostics.is_empty());
+    assert_eq!(bridge.sources, after);
+}
+
+#[test]
+fn typed_identity_rename_retains_new_argument_alias_metadata() {
+    let old="table docs:\n  owner: principal\n  public\n  online only\nquery one(id: docs):\n  return docs[id]\n";
+    let next = old
+        .replace("table docs:", "table records renamed from docs:")
+        .replace("id: docs", "id: records alias legacyId")
+        .replace("return docs[id]", "return records[id]")
+        + "invariant records.read only true\n";
+    let sources = vec![("schema.q".into(), next)];
+    assert!(compile(&sources).diagnostics.is_empty());
+    let bridge = release_bridge::loosen(&[("schema.q".into(), old.into())], &sources);
+    assert!(bridge.diagnostics.is_empty(), "{:?}", bridge.diagnostics);
+    let bound = compile(&bridge.sources);
+    let p = &bound
+        .programs
+        .iter()
+        .find(|p| p.program.name == "one")
+        .unwrap()
+        .program;
+    assert_eq!(
+        p.argument("legacyId").map(|(name, _)| name),
+        Some("id")
+    );
+}
+
+#[test]
+fn nominal_identity_cannot_reparse_as_a_primitive_argument_or_column() {
+    for name in ["int", "principal", "id", "time", "bool"] {
+        let old=format!("table {name}:\n  owner: principal\n  public\n  online only\nquery echo(value: {name}):\n  return value\n");
+        let next=format!("table records renamed from {name}:\n  owner: principal\n  public\n  online only\nquery echo(value: records):\n  return value\ninvariant records.read only true\n");
+        let sources = vec![("schema.q".into(), next)];
+        assert!(compile(&sources).diagnostics.is_empty());
+        let bridge = release_bridge::loosen(&[("schema.q".into(), old)], &sources);
+        assert!(
+            bridge
+                .diagnostics
+                .iter()
+                .any(|d| d.message.contains("reparses")),
+            "{name}: {:?}",
+            bridge.diagnostics
+        );
+    }
+}
+
+#[test]
+fn swapping_module_bodies_is_a_policy_change_even_with_identical_text_multisets() {
+    let schema="table docs:\n  owner: principal\n  public\n  online only\ninvariant docs.a.create only viewer = 'service:ops'\n";
+    let open="mutation create():\n  return insert docs {owner:viewer}\n";
+    let guarded="mutation create():\n  require viewer = 'service:ops' else OPS\n  return insert docs {owner:viewer}\n";
+    let old=vec![("schema.q".into(),schema.into()),("a.q".into(),open.into()),("b.q".into(),guarded.into())];
+    let next=vec![("schema.q".into(),schema.into()),("a.q".into(),guarded.into()),("b.q".into(),open.into())];
+    assert!(compile(&old).diagnostics.is_empty());assert!(compile(&next).diagnostics.is_empty());
+    assert!(release_bridge::requires_view(&old,&next));
+    let bridge=release_bridge::loosen(&old,&next);assert!(bridge.diagnostics.is_empty());assert_eq!(bridge.sources,next);
 }

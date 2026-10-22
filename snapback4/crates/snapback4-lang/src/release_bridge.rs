@@ -10,8 +10,8 @@ pub fn requires_view(target:&[(String,String)],current:&[(String,String)])->bool
     // Policy repairs need a current-closure view even when no value domain
     // widened. Byte-identical source needs no adapter (and equal-source
     // registration must not create an endless chain of equivalent parents).
-    let mut old_text=target.iter().map(|(_,s)|s).collect::<Vec<_>>();old_text.sort();
-    let mut next_text=current.iter().map(|(_,s)|s).collect::<Vec<_>>();next_text.sort();
+    let modules=|sources:&[(String,String)]| {let mut out=sources.iter().map(|(file,text)|(std::path::Path::new(file).file_stem().unwrap_or(std::ffi::OsStr::new("schema")).to_string_lossy().into_owned(),text.clone())).collect::<Vec<_>>();out.sort();out};
+    let old_text=modules(target);let next_text=modules(current);
     if old_text!=next_text && !crate::compile(current).invariants.is_empty(){return true;}
     let docs=current.iter().map(|(f,t)|parser::parse_document(f,t).0).collect::<Vec<_>>();
     let tables=docs.iter().flat_map(|d|&d.tables).collect::<Vec<_>>();
