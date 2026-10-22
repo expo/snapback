@@ -41,7 +41,7 @@ The legacy native-smoke custody test now uses the actual frozen 0.4.37 Expo scre
 
 ## Final review and literal guide coverage
 
-The final source review found that a zero-size overflow-hidden descendant could contribute text to a visible ancestor. The selector now intersects text-node Range rectangles with overflow-clipping ancestors; at a clip boundary it measures characters individually so a visible prefix cannot manufacture an entire hidden status. Layoutless display:contents wrappers and zero-size wrappers with visible overflow retain composed text. New browser checks cover hidden/scroll clipping, partial clipping, arbitrary locator freshness and layoutless wrappers. Final client build and all 12 proof-contract tests passed after this repair.
+The final source review found that a zero-size overflow-hidden descendant could contribute text to a visible ancestor. The selector now intersects text-node Range rectangles with overflow-clipping ancestors' client/padding boxes (excluding thick borders); at a clip boundary it measures characters individually so a visible prefix cannot manufacture an entire hidden status. Layoutless display:contents wrappers and zero-size wrappers with visible overflow retain composed text. New browser checks cover hidden/scroll clipping, partial clipping, thick-border clipping, arbitrary locator freshness and layoutless wrappers. Final client build and all 12 proof-contract tests passed after this repair.
 
 The caller-owned-browser fixture resolves Playwright from the packed SDK's installed peer (`698adfb852`); all 12 proof-contract tests passed against the day2 installed tarball. This preserves the documented shared-registry requirement.
 

@@ -27,7 +27,16 @@ function renderedTextEngine() {
       if (style.display === "none" || style.opacity === "0" || style.contentVisibility === "hidden") return "";
       const clipsOverflow = style.display !== "contents" && style.display !== "inline";
       const x = clipsOverflow && style.overflowX !== "visible", y = clipsOverflow && style.overflowY !== "visible";
-      if (x || y) clips.push({ box: element.getBoundingClientRect(), x, y });
+      if (x || y) {
+        let box = element.getBoundingClientRect();
+        const html = element as HTMLElement;
+        if (typeof html.offsetWidth === "number") {
+          const scaleX = html.offsetWidth ? box.width / html.offsetWidth : 1;
+          const scaleY = html.offsetHeight ? box.height / html.offsetHeight : 1;
+          box = new DOMRect(box.left + html.clientLeft * scaleX, box.top + html.clientTop * scaleY, html.clientWidth * scaleX, html.clientHeight * scaleY);
+        }
+        clips.push({ box, x, y });
+      }
     }
     const visible = (rect: DOMRect) => {
       let left = rect.left, right = rect.right, top = rect.top, bottom = rect.bottom;
