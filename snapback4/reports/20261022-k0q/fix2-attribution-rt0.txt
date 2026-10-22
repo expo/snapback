@@ -1,0 +1,15 @@
+SQLite
+RT0 sqlite warm: {"action_session_w1":39,"keyed_first":87,"narrowed_argument":46,"one_membership":80,"rate_limited":0,"replay_hit":40,"unauthenticated":0,"unkeyed_increment":79,"unknown_operation":46,"unknown_token":5,"w1_point":31,"w2_newest20":31}
+RT0 sqlite cold/first-use: {"action_session_w1":39,"keyed_first":87,"narrowed_argument":46,"one_membership":80,"rate_limited":0,"replay_hit":40,"unauthenticated":0,"unkeyed_increment":79,"unknown_operation":46,"unknown_token":5,"w1_point":32,"w2_newest20":31}
+test result: ok. 2 passed; 0 failed; 1 ignored; 0 measured; 541 filtered out; finished in 0.85s
+
+Postgres
+RT0 postgres warm: {"action_session_w1":29,"keyed_first":77,"narrowed_argument":26,"one_membership":58,"rate_limited":0,"replay_hit":30,"unauthenticated":0,"unkeyed_increment":57,"unknown_operation":26,"unknown_token":5,"w1_point":23,"w2_newest20":23}
+RT0 postgres cold/first-use: {"action_session_w1":32,"keyed_first":81,"narrowed_argument":26,"one_membership":58,"rate_limited":0,"replay_hit":30,"unauthenticated":0,"unkeyed_increment":58,"unknown_operation":26,"unknown_token":5,"w1_point":56,"w2_newest20":24}
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 543 filtered out; finished in 1.16s
+confirmed stopped status=3: /tmp/k0q-fix2-rt0-pg.uZTKu9
+
+Queue regression
+test engine::command::tests::request_attribution_is_captured_at_submission_and_does_not_leak_to_next_command ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 664 filtered out; finished in 0.01s
+

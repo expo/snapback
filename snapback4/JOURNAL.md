@@ -102354,3 +102354,20 @@ Removed its unused incremental cache before the long suites; lowest recorded
 free disk was 43G, above the 20 GB stop threshold. No RT5 files or processes were
 touched. No cluster was started. Owned runner/test/server PIDs left: none.
 No push or stash. The lane report preserves the failure and rebased hash map.
+
+
+## 2026-10-22 — K0-Q fix round 2 continuation: transfer RT0 attribution
+
+The lead resolved the RT0 checkpoint by commissioning explicit attribution
+transfer: test-only scopes now own shared atomic counts, and command submission
+captures the current handle for a thread-bound guard around the body and its
+synchronous continuation. The guard refuses nesting and clears on unwind;
+background maintenance and the unchanged dedicated Postgres renewal connection
+remain uncounted. The ordinary build retains the existing instrumentation gate.
+
+SQLite and private-Postgres RT0 both pass every unchanged table row, with
+keyed-first counts 87 and 77 respectively. The new queue regression proves
+submission-time capture and isolation of subsequent unscoped commands, including
+unwind. The private RT0 cluster is independently confirmed stopped (status 3,
+no postmaster.pid). Full round-2 qualification continues in the lane report;
+this entry does not replace the earlier checkpoint's stop evidence.

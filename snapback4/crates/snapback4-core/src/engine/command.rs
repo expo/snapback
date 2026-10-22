@@ -16,14 +16,21 @@ use std::{
 /// ```
 pub struct Command<T> {
     body: Box<dyn FnOnce(&mut Engine) -> T + Send + 'static>,
+    #[cfg(any(test, feature = "test-support"))]
+    attribution: Option<crate::round_trips::Handle>,
 }
 impl<T> Command<T> {
     pub fn new(body: impl FnOnce(&mut Engine) -> T + Send + 'static) -> Self {
         Self {
             body: Box::new(body),
+            #[cfg(any(test, feature = "test-support"))]
+            attribution: None,
         }
     }
     pub fn execute_on(self, engine: &mut Engine) -> T {
+        // @ref LLP 3000.009.001.000.001#5 — carry only the submitting request's counts across the queue, including its synchronous continuation.
+        #[cfg(any(test, feature = "test-support"))]
+        let _attribution = self.attribution.map(crate::round_trips::Handle::enter);
         (self.body)(engine)
     }
 }
@@ -131,6 +138,11 @@ impl Queue {
         &self,
         command: Command<T>,
     ) -> Result<(Work, Reply<T>), SubmitError> {
+        #[cfg(any(test, feature = "test-support"))]
+        let command = Command {
+            attribution: crate::round_trips::current(),
+            ..command
+        };
         let (sent, receiver) = mpsc::sync_channel(1);
         let started = Arc::new(std::sync::atomic::AtomicBool::new(false));
         let ticket = {

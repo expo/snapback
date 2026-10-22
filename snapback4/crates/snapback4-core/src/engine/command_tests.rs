@@ -199,3 +199,33 @@ fn disconnected_worker_distinguishes_not_started_from_unknown_execution() {
     drop(sent);
     assert_eq!(Reply { receiver, started }.wait(), Err(SubmitError::OutcomeUnknown));
 }
+#[test]
+fn request_attribution_is_captured_at_submission_and_does_not_leak_to_next_command() {
+    use crate::round_trips::{self, Counts, Scope};
+    let queue = Queue::start(engine(), 4).unwrap();
+    // Construct before the scope: attribution belongs to the submitter, not
+    // the command's creator or the worker's preceding request.
+    let command = Command::new(|_| {
+        round_trips::postgres(3);
+        round_trips::sqlite_statement();
+    });
+    let first = Scope::begin();
+    queue.submit(command).unwrap().wait().unwrap();
+    assert_eq!(first.counts(), Counts { postgres: 3, sqlite: 1 });
+    drop(first);
+    queue.call(Command::new(|_| {
+        assert!(round_trips::current().is_none());
+        round_trips::postgres(100);
+    })).unwrap();
+    let next = Scope::begin();
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        queue.call(Command::new(|_| {
+            round_trips::postgres(2);
+            panic!("command unwind");
+        })).unwrap();
+    }));
+    assert!(result.is_err());
+    assert_eq!(next.counts(), Counts { postgres: 2, sqlite: 0 });
+    drop(next);
+    queue.call(Command::new(|_| assert!(round_trips::current().is_none()))).unwrap();
+}
