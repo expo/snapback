@@ -4,7 +4,7 @@ const deliverySites = census();
 // The census test pins this mapping; there is no default for a new await.
 export const groups = {
   upload: [163],
-  ordinary: [0,2,3,9,14,15,16,17,19,28,29,30,31,48,52,53,54,55,57,58,59,61,62,65,68,77,78,79,80,82,83,84,92,93,94,95,99,115,117,119,133,154,162],
+  ordinary: [164,0,2,3,9,14,15,16,17,19,28,29,30,31,48,52,53,54,55,57,58,59,61,62,65,68,77,78,79,80,82,83,84,92,93,94,95,99,115,117,119,133,154,162],
   lookup: [1,87,88,89,90,91,100,101],
   media: [7,50,107,108,109,110,111,112,113,114,155],
   postcommit: [6],
@@ -12,7 +12,7 @@ export const groups = {
   reset: [20,21],
   adoption: [22,23,24,25,123,124,125],
   probe: [4,32,33,34,35,36,122,157],
-  follow: [37,38,39,40,41,42,43,44,45,46,47,135,136,137,138,156],
+  follow: [165,37,38,39,40,41,42,43,44,45,46,47,135,136,137,138,156],
   replay: [69,70,71,72,73],
   recovery: [60,85,86],
   acknowledgement: [81,96],
@@ -32,7 +32,15 @@ export const groups = {
 // shared HTTP decoder moved body I/O. The census still pins every exact ID;
 // new sites have no default classification. Case 156 is the new overload pause.
 export function fixtureIndex(index) {
-  const sites = deliverySites;
+  // DX6 reconciles staging credential custody before response clock publication.
+  // Failure before receipt decoding must recover durable writes; a failed
+  // heartbeat sample is optional to already durable custody and retries follow.
+  const added = site => (site.file === 'clock.ts' && site.expression.startsWith('this.reconcile('))
+    || (site.file === 'changes.ts' && site.expression === 'sampleChanges(response, json)');
+  const selected = deliverySites[index];
+  if (added(selected)) return selected.file === 'clock.ts' ? 164 : 165;
+  index -= deliverySites.slice(0, index).filter(added).length;
+  const sites = deliverySites.filter(site => !added(site));
   const media = site => site.file === 'uploads.ts' || site.file === 'web-upload-admission.ts' || site.file === 'app-uploads.ts' || site.file === 'assets.ts' || site.expression === 'uploads.prepare(current)' || site.expression === 'uploads.finish(current, why)' || site.expression === 'settleReceipt(history, receiptCall, { state: "failed", id: entry.id, why }, undefined, binding)';
   if (media(sites[index])) return 163;
   index -= sites.slice(0, index).filter(media).length;
@@ -66,5 +74,5 @@ export function recipe(ordinal) {
   return matches[0][0];
 }
 
-export const required = new Set([163,0,1,2,6,9,11,48,55,57,58,59,60,61,62,69,70,71,72,73,74,75,76,77,78,79,84,85,86,87,88,89,90,91,92,93,94,99,100,101,102,103,104,105,106,115,117,133,154]);
+export const required = new Set([164,163,0,1,2,6,9,11,48,55,57,58,59,60,61,62,69,70,71,72,73,74,75,76,77,78,79,84,85,86,87,88,89,90,91,92,93,94,99,100,101,102,103,104,105,106,115,117,133,154]);
 export const absorbs = new Set([37,44,47,49,51,56]);

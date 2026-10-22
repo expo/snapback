@@ -64,7 +64,7 @@
   },
   {
     "index": 9,
-    "id": "local.ts:sendPost:withReadSignal(path.startsWith(\"/q/\") ? version.signal : undefined, eph?.signal ?? aborter.signal, lifetime => withReadSignal(signal, lifetime, stopped => postForCaller(doFetch, base, path, request.headers, body, stopped, (json, status) => captured?.capture(json, status), decode, () => !versionBlocked())))#1",
+    "id": "local.ts:sendPost:withReadSignal(path.startsWith(\"/q/\") ? version.signal : undefined, eph?.signal ?? aborter.signal, lifetime => withReadSignal(signal, lifetime, stopped => postForCaller(doFetch, base, path, request.headers, body, stopped, received, decode, () => !versionBlocked())))#1",
     "recipe": "ordinary",
     "classification": "required",
     "absorbs": false
@@ -862,14 +862,14 @@
   },
   {
     "index": 123,
-    "id": "request-wait.ts:postForCaller:send().then(async response => ({ response, json: await readResponse(response, decode) }))#1",
+    "id": "request-wait.ts:postForCaller:send().then(async response => ({ response, json: await readResponse(response, decode, json => received(json, response.status)) }))#1",
     "recipe": "ordinary",
     "classification": "required",
     "absorbs": false
   },
   {
     "index": 124,
-    "id": "request-wait.ts:postForCaller:readResponse(response, decode)#1",
+    "id": "request-wait.ts:postForCaller:readResponse(response, decode, json => received(json, response.status))#1",
     "recipe": "ordinary",
     "classification": "required",
     "absorbs": false
@@ -981,510 +981,524 @@
   },
   {
     "index": 140,
+    "id": "clock.ts:wrapped:this.reconcile(response, request, () => { responses.set(response, { clock: this, order, request }); const stamp = response.headers.get(\"x-snapback-time\"); if (stamp !== null) this.sample(Number(stamp), sent, received, response.headers.get(\"x-snapback-clock\") ?? undefined, order); })#1",
+    "recipe": "ordinary",
+    "classification": "required",
+    "absorbs": false
+  },
+  {
+    "index": 141,
     "id": "clock.ts:save:core.call({ op: \"set_meta\", key: \"server-clock\", value })#1",
     "recipe": "clock",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 141,
+    "index": 142,
     "id": "changes.ts:changeFeed:doFetch(`${base}/changes?since=${seq}&wait=${seconds}${streaming ? \"&heartbeat=1\" : \"\"}${storeIdentity === undefined ? \"\" : `&store_id=${encodeURIComponent(storeIdentity)}`}${parameters}`, { headers, signal: controller.signal })#1",
     "recipe": "follow",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 142,
+    "index": 143,
     "id": "changes.ts:changeFeed:reader.read()#1",
     "recipe": "follow",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 143,
+    "index": 144,
     "id": "changes.ts:changeFeed:response.json()#1",
     "recipe": "follow",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 144,
+    "index": 145,
+    "id": "changes.ts:changeFeed:sampleChanges(response, json)#1",
+    "recipe": "follow",
+    "classification": "optional",
+    "absorbs": false
+  },
+  {
+    "index": 146,
     "id": "changes.ts:changeFeed:Promise.race([work, aborted])#1",
     "recipe": "follow",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 145,
+    "index": 147,
     "id": "local-search.ts:searchReplyIdentity:witness(json.store_id, json.head ?? json.seq, capture)#1",
     "recipe": "search",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 146,
+    "index": 148,
     "id": "local-search.ts:decode:reader.read()#1",
     "recipe": "search",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 147,
+    "index": 149,
     "id": "local-search.ts:decode:reader.cancel().catch(() => {})#1",
     "recipe": "search",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 148,
+    "index": 150,
     "id": "local-search.ts:ordinarySearch:env.call({ op: \"search_state\", name })#1",
     "recipe": "search",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 149,
+    "index": 151,
     "id": "local-search.ts:ordinarySearch:env.call({ op: \"query\", name, args: { ...args, [plan.cursor]: position.after }, viewer: env.principal, now: env.deviceNow(), search: true, spent: ledger.used })#1",
     "recipe": "search",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 150,
+    "index": 152,
     "id": "local-search.ts:ordinarySearch:blocked()#1",
     "recipe": "search",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 151,
+    "index": 153,
     "id": "local-search.ts:ordinarySearch:env.searchPost(`/q/${name}`, { args: { ...args, [plan.cursor]: position.after }, searchRetained: retained, ...decorationSelection }, r => ledger.decode(r))#1",
     "recipe": "search",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 152,
+    "index": 154,
     "id": "local-search.ts:ordinarySearch:blocked()#2",
     "recipe": "search",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 153,
+    "index": 155,
     "id": "local-search.ts:ordinarySearch:env.call({ op: \"search_state\", name, spent: ledger.used, ...(decorationRows ? { decorationRows, viewer: env.principal, now: env.deviceNow() } : {}) })#1",
     "recipe": "search",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 154,
+    "index": 156,
     "id": "local-search.ts:ordinarySearch:env.call({ op: \"query\", name, viewer: env.principal, args: { ...args, [plan.cursor]: position.after }, now: env.deviceNow(), spent: ledger.used })#1",
     "recipe": "search",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 155,
+    "index": 157,
     "id": "local-query.ts:route:env.installNative(env.signal)#1",
     "recipe": "search",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 156,
+    "index": 158,
     "id": "local-query.ts:route:server()#1",
     "recipe": "search",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 157,
+    "index": 159,
     "id": "local-query.ts:route:blocked()#1",
     "recipe": "search",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 158,
+    "index": 160,
     "id": "local-query.ts:route:ordinarySearch(env, op.name, args, search, checkpoint, blocked)#1",
     "recipe": "search",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 159,
+    "index": 161,
     "id": "local-query.ts:route:local()#1",
     "recipe": "search",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 160,
+    "index": 162,
     "id": "local-query.ts:route:routeLocal(first)#1",
     "recipe": "search",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 161,
+    "index": 163,
     "id": "http-response.ts:readResponse:decode(response)#1",
     "recipe": "queryDecode",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 162,
+    "index": 164,
     "id": "http-response.ts:readResponse:response.json()#1",
     "recipe": "ordinary",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 163,
+    "index": 165,
     "id": "uploads.ts:change:this.env.call(request)#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 164,
+    "index": 166,
     "id": "uploads.ts:uploadAndPlace:blobArrayBuffer(bytes)#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 165,
+    "index": 167,
     "id": "uploads.ts:uploadAndPlace:this.change({ op: \"admit_upload\", entry })#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 166,
+    "index": 168,
     "id": "uploads.ts:uploads:this.env.queued()#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 167,
+    "index": 169,
     "id": "uploads.ts:uploadIntent:this.env.queued()#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 168,
+    "index": 170,
     "id": "uploads.ts:uploadIntent:this.env.write(id)#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 169,
+    "index": 171,
     "id": "uploads.ts:retryUpload:this.change({ op: \"upload_state\", id, viewer: this.env.viewer, state: \"queued\" })#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 170,
+    "index": 172,
     "id": "uploads.ts:discardUpload:this.change({ op: \"upload_state\", id, viewer: this.env.viewer, state: \"cancelling\" })#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 171,
+    "index": 173,
     "id": "uploads.ts:serverUploads:this.env.capture()#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 172,
+    "index": 174,
     "id": "uploads.ts:serverUploads:this.request(`${this.env.base}/assets/intents?store_id=${encodeURIComponent(capture.store_id)}&after=${encodeURIComponent(after)}`,{headers:credentials.headers})#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 173,
+    "index": 175,
     "id": "uploads.ts:cancelServerUpload:this.env.capture()#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 174,
+    "index": 176,
     "id": "uploads.ts:cancelServerUpload:this.request(`${this.env.base}/assets/intent/${encodeURIComponent(id)}/cancel?store_id=${encodeURIComponent(capture.store_id)}`,{method:\"POST\",headers:credentials.headers},true)#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 175,
+    "index": 177,
     "id": "uploads.ts:request:response.json()#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 176,
+    "index": 178,
     "id": "uploads.ts:request:work#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 177,
+    "index": 179,
     "id": "uploads.ts:request:waitForCaller(work, this.env.signal ?? new AbortController().signal,()=>acknowledged)#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 178,
+    "index": 180,
     "id": "uploads.ts:finish:this.request(`${this.env.base}/assets/intent/${encodeURIComponent(entry.id)}/finish?store_id=${encodeURIComponent(entry.upload.store_id)}`, { method: \"POST\", headers: credentials.headers, body: JSON.stringify({ op: entry.op, args: entry.args, why: {code:why.code.slice(0,128),family:why.family.slice(0,128),message:why.message.slice(0,4096),retryable:false,...(why.guide?{guide:why.guide.slice(0,128)}:{})} }) })#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 179,
+    "index": 181,
     "id": "uploads.ts:prepare:this.env.capture()#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 180,
+    "index": 182,
     "id": "uploads.ts:prepare:this.change({ op: \"upload_state\", id: entry.id, viewer: this.env.viewer, state: \"blocked\", why: { code: \"E_STORE_REPLACED\", family: \"store\", message: \"upload belongs to its original viewer and backend store\" } })#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 181,
+    "index": 183,
     "id": "uploads.ts:prepare:this.request(`${this.env.base}/assets/intent/${encodeURIComponent(entry.id)}/cancel?store_id=${encodeURIComponent(u.store_id)}`, { method: \"POST\", headers: credentials.headers })#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 182,
+    "index": 184,
     "id": "uploads.ts:prepare:this.change({op:\"upload_state\",id:entry.id,viewer:this.env.viewer,state:\"cancelling\",why:result.json.denied??storeError(\"cancellation acknowledgement is unknown\")})#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 183,
+    "index": 185,
     "id": "uploads.ts:prepare:this.change({ op: \"upload_state\", id: entry.id, viewer: this.env.viewer, state: \"uploading\" })#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 184,
+    "index": 186,
     "id": "uploads.ts:prepare:this.request(`${this.env.base}/assets/intent/${encodeURIComponent(entry.id)}/declare?store_id=${encodeURIComponent(u.store_id)}`, { method:\"POST\", headers:credentials.headers, body:JSON.stringify({digest:hexBytes(sha256(bytes)),placement:{op:entry.op,args:u.original_args,argument:u.argument},...(u.file?{file:u.file}:{})})})#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 185,
+    "index": 187,
     "id": "uploads.ts:prepare:this.change({op:\"upload_state\",id:entry.id,viewer:this.env.viewer,state:\"blocked\",why:declaration.json.denied??storeError(\"intent declaration was not accepted\")})#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 186,
+    "index": 188,
     "id": "uploads.ts:prepare:waitForCaller(uploadAsset(this.env.base, credentials.headers, this.env.fetch, bytes, current, u.file ? { file: u.file } : undefined, { id: entry.id, store: u.store_id, signal: this.env.signal }), this.env.signal ?? new AbortController().signal)#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 187,
+    "index": 189,
     "id": "uploads.ts:prepare:this.change({ op: \"upload_state\", id: entry.id, viewer: this.env.viewer, state: \"blocked\", why: result.why })#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 188,
+    "index": 190,
     "id": "uploads.ts:prepare:this.change({ op: \"upload_ready\", id: entry.id, viewer: this.env.viewer, store_id: u.store_id, asset: result.asset })#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 189,
+    "index": 191,
     "id": "uploads.ts:prepare:this.change({op:\"upload_state\",id:entry.id,viewer:this.env.viewer,state:\"blocked\",why:error})#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 190,
+    "index": 192,
     "id": "assets.ts:uploadAsset:doFetch(target, { method: \"POST\", headers: { ...auth, \"content-type\": contentType }, body, ...(intent?.signal ? { signal: intent.signal } : {}) })#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 191,
+    "index": 193,
     "id": "assets.ts:uploadAsset:response.json()#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 192,
+    "index": 194,
     "id": "assets.ts:uploadAsset:new Promise(resolve => setTimeout(resolve, delay))#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 193,
+    "index": 195,
     "id": "app-uploads.ts:uploadAndPlace:refusal()#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 194,
+    "index": 196,
     "id": "app-uploads.ts:uploads:refusal()#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 195,
+    "index": 197,
     "id": "app-uploads.ts:uploads:uploads.uploads()#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 196,
+    "index": 198,
     "id": "app-uploads.ts:uploadIntent:refusal()#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 197,
+    "index": 199,
     "id": "app-uploads.ts:uploadIntent:uploads.uploadIntent(id)#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 198,
+    "index": 200,
     "id": "app-uploads.ts:retryUpload:refusal()#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 199,
+    "index": 201,
     "id": "app-uploads.ts:discardUpload:refusal()#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 200,
+    "index": 202,
     "id": "app-uploads.ts:serverUploads:refusal()#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 201,
+    "index": 203,
     "id": "app-uploads.ts:serverUploads:uploads.serverUploads(after)#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 202,
+    "index": 204,
     "id": "app-uploads.ts:cancelServerUpload:refusal()#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 203,
+    "index": 205,
     "id": "web-upload-admission.ts:authorizeUpload:storeLock(stamp.key, async () => { if (!await sameAdmissionAuthority(stamp, context, viewer)) { context.recheck(); return { denied: admissionAuthorityRefusal() }; } return await execute(); })#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 204,
+    "index": 206,
     "id": "web-upload-admission.ts:authorizeUpload:sameAdmissionAuthority(stamp, context, viewer)#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 205,
+    "index": 207,
     "id": "web-upload-admission.ts:authorizeUpload:execute()#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 206,
+    "index": 208,
     "id": "web-upload-admission.ts:recoverUploadHistory:receiptHistory(persist, name)#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 207,
+    "index": 209,
     "id": "web-upload-admission.ts:recoverUploadHistory:invoke({op:\"check_upload_receipt\",entry,write:known})#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 208,
+    "index": 210,
     "id": "web-upload-admission.ts:check:recoverUploadHistory(invoke,persist,name,entry)#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 209,
+    "index": 211,
     "id": "web-upload-admission.ts:preflightUpload:authorizeUpload(stamp,context,String(entry.viewer??\"\"),check)#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 210,
+    "index": 212,
     "id": "web-upload-admission.ts:preflightUpload:check()#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 211,
+    "index": 213,
     "id": "local.ts:flushOnce:for await receiptBatch(queued, history)",
     "recipe": "ordinary",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 212,
+    "index": 214,
     "id": "local-assets.ts:remove:this.call({ op: \"set_meta\", key: `media:bytes:${id}`, value: \"\" })#1",
     "recipe": "media",
     "classification": "optional",

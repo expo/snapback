@@ -341,7 +341,9 @@ test("the app client forwards keep while its lifetime fence still withdraws data
 
 test("createApp forwards source expiry while sessionStore.get is held", async t => {
   const url = "http://app-keep-expiry.test", wall = Date.now(), deadline = wall + 3_600_000;
-  const clock = new ServerClock(() => wall), memory = memorySessionStore(), held = deferred();
+  let scopeClock;
+  const clock = new ServerClock(() => wall), fork = clock.fork.bind(clock), memory = memorySessionStore(), held = deferred();
+  clock.fork = () => scopeClock = fork();
   const session = { kind: "user", token: "kept", principal: "alice", expiresAt: wall + 90 * 86400000 };
   await keepSession(url, session, memory);
   let holding = false, blocked = 0;
@@ -362,7 +364,7 @@ test("createApp forwards source expiry while sessionStore.get is held", async t 
   watch.subscribe(() => snapshots.push(watch.getSnapshot()));
   await until(() => watch.getSnapshot().data === "expires" && watch.getSnapshot().fresh);
   holding = true; snapshots.length = 0;
-  clock.sample(deadline + 1, wall, wall, "server:1");
+  scopeClock.sample(deadline + 1, wall, wall, "server:1");
   await until(() => blocked > 0);
   await delay(10);
   assert.deepEqual(watch.getSnapshot(), { loading: true }, "session storage cannot hold an expired row on screen");
@@ -371,7 +373,9 @@ test("createApp forwards source expiry while sessionStore.get is held", async t 
 
 for (const keep of [undefined, true, false]) test(`createApp ${keep !== false ? "keeps" : "withdraws"} a superseded answer while replacement authority is held`, async t => {
   const url = "http://app-keep-expiry.test", wall = Date.now(), deadline = wall + 3_600_000;
-  const clock = new ServerClock(() => wall), memory = memorySessionStore(), held = deferred();
+  let scopeClock;
+  const clock = new ServerClock(() => wall), fork = clock.fork.bind(clock), memory = memorySessionStore(), held = deferred();
+  clock.fork = () => scopeClock = fork();
   const session = { kind: "user", token: "kept", principal: "alice", expiresAt: wall + 90 * 86400000 };
   await keepSession(url, session, memory);
   let holding = false, blocked = 0, queries = 0;
@@ -410,7 +414,7 @@ for (const keep of [undefined, true, false]) test(`createApp ${keep !== false ? 
     remount.close();
   } else assert.deepEqual(watch.getSnapshot(), { loading: true });
   snapshots.length = 0;
-  clock.sample(deadline + 1, wall, wall, "server:1");
+  scopeClock.sample(deadline + 1, wall, wall, "server:1");
   await delay(10);
   assert.deepEqual(watch.getSnapshot(), { loading: true }, "superseded A cannot remain visible past its own deadline");
   if (keep !== false) assert.ok(snapshots.some(read => read.loading), "A's own expiry notifies before authority resumes");

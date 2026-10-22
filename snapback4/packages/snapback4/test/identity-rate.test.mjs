@@ -4,7 +4,7 @@ import {setTimeout as sleep} from "node:timers/promises";
 import {guest, login, signup} from "../dist/auth.js";
 import {seedAccounts} from "../dist/proof.js";
 const limited=(retryAfterMs=40)=>({denied:{code:"E_RATE_LIMIT",family:"auth",message:"wait",retryable:true,retryAfterMs}});
-const session=()=>({session:{principal:"user:one",kind:"password",token:"bearer",expiresAt:Date.now()+86400000}});
+const session=()=>({session:{principal:"user:one",kind:"user",token:"bearer",expiresAt:Date.now()+86400000}});
 const response=(json,status=200,headers={})=>Response.json(json,{status,headers});
 
 for(const kind of ["guest","signup","login"])test(`${kind} waits for the server delay and preserves scope without sending retry options`,async()=>{

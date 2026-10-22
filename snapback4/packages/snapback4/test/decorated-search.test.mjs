@@ -344,7 +344,7 @@ for(const episode of [false,true]) test(`createClient accepts skewed decoration 
     {table:'messages',row:{id:'m',text:'coffee',at:1,expires:null}},
     {table:'profiles',row:{id:'p',name:'Label',expires:deadline}},
   ])});
-  const clock=new ServerClock();let skew=false,unknown=false,hold=false;const requests=[],gateReply=gate();
+  let scopeClock;const clock=new ServerClock(),fork=clock.fork.bind(clock);clock.fork=()=>scopeClock=fork();let skew=false,unknown=false,hold=false;const requests=[],gateReply=gate();
   const client=createClient({url,persona:'bob',fetch:clock.wrap(async(input,init)=>{
     const path=new URL(input).pathname;if(path==='/changes')return parkedChanges(init.signal);
     if(path==='/q/decorated'){requests.push(performance.now());if(hold)await gateReply.promise;}
@@ -359,7 +359,7 @@ for(const episode of [false,true]) test(`createClient accepts skewed decoration 
   await until(()=>watch.getSnapshot().data?.[0]?.label==='Label');
   const before=watch.getSnapshot();publications.length=0;
   if(episode){const {answerObservation}=await import('../dist/read-observation.js');answerObservation(before).reload(true);}
-  skew=true;hold=true;clock.sample(deadline+3600000,Date.now(),Date.now(),'skew:1');
+  skew=true;hold=true;scopeClock.sample(deadline+3600000,Date.now(),Date.now(),'skew:1');
   const masked=watch.getSnapshot();assert.equal(masked.data?.[0]?.label,null);assert.deepEqual(pageFacts(masked),pageFacts(before));
   gateReply.release();hold=false;
   const at=requests.length,one=await client.query(op('decorated'),{q:'coffee'});
@@ -378,7 +378,7 @@ for(const episode of [false,true]) test(`createClient accepts skewed decoration 
 });
 
 test('createClient source-page deadline still withdraws a decorated page',async t=>{
-  const clock=new ServerClock();let serverNow=1000,queryCalls=0;const stopReply=gate();
+  let scopeClock;const clock=new ServerClock(),fork=clock.fork.bind(clock);clock.fork=()=>scopeClock=fork();let serverNow=1000,queryCalls=0;const stopReply=gate();
   const client=createClient({url:'http://expiry.invalid',persona:'bob',fetch:clock.wrap(async(input,init)=>{
     if(new URL(input).pathname==='/changes')return parkedChanges(init.signal);
     if(++queryCalls>1)await stopReply.promise;
@@ -387,9 +387,9 @@ test('createClient source-page deadline still withdraws a decorated page',async 
   })});t.after(async()=>{stopReply.release();await client.close();});
   const watch=client.observe(op('decorated'),{});t.after(()=>watch.close());
   await until(()=>watch.getSnapshot().data?.length===1);
-  serverNow=2000;clock.sample(serverNow,Date.now(),Date.now(),'clock:2000');
+  serverNow=2000;scopeClock.sample(serverNow,Date.now(),Date.now(),'clock:2000');
   assert.equal(watch.getSnapshot().data?.[0]?.label,null);
-  serverNow=3000;clock.sample(serverNow,Date.now(),Date.now(),'clock:3000');
+  serverNow=3000;scopeClock.sample(serverNow,Date.now(),Date.now(),'clock:3000');
   assert.deepEqual(watch.getSnapshot(),{loading:true});
 });
 

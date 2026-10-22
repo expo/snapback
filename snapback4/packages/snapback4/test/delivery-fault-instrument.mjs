@@ -461,3 +461,10 @@ export function awaitBoundary() {
 // DX5: proof.ts adds an await to project clockCall().now for the staging clock.
 // It owns no client delivery, outbox or receipt work; existing fault sites and
 // recipes are unchanged. The boundary census is regenerated from merged sources.
+
+// Integration 22: DX6's app/session-timing waits reconcile credential custody
+// before clock publication; request-wait captures a decoded response inside its
+// decoder callback before scope retirement. The clock reconciliation and stream
+// sample awaits enter the explicit matrix as required receipt and optional
+// follow boundaries. All earlier recipes retain their semantic sites. Proof/text
+// waits own browser/operator work only. The census is regenerated from source.

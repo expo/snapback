@@ -101,7 +101,7 @@ for (const entry of cases) for (const mode of (process.env.RG_MATRIX_MODE ? [pro
       results.push({index:sites.indexOf(site),id:site.id,mode,recipe:scenario,classification:'optional',injected:failures,reached:true});
       return;
     }
-    direct = [11,18,26,27,35,42,50,72,156,157].includes(index);
+    direct = [11,18,26,27,35,42,50,72,156,157,164,165].includes(index);
     alias = [49,51,56].includes(index) ? 'local-exit.ts:exitTransport:response.json' : index === 106 ? 'local-exit-settlement.ts:exitRefusalSettlement:options.commit' : index === 138 ? 'changes.ts:changeFeed:doFetch' : undefined;
     let prepared = false, api, suspend, first, queueIds = [], once = false, queueRelease;
     const why = {code:'RG_KNOWN', family:'application', message:'known refusal'};

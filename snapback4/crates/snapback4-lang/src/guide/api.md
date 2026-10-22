@@ -42,7 +42,7 @@ Expo starters load `snapback4-expo/metro` and `snapback4-expo/native-smoke` from
 | `snapback4/worker` | a worker performing emitted effects (`guide effects`) | `runWorker`, `runGeneratedEffects`, `listEffects`, `mintSession`, `revokeSessions`, `Retry`, `GiveUp` | `Effect`, `EffectHandler`, `WorkerOptions`, `Worker` |
 | `snapback4/server` | `use server` handlers: actions and routes (`guide actions`) | `startServer`, `ServerError`, `ParkStep` | `ServerOptions`, `ServerHandlers`, `RouteHandler`, `ServerContext` |
 | `snapback4/identity` | an OIDC sign-in adapter for `use server` | `oidcHandlers` | `OidcConfiguration`, `OidcSession` |
-| `snapback4/witness-web` | Exported browser proof registration | `registerWebWitness`, `witnessForm` | `WitnessReason` |
+| `snapback4/witness-web` | Exported browser proof registration | `registerWebWitness`, `witnessForm`, `webWitnessObserverScript` | `WitnessReason` |
 | `snapback4/proof` | bounded backend, frontend and browser application proofs | `startDev`, `startServe`, `seedAccounts`, `startStatic`, `startVite`, `loadFixtures`, `cli`, `command`, `deploy`, `rollback`, `testSource`, `bounded`, `cleanup`, `stopChild`, `portRange`, `withBrowser`, `sandboxUnavailable`, `renderedText`, `frontPage`, `logsDir`, `waitForClock`, `waitForFresh`, `waitForServer`, `fillRN`, `statusText`, `selectByValue` | `ProofHost`, `DevHost`, `ServeHost`, `ServeOptions`, `SeedAccountsOptions`, `StagingAccount`, `StagingSessions`, `ProofOptions`, `CliResult`, `TestSourceOptions`, `TestSourceResult`, `FixtureRow`, `LoadFixturesOptions` |
 | `snapback4/bin-path` | the platform binary, to spawn `dev` or `serve` without the Node wrapper | `resolveBinary` | |
 
