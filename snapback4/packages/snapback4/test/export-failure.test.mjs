@@ -16,7 +16,7 @@ function install(root) {
   const installed = path.join(root, 'node_modules/snapback4');
   fs.mkdirSync(path.join(installed, 'bin'), { recursive: true });
   fs.mkdirSync(path.join(installed, 'dist'));
-  for (const name of ['snapback4.js', 'upgrade-warnings.js']) fs.copyFileSync(path.join(pkg, 'bin', name), path.join(installed, 'bin', name));
+  for (const name of ['snapback4.js', 'upgrade-warnings.js', 'release-changes.js']) fs.copyFileSync(path.join(pkg, 'bin', name), path.join(installed, 'bin', name));
   fs.copyFileSync(path.join(pkg, 'dist/resolve-binary.js'), path.join(installed, 'dist/resolve-binary.js'));
   fs.writeFileSync(path.join(installed, 'package.json'), '{"type":"module"}');
   fs.mkdirSync(path.join(root, 'node_modules/.bin'));

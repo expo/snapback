@@ -39,25 +39,29 @@ test("DX5 migration scan lists array/shell JSON consumers without source content
   assert.match(warnings, /scripts\/multiline.mjs/);assert.doesNotMatch(warnings,/scripts\/unrelated.mjs/);
   assert.match(warnings, /JSON.parse\(stdout\).rows/); assert.doesNotMatch(warnings, /NEVER_PRINT_SOURCE|ignored|linked/);
 });
-test("DX5 first check emits warnings before a refused compiler and preserves captured quiet-upgrade advice", t => {
+test("DX5 first check emits warnings before a refused compiler and acknowledges captured upgrade advice", t => {
   const cwd = fixture(t); mkdirSync(join(cwd,"snapback")); mkdirSync(join(cwd,"scripts"));
   writeFileSync(join(cwd,"package.json"), '{"name":"upgrade-case"}');
   writeFileSync(join(cwd,"snapback/schema.q"), "use identity password\ninvalid schema\n");
   writeFileSync(join(cwd,"scripts/old.mjs"), 'startDev(); fetch("/seed"); const args=["data","notes","--json"];');
+  writeFileSync(join(cwd,"package-lock.json"), JSON.stringify({packages:{"node_modules/snapback4":{version:"0.4.32"}}}));
   const wrapper = resolve(import.meta.dirname,"../bin/snapback4.js");
   const check = env => spawnSync(process.execPath,[wrapper,"check","--json"],{cwd,env:{...process.env,...env},encoding:"utf8",timeout:30000});
   const baseline=check({SNAPBACK4_UPGRADE_BASELINE:"1"}); assert.doesNotMatch(baseline.stderr,/upgrade warning/);
   for(let n=0;n<2;n++) {
     const result=check({SNAPBACK4_UPGRADE_BASELINE:""}); assert.notEqual(result.status,0);
     assert.equal(JSON.parse(result.stdout).ok,false);
-    for(const text of [/doors are CLOSED/,/startDev\(\) persists/,/JSON.parse\(stdout\).rows/]) assert.match(result.stderr,text);
-    assert.equal(existsSync(join(cwd,".snapback4/project-warnings-version.json")),false,"captured stderr is not proof of delivery");
+    if(n===0) for(const text of [/doors are CLOSED/,/startDev\(\) persists/,/JSON.parse\(stdout\).rows/]) assert.match(result.stderr,text);
+    else assert.doesNotMatch(result.stderr,/upgrade warning:/);
+    assert.equal(existsSync(join(cwd,".snapback4/project-warnings-version.json")),true,"successful captured stderr delivery is acknowledged");
   }
 });
 test("DX5 terminal delivery acknowledges project warnings separately from compiler history", t => {
   const cwd=fixture(t);mkdirSync(join(cwd,"snapback"));
   writeFileSync(join(cwd,"package.json"),'{"name":"visible-check"}');
   writeFileSync(join(cwd,"snapback/schema.q"),"use identity password\n");
+  writeFileSync(join(cwd,"package-lock.json"), JSON.stringify({packages:{"node_modules/snapback4":{version:"0.4.32"}}}));
+  mkdirSync(join(cwd,"scripts"));writeFileSync(join(cwd,"scripts/old.mjs"),'fetch("/seed");');
   const descriptor=Object.getOwnPropertyDescriptor(process.stderr,"isTTY"),write=process.stderr.write,lines=[];
   try {
     Object.defineProperty(process.stderr,"isTTY",{configurable:true,value:true});

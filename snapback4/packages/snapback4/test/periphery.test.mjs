@@ -583,7 +583,7 @@ test("CLI and Node device share environment, platform-package and repository bin
   const platformDir = join(pkgDir, `node_modules/snapback4-${process.platform}-${process.arch}`);
   for (const path of [join(pkgDir, "dist"), join(pkgDir, "bin"), platformDir, join(dir, "target/release"), join(dir, "target/debug")]) mkdirSync(path, { recursive: true });
   writeFileSync(join(pkgDir, "package.json"), '{"type":"module"}');
-  for (const file of ["dist/native.js", "dist/resolve-binary.js", "bin/snapback4.js", "bin/upgrade-warnings.js"]) copyFileSync(join(root, "packages/snapback4", file), join(pkgDir, file));
+  for (const file of ["dist/native.js", "dist/resolve-binary.js", "bin/snapback4.js", "bin/upgrade-warnings.js", "bin/release-changes.js"]) copyFileSync(join(root, "packages/snapback4", file), join(pkgDir, file));
   writeFileSync(join(platformDir, "package.json"), '{"name":"fixture"}');
   const candidates = [join(dir, "override"), join(platformDir, "snapback4"), join(dir, "target/release/snapback4"), join(dir, "target/debug/snapback4")];
   for (const file of candidates) writeFileSync(file, "binary resolution fixture");

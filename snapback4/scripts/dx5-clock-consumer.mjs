@@ -26,7 +26,7 @@ job releaseOld():
 schedule releaseHourly every 1h: releaseOld
 `);
 await deploy("staging", "snapback", {args:["--staging"]});
-let host = await startServe("staging", {clockOffset:"+30m"});
+let host = await startServe("staging", {clockOffset:"+2h"});
 let account;
 const post = async (route, args = {}) => {
   const response = await fetch(host.url + route, {method:"POST", headers:{authorization:`Bearer ${account.session.token}`}, body:JSON.stringify({args}), signal:AbortSignal.timeout(10000)});
@@ -60,7 +60,7 @@ try {
   const body = JSON.parse(held.stdout);
   assert.equal(body.held.length, 1); assert.equal(body.fired.length, 0);
   assert.doesNotMatch(body.sessionNotice, /unsafe-dev-doors/);
-  const resumed = await host.advance("2h"); assert.equal(resumed.fired.length, 1);
+  const resumed = await host.advance("3h"); assert.equal(resumed.fired.length, 1);
   assert.ok((await post("/q/mine")).data.every(r => r.status === "released"));
-  console.log("DX5 staging: fired, persisted/equal boundary held, CLI notice and recovery passed");
+  console.log("DX5 staging: fired, persisted future boundary held, CLI notice and recovery passed");
 } finally { await host.stop(); }
