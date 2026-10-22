@@ -101003,3 +101003,26 @@ witness, and allows its owned cluster's shutdown checkpoint 180 seconds before
 independent stop confirmation. Full checks, isolated reruns, the retained 40001
 flake and generated-metadata repair are recorded in
 `reports/20261022-s10c-postgres-arm.md`.
+
+
+### 2026-10-22 — S10c: final qualification record
+
+Full SQLite core and device runs pass: 1,042 / 0 failed / 5 ignored and
+1,573 / 0 failed / 4 ignored. The host run records 1,409 passed / 2 failed /
+15 ignored; its inherited clock timeout passes alone, and the lexical
+store-port false positive is resolved by adapter-owned declarations with all
+seven ratchet tests passing. All three supplied host baseline cases pass.
+The combined ratchets/census pass 16 tests; compiled owning-handle guards pass
+in default and Postgres builds. Binary, no-default core, device web/wasm and
+internal Postgres production checks pass, as do guide error-code coverage and
+all 27 codec census tests.
+
+The final private-Postgres stages pass 208 family/oracle tests, both member
+savepoint tests, the compiled guard and the HTTP witness. The known default-C
+40001 exhausts its retry budget in the full run and two isolated reruns; the
+unchanged case passes under en_US.utf8. The full script exits and the corrected
+metadata/harness/stop-wait stages are recorded without claiming an all-green
+full script. Every owned cluster is independently confirmed stopped, and the
+shared scale cluster was untouched. See `reports/20261022-s10c-postgres-arm.md`
+for the admission/refusal list, tail evidence, oracles, exact qualifications
+and remaining S10d boundaries.

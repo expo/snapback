@@ -96,15 +96,21 @@ terminal NUL, and orphan effects. Effect staging makes no driver calls for
 1, 8 or 16 effects; completion is one CTE execution plus savepoint release
 (with one additional cold prepare on the first member).
 
+The facade property is in [members.rs](../crates/snapback4-core/src/engine/postgres/tests/members.rs);
+completion, cache and call-count regressions are in
+[unified_tail.rs](../crates/snapback4-core/src/engine/postgres/tests/unified_tail.rs).
+
 ## Evidence and qualification
 
-The in-process HTTP host uses the unified engine and a real private Postgres
+The [in-process HTTP witness](../crates/snapback4/tests/serve_postgres/mod.rs)
+uses the unified engine and a real private Postgres
 cluster. It passes guest bearer identity, an identified write, replay without
 re-execution, id-reuse refusal, query data/head/store identity, failed receipt
 replay, unknown preservation, logout and subsequent token rejection. This is
 the existing HTTP host harness, not a public CLI or background-worker witness.
 
-The three-store overlap test runs SQLite/common Postgres/evaluator Postgres
+The [three-store oracles](../crates/snapback4-core/src/engine/postgres/tests/oracles.rs)
+run SQLite/common Postgres/evaluator Postgres
 with prefetch off and on. Each mode compares 24 writes, 24 replays, 48 reads
 and 6 rolled-back refusals, including reply data, logical meters, completion,
 cursors, rows, logs and ledger. The C1 derived-page witness uses the existing
@@ -117,7 +123,13 @@ larger witness remains 68 off / 8 on. Its 7,418 query and 19,265 write precharge
 positions still match. No relaxed allowance or universal speedup is claimed.
 
 Transcripts, exit statuses, process records and cluster stop receipts live
-under `/tmp/s10c-checks`.
+under `/tmp/s10c-checks`. Full SQLite runs are `core.log`, `host.log` and
+`device.log`; repaired/final builds use the `final-` prefix. The current
+Postgres stages are `final-pg-families`, `final-pg-member`, `final-pg-handles`
+and `final-pg-witness`, with independently checked shutdown in
+`all-clusters-final-stop.json`. The default/locale script transcripts and
+both isolated `40001` reruns are retained separately. No all-green exit is
+claimed for either historical full Postgres script invocation.
 
 | Check | Result |
 | --- | --- |
@@ -127,10 +139,11 @@ under `/tmp/s10c-checks`.
 | Device web/wasm no-default-features | Pass, including the final rerun |
 | Full SQLite core suite | **1,042 passed / 0 failed / 5 ignored** |
 | Full SQLite host suite | **1,409 passed / 2 failed / 15 ignored**; isolated reruns below |
-| Full SQLite device suite | Pending |
-| Ratchets, census and compiled guards | Pending final runs |
-| Guide emitted-code coverage | Pending |
-| Wasm codec census | Pending |
+| Full SQLite device suite | **1,573 passed / 0 failed / 4 ignored** |
+| Ratchets and concrete-handle census | **16 passed**, no allowance changes |
+| Compiled handle guards | **1 passed** in each of the default and Postgres builds |
+| Guide emitted-code coverage | **1 passed**; no new error codes |
+| Wasm codec census | **27 passed** |
 | Postgres script default | **Nonzero**; 204 family/overlap + 2 member + 19 corpus pass; retained 40001 and metadata issue below |
 | Postgres script en_US.utf8 | **Nonzero**; 58 evaluator + 206 family/overlap + 2 member + 19 corpus + 1 compiled guard pass; corrected HTTP witness passes alone |
 | Final scoped Postgres rerun | **208 family/oracle + 2 member + 1 compiled guard + 1 HTTP passed** |
@@ -184,5 +197,6 @@ No source, third-party cache, other target or shared cluster was removed. The
 Building commits: `3d848a5d83` (arm/refusals), `6048732718` (concrete SQLite
 fixtures), `8b686eebbc` (admission/opening), `15c8885a6c` (opening atomicity and
 untimed bookkeeping), `c104f6b1e6` (member tail), `c90300717a` (portable opening
-key bound). The witness commit carries this current record; final broad-suite results are
-recorded in a separate qualification commit.
+key bound), `603afe4154` (HTTP/family/oracle witnesses and adapter-owned
+handle declarations). Final broad-suite results are recorded in the separate
+qualification commit carrying this report.
