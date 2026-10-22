@@ -84,9 +84,9 @@ await withBrowser({logsDir:"browser-logs",executablePath:process.env.CHROME},asy
  <div class="clip"><div class="spacer"></div><div>Clipped secret</div></div>
  <div style="opacity:0">Transparent secret</div><div style="display:none">Display secret</div>
  <div style="visibility:hidden">Hidden secret<span style="visibility:visible">Override visible</span></div>
- <div style="height:0;overflow:auto">Zero scroll secret</div>`);
- for(const text of ["Order ready","Nested reachable","Override visible"]) assert.equal(await renderedText(page,text).count(),1,text);
- for(const text of ["Negative unreachable","Clipped secret","Transparent secret","Display secret","Hidden secret","Zero scroll secret"]) assert.equal(await renderedText(page,text).count(),0,text);
+ <div style="height:0;overflow:auto">Zero scroll secret</div><div style="position:fixed;top:-100px">Fixed unreachable</div><div style="position:fixed;top:10px;right:10px">Fixed visible</div>`);
+ for(const text of ["Order ready","Nested reachable","Override visible","Fixed visible"]) assert.equal(await renderedText(page,text).count(),1,text);
+ for(const text of ["Negative unreachable","Clipped secret","Transparent secret","Display secret","Hidden secret","Zero scroll secret","Fixed unreachable"]) assert.equal(await renderedText(page,text).count(),0,text);
  assert.equal(await page.locator("#rn").evaluate(e=>e.scrollTop),0,"selector never scrolls the app");
  assert.equal(await page.locator("#nested").evaluate(e=>e.scrollTop),0);
 });

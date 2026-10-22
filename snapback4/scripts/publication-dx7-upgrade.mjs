@@ -56,7 +56,7 @@ export async function proveDX7Upgrades(client,platform){
    r=await run(process.execPath,[cli,"check","--ack-security",id,"--reason","draft creator is unreachable under deny insert"]);assert.equal(r.status,0,r.stderr);
    const review=readFileSync(join(cwd,"snapback/security-reviews.json"));
    writeFileSync(join(cwd,"snapback/schema.q"),schema+"table exposed:\n  owner: principal\n  read <- allow\n  online only\ninvariant exposed.read only .owner = viewer\n");
-   mkdirSync(join(cwd,"fixtures"));writeFileSync(join(cwd,"fixtures/exposed.jsonl"),JSON.stringify({id:"one",owner:"other"})+"\n");
+   mkdirSync(join(cwd,"fixtures"));writeFileSync(join(cwd,"fixtures/exposed.jsonl"),JSON.stringify({id:"one",owner:"dev:other"})+"\n");
    r=await run(process.execPath,[cli,"test","--fixture-only"]);assert.equal(r.status,1,"fixture gives a reachable refutation");
    r=await run(process.execPath,[cli,"check","--json","--ack-security",id,"--reason","cannot override a counterexample"]);assert.equal(r.status,1);facts=JSON.parse(r.stdout);assert.match(facts.acknowledgmentNotApplied,/cannot override a concrete counterexample/);assert.deepEqual(readFileSync(join(cwd,"snapback/security-reviews.json")),review);
    results.push({from:version,publishedIntegrity:published.dist.integrity,oldWrapperSha256,candidateAlias:candidate,status:"passed",gate:"new installed check refuses; explicit individual review clears gate",refutation:"acknowledgment suppressed, persisted review unchanged"});

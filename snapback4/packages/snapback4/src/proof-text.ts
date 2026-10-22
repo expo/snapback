@@ -51,6 +51,7 @@ function renderedTextEngine() {
           dy: scrollY ? [(html.scrollTop - maxY) * scaleY, html.scrollTop * scaleY] : [0, 0] });
       }
     }
+    if (!scrollCoupled) clips.push({ box: new DOMRect(0, 0, document.documentElement.clientWidth, document.documentElement.clientHeight), x: true, y: true, dx: [0, 0], dy: [0, 0] });
     // Compose legal scroll movement and clips from the nearest ancestor out.
     // This accepts an inner scrollport behind an outer real clip, but cannot
     // manufacture text positioned before the scrollable origin.
