@@ -55,6 +55,16 @@ of all ten later packed groups, including staging and clean Ubuntu/Alpine
 userspaces, passed (`dx7-qualify-continuation.json`). This is scoped evidence,
 not an overall qualification or publication receipt.
 
+The completed five-crate run found two more instances in
+`snapback4-sim --test maintains_recorded`:
+`equivalence_after_deletion_reuse_and_unswept_expiry` and
+`activation_dangling_expired_reused_and_removed_paths`. Both reproduce on the
+unmodified origin/main snapshot (17 passed, 2 failed), with the same source
+reservation error. Evidence: `~/sb4-loop/dx7-baseline-sim-results.json` and
+`dx7-baseline-maintains_recorded.log`; the disposable source/target were removed.
+The final total is twenty baseline-confirmed reservation failures, plus the
+separately tracked predecessor execution-facts failure.
+
 Reproduction: run the two named `init` tests on origin/main with
 `CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0`.
 Inspect the reservation derivation/validation around following/timeline fixtures
