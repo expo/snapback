@@ -841,7 +841,7 @@ pub(crate) fn query_params(url: &str) -> BTreeMap<String, String> {
 // operation. Mutation replay's seq is historical; head is never that receipt.
 #[path = "serve_head.rs"]
 mod head;
-use head::{response_head, intent_store};
+use head::{response_head, intent_store, argument_refusal};
 
 fn operation_refusal(request: Request, shared: &Shared, status: u16, why: Refusal) {
     let metadata = shared.read_identity();
@@ -1089,23 +1089,7 @@ fn handle(mut request: Request, shared: &Shared) {
             },
             Err(refusal) => respond_timed(request, shared, if refusal.retryable { 503 } else { 401 }, json!({ "denied": refusal_json(&refusal) })),
         },
-        (Method::Get, "/auth/config") => {
-            let config = shared.engine.call(|engine, shared| {
-                let environment = if shared.personas { "development" }
-                    else if engine.store().deployment_environment().ok().flatten().as_deref() == Some("staging") { "staging" } else { "production" };
-                (engine.schema().auth.clone(), environment)
-            });
-            let (auth, environment) = match config {
-                Ok(config) => config,
-                Err(why) => return respond_timed(request, shared, 503, json!({"denied":why})),
-            };
-            // @ref LLP 3000.011.003.000.000#1 — an opt-in proof marker asserts the directly bound server, without granting authority.
-            let mut config = json!({ "guests": auth.guests, "password": auth.password, "development": shared.personas, "devDoors": shared.dev_doors(), "environment": environment });
-            if let Ok(id) = std::env::var("SNAPBACK4_PROOF_ID") && !id.is_empty() {
-                config["proof_id"] = json!(id);
-            }
-            respond_timed(request, shared, 200, config);
-        }
+        (Method::Get, "/auth/config") => crate::auth::config(request, shared),
         (Method::Get, "/") => {
             let seq = match shared.read_head() {
                 Ok((_, seq)) => seq,
@@ -1542,17 +1526,4 @@ mod poison_tests;
 // All raw (asset/native/route/empty) replies advertise the admitted generation too.
 pub(crate) fn generation_header()->Option<Header>{
     crate::release_requests::reply_generation().map(|g|Header::from_bytes("X-Snapback-Generation",g.to_string()).unwrap())
-}
-
-// Typed mutation inputs have one terminal failure envelope, including wire decoding.
-fn argument_refusal(request:Request,shared:&Shared,id:Option<&str>,why:Refusal){
-    if !request.url().starts_with("/m/") {return operation_refusal(request,shared,400,why);}
-    match shared.read_identity() {
-        Ok((store_id,head,generation))=>{
-            let mut reply=json!({"state":"failed","why":refusal_json(&why),"store_id":store_id,"head":head,"generation":generation});
-            if let Some(id)=id {reply["id"]=json!(id);}
-            respond_timed(request,shared,200,reply);
-        }
-        Err(error)=>respond_timed(request,shared,503,json!({"denied":refusal_json(&error)})),
-    }
 }

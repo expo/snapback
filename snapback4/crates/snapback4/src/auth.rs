@@ -377,3 +377,22 @@ mod tests {
         assert!(a.attempt("3", None, now));
     }
 }
+
+/// Public identity options use the same bounded writer and typed refusals.
+pub(crate) fn config(request: Request, shared: &Shared) {
+    let config = shared.engine.call(|engine, shared| {
+        let environment = if shared.personas { "development" }
+            else if engine.store().deployment_environment().ok().flatten().as_deref() == Some("staging") { "staging" } else { "production" };
+        (engine.schema().auth.clone(), environment)
+    });
+    let (auth, environment) = match config {
+        Ok(config) => config,
+        Err(why) => return respond_timed(request, shared, 503, json!({"denied":why})),
+    };
+    // @ref LLP 3000.011.003.000.000#1 — an opt-in proof marker asserts the directly bound server, without granting authority.
+    let mut config = json!({ "guests": auth.guests, "password": auth.password, "development": shared.personas, "devDoors": shared.dev_doors(), "environment": environment });
+    if let Ok(id) = std::env::var("SNAPBACK4_PROOF_ID") && !id.is_empty() {
+        config["proof_id"] = json!(id);
+    }
+    respond_timed(request, shared, 200, config);
+}

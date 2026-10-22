@@ -102258,3 +102258,10 @@ Keep that request parked at reader checkout while adopting and expiring/revoking
 its bearer, then release it. All original no-write, no-new-commit, and authority
 refusal assertions remain; durable and memory cases keep their queue barriers.
 The failure was rerun alone before adapting the fixture.
+
+
+K0-Q fix round 1 layout follow-up: keep both serving entry modules below
+1,500 lines. Auth config now lives with the existing auth handlers; the
+memory publication regression lives with the committer serving witnesses.
+The moves preserve behavior and keep the strengthened progress assertions
+(query data and successful ephemeral/durable outcomes) in the same scope.

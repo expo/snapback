@@ -292,8 +292,17 @@ fn detached_reads_and_ephemeral_finish_while_the_writer_and_a_mutation_are_block
         for result in [first, second] {
             let (path, response) = result.expect("reader/ephemeral serialized behind the writer");
             assert_eq!(status(&response), 200, "{path}: {response}");
+            let reply = body(&response);
+            if path == "/q/read" {
+                assert_eq!(reply["data"], 1, "{reply}");
+            } else {
+                assert_eq!(reply["state"], "sent", "{reply}");
+                assert!(reply.get("ephemeral").is_some(), "{reply}");
+            }
         }
-        assert_eq!(status(&writer.join().unwrap()), 200);
+        let response = writer.join().unwrap();
+        assert_eq!(status(&response), 200, "{response}");
+        assert_eq!(body(&response)["state"], "sent");
     });
     drop(host);
     std::fs::remove_dir_all(directory).unwrap();

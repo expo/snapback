@@ -351,7 +351,7 @@ fn renewal_commit_stall_expires_admission_and_queued_replies_independently() {
         .unwrap();
     fixture.control.batch_execute(&format!("CREATE FUNCTION lease_commit_barrier() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN PERFORM pg_advisory_xact_lock({key}); RETURN NEW; END $$; CREATE CONSTRAINT TRIGGER lease_commit_barrier AFTER UPDATE ON _owner DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION lease_commit_barrier()")).unwrap();
     wait(|| {
-        fixture.control.query_one("SELECT query='COMMIT' AND wait_event='advisory' FROM pg_stat_activity WHERE pid=$1", &[&lease_pid]).unwrap().get::<_,bool>(0)
+        fixture.control.query_one("SELECT COALESCE(query='COMMIT' AND wait_event='advisory',false) FROM pg_stat_activity WHERE pid=$1", &[&lease_pid]).unwrap().get::<_,bool>(0)
     });
     let until = Instant::now() + Duration::from_secs(1);
     while !queue.ownership_lost() && Instant::now() < until {

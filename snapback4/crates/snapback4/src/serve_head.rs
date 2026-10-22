@@ -29,3 +29,16 @@ pub(super) fn intent_store(engine: &Engine, payload: &Json) -> Result<(), Refusa
     .rewrite("reconcile this write with its original store before submitting new intent")
     .guide("sync"))
 }
+
+// Typed mutation inputs have one terminal failure envelope, including wire decoding.
+pub(super) fn argument_refusal(request:Request,shared:&Shared,id:Option<&str>,why:Refusal){
+    if !request.url().starts_with("/m/") {return operation_refusal(request,shared,400,why);}
+    match shared.read_identity() {
+        Ok((store_id,head,generation))=>{
+            let mut reply=json!({"state":"failed","why":refusal_json(&why),"store_id":store_id,"head":head,"generation":generation});
+            if let Some(id)=id {reply["id"]=json!(id);}
+            respond_timed(request,shared,200,reply);
+        }
+        Err(error)=>respond_timed(request,shared,503,json!({"denied":refusal_json(&error)})),
+    }
+}
