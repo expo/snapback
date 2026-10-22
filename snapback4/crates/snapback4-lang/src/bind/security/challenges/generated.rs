@@ -136,6 +136,15 @@ pub fn fixture(bound:&Bound,out:&mut Campaign)->Result<Engine,String>{
     creator_actors.sort_by_key(|actor|!roster_principals.contains(actor));
     // Authored insertion bodies preserve requires, immutable copies, defaults,
     // role checks on principal arguments and multi-table creation invariants.
+    // @ref LLP 3000.036.004#1710-concrete-intent-child-dependencies — syntax reads order exploration without claiming evaluator support.
+    let mut dependent_children=BTreeMap::<String,BTreeSet<String>>::new();
+    for inv in &bound.invariants{
+        let children=dependent_children.entry(inv.table.clone()).or_default();
+        if let Some(policy)=&inv.policy{children.extend(kernel::dependencies(policy));}
+        if let Some(mut syntax)=inv.syntax.clone(){crate::bind::intent_walk::expression(&mut syntax,&mut |expr|match expr{
+            ast::Expr::Read(read)|ast::Expr::Exists{read,..}|ast::Expr::Created{read,..}=>{children.insert(read.table.clone());},_=>{}
+        });}
+    }
     let mut attempts=0usize;let mut root_observed=false;
     for _ in 0..=bound.schema.tables.len().min(12){
         let before=readback(&engine)?;
@@ -144,7 +153,7 @@ pub fn fixture(bound:&Bound,out:&mut Campaign)->Result<Engine,String>{
             // Preserve a pre-transition root population. Later derived creators
             // can otherwise consume every pending lifecycle row during setup.
             // @ref LLP 3000.036.004#179-preserve-the-pre-transition-root-when-observing-dependent-children — unrelated reference arguments must not spend the one root observation.
-            let related_creator=p.args.values().any(|kind|matches!(kind,ir::ArgType::Ref{table} if created.contains(table)&&engine.store().rows(table).is_ok_and(|rows|!rows.is_empty())&&bound.invariants.iter().any(|inv|inv.table==*table&&inv.policy.as_ref().is_some_and(|policy|writes.iter().any(|(child,kind)|matches!(*kind,"insert"|"upsert")&&kernel::dependencies(policy).contains(child))))));
+            let related_creator=p.args.values().any(|kind|matches!(kind,ir::ArgType::Ref{table} if created.contains(table)&&engine.store().rows(table).is_ok_and(|rows|!rows.is_empty())&&dependent_children.get(table).is_some_and(|children|writes.iter().any(|(child,kind)|matches!(*kind,"insert"|"upsert")&&children.contains(child)))));
             if !root_observed&&(related_creator||writes.iter().any(|(_,kind)|matches!(*kind,"update"|"upsert"|"delete"))){
                 root_observed=true;
                 if out.generated_fixture&&out.work_remaining.is_none()&&validate_fixture(bound,&mut engine).is_ok(){
