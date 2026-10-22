@@ -298,6 +298,7 @@ schedule whose saved boundary is ahead of the clock is held: dev prints
 refuses E_CLOCK_HELD before moving time and names the next window. Explicit --allow-held accepts the retained boundary.
 Use --no-drain for a mutation deadline test before maintenance; clock drain resumes it.
 Staging preserves remaining session lifetime by default; --expire-sessions tests expiry explicitly.
+Its offset, logical time and pending maintenance pause persist with the staging store; restart continues them, and clock drain finishes paused work without replaying the advance.
 Rows stamped under an offset keep their times after restart; use a fresh store per offset test.
 Run time-travel suites on a disposable store and a separate port, from the project directory:
 
@@ -329,7 +330,7 @@ If inspection fails, startup reports "store-ahead inspection unavailable" and co
 normal store/schema admission still applies. Unparsable row images are never read by this check.
 `check --store` checks schema adoption, not a running process's clock.
 
-An advance extends held effect and action leases, including actions' viewer sessions, by its duration; ordinary sessions and retry times stay put.
+In dev, an advance extends held effect and action leases, including actions' viewer sessions, by its duration; ordinary sessions and retry times stay put.
 Devices keep the server's time for predictions, reads and expiry, including offline starts.
 `clock advance` and `--clock-offset` reach connected devices at their next response.
 Estimated server time is unfloored: it refines the offset and schedules server-answer refetches.

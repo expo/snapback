@@ -3056,13 +3056,17 @@ try {
   backwards. Its offset resets on process restart; supply it again, or start `dev --resume-clock` to continue
   from the store's newest commit stamp (or saved schedule boundary). Rows stamped under an
   offset keep their times after restart; use a fresh store per offset test.
+  Classified staging uses `startServe("staging")` and its operator clock controls instead:
+  the cumulative offset, logical time and unfinished maintenance pause persist with the store.
+  Restart continues that clock; a smaller explicit offset cannot rewind it. Use `drain()`
+  to finish paused work after restart, without replaying an ambiguous advance (`guide time`).
   Devices keep the server's time for predictions, reads and expiry, including offline starts.
   `clock advance` and `--clock-offset` reach connected devices at their next response.
   Estimated server time is unfloored and schedules server-answer refetches; issued device
   time (`client.now()`) is monotonic and drives device execution, predictions, expiry and rendering.
   Freshness labels (`since` / `syncedAt`) stay on wall time for "as of three minutes ago".
-  `serve` refuses every clock control with
-  `E_CLOCK_DEV_ONLY`; invalid or backward advances refuse `E_CLOCK_INPUT`. Scripts may call the same
+  Production `serve` refuses clock controls with `E_CLOCK_DEV_ONLY`; classified staging accepts its local
+  operator controls. Invalid or backward advances refuse `E_CLOCK_INPUT`. Scripts may call the same
   loopback-only dev endpoint, `POST /dev/clock/advance` with `{"duration":"+2m"}`. `guide clock` has the
   recipe. `POST /dev/jobs/<job>` with `{"args":{..}}` queues one run of any job as the system on the dev clock,
   behind earlier queued runs, and answers its run (`state` `done` or `parked`) once it finishes; `serve` refuses
