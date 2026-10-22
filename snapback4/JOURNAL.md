@@ -102002,3 +102002,127 @@ records the contract and fresh Muse/Codex READY reviews. SEC8 owns security
 questionnaires, lifecycle advice, presence intent and invariant test semantics.
 The source version is unchanged. Per-item tests and qualification are recorded
 in WORKSTREAM-REPORT.md; no publication or push is performed by this lane.
+
+## 2026-10-22 — RT5: qualify the flight mechanism, serving unchanged
+
+Added the round-trip RFC's two B2 candidates as test/experiment code only.
+The single literal/text codec uses typed SQL PREPARE/EXECUTE, ASCII UTF-8 hex
+conversion and explicit casts; it pins/verifies UTF8 text output, three float
+digits beyond the historical minimum (`extra_float_digits=3`) and hex bytea.
+DateStyle, locale and string-literal settings do not interpret admitted values.
+The core compiles the module only for tests/test-support; the existing standalone
+commit-path binary includes that source in its `rt5` feature, with its existing
+timer and samplers. Historical SQLite cells still call the removed raw handle;
+they are omitted by that feature, with no raw escape reopened.
+
+The edge-table/seeded difftest covers optional scalars and arrays, signed and
+float endpoints/subnormals/non-finite values, Unicode/combining/quoted text,
+all bytes and the tail's exact eighteen array slots. Typed NUL errors poison
+the transaction exactly as Bind does. Sequence-backed error-at-k witnesses
+prove subsequent commands are skipped. After an observed head-lock wait,
+ordered SimpleQuery and VOLATILE PL/pgSQL both see the holder's new generation,
+authority and receipt; the one-statement VOLATILE SQL control sees old facts.
+The prototype functions are installed only by the fixture, never at attach.
+
+C=32 loopback smoke, 1 s warm-up / 4 s window, three fresh processes: W1 is
+26,636 / 34,920 / 29,573 executions/s for per-statement / SimpleQuery / PL/pgSQL,
+with p50 1.229 / 0.917 / 1.069 ms. Mutations are 226 / 227 / 230/s with
+head-lock/WALSync pressure and very different tails. Every repetition passes
+its transcript and durable-counter checks. This is non-qualifying for the
+Hetzner decision: (a) is correctness-qualified and promising for W1, while
+mechanism adoption waits for the lead's 450b→450a run. The experiment README
+provides target/password-file commands and independent SSH streams as in S1b.
+RT6 still owns connection qualification, encoder-scratch accounting and real
+serving integration/ratchets. No production behavior or budget changes here.
+
+[The RT5 report](./reports/20261022-rt5-flight-mechanism/REPORT.md) retains the
+exact smoke percentiles, checks, inherited harness build failure and process
+cleanup. Work stayed in this branch and target: no push, stash, remote run,
+other worktree changes or use of the host's PG17/55440 cluster.
+
+RT5 verification completed: build and no-default core check pass; the full
+core suite has 1,075 unfiltered passes/five ignores plus one subprocess pass.
+The corrected five RT5 cases pass on the original cluster and again on the
+en_US.utf8 script cluster. All 369 Rust tests in the full PG retry pass; that
+script remains red for a 45-second public bootstrap deploy timeout. The same
+public witness passes alone, including P1-MC; the unresolved full-script timing
+is recorded in `issues/20261022-postgres-public-bootstrap-witness-timeout.md`.
+The default historical harness's nine raw-SQLite-handle compile errors also
+reproduce alone; the RT5 feature builds and measures successfully. Ref-check
+passes. PG16 uses precise shortest float output for the pinned positive
+`extra_float_digits` setting. All six private postmaster lifetimes and six
+public serve PIDs have independent stop confirmation; 59 recorded PID checks
+and the target-executable census are empty. PIDs left: none.
+
+### 2026-10-22 — RT5 fix round 1: codec review fixes and mechanism decision
+
+Fast-forwarded `sb4-pg/rt5` to the lead's `8f6d9b0b0d` qualifying Hetzner
+record. Fixed both blind reviews' search_path failure: every encoder function,
+cast type and PREPARE type now names pg_catalog explicitly, as does output
+setting verification. The decoder uses prepared OIDs and Rust parsers.
+An app-first hostile namespace shadows decode/convert_from/current_setting,
+a text domain over varchar(1), and every other emitted type name; the Bind
+TEXT OID stays built-in and both paths return the intended value. This is
+encoder session independence, separate from rule 9's attach shape checks.
+
+The encoder excludes NAME, BPCHAR and VARCHAR (including typmods) and their
+arrays: the port binds TEXT rather than coercing strings. Scalar/array
+64-byte ASCII and 66-byte Unicode tests reproduce NAME Bind's 42622 and
+aborted state, assert exclusion, and retain the complete values through
+TEXT. The admitted codec types are bool, i16/i32/i64, f32/f64, TEXT, BYTEA
+and their unit-bound one-dimensional arrays; current durable bindings use
+bool/i64/TEXT/BYTEA. NUL remains a terminal typed input refusal.
+
+Float comparisons now use exact bits. The NaN witness checks native Bind
+preserves positive/negative, quiet/signaling and nonzero-payload inputs,
+while PostgreSQL text output erases sign/payload. It independently checks
+server float4send/float8send and requires the literal/decoder canonical form
+exactly: positive quiet f32 0x7fc00000 and f64 0x7ff8000000000000. Current port
+facts do not expose NaN payload/sign. Seeded coverage now includes f32 and
+nullable arrays of both widths. A client decode failure after successful
+SimpleQuery no longer sets bind_refused; both it and a caught native Row::get
+failure can roll back a savepoint, execute again and commit only rows [1,3].
+All eight RT5 tests pass on C and en_US.utf8, including the existing ordered
+error guard and observed-lock-wait witnesses. The first local attempt found
+an unqualified TEXT cast in the test's generated tail SQL; that fixture is
+corrected and its failed log retained.
+
+The lead's [Hetzner run](./experiments/postgres-commit-path/results-rt5-hetzner/README.md)
+measures W1 (a) 8,535/s, p50 3.36 ms vs (b) 5,589/s vs per-statement 4,686/s;
+mutations (a) 141/s vs (b) 110/s vs 79/s, with every correctness counter
+passing. Ping p50 0.59–0.64 ms, p99 <=3.73 ms. With review items 1–4 passing,
+**RT5 adopts (a) per §3.6.** Catalog qualification, exclusion of unused string
+types, explicit existing NaN canonicalization and client decode-error state
+preserve expression/flight structure (W1 3; mutation 8). The existing network
+numbers still apply without rerun. The RFC implementation note, experiment
+README and [report](./reports/20261022-rt5-flight-mechanism/REPORT.md) now say so.
+RT6 still owns serving integration, per-connection qualification, memory
+accounting, client validation boundaries and actual serving ratchets.
+
+RT5 record clarification: the string narrowing is the relevant port census.
+Auxiliary attach statements also bind i32 and ownership lease statements bind
+finite f64 seconds; the preceding bool/i64/TEXT/BYTEA list was not exhaustive.
+The admitted codec set above includes these, and no NaN payload/sign is a
+current port fact. The RFC/README/report now state the string census directly.
+
+RT5 fix-round-1 verification completed 2026-10-23: ordinary build, no-default
+check and full core pass (1,075 unfiltered + one subprocess pass; five ignores).
+All eight RT5 tests pass on C and en_US.utf8, with final extra assertions of
+native Bind NaN text output. The full PG script has 371 Rust passes / one
+known experimental serializable stress failure (40001); the exact isolated
+rerun also fails in Serializable after Serialized completes 65 increments.
+The existing 20260916 stress ticket records both failures. All other PG stages
+and the complete public serving/P1-MC milestone pass; no retry or timeout
+policy changed. Fresh ordinary release build passes; nm sees 477 production
+PG symbols, zero encoder symbols and zero RT5 string markers. Ref-check passes.
+The report keeps all logs, hashes, failed setup attempts and cleanup receipts.
+
+A retry-cluster restart omitted explicit socket/port options and failed on a
+missing default socket directory; its failed postmaster exited and its PID is
+absent. The corrected restart uses the original private socket/55492 and no
+TCP listener. All four successful postmaster lifetimes, that failed startup,
+six public serve children and recorded checks/runners are absent; the lane's
+target executable census is empty. PIDs left: none. Minimum observed disk was
+24 G; inactive completed incremental sessions in this target were removed
+under their session locks (5.34 GB recorded). No other worktree/target,
+PG17/55440, push, stash or Git configuration change was involved.

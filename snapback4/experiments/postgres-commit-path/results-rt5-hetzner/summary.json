@@ -1,0 +1,62 @@
+[
+  {
+    "shape": "w1",
+    "variant": "serial",
+    "executions_per_s_median": 4686.180887032733,
+    "p50_ms_median": 6.322951,
+    "p99_ms_median": 13.862772000000001,
+    "p99_ms_worst": 14.068028,
+    "flights": 6.0,
+    "all_correct": true
+  },
+  {
+    "shape": "w1",
+    "variant": "simple",
+    "executions_per_s_median": 8534.619635818719,
+    "p50_ms_median": 3.357665,
+    "p99_ms_median": 8.242482,
+    "p99_ms_worst": 9.174224,
+    "flights": 3.0,
+    "all_correct": true
+  },
+  {
+    "shape": "w1",
+    "variant": "envelope",
+    "executions_per_s_median": 5589.416285914932,
+    "p50_ms_median": 5.298165,
+    "p99_ms_median": 11.224711,
+    "p99_ms_worst": 11.417954,
+    "flights": 5.0,
+    "all_correct": true
+  },
+  {
+    "shape": "mutation",
+    "variant": "serial",
+    "executions_per_s_median": 79.24872970229941,
+    "p50_ms_median": 373.04239,
+    "p99_ms_median": 712.935174,
+    "p99_ms_worst": 721.856278,
+    "flights": 16.0,
+    "all_correct": true
+  },
+  {
+    "shape": "mutation",
+    "variant": "simple",
+    "executions_per_s_median": 140.99766567789644,
+    "p50_ms_median": 226.091056,
+    "p99_ms_median": 324.506983,
+    "p99_ms_worst": 460.167993,
+    "flights": 8.0,
+    "all_correct": true
+  },
+  {
+    "shape": "mutation",
+    "variant": "envelope",
+    "executions_per_s_median": 109.74811883493207,
+    "p50_ms_median": 293.008155,
+    "p99_ms_median": 372.177293,
+    "p99_ms_worst": 399.2951800000001,
+    "flights": 11.0,
+    "all_correct": true
+  }
+]

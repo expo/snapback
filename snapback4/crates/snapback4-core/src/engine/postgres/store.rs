@@ -308,6 +308,19 @@ impl Tx<'_> {
         Ok(self.inner.borrow_mut().query(&statement, params)?)
     }
 
+    // @ref LLP 3000.009.001.000.001#36-how-a-flight-is-sent-is-decided-by-measurement — same terminal refusal as Bind; no serving caller before RT6.
+    #[cfg(any(test, feature = "test-support"))]
+    #[allow(dead_code)]
+    pub(super) fn literal_query(&self, prepared: &super::literal::Prepared, params: &[&(dyn ToSql + Sync)]) -> Result<Vec<Vec<super::literal::Datum>>, RuntimeError> {
+        self.ensure_active()?;
+        let command = prepared.command(params).inspect_err(|_| self.bind_refused.set(true))?;
+        self.calls.set(self.calls.get() + 1);
+        let messages = self.inner.borrow_mut().simple_query(&command)?;
+        // A successful statement followed by a client decode failure leaves
+        // the transaction usable, exactly like a failing Row::get after Bind.
+        prepared.rows(&messages)
+    }
+
     /// Fold a driver row stream without retaining an unbounded result vector.
     pub(super) fn query_fold<T>(&self, sql: &'static str, params: &[&(dyn ToSql + Sync)], mut total: T, mut fold: impl FnMut(T, Row) -> Result<T, RuntimeError>) -> Result<T, RuntimeError> {
         use postgres::fallible_iterator::FallibleIterator;

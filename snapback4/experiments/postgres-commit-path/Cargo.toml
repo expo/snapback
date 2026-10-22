@@ -5,8 +5,13 @@ edition = "2024"
 publish = false
 
 # Deliberately outside the normal CLI/device publication workspace, like
-# ../postgres. Periphery only: nothing under crates/ is modified.
+# ../postgres. RT5 shares a core test-only codec; serving is unchanged.
 [workspace]
+
+[features]
+# RT5 uses the same binary/timer while historical SQLite raw-handle cells await
+# port adaptation. No production feature or raw-handle escape is added.
+rt5 = []
 
 [dependencies]
 snapback4-core = { path = "../../crates/snapback4-core", default-features = false, features = ["postgres"] }

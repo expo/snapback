@@ -38,6 +38,7 @@ if [[ -z "${SNAPBACK4_EVAL_POSTGRES:-}" ]]; then
   }
   trap cleanup EXIT
   pg_ctl -D "$eval_dir/data" -l "$eval_dir/server.log" -o "-k $eval_dir -c listen_addresses= -c max_connections=400 -p 55439" -w start >/dev/null
+  echo "Evaluation cluster PID $(head -n 1 "$eval_dir/data/postmaster.pid"); directory $eval_dir" >&2
   export SNAPBACK4_EVAL_POSTGRES="host=$eval_dir port=55439 user=sb4_eval dbname=postgres"
 fi
 # Report every stage even when an earlier fixture fails. In particular, an
@@ -55,6 +56,7 @@ refresh_shared_target || status=1
 cargo test --locked --no-fail-fast --manifest-path experiments/postgres/Cargo.toml -- --include-ignored --nocapture || status=1
 refresh_shared_target || status=1
 cargo test --locked -p snapback4-core --features postgres --lib engine::postgres::tests -- --include-ignored --nocapture || status=1
+cargo test --locked -p snapback4-core --features postgres --lib engine::postgres::literal_tests -- --include-ignored --nocapture || status=1
 cargo test --locked -p snapback4-core --features postgres --lib engine::postgres::ownership::tests -- --include-ignored --nocapture || status=1
 cargo test --locked -p snapback4-core --features postgres --test store_handle_traits || status=1
 cargo test --locked -p snapback4-core --features postgres --doc || status=1

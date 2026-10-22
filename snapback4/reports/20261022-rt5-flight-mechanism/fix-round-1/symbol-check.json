@@ -1,0 +1,12 @@
+{
+  "binary": "/home/ccheever/projects/sb4-p0-s8/snapback4/target/release/snapback4",
+  "sha256": "27e6ff18ab691d8c41fdf135e498d801a91ae676e0a6c31e7ce83c4ad035ced3",
+  "mtime_ns": 1792707639488458142,
+  "defined_symbols": 96284,
+  "production_postgres_symbols": 477,
+  "encoder_symbols": [],
+  "encoder_string_markers": [],
+  "nm_pid": 1236934,
+  "nm_exit_status": 0,
+  "seconds": 0.31
+}
