@@ -5,7 +5,7 @@
 - Staging time and an unfinished maintenance drain persist with the store. Repeated `startServe`/`advance` runs continue from saved time; `drain()` resumes paused work without replaying a jump. Production still refuses clock controls.
 - `renderedText` counts mounted text reachable by scrolling, including React Native web ScrollView content below the fold. Hidden text and real clips remain excluded; the helper does not scroll the page.
 - Upgrade deltas include security notes and pending review gates. Gate remediation names `check --ack-security <ID> --reason "<spec rationale>"`; refuted invariants explain why they cannot be acknowledged. Numeric advance advice follows the actual consumed result. The published 0.4.37 CLI can still print obsolete closed-door and persistent-startDev warnings during an upgrade; those historical warnings are safe to ignore when the new check reports no matching change.
-- Protected columns compose with `immutable`: inserts set them, while updates and existing upserts retain them without comparing supplied guesses. Pure expression audience helpers work in table and column rules. Hidden program probes name their hiding read rule; `guide rules --section "Private immutable payloads and audience helpers"` has an executable recipe.
+- Protected columns compose with `immutable`: inserts set them, while updates and existing upserts retain them without comparing supplied guesses. Pure expression audience helpers work in table and column rules. Hidden program probes name their hiding read rule; `guide rule-recipes --section "Private immutable payloads and audience helpers"` has an executable recipe.
 - Security questionnaire, intent, invariant testing and lifecycle-note changes are owned by SEC8.
 
 ## 0.4.38

@@ -23,14 +23,15 @@ fn rule_helpers_refuse_bad_types_cycles_effects_and_accidental_capture() {
  ] {
   let source=format!("{function}\n{}",BASE.replace("POLICY",policy));
   let b=compile(&[("schema.q".into(),source.clone())]);
-  assert!(b.diagnostics.iter().any(|d|d.code=="E_QUARRY_RULE_OPERATOR"),"{source}\n{:?}",b.diagnostics);
+  let expected=if function.contains("audience(viewer:"){ "E_QUARRY_RESERVED" }else{ "E_QUARRY_RULE_OPERATOR" };
+  assert!(b.diagnostics.iter().any(|d|d.code==expected),"{source}\n{:?}",b.diagnostics);
  }
 }
 #[test]
 fn helper_expansion_is_bounded_before_planning() {
  let mut functions=String::from("fn leaf(owner: principal): owner = viewer\n");
  let mut previous=String::from("leaf");
- for i in 0..9 {let name=format!("level{i}");functions.push_str(&format!("fn {name}(owner: principal) = {previous}(owner) and {previous}(owner)\n"));previous=name;}
+ for i in 0..9 {let name=format!("level{i}");functions.push_str(&format!("fn {name}(owner: principal): {previous}(owner) and {previous}(owner)\n"));previous=name;}
  let b=compile(&[("schema.q".into(),functions+&BASE.replace("POLICY",&format!("{previous}(.owner)")))]);
  assert!(b.diagnostics.iter().any(|d|d.code=="E_QUARRY_RULE_OPERATOR"),"{:?}",b.diagnostics);
 }

@@ -49,3 +49,17 @@ impl AnyStore {
         match self { Self::Sqlite(SqliteStore(store)) => run(store), #[cfg(feature = "postgres")] Self::Postgres(_) => panic!("SQLite fixture") }
     }
 }
+
+// A typed fault hook keeps host tests from opening a new raw database lane.
+impl AnyStore {
+    pub fn test_staging_clock_write_failure(&self, fail: bool) -> Result<(), RuntimeError> {
+        let sql = if fail {
+            "CREATE TRIGGER refuse_clock BEFORE INSERT ON _meta WHEN NEW.key = 'dev:staging-clock' BEGIN SELECT RAISE(ABORT,'injected checkpoint failure'); END;"
+        } else { "DROP TRIGGER refuse_clock" };
+        match self {
+            Self::Sqlite(SqliteStore(inner)) => { inner.test_support_conn().execute_batch(sql)?; Ok(()) },
+            #[cfg(feature = "postgres")]
+            Self::Postgres(_) => Err(RuntimeError::StoreUnsupported { family: "sqlite-fixture" }),
+        }
+    }
+}

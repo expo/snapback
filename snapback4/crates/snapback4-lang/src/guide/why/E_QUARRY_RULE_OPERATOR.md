@@ -32,5 +32,5 @@ clause kept. To bound only the new value, drop the comparison from the rule and
 
 Pure expression audience helpers and single-return blocks expand before planning
 to the existing rule grammar. Pass focal fields explicitly as typed arguments;
-`guide rules --section "Private immutable payloads and audience helpers"` runs
+`guide rule-recipes --section "Private immutable payloads and audience helpers"` runs
 the supported role/owner pattern.

@@ -70,7 +70,7 @@ pub(super) fn clean(label: &str, source: &str) -> snapback4_lang::Bound {
         return bound;
     }
     // DX7 deliberately demonstrates both hidden positive guards and query probes.
-    if quarry(card("rules").unwrap()).iter().any(|block| block == source && block.contains("mutation dxCustomerGuard(")) {
+    if quarry(card("rule-recipes").unwrap()).iter().any(|block| block == source && block.contains("mutation dxCustomerGuard(")) {
         let codes = notes.iter().map(|n|n.code.as_str()).collect::<Vec<_>>();
         assert_eq!(codes, ["N_REQUIRE_HIDDEN", "N_UNREADABLE_PROBE"], "{label}: {:?}", bound.notes);
         assert!(notes.iter().all(|n|n.message.contains("dxRoles") && n.message.contains(".principal = viewer")));
