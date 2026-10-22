@@ -873,7 +873,9 @@ fn advance_explains_each_schedule_and_resume_clock_releases_a_restart_hold() {
     assert!(!refused.status.success() && String::from_utf8_lossy(&refused.stderr).contains("cannot be combined"), "{refused:?}");
     let (host, log) = start(&["dev", "--no-watch", "--resume-clock"]);
     assert!(log.contains("--resume-clock: offset +") && !log.contains("N_CLOCK_STORE_AHEAD") && !log.contains("is held until"), "{log}");
-    let resumed = host.post("/dev/clock/advance", json!({"duration":"1h"}));
+    // The hourly boundary resumes; the independent daily boundary may still
+    // be ahead, so explicitly accept that held daily schedule in this check.
+    let resumed = host.post("/dev/clock/advance", json!({"duration":"1h", "allowHeld":true}));
     assert_eq!(resumed["schedules"][0]["fired"], true, "{resumed}");
     let resumed_ticks = resumed["schedules"].as_array().unwrap().iter().filter(|schedule| schedule["fired"] == true && schedule["target"] == "tick").count();
     assert_eq!(host.query("counters")[0]["n"], advanced_ticks + resumed_ticks, "{resumed}");
