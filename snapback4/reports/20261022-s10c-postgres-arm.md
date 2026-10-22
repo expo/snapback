@@ -237,7 +237,91 @@ retain their SQLite behavior and explicitly refuse on Postgres. No push or stash
    [existing ticket](../../issues/20260916-snapback4-postgres-serializable-benchmark-failures.md).
    Retry policy, workload and durability are unchanged.
 
-Round-1 transcripts are retained under `/tmp/s10c-r1-checks`. Qualification
-results follow after the requested checks finish. All Cargo commands use only
-this lane's `snapback4/target` and ten build jobs. The disk stop threshold is
-15 GB free on `/home`.
+Round-1 transcripts, command statuses, disk minima and stop receipts are retained
+under `/tmp/s10c-r1-checks`. Runtime fixes are `fc7e2eb740`; the standalone
+version-report adaptation is `a1b6a53138`. The qualification follow-up adds four
+external payload-Deref probes, their fixture-policy reference, and the lockfile
+and shared-target handoff corrections below. No further engine runtime change
+was needed.
+
+| Round-1 check | Result |
+| --- | --- |
+| Binary build | Pass |
+| Core no-default-features | Pass |
+| Device web/wasm no-default-features | Pass |
+| Workspace-wide test compilation with core Postgres enabled | Pass, all workspace test targets |
+| Full core | **1,061 passed / 0 failed / 5 ignored**, including doctests |
+| Full host | **1,418 passed / 0 failed / 15 ignored**; all three supplied baselines pass |
+| Full device | **1,573 passed / 0 failed / 4 ignored**, including the unfiltered generated matrices |
+| Ratchets and census | **16 passed**; no allowance changes |
+| Compiled owning-handle trait guard | **1 passed** in each of default and Postgres builds |
+| External-consumer doctests | Default: **26 passed**, including **9 SQLite boundary probes**; Postgres: **37 passed**, including **20 boundary/private-backend probes** across both arms |
+| Guide | **127 passed** |
+| Wasm codec census | **27 passed** |
+| Final stock Postgres script | **Exit 0**: **58 evaluator + 209 family/oracle + 2 member + 1 compiled trait guard + 37 doctest + 1 HTTP + 19 corpus tests passed** |
+| Final default binary rebuild | Pass (42.76 s), after the shared-target qualification |
+| Root ref-check | Pass: **564 LLPs / 11,693 refs / 0 errors / 0 unchecked** |
+
+Counts are reported test executions per command, including nested allocator
+probes where the suite prints them; the commands overlap. Existing ignored
+cases and named corpus exclusions remain outside the passed denominator.
+No unexpected product-test failure required an isolated rerun. The final C1
+query reports `(common, evaluator, marked)` as `(20,20,0)` off and `(23,23,8)`
+on, passing the new ceilings. The new direct/scoped missing-footprint and real
+lock-timeout tests pass. The HTTP witness still returns unknown preservation.
+
+Concrete handles and owning dereferences remain **0**; production raw access
+remains **0 files / 0 sites**. Fixture raw access stays **13 files / 95 sites**,
+and the committer census stays **11 files / 49 sites**. Neither allowlist nor
+producer routing changed. The final independent consumer probes exercise the
+actual non-test library, including enum extraction, private fields, raw
+statement methods, backend type names, Rows defaults and payload dereferencing.
+
+The first Postgres invocation stopped the evaluator at `--locked`: main had
+advanced the three local core/lang/device packages to **0.4.37**, while the
+separate evaluator lockfile retained **0.4.36**. Only those three local version
+entries were aligned; registry dependencies and checksums are unchanged. All
+remaining stages passed. That transcript is `postgres-initial.log` and its
+nonzero status is retained.
+
+The next full invocation passed all 58 evaluator tests, but reproduced the
+previously recorded shared-target identity mix in the HTTP build: same-version
+serde/core types were loaded as different crate instances. Its other stages
+passed; `postgres-metadata.log` retains the compiler diagnostics and nonzero
+status. With an explicit shared `CARGO_TARGET_DIR`, the script now refreshes
+only **core/lang/device debug artifacts** before and after the standalone
+manifest. This prevents path-crate cache reuse across the two workspaces,
+preserving the required single target, ordinary compilation profiles, dependency
+versions and test workload. The complete repeat in `postgres.log` passes,
+including HTTP. No product source workaround or retry-policy change was made.
+
+The exact concurrency case passes in both evaluator-enabled full runs: **65
+increments in each mode**, no lost updates, **0 serialized / 93 aggregate
+serializable retries** each time. No `40001` exhaustion occurred in this round,
+so no isolated concurrency rerun was needed. This is additional run evidence,
+not attribution or resolution of the open stress ticket; Sol's 13/13 A/B
+results and all 461 errors at UPDATE r remain recorded above and in that ticket.
+
+Every cluster started this round is independently confirmed stopped with
+`pg_ctl status=3` and no `postmaster.pid`:
+`/tmp/sb4-pg-eval.b9AgdR`, `/tmp/sb4-pg-eval.2If1mh`, and
+`/tmp/sb4-pg-eval.gTdwbp`. `all-clusters-final-stop.json` rechecks all three;
+data is retained. The shared scale cluster was untouched.
+
+All Cargo commands used this lane's own `snapback4/target` and ten build jobs.
+The minimum continuously recorded free space was **24.52 GiB**, above the
+**15 GB** stop threshold. Inactive finalized incremental caches were reclaimed
+under exclusive locks; unmapped/unopened old and completed test executables
+were reclaimed too. The later scoped Cargo package refresh also rebuilt the
+three local packages' libraries/metadata, resolving the shared-target identity
+failure. Source, other targets, registry caches and retained cluster data were
+not removed. No push or stash. The affected LLP audit updates §3.4's handle
+shape and implementation note; the existing §3.4/§9.1 and preservation-policy
+references still apply. Certified changes/sync, leases and public Postgres
+serving remain outside this qualification.
+
+
+Final default `cargo build -p snapback4` passes after the Postgres graph handoff.
+Final `./ref-check` passes with 564 LLP documents, 11,693 references, zero errors
+and zero unchecked references; diff whitespace validation passes. Final recorded
+free space is about **186 GB**. No push or stash.

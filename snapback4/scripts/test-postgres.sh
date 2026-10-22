@@ -43,7 +43,16 @@ fi
 # Report every stage even when an earlier fixture fails. In particular, an
 # experiment failure must not silently leave the gated family contracts unrun.
 status=0
+# @ref LLP 3000.009.001.000#3.4 — a shared target must not carry path-crate identities between the two workspaces.
+refresh_shared_target() {
+  if [[ -n "${CARGO_TARGET_DIR:-}" ]]; then
+    echo "Refreshing core/lang/device debug artifacts at a shared-target manifest handoff" >&2
+    cargo clean --manifest-path Cargo.toml --profile dev -p snapback4-core -p snapback4-lang -p snapback4-device
+  fi
+}
+refresh_shared_target || status=1
 cargo test --locked --manifest-path experiments/postgres/Cargo.toml -- --include-ignored --nocapture || status=1
+refresh_shared_target || status=1
 cargo test --locked -p snapback4-core --features postgres --lib engine::postgres::tests -- --include-ignored --nocapture || status=1
 cargo test --locked -p snapback4-core --features postgres --test store_handle_traits || status=1
 cargo test --locked -p snapback4-core --features postgres --doc || status=1

@@ -22,6 +22,12 @@ use crate::store as sqlite;
 ///     if let AnyStore::Sqlite(payload) = store { payload.transaction().unwrap(); }
 /// }
 /// ```
+/// ```compile_fail,E0277
+/// use snapback4_core::store_port::AnyStore;
+/// fn extract(owner: &AnyStore) {
+///     if let AnyStore::Sqlite(payload) = owner { let _ = std::ops::Deref::deref(payload); }
+/// }
+/// ```
 #[cfg_attr(feature = "postgres", doc = r#"
 ```compile_fail,E0308
 use snapback4_core::{engine::postgres::Handle, store_port::AnyStore};
@@ -39,6 +45,12 @@ fn extract(store: &AnyStore) {
 use snapback4_core::store_port::AnyStore;
 fn raw(store: &mut AnyStore) {
     if let AnyStore::Postgres(payload) = store { payload.transaction(None).unwrap(); }
+}
+```
+```compile_fail,E0277
+use snapback4_core::store_port::AnyStore;
+fn extract(owner: &AnyStore) {
+    if let AnyStore::Postgres(payload) = owner { let _ = std::ops::Deref::deref(payload); }
 }
 ```
 "#)]
@@ -76,6 +88,12 @@ pub enum AnyStore {
 ///     if let AnyTx::Sqlite(payload) = tx { require_rows(payload); }
 /// }
 /// ```
+/// ```compile_fail,E0277
+/// use snapback4_core::store_port::AnyTx;
+/// fn extract(owner: &AnyTx<'_>) {
+///     if let AnyTx::Sqlite(payload) = owner { let _ = std::ops::Deref::deref(payload); }
+/// }
+/// ```
 #[cfg_attr(feature = "postgres", doc = r#"
 ```compile_fail,E0603
 use snapback4_core::engine::postgres::store::{Store, Tx};
@@ -109,6 +127,12 @@ use snapback4_core::{rows::Rows, store_port::AnyTx};
 fn require_rows<T: Rows>(_: &T) {}
 fn bypass(tx: &AnyTx<'_>) {
     if let AnyTx::Postgres(payload) = tx { require_rows(payload); }
+}
+```
+```compile_fail,E0277
+use snapback4_core::store_port::AnyTx;
+fn extract(owner: &AnyTx<'_>) {
+    if let AnyTx::Postgres(payload) = owner { let _ = std::ops::Deref::deref(payload); }
 }
 ```
 "#)]

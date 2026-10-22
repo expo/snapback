@@ -1,4 +1,5 @@
 //! Debug-only corruption hooks; no backend owning handle is exposed.
+// @ref LLP 3000.009.001.000#3.4 — explicit fixture connections stay debug-only; owning payloads remain opaque.
 use super::handles::{AnyStore, AnyTx, SqliteStore, SqliteTx};
 use crate::RuntimeError;
 macro_rules! fixture_access {

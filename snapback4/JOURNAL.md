@@ -101068,3 +101068,59 @@ for its JSON version field. Both now use the existing typed
 `store::evaluation::sqlite_version()` fact. The linked version and timed
 workloads are unchanged; neither site needs a backend store. The required
 Postgres script qualifies this workspace after the main suites. No push or stash.
+
+### 2026-10-22 — S10c fix round 1: complete qualification
+
+The requested full commands pass: core **1,061 / 0 failed / 5 ignored**,
+host **1,418 / 0 / 15**, and device **1,573 / 0 / 4**, including the full
+unfiltered generated disclosure/row-view/sequence matrices. All three supplied
+host baselines pass. Binary build (including the final default rebuild), core
+no-default, device web/wasm, workspace test compilation with Postgres, all
+**16** ratchet/census tests, **127** guide cases and **27** codec census cases
+pass. Compiled owning-handle guards pass in default and Postgres builds. The
+updated external consumer doctests pass **26** default / **37** Postgres cases,
+including **9** SQLite / **20** combined boundary/private-backend probes. The
+four extra payload-Deref probes explicitly close that future escape on each
+owning payload. No allowance, retry bound or producer routing changes.
+
+The complete final private-Postgres script exits zero: **58 evaluator + 209
+family/oracle + 2 member + 1 compiled trait guard + 37 doctest + 1 HTTP + 19
+corpus tests pass**. Both evaluator-enabled runs retain 65 increments in each
+mode, no losses, zero serialized retries and 93 aggregate serializable retries.
+No 40001 exhaustion occurs; the existing ticket retains these observations and
+Sol's 13/13 A/B evidence without closing the attribution question. The new
+missing-footprint/real-lock-timeout distinction passes for direct and scoped
+reads. Common/evaluator C1 calls remain exactly 20 off / 23 on, with eight
+marked reads, passing the new ceilings and unchanged relative bound.
+
+Two qualification-path failures are retained: the inherited evaluator lockfile
+still named local packages 0.4.36 after main advanced to 0.4.37; only those three
+local version entries were aligned. Then the shared target reproduced the old
+serde/core crate-identity mix in the HTTP build after the separate evaluator
+workspace. With an explicit shared CARGO_TARGET_DIR, the script now refreshes
+only core/lang/device debug artifacts at each manifest handoff. The full repeat
+passes, including HTTP, with unchanged profiles, registry dependencies and test
+workload. This is an artifact handoff repair, with no product-source workaround.
+
+Every owned cluster is stopped and independently rechecked (status 3, no
+postmaster.pid): `/tmp/sb4-pg-eval.b9AgdR`, `2If1mh`, and `gTdwbp`; data is
+retained and the shared scale service was untouched. Only the lane's own Cargo
+target was used, with ten jobs. The lowest continuously recorded free space
+was **24.52 GiB**, above the 15 GB stop threshold. Inactive incremental caches
+and unmapped/unopened old or completed test executables were reclaimed; the
+scoped Cargo refresh later regenerated the three local packages' libraries and
+metadata as well. No source, other target or registry cache was removed.
+
+Runtime commits are `fc7e2eb740` and `a1b6a53138`; the following qualification
+commit records the final guards, path corrections and evidence. Full results
+and retained failed attempts are in
+[the S10c report](./reports/20261022-s10c-postgres-arm.md), with transcripts and
+stop receipts under `/tmp/s10c-r1-checks`. The affected LLP audit updates the
+existing §3.4 shape/note; the other scoped references remain applicable. Final
+reference/whitespace validation follows this append. No push, stash or sub-agents.
+
+
+Final root `./ref-check` passes: **564 LLPs / 11,693 refs / 0 errors / 0
+unchecked**. Diff whitespace validation passes. The final default CLI rebuild
+passes after the Postgres handoff. About **186 GB** remains free; the 15 GB
+stop threshold was never reached.

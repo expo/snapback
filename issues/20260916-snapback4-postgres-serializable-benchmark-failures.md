@@ -148,3 +148,22 @@ original failures and this ticket remain open evidence; **no retry limit,
 backoff, timeout, durability or workload policy changes** are made in S10c fix
 round 1. Review source: `/tmp/s10c-review.md` on expo-build-450a; see the
 [S10c report](../snapback4/reports/20261022-s10c-postgres-arm.md).
+
+## 2026-10-22 — S10c fix-round-1 full-script observations
+
+Both evaluator-enabled full default-C runs on expo-build-450a pass the exact
+concurrency case: 65 increments per mode, no lost updates, zero serialized
+retries and 93 aggregate serializable transaction retries in each run. No
+40001 exhaustion was observed, so an isolated concurrency rerun was not needed.
+The final complete Postgres script exits zero after aligning the three local
+package versions in its stale lockfile and refreshing local debug artifacts
+at shared-target manifest handoffs. These are qualification-path corrections;
+retry limits, backoff, timeout, workload and durability policy remain unchanged.
+The stress ticket remains open; these passes do not establish a root cause.
+
+Runtime changes are `fc7e2eb740` and the evaluator-report adaptation
+`a1b6a53138`, followed by the qualification/guard/cache-handoff record. Logs:
+`/tmp/s10c-r1-checks/postgres-metadata.log` and `postgres.log`; the preceding
+lockfile-only preflight failure is retained separately. All three owned
+clusters are independently confirmed stopped (status 3, no postmaster.pid).
+See the [round-1 report](../snapback4/reports/20261022-s10c-postgres-arm.md#s10c-fix-round-1--2026-10-22).
