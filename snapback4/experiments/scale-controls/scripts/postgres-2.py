@@ -158,8 +158,15 @@ os.umask(0o077)
             launcher=f'cd ~/{REMOTE}; setsid nohup sh -c \'./seed config.json > seed.stdout 2> seed.stderr; echo $? > seed.exit\' > launcher.stdout 2>&1 < /dev/null & echo $! > seed.pid; cat seed.pid'
             remote_pid=int(self.command([*SSH,'expo-build-450a',launcher],'seed-launch').strip())
         else:remote_pid=json.loads((Path(self.args.resume)/'remote-seed.json').read_text())['pid']
+        seed_hash=(json.loads((Path(self.args.resume)/'remote-seed.json').read_text())['binary_sha256'] if self.args.resume else hashlib.sha256(seed.read_bytes()).hexdigest())
+        # Resume may use a newer operator helper for a separate service seat;
+        # the original running seed's provenance stays bound to its own binary.
+        actual=sp.check_output([*SSH,'expo-build-450a',f'sha256sum ~/{REMOTE}/seed'],text=True).split()[0]
+        assert len(actual)==64
         write(self.out/'remote-seed.json',dict(host='expo-build-450a',pid=remote_pid,directory=REMOTE,
-            command='setsid nohup seed config.json (password only in mode-600 remote config)',binary_sha256=hashlib.sha256(seed.read_bytes()).hexdigest()))
+            command='setsid nohup seed config.json (password only in mode-600 remote config)',binary_sha256=actual))
+        write(self.out/'seed-binary-provenance.json',dict(original_seed_binary_sha256=actual,
+            inherited_receipt_sha256=seed_hash,current_operator_helper_sha256=hashlib.sha256(seed.read_bytes()).hexdigest()))
         while True:
             p=sp.run([*SSH,'expo-build-450a',f'cd ~/{REMOTE}; if test -f seed.exit; then cat seed.exit; else tail -1 seed.stdout; fi'],capture_output=True,text=True)
             if p.returncode:raise RuntimeError('remote seed polling failed')
@@ -260,15 +267,17 @@ os.umask(0o077);(p/'barrier-config.json').write_text(json.dumps(v))
             assert status==200 and ('sent'==value.get('state') if path.startswith('/m') else value.get('complete'))
         before=self.snapshot();write(directory/'probe.before.json',before)
         latencies=[]
-        for _ in range(60):
-            at=time.monotonic();status,value=snapback.http(path,{'args':args},token)
+        operations=100 if keys=='hot1' else 60
+        for i in range(operations):
+            probe_args=dict(args,counter='c0256' if i%100==0 else 'c0000') if keys=='hot1' else args
+            at=time.monotonic();status,value=snapback.http(path,{'args':probe_args},token)
             latencies.append((time.monotonic()-at)*1000)
             assert status==200 and ('sent'==value.get('state') if path.startswith('/m') else value.get('complete'))
         # Force PG's cumulative statistics report, without touching app traffic.
         # Active app backends normally flush at idle; wait beyond the 1s interval.
         time.sleep(1.2)
         after=self.snapshot();write(directory/'probe.after.json',after)
-        write(directory/'probe.json',dict(operations=60,warmup_operations=10,latencies_ms=latencies,
+        write(directory/'probe.json',dict(operations=operations,warmup_operations=10,latencies_ms=latencies,
             background='standard ownership renewal retained in deltas',queue_wait_ms=None,
             queue_caveat='no product instrumentation; serial probes exclude request backlog'))
 

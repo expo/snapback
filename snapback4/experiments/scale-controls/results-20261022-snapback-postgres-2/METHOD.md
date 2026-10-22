@@ -56,7 +56,7 @@ whole-cohort counter audit includes warm-up and drain: any counter increase
 without an acknowledgement disqualifies the trial, including unknown outcomes.
 
 Every cell also warms ten native operations, then observes sixty serial
-operations of the same shape. Its `pg_stat_statements` deltas are filtered by
+operations of the same shape (100 for the exact 1% shared mixture). Its `pg_stat_statements` deltas are filtered by
 this database AND application role; lease-renewal statements are explicitly
 accounted for. These clean probes avoid the trial's drain identity writes.
 `pg_stat_database` deltas are database-only and include observers/maintenance;
