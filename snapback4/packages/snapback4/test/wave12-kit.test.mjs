@@ -34,7 +34,7 @@ test('H8 withBrowser honors caller Playwright', {timeout:30000}, async t=>{
   t.after(()=>{for(const [i,key] of ['PORT_LO','PORT_HI'].entries()){if(saved[i]===undefined)delete process.env[key];else process.env[key]=saved[i]}});
   let calls=0;
   const caller={launch: (...args)=>{calls++;return chromium.launch(...args)}};
-  await kit.withBrowser({logsDir:join(root,'target/kit12-browser-logs'),chromium:caller,executablePath:process.env.CHROME,args:["--no-sandbox"]},async context=>{
+  await kit.withBrowser({logsDir:join(fixture(t),'browser-logs'),chromium:caller,executablePath:process.env.CHROME,args:["--no-sandbox"]},async context=>{
     const page=await context.newPage();await page.setContent('<p>proof</p>');
     assert.equal(await page.textContent('p'),'proof');
   });
@@ -44,8 +44,8 @@ test('H8 withBrowser honors caller Playwright', {timeout:30000}, async t=>{
 test('H8 withBrowser opens no TCP listener', {
   skip: process.platform !== 'linux' && 'Listener snapshot requires Linux /proc; caller Playwright still runs on this host',
   timeout: 30000,
-}, async () => {
-  await kit.withBrowser({logsDir:join(root,'target/kit12-browser-logs'),chromium,executablePath:process.env.CHROME,args:['--no-sandbox']},async context=>{
+}, async t => {
+  await kit.withBrowser({logsDir:join(fixture(t),'browser-logs'),chromium,executablePath:process.env.CHROME,args:['--no-sandbox']},async context=>{
     const page=await context.newPage();await page.setContent('<p>proof</p>');
     assert.deepEqual(listenerSnapshot(),[], 'browser proof must have no TCP listener');
   });
@@ -61,7 +61,7 @@ const op={kind:'mutation',name:'save'},client={viewer:()=> 'dev:alice',onWrite:(
 const app={client,ready:Promise.resolve({ok:true}),mutate:async(...a)=>{await Promise.resolve();return client.mutate(...a)}};
 registerWebWitness(app,{save:op});document.querySelector('form').onsubmit=e=>{e.preventDefault();void app.mutate(op,{optional:null,title:'new'})};</script>`);
   const web=await kit.startStatic('dist',{cwd});
-  try { await kit.withBrowser({logsDir:join(root,'target/kit12-browser-logs'),executablePath:process.env.CHROME},async context=>{
+  try { await kit.withBrowser({logsDir:join(fixture(t),'browser-logs'),executablePath:process.env.CHROME},async context=>{
     const page=await context.newPage();await page.goto(web.url+'/?witness=web');
     const button=page.getByRole('button',{name:'Save'});
     await button.evaluate(e=>window.__snapback4Witness.beginForm('save',{title:'new',optional:null},e));
@@ -111,8 +111,8 @@ if (!baseline) {
   const cwd=fixture(t);mkdirSync(join(cwd,'dist'));writeFileSync(join(cwd,'dist/index.html'),'<html><body>shell</body></html>');
   const result=await kit.cli(['web-shell','dist'],{cwd});assert.equal(result.code,0,result.stderr);assert.ok(readdirSync(join(cwd,'dist')).length>1);
  });
- test('rendered evidence excludes textareas and scopes freshness; frontPage activates',async()=>{
-  await kit.withBrowser({logsDir:join(root,'target/kit12-browser-logs'),executablePath:process.env.CHROME},async context=>{
+ test('rendered evidence excludes textareas and scopes freshness; frontPage activates',async t=>{
+  await kit.withBrowser({logsDir:join(fixture(t),'browser-logs'),executablePath:process.env.CHROME},async context=>{
    const page=await context.newPage();await page.setContent('<textarea>new</textarea><div id="rows"><p>old</p></div><p>new</p>');
    assert.equal(await kit.renderedText(page,'new',{within:page.locator('#rows')}).count(),0);
    assert.equal(await kit.renderedText(page,'new').count(),1);
