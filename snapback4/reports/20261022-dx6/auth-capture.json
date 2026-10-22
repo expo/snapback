@@ -1,0 +1,42 @@
+{
+  "functionalCommit": "0bf50ac18696a2414dd836968ccda17607f0a45c",
+  "proposalSha256": "94921e914251509fb831b2264420f2455a6c2c677514d896c23f01f0b2616fae",
+  "focused": {
+    "passed": 26,
+    "failed": 0,
+    "totalMs": 933.202036,
+    "log": "auth-capture-security-focused.log"
+  },
+  "affected": {
+    "passed": 329,
+    "failed": 0,
+    "totalMs": 60534.492552,
+    "log": "auth-capture-affected-final.log"
+  },
+  "models": {
+    "status": "passed",
+    "onlineHistories": 5000,
+    "localHistories": 5000,
+    "log": "auth-capture-model-final.log",
+    "onlineMs": 97859.017923,
+    "passed": 60,
+    "failed": 0,
+    "totalMs": 265691.421062,
+    "localMs": 164124.601416
+  },
+  "priorReviewedPackControl": {
+    "passed": 1,
+    "expectedAssertionFailures": 2,
+    "log": "auth-capture-reviewed-pack-control.log"
+  },
+  "firstPackBaseline": {
+    "passed": 3,
+    "failed": 0,
+    "log": "auth-capture-prior-pack-control.log"
+  },
+  "refs": {
+    "passed": true,
+    "documents": 564,
+    "references": 12312
+  }
+}

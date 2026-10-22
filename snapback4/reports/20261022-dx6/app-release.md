@@ -13,3 +13,20 @@ The initial affected App group also found a synthetic fixture using the literal 
 This implements the existing cutoff in LLP 3000.013 §6 and §12.7, now pointed to by the DX6 amendment. The raw response still belongs to its invocation; unknown responses after cleanup retain their original retry ID.
 
 At this implementation commit, the final full online/local 5,000-history model and expanded App/HTTP/close tests are running; their results are recorded in `app-release-model-final.log` and `app-release-affected-final.log`. Prior to the last live-body/early-admission repair, the expanded affected group passed 220/220 and online 5,000 passed; the local model correctly blocked completion at seed 2873. All minimized histories and the three new direct/actual-device cutoff tests now pass. The workstream coordinator owns final qualification, reviews and platform checks.
+
+
+Final source 0bf50ac186 scopes retained E_AUTH responses to the dispatch's
+monotonic rotation revision, at capture and delivery. Plain sign-out preserves
+its own known refusal; rotating away invalidates retiring responses even after
+failed/canceled rotation. An adopted successor remains current while local
+persistence finishes. Focused security passes 26/26; expanded App/HTTP/close/
+security 329/329; both full 5,000-history tiers pass 60/60. The earlier retained-pack
+candidate fails the stale-refusal negative controls. The installed DX6 hook runs
+the entire session-security file and passes against the final tarball.
+
+Both fresh R6 reviews return READY on the same committed amendment/source.
+Fresh Linux consumer qualification passes on Ubuntu 24.04 and Alpine, with no
+publication receipt; source and tarball digests are in verification.json and
+linux-consumer.json. The canonical 23-file client run passes 383, fails 0 and skips
+one unavailable historical binary. Assigned-Mac final verification remains
+partial due to connectivity; WORKSTREAM-REPORT.md records that gap explicitly.

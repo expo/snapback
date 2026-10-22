@@ -1,0 +1,96 @@
+{
+  "state": "incomplete-network-unreachable",
+  "observedAt": "2026-10-22T07:30:33.195959+00:00",
+  "source": "0bf50ac18696a2414dd836968ccda17607f0a45c",
+  "assignedHost": "ccheever@macstudio-charlie-apt101-a",
+  "assignedWorktree": "~/sb4-ws-dx6",
+  "sourceManifestFiles": 6105,
+  "confirmed": [
+    {
+      "scope": "native check target",
+      "passed": 106,
+      "provenance": "Root coordinator confirmed final-source streamed .dx6-r6-run.mjs output before SSH was lost during native clock. This supervisor received no additional remote results."
+    }
+  ],
+  "unverified": [
+    {
+      "scope": "native clock + init_production",
+      "expectedTests": 59
+    },
+    {
+      "scope": "maintenance",
+      "expectedTests": 14
+    },
+    {
+      "scope": "clock-store",
+      "expectedTests": 7
+    },
+    {
+      "scope": "committer/store-port ratchets",
+      "expectedTests": 10
+    },
+    {
+      "scope": "SDK build"
+    },
+    {
+      "scope": "affected client files",
+      "files": 23
+    }
+  ],
+  "connectivity": {
+    "DNSName": "macstudio-charlie-apt101-a.tailb248b0.ts.net.",
+    "TailscaleIPs": [
+      "100.65.29.120",
+      "fd7a:115c:a1e0::ee37:1d7b"
+    ],
+    "Online": false,
+    "LastSeen": "2026-10-22T07:20:00.1Z",
+    "LastHandshake": "0001-01-01T00:00:00Z"
+  },
+  "attempts": {
+    "boundedMonitorAttemptsAtLeast": 70,
+    "directIPv4ConnectTimeoutSeconds": 40,
+    "directIPv6ConnectTimeoutSeconds": 30,
+    "tailnetPingTimeoutSeconds": 10,
+    "finalSnapshot": {
+      "receivedRemoteStatus": false,
+      "connectTimeoutSeconds": 20,
+      "commandTimeoutSeconds": 30,
+      "sshExit": 255
+    },
+    "usableResumeStatusReceived": false
+  },
+  "localControl": {
+    "rootLauncherSession55954": "exited255; coordinator-confirmed",
+    "monitorPid1380170": "terminated and reaped; session75920 exit143",
+    "wrapperPid1380168": "exited",
+    "runningOwnedMonitorOrLauncherProcesses": [],
+    "monitorScriptRemoved": true,
+    "ownedSshControlSocket": "absent"
+  },
+  "remoteControl": {
+    "state": "unknown",
+    "possibleDetachedResumeController": true,
+    "controllerWallBoundSeconds": 5400,
+    "originalRunWaitBoundSeconds": 1200,
+    "cleanupVerified": false,
+    "noSupervisorJobLaunch": true,
+    "explanation": "Earlier launcher occasionally lost SSH responses. No usable status/lock/process response was obtained, so neither absence of a detached job nor remote cleanup is inferred."
+  },
+  "recovery": {
+    "localUploader": "reports/20261022-dx6/mac/r6-resume-upload.py",
+    "localSourceArchive": "reports/20261022-dx6/mac/r6-source.tgz",
+    "localManifest": "reports/20261022-dx6/mac/r6-manifest-status.json",
+    "remoteLock": "~/sb4-ws-dx6/.dx6-r6-resume.lock",
+    "remoteController": "~/sb4-ws-dx6/.dx6-r6-resume.mjs",
+    "remoteLog": "~/sb4-ws-dx6/.dx6-r6-resume.log",
+    "remoteStatus": "~/sb4-ws-dx6/.dx6-r6-resume-status.json",
+    "remoteOriginalController": "~/sb4-ws-dx6/.dx6-r6-run.mjs",
+    "procedure": "Inspect exact existing lock/pid/status and process argv/start before any launch. Preserve log/status locally. Never duplicate a live controller. Only repair a confirmed stale owned lock. Corrected uploader uses serve::maintenance::tests (14 tests). Save evidence before removing only owned .dx6-r6-* control files."
+  },
+  "evidenceFiles": [
+    "reports/20261022-dx6/mac/r6-final-snapshot.json",
+    "reports/20261022-dx6/mac/r6-local-monitor-stop.json",
+    "reports/20261022-dx6/mac-r6-connectivity.log"
+  ]
+}

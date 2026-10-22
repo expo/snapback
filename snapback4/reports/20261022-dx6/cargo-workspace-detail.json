@@ -1,0 +1,346 @@
+{
+  "state": "complete",
+  "updatedAt": "2026-10-22T06:43:13.454862+00:00",
+  "counting": "Final top-level Cargo target summaries only; nested subprocess summaries excluded. Original failed cases are replaced by passing focused repair evidence, without double-counting reruns.",
+  "expectedWorkspace": {
+    "packages": 7,
+    "unitAndIntegrationTargets": 444,
+    "docLibraries": 6,
+    "totalTargetScopes": 450
+  },
+  "originalTimedOutRun": {
+    "timeoutExitCode": 124,
+    "startedTargets": 197,
+    "completedTargets": 196,
+    "passed": 3824,
+    "failed": 4,
+    "ignored": 24,
+    "unfinishedTarget": "snapback4-device/unread_range",
+    "completedCasesInUnfinishedTarget": 5
+  },
+  "completedResume": {
+    "unreadRemainingCases": {
+      "passed": 2,
+      "failed": 0,
+      "skippedAlreadyPassed": 5,
+      "log": "cargo-resume-unread-range.log"
+    },
+    "laterDeviceTargets": {
+      "targets": 9,
+      "passed": 187,
+      "failed": 0,
+      "ignored": 0,
+      "log": "cargo-resume-device-tail.log"
+    },
+    "coreDeviceDocs": {
+      "targetScopes": 2,
+      "passed": 17,
+      "failed": 0,
+      "ignored": 0,
+      "exitCode": 0,
+      "log": "cargo-resume-core-device-docs.log"
+    }
+  },
+  "originalFailureRepairs": [
+    {
+      "target": "snapback4/clock",
+      "focusedLog": "clock-final.log",
+      "passed": 45,
+      "failed": 0
+    },
+    {
+      "target": "snapback4/committer_ratchet",
+      "focusedLog": "ratchets-final.log",
+      "passed": 3,
+      "failed": 0
+    },
+    {
+      "target": "snapback4/store_port_ratchet",
+      "focusedLog": "ratchets-final.log",
+      "passed": 7,
+      "failed": 0
+    },
+    {
+      "target": "snapback4/day5_starters",
+      "test": "adapting_legacy_smoke_imports_removes_only_an_unused_unmodified_helper",
+      "focusedLog": "cargo-resume-day5-starter-repair.log",
+      "passed": 1,
+      "failed": 0,
+      "otherPreviouslyPassingCases": 7
+    }
+  ],
+  "effectiveCompletedCliCoreDeviceUnitIntegration": {
+    "targets": 206,
+    "passed": 4022,
+    "failed": 0,
+    "ignored": 24
+  },
+  "remaining": [],
+  "cleanup": {
+    "timedOutScratch": "cargo-timeout-cleanup.json",
+    "resumedUnreadPid": 437828,
+    "resumedUnreadExited": true,
+    "resumedUnreadScratchAbsent": true,
+    "finalCheckedAt": "2026-10-22T06:43:48.047233+00:00",
+    "knownOwnedPids": [
+      347325,
+      437828,
+      525293,
+      606907,
+      664378,
+      997874,
+      1181718,
+      1240101
+    ],
+    "knownOwnedLiveProcesses": [],
+    "exactPidNamedScratchMatches": [],
+    "activeWorktreeRustTestExecutables": [],
+    "compiledOutputsRetainedForFinalQualification": true,
+    "removedOnlyExactOwnedTimeoutScratch": true
+  },
+  "sourceChanges": false,
+  "commitsCreated": false,
+  "activeRemainingCrates": {
+    "startedScopes": 197,
+    "completeScopes": 196,
+    "passed": 2544,
+    "failed": 6,
+    "ignored": 16,
+    "currentTarget": "tests/clique.rs (target/debug/deps/clique-8739a60c98f6f2b6)",
+    "guideFailureRepaired": true,
+    "surf4FailureRepaired": true
+  },
+  "remainingCratesGuideRepair": {
+    "owner": "clock_sessions",
+    "commit": "3c39e40780",
+    "log": "guide-corrected-final.log",
+    "passed": 127,
+    "failed": 0,
+    "exitCode": 0,
+    "replaces": {
+      "passed": 122,
+      "failed": 5
+    },
+    "noDuplicateCount": true
+  },
+  "finalSourceAffectedSupplement": {
+    "commit": "efcbc21344",
+    "owner": "clock_sessions",
+    "nativeMaintenance": {
+      "passed": 14,
+      "failed": 0,
+      "log": "r5-maintenance.log"
+    },
+    "clockStore": {
+      "passed": 6,
+      "failed": 0,
+      "log": "r5-clock-store.log"
+    },
+    "clockIntegration": {
+      "passed": 45,
+      "failed": 0,
+      "log": "r5-clock.log"
+    },
+    "ratchets": {
+      "passed": 10,
+      "failed": 0,
+      "log": "r5-ratchets.log"
+    },
+    "guide": {
+      "passed": 127,
+      "failed": 0,
+      "log": "r5-guide.log"
+    },
+    "realDx6Consumer": {
+      "passed": 1,
+      "failed": 0,
+      "log": "r5-consumer.log"
+    },
+    "refs": {
+      "exitCode": 0,
+      "log": "r5-ref-check.log"
+    },
+    "newUnitTest": "serve_maintenance::tests::dx6_current_window_drains_resume_queued_work_and_only_future_markers_refuse",
+    "counting": "Supplements original broad binaries with exact final affected-source evidence; rerun cases are not double counted; newly added unit case counted separately.",
+    "unitCensus": {
+      "originalCliUnitCases": 519,
+      "finalCliUnitCases": 521,
+      "additionalUniquePassingCaseCount": 2,
+      "listBinary": "target/debug/deps/snapback4-f24ac4e4d2e2b042",
+      "listExitCode": 0
+    },
+    "laterStartupAdvice": {
+      "commit": "02409d2266",
+      "clockStore": {
+        "passed": 7,
+        "failed": 0,
+        "log": "r5-startup-store.log"
+      },
+      "clockAndRatchets": {
+        "passed": 55,
+        "failed": 0,
+        "log": "r5-startup-clock-ratchets.log"
+      },
+      "refsLog": "r5-startup-refs.log"
+    }
+  },
+  "remainingCratesSurf4Repair": {
+    "log": "cargo-resume-surf4-guide-repair.log",
+    "exitCode": 0,
+    "passed": 4,
+    "failed": 0,
+    "replaces": {
+      "passed": 3,
+      "failed": 1
+    },
+    "cause": "Broad binary compiled before deploy-card correction, final-source rebuild passes unchanged4-case target."
+  },
+  "remainingCratesTimeout": {
+    "exitCode": 124,
+    "timeoutSeconds": 3000,
+    "completedUnitIntegrationScopes": 228,
+    "unfinishedTarget": "snapback4-sim/union",
+    "partialPassed": 27,
+    "partialIgnored": 2,
+    "unfinishedCases": [
+      "owner_or_team_every_sequence_of_two_writes",
+      "two_columns_plus_group_every_sequence_of_two_writes"
+    ],
+    "originalOwnedPgid": 525292,
+    "remainingLiveGroupMembers": [],
+    "originalUnionPid": 1181718,
+    "originalUnionExited": true,
+    "exactPidNamedScratchAbsent": true,
+    "resumeLog": "cargo-resume-union-remaining.log",
+    "laterSimTargetsLog": "cargo-resume-sim-tail.log"
+  },
+  "completedLogTotals": {
+    "cargo-resume-remaining-crates.log": {
+      "startedScopes": 229,
+      "completedScopes": 228,
+      "passed": 3134,
+      "failed": 6,
+      "ignored": 21
+    },
+    "cargo-resume-sim-tail.log": {
+      "startedScopes": 9,
+      "completedScopes": 9,
+      "passed": 108,
+      "failed": 0,
+      "ignored": 0
+    },
+    "cargo-resume-remaining-docs.log": {
+      "startedScopes": 4,
+      "completedScopes": 4,
+      "passed": 0,
+      "failed": 0,
+      "ignored": 0
+    },
+    "cargo-resume-core-device-docs.log": {
+      "startedScopes": 2,
+      "completedScopes": 2,
+      "passed": 17,
+      "failed": 0,
+      "ignored": 0
+    }
+  },
+  "effectiveWorkspace": {
+    "targetScopes": 450,
+    "unitIntegrationScopes": 444,
+    "docLibraries": 6,
+    "passed": 7318,
+    "failed": 0,
+    "ignored": 47
+  },
+  "byPackage": {
+    "snapback4": {
+      "targetScopes": 58,
+      "passed": 1410,
+      "failed": 0,
+      "ignored": 15
+    },
+    "snapback4-core": {
+      "targetScopes": 46,
+      "passed": 1058,
+      "failed": 0,
+      "ignored": 5
+    },
+    "snapback4-device": {
+      "targetScopes": 104,
+      "passed": 1573,
+      "failed": 0,
+      "ignored": 4
+    },
+    "snapback4-difftest": {
+      "targetScopes": 13,
+      "passed": 99,
+      "failed": 0,
+      "ignored": 0
+    },
+    "snapback4-lang": {
+      "targetScopes": 182,
+      "passed": 2429,
+      "failed": 0,
+      "ignored": 16
+    },
+    "snapback4-native": {
+      "targetScopes": 2,
+      "passed": 0,
+      "failed": 0,
+      "ignored": 0
+    },
+    "snapback4-sim": {
+      "targetScopes": 45,
+      "passed": 749,
+      "failed": 0,
+      "ignored": 7
+    }
+  },
+  "coverageAudit": {
+    "metadata": "cargo-resume-metadata.json",
+    "missingScopes": [],
+    "unexpectedScopes": [],
+    "allScopesCoveredExactlyOnce": true,
+    "includesDeviceRlibCdylibUnitAndDocs": true
+  },
+  "repairedTargetCounts": [
+    {
+      "package": "snapback4",
+      "target": "tests/clock.rs",
+      "originalFailed": 1
+    },
+    {
+      "package": "snapback4",
+      "target": "tests/committer_ratchet.rs",
+      "originalFailed": 1
+    },
+    {
+      "package": "snapback4",
+      "target": "tests/day5_starters.rs",
+      "originalFailed": 1
+    },
+    {
+      "package": "snapback4",
+      "target": "tests/store_port_ratchet.rs",
+      "originalFailed": 1
+    },
+    {
+      "package": "snapback4-lang",
+      "target": "tests/guide.rs",
+      "originalFailed": 5
+    },
+    {
+      "package": "snapback4-lang",
+      "target": "tests/surf4_guide.rs",
+      "originalFailed": 1
+    }
+  ],
+  "finalUnion": {
+    "passed": 2,
+    "failed": 0,
+    "ignored": 0,
+    "filteredAlreadyComplete": 29,
+    "exitCode": 0,
+    "log": "cargo-resume-union-remaining.log"
+  }
+}

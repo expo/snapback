@@ -1,0 +1,143 @@
+{
+  "format": 1,
+  "completedAt": "2026-10-22T06:43:48.047645+00:00",
+  "scope": "All7workspace crates:444unit/integration target scopes and6library doc scopes. Complete original pass retained; only unfinished scopes resumed. Final affected-source repairs supplement the broad binaries.",
+  "result": {
+    "targetScopes": 450,
+    "unitIntegrationScopes": 444,
+    "docLibraries": 6,
+    "passed": 7318,
+    "failed": 0,
+    "ignored": 47
+  },
+  "packages": {
+    "snapback4": {
+      "targetScopes": 58,
+      "passed": 1410,
+      "failed": 0,
+      "ignored": 15
+    },
+    "snapback4-core": {
+      "targetScopes": 46,
+      "passed": 1058,
+      "failed": 0,
+      "ignored": 5
+    },
+    "snapback4-device": {
+      "targetScopes": 104,
+      "passed": 1573,
+      "failed": 0,
+      "ignored": 4
+    },
+    "snapback4-difftest": {
+      "targetScopes": 13,
+      "passed": 99,
+      "failed": 0,
+      "ignored": 0
+    },
+    "snapback4-lang": {
+      "targetScopes": 182,
+      "passed": 2429,
+      "failed": 0,
+      "ignored": 16
+    },
+    "snapback4-native": {
+      "targetScopes": 2,
+      "passed": 0,
+      "failed": 0,
+      "ignored": 0
+    },
+    "snapback4-sim": {
+      "targetScopes": 45,
+      "passed": 749,
+      "failed": 0,
+      "ignored": 7
+    }
+  },
+  "methodology": "Use final unfiltered top-level target summaries; exclude nested subprocess summaries. Combine partial unread/union cases with only skipped-case resumes. Replace10 original failed cases using passing focused repair evidence. Add2unique final CLI unit cases (519\u2192521), without double counting reruns.",
+  "coverageAudit": {
+    "metadata": "cargo-resume-metadata.json",
+    "missingScopes": [],
+    "unexpectedScopes": [],
+    "allScopesCoveredExactlyOnce": true,
+    "includesDeviceRlibCdylibUnitAndDocs": true
+  },
+  "runs": [
+    {
+      "log": "cargo-workspace-complete.log",
+      "exitCode": 124,
+      "completedScopes": 196
+    },
+    {
+      "log": "cargo-resume-remaining-crates.log",
+      "exitCode": 124,
+      "completedScopes": 228
+    },
+    {
+      "log": "cargo-resume-unread-range.log",
+      "exitCode": 0,
+      "passed": 2
+    },
+    {
+      "log": "cargo-resume-device-tail.log",
+      "exitCode": 0,
+      "passed": 187
+    },
+    {
+      "log": "cargo-resume-union-remaining.log",
+      "exitCode": 0,
+      "passed": 2
+    },
+    {
+      "log": "cargo-resume-sim-tail.log",
+      "exitCode": 0,
+      "passed": 108
+    },
+    {
+      "log": "cargo-resume-core-device-docs.log",
+      "exitCode": 0,
+      "passed": 17
+    },
+    {
+      "log": "cargo-resume-remaining-docs.log",
+      "exitCode": 0,
+      "passed": 0
+    }
+  ],
+  "repairLogs": [
+    "r5-startup-store.log",
+    "r5-startup-clock-ratchets.log",
+    "r5-maintenance.log",
+    "r5-guide.log",
+    "cargo-resume-day5-starter-repair.log",
+    "cargo-resume-surf4-guide-repair.log"
+  ],
+  "cleanup": {
+    "timedOutScratch": "cargo-timeout-cleanup.json",
+    "resumedUnreadPid": 437828,
+    "resumedUnreadExited": true,
+    "resumedUnreadScratchAbsent": true,
+    "finalCheckedAt": "2026-10-22T06:43:48.047233+00:00",
+    "knownOwnedPids": [
+      347325,
+      437828,
+      525293,
+      606907,
+      664378,
+      997874,
+      1181718,
+      1240101
+    ],
+    "knownOwnedLiveProcesses": [],
+    "exactPidNamedScratchMatches": [],
+    "activeWorktreeRustTestExecutables": [],
+    "compiledOutputsRetainedForFinalQualification": true,
+    "removedOnlyExactOwnedTimeoutScratch": true
+  },
+  "status": "complete",
+  "sourceEdits": false,
+  "commitsCreated": false,
+  "fullIndex": "cargo-workspace-coverage.json",
+  "detailedStatus": "cargo-workspace-detail.json",
+  "postVerificationCleanup": "cleanup.json (compiled targets and owned consumer scratch removed after qualification)"
+}
