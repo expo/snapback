@@ -35,6 +35,10 @@ impl LeaseDeadline {
     pub fn expired(&self) -> bool {
         std::time::Instant::now() >= *self.until.lock().unwrap_or_else(|p| p.into_inner())
     }
+    pub fn remaining(&self) -> std::time::Duration {
+        self.until.lock().unwrap_or_else(|p| p.into_inner())
+            .saturating_duration_since(std::time::Instant::now())
+    }
     pub fn renewed(&self, started: std::time::Instant) -> bool {
         let mut until = self.until.lock().unwrap_or_else(|p| p.into_inner());
         let now = std::time::Instant::now();

@@ -220,7 +220,7 @@ impl StoreConfig {
                     eprintln!("E_STORE_OWNERSHIP: lease renewal deadline lost; stopping all admission and exiting");
                     std::process::exit(1);
                 }
-                std::thread::sleep(Duration::from_millis(10));
+                std::thread::sleep(deadline.remaining().min(Duration::from_millis(10)));
             }
         }).map_err(|_|input("cannot start lease deadline watchdog"))?);
         Ok(owner)

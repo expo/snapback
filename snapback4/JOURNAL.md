@@ -102265,3 +102265,8 @@ K0-Q fix round 1 layout follow-up: keep both serving entry modules below
 memory publication regression lives with the committer serving witnesses.
 The moves preserve behavior and keep the strengthened progress assertions
 (query data and successful ephemeral/durable outcomes) in the same scope.
+
+
+The shared lease deadline also bounds each watchdog sleep to its remaining
+window (at most 10 ms), so short test leases do not wait a full polling tick
+past their deadline. Renewal completion still cannot revive lost authority.

@@ -260,7 +260,7 @@ impl Queue {
                         lose_ownership(&admission);
                         break;
                     }
-                    thread::park_timeout(std::time::Duration::from_millis(10));
+                    thread::park_timeout(deadline.remaining().min(std::time::Duration::from_millis(10)));
                 }
             })
             .map_err(|error| crate::RuntimeError::Store(error.to_string()))?;
