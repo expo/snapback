@@ -32,8 +32,9 @@ fn trailing_new_column_guard_tightens_and_rollback_leads_with_its_code() {
     app.ok(&["deploy","deployment"]);
     let text=app.ok(&["rollback","deployment","--to","1","--check","--bridge","bridge"]);
     let first=text.lines().find(|line|line.contains("WARNING")).unwrap();assert!(first.contains("book.require") && first.contains("UNAVAILABLE"),"{text}");
-    assert_eq!(app.read("bridge/schema.q"),v1,"loosened bridges preserve target operations; safety restoration is explicit");
-    assert!(app.read("bridge/ROLLBACK-CHECKLIST.md").contains("restore any current safety guards absent from the target"));
+    let bridge=app.read("bridge/schema.q");
+    assert!(bridge.contains("mutation book(plan: plans)")&&bridge.contains("NOT_OWNER")&&bridge.contains("UNAVAILABLE")&&bridge.contains("available: bool default true"),"generated source must compile with the carried current guard: {bridge}");
+    assert!(app.read("bridge/ROLLBACK-CHECKLIST.md").contains("carried current safety guards"));
     assert!(app.read("bridge/ROLLBACK-CHECKLIST.md").contains("UNAVAILABLE"));
     app.ok(&["deploy","deployment","--schema","bridge","--check"]);
     let out=app.run(&["rollback","deployment","--to","1","--check","--bridge","bridge"]);assert!(!out.status.success());

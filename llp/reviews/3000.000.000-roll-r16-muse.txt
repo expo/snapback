@@ -1,0 +1,22 @@
+muse: workspace root: /home/ccheever/projects/sb4-b23-roll (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=b5651a1d-0326-42c5-8929-52b8806b9942]: Subscription quota exhausted. Your usage window resets at 2026-10-26T00:00:00Z. (rate_limit_error)
+[muse-exec] plan quota exhausted; retrying with the Meta API key
+muse: workspace root: /home/ccheever/projects/sb4-b23-roll (cwd default)
+muse: workspace trust: trusted source=run-flag
+NOT READY.
+
+Four material gaps remain.
+
+1. Mixed-change refusal does not enumerate domain attributes.
+§20.1 refuses enlarging any current shared-column domain with predecessor-only values, even for non-trigger columns, ignoring enum order and rename spelling. That matches the final clarification for values. It does not state that cardinality, list-element bounds, asset size, text/integer format, MIME/kind/once count as domain. Nullability and cardinality join separately, with no explicit refuse rule. Example: predecessor list 0..5, current 0..3. A union join of 0..5 restores lengths 4..5 that current predicates may treat as impossible. There is no null-hiding form for lengths. Truncation is forbidden. The only safe outcome is refuse, but the text does not require it. The same holds for asset size-bound union restoring predecessor-only sizes. An implementer can satisfy the letter for values while leaking lengths, sizes, or formats.
+
+2. Added required-field retention is too narrow.
+§20.1 retains the field and authored backfill only when a relaxed unique key invalidates an old lookup, or current guards require the added field. A current schema-required column with no guard mention falls through. The old operation can then be transported unchanged without the column. Old writes would create rows missing a current required field, breaking predicates that rely on its presence. Retention must cover every current required column on every retained old write path, with authored backfill, not only guard-mentioned fields.
+
+3. Zero-hidden does not preserve populations.
+§20.1 claims zero hidden old-table rows plus IR equality preserves current lookup populations, and requires §20.2 population-sensitive checks only for intentional hiding. IR equality preserves rules, not rows. Predecessor rows deleted or changed in current become visible again under rollback. That resurrects deleted data and changes existence, count, and uniqueness populations. Negative-existence and absence-reliant checks need population-sensitive review even with zero hidden, or an explicit resurrection acknowledgment.
+
+4. Point-assertion discharge lacks ordering and rollback.
+§20.2 lets a direct point assertion discharge absence taint, aborting before subsequent work, and requires writes to affected targets to carry the same guard. It does not require the guard to precede all tainted reads and writes in program order. It does not require abort to roll back prior effects in the same operation atomically. A write before the guard could persist before the hidden-row abort, leaving partial effects and violating atomicity.
+

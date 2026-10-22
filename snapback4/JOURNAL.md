@@ -63476,7 +63476,7 @@ What it merges:
   a runs table, a `progress` catch-up page, and a hook that owes every run it
   holds and every view, for the life of the signed-in client, until the server
   shows it covered;
-- live presence (LLP 3000.018 revision 14): a presence answer asks for a
+- live presence (LLP 3000.018 revision 17): a presence answer asks for a
   5-second refresh, a background reply publishes only what nothing overtook,
   and remembered answers follow the store cut each reply names, the highest
   cut named staying known, composed reads included;
@@ -101423,7 +101423,7 @@ and private transfer evidence. Deploy verdicts surround a changed-scope security
 notice; JSON retains full detail. SEC7 owns ordinary check ranking/gates.
 
 The final amendment received blind Muse and fresh Codex READY reviews (revision
-12); earlier reviews and dispositions remain recorded. Copy replays reached zero
+14); earlier reviews and dispositions remain recorded. Copy replays reached zero
 hidden old-table rows in all 16 dormancy lanes, with lane 032 first refusing its
 misleading default and then accepting its truthful down. Broader qualification
 and the required Mac Studio attempt are recorded in WORKSTREAM-REPORT.md; this

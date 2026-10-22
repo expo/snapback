@@ -18,6 +18,7 @@ fn candidate(
         digest: crate::release_files::digest(&root).unwrap(),
         rollback: false,
         visible_rollback: false,
+        registry_custody: false,
         restore_dormant: true,
         allow_feed_adoption: false,
     }

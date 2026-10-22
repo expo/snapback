@@ -8,7 +8,7 @@ pub fn loosen(target:&[(String,String)],current:&[(String,String)])->Bridge {
     let new: BTreeMap<_,_>=current.iter().flat_map(|(file,text)|parser::parse_document(file,text).0.tables.into_iter().map(move|t|(t.name.clone(),(file,text,t)))).collect();
     let mut new=new;
     for (_,(_,_,table)) in new.clone() {if let Some(old)=&table.renamed_from {if let Some(value)=new.get(&table.name).cloned(){new.insert(old.clone(),value);}}}
-    let mut changes=Vec::new();let mut affected=std::collections::BTreeSet::new();let mut sources=target.to_vec();let mut names=std::collections::BTreeSet::new();
+    let mut domain_diagnostics=Vec::new();let mut changes=Vec::new();let mut affected=std::collections::BTreeSet::new();let mut sources=target.to_vec();let mut names=std::collections::BTreeSet::new();
     for (file,text) in &mut sources {
         let document=parser::parse_document(file,text).0;let mut edits=Vec::new();
         for table in &document.tables {
@@ -18,7 +18,23 @@ pub fn loosen(target:&[(String,String)],current:&[(String,String)])->Bridge {
             for column in &table.columns {
                 let Some(candidate)=next.columns.iter().find(|c|c.name==column.name || c.renamed_from.as_ref()==Some(&column.name)) else {continue};
                 if candidate.name!=column.name {affected.insert(table.name.clone());changes.push(format!("{}.{}: current column spelling {}; target spelling routes the same cell",table.name,column.name,candidate.name));}
-                let Some(joined)=join(&column.type_,&candidate.type_,&new) else {changes.push(format!("{}.{}: incompatible types {} / {}; target domain retained, explicit typed repair required",table.name,column.name,print::scalar_type(&column.type_),print::scalar_type(&candidate.type_)));continue};
+                let Some(joined)=join(&column.type_,&candidate.type_,&new) else {domain_diagnostics.push(crate::diag::type_error(&column.site,format!("rollback view for {}.{} has incompatible predecessor/current domains {} / {}",table.name,column.name,print::scalar_type(&column.type_),print::scalar_type(&candidate.type_)),"author a truthful compatible source and typed migration before deploying").guide("deploy"));continue};
+                // A current guard may rely on a value being impossible under its
+                // schema. Never reintroduce predecessor-only values behind that
+                // same predicate merely because another column needs widening.
+                let mut current_domain=join(&candidate.type_,&candidate.type_,&new).unwrap();
+                let mut joined_domain=joined.clone();
+                fn normalize(t:&mut ast::ScalarType,tables:&BTreeMap<String,(&String,&String,ast::TableDecl)>){
+                    match &mut t.kind {
+                        TypeKind::Ref{table}=>{if let Some((_,_,next))=tables.get(table){*table=next.name.clone();}},
+                        TypeKind::List{item,..}=>normalize(item,tables),
+                        TypeKind::Enum{variants}=>variants.sort(), _=>()
+                    }
+                }
+                normalize(&mut current_domain,&new);normalize(&mut joined_domain,&new);
+                if current_domain!=joined_domain {
+                    domain_diagnostics.push(crate::diag::type_error(&column.site,format!("rollback view for {}.{} would admit predecessor values excluded by the current domain; current authority may depend on their absence",table.name,column.name),"author a compatible rollback source preserving the current domain and truthful migrations; do not widen a current confidentiality or safety boundary").guide("deploy"));
+                }
                 if joined==column.type_ {continue;}
                 affected.insert(table.name.clone());
                 if let Some((start,end))=type_span(file,text,column) {
@@ -41,10 +57,14 @@ pub fn loosen(target:&[(String,String)],current:&[(String,String)])->Bridge {
         changes.push(format!("new table {name}: retained with its current rules; old operations may not expose it"));
     }
     if !additions.is_empty() {let mut name="rollback-retained.q".to_owned();while sources.iter().any(|(f,_)|f==&name){name.insert_str(0,"retained-");}sources.push((name,additions));}
-    let transported=super::release_bridge_rules::carry(&mut sources,current,&mut changes,&affected);
+    let transported=super::release_bridge_rules::carry(&mut sources,current,&mut changes,&std::collections::BTreeSet::new());
     affected.extend(transported);
-    let mut diagnostics=super::release_bridge_guards::carry(&mut sources,current,&affected,&mut changes);
-    let bound=crate::compile(&sources);diagnostics.extend(bound.diagnostics);
+    let (mut diagnostics,fallback)=super::release_bridge_guards::carry(&mut sources,current,&affected,&mut changes);
+    if !fallback.is_empty(){
+        super::release_bridge_rules::carry(&mut sources,current,&mut changes,&fallback);
+        (diagnostics,_)=super::release_bridge_guards::carry(&mut sources,current,&affected,&mut changes);
+    }
+    let bound=crate::compile(&sources);diagnostics.extend(bound.diagnostics);diagnostics.extend(domain_diagnostics);
     Bridge {sources,changes,diagnostics}
 }
 fn offset(text:&str,line:u32,col:u32)->usize {
@@ -132,6 +152,13 @@ fn join(old:&ast::ScalarType,new:&ast::ScalarType,tables:&BTreeMap<String,(&Stri
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn mixed_narrowing_cannot_restore_values_that_change_current_rule_meaning() {
+        let old="table items:\n  kind: enum('private', 'public')\n  amount: int\n  read <- .kind != 'public'\n  online only\nquery readItem(id: items):\n  return items[id]\n";
+        let new=old.replace("enum('private', 'public')","enum('public')").replace("amount: int","amount: int ?");
+        let b=loosen(&[("schema.q".into(),old.into())],&[("schema.q".into(),new)]);
+        assert!(b.diagnostics.iter().any(|d|d.message.contains("excluded by the current domain")),"{:?}",b.diagnostics);
+    }
     #[test]
     fn loosens_target_domains_preserving_its_operations_and_rules() {
         let old="table items:\n  amount: money USD\n  photos: [image <=1024] 1..8\n  public\n  online only\nquery oldRead():\n  return items first 10 by .id {amount,photos}\n";

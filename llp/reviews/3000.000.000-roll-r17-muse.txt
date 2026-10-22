@@ -1,0 +1,22 @@
+muse: workspace root: /home/ccheever/projects/sb4-b23-roll (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=42c105de-d063-46b7-983b-a5a7b206ee33]: Subscription quota exhausted. Your usage window resets at 2026-10-26T00:00:00Z. (rate_limit_error)
+[muse-exec] plan quota exhausted; retrying with the Meta API key
+muse: workspace root: /home/ccheever/projects/sb4-b23-roll (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY
+
+No material correctness, security, or atomicity defects found in revision 17.
+
+Checks:
+
+- Domain is closed. Mixed predecessor-only enlargement refuses. Unsupported or incompatible changes refuse, never truncate or coerce. No inferred conversion, fallback, default, or row choice.
+- All current fields retained. Every added field on a shared table is retained. Required fields keep authored backfill. Old writes must use a compatible authored endpoint or refuse.
+- Activation is a view. Deleted rows stay deleted. Current values stay current except truthful migrations. No snapshot restore or preimage replay.
+- Hiding is closed. Only `rollback N hides TABLE where COLUMN = null because 'REASON'` is admitted. Writer revalidates under lock and CAS. Unrelated hidden rows refuse atomically.
+- Presence proof is narrow. It discharges only subsequent work in program order on that exact table and key. Later refusal rolls back all prior writes in the operation.
+- Atomicity holds. All views must prepare or deploy refuses. Format 9 upgrades transactionally. Failure rolls back evidence, format, homes, selection, and generation together.
+- No test or publication claim is made.
+
+No blocking findings.
+

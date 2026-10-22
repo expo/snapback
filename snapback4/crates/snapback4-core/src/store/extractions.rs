@@ -27,8 +27,15 @@ fn fields(row: &mut Value) -> Result<&mut crate::value::ObjectFields, RuntimeErr
         _ => Err(refuse("invalid extraction row")),
     }
 }
-fn key(e: &Extraction) -> String {
-    crate::value::digest(e)
+fn key(tx:&Tx<'_>,e:&Extraction)->Result<String,RuntimeError>{
+    let parent=tx.num(&e.parent)?;let child=tx.num(&e.child)?;
+    let aliases:bool=tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE name='_asset_column_renames')",[],|r|r.get(0))?;
+    let origin=|t:i64,c:&str|->Result<String,RuntimeError>{
+        if !aliases{return Ok(c.into())}
+        Ok(tx.conn().query_row("SELECT origin FROM _asset_column_renames WHERE t=?1 AND name=?2",params![t,c],|r|r.get(0)).optional()?.unwrap_or_else(||c.into()))
+    };
+    let fields=e.fields.iter().map(|(dest,source)|Ok((origin(child,dest)?,origin(parent,source)?))).collect::<Result<BTreeMap<_,_>,RuntimeError>>()?;
+    Ok(crate::value::digest(&(parent,child,origin(child,&e.reference)?,fields)))
 }
 fn exists(tx: &Tx<'_>) -> Result<bool, RuntimeError> {
     Ok(tx.conn().query_row(
@@ -149,7 +156,7 @@ pub(super) fn transition(
     for e in &next.extractions {
         tx.conn().execute(
             "INSERT INTO _extraction_active VALUES(?1,?2,?3,?4)",
-            params![tx.num(&e.child)?, key(e), e.parent, e.reference],
+            params![tx.num(&e.child)?, key(tx,e)?, e.parent, e.reference],
         )?;
     }
     tx.set_meta("version", super::table_renames::VERSION)?;
@@ -164,7 +171,7 @@ pub(super) fn transition(
         let child = &previous.unwrap().tables[&e.child];
         let pt = tx.num(&e.parent)?;
         let ct = tx.num(&e.child)?;
-        let key = key(e);
+        let key = key(tx,e)?;
         let mut count = 0;
         let inherited = child
             .through
@@ -286,7 +293,7 @@ pub(super) fn transition(
         let child = &next.tables[&e.child];
         let pt = tx.num(&e.parent)?;
         let ct = tx.num(&e.child)?;
-        let key = key(e);
+        let key = key(tx,e)?;
         let mut count = 0;
         let inherited = child
             .through
@@ -354,11 +361,16 @@ pub(super) fn transition(
             let saved:Option<String>=tx.conn().query_row("SELECT child_id FROM _extraction_rows WHERE definition=?1 AND parent_t=?2 AND parent_id=?3",params![key,pt,id],|r|r.get(0)).optional()?;
             let child_id = saved.clone().unwrap_or_else(|| id.to_owned());
             let present = load(tx, ct, &child_id)?;
-            if saved.is_none() && present.is_some() {
+            let independent:bool=if saved.is_none(){tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM _dormant_rows WHERE t=?1 AND id=?2) OR EXISTS(SELECT 1 FROM _dormant_narrow_rows WHERE t=?1 AND id=?2) OR EXISTS(SELECT 1 FROM _dormant_values WHERE t=?1 AND id=?2) OR EXISTS(SELECT 1 FROM _extraction_rows WHERE child_t=?1 AND child_id=?2)",params![ct,child_id],|r|r.get(0))?}else{false};
+            if saved.is_none() && (present.is_some()||independent) {
                 return Err(refuse(format!(
                     "extraction destination {}/{child_id} already has independent history",
                     e.child
                 )));
+            }
+            if saved.is_some(){
+                let anchored:bool=tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM _dormant_refs WHERE t=?1 AND id=?2 AND column_name=?3 AND parent_t=?4 AND parent_id=?5 AND invalid=0)",params![ct,child_id,format!("$extract:{key}"),pt,id],|r|r.get(0))?;
+                if present.is_none()||!anchored{return Err(refuse("returning extraction lacks its receipt-owned child or valid parent-lifetime evidence; never recreate pruned/deleted history"))}
             }
             let mut image = present.unwrap_or_else(|| {
                 Value::Row(

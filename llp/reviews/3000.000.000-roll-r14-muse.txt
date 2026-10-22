@@ -1,0 +1,18 @@
+muse: workspace root: /home/ccheever/projects/sb4-b23-roll (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY
+
+No MATERIAL correctness, security, or atomicity issues found in the supplied design.
+
+Visible rollback is closed and atomic. Widenings without an authored down require a compiled view. All needed views must prepare or deploy refuses. No conversion, fallback, default, or row choice is inferred. Prepared source is immutable, bound by manifest, digest, and CAS revision. ABA/equal-content bumps revision. Views are usable only after parent CAS commits. Failed parents remove stages. Unknown outcomes retain for recovery but cannot authorize selection.
+
+Deterministic ordering, id reservation, and writer atomicity are preserved. Replacement endpoints keep total ordering with id tie-break. Receipt and dormant ids are never freed by rollback. Activation revalidates under command lock and CAS. Failures roll back evidence, format, homes, selection, and generation together.
+
+Intentional hiding is a closed syntactic form. Default admits zero unacknowledged hidden rows. The `rollback N hides TABLE where COLUMN = null` form requires nullable candidate, nonnullable predecessor, and identical spellings. The writer compares before/after images atomically. Only acknowledged nulls plus their Ref-closure are allowed. Population-tainted authority, negative existence, and count-based guards refuse. Point-assertion discharge is narrow. Preview counts are advisory and cannot authorize activation.
+
+Edited outputs, renames, and extraction refuse unsupported forms. No per-row widening, coercion, or invented default. Renames require exact equality after identity alignment. Extraction requires asset move, empty destination, valid lifetime anchors, and no ambiguity. Reverse never revives released bytes or frees retained ids.
+
+Nullable/wider results are commissioned and disclosed. They appear in the checklist and JSON as RESULT compatibility changes. Names and input contracts stay preserved. Nonnull is not claimed.
+
+Registry custody is fenced. Adoption upgrades to format 9 transactionally before views are selectable. Failed adoption keeps the old format. Hot requests with a view or nonempty registry carry the explicit custody feature field. Old deny-unknown-fields hosts reject before admission. New hosts require the field. Plain changes keep the old shape. This closes new-CLI to old-engine silent registration.
+

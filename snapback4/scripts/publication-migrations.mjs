@@ -20,7 +20,9 @@ export async function proveMigrations(client, platform, directory) {
     // Compile the new self-contained language example using the installed CLI.
     const language=spawnSync(process.execPath,[binary,"guide","language","--full"],{cwd,env,encoding:"utf8",timeout:30000});
     assert.equal(language.status,0,language.stderr);
-    const examples=[...language.stdout.matchAll(/```quarry\n([\s\S]*?)\n```/g)].map(m=>m[1]).filter(s=>s.includes("backfill parcels sizes")||s.includes("extract scans from orders"));
+    const evolution=spawnSync(process.execPath,[binary,"guide","evolution","--full"],{cwd,env,encoding:"utf8",timeout:30000});
+    assert.equal(evolution.status,0,evolution.stderr);
+    const examples=[...(language.stdout+evolution.stdout).matchAll(/```quarry\n([\s\S]*?)\n```/g)].map(m=>m[1]).filter(s=>s.includes("backfill parcels sizes")||s.includes("extract scans from orders"));
     assert.equal(examples.length,2);
     const example=join(cwd,"language-example");
     mkdirSync(join(example,"snapback"),{recursive:true});

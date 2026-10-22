@@ -6,10 +6,11 @@ use std::collections::BTreeSet;
 pub(super) fn carry(
     sources: &mut [(String, String)],
     current: &[(String, String)],
-    affected: &BTreeSet<String>,
+    _affected: &BTreeSet<String>,
     changes: &mut Vec<String>,
-) -> Vec<crate::Diagnostic> {
+) -> (Vec<crate::Diagnostic>,BTreeSet<String>) {
     let mut diagnostics = Vec::new();
+    let mut fallback=BTreeSet::new();
     let current_documents = current
         .iter()
         .map(|(file, text)| parser::parse_document(file, text).0)
@@ -62,21 +63,8 @@ pub(super) fn carry(
             let Some(new) = next.get(&old.name) else {
                 continue;
             };
-            // Only workflows reading/writing a widened table need adaptation.
-            let declaration = text
-                .lines()
-                .skip(old.site.line.saturating_sub(1) as usize)
-                .take_while(|s| {
-                    s.starts_with(char::is_whitespace)
-                        || s.starts_with("mutation ")
-                        || s.starts_with("query ")
-                        || s.trim().is_empty()
-                })
-                .collect::<Vec<_>>()
-                .join("\n");
-            if !affected.iter().any(|t| declaration.contains(t)) {
-                continue;
-            }
+            // The whole selected source must retain current matching guards,
+            // including changes unrelated to the column that triggered a view.
             let guards = old
                 .prelude
                 .iter()
@@ -183,6 +171,7 @@ pub(super) fn carry(
                     .collect::<Vec<_>>()
             };
             if unsafe_binding || unsafe_helper || nested(&old) != nested(new) {
+                fallback.insert(old.name.clone());
                 diagnostics.push(crate::diag::type_error(&old.site,format!("rollback guard dependency closure for {} differs; an old binding/helper or control-flow path cannot establish the current guard",old.name),"retain a compatible guarded old workflow or declare intentional hiding of the unrepresentable values").guide("deploy"));
                 continue;
             }
@@ -219,7 +208,7 @@ pub(super) fn carry(
             text.insert_str(at, &guard);
         }
     }
-    diagnostics
+    (diagnostics,fallback)
 }
 fn guard(s: &Stmt) -> Option<String> {
     match s {

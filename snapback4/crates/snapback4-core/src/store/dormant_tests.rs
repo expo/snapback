@@ -1167,7 +1167,7 @@ fn true_format_two_store_allows_deletion_before_its_first_upgrade() {
     assert_eq!(e.store().count("rows").unwrap(),0);
     assert_eq!((&e.store()).test_support_meta("version").unwrap().as_deref(),Some("snapback4-release-store-2"));
     activate(&mut e,V1,1).unwrap();
-    assert_eq!((&e.store()).test_support_meta("version").unwrap().as_deref(),Some(dormant::VERSION));
+    assert_eq!((&e.store()).test_support_meta("version").unwrap().as_deref(),Some(super::table_renames::VERSION));
 }
 
 #[test]

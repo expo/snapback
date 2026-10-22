@@ -72,23 +72,9 @@ Widened enum values, or short codes a loose release wrote, become dormant rows w
 Check business compatibility separately: old payment code may accept payment while a new review row is dormant. Rollback preview identifies current safety guards/rules and read confidentiality the target loses, active table-population changes, and current → target quotas. Preserve the current domain, audience, guard or quota in a bridge release, or pause that workflow. Old source cannot supply absent product logic. An absent operation returns 404 `{denied:{code:"E_OP",…},generation:G}`; a mutation's incompatible arguments return 200 `{state:"failed",why:{code:"E_INPUT",…},generation:G}`.
 
 ## Visible rollback by default
-Deploy prepares compiled rollback views when a predecessor cannot hold newly
-allowed values. `rollback --to 1` selects release 1's registered view, retaining
-current guards and widened domains; output names both original and actual ids.
-The original source remains immutable. `--exact` deliberately selects that source
-and reports its dormant population. Newer views never become ordinary latest.
-If a guard cannot be transported safely or a view cannot compile, deploy refuses
-until source supplies a compatible workflow. Nullable old results remain a
-client compatibility change: render an amount still to follow as pending, never
-zero. Optional media must remain optional in old UI consumers.
+Deploy prepares compiled rollback views when a predecessor cannot hold newly allowed values. `rollback --to 1` selects release 1's registered view, retaining current guards and widened domains; output names both original and actual ids. The original source remains immutable. After upgrading the CLI/runtime, restart an older running serve before using compiled rollback views; an older host refuses their new control feature before admission. `--exact` deliberately selects that source and reports its dormant population. Newer views never become ordinary latest. If a guard cannot be transported safely or a view cannot compile, deploy refuses until source supplies a compatible workflow. Nullable old results remain a client compatibility change: render an amount still to follow as pending, never zero. Optional media must remain optional in old UI consumers.
 
-Intentional null hiding uses `rollback 1 hides orders where fee = null because
-'An unquoted fee must not look free.'` in candidate source. The writer permits
-only those null rows and their actual hidden-reference dependents. Widened
-nonnull values still stay visible. Removed defaulted fields require truthful
-`down` expressions; previews suggest cross-table candidates for moved values,
-never silently show a misleading old default. Snapshot previews do not freeze
-later writes: activation revalidates under its writer transaction.
+Intentional null hiding uses `rollback 1 hides orders where fee = null because 'An unquoted fee must not look free.'` in candidate source. The writer permits only those null rows and their actual hidden-reference dependents. Widened nonnull values still stay visible. Removed defaulted fields require truthful `down` expressions; previews suggest cross-table candidates for moved values, never silently show a misleading old default. Snapshot previews do not freeze later writes: activation revalidates under its writer transaction.
 
 ## Bridge a safety gate before exact rollback
 Use this beside the enum-widening rollback recipe above. Suppose v2 added `grounding.state = 'inspection'`; v1 holds only `'clear'`/`'hold'`. Selecting exact v1 hides that row and its children, so v1's `book` guard may allow a booking that v2 blocks. Counts and sample ids are snapshot dependencies, not predicate matches; later writes can change the plan.
@@ -108,11 +94,7 @@ Use this beside the enum-widening rollback recipe above. Suppose v2 added `groun
 | Counts, rules, maintained views and sync | Only the active population |
 | Compatible forward to the newer release | Original dormant values restored |
 
-These dormant-row outcomes require explicitly selecting original source with
-`rollback <deployment> --to 1 --exact`. A registered default view instead keeps
-widened old-table rows visible and preserves the carried safety guard. A newer
-operation absent from that view still returns E_OP. Compatible forward restores
-retained newer-only facts. Use real accounts to test each audience and guard.
+These dormant-row outcomes require `rollback <deployment> --to 1 --exact`. A registered default view keeps widened old-table rows visible with the current guard. Absent operations still return E_OP. Test audiences and guards with real accounts.
 
 Rollback previews lead with records hidden from tables the target release has, then empty/defaulted legacy cells and newer-only table rows. Counts precede read rules; they do not infer birth release or a viewer’s query result. Declare a reverse projection for a truthful old representation, or keep a bridge. Guard/refusal and query/count/safety diffs follow. Verify filtered/paged/per-viewer results and denominators. Literal-default backfills print `table.column ← value on N rows` in previews and cold/hot deploy receipts: interpreted historical fields, not physical writes. Preview shows old and new rule clauses and mutation `require`s side by side, preserving Boolean parentheses. A proved tightening is a note, including `require A else X` becoming `require A else X; require B else Y` when A's refusal contract is unchanged; changed codes/messages still warn. A loosening or unproved implication is a WARNING, including rollback that removes a new guard. Unchanged clauses and consulted keys, fields, rules, auth and visibility are silent. Unread column domains and forward domain widening do not unprove a probe; narrowing still gets exact dormant-value/population warnings. Changed dependencies group once: verify refusal cases. Comparison never changes admission. Missing operations/schedules, populated removed tables, changed clauses and job bodies are named separately. An unchanged job compiling differently after a dependency change gets a note. Predicate-only read-through changes preserve bound captures and parent lifetimes; structural capture changes and new uncaptured rows still need safe audience correspondence. Receipts and previews count storage by kind: `1 row, 2 cells, 0 index entries dormant`. Dormant rows cover their retained cells; standalone cell counts/samples belong only to active rows. Bytes/assets follow the same disjoint ownership. Samples are labelled and unique within each kind/path, for example `rows notes [A]; cells notes.color [B, C]`. A retained index definition represents logical entries to rebuild, not a dormant physical index. A widening note describes values later writes could use; a compatibility WARNING counts only current values the selected release cannot hold. Compatible forward has no such warning.
 

@@ -38,7 +38,7 @@ pub(super) fn carry(
     sources: &mut [(String, String)],
     current: &[(String, String)],
     changes: &mut Vec<String>,
-    affected: &BTreeSet<String>,
+    forced_programs: &BTreeSet<String>,
 ) -> BTreeSet<String> {
     let docs = current
         .iter()
@@ -261,7 +261,7 @@ pub(super) fn carry(
             });
             if reads.is_disjoint(&relaxed)
                 && reads.is_disjoint(&expanded)
-                && reads.is_disjoint(affected)
+                && !forced_programs.contains(&old.name)
             {
                 continue;
             }
@@ -413,6 +413,18 @@ mod tests {
         assert!(text.contains("old.category = next.category"));
         assert!(text.contains("category:'free' if n = 0 else 'paid'"));
         assert!(text.contains("backfill items classify"));
+    }
+    #[test]
+    fn keeps_a_fitting_old_write_when_current_guards_transport_without_replacing_it(){
+        let old="table items:\n  amount: int\n  insert <- allow\n  online only\nmutation add():\n  return insert items {amount:100}\n";
+        let current=old.replace("amount: int", "amount: int ?").replace("amount:100", "amount:null");
+        let b=loosen(&[("schema.q".into(),old.into())],&[("schema.q".into(),current)]);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);assert!(b.sources[0].1.contains("amount:100"));
+    }
+    #[test]
+    fn carries_current_guards_even_when_the_join_has_no_changed_columns(){
+        let old="table items:\n  n: int\n  insert <- allow\n  online only\nmutation add(n: int):\n  return insert items {n}\n";
+        let current=old.replace("  return insert items","  require n > 0 else TOO_EARLY\n  return insert items");
+        let b=loosen(&[("schema.q".into(),old.into())],&[("schema.q".into(),current)]);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);assert!(b.sources[0].1.contains("TOO_EARLY"));
     }
     #[test]
     fn does_not_reuse_an_endpoint_that_requires_new_arguments() {

@@ -27,7 +27,13 @@ fn table(table:&mut Table,map:&BTreeMap<String,String>){
         _=>(),
     }}
 }
-pub(super) fn schema(mut schema:Schema,maps:&Maps)->Schema {for(name,map)in maps {if let Some(t)=schema.tables.get_mut(name){table(t,map);}}schema}
+pub(super) fn schema(mut schema:Schema,maps:&Maps)->Schema {
+    for(name,map)in maps {if let Some(t)=schema.tables.get_mut(name){table(t,map);}}
+    for e in &mut schema.extractions {
+        if let Some(map)=maps.get(&e.child){e.reference=map.get(&e.reference).cloned().unwrap_or_else(||e.reference.clone());e.fields=std::mem::take(&mut e.fields).into_iter().map(|(dest,source)|(map.get(&dest).cloned().unwrap_or(dest),source)).collect();}
+        if let Some(map)=maps.get(&e.parent){for source in e.fields.values_mut(){if let Some(new)=map.get(source){*source=new.clone();}}}
+    }schema
+}
 pub(super) fn prepare(conn:&Connection,next:&Schema,catalog:&BTreeMap<String,i64>,renamed_tables:&BTreeMap<String,String>)->Result<Maps,RuntimeError>{
     let exists:bool=conn.query_row("SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE name='_asset_column_renames')",[],|r|r.get(0))?;
     if !exists && next.asset_renames.is_empty(){return Ok(Maps::new())}

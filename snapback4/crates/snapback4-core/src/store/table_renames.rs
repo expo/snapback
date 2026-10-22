@@ -28,9 +28,16 @@ pub(crate) fn schema(mut schema:Schema,map:&BTreeMap<String,String>)->Result<Sch
     for m in &mut schema.maintains {*m=remap(m,map)?;m.source=mapped(&m.source,map);m.target=mapped(&m.target,map);}
     for f in &mut schema.backfills {fill(f,map,false)?;}
     for f in &mut schema.downfills {fill(f,map,true)?;}
+    for e in &mut schema.extractions {e.child=mapped(&e.child,map);}
     // Remaining table-bearing structural metadata is normalized through the
     // same typed codec; maintains' source/target are handled explicitly above.
+    // These maps contain column identifiers, including arbitrary keys such as
+    // "parent". Normalize their typed table slots, never their column strings.
+    let mut extractions=std::mem::take(&mut schema.extractions);
+    for e in &mut extractions {e.parent=mapped(&e.parent,map);}
+    let columns=std::mem::take(&mut schema.asset_renames).into_iter().map(|(name,columns)|(mapped(&name,map),columns)).collect();
     schema.table_renames.clear();schema=remap(&schema,map)?;
+    schema.extractions=extractions;schema.asset_renames=columns;
     Ok(schema)
 }
 fn fill(f:&mut crate::schema::backfill::Backfill,map:&BTreeMap<String,String>,down:bool)->Result<(),RuntimeError> {

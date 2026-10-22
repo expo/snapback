@@ -1248,3 +1248,10 @@ fn hiding_keeps_positive_point_assertions_as_denials_without_inventing_values() 
     let new="table blocks:\n  value: int ?\n  public 'fixture'\n  update <- allow\n  online only\nmutation act(id: blocks):\n  row = blocks[id] ! else MISSING\n  require row.value != null else UNCONFIRMED\n  update blocks[id] {value:1}\n";let old=new.replace("value: int ?","value: int");
     let mut e=engine(new);seed(&mut e,"blocks",json!({"id":"b","value":null}));let(s,p)=compile(&old);let mut activation=ReleaseActivation::new(2,Some(1));activation.visibility=Some(VisibilityPolicy{hides:vec![HiddenNull{table:"blocks".into(),column:"value".into(),reason:"unconfirmed".into()}]});e.adopt_release(s,p,&activation,false).unwrap();assert_eq!(e.store().count("blocks").unwrap(),0);
 }
+
+#[test]
+fn release_registry_format_fence_upgrades_atomically_and_never_downgrades(){
+    let mut e=engine(BASE);seed(&mut e,"bookings",json!({"id":"a","weight":1,"length":1}));e.store().test_support_set_meta("version","snapback4-release-store-8").unwrap();
+    let bad=BASE.replace("  weight: int","  required: int\n  weight: int");assert!(adopt(&mut e,&bad,2).is_err());assert_eq!(e.store().test_support_meta("version").unwrap().as_deref(),Some("snapback4-release-store-8"));
+    adopt(&mut e,BASE,2).unwrap();assert_eq!(e.store().test_support_meta("version").unwrap().as_deref(),Some("snapback4-release-store-9"));adopt(&mut e,BASE,1).unwrap();assert_eq!(e.store().test_support_meta("version").unwrap().as_deref(),Some("snapback4-release-store-9"));
+}

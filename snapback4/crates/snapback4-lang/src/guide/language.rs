@@ -822,36 +822,5 @@ table parcels renamed from shipments:
 backfill parcels sizes(weight: int): {sizeClass: 'large' if weight > 3500 else 'small'}
 backfill parcels quantities(manifest: file <=100000 ?): {quantity: nonemptyLines(fileText(manifest)) if manifest != null else 0}
 ```
-**Historical data:** `backfill` patches historical inputs atomically; retain declarations. Rollback restores untouched preimages; conflicts refuse. `before`/`after` split first, `beforeLast`/`afterLast` last (absent: whole-before/empty-after; empty: refusal). `startsWith` matches exact prefixes; `allDigits` requires nonempty ASCII digits. Renames preserve identities/file homes. Migration-only `fileText` reads UTF-8; `nonemptyLines` counts repeated nonempty lines. See `guide deploy`.
-
-### Move media into a child table
-
-Save the previous source before removing `orders.scan`. The new child retains
-private reads through the same parent. `customer renamed from buyer` carries
-reference lifetime evidence; it does not convert the reference type.
-
-```quarry
-table people:
-  read <- deny
-  online only
-table orders:
-  customer: people renamed from buyer
-  owner: principal
-  immutable owner
-  read <- .owner = viewer
-  online only
-table scans:
-  order: orders on delete cascade
-  scan: file <=100000
-  immutable order
-  read through .order
-  online only
-extract scans from orders via order: {scan:scan}
-```
-
-Preview the whole migration with deploy --check. Initial child ids equal parent
-ids; independent destinations refuse. Bytes move without reuploading. Reverse
-selection needs a valid parent lifetime and one unambiguous child. Missing bytes,
-changed types or broader read audiences refuse atomically. Image and bounded
-asset-list columns use the same extraction form with identical full types.
+**Historical data:** `backfill` patches history atomically; retain declarations. Rollback restores untouched preimages; conflicts refuse. `before`/`after` split first, `beforeLast`/`afterLast` last (absent: whole-before/empty-after; empty: refusal). `startsWith` matches prefixes; `allDigits` requires nonempty ASCII digits. Renames preserve identities/file homes. Migration-only `fileText` reads UTF-8; `nonemptyLines` counts nonempty lines. Child extraction: `guide evolution`; lifecycle: `guide deploy`.
 "##;
