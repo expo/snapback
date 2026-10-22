@@ -70,6 +70,11 @@ pub enum WriteMode {
     Serializable,
 }
 
+#[cfg(not(any(test, feature = "test-support")))]
+type CallCounter = Cell<u64>;
+#[cfg(any(test, feature = "test-support"))]
+use crate::round_trips::CallCounter;
+
 pub struct Store {
     pub(super) unified: bool,
     pub(super) fence: Option<super::ownership::Fence>,
@@ -78,7 +83,7 @@ pub struct Store {
     pub(crate) read_only: bool,
     pub(crate) client: Client,
     cache: BTreeMap<&'static str, Statement>,
-    pub calls: Cell<u64>,
+    pub calls: CallCounter,
     pub prefetch: bool,
     pub marked_reads: Cell<u64>,
     pub page_reads: Cell<u64>,
@@ -88,7 +93,7 @@ pub struct Store {
 
 impl Store {
     pub fn new(client: Client) -> Self {
-        Self { unified: false, fence: None, commit_warning: Default::default(), generation:1, read_only: false, client, cache: BTreeMap::new(), calls: Cell::new(0), prefetch: true, marked_reads: Cell::new(0), page_reads: Cell::new(0), prefetch_rows: Cell::new(0), prefetch_bytes: Cell::new(0) }
+        Self { unified: false, fence: None, commit_warning: Default::default(), generation:1, read_only: false, client, cache: BTreeMap::new(), calls: CallCounter::new(0), prefetch: true, marked_reads: Cell::new(0), page_reads: Cell::new(0), prefetch_rows: Cell::new(0), prefetch_bytes: Cell::new(0) }
     }
 
     fn begin(&mut self, mode: Option<WriteMode>, opening: bool) -> Result<Tx<'_>, RuntimeError> {
@@ -101,7 +106,10 @@ impl Store {
             Some(WriteMode::Serializable) => IsolationLevel::Serializable,
         };
         let inner = self.client.build_transaction().isolation_level(isolation).read_only(mode.is_none()).start()?;
-        let tx = Tx { commit_warning: &self.commit_warning, inner: RefCell::new(inner), bind_refused: Cell::new(false), cache: RefCell::new(&mut self.cache), calls: &self.calls, marked_reads: &self.marked_reads, page_reads: &self.page_reads, prefetch_rows: &self.prefetch_rows, prefetch_bytes: &self.prefetch_bytes,
+        let tx = Tx { commit_warning: &self.commit_warning, inner: RefCell::new(inner),
+            #[cfg(any(test, feature = "test-support"))]
+            rollback_count: crate::round_trips::RollbackCount::new(),
+            bind_refused: Cell::new(false), cache: RefCell::new(&mut self.cache), calls: &self.calls, marked_reads: &self.marked_reads, page_reads: &self.page_reads, prefetch_rows: &self.prefetch_rows, prefetch_bytes: &self.prefetch_bytes,
             rows_cache: RefCell::new(super::prefetch::Cache::default()), prefetch_enabled: self.prefetch, head: Cell::new(None), serialized_head: Cell::new(false), tail: RefCell::new(super::tail::Tail::default()), savepoints: RefCell::new(Vec::new()) };
         if self.unified && mode.is_some() {
             // Bootstrap is the sole exception: an absent owner relation is
@@ -197,11 +205,13 @@ impl Store {
 }
 
 pub struct Tx<'a> {
+    #[cfg(any(test, feature = "test-support"))]
+    rollback_count: crate::round_trips::RollbackCount,
     commit_warning: &'a std::sync::atomic::AtomicBool,
     inner: RefCell<Transaction<'a>>,
     bind_refused: Cell<bool>,
     cache: RefCell<&'a mut BTreeMap<&'static str, Statement>>,
-    pub(super) calls: &'a Cell<u64>,
+    pub(super) calls: &'a CallCounter,
     pub(super) marked_reads: &'a Cell<u64>,
     pub(super) page_reads: &'a Cell<u64>,
     pub(super) prefetch_rows: &'a Cell<u64>,
@@ -361,12 +371,16 @@ impl Tx<'_> {
         self.ensure_active()?;
         self.flush_tail()?;
         self.calls.set(self.calls.get() + 2);
+        #[cfg(any(test, feature = "test-support"))]
+        self.rollback_count.disarm();
         super::ownership::commit(self.inner.into_inner(), self.commit_warning)?;
         Ok(())
     }
 
     pub fn rollback(self) -> Result<(), RuntimeError> {
         self.calls.set(self.calls.get() + 1);
+        #[cfg(any(test, feature = "test-support"))]
+        self.rollback_count.disarm();
         self.inner.into_inner().rollback()?;
         Ok(())
     }

@@ -50,6 +50,8 @@ impl Handle {
                 return Err(RuntimeError::Store("Postgres namespace already exists".into()));
             }
         }
+        #[cfg(any(test, feature = "test-support"))]
+        crate::round_trips::postgres(1);
         client.batch_execute(&format!("SET search_path = {quoted}, pg_catalog; SET statement_timeout = '5s'; SET lock_timeout = '5s'"))?;
         let mut store = store::Store::new(client);
         store.unified = true;
@@ -57,10 +59,15 @@ impl Handle {
         store.fence = fence;
         if !fresh {
             if store.fence.is_none() {
+                #[cfg(any(test, feature = "test-support"))]
+                crate::round_trips::postgres(2);
                 let id = store.client.query_opt("SELECT value FROM _meta WHERE key='store_id'", &[])?.map(|r| r.get::<_, String>(0));
                 if let Some(store_id) = id { store.fence = Some(super::ownership::Fence { store_id, holder: "0000".into(), token: 0 }); }
             }
-            if let Some(fence) = &store.fence { store.client.execute("SELECT set_config('application_name',$1,false)", &[&fence.tag()?])?; }
+            if let Some(fence) = &store.fence {
+                #[cfg(any(test, feature = "test-support"))]
+                crate::round_trips::postgres(2);
+                store.client.execute("SELECT set_config('application_name',$1,false)", &[&fence.tag()?])?; }
             let tx = store.opening_transaction()?;
             let row = tx.query("SELECT version,schema,programs,generation FROM _backend WHERE singleton", &[])?.remove(0);
             if row.get::<_, &str>(0) != store::VERSION { return Err(RuntimeError::StoreUnsupported { family: "opening" }); }

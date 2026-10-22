@@ -101652,3 +101652,49 @@ All disk readings exceed the stop threshold. No push, stash, cloning, sub-agents
 or other lane's Cargo target use.
 Final reference audit passes: 564 LLP documents, 11,719 references, zero errors
 and zero unchecked references.
+
+## 2026-10-22 — RT0: a request round-trip ratchet on both stores
+
+Lane RT0 implements LLP 3000.009.001.000.001 §5 without changing product
+behavior or budgets. A test-only Cell-compatible Postgres call wrapper and
+SQLite statement traces attribute work to the synchronous HTTP handler; cold
+prepares/reader opening and implicit error rollback are counted, unrelated
+maintenance and renewal threads are excluded. Ordinary builds retain the old
+Cell and have no tracing, TLS or request hook. Two exact tables cover twelve
+classes, with three agreeing warm samples each; both increases and decreases
+fail, the latter requiring an explicit table reduction. SQLite runs in the
+normal CLI suite; the named Postgres ignore is wired into test-postgres.sh.
+
+Warm PG/SQLite: W1 23/31, W2 23/31, unkeyed increment 57/79, one-membership
+increment 58/80, keyed first (SDK id + store_id) 77/87, replay 30/40, W1 with
+an action session and one admission family 29/39, absent bearer 0/0, unknown
+bearer 5/5, rate limit 0/0, unknown operation 26/46, narrowed argument 26/46.
+The keyed path's twenty extra PG flights exceed §2's rough ten-flight estimate.
+First-reader W1 is separately 56/32, reproducing RT-A. B1's 6/16/21/5 targets
+and both B2 mechanisms remain predictions; RT0 implements no savings.
+
+P1-MC is absent at the lane base, so this uses RT-A's admitted S1 shape with
+25 messages, preserving W1/W2 and their membership rules. Postgres still
+refuses action declarations: the action row is a real HTTP W1 using a live
+claim/session seeded through typed store methods, and qualifies the shared
+authority walk only. No public action deployment or full maintained-column S1
+claim follows. The RFC's Today rows and RT0 record are updated in place; its
+proposal status remains Draft. The parallel committer queue files are untouched.
+
+[The RT0 report](./reports/20261022-rt0-ratchet/REPORT.md) records all counts,
+cold surcharges, the prediction comparison, final checks and owned-process
+cleanup. Work stayed on this host and target, one worker, no sub-agents,
+clones, remote commands, push or stash.
+
+RT0 verification: core 1,070 unfiltered passes/five ignores and one subprocess;
+guide 127/127; full Postgres script 354 Rust passes plus the public-serving
+witness. The full four-thread CLI run has 1,405 passes and one new lexical
+store-port census failure, reproduced alone and corrected by moving test-only
+SQLite tracing/raw-driver tests into the adapter. No allowance changed;
+all 16 affected ratchet/census cases, focused counter tests and both HTTP
+ratchets pass afterward. The three supplied baseline cases all pass here.
+Build, repeated no-default core check, both feature guards, inventories and
+final ref-check pass (565 LLPs, 12,334 refs, zero errors/unchecked). The ordinary
+binary has no instrumentation symbols. Both private clusters have independent
+status-3/no-postmaster.pid confirmation; five postmaster lifetimes and five
+serve PIDs are absent, with no lane target executable running. PIDs left: none.

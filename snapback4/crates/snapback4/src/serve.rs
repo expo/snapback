@@ -134,6 +134,8 @@ pub struct Shared {
     #[cfg(test)]
     request_work: WorkHook,
     #[cfg(test)]
+    round_trips: Mutex<Option<std::sync::mpsc::Sender<snapback4_core::round_trips::Counts>>>,
+    #[cfg(test)]
     pub upload_work: WorkHook,
     #[cfg(test)]
     pub effect_wait: WorkHook,
@@ -833,6 +835,8 @@ fn mutation_error_status(refusal: &Refusal) -> u16 {
 }
 
 fn handle(mut request: Request, shared: &Shared) {
+    #[cfg(test)]
+    let _round_trips = tests::round_trip_tests::request_scope(shared);
     // @ref LLP 3000.000.000#93-http-admission-and-reporting — lookup, decode and execution share the admitted release.
     let operation = request.url().split('?').next().is_some_and(|p| p.starts_with("/q/") || p.starts_with("/m/"));
     let _scope=crate::release_requests::Scope::begin(*lock(&shared.generation));
