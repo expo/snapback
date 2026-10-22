@@ -1,0 +1,14 @@
+{
+  "path": "/tmp/sb4-device-unread-range-347325-1792647645825160208-2",
+  "ownerPid": 347325,
+  "ownerAbsent": true,
+  "snapshots": [
+    {
+      "openDescriptors": []
+    },
+    {
+      "openDescriptors": []
+    }
+  ],
+  "removed": true
+}
