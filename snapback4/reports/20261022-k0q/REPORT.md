@@ -567,3 +567,110 @@ The committer RFC has one Revised line prefixed with this fix round; its §9
 note, governing LLP claims, guide and append-only journal describe the final
 behavior. Final [root reference validation](./fix1-ref-check.txt) passes after
 the report update. Work remains local on `sb4-pg/k0q`; no push or stash.
+
+
+## K0-Q fix round 2 — stopped at the unchanged RT0 ratchet
+
+**Incomplete / unqualified checkpoint: `96b7f976e8`.** The explicit instruction
+was to stop and report if K0-Q changed a ratchet count. SQLite RT0 measured
+`keyed_first = 0` against the unchanged table's **87**. No table was edited.
+The required full qualification, Postgres ratchet and issue closure are not
+claimed. Work stops here pending the counter-attribution integration.
+
+### Rebase and conflicts
+
+Fetched `sb4-pg/main-mirror` and rebased fifteen commits from `b78ab8f2b2` onto
+`2281138019`. The former tip became **`f7d33edb32`**. The complete
+[original-to-rebased hash map](./fix2-rebase-map.json) preserves every subject.
+An initial identity error left the first replay staged; committing it with its
+original author/message and the supplied committer identity resumed the rebase.
+
+Conflicts and resolutions:
+
+- `serve_maintenance.rs`: retained main's DX6 drain/held-boundary controls,
+  effective clock floor, staging session preservation and pause semantics;
+  integrated them with the owned command signatures, typed errors and queued
+  report calls. Both sets of tests remain. The final checkpoint repairs the
+  adjacent test-function boundary introduced during resolution.
+- `serve_tests.rs`: kept both RT0 and committer test modules.
+- The committer RFC: kept a single Revised line with every entry, plus RT0's
+  sibling Related link; prepended `K0-Q fix round 2` to the revision history.
+- `JOURNAL.md`: retained both append-only sides. Main-mirror's complete journal
+  remains an exact prefix of the final journal.
+- `tests/serve_postgres/mod.rs`: retained the current public-host description;
+  its owned seed and tests remain intact.
+- `scripts/test-postgres.sh`: retained both maintained-member and queue stages,
+  the renamed queue selector, RT0 Postgres, and all newer public-serving stages.
+
+The S10d-3 holder-bound release / known-rollback fix merged without conflict.
+Its release predicate remains intact. RT5's worktree and processes were untouched.
+
+### Requested changes and evidence
+
+| Item | Checkpoint change | Test / status |
+|---|---|---|
+| 1 | Removed the 30-second Reply timeout. Admission remains immediate/100 ms; lease loss still drains not-started work. Shared start marker distinguishes `Stopped` → retryable `E_COMMITTER_STOPPED` (not applied) from worker death after start → non-retryable unknown. | Cross-door before-start witness passed in the 12-case intermediate run. Added real 31-second queued/started and clock witnesses plus disconnect classification; these remain unrun after the stop. |
+| 2 | Post-advance maintenance/report refusals become non-retryable `E_CLOCK_REPORT_INCOMPLETE`, HTTP 500, no Retry-After, carrying advancedMs/reportIncomplete. | Deterministic advance-then-fill-mailbox test passed in the intermediate run; a 0ms drain keeps offset at 1,000ms. Repeating an original relative 1s request intentionally adds another second: no idempotency key exists, so the response forbids that retry. |
+| 3 | Unknown mint fences the original worker revision with the same compare-exchange used by failed retirement; only known pre-execution refusals retry without fencing. | Intermediate unknown-mint witness passed: orphan token refused, replacement at next revision accepted, repeated fencing increments only once. |
+| 4 | Source watcher keeps watching after refusal, retries overload/stopped non-admission, and remembers an unknown source digest across stored-generation changes. This covers both an outer queue error and an inner ambiguous adoption COMMIT. | Added deterministic overload/later-edit watcher witness; final source unverified. |
+| 5 | /q/ discards E_GENERATION readers, reopens behind adoption at most twice and rechecks authority after that wait; foreign activation remains refused. | Added exact after-COMMIT/before-replacement pause witness requiring 200/data/new generation and a foreign-activation control. Neither ran before the stop; lifecycle full run remains unrun. Adoption issue deliberately stays open. |
+| 6 | Filed the SDK unknown-outcome issue with Reviewer A's injected-envelope scenario, unresolved-intent/receipt reconciliation and no unkeyed automatic replay requirements. | [Open issue](../../../issues/20261022-snapback4-sdk-unknown-commit-outcome.md). No SDK source changed. |
+| 7 | Documented late-renewal availability tradeoff without changing lease behavior; stopped-before-execution explicitly says not applied. | Documentation only; final reference/guide checks remain unrun. |
+
+Response header/reply helpers moved into the existing `serve_head.rs` so merged
+`serve.rs` stays below 1,500 lines. These helpers retain their original behavior.
+Guide definitions and the prior stale-loan LLP explanation follow the new
+semantics. No test expectation, budget, ratchet table or runtime SQL was relaxed.
+
+### Stop evidence and remaining verification
+
+The completed command was:
+
+```sh
+cargo test -p snapback4 --bin snapback4 round_trip -j 6
+```
+
+It returned **101**: one pass, one failure, one ignored Postgres case. The warm
+ledger includes keyed_first/replay_hit/unkeyed_increment/one_membership **0**,
+while detached W1/W2 retain **31** each. The failed assertion reports
+`sqlite keyed_first: table 87, measured 0: lower the table`.
+**That suggestion was not followed.** [Actual output](./fix2-rt0-stop.txt).
+
+`core/src/round_trips.rs` uses thread-local `ACTIVE` attribution and explicitly
+states that a future cross-thread committer must transfer it. The serving request
+opens that scope; `Writer::command` transfers latency/trace/refusal evidence but
+not round-trip scope. Durable work therefore runs without ACTIVE on the worker.
+This explains the zero; it does **not** establish any SQL count improvement or
+prove that correctly attributed counts match. The next integration step is to
+transfer request counter attribution through the worker and measure again,
+without adjusting either table. Per instruction, that step is not attempted here.
+
+The redundant requested full-scope invocation (`cargo test -p snapback4
+round_trip -j 6`) was still compiling integration targets when the completed
+binary-only failure became visible. It received SIGINT at the verified owned
+Cargo PID **404513**; its runner **404498** exited without starting later stages.
+
+A prior focused command passed **12/12**, including the clock overload, mint,
+pre-execution disconnect, cross-door ownership/overload, view-once reservation,
+continuation custody and concurrent read/ephemeral/receipt witnesses. This used
+an intermediate source state: final watcher/authority/handoff changes are **not
+qualified** by that result. [Focused output](./fix2-focused.txt).
+
+Initial compilation attempts caught test visibility/constructor issues; these
+were corrected before the successful focused run and/or the RT0 compile. The
+latest full-scope compilation was interrupted, so it supplies no final build
+claim. `git diff --check` passes. No final full core/CLI/device suite, lifecycle
+replay, build/no-default/wasm, ratchet/census/guard, guide/codec, Postgres script,
+Postgres RT0, fresh W4 measurement or ref-check is claimed. Prior-round receipts
+remain historical only. [Machine-readable status](./fix2-checks.json).
+
+### Custody
+
+Six compiler jobs, this lane's assigned target only, incremental disabled.
+Unused incremental artifacts were removed from this target before the planned
+long suites; lowest observed disk availability was 43G, above the 20 GB rule.
+Both ratchet tables are byte-identical to `2281138019`; digests are in the status
+receipt. No PostgreSQL cluster was started. Final /proc checks show no lane target
+executable, check runner, or recorded Cargo PID alive. Owned PIDs left: **none**.
+No push, stash, clone, sub-agent or remote build. Changes are preserved as a local
+checkpoint rather than reported as completed qualification.

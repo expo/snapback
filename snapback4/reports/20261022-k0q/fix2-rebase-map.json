@@ -1,0 +1,77 @@
+[
+  {
+    "original": "e0b32969fa7f24ff29b221c362c3f48aaffc5e71",
+    "rebased": "05d1482360266d1c9f5bc5a112210df8d6df8ed0",
+    "subject": "Add owned engine commands and a bounded committer mailbox"
+  },
+  {
+    "original": "39e2e02002990309a0e38d5fad6071e2cf8de8bc",
+    "rebased": "2f869df808250cca4b3369e50f8eaa089f5d8f96",
+    "subject": "Route serving work through the worker-owned committer"
+  },
+  {
+    "original": "98fa470023e31d65481df1ba03242d67ee0f4723",
+    "rebased": "87c527837c130c5cd3365900c37275646c1cd34a",
+    "subject": "Keep command and error spellings unambiguous to store censuses"
+  },
+  {
+    "original": "e2a8606f95618cb92a759485d8159b0ef7e6310c",
+    "rebased": "9bc6b484f35646345770fe7bf32703b632de6565",
+    "subject": "Record K0-Q verification and local W4 evidence"
+  },
+  {
+    "original": "76ea52358e3558fc9a0ba1a847f4bfa16cf2409b",
+    "rebased": "0975e1961af4dfc3eb664a8977b5d44fbf7605d9",
+    "subject": "Refuse queued writes immediately on Postgres ownership loss"
+  },
+  {
+    "original": "8c64901d8c52eb5481b3468bb7c93b8fea4e6f5a",
+    "rebased": "168db1eda914ab26cc58eb40ab7e6af29cae6e07",
+    "subject": "Name queue admission separately from durable transaction opening"
+  },
+  {
+    "original": "8dd6f682845e08a2871e45899e4ca5a0d2170e0e",
+    "rebased": "80ae87ab581c0882b14b3867b58d1a45d2077600",
+    "subject": "Keep Postgres queue fault fixtures behind the store port"
+  },
+  {
+    "original": "02292e57365df4886b885d416f70727a4ac6e5a1",
+    "rebased": "3ba111426f5588eb2ef3ff7ecc6140c8da8d5497",
+    "subject": "Record K0-Q rebase qualification and ownership evidence"
+  },
+  {
+    "original": "c1163d0c3b29ec385b09ce76d58904b8d3f0c763",
+    "rebased": "056cec06a74261ff720f780f6a1ca6f6e8d73da9",
+    "subject": "K0-Q fix round 1: bound serving waits and retain commit continuation custody"
+  },
+  {
+    "original": "7183074287213ea49697e662007c23246a379ae7",
+    "rebased": "9a27f445c1f58006f4a56ea7a7f784564ebbd7ec",
+    "subject": "K0-Q fix round 1: enforce deadline probes and retain detached authority coverage"
+  },
+  {
+    "original": "e7b957fad663a130025be57cb16dab31cf490e76",
+    "rebased": "7a78b3452199b19b094a44d829f476d34f0a845f",
+    "subject": "K0-Q fix round 1: keep serving modules bounded and strengthen progress witnesses"
+  },
+  {
+    "original": "0de2e163dc652a238346cc76150fdf388f68cbff",
+    "rebased": "4daea18b9093c48d9029fa9847f9ba80e9732240",
+    "subject": "K0-Q fix round 1: wake lease watchdogs at the remaining deadline"
+  },
+  {
+    "original": "eaa3a600989cb65f7907f48be6338fad69445fdf",
+    "rebased": "6a9e5e27f4383ae38076c44aa1e5dee95103d495",
+    "subject": "K0-Q fix round 1: align the unknown-outcome definition witness"
+  },
+  {
+    "original": "e888877fb5c1eb159c56c85621350c582a77159a",
+    "rebased": "67cfcd367b1fdf34bc2f96d740c9c908c105de9f",
+    "subject": "K0-Q fix round 1: keep clock pauses within bounded request custody"
+  },
+  {
+    "original": "b78ab8f2b276c1e33ba14d58155b8bffc3ed38ed",
+    "rebased": "f7d33edb32d7334ff2470e86fbda01a303a0667e",
+    "subject": "Record K0-Q fix round 1 qualification and remaining adoption race"
+  }
+]

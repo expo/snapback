@@ -1,0 +1,17 @@
+running 12 tests
+snapback4 host: uploads=2; file descriptors (this process): soft=65536 hard=1048576; descriptor_exhaustions=0; startup soft=1024 target=65536
+test serve::tests::committer_tests::kit3_memory_http_retries_publish_only_the_ordinary_prelude_and_encountered_rows ... ok
+test serve::committer::tests::a_full_mailbox_uses_the_http_overload_refusal_without_running_the_write ... ok
+test serve::committer::fix_tests::admitted_notification_finishes_even_when_ownership_is_lost_before_wake ... ok
+test serve::committer::fix_tests::view_once_record_survives_mailbox_overload_before_delivery_custody_is_released ... ok
+test serve::committer::fix_tests::unknown_mint_fences_orphaned_credentials_before_replacement ... ok
+test serve::committer::fix_tests::writer_call_returns_ownership_loss_and_every_client_gets_the_same_response ... ok
+test serve::committer::fix_tests::worker_disconnect_before_execution_reports_not_applied_on_every_door ... ok
+test serve::tests::committer_tests::raced_mutation_id_refusal_keeps_its_terminal_http_status ... ok
+test serve::committer::fix_tests::detached_reads_and_ephemeral_finish_while_the_writer_and_a_mutation_are_blocked ... ok
+test serve::committer::fix_tests::clock_report_overload_after_advance_is_not_retryable_and_drain_does_not_advance_again ... ok
+test serve::committer::fix_tests::all_http_doors_preserve_overload_status_body_and_headers ... ok
+test serve::tests::committer_tests::queued_http_mutations_keep_receipts_order_and_progress_with_reads_and_ephemeral ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 530 filtered out; finished in 0.90s
+
