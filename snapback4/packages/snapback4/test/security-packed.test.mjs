@@ -33,11 +33,31 @@ test('packed security card and starter run as written; broad reads refute', {tim
   ['N_RETAINED_ROLE_GRANT','A recipient role required when storing a grant'],
   ['N_OPTIONAL_UPLOAD_CREATE','An optional upload argument can be omitted'],
   ['N_ROLE_WIDE_WRITE','A global role plus viewer attribution'],
+  ['N_CREATE_EDIT_ASYMMETRY','An argument-supplied column has a specific change guard'],
+  ['N_PRIVATE_CREATE_EDIT_ASYMMETRY','A caller can initialize a private column'],
+  ['N_EVIDENCE_REMOVAL','Delete, detachment or explicit clearing'],
   ['E_SECURITY_NOTES','the individual disposition file is malformed'],
  ]){
   const excerpt=run(process.execPath,[cli,'why',code],project).split('\n\n').slice(1).join('\n\n');
   assert.ok(excerpt.includes('### '+code),`installed why selects its dedicated definition: ${code}`);
   assert.ok(excerpt.includes(fact),`installed defining fact: ${code}`);
+ }
+ // The installed wrapper must expose the focused day-two advice and allow
+ // intentional optionality without shipping a pre-acknowledged source file.
+ for(const lane of ['003','040','030','042','028']){
+  const cwd=join(dir,'day-two-'+lane);mkdirSync(join(cwd,'snapback'),{recursive:true});
+  writeFileSync(join(cwd,'snapback/schema.q'),readFileSync(new URL('../../../crates/snapback4-lang/tests/security/wave23/'+lane+'.q',import.meta.url)));
+  const checked=JSON.parse(run(process.execPath,[cli,'check','--json'],cwd));
+  assert.equal(checked.ok,true,`installed day-two check ${lane}`);
+  assert.ok(!checked.securityReviews.some(r=>r.code==='N_OPTIONAL_UPLOAD_CREATE'));
+  if(lane==='030')assert.equal(checked.security.notes.filter(n=>n.code==='N_STALE_CREATION_CHECK').length,1);
+  if(lane==='028')assert.equal(checked.security.notes.filter(n=>n.code==='N_EVIDENCE_REMOVAL').length,1);
+  if(lane==='042'){
+   const text=run(process.execPath,[cli,'check'],cwd);
+   assert.match(text,/N_PRIVATE_CREATE_EDIT_ASYMMETRY/);
+   const inventory=text.indexOf('N_INSERT_WRITE_INTENT');
+   assert.ok(inventory<0||text.indexOf('N_PRIVATE_CREATE_EDIT_ASYMMETRY')<inventory);
+  }
  }
  assert.ok(result.guideCases.every(c=>c.broadRead==='refuted'));
  assert.equal(result.starters.length,7);

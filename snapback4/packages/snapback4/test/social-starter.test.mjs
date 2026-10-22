@@ -639,14 +639,7 @@ query badges(conversation: conversations):
   return unreadCounts where .conversation = conversation first 50 by .id { member, value, recountPending }
 `;
   writeFileSync(schemaPath, source);
-  // The added receipt fixture changes the source-bound review. Text-only messages
-  // remain intentional here; review that one finding explicitly for this source.
-  const pending = spawnSync(binary, ["check", "--json"], { cwd: generated, encoding: "utf8", timeout: 30000 });
-  assert.equal(pending.status, 1, pending.stdout + pending.stderr);
-  const gates = JSON.parse(pending.stdout).securityReviews.filter(r => r.gated && !r.acknowledged);
-  assert.deepEqual(gates.map(r => r.code), ["N_OPTIONAL_UPLOAD_CREATE"]);
-  const reviewed = spawnSync(binary, ["check", "--ack-security", gates[0].id, "--reason", "This receipt fixture intentionally supports text-only messages; a photo is optional attachment, not required evidence."], { cwd: generated, encoding: "utf8", timeout: 30000 });
-  assert.equal(reviewed.status, 0, reviewed.stdout + reviewed.stderr);
+  // Text-only messages remain intentional after adding receipt operations.
   const checked = spawnSync(binary, ["check"], { cwd: generated, encoding: "utf8" });
   assert.equal(checked.status, 0, checked.stdout + checked.stderr);
   const api = await generatedApi(generated);

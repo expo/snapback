@@ -314,9 +314,8 @@ Shape validation grants no authority; the server still decides session validity.
 ## Individual security review
 
 Default check puts likely holes before result inventories and restating questions.
-Questions about retained role grants and optional uploads at creation require
-a repair or an
-individual disposition. They fail check without claiming an invariant refutation.
+Questions about retained role grants and uploads with an explicit mandatory-media
+contract require a repair or an individual disposition. They fail check without claiming an invariant refutation.
 Read the note, compare it with the specification, then use
 `check --ack-security ID --reason 'specification rationale'` with its current ID
 from check or check --json. Bulk --ack-notes cannot clear these gates.
@@ -326,9 +325,11 @@ again; the record never grants authority or proves safety. Audit retains the ful
 notes and dispositions. Declared refutations still fail and cannot be acknowledged.
 Deploy --strict retains its refutation gate; run check in acceptance before deploy.
 
-Optional upload arguments can skip required evidence even when a conditional child
-insertion has a required media column. Require the upload before creating the
-parent. Reasons use text 1..N when nonempty justification is required; optional
+Optional arguments and optional columns are valid, including deliberate loosening.
+A required child media column validates an existing attachment; it does not require
+a child row. Guarded optional attachments need no acknowledgment. When independent
+parent integrity intent requires a child, require evidence before creating that
+parent. Without such intent, a conditional child is an advisory spec question. Reasons use text 1..N when nonempty justification is required; optional
 money and constant payment/approval flags need independent specification review.
 Transition advice asks whether a generic setter can bypass a stricter decision or
 whether eligibility checked at creation must be rechecked at approval. Different
@@ -348,7 +349,7 @@ N_RETAINED_ROLE_GRANT: A recipient role required when storing a grant is mutable
 
 ### N_OPTIONAL_UPLOAD_CREATE
 
-N_OPTIONAL_UPLOAD_CREATE: An optional upload argument can be omitted while a mutation creates a parent or evidence row. Require the upload before creating the parent when the spec requires evidence. Intentional optional attachments need an individual source-bound disposition.
+N_OPTIONAL_UPLOAD_CREATE: An optional upload argument can be omitted despite a required media column or explicit non-null integrity intent. Require the upload before creating the parent when independent intent requires child evidence. Optional media columns and guarded optional attachments do not require acknowledgment; a required child column alone does not require a child row. Review an intentional exception with an individual source-bound disposition.
 
 ### N_CREATION_REASON
 
@@ -368,7 +369,7 @@ N_TRANSITION_BYPASS: A generic enum setter reaches a state also reached by a str
 
 ### N_STALE_CREATION_CHECK
 
-N_STALE_CREATION_CHECK: A creator checks mutable eligibility that a later approval/transition does not recheck. Decide whether eligibility must remain current and write independent intent; test create, eligibility change, approval.
+N_STALE_CREATION_CHECK: A creator checks a mutable eligibility column that an approval-like transition does not recheck. One question groups the created table, dependency and decision sites; immutable ownership reads and unrelated edits are excluded. Decide whether eligibility must remain current and write independent intent; test create, eligibility change, approval. The named literal-state fragment covers approved/accepted/authorized/granted/issued/active/confirmed/paid/signed and true approval flags; other synonyms are not inferred safe.
 
 ### N_DURATION_BOUNDS
 
@@ -381,3 +382,15 @@ N_ROLE_WIDE_WRITE: A global role plus viewer attribution does not identify the o
 ### E_SECURITY_NOTES
 
 E_SECURITY_NOTES: the individual disposition file is malformed, cannot be written, or sources changed while recording a review. Inspect snapback/security-reviews.json and run check --json for current IDs. Supply a nonempty specification reason for one current note; neither bulk acknowledgments nor this file can clear an actual refutation.
+
+### N_CREATE_EDIT_ASYMMETRY
+
+N_CREATE_EDIT_ASYMMETRY: An argument-supplied column has a specific change guard on edit that creation does not imply. The question names that column, editor and guard, rather than a table-wide permission. Confirm creation authority against the specification; enforce the change guard at creation when required and test independent column write intent with non-null input. Exact changed-field comparisons are supported; mixed conditions, intervening writes and early-return equivalents remain outside this heuristic, with generic insert inventory retained when applicable. Absence of advice is not a safety proof.
+
+### N_PRIVATE_CREATE_EDIT_ASYMMETRY
+
+N_PRIVATE_CREATE_EDIT_ASYMMETRY: A caller can initialize a private column without its change guard and outside its column read audience. This question ranks above ordinary asymmetry because the caller supplies private agency data it cannot read. Confirm who may supply this field at creation; enforce the guard when required and test independent column write intent with a non-null value. Read privacy alone does not define write authority; the question is advisory.
+
+### N_EVIDENCE_REMOVAL
+
+N_EVIDENCE_REMOVAL: Delete, detachment or explicit clearing can remove parent-linked media evidence. The question names removing operations and the parent reference, grouping the evidence columns. Required child fields alone do not require a surviving child; confirm last-child retention against the specification. Guard deletion or detachment transactionally, replace evidence or retire the parent, then declare independent parent integrity intent and run test. Ordinary non-null photo replacement is not removal; optional attachments without required creation linkage or independent integrity intent are excluded. This question is advisory.

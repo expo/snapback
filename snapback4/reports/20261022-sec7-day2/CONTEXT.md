@@ -1,0 +1,3 @@
+# SEC7 day-two context pack
+
+Scope: creating-media gates, stale eligibility, column edit advice, destructive evidence and finite argument preference. Governing: LLP3000 §7; LLP3000.036.004 §§4,12–16 (current amendment16.9); LLP3000.036 column read admission. Runtime authority does not change. Unknown is not a failed implication; only actual admitted replay refutes. Advisory classes cannot infer product requirements. Existing explicit invariants/required column declarations supply mandatory-media evidence; no natural-language parsing or lane exemption. Individual review IDs remain source/analyzer bound. Hand-off: independent Muse/freshCodex review until both READY, code regressions, packed proofs and corpus measurement.

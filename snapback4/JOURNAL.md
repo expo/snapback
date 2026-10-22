@@ -101415,3 +101415,15 @@ confirmed with status 3 and no postmaster.pid; receipts and retained failures
 are in `/tmp/s10d2-fix1-checks/` and the lane report. Only the specified target,
 profiles and at most 16 jobs were used. Lowest observed free space was about
 91 GiB, above the 30 GiB stop threshold. No push or stash.
+
+
+## 2026-10-22 — SEC7 wave-23 day-two corrections
+
+Merged origin/main before revising SEC7. Explicit mandatory-media evidence now
+bounds upload gates; intentional optional columns/attachments need no stock review.
+Focused stale eligibility groups approval sites and binds the applicant/entity.
+Column-specific private creation/edit advice and linked evidence-removal questions
+cover the new day-two shapes; non-null intent witnesses retain actual replay.
+Design, independent reviews and qualification are recorded in LLP3000.036.004 §16.9
+and WORKSTREAM-REPORT.md. Deploy notices and release/adoption work remain outside
+this addendum's scope; DX6 owns its previously commissioned regressions.

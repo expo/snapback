@@ -164,7 +164,7 @@ pub fn init(options: &Options) -> i32 {
         files.retain(|(name, _)| {
             let starter = starter::FIXTURES.iter().any(|(fixture, _)| fixture == name);
             if starter { skipped.push(*name); }
-            !starter && *name != "snapback/schema.q" && *name != "snapback/security-reviews.json"
+            !starter && *name != "snapback/schema.q"
         });
         kept.extend(own.files.iter().map(|file| format!("snapback/{file}")));
     }

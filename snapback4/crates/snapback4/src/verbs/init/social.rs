@@ -18,7 +18,6 @@ pub(super) fn files() -> Vec<(&'static str, String)> {
         ("scripts/seed.mjs", include_str!("social/seed.mjs").to_owned()),
         ("snapback/workers/notifications.mjs", include_str!("social/notifications.mjs").to_owned()),
         ("snapback/schema.q", include_str!("social/schema.q").to_owned()),
-        ("snapback/security-reviews.json", include_str!("social/security-reviews.json").to_owned()),
         ("README.md", include_str!("social/README.md").to_owned()),
         ("src/intents.ts", include_str!("social/intents.ts").to_owned()),
         ("src/client.ts", include_str!("social/client.ts").to_owned()),

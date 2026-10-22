@@ -3,6 +3,8 @@
 use super::*;
 use ast::{Expr,Stmt,ProgramDecl,FunctionBody};
 type Env=BTreeMap<String,Expr>;
+mod changes;
+use changes::Change;
 fn resolve(expr:&Expr,env:&Env)->Expr{
     let mut expr=expr.clone();
     super::super::intent_walk::expression(&mut expr,&mut |e|{
@@ -10,16 +12,17 @@ fn resolve(expr:&Expr,env:&Env)->Expr{
         if let Expr::Name{name,..}=e&&let Some(value)=env.get(name){*e=value.clone();}
     });expr
 }
-fn expression(catalog:&Catalog,p:&ProgramDecl,expr:&Expr,env:&Env,guards:&[Stmt],depth:usize,out:&mut Vec<(Expr,ProgramDecl)>){
+fn expression(catalog:&Catalog,p:&ProgramDecl,expr:&Expr,env:&Env,guards:&[Stmt],changes:&[Change],column:Option<&str>,depth:usize,out:&mut Vec<(Expr,ProgramDecl)>){
     let mut expr=resolve(expr,env);
+    let changes=if column.is_some()&&changes::prior_effects(&expr){&[][..]}else{changes};
     super::super::intent_walk::expression(&mut expr,&mut |e|match e{
-        Expr::Write{..}=>{let mut context=p.clone();context.prelude=Vec::new();context.body=guards.to_vec();out.push((e.clone(),context));},
+        Expr::Write{..}=>{let mut context=p.clone();context.prelude=Vec::new();context.body=guards.to_vec();if let Some(column)=column{for change in changes{if change.matches(e,column){context.body.extend(change.requirements.clone());}}}out.push((e.clone(),context));},
         Expr::Call{name,args,..} if depth<32=>if let Some(f)=catalog.functions.get(name){
             let mut locals=f.args.iter().zip(args).map(|(arg,value)|(arg.name.clone(),value.clone())).collect();
             let mut inherited=guards.to_vec();
             match &f.body{
-                FunctionBody::Expression(value)=>expression(catalog,p,value,&locals,&inherited,depth+1,out),
-                FunctionBody::Block(body)=>statements(catalog,p,body,&mut locals,&mut inherited,depth+1,out),
+                FunctionBody::Expression(value)=>expression(catalog,p,value,&locals,&inherited,changes,column,depth+1,out),
+                FunctionBody::Block(body)=>statements(catalog,p,body,&mut locals,&mut inherited,&mut changes.to_vec(),column,depth+1,out),
             }
         },_=>{}
     });
@@ -40,31 +43,39 @@ fn helper_guards(catalog:&Catalog,expr:&Expr,env:&Env,depth:usize)->Vec<Stmt>{
         Stmt::Return{value,..}=>{out.extend(helper_guards(catalog,value,&locals,depth+1));break;},_=>break,
     }}out
 }
-fn statements(catalog:&Catalog,p:&ProgramDecl,body:&[Stmt],env:&mut Env,guards:&mut Vec<Stmt>,depth:usize,out:&mut Vec<(Expr,ProgramDecl)>){
-    for s in body{match s{
-        Stmt::Bind{names,value,..}=>{expression(catalog,p,value,env,guards,depth,out);guards.extend(helper_guards(catalog,value,env,0));if names.len()==1{env.insert(names[0].clone(),resolve(value,env));}},
+fn statements(catalog:&Catalog,p:&ProgramDecl,body:&[Stmt],env:&mut Env,guards:&mut Vec<Stmt>,changes:&mut Vec<Change>,column:Option<&str>,depth:usize,out:&mut Vec<(Expr,ProgramDecl)>){
+    for s in body{
+        let consuming=column.is_some()&&changes::effectful(s);
+        match s{
+        Stmt::Bind{names,value,..}=>{expression(catalog,p,value,env,guards,changes,column,depth,out);guards.extend(helper_guards(catalog,value,env,0));if names.len()==1{env.insert(names[0].clone(),resolve(value,env));}},
         Stmt::Require{condition,code,message,site}=>{
-            expression(catalog,p,condition,env,guards,depth,out);
+            expression(catalog,p,condition,env,guards,changes,column,depth,out);
             guards.push(Stmt::Require{condition:resolve(condition,env),code:code.clone(),message:message.clone(),site:site.clone()});
         },
-        Stmt::Return{value,..}=>{expression(catalog,p,value,env,guards,depth,out);break;},
-        Stmt::Expr{value,..}=>{expression(catalog,p,value,env,guards,depth,out);guards.extend(helper_guards(catalog,value,env,0));},
+        Stmt::Return{value,..}=>{expression(catalog,p,value,env,guards,changes,column,depth,out);break;},
+        Stmt::Expr{value,..}=>{expression(catalog,p,value,env,guards,changes,column,depth,out);guards.extend(helper_guards(catalog,value,env,0));},
         Stmt::If{condition,then_body,else_body,site}=>{
-            expression(catalog,p,condition,env,guards,depth,out);
+            if column.is_some()&&changes::expression_effectful(&resolve(condition,env)){changes.clear();}
+            expression(catalog,p,condition,env,guards,changes,column,depth,out);
             let condition=resolve(condition,env);
             let mut then_guards=guards.clone();
             then_guards.push(Stmt::Require{condition:condition.clone(),code:"$advice".into(),message:None,site:site.clone()});
-            statements(catalog,p,then_body,&mut env.clone(),&mut then_guards,depth,out);
+            statements(catalog,p,then_body,&mut env.clone(),&mut then_guards,&mut changes.clone(),column,depth,out);
             let mut else_guards=guards.clone();
-            else_guards.push(Stmt::Require{condition:Expr::Unary{op:"not".into(),value:Box::new(condition),site:site.clone()},code:"$advice".into(),message:None,site:site.clone()});
-            statements(catalog,p,else_body,&mut env.clone(),&mut else_guards,depth,out);
+            else_guards.push(Stmt::Require{condition:Expr::Unary{op:"not".into(),value:Box::new(condition.clone()),site:site.clone()},code:"$advice".into(),message:None,site:site.clone()});
+            statements(catalog,p,else_body,&mut env.clone(),&mut else_guards,&mut changes.clone(),column,depth,out);
+            if column.is_some(){changes.extend(changes::after(catalog,&condition,then_body,else_body,env));}
         },
-        Stmt::For{domain,name,body,..}=>{expression(catalog,p,domain,env,guards,depth,out);let mut local=env.clone();local.remove(name);statements(catalog,p,body,&mut local,&mut guards.clone(),depth,out);},
-        Stmt::As{body,..}=>statements(catalog,p,body,&mut env.clone(),&mut guards.clone(),depth,out),_=>{}
-    }}
+        Stmt::For{domain,name,body,..}=>{expression(catalog,p,domain,env,guards,changes,column,depth,out);let mut local=env.clone();local.remove(name);statements(catalog,p,body,&mut local,&mut guards.clone(),&mut changes.clone(),column,depth,out);},
+        Stmt::As{body,..}=>statements(catalog,p,body,&mut env.clone(),&mut guards.clone(),&mut changes.clone(),column,depth,out),_=>{}
+    }
+    if consuming{changes.clear();}
+    }
 }
-pub(super) fn writes(catalog:&Catalog,p:&ProgramDecl)->Vec<(Expr,ProgramDecl)>{
-    let mut out=Vec::new();let mut env=Env::new();let mut guards=Vec::new();
-    statements(catalog,p,&p.prelude,&mut env,&mut guards,0,&mut out);
-    statements(catalog,p,&p.body,&mut env,&mut guards,0,&mut out);out
+pub(super) fn writes(catalog:&Catalog,p:&ProgramDecl)->Vec<(Expr,ProgramDecl)>{walk_writes(catalog,p,None)}
+pub(super) fn column_writes(catalog:&Catalog,p:&ProgramDecl,column:&str)->Vec<(Expr,ProgramDecl)>{walk_writes(catalog,p,Some(column))}
+fn walk_writes(catalog:&Catalog,p:&ProgramDecl,column:Option<&str>)->Vec<(Expr,ProgramDecl)>{
+    let mut out=Vec::new();let mut env=Env::new();let mut guards=Vec::new();let mut changes=Vec::new();
+    statements(catalog,p,&p.prelude,&mut env,&mut guards,&mut changes,column,0,&mut out);
+    statements(catalog,p,&p.body,&mut env,&mut guards,&mut changes,column,0,&mut out);out
 }

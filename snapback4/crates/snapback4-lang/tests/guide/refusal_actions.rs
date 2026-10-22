@@ -2,8 +2,11 @@
 //! These facts supplement the definition pins. A code label alone cannot tell
 //! a caller whether to retry, replace intent, change a declaration, or show no data.
 pub(super) const ACTIONS: &[(&str, &[&str])] = &[
+    ("N_CREATE_EDIT_ASYMMETRY", &["Confirm creation authority against the specification", "test independent column write intent with non-null input."]),
+    ("N_PRIVATE_CREATE_EDIT_ASYMMETRY", &["Confirm who may supply this field at creation", "test independent column write intent with a non-null value."]),
+    ("N_EVIDENCE_REMOVAL", &["confirm last-child retention against the specification.", "Guard deletion or detachment transactionally", "declare independent parent integrity intent and run test."]),
     ("N_RETAINED_ROLE_GRANT", &["Recheck current role or revoke derived grants.", "Intentional retained authority needs an individual source-bound disposition."]),
-    ("N_OPTIONAL_UPLOAD_CREATE", &["Require the upload before creating the parent when the spec requires evidence.", "Intentional optional attachments need an individual source-bound disposition."]),
+    ("N_OPTIONAL_UPLOAD_CREATE", &["Require the upload before creating the parent when independent intent requires child evidence.", "Optional media columns and guarded optional attachments do not require acknowledgment; a required child column alone does not require a child row."]),
     ("N_CREATION_REASON", &["Compare the justification requirement with the spec", "use text 1..N when required.", "This name-based question is advisory."]),
     ("N_CREATION_MONEY", &["Model and require the amount when the spec requires a fee or payment", "confirm intentional optional amounts against the spec.", "This name-based question is advisory."]),
     ("N_CONSTANT_APPROVAL", &["record the required amount/evidence and the independently authorized decision.", "This name-based question is advisory."]),

@@ -203,14 +203,15 @@ export async function proveStarters(client, platform, expo, directory, browserPr
       assert.ok(existsSync(join(cwd, "dist/index.html")), `${kind} produced a web page`);
     };
     await build();
-    // @ref LLP 3000.036.004#167-reviewed-optionality-in-the-stock-social-template — exercise the installed source-bound review, including invalidation.
+    // @ref LLP 3000.036.004#169-day-two-precision-and-destructive-evidence-questions — intended optional attachments never require a stock disposition.
     if (template === "social") await run(process.execPath, ["--input-type=commonjs", "-e", `
       const fs=require('node:fs'),assert=require('node:assert/strict'),cp=require('node:child_process');
       const cli=${JSON.stringify(cli)},schema='snapback/schema.q',original=fs.readFileSync(schema,'utf8');
       const check=()=>cp.spawnSync(cli,['check','--json'],{encoding:'utf8',timeout:30000});
       const stock=check();assert.equal(stock.status,0,stock.stdout+stock.stderr);
-      assert.ok(JSON.parse(stock.stdout).securityReviews.some(r=>r.code==='N_OPTIONAL_UPLOAD_CREATE'&&r.acknowledged));
-      try{fs.writeFileSync(schema,original+'\\n-- qualification changes the reviewed source\\n');const edited=check();assert.equal(edited.status,1,edited.stdout+edited.stderr);assert.ok(JSON.parse(edited.stdout).securityReviews.some(r=>r.code==='N_OPTIONAL_UPLOAD_CREATE'&&!r.acknowledged));}
+      assert.ok(!JSON.parse(stock.stdout).securityReviews.some(r=>r.code==='N_OPTIONAL_UPLOAD_CREATE'));
+      assert.ok(!fs.existsSync('snapback/security-reviews.json'));
+      try{fs.writeFileSync(schema,original+'\\n-- qualification changes the reviewed source\\n');const edited=check();assert.equal(edited.status,0,edited.stdout+edited.stderr);assert.ok(!JSON.parse(edited.stdout).securityReviews.some(r=>r.code==='N_OPTIONAL_UPLOAD_CREATE'));}
       finally{fs.writeFileSync(schema,original);}
     `], cwd);
     if (browserProofs && id === "web") {

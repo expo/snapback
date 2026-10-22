@@ -9,18 +9,18 @@ fn notes(s:&str)->security::Report{let b=bound(s);let mut r=security::analyze_ru
  (include_str!("security/wave22/021.q"),vec!["N_RETAINED_ROLE_GRANT"]),
  (include_str!("security/wave22/026.q"),vec!["N_ROLE_WIDE_READ"]),
  (include_str!("security/wave22/030.q"),vec!["N_STALE_CREATION_CHECK"]),
- (include_str!("security/wave22/040.q"),vec!["N_OPTIONAL_UPLOAD_CREATE","N_CREATION_REASON"]),
+ (include_str!("security/wave22/040.q"),vec!["N_OPTIONAL_EVIDENCE","N_CREATION_REASON"]),
  (include_str!("security/wave22/044.q"),vec!["N_CONSTANT_APPROVAL","N_DURATION_BOUNDS"]),
  ]{let s=source.lines().filter(|l|!l.starts_with("invariant ")).collect::<Vec<_>>().join("\n");let r=notes(&s);
  for code in codes{assert!(r.notes.iter().any(|n|n.code==code&&n.site.line>0),"missing {code}: {:?}",r.notes);}}
 }
-const DOCS:&str="table docs:\n  owner: principal\n  photo: image <=10000 ?\n  price: int ?\n  reason: text <=100 ?\n  read <- .owner = viewer\n  insert <- .owner = viewer\n  online only\n";
+const DOCS:&str="table docs:\n  owner: principal\n  photo: image <=10000 ?\n  price: int ?\n  reason: text <=100 ?\n  read <- .owner = viewer\n  insert <- .owner = viewer\n  online only\ninvariant docs always .photo != null\n";
 #[test]fn optional_upload_guard_and_alias_controls(){
  for guard in ["","  require photo != null else REQUIRED\n"]{
  let s=format!("{DOCS}mutation add(photo: image <=10000 ?):\n{guard}  alias = photo\n  return insert docs {{owner:viewer,photo:alias,price:null,reason:null}}\n");let r=notes(&s);
  assert_eq!(r.notes.iter().any(|n|n.code=="N_OPTIONAL_UPLOAD_CREATE"),guard.is_empty(),"{:?}",r.notes);
  }
- let s=format!("{DOCS}mutation edit(photo: image <=10000 ?):\n  if photo != null:\n    return insert docs {{owner:viewer,photo,price:null,reason:null}}\n  return null\n");assert!(notes(&s).notes.iter().any(|n|n.code=="N_OPTIONAL_UPLOAD_CREATE"));
+ let s=format!("{DOCS}mutation edit(photo: image <=10000 ?):\n  if photo != null:\n    return insert docs {{owner:viewer,photo,price:null,reason:null}}\n  return null\n");assert!(!notes(&s).notes.iter().any(|n|n.code=="N_OPTIONAL_UPLOAD_CREATE"));
 }
 #[test]fn optional_money_and_positive_reason_minimum(){
  let s=format!("{DOCS}mutation add(price: int ?, reason: text 1..100 ?):\n  return insert docs {{owner:viewer,photo:null,price,reason}}\n");let r=notes(&s);assert!(r.notes.iter().any(|n|n.code=="N_CREATION_MONEY"));assert!(!r.notes.iter().any(|n|n.code=="N_CREATION_REASON"));
