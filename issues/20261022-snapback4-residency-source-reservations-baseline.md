@@ -34,6 +34,27 @@ The disposable source and target were removed. Investigate these alongside
 the residency failures. Do not normalize away the reservation census or raise
 a bound to clear them.
 
+Additional baseline qualification on 2026-10-23 confirms six `snapback4-lang`
+`live_parent` failures: `adoption_reserves_destination_index_sets_before_live_callback`,
+`cap_restore_selects_a_plain_index_instead_of_word_entries`,
+`seed_prepays_source_index_vectors_before_ordinary_upsert`,
+`reverse_manual_adoption_reserves_destination_index_sets`,
+`bulk_restore_reserves_all_index_vectors_before_put`, and
+`live_to_captured_adoption_prepays_word_index_fanout`. The unmodified baseline
+reports 42 passed and 6 failed. Provenance: `~/sb4-loop/dx7-baseline-lang-results.json`
+and `dx7-baseline-live_parent.log`; disposable source/build outputs were removed.
+All eighteen reservation-related failures found in DX7's full run are therefore
+baseline-confirmed. A separate predecessor execution-facts failure is tracked in
+`issues/20261023-snapback4-predecessor-execution-facts-baseline.md`.
+
+The fresh packed Linux qualifier also stops in its day5 installed residency
+recipe (`publication-day5.mjs`) on the same source-reservation schema error.
+Evidence: `~/sb4-loop/dx7-qualify-isolated.log`. Its DX7 cases and all three
+historical Expo upgrade modes passed before this refusal. Independent continuation
+of all ten later packed groups, including staging and clean Ubuntu/Alpine
+userspaces, passed (`dx7-qualify-continuation.json`). This is scoped evidence,
+not an overall qualification or publication receipt.
+
 Reproduction: run the two named `init` tests on origin/main with
 `CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0`.
 Inspect the reservation derivation/validation around following/timeline fixtures
