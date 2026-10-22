@@ -190,7 +190,7 @@ const DEFINITIONS: &[(&str, &str)] = &[
     ("E_QUARRY_STATEMENT", "A non-final expression must perform a write."),
     ("E_QUARRY_FANOUT", "An atomic mutation must bound the whole population it changes."),
     ("E_QUARRY_IMMUTABLE", "An immutable patch provably changes a stored value or supplies a fresh clock/id."),
-    ("N_IMMUTABLE_PATCH", "On readable targets, an immutable patch succeeds only when its value equals the stored value."),
+    ("N_IMMUTABLE_PATCH", "A protected immutable payload supplied in an update or existing upsert is ignored for every viewer, without comparing or revealing its stored value."),
     ("N_CASCADE_DORMANT", "This unbounded cascade or set-null edge has no declared source that can delete its parent."),
 
     ("N_LOOKUP_NEVER_VISIBLE", "nullable point lookup is always null"),
