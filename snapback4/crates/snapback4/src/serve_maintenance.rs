@@ -946,7 +946,12 @@ mod tests {
         let response = client.join().unwrap();
         assert_eq!(super::super::tests::status(&response), 500, "{response}");
         let reply = super::super::tests::body(&response);
-        assert_eq!(reply["denied"]["code"], "E_CLOCK_INTERRUPTED", "{reply}");
+        assert_eq!(reply["denied"]["code"], "E_CLOCK_REPORT_INCOMPLETE", "{reply}");
+        assert!(reply["denied"]["message"].as_str().unwrap().contains("E_CLOCK_INTERRUPTED"), "{reply}");
+        assert_eq!(reply["advancedMs"], 60_000);
+        assert_eq!(reply["reportIncomplete"], true);
+        assert_ne!(reply["denied"]["retryable"], true);
+        assert!(!response.to_ascii_lowercase().contains("retry-after:"));
         assert_eq!(reply["maintenancePaused"], true, "failed drains stay paused");
         assert!(lock(&shared.maintenance).paused);
         timely(&shared, 0).unwrap();

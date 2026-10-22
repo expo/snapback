@@ -102383,3 +102383,29 @@ query. The complete affected query selector passes (14 passed, one ignored),
 including exact COMMIT-gap data/generation and genuine foreign activation.
 The real 31-second clock witness also passes. Initial reds and isolated
 reproductions remain in the qualification receipt.
+
+
+The complete CLI pass at `aeb62378f7` ran every target: 1,422 passed, 11
+failed, 19 ignored. Every failed case was rerun alone. The 30-second clock
+socket timeout and security campaign fixture pass alone. Four residency/
+timeline cases reproduce source-reservation/schema disagreement (new ticket),
+the existing five-second run-admission guard reproduces (ticket appended),
+and the supplied web-witness baseline reproduces. The lane's three remaining
+failures are missing dedicated explanations/routing for its two new codes and
+the interrupted-clock fixture's former outer error code. Add the explanations
+and update that fixture to require the non-retryable incomplete-report envelope
+while preserving its original interruption cause, pause, clock and queued-work
+assertions. The subsequent affected repeat is recorded in the lane report.
+
+The full CLI lifecycle target passes all 29 cases in 40.75 seconds, including
+the original concurrent replay/backfill data assertions. Together with the
+passing deterministic handoff and foreign-activation controls, this closes
+`issues/closed/20261022-snapback4-concurrent-adoption-generation-refusal.md`.
+This does not claim a clean overall CLI suite.
+
+
+The repaired full CLI unit binary passes 535 tests with zero failures and
+nine existing ignores; the exact `why` integration also passes. This repairs
+all three lane-owned failures from the complete CLI pass. The two transient
+failures pass alone; six unrelated/provided-baseline cases remain reproducible
+and are retained explicitly in the report, with no clean-full-CLI claim.
