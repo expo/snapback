@@ -21,6 +21,9 @@ fn value(bound:&Bound,e:&Expr,env:&mut BTreeMap<String,Flow>,reads:&mut BTreeSet
     Expr::Merge(m)=>{reads.insert(m.table().into());row(bound,m.table())},
     Expr::Array(xs)|Expr::Builtin{args:xs,..}=>{
         // ProjectFields is the engine's column gate, retaining row identity.
+        if let Expr::Builtin{builtin:ir::Builtin::ProjectFields{table},..}=e{
+            reads.insert(table.clone());let input=xs.first().map(|e|value(bound,e,env,reads,returned,refusals)).unwrap_or_default();return Flow::join(input,row(bound,table));
+        }
         if let Expr::Builtin{builtin:ir::Builtin::OptionalField{field,..},..}=e{
             let f=value(bound,&xs[0],env,reads,returned,refusals);return f.fields.get(field).cloned().unwrap_or(Flow{sources:f.sources,fields:BTreeMap::new()});
         }
@@ -38,6 +41,7 @@ fn value(bound:&Bound,e:&Expr,env:&mut BTreeMap<String,Flow>,reads:&mut BTreeSet
 fn statements(bound:&Bound,body:&[Stmt],env:&mut BTreeMap<String,Flow>,reads:&mut BTreeSet<String>,returned:&mut Sources,refusals:&mut Sources){for s in body{match s{
     Stmt::Const{name,value:e}|Stmt::Let{name,value:e}|Stmt::Assign{name,value:e}=>{let f=value(bound,e,env,reads,returned,refusals);env.insert(name.clone(),f);},
     Stmt::Push{target,value:e}=>{let f=value(bound,e,env,reads,returned,refusals);let old=env.remove(target).unwrap_or_default();env.insert(target.clone(),Flow::union([old,f]));},
+    Stmt::Insert{table,row:Expr::Variable(n)}|Stmt::InsertIfAbsent{table,row:Expr::Variable(n),..}=>{let prior=env.remove(n).unwrap_or_default();env.insert(n.clone(),Flow::join(prior,row(bound,table)));},
     Stmt::WriteTarget{target,result:Some(n),..}=>{reads.insert(target.table.clone());env.insert(n.clone(),row(bound,&target.table));},
     Stmt::Return(e)=>{returned.extend(value(bound,e,env,reads,&mut Sources::new(),refusals).all());},
     Stmt::Require{condition,..}|Stmt::Check{condition,..}=>{refusals.extend(value(bound,condition,env,reads,returned,&mut Sources::new()).all());},
@@ -61,7 +65,7 @@ pub(super) fn notes(bound:&Bound)->Vec<Diagnostic>{
             if !returned.contains(&(table.clone(),c.clone())){hidden.entry((table.clone(),c.clone())).or_default().insert(bp.program.name.clone());}
         }}}
     }
-    let mut out=Vec::new();
+    let mut grouped=BTreeMap::<String,Vec<(Site,String)>>::new();
     for (bp,_,returned,refusals) in flows{
         for (kind,origins) in [("return/write result",returned),("refusal/branch",refusals)]{
             let mut groups:BTreeMap<String,Vec<String>>=BTreeMap::new();
@@ -75,7 +79,11 @@ pub(super) fn notes(bound:&Bound)->Vec<Diagnostic>{
                 let reason=projected.map(|qs|format!("omitted by {}",qs.iter().cloned().collect::<Vec<_>>().join(", "))).unwrap_or_else(||"column-ruled".into());
                 groups.entry(table).or_default().push(format!("{c} ({reason})"));
             }
-            for (table,columns) in groups{out.push(Diagnostic::new(&bp.site,"N_COLUMN_RESULT_EXPOSURE",format!("{}: {kind} can observe {table}.{}; row audience: {}",bp.program.name,columns.join(", "),bound.schema.tables[&table].rules.read.quarry()),"confirm the spec's intended audience for this operation, including roles receiving write results; a query projection alone is not privacy. Use column read rules and independent column read intent; run snapback4 test").guide("security"));}
+            for (table,columns) in groups{grouped.entry(table).or_default().push((bp.site.clone(),format!("{} at {}: {kind} observes {}",bp.program.name,bp.site,columns.join(", "))));}
         }
-    }out
+    }
+    grouped.into_iter().map(|(table,mut paths)|{
+        paths.sort_by_key(|(site,_)|(site.file.clone(),site.line,site.col));
+        Diagnostic::new(&paths[0].0,"N_COLUMN_RESULT_EXPOSURE",format!("{table}: {}; row audience: {}",paths.iter().map(|(_,text)|text.as_str()).collect::<Vec<_>>().join("; "),bound.schema.tables[&table].rules.read.quarry()),"confirm each operation's result/refusal audience from the spec; a query projection alone is not privacy. Use column read rules and independent intent; run snapback4 test").guide("security")
+    }).collect()
 }

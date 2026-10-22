@@ -27,7 +27,14 @@ pub(super) fn notes(sources:&[(String,String)],bound:&Bound)->Vec<Diagnostic>{
             if *edit!=ast::WriteOp::Update||other!=table{continue;}
             let restriction=necessary(restricted);
             if kernel::implies(&RuleExpr::Allow,&restriction)==Ok(true)||kernel::implies(admission,&restriction)!=Ok(false){continue;}
-            let columns=patch.iter().filter(|f|fields.iter().any(|insert|insert.name==f.name)||bound.schema.tables[table].defaults.contains_key(&f.name)).map(|f|f.name.clone()).collect::<BTreeSet<_>>();
+            let columns=patch.iter().filter(|f|fields.iter().any(|insert|{
+                if insert.name!=f.name{return false;}
+                let Some(value)=&insert.value else{return true;};
+                let mut value=value.clone();let mut supplied=false;
+                super::super::intent_walk::expression(&mut value,&mut |e|if let ast::Expr::Name{name:argument,..}=e{
+                    supplied|=documents.iter().flat_map(|d|&d.programs).filter(|p|p.name==*name).any(|p|p.args.iter().any(|a|a.name==*argument));
+                });supplied
+            })).map(|f|f.name.clone()).collect::<BTreeSet<_>>();
             if columns.is_empty()||!seen.insert((name.clone(),table.clone(),columns.clone(),restriction.quarry())){continue;}
             out.push(Diagnostic::new(site,"N_INSERT_WRITE_INTENT",format!("{name}: {table}.{} can be supplied at insert/upsert without the edit restriction of {editor}: {}; creation admission: {}",columns.into_iter().collect::<Vec<_>>().join(","),restriction.quarry(),admission.quarry()),"confirm whether the spec permits different creation authority; otherwise guard every insert/upsert arm too and declare column write only intent, then run snapback4 test").guide("security"));
         }

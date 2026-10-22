@@ -226,6 +226,12 @@ fn print_prediction(bound: &Bound, verbose: bool) {
 }
 
 fn note_summary(note: &snapback4_lang::Diagnostic) -> String {
+    if note.code=="N_COLUMN_RESULT_EXPOSURE" {
+        let table=note.message.split(':').next().unwrap_or("table");
+        return format!("{table}: grouped result/refusal observers; review operation audiences and private columns (check --verbose/JSON lists every operation, column and site)");
+    }
+
+
     let Some((first, rest)) = note.message.split_once('\n') else { return note.message.clone(); };
     if note.code == "N_MAINTAIN_SYNCED" {
         let names = rest.lines().filter_map(|line| line.trim().strip_prefix("maintain ")?.split_once(':').map(|(name, _)| name)).collect::<Vec<_>>();
@@ -442,8 +448,8 @@ pub fn check(options: &Options) -> i32 {
             })
                 .chain(certificates.iter().flat_map(|certificate| &certificate.search).map(|search| crate::note_rank::Note { site: search.site.to_string(), code: search.code.to_string(), summary: present(search.summary), form: None, compact: None }))
                 .collect::<Vec<_>>();
-            notes.sort_by_key(|note|(crate::note_rank::summary_order(&note.code),note.site.clone(),note.code.clone(),note.summary.clone()));
-            let cap=5.max(notes.iter().filter(|n|matches!(n.code.as_str(),"N_PRIVILEGE_ESCALATION"|"N_SELF_CLAIMED_RELATIONSHIP"|"N_INSERT_WRITE_INTENT"|"N_COLUMN_RESULT_EXPOSURE")).count());
+            notes.sort_by_key(|note|(crate::note_rank::summary_order(&note.code),crate::note_rank::site_order(&note.site),note.code.clone(),note.summary.clone()));
+            let cap=5.max(notes.iter().filter(|n|snapback4_lang::security::note_priority(&n.code)<=2).count());
             let remaining=notes.len().saturating_sub(cap);notes.truncate(cap);
             if remaining>0 {println!("{remaining} more actionable notes in check --verbose/JSON");}
             for line in crate::note_rank::render(notes) { println!("{}", crate::presentation::abbreviate_quoted(&line)); }
