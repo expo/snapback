@@ -28,7 +28,7 @@ const APP_FILES: &[&str] = &[
     // Complete application scripts executed from the packed staging card.
     "staging.mjs", "first-admin.mjs", "staging-users.json",
     // Engine outputs and the Exact app consumer described by the wire card.
-    "device-compatibility.json", "exact.mjs", "assets/snapback4.wasm",
+    "device-compatibility.json", "store-binding.json", "store-pending.json", "exact.mjs", "assets/snapback4.wasm",
     // Exact application source and mounted adapter entry for static device discovery.
     "app.ts", "snapback.ts",
     // The testing card's fixture cases file and acceptance script.

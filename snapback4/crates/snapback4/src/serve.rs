@@ -71,6 +71,7 @@ pub(crate) mod latency;
 pub(crate) mod dev_refusals;
 
 pub struct Shared {
+    worker_execution: bool,
     pub(crate) release_requests: Arc<crate::release_requests::Gate>,
     following: Mutex<snapback4_core::engine::following_history::Reader>,
     refusals: dev_refusals::Recent,
@@ -318,6 +319,7 @@ pub(crate) fn test_work(hook: &WorkHook) {
 /// release (`serve`): a compiled generation over a store, tokens only.
 pub enum Mode {
     Dev { unsafe_dev_doors: bool, trace_empty: bool, verbose: bool, watch: bool, fresh: bool, replay: bool, hold_effects: bool, hold_schedules: bool, clock_offset: i64 },
+    ConfiguredRelease { expected: u64, owner: Arc<crate::store_config::OwnedStore> },
     Release { clock_offset: i64, expected: u64, worker: Option<std::path::PathBuf>, owner: Arc<crate::store_owner::Owner> },
 }
 
@@ -858,6 +860,10 @@ fn handle(mut request: Request, shared: &Shared) {
             Err(why) => return respond_timed(request, shared, if why.retryable {503} else {401}, json!({"denied": refusal_json(&why)})),
             _ => {}
         }
+    }
+    // @ref LLP 3000.009.001.000#3.4 — selecting the initial store profile never enables worker claims by accident.
+    if !shared.worker_execution && ["/effects", "/actions", "/requests", "/jobs/", "/routes/verify"].iter().any(|prefix| path.starts_with(prefix)) {
+        return respond_timed(request, shared, 503, json!({"denied": snapback4_core::RuntimeError::StoreUnsupported {family:"worker-execution"}.refusal()}));
     }
     if path == token::ENDPOINT { return token::handle(request, shared); }
     // This exact declared POST path is the only non-loopback development

@@ -99,6 +99,9 @@ pub(crate) struct Supervisor {
 }
 
 impl Supervisor {
+    pub(crate) fn idle() -> Self {
+        Self { stop: Arc::new(std::sync::atomic::AtomicBool::new(false)), thread: None }
+    }
     #[cfg(test)]
     pub(crate) fn idle_for_test() -> Self {
         Self { stop: Arc::new(std::sync::atomic::AtomicBool::new(false)), thread: None }
@@ -276,7 +279,7 @@ impl Supervisor {
     }
 
     pub(crate) fn is_finished(&self) -> bool {
-        self.thread.as_ref().unwrap().is_finished()
+        self.thread.as_ref().is_some_and(|thread| thread.is_finished())
     }
 }
 

@@ -16,7 +16,7 @@ fn directory(options: &Options) -> Result<PathBuf, String> {
 }
 
 // @ref LLP 3000.000.000#5.1 — deployment aliases share ownership, control and worker paths.
-fn canonical_directory(options: &Options) -> Result<PathBuf, String> {
+pub(super) fn canonical_directory(options: &Options) -> Result<PathBuf, String> {
     let requested = directory(options)?;
     if !requested.exists() {
         snapback4_core::private_fs::directory(&requested).map_err(|e| e.to_string())?;
@@ -197,7 +197,7 @@ fn check_change(
     Ok(())
 }
 
-fn command_lock(dir: &Path) -> Result<std::fs::File, String> {
+pub(super) fn command_lock(dir: &Path) -> Result<std::fs::File, String> {
     #[cfg(unix)]
     {
         let file = snapback4_core::private_fs::auxiliary_file(
@@ -353,11 +353,17 @@ fn report(verb: &str, result: Result<(), String>) -> i32 {
 }
 
 pub fn deploy(options: &Options) -> i32 {
+    match crate::store_config::StoreConfig::resolve(options) {
+        Ok(Some(config)) => return report("deploy", super::configured_release::deploy(options, config)),
+        Err(error) => return report("deploy", Err(error)),
+        Ok(None) => {},
+    }
     let mut security_summary=None;
     let mut failure_inventory=None;
     let mut failure_problems=None;
     let result=(|| {
             let dir = canonical_directory(options)?;
+            crate::store_config::local_deployment(options, &dir)?;
             let _command = command_lock(&dir)?;
             let existed = dir.join("store.sqlite").exists();
             let checking=options.flags.contains_key("check");
@@ -715,6 +721,9 @@ pub fn prune(options: &Options) -> i32 {
 }
 
 pub fn serve_release(options: &Options) -> Result<(), String> {
+    if let Some(config) = crate::store_config::StoreConfig::resolve(options)? { return super::configured_release::serve(options, config); }
+    let requested = directory(options)?;
+    if requested.exists() { crate::store_config::local_deployment(options, &requested)?; }
     if options.flags.contains_key("wait-stopped") {
         let dir = directory(options)?;
         crate::store_owner::wait_released(&dir.join("store.sqlite"), std::time::Duration::from_secs(5))?;

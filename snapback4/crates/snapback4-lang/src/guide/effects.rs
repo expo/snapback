@@ -141,9 +141,11 @@ with separate disks do not share deduplication. Failures record no completion.
 
 The store-level Postgres worker binding uses the logical store id and an
 explicit absolute durable state directory. A missing id refuses with
-`E_WORKER_STORE_ID`; a missing location refuses with `E_WORKER_STATE`. The
-Postgres ledger binding is currently a library API. A Postgres URL never
-substitutes for a local SQLite filename.
+`E_WORKER_STORE_ID`; a missing location refuses with `E_WORKER_STATE`.
+Serve validates this binding from `--worker-state-dir` or
+`SNAPBACK4_WORKER_STATE_DIR` before listening. Worker execution/claims remain
+outside the initial Postgres profile. A Postgres URL never substitutes for a
+local SQLite filename.
 
 One hung provider call therefore stalls all handlers sharing that file; set a
 provider timeout, as above. Keeping the lock prevents simultaneous duplicate

@@ -1,5 +1,5 @@
-//! Internal Postgres opening/activation for S10c. Namespace selection is a
-//! library seam; public deployment configuration and lease cadence remain S10d-3.
+//! Postgres opening/activation behind the neutral store handle. Public URL
+//! configuration and lease cadence belong to the host configuration boundary.
 // @ref LLP 3000.009.001.000#3.4 — shared builders own semantic activation; the adapter owns physical installation.
 use super::{Handle, activation::Preparation, store::{self, Tx}};
 use crate::{RuntimeError, Schema, Program, activation::Backend, metadata::MetadataReader,
@@ -8,15 +8,24 @@ use crate::{RuntimeError, Schema, Program, activation::Backend, metadata::Metada
 use std::{cell::RefCell, collections::BTreeMap};
 
 impl AnyStore {
-    /// Internal, private-cluster API. No schema is created before Engine admission.
+    /// Bootstrap only. No schema is created before Engine admission; public serve
+    /// must reopen with a positive acquired token through open_postgres_owned.
     pub fn create_postgres(connection: &str, namespace: &str) -> Result<Self, RuntimeError> {
         Handle::connect(connection.parse()?, namespace, true).map(AnyStore::from_postgres)
+    }
+    /// Public bootstrap uses the identity durably recorded by its host intent.
+    pub fn create_postgres_with_id(connection: &str, namespace: &str, store_id: &str) -> Result<Self, RuntimeError> {
+        let fence = super::ownership::Fence { store_id: store_id.into(), holder: "0000".into(), token: 0 };
+        fence.tag()?;
+        let mut handle = Handle::connect(connection.parse()?, namespace, true)?;
+        handle.bootstrap_id = Some(fence.store_id);
+        Ok(AnyStore::from_postgres(handle))
     }
     /// Open the persisted generation, using the same connection settings for readers.
     pub fn open_postgres(connection: &str, namespace: &str) -> Result<Self, RuntimeError> {
         Handle::connect(connection.parse()?, namespace, false).map(AnyStore::from_postgres)
     }
-    pub(crate) fn admit(&self, schema: &Schema, programs: &BTreeMap<String, Program>) -> Result<(), RuntimeError> {
+    pub fn admit(&self, schema: &Schema, programs: &BTreeMap<String, Program>) -> Result<(), RuntimeError> {
         match self { Self::Sqlite(_) => Ok(()), Self::Postgres(_) => super::profile::admit(schema, programs) }
     }
 }
@@ -63,7 +72,7 @@ impl Handle {
             store.generation = generation;
 
         }
-        Ok(Self { store: RefCell::new(store), report: AdoptionReport::default(), connection: (config, name.into()), fresh })
+        Ok(Self { store: RefCell::new(store), report: AdoptionReport::default(), connection: (config, name.into()), fresh, bootstrap_id: None })
     }
 
     pub(crate) fn activate<R>(&mut self, schema: &Schema, programs: Option<&BTreeMap<String, Program>>, reset: bool, now: i64,
@@ -76,7 +85,7 @@ impl Handle {
         if reset { return Err(RuntimeError::StoreUnsupported { family: "dev-reset" }); }
         let fresh = self.fresh;
         let bootstrap_fence = fresh.then(|| super::ownership::Fence {
-            store_id: format!("{:016x}{:016x}", crate::ids::seed(), crate::ids::seed()), holder: "0000".into(), token: 0,
+            store_id: self.bootstrap_id.clone().unwrap_or_else(|| format!("{:016x}{:016x}", crate::ids::seed(), crate::ids::seed())), holder: "0000".into(), token: 0,
         });
         let quoted = store::namespace(&self.connection.1)?;
         let mut report = AdoptionReport::default();

@@ -101459,3 +101459,115 @@ entry makes no publication or unrun-test claim.
 
 ROLL qualification follow-up: source-domain admission now uses full structural types (including text minima), caps and unique keys rather than matching advisory prose. Compiled views retain current constraints, read-through syntax and identity-aligned authority. A private read plus quota regression checks actual enforcement. Registry resolution belongs to the active ordinary source or active view's parent; a later branch cannot lend it weaker guards. Equal-source reuse first compares privately prepared view content against that source's own manifest; sourceRelease explains a necessary fresh registration parent. Revision 23 is READY from Muse and fresh Codex. Full client-pool fallout now explicitly separates exact-source hazard tests from default-view tests and uses JSON for complete advice. Final packed qualification is still pending; no publication claim.
 
+
+## 2026-10-22 — S10d-3: public Postgres deploy and serve
+
+Implemented the public configuration/release/startup slice of LLP
+3000.009.001.000 §3.4. The CLI resolves an explicit namespace and HA mode from
+`--store-url` / `SNAPBACK4_STORE_URL`, retains credential-free logical-store
+bindings in immutable local releases, and refuses conflicting path selectors.
+The admitted transport is a Unix socket on PostgreSQL 16/17 with `ha=none`;
+TLS transport/provider continuity remain named refusals.
+
+First deploy bootstraps the initial generation, then acquires a positive lease
+for release activation. Serve selects the persisted release and validates its
+binding and compiled backend before listening. Dedicated renewal and a separate
+lease deadline watchdog exit on loss/uncertainty; second owners refuse, and a
+crashed owner's lease can expire into takeover. Unsupported runners/worker claims
+are gated; ephemeral hubs stay active. Explicit durable worker state is validated
+through the logical-store-bound ledger seam. Doctor returns typed owner/lease
+facts; SQL inspection refuses by name. SQLite retains its serving path.
+
+The CLI witness owns its private socket cluster and detached server PIDs, checks
+HTTP auth/query/mutation/replay/unknown changes evidence/logout, restart and lease
+takeover, and independently confirms its cluster stopped. Detailed final check
+results and limitations are in reports/20261022-s10d3-postgres-serving.md. The
+parallel K0 lane retains request-committer routing; this lane changes startup,
+configuration, release and defensive worker-family gating only. No push, stash,
+sub-agents, clones or other-machine commands.
+
+## 2026-10-22 — S10d-3 fix round 1: transport, recovery and startup cleanup
+
+Addressed the two blind reviews of the public Postgres serving lane. The
+socket-only profile now rejects hostaddr overrides before connecting and binds
+effective Unix socket paths. Failed first binding writes recover the same
+unselected, never-owned generation-1 bootstrap; records publish atomically after
+sync. Selected or previously owned stores still require the existing binding.
+
+Startup holds a release-on-drop guard through acquisition, renewal thread setup
+and listener startup, disarming only before HTTP admission. The private CLI
+witness proves explicit lease release after missing worker state and an occupied
+port, then immediate corrected startup. It also proves no TCP connection for
+the transport bypass, same-id binding recovery, selected-binding refusal and
+continued service after a contender refuses. It honors the configured target.
+
+Guides, README, NOT-DOING and flag help now state the admitted deployment profile,
+SQLite-only operator operations and worker-state requirement. Credentials use
+the environment in normal witness launches; docs/help warn about passwords on
+argv. Postgres and unknown-COMMIT messages share redaction in RuntimeError Display
+and HTTP refusals, preserving their distinct codes and retry classification.
+A real server exception carrying a synthetic secret is redacted on the wire.
+The RFC's single Revised line records this round; the lane report carries the
+per-finding evidence and final check results. No push or stash.
+
+Final verification: the serial complete CLI run passes 1,405 tests with 16
+intentional ignores; all three supplied baseline cases pass. Core passes 1,068
+unfiltered tests plus its filtered subprocess witness, with 5 ignores. Ratchets
+and census pass 16; guide 127; root guide 22 (no skips); codec census 27; release
+and compiled-handle guards pass. The complete Postgres script and both new unit
+regressions pass. Reference audit is clean. Verification corrected a test-module
+census classification and the deploy card's line count without raising either
+limit. An intermediate overlapping Cargo cleanup invalidated seven test binaries;
+all affected targets passed alone and the final full CLI run passed serially.
+The lane report preserves the exact failures, retries and result counts.
+
+Both public-witness clusters and the evaluation cluster are stopped and
+independently confirmed, as are all ten recorded witness servers. No lane binary
+remains serving after the full suite. Minimum observed free space was 39G; builds
+used the specified top-level target/profiles and at most 16 jobs. No push or stash.
+
+## 2026-10-22 — S10d-3 fix round 2: identity-bound recovery and claim cleanup
+
+Replaced counter-only bootstrap adoption with a durable pending intent. Before
+bootstrap commits, deploy records the minted logical id and credential-free
+namespace/effective socket binding through a synced temporary file and atomic
+rename, then fsyncs the directory. Bootstrap uses that exact id. A retry requires
+the original intent and id/target, every bootstrap table, matching generation
+history and required markers, valid owner shape and the same full engine
+open/admit/family validation used by ordinary opening. It refuses incomplete
+state instead of rebuilding it for adoption. Only successful validation permits
+an atomic intent-to-binding rename and a subsequent positive owner claim.
+SQLite selection also refuses a deployment with a pending Postgres intent.
+
+Startup cleanup now retains the claim token independently of local write
+permission. Renewal failure still disables writes, but release-on-drop attempts
+a conditional release with that token, including after unknown claim COMMIT or
+post-commit claim cleanup errors. A successor's token never matches this release.
+The regression injects Grok's renewal-only SQL trigger after connect/shape checks,
+observes a committed token followed by an expired lease on the returned startup
+error, then acquires immediately without an expiry sleep. Another ownership
+regression proves cleanup after lost renewal leaves a successor's lease live.
+
+Help explicitly qualifies previews, hot adoption and automatic workers by
+backend; the deploy guide puts service-token and rollback recipes under SQLite
+headings. The Postgres guide quotes actual operator/SQL refusal text and states
+that clean serve shutdown also leaves the lease to expire about three seconds
+after its last renewal. The RFC retains one Revised line, with this round first.
+The lane report records per-item regressions, full round-one check results and
+private-cluster custody. No push, stash, sub-agents or unrelated target work.
+
+Final qualification for round 2: complete core 1,068 unfiltered passes plus its
+filtered subprocess witness, five ignores; complete CLI 1,405 unfiltered passes,
+13 filtered subprocess cases and 17 ignores, with the new private-cluster test
+run separately. Final guide 127, ratchets/census 16, root guide 22 and codec
+census 27 pass. Both no-default checks, compiled handles, release guards and
+README budget pass. The repeated complete Postgres script passes all 350 Rust
+cases and the public witness, including the stale-intent/bound-store safeguard.
+The rebuilt standalone witness and both redaction/binding unit regressions pass.
+Initial guide routing failures and a witness run compiled during a source edit
+are retained in the report; source was frozen for the final rebuild/repeat, with
+no test expectation or budget relaxed. Eight private clusters are independently
+confirmed stopped and all 20 recorded public-server PIDs absent. Minimum recorded
+stage free space was 42.49 GiB (lowest observed df display 43G). No push or stash.
+Final reference audit passes: 564 LLP documents, 12,329 references, zero errors
+and zero unchecked references.

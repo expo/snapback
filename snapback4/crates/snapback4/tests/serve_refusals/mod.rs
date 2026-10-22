@@ -151,6 +151,7 @@ impl Host {
             ephemeral: ephemeral::hub(&engine), ephemeral_rate: ephemeral::Rate::default(),
             wake: Mutex::new(ephemeral::Wake::new(&engine)), polls: Condvar::new(),
             adoption: Mutex::new(adoption::Status::new(String::new())),
+            worker_execution: engine.store().admit_worker_execution().is_ok(),
             engine: super::engine_lock::FairMutex::new(engine),
             readers, read_cuts: Mutex::new(read_cost::ReadCuts::default()), refusals,
             bound: Mutex::new(bound),

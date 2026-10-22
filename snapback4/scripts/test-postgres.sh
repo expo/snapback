@@ -59,7 +59,12 @@ cargo test --locked -p snapback4-core --features postgres --test store_handle_tr
 cargo test --locked -p snapback4-core --features postgres --doc || status=1
 cargo test --locked -p snapback4-core --features postgres --lib engine::committer::postgres_tests -- --include-ignored --nocapture || status=1
 cargo test --locked -p snapback4 --features postgres --bin snapback4 s10c_postgres_internal_http_host_witness -- --include-ignored --nocapture || status=1
+cargo test --locked -p snapback4 --features postgres --bin snapback4 postgres_startup_renewal_error_releases_committed_claim -- --include-ignored --nocapture || status=1
 cargo test --locked -p snapback4-core --features postgres --test corpus -- --nocapture || status=1
+# Public serving is a separate CLI process over its own private cluster, never
+# the evaluator's namespace/connection. Build the shipped default CLI first.
+cargo build --locked -p snapback4 || status=1
+python3 scripts/test-postgres-serve.py || status=1
 if [[ "${1:-}" == "--bench" ]]; then
   cargo run --locked --release --manifest-path experiments/postgres/Cargo.toml -- "${SNAPBACK4_EVAL_ITERATIONS:-200}" || status=1
 fi

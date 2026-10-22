@@ -946,3 +946,20 @@ fn kill_owner_then_takeover() {
     assert!(b.release().unwrap());
     std::fs::remove_file(ready).unwrap();
 }
+
+#[test]
+#[ignore = "requires private Postgres; scripts/test-postgres.sh"]
+fn failed_renewal_cleanup_never_releases_successor_token() {
+    let ns = name();
+    let id = create(&ns);
+    let mut a = lease(&ns, &id, "0001");
+    assert_eq!(a.acquire().unwrap().unwrap().token, 1);
+    // A successor wins while the old startup still holds its cleanup token.
+    client(&ns).execute("UPDATE _owner SET token=2,holder='0002',lease_until=clock_timestamp()+interval '1 hour'", &[]).unwrap();
+    assert!(!a.renew().unwrap());
+    assert_eq!(a.token(), None, "write authority must still be revoked");
+    assert!(!a.release().unwrap(), "cleanup cannot expire a successor's lease");
+    let row = client(&ns).query_one("SELECT token,lease_until>clock_timestamp() FROM _owner", &[]).unwrap();
+    assert_eq!(row.get::<_, i64>(0), 2);
+    assert!(row.get::<_, bool>(1));
+}

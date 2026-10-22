@@ -18,6 +18,7 @@ fn a_request_after_engine_poison_still_serves() {
         wake: Mutex::new(ephemeral::Wake::new(&engine)), polls: Condvar::new(),
         adoption: Mutex::new(adoption::Status::new(String::new())),
         readers: Mutex::new(QueryReaders::new(&engine, &Default::default())),
+        worker_execution: engine.store().admit_worker_execution().is_ok(),
         engine: FairMutex::new(engine), read_cuts: Mutex::new(read_cost::ReadCuts::default()),
         bound: Mutex::new(Bound { rollback_hides: Vec::new(), invariants: Vec::new(), receipt_members: Default::default(), refusal_sites: Default::default(), view_types: Default::default(), server: false, schema: Default::default(), programs: Vec::new(), personas: Vec::new(), diagnostics: Vec::new(), notes: Vec::new() }),
         generation: Mutex::new(1),

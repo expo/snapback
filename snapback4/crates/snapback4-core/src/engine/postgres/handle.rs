@@ -10,6 +10,7 @@ pub struct Handle {
     pub(crate) report: AdoptionReport,
     pub(super) connection: (postgres::Config, String),
     pub(super) fresh: bool,
+    pub(super) bootstrap_id: Option<String>,
 }
 impl Handle {
     pub(crate) fn borrow(&self) -> Result<RefMut<'_, Store>, RuntimeError> {
