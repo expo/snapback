@@ -242,6 +242,8 @@ export function createClient(options: ClientOptions): Client {
   const linkListeners = new Set<(link: Link) => void>();
   const sessionListeners = new Set<(session: Session | null) => void>();
   const stopSessionTiming = clock.beforeSample((response, request) => {
+    if (response.headers.get("x-snapback-session-timing") === "staging" && request.authorization &&
+        (closed || !credentials || !session || !requestMatchesSession(request, base, session))) return false;
     if (closed || !credentials || !session || !requestMatchesSession(request, base, session)) return;
     const next = reconciledTiming(session, response);
     if (next === session) return;

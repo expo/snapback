@@ -253,16 +253,17 @@ impl PollResponse<'_> {
 
     fn finish(mut self, status: u16, mut body: Json) {
         if !self.started { return respond_timed(self.request.take().unwrap(), self.shared, status, body); }
-        // Stamp after the hold, including any development clock advance.
-        let clock = lock(&self.shared.clock);
-        body["serverNow"] = json!(clock.now().max(
-                self.shared
-                    .time_audience_clock
-                    .load(std::sync::atomic::Ordering::Acquire)
-            )
-        );
-        body["clockRevision"] = json!(clock.revision());
-        drop(clock);
+        // Heartbeat headers preceded the hold. Reuse the exact ordinary
+        // response authority/clock snapshot for the final body instead.
+        // @ref LLP 3000.000.000.001#11-wave-22-loop-repairs-dx6 — every clock sample includes matching bearer timing, including streamed final frames.
+        for header in super::session_clock_headers(self.request.as_ref().unwrap(), self.shared) {
+            let value = header.value.as_str();
+            if header.field.equiv("X-Snapback-Time") { body["serverNow"] = json!(value.parse::<i64>().unwrap()); }
+            else if header.field.equiv("X-Snapback-Clock") { body["clockRevision"] = json!(value); }
+            else if header.field.equiv("X-Snapback-Session-Timing") { body["sessionTiming"] = json!(value); }
+            else if header.field.equiv("X-Snapback-Session-Expires") { body["sessionExpiresAt"] = json!(value.parse::<i64>().unwrap()); }
+            else if header.field.equiv("X-Snapback-Session-Cap") { body["sessionCapExpiresAt"] = json!(value.parse::<i64>().unwrap()); }
+        }
         // Once heartbeats began the status is 200; the final JSON still
         // carries a typed denial, including a session revoked during the wait.
         let mut refused = status >= 400 || super::latency::Reply::refused(&body);
@@ -271,7 +272,7 @@ impl PollResponse<'_> {
             refused = true;
             let refusal = snapback4_core::error::Refusal::new("E_BOUND", "bound", "the HTTP JSON response exceeds 16 MiB; request fewer changes").guide("reads");
             bytes.0.clear();
-            serde_json::to_writer(&mut bytes, &json!({ "denied": refusal_json(&refusal), "serverNow": body["serverNow"], "clockRevision": body["clockRevision"] })).unwrap();
+            serde_json::to_writer(&mut bytes, &json!({ "denied": refusal_json(&refusal), "serverNow": body["serverNow"], "clockRevision": body["clockRevision"], "sessionTiming": body["sessionTiming"], "sessionExpiresAt": body["sessionExpiresAt"], "sessionCapExpiresAt": body["sessionCapExpiresAt"] })).unwrap();
         }
         let mut frame = format!("{:x}\r\n", bytes.0.len()).into_bytes();
         frame.extend_from_slice(&bytes.0);

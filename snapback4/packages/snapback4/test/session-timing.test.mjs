@@ -6,6 +6,10 @@ import { createApp } from '../dist/app.js';
 import { sessionKey, memorySessionStore } from '../dist/auth.js';
 import { ServerClock, sampleChanges } from '../dist/clock.js';
 import { reconciledTiming } from '../dist/session-timing.js';
+import { createLocalClient } from '../dist/local.js';
+import { webDevice, memoryPersistence } from '../dist/web.js';
+import { readFileSync } from 'node:fs';
+import { modelBackend, modelPage } from './helpers/app-model-device.mjs';
 const url='https://staging.invalid', query={kind:'query',name:'history'};
 const session=(at,token='ro.reader')=>({principal:'alice',kind:'member',token,scope:'read',expiresAt:at+1000,capExpiresAt:at+1000});
 const headers=(now,expiry,revision='host:1')=>({'x-snapback-time':String(now),'x-snapback-clock':revision,'x-snapback-session-timing':'staging',...(expiry?{'x-snapback-session-expires':String(expiry),'x-snapback-session-cap':String(expiry)}:{})});
@@ -57,5 +61,75 @@ test('expired restored read metadata needs live staging evidence and persists th
 });
 test('unavailable staging timing suppresses header and stream-final clock changes',async()=>{
   let wall=1000;const clock=new ServerClock(()=>wall);const transport=clock.wrap(async()=>new Response('',{headers:{...headers(10000,12000),'x-snapback-session-timing':'unavailable'}}));
-  const response=await transport(url);sampleChanges(response,{serverNow:10000,clockRevision:'host:1'});assert.equal(clock.issuedDeviceNow(),1000);
+  const response=await transport(url);await sampleChanges(response,{serverNow:10000,clockRevision:'host:1'});assert.equal(clock.issuedDeviceNow(),1000);
+});
+
+test('heartbeat final timing reconciles the immutable bearer before clock listeners',async()=>{
+  const clock=new ServerClock(()=>1000);let selected=session(1000),fail=false;
+  clock.beforeSample(async(response,request)=>{
+    assert.equal(request.authorization,'Bearer ro.reader');
+    const next=reconciledTiming(selected,response);
+    if(fail)throw Error('custody unavailable');
+    selected=next;
+  });
+  const response=await clock.wrap(async()=>new Response('\n'))(url+'/changes',{headers:{authorization:'Bearer ro.reader'}});
+  const final={serverNow:10000,clockRevision:'host:1',sessionTiming:'staging',sessionExpiresAt:11000,sessionCapExpiresAt:11000};
+  fail=true;await assert.rejects(sampleChanges(response,final),/custody unavailable/);assert.equal(clock.issuedDeviceNow(),1000);
+  fail=false;let observed;
+  clock.subscribe(()=>{observed=selected.expiresAt;});
+  await sampleChanges(response,final);assert.equal(observed,11000);assert.equal(clock.issuedDeviceNow(),10000);
+  await sampleChanges(response,{...final,serverNow:20000,sessionTiming:'unavailable'});assert.equal(clock.issuedDeviceNow(),10000);
+});
+
+test('a late staging response cannot publish an old bearer clock after rotation',async t=>{
+  const at=Date.now(),day=86400000,original={principal:'alice',kind:'user',token:'old',expiresAt:at+30*day};let entered,release;
+  const started=new Promise(resolve=>entered=resolve),gate=new Promise(resolve=>release=resolve);
+  const client=createClient({url,session:original,fetch:async(input,init)=>{
+    const path=new URL(input).pathname,token=new Headers(init?.headers).get('authorization');
+    if(path==='/auth/refresh')return Response.json({ok:true,session:{...original,token:'new'}});
+    if(path.startsWith('/q/')&&token==='Bearer old'){entered();await gate;return Response.json({data:[],complete:true,tables:[],seq:0,store_id:'store'},{headers:{'x-snapback-time':String(at+40*day),'x-snapback-clock':'host:1','x-snapback-session-timing':'staging','x-snapback-session-expires':String(at+70*day)}});}
+    return Response.json(path==='/probe'?{ok:true,viewer:'alice',seq:0,store_id:'store'}:{data:[],complete:true,tables:[],seq:0,store_id:'store'});
+  }});
+  t.after(()=>{release();return client.close();});
+  const answer=client.query(query,{});await started;assert.equal((await client.refreshSession()).ok,true);release();await answer;
+  assert.equal(client.session().token,'new');assert.ok(client.now()<original.expiresAt,'stale preservation metadata cannot expire the replacement bearer');
+});
+
+for(const mode of ['offline','retry','held','close'])test(`local timing persistence: ${mode}`,async t=>{
+  const at=Date.now(),day=86400000,original={principal:'alice',kind:'user',token:'full-token',expiresAt:at+3*day};
+  const values=new Map(),key=sessionKey(url),persist=memoryPersistence();let shift=0,fail=false,offline=false,core,hold=false,entered,release;
+  const saving=new Promise(resolve=>entered=resolve),gate=new Promise(resolve=>release=resolve);t.after(()=>release());
+  const sessions={async get(k){return values.get(k)??null;},async set(k,value){if(JSON.parse(value).expiresAt>original.expiresAt){if(hold){entered();await gate;}if(fail)throw Error('session disk unavailable');}values.set(k,value);},async delete(k){values.delete(k);}};
+  await sessions.set(key,JSON.stringify(original));
+  const raw=webDevice({wasm:readFileSync(new URL('../dist/wasm/snapback4_device_bg.wasm',import.meta.url)),persist});
+  const device={async open(...args){core=await raw.open(...args);return core;}};
+  const fetcher=async(input,init)=>{
+    if(offline)throw Error('offline');const path=new URL(input).pathname;
+    if(path==='/changes')return new Promise((_,reject)=>{if(init.signal.aborted)reject(init.signal.reason);else init.signal.addEventListener('abort',()=>reject(init.signal.reason),{once:true});});
+    let body;
+    if(path==='/schema')body=modelBackend;
+    else if(path==='/probe')body={ok:true,viewer:'alice',scope:'full',seq:0,store_id:'session-model-store'};
+    else if(path==='/sync')body=modelPage(0,JSON.parse(init.body));
+    else if(path.startsWith('/q/'))body={data:{id:'viewer'},complete:true,tables:[],seq:0,store_id:'session-model-store'};
+    else throw Error('unexpected '+path);
+    if(mode==='close'&&shift>0){entered();await gate;}
+    return Response.json(body,{headers:{'x-snapback-time':String(Date.now()+shift),'x-snapback-clock':`host:${shift}`,'x-snapback-session-timing':'staging','x-snapback-session-expires':String(original.expiresAt+shift)}});
+  };
+  let client=await createLocalClient({url,sessionStore:sessions,device,fetch:fetcher});t.after(()=>client?.close());
+  const savedBefore=(await core.call({op:'meta',key:'server-clock'})).ok;
+  shift=4*day;hold=mode==='held';fail=mode==='offline'||mode==='retry';
+  const syncing=client.sync();if(hold||mode==='close')await saving;else await syncing;
+  assert.ok(client.now()<original.expiresAt,'failed custody cannot publish the advanced live clock');
+  assert.equal((await core.call({op:'meta',key:'server-clock'})).ok,savedBefore,'device clock saves would succeed but must not receive the advanced image');
+  assert.equal(JSON.parse(values.get(key)).expiresAt,original.expiresAt);
+  if(mode==='close'){
+    const closing=client.close();release();await Promise.all([syncing,closing]);client=undefined;
+  }else if(mode!=='offline'){
+    fail=false;if(hold){release();await syncing;}else await client.sync();
+    assert.ok(client.now()>original.expiresAt);assert.equal(JSON.parse(values.get(key)).expiresAt,original.expiresAt+shift,'dirty timing retries even when the next reply repeats the same expiry');
+  }
+  await client?.close();client=undefined;offline=true;fail=false;
+  client=await createLocalClient({url,sessionStore:sessions,device,fetch:fetcher});
+  assert.equal(client.session().token,original.token);assert.ok(values.has(key),'offline restoration must retain saved custody');
+  if(mode==='close')assert.ok(client.now()<original.expiresAt,'close cannot persist a late unreconciled clock after removing the timing listener');
 });

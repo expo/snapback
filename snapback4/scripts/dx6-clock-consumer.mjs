@@ -50,6 +50,7 @@ await deploy("staging", "snapback", {args:["--staging"]});
 let host = await startServe("staging", {seedUsers:{roles:{member:1},provision:{name:"provision"}}});
 let user = host.sessions.member[0];
 let retainedRead;
+let readWatch;
 let localApp;
 const readStore=memorySessionStore(), localStore=memorySessionStore();
 const post = async (path,args={}) => {
@@ -64,7 +65,13 @@ try {
     finally {await client.close();}
   }
   const narrowed=await narrowSession(host.url,user);assert.ok(narrowed.ok);
-  retainedRead=createClient({url:host.url,session:narrowed.session,readOnly:true});
+  let streaming;
+  const heartbeatStarted=new Promise(resolve=>streaming=resolve);
+  retainedRead=createClient({url:host.url,session:narrowed.session,readOnly:true,waitSeconds:1,fetch:async(input,init)=>{
+    const response=await fetch(input,init);
+    if(new URL(input).pathname==="/changes"&&!response.headers.has("x-snapback-time"))streaming();
+    return response;
+  }});
   assert.equal((await retainedRead.query({kind:"query",name:"myRole"},{})).data.role,"member");
   await localStore.set(sessionKey(host.url),JSON.stringify(user));
   const device=processDevice({dir:"clock-device",...(process.env.SNAPBACK4_BIN?{binary:process.env.SNAPBACK4_BIN}:{})});
@@ -72,12 +79,20 @@ try {
   assert.equal((await localApp.ready).ok,true);
   const added=await post("/m/add");assert.equal(added.body.state,"sent");
   const id=added.body.result.id;
+  readWatch=retainedRead.observe({kind:"query",name:"myRole"},{});
+  readWatch.subscribe(()=>{});
+  await heartbeatStarted;
   const before=await host.now();
   const report=await host.advance("22d",{drain:false});
   assert.ok(report.now-before>=22*86400000);
   assert.equal(report.maintenancePaused,true);
   assert.equal(Number(report),report.now);assert.equal(+report,report.now);
   assert.equal(new Date(report).getTime(),report.now);
+  const heartbeatDeadline=Date.now()+5000;
+  while(retainedRead.session()?.expiresAt<=narrowed.session.expiresAt&&Date.now()<heartbeatDeadline)await new Promise(resolve=>setTimeout(resolve,10));
+  assert.ok(retainedRead.session()?.expiresAt>narrowed.session.expiresAt,"idle read heartbeat reconciles preserved timing before its first advanced sample");
+  assert.ok(retainedRead.now()>=report.now,"the heartbeat publishes the advanced clock after reconciliation");
+  readWatch.close();readWatch=undefined;
   const retained=await retainedRead.query({kind:"query",name:"myRole"},{});
   assert.equal(retained.data.role,"member","retained read session survives its original expiry");
   assert.ok(retainedRead.session().expiresAt>user.expiresAt);
@@ -116,6 +131,7 @@ try {
   await host.advance("8d",{sessions:"expire"});
   assert.equal((await post("/q/mine")).status,401,"explicit mode still expires sessions");
 } finally {
+  readWatch?.close();
   const cleanup=await Promise.allSettled([retainedRead?.close(),localApp?.close()]);
   await host.stop();
   for(const result of cleanup) if(result.status==="rejected") throw result.reason;

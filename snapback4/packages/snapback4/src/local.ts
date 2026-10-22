@@ -86,13 +86,24 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   const version = deviceVersionState(engineInfo ?? unknownEngine(), options.onDeviceVersion), versionBlocked = version.blocked, incompatible = version.refuse;
   const sessions = options.sessionStore ?? defaultSessionStore;
   let session: Session | null = null;
+  let sessionDead = false, closed = false, closing: Promise<void> | undefined;
   // Registered before startup refresh/schema traffic, including restored clocks.
   let timingChanged = false;
-  const stopSessionTiming = clock.beforeSample((response, request) => {
-    if (!session || !requestMatchesSession(request, base, session)) return;
+  let persistTiming: ((selected: Session) => Promise<boolean>) | undefined;
+  const stopSessionTiming = clock.beforeSample(async (response, request) => {
+    if (closed || sessionDead) return false;
+    if (!session || !requestMatchesSession(request, base, session)) {
+      if (response.headers.get("x-snapback-session-timing") === "staging" && request.authorization) return false;
+      return;
+    }
     const next = reconciledTiming(session, response);
-    if (next === session) return;
-    session = next; timingChanged = true;
+    if (next !== session) { session = next; timingChanged = true; }
+    if (!timingChanged) return;
+    if (persistTiming) return persistTiming(session);
+    // Startup has not attached a device yet. Save the reconciled credential
+    // before even its provisional clock can become the device's saved offset.
+    await keepSession(base, session, sessions);
+    timingChanged = false;
   });
   if (options.persona) headers["x-snapback-persona"] = options.persona;
   else {
@@ -126,7 +137,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   }
   const viewer: Principal = (options.persona ? `dev:${options.persona}` : session!.principal) as Principal;
   const principal: string = viewer;
-  let sessionDead = false, credentialRevision = 0, rotating = false;
+  let credentialRevision = 0, rotating = false;
   const sessionListeners = new Set<(session: Session | null) => void>();
   const viewerListeners = new Set<(viewer: Principal | null) => void>();
   const writeListeners = new Set<(write: Exclude<Write, { state: "pending" }>) => void>();
@@ -151,14 +162,12 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   let backend = initial.backend;
   if (initial.offline) link = "offline";
   const active = new Set<Promise<unknown>>();
-  let closed = false, closing: Promise<void> | undefined;
   const closingResponses = new ClosingResponses();
   const aborter = new AbortController();
   const downloads = assetQueue();
   if (timingChanged && session) { await keepSession(base, session, sessions); timingChanged = false; }
   const core = await version.run(() => openLocalDevice(options.device, storeName, backend, initial.refusal));
   let stopSuspend: (() => void) | undefined, stopClock: (() => void) | undefined;
-  let stopTimingNotifications: (() => void) | undefined;
   let sendingAllowed = !core.onSuspend;
   let stopOutbox: (() => void) | undefined, flushRecovered: (() => void) | undefined;
   let followingIntents!: FollowingIntents;
@@ -384,15 +393,23 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   let refreshing: Promise<SignIn> | null = null, rotatingSession: Promise<SignIn> | null = null;
   let retireRotation: ((result: SignIn) => void) | undefined;
   let persistingSession: Promise<void> | undefined, endingSession: Promise<void> | undefined;
-  stopTimingNotifications = clock.beforeSample(() => {
-    if (!timingChanged || !session || closed || sessionDead) return;
-    timingChanged = false;
-    const selected = session;
-    persistingSession = (persistingSession ?? Promise.resolve()).catch(() => {}).then(() => { if (!closed && !sessionDead && session?.token === selected.token) return keepSession(base, selected, sessions); });
-    void persistingSession.then(() => {
-      if (!closed && !sessionDead && session?.token === selected.token) for (const listener of [...sessionListeners]) listener(session);
-    }).catch(() => {});
-  });
+  persistTiming = async selected => {
+    const revision = credentialRevision;
+    const current = () => !closed && !sessionDead && credentialRevision === revision && session?.token === selected.token;
+    if (!current()) return false;
+    const work = (persistingSession ?? Promise.resolve()).catch(() => {}).then(async () => {
+      if (!current()) return;
+      await keepSession(base, selected, sessions);
+      if (!current()) return;
+      if (session === selected) timingChanged = false;
+      for (const listener of [...sessionListeners]) listener(session);
+    });
+    persistingSession = work;
+    // Propagate a failed custody save to transport without publishing its
+    // clock. Keep timingChanged set so the next matching reply retries it.
+    await work;
+    return current();
+  };
 
   const signedOut = (): SignIn => ({ ok: false, why: authRefusal ?? { code: "E_AUTH", family: "auth", message: "sign in to continue" } });
   let stopRefresh!: () => void;
@@ -1413,8 +1430,6 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       stopSuspend?.();
       stopOutbox?.();
       stopClock?.();
-      stopSessionTiming();
-      stopTimingNotifications?.();
       aborter.abort();
       if (retry) clearTimeout(retry);
       if (refreshTimer) clearTimeout(refreshTimer);
@@ -1430,6 +1445,9 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         await resolveClosingWrites(queued, history, settled);
         await deliveryStopped;
         await media?.close();
+        // Keep the closed-session fence installed while delivered responses
+        // drain. Removing it sooner could publish an unreconciled late stamp.
+        stopSessionTiming();
         // A failed admission can leave storage unavailable until reopen; clock
         // bookkeeping must still release the core and its recovery journal.
         await Promise.allSettled([clock.detach()]);
@@ -1517,7 +1535,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   return client;
   } catch (error) {
     stopSuspend?.(); stopOutbox?.();
-    stopClock?.(); stopSessionTiming(); stopTimingNotifications?.();
+    stopClock?.(); stopSessionTiming();
     await deliveryQueue?.stop();
     aborter.abort();
     // This constructor owns the opened device until return; startup failures release it.
