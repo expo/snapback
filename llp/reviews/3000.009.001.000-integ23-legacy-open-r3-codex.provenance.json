@@ -1,0 +1,12 @@
+{
+  "topic": "Integration 23 legacy layout reopen",
+  "round": 3,
+  "model": "gpt-6.1-sol",
+  "reasoningEffort": "high",
+  "exit": 0,
+  "briefSha256": "f5d1cca6b2f3c0637254bf5f92257de7b71c5172d697542bf214bcbb2adb41cf",
+  "verbatimOutputSha256": "4198211e91c059d1facb8f7896662b9562f2cf82a10c4c7b508a45c51738682b",
+  "scope": "Design/code readiness only; not author acceptance or full qualification",
+  "command": "codex exec -m gpt-6.1-sol -c model_reasoning_effort=high --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox - < <common brief>",
+  "candidateSha256": "f88e6b9054e2657adc4c52fbb63d483dd2ba2b491a2e7c3a6a8b02e75b38d1b6"
+}

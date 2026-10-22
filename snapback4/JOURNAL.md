@@ -102216,3 +102216,9 @@ separate from qualification. Main RT5 codec parity was integrated as bacbbb29cd;
 its experiment lock now resolves the local .39 path packages. Wasm remeasurement
 remains 2,406,499 B raw /734,925 B gzip /553,444 B Brotli; budget 735,425 B
 (measured gzip +500 B), unchanged by the native layout repair.
+
+The legacy-open amendment's third pinned revision received READY from both
+Muse (helper API fallback) and a fresh Codex session. R2's claim that editing one
+query skipped all unchanged programs was disproved by the actual passing control;
+the final control makes a valid query-body edit. All actual reviews are retained
+verbatim with provenance, including that material verdict and its disposition.
