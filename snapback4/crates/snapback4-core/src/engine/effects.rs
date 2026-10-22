@@ -492,7 +492,19 @@ impl Engine {
     }
     // @ref LLP 3000.001.000#workers — keep live supervised bearers valid until their orderly clock-revision replacement.
     pub fn advance_worker_leases_at(&mut self, milliseconds: i64, before: i64) -> Result<(), RuntimeError> {
+        self.advance_clock_leases_at(milliseconds, before, false)
+    }
+
+    /// Staging preserves credential lifetime by default; explicit expiry proofs
+    /// pass false. Application deadlines and retry backoffs continue to advance.
+    pub fn advance_staging_clock_at(&mut self, milliseconds: i64, before: i64, preserve_sessions: bool) -> Result<(), RuntimeError> {
+        self.advance_clock_leases_at(milliseconds, before, preserve_sessions)
+    }
+
+    // @ref LLP 3000.009.001.000.000#k0a-implementation-note — staging extends the existing clock/worker transaction seam rather than adding a durable opener.
+    fn advance_clock_leases_at(&mut self, milliseconds: i64, before: i64, preserve_sessions: bool) -> Result<(), RuntimeError> {
         let tx = self.store.transaction()?;
+        if preserve_sessions { super::session_clock::preserve(&tx, milliseconds, before)?; }
         tx.shift_worker_leases(milliseconds, before)?;
         tx.commit()?;
         Ok(())

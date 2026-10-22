@@ -215,20 +215,34 @@ pub(crate) fn supervisor_current(tx: &impl MetadataReader, family: &str, revisio
     Ok(true)
 }
 
-pub(crate) fn resolve_session_tx(tx: &AnyTx<'_>, token_digest: &str, now: i64, revision: Option<usize>) -> Result<Option<Capability>, RuntimeError> {
+fn resolve_session_record_tx(tx: &AnyTx<'_>, token_digest: &str, now: i64, revision: Option<usize>) -> Result<Option<authority::SessionRecord>, RuntimeError> {
     let Some(session) = authority::live_session(tx, token_digest, now)? else { return Ok(None); };
     if let Some(revision) = revision {
         if !supervisor_current(tx, &session.family, revision)? { return Ok(None); }
     }
-    Ok(Some((session.principal, session.kind, session.scope)))
+    Ok(Some(session))
+}
+
+pub(crate) fn resolve_session_tx(tx: &AnyTx<'_>, token_digest: &str, now: i64, revision: Option<usize>) -> Result<Option<Capability>, RuntimeError> {
+    Ok(resolve_session_record_tx(tx, token_digest, now, revision)?.map(|session| (session.principal, session.kind, session.scope)))
+}
+
+// @ref LLP 3000.009.001.000.000#k0a-implementation-note — capability and lifetime reads share one existing authority-snapshot seam.
+pub(crate) fn resolve_session_record_snapshot(store: &AnyStore, token_digest: &str, now: i64, revision: Option<usize>, expected_store: Option<&str>) -> Result<Option<authority::SessionRecord>, RuntimeError> {
+    store.with_authority_snapshot(|tx| {
+        if let Some(expected_store) = expected_store {
+            if tx.store_identity()?.as_deref() != Some(expected_store) {
+                return Err(RuntimeError::Auth("the serving store identity changed".into()));
+            }
+        }
+        resolve_session_record_tx(tx, token_digest, now, revision)
+    })
 }
 
 /// Host authentication, including ordinary queries and mutations.
 pub fn resolve_supervised(store: &AnyStore, token: &str, sample: ServiceSample) -> Result<Option<Capability>, RuntimeError> {
-    store.with_authority_snapshot(|tx| {
-    let resolved = resolve_session_tx(tx, &digest(token), sample.now, Some(sample.supervisor_revision))?;
-    Ok(resolved)
-    })
+    Ok(resolve_session_record_snapshot(store, &digest(token), sample.now, Some(sample.supervisor_revision), None)?
+        .map(|session| (session.principal, session.kind, session.scope)))
 }
 
 pub fn resolve_read_only_supervised(store: &AnyStore, token: &str, sample: ServiceSample, expected_store_id: Option<&str>) -> Result<Option<Capability>, RuntimeError> {
@@ -340,10 +354,8 @@ pub fn resolve_read_only(store: &AnyStore, token: &str, now: i64, expected_store
 }
 
 fn resolve_digest(store: &AnyStore, token_digest: &str, now: i64) -> Result<Option<Capability>, RuntimeError> {
-    store.with_authority_snapshot(|tx| {
-    let resolved = authority::live_session(tx, token_digest, now)?.map(|session| (session.principal, session.kind, session.scope));
-    Ok(resolved)
-    })
+    Ok(resolve_session_record_snapshot(store, token_digest, now, None, None)?
+        .map(|session| (session.principal, session.kind, session.scope)))
 }
 
 pub fn close_session(store: &AnyStore, token: &str) -> Result<(), RuntimeError> {

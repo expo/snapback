@@ -1,6 +1,8 @@
 //! Staging clock preservation: one shared authority decision on both stores.
 use crate::{RuntimeError, authority::{self, AuthorityTransaction, SessionScope}};
-use super::{Engine, effects::OutboxTransaction};
+use super::Engine;
+#[cfg(test)]
+use super::effects::OutboxTransaction;
 
 pub(crate) const PAGE: usize = 128;
 
@@ -91,23 +93,8 @@ impl Engine {
     /// Read timing from the same detached authority snapshot as store identity.
     /// HTTP invokes this only for an immutable classified staging host.
     pub fn staging_session_timing(&self, token: &str, now: i64, expected_store: &str) -> Result<Option<SessionTiming>, RuntimeError> {
-        self.store.with_authority_snapshot(|tx| {
-            if tx.store_identity()?.as_deref() != Some(expected_store) {
-                return Err(RuntimeError::Auth("the serving store identity changed".into()));
-            }
-            Ok(authority::live_session(tx, &crate::identity::digest(token), now)?.map(|session| SessionTiming {
-                expires_at: session.expires_at, cap_expires_at: session.cap_expires_at,
-            }))
-        })
-    }
-    /// Staging preserves credential lifetime by default; explicit expiry proofs
-    /// pass false. Application deadlines and retry backoffs continue to advance.
-    pub fn advance_staging_clock_at(&mut self, milliseconds: i64, before: i64, preserve_sessions: bool) -> Result<(), RuntimeError> {
-        let tx = self.store.transaction()?;
-        if preserve_sessions { preserve(&tx, milliseconds, before)?; }
-        tx.shift_worker_leases(milliseconds, before)?;
-        tx.commit()?;
-        Ok(())
+        Ok(crate::identity::resolve_session_record_snapshot(&self.store, &crate::identity::digest(token), now, None, Some(expected_store))?
+            .map(|session| SessionTiming { expires_at: session.expires_at, cap_expires_at: session.cap_expires_at }))
     }
 }
 
