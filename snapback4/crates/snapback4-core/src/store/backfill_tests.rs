@@ -587,7 +587,7 @@ fn partially_hidden_transformed_fields_resume_their_version_and_undo_on_plain_re
   let mut e=engine(old);seed(&mut e,"items",json!({"id":"a","n":3,"score":7,"other":8}));adopt(&mut e,&next,2).unwrap();if edited {write(&mut e,"edit");}
   adopt(&mut e,&hidden,3).unwrap();assert_eq!(field(&mut e,"items","a","other"),Value::Int(8));adopt(&mut e,&next,2).unwrap();assert_eq!(field(&mut e,"items","a","score"),Value::Int(if edited {11}else{6}));assert_eq!(field(&mut e,"items","a","other"),Value::Int(9));
   adopt(&mut e,&hidden,3).unwrap();
-  if edited {let error=adopt(&mut e,old,1).unwrap_err().to_string();assert!(error.contains("changed after backfill"),"{error}");}
+  if edited {adopt(&mut e,old,1).unwrap();assert_eq!(field(&mut e,"items","a","score"),Value::Int(11));}
   else {adopt(&mut e,old,1).unwrap();assert_eq!(field(&mut e,"items","a","score"),Value::Int(7));}
  }
 }
@@ -1160,3 +1160,35 @@ fn r11_raw_existence_fragments_require_declared_plain_indexes(){
 
 #[path="evolution_tests.rs"]
 mod evolution_tests;
+
+#[test]
+fn edited_in_place_output_uses_declared_down_and_restores_current_native_value() {
+    let next=cues()+"down cues oldStatus(status: enum('standby','complete','skipped')): {status:'done' if status != 'standby' else 'standby'}\n";
+    let mut e=engine(CUE);seed(&mut e,"cues",json!({"id":"a","status":"done"}));
+    adopt(&mut e,&next,2).unwrap();write(&mut e,"skip");
+    for _ in 0..2 {
+        adopt(&mut e,CUE,1).unwrap();
+        assert_eq!(field(&mut e,"cues","a","status"),Value::String("done".into()));
+        adopt(&mut e,&next,2).unwrap();
+        assert_eq!(field(&mut e,"cues","a","status"),Value::String("skipped".into()));
+    }
+}
+#[test]
+fn edited_in_place_output_survives_a_bridge_that_admits_its_value() {
+    let bridge=CUE.replace("enum('standby','done')","enum('standby','done','complete','skipped')");
+    let mut e=engine(CUE);seed(&mut e,"cues",json!({"id":"a","status":"done"}));
+    adopt(&mut e,&cues(),2).unwrap();write(&mut e,"skip");
+    adopt(&mut e,&bridge,3).unwrap();
+    assert_eq!(field(&mut e,"cues","a","status"),Value::String("skipped".into()));
+    adopt(&mut e,&cues(),2).unwrap();
+    assert_eq!(field(&mut e,"cues","a","status"),Value::String("skipped".into()));
+}
+
+#[test]
+fn edited_output_still_checks_changed_point_dependencies_with_equal_arguments() {
+    let old="table factors:\n  n: int\n  public 'fixture'\n  update <- allow\n  online only\ntable items:\n  n: int\n  score: int\n  public 'fixture'\n  update <- allow\n  online only\nmutation changeFactor():\n  update factors['factor'] {n:3}\n";
+    let next=old.to_owned()+"backfill items computed(n: int): {score:n * (factors['factor'] ! else NO_FACTOR).n}\nmutation editOutput():\n  update items['a'] {score:42}\n";
+    let mut e=engine(old);seed(&mut e,"factors",json!({"id":"factor","n":2}));seed(&mut e,"items",json!({"id":"a","n":5,"score":0}));
+    adopt(&mut e,&next,2).unwrap();write(&mut e,"editOutput");adopt(&mut e,old,1).unwrap();write(&mut e,"changeFactor");
+    let error=adopt(&mut e,&next,2).unwrap_err().to_string();assert!(error.contains("authored output")&&error.contains("42")&&error.contains("15"),"{error}");assert_eq!(field(&mut e,"items","a","score"),Value::Int(42));
+}

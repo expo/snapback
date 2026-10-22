@@ -2,7 +2,7 @@
 // @ref LLP 3000.000.000.002#8-wave-21-release-evolution — renames are identity moves, never row copies or merges.
 use super::*;
 use std::collections::BTreeMap;
-pub(super) const VERSION:&str="snapback4-release-store-8";
+pub(super) const VERSION:&str="snapback4-release-store-9";
 fn refuse(s:impl Into<String>)->RuntimeError {RuntimeError::Structural{code:"E_ADOPT",message:s.into()}}
 
 // Only structural table identifiers change. Literal values, column names,
@@ -80,6 +80,7 @@ fn history(conn:&Connection,map:&BTreeMap<String,String>)->Result<(),RuntimeErro
             conn.execute(&format!("INSERT OR IGNORE INTO {table} VALUES(?1,?2)"),params![new,canonical_json(&f)])?;
             for ledger in ["_backfill_evidence","_backfill_pruned","_backfill_absence"] {conn.execute(&format!("UPDATE {ledger} SET definition=?1 WHERE definition=?2"),params![new,old])?;}
             conn.execute("UPDATE _backfill_absence SET definition=?1 WHERE definition=?2",params![format!("$native:{new}"),format!("$native:{old}")])?;
+            conn.execute("UPDATE _backfill_absence SET definition=?1 WHERE definition=?2",params![format!("$authored:{new}"),format!("$authored:{old}")])?;
             for c in f.inputs.keys() {conn.execute("UPDATE _dormant_refs SET column_name=?1 WHERE column_name=?2",params![format!("$backfill:{new}:{c}"),format!("$backfill:{old}:{c}")])?;}
             conn.execute(&format!("DELETE FROM {table} WHERE digest=?1"),[old])?;
         }
