@@ -68,7 +68,7 @@ struct Ticket {
     id: u64,
 }
 impl Ticket {
-    fn begin(&self) -> bool {
+    fn start_execution(&self) -> bool {
         let mut state = self.admission.lock().unwrap();
         state.waiting.remove(&self.id);
         !state.lost
@@ -131,10 +131,10 @@ impl Queue {
         };
         let work = Box::new(move |engine: &mut Engine| {
             // @ref LLP 3000.009.001.000#5.1 — loss is terminal for this writer; drain every queued acknowledgement without executing its body.
-            // begin and lease loss share one lock: running work keeps its real
+            // Command start and lease loss share one lock: running work keeps its real
             // outcome, while all waiting replies can be refused independently
             // of a blocked, uncancellable COMMIT on the writer thread.
-            if !ticket.begin() {
+            if !ticket.start_execution() {
                 return;
             }
             let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {

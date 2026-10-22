@@ -102162,3 +102162,9 @@ the adapter's first-lock token fence remain unchanged. Three private-Postgres
 queue witnesses exercise queued loss, renewal during a full queue and blocked
 COMMIT, and COMMIT connection loss. The Postgres script includes them. The
 committer RFC §9 records the integration; the lane report retains qualification.
+
+
+K0-Q qualification follow-up: the lexical committer census mistook the new
+admission ticket's `begin()` for a database opener. Rename it `start_execution`;
+the transition and synchronization are unchanged. No census scope, matcher or
+allowance changes. The affected queue witnesses and guards are repeated.
