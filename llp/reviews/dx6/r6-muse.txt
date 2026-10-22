@@ -1,0 +1,17 @@
+muse: workspace root: /home/ccheever/projects/sb4-b22-dx6 (cwd default)
+muse: workspace trust: trusted source=run-flag
+No material design/implementation defects found for frozen `0bf50ac18696a2414dd836968ccda17607f0a45c` and the committed proposal at [r6-amendment.md](/home/ccheever/projects/sb4-b22-dx6/llp/reviews/dx6/r6-amendment.md).
+
+Newest delta is internally consistent:
+
+- Monotonic floor: `advanceRotation(starting)` bumps `credentialRevision` plus an extra reserve on start in [client.ts](/home/ccheever/projects/sb4-b22-dx6/snapback4/packages/snapback4/src/client.ts) and [local.ts](/home/ccheever/projects/sb4-b22-dx6/snapback4/packages/snapback4/src/local.ts). Failed/canceled rotations advance via the start and completion calls. Plain sign-out (`endCredentials`/`endSession`) increments only the revision, so same-bearer retention is preserved.
+- Dual E_AUTH validation: capture-time and delivery-time predicates both check `revision >= authenticationFloor` — online `sendPost` capture plus `obsoleteRefusal`, local `received`/`authAtDecode` plus `obsoleteAuth` plus `refusedSession`. Sent/business use the default applicable, hence unconditional. `ClosingResponse.take`/`write` in [closing-responses.ts](/home/ccheever/projects/sb4-b22-dx6/snapback4/packages/snapback4/src/closing-responses.ts) enforces the same floor at delivery, so a retained obsolete E_AUTH resolves to pending, never to a terminal failure.
+- Intermediate retiring bearer stays obsolete before rotation finishes because the floor is reserved at rotation start. Successor authority does not depend on `rotating`; `refusedSession` checks only floor plus revision equality, so the successor is authoritative while persistence is pending. Retryable-failure reuse stays current because the new revision equals the advanced floor.
+- Ordinary and fallback paths share the floor: online ordinary `obsoleteRefusal` with fallback `response.take()`; local ordinary `obsoleteAuth` with fallback `response.write()`.
+- Cleanup cutoff uses the `ClosingResponses` phase plus `cleanupScope` holds in [app.ts](/home/ccheever/projects/sb4-b22-dx6/snapback4/packages/snapback4/src/app.ts). Release awaits only local storage (`scope.logout` tombstone, `persistence` queue). Network logout and revocation drain are fire-and-forget. No timer, network, or revocation wait gates the cutoff. Sealed `complete` cannot be reopened by another `begin`/`hold`.
+
+Other proposal areas sampled without material inconsistency: strict-greater saved-boundary hold with equality as processed not-due, recovery from the unchanged process clock, raw-time versus post-advance repair accounting, live-only preservation via the authority kernel with monotonic client reconciliation, and the packed DX6 hook running the full session-security file.
+
+Pending Local5000, fresh-pack consumer, and Mac final checks are honestly pending verification, not counted as defects per the brief.
+
+READY
