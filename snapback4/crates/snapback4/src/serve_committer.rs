@@ -254,7 +254,7 @@ fn queue_error(error: SubmitError) -> snapback4_core::RuntimeError {
         SubmitError::Full => snapback4_core::RuntimeError::Structural {
             code: "E_RATE_LIMIT", message: "HTTP connections or request workers are occupied; wait for pending writes to settle or reduce concurrent clients before retrying".into(),
         },
-        SubmitError::Stopped => snapback4_core::RuntimeError::CommitOutcomeUnknown("committer stopped before acknowledgement; the durable outcome may be unknown".into()),
+        SubmitError::Stopped => snapback4_core::RuntimeError::CommitOutcomeUnknown("committer acknowledgement unavailable after admission; the durable outcome may be unknown".into()),
         SubmitError::OwnershipLost => snapback4_core::RuntimeError::StoreOwnership("store ownership lost; this committer refuses further writes".into()),
     }
 }

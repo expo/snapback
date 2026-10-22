@@ -185,6 +185,9 @@ impl Queue {
         let deadline = std::time::Instant::now() + ADMISSION_TIMEOUT;
         loop {
             self.check_admission()?;
+            if std::time::Instant::now() >= deadline {
+                return Err(SubmitError::Full);
+            }
             match sender.try_send(work) {
                 Ok(()) => break,
                 Err(mpsc::TrySendError::Disconnected(_)) => return Err(SubmitError::Stopped),

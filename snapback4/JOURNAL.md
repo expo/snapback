@@ -102243,3 +102243,18 @@ cases bound admission/acknowledgements and real-Postgres faults cover stalled
 renewal COMMIT and startup release. Complete fresh check results and local W4
 measurements are recorded in [the lane report](reports/20261022-k0q/REPORT.md).
 No push or stash; only this lane's target is used with ten Cargo jobs.
+
+
+K0-Q fix round 1 boundary follow-up: check the 100 ms admission deadline
+before every send probe as well as after Full, so an overslept caller cannot
+admit work after its deadline when space reappears. The stopped/timeout cause
+now says acknowledgement unavailable, covering both disconnection and expiry.
+The acknowledgement's typed unknown-outcome and retry policy are unchanged.
+
+
+The first full CLI pass reproduced a stale expectation in the authority-gap
+fixture: file-backed ephemeral admission no longer queues behind the writer.
+Keep that request parked at reader checkout while adopting and expiring/revoking
+its bearer, then release it. All original no-write, no-new-commit, and authority
+refusal assertions remain; durable and memory cases keep their queue barriers.
+The failure was rerun alone before adapting the fixture.
