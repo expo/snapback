@@ -224,7 +224,7 @@ fn notes_stay_short_and_verbose_explains_each_code_once() {
             // Repeats of a code share one line naming each query (wave 6 #25).
             if verbose { assert_eq!(text.matches("note: ").count(), count + 1, "{text}"); }
             else { assert!(text.matches("note: ").count() <= 5 && text.contains("N_NO_CURSOR"), "{text}"); }
-            if !verbose && count > 2 { assert!(text.contains("more actionable notes"), "{text}"); }
+            if !verbose { for i in 0..count { assert!(text.contains(&format!("page{i}")), "ordinary code classes retain every query site: {text}"); } }
             assert_eq!(text.matches("  guide: reads").count(), if verbose { count } else { 0 });
             assert_eq!(text.matches("  why: snapback4 why N_NO_CURSOR").count(), if verbose { count } else { 0 });
             let excerpts = usize::from(verbose);

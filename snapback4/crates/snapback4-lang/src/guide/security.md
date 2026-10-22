@@ -376,3 +376,7 @@ N_DURATION_BOUNDS: Operations apply different server-relative duration bounds to
 ### N_ROLE_WIDE_WRITE
 
 N_ROLE_WIDE_WRITE: A global role plus viewer attribution does not identify the owner of this resource. Ask whether any role member may write any row; model the target-to-owner relationship and guard it. See the Wall ownership rule recipe.
+
+### E_SECURITY_NOTES
+
+E_SECURITY_NOTES: the individual disposition file is malformed, cannot be written, or sources changed while recording a review. Inspect snapback/security-reviews.json and run check --json for current IDs. Supply a nonempty specification reason for one current note; neither bulk acknowledgments nor this file can clear an actual refutation.
