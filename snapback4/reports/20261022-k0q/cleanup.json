@@ -1,0 +1,52 @@
+{
+  "benchmark_servers": [
+    {
+      "label": "before",
+      "pid": 2444756,
+      "pid_exists": false
+    },
+    {
+      "label": "before",
+      "pid": 2445419,
+      "pid_exists": false
+    },
+    {
+      "label": "after",
+      "pid": 3070814,
+      "pid_exists": false
+    },
+    {
+      "label": "after",
+      "pid": 3071517,
+      "pid_exists": false
+    },
+    {
+      "label": "before-repeat",
+      "pid": 3078279,
+      "pid_exists": false
+    },
+    {
+      "label": "before-repeat",
+      "pid": 3078924,
+      "pid_exists": false
+    },
+    {
+      "label": "after-repeat",
+      "pid": 3084909,
+      "pid_exists": false
+    },
+    {
+      "label": "after-repeat",
+      "pid": 3085580,
+      "pid_exists": false
+    }
+  ],
+  "postgres": [
+    {
+      "path": "/tmp/sb4-pg-eval.RhMiDk",
+      "status_exit": 3,
+      "pid_file": false,
+      "output": "pg_ctl: no server running\n"
+    }
+  ]
+}

@@ -102108,3 +102108,33 @@ target executable census is empty. PIDs left: none. Minimum observed disk was
 24 G; inactive completed incremental sessions in this target were removed
 under their session locks (5.34 GB recorded). No other worktree/target,
 PG17/55440, push, stash or Git configuration change was involved.
+## 2026-10-22 — K0-Q: owned commands and the serving committer
+
+The serving writer now belongs to one committer thread. Owned commands carry
+operation, arguments, principal and admission facts into a 128-command bounded
+FIFO; live authority is checked on execution, and existing engine continuations
+finish after durable COMMIT before acknowledgement. HTTP durable submissions
+refuse a full mailbox with the existing 503 E_RATE_LIMIT/limit refusal and
+Retry-After: 1. Fixed host control calls wait for space. Production no longer
+lends a FairMutex<Engine> to requests; detached reads and ephemeral hub execution
+retain their separate owners. Every member still commits alone, with the same
+SQL, savepoints, receipts and errors. There is no batching or automatic retry.
+
+The 48-submitter queue witness checks durable visibility, continuation order and
+one worker; concurrent HTTP writers check 64 receipts and 64 replays while reads
+and ephemeral writes progress. Queue-full, lost receiver and panic/rollback cases
+pass. All requested build, core/device/CLI, no-default, wasm, guide, codec, census
+and compiled-guard checks pass. Four HTTP unit tests timed out at default test
+concurrency, then each passed alone and the full CLI suite passed with four test
+cases at a time, without changing timeout bounds. The Postgres script passes;
+its private cluster is stopped and independently confirmed. Reference validation
+is recorded in the lane report.
+
+The reduced local W4 check remains near 96–97/s. The first pair's median rates
+are 96.96 → 95.14/s; an adjacent repeat gives 95.77 → 97.39/s, reversing the small
+throughput and latency differences. Every run has exactly 4,960 increments and
+stopped servers. These debug-path, cached-baseline measurements show no consistent
+regression or lift and do not qualify a capacity claim. The committer RFC §9 now
+records K0-Q; batching remains the next slice. The [lane report](./reports/20261022-k0q/REPORT.md)
+retains all four runs, toolchain, binary digests and check receipts. Commits remain
+local; protected Postgres and store ownership files are untouched.

@@ -1,0 +1,9 @@
+{
+  "host": "expose-builder-nothing",
+  "rustc": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+  "node": "v24.13.1",
+  "cargo_target_dir": "/home/ccheever/projects/sb4-s10a/snapback4/target",
+  "jobs": 10,
+  "LIBSQLITE3_FLAGS": null,
+  "base_commit": "e7d33f738d4d4adc22a060ee58ce295e8711efbc"
+}
