@@ -65,7 +65,10 @@ fn profile_names_each_evaluator_exclusion_and_allows_ephemeral() {
         assert!(matches!(super::super::profile::admit(&candidate, &programs), Err(RuntimeError::StoreUnsupported { family: f }) if f == family));
     }
     let (maintained, _) = bound(include_str!("../../../../../snapback4-lang/tests/fixtures/maintained-columns.q"));
-    assert!(matches!(super::super::profile::admit(&maintained, &BTreeMap::new()), Err(RuntimeError::StoreUnsupported { family: "maintained-columns" })));
+    super::super::profile::admit(&maintained, &BTreeMap::new()).unwrap();
+    assert!(super::super::profile::admit(&maintained.public_projection(), &BTreeMap::new()).is_err());
+    let (row_keyed, _) = bound(include_str!("../../../../../snapback4-lang/tests/fixtures/row-keyed-view.q"));
+    assert!(matches!(super::super::profile::admit(&row_keyed, &BTreeMap::new()), Err(RuntimeError::StoreUnsupported {family: "view-recount"})));
     let (schema, programs) = bound("table typing:\n  owner: principal\n  cap 50 by owner\n  ephemeral 4s\n  read <- allow\n  insert <- .owner = viewer\n  update <- .owner = viewer\n  delete <- .owner = viewer\nquery peek():\n  return 1\n");
     let programs = programs.into_iter().map(|p| (p.name.clone(), p)).collect();
     super::super::profile::admit(&schema, &programs).unwrap();

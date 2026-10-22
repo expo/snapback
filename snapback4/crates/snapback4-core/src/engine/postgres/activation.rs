@@ -1,5 +1,5 @@
 //! Opening facts and atomic generation publication under the head fence.
-// @ref LLP 3000.009.001.000#3.4 — the public bootstrap needs persisted backend facts, even while evolution remains refused.
+// @ref LLP 3000.009.001.000#3.4 — persisted backend facts also fence ordinary maintained-column evolution.
 use super::store::{Store, Tx, absent_text_key, signed};
 use crate::{
     Program, RuntimeError, Schema, Value,
@@ -220,7 +220,8 @@ impl ActivationReader for Tx<'_> {
         self.meta(&format!("{prefix}:{path}"))
     }
     fn activation_inventory(&self) -> Result<Vec<DormantItem>, RuntimeError> {
-        // No Postgres evolution is admitted; no hidden retained population exists.
+        // Maintained-column evolution discards derived images; no dormant
+        // ordinary population is admitted or hidden by this inventory.
         Ok(Vec::new())
     }
     fn table_populated(&self, table: &str) -> Result<bool, RuntimeError> {
@@ -331,8 +332,8 @@ impl ActivationPreparation for Preparation<'_, '_> {
         self.0.activation_inventory()
     }
     fn enable_dormant(&self) -> Result<(), RuntimeError> {
-        // The minimal release profile has no retired definitions. Its admission
-        // refuses schema transitions before any writes, rather than discarding them.
+        // Only derived columns may be retired; their values are recounted on
+        // re-add. Ordinary dormant definitions/populations remain unadmitted.
         Ok(())
     }
     fn prepare_release_metadata(

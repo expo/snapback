@@ -101698,3 +101698,72 @@ final ref-check pass (565 LLPs, 12,334 refs, zero errors/unchecked). The ordinar
 binary has no instrumentation symbols. Both private clusters have independent
 status-3/no-postmaster.pid confirmation; five postmaster lifetimes and five
 serve PIDs are absent, with no lane target executable running. PIDs left: none.
+## 2026-10-22 — P1-MC: ordinary maintained columns on the unified Postgres profile
+
+The scale fixture's maintained-column exclusion was inherited from the retained
+Postgres evaluator. The common engine already runs count/sum deltas, private
+aggregate writes and parent mirrors through `AnyTx`. Removed that evaluator
+exclusion from unified admission, retaining complete-owner validation and the
+`view-recount` refusal. Row-keyed views still need their separate durable recount
+runner. The retained evaluator keeps its original exclusion until S10e; its
+missing initial empty-parent invalidation makes its head differ from the common
+activation builder, so this lane's exact oracle uses the common engine on both
+stores.
+
+Release evolution needed adapter work. Fenced Postgres attach now admits only
+maintained-column additions, redefinitions/removals and indexes using those
+fields, while comparing every remaining ordinary declaration. Compiled operation
+metadata may change with the programs and source locations. Attach projects
+removed fields, clears retired private rows/indexes and builds changed keys;
+the existing common builder recounts sources and mirrors parents before the
+release and generation publish. No aggregate SQL, hot-writer DDL, new physical
+relation, device representation or resource ceiling is introduced. Aggregates
+retain shared checked i128 arithmetic and their 53-bit E_OVERFLOW contract;
+ordinary i64 bookkeeping retains its existing saturation policy.
+
+The store cases cover exact write/read outcomes and meters, parent moves,
+null/selected contributions, deletes, parent rebirth, overflow, rollback,
+nested/member abort, and add/redefine/drop/re-add over existing rows. Both stores'
+same-parent race requires an observable head-fence wait or SQLite busy callback.
+SQLite can restore explicit zero fields from dormant custody on re-add;
+Postgres discards derived fields and recounts them. Logical images and public
+outcomes agree, and an initial zero addition stays sparse on both stores.
+The full default core suite and the first six focused Postgres cases passed.
+Guide cards, CLI help and RFC §9 describe the bounded admission; the lane report
+records evidence, test results and process custody.
+
+Final P1-MC qualification: the unchanged S1 Quarry source deploys with the public
+`--store-url` selector and serves on a private PostgreSQL 16.15 en_US.utf8
+cluster. An acquired-owner engine fixture seeds 24 messages; a native account
+session reads W1/W3 and posts the 25th message over public HTTP. Every room total
+and user sent count equals its source recount. The scale blocker ticket is closed;
+its old measurement ledger is preserved with a link to this resolution, and the
+1M seed / matched W1–W5 rerun remains scale-lane work.
+
+The final complete Postgres script passes: 58 evaluator, 213 adapter, 22 ownership,
+one compiled guard, 37 doctest, three member, two internal-host/startup and 19
+corpus cases (355 visible Rust passes), plus the operator seed helper and public
+CLI witness. The first run reproduced the tracked evaluator SQLSTATE 40001
+exhaustion. Its isolated four-writer rerun passes with 65 increments per mode,
+zero serialized retries and 88 serializable retries. The final complete repeat
+runs one harness case at a time, preserving internal concurrent writers, and
+passes with 92 serializable retries. Added --no-fail-fast to the evaluator
+invocation so a conformance failure cannot skip its later integration targets;
+no retry policy, workload, assertion or durability setting changed.
+
+Default core: 1,068 unfiltered passes plus its filtered subprocess; five ignores.
+CLI: 1,404 unfiltered and 13 filtered passes; its sole initial failure was the
+known Web witness with missing client artifacts, now passing alone after the
+fresh wasm/client build. Guide: final 127 passes, including isolated reruns of
+its three initial failures; the intended refusal pins changed and the maintains
+card stays at 879 lines. Ratchets/census 16, both compiled handle guards, both
+release guards and codec census 27 pass. Wasm is 735,093 B gzip under the unchanged
+735,407 B budget. Both required builds/checks pass. The root Guide remains red
+outside this fence on diagnostics-removal state, absent Contract package and
+missing generated demo artifacts; the report preserves exact results.
+
+Eight owned clusters are independently confirmed stopped, all 22 recorded public
+server PIDs are absent, and no servers remain. Minimum observed disk free space
+was 168G. Only this worktree's Cargo target was used, with at most ten jobs,
+incremental off and line-table dev/test debug info. No clone, sub-agent, stash or
+push. Final reference audit and local commit are recorded in the lane report.

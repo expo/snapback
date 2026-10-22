@@ -15,8 +15,12 @@ read-through shape. The same refusal reproduces on natural and +0.5 ms paths
 with the [two-table repro](./minimal-repro.q). The required `bench` namespace
 was never created. The [full stderr](./full-deploy.stderr),
 [minimal stderr](./minimal-deploy.stderr), [provenance](./refusals.json) and
-[open ticket](../../../../issues/20261022-sb4-postgres-scale-fixture-maintained-columns.md)
+[ticket (now closed)](../../../../issues/closed/20261022-sb4-postgres-scale-fixture-maintained-columns.md)
 retain the exact failure.
+
+P1-MC later resolved this admission blocker and qualified the unchanged application
+with a small public Postgres fixture; see the [resolution report](../../../reports/20261022-p1mc-maintained-columns.md).
+The ledger below remains the original blocked measurement, pending a matched rerun.
 
 No product code was patched. No maintained field, authorization rule or
 background feature was removed from the required application. Because all

@@ -85,12 +85,12 @@ are unsupported. This is the initial serving profile, without provider failover
 or complete P1 parity qualification.
 
 Queries, identified mutations with receipt replay, guest/password bearer sessions,
-logout and process-local ephemeral hubs are available. Missing change evidence
+logout, process-local ephemeral hubs and ordinary maintained count/sum columns
+with their private maintains are available. Missing change evidence
 is `preserved: null` on `/changes`; certified changes/sync are excluded. Deploy
 refuses `E_STORE_UNSUPPORTED` for assets beyond placement, jobs, actions, routes,
-schedules, native programs, union sync, timed publication, row-keyed recounts and
-unsupported maintained/private-column shapes. These runners and worker handlers
-stay off. Schema evolution, rollback, previews, prune, staging, saved versions,
+schedules, native programs, union sync, timed publication and row-keyed recounts. These runners and worker handlers
+stay off. General schema evolution, rollback, previews, prune, staging, saved versions,
 SQL/data inspection, service token minting (`token`), release inspection and hot
 activation are outside this profile. `token`, `rollback`, `releases`, `data` and
 `prune` return `E_STORE_UNSUPPORTED: this operator command is outside the admitted store profile`; `sql` returns
@@ -98,6 +98,12 @@ activation are outside this profile. `token`, `rollback`, `releases`, `data` and
 Stop serve and wait about three seconds for its lease to expire before deploying
 another admitted release. Same-schema program
 changes can activate; identical content stays on its existing release/generation.
+A release may also add, redefine or drop ordinary maintained columns and indexes
+on them, with all other schema declarations unchanged. Attach projects removed
+fields and private totals; the common engine backfills/recounts existing sources
+and mirrors parents before publishing the generation. Re-adding recounts from
+sources. An overflowing backfill rolls back the entire activation. Zero totals
+remain sparse in stored images. Row-keyed view-recount remains refused.
 
 Serve acquires a positive store lease before its listener. A second serve refuses
 `E_STORE_OWNERSHIP` while that lease is live; retry after expiry to take over a

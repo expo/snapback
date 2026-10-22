@@ -114,8 +114,10 @@ impl Handle {
             let held = tx.query("SELECT generation,schema,programs FROM _backend WHERE singleton", &[])?.remove(0);
             let before = Backend(held.get(0), held.get(1), held.get(2));
             if !fresh && before.0 != expected_generation as i64 { return Err(RuntimeError::Generation("another engine activated this store".into())); }
-            // This slice has no row-evolution runner. Refuse before preparation writes.
-            if !fresh && store::decode::<Schema>(&before.1)?.hash() != schema.hash() { return Err(RuntimeError::StoreUnsupported { family: "release-activation" }); }
+            // Admission precedes every preparation write, under the head fence.
+            let previous: Schema = store::decode(&before.1)?;
+            let schema_changed = !fresh && previous.hash() != schema.hash();
+            if schema_changed { super::column_evolution::admit(&previous, schema)?; }
             initialize(&tx, schema)?;
             if let Some(fence) = &bootstrap_fence {
                 tx.set_meta("store_id", &fence.store_id)?;
@@ -123,10 +125,11 @@ impl Handle {
             }
             let store_id = tx.meta("store_id")?.ok_or(RuntimeError::WorkerStoreIdentity)?;
             super::ownership::install(&tx, &store_id)?;
-            let changed = fresh || before.2 != crate::value::canonical_json(programs);
+            let changed = fresh || schema_changed || before.2 != crate::value::canonical_json(programs);
             let generation = if !fresh && changed { before.0.checked_add(1).ok_or_else(|| RuntimeError::Generation("generation overflow".into()))? } else { before.0 };
             let tx = AnyTx::from_postgres(tx);
             tx.with_postgres(|inner| check(&AnyPreparation::Postgres(Preparation(inner))))?;
+            if schema_changed { tx.with_postgres(|inner| super::column_evolution::project(inner, &previous, schema))?; }
             build(&tx, changed, &mut report)?;
             tx.with_postgres(|inner| {
                 inner.publish_backend(&Backend(generation, crate::value::canonical_json(schema), crate::value::canonical_json(programs)), now)?;
