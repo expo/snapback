@@ -102409,3 +102409,22 @@ nine existing ignores; the exact `why` integration also passes. This repairs
 all three lane-owned failures from the complete CLI pass. The two transient
 failures pass alone; six unrelated/provided-baseline cases remain reproducible
 and are retained explicitly in the report, with no clean-full-CLI claim.
+
+
+## 2026-10-23 — K0-Q fix round 2: final guide pins and full-device evidence
+
+The complete device pass ran all targets: 1,565 passed, eight failed, four
+ignored. All eight exact isolated reruns reproduce source-reservation/schema
+disagreement in direct-engine `readauth` fixtures. The existing new reservation
+fixture ticket now includes them; no validator or fixture source was weakened.
+The full committer/store-port/handle census passes 16 cases, the compiled-handle
+guard passes, and both release-feature refusals pass. Wasm codec census passes
+27 cases. The full-scope SQLite RT0 command again matches every unchanged row.
+
+The full guide target initially found its defining/recovery fact matrices lacked
+the two new runtime codes, and the failure reproduced alone. Add explicit facts
+for before-execution/not-applied recovery and non-retryable incomplete clock
+reporting, preserving every registry-equality and recovery assertion. The full
+guide repeat passes all 127 cases. Full Postgres qualification continues; its
+evaluator has so far exposed the existing raw 40001 concurrency signature.
+The lane report retains the original reds and final scoped repairs.
