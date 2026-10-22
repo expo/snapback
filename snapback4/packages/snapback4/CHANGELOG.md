@@ -5,7 +5,7 @@
 - Seeded staging accounts are complete sessions. Legacy partial online session literals use bearer-only transport without inventing refresh metadata; E_SESSION names all invalid/missing fields and the token-only repair.
 - Staging clock reports coerce to their numeric now. Blocked saved boundaries refuse before effects; allowHeld explicitly accepts them. Live sessions preserve their remaining lifetime across business-time jumps by default; sessions:"expire" explicitly tests expiry. advance(duration, {drain:false}) pauses maintenance for mutation deadline tests, and drain() resumes it. Production clock controls remain refused.
 - Upgrade warnings apply only to actual transitions and affected scripts, acknowledge nonterminal delivery, and scan partial sessions/numeric advances. Fresh init is quiet. Future store formats name a newer Snapback; sql refuses with a nonzero exit. Published old quiet CLIs may hide captured migration advice.
-- React and Expo starter lists use ReadState. Password client modules omit witness imports and persona plumbing; proof drivers install the bridge. Proof text matching accepts composed React Native text and wrapping labels, while exact matching and independent-match ambiguity remain strict.
+- React and Expo starter lists use ReadState. Password client modules omit web witness registration and persona plumbing; proof drivers install the bridge. Proof text matching accepts composed React Native text and wrapping labels, while exact matching and independent-match ambiguity remain strict.
 - SEC7 owns security advice and security recipe changes for this release.
 
 ## 0.4.37
