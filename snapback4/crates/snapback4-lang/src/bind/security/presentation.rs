@@ -2,14 +2,20 @@
 // @ref LLP 3000.036.004#144-actions-precede-coverage-details — advice is separate from replayed failures.
 use super::{Report, Status};
 
-fn rank(code: &str) -> u8 {
+/// One consequence ordering shared by check and audit. Lower means more urgent.
+pub fn note_priority(code: &str) -> u8 {
     match code {
-        "N_PRIVILEGE_ESCALATION" | "N_SELF_CLAIMED_RELATIONSHIP" => 0,
-        "N_ROLE_WIDE_READ" | "N_BROAD_READ" => 1,
-        "N_CALLER_TIME" | "N_SWEEP_ONLY_DEADLINE" => 2,
-        "N_INVARIANT_RESTATES_RULE" => 4,
-        "N_SECURITY_INTENT" => 5,
-        _ => 3,
+        "N_RETAINED_ROLE_GRANT" | "N_OPTIONAL_UPLOAD_CREATE" => 0,
+        "N_PRIVILEGE_ESCALATION" | "N_SELF_CLAIMED_RELATIONSHIP" | "N_PRIVATE_CREATE_EDIT_ASYMMETRY" => 1,
+        "N_GRANT_OUTLIVES_ROLE" | "N_OPTIONAL_EVIDENCE" | "N_ROLE_WIDE_READ" |
+        "N_BROAD_READ" | "N_CALLER_TIME" | "N_SWEEP_ONLY_DEADLINE" |
+        "N_CREATION_REASON" | "N_CREATION_MONEY" | "N_CONSTANT_APPROVAL" |
+        "N_TRANSITION_BYPASS" | "N_STALE_CREATION_CHECK" | "N_DURATION_BOUNDS" |
+        "N_ROLE_WIDE_WRITE" | "N_CREATE_EDIT_ASYMMETRY" | "N_EVIDENCE_REMOVAL" => 2,
+        "N_COLUMN_RESULT_EXPOSURE" | "N_INSERT_WRITE_INTENT" => 5,
+        "N_INVARIANT_RESTATES_RULE" => 6,
+        "N_SECURITY_INTENT" => 7,
+        _ => 4,
     }
 }
 
@@ -19,7 +25,7 @@ impl Report {
         let failures = self.invariants.iter().filter(|v| v.status == Status::Refuted &&
             v.counterexample.as_ref().is_some_and(|c| c.reachability.is_reachable())).collect::<Vec<_>>();
         let mut notes = self.notes.iter().collect::<Vec<_>>();
-        notes.sort_by_key(|n| (rank(&n.code), n.site.to_string(), &n.code, &n.message));
+        notes.sort_by_key(|n| (note_priority(&n.code), n.site.file.clone(), n.site.line, n.site.col, &n.code, &n.message));
         notes.dedup_by(|a,b| a.site == b.site && a.code == b.code && a.message == b.message);
         let mut out = format!("security actions: {} fix{}, {} review{}\n", failures.len(),
             if failures.len() == 1 { "" } else { "es" }, notes.len(), if notes.len() == 1 { "" } else { "s" });
@@ -30,7 +36,7 @@ impl Report {
         }
         let mut shown = 0;
         for note in notes.iter().enumerate().filter_map(|(i,n)|
-            (i < limit || rank(&n.code) == 0).then_some(*n)) {
+            (i < limit || note_priority(&n.code) <= 2).then_some(*n)) {
             shown += 1;
             out.push_str(&format!("  REVIEW {} {}: {}\n    {}\n",note.site,note.code,note.message,note.rewrite));
         }

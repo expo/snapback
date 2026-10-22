@@ -946,3 +946,46 @@ N_COLUMN_READ identifies a possible one-to-one privacy extension. Put a private
 field on its existing row with `read <- policy` when it only narrows payload
 visibility; keep separate entities, lifecycles and write authority in separate
 tables. This advisory never proves equivalence or rewrites stored data.
+
+## Wall ownership: the owner of this wall
+
+A global owner role does not identify which wall a person owns. Store the
+relationship on the wall, copy it into each application under a verified insert
+rule, and keep the audience immutable. A role may still govern staff workflows;
+the signoff below requires this application's wall owner.
+
+```quarry
+use personas alice, bob, artist
+table walls:
+  owner: principal
+  title: text 1..80
+  immutable owner
+  read <- allow
+  insert <- .owner = viewer
+  online only
+table wallApplications:
+  wall: walls
+  wallOwner: principal
+  applicant: principal
+  signed: bool default false
+  immutable wall, wallOwner, applicant
+  read <- .applicant = viewer or .wallOwner = viewer
+  insert <- .applicant = viewer and exists walls[.wall, owner = .wallOwner]
+  update <- .wallOwner = viewer
+  online only
+mutation addWall(title: text 1..80):
+  return insert walls {owner:viewer,title}
+mutation applyToWall(wall: walls):
+  w = walls[wall] ! else NOT_FOUND
+  return insert wallApplications {wall,wallOwner:w.owner,applicant:viewer}
+mutation signWall(application: wallApplications):
+  require exists wallApplications[application, wallOwner = viewer] else NOT_FOUND
+  update wallApplications[application] {signed:true}
+invariant wallApplications.signed update only .wallOwner = viewer
+```
+
+Save this schema as snapback/schema.q in a disposable project; run check and test.
+Alice creates a wall, artist applies, and only Alice signs. Bob owning a different
+wall confers no authority over Alice's application. If walls can transfer owners,
+choose and model whether signoff follows current ownership or the captured owner;
+this recipe deliberately makes ownership immutable.

@@ -100868,6 +100868,13 @@ reports/integration21/storage-port-merge.json; full report: ../WORKSTREAM-REPORT
   pass init + check.
 
 Report: `reports/20261021-publication-0.4.35/REPORT.md`.
+
+
+## 2026-10-22 — SEC7 security advice and individual dispositions
+
+SEC7 owns note presentation, narrow security review gates and directed histories;
+DX6 owns session/upgrade/clock and frontend/proof-kit fixes for 0.4.38.
+Design and implementation evidence: LLP 3000.036.004 §16 and its review record.
 ### 2026-10-22 — S1-FR: token-authenticated raw PG and matched control windows
 
 Added per-request HS256 verification to the typed-table raw-PG control with
@@ -101503,3 +101510,23 @@ outcomes retain their existing invocation custody, and retryable refresh failure
 still permit same-id retries. See LLP 3000.000.000.001 §11 and the round-6 frozen
 amendment. Mocked-transport regressions run against the installed tarball in the
 DX6 publication qualification as well as the checkout SDK.
+## 2026-10-22 — SEC7 wave-23 day-two corrections
+
+Merged origin/main before revising SEC7. Explicit mandatory-media evidence now
+bounds upload gates; intentional optional columns/attachments need no stock review.
+Focused stale eligibility groups approval sites and binds the applicant/entity.
+Column-specific private creation/edit advice and linked evidence-removal questions
+cover the new day-two shapes; non-null intent witnesses retain actual replay.
+Design, independent reviews and qualification are recorded in LLP3000.036.004 §16.9
+and WORKSTREAM-REPORT.md. Deploy notices and release/adoption work remain outside
+this addendum's scope; DX6 owns its previously commissioned regressions.
+
+SEC7 day-two final precision cuts: parent omission is relative to the parent
+creation context, with a direct argument-independent parent prefix. Child-local
+requirements cannot protect a parent already created; a guard enclosing both
+creations does. Explicit parent-presence intent covers nullable-media children
+for skipped creation and deletion, while ordinary nullable-cell clearing stays
+quiet. Review obligations distinguish module, operation, argument, table, column
+and site. Eligibility captures use compiler-selected indexes/source maps and one
+resolved parent identity. Historical generated-table updates remain total in the
+source advice pass. Thirty-seven focused day-two regressions pass.

@@ -137,6 +137,19 @@ fn w11_every_registered_code_quotes_its_definition() {
 // independent of the paragraph selector: do not regenerate them to bless a new
 // first mention. Whitespace may change; the reason for the code must survive.
 const DEFINITIONS: &[(&str, &str)] = &[
+    ("N_CREATE_EDIT_ASYMMETRY", "An argument-supplied column has a specific change guard on edit that creation does not imply."),
+    ("N_PRIVATE_CREATE_EDIT_ASYMMETRY", "A caller can initialize a private column without its change guard and outside its column read audience."),
+    ("N_EVIDENCE_REMOVAL", "Delete, detachment or explicit clearing can remove parent-linked media evidence."),
+    ("N_RETAINED_ROLE_GRANT", "A recipient role required when storing a grant is mutable and missing from a reader branch"),
+    ("N_OPTIONAL_UPLOAD_CREATE", "An optional upload argument can be omitted in a direct nullable-media write or a skipped child that independent intent requires."),
+    ("N_CREATION_REASON", "Creating a row accepts a reason argument without a positive non-whitespace minimum."),
+    ("N_CREATION_MONEY", "Creating a row accepts omitted money."),
+    ("N_CONSTANT_APPROVAL", "Creation stores a constant true approval/payment flag."),
+    ("N_TRANSITION_BYPASS", "A generic enum setter reaches a state also reached by a stricter decision mutation."),
+    ("N_STALE_CREATION_CHECK", "A creator checks a mutable eligibility column that an approval-like transition does not recheck."),
+    ("N_DURATION_BOUNDS", "Operations apply different server-relative duration bounds to one column."),
+    ("N_ROLE_WIDE_WRITE", "A global role plus viewer attribution does not identify the owner of this resource."),
+    ("E_SECURITY_NOTES", "the individual disposition file is malformed, cannot be written, or sources changed while recording a review."),
     ("E_STORE_OWNERSHIP", "E_STORE_OWNERSHIP means the owner token, logical store binding or bounded takeover is no longer valid."),
     ("E_COMMIT_OUTCOME_UNKNOWN", "E_COMMIT_OUTCOME_UNKNOWN means COMMIT was sent without a reliable acknowledgement, or a synchronous replication wait was cancelled."),
     ("E_WORKER_STORE_ID", "E_WORKER_STORE_ID means the completion ledger has no nonempty logical store identity."),

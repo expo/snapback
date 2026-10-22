@@ -3,7 +3,7 @@ import test from 'node:test';
 import {proveSecurity} from '../../../scripts/publication-security.mjs';
 import {createHash} from 'node:crypto';
 import assert from 'node:assert/strict';
-import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,copyFileSync,rmSync} from 'node:fs';
+import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,copyFileSync,rmSync,readdirSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join,basename} from 'node:path';
 import {fileURLToPath} from 'node:url';
@@ -26,6 +26,39 @@ test('packed security card and starter run as written; broad reads refute', {tim
 
  const result=await proveSecurity(client,platform,dir);
  assert.equal(result.status,'passed');
+ const installed=readdirSync(dir).filter(name=>name.startsWith('security-policy-'));
+ assert.equal(installed.length,1);
+ const project=join(dir,installed[0]),cli=join(project,'node_modules/snapback4/bin/snapback4.js');
+ for(const [code,fact] of [
+  ['N_RETAINED_ROLE_GRANT','A recipient role required when storing a grant'],
+  ['N_OPTIONAL_UPLOAD_CREATE','An optional upload argument can be omitted'],
+  ['N_ROLE_WIDE_WRITE','A global role plus viewer attribution'],
+  ['N_CREATE_EDIT_ASYMMETRY','An argument-supplied column has a specific change guard'],
+  ['N_PRIVATE_CREATE_EDIT_ASYMMETRY','A caller can initialize a private column'],
+  ['N_EVIDENCE_REMOVAL','Delete, detachment or explicit clearing'],
+  ['E_SECURITY_NOTES','the individual disposition file is malformed'],
+ ]){
+  const excerpt=run(process.execPath,[cli,'why',code],project).split('\n\n').slice(1).join('\n\n');
+  assert.ok(excerpt.includes('### '+code),`installed why selects its dedicated definition: ${code}`);
+  assert.ok(excerpt.includes(fact),`installed defining fact: ${code}`);
+ }
+ // The installed wrapper must expose the focused day-two advice and allow
+ // intentional optionality without shipping a pre-acknowledged source file.
+ for(const lane of ['003','040','030','042','028']){
+  const cwd=join(dir,'day-two-'+lane);mkdirSync(join(cwd,'snapback'),{recursive:true});
+  writeFileSync(join(cwd,'snapback/schema.q'),readFileSync(new URL('../../../crates/snapback4-lang/tests/security/wave23/'+lane+'.q',import.meta.url)));
+  const checked=JSON.parse(run(process.execPath,[cli,'check','--json'],cwd));
+  assert.equal(checked.ok,true,`installed day-two check ${lane}`);
+  assert.ok(!checked.securityReviews.some(r=>r.code==='N_OPTIONAL_UPLOAD_CREATE'));
+  if(lane==='030')assert.equal(checked.security.notes.filter(n=>n.code==='N_STALE_CREATION_CHECK').length,1);
+  if(lane==='028')assert.equal(checked.security.notes.filter(n=>n.code==='N_EVIDENCE_REMOVAL').length,1);
+  if(lane==='042'){
+   const text=run(process.execPath,[cli,'check'],cwd);
+   assert.match(text,/N_PRIVATE_CREATE_EDIT_ASYMMETRY/);
+   const inventory=text.indexOf('N_INSERT_WRITE_INTENT');
+   assert.ok(inventory<0||text.indexOf('N_PRIVATE_CREATE_EDIT_ASYMMETRY')<inventory);
+  }
+ }
  assert.ok(result.guideCases.every(c=>c.broadRead==='refuted'));
  assert.equal(result.starters.length,7);
  if(process.env.SNAPBACK4_SECURITY_PACK_EVIDENCE)
@@ -41,7 +74,7 @@ test('check keeps invariant details behind verbose and preserves complete JSON',
  const invoke=(...args)=>{const r=spawnSync(binary,args,{cwd:dir,encoding:'utf8',timeout:30000});assert.equal(r.status,0,r.stdout+r.stderr);return r;};
  const compact=invoke('check'),text=compact.stdout+compact.stderr;
  assert.match(text,/security: \d+ proved, \d+ refuted, \d+ unproved/);
- assert.match(text,/more actionable notes in check --verbose\/JSON/);
+ assert.equal((text.match(/— N_INVARIANT_RESTATES_RULE:/g)||[]).length,8,'the selected ordinary code class keeps each site');
  assert.match(text,/snapback4 test/);assert.match(text,/snapback4 audit/);
  assert.doesNotMatch(text,/security Unproved:|counterexample \{/);
  const full=invoke('check','--verbose');assert.match(full.stdout+full.stderr,/whole-protocol noninterference/);
@@ -60,5 +93,5 @@ test('an escalation note stays visible above repeated broad-read advice', {timeo
  assert.match(result.stdout,/N_PRIVILEGE_ESCALATION/);
  const broad=result.stdout.indexOf('N_BROAD_READ');
  assert.ok(broad<0||result.stdout.indexOf('N_PRIVILEGE_ESCALATION')<broad);
- assert.match(result.stdout,/more actionable notes/);
+ assert.equal((result.stdout.match(/— N_BROAD_READ:/g)||[]).length,9,'every likely-hole audience survives the cap');
 });

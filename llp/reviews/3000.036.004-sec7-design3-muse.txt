@@ -1,0 +1,28 @@
+muse: workspace root: /home/ccheever/projects/sb4-b22-sec7 (cwd default)
+muse: workspace trust: trusted source=run-flag
+# Independent design review: LLP 3000.036.004 §16 (SEC7)
+
+**Reviewer:** Muse Code (Muse Spark). **Date:** 2026-10-22. **Scope:** §16 in full, with governing §§3, 8/8.1, 10, 12–15 read as needed. Design review only; no implementation reviewed, no code executed, no edits made, no credentials accessed. **Verdict: READY.**
+
+## Basis
+
+§16 adds two narrow check-only review gates with per-note dispositions, seven advisory question classes, presentation/severity ordering, and a bounded directed-history frontier. It explicitly preserves the proved/refuted/unproved contract, runtime authority, the §13.7 failure-eligibility/origin rules, and the deploy `--strict` boundary (§15.3). The load-bearing claims I probed all hold at the design level:
+
+**Acknowledgment invalidation is conservative-correct.** IDs hash the complete canonical diagnostic; the source digest covers all compiled source names and bytes in sorted order; the analyzer revision must bump on any detector-meaning or fingerprint change. Any source edit, diagnostic change, or analyzer bump invalidates. Stale entries are kept for history but acknowledge nothing (§16.6). Deleting or corrupting the file fails safe (gates refire; malformed files refuse). Reachable refutations and compilation errors block all ack writes, so a gate ack can never mask a real intent violation. The residual risk — a detector-semantics change shipped without an analyzer bump — is process risk only, test-policed ("tests must reject a previous revision"), and its worst case is a missed re-review, never false proof, since dispositions confer no authority.
+
+**Gates are narrow in the safe direction.** Both gates suppress only on definite positive evidence (`kernel::implies` returning `Ok(true)`; direct positive `argument != null` conjuncts; positive recipient-role atoms in every admitting branch). Unknown, negation, cap exhaustion, dynamic roles, owner-only branches, and service seats stay outside the narrow gates and fall back to existing advisory notes. False negatives cost coverage, not soundness; false positives are acknowledgeable by construction, which is exactly what the revised acceptance criterion ("zero false *unacknowledgeable* refusals") tests.
+
+**Finite-history soundness is preserved.** Directed exploration (depth 8, 2048 attempts, 16-world frontier) runs under the existing check work/deadline caps with every cut reported, adds no proof power ("neither prove reachability nor clear an unproved verdict"), keeps synthetic witnesses non-failing, and retains GeneratedFixtureTrace provenance with transition credit only for committed role/relationship mutations. Prioritizing directed over breadth under check can only shift which witnesses are found, and §16.4's three-variant re-runs of the eight high lanes plus the 026/030/004/021/037 catch requirements guard against regressions.
+
+**Exit-1 categories stay separated.** Gates fail `check` only; audit and deploy `--strict` keep their existing refutation boundaries; broad-advice dispositions affect display only. The revision of the old zero-refusal bars is explicit (§16 intro, §§16.4–16.6), and gate counts are reported separately from replayed exploits, so no legitimate review cost can be relabeled as a confirmed hole or as zero false positives.
+
+## Non-blocking clarifications (concrete; none affects READY)
+
+1. **Disposition path (§16.2).** "snapback/security-reviews.json" should name the app's snapback directory explicitly, matching §13.7's per-app record language, so multi-app projects bind each file to the correct source set.
+2. **Fingerprint stability (§§16.5–16.6).** State that the hashed diagnostic serialization excludes volatile fields (absolute paths, timestamps, durations) — schema-relative names are already required — and clarify whether transition-advice message dedup happens before or after the "JSON retains every note" guarantee, with the dedup key including setter/table/target/stricter-op identities.
+3. **Ack-command semantics (§§16.2, 16.5).** State that `--ack-security` recomputes current diagnostics in the same invocation (unknown = not in the current set) and specify the ack invocation's own exit code on success.
+
+## Qualification still owed (per §16.4–16.6, not re-verified here)
+
+Same-input/same-ID stability plus per-note/source/analyzer invalidation tests; positive/negative detector shapes including helper/alias guards; wave-22 visibility and waves 15/16/18–22 gate counts reported separately from refusals with legitimate-gate cost explicit; eight-lane × three-variant catch matrix; packed execution of every changed guide snippet.
+

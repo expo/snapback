@@ -1,0 +1,22 @@
+[
+  {
+    "artifact": "superseded-selected-index-final.log.gz",
+    "sha256": "7a4b7d037d0cfac1f91c3d1329f128755352b86588f2aef93e2c1fc6444df993",
+    "status": "superseded failed candidate; retained as failure, never qualification"
+  },
+  {
+    "artifact": "superseded-final7-controls.log.gz",
+    "sha256": "842d93fb2fd92aea9a89d0cb5280fde63e2fba8a65e2380426c7e706e24eff40",
+    "status": "superseded failed candidate; retained as failure, never qualification"
+  },
+  {
+    "artifact": "superseded-corpus-panic-repro.log.gz",
+    "sha256": "a2ba084235acafec5e209b7308142140e07c5187e9d59e63f03337b11ab1a550",
+    "status": "superseded failed candidate; retained as failure, never qualification"
+  },
+  {
+    "artifact": "superseded-corpus-final6-results.json.gz",
+    "sha256": "3ab5dc9d14ee547a4479bde401383d1d70930cade461c8ad901689b3983c19b2",
+    "status": "superseded failed candidate; retained as failure, never qualification"
+  }
+]

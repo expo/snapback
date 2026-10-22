@@ -120,11 +120,13 @@ pub fn test(options: &Options) -> i32 {
     let security_http_ok=security::unauthenticated(&bound,&sources);
     if !options.flags.contains_key("residency") {if let Err(why)=security::remember(&project,&evidence_options,&security_campaign,security_http_ok,&consumed){eprintln!("security: campaign record unavailable: {why}; check cannot reuse these refutations");}}
     if security_http_ok{security_campaign.unsupported.retain(|s|!s.starts_with("unauthenticated HTTP attempts require"));}
+    println!("security directed histories: {} mutation attempts; peak {} retained frontier worlds; finite exploration",security_campaign.directed_attempts,security_campaign.directed_peak_worlds);
     println!("security histories: {} ordered short operation sequences replayed",security_campaign.sequences);
     for why in &security_campaign.boundary_failures {println!("security boundary failure: {why}");}
     println!("security operation matrix: {} operations exercised; unknown authorization intent is not inferred from success",security_campaign.operations.len());
     let reachable=security_campaign.violations.iter().filter(|c|c.reachability.is_reachable()).count();
     println!("security tests: {} attempted, {} refused, {reachable} reachable violations; {} seed/synthetic observations (non-failing); finite campaign, not proof",security_campaign.attempted,security_campaign.refused,security_campaign.violations.len()-reachable);
+    if security_campaign.violations.len()>reachable {println!("REVIEW: seed/synthetic observations need authored replay; test --all keeps the directed history context");}
     for c in security_campaign.violations.iter().filter(|c|options.flags.contains_key("all")||c.reachability.is_reachable()) {println!("security violation: {}",serde_json::to_string(c).unwrap());}
     let coverage_all=options.flags.contains_key("all")||options.flags.contains_key("verbose");
     for reason in security_campaign.unsupported.iter().take(if coverage_all{usize::MAX}else{5}) {println!("security not covered: {reason}");}

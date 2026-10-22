@@ -1,0 +1,690 @@
+{
+  "source": "a8fb2ddf9c",
+  "visibility": {
+    "N_ROLE_WIDE_READ": {
+      "before": {
+        "projects": 30,
+        "visible": 4,
+        "notes": 40
+      },
+      "after": {
+        "projects": 30,
+        "visible": 30,
+        "notes": 40
+      }
+    },
+    "N_BROAD_READ": {
+      "before": {
+        "projects": 7,
+        "visible": 0,
+        "notes": 9
+      },
+      "after": {
+        "projects": 7,
+        "visible": 7,
+        "notes": 9
+      }
+    },
+    "N_GRANT_OUTLIVES_ROLE": {
+      "before": {
+        "projects": 18,
+        "visible": 0,
+        "notes": 30
+      },
+      "after": {
+        "projects": 10,
+        "visible": 10,
+        "notes": 15
+      }
+    },
+    "N_OPTIONAL_EVIDENCE": {
+      "before": {
+        "projects": 10,
+        "visible": 0,
+        "notes": 10
+      },
+      "after": {
+        "projects": 10,
+        "visible": 10,
+        "notes": 10
+      }
+    },
+    "N_INSERT_WRITE_INTENT": {
+      "before": {
+        "projects": 44,
+        "visible": 44,
+        "notes": 111
+      },
+      "after": {
+        "projects": 8,
+        "visible": 6,
+        "notes": 10
+      }
+    },
+    "N_COLUMN_RESULT_EXPOSURE": {
+      "before": {
+        "projects": 47,
+        "visible": 47,
+        "notes": 539
+      },
+      "after": {
+        "projects": 48,
+        "visible": 47,
+        "notes": 70
+      }
+    },
+    "N_RETAINED_ROLE_GRANT": {
+      "before": {
+        "projects": 0,
+        "visible": 0,
+        "notes": 0
+      },
+      "after": {
+        "projects": 1,
+        "visible": 1,
+        "notes": 1
+      }
+    },
+    "N_OPTIONAL_UPLOAD_CREATE": {
+      "before": {
+        "projects": 0,
+        "visible": 0,
+        "notes": 0
+      },
+      "after": {
+        "projects": 4,
+        "visible": 4,
+        "notes": 5
+      }
+    }
+  },
+  "corpus": {
+    "projects": 400,
+    "variants": 800,
+    "gatesByWave": {
+      "w15": 11,
+      "w16": 9,
+      "w18": 8,
+      "w19": 8,
+      "w20": 11,
+      "w21": 15,
+      "w22": 5
+    },
+    "gatesByCode": {
+      "N_RETAINED_ROLE_GRANT": 14,
+      "N_OPTIONAL_UPLOAD_CREATE": 57
+    },
+    "gateProjects": 67,
+    "gateNotes": 115,
+    "nonGateReds": 0,
+    "afterMechanicalDispositionReds": 0,
+    "ackNoteCount": 115
+  },
+  "matrix": [
+    {
+      "lane": "004",
+      "variant": "none",
+      "sha256": "bd1775822a08c42668d39a2f0b9814634f9cda1f5c2a04e0cb2fd14990d8dbe4",
+      "checkExit": 0,
+      "testExit": 0,
+      "visible": [
+        "N_ARGUMENT_GRANT",
+        "N_BROAD_READ",
+        "N_COLUMN_RESULT_EXPOSURE",
+        "N_LOOKUP_FILTERED",
+        "N_SWEEP_DEADLINE",
+        "N_TRANSITION_BYPASS",
+        "N_UNREADABLE_PROBE"
+      ],
+      "gates": [],
+      "attempted": 1626,
+      "reachable": 0,
+      "synthetic": 0,
+      "directed": 0,
+      "peakWorlds": 0
+    },
+    {
+      "lane": "004",
+      "variant": "own",
+      "sha256": "242f82b27d0934ad53c04a56d382399e4b2e50c358ec2c6a9d991561fbdc30a5",
+      "checkExit": 0,
+      "testExit": 0,
+      "visible": [
+        "N_ARGUMENT_GRANT",
+        "N_BROAD_READ",
+        "N_COLUMN_RESULT_EXPOSURE",
+        "N_LOOKUP_FILTERED",
+        "N_SWEEP_DEADLINE",
+        "N_TRANSITION_BYPASS",
+        "N_UNREADABLE_PROBE"
+      ],
+      "gates": [],
+      "attempted": 6570,
+      "reachable": 0,
+      "synthetic": 0,
+      "directed": 1856,
+      "peakWorlds": 12
+    },
+    {
+      "lane": "004",
+      "variant": "spec",
+      "sha256": "03acab5a6df6ec9207acd625802c48488e36c26eb28e1fb03c14bccab7096a92",
+      "checkExit": 0,
+      "testExit": 1,
+      "visible": [
+        "N_ARGUMENT_GRANT",
+        "N_BROAD_READ",
+        "N_COLUMN_RESULT_EXPOSURE",
+        "N_LOOKUP_FILTERED",
+        "N_SWEEP_DEADLINE",
+        "N_TRANSITION_BYPASS",
+        "N_UNREADABLE_PROBE"
+      ],
+      "gates": [],
+      "attempted": 3258,
+      "reachable": 9,
+      "synthetic": 0,
+      "directed": 96,
+      "peakWorlds": 3
+    },
+    {
+      "lane": "011",
+      "variant": "none",
+      "sha256": "3af41c503ec7680af33ea09f21bb8aa95222a32f0e8b4f958d4d7ee0cd3b58c2",
+      "checkExit": 0,
+      "testExit": 0,
+      "visible": [
+        "N_ARGUMENT_GRANT",
+        "N_COLUMN_RESULT_EXPOSURE",
+        "N_LOOKUP_FILTERED",
+        "N_NEVER_COMPLETE",
+        "N_OPTIONAL_EVIDENCE",
+        "N_QUERY_FILTERED",
+        "N_ROLE_WIDE_READ",
+        "N_ROLE_WIDE_WRITE",
+        "N_SWEEP_ONLY_DEADLINE"
+      ],
+      "gates": [],
+      "attempted": 1164,
+      "reachable": 0,
+      "synthetic": 0,
+      "directed": 0,
+      "peakWorlds": 0
+    },
+    {
+      "lane": "011",
+      "variant": "own",
+      "sha256": "47df3cd402253c3901ffcd94dd8e206229b9f36feaf0bb7195d576bc84eea674",
+      "checkExit": 0,
+      "testExit": 0,
+      "visible": [
+        "N_ARGUMENT_GRANT",
+        "N_COLUMN_RESULT_EXPOSURE",
+        "N_LOOKUP_FILTERED",
+        "N_NEVER_COMPLETE",
+        "N_OPTIONAL_EVIDENCE",
+        "N_QUERY_FILTERED",
+        "N_ROLE_WIDE_READ",
+        "N_ROLE_WIDE_WRITE",
+        "N_SWEEP_ONLY_DEADLINE"
+      ],
+      "gates": [],
+      "attempted": 19854,
+      "reachable": 0,
+      "synthetic": 1,
+      "directed": 1856,
+      "peakWorlds": 12
+    },
+    {
+      "lane": "011",
+      "variant": "spec",
+      "sha256": "4a1b4f5741a9d11e81f5f271f5e1ab2032bfadda635f0df5b892fc309afdaef3",
+      "checkExit": 0,
+      "testExit": 1,
+      "visible": [
+        "N_ARGUMENT_GRANT",
+        "N_COLUMN_RESULT_EXPOSURE",
+        "N_LOOKUP_FILTERED",
+        "N_NEVER_COMPLETE",
+        "N_OPTIONAL_EVIDENCE",
+        "N_QUERY_FILTERED",
+        "N_ROLE_WIDE_READ",
+        "N_ROLE_WIDE_WRITE",
+        "N_SWEEP_ONLY_DEADLINE"
+      ],
+      "gates": [],
+      "attempted": 16999,
+      "reachable": 2,
+      "synthetic": 0,
+      "directed": 45,
+      "peakWorlds": 9
+    },
+    {
+      "lane": "021",
+      "variant": "none",
+      "sha256": "92db3d88ca7020bbf3aeeb7a2df0947b06be076145e5b68a95649bc325ccad5e",
+      "checkExit": 1,
+      "testExit": 0,
+      "visible": [
+        "N_ARGUMENT_GRANT",
+        "N_COLUMN_RESULT_EXPOSURE",
+        "N_GRANT_OUTLIVES_ROLE",
+        "N_LOOKUP_FILTERED",
+        "N_RETAINED_ROLE_GRANT",
+        "N_SECURITY_INTENT",
+        "N_STALE_CREATION_CHECK",
+        "N_UNIQUE_HIDDEN"
+      ],
+      "gates": [
+        "N_RETAINED_ROLE_GRANT"
+      ],
+      "attempted": 1786,
+      "reachable": 0,
+      "synthetic": 0,
+      "directed": 0,
+      "peakWorlds": 0
+    },
+    {
+      "lane": "021",
+      "variant": "own",
+      "sha256": "92db3d88ca7020bbf3aeeb7a2df0947b06be076145e5b68a95649bc325ccad5e",
+      "checkExit": 1,
+      "testExit": 0,
+      "visible": [
+        "N_ARGUMENT_GRANT",
+        "N_COLUMN_RESULT_EXPOSURE",
+        "N_GRANT_OUTLIVES_ROLE",
+        "N_LOOKUP_FILTERED",
+        "N_RETAINED_ROLE_GRANT",
+        "N_SECURITY_INTENT",
+        "N_STALE_CREATION_CHECK",
+        "N_UNIQUE_HIDDEN"
+      ],
+      "gates": [
+        "N_RETAINED_ROLE_GRANT"
+      ],
+      "attempted": 1786,
+      "reachable": 0,
+      "synthetic": 0,
+      "directed": 0,
+      "peakWorlds": 0
+    },
+    {
+      "lane": "021",
+      "variant": "spec",
+      "sha256": "1ac656313468f0bc06afda40aaa9b7f4990b2b7298cb1ad149725756af98953a",
+      "checkExit": 1,
+      "testExit": 1,
+      "visible": [
+        "N_ARGUMENT_GRANT",
+        "N_COLUMN_RESULT_EXPOSURE",
+        "N_GRANT_OUTLIVES_ROLE",
+        "N_LOOKUP_FILTERED",
+        "N_RETAINED_ROLE_GRANT",
+        "N_SECURITY_INTENT",
+        "N_STALE_CREATION_CHECK",
+        "N_UNIQUE_HIDDEN"
+      ],
+      "gates": [
+        "N_RETAINED_ROLE_GRANT"
+      ],
+      "attempted": 18917,
+      "reachable": 2,
+      "synthetic": 0,
+      "directed": 1568,
+      "peakWorlds": 12
+    },
+    {
+      "lane": "026",
+      "variant": "none",
+      "sha256": "5edd4320f4ebe581ea8823629f81881a4f8ae25fccc3f65254f520b27fa53e05",
+      "checkExit": 0,
+      "testExit": 0,
+      "visible": [
+        "N_ARGUMENT_GRANT",
+        "N_COLUMN_RESULT_EXPOSURE",
+        "N_LOOKUP_FILTERED",
+        "N_QUERY_FILTERED",
+        "N_ROLE_WIDE_READ",
+        "N_ROLE_WIDE_WRITE",
+        "N_SWEEP_DEADLINE"
+      ],
+      "gates": [],
+      "attempted": 1246,
+      "reachable": 0,
+      "synthetic": 0,
+      "directed": 0,
+      "peakWorlds": 0
+    },
+    {
+      "lane": "026",
+      "variant": "own",
+      "sha256": "bacf228a562d8fdf6a157e771e186e7c09724607d41a221a5f1eeeaf1ee1d278",
+      "checkExit": 0,
+      "testExit": 0,
+      "visible": [
+        "N_ARGUMENT_GRANT",
+        "N_COLUMN_RESULT_EXPOSURE",
+        "N_LOOKUP_FILTERED",
+        "N_QUERY_FILTERED",
+        "N_ROLE_WIDE_READ",
+        "N_ROLE_WIDE_WRITE",
+        "N_SWEEP_DEADLINE"
+      ],
+      "gates": [],
+      "attempted": 4702,
+      "reachable": 0,
+      "synthetic": 0,
+      "directed": 1568,
+      "peakWorlds": 12
+    },
+    {
+      "lane": "026",
+      "variant": "spec",
+      "sha256": "1ea9bf9bf4694cdd08e092aa69eff9e51108f34309d0b08e13e08ec725b42f0b",
+      "checkExit": 0,
+      "testExit": 1,
+      "visible": [
+        "N_ARGUMENT_GRANT",
+        "N_COLUMN_RESULT_EXPOSURE",
+        "N_LOOKUP_FILTERED",
+        "N_QUERY_FILTERED",
+        "N_ROLE_WIDE_READ",
+        "N_ROLE_WIDE_WRITE",
+        "N_SWEEP_DEADLINE"
+      ],
+      "gates": [],
+      "attempted": 15691,
+      "reachable": 2,
+      "synthetic": 0,
+      "directed": 165,
+      "peakWorlds": 11
+    },
+    {
+      "lane": "030",
+      "variant": "none",
+      "sha256": "5e925b2c23b968330c3c1aa1b8a2a59c79ec6763e07a71ddae7d0efd51006430",
+      "checkExit": 0,
+      "testExit": 0,
+      "visible": [
+        "N_ARGUMENT_GRANT",
+        "N_IMMUTABLE_PATCH",
+        "N_LOOKUP_FILTERED",
+        "N_ROLE_WIDE_READ",
+        "N_STALE_CREATION_CHECK",
+        "N_SWEEP_DEADLINE",
+        "N_UNIQUE_HIDDEN"
+      ],
+      "gates": [],
+      "attempted": 1233,
+      "reachable": 0,
+      "synthetic": 0,
+      "directed": 0,
+      "peakWorlds": 0
+    },
+    {
+      "lane": "030",
+      "variant": "own",
+      "sha256": "5c2df1ec0d1dc60f9035359db0e79d0c063d5409d94f53b3ec0eb9459d5a0604",
+      "checkExit": 0,
+      "testExit": 0,
+      "visible": [
+        "N_ARGUMENT_GRANT",
+        "N_IMMUTABLE_PATCH",
+        "N_LOOKUP_FILTERED",
+        "N_ROLE_WIDE_READ",
+        "N_STALE_CREATION_CHECK",
+        "N_SWEEP_DEADLINE",
+        "N_UNIQUE_HIDDEN"
+      ],
+      "gates": [],
+      "attempted": 21143,
+      "reachable": 0,
+      "synthetic": 0,
+      "directed": 0,
+      "peakWorlds": 0
+    },
+    {
+      "lane": "030",
+      "variant": "spec",
+      "sha256": "15080d48dce9dfd3803d2f7b6105ca3fa6a32e2ced74d25dd3f6457b06c08ed7",
+      "checkExit": 0,
+      "testExit": 1,
+      "visible": [
+        "N_ARGUMENT_GRANT",
+        "N_IMMUTABLE_PATCH",
+        "N_LOOKUP_FILTERED",
+        "N_ROLE_WIDE_READ",
+        "N_STALE_CREATION_CHECK",
+        "N_SWEEP_DEADLINE",
+        "N_UNIQUE_HIDDEN"
+      ],
+      "gates": [],
+      "attempted": 3394,
+      "reachable": 1,
+      "synthetic": 0,
+      "directed": 625,
+      "peakWorlds": 12
+    },
+    {
+      "lane": "037",
+      "variant": "none",
+      "sha256": "a0dca4cb13f344bc565312df946914dfb67e7a1f9c255a018fb43f465606e0b5",
+      "checkExit": 0,
+      "testExit": 0,
+      "visible": [
+        "N_ARGUMENT_GRANT",
+        "N_COLUMN_READ",
+        "N_LOOKUP_FILTERED",
+        "N_NO_HORIZON",
+        "N_SECURITY_INTENT"
+      ],
+      "gates": [],
+      "attempted": 1151,
+      "reachable": 0,
+      "synthetic": 0,
+      "directed": 0,
+      "peakWorlds": 0
+    },
+    {
+      "lane": "037",
+      "variant": "own",
+      "sha256": "df3a36be295c733351b87a7549f7da699097219717800eebc54cdb422069915c",
+      "checkExit": 0,
+      "testExit": 0,
+      "visible": [
+        "N_ARGUMENT_GRANT",
+        "N_COLUMN_READ",
+        "N_INVARIANT_RESTATES_RULE",
+        "N_LOOKUP_FILTERED",
+        "N_NO_HORIZON"
+      ],
+      "gates": [],
+      "attempted": 22195,
+      "reachable": 0,
+      "synthetic": 0,
+      "directed": 1568,
+      "peakWorlds": 12
+    },
+    {
+      "lane": "037",
+      "variant": "spec",
+      "sha256": "9cc8db889ec9b580bd64cb9e881593132b13cf73f0d569a18bb00376cb3aabcc",
+      "checkExit": 1,
+      "testExit": 1,
+      "visible": [
+        "N_ARGUMENT_GRANT",
+        "N_COLUMN_READ",
+        "N_LOOKUP_FILTERED",
+        "N_NO_HORIZON",
+        "N_SECURITY_INTENT"
+      ],
+      "gates": [],
+      "attempted": 14997,
+      "reachable": 54,
+      "synthetic": 0,
+      "directed": 0,
+      "peakWorlds": 0
+    },
+    {
+      "lane": "040",
+      "variant": "none",
+      "sha256": "9d646aabcec213b368ad7dfb07dcfa9a6a4f5ed01ec6827acf4f9ff64a2cb200",
+      "checkExit": 1,
+      "testExit": 0,
+      "visible": [
+        "N_ARGUMENT_GRANT",
+        "N_BROAD_READ",
+        "N_COLUMN_RESULT_EXPOSURE",
+        "N_CREATION_REASON",
+        "N_GRANT_OUTLIVES_ROLE",
+        "N_LOOKUP_FILTERED",
+        "N_OPTIONAL_UPLOAD_CREATE",
+        "N_PATCH_CLEARS",
+        "N_STALE_CREATION_CHECK",
+        "N_UNREADABLE_PROBE"
+      ],
+      "gates": [
+        "N_OPTIONAL_UPLOAD_CREATE",
+        "N_OPTIONAL_UPLOAD_CREATE"
+      ],
+      "attempted": 1460,
+      "reachable": 0,
+      "synthetic": 0,
+      "directed": 0,
+      "peakWorlds": 0
+    },
+    {
+      "lane": "040",
+      "variant": "own",
+      "sha256": "a214682448dfa82569fd0a8860768c91fa5a62990a90d2baefaa2335ec1a4367",
+      "checkExit": 1,
+      "testExit": 0,
+      "visible": [
+        "N_ARGUMENT_GRANT",
+        "N_BROAD_READ",
+        "N_COLUMN_RESULT_EXPOSURE",
+        "N_CREATION_REASON",
+        "N_GRANT_OUTLIVES_ROLE",
+        "N_LOOKUP_FILTERED",
+        "N_OPTIONAL_UPLOAD_CREATE",
+        "N_PATCH_CLEARS",
+        "N_STALE_CREATION_CHECK",
+        "N_UNREADABLE_PROBE"
+      ],
+      "gates": [
+        "N_OPTIONAL_UPLOAD_CREATE",
+        "N_OPTIONAL_UPLOAD_CREATE"
+      ],
+      "attempted": 20035,
+      "reachable": 0,
+      "synthetic": 0,
+      "directed": 2048,
+      "peakWorlds": 12
+    },
+    {
+      "lane": "040",
+      "variant": "spec",
+      "sha256": "f6d368f68742b4678c27f066eea2363c128d7f5eff4e05b95cb7dda078ba20df",
+      "checkExit": 1,
+      "testExit": 0,
+      "visible": [
+        "N_ARGUMENT_GRANT",
+        "N_BROAD_READ",
+        "N_COLUMN_RESULT_EXPOSURE",
+        "N_CREATION_REASON",
+        "N_GRANT_OUTLIVES_ROLE",
+        "N_LOOKUP_FILTERED",
+        "N_OPTIONAL_UPLOAD_CREATE",
+        "N_PATCH_CLEARS",
+        "N_STALE_CREATION_CHECK",
+        "N_UNREADABLE_PROBE"
+      ],
+      "gates": [
+        "N_OPTIONAL_UPLOAD_CREATE",
+        "N_OPTIONAL_UPLOAD_CREATE"
+      ],
+      "attempted": 4624,
+      "reachable": 0,
+      "synthetic": 0,
+      "directed": 1628,
+      "peakWorlds": 12
+    },
+    {
+      "lane": "044",
+      "variant": "none",
+      "sha256": "a3c44cbc0842aacad038390874b0012aa87b9e3149dc92880924cd2df484a631",
+      "checkExit": 0,
+      "testExit": 0,
+      "visible": [
+        "N_ARGUMENT_GRANT",
+        "N_COLUMN_RESULT_EXPOSURE",
+        "N_CONSTANT_APPROVAL",
+        "N_DURATION_BOUNDS",
+        "N_INSERT_WRITE_INTENT",
+        "N_LOOKUP_FILTERED",
+        "N_ROLE_WIDE_READ",
+        "N_SECURITY_INTENT",
+        "N_SWEEP_ONLY_DEADLINE"
+      ],
+      "gates": [],
+      "attempted": 2254,
+      "reachable": 0,
+      "synthetic": 0,
+      "directed": 0,
+      "peakWorlds": 0
+    },
+    {
+      "lane": "044",
+      "variant": "own",
+      "sha256": "b01dc8ecc5c52f0b0ac66280ebf2ffbab8432022d82ff009eef8be77f3223fb0",
+      "checkExit": 0,
+      "testExit": 0,
+      "visible": [
+        "N_ARGUMENT_GRANT",
+        "N_COLUMN_RESULT_EXPOSURE",
+        "N_CONSTANT_APPROVAL",
+        "N_DURATION_BOUNDS",
+        "N_INSERT_WRITE_INTENT",
+        "N_INVARIANT_RESTATES_RULE",
+        "N_LOOKUP_FILTERED",
+        "N_ROLE_WIDE_READ",
+        "N_SWEEP_ONLY_DEADLINE"
+      ],
+      "gates": [],
+      "attempted": 19070,
+      "reachable": 0,
+      "synthetic": 0,
+      "directed": 0,
+      "peakWorlds": 0
+    },
+    {
+      "lane": "044",
+      "variant": "spec",
+      "sha256": "249316985c788a0958aaf10a3d85480f7ff6f2982f0b4e65d772189a5f7ba013",
+      "checkExit": 0,
+      "testExit": 0,
+      "visible": [
+        "N_ARGUMENT_GRANT",
+        "N_COLUMN_RESULT_EXPOSURE",
+        "N_CONSTANT_APPROVAL",
+        "N_DURATION_BOUNDS",
+        "N_INSERT_WRITE_INTENT",
+        "N_LOOKUP_FILTERED",
+        "N_ROLE_WIDE_READ",
+        "N_SECURITY_INTENT",
+        "N_SWEEP_ONLY_DEADLINE"
+      ],
+      "gates": [],
+      "attempted": 5454,
+      "reachable": 0,
+      "synthetic": 0,
+      "directed": 1664,
+      "peakWorlds": 11
+    }
+  ],
+  "binaries": {
+    "sec7-baseline": "b05c2f792be7cdddb2883d4f66107afe6c429b83c938319c464da5e7d8707c5f",
+    "sec7-typed-cli": "0bb566b980e9690a96768f541ba15a870df1509818b5e97b98e6d05314792414"
+  }
+}

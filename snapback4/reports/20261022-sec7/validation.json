@@ -1,0 +1,138 @@
+{
+  "date": "2026-10-22",
+  "sourceBoundaries": {
+    "analyzerAndCorpus": "a8fb2ddf9c",
+    "guideCorrectionAndPackedSecurity": "124dc80f2e",
+    "finalTestExpectations": "88f2c3e2fa"
+  },
+  "cargoEnvironment": "CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0; full workspace additionally CARGO_PROFILE_DEV_OPT_LEVEL=1 CARGO_BUILD_JOBS=6",
+  "allShellCommandsBounded": true,
+  "checks": [
+    {
+      "log": "cargo-workspace-qualified.log",
+      "commandFamily": "cargo test --workspace --no-fail-fast -- --test-threads=6",
+      "exitCode": 101,
+      "result": "452 targets; 7324 passed; six failures subsequently repaired",
+      "logSha256": "ad92058517f667c68824db1b8a8fad568fc936fb6d2dd0ee98fb4d73290822b9"
+    },
+    {
+      "log": "readauth-refreshed.log",
+      "commandFamily": "cargo test -p snapback4-device --test readauth",
+      "exitCode": 0,
+      "result": "88 passed",
+      "logSha256": "13ef27ba6d528cf4d7c2272eb299a0a0aa9385ee69a6c57b53bddce5047c5cc7"
+    },
+    {
+      "log": "guide-security-refreshed.log",
+      "commandFamily": "cargo test -p snapback4-lang --test guide --test security --test security_sec5_output",
+      "exitCode": 0,
+      "result": "127 +46 +3 passed",
+      "logSha256": "bad047a3d329d368699acf566561c78cef2cdc50cc32e6c2c4fabb00620ac080"
+    },
+    {
+      "log": "recipes-refreshed.log",
+      "commandFamily": "cargo test -p snapback4-lang --test wave12_rule_recipes",
+      "exitCode": 0,
+      "result": "13 passed",
+      "logSha256": "a11adadbee4417924dff82e861e823dfd579b5a41cd3727fea81b168ad6f2e20"
+    },
+    {
+      "log": "typed-index-sec7.log",
+      "commandFamily": "cargo test -p snapback4-lang --test security_sec7",
+      "exitCode": 0,
+      "result": "17 passed",
+      "logSha256": "e67a8d9df006c7c332a70c7e8d0fed936884ec48febedd262a33d1d48b0c108e"
+    },
+    {
+      "log": "client-pool.log",
+      "commandFamily": "client pool: 425 files then two full default model files",
+      "exitCode": 1,
+      "result": "initial 10 files red; models81 passed; scoped repairs recorded separately",
+      "logSha256": "70b754238fe17076e8ece83bc3a0f4362b5b3c825bc231560ac758059bacd8ca"
+    },
+    {
+      "log": "client-final-rerun.log",
+      "commandFamily": "client affected ten files",
+      "exitCode": 1,
+      "result": "248/249 passed; remaining source-edited social fixture repaired and rerun",
+      "logSha256": "04d837ace0b4a81429c849a60afb5e6cefdd3cca1effe2553922d1092d220c2a"
+    },
+    {
+      "log": "social-fixture-final.log",
+      "commandFamily": "full social-starter client file",
+      "exitCode": 0,
+      "result": "17 passed",
+      "logSha256": "8d2a74097ca372012803196d3fb9b6684740323b888a0442b4b3fa4248a8fd84"
+    },
+    {
+      "log": "packed-security-verified.log",
+      "commandFamily": "fresh packed security client file",
+      "exitCode": 0,
+      "result": "3 passed; installed dedicated why definitions",
+      "logSha256": "31129d119799c10e7ce403cdafeb31bba989defcf65159618e3744ab127c5584"
+    },
+    {
+      "log": "packed-docs-final.log",
+      "commandFamily": "security-packed + wave14-rule-recipes",
+      "exitCode": 1,
+      "result": "wall26 passed; two stale security output expectations repaired and final file3 passed",
+      "logSha256": "4c8c4a67bc560d78896ccfa533bf10087e2ab071b2be3c93f11c66c282812a45"
+    },
+    {
+      "log": "qualify-linux-final.log",
+      "commandFamily": "qualify-linux --consumer-only",
+      "exitCode": 0,
+      "result": "semantic source a8fb2ddf9c; no publication receipt",
+      "logSha256": "26c96d16d4d5e97f718c21b66447cb74daafe3ff76f141da1bf348f25d867998"
+    },
+    {
+      "log": "docs-musl-build.log",
+      "commandFamily": "cargo build --profile production --target x86_64-unknown-linux-musl -p snapback4",
+      "exitCode": 0,
+      "result": "guide source124dc80f2e; staticELF; fresh packed security follows",
+      "logSha256": "5610b9e7f8349926c280db1df15f229cdc7752a86e5ae80fd0b3ea727b97e485"
+    },
+    {
+      "log": "root-guide-latest.log",
+      "commandFamily": "node scripts/check-guide.mjs",
+      "exitCode": 0,
+      "result": "22 passed; 0 failed/skipped/preconditions",
+      "logSha256": "6efcb3075f6ce013d323beddde66f223a67a5a3b38436d44f69eedc73e9cffbd"
+    },
+    {
+      "log": "inventories-final.log",
+      "commandFamily": "node scripts/check-inventories.mjs",
+      "exitCode": 0,
+      "result": "365 package tests;35 script tests;31 demos;487 leaves",
+      "logSha256": "2e5bdbb81fb0a90d0048b15c79190ef3773fdfa33b8646930fe455f717a57813"
+    },
+    {
+      "log": "docs-budget-latest.log",
+      "commandFamily": "affected docs budget checks",
+      "exitCode": 0,
+      "result": "README319/320; named guide test passed",
+      "logSha256": "f833035f12a4ae32e85956a766545e4f1c965d036f103764a52bd08c82abe985"
+    },
+    {
+      "log": "ref-complete.log",
+      "commandFamily": "./ref-check",
+      "exitCode": 0,
+      "result": "564 LLP documents;12297 refs;0 errors/unchecked",
+      "logSha256": "bf80c98adad3aae2b2a7a89e29402087a318df2082aa0341c8f4f725bd06552e"
+    },
+    {
+      "log": "wasm.log",
+      "commandFamily": "bash scripts/build-wasm.sh and wasm budget",
+      "exitCode": 0,
+      "result": "734907 gzip bytes of735407 budget",
+      "logSha256": "72dbd47c254a61a50dab1c60d0a4b09da685c92176bd176a3a6e1cf6af195176"
+    },
+    {
+      "log": "mac-completion-reachability.log",
+      "commandFamily": "ssh Studio in ~/sb4-ws-sec7 only",
+      "exitCode": 255,
+      "result": "final verification unavailable: connect timeout",
+      "logSha256": "058ddede034aaa7c333d96fac263ab6157ee65385af408756666f48d652b7771"
+    }
+  ]
+}

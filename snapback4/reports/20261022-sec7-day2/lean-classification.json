@@ -1,0 +1,74 @@
+[
+  {
+    "signature": "lean--code--E_RULE~NOT_FOUND",
+    "diagnosisSha256": "89531988ed356dc4b31288494e8166fe4f1a6593a9f3273759657c8b63691d9b",
+    "header": [
+      "# lean--code--E_RULE~NOT_FOUND",
+      "",
+      "Oracle: the engine (SQLite, default ceilings) against the Lean model (`snapback4/lean`, LLP 3000.035 \u00a75.2). Found by `run-lean --seed 0 --cases 20000` (lane GW, the widened",
+      "generator, LLP 3000.035 \u00a75.1); seed 3200, shrunk in 142 attempts.",
+      "Replay (after `cd snapback4/lean && lake build`): `cargo run --release -p snapback4-difftest -- replay 'crates/snapback4-difftest/cases/found/lean--code--E_RULE~NOT_FOUND'`",
+      "",
+      "```quarry",
+      "table items:"
+    ],
+    "diagnosis": [
+      "**Diagnosis: open question OPEN W4, ticket `issues/20261008-quarry-difftest-widened-shapes-under-open-r2-and-w4.md`.** An absent `upsert` (in `run` or a prelude step) whose insert arm puts a unique `tag` held by a row the viewer cannot read. The engine refuses `E_RULE` (\"a unique key ... contains a row you cannot read\"), the model `NOT_FOUND` (its W4 choice). The documents are silent on a hidden clash on the upsert's insert path; a plain insert's hidden clash is `E_RULE` on both sides (W1)."
+    ],
+    "classification": "existing OPEN C2 or W4; not a NEW signature"
+  },
+  {
+    "signature": "lean--continuation-next--next~no-next",
+    "diagnosisSha256": "214168cac60e01e3e600810b2d59b2004891877e4ffcb7ae74dea89a56351a2c",
+    "header": [
+      "# lean--continuation-next--next~no-next",
+      "",
+      "Oracle: the engine (SQLite, default ceilings) against the Lean model",
+      "(LLP 3000.035 \u00a75.2). Seed 22563; shrunk in 164 attempts.",
+      "Replay (after `cd snapback4/lean && lake build`):",
+      "`cargo run --release -p snapback4-difftest -- replay crates/snapback4-difftest/cases/found/lean--continuation-next--next~no-next`",
+      "",
+      "```quarry"
+    ],
+    "diagnosis": [
+      "**Diagnosis: open language question, OPEN C2**, the same point as"
+    ],
+    "classification": "existing OPEN C2 or W4; not a NEW signature"
+  },
+  {
+    "signature": "lean--next--next~no-next",
+    "diagnosisSha256": "2db2a0791da808d20e91507ae6c3a65b3f95ff3f987dc12451cf8fb3e0589f29",
+    "header": [
+      "# lean--next--next~no-next",
+      "",
+      "Oracle: the engine (SQLite, default ceilings) against the Lean model",
+      "(LLP 3000.035 \u00a75.2). Seed 7500; shrunk in 97 attempts.",
+      "Replay (after `cd snapback4/lean && lake build`):",
+      "`cargo run --release -p snapback4-difftest -- replay crates/snapback4-difftest/cases/found/lean--next--next~no-next`",
+      "",
+      "```quarry"
+    ],
+    "diagnosis": [
+      "**Diagnosis: open language question, OPEN C2** (does a page that fills"
+    ],
+    "classification": "existing OPEN C2 or W4; not a NEW signature"
+  },
+  {
+    "signature": "lean--prelude-code--E_RULE~NOT_FOUND",
+    "diagnosisSha256": "b38159dfbf94fd7c4bb5fbe94f315131df8339b8ec771120a429841ab3975cb4",
+    "header": [
+      "# lean--prelude-code--E_RULE~NOT_FOUND",
+      "",
+      "Oracle: the engine (SQLite, default ceilings) against the Lean model (`snapback4/lean`, LLP 3000.035 \u00a75.2). Found by `run-lean --seed 0 --cases 20000` (lane GW, the widened",
+      "generator, LLP 3000.035 \u00a75.1); seed 1749, shrunk in 219 attempts.",
+      "Replay (after `cd snapback4/lean && lake build`): `cargo run --release -p snapback4-difftest -- replay 'crates/snapback4-difftest/cases/found/lean--prelude-code--E_RULE~NOT_FOUND'`",
+      "",
+      "```quarry",
+      "mutation prep0(key: id, k2: id, bucket: int, c: cursor ?, n: int ?, a: int, b: int):"
+    ],
+    "diagnosis": [
+      "**Diagnosis: open question OPEN W4, ticket `issues/20261008-quarry-difftest-widened-shapes-under-open-r2-and-w4.md`.** An absent `upsert`'s insert arm puts a unique `tag` held by a row the viewer cannot read. The engine refuses `E_RULE` (\"a unique key ... contains a row you cannot read\"), the model `NOT_FOUND` (its W4 choice). The documents are silent on a hidden clash on the upsert's insert path; a plain insert's hidden clash is `E_RULE` on both sides (W1)."
+    ],
+    "classification": "existing OPEN C2 or W4; not a NEW signature"
+  }
+]

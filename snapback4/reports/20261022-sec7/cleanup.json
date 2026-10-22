@@ -1,0 +1,28 @@
+{
+  "removedOwnedScratch": [
+    "snapback4/target/sec7-linux-final",
+    "snapback4/target/sec7-packs",
+    "snapback4/target/sec7-final-security-pack",
+    "snapback4/target/sec7-npm-cache",
+    "snapback4/target/sec7-qualified-cli",
+    "snapback4/target/sec7-candidate",
+    "snapback4/target/sec7-typed-cli",
+    "snapback4/target/sec7-baseline",
+    "snapback4/target/sec7-final-cli",
+    "snapback4/target/debug",
+    "snapback4/target/production",
+    "snapback4/target/x86_64-unknown-linux-musl",
+    "snapback4/packages/snapback4/logs",
+    "/tmp/sec7-measure-631opxw_",
+    "/tmp/sec7-pysha.py",
+    "/tmp/sec7-measure-w0ex_tds"
+  ],
+  "activeBuildOrTestProgramsBeforeRemoval": 0,
+  "rawExperimentDirsRemovedAfterCurating": true,
+  "sourceEvidenceModified": false,
+  "removedReproducibleBuildTrees": [
+    "snapback4/target",
+    "snapback4/lean/.lake/build"
+  ],
+  "estimatedBuildOutputReclaimedGiB": 26
+}

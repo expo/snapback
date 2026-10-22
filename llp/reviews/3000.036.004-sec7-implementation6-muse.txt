@@ -1,0 +1,14 @@
+muse: workspace root: /home/ccheever/projects/sb4-b22-sec7 (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY for this delta. Full/packed qualification remains separate.
+
+What the diff does, and why each piece matches the amended contract:
+
+- [registry]( /home/ccheever/projects/sb4-b22-sec7/snapback4/crates/snapback4-lang/src/diag.rs) routes exactly the 9 new SEC7 codes to `security` (2 at priority 0, 7 at priority 2). Cross-checked against `note_priority` in [presentation]( /home/ccheever/projects/sb4-b22-sec7/snapback4/crates/snapback4-lang/src/bind/security/presentation.rs): all 17 codes at 0–2 now route to security. No code missing, no authority change.
+- [flag test]( /home/ccheever/projects/sb4-b22-sec7/snapback4/crates/snapback4/src/cli_flags.rs) supplies the required companions (`ack-security` ↔ `reason`). This matches the validator (`has("ack-security") != has("reason")` refuses). Test-only fix, correct.
+- [shortlist]( /home/ccheever/projects/sb4-b22-sec7/snapback4/crates/snapback4/src/note_rank.rs) plus its [call site]( /home/ccheever/projects/sb4-b22-sec7/snapback4/crates/snapback4/src/verbs.rs) keep every priority 0–2 note plus the first five distinct ordinary code classes in severity order, retaining all sites within a kept class. SEC6 (priority 5) competes inside the five and never adds slots. Remainder count preserved. This matches amended §§16.1/16.5.
+- The new unit regression proves the truncation fix: 7 codes × 8 sites keeps 48 (1 auto-kept + 5 classes), drops the 6th ordinary class (`N_SECURITY_INTENT`), and keeps all 8 `N_NEVER_COMPLETE` sites. No second-audience hiding.
+- [security guide wording]( /home/ccheever/projects/sb4-b22-sec7/snapback4/crates/snapback4-lang/src/guide/security.md) matches the new rule. [LLP contract]( /home/ccheever/projects/sb4-b22-sec7/llp/3000.036.004-security-invariants-and-exposure.rfc.md) §§16.1/16.5 text is consistent with the code.
+- [packed starters proof]( /home/ccheever/projects/sb4-b22-sec7/snapback4/scripts/publication-starters.mjs) (unchanged, lines 206–215) asserts stock-social `N_OPTIONAL_UPLOAD_CREATE` acknowledged, then unacknowledged with exit 1 after a source edit. Source-bound review with invalidation. Same contract, no authority change.
+
+No material mismatch found in this delta.

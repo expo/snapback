@@ -54,6 +54,8 @@ pub fn validate(args: &[String]) -> Result<(), String> {
     }
     let has = |name: &str| args.iter().skip(1).any(|arg| arg == &format!("--{name}") || arg.starts_with(&format!("--{name}=")));
     if verb == "check" {
+        if has("ack-security")!=has("reason"){return Err("E_INPUT: --ack-security ID requires --reason TEXT".into());}
+        if has("ack-security")&&["ack-notes","fix","store","release","emit-lean","audit"].iter().any(|f|has(f)){return Err("E_INPUT: individual security review cannot combine with --ack-notes, --fix, saved-store/release, --emit-lean or --audit".into());}
         if has("release") && !has("store") { return Err("E_INPUT: check --release requires --store <path>".into()); }
         if has("as") && !has("residency") { return Err("E_INPUT: check --as requires --residency".into()); }
         let incompatible = if has("emit-lean") { Some(("--emit-lean", &["cost","residency","fix","verbose","store","fixture","as","release","ack-notes","audit"][..])) }
@@ -239,6 +241,8 @@ mod projection_tests {
                 assert!(page.lines().any(|line|line.trim_start().starts_with(&format!("--{name}"))),"{verb}: {name}");
                 let args = if super::switch(name) { vec![verb.into(), format!("--{name}")] } else { vec![verb.into(), format!("--{name}"), "value".into()] };
                 let mut args = args;
+                if verb == "check" && name == "ack-security" { args.extend(["--reason".into(), "spec rationale".into()]); }
+                if verb == "check" && name == "reason" { args.extend(["--ack-security".into(), "value".into()]); }
                 if verb == "check" && name == "as" { args.push("--residency".into()); }
                 if verb == "check" && name == "release" { args.extend(["--store".into(), "value".into()]); }
                 if verb == "test" && name == "verbose" { args.push("--residency".into()); }

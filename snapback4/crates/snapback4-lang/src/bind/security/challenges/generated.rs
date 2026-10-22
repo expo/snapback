@@ -95,7 +95,8 @@ pub fn fixture(bound:&Bound,out:&mut Campaign)->Result<Engine,String>{
         !columns.is_empty()&&bound.schema.tables.values().any(|t|[&t.rules.read,&t.rules.insert,&t.rules.update,&t.rules.delete].into_iter().chain(t.column_reads.values()).any(|r|used(bound,r,name,&columns)))
     }
     let rosters=bound.schema.visible_tables().filter(|(name,_)|authority_roster(bound,name)).map(|(name,_)|name.clone()).collect::<BTreeSet<_>>();
-    let creators=bound.programs.iter().filter(|p|p.program.kind==ProgramKind::Mutation&&!p.program.native&&!bound.schema.operations.get(&p.program.name).is_some_and(|f|f.ephemeral)&&ir::write_tables(&p.program).iter().any(|(_,kind)|matches!(*kind,"insert"|"upsert"))).collect::<Vec<_>>();
+    let mut creators=bound.programs.iter().filter(|p|p.program.kind==ProgramKind::Mutation&&!p.program.native&&!bound.schema.operations.get(&p.program.name).is_some_and(|f|f.ephemeral)&&ir::write_tables(&p.program).iter().any(|(_,kind)|matches!(*kind,"insert"|"upsert"))).collect::<Vec<_>>();
+    creators.sort_by_key(|p|ir::write_tables(&p.program).iter().any(|(_,kind)|matches!(*kind,"update"|"upsert"|"delete")));
     let created=creators.iter().flat_map(|p|ir::write_tables(&p.program)).filter(|(_,kind)|matches!(*kind,"insert"|"upsert")).map(|(t,_)|t).collect::<BTreeSet<_>>();
     let mut engine=engine_on_store(bound,&BTreeMap::new(),Vec::new(),proposed.store().empty_with_asset_ledger().map_err(|e|e.to_string())?)?;
     let mut pending=rows.iter().filter(|(t,_)|rosters.contains(*t)||!created.contains(*t)).flat_map(|(t,rs)|rs.iter().map(move|r|(t.clone(),r.clone()))).collect::<Vec<_>>();
@@ -135,11 +136,20 @@ pub fn fixture(bound:&Bound,out:&mut Campaign)->Result<Engine,String>{
     creator_actors.sort_by_key(|actor|!roster_principals.contains(actor));
     // Authored insertion bodies preserve requires, immutable copies, defaults,
     // role checks on principal arguments and multi-table creation invariants.
-    let mut attempts=0usize;
+    let mut attempts=0usize;let mut root_observed=false;
     for _ in 0..=bound.schema.tables.len().min(12){
         let before=readback(&engine)?;
         for bp in &creators{
             let p=&bp.program;let writes=ir::write_tables(p);
+            // Preserve a pre-transition root population. Later derived creators
+            // can otherwise consume every pending lifecycle row during setup.
+            if !root_observed&&writes.iter().any(|(_,kind)|matches!(*kind,"update"|"upsert"|"delete")){
+                root_observed=true;
+                if out.generated_fixture&&out.work_remaining.is_none()&&validate_fixture(bound,&mut engine).is_ok(){
+                    let first=out.violations.len();histories::lifecycle_observers(bound,&engine,out);
+                    for witness in &mut out.violations[first..]{if witness.reachability==Reachability::AuthoredFixtureTrace{witness.reachability=Reachability::GeneratedFixtureTrace;witness.scope="actual authored observation from a validated generated root fixture before derived creator transitions; initialization is not claimed application-reachable".into();}}
+                }
+            }
             let implicit=stability::implicit(bound,p);
             if writes.iter().all(|(t,_)|rosters.contains(t)){continue;}
             let current=readback(&engine)?;

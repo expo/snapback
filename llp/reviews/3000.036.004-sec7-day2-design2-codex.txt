@@ -1,0 +1,2711 @@
+OpenAI Codex v0.162.1
+--------
+workdir: /home/ccheever/projects/sb4-b22-sec7
+model: gpt-6.1-sol
+provider: openai
+approval: never
+sandbox: danger-full-access
+reasoning effort: high
+reasoning summaries: none
+session id: 01a162d3-8973-7610-80fa-e8a5a35b0cf6
+--------
+user
+Independently review the revised SEC7 day-two design, ONLY section16.9 of llp/3000.036.004-security-invariants-and-exposure.rfc.md plus necessary existing security definitions. Earlier reviews are NOT READY and retained; do not treat their output as independent evidence. Check the exact stated fragment and commissioned fixes: optionality and040 conditional-child safety;030 narrowing/grouping;042 field-guard advice;028 evidence deletion. The scope is design readiness, not completed tests. Changes explicitly address direct/child mandatory intent, normalized nonnull, all edit-path union, exact parent linkage, deterministic IDs, stock removal, finite limits and qualification controls. Read named schemas only as needed. Return READY or NOT READY with material concrete objections, no file modifications. Never read credential stores or print credentials.
+
+codex
+I’ll review section 16.9 against the necessary security definitions and named schemas, without reading earlier review conclusions or credential stores. I’ll assess design readiness and leave all files unchanged.
+
+exec
+/bin/bash -lc 'cat /home/ccheever/.codex/skills/llp-orient/SKILL.md' in /home/ccheever/projects/sb4-b22-sec7
+ succeeded in 0ms:
+---
+name: llp-orient
+description: Before editing a subsystem, file, or starting a task, assemble the governing LLP context — read the root LLP, follow the @ref annotations on the code in scope, and find the LLPs covering the relevant systems. Produces a compact context pack of the constraints a change must respect. Read-only.
+source: ccheever/llp@v0.5.2
+---
+
+# llp-orient
+
+<!-- @ref https://github.com/ccheever/llp/blob/v0.5.2/llp/0008-distributed-agent-skills.rfc.md#the-skills--core-five-plus-flags — skill contract -->
+<!-- @ref https://github.com/ccheever/llp/blob/v0.5.2/llp/0000-linked-literate-programming.explainer.md#2-reference-syntax — the grammar this reads -->
+
+Load the design rationale governing the area you're about to touch, before touching it. This is the consumption side of LLP — orienting first is what turns `@ref` from a possibility into a habit.
+
+Invoke as `/llp-orient <path-or-task>` (file, directory, subsystem, or task description). With no argument, use the current change scope (`git diff --name-only`).
+
+## Trigger
+
+Start of a coding task that touches an area with documented design. The orient-first *rule* lives in the repo's always-loaded `AGENTS.md`; this skill is the detailed form that rule routes to for non-trivial work — don't rely on ambient description-match alone.
+
+## Invariants
+
+- MUST be read-only: never edit code or LLP documents.
+- MUST scope to the task: pull the constraints that bind this change, not a corpus summary.
+- MUST cite, not restate: reference policy as `LLP NNNN#anchor` rather than paraphrasing sections.
+- MUST NOT invent constraints. If something isn't documented, say so.
+- MUST NOT guess the rationale behind a broken `@ref` — report it and hand off to `llp-maintain`.
+
+## Workflow
+
+> **Recipe (advisory)** — corpus root = nearest `llp/` walking up from the path in scope (LLP 0001 §Unit of adoption); "no corpus" is an empty walk, not cwd-relative absence. Read `llp/foundation/` first (the kernel; the root LLP is there once `Active` — on a fresh adoption it is still `Draft` and sits in `current/`), then skim `llp/current/` (the declared working set); both hold relative links — symlinks, or small files containing the relative path — so `ls` answers and either form resolves. Then the root LLP's systems vocabulary. `Grep '@ref'` over the files in scope and `Read` each target — these are the highest-signal context. `Grep` the `**Systems:**` headers across `llp/` for LLPs governing the subsystems touched; read the governing ones (Spec, Decision, Principles, relevant RFCs). Follow `Related:` and nearby `@ref` targets one hop out; stop there unless something is clearly load-bearing. Stale-pin nudge (skip offline): read the installed tag from the skills receipt (or a `source:` pin), compare `git ls-remote --tags <origin>` — if upstream is newer, say so in one line ("skills at v0.3.0, upstream v0.5.2 — run /llp-adopt update") and move on; never update from here.
+
+## Artifact
+
+A context pack with these sections, faster to read than the documents it points at:
+
+- **Scope** — files / subsystems queried
+- **Governing LLPs** — numbered list, one-line gloss each; mark which are in `foundation/` and which are in `current/` (in-flight — its guidance may still move)
+- **Active constraints** — bullets, each citing `LLP NNNN#anchor`
+- **Relevant rationale** — the *why*, same citation form
+- **Open questions / risks** for this area
+- **Likely doc updates** if the change lands
+- **Hand-off** — one of `none | llp-adopt | llp-create | llp-review | llp-maintain`
+
+## Hand-offs
+
+- No corpus (no `llp/` walking up from the path in scope) → `llp-adopt`.
+- The task needs a decision no LLP covers → `llp-create` (or `llp-review` if proposal-shaped).
+- An `@ref` target or anchor doesn't resolve → `llp-maintain`.
+
+exec
+/bin/bash -lc "git status --short; rg -n '"'^#{1,6} .*16'"\\.9|"'^#{1,6} .*16'"\\.(8|10)|SEC7|day.two' llp/3000.036.004-security-invariants-and-exposure.rfc.md; cat snapback4/AGENTS.md" in /home/ccheever/projects/sb4-b22-sec7
+ succeeded in 114ms:
+ M llp/3000.036.004-security-invariants-and-exposure.rfc.md
+ M snapback4/crates/snapback4-lang/src/bind/security/authority_walk.rs
+ M snapback4/crates/snapback4-lang/src/bind/security/challenges/histories.rs
+ M snapback4/crates/snapback4-lang/src/bind/security/creation_advice.rs
+ M snapback4/crates/snapback4-lang/src/bind/security/presentation.rs
+ M snapback4/crates/snapback4-lang/src/bind/security/write_advice.rs
+ M snapback4/crates/snapback4-lang/src/diag.rs
+ M snapback4/crates/snapback4-lang/src/guide/codes.rs
+ M snapback4/crates/snapback4-lang/src/guide/security.md
+ M snapback4/crates/snapback4-lang/tests/guide/definitions.rs
+ M snapback4/crates/snapback4-lang/tests/guide/refusal_actions.rs
+ M snapback4/crates/snapback4-lang/tests/security_sec7.rs
+ M snapback4/crates/snapback4/src/verbs/init.rs
+ M snapback4/crates/snapback4/src/verbs/init/social.rs
+ M snapback4/crates/snapback4/src/verbs/init/social/README.md
+ D snapback4/crates/snapback4/src/verbs/init/social/security-reviews.json
+ M snapback4/crates/snapback4/src/verbs/security_reviews.rs
+ M snapback4/crates/snapback4/tests/security_reviews.rs
+ M snapback4/packages/snapback4/CHANGELOG.md
+ M snapback4/packages/snapback4/test/social-starter.test.mjs
+ M snapback4/scripts/publication-starters.mjs
+?? llp/reviews/3000.036.004-sec7-day2-design-codex.txt
+?? llp/reviews/3000.036.004-sec7-day2-design-muse.txt
+?? llp/reviews/3000.036.004-sec7-day2-design2-codex.txt
+?? llp/reviews/3000.036.004-sec7-day2-design2-muse.txt
+?? snapback4/crates/snapback4-lang/src/bind/security/authority_walk/
+?? snapback4/crates/snapback4-lang/tests/security/wave23/
+?? snapback4/crates/snapback4-lang/tests/security_sec7_day2.rs
+?? snapback4/reports/20261022-sec7-day2/
+8:**Revised:** 2026-10-22 (SEC7 §16 design: Muse and fresh Codex READY; implementation qualification in progress); previously 2026-10-21 (SEC5 §14 and SEC6 §15; both independently reviewed; SEC6 scoped qualification complete; code snapshot4578e98bed)
+606:## 12. SEC3 day-two amendment
+608:Implementer: SEC3, 2026-10-19. Commission: day-two fix list 3/4/5/8.
+1261:commissions this semantic correction after wave-19 day-two evidence.
+1995:## 16. SEC7: advice that reaches the builder
+2247:SEC7 design review provenance: [verbatim reviews](./reviews/3000.036.004-sec7-review-record.md).
+2293:### 16.8 Typed upsert key binding
+2308:### 16.9 Day-two precision and destructive evidence questions
+2311:day-two addendum. This supersedes the upload shape and stock-template disposition
+# Snapback 4 — agent command sheet
+
+Read this, then [LLP 3000](../llp/3000-snapback4.explainer.md) (the root and
+the bakeoff protocol), [LLP 2000.000](../llp/2000.000-keep-the-core-flip-two-substrates.rfc.md)
+(the design brief), [`NOT-DOING.md`](./NOT-DOING.md), and the tail of
+[`JOURNAL.md`](./JOURNAL.md). `rules/RULES.md` at the repository root is
+adopted here as written; LLPs for Snapback 4 are numbered **3000 and up**
+(`llp-create --under 3000` for a child; extend LLP 3000 or LLP 2000.000
+before minting a new number).
+
+```
+cargo build                          # the binary; no JS engine, no bootstrap; crates.io plus one vendored patch (vendor/tiny_http)
+scripts/test.sh                      # everything blocking (60 s budget); reports every failure, never fail-fast
+./target/debug/snapback4 --help      # init [--online|--expo] · check [--cost|--residency|--fix|--json] · dev · deploy · rollback · serve · run (an op, or a job as the system) · test · why · guide · data · sql · token (a service's seat) · doctor · device · types · --version
+./target/debug/snapback4 guide       # lists cards (`guide aliases` lists aliases); `guide language` for the language card — every card's Quarry is compiled by the suite (crates/snapback4-lang/tests/guide.rs)
+cd apps/chat && ../../target/debug/snapback4 check     # compiles snapback/*.q, writes snapback/generated/api.ts
+cd apps/chat && ../../target/debug/snapback4 dev       # serves 127.0.0.1:4400; re-adopts the schema on save
+cd apps/chat && bun run dev                            # the app on the real client (?as=bob picks a persona)
+bun run --cwd packages/snapback4 typecheck   # the contract, the client and the hooks typecheck
+cargo test -p snapback4-core --test corpus -- --nocapture   # the conformance corpus, with skip reasons
+cargo test -p snapback4-difftest     # fixed seeds, oracle regressions and replay (opt-in, no database by default)
+cargo run --release -p snapback4-difftest -- compile case.q   # a generated or hand-written source's binder diagnostics ("ok" when none)
+cargo run --release -p snapback4-difftest -- run --seed 0 --cases 100000 --workers 6 --out /tmp/quarry-difftest
+cargo run --release -p snapback4-difftest -- replay crates/snapback4-difftest/cases/found/rewrite-identity--why--NOT_FOUND
+cargo run --release -p snapback4-difftest -- run-devices --seed 0 --cases 100000 --workers 8 --out /tmp/quarry-devices   # server against both device stores; no database
+cargo run --release -p snapback4-difftest -- replay crates/snapback4-difftest/cases/found/device-sqlite--write-predicted-refused--admitted
+(cd lean && lake build) && cargo run --release -p snapback4-difftest -- run-lean --seed 0 --cases 100000 --workers 8 --out /tmp/quarry-lean   # the engine against the Lean model (LLP 3000.035 §5.2); ~900 cases/s on 8 workers
+cargo run --release -p snapback4-difftest -- replay 'crates/snapback4-difftest/cases/found/lean--kind--committed~NOT_FOUND'   # needs the model built, or SNAPBACK4_LEAN_ORACLE=<quarry-oracle>
+./target/debug/snapback4 check --emit-lean schema.q   # one checked file as the Lean model's case JSON; programs outside its fragment listed with a reason
+# Store tests require SNAPBACK4_EVAL_POSTGRES pointing to a private evaluation cluster.
+cargo test -p snapback4-difftest --features postgres  # fails if the cluster is absent
+cargo run --release -p snapback4-difftest --features postgres -- run-stores --seed 0 --cases 1000000 --workers 8 --seconds 10800 --out /tmp/quarry-stores
+cargo run --release -p snapback4-difftest --features postgres -- replay /path/to/found-case
+python3 scripts/test-difftest-scheduled.py  # runner/ticket tests; no schedule or push
+scripts/difftest-scheduled.sh --checkout "$HOME/quarry-difftest-runner" --state-dir "$HOME/.snapback-quarry-difftest" --hours 3
+# Operator only: install daily launchd (Darwin) or user systemd timer (Linux).
+scripts/install-difftest-schedule.sh --checkout "$HOME/quarry-difftest-runner"
+cargo test -p snapback4-sim          # the chat world under faults: the seven invariants
+cargo test -p snapback4-sim --test exhaustive   # every sequence of two writes (two viewers, two groups): disclosure and write authority against a model of the rules
+SNAPBACK4_EXHAUSTIVE_DEPTH=3 cargo test -p snapback4-sim --test exhaustive -- --ignored   # three writes: ~7,000 states, minutes
+scripts/kani.sh [harness...]         # Kani proofs of the key encoding (crates/snapback4-core/src/key_proofs.rs; minutes, ~12 GB peak); outside test.sh
+(cd lean && ./check.sh)              # the Lean model of Quarry's core (LLP 3000.035 §5.2): lake build (~15 s cold, needs elan), no-sorry/axiom audit, 53 examples, the quarry-oracle I/O fixture; outside test.sh; open points in lean/OPEN.md
+cargo test -p snapback4-sim --test native   # native jobs: builds native-fixtures/rescore for wasm32-unknown-unknown (cold ~20 s, then cached under target/native-fixture) and runs it
+bash scripts/build-wasm.sh           # the device as wasm into packages/snapback4/src/wasm/ (the web tier and the Chromium witness need it); fails when the gzip exceeds metrics/wasm-budget.json — a landing that needs the bytes raises the budget in the same commit, with the reason
+node witness/idb.mjs                 # the Chromium witness: the client on the wasm device over IndexedDB (needs Chrome)
+WITNESS_UDID=<dedicated-udid> node witness/expo.mjs   # published witness verb/helper; freshly install apps/chat-expo Release first (simctl uninstall a previous build: its store belongs to an earlier backend); port 4400, no Metro
+node witness/scale.mjs [G] [N] [M]   # cold sync at scale: G groups × N messages × M members into the wasm device; wall time + JS heap → metrics/witness.jsonl
+node scripts/measure-storage.mjs     # what the store weighs on the scale seed (rows, indexes, partition log) → metrics/storage.jsonl
+                                     # SNAPBACK4_BIN=target/release/snapback4 measures the release build (throughput numbers)
+node scripts/measure-client.mjs      # each client tier's bytes on the pinned toolchain → metrics/client.jsonl
+node scripts/attribute-wasm.mjs [--families] [--check-families] [--check-absent] # class bytes and concrete serde families; --check-families refuses non-text readers/non-Vec writers outside the exact dynamic-envelope, counting-writer and Scan map-replay allowlists; content-buffer families name the duplicated types and refuse Deserialize representations using untagged, tag or flatten; --check-absent refuses the core's prefetch, admission or log-event symbols in the web artifact (needs twiggy; slow, outside test.sh)
+bash scripts/check-release-guard.sh # the web artifact's configuration plus the debug-only `web-device-check` feature must refuse to build (in test.sh)
+bash scripts/measure-wasm.sh         # the device core as wasm (crates/snapback4-device), family-checked, bound and measured → metrics/wasm.jsonl
+bash scripts/build-xcframework.sh    # the device as an iOS xcframework for packages/snapback4-expo (staticlib alone, stripped; 13.2 MB with native reads)
+node loopbar/run.mjs --n 3           # the loop bar: fresh agents on the published pin build reduced Clique M1–M3 → metrics/loopbar.jsonl
+node scripts/publish.mjs --prepare-client # rebuild wasm + clean client, pack once for cross-host qualification
+# Linux qualification host: strace >=6.8 on PATH (audits every successful TCP listen).
+node scripts/qualify-linux.mjs --client /path/client.tgz --expo /path/expo.tgz --out /path/qualification # Linux suite + Ubuntu/Alpine proof, no publish
+# Add --consumer-only for packed frontend/toolchain proofs without test.sh; this writes consumer.json, never a publication receipt.
+node scripts/publish.mjs             # Mac: qualify/sign Darwin; optional --linux-receipt + --linux-tarball import; platforms before client
+```
+
+Crates: `snapback4-core` (value model, schema with `sync`, IR, key encoding,
+SQLite store, rules with hoisting, the meter, the interpreter, the partition
+log, at-most-once, the day-two classifier, wire forms), `snapback4-lang`
+(Quarry lexer, parser, binder, diagnostics, the TypeScript emitter),
+`snapback4` (verbs and the HTTP wire), `snapback4-sim` (the deterministic
+world hosting the engine and a replica device), `snapback4-difftest` (seeded
+Quarry source generator, rewrite and meter oracles, optional Postgres store
+oracles with prefetch on/off, the server-against-device oracle on both device stores, the engine-against-Lean-model oracle, structural shrinking and replay; not published or linked by shipped crates), `snapback4-device` (the
+interpreter over a `DeviceStore`: the core's SQLite under the native
+module for Expo and Exact2 hosts, memory under wasm on the web; one
+dispatcher, one suite on both)). The guide (`snapback4-lang/src/guide.rs`) is
+the language card and the keyword cards; packages: `snapback4` (the client
+over the device and the CLI shim), `snapback4-darwin-arm64` and `snapback4-linux-x64` (the binaries), `snapback4-expo`
+(the Swift module over the device's C ABI).
+
+What exists, by week (LLP 3000 §5):
+
+| Week | Lands |
+|---|---|
+| 1 | the contract (`packages/snapback4/src/contract.ts`), the mocked chat app against it, the hub fixture wrapper, the five floor measurements in the journal, the simulator skeleton (`crates/snapback4-sim`), the Snapback 2 corpus copied in, 0.0.1 published |
+| 2 | server: SQLite transaction and interpreter, rules and uniformity, the meter, the partition log (`sync`), generations, personas, the wire, `check`/`dev`/`run`/`test`/`why`/`guide`, the seven simulator invariants |
+| 3 | web client: replica store, outbox with client-minted ids, local interpreter, reactive local queries, the online-only tier, the chat app on the real client |
+| 4 | Expo client, day-two scenarios, deploy, the loop bar, the Clique hub run, the comparison record |
+
+Gotchas you cannot derive from the code:
+
+- Own Cargo and Bun workspaces; the repository root excludes them. Run cargo/bun from `snapback4/`. Node 24.x (`engines`): run the suite with the pinned runtime on PATH, not the ambient Homebrew node.
+- Web builds require `bun install --frozen-lockfile` first. Binaryen 132.0.0 is
+  an exact workspace devDependency; build/measurement invoke its portable
+  `node_modules/binaryen/bin/wasm-opt` through Node, never a PATH optimizer.
+  Missing/mismatched dependencies and optimizer failures refuse the build.
+  See README's web-device build instructions and HV round 4 for host parity.
+- The suite schedules client files in one pool: `max(1, min(24,
+  floor(os.availableParallelism() / 3)))` slots (3 on 10 CPUs, 24 on 96).
+  This counts Linux CPU affinity and leaves room for each file's servers,
+  browser renderers and workers. Acquisition and server-e2e share that pool;
+  there are no extra shard processes outside it. Real-timer files listed in
+  `TIMER_CLIENT_FILES` drain that pool and run individually afterward with
+  unchanged timing bounds. The quote-jump browser witness remains pooled.
+  The two full-count model
+  files retain a separate serial slot. `SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1`
+  still forces one client file at a time. The external file watchdog measures
+  time since a subtest started or finished: max(900 seconds, largest single
+  declared guard + max(60 seconds, 25%)). There is no absolute duration cap.
+  Console output does not count as progress. Serial mode uses the same bounds.
+  See `scripts/run-client-tests.mjs` and the QF round-2 guard census; update
+  named work counts and recheck the census when declarations change. Every
+  file runs as native `node --test` with default isolation, in a process group
+  whose first member is a tiny Node keeper. The runner closes the keeper's stdin
+  on completion, stall or abort; only the keeper calls `kill(0, SIGKILL)`.
+  Runner death also closes that pipe. An unexpectedly exited keeper fails the
+  file and never authorizes a runner signal. Cleanup requires two consecutive
+  completed inspections (50 ms apart) with no living group member. Observed leftovers
+  fail as TEST_FILE_LEAK. Failed listings and unclassifiable PID/PPID/PGID
+  prefixes remain fail-closed. A ps timeout at two seconds retries once with a
+  60-second bound; all other command errors refuse immediately. Listings use
+  asynchronous spawn so other files' timers and keeper EOF delivery keep running.
+  File watchdogs and cleanup's five-second window use per-file monotonic time.
+  Expiry requires another completed snapshot: a live group after the deadline
+  refuses; two consecutive empty snapshots pass even when the second is late.
+  Precisely
+  recognized exit-time routing anomalies
+  discard the whole snapshot and retry at most twice, 50 ms apart; persistent
+  anomalies refuse and never confer ownership (LLP 3000 §7, QF2).
+  Metadata is validated for group members and
+  their visible descendants; unrelated rows only increment diagnostics.
+  Signed Darwin UIDs, variable lstart spacing and comm spaces are accepted.
+  Vanished members count as exited. Processes leaving the group (setsid,
+  setpgid or detached spawns) are outside cleanup custody; visible descendants
+  receive metadata validation but are never signalled by the runner. Native Node's exit
+  status alone decides test success; reporter counts are diagnostic only.
+  The reporter observes progress as Node delivers it: synchronous work that
+  does not yield may buffer events in Node's child until that work finishes.
+  Such an unreported interval is subject to the same stall bound. See QF Round 7.
+  The M5 MacBook is the publication host; the office M1 is calibration-only.
+- Client tests and their helpers must gate Linux APIs (`/proc`, `strace`, `ss`,
+  `taskset`, namespace/network tools) at the test or call, or implement a
+  portable fallback. Keep portable assertions running on Darwin and give each
+  skipped witness an explicit reason. The client pool runs
+  `test-platform-audit.test.mjs`: a cheap static census follows static named/namespace `.mjs`
+  imports and named helpers and checks scoped Linux skips/branches/early returns.
+  A gate in another test does not count. This conservative common-case guard
+  does not prove dynamic imports, generated scripts or arbitrary control flow;
+  review those paths and run affected tests on the publication Mac.
+  Listener snapshots and syscall tracing are Linux qualification capabilities,
+  never dependencies of the published `snapback4/proof` browser helper.
+- Before a publication dry run, warm the test artifacts **in that publication
+  worktree**, while the host is free of calibration work:
+  `LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT cargo test --workspace --no-run`.
+  Use the dry run's toolchain, target directory, profile/features, `RUSTFLAGS`
+  and Cargo profile environment. Do not add `--release` or `--profile production`:
+  the suite uses the default test profile. The suite still asks Cargo for the
+  complete test inventory, runs every binary and runs doctests separately.
+  Warming compiles without executing tests and supplies no qualification receipt.
+- One owner on the core (LLP 3000 decision 4): the engine, the store and the client contract are written by the lead session; Codex lanes take the fixture generator, the reference apps, the device witnesses and the periphery. Do not reshape `contract.ts` from a lane; propose the change in the journal.
+- No ceiling is raised in slice one (LLP 2000.000 §12). A thing that does not fit changes the design or waits.
+- The journal is append-only and dated; never rewrite an entry. LLP 3000 §7 carries decisions that must outlive it.
+- Nothing here depends on `snapback2/` at runtime. Copy source deliberately, split under 1,500 lines on the way in, and say so in the journal.
+- Named lane: `~/projects/snapback-sb4` on `sb4/*` branches. Never `git stash`; commit checkpoints.
+- The conformance corpus (`corpus/`) is Snapback 2's serialized IR and value
+  model; the core keeps those serializations so it binds. A case the slice
+  cannot run is skipped with a named reason, never counted as a pass.
+- `snapback/generated/api.ts` is built by `check` and `dev`, never committed;
+  the app's typecheck needs a `check` first (the suite does one).
+- Point rule probes and `exists` require a unique key. A fully pinned superset
+  of a required unique key is unique too (for example an explicit role index
+  containing the unique conversation/principal pair). Nullable unique key
+  arguments need non-null proof. Other existence checks use bounded populations
+  in code. Named equalities covering a total unique key check extra columns on
+  that one row without an additional index.
+- The packaged CLI uses `LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT` during both publication tests and its production build (LLP 3000 §7). A plain production Cargo build retains the dependency's ordinary SQLite policy; use the same build input when comparing with the package. The variable is unnecessary at runtime.
+- When creating a stage, `scripts/publish.mjs` runs the suite and refuses on red, builds the production binary, packs `snapback4-darwin-arm64` and verifies the installed digest, then publishes both packages. Bump `version` in `packages/snapback4/package.json` (and its `optionalDependencies`), `packages/snapback4-darwin-arm64/package.json`,
+  `packages/snapback4-linux-x64/package.json` and `Cargo.toml` together; a test refuses a mismatch.
+- Publication retains exact qualified tarballs under `target/publication/`. If a
+  stage exists, use `node scripts/publish.mjs --resume` to validate its recorded
+  suite qualification, requalify those exact bytes through the installed-consumer
+  proof, and finish missing registry artifacts; an existing version must match
+  its staged integrity. This also applies after `--dry-run`. An ordinary invocation
+  refuses an existing stage so changed source cannot silently publish old bytes.
+  Bump the version to build a new pair; preserve a partially published stage.
+- Cross-host publication (LLP 3000.021 §3.3): prepare the common client once
+  from clean release source, qualify that tarball on Linux, and import the
+  Linux tarball plus its receipt on the Mac. Source commit, client SRI and
+  Linux SRI must agree. Linux prefers working Docker/Podman, otherwise uses checksum-pinned proot
+  with clean Ubuntu 24.04/Alpine root filesystems in a user cache, and refuses
+  `NPM_TOKEN` or `NODE_AUTH_TOKEN`, even when empty. It never signs or packs
+  the client. The Mac never rebuilds or executes Linux; `--resume` rechecks
+  its copied receipt. No receipt packs a Darwin-only client; an existing
+  two-platform preparation is refused on that path. Packed dependencies must
+  match the staged set. Uploads use verified private snapshots, with each
+  digest checked again immediately before publish.
+  Commands and current qualification limits:
+  [`reports/20260927-lx-linux-package/REPORT.md`](./reports/20260927-lx-linux-package/REPORT.md).
+- The guide is tested text. Every ```quarry block in `crates/snapback4-lang/src/guide.rs` and in `packages/snapback4/README.md` is compiled by `crates/snapback4-lang/tests/guide.rs` with no diagnostic and no note (the language card is also run against the engine); every refusal code the sources emit must be in `guide::CODES`; every `guide("..")` a diagnostic carries must name a card. Add a form to the language card when you add it to the parser, fence README Quarry as ```quarry, and never fence Quarry as plain text to dodge the test.
+- Native jobs (LLP 3000.005) need `rustup target add wasm32-unknown-unknown`; the suite's fixture build fails loudly without it. The guest SDK `crates/snapback4-native` is a path dependency until it is published; an app's `snapback/native/Cargo.toml` names it by path.
+
+Quarry store testing (LLP 3000.035 §5.1): `SNAPBACK4_EVAL_POSTGRES` is an
+explicit evaluation connection. The factory owns one physical schema per worker,
+restores its rows and bookkeeping, installs the compiled fixture, then opens the
+ordinary engine. Mutation attempts restore a seeded snapshot; shrinking reuses
+that same factory. `Database::connect_fresh()` is an opt-in test mode. Fresh and
+restored outcomes must serialize to identical bytes. The local wire observer
+retains SQLSTATE, message, detail and SQL statement before the public query API
+converts a driver error to a refusal; it never changes the traffic.
+
+Reads sweep every public boundary. Mutations compare every discovered position
+twice on SQLite, and compare up to eight seeded positions per dimension on
+Postgres (including first/last), plus the case's original budget. Sampling
+counters are in `store_stats`; each selected position runs prefetch on and off.
+Physical prefetch counters are separate from the exact public outcome record.
+The widened generator (`src/widen.rs`) emits prefetch-reachable reads: pages
+projecting `tags[.tag]` and `tags[name = .label]` (a `Get` and a unique
+`Lookup` whose keys vary across rows) and a loop reading `tags[row.tag]`, so
+`store_stats` reports marked reads, transferred rows, cases with a transfer
+and `prefetch_consumption_witness_probes` (fewer database calls with prefetch
+on: cached answers were consumed). A planted cached-hit-to-miss fault is caught
+by the random corpus (LLP 3000.035 §5.1; the closed
+[coverage ticket](../issues/closed/20261007-quarry-store-oracle-prefetch-coverage-gap.md)).
+Heap is charged identically on every store and the device (LLP 3000.007
+§20.24.5); any disagreement is a ticket candidate, never normalized into a pass.
+The cluster regression asserts it finds no signature and refuses any new one.
+
+`run-stores --seconds N` stops each worker between cases after N seconds; a case
+and any shrinking already underway finish. `cases` remains the requested count,
+`generated` is actual completed generation, and `time_limited_workers` reports
+the early stop. Slowest-case timing includes generation, comparisons, shrinking
+and artifact saving. It does not silently claim the requested million. The scheduled
+runner rejects incomplete reports; its own `--hours` option instead chooses a
+case count from a 256-case calibration of both campaigns, with 20% headroom and
+a million-case cap. This is a sizing estimate, not a hard deadline.
+
+Generator widening (`src/widen.rs`, LLP 3000.035 §5.1): from a stream
+independent of the base generator (`generate::base`; a seed it leaves alone is
+the base case byte for byte), cases gain prefetch-reachable reads, mutation
+blocks (lets, `require`, `if`, several writes to `key` and `k2`, reads after
+writes), a prelude of mutations `prep0..` run in order on the same store before
+`run` (`Case::steps`, sometimes as the other viewer; `observe` then reads both
+keys), and expiry (`expire at .until`, a clock advancing from `seeded_at`
+through each step to `clock`, sweeps, `until: now + ttl`). Every oracle runs the
+prelude (`execute::world`) and compares its outcomes (`prelude-*` fields;
+`store-postgres-prelude`); a device acquires at the seed clock and catches up by
+one sync round after the server's prelude. The prelude is emitted first so no
+rewrite moves its sites. `lean::generate` narrows half the cases outside the
+model (projections, expiry) back into its fragment; the rest stay named
+unsupported (`shape`, `loop`, `table-expiry`). The report's `coverage` counts
+each new feature (`block/*`, `prelude/*`, `projection/*`, `expire/*`, `clock/*`).
+
+Quarry device testing (`src/devices.rs`, `src/device_writes.rs`, LLP 3000.035
+§5.1 oracle 4): each case runs on a server engine and on a device of each store
+(native SQLite at a file path, and memory), both brought up through the client's
+own path: the `/schema` backend as JSON text, then `local.ts::syncRound` (capture
+`sync_state`, `/sync` snapshot pages built as `serve_sync.rs` builds them,
+`observe_store`, `apply` through `call_text`, catch-up stream). Never seed a
+device store directly. Reads the device publishes without the server (`complete`
+with `unknown` false, or a known refusal) compare the whole outcome record
+except `seq` (and server-only `delivery`); every other read counts under a named
+reason (`online-only-*`). Low ceilings reach the device only through `call`'s
+`spent` ledger (`default - n`), compared at the server's boundary positions.
+Writes go through `admit`: a device refusal must equal the server's, a
+predicted row must equal the committed one (less its `pending` marker), and
+after `settle` plus a sync round the device must answer `observe` as the server
+does. `run-devices` accepts `--seconds`. Known findings are retained under
+`cases/found/device-*` with a `DIAGNOSIS.md`; `tests/devices.rs` replays them
+and `tests/smoke.rs` pins the fixed-seed signature set.
+
+The Lean oracle (`run-lean`, LLP 3000.035 §5.2): `snapback4_lang::emit::lean`
+translates each generated program's surface tree (never the binder's IR) to
+the model's case JSON; `quarry-oracle` (`lean/Oracle.lean`, one process per
+worker) answers one tagged outcome per line; the engine runs on SQLite at
+default ceilings. Compared: kind, refusal code, data (tagged: an id is not a
+text), `complete`, `next` presence, each side's own continuation, and a
+mutation's `observe` reread. Not compared: meter fields and sites. Programs
+outside the model's fragment are named unsupported reasons, never passes.
+`lean::generate` adds Lean-only variants (per-effect rules, a hidden probe
+target, nullable/id orders, residual filters) aimed at `lean/OPEN.md`. A
+disagreement is a Rust defect, a model defect (only when a document
+contradicts the model: fix the model, rerun `lean/check.sh`), or an open
+point (record the engine's behaviour in `OPEN.md`); never change the model to
+match the engine without a document. Findings live in
+`cases/found/lean--*` with `DIAGNOSIS.md`; `tests/lean.rs` replays them and
+pins the open signature set. Lean-dependent tests skip loudly without the
+built model; `SNAPBACK4_REQUIRE_LEAN=1` makes that a failure.
+
+Quarry scheduled testing: prepare a separate clean clone whose current branch
+can fast-forward to `origin/main`. The runner fetches/fast-forwards it and starts
+its own socket-only evaluation cluster with `fsync=off`,
+`synchronous_commit=off`, `full_page_writes=off`, `shared_buffers=1GB`, and
+`max_connections=200`. It builds the Lean model's `quarry-oracle` first
+(`lake build` in `lean/`; a host without `lake` fails the run), then runs the
+SQLite, store, device and Lean campaigns on the selected
+seed window, replays shrunk findings twice, and files/appends open `issues/*.md`
+tickets. Only ticket changes are committed/pushed, with three fetch/rebase
+retries. State and reports live outside Git under `--state-dir`; seeds advance
+only after completed work and successful owned-cluster cleanup. Dirty/diverged
+trees, overlap, setup failures, partial reports and failed publication refuse.
+A crash can retain the lock and cluster directory; inspect `lock/owner.json`
+and the run report. Never stop a cluster by process name.
+
+`--dry-run --cases 32` writes previews and a separate `next-seed.dry-run.json`,
+never commits or pushes. Dry runs may explicitly supply `--external-postgres
+'host=... user=... dbname=...'`; that cluster is neither started nor stopped by
+the runner. Ambient connections do not override normal private-cluster ownership.
+The installer remains an operator action; do not invoke it during development.
+
+The Lean oracle on a scheduled host (one-time, per user, no sudo): install
+elan with `curl https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -sSf | sh -s -- -y --default-toolchain none`.
+The runner finds `lake` on `PATH` or in `~/.elan/bin`; the first `lake build`
+downloads the toolchain pinned in `lean/lean-toolchain` (Lean 4.34.1, no
+Mathlib), so the first scheduled run needs network. Check by hand with
+`(cd lean && ./check.sh)` in the runner's clone. `run.json` records the pinned
+toolchain and the oracle binary's digest.
+
+codex
+I’m using `llp-orient` to identify the governing definitions, keeping the review limited to section 16.9 and its dependencies.
+
+exec
+/bin/bash -lc "sed -n '2308,2750p' llp/3000.036.004-security-invariants-and-exposure.rfc.md" in /home/ccheever/projects/sb4-b22-sec7
+ succeeded in 0ms:
+### 16.9 Day-two precision and destructive evidence questions
+
+Implementer: Codex for Charlie Cheever, 2026-10-22; commissioned by the wave-23
+day-two addendum. This supersedes the upload shape and stock-template disposition
+in §§16.2/16.5/16.7 and narrows stale-creation advice. It changes analysis and
+finite witness selection, never runtime admission or application authority.
+
+**Optional uploads.** Optional arguments and optional columns are a valid model,
+including deliberate v2 loosening and exceptions such as a lockout without proof.
+Do not gate them merely because their names suggest evidence. Gate an optional
+image/file argument flowing to a creating media column only when that column is
+required, or a direct positive conjunct of an authored `table always` invariant
+requires that exact column to be non-null. Flatten conjunctions and recognize
+`field != null` and the exactly equivalent `not (field = null)` in either operand
+order. Other negation, an OR, an unrelated column, comment, product document or unknown predicate is not
+a mandatory-media declaration. No natural-language specification parsing, deploy
+diff exemption, lane exemption or new intent language is introduced. Required
+child media with optional arguments does not, by itself, require a child row.
+A child-local non-null branch is valid optional attachment creation, including
+040's return photo, and cannot fail check on that basis. Gate missing parent
+evidence only when an independent parent `always exists child[...]` conjunct
+pins the exact parent-reference relationship and the operation creates that parent.
+Such a child-only guard cannot satisfy the explicit parent-level obligation.
+Without that obligation, parent-plus-conditional-child creation may ask the existing
+advisory optional-evidence question, but never imposes an acknowledgment.
+ Existing dominating non-null
+guards across every creating context still suppress the question. Required scalar media (or a required nonempty list of required media)
+with required arguments needs no optional-upload review. A required list allowing
+zero elements is not mandatory evidence. Existing generic optional
+evidence advice remains advisory. Bump the analyzer revision; remove the stock
+social disposition and its special injection/custody code, because intended
+text-only messages now check without any acknowledgment, including after edits.
+Keep individual source-bound reviews for the two genuine gated shapes.
+
+**Stale eligibility.** Match a creator's dominating condition on a non-role,
+non-immutable column that another authored mutation actually changes (or an
+existence condition on a deletable dependency). A mere read of an immutable owner
+or an unrelated write to that table is not mutable eligibility. A later operation
+qualifies only when it writes an approval-like literal enum state (`approved`,
+`accepted`, `authorized`, `granted`, `issued`, `active`, `confirmed`, `paid`,
+`signed`) or a true approval/authorization flag, and updates the created table
+or creates a directly referencing child. An arbitrary edit, inspection, rejection,
+cleanup or status-copy is outside this name-based advisory fragment. Rechecking
+the relevant eligibility column (or named existence dependency) suppresses that
+path; merely reading an immutable owner or a different column cannot suppress it. Group all creator and later-write
+sites into one question per created table and mutable dependency; use the
+lexicographically least (filename, numeric line, numeric column) decision site,
+with sorted creator/decision names and sites plus the eligibility columns. This is a question, not an assertion that
+every such decision must repeat the check; unsupported forms stay uncovered.
+
+**Create/edit asymmetry.** Add `N_CREATE_EDIT_ASYMMETRY`, ranked with likely-hole
+questions (priority 2), and `N_PRIVATE_CREATE_EDIT_ASYMMETRY` at priority 1
+for a write-only private payload. Compare
+argument-supplied creation fields with actual authored updates to that field.
+Generic table-wide differences remain ordinary insert inventory; the new classes
+require a recovered column-specific conditional guard. Besides stable global
+requirements and table update gates, recover a conditional
+column guard of the form `if newValue != target.column: require authority`
+(or the equivalent equality/else form). Resolve lexical aliases and helper
+arguments. Match the exact table, selected target keys, column and assigned
+expression; a guard for a different row/field cannot become this column's edit
+guard. Only guaranteed leading requirements of the changed branch count. Mixed
+conditions, unknown effects and guards separated by intervening writes do not
+establish this match. This extraction is isolated to advice; it is not a proof
+rule or a new runtime check. Emit only a definite failed implication from creation
+admission to the stable edit guard; unknown/capped comparisons do not establish
+asymmetry. Union the necessary restrictions of every resolved edit path for the same
+editor/table/column, including paths without a recovered conditional guard; only
+a definite failed implication to that union can emit. Group by creator/table/
+column/guard, name the editor and exact guard.
+Only after emitting the specific note, suppress the older generic insert-inventory
+note for that creator/table/column; failed recovery must retain the generic signal. It cannot
+obscure the more specific question; defaults/literals remain quiet. A private
+write-only escalation requires a definite failed implication from creator
+admission to an explicit column-read gate, not merely an unknown read audience.
+The message names that audience and asks whether this caller should initialize
+the agency's private field. Both forms remain advisory and never infer the spec.
+
+**Non-null witnesses.** Within the existing finite argument and campaign budgets,
+prioritize non-null values for optional arguments directly supplying a declared
+column-write intent before the null baseline. Preserve null alternatives and
+explicit truncation notices. Only actual admitted writes judged against independent
+intent refute; finite failure to find a witness remains unproved. Pin a non-null
+042 billing-note witness for an added independent `agencyBillingNotes write only
+owner` invariant, with actual GeneratedFixtureTrace/AuthoredFixtureTrace admission.
+Its original read/operation intents alone do not assert this missing column policy.
+Do not change its runtime rule or fabricate a row.
+
+**Evidence removal.** Add advisory priority-2 `N_EVIDENCE_REMOVAL` for a media child
+linked to a parent where the creation operation supplies required media and also
+creates the parent with that exact reference bound to the created row id (mere
+same-operation co-occurrence is insufficient), or independent parent `always exists child[...]` intent names
+that relationship (the existing spelling is pinned by wave22/040-spec.q). Identify authored deletes, changes to the parent-reference
+column, and explicit null/empty writes to evidence constrained non-null/nonempty
+by independent intent. Group by child/parent-reference and list the media fields
+and removing operations. Required media types alone do not prove the parent needs
+at least one child; phrase this distinction explicitly. Ask whether the last
+required evidence row can be removed, and point to a transactional last-child
+guard, replacement, parent retirement, and independent integrity intent plus test.
+Ordinary replacements of one non-null image are not removals. An optional
+attachment with neither required-creation structure nor independent integrity
+intent is outside the detector. A source guard may make removal intentional;
+this is reviewable advice, not a gate or a claim that the guard is absent.
+
+Qualification pins the twelve wave-23 loosen lanes 003,007,011,015,019,023,027,
+031,035,039,043,047 (including 003's conditional
+exception) with zero optional-upload gates; retains explicit parent-required-child and direct non-null intent positive controls;
+040 return attachments are a separate negative control; pins a single focused 030 eligibility question,
+042's owner-only billing guard and non-null witness, and 028's removal question.
+Run corpus measurements before/after, report gate and advice counts separately,
+and requalify the packed security guide/starters. Mac verification uses the named
+Studio worktree only; SSH unavailability is reported, never counted as a pass.
+
+Day-two fragment/qualification clarifications: these source heuristics are not
+proof-completeness analyses. Nonmatching approval synonyms (`verified`, `cleared`,
+`vetted`), mixed change conditions and early-return equivalents do not establish
+safety and do not generate one uncovered record per syntactic nonmatch. Their
+absence is documented here and in the guide; generic inventory and explicit
+intent remain available. Pin different-row, mixed-condition, intervening-write
+and early-return fallbacks, fee quietness, optional attachment exclusion, unrelated
+co-insert exclusion and ordinary replacement controls. Measure all corpus check
+latencies against the existing five-second authoring target; no new unbounded
+search or larger kernel implication budget is introduced. The same static
+creator/column/guard worklist uses the kernel's existing bounded implication.
+Stock social qualification now asserts no shipped reviews file, no upload gate
+and check exit0 before and after edits. Analyzer sec7-3 rejects sec7-2 records.
+
+exec
+/bin/bash -lc "rg -n '"'^#{1,6} |SECURITY_0(28|30|40|42)|optional|nonnull|mandatory'"' llp/3000.036.004-security-invariants-and-exposure.rfc.md" in /home/ccheever/projects/sb4-b22-sec7
+ succeeded in 0ms:
+1:# LLP 3000.036.004: Security invariants and exposure
+11:## 1. Contract
+25:## 2. Surface
+61:from its required column type/constraints (not an optional type), or otherwise
+67:## 3. Sound proof boundary
+168:## 4. Counterexamples and generated tests
+173:policy literals, principal arguments and absent optional values. Existing role
+190:## 5. Exposure report
+205:## 6. Bakeoff repairs
+209:of globally trusted authority (extend N_VACUOUS_RULE), optional evidence, and
+218:optional/list-contained text on server/device, without changing stored bytes.
+220:text. Media stays optional only when the product allows omission; required
+223:## 7. Qualification and limits
+246:## 8. Operation and general row assertions (SEC refinement)
+282:### 8.1 Exact conservative boundary (review clarification)
+313:## 9. First delivery checkpoint (2026-10-18)
+329:## 10. SEC2 observer and adoption amendment
+337:### 10.1 Separate observer obligations
+370:### 10.2 Temporal intent
+386:### 10.3 Adoption
+408:### 10.4 Reduction details and review clarifications
+458:### 10.5 Generated histories and production HTTP
+509:## 11. SEC2 reviewed checkpoint
+528:### 11.1 Avoid duplicate concrete searches
+562:### 11.2 Faithful changed-image witnesses
+585:### 11.3 Actual credential revocation admission
+597:### 11.4 Complete compiled seat discovery
+601:### 11.5 Reuse pure invalid-world judgments
+606:## 12. SEC3 day-two amendment
+612:### 12.1 Column read intent
+630:### 12.2 Reproducible campaigns and reachability
+641:Actors include all principal values in fixtures. Required/optional references
+661:### 12.3 Actionable authority advice
+683:### 12.4 Evidence
+693:### 12.5 SEC3 reduction details
+766:### 12.6 Disclosure and clock clarifications
+794:### 12.7 Stable judgments and direct payload witnesses
+831:### 12.8 Runtime intent and independent worlds
+1061:## 13. SEC4: independent intent and usable default campaigns (2026-10-19)
+1067:### 13.1 Intent and diagnostics
+1081:### 13.2 Generated initial worlds and password-only test
+1087:maintenance and reference ordering remain mandatory. Declined populations name
+1104:### 13.3 Coverage and bounded checking
+1136:### 13.4 Qualification
+1146:### 13.5 Review clarifications (revision 2)
+1198:### 13.6 Implementation qualification clarifications
+1206:optional alternatives. Optional time/relationship values include null. Text
+1257:### 13.7 Wave-19 correction: admissible starts and persistent refutations
+1475:## 14. SEC5: specification questions and refutations that land
+1483:### 14.1 Elicit the specification
+1508:### 14.2 Advice without declared invariants
+1551:### 14.3 Concrete role refutations and coupled worlds
+1582:### 14.4 Actions precede coverage details
+1595:### 14.5 Qualification
+1623:### 14.6 Controlling inherited premises and review clarifications
+1699:### 14.7 SEC5 final review dispositions
+1724:Production `row_image` normalization equates sparse optional/literal-default
+1778:### 14.8 Audit is a map; test runs the full finite campaign
+1797:### 14.9 Corpus precision refinements
+1818:and optional argument/server-now fallbacks. Use a finite fixed point: an
+1839:## 15. SEC6: write boundaries, returned privacy and deployment review
+1847:### 15.1 Every executed write
+1883:### 15.2 Mutation results are observations
+1916:The insert-intent and result-exposure review notes remain visible in short `check` output outside the ordinary note cap, following the existing escalation precedent. Nullable creation arguments retain null-first population coverage; direct optional column-write challenges interleave non-null alternatives within the existing finite cap. Missing commit-end images from expiry report coverage only and never stand in for an executed delete.
+1918:### 15.3 Rule-changing deployment review
+1929:the former but never refresh the latter. Persist optional timestamps with
+1947:### 15.4 Supplied client sessions
+1952:and valid optional scope/capExpiresAt fields. Legacy scope-less sessions remain
+1963:### 15.5 Qualification
+1966:optional non-null samples, mutation payload/privacy safe controls, strict deploy
+1995:## 16. SEC7: advice that reaches the builder
+2008:### 16.1 Presentation and conditional questions
+2022:minimum; optional money supplied to creation; constant true payment/approval
+2031:### 16.2 Narrow gates and individual dispositions
+2033:N_OPTIONAL_UPLOAD_CREATE: an optional image/file mutation argument flows to an
+2063:### 16.3 Directed finite histories
+2078:### 16.4 Qualification
+2090:### 16.5 Review clarification: exact detector and command boundaries
+2096:self-claimed relationship at 1; grant-outlives, optional evidence, role-wide read,
+2110:Optional money: the optional argument flows into an optional Money column, or an
+2199:Gate calibration targets: 021 for retained role; 003,018,027,040 for optional
+2200:uploads on wave22. 027 may be legitimate optionality: gate cost is review pending,
+2208:### 16.6 Second-review resolutions
+2280:### 16.7 Reviewed optionality in the stock social template
+2283:Ship its single pre-reviewed source/analyzer-bound optional-photo disposition as
+2293:### 16.8 Typed upsert key binding
+2308:### 16.9 Day-two precision and destructive evidence questions
+2315:**Optional uploads.** Optional arguments and optional columns are a valid model,
+2317:Do not gate them merely because their names suggest evidence. Gate an optional
+2323:a mandatory-media declaration. No natural-language specification parsing, deploy
+2325:child media with optional arguments does not, by itself, require a child row.
+2326:A child-local non-null branch is valid optional attachment creation, including
+2332:advisory optional-evidence question, but never imposes an acknowledgment.
+2335:with required arguments needs no optional-upload review. A required list allowing
+2336:zero elements is not mandatory evidence. Existing generic optional
+2387:prioritize non-null values for optional arguments directly supplying a declared
+2407:Ordinary replacements of one non-null image are not removals. An optional
+2414:exception) with zero optional-upload gates; retains explicit parent-required-child and direct non-null intent positive controls;
+2427:and early-return fallbacks, fee quietness, optional attachment exclusion, unrelated
+
+exec
+/bin/bash -lc "sed -n '1,205p' llp/3000.036.004-security-invariants-and-exposure.rfc.md; sed -n '1995,2078p' llp/3000.036.004-security-invariants-and-exposure.rfc.md; sed -n '2090,2198p' llp/3000.036.004-security-invariants-and-exposure.rfc.md" in /home/ccheever/projects/sb4-b22-sec7
+ succeeded in 0ms:
+# LLP 3000.036.004: Security invariants and exposure
+
+**Type:** RFC
+**Status:** Accepted (SEC design revisions 3/5 and SEC2 amendment/implementation round 5: Muse and fresh Codex READY; qualification in progress)
+**Systems:** Snapback 4 Quarry authorization, check, audit, generated security tests, validation
+**Author:** Codex for Charlie Cheever (SEC)
+**Date:** 2026-10-18
+**Revised:** 2026-10-22 (SEC7 §16 design: Muse and fresh Codex READY; implementation qualification in progress); previously 2026-10-21 (SEC5 §14 and SEC6 §15; both independently reviewed; SEC6 scoped qualification complete; code snapshot4578e98bed)
+**Related:** [LLP 3000.036](./3000.036-what-the-app-farm-asks-of-the-rule-language.rfc.md), [LLP 3000.035](./3000.035-quarry-semantics-in-lean.plan.md), [LLP 3000.014](./3000.014-a-child-reads-through-its-parent.rfc.md), [LLP 3000.038](./3000.038-file-assets.rfc.md)
+
+## 1. Contract
+
+The wave-16 bakeoff found rules enforced correctly but policies encoded wrongly.
+A declaration of intent is independent of the rules implementing it. `check`
+reports each declaration as **proved**, **refuted**, or **unproved**. Refuted
+means a concrete, replayed database/rule counterexample, never merely a Boolean
+assignment. Unproved names the unsupported path or incomplete search. Neither
+unproved nor a finite passing test campaign may be described as proved.
+
+Implementer: SEC in this worktree, starting 2026-10-18. The author commissioned
+this semantic extension and two independent design reviews. No version bump
+or publication is part of this lane. STAGE owns provisioning/password dev doors;
+RULES5 owns live-parent rule semantics; FRONT owns general diagnostic triage.
+
+## 2. Surface
+
+Use the existing rule vocabulary rather than invent a second policy language:
+
+```
+invariant notes.read only .patient = viewer or .clinician = viewer
+invariant requests.update only .requester != viewer
+invariant members.role write only exists roles[viewer, role = 'owner']
+invariant photos always .image != null
+```
+
+The first target is a table, the second component an effect (`read`, `insert`,
+`update`, `delete`) or a column followed by `write`. `write` checks insert and
+update, including both images for ordinary updates; delete authority has its
+own declaration. A column invariant only concerns writes to that column, but
+must include every effective admission path. Owner-only field patches bypass
+an ordinary table update rule; invariants affected by `written by` stay
+unproved until that bypass is modeled. An implication from a denied table
+rule must never prove such an owned-field claim.
+`always` is a row-integrity assertion. Predicates parse as ordinary Quarry
+expressions; unsupported policy expressions are reported unproved with the
+reason. Unknown tables/columns/effects are authoring errors. Multiple source
+files and multiple declarations are supported. For update intent `.field` means both old and next images for mutable
+columns; named transitions require an explicit reviewed reduction or stay
+unproved. Once-judged immutable/id rules need a proved equal-image reduction
+or stay unproved. Both upsert arms and `insert if absent` are included, with
+their own collision/refusal observations. `always` quantifies over every
+committed row image from insert/update/upsert and trusted seed/import/restore/
+activation, not merely mutation inserts. Constraint-based row proof must use
+the actual validation on every ingress, including defaults and the exact
+non-whitespace minimum function, or stay unproved.
+
+No declaration changes runtime
+authority or replaces a rule. No implicit service-seat exemption is added.
+
+The proof fragment uses bound rule predicates. A row assertion can be proved
+from its required column type/constraints (not an optional type), or otherwise
+remains unproved. Aggregate/transition/temporal assertions outside that fragment
+remain explicitly unproved, not syntactically discarded. Syntax with `now`,
+counts, or other program expressions must retain that reason. This is a safe
+extension point, not a claim of a complete solver for arbitrary Quarry.
+
+## 3. Sound proof boundary
+
+For a table effect, prove `admission => policy` for **every database snapshot**,
+row image, ordinary authenticated viewer (including service seats) and clock.
+The engine system principal is explicitly outside this quantification: it is
+the trusted seed/import/job boundary, never an ordinary user or an implicit
+service-seat exemption. Tables touched by system/native/job/worker paths remain
+unproved absent a reviewed reduction, and audit lists those writers. This overapproximates every reachable history:
+an old assignment and a changed current role are independent facts. Grant
+creation never proves a current role. Required role predicates must be true at
+the access boundary. No fixture-specific assumption enters a proof.
+
+Translate Boolean connectives compositionally, retaining true/false/unknown
+truth for atomic predicates. Unknown never admits and `not unknown` is unknown.
+Atomic facts are keyed by their full bound structure, including table, index,
+keys, named equalities and old/next image. Symmetric equality may canonicalize by operand reordering only, preserving
+Value variants (Id is not Text), table, index, keys, image and predicate kind;
+other equalities and probes stay independent. A finite exhaustive implication
+check over this abstraction is sound because it includes every concrete
+valuation, even impossible ones. Cap atoms/work; cap exhaustion is unproved.
+Do not add database consistency axioms without a separate soundness argument.
+Never drop, assume true/false, or simplify an unsupported admission atom;
+keep it opaque with its full identity or report unproved. Concrete leaf
+semantics are the current `evaluate_leaf`/`term`, not stale Lean open points:
+null equals null, null differs from a non-null literal, Id differs from Text,
+noninteger ordered comparison returns false, and a missing live reference
+marks unknown (including under negation). Missing ordinary fields currently
+load null; missing reference and missing image are not conflated. Any semantic
+mismatch with the independent model is named, never normalized away. Runtime
+errors do not establish an admitted result; probe/storage/schema failure
+cannot be used as a successful counterexample or a proof fact.
+
+The Lean addition proves a three-valued Kleene kernel with admission only
+on Readable and the exact theorem: exhaustive checking implies that for every
+valuation, eval(admission) = Readable implies eval(policy) = Readable; the Quarry-to-kernel translation and runtime boundary remain reviewed
+Rust obligations, not a claim of whole-platform formal verification.
+
+For read intent, admission includes the ordinary read rule and every bypass:
+- point/list/view/filter/count/exists and live refetch use ruled reads;
+- sync acquisition and publication authorize at their own server snapshot. An
+  offline device cannot know a later server revocation, even with until-revoked.
+  A synced read invariant therefore reports the device access path unproved
+  for current-server-role intent, separately from its server proof. Delivered
+  history has an additional explicit retained-history blocker. No stale local
+  role is treated as a current server role;
+- inherited read-through rules are checked in their bound form, including
+  captures; live-parent semantics remain RULES5's responsibility;
+- valued write targets already reread through `get` before returning, and
+  generated insert results also use an ordinary ruled read. Verify those
+  reductions against the bound IR; any escaping image without that reduction
+  is a blocker or must satisfy the implication `effective write admission => read intent` for that image;
+  otherwise the declaration stays unproved;
+- maintained aggregates/columns and row views may expose source changes under
+  different rules: report such source claims unproved unless a reviewed exact
+  reduction proves them; projections narrow payload only; existence/count disclosure follows the
+  derived path's own rules, so each derived path needs its own reduction or
+  stays unproved;
+- table-rule probes see raw target rows, unlike program `exists`. Follow
+  reverse dependencies into every other table's read/write rules: the presence
+  of a marker row or a successful write can disclose the protected target's
+  existence or named fields without returning that target. Source privacy
+  intent remains unproved for such raw-probe observations unless a reviewed
+  reduction proves authorization or the policy explicitly permits disclosure;
+- incoming `on delete cascade` and `on delete set null` effects bypass child
+  delete/update rules. Report child delete/update/column-write invariants
+  unproved when affected, including transitive cascades, until initiating
+  authority and child-image policy are modeled. Enumerate these edges in audit;
+- asset reads inherit their owning row privacy, while upload/write authority
+  belongs to insert/update intent; applicable private-field authorities must be conjoined with owning-row
+  admission for asset reads;
+- jobs, schedules, native jobs, actions and external effects are trusted system
+  or worker boundaries. Read claims affected by opaque outputs/side effects
+  remain unproved. Job writes do not prove ordinary-user write authority;
+- refusal codes are observations: an authored difference between an absent
+  lookup and later denial is a reported exposure. A privacy proof must not
+  ignore that path. Unmodeled constraint/refusal observations remain unproved.
+
+Observer boundary: this verifies row payload and logical existence/refusal
+observations, not physical timing, runtime cost or all resource side channels.
+The platform's documented examined-count/meter-cut observations are explicitly
+excluded and reported as exclusions, not full noninterference. Read intent
+includes all logical exposures above. A component may be proved while the
+whole declaration remains unproved because another path is blocked.
+
+The implementation must build a closed-world census of bound IR read/write
+forms and schema-triggered paths. An unclassified form is a blocker, never
+silently omitted. Census includes sequence allocation/read admission, online
+and device query paths, ephemeral paths, owner fields, maintained writes and
+referential actions. System/job/action/native/external touched tables default
+unproved without a reviewed reduction, and are listed as grant-column writers.
+Every `read` declaration covers all enumerated logical paths, not just its
+direct rule. Authenticated viewer classes use engine operations; signed-out
+cases run only against HTTP/auth admission, never a fabricated principal.
+Retained-history observations are classified by leave policy and reported
+separately; they cannot refute the platform's retention contract or prove a
+current-role declaration. Test output names unsupported device freshness.
+
+The report enumerates the paths checked and blockers. A proof is never awarded
+just because the direct table rule passed while an indirect path is unmodeled.
+Conservative rejection/notes are acceptable; false proof is not.
+
+## 4. Counterexamples and generated tests
+
+Generate deterministic challenges from schema types, policy atoms and fixture
+rows. Use in-memory stores; never leave SQLite sidecars under target. Vary the
+viewer across owner/other-user/other-role/revoked-role/unauthenticated classes,
+policy literals, principal arguments and absent optional values. Existing role
+rows and retained grant rows form revoked-role snapshots. Do not call an
+arbitrary consistent snapshot a *reachable* application-operation sequence.
+
+Concrete counterexamples must replay the engine's actual rule admission and
+show the policy false, recording viewer, effect, row, supporting rows and rule
+path. The absence of a concrete witness when implication fails is **unproved**.
+Generated tests are a separate executable check, run by default `test`, with
+coverage counts and named unsupported cases. They use isolated state so they
+cannot corrupt the fixture business tests. For operations, derive arguments
+from fixtures and schema, substitute other principals and roles, and compare
+admitted effects/observations against the declared intent. Merely succeeding
+as another user is not a failure when policy permits that operation. Signed-out
+network admission cannot be tested by inventing a signed-in principal: label
+that boundary separately. No finite campaign promises arbitrary sequence
+coverage. `test` fails on replayed violations; unproved coverage is explicit.
+
+## 5. Exposure report
+
+`audit` and `check --audit`, both with `--json`, produce a stable structured
+report. This is a conservative permission map, not a claim every listed path
+is reachable. Enumerate each table/effect, row predicate, audience-readable
+and owner-private columns, operations touching it, sync/asset/derived paths,
+and inherited dependencies. List probes and the insert/update writers of the
+probed grant columns; include transitive dependencies with a visited set.
+Enumerate role alternatives found in rule probes/literals, including generic
+signed-in principals and service seats. Unmodeled role predicates retain their
+full expression rather than collapsing to an invented role name. Normal
+`check` lists broad signed-in reads and tables with no declared intent, with
+`guide security` as the next step. Do not claim `allow` admits signed-out
+requests; authentication precedes the operation.
+
+## 6. Bakeoff repairs
+## 16. SEC7: advice that reaches the builder
+
+Implementer: Codex for Charlie Cheever, 2026-10-22. Wave-22 commission;
+DX6 owns session/upgrade/clock and frontend/proof-kit fixes. No version bump.
+This section supersedes §15.2's special display cap for insert/result notes and
+§12.3's advisory-only boundary only for the two explicit gates below.
+It also revises §§13.5/14.2/14.5/14.6: disposition-clearable review gates are
+a new exit-1 category alongside replayed intent violations, including without
+invariants. Their zero-new-refusal bars continue to bind failures no disposition
+can clear (compilation failures and reachable refutations). Gate counts and
+legitimate review costs are reported separately, never called replayed exploits. Runtime
+authority and the proved/refuted/unproved contract remain unchanged.
+
+### 16.1 Presentation and conditional questions
+
+A shared severity ordering puts gated notes and likely-hole questions before
+coverage, restates and result inventories. Default check retains every priority
+0–2 likely-hole question and the first five ordinary code classes in severity
+order, keeping each selected class's distinct sites/audiences; SEC6 insert/result
+notes never increase that budget. Result exposure notes group by source table, retaining every operation,
+column, observer kind and source site in JSON/full text. Audit uses the same
+severity and numeric file/line/column ordering, never lexicographic site strings.
+Insert-write advice requires an explicitly supplied nonliteral expression whose
+flow uses a mutation argument; omitted defaults and literal-only assignments are
+quiet. These are precision changes to advice, never creation-policy inference.
+
+New advisory classes ask about: reason text without a positive non-whitespace
+minimum; optional money supplied to creation; constant true payment/approval
+flags (a naming heuristic, explicitly a question); competing generic enum setters
+versus stricter literal transitions; mutable creation checks omitted by a later
+transition or derived creation; inconsistent server-now duration bounds on the
+same bound column across operations; and global-role operations recording viewer
+on an unrelated row. Restating questions and the draft ask whether each role may
+write any row, independently of the read questionnaire. The relationship recipe
+models the owner of this wall explicitly. These shapes cannot infer the spec.
+
+### 16.2 Narrow gates and individual dispositions
+
+N_OPTIONAL_UPLOAD_CREATE: an optional image/file mutation argument flows to an
+insert/upsert of a media column, including a conditional child insertion. A
+non-null guard around just the child does not establish required parent evidence.
+An unconditional dominating require of non-null before any creating write can
+exclude the note; aliases/helpers are resolved by the existing authority walker.
+Optionality may be intentional: the gate requires review, never asserts an exploit.
+
+N_RETAINED_ROLE_GRANT: a read branch trusts a retained grant; an authored grant
+writer requires a literal role on the principal argument stored as that grant's
+reader principal; that role is mutable through authored operations; and the read
+branch does not imply the same current-reader role. Require a positive recipient
+role atom in every admitting writer branch; do not mistake the assigner's role
+for the recipient's. The gate excludes ordinary owner branches, literal service
+seats and mere caller-role requirements. Revoking derived grants is a repair;
+static inability to prove full revocation remains reviewable, not an automatic
+safety theorem. General N_GRANT_OUTLIVES_ROLE stays advisory.
+
+Unreviewed gates make check exit 1 with structured note IDs, without marking an
+invariant refuted. The existing bulk --ack-notes cannot clear a security gate.
+Use check --ack-security <id> --reason '<spec rationale>' for one current note.
+Store versioned dispositions in snapback/security-reviews.json with ID, reason,
+source digest and analyzer revision. IDs hash the complete diagnostic; the source
+digest hashes all compiled source filenames and bytes in sorted order. Every
+source edit, changed diagnostic or analyzer revision invalidates the disposition.
+Blank reasons, unknown IDs, malformed files and incompatible flag combinations
+refuse. Writes use temp+rename and verify compiled sources still match disk;
+failed compilation/refuted intent must never record acknowledgments. Dispositions
+are review records, never authority or proof, remain visible in JSON/audit and
+can be checked into source control. Broad advice may also be individually reviewed.
+
+### 16.3 Directed finite histories
+
+Keep the 512 breadth/pair budget. Add a separate bounded directed frontier before
+breadth exploration for schema enum transitions and mutable dependencies of
+independent intent/creator checks. Generate successors from the current world,
+so references returned/created at one step are available later. Track semantic
+state signatures over status/role/boolean/relationship fields, rather than minted
+IDs alone; prioritize unseen lifecycle signatures and schema-relevant mutations.
+Bound depth to eight authored mutations, attempts to 2048 and retained frontier
+to 16 worlds; share check's existing work/deadline cap and report every cut.
+Actual mutation admission, executed-write judgments and ordinary observers remain
+the only failure oracle. Synthetic witnesses remain REVIEW and never failures.
+Validated generated initial fixtures retain their explicit provenance. No seed
+state is relabeled application reachable, and finite exhaustion remains unproved.
+
+### 16.4 Qualification
+### 16.5 Review clarification: exact detector and command boundaries
+
+These details resolve design review M1–M6. The implementation is the bounded
+shape detector, not an inference that a schema satisfies its product specification.
+
+Priority codes are fixed by security::note_priority: gates at 0; privilege and
+self-claimed relationship at 1; grant-outlives, optional evidence, role-wide read,
+broad read, caller time, sweep deadline and the seven new question codes at 2;
+ordinary notes at 4; insert/result inventory at 5; restates at 6; intent coverage
+at 7. The short list keeps every action at 0–2 plus the first five ordinary
+code classes, preserving all sites/audiences within those classes. Repeated sites
+of one ordinary code do not consume independent classes; insert/result codes
+never enlarge the budget. This avoids hiding a second scan audience or a distinct
+maintain diagnostic behind repeated bootstrap notes. Concrete
+reachable refutations still print all failing sites, origins and repair commands
+outside this list. A remainder count points to verbose/JSON. JSON retains every
+note. Restates and coverage can appear only after the action classes fit.
+
+Creation reason: an argument flows into an inserted/upserted column with `reason`
+in its case-insensitive name and its text argument minimum is absent or zero.
+Optional money: the optional argument flows into an optional Money column, or an
+Int/IntRange/Decimal column whose lowercased name contains price, charge, fee or
+amount. Constant approval: true literal assigned to a creating column containing
+paid, approv or payment. All are name-based specification questions; no claim
+covers other spellings. Required positive-minimum reasons and required money
+arguments suppress their respective advice. One note per operation/column.
+
+Transition bypass: same-table enum update from an enum argument can choose a
+literal also written by another mutation, and its necessary effective admission
+does not imply that other writer's bound requirements plus table gate. Resolve
+row-local read operands to the target table's focal row for this advisory query.
+A dominating contradictory literal argument guard excludes that target. Generic
+setter/table/target/stricter-op duplicates collapse by exact diagnostic message.
+A stricter-gate failure alone is advisory, never an inferred approval violation.
+Stale creation: a resolved creating-write context reads a non-role dependency
+that another mutation updates/upserts/deletes, and a different later mutation
+updates the created table or writes a referencing child without reading that
+dependency in its dominating context. Group by operation, created table and
+dependency. Mere dependency reads do not prove eligibility; this heuristic's
+false negatives and speculative questions are not gated.
+Duration: compare the same resolved table/column against now +/- literal duration
+with the same inequality direction in two operation contexts. Different offsets
+produce one question listing all windows/operations. Other affine expressions,
+custom wrappers and complex derived windows remain uncovered by this advice.
+Role-wide write: a mutation updates a non-immutable Principal to viewer, has a
+bound global role requirement, and lacks a dominating viewer-to-row-member
+relationship comparison. It asks about this resource rather than declaring an
+unauthorized write. The draft is bounded by discovered schema roles × tables;
+it asks every pair about write authority, including pairs with authored intent.
+
+Optional upload: the existing lexical authority walker resolves aliases and
+helper arguments to the original mutation argument. Non-null suppression accepts
+only a direct positive `argument != null` conjunct in an unconditional Require
+before the first creating-write context. `$advice` branch guards cannot suppress;
+late child guards, OR, unknown and unsupported expressions cannot suppress.
+Known flows into asset fields are detected; arbitrary opaque/derived flows are
+uncovered, never assumed safe. Both upsert arms retain the creation review question.
+Retained role: use existing lints::mutable_role and privilege role-column/probe
+resolution. Only direct positive Exists conjuncts with a literal recipient role
+qualify, never an assigner/viewer-only test or negation. A branch suppresses only
+when kernel::implies(branch, recipient-role-with-viewer) is Ok(true); false,
+unknown and cap exhaustion retain the question. Dynamic role requirements stay
+in general grant advice and are outside the narrow gate. Every noted branch
+contains a positive grant probe binding that grant's principal column to viewer.
+Owner equalities without such probes are excluded structurally. Role mutation
+plus transactional grant revocation still needs review; it is not statically
+proved safe or automatically refused as an exploit.
+
+Disposition format is version 1: entries maps full diagnostic SHA256 IDs to
+{sources, analyzer, reason}. JSON uses the existing Diagnostic serialization and
+the sorted Vec<(filename, UTF-8 source bytes)> serialization used by Project.sources;
+source names are schema-directory-relative (`name.q`). A line shift changes the
+ID; any source edit changes all dispositions. This intentionally conservative
+invalidation avoids unmodeled cross-table influence; optimization is deferred.
+Analyzer is the explicit security_reviews::ANALYZER revision, bumped whenever
+security detector meaning or disposition identity changes. A release alone does
+not invalidate unchanged analysis. A reason must contain non-whitespace text.
+No unrelated refuted invariant can be bypassed: any reachable refutation prevents
+all acknowledgement writes and check still exits 1. Compilation errors likewise
+write no security review. Read-only inspection remains available. Bulk --ack-notes
+never addresses these records. --ack-security requires --reason and refuses
+combination with --ack-notes, --fix, --store, --release, --emit-lean or --audit;
+--json, --verbose, --cost and current-source fixture/residency inspection may
+combine. Broad-advice dispositions change display, never exit status. Audit exits
+on refuted intent as before and includes all notes/dispositions; new gates fail
+check only. Deploy/preview/--strict keep §15.3; we recommend running check in acceptance before
+deploy. Saved-source portability is not claimed for dispositions.
+
+Directed exploration is primarily a test campaign: check retains the common
+512-work/1500ms cap and may cut before it. No promise grants both directed and
+breadth paths their full caps under check. Test retains its 512 singles/pairs
+in addition to the directed bound. Successors fork the current complete fixture
+through Engine::fork_fixture with its asset ledger; they use ordinary mutate,
+NOW and existing executed/observer judgments. The signature keeps enum/bool/
+principal/reference fields (with multiplicity), discarding other payload only as
+a pruning heuristic. Such mergers and every frontier/argument/successor/depth cut
+are explicitly uncovered. Retain up to four priority worlds (below the 16 maximum),
+prefer changed enum states and true booleans, at most two new worlds per op/world,
+four argument tuples, eight mutations and 2048 actual attempts. These finite
+heuristics neither prove reachability nor clear an unproved verdict. Synthetic
+matrix probes stay REVIEW; ordinary admitted histories from validated generated
+initial fixtures retain GeneratedFixtureTrace and failure eligibility (§14).
+
+Wave-22 high lanes are 004,011,021,026,030,037,040,044. Frozen source copies and
+independent spec variants are in tests/security/wave22; the measurement manifest
+records SHA256s. 037 remains the specification judgment case. With no invariants,
+expect corresponding new/advisory notes on the seven nonjudgment lanes. Spec tests
+must catch 026's terminal pickup and 030's suspend-before-approval history, alongside
+existing 004/021/037 catches; 040/044 always/absent-money limits stay explicit.
+
+exec
+/bin/bash -lc "rg --files snapback4 | rg '(wave22|wave23)/(028|030|040|042|003)(-|\\.)|wave.?23.*(spec|schema)|wave.?22.*(spec|schema)'; rg -n 'bounded implication|column.write|write only|always exists|nonempty' snapback4/crates/snapback4-lang/src/guide/security.md" in /home/ccheever/projects/sb4-b22-sec7
+ succeeded in 0ms:
+snapback4/crates/snapback4-lang/tests/security/wave22/040-specF2.q
+snapback4/crates/snapback4-lang/tests/security/wave22/021-spec.q
+snapback4/crates/snapback4-lang/tests/security/wave22/044-specF2.q
+snapback4/crates/snapback4-lang/tests/security/wave22/037-spec.q
+snapback4/crates/snapback4-lang/tests/security/wave22/030-spec.q
+snapback4/crates/snapback4-lang/tests/security/wave22/004-spec.q
+snapback4/crates/snapback4-lang/tests/security/wave22/040.q
+snapback4/crates/snapback4-lang/tests/security/wave22/030.q
+snapback4/crates/snapback4-lang/tests/security/wave22/026-spec.q
+snapback4/crates/snapback4-lang/tests/security/wave22/011-spec.q
+snapback4/crates/snapback4-lang/tests/security/wave22/040-spec.q
+snapback4/crates/snapback4-lang/tests/security/wave23/003.q
+snapback4/crates/snapback4-lang/tests/security/wave23/040.q
+snapback4/crates/snapback4-lang/tests/security/wave23/030.q
+snapback4/crates/snapback4-lang/tests/security/wave23/042.q
+snapback4/crates/snapback4-lang/tests/security/wave23/028.q
+69:name authority. `invariant table.column write only P` covers writes to a
+83:for example `invariant members.role write only exists roles[viewer, role = 'owner']`
+150:- Owner fields: declare column-write intent too. `written by` authorizes
+286:otherwise guard insert and both upsert arms and declare column write intent.
+332:parent. Without such intent, a conditional child is an advisory spec question. Reasons use text 1..N when nonempty justification is required; optional
+384:E_SECURITY_NOTES: the individual disposition file is malformed, cannot be written, or sources changed while recording a review. Inspect snapback/security-reviews.json and run check --json for current IDs. Supply a nonempty specification reason for one current note; neither bulk acknowledgments nor this file can clear an actual refutation.
+388:N_CREATE_EDIT_ASYMMETRY: An argument-supplied column has a specific change guard on edit that creation does not imply. The question names that column, editor and guard, rather than a table-wide permission. Confirm creation authority against the specification; enforce the change guard at creation when required and test independent column write intent with non-null input. Exact changed-field comparisons are supported; mixed conditions, intervening writes and early-return equivalents remain outside this heuristic, with generic insert inventory retained when applicable. Absence of advice is not a safety proof.
+392:N_PRIVATE_CREATE_EDIT_ASYMMETRY: A caller can initialize a private column without its change guard and outside its column read audience. This question ranks above ordinary asymmetry because the caller supplies private agency data it cannot read. Confirm who may supply this field at creation; enforce the guard when required and test independent column write intent with a non-null value. Read privacy alone does not define write authority; the question is advisory.
+
+exec
+/bin/bash -lc 'cat snapback4/crates/snapback4-lang/tests/security/wave23/030.q; cat snapback4/crates/snapback4-lang/tests/security/wave23/042.q' in /home/ccheever/projects/sb4-b22-sec7
+ succeeded in 0ms:
+-- Food Truck Permits: city health department permits for food trucks.
+--
+-- Roles: operator (truck owners), inspector (field inspections and the live
+-- board), supervisor (environmental health supervisor: suspends permits and
+-- approves operators with a past suspension, recording the reason).
+-- Role rows are provisioned by the local operator (service:operator), the
+-- same pattern as `guide staging`: signup alone grants no role.
+use identity password
+
+table roster:
+  principal: principal
+  role: enum('operator', 'inspector', 'supervisor')
+  unique principal
+  immutable principal
+  read <- .principal = viewer or viewer = 'service:operator'
+  insert <- viewer = 'service:operator'
+  update <- viewer = 'service:operator'
+  delete <- viewer = 'service:operator'
+  online only
+
+mutation provision(principal: principal, role: enum('operator', 'inspector', 'supervisor')):
+  require viewer = 'service:operator' else NOT_OPERATOR
+  return upsert roster[principal] { principal, role }
+
+query myRole():
+  return roster[viewer]
+
+invariant roster.read only .principal = viewer or viewer = 'service:operator'
+invariant roster.insert only viewer = 'service:operator'
+
+-- Trucks belong to exactly one operator. activePermit points at the truck's
+-- current permit once one is issued (maintained by approveApplication).
+table trucks:
+  owner: principal
+  name: text 1..80
+  licensePlate: text 1..16
+  activePermit: permits ?
+  unique licensePlate else PLATE_TAKEN
+  immutable owner
+  read <- .owner = viewer or exists roster[viewer, role = 'inspector'] or exists roster[viewer, role = 'supervisor']
+  insert <- exists roster[viewer, role = 'operator']
+  update <- exists roster[viewer, role = 'inspector'] or exists roster[viewer, role = 'supervisor']
+  online only
+
+mutation registerTruck(name: text 1..80, licensePlate: text 1..16):
+  require exists roster[viewer, role = 'operator'] else NOT_OPERATOR
+  return insert trucks { owner: viewer, name, licensePlate }
+
+query myTrucks(c: cursor ?):
+  return trucks where .owner = viewer first 50 by .id after c
+
+query allTrucks(c: cursor ?):
+  require exists roster[viewer, role = 'inspector'] or exists roster[viewer, role = 'supervisor'] else NOT_STAFF
+  return trucks first 50 by .id after c
+
+invariant trucks.read only .owner = viewer or exists roster[viewer, role = 'inspector'] or exists roster[viewer, role = 'supervisor']
+invariant trucks.insert only exists roster[viewer, role = 'operator']
+
+-- Each application must include interior photos, the fire extinguisher tag
+-- photo and the permit fee: all three columns are required, so an
+-- application row cannot exist without them.
+table applications:
+  truck: trucks
+  owner: principal
+  interiorPhotos: [image <=5000000] 1..4
+  extinguisherTag: image <=5000000
+  feeCents: int 1..100000000
+  status: enum('applied', 'inspected', 'inspection recorded', 'approved', 'failed') default 'applied'
+  failedAt: time default now
+  lastPassed: bool default false
+  createdAt: time default now
+  immutable truck, owner, interiorPhotos, extinguisherTag, feeCents, createdAt
+  read <- .owner = viewer or exists roster[viewer, role = 'inspector'] or exists roster[viewer, role = 'supervisor']
+  insert <- exists roster[viewer, role = 'operator']
+  update <- exists roster[viewer, role = 'inspector'] or exists roster[viewer, role = 'supervisor']
+  online only
+
+mutation submitApplication(truck: trucks, interiorPhotos: [image <=5000000] 1..4, extinguisherTag: image <=5000000, feeCents: int 1..100000000):
+  require exists roster[viewer, role = 'operator'] else NOT_OPERATOR
+  t = trucks[truck] ! else NOT_FOUND
+  require t.owner = viewer else NOT_YOUR_TRUCK
+  flag = operatorFlags[viewer]
+  require flag = null or flag.suspended = false else OPERATOR_SUSPENDED
+  return insert applications { truck, owner: viewer, interiorPhotos, extinguisherTag, feeCents }
+
+query myApplications(c: cursor ?):
+  return applications where .owner = viewer first 50 by .createdAt after c
+
+-- The live board: every application as it moves applied -> inspection recorded ->
+-- approved / failed. Staff only.
+query board(c: cursor ?):
+  require exists roster[viewer, role = 'inspector'] or exists roster[viewer, role = 'supervisor'] else NOT_STAFF
+  return applications first 50 by .createdAt after c
+
+invariant applications.read only .owner = viewer or exists roster[viewer, role = 'inspector'] or exists roster[viewer, role = 'supervisor']
+invariant applications.insert only exists roster[viewer, role = 'operator']
+
+-- v2 renamed the 'inspected' stage to 'inspection recorded'. The column still
+-- admits the old value so that every historical row survives adoption and
+-- rollback without dormancy; the migrateInspectionRecorded mutation below
+-- moves every remaining 'inspected' row to the renamed stage (run after
+-- deploy and after every forward), and no workflow mutation writes the old
+-- value anymore. Rollback to a release without the renamed value projects
+-- 'inspection recorded' back to 'inspected' instead of hiding rows.
+down applications inspectedView(status: enum('applied', 'inspected', 'inspection recorded', 'approved', 'failed')): {status: 'inspected' if status = 'inspection recorded' else status}
+
+-- One-shot data migration for the v2 rename. Supervisor-only. Moves a single
+-- remaining 'inspected' application to 'inspection recorded'; callers page
+-- the board until none remain.
+mutation migrateInspectionRecorded(application: applications):
+  require exists roster[viewer, role = 'supervisor'] else NOT_SUPERVISOR
+  app = applications[application] ! else NOT_FOUND
+  require app.status = 'inspected' else NOT_INSPECTED
+  update applications[app.id] { status: 'inspection recorded' }
+  return applications[app.id]
+
+-- Inspections are written by inspectors (or supervisors). owner is the truck
+-- owner's principal, denormalized so operators read their own reports and
+-- staff read everything.
+table inspections:
+  truck: trucks
+  application: applications ?
+  permit: permits ?
+  inspector: principal
+  passed: bool
+  notes: text <=2000 ?
+  kind: enum('initial', 'reinspection', 'routine')
+  inspectedAt: time default now
+  owner: principal
+  immutable truck, application, permit, inspector, passed, notes, kind, inspectedAt, owner
+  read <- .owner = viewer or exists roster[viewer, role = 'inspector'] or exists roster[viewer, role = 'supervisor']
+  insert <- exists roster[viewer, role = 'inspector'] or exists roster[viewer, role = 'supervisor']
+  online only
+
+-- First inspection of an application: applied -> inspection recorded.
+mutation inspectApplication(application: applications, passed: bool, notes: text <=2000 ?):
+  require exists roster[viewer, role = 'inspector'] or exists roster[viewer, role = 'supervisor'] else NOT_INSPECTOR
+  app = applications[application] ! else NOT_FOUND
+  require app.status = 'applied' else NOT_APPLIED
+  i = insert inspections { truck: app.truck, application: app.id, inspector: viewer, passed, notes, kind: 'initial', owner: app.owner }
+  update applications[app.id] { status: 'inspection recorded', lastPassed: passed }
+  return i
+
+-- Reinspection of a failed application, only within ten days of the failure.
+mutation reinspectApplication(application: applications, passed: bool, notes: text <=2000 ?):
+  require exists roster[viewer, role = 'inspector'] or exists roster[viewer, role = 'supervisor'] else NOT_INSPECTOR
+  app = applications[application] ! else NOT_FOUND
+  require app.status = 'failed' else NOT_FAILED
+  require now <= app.failedAt + 10d else REINSPECTION_LATE
+  i = insert inspections { truck: app.truck, application: app.id, inspector: viewer, passed, notes, kind: 'reinspection', owner: app.owner }
+  update applications[app.id] { status: 'inspection recorded', lastPassed: passed }
+  return i
+
+-- Decision on an inspection-recorded application. Approval issues the permit, valid
+-- 365 days; rejection marks it failed and starts the ten-day reinspection
+-- window.
+mutation approveApplication(application: applications):
+  require exists roster[viewer, role = 'inspector'] or exists roster[viewer, role = 'supervisor'] else NOT_INSPECTOR
+  app = applications[application] ! else NOT_FOUND
+  require app.status = 'inspection recorded' else NOT_INSPECTED
+  require app.lastPassed else DECISION_CONFLICTS
+  p = insert permits { truck: app.truck, owner: app.owner, application: app.id, issuedAt: now, expiresAt: now + 365d, status: 'active', flagged: false, failedAt: now }
+  update applications[app.id] { status: 'approved' }
+  update trucks[app.truck] { activePermit: p.id }
+  return p
+
+mutation rejectApplication(application: applications):
+  require exists roster[viewer, role = 'inspector'] or exists roster[viewer, role = 'supervisor'] else NOT_INSPECTOR
+  app = applications[application] ! else NOT_FOUND
+  require app.status = 'inspection recorded' else NOT_INSPECTED
+  require not app.lastPassed else DECISION_CONFLICTS
+  update applications[app.id] { status: 'failed', failedAt: now }
+  return applications[app.id]
+
+query myInspections(c: cursor ?):
+  return inspections where .owner = viewer first 50 by .inspectedAt after c
+
+query applicationInspections(application: applications, c: cursor ?):
+  return inspections where .application = application first 50 by .inspectedAt after c
+
+query permitInspections(permit: permits, c: cursor ?):
+  return inspections where .permit = permit first 50 by .inspectedAt after c
+
+invariant inspections.read only .owner = viewer or exists roster[viewer, role = 'inspector'] or exists roster[viewer, role = 'supervisor']
+invariant inspections.insert only exists roster[viewer, role = 'inspector'] or exists roster[viewer, role = 'supervisor']
+
+-- Permits are issued on approval and live 365 days. A failed routine
+-- inspection flags the permit; a passing reinspection within ten days
+-- clears the flag, otherwise the daily sweep suspends it.
+table permits:
+  truck: trucks
+  owner: principal
+  application: applications
+  issuedAt: time default now
+  expiresAt: time
+  failedAt: time default now
+  flagged: bool default false
+  status: enum('active', 'suspended', 'expired') default 'active'
+  immutable truck, owner, application, issuedAt, expiresAt
+  read <- .owner = viewer or exists roster[viewer, role = 'inspector'] or exists roster[viewer, role = 'supervisor']
+  insert <- exists roster[viewer, role = 'inspector'] or exists roster[viewer, role = 'supervisor']
+  update <- exists roster[viewer, role = 'inspector'] or exists roster[viewer, role = 'supervisor']
+  online only
+
+-- Routine inspection (or reinspection) of an active permit.
+mutation inspectPermit(permit: permits, passed: bool, notes: text <=2000 ?):
+  require exists roster[viewer, role = 'inspector'] or exists roster[viewer, role = 'supervisor'] else NOT_INSPECTOR
+  p = permits[permit] ! else NOT_FOUND
+  require p.status = 'active' else PERMIT_NOT_ACTIVE
+  require now < p.expiresAt else PERMIT_EXPIRED
+  i = insert inspections { truck: p.truck, permit: p.id, inspector: viewer, passed, notes, kind: 'reinspection' if p.flagged else 'routine', owner: p.owner }
+  update permits[p.id] { flagged: not passed, failedAt: now }
+  return i
+
+query myPermits(c: cursor ?):
+  return permits where .owner = viewer first 50 by .issuedAt after c
+
+query allPermits(c: cursor ?):
+  require exists roster[viewer, role = 'inspector'] or exists roster[viewer, role = 'supervisor'] else NOT_STAFF
+  return permits first 50 by .issuedAt after c
+
+invariant permits.read only .owner = viewer or exists roster[viewer, role = 'inspector'] or exists roster[viewer, role = 'supervisor']
+
+-- Suspensions are written by the supervisor (recording the reason) or by
+-- the daily sweep when the ten-day reinspection window lapses (reason
+-- recorded, suspendedBy null for the automatic case).
+table suspensions:
+  permit: permits
+  owner: principal
+  reason: text 1..500
+  suspendedBy: principal ?
+  suspendedAt: time default now
+  immutable permit, owner, reason, suspendedBy, suspendedAt
+  read <- .owner = viewer or exists roster[viewer, role = 'supervisor']
+  insert <- exists roster[viewer, role = 'supervisor']
+  online only
+
+mutation suspendPermit(permit: permits, reason: text 1..500):
+  require exists roster[viewer, role = 'supervisor'] else NOT_SUPERVISOR
+  p = permits[permit] ! else NOT_FOUND
+  require p.status = 'active' else PERMIT_NOT_ACTIVE
+  require now < p.expiresAt else PERMIT_EXPIRED
+  update permits[p.id] { status: 'suspended', flagged: false }
+  upsert operatorFlags[p.owner] { operator: p.owner, suspended: true }
+  return insert suspensions { permit: p.id, owner: p.owner, reason, suspendedBy: viewer }
+
+query mySuspensions(c: cursor ?):
+  return suspensions where .owner = viewer first 50 by .suspendedAt after c
+
+invariant suspensions.read only .owner = viewer or exists roster[viewer, role = 'supervisor']
+
+-- An operator whose permit was suspended cannot apply again until the
+-- supervisor approves them, recording the reason.
+table operatorFlags:
+  operator: principal
+  suspended: bool default true
+  unique operator
+  immutable operator
+  read <- .operator = viewer or exists roster[viewer, role = 'supervisor']
+  insert <- exists roster[viewer, role = 'supervisor']
+  update <- exists roster[viewer, role = 'supervisor']
+  online only
+
+table approvals:
+  operator: principal
+  reason: text 1..500
+  approvedBy: principal
+  approvedAt: time default now
+  immutable operator, reason, approvedBy, approvedAt
+  read <- .operator = viewer or exists roster[viewer, role = 'inspector'] or exists roster[viewer, role = 'supervisor']
+  insert <- exists roster[viewer, role = 'supervisor']
+  online only
+
+mutation approveOperator(operator: principal, reason: text 1..500):
+  require exists roster[viewer, role = 'supervisor'] else NOT_SUPERVISOR
+  flag = operatorFlags[operator] ! else OPERATOR_UNKNOWN
+  require flag.suspended else OPERATOR_NOT_SUSPENDED
+  update operatorFlags[operator] { suspended: false }
+  return insert approvals { operator, reason, approvedBy: viewer }
+
+query myFlag():
+  return operatorFlags[viewer]
+
+query myApprovals(c: cursor ?):
+  return approvals where .operator = viewer first 50 by .approvedAt after c
+
+query flaggedOperators(c: cursor ?):
+  require exists roster[viewer, role = 'supervisor'] else NOT_SUPERVISOR
+  return operatorFlags where .suspended = true first 50 by .id after c
+
+-- Daily sweep: suspend active flagged permits whose reinspection window
+-- lapsed, and expire permits past their 365-day life.
+job sweepPermits(periodStart: time, periodEnd: time):
+  for p in permits:
+    if p.status = 'active' and p.flagged and p.failedAt < periodEnd - 10d:
+      update permits[p.id] { status: 'suspended', flagged: false }
+      insert suspensions { permit: p.id, owner: p.owner, reason: 'No passing reinspection within ten days of the failed inspection.', suspendedAt: periodEnd }
+      upsert operatorFlags[p.owner] { operator: p.owner, suspended: true }
+    if p.status = 'active' and p.expiresAt <= periodEnd:
+      update permits[p.id] { status: 'expired', flagged: false }
+
+schedule dailySweep every 1d at 03:00: sweepPermits
+-- Mobile Notary Signings.
+-- Roles: owner (agency owner), dispatcher, notary, title_company.
+-- A signing always carries the signer's ID scan and the signing fee.
+-- Notaries read operational fields but never the fee or billing notes;
+-- only dispatcher/owner read those. Title companies read only their own
+-- signings. Status flows requested -> assigned -> signed -> returned, and
+-- returned must land within 24h of signing. Only the owner approves a
+-- notary for out-of-state papers.
+use identity password
+use personas alice, bob
+
+-- Roster: exactly one role per principal. Only the local operator
+-- (staging/production bootstrap) writes it; app code never self-assigns.
+table roles:
+  principal: principal
+  role: enum('owner', 'dispatcher', 'notary', 'title_company')
+  unique principal
+  immutable principal
+  read <- .principal = viewer or exists roles[principal = viewer, role = 'owner'] or exists roles[principal = viewer, role = 'dispatcher']
+  insert <- viewer = 'service:operator'
+  update <- viewer = 'service:operator'
+  delete <- viewer = 'service:operator'
+  cap 1000
+  online only
+
+mutation provision(principal: principal, role: enum('owner', 'dispatcher', 'notary', 'title_company')):
+  require viewer = 'service:operator' else NOT_OPERATOR
+  return upsert roles[principal] { principal, role }
+
+query myRole():
+  return roles[viewer]
+
+-- Out-of-state approval per notary. Notaries register themselves; only the
+-- owner flips the approval flag.
+table notaryProfiles:
+  principal: principal
+  approvedOutOfState: bool default false
+  unique principal
+  immutable principal
+  read <- .principal = viewer or exists roles[principal = viewer, role = 'owner'] or exists roles[principal = viewer, role = 'dispatcher']
+  insert <- .principal = viewer
+  update <- exists roles[principal = viewer, role = 'owner']
+  cap 1000
+  online only
+
+mutation registerNotary():
+  require exists roles[principal = viewer, role = 'notary'] else NOT_NOTARY
+  if exists notaryProfiles[principal = viewer]:
+    return notaryProfiles[principal = viewer]
+  return insert notaryProfiles { principal: viewer }
+
+mutation approveNotary(notary: principal, approved: bool):
+  require exists roles[principal = viewer, role = 'owner'] else NOT_OWNER 'Only the agency owner approves notaries for out-of-state papers.'
+  require exists roles[principal = notary, role = 'notary'] else NOT_A_NOTARY 'That principal is not a notary.'
+  p = notaryProfiles[principal = notary] ! else NOT_REGISTERED 'That notary has not registered.'
+  update notaryProfiles[p.id] { approvedOutOfState: approved }
+  return null
+
+query notaryDirectory():
+  return roles where .role = 'notary' first 100 by .principal
+
+query approvalDirectory():
+  return notaryProfiles first 100 by .principal
+
+table signings:
+  titleCompany: principal
+  notary: principal ?
+  signerName: text 1..120
+  address: text 1..300
+  documents: [text <=200] 1..20
+  idScan: image <=10000000
+  fee: money USD
+  agencyBillingNotes: text <=2000 ? renamed from billingNotes
+  outOfState: bool default false
+  status: enum('requested', 'assigned', 'signed', 'returned') default 'requested'
+  signedAt: time ?
+  returnedAt: time ?
+  createdAt: time default now
+  immutable titleCompany, createdAt
+  read <- exists roles[principal = viewer, role = 'owner'] or exists roles[principal = viewer, role = 'dispatcher'] or exists roles[principal = viewer, role = 'notary'] or .titleCompany = viewer
+  read (fee, agencyBillingNotes) <- exists roles[principal = viewer, role = 'owner'] or exists roles[principal = viewer, role = 'dispatcher']
+  insert <- exists roles[principal = viewer, role = 'title_company'] and .titleCompany = viewer
+  update <- exists roles[principal = viewer, role = 'owner'] or exists roles[principal = viewer, role = 'dispatcher'] or .notary = viewer
+  cap 5000
+  online only
+
+-- Title companies file signing requests for themselves. The ID scan and the
+-- fee are required: omitting either refuses at decode time.
+mutation createSigning(signerName: text 1..120, address: text 1..300, documents: [text <=200] 1..20, idScan: image <=10000000, fee: money USD, agencyBillingNotes: text <=2000 ? alias billingNotes, outOfState: bool ?):
+  require exists roles[principal = viewer, role = 'title_company'] else NOT_TITLE_COMPANY
+  return insert signings { titleCompany: viewer, signerName, address, documents, idScan, fee, agencyBillingNotes, outOfState: outOfState ?? false }
+
+-- Dispatchers and the owner assign a registered notary. Out-of-state papers
+-- need an owner-approved notary.
+mutation assignSigning(signing: signings, notary: principal):
+  require exists roles[principal = viewer, role = 'dispatcher'] or exists roles[principal = viewer, role = 'owner'] else NOT_STAFF 'Only dispatch staff assign signings.'
+  require exists roles[principal = notary, role = 'notary'] else NOT_A_NOTARY 'That principal is not a notary.'
+  s = signings[signing] ! else NOT_FOUND
+  require s.status = 'requested' else BAD_STATUS 'Only requested signings can be assigned.'
+  if s.outOfState:
+    p = notaryProfiles[principal = notary] ! else NOT_APPROVED 'That notary is not approved for out-of-state papers.'
+    require p.approvedOutOfState else NOT_APPROVED 'That notary is not approved for out-of-state papers.'
+  update signings[signing] { notary, status: 'assigned' }
+  return null
+
+-- The assigned notary (or dispatch staff) records the signing.
+mutation markSigned(signing: signings):
+  s = signings[signing] ! else NOT_FOUND
+  require s.status = 'assigned' else BAD_STATUS 'Only assigned signings can be marked signed.'
+  require s.notary = viewer or exists roles[principal = viewer, role = 'dispatcher'] or exists roles[principal = viewer, role = 'owner'] else NOT_ASSIGNED 'Only the assigned notary or dispatch staff records the signing.'
+  update signings[signing] { status: 'signed', signedAt: now }
+  return null
+
+-- Signed papers ship back within one day of signing; later returns refuse.
+mutation markReturned(signing: signings):
+  s = signings[signing] ! else NOT_FOUND
+  require s.status = 'signed' else BAD_STATUS 'Only signed signings can be marked returned.'
+  require s.signedAt != null else BAD_STATUS 'This signing has no signing time.'
+  require now <= s.signedAt + 24h else RETURN_OVERDUE 'Signed papers must ship back within one day of signing.'
+  require s.notary = viewer or exists roles[principal = viewer, role = 'dispatcher'] or exists roles[principal = viewer, role = 'owner'] else NOT_ASSIGNED 'Only the assigned notary or dispatch staff records the return.'
+  update signings[signing] { status: 'returned', returnedAt: now }
+  return null
+
+-- Dispatch staff adjust the fee charged to the title company. Only the
+-- agency owner may change the agency billing notes; the dispatcher may
+-- still read them but cannot change them.
+mutation updateBilling(signing: signings, fee: money USD, agencyBillingNotes: text <=2000 ? alias billingNotes):
+  require exists roles[principal = viewer, role = 'dispatcher'] or exists roles[principal = viewer, role = 'owner'] else NOT_STAFF 'Only dispatch staff edits billing.'
+  s = signings[signing] ! else NOT_FOUND
+  if agencyBillingNotes != s.agencyBillingNotes:
+    require exists roles[principal = viewer, role = 'owner'] else NOT_OWNER_NOTES 'Only the agency owner changes agency billing notes.'
+  update signings[signing] { fee, agencyBillingNotes }
+  return null
+
+-- Live dispatch board: every caller sees exactly the rows (and columns)
+-- their rules admit, newest arrivals last.
+query board(c: cursor ?):
+  return signings first 100 by .id after c
+
+query signingDetail(signing: signings):
+  return signings[signing]
+
+-- Privacy intent, stated independently from the rules above.
+invariant signings.read only exists roles[principal = viewer, role = 'owner'] or exists roles[principal = viewer, role = 'dispatcher'] or exists roles[principal = viewer, role = 'notary'] or .titleCompany = viewer
+invariant signings.fee read only exists roles[principal = viewer, role = 'owner'] or exists roles[principal = viewer, role = 'dispatcher']
+invariant signings.agencyBillingNotes read only exists roles[principal = viewer, role = 'owner'] or exists roles[principal = viewer, role = 'dispatcher']
+invariant signings.updateBilling only exists roles[principal = viewer, role = 'owner'] or exists roles[principal = viewer, role = 'dispatcher']
+invariant signings.insert only exists roles[principal = viewer, role = 'title_company']
+invariant notaryProfiles.approveNotary only exists roles[principal = viewer, role = 'owner']
+invariant notaryProfiles.approvedOutOfState update only exists roles[principal = viewer, role = 'owner']
+invariant signings.assignSigning only exists roles[principal = viewer, role = 'dispatcher'] or exists roles[principal = viewer, role = 'owner']
+
+exec
+/bin/bash -lc "sed -n '310,339p' snapback4/crates/snapback4-lang/src/guide/security.md; sed -n '386,398p' snapback4/crates/snapback4-lang/src/guide/security.md; cat snapback4/crates/snapback4-lang/tests/security/wave23/003.q" in /home/ccheever/projects/sb4-b22-sec7
+exec
+/bin/bash -lc 'cat snapback4/crates/snapback4-lang/tests/security/wave23/028.q; cat snapback4/crates/snapback4-lang/tests/security/wave23/040.q; cat snapback4/crates/snapback4-lang/tests/security/wave22/040-spec.q' in /home/ccheever/projects/sb4-b22-sec7
+ succeeded in 0ms:
+and positive integer expiresAt milliseconds; the online token option accepts a bare
+bearer. Constructors refuse before transport, storage, device or timer work.
+Shape validation grants no authority; the server still decides session validity.
+
+## Individual security review
+
+Default check puts likely holes before result inventories and restating questions.
+Questions about retained role grants and uploads with an explicit mandatory-media
+contract require a repair or an individual disposition. They fail check without claiming an invariant refutation.
+Read the note, compare it with the specification, then use
+`check --ack-security ID --reason 'specification rationale'` with its current ID
+from check or check --json. Bulk --ack-notes cannot clear these gates.
+Commit snapback/security-reviews.json when the decision should travel with source.
+Every Quarry edit, changed diagnostic or security analyzer revision requires review
+again; the record never grants authority or proves safety. Audit retains the full
+notes and dispositions. Declared refutations still fail and cannot be acknowledged.
+Deploy --strict retains its refutation gate; run check in acceptance before deploy.
+
+Optional arguments and optional columns are valid, including deliberate loosening.
+A required child media column validates an existing attachment; it does not require
+a child row. Guarded optional attachments need no acknowledgment. When independent
+parent integrity intent requires a child, require evidence before creating that
+parent. Without such intent, a conditional child is an advisory spec question. Reasons use text 1..N when nonempty justification is required; optional
+money and constant payment/approval flags need independent specification review.
+Transition advice asks whether a generic setter can bypass a stricter decision or
+whether eligibility checked at creation must be rechecked at approval. Different
+duration windows on one column may be deliberate: confirm them against the spec.
+Role-wide write questions ask whether a global role may write every resource.
+Model the owner of this particular wall; see `guide rule-recipes --section "Wall ownership"`.
+
+### N_CREATE_EDIT_ASYMMETRY
+
+N_CREATE_EDIT_ASYMMETRY: An argument-supplied column has a specific change guard on edit that creation does not imply. The question names that column, editor and guard, rather than a table-wide permission. Confirm creation authority against the specification; enforce the change guard at creation when required and test independent column write intent with non-null input. Exact changed-field comparisons are supported; mixed conditions, intervening writes and early-return equivalents remain outside this heuristic, with generic insert inventory retained when applicable. Absence of advice is not a safety proof.
+
+### N_PRIVATE_CREATE_EDIT_ASYMMETRY
+
+N_PRIVATE_CREATE_EDIT_ASYMMETRY: A caller can initialize a private column without its change guard and outside its column read audience. This question ranks above ordinary asymmetry because the caller supplies private agency data it cannot read. Confirm who may supply this field at creation; enforce the guard when required and test independent column write intent with a non-null value. Read privacy alone does not define write authority; the question is advisory.
+
+### N_EVIDENCE_REMOVAL
+
+N_EVIDENCE_REMOVAL: Delete, detachment or explicit clearing can remove parent-linked media evidence. The question names removing operations and the parent reference, grouping the evidence columns. Required child fields alone do not require a surviving child; confirm last-child retention against the specification. Guard deletion or detachment transactionally, replace evidence or retire the parent, then declare independent parent integrity intent and run test. Ordinary non-null photo replacement is not removal; optional attachments without required creation linkage or independent integrity intent are excluded. This question is advisory.
+-- Locksmith Rekey Jobs.
+--
+-- Roles: customer (landlord/homeowner), dispatcher (opens jobs), locksmith
+-- (works the live board booked -> onsite -> done), owner (approves lockouts
+-- without ownership proof). Password accounts; roles are provisioned by the
+-- local operator, never self-claimed.
+use identity password
+
+table roles:
+  principal: principal
+  role: enum('customer', 'dispatcher', 'locksmith', 'owner')
+  unique principal
+  immutable principal
+  read <- .principal = viewer or viewer = 'service:operator'
+  insert <- viewer = 'service:operator'
+  update <- viewer = 'service:operator'
+  online only
+
+mutation provision(principal: principal, role: enum('customer', 'dispatcher', 'locksmith', 'owner')):
+  require viewer = 'service:operator' else NOT_OPERATOR 'Only the operator may grant roles.'
+  return upsert roles[principal] { principal, role }
+
+query myRole():
+  return roles[viewer]
+
+query whoAmI():
+  return viewer
+
+-- Spec: every row a customer may read is their own job or their shop staff's
+-- work; staff lanes cover the dispatcher, locksmith and owner rosters.
+-- Spec: only dispatchers and the owner open jobs; the customer named on the
+-- job never gains write authority from being named.
+invariant jobs.read only .customer = viewer or exists roles[principal = viewer, role = 'dispatcher'] or exists roles[principal = viewer, role = 'locksmith'] or exists roles[principal = viewer, role = 'owner']
+invariant jobs.insert only exists roles[principal = viewer, role = 'dispatcher'] or exists roles[principal = viewer, role = 'owner']
+invariant jobs.openJob only exists roles[principal = viewer, role = 'dispatcher'] or exists roles[principal = viewer, role = 'owner']
+
+table jobs:
+  customer: principal
+  address: text 1..200
+  detail: text <=500 ?
+  proof: image <=10MB ?
+  quoted: money USD ?
+  status: enum('booked', 'onsite', 'done')
+  requestedAt: time default now
+  scheduledAt: time
+  completedAt: time ?
+  recutDeadline: time ?
+  lockout: bool
+  overdue: bool
+  approvalReason: text 1..300 ?
+  approvalWitness: text 1..80 ?
+  approvedBy: principal ?
+  immutable customer, requestedAt
+  cap 500 by customer
+  read <- .customer = viewer or exists roles[principal = viewer, role = 'dispatcher'] or exists roles[principal = viewer, role = 'locksmith'] or exists roles[principal = viewer, role = 'owner']
+  insert <- exists roles[principal = viewer, role = 'dispatcher'] or exists roles[principal = viewer, role = 'owner']
+  update (old, next) <- old.customer = next.customer and old.requestedAt = next.requestedAt and (exists roles[principal = viewer, role = 'dispatcher'] or exists roles[principal = viewer, role = 'locksmith'] or exists roles[principal = viewer, role = 'owner'])
+  online only
+
+-- The dispatcher opens each job with the ownership/lease photo and the quoted
+-- charge, or without a charge when none has been quoted yet. A lockout job
+-- carries no photo and must stay booked until the owner approves it. Overdue
+-- is stamped at opening: scheduled more than seven days after the request.
+mutation openJob(customer: principal, address: text 1..200, detail: text <=500 ?, proof: image <=10MB ?, quoted: money USD ?, scheduledAt: time, lockout: bool):
+  require exists roles[principal = viewer, role = 'dispatcher'] or exists roles[principal = viewer, role = 'owner'] else NOT_DISPATCHER 'Only the dispatcher or owner may open jobs.'
+  require quoted = null or quoted >= 1 else BAD_QUOTE 'The quoted charge must be positive.'
+  require scheduledAt >= now else BAD_SCHEDULE 'The job must be scheduled for now or later.'
+  require (lockout and proof = null) or (not lockout and proof != null) else BAD_PROOF_STATE 'Ordinary jobs need the ownership photo; lockout jobs must omit it.'
+  req = now
+  return insert jobs { customer, address, detail, proof, quoted, status: 'booked', requestedAt: req, scheduledAt, lockout, overdue: scheduledAt > req + 7d }
+
+-- Spec: only the dispatcher or owner enters or revises the quoted charge;
+-- customers and locksmiths cannot. A job opened before quoting carries a null
+-- quote until this runs.
+invariant jobs.setQuoted only exists roles[principal = viewer, role = 'dispatcher'] or exists roles[principal = viewer, role = 'owner']
+
+mutation setQuoted(job: jobs, quoted: money USD):
+  require exists roles[principal = viewer, role = 'dispatcher'] or exists roles[principal = viewer, role = 'owner'] else NOT_DISPATCHER 'Only the dispatcher or owner may quote jobs.'
+  j = jobs[job] ! else NOT_FOUND
+  require quoted >= 1 else BAD_QUOTE 'The quoted charge must be positive.'
+  update jobs[job] { quoted }
+  return null
+
+-- Spec: only staff move jobs, strictly booked -> onsite -> done; a lockout
+-- without proof needs the owner's approval before onsite or done; completing
+-- stamps the 30-day free-recut deadline.
+-- Spec: only the owner approves a lockout without proof (see approveLockout).
+invariant jobs.setJobStatus only exists roles[principal = viewer, role = 'dispatcher'] or exists roles[principal = viewer, role = 'locksmith'] or exists roles[principal = viewer, role = 'owner']
+invariant jobs.approveLockout only exists roles[principal = viewer, role = 'owner']
+
+mutation setJobStatus(job: jobs, status: enum('booked', 'onsite', 'done')):
+  require exists roles[principal = viewer, role = 'dispatcher'] or exists roles[principal = viewer, role = 'locksmith'] or exists roles[principal = viewer, role = 'owner'] else NOT_STAFF 'Only shop staff may move jobs.'
+  j = jobs[job] ! else NOT_FOUND
+  require (j.status = 'booked' and status = 'onsite') or (j.status = 'onsite' and status = 'done') else BAD_TRANSITION 'Jobs move booked to onsite to done.'
+  if j.lockout and j.proof = null:
+    require j.approvalReason != null else NEEDS_LOCKOUT_APPROVAL 'A lockout without proof needs the owner approval first.'
+  if status = 'done':
+    stamp = now
+    update jobs[job] { status, completedAt: stamp, recutDeadline: stamp + 30d }
+  else:
+    update jobs[job] { status }
+  return null
+
+-- Only the shop owner approves a lockout without ownership proof, recording
+-- the reason and a witness name.
+mutation approveLockout(job: jobs, reason: text 1..300, witness: text 1..80):
+  require exists roles[principal = viewer, role = 'owner'] else NOT_OWNER 'Only the shop owner may approve a lockout.'
+  j = jobs[job] ! else NOT_FOUND
+  require j.lockout and j.proof = null else NOT_LOCKOUT 'Only a lockout without proof needs approval.'
+  require j.approvalReason = null else ALREADY_APPROVED 'This lockout is already approved.'
+  update jobs[job] { approvalReason: reason, approvalWitness: witness, approvedBy: viewer }
+  return null
+
+query jobDetail(job: jobs):
+  return jobs[job]
+
+-- Spec: locksmiths see the live job board; dispatchers and the owner too.
+-- Customers use myJobs below, never this board.
+query jobBoard(c: cursor ?):
+  require exists roles[principal = viewer, role = 'dispatcher'] or exists roles[principal = viewer, role = 'locksmith'] or exists roles[principal = viewer, role = 'owner'] else NOT_STAFF 'Only shop staff may see the job board.'
+  return jobs first 50 by .scheduledAt after c
+
+query overdueJobs(c: cursor ?):
+  require exists roles[principal = viewer, role = 'dispatcher'] or exists roles[principal = viewer, role = 'locksmith'] or exists roles[principal = viewer, role = 'owner'] else NOT_STAFF 'Only shop staff may see overdue jobs.'
+  return jobs where .overdue = true first 50 by .scheduledAt after c
+
+-- Spec: customers see only their own jobs and invoices.
+query myJobs(c: cursor ?):
+  return jobs where .customer = viewer first 50 by .id after c
+
+-- Spec: the customer named on the job reads its invoices; staff read any job's.
+invariant invoices.read only .customer = viewer or exists roles[principal = viewer, role = 'dispatcher'] or exists roles[principal = viewer, role = 'locksmith'] or exists roles[principal = viewer, role = 'owner']
+invariant invoices.createInvoice only exists roles[principal = viewer, role = 'dispatcher'] or exists roles[principal = viewer, role = 'owner']
+
+table invoices:
+  job: jobs
+  customer: principal
+  amount: money USD
+  issuedAt: time default now
+  unique job else ALREADY_INVOICED 'One invoice per job.'
+  immutable job, customer, amount
+  read <- .customer = viewer or exists roles[principal = viewer, role = 'dispatcher'] or exists roles[principal = viewer, role = 'locksmith'] or exists roles[principal = viewer, role = 'owner']
+  insert <- exists roles[principal = viewer, role = 'dispatcher'] or exists roles[principal = viewer, role = 'owner']
+  online only
+
+mutation createInvoice(job: jobs, amount: money USD):
+  require exists roles[principal = viewer, role = 'dispatcher'] or exists roles[principal = viewer, role = 'owner'] else NOT_DISPATCHER 'Only the dispatcher or owner may invoice.'
+  j = jobs[job] ! else NOT_FOUND
+  require j.quoted != null else NO_QUOTE 'The job has no quoted charge yet.'
+  require amount = j.quoted else AMOUNT_MISMATCH 'The invoice must match the quoted charge.'
+  return insert invoices { job, customer: j.customer, amount }
+
+query myInvoices(c: cursor ?):
+  return invoices where .customer = viewer first 50 by .id after c
+
+query jobInvoices(job: jobs, c: cursor ?):
+  j = jobs[job] ! else NOT_FOUND
+  require j.customer = viewer or exists roles[principal = viewer, role = 'dispatcher'] or exists roles[principal = viewer, role = 'locksmith'] or exists roles[principal = viewer, role = 'owner'] else NOT_FOUND
+  return invoices where .job = job first 20 by .id after c
+
+-- Spec: the customer has 30 days after completion to report a key that does
+-- not work for a free recut. The mutation compares server now against the
+-- stamped deadline, so the window holds without waiting.
+invariant recuts.reportRecut only exists jobs[.job, customer = viewer]
+
+table recuts:
+  job: jobs
+  note: text 1..300
+  reportedAt: time default now
+  immutable job
+  read <- exists jobs[.job, customer = viewer] or exists roles[principal = viewer, role = 'dispatcher'] or exists roles[principal = viewer, role = 'locksmith'] or exists roles[principal = viewer, role = 'owner']
+  insert <- exists jobs[.job, customer = viewer]
+  online only
+
+mutation reportRecut(job: jobs, note: text 1..300):
+  j = jobs[job] ! else NOT_FOUND
+  require j.customer = viewer else NOT_CUSTOMER 'Only the job customer may report a bad key.'
+  require j.status = 'done' else NOT_DONE 'Keys can be reported once the job is done.'
+  require j.recutDeadline != null else NOT_DONE 'The completion stamp is missing.'
+  require now <= j.recutDeadline else RECUT_WINDOW_CLOSED 'The free recut window is 30 days after completion.'
+  return insert recuts { job, note }
+
+query recutsFor(job: jobs, c: cursor ?):
+  j = jobs[job] ! else NOT_FOUND
+  return recuts where .job = job first 50 by .id after c
+
+ succeeded in 0ms:
+use identity password
+
+table roles:
+  principal: principal
+  role: enum('camper', 'host', 'ranger')
+  unique principal
+  immutable principal
+  read <- .principal = viewer or viewer = 'service:operator'
+  insert <- viewer = 'service:operator'
+  update <- viewer = 'service:operator'
+  online only
+
+fn staff():
+  return roles[principal = viewer].role = 'host' or roles[principal = viewer].role = 'ranger'
+fn ranger():
+  return roles[principal = viewer].role = 'ranger'
+fn camper():
+  return roles[principal = viewer].role = 'camper'
+
+table sites:
+  name: text 1..60
+  kind: enum('tent', 'RV')
+  nightly: int 100..50000
+  status: enum('open', 'booked', 'occupied', 'dirty', 'cleaned', 'closed')
+  current: stays ?
+  holdUntil: time ?
+  reason: text <=500
+  unique name
+  read <- exists roles[principal = viewer]
+  insert <- exists roles[principal = viewer, role = 'ranger']
+  update <- (exists roles[principal = viewer, role = 'host'] or exists roles[principal = viewer, role = 'ranger']) or exists roles[principal = viewer, role = 'camper']
+  online only
+
+table stays:
+  owner: principal
+  site: sites
+  arrival: time
+  nights: int 1..30
+  total: int 100..1500000
+  deposit: int 100..50000
+  status: enum('booked', 'occupied', 'completed', 'cancelled', 'released', 'evicted', 'refunded')
+  reason: text <=500
+  immutable owner, site, arrival, nights, total, deposit
+  read <- .owner = viewer or (exists roles[principal = viewer, role = 'host'] or exists roles[principal = viewer, role = 'ranger'])
+  insert <- .owner = viewer and exists roles[principal = viewer, role = 'camper']
+  update <- .owner = viewer or (exists roles[principal = viewer, role = 'host'] or exists roles[principal = viewer, role = 'ranger'])
+  online only
+
+table vehicles renamed from plates:
+  owner: principal
+  stay: stays
+  photo: image <=5000000 read <- .owner = viewer or exists roles[principal = viewer, role = 'ranger']
+  immutable owner, stay
+  read <- .owner = viewer or (exists roles[principal = viewer, role = 'host'] or exists roles[principal = viewer, role = 'ranger'])
+  insert <- .owner = viewer and exists roles[principal = viewer, role = 'camper']
+  delete <- exists roles[principal = viewer, role = 'host'] or exists roles[principal = viewer, role = 'ranger']
+  online only
+
+table payments:
+  owner: principal
+  stay: stays
+  charged: int 100..1500000
+  refunded: int 0..1500000
+  forfeited: int 0..50000
+  reason: text <=500
+  unique stay
+  immutable owner, stay, charged
+  read <- .owner = viewer or exists roles[principal = viewer, role = 'ranger']
+  insert <- .owner = viewer and exists roles[principal = viewer, role = 'camper']
+  update <- .owner = viewer or exists roles[principal = viewer, role = 'ranger']
+  online only
+
+invariant stays.read only .owner = viewer or (exists roles[principal = viewer, role = 'host'] or exists roles[principal = viewer, role = 'ranger'])
+invariant vehicles.read only .owner = viewer or (exists roles[principal = viewer, role = 'host'] or exists roles[principal = viewer, role = 'ranger'])
+invariant vehicles.delete only (exists roles[principal = viewer, role = 'host'] or exists roles[principal = viewer, role = 'ranger'])
+invariant payments.read only .owner = viewer or exists roles[principal = viewer, role = 'ranger']
+
+mutation provision(principal: principal, role: enum('camper', 'host', 'ranger')):
+  require viewer = 'service:operator' else NOT_OPERATOR
+  return upsert roles[principal] { principal, role }
+query myRole():
+  return roles[principal = viewer]
+query serverTime():
+  require exists roles[principal = viewer] else SIGN_IN
+  return now
+query siteBoard():
+  require exists roles[principal = viewer] else SIGN_IN
+  return sites first 200 by .id { id, name, kind, nightly, reason: .reason if .status = 'closed' else '', holdUntil: null, status: 'open' if .status = 'booked' and .holdUntil != null and now >= .holdUntil else .status, current: null }
+query myBookings():
+  require camper() else CAMPER_ONLY
+  return stays where .owner = viewer first 200 by .id
+query booking(id: stays):
+  return stays[id]
+query myPayments():
+  require camper() else CAMPER_ONLY
+  return payments where .owner = viewer first 200 by .id
+query payment(stay: stays):
+  return payments[stay = stay]
+query plate(stay: stays):
+  if staff() and not ranger():
+    return null
+  return first(vehicles where .stay = stay first 1 by .id)
+query liveStays():
+  require staff() else STAFF_ONLY
+  return stays first 200 by .id
+
+mutation addSite(name: text 1..60, kind: enum('tent', 'RV'), nightly: int 100..50000):
+  require ranger() else RANGER_ONLY
+  require len(trim(name)) >= 1 else NAME_REQUIRED
+  return insert sites { name, kind, nightly, status: 'open', current: null, holdUntil: null, reason: '' }
+
+mutation book(site: sites, arrival: time, nights: int 1..30, photo: image <=5000000):
+  require camper() else CAMPER_ONLY
+  s = sites[site] ! else NOT_FOUND
+  require s.status = 'open' or s.status = 'cleaned' or (s.status = 'booked' and s.holdUntil != null and now >= s.holdUntil) else SITE_UNAVAILABLE
+  require arrival >= now and arrival <= now + 365d else ARRIVAL_RANGE
+  total = s.nightly * nights
+  b = insert stays { owner: viewer, site, arrival, nights, total, deposit: s.nightly, status: 'booked', reason: '' }
+  insert vehicles { owner: viewer, stay: b.id, photo }
+  insert payments { owner: viewer, stay: b.id, charged: total, refunded: 0, forfeited: 0, reason: '' }
+  update sites[site] { status: 'booked', current: b.id, holdUntil: arrival + 1d, reason: '' }
+  return b
+
+mutation cancel(stay: stays):
+  require camper() else CAMPER_ONLY
+  b = stays[stay] ! else NOT_FOUND
+  require b.owner = viewer else PRIVATE_BOOKING
+  require b.status = 'booked' else NOT_BOOKED
+  require now < b.arrival + 1d else HOLD_EXPIRED
+  s = sites[b.site] ! else NOT_FOUND
+  require s.status != 'closed' else RANGER_REFUND_REQUIRED
+  lost = b.deposit if b.arrival - now < 14d else 0
+  update payments[stay = stay] { refunded: b.total - lost, forfeited: lost, reason: 'Camper cancellation' }
+  update stays[stay] { status: 'cancelled', reason: 'Camper cancellation' }
+  update sites[b.site] { status: 'open', current: null, holdUntil: null }
+
+mutation checkIn(stay: stays):
+  require staff() else STAFF_ONLY
+  b = stays[stay] ! else NOT_FOUND
+  require b.status = 'booked' else NOT_BOOKED
+  require now >= b.arrival else TOO_EARLY
+  require now < b.arrival + 1d else HOLD_EXPIRED
+  s = sites[b.site] ! else NOT_FOUND
+  require s.status = 'booked' and s.current = stay else SITE_UNAVAILABLE
+  update stays[stay] { status: 'occupied' }
+  update sites[b.site] { status: 'occupied', holdUntil: null }
+
+mutation checkOut(stay: stays):
+  require staff() else STAFF_ONLY
+  b = stays[stay] ! else NOT_FOUND
+  require b.status = 'occupied' else NOT_OCCUPIED
+  s = sites[b.site] ! else NOT_FOUND
+  require s.status = 'occupied' and s.current = stay else SITE_UNAVAILABLE
+  update stays[stay] { status: 'completed' }
+  update sites[b.site] { status: 'dirty', current: null }
+
+mutation clean(site: sites):
+  require staff() else STAFF_ONLY
+  s = sites[site] ! else NOT_FOUND
+  require s.status = 'dirty' else NOT_DIRTY
+  update sites[site] { status: 'cleaned' }
+
+mutation closeSite(site: sites, reason: text 3..500):
+  require ranger() else RANGER_ONLY
+  require len(trim(reason)) >= 3 else REASON_REQUIRED
+  s = sites[site] ! else NOT_FOUND
+  require s.status != 'closed' else ALREADY_CLOSED
+  update sites[site] { status: 'closed', reason }
+
+mutation refundClosed(stay: stays, reason: text 3..500):
+  require ranger() else RANGER_ONLY
+  require len(trim(reason)) >= 3 else REASON_REQUIRED
+  b = stays[stay] ! else NOT_FOUND
+  s = sites[b.site] ! else NOT_FOUND
+  require s.status = 'closed' else SITE_NOT_CLOSED
+  require b.status = 'booked' or b.status = 'occupied' else NOT_REFUNDABLE
+  update payments[stay = stay] { refunded: b.total, forfeited: 0, reason }
+  update stays[stay] { status: 'refunded', reason }
+  update sites[b.site] { current: null }
+
+mutation evict(stay: stays, reason: text 3..500):
+  require ranger() else RANGER_ONLY
+  require len(trim(reason)) >= 3 else REASON_REQUIRED
+  b = stays[stay] ! else NOT_FOUND
+  require b.status = 'occupied' else NOT_OCCUPIED
+  s = sites[b.site] ! else NOT_FOUND
+  require s.status = 'occupied' and s.current = stay else SITE_UNAVAILABLE
+  update stays[stay] { status: 'evicted', reason }
+  update sites[b.site] { status: 'dirty', current: null, reason }
+
+job releaseNoShows():
+  for b in stays:
+    if b.status = 'booked' and now >= b.arrival + 1d:
+      s = sites[b.site] ! else NOT_FOUND
+      if s.status != 'closed':
+        update stays[b.id] { status: 'released', reason: 'No check-in within one day' }
+        if s.current = b.id and s.status = 'booked':
+          update sites[b.site] { status: 'open', current: null, holdUntil: null }
+
+schedule noShowSweep every 1m: releaseNoShows
+
+query vehiclesForBooking(stay: stays):
+  return vehicles where .stay = stay first 200 by .id
+mutation addVehicle(stay: stays, photo: image <=5000000):
+  require camper() else CAMPER_ONLY
+  b = stays[stay] ! else NOT_FOUND
+  require b.owner = viewer else PRIVATE_BOOKING
+  return insert vehicles {owner: viewer, stay, photo}
+mutation removeVehicle(vehicle: vehicles):
+  require staff() else STAFF_ONLY
+  delete vehicles[vehicle]
+-- Excavator Rental Returns.
+--
+-- Roles: contractor (sees only own rentals/invoices, pays own bills),
+-- yardhand (live yard board, rents to contractors, takes returns, bills damage,
+-- services machines), manager (all of that plus: rent to a contractor with an
+-- unpaid balance with a recorded reason, waive a damage bill with a reason,
+-- add machines). Roles are provisioned by the local operator only.
+use identity password
+
+-- Roster: one row per user. Only the local filesystem operator writes it.
+table roles:
+  principal: principal
+  role: enum('contractor', 'yardhand', 'manager')
+  unique principal
+  immutable principal
+  read <- .principal = viewer or viewer = 'service:operator'
+  insert <- viewer = 'service:operator'
+  update <- viewer = 'service:operator'
+  delete <- deny
+  online only
+
+mutation provision(principal: principal, role: enum('contractor', 'yardhand', 'manager')):
+  require viewer = 'service:operator' else NOT_OPERATOR 'Only the branch operator can provision roles.'
+  return upsert roles[principal] { principal, role }
+
+query myRole():
+  return roles[viewer]
+
+-- The yard board: every signed-in roster member sees every machine and its
+-- lifecycle status (available -> out -> returned -> serviced -> available).
+table machines:
+  name: text 3..60
+  kind: enum('excavator', 'skidsteer')
+  status: enum('available', 'out', 'returned', 'serviced') default 'available'
+  dailyPrice: int 1..
+  deposit: int 0..
+  unique name
+  cap 500
+  read <- exists roles[viewer]
+  insert <- exists roles[principal = viewer, role = 'manager']
+  update <- exists roles[principal = viewer, role = 'yardhand'] or exists roles[principal = viewer, role = 'manager']
+  delete <- deny
+  online only
+
+-- One rental per machine checkout. Yard staff rent machines to contractors;
+-- contractors never write rentals. The rental price and damage deposit are
+-- captured at checkout from the machine row.
+table rentals:
+  machine: machines on delete restrict
+  contractor: principal
+  dailyPrice: int 1..
+  deposit: int 0..
+  startsAt: time
+  dueAt: time
+  returnedAt: time ?
+  checkoutNote: text <=500 ?
+  damageFound: bool default false
+  damageNote: text <=500 ?
+  depositStatus: enum('held', 'applied', 'refunded') default 'held'
+  overrideReason: text <=200 ?
+  immutable machine, contractor, dailyPrice, deposit, startsAt, dueAt
+  cap 10000
+  read <- .contractor = viewer or exists roles[principal = viewer, role = 'yardhand'] or exists roles[principal = viewer, role = 'manager']
+  insert <- exists roles[principal = viewer, role = 'yardhand'] or exists roles[principal = viewer, role = 'manager']
+  update <- exists roles[principal = viewer, role = 'yardhand'] or exists roles[principal = viewer, role = 'manager']
+  delete <- deny
+  online only
+
+-- Walkaround photos, checkout and return. They follow their rental's readers.
+-- Checkout (departure) photos belong to the rental's departure inspection:
+-- only the branch manager may replace or remove them.
+table rentalPhotos:
+  rental: rentals on delete cascade
+  kind: enum('checkout', 'return')
+  photo: image <=10000000
+  takenAt: time default now
+  immutable rental
+  cap 10000
+  read through .rental
+  insert <- exists rentals[.rental, contractor = viewer] or exists roles[principal = viewer, role = 'yardhand'] or exists roles[principal = viewer, role = 'manager']
+  update <- exists roles[principal = viewer, role = 'manager']
+  delete <- exists roles[principal = viewer, role = 'manager']
+  online only
+
+-- Departure walkaround inspections: exactly one record per rental, holding
+-- the machine's starting photos. The photos themselves stay in rentalPhotos
+-- (kind 'checkout'); the inspection is the record that groups them, so every
+-- pre-existing checkout photo survives the migration untouched.
+table departureInspections:
+  rental: rentals on delete cascade
+  createdAt: time default now
+  unique rental
+  immutable rental
+  cap 10000
+  read through .rental
+  insert <- exists roles[principal = viewer, role = 'yardhand'] or exists roles[principal = viewer, role = 'manager']
+  update <- deny
+  delete <- deny
+  online only
+
+-- Bills: the rental charge, a late-day charge when a machine comes back more
+-- than one day late, and damage bills. At most one of each kind per rental.
+table invoices:
+  rental: rentals on delete restrict
+  contractor: principal
+  kind: enum('rental', 'late', 'damage')
+  amount: int 1..
+  status: enum('unpaid', 'paid', 'waived') default 'unpaid'
+  createdAt: time default now
+  waiveReason: text <=200 ?
+  unique rental, kind
+  immutable rental, contractor, kind, amount, createdAt
+  cap 10000
+  read <- .contractor = viewer or exists roles[principal = viewer, role = 'yardhand'] or exists roles[principal = viewer, role = 'manager']
+  insert <- exists roles[principal = viewer, role = 'yardhand'] or exists roles[principal = viewer, role = 'manager']
+  update (old, next) <- old.contractor = viewer and next.status = 'paid' or exists roles[principal = viewer, role = 'manager']
+  delete <- deny
+  online only
+
+-- Unpaid balance per contractor, for the rent gate below.
+view unpaidOwed: sum invoices of .amount where .status = 'unpaid' by .contractor
+  read <- .contractor = viewer or exists roles[principal = viewer, role = 'yardhand'] or exists roles[principal = viewer, role = 'manager']
+  online only
+
+query yardBoard(c: cursor ?):
+  require exists roles[viewer] else NO_ROLE 'Your account has no yard role yet.'
+  return machines first 50 by .id after c
+
+query rentalsBoard(c: cursor ?):
+  require exists roles[viewer] else NO_ROLE 'Your account has no yard role yet.'
+  if exists roles[principal = viewer, role = 'yardhand'] or exists roles[principal = viewer, role = 'manager']:
+    return rentals first 50 by .id after c
+  return rentals where .contractor = viewer first 50 by .id after c
+
+query rentalDetail(rental: rentals):
+  return rentals[rental]
+
+query rentalInvoices(rental: rentals, c: cursor ?):
+  return invoices where .rental = rental first 50 by .id after c
+
+query invoiceBoard(c: cursor ?):
+  require exists roles[viewer] else NO_ROLE 'Your account has no yard role yet.'
+  if exists roles[principal = viewer, role = 'yardhand'] or exists roles[principal = viewer, role = 'manager']:
+    return invoices first 50 by .id after c
+  return invoices where .contractor = viewer first 50 by .id after c
+
+query rentalPhotosOf(rental: rentals, c: cursor ?):
+  return rentalPhotos where .rental = rental first 50 by .id after c
+
+query departureInspectionOf(rental: rentals):
+  return departureInspections[rental]
+
+query departurePhotosOf(inspection: departureInspections, c: cursor ?):
+  return rentalPhotos where .rental = inspection.rental and .kind = 'checkout' first 50 by .id after c
+
+query unpaidBalance():
+  owed = unpaidOwed[viewer]
+  return owed ?? 0
+
+-- Staff rent a machine to a contractor. Only the branch manager may rent to a
+-- contractor with an unpaid balance, recording the reason. Every new rental
+-- includes a departure inspection holding the starting walkaround photos.
+mutation rent(machine: machines, contractor: principal, days: int 1..30, overrideReason: text <=200 ?, checkoutPhoto: image <=10000000, checkoutNote: text <=500 ?):
+  isManager = exists roles[principal = viewer, role = 'manager']
+  isStaff = isManager or exists roles[principal = viewer, role = 'yardhand']
+  require isStaff else NOT_STAFF 'Only yard staff can check out machines.'
+  m = machines[machine] ! else NOT_FOUND
+  require m.status = 'available' else NOT_AVAILABLE 'This machine is not available to rent.'
+  owed = unpaidOwed[contractor] ?? 0
+  if owed > 0:
+    require overrideReason != null and isManager else UNPAID_BALANCE 'This contractor has an unpaid balance; only the branch manager may rent to them, recording a reason.'
+  r = insert rentals { machine, contractor, dailyPrice: m.dailyPrice, deposit: m.deposit, startsAt: now, dueAt: now + days * 1d, overrideReason, checkoutNote }
+  insert departureInspections { rental: r.id }
+  insert invoices { rental: r.id, contractor, kind: 'rental', amount: m.dailyPrice * days }
+  insert rentalPhotos { rental: r.id, kind: 'checkout', photo: checkoutPhoto }
+  update machines[machine] { status: 'out' }
+  return r
+
+-- Idempotent catch-up: give a rental its departure inspection when it has
+-- none (rentals written before inspections existed, or while v1 was live).
+mutation ensureDepartureInspection(rental: rentals):
+  isStaff = exists roles[principal = viewer, role = 'yardhand'] or exists roles[principal = viewer, role = 'manager']
+  require isStaff else NOT_STAFF 'Only yard staff can record departure inspections.'
+  r = rentals[rental] ! else NOT_FOUND
+  existing = departureInspections[rental]
+  if existing != null:
+    return existing
+  return insert departureInspections { rental } if absent ?? departureInspections[rental]
+
+-- Only the branch manager may replace or remove photos from a saved
+-- departure inspection; contractors and yard hands may not.
+mutation replaceDeparturePhoto(photo: rentalPhotos, newPhoto: image <=10000000):
+  require exists roles[principal = viewer, role = 'manager'] else NOT_MANAGER 'Only the branch manager can change departure photos.'
+  p = rentalPhotos[photo] ! else NOT_FOUND
+  require p.kind = 'checkout' else WRONG_KIND 'Only departure (checkout) photos can be replaced here.'
+  update rentalPhotos[photo] { photo: newPhoto }
+  return null
+
+mutation removeDeparturePhoto(photo: rentalPhotos):
+  require exists roles[principal = viewer, role = 'manager'] else NOT_MANAGER 'Only the branch manager can remove departure photos.'
+  p = rentalPhotos[photo] ! else NOT_FOUND
+  require p.kind = 'checkout' else WRONG_KIND 'Only departure (checkout) photos can be removed here.'
+  delete rentalPhotos[photo]
+  return null
+
+-- Staff take a machine back. Returned more than one day late, the contractor
+-- is charged another day at the rental's daily price.
+mutation returnMachine(rental: rentals, damageFound: bool, damageNote: text <=500 ?, returnPhoto: image <=10000000 ?):
+  isStaff = exists roles[principal = viewer, role = 'yardhand'] or exists roles[principal = viewer, role = 'manager']
+  require isStaff else NOT_STAFF 'Only yard staff can take returns.'
+  r = rentals[rental] ! else NOT_FOUND
+  require r.returnedAt = null else ALREADY_RETURNED 'This rental was already returned.'
+  update rentals[rental] { returnedAt: now, damageFound, damageNote }
+  update machines[r.machine] { status: 'returned' }
+  if returnPhoto != null:
+    insert rentalPhotos { rental: r.id, kind: 'return', photo: returnPhoto }
+  if now > r.dueAt + 1d:
+    insert invoices { rental: r.id, contractor: r.contractor, kind: 'late', amount: r.dailyPrice }
+  return null
+
+-- Staff bill damage found on the return walkaround. Only within seven days of
+-- return; afterwards the deposit is refunded instead (see settleDeposits).
+mutation billDamage(rental: rentals, amount: int 1..):
+  isStaff = exists roles[principal = viewer, role = 'yardhand'] or exists roles[principal = viewer, role = 'manager']
+  require isStaff else NOT_STAFF 'Only yard staff can bill damage.'
+  r = rentals[rental] ! else NOT_FOUND
+  rt = r.returnedAt
+  require rt != null else NOT_RETURNED 'The machine has not been returned yet.'
+  require now <= rt + 7d else BILL_WINDOW_PASSED 'Damage must be billed within seven days of return; the deposit is refunded instead.'
+  require not exists invoices[r.id, 'damage'] else ALREADY_BILLED 'Damage was already billed for this rental.'
+  insert invoices { rental: r.id, contractor: r.contractor, kind: 'damage', amount }
+  update rentals[rental] { depositStatus: 'applied' }
+  return null
+
+-- Only the branch manager can waive a bill, recording the reason. Waiving a
+-- damage bill releases the deposit back to refunded.
+mutation waiveInvoice(invoice: invoices, reason: text 1..200):
+  require exists roles[principal = viewer, role = 'manager'] else NOT_MANAGER 'Only the branch manager can waive a bill.'
+  inv = invoices[invoice] ! else NOT_FOUND
+  require inv.status = 'unpaid' else ALREADY_SETTLED 'This invoice is already settled.'
+  update invoices[invoice] { status: 'waived', waiveReason: reason }
+  if inv.kind = 'damage':
+    update rentals[inv.rental] { depositStatus: 'refunded' }
+  return null
+
+-- Contractors pay their own bills.
+mutation payInvoice(invoice: invoices):
+  inv = invoices[invoice] ! else NOT_FOUND
+  require inv.contractor = viewer else NOT_YOURS 'You can only pay your own invoices.'
+  require inv.status = 'unpaid' else ALREADY_SETTLED 'This invoice is already settled.'
+  update invoices[invoice] { status: 'paid' }
+  return null
+
+-- Yard hands move returned machines through service back to available.
+mutation markServiced(machine: machines):
+  isStaff = exists roles[principal = viewer, role = 'yardhand'] or exists roles[principal = viewer, role = 'manager']
+  require isStaff else NOT_STAFF 'Only yard staff can service machines.'
+  m = machines[machine] ! else NOT_FOUND
+  require m.status = 'returned' else WRONG_STATUS 'Only a returned machine can be marked serviced.'
+  update machines[machine] { status: 'serviced' }
+  return null
+
+mutation markAvailable(machine: machines):
+  isStaff = exists roles[principal = viewer, role = 'yardhand'] or exists roles[principal = viewer, role = 'manager']
+  require isStaff else NOT_STAFF 'Only yard staff can release machines.'
+  m = machines[machine] ! else NOT_FOUND
+  require m.status = 'serviced' else WRONG_STATUS 'Only a serviced machine can be made available.'
+  update machines[machine] { status: 'available' }
+  return null
+
+-- Only the branch manager adds machines to the yard.
+mutation createMachine(name: text 3..60, kind: enum('excavator', 'skidsteer'), dailyPrice: int 1.., deposit: int 0..):
+  require exists roles[principal = viewer, role = 'manager'] else NOT_MANAGER 'Only the branch manager can add machines.'
+  return insert machines { name, kind, status: 'available', dailyPrice, deposit }
+
+-- Every night: deposits held past seven days after return with no damage bill
+-- are refunded. Billing or waiving already flips held rows away first.
+job settleDeposits():
+  for r in rentals:
+    if r.returnedAt != null and r.depositStatus = 'held':
+      if r.returnedAt + 7d < now:
+        if not exists invoices[r.id, 'damage']:
+          update rentals[r.id] { depositStatus: 'refunded' }
+schedule settleDaily every 1d at 03:00: settleDeposits
+
+-- Privacy and authority intent, stated apart from the enforcing rules above.
+-- Contractors see only their own rentals and invoices; yard hands and the
+-- branch manager see the whole board.
+invariant rentals.read only .contractor = viewer or exists roles[viewer, role = 'yardhand'] or exists roles[viewer, role = 'manager']
+invariant rentals.insert only exists roles[viewer, role = 'yardhand'] or exists roles[viewer, role = 'manager']
+invariant rentals.update only exists roles[viewer, role = 'yardhand'] or exists roles[viewer, role = 'manager']
+invariant invoices.read only .contractor = viewer or exists roles[viewer, role = 'yardhand'] or exists roles[viewer, role = 'manager']
+invariant invoices.insert only exists roles[viewer, role = 'yardhand'] or exists roles[viewer, role = 'manager']
+invariant invoices.waiveInvoice only exists roles[viewer, role = 'manager']
+invariant invoices.payInvoice only .contractor = viewer
+invariant machines.read only exists roles[viewer]
+invariant machines.insert only exists roles[viewer, role = 'manager']
+invariant machines.update only exists roles[viewer, role = 'yardhand'] or exists roles[viewer, role = 'manager']
+invariant roles.read only .principal = viewer or viewer = 'service:operator'
+invariant roles.insert only viewer = 'service:operator'
+invariant roles.update only viewer = 'service:operator'
+invariant rentalPhotos.read only .rental.contractor = viewer or exists roles[viewer, role = 'yardhand'] or exists roles[viewer, role = 'manager']
+invariant rentalPhotos.insert only exists rentals[.rental, contractor = viewer] or exists roles[viewer, role = 'yardhand'] or exists roles[viewer, role = 'manager']
+invariant rentalPhotos.replaceDeparturePhoto only exists roles[viewer, role = 'manager']
+invariant rentalPhotos.removeDeparturePhoto only exists roles[viewer, role = 'manager']
+invariant departureInspections.read only .rental.contractor = viewer or exists roles[viewer, role = 'yardhand'] or exists roles[viewer, role = 'manager']
+invariant departureInspections.insert only exists roles[viewer, role = 'yardhand'] or exists roles[viewer, role = 'manager']
+invariant departureInspections.ensureDepartureInspection only exists roles[viewer, role = 'yardhand'] or exists roles[viewer, role = 'manager']
+invariant unpaidOwed.read only .contractor = viewer or exists roles[viewer, role = 'yardhand'] or exists roles[viewer, role = 'manager']
+-- Excavator Rental Returns.
+--
+-- Roles: contractor (sees only own rentals/invoices, pays own bills),
+-- yardhand (live yard board, rents to contractors, takes returns, bills damage,
+-- services machines), manager (all of that plus: rent to a contractor with an
+-- unpaid balance with a recorded reason, waive a damage bill with a reason,
+-- add machines). Roles are provisioned by the local operator only.
+use identity password
+
+-- Roster: one row per user. Only the local filesystem operator writes it.
+table roles:
+  principal: principal
+  role: enum('contractor', 'yardhand', 'manager')
+  unique principal
+  immutable principal
+  read <- .principal = viewer or viewer = 'service:operator'
+  insert <- viewer = 'service:operator'
+  update <- viewer = 'service:operator'
+  delete <- deny
+  online only
+
+mutation provision(principal: principal, role: enum('contractor', 'yardhand', 'manager')):
+  require viewer = 'service:operator' else NOT_OPERATOR 'Only the branch operator can provision roles.'
+  return upsert roles[principal] { principal, role }
+
+query myRole():
+  return roles[viewer]
+
+-- The yard board: every signed-in roster member sees every machine and its
+-- lifecycle status (available -> out -> returned -> serviced -> available).
+table machines:
+  name: text 3..60
+  kind: enum('excavator', 'skidsteer')
+  status: enum('available', 'out', 'returned', 'serviced') default 'available'
+  dailyPrice: int 1..
+  deposit: int 0..
+  unique name
+  cap 500
+  read <- exists roles[viewer]
+  insert <- exists roles[principal = viewer, role = 'manager']
+  update <- exists roles[principal = viewer, role = 'yardhand'] or exists roles[principal = viewer, role = 'manager']
+  delete <- deny
+  online only
+
+-- One rental per machine checkout. Yard staff rent machines to contractors;
+-- contractors never write rentals. The rental price and damage deposit are
+-- captured at checkout from the machine row.
+table rentals:
+  machine: machines on delete restrict
+  contractor: principal
+  dailyPrice: int 1..
+  deposit: int 0..
+  startsAt: time
+  dueAt: time
+  returnedAt: time ?
+  checkoutNote: text <=500 ?
+  damageFound: bool default false
+  damageNote: text <=500 ?
+  depositStatus: enum('held', 'applied', 'refunded') default 'held'
+  overrideReason: text <=200 ?
+  immutable machine, contractor, dailyPrice, deposit, startsAt, dueAt
+  cap 10000
+  read <- .contractor = viewer or exists roles[principal = viewer, role = 'yardhand'] or exists roles[principal = viewer, role = 'manager']
+  insert <- exists roles[principal = viewer, role = 'yardhand'] or exists roles[principal = viewer, role = 'manager']
+  update <- exists roles[principal = viewer, role = 'yardhand'] or exists roles[principal = viewer, role = 'manager']
+  delete <- deny
+  online only
+
+-- Walkaround photos, checkout and return. They follow their rental's readers.
+table rentalPhotos:
+  rental: rentals on delete cascade
+  kind: enum('checkout', 'return')
+  photo: image <=10000000
+  takenAt: time default now
+  immutable rental
+  cap 10000
+  read through .rental
+  insert <- exists rentals[.rental, contractor = viewer] or exists roles[principal = viewer, role = 'yardhand'] or exists roles[principal = viewer, role = 'manager']
+  delete <- deny
+  online only
+
+-- Bills: the rental charge, a late-day charge when a machine comes back more
+-- than one day late, and damage bills. At most one of each kind per rental.
+table invoices:
+  rental: rentals on delete restrict
+  contractor: principal
+  kind: enum('rental', 'late', 'damage')
+  amount: int 1..
+  status: enum('unpaid', 'paid', 'waived') default 'unpaid'
+  createdAt: time default now
+  waiveReason: text <=200 ?
+  unique rental, kind
+  immutable rental, contractor, kind, amount, createdAt
+  cap 10000
+  read <- .contractor = viewer or exists roles[principal = viewer, role = 'yardhand'] or exists roles[principal = viewer, role = 'manager']
+  insert <- exists roles[principal = viewer, role = 'yardhand'] or exists roles[principal = viewer, role = 'manager']
+  update (old, next) <- old.contractor = viewer and next.status = 'paid' or exists roles[principal = viewer, role = 'manager']
+  delete <- deny
+  online only
+
+-- Unpaid balance per contractor, for the rent gate below.
+view unpaidOwed: sum invoices of .amount where .status = 'unpaid' by .contractor
+  read <- .contractor = viewer or exists roles[principal = viewer, role = 'yardhand'] or exists roles[principal = viewer, role = 'manager']
+  online only
+
+query yardBoard(c: cursor ?):
+  require exists roles[viewer] else NO_ROLE 'Your account has no yard role yet.'
+  return machines first 50 by .id after c
+
+query rentalsBoard(c: cursor ?):
+  require exists roles[viewer] else NO_ROLE 'Your account has no yard role yet.'
+  if exists roles[principal = viewer, role = 'yardhand'] or exists roles[principal = viewer, role = 'manager']:
+    return rentals first 50 by .id after c
+  return rentals where .contractor = viewer first 50 by .id after c
+
+query rentalDetail(rental: rentals):
+  return rentals[rental]
+
+query rentalInvoices(rental: rentals, c: cursor ?):
+  return invoices where .rental = rental first 50 by .id after c
+
+query invoiceBoard(c: cursor ?):
+  require exists roles[viewer] else NO_ROLE 'Your account has no yard role yet.'
+  if exists roles[principal = viewer, role = 'yardhand'] or exists roles[principal = viewer, role = 'manager']:
+    return invoices first 50 by .id after c
+  return invoices where .contractor = viewer first 50 by .id after c
+
+query rentalPhotosOf(rental: rentals, c: cursor ?):
+  return rentalPhotos where .rental = rental first 50 by .id after c
+
+query unpaidBalance():
+  owed = unpaidOwed[viewer]
+  return owed ?? 0
+
+-- Staff rent a machine to a contractor. Only the branch manager may rent to a
+-- contractor with an unpaid balance, recording the reason.
+mutation rent(machine: machines, contractor: principal, days: int 1..30, overrideReason: text <=200 ?, checkoutPhoto: image <=10000000 ?, checkoutNote: text <=500 ?):
+  isManager = exists roles[principal = viewer, role = 'manager']
+  isStaff = isManager or exists roles[principal = viewer, role = 'yardhand']
+  require isStaff else NOT_STAFF 'Only yard staff can check out machines.'
+  m = machines[machine] ! else NOT_FOUND
+  require m.status = 'available' else NOT_AVAILABLE 'This machine is not available to rent.'
+  owed = unpaidOwed[contractor] ?? 0
+  if owed > 0:
+    require overrideReason != null and isManager else UNPAID_BALANCE 'This contractor has an unpaid balance; only the branch manager may rent to them, recording a reason.'
+  r = insert rentals { machine, contractor, dailyPrice: m.dailyPrice, deposit: m.deposit, startsAt: now, dueAt: now + days * 1d, overrideReason, checkoutNote }
+  insert invoices { rental: r.id, contractor, kind: 'rental', amount: m.dailyPrice * days }
+  if checkoutPhoto != null:
+    insert rentalPhotos { rental: r.id, kind: 'checkout', photo: checkoutPhoto }
+  update machines[machine] { status: 'out' }
+  return r
+
+-- Staff take a machine back. Returned more than one day late, the contractor
+-- is charged another day at the rental's daily price.
+mutation returnMachine(rental: rentals, damageFound: bool, damageNote: text <=500 ?, returnPhoto: image <=10000000 ?):
+  isStaff = exists roles[principal = viewer, role = 'yardhand'] or exists roles[principal = viewer, role = 'manager']
+  require isStaff else NOT_STAFF 'Only yard staff can take returns.'
+  r = rentals[rental] ! else NOT_FOUND
+  require r.returnedAt = null else ALREADY_RETURNED 'This rental was already returned.'
+  update rentals[rental] { returnedAt: now, damageFound, damageNote }
+  update machines[r.machine] { status: 'returned' }
+  if returnPhoto != null:
+    insert rentalPhotos { rental: r.id, kind: 'return', photo: returnPhoto }
+  if now > r.dueAt + 1d:
+    insert invoices { rental: r.id, contractor: r.contractor, kind: 'late', amount: r.dailyPrice }
+  return null
+
+-- Staff bill damage found on the return walkaround. Only within seven days of
+-- return; afterwards the deposit is refunded instead (see settleDeposits).
+mutation billDamage(rental: rentals, amount: int 1..):
+  isStaff = exists roles[principal = viewer, role = 'yardhand'] or exists roles[principal = viewer, role = 'manager']
+  require isStaff else NOT_STAFF 'Only yard staff can bill damage.'
+  r = rentals[rental] ! else NOT_FOUND
+  rt = r.returnedAt
+  require rt != null else NOT_RETURNED 'The machine has not been returned yet.'
+  require now <= rt + 7d else BILL_WINDOW_PASSED 'Damage must be billed within seven days of return; the deposit is refunded instead.'
+  require not exists invoices[r.id, 'damage'] else ALREADY_BILLED 'Damage was already billed for this rental.'
+  insert invoices { rental: r.id, contractor: r.contractor, kind: 'damage', amount }
+  update rentals[rental] { depositStatus: 'applied' }
+  return null
+
+-- Only the branch manager can waive a bill, recording the reason. Waiving a
+-- damage bill releases the deposit back to refunded.
+mutation waiveInvoice(invoice: invoices, reason: text 1..200):
+  require exists roles[principal = viewer, role = 'manager'] else NOT_MANAGER 'Only the branch manager can waive a bill.'
+  inv = invoices[invoice] ! else NOT_FOUND
+  require inv.status = 'unpaid' else ALREADY_SETTLED 'This invoice is already settled.'
+  update invoices[invoice] { status: 'waived', waiveReason: reason }
+  if inv.kind = 'damage':
+    update rentals[inv.rental] { depositStatus: 'refunded' }
+  return null
+
+-- Contractors pay their own bills.
+mutation payInvoice(invoice: invoices):
+  inv = invoices[invoice] ! else NOT_FOUND
+  require inv.contractor = viewer else NOT_YOURS 'You can only pay your own invoices.'
+  require inv.status = 'unpaid' else ALREADY_SETTLED 'This invoice is already settled.'
+  update invoices[invoice] { status: 'paid' }
+  return null
+
+-- Yard hands move returned machines through service back to available.
+mutation markServiced(machine: machines):
+  isStaff = exists roles[principal = viewer, role = 'yardhand'] or exists roles[principal = viewer, role = 'manager']
+  require isStaff else NOT_STAFF 'Only yard staff can service machines.'
+  m = machines[machine] ! else NOT_FOUND
+  require m.status = 'returned' else WRONG_STATUS 'Only a returned machine can be marked serviced.'
+  update machines[machine] { status: 'serviced' }
+  return null
+
+mutation markAvailable(machine: machines):
+  isStaff = exists roles[principal = viewer, role = 'yardhand'] or exists roles[principal = viewer, role = 'manager']
+  require isStaff else NOT_STAFF 'Only yard staff can release machines.'
+  m = machines[machine] ! else NOT_FOUND
+  require m.status = 'serviced' else WRONG_STATUS 'Only a serviced machine can be made available.'
+  update machines[machine] { status: 'available' }
+  return null
+
+-- Only the branch manager adds machines to the yard.
+mutation createMachine(name: text 3..60, kind: enum('excavator', 'skidsteer'), dailyPrice: int 1.., deposit: int 0..):
+  require exists roles[principal = viewer, role = 'manager'] else NOT_MANAGER 'Only the branch manager can add machines.'
+  return insert machines { name, kind, status: 'available', dailyPrice, deposit }
+
+-- Every night: deposits held past seven days after return with no damage bill
+-- are refunded. Billing or waiving already flips held rows away first.
+job settleDeposits():
+  for r in rentals:
+    if r.returnedAt != null and r.depositStatus = 'held':
+      if r.returnedAt + 7d < now:
+        if not exists invoices[r.id, 'damage']:
+          update rentals[r.id] { depositStatus: 'refunded' }
+schedule settleDaily every 1d at 03:00: settleDeposits
+
+-- Privacy and authority intent, stated apart from the enforcing rules above.
+-- Contractors see only their own rentals and invoices; yard hands and the
+-- branch manager see the whole board.
+invariant rentals always exists rentalPhotos[rental = .id, kind = 'checkout']
+
+exec
+/bin/bash -lc "nl -ba snapback4/crates/snapback4-lang/tests/security/wave23/042.q | sed -n '90,205p'; rg -n '"'^table |''^mutation |image|photo|delete |always|insert |update '"' snapback4/crates/snapback4-lang/tests/security/wave23/028.q; rg -n '"'^table |''^mutation |photo|always|insert rentals|insert rentalPhotos'"' snapback4/crates/snapback4-lang/tests/security/wave23/040.q; tail -n 4 snapback4/crates/snapback4-lang/tests/security/wave22/040-spec.q" in /home/ccheever/projects/sb4-b22-sec7
+ succeeded in 0ms:
+    90	  require exists roles[principal = viewer, role = 'title_company'] else NOT_TITLE_COMPANY
+    91	  return insert signings { titleCompany: viewer, signerName, address, documents, idScan, fee, agencyBillingNotes, outOfState: outOfState ?? false }
+    92	
+    93	-- Dispatchers and the owner assign a registered notary. Out-of-state papers
+    94	-- need an owner-approved notary.
+    95	mutation assignSigning(signing: signings, notary: principal):
+    96	  require exists roles[principal = viewer, role = 'dispatcher'] or exists roles[principal = viewer, role = 'owner'] else NOT_STAFF 'Only dispatch staff assign signings.'
+    97	  require exists roles[principal = notary, role = 'notary'] else NOT_A_NOTARY 'That principal is not a notary.'
+    98	  s = signings[signing] ! else NOT_FOUND
+    99	  require s.status = 'requested' else BAD_STATUS 'Only requested signings can be assigned.'
+   100	  if s.outOfState:
+   101	    p = notaryProfiles[principal = notary] ! else NOT_APPROVED 'That notary is not approved for out-of-state papers.'
+   102	    require p.approvedOutOfState else NOT_APPROVED 'That notary is not approved for out-of-state papers.'
+   103	  update signings[signing] { notary, status: 'assigned' }
+   104	  return null
+   105	
+   106	-- The assigned notary (or dispatch staff) records the signing.
+   107	mutation markSigned(signing: signings):
+   108	  s = signings[signing] ! else NOT_FOUND
+   109	  require s.status = 'assigned' else BAD_STATUS 'Only assigned signings can be marked signed.'
+   110	  require s.notary = viewer or exists roles[principal = viewer, role = 'dispatcher'] or exists roles[principal = viewer, role = 'owner'] else NOT_ASSIGNED 'Only the assigned notary or dispatch staff records the signing.'
+   111	  update signings[signing] { status: 'signed', signedAt: now }
+   112	  return null
+   113	
+   114	-- Signed papers ship back within one day of signing; later returns refuse.
+   115	mutation markReturned(signing: signings):
+   116	  s = signings[signing] ! else NOT_FOUND
+   117	  require s.status = 'signed' else BAD_STATUS 'Only signed signings can be marked returned.'
+   118	  require s.signedAt != null else BAD_STATUS 'This signing has no signing time.'
+   119	  require now <= s.signedAt + 24h else RETURN_OVERDUE 'Signed papers must ship back within one day of signing.'
+   120	  require s.notary = viewer or exists roles[principal = viewer, role = 'dispatcher'] or exists roles[principal = viewer, role = 'owner'] else NOT_ASSIGNED 'Only the assigned notary or dispatch staff records the return.'
+   121	  update signings[signing] { status: 'returned', returnedAt: now }
+   122	  return null
+   123	
+   124	-- Dispatch staff adjust the fee charged to the title company. Only the
+   125	-- agency owner may change the agency billing notes; the dispatcher may
+   126	-- still read them but cannot change them.
+   127	mutation updateBilling(signing: signings, fee: money USD, agencyBillingNotes: text <=2000 ? alias billingNotes):
+   128	  require exists roles[principal = viewer, role = 'dispatcher'] or exists roles[principal = viewer, role = 'owner'] else NOT_STAFF 'Only dispatch staff edits billing.'
+   129	  s = signings[signing] ! else NOT_FOUND
+   130	  if agencyBillingNotes != s.agencyBillingNotes:
+   131	    require exists roles[principal = viewer, role = 'owner'] else NOT_OWNER_NOTES 'Only the agency owner changes agency billing notes.'
+   132	  update signings[signing] { fee, agencyBillingNotes }
+   133	  return null
+   134	
+   135	-- Live dispatch board: every caller sees exactly the rows (and columns)
+   136	-- their rules admit, newest arrivals last.
+   137	query board(c: cursor ?):
+   138	  return signings first 100 by .id after c
+   139	
+   140	query signingDetail(signing: signings):
+   141	  return signings[signing]
+   142	
+   143	-- Privacy intent, stated independently from the rules above.
+   144	invariant signings.read only exists roles[principal = viewer, role = 'owner'] or exists roles[principal = viewer, role = 'dispatcher'] or exists roles[principal = viewer, role = 'notary'] or .titleCompany = viewer
+   145	invariant signings.fee read only exists roles[principal = viewer, role = 'owner'] or exists roles[principal = viewer, role = 'dispatcher']
+   146	invariant signings.agencyBillingNotes read only exists roles[principal = viewer, role = 'owner'] or exists roles[principal = viewer, role = 'dispatcher']
+   147	invariant signings.updateBilling only exists roles[principal = viewer, role = 'owner'] or exists roles[principal = viewer, role = 'dispatcher']
+   148	invariant signings.insert only exists roles[principal = viewer, role = 'title_company']
+   149	invariant notaryProfiles.approveNotary only exists roles[principal = viewer, role = 'owner']
+   150	invariant notaryProfiles.approvedOutOfState update only exists roles[principal = viewer, role = 'owner']
+   151	invariant signings.assignSigning only exists roles[principal = viewer, role = 'dispatcher'] or exists roles[principal = viewer, role = 'owner']
+3:table roles:
+9:  insert <- viewer = 'service:operator'
+10:  update <- viewer = 'service:operator'
+20:table sites:
+30:  insert <- exists roles[principal = viewer, role = 'ranger']
+31:  update <- (exists roles[principal = viewer, role = 'host'] or exists roles[principal = viewer, role = 'ranger']) or exists roles[principal = viewer, role = 'camper']
+34:table stays:
+45:  insert <- .owner = viewer and exists roles[principal = viewer, role = 'camper']
+46:  update <- .owner = viewer or (exists roles[principal = viewer, role = 'host'] or exists roles[principal = viewer, role = 'ranger'])
+49:table vehicles renamed from plates:
+52:  photo: image <=5000000 read <- .owner = viewer or exists roles[principal = viewer, role = 'ranger']
+55:  insert <- .owner = viewer and exists roles[principal = viewer, role = 'camper']
+56:  delete <- exists roles[principal = viewer, role = 'host'] or exists roles[principal = viewer, role = 'ranger']
+59:table payments:
+69:  insert <- .owner = viewer and exists roles[principal = viewer, role = 'camper']
+70:  update <- .owner = viewer or exists roles[principal = viewer, role = 'ranger']
+75:invariant vehicles.delete only (exists roles[principal = viewer, role = 'host'] or exists roles[principal = viewer, role = 'ranger'])
+78:mutation provision(principal: principal, role: enum('camper', 'host', 'ranger')):
+107:mutation addSite(name: text 1..60, kind: enum('tent', 'RV'), nightly: int 100..50000):
+110:  return insert sites { name, kind, nightly, status: 'open', current: null, holdUntil: null, reason: '' }
+112:mutation book(site: sites, arrival: time, nights: int 1..30, photo: image <=5000000):
+118:  b = insert stays { owner: viewer, site, arrival, nights, total, deposit: s.nightly, status: 'booked', reason: '' }
+119:  insert vehicles { owner: viewer, stay: b.id, photo }
+120:  insert payments { owner: viewer, stay: b.id, charged: total, refunded: 0, forfeited: 0, reason: '' }
+121:  update sites[site] { status: 'booked', current: b.id, holdUntil: arrival + 1d, reason: '' }
+124:mutation cancel(stay: stays):
+133:  update payments[stay = stay] { refunded: b.total - lost, forfeited: lost, reason: 'Camper cancellation' }
+134:  update stays[stay] { status: 'cancelled', reason: 'Camper cancellation' }
+135:  update sites[b.site] { status: 'open', current: null, holdUntil: null }
+137:mutation checkIn(stay: stays):
+145:  update stays[stay] { status: 'occupied' }
+146:  update sites[b.site] { status: 'occupied', holdUntil: null }
+148:mutation checkOut(stay: stays):
+154:  update stays[stay] { status: 'completed' }
+155:  update sites[b.site] { status: 'dirty', current: null }
+157:mutation clean(site: sites):
+161:  update sites[site] { status: 'cleaned' }
+163:mutation closeSite(site: sites, reason: text 3..500):
+168:  update sites[site] { status: 'closed', reason }
+170:mutation refundClosed(stay: stays, reason: text 3..500):
+177:  update payments[stay = stay] { refunded: b.total, forfeited: 0, reason }
+178:  update stays[stay] { status: 'refunded', reason }
+179:  update sites[b.site] { current: null }
+181:mutation evict(stay: stays, reason: text 3..500):
+188:  update stays[stay] { status: 'evicted', reason }
+189:  update sites[b.site] { status: 'dirty', current: null, reason }
+196:        update stays[b.id] { status: 'released', reason: 'No check-in within one day' }
+198:          update sites[b.site] { status: 'open', current: null, holdUntil: null }
+204:mutation addVehicle(stay: stays, photo: image <=5000000):
+208:  return insert vehicles {owner: viewer, stay, photo}
+209:mutation removeVehicle(vehicle: vehicles):
+211:  delete vehicles[vehicle]
+11:table roles:
+22:mutation provision(principal: principal, role: enum('contractor', 'yardhand', 'manager')):
+31:table machines:
+48:table rentals:
+69:-- Walkaround photos, checkout and return. They follow their rental's readers.
+70:-- Checkout (departure) photos belong to the rental's departure inspection:
+72:table rentalPhotos:
+75:  photo: image <=10000000
+86:-- the machine's starting photos. The photos themselves stay in rentalPhotos
+88:-- pre-existing checkout photo survives the migration untouched.
+89:table departureInspections:
+103:table invoices:
+162:-- includes a departure inspection holding the starting walkaround photos.
+163:mutation rent(machine: machines, contractor: principal, days: int 1..30, overrideReason: text <=200 ?, checkoutPhoto: image <=10000000, checkoutNote: text <=500 ?):
+172:  r = insert rentals { machine, contractor, dailyPrice: m.dailyPrice, deposit: m.deposit, startsAt: now, dueAt: now + days * 1d, overrideReason, checkoutNote }
+175:  insert rentalPhotos { rental: r.id, kind: 'checkout', photo: checkoutPhoto }
+181:mutation ensureDepartureInspection(rental: rentals):
+190:-- Only the branch manager may replace or remove photos from a saved
+192:mutation replaceDeparturePhoto(photo: rentalPhotos, newPhoto: image <=10000000):
+193:  require exists roles[principal = viewer, role = 'manager'] else NOT_MANAGER 'Only the branch manager can change departure photos.'
+194:  p = rentalPhotos[photo] ! else NOT_FOUND
+195:  require p.kind = 'checkout' else WRONG_KIND 'Only departure (checkout) photos can be replaced here.'
+196:  update rentalPhotos[photo] { photo: newPhoto }
+199:mutation removeDeparturePhoto(photo: rentalPhotos):
+200:  require exists roles[principal = viewer, role = 'manager'] else NOT_MANAGER 'Only the branch manager can remove departure photos.'
+201:  p = rentalPhotos[photo] ! else NOT_FOUND
+202:  require p.kind = 'checkout' else WRONG_KIND 'Only departure (checkout) photos can be removed here.'
+203:  delete rentalPhotos[photo]
+208:mutation returnMachine(rental: rentals, damageFound: bool, damageNote: text <=500 ?, returnPhoto: image <=10000000 ?):
+216:    insert rentalPhotos { rental: r.id, kind: 'return', photo: returnPhoto }
+223:mutation billDamage(rental: rentals, amount: int 1..):
+237:mutation waiveInvoice(invoice: invoices, reason: text 1..200):
+247:mutation payInvoice(invoice: invoices):
+255:mutation markServiced(machine: machines):
+263:mutation markAvailable(machine: machines):
+272:mutation createMachine(name: text 3..60, kind: enum('excavator', 'skidsteer'), dailyPrice: int 1.., deposit: int 0..):
+-- Privacy and authority intent, stated apart from the enforcing rules above.
+-- Contractors see only their own rentals and invoices; yard hands and the
+-- branch manager see the whole board.
+invariant rentals always exists rentalPhotos[rental = .id, kind = 'checkout']
+
+codex
+The named schemas support the distinctions in the revision: 040’s return photo is a conditional attachment to an existing rental; 042’s owner guard applies specifically to billing-note changes; and 028’s booking binds required media to the newly created stay. I’m checking the suppression and grouping rules for material gaps.
+
+codex
+**READY.** No material design objections in [§16.9](/home/ccheever/projects/sb4-b22-sec7/llp/3000.036.004-security-invariants-and-exposure.rfc.md:2308).
+
+The stated fragment adequately addresses optionality and 040’s conditional child, 030’s narrowing/grouping, 042’s exact field guard and edit-path union, and 028’s evidence removal. Intent boundaries, deterministic identities, finite limits, stock-review removal, and qualification controls are sufficiently specified.
+
+This is design readiness; qualification requirements are not completed-test evidence. Earlier reviews were not used. No files were modified or credential stores read.
+tokens used
+53,352
+**READY.** No material design objections in [§16.9](/home/ccheever/projects/sb4-b22-sec7/llp/3000.036.004-security-invariants-and-exposure.rfc.md:2308).
+
+The stated fragment adequately addresses optionality and 040’s conditional child, 030’s narrowing/grouping, 042’s exact field guard and edit-path union, and 028’s evidence removal. Intent boundaries, deterministic identities, finite limits, stock-review removal, and qualification controls are sufficiently specified.
+
+This is design readiness; qualification requirements are not completed-test evidence. Earlier reviews were not used. No files were modified or credential stores read.

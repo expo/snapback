@@ -33,7 +33,10 @@ fn review_limit_retains_every_escalation_and_names_remainder(){
     let mut r=report("table notes:\n  body: text <=80\n  read <- allow\n  online only\n");
     let base=r.notes[0].clone();r.notes.clear();
     for i in 0..7 {let mut n=base.clone();n.code=if i<3 {"N_SELF_CLAIMED_RELATIONSHIP"}else{"N_CALLER_TIME"}.into();n.message=format!("review operation {i}");r.notes.push(n);}
+    for i in 0..4 {let mut n=base.clone();n.code="N_COLUMN_RESULT_EXPOSURE".into();n.message=format!("inventory {i}");r.notes.push(n);}
     let text=r.action_text(1);
     assert_eq!(text.matches("N_SELF_CLAIMED_RELATIONSHIP").count(),3,"{text}");
+    assert_eq!(text.matches("N_CALLER_TIME").count(),4,"likely-hole questions survive the cap: {text}");
+    assert!(!text.contains("N_COLUMN_RESULT_EXPOSURE"),"inventory stays behind actions: {text}");
     assert!(text.contains("4 more reviews"),"{text}");
 }

@@ -219,8 +219,14 @@ fn tuple_role_tests_guard_and_explain_retained_grants_consistently(){
 #[test]
 fn a_different_or_negated_role_does_not_discharge_retained_intent(){
  for test in ["exists roles[viewer, role = 'member']","not exists roles[viewer, role = 'judge']"]{
-  let source=format!("table roles:\n  principal: principal\n  role: enum('judge','member')\n  unique principal\n  read <- allow\n  update <- viewer = 'service:ops'\n  online only\ntable notes:\n  assignee: principal\n  read <- .assignee = viewer and {test}\n  online only\ninvariant notes.read only exists roles[viewer, role = 'judge']\nmutation demote(who: principal):\n  return update roles[who] {{ role: 'member' }}\n");
+  let source=format!("table roles:\n  principal: principal\n  role: enum('judge','member')\n  unique principal\n  read <- allow\n  update <- viewer = 'service:ops'\n  online only\ntable grants:\n  principal: principal\n  unique principal\n  read <- allow\n  insert <- exists roles[viewer, role = 'judge']\n  online only\ntable notes:\n  assignee: principal\n  read <- .assignee = viewer and exists grants[viewer] and {test}\n  online only\ninvariant notes.read only exists roles[viewer, role = 'judge']\nmutation demote(who: principal):\n  return update roles[who] {{ role: 'member' }}\n");
   let r=security::analyze(&bound(&source));assert!(r.notes.iter().any(|n|n.code=="N_GRANT_OUTLIVES_ROLE"&&n.message.starts_with("notes.read")),"{:?}",r.notes);
+  // Own-row attribution is not a grant: this fixture has a real retained
+  // assignment, and only the matching current role can discharge its advice.
+  assert_ne!(r.invariants[0].direct_rule,Status::Proved);
+  let fixed=source.replace(&format!("and {test}\n"),"and exists roles[viewer, role = 'judge']\n");
+  let r=security::analyze(&bound(&fixed));assert_eq!(r.invariants[0].direct_rule,Status::Proved);
+  assert!(!r.notes.iter().any(|n|n.code=="N_GRANT_OUTLIVES_ROLE"&&n.message.starts_with("notes.read")),"{:?}",r.notes);
  }
 }
 

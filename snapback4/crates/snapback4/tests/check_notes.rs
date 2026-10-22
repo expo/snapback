@@ -176,7 +176,7 @@ fn no_horizon_notes_are_compact_in_check_and_explained_by_verbose_or_why() {
         String::from_utf8(output.stdout).unwrap()
     };
     let plain = run(&["check"]);
-    assert!(plain.contains("more actionable notes in check --verbose/JSON"), "{plain}");
+    assert!(plain.contains("N_NO_HORIZON"), "selected ordinary classes keep both horizon subjects: {plain}");
     let full = run(&["check", "--verbose"]);
     assert_eq!(full.matches(" — N_NO_HORIZON:").count(), 2, "{full}");
     assert!(full.contains("schema.q:5:1"), "{full}");

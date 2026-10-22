@@ -19,6 +19,7 @@ pub fn draft(bound:&Bound)->String{
         let audiences=std::iter::once("a signed-in user without a roster role (check own rows and unrelated rows separately)".to_owned())
             .chain(roles.iter().cloned()).collect::<Vec<_>>();
         for audience in &audiences {
+            out.push_str(&format!("-- Q {name}.write / {audience}: may any user of this role write ANY {name} row, or only the owner of THIS resource? Which relationship and state must hold?\n"));
             out.push_str(&format!("-- Q {name}.read / {audience}: which rows may this audience see according to the spec? Own, assigned, team-wide, or none? Which state/consent conditions must hold now?\n"));
         }
         for (column,kind) in &t.columns {

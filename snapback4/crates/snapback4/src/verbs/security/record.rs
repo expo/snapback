@@ -7,6 +7,7 @@ pub(super) struct Record{
     #[serde(default)] pub recorded_at:Option<i64>,
     #[serde(default)] pub last_completed_at:Option<i64>,
     #[serde(default)] pub run_violations:Option<usize>,
+    #[serde(default)] pub directed_attempts:usize,#[serde(default)] pub directed_peak_worlds:usize,
     pub fingerprint:String,pub complete:bool,pub attempted:usize,pub sequences:usize,pub coverage_gaps:usize,pub violations:Vec<security::challenges::Counterexample>}
 pub(super) fn selected_fixture(project:&Project,options:&Options)->std::path::PathBuf{
     let flag=if options.flags.contains_key("source"){"source"}else{"schema"};
@@ -38,7 +39,7 @@ pub(in crate::verbs) fn remember(project:&Project,options:&Options,campaign:&sec
     if fingerprint(project,options)?!=consumed{return Err("source or fixtures changed during test; evidence was not saved; rerun snapback4 test".into());}
     let previous=matching_key(project,consumed);
     let now=snapback4_core::now_ms();
-    let mut record=Record{recorded_at:Some(now),last_completed_at:if complete{Some(now)}else{previous.as_ref().and_then(|r|r.last_completed_at)},run_violations:Some(campaign.violations.iter().filter(|c|c.reachability.is_reachable()).count()),fingerprint:consumed.into(),complete,attempted:campaign.attempted,sequences:campaign.sequences,coverage_gaps:campaign.unsupported.len(),violations:campaign.violations.iter().filter(|c|c.reachability.is_reachable()).cloned().collect()};
+    let mut record=Record{recorded_at:Some(now),last_completed_at:if complete{Some(now)}else{previous.as_ref().and_then(|r|r.last_completed_at)},run_violations:Some(campaign.violations.iter().filter(|c|c.reachability.is_reachable()).count()),fingerprint:consumed.into(),complete,directed_attempts:campaign.directed_attempts,directed_peak_worlds:campaign.directed_peak_worlds,attempted:campaign.attempted,sequences:campaign.sequences,coverage_gaps:campaign.unsupported.len(),violations:campaign.violations.iter().filter(|c|c.reachability.is_reachable()).cloned().collect()};
     let prior=previous.map(|r|r.violations).unwrap_or_default();
     let mut seen=std::collections::BTreeSet::new();
     record.violations=prior.into_iter().chain(record.violations).filter(|v|v.reachability.is_reachable()&&seen.insert(serde_json::to_string(&(&v.invariant_site,&v.viewer,&v.operation,&v.effect,&v.reachability)).unwrap())).collect();

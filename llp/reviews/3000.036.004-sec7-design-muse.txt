@@ -1,0 +1,58 @@
+muse: workspace root: /home/ccheever/projects/sb4-b22-sec7 (cwd default)
+muse: workspace trust: trusted source=run-flag
+# SEC7 design review — LLP 3000.036.004 §16
+
+**Verdict: NOT READY.** Section 16 is not implementable as written. The gate, presentation, history, and qualification contracts each have load-bearing gaps.
+
+## M1 — §16.1 advisories lack implementable predicates
+
+The seven new advisory shapes have no bound-IR trigger or suppression predicate:
+
+- reason text without a minimum, optional money to creation, constant-true payment/approval flags, generic enum setters vs. literal transitions, omitted creation checks, inconsistent server-now bounds, global-role operations recording viewer on an unrelated row.
+
+What counts as reason text, money, a payment/approval flag, a generic setter, derived creation, an inconsistent bound, or an unrelated row is undefined. The naming-heuristic flag class is explicitly a heuristic with no name list or match rule, so it is untestable. "The relationship recipe models the owner of this wall explicitly" names a domain object ("this wall") with no definition. "Ask whether each role may write any row" states no per-role, per-table bound, so the questionnaire is unbounded.
+
+**Required:** per-class bound-structure predicates, suppression conditions, duplicate-suppression against §§12.3/14.2 notes, and worked examples — or demote §16.1 to non-normative direction.
+
+## M2 — §16.1 presentation contract is contradictory
+
+"Default check shows at least five items and all likely-hole questions; SEC6 insert/result notes never increase that cap" mixes a floor with a cap. The likely-hole / coverage / restate / result-inventory partition has no code-to-class mapping. Interaction with the surviving guarantees — all escalation notes visible (§13.7), all refuted sites visible (§14.4), refuted/refusal lines carrying origin — is unstated, since §16 only claims to supersede §15.2's display cap.
+
+**Required:** exact selection, ordering, cap, remainder-count, and JSON-completeness rules, plus a statement that prior always-visible classes survive.
+
+## M3 — §16.2 gate suppression is unsound as specified
+
+Both gates allow suppression without fail-closed rules:
+
+- `N_OPTIONAL_UPLOAD_CREATE`: the "unconditional dominating require of non-null" needs a definition of dominating, unconditional, before-every-creating-write (both upsert arms, conditional child inserts, loops, helpers). Unknown flow must retain the gate. Currently unstated, and reusing "the existing authority walker" for value flow is unjustified.
+- `N_RETAINED_ROLE_GRANT`: "read branch does not imply the same current-reader role," owner-branch and service-seat exclusions, and "positive recipient role atom in every admitting writer branch" need an explicit kernel-implication query with unknown/cap-exhaustion retaining the gate. Mutability must reference the existing §§12.3/12.8 revocability definitions, not a new test.
+- The literal-role restriction means dynamic-role retained grants escape the gate and stay advisory-only. That false-negative lane must be disclosed as uncovered or the gate widened.
+
+**Required:** fail-closed suppression predicates; unknown means the gate stays.
+
+## M4 — §16.2 acknowledgment store and invalidation are under-specified
+
+- ID hashing "the complete diagnostic" and a source digest over "all compiled source filenames and bytes" need canonicalization (relative paths, line-shift behavior). Global invalidation on any source edit maximizes churn; either justify it or scope digests per note.
+- "Analyzer revision" is undefined: what bumps it and where it is recorded.
+- "Failed compilation/refuted intent must never record acknowledgments" does not scope whether one unrelated refuted invariant blocks every gate ack.
+- "Incompatible flag combinations refuse" enumerates nothing: `--ack-notes`, `--all`, `--verbose`, `--fixture`/`--source`, deploy `--strict` interaction.
+- Deploy behavior is missing: §15.3 strict refuses on reachable refutations, but §16 gates exit 1 on check with no stated deploy/preview semantics, including saved-source ack portability.
+- Broad-advice individual review has no exit-code effect stated.
+
+**Required:** exact ack schema, canonical digests, analyzer-revision definition, refused combinations, and check/deploy exit semantics.
+
+## M5 — §16.3 directed histories: budget, pruning, and origin
+
+- Budget arithmetic does not close: 2048 attempts and depth 8 against check's shared 512-reservation/1500 ms cap guarantees truncation. Partition directed vs. breadth reservations or state that directed depth is test-only.
+- Frontier pruning to 16 worlds by lifecycle signature risks dropping owner/grant/money-distinct worlds. The signature field closure must include every policy-relevant field, or pruning must be ordering-only with dropped worlds named uncovered. Successor-from-current-world needs the §12.2 fork/ledger/hub semantics restated.
+- Origin classification is ambiguous: "synthetic witnesses remain REVIEW and never failures" conflicts with GeneratedFixtureTrace failure eligibility from §§13–14. Directed traces from validated generated fixtures need an explicit origin and failure rule.
+- "Report every cut" must restore the prior guarantee: truncated paths stay unproved, never proof.
+
+## M6 — §16.4 qualification cannot pass or fail
+
+- "Eight high lanes" are not enumerated (SEC6 §15.5 lists seven). Lane IDs, source hashes, the single spec-worded invariant per lane, and expected flagged/caught tables are missing.
+- Gate exit-1 on invariant-free schemas must be reconciled with the zero-new-refusals bar: separate measurement is stated but no gate-fire acceptance threshold is given, hiding the availability cost of review-gating.
+- Changed guide snippets in scope are not identified.
+
+**Required:** lane list with hashes and invariants, gate precision/recall targets on the frozen corpus, and the refusal-vs-gate accounting rule.
+

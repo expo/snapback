@@ -1,0 +1,169 @@
+{
+  "source": "0d950b53ae",
+  "semanticSource": "c846640532",
+  "analyzer": "sec7-10",
+  "cargoEnvironment": "CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0; full workspace additionally DEV_OPT_LEVEL=1,CARGO_BUILD_JOBS=6; final affected tests additionally CODEGEN_UNITS=16 with a secondary target",
+  "checks": [
+    {
+      "log": "cargo-workspace.log.gz",
+      "rawSha256": "a20bae839ef9d5f112778ebd1e57f1227ebecd0f7e87c8f828cf07fea982f24e",
+      "command": "cargo test --workspace --no-fail-fast -- --test-threads=6",
+      "exitCode": 101,
+      "result": "full seven-crate run; one SEC6 failure repaired and whole target rerun"
+    },
+    {
+      "log": "lang-final.log.gz",
+      "rawSha256": "1e6070ac7bfa378a9a29131ae0a19b07a80aea39820e0fa918f8ffca499552f1",
+      "command": "cargo test -p snapback4-lang --no-fail-fast -- --test-threads=6",
+      "exitCode": 101,
+      "result": "full language suite; same sole SEC6 failure repaired"
+    },
+    {
+      "log": "sec6-final.log.gz",
+      "rawSha256": "53484ab36f8f237f397b2ee81f23c130e68aa0951fca7c66da8f5b2f0de2e07c",
+      "command": "cargo test -p snapback4-lang --test security_sec6",
+      "exitCode": 0,
+      "result": "12 passed"
+    },
+    {
+      "log": "final10-controls.log.gz",
+      "rawSha256": "dfb8780f77ed16f4a91726dbd4cfe21dbc7a94a8f3f0ce9cefae348932eb3f19",
+      "command": "cargo test -p snapback4-lang --test security_sec7_day2",
+      "exitCode": 0,
+      "result": "37 passed"
+    },
+    {
+      "log": "sec7-final10.log.gz",
+      "rawSha256": "26214d305a94fbb951c4a6b1f1fe87349be7cbcd869b508a4aa09f9c13191a39",
+      "command": "cargo test -p snapback4-lang --test security_sec7",
+      "exitCode": 0,
+      "result": "17 passed"
+    },
+    {
+      "log": "final10-all-controls.log.gz",
+      "rawSha256": "ff355afc34765d6a746e1ab9f4778e4857238a34a81e54a36e8d873dee1b8163",
+      "command": "guide plus affected security targets",
+      "exitCode": 101,
+      "result": "stopped at stale action-quotation test; corrected and full guide rerun"
+    },
+    {
+      "log": "guide-final10-fixed.log.gz",
+      "rawSha256": "e6bc496758a4c2da97318f32790000dc433a53a69791455d0f0f191a600d3dc2",
+      "command": "cargo test -p snapback4-lang --test guide",
+      "exitCode": 0,
+      "result": "127 passed"
+    },
+    {
+      "log": "cli-analyzer10.log.gz",
+      "rawSha256": "1d55b44d77c4d6baf56f944fa6b5a894e1075eed2c5ababb8e13287847ca8eda",
+      "command": "cargo test -p snapback4 --bin snapback4 --test security_reviews",
+      "exitCode": 0,
+      "result": "515 passed/5 ignored unit tests; 4 public tests passed"
+    },
+    {
+      "log": "client-pool.log.gz",
+      "rawSha256": "04c8fab6208893ec162b91f8e5dd6b3195579af54933c510b7c360091759209f",
+      "command": "full client pool425 plus full default model files2 at63089244bc",
+      "exitCode": 0,
+      "result": "7773 passed/56 skipped ordinary tests;81 model tests passed"
+    },
+    {
+      "log": "client-affected-final6.log.gz",
+      "rawSha256": "8f5dfb2469d01ab361e3ad02870f2ef6e42bd0afd8b2599c75f43810df1911f0",
+      "command": "security-packed plus full social-starter files",
+      "exitCode": 0,
+      "result": "20 passed at intermediate source; final packed repeat follows"
+    },
+    {
+      "log": "client-packed-final10.log.gz",
+      "rawSha256": "28ddbdf99c9d5f7b9477c0342773ff39dc8e35f2a5b12bf01f9394cc81ab15cd",
+      "command": "final native fresh security-packed and social-starter files",
+      "exitCode": 0,
+      "result": "20 passed against qualified musl binary"
+    },
+    {
+      "log": "difftest.log.gz",
+      "rawSha256": "70905154f90fa13ead7009d316c848b930d71118d729c0c7ba382a47e1e3d6d4",
+      "command": "difftest run20k",
+      "exitCode": 0,
+      "result": "1222111executions;0 disagreements/new signatures"
+    },
+    {
+      "log": "devices.log.gz",
+      "rawSha256": "e6053124ed27e5c29830fb67aa0704fb0680845e11af2a6d6ce822b0df18f7db",
+      "command": "difftest run-devices0..999",
+      "exitCode": 0,
+      "result": "27922executions;0 disagreements"
+    },
+    {
+      "log": "lean-build.log.gz",
+      "rawSha256": "2777ea22617a89b16c21d031c3abcf1451b88d65b577f054de2c7c17679f7663",
+      "command": "LEAN_NUM_THREADS=6 lake build",
+      "exitCode": 0,
+      "result": "60 build jobs"
+    },
+    {
+      "log": "lean.log.gz",
+      "rawSha256": "e204b5533e6be50d524a7413fd6af3fcc49334035248096d07e64e0b1d3c27c6",
+      "command": "difftest run-lean20k",
+      "exitCode": 1,
+      "result": "56917executions;130 disagreements in4existing CLASSIFIED signatures;0 NEW"
+    },
+    {
+      "log": "wasm.log.gz",
+      "rawSha256": "cc3778f87e6cf233add5ef8f193f2b2f3901cd982bb3199398b4313454686e28",
+      "command": "build-wasm.sh and budget",
+      "exitCode": 0,
+      "result": "735093gzip bytes /735407 budget"
+    },
+    {
+      "log": "root-final.log.gz",
+      "rawSha256": "3b7b807a71fb6aad8beb79c7a8cc43d40c76141de32830a3585d8e41715eac26",
+      "command": "root frozen Bun install/hoist/generated/inventories/guide/ref",
+      "exitCode": 0,
+      "result": "22guide checks;365package tests/35scripts/31demos/487leaves"
+    },
+    {
+      "log": "inventories-final10.log.gz",
+      "rawSha256": "2e5bdbb81fb0a90d0048b15c79190ef3773fdfa33b8646930fe455f717a57813",
+      "command": "node scripts/check-inventories.mjs after final source movement",
+      "exitCode": 0,
+      "result": "365package tests/35scripts/31demos/487leaves"
+    },
+    {
+      "log": "docs-budget-final10.log.gz",
+      "rawSha256": "9693f32473b0ebf47adcab8ad61d294a1c83c38685dc1c2f8d6cb12a62537092",
+      "command": "docs-budget.mjs under required Cargo flags",
+      "exitCode": 0,
+      "result": "README319/320; named self-containment test1 passed"
+    },
+    {
+      "log": "ref-final.log.gz",
+      "rawSha256": "beb5e3735e8c3b46514dd4d7684ee044c0ebc39e6ffd4a22d2e0ed2c9b8a600c",
+      "command": "./ref-check --verbose",
+      "exitCode": 0,
+      "result": "564LLPs/12330refs;0errors/unchecked before evidence curation"
+    },
+    {
+      "log": "qualify-linux.log.gz",
+      "rawSha256": "8aa286ed8d737a7bd6536e8c77c1d21a28bbd7703903e8aca585994e9a831d58",
+      "command": "initial consumer-only Linux qualification",
+      "exitCode": 1,
+      "result": "superseded: consumer work ran but final source guard rejected concurrent review repairs; no receipt"
+    },
+    {
+      "log": "qualify-linux-verified.log.gz",
+      "rawSha256": "68572a69d1784750c637dfcb441915787a6e6aedb55d7d44d203a8e8e3868623",
+      "command": "fresh qualify-linux --consumer-only at0d950b53ae",
+      "exitCode": 0,
+      "result": "all installed-consumer proofs passed; no publication receipt"
+    },
+    {
+      "log": "mac-final-retry.log.gz",
+      "rawSha256": "058ddede034aaa7c333d96fac263ab6157ee65385af408756666f48d652b7771",
+      "command": "SSH named Mac Studio,~/sb4-ws-sec7 only",
+      "exitCode": 255,
+      "result": "connect timeout; no final Mac pass"
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+muse: workspace root: /home/ccheever/projects/sb4-b22-sec7 (cwd default)
+muse: workspace trust: trusted source=run-flag
+## Verdict: READY
+
+Independent review of the SEC7 delta (`4a85340d11` → worktree, plus new `creation_advice.rs`, `security_reviews.rs`, wave22 fixtures, and committed presentation changes) against LLP 3000.036.004 §16–16.7 finds no material correctness, security, precision, or resource issue. This verdict covers code only; full/packed qualification remains separate and is not claimed passed.
+
+What I checked, and why it holds:
+
+- **Prior gap closed — `InsertIfAbsent.result` lineage.** [result_advice.rs](/home/ccheever/projects/sb4-b22-sec7/snapback4/crates/snapback4-lang/src/bind/security/result_advice.rs) now binds `result` to `join(payload flow, row(table))` and enriches the payload variable too. Join adds, never replaces, per §16.6. The regression test covers all 8 combinations (ruled/unruled destination × full/field return × insert/if-absent).
+- **Assignment-key narrowing.** The retained-role gate requires the probe key to bind the stored recipient principal with a unique single-principal index, so parent-by-id plus owner-equality lookups are structurally excluded. Covered by the 001/009/041, companion-principal, and assigner-vs-recipient tests. The removed declared-intent principal-branch advisory in [lints.rs](/home/ccheever/projects/sb4-b22-sec7/snapback4/crates/snapback4-lang/src/bind/security/lints.rs) matches the §16.6 calibration.
+- **Gates and dispositions.** Optional-upload suppression requires an unconditional non-null `Require` before the first creating write, `$advice` guards excluded, both upsert arms gated. Dispositions are version-1, SHA256 full-diagnostic IDs over deterministic (BTreeMap, no `preserve_order`) JSON, sorted-source digest, `sec7-2` analyzer constant, temp+rename with re-verified sources, kernel file lock in ignored generated output. Refuted invariants and compilation failures block ack writes; bulk `--ack-notes` cannot clear gates; flag combinations refused in [cli_flags.rs](/home/ccheever/projects/sb4-b22-sec7/snapback4/src/cli_flags.rs).
+- **History cuts all explicit.** Every directed bound (depth 8, 2048 attempts, 4-world beam, 2 actors/tuple, signature merges, empty-start deferral) records an `unsupported` entry. Synthetic witnesses stay REVIEW; validated generated fixtures keep failing eligibility.
+- **Presentation.** Priority mapping, `max(5, priority 0–2)` cap excluding SEC6 insert/result inventory, numeric site ordering, and per-table result grouping with all observers/sites retained match §16.1/16.5.
+- **§16.7 social optionality.** Single source/analyzer-bound record ships as template data, `init` skips it beside authored schemas, README explains, and a CLI test proves edits invalidate it.
+- **Version posture as required.** `package.json` and workspace `Cargo.toml` stay at 0.4.37; the 0.4.38 entry exists only in the CHANGELOG and guide text.
+
+Current-log corroboration only (no inference from obsolete logs): `security-final2.log` shows 12 SEC6 + 15 SEC7 passing, `sec7-qualified.log` shows 15 SEC7 passing, `review-cli-final.log` shows both CLI disposition tests passing.

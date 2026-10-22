@@ -1,7 +1,8 @@
 //! `check`'s advisory notes, ranked. A green check printed nine notes in
 //! source order, and builders could not tell an FYI about offline coverage
 //! from a page that never completes. Notes stay advisory (they never fail a
-//! check); this only orders them, names each group, and shortens repeats.
+//! check); security review gates are decided by the caller. This module orders
+//! output, names each group and shortens repeats.
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub(crate) enum Tier {
@@ -15,6 +16,7 @@ pub(crate) enum Tier {
 }
 
 pub(crate) fn tier(code: &str) -> Tier {
+    if snapback4_lang::security::note_priority(code)<=2{return Tier::Review;}
     match code {
         "N_IMMUTABLE_PATCH" | "N_PERSONA_PRINCIPAL" | "N_UNREADABLE_PROBE" | "N_NO_PRODUCTION_WRITER" | "N_FIXTURE_ARGUMENT_DRIFT" | "N_REFERENCE_UNCHECKED" | "N_MAINTAIN_AUTHORIZATION" | "N_WRITE_DENIED" | "N_DELETE_RESTRICTED" | "N_DELETE_NEEDS_READ" | "N_PATCH_CLEARS" | "N_NEVER_COMPLETE" | "N_CONDITIONAL_COMPLETE" | "N_PROBE_ONLY_READ" | "N_VACUOUS_RULE" | "N_LOOKUP_HIDDEN" | "N_LOOKUP_FILTERED" | "N_UNIQUE_HIDDEN" | "N_LOOKUP_NEVER_VISIBLE" | "N_REQUIRE_HIDDEN" | "N_REQUIRE_REFUSED" | "N_QUERY_FILTERED" | "N_SHAPE_METER" | "N_HELD_UNKNOWN" | "N_SEQUENCE_READ"
         | "N_SWEEP_DEADLINE" | "N_CLOCK_STORE_AHEAD" | "N_PUBLIC_AGGREGATE_COPY" | "N_MAINTAINED_COLUMN_DISCLOSURE" | "N_MAINTAIN_DELTA"
@@ -27,10 +29,12 @@ pub(crate) fn tier(code: &str) -> Tier {
 
 /// Security findings that can grant authority stay ahead of repeated advice.
 pub(crate) fn summary_order(code:&str)->(Tier,u8){
-    (tier(code),match code{
-        "N_INSERT_WRITE_INTENT" | "N_COLUMN_RESULT_EXPOSURE" | "N_PRIVILEGE_ESCALATION" | "N_SELF_CLAIMED_RELATIONSHIP"=>0,"N_ROLE_WIDE_READ" | "N_BROAD_READ"=>1,
-        "N_INVARIANT_RESTATES_RULE"=>3,"N_SECURITY_INTENT"=>5,_=>2,
-    })
+    let priority=snapback4_lang::security::note_priority(code);
+    (if priority<=2 {Tier::Review}else{tier(code)},priority)
+}
+
+pub(crate) fn site_order(site:&str)->(String,u32,u32){
+    let mut parts=site.rsplitn(3,':');let col=parts.next().and_then(|s|s.parse().ok()).unwrap_or(0);let line=parts.next().and_then(|s|s.parse().ok()).unwrap_or(0);let file=parts.next().unwrap_or(site);(file.to_owned(),line,col)
 }
 
 /// The first words of a note's line: what to do about it, or that nothing
@@ -41,7 +45,7 @@ pub(crate) fn verdict(code: &str, summary: &str, form: bool) -> &'static str {
         "N_PRIVILEGE_ESCALATION" => "review: restrict authority assignment",
         "N_SELF_CLAIMED_RELATIONSHIP" => "review: verify the relationship before granting access",
         "N_CALLER_TIME" => "review: use server time or bound the supplied time",
-        "N_ROLE_WIDE_READ" | "N_BROAD_READ" => "review: confirm each admitted audience and row state",
+        "N_ROLE_WIDE_WRITE" | "N_ROLE_WIDE_READ" | "N_BROAD_READ" => "review: confirm each admitted audience and row state",
         "N_INVARIANT_RESTATES_RULE" => "review: answer the audience questions from the spec",
         "N_SECURITY_INTENT" => "review: write independent intent from the spec",
         "N_NO_PRODUCTION_WRITER" if summary.starts_with("persona-only:") => "no action without use identity",
@@ -114,7 +118,7 @@ pub(crate) fn compiled_form(code: &str, rewrite: &str) -> Option<(String, String
 }
 
 // Audience questions and repairs differ per rule; repeated codes cannot hide them.
-fn per_rule_security(code:&str)->bool {matches!(code,"N_PRIVILEGE_ESCALATION"|"N_SELF_CLAIMED_RELATIONSHIP"|"N_CALLER_TIME"|"N_ROLE_WIDE_READ"|"N_BROAD_READ"|"N_INVARIANT_RESTATES_RULE")}
+fn per_rule_security(code:&str)->bool {snapback4_lang::security::note_priority(code)<=2||matches!(code,"N_PRIVILEGE_ESCALATION"|"N_SELF_CLAIMED_RELATIONSHIP"|"N_CALLER_TIME"|"N_ROLE_WIDE_READ"|"N_BROAD_READ"|"N_INVARIANT_RESTATES_RULE")}
 
 /// The ranked block printed after `check: ok`; empty for no notes.
 pub(crate) fn render(notes: Vec<Note>) -> Vec<String> {
@@ -129,9 +133,8 @@ pub(crate) fn render(notes: Vec<Note>) -> Vec<String> {
     }
     let total = unique.len();
     // Rank by tier; within a tier, a code's notes stay together in the order the code first appeared.
-    let first_seen = |code: &str, unique: &[(Note, usize)]| unique.iter().position(|(n, _)| n.code == code).unwrap();
     let mut order: Vec<usize> = (0..unique.len()).collect();
-    order.sort_by_key(|&i| (tier(&unique[i].0.code), first_seen(&unique[i].0.code, &unique), i));
+    order.sort_by_key(|&i| (summary_order(&unique[i].0.code), site_order(&unique[i].0.site), i));
     let mut lines = vec![format!("{total} thing{} to review (advisory; check --verbose explains each, snapback4 why <CODE> one):",
         if total == 1 { "" } else { "s" })];
     let mut current = None;
@@ -244,6 +247,15 @@ mod tests {
     fn note(site: &str, code: &str, summary: &str) -> Note { Note { site: site.into(), code: code.into(), summary: summary.into(), form: None, compact: None } }
 
     #[test]
+    fn security_priority_and_numeric_site_order_survive_rendering() {
+        let text=render(vec![note("schema.q:101:1","N_ROLE_WIDE_READ","later audience"),note("schema.q:50:1","N_CREATION_REASON","middle reason"),note("schema.q:41:1","N_ROLE_WIDE_READ","first audience"),note("schema.q:1:1","N_COLUMN_RESULT_EXPOSURE","inventory")]).join("\n");
+        assert!(text.find("first audience")<text.find("middle reason"));
+        assert!(text.find("middle reason")<text.find("later audience"));
+        assert!(text.find("later audience")<text.find("inventory"));
+        for code in ["N_OPTIONAL_UPLOAD_CREATE","N_RETAINED_ROLE_GRANT","N_CREATION_REASON"]{assert_eq!(tier(code),Tier::Review);assert!(!verdict(code,"",false).contains("slow"));}
+    }
+
+    #[test]
     fn repeated_security_codes_keep_each_rules_audience_and_question() {
         let text=render(vec![note("schema.q:2:1","N_INVARIANT_RESTATES_RULE","notes.read: should coach see other athletes?"),note("schema.q:8:1","N_INVARIANT_RESTATES_RULE","pieces.address: should intake see every owner address?")]).join("\n");
         assert!(text.contains("should coach see other athletes?")&&text.contains("should intake see every owner address?"),"{text}");
@@ -331,7 +343,7 @@ mod tests {
     fn insert_and_result_privacy_are_review_actions_not_performance_advice(){
         for code in ["N_INSERT_WRITE_INTENT","N_COLUMN_RESULT_EXPOSURE"]{
             assert_eq!(tier(code),Tier::Review);
-            assert!(summary_order(code)<summary_order("N_INVARIANT_RESTATES_RULE"));
+            assert!(summary_order("N_ROLE_WIDE_READ")<summary_order(code));
             assert!(verdict(code,"",false).starts_with("review:"));
         }
     }
@@ -349,3 +361,19 @@ mod integration20_tests {
         }
     }
 }
+
+// @ref LLP 3000.036.004#165-review-clarification-exact-detector-and-command-boundaries — repeated sites must not consume independent advice classes.
+pub(crate) fn shortlist(notes:&mut Vec<Note>){
+ let mut ordinary=std::collections::BTreeSet::new();
+ notes.retain(|note|{
+  if snapback4_lang::security::note_priority(&note.code)<=2{return true;}
+  if ordinary.contains(&note.code){return true;}
+  if ordinary.len()<5{ordinary.insert(note.code.clone());true}else{false}
+ });
+}
+#[cfg(test)]mod shortlist_tests{use super::*;
+#[test]fn repeated_classes_keep_distinct_audiences_without_hiding_security(){
+ let mut notes=vec![];
+ for code in ["N_ROLE_WIDE_READ","N_NO_PRODUCTION_WRITER","N_NEVER_COMPLETE","N_MAINTAIN_SYNCED","N_NO_HORIZON","N_INSERT_WRITE_INTENT","N_SECURITY_INTENT"]{for n in 0..8{notes.push(Note{site:format!("schema.q:{n}:1"),code:code.into(),summary:String::new(),form:None,compact:None});}}
+ shortlist(&mut notes);assert_eq!(notes.len(),48);assert!(!notes.iter().any(|n|n.code=="N_SECURITY_INTENT"));assert_eq!(notes.iter().filter(|n|n.code=="N_NEVER_COMPLETE").count(),8);
+}}

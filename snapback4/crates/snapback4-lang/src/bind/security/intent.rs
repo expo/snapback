@@ -98,7 +98,7 @@ pub(super) fn questions(bound:&Bound,target:&str,effect:&str,gate:&RuleExpr)->St
         let scope=if fields.is_empty()&&!image_fields{"no row relationship or lifecycle condition in this branch".to_owned()}
             else if fields.is_empty(){"row-image conditions shown in the branch".into()}
             else{format!("row conditions on {}",fields.iter().map(|f|format!(".{f}")).collect::<Vec<_>>().join(", "))};
-        format!("Rule {target}.{effect} admits {actor} under `{}` ({scope}). Should the spec allow this audience on these rows and columns, including other people's rows and every lifecycle state?",branch.quarry())
+        format!("{}Rule {target}.{effect} admits {actor} under `{}` ({scope}). Should the spec allow this audience on these rows and columns, including other people's rows and every lifecycle state?",if matches!(effect,"insert"|"update"|"delete"|"write"){format!("May any {actor} write any {target} row, or only the owner of THIS resource? ")}else{String::new()},branch.quarry())
     }).collect::<Vec<_>>().join(" ")
 }
 

@@ -639,6 +639,7 @@ query badges(conversation: conversations):
   return unreadCounts where .conversation = conversation first 50 by .id { member, value, recountPending }
 `;
   writeFileSync(schemaPath, source);
+  // Text-only messages remain intentional after adding receipt operations.
   const checked = spawnSync(binary, ["check"], { cwd: generated, encoding: "utf8" });
   assert.equal(checked.status, 0, checked.stdout + checked.stderr);
   const api = await generatedApi(generated);

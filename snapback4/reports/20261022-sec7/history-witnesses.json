@@ -1,0 +1,107 @@
+[
+  {
+    "lane": "026",
+    "reachability": "generated-fixture-trace",
+    "invariant_site": "schema.q:117:1",
+    "operation": "board",
+    "effect": "read",
+    "scope": "actual authored observation from a validated generated root fixture before derived creator transitions; initialization is not claimed application-reachable",
+    "history": [
+      {
+        "operation": "markStrung",
+        "viewer": "account:security-roles-stringer-0",
+        "args": {
+          "racket": {
+            "Id": "01MCC5RM00FVRSGFTTWRVSC7ZA"
+          }
+        }
+      },
+      {
+        "operation": "markReady",
+        "viewer": "account:security-roles-stringer-0",
+        "args": {
+          "racket": {
+            "Id": "01MCC5RM00FVRSGFTTWRVSC7ZA"
+          }
+        }
+      },
+      {
+        "operation": "pickUp",
+        "viewer": "account:security-roles-proShop-0",
+        "args": {
+          "racket": {
+            "Id": "01MCC5RM00FVRSGFTTWRVSC7ZA"
+          }
+        }
+      }
+    ]
+  },
+  {
+    "lane": "030",
+    "reachability": "generated-fixture-trace",
+    "invariant_site": "schema.q:274:1",
+    "operation": "approveApplication",
+    "effect": "insert",
+    "scope": "actual authored observation from a validated generated root fixture before derived creator transitions; initialization is not claimed application-reachable",
+    "history": [
+      {
+        "operation": "inspectApplication",
+        "viewer": "account:security-roster-inspector-0",
+        "args": {
+          "application": {
+            "Id": "01MCC5RM00RJF7BTB7TAMF6S3T"
+          },
+          "notes": {
+            "String": "z"
+          },
+          "passed": {
+            "Bool": true
+          }
+        }
+      },
+      {
+        "operation": "inspectApplication",
+        "viewer": "account:security-roster-inspector-0",
+        "args": {
+          "application": {
+            "Id": "01MCC5RM00RAM0B47R9NZYZ34S"
+          },
+          "notes": "Null",
+          "passed": {
+            "Bool": true
+          }
+        }
+      },
+      {
+        "operation": "approveApplication",
+        "viewer": "account:security-roster-inspector-0",
+        "args": {
+          "application": {
+            "Id": "01MCC5RM00RAM0B47R9NZYZ34S"
+          }
+        }
+      },
+      {
+        "operation": "suspendPermit",
+        "viewer": "account:security-roster-supervisor-0",
+        "args": {
+          "permit": {
+            "Id": "01MCC5RM00NGPNRVS4E06NPGFH"
+          },
+          "reason": {
+            "String": "z"
+          }
+        }
+      },
+      {
+        "operation": "approveApplication",
+        "viewer": "account:security-roster-inspector-0",
+        "args": {
+          "application": {
+            "Id": "01MCC5RM00RJF7BTB7TAMF6S3T"
+          }
+        }
+      }
+    ]
+  }
+]

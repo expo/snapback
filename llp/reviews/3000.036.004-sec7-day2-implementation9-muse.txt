@@ -1,0 +1,19 @@
+muse: workspace root: /home/ccheever/projects/sb4-b22-sec7 (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=938b6412-1b08-4565-b6a4-78ff95ad1ddb]: Subscription quota exhausted. Your usage window resets at 2026-10-26T00:00:00Z. (rate_limit_error)
+[muse-exec] plan quota exhausted; retrying with the Meta API key
+muse: workspace root: /home/ccheever/projects/sb4-b22-sec7 (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY.
+
+Final amendment §16.9 and the frozen sources are consistent on every final semantic boundary I was asked to judge. No material valid-schema issue found.
+
+- Two independent upload alternatives are implemented as written: [creation_advice.rs](/home/ccheever/projects/sb4-b22-sec7/snapback4/crates/snapback4-lang/src/bind/security/creation_advice.rs:72) gates `(parent_required && branch_nonnull) || (required_media && optional column && direct Name write)`. Helper calls, nullable-expression alternatives (`(photo ! else REQUIRED) if enabled else null`), and unrelated boolean skips (`if enabled:`) never match the direct-`Name` arm, and stay advisory — pinned by the `helper`, `nullable`, and `conditional` regressions in the day-two suite.
+- Child media nullability never creates a child-row obligation by itself: the parent arm requires an independent `always exists child[ref = .id]` conjunct with exact reference match plus literal-filter match (`mandatory_parent_for`), and unconditional/helper/asserted/direct children cannot trigger the skip gate because the skip signal comes only from `branch_nonnull` (`$advice` guards). Redundant in-child `require` does not suppress (suppression needs `asserted && ordinary_unconditional`, which fails inside a branch); a guard enclosing both parent and child does suppress. All three are pinned regressions.
+- Parent gate is relative to parent creation as specified: parents guarded non-null (including enclosing branch, `branches=true`) are rejected; `parent_omits_argument` allows only a direct ordinary straight-line insert whose prefix and creation expression never mention the argument. Helper/unknown/conditional prefixes fail `ordinary_unconditional`/`uses` and stay advisory. Sibling discharge requires a direct ordinary unconditional non-`if-absent` insert matching the same probe.
+- Evidence removal checks parent-presence intent first (`media.is_empty() && !declared` continues; declared proceeds even with all-nullable media), then treats delete/detach of that independently required child as grouped advice while clearing a nullable cell alone stays quiet without separate column non-null intent. Deletion-positive vs nullable-clear-negative and the 028 class are both pinned.
+- Eligibility uses the compiler source-map index (`eligibility.rs` `indexes`), rejects named non-`id` selectors in `primary`, keeps the question on unknown identity, and requires exactly one fully resolved parent identity for child-to-parent suppression (`origins.len() != 1 → None`). Multiple/unknown refs retain the question; two-dependency and two-capture regressions pin this.
+- Gate identity carries qualified operation, argument, table, column, and source site with column-distinguishing messages; two sites in one mutation and two columns from one argument keep separate review IDs (both pinned). Analyzer is `sec7-10` in [security_reviews.rs](/home/ccheever/projects/sb4-b22-sec7/snapback4/crates/snapback4/src/verbs/security_reviews.rs:6), and the disposition test rejects exactly `sec7-2` through `sec7-9`.
+- Conservative cuts (unknown helpers/alternatives, unrelated skips, inexact filters, non-straight-line prefixes) remain advisory/independent-coverage rather than inferred gates or safety proofs, matching the amendment's stated non-proof posture.
+
+No edits, builds, or test runs performed; this is a source-consistency review only.

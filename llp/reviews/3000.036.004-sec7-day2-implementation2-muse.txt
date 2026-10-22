@@ -1,0 +1,14 @@
+muse: workspace root: /home/ccheever/projects/sb4-b22-sec7 (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY
+
+All three pinned repairs are present as specified. No material defects in scoped modules.
+
+- Sibling discharge is a direct straight-line ordinary `Insert`: [creation_advice.rs](/home/ccheever/projects/sb4-b22-sec7/snapback4/crates/snapback4-lang/src/bind/security/creation_advice.rs) `ordinary_unconditional` matches only `WriteOp::Insert` with `if_absent:false, condition:None` before any `If/For/As/Break/Continue/Return`. Loops, ternary expressions, helpers, and if-absent cannot match. Exact parent filters plus discharge are pinned by `mandatory_parent_for` and `mandatory_child_discriminators` / zero-iteration tests.
+- Stale recheck requires every mutable field and same entity: [eligibility.rs](/home/ccheever/projects/sb4-b22-sec7/snapback4/crates/snapback4-lang/src/bind/security/creation_advice/eligibility.rs) `checks` collects per-`(column, entity)` pairs only for mutable non-role columns, and `stale_notes` suppresses only on full subset. Identity is via immutable ` $created_` fields and unique-index pins. Inspector-vs-applicant, partial-column, and ambiguous-identity cases retain the question.
+- Effectful guards discard pending facts: [authority_walk.rs](/home/ccheever/projects/sb4-b22-sec7/snapback4/crates/snapback4-lang/src/bind/security/authority_walk.rs) plus [changes.rs](/home/ccheever/projects/sb4-b22-sec7/snapback4/crates/snapback4-lang/src/bind/security/authority_walk/changes.rs) clear on effectful `Require/If` conditions, branch requirements, compound `Call/Write` expressions, and intervening writes. Helper-local facts are still recovered after argument resolution.
+
+Day-two remainder matches §16.9: optional-upload narrowing with `required_media`, `N_OPTIONAL_EVIDENCE` advisory split, `N_STALE_CREATION_CHECK` grouping, `N_CREATE_EDIT_ASYMMETRY` / private / `N_EVIDENCE_REMOVAL` in [write_advice.rs](/home/ccheever/projects/sb4-b22-sec7/snapback4/crates/snapback4-lang/src/bind/security/write_advice.rs), non-null-first witness order in `histories.rs`, `sec7-3` source-bound invalidation with social stock removal, and guide/code/test updates.
+
+Not re-ran builds or tests per scope. Focused counts and public CLI results taken as reported.
+

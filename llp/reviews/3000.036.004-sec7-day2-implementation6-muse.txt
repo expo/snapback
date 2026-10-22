@@ -1,0 +1,13 @@
+muse: workspace root: /home/ccheever/projects/sb4-b22-sec7 (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY — no material false-safety counterexample in valid supported schemas.
+
+Final gate contract holds in source:
+
+- Upload gate needs independent intent plus direct assignment, or parent necessity plus skippable child. [creation_advice.rs](/home/ccheever/projects/sb4-b22-sec7/snapback4/crates/snapback4-lang/src/bind/security/creation_advice.rs:67) requires `required_media` and `(parent_required + nullable-branch || optional-column + direct Name)`. Directness excludes `checked(photo)`, `photo ! else REQUIRED`, and `(photo ! else REQUIRED) if enabled else null`. Parent discharge needs a direct unconditional sibling in the straight-line prefix; helpers, `if-absent`, loops, and expression conditionals cannot discharge via [ordinary_unconditional](/home/ccheever/projects/sb4-b22-sec7/snapback4/crates/snapback4-lang/src/bind/security/creation_advice.rs:277).
+- Required media and assertions enforce themselves; derived/nullable alternatives stay advisory. Unconditional helper child does not gate; asserted child in a skipped branch still gates because the skip performs no assertion.
+- Eligibility suppression uses compiler-selected indexes and source map, with unknown identity kept as a question. [eligibility.rs](/home/ccheever/projects/sb4-b22-sec7/snapback4/crates/snapback4-lang/src/bind/security/creation_advice/eligibility.rs:33) requires exactly one resolved parent identity for suppression; multiple or unknown refs return no check. Named-ID selectors allow only literals or typed reference args; capture stability is refused when the decision writes the captured source.
+- Dedup keeps operation, argument, table, column, and site; one argument at two inserts yields two IDs. [security_reviews.rs](/home/ccheever/projects/sb4-b22-sec7/snapback4/crates/snapback4/src/verbs/security_reviews.rs:6) pins `sec7-7`, rejecting `sec7-2` through `sec7-6`.
+- Regressions pin the boundaries: twelve loosen lanes with no gate, conditional/nullable/boolean-skip exclusions, `030` single-group and same-applicant suppression, `042` private asymmetry with unioned edit paths, `028` removal grouping, effect/branch/loop cuts, and non-ID capture controls in [security_sec7_day2.rs](/home/ccheever/projects/sb4-b22-sec7/snapback4/crates/snapback4-lang/tests/security_sec7_day2.rs:1) and [security_reviews.rs](/home/ccheever/projects/sb4-b22-sec7/snapback4/crates/snapback4/tests/security_reviews.rs:1).
+
+Remaining non-matches are explicitly advisory or uncovered, never proved safe.

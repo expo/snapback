@@ -1,0 +1,24 @@
+muse: workspace root: /home/ccheever/projects/sb4-b22-sec7 (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY — for the actual code plus the §16.8 amendment. The round-7 NOTREADY was a patch-presentation artifact; the applied source is correct.
+
+What I inspected (working tree vs `ba9fc4c735`, the four touched files only; every shell call ran with a timeout; no edits, subagents, suites, or credentials):
+
+- [creation_advice.rs](snapback4/crates/snapback4-lang/src/bind/security/creation_advice.rs) (actual source, full read) and its 17-line diff.
+- [security_sec7.rs](snapback4/crates/snapback4-lang/tests/security_sec7.rs) (new test) plus fixture `tests/security/wave22/021.q`.
+- LLP `3000.036.004` §16.8 text (in-diff) for fidelity to the code.
+- `WORKSTREAM-REPORT.md` diff stat only, to confirm no planner/runtime files changed.
+
+Findings:
+
+- Brace balance is fine in the actual source. Machine count over the file: braces 0, parens 0, brackets 0. Lines 93–104 nest as `if Upsert { … let pins = if let Some {…} else {…}; … }`, with the `}` at line 104 closing the upsert block and the pre-existing loop/outer closers untouched. The "extra closer" in the unified diff is the new `};` terminating `let pins`; the following context `}` closes the original outer block. Removing any brace would break it.
+- Site+table join is sound. Cache is built once before the write loop: `(site.table, site.site)` from `read_sites` filtered to `kind == "write target"`. The IR emits exactly that (`target.site = site.to_string()`, `target.table`), and the lookup uses `(w.table, w.site.to_string())` — identical canonical `file:line:col` strings. The `names.len() == 1` guard sends multi-target ambiguity to the fallback.
+- The bound index is genuinely the planner's type-directed selection, not an arity guess. `WriteTarget.index` comes from `write_key` → `select_index(…, ReadMode::Point, …)` plus `point_key::check`, which resolves key expressions by type. The detector's old `pins()` path re-derived from arity alone and returned `None` on two same-arity unique indexes — precisely the false negative (key-only `driver` recipient erased once a second `unique code` exists).
+- Named/positional handling matches the old semantics: `key.column.unwrap_or(bound column)` zipped with `index.columns()`. All-named keys are order-independent; all-positional keys follow the planner-selected column order; mixed keys behave as the fallback's positional branch did. One non-blocking nit: the zip truncates silently on length mismatch where old `pins()` returned `None` (`columns.len() < keys.len()`). Benign here because the planner enforces key/index arity agreement (`point_key::check`/`order_keys`), but a length guard before zipping would make the conservatism explicit.
+- Explicit-payload precedence preserved: `recipient_fields` seeds from `w.fields`, key pins merge via `entry().or_insert()`.
+- Fallback preserved: the `else` branch rebuilds the same `ReadExpr` with `index: None` and calls `auth_lints::pins`, including its `None`-on-ambiguous behavior.
+- Regression test covers both directions: with `unique code` added and payload reduced to `{ route }`, the gate fires (positive); with the `roles[…'driver']` recheck conjoined, it is suppressed (current-role negative). The neighboring `retained_grant_keys_and_column_payloads_are_gated` test has no second unique index, so its path is unchanged.
+- No planner/runtime changes: only the detector, its test, the LLP amendment, and the workstream report differ.
+- §16.8 text is faithful: same-arity erasure, consume-the-selected-index, cache-once-by-site-and-table, named/positional alignment, fallback retention, no planner/runtime/authorization change, two-index regression plus recheck suppression, and corpus re-measure called out as owed.
+
+Scoped qualifications, kept separate as instructed: `typed-index-sec7.log` is not present in the tree, so I could not corroborate the recorded test pass from it; the final typed-key pack test and corpus re-measure are pending and are not certified as passed.

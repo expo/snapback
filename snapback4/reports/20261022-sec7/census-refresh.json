@@ -1,0 +1,10 @@
+{
+  "before": 872,
+  "after": 875,
+  "added": [
+    "card/rule-recipes/23:addWall | never",
+    "card/rule-recipes/23:applyToWall | never",
+    "card/rule-recipes/23:signWall | never"
+  ],
+  "shift": "existing rule-recipes blocks23\u201345 become24\u201346; every eligibility/private-read rule byte is preserved"
+}

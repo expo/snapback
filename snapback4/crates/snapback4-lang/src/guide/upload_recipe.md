@@ -1,3 +1,9 @@
+Uploads are bound to the uploader: the account that places an asset must upload
+its bytes. One upload has one home; reusing it in another row refuses. To share
+evidence, reference its original row rather than placing its asset again. Required
+workflow evidence needs a required mutation argument as well as a required column;
+a conditional child insertion does not require evidence on its parent.
+
 
 ## Placement replay: documents and one home
 

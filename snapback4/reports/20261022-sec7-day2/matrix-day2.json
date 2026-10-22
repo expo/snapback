@@ -1,0 +1,605 @@
+[
+  {
+    "lane": "003",
+    "variant": "none",
+    "sourceSha256": "f0d28b4d54938a67c3c740d42206d8b58bdc3c1f81af6fc3a9a018b330467270",
+    "checkExit": 0,
+    "testExit": 0,
+    "codes": [
+      "N_ARGUMENT_GRANT",
+      "N_COLUMN_RESULT_EXPOSURE",
+      "N_CREATION_MONEY",
+      "N_GRANT_OUTLIVES_ROLE",
+      "N_OPTIONAL_EVIDENCE",
+      "N_ROLE_WIDE_WRITE",
+      "N_SECURITY_INTENT"
+    ],
+    "visible": [
+      "N_ARGUMENT_GRANT",
+      "N_COLUMN_RESULT_EXPOSURE",
+      "N_CREATION_MONEY",
+      "N_GRANT_OUTLIVES_ROLE",
+      "N_LOOKUP_FILTERED",
+      "N_OPTIONAL_EVIDENCE",
+      "N_QUERY_FILTERED",
+      "N_ROLE_WIDE_WRITE",
+      "N_UNIQUE_HIDDEN"
+    ],
+    "gates": [],
+    "summary": [
+      "security: running full finite campaigns; replayed violations fail; coverage limits follow",
+      "security directed histories: 0 mutation attempts; peak 0 retained frontier worlds; finite exploration",
+      "security histories: 0 ordered short operation sequences replayed",
+      "security tests: 1284 attempted, 1167 refused, 0 reachable violations; 0 seed/synthetic observations (non-failing); finite campaign, not proof",
+      "security not covered: foreign-asset replay over populated fixtures needs full ledger transfer; empty-ledger challenges run separately",
+      "security not covered: generated fixture invoices: authored creator did not populate this table",
+      "security not covered: generated fixture jobs: authored creator did not populate this table",
+      "security not covered: generated fixture recuts: authored creator did not populate this table",
+      "security not covered: history arguments capped at 512 combinations",
+      "security: 4 more coverage limits; test --all keeps every reason",
+      "test: operation (persona)          examined  entries   probes    steps     heap B   output B",
+      "test: 4 complete, 0 capped, 0 refused as your cases expect, 2 probe refusals on derived arguments (expected), 3 not run, 0 denied \u2014 incomplete"
+    ]
+  },
+  {
+    "lane": "003",
+    "variant": "own",
+    "sourceSha256": "0d9dc5bb5ea51da9e6967588ecc086ef5c24c76662f121857a66e5cf37742909",
+    "checkExit": 0,
+    "testExit": 0,
+    "codes": [
+      "N_ARGUMENT_GRANT",
+      "N_COLUMN_RESULT_EXPOSURE",
+      "N_CREATION_MONEY",
+      "N_GRANT_OUTLIVES_ROLE",
+      "N_INVARIANT_RESTATES_RULE",
+      "N_OPTIONAL_EVIDENCE",
+      "N_ROLE_WIDE_WRITE",
+      "N_SECURITY_INTENT"
+    ],
+    "visible": [
+      "N_ARGUMENT_GRANT",
+      "N_COLUMN_RESULT_EXPOSURE",
+      "N_CREATION_MONEY",
+      "N_GRANT_OUTLIVES_ROLE",
+      "N_LOOKUP_FILTERED",
+      "N_OPTIONAL_EVIDENCE",
+      "N_QUERY_FILTERED",
+      "N_ROLE_WIDE_WRITE",
+      "N_UNIQUE_HIDDEN"
+    ],
+    "gates": [],
+    "summary": [
+      "security: running full finite campaigns; replayed violations fail; coverage limits follow",
+      "security directed histories: 0 mutation attempts; peak 0 retained frontier worlds; finite exploration",
+      "security histories: 1024 ordered short operation sequences replayed",
+      "security tests: 11568 attempted, 2726 refused, 0 reachable violations; 0 seed/synthetic observations (non-failing); finite campaign, not proof",
+      "security not covered: approveLockout: paired mutation lacks stable policy/implicit-write and deterministic-id reduction",
+      "security not covered: createInvoice: paired mutation lacks stable policy/implicit-write and deterministic-id reduction",
+      "security not covered: directed lifecycle needs a populated resource root; generated initialization and breadth retain bootstraps, longer empty-start histories remain uncovered",
+      "security not covered: foreign-asset replay over populated fixtures needs full ledger transfer; empty-ledger challenges run separately",
+      "security not covered: generated fixture invoices: authored creator did not populate this table",
+      "security: 21 more coverage limits; test --all keeps every reason",
+      "test: operation (persona)          examined  entries   probes    steps     heap B   output B",
+      "test: 4 complete, 0 capped, 0 refused as your cases expect, 2 probe refusals on derived arguments (expected), 3 not run, 0 denied \u2014 incomplete"
+    ]
+  },
+  {
+    "lane": "003",
+    "variant": "spec",
+    "sourceSha256": "aa59be6ab1903b25dbfe44a4657af363c57b87d15c5c88c11c3fe52c6c3262e8",
+    "checkExit": 0,
+    "testExit": 1,
+    "codes": [
+      "N_ARGUMENT_GRANT",
+      "N_COLUMN_RESULT_EXPOSURE",
+      "N_CREATION_MONEY",
+      "N_GRANT_OUTLIVES_ROLE",
+      "N_INVARIANT_RESTATES_RULE",
+      "N_OPTIONAL_EVIDENCE",
+      "N_ROLE_WIDE_WRITE",
+      "N_SECURITY_INTENT"
+    ],
+    "visible": [
+      "N_ARGUMENT_GRANT",
+      "N_COLUMN_RESULT_EXPOSURE",
+      "N_CREATION_MONEY",
+      "N_GRANT_OUTLIVES_ROLE",
+      "N_LOOKUP_FILTERED",
+      "N_OPTIONAL_EVIDENCE",
+      "N_QUERY_FILTERED",
+      "N_ROLE_WIDE_WRITE",
+      "N_UNIQUE_HIDDEN"
+    ],
+    "gates": [],
+    "summary": [
+      "security: running full finite campaigns; replayed violations fail; coverage limits follow",
+      "security directed histories: 0 mutation attempts; peak 0 retained frontier worlds; finite exploration",
+      "security histories: 1024 ordered short operation sequences replayed",
+      "security tests: 7192 attempted, 2854 refused, 2 reachable violations; 0 seed/synthetic observations (non-failing); finite campaign, not proof",
+      "security not covered: approveLockout: paired mutation lacks stable policy/implicit-write and deterministic-id reduction",
+      "security not covered: column-write argument frontier capped at 512; remaining combinations uncovered",
+      "security not covered: createInvoice: paired mutation lacks stable policy/implicit-write and deterministic-id reduction",
+      "security not covered: directed lifecycle needs a populated resource root; generated initialization and breadth retain bootstraps, longer empty-start histories remain uncovered",
+      "security not covered: foreign-asset replay over populated fixtures needs full ledger transfer; empty-ledger challenges run separately",
+      "security: 22 more coverage limits; test --all keeps every reason",
+      "test: operation (persona)          examined  entries   probes    steps     heap B   output B",
+      "test: 4 complete, 0 capped, 0 refused as your cases expect, 2 probe refusals on derived arguments (expected), 3 not run, 0 denied \u2014 FAIL"
+    ]
+  },
+  {
+    "lane": "028",
+    "variant": "none",
+    "sourceSha256": "7ae6e9e93a6efd373d25cfc784a6edb7674062eb10f79de1c7ff21844a8e55b8",
+    "checkExit": 0,
+    "testExit": 0,
+    "codes": [
+      "N_ARGUMENT_GRANT",
+      "N_BROAD_READ",
+      "N_COLUMN_READ",
+      "N_COLUMN_RESULT_EXPOSURE",
+      "N_EVIDENCE_REMOVAL",
+      "N_ROLE_WIDE_READ",
+      "N_SECURITY_INTENT",
+      "N_SWEEP_ONLY_DEADLINE"
+    ],
+    "visible": [
+      "N_ARGUMENT_GRANT",
+      "N_BROAD_READ",
+      "N_COLUMN_READ",
+      "N_COLUMN_RESULT_EXPOSURE",
+      "N_EVIDENCE_REMOVAL",
+      "N_LOOKUP_FILTERED",
+      "N_ROLE_WIDE_READ",
+      "N_SECURITY_INTENT",
+      "N_SWEEP_ONLY_DEADLINE"
+    ],
+    "gates": [],
+    "summary": [
+      "security: running full finite campaigns; replayed violations fail; coverage limits follow",
+      "security directed histories: 0 mutation attempts; peak 0 retained frontier worlds; finite exploration",
+      "security histories: 0 ordered short operation sequences replayed",
+      "security tests: 1003 attempted, 827 refused, 0 reachable violations; 0 seed/synthetic observations (non-failing); finite campaign, not proof",
+      "security not covered: E_ASSET_TYPE: no column of this backend takes a file; declare one (`doc: file <=10000000`)",
+      "security not covered: foreign-asset replay over populated fixtures needs full ledger transfer; empty-ledger challenges run separately",
+      "security not covered: offline/revoked-device access and retained history require device boundary qualification",
+      "security not covered: paired observations exclude wire sequences/receipts, physical timing and resource/meter differences; HTTP and device histories require separate qualification",
+      "security not covered: releaseNoShows: trusted/system/opaque operation",
+      "test: operation (persona)          examined  entries   probes    steps     heap B   output B",
+      "test: 1 complete, 0 capped, 0 refused as your cases expect, 5 probe refusals on derived arguments (expected), 4 not run, 0 denied \u2014 incomplete"
+    ]
+  },
+  {
+    "lane": "028",
+    "variant": "own",
+    "sourceSha256": "6afa95be63c60036595aa22097a1b5309f6dc4aa1b84f521592161b35eb76cf4",
+    "checkExit": 0,
+    "testExit": 0,
+    "codes": [
+      "N_ARGUMENT_GRANT",
+      "N_BROAD_READ",
+      "N_COLUMN_READ",
+      "N_COLUMN_RESULT_EXPOSURE",
+      "N_EVIDENCE_REMOVAL",
+      "N_INVARIANT_RESTATES_RULE",
+      "N_ROLE_WIDE_READ",
+      "N_SECURITY_INTENT",
+      "N_SWEEP_ONLY_DEADLINE"
+    ],
+    "visible": [
+      "N_ARGUMENT_GRANT",
+      "N_BROAD_READ",
+      "N_COLUMN_RESULT_EXPOSURE",
+      "N_EVIDENCE_REMOVAL",
+      "N_INVARIANT_RESTATES_RULE",
+      "N_LOOKUP_FILTERED",
+      "N_ROLE_WIDE_READ",
+      "N_SECURITY_INTENT",
+      "N_SWEEP_ONLY_DEADLINE"
+    ],
+    "gates": [],
+    "summary": [
+      "security: running full finite campaigns; replayed violations fail; coverage limits follow",
+      "security directed histories: 2048 mutation attempts; peak 12 retained frontier worlds; finite exploration",
+      "security histories: 1566 ordered short operation sequences replayed",
+      "security tests: 5771 attempted, 4523 refused, 0 reachable violations; 0 seed/synthetic observations (non-failing); finite campaign, not proof",
+      "security not covered: E_ASSET_TYPE: no column of this backend takes a file; declare one (`doc: file <=10000000`)",
+      "security not covered: addSite: paired mutation lacks stable policy/implicit-write and deterministic-id reduction",
+      "security not covered: addVehicle: directed actor ordering keeps two candidates per argument tuple; other actors remain in breadth campaign",
+      "security not covered: addVehicle: directed role-class deduplication omits actors with matching role/target projections; actor-specific histories uncovered",
+      "security not covered: addVehicle: paired mutation lacks stable policy/implicit-write and deterministic-id reduction",
+      "security: 52 more coverage limits; test --all keeps every reason",
+      "test: operation (persona)          examined  entries   probes    steps     heap B   output B",
+      "test: 1 complete, 0 capped, 0 refused as your cases expect, 5 probe refusals on derived arguments (expected), 4 not run, 0 denied \u2014 incomplete"
+    ]
+  },
+  {
+    "lane": "028",
+    "variant": "spec",
+    "sourceSha256": "4b729d3380644a025e76a10a3456d32526b9f2289fe5ee6ae758a72a8221382a",
+    "checkExit": 0,
+    "testExit": 1,
+    "codes": [
+      "N_ARGUMENT_GRANT",
+      "N_BROAD_READ",
+      "N_COLUMN_READ",
+      "N_COLUMN_RESULT_EXPOSURE",
+      "N_EVIDENCE_REMOVAL",
+      "N_INVARIANT_RESTATES_RULE",
+      "N_ROLE_WIDE_READ",
+      "N_SECURITY_INTENT",
+      "N_SWEEP_ONLY_DEADLINE"
+    ],
+    "visible": [
+      "N_ARGUMENT_GRANT",
+      "N_BROAD_READ",
+      "N_COLUMN_RESULT_EXPOSURE",
+      "N_EVIDENCE_REMOVAL",
+      "N_INVARIANT_RESTATES_RULE",
+      "N_LOOKUP_FILTERED",
+      "N_ROLE_WIDE_READ",
+      "N_SECURITY_INTENT",
+      "N_SWEEP_ONLY_DEADLINE"
+    ],
+    "gates": [],
+    "summary": [
+      "security: running full finite campaigns; replayed violations fail; coverage limits follow",
+      "security directed histories: 2048 mutation attempts; peak 12 retained frontier worlds; finite exploration",
+      "security histories: 1566 ordered short operation sequences replayed",
+      "security tests: 5771 attempted, 4523 refused, 86 reachable violations; 0 seed/synthetic observations (non-failing); finite campaign, not proof",
+      "security not covered: E_ASSET_TYPE: no column of this backend takes a file; declare one (`doc: file <=10000000`)",
+      "security not covered: addSite: paired mutation lacks stable policy/implicit-write and deterministic-id reduction",
+      "security not covered: addVehicle: directed actor ordering keeps two candidates per argument tuple; other actors remain in breadth campaign",
+      "security not covered: addVehicle: directed role-class deduplication omits actors with matching role/target projections; actor-specific histories uncovered",
+      "security not covered: addVehicle: paired mutation lacks stable policy/implicit-write and deterministic-id reduction",
+      "security: 52 more coverage limits; test --all keeps every reason",
+      "test: operation (persona)          examined  entries   probes    steps     heap B   output B",
+      "test: 1 complete, 0 capped, 0 refused as your cases expect, 5 probe refusals on derived arguments (expected), 4 not run, 0 denied \u2014 FAIL"
+    ]
+  },
+  {
+    "lane": "039",
+    "variant": "none",
+    "sourceSha256": "8b42cec137f88998ae476a2d41eb7a0cbccf01a0b3330adee028acb329a3f8e2",
+    "checkExit": 0,
+    "testExit": 0,
+    "codes": [
+      "N_ARGUMENT_GRANT",
+      "N_COLUMN_RESULT_EXPOSURE",
+      "N_ROLE_WIDE_READ",
+      "N_SECURITY_INTENT"
+    ],
+    "visible": [
+      "N_ARGUMENT_GRANT",
+      "N_COLUMN_RESULT_EXPOSURE",
+      "N_LOOKUP_FILTERED",
+      "N_QUERY_FILTERED",
+      "N_ROLE_WIDE_READ",
+      "N_SECURITY_INTENT"
+    ],
+    "gates": [],
+    "summary": [
+      "security: running full finite campaigns; replayed violations fail; coverage limits follow",
+      "security directed histories: 0 mutation attempts; peak 0 retained frontier worlds; finite exploration",
+      "security histories: 0 ordered short operation sequences replayed",
+      "security tests: 1428 attempted, 1191 refused, 0 reachable violations; 0 seed/synthetic observations (non-failing); finite campaign, not proof",
+      "security not covered: E_ASSET_TYPE: no column of this backend takes a file; declare one (`doc: file <=10000000`)",
+      "security not covered: foreign-asset replay over populated fixtures needs full ledger transfer; empty-ledger challenges run separately",
+      "security not covered: offline/revoked-device access and retained history require device boundary qualification",
+      "security not covered: paired observations exclude wire sequences/receipts, physical timing and resource/meter differences; HTTP and device histories require separate qualification",
+      "security not covered: provision: operation matrix capped at 512 calls to share the 8192-call budget across every operation; remaining arguments/viewers not covered",
+      "security: 1 more coverage limits; test --all keeps every reason",
+      "test: operation (persona)          examined  entries   probes    steps     heap B   output B",
+      "test: 1 complete, 0 capped, 0 refused as your cases expect, 2 probe refusals on derived arguments (expected), 2 not run, 0 denied \u2014 incomplete"
+    ]
+  },
+  {
+    "lane": "039",
+    "variant": "own",
+    "sourceSha256": "fbb0d6580b1dd0ce628463fab48ef943cd54672a7b83f7060d8ad0c7680e734c",
+    "checkExit": 0,
+    "testExit": 0,
+    "codes": [
+      "N_ARGUMENT_GRANT",
+      "N_COLUMN_RESULT_EXPOSURE",
+      "N_INVARIANT_RESTATES_RULE",
+      "N_ROLE_WIDE_READ",
+      "N_SECURITY_INTENT"
+    ],
+    "visible": [
+      "N_ARGUMENT_GRANT",
+      "N_COLUMN_RESULT_EXPOSURE",
+      "N_INVARIANT_RESTATES_RULE",
+      "N_LOOKUP_FILTERED",
+      "N_QUERY_FILTERED",
+      "N_ROLE_WIDE_READ"
+    ],
+    "gates": [],
+    "summary": [
+      "security: running full finite campaigns; replayed violations fail; coverage limits follow",
+      "security directed histories: 2048 mutation attempts; peak 12 retained frontier worlds; finite exploration",
+      "security histories: 1692 ordered short operation sequences replayed",
+      "security tests: 7732 attempted, 4199 refused, 0 reachable violations; 0 seed/synthetic observations (non-failing); finite campaign, not proof",
+      "security not covered: E_ASSET_TYPE: no column of this backend takes a file; declare one (`doc: file <=10000000`)",
+      "security not covered: approveQuote: column mutation can change protected row/policy before disclosure; boundary tracing required",
+      "security not covered: approveQuote: directed actor ordering keeps two candidates per argument tuple; other actors remain in breadth campaign",
+      "security not covered: approveQuote: directed role-class deduplication omits actors with matching role/target projections; actor-specific histories uncovered",
+      "security not covered: approveQuote: paired mutation lacks stable policy/implicit-write and deterministic-id reduction",
+      "security: 59 more coverage limits; test --all keeps every reason",
+      "test: operation (persona)          examined  entries   probes    steps     heap B   output B",
+      "test: 1 complete, 0 capped, 0 refused as your cases expect, 2 probe refusals on derived arguments (expected), 2 not run, 0 denied \u2014 incomplete"
+    ]
+  },
+  {
+    "lane": "039",
+    "variant": "spec",
+    "sourceSha256": "d77f1a000b30277c10be8762cef2bb2dc903a4f76e4f34d1cde3382de0966f8a",
+    "checkExit": 0,
+    "testExit": 0,
+    "codes": [
+      "N_ARGUMENT_GRANT",
+      "N_COLUMN_RESULT_EXPOSURE",
+      "N_INVARIANT_RESTATES_RULE",
+      "N_ROLE_WIDE_READ",
+      "N_SECURITY_INTENT"
+    ],
+    "visible": [
+      "N_ARGUMENT_GRANT",
+      "N_COLUMN_RESULT_EXPOSURE",
+      "N_INVARIANT_RESTATES_RULE",
+      "N_LOOKUP_FILTERED",
+      "N_QUERY_FILTERED",
+      "N_ROLE_WIDE_READ"
+    ],
+    "gates": [],
+    "summary": [
+      "security: running full finite campaigns; replayed violations fail; coverage limits follow",
+      "security directed histories: 2048 mutation attempts; peak 12 retained frontier worlds; finite exploration",
+      "security histories: 1692 ordered short operation sequences replayed",
+      "security tests: 7732 attempted, 4198 refused, 0 reachable violations; 0 seed/synthetic observations (non-failing); finite campaign, not proof",
+      "security not covered: E_ASSET_TYPE: no column of this backend takes a file; declare one (`doc: file <=10000000`)",
+      "security not covered: approveQuote: column mutation can change protected row/policy before disclosure; boundary tracing required",
+      "security not covered: approveQuote: directed actor ordering keeps two candidates per argument tuple; other actors remain in breadth campaign",
+      "security not covered: approveQuote: directed role-class deduplication omits actors with matching role/target projections; actor-specific histories uncovered",
+      "security not covered: approveQuote: paired mutation lacks stable policy/implicit-write and deterministic-id reduction",
+      "security: 61 more coverage limits; test --all keeps every reason",
+      "test: operation (persona)          examined  entries   probes    steps     heap B   output B",
+      "test: 1 complete, 0 capped, 0 refused as your cases expect, 2 probe refusals on derived arguments (expected), 2 not run, 0 denied \u2014 incomplete"
+    ]
+  },
+  {
+    "lane": "041",
+    "variant": "none",
+    "sourceSha256": "1fa0e9450ed866a241e54bd4293bd45d0e2083a5c71f44e7a6aeeeb28687e451",
+    "checkExit": 0,
+    "testExit": 0,
+    "codes": [
+      "N_ARGUMENT_GRANT",
+      "N_COLUMN_READ",
+      "N_COLUMN_RESULT_EXPOSURE",
+      "N_GRANT_OUTLIVES_ROLE",
+      "N_INSERT_WRITE_INTENT",
+      "N_SECURITY_INTENT"
+    ],
+    "visible": [
+      "N_ARGUMENT_GRANT",
+      "N_COLUMN_RESULT_EXPOSURE",
+      "N_GRANT_OUTLIVES_ROLE",
+      "N_INSERT_WRITE_INTENT",
+      "N_LOOKUP_FILTERED",
+      "N_QUERY_FILTERED"
+    ],
+    "gates": [],
+    "summary": [
+      "security: running full finite campaigns; replayed violations fail; coverage limits follow",
+      "security directed histories: 0 mutation attempts; peak 0 retained frontier worlds; finite exploration",
+      "security histories: 0 ordered short operation sequences replayed",
+      "security tests: 1727 attempted, 1522 refused, 0 reachable violations; 0 seed/synthetic observations (non-failing); finite campaign, not proof",
+      "security not covered: E_ASSET_TYPE: no column of this backend takes a file; declare one (`doc: file <=10000000`)",
+      "security not covered: enroll: operation matrix capped at 512 calls to share the 8192-call budget across every operation; remaining arguments/viewers not covered",
+      "security not covered: foreign-asset replay over populated fixtures needs full ledger transfer; empty-ledger challenges run separately",
+      "security not covered: offline/revoked-device access and retained history require device boundary qualification",
+      "security not covered: paired observations exclude wire sequences/receipts, physical timing and resource/meter differences; HTTP and device histories require separate qualification",
+      "security: 1 more coverage limits; test --all keeps every reason",
+      "test: operation (persona)          examined  entries   probes    steps     heap B   output B",
+      "test: 1 complete, 0 capped, 0 refused as your cases expect, 1 probe refusals on derived arguments (expected), 4 not run, 0 denied \u2014 incomplete"
+    ]
+  },
+  {
+    "lane": "041",
+    "variant": "own",
+    "sourceSha256": "834b809d5dc77c0f9eb1373c22c8d58b4913ea6534d95a3f588e446ad33ce2e9",
+    "checkExit": 0,
+    "testExit": 0,
+    "codes": [
+      "N_ARGUMENT_GRANT",
+      "N_COLUMN_READ",
+      "N_COLUMN_RESULT_EXPOSURE",
+      "N_EXISTENCE_ORACLE",
+      "N_GRANT_OUTLIVES_ROLE",
+      "N_INSERT_WRITE_INTENT",
+      "N_INVARIANT_RESTATES_RULE"
+    ],
+    "visible": [
+      "N_ARGUMENT_GRANT",
+      "N_COLUMN_RESULT_EXPOSURE",
+      "N_GRANT_OUTLIVES_ROLE",
+      "N_INSERT_WRITE_INTENT",
+      "N_LOOKUP_FILTERED",
+      "N_QUERY_FILTERED"
+    ],
+    "gates": [],
+    "summary": [
+      "security: running full finite campaigns; replayed violations fail; coverage limits follow",
+      "security directed histories: 2048 mutation attempts; peak 12 retained frontier worlds; finite exploration",
+      "security histories: 1918 ordered short operation sequences replayed",
+      "security tests: 12911 attempted, 3517 refused, 0 reachable violations; 0 seed/synthetic observations (non-failing); finite campaign, not proof",
+      "security not covered: E_ASSET_TYPE: no column of this backend takes a file; declare one (`doc: file <=10000000`)",
+      "security not covered: assess / assessments.read: mutation-result policy changes require a disclosure-boundary reduction",
+      "security not covered: assess / billing.read: mutation-result policy changes require a disclosure-boundary reduction",
+      "security not covered: assess / movements.read: mutation-result policy changes require a disclosure-boundary reduction",
+      "security not covered: assess / payments.read: mutation-result policy changes require a disclosure-boundary reduction",
+      "security: 68 more coverage limits; test --all keeps every reason",
+      "test: operation (persona)          examined  entries   probes    steps     heap B   output B",
+      "test: 1 complete, 0 capped, 0 refused as your cases expect, 1 probe refusals on derived arguments (expected), 4 not run, 0 denied \u2014 incomplete"
+    ]
+  },
+  {
+    "lane": "041",
+    "variant": "spec",
+    "sourceSha256": "514432b806d9abd7a2028b3fa42e0f40bbacffdd9b86ee29e8b1c52ab5febcd3",
+    "checkExit": 0,
+    "testExit": 0,
+    "codes": [
+      "N_ARGUMENT_GRANT",
+      "N_COLUMN_READ",
+      "N_COLUMN_RESULT_EXPOSURE",
+      "N_EXISTENCE_ORACLE",
+      "N_GRANT_OUTLIVES_ROLE",
+      "N_INSERT_WRITE_INTENT",
+      "N_INVARIANT_RESTATES_RULE"
+    ],
+    "visible": [
+      "N_ARGUMENT_GRANT",
+      "N_COLUMN_RESULT_EXPOSURE",
+      "N_GRANT_OUTLIVES_ROLE",
+      "N_INSERT_WRITE_INTENT",
+      "N_LOOKUP_FILTERED",
+      "N_QUERY_FILTERED"
+    ],
+    "gates": [],
+    "summary": [
+      "security: running full finite campaigns; replayed violations fail; coverage limits follow",
+      "security directed histories: 2048 mutation attempts; peak 12 retained frontier worlds; finite exploration",
+      "security histories: 1918 ordered short operation sequences replayed",
+      "security tests: 12911 attempted, 3517 refused, 0 reachable violations; 0 seed/synthetic observations (non-failing); finite campaign, not proof",
+      "security not covered: E_ASSET_TYPE: no column of this backend takes a file; declare one (`doc: file <=10000000`)",
+      "security not covered: assess / assessments.read: mutation-result policy changes require a disclosure-boundary reduction",
+      "security not covered: assess / billing.read: mutation-result policy changes require a disclosure-boundary reduction",
+      "security not covered: assess / movements.read: mutation-result policy changes require a disclosure-boundary reduction",
+      "security not covered: assess / payments.read: mutation-result policy changes require a disclosure-boundary reduction",
+      "security: 70 more coverage limits; test --all keeps every reason",
+      "test: operation (persona)          examined  entries   probes    steps     heap B   output B",
+      "test: 1 complete, 0 capped, 0 refused as your cases expect, 1 probe refusals on derived arguments (expected), 4 not run, 0 denied \u2014 incomplete"
+    ]
+  },
+  {
+    "lane": "042",
+    "variant": "none",
+    "sourceSha256": "3418351786a21ba7e8d6c6dbfaf2d20c0a71a45a3d2ec9208c2cc4264723d6ad",
+    "checkExit": 0,
+    "testExit": 0,
+    "codes": [
+      "N_ARGUMENT_GRANT",
+      "N_COLUMN_RESULT_EXPOSURE",
+      "N_INSERT_WRITE_INTENT",
+      "N_PRIVATE_CREATE_EDIT_ASYMMETRY",
+      "N_ROLE_WIDE_READ",
+      "N_SECURITY_INTENT"
+    ],
+    "visible": [
+      "N_ARGUMENT_GRANT",
+      "N_COLUMN_RESULT_EXPOSURE",
+      "N_INSERT_WRITE_INTENT",
+      "N_LOOKUP_FILTERED",
+      "N_PRIVATE_CREATE_EDIT_ASYMMETRY",
+      "N_ROLE_WIDE_READ",
+      "N_SECURITY_INTENT"
+    ],
+    "gates": [],
+    "summary": [
+      "security: running full finite campaigns; replayed violations fail; coverage limits follow",
+      "security directed histories: 0 mutation attempts; peak 0 retained frontier worlds; finite exploration",
+      "security histories: 0 ordered short operation sequences replayed",
+      "security tests: 2180 attempted, 1946 refused, 0 reachable violations; 0 seed/synthetic observations (non-failing); finite campaign, not proof",
+      "security not covered: E_ASSET_TYPE: no column of this backend takes a file; declare one (`doc: file <=10000000`)",
+      "security not covered: createSigning: operation matrix capped at 512 calls to share the 8192-call budget across every operation; remaining arguments/viewers not covered",
+      "security not covered: foreign-asset replay over populated fixtures needs full ledger transfer; empty-ledger challenges run separately",
+      "security not covered: generated fixture notaryProfiles: some related rows declined by ordinary validation: E_UNIQUE: notaryProfiles: unique principal already has a row where principal = 'dev:security-b' (notaryProfiles: unique principal already has a row where principal = 'dev:security-b')",
+      "security not covered: offline/revoked-device access and retained history require device boundary qualification",
+      "security: 2 more coverage limits; test --all keeps every reason",
+      "test: operation (persona)          examined  entries   probes    steps     heap B   output B",
+      "test: 8 complete, 0 capped, 0 refused as your cases expect, 0 probe refusals on derived arguments (expected), 2 not run, 0 denied \u2014 incomplete"
+    ]
+  },
+  {
+    "lane": "042",
+    "variant": "own",
+    "sourceSha256": "f3b956af45b0d13353481bb12a85a1935a10528f9c5b11643b5e6cd868167f79",
+    "checkExit": 0,
+    "testExit": 0,
+    "codes": [
+      "N_ARGUMENT_GRANT",
+      "N_COLUMN_RESULT_EXPOSURE",
+      "N_INSERT_WRITE_INTENT",
+      "N_INVARIANT_RESTATES_RULE",
+      "N_PRIVATE_CREATE_EDIT_ASYMMETRY",
+      "N_ROLE_WIDE_READ",
+      "N_SECURITY_INTENT"
+    ],
+    "visible": [
+      "N_ARGUMENT_GRANT",
+      "N_COLUMN_RESULT_EXPOSURE",
+      "N_INSERT_WRITE_INTENT",
+      "N_INVARIANT_RESTATES_RULE",
+      "N_LOOKUP_FILTERED",
+      "N_PRIVATE_CREATE_EDIT_ASYMMETRY",
+      "N_ROLE_WIDE_READ"
+    ],
+    "gates": [],
+    "summary": [
+      "security: running full finite campaigns; replayed violations fail; coverage limits follow",
+      "security directed histories: 2048 mutation attempts; peak 11 retained frontier worlds; finite exploration",
+      "security histories: 1347 ordered short operation sequences replayed",
+      "security tests: 6172 attempted, 5143 refused, 0 reachable violations; 0 seed/synthetic observations (non-failing); finite campaign, not proof",
+      "security not covered: E_ASSET_TYPE: no column of this backend takes a file; declare one (`doc: file <=10000000`)",
+      "security not covered: approveNotary: directed actor ordering keeps two candidates per argument tuple; other actors remain in breadth campaign",
+      "security not covered: approveNotary: directed lifecycle arguments capped at 4",
+      "security not covered: approveNotary: directed role-class deduplication omits actors with matching role/target projections; actor-specific histories uncovered",
+      "security not covered: assignSigning: directed actor ordering keeps two candidates per argument tuple; other actors remain in breadth campaign",
+      "security: 38 more coverage limits; test --all keeps every reason",
+      "test: operation (persona)          examined  entries   probes    steps     heap B   output B",
+      "test: 8 complete, 0 capped, 0 refused as your cases expect, 0 probe refusals on derived arguments (expected), 2 not run, 0 denied \u2014 incomplete"
+    ]
+  },
+  {
+    "lane": "042",
+    "variant": "spec",
+    "sourceSha256": "75b59d96daca822bec953de63fdb4b2bab48ce2596d46d6d7000b999206894e9",
+    "checkExit": 0,
+    "testExit": 1,
+    "codes": [
+      "N_ARGUMENT_GRANT",
+      "N_COLUMN_RESULT_EXPOSURE",
+      "N_INSERT_WRITE_INTENT",
+      "N_INVARIANT_RESTATES_RULE",
+      "N_PRIVATE_CREATE_EDIT_ASYMMETRY",
+      "N_ROLE_WIDE_READ",
+      "N_SECURITY_INTENT"
+    ],
+    "visible": [
+      "N_ARGUMENT_GRANT",
+      "N_COLUMN_RESULT_EXPOSURE",
+      "N_INSERT_WRITE_INTENT",
+      "N_INVARIANT_RESTATES_RULE",
+      "N_LOOKUP_FILTERED",
+      "N_PRIVATE_CREATE_EDIT_ASYMMETRY",
+      "N_ROLE_WIDE_READ"
+    ],
+    "gates": [],
+    "summary": [
+      "security: running full finite campaigns; replayed violations fail; coverage limits follow",
+      "security directed histories: 2048 mutation attempts; peak 11 retained frontier worlds; finite exploration",
+      "security histories: 1386 ordered short operation sequences replayed",
+      "security tests: 6172 attempted, 5117 refused, 12 reachable violations; 0 seed/synthetic observations (non-failing); finite campaign, not proof",
+      "security not covered: E_ASSET_TYPE: no column of this backend takes a file; declare one (`doc: file <=10000000`)",
+      "security not covered: approveNotary: directed actor ordering keeps two candidates per argument tuple; other actors remain in breadth campaign",
+      "security not covered: approveNotary: directed lifecycle arguments capped at 4",
+      "security not covered: approveNotary: directed role-class deduplication omits actors with matching role/target projections; actor-specific histories uncovered",
+      "security not covered: assignSigning: directed actor ordering keeps two candidates per argument tuple; other actors remain in breadth campaign",
+      "security: 38 more coverage limits; test --all keeps every reason",
+      "test: operation (persona)          examined  entries   probes    steps     heap B   output B",
+      "test: 8 complete, 0 capped, 0 refused as your cases expect, 0 probe refusals on derived arguments (expected), 2 not run, 0 denied \u2014 FAIL"
+    ]
+  }
+]

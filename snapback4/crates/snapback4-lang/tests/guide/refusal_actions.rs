@@ -2,6 +2,19 @@
 //! These facts supplement the definition pins. A code label alone cannot tell
 //! a caller whether to retry, replace intent, change a declaration, or show no data.
 pub(super) const ACTIONS: &[(&str, &[&str])] = &[
+    ("N_CREATE_EDIT_ASYMMETRY", &["Confirm creation authority against the specification", "test independent column write intent with non-null input."]),
+    ("N_PRIVATE_CREATE_EDIT_ASYMMETRY", &["Confirm who may supply this field at creation", "test independent column write intent with a non-null value."]),
+    ("N_EVIDENCE_REMOVAL", &["confirm last-child retention against the specification.", "Guard deletion or detachment transactionally", "declare independent parent integrity intent and run test."]),
+    ("N_RETAINED_ROLE_GRANT", &["Recheck current role or revoke derived grants.", "Intentional retained authority needs an individual source-bound disposition."]),
+    ("N_OPTIONAL_UPLOAD_CREATE", &["When independent intent requires a child, either require the upload before parent creation or always create the child with deliberately optional media; skipping the child on a null upload violates that presence intent.", "Optional media columns and guarded optional attachments do not require acknowledgment; a required child column alone does not require a child row."]),
+    ("N_CREATION_REASON", &["Compare the justification requirement with the spec", "use text 1..N when required.", "This name-based question is advisory."]),
+    ("N_CREATION_MONEY", &["Model and require the amount when the spec requires a fee or payment", "confirm intentional optional amounts against the spec.", "This name-based question is advisory."]),
+    ("N_CONSTANT_APPROVAL", &["record the required amount/evidence and the independently authorized decision.", "This name-based question is advisory."]),
+    ("N_TRANSITION_BYPASS", &["Apply the decision authority to every path reaching that state", "write independent transition intent and run test."]),
+    ("N_STALE_CREATION_CHECK", &["Decide whether eligibility must remain current", "write independent intent", "test create, eligibility change, approval."]),
+    ("N_DURATION_BOUNDS", &["Compare the windows with the specification", "make them consistent or document deliberate differences."]),
+    ("N_ROLE_WIDE_WRITE", &["Ask whether any role member may write any row", "model the target-to-owner relationship and guard it.", "See the Wall ownership rule recipe."]),
+    ("E_SECURITY_NOTES", &["Inspect snapback/security-reviews.json and run check --json for current IDs.", "Supply a nonempty specification reason for one current note", "neither bulk acknowledgments nor this file can clear an actual refutation."]),
     ("E_STORE_OWNERSHIP", &["A stale token refuses before durable work.", "Stop admission, acquire ownership on the lease connection and reopen with the acquired token."]),
     ("E_COMMIT_OUTCOME_UNKNOWN", &["The operation may already be durable.", "Resolve its persisted receipt or operation key before any retry.", "Automatic retry is disabled"]),
     ("E_WORKER_STORE_ID", &["Repair the store binding before starting workers.", "Keep the ledger with the store across releases and backups."]),
