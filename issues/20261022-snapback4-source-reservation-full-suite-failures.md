@@ -62,3 +62,14 @@ release-transition and dormant proofs pass. No qualification receipt exists.
 See `snapback4/reports/20261022-sec8/linux-r6-incomplete/` for safe partial proof
 records and the failed command log. This is an affected existing product check
 requiring core/release integration repair; SEC8 does not bypass it.
+
+The completed workspace run also finds two unchanged simulator fixtures:
+`maintains_recorded::equivalence_after_deletion_reuse_and_unswept_expiry` and
+`maintains_recorded::activation_dangling_expired_reused_and_removed_paths`.
+Both refuse the same source-reservation E_SCHEMA at
+`crates/snapback4-sim/tests/maintains_recorded.rs:30`.
+There are21 unchanged metadata-fixture failures in the complete workspace run;
+six additional initial-run SEC8 expectation failures are repaired and pass the
+final workspace-feature affected rerun (228 tests). The full final security/guide
+set also passes374 tests (two ignored). The complete raw log remains red and is
+retained; no full-suite pass is claimed.
