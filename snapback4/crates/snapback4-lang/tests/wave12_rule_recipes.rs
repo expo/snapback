@@ -70,7 +70,7 @@ fn every_recipe_compiles_in_its_own_snippet_class() {
     let blocks = guide::quarry(guide::card("rule-recipes").unwrap());
     assert_eq!(
         blocks.len(),
-        45, // 36 existing + one LIVE roster + eight wave-15 programs.
+        46, // 36 existing + one LIVE roster + eight wave-15 programs + wall ownership.
         "each standalone recipe has its own compilation class"
     );
     for s in blocks {
