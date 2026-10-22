@@ -145,3 +145,18 @@ impl<'store> AnyTx<'store> {
 impl AnyStore {
     pub(crate) fn from_postgres(handle: crate::engine::postgres::Handle) -> Self { Self::Postgres(PostgresStore(handle)) }
 }
+
+// @ref LLP 3000.009.001.000.000#3.7 — the committer alone owns identity COMMIT; the port preserves the original opener.
+pub(crate) struct IdentitySource<'a>(pub &'a AnyStore, pub bool);
+impl crate::engine::committer::TransactionSource for IdentitySource<'_> {
+    fn with_transaction<T>(self, run: impl FnOnce(AnyTx<'_>) -> Result<T, RuntimeError>) -> Result<T, RuntimeError> {
+        match self.0 {
+            AnyStore::Sqlite(SqliteStore(store)) => run(AnyTx::from_sqlite(store.identity_member_transaction(self.1)?)),
+            #[cfg(feature = "postgres")]
+            AnyStore::Postgres(PostgresStore(handle)) => {
+                let mut store = handle.borrow()?;
+                run(AnyTx::Postgres(PostgresTx(store.transaction(Some(crate::engine::postgres::WriteMode::Serialized))?)))
+            }
+        }
+    }
+}
