@@ -405,7 +405,7 @@ mod tests {
         mpsc,
     };
     static NEXT: AtomicU64 = AtomicU64::new(0);
-    struct Directory(PathBuf);
+    struct Directory(PathBuf, PathBuf);
     impl Directory {
         fn new(long: bool) -> Self {
             let root = std::env::temp_dir().join(format!(
@@ -413,6 +413,7 @@ mod tests {
                 std::process::id(),
                 NEXT.fetch_add(1, Ordering::Relaxed)
             ));
+            let cleanup = root.clone();
             let root = if long {
                 root.join("long-path-component".repeat(6))
             } else {
@@ -420,12 +421,12 @@ mod tests {
             };
             snapback4_core::private_fs::directory(&root).unwrap();
             let _store = snapback4_core::store_port::AnyStore::open(&root.join("store.sqlite")).unwrap();
-            Self(root)
+            Self(root, cleanup)
         }
     }
     impl Drop for Directory {
         fn drop(&mut self) {
-            let _ = fs::remove_dir_all(&self.0);
+            let _ = fs::remove_dir_all(&self.1);
         }
     }
     #[test]
