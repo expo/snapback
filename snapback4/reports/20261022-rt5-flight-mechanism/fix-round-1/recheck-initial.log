@@ -1,0 +1,7 @@
+START retry-cluster-start
+END retry-cluster-start 1 0.11
+Traceback (most recent call last):
+  File "/tmp/rt5-fix1-rechecks.py", line 20, in <module>
+    assert run('retry-cluster-start',['pg_ctl','-D',directory+'/data','-l',directory+'/retry-server.log','-w','start'])==0
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError

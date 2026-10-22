@@ -7,7 +7,9 @@ use postgres::{
 };
 
 /// Values at the port/driver boundary, not Quarry's JSON representation.
-/// NUMERIC, dates, multidimensional/non-unit-bound arrays are not port types.
+/// Inputs admit bool, i16/i32/i64, f32/f64, TEXT, BYTEA and their 1-D arrays.
+/// NAME/BPCHAR/VARCHAR (including typmods), NUMERIC, dates and custom types
+/// are not port bindings; their coercion/length semantics are not admitted.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Datum {
     Null,
@@ -47,21 +49,18 @@ fn name(ty: &Type) -> Result<String, RuntimeError> {
     if let Kind::Array(element) = ty.kind() {
         return Ok(format!("{}[]", name(element)?));
     }
-    Ok(match *ty {
-        Type::BOOL => "boolean",
-        Type::INT2 => "smallint",
-        Type::INT4 => "integer",
-        Type::INT8 => "bigint",
-        Type::FLOAT4 => "real",
-        Type::FLOAT8 => "double precision",
+    let builtin = match *ty {
+        Type::BOOL => "bool",
+        Type::INT2 => "int2",
+        Type::INT4 => "int4",
+        Type::INT8 => "int8",
+        Type::FLOAT4 => "float4",
+        Type::FLOAT8 => "float8",
         Type::TEXT => "text",
-        Type::VARCHAR => "varchar",
-        Type::BPCHAR => "bpchar",
-        Type::NAME => "name",
         Type::BYTEA => "bytea",
         _ => return Err(bad(format!("RT5 unsupported port type {ty}"))),
-    }
-    .into())
+    };
+    Ok(format!("pg_catalog.{builtin}"))
 }
 
 /// SQL is ASCII only: text is UTF-8 bytes decoded explicitly by the server.
@@ -77,13 +76,16 @@ pub fn encode(value: &Datum, ty: &Type) -> Result<String, RuntimeError> {
         (Datum::Int(v), &Type::INT8) => format!("'{v}'"), // i64::MIN must not first become a positive bigint.
         (Datum::F32(v), &Type::FLOAT4) => format!("'{}'", float(*v as f64)),
         (Datum::F64(v), &Type::FLOAT8) => format!("'{}'", float(*v)),
-        (Datum::Text(v), _) if <String as FromSql>::accepts(ty) => {
+        (Datum::Text(v), &Type::TEXT) => {
             if v.contains('\0') {
                 return Err(bad("Postgres text parameters cannot contain U+0000"));
             }
-            format!("convert_from(decode('{}','hex'),'UTF8')", hex(v.as_bytes()))
+            format!(
+                "pg_catalog.convert_from(pg_catalog.decode('{}','hex'),'UTF8')",
+                hex(v.as_bytes())
+            )
         }
-        (Datum::Bytes(v), &Type::BYTEA) => format!("decode('{}','hex')", hex(v)),
+        (Datum::Bytes(v), &Type::BYTEA) => format!("pg_catalog.decode('{}','hex')", hex(v)),
         (Datum::Array(v), _) => {
             let Kind::Array(element) = ty.kind() else {
                 return Err(bad("array type mismatch"));
@@ -199,14 +201,17 @@ pub fn binary(ty: &Type, bytes: &[u8]) -> Result<Datum, RuntimeError> {
     })
 }
 
-/// Pin and verify only settings affecting lossless text *output*. Inputs use
-/// explicit casts/UTF8 hex, so DateStyle, lc_*, and string escaping are irrelevant.
+/// Pin and verify the settings required by the text-output contract. Inputs use
+/// catalog-qualified casts/functions and UTF8 hex. Neither input encoding nor
+/// output qualification resolves any name through the application search_path.
+/// Text float output canonicalizes every NaN to positive quiet NaN (f32
+/// 0x7fc00000, f64 0x7ff8000000000000); NaN payload/sign are not port facts.
 /// RT6 must apply this to each new physical connection if candidate (a) lands.
 pub fn configure(client: &mut Client) -> Result<(), RuntimeError> {
     client.batch_execute(
         "SET client_encoding='UTF8'; SET extra_float_digits=3; SET bytea_output='hex'",
     )?;
-    let r = client.query_one("SELECT current_setting('client_encoding'),current_setting('extra_float_digits'),current_setting('bytea_output')", &[])?;
+    let r = client.query_one("SELECT pg_catalog.current_setting('client_encoding'),pg_catalog.current_setting('extra_float_digits'),pg_catalog.current_setting('bytea_output')", &[])?;
     if r.get::<_, &str>(0) != "UTF8" || r.get::<_, &str>(1) != "3" || r.get::<_, &str>(2) != "hex" {
         return Err(decode_error("RT5 output settings were not pinned"));
     }
@@ -236,6 +241,10 @@ pub fn text(ty: &Type, value: Option<&str>) -> Result<Datum, RuntimeError> {
         Type::INT2 => parse!(i16, Int),
         Type::INT4 => parse!(i32, Int),
         Type::INT8 => parse!(i64, Int),
+        // PostgreSQL emits exactly "NaN", even for negative/payload NaNs.
+        // Construct the specified bits rather than depending on Rust's NaN parse.
+        Type::FLOAT4 if v == "NaN" => Datum::F32(f32::from_bits(0x7fc00000)),
+        Type::FLOAT8 if v == "NaN" => Datum::F64(f64::from_bits(0x7ff8000000000000)),
         Type::FLOAT4 => parse!(f32, F32),
         Type::FLOAT8 => parse!(f64, F64),
         Type::BYTEA => Datum::Bytes(unhex(

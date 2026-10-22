@@ -1,0 +1,187 @@
+{
+  "scope": "/home/ccheever/projects/sb4-p0-s8/snapback4/target/debug/incremental",
+  "rule": "completed sessions last modified before 2026-10-22T21:00:00Z, nonblocking locks acquired; current/working sessions excluded",
+  "removed": [
+    {
+      "crate_cache": "/home/ccheever/projects/sb4-p0-s8/snapback4/target/debug/incremental/build_script_build-1o9rxv4tihwaf",
+      "allocated_bytes_before": 4358144,
+      "latest_mtime": 1792700282.4190173,
+      "removed_sessions": [
+        "/home/ccheever/projects/sb4-p0-s8/snapback4/target/debug/incremental/build_script_build-1o9rxv4tihwaf/s-hngj51xcnm-1o1xb4h-bsriq0jited24d30adwrtkele",
+        "/home/ccheever/projects/sb4-p0-s8/snapback4/target/debug/incremental/build_script_build-1o9rxv4tihwaf/s-hngiceefxs-1cgmpuu-bsriq0jited24d30adwrtkele"
+      ]
+    },
+    {
+      "crate_cache": "/home/ccheever/projects/sb4-p0-s8/snapback4/target/debug/incremental/build_script_build-22zdpz0x7w4tq",
+      "allocated_bytes_before": 4177920,
+      "latest_mtime": 1792699073.9055119,
+      "removed_sessions": [
+        "/home/ccheever/projects/sb4-p0-s8/snapback4/target/debug/incremental/build_script_build-22zdpz0x7w4tq/s-hnghyxmr3y-1l3pm1g-136jkbg85oi1h80vqkofz7d4p",
+        "/home/ccheever/projects/sb4-p0-s8/snapback4/target/debug/incremental/build_script_build-22zdpz0x7w4tq/s-hngil2flsg-0x1dbwq-136jkbg85oi1h80vqkofz7d4p"
+      ]
+    },
+    {
+      "crate_cache": "/home/ccheever/projects/sb4-p0-s8/snapback4/target/debug/incremental/snapback4_lang-0vi1ibfhzc7s7",
+      "allocated_bytes_before": 955809792,
+      "latest_mtime": 1792700424.7685645,
+      "removed_sessions": [
+        "/home/ccheever/projects/sb4-p0-s8/snapback4/target/debug/incremental/snapback4_lang-0vi1ibfhzc7s7/s-hngj51dmge-1im8ae7-ag8k2dohhhv24ytowf5401jm4"
+      ]
+    },
+    {
+      "crate_cache": "/home/ccheever/projects/sb4-p0-s8/snapback4/target/debug/incremental/build_script_build-3kb6fr75qgbw6",
+      "allocated_bytes_before": 4182016,
+      "latest_mtime": 1792699834.6777923,
+      "removed_sessions": [
+        "/home/ccheever/projects/sb4-p0-s8/snapback4/target/debug/incremental/build_script_build-3kb6fr75qgbw6/s-hngixne1cl-1wrxnac-2gwl8eb8i0mabozn7vgae7ybc",
+        "/home/ccheever/projects/sb4-p0-s8/snapback4/target/debug/incremental/build_script_build-3kb6fr75qgbw6/s-hngi8ufkei-0zqhsey-2gwl8eb8i0mabozn7vgae7ybc"
+      ]
+    },
+    {
+      "crate_cache": "/home/ccheever/projects/sb4-p0-s8/snapback4/target/debug/incremental/snapback4_core-0t6xkpvqo81yn",
+      "allocated_bytes_before": 343904256,
+      "latest_mtime": 1792700281.8070061,
+      "removed_sessions": [
+        "/home/ccheever/projects/sb4-p0-s8/snapback4/target/debug/incremental/snapback4_core-0t6xkpvqo81yn/s-hngj4g47em-1jeswzh-5u3ytr91i7q184suh3u06lmwr"
+      ]
+    },
+    {
+      "crate_cache": "/home/ccheever/projects/sb4-p0-s8/snapback4/target/debug/incremental/snapback4_core-0upparfsxhs7d",
+      "allocated_bytes_before": 1225707520,
+      "latest_mtime": 1792700370.7085998,
+      "removed_sessions": [
+        "/home/ccheever/projects/sb4-p0-s8/snapback4/target/debug/incremental/snapback4_core-0upparfsxhs7d/s-hngj4g4fh0-1j7ljwa-0trs2cq92gv09g921d20p3ock"
+      ]
+    },
+    {
+      "crate_cache": "/home/ccheever/projects/sb4-p0-s8/snapback4/target/debug/incremental/snapback4_postgres_evaluation-319zhy1qpqipw",
+      "allocated_bytes_before": 40300544,
+      "latest_mtime": 1792699131.3394969,
+      "removed_sessions": [
+        "/home/ccheever/projects/sb4-p0-s8/snapback4/target/debug/incremental/snapback4_postgres_evaluation-319zhy1qpqipw/s-hngi009rtj-0hw9wa0-5lcsjqzx956xw360ob9zmo5qs",
+        "/home/ccheever/projects/sb4-p0-s8/snapback4/target/debug/incremental/snapback4_postgres_evaluation-319zhy1qpqipw/s-hngim088nv-1qnopdp-5lcsjqzx956xw360ob9zmo5qs"
+      ]
+    },
+    {
+      "crate_cache": "/home/ccheever/projects/sb4-p0-s8/snapback4/target/debug/incremental/tiny_http-321v4l5cw1vkg",
+      "allocated_bytes_before": 33566720,
+      "latest_mtime": 1792698529.9100807,
+      "removed_sessions": [
+        "/home/ccheever/projects/sb4-p0-s8/snapback4/target/debug/incremental/tiny_http-321v4l5cw1vkg/s-hngibzp5yq-1d0vtx6-5xfmc94papygxhxasz48rbfcw"
+      ]
+    },
+    {
+      "crate_cache": "/home/ccheever/projects/sb4-p0-s8/snapback4/target/debug/incremental/store_handle_traits-0i8gx78figmsx",
+      "allocated_bytes_before": 1306624,
+      "latest_mtime": 1792700233.0621283,
+      "removed_sessions": [
+        "/home/ccheever/projects/sb4-p0-s8/snapback4/target/debug/incremental/store_handle_traits-0i8gx78figmsx/s-hngj48j9fc-1ufn2x1-e3a5s557nydbyyl4kpon6zzf2"
+      ]
+    },
+    {
+      "crate_cache": "/home/ccheever/projects/sb4-p0-s8/snapback4/target/debug/incremental/snapback4_postgres_evaluation-1xibs8jphgy8l",
+      "allocated_bytes_before": 4628480,
+      "latest_mtime": 1792699131.0474918,
+      "removed_sessions": [
+        "/home/ccheever/projects/sb4-p0-s8/snapback4/target/debug/incremental/snapback4_postgres_evaluation-1xibs8jphgy8l/s-hngi0091ux-0cqqtmr-8fy5uq6fs6xt0ghdnujzq7qld",
+        "/home/ccheever/projects/sb4-p0-s8/snapback4/target/debug/incremental/snapback4_postgres_evaluation-1xibs8jphgy8l/s-hngim08rpb-0uyjrpm-8fy5uq6fs6xt0ghdnujzq7qld"
+      ]
+    },
+    {
+      "crate_cache": "/home/ccheever/projects/sb4-p0-s8/snapback4/target/debug/incremental/corpus-2rlsrbf5n5raz",
+      "allocated_bytes_before": 51286016,
+      "latest_mtime": 1792700461.4542174,
+      "removed_sessions": [
+        "/home/ccheever/projects/sb4-p0-s8/snapback4/target/debug/incremental/corpus-2rlsrbf5n5raz/s-hngj7ybdav-12as6sl-bol86llnenmc9vmqjhndq0kyq"
+      ]
+    },
+    {
+      "crate_cache": "/home/ccheever/projects/sb4-p0-s8/snapback4/target/debug/incremental/key_limit-0nwp2qmsuqkjs",
+      "allocated_bytes_before": 23449600,
+      "latest_mtime": 1792699131.0894926,
+      "removed_sessions": [
+        "/home/ccheever/projects/sb4-p0-s8/snapback4/target/debug/incremental/key_limit-0nwp2qmsuqkjs/s-hngim0837g-1ucxnbt-duz741urc0hicbrh7tfafrkt2",
+        "/home/ccheever/projects/sb4-p0-s8/snapback4/target/debug/incremental/key_limit-0nwp2qmsuqkjs/s-hngi008w30-1nilsw5-duz741urc0hicbrh7tfafrkt2"
+      ]
+    },
+    {
+      "crate_cache": "/home/ccheever/projects/sb4-p0-s8/snapback4/target/debug/incremental/build_script_build-2smey5tnz5876",
+      "allocated_bytes_before": 2363392,
+      "latest_mtime": 1792700768.8396487,
+      "removed_sessions": [
+        "/home/ccheever/projects/sb4-p0-s8/snapback4/target/debug/incremental/build_script_build-2smey5tnz5876/s-hngihx30ju-0z5o273-bdo9gu9atv30l4pql7ksztogr",
+        "/home/ccheever/projects/sb4-p0-s8/snapback4/target/debug/incremental/build_script_build-2smey5tnz5876/s-hngjd3kbpn-1xzloki-bdo9gu9atv30l4pql7ksztogr"
+      ]
+    },
+    {
+      "crate_cache": "/home/ccheever/projects/sb4-p0-s8/snapback4/target/debug/incremental/conformance-2xtax370ep60g",
+      "allocated_bytes_before": 55754752,
+      "latest_mtime": 1792699131.3684974,
+      "removed_sessions": [
+        "/home/ccheever/projects/sb4-p0-s8/snapback4/target/debug/incremental/conformance-2xtax370ep60g/s-hngim09bjb-1dp2lwz-8elavnxvbw7utysq2dqg15il6",
+        "/home/ccheever/projects/sb4-p0-s8/snapback4/target/debug/incremental/conformance-2xtax370ep60g/s-hngi008y88-0g2fxfb-8elavnxvbw7utysq2dqg15il6"
+      ]
+    },
+    {
+      "crate_cache": "/home/ccheever/projects/sb4-p0-s8/snapback4/target/debug/incremental/snapback4_postgres_evaluation-22br2q5gv8ajz",
+      "allocated_bytes_before": 2764800,
+      "latest_mtime": 1792699131.0534918,
+      "removed_sessions": [
+        "/home/ccheever/projects/sb4-p0-s8/snapback4/target/debug/incremental/snapback4_postgres_evaluation-22br2q5gv8ajz/s-hngi009jkq-1gyupeb-8t3fyoa1erplhdb47wu4an1id",
+        "/home/ccheever/projects/sb4-p0-s8/snapback4/target/debug/incremental/snapback4_postgres_evaluation-22br2q5gv8ajz/s-hngim09nev-0k0nrnr-8t3fyoa1erplhdb47wu4an1id"
+      ]
+    },
+    {
+      "crate_cache": "/home/ccheever/projects/sb4-p0-s8/snapback4/target/debug/incremental/snapback4_device-2ufvvsess0ast",
+      "allocated_bytes_before": 314277888,
+      "latest_mtime": 1792700440.7548492,
+      "removed_sessions": [
+        "/home/ccheever/projects/sb4-p0-s8/snapback4/target/debug/incremental/snapback4_device-2ufvvsess0ast/s-hngj6j5wdg-14v5hpn-8t59qjy8lkh2nahb6rwqphls7"
+      ]
+    },
+    {
+      "crate_cache": "/home/ccheever/projects/sb4-p0-s8/snapback4/target/debug/incremental/snapback4-0q85pob5qrfwh",
+      "allocated_bytes_before": 1887268864,
+      "latest_mtime": 1792700448.2929833,
+      "removed_sessions": [
+        "/home/ccheever/projects/sb4-p0-s8/snapback4/target/debug/incremental/snapback4-0q85pob5qrfwh/s-hngj7prw8z-14h8q8c-clbq1ojoldl8u281jxrv1ix8p",
+        "/home/ccheever/projects/sb4-p0-s8/snapback4/target/debug/incremental/snapback4-0q85pob5qrfwh/s-hngidtujvd-1jjchtq-clbq1ojoldl8u281jxrv1ix8p"
+      ]
+    },
+    {
+      "crate_cache": "/home/ccheever/projects/sb4-p0-s8/snapback4/target/debug/incremental/build_script_build-3jatpd78s68ew",
+      "allocated_bytes_before": 2347008,
+      "latest_mtime": 1792699104.0810294,
+      "removed_sessions": [
+        "/home/ccheever/projects/sb4-p0-s8/snapback4/target/debug/incremental/build_script_build-3jatpd78s68ew/s-hngilkeuxa-05s5re5-ezwxwzsbd9nt4envlnlwwdmni",
+        "/home/ccheever/projects/sb4-p0-s8/snapback4/target/debug/incremental/build_script_build-3jatpd78s68ew/s-hnghzjc6yg-0zbzlcy-ezwxwzsbd9nt4envlnlwwdmni"
+      ]
+    },
+    {
+      "crate_cache": "/home/ccheever/projects/sb4-p0-s8/snapback4/target/debug/incremental/snapback4_postgres_evaluation-0e4edz81yjw95",
+      "allocated_bytes_before": 13737984,
+      "latest_mtime": 1792699122.9263525,
+      "removed_sessions": [
+        "/home/ccheever/projects/sb4-p0-s8/snapback4/target/debug/incremental/snapback4_postgres_evaluation-0e4edz81yjw95/s-hngilvmye3-1uqc0tj-1ars3ncwma616baa0mnb2qqqy",
+        "/home/ccheever/projects/sb4-p0-s8/snapback4/target/debug/incremental/snapback4_postgres_evaluation-0e4edz81yjw95/s-hnghzxiocs-16b73dz-1ars3ncwma616baa0mnb2qqqy"
+      ]
+    },
+    {
+      "crate_cache": "/home/ccheever/projects/sb4-p0-s8/snapback4/target/debug/incremental/tiny_http-024xc66qohegf",
+      "allocated_bytes_before": 24285184,
+      "latest_mtime": 1792695973.409762,
+      "removed_sessions": [
+        "/home/ccheever/projects/sb4-p0-s8/snapback4/target/debug/incremental/tiny_http-024xc66qohegf/s-hngh5rvhl1-0w7idze-38wji97kpu3oau1f5lw8jd45o"
+      ]
+    },
+    {
+      "crate_cache": "/home/ccheever/projects/sb4-p0-s8/snapback4/target/debug/incremental/snapback4_core-0xw4ws5ng4awy",
+      "allocated_bytes_before": 343896064,
+      "latest_mtime": 1792700768.4476418,
+      "removed_sessions": [
+        "/home/ccheever/projects/sb4-p0-s8/snapback4/target/debug/incremental/snapback4_core-0xw4ws5ng4awy/s-hngjcrrbn2-0ig9dt4-a9zo8j3dmblocx8gniurvslbo"
+      ]
+    }
+  ],
+  "total_allocated_bytes_before": 5339373568
+}

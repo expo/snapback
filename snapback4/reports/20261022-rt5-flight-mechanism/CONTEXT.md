@@ -20,11 +20,12 @@ Rationale/evidence: S1b's k3, its 1 s/4 s/three-process method and observed
 extended-protocol stall (experiment README, S1b). Counts alone do not qualify
 latency (round-trip §3.6).
 
-Open risk: loopback latency does not qualify the Hetzner path; RT6 must apply
+Resolved in fix round 1: the lead's qualifying Hetzner run plus reviewed codec
+regressions choose (a) under round-trip §3.6. Open integration risk: RT6 must apply
 connection output qualification, guard encoder scratch within existing memory
 allowances, preserve the final client checks, and run the serving ratchets.
 No raw-driver API is reopened for historical experiment code.
 
-Doc updates: prepend RT5 to the one Revised line; §6 implementation note,
+Doc updates: prepend RT5 fix round 1 to the one Revised line; §6 implementation note,
 append-only journal entry, experiment commands and this report. Hand-off:
-none for implementation; lead's network run remains before mechanism adoption.
+none for implementation; mechanism adoption is recorded after the review regressions pass.

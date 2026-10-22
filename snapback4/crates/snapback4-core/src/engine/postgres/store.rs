@@ -316,7 +316,9 @@ impl Tx<'_> {
         let command = prepared.command(params).inspect_err(|_| self.bind_refused.set(true))?;
         self.calls.set(self.calls.get() + 1);
         let messages = self.inner.borrow_mut().simple_query(&command)?;
-        prepared.rows(&messages).inspect_err(|_| self.bind_refused.set(true))
+        // A successful statement followed by a client decode failure leaves
+        // the transaction usable, exactly like a failing Row::get after Bind.
+        prepared.rows(&messages)
     }
 
     /// Fold a driver row stream without retaining an unbounded result vector.

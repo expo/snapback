@@ -1,0 +1,6 @@
+{
+  "directory": "/tmp/rt5-fix1-pg.jsj5ixgd",
+  "pid": 1235472,
+  "connection": "host=/tmp/rt5-fix1-pg.jsj5ixgd port=55492 user=sb4_eval dbname=postgres",
+  "role": "final RT5 two-locale checks and isolated concurrency rerun"
+}

@@ -1189,15 +1189,31 @@ adds no raw-handle escape and does not claim those old cells work. Typed SQL PRE
 per-operation literal construction and typed text decoding are timed. The
 benchmark does not use S1b's older ad hoc text quoting helper.
 
-Rule 9 design: inputs are ASCII-only SQL, text as
-`convert_from(decode('<UTF8 hex>','hex'),'UTF8')`, bytes as `decode`, arrays as
-typed `ARRAY[...]`, explicit casts on every value. Connection qualification
-pins and verifies **client_encoding=UTF8, extra_float_digits=3,
-bytea_output=hex** for lossless output. DateStyle, standard_conforming_strings
-and lc_* cannot change these admitted types' meaning. NUMERIC, dates and
-multidimensional/non-unit-bound arrays are not port types and refuse; finite
-float bounds, subnormals, negative zero, NaN and infinities are covered.
-Saturation remains in shared policy, before encoding, not in SQL arithmetic.
+Encoder session independence: inputs are ASCII-only SQL, text as
+`pg_catalog.convert_from(pg_catalog.decode('<UTF8 hex>','hex'),'UTF8')`, bytes
+as `pg_catalog.decode`, arrays as typed `ARRAY[...]`. Every emitted cast type
+and function name is qualified with `pg_catalog`, including PREPARE parameter
+types and the output-setting verification query. Connection qualification pins
+and verifies **client_encoding=UTF8, extra_float_digits=3, bytea_output=hex**.
+The decoder dispatches on prepared type OIDs and parses output in Rust; it
+performs no SQL name lookup. DateStyle, standard_conforming_strings, lc_* and
+an app-first search_path cannot change admitted inputs' meaning. This session
+independence is separate from parent §9.1 rule 9's locale-independent attach
+shape checks.
+
+Admitted inputs: bool, i16/i32/i64, f32/f64, TEXT, BYTEA and unit-bound 1-D
+arrays of those types (including optional values/elements). Port strings bind
+as TEXT; numeric and binary primitives retain the codec's boundary qualification. NAME, BPCHAR and VARCHAR
+(including `varchar(n)`), their arrays, NUMERIC, dates, custom types and
+multidimensional/non-unit-bound arrays refuse. No coercing string type is
+silently treated as TEXT. Saturation remains in shared policy before encoding.
+Finite floats, subnormals, negative zero and infinities compare exact bits.
+Postgres text output maps **every NaN sign/payload** to `NaN`; the literal input
+and decoder use exactly positive quiet NaN, f32 `0x7fc00000` / f64
+`0x7ff8000000000000`. Tests check those exact bits, native Bind's preservation
+of input payload/sign, server binary-send output, and scalar/array cases.
+This is explicit canonicalization, not preservation of arbitrary NaN bits;
+current port values do not expose binary NaN payload/sign as facts.
 RT6 must qualify each new physical connection and account for encoder scratch.
 
 From this experiment directory on **450b**, build into its assigned target,
@@ -1243,6 +1259,11 @@ This has the full timing/repetition method but is **non-qualifying** for the
 Hetzner mechanism choice. `summary.json` records median executions/s, median
 p50/p99 and worst-run p99 for all six settings; individual JSON retains raw
 runs, correctness counters, backend waits, WAL, timing and host load. The
-short RT5 report links the results and records the executed checks. Until the
-lead runs the Hetzner cells and confirms latency holds, (a) is a correctness
-qualified candidate, not an adopted B2 serving mechanism.
+short RT5 report links the results and records the executed checks. The lead's
+[qualifying Hetzner run](./results-rt5-hetzner/README.md) is now recorded:
+W1 (a) 8,535/s vs (b) 5,589/s vs per-statement 4,686/s; mutations 141/s vs
+110/s vs 79/s, all correctness counters passing. RT5 fix round 1 qualifies
+the reviewed codec with unchanged flight schedules; see the
+[RT5 report](../../reports/20261022-rt5-flight-mechanism/REPORT.md) for the
+§3.6 decision and checks. Catalog qualification changes no flight boundary
+or expression structure; the Hetzner figures still apply without a rerun.

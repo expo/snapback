@@ -1,0 +1,29 @@
+{
+  "directory": "/tmp/s10d3-serve-7h0rq9es",
+  "children": [
+    {
+      "name": "first",
+      "pid": 1220428
+    },
+    {
+      "name": "contender",
+      "pid": 1220463
+    },
+    {
+      "name": "restart",
+      "pid": 1220542
+    },
+    {
+      "name": "standby",
+      "pid": 1220657
+    },
+    {
+      "name": "second-release",
+      "pid": 1220702
+    },
+    {
+      "name": "p1mc-scale",
+      "pid": 1222918
+    }
+  ]
+}
