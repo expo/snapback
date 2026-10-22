@@ -401,6 +401,14 @@ table dxRoles:
   insert <- viewer = 'service:operator'
   update <- viewer = 'service:operator'
   online only
+table dxEligibility:
+  principal: principal
+  eligible: bool
+  unique principal
+  read <- allow
+  insert <- viewer = 'service:operator'
+  update <- viewer = 'service:operator'
+  online only
 table dxOrders:
   owner: principal
   title: text <= 80
@@ -412,12 +420,15 @@ table dxOrders:
   online only
 mutation dxRole(principal: principal, role: enum('staff', 'customer')):
   upsert dxRoles[principal = principal] { principal, role }
+  upsert dxEligibility[principal = principal] { principal, eligible: role = 'customer' }
 mutation dxOpen(title: text <= 80, price: int):
   return insert dxOrders { owner: viewer, title, price }
 mutation dxEdit(id: dxOrders, title: text <= 80):
   return update dxOrders[id] { title }
 query dxOrder(id: dxOrders):
   return dxOrders[id]
+query dxPublicCustomer(principal: principal):
+  return exists dxEligibility[principal = principal, eligible = true]
 query dxIsCustomer(principal: principal):
   return exists dxRoles[principal = principal, role = 'customer']
 mutation dxCustomerGuard(principal: principal):
@@ -437,8 +448,9 @@ and its source site. Table-rule exists is a policy probe; it does not return
 that row or borrow its read audience. A staff require also does not replace
 `dxOrders.update`: dxStaffEdit still needs the order's owner rule.
 
-When customer eligibility is deliberately public, publish a separate minimal
-projection with just its principal/eligibility, authorize its writers, and
-probe it instead. Keep role and private payload rows hidden. For parent-child
+The example deliberately publishes only customer eligibility in dxEligibility;
+the operator updates it alongside the private role. dxPublicCustomer can test
+that public fact for another principal. Use this projection only when the
+specification makes eligibility public. Keep role and private payload rows hidden. For parent-child
 visibility use `read through .parent` only when inheriting the entire parent
 read policy is intended; `guide rule-recipes` covers that model.

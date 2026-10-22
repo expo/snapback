@@ -47,8 +47,11 @@ try{
  }}
  assert.equal((await call("m","dxRole",{principal:"service:peer",role:"customer"})).state,"sent");
  assert.equal((await call("q","dxIsCustomer",{principal:"service:peer"})).data,false);
+ assert.equal((await call("q","dxPublicCustomer",{principal:"service:peer"})).data,true,"minimal public projection answers the intended cross-reader check");
+ assert.equal((await call("q","dxIsCustomer",{principal:"service:missing"})).data,false);
  assert.equal((await call("q","dxIsCustomer",{principal:"service:peer"},peer)).data,true);
  assert.equal((await call("m","dxCustomerGuard",{principal:"service:peer"})).why.code,"NOT_CUSTOMER");
+ assert.equal((await call("m","dxCustomerGuard",{principal:"service:missing"})).why.code,"NOT_CUSTOMER","hidden-present and absent have the same authored refusal");
  await call("m","dxMakeTick");
  const advanced=await host.advance("8d",{drain:false});assert.equal(advanced.maintenancePaused,true);firstNow=advanced.now;
  assert.equal((await call("q","dxTickCount")).data[0].n,0);
