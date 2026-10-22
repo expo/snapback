@@ -16,6 +16,8 @@ before retrying. `E_STORE_OWNERSHIP` means the store's owner token or binding
 refused the transaction before its durable work. Neither authorizes a blind
 retry under an old owner. The Postgres adapter disables statement timeouts
 during COMMIT; a cancelled synchronous replication wait remains unacknowledged.
+The retained Postgres evaluator also returns `E_STORE_OWNERSHIP` when opened
+on a unified owner's namespace; use a separate evaluation namespace.
 
 Every refusal is `{ code, family, message, detail?, site?, rewrite?, guide?, rule?,
 retryable? }`: `code` and `family` are stable, `rewrite` compiles, `guide`

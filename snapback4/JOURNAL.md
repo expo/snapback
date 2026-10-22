@@ -101348,3 +101348,63 @@ stopped and confirmed (status 3, no postmaster.pid); all seven owned clusters
 are now stopped. Root `./ref-check` passes **564 LLPs / 11,704 refs / 0 errors /
 0 unchecked**. Whitespace and formatting of all four new Rust files pass.
 About **79 GiB** remains free. No push or stash.
+
+### 2026-10-22 — S10d-2 fix round 1: classify blockers and force lease races
+
+Rebased the ownership lane onto main's S10d-1 identity routing and scale
+measurement records, resolving the journal by union and retaining both
+identity-member and ownership exports. The integrated Postgres core compiles.
+The ownership implementation now classifies the complete observed blocker set
+before signalling any member; an ineligible member aborts, matching §3.4's
+choice rather than the prototype's skip-and-wait behavior. Both policy wait
+timeouts require a one-second margin below the lease session's five-second
+statement timeout. A cancelled conditional claim abandons before its watcher
+exists. After a returned claim row, statement timeout is disabled while bounded
+lock-timeout/savepoint retries and blocker handling run.
+
+The retained evaluator refuses unified namespaces with `E_STORE_OWNERSHIP`,
+including token zero. Its session retains a shared namespace bootstrap guard;
+legacy adoption needs the exclusive transaction counterpart, so it cannot
+install ownership underneath an already-open evaluator or its in-flight write.
+The legacy path guards before a logical id exists; positive tokens still refuse
+to bootstrap over a lost owner record. Ordinary evaluator write calls and its
+two oracle modes are unchanged.
+
+The revised witnesses require observed blocking: a losing standby behind the
+winner's actual claim lock; renewal blocked both before and after a forced
+`55P03`/savepoint rollback; and the second legacy opener behind the first one's
+advisory lock. Renewal between expiry poll and conditional claim now runs in a
+hook inside public `acquire`, proving a zero-row claim with no watcher. The
+retry witness also starts with a 20 ms session statement timeout and reaches a
+one-second lock timeout. A mixed shared-advisory blocker set, with both owner
+key-shares retained, proves termination refuses without killing either session
+or losing the tagged transaction's staged write. Row multixact waits may expose
+holders one at a time, so this mixed-set witness exercises the termination
+function with both actual blockers visible at once.
+
+The corrected private non-superuser ownership group passes 21/21. The first
+executing run's two fixture failures and the prior hook-visibility compile
+failure remain in `/tmp/s10d2-fix1-checks/`; each cluster is stopped and
+confirmed. The existing RFC implementation note and §5.2 now describe the
+choice, timeout phases, evaluator isolation and forcing observations. Its
+single Revised line begins `S10d-2 fix round 1`; the affected-corpus audit keeps
+the other scoped owner/head, claim-retention and unknown-COMMIT references.
+The lane report records final qualification as it completes. No push, stash,
+sub-agents, other targets or unrelated cluster operations.
+
+
+S10d-2 fix round 1 qualification completes on the final source: full core
+**1,068 passed / 0 failed / 5 ignored**; full host **1,405 / 0 / 15**, with all
+three supplied baselines passing; no-default core check; **16** ratchet/census
+cases; default and Postgres compiled guards; **127** guide and **27** codec
+cases. The stock Postgres script passes **58 evaluator + 209 family/oracle +
+21 ownership + 1 compiled guard + 37 doctest + 2 member + 1 HTTP + 19 corpus**
+cases. C1 remains 20 off / 23 on with eight marked reads; both oracle modes
+retain 65 increments without losses. No unexpected test needed an isolated
+rerun. The runner's wrong-directory reference check was corrected; repository
+root `./ref-check` passes **564 LLPs / 11,709 refs / 0 errors / 0 unchecked**.
+All four clusters created in this fix round are stopped and independently
+confirmed with status 3 and no postmaster.pid; receipts and retained failures
+are in `/tmp/s10d2-fix1-checks/` and the lane report. Only the specified target,
+profiles and at most 16 jobs were used. Lowest observed free space was about
+91 GiB, above the 30 GiB stop threshold. No push or stash.

@@ -1,8 +1,9 @@
 //! Real-cluster witnesses for the production store-level ownership adapter.
 // @ref LLP 3000.009.001.000#5.2 — W11 claim ordering, bounded blockers and ambiguous COMMIT.
+use super::test_hooks::Point;
 use super::*;
 use crate::{Context, Engine, Value, store_port::AnyStore};
-use std::{collections::BTreeMap, time::Instant};
+use std::{collections::BTreeMap, sync::mpsc, time::Instant};
 
 fn connection() -> String {
     std::env::var("SNAPBACK4_EVAL_POSTGRES").expect("private Postgres cluster required")
@@ -88,6 +89,24 @@ fn expired(namespace: &str) {
     });
 }
 
+fn pid(c: &mut Client) -> i32 {
+    c.query_one("SELECT pg_backend_pid()", &[]).unwrap().get(0)
+}
+fn blocked_on(c: &mut Client, waiter: i32, holder: i32) -> bool {
+    c.query_one(
+        "SELECT $2::int=ANY(pg_blocking_pids($1))",
+        &[&waiter, &holder],
+    )
+    .unwrap()
+    .get(0)
+}
+fn pause_at(point: Point, ready: mpsc::Sender<()>, resume: mpsc::Receiver<()>) {
+    test_hooks::set(point, move || {
+        ready.send(()).unwrap();
+        resume.recv_timeout(Duration::from_secs(8)).unwrap();
+    });
+}
+
 #[test]
 fn tags_retain_the_complete_token_and_bound_termination() {
     let id = "0123456789abcdef0123456789abcdef";
@@ -134,21 +153,34 @@ fn legacy_attach_bootstrap_is_atomic_and_serializes_racing_openers() {
             .unwrap()
             .get::<_, bool>(0)
     );
-    let barrier = Arc::new(std::sync::Barrier::new(2));
-    let go = barrier.clone();
+    let (ready_tx, ready) = mpsc::channel();
+    let (resume, resume_rx) = mpsc::channel();
     let other_ns = ns.clone();
-    let other = thread::spawn(move || {
-        go.wait();
+    let first = thread::spawn(move || {
+        pause_at(Point::AfterBootstrapLock, ready_tx, resume_rx);
         Engine::open_at(
             AnyStore::open_postgres(&connection(), &other_ns).unwrap(),
             1000,
         )
-        .unwrap();
+        .unwrap()
     });
-    barrier.wait();
-    let mut e =
-        Engine::open_at(AnyStore::open_postgres(&connection(), &ns).unwrap(), 1000).unwrap();
-    other.join().unwrap();
+    ready.recv_timeout(Duration::from_secs(8)).unwrap();
+    // The first opener owns the actual bootstrap lock, before owner DDL.
+    let holder: i32 = control.query_one("SELECT pid FROM pg_stat_activity WHERE application_name=$1 AND query LIKE 'SELECT pg_advisory_xact_lock%' AND state='idle in transaction'", &[&format!("sb:{id}:0000:0")]).unwrap().get(0);
+    let other_ns = ns.clone();
+    let second = thread::spawn(move || {
+        Engine::open_at(
+            AnyStore::open_postgres(&connection(), &other_ns).unwrap(),
+            1000,
+        )
+        .unwrap()
+    });
+    wait(|| {
+        control.query_one("SELECT EXISTS(SELECT 1 FROM pg_stat_activity WHERE wait_event='advisory' AND query LIKE 'SELECT pg_advisory_xact_lock%' AND $1::int=ANY(pg_blocking_pids(pid)))", &[&holder]).unwrap().get(0)
+    });
+    resume.send(()).unwrap();
+    let mut e = first.join().unwrap();
+    drop(second.join().unwrap());
     let row = control
         .query_one("SELECT store_id,token FROM _owner WHERE singleton", &[])
         .unwrap();
@@ -241,12 +273,20 @@ fn renewal_between_poll_and_claim_terminates_nothing() {
     let mut e = open(&ns, &a);
     let tx = e.store_mut().transaction().unwrap();
     let mut standby = lease(&ns, &id, "0002");
-    let observed = a.fence.token;
-    // Expire the database-clock lease while a fenced durable transaction lives.
-    // A successful token-fenced renewal wins before the stale poll's claim.
     expired(&ns);
-    assert!(a.renew().unwrap());
-    assert!(standby.claim(observed).unwrap().is_none());
+    let (back, renewed) = mpsc::channel();
+    test_hooks::set(Point::AfterPoll, move || {
+        assert!(a.renew().unwrap());
+        back.send(a).unwrap();
+    });
+    test_hooks::set(Point::AfterClaim, || {
+        panic!("renewed claim must match zero rows")
+    });
+    test_hooks::set(Point::BeforeWatch, || {
+        panic!("zero-row claim must not signal")
+    });
+    assert!(standby.acquire().unwrap().is_none());
+    let mut a = renewed.recv_timeout(Duration::from_secs(8)).unwrap();
     tx.commit().unwrap();
     assert!(a.renew().unwrap());
     assert!(a.release().unwrap());
@@ -262,23 +302,38 @@ fn two_standbys_race_loser_kills_no_winner_sessions() {
     a.release().unwrap();
     let mut b = lease(&ns, &id, "0002");
     let mut c = lease(&ns, &id, "0003");
-    let barrier = Arc::new(std::sync::Barrier::new(2));
-    let go = barrier.clone();
-    let worker = thread::spawn(move || {
-        go.wait();
-        let r = b.claim(1).unwrap();
-        (b, r)
+    b.policy.lease = Duration::from_secs(3);
+    c.policy.claim_timeout = Duration::from_secs(4);
+    let bp = pid(&mut b.client);
+    let cp = pid(&mut c.client);
+    let (ready_tx, ready) = mpsc::channel();
+    let (resume, resume_rx) = mpsc::channel();
+    let winner = thread::spawn(move || {
+        pause_at(Point::AfterClaim, ready_tx, resume_rx);
+        let won = b.acquire().unwrap().unwrap();
+        (b, won)
     });
-    barrier.wait();
-    let cr = c.claim(1).unwrap();
-    let (mut b, br) = worker.join().unwrap();
-    assert_eq!(usize::from(cr.is_some()) + usize::from(br.is_some()), 1);
-    let winner = if cr.is_some() { &mut c } else { &mut b };
-    assert!(winner.renew().unwrap());
-    let mut e = open(&ns, winner);
+    ready.recv_timeout(Duration::from_secs(8)).unwrap();
+    let loser = thread::spawn(move || {
+        test_hooks::set(Point::BeforeWatch, || {
+            panic!("loser must never start termination")
+        });
+        assert!(c.acquire().unwrap().is_none());
+        c
+    });
+    let mut observer = client(&ns);
+    wait(|| blocked_on(&mut observer, cp, bp));
+    resume.send(()).unwrap();
+    let (mut b, won) = winner.join().unwrap();
+    let mut c = loser.join().unwrap();
+    assert_eq!(won.token, 2);
+    assert_eq!(pid(&mut b.client), bp);
+    assert_eq!(pid(&mut c.client), cp);
+    assert!(b.renew().unwrap());
+    let mut e = open(&ns, &b);
     e.mutate("put", Some("winner"), context(3)).unwrap();
     assert_eq!(e.store().seq().unwrap(), 1);
-    assert!(winner.release().unwrap());
+    assert!(b.release().unwrap());
 }
 
 #[test]
@@ -370,6 +425,248 @@ fn owner_fence_precedes_the_head_lock() {
     held.rollback().unwrap();
     worker.join().unwrap().unwrap();
     assert!(a.release().unwrap());
+}
+
+#[test]
+fn lease_policy_keeps_a_margin_below_the_statement_timeout() {
+    assert!(LeasePolicy::default().validate().is_ok());
+    for duration in [Duration::from_millis(4001), Duration::from_secs(5)] {
+        let mut p = policy();
+        p.fence_timeout = duration;
+        assert_eq!(p.validate().unwrap_err().code(), "E_STORE_OWNERSHIP");
+        p = policy();
+        p.claim_timeout = duration;
+        assert_eq!(p.validate().unwrap_err().code(), "E_STORE_OWNERSHIP");
+    }
+    let p = LeasePolicy {
+        fence_timeout: Duration::from_secs(4),
+        claim_timeout: Duration::from_secs(4),
+        ..policy()
+    };
+    assert!(p.validate().is_ok());
+}
+
+#[test]
+#[ignore = "private Postgres; scripts/test-postgres.sh"]
+fn mixed_blockers_abort_before_signalling_any_eligible_session() {
+    let ns = name();
+    let id = create(&ns);
+    let mut a = lease(&ns, &id, "0001");
+    a.acquire().unwrap().unwrap();
+    let mut e = open(&ns, &a);
+    let tx = e.store_mut().transaction().unwrap();
+    crate::rows::Rows::set_sequence(&tx, "mixed", "survives", 17).unwrap();
+    let eligible = tx
+        .with_postgres(|tx| tx.query("SELECT pg_backend_pid()", &[]).unwrap()[0].get::<_, i32>(0));
+    let mut foreign = client(&ns);
+    let ineligible = pid(&mut foreign);
+    let mut foreign_tx = foreign.transaction().unwrap();
+    foreign_tx
+        .query_one(
+            "SELECT token FROM _owner WHERE singleton FOR KEY SHARE",
+            &[],
+        )
+        .unwrap();
+    // Row multixact waits may expose one key-share holder at a time. Use a
+    // real shared-advisory wait to expose both members in one blocking set,
+    // while retaining the same expired-owner conditional claim and fences.
+    let key = crate::ids::seed() as i64;
+    tx.with_postgres(|tx| {
+        tx.query("SELECT pg_advisory_xact_lock_shared($1)", &[&key])
+            .unwrap()
+    });
+    foreign_tx
+        .query_one("SELECT pg_advisory_xact_lock_shared($1)", &[&key])
+        .unwrap();
+    let mut claimant = client(&ns);
+    let bp = pid(&mut claimant);
+    expired(&ns);
+    let worker = thread::spawn(move || {
+        let mut claim = claimant.transaction().unwrap();
+        assert_eq!(claim.execute("UPDATE _owner SET lease_until=lease_until WHERE singleton AND token=1 AND lease_until<clock_timestamp()", &[]).unwrap(), 1);
+        claim
+            .query_one("SELECT pg_advisory_xact_lock($1)", &[&key])
+            .unwrap();
+        claim.rollback().unwrap();
+    });
+    let mut observer = client(&ns);
+    wait(|| blocked_on(&mut observer, bp, eligible) && blocked_on(&mut observer, bp, ineligible));
+    let error = terminate(&mut observer, Some(bp), &id, 1).unwrap_err();
+    assert_eq!(error.code(), "E_STORE_OWNERSHIP");
+    // Both blockers, including the tagged backend's in-flight durable write,
+    // survive the failed takeover. No partial kill is hidden by rollback.
+    foreign_tx.query_one("SELECT 1", &[]).unwrap();
+    foreign_tx.commit().unwrap();
+    tx.commit().unwrap();
+    worker.join().unwrap();
+    let read = e.store_mut().read_transaction().unwrap();
+    assert_eq!(
+        crate::rows::Rows::sequence_value(&read, "mixed", "survives").unwrap(),
+        17
+    );
+    read.rollback().unwrap();
+    assert_eq!(
+        observer
+            .query_one("SELECT token FROM _owner WHERE singleton", &[])
+            .unwrap()
+            .get::<_, i64>(0),
+        1
+    );
+    assert!(a.renew().unwrap());
+    a.release().unwrap();
+}
+
+#[test]
+#[ignore = "private Postgres; scripts/test-postgres.sh"]
+fn fence_retry_retains_claim_and_blocks_renewal_across_savepoint_rollback() {
+    let ns = name();
+    let id = create(&ns);
+    let mut a = lease(&ns, &id, "0001");
+    a.acquire().unwrap().unwrap();
+    let mut e = open(&ns, &a);
+    let tx = e.store_mut().transaction().unwrap();
+    let victim = tx
+        .with_postgres(|tx| tx.query("SELECT pg_backend_pid()", &[]).unwrap()[0].get::<_, i32>(0));
+    // Keep renewal observable after post-commit hygiene as well as before it.
+    a.client
+        .batch_execute("SET application_name='retry-renewal-witness'")
+        .unwrap();
+    let ap = pid(&mut a.client);
+    let mut b = lease(&ns, &id, "0002");
+    b.policy.fence_timeout = Duration::from_secs(1);
+    // A 1 s fence wait must reach 55P03 even when the session's inherited
+    // statement timeout is only 20 ms: the claimed phase disables it.
+    b.client
+        .batch_execute("SET statement_timeout='20ms'")
+        .unwrap();
+    let bp = pid(&mut b.client);
+    expired(&ns);
+    let (watch_tx, watch_ready) = mpsc::channel();
+    let (watch_resume, watch_rx) = mpsc::channel();
+    let (retry_tx, retry_ready) = mpsc::channel();
+    let (retry_resume, retry_rx) = mpsc::channel();
+    let worker = thread::spawn(move || {
+        pause_at(Point::BeforeWatch, watch_tx, watch_rx);
+        pause_at(Point::AfterFenceRollback, retry_tx, retry_rx);
+        let won = b.acquire().unwrap().unwrap();
+        (b, won)
+    });
+    watch_ready.recv_timeout(Duration::from_secs(8)).unwrap();
+    let mut observer = client(&ns);
+    wait(|| blocked_on(&mut observer, bp, victim));
+    let renewal = thread::spawn(move || {
+        let renewed = a.renew().unwrap();
+        (a, renewed)
+    });
+    wait(|| blocked_on(&mut observer, ap, bp));
+    // This hook runs only after the real fence wait returned 55P03 and the
+    // actual ROLLBACK TO + RELEASE completed. Renewal must still be blocked.
+    retry_ready.recv_timeout(Duration::from_secs(8)).unwrap();
+    assert!(blocked_on(&mut observer, ap, bp));
+    retry_resume.send(()).unwrap();
+    wait(|| blocked_on(&mut observer, bp, victim));
+    watch_resume.send(()).unwrap();
+    let (mut b, won) = worker.join().unwrap();
+    assert_eq!(won.token, 2);
+    assert!(won.terminated.contains(&victim));
+    assert!(tx.commit().is_err());
+    let (_, renewed) = renewal.join().unwrap();
+    assert!(!renewed);
+    assert!(b.release().unwrap());
+}
+
+#[test]
+#[ignore = "private Postgres; scripts/test-postgres.sh"]
+fn statement_cancel_during_conditional_claim_terminates_nothing() {
+    let ns = name();
+    let id = create(&ns);
+    let mut a = lease(&ns, &id, "0001");
+    a.acquire().unwrap().unwrap();
+    let mut e = open(&ns, &a);
+    let tx = e.store_mut().transaction().unwrap();
+    let mut b = lease(&ns, &id, "0002");
+    expired(&ns);
+    // Inject after shape validation: a slow conditional UPDATE times out
+    // before a watcher can exist. Neither the lease nor writer may be killed.
+    let mut control = client(&ns);
+    control.batch_execute("CREATE FUNCTION slow_claim() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN PERFORM pg_sleep(0.1); RETURN NEW; END $$; CREATE TRIGGER slow_claim BEFORE UPDATE ON _owner FOR EACH ROW EXECUTE FUNCTION slow_claim()").unwrap();
+    b.client
+        .batch_execute("SET statement_timeout='20ms'")
+        .unwrap();
+    test_hooks::set(Point::BeforeWatch, || {
+        panic!("cancelled claim must not signal")
+    });
+    assert!(b.acquire().unwrap().is_none());
+    tx.commit().unwrap();
+    control
+        .batch_execute("DROP TRIGGER slow_claim ON _owner; DROP FUNCTION slow_claim()")
+        .unwrap();
+    assert!(a.renew().unwrap());
+    assert!(a.release().unwrap());
+}
+
+#[test]
+#[ignore = "private Postgres; scripts/test-postgres.sh"]
+fn evaluator_refuses_a_unified_owners_namespace() {
+    let ns = name();
+    let id = create(&ns);
+    // Namespace separation also closes an evaluator opened before token 1.
+    let error = super::super::PostgresEngine::open(client(&ns), &ns)
+        .err()
+        .unwrap();
+    assert_eq!(error.code(), "E_STORE_OWNERSHIP");
+    let mut a = lease(&ns, &id, "0001");
+    a.acquire().unwrap().unwrap();
+    let error = super::super::PostgresEngine::open(client(&ns), &ns)
+        .err()
+        .unwrap();
+    assert_eq!(error.code(), "E_STORE_OWNERSHIP");
+    assert_eq!(open(&ns, &a).store().seq().unwrap(), 0);
+    assert!(a.release().unwrap());
+}
+
+#[test]
+#[ignore = "private Postgres; scripts/test-postgres.sh"]
+fn evaluator_lifetime_guard_blocks_legacy_adoption() {
+    let ns = name();
+    let id = create(&ns);
+    let mut observer = client(&ns);
+    observer.batch_execute("DROP TABLE _owner").unwrap();
+    let mut evaluator = super::super::PostgresEngine::open(client(&ns), &ns).unwrap();
+    evaluator.set_write_mode(super::super::WriteMode::Serializable);
+    let ep = pid(&mut evaluator.store.client);
+    let other_ns = ns.clone();
+    let opener = thread::spawn(move || {
+        Engine::open_at(
+            AnyStore::open_postgres(&connection(), &other_ns).unwrap(),
+            1000,
+        )
+        .unwrap()
+    });
+    wait(|| {
+        observer.query_one("SELECT EXISTS(SELECT 1 FROM pg_stat_activity WHERE wait_event='advisory' AND query LIKE 'SELECT pg_advisory_xact_lock%' AND $1::int=ANY(pg_blocking_pids(pid)))", &[&ep]).unwrap().get(0)
+    });
+    assert!(
+        !observer
+            .query_one("SELECT to_regclass('_owner') IS NOT NULL", &[])
+            .unwrap()
+            .get::<_, bool>(0)
+    );
+    evaluator
+        .mutate("put", Some("before-adoption"), context(5))
+        .unwrap();
+    drop(evaluator);
+    assert_eq!(opener.join().unwrap().store().seq().unwrap(), 1);
+    let mut a = lease(&ns, &id, "0001");
+    assert_eq!(a.acquire().unwrap().unwrap().token, 1);
+    assert_eq!(
+        super::super::PostgresEngine::open(client(&ns), &ns)
+            .err()
+            .unwrap()
+            .code(),
+        "E_STORE_OWNERSHIP"
+    );
+    a.release().unwrap();
 }
 
 #[test]

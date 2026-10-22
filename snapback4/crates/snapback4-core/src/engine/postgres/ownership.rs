@@ -16,6 +16,9 @@ use std::{
     time::Duration,
 };
 
+const LEASE_STATEMENT_TIMEOUT: Duration = Duration::from_secs(5);
+const TIMEOUT_MARGIN: Duration = Duration::from_secs(1);
+
 #[derive(Clone, Debug)]
 pub struct LeasePolicy {
     pub lease: Duration,
@@ -38,9 +41,9 @@ impl LeasePolicy {
         if self.lease.is_zero()
             || self.lease > Duration::from_secs(86400)
             || self.claim_timeout.as_millis() == 0
-            || self.claim_timeout > Duration::from_secs(5)
+            || self.claim_timeout > LEASE_STATEMENT_TIMEOUT - TIMEOUT_MARGIN
             || self.fence_timeout.as_millis() == 0
-            || self.fence_timeout > Duration::from_secs(5)
+            || self.fence_timeout > LEASE_STATEMENT_TIMEOUT - TIMEOUT_MARGIN
             || self.fence_attempts == 0
             || self.fence_attempts > 100
         {
@@ -159,6 +162,21 @@ pub(super) fn install(tx: &Tx<'_>, id: &str) -> Result<(), RuntimeError> {
     check_record(tx, id)
 }
 
+// @ref LLP 3000.009.001.000#3.4 — the retained evaluator must not share a unified owner's namespace.
+pub(super) fn isolate_evaluator(tx: &Tx<'_>) -> Result<(), RuntimeError> {
+    // Retain this shared session lock for the evaluator connection's lifetime.
+    // Legacy owner installation takes the exclusive transaction counterpart,
+    // so an already-open evaluator cannot be adopted underneath an in-flight
+    // write. Connection drop releases the guard, including failed opens.
+    tx.query("SELECT pg_advisory_lock_shared(hashtextextended('sb4-owner-bootstrap:' || current_schema(),0))", &[])?;
+    if tx.query("SELECT to_regclass('_owner') IS NOT NULL", &[])?[0].get::<_, bool>(0) {
+        return Err(RuntimeError::StoreOwnership(
+            "the evaluator requires a separate namespace from the unified owner (including token zero)".into(),
+        ));
+    }
+    Ok(())
+}
+
 fn check_record(tx: &Tx<'_>, id: &str) -> Result<(), RuntimeError> {
     let rows = tx.query("SELECT singleton,store_id,holder,token FROM _owner", &[])?;
     if rows.len() != 1
@@ -248,6 +266,8 @@ impl StoreLease {
         if !row.get::<_, bool>(1) {
             return Ok(None);
         }
+        #[cfg(test)]
+        test_hooks::run(test_hooks::Point::AfterPoll);
         self.claim(row.get(0))
     }
     fn claim(&mut self, observed: i64) -> Result<Option<LeaseAcquisition>, RuntimeError> {
@@ -266,9 +286,15 @@ impl StoreLease {
         match tx.query_opt("UPDATE _owner SET lease_until=lease_until WHERE singleton AND store_id=$1 AND token=$2 AND lease_until < clock_timestamp() RETURNING token", &[&self.fence.store_id, &observed]) {
             Ok(Some(_)) => (),
             Ok(None) => return Ok(None),
-            Err(e) if e.code() == Some(&SqlState::LOCK_NOT_AVAILABLE) => return Ok(None),
+            Err(e) if matches!(e.code(), Some(&SqlState::LOCK_NOT_AVAILABLE | &SqlState::QUERY_CANCELED)) => return Ok(None),
             Err(e) => return Err(e.into()),
         }
+        #[cfg(test)]
+        test_hooks::run(test_hooks::Point::AfterClaim);
+        // The watcher may now signal blockers. No statement timeout may cancel
+        // this phase after a signal; each fence wait retains its lock timeout
+        // and the finite retry count. COMMIT has its separate unknown outcome.
+        tx.batch_execute("SET LOCAL statement_timeout = 0")?;
         let pid: i32 = tx.query_one("SELECT pg_backend_pid()", &[])?.get(0);
         let mut watcher = Watcher::start(
             self.config.clone(),
@@ -292,6 +318,8 @@ impl StoreLease {
                     tx.batch_execute(
                         "ROLLBACK TO SAVEPOINT owner_fence; RELEASE SAVEPOINT owner_fence",
                     )?;
+                    #[cfg(test)]
+                    test_hooks::run(test_hooks::Point::AfterFenceRollback);
                     if watcher.failed.load(Ordering::SeqCst) {
                         break;
                     }
@@ -370,20 +398,22 @@ fn terminate(
     observed: i64,
 ) -> Result<Vec<i32>, RuntimeError> {
     let rows = client.query("SELECT pid,COALESCE(application_name,''),COALESCE(usename=current_user,false) FROM pg_stat_activity WHERE datname=current_database() AND pid<>pg_backend_pid() AND ($1::int IS NULL OR pid=ANY(pg_blocking_pids($1)))", &[&waiter])?;
-    let mut killed = Vec::new();
+    // Classify the complete snapshot before the first irreversible signal.
+    // A mixed set must refuse without killing its eligible members.
+    let mut eligible = Vec::new();
     for row in rows {
         let pid: i32 = row.get(0);
         let tag: String = row.get(1);
-        let eligible =
-            row.get::<_, bool>(2) && tag_token(&tag, id).is_some_and(|token| token <= observed);
-        if !eligible {
-            if waiter.is_some() {
-                return Err(RuntimeError::StoreOwnership(
-                    "takeover blocked by an unowned or newer-token session".into(),
-                ));
-            }
-            continue;
+        if row.get::<_, bool>(2) && tag_token(&tag, id).is_some_and(|token| token <= observed) {
+            eligible.push((pid, tag));
+        } else if waiter.is_some() {
+            return Err(RuntimeError::StoreOwnership(
+                "takeover blocked by an unowned or newer-token session".into(),
+            ));
         }
+    }
+    let mut killed = Vec::new();
+    for (pid, tag) in eligible {
         // Recheck identity in the termination statement, including the token in
         // the exact tag, rather than signalling a previously enumerated PID.
         let rows = client.query("SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE pid=$1 AND application_name=$2 AND usename=current_user AND datname=current_database()", &[&pid,&tag])?;
@@ -406,7 +436,13 @@ impl Watcher {
         let stop = done.clone();
         let failed = Arc::new(AtomicBool::new(false));
         let error = failed.clone();
+        #[cfg(test)]
+        let before_watch = test_hooks::take(test_hooks::Point::BeforeWatch);
         let thread = thread::spawn(move || {
+            #[cfg(test)]
+            if let Some(hook) = before_watch {
+                hook();
+            }
             let mut killed = Vec::new();
             while !stop.load(Ordering::SeqCst) {
                 match terminate(&mut client, Some(pid), &id, observed) {
@@ -446,3 +482,37 @@ impl Drop for Watcher {
 #[cfg(test)]
 #[path = "tests/ownership.rs"]
 mod tests;
+
+// Hooks are local to the invoking test thread; only BeforeWatch is explicitly
+// transferred to that claim's watcher. No timing switch reaches production.
+#[cfg(test)]
+pub(in crate::engine::postgres) mod test_hooks {
+    use std::cell::RefCell;
+    #[derive(Clone, Copy, PartialEq, Eq)]
+    pub(in crate::engine::postgres) enum Point {
+        AfterPoll,
+        AfterClaim,
+        AfterFenceRollback,
+        BeforeWatch,
+        AfterBootstrapLock,
+    }
+    type Hook = Box<dyn FnOnce() + Send>;
+    thread_local! { static HOOKS: RefCell<Vec<(Point, Hook)>> = RefCell::new(Vec::new()); }
+    pub(in crate::engine::postgres) fn set(point: Point, hook: impl FnOnce() + Send + 'static) {
+        HOOKS.with(|hooks| hooks.borrow_mut().push((point, Box::new(hook))));
+    }
+    pub(in crate::engine::postgres) fn take(point: Point) -> Option<Hook> {
+        HOOKS.with(|hooks| {
+            let mut hooks = hooks.borrow_mut();
+            hooks
+                .iter()
+                .position(|(p, _)| *p == point)
+                .map(|i| hooks.remove(i).1)
+        })
+    }
+    pub(in crate::engine::postgres) fn run(point: Point) {
+        if let Some(hook) = take(point) {
+            hook();
+        }
+    }
+}

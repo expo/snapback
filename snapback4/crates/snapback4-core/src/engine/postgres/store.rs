@@ -108,14 +108,16 @@ impl Store {
             // installed in the successful opening transaction, never by readers.
             let mut exists = !opening || tx.query("SELECT to_regclass('_owner') IS NOT NULL", &[])?[0].get::<_, bool>(0);
             if !exists {
+                if self.fence.as_ref().is_some_and(|fence| fence.token != 0) {
+                    return Err(RuntimeError::StoreOwnership("acquired owner record disappeared; refuse to bootstrap over lost ownership".into()));
+                }
+                // @ref LLP 3000.009.001.000#3.4 — legacy owner installation is atomic with attach and excludes a live evaluator.
+                // Guard legacy namespaces even when no logical id exists yet.
+                // Fresh creation has no backend relation and takes no lock.
+                tx.query("SELECT pg_advisory_xact_lock(hashtextextended('sb4-owner-bootstrap:' || current_schema(),0)) WHERE to_regclass('_backend') IS NOT NULL", &[])?;
+                #[cfg(test)]
+                super::ownership::test_hooks::run(super::ownership::test_hooks::Point::AfterBootstrapLock);
                 if let Some(fence) = &self.fence {
-                    if fence.token != 0 {
-                        return Err(RuntimeError::StoreOwnership("acquired owner record disappeared; refuse to bootstrap over lost ownership".into()));
-                    }
-                    // @ref LLP 3000.009.001.000#3.4 — legacy owner installation is atomic with attach and precedes the head.
-                    // Only legacy attach lacks the relation. Serialize that
-                    // one-time DDL before installing the ordinary first fence.
-                    tx.query("SELECT pg_advisory_xact_lock(hashtextextended($1,0))", &[&format!("sb4-owner-bootstrap:{}", fence.store_id)])?;
                     super::ownership::install(&tx, &fence.store_id)?;
                     exists = true;
                 }

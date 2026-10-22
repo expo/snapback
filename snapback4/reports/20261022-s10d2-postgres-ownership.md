@@ -156,3 +156,113 @@ session pooling. Resolve unknown commits through P1a's persisted keys/receipts
 before retry or source cleanup. Rerun the applicable witnesses through the
 public listener. Full declared HA/provider/identity/tripwire and worker
 recovery work remains P1b; this slice does not qualify those modes.
+
+## S10d-2 fix round 1 — 2026-10-22
+
+Rebased `78a90983da` onto `origin/main` at `e7d33f738d`, retaining the new
+S10d-1 identity routing and scale measurement records. The replayed lane commit
+is `49153622a9`. The journal conflict was resolved by union; the port conflict
+retains both the identity-member and ownership exports. The Postgres core
+compiled after that integration. Delivery remains local on `sb4-pg/s10d2`.
+
+The scoped orientation is LLP 3000 (the Snapback 4 fence), LLP
+3000.009.001.000 §3.4 (retained evaluator and thin host slice), §5.1 (owner
+before head), §5.2 (conditional claim before signals and claim retention),
+§5.4.1 (unknown/uncancellable COMMIT), and §9.1 rule 7 (observed contention).
+The existing annotations still apply. The affected-corpus audit updates the
+existing implementation note and takeover steps; it changes no proposal
+status, public-serving scope, committer/identity policy or capability claim.
+The RFC has one Revised line, prepended with `S10d-2 fix round 1`.
+
+### Review findings and forcing evidence
+
+1. **Mixed blockers.** `terminate` first classifies the complete observed
+   blocker set, then signals eligible members. Any ineligible member returns
+   `E_STORE_OWNERSHIP` before a signal to that set. This chooses §3.4's
+   abort-on-ineligible behavior and makes it explicit in §5.2; the prototype's
+   skip-and-wait behavior is not adopted. The real-cluster witness retains an
+   expired owner's conditional claim and two owner key-shares. A shared-advisory
+   wait exposes both blockers in one `pg_blocking_pids` set (row multixact waits
+   may expose holders one at a time). The production termination function
+   refuses; both sessions survive, the tagged transaction commits its staged
+   sequence value 17, the token stays 1, and the original owner renews.
+2. **Claim cancellation.** Both policy timeouts are at most four seconds,
+   with a one-second margin below the five-second lease statement timeout.
+   A conditional-claim `57014` returns `None` before any watcher starts. After
+   a returned claim row, statement timeout is disabled before the watcher;
+   fence waits retain their lock timeout and finite attempt count. The policy
+   test rejects 4,001 ms and 5 s and accepts 4 s. An injected slow UPDATE
+   reaches a real `57014`, returns no acquisition, leaves the writer alive,
+   and permits renewal. The forced retry test starts with a 20 ms session
+   statement timeout yet reaches the fence's real one-second `55P03`, proving
+   that the claimed phase cannot hit that statement timer after signalling.
+3. **Evaluator isolation.** The evaluator returns `E_STORE_OWNERSHIP` when
+   opening any unified namespace with `_owner`, including token zero. Its
+   connection retains a shared session advisory guard on the namespace's
+   bootstrap key. Legacy adoption takes the exclusive transaction guard before
+   owner DDL, including before a logical store id is available; a positive
+   token still refuses to bootstrap a lost record. One test refuses evaluator
+   opening at tokens 0 and 1. Another observes legacy adoption blocked by an
+   already-open serializable evaluator, commits through that evaluator, drops
+   it, and only then completes adoption and positive-token acquisition.
+   Ordinary evaluator write calls and both oracle modes remain unchanged.
+4. **Forced interleavings.** Hooks are test-only and local to each invoking
+   thread; the watcher gate is transferred only to that claim's watcher.
+
+   | Witness | Required observation before release |
+   | --- | --- |
+   | Two standbys | Winner holds its actual returned conditional-UPDATE lock; `pg_blocking_pids(loser)` contains the winner. Loser returns `None` and never starts its watcher; winner's session, renewal and mutation succeed. |
+   | Renewal between poll and claim | Public `acquire` polls expired, then its hook renews before the conditional UPDATE. The claim matches zero rows; after-claim/watcher hooks must never execute. Old fenced transaction commits and lease renews. |
+   | Savepoint rollback | Watcher cannot signal yet; fence wait returns actual `55P03`. Renewal is observed blocked before timeout and again after `ROLLBACK TO`/`RELEASE`, while paused at the post-rollback hook. Only then may the next wait and termination proceed. Renewal returns false under the changed token. |
+   | Legacy openers | First opener pauses after acquiring the bootstrap advisory transaction lock, before owner DDL. The second backend must have advisory `wait_event` and name the first in `pg_blocking_pids` before release. Both open successfully with one token-zero row. |
+
+The guide's existing ownership refusal now also explains evaluator namespace
+separation. COMMIT outcome classification, worker-ledger behavior, normal
+owner/head lock order and the admitted identity/committer implementation are
+otherwise unchanged.
+
+### Qualification
+
+All requested checks pass on the completed source. Transcripts and exit
+records are retained at `/tmp/s10d2-fix1-checks/`. Parent-target totals below
+exclude nested subprocess summaries already counted by their parent tests.
+
+| Requested check | Final result |
+| --- | --- |
+| `cargo test -p snapback4-core --no-fail-fast` | Exit 0: **1,068 passed / 0 failed / 5 ignored**, including 646 unit cases and 26 doctests. |
+| `cargo test -p snapback4 --no-fail-fast` | Exit 0: **1,405 passed / 0 failed / 15 ignored**. All three supplied baselines pass. No unexpected failure or isolated rerun. |
+| `cargo check -p snapback4-core --no-default-features` | Exit 0. |
+| Committer/store-port ratchets and handle census | **16/16**; committer remains **10 files / 47 sites**, store-port production **0 / 0**, concrete handles and owning bridges **0**. No allowlist changes. |
+| Compiled handle guards | **1/1** in default and Postgres builds; **37** Postgres doctests also pass. |
+| Guide | **127/127**. |
+| Wasm codec census | **27/27**. |
+| Stock `scripts/test-postgres.sh` | Exit 0: **58 evaluator + 209 family/oracle + 21 ownership + 1 compiled guard + 37 doctest + 2 member + 1 HTTP + 19 corpus** cases. Existing unsupported corpus exclusions remain. |
+| Separate non-superuser ownership run | **21/21**, PostgreSQL 16.15, `sb4_owner` with no superuser or signal-role grant. The final stock-script ownership repeat covers the completed bootstrap guard. |
+| Root `./ref-check` | **564 LLPs / 11,709 refs / 0 errors / 0 unchecked**. |
+| Whitespace and ownership-file rustfmt | Pass. |
+
+The Postgres oracle retains **65 increments** in each mode, with zero losses,
+zero serialized retries and 107 serializable retries. C1 remains **20 off /
+23 on** for both executors, with eight marked reads. The runner initially
+invoked `../ref-check` from `snapback4/`, which has no root LLP corpus; that
+wrong-directory attempt failed. The required repository-root `./ref-check`
+passes and is recorded separately in `refs-root.log`.
+
+Retained attempts: the first ownership compilation exposed test-hook visibility
+that was corrected before any tests ran. Its cluster was stopped. The next
+run passed 19/21: a row multixact did not expose both blockers simultaneously,
+and trigger removal waited behind the surviving writer. The mixed witness
+now uses the observable shared-advisory set, and the surviving writer commits
+before trigger removal. The corrected group passed 21/21. These failed
+attempts are retained, not counted as passed qualification.
+
+
+All four clusters started during this fix round are stopped and independently
+reconfirmed with status 3 and no `postmaster.pid`: `/tmp/s10d2-fix1-owner.f2nccY`,
+`/tmp/s10d2-fix1-owner.mTCbhn`, `/tmp/s10d2-fix1-owner.C0lCuJ`, and
+`/tmp/sb4-pg-eval.s7vhFS`. The receipt is `cluster-stops.log`; data is retained.
+No unrelated cluster was touched. The only Cargo target was the specified
+lane target, incremental stayed off, both debug profiles used line tables,
+and build jobs never exceeded 16. The lowest observed root free space was
+about **91 GiB**, above the 30 GiB stop threshold. No push, stash, sub-agents,
+other-machine commands, dependency/policy allowance increase or publication.
