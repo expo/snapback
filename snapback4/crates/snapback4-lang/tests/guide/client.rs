@@ -98,6 +98,11 @@ fn existence_card_and_starters_teach_the_sdk_words() {
     }
     assert!(client.split_whitespace().count() <= 1200, "keep the client card concise");
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../snapback4/src/verbs/init");
+    for relative in ["starter/web/todos.tsx", "starter/expo/todos.tsx"] {
+        let source = std::fs::read_to_string(root.join(relative)).unwrap();
+        assert!(source.lines().any(|line| line.starts_with("import ") && line.contains("ReadState") && line.contains("from \"snapback4/react\"")), "{relative}: import the public read-state component");
+        assert!(source.contains("<ReadState read="), "{relative}: render lists through the public component");
+    }
     fn visit(path: &std::path::Path) {
         for entry in std::fs::read_dir(path).unwrap() {
             let path = entry.unwrap().path();
@@ -106,7 +111,9 @@ fn existence_card_and_starters_teach_the_sdk_words() {
                 let source = std::fs::read_to_string(&path).unwrap();
                 assert!(!source.contains("\"loading\" in") && !source.contains("'loading' in"), "{} bypasses SDK existence", path.display());
                 assert!(!source.contains("presence"), "{} uses the old read word", path.display());
-                assert!(!source.contains("ReadState"), "{} copies a private read classifier", path.display());
+                for declaration in ["function ReadState", "const ReadState", "let ReadState", "class ReadState", "type ReadState", "interface ReadState"] {
+                    assert!(!source.contains(declaration), "{} copies a private read classifier", path.display());
+                }
             }
         }
     }

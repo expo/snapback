@@ -31,7 +31,7 @@ export function Composer({conversationId}:{conversationId:string}) {
 }
 ```
 Membership: no horizon, the conversation's own group and messages' audience prove existence unless a pending prediction blocks absence. `loading` means acquisition or later withdrawal. `existence(member) === "absent"` blocks only when fresh and non-revalidating; denied blocks; loading/partial never disable. Never add `with own keys` to admin-written memberships.
-Draft/receipt owners: [reference](CLIENT-AND-OPERATIONS.md). `waitSeconds:0` returns custody; keep the original id, never auto-resend.
+`waitSeconds:0` returns custody; retain its id, never auto-resend. Drafts/receipts: [reference](CLIENT-AND-OPERATIONS.md).
 
 ## An online role form across releases
 Own createApp({url,writes:"online",sessionStore:localStorageSessionStore()}) outside render under AppProvider.
@@ -88,9 +88,9 @@ function PublicNotes() {
 
 ## React hooks and auth decisions
 
-Render sign-in controls while signed-out, Restoring… otherwise. AppProvider resets on app/viewer changes. `useAppReady()` marks successful initial opening after app.ready; release switches/admission warnings preserve it. Restoration, sign-out and app/account replacement reset it; initial failure recovers on sign-in. Keep drafts above role/release gates. Readiness grants no permission/admission.
+Signed-out: show sign-in; otherwise Restoring…. AppProvider resets on app/viewer changes. `useAppReady()` follows successful app.ready; release switches/admission warnings preserve it. Restoration/sign-out/replacement reset it; sign-in repairs initial failure. Keep drafts above role/release gates. Readiness grants no permission/admission.
 `writes:"online"` with device/readOnly yields signed-out `useAuth().why` and failed app.ready. Recreate corrected. Missing browser storage still throws `E_ADMISSION`.
-`useAuth()` members: `state`, `viewer`, `why`, `signup(email, password)`, `login(email, password)`, `guest()`, `logout()`, `logoutEverywhere()`. `signOut()` belongs to the client. Expo session store: secureStoreSessionStore(SecureStore); password form: [reference](CLIENT-AND-OPERATIONS.md#password-react-and-expo).
+`useAuth()`: `state`/`viewer`/`why`, `signup(email,password)`, `login(email,password)`, `guest()`, `logout()`, `logoutEverywhere()`. Client: `signOut()`. Expo: secureStoreSessionStore(SecureStore). Password form: [reference](CLIENT-AND-OPERATIONS.md#password-react-and-expo). Sessions validate/copy before effects; E_SESSION names missing/invalid fields. Online partials: token only; session() returns null; server supplies viewer; refresh explicitly. Automatic refresh/devices require complete login/signup Sessions. Custody: CLIENT-AND-OPERATIONS.md.
 
 | Helper | Input/result | Handlers/arguments |
 | --- | --- | --- |
@@ -99,7 +99,7 @@ Render sign-in controls while signed-out, Restoring… otherwise. AppProvider re
 | `otherwiseAll(fallback, overrides?)` | Spread into matchRead handlers | `fallback(read)` includes denied/partial; named handlers win in any order. |
 | `usePage(op, args)` | Query with `c: cursor ?`; omit c from args | `{read, items, hasMore, loadMore}`; match page.read/page, render items, call loadMore(). No handlers. |
 
-`'data' in read` exposes data/existence/metadata. Complete empty lists are absent. `isPresent` excludes null; `isReady` permits it; `existence(read)` and `read.existence` classify. `absent` can be an authorised empty list. PDFs require a `doc: file <=10000000 ?` column; persist uploaded ids through mutations (`guide assets`).
+`'data' in read` exposes data/existence/metadata. Complete empty lists are absent. `isPresent` excludes null; `isReady` permits it; `existence(read)` and `read.existence` classify. `absent` can be an authorised empty list. PDFs need `doc: file <=10000000 ?`; persist uploaded ids through mutations (`guide assets`).
 ```ts
 import type { Read, Client } from "snapback4/contract";
 export function listLabel(read: Read<readonly {id:string}[]>): string {
@@ -110,7 +110,5 @@ export async function uploadPdf(client: Client, picked: File) { return client.up
 `predicts`: eligible/device/held facts may render `pending:true` before `useMutation().run()` settles; others queue without rows. Never/online data follows settlement/delivery. run() waits for sent/failed; `{waitSeconds:0}` returns custody. Proofs await fresh sent; predictions aren't settlement.
 `query(op,args)` settles ready/denied within 30 seconds. Unavailable offline reads give immediate `E_OFFLINE`. After four rounds, exhaustion refuses retryable `E_QUERY_RETRY`; permanently unavailable held reads refuse non-retryable `E_QUERY_HELD`. Retention, RowOf/ArgsOf/ResultOf and {skip}: [reference](CLIENT-AND-OPERATIONS.md). Share/paginate: eight active, eight queued observation attempts; direct queries and timed presence refreshes use separate paths.
 Browser createApp: no sync → journal; sync → webDevice(); online writes: writes:"online". Native: nativeDevice; Expo Go online. Expo setup/pins/upgrade: guide expo. Regenerate iOS/rebuild after native changes; every milestone: npm run export:ios; proof in the background: witness status --wait. Rebuild: npm run native:smoke. Acquisition/offline reopen/reconnect/write replay: guide witness.
-useOnline: server reads/ephemeral/actions; durable writes: app.mutate. SDK owns delivery reporting; screen owns visible `seen` reporting; useSeen retries receipts (guide receipts). Read-only: guide read-only. Media: OFFLINE-UPLOADS.md. Proofs: await fresh sent, then rendering; avoid networkidle (guide testing).
-Keyed counts: hidden key → null; authorized missing count group → 0; public → number. Choose count ?? 0 explicitly.
-
-Complete client sessions are validated and copied before effects. E_SESSION names missing/invalid fields. For online operator scripts, legacy partial session objects use only their token: session() is null, viewer comes from the server, and refresh is explicit. Pass a complete login/signup Session for automatic refresh; device clients require complete sessions. See CLIENT-AND-OPERATIONS.md for session custody.
+useOnline: server reads/ephemeral/actions; app.mutate: durable writes. SDK owns delivery reporting; screen owns visible `seen` reporting; useSeen retries (guide receipts). Read-only: guide read-only. Media: OFFLINE-UPLOADS.md. Proofs: await fresh sent/rendering; avoid networkidle (guide testing).
+Keyed counts: hidden key → null; authorized missing count group → 0; public → number. Choose count ?? 0.
