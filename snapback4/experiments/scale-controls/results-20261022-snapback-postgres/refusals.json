@@ -1,0 +1,34 @@
+[
+  {
+    "delay_us": 0,
+    "case": "full",
+    "stage": "probes-complete",
+    "exit_code": 1,
+    "code": "E_STORE_UNSUPPORTED",
+    "family": "maintained-columns"
+  },
+  {
+    "delay_us": 0,
+    "case": "minimal",
+    "stage": "probes-complete",
+    "exit_code": 1,
+    "code": "E_STORE_UNSUPPORTED",
+    "family": "maintained-columns"
+  },
+  {
+    "delay_us": 500,
+    "case": "full",
+    "stage": "probes-final",
+    "exit_code": 1,
+    "code": "E_STORE_UNSUPPORTED",
+    "family": "maintained-columns"
+  },
+  {
+    "delay_us": 500,
+    "case": "minimal",
+    "stage": "probes-final",
+    "exit_code": 1,
+    "code": "E_STORE_UNSUPPORTED",
+    "family": "maintained-columns"
+  }
+]

@@ -1,0 +1,78 @@
+[
+  {
+    "delay_us": 0,
+    "trials": [
+      {
+        "count": 1000,
+        "p50_ms": 0.554,
+        "p99_ms": 0.705,
+        "port": 55440,
+        "query": "prepared SELECT 1",
+        "socket_dir": "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/s1pg/socket",
+        "warmup_queries": 100
+      },
+      {
+        "count": 1000,
+        "p50_ms": 0.599,
+        "p99_ms": 0.758,
+        "port": 55440,
+        "query": "prepared SELECT 1",
+        "socket_dir": "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/s1pg/socket",
+        "warmup_queries": 100
+      },
+      {
+        "count": 1000,
+        "p50_ms": 0.562,
+        "p99_ms": 0.76,
+        "port": 55440,
+        "query": "prepared SELECT 1",
+        "socket_dir": "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/s1pg/socket",
+        "warmup_queries": 100
+      }
+    ],
+    "p50_ms_median": 0.562,
+    "p50_ms_range": [
+      0.554,
+      0.599
+    ],
+    "controls_reference_p50_ms": 0.61
+  },
+  {
+    "delay_us": 500,
+    "trials": [
+      {
+        "count": 1000,
+        "p50_ms": 1.194,
+        "p99_ms": 1.599,
+        "port": 55440,
+        "query": "prepared SELECT 1",
+        "socket_dir": "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/s1pg/d2",
+        "warmup_queries": 100
+      },
+      {
+        "count": 1000,
+        "p50_ms": 1.192,
+        "p99_ms": 1.375,
+        "port": 55440,
+        "query": "prepared SELECT 1",
+        "socket_dir": "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/s1pg/d2",
+        "warmup_queries": 100
+      },
+      {
+        "count": 1000,
+        "p50_ms": 1.191,
+        "p99_ms": 1.353,
+        "port": 55440,
+        "query": "prepared SELECT 1",
+        "socket_dir": "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/s1pg/d2",
+        "warmup_queries": 100
+      }
+    ],
+    "p50_ms_median": 1.192,
+    "p50_ms_range": [
+      1.191,
+      1.194
+    ],
+    "controls_reference_p50_ms": 1.23
+  }
+]

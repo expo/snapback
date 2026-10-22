@@ -1,5 +1,32 @@
 # S1: scale controls and native Snapback serve
 
+## S1-PG: Postgres admission blocks the required application
+
+[Report, ledger and archive](./results-20261022-snapback-postgres/README.md):
+all twelve required W1–W5 cells refuse deployment with
+`E_STORE_UNSUPPORTED: maintained-columns`. No 1M fixture or matching load runs;
+missing values stay missing. The report includes both Unix/SSH transport pings,
+a minimal repro, and a separately labelled tiny-counter write-path diagnosis.
+
+Build the product/harness in the same owned release targets as S1-SK below.
+From this experiment directory, on a new owned database/runtime name, launch
+`scripts/postgres.py`, then `scripts/postgres-probes.py`, each with
+`setsid nohup python3 ... > <owned-log> 2>&1 </dev/null &`; record `$!` and poll
+to exit. The first script provisions only `sb4_snapback_s1pg` / `s1pg_app`,
+records the original refused deploy and stops its tunnel. The second resumes
+that owned database, checks other cluster activity, records all repros/pings,
+uses only native HTTP for the tiny counter, and drops its database/role.
+An existing database/role refuses provisioning; preserve historical evidence
+and choose a fresh owned runtime/output before a replay. Never reuse another
+lane's database or change the shared cluster. Passwords stay in the existing
+private file/environment. Rebuild this harness to obtain `ping-unix` and
+`unix-proxy`; those verbs change the experiment only.
+
+`scripts/report-postgres.py <raw-root> <result-dir>` regenerates the archived
+run's aggregates, evidence-status records, reproduction sources and SVG in the
+pinned plot environment. This blocked record does not qualify a throughput,
+steady-state, write-outcome or RFC decision-rule measurement.
+
 ## S1-DX: SQLite write diagnosis
 
 [Completed diagnosis and archive receipt](./results-20261022-snapback-sqlite-diagnosis/README.md).

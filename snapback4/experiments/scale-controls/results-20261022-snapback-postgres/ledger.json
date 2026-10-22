@@ -1,0 +1,338 @@
+[
+  {
+    "cell": {
+      "workload": "W1",
+      "keys": "disjoint",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 128
+    },
+    "label": "W1 visible message",
+    "rates": {
+      "raw-pg": 22627,
+      "raw-pg-no-token": 22627,
+      "supabase": 2828,
+      "convex": 1000
+    },
+    "snapback_postgres": {
+      "status": "blocked-before-seed",
+      "offered_ops_per_s": null,
+      "code": "E_STORE_UNSUPPORTED",
+      "family": "maintained-columns",
+      "seed_rows_required": 1000000,
+      "seed_rows_written": 0,
+      "measured_arrivals": null,
+      "steady_state": null,
+      "write_outcome_audit": null
+    },
+    "snapback_sqlite_natural": 2828
+  },
+  {
+    "cell": {
+      "workload": "W1",
+      "keys": "disjoint",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 128
+    },
+    "label": "W1 visible message",
+    "rates": {
+      "raw-pg": 16000,
+      "raw-pg-no-token": 16000,
+      "supabase": 2000,
+      "convex": 1000
+    },
+    "snapback_postgres": {
+      "status": "blocked-before-seed",
+      "offered_ops_per_s": null,
+      "code": "E_STORE_UNSUPPORTED",
+      "family": "maintained-columns",
+      "seed_rows_required": 1000000,
+      "seed_rows_written": 0,
+      "measured_arrivals": null,
+      "steady_state": null,
+      "write_outcome_audit": null
+    },
+    "snapback_sqlite_natural": 2828
+  },
+  {
+    "cell": {
+      "workload": "W2",
+      "keys": "disjoint",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 128
+    },
+    "label": "W2 newest 20",
+    "rates": {
+      "raw-pg": 11313,
+      "raw-pg-no-token": 8000,
+      "supabase": 2000,
+      "convex": 16000
+    },
+    "snapback_postgres": {
+      "status": "blocked-before-seed",
+      "offered_ops_per_s": null,
+      "code": "E_STORE_UNSUPPORTED",
+      "family": "maintained-columns",
+      "seed_rows_required": 1000000,
+      "seed_rows_written": 0,
+      "measured_arrivals": null,
+      "steady_state": null,
+      "write_outcome_audit": null
+    },
+    "snapback_sqlite_natural": 5656
+  },
+  {
+    "cell": {
+      "workload": "W2",
+      "keys": "disjoint",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 128
+    },
+    "label": "W2 newest 20",
+    "rates": {
+      "raw-pg": 11313,
+      "raw-pg-no-token": 8000,
+      "supabase": 1414,
+      "convex": 16000
+    },
+    "snapback_postgres": {
+      "status": "blocked-before-seed",
+      "offered_ops_per_s": null,
+      "code": "E_STORE_UNSUPPORTED",
+      "family": "maintained-columns",
+      "seed_rows_required": 1000000,
+      "seed_rows_written": 0,
+      "measured_arrivals": null,
+      "steady_state": null,
+      "write_outcome_audit": null
+    },
+    "snapback_sqlite_natural": 5656
+  },
+  {
+    "cell": {
+      "workload": "W3",
+      "keys": "disjoint",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 128
+    },
+    "label": "W3 32-room inbox",
+    "rates": {
+      "raw-pg": 16000,
+      "raw-pg-no-token": 11313,
+      "supabase": 2828,
+      "convex": 16000
+    },
+    "snapback_postgres": {
+      "status": "blocked-before-seed",
+      "offered_ops_per_s": null,
+      "code": "E_STORE_UNSUPPORTED",
+      "family": "maintained-columns",
+      "seed_rows_required": 1000000,
+      "seed_rows_written": 0,
+      "measured_arrivals": null,
+      "steady_state": null,
+      "write_outcome_audit": null
+    },
+    "snapback_sqlite_natural": 2828
+  },
+  {
+    "cell": {
+      "workload": "W3",
+      "keys": "disjoint",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 128
+    },
+    "label": "W3 32-room inbox",
+    "rates": {
+      "raw-pg": 11313,
+      "raw-pg-no-token": 8000,
+      "supabase": 1414,
+      "convex": 11313
+    },
+    "snapback_postgres": {
+      "status": "blocked-before-seed",
+      "offered_ops_per_s": null,
+      "code": "E_STORE_UNSUPPORTED",
+      "family": "maintained-columns",
+      "seed_rows_required": 1000000,
+      "seed_rows_written": 0,
+      "measured_arrivals": null,
+      "steady_state": null,
+      "write_outcome_audit": null
+    },
+    "snapback_sqlite_natural": 2828
+  },
+  {
+    "cell": {
+      "workload": "W4",
+      "keys": "disjoint",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 32
+    },
+    "label": "W4 disjoint counters",
+    "rates": {
+      "raw-pg": 4525,
+      "raw-pg-no-token": 2262,
+      "supabase": 2262,
+      "convex": 1
+    },
+    "snapback_postgres": {
+      "status": "blocked-before-seed",
+      "offered_ops_per_s": null,
+      "code": "E_STORE_UNSUPPORTED",
+      "family": "maintained-columns",
+      "seed_rows_required": 1000000,
+      "seed_rows_written": 0,
+      "measured_arrivals": null,
+      "steady_state": null,
+      "write_outcome_audit": null
+    },
+    "snapback_sqlite_natural": 100
+  },
+  {
+    "cell": {
+      "workload": "W4",
+      "keys": "disjoint",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 32
+    },
+    "label": "W4 disjoint counters",
+    "rates": {
+      "raw-pg": 4525,
+      "raw-pg-no-token": 35,
+      "supabase": 282,
+      "convex": null
+    },
+    "snapback_postgres": {
+      "status": "blocked-before-seed",
+      "offered_ops_per_s": null,
+      "code": "E_STORE_UNSUPPORTED",
+      "family": "maintained-columns",
+      "seed_rows_required": 1000000,
+      "seed_rows_written": 0,
+      "measured_arrivals": null,
+      "steady_state": null,
+      "write_outcome_audit": null
+    },
+    "snapback_sqlite_natural": 100
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "keys": "same",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 32
+    },
+    "label": "W5 shared counter, exact",
+    "rates": {
+      "raw-pg": 282,
+      "raw-pg-no-token": 200,
+      "supabase": 141,
+      "convex": 4
+    },
+    "snapback_postgres": {
+      "status": "blocked-before-seed",
+      "offered_ops_per_s": null,
+      "code": "E_STORE_UNSUPPORTED",
+      "family": "maintained-columns",
+      "seed_rows_required": 1000000,
+      "seed_rows_written": 0,
+      "measured_arrivals": null,
+      "steady_state": null,
+      "write_outcome_audit": null
+    },
+    "snapback_sqlite_natural": 100
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "keys": "same",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 32
+    },
+    "label": "W5 shared counter, exact",
+    "rates": {
+      "raw-pg": 282,
+      "raw-pg-no-token": 141,
+      "supabase": 35,
+      "convex": null
+    },
+    "snapback_postgres": {
+      "status": "blocked-before-seed",
+      "offered_ops_per_s": null,
+      "code": "E_STORE_UNSUPPORTED",
+      "family": "maintained-columns",
+      "seed_rows_required": 1000000,
+      "seed_rows_written": 0,
+      "measured_arrivals": null,
+      "steady_state": null,
+      "write_outcome_audit": null
+    },
+    "snapback_sqlite_natural": 100
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "keys": "hot1",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 32
+    },
+    "label": "W5 nominal 1% shared mix",
+    "rates": {
+      "raw-pg": 4525,
+      "raw-pg-no-token": 2262,
+      "supabase": 2262,
+      "convex": 282
+    },
+    "snapback_postgres": {
+      "status": "blocked-before-seed",
+      "offered_ops_per_s": null,
+      "code": "E_STORE_UNSUPPORTED",
+      "family": "maintained-columns",
+      "seed_rows_required": 1000000,
+      "seed_rows_written": 0,
+      "measured_arrivals": null,
+      "steady_state": null,
+      "write_outcome_audit": null
+    },
+    "snapback_sqlite_natural": 100
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "keys": "hot1",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 32
+    },
+    "label": "W5 nominal 1% shared mix",
+    "rates": {
+      "raw-pg": 4525,
+      "raw-pg-no-token": 3200,
+      "supabase": 1131,
+      "convex": 400
+    },
+    "snapback_postgres": {
+      "status": "blocked-before-seed",
+      "offered_ops_per_s": null,
+      "code": "E_STORE_UNSUPPORTED",
+      "family": "maintained-columns",
+      "seed_rows_required": 1000000,
+      "seed_rows_written": 0,
+      "measured_arrivals": null,
+      "steady_state": null,
+      "write_outcome_audit": null
+    },
+    "snapback_sqlite_natural": 100
+  }
+]
