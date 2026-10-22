@@ -1,0 +1,969 @@
+[
+  {
+    "lane": "w15-002-day2-scaffold-tag-board",
+    "before": 1,
+    "notes": 1,
+    "codes": [
+      "N_OPTIONAL_UPLOAD_CREATE"
+    ],
+    "ackExits": [
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0
+  },
+  {
+    "lane": "w15-015-lab-bench-breakage",
+    "before": 1,
+    "notes": 1,
+    "codes": [
+      "N_OPTIONAL_UPLOAD_CREATE"
+    ],
+    "ackExits": [
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0
+  },
+  {
+    "lane": "w15-020-day2-four-h-project-records",
+    "before": 1,
+    "notes": 1,
+    "codes": [
+      "N_OPTIONAL_UPLOAD_CREATE"
+    ],
+    "ackExits": [
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0
+  },
+  {
+    "lane": "w15-030-day2-color-formula-cards",
+    "before": 1,
+    "notes": 2,
+    "codes": [
+      "N_OPTIONAL_UPLOAD_CREATE",
+      "N_OPTIONAL_UPLOAD_CREATE"
+    ],
+    "ackExits": [
+      1,
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0
+  },
+  {
+    "lane": "w15-054-day2-ballot-drop-box-sweeps",
+    "before": 1,
+    "notes": 1,
+    "codes": [
+      "N_OPTIONAL_UPLOAD_CREATE"
+    ],
+    "ackExits": [
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0
+  },
+  {
+    "lane": "w15-062-day2-burn-permit-days",
+    "before": 1,
+    "notes": 1,
+    "codes": [
+      "N_OPTIONAL_UPLOAD_CREATE"
+    ],
+    "ackExits": [
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0
+  },
+  {
+    "lane": "w15-069-newborn-shift-log",
+    "before": 1,
+    "notes": 1,
+    "codes": [
+      "N_OPTIONAL_UPLOAD_CREATE"
+    ],
+    "ackExits": [
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0
+  },
+  {
+    "lane": "w15-073-crop-scouting-reports",
+    "before": 1,
+    "notes": 1,
+    "codes": [
+      "N_OPTIONAL_UPLOAD_CREATE"
+    ],
+    "ackExits": [
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0
+  },
+  {
+    "lane": "w15-091-ice-shanty-registry",
+    "before": 1,
+    "notes": 1,
+    "codes": [
+      "N_OPTIONAL_UPLOAD_CREATE"
+    ],
+    "ackExits": [
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0
+  },
+  {
+    "lane": "w15-092-day2-summit-register-book",
+    "before": 1,
+    "notes": 1,
+    "codes": [
+      "N_OPTIONAL_UPLOAD_CREATE"
+    ],
+    "ackExits": [
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0
+  },
+  {
+    "lane": "w15-100-day2-busking-pitch-rota",
+    "before": 1,
+    "notes": 1,
+    "codes": [
+      "N_OPTIONAL_UPLOAD_CREATE"
+    ],
+    "ackExits": [
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0
+  },
+  {
+    "lane": "w16-001-snapback-ferry-deck-manifest",
+    "before": 1,
+    "notes": 1,
+    "codes": [
+      "N_OPTIONAL_UPLOAD_CREATE"
+    ],
+    "ackExits": [
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0
+  },
+  {
+    "lane": "w16-002-snapback-orchard-spray-reentry",
+    "before": 1,
+    "notes": 1,
+    "codes": [
+      "N_OPTIONAL_UPLOAD_CREATE"
+    ],
+    "ackExits": [
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0
+  },
+  {
+    "lane": "w16-011-snapback-freezer-rack-ledger",
+    "before": 1,
+    "notes": 1,
+    "codes": [
+      "N_OPTIONAL_UPLOAD_CREATE"
+    ],
+    "ackExits": [
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0
+  },
+  {
+    "lane": "w16-013-snapback-hackathon-rubric-judging",
+    "before": 1,
+    "notes": 1,
+    "codes": [
+      "N_RETAINED_ROLE_GRANT"
+    ],
+    "ackExits": [
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0
+  },
+  {
+    "lane": "w16-019-snapback-apiary-hive-inspections",
+    "before": 1,
+    "notes": 3,
+    "codes": [
+      "N_RETAINED_ROLE_GRANT",
+      "N_RETAINED_ROLE_GRANT",
+      "N_OPTIONAL_UPLOAD_CREATE"
+    ],
+    "ackExits": [
+      1,
+      1,
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0
+  },
+  {
+    "lane": "w16-023-snapback-brew-comp-blind-flights",
+    "before": 1,
+    "notes": 1,
+    "codes": [
+      "N_OPTIONAL_UPLOAD_CREATE"
+    ],
+    "ackExits": [
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0
+  },
+  {
+    "lane": "w16-027-snapback-podcast-guest-releases",
+    "before": 1,
+    "notes": 1,
+    "codes": [
+      "N_RETAINED_ROLE_GRANT"
+    ],
+    "ackExits": [
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0
+  },
+  {
+    "lane": "w16-036-snapback-robotics-parts-ledger",
+    "before": 1,
+    "notes": 1,
+    "codes": [
+      "N_OPTIONAL_UPLOAD_CREATE"
+    ],
+    "ackExits": [
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0
+  },
+  {
+    "lane": "w16-045-snapback-instrument-loan-bank",
+    "before": 1,
+    "notes": 1,
+    "codes": [
+      "N_OPTIONAL_UPLOAD_CREATE"
+    ],
+    "ackExits": [
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0
+  },
+  {
+    "lane": "w18-004-snapback-mass-spec-sample-queue",
+    "before": 1,
+    "notes": 1,
+    "codes": [
+      "N_OPTIONAL_UPLOAD_CREATE"
+    ],
+    "ackExits": [
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0
+  },
+  {
+    "lane": "w18-008-snapback-fish-hatchery-raceways",
+    "before": 1,
+    "notes": 4,
+    "codes": [
+      "N_OPTIONAL_UPLOAD_CREATE",
+      "N_OPTIONAL_UPLOAD_CREATE",
+      "N_OPTIONAL_UPLOAD_CREATE",
+      "N_OPTIONAL_UPLOAD_CREATE"
+    ],
+    "ackExits": [
+      1,
+      1,
+      1,
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0
+  },
+  {
+    "lane": "w18-009-snapback-distillery-cask-gauging",
+    "before": 1,
+    "notes": 2,
+    "codes": [
+      "N_OPTIONAL_UPLOAD_CREATE",
+      "N_OPTIONAL_UPLOAD_CREATE"
+    ],
+    "ackExits": [
+      1,
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0
+  },
+  {
+    "lane": "w18-019-snapback-chimney-sweep-reports",
+    "before": 1,
+    "notes": 4,
+    "codes": [
+      "N_RETAINED_ROLE_GRANT",
+      "N_RETAINED_ROLE_GRANT",
+      "N_RETAINED_ROLE_GRANT",
+      "N_RETAINED_ROLE_GRANT"
+    ],
+    "ackExits": [
+      1,
+      1,
+      1,
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0
+  },
+  {
+    "lane": "w18-028-snapback-survey-monument-records",
+    "before": 1,
+    "notes": 1,
+    "codes": [
+      "N_OPTIONAL_UPLOAD_CREATE"
+    ],
+    "ackExits": [
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0
+  },
+  {
+    "lane": "w18-030-snapback-cat-show-ring-judging",
+    "before": 1,
+    "notes": 4,
+    "codes": [
+      "N_RETAINED_ROLE_GRANT",
+      "N_RETAINED_ROLE_GRANT",
+      "N_RETAINED_ROLE_GRANT",
+      "N_RETAINED_ROLE_GRANT"
+    ],
+    "ackExits": [
+      1,
+      1,
+      1,
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0
+  },
+  {
+    "lane": "w18-033-snapback-fencing-bout-pools",
+    "before": 1,
+    "notes": 1,
+    "codes": [
+      "N_OPTIONAL_UPLOAD_CREATE"
+    ],
+    "ackExits": [
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0
+  },
+  {
+    "lane": "w18-046-snapback-respirator-fit-tests",
+    "before": 1,
+    "notes": 1,
+    "codes": [
+      "N_OPTIONAL_UPLOAD_CREATE"
+    ],
+    "ackExits": [
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0
+  },
+  {
+    "lane": "w19-004-snapback-mass-spec-sample-queue",
+    "before": 1,
+    "notes": 1,
+    "codes": [
+      "N_OPTIONAL_UPLOAD_CREATE"
+    ],
+    "ackExits": [
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0
+  },
+  {
+    "lane": "w19-008-snapback-fish-hatchery-raceways",
+    "before": 1,
+    "notes": 5,
+    "codes": [
+      "N_OPTIONAL_UPLOAD_CREATE",
+      "N_OPTIONAL_UPLOAD_CREATE",
+      "N_OPTIONAL_UPLOAD_CREATE",
+      "N_OPTIONAL_UPLOAD_CREATE",
+      "N_OPTIONAL_UPLOAD_CREATE"
+    ],
+    "ackExits": [
+      1,
+      1,
+      1,
+      1,
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0
+  },
+  {
+    "lane": "w19-009-snapback-distillery-cask-gauging",
+    "before": 1,
+    "notes": 2,
+    "codes": [
+      "N_OPTIONAL_UPLOAD_CREATE",
+      "N_OPTIONAL_UPLOAD_CREATE"
+    ],
+    "ackExits": [
+      1,
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0
+  },
+  {
+    "lane": "w19-019-snapback-chimney-sweep-reports",
+    "before": 1,
+    "notes": 4,
+    "codes": [
+      "N_RETAINED_ROLE_GRANT",
+      "N_RETAINED_ROLE_GRANT",
+      "N_RETAINED_ROLE_GRANT",
+      "N_RETAINED_ROLE_GRANT"
+    ],
+    "ackExits": [
+      1,
+      1,
+      1,
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0
+  },
+  {
+    "lane": "w19-028-snapback-survey-monument-records",
+    "before": 1,
+    "notes": 2,
+    "codes": [
+      "N_OPTIONAL_UPLOAD_CREATE",
+      "N_OPTIONAL_UPLOAD_CREATE"
+    ],
+    "ackExits": [
+      1,
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0
+  },
+  {
+    "lane": "w19-030-snapback-cat-show-ring-judging",
+    "before": 1,
+    "notes": 4,
+    "codes": [
+      "N_RETAINED_ROLE_GRANT",
+      "N_RETAINED_ROLE_GRANT",
+      "N_RETAINED_ROLE_GRANT",
+      "N_RETAINED_ROLE_GRANT"
+    ],
+    "ackExits": [
+      1,
+      1,
+      1,
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0
+  },
+  {
+    "lane": "w19-033-snapback-fencing-bout-pools",
+    "before": 1,
+    "notes": 1,
+    "codes": [
+      "N_OPTIONAL_UPLOAD_CREATE"
+    ],
+    "ackExits": [
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0
+  },
+  {
+    "lane": "w19-046-snapback-respirator-fit-tests",
+    "before": 1,
+    "notes": 2,
+    "codes": [
+      "N_OPTIONAL_UPLOAD_CREATE",
+      "N_OPTIONAL_UPLOAD_CREATE"
+    ],
+    "ackExits": [
+      1,
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0
+  },
+  {
+    "lane": "w20-003-snapback-taxidermy-mount-orders",
+    "before": 1,
+    "notes": 1,
+    "codes": [
+      "N_OPTIONAL_UPLOAD_CREATE"
+    ],
+    "ackExits": [
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0
+  },
+  {
+    "lane": "w20-006-snapback-athletic-trainer-injuries",
+    "before": 1,
+    "notes": 2,
+    "codes": [
+      "N_OPTIONAL_UPLOAD_CREATE",
+      "N_OPTIONAL_UPLOAD_CREATE"
+    ],
+    "ackExits": [
+      1,
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0
+  },
+  {
+    "lane": "w20-008-snapback-kitchen-incubator-bookings",
+    "before": 1,
+    "notes": 2,
+    "codes": [
+      "N_OPTIONAL_UPLOAD_CREATE",
+      "N_OPTIONAL_UPLOAD_CREATE"
+    ],
+    "ackExits": [
+      1,
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0
+  },
+  {
+    "lane": "w20-010-snapback-boatyard-haulout-stands",
+    "before": 1,
+    "notes": 1,
+    "codes": [
+      "N_OPTIONAL_UPLOAD_CREATE"
+    ],
+    "ackExits": [
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0
+  },
+  {
+    "lane": "w20-013-snapback-piano-competition-juries",
+    "before": 1,
+    "notes": 4,
+    "codes": [
+      "N_RETAINED_ROLE_GRANT",
+      "N_RETAINED_ROLE_GRANT",
+      "N_RETAINED_ROLE_GRANT",
+      "N_RETAINED_ROLE_GRANT"
+    ],
+    "ackExits": [
+      1,
+      1,
+      1,
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0
+  },
+  {
+    "lane": "w20-015-snapback-sailmaker-repair-orders",
+    "before": 1,
+    "notes": 1,
+    "codes": [
+      "N_RETAINED_ROLE_GRANT"
+    ],
+    "ackExits": [
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0
+  },
+  {
+    "lane": "w20-017-snapback-search-rescue-callouts",
+    "before": 1,
+    "notes": 2,
+    "codes": [
+      "N_OPTIONAL_UPLOAD_CREATE",
+      "N_OPTIONAL_UPLOAD_CREATE"
+    ],
+    "ackExits": [
+      1,
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0
+  },
+  {
+    "lane": "w20-018-snapback-massage-spa-intakes",
+    "before": 1,
+    "notes": 1,
+    "codes": [
+      "N_OPTIONAL_UPLOAD_CREATE"
+    ],
+    "ackExits": [
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0
+  },
+  {
+    "lane": "w20-025-snapback-boxing-bout-medicals",
+    "before": 1,
+    "notes": 1,
+    "codes": [
+      "N_OPTIONAL_UPLOAD_CREATE"
+    ],
+    "ackExits": [
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0
+  },
+  {
+    "lane": "w20-032-snapback-zoo-keeper-diets",
+    "before": 1,
+    "notes": 2,
+    "codes": [
+      "N_OPTIONAL_UPLOAD_CREATE",
+      "N_OPTIONAL_UPLOAD_CREATE"
+    ],
+    "ackExits": [
+      1,
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0
+  },
+  {
+    "lane": "w20-048-snapback-therapeutic-riding-sessions",
+    "before": 1,
+    "notes": 3,
+    "codes": [
+      "N_RETAINED_ROLE_GRANT",
+      "N_RETAINED_ROLE_GRANT",
+      "N_OPTIONAL_UPLOAD_CREATE"
+    ],
+    "ackExits": [
+      1,
+      1,
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0
+  },
+  {
+    "lane": "w21-003-snapback-taxidermy-mount-orders",
+    "before": 1,
+    "notes": 1,
+    "codes": [
+      "N_OPTIONAL_UPLOAD_CREATE"
+    ],
+    "ackExits": [
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0
+  },
+  {
+    "lane": "w21-006-snapback-athletic-trainer-injuries",
+    "before": 1,
+    "notes": 2,
+    "codes": [
+      "N_OPTIONAL_UPLOAD_CREATE",
+      "N_OPTIONAL_UPLOAD_CREATE"
+    ],
+    "ackExits": [
+      1,
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0
+  },
+  {
+    "lane": "w21-008-snapback-kitchen-incubator-bookings",
+    "before": 1,
+    "notes": 2,
+    "codes": [
+      "N_OPTIONAL_UPLOAD_CREATE",
+      "N_OPTIONAL_UPLOAD_CREATE"
+    ],
+    "ackExits": [
+      1,
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0
+  },
+  {
+    "lane": "w21-010-snapback-boatyard-haulout-stands",
+    "before": 1,
+    "notes": 1,
+    "codes": [
+      "N_OPTIONAL_UPLOAD_CREATE"
+    ],
+    "ackExits": [
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0
+  },
+  {
+    "lane": "w21-013-snapback-piano-competition-juries",
+    "before": 1,
+    "notes": 5,
+    "codes": [
+      "N_RETAINED_ROLE_GRANT",
+      "N_RETAINED_ROLE_GRANT",
+      "N_OPTIONAL_UPLOAD_CREATE",
+      "N_RETAINED_ROLE_GRANT",
+      "N_RETAINED_ROLE_GRANT"
+    ],
+    "ackExits": [
+      1,
+      1,
+      1,
+      1,
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0
+  },
+  {
+    "lane": "w21-015-snapback-sailmaker-repair-orders",
+    "before": 1,
+    "notes": 1,
+    "codes": [
+      "N_RETAINED_ROLE_GRANT"
+    ],
+    "ackExits": [
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0
+  },
+  {
+    "lane": "w21-017-snapback-search-rescue-callouts",
+    "before": 1,
+    "notes": 2,
+    "codes": [
+      "N_OPTIONAL_UPLOAD_CREATE",
+      "N_OPTIONAL_UPLOAD_CREATE"
+    ],
+    "ackExits": [
+      1,
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0
+  },
+  {
+    "lane": "w21-018-snapback-massage-spa-intakes",
+    "before": 1,
+    "notes": 2,
+    "codes": [
+      "N_OPTIONAL_UPLOAD_CREATE",
+      "N_OPTIONAL_UPLOAD_CREATE"
+    ],
+    "ackExits": [
+      1,
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0
+  },
+  {
+    "lane": "w21-019-snapback-cremation-custody-chain",
+    "before": 1,
+    "notes": 1,
+    "codes": [
+      "N_OPTIONAL_UPLOAD_CREATE"
+    ],
+    "ackExits": [
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0
+  },
+  {
+    "lane": "w21-025-snapback-boxing-bout-medicals",
+    "before": 1,
+    "notes": 1,
+    "codes": [
+      "N_OPTIONAL_UPLOAD_CREATE"
+    ],
+    "ackExits": [
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0
+  },
+  {
+    "lane": "w21-032-snapback-zoo-keeper-diets",
+    "before": 1,
+    "notes": 2,
+    "codes": [
+      "N_OPTIONAL_UPLOAD_CREATE",
+      "N_OPTIONAL_UPLOAD_CREATE"
+    ],
+    "ackExits": [
+      1,
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0
+  },
+  {
+    "lane": "w21-040-snapback-valet-parking-tickets",
+    "before": 1,
+    "notes": 2,
+    "codes": [
+      "N_OPTIONAL_UPLOAD_CREATE",
+      "N_OPTIONAL_UPLOAD_CREATE"
+    ],
+    "ackExits": [
+      1,
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0
+  },
+  {
+    "lane": "w21-042-snapback-english-class-placement",
+    "before": 1,
+    "notes": 1,
+    "codes": [
+      "N_OPTIONAL_UPLOAD_CREATE"
+    ],
+    "ackExits": [
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0
+  },
+  {
+    "lane": "w21-048-snapback-therapeutic-riding-sessions",
+    "before": 1,
+    "notes": 3,
+    "codes": [
+      "N_RETAINED_ROLE_GRANT",
+      "N_RETAINED_ROLE_GRANT",
+      "N_OPTIONAL_UPLOAD_CREATE"
+    ],
+    "ackExits": [
+      1,
+      1,
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0
+  },
+  {
+    "lane": "w21-049-snapback-sign-shop-installs",
+    "before": 1,
+    "notes": 1,
+    "codes": [
+      "N_OPTIONAL_UPLOAD_CREATE"
+    ],
+    "ackExits": [
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0
+  },
+  {
+    "lane": "w22-003-snapback-locksmith-rekey-jobs",
+    "before": 1,
+    "notes": 1,
+    "codes": [
+      "N_OPTIONAL_UPLOAD_CREATE"
+    ],
+    "ackExits": [
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0
+  },
+  {
+    "lane": "w22-018-snapback-film-lab-rolls",
+    "before": 1,
+    "notes": 1,
+    "codes": [
+      "N_OPTIONAL_UPLOAD_CREATE"
+    ],
+    "ackExits": [
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0
+  },
+  {
+    "lane": "w22-021-snapback-wash-fold-laundry",
+    "before": 1,
+    "notes": 1,
+    "codes": [
+      "N_RETAINED_ROLE_GRANT"
+    ],
+    "ackExits": [
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0
+  },
+  {
+    "lane": "w22-027-snapback-consignment-closet-items",
+    "before": 1,
+    "notes": 1,
+    "codes": [
+      "N_OPTIONAL_UPLOAD_CREATE"
+    ],
+    "ackExits": [
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0
+  },
+  {
+    "lane": "w22-040-snapback-excavator-rental-returns",
+    "before": 1,
+    "notes": 2,
+    "codes": [
+      "N_OPTIONAL_UPLOAD_CREATE",
+      "N_OPTIONAL_UPLOAD_CREATE"
+    ],
+    "ackExits": [
+      1,
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0
+  }
+]

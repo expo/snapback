@@ -1,0 +1,46 @@
+{
+  "command": "cargo test --workspace --no-fail-fast -- --test-threads=6",
+  "flags": "CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 CARGO_PROFILE_DEV_OPT_LEVEL=1 CARGO_BUILD_JOBS=6",
+  "exitCode": 101,
+  "targets": 452,
+  "passed": 7324,
+  "failed": 6,
+  "ignored": 47,
+  "failedTargets": [
+    {
+      "target": "Running tests/readauth.rs (target/debug/deps/readauth-02d7c0b95f65e616)",
+      "status": "FAILED",
+      "passed": 87,
+      "failed": 1,
+      "ignored": 0
+    },
+    {
+      "target": "Running tests/guide.rs (target/debug/deps/guide-fb6c0a34e28899e9)",
+      "status": "FAILED",
+      "passed": 125,
+      "failed": 2,
+      "ignored": 0
+    },
+    {
+      "target": "Running tests/security.rs (target/debug/deps/security-9cb22f946ebf25e3)",
+      "status": "FAILED",
+      "passed": 45,
+      "failed": 1,
+      "ignored": 0
+    },
+    {
+      "target": "Running tests/security_sec5_output.rs (target/debug/deps/security_sec5_output-de7d210d37eac5ad)",
+      "status": "FAILED",
+      "passed": 2,
+      "failed": 1,
+      "ignored": 0
+    },
+    {
+      "target": "Running tests/wave12_rule_recipes.rs (target/debug/deps/wave12_rule_recipes-2d365fadba4aeebc)",
+      "status": "FAILED",
+      "passed": 12,
+      "failed": 1,
+      "ignored": 0
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "mode": "consumer-only",
+  "source": "a8fb2ddf9ca2ffba07118a4dbfaf1a60cccdee9c",
+  "version": "0.4.37",
+  "route": "proot",
+  "clientIntegrity": "sha512-3dWNNRG9FQN1Q4WOYHo9N01hrR8o04wbdiDCh+cpdk8TYKZpPkFFU2QpWYKKQWhFDa5mhcQ1qHWvvg1nvkuHKA==",
+  "expoIntegrity": "sha512-OTPBlWLHJo322OnKnDOif5kZSMsfKWduymDFEXkmQKr6s3FB/zIjx0D6sOFsdNdWJqR6YyaKcJXTiPNkYActSg==",
+  "binarySha256": "35554fb5764c9469d00397353f1c55911e884a6798208059db0083c1092ee4c3",
+  "elf": {
+    "status": "passed",
+    "machine": "x86_64",
+    "interpreter": null,
+    "needed": []
+  },
+  "suite": {
+    "status": "not-run"
+  },
+  "publicationQualified": false,
+  "recordSha256": "6b6cbfa336201883d41c8782c4080e024b9a755d1404cf256c512b812f38484a",
+  "starters": 6,
+  "frontendProofs": 12,
+  "security": "passed",
+  "production": "passed",
+  "distributions": 2
+}
