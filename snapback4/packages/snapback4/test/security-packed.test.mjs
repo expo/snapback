@@ -42,6 +42,18 @@ test('packed security card and starter run as written; broad reads refute', {tim
   assert.ok(excerpt.includes('### '+code),`installed why selects its dedicated definition: ${code}`);
   assert.ok(excerpt.includes(fact),`installed defining fact: ${code}`);
  }
+ // SEC8 presence intent is copied verbatim from the installed guide. Both
+ // forms must compile and gate an optional creator through the actual pack.
+ const uploads=run(process.execPath,[cli,'guide','uploads','--full'],project);
+ const presence=uploads.match(/`invariant orders[^`]+`/g);
+ assert.equal(presence.length,2);
+ const presenceDir=join(dir,'presence-intent');mkdirSync(join(presenceDir,'snapback'),{recursive:true});
+ const schema="table orders:\n  photo: image <=10000 ?\n  read <- allow\n  insert <- allow\n  online only\nmutation add(photo:image <=10000 ?):\n  return insert orders {photo}\n";
+ for(const candidate of presence){
+  writeFileSync(join(presenceDir,'snapback/schema.q'),schema+candidate.slice(1,-1)+'\n');
+  const result=JSON.parse(run(process.execPath,[cli,'check','--json'],presenceDir,1));
+  assert.ok(result.securityReviews.some(r=>r.code==='N_OPTIONAL_UPLOAD_CREATE'&&r.gated));
+ }
  // The installed wrapper must expose the focused day-two advice and allow
  // intentional optionality without shipping a pre-acknowledged source file.
  for(const lane of ['003','040','030','042','028']){

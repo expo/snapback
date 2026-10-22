@@ -5,7 +5,7 @@ struct Scratch(PathBuf);impl Drop for Scratch{fn drop(&mut self){let _=fs::remov
 fn scratch()->Scratch{let p=std::env::temp_dir().join(format!("sb4-sec7-cli-{}-{}",std::process::id(),{static NEXT:std::sync::atomic::AtomicUsize=std::sync::atomic::AtomicUsize::new(0);NEXT.fetch_add(1,std::sync::atomic::Ordering::Relaxed)}));fs::create_dir_all(p.join("snapback")).unwrap();Scratch(p)}
 const SOURCE:&str="table docs:\n  photo: image <=10000 ?\n  other: image <=10000 ?\n  read <- allow\n  insert <- deny\n  online only\ninvariant docs always .photo != null and .other != null\nmutation add(photo: image <=10000 ?, other: image <=10000 ?):\n  return insert docs {photo,other}\n";
 fn check(p:&Scratch,args:&[&str])->(i32,Value){let r=Command::new(env!("CARGO_BIN_EXE_snapback4")).args(["check","--json"]).args(args).current_dir(&p.0).output().unwrap();let j=serde_json::from_slice(&r.stdout).unwrap_or_else(|_|panic!("{}",String::from_utf8_lossy(&r.stdout)));(r.status.code().unwrap_or(-1),j)}
-#[test]fn one_note_at_a_time_bulk_cannot_clear_and_source_edits_invalidate(){
+#[test]fn one_note_at_a_time_preserves_comments_and_invalidates_relevant_edits(){
  let p=scratch();let source=p.0.join("snapback/schema.q");fs::write(&source,SOURCE).unwrap();
  let (code,j)=check(&p,&[]);assert_eq!(code,1);assert_eq!(j["ok"],false);assert_eq!(j["security"]["invariants"].as_array().unwrap().len(),1,"explicit mandatory-media intent supplies the gate evidence");
  assert_eq!(j["securityReviews"],check(&p,&[]).1["securityReviews"],"same input must produce stable IDs");
@@ -14,7 +14,8 @@ fn check(p:&Scratch,args:&[&str])->(i32,Value){let r=Command::new(env!("CARGO_BI
  assert_eq!(check(&p,&["--ack-security",&pending[0],"--reason","reviewed unreachable draft creation helper"]).0,1);
  assert_eq!(check(&p,&["--ack-security",&pending[1],"--reason","reviewed unreachable second draft creation helper"]).0,0);
  let review=p.0.join("snapback/security-reviews.json");let bytes=fs::read(&review).unwrap();
- fs::write(&source,format!("{SOURCE}\n-- source changed\n")).unwrap();assert_eq!(check(&p,&[]).0,1);
+ fs::write(&source,format!("{SOURCE}\n-- comment-only edit\n")).unwrap();assert_eq!(check(&p,&[]).0,0,"comments preserve both reviews");
+ fs::write(&source,SOURCE.replace("  photo: image <=10000 ?","  photo: image <=20000 ?")).unwrap();assert_eq!(check(&p,&[]).0,1,"a relevant column change invalidates review");
  assert_eq!(check(&p,&["--ack-security",&pending[0],"--reason","  "]).0,2);assert_eq!(fs::read(&review).unwrap(),bytes);
  std::thread::scope(|scope|{
   let a=scope.spawn(||check(&p,&["--ack-security",&pending[0],"--reason","optional first photo after source review"]));

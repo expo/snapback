@@ -227,6 +227,7 @@ fn print_prediction(bound: &Bound, verbose: bool) {
 }
 
 fn note_summary(note: &snapback4_lang::Diagnostic) -> String {
+    if note.code=="N_OPTIONAL_EVIDENCE" {return format!("{}; {}",note.message,note.rewrite);}
     if note.code=="N_COLUMN_RESULT_EXPOSURE" {
         let table=note.message.split(':').next().unwrap_or("table");
         return format!("{table}: grouped result/refusal observers; review operation audiences and private columns (check --verbose/JSON lists every operation, column and site)");
@@ -408,11 +409,12 @@ pub fn check(options: &Options) -> i32 {
     };
     let security_failed=security.refuted()||security_reviews::pending(&dispositions);
     let visible_security=security.notes.iter().zip(&dispositions).filter(|(_,d)|!d.acknowledged).map(|(n,_)|n).collect::<Vec<_>>();
+    let compact_security=snapback4_lang::security::questionnaire_notes(&visible_security.iter().map(|n|(*n).clone()).collect::<Vec<_>>());
     let present = |text: &str| crate::presentation::indexes(&bound.schema, text, options.flags.contains_key("verbose"));
     let details = acquisition.is_none() || options.flags.contains_key("verbose");
     let certificates: Vec<_> = bound.programs.iter().map(|p| crate::scale::analyze_bound(&bound.schema, p)).collect();
     let scale_summary = crate::scale::summary(&certificates);
-    let note_count = visible_security.len() + reviewed.new.len() + certificates.iter().map(|certificate| certificate.search.len()).sum::<usize>();
+    let note_count = compact_security.len() + reviewed.new.len() + certificates.iter().map(|certificate| certificate.search.len()).sum::<usize>();
     let field_authority: Vec<_> = bound.schema.visible_tables().flat_map(|(name,table)| table.written_by.iter().map(move |(column,authority)|
         format!("{name}.{column}: written by .{}; visibility: {}", authority.owner, if authority.audience { "readable by audience" } else { "private to owner" }))).collect();
     let row_views = bound.schema.maintains.iter().filter_map(|m| m.row_key.as_ref().map(|k| json!({
@@ -447,7 +449,7 @@ pub fn check(options: &Options) -> i32 {
             for report in note_reports(&ranked, true) { println!("{}", present(&report)); }
         } else {
             // Notes are advisory: ranked and grouped after the ok line, repeats shortened (note_rank).
-            let mut notes = reviewed.new.iter().chain(visible_security.iter().copied()).map(|note| {
+            let mut notes = reviewed.new.iter().chain(compact_security.iter()).map(|note| {
                 let compact = completeness_note(note);
                 crate::note_rank::Note { site: note.site.to_string(), code: note.code.clone(), summary: present(&note_summary(note)),
                     form: compact.is_none().then(|| crate::note_rank::compiled_form(&note.code, &note.rewrite)).flatten().map(|(lead, code)| (lead, present(&code))), compact }

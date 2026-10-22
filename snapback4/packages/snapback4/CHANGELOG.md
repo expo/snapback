@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.40
+
+- Security questions group restatements and role-wide access per table. Individual advisories accept recorded specification decisions; unrelated queries, comments and independent declarations preserve reviews, while changed rule/column dependencies invalidate them.
+- Optional-upload questions and the security draft offer permanent or creation-only presence intent. Lifecycle questions cover child photos, approval bypass/replacement, stale eligibility regardless of status spelling, reusable guards and deadline bases.
+- `test` names invariant evaluation gaps and their source sites, preserves both creator boolean choices, and explores deeper finite histories with explicit limits. A zero-violation run does not claim unsupported assertions were evaluated.
+- DX7 owns clock persistence, frontend proof visibility, upgrade messaging and schema ergonomics in this release.
+
 ## 0.4.38
 
 - Security questions lead default `check` and `audit`; result-exposure advice groups by table and creation advice ignores defaults and literal-only assignments. New questions cover evidence, money, approval bypasses, stale eligibility, inconsistent windows, role-wide writes, private create/edit asymmetry and evidence removal.
