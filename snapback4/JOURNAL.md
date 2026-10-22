@@ -102006,3 +102006,27 @@ The initial 450-project sweep adds no gates: the same 36 retained-role review
 questions remain on fifteen projects. Final packed measurement/qualification is
 recorded in the workstream report. DX7 owns clock, proof viewport, upgrade/gate
 messages and schema ergonomics. No version bump or push is authorized here.
+
+### 2026-10-23 — SEC8 full-suite history refinement and qualification boundary
+
+The existing wrong-reference deadline regression exposed a search-order regression
+from source-derived future Time samples. Preserve Time alternatives in the directed
+argument groups and past-Time controls in the breadth candidate plan, under the
+same reviewed finite caps. Both independent families marked r9 READY. R8's proposed
+witness replacement was rejected for interacting with generated-origin relabeling
+and was fully withdrawn; final witness storage and provenance remain append-only.
+See LLP 3000.036.004 §§17.7–17.8 and the verbatim review records.
+
+Mac Studio `~/sb4-ws-sec8` ran the final source: SEC7 controls 37, SEC8 regressions
+12, the strictly-past wrong-reference history 1, and security-review unit tests 9,
+all passed. Its build output was removed. Immutable differential replay passed
+20,000 ordinary cases and device seeds 0–999; Lean 100,000 retains 761 disagreements
+in five already classified signatures, zero new signatures (exit 1 retained).
+The fresh Linux consumer qualification passes its initial compatibility, DX,
+Expo/export, release-transition and dormant proofs, then stops on the inherited
+source-reservation E_SCHEMA in the installed residency recipe. The core follow-up
+is `issues/20261022-snapback4-source-reservation-full-suite-failures.md`.
+No qualification receipt, full-suite pass or security-proof claim is made from
+that partial run. Final affected runs, packed security/guide examples and the
+repeated finding/corpus measurements are recorded in WORKSTREAM-REPORT.md and
+`reports/20261022-sec8/` as they complete. No version bump or push.

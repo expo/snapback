@@ -1,0 +1,10 @@
+{
+  "rawBytes": 2406491,
+  "gzipBytes": 734863,
+  "wasmSha256": "fd3215f9b3e232592afd317b9fb9abd95bad9976f6c82460992ea144ab0ecc6f",
+  "verdict": "(budget 735388: ok)",
+  "budget": {
+    "gzip": 735388,
+    "set": "2026-10-22"
+  }
+}
