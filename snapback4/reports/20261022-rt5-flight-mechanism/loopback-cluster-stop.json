@@ -1,0 +1,10 @@
+{
+  "postmaster_pid": 319073,
+  "directory": "/tmp/rt5-pg.SZaNV8",
+  "stop_exit_status": 0,
+  "status_exit_status": 3,
+  "postmaster_pid_absent": true,
+  "pid_absent": true,
+  "stop_command_pid": 597285,
+  "seconds": 0.9044740200042725
+}

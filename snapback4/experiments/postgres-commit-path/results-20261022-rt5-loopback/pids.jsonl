@@ -1,0 +1,67 @@
+{"runner_pid": 337088, "started": 1792695870.9031272}
+{"pid": 337112, "argv": ["/home/ccheever/projects/sb4-p0-s8/snapback4/target/release/snapback4-postgres-commit-path", "ping", "--n", "3000", "--net", "rt5-external"], "started": 1792695871.428544}
+{"pid": 337112, "exit_status": 0, "stopped": true}
+{"pid": 337121, "argv": ["/home/ccheever/projects/sb4-p0-s8/snapback4/target/release/snapback4-postgres-commit-path", "ping", "--n", "3000", "--net", "rt5-external"], "started": 1792695871.5547416}
+{"pid": 337121, "exit_status": 0, "stopped": true}
+{"pid": 337134, "argv": ["/home/ccheever/projects/sb4-p0-s8/snapback4/target/release/snapback4-postgres-commit-path", "ping", "--n", "3000", "--net", "rt5-external"], "started": 1792695871.6722374}
+{"pid": 337134, "exit_status": 0, "stopped": true}
+{"pid": 337139, "argv": ["/home/ccheever/projects/sb4-p0-s8/snapback4/target/release/snapback4-postgres-commit-path", "ping", "--n", "1000", "--net", "rt5-external"], "started": 1792695871.7862782}
+{"pid": 337139, "exit_status": 0, "stopped": true}
+{"pid": 337143, "argv": ["/home/ccheever/projects/sb4-p0-s8/snapback4/target/release/snapback4-postgres-commit-path", "rt5-flight", "--shape", "w1", "--variant", "serial", "--connections", "32", "--runs", "1", "--net", "rt5-external"], "started": 1792695871.845219}
+{"pid": 337143, "exit_status": 0, "stopped": true}
+{"pid": 337313, "argv": ["/home/ccheever/projects/sb4-p0-s8/snapback4/target/release/snapback4-postgres-commit-path", "rt5-flight", "--shape", "w1", "--variant", "serial", "--connections", "32", "--runs", "1", "--net", "rt5-external"], "started": 1792695877.0313528}
+{"pid": 337313, "exit_status": 0, "stopped": true}
+{"pid": 337503, "argv": ["/home/ccheever/projects/sb4-p0-s8/snapback4/target/release/snapback4-postgres-commit-path", "rt5-flight", "--shape", "w1", "--variant", "serial", "--connections", "32", "--runs", "1", "--net", "rt5-external"], "started": 1792695882.2056432}
+{"pid": 337503, "exit_status": 0, "stopped": true}
+{"pid": 337738, "argv": ["/home/ccheever/projects/sb4-p0-s8/snapback4/target/release/snapback4-postgres-commit-path", "ping", "--n", "1000", "--net", "rt5-external"], "started": 1792695887.3656905}
+{"pid": 337738, "exit_status": 0, "stopped": true}
+{"pid": 337742, "argv": ["/home/ccheever/projects/sb4-p0-s8/snapback4/target/release/snapback4-postgres-commit-path", "ping", "--n", "1000", "--net", "rt5-external"], "started": 1792695887.4037814}
+{"pid": 337742, "exit_status": 0, "stopped": true}
+{"pid": 337746, "argv": ["/home/ccheever/projects/sb4-p0-s8/snapback4/target/release/snapback4-postgres-commit-path", "rt5-flight", "--shape", "w1", "--variant", "simple", "--connections", "32", "--runs", "1", "--net", "rt5-external"], "started": 1792695887.4530923}
+{"pid": 337746, "exit_status": 0, "stopped": true}
+{"pid": 338027, "argv": ["/home/ccheever/projects/sb4-p0-s8/snapback4/target/release/snapback4-postgres-commit-path", "rt5-flight", "--shape", "w1", "--variant", "simple", "--connections", "32", "--runs", "1", "--net", "rt5-external"], "started": 1792695892.6142843}
+{"pid": 338027, "exit_status": 0, "stopped": true}
+{"pid": 338198, "argv": ["/home/ccheever/projects/sb4-p0-s8/snapback4/target/release/snapback4-postgres-commit-path", "rt5-flight", "--shape", "w1", "--variant", "simple", "--connections", "32", "--runs", "1", "--net", "rt5-external"], "started": 1792695897.7774696}
+{"pid": 338198, "exit_status": 0, "stopped": true}
+{"pid": 338342, "argv": ["/home/ccheever/projects/sb4-p0-s8/snapback4/target/release/snapback4-postgres-commit-path", "ping", "--n", "1000", "--net", "rt5-external"], "started": 1792695902.9396305}
+{"pid": 338342, "exit_status": 0, "stopped": true}
+{"pid": 338346, "argv": ["/home/ccheever/projects/sb4-p0-s8/snapback4/target/release/snapback4-postgres-commit-path", "ping", "--n", "1000", "--net", "rt5-external"], "started": 1792695902.9961486}
+{"pid": 338346, "exit_status": 0, "stopped": true}
+{"pid": 338350, "argv": ["/home/ccheever/projects/sb4-p0-s8/snapback4/target/release/snapback4-postgres-commit-path", "rt5-flight", "--shape", "w1", "--variant", "envelope", "--connections", "32", "--runs", "1", "--net", "rt5-external"], "started": 1792695903.0425403}
+{"pid": 338350, "exit_status": 0, "stopped": true}
+{"pid": 338509, "argv": ["/home/ccheever/projects/sb4-p0-s8/snapback4/target/release/snapback4-postgres-commit-path", "rt5-flight", "--shape", "w1", "--variant", "envelope", "--connections", "32", "--runs", "1", "--net", "rt5-external"], "started": 1792695908.1960554}
+{"pid": 338509, "exit_status": 0, "stopped": true}
+{"pid": 338754, "argv": ["/home/ccheever/projects/sb4-p0-s8/snapback4/target/release/snapback4-postgres-commit-path", "rt5-flight", "--shape", "w1", "--variant", "envelope", "--connections", "32", "--runs", "1", "--net", "rt5-external"], "started": 1792695913.393851}
+{"pid": 338754, "exit_status": 0, "stopped": true}
+{"pid": 338906, "argv": ["/home/ccheever/projects/sb4-p0-s8/snapback4/target/release/snapback4-postgres-commit-path", "ping", "--n", "1000", "--net", "rt5-external"], "started": 1792695918.563704}
+{"pid": 338906, "exit_status": 0, "stopped": true}
+{"pid": 338910, "argv": ["/home/ccheever/projects/sb4-p0-s8/snapback4/target/release/snapback4-postgres-commit-path", "ping", "--n", "1000", "--net", "rt5-external"], "started": 1792695918.6019073}
+{"pid": 338910, "exit_status": 0, "stopped": true}
+{"pid": 338919, "argv": ["/home/ccheever/projects/sb4-p0-s8/snapback4/target/release/snapback4-postgres-commit-path", "rt5-flight", "--shape", "mutation", "--variant", "serial", "--connections", "32", "--runs", "1", "--net", "rt5-external"], "started": 1792695918.6690516}
+{"pid": 338919, "exit_status": 0, "stopped": true}
+{"pid": 339209, "argv": ["/home/ccheever/projects/sb4-p0-s8/snapback4/target/release/snapback4-postgres-commit-path", "rt5-flight", "--shape", "mutation", "--variant", "serial", "--connections", "32", "--runs", "1", "--net", "rt5-external"], "started": 1792695923.9926884}
+{"pid": 339209, "exit_status": 0, "stopped": true}
+{"pid": 339440, "argv": ["/home/ccheever/projects/sb4-p0-s8/snapback4/target/release/snapback4-postgres-commit-path", "rt5-flight", "--shape", "mutation", "--variant", "serial", "--connections", "32", "--runs", "1", "--net", "rt5-external"], "started": 1792695929.267345}
+{"pid": 339440, "exit_status": 0, "stopped": true}
+{"pid": 339594, "argv": ["/home/ccheever/projects/sb4-p0-s8/snapback4/target/release/snapback4-postgres-commit-path", "ping", "--n", "1000", "--net", "rt5-external"], "started": 1792695934.5542696}
+{"pid": 339594, "exit_status": 0, "stopped": true}
+{"pid": 339598, "argv": ["/home/ccheever/projects/sb4-p0-s8/snapback4/target/release/snapback4-postgres-commit-path", "ping", "--n", "1000", "--net", "rt5-external"], "started": 1792695934.6049707}
+{"pid": 339598, "exit_status": 0, "stopped": true}
+{"pid": 339610, "argv": ["/home/ccheever/projects/sb4-p0-s8/snapback4/target/release/snapback4-postgres-commit-path", "rt5-flight", "--shape", "mutation", "--variant", "simple", "--connections", "32", "--runs", "1", "--net", "rt5-external"], "started": 1792695934.6500762}
+{"pid": 339610, "exit_status": 0, "stopped": true}
+{"pid": 339781, "argv": ["/home/ccheever/projects/sb4-p0-s8/snapback4/target/release/snapback4-postgres-commit-path", "rt5-flight", "--shape", "mutation", "--variant", "simple", "--connections", "32", "--runs", "1", "--net", "rt5-external"], "started": 1792695939.949778}
+{"pid": 339781, "exit_status": 0, "stopped": true}
+{"pid": 339966, "argv": ["/home/ccheever/projects/sb4-p0-s8/snapback4/target/release/snapback4-postgres-commit-path", "rt5-flight", "--shape", "mutation", "--variant", "simple", "--connections", "32", "--runs", "1", "--net", "rt5-external"], "started": 1792695945.2317066}
+{"pid": 339966, "exit_status": 0, "stopped": true}
+{"pid": 340155, "argv": ["/home/ccheever/projects/sb4-p0-s8/snapback4/target/release/snapback4-postgres-commit-path", "ping", "--n", "1000", "--net", "rt5-external"], "started": 1792695950.519278}
+{"pid": 340155, "exit_status": 0, "stopped": true}
+{"pid": 340159, "argv": ["/home/ccheever/projects/sb4-p0-s8/snapback4/target/release/snapback4-postgres-commit-path", "ping", "--n", "1000", "--net", "rt5-external"], "started": 1792695950.5590734}
+{"pid": 340159, "exit_status": 0, "stopped": true}
+{"pid": 340163, "argv": ["/home/ccheever/projects/sb4-p0-s8/snapback4/target/release/snapback4-postgres-commit-path", "rt5-flight", "--shape", "mutation", "--variant", "envelope", "--connections", "32", "--runs", "1", "--net", "rt5-external"], "started": 1792695950.6099486}
+{"pid": 340163, "exit_status": 0, "stopped": true}
+{"pid": 340352, "argv": ["/home/ccheever/projects/sb4-p0-s8/snapback4/target/release/snapback4-postgres-commit-path", "rt5-flight", "--shape", "mutation", "--variant", "envelope", "--connections", "32", "--runs", "1", "--net", "rt5-external"], "started": 1792695955.9092152}
+{"pid": 340352, "exit_status": 0, "stopped": true}
+{"pid": 340552, "argv": ["/home/ccheever/projects/sb4-p0-s8/snapback4/target/release/snapback4-postgres-commit-path", "rt5-flight", "--shape", "mutation", "--variant", "envelope", "--connections", "32", "--runs", "1", "--net", "rt5-external"], "started": 1792695961.2045386}
+{"pid": 340552, "exit_status": 0, "stopped": true}
+{"pid": 340698, "argv": ["/home/ccheever/projects/sb4-p0-s8/snapback4/target/release/snapback4-postgres-commit-path", "ping", "--n", "1000", "--net", "rt5-external"], "started": 1792695966.5051365}
+{"pid": 340698, "exit_status": 0, "stopped": true}

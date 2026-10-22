@@ -101985,3 +101985,53 @@ Owned database/role/private setup files are removed; independent custody checks
 confirm no live owned process and shared postmaster 2735539 remains alive with
 durability settings on. No cluster restart/reconfiguration, push, stash, clone,
 sub-agent, sudo, Docker, paid service or production/readiness claim.
+## 2026-10-22 — RT5: qualify the flight mechanism, serving unchanged
+
+Added the round-trip RFC's two B2 candidates as test/experiment code only.
+The single literal/text codec uses typed SQL PREPARE/EXECUTE, ASCII UTF-8 hex
+conversion and explicit casts; it pins/verifies UTF8 text output, three float
+digits beyond the historical minimum (`extra_float_digits=3`) and hex bytea.
+DateStyle, locale and string-literal settings do not interpret admitted values.
+The core compiles the module only for tests/test-support; the existing standalone
+commit-path binary includes that source in its `rt5` feature, with its existing
+timer and samplers. Historical SQLite cells still call the removed raw handle;
+they are omitted by that feature, with no raw escape reopened.
+
+The edge-table/seeded difftest covers optional scalars and arrays, signed and
+float endpoints/subnormals/non-finite values, Unicode/combining/quoted text,
+all bytes and the tail's exact eighteen array slots. Typed NUL errors poison
+the transaction exactly as Bind does. Sequence-backed error-at-k witnesses
+prove subsequent commands are skipped. After an observed head-lock wait,
+ordered SimpleQuery and VOLATILE PL/pgSQL both see the holder's new generation,
+authority and receipt; the one-statement VOLATILE SQL control sees old facts.
+The prototype functions are installed only by the fixture, never at attach.
+
+C=32 loopback smoke, 1 s warm-up / 4 s window, three fresh processes: W1 is
+26,636 / 34,920 / 29,573 executions/s for per-statement / SimpleQuery / PL/pgSQL,
+with p50 1.229 / 0.917 / 1.069 ms. Mutations are 226 / 227 / 230/s with
+head-lock/WALSync pressure and very different tails. Every repetition passes
+its transcript and durable-counter checks. This is non-qualifying for the
+Hetzner decision: (a) is correctness-qualified and promising for W1, while
+mechanism adoption waits for the lead's 450b→450a run. The experiment README
+provides target/password-file commands and independent SSH streams as in S1b.
+RT6 still owns connection qualification, encoder-scratch accounting and real
+serving integration/ratchets. No production behavior or budget changes here.
+
+[The RT5 report](./reports/20261022-rt5-flight-mechanism/REPORT.md) retains the
+exact smoke percentiles, checks, inherited harness build failure and process
+cleanup. Work stayed in this branch and target: no push, stash, remote run,
+other worktree changes or use of the host's PG17/55440 cluster.
+
+RT5 verification completed: build and no-default core check pass; the full
+core suite has 1,075 unfiltered passes/five ignores plus one subprocess pass.
+The corrected five RT5 cases pass on the original cluster and again on the
+en_US.utf8 script cluster. All 369 Rust tests in the full PG retry pass; that
+script remains red for a 45-second public bootstrap deploy timeout. The same
+public witness passes alone, including P1-MC; the unresolved full-script timing
+is recorded in `issues/20261022-postgres-public-bootstrap-witness-timeout.md`.
+The default historical harness's nine raw-SQLite-handle compile errors also
+reproduce alone; the RT5 feature builds and measures successfully. Ref-check
+passes. PG16 uses precise shortest float output for the pinned positive
+`extra_float_digits` setting. All six private postmaster lifetimes and six
+public serve PIDs have independent stop confirmation; 59 recorded PID checks
+and the target-executable census are empty. PIDs left: none.

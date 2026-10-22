@@ -1,0 +1,166 @@
+[
+  {
+    "name": "build",
+    "argv": [
+      "cargo",
+      "build",
+      "--locked",
+      "-p",
+      "snapback4",
+      "-j",
+      "10"
+    ],
+    "exit_status": 0,
+    "pid": 340703,
+    "stopped": true,
+    "seconds": 66.19
+  },
+  {
+    "name": "no-default",
+    "argv": [
+      "cargo",
+      "check",
+      "--locked",
+      "-p",
+      "snapback4-core",
+      "--no-default-features",
+      "-j",
+      "10"
+    ],
+    "exit_status": 0,
+    "pid": 345634,
+    "stopped": true,
+    "seconds": 7.77
+  },
+  {
+    "name": "core",
+    "argv": [
+      "cargo",
+      "test",
+      "--locked",
+      "-p",
+      "snapback4-core",
+      "--no-fail-fast",
+      "-j",
+      "10"
+    ],
+    "exit_status": 0,
+    "pid": 345940,
+    "stopped": true,
+    "seconds": 1639.34
+  },
+  {
+    "name": "rt5",
+    "argv": [
+      "cargo",
+      "test",
+      "--locked",
+      "-p",
+      "snapback4-core",
+      "--features",
+      "postgres",
+      "--lib",
+      "engine::postgres::literal_tests",
+      "-j",
+      "10",
+      "--",
+      "--include-ignored",
+      "--nocapture"
+    ],
+    "exit_status": 101,
+    "pid": 497324,
+    "stopped": true,
+    "seconds": 41.51
+  },
+  {
+    "name": "postgres-script",
+    "argv": [
+      "bash",
+      "scripts/test-postgres.sh"
+    ],
+    "exit_status": 1,
+    "pid": 501060,
+    "stopped": true,
+    "seconds": 1273.45
+  },
+  {
+    "name": "ref-check",
+    "argv": [
+      "./ref-check"
+    ],
+    "exit_status": 0,
+    "pid": 583420,
+    "stopped": true,
+    "seconds": 25.71
+  },
+  {
+    "name": "legacy-harness-alone",
+    "argv": [
+      "cargo",
+      "build",
+      "--locked",
+      "--release",
+      "-j",
+      "10"
+    ],
+    "exit_status": 101,
+    "pid": 585142,
+    "stopped": true,
+    "seconds": 2.78
+  },
+  {
+    "name": "rt5-final",
+    "argv": [
+      "cargo",
+      "test",
+      "--locked",
+      "-p",
+      "snapback4-core",
+      "--features",
+      "postgres",
+      "--lib",
+      "engine::postgres::literal_tests",
+      "-j",
+      "10",
+      "--",
+      "--include-ignored",
+      "--nocapture"
+    ],
+    "exit_status": 0,
+    "pid": 585497,
+    "stopped": true,
+    "seconds": 41.32
+  },
+  {
+    "name": "postgres-script-final",
+    "argv": [
+      "bash",
+      "scripts/test-postgres.sh"
+    ],
+    "exit_status": 1,
+    "pid": 590247,
+    "stopped": true,
+    "seconds": 1839.65
+  },
+  {
+    "name": "public-serve-alone",
+    "argv": [
+      "python3",
+      "scripts/test-postgres-serve.py"
+    ],
+    "pid": 894667,
+    "exit_status": 0,
+    "stopped": true,
+    "seconds": 272.72
+  },
+  {
+    "name": "ref-check-final",
+    "argv": [
+      "./ref-check"
+    ],
+    "pid": 909269,
+    "exit_status": 0,
+    "stopped": true,
+    "seconds": 13.67
+  }
+]

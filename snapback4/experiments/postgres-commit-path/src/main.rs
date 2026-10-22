@@ -1,12 +1,22 @@
 //! S0 commit-path cells (LLP 3000.009.001.002 §9). Each subcommand runs one
 //! cell at one setting, three times, and prints one JSON line. See README.md.
+// Compile the single candidate source in this standalone experiment only.
+// The core's test-support feature correctly refuses release builds.
+#[cfg(feature = "rt5")]
+#[path = "../../../crates/snapback4-core/src/engine/postgres/literal.rs"]
+mod literal;
+pub use snapback4_core::RuntimeError;
+#[cfg(feature = "rt5")]
+mod flight;
 mod common;
 mod execution;
 mod execution_network;
 mod model;
 mod proxy;
 mod raw;
+#[cfg(not(feature = "rt5"))]
 mod sqlite;
+#[cfg(not(feature = "rt5"))]
 mod sqlite_optimistic;
 
 use common::*;
@@ -158,6 +168,8 @@ fn main() {
     let started = now_iso();
     let load_before = loadavg();
     let mut out = match cmd.as_str() {
+        #[cfg(feature = "rt5")]
+        "rt5-flight" => flight::run(&args),
         "ping" => ping(&args),
         "capture" => capture(&args),
         "engine" => engine(&args),
@@ -165,11 +177,17 @@ fn main() {
         "raw" => raw::run(&args),
         "pg-execution" => execution::run(&args),
         "pg-execution-network" => execution_network::run(&args),
+        #[cfg(not(feature = "rt5"))]
         "sqlite-execution" => sqlite_optimistic::execution(&args),
+        #[cfg(not(feature = "rt5"))]
         "sqlite-commit" => sqlite_optimistic::commit(&args),
+        #[cfg(not(feature = "rt5"))]
         "sqlite-serve" => sqlite::serve(&args),
+        #[cfg(not(feature = "rt5"))]
         "sqlite-four-connections" => sqlite::four_connections(&args),
+        #[cfg(not(feature = "rt5"))]
         "sqlite-exec-flush" => sqlite::exec_flush(&args),
+        #[cfg(not(feature = "rt5"))]
         "sqlite-old-cell" => sqlite::old_cell(&args),
         _ => panic!("usage: commit-path <ping|capture|engine|model|raw|pg-execution|sqlite-execution|sqlite-commit|sqlite-serve|sqlite-four-connections|sqlite-exec-flush|sqlite-old-cell> [options]; see README"),
     };

@@ -1,0 +1,144 @@
+{
+  "exit_status": 0,
+  "result": {
+    "argv": [
+      "/home/ccheever/projects/sb4-p0-s8/snapback4/target/release/snapback4-postgres-commit-path",
+      "rt5-flight",
+      "--shape",
+      "mutation",
+      "--variant",
+      "simple",
+      "--connections",
+      "32",
+      "--runs",
+      "1",
+      "--net",
+      "rt5-external"
+    ],
+    "cell": "rt5-flight",
+    "connections": 32,
+    "counter_check": {
+      "acknowledged_including_warmup_and_drain": 1186,
+      "counter_sum": 1186,
+      "head": 1186,
+      "ok": true
+    },
+    "finished": "2026-10-22T19:05:50Z",
+    "label": "STATEMENT MODEL; loopback is non-qualifying; no interpreter or serving change",
+    "loadavg_after": [
+      13.72,
+      8.95,
+      5.44
+    ],
+    "loadavg_before": [
+      14.57,
+      9.03,
+      5.45
+    ],
+    "net": {
+      "added_rtt_us": null,
+      "label": "rt5-external",
+      "one_ssh_stream_per_connection": false,
+      "proxy": false
+    },
+    "profile": "release",
+    "runs": [
+      {
+        "calls_per_op": 8.0,
+        "commits": 905,
+        "commits_per_s": 226.24637660771705,
+        "errors": [],
+        "mean_ms": 141.7158706011051,
+        "p50_ms": 147.235248,
+        "p99_ms": 401.179182,
+        "per_writer_commits": [
+          29,
+          35,
+          27,
+          32,
+          23,
+          31,
+          27,
+          27,
+          30,
+          27,
+          29,
+          29,
+          25,
+          33,
+          27,
+          25,
+          31,
+          31,
+          29,
+          26,
+          27,
+          26,
+          31,
+          27,
+          27,
+          32,
+          27,
+          27,
+          26,
+          34,
+          25,
+          23
+        ],
+        "pg_stat_wal_delta": {
+          "wal_bytes": 646255,
+          "wal_fpi": 0,
+          "wal_records": 7001,
+          "wal_sync": 983,
+          "wal_write": 983
+        },
+        "seconds": 4.000064061,
+        "status": "complete",
+        "total_ops": 1186,
+        "wait_events": {
+          "samples": 1639,
+          "session_states": {
+            "CPU:-:active": 883,
+            "CPU:-:idle": 51,
+            "CPU:-:idle in transaction": 81,
+            "Client:ClientRead:active": 110,
+            "Client:ClientRead:idle": 11,
+            "Client:ClientRead:idle in transaction": 41,
+            "IO:SLRURead:active": 2,
+            "IO:WALSync:active": 1001,
+            "IO:WALSync:idle in transaction": 19,
+            "IO:WALWrite:active": 2,
+            "IO:WALWrite:idle in transaction": 7,
+            "LWLock:BufferContent:active": 111,
+            "LWLock:LockManager:active": 2,
+            "LWLock:MultiXactMemberBuffer:active": 1,
+            "LWLock:MultiXactMemberSLRU:active": 6,
+            "LWLock:MultiXactOffsetSLRU:active": 4,
+            "LWLock:WALWrite:active": 1,
+            "Lock:transactionid:active": 2174,
+            "Lock:tuple:active": 47941
+          }
+        },
+        "wal_bytes_per_commit": 682.2541436464088
+      }
+    ],
+    "schema_dropped": true,
+    "shape": "mutation",
+    "started": "2026-10-22T19:05:45Z",
+    "summary": {
+      "calls_per_op_median": 8.0,
+      "commits_per_s_max": 226.24637660771705,
+      "commits_per_s_median": 226.24637660771705,
+      "commits_per_s_min": 226.24637660771705,
+      "p50_ms_median": 147.235248,
+      "p99_ms_median": 401.179182,
+      "status": "complete",
+      "wal_bytes_per_commit_median": 682.2541436464088
+    },
+    "timing_ms": {
+      "measure": 4000,
+      "warmup": 1000
+    },
+    "variant": "simple"
+  }
+}

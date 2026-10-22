@@ -1,0 +1,70 @@
+    Updating crates.io index
+warning: failed to write cache, path: /home/ccheever/.cargo/registry/index/index.crates.io-1949cf8c6b5b557f/.cache/we/b-/web-sys, error: Permission denied (os error 13)
+warning: function `interval` is never used
+  --> crates/snapback4-lang/src/release_changes.rs:57:8
+   |
+57 | pub fn interval(previous: &str, installed: &str) -> String {
+   |        ^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-lang` (build script) generated 1 warning
+   Compiling snapback4-core v0.4.38 (/home/ccheever/projects/sb4-p0-s8/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.38 (/home/ccheever/projects/sb4-p0-s8/snapback4/crates/snapback4-lang)
+error[E0425]: cannot find type `Client` in this scope
+  --> crates/snapback4-core/src/engine/postgres/literal_tests.rs:15:16
+   |
+15 | fn client() -> Client {
+   |                ^^^^^^ not found in this scope
+
+error[E0425]: cannot find type `Client` in this scope
+  --> crates/snapback4-core/src/engine/postgres/literal_tests.rs:41:23
+   |
+41 | fn check(client: &mut Client, p: &Prepared, args: &[&(dyn ToSql + Sync)]) {
+   |                       ^^^^^^ not found in this scope
+
+error[E0425]: cannot find type `Client` in this scope
+   --> crates/snapback4-core/src/engine/postgres/literal_tests.rs:402:16
+    |
+402 | fn setup() -> (Client, String) {
+    |                ^^^^^^ not found in this scope
+
+error[E0425]: cannot find type `Client` in this scope
+   --> crates/snapback4-core/src/engine/postgres/literal_tests.rs:412:25
+    |
+412 | fn wait_blocked(c: &mut Client, holder: i32, contender: i32) {
+    |                         ^^^^^^ not found in this scope
+
+error[E0433]: cannot find type `Client` in this scope
+  --> crates/snapback4-core/src/engine/postgres/literal_tests.rs:16:5
+   |
+16 |     Client::connect(
+   |     ^^^^^^ use of undeclared type `Client`
+
+error[E0308]: mismatched types
+   --> crates/snapback4-core/src/engine/postgres/literal_tests.rs:564:41
+    |
+564 |                         &[&1i64, &2i64, &"digest", &0i64, &"op"],
+    |                                         ^^^^^^^^^ expected `&i64`, found `&&str`
+    |
+    = note: expected reference `&i64`
+               found reference `&&'static str`
+
+warning: unused import: `LedgerTransaction`
+ --> crates/snapback4-core/src/store_port/tests.rs:2:50
+  |
+2 | use crate::{RuntimeError, ledger::{LedgerReader, LedgerTransaction}, revocation::{self, ChangeEvidence}};
+  |                                                  ^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+error[E0433]: cannot find type `SimpleQueryMessage` in this scope
+   --> crates/snapback4-core/src/engine/postgres/literal_tests.rs:543:32
+    |
+543 |                         if let SimpleQueryMessage::Row(r) = m {
+    |                                ^^^^^^^^^^^^^^^^^^ use of undeclared type `SimpleQueryMessage`
+
+Some errors have detailed explanations: E0308, E0425, E0433.
+For more information about an error, try `rustc --explain E0308`.
+warning: `snapback4-core` (lib test) generated 1 warning
+error: could not compile `snapback4-core` (lib test) due to 7 previous errors; 1 warning emitted
