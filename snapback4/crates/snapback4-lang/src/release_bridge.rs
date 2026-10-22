@@ -113,7 +113,10 @@ pub fn loosen(target:&[(String,String)],current:&[(String,String)])->Bridge {
         if name!=&table.name {continue;} // Alias lookup entries are not declarations.
         if names.contains(name)||aliases.contains_key(name)||table.renamed_from.as_ref().is_some_and(|old|names.contains(old)){continue;}
         affected.insert(name.clone());
-        additions.push_str(&retained_declaration(file,text,table,&aliases));additions.push('\n');
+        match retained_declaration(file,text,table,&aliases) {
+            Ok(source)=>{additions.push_str(&source);additions.push('\n');},
+            Err(reason)=>domain_diagnostics.push(crate::diag::type_error(&table.site,reason,"retain an authored compatible guarded source for this table mapping").guide("deploy")),
+        }
         changes.push(format!("new table {name}: retained with its current rules; old operations may not expose it"));
     }
     if !additions.is_empty() {let mut name="rollback-retained.q".to_owned();while sources.iter().any(|(f,_)|f==&name){name.insert_str(0,"retained-");}sources.push((name,additions));}
@@ -134,11 +137,14 @@ fn offset(text:&str,line:u32,col:u32)->usize {
 pub fn type_span(file:&str,text:&str,column:&ast::ColumnDecl)->Option<(usize,usize)> {
     let(tokens,_)=lexer::lex(file,text);let at=tokens.iter().position(|t|t.site==column.site)?;
     let start=tokens.get(at+2)?;let mut depth=0;
-    for token in tokens.iter().skip(at+2) {
-        if depth==0 && (token.kind==Kind::Newline || matches!(token.value.as_str(),"default"|"renamed"|"on"|"read"|"written"|"readable")) {
+    for (ordinal,token) in tokens.iter().skip(at+2).enumerate() {
+        // A nominal type may itself be named `default`, `read`, etc. Only
+        // recognize metadata after consuming the first token of the type.
+        if ordinal>0 && depth==0 && (token.kind==Kind::Newline || matches!(token.value.as_str(),"default"|"renamed"|"on"|"read"|"written"|"readable")) {
             // End before whitespace preceding metadata/comment/newline.
             let end=offset(text,token.site.line,token.site.col);
-            return Some((offset(text,start.site.line,start.site.col),text[..end].trim_end().len()));
+            let start=offset(text,start.site.line,start.site.col);let end=text[..end].trim_end().len();
+            return (start<=end).then_some((start,end));
         }
         match token.value.as_str(){"("|"["=>depth+=1,")"|"]"=>depth-=1,_=>()}
     }None
@@ -150,9 +156,9 @@ fn declaration(text:&str,line:u32)->String {
 }
 // Rewrite only structural table references; strings, column names and bound
 // rule parameters retain their spelling and policy meaning.
-pub(super) fn retained_declaration(file:&str,text:&str,table:&ast::TableDecl,aliases:&BTreeMap<String,String>)->String {
+pub(super) fn retained_declaration(file:&str,text:&str,table:&ast::TableDecl,aliases:&BTreeMap<String,String>)->Result<String,String> {
     let mut source=declaration(text,table.site.line);
-    let mut decl=parser::parse_document(file,&source).0.tables.remove(0);
+    let mut decl=parser::parse_document(file,&source).0.tables.into_iter().next().ok_or("missing retained table declaration")?;
     let mut edits=Vec::new();
     fn remap_type(t:&mut ast::ScalarType,aliases:&BTreeMap<String,String>) {
         match &mut t.kind {TypeKind::Ref{table}=>{if let Some(name)=aliases.get(table){*table=name.clone();}},TypeKind::List{item,..}=>remap_type(item,aliases),_=>()}
@@ -182,9 +188,14 @@ pub(super) fn retained_declaration(file:&str,text:&str,table:&ast::TableDecl,ali
             for pair in tokens[start..end].windows(2) {if pair[0].kind==Kind::Word && pair[1].value=="[" {if let Some(name)=aliases.get(&pair[0].value){let start=offset(&source,pair[0].site.line,pair[0].site.col);edits.push((start,start+pair[0].value.len(),name.clone()));}}}
         }
     }
-    edits.sort();edits.dedup();edits.sort_by_key(|e|std::cmp::Reverse(e.0));
+    edits.sort();edits.dedup();
+    if edits.iter().any(|(a,b,_)|a>b||*b>source.len()||!source.is_char_boundary(*a)||!source.is_char_boundary(*b))
+        || edits.windows(2).any(|pair|pair[0].1>pair[1].0) {
+        return Err("unsupported or overlapping retained-table source spans".into());
+    }
+    edits.sort_by_key(|e|std::cmp::Reverse(e.0));
     for (start,end,value) in edits {source.replace_range(start..end,&value);}
-    source
+    Ok(source)
 }
 fn join(old:&ast::ScalarType,new:&ast::ScalarType,tables:&BTreeMap<String,(&String,&String,ast::TableDecl)>)->Option<ast::ScalarType> {
     let kind=match (&old.kind,&new.kind) {

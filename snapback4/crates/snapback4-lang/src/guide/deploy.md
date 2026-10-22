@@ -154,7 +154,7 @@ A table declares `table observations renamed from behaviors:` to preserve its ro
 
 Computed `down` cannot replace files/images, asset lists, references or a missing table. Required → optional media, an album becoming empty, or nullable money needs a generated loosened-target bridge when no truthful scalar substitution exists. Review target operations reading loosened columns and nullable UI assumptions. Keep current safety guards absent from the target; retaining new tables does not make them visible through frozen old operations. Automatic registered views handle compatible widenings. For an authored bridge, deploy it as a new release with `--restore-dormant`, first with `--check`.
 
-Save this script and run it with Node. `PRODUCTION_DIR` selects its persistent store; reruns preserve rows/users. It proves backfill, privacy and rollback/forward behavior. Rollback restores v1's broader reads; bridge if inappropriate. REL5 owns reactivation/old-client reporting; SEC3 owns privacy/audit.
+Save this script and run it with Node. `PRODUCTION_DIR` selects its persistent store; reruns preserve rows/users. It proves backfill, privacy and rollback/forward behavior. Default rollback preserves current privacy through a registered view; `--exact` deliberately restores v1's broader reads after an explicit review. REL5 owns reactivation/old-client reporting; SEC3 owns privacy/audit.
 
 ```js
 // day-two-production.mjs — this exact fence runs against the packed package.
@@ -195,10 +195,9 @@ query ticket(ticket: tickets):
   return tickets[ticket]
 `;
 const v2 = v1
-  .replace("  legacy: text <=200 ?\n", "")
   .replace("  owner: principal", "  vehicleClass: enum('car', 'van', 'commercial')\n  owner: principal")
   .replace("  read <- .owner = viewer or exists roles[principal = viewer, role = 'reviewer']", "  read <- .owner = viewer")
-  .replace("{owner:viewer, body, legacy:body, weight, length}", "{owner:viewer, body, weight, length, vehicleClass:'commercial' if weight > 3500 else 'van' if length >= 500 else 'car'}")
+  .replace("{owner:viewer, body, legacy:body, weight, length}", "{owner:viewer, body, legacy:body, weight, length, vehicleClass:'commercial' if weight > 3500 else 'van' if length >= 500 else 'car'}")
   + `backfill tickets vehicleClass(weight: int, length: int):
   {vehicleClass:'commercial' if weight > 3500 else 'van' if length >= 500 else 'car'}
 -- Spec: only the ticket owner may revise its weight.
@@ -221,7 +220,7 @@ async function snapshot() {
   assert.equal(full.rows.length, count, "complete population");
   return new Map(full.rows.map(row => [row[0], row]));
 }
-if (existsSync(directory + "/store.sqlite")) await rollback(directory, 1);
+if (existsSync(directory + "/store.sqlite")) await rollback(directory, 1, {args:["--exact"]});
 else await deploy(directory, "versions/v1");
 const host = await startServe(directory);
 try {
@@ -259,6 +258,10 @@ try {
   const allV2 = await snapshot(); assert.equal(allV2.size, historical.size + 1);
   await rollback(directory, 1);
   assert.deepEqual(await snapshot(), allV2, "native rows preserved");
+  assert.equal((await post("/q/ticket", reviewer, {ticket})).data, null, "default view keeps current privacy");
+  assert.equal((await post("/q/ticket", alice, {ticket})).data.vehicleClass, "car");
+  // Deliberate original-source compatibility exercise; default keeps v2 policy.
+  await rollback(directory, 1, {args:["--exact"]});
   const oldView = (await post("/q/ticket", reviewer, {ticket})).data;
   assert.equal(oldView.body, "historical ticket"); assert.ok(!("vehicleClass" in oldView));
   assert.equal((await post("/q/ticket", alice, {ticket:oldCall.result.id})).data.legacy, "old-shaped call on v2", "declared reverse view for native row");
@@ -270,7 +273,7 @@ try {
   assert.deepEqual(await snapshot(), changed, "complete population preserved");
   assert.equal((await post("/q/ticket", alice, {ticket})).data.vehicleClass, "commercial", "old edit caught up");
   assert.equal((await post("/q/ticket", reviewer, {ticket})).data, null, "privacy restored");
-  console.log(JSON.stringify({status:"passed", persistent:true, before:before.size, after:changed.size, backfill:"car → commercial after v1 edit", privacy:"v1 broad → v2 private → v1 broad → v2 private"}));
+  console.log(JSON.stringify({status:"passed", persistent:true, before:before.size, after:changed.size, backfill:"car → commercial after v1 edit", privacy:"v1 broad → v2 private → default private → exact v1 broad → v2 private"}));
 } finally { await host.stop(); }
 ```
 Storage, users and rows survive. Resolve reported conflicts through a truthful bridge.

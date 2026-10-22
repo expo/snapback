@@ -82,7 +82,14 @@ pub(super) fn prepare(
         let widening=snapback4_lang::release_bridge::requires_view(&original,&current);
         let defaulting=super::rollback_foresight::missing_defaults(&bound.schema,&old.schema)?;
         if !defaulting.is_empty(){return Err(format!("E_ADOPT: rollback to release {target} would misrepresent a removed defaulted column {}; declare a truthful cross-table down before deploy: {}",defaulting.join(", "),risks.join("; ")))}
-        if !widening {
+        // Quarry text is only part of the authored execution closure. A worker
+        // or native-only repair must not restore an older executable behind
+        // unchanged intent declarations. Metadata-only registration is excluded
+        // by the shared executable digest, keeping equal-source no-ops finite.
+        let closure_changed = !bound.invariants.is_empty()
+            && crate::release_files::executable_digest(&old_root)?
+                != crate::release_files::executable_digest(stage)?;
+        if !widening && !closure_changed {
             continue;
         }
         if crate::dev_worker::source(&Project {root:stage.into()}).is_some()

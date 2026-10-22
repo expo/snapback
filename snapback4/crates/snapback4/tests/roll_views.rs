@@ -23,6 +23,23 @@ fn current_first_worker_dependency_cannot_disappear_from_an_intent_view() {
     }
 }
 struct App(PathBuf);
+
+#[test]
+fn unchanged_quarry_cannot_roll_back_an_executable_only_policy_repair() {
+    let app=App::new();
+    app.source("table docs:\n  owner: principal\n  public\n  online only\ninvariant docs.read only true\n");
+    let worker=app.0.join("snapback/worker.mjs");fs::write(&worker,"export {}; // original\n").unwrap();
+    app.ok(&["deploy","deployment"]);
+    app.ok(&["deploy","deployment"]); // Identical executable remains a no-op.
+    assert_eq!(app.json(&["releases","deployment"])["current"],1);
+    fs::write(&worker,"export {}; // policy repair with identical Quarry\n").unwrap();
+    for check in [true,false] {
+        let args=if check {vec!["deploy","deployment","--check"]}else{vec!["deploy","deployment"]};
+        let out=app.run(&args);assert!(!out.status.success(),"{}",text(&out));
+        assert!(text(&out).contains("authored worker bundle"),"{}",text(&out));
+        assert_eq!(app.json(&["releases","deployment"])["current"],1);
+    }
+}
 impl App {
     fn new() -> Self {
         static NEXT: AtomicU64 = AtomicU64::new(0);

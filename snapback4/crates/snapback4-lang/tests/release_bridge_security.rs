@@ -377,10 +377,7 @@ fn typed_identity_rename_retains_new_argument_alias_metadata() {
         .find(|p| p.program.name == "one")
         .unwrap()
         .program;
-    assert_eq!(
-        p.argument("legacyId").map(|(name, _)| name),
-        Some("id")
-    );
+    assert_eq!(p.argument("legacyId").map(|(name, _)| name), Some("id"));
 }
 
 #[test]
@@ -405,11 +402,112 @@ fn nominal_identity_cannot_reparse_as_a_primitive_argument_or_column() {
 #[test]
 fn swapping_module_bodies_is_a_policy_change_even_with_identical_text_multisets() {
     let schema="table docs:\n  owner: principal\n  public\n  online only\ninvariant docs.a.create only viewer = 'service:ops'\n";
-    let open="mutation create():\n  return insert docs {owner:viewer}\n";
+    let open = "mutation create():\n  return insert docs {owner:viewer}\n";
     let guarded="mutation create():\n  require viewer = 'service:ops' else OPS\n  return insert docs {owner:viewer}\n";
-    let old=vec![("schema.q".into(),schema.into()),("a.q".into(),open.into()),("b.q".into(),guarded.into())];
-    let next=vec![("schema.q".into(),schema.into()),("a.q".into(),guarded.into()),("b.q".into(),open.into())];
-    assert!(compile(&old).diagnostics.is_empty());assert!(compile(&next).diagnostics.is_empty());
-    assert!(release_bridge::requires_view(&old,&next));
-    let bridge=release_bridge::loosen(&old,&next);assert!(bridge.diagnostics.is_empty());assert_eq!(bridge.sources,next);
+    let old = vec![
+        ("schema.q".into(), schema.into()),
+        ("a.q".into(), open.into()),
+        ("b.q".into(), guarded.into()),
+    ];
+    let next = vec![
+        ("schema.q".into(), schema.into()),
+        ("a.q".into(), guarded.into()),
+        ("b.q".into(), open.into()),
+    ];
+    assert!(compile(&old).diagnostics.is_empty());
+    assert!(compile(&next).diagnostics.is_empty());
+    assert!(release_bridge::requires_view(&old, &next));
+    let bridge = release_bridge::loosen(&old, &next);
+    assert!(bridge.diagnostics.is_empty());
+    assert_eq!(bridge.sources, next);
+}
+
+#[test]
+fn nominal_metadata_words_remain_types_before_column_and_argument_modifiers() {
+    let old="table docs:\n  owner: principal\n  parent: docs ?\n  public\n  online only\nquery echo(id: docs ? alias legacy, fallback: docs default 'sample-id', retired: docs deprecated, ids: [docs] 0..3):\n  return id\n";
+    for name in [
+        "alias",
+        "default",
+        "renamed",
+        "deprecated",
+        "read",
+        "written",
+        "readable",
+        "on",
+    ] {
+        let next = old.replace("docs", name).replace(
+            &format!("table {name}:"),
+            &format!("table {name} renamed from docs:"),
+        ) + &format!("invariant {name}.read only true\n");
+        let sources = vec![("schema.q".into(), next)];
+        let checked = compile(&sources);
+        assert!(
+            checked.diagnostics.is_empty(),
+            "{name}: {:?}",
+            checked.diagnostics
+        );
+        let bridge = release_bridge::loosen(&[("schema.q".into(), old.into())], &sources);
+        assert!(
+            bridge.diagnostics.is_empty(),
+            "{name}: {:?}",
+            bridge.diagnostics
+        );
+        let bound = compile(&bridge.sources);
+        assert!(bound.diagnostics.is_empty());
+        let p = &bound
+            .programs
+            .iter()
+            .find(|p| p.program.name == "echo")
+            .unwrap()
+            .program;
+        assert_eq!(p.argument("legacy").map(|(name, _)| name), Some("id"));
+        assert!(bridge.sources[0].1.contains("alias legacy"));
+        assert!(bridge.sources[0].1.contains("default 'sample-id'"));
+        assert!(bridge.sources[0].1.contains("deprecated"));
+    }
+}
+
+#[test]
+fn complete_current_contract_includes_expanded_operation_aliases() {
+    let old="table docs:\n  owner: principal\n  public\n  online only\nquery one():\n  return docs first 10 by .id\nalias oldRead = one\n";
+    let next = format!("{old}invariant docs.read only true\n");
+    let target = vec![("schema.q".into(), old.into())];
+    let kept = release_bridge::loosen(&target, &[("schema.q".into(), next.clone())]);
+    assert!(kept.diagnostics.is_empty());
+    assert!(compile(&kept.sources)
+        .programs
+        .iter()
+        .any(|p| p.program.name == "oldRead"));
+    let dropped = release_bridge::loosen(
+        &target,
+        &[("schema.q".into(), next.replace("alias oldRead = one\n", ""))],
+    );
+    assert!(!dropped.diagnostics.is_empty());
+}
+
+#[test]
+fn job_bindings_participate_in_capture_checks_and_plain_text_is_bounded() {
+    let old="table docs:\n  owner: principal\n  public\n  online only\njob probe():\n  for row in docs:\n    docs = 'unused'\n";
+    let next = format!(
+        "{}invariant records.read only true\n",
+        old.replace("table docs:", "table records renamed from docs:").replace("in docs:", "in records:")
+    );
+    let bridge = release_bridge::loosen(
+        &[("schema.q".into(), old.into())],
+        &[("schema.q".into(), next)],
+    );
+    assert!(bridge.diagnostics.iter().any(|d| d.message.contains("captures")),"{:?}",bridge.diagnostics);
+    let b = compile(&[(
+        "schema.q".into(),
+        "query echo(value: text):\n  return value\n".into(),
+    )]);
+    assert!(b.diagnostics.is_empty());
+    assert!(matches!(
+        b.programs[0].program.args["value"],
+        snapback4_core::ir::ArgType::Text {
+            min: 0,
+            max: 10000,
+            format: None
+        }
+    ));
 }

@@ -22,7 +22,15 @@ pub(super) fn engine_at(project: &Project, bound: &Bound, options: &Options, now
     // Residency defers ordinary maintains until after bulk loading and builds
     // them once; column derives stay installed and maintain as rows insert.
     let residency = options.flags.contains_key("residency");
-    if residency { schema.maintains.retain(|m| m.private.is_some()); }
+    if residency {
+        schema.maintains.retain(|m| m.private.is_some());
+        // This private bulk-load schema intentionally defers ordinary maintains.
+        // Its admission prices/receipt graph must describe that reduced source,
+        // not carry the full compiled schema's now-stale derived metadata.
+        schema.source_reservations.clear();
+        schema.receipt_dependencies.clear();
+        schema.prepare_receipt_dependencies();
+    }
     let store = snapback4_core::store_port::AnyStore::memory().map_err(|error| format!("cannot open a store: {error}"))?;
     let mut engine = Engine::new_at(store, schema, bound.programs.iter().map(|p| p.program.clone()), now).map_err(|error| format!("cannot open a store: {error}"))?;
     let mut names = Vec::new();

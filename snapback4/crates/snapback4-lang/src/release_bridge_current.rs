@@ -333,7 +333,7 @@ fn alpha(target: &[Source], current: &[Source]) -> Result<Option<Vec<Source>>, S
     let (tokens, _) = lexer::lex(file, text);
     let mut edits = Vec::<(usize, usize, String)>::new();
     for table in &doc.tables {
-        let mut source = super::release_bridge::retained_declaration(file, text, table, &names);
+        let mut source = super::release_bridge::retained_declaration(file, text, table, &names)?;
         if let Some(name) = names.get(&table.name) {
             let prior = old
                 .tables
@@ -428,6 +428,11 @@ fn alpha(target: &[Source], current: &[Source]) -> Result<Option<Vec<Source>>, S
     }
     edits.sort_by_key(|(a, b, _)| (*a, *b));
     edits.dedup();
+    if edits.iter().any(|(a, b, _)| {
+        a > b || *b > text.len() || !text.is_char_boundary(*a) || !text.is_char_boundary(*b)
+    }) {
+        return Err("an unsupported source span needs an authored compatible mapping".into());
+    }
     if edits.windows(2).any(|p| p[0].1 > p[1].0) {
         return Err("overlapping source spans in table identity mapping".into());
     }
@@ -450,15 +455,15 @@ fn header(
     let line = source.lines().next().ok_or("missing table header")?;
     let (tokens, _) = lexer::lex(file, line);
     let name = tokens
-        .iter()
-        .find(|t| t.kind == Kind::Word && t.value == from)
+        .get(1)
+        .filter(|t| t.kind == Kind::Word && t.value == from)
         .ok_or("missing table name span")?;
     let mut edits = vec![(
         offset(line, name.site.line, name.site.col),
         offset(line, name.site.line, name.site.col) + from.len(),
         to.to_owned(),
     )];
-    if let Some(at) = tokens.iter().position(|t| t.value == "renamed") {
+    if let Some(at) = tokens.iter().enumerate().skip(2).find_map(|(i,t)| (t.value=="renamed").then_some(i)) {
         let last = tokens
             .get(at + 2)
             .filter(|_| tokens.get(at + 1).is_some_and(|t| t.value == "from"))
@@ -499,8 +504,10 @@ fn arg_type(
         .ok_or("missing argument type colon")?;
     let start = tokens.get(colon + 1).ok_or("missing argument type")?;
     let mut depth = 0_i32;
-    for t in tokens.iter().skip(colon + 1) {
-        if depth == 0
+    for (ordinal, t) in tokens.iter().skip(colon + 1).enumerate() {
+        // `alias` and `default` are legal first nominal type tokens too.
+        if ordinal > 0
+            && depth == 0
             && (matches!(
                 t.value.as_str(),
                 "," | ")" | "=" | "default" | "alias" | "renamed" | "deprecated"
@@ -508,7 +515,9 @@ fn arg_type(
         {
             return Ok((
                 offset(text, start.site.line, start.site.col),
-                text[..offset(text, t.site.line, t.site.col)].trim_end().len(),
+                text[..offset(text, t.site.line, t.site.col)]
+                    .trim_end()
+                    .len(),
             ));
         }
         match t.value.as_str() {

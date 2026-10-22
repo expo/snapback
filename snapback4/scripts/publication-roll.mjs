@@ -133,5 +133,11 @@ query doc(id: docs):
     assert.equal(restarted.state,'sent');assert.equal(restarted.result.owner,alice.principal);
     await cli('rollback',intentDir,'--to','latest');
   } finally {await host.stop();}
-  return {status:'passed',visibleRollback:true,currentGuards:true,currentIntentWorkflow:true,editedOutputs:true,referenceRename:true,privateFileExtraction:true,cycles:2};
+  const workerSource=source('intent-worker',intentNext);const worker=join(workerSource,'worker.mjs');
+  writeFileSync(worker,'export {}; // original\n');const workerDir=join(cwd,'roll-worker-intent');
+  await cli('deploy',workerDir,'--schema',workerSource);await cli('deploy',workerDir,'--schema',workerSource);
+  writeFileSync(worker,'export {}; // changed executable, identical Quarry\n');
+  const refused=await proofCli(['deploy',workerDir,'--schema',workerSource,'--check'],{cwd,env:{SNAPBACK4_BIN:undefined}});
+  assert.equal(refused.code,1);assert.match(refused.stderr+refused.stdout,/authored worker bundle/);
+  return {status:'passed',visibleRollback:true,currentGuards:true,currentIntentWorkflow:true,executableOnlyRefusal:true,editedOutputs:true,referenceRename:true,privateFileExtraction:true,cycles:2};
 }
