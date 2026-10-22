@@ -583,6 +583,11 @@ card/rule-recipes/45:addPolicyCheck | never
 card/rule-recipes/45:signPolicyProposal | never
 card/rule-recipes/46:newVersionedTask | never
 card/rule-recipes/46:transitionTask | never
+card/rule-recipes/47:dxCustomerGuard | never
+card/rule-recipes/47:dxEdit | never
+card/rule-recipes/47:dxOpen | never
+card/rule-recipes/47:dxRole | never
+card/rule-recipes/47:dxStaffEdit | never
 card/rule-recipes/4:addLetter | never
 card/rule-recipes/5:addFile | eligible
 card/rule-recipes/5:addFile | files/insert | {"Eq":[{"Field":"owner"},"Viewer"]} | read rule

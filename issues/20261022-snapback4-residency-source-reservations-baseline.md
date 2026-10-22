@@ -21,9 +21,18 @@ source and build outputs were removed after the comparison.
 The full run also reports the same schema error in
 `timeline_adoption::retirement_resets_dependent_aggregates_even_when_all_names_survive`
 and `timeline_adoption::check_and_adoption_agree_across_expiry_through_changes_and_following_presence`.
-Those two are not independently baseline-qualified by this comparison; investigate
-them alongside the confirmed residency failures. Do not normalize away the
-reservation census or raise a bound to clear them.
+Both now reproduce on an unmodified origin/main git-archive source snapshot,
+as do eight `snapback4-device --test readauth` recipe/bridge outcomes:
+`recipe_{post,repost}_{memory,sqlite}` and
+`bridge_{publish,repost}_{memory,sqlite}`. All twelve failures share the exact
+source-reservation schema error. The baseline readauth census passes (80 passed,
+8 failed overall); timeline_adoption reports 13 passed and 2 failed.
+Commands, source commit and cleanup are recorded in
+`~/sb4-loop/dx7-baseline-extra-results.json`; complete logs are
+`dx7-baseline-readauth.log` and `dx7-baseline-timeline_adoption.log` beside it.
+The disposable source and target were removed. Investigate these alongside
+the residency failures. Do not normalize away the reservation census or raise
+a bound to clear them.
 
 Reproduction: run the two named `init` tests on origin/main with
 `CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0`.
