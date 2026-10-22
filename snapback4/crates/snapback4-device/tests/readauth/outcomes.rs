@@ -145,6 +145,7 @@ fn recipe_fanout<H:Host>(mut h:H,op:&str) {
     let mut b=recipe::built();
     let tick=snapback4_lang::compile(&[("schema.q".into(),TICK.into())]);
     b.schema.tables.extend(tick.schema.tables);b.schema.operations.extend(tick.schema.operations);b.programs.extend(tick.programs);
+    b.schema.source_reservations.clear();b.schema.receipt_dependencies.clear();b.schema.prepare_receipt_dependencies();
     let backend=Backend{generation:1,schema:b.schema,programs:b.programs.into_iter().map(|p|p.program).collect()};
     let mut e=Engine::memory(backend.schema.clone(),backend.programs.clone()).unwrap();
     for who in ["alice","bob"] {execute(&mut e,&backend,"social.register",who,json!({}),vec![]);}
@@ -221,6 +222,7 @@ fn bridge<H:Host>(mut h:H,op:&str) {
     let mut bound=super::census::installed_bridge();
     let tick=snapback4_lang::compile(&[("schema.q".into(),TICK.into())]);
     bound.schema.tables.extend(tick.schema.tables);bound.schema.operations.extend(tick.schema.operations);bound.programs.extend(tick.programs);
+    bound.schema.source_reservations.clear();bound.schema.receipt_dependencies.clear();bound.schema.prepare_receipt_dependencies();
     let b=Backend {generation:1,schema:bound.schema,programs:bound.programs.into_iter().map(|p|p.program).collect()};
     let mut e=Engine::memory(b.schema.clone(),b.programs.clone()).unwrap();
     for who in ["alice","bob"] {execute(&mut e,&b,"social.saveProfile",who,json!({"name":who}),vec![]);}
