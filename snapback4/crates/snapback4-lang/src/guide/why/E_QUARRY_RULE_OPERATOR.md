@@ -11,11 +11,11 @@ same way. Anything else is a check in the mutation, `require … else CODE`:
 | `created t[..]` | insert | `created orgs[.org]` |
 | `<`, `<=`, `>`, `>=` | insert, over the row's own required int/time/decimal/money columns and int literals (minor units beside decimal or money); named `update (old, next)` images, by the same rule | `.stars >= 1 and .stars <= 5`; `next.bid > old.bid`; `next.available >= 0` |
 | `and`, `or`, `not` | any rule | `not .archived` |
-| `now`, arithmetic, helper calls | no rule: `require` in the mutation | `require now < s.startsAt else TOO_LATE` |
+| `now`, arithmetic, effectful or unsupported helper bodies | no rule: `require` in the mutation | `require now < s.startsAt else TOO_LATE` |
 | `else CODE` | no rule: a rule refusal is `E_RULE` | `require exists managers[viewer] else NOT_MANAGER` |
 
 E_QUARRY_RULE_OPERATOR names a term a table rule does not evaluate: the clock,
-arithmetic, a helper call, or an ordered comparison outside an insert row's own
+arithmetic, a helper body outside the pure audience fragment, or an ordered comparison outside an insert row's own
 columns and a named `update (old, next)`. A read rule is an audience, so it
 cannot change with time or compare magnitudes: filter the query, or hide rows
 past a time with `expire at .until`. The rewrite moves your comparison into the
@@ -29,3 +29,8 @@ viewer and .available >= 0` becomes `update (old, next) <- old.owner = viewer
 and old.available >= 0 and next.owner = viewer and next.available >= 0`, every
 clause kept. To bound only the new value, drop the comparison from the rule and
 `require available >= 0 else INVALID_AVAILABLE` in the mutation.
+
+Pure expression audience helpers and single-return blocks expand before planning
+to the existing rule grammar. Pass focal fields explicitly as typed arguments;
+`guide rules --section "Private immutable payloads and audience helpers"` runs
+the supported role/owner pattern.
