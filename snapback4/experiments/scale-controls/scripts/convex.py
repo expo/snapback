@@ -229,6 +229,13 @@ process.stdout.write(JSON.stringify({jwks:'data:text/plain;charset=utf-8;base64,
         self.metrics(directory/(prefix+'.metrics-after.txt'))
         return result
 
+    def before_trials(self,directory,workload,writers,keys,rows):
+        if keys!='sharded': return
+        # Convex's sharded counter creates its documents before the hot loop, so each
+        # measured write patches one shard instead of racing an insert.
+        created=self.call('chat:ensureShards',{'counter':256,'shards':32},'mutation',admin=True)
+        write(directory/'ensure-shards.json',created)
+
     def cell(self,workload,rows,delay,writers,keys):
         super().cell(workload,rows,delay,writers,keys)
         path=self.out/f'{workload.lower()}-n{rows}-d{delay}-c{writers}-{keys}'/'cell.json'
@@ -253,18 +260,25 @@ def seed(rows):
 
 def main():
     p=argparse.ArgumentParser()
-    p.add_argument('mode',choices=['fixture','cell','matrix','all','serve'])
+    p.add_argument('mode',choices=['fixture','cell','matrix','all','serve','advocate'])
     p.add_argument('--out',required=True);p.add_argument('--rows',type=int,default=1000000)
     p.add_argument('--workload',default='W1');p.add_argument('--writers',type=int,default=128)
     p.add_argument('--keys',default='disjoint');p.add_argument('--delay-us',type=int,default=0)
     p.add_argument('--tunnel-base',type=int,default=61000);p.add_argument('--load-cores',default=run.LOAD_CORES)
-    p.add_argument('--warmup-ms',type=int,default=500);p.add_argument('--duration-ms',type=int,default=2000)
+    p.add_argument('--warmup-ms',type=int);p.add_argument('--duration-ms',type=int)
     p.add_argument('--repeats',type=int,default=3);p.add_argument('--max-rate',type=int,default=128000)
     p.add_argument('--rates',type=int,nargs='+');args=p.parse_args();args.target='convex'
+    # Advocate soaks long enough for isolate compile and the query cache to leave the measured window.
+    if args.warmup_ms is None: args.warmup_ms=10000 if args.mode=='advocate' else 500
+    if args.duration_ms is None: args.duration_ms=20000 if args.mode=='advocate' else 2000
     if args.mode in ('matrix','all'):
         delays=[0,500] if args.mode=='matrix' else [0,200,500,1000]
         matrix=[(w,n,d,128,'disjoint') for n in [100000,1000000] for d in delays for w in ['W1','W2','W3']]
         matrix += [(w,1000000,d,c,k) for d in delays for c in [1,2,4,8,16,32,64,128,256] for w,k in [('W4','disjoint'),('W5','same'),('W5','hot1')]]
+    elif args.mode=='advocate':
+        # Headline cells at the matched budget, plus the labelled sharded counter.
+        matrix=[(w,1000000,d,128,'disjoint') for d in (0,500) for w in ('W1','W2','W3')]
+        matrix += [(w,1000000,d,32,k) for d in (0,500) for w,k in (('W4','disjoint'),('W5','same'),('W5','hot1'),('W5','sharded'))]
     elif args.mode=='cell':matrix=[(args.workload,args.rows,args.delay_us,args.writers,args.keys)]
     else:matrix=[]
     count=max(([args.writers] if args.mode=='serve' else [])+[32 if w in ['W1','W2','W3'] else c for w,n,d,c,k in matrix]+[32])+1

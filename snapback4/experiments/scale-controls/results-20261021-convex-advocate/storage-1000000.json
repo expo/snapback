@@ -1,0 +1,32 @@
+[
+  {
+    "table": "leases",
+    "heap_bytes": 40960,
+    "index_bytes": 16384,
+    "estimated_rows": 1
+  },
+  {
+    "table": "persistence_globals",
+    "heap_bytes": 106496,
+    "index_bytes": 16384,
+    "estimated_rows": 10
+  },
+  {
+    "table": "read_only",
+    "heap_bytes": 0,
+    "index_bytes": 8192,
+    "estimated_rows": 0
+  },
+  {
+    "table": "documents",
+    "heap_bytes": 607223808,
+    "index_bytes": 579592192,
+    "estimated_rows": 1866527
+  },
+  {
+    "table": "indexes",
+    "heap_bytes": 1119100928,
+    "index_bytes": 1575706624,
+    "estimated_rows": 6018713
+  }
+]

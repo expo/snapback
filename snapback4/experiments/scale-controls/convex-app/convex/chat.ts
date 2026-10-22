@@ -49,6 +49,48 @@ export const increment = mutation({ args: { counter: v.number() }, handler: asyn
   await ctx.db.patch(c._id, { n: c.n + 1 });
   return { id: c.id, n: c.n + 1 };
 }});
+// Labelled row only. Headline `increment` still returns the single document's new total.
+// Convex's sharded-counter guidance: writers must not share one document, or OCC retries serialize them.
+// Shard by principal % 32. At C=32 the writer ids are 0..31, a bijection, so two writers never patch the same document.
+// A random shard plus the default 100 ms OCC backoff would miss the 100 ms write SLO on any retry.
+const SHARDS = 32;
+export const incrementSharded = mutation({ args: { counter: v.number() }, handler: async (ctx, a) => {
+  const p = await principal(ctx);
+  const c = await ctx.db.query("counters").withIndex("by_fixture_id", q => q.eq("id", a.counter)).unique();
+  if (!c) throw new Error("Missing");
+  if (c.owner_id === null) await member(ctx, p, c.room);
+  else if (c.owner_id !== p) throw new Error("Forbidden");
+  const shard = p % SHARDS;
+  const row = await ctx.db.query("counterShards").withIndex("by_counter_shard", q => q.eq("counter", a.counter).eq("shard", shard)).unique();
+  const n = (row ? row.n : 0) + 1;
+  if (row) await ctx.db.patch(row._id, { n });
+  else await ctx.db.insert("counterShards", { counter: a.counter, shard, n });
+  // Shard-local n. The exact total, including every shard, is the separate `count` query.
+  return { id: c.id, n };
+}});
+export const count = query({ args: { counter: v.number() }, handler: async (ctx, a) => {
+  const p = await principal(ctx);
+  const c = await ctx.db.query("counters").withIndex("by_fixture_id", q => q.eq("id", a.counter)).unique();
+  if (!c) throw new Error("Missing");
+  if (c.owner_id === null) await member(ctx, p, c.room);
+  else if (c.owner_id !== p) throw new Error("Forbidden");
+  const shards = await ctx.db.query("counterShards").withIndex("by_counter_shard", q => q.eq("counter", a.counter)).take(SHARDS + 1);
+  if (shards.length > SHARDS) throw new Error("shard page truncated");
+  return { id: c.id, n: c.n + shards.reduce((s, r) => s + r.n, 0) };
+}});
+// Admin-only. Insert n=0 shard rows before measurement so the hot path is a patch, not an insert race.
+export const ensureShards = internalMutation({ args: { counter: v.number(), shards: v.number() }, handler: async (ctx, a) => {
+  if (a.shards !== SHARDS) throw new Error("shard count");
+  let created = 0;
+  for (let shard = 0; shard < a.shards; shard++) {
+    const row = await ctx.db.query("counterShards").withIndex("by_counter_shard", q => q.eq("counter", a.counter).eq("shard", shard)).unique();
+    if (!row) {
+      await ctx.db.insert("counterShards", { counter: a.counter, shard, n: 0 });
+      created++;
+    }
+  }
+  return { created };
+}});
 export const post = mutation({ args: { room: v.number(), id: v.number(), at: v.number(), body: v.string() }, handler: async (ctx, a) => {
   const p = await principal(ctx);
   await member(ctx, p, a.room);
@@ -64,8 +106,14 @@ export const post = mutation({ args: { room: v.number(), id: v.number(), at: v.n
 }});
 // Admin-only observation; never used to execute measured operations.
 export const witness = internalQuery({ args: {}, handler: async ctx => {
-  const cs = await ctx.db.query("counters").take(257);
-  return { sum: cs.reduce((s,c) => s+c.n,0), hot: cs.find(c => c.id === 256)?.n };
+  // Index range, not a table scan. Fixture counter ids are 0..256.
+  const cs = await ctx.db.query("counters").withIndex("by_fixture_id", q => q.gte("id", 0)).take(258);
+  if (cs.length > 257) throw new Error("counter page truncated");
+  const shards = await ctx.db.query("counterShards").withIndex("by_counter_shard", q => q.eq("counter", 256)).take(SHARDS + 1);
+  if (shards.length > SHARDS) throw new Error("shard page truncated");
+  const extra = shards.reduce((s, c) => s + c.n, 0);
+  const hot = cs.find(c => c.id === 256)?.n ?? 0;
+  return { sum: cs.reduce((s,c) => s+c.n,0) + extra, hot: hot + extra };
 }});
 export const inspect = internalQuery({ args: {}, handler: async ctx => ({
   room: await ctx.db.query("rooms").withIndex("by_fixture_id", q => q.eq("id",0)).unique(),

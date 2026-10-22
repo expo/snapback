@@ -10,4 +10,7 @@ export default defineSchema({
     .index("by_fixture_id", ["id"]).index("by_room_at_id", ["room", "at", "id"]),
   counters: defineTable({ id: v.number(), owner_id: v.union(v.number(), v.null()), room: v.number(), n: v.number() })
     .index("by_fixture_id", ["id"]),
+  // Shard documents for the labelled W5 row. The headline counter document stays exact.
+  counterShards: defineTable({ counter: v.number(), shard: v.number(), n: v.number() })
+    .index("by_counter_shard", ["counter", "shard"]),
 });

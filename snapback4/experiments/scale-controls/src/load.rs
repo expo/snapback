@@ -37,11 +37,26 @@ struct Arrival {
     measured: bool,
     seq: u64,
 }
+struct SliceStats {
+    latency: Histogram<u64>,
+    n: u64,
+    errors: u64,
+}
+impl SliceStats {
+    fn new() -> Self {
+        Self {
+            latency: Histogram::new(3).unwrap(),
+            n: 0,
+            errors: 0,
+        }
+    }
+}
 struct Stats {
     latency: Histogram<u64>,
     service: Histogram<u64>,
     queue: Histogram<u64>,
     errors: BTreeMap<String, u64>,
+    slices: BTreeMap<u64, SliceStats>,
     success: u64,
     total_success: u64,
     sent: u64,
@@ -54,6 +69,7 @@ impl Stats {
             service: Histogram::new(3).unwrap(),
             queue: Histogram::new(3).unwrap(),
             errors: BTreeMap::new(),
+            slices: BTreeMap::new(),
             success: 0,
             total_success: 0,
             sent: 0,
@@ -66,6 +82,12 @@ impl Stats {
         self.queue.add(rhs.queue).unwrap();
         for (key, n) in rhs.errors {
             *self.errors.entry(key).or_default() += n;
+        }
+        for (t_s, slice) in rhs.slices {
+            let dst = self.slices.entry(t_s).or_insert_with(SliceStats::new);
+            dst.latency.add(slice.latency).unwrap();
+            dst.n += slice.n;
+            dst.errors += slice.errors;
         }
         self.success += rhs.success;
         self.total_success += rhs.total_success;
@@ -88,6 +110,7 @@ fn operation(o: &Options, worker: usize, seq: u64) -> Operation {
     };
     let room = (principal * 4 + (seq % 32) as i64) % 1024;
     let counter = if o.keys == "same"
+        || o.keys == "sharded"
         || (o.keys == "hot1" && (seq / o.workers as u64 + worker as u64 * 37).is_multiple_of(100))
     {
         256
@@ -135,7 +158,7 @@ pub async fn run(options: Options) -> Result<()> {
         "unknown workload"
     );
     anyhow::ensure!(
-        ["disjoint", "same", "hot1"].contains(&options.keys.as_str()),
+        ["disjoint", "same", "hot1", "sharded"].contains(&options.keys.as_str()),
         "unknown key mix"
     );
     let options = Arc::new(options);
@@ -146,6 +169,8 @@ pub async fn run(options: Options) -> Result<()> {
             Vec::new()
         },
     );
+    // Keep one idle connection per worker. Reqwest's default idle timeout is 90s,
+    // which covers a trial, so measured calls reuse the TCP session (TCP_NODELAY).
     let client = reqwest::Client::builder()
         .pool_max_idle_per_host(options.workers)
         .timeout(Duration::from_millis(options.deadline_ms))
@@ -175,7 +200,7 @@ pub async fn run(options: Options) -> Result<()> {
                     let request = if o.target == "supabase" {
                         crate::supabase::request(&client, &o.url, &op, &tokens)
                     } else if o.target == "convex" {
-                        crate::convex::request(&client, &o.url, &op, &tokens)
+                        crate::convex::request(&client, &o.url, &op, &tokens, &o.keys)
                     } else {
                         client.post(format!("{}/op", o.url)).json(&op)
                     };
@@ -215,16 +240,22 @@ pub async fn run(options: Options) -> Result<()> {
                     stats.total_success += 1;
                 }
                 if a.measured {
+                    let latency_ns = finished
+                        .saturating_duration_since(a.intended)
+                        .as_nanos()
+                        .max(1) as u64;
+                    let t_s = a
+                        .intended
+                        .saturating_duration_since(measured_start)
+                        .as_secs();
+                    let slice = stats.slices.entry(t_s).or_insert_with(SliceStats::new);
+                    slice.n += 1;
+                    slice.latency.record(latency_ns).unwrap();
+                    if error.is_some() {
+                        slice.errors += 1;
+                    }
                     stats.queue.record(queue.as_nanos().max(1) as u64).unwrap();
-                    stats
-                        .latency
-                        .record(
-                            finished
-                                .saturating_duration_since(a.intended)
-                                .as_nanos()
-                                .max(1) as u64,
-                        )
-                        .unwrap();
+                    stats.latency.record(latency_ns).unwrap();
                     stats
                         .service
                         .record(finished.duration_since(send).as_nanos().max(1) as u64)
@@ -305,7 +336,10 @@ pub async fn run(options: Options) -> Result<()> {
         "completed_in_window_per_s":stats.completed_in_window as f64/seconds,
         "elapsed_with_warmup_and_drain_s":elapsed,"slo_ms":slo,
         "slo_pass":p99<=slo && errors as f64/measured as f64<=0.001,
-        "latency":hist(&stats.latency),"dispatch_lag":hist(&stats.queue),"http_service":hist(&stats.service)})
+        "latency":hist(&stats.latency),"dispatch_lag":hist(&stats.queue),"http_service":hist(&stats.service),
+        "slices":stats.slices.iter().map(|(t_s,s)| json!({"t_s":t_s,"n":s.n,"errors":s.errors,
+            "p50_ms":s.latency.value_at_quantile(0.5) as f64/1e6,
+            "p99_ms":s.latency.value_at_quantile(0.99) as f64/1e6})).collect::<Vec<_>>()})
     );
     Ok(())
 }

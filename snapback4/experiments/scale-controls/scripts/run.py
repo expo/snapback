@@ -254,6 +254,9 @@ class Run:
     def app_pids(self):
         return [self.service[0].pid]
 
+    def before_trials(self,directory,workload,writers,keys,rows):
+        return
+
     def cell(self,workload,rows,delay,writers,keys):
         name=f'{workload.lower()}-n{rows}-d{delay}-c{writers}-{keys}'
         directory=self.out/name
@@ -267,6 +270,7 @@ class Run:
         self.ping(delay,directory/'rtt-before.json')
         pool=32 if workload in ('W1','W2','W3') else writers
         self.start_service(pool,delay,directory)
+        self.before_trials(directory,workload,writers,keys,rows)
         trials={}
         def at(rate):
             rate=max(1,int(rate))

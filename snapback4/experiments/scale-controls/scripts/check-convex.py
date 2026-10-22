@@ -66,6 +66,22 @@ try:
     denied('other_counter','increment',{'counter':0},'mutation',principal=1)
     checks['shared_counter']=call('increment',{'counter':256},'mutation',principal=1)['id']==256
     checks['exact_counters']=call('witness',admin=True)['sum']-before['sum']==2
+    def num(value): return int(value)
+    denied('nonmember_sharded','incrementSharded',{'counter':0},'mutation',principal=1)
+    ensured=call('ensureShards',{'counter':256,'shards':32},'mutation',admin=True)
+    checks['ensure_shards_idempotent']=num(call('ensureShards',{'counter':256,'shards':32},'mutation',admin=True)['created'])==0 and num(ensured['created'])>=0
+    w0=call('witness',admin=True); c0=call('count',{'counter':256})
+    doc0=call('increment',{'counter':256},'mutation',principal=2)
+    call('incrementSharded',{'counter':256},'mutation',principal=0)
+    call('incrementSharded',{'counter':256},'mutation',principal=1)
+    doc1=call('increment',{'counter':256},'mutation',principal=3)
+    c1=call('count',{'counter':256}); w1=call('witness',admin=True)
+    # c0 is taken before doc0. Shards do not change the headline document total.
+    # `count` is one authorized query and equals that document plus every shard.
+    shard_before=num(c0['n'])-(num(doc0['n'])-1)
+    checks['shards_do_not_bump_document']=num(doc1['n'])==num(doc0['n'])+1
+    checks['count_includes_shards']=num(c1['n'])==num(c0['n'])+4 and num(c1['n'])==num(doc1['n'])+shard_before+2
+    checks['witness_includes_shards']=num(w1['sum'])==num(w0['sum'])+4
     denied('nonmember_post','post',dict(room=0,id=-1,at=1800000000000,body='test'),'mutation',principal=1)
     denied('spoofed_sender','post',dict(room=0,id=-1,at=1800000000000,body='test',sender=1),'mutation')
     before=call('inspect',admin=True)

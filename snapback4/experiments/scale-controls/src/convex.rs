@@ -3,11 +3,23 @@ use crate::Operation;
 use reqwest::{Client, RequestBuilder};
 use serde_json::{Value, json};
 // @ref LLP 3000.009.001.002#4-controls — native function calls preserve the harness arrival schedule
-pub fn request(client: &Client, url: &str, op: &Operation, tokens: &[String]) -> RequestBuilder {
+pub fn request(
+    client: &Client,
+    url: &str,
+    op: &Operation,
+    tokens: &[String],
+    keys: &str,
+) -> RequestBuilder {
     let (kind, path, args) = match op.workload.as_str() {
         "W1" => ("query", "chat:point", json!({"message":op.message})),
         "W2" => ("query", "chat:page", json!({"room":op.room})),
         "W3" => ("query", "chat:inbox", json!({})),
+        // Labelled row: one shard document per writer. Headline W5 stays chat:increment.
+        "W5" if keys == "sharded" => (
+            "mutation",
+            "chat:incrementSharded",
+            json!({"counter":op.counter}),
+        ),
         "W4" | "W5" => ("mutation", "chat:increment", json!({"counter":op.counter})),
         _ => unreachable!(),
     };

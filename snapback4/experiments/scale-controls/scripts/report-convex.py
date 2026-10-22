@@ -28,9 +28,10 @@ def rate(r):
     n=r['summary']['highest_passing_offered_per_s']
     return f'{n:,}' if n is not None else 'no pass'
 headlines=[]
-for w,k in [('W1','disjoint'),('W2','disjoint'),('W3','disjoint'),('W4','disjoint'),('W5','same'),('W5','hot1')]:
+for w,k in [('W1','disjoint'),('W2','disjoint'),('W3','disjoint'),('W4','disjoint'),('W5','same'),('W5','hot1'),('W5','sharded')]:
     for delay in [0,500]:
         c=dict(workload=w,keys=k,rows=1000000,delay_us=delay,writers=128 if w in ['W1','W2','W3'] else 32)
+        if k=='sharded' and key(c) not in indices[2]: continue
         headlines.append(dict(cell=c,**{n:i.get(key(c)) for n,i in zip(['raw_pg','supabase_advocate','convex_pg'],indices)}))
 (root/'headlines.json').write_text(json.dumps(headlines,indent=2)+'\n')
 def table(records):
@@ -40,7 +41,7 @@ def table(records):
         t.append('| '+label+' | '+' | '.join(rate(r.get(k)) for k in ['raw_pg','supabase_advocate','convex_pg'])+' |')
     return t
 text=['# Convex/PG beside raw PG and Supabase advocate','',
-      'Highest tested passing offered operations/s; all three repetitions meet the same SLO/error/counter criteria. Historical controls were measured earlier, not rerun. Convex uses its default caches and own OCC. Pool caps match; Convex background work shares its cap. These are short-window shared-host observations, not product ceilings.','',
+      'Highest tested passing offered operations/s; all three repetitions meet the same SLO/error/counter criteria. Historical controls were measured earlier, not rerun. Convex uses its default caches and own OCC. Pool caps match; Convex background work shares its cap. The labelled W5 `sharded` row is not a headline: its mutation returns one shard’s count, and `chat:count` still returns the exact total in one query. These are shared-host observations, not product ceilings.','',
       '## Predeclared fixed-budget comparison','',
       'Reads: 128 clients, pool/concurrent-query cap 32. Writes: 32 clients, pool/concurrent-mutation cap 32. Supabase adds its listener.','',*table(headlines),'',
       '## Every Convex cell','',
@@ -93,5 +94,31 @@ for delay in sorted({r['cell']['delay_us'] for r in cx}):
     rtts[delay]=dict(captures=len(values),p50_median_ms=median(v['p50_us']/1000 for v in values),p99_median_ms=median(v['p99_us']/1000 for v in values),p50_range_ms=[min(v['p50_us']/1000 for v in values),max(v['p50_us']/1000 for v in values)])
 
 (root/'rtt-summary.json').write_text(json.dumps(rtts,indent=2)+'\n')
+# One-second measured-window slices at the passing rate. Evidence for steady state, not a new SLO.
+steady=[]
+for row in cx:
+    c=row['cell']; passing=row['summary']['highest_passing_offered_per_s']
+    if passing is None: continue
+    directory=root/f"{c['workload'].lower()}-n{c['rows']}-d{c['delay_us']}-c{c['writers']}-{c['keys']}"
+    by_t={}
+    for repeat in range(row['summary']['repeats']):
+        result=report.read(directory/f'rate-{passing}-r{repeat}.json')
+        for s in result.get('slices') or []:
+            by_t.setdefault(s['t_s'], []).append(s)
+    if not by_t: continue
+    series=[]
+    for t in sorted(by_t):
+        ss=by_t[t]
+        series.append(dict(t_s=t,reps=len(ss),achieved_median=median(s['n']-s['errors'] for s in ss),
+            p50_median_ms=median(s['p50_ms'] for s in ss),p99_median_ms=median(s['p99_ms'] for s in ss),
+            errors=sum(s['errors'] for s in ss)))
+    tail=series[len(series)//2:]
+    def span(key,rows):
+        xs=[r[key] for r in rows]
+        return dict(min=min(xs),median=median(xs),max=max(xs))
+    steady.append(dict(cell=c,offered_per_s=passing,seconds=len(series),
+        tail_achieved_per_s=span('achieved_median',tail),tail_p50_ms=span('p50_median_ms',tail),
+        tail_p99_ms=span('p99_median_ms',tail),series=series))
+(root/'steady.json').write_text(json.dumps(steady,indent=2)+'\n')
 (root/'derivation.json').write_text(json.dumps({str(p.relative_to(base)):hashlib.sha256(p.read_bytes()).hexdigest() for p in [Path(__file__),base/'scripts/report.py',base/'scripts/plot.py',base/'scripts/plot-convex-comparison.py',base/'results-20261021-raw-pg/ledger.json',base/'results-20261021-supabase-advocate/ledger.json']},indent=2)+'\n')
 print(len(rows),'comparison rows;',len(metric_rows),'metric rows')
