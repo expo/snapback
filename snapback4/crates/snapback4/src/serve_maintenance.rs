@@ -123,9 +123,17 @@ fn work_at(shared: &Shared, drain: bool, tick: u64, schedule_sample: Option<i64>
     }
     if drain || tick % 5 == 0 {
         loop {
-            let actions = phase(shared, engine_work(shared, move |engine, budget, shared| engine.requeue_expired_actions_for(shared.now(), budget)), drain, "the action lease sweep")?;
-            let effects = phase(shared, engine_work(shared, move |engine, budget, shared| engine.requeue_expired_effects_for(shared.now(), budget)), drain, "the effect lease sweep")?;
-            if actions + effects > 0 { shared.engine.call(|engine, shared| shared.durable_committed(engine)); }
+            let actions = phase(shared, engine_work(shared, move |engine, budget, shared| {
+                let result = engine.requeue_expired_actions_for(shared.now(), budget);
+                if result.as_ref().is_ok_and(|n| *n > 0) { shared.durable_committed(engine); }
+                result
+            }), drain, "the action lease sweep")?;
+            let effects = phase(shared, engine_work(shared, move |engine, budget, shared| {
+                let result = engine.requeue_expired_effects_for(shared.now(), budget);
+                if result.as_ref().is_ok_and(|n| *n > 0) { shared.durable_committed(engine); }
+                result
+            }), drain, "the effect lease sweep")?;
+
             if effects > 0 { snapback4_core::diagnostic!("snapback4: {effects} effect lease{} expired; queued again", if effects == 1 { "" } else { "s" }); }
             if !drain || actions + effects == 0 { break; }
         }
@@ -212,12 +220,12 @@ impl State {
 // Admission owns no maintenance gate. Once admitted, the engine serializes the
 // cursor's read -> chunk commit -> advance; the gate only protects small state
 // accesses. Ordinary work never waits for a bulk thread to enter the engine.
-fn bulk_slice(shared: &Shared, aged_only: bool) -> bool {
-    if !lock(&shared.maintenance).eligible(Instant::now(), aged_only) { return false; }
+fn bulk_slice(shared: &Shared, aged_only: bool) -> Result<bool, RuntimeError> {
+    if !lock(&shared.maintenance).eligible(Instant::now(), aged_only) { return Ok(false); }
     engine_work(shared, move |engine, budget, shared| {
         let kind = {
             let state = lock(&shared.maintenance);
-            if !state.eligible(Instant::now(), aged_only) { return false; }
+            if !state.eligible(Instant::now(), aged_only) { return Ok(false); }
             state.next
         };
         let started = SliceClock::start();
@@ -243,7 +251,7 @@ fn bulk_slice(shared: &Shared, aged_only: bool) -> bool {
             }
         };
         lock(&shared.maintenance).completed(Instant::now(), started.consumed(), budget == CONTENDED_TIME || shared.engine.has_waiters(), result.as_ref().map_or(true, |worked| *worked));
-        phase(shared, result, false, "bulk maintenance").unwrap_or(false)
+        result
     })
 }
 
@@ -321,7 +329,9 @@ pub(super) fn maintain(shared: Arc<Shared>) {
 }
 
 fn promote_aged(shared: &Shared, now: Instant) {
-    if lock(&shared.maintenance).eligible(now, true) { bulk_slice(shared, true); }
+    if lock(&shared.maintenance).eligible(now, true) {
+        if let Err(error) = bulk_slice(shared, true) { super::adoption::background_failure(shared, "aged bulk maintenance", &error); }
+    }
 }
 
 pub(super) fn bulk(shared: Arc<Shared>) {
@@ -331,7 +341,17 @@ pub(super) fn bulk(shared: Arc<Shared>) {
         let mut did_work = false;
         for _ in 0..3 {
             if crate::lifecycle::stopping() { return; }
-            did_work |= bulk_slice(&shared, false);
+            match bulk_slice(&shared, false) {
+                Ok(worked) => did_work |= worked,
+                Err(error) => {
+                    super::adoption::background_failure(&shared, "bulk maintenance admission", &error);
+                    // Refusal is not an idle slice: preserve the due scheduler
+                    // and retry on the next bounded turn, with a logged reason.
+                    std::thread::sleep(Duration::from_millis(100));
+                    did_work = true;
+                    break;
+                }
+            }
             let pause = lock(&shared.maintenance).resume_at.saturating_duration_since(Instant::now());
             if !pause.is_zero() {
                 // No shared lock survives this pause. Request commits do not
@@ -372,12 +392,12 @@ fn completed_drain(work: Work, stopping: bool) -> Result<Work, snapback4_core::R
 }
 
 // @ref LLP 3000.000.000.002#4-staging-clock — staging grants clock control, never fixture or persona authority.
-pub(super) fn staging(shared: &Shared) -> bool {
+pub(super) fn staging(shared: &Shared) -> Result<bool, snapback4_core::Refusal> {
     shared.engine.call(|engine, _| engine.store().deployment_environment().ok().flatten().as_deref() == Some("staging"))
 }
 fn clock_service(request: &Request, shared: &Shared) -> Result<Option<String>, snapback4_core::Refusal> {
     if shared.personas { return Ok(None); }
-    if !staging(shared) { return Err(crate::dev_clock::release()); }
+    if !staging(shared)? { return Err(crate::dev_clock::release()); }
     match super::session_identity::principal_of(request,shared) {
         Ok((principal,kind,snapback4_core::identity::SessionScope::Full)) if kind == "service" && principal.starts_with("service:") => Ok(Some(principal)),
         _ => Err(snapback4_core::Refusal::new("E_AUTH", "auth", "staging clock control requires a full service token").guide("clock")),
@@ -489,6 +509,10 @@ pub(super) fn advance(request: Request, shared: &Shared, body: &str) {
             lock(&shared.maintenance).paused = !drain;
             let fired = work.fired.clone();
             let schedules = shared.engine.call(move |engine, shared| crate::dev_clock_store::schedule_report(engine, &before, &fired, now, raw_now, shared.hold_schedules || !drain, each_boundary, shared.dev_identity.as_ref().map(|i| i.address.port())));
+            let schedules = match schedules {
+                Ok(schedules) => schedules,
+                Err(why) => return respond(request, 500, json!({"now":now,"advancedMs":milliseconds,"reportIncomplete":true,"denied":why})),
+            };
             let (fired, held) = crate::dev_clock_store::outcomes(&schedules);
             respond(request, 200, json!({"now":now, "advancedMs":milliseconds, "sessionNotice":if preserve_sessions { crate::dev_clock::PRESERVED_SESSION_NOTICE } else { crate::dev_clock::SESSION_NOTICE }, "maintenancePaused":!drain, "sessionsPreserved":preserve_sessions, "offsetMs":offset, "skewMs":skew, "eachBoundary":each_boundary, "message":message, "work":work, "schedules":schedules, "fired":fired, "held":held}))
         }
@@ -510,6 +534,10 @@ pub(super) fn advance(request: Request, shared: &Shared, body: &str) {
             }
                 schedules
             });
+            let schedules = match schedules {
+                Ok(schedules) => schedules,
+                Err(why) => return respond(request, 500, json!({"now":now,"advancedMs":milliseconds,"reportIncomplete":true,"denied":why})),
+            };
             let (fired, held) = crate::dev_clock_store::outcomes(&schedules);
             respond(request, 500, json!({"now":now, "advancedMs":milliseconds, "sessionNotice":if preserve_sessions { crate::dev_clock::PRESERVED_SESSION_NOTICE } else { crate::dev_clock::SESSION_NOTICE }, "maintenancePaused":true, "sessionsPreserved":preserve_sessions, "offsetMs":offset, "skewMs":skew, "eachBoundary":each_boundary, "message":message, "schedules":schedules, "fired":fired, "held":held, "reportIncomplete":true, "denied":refusal_json(&error)}))
         },
@@ -916,7 +944,7 @@ mod tests {
         let worker = shared.clone();
         let bulk = std::thread::Builder::new().name("bulk-maintenance".into()).spawn(move || {
             crate::thread_priority::maintenance();
-            bulk_slice(&worker, false);
+            bulk_slice(&worker, false).unwrap();
         }).unwrap();
         entered.recv_timeout(Duration::from_secs(5)).unwrap();
         let (sent, observed) = std::sync::mpsc::channel();
@@ -1045,7 +1073,7 @@ mod tests {
             let _advancing = Advancing(&host.shared);
             lock(&host.shared.maintenance).advancing = true;
             assert_eq!(timely_engine_work(&host.shared, |_, _, _| -> Result<u64, RuntimeError> { panic!("ordinary slice ran during drain") }).unwrap(), 0);
-            assert!(!bulk_slice(&host.shared, false));
+            assert!(!bulk_slice(&host.shared, false).unwrap());
             panic!("clock drain");
         }));
         assert!(result.is_err());

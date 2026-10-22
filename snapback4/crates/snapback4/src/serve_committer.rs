@@ -101,12 +101,15 @@ impl Writer {
     pub(crate) fn call<T: Send + 'static>(
         &self,
         run: impl FnOnce(&mut Engine, &Shared) -> T + Send + 'static,
-    ) -> T {
+    ) -> Result<T, Refusal> {
         *lock(&self.last_request) = Some(Instant::now());
         self.queue
             .call(self.command(run))
-            .expect("committer stopped before acknowledgement")
-            .finish()
+            .map(Execution::finish)
+            .map_err(|error| {
+                latency::merge_worker(None);
+                queue_error(error).refusal()
+            })
     }
     pub(crate) fn submit<T: Send + 'static>(
         &self,
@@ -130,6 +133,19 @@ impl Writer {
             Ok(value) => value,
             Err(why) => T::refused(why),
         }
+    }
+    /// Required post-COMMIT publication belongs to the admitted command, so
+    /// overload or ownership loss cannot refuse a separate notification item.
+    pub(crate) fn attempt_and_notify<T: QueueResult + Send + 'static>(
+        &self,
+        run: impl FnOnce(&mut Engine, &Shared) -> T + Send + 'static,
+        notify: impl FnOnce(&T) -> bool + Send + 'static,
+    ) -> T {
+        self.attempt(move |engine, shared| {
+            let result = run(engine, shared);
+            if notify(&result) { shared.durable_committed(engine); }
+            result
+        })
     }
     pub(crate) fn background_call<T: QueueResult + Send + 'static>(
         &self,
@@ -238,8 +254,17 @@ fn queue_error(error: SubmitError) -> snapback4_core::RuntimeError {
         SubmitError::Full => snapback4_core::RuntimeError::Structural {
             code: "E_RATE_LIMIT", message: "HTTP connections or request workers are occupied; wait for pending writes to settle or reduce concurrent clients before retrying".into(),
         },
-        SubmitError::Stopped => snapback4_core::RuntimeError::Store("committer stopped before acknowledgement; the durable outcome may be unknown".into()),
+        SubmitError::Stopped => snapback4_core::RuntimeError::CommitOutcomeUnknown("committer stopped before acknowledgement; the durable outcome may be unknown".into()),
         SubmitError::OwnershipLost => snapback4_core::RuntimeError::StoreOwnership("store ownership lost; this committer refuses further writes".into()),
+    }
+}
+/// One transport policy for queue failures, including in-command fences.
+pub(super) fn refusal_status(code: &str) -> Option<u16> {
+    match code {
+        "E_RATE_LIMIT" => Some(503),
+        "E_STORE_OWNERSHIP" => Some(409),
+        "E_COMMIT_OUTCOME_UNKNOWN" => Some(500),
+        _ => None,
     }
 }
 pub(crate) trait QueueResult {
@@ -255,16 +280,11 @@ impl QueueError for Refusal {
 }
 impl QueueError for snapback4_core::RuntimeError {
     fn refused(why: Refusal) -> Self {
-        if why.code == "E_RATE_LIMIT" {
-            Self::Structural {
-                code: "E_RATE_LIMIT",
-                message: why.message,
-            }
-        } else if why.code == "E_STORE_OWNERSHIP" {
-            Self::StoreOwnership(why.message)
-        } else {
-            snapback4_core::RuntimeError::Store(why.message)
-        }
+        queue_error(match why.code.as_str() {
+            "E_RATE_LIMIT" => SubmitError::Full,
+            "E_STORE_OWNERSHIP" => SubmitError::OwnershipLost,
+            _ => SubmitError::Stopped,
+        })
     }
 }
 impl QueueError for String {
@@ -274,12 +294,12 @@ impl QueueError for String {
 }
 impl QueueError for (u16, Refusal) {
     fn refused(why: Refusal) -> Self {
-        (503, why)
+        (refusal_status(&why.code).unwrap_or(500), why)
     }
 }
 impl QueueError for (u16, Json) {
     fn refused(why: Refusal) -> Self {
-        (503, json!({"denied":why}))
+        (refusal_status(&why.code).unwrap_or(500), json!({"denied":why}))
     }
 }
 impl<T, E: QueueError> QueueResult for Result<T, E> {
@@ -308,16 +328,10 @@ impl<T> Execution<T> {
 
 impl QueueResult for (u16, String, bool) {
     fn refused(why: Refusal) -> Self {
-        (503, json!({"denied":why}).to_string(), false)
+        (refusal_status(&why.code).unwrap_or(500), json!({"denied":why}).to_string(), false)
     }
 }
 
-// A skipped bulk turn is not a completed member; its scheduler remains due.
-impl QueueResult for bool {
-    fn refused(_: Refusal) -> Self {
-        false
-    }
-}
 impl<T> QueueResult for (Result<T, snapback4_core::RuntimeError>, Vec<String>) {
     fn refused(why: Refusal) -> Self {
         (Err(QueueError::refused(why)), Vec::new())
@@ -374,9 +388,13 @@ mod tests {
         assert_eq!(
             host.shared
                 .engine
-                .call(|engine, _| engine.store().count("rows").unwrap()),
+                .call(|engine, _| engine.store().count("rows").unwrap()).unwrap(),
             0
         );
         assert_eq!(host.shared.engine.queued.load(Ordering::Acquire), 0);
     }
 }
+
+#[cfg(test)]
+#[path = "serve_committer_fix_tests.rs"]
+mod fix_tests;

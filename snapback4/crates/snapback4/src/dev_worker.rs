@@ -642,6 +642,13 @@ impl DevWorker {
             #[cfg(test)] crate::serve::test_work(&shared.worker_minted);
             Some((minted, clock_revision, name.is_some()))
         });
+        let minted = match minted {
+            Ok(minted) => minted,
+            Err(why) => {
+                snapback4_core::diagnostic!("snapback4 worker: session preparation refused: {why}");
+                self.retry_later(); return;
+            }
+        };
         let Some((session, clock_revision, named)) = minted else {
             self.snapshot = None; self.retry_later(); return;
         };

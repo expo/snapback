@@ -281,6 +281,7 @@ impl StoreLease {
             claimed: false,
         })
     }
+    pub fn lease_duration(&self) -> Duration { self.policy.lease }
     pub fn token(&self) -> Option<i64> {
         self.held.then_some(self.fence.token)
     }

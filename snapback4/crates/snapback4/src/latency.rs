@@ -281,8 +281,19 @@ pub(crate) fn header() -> Option<Header> {
 }
 
 /// Classify only the envelope; user data and synced row values are never walked.
-pub(crate) trait Reply: Serialize { fn refused(&self) -> bool { false } fn generation(&self)->Option<u64>{None} }
+pub(crate) trait Reply: Serialize {
+    fn refused(&self) -> bool { false }
+    fn generation(&self) -> Option<u64> { None }
+    fn refusal_code(&self) -> Option<&str> { None }
+    fn refusal_family(&self) -> Option<&str> { None }
+}
 impl Reply for Value {
+    fn refusal_code(&self) -> Option<&str> {
+        self.get("denied").or_else(|| self.get("why"))?.get("code")?.as_str()
+    }
+    fn refusal_family(&self) -> Option<&str> {
+        self.get("denied").or_else(|| self.get("why"))?.get("family")?.as_str()
+    }
     fn generation(&self)->Option<u64>{self.get("generation").and_then(Value::as_u64)}
     fn refused(&self) -> bool { self.get("denied").is_some_and(|v| !v.is_null()) || self.get("state").and_then(Value::as_str) == Some("failed") }
 }

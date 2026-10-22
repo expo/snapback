@@ -142,6 +142,14 @@ pub(super) fn watch_sources(project: Project, shared: Arc<Shared>, mut stamp: cr
         if crate::lifecycle::stopping() { return; }
         let now = project.sources_stamp();
         let stored_generation = shared.engine.call(move |engine, _| engine.store().generation_value().ok().flatten().and_then(|s| s.parse::<u64>().ok()).unwrap_or(seen_generation));
+        let stored_generation = match stored_generation {
+            Ok(generation) => generation,
+            Err(why) => {
+                snapback4_core::diagnostic!("snapback4 dev: source watch refused: {why}");
+                if why.code != "E_RATE_LIMIT" { return; }
+                continue;
+            }
+        };
         if now == stamp && !retry && stored_generation == seen_generation {
             continue;
         }
@@ -186,7 +194,7 @@ pub(super) fn watch_sources(project: Project, shared: Arc<Shared>, mut stamp: cr
                     }
                 }
                 let project = Project { root: project.root.clone() };
-                let (next_generation, next_retry) = shared.engine.call(move |engine, shared| {
+                let adopted = shared.engine.call(move |engine, shared| {
                     let mut seen_generation = seen_generation;
                     let mut retry = false;
 
@@ -236,8 +244,14 @@ pub(super) fn watch_sources(project: Project, shared: Arc<Shared>, mut stamp: cr
                 }
                     (seen_generation, retry)
                 });
-                seen_generation = next_generation;
-                retry = next_retry;
+                match adopted {
+                    Ok((next_generation, next_retry)) => { seen_generation = next_generation; retry = next_retry; }
+                    Err(why) => {
+                        snapback4_core::diagnostic!("snapback4 dev: adoption refused: {why}");
+                        if why.code != "E_RATE_LIMIT" { return; }
+                        retry = true;
+                    }
+                }
 
             }
             Ok(bound) => {

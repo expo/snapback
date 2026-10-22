@@ -102212,3 +102212,34 @@ Final K0-Q root `./ref-check` passes **564 LLPs / 11,708 refs / 0 errors /
 0 unchecked**; whitespace checks pass. Five clusters remain independently
 confirmed stopped and all six benchmark PIDs are absent. The code and final
 qualification remain local on `sb4-pg/k0q`; no push or stash.
+
+
+### 2026-10-22 — K0-Q fix round 1: bounded serving refusals and continuation custody
+
+Fixed both blind reviews of `02292e5736` on `sb4-pg/k0q`, rebased by the lead
+onto S10d-3 (`eeb79ebc7c`). `Writer::call` returns a typed error; actions,
+effects, routes, memory sync and maintenance publish in their original command.
+Control admission waits at most 100 ms; all acknowledgements wait at most 30 s,
+then report a non-retryable unknown outcome without cancelling database work.
+Every JSON serving door uses overload 503 + Retry-After, ownership loss 409,
+and unknown outcome 500. View-once consumption commits before releasing bytes;
+a failed transport conservatively consumes the reservation. Bulk refusal is a
+logged `Result` rather than an idle boolean.
+
+Queue and public serving share conservative lease deadline arithmetic measured
+before renewal SQL, with a 50 ms (or quarter-lease) margin; admission, command
+start and an independent watchdog refuse after expiry even if renewal COMMIT is
+stuck. A startup release guard covers failed queue lease installation. The sole
+adapter ownership change exposes lease duration; release SQL is untouched for
+the parallel identity fix-forward.
+
+The new progress barrier initially failed: ephemeral authentication, receipt
+checks and checkout still joined the writer. Those reads now use detached
+connections, preserving the hub lock and generation fence. The focused serving
+suite passes all eight cases, including matching four-door refusal bodies,
+Writer-level ownership loss, committed-answer/wake preservation, view-once
+overload, and reader/ephemeral completion before writer release. New queue
+cases bound admission/acknowledgements and real-Postgres faults cover stalled
+renewal COMMIT and startup release. Complete fresh check results and local W4
+measurements are recorded in [the lane report](reports/20261022-k0q/REPORT.md).
+No push or stash; only this lane's target is used with ten Cargo jobs.

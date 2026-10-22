@@ -139,3 +139,56 @@ fn a_panicking_command_unwinds_its_transaction_without_losing_the_worker() {
 #[cfg(feature = "postgres")]
 #[path = "../store/command_postgres_tests.rs"]
 mod postgres_tests;
+
+#[test]
+fn control_admission_has_a_deadline_and_does_not_execute_refused_work() {
+    let queue = Queue::start(engine(), 1).unwrap();
+    let (entered, started) = mpsc::channel();
+    let (release, resume) = mpsc::channel();
+    let held = queue
+        .submit(Command::new(move |_| {
+            entered.send(()).unwrap();
+            resume
+                .recv_timeout(std::time::Duration::from_secs(5))
+                .unwrap();
+        }))
+        .unwrap();
+    started
+        .recv_timeout(std::time::Duration::from_secs(5))
+        .unwrap();
+    let queued = queue.submit(Command::new(|_| ())).unwrap();
+    let before = std::time::Instant::now();
+    let refused = queue.call(Command::new(|_| panic!("deadline-refused work ran")));
+    let elapsed = before.elapsed();
+    release.send(()).unwrap();
+    held.wait().unwrap();
+    queued.wait().unwrap();
+    assert_eq!(refused, Err(SubmitError::Full));
+    assert!(elapsed >= ADMISSION_TIMEOUT && elapsed < std::time::Duration::from_secs(1));
+}
+
+#[test]
+fn acknowledgement_deadline_reports_unknown_without_cancelling_admitted_work() {
+    let queue = Queue::start(engine(), 1).unwrap();
+    let (entered, started) = mpsc::channel();
+    let (release, resume) = mpsc::channel();
+    let (finished, observed) = mpsc::channel();
+    let reply = queue
+        .submit(Command::new(move |_| {
+            entered.send(()).unwrap();
+            resume
+                .recv_timeout(std::time::Duration::from_secs(5))
+                .unwrap();
+            finished.send(()).unwrap();
+        }))
+        .unwrap();
+    started
+        .recv_timeout(std::time::Duration::from_secs(5))
+        .unwrap();
+    let result = reply.wait_timeout(std::time::Duration::from_millis(10));
+    release.send(()).unwrap();
+    observed
+        .recv_timeout(std::time::Duration::from_secs(5))
+        .unwrap();
+    assert_eq!(result, Err(SubmitError::Stopped));
+}

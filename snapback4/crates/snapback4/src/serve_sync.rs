@@ -107,7 +107,7 @@ pub(super) fn serve(request: Request, shared: &Shared, body: &str, now: i64) {
                     let (principal, after, store_id, pending) = (principal.clone(), after.clone(), store_id.clone(), pending.clone());
                     let result = shared.engine.attempt(move |engine, shared| {
                         admission?.check(shared, engine, &principal)?;
-                        Ok::<_, Refusal>({
+                        let page = {
                     let generation = engine.generation();
                     (under_generation(engine, requested_generation, generation, &store_id, &device, |engine| {
                                 engine.snapshot_acquisition_page_at(&principal, after.as_deref(), limit, now).and_then(|page| {
@@ -115,16 +115,15 @@ pub(super) fn serve(request: Request, shared: &Shared, body: &str, now: i64) {
                                     })
                             },
                         ), generation,
-                    )                        })
+                    )                        };
+                    shared.publish_engine(engine);
+                    Ok::<_, Refusal>(page)
                     });
                     match result { Ok(value) => value, Err(why) => return respond_timed(request, shared, 401, json!({"denied":why})) }
 
                 }
             }
         };
-        if shared.memory_store() {
-            shared.engine.call(|engine, shared| shared.publish_engine(engine));
-        }
         match outcome {
             Ok(SyncOutcome::Page((page, acknowledged))) => {
                 let next = page.next.map(|next| next.encode());
@@ -165,7 +164,7 @@ pub(super) fn serve(request: Request, shared: &Shared, body: &str, now: i64) {
                     let (principal, store_id, pending) = (principal.clone(), store_id.clone(), pending.clone());
                     let result = shared.engine.attempt(move |engine, shared| {
                         admission?.check(shared, engine, &principal)?;
-                        Ok::<_, Refusal>({
+                        let page = {
                     let generation = engine.generation();
                     (under_generation(engine, requested_generation, generation, &store_id, &device, |engine| {
                                 engine.stream_at(&principal, from, limit, now).and_then(|page| {
@@ -173,16 +172,15 @@ pub(super) fn serve(request: Request, shared: &Shared, body: &str, now: i64) {
                                     })
                             },
                         ), generation,
-                    )                        })
+                    )                        };
+                    shared.publish_engine(engine);
+                    Ok::<_, Refusal>(page)
                     });
                     match result { Ok(value) => value, Err(why) => return respond_timed(request, shared, 401, json!({"denied":why})) }
 
                 }
             }
         };
-        if shared.memory_store() {
-            shared.engine.call(|engine, shared| shared.publish_engine(engine));
-        }
         match outcome {
             Ok(SyncOutcome::Page((page, (acknowledged, committed_above), preserved, changes))) => {
                 let mut overflow = json!({ "generation": generation, "store_id": store_id, "watermark": page.watermark });

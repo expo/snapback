@@ -157,7 +157,6 @@ pub enum RuntimeError {
     WorkerStoreIdentity,
     /// COMMIT was sent but no reliable acknowledgement was received. Resolve
     /// the existing receipt/key before retrying; this is not a refusal.
-    #[cfg(feature = "postgres")]
     #[error("E_COMMIT_OUTCOME_UNKNOWN: database acknowledgement unavailable; resolve the persisted receipt or operation key before retrying; check server logs")]
     CommitOutcomeUnknown(String),
     #[error("E_TIME_AUDIENCE_PENDING: timed publication is still advancing; retry this operation")]
@@ -228,7 +227,6 @@ impl RuntimeError {
             Self::Postgres(_) => "E_STORE".into(),
             Self::StoreOwnership(_) => "E_STORE_OWNERSHIP".into(),
             Self::WorkerStoreIdentity => "E_WORKER_STORE_ID".into(),
-            #[cfg(feature = "postgres")]
             Self::CommitOutcomeUnknown(_) => "E_COMMIT_OUTCOME_UNKNOWN".into(),
             Self::TimeAudiencePending => "E_TIME_AUDIENCE_PENDING".into(),
             Self::Store(_) => "E_STORE".into(),
@@ -271,7 +269,6 @@ impl RuntimeError {
             #[cfg(feature = "postgres")]
             Self::Postgres(_) => "store",
             Self::StoreOwnership(_) | Self::WorkerStoreIdentity => "store",
-            #[cfg(feature = "postgres")]
             Self::CommitOutcomeUnknown(_) => "store",
             Self::TimeAudiencePending => "store",
             Self::Store(_) => "store",
@@ -284,14 +281,14 @@ impl RuntimeError {
         #[cfg(feature = "sqlite")]
         if let Self::Continuation(source) = self { return source.is_store_failure(); }
         #[cfg(feature = "postgres")]
-        if matches!(self, Self::Postgres(_) | Self::CommitOutcomeUnknown(_)) {
+        if matches!(self, Self::Postgres(_)) {
             return true;
         }
         #[cfg(feature = "sqlite")]
         if matches!(self, Self::Sql(_) | Self::StoreBusy { .. }) {
             return true;
         }
-        matches!(self, Self::Store(_) | Self::TimeAudiencePending)
+        matches!(self, Self::Store(_) | Self::TimeAudiencePending | Self::CommitOutcomeUnknown(_))
     }
 
     pub fn is_refusal(&self) -> bool {

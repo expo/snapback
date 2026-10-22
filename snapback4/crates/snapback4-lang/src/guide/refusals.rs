@@ -10,8 +10,9 @@ query checkedName(name: text <=80):
   return name
 ```
 
-`E_COMMIT_OUTCOME_UNKNOWN` is an unknown durable outcome: COMMIT was sent but
-its acknowledgement was lost. Resolve the persisted receipt or operation key
+`E_COMMIT_OUTCOME_UNKNOWN` is an unknown durable outcome: a COMMIT or an admitted
+serving command lost its acknowledgement (including the 30-second serving wait
+limit). The work may still complete; it is never cancelled or retried on timeout. Resolve the persisted receipt or operation key
 before retrying. `E_STORE_OWNERSHIP` means the store's owner token or binding
 refused the transaction before its durable work. Neither authorizes a blind
 retry under an old owner. The Postgres adapter disables statement timeouts
@@ -26,6 +27,12 @@ names a card, `rule` is the program's own code on a `require` or named unique re
 input, schema, auth, rule (your `require` codes), constraint, bound, op,
 asset, action, route, prediction, generation, store and evolution (an unavailable
 store capability); HTTP admission adds limit.
+Across serving doors, overload returns HTTP 503 with `Retry-After: 1` and is
+retryable; ownership loss returns HTTP 409 and is not retryable; an unknown
+outcome returns HTTP 500 and is not retryable. Control admission waits at most
+100 ms for mailbox space; durable HTTP submissions refuse a full mailbox at once.
+A change poll that already sent its heartbeat keeps HTTP 200 and carries any
+later error in its final typed body, since headers have already been sent.
 The client adds link (a transport or HTTP response failure) and client (the client itself refused, as after `close()`).
 Optional reads do not raise a rule refusal: a hidden row is null, and a page
 omits it. An asserted read (`! else CODE`) can refuse in a query as well as a mutation.

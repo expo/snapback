@@ -20,7 +20,7 @@ pub(in crate::serve) fn claim(request: Request, shared: &Shared, body: &str) {
     loop {
         let facts = RequestFacts::capture(&request);
         let routes = payload.routes.clone();
-        let result = shared.engine.attempt(move |engine, shared| {
+        let result = shared.engine.attempt_and_notify(move |engine, shared| {
             let worker = service_of_locked(&facts, shared, engine)?;
             let now = Instant::now();
             let now_ms = shared.now();
@@ -40,9 +40,9 @@ pub(in crate::serve) fn claim(request: Request, shared: &Shared, body: &str) {
                 if claimed.len() >= limit { break; }
             }
             Ok::<_, Refusal>((worker, claimed))
-        });
+        }, |r| r.is_ok());
         let (worker, claimed) = match result { Ok(value) => value, Err(why) => return respond(request, 401, json!({"denied":why})) };
-        shared.engine.call(|engine, shared| shared.durable_committed(engine));
+
         if !claimed.is_empty() || Instant::now() >= deadline || crate::lifecycle::stopping() {
             return respond(request, 200, json!({ "requests": claimed, "worker": worker }));
         }
@@ -65,7 +65,7 @@ pub(in crate::serve) fn settle(request: Request, shared: &Shared, path: &str, bo
     let token = match single_header(&request, "x-snapback-route-lease") { Ok(Some(token)) => token, _ => return refuse(request, 400, "E_ROUTE_LEASE", "send exactly one verification claim fence") };
     let payload = match serde_json::from_str::<Settlement>(body) { Ok(payload) => payload, Err(_) => return refuse(request, 400, "E_ROUTE_INPUT", "verification settlement needs allow, deny or unavailable") };
     let (facts, id, token) = (RequestFacts::capture(&request), id.to_owned(), token.to_owned());
-    let checked = shared.engine.attempt(move |engine, shared| {
+    let checked = shared.engine.attempt_and_notify(move |engine, shared| {
         let worker = service_of_locked(&facts, shared, engine)?;
         let answer = {
         let mut tickets = lock(&shared.route_verification.tickets);
@@ -86,9 +86,9 @@ pub(in crate::serve) fn settle(request: Request, shared: &Shared, path: &str, bo
         }
         };
         Ok::<_, Refusal>(answer)
-    });
+    }, |r| r.is_ok());
     let answer = match checked { Ok(value) => value, Err(why) => return respond(request, 401, json!({"denied":why})) };
-    shared.engine.call(|engine, shared| shared.durable_committed(engine));
+
     if answer { respond(request, 200, json!({ "ok": true })); }
     else { refuse(request, 409, "E_ROUTE_LEASE", "the verification ticket or claim fence is no longer live"); }
 }

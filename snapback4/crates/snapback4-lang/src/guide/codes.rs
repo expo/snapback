@@ -1,7 +1,7 @@
 pub const CODES: &[(&str, &str)] = &[
     ("E_STORE_CONFIG", "store selectors conflict or the deployment binding/configuration is missing or invalid; use one selector with explicit schema and HA mode and the original logical store binding. guide deploy."),
     ("E_STORE_OWNERSHIP", "the Postgres owner token, store binding or bounded takeover is no longer valid; stop admission, renew or reacquire ownership and reopen with its token before writing."),
-    ("E_COMMIT_OUTCOME_UNKNOWN", "COMMIT was sent without a reliable acknowledgement, including a cancelled synchronous replication wait. This is an unknown outcome, not a refusal. Resolve the persisted receipt or operation key before any retry; automatic retry is disabled."),
+    ("E_COMMIT_OUTCOME_UNKNOWN", "COMMIT or an admitted serving command lost its acknowledgement, including a cancelled synchronous replication wait or a 30-second serving acknowledgement timeout. This is an unknown outcome, not a refusal. Resolve the persisted receipt or operation key before any retry; automatic retry is disabled."),
     ("E_WORKER_STORE_ID", "the worker completion ledger requires a nonempty logical store identity; repair the binding before starting workers."),
     ("E_WORKER_STATE", "Postgres workers require an explicitly configured absolute durable state directory for their completion ledger bound to the logical store id; configure that location before starting workers."),
     ("E_STORE_UNSUPPORTED", "the named family is not yet available on the selected store; Postgres admits ordinary maintained-column evolution, while general evolution refuses before activation writes. Keep other declarations unchanged or use SQLite."),

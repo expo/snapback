@@ -47,6 +47,7 @@ fn a_request_after_engine_poison_still_serves() {
         #[cfg(test)] round_trips: Mutex::new(None),
         request_work: Mutex::new(None),
         upload_work: Mutex::new(None),
+        #[cfg(test)] asset_delivery: Mutex::new(None),
         effect_wait: Mutex::new(None),
         poll_wait: Mutex::new(None), poll_resumed: Mutex::new(None), poll_notified: Mutex::new(None),
         query_wait: Mutex::new(None), reader_open: Mutex::new(None), changes_refresh: Mutex::new(None),

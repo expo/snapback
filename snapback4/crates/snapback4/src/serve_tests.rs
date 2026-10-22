@@ -104,7 +104,7 @@ const WAIT_TIMEOUT: Duration = Duration::from_secs(2);
 // @ref LLP 3000#publication-suite-under-contention — a parked client's guard
 // includes the driver's bounded waits/probes plus time to finish after release.
 // Only deliberately held exchanges use this; progress probes keep their guard.
-fn exchange_held(address: SocketAddr, hold_budget: Duration, wire: impl AsRef<[u8]>) -> String {
+pub(super) fn exchange_held(address: SocketAddr, hold_budget: Duration, wire: impl AsRef<[u8]>) -> String {
     let wire = device_wire(wire.as_ref());
     let timeout = hold_budget + Duration::from_secs(15);
     assert!(timeout <= Duration::from_secs(60), "held exchange budget exceeds one minute");

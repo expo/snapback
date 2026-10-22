@@ -36,7 +36,7 @@ pub fn is_file_upload(url: &str) -> bool {
 /// bound, under the general upload ceiling. A schema with no file column
 /// refuses before any body is read.
 pub fn file_ceiling(shared: &Shared) -> Result<usize, Refusal> {
-    match shared.engine.call(|engine, _| engine.file_upload_ceiling()) {
+    match shared.engine.call(|engine, _| engine.file_upload_ceiling())? {
         Some(max) => Ok((max as usize).min(UPLOAD_CEILING)),
         None => Err(Refusal::new("E_ASSET_TYPE", "asset", "no column of this backend takes a file; declare one (`doc: file <=10000000`)").guide("assets")),
     }
@@ -216,18 +216,21 @@ pub fn serve(request: Request, id: &str, shared: &Shared) {
     if status == 206 {
         response = response.with_status_code(206);
     }
-    // @ref LLP 3000.019#3.7 — finish before reader disposal and one-view bookkeeping.
-    let delivered = request.respond_checked_with_completion(response, |result| crate::serve::latency::finished(result.is_err()));
-    if grant.once && delivered.is_ok() {
+    // @ref LLP 3000.009.001.000.000#3.7 — consume the one-view grant before
+    // releasing bytes: a refused/unknown bookkeeping command never delivers.
+    // Failed transports conservatively consume a confirmed view reservation.
+    if grant.once {
         let (owned_principal, owned_id) = (principal.clone(), id.to_owned());
         if let Err(error) = shared.engine.attempt(move |engine, shared| engine.record_asset_view(&owned_principal, &owned_id, shared.now())) {
-            snapback4_core::diagnostic!("snapback4: one-view asset {id} was delivered to {principal}, but its view could not be recorded: {error}");
+            return respond(request, 500, json!({"denied":error.refusal()}));
         }
     }
+    #[cfg(test)] crate::serve::test_work(&shared.asset_delivery);
+    let _ = request.respond_checked_with_completion(response, |result| crate::serve::latency::finished(result.is_err()));
 }
 
 /// `io::copy` considers an early EOF successful. Convert it to an error so a
-/// truncated asset cannot consume a one-view grant after a short response.
+/// truncated asset cannot be reported as a complete response.
 struct ExactReader<R> {
     inner: R,
     remaining: u64,

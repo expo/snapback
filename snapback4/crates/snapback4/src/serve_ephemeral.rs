@@ -146,8 +146,12 @@ pub(super) fn serve(request: Request, shared: &Shared, op: &str, body: &str) {
     };
     let (owned_principal, owned_payload, owned_id, owned_op, owned_fingerprint) =
         (principal.clone(), payload.clone(), id.clone(), op.to_owned(), fingerprint.clone());
-    let preflight = shared.engine.attempt(move |engine, shared| {
-        admission.check(shared, engine, &owned_principal)?;
+    // @ref LLP 3000.009.001.000.000#3.1 — read-only admission and checkout
+    // must not park ephemeral requests behind a durable command.
+    let detached = !shared.memory_store();
+    let preflight = move |engine: &mut Engine, shared: &Shared| {
+        if detached { admission.check_detached(shared, engine, &owned_principal)?; }
+        else { admission.check(shared, engine, &owned_principal)?; }
         intent_store(engine, &owned_payload)?;
         let args = owned_payload.get("args").cloned().unwrap_or(json!({}));
         let replay = owned_id.as_deref().map(|id| engine.replay_mutation(&owned_principal, id, &owned_op, &args)).transpose().map(Option::flatten).map_err(|e| e.refusal())?;
@@ -158,7 +162,16 @@ pub(super) fn serve(request: Request, shared: &Shared, op: &str, body: &str) {
         }
         engine.schema().check_delivery(&owned_op, owned_fingerprint.as_deref()).map_err(|e| e.refusal())?;
         Ok(None)
-    });
+    };
+    let preflight = match shared.reader() {
+        Ok((epoch, mut reader)) => {
+            let result = preflight(&mut reader, shared);
+            lock(&shared.readers).put(&epoch, reader.into_inner());
+            result
+        }
+        Err(_) if shared.memory_store() => shared.engine.attempt(preflight),
+        Err(error) => Err(error.refusal()),
+    };
     match preflight {
         Ok(Some((out, (store_id, head)))) => {
             let mut reply = out.reply(id.as_deref());
@@ -203,20 +216,18 @@ pub(super) fn serve(request: Request, shared: &Shared, op: &str, body: &str) {
     };
     #[cfg(test)]
     test_work(&shared.mutation_wait);
-    let admission = super::session_identity::Admission::capture(&request, shared);
-    let principal_check = principal.clone();
-    let checkout = shared.engine.attempt(move |engine, shared| {
-        admission?.check(shared, engine, &principal_check)?;
-        Ok::<_, Refusal>((shared.take_reader(engine), shared.personas.then(|| Arc::new(lock(&shared.bound).refusal_sites.clone()))))
-    });
-    let (reader, sites) = match checkout { Ok(value) => value, Err(why) => return failed(request, why) };
+    let reader = shared.reader().map(|(epoch, reader)| (epoch, reader.into_inner()));
+    let sites = shared.personas.then(|| Arc::new(lock(&shared.bound).refusal_sites.clone()));
+    if let Err(error) = &reader && !shared.memory_store() { return failed(request, error.refusal()); }
     let mut context = Context::new(principal.clone(), args).at(shared.now());
     context.delivery_fingerprint = fingerprint;
     let result = match reader {
         Ok((epoch, mut reader)) => {
             if let Some(sites) = sites { context = super::dev_refusals::response::context(context, sites, &reader); }
             let _timing = latency::EngineSpan::new();
-            let result = intent_store(&reader, &payload).and_then(|()| {
+            let result = super::session_identity::Admission::capture(&request, shared)
+                .and_then(|admission| admission.check_detached(shared, &reader, &principal))
+                .and_then(|()| intent_store(&reader, &payload)).and_then(|()| {
                 reader.require_non_media_ephemeral(&principal,id.as_deref()).map_err(|e|e.refusal())?;
                 reader
                     .mutate_ephemeral(&op, context)

@@ -125,7 +125,7 @@ impl Host {
     fn with_capacity_recent(dev: bool, store: impl Into<snapback4_core::store_port::AnyStore>, source: &str, bind: &str, evidence: Option<&std::path::Path>, capacity: crate::host_limits::Capacity, recent: Option<dev_refusals::Recent>, unsafe_dev_doors: bool) -> Self {
         Self::with_capacity_recent_writer(dev, store, source, bind, evidence, capacity, recent, unsafe_dev_doors, |engine| committer::Writer::new(engine).unwrap())
     }
-    pub(super) fn with_capacity_recent_writer(dev: bool, store: impl Into<snapback4_core::store_port::AnyStore>, source: &str, bind: &str, evidence: Option<&std::path::Path>, capacity: crate::host_limits::Capacity, recent: Option<dev_refusals::Recent>, unsafe_dev_doors: bool, writer: impl FnOnce(Engine) -> committer::Writer) -> Self {
+    pub(in crate::serve) fn with_capacity_recent_writer(dev: bool, store: impl Into<snapback4_core::store_port::AnyStore>, source: &str, bind: &str, evidence: Option<&std::path::Path>, capacity: crate::host_limits::Capacity, recent: Option<dev_refusals::Recent>, unsafe_dev_doors: bool, writer: impl FnOnce(Engine) -> committer::Writer) -> Self {
         crate::host_limits::prepare_tests();
         let bound = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
         assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
@@ -184,6 +184,7 @@ impl Host {
         worker_minted: Mutex::new(None), auth_work: Mutex::new(None),
             round_trips: Mutex::new(None),
             request_work: Mutex::new(None), upload_work: Mutex::new(None),
+        #[cfg(test)] asset_delivery: Mutex::new(None),
             effect_wait: Mutex::new(None),
             poll_wait: Mutex::new(None), poll_resumed: Mutex::new(None), poll_notified: Mutex::new(None),
             query_wait: Mutex::new(None), reader_open: Mutex::new(None), changes_refresh: Mutex::new(None),

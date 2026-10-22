@@ -193,33 +193,34 @@ impl StoreConfig {
                     .into(),
             );
         }
-        if !lease.lock().unwrap_or_else(|p| p.into_inner()).renew().map_err(redact)? {
+        let initial_started = Instant::now();
+        let deadline = snapback4_core::store_port::LeaseDeadline::new(LeasePolicy::default().lease, initial_started);
+        if !lease.lock().unwrap_or_else(|p| p.into_inner()).renew().map_err(redact)? || deadline.expired() {
             return Err("E_STORE_OWNERSHIP: acquisition expired before startup".into());
         }
         let renew = lease.clone();
-        let last_renewed = Arc::new(Mutex::new(Instant::now()));
-        let renewed = last_renewed.clone();
+        let renewed = deadline.clone();
         let watchdog_finished = owner.finished.clone();
         let (stop, receive) = mpsc::channel();
         owner.stop = Some(stop);
         owner.thread = Some(std::thread::Builder::new().name("store-lease".into()).spawn(move || {
             while receive.recv_timeout(Duration::from_millis(500)) == Err(mpsc::RecvTimeoutError::Timeout) {
-                if !renew.lock().unwrap_or_else(|p| p.into_inner()).renew().unwrap_or(false) {
+                let started = Instant::now();
+                if !renew.lock().unwrap_or_else(|p| p.into_inner()).renew().unwrap_or(false) || !renewed.renewed(started) {
                     // Exit the process on the first uncertain/lost renewal. The fence orders
                     // in-flight COMMIT before takeover; no listener or producer survives.
                     eprintln!("E_STORE_OWNERSHIP: lease renewal lost; stopping all admission and exiting");
                     std::process::exit(1);
                 }
-                *renewed.lock().unwrap_or_else(|p|p.into_inner()) = Instant::now();
             }
         }).map_err(|_| input("cannot start lease renewal"))?);
         owner.watchdog = Some(std::thread::Builder::new().name("store-lease-deadline".into()).spawn(move || {
             while !watchdog_finished.load(std::sync::atomic::Ordering::Acquire) {
-                if last_renewed.lock().unwrap_or_else(|p|p.into_inner()).elapsed() >= Duration::from_secs(3) {
+                if deadline.expired() {
                     eprintln!("E_STORE_OWNERSHIP: lease renewal deadline lost; stopping all admission and exiting");
                     std::process::exit(1);
                 }
-                std::thread::sleep(Duration::from_millis(50));
+                std::thread::sleep(Duration::from_millis(10));
             }
         }).map_err(|_|input("cannot start lease deadline watchdog"))?);
         Ok(owner)

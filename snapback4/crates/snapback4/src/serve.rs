@@ -145,6 +145,8 @@ pub struct Shared {
     #[cfg(test)]
     pub upload_work: WorkHook,
     #[cfg(test)]
+    pub asset_delivery: WorkHook,
+    #[cfg(test)]
     pub effect_wait: WorkHook,
     #[cfg(test)]
     pub poll_wait: WorkHook,
@@ -714,6 +716,12 @@ pub(crate) fn respond_with_headers(request: Request, shared: &Shared, status: u1
 }
 
 fn respond_full(request: Request, status: u16, body: impl latency::Reply, allow_origin: bool, sync_overflow: Option<Json>, shared: Option<&Shared>, extra: Vec<Header>) {
+    // Resolve queue status before generation stamping, so every door emits
+    // the same refusal envelope as well as the same status and retry policy.
+    let status = body.refusal_code()
+        .filter(|code| *code != "E_RATE_LIMIT" || body.refusal_family() == Some("limit"))
+        .and_then(committer::refusal_status).unwrap_or(status);
+    let overload = status == 503 && body.refusal_code() == Some("E_RATE_LIMIT");
     let refused = status >= 400 || body.refused();
     trace::mark("encode_start");
     let mut bytes = JsonBuffer(Vec::new());
@@ -740,7 +748,7 @@ fn respond_full(request: Request, status: u16, body: impl latency::Reply, allow_
     let refused = refused || encoded.is_err();
     trace::mark("encode_end");
     let _evidence = dev_refusals::response::response(&bytes.0);
-    let overload = status == 503 && serde_json::from_slice::<Json>(&bytes.0).ok().is_some_and(|body| body.get("denied").or_else(|| body.get("why")).is_some_and(|why| why["code"] == "E_RATE_LIMIT"));
+    let overload = overload && status == 503;
     let capacity = bytes.0.len() + 512;
     let mut response = Response::from_data(bytes.0).with_status_code(status);
     if let Some(shared) = shared && let Some(identity) = lock(&shared.dev_reset_store).as_ref() {
@@ -904,8 +912,12 @@ fn handle(mut request: Request, shared: &Shared) {
     if shared.personas && (path.starts_with("/dev/") || path == "/seed") && !shared.dev_doors() {
         return respond_timed(request, shared, 403, json!({"denied":refusal_json(&dev_doors::closed())}));
     }
-    if path.starts_with("/dev/clock") && !shared.personas && !maintenance::staging(shared) {
-        return respond_timed(request, shared, 403, json!({ "denied": refusal_json(&crate::dev_clock::release()) }));
+    if path.starts_with("/dev/clock") && !shared.personas {
+        match maintenance::staging(shared) {
+            Ok(true) => {},
+            Ok(false) => return respond_timed(request, shared, 403, json!({"denied":crate::dev_clock::release()})),
+            Err(why) => return respond_timed(request, shared, 503, json!({"denied":why})),
+        }
     }
     // Discovered control requests bind to the inspected serving instance.
     // A listener replaced between GET status and POST cannot receive the action.
@@ -1078,11 +1090,15 @@ fn handle(mut request: Request, shared: &Shared) {
             Err(refusal) => respond_timed(request, shared, if refusal.retryable { 503 } else { 401 }, json!({ "denied": refusal_json(&refusal) })),
         },
         (Method::Get, "/auth/config") => {
-            let (auth, environment) = shared.engine.call(|engine, shared| {
+            let config = shared.engine.call(|engine, shared| {
                 let environment = if shared.personas { "development" }
                     else if engine.store().deployment_environment().ok().flatten().as_deref() == Some("staging") { "staging" } else { "production" };
                 (engine.schema().auth.clone(), environment)
             });
+            let (auth, environment) = match config {
+                Ok(config) => config,
+                Err(why) => return respond_timed(request, shared, 503, json!({"denied":why})),
+            };
             // @ref LLP 3000.011.003.000.000#1 — an opt-in proof marker asserts the directly bound server, without granting authority.
             let mut config = json!({ "guests": auth.guests, "password": auth.password, "development": shared.personas, "devDoors": shared.dev_doors(), "environment": environment });
             if let Ok(id) = std::env::var("SNAPBACK4_PROOF_ID") && !id.is_empty() {

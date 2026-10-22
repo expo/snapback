@@ -92,7 +92,7 @@ pub(super) fn ingress(mut request: Request, shared: &Shared, name: &str, route: 
         let (owned_name, owned_contract) = (name.to_owned(), contract.clone());
         let authority = shared.engine.attempt(move |engine, _| engine.route_service_generation(&owned_name, &owned_contract));
         let generation = match authority {
-            Ok((_, generation)) => generation, Err(_) => return unavailable(request),
+            Ok((_, generation)) => generation, Err(error) => return engine_failure(request, error),
         };
         let id = match verification_token() { Ok(id) => id, Err(_) => return unavailable(request) };
         {
@@ -102,7 +102,8 @@ pub(super) fn ingress(mut request: Request, shared: &Shared, name: &str, route: 
                 deadline, deadline_ms, lease: None, outcome: None });
         }
         let guard = TicketGuard { registry: &shared.route_verification, id };
-        shared.engine.call(|engine, shared| shared.durable_committed(engine));
+        shared.committed.notify_all();
+
         let (id, principal) = loop {
             let outcome = lock(&shared.route_verification.tickets).get(&guard.id).and_then(|ticket| ticket.outcome.clone());
             match outcome {
@@ -116,20 +117,20 @@ pub(super) fn ingress(mut request: Request, shared: &Shared, name: &str, route: 
         drop(guard);
         let (owned_name, owned_contract, owned_id, owned_principal) = (name.to_owned(), contract.clone(), id.clone(), principal.clone());
         let collected = shared.engine.attempt(move |engine, shared| engine.route_request_at(&owned_name, &owned_contract, &owned_id, &owned_principal, shared.now()));
-        match collected { Ok(run) => (run, principal), Err(_) => return unavailable(request) }
+        match collected { Ok(run) => (run, principal), Err(error) => return engine_failure(request, error) }
     } else {
         let principal = match principal(&request, shared) { Ok(p) => p, Err(why) => return respond_with_cors(request, 401, json!({ "denied": why }), false) };
         let mut context = Context::new(&principal, BTreeMap::new()).at(shared.now());
         if let Ok(token) = crate::auth::bearer_token(&request) { context = context.with_session(token); }
         let (facts, owned_name, owned_contract, owned_principal) = (RequestFacts::capture(&request), name.to_owned(), contract.clone(), principal.clone());
-        let admitted = shared.engine.attempt(move |engine, shared| {
+        let admitted = shared.engine.attempt_and_notify(move |engine, shared| {
             super::session_identity::mutation_authority(&facts, shared, engine, &owned_principal)?;
             Ok::<_, Refusal>(engine.request_session_route(&owned_name, &owned_contract, &envelope, context))
-        });
+        }, |r| r.as_ref().is_ok_and(|r| r.is_ok()));
         let admitted = match admitted { Ok(value) => value, Err(why) => return respond_with_cors(request,401,json!({"denied":why}),false) };
         match admitted { Ok((run, _)) => (run, principal), Err(error) => return respond_with_cors(request, if error.refusal().family == "auth" { 401 } else { 503 }, json!({ "denied": error.refusal() }), false) }
     };
-    shared.engine.call(|engine, shared| shared.durable_committed(engine));
+
     loop {
         if route.service.is_none() && let Err(why) = self::principal(&request, shared) {
             return respond_with_cors(request, 401, json!({ "denied": why }), false);
@@ -139,7 +140,7 @@ pub(super) fn ingress(mut request: Request, shared: &Shared, name: &str, route: 
         let (owned_name, owned_contract, owned_id, owned_principal) = (name.to_owned(), contract.clone(), run.id.clone(), principal.clone());
         let collected = shared.engine.attempt(move |engine, shared| engine.route_request_at(&owned_name, &owned_contract, &owned_id, &owned_principal, shared.now()));
         run = match collected {
-            Ok(run) => run, Err(_) => return unavailable(request),
+            Ok(run) => run, Err(error) => return engine_failure(request, error),
         };
         if run.state == "done" { return completed(request, &run); }
         if matches!(run.state.as_str(), "failed" | "parked") || Instant::now() >= deadline || shared.now() >= deadline_ms || crate::lifecycle::stopping() { return unavailable(request); }
@@ -162,4 +163,12 @@ fn completed(request: Request, run: &ActionRequest) {
     // and bytes belong to the declared handler, framing to the HTTP server.
     if let Some(header) = super::latency::header() { output.add_header(header); }
     let _ = request.respond_checked_with_completion(output, |result| super::latency::finished(result.is_err()));
+}
+
+fn engine_failure(request: Request, error: snapback4_core::RuntimeError) {
+    let why = error.refusal();
+    match super::committer::refusal_status(&why.code) {
+        Some(status) => respond_with_cors(request, status, json!({"denied":why}), false),
+        None => unavailable(request),
+    }
 }

@@ -50,6 +50,14 @@ impl Admission {
     pub(crate) fn resolve(&self, shared: &Shared, engine: &Engine) -> Result<snapback4_core::identity::Capability, Refusal> {
         self.resolve_at(shared, engine, None, false)
     }
+    pub(crate) fn resolve_detached(&self, shared: &Shared, engine: &Engine) -> Result<snapback4_core::identity::Capability, Refusal> {
+        let identity = lock(&shared.wake).store_id.clone();
+        self.resolve_at(shared, engine, identity.as_deref(), true)
+    }
+    pub(crate) fn check_detached(&self, shared: &Shared, engine: &Engine, principal: &str) -> Result<(), Refusal> {
+        if self.resolve_detached(shared, engine)?.0 == principal { Ok(()) }
+        else { Err(Refusal::new("E_AUTH", "auth", "the request's session changed; sign in again").guide("personas")) }
+    }
     fn resolve_at(&self, shared: &Shared, engine: &Engine, identity: Option<&str>, detached: bool) -> Result<snapback4_core::identity::Capability, Refusal> {
     if let Some(persona) = self.persona.clone() {
         shared.dev_authority(engine)?;
@@ -92,7 +100,9 @@ fn principal_with_owner(request: &impl RequestInfo, shared: &Shared, owner: Opti
     let admission = Admission::capture(request, shared)?;
     if let Some(engine) = owner { return admission.resolve(shared, engine); }
     let path = request.url().split('?').next().unwrap_or("");
-    if detached_request(request.method(), path) {
+    let ephemeral = request.method() == &Method::Post && path.strip_prefix("/m/").is_some_and(|name|
+        lock(&shared.bound).schema.operations.get(name).is_some_and(|fact| fact.ephemeral));
+    if detached_request(request.method(), path) || ephemeral {
         match shared.reader() {
             Ok((epoch, reader)) => {
                 let identity = lock(&shared.wake).store_id.clone();

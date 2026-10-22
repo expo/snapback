@@ -326,3 +326,81 @@ fn commit_outcome_unknown_reaches_the_queued_submitter_unchanged() {
         0
     );
 }
+
+#[test]
+#[ignore = "private Postgres; scripts/test-postgres.sh"]
+fn renewal_commit_stall_expires_admission_and_queued_replies_independently() {
+    let mut fixture = Fixture::new();
+    let (queue, lease_pid) = fixture.queue(2);
+    let (entered, started) = mpsc::channel();
+    let (release, resume) = mpsc::channel();
+    let held = queue
+        .submit(Command::new(move |_| {
+            entered.send(()).unwrap();
+            resume.recv_timeout(Duration::from_secs(8)).unwrap();
+        }))
+        .unwrap();
+    started.recv_timeout(Duration::from_secs(5)).unwrap();
+    let queued = queue
+        .submit(Command::new(|_| panic!("expired queued body ran")))
+        .unwrap();
+    let key = crate::ids::seed() as i64;
+    fixture
+        .control
+        .query_one("SELECT pg_advisory_lock($1)", &[&key])
+        .unwrap();
+    fixture.control.batch_execute(&format!("CREATE FUNCTION lease_commit_barrier() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN PERFORM pg_advisory_xact_lock({key}); RETURN NEW; END $$; CREATE CONSTRAINT TRIGGER lease_commit_barrier AFTER UPDATE ON _owner DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION lease_commit_barrier()")).unwrap();
+    wait(|| {
+        fixture.control.query_one("SELECT query='COMMIT' AND wait_event='advisory' FROM pg_stat_activity WHERE pid=$1", &[&lease_pid]).unwrap().get::<_,bool>(0)
+    });
+    let until = Instant::now() + Duration::from_secs(1);
+    while !queue.ownership_lost() && Instant::now() < until {
+        thread::sleep(Duration::from_millis(5));
+    }
+    let lost = queue.ownership_lost();
+    let refused = queued.wait_timeout(Duration::from_millis(50));
+    let admission = queue.call(Command::new(|_| ()));
+    // Unlock the exact renewal COMMIT and the active command before assertions.
+    fixture
+        .control
+        .query_one("SELECT pg_advisory_unlock($1)", &[&key])
+        .unwrap();
+    release.send(()).unwrap();
+    held.wait().unwrap();
+    assert!(lost, "watchdog waited for renewal COMMIT");
+    assert_eq!(refused, Err(SubmitError::OwnershipLost));
+    assert_eq!(admission, Err(SubmitError::OwnershipLost));
+    drop(queue);
+}
+
+#[test]
+#[ignore = "private Postgres; scripts/test-postgres.sh"]
+fn failed_queue_lease_installation_releases_the_acquired_claim() {
+    let mut fixture = Fixture::new();
+    let mut lease = fixture.lease("a001");
+    lease.acquire().unwrap().unwrap();
+    let engine = Engine::open(
+        AnyStore::open_postgres_owned(&fixture.connection, &fixture.namespace, &lease).unwrap(),
+    )
+    .unwrap();
+    let mut queue = Queue::start(engine, 1).unwrap();
+    fixture.control.batch_execute("CREATE FUNCTION fail_renewal() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.lease_until > OLD.lease_until THEN RAISE EXCEPTION 'startup renewal fault'; END IF; RETURN NEW; END $$; CREATE TRIGGER fail_renewal BEFORE UPDATE ON _owner FOR EACH ROW EXECUTE FUNCTION fail_renewal()").unwrap();
+    let installed = queue.hold_lease(lease, Duration::from_millis(20));
+    let explicitly_released: bool = fixture.control.query_one(
+        "SELECT lease_until='-infinity'::timestamptz FROM _owner WHERE singleton", &[]
+    ).unwrap().get(0);
+    fixture
+        .control
+        .batch_execute("DROP TRIGGER fail_renewal ON _owner")
+        .unwrap();
+    let mut standby = fixture.lease("a002");
+    let acquired = standby.acquire().unwrap();
+    let _ = standby.release();
+    drop(queue);
+    assert!(installed.is_err());
+    assert!(explicitly_released, "startup guard did not release (expiry alone is insufficient)");
+    assert!(
+        acquired.is_some(),
+        "failed installation retained an unexpired claim"
+    );
+}

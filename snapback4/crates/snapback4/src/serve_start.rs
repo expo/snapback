@@ -258,6 +258,7 @@ pub fn serve(
         request_work: Mutex::new(None),
         #[cfg(test)]
         upload_work: Mutex::new(None),
+        #[cfg(test)] asset_delivery: Mutex::new(None),
         #[cfg(test)]
         effect_wait: Mutex::new(None),
         #[cfg(test)]
