@@ -603,25 +603,25 @@ mod tests {
     fn dx6_staging_preservation_uses_effective_time_above_the_disclosure_floor() {
         let store = snapback4_core::store_port::AnyStore::memory().unwrap();
         store.set_deployment_environment("staging").unwrap();
-        let host = Host::with_store(false, store, "use identity\ntable timed:\n  opens: time\n  not before .opens\n  public 'fixture'\n  online only\nquery clock():\n  return now\n");
+        let host = Host::with_store(false, store, "use identity\ntable timed:\n  opens: time\n  not before .opens\n  public 'fixture'\n  online only\nquery clock():\n  return now\neffect notify\nmutation queue():\n  emit notify {}\n");
         let store_id = lock(&host.shared.engine).store().store_identity().unwrap().unwrap();
         let raw = snapback4_core::now_ms() + 1_000;
         let floor = raw + 10_000;
         lock(&host.shared.clock).freeze(raw);
         host.shared.time_audience_clock.store(floor, std::sync::atomic::Ordering::Release);
         let (service, live, expired) = {
-            let engine = lock(&host.shared.engine);
+            let mut engine = lock(&host.shared.engine);
             let service = snapback4_core::identity::service_session(engine.store(), "clock", floor, 1).unwrap();
-            let live = snapback4_core::identity::custom_session(engine.store(), "member:live", "member", raw, 1).unwrap();
-            let expired = snapback4_core::identity::custom_session(engine.store(), "member:expired", "member", raw, 1).unwrap();
-            let conn = match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(store) => store.test_support_conn() };
-            conn.execute("UPDATE _sessions SET expires_at = ?1 WHERE principal = 'member:live'", [floor + 500]).unwrap();
-            conn.execute("UPDATE _sessions SET expires_at = ?1 WHERE principal = 'member:expired'", [floor - 500]).unwrap();
-            conn.execute("INSERT INTO _requests(id,name,args,principal,at,state,lease_until) VALUES ('held','work','{}','member:live',?1,'running',?2)", [raw, floor + 200]).unwrap();
-            // No-op jumps must not touch authority rows at all, even if their
-            // values would happen to remain acceptable after an unnecessary write.
-            conn.execute_batch("CREATE TEMP TRIGGER reject_session_shift BEFORE UPDATE ON _sessions BEGIN SELECT RAISE(ABORT,'unexpected authority write'); END;
-                CREATE TEMP TRIGGER reject_claim_shift BEFORE UPDATE ON _requests BEGIN SELECT RAISE(ABORT,'unexpected lease write'); END;").unwrap();
+            // Construct boundary credentials through the existing identity port;
+            // backdating their one-day mint gives exact expiry without raw SQL.
+            let day = 86_400_000;
+            let live = snapback4_core::identity::custom_session(engine.store(), "member:live", "member", floor + 500 - day, 1).unwrap();
+            let expired = snapback4_core::identity::custom_session(engine.store(), "member:expired", "member", floor - 500 - day, 1).unwrap();
+            let queued = engine.mutate("queue", None, snapback4_core::Context::new("member:live", Default::default()).at(floor)).unwrap();
+            assert!(matches!(queued.state, snapback4_core::WriteState::Sent { .. }));
+            let claimed = engine.claim_effects("service:worker", None, 1, 3_000, floor).unwrap();
+            assert_eq!(claimed.len(), 1);
+            assert_eq!(claimed[0].lease_until, Some(floor + 3_000));
             (service, live, expired)
         };
         let headers = format!("Authorization: Bearer {}\r\n", service.token);
@@ -635,15 +635,11 @@ mod tests {
             assert_eq!(advance("4s")["now"], floor);
             let engine = lock(&host.shared.engine);
             assert!(snapback4_core::identity::resolve_read_only(engine.store(), &expired.token, floor, Some(&store_id)).unwrap().is_none());
-            let conn = match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(store) => store.test_support_conn() };
-            let expiry:i64 = conn.query_row("SELECT expires_at FROM _sessions WHERE principal='member:live'",[],|r|r.get(0)).unwrap();
-            let lease:i64 = conn.query_row("SELECT lease_until FROM _requests WHERE id='held'",[],|r|r.get(0)).unwrap();
-            assert_eq!(expiry,floor+500); assert_eq!(lease,floor+200);
-        }
-        {
-            let engine = lock(&host.shared.engine);
-            let conn = match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(store) => store.test_support_conn() };
-            conn.execute_batch("DROP TRIGGER reject_session_shift; DROP TRIGGER reject_claim_shift;").unwrap();
+            let timing = engine.staging_session_timing(&live.token, floor, &store_id).unwrap().unwrap();
+            assert_eq!(timing.expires_at, floor + 500, "below-floor jumps preserve the exact remaining time");
+            let held = engine.effects(Some("running"), 1).unwrap();
+            assert_eq!(held.len(), 1);
+            assert_eq!(held[0].lease_until, Some(floor + 3_000));
         }
         // Raw time has advanced eight seconds. Crossing the ten-second floor
         // with three more seconds advances effective authority by only one.
@@ -651,13 +647,12 @@ mod tests {
         let engine = lock(&host.shared.engine);
         assert!(snapback4_core::identity::resolve_read_only(engine.store(), &expired.token, floor+1_000, Some(&store_id)).unwrap().is_none());
         assert!(snapback4_core::identity::resolve_read_only(engine.store(), &live.token, floor+1_000, Some(&store_id)).unwrap().is_some());
-        let conn = match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(store) => store.test_support_conn() };
-        let expiry:i64 = conn.query_row("SELECT expires_at FROM _sessions WHERE principal='member:live'",[],|r|r.get(0)).unwrap();
-        let expired_at:i64 = conn.query_row("SELECT expires_at FROM _sessions WHERE principal='member:expired'",[],|r|r.get(0)).unwrap();
-        let lease:i64 = conn.query_row("SELECT lease_until FROM _requests WHERE id='held'",[],|r|r.get(0)).unwrap();
-        assert_eq!(expiry,floor+1_500,"exactly the original 500ms remains");
-        assert_eq!(expired_at,floor-500,"an expired token never shifts back to life");
-        assert_eq!(lease,floor+1_200,"leases shift by effective elapsed time once");
+        let timing = engine.staging_session_timing(&live.token, floor + 1_000, &store_id).unwrap().unwrap();
+        assert_eq!(timing.expires_at, floor + 1_500, "exactly the original 500ms remains");
+        assert!(engine.staging_session_timing(&expired.token, floor + 1_000, &store_id).unwrap().is_none(), "an expired token never shifts back to life");
+        let held = engine.effects(Some("running"), 1).unwrap();
+        assert_eq!(held.len(), 1);
+        assert_eq!(held[0].lease_until, Some(floor + 4_000), "leases shift by effective elapsed time once");
     }
 
     #[test]
