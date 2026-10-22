@@ -6,7 +6,7 @@ pub(super) const ACTIONS: &[(&str, &[&str])] = &[
     ("N_PRIVATE_CREATE_EDIT_ASYMMETRY", &["Confirm who may supply this field at creation", "test independent column write intent with a non-null value."]),
     ("N_EVIDENCE_REMOVAL", &["confirm last-child retention against the specification.", "Guard deletion or detachment transactionally", "declare independent parent integrity intent and run test."]),
     ("N_RETAINED_ROLE_GRANT", &["Recheck current role or revoke derived grants.", "Intentional retained authority needs an individual source-bound disposition."]),
-    ("N_OPTIONAL_UPLOAD_CREATE", &["Require the upload before creating the parent when independent intent requires child evidence.", "Optional media columns and guarded optional attachments do not require acknowledgment; a required child column alone does not require a child row."]),
+    ("N_OPTIONAL_UPLOAD_CREATE", &["When independent intent requires a child, either require the upload before parent creation or always create the child with deliberately optional media; skipping the child on a null upload violates that presence intent.", "Optional media columns and guarded optional attachments do not require acknowledgment; a required child column alone does not require a child row."]),
     ("N_CREATION_REASON", &["Compare the justification requirement with the spec", "use text 1..N when required.", "This name-based question is advisory."]),
     ("N_CREATION_MONEY", &["Model and require the amount when the spec requires a fee or payment", "confirm intentional optional amounts against the spec.", "This name-based question is advisory."]),
     ("N_CONSTANT_APPROVAL", &["record the required amount/evidence and the independently authorized decision.", "This name-based question is advisory."]),
