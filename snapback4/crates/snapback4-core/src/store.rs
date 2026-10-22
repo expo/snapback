@@ -52,7 +52,7 @@ mod outbox;
 mod change_evidence;
 pub(crate) mod release;
 mod authority;
-mod identity;
+pub(crate) mod identity;
 mod receipts;
 mod jobs;
 pub mod inspect;

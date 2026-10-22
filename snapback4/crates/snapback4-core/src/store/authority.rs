@@ -149,17 +149,6 @@ impl Store {
         tx.rollback()?;
         Ok(resolved)
     }
-
-    /// Expiry pruning follows a completed authority snapshot. Keeping this
-    /// best-effort cleanup outside the deferred read transaction avoids a
-    /// read-to-write lock upgrade while rechecking the expiry predicate.
-    pub(crate) fn invalidate_expired_authority_session(&self, digest: &str, now: i64) -> Result<(), RuntimeError> {
-        self.conn.execute(
-            "DELETE FROM _sessions WHERE token_digest = ?1 AND expires_at <= ?2",
-            params![digest, now],
-        )?;
-        Ok(())
-    }
 }
 
 #[cfg(test)]

@@ -101206,3 +101206,66 @@ local ext4 on /dev/nvme0n1p3, Samsung MZVL2512HCJQ-00B00 NVMe, with shipped
 SQLite WAL/synchronous=FULL. No PG cluster was touched. No push, stash, clone,
 sub-agents, sudo, Docker or paid services.
 [Report and archive receipt](./experiments/scale-controls/results-20261022-snapback-sqlite/README.md).
+### 2026-10-22 — K0d (S10d-1): admitted direct identity operations
+
+The common engine now routes guest/open/signup/login, full/read refresh,
+resolve's expired-token pruning, close, family logout, principal revoke-all and
+read narrowing through `Committer::run` as Direct members. Startup's
+unconditional stale supervised-family cleanup follows the same path. A scoped
+port opener preserves each original SQLite transaction mode while lending only
+`MemberTx` to the body. Typed identity facts and edits stay behind that facade;
+there is no owning transaction, connection or raw callback on it. Postgres
+retains its serialized opener and suppressed-write row-count refusals.
+
+SQLite's convenience mint/close keep a member per originally autocommitted
+statement, including partial durability and lazy read-session storage surviving
+a later refused insert. Atomic composites retain their original rollback
+boundaries. Read-refresh absence/refusal aborts; an empty full replacement
+completes its expiry cleanup. Logout/narrow still sample time after their
+immediate writer boundary. Direct operations publish no sequence. Existing
+Program members already cover mutation receipts, receipt-only outcomes and
+replay/id reuse; ordinary bearer checks remain read snapshots.
+
+The committer allowlist falls from 11 files / 49 sites to 10 / 47, removing
+logout's opener and read narrowing's only opener. Adapter-internal identity
+writers were outside the lexical denominator. The existing committer RFC's
+§9 K0d note and [lane report](./reports/20261022-s10d1-direct-members.md) record
+the routing, conservative read matches and remaining off-profile direct
+families. The administrative opening match remains separate public-bootstrap
+work. No queue, thread, batching, retry, ownership file or `engine/postgres/`
+file changes. Six targeted SQLite failure/clock/storage regressions and the
+expanded existing private-Postgres HTTP witness cover the shared-port paths.
+The lane uses its own target with ten Cargo jobs and a 20 GiB disk stop bound;
+no push, stash or sub-agents.
+
+### 2026-10-22 — S10d-1 qualification and recovery review
+
+The saved K0d runtime and test changes are retained in full. The recovery review
+checked the admitted query/mutation and identity paths, original SQLite SQL
+and transaction modes, explicit member dispositions, and post-commit work.
+It clarified that supervised-worker status reports and development replay's
+effect-policy write also remain deferred outside the admitted profile. The
+scoped governing context and existing references still apply; no new protocol,
+queue or production scope is introduced.
+
+All requested checks pass: CLI build and SQLite-free core check; full core
+(646 unit tests passed, three ignored, plus all integration/doctest targets,
+including the six new failure/clock/storage witnesses); full host (all three
+supplied baselines pass); 16 ratchet/census tests; compiled guards in both
+builds; 127 guide tests; 27 codec-census tests; and the stock Postgres script
+(58 evaluator, 209 family/oracle, two member, one compiled guard, 37 doctest,
+one expanded HTTP and 19 corpus tests). The fresh actual committer census is
+10 files / 47 sites, down from 11 / 49. The default CLI rebuild after the
+Postgres handoff passes. No unexpected test failure needed an isolated rerun.
+Named exclusions and ignored tests remain outside the passed denominator.
+
+The sole created cluster, `/tmp/sb4-pg-eval.DcDqvh`, was stopped by the script
+and independently confirmed stopped: `pg_ctl status` returned 3 and no
+`postmaster.pid` remains. Data and stop receipts are retained; no unrelated
+cluster was touched. Minimum free space was 133.0 GiB, above the 20 GiB stop
+bound. Original logs remain in `/tmp/s10d1-checks/`; the fresh results, commands,
+transcripts and stop receipt are in its `continuation/` directory. Final root
+reference and whitespace checks pass. The
+[lane report](./reports/20261022-s10d1-direct-members.md) records the complete
+remaining-opener inventory and qualification. Commits remain local, with
+Charlie Cheever as committer and Codex as author/co-author; no stash or agents.

@@ -35,4 +35,81 @@ fn s10c_postgres_internal_http_host_witness() {
     assert!(!logged_out.to_string().contains("E_STORE_UNSUPPORTED"), "{logged_out}");
     let denied = host.request("POST", "/q/peek", &headers, r#"{"args":{"key":"n1"}}"#);
     assert_ne!(status(&denied), 200, "{denied}");
+    admitted_identity_members(&host);
+}
+
+// Exercise the shared-port identity writers, rather than only the legacy
+// concrete-adapter parity fixtures. These operations take no public sequence.
+fn admitted_identity_members(host: &Host) {
+    let signed_in = |path: &str, headers: &str, payload: &str| {
+        let response = host.request("POST", path, headers, payload);
+        assert_eq!(status(&response), 200, "{path}: {response}");
+        body(&response)["session"].clone()
+    };
+    let headers = |session: &serde_json::Value| format!("Authorization: Bearer {}\r\n", session["token"].as_str().expect("session token"));
+    let allowed = |session: &serde_json::Value| {
+        let response = host.request("POST", "/q/peek", &headers(session), r#"{"args":{"key":"n1"}}"#);
+        assert_eq!(status(&response), 200, "{response}");
+        assert_eq!(body(&response)["seq"], 1);
+        assert_eq!(body(&response)["data"]["n"], 7);
+    };
+    let denied = |session: &serde_json::Value| {
+        let response = host.request("POST", "/q/peek", &headers(session), r#"{"args":{"key":"n1"}}"#);
+        assert_ne!(status(&response), 200, "{response}");
+        assert!(!response.contains("E_STORE_UNSUPPORTED"), "{response}");
+    };
+    for scope in ["full", "read"] {
+        let payload = json!({"email": format!("{scope}@s10d.test"), "password": "s10d-test-password", "scope": scope}).to_string();
+        let signup = signed_in("/auth/signup", "", &payload);
+        assert_eq!(signup["scope"], scope);
+        allowed(&signup);
+        let duplicate = host.request("POST", "/auth/signup", "", &payload);
+        assert_ne!(status(&duplicate), 200, "{duplicate}");
+        assert_eq!(body(&duplicate)["denied"]["code"], "E_AUTH");
+        let login = signed_in("/auth/login", "", &payload);
+        assert_eq!(login["principal"], signup["principal"]);
+        allowed(&login);
+        let refreshed = signed_in("/auth/refresh", &headers(&signup), "{}");
+        denied(&signup);
+        allowed(&refreshed);
+        if scope == "read" {
+            assert!(signup["capExpiresAt"].as_i64().is_some());
+            assert_eq!(refreshed["capExpiresAt"], signup["capExpiresAt"]);
+        } else {
+            let narrow = signed_in("/auth/narrow", &headers(&refreshed), "{}");
+            assert_eq!(narrow["scope"], "read");
+            assert!(narrow["capExpiresAt"].as_i64().is_some());
+            allowed(&narrow);
+            let rotated = signed_in("/auth/refresh", &headers(&narrow), "{}");
+            assert_eq!(rotated["capExpiresAt"], narrow["capExpiresAt"]);
+            denied(&narrow);
+            allowed(&rotated);
+            let response = host.request("POST", "/auth/logout", &headers(&rotated), "{}");
+            assert_eq!(status(&response), 200, "{response}");
+            denied(&rotated);
+            allowed(&refreshed);
+        }
+        let response = host.request("POST", "/auth/logout", &headers(&refreshed), "{}");
+        assert_eq!(status(&response), 200, "{response}");
+        denied(&refreshed);
+        // Logout of one family leaves the separately minted login live.
+        allowed(&login);
+        if scope == "full" {
+            let response = host.request("POST", "/auth/logout-all", &headers(&login), "{}");
+            assert_eq!(status(&response), 200, "{response}");
+            denied(&login);
+        }
+    }
+    let guest = signed_in("/auth/guest", "", r#"{"scope":"read"}"#);
+    assert_eq!(guest["scope"], "read");
+    allowed(&guest);
+    let engine = lock(&host.shared.engine);
+    let expired = snapback4_core::identity::open_session(engine.store(), "member:expired", "account", 1).unwrap();
+    assert!(snapback4_core::identity::resolve(engine.store(), &expired.token, host.shared.now()).unwrap().is_none());
+    let session = snapback4_core::identity::open_session(engine.store(), "member:close", "account", host.shared.now()).unwrap();
+    assert!(snapback4_core::identity::resolve(engine.store(), &session.token, host.shared.now()).unwrap().is_some());
+    snapback4_core::identity::close_session(engine.store(), &session.token).unwrap();
+    assert!(snapback4_core::identity::resolve(engine.store(), &session.token, host.shared.now()).unwrap().is_none());
+    snapback4_core::identity::clear_worker_families(engine.store()).unwrap();
+    assert_eq!(engine.seq().unwrap(), 1);
 }

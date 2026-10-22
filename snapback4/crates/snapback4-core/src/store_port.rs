@@ -30,6 +30,10 @@ pub(crate) struct OpeningMetadata {
 
 #[path = "store/port/lifecycle.rs"]
 mod lifecycle;
+pub(crate) use lifecycle::IdentitySource;
+#[path = "store/port/identity_members.rs"]
+mod identity_members;
+pub(crate) use identity_members::SessionEdit;
 #[path = "store/port/operations.rs"]
 mod operations;
 pub(crate) use operations::FollowingHistoryReader;
