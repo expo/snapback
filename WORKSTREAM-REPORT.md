@@ -17,7 +17,9 @@ are distinct. Both reach the narrow optional-creator gate. Required children
 remain independent parent integrity intent. Generic optionality stays advisory.
 
 DX7 owns clock persistence, renderedText, upgrade/gate messaging and schema
-ergonomics. Its one-line pointer is in the 0.4.40 guide-changes entry.
+ergonomics. The one-line ownership pointer stays in this report and the internal journal;
+packaged documentation excludes workstream names. The 0.4.40 entry records only
+user-visible SEC8 changes.
 
 ## Implementation
 
