@@ -26,6 +26,13 @@ impl Binder<'_> {
                 }));
         for (column, supplied) in patch {
             if !info.decl.immutable.iter().any(|(fields, _)| fields.contains(column)) { continue; }
+            if self.schema.tables[&info.decl.name].column_reads.contains_key(column) {
+                let field_site = fields.iter().find(|field| &field.name == column).map_or(site, |field| &field.site);
+                self.notes.push(Diagnostic::new(field_site, "N_IMMUTABLE_PATCH",
+                    format!("{}.{column} is protected and immutable; this supplied field is ignored on update or an existing upsert, without comparing its stored value", info.decl.name),
+                    format!("omit {column} from the patch; set it on insert instead")).guide("writes"));
+                continue;
+            }
             let value = resolve(supplied, prior, 32, &stable);
             let pinned = index.columns.iter().position(|field| field == column)
                 .and_then(|at| components.get(at)?.as_ref());

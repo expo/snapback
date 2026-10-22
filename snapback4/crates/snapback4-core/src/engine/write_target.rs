@@ -252,10 +252,11 @@ impl Runner<'_> {
 
     // @ref LLP 3000.007#17 — ruling 17 (a), third pass: hidden immutable fields are ignored, never compared, on update and upsert.
     pub(in crate::engine) fn ignore_hidden_immutable_patch(&self, table: &str, patch: crate::value::Supplied, readable: bool) -> Result<crate::value::Supplied, RuntimeError> {
-        if readable { return Ok(patch); }
-        patch.remove_fields(self.schema.tables[table].constraints.iter().filter_map(|c|match c {
-            crate::schema::Constraint::Immutable {fields} => Some(fields.iter().cloned()), _ => None,
-        }).flatten())
+        // @ref LLP 3000.000.000.001#12-wave-24-loop-repairs-dx7 — protected immutable patches never compare hidden payloads.
+        let definition = &self.schema.tables[table];
+        patch.remove_fields(definition.constraints.iter().filter_map(|c|match c {
+            crate::schema::Constraint::Immutable {fields} => Some(fields.iter()), _ => None,
+        }).flatten().filter(|field| !readable || definition.column_reads.contains_key(*field)).cloned())
     }
 
     // @ref LLP 3000.007#14 — ruling 17 (b): an author condition needs a readable target; a blind patch needs none.

@@ -372,3 +372,73 @@ field on its existing row with `read <- policy` when it only narrows payload
 visibility; keep separate entities, lifecycles and write authority in separate
 tables. This advisory never proves equivalence or rewrites stored data.
 N_UNIQUE_HIDDEN names a private unique declaration whose else code applies only to readable conflicts. A hidden conflict keeps generic E_RULE (or an undisclosed target miss). Source advice may quote the declared clause; public refusals never confirm a hidden row. Prefer a minimal readable key projection or operator-mediated claim when availability is public; do not widen private payloads for a diagnostic.
+
+
+## Private immutable payloads and audience helpers
+
+Use a pure expression helper for a repeated audience. Its typed arguments are
+rule terms; its body expands before planning, with exactly the ordinary rule
+semantics. A helper may also contain a single return. Pass focal fields
+explicitly: a helper cannot capture the caller's dot, clock or local variables.
+Effects and multi-statement helper blocks belong in operations.
+
+A protected immutable payload is set on insert. Supplying it on update or an
+existing upsert is ignored for every viewer without comparing the old value;
+N_IMMUTABLE_PATCH explains that behavior. Omit it from patches. This protects
+both permanence and privacy, including assets. Unique/index/cap/authority keys
+still cannot use protected payloads.
+
+```quarry
+use identity guests
+fn dxOwns(owner: principal): owner = viewer
+fn dxStaff(): exists dxRoles[principal = viewer, role = 'staff']
+table dxRoles:
+  principal: principal
+  role: enum('staff', 'customer')
+  unique principal
+  immutable principal
+  read <- .principal = viewer
+  insert <- viewer = 'service:operator'
+  update <- viewer = 'service:operator'
+  online only
+table dxOrders:
+  owner: principal
+  title: text <= 80
+  price: int read <- dxOwns(.owner)
+  immutable owner, price
+  read <- allow
+  insert <- dxOwns(.owner)
+  update <- dxOwns(.owner)
+  online only
+mutation dxRole(principal: principal, role: enum('staff', 'customer')):
+  upsert dxRoles[principal = principal] { principal, role }
+mutation dxOpen(title: text <= 80, price: int):
+  return insert dxOrders { owner: viewer, title, price }
+mutation dxEdit(id: dxOrders, title: text <= 80):
+  return update dxOrders[id] { title }
+query dxOrder(id: dxOrders):
+  return dxOrders[id]
+query dxIsCustomer(principal: principal):
+  return exists dxRoles[principal = principal, role = 'customer']
+mutation dxCustomerGuard(principal: principal):
+  require exists dxRoles[principal = principal, role = 'customer'] else NOT_CUSTOMER
+  return true
+mutation dxStaffEdit(id: dxOrders, title: text <= 80):
+  require dxStaff() else NOT_STAFF
+  return update dxOrders[id] { title }
+```
+
+The operator can provision a customer role, but a different caller's
+`dxIsCustomer(customer)` returns false: program exists applies
+`dxRoles.read <- .principal = viewer`. That result means caller-visible absence.
+A positive require on that result can therefore say NOT_CUSTOMER even when the
+hidden role exists. N_UNREADABLE_PROBE/N_LOOKUP_FILTERED name the hiding rule
+and its source site. Table-rule exists is a policy probe; it does not return
+that row or borrow its read audience. A staff require also does not replace
+`dxOrders.update`: dxStaffEdit still needs the order's owner rule.
+
+When customer eligibility is deliberately public, publish a separate minimal
+projection with just its principal/eligibility, authorize its writers, and
+probe it instead. Keep role and private payload rows hidden. For parent-child
+visibility use `read through .parent` only when inheriting the entire parent
+read policy is intended; `guide rule-recipes` covers that model.

@@ -219,7 +219,7 @@ pub fn validate(schema: &Schema) -> Vec<SchemaIssue> {
         }
         for c in &table.constraints {
             match c {
-                Constraint::Immutable { fields } | Constraint::Cap { by: fields, .. } => {
+                Constraint::Cap { by: fields, .. } => {
                     for f in fields {
                         walk.field(name, f, &path);
                     }
