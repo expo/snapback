@@ -102270,3 +102270,10 @@ The moves preserve behavior and keep the strengthened progress assertions
 The shared lease deadline also bounds each watchdog sleep to its remaining
 window (at most 10 ms), so short test leases do not wait a full polling tick
 past their deadline. Renewal completion still cannot revive lost authority.
+
+
+The guide definition guard initially retained the narrower Postgres-only
+unknown-COMMIT sentence. Its unchanged isolated failure reproduced; the single
+expected defining fact now includes admitted serving acknowledgement loss and
+the 30-second deadline, matching the implemented cross-store error. The guard
+still checks the first paragraph of every registered code explanation.
