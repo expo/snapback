@@ -24,7 +24,7 @@ mutation writePrivateNote(body: text 1..2000):
 ```
 
 Run `snapback4 check` → `snapback4 test` → `snapback4 audit`. Check reports
-invariant counts and five notes plus all likely-hole questions; `--verbose` retains every reason.
+invariant counts, five ordinary note classes and all likely-hole questions; `--verbose` retains every reason.
 Answer the rule questions from the product specification before editing intent.
 The restating advisory names each admitted role and its row conditions: for
 example, a coach branch with no assignment check asks whether coaches should
@@ -340,3 +340,39 @@ separate finite successor bound. Check keeps its shared 512-work/1500ms limit.
 Frontier, argument, signature and attempt cuts remain coverage gaps. Synthetic
 observations are REVIEW, while actual admitted histories from validated generated
 fixtures retain their generated-fixture-trace origin and can fail acceptance.
+
+### N_RETAINED_ROLE_GRANT
+
+N_RETAINED_ROLE_GRANT: A recipient role required when storing a grant is mutable and missing from a reader branch that trusts that grant, including column payload readers. Recheck current role or revoke derived grants. Intentional retained authority needs an individual source-bound disposition.
+
+### N_OPTIONAL_UPLOAD_CREATE
+
+N_OPTIONAL_UPLOAD_CREATE: An optional upload argument can be omitted while a mutation creates a parent or evidence row. Require the upload before creating the parent when the spec requires evidence. Intentional optional attachments need an individual source-bound disposition.
+
+### N_CREATION_REASON
+
+N_CREATION_REASON: Creating a row accepts a reason argument without a positive non-whitespace minimum. Compare the justification requirement with the spec; use text 1..N when required. This name-based question is advisory.
+
+### N_CREATION_MONEY
+
+N_CREATION_MONEY: Creating a row accepts omitted money. Model and require the amount when the spec requires a fee or payment; confirm intentional optional amounts against the spec. This name-based question is advisory.
+
+### N_CONSTANT_APPROVAL
+
+N_CONSTANT_APPROVAL: Creation stores a constant true approval/payment flag. A true constant does not verify payment or approval; record the required amount/evidence and the independently authorized decision. This name-based question is advisory.
+
+### N_TRANSITION_BYPASS
+
+N_TRANSITION_BYPASS: A generic enum setter reaches a state also reached by a stricter decision mutation. Apply the decision authority to every path reaching that state; write independent transition intent and run test.
+
+### N_STALE_CREATION_CHECK
+
+N_STALE_CREATION_CHECK: A creator checks mutable eligibility that a later approval/transition does not recheck. Decide whether eligibility must remain current and write independent intent; test create, eligibility change, approval.
+
+### N_DURATION_BOUNDS
+
+N_DURATION_BOUNDS: Operations apply different server-relative duration bounds to one column. Compare the windows with the specification and make them consistent or document deliberate differences.
+
+### N_ROLE_WIDE_WRITE
+
+N_ROLE_WIDE_WRITE: A global role plus viewer attribution does not identify the owner of this resource. Ask whether any role member may write any row; model the target-to-owner relationship and guard it. See the Wall ownership rule recipe.

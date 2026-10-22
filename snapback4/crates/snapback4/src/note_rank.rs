@@ -361,3 +361,19 @@ mod integration20_tests {
         }
     }
 }
+
+// @ref LLP 3000.036.004#165-review-clarification-exact-detector-and-command-boundaries — repeated sites must not consume independent advice classes.
+pub(crate) fn shortlist(notes:&mut Vec<Note>){
+ let mut ordinary=std::collections::BTreeSet::new();
+ notes.retain(|note|{
+  if snapback4_lang::security::note_priority(&note.code)<=2{return true;}
+  if ordinary.contains(&note.code){return true;}
+  if ordinary.len()<5{ordinary.insert(note.code.clone());true}else{false}
+ });
+}
+#[cfg(test)]mod shortlist_tests{use super::*;
+#[test]fn repeated_classes_keep_distinct_audiences_without_hiding_security(){
+ let mut notes=vec![];
+ for code in ["N_ROLE_WIDE_READ","N_NO_PRODUCTION_WRITER","N_NEVER_COMPLETE","N_MAINTAIN_SYNCED","N_NO_HORIZON","N_INSERT_WRITE_INTENT","N_SECURITY_INTENT"]{for n in 0..8{notes.push(Note{site:format!("schema.q:{n}:1"),code:code.into(),summary:String::new(),form:None,compact:None});}}
+ shortlist(&mut notes);assert_eq!(notes.len(),48);assert!(!notes.iter().any(|n|n.code=="N_SECURITY_INTENT"));assert_eq!(notes.iter().filter(|n|n.code=="N_NEVER_COMPLETE").count(),8);
+}}
