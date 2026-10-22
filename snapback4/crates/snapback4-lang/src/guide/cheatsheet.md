@@ -148,6 +148,11 @@ npx snapback4 data lists            # stored rows, as an administrator
 npx snapback4 clock advance 1h      # move a running dev's clock (guide time)
 ```
 
+Uploads: the placing account must upload the bytes; one upload has one home.
+Upload again for a new home, or share a reference to the original row. Required
+photos/files need required creating arguments, including evidence stored on child
+rows (`guide uploads`).
+
 ## Client
 
 ```ts

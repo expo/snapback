@@ -303,3 +303,8 @@ through `online.observe` instead follow server changes automatically. Actions
 use `online.act`; durable writes stay on `app.mutate`/`useMutation`. Signed-out
 arms refuse `E_AUTH`. A read-only app uses its existing verified client, with
 writes refused and no SDK refresh. The arm has no session or sign-out methods.
+
+The template intentionally permits text messages without photos. Its
+`snapback/security-reviews.json` records that individual optional-photo decision;
+editing the schema invalidates the record so check asks you to review the current
+workflow again. It does not acknowledge other notes or change authorization.

@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "entries": {
+    "d10cbf9004338b94de3c9c175b40a4934f60e58f65c115aa32fd57e1b0e9922e": {
+      "sources": "715e2116f547d165c6a3234b70139ed266361f4c20d4481a42929f11f67e7736",
+      "analyzer": "sec7-2",
+      "reason": "The social template intentionally supports text messages without a photo; photo attachments are optional, not required workflow evidence."
+    }
+  }
+}

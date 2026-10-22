@@ -1,7 +1,8 @@
 //! `check`'s advisory notes, ranked. A green check printed nine notes in
 //! source order, and builders could not tell an FYI about offline coverage
 //! from a page that never completes. Notes stay advisory (they never fail a
-//! check); this only orders them, names each group, and shortens repeats.
+//! check); security review gates are decided by the caller. This module orders
+//! output, names each group and shortens repeats.
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub(crate) enum Tier {

@@ -1,0 +1,25 @@
+muse: workspace root: /home/ccheever/projects/sb4-b22-sec7 (cwd default)
+muse: workspace trust: trusted source=run-flag
+**Verdict: NOT READY.** One gate emits an unlocatable diagnostic that fails the suite's own regression test; one required spec-judgment case has no committed test. Details below.
+
+## Material findings
+
+**F1 — `N_RETAINED_ROLE_GRANT` has no source location; breaks its own test.** [creation_advice.rs](/home/ccheever/projects/sb4-b22-sec7/snapback4/crates/snapback4-lang/src/bind/security/creation_advice.rs:82) emits the gate at `Site::default()`, which renders as `:0:0` ([diag.rs](/home/ccheever/projects/sb4-b22-sec7/snapback4/crates/snapback4-lang/src/diag.rs:20)). But [security_sec7.rs](/home/ccheever/projects/sb4-b22-sec7/snapback4/crates/snapback4-lang/tests/security_sec7.rs:15) requires `site.line > 0` for every wave22 finding note including this gate on 021.q. I traced the 021 detector path by hand (`assignRoute` recipient-role require → `orders.read` `driverRoutes[viewer, …]` branch → `implies != Ok(true)`), and it fires — so the presence assertion holds and the location assertion fails. Consequences beyond the red test: all retained gates sort at `("",0,0)` ahead of real sites, and the ack ID cannot bind a line shift (§16.5). Repair: emit at `&w.site` (the grant-writing operation's write site). One-word change; message, dedup key, and ID stability are otherwise correct.
+
+**F2 — 037 judgment case and spec variants have no committed test.** No test references `tests/security/wave22/037.q`, `037-spec.q`, `004-spec.q`, `011-spec.q`, `021-spec.q`, `040-spec.q`, `040-specF2.q`, or `044-specF2.q` (only `026-spec`/`030-spec` are exercised, plus the seven non-judgment lanes invariant-stripped). §16.5 names 037 the specification judgment case and requires spec catches "alongside existing 004/021/037 catches"; no manifest with the required SHA256s exists in-tree either. Repair: add a committed verdict assertion for the 037 files (and pin the measurement manifest).
+
+## Minor findings
+
+**F3 — two directed-frontier pruning filters report nothing.** [histories.rs](/home/ccheever/projects/sb4-b22-sec7/snapback4/crates/snapback4-lang/src/bind/security/challenges/histories.rs:333) (role-table-only operations) and :334 (insert-saturated tables) `continue` silently, while every other frontier/argument/successor/depth cut names its remainder. §§16.3/16.5 require every cut reported. Repair: add an `unsupported` reason in the style of the neighboring messages.
+
+**F4 — CHANGELOG claims 0.4.38; package is 0.4.37 and §16 orders no version bump.** Repair: retitle the section Unreleased or drop it until release.
+
+**F5 — concurrent `check --ack-security` can lose an entry** (read-modify-write on `security-reviews.json` without locking). Single-user CLI; consider a note or lockfile. Lowest priority.
+
+## Verified correct (no change needed)
+
+- Per-note dispositions ([security_reviews.rs](/home/ccheever/projects/sb4-b22-sec7/snapback4/src/verbs/security_reviews.rs)): full-diagnostic SHA256 IDs, sorted-source fingerprint with re-read verification, `sec7-2` analyzer revision with old-revision rejection, stale-entry preservation, blank/unknown/malformed refusal, temp+rename writes, ack blocked on any reachable refutation, bulk `--ack-notes` cannot clear gates. CLI flag validation matches the §16.5 allow/refuse matrix; exit-1-on-pending-gates and exit-0-when-acknowledged hold; audit keeps refutation-only exit and full note/disposition visibility.
+- Priority table ([presentation.rs](/home/ccheever/projects/sb4-b22-sec7/snapback4/crates/snapback4-lang/src/bind/security/presentation.rs:6)) matches §16.5 exactly (gates 0, privilege/self-claim 1, seven question codes at 2, insert/result 5, restates 6, coverage 7); numeric file/line/col ordering and the `max(5, count≤2)` cap are implemented equivalently in both `action_text` and `check`, with all refutations printed outside the cap.
+- `write_advice.rs` supplied-argument filter (omitted-default and literal-only quiet, shorthand noisy) and `result_advice.rs` table grouping with every operation/column/kind/site retained in the message are both test-backed and match §16.1.
+- Directed histories: depth 8, 2048 attempts, 4 argument tuples, ≤2 worlds per op/world, 4-world beam, enum/bool signature pruning — all per §16.5 with explicit uncovered reasons; the pre-transition root pass in [generated.rs](/home/ccheever/projects/sb4-b22-sec7/snapback4/crates/snapback4-lang/src/bind/security/challenges/generated.rs:148) is correctly gated to full-test campaigns (`generated_fixture && work_remaining.is_none()`), non-recursive, and relabels witnesses to `GeneratedFixtureTrace`.
+- Recipient/assigner distinction in the retained gate (principal-arg, non-viewer, positive literal-role Exists, owner-branch and service-seat exclusions) is correctly implemented; only its site is wrong (F1).

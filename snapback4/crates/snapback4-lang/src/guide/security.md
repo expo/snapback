@@ -24,7 +24,7 @@ mutation writePrivateNote(body: text 1..2000):
 ```
 
 Run `snapback4 check` → `snapback4 test` → `snapback4 audit`. Check reports
-invariant counts and five actionable notes; `--verbose` retains every reason.
+invariant counts and five notes plus all likely-hole questions; `--verbose` retains every reason.
 Answer the rule questions from the product specification before editing intent.
 The restating advisory names each admitted role and its row conditions: for
 example, a coach branch with no assignment check asks whether coaches should
@@ -310,3 +310,33 @@ returned by guest, login, signup or your service, including principal, kind, tok
 and positive integer expiresAt milliseconds; the online token option accepts a bare
 bearer. Constructors refuse before transport, storage, device or timer work.
 Shape validation grants no authority; the server still decides session validity.
+
+## Individual security review
+
+Default check puts likely holes before result inventories and restating questions.
+`N_RETAINED_ROLE_GRANT` and `N_OPTIONAL_UPLOAD_CREATE` require a repair or an
+individual disposition. They fail check without claiming an invariant refutation.
+Read the note, compare it with the specification, then use
+`check --ack-security ID --reason 'specification rationale'` with its current ID
+from check or check --json. Bulk --ack-notes cannot clear these gates.
+Commit snapback/security-reviews.json when the decision should travel with source.
+Every Quarry edit, changed diagnostic or security analyzer revision requires review
+again; the record never grants authority or proves safety. Audit retains the full
+notes and dispositions. Declared refutations still fail and cannot be acknowledged.
+Deploy --strict retains its refutation gate; run check in acceptance before deploy.
+
+Optional upload arguments can skip required evidence even when a conditional child
+insertion has a required media column. Require the upload before creating the
+parent. Reasons use text 1..N when nonempty justification is required; optional
+money and constant payment/approval flags need independent specification review.
+Transition advice asks whether a generic setter can bypass a stricter decision or
+whether eligibility checked at creation must be rechecked at approval. Different
+duration windows on one column may be deliberate: confirm them against the spec.
+Role-wide write questions ask whether a global role may write every resource.
+Model the owner of this particular wall; see `guide rule-recipes --section "Wall ownership"`.
+
+Test explores directed status/eligibility histories up to eight mutations with a
+separate finite successor bound. Check keeps its shared 512-work/1500ms limit.
+Frontier, argument, signature and attempt cuts remain coverage gaps. Synthetic
+observations are REVIEW, while actual admitted histories from validated generated
+fixtures retain their generated-fixture-trace origin and can fail acceptance.

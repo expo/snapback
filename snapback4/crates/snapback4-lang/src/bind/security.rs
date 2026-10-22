@@ -12,6 +12,7 @@ pub use presentation::note_priority;
 pub mod challenges;
 mod lints;
 mod write_advice;
+mod creation_advice;
 mod result_advice;
 mod advice;
 mod time_advice;
@@ -255,6 +256,7 @@ fn blockers(bound:&Bound,inv:&Invariant)->Vec<String> {
 pub fn add_source_notes(report:&mut Report,sources:&[(String,String)],bound:&Bound){
     report.notes.extend(lints::source_notes(sources,bound));
     report.notes.extend(write_advice::notes(sources,bound));
+    report.notes.extend(creation_advice::notes(sources,bound));
     report.notes.extend(result_advice::notes(bound));
     let mut sites=BTreeMap::new();
     for (file,source) in sources{let (doc,_)=crate::parse_document(file,source);for t in doc.tables{

@@ -1,0 +1,11 @@
+muse: workspace root: /home/ccheever/projects/sb4-b22-sec7 (cwd default)
+muse: workspace trust: trusted source=run-flag
+Verdict: READY for code.
+
+All three round-4 Codex gaps are repaired in the current tree, each matching the new §16 sentences (llp lines 2268–2271):
+
+- Upsert-key bypass: [creation_advice.rs](/home/ccheever/projects/sb4-b22-sec7/snapback4/crates/snapback4-lang/src/bind/security/creation_advice.rs) lines 88–91 merges `auth_lints::pins` results into the recipient fields before the retained-role scan, so `upsert driverRoutes[driver] { route }` still gates. The new `retained_grant_keys_and_column_payloads_are_gated` regression asserts exactly this spelling gates.
+- Column-read escape: lines 100–106 build audiences from table read disjuncts plus each `column_reads` cell combined with its row branch and owner gate, and the regression asserts an `orders.priceCents read`-prefixed gate plus suppression when the branch rechecks the current role.
+- Silent cuts: `directed_cases` ([histories.rs](/home/ccheever/projects/sb4-b22-sec7/snapback4/crates/snapback4-lang/src/bind/security/challenges/histories.rs) line 97) records an uncovered notice when grouping drops an alternative; actor-class dedup (lines 378–380) records omissions and the two-per-tuple cap. The `correlated_boolean_arguments_are_explicitly_uncovered` unit test pins the 3-of-4 behavior with the notice.
+
+Remaining scan found no other material correctness, security, or precision issue. Presentation priorities and numeric ordering match §16.5 exactly; `InsertIfAbsent.result` lineage and table-grouped result notes are intact. One non-material residual: if `pins` returns `None` on ambiguous positional keys, the upsert-key recipient is silently missed with no uncovered notice — same resolution the planner uses, so unlikely to diverge on a compilable standard spelling. Package stays 0.4.37 with an upcoming 0.4.38 changelog entry, as instructed. Full/packed qualification remains separate and is not certified here; I ran no tests and made no edits.

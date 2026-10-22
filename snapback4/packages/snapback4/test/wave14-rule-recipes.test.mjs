@@ -107,6 +107,14 @@ test('packed rule recipes run as written and preserve authority at boundaries', 
     const read = async (op,who,args={})=>{const reply=await query(op,who,args);assert.ok('data' in reply,JSON.stringify(reply));return reply.data;};
     return {cwd,host,post,seed,mutate,sent,failed,query,read};
   }
+  await t.test('wall owner authority belongs to this wall', async t => {
+    const p=await project(t,'table wallApplications:');
+    const wall=await p.sent('addWall','alice',{title:'Alice wall'});
+    await p.sent('addWall','bob',{title:'Bob wall'});
+    const application=await p.sent('applyToWall','artist',{wall:wall.id});
+    await p.failed('signWall','bob',{application:application.id},'NOT_FOUND');
+    await p.sent('signWall','alice',{application:application.id});
+  });
   await t.test('query return paths and optional lookups preserve packed read semantics', async t=>{
     const source = `use personas alice, bob, charlie
 table queryPathRoles:

@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.4.38
+
+- Security questions lead default check and audit. Result-exposure notes group by
+  table; creation advice ignores omitted defaults and literal-only assignments.
+- Check requires an individual, source-bound disposition for retained role grants
+  and optional uploads at creation. Other new questions cover reasons, money,
+  approval bypasses, stale eligibility, inconsistent windows and role-wide writes.
+- The social template records its intended optional message photos in an individual review.
+- Test explores directed lifecycle histories beyond pairs. The security guide
+  explains dispositions and the rule recipes model ownership of a particular wall.
+
 ## 0.4.37
 
 - Release re-entry accepts ordinary edits made while a backfill's declaring source is active: native input fingerprints and actually edited non-output migration inputs refresh, and matching recomputation is accepted. Conflicting authored outputs still refuse. A physically absent nullable rename destination no longer conflicts as an invented null.

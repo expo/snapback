@@ -54,8 +54,9 @@ pub fn audit(options:&Options)->i32{
     let bound=compiled_or_exit(snapback4_lang::compile(&sources),options.json);
     // Audit is a permission map plus bounded evidence; `test` owns full campaigns.
     let report=report(&project,&bound,&sources,options);
-    if options.json {println!("{}",serde_json::to_string(&report).unwrap());}
-    else {print!("{}",report.text_with_all(options.flags.contains_key("all")));}
+    let dispositions=match super::security_reviews::review(&project,&sources,&report.notes,None){Ok(d)=>d,Err(error)=>{eprintln!("audit: E_SECURITY_NOTES: {error}");return 2;}};
+    if options.json {let mut value=serde_json::to_value(&report).unwrap();value["securityReviews"]=serde_json::to_value(&dispositions).unwrap();println!("{value}");}
+    else {print!("{}",report.text_with_all(options.flags.contains_key("all")));super::security_reviews::print(&dispositions);}
     if report.refuted(){1}else{0}
 }
 pub(super) fn exposure(report:&Report){

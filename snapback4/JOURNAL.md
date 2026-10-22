@@ -100868,3 +100868,10 @@ reports/integration21/storage-port-merge.json; full report: ../WORKSTREAM-REPORT
   pass init + check.
 
 Report: `reports/20261021-publication-0.4.35/REPORT.md`.
+
+
+## 2026-10-22 — SEC7 security advice and individual dispositions
+
+SEC7 owns note presentation, narrow security review gates and directed histories;
+DX6 owns session/upgrade/clock and frontend/proof-kit fixes for 0.4.38.
+Design and implementation evidence: LLP 3000.036.004 §16 and its review record.

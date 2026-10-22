@@ -13,7 +13,7 @@ fn role_test(bound:&Bound,rule:&RuleExpr)->bool {rule_parts(rule).iter().any(|r|
 })}
 fn reader_columns(rule:&RuleExpr)->BTreeSet<String>{rule_parts(rule).into_iter().filter_map(|r|match r{RuleExpr::Eq(RuleTerm::Field(f),RuleTerm::Viewer)|RuleExpr::Eq(RuleTerm::Viewer,RuleTerm::Field(f))=>Some(f.clone()),_=>None}).collect()}
 fn note(notes:&mut Vec<Diagnostic>,site:&Site,code:&str,message:String,rewrite:&str){notes.push(Diagnostic::new(site,code,message,rewrite).guide("security"));}
-fn mutable_role(bound:&Bound,name:&str)->bool {
+pub(super) fn mutable_role(bound:&Bound,name:&str)->bool {
     let Some(t)=bound.schema.table(name)else{return false;};
     let mut roles=super::privilege::role_columns(bound,name);
     if roles.is_empty()&&let Some(principal)=super::privilege::global_principal(bound,name){roles.insert(principal);}
@@ -90,7 +90,7 @@ pub(super) fn notes(bound:&Bound,exposures:&[Exposure])->Vec<Diagnostic>{
             }
         }
         for (label,rule) in super::columns::effects(t) {
-          let (effect,column)=label.strip_suffix(" read").map(|column|("read",Some(column))).unwrap_or((label.as_str(),None));
+          let (effect,_column)=label.strip_suffix(" read").map(|column|("read",Some(column))).unwrap_or((label.as_str(),None));
           for branch in rule.disjuncts(){
             for dep in kernel::dependencies(branch){if let Some(g)=bound.schema.table(&dep) {
                 let rosters=[&g.rules.insert,&g.rules.update].into_iter().flat_map(kernel::dependencies).filter(|r|r!=&dep&&mutable_role(bound,r)).collect::<BTreeSet<_>>();
@@ -98,10 +98,9 @@ pub(super) fn notes(bound:&Bound,exposures:&[Exposure])->Vec<Diagnostic>{
                     note(&mut notes,&Site::default(),"N_GRANT_OUTLIVES_ROLE",format!("{name}.{label}: `{}` trusts retained {dep} grants that can survive role changes in {}; confirm whether current-role intent is required",branch.quarry(),rosters.into_iter().collect::<Vec<_>>().join(", ")),"recheck the current role in this branch or revoke every derived grant transactionally on role changes; guide security");
                 }
             }}
-            let declared=bound.invariants.iter().filter(|i|i.table==*name&&column.is_none_or(|c|i.column.as_deref()==Some(c))&&(i.target==effect||i.target=="write"&&matches!(effect,"insert"|"update"))).filter_map(|i|i.policy.as_ref()).flat_map(kernel::dependencies).filter(|r|mutable_role(bound,r)).collect::<BTreeSet<_>>();
-            if !reader_columns(branch).is_empty()&&declared.iter().any(|r|recipient_role(bound,name,branch,None,r,effect)) {
-                note(&mut notes,&Site::default(),"N_GRANT_OUTLIVES_ROLE",format!("{name}.{label}: principal branch `{}` does not recheck the declared mutable current role",branch.quarry()),"recheck the current role as well as principal attribution; guide security");
-            }
+            // A principal's own row does not imply revocable role-grant
+            // intent. Retained assignment probes above remain reviewable.
+
           }
         }
     }
@@ -233,7 +232,7 @@ pub(super) fn source_notes(sources:&[(String,String)],bound:&Bound)->Vec<Diagnos
     out
 }
 
-fn argument_guard(expr:&Expr,argument:&str,target:&str)->Option<bool>{
+pub(super) fn argument_guard(expr:&Expr,argument:&str,target:&str)->Option<bool>{
     match expr {
         Expr::Binary{op,left,right,..} if op=="="||op=="!="=>{
             let pair=match (left.as_ref(),right.as_ref()){

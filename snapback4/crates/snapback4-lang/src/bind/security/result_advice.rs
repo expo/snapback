@@ -41,7 +41,12 @@ fn value(bound:&Bound,e:&Expr,env:&mut BTreeMap<String,Flow>,reads:&mut BTreeSet
 fn statements(bound:&Bound,body:&[Stmt],env:&mut BTreeMap<String,Flow>,reads:&mut BTreeSet<String>,returned:&mut Sources,refusals:&mut Sources){for s in body{match s{
     Stmt::Const{name,value:e}|Stmt::Let{name,value:e}|Stmt::Assign{name,value:e}=>{let f=value(bound,e,env,reads,returned,refusals);env.insert(name.clone(),f);},
     Stmt::Push{target,value:e}=>{let f=value(bound,e,env,reads,returned,refusals);let old=env.remove(target).unwrap_or_default();env.insert(target.clone(),Flow::union([old,f]));},
-    Stmt::Insert{table,row:Expr::Variable(n)}|Stmt::InsertIfAbsent{table,row:Expr::Variable(n),..}=>{let prior=env.remove(n).unwrap_or_default();env.insert(n.clone(),Flow::join(prior,row(bound,table)));},
+    Stmt::Insert{table,row:Expr::Variable(n)}=>{let prior=env.remove(n).unwrap_or_default();env.insert(n.clone(),Flow::join(prior,row(bound,table)));},
+    Stmt::InsertIfAbsent{table,row:payload,result}=>{
+        let prior=value(bound,payload,env,reads,returned,refusals);let lineage=Flow::join(prior,row(bound,table));
+        if let Expr::Variable(name)=payload{env.insert(name.clone(),lineage.clone());}
+        env.insert(result.clone(),lineage);
+    },
     Stmt::WriteTarget{target,result:Some(n),..}=>{reads.insert(target.table.clone());env.insert(n.clone(),row(bound,&target.table));},
     Stmt::Return(e)=>{returned.extend(value(bound,e,env,reads,&mut Sources::new(),refusals).all());},
     Stmt::Require{condition,..}|Stmt::Check{condition,..}=>{refusals.extend(value(bound,condition,env,reads,returned,&mut Sources::new()).all());},

@@ -1,0 +1,33 @@
+//! Public check gates are individual dispositions, independent of proof verdicts.
+use std::{fs,path::PathBuf,process::Command};
+use serde_json::Value;
+struct Scratch(PathBuf);impl Drop for Scratch{fn drop(&mut self){let _=fs::remove_dir_all(&self.0);}}
+fn scratch()->Scratch{let p=std::env::temp_dir().join(format!("sb4-sec7-cli-{}-{}",std::process::id(),{static NEXT:std::sync::atomic::AtomicUsize=std::sync::atomic::AtomicUsize::new(0);NEXT.fetch_add(1,std::sync::atomic::Ordering::Relaxed)}));fs::create_dir_all(p.join("snapback")).unwrap();Scratch(p)}
+const SOURCE:&str="table docs:\n  photo: image <=10000 ?\n  other: image <=10000 ?\n  read <- allow\n  insert <- allow\n  online only\nmutation add(photo: image <=10000 ?, other: image <=10000 ?):\n  return insert docs {photo,other}\n";
+fn check(p:&Scratch,args:&[&str])->(i32,Value){let r=Command::new(env!("CARGO_BIN_EXE_snapback4")).args(["check","--json"]).args(args).current_dir(&p.0).output().unwrap();let j=serde_json::from_slice(&r.stdout).unwrap_or_else(|_|panic!("{}",String::from_utf8_lossy(&r.stdout)));(r.status.code().unwrap_or(-1),j)}
+#[test]fn one_note_at_a_time_bulk_cannot_clear_and_source_edits_invalidate(){
+ let p=scratch();let source=p.0.join("snapback/schema.q");fs::write(&source,SOURCE).unwrap();
+ let (code,j)=check(&p,&[]);assert_eq!(code,1);assert_eq!(j["ok"],false);assert!(j["security"]["invariants"].as_array().unwrap().is_empty());
+ assert_eq!(j["securityReviews"],check(&p,&[]).1["securityReviews"],"same input must produce stable IDs");
+ let pending=j["securityReviews"].as_array().unwrap().iter().filter(|d|d["gated"]==true).map(|d|d["id"].as_str().unwrap().to_owned()).collect::<Vec<_>>();assert_eq!(pending.len(),2);
+ assert_eq!(check(&p,&["--ack-notes"]).0,1);assert!(!p.0.join("snapback/security-reviews.json").exists());
+ assert_eq!(check(&p,&["--ack-security",&pending[0],"--reason","optional draft photo per specification"]).0,1);
+ assert_eq!(check(&p,&["--ack-security",&pending[1],"--reason","optional second draft photo per specification"]).0,0);
+ let review=p.0.join("snapback/security-reviews.json");let bytes=fs::read(&review).unwrap();
+ fs::write(&source,format!("{SOURCE}\n-- source changed\n")).unwrap();assert_eq!(check(&p,&[]).0,1);
+ assert_eq!(check(&p,&["--ack-security",&pending[0],"--reason","  "]).0,2);assert_eq!(fs::read(&review).unwrap(),bytes);
+ std::thread::scope(|scope|{
+  let a=scope.spawn(||check(&p,&["--ack-security",&pending[0],"--reason","optional first photo after source review"]));
+  let b=scope.spawn(||check(&p,&["--ack-security",&pending[1],"--reason","optional second photo after source review"]));
+  assert!([0,1].contains(&a.join().unwrap().0));assert!([0,1].contains(&b.join().unwrap().0));
+ });
+ assert_eq!(check(&p,&[]).0,0,"concurrent dispositions must both survive");
+ let bytes=fs::read(&review).unwrap();
+ fs::write(&source,"not valid Quarry\n").unwrap();assert_eq!(check(&p,&["--ack-security",&pending[0],"--reason","cannot override compile error"]).0,1);assert_eq!(fs::read(review).unwrap(),bytes);
+}
+
+#[test]fn social_starter_has_one_explicit_review_that_edits_invalidate(){
+ let p=scratch();let result=Command::new(env!("CARGO_BIN_EXE_snapback4")).args(["init","--template","social"]).current_dir(&p.0).output().unwrap();assert!(result.status.success(),"{}",String::from_utf8_lossy(&result.stderr));
+ let (code,j)=check(&p,&[]);assert_eq!(code,0,"{j}");let ds=j["securityReviews"].as_array().unwrap();let gates=ds.iter().filter(|d|d["gated"]==true).collect::<Vec<_>>();assert_eq!(gates.len(),1);assert_eq!(gates[0]["acknowledged"],true);
+ let schema=p.0.join("snapback/schema.q");let text=fs::read_to_string(&schema).unwrap();fs::write(schema,format!("{text}\n-- app-specific edit\n")).unwrap();assert_eq!(check(&p,&[]).0,1);
+}
