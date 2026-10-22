@@ -224,9 +224,10 @@ fn stale_notes(bound:&Bound,writes:&[Write<'_>],out:&mut Vec<Diagnostic>){
 }
 fn evidence_notes(bound:&Bound,writes:&[Write<'_>],out:&mut Vec<Diagnostic>){
     for (child,t) in bound.schema.visible_tables(){
-        let media=t.columns.iter().filter(|(c,k)|k.contains_asset()&&required_media(bound,child,c)).map(|(c,_)|c.clone()).collect::<Vec<_>>();if media.is_empty(){continue;}
+        let assets=t.columns.iter().filter(|(_,k)|k.contains_asset()).map(|(c,_)|c.clone()).collect::<Vec<_>>();if assets.is_empty(){continue;}
         for (reference,kind) in &t.columns{let ColumnType::Ref{table:parent}=kind.required()else{continue;};
             let declared=required_child(bound,parent,child,reference);
+            let media=assets.iter().filter(|c|required_media(bound,child,c)).cloned().collect::<Vec<_>>();if media.is_empty()&&!declared{continue;}
             let created_together=writes.iter().any(|w|w.table==*child&&matches!(w.op,WriteOp::Insert|WriteOp::Upsert)&&writes.iter().any(|p|std::ptr::eq(p.p,w.p)&&p.table==*parent&&matches!(p.op,WriteOp::Insert|WriteOp::Upsert)&&w.fields.iter().find(|f|&f.name==reference).and_then(field_value).is_some_and(|e|matches!(e,Expr::Member{base,name,..} if name=="id"&&matches!(base.as_ref(),Expr::Write{table,site,..} if table==parent&&site==&p.site))))&&media.iter().any(|c|w.fields.iter().find(|f|&f.name==c).and_then(field_value).is_some_and(|e|w.p.args.iter().any(|a|!a.type_.optional&&uses(e,&a.name)))));
             if !declared&&!created_together{continue;}
             let removing=writes.iter().filter(|w|w.table==*child&&(w.op==WriteOp::Delete||matches!(w.op,WriteOp::Update|WriteOp::Upsert)&&w.fields.iter().any(|f|{
@@ -235,7 +236,7 @@ fn evidence_notes(bound:&Bound,writes:&[Write<'_>],out:&mut Vec<Diagnostic>){
             }))).collect::<Vec<_>>();
             if removing.is_empty(){continue;}
             let operations=removing.iter().map(|w|format!("{} ({})",w.name,if w.op==WriteOp::Delete{"delete"}else{"detach/clear"})).collect::<BTreeSet<_>>().into_iter().collect::<Vec<_>>().join(", ");
-            note(out,&removing[0].site,"N_EVIDENCE_REMOVAL",format!("{child}.{reference} -> {parent}: {operations} can remove or move evidence {}; could this remove a parent's last required photo/file? Required child fields alone do not require a surviving child.",media.join(",")),"check the specification for last-child retention; guard deletion/detachment transactionally, replace evidence or retire the parent, then declare independent parent integrity intent and run test");
+            note(out,&removing[0].site,"N_EVIDENCE_REMOVAL",format!("{child}.{reference} -> {parent}: {operations} can remove or move evidence {}; could this remove a parent's last required child/photo/file? Required child fields alone do not require a surviving child.",if media.is_empty(){assets.join(",")}else{media.join(",")}),"check the specification for last-child retention; guard deletion/detachment transactionally, replace evidence or retire the parent, then declare independent parent integrity intent and run test");
         }
     }
 }

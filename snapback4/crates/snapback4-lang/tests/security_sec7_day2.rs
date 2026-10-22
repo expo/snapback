@@ -195,3 +195,9 @@ const CHILD:&str="table parents:\n  n: int default 0\n  read <- allow\n  insert 
  assert!(has(&format!("{optional}invariant parents always exists photos[parent = .id]\n"),"N_OPTIONAL_UPLOAD_CREATE"));
  let always=optional.replace("  if photo != null:\n    insert photos {parent:p.id,photo}","  insert photos {parent:p.id,photo}");assert!(!has(&format!("{always}invariant parents always exists photos[parent = .id]\n"),"N_OPTIONAL_UPLOAD_CREATE"));
 }
+
+#[test]fn removing_an_independently_required_child_is_advice_even_with_nullable_media(){
+ let s=CHILD.replace("  photo: image <=10000\n", "  photo: image <=10000 ?\n")+"mutation remove(photo:photos):\n  delete photos[photo]\n";assert!(!has(&s,"N_EVIDENCE_REMOVAL"));
+ let required=format!("{s}invariant parents always exists photos[parent = .id]\n");let r=notes(&required);let ns=r.notes.iter().filter(|n|n.code=="N_EVIDENCE_REMOVAL").collect::<Vec<_>>();assert_eq!(ns.len(),1);assert!(ns[0].message.contains("remove (delete)"));
+ let clear=required.replace("delete photos[photo]", "update photos[photo] {photo:null}").replace("  delete <- allow", "  delete <- allow\n  update <- allow");assert!(!has(&clear,"N_EVIDENCE_REMOVAL"),"parent presence alone does not make a nullable photo required");
+}
