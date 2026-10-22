@@ -1,0 +1,2019 @@
+{
+  "source": "ea7030153573050b42ad140e5817c919733bfecb",
+  "binarySha256": "033d6cb7f94737d85b7ceafa636ffc78a5ac1c01c5f899991254de7a6d107dad",
+  "rows": [
+    {
+      "lane": "001",
+      "initialRefusal": 0,
+      "authoredTruthfulDown": false,
+      "beforeHidden": 0,
+      "preview": 0,
+      "deploy": 0,
+      "afterHidden": 0,
+      "views": [],
+      "stages": [
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        },
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        }
+      ],
+      "refusal": null
+    },
+    {
+      "lane": "002",
+      "initialRefusal": 0,
+      "authoredTruthfulDown": false,
+      "beforeHidden": 0,
+      "preview": 0,
+      "deploy": 0,
+      "afterHidden": 0,
+      "views": [],
+      "stages": [
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        },
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        }
+      ],
+      "refusal": null
+    },
+    {
+      "lane": "003",
+      "initialRefusal": 0,
+      "authoredTruthfulDown": false,
+      "beforeHidden": 10,
+      "preview": 0,
+      "deploy": 0,
+      "afterHidden": 0,
+      "views": [
+        {
+          "changes": [
+            "jobs.quoted: money USD 2 \u2192 money USD 2 ?",
+            "roles: current authored read authority retained",
+            "roles: current authored insert authority retained",
+            "roles: current authored update authority retained",
+            "jobs: current authored read authority retained",
+            "jobs: current authored insert authority retained",
+            "jobs: current authored update authority retained",
+            "invoices: current authored read authority retained",
+            "invoices: current authored insert authority retained",
+            "recuts: current authored read authority retained",
+            "operation openJob: carried current require (quoted = null or quoted >= 1) else BAD_QUOTE 'The quoted charge must be positive.'",
+            "operation createInvoice: carried current require (j.quoted != null) else NO_QUOTE 'The job has no quoted charge yet.'"
+          ],
+          "digest": "6ff15b2f34f15dbbd0ab1877a214d528e14b94dabdbfb827838a4e6232aca1cd",
+          "hides": [],
+          "parent": 4,
+          "release": 5,
+          "target": 1
+        }
+      ],
+      "stages": [
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        },
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        }
+      ],
+      "refusal": null
+    },
+    {
+      "lane": "004",
+      "initialRefusal": 0,
+      "authoredTruthfulDown": false,
+      "beforeHidden": 0,
+      "preview": 0,
+      "deploy": 0,
+      "afterHidden": 0,
+      "views": [],
+      "stages": [
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        },
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        }
+      ],
+      "refusal": null
+    },
+    {
+      "lane": "005",
+      "initialRefusal": 0,
+      "authoredTruthfulDown": false,
+      "beforeHidden": 0,
+      "preview": 0,
+      "deploy": 0,
+      "afterHidden": 0,
+      "views": [],
+      "stages": [
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        },
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        }
+      ],
+      "refusal": null
+    },
+    {
+      "lane": "006",
+      "initialRefusal": 0,
+      "authoredTruthfulDown": false,
+      "beforeHidden": 0,
+      "preview": 0,
+      "deploy": 0,
+      "afterHidden": 0,
+      "views": [],
+      "stages": [
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        },
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        }
+      ],
+      "refusal": null
+    },
+    {
+      "lane": "007",
+      "initialRefusal": 0,
+      "authoredTruthfulDown": false,
+      "beforeHidden": 25,
+      "preview": 0,
+      "deploy": 0,
+      "afterHidden": 0,
+      "views": [
+        {
+          "changes": [
+            "fittings.hearingTest: image <=5000000 \u2192 image <=5000000 ?",
+            "fittings.scanName: text 1..120 \u2192 text 1..120 ?",
+            "users: current authored read authority retained",
+            "users: current authored insert authority retained",
+            "users: current authored update authority retained",
+            "fittings: current authored read authority retained",
+            "fittings: current authored update authority retained",
+            "adjustments: current authored read authority retained",
+            "adjustments: current authored insert authority retained",
+            "operation openFitting: carried current require (hearingTest = null and scanName = null or hearingTest != null and scanName != null) else SCAN_NAME_REQUIRED"
+          ],
+          "digest": "ef65369d417d1373a6b14a26b0481d7b2e526ea39a2f1be1704cc6925a78cc5e",
+          "hides": [],
+          "parent": 4,
+          "release": 5,
+          "target": 1
+        }
+      ],
+      "stages": [
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        },
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        }
+      ],
+      "refusal": null
+    },
+    {
+      "lane": "008",
+      "initialRefusal": 0,
+      "authoredTruthfulDown": false,
+      "beforeHidden": 0,
+      "preview": 0,
+      "deploy": 0,
+      "afterHidden": 0,
+      "views": [],
+      "stages": [
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        },
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        }
+      ],
+      "refusal": null
+    },
+    {
+      "lane": "009",
+      "initialRefusal": 0,
+      "authoredTruthfulDown": false,
+      "beforeHidden": 0,
+      "preview": 0,
+      "deploy": 0,
+      "afterHidden": 0,
+      "views": [],
+      "stages": [
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        },
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        }
+      ],
+      "refusal": null
+    },
+    {
+      "lane": "010",
+      "initialRefusal": 0,
+      "authoredTruthfulDown": false,
+      "beforeHidden": 20,
+      "preview": 0,
+      "deploy": 0,
+      "afterHidden": 0,
+      "views": [
+        {
+          "changes": [
+            "boards.stage: enum('quoted', 'sanding', 'glassing', 'curing', 'ready', 'collected', 'sold') \u2192 enum('quoted', 'sanding', 'glassing', 'curing', 'ready', 'collected', 'sold', 'resin work')",
+            "roles: current authored read authority retained",
+            "roles: current authored insert authority retained",
+            "roles: current authored update authority retained",
+            "boards: current authored read authority retained",
+            "boards: current authored insert authority retained",
+            "boards: current authored update authority retained",
+            "dings: current authored read authority retained",
+            "dings: current authored insert authority retained",
+            "operation processBoard: current authored compatibility endpoint preserves its argument contract and guards"
+          ],
+          "digest": "8d880f25a3369604e9c3196695e2c9c21fe76215676f0644a7ef7657df8fbc71",
+          "hides": [],
+          "parent": 11,
+          "release": 12,
+          "target": 1
+        },
+        {
+          "changes": [
+            "boards.stage: enum('quoted', 'sanding', 'resin work', 'curing', 'ready', 'collected', 'sold') \u2192 enum('quoted', 'sanding', 'resin work', 'curing', 'ready', 'collected', 'sold', 'glassing')",
+            "roles: current authored read authority retained",
+            "roles: current authored insert authority retained",
+            "roles: current authored update authority retained",
+            "boards: current authored read authority retained",
+            "boards: current authored insert authority retained",
+            "boards: current authored update authority retained",
+            "dings: current authored read authority retained",
+            "dings: current authored insert authority retained",
+            "boards: retained current forward migration custody instead of historical renameResinStage",
+            "boards: obsolete down legacyResinStage stays historical; visible view keeps current native values"
+          ],
+          "digest": "290fd2aaaa8a7e6cee1b030de7dde9aa8061da13f80a07ad4219ec0f05a9e642",
+          "hides": [],
+          "parent": 11,
+          "release": 13,
+          "target": 2
+        },
+        {
+          "changes": [
+            "boards.stage: enum('quoted', 'sanding', 'resin work', 'curing', 'ready', 'collected', 'sold') \u2192 enum('quoted', 'sanding', 'resin work', 'curing', 'ready', 'collected', 'sold', 'glassing')",
+            "roles: current authored read authority retained",
+            "roles: current authored insert authority retained",
+            "roles: current authored update authority retained",
+            "boards: current authored read authority retained",
+            "boards: current authored insert authority retained",
+            "boards: current authored update authority retained",
+            "dings: current authored read authority retained",
+            "dings: current authored insert authority retained",
+            "boards: retained current forward migration custody instead of historical renameResinStage",
+            "boards: obsolete down legacyResinStage stays historical; visible view keeps current native values"
+          ],
+          "digest": "9027aefedcee8caa325cc1cd684b5cc260961ae2ba9b8359b03d8860195fe973",
+          "hides": [],
+          "parent": 11,
+          "release": 14,
+          "target": 3
+        },
+        {
+          "changes": [
+            "boards.stage: enum('quoted', 'sanding', 'glassing', 'curing', 'ready', 'collected', 'sold') \u2192 enum('quoted', 'sanding', 'glassing', 'curing', 'ready', 'collected', 'sold', 'resin work')",
+            "roles: current authored read authority retained",
+            "roles: current authored insert authority retained",
+            "roles: current authored update authority retained",
+            "boards: current authored read authority retained",
+            "boards: current authored insert authority retained",
+            "boards: current authored update authority retained",
+            "dings: current authored read authority retained",
+            "dings: current authored insert authority retained",
+            "operation processBoard: current authored compatibility endpoint preserves its argument contract and guards"
+          ],
+          "digest": "653d2ba728749b11ee8d34c5bf9d94a0b1bf49064e7e6f6c823276a3ae8ad469",
+          "hides": [],
+          "parent": 11,
+          "release": 15,
+          "target": 4
+        }
+      ],
+      "stages": [
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        },
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        }
+      ],
+      "refusal": null
+    },
+    {
+      "lane": "011",
+      "initialRefusal": 0,
+      "authoredTruthfulDown": false,
+      "beforeHidden": 3,
+      "preview": 0,
+      "deploy": 0,
+      "afterHidden": 0,
+      "views": [
+        {
+          "changes": [
+            "applications.amount: int 100..50000 \u2192 int 100..50000 ?",
+            "roles: current authored read authority retained",
+            "roles: current authored insert authority retained",
+            "roles: current authored update authority retained",
+            "applications: current authored read authority retained",
+            "applications: current authored insert authority retained",
+            "applications: current authored update authority retained",
+            "payments: current authored read authority retained",
+            "operation releasePayment: carried current require (a.amount != null) else NO_AMOUNT 'The grant amount is still to follow; the director must set the requested amount before the final payment can be released.'"
+          ],
+          "digest": "d2c228999c83dc413fd319dad39572457b1fbbd7e9e84189aa50fe21b74930fb",
+          "hides": [],
+          "parent": 3,
+          "release": 4,
+          "target": 1
+        }
+      ],
+      "stages": [
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        },
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        }
+      ],
+      "refusal": null
+    },
+    {
+      "lane": "012",
+      "initialRefusal": 0,
+      "authoredTruthfulDown": false,
+      "beforeHidden": 0,
+      "preview": 0,
+      "deploy": 0,
+      "afterHidden": 0,
+      "views": [],
+      "stages": [
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        },
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        }
+      ],
+      "refusal": null
+    },
+    {
+      "lane": "013",
+      "initialRefusal": 0,
+      "authoredTruthfulDown": false,
+      "beforeHidden": 34,
+      "preview": 0,
+      "deploy": 0,
+      "afterHidden": 0,
+      "views": [
+        {
+          "changes": [
+            "orders.unitCents: int 1..100000 \u2192 int 0..100000",
+            "invoices.totalCents: int 1..1000000000 \u2192 int 0..1000000000",
+            "roles: current authored read authority retained",
+            "roles: current authored insert authority retained",
+            "roles: current authored update authority retained",
+            "orders.pricingLabel: retained current guard/input field",
+            "orders: current authored read authority retained",
+            "orders: current authored insert authority retained",
+            "orders: current authored update authority retained",
+            "invoices: current authored read authority retained",
+            "invoices: current authored insert authority retained",
+            "reprints: current authored read authority retained",
+            "reprints: current authored insert authority retained",
+            "operation listOrders: current authored compatibility endpoint preserves its argument contract and guards",
+            "operation orderDetail: current authored compatibility endpoint preserves its argument contract and guards",
+            "operation createOrder: current authored compatibility endpoint preserves its argument contract and guards",
+            "operation sendProof: current authored compatibility endpoint preserves its argument contract and guards",
+            "operation approveProof: current authored compatibility endpoint preserves its argument contract and guards",
+            "operation advanceProduction: current authored compatibility endpoint preserves its argument contract and guards",
+            "operation approveFreeReprint: current authored compatibility endpoint preserves its argument contract and guards",
+            "operation releaseSlots: current authored compatibility endpoint preserves its argument contract and guards",
+            "orders: retained current migration pricingLabel"
+          ],
+          "digest": "d78d03ae8e2582806278952b42b9f1c2ad219c4a8b60786cdd4b5f4f528e8685",
+          "hides": [],
+          "parent": 4,
+          "release": 5,
+          "target": 1
+        }
+      ],
+      "stages": [
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        },
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        }
+      ],
+      "refusal": null
+    },
+    {
+      "lane": "014",
+      "initialRefusal": 0,
+      "authoredTruthfulDown": false,
+      "beforeHidden": 0,
+      "preview": 0,
+      "deploy": 0,
+      "afterHidden": 0,
+      "views": [],
+      "stages": [
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        },
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        }
+      ],
+      "refusal": null
+    },
+    {
+      "lane": "015",
+      "initialRefusal": 0,
+      "authoredTruthfulDown": false,
+      "beforeHidden": 146,
+      "preview": 0,
+      "deploy": 0,
+      "afterHidden": 0,
+      "views": [
+        {
+          "changes": [
+            "bookings.feeCents: int 100..100000 \u2192 int 100..100000 ?",
+            "bookings.feeState: enum('paid', 'refunded') \u2192 enum('paid', 'refunded', 'pending')",
+            "roles: current authored read authority retained",
+            "roles: current authored insert authority retained",
+            "roles: current authored update authority retained",
+            "applications: current authored read authority retained",
+            "applications: current authored insert authority retained",
+            "bookings: current authored read authority retained",
+            "bookings: current authored insert authority retained",
+            "bookings: current authored update authority retained",
+            "stalls: current authored read authority retained",
+            "stalls: current authored insert authority retained",
+            "stalls: current authored update authority retained",
+            "decisions: current authored insert authority retained",
+            "operation refund: carried current require (b.feeCents != null) else FEE_UNCONFIRMED"
+          ],
+          "digest": "de046fefd5318937d5b113eb9365cf32ba68e82bb4ffba227cb4dd7b0d22aed3",
+          "hides": [],
+          "parent": 3,
+          "release": 4,
+          "target": 1
+        }
+      ],
+      "stages": [
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        },
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        }
+      ],
+      "refusal": null
+    },
+    {
+      "lane": "016",
+      "initialRefusal": 0,
+      "authoredTruthfulDown": false,
+      "beforeHidden": 0,
+      "preview": 0,
+      "deploy": 0,
+      "afterHidden": 0,
+      "views": [],
+      "stages": [
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        },
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        }
+      ],
+      "refusal": null
+    },
+    {
+      "lane": "017",
+      "initialRefusal": 0,
+      "authoredTruthfulDown": false,
+      "beforeHidden": 0,
+      "preview": 0,
+      "deploy": 0,
+      "afterHidden": 0,
+      "views": [],
+      "stages": [
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        },
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        }
+      ],
+      "refusal": null
+    },
+    {
+      "lane": "018",
+      "initialRefusal": 0,
+      "authoredTruthfulDown": false,
+      "beforeHidden": 3,
+      "preview": 0,
+      "deploy": 0,
+      "afterHidden": 0,
+      "views": [
+        {
+          "changes": [
+            "roles.role: enum('customer', 'tech', 'manager') \u2192 enum('customer', 'tech', 'manager', 'staff')",
+            "rolls.price: current column spelling developScanPrice; target spelling routes the same cell",
+            "invoices.amount: current column spelling developScanPrice; target spelling routes the same cell",
+            "roles: current authored read authority retained",
+            "roles: current authored insert authority retained",
+            "roles: current authored update authority retained",
+            "rolls: current authored read authority retained",
+            "rolls: current authored insert authority retained",
+            "rolls: current authored update authority retained",
+            "scans: current authored read authority retained",
+            "scans: current authored insert authority retained",
+            "invoices: current authored read authority retained",
+            "invoices: current authored insert authority retained",
+            "invoices: current authored update authority retained",
+            "operation labBoard: carried current require ((exists roles[principal = viewer, role = 'tech']) or (exists roles[principal = viewer, role = 'manager']) or (exists roles[principal = viewer, role = 'staff'])) else NOT_STAFF",
+            "operation logRoll: carried current require (owner = viewer or (exists roles[principal = viewer, role = 'tech']) or (exists roles[principal = viewer, role = 'manager']) or (exists roles[principal = viewer, role = 'staff'])) else NOT_ALLOWED"
+          ],
+          "digest": "d87bfc17aabdb908aa1eb0e9630ad198ad8ef86fda78192fa4bbc616e84c6afa",
+          "hides": [],
+          "parent": 3,
+          "release": 4,
+          "target": 1
+        }
+      ],
+      "stages": [
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        },
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        }
+      ],
+      "refusal": null
+    },
+    {
+      "lane": "019",
+      "initialRefusal": 0,
+      "authoredTruthfulDown": false,
+      "beforeHidden": 85,
+      "preview": 0,
+      "deploy": 0,
+      "afterHidden": 0,
+      "views": [
+        {
+          "changes": [
+            "animals.photos: [image <=5000000] 1..4 \u2192 [image <=5000000] <=4",
+            "roles: current authored read authority retained",
+            "roles: current authored insert authority retained",
+            "roles: current authored update authority retained",
+            "animals: current authored insert authority retained",
+            "animals: current authored update authority retained",
+            "care: current authored read authority retained",
+            "care: current authored insert authority retained",
+            "care: current authored update authority retained",
+            "applications: current authored read authority retained",
+            "applications: current authored insert authority retained",
+            "applications: current authored update authority retained",
+            "referenceChecks: current authored read authority retained",
+            "referenceChecks: current authored insert authority retained",
+            "referenceChecks: current authored update authority retained"
+          ],
+          "digest": "6485914f389ca8b7041b4f8c9f5e1fd007a26a16faac3d25fe6e569655811b5d",
+          "hides": [],
+          "parent": 4,
+          "release": 5,
+          "target": 1
+        }
+      ],
+      "stages": [
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        },
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        }
+      ],
+      "refusal": null
+    },
+    {
+      "lane": "020",
+      "initialRefusal": 0,
+      "authoredTruthfulDown": false,
+      "beforeHidden": 0,
+      "preview": 0,
+      "deploy": 0,
+      "afterHidden": 0,
+      "views": [],
+      "stages": [
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        },
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        }
+      ],
+      "refusal": null
+    },
+    {
+      "lane": "021",
+      "initialRefusal": 0,
+      "authoredTruthfulDown": false,
+      "beforeHidden": 0,
+      "preview": 0,
+      "deploy": 0,
+      "afterHidden": 0,
+      "views": [],
+      "stages": [
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        },
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        }
+      ],
+      "refusal": null
+    },
+    {
+      "lane": "022",
+      "initialRefusal": 0,
+      "authoredTruthfulDown": false,
+      "beforeHidden": 0,
+      "preview": 0,
+      "deploy": 0,
+      "afterHidden": 0,
+      "views": [],
+      "stages": [
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        },
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        }
+      ],
+      "refusal": null
+    },
+    {
+      "lane": "023",
+      "initialRefusal": 0,
+      "authoredTruthfulDown": false,
+      "beforeHidden": 34,
+      "preview": 0,
+      "deploy": 0,
+      "afterHidden": 0,
+      "views": [
+        {
+          "changes": [
+            "laserJobs.materialPhoto: image <=5000000 \u2192 image <=5000000 ?",
+            "roles: current authored read authority retained",
+            "roles: current authored insert authority retained",
+            "roles: current authored update authority retained",
+            "training: current authored read authority retained",
+            "training: current authored insert authority retained",
+            "training: current authored update authority retained",
+            "suspensions: current authored read authority retained",
+            "laserJobs: current authored read authority retained",
+            "laserJobs: current authored insert authority retained",
+            "laserJobs: current authored update authority retained",
+            "fees: current authored read authority retained",
+            "fees: current authored insert authority retained",
+            "operation submitJob: carried current require (cutFile.bytes > 0) else FILES_REQUIRED",
+            "operation submitJob: carried current require (materialPhoto = null or materialPhoto.bytes > 0) else PHOTO_REQUIRED"
+          ],
+          "digest": "ed93fbb297407cf252f510fac123972ae516053546549ee0edeb62abdae69084",
+          "hides": [],
+          "parent": 4,
+          "release": 5,
+          "target": 1
+        }
+      ],
+      "stages": [
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        },
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        }
+      ],
+      "refusal": null
+    },
+    {
+      "lane": "024",
+      "initialRefusal": 0,
+      "authoredTruthfulDown": false,
+      "beforeHidden": 0,
+      "preview": 0,
+      "deploy": 0,
+      "afterHidden": 0,
+      "views": [],
+      "stages": [
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        },
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        }
+      ],
+      "refusal": null
+    },
+    {
+      "lane": "025",
+      "initialRefusal": 0,
+      "authoredTruthfulDown": false,
+      "beforeHidden": 0,
+      "preview": 0,
+      "deploy": 0,
+      "afterHidden": 0,
+      "views": [],
+      "stages": [
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        },
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        }
+      ],
+      "refusal": null
+    },
+    {
+      "lane": "026",
+      "initialRefusal": 0,
+      "authoredTruthfulDown": false,
+      "beforeHidden": 42,
+      "preview": 0,
+      "deploy": 0,
+      "afterHidden": 0,
+      "views": [
+        {
+          "changes": [
+            "mixed domains: retained the complete current authored schema and workflow closure, preserving every predecessor table/field/operation name and accepted input; review current results in the old UI"
+          ],
+          "digest": "871f4ac80e05a8fa45dbe356f8638c6dd534e7acef5dc72674185313419ef1e4",
+          "hides": [],
+          "parent": 5,
+          "release": 6,
+          "target": 1
+        }
+      ],
+      "stages": [
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        },
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        }
+      ],
+      "refusal": null
+    },
+    {
+      "lane": "027",
+      "initialRefusal": 0,
+      "authoredTruthfulDown": false,
+      "beforeHidden": 41,
+      "preview": 0,
+      "deploy": 0,
+      "afterHidden": 0,
+      "views": [
+        {
+          "changes": [
+            "items.photo: image <=5000000 \u2192 image <=5000000 ?",
+            "roles: current authored read authority retained",
+            "roles: current authored insert authority retained",
+            "roles: current authored update authority retained",
+            "profiles: current authored read authority retained",
+            "profiles: current authored insert authority retained",
+            "profiles: current authored update authority retained",
+            "items: current authored read authority retained",
+            "items: current authored insert authority retained",
+            "items: current authored update authority retained"
+          ],
+          "digest": "066706dc8cc18590607d9c3b47dc488b1efb8f7217d7214ba4aa1cbc2b5d0cdf",
+          "hides": [],
+          "parent": 5,
+          "release": 6,
+          "target": 1
+        }
+      ],
+      "stages": [
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        },
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        }
+      ],
+      "refusal": null
+    },
+    {
+      "lane": "028",
+      "initialRefusal": 0,
+      "authoredTruthfulDown": false,
+      "beforeHidden": null,
+      "preview": 0,
+      "deploy": 0,
+      "afterHidden": 0,
+      "views": [
+        {
+          "changes": [
+            "table plates: current spelling vehicles; target spelling routes the same identity",
+            "roles: current authored read authority retained",
+            "roles: current authored insert authority retained",
+            "roles: current authored update authority retained",
+            "sites: current authored update authority retained",
+            "stays: current authored read authority retained",
+            "stays: current authored insert authority retained",
+            "stays: current authored update authority retained",
+            "plates: current source permits multiple rows for stay; current authored endpoint supplies the old-client selection",
+            "plates: retained current delete authority",
+            "plates: current authored read authority retained",
+            "plates: current authored insert authority retained",
+            "plates.photo: retained current payload read guard",
+            "payments: current authored read authority retained",
+            "payments: current authored insert authority retained",
+            "payments: current authored update authority retained",
+            "operation plate: current authored compatibility endpoint preserves its argument contract and guards",
+            "operation book: current authored compatibility endpoint preserves its argument contract and guards"
+          ],
+          "digest": "441703629d6d7523229603c5b11a3d7ebba82d34a0bc881fb53853282a80b17b",
+          "hides": [],
+          "parent": 4,
+          "release": 5,
+          "target": 1
+        }
+      ],
+      "stages": [
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        },
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        }
+      ],
+      "refusal": null
+    },
+    {
+      "lane": "029",
+      "initialRefusal": 0,
+      "authoredTruthfulDown": false,
+      "beforeHidden": 0,
+      "preview": 0,
+      "deploy": 0,
+      "afterHidden": 0,
+      "views": [],
+      "stages": [
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        },
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        }
+      ],
+      "refusal": null
+    },
+    {
+      "lane": "030",
+      "initialRefusal": 0,
+      "authoredTruthfulDown": false,
+      "beforeHidden": 0,
+      "preview": 0,
+      "deploy": 0,
+      "afterHidden": 0,
+      "views": [],
+      "stages": [
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        },
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        }
+      ],
+      "refusal": null
+    },
+    {
+      "lane": "031",
+      "initialRefusal": 0,
+      "authoredTruthfulDown": false,
+      "beforeHidden": 117,
+      "preview": 0,
+      "deploy": 0,
+      "afterHidden": 0,
+      "views": [
+        {
+          "changes": [
+            "orders.inspiration: image <=2000000 \u2192 image <=2000000 ?",
+            "roles: current authored read authority retained",
+            "roles: current authored insert authority retained",
+            "roles: current authored update authority retained",
+            "orders: current authored read authority retained",
+            "orders: current authored insert authority retained",
+            "orders: current authored update authority retained",
+            "payments: current authored read authority retained",
+            "payments: current authored insert authority retained",
+            "changes: current authored read authority retained",
+            "changes: current authored insert authority retained",
+            "production: current authored read authority retained",
+            "production: current authored update authority retained",
+            "operation createOrder: carried current require ((exists roles[principal = viewer, role = 'owner']) or couple = viewer and (exists roles[principal = viewer, role = 'couple'])) else OWNER_OR_OWN_COUPLE_ONLY"
+          ],
+          "digest": "761442274e050b070444356ea39051b05644a395939aeac61b35d49f094e8660",
+          "hides": [],
+          "parent": 5,
+          "release": 6,
+          "target": 1
+        }
+      ],
+      "stages": [
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        },
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        }
+      ],
+      "refusal": null
+    },
+    {
+      "lane": "032",
+      "initialRefusal": 1,
+      "authoredTruthfulDown": true,
+      "beforeHidden": 0,
+      "preview": 0,
+      "deploy": 0,
+      "afterHidden": 0,
+      "views": [],
+      "stages": [
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        },
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        }
+      ],
+      "refusal": null
+    },
+    {
+      "lane": "033",
+      "initialRefusal": 0,
+      "authoredTruthfulDown": false,
+      "beforeHidden": 19,
+      "preview": 0,
+      "deploy": 0,
+      "afterHidden": 0,
+      "views": [
+        {
+          "changes": [
+            "rentals.depositCents: int 100..100000 \u2192 int 0..100000",
+            "roles: current authored read authority retained",
+            "roles: current authored insert authority retained",
+            "roles: current authored update authority retained",
+            "rentals.depositArrangement: retained current guard/input field",
+            "rentals: current authored read authority retained",
+            "rentals: current authored insert authority retained",
+            "rentals: current authored update authority retained",
+            "pickups: current authored read authority retained",
+            "pickups: current authored insert authority retained",
+            "pickups: current authored update authority retained",
+            "operation riverBoard: current authored compatibility endpoint preserves its argument contract and guards",
+            "operation myRentals: current authored compatibility endpoint preserves its argument contract and guards",
+            "operation rentalDetail: current authored compatibility endpoint preserves its argument contract and guards",
+            "operation createRental: current authored compatibility endpoint preserves its argument contract and guards",
+            "operation markReturned: current authored compatibility endpoint preserves its argument contract and guards",
+            "operation inspectRental: current authored compatibility endpoint preserves its argument contract and guards",
+            "operation claimDamage: current authored compatibility endpoint preserves its argument contract and guards",
+            "operation refundDeposits: current authored compatibility endpoint preserves its argument contract and guards",
+            "operation assignPickup: current authored compatibility endpoint preserves its argument contract and guards",
+            "rentals: retained current migration arrangements"
+          ],
+          "digest": "022a78422d3c0545212d5c3a5dc390af6a2379e482ef8ad56d4f19914405a2c2",
+          "hides": [],
+          "parent": 4,
+          "release": 5,
+          "target": 1
+        }
+      ],
+      "stages": [
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        },
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        }
+      ],
+      "refusal": null
+    },
+    {
+      "lane": "034",
+      "initialRefusal": 0,
+      "authoredTruthfulDown": false,
+      "beforeHidden": 0,
+      "preview": 0,
+      "deploy": 0,
+      "afterHidden": 0,
+      "views": [],
+      "stages": [
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        },
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        }
+      ],
+      "refusal": null
+    },
+    {
+      "lane": "035",
+      "initialRefusal": 0,
+      "authoredTruthfulDown": false,
+      "beforeHidden": 42,
+      "preview": 0,
+      "deploy": 0,
+      "afterHidden": 0,
+      "views": [
+        {
+          "changes": [
+            "items.photo: image <=5000000 \u2192 image <=5000000 ?",
+            "roles: current authored read authority retained",
+            "roles: current authored insert authority retained",
+            "roles: current authored update authority retained",
+            "receipts: current authored read authority retained",
+            "receipts: current authored insert authority retained",
+            "bins: current authored read authority retained",
+            "bins: current authored insert authority retained",
+            "bins: current authored update authority retained",
+            "items: current authored read authority retained",
+            "items: current authored insert authority retained",
+            "items: current authored update authority retained",
+            "items.photo: retained current payload read guard"
+          ],
+          "digest": "f6b5239c6a89ba654dfc7860ef23a2df069b004018b4a4ae33d0e9de0c911ac3",
+          "hides": [],
+          "parent": 3,
+          "release": 4,
+          "target": 1
+        }
+      ],
+      "stages": [
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        },
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        }
+      ],
+      "refusal": null
+    },
+    {
+      "lane": "036",
+      "initialRefusal": 0,
+      "authoredTruthfulDown": false,
+      "beforeHidden": 0,
+      "preview": 0,
+      "deploy": 0,
+      "afterHidden": 0,
+      "views": [],
+      "stages": [
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        },
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        }
+      ],
+      "refusal": null
+    },
+    {
+      "lane": "037",
+      "initialRefusal": 0,
+      "authoredTruthfulDown": false,
+      "beforeHidden": 0,
+      "preview": 0,
+      "deploy": 0,
+      "afterHidden": 0,
+      "views": [],
+      "stages": [
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        },
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        }
+      ],
+      "refusal": null
+    },
+    {
+      "lane": "038",
+      "initialRefusal": 0,
+      "authoredTruthfulDown": false,
+      "beforeHidden": 18,
+      "preview": 0,
+      "deploy": 0,
+      "afterHidden": 0,
+      "views": [
+        {
+          "changes": [
+            "swarms.status: enum('reported', 'claimed', 'collected', 'hived', 'kept', 'lost') \u2192 enum('reported', 'claimed', 'collected', 'hived', 'kept', 'lost', 'beekeeper_assigned')",
+            "roles: current authored read authority retained",
+            "roles: current authored insert authority retained",
+            "roles: current authored update authority retained",
+            "swarms: current authored read authority retained",
+            "swarms: current authored insert authority retained",
+            "swarms: current authored update authority retained",
+            "invoices: current authored read authority retained",
+            "invoices: current authored insert authority retained",
+            "operation approveCutout: carried current require (s.status = 'reported' or (s.status = 'beekeeper_assigned' or s.status = 'claimed')) else TOO_LATE",
+            "operation collect: carried current require (s.keeper = viewer or isCoordinator()) else NOT_ASSIGNED",
+            "operation collect: carried current require (s.status = 'beekeeper_assigned' or s.status = 'claimed') else NOT_ASSIGNED_STAGE",
+            "operation expireSwarms: current authored compatibility endpoint preserves its argument contract and guards"
+          ],
+          "digest": "3ac44c651909c50fd75f2b8fa2db51519ba05b5497df0f030ed4a2a3c0f5727b",
+          "hides": [],
+          "parent": 8,
+          "release": 9,
+          "target": 1
+        },
+        {
+          "changes": [
+            "swarms.status: enum('reported', 'beekeeper_assigned', 'collected', 'hived', 'kept', 'lost') \u2192 enum('reported', 'beekeeper_assigned', 'collected', 'hived', 'kept', 'lost', 'claimed')",
+            "roles: current authored read authority retained",
+            "roles: current authored insert authority retained",
+            "roles: current authored update authority retained",
+            "swarms: current authored read authority retained",
+            "swarms: current authored insert authority retained",
+            "swarms: current authored update authority retained",
+            "invoices: current authored read authority retained",
+            "invoices: current authored insert authority retained",
+            "swarms: retained current forward migration custody instead of historical assignedStage",
+            "swarms: obsolete down legacyStage stays historical; visible view keeps current native values",
+            "operation approveCutout: carried current require (s.status = 'reported' or (s.status = 'beekeeper_assigned' or s.status = 'claimed')) else TOO_LATE",
+            "operation collect: carried current require (s.status = 'beekeeper_assigned' or s.status = 'claimed') else NOT_ASSIGNED_STAGE",
+            "operation expireSwarms: current authored compatibility endpoint preserves its argument contract and guards"
+          ],
+          "digest": "b693a31ec846d794a981894b94af1d456b6a590bea69677a977f870bc3177b52",
+          "hides": [],
+          "parent": 8,
+          "release": 10,
+          "target": 2
+        }
+      ],
+      "stages": [
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        },
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        }
+      ],
+      "refusal": null
+    },
+    {
+      "lane": "039",
+      "initialRefusal": 0,
+      "authoredTruthfulDown": false,
+      "beforeHidden": 0,
+      "preview": 0,
+      "deploy": 0,
+      "afterHidden": 0,
+      "views": [],
+      "stages": [
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        },
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        }
+      ],
+      "refusal": null
+    },
+    {
+      "lane": "040",
+      "initialRefusal": 0,
+      "authoredTruthfulDown": false,
+      "beforeHidden": 0,
+      "preview": 0,
+      "deploy": 0,
+      "afterHidden": 0,
+      "views": [],
+      "stages": [
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        },
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        }
+      ],
+      "refusal": null
+    },
+    {
+      "lane": "041",
+      "initialRefusal": 0,
+      "authoredTruthfulDown": false,
+      "beforeHidden": 28,
+      "preview": 0,
+      "deploy": 0,
+      "afterHidden": 0,
+      "views": [
+        {
+          "changes": [
+            "billing.feeCents: int 100..100000 \u2192 int 0..100000",
+            "payments.cents: int 1..100000 \u2192 int 0..100000",
+            "roles: current authored read authority retained",
+            "roles: current authored insert authority retained",
+            "roles: current authored update authority retained",
+            "children: current authored read authority retained",
+            "children: current authored insert authority retained",
+            "children: current authored update authority retained",
+            "billing.enrollmentType: retained current guard/input field",
+            "billing: current authored read authority retained",
+            "billing: current authored insert authority retained",
+            "billing: current authored update authority retained",
+            "assessments: current authored read authority retained",
+            "assessments: current authored insert authority retained",
+            "payments: current authored read authority retained",
+            "payments: current authored insert authority retained",
+            "movements: current authored read authority retained",
+            "movements: current authored insert authority retained",
+            "operation enroll: current authored compatibility endpoint preserves its argument contract and guards",
+            "operation refund: current authored compatibility endpoint preserves its argument contract and guards",
+            "billing: retained current migration enrollmentClassification"
+          ],
+          "digest": "b02082fa7364e32628ca887f4cce239d2a9e29c6623b586da59e2047b551380e",
+          "hides": [],
+          "parent": 3,
+          "release": 4,
+          "target": 1
+        }
+      ],
+      "stages": [
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        },
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        }
+      ],
+      "refusal": null
+    },
+    {
+      "lane": "042",
+      "initialRefusal": 0,
+      "authoredTruthfulDown": false,
+      "beforeHidden": 0,
+      "preview": 0,
+      "deploy": 0,
+      "afterHidden": 0,
+      "views": [],
+      "stages": [
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        },
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        }
+      ],
+      "refusal": null
+    },
+    {
+      "lane": "043",
+      "initialRefusal": 0,
+      "authoredTruthfulDown": false,
+      "beforeHidden": 0,
+      "preview": 0,
+      "deploy": 0,
+      "afterHidden": 0,
+      "views": [],
+      "stages": [
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        },
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        }
+      ],
+      "refusal": null
+    },
+    {
+      "lane": "044",
+      "initialRefusal": 0,
+      "authoredTruthfulDown": false,
+      "beforeHidden": 0,
+      "preview": 0,
+      "deploy": 0,
+      "afterHidden": 0,
+      "views": [],
+      "stages": [
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        },
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        }
+      ],
+      "refusal": null
+    },
+    {
+      "lane": "045",
+      "initialRefusal": 0,
+      "authoredTruthfulDown": false,
+      "beforeHidden": 0,
+      "preview": 0,
+      "deploy": 0,
+      "afterHidden": 0,
+      "views": [],
+      "stages": [
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        },
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        }
+      ],
+      "refusal": null
+    },
+    {
+      "lane": "046",
+      "initialRefusal": 0,
+      "authoredTruthfulDown": false,
+      "beforeHidden": 51,
+      "preview": 0,
+      "deploy": 0,
+      "afterHidden": 0,
+      "views": [
+        {
+          "changes": [
+            "mixed domains: retained the complete current authored schema and workflow closure, preserving every predecessor table/field/operation name and accepted input; review current results in the old UI"
+          ],
+          "digest": "75b729e037fa4a0d25ca48707729811de926625623db708cb29e1a723ddb8ef6",
+          "hides": [],
+          "parent": 7,
+          "release": 8,
+          "target": 1
+        }
+      ],
+      "stages": [
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        },
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        }
+      ],
+      "refusal": null
+    },
+    {
+      "lane": "047",
+      "initialRefusal": 0,
+      "authoredTruthfulDown": false,
+      "beforeHidden": 11,
+      "preview": 0,
+      "deploy": 0,
+      "afterHidden": 0,
+      "views": [
+        {
+          "changes": [
+            "orders.photos: [image <=5000000] 1..4 \u2192 [image <=5000000] <=4",
+            "roles: current authored read authority retained",
+            "roles: current authored insert authority retained",
+            "roles: current authored update authority retained",
+            "roles: current authored delete authority retained",
+            "orders: current authored read authority retained",
+            "orders: current authored insert authority retained",
+            "orders: current authored update authority retained",
+            "payments: current authored read authority retained",
+            "payments: current authored insert authority retained",
+            "operation updateDesign: carried current require ((exists roles[principal = viewer, role = 'sales']) or (exists roles[principal = viewer, role = 'owner'])) else NOT_PRIVILEGED"
+          ],
+          "digest": "0974052b3d44ed73726ada294b5ae941c7fc62ad8060c021694beaa0d7c1823b",
+          "hides": [],
+          "parent": 3,
+          "release": 4,
+          "target": 1
+        }
+      ],
+      "stages": [
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        },
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        }
+      ],
+      "refusal": null
+    },
+    {
+      "lane": "048",
+      "initialRefusal": 0,
+      "authoredTruthfulDown": false,
+      "beforeHidden": 0,
+      "preview": 0,
+      "deploy": 0,
+      "afterHidden": 0,
+      "views": [],
+      "stages": [
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        },
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        }
+      ],
+      "refusal": null
+    },
+    {
+      "lane": "049",
+      "initialRefusal": 0,
+      "authoredTruthfulDown": false,
+      "beforeHidden": 0,
+      "preview": 0,
+      "deploy": 0,
+      "afterHidden": 0,
+      "views": [],
+      "stages": [
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        },
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        }
+      ],
+      "refusal": null
+    },
+    {
+      "lane": "050",
+      "initialRefusal": 0,
+      "authoredTruthfulDown": false,
+      "beforeHidden": 61,
+      "preview": 0,
+      "deploy": 0,
+      "afterHidden": 0,
+      "views": [
+        {
+          "changes": [
+            "mixed domains: retained the complete current authored schema and workflow closure, preserving every predecessor table/field/operation name and accepted input; review current results in the old UI"
+          ],
+          "digest": "3ec32e7e76ddddfaaf1f73ef5c103bf95d6fd3a3e260ff6469bcb1d8da7eb5db",
+          "hides": [],
+          "parent": 7,
+          "release": 8,
+          "target": 1
+        }
+      ],
+      "stages": [
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        },
+        {
+          "target": "1",
+          "code": 0
+        },
+        {
+          "target": "latest",
+          "code": 0
+        }
+      ],
+      "refusal": null
+    }
+  ],
+  "groups": {
+    "dormancy": {
+      "lanes": 16,
+      "beforeHiddenKnown": 598,
+      "beforeUnknown": [
+        "028"
+      ],
+      "afterHidden": 0,
+      "failed": [],
+      "initialRefusals": [
+        "032"
+      ],
+      "successfulSwitches": 64
+    },
+    "refusals": {
+      "lanes": 7,
+      "beforeHiddenKnown": 192,
+      "beforeUnknown": [],
+      "afterHidden": 0,
+      "failed": [],
+      "initialRefusals": [],
+      "successfulSwitches": 28
+    },
+    "controls": {
+      "lanes": 27,
+      "beforeHiddenKnown": 0,
+      "beforeUnknown": [],
+      "afterHidden": 0,
+      "failed": [],
+      "initialRefusals": [],
+      "successfulSwitches": 108
+    }
+  }
+}

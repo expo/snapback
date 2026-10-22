@@ -1,0 +1,99 @@
+{
+  "snapback4-lang": {
+    "binaries": 182,
+    "passed": 2435,
+    "failed": 1,
+    "ignored": 16
+  },
+  "snapback4-native": {
+    "binaries": 2,
+    "passed": 0,
+    "failed": 0,
+    "ignored": 0
+  },
+  "snapback4-device": {
+    "binaries": 104,
+    "passed": 1573,
+    "failed": 0,
+    "ignored": 4
+  },
+  "snapback4-difftest": {
+    "binaries": 13,
+    "passed": 99,
+    "failed": 0,
+    "ignored": 0
+  },
+  "snapback4-sim": {
+    "binaries": 45,
+    "passed": 749,
+    "failed": 0,
+    "ignored": 7
+  },
+  "snapback4": {
+    "binaries": 72,
+    "passed": 1423,
+    "failed": 0,
+    "ignored": 15
+  },
+  "snapback4-core": {
+    "binaries": 47,
+    "passed": 1085,
+    "failed": 1,
+    "ignored": 5
+  },
+  "closures": {
+    "core-lib-verified": [
+      "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 665 filtered out; finished in 0.19s",
+      "test result: ok. 663 passed; 0 failed; 3 ignored; 0 measured; 0 filtered out; finished in 227.14s"
+    ],
+    "bridge-security-final": [
+      "test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.78s"
+    ],
+    "bridge-identities": [
+      "test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 35 filtered out; finished in 0.00s"
+    ],
+    "hot-verified": [
+      "test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 515 filtered out; finished in 0.12s"
+    ],
+    "migrations-final2": [
+      "test result: ok. 140 passed; 0 failed; 0 ignored; 0 measured; 526 filtered out; finished in 11.39s"
+    ],
+    "cli-context-final": [
+      "test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.12s",
+      "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.83s"
+    ]
+  },
+  "clientFull": {
+    "code": 1,
+    "files": 427,
+    "seconds": 2640.86,
+    "summary": "-- client files: 427/427; failed 11; tests {\"tests\":7909,\"pass\":7807,\"fail\":46,\"cancelled\":0,\"skipped\":56,\"todo\":0}"
+  },
+  "affectedClients": {
+    "cases": 183,
+    "files": 11,
+    "stableDebug": "-- client files: 11/11; failed 4; tests {\"tests\":183,\"pass\":178,\"fail\":4,\"cancelled\":1,\"skipped\":0,\"todo\":0}",
+    "productionClosures": [
+      "-- client files: 3/3; failed 0; tests {\"tests\":11,\"pass\":11,\"fail\":0,\"cancelled\":0,\"skipped\":0,\"todo\":0}",
+      "-- client files: 1/1; failed 0; tests {\"tests\":43,\"pass\":43,\"fail\":0,\"cancelled\":0,\"skipped\":0,\"todo\":0}"
+    ],
+    "mergedProduction": "-- client files: 11/11; failed 0; tests {\"tests\":183,\"pass\":183,\"fail\":0,\"cancelled\":0,\"skipped\":0,\"todo\":0}",
+    "mergedProductionSource": "ea7030153573050b42ad140e5817c919733bfecb"
+  },
+  "postMerge": {
+    "merged-cli-fixed": [
+      "test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.17s",
+      "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.83s"
+    ],
+    "merged-guide": [
+      "test result: ok. 127 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.80s",
+      "test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.71s"
+    ],
+    "control-cleanup-merged": [
+      "test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 510 filtered out; finished in 0.36s"
+    ],
+    "docs-merged": [
+      "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 126 filtered out; finished in 0.01s"
+    ]
+  }
+}

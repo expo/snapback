@@ -1,0 +1,5 @@
+# ROLL evidence — 2026-10-22
+
+See [WORKSTREAM-REPORT.md](../../../WORKSTREAM-REPORT.md) for changes, commits, measurements, failed attempts and their closing reruns, and remaining limits. `packed-consumer.json` binds the successful consumer-only proof to source and artifacts; it is not a publication receipt. Product path content is identical after the final unrelated main integration. Original evidence apps remained read-only.
+
+`replay.py` copies the saved lane deployments and source, previews original release 1, deploys current source and cycles 1/latest twice. It deletes each temporary copy in finally. Set `ROLL_REPLAY_APPS` to the wave-23 apps directory, `ROLL_REPLAY_OUT` to an external evidence directory and `SNAPBACK4_BIN` to the binary being measured. Pass lane ids as arguments (all 50 were measured here). Its portable form passed a fresh lane-001 smoke; the full measurements use the same replay logic. Baseline counts use the preserved published 0.4.37 archive whose digests are in `old-0.4.37-baseline.json`.

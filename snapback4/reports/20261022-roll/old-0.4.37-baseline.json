@@ -1,0 +1,148 @@
+{
+  "provenance": {
+    "source": "/home/ccheever/sb4-loop/integration21/linux-consumer-final37/snapback4-linux-x64-0.4.37.tgz",
+    "archiveSha256": "15febbad676dc91b45f99e85cc40b6d7c545f33f48780c427f48c1a2cf6fa09e",
+    "binarySha256": "e7f0c3ec72d57e1d63ac8b9641b3e109d89b2968e63ac1c304494eda7e0b86f4",
+    "version": "snapback4 0.4.37"
+  },
+  "rows": [
+    {
+      "lane": "003",
+      "code": 0,
+      "hiddenRows": 10,
+      "refusal": null
+    },
+    {
+      "lane": "007",
+      "code": 0,
+      "hiddenRows": 25,
+      "refusal": null
+    },
+    {
+      "lane": "011",
+      "code": 0,
+      "hiddenRows": 3,
+      "refusal": null
+    },
+    {
+      "lane": "013",
+      "code": 0,
+      "hiddenRows": 34,
+      "refusal": null
+    },
+    {
+      "lane": "015",
+      "code": 0,
+      "hiddenRows": 146,
+      "refusal": null
+    },
+    {
+      "lane": "018",
+      "code": 0,
+      "hiddenRows": 3,
+      "refusal": null
+    },
+    {
+      "lane": "019",
+      "code": 0,
+      "hiddenRows": 85,
+      "refusal": null
+    },
+    {
+      "lane": "023",
+      "code": 0,
+      "hiddenRows": 34,
+      "refusal": null
+    },
+    {
+      "lane": "027",
+      "code": 0,
+      "hiddenRows": 41,
+      "refusal": null
+    },
+    {
+      "lane": "028",
+      "code": 1,
+      "hiddenRows": null,
+      "refusal": "resolved rollback target: release 1 (current release 2)\nrollback: E_ADOPT: plates.$intent:byStay:97d88efbf95b5b31: 36 affected rows; sample ids [01M5GW6WY6V7KM3QE4JGZFC2BP, 01M5GW6Z7C8AN6QTTTRNHCAFTH, 01M5GW6Z7JCAHMM7S52R5TN0XY, 01M5GW6Z7NQYWW7Z7ANKR6NZTZ, 01M5GW8XACF0TCKQR364W7YHGQ]; values/keys [[\"01M5GW6WY6V7KM3QE4JGZFC2BN\"], [\"01M5GW6Z7JCAHMM7S52R5TN0XX\"], [\"01M5GW8XACF0TCKQR364W7YHGP\"], [\"01M5GW8ZMQA3QSJHNKTDA40JNS\"], [\"01M5GWB96T5KRFJ2RC2N4J5MJW\"]]; limit 1; rewrite: repair duplicate/overfull groups through the current release; if those rows are dormant, deploy a bridge with widened types and this index non-unique / increased cap using --restore-dormant, repair through a bridge mutation, then reinstate the constraint; inspect: snapback4 sql \"SELECT * FROM [plates]\" --release <dir>\n"
+    },
+    {
+      "lane": "031",
+      "code": 0,
+      "hiddenRows": 117,
+      "refusal": null
+    },
+    {
+      "lane": "032",
+      "code": 0,
+      "hiddenRows": 0,
+      "refusal": null
+    },
+    {
+      "lane": "033",
+      "code": 0,
+      "hiddenRows": 19,
+      "refusal": null
+    },
+    {
+      "lane": "035",
+      "code": 0,
+      "hiddenRows": 42,
+      "refusal": null
+    },
+    {
+      "lane": "041",
+      "code": 0,
+      "hiddenRows": 28,
+      "refusal": null
+    },
+    {
+      "lane": "047",
+      "code": 0,
+      "hiddenRows": 11,
+      "refusal": null
+    },
+    {
+      "lane": "010",
+      "code": 0,
+      "hiddenRows": 20,
+      "refusal": null
+    },
+    {
+      "lane": "022",
+      "code": 0,
+      "hiddenRows": 0,
+      "refusal": null
+    },
+    {
+      "lane": "025",
+      "code": 0,
+      "hiddenRows": 0,
+      "refusal": null
+    },
+    {
+      "lane": "026",
+      "code": 0,
+      "hiddenRows": 42,
+      "refusal": null
+    },
+    {
+      "lane": "038",
+      "code": 0,
+      "hiddenRows": 18,
+      "refusal": null
+    },
+    {
+      "lane": "046",
+      "code": 0,
+      "hiddenRows": 51,
+      "refusal": null
+    },
+    {
+      "lane": "050",
+      "code": 0,
+      "hiddenRows": 61,
+      "refusal": null
+    }
+  ]
+}

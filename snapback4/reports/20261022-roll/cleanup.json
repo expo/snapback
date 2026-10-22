@@ -1,0 +1,14 @@
+{
+  "qualifiedServersRemaining": 0,
+  "temporaryReplayCopiesRemaining": 0,
+  "debugBuildGiBRemovedApprox": 31,
+  "oldFailedQualificationAppsRemoved": 18,
+  "completedBuildAndProofPathsRemoved": 44,
+  "emptyAbandonedControlParentsRemoved": 24,
+  "retained": [
+    "debug CLI",
+    "qualified static CLI",
+    "client/Expo/platform tarballs",
+    "JSON proof evidence and raw logs"
+  ]
+}

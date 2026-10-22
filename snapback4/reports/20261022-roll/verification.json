@@ -1,0 +1,22 @@
+{
+  "ref-closeout": {
+    "path": "/home/ccheever/sb4-roll-ref-closeout.log",
+    "sha256": "0d52679bb2818adc08ee26c6a99a1d90018d2726f58cabab90d54debf2811f32",
+    "result": "ref-check: ok \u2014 564 LLP docs, 12338 refs in 46086 files, 0 errors, 0 unchecked"
+  },
+  "inventories-closeout": {
+    "path": "/home/ccheever/sb4-roll-inventories-closeout.log",
+    "sha256": "2e5bdbb81fb0a90d0048b15c79190ef3773fdfa33b8646930fe455f717a57813",
+    "result": "[check-inventories] PASS: 365 package tests; 35 scripts tests; 31 demos/31 catalog entries; 487 publication leaves; 162 guide pages/1937 snippets"
+  },
+  "guide-closeout": {
+    "path": "/home/ccheever/sb4-roll-guide-closeout.log",
+    "sha256": "6efcb3075f6ce013d323beddde66f223a67a5a3b38436d44f69eedc73e9cffbd",
+    "result": "[guide-check] ok \u2014 22 passed, 0 failed, 0 skipped, 0 preconditions; 162 pages, 1937 snippets, 174 routes + 51 host-ops joined, 121 warnings"
+  },
+  "docs-merged": {
+    "path": "/home/ccheever/sb4-roll-docs-merged.log",
+    "sha256": "0546fe212247c4b987df9a887c51260337519c5e79751982e327fe6bd209cd36",
+    "result": "     Running tests/guide.rs (target/debug/deps/guide-21ba2856c5553c41)"
+  }
+}
