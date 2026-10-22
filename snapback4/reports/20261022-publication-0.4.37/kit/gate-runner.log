@@ -1,0 +1,1 @@
+./gate-dryrun.sh: line 15:  4648 Terminated: 15          ( cd $K && ATTEMPT=$ATT exec caffeinate -ims bash ./publish.sh dry-run > dryrun-a$ATT.log 2>&1 < /dev/null )

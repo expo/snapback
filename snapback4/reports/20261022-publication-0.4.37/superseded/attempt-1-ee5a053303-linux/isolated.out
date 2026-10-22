@@ -1,0 +1,10 @@
+wave12 run 1 rc=0 -- client files: 1/1; failed 0; tests {"tests":9,"pass":9,"fail":0,"cancelled":0,"skipped":0,"todo":0}
+wave12 run 2 rc=0 -- client files: 1/1; failed 0; tests {"tests":9,"pass":9,"fail":0,"cancelled":0,"skipped":0,"todo":0}
+wave12 run 3 rc=0 -- client files: 1/1; failed 0; tests {"tests":9,"pass":9,"fail":0,"cancelled":0,"skipped":0,"todo":0}
+wave12 run 4 rc=0 -- client files: 1/1; failed 0; tests {"tests":9,"pass":9,"fail":0,"cancelled":0,"skipped":0,"todo":0}
+wave12 run 5 rc=0 -- client files: 1/1; failed 0; tests {"tests":9,"pass":9,"fail":0,"cancelled":0,"skipped":0,"todo":0}
+wave12 run 6 rc=0 -- client files: 1/1; failed 0; tests {"tests":9,"pass":9,"fail":0,"cancelled":0,"skipped":0,"todo":0}
+status after wave12: []
+wave14 run 1 rc=0 -- client files: 1/1; failed 0; tests {"tests":25,"pass":25,"fail":0,"cancelled":0,"skipped":0,"todo":0} status=[?? snapback4/packages/snapback4/logs/ ]
+wave14 run 2 rc=0 -- client files: 1/1; failed 0; tests {"tests":25,"pass":25,"fail":0,"cancelled":0,"skipped":0,"todo":0} status=[?? snapback4/packages/snapback4/logs/ ]
+final status: []

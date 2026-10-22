@@ -1,0 +1,7 @@
+dry-run-2: done
+finish-1: done
+lean-2: done
+native-2: done
+prepare-2: done
+warm-2: done
+dry-run-1: environment-invalid: on battery (after 5806 s)

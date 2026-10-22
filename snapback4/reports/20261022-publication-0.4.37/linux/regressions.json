@@ -1,0 +1,26 @@
+[
+  {
+    "mode": "literal-install",
+    "status": "passed",
+    "fromExpo": "57.0.22",
+    "expo": "57.0.22",
+    "version": "0.4.37",
+    "webExport": "passed"
+  },
+  {
+    "mode": "upgrade",
+    "status": "passed",
+    "fromExpo": "57.0.22",
+    "expo": "57.0.22",
+    "version": "0.4.37",
+    "webExport": "passed"
+  },
+  {
+    "mode": "adapter-first",
+    "status": "passed",
+    "fromExpo": null,
+    "expo": "57.0.30",
+    "version": "0.4.37",
+    "webExport": "passed"
+  }
+]

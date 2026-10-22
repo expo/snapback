@@ -1,0 +1,9 @@
+{
+  "status": "passed",
+  "directory": "/home/ccheever/sb4-pub-0437-records/linux-qualification-0.4.37/day2-compatibility",
+  "guideRecipe": "capture-release-and-bridge",
+  "starterCustody": [
+    "web",
+    "expo"
+  ]
+}

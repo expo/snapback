@@ -1,0 +1,319 @@
+Binaryen 132.0.0 (locked workspace dependency)
+warning: unused import: `write::Origin`
+ --> crates/snapback4-core/src/engine/live.rs:3:29
+  |
+3 | use super::{runner::Runner, write::Origin};
+  |                             ^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused imports: `Bounds`, `Ceilings`, `Cut`, `Dir`, `MeterKind`, `Meter`, and `through::LIVE_CHILDREN`
+ --> crates/snapback4-core/src/engine/live.rs:5:13
+  |
+5 |     error::{MeterKind, RuntimeError},
+  |             ^^^^^^^^^
+6 |     meter::{Ceilings, Cut, Meter},
+  |             ^^^^^^^^  ^^^  ^^^^^
+7 |     rows::{Bounds, Dir},
+  |            ^^^^^^  ^^^
+8 |     schema::{live, through::LIVE_CHILDREN},
+  |                    ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `Bounds`, `Dir`, `Maintain`, `MeterKind`, `RuntimeError`, `materialize_optional_fields`, and `value::Value`
+ --> crates/snapback4-core/src/engine/aggregate_expiry.rs:3:21
+  |
+3 | use crate::{error::{MeterKind, RuntimeError}, rows::{Bounds, Dir}, schema::{Maintain, materialize_optional_fields}, value::Value};
+  |                     ^^^^^^^^^  ^^^^^^^^^^^^          ^^^^^^  ^^^            ^^^^^^^^  ^^^^^^^^^^^^^^^^^^^^^^^^^^^   ^^^^^^^^^^^^
+
+warning: unused import: `MeterKind`
+ --> crates/snapback4-core/src/engine/columns.rs:6:21
+  |
+6 | use crate::{error::{MeterKind, RuntimeError}, schema::{Maintain, reservations::{COLUMNS, ASSETS}}, value::Value};
+  |                     ^^^^^^^^^
+
+warning: unused import: `crate::rows::Rows`
+ --> crates/snapback4-core/src/engine/recorded.rs:3:5
+  |
+3 | use crate::rows::Rows;
+  |     ^^^^^^^^^^^^^^^^^
+
+warning: variable does not need to be mutable
+   --> crates/snapback4-core/src/engine/row_views.rs:471:13
+    |
+471 |         let mut unsettled = existing.as_ref().is_none_or(pending);
+    |             ----^^^^^^^^^
+    |             |
+    |             help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable does not need to be mutable
+   --> crates/snapback4-core/src/engine/row_views.rs:655:25
+    |
+655 |                     let mut unsettled = existing.as_ref().is_some_and(pending);
+    |                         ----^^^^^^^^^
+    |                         |
+    |                         help: remove this `mut`
+
+warning: unused variable: `runner`
+   --> crates/snapback4-core/src/engine/receipts.rs:281:121
+    |
+281 |                     (crate::error::MeterKind::IndexEntries, price[1]), (crate::error::MeterKind::Examined, price[2])], |runner, _| {
+    |                                                                                                                         ^^^^^^ help: if this is intentional, prefix it with an underscore: `_runner`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `old`
+   --> crates/snapback4-core/src/engine/receipts.rs:271:17
+    |
+271 |             let old = self.receipt_scope(f, row.field(&f.message_group)?)?;
+    |                 ^^^ help: if this is intentional, prefix it with an underscore: `_old`
+
+warning: struct `Authority` is never constructed
+  --> crates/snapback4-core/src/authority.rs:12:12
+   |
+12 | pub struct Authority {
+   |            ^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: struct `SessionRecord` is never constructed
+  --> crates/snapback4-core/src/authority.rs:19:19
+   |
+19 | pub(crate) struct SessionRecord {
+   |                   ^^^^^^^^^^^^^
+
+warning: method `identity_is_valid` is never used
+  --> crates/snapback4-core/src/authority.rs:31:19
+   |
+30 | impl SessionRecord {
+   | ------------------ method in this implementation
+31 |     pub(crate) fn identity_is_valid(&self) -> bool {
+   |                   ^^^^^^^^^^^^^^^^^
+
+warning: struct `WorkRecord` is never constructed
+  --> crates/snapback4-core/src/authority.rs:39:19
+   |
+39 | pub(crate) struct WorkRecord {
+   |                   ^^^^^^^^^^
+
+warning: struct `AdmissionRecord` is never constructed
+  --> crates/snapback4-core/src/authority.rs:51:19
+   |
+51 | pub(crate) struct AdmissionRecord {
+   |                   ^^^^^^^^^^^^^^^
+
+warning: trait `AuthorityTransaction` is never used
+  --> crates/snapback4-core/src/authority.rs:59:18
+   |
+59 | pub(crate) trait AuthorityTransaction {
+   |                  ^^^^^^^^^^^^^^^^^^^^
+
+warning: enum `AdmissionStanding` is never used
+  --> crates/snapback4-core/src/authority.rs:78:17
+   |
+78 | pub(crate) enum AdmissionStanding {
+   |                 ^^^^^^^^^^^^^^^^^
+
+warning: function `admission_authority` is never used
+  --> crates/snapback4-core/src/authority.rs:87:15
+   |
+87 | pub(crate) fn admission_authority(
+   |               ^^^^^^^^^^^^^^^^^^^
+
+warning: function `family_authority_expiry` is never used
+   --> crates/snapback4-core/src/authority.rs:114:15
+    |
+114 | pub(crate) fn family_authority_expiry(
+    |               ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `work_authority_expiry` is never used
+   --> crates/snapback4-core/src/authority.rs:160:15
+    |
+160 | pub(crate) fn work_authority_expiry(
+    |               ^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `claim_window_is_live` is never used
+   --> crates/snapback4-core/src/authority.rs:182:4
+    |
+182 | fn claim_window_is_live(work: &WorkRecord, now: i64) -> bool {
+    |    ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `claim_is_owned` is never used
+   --> crates/snapback4-core/src/authority.rs:188:15
+    |
+188 | pub(crate) fn claim_is_owned(work: &WorkRecord, worker: &str, digest: &str) -> bool {
+    |               ^^^^^^^^^^^^^^
+
+warning: function `live_claim_authority` is never used
+   --> crates/snapback4-core/src/authority.rs:192:15
+    |
+192 | pub(crate) fn live_claim_authority(
+    |               ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `held_claim_authority` is never used
+   --> crates/snapback4-core/src/authority.rs:203:15
+    |
+203 | pub(crate) fn held_claim_authority(
+    |               ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `live_session` is never used
+   --> crates/snapback4-core/src/authority.rs:219:15
+    |
+219 | pub(crate) fn live_session(
+    |               ^^^^^^^^^^^^
+
+warning: function `live_service_session` is never used
+   --> crates/snapback4-core/src/authority.rs:243:15
+    |
+243 | pub(crate) fn live_service_session(
+    |               ^^^^^^^^^^^^^^^^^^^^
+
+warning: enum `SessionScope` is never used
+   --> crates/snapback4-core/src/authority.rs:256:10
+    |
+256 | pub enum SessionScope { Full, Read }
+    |          ^^^^^^^^^^^^
+
+warning: function `refuse_nul` is never used
+   --> crates/snapback4-core/src/authority.rs:260:15
+    |
+260 | pub(crate) fn refuse_nul(values: &[(&str, &str)]) -> Result<(), RuntimeError> {
+    |               ^^^^^^^^^^
+
+warning: field `session_digest` is never read
+   --> crates/snapback4-core/src/engine/mod.rs:198:16
+    |
+177 | pub struct Context {
+    |            ------- field in this struct
+...
+198 |     pub(crate) session_digest: Option<String>,
+    |                ^^^^^^^^^^^^^^
+    |
+    = note: `Context` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: methods `sequence_ids`, `rewrite_sequence_ids`, `asset`, `claim_asset`, and `release_asset` are never used
+   --> crates/snapback4-core/src/engine/authorized_scan.rs:115:19
+    |
+ 32 | impl<'a> GuardedRows<'a> {
+    | ------------------------ methods in this implementation
+...
+115 |     pub(crate) fn sequence_ids(&self, parent: &str) -> Result<Vec<String>, RuntimeError> { self.raw.sequence_ids(parent) }
+    |                   ^^^^^^^^^^^^
+116 |     pub(crate) fn rewrite_sequence_ids(&self, ids: &std::collections::BTreeMap<String, std::collections::BTreeMap<String, String>>)...
+    |                   ^^^^^^^^^^^^^^^^^^^^
+...
+149 |     pub(crate) fn asset(&self, id: &str) -> Result<Option<Asset>, RuntimeError> { self.raw.asset(id) }
+    |                   ^^^^^
+150 |     pub(crate) fn claim_asset(&self, id: &str, by: &str, table: &str, row: &str, column: &str) -> Result<Asset, RuntimeError> { sel...
+    |                   ^^^^^^^^^^^
+151 |     pub(crate) fn release_asset(&self, id: &str, #[cfg(feature = "sqlite")] table: &str, #[cfg(feature = "sqlite")] row_id: &str, #...
+    |                   ^^^^^^^^^^^^^
+
+warning: method `field_visible` is never used
+  --> crates/snapback4-core/src/engine/authorized_point.rs:15:19
+   |
+14 | impl AuthorizedRow<'_> {
+   | ---------------------- method in this implementation
+15 |     pub(crate) fn field_visible(&self, field: &str) -> bool { self.projection.visible(field) }
+   |                   ^^^^^^^^^^^^^
+
+warning: variant `Purge` is never constructed
+  --> crates/snapback4-core/src/engine/timeline_authority.rs:12:5
+   |
+ 8 | pub(super) enum Authority {
+   |                 --------- variant in this enum
+...
+12 |     Purge(BTreeMap<String, u64>),
+   |     ^^^^^
+
+warning: struct `FinalExistsWitness` is never constructed
+  --> crates/snapback4-core/src/engine/write.rs:22:19
+   |
+22 | pub(super) struct FinalExistsWitness {
+   |                   ^^^^^^^^^^^^^^^^^^
+
+warning: methods `satisfied_final_exists` and `check_final_exists_witnesses` are never used
+   --> crates/snapback4-core/src/engine/write.rs:925:19
+    |
+ 33 | impl Runner<'_> {
+    | --------------- methods in this implementation
+...
+925 |     pub(super) fn satisfied_final_exists(&mut self) -> Result<Vec<FinalExistsWitness>, RuntimeError> {
+    |                   ^^^^^^^^^^^^^^^^^^^^^^
+...
+940 |     pub(super) fn check_final_exists_witnesses(&mut self, witnesses: &[FinalExistsWitness]) -> Result<(), RuntimeError> {
+    |                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: method `apply_missing_reference_actions` is never used
+  --> crates/snapback4-core/src/engine/write_references.rs:24:30
+   |
+17 | impl Runner<'_> {
+   | --------------- method in this implementation
+...
+24 |     pub(in crate::engine) fn apply_missing_reference_actions(&mut self, table_name: &str, identity: &Value) -> Result<(), RuntimeErr...
+   |                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: trait `LedgerTransaction` is never used
+ --> crates/snapback4-core/src/ledger.rs:8:18
+  |
+8 | pub(crate) trait LedgerTransaction: LedgerReader {
+  |                  ^^^^^^^^^^^^^^^^^
+
+warning: method `fork_fixture` is never used
+   --> crates/snapback4-core/src/rows.rs:389:19
+    |
+387 | impl MemoryRows {
+    | --------------- method in this implementation
+388 |     // @ref LLP 3000.036.004#137-wave-19-c...
+389 |     pub(crate) fn fork_fixture(&self)->Self {
+    |                   ^^^^^^^^^^^^
+
+warning: associated items `zero`, `plus`, and `fits` are never used
+   --> crates/snapback4-core/src/value.rs:433:19
+    |
+432 | impl InternalPrice {
+    | ------------------ associated items in this implementation
+433 |     pub(crate) fn zero() -> Self { Self(0) }
+    |                   ^^^^
+434 |     pub(crate) fn plus(self, other: Self) -> Self { Self(self.0.saturating_add(other.0)) }
+    |                   ^^^^
+...
+437 |     pub(crate) fn fits(&self, meter: &crate::engine::InternalMeter<'_>, _: &crate::engine::Authorization) -> bool { meter.room(crat...
+    |                   ^^^^
+
+warning: method `guide` is never used
+  --> crates/snapback4-core/src/wire.rs:97:8
+   |
+96 | impl ArgumentErrorKind {
+   | ---------------------- method in this implementation
+97 |     fn guide(self) -> &'static str {
+   |        ^^^^^
+
+warning: unused import: `Stmt`
+ --> crates/snapback4-core/src/engine/presence.rs:3:45
+  |
+3 | use crate::{error::RuntimeError, ir::{Expr, Stmt}, value::Value};
+  |                                             ^^^^
+
+warning: method `timeline_page` is never used
+   --> crates/snapback4-core/src/engine/timeline.rs:320:8
+    |
+ 61 | impl Runner<'_> {
+    | --------------- method in this implementation
+...
+320 |     fn timeline_page(&mut self, table: &str, index: &str, prefix: Vec<Value>, take: u32, reverse: bool, cursor: Option<&[u8]>) -> R...
+    |        ^^^^^^^^^^^^^
+
+warning: field `expiry_after` is never read
+   --> crates/snapback4-device/src/memory.rs:118:5
+    |
+112 | pub struct MemoryStore {
+    |            ----------- field in this struct
+...
+118 |     expiry_after: BTreeMap<String, Vec<Value>>,
+    |     ^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+wasm 2406115 B raw, 734267 B gzip (budget 735407: ok)

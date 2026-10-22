@@ -1,0 +1,165 @@
+-- client file start: packages/snapback4/test/wave14-rule-recipes.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: packed rule recipes run as written and preserve authority at boundaries
+    # Subtest: query return paths and optional lookups preserve packed read semantics
+    ok 1 - query return paths and optional lookups preserve packed read semantics
+      ---
+      duration_ms: 475.811287
+      type: 'test'
+      ...
+    # Subtest: column privacy keeps one public row and omits private fields in exact guide sources
+    ok 2 - column privacy keeps one public row and omits private fields in exact guide sources
+      ---
+      duration_ms: 276.877286
+      type: 'test'
+      ...
+    # Subtest: packed wasm preserves omitted column cells through nested spreads
+    ok 3 - packed wasm preserves omitted column cells through nested spreads
+      ---
+      duration_ms: 1199.619568
+      type: 'test'
+      ...
+    # Subtest: the compact opening recipe grants only its owner
+    ok 4 - the compact opening recipe grants only its owner
+      ---
+      duration_ms: 279.052232
+      type: 'test'
+      ...
+    # Subtest: current department transfer maintains every existing child atomically
+    ok 5 - current department transfer maintains every existing child atomically
+      ---
+      duration_ms: 1311.025735
+      type: 'test'
+      ...
+    # Subtest: live parent transfers the packed guide authority, invalidates held reads and moves devices
+    ok 6 - live parent transfers the packed guide authority, invalidates held reads and moves devices
+      ---
+      duration_ms: 1445.524523
+      type: 'test'
+      ...
+    # Subtest: live asset placement follows the current parent without moving its home
+    ok 7 - live asset placement follows the current parent without moving its home
+      ---
+      duration_ms: 343.518662
+      type: 'test'
+      ...
+    # Subtest: private waitlist publishes occupancy without exposing membership
+    ok 8 - private waitlist publishes occupancy without exposing membership
+      ---
+      duration_ms: 290.868683
+      type: 'test'
+      ...
+    # Subtest: membership pages stop at grant expiry without relying on cleanup
+    ok 9 - membership pages stop at grant expiry without relying on cleanup
+      ---
+      duration_ms: 348.674813
+      type: 'test'
+      ...
+    # Subtest: bare union has an explicit cold-start tradeoff and both audiences read
+    ok 10 - bare union has an explicit cold-start tradeoff and both audiences read
+      ---
+      duration_ms: 347.68702
+      type: 'test'
+      ...
+    # Subtest: public mirror requires its own image placement and never publishes private notes
+    ok 11 - public mirror requires its own image placement and never publishes private notes
+      ---
+      duration_ms: 292.930979
+      type: 'test'
+      ...
+    # Subtest: staff guard and table read rule agree, with custom refusal before lookup
+    ok 12 - staff guard and table read rule agree, with custom refusal before lookup
+      ---
+      duration_ms: 286.539303
+      type: 'test'
+      ...
+    # Subtest: upsert refusal ladder executes before a later custom require and rolls back
+    ok 13 - upsert refusal ladder executes before a later custom require and rolls back
+      ---
+      duration_ms: 336.964451
+      type: 'test'
+      ...
+    # Subtest: asserted hidden read precedes the business refusal
+    ok 14 - asserted hidden read precedes the business refusal
+      ---
+      duration_ms: 290.816745
+      type: 'test'
+      ...
+    # Subtest: hidden unique conflicts redact even the authored code
+    ok 15 - hidden unique conflicts redact even the authored code
+      ---
+      duration_ms: 286.302006
+      type: 'test'
+      ...
+    # Subtest: rule and program exists deliberately see different populations
+    ok 16 - rule and program exists deliberately see different populations
+      ---
+      duration_ms: 287.185833
+      type: 'test'
+      ...
+    # Subtest: caller totals include every own row and exclude every hidden row
+    ok 17 - caller totals include every own row and exclude every hidden row
+      ---
+      duration_ms: 288.135049
+      type: 'test'
+      ...
+    # Subtest: presence gates durable writes across poll grace and reconnect
+    ok 18 - presence gates durable writes across poll grace and reconnect
+      ---
+      duration_ms: 349.575256
+      type: 'test'
+      ...
+    # Subtest: scheduled publication withdraws, invalidates approval on edit and reapproves
+    ok 19 - scheduled publication withdraws, invalidates approval on edit and reapproves
+      ---
+      duration_ms: 320.811189
+      type: 'test'
+      ...
+    # Subtest: availability is public without granting booking identities or overselling
+    ok 20 - availability is public without granting booking identities or overselling
+      ---
+      duration_ms: 292.989127
+      type: 'test'
+      ...
+    # Subtest: leaderboard consent publishes only opted-in totals and withdrawal removes them
+    ok 21 - leaderboard consent publishes only opted-in totals and withdrawal removes them
+      ---
+      duration_ms: 313.439591
+      type: 'test'
+      ...
+    # Subtest: three levels share live root authority without chained captures
+    ok 22 - three levels share live root authority without chained captures
+      ---
+      duration_ms: 358.7227
+      type: 'test'
+      ...
+    # Subtest: 077 distinct middle policy follows mutable root probes without widening owners
+    ok 23 - 077 distinct middle policy follows mutable root probes without widening owners
+      ---
+      duration_ms: 286.917712
+      type: 'test'
+      ...
+    # Subtest: versioned transitions reject stale and hidden targets and retain private atomic history
+    ok 24 - versioned transitions reject stale and hidden targets and retain private atomic history
+      ---
+      duration_ms: 303.921251
+      type: 'test'
+      ...
+    1..24
+ok 1 - packed rule recipes run as written and preserve authority at boundaries
+  ---
+  duration_ms: 17691.049353
+  type: 'test'
+  ...
+1..1
+# tests 25
+# suites 0
+# pass 25
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 17824.675801
+-- process inspection: {"snapshots":3,"unrelatedRows":4521}
+-- client file ok: packages/snapback4/test/wave14-rule-recipes.test.mjs (18157 ms)
+-- client files: 1/1; failed 0; tests {"tests":25,"pass":25,"fail":0,"cancelled":0,"skipped":0,"todo":0}
