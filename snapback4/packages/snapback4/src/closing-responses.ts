@@ -11,22 +11,25 @@ export const inheritClose = (client: object, raw: object): void => {
 export const holdClose = (client?: object): (() => void) => client ? owners.get(client)?.hold() ?? (() => {}) : () => {};
 
 export class ClosingResponses {
-  private capturing = false;
+  private phase: "open" | "closing" | "complete" = "open";
   private finished = false;
   private holds = 0;
   private resolve!: () => void;
   readonly done = new Promise<void>(resolve => { this.resolve = resolve; });
-  begin(): void { this.capturing = true; }
+  begin(): void { if (this.phase === "open") this.phase = "closing"; }
   hold(): () => void {
+    if (this.phase === "complete") return () => {};
     this.holds++;
     let held = true;
     return () => { if (held) { held = false; this.holds--; this.complete(); } };
   }
   finish(): void { this.finished = true; this.complete(); }
   private complete(): void {
-    if (this.finished && this.holds === 0) { this.capturing = false; this.resolve(); }
+    if (this.finished && this.holds === 0 && this.phase !== "complete") { this.phase = "complete"; this.resolve(); }
   }
-  request(): ClosingResponse { return new ClosingResponse(() => this.capturing); }
+  // A body can become known while open, then cross close during receipt
+  // application. The invocation retains it from dispatch through the cutoff.
+  request(): ClosingResponse { return new ClosingResponse(() => this.phase !== "complete"); }
 }
 
 /** A request's identity is this object, never its mutation/action id. Retrying

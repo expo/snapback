@@ -100897,3 +100897,14 @@ and proposal hashes are under llp/reviews/dx6. The exact verification results,
 packed upgrade proofs and limitations are in WORKSTREAM-REPORT.md and
 reports/20261022-dx6/. No package version change or push is made by this lane.
 SEC7 owns security advice/campaign semantics and security recipe changes.
+
+### 2026-10-22 — DX6 App timing and invocation cleanup
+
+Integrated review found that a prepared App could save an advanced device clock
+before committing the corresponding credential. Prepared clocks now activate
+durable saves only after that commit. Full session models also exposed the
+existing LLP 3000.013 response cutoff losing decoded write/effect outcomes
+during implicit retirement. Scope cleanup holds that cutoff through local
+credential tasks, and validated bodies belong to their invocation while open
+and closing; completed capture cannot reopen. No network or remote revocation
+wait is added. Design and review record: LLP 3000.000.000.001 §11.

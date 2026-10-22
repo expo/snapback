@@ -632,11 +632,10 @@ export function createClient(options: ClientOptions): Client {
       const send = () => doFetch(`${base}${path}`, armRequest({ method: "POST", headers: { ...headers, ...(options.meter && path.startsWith("/q/") ? { "x-snapback-meter": "1" } : {}) }, body: encoded, ...((path.startsWith("/q/") || path.startsWith("/following/")) ? { signal: signal ?? eph?.signal ?? aborter.signal } : {}) }, arm));
       const { response, json } = path.startsWith("/q/")
         ? await readWithAdmissionRetry(send, () => !armRefusal(arm) && !closed && credentials && revision === credentialRevision && (!eph || ephemeralReads.current(eph)) && !signal?.aborted, signal ?? eph?.signal ?? aborter.signal)
-        : await send().then(async response => ({ response, json: await readResponse(response) }));
+        : await send().then(async response => ({ response, json: await readResponse(response, undefined, json => captured?.capture(json, response.status)) }));
       // Late bodies are consumed without adoption. A parsed effect response
       // already known at close still finishes its local settlement.
       if (signal?.aborted || (eph && !ephemeralReads.current(eph))) return { ok: false };
-      captured?.capture(json, response.status);
       if (closed) return { ok: false };
       arrived(true);
       if (storeRefusal) return { ok: false };

@@ -325,7 +325,7 @@ function createAppInner(options: AppOptions): App {
   let signedOutOnline = onlineView(current);
   const onlineListeners = new Set<() => void>();
   const notifyOnline = () => { for (const listener of onlineListeners) { try { listener(); } catch (error) { console.error("snapback4 online listener:", error); } } };
-  type Scope = { online?: ReturnType<typeof ownOnline>; openOnline?: () => void; valid: boolean; sealing?: boolean; waitRotation?: () => Promise<void>; epoch: string; session: Session; consumed?: string | undefined; issued: Set<string>; aborter: AbortController; client?: Client; view?: Client; expose?: () => Client; fenceView?: () => () => void; save?: () => Promise<void>; logout?: Promise<void>; stop(): void; pause(): void };
+  type Scope = { cleanup?: { depth: number; client?: Client; finish(): void }; online?: ReturnType<typeof ownOnline>; openOnline?: () => void; valid: boolean; sealing?: boolean; waitRotation?: () => Promise<void>; epoch: string; session: Session; consumed?: string | undefined; issued: Set<string>; aborter: AbortController; client?: Client; view?: Client; expose?: () => Client; fenceView?: () => () => void; save?: () => Promise<void>; logout?: Promise<void>; stop(): void; pause(): void };
   const scopes = new Set<Scope>();
   let owner: (Scope & { client: Client }) | undefined;
   let operations: Promise<unknown> = Promise.resolve();
@@ -358,19 +358,43 @@ function createAppInner(options: AppOptions): App {
     publish(closed ? "signed-out" : state, null, why);
     for (const notify of notifyHidden) notify?.();
   };
+  // @ref LLP 3000.013#6 — a scope retains already-dispatched responses
+  // through its local credential cleanup, including implicit retirement.
+  async function cleanupScope<T>(scope: Scope, work: () => T | Promise<T>): Promise<T> {
+    const capture = scope.cleanup ??= { depth: 0, finish() {} };
+    // Preparation can schedule credential work before a Client exists. A
+    // later task attaches its raw/custody owner to that same cleanup lifetime.
+    if (scope.client && capture.client !== scope.client) {
+      const prior = capture.finish, finish = holdClose(scope.client);
+      capture.client = scope.client;
+      capture.finish = () => { prior(); finish(); };
+    }
+    capture.depth++;
+    try { return await work(); }
+    finally {
+      await scope.logout?.catch(() => {});
+      await persistence.catch(() => {});
+      if (--capture.depth === 0) {
+        if (scope.cleanup === capture) delete scope.cleanup;
+        capture.finish();
+      }
+    }
+  }
   async function release() {
     const previous = owner;
     owner = undefined;
     if (!previous) return;
-    previous.pause();
-    try { await previous.client.close(); }
-    finally {
-      if (previous.valid) try { await previous.save?.(); } catch (error) { report(error); }
-      const retired = previous.client.session()?.token;
-      previous.stop(); await persistence.catch(() => {}); previous.valid = false; scopes.delete(previous);
-      if (retired) previous.issued.add(retired);
-      for (const token of previous.issued) revokeRetired(token, { principal: previous.session.principal, epoch: previous.epoch });
-    }
+    await cleanupScope(previous, async () => {
+      previous.pause();
+      try { await previous.client.close(); }
+      finally {
+        if (previous.valid) try { await previous.save?.(); } catch (error) { report(error); }
+        const retired = previous.client.session()?.token;
+        previous.stop(); await persistence.catch(() => {}); previous.valid = false; scopes.delete(previous);
+        if (retired) previous.issued.add(retired);
+        for (const token of previous.issued) revokeRetired(token, { principal: previous.session.principal, epoch: previous.epoch });
+      }
+    });
   }
   function observeEpoch(epoch: string) {
     // A provisional owner does not replace the rollback candidate's duty to
@@ -387,10 +411,10 @@ function createAppInner(options: AppOptions): App {
     // Publish before raw retirement emits client callbacks, with every rollback
     // candidate already invalid. Auth and client observers share this boundary.
     if (affected && !closed) hide("restoring");
-    for (const scope of stale) {
+    for (const scope of stale) void cleanupScope(scope, () => {
       scope.pause(); scope.stop(); scope.aborter.abort();
-      if (scope.client) void scope.client.signOut().catch(() => {});
-    }
+      return scope.client?.signOut();
+    }).catch(() => {});
     if (!affected || closed) return;
     void enqueue(async () => {
       if (owner !== affected) return;
@@ -421,7 +445,7 @@ function createAppInner(options: AppOptions): App {
     let preparing = true, committing = false;
     const scopedStore: SessionStore = {
       get: sessionStore.get,
-      set: (key, value) => persist(() => storeLock(key, async () => {
+      set: (key, value) => cleanupScope(scope, () => persist(() => storeLock(key, async () => {
         if (key !== custodyKey) { await storage.set(key, value); return; }
         const next = JSON.parse(value) as Session;
         const saved = await storage.get(key);
@@ -457,8 +481,8 @@ function createAppInner(options: AppOptions): App {
         epoch = nextEpoch; scope.epoch = nextEpoch; scope.session = next; scope.consumed = undefined;
         scope.issued.clear(); scope.issued.add(next.token);
         if (restoreToken !== undefined) restoreToken = next.token;
-      })),
-      delete: key => scope.valid ? (key === custodyKey ? removeSession(scope.session.token, restoreToken !== undefined) : sessionStore.delete(key)) : Promise.resolve(),
+      }))),
+      delete: key => scope.valid ? cleanupScope(scope, () => key === custodyKey ? removeSession(scope.session.token, restoreToken !== undefined) : sessionStore.delete(key)) : Promise.resolve(),
     };
     let pendingAuthority: Promise<boolean> | undefined;
     function authorized(): Promise<boolean> {
@@ -677,8 +701,8 @@ function createAppInner(options: AppOptions): App {
       scope.waitRotation = () => waitForRotation(raw!);
       scope.save = async () => { const next = raw?.session(); if (next) await keepSession(url, next, scopedStore, readOnly); };
       if (!scope.valid || closed || revision !== expected) {
-        if (scope.valid && closed) await raw.close();
-        else void raw.signOut().catch(() => {});
+        if (scope.valid && closed) await cleanupScope(scope, () => raw!.close());
+        else void cleanupScope(scope, () => raw!.signOut()).catch(() => {});
         return cancelled();
       }
       let lastSession = raw.session() ?? session;
@@ -698,7 +722,7 @@ function createAppInner(options: AppOptions): App {
           // A rollback candidate owns this duty even while another scope opens.
           const clearing = removeSession([rejected, ...(scope.consumed ? [scope.consumed] : [])]);
           if (owner === scope) hide("restoring", true, sessionRefusal(raw!));
-          void clearing.catch(report);
+          void cleanupScope(scope, () => clearing).catch(report);
           void enqueue(async () => {
             if (owner !== scope) return;
             let warning: Refusal | undefined;
@@ -727,8 +751,8 @@ function createAppInner(options: AppOptions): App {
         let timer: ReturnType<typeof setTimeout> | undefined;
         await Promise.race([identifying, new Promise<void>(resolve => { timer = setTimeout(resolve, 1_000); })]).finally(() => clearTimeout(timer));
         if (!scope.valid || closed || revision !== expected) {
-          if (scope.valid && closed) await raw.close();
-          else void raw.signOut().catch(() => {});
+          if (scope.valid && closed) await cleanupScope(scope, () => raw!.close());
+          else void cleanupScope(scope, () => raw!.signOut()).catch(() => {});
           return cancelled();
         }
       }
@@ -779,8 +803,8 @@ function createAppInner(options: AppOptions): App {
       const client = scope.expose();
       if (!scope.valid || closed || revision !== expected) {
         custody?.pause();
-        if (scope.valid && closed) await baseClient.close();
-        else void baseClient.signOut().catch(() => {});
+        if (scope.valid && closed) await cleanupScope(scope, () => baseClient.close());
+        else void cleanupScope(scope, () => baseClient.signOut()).catch(() => {});
         return cancelled();
       }
       const own = Object.assign(scope, { client: baseClient, view: client, pause: () => { custody?.pause(); } });
@@ -798,12 +822,12 @@ function createAppInner(options: AppOptions): App {
       if (scope.valid && !closed && revision === expected) {
         try { await commitClient?.(); } catch (error) { warning = problem(error); }
       }
-      if (previous) {
+      if (previous) void cleanupScope(previous, () => {
         previous.valid = false; previous.pause(); previous.stop(); previous.aborter.abort();
-        void previous.client.signOut().catch(() => {}).finally(() => scopes.delete(previous));
-      }
+        return previous.client.signOut();
+      }).catch(() => {}).finally(() => scopes.delete(previous));
       if (!scope.valid || closed || revision !== expected) {
-        if (!closed) void baseClient.signOut().catch(() => {});
+        if (!closed) void cleanupScope(scope, () => baseClient.signOut()).catch(() => {});
         await release();
         drainRevocations();
         return { ok: true, session: next }; // The durable commit already happened.
@@ -829,11 +853,11 @@ function createAppInner(options: AppOptions): App {
       if (!(error instanceof RestorationChanged)) {
         if (readOnly) retire(scope.session.token);
         else void revokeSession(url, scope.session.token, scopedFetch);
-        if (raw) void raw.signOut().catch(() => {});
+        if (raw) void cleanupScope(scope, () => raw!.signOut()).catch(() => {});
         await scope.logout;
         // Provisional failure never owns the previously stored account.
       }
-      try { if (owner === scope) await release(); else await raw?.close(); } catch {}
+      try { if (owner === scope) await release(); else await cleanupScope(scope, () => raw?.close()); } catch {}
       if (previous?.valid && !closed && revision === expected) {
         owner = previous;
         if (previousVisible) {
@@ -904,9 +928,11 @@ function createAppInner(options: AppOptions): App {
       logoutBarrier = removeSession(undefined, false, undefined, true);
       for (const scope of scopes) {
         scope.logout = logoutBarrier;
-        scope.valid = false; scope.pause(); scope.stop(); scope.aborter.abort();
-        if (scope.client) void scope.client.signOut().catch(() => {}).finally(() => scopes.delete(scope));
-        else revokeRetired(scope.session.token);
+        void cleanupScope(scope, () => {
+          scope.valid = false; scope.pause(); scope.stop(); scope.aborter.abort();
+          if (scope.client) return scope.client.signOut();
+          revokeRetired(scope.session.token);
+        }).catch(() => {}).finally(() => scopes.delete(scope));
       }
       owner = undefined;
       const ending = logoutBarrier.then<AppResult>(() => {
@@ -941,17 +967,17 @@ function createAppInner(options: AppOptions): App {
             // retirement must not consume it if logout-all is offline/refused.
             logoutBarrier = removeSession(undefined, false, { session, epoch: selected.epoch, consumed: selected.consumed });
             await logoutBarrier;
-            for (const scope of scopes) {
+            for (const scope of scopes) void cleanupScope(scope, () => {
               scope.logout = logoutBarrier; scope.valid = false; scope.pause(); scope.stop(); scope.aborter.abort();
-            }
+            }).catch(() => {});
             owner = undefined;
             // The durable fence hides this view even if a later auth action is
             // queued. That action has not opened its replacement yet (I6).
             hide();
-            for (const scope of scopes) {
-              if (scope.client) void scope.client.signOut().catch(() => {}).finally(() => scopes.delete(scope));
-              else revokeRetired(scope.session.token);
-            }
+            for (const scope of scopes) void cleanupScope(scope, () => {
+              if (scope.client) return scope.client.signOut();
+              revokeRetired(scope.session.token);
+            }).catch(() => {}).finally(() => scopes.delete(scope));
           } else {
             if (revision === expected) hide();
             if (!await revocations.hasGlobal()) return { ok: false, why: { code: "E_AUTH", family: "auth", message: "sign in to revoke sessions", site: "app.auth.logoutEverywhere", rewrite: "await app.auth.login(email, password)" } };

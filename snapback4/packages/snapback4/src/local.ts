@@ -1306,7 +1306,12 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           release(); settled.delete(id);
           return emitLocalFailure({ state: "failed", id, why: { code: "E_STORE", family: "store", message: `write ${id} admission outcome is unknown: ${String(error)}` } });
         }
-        if (closed) { settled.delete(id); return pending; }
+        if (closed) {
+          try {
+            await closingResponses.done;
+            return response.write(await result as Write<R>);
+          } finally { settled.delete(id); }
+        }
         void flush();
         const wait = mutationWaitSeconds(options?.waitSeconds) ?? 4;
         if (link !== "online" || wait === 0) { settled.delete(id); return pending; }
