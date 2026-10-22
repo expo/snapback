@@ -1,0 +1,21 @@
+MATERIAL
+
+Two blockers remain in the **supplied R6 snapshot**. Later checkout edits are excluded.
+
+1. **Legal table name `renamed` breaks alpha conversion.** In `release_bridge_current.rs::header`, searching for the first token whose value is `"renamed"` selects the table name in:
+   ```quarry
+   table renamed renamed from docs:
+   ```
+   The adapter then returns `invalid table origin span`. This contradicts the advertised legal-name support and fails that regression iteration. **Bounded repair:** identify the table-name token structurally, then recognize the rename clause only after it.
+
+2. **The corrected regression still asserts the obsolete, impossible metadata string.** `nominal_metadata_words_remain_types_before_column_and_argument_modifiers` requires:
+   ```text
+   alias legacy default null deprecated
+   ```
+   Its revised fixture places alias, default and deprecation on separate arguments, and alpha conversion preserves those declarations. The assertion therefore fails even for successful adaptation. **Bounded repair:** assert each argument’s actual metadata separately, including alias resolution and the authored `'sample-id'` default; rerun the complete legal-name loop.
+
+The core amendment is otherwise sound in direction: differing module-bound source with current invariants selects the complete current closure, preserving literal, helper, grant, temporal/system, default, write and return dependencies. The actual definitions confirm bounded plain text, alias expansion before contract comparison, and jobs residing in `Document.programs`. The closed inclusion matcher handles the stated same-format text, recursive list intervals and optional additions conservatively. Missing contracts and unsupported mappings appropriately require authored compatible source.
+
+The reviewed range checks reject invalid UTF-8 boundaries and overlapping edits. Current and predecessor worker checks are present. Already unsafe current workflows remain findings; retaining their closure does not establish safety.
+
+**Verification:** static review only; no builds, tests or mutations. I have not verified the native or packed execution claims. Finite campaigns establish regression evidence, not universal equivalence. This verdict is design readiness review, not author acceptance or qualification.

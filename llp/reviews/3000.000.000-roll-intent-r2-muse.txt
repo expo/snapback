@@ -1,0 +1,53 @@
+muse: workspace root: /home/ccheever/projects/snapback-sb4loop (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=c0b8ef4a-5439-4b06-a1f3-082146e1a170]: Subscription quota exhausted. Your usage window resets at 2026-10-26T00:00:00Z. (rate_limit_error)
+READY
+
+R2 snapshot reviewed exactly as pinned. No unsafe restoration path found. The closure reuses the authored current body verbatim (or alpha table-spelling only). No business synthesis.
+
+What was checked:
+
+* Amended design [`llp/3000.000.000-retained-storage-and-hot-release.rfc.md`](./llp/3000.000.000-retained-storage-and-hot-release.rfc.md) §20.1 current-closure rule, text/list/optional widening, table-only alpha, no conversion, no selective-transport broadening.
+* Complete code [`release_bridge_current.rs`](snapback4/crates/snapback4-lang/src/release_bridge_current.rs), [`release_bridge.rs`](snapback4/crates/snapback4-lang/src/release_bridge.rs), [`release_bridge_rules.rs`](snapback4/crates/snapback4-lang/src/release_bridge_rules.rs), [`release_bridge_guards.rs`](snapback4/crates/snapback4-lang/src/release_bridge_guards.rs), [`rollback_views.rs`](snapback4/crates/snapback4/src/verbs/rollback_views.rs).
+* Tests [`release_bridge_security.rs`](snapback4/crates/snapback4-lang/tests/release_bridge_security.rs) and [`publication-roll.mjs`](snapback4/scripts/publication-roll.mjs) intent cycle.
+
+Safe rollback and current intent:
+
+* `loosen()` delegates to `release_bridge_current::prepare()` whenever current has invariants. Union-view guard/endpoint transport is bypassed on that path. No old workflow is restored.
+* `contracts()` requires every old table/column spelling, every old operation name/kind (operation aliases are expanded into `Bound.programs` by `operation_evolution::expand`, so dropped old aliases refuse), and every old arg accepted by new under wire name. Missing/narrowed/unknown refuse with authored-source advice.
+* Regression from the audit is covered: `generated_view_cannot_restore_a_write_forbidden_by_current_intent` checks both newly declared and already-declared intent, retains `owner:viewer` literal, keeps invariant in generated source, and finite campaign shows no reachable violation. Finite campaign is correctly treated as regression evidence only.
+* `publication-roll.mjs` intent cycle verifies the safe literal (`created.owner` is caller, not `bob`), read-guard hiding for `bob`, and metric preservation across rollback cycles.
+
+Whole closure and dependencies:
+
+* Retained source is the current closure unchanged, so schema, defaults, helpers, programs, jobs (as `ProgramKind::Job` programs), invariants, grants (table rules), temporal (`expire`/`not_before`/`final_exists`), system (`viewer`/`now`), write/return bodies are preserved by construction.
+* Alpha only rewrites typed table slots, `Ref` types, invariant subjects, and table probes. Literal business strings are preserved by token-span edits (`secret:'records'` test). Bodies, defaults, literals, selection order, values are not synthesized.
+* Existing intentionally unsafe current workflows stay observable via ordinary SEC7/gates; the adapter does not repair them.
+
+Closed inclusion (R2 additions):
+
+* Same-format text intervals `x<=a && b<=y` with `f==g`: correct. `ArgType::Text{min:u32,max:u32}` confirmed, so no `Option` comparison bug.
+* Bounded lists recurse only when cardinality contains the full predecessor interval and both elements present/absent: correct. Narrowing (`2..8`, `[text <=20]`) refuses, tested.
+* Extra new `Optional` args allowed; omitted old values become language `Null` confirmed in `validate_arguments` (`inputs.insert(name, Value::Null)`). New required args, narrowing, removed names/fields refuse, tested. `Cursor`-missing tolerance is not claimed as extra-arg widening; refusal there is safe.
+* `IntRange→Int` widening allowed, `Int→IntRange` refuses (even floor-to-ceiling, safe over-strict). `Enum` superset, identical, optional unwrapping correct. Other formats/nominal/unsupported refuse.
+* Selective `release_bridge_rules::input_accepts` stays strict (no text/list broadening), as specified.
+
+Capture-free rename:
+
+* Single-module only; multi-module rename refuses. Injective mapping, no capture of table/argument/local-binding/shape names, `Name` walk, `Walk`/`Merge` rejected, receipts/`maintained`/deliveries/actions/effects/maintains/timelines/views/feed_views/backfills/downfills/extractions rejected. Qualified prior origin, ambiguous/capturing mapping, overlapping spans refuse.
+* Unmapped `routes`/`schedules`/`rollback_hides`/shape `Ref` bodies were examined: they either contain no typed table slot or fail compilation to diagnostics, which `prepare()` turns into `E_ADOPT` refusal. No silent recapture path found. Conservative, not unsafe.
+
+Aliases:
+
+* Arg aliases: `old.arg_aliases` must resolve via `new.argument(alias)` to the same canonical target.
+* Operation aliases: covered via alias expansion; dropping an old alias fails `contracts()`.
+* Table identity aliases via `renamed_from` routed through `requires_view` normalization and alpha; independent same-spelling tables refuse adaptation.
+
+Untested claims (reported, not blockers):
+
+* No dedicated test for receipt-declaration rejection under rename, `Walk`/`Merge` rejection, multi-module refusal, qualified-origin rejection, or overlapping-span error. Code paths exist and fail closed to diagnostics, but lack executable probes in the pinned tests.
+* No closure-path test for operation-alias retention or arg-rename-via-alias refusal; union-path alias test exists. Behavior follows from expansion + `contracts()`, unobserved in closure tests.
+* Hides combined with invariant closure has no pinned test; hide narrowing produces a modified source that still goes through `contracts()` and recompilation, safe by inspection.
+
+No MATERIAL blocker. No repair requested. Do not synthesize business policy; missing names/fields/inputs or unsupported maps correctly require authored compatible source with truthful migration.
+

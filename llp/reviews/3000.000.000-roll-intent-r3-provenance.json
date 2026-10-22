@@ -1,0 +1,63 @@
+{
+  "purpose": "Integration 23 current independent intent amendment review; design readiness only",
+  "observedCompleteAt": "2026-10-22T19:56:16.557199+00:00",
+  "inputs": {
+    "at": "2026-10-22T19:26:33.256375+00:00",
+    "briefSha256": "833d2b2f81b859bf1bb500cefb24b2cc50ec310b593e9f3fac9836f033d34c9b",
+    "files": {
+      "llp/3000.000.000-retained-storage-and-hot-release.rfc.md": "b17fc5812c68453762d8bad5372979e27e22e0fd1b77bd1c8dd830af9516f50e",
+      "snapback4/crates/snapback4-lang/src/release_bridge_current.rs": "0b43f9bdc158f933acf8d846698ea16beae594395bf76e6e4716c6d36ccdb882",
+      "snapback4/crates/snapback4-lang/src/release_bridge.rs": "1dc3dd03ee476edb9e9194724115f0166fdb2588c2c6d7f56eabde2f1871caf8",
+      "snapback4/crates/snapback4-lang/src/release_bridge_rules.rs": "692c5d6bff576eaf4564ba9f4eb8febceb8ef9b1c6564d1f6aa23079ce19b030",
+      "snapback4/crates/snapback4-lang/src/release_bridge_guards.rs": "10b70850e8cbabfc4da8cbd3ce561afe704396d99ff1d1453235c7c97c680f0c",
+      "snapback4/crates/snapback4-lang/tests/release_bridge_security.rs": "dea1f37872a4190b676cb6f34c79f32da5cfdfdebb13fed717bb85bb54e4e7f4",
+      "snapback4/crates/snapback4/src/verbs/rollback_views.rs": "200fdf8524fd1b0e148f2e85b87d6c0964f61bbc285d483f2a0fa85c96e6c57d",
+      "snapback4/scripts/publication-roll.mjs": "b8eb829b91043d951841170ebad74a0e3edba7d9520de77a3eaac3515418a135"
+    }
+  },
+  "reviews": [
+    {
+      "family": "muse",
+      "requestedModel": "muse-spark-1.3-contributor",
+      "requestedReasoningEffort": "high",
+      "exit": 0,
+      "verdict": "READY",
+      "verbatimOutput": "3000.000.000-roll-intent-r3-muse.txt",
+      "outputSha256": "d4385e9198e93b9f1ad4891930204ec90e6a733adcd7d7a5d8f18f6d71f79fb3",
+      "command": [
+        "/home/ccheever/sb4-loop/muse-exec.sh",
+        "--yolo",
+        "--model",
+        "muse-spark-1.3-contributor",
+        "--reasoning-effort",
+        "high",
+        "--prompt-file",
+        "/tmp/integ23/roll-intent-r3-brief.md"
+      ],
+      "stdinBrief": false,
+      "routingNote": "helper fallback completed after subscription quota response; stdout retained whole"
+    },
+    {
+      "family": "codex",
+      "requestedModel": "gpt-6.1-sol",
+      "requestedReasoningEffort": "high",
+      "exit": 0,
+      "verdict": "MATERIAL",
+      "verbatimOutput": "3000.000.000-roll-intent-r3-codex.txt",
+      "outputSha256": "15111de01f758c17e768356d80ae6379d43e6f4708c0fcbd2a034f414d015bfc",
+      "command": [
+        "codex",
+        "exec",
+        "-m",
+        "gpt-6.1-sol",
+        "-c",
+        "model_reasoning_effort=high",
+        "--skip-git-repo-check",
+        "--dangerously-bypass-approvals-and-sandbox",
+        "-"
+      ],
+      "stdinBrief": true,
+      "routingNote": "fresh codex exec without conversation history"
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+muse: workspace root: /home/ccheever/projects/snapback-sb4loop (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=fde498e3-c6d4-4423-929a-4947de66c460]: Subscription quota exhausted. Your usage window resets at 2026-10-26T00:00:00Z. (rate_limit_error)
+MATERIAL
+
+Static read-only review of the pinned snapshot. No files edited. No shell or test execution. The reported pre-fix failure and post-fix pass were not re-run here.
+
+Blocker: invariant or literal-only fixes without domain widening can roll back to the original unsafe workflow.
+
+* [prepare](https://example.com) in [rollback views](/home/ccheever/projects/snapback-sb4loop/snapback4/src/verbs/rollback_views.rs) skips view creation when `widening` is false.
+* [view trigger](https://example.com) in [release bridge](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/src/release_bridge.rs) compares domains, aliases, unique keys, and caps. It does not consider invariants, literals, helpers, grants, defaults, control paths, returns, or system and time dependencies.
+* A literal-only repair, such as `owner` to `owner:viewer`, with unchanged column types would therefore reuse original source. The amendment itself notes such changes alter reachable effects.
+* Bounded repair: require a compiled view whenever current source declares invariants and a predecessor remains selectable. Route it through the complete-current-closure path in [current closure](https://example.com) in [release_bridge_current.rs](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/src/release_bridge_current.rs). Refuse on missing names, narrowed inputs, or unsupported maps. Do not synthesize policy.
+
+Verified safe in the pinned code:
+
+* Complete closure is retained verbatim when current declares invariants. This preserves schema, defaults, helpers, programs, jobs, and policy.
+* Closed input inclusion in [current closure](https://example.com) admits identical types, optional widening, enum supersets, integer-interval widening, and same-format text-interval widening. Other formats, nominal kinds, lists, and cardinality refuse. The selective endpoint matcher in [bridge rules](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/src/release_bridge_rules.rs) correctly stays narrower.
+* Table rename is capture-avoiding and typed. It checks injectivity, table, argument, local-binding, and shape capture. It rejects derived, receipt, migration, delivery, action, effect, recursive, and merge forms. It retains literal business strings.
+* Operation aliases are covered because [operation evolution](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/src/bind/operation_evolution.rs) expands aliases into bound programs before contract comparison. Argument aliases are checked explicitly.
+* Ordinary union still refuses predecessor-only enlargements. Missing fields or incompatible inputs refuse with authored-source advice. Unsafe current workflows remain observable in the security test in [bridge security tests](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/tests/release_bridge_security.rs). Campaigns are used as regression evidence alongside structural retention asserts.
+
+Advisory, not blocking: function return `Ref` types are not explicitly remapped in the alpha adapter. The likely outcome is a compile refusal, which is safe. Explicit handling would reduce false refusals.

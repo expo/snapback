@@ -1,0 +1,13 @@
+READY
+
+No material blockers found in the pinned R7 amendment and implementation.
+
+- Independent intent triggers preparation for source changes without domain widening. Module-name/content pairs catch body swaps; CLI executable digests also catch worker/native byte changes.
+- The intent path retains the complete current authored closure, preserving helpers, defaults, jobs, grants, system/time dependencies, writes, control flow and returns. It does not reconstruct policy from guards or campaign results.
+- Input inclusion admits same-format text widening, recursively containing list intervals and additional optional arguments. Missing predecessor contracts, narrowing and unsupported domain changes refuse. Exported operation aliases participate through expansion before binding.
+- Typed table adaptation validates nominal destinations, rejects declared binding capture and unsupported forms, checks UTF-8 edit boundaries and overlap, then recompiles and rechecks predecessor contracts. The metadata-word fixes address the supplied span cases.
+- Current and predecessor workers are checked before generating views; generated native execution refuses without a qualified bundle. Existing unsafe current workflows remain observable findings rather than being silently repaired.
+
+No bounded repair is required for this snapshot.
+
+This is a read-only static review. I did not execute tests. The reported 17 language tests and eight CLI tests are supplied evidence; native/packed qualification remains ongoing. Finite campaigns do not establish equivalence, and this READY verdict conveys neither author acceptance nor qualification.

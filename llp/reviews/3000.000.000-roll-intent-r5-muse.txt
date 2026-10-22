@@ -1,0 +1,29 @@
+muse: workspace root: /home/ccheever/projects/snapback-sb4loop (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=57c06064-2d8c-4dc6-ac71-cd743da4027f]: Subscription quota exhausted. Your usage window resets at 2026-10-26T00:00:00Z. (rate_limit_error)
+MATERIAL
+
+Concrete blockers in the exact R5 snapshot. No file edits made. No synthesis of business policy requested.
+
+1. Text-interval inclusion is unsafe for unbounded `max` — `release_bridge_current.rs` `accepts()`:
+   `Text {min,max,format}` compares `Option` directly (`x <= a && b <= y`). `None` orders below `Some`, correct for `min=None→0` but inverted for `max=None→unbounded`. Old unbounded → current bounded would accept narrowing; current unbounded → old bounded would refuse widening. `IntRange` already normalises `None→MIN/MAX`; `Text` does not. Bounded repair: normalise `min None→0`, `max None→+inf` before compare, mirroring `IntRange`. Add loop regression with plain `text` vs `text <=80` in both directions. `release_bridge.rs` `join()` has the same `Option::max` issue for `Text`.
+
+2. Complete-closure contract drops exported operation aliases — `release_bridge_current.rs` `contracts()`:
+   Checks `old.programs` vs `new.programs` and `old.arg_aliases`, but never builds the `exports` map including `doc.aliases` as `release_bridge_rules.rs` does. An old `alias oldRead = currentRead` dropped by current still passes, losing an old wire name. Violates amended text: every exported predecessor alias counts as an old name. Bounded repair: build old/new export maps including aliases, require same name/kind and `accepts()` on args under wire names. Add regression where old alias is dropped.
+
+3. Alpha capture check omits job-local bindings — `release_bridge_current.rs` `alpha()`:
+   Checks shapes, table rule bindings, program prelude/body `Bind/For/If/As`, function blocks, arg names, plus `Name` uses via `intent_walk`, but no `jobs` binding definitions. `jobs` are allowed through (not in the derived/migration refuse list) and rewritten via `other` walk, so a job-local `Bind` shadowing a mapped table could capture. Violates: cannot capture table, argument, local-binding or shape names. Bounded repair: extend `bindings()` walk to jobs or refuse any job binding in `reserved`. Add regression with a job-local shadowing the rename.
+
+4. `retained_declaration()` lacks the R5 span validation — `release_bridge.rs`:
+   `alpha()` in `release_bridge_current.rs` now validates ordered UTF-8 boundaries and overlap before `replace_range`. `retained_declaration()` still does `sort/dedup/reverse` then unconditional `replace_range` with no `is_char_boundary` or overlap check. Bounded repair: apply the same ordered UTF-8/overlap validation before edits.
+
+What passes in R5:
+
+- Safe rollback preserved: `requires_view()` now bridges on any `(module-stem,text)` pair difference when current has invariants, byte-identical (ignoring paths) creates no view, relocation with same stem stays equivalent, `a.q`/`b.q` swap triggers. Literal-only repair regression and packed hot/cold intent proof with stop/restart cover the original v2 literal-owner revert.
+- Whole current closure reused verbatim (or alpha-renamed), retaining helpers, defaults, grants, writes, returns, system/time dependencies by construction. Already-unsafe current stays unsafe and observable; design explicitly says finite campaigns are regression evidence only.
+- Closed inclusion otherwise correct: identical, optional widening, enum superset, integer widening, same-format text widening, new optional args only, recursive bounded-list containment with both-element-declared rule. Narrowing, removed names/fields, new required params refuse.
+- Capture-free typed rename otherwise correct: single-module only, injective, primitive-collision probe via reparsing nominal `Ref`, receipt/derived/migration refusal, business-string preservation, `ordinal>0` initial-token consumption in both `arg_type()` and `type_span()`, whitespace-retaining endpoints, ordered UTF-8 validation in `alpha()`. Loop regression covers `alias/default/renamed/deprecated/read/written/readable/on` as table names in self-ref column, optional ref arg with metadata, bounded ref-list arg.
+- Worker/native gates in `verbs/rollback_views.rs` check both predecessor and current automatic/named workers plus native, refusing until qualified bundles exist.
+
+Untested claims (reported accurately, not blockers): omitted-optional-arg `null`/default call semantics never invoked with an old caller; predecessor-worker refusal path has no CLI regression (only current-worker); unbounded-text path has no test; operation-alias retention in current-closure path has no test.
+

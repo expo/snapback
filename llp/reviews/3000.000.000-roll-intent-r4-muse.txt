@@ -1,0 +1,17 @@
+muse: workspace root: /home/ccheever/projects/snapback-sb4loop (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=006780a8-30bb-4e36-b2f6-3bc4cf0b549b]: Subscription quota exhausted. Your usage window resets at 2026-10-26T00:00:00Z. (rate_limit_error)
+READY
+
+No material safety or intent-preservation blocker in the R4 pinned snapshot. All R2–R4 additions are present and fail closed.
+
+- Safe rollback / current intent: `release_bridge::requires_view` bridges on any `(stem,text)` difference when current has invariants, byte-identical ignoring directory creates no view. `release_bridge_current::prepare` retains the complete current closure verbatim, or alpha-rewritten current with same bodies/literals. No resurrection, translation, or invented defaults. Unsafe current stays unsafe and observable; finite campaigns are stated as regression evidence only.
+- Whole closure: `retained()` returns `current.to_vec()`; alpha only rewrites typed slots/table refs/invariant subjects. Newer-only tables, caps, immutability, expiry, authority retained via `release_bridge_rules/guards` plus `rollback_views.rs` post-checks.
+- Closed input inclusion: identical, optional-widening, enum-superset, int-interval widening, same-format text `x<=a && b<=y`, recursive list-interval with `x<=a && b<=y` and both/neither element declared, extra `Optional` args allowed, new required/narrowing/removed/unknown refuse. Matches R2 spec.
+- Capture-free rename: single-module only, `renamed_from` mapping, injectivity/no-capture check, rejects derived/receipt/migration forms, rejects `Walk`/`Merge`, checks shapes/rule/program/function/arg bindings plus `Name` uses, primitive probe via `table __rollback_type_probe: value: {name}` requiring `TypeKind::Ref`, `arg_type` stops before `, ) = default alias renamed deprecated` with `trim_end` whitespace retention. Test covers `int/principal/id/time/bool` and `legacyId` alias retention, business string `'records'` untouched.
+- Aliases/temporal/grant/system/helper/default/write/return: argument aliases checked in `contracts`; operation aliases in union path via `exports`; table/column spellings exact; helpers/writes/returns/system scopes preserved by retaining current bodies. No synthesis.
+- R4 specifics verified: `(stem,text)` sorted pairs make `a.q`/`b.q` swap trigger a bridge, `relocated/schema.q` equivalent; worker check covers stage and predecessor `source`/`declared`; packed `publication-roll.mjs` intent case stops/restarts with view selected.
+- Original literal-owner repair: `generated_view_cannot_restore_a_write_forbidden_by_current_intent`, `a_literal_only_policy_repair_registers_a_view_without_any_domain_widening`, and packed proof cover it.
+
+Untested/over-conservative, not material: operation-alias drop in current-closure path fails closed at call time rather than deploy refuse; unbounded `text` max (`None`) comparison is strict and refuses rather than widens; multi-module alpha refusal has no dedicated regression. No repair required for safety; bounded tightening would be alias-map check in `contracts` and `None`-as-unbounded text handling if desired.
+

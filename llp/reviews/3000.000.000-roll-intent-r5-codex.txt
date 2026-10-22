@@ -1,0 +1,13 @@
+MATERIAL
+
+The complete-current-closure approach addresses the original literal-owner regression, but pinned R5 has three blockers.
+
+1. **Executable-only changes bypass closure preservation.** In [rollback_views.rs](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4/src/verbs/rollback_views.rs), `prepare()` skips the predecessor when `requires_view()` is false. That comparison sees only Quarry module/text pairs. Unchanged Quarry containing independent intent, with changed worker code or `native.wasm`, therefore skips both view preparation and bundle refusals. Default rollback can select the predecessor executable. **Bounded repair:** include executable dependencies in closure-change detection; refuse unsupported worker/native adaptation until immutable bundles are qualified. Test an executable-only repair with unchanged Quarry.
+
+2. **The legal table name `renamed` breaks header adaptation.** In the pinned [release_bridge_current.rs](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/src/release_bridge_current.rs), `header()` searches for the first token whose value is `renamed`. For `table renamed renamed from docs:`, it selects the table identifier and returns `invalid table origin span`. The type-scanner correction does not repair this header search. **Bounded repair:** locate the declaration identifier structurally, then recognize the rename clause after it. Cover this spelling independently of argument metadata.
+
+3. **The R5 loop regression cannot reach its span assertions.** Its argument combines `alias legacy default null deprecated`. The current binder rejects alias plus deprecated, default plus deprecated, and a null default. Consequently, its initial successful-compilation assertion fails before alpha conversion. **Bounded repair:** use legal separate reference arguments for alias/default and deprecated metadata, use a fitting nonnull literal default, and leave deprecated arguments unused. Preserve the self-reference and bounded-list cases.
+
+For the direct Quarry path, retaining current source verbatim preserves temporal, grant, system-scope, helper, default, write and return dependencies without selective equivalence inference. The closed input matcher implements same-format text inclusion, recursive list/cardinality inclusion and extra optional arguments; unsupported changes refuse. Existing unsafe current workflows remain findings rather than adapter-generated policy repairs.
+
+Static review only: I ran no builds, Rust tests, campaigns, packed proofs or store operations. The reported owner regression remains evidence for that case, not universal proof. This is a readiness verdict, not author acceptance or qualification.

@@ -1,0 +1,17 @@
+MATERIAL
+
+Two blockers remain in the pinned R2 typed-rename path.
+
+1. **A nominal reference can become a primitive type after reparsing.** [remap_type](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/src/release_bridge_current.rs:170) permits destinations such as `int`; the printer emits that spelling, and the parser interprets it as a scalar.
+
+   Concrete counterexample: predecessor `table int` with `query echo(value: int): return value`; current `table records renamed from int` with `query echo(value: records): return value`, a widened column, and a current invariant. Alpha conversion turns the current nominal argument into scalar `int`. Recompilation and predecessor contract comparison can then succeed, despite the original current argument rejecting predecessor integers. This violates nominal-domain inclusion and changes the current executable contract.
+
+   **Bounded repair:** refuse mappings whose emitted reference types reparse as another type, or validate every reparsed type against the expected identity-aligned AST before admission. Add scalar-name collision regressions for arguments and columns.
+
+2. **Reference-type replacement can erase current argument aliases.** [arg_type](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/src/release_bridge_current.rs:491) does not stop at `alias`. Under `records → docs`, `id: records alias legacyId` becomes `id: docs`, silently deleting the alias. If the alias is newly current, predecessor-only checks permit this incomplete closure; if already present in the predecessor, an otherwise compatible mapping refuses.
+
+   **Bounded repair:** delimit the actual type span, preserving alias/default/deprecation metadata. Add regressions for both predecessor-existing and newly current aliases, including list reference types.
+
+The amended design otherwise addresses the original literal-owner regression structurally: invariant-bearing views retain current source instead of reconstructing policy from guards. Unchanged-source reuse preserves temporal, grant, system, helper, default, write and return dependencies. R2’s same-format text bounds, recursive list intervals and extra optional arguments have the correct inclusion direction. Missing contracts and unsupported mappings may require authored compatible source; no business-policy synthesis is needed. Intentionally unsafe current workflows remain observable findings.
+
+These are static findings, not executed reproductions. I ran no tests, campaigns, packed proofs or mutations. The reported regression pass remains supplied evidence; finite campaigns are not equivalence proofs. This verdict concerns readiness only, not author acceptance or qualification.

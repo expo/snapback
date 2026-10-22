@@ -1,0 +1,17 @@
+MATERIAL
+
+1. **R3’s equality shortcut discards semantic module identity.** [requires_view](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/src/release_bridge.rs:13) compares sorted source texts, but [operation_name](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/src/bind/mod.rs:530) derives exported names from file stems.
+
+   Concrete counterexample: keep `schema.q` declaring `invariant docs.a.create only viewer = 'service:ops'`. Both `a.q` and `b.q` declare `mutation create()`. One body requires that principal; the other permits ordinary callers. Swap their contents so current `a.create` enforces the invariant while predecessor `a.create` does not. Both operation names and input contracts survive, domains remain unchanged, and the sorted text collections are identical. `requires_view` returns false, allowing default rollback to restore the unsafe predecessor endpoint.
+
+   **Bounded repair:** retain compilation module identity in the comparison. Ignore directory relocation and diagnostic locations only where they cannot change binding. Amend the blanket path-insensitivity statement and add this module-swap regression alongside the literal-only repair test.
+
+2. **Current worker dependencies can disappear from the supposedly complete closure.** [prepare](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4/src/verbs/rollback_views.rs:88) checks only the predecessor for worker entries. With a worker-free predecessor, current source can introduce an effect/action and its worker while retaining all predecessor contracts and independent intent. The complete-current path accepts that source, but [view construction](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4/src/verbs/rollback_views.rs:223) copies only Quarry files.
+
+   Activation does not reliably catch this: `prepare_release` returns successfully when the generated directory contains no declared workers. The view therefore loses current executable dependencies; requests can remain queued without their current handler. This contradicts the explicit bundle requirement.
+
+   **Bounded repair:** refuse generated views requiring current-stage workers unless their complete immutable bundle is captured and qualified. Checking current-stage automatic and named entries, in addition to predecessor entries, supplies a conservative initial repair. Add a regression where current first introduces the worker dependency.
+
+The complete-source approach otherwise addresses the original literal-owner regression structurally: it retains current temporal, grant, system, helper, default, write and return dependencies. The closed text/list inclusion, optional arguments, alias checks and conservative rename refusals show no additional material blocker in this inspection. Existing unsafe current workflows should remain findings; neither repair requires inventing policy.
+
+I ran no tests or mutations. The supplied packed intent case exercises hot rollback; it does not establish restart coverage with that view already selected. The reported regression results remain supplied evidence, and finite campaigns remain regression evidence rather than proof. This verdict concerns readiness, not author acceptance or qualification.

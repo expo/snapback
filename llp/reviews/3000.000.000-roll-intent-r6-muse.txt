@@ -1,0 +1,24 @@
+muse: workspace root: /home/ccheever/projects/snapback-sb4loop (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=4ed80791-0f24-47bb-a7a9-f988ad894f9f]: Subscription quota exhausted. Your usage window resets at 2026-10-26T00:00:00Z. (rate_limit_error)
+READY
+
+R6 snapshot is design-ready. No MATERIAL policy bypass remains. All R2–R6 additions are closed and fail shut.
+
+Verified actuals that disprove the prior three Muse blockers:
+
+- [ir.rs](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-core/src/ir.rs) `ArgType::Text { max: u32, min: u32, format: Option<TextFormat> }`. `max` is `u32`, not `u16`.
+- [parser/types.rs](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/src/parser/types.rs) bare `text` normalizes to `(None, 10_000)`. Bounded plain text is bounded.
+- [operation_evolution.rs](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/src/bind/operation_evolution.rs) `expand` pushes exported `alias name = target` into `doc.programs` before bound comparison, and rejects `alias/default/deprecated` on native, `Job`, actions, and functions. [ast.rs](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/src/ast.rs) has no separate jobs collection: jobs are `ProgramDecl { kind: Job }` in `Document.programs`.
+- New regressions explicitly cover alias retain/drop, job `Bind` capture, and bare-text bound. Legal-name regression now uses valid combos only: `alias`+`deprecated` never combined, `null` not used as authored default.
+
+What I checked in the exact pinned sources:
+
+- Safe rollback / current intent: [release_bridge.rs](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/src/release_bridge.rs) `requires_view` returns true on any `(stem,text)` pair difference when current has invariants, ignores directory relocation, and still checks full domains, aliases, unique, caps, and lifetimes. Swapped `a.q`/`b.q` bodies trigger a view. [release_bridge_current.rs](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/src/release_bridge_current.rs) `prepare` reuses the complete current closure verbatim or alpha-renamed current only, never synthesizes a union. Literal-only repair is covered by `a_literal_only_policy_repair_registers_a_view_without_any_domain_widening` and the packed intent cold/hot cycle in [publication-roll.mjs](/home/ccheever/projects/snapback-sb4loop/snapback4/scripts/publication-roll.mjs), which stops/restarts with the view selected.
+- Whole closure: `contracts` requires every old table/column spelling, every old operation name/kind, every old wire arg accepted, and every old arg-alias resolved to the same canonical. Missing/narrowed/unknown refuses with authored-source advice. Bodies, helpers, defaults, jobs, and invariants survive because the returned source is current.
+- Inclusion: `accepts` is closed — identical, `Optional` widening only, same-format `text` interval containment, `int`/`int-range` containment, enum superset, recursive bounded-list element plus cardinality containment. New `Optional` args allowed; new required, narrowing, cross-format, nominal, and asset changes refuse.
+- Rename: single-module alpha only, `renamed_from` mapping, injective, no capture of current names, probe reparses each destination as `TypeKind::Ref` so `int`/`principal`/`id`/`time`/`bool` refuse, legal names `alias`/`default`/`renamed`/`deprecated`/`read`/`written`/`readable`/`on` pass. Type scanners consume the first token before metadata, retain separating whitespace via `trim_end`, reject `Walk`/`Merge`, local/arg/shape/binding capture, receipt/derived forms, and validate ordered UTF-8 non-overlapping ranges before `replace_range`. `retained_declaration` is now `Result` with missing-declaration and span validation.
+- Aliases/dependencies: operation aliases expanded before comparison; retained/drop covered. Native/worker bundles refuse in [rollback_views.rs](/home/ccheever/projects/snapback-sb4loop/snapback4/src/verbs/rollback_views.rs) for both current-stage and predecessor source/declared workers, plus compiled native check. Guards/rules carry remains for the non-intent union path only.
+
+Untested but not blocking: predecessor-only worker regression is code-present (`old_root` check) but only current-stage worker is exercised in [roll_views.rs](/home/ccheever/projects/snapback-sb4loop/snapback4/tests/roll_views.rs). Routes/schedules in alpha fail shut via compile diagnostics rather than explicit reject. Intentionally unsafe current workflows stay observable findings per instructions.
+

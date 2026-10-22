@@ -1,0 +1,36 @@
+MATERIAL
+
+One implementation blocker remains in R4.
+
+**P2 — legal nominal names can panic during typed rename preparation.** In [release_bridge_current.rs:502](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/src/release_bridge_current.rs:502), `arg_type` treats `alias`, `default`, `renamed` and `deprecated` as metadata delimiters before consuming the first type token. Those spellings are also legal nominal table names.
+
+A concrete static counterexample is this predecessor:
+
+```quarry
+table docs:
+  owner: principal
+  public
+  online only
+query echo(id: docs):
+  return id
+```
+
+With current source:
+
+```quarry
+table alias renamed from docs:
+  owner: principal
+  public
+  online only
+query echo(id: alias):
+  return id
+invariant alias.read only true
+```
+
+The adapter maps `alias → docs`. At the argument’s first type token, `arg_type` returns a start at `alias` and an end before its preceding whitespace. That reversed range reaches `replace_range` at [line 436](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/src/release_bridge_current.rs:436), causing a panic instead of preparing the view or returning an authored-compatible-source refusal. The nominal-destination probe does not prevent this: `docs` reparses correctly.
+
+**Bounded repair:** obtain type spans from actual parsing, or consume the complete type before recognizing metadata. Validate replacement ranges before applying them. Explicit refusal of unsupported spellings is also acceptable. Add regressions for these nominal names, including optional/reference-list arguments and metadata following the type. Audit the analogous column scanner for the same first-token ambiguity.
+
+Otherwise, the amended approach addresses the original failure structurally: retaining current source preserves literal, helper, temporal, grant, system-scope, default, write and return dependencies together. The module-name/text trigger covers literal-only repairs and swapped module bodies. Compiled contracts include exported operation aliases; text and recursive list inclusion follow the stated closed rules, and added parameters must be optional. Missing contracts and unsupported mappings refuse. Current and predecessor workers are checked, and generated native dependencies refuse pending qualified bundles. Intentionally unsafe current workflows remain observable findings.
+
+This is a **static review of the pinned R4 snapshot**. I executed no tests, builds, deployments or packed proofs. The counterexample is derived from parser and span-control flow, not an executed reproduction. Supplied regressions remain regression evidence, not equivalence proof, author acceptance or qualification.

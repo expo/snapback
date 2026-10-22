@@ -1,0 +1,23 @@
+muse: workspace root: /home/ccheever/projects/snapback-sb4loop (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=b83c308c-8dd6-480e-aafa-22753fd2a2da]: Subscription quota exhausted. Your usage window resets at 2026-10-26T00:00:00Z. (rate_limit_error)
+READY
+
+This R3 snapshot closes the literal-only bypass without restoring unsafe workflows.
+
+Safe rollback is preserved. The [visible-rollback amendment](/home/ccheever/projects/snapback-sb4loop/llp/3000.000.000-retained-storage-and-hot-release.rfc.md) keeps retention, authority, immutability, and atomic activation laws. The [rollback view preparer](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4/src/verbs/rollback_views.rs) still enforces hard constraints, unique keys, lifetimes, sync, authority equality, and native/worker bundles after bridging. No resurrection or preimage replay is authorized.
+
+Current independent intent is covered new and already-declared. The [view trigger](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/src/release_bridge.rs) now returns true for any byte-different source when current compiles with invariants, regardless of widening. Byte-identical content ignoring paths creates no view. The [current-closure bridge](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/src/release_bridge_current.rs) retains the complete current sources, including schema, defaults, programs, helpers, jobs, and invariants. The pinned [security tests](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/tests/release_bridge_security.rs) assert both already-declared and newly-added invariant cases keep the safe `{owner:viewer,secret}` body and show no reachable campaign violations. I did not execute these tests; I report their assertions as written.
+
+Whole closure is intact. `retained()` returns current sources unchanged, or alpha-renamed current sources that recompile and still satisfy the predecessor contract. No policy, default, order, or value is synthesized.
+
+Closed inclusion matches the R2/R3 text. `accepts()` admits identical, optional widening, enum supersets, `IntRange` widening and `IntRange` to `Int`, same-format text intervals with no-larger min and no-smaller max, recursive list element inclusion only when cardinality contains the predecessor interval and both element domains are present or both absent, and extra new optional args. It refuses new required args, narrowing, removed tables/columns/operations/args, other formats, nominal kinds, and unsupported domains. Missing or incompatible inputs refuse with authored-source advice.
+
+Capture-free rename is bounded. `alpha()` is single-module only, injective, rejects capture of table, argument, local-binding, and shape names, rejects receipts, backfills, downfills, extractions, actions, effects, maintains, timelines, views, deliveries, maintained columns, and recursive/merge expressions, preserves literal business strings, rewrites typed slots and invariant subjects, then recompiles and rechecks contracts. Multi-module renames fall back to refusal.
+
+Aliases are handled. Operation aliases are expanded into programs before binding, argument wire names resolve through `Program::argument()`, and the contract check requires every old operation name/kind, every old argument, and every old argument alias. Table renames use declared identity with alias-aware normalization in the trigger and join.
+
+Temporal, grant, system, helper, default, write, and return dependencies are retained because the executable body is current. No separate guard/endpoint transport is broadened by the text/list extensions. An already-unsafe current workflow stays unsafe and observable; the adapter does not repair it. Finite campaigns remain regression evidence only, as the design states.
+
+Untested or narrowly tested points, reported accurately: I did not run code or mutations. Defaulted new optional args would take their authored default at runtime, not language null as the amendment wording says; the pinned list/optional test uses plain `cursor: cursor ?` only. Native/worker refusal for the invariant-only path relies on the shared preparer checks, with no pinned invariant-specific native test. The packed [publication proof](/home/ccheever/projects/snapback-sb4loop/snapback4/scripts/publication-roll.mjs) covers the no-widening repair with serve, rollback to 1, old-client write/read checks, and rollback to latest, but its intent section runs a single cycle while money/media run two.
+

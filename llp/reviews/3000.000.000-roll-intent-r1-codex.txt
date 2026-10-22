@@ -1,0 +1,19 @@
+MATERIAL
+
+The amendment’s complete-current-source approach addresses the literal-owner regression for both new and already-declared invariants. It structurally preserves current grant mutations, helpers, defaults, writes, returns, control flow, and system/time dependencies. The pinned implementation still has these blockers:
+
+1. **Current worker dependencies can disappear.** In `rollback_views::prepare`, worker checks inspect only `old_root`. The invariant path can retain current actions/effects and operations while the generated release contains only Quarry sources and metadata. A worker introduced after the predecessor is neither retained nor rejected. This breaks the promised complete execution closure.
+
+   **Bounded repair:** Refuse preparation when the selected current closure requires an unqualified worker bundle, or retain and qualify that exact authored bundle before registration. Add coverage for a worker introduced alongside current intent.
+
+2. **A predecessor export alias can lose its current guard.** The selective path visits predecessor program declarations, not each predecessor exported alias. For example, v1 has `alias oldRead = base`; v2 keeps `base` but changes `oldRead` to target a guarded endpoint. With a schema widening and no invariant declaration, the generated view retains `oldRead = base`, bypassing the current guard. Table-authority equality does not detect this endpoint change.
+
+   **Bounded repair:** Compare every predecessor export, resolving aliases under their existing compilation law. Retain its current authored endpoint and transitive dependencies, or refuse. Test an existing alias whose target changes while its former target remains exported.
+
+3. **Authored argument aliases are mishandled.** In `release_bridge_current::contracts`, canonical arguments use `new.args.get(name)`, so an authored rename such as `recordId: docs alias id` fails despite accepting the old wire name `id`. Separately, `arg_type` does not stop at `alias`: remapping `id: records alias legacyId` can consume that modifier. A current-only alias can disappear while predecessor checks still pass. Modifier boundaries also consume separating whitespace before `default` or `deprecated`.
+
+   **Bounded repair:** Check compatibility through resolved wire names with unambiguous binding correspondence. Replace only the parsed type span, preserving modifiers and trivia. Add regressions combining table renames with argument aliases and defaults.
+
+The pinned same-format text interval inclusion is correctly directed and remains separate from selective transport. Missing old fields/endpoints, incompatible domains, and unsupported mappings may safely refuse with authored-compatible-source advice; no business-policy synthesis is needed.
+
+This was a static, read-only review. I ran no tests and did not independently reproduce the reported regression result. Finite campaigns remain regression evidence; intentionally unsafe current workflows remain findings. This verdict supplies neither author acceptance nor qualification.
