@@ -1,4 +1,4 @@
-# SEC8 workstream report (in progress)
+# SEC8 workstream report (verification in progress)
 
 Branch: sb4-b24-sec8. No push or version bump. Product changes are confined to
 Snapback 4, its governing security LLP, and workstream evidence.
@@ -46,10 +46,12 @@ ergonomics. Its one-line pointer is in the 0.4.40 guide-changes entry.
 ## Review status
 
 Verbatim Muse/Codex rounds and input snapshots/manifests are under llp/reviews/.
-Both families returned READY on revisions 4, 5 and 6. R6 adds source-derived
+Both families returned READY on revisions 4, 5, 6, 7 and 9. R6 adds source-derived
 Time boundary candidates after an actual replay exposed the 14-day approval
 precondition. Muse used the prescribed fallback; R2 timed out and is explicitly
-not represented as a review. Input snapshots and verbatim archives are retained.
+not represented as a review. R8 witness replacement was rejected by Codex for
+interfering with generated-origin relabeling and withdrawn completely. R9 keeps
+append-only witnesses and front-loads past-Time breadth controls; both READY. Input snapshots and verbatim archives are retained.
 
 Review-driven regressions cover creation-only intent, duplicate review IDs,
 helper writers, nonfirst grouped columns, a column named site, literal whitespace,
@@ -67,18 +69,34 @@ unknown typed coercion, boolean omissions and multi-insert population caps.
 - Lean oracle build passed.
 - Nine review-binding unit tests and four public CLI review tests passed. All
   eleven SEC8 regressions passed, including exact-site 008 and 036 F2 witnesses.
-  Full workspace/language runs are still running. Four unchanged residency/
-  timeline fixtures fail source-reservation derivation; a core follow-up is filed.
-- Mac Studio SSH attempts timed out. No Mac pass claimed; no other Mac used.
+  Full workspace/language runs are still running. The unchanged core/fixture
+  failures include residency, timeline, eight device read-auth fixtures, six live-
+  parent fixtures and one predecessor execution-facts fixture; follow-up is filed.
+- Initial Mac connections timed out; later connected. Final r9 source passed
+  37 SEC7 controls, 12 SEC8 regressions, the strictly-past deadline history and
+  nine review-record tests on the designated Mac Studio/workspace. Target output
+  was removed. No other Mac used.
 - Differential run 20,000 and device seeds 0–999 passed with zero disagreements.
   Lean 100,000 has five existing signatures / 761 disagreements, no new signature;
   its exit 1 is retained and classified, never reported as a green Lean comparison.
-- Preliminary matrix/corpus complete under round4 evidence; final Time-aware
-  measurement, full client pool, packed Linux proof, main merge and clean check
-  remain pending.
+- Round6 measurement: all39 variants complete. Relevant default advice on12/13
+  findings without intent; exact appended-spec witnesses for9/13;007F2 and036F1
+  become gates with one line. Four unsupported findings have explicit gaps:
+  013(clock),015F1(clock),031(cross-row),033(read-through).033's own/test exit1 is
+  another invariant, not an evidence-presence catch. Final r9 replay is running.
+- Fresh Linux consumer-only qualifier passes initial day2/DX4/DX5/DX6, Expo/export,
+  day4, release-transition and dormant proofs, then fails Day5's installed
+  residency recipe with the same source-reservation E_SCHEMA. No receipt exists.
+  Consumer-only honors the explicit prohibition on scripts/test.sh; source and
+  client suites run separately. Final packed SEC8 and independent proot proofs
+  are still running; no complete Linux qualification pass is claimed.
+- Full client pool is queued after Rust drains, with all428 ordinary files and
+  full5000/3000 model counts. Final main merge and clean check remain pending.
 
-Commits so far: a776d53a21 (intent/lifecycle/histories/amendment) and f4e4af29a7
-(individual stable dispositions, CLI grouping and packed regression).
+Commits so far: a776d53a21 (intent/lifecycle/histories/amendment), f4e4af29a7
+(individual decisions/output), cf6961b992 (initial evidence),3d7984cb96 (guide
+execution/output rank),3903d32711 (reviewed final history ordering),2c074658f9
+(immutable differential replay, measurements and qualification blocker).
 
 No credential was printed. Source evidence lanes are unchanged. Scratch used by
 new tests and measurements has scoped cleanup; final cleanup remains pending.
