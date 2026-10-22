@@ -370,7 +370,5 @@ Membership paths spelling the whole parent rule lower to `read through`. Without
 N_COLUMN_READ identifies a possible one-to-one privacy extension. Put a private
 field on its existing row with `read <- policy` when it only narrows payload
 visibility; keep separate entities, lifecycles and write authority in separate
-tables. This advisory never proves equivalence or rewrites stored data.
+tables. This advisory never proves equivalence or rewrites stored data. See `guide rule-recipes --section "Private immutable payloads and audience helpers"` for the runnable recipe.
 N_UNIQUE_HIDDEN names a private unique declaration whose else code applies only to readable conflicts. A hidden conflict keeps generic E_RULE (or an undisclosed target miss). Source advice may quote the declared clause; public refusals never confirm a hidden row. Prefer a minimal readable key projection or operator-mediated claim when availability is public; do not widen private payloads for a diagnostic.
-
-See `guide rule-recipes --section "Private immutable payloads and audience helpers"` for the runnable owner/role/eligibility recipe.
