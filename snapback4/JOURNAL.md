@@ -102057,3 +102057,13 @@ now asserts that value, while retaining every membership and outsider refusal
 assertion. The packed proof found this before qualification could pass. The
 newly merged PG2 seed tool's standalone lock is aligned from core 0.4.37 to
 0.4.39; a disposable manifest with the same source passes locked cargo check.
+
+## 2026-10-23 — Integration 23: Darwin published-store control
+
+The Mac's published-0.2.33 capability fence reached the real current release
+store, then its fixture assertion rejected format 9 because it named only
+formats 2/3. The control now requires exactly `snapback4-release-store-9`;
+the published binary must still refuse that format and preserve all store
+bytes, tables and release files. This is a Darwin-only fixture correction,
+with no engine, client or Linux execution change. The Mac pool is repeated
+after the isolated fence and final guide tests.
