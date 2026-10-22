@@ -102168,3 +102168,11 @@ K0-Q qualification follow-up: the lexical committer census mistook the new
 admission ticket's `begin()` for a database opener. Rename it `start_execution`;
 the transition and synchronization are unchanged. No census scope, matcher or
 allowance changes. The affected queue witnesses and guards are repeated.
+
+
+The full host run's only other failure was the store-port test census: the
+Postgres fault fixture imported its driver above the port. Its database-control
+and fault tests now live under `store/`, beside the adapter fixtures. Product
+commands still use the shared port; test paths/names and behavior are unchanged.
+The guard and its allowances remain unchanged. All product tests, including the
+three supplied baselines, passed in that full run; guards and queue tests repeat.
