@@ -109,9 +109,17 @@ try {
   const drained=await host.drain();assert.equal(drained.maintenancePaused,false);
   assert.equal(drained.fired[0].name,"expiryHourly");
   assert.equal((await post("/q/mine")).body.data[0].status,"expired");
+  const cliPause=await cli(["clock","advance","1ms","--release","staging","--no-drain"]);
+  assert.equal(cliPause.code,0,cliPause.stderr);assert.equal(JSON.parse(cliPause.stdout).maintenancePaused,true);
+  const cliDrain=await cli(["clock","drain","--release","staging","--allow-held"]);
+  assert.equal(cliDrain.code,0,cliDrain.stderr);assert.equal(JSON.parse(cliDrain.stdout).maintenancePaused,false);
   await host.advance("8d",{sessions:"expire"});
   assert.equal((await post("/q/mine")).status,401,"explicit mode still expires sessions");
-} finally {await Promise.allSettled([retainedRead?.close(),localApp?.close()]);await host.stop();}
+} finally {
+  const cleanup=await Promise.allSettled([retainedRead?.close(),localApp?.close()]);
+  await host.stop();
+  for(const result of cleanup) if(result.status==="rejected") throw result.reason;
+}
 host=await startServe("staging");
 try {
   const before=await host.now();
