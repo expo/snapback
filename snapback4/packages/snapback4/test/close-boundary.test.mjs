@@ -2,18 +2,18 @@ import { hangBudget } from './helpers/wait.mjs';
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { join } from "node:path";
-import { createApp } from "../dist/app.js";
-import { createLocalClient } from "../dist/local.js";
-import { memorySessionStore, sessionKey } from "../dist/auth.js";
-import { mintId } from "../dist/client.js";
-import { processDevice } from "../dist/native.js";
-import { webDevice, memoryPersistence } from "../dist/web.js";
+import { join, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import { binary, server, until } from "./helpers/app-server.mjs";
-import { ClosingResponses } from "../dist/closing-responses.js";
-import { readResponse } from "../dist/http-response.js";
 
-const wasm = readFileSync(new URL("../src/wasm/snapback4_device_bg.wasm", import.meta.url));
+const selectedDist = process.env.SNAPBACK4_CLIENT_DIST ?? process.env.KIT2_BASELINE_DIST;
+const dist = selectedDist ? pathToFileURL(resolve(selectedDist) + "/") : new URL("../dist/", import.meta.url);
+const [{ createApp }, { createLocalClient }, { memorySessionStore, sessionKey }, { mintId }, { processDevice },
+  { webDevice, memoryPersistence }, { ClosingResponses }, { readResponse }] = await Promise.all([
+  "app.js", "local.js", "auth.js", "client.js", "native.js", "web.js", "closing-responses.js", "http-response.js",
+].map(file => import(new URL(file, dist).href)));
+
+const wasm = readFileSync(new URL("wasm/snapback4_device_bg.wasm", dist));
 const gate = () => { let release; const promise = new Promise(resolve => { release = resolve; }); return { promise, release }; };
 const mutation = { kind: "mutation", name: "add" }, action = { kind: "action", name: "work" };
 const why = { code: "E_MODEL_REFUSED", family: "input", message: "the second invocation was refused", site: "work", rewrite: "submit the original arguments" };
