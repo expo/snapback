@@ -29,6 +29,29 @@ All later controls must inherit these settings. `cluster.sh stop` checks the
 postmaster PID against the record made at start; it never searches by name.
 The runner leaves the cluster and two fixture databases running/retained.
 
+Raw PG now authenticates every `/op` request with HS256 using pinned
+[`jsonwebtoken` 9.3.1](https://docs.rs/jsonwebtoken/9.3.1/jsonwebtoken/struct.Validation.html).
+The service reads `SCALE_JWT_SECRET_FILE` (mode 600), checks signature,
+algorithm, expiration, optional not-before, issuer `supabase`, audience and
+role `authenticated`, then maps the signed fixture UUID `sub` to its user ID.
+It ignores the body's principal. There is no verification cache. The runner
+mints the same claims shape as Supabase and keeps tokens/keys under ignored
+`target/private/`. `--target raw-pg-no-token` explicitly reproduces the
+historical trusted-principal path (`serve --no-token`); label it separately.
+
+The S1-FR matched campaign (three controls run serially, 12 cells each) is:
+
+```sh
+setsid nohup python3 scripts/fairness.py --out target/fairness-20261022 >target/fairness.log 2>&1 < /dev/null &
+echo $! # record this PID, then poll until completion
+```
+
+It uses private `s1fr_raw_1000000` / `s1fr_supabase_1000000` databases and
+private login roles, without altering the cluster or existing Supabase roles.
+Every cell starts a fresh service and uses 10 s warm-up, 20 s measurement,
+three repetitions, query pool 32 / 128 read clients, and 32 write clients.
+The rate search, deadlines, SQL, RLS, RPCs and SLO rules are inherited unchanged.
+
 ```sh
 python3 scripts/check.py results-NEW-checks
 python3 scripts/run.py reads --out results-NEW-reads
@@ -79,9 +102,9 @@ An authorized post updates room/sender totals in the same transaction through
 a trigger, checked by `check.py`; posting/live delivery is not a measured W6.
 W4 updates the caller's counter; W5 updates one shared counter or selects it
 for exactly 1 in 100 arrivals per writer, staggered by writer. The service's
-membership/ownership predicates enforce rules in SQL. Benchmark principal IDs
-are supplied by the trusted load generator; identity-provider/authentication
-cost is excluded from all these rows.
+membership/ownership predicates enforce rules in SQL. Historical raw-PG
+results predating S1-FR receive principal IDs from the trusted load generator
+and exclude token verification; current default raw-PG runs include it.
 
 Caveats required for interpreting this first matrix:
 

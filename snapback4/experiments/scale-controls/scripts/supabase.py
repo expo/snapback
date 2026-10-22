@@ -32,6 +32,7 @@ def private_file(path, data):
 
 
 class SupabaseRun(Run):
+    login_role='authenticator'
     db_prefix='sb4scale_supabase'
     db_schema='sb4scale'
     schema_file=HERE/'supabase-schema.sql'
@@ -140,7 +141,7 @@ class SupabaseRun(Run):
             if text.endswith('\n') and json.loads(text)['pid']==p.pid: break
             if time.monotonic()>deadline: raise RuntimeError('dispatcher timeout')
             time.sleep(.05)
-        self.env['PGRST_DB_URI']=f"host=127.0.0.1 port=58081 user=authenticator password={self.pw.read_text().strip()} dbname={self.db} application_name={self.app_name}"
+        self.env['PGRST_DB_URI']=f"host=127.0.0.1 port=58081 user={self.login_role} password={self.pw.read_text().strip()} dbname={self.db} application_name={self.app_name}"
         # Matches the raw-PG pool passed in: 32 for reads, one connection per writer.
         self.env['PGRST_DB_POOL']=str(pool)
         log=(directory/'service.stdout').open('x'); err=(directory/'service.stderr').open('x')

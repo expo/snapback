@@ -29,7 +29,7 @@ pub struct Options {
     keys: String,
     #[arg(long, default_value_t = 1000)]
     deadline_ms: u64,
-    #[arg(long, default_value = "raw-pg", value_parser = ["raw-pg", "supabase", "convex"])]
+    #[arg(long, default_value = "raw-pg", value_parser = ["raw-pg", "raw-pg-no-token", "supabase", "convex"])]
     target: String,
 }
 struct Arrival {
@@ -162,13 +162,11 @@ pub async fn run(options: Options) -> Result<()> {
         "unknown key mix"
     );
     let options = Arc::new(options);
-    let tokens = Arc::new(
-        if options.target == "supabase" || options.target == "convex" {
-            crate::supabase::tokens()?
-        } else {
-            Vec::new()
-        },
-    );
+    let tokens = Arc::new(if options.target != "raw-pg-no-token" {
+        crate::supabase::tokens()?
+    } else {
+        Vec::new()
+    });
     // Keep one idle connection per worker. Reqwest's default idle timeout is 90s,
     // which covers a trial, so measured calls reuse the TCP session (TCP_NODELAY).
     let client = reqwest::Client::builder()
@@ -202,7 +200,12 @@ pub async fn run(options: Options) -> Result<()> {
                     } else if o.target == "convex" {
                         crate::convex::request(&client, &o.url, &op, &tokens, &o.keys)
                     } else {
-                        client.post(format!("{}/op", o.url)).json(&op)
+                        let request = client.post(format!("{}/op", o.url)).json(&op);
+                        if o.target == "raw-pg" {
+                            request.bearer_auth(&tokens[op.principal as usize])
+                        } else {
+                            request
+                        }
                     };
                     match request.send().await {
                         Ok(response) => {
