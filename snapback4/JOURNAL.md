@@ -101985,3 +101985,20 @@ Owned database/role/private setup files are removed; independent custody checks
 confirm no live owned process and shared postmaster 2735539 remains alive with
 durability settings on. No cluster restart/reconfiguration, push, stash, clone,
 sub-agent, sudo, Docker, paid service or production/readiness claim.
+
+
+## 2026-10-22 — DX7, wave-24 loop repairs for 0.4.40
+
+Staging stores retain the cumulative clock offset, checkpointed time and pending
+maintenance pause. Clock/session/lease edits share the existing transaction seam;
+startup recovers the maximum retained evidence without shifting credentials.
+Protected immutable payloads ignore patches without comparing stored guesses;
+pure audience helpers expand before planning. Hidden-probe diagnostics explain
+positive requires as well as negative guards. Upgrade deltas expose pending
+security review gates and refuted acknowledgments; source advice couples numeric
+advance use to its result. Proof text counts mounted scroll-reachable characters
+while retaining real clips and hidden-text controls. LLP 3000.000.000.001 §12
+records the contract and fresh Muse/Codex READY reviews. SEC8 owns security
+questionnaires, lifecycle advice, presence intent and invariant test semantics.
+The source version is unchanged. Per-item tests and qualification are recorded
+in WORKSTREAM-REPORT.md; no publication or push is performed by this lane.

@@ -10,6 +10,7 @@ import { artifact, cleanSource, clientManifest, digest, json, linuxRustFlags, li
 import { checkElf } from "./check-elf.mjs";
 import { proveStarters } from "./publication-starters.mjs";
 import { proveExpoUpgrades } from "./publication-regressions.mjs";
+import { proveDX7 } from "./publication-dx7.mjs";
 import { proveDay2 } from "./publication-day2.mjs";
 import { proveDay4 } from "./publication-day4.mjs";
 import { proveReleaseTransitions } from "./publication-release-transitions.mjs";
@@ -112,6 +113,7 @@ export async function qualify(args = process.argv.slice(2)) {
     save(join(out, "day2-proof.json"), day2Proof);
     save(join(out, "dx4-proof.json"), await proveDX4(day2Proof.directory));
     save(join(out, "dx6-proof.json"), await proveDX6(day2Proof.directory));
+    save(join(out, "dx7-proof.json"), await proveDX7(day2Proof.directory, client, tarball));
     const dx5Proof = await proveDX5(day2Proof.directory, client, tarball, expo);
     save(join(out, "dx5-proof.json"), dx5Proof);
     const regressions = await proveExpoUpgrades(client, tarball, expo, out);

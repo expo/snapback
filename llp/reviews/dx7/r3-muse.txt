@@ -1,0 +1,26 @@
+muse: workspace root: /home/ccheever/projects/sb4-b24-dx7 (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=ef10c15a-74dc-4e0e-b368-60396181be36]: Subscription quota exhausted. Your usage window resets at 2026-10-26T00:00:00Z. (rate_limit_error)
+[muse-exec] plan quota exhausted; retrying with the Meta API key
+muse: workspace root: /home/ccheever/projects/sb4-b24-dx7 (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY.
+
+R3 closes every R2 Muse blocker in text, with no new material correctness or security gap.
+
+- Pause retention: startup persists effective offset while preserving saved pause exactly. Startup zero-delta checkpoint never clears pause, so `drain:false`, failed, and interrupted drains retain pause.
+- Downgrade: explicitly non-enforcing. Old binaries preserve the additive record on ordinary adoption but do not enforce pause. Downgrade is not a paused-proof run. Old binaries cannot be retrofitted, so disclosure is the only available lane.
+- Restore and reset: removing all time evidence can return to wall time. Stated as intentional independent-test reset, never in-place rewind. Commit and schedule floors plus checkpoint ratchet prevent silent rewind otherwise.
+- Max composition: maximum of wall-plus-saved-offset, checkpointed time, `time_audience_clock` floor, retained commit maximum, and schedule boundary, with explicit offset clamped to that floor. Count wording says five plus explicit floor, but operation is unambiguous maximum.
+- Rendered text: computed overflow values including visible-to-auto conversion. Fixed and sticky use current geometry only, with no hypothetical scroll reveal. Conservative undercount disclosed. Zero-sized scrollports stay clips.
+- Ack atomicity: one `--ack-security` ID per invocation. Refuted single-ID write fully suppressed, records untouched, `acknowledgmentNotApplied` explains, nonzero exit. No multi-ID partial write exists.
+- Old CLI: invokes newly installed check, cannot ack or bypass. Old `E_UPGRADE` line may still print, but actionable explanation comes from new check child.
+- Scan: bounded heuristic advice only. Indirect aliases and arbitrary `use(t)` dataflow can be missed. Narrow same-expression candidate rule reduces noise without creating a gate.
+- Immutability: ignore-without-compare on update and existing-upsert for every viewer including system. Validation of supplied types and bounds still runs before ignore, including explicit null, using schema and site facts alone. Row-lifetime scope stated: delete separately authorized, no undeletable identity, re-insert after authorized delete allowed.
+- Orphans: ignored upload remains unplaced under uploader ownership, accounting, and collection lifetime. No adoption, placement check, or extension. Future adoption would run its own checks.
+- Helpers: expression or single-return block, existing grammar only, simultaneous substitution, no caller capture, focal dot cannot capture caller row, no shadowing of viewer or constants, 8-level and 4096-node bounds as `E_QUARRY_RULE_OPERATOR`, cycle detection, expansion before read-through, index, inversion, and security analysis.
+- Hidden probes: `exists` pays same probes after expansion. `N_UNREADABLE_PROBE` and `N_LOOKUP_FILTERED` name hiding rule and source site. No runtime refusal confirms hidden presence. Observed binder text filters hidden rows from program `exists`, so absent and hidden-present both fail the positive require without distinguishing them.
+
+Narrow source checks corroborate the shape: [check_surface.rs](/home/ccheever/projects/sb4-b24-dx7/snapback4/crates/snapback4/src/verbs/check_surface.rs) refuted handling, [dev_clock_store.rs](/home/ccheever/projects/sb4-b24-dx7/snapback4/crates/snapback4/src/dev_clock_store.rs) pause-preserving resume, [proof-text.ts](/home/ccheever/projects/sb4-b24-dx7/snapback4/packages/snapback4/src/proof-text.ts) fixed and sticky decoupling, [rule_helpers.rs](/home/ccheever/projects/sb4-b24-dx7/snapback4/crates/snapback4-lang/src/bind/rule_helpers.rs) 8 and 4096 bounds, [auth_lints.rs](/home/ccheever/projects/sb4-b24-dx7/snapback4/crates/snapback4-lang/src/bind/auth_lints.rs) hidden-row filtering.
+
+No concrete correctness or security blocker remains.
