@@ -1,0 +1,12 @@
+native-3: done
+prepare-3: done
+lean-3: done
+warm-3: done
+dry-run-1: stopped publication-dry-run
+dry-run-3: stopped publication-dry-run
+dry-run-4: stopped publication-dry-run
+dry-run-5: stopped publication-dry-run
+dry-run-6: done
+finish-1: done
+dry-run-2: environment-invalid: on battery (after 3192 s)
+dry-run-5 note: stopped publication-dry-run (killed after cargo test red)

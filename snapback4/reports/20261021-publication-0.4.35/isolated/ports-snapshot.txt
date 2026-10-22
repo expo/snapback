@@ -1,0 +1,7 @@
+Wed Oct 21 15:15:56 UTC 2026
+listening TCP sockets: 76
+tcp6 LISTEN: 26
+established+time_wait: 301
+net.inet.ip.portrange.first: 49152
+net.inet.ip.portrange.last: 65535
+ 8:15  up 8 days,  9:41, 60 users, load averages: 7.75 9.75 9.23

@@ -1,0 +1,4 @@
+linux-1 (3373998583): no exit file - killed by script after deterministic guide-code red (superseded/attempt-1-3373998583)
+linux-2 (2e10681b32): 1 - census red + npm-cache ENOENT (superseded/attempt-2-2e10681b32)
+linux-3 (f0eed70bb3): no exit file - killed by script after following-history flake (superseded/attempt-3-f0eed70bb3-linux)
+linux-4 (f0eed70bb3): 0

@@ -1,0 +1,14 @@
+check: ok — 5 tables, 1 view (5 synced), 12 operations, no problems, 14 notes, 10608.8 ms
+9 more actionable notes in check --verbose/JSON
+5 advisory notes — notes never block dev, test or deploy (most consequential first; check --verbose explains each, snapback4 why <CODE> one):
+review — can cost correctness or completeness:
+note: schema.q:16:1 — N_NO_PRODUCTION_WRITER: fix: add a production bootstrap writer. profiles: no production writer can bootstrap this root; fixtures and /seed are dev-only — snapback4 why N_NO_PRODUCTION_WRITER
+note: N_NO_PRODUCTION_WRITER (as above) also for conversations: no production writer can bootstrap this root (schema.q:30:1); memberships: no production writer can bootstrap this root (schema.q:40:1) — snapback4 why N_NO_PRODUCTION_WRITER
+note: schema.q:85:10 — N_REFERENCE_UNCHECKED: review: this reference argument has no mandatory target lookup. mutation addMember stores argument conversationId directly in memberships.conversationId, without a mandatory lookup of conversations[conversationId] on every committing path: a reference accepts any well-formed id even when the row is absent — snapback4 why N_REFERENCE_UNCHECKED
+note: N_REFERENCE_UNCHECKED (as above) also for mutation send (schema.q:94:9) — snapback4 why N_REFERENCE_UNCHECKED
+1 mutation is server-run (online app: no action): markRead (writes online-only table readMarkers); 1 mutations have insert arms that may queue; 2 eligible mutations may queue past a horizon — snapback4 why <op>
+check --verbose for explanations, rewrites and execution details; why <op> for one operation
+security exposure: 6 tables, 11 conditional audiences, 1 broadly readable tables; run snapback4 audit for exact role/column predicates
+security: 0 proved, 0 refuted, 1 unproved; 0 seed/synthetic observations (non-failing)
+  run snapback4 test for full campaigns; 6 coverage gaps (--verbose/JSON for details)
+  run snapback4 audit for column audiences, grant writers and 16 uncovered exposures

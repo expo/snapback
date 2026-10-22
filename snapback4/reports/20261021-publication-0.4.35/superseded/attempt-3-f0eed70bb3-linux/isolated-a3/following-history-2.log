@@ -1,0 +1,29 @@
+(node:1876435) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ Following sparse online history crosses the 1,000-copy window and every page is an oracle prefix (7083.457906ms)
+✔ Following a roster larger than one request prepares without publishing an unordered prefix (1330.886562ms)
+✔ Following wasm: offline inbox, live prepend, own-edge withdrawal, replay, expiry and two tabs (2429.91809ms)
+✔ Following native: offline inbox, live prepend, own-edge withdrawal, replay, expiry and two tabs (1894.306632ms)
+✔ Following retries a lost committed response with the same token and keeps new-follow deliveries in the live layer (26352.768397ms)
+✔ Following serve binds authenticated viewers, refuses unsupported input and rejects a revoked bearer (181.38981ms)
+✔ a delayed unit cannot publish an author withdrawn before mounted authorization (312.913356ms)
+﹣ Following shaped HTTP and SDK measurements (0.121362ms) # SKIP
+✔ Following wasm routes history past source floors online and keeps pending own posts ahead of it (923.945073ms)
+✔ Following native routes history past source floors online and keeps pending own posts ahead of it (469.443387ms)
+✔ Following refuses read sessions before custody, while an ordinary inbox remains a matchRead read (1322.571385ms)
+✔ wide cards continue authorization and live shaping within request allowances (1606.050826ms)
+✔ live cards remain authorized and mounted after the inbox window rolls (671.194401ms)
+✔ explicit refresh includes backdated post-bound births in the next exact session (383.962996ms)
+✔ cross-operation cancellation cannot evict an opening or its pinned page (291.530194ms)
+✔ one card can reauthorize more fields than a single witness permits (741.719956ms)
+✔ witness fragments include query arguments at and beyond the 64 KiB envelope boundary (747.80065ms)
+✔ Following and the online app online arm preserve independent fences through rotation (222.496496ms)
+✔ Following and the wasm app online arm preserve independent fences through rotation (716.243423ms)
+ℹ tests 19
+ℹ suites 0
+ℹ pass 18
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 1
+ℹ todo 0
+ℹ duration_ms 47868.952334

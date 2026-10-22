@@ -1,0 +1,48 @@
+2026-10-21T12:34:09Z starting dry run attempt 1 (100%;)
+2026-10-21T15:15:24Z attempt 1 finished: stopped publication-dry-run after 9675 s
+2026-10-21T15:17:38Z starting dry run attempt 2 (100%;)
+2026-10-21T16:10:52Z ENVIRONMENT-INVALID att=2 after 3192 s: on battery
+2026-10-21T16:11:03Z waiting att=3 ac=0 lid_open=1
+2026-10-21T16:13:03Z waiting att=3 ac=0 lid_open=1
+2026-10-21T16:15:03Z waiting att=3 ac=0 lid_open=1
+2026-10-21T16:17:03Z waiting att=3 ac=0 lid_open=1
+2026-10-21T16:19:03Z waiting att=3 ac=0 lid_open=1
+2026-10-21T16:21:03Z waiting att=3 ac=0 lid_open=1
+2026-10-21T16:23:03Z waiting att=3 ac=0 lid_open=1
+2026-10-21T16:25:03Z waiting att=3 ac=0 lid_open=1
+2026-10-21T16:27:03Z waiting att=3 ac=0 lid_open=1
+2026-10-21T16:29:03Z waiting att=3 ac=0 lid_open=1
+2026-10-21T16:31:03Z waiting att=3 ac=0 lid_open=1
+2026-10-21T16:33:03Z waiting att=3 ac=0 lid_open=1
+2026-10-21T16:35:03Z waiting att=3 ac=0 lid_open=1
+2026-10-21T16:37:04Z waiting att=3 ac=0 lid_open=1
+2026-10-21T16:39:04Z waiting att=3 ac=0 lid_open=1
+2026-10-21T16:41:04Z waiting att=3 ac=0 lid_open=1
+2026-10-21T16:43:04Z waiting att=3 ac=0 lid_open=1
+2026-10-21T16:45:04Z waiting att=3 ac=0 lid_open=1
+2026-10-21T16:47:04Z waiting att=3 ac=0 lid_open=1
+2026-10-21T16:49:04Z waiting att=3 ac=0 lid_open=1
+2026-10-21T16:51:04Z waiting att=3 ac=0 lid_open=1
+2026-10-21T16:53:04Z waiting att=3 ac=0 lid_open=1
+2026-10-21T16:55:04Z waiting att=3 ac=0 lid_open=1
+2026-10-21T16:57:04Z waiting att=3 ac=0 lid_open=1
+2026-10-21T16:59:04Z waiting att=3 ac=0 lid_open=1
+2026-10-21T17:01:04Z waiting att=3 ac=0 lid_open=1
+2026-10-21T17:03:04Z waiting att=3 ac=0 lid_open=1
+2026-10-21T17:05:05Z waiting att=3 ac=0 lid_open=1
+2026-10-21T17:07:05Z waiting att=3 ac=0 lid_open=1
+2026-10-21T17:09:05Z waiting att=3 ac=0 lid_open=1
+2026-10-21T17:11:05Z waiting att=3 ac=0 lid_open=1
+2026-10-21T17:13:05Z waiting att=3 ac=0 lid_open=1
+2026-10-21T17:15:05Z waiting att=3 ac=0 lid_open=1
+2026-10-21T17:17:05Z waiting att=3 ac=0 lid_open=1
+2026-10-21T17:19:05Z waiting att=3 ac=0 lid_open=1
+2026-10-21T17:21:05Z waiting att=3 ac=0 lid_open=1
+2026-10-21T17:23:07Z starting dry run attempt 3 (71%;)
+2026-10-21T20:20:20Z attempt 3 finished: stopped publication-dry-run after 10633 s
+2026-10-21T20:23:36Z starting dry run attempt 4 (100%;)
+2026-10-21T23:22:01Z attempt 4 finished: stopped publication-dry-run after 10705 s
+2026-10-21T23:30:37Z starting dry run attempt 5 (100%;)
+2026-10-22T00:21:40Z attempt 5 killed after cargo-test red (run_admission 5 s wall-clock bound); flake rule: isolate then rerun
+2026-10-22T00:23:29Z starting dry run attempt 6 (100%;)
+2026-10-22T03:11:46Z attempt 6 finished: done after 10097 s

@@ -1,0 +1,33 @@
+
+running 28 tests
+test adaptive_job_run_and_doctor_report_chunk_size_and_retries ... ok
+test identity::c_abi_open_cannot_initialize_or_clear_a_running_server_store ... ok
+test identity::device_cannot_clear_a_running_servers_rows ... ok
+test identity::fresh_init_then_dev_becomes_ready ... ok
+test identity::moved_store_busy_process_probes_leave_old_path_absent ... ok
+test interrupting_a_waiter_does_not_admit_a_job ... ok
+test identity::moving_a_live_database_and_its_sidecars_preserves_ownership ... ok
+test invalid_source_and_non_lock_store_errors_keep_their_meaning ... ok
+test identity::two_c_abi_opens_share_ownership_until_both_close ... ok
+test identity::unlinking_sidecar_admits_second_owner_documented_boundary ... ok
+test identity::multiple_device_processes_share_ownership_and_exclude_backend_writers ... ok
+test identity::sync_refuses_replaced_path_while_changes_keeps_the_owned_database ... ok
+test identity::removing_or_replacing_the_address_record_never_admits_another_owner ... ok
+test no_watch_names_an_unadopted_edit_and_seed_names_the_id_form ... ok
+test cli_ownership_refuses_server_startup_and_store_symlinks_share_the_lock ... ok
+test unavailable_cli_body_remains_incomplete_for_exit_zero_consumers ... ok
+test identity::a_run_retry_keeps_database_a_when_its_alias_is_retargeted_to_live_b ... ok
+test uncontended_run_keeps_the_short_path ... ok
+test competing_cli_refuses_before_admission_then_can_retry_after_owner_exit ... ok
+test startup_adoption_and_run_wait_then_admit_once ... ok
+test identity::address_symlinks_and_nonregular_files_are_refused_without_truncation ... ok
+test identity::owner_sidecar_aliases_and_nonregular_files_are_refused_before_sqlite ... ok
+test source_edit_while_waiting_refuses_original_intent ... ok
+test live_dev_forwards_run_refuses_other_offline_writers_with_its_address_and_releases_on_exit ... ok
+test changed_maintain_writer_and_backfill_outlast_the_old_five_second_wait ... ok
+test release_token_owns_the_resolved_database_before_sqlite_open ... ok
+test deadline_refuses_before_job_admission_or_activation ... ok
+test release_database_symlinks_share_one_announced_owner_for_all_writers ... ok
+
+test result: ok. 28 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 41.84s
+

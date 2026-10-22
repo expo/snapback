@@ -1,0 +1,112 @@
+-- client file start: packages/snapback4/test/screen-lifetimes-react.test.mjs; stall bound 900000 ms
+TAP version 13
+# L1-L3 mounted measurements {"recipe":{"observations":22,"owners":23,"points":20,"rows":0,"history":1,"opens":46,"closes":23},"hidden":{"observations":0,"owners":0,"points":0,"rows":0,"history":0,"opens":174,"closes":174}}
+# Subtest: screen recipe: Strict Mode, bounded owners, scope resets, neutral placeholders and sibling cleanup
+ok 1 - screen recipe: Strict Mode, bounded owners, scope resets, neutral placeholders and sibling cleanup
+  ---
+  duration_ms: 1054.705584
+  type: 'test'
+  ...
+# Subtest: complete before conversation preserves edit across backgrounding
+ok 2 - complete before conversation preserves edit across backgrounding
+  ---
+  duration_ms: 827.377375
+  type: 'test'
+  ...
+# Subtest: complete before conversation preserves attachment across backgrounding
+ok 3 - complete before conversation preserves attachment across backgrounding
+  ---
+  duration_ms: 713.887459
+  type: 'test'
+  ...
+# Subtest: complete before conversation preserves refusal across backgrounding
+ok 4 - complete before conversation preserves refusal across backgrounding
+  ---
+  duration_ms: 785.076333
+  type: 'test'
+  ...
+# Subtest: complete after conversation preserves edit across backgrounding
+ok 5 - complete after conversation preserves edit across backgrounding
+  ---
+  duration_ms: 836.07375
+  type: 'test'
+  ...
+# Subtest: complete after conversation preserves attachment across backgrounding
+ok 6 - complete after conversation preserves attachment across backgrounding
+  ---
+  duration_ms: 730.719208
+  type: 'test'
+  ...
+# Subtest: complete after conversation preserves refusal across backgrounding
+ok 7 - complete after conversation preserves refusal across backgrounding
+  ---
+  duration_ms: 843.941208
+  type: 'test'
+  ...
+# Subtest: bounded starter restores a refused send
+ok 8 - bounded starter restores a refused send
+  ---
+  duration_ms: 773.462542
+  type: 'test'
+  ...
+# Subtest: bounded starter restores a refused send while hidden
+ok 9 - bounded starter restores a refused send while hidden
+  ---
+  duration_ms: 790.400042
+  type: 'test'
+  ...
+# Subtest: recipe recovery is fenced by account, backend/client and conversation ownership
+ok 10 - recipe recovery is fenced by account, backend/client and conversation ownership
+  ---
+  duration_ms: 840.727292
+  type: 'test'
+  ...
+# Subtest: after recovery is fenced by account, backend/client and conversation ownership
+ok 11 - after recovery is fenced by account, backend/client and conversation ownership
+  ---
+  duration_ms: 904.635583
+  type: 'test'
+  ...
+# Subtest: complete pilot quote jump mounts page 4 and scrolls without requesting a fifth page
+ok 12 - complete pilot quote jump mounts page 4 and scrolls without requesting a fifth page
+  ---
+  duration_ms: 796.451625
+  type: 'test'
+  ...
+# Subtest: real starter OnceViewer rechecks before consuming a selected photo
+ok 13 - real starter OnceViewer rechecks before consuming a selected photo
+  ---
+  duration_ms: 791.9115
+  type: 'test'
+  ...
+# Subtest: complete pilot removes an open photo in every commit across a coalesced generation withdrawal
+ok 14 - complete pilot removes an open photo in every commit across a coalesced generation withdrawal
+  ---
+  duration_ms: 1026.094459
+  type: 'test'
+  ...
+# Complete pilot measurements {"before":{"observations":407,"owners":806,"points":201,"rows":200,"history":1,"opens":1658,"closes":852},"after":{"observations":67,"owners":87,"points":41,"rows":20,"history":1,"opens":3433,"closes":3346},"afterWide":{"observations":127,"owners":167,"points":81,"rows":40,"history":1,"opens":3593,"closes":3426},"hidden":{"observations":0,"owners":0,"points":0,"rows":0,"history":0,"opens":3593,"closes":3593}}
+# Subtest: full pilot observations and owner resets are measured with mounted composer and rows
+ok 15 - full pilot observations and owner resets are measured with mounted composer and rows
+  ---
+  duration_ms: 914.153084
+  type: 'test'
+  ...
+# Subtest: complete pilot hides open photo before every commit of real wasm program-generation adoption
+ok 16 - complete pilot hides open photo before every commit of real wasm program-generation adoption
+  ---
+  duration_ms: 887.326292
+  type: 'test'
+  ...
+1..16
+# tests 16
+# suites 0
+# pass 16
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 13675.641209
+-- process inspection: {"snapshots":3,"unrelatedRows":11901}
+-- client file ok: packages/snapback4/test/screen-lifetimes-react.test.mjs (14085 ms)
+-- client files: 1/1; failed 0; tests {"tests":16,"pass":16,"fail":0,"cancelled":0,"skipped":0,"todo":0}

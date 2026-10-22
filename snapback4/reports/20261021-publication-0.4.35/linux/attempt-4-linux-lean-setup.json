@@ -1,0 +1,15 @@
+{
+  "step": "linux-lean-setup",
+  "command": [
+    "env",
+    "PATH=/home/ccheever/.elan/bin:/home/ccheever/.local/bin:/home/ccheever/.cargo/bin:/usr/local/bin:/usr/bin:/bin",
+    "lake",
+    "build",
+    "quarry-oracle"
+  ],
+  "cwd": "/home/ccheever/sb4-pub-0435/snapback4/lean",
+  "start": 1792581471.0762668,
+  "end": 1792581471.2616773,
+  "seconds": 0.185,
+  "exit": 0
+}

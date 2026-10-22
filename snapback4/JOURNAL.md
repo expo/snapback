@@ -100831,3 +100831,40 @@ receipt is claimed. Root checks, strict wasm audits and unchanged censuses pass.
 Attempt failures from an overlapping artifact rebuild are preserved separately;
 the complete final client repeat uses stable artifacts. Safe compact evidence:
 reports/integration21/storage-port-merge.json; full report: ../WORKSTREAM-REPORT.md.
+
+
+## 2026-10-22 — 0.4.35 published (snapback4, both platforms, snapback4-expo)
+
+`snapback4`, `snapback4-darwin-arm64`, `snapback4-linux-x64` and
+`snapback4-expo` 0.4.35 are published from `f0eed70bb3`, after the wave-20 go
+(Snapback vs Convex: clean upgrade from 0.4.33, no column-read leak). All four
+`latest` = 0.4.35:
+
+| Package | Registry integrity |
+|---|---|
+| `snapback4` | `sha512-BazFeTCT34CmRIhvXg37g3TpeaZt7zQRDb65evpysUEJiwE0X/Qausx1yml35RntDv5V7Skp2Wp+BRoH77ScMw==` |
+| `snapback4-darwin-arm64` | `sha512-Yr1HetSxW6EoeBS1gOjxFPP7tt61hvqgWd9HktIXOY+nHgkpElGl+V0kaow5O+13o9Vh+AwVjog9xGOZ08sbvg==` |
+| `snapback4-linux-x64` | `sha512-e1CXTSZq4xhlivgSuXXWgR02B87Ac+WDB5iQ2iaAPml/dI7560AM2+Jfjg6hIS9r4VHG1pnI/bpvMNS1050HlA==` |
+| `snapback4-expo` | `sha512-+qd2MFQZimFShLd47srmTlKFN0mmzkGlFOIaXqxSO0OvoZqLFYQKBPNaeuQ4GkZXOFWQ+v/K5igVp9+6qmdiWg==` |
+
+- **Publish commit moved twice:** `3373998583` failed Linux on a test-only
+  `E_REFUSED` literal the guide scan rejects (fixed by `078b33ec45`); `2e10681b32`
+  failed Linux on the wasm codec census scanning a `cfg(all(test, …))` module (fixed
+  by `f0eed70bb3`). An evidence-only Mac suite at `2e10681b32`, the first Mac run of
+  0.4.35's code, found no Mac-only red.
+- **Native and Expo witness:** built and witnessed on Xcode 27.1 at `f0eed70bb3`.
+- **Linux:** attempt 4 passed, `== 0 failure(s) in 2820 s`, after a
+  `following-history` envelope-boundary flake in attempt 3 (6/6 alone). Linux
+  qualify now runs with a private npm cache: the shared `~/.npm` cache was pruned
+  externally mid-release.
+- **Mac dry run:** six attempts on a heavily shared M5 (~60 other sessions). One
+  was environment-invalid (unplugged). Four each hit one different load- or
+  port-sensitive test: Vite 8's ephemeral-port probe twice, a 1 s worker-lease
+  recovery count, and a 5 s wall-clock bound in `run_admission`. Each passed alone.
+  Attempt 6 passed, `== 0 failure(s) in 9541 s`.
+- **Publish:** one `--resume` published the platforms and the client (registry
+  readable after 291 s of CDN retries); Expo readable after 184 s; registry bytes
+  equal the qualified bytes; clean installs on Linux and the Mac print 0.4.35 and
+  pass init + check.
+
+Report: `reports/20261021-publication-0.4.35/REPORT.md`.
