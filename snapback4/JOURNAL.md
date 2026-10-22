@@ -101607,3 +101607,48 @@ CARGO_INCREMENTAL=0 and 16 jobs. Eighteen warm request checks, exact framing,
 W1/W2 outcomes and thread-scoped counts pass. Both private PG16.15 clusters are
 independently stopped, all fifteen recorded server/postmaster PIDs absent.
 Minimum recorded free space 78 GB. No push, stash, clone or remote command.
+## 2026-10-22 — S10d-3 fix-forward: claim identity and read-only recovery
+
+The post-landing review reproduced a successor reusing token 1 after our deferred
+constraint COMMIT rolled back, then losing its lease to our cleanup. Claims now
+start without cleanup authority; only success or an outcome-unknown COMMIT retains
+the attempted identity. Known rollback attempts no release. Renewal and release
+match store id, token and holder. Unknown COMMIT grants no write authority and
+retains only best-effort conditional cleanup; a broken connection can leave the
+lease to expire. Regressions cover the queued token-reuse reproduction, a changed
+holder at the same token, and a committed cancellation-warning acknowledgement.
+
+Recovery no longer calls `Engine::open` or any family installer. A read-only
+repeatable snapshot checks the complete bootstrap's tables, columns, types,
+collations, defaults, identity/generated modes, constraints and indexes, then
+owner, markers, admission and generation history. Access-share locks retain those
+relation shapes through validation. The public witness removes additive columns
+and changes type/default/constraint/index shapes, checking catalog and durable
+write counters, token zero, unchanged intent and absent binding on every refusal.
+Ordinary opening of an already-bound store still performs its existing fenced
+additive upgrades, including missing request columns; that policy is outside this
+recovery fix.
+
+Validated typed intent fields are re-serialized into the durable atomic binding
+writer, then the pending intent is removed. Unknown JSON fields, including an
+extra password and nested password, cannot enter the binding. The RFC's one
+Revised line begins with S10d-3 fix-forward; its S10d/ownership text and the release
+JSON guide describe the new behavior. Detailed check results and custody are in
+[the updated lane report](./reports/20261022-s10d3-postgres-serving.md#s10d-3-fix-forward--2026-10-22).
+
+Fix-forward verification: default build and no-default core check pass; complete
+core has 1,068 unfiltered passes, five ignores and one passing subprocess witness.
+The complete four-thread CLI run has only the three supplied baseline failures
+(1,402 unfiltered passes, 17 ignores, 13 subprocess witnesses); all three baseline
+cases pass alone after the frozen dependency/generated-output preparation. The
+guide's missing dist files were reproduced alone and restored through normal
+TypeScript emission; final guide is 127/127. TypeScript still reports absent wasm
+modules, so no full client build is claimed. The complete Postgres script exits
+zero with 353 Rust passes and the public witness, including all new lease cases,
+existing successor/startup-renewal cases, read-only catalog/xmin/write-counter
+checks and password-field stripping. Four owned clusters and ten recorded server
+PIDs are independently confirmed stopped/absent; no lane executable remains.
+All disk readings exceed the stop threshold. No push, stash, cloning, sub-agents
+or other lane's Cargo target use.
+Final reference audit passes: 564 LLP documents, 11,719 references, zero errors
+and zero unchecked references.

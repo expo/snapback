@@ -334,3 +334,83 @@ at most 16 build jobs were used; existing native-fixture builders retain their
 inherited private subdirectories. Minimum recorded stage free space was 42.49
 GiB; the lowest observed `df -h /` display was 43G, above the 30 GB stop threshold.
 No push or stash, sub-agents, unrelated cluster operations or other-machine work.
+
+## S10d-3 fix-forward — 2026-10-22
+
+One worker in `/home/ccheever/projects/sb4-s10d3ff` on `sb4-pg/s10d3ff`, starting
+at main `eeb79ebc7c`. This section supersedes fix round 2's claims that normal
+engine open made recovery read-only and that token-only cleanup protected every
+successor. The verification review is `/tmp/s10d3-review-f2.md`.
+
+| Item | Change and regression |
+|---|---|
+| Rolled-back claim expires a successor | A known failed COMMIT clears `claimed`; startup drop therefore attempts no release. Renewal and release both match logical store id, token and holder. The deferred-constraint-trigger regression blocks COMMIT, queues a successor on the owner row, raises `23514`, then lets that successor commit the reused token 1 with holder `bbbb`. Release returns false and its lease stays live. A separate regression changes only the holder at token 1 and proves both renewal and release leave the lease timestamp unchanged. Existing successor-token and startup-renewal cleanup tests remain in the complete Postgres run. |
+| Recovery repairs a missing additive column | Recovery no longer opens an engine or calls any attach installer. One PostgreSQL-enforced read-only repeatable snapshot checks all 31 tables and 196 columns, types, nullability, collation, defaults, generated/identity modes, immediate validated constraints, indexes, owner identity, required markers, admission and initial generation history. Access-share table locks retain the inspected relation shapes through validation. Missing/different state refuses `E_STORE_CONFIG` with the named incomplete shape (`SNAPBACK_BOOTSTRAP_SCHEMA` for catalog mismatches). The public witness drops `_requests.cancelled`, `_outbox.contract`, `_backend.through_shortened` and `_session_mint_bindings.scope`, and changes a default, type, check constraint and index. Every refusal preserves catalog tuples (including xmin), `pg_stat_user_tables` durable-write counters, token zero and pending bytes; no binding appears. |
+| Raw intent bytes publish unknown fields | Recovery re-serializes the validated typed id/binding through the existing private synced temporary-file/atomic-rename writer. It removes the pending intent only after the binding and directory are durable. Extra top-level `password` and nested password fields are discarded; the resulting binding has exactly `store_id` and `binding`, with the original validated values. |
+
+Known claim rollbacks include COMMIT SQLSTATE class 23, `40001`, `40P01` and
+errors before COMMIT. An outcome-unknown COMMIT retains the attempted claim
+identity for best-effort conditional cleanup but grants no local write authority
+and is not retried as success. A cancellation-warning witness commits token 1,
+returns `E_COMMIT_OUTCOME_UNKNOWN`, observes no usable token/renewal authority,
+then releases only that matching claim. Transport loss can also prevent cleanup;
+its lease must expire. Post-commit hygiene failures retain cleanup identity.
+
+Ordinary open of an **already-bound** store is unchanged: its fenced attach path
+still runs additive installers, including restoration of missing request columns.
+This fix makes recovery validation pure; it does not change normal-open migration
+policy. The admitted HTTP/HA profile and publication scope are unchanged.
+
+The RFC's single Revised line now starts with S10d-3 fix-forward and §§3.4/5.1
+describe the corrected behavior. The release JSON guide distinguishes pure
+recovery from ordinary opening and documents complete holder predicates.
+
+### Fix-forward verification and custody
+
+| Requested check | Result |
+|---|---|
+| `cargo build -p snapback4` | Pass initially and in the complete Postgres script's final default-binary rebuild. |
+| `cargo check -p snapback4-core --no-default-features` | Pass. |
+| `cargo test -p snapback4-core --no-fail-fast` | Exit 0: 1,068 unfiltered passes, five intentional ignores, plus one passing filtered subprocess witness. |
+| `RUST_TEST_THREADS=4 cargo test -p snapback4 --no-fail-fast` | Exit 101: 1,402 unfiltered passes, exactly the three supplied baseline failures, 17 intentional ignores; 13 filtered subprocess witnesses pass. After the dependency/generated-output preparation below, all three baseline cases pass individually. No other CLI case fails. |
+| `cargo test -p snapback4-lang --test guide` | Final exit 0: 127 pass. The initial missing-generated-file failure was reproduced alone before restoring its prerequisites. |
+| `RUST_TEST_THREADS=4 bash scripts/test-postgres.sh` | Exit 0: all 353 Rust cases pass (58 evaluator, 209 family/oracle, 25 ownership, two committer, one internal HTTP, one startup-renewal, 19 corpus, one compiled handle and 37 doctests), plus the public CLI witness. |
+| Public CLI recovery/serving witness | Pass separately and in the complete Postgres script; final recovery snapshots include catalog xmin and durable-write counters. Both runs retain a non-superuser serving role. |
+| Root `./ref-check` | Pass: 564 LLP documents, 11,719 references, zero errors and zero unchecked references. |
+
+The three baseline retries are
+`w11r1c_toolchain_why_explains_node_start_failure_too`,
+`farm2_typescript_7_is_refused_by_version_not_crashed_on` and
+`web_witness_help_and_invalid_input`; each retry runs only that named case and
+exits zero. The complete CLI suite was not repeated after this environment-only
+preparation; its original three baseline reds remain recorded in `cli.log`.
+
+The guide initially lacked ignored `dist/react.js`, `dist/react.d.ts` and
+`dist/bin-path.js`. A frozen Snapback 4 Bun install and the normal TypeScript
+emission stage generated those files without tracked dependency changes, stubs
+or weakened expectations. TypeScript still exits 2 for the three imports of
+absent wasm-generated modules; a full client package build is not claimed. All
+127 guide cases then pass. Early public-witness setup attempts also exposed this
+host's extracted Postgres library/client PATH requirements. Those were corrected
+only in `/tmp/s10d3ff-env.sh`; the one cluster started during setup was stopped
+and independently confirmed. All attempt transcripts and exit files remain in
+`/tmp/s10d3ff-checks/`.
+
+PostgreSQL is **17.9** (the available `psql` client is 16.15); Node is 24.13.1.
+The final custody audit runs only after the complete Postgres script writes its
+exit receipt. All four started private clusters are independently confirmed with
+`pg_ctl status = 3` and no `postmaster.pid`:
+
+- `/tmp/s10d3-serve-kmx33j30` (setup attempt)
+- `/tmp/s10d3-serve-k49r6nvo` (standalone public witness)
+- `/tmp/sb4-pg-eval.KOswRz` (complete evaluator/family/ownership run)
+- `/tmp/s10d3-serve-j4wujjxb` (complete script's public witness)
+
+All ten recorded public-server PIDs are absent. No executable from this lane's
+Cargo target remains running. The protected `~/sb4scale/pg17` cluster was never
+addressed. Only the supplied lane target was used for lane Cargo commands,
+with incremental off, both debug profiles set to line tables and at most eight
+build jobs; test-internal native builds retain their existing private fixture
+directories. Every disk check stayed above the 30 GiB stop threshold (a late
+verification reading was 115G free). No push, stash, cloning or sub-agents. PIDs left:
+**none**.

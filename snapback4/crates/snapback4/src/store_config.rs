@@ -150,9 +150,11 @@ impl StoreConfig {
             return Err(input("pending bootstrap store id differs from the connected store; restore the original store at the recorded socket/namespace and retry deploy"));
         }
         self.check_bootstrap(&id)?;
-        // The synced intent itself becomes the binding in one atomic rename.
-        // On failure, keep the intent for an identity-bound retry.
-        std::fs::rename(dir.join("store-pending.json"), dir.join("store-binding.json"))
+        // Publish only the validated typed fields. Never promote raw intent
+        // bytes: ignored JSON fields may contain credentials. Keep the intent
+        // until the sanitized binding and its directory are durable.
+        self.write_record(dir, "store-binding.json", &id)?;
+        std::fs::remove_file(dir.join("store-pending.json"))
             .and_then(|_| std::fs::File::open(dir)?.sync_all()).map_err(|e| e.to_string())
     }
     fn check_bootstrap(&self, id: &str) -> Result<(), String> {

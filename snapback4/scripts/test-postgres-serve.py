@@ -228,11 +228,60 @@ try:
         recovery_refuses('unexpected column set')
     finally:
         sql('ALTER TABLE serving._owner DROP COLUMN extra')
+    def recovery_snapshot():
+        # Snapshot catalog tuples (including xmin and dropped columns), plus
+        # durable row-write counters. Reads may change scan statistics only.
+        return sql("""SELECT jsonb_build_object(
+            'relations', (SELECT jsonb_agg(jsonb_build_array(c.xmin::text,to_jsonb(c)) ORDER BY c.oid) FROM pg_class c WHERE c.relnamespace='serving'::regnamespace),
+            'columns', (SELECT jsonb_agg(jsonb_build_array(a.xmin::text,to_jsonb(a)) ORDER BY a.attrelid,a.attnum) FROM pg_attribute a JOIN pg_class c ON c.oid=a.attrelid WHERE c.relnamespace='serving'::regnamespace),
+            'defaults', (SELECT jsonb_agg(jsonb_build_array(d.xmin::text,to_jsonb(d)) ORDER BY d.oid) FROM pg_attrdef d JOIN pg_class c ON c.oid=d.adrelid WHERE c.relnamespace='serving'::regnamespace),
+            'constraints', (SELECT jsonb_agg(jsonb_build_array(k.xmin::text,to_jsonb(k)) ORDER BY k.oid) FROM pg_constraint k WHERE k.connamespace='serving'::regnamespace),
+            'writes', (SELECT jsonb_agg(jsonb_build_array(relid,n_tup_ins,n_tup_upd,n_tup_del) ORDER BY relid) FROM pg_stat_user_tables WHERE schemaname='serving'))::text""")
+    # Additive columns must be refused, never repaired by normal open. Cover
+    # independent core, request, outbox and identity installation paths.
+    for table, column, definition in [
+        ('_requests', 'cancelled', 'boolean NOT NULL DEFAULT FALSE'),
+        ('_outbox', 'contract', 'text'),
+        ('_backend', 'through_shortened', "text NOT NULL DEFAULT '{}'"),
+        ('_session_mint_bindings', 'scope', "text NOT NULL DEFAULT 'full'"),
+    ]:
+        sql(f'ALTER TABLE serving.{table} DROP COLUMN {column}')
+        try:
+            before = recovery_snapshot()
+            recovery_refuses('missing column '+column)
+            assert recovery_snapshot() == before, 'recovery changed catalog or durable write counters'
+            assert sql(f"SELECT count(*) FROM pg_attribute WHERE attrelid='serving.{table}'::regclass AND attname='{column}' AND NOT attisdropped") == '0'
+        finally:
+            sql(f'ALTER TABLE serving.{table} ADD COLUMN {column} {definition}')
+    for change, restore, message in [
+        ('ALTER TABLE serving._requests ALTER COLUMN cancelled DROP DEFAULT',
+         'ALTER TABLE serving._requests ALTER COLUMN cancelled SET DEFAULT FALSE', 'incompatible column cancelled'),
+        ('ALTER TABLE serving._requests ALTER COLUMN attempts TYPE integer',
+         'ALTER TABLE serving._requests ALTER COLUMN attempts TYPE bigint', 'incompatible column attempts'),
+        ('ALTER TABLE serving._head DROP CONSTRAINT _head_seq_check',
+         'ALTER TABLE serving._head ADD CONSTRAINT _head_seq_check CHECK (seq>=0)', 'incompatible constraints'),
+        ('DROP INDEX serving._requests_due',
+         'CREATE INDEX _requests_due ON serving._requests(state,name,at,id)', 'incompatible indexes'),
+    ]:
+        sql(change)
+        try:
+            before = recovery_snapshot()
+            recovery_refuses(message)
+            assert recovery_snapshot() == before, 'recovery changed catalog or durable write counters'
+        finally:
+            sql(restore)
+    print('bootstrap: missing additive columns, changed type/default/constraint/index refuse read-only; catalog and pg_stat_user_tables writes unchanged, token=0, no binding', flush=True)
     print('bootstrap: missing intent, same-target store swap, probe-only schema, missing tables/markers, generation mismatch and owner shape refuse; token=0, intent unchanged, no binding', flush=True)
+    # Unknown JSON fields are accepted as input but cannot enter a binding.
+    extra_intent = {**json.loads(intent), 'password': 'private-password', 'extra': {'password': 'private-password'}}
+    pending.write_text(json.dumps(extra_intent))
     deploy=cli(['deploy',str(WORK/'deployment')],url=url)
     binding=json.loads((WORK/'deployment/store-binding.json').read_text())
     assert binding['store_id']==bootstrap.stdout.strip(),binding
-    assert not pending.exists() and obstruction.read_bytes() == intent, 'intent did not become binding atomically'
+    assert not pending.exists(), 'validated intent was not retired'
+    assert set(binding) == {'store_id', 'binding'} and 'private-password' not in obstruction.read_text(), 'unknown intent fields entered binding'
+    assert binding == json.loads(intent), 'validated typed identity changed during publication'
+    print('recovery binding: unknown password and nested fields dropped', flush=True)
     assert json.loads(binding['binding'])['targets']==[{'transport':'unix','socket':str(WORK/'.s.PGSQL.55483')}],binding
     print('binding failure: retry adopted the same unselected bootstrap and recorded its effective socket',flush=True)
     print(deploy.stdout.strip(),flush=True)

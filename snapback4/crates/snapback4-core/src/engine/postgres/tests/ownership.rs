@@ -963,3 +963,84 @@ fn failed_renewal_cleanup_never_releases_successor_token() {
     assert_eq!(row.get::<_, i64>(0), 2);
     assert!(row.get::<_, bool>(1));
 }
+
+#[test]
+#[ignore = "requires private Postgres; scripts/test-postgres.sh"]
+fn rolled_back_claim_never_releases_successor_reusing_token() {
+    let ns = name();
+    let id = create(&ns);
+    let mut a = lease(&ns, &id, "aaaa");
+    let ap = pid(&mut a.client);
+    let mut control = client(&ns);
+    let cp = pid(&mut control);
+    let key = crate::ids::seed() as i64;
+    control.query_one("SELECT pg_advisory_lock($1)", &[&key]).unwrap();
+    // The deferred trigger makes COMMIT itself report a known rollback. The
+    // successor must already be waiting on that claim's row, then reuse token 1.
+    control.batch_execute(&format!("CREATE FUNCTION reject_claim() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.holder='aaaa' THEN PERFORM pg_advisory_xact_lock({key}); RAISE EXCEPTION 'rolled back claim' USING ERRCODE='23514'; END IF; RETURN NEW; END $$; CREATE CONSTRAINT TRIGGER reject_claim AFTER UPDATE ON _owner DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION reject_claim()" )).unwrap();
+    let claimant = thread::spawn(move || {
+        let error = a.acquire().unwrap_err();
+        assert!(matches!(&error, RuntimeError::Postgres(e) if e.code().is_some_and(|c| c.code()=="23514")), "{error:?}");
+        (a, error)
+    });
+    let mut observer = client(&ns);
+    wait(|| blocked_on(&mut observer, ap, cp));
+    let mut successor = client(&ns);
+    let sp = pid(&mut successor);
+    let waiter = thread::spawn(move || {
+        assert_eq!(successor.execute("UPDATE _owner SET token=1,holder='bbbb',lease_until=clock_timestamp()+interval '1 hour' WHERE singleton AND token=0", &[]).unwrap(), 1);
+    });
+    wait(|| blocked_on(&mut observer, sp, ap));
+    control.query_one("SELECT pg_advisory_unlock($1)", &[&key]).unwrap();
+    let (mut a, _) = claimant.join().unwrap();
+    waiter.join().unwrap();
+    assert_eq!(a.token(), None);
+    assert!(!a.claimed, "known rollback must disable release attempts");
+    assert!(!a.release().unwrap());
+    let row = observer.query_one("SELECT token,holder,lease_until>clock_timestamp() FROM _owner", &[]).unwrap();
+    assert_eq!(row.get::<_, i64>(0), 1);
+    assert_eq!(row.get::<_, &str>(1), "bbbb");
+    assert!(row.get::<_, bool>(2));
+}
+
+#[test]
+#[ignore = "requires private Postgres; scripts/test-postgres.sh"]
+fn renewal_and_release_require_holder_even_at_the_same_token() {
+    for renew_first in [false, true] {
+        let ns = name();
+        let id = create(&ns);
+        let mut a = lease(&ns, &id, "0001");
+        assert_eq!(a.acquire().unwrap().unwrap().token, 1);
+        let mut control = client(&ns);
+        control.execute("UPDATE _owner SET holder='0002',lease_until=clock_timestamp()+interval '1 hour'", &[]).unwrap();
+        let until: std::time::SystemTime = control.query_one("SELECT lease_until FROM _owner", &[]).unwrap().get(0);
+        if renew_first {
+            assert!(!a.renew().unwrap(), "renewal must not extend another holder's lease");
+            assert_eq!(a.token(), None);
+        }
+        assert!(!a.release().unwrap(), "release must not expire another holder's lease");
+        let row = control.query_one("SELECT holder,lease_until FROM _owner", &[]).unwrap();
+        assert_eq!(row.get::<_, &str>(0), "0002");
+        assert_eq!(row.get::<_, std::time::SystemTime>(1), until);
+    }
+}
+
+#[test]
+#[ignore = "requires private Postgres; scripts/test-postgres.sh"]
+fn unknown_claim_commit_keeps_cleanup_identity_without_write_authority() {
+    let ns = name();
+    let id = create(&ns);
+    let mut a = lease(&ns, &id, "abcd");
+    let mut control = client(&ns);
+    // PostgreSQL can acknowledge a durable COMMIT with a cancellation warning.
+    // The adapter conservatively classifies that acknowledgement as unknown.
+    control.batch_execute("CREATE FUNCTION warn_claim() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE WARNING 'uncertain acknowledgement' USING ERRCODE='57014'; RETURN NEW; END $$; CREATE CONSTRAINT TRIGGER warn_claim AFTER UPDATE ON _owner DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION warn_claim()" ).unwrap();
+    assert!(matches!(a.acquire(), Err(RuntimeError::CommitOutcomeUnknown(_))));
+    assert!(a.claimed);
+    assert_eq!(a.token(), None);
+    assert!(!a.renew().unwrap());
+    assert_eq!(control.query_one("SELECT token,holder FROM _owner", &[]).unwrap().get::<_, i64>(0), 1);
+    control.batch_execute("DROP TRIGGER warn_claim ON _owner; DROP FUNCTION warn_claim()").unwrap();
+    assert!(a.release().unwrap());
+    assert!(control.query_one("SELECT lease_until='-infinity'::timestamptz FROM _owner", &[]).unwrap().get::<_, bool>(0));
+}

@@ -2,10 +2,10 @@
 //! install additive upgrades. It never claims a token or repairs missing state.
 // @ref LLP 3000.009.001.000#initial-http-profile-and-public-release-bootstrap — pending intent binds the only recoverable identity.
 use super::{ownership, store};
-use crate::{Engine, Program, RuntimeError, Schema, store_port::AnyStore};
+use crate::{Program, RuntimeError, Schema, store_port::AnyStore};
 use std::collections::BTreeMap;
 
-fn incomplete(detail: &str) -> RuntimeError {
+pub(super) fn incomplete(detail: &str) -> RuntimeError {
     RuntimeError::Store(format!(
         "bootstrap incomplete: {detail}; restore the original complete bootstrap and its pending intent, then retry deploy"
     ))
@@ -23,51 +23,10 @@ impl AnyStore {
             store::namespace(namespace)?
         ))?;
         let mut checked = store::Store::new(client);
-        let tx = checked.opening_transaction()?;
-        // A bootstrap creates all these relations atomically, including dormant
-        // families. Normal open's installers must not recreate a missing one.
-        for table in [
-            "_owner",
-            "_backend",
-            "_meta",
-            "_head",
-            "r",
-            "i",
-            "_commits",
-            "_log",
-            "_ops",
-            "_sequences",
-            "_effect_keys",
-            "_principal_generations",
-            "_sessions",
-            "_requests",
-            "_read_sessions",
-            "_principals",
-            "_credentials",
-            "_session_mint_bindings",
-            "_change_evidence",
-            "_outbox",
-            "_effect_presence",
-            "_cap_counts",
-            "_jobs",
-            "_assets",
-            "_asset_intents",
-            "_asset_views",
-            "_asset_gc",
-            "_generations",
-            "_catalog",
-            "_release_events",
-            "_release_event_items",
-        ] {
-            if !super::ledger_schema::verify_relation(&tx, table, |table, detail| {
-                incomplete(&format!("{table}: {detail}"))
-            })? {
-                return Err(incomplete(&format!("missing {table}")));
-            }
-        }
-        super::metadata::initialize(&tx)?;
+        let tx = checked.bootstrap_read_transaction()?;
+        super::bootstrap_schema::verify(&tx)?;
         ownership::verify_record(&tx, id)?;
-        let owner = tx.query("SELECT token,holder,lease_until='-infinity'::timestamptz FROM _owner WHERE singleton FOR KEY SHARE", &[])?;
+        let owner = tx.query("SELECT token,holder,lease_until='-infinity'::timestamptz FROM _owner WHERE singleton", &[])?;
         if owner[0].get::<_, i64>(0) != 0
             || owner[0].get::<_, &str>(1) != "0000"
             || !owner[0].get::<_, bool>(2)
@@ -117,7 +76,6 @@ impl AnyStore {
         if tx.meta("release")?.is_some() || tx.meta("release_revision")?.is_some_and(|r| r != "0") {
             return Err(incomplete("release already selected or revised"));
         }
-        super::activation_schema::initialize(&tx)?;
         let head = tx.query("SELECT singleton,seq FROM _head", &[])?;
         if head.len() != 1 || !head[0].try_get::<_, bool>(0)? || head[0].try_get::<_, i64>(1)? < 0 {
             return Err(incomplete("invalid head singleton"));
@@ -132,22 +90,6 @@ impl AnyStore {
                 "initial generation history differs from backend",
             ));
         }
-        tx.rollback()?;
-        // Use exactly the normal engine open/admit and all family shape checks,
-        // with the intent identity as its first-lock fence. Never use probe alone.
-        let handle = super::Handle::connect_owned(
-            connection.parse()?,
-            namespace,
-            Some(ownership::Fence {
-                store_id: id.into(),
-                holder: "0000".into(),
-                token: 0,
-            }),
-        )?;
-        let engine = Engine::open(AnyStore::from_postgres(handle))?;
-        if engine.generation() != 1 || engine.store().store_identity()?.as_deref() != Some(id) {
-            return Err(incomplete("identity or generation changed while opening"));
-        }
-        Ok(())
+        tx.rollback()
     }
 }

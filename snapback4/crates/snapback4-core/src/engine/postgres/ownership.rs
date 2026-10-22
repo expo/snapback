@@ -293,6 +293,7 @@ impl StoreLease {
     }
     fn claim(&mut self, observed: i64) -> Result<Option<LeaseAcquisition>, RuntimeError> {
         self.held = false;
+        self.claimed = false;
         let token = observed
             .checked_add(1)
             .filter(|token| *token > 0)
@@ -361,9 +362,16 @@ impl StoreLease {
         let tag = next.tag()?;
         tx.execute("UPDATE _owner SET token=$1,holder=$2,lease_until=clock_timestamp()+make_interval(secs=>$3) WHERE singleton", &[&token,&next.holder,&self.policy.lease.as_secs_f64()])?;
         tx.execute("SELECT set_config('application_name',$1,false)", &[&tag])?;
-        self.fence = next;
-        self.claimed = true;
-        commit(tx, &self.warning)?;
+        let outcome = commit(tx, &self.warning);
+        // A known rollback owns nothing, even if a successor reuses this token.
+        // An unknown COMMIT may have installed our claim: retain its identity
+        // for conditional cleanup, but never grant local write authority.
+        self.claimed = outcome.is_ok()
+            || matches!(&outcome, Err(RuntimeError::CommitOutcomeUnknown(_)));
+        if self.claimed {
+            self.fence = next;
+        }
+        outcome?;
         self.held = true;
         // Hygiene is after COMMIT. A late sweep is still bounded by the old token.
         terminated.extend(terminate(
@@ -380,7 +388,7 @@ impl StoreLease {
         }
         let result = (|| {
             let mut tx = self.client.transaction()?;
-            let rows = tx.execute("UPDATE _owner SET lease_until=clock_timestamp()+make_interval(secs=>$1) WHERE singleton AND store_id=$2 AND token=$3", &[&self.policy.lease.as_secs_f64(), &self.fence.store_id, &self.fence.token])?;
+            let rows = tx.execute("UPDATE _owner SET lease_until=clock_timestamp()+make_interval(secs=>$1) WHERE singleton AND store_id=$2 AND token=$3 AND holder=$4", &[&self.policy.lease.as_secs_f64(), &self.fence.store_id, &self.fence.token, &self.fence.holder])?;
             commit(tx, &self.warning)?;
             Ok::<_, RuntimeError>(rows)
         })();
@@ -395,7 +403,7 @@ impl StoreLease {
         }
         self.held = false;
         let mut tx = self.client.transaction()?;
-        let rows = tx.execute("UPDATE _owner SET lease_until='-infinity' WHERE singleton AND store_id=$1 AND token=$2", &[&self.fence.store_id,&self.fence.token])?;
+        let rows = tx.execute("UPDATE _owner SET lease_until='-infinity' WHERE singleton AND store_id=$1 AND token=$2 AND holder=$3", &[&self.fence.store_id,&self.fence.token,&self.fence.holder])?;
         commit(tx, &self.warning)?;
         self.claimed = false;
         Ok(rows == 1)

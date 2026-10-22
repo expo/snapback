@@ -145,6 +145,12 @@ impl Store {
         self.begin(Some(WriteMode::Serialized), true)
     }
 
+    // Recovery checks the physical bootstrap before assuming any columns exist.
+    // PostgreSQL enforces read-only access for this entire repeatable snapshot.
+    pub(super) fn bootstrap_read_transaction(&mut self) -> Result<Tx<'_>, RuntimeError> {
+        self.begin(None, false)
+    }
+
     pub fn transaction(&mut self, mode: Option<WriteMode>) -> Result<Tx<'_>, RuntimeError> {
         self.transaction_with_begin_hook(mode, || {
             #[cfg(test)]

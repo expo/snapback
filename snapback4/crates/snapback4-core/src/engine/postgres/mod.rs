@@ -33,6 +33,7 @@ mod activation_schema;
 mod release;
 mod release_schema;
 mod bootstrap;
+mod bootstrap_schema;
 #[cfg(test)]
 mod tests;
 pub use store::{SCAN_MEMORY_GUARD, WriteMode};

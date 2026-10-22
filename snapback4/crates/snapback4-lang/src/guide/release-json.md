@@ -65,9 +65,12 @@ only the logical store id and non-secret connection binding, including effective
 Unix socket paths. Before bootstrap, a synced `store-pending.json` intent records
 that identity and target without credentials. A failed first binding write can be
 retried after fixing the filesystem error: deploy requires the original intent,
-matching store id, complete tables/generation/markers and normal open/admit checks.
-Only then does an atomic rename replace the intent with the binding, before any
-owner claim. An identity/target mismatch or incomplete bootstrap refuses
+matching store id and a read-only check of exact tables, columns, types,
+constraints, indexes, generation, markers and admitted schema/programs. Recovery
+runs no DDL or upgrades. Only then is the validated typed intent atomically
+published as the binding, dropping unknown JSON fields, before any owner claim.
+Ordinary open of an already-bound store retains its fenced additive upgrades.
+An identity/target mismatch or incomplete bootstrap refuses
 `E_STORE_CONFIG`; restore the original complete store and intent before retrying.
 Never edit the intent to adopt another store. Selected stores require their binding. Preserve its local
 `releases/N` source tree; serve selects the release recorded in Postgres and
@@ -100,8 +103,10 @@ Serve acquires a positive store lease before its listener. A second serve refuse
 `E_STORE_OWNERSHIP` while that lease is live; retry after expiry to take over a
 crashed process. Renewal uses its own connection every 500 ms. Any failed or
 uncertain renewal exits the process, closing listener and producers. In-flight
-transactions remain token-fenced. A startup failure attempts token-guarded
-release even after renewal loss. Successful cleanup permits immediate corrected
+transactions remain token-fenced. Startup cleanup matches store id, token and
+holder, even after renewal loss. A known rolled-back claim attempts no release;
+an unknown claim COMMIT retains cleanup identity without write authority.
+Successful cleanup permits immediate corrected
 startup; otherwise retry after expiry. Once serving, serve leaves the lease to
 expire about three seconds after its last renewal, including on clean shutdown; deploy releases it after its fenced activation finishes. Doctor reports backend,
 logical identity, owner token/holder and database-clock lease state without raw SQL.
