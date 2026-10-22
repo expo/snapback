@@ -6,25 +6,43 @@ use crate::{RuntimeError, Schema, Value, value::canonical_json};
 /// Only derivations and their readable columns/indexes may change. In particular,
 /// converting an ordinary column into an engine column is not this transition.
 pub(super) fn admit(previous: &Schema, next: &Schema) -> Result<(), RuntimeError> {
-    fn ordinary(schema: &Schema) -> Schema {
-        let mut ordinary = schema.clone();
-        ordinary.tables.retain(|name, _| schema.private_owner(name).is_none());
-        ordinary.maintains.retain(|m| m.private.is_none());
-        for table in ordinary.tables.values_mut() {
-            table.columns.retain(|field, _| !table.maintained.contains_key(field));
-            table.indexes.retain(|_, index| !index.columns().iter().any(|field| table.maintained.contains_key(field)));
-            table.maintained.clear();
-        }
-        // These are derived prices/indexes, not another permitted schema change.
-        // Program changes may also change residency/source-location facts.
-        // They are executable metadata, checked by the common program admission.
-        ordinary.operations.clear();
-        ordinary.source_reservations.clear();
-        ordinary.prepare_contribution_indexes();
-        ordinary
-    }
+    use crate::engine::activation_facts::ordinary;
     if ordinary(previous) != ordinary(next) {
         return Err(RuntimeError::StoreUnsupported { family: "release-activation" });
+    }
+    Ok(())
+}
+
+/// Run after the common recount/mirror builder: physical keys include row ids,
+/// so their primary key alone cannot enforce logical uniqueness. Compare the
+/// entire index definition (including all key columns), even on an index-only
+/// edit whose maintain declaration does not require a rebuild.
+pub(super) fn validate_groups(tx: &Tx<'_>, previous: &Schema, next: &Schema) -> Result<(), RuntimeError> {
+    for (name, table) in &next.tables {
+        let old = previous.table(name);
+        let projected = old.is_none_or(|old| old.columns != table.columns || old.maintained != table.maintained);
+        let rebuilt = next.maintain_for(name).is_some_and(|m| crate::successor::maintain_rebuild_needed(previous, next, m));
+        for (index_name, index) in table.indexes.iter().filter(|(index_name, index)| index.unique
+            && (projected || rebuilt || old.and_then(|old| old.indexes.get(*index_name)) != Some(*index))) {
+            let mut after: Option<Vec<u8>> = None;
+            let mut previous_group = None;
+            loop {
+                let rows = tx.query("SELECT k FROM i WHERE t=$1 AND ix=$2 AND ($3::bytea IS NULL OR k>$3) ORDER BY k LIMIT 256", &[name, index_name, &after])?;
+                if rows.is_empty() { break; }
+                for row in rows {
+                    let key: Vec<u8> = row.get(0);
+                    let mut group = crate::key::decode(&key).ok_or_else(|| RuntimeError::Store("invalid rebuilt index key".into()))?;
+                    group.truncate(index.components.len());
+                    if !group.contains(&Value::Null) {
+                        if previous_group.as_ref() == Some(&group) {
+                            return Err(RuntimeError::Constraint(format!("cannot activate {name}.{index_name}: existing group exceeds a unique key")));
+                        }
+                        previous_group = Some(group);
+                    }
+                    after = Some(key);
+                }
+            }
+        }
     }
     Ok(())
 }

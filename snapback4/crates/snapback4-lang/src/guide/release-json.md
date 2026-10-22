@@ -102,8 +102,9 @@ A release may also add, redefine or drop ordinary maintained columns and indexes
 on them, with all other schema declarations unchanged. Attach projects removed
 fields and private totals; the common engine backfills/recounts existing sources
 and mirrors parents before publishing the generation. Re-adding recounts from
-sources. An overflowing backfill rolls back the entire activation. Zero totals
-remain sparse in stored images. Row-keyed view-recount remains refused.
+sources. An overflowing backfill rolls back the entire activation. Initial zero
+totals remain sparse; redefining a nonzero total to zero stores an explicit zero.
+Row-keyed view-recount remains refused.
 
 Serve acquires a positive store lease before its listener. A second serve refuses
 `E_STORE_OWNERSHIP` while that lease is live; retry after expiry to take over a

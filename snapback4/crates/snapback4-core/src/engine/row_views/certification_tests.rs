@@ -490,6 +490,7 @@ fn recorded_member_inputs_keep_the_disclosed_full_recount() {
     let predicate = &mut maintain.row_key.as_mut().unwrap().predicate;
     *predicate = crate::json_codec::from_text(&crate::json_codec::to_text(predicate).unwrap()
         .replace("$row.seenOrdinal", "$row.conversationId.mark")).unwrap();
+    schema.prepare_contribution_indexes();
     let mut e = Engine::memory(schema, vec![]).unwrap();
     e.seed_at([("conversations".into(), object([("id", id("room")), ("title", Value::String("room".into())), ("mark", Value::Int(5))])),
         ("members".into(), self::member(0, 0, 0)),

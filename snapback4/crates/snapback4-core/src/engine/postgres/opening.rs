@@ -89,6 +89,13 @@ impl Handle {
     ) -> Result<Committed<(u64, R)>, RuntimeError> {
         let programs = programs.ok_or(RuntimeError::StoreUnsupported { family: "release-activation" })?;
         super::profile::admit(schema, programs)?;
+        // The adapter can also be called below Engine's mutable preparation.
+        // Its immutable input must already contain exactly the facts published.
+        let mut derived = schema.clone();
+        crate::engine::activation_facts::prepare(&mut derived)?;
+        if derived.source_reservations != schema.source_reservations || derived.receipt_dependencies != schema.receipt_dependencies {
+            return Err(RuntimeError::Schema("activation requires schema-derived reservations and receipt dependencies".into()));
+        }
         if reset { return Err(RuntimeError::StoreUnsupported { family: "dev-reset" }); }
         let fresh = self.fresh;
         let bootstrap_fence = fresh.then(|| super::ownership::Fence {
@@ -116,6 +123,8 @@ impl Handle {
             if !fresh && before.0 != expected_generation as i64 { return Err(RuntimeError::Generation("another engine activated this store".into())); }
             // Admission precedes every preparation write, under the head fence.
             let previous: Schema = store::decode(&before.1)?;
+            let previous_programs = store::decode(&before.2)?;
+            crate::engine::activation_facts::check_operations(&previous, schema, &previous_programs, programs)?;
             let schema_changed = !fresh && previous.hash() != schema.hash();
             if schema_changed { super::column_evolution::admit(&previous, schema)?; }
             initialize(&tx, schema)?;
@@ -131,6 +140,7 @@ impl Handle {
             tx.with_postgres(|inner| check(&AnyPreparation::Postgres(Preparation(inner))))?;
             if schema_changed { tx.with_postgres(|inner| super::column_evolution::project(inner, &previous, schema))?; }
             build(&tx, changed, &mut report)?;
+            if schema_changed { tx.with_postgres(|inner| super::column_evolution::validate_groups(inner, &previous, schema))?; }
             tx.with_postgres(|inner| {
                 inner.publish_backend(&Backend(generation, crate::value::canonical_json(schema), crate::value::canonical_json(programs)), now)?;
                 inner.set_meta("schema_hash", &schema.hash())?;

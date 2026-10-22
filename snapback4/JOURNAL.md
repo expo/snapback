@@ -101767,3 +101767,55 @@ server PIDs are absent, and no servers remain. Minimum observed disk free space
 was 168G. Only this worktree's Cargo target was used, with at most ten jobs,
 incremental off and line-table dev/test debug info. No clone, sub-agent, stash or
 push. Final reference audit and local commit are recorded in the lane report.
+
+## 2026-10-22 — P1-MC fix round 1: evolution invariants and executable facts
+
+The two blind reviews of `45416b150c` identified gaps in the bounded activation
+comparison and its publication claims. Postgres now checks every unique index
+affected by projection, definition change or rebuild after the common builder
+and before publishing. The key walk is paged and ordered, compares complete
+logical key prefixes, retains null-distinct behavior, and uses SQLite's exact
+duplicate-group refusal. The public schema validator already forbids unique
+keys containing maintained columns; the regression keeps that refusal and
+separately exercises the physical adapter with the same-author/different-room,
+sparse-zero collision, noncollision and null controls. No new unique-maintained
+language form is admitted.
+
+The common engine derives source reservations and receipt dependencies from
+the full schema, refusing supplied nonempty facts that disagree. A normalized
+comparison derives the graph again after removing private maintains, admitting
+the receipt-enabled aggregate addition that the first version refused. For
+unchanged ordinary declarations and IR, the predecessor's execution declarations
+remain fixed (including `held` and branch flags), while the candidate schema and
+IR determine maintenance-dependent receipt/reservation sites and prediction.
+The compiler shares that receipt-maintenance calculation with admission. Checks
+run at ordinary/release adoption and again against persisted activation content;
+normal program changes retain their existing admission path.
+
+Cross-store regressions cover forged flags, prices, prediction and receipt graph,
+and receipt sum addition/count redefinition/removal over existing conversation,
+membership and message rows. The guide's short refusal line now names the admitted
+slice. The sparse-zero wording is qualified as initial addition, preserving the
+explicit zero written on redefinition (LLP 3000.007.001 §3.11). The port RFC's
+single Revised line begins `P1-MC fix round 1`; the lane report records the
+physical/public test distinction, qualification and process custody.
+
+Final fix-round qualification passes: CLI build, no-default core check, the full
+core suite (1,069 visible passes including its filtered subprocess, five ignores),
+127 guide tests, and the complete Postgres script (358 visible Rust passes plus
+operator seed/public serving). The final maintained-column scope passes all nine
+cases, including physical unique-key projection, forged facts through direct
+adapter activation and receipt sum/count/drop over existing rows. The unchanged
+public S1 source serves 24 seeded messages plus one public post; every room/user
+total matches its source recount. The four raw fixture builders now refresh their
+prices after declaration edits, preserving their original assertions and limits.
+LLP 3000.022 §14.3 is aligned with native validation and its existing raw-IR trust
+contract. Fresh Wasm is 735,096 B gzip under the unchanged 735,407 B budget; the
+client build passes. The reference audit is run from the repository root.
+
+Nine owned clusters are independently confirmed stopped, all six recorded public
+server PIDs and all check/restart runners are absent. Owned PIDs left: none.
+Minimum observed disk free space was 64G. Only this worktree's assigned target was
+used, incremental off and dev/test debug at line-tables-only, with at most 16
+build jobs. No clone, remote command, sub-agent, stash, push, publication or budget
+increase. The journal's prior content remains an exact prefix.

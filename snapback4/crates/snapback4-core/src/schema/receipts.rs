@@ -134,6 +134,10 @@ impl ReceiptFamily {
     }
 }
 impl super::Schema {
+    /// The same schema/IR fact is used by the compiler and release admission.
+    pub fn receipt_maintenance_refusal(&self, table: &str, effect: &str) -> Option<String> {
+        self.maintains.iter().find_map(|maintain| maintain.receipt_write_refusal(self, table, effect))
+    }
     // @ref LLP 3000.022#14.3 — derive once, before private maintains leave the
     // device schema. Iterate to a fixed point for captures and maintained parents.
     pub fn prepare_receipt_dependencies(&mut self) {
@@ -220,5 +224,19 @@ impl super::Schema {
         self.receipts
             .iter()
             .any(|f| table == f.messages || table == f.members || table == f.scope)
+    }
+}
+
+impl super::Maintain {
+    pub fn receipt_write_refusal(&self, schema: &super::Schema, table: &str, effect: &str) -> Option<String> {
+        if !(self.source == table || self.row_key.as_ref().is_some_and(|key| key.table == table))
+            || !schema.receipt_dependencies.contains_key(&self.target) { return None; }
+        let reason = if matches!(self.kind, super::MaintainKind::Sum { .. }) { "can overflow" }
+            else if self.row_key.as_ref().is_some_and(|key| key.table == table) && effect == "update" { "can change the member's count domain" }
+            else if schema.tables[&self.target].constraints.iter().any(|constraint| !matches!(constraint, super::Constraint::Unique { .. }))
+                || schema.tables[&self.target].indexes.values().any(|index| index.unique
+                    && index.columns() != ["id"] && index.columns() != self.group_fields()) { "has target constraints" }
+            else { return None; };
+        Some(format!("write to {table} evaluates receipt-derived maintenance {} which {reason}", self.label()))
     }
 }

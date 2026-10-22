@@ -1,5 +1,8 @@
 # P1-MC — ordinary maintained columns on Postgres
 
+The current implementation and qualification are recorded in **P1-MC fix round 1**
+below. The original P1-MC record is retained first as implementation history.
+
 ## Finding recorded before implementation
 
 At base `eeb79ebc7c`, ordinary transactional count/sum maintenance is already
@@ -199,3 +202,128 @@ The local commit uses author `Codex <noreply@openai.com>`, committer
 `Charlie Cheever <ccheever@firewoodagent.com>` and the requested Codex co-author
 footer; its identifier is provided in the final response. No push is authorized
 or performed.
+
+
+## P1-MC fix round 1 — 2026-10-22
+
+Base: `45416b150c8900594ed1e65ed557d7178b2dcb07`; local branch
+`sb4-pg/p1mc-f1`. One worker on the assigned host/worktree; no delegation,
+cloning, remote commands, stash or push. The `llp-orient` skill was read from
+`/home/ccheever/.codex/skills/llp-orient/SKILL.md`. Scope and constraints remain
+LLP 3000.009.001.000 §3.4/§9/§9.1 and LLP 3000.007.001 §3.11. No new protocol,
+public store method, ceiling or ratchet allowance is introduced.
+
+1. **Unique projection groups.** The changed-index set compares the full `Index`
+   (all components and uniqueness). After projection and the common rebuild,
+   Postgres streams affected unique keys in 256-key pages, decodes their logical
+   prefix, exempts null-containing groups and refuses duplicates with SQLite's
+   `cannot activate posts.byRoom: existing group exceeds a unique key` message.
+   All work remains in the fenced activation transaction before publication.
+   The public Quarry/raw-schema validator already forbids maintained columns in
+   unique keys (`schema/columns.rs`). The review's exact public declaration
+   therefore refuses before activation on both stores. The regression first
+   proves that refusal, then exercises the physical projection and SQLite's
+   low-level activation directly to test the defensive invariant independently.
+   It adds the maintained count over existing parents to preserve sparse zeros,
+   tests the same-author/different-room collision, and includes noncolliding
+   authors and distinct-null controls.
+2. **Executable facts.** Full server preparation re-derives source reservations
+   and receipt dependencies and rejects disagreeing supplied nonempty maps.
+   For unchanged programs/declarations in the column slice, the common engine
+   derives expected execution facts from the previously admitted declarations
+   plus candidate schema/IR: receipt-maintenance dependency, source-reservation
+   sites and the resulting prediction class. The compiler and activation share
+   the receipt-maintenance refusal calculation. Author declarations such as
+   `held` remain fixed for unchanged IR. Flags, prices, prediction and receipt
+   graph forgeries refuse equally on SQLite and Postgres, through ordinary and
+   release adoption. Both adapter attach and the common activation builder
+   recheck execution facts against the persisted predecessor. The Postgres
+   adapter also validates canonical graph/prices before its immutable input
+   can be published, including callers below Engine preparation. The forgery
+   regression exercises that direct adapter boundary.
+3. **Receipt evolution.** Normalization re-derives the receipt graph after
+   removing private declarations, instead of comparing the full graph with
+   stripped schemas. The cross-store receipt fixture seeds conversation,
+   membership and message rows, then adds a recipient sum, redefines it as a
+   count and drops it, comparing rows, graph, generations and complete screen
+   query outcomes. The sum makes `send` never-predicting; count restores its
+   prior eligibility, as the compiler requires.
+4. **Guide.** The short `E_STORE_UNSUPPORTED` registry now names the admitted
+   maintained-column slice. `release-json` qualifies sparse zeros as initial
+   additions and describes explicit zeros on redefinition.
+
+Qualification and process-custody results for this round follow below; the
+older qualification sections above describe the original P1-MC commit only.
+
+The first default core pass exposed four raw-schema fixtures that edited types,
+indexes or maintenance predicates after compilation while keeping old reservation
+prices. Their builders now refresh derived metadata after those edits; their
+behavioral assertions and heap/resource limits are unchanged. All four corrected
+cases pass in the final core repeat. The first pass's remaining serial run was
+stopped to restart the complete command against those corrections with eight test
+threads. Its recorded shell/Cargo/test PIDs (1987453, 1990362, 2033550) were checked
+and confirmed absent. That interrupted pass is not claimed as qualification.
+
+The guide's package-reference checks also require generated client assets in a
+cold tree. The frozen Bun install passes; the initial client build reports only
+missing generated Wasm modules. The owned Wasm build uses the assigned target,
+eight build jobs while the core's eight test threads run, and the requested
+line-table dev/test settings. Its temporary copy of the standard build script
+removes that script's debug=0 overrides; optimizer, bindgen, stamping and budget
+checks are unchanged. A temporary lock and asset digest receipt prevent duplicate
+asset generation when the sequential check script reaches that stage.
+
+### Final qualification for fix round 1
+
+All requested checks pass on the final semantic change. Logs and process records
+are under `/tmp/p1mc-f1-evidence/` on this host.
+
+| Check | Final result |
+|---|---|
+| `cargo build -p snapback4` | Pass; repeated after the full Postgres script. |
+| `cargo check -p snapback4-core --no-default-features` | Pass; final repeat passes. |
+| `cargo test -p snapback4-core --no-fail-fast` | Pass: 1,069 visible passes (including the filtered subprocess), five ignored; final run uses eight test threads. |
+| Postgres maintained-column scope, `--include-ignored` | Nine passes across the adapter and maintained-member stages, including all three new cross-store regressions and six forged-fact variants. |
+| `cargo test -p snapback4-lang --test guide` | Pass: 127 tests. |
+| `bash scripts/test-postgres.sh` | Exit 0: 358 visible Rust passes (58 evaluator, 216 adapter, 22 ownership, one compiled guard, 37 doctests, three member, two HTTP/startup, 19 corpus), plus the captured operator seed and public CLI witness. |
+| Public S1 maintained-column witness | Pass on private PostgreSQL 16/en_US.utf8: unchanged Quarry deploy, 24 seeded messages plus one public post, every room/user total equal to its source recount. |
+| Fresh Wasm/client prerequisites | Pass: 2,406,499 B raw / 735,096 B gzip, below unchanged 735,407 B budget; normal package build passes. |
+| `./ref-check` from repository root | Pass: 564 LLP documents, zero errors, zero unchecked references. The first wrapper invocation ran from `snapback4/`, found no `llp/` corpus and was corrected. |
+
+The evaluator's concurrent-writer case passes unchanged: 65 increments in each
+mode, no lost updates, zero serialized retries and 70 serializable retries. No
+retry limit, assertion, workload or resource ceiling changed. The receipt spec's
+§14.3 now records native price validation while preserving its existing trust
+contract for newly authored raw-IR descriptor/program pairs.
+
+### Process custody for fix round 1
+
+Every owned cluster was stopped and independently rechecked with `pg_ctl status`
+(exit 3), no `postmaster.pid`, and its recorded postmaster PID absent. All six
+recorded public server PIDs and all recorded check/restart runners are absent.
+**Owned PIDs left: none.** Detailed records: `cleanup-confirmation.json` in the
+local evidence directory.
+
+| Cluster directory | Postmaster PID (absent) |
+|---|---:|
+| `/tmp/s10d3-serve-cg3veed8` | 2512698 |
+| `/tmp/sb4-p1mc-f1-pg.IycB9w` | 1972835 |
+| `/tmp/sb4-p1mc-f1-pg.J3vwIj` | 1954374 |
+| `/tmp/sb4-p1mc-f1-pg.SByPSj` | 1959257 |
+| `/tmp/sb4-p1mc-f1-pg.ZPMkEA` | 1972454 |
+| `/tmp/sb4-p1mc-f1-pg.eKNlN7` | 1984179 |
+| `/tmp/sb4-p1mc-f1-pg.nzTmPk` | 1977590 |
+| `/tmp/sb4-p1mc-f1-pg.y4UalA` | 1953254 |
+| `/tmp/sb4-pg-eval.LnxrwR` | 2420907 |
+
+Public server PIDs (all absent): 2523893, 2523963, 2524556, 2525454, 2525768, 2532624.
+
+Only the assigned `snapback4/target` was used. Incremental compilation stayed off;
+dev/test debug settings stayed `line-tables-only`; builds used at most 16 jobs.
+The asset build used eight jobs alongside the core's eight test threads. Minimum
+observed `df -h /` free space was 64G, above the 30 GB stop threshold. No cloning,
+remote commands, sub-agents, stash, push, publication or budget increase.
+
+Local delivery is one fix commit on `sb4-pg/p1mc-f1`, parent
+`45416b150c8900594ed1e65ed557d7178b2dcb07`, with the requested Codex author and
+co-author footer. Its hash is supplied in the final response.

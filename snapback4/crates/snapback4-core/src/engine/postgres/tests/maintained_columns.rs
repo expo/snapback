@@ -81,6 +81,134 @@ fn maintained_columns_exact_store_oracle() {
 fn without_columns() -> String {
     SOURCE.lines().filter(|line| !line.contains("likeCount:") && !line.contains("selected:") && !line.contains("total:") && !line.contains("by byLikes:")).collect::<Vec<_>>().join("\n").split("query ranked").next().unwrap().into()
 }
+
+#[test]
+#[ignore = "requires private Postgres; scripts/test-postgres.sh"]
+fn maintained_columns_unique_index_evolution_validates_all_key_columns() {
+    let source = "table posts:\n  room: text <=20\n  author: text <=20 ?\n  likeCount: count likes by postId\n  by byRoom: likeCount, room\n  public\n  insert <- allow\n  online only\ntable likes:\n  postId: posts\n  public\n  online only\nmutation post(id: id, room: text <=20, author: text <=20 ?):\n  return insert posts {id, room, author}\n";
+    // Collision, non-collision, and SQL-style distinct nulls. No likes are
+    // written: the unique keys must resolve the missing maintained field to 0.
+    for authors in [[Value::String("ada".into()), Value::String("ada".into())],
+        [Value::String("ada".into()), Value::String("bob".into())], [Value::Null, Value::Null]] {
+        let base = source.lines().filter(|line| !line.contains("likeCount:") && !line.contains("by byRoom:")).collect::<Vec<_>>().join("\n");
+        let (schema, programs) = bound(&base);
+        let mut sqlite = Engine::new_at(AnyStore::memory().unwrap(), schema.clone(), programs.clone(), 1000).unwrap();
+        let mut postgres = pg(schema, programs.clone());
+        for engine in [&mut sqlite, &mut postgres] {
+            for (n, author) in authors.iter().enumerate() {
+                let key = format!("p{n}");
+                let result = engine.mutate("post", None, ctx(&[("id", id(&key)), ("room", Value::String(key)), ("author", author.clone())])).unwrap();
+                assert!(matches!(result.state, WriteState::Sent { .. }), "{result:?}");
+            }
+            let (schema, programs) = bound(source);
+            engine.adopt_at(schema, programs, 1000).unwrap();
+            assert!(engine.store().rows("posts").unwrap().iter().all(|row| row.field("likeCount").is_err()));
+        }
+        let mut before = sqlite.schema().clone();
+        // Install the review's predecessor below public schema admission. Its
+        // keys already have these exact bytes on Postgres: `unique` only changes
+        // logical validation, never the encoded key (which includes the row id).
+        before.tables.get_mut("posts").unwrap().indexes.get_mut("byRoom").unwrap().unique = true;
+        sqlite.store_mut().test_with_sqlite_mut(|store| store.activate_at(&before, None, false, 1000, |_, _, _| Ok(()))).unwrap();
+        let mut candidate = before.clone();
+        candidate.tables.get_mut("posts").unwrap().indexes.insert("byRoom".into(), crate::schema::Index::of(&["likeCount", "author"], true));
+        // Maintained uniqueness is forbidden by public schema admission. Check
+        // that refusal too; then exercise the physical adapter defensively,
+        // independently of that semantic admission (as with an inherited catalog).
+        let a = sqlite.adopt_at(candidate.clone(), programs.clone(), 1000).unwrap_err();
+        let b = postgres.adopt_at(candidate.clone(), programs.clone(), 1000).unwrap_err();
+        assert_eq!(a.code(), b.code()); assert_eq!(a.to_string(), b.to_string());
+        assert!(a.to_string().contains("maintained column posts.likeCount"));
+        let generation = sqlite.store().generation_value().unwrap();
+        let a = sqlite.store_mut().test_with_sqlite_mut(|store| store.activate_at(&candidate, None, false, 1000, |_, _, _| Ok(())).map(|_| ()));
+        let tx = postgres.store_mut().transaction().unwrap();
+        super::super::column_evolution::admit(&before, &candidate).unwrap();
+        let b = super::super::column_evolution::project(tx.test_postgres_tx(), &before, &candidate)
+            .and_then(|()| super::super::column_evolution::validate_groups(tx.test_postgres_tx(), &before, &candidate));
+        tx.rollback().unwrap();
+        if authors[0] == Value::String("ada".into()) && authors[0] == authors[1] {
+            let a = a.unwrap_err(); let b = b.unwrap_err();
+            assert_eq!(a.code(), b.code()); assert_eq!(a.to_string(), b.to_string());
+            assert!(a.to_string().contains("cannot activate posts.byRoom: existing group exceeds a unique key"), "{a}");
+            assert_eq!(sqlite.store().generation_value().unwrap(), generation);
+        } else { assert_eq!(a.unwrap(), b.unwrap()); }
+        equal_rows(&sqlite, &postgres);
+    }
+}
+
+#[test]
+#[ignore = "requires private Postgres; scripts/test-postgres.sh"]
+fn maintained_columns_forged_execution_and_prices_refuse_on_both_stores() {
+    let (schema, programs) = bound(SOURCE);
+    let mut sqlite = Engine::new_at(AnyStore::memory().unwrap(), schema.clone(), programs.clone(), 1000).unwrap();
+    let mut postgres = pg(schema.clone(), programs.clone());
+    for engine in [&mut sqlite, &mut postgres] {
+        engine.mutate("post", None, ctx(&[("id", id("a")), ("at", Value::Int(1))])).unwrap();
+        engine.mutate("like", None, like("l1", id("a"), 7, true)).unwrap();
+    }
+    for forged in 0..6 {
+        let mut candidate = schema.clone();
+        match forged {
+            0 => candidate.operations.get_mut("ranked").unwrap().held = true,
+            1 => candidate.operations.get_mut("ranked").unwrap().branch_merge = true,
+            2 => candidate.operations.get_mut("like").unwrap().predicts = Some("eligible".into()),
+            3 => {
+                let plan = candidate.source_reservations.get_mut("likes").unwrap();
+                assert_ne!(plan.prices, [[0;7];8]); plan.prices = [[0;7];8];
+            }
+            4 => { candidate.receipt_dependencies.insert("posts".into(), ["at".into()].into()); }
+            _ => { candidate.operations.insert("missing".into(), candidate.operations["ranked"].clone()); }
+        }
+        let generations = (sqlite.generation(), postgres.generation());
+        let a = sqlite.adopt_at(candidate.clone(), programs.clone(), 1000).unwrap_err();
+        let b = postgres.adopt_at(candidate.clone(), programs.clone(), 1000).unwrap_err();
+        assert_eq!(a.code(), b.code()); assert_eq!(a.to_string(), b.to_string());
+        let program_map = programs.iter().cloned().map(|program| (program.name.clone(), program)).collect();
+        let direct = postgres.store_mut().test_postgres_handle_mut().activate(&candidate, Some(&program_map), false, 1000,
+            |_| Ok(()), |_, _, _| Ok(()), |_| Ok(())).err().expect("adapter must not trust facts either");
+        assert_eq!(a.to_string(), direct.to_string());
+        let options = crate::engine::release::ReleaseActivation::new(1, None);
+        let a = sqlite.adopt_release_at(candidate.clone(), programs.clone(), &options, false, 1000).unwrap_err();
+        let b = postgres.adopt_release_at(candidate, programs.clone(), &options, false, 1000).unwrap_err();
+        assert_eq!(a.code(), b.code()); assert_eq!(a.to_string(), b.to_string());
+        assert_eq!((sqlite.generation(), postgres.generation()), generations);
+        assert_eq!(sqlite.schema(), &schema); assert_eq!(postgres.schema(), &schema);
+        equal_rows(&sqlite, &postgres);
+        assert_eq!(sqlite.query("ranked", ctx(&[("c", Value::Null)])).unwrap(), postgres.query("ranked", ctx(&[("c", Value::Null)])).unwrap());
+    }
+}
+
+#[test]
+#[ignore = "requires private Postgres; scripts/test-postgres.sh"]
+fn maintained_columns_receipt_dependencies_evolve_with_existing_rows() {
+    // Reuse the compiled guide form, omitting assets and the row-keyed view,
+    // which remain outside the admitted Postgres profile.
+    let source = include_str!("../../../../../snapback4-lang/tests/fixtures/rp-predecessor/schema.q")
+        .split("view unreadCounts").next().unwrap().replace("  photo: image <=5000000 once ?\n", "")
+        .replace(", photo: image <=5000000 ?", "").replace("text, photo, at", "text, at");
+    let (schema, programs) = bound(&source);
+    let mut sqlite = Engine::new_at(AnyStore::memory().unwrap(), schema.clone(), programs.clone(), 1000).unwrap();
+    let mut postgres = pg(schema, programs);
+    // Minted ids differ, so use the same admitted fixture rows through seed_at.
+    let row = |fields: Vec<(&str, Value)>| Value::Row(fields.into_iter().map(|(name, value)| (name.into(), value)).collect());
+    let fixtures: Vec<(String, Value)> = vec![
+        ("conversations".into(), row(vec![("id", id("c")), ("creatorId", Value::Id("alice".into())), ("lastOrdinal", Value::Int(1))])),
+        ("members".into(), row(vec![("id", id("m")), ("conversation", id("c")), ("principal", Value::Id("alice".into())), ("joinedOrdinal", Value::Int(0))])),
+        ("messages".into(), row(vec![("id", id("msg")), ("conversation", id("c")), ("sender", Value::Id("alice".into())), ("ordinal", Value::Int(1)), ("recipients", Value::Int(1)), ("text", Value::String("hello".into())), ("at", Value::Int(1000))])),
+    ];
+    sqlite.seed_at(fixtures.clone(), 1000).unwrap(); postgres.seed_at(fixtures, 1000).unwrap();
+    for (i, declaration) in ["  total: sum messages of recipients by conversation\n", "  total: count messages by conversation\n", ""].into_iter().enumerate() {
+        let (schema, programs) = bound(&source.replacen("table conversations:\n", &format!("table conversations:\n{declaration}"), 1));
+        let a = sqlite.adopt_at(schema.clone(), programs.clone(), 1000).unwrap();
+        let b = postgres.adopt_at(schema, programs, 1000).unwrap(); assert_eq!(a, b);
+        equal_rows(&sqlite, &postgres);
+        assert_eq!(sqlite.schema().receipt_dependencies, postgres.schema().receipt_dependencies);
+        let context = ctx(&[("conversation", id("c"))]);
+        let a = sqlite.query("conversationScreen", context.clone()).unwrap();
+        assert_eq!(a, postgres.query("conversationScreen", context).unwrap());
+        if i == 0 { assert_eq!(a.data.field("total").unwrap(), &Value::Int(1)); }
+    }
+}
 #[test]
 #[ignore = "requires private Postgres; scripts/test-postgres.sh"]
 fn maintained_columns_release_backfill_redefine_drop_readd_and_atomic_failure() {
