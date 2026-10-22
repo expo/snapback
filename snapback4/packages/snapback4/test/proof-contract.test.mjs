@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
+import { createRequire } from 'node:module';
 import { chromiumExecutable } from '../../../witness/lib.mjs';
 const dist = process.env.KIT2_BASELINE_DIST ?? resolve(import.meta.dirname, '../dist');
 const kit = await import(pathToFileURL(join(dist, 'proof.js')));
@@ -57,7 +58,7 @@ test('DX6 composed RN text and wrapping labels preserve scope, exactness and amb
   await assert.rejects(kit.waitForFresh(kit.renderedText(page, 'Order 42 saved', {within}), null, 500), /strict mode violation/);
 }));
 test('DX6 rendered locators work on caller-owned Chromium outside withBrowser', {timeout:30000}, async t => {
-  const {chromium}=await import('playwright-core');
+  const {chromium}=createRequire(join(dist,'proof.js'))('playwright-core');
   const browser=await chromium.launch({headless:true,executablePath:process.env.CHROME??chromiumExecutable(),args:['--no-sandbox']});
   t.after(()=>kit.bounded(browser.close(),5000,'caller browser close'));
   const page=await browser.newPage();
