@@ -1,0 +1,7 @@
+{
+  "signed_sub_overrides_body": true,
+  "member_nonmember": true,
+  "missing_malformed_bad_signature_expired_wrong_role_audience_issuer": true,
+  "pooled_principal_isolation": true,
+  "verification_cache": false
+}

@@ -1,0 +1,2 @@
+    Checking sb4-scale-controls v0.1.0 (/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.60s

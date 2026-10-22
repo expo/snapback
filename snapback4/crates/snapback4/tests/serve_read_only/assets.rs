@@ -28,7 +28,7 @@ pub(super) fn seed(h: &Host) {
         tx.claim_asset(id,snapback4_core::SYSTEM_PRINCIPAL,&name,id,if id=="ordinary" {"ordinary"} else {"oncePhoto"}).unwrap();
     }
     tx.commit().unwrap();
-    (match e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().execute("UPDATE _assets SET released_at=?1 WHERE id='released'",[NOW]).unwrap();
+    (e.store()).test_support_conn().execute("UPDATE _assets SET released_at=?1 WHERE id='released'",[NOW]).unwrap();
 }
 fn fetch(h:&Host,id:&str,header:&str,range:bool)->String {
     h.request("GET",&format!("/assets/{id}"),&format!("{header}{}",if range {"Range: bytes=0-1\r\n"}else{""}),"")

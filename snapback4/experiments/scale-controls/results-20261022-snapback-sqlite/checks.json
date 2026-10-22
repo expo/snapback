@@ -1,0 +1,14 @@
+{
+  "all_256_principals_full_read_results": true,
+  "signed_principal_ignores_body": true,
+  "member_nonmember": true,
+  "ordered_newest20": true,
+  "exact_32_room_inbox": true,
+  "counter_ownership": true,
+  "shared_member_counter": true,
+  "post_member_rule": true,
+  "atomic_maintained_room_and_sender_totals": true,
+  "missing_malformed_revoked_token_401": true,
+  "serve_personas_and_seed_closed": true,
+  "tokens_verified_per_request": "SHA-256 bearer digest + stored live session/expiry/generation, shipped serve"
+}

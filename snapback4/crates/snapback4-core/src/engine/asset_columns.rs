@@ -38,9 +38,9 @@ fn values<'a>(kind: &ColumnType, value: Option<&'a Value>, out: &mut BTreeMap<&'
 
 impl Runner<'_> {
     pub(super) fn with_asset_facts(&mut self, table_name: &str, row: Value, old: Option<&Value>, hidden_patch: Option<&Value>) -> Result<Value, RuntimeError> {
-        if !self.tx.holds_assets() { return Ok(row); }
         let table = &self.schema.tables[table_name];
         if !table.columns.values().any(ColumnType::contains_asset) { return Ok(row); }
+        if !self.tx.holds_assets()? { return Ok(row); }
         let mut fields = row.as_object()?.clone();
         for (column, kind) in table.columns.iter().filter(|(_, kind)| kind.contains_asset()) {
             let Some(value) = fields.get(column) else { continue };
@@ -98,7 +98,8 @@ impl Runner<'_> {
     }
 
     pub(super) fn place_assets(&mut self, table_name: &str, table: &Table, old: Option<&Value>, new: Option<&Value>) -> Result<(), RuntimeError> {
-        if !self.tx.holds_assets() { return Ok(()); }
+        if !table.columns.values().any(ColumnType::contains_asset) { return Ok(()); }
+        if !self.tx.holds_assets()? { return Ok(()); }
         // System expiry/removal can reach this without a write-target attempt.
         let heap = if self.assets_prepaid { 0 } else { self.reserve_assets(table)? };
         let result = (|| {

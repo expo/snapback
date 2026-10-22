@@ -1,0 +1,1 @@
+{"adoption":"0 rows, 0 cells, 0 index entries dormant; 22.4 ms","backfills":[],"details":"; phases [read-only advice 0.470 ms, key validation 1.259 ms, preflight 3.728 ms, project and index 0.000 ms, cap counts 0.000 ms, derived rebuild 0.287 ms, validation 0.000 ms, metadata 0.672 ms, commit 15.970 ms]","generation":2,"release":1}

@@ -10,8 +10,12 @@ const root = fileURLToPath(new URL('../../../', import.meta.url));
 const binary = process.env.SNAPBACK4_BIN || join(root, 'target/debug/snapback4');
 const png = Buffer.from('89504e470d0a1a0a0000000d494844520000000100000001', 'hex');
 // Keep live-host output and HTTP socket closure observable during CLI work.
+// Proof-kit logs go to a temp dir: `npm pack` runs with cwd in the package source, and
+// <cwd>/logs there leaves an untracked tree that publication's clean-source check refuses.
+const logsDir = mkdtempSync(join(tmpdir(), 'sb4-rules4-logs-'));
+process.on('exit', () => rmSync(logsDir, {recursive:true, force:true}));
 const invoke = async (command, args, cwd, env = process.env) => {
-  const out = await runCommand(command, args, {cwd, env, timeoutMs:120000});
+  const out = await runCommand(command, args, {cwd, env, timeoutMs:120000, logsDir});
   assert.equal(out.code, 0, `${command} ${args.join(' ')}\n${out.stdout}\n${out.stderr}`);
   return out.stdout;
 };

@@ -46,17 +46,15 @@ impl ChangeEvidence for Tx<'_> {
         through: u64,
         mut visit: impl FnMut(EvidenceRecord) -> Option<()>,
     ) -> Result<Option<()>, RuntimeError> {
-        Ok((|| {
-        let (after, through) = revocation::evidence_bounds(after, through)?;
-        let rows = self.query("SELECT c.seq,e.footprint FROM _commits c LEFT JOIN _change_evidence e ON e.seq=c.seq WHERE c.seq>$1 AND c.seq<=$2 ORDER BY c.seq LIMIT 501", &[&after,&through]).ok()?;
+        let Some((after, through)) = revocation::evidence_bounds(after, through) else { return Ok(None); };
+        let rows = self.query("SELECT c.seq,e.footprint FROM _commits c LEFT JOIN _change_evidence e ON e.seq=c.seq WHERE c.seq>$1 AND c.seq<=$2 ORDER BY c.seq LIMIT 501", &[&after,&through])?;
         for row in rows {
-            visit(EvidenceRecord {
-                seq: u64::try_from(row.try_get::<_, i64>(0).ok()?).ok()?,
-                footprint: row.try_get(1).ok()?,
-            })?;
+            let Ok(seq) = u64::try_from(row.try_get::<_, i64>(0)?) else { return Ok(None); };
+            // A LEFT JOIN miss is incomplete evidence, not a driver failure.
+            let Some(footprint) = row.try_get::<_, Option<String>>(1)? else { return Ok(None); };
+            if visit(EvidenceRecord { seq, footprint: Some(footprint) }).is_none() { return Ok(None); }
         }
-        Some(())
-        })())
+        Ok(Some(()))
     }
 }
 impl ChangeEvidence for RefCell<&mut Store> {
@@ -66,14 +64,14 @@ impl ChangeEvidence for RefCell<&mut Store> {
         through: u64,
         visit: impl FnMut(EvidenceRecord) -> Option<()>,
     ) -> Result<Option<()>, RuntimeError> {
-        Ok((|| {
-        revocation::evidence_bounds(after, through)?;
+        if revocation::evidence_bounds(after, through).is_none() { return Ok(None); }
         let mut store = self.borrow_mut();
-        let tx = store.transaction(None).ok()?;
-        let result = tx.change_evidence(after, through, visit).ok()?;
-        // Failure also ends the snapshot; no statements follow a query error.
-        tx.rollback().ok()?;
-        result
-        })())
+        let tx = store.transaction(None)?;
+        let result = tx.change_evidence(after, through, visit);
+        // End the snapshot even after a query error, preserving its original cause.
+        let rollback = tx.rollback();
+        let result = result?;
+        rollback?;
+        Ok(result)
     }
 }

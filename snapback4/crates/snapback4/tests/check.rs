@@ -553,7 +553,7 @@ fn check_without_a_store_and_additive_or_fitting_adoption_are_quiet() {
         assert!(parsed(&output).get("problems").is_none());
         assert!(!String::from_utf8_lossy(&output.stdout).contains("E_ADOPT"));
         assert!(output.stderr.is_empty());
-        assert_eq!((match e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_meta("generation").unwrap().as_deref(), Some("1"));
+        assert_eq!((e.store()).test_support_meta("generation").unwrap().as_deref(), Some("1"));
         assert_eq!(e.store().rows("messages").unwrap(), before);
         assert_eq!(e.seq().unwrap(), seq);
     }
@@ -587,7 +587,7 @@ fn check_reports_all_narrowing_sites_in_text_and_json_without_adopting() {
     let text = String::from_utf8(output.stderr).unwrap();
     assert_eq!(text, format!("check: 1 problem\nschema.q:3:3 — E_ADOPT: {}\n  rewrite: at: time ? or at: time default <literal>; otherwise backfill existing rows before making the column required\n  guide: types\n\n",report["problems"][0]["message"].as_str().unwrap()));
     println!("{text}");
-    assert_eq!((match e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_meta("generation").unwrap().as_deref(), Some("1"));
+    assert_eq!((e.store()).test_support_meta("generation").unwrap().as_deref(), Some("1"));
     assert_eq!(e.store().rows("messages").unwrap().len(), 3);
 }
 

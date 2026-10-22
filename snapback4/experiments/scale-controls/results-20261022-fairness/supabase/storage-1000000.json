@@ -1,0 +1,90 @@
+{
+  "tables": [
+    {
+      "name": "users",
+      "rows": 256,
+      "heap_bytes": 65536,
+      "indexes_bytes": 73728
+    },
+    {
+      "name": "counters",
+      "rows": 257,
+      "heap_bytes": 57344,
+      "indexes_bytes": 32768
+    },
+    {
+      "name": "rooms",
+      "rows": 1025,
+      "heap_bytes": 131072,
+      "indexes_bytes": 73728
+    },
+    {
+      "name": "messages",
+      "rows": 1000000,
+      "heap_bytes": 240353280,
+      "indexes_bytes": 90759168
+    },
+    {
+      "name": "memberships",
+      "rows": 8448,
+      "heap_bytes": 917504,
+      "indexes_bytes": 1556480
+    }
+  ],
+  "indexes": [
+    {
+      "bytes": 32768,
+      "index": "users_pkey",
+      "table": "users",
+      "entries": 256
+    },
+    {
+      "bytes": 40960,
+      "index": "users_auth_id_key",
+      "table": "users",
+      "entries": 256
+    },
+    {
+      "bytes": 73728,
+      "index": "rooms_pkey",
+      "table": "rooms",
+      "entries": 1025
+    },
+    {
+      "bytes": 499712,
+      "index": "memberships_pkey",
+      "table": "memberships",
+      "entries": 8448
+    },
+    {
+      "bytes": 1056768,
+      "index": "memberships_principal_room",
+      "table": "memberships",
+      "entries": 8448
+    },
+    {
+      "bytes": 22487040,
+      "index": "messages_pkey",
+      "table": "messages",
+      "entries": 1000000
+    },
+    {
+      "bytes": 68272128,
+      "index": "messages_room_time",
+      "table": "messages",
+      "entries": 1000000
+    },
+    {
+      "bytes": 16384,
+      "index": "counters_pkey",
+      "table": "counters",
+      "entries": 257
+    },
+    {
+      "bytes": 16384,
+      "index": "counters_owner_id",
+      "table": "counters",
+      "entries": 257
+    }
+  ]
+}

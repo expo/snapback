@@ -168,13 +168,24 @@ pub(crate) struct Resolution<T, D = ()> {
     pending: Pending<T, D>,
 }
 
+/// Scoped openers preserve legacy identity transaction modes without exposing
+/// an owning transaction to member bodies. Only the driver receives the handle.
+pub(crate) trait TransactionSource {
+    fn with_transaction<T>(self, run: impl FnOnce(AnyTx<'_>) -> Result<T, RuntimeError>) -> Result<T, RuntimeError>;
+}
+impl TransactionSource for &mut AnyStore {
+    fn with_transaction<T>(self, run: impl FnOnce(AnyTx<'_>) -> Result<T, RuntimeError>) -> Result<T, RuntimeError> {
+        run(self.transaction()?)
+    }
+}
+
 pub(crate) struct Committer;
 impl Committer {
     pub(crate) fn run<T>(
-        store: &mut AnyStore,
+        store: impl TransactionSource,
         member: Member<impl FnOnce(MemberTx<'_, '_>) -> MemberResult<T>>,
     ) -> Result<T, RuntimeError> {
-        Self::run_pending(store, member.pending(Pending::value)).map(|r| r.pending.value)
+        store.with_transaction(|tx| Self::run_transaction_value(tx, member))
     }
 
     pub(crate) fn run_pending<T, D>(
@@ -466,3 +477,7 @@ mod tests {
         }
     }
 }
+
+#[cfg(all(test, feature = "postgres"))]
+#[path = "postgres/tests/members.rs"]
+mod postgres_tests;

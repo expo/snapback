@@ -1,0 +1,16 @@
+{
+  "time": 1792645919.3863583,
+  "recorded_process_events": 2745,
+  "distinct_recorded_pids": 2243,
+  "alive_owned": [],
+  "reused_nonowned": [],
+  "zombies": [],
+  "supervisor_pids": [
+    3495011,
+    3495015,
+    3854217,
+    45210,
+    705050
+  ],
+  "cluster_left_running": true
+}

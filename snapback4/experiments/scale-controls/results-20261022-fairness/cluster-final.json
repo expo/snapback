@@ -1,0 +1,10 @@
+{
+  "fsync": "on",
+  "version": "PostgreSQL 17.9 (Ubuntu 17.9-1.pgdg24.04+1) on x86_64-pc-linux-gnu, compiled by gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0, 64-bit",
+  "full_page_writes": "on",
+  "synchronous_commit": "on",
+  "owned_app_connections": 0,
+  "postmaster_pid": 2735539,
+  "recorded_postmaster_pid": 2735539,
+  "time_utc": "2026-10-22T05:13:08.307Z"
+}

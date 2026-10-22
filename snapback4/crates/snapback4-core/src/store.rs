@@ -52,7 +52,7 @@ mod outbox;
 mod change_evidence;
 pub(crate) mod release;
 mod authority;
-mod identity;
+pub(crate) mod identity;
 mod receipts;
 mod jobs;
 pub mod inspect;
@@ -1338,8 +1338,8 @@ impl crate::rows::Rows for Tx<'_> {
     fn time_audience_published(&self, table_name: &str, id: &str) -> Result<bool, RuntimeError> {
         self.time_audience_published(table_name, id)
     }
-    fn holds_assets(&self) -> bool {
-        true
+    fn holds_assets(&self) -> Result<bool, crate::RuntimeError> {
+        Ok(true)
     }
     fn asset(&self, id: &str) -> Result<Option<crate::assets::Asset>, RuntimeError> {
         Tx::asset(self, id)

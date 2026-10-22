@@ -6,6 +6,10 @@ license.workspace = true
 publish = false
 description = "Snapback 4 — the binary: check, dev, run, test, why, guide, doctor, init."
 
+[features]
+# Internal host witness only; the public CLI has no Postgres selector in S10c.
+postgres = ["snapback4-core/postgres"]
+
 [dependencies]
 libc = "0.2"
 sha2 = "0.10"

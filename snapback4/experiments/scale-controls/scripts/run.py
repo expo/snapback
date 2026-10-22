@@ -99,6 +99,17 @@ class Run:
         self.env=dict(os.environ,PGPASSWORD=self.pw.read_text().strip(),PGUSER='sb4scale',PGHOST='127.0.0.1',PGPORT=str(self.base),PGDATABASE='postgres',PGAPPNAME='sb4scale_observer',LD_LIBRARY_PATH=str(Path.home()/'tools/pg16/usr/lib/x86_64-linux-gnu'))
         self.env['SCALE_PASSWORD_FILE']=str(self.pw)
         self.db=None
+        if getattr(args,'target','raw-pg-no-token')=='raw-pg':
+            from supabase import token, private_file
+            import secrets
+            private=HERE/'target/private'/self.out.name
+            private.mkdir(parents=True,exist_ok=False,mode=0o700)
+            secret=private/'jwt-secret'
+            tokens=private/'jwt-tokens.json'
+            private_file(secret,secrets.token_hex(32))
+            private_file(tokens,json.dumps([token(secret.read_bytes(),i) for i in range(256)]))
+            self.env['SCALE_JWT_SECRET_FILE']=str(secret)
+            self.env['SCALE_JWT_TOKENS_FILE']=str(tokens)
 
     def psql(self,sql=None,path=None,database=None):
         cmd=[str(PSQL),'-X','-qAt','-v','ON_ERROR_STOP=1','-d',database or self.db or 'postgres']
@@ -164,7 +175,9 @@ class Run:
     def start_service(self,pool,delay,directory):
         self.stop_service()
         log=(directory/'service.stdout').open('x'); err=(directory/'service.stderr').open('x')
-        p=sp.Popen(['taskset','-c',APP_CORES,str(BIN),'serve','--pool',str(pool),'--delay-us',str(delay)],env=self.env,stdout=log,stderr=err)
+        command=['taskset','-c',APP_CORES,str(BIN),'serve','--pool',str(pool),'--delay-us',str(delay)]
+        if getattr(self.args,'target','raw-pg-no-token')=='raw-pg-no-token': command+=['--no-token']
+        p=sp.Popen(command,env=self.env,stdout=log,stderr=err)
         self.service=(p,log,err)
         with (self.out/'pids.jsonl').open('a') as f: f.write(json.dumps({'pid':p.pid,'kind':'app','pool':pool,'delay_us':delay,'time':time.time()})+'\n')
         deadline=time.monotonic()+120
@@ -212,7 +225,7 @@ class Run:
         db_monitor=sp.Popen(SSH+['expo-build-450a','python3 -u ~/sb4scale/db-monitor.py'],stdin=sp.PIPE,stdout=db_cpu,stderr=sp.STDOUT)
         stdout=(directory/f'{prefix}.stdout').open('x'); stderr=(directory/f'{prefix}.stderr').open('x')
         command=['taskset','-c',getattr(self.args,'load_cores',LOAD_CORES),str(BIN),'load','--workload',workload,'--workers',str(writers),'--keys',keys,'--rows',str(rows),'--rate',str(rate),'--warmup-ms',str(self.args.warmup_ms),'--duration-ms',str(self.args.duration_ms)]
-        if getattr(self.args,'target','raw-pg')!='raw-pg': command+=['--target',self.args.target]
+        command+=['--target',getattr(self.args,'target','raw-pg-no-token')]
         start=time.time()
         p=sp.Popen(command,env=self.env,stdout=stdout,stderr=stderr)
         with (self.out/'pids.jsonl').open('a') as f:
@@ -337,7 +350,7 @@ def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('mode',choices=['smoke','reads','writes','all','cell','advocate'])
     p.add_argument('--out',required=True)
-    p.add_argument('--target',choices=['raw-pg','supabase'],default='raw-pg')
+    p.add_argument('--target',choices=['raw-pg','raw-pg-no-token','supabase'],default='raw-pg')
     p.add_argument('--tunnel-base',type=int,default=63000)
     p.add_argument('--load-cores',default=LOAD_CORES)
     p.add_argument('--warmup-ms',type=int,default=1000)

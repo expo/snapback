@@ -46,7 +46,7 @@ try:
     r.stop_service()
     overload=r.out/'overload'; overload.mkdir()
     r.start_service(1,0,overload)
-    output=sp.check_output(['taskset','-c',LOAD_CORES,str(BIN),'load','--workload','W4','--workers','1','--rows','100000','--rate','5000','--warmup-ms','0','--duration-ms','400'],env=r.env,text=True)
+    output=sp.check_output(['taskset','-c',LOAD_CORES,str(BIN),'load','--target','raw-pg-no-token','--workload','W4','--workers','1','--rows','100000','--rate','5000','--warmup-ms','0','--duration-ms','400'],env=r.env,text=True)
     result=json.loads(output)
     assert result['scheduled']==2000
     assert result['scheduled']==result['success']+result['error_count']

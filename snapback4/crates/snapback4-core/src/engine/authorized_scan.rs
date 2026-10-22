@@ -132,7 +132,7 @@ impl<'a> GuardedRows<'a> {
         self.raw.time_audience_pending(name, id) }
     pub(crate) fn time_audience_published(&self, name: &str, id: &str) -> Result<bool, RuntimeError> {
         self.raw.time_audience_published(name, id) }
-    pub(crate) fn holds_assets(&self) -> bool { self.raw.holds_assets() }
+    pub(crate) fn holds_assets(&self) -> Result<bool, crate::RuntimeError> { self.raw.holds_assets() }
     pub(crate) fn widen_change_evidence(&self) { self.raw.widen_change_evidence() }
     /// Draw a schema-fixed number of rows from the request's physical
     /// allowance up front, so later authorization work exhausts it at a point

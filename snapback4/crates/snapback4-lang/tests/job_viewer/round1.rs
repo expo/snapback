@@ -10,8 +10,8 @@ fn documents() -> Vec<(String, Value)> {
 }
 fn no_effects_or_keys(e: &Engine) {
     assert!(e.effects(None, 100).unwrap().is_empty());
-    let exists: bool = (match e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().query_row("SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE name = '_effect_keys')", [], |r| r.get(0)).unwrap();
-    if exists { assert_eq!((match e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().query_row("SELECT count(*) FROM _effect_keys", [], |r| r.get::<_, i64>(0)).unwrap(), 0); }
+    let exists: bool = (e.store()).test_support_conn().query_row("SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE name = '_effect_keys')", [], |r| r.get(0)).unwrap();
+    if exists { assert_eq!((e.store()).test_support_conn().query_row("SELECT count(*) FROM _effect_keys", [], |r| r.get::<_, i64>(0)).unwrap(), 0); }
 }
 
 #[test]

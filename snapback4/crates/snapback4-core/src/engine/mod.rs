@@ -426,6 +426,8 @@ impl Engine {
     /// Activate using the owning host's clock for parent liveness and captures.
     pub fn new_at(store: impl Into<AnyStore>, mut schema: Schema, programs: impl IntoIterator<Item = Program>, now: i64) -> Result<Self, RuntimeError> {
         let mut store = store.into();
+        let programs = programs.into_iter().map(|p| (p.name.clone(), p)).collect();
+        store.admit(&schema, &programs)?;
         columns::validate_before_prepare(&schema)?;
         schema.check_row_view_audiences()?;
         schema.prepare_contribution_indexes();
@@ -434,7 +436,6 @@ impl Engine {
         if let Some(issue) = issues.first() {
             return Err(RuntimeError::Schema(format!("{}: {}", issue.path, issue.message)));
         }
-        let programs = programs.into_iter().map(|p| (p.name.clone(), p)).collect();
         let (generation, metadata) = Self::activate(&mut store, &schema, &programs, None, now, true, None, None)?.into_inner();
         let dev_effects = metadata.dev_effects;
         store.exclude_ephemeral(&schema);
@@ -477,6 +478,7 @@ impl Engine {
         timeline::check_no_rebuilds(&tx, &schema)?;
         schema.check_row_view_audiences()?;
         let programs = serde_json::from_str(&programs).map_err(|e| RuntimeError::Store(format!("invalid stored programs: {e}")))?;
+        tx.admit(&schema, &programs)?;
         let mut schema: Schema = schema;
         let stored_schema_hash = schema.hash();
         schema.prepare_contribution_indexes();
@@ -1050,6 +1052,10 @@ impl Engine {
                     }
                     MutationOutcome { receipt_only, state: WriteState::Sent { seq, result }, metered, tables, events: partition::disclosed_event_count(&engine.schema, &events, &action_tables), replayed: false }
                 }
+                Err(error @ RuntimeError::StoreUnsupported { .. }) => {
+                    tx.rollback(())?;
+                    return Err(error);
+                }
                 Err(error) if error.is_refusal() => {
                     tx.rollback_to("program")?;
                     let current = match &error {
@@ -1187,14 +1193,16 @@ impl Engine {
                     row = captured;
                 }
                 partition::row_changed(&mut runner, &name, old.as_ref(), Some(&row), crate::engine::write::Origin::Source)?;
-                tx.track_time_audience(
-                    &name,
-                    table,
-                    &id,
-                    Some(&row),
-                    now,
-                    table.live(&row, now),
-                )?;
+                if table.not_before.is_some() {
+                    tx.track_time_audience(
+                        &name,
+                        table,
+                        &id,
+                        Some(&row),
+                        now,
+                        table.live(&row, now),
+                    )?;
+                }
                 runner.written_tables.insert(name);
             }
             if count > 0 { runner.rebuild_imported_columns()?; }
@@ -1241,14 +1249,16 @@ impl Engine {
                 let old = tx.get(&table_name, &id)?;
                 tx.put(&table_name, &table, &row, old.as_ref())?;
                 partition::row_changed(&mut runner, &table_name, old.as_ref(), Some(&row), crate::engine::write::Origin::Source)?;
-                tx.track_time_audience(
-                    &table_name,
-                    &table,
-                    &id,
-                    Some(&row),
-                    now,
-                    table.live(&row, now),
-                )?;
+                if table.not_before.is_some() {
+                    tx.track_time_audience(
+                        &table_name,
+                        &table,
+                        &id,
+                        Some(&row),
+                        now,
+                        table.live(&row, now),
+                    )?;
+                }
                 if self.schema.visible(&table_name) { runner.written_tables.insert(table_name); }
                 count += 1;
             }

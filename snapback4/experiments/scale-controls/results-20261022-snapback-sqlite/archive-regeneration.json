@@ -1,0 +1,14 @@
+{
+  "sha256_verified": true,
+  "extracted_raw_audit": true,
+  "regenerated_aggregates_equal": [
+    "ledger.json",
+    "curves.json",
+    "steady.json",
+    "comparison.md",
+    "ledger.md",
+    "steady.md",
+    "audit.json"
+  ],
+  "svg_xml_valid": true
+}

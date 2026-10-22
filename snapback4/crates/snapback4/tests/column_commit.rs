@@ -59,7 +59,7 @@ fn largest_composed_column_commit_at_the_row_ceiling_fits_and_next_attempt_rolls
     assert!(derived as u64*100>derived_bound*95,"exercise near-maximal schema images");
     let reply=sync_wire::StreamReply { changes: serde_json::Value::Null, preserved: Default::default(), now: 1000, sent: Default::default(),acquisitions:page.acquisitions,acknowledged:Default::default(),committed_above:Default::default(),
         images_at:page.images_at,events:sync_wire::SyncEvents::Stream(page.events),generation:engine.generation(),joined:page.joined,
-        more:page.more,snapshot:false,store_id:(match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_meta("store_id").unwrap().unwrap(),watermark:page.watermark};
+        more:page.more,snapshot:false,store_id:(engine.store()).test_support_meta("store_id").unwrap().unwrap(),watermark:page.watermark};
     let bytes=serde_json::to_vec(&reply).unwrap().len();
     assert!(bytes<16<<20,"{bytes}");
     println!("largest column commit: 204 source moves + 408 parent images; derived={derived} B, derived bound={derived_bound} B, composed={bytes} B, margin={} B",(16<<20)-bytes);

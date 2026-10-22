@@ -6,6 +6,7 @@
 //! refuses personas; `dev` admits them.
 
 use crate::metadata::MetadataReader;
+use crate::engine::committer::{Committer, Member, Kind};
 use crate::error::RuntimeError;
 use crate::authority::{self, AuthorityTransaction};
 use crate::store_port::{AnyStore, AnyTx};
@@ -356,16 +357,16 @@ pub fn close_session(store: &AnyStore, token: &str) -> Result<(), RuntimeError> 
 // @ref LLP 3000.009#5.1 — logout and lost-delivery replacement serialize on the session family.
 pub fn logout_session(store: &mut AnyStore, token: &str, now: impl FnOnce() -> i64) -> Result<(), RuntimeError> {
     let token_digest = digest(token);
-    let tx = store.transaction()?;
-    // The successful immediate transaction is the authority linearization
-    // point: time spent waiting for its writer lock cannot keep a token live.
-    let now = now();
-    let Some(session) = authority::live_session(&tx, &token_digest, now)? else {
-        return Err(RuntimeError::Auth("this session is not live; sign in again".into()));
-    };
-    tx.invalidate_family(&session.principal, &session.family)?;
-    tx.commit()?;
-    Ok(())
+    Committer::run(store, Member::new(Kind::Direct, |tx| {
+        // The successful immediate transaction is the authority linearization
+        // point: time spent waiting for its writer lock cannot keep a token live.
+        let now = now();
+        let Some(session) = tx.live_identity_session(&token_digest, now)? else {
+            return Err(RuntimeError::Auth("this session is not live; sign in again".into()));
+        };
+        tx.invalidate_family(&session.principal, &session.family)?;
+        tx.complete(())
+    }))
 }
 
 /// Replace one live bearer token atomically. The new token keeps the
@@ -602,7 +603,7 @@ mod tests {
             resolve(&store, &expired.token, (SESSION_DAYS + 1) * DAY_MS).unwrap(),
             None
         );
-        let kept: i64 = (match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).conn()
+        let kept: i64 = (&store).test_support_conn()
             .query_row(
                 "SELECT COUNT(*) FROM _sessions WHERE token_digest = ?1",
                 [digest(&expired.token)],
@@ -635,7 +636,7 @@ mod tests {
         signup(&store, "a@example.com", "correct horse", 1, &mut crate::ids::Mint::default()).unwrap();
         let found = credential(&store, "a@example.com").unwrap().unwrap();
         verify_password(Some(&found), "correct horse").unwrap();
-        (match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).conn()
+        (&store).test_support_conn()
             .execute("DELETE FROM _credentials", [])
             .unwrap();
         assert!(matches!(

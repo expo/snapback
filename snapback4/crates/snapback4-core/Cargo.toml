@@ -23,7 +23,8 @@ native = ["sqlite", "wasm-host"]
 # Without it the crate is the interpreter over the `Rows` trait, for a
 # device that brings its own store (wasm on the web, or a host's SQLite).
 sqlite = ["dep:rusqlite", "dep:argon2"]
-# Evaluation-only server adapter; not linked into the CLI or device builds.
+# Server adapter for the internal HTTP witness and retained evaluation oracle.
+# The default CLI and device builds do not link it; public configuration is S10d.
 postgres = ["sqlite", "dep:postgres"]
 # The browser device mints additional prediction ids through Web Crypto.
 web = ["getrandom/wasm_js", "dep:js-sys"]

@@ -165,7 +165,7 @@ fn sqlite_only(n: usize) -> Json {
     json!({"experiment":"C1 SQLite point and four-writer regression cells", "sqlite_file":path,
         "unix_ms":snapback4_core::now_ms(), "profile":if cfg!(debug_assertions){"debug"}else{"release"},
         "rooms":32,"items_per_room":25,"read_latencies":[point],"concurrency":concurrency,
-        "sqlite_version":(match sqlite.store() { snapback4_core::store_port::AnyStore::Sqlite(store) => store }).sqlite_version().unwrap(),
+        "sqlite_version":snapback4_core::store::evaluation::sqlite_version(),
         "sqlite_durability":"WAL, synchronous=FULL (not fullfsync)"})
 }
 
@@ -295,7 +295,7 @@ fn main() {
     let output = json!({"experiment":"Postgres Rows adapter, not production qualification", "schema":name,"sqlite_file":path,
         "unix_ms":snapback4_core::now_ms(),"profile":if cfg!(debug_assertions){"debug"}else{"release"},"rooms":32,"items_per_room":25,
         "prefetch":prefetch_enabled(),
-        "sqlite_version":(match sqlite.store() { snapback4_core::store_port::AnyStore::Sqlite(store) => store }).sqlite_version().unwrap(),
+        "sqlite_version":snapback4_core::store::evaluation::sqlite_version(),
         "sqlite_durability":"WAL, synchronous=FULL (not fullfsync); same machine as PostgreSQL", "postgres_settings":settings,
         "read_latencies":reads,"mutation_latencies":writes,"concurrency":concurrency,"native_inbox_plan":explain});
     write_result(output);

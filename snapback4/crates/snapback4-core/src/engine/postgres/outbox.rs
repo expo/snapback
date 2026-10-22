@@ -44,11 +44,29 @@ impl OutboxTransaction for Tx<'_> {
     }
     fn insert_effect(&self, effect: &NewEffect<'_>) -> Result<(), RuntimeError> {
         self.require_serialized_head_fence("insert effect")?;
+        self.ensure_active()?;
+        {
+            let mut tail = self.tail.borrow_mut();
+            if let Some(commit) = &tail.commit {
+                if commit.seq != effect.seq || commit.at != effect.now { return Err(RuntimeError::Store("effect does not match commit tail".into())); }
+                tail.effects.push(super::tail::Effect {
+                    id: effect.id.into(), effect: effect.effect.into(), payload: canonical_json(effect.payload),
+                    next_at: effect.next_at, work: canonical_json(effect.work), deadline: effect.deadline,
+                    contract: effect.contract.into(), presence: Vec::new(), release: Some(effect.release.map(str::to_owned)),
+                });
+                return Ok(());
+            }
+        }
         self.execute_one("INSERT INTO _outbox(id,seq,effect,payload,state,attempts,at,next_at,work_spec,deadline,release,contract) VALUES ($1,$2,$3,$4,'queued',0,$5,$6,$7,$8,$9,$10)", &[&effect.id, &signed(effect.seq)?, &effect.effect, &canonical_json(effect.payload), &effect.now, &effect.next_at, &canonical_json(effect.work), &effect.deadline, &effect.release, &effect.contract])?;
         Ok(())
     }
     fn insert_effect_presence(&self, principal: &str, id: &str, deadline: i64) -> Result<(), RuntimeError> {
         self.require_serialized_head_fence("insert effect presence")?;
+        self.ensure_active()?;
+        if let Some(effect) = self.tail.borrow_mut().effects.iter_mut().find(|e| e.id == id) {
+            effect.presence.push((principal.into(), deadline));
+            return Ok(());
+        }
         self.execute_one("INSERT INTO _effect_presence(principal,id,deadline) VALUES ($1,$2,$3)", &[&principal, &id, &deadline])?;
         Ok(())
     }

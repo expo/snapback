@@ -94,7 +94,7 @@ impl Store {
     }
 
     pub(super) fn activate_transaction(&mut self, schema: &Schema, programs: Option<&BTreeMap<String, Program>>, reset: bool, now: i64, allow_launch: bool, build: impl FnOnce(&Tx<'_>, bool, &mut super::adoption_report::AdoptionReport) -> Result<(), RuntimeError>) -> Result<u64, RuntimeError> {
-        self.activate_transaction_with(schema, programs, reset, now, allow_launch, |_| Ok(()), |tx, changed, report| { let crate::store_port::AnyTx::Sqlite(tx) = tx; build(tx, changed, report) }, |_| Ok(())).map(|committed| committed.into_inner().0)
+        self.activate_transaction_with(schema, programs, reset, now, allow_launch, |_| Ok(()), |tx, changed, report| tx.with_sqlite(|inner| build(inner, changed, report)), |_| Ok(())).map(|committed| committed.into_inner().0)
     }
 
     fn activate_transaction_with<R>(&mut self, schema: &Schema, programs: Option<&BTreeMap<String, Program>>, reset: bool, now: i64, allow_launch: bool, check: impl FnOnce(&super::release::ReleaseCheck<'_>) -> Result<(), RuntimeError>, build: impl FnOnce(&crate::store_port::AnyTx<'_>, bool, &mut super::adoption_report::AdoptionReport) -> Result<(), RuntimeError>, finish: impl FnOnce(&crate::store_port::AnyTx<'_>) -> Result<R, RuntimeError>,
@@ -205,10 +205,10 @@ impl Store {
             let activation_scan = programs.map(|_| Default::default());
             #[cfg(test)]
             let activation_scan = if store.full_adoption { None } else { activation_scan };
-            let tx = crate::store_port::AnyTx::Sqlite(Tx { activation_scan, changes: Default::default(), sequence_table: Default::default(), tx: sql, page_size: store.page_size,
+            let tx = crate::store_port::AnyTx::from_sqlite(Tx { activation_scan, changes: Default::default(), sequence_table: Default::default(), tx: sql, page_size: store.page_size,
                 server: store.server,
                 catalog: &catalog });
-            let crate::store_port::AnyTx::Sqlite(sqlite_tx) = &tx;
+            let (generation, result, after, ephemeral_tables) = tx.with_sqlite(|sqlite_tx| {
             let now = if schema.tables.values().any(|table| table.not_before.is_some()) {
                 sqlite_tx.pin_time_audience_clock(now)?
             } else {
@@ -505,6 +505,8 @@ impl Store {
                 .filter(|(_, table)| table.ephemeral.is_some())
                 .map(|(name, _)| (name.clone(), format!("{name}.")))
                 .collect();
+            Ok((generation, result, after, ephemeral_tables))
+            })?;
             commit.commit(tx)?;
             Ok(Pending::new((generation, result), (report, phase, catalog, after, changed || reset, ephemeral_tables)))
         }), |store, (mut report, mut phase, mut catalog, after, announce, ephemeral_tables), value| {

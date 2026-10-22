@@ -1,5 +1,6 @@
 //! AnyStore-only member surface. No method returns a AnyTx or accepts a raw-AnyTx callback.
 use crate::receipts::ReceiptTransaction;
+use crate::{identity::IdentityTransaction, authority::AuthorityTransaction, metadata::MetadataReader};
 use super::MemberTx;
 use crate::{RuntimeError, Value, store_port::AnyTx, rows::{Rows, Bounds, Dir}, schema::{Index, Table, Schema}};
 use crate::engine::job::{JobTransaction, Head, JobChunkUpdate};
@@ -93,7 +94,7 @@ impl Rows for MemberTx<'_, '_> {
     fn time_audience_published(&self, table_name: &str, id: &str) -> Result<bool, RuntimeError> {
         <AnyTx<'_> as Rows>::time_audience_published(self.tx, table_name, id)
     }
-    fn holds_assets(&self) -> bool {
+    fn holds_assets(&self) -> Result<bool, crate::RuntimeError> {
         <AnyTx<'_> as Rows>::holds_assets(self.tx)
     }
     fn asset(&self, id: &str) -> Result<Option<crate::assets::Asset>, RuntimeError> {
@@ -117,6 +118,21 @@ macro_rules! methods {
 }
 impl MemberTx<'_, '_> {
     methods! {
+        fn insert_identity_session(&self, session: &crate::identity::Session, now: i64) -> Result<(), RuntimeError>;
+        fn insert_read_session(&self, session: &crate::identity::Session, now: i64, family: Option<(&str, i64)>) -> Result<(), RuntimeError>;
+        fn set_identity_session_family(&self, digest: &str, family: &str) -> Result<(), RuntimeError>;
+        #[cfg(feature = "postgres")]
+        fn invalidate_session(&self, digest: &str) -> Result<(), RuntimeError>;
+        fn invalidate_family(&self, principal: &str, family: &str) -> Result<(), RuntimeError>;
+        fn worker_session_family(&self) -> Result<Option<String>, RuntimeError>;
+        fn worker_family_revision(&self, family: &str) -> Result<Option<String>, RuntimeError>;
+        fn clear_worker_identity(&self) -> Result<(), RuntimeError>;
+        fn read_session_storage(&self) -> Result<bool, RuntimeError>;
+        fn edit_session(&self, edit: crate::store_port::SessionEdit<'_>) -> Result<u64, RuntimeError>;
+        fn signup_taken(&self, email: &str) -> Result<Option<String>, RuntimeError>;
+        fn signup_account(&self, prepared: &crate::identity::PreparedSignup, session: &crate::identity::Session, now: i64) -> Result<(), RuntimeError>;
+        fn login_hash(&self, principal: &str) -> Result<Option<String>, RuntimeError>;
+        fn read_rotation(&self, digest: &str) -> Result<Option<crate::identity::ReadRotationRecord>, RuntimeError>;
         fn next_seq(&self) -> Result<u64, RuntimeError>;
         fn record_applied(&self, principal: &str, id: &str, seq: u64, outcome: &str) -> Result<(), RuntimeError>;
         fn bind_applied(&self, principal: &str, id: &str, name: &str, args: &serde_json::Value, at: i64) -> Result<(), RuntimeError>;
@@ -140,6 +156,12 @@ impl MemberTx<'_, '_> {
         fn reset_clock(&self) -> Result<(), RuntimeError>;
         fn reset_tables(&self) -> Result<(), RuntimeError>;
         fn reset_identity(&self) -> Result<(), RuntimeError>;
+    }
+    pub(crate) fn live_identity_session(&self, digest: &str, now: i64) -> Result<Option<crate::authority::SessionRecord>, RuntimeError> {
+        crate::authority::live_session(self.tx, digest, now)
+    }
+    pub(crate) fn supervisor_current(&self, family: &str, revision: usize) -> Result<bool, RuntimeError> {
+        crate::identity::supervisor_current(self.tx, family, revision)
     }
     /// Source is (program, principal, kind), matching the existing record.
     pub(crate) fn record_commit(&self, seq: u64, at: i64, source: (&str, &str, &str), touched: &[String], writes: u64) -> Result<(), RuntimeError> {

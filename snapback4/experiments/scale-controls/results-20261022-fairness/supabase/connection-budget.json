@@ -1,0 +1,7 @@
+{
+  "query_pool_max": 32,
+  "listener": 1,
+  "connections_in_use_before_postgrest": 6,
+  "max_connections": 320,
+  "headroom_after_pool": 281
+}

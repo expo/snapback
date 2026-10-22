@@ -62,7 +62,7 @@ fn cache(engine: &Engine) -> Json {
         // a statement nor changes row data. Reset only the diagnostic counter.
         let code = unsafe {
             rusqlite::ffi::sqlite3_db_status(
-                (match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().handle(),
+                (engine.store()).test_support_conn().handle(),
                 op,
                 &mut current,
                 &mut high,
@@ -93,8 +93,8 @@ fn main() {
         ("PF_MMAP_BYTES", "mmap_size", 1),
     ] {
         if let Ok(value) = std::env::var(var) {
-            (match engine
-                .store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn()
+            (engine
+                .store()).test_support_conn()
                 .pragma_update(None, pragma, value.parse::<i64>().unwrap() * sign)
                 .unwrap();
         }
@@ -110,14 +110,14 @@ fn main() {
     .map(|name| {
         (
             name.into(),
-            (match engine
-                .store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn()
+            (engine
+                .store()).test_support_conn()
                 .query_row(&format!("PRAGMA {name}"), [], |r| r.get(0))
                 .unwrap(),
         )
     })
     .collect();
-    (match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().trace_v2(
+    (engine.store()).test_support_conn().trace_v2(
         TraceEventCodes::SQLITE_TRACE_PROFILE | TraceEventCodes::SQLITE_TRACE_STMT,
         Some(trace),
     );
@@ -161,8 +161,8 @@ fn main() {
                 .keys()
                 .filter(|s| s.starts_with("SELECT"))
                 .map(|s| {
-                    let mut stmt = (match engine
-                        .store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn()
+                    let mut stmt = (engine
+                        .store()).test_support_conn()
                         .prepare(&format!("EXPLAIN QUERY PLAN {s}"))
                         .unwrap();
                     for i in 1..=stmt.parameter_count() {

@@ -323,7 +323,7 @@ fn advance_drains_expiry_across_multiple_bounded_sweeps() {
     let advanced = host.post("/dev/clock/advance", json!({"duration":"2h"}));
     assert_eq!(advanced["work"]["expired"], 2005, "{advanced}");
     let engine = snapback4_core::Engine::open(snapback4_core::Store::open(&f.0.join(".snapback4/store.sqlite")).unwrap()).unwrap();
-    let remaining: i64 = (match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().query_row("SELECT count(*) FROM r WHERE t = 'stories'", [], |row| row.get(0)).unwrap();
+    let remaining: i64 = (engine.store()).test_support_conn().query_row("SELECT count(*) FROM r WHERE t = 'stories'", [], |row| row.get(0)).unwrap();
     assert_eq!(remaining, 0, "the endpoint waits for physical deletion, not only logical expiry");
 }
 

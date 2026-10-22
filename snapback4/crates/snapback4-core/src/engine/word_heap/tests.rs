@@ -82,7 +82,7 @@ fn declared_private_decode_reservation_covers_utf8_and_escaping() {
         let mut e = Engine::memory(schema, vec![]).unwrap();
         let row = wire::row_from_json(&e.schema().tables["records"], &serde_json::json!({"id":"row","owner":"bob","secret":text})).unwrap();
         e.seed([("records".into(), row)]).unwrap();
-        let tx = (match e.store_mut() { snapback4_core::store_port::AnyStore::Sqlite(store) => store }).read_transaction().unwrap();
+        let tx = (e.store_mut()).read_transaction().unwrap();
         let json_bytes = value::canonical_json(&tx.get("records", "row").unwrap().unwrap()).len();
         let (found, rust, native, _) = measured_sqlite(json_bytes, || tx.scan("records", "byId", &[Value::Id("row".into())], &rows::Bounds::default(), rows::Dir::Asc, 1).unwrap());
         assert_eq!(found.len(), 1);
@@ -252,8 +252,8 @@ fn sqlite_empty_scan_statement_storage_is_pinned_and_transient() {
     use rusqlite::StatementStatus::Run;
     configure_sqlite_probe();
     let mut engine = fixture::engine(vec![], 0);
-    let tx = (match engine.store_mut() { snapback4_core::store_port::AnyStore::Sqlite(store) => store }).read_transaction().unwrap();
-    let page_size = tx.conn().query_row("PRAGMA page_size", [], |r| r.get::<_, i64>(0)).unwrap() as u64;
+    let tx = (engine.store_mut()).read_transaction().unwrap();
+    let page_size = tx.test_support_conn().query_row("PRAGMA page_size", [], |r| r.get::<_, i64>(0)).unwrap() as u64;
     let prefix = [value::Value::Int(0)];
     let bounds = Bounds::default();
     assert!(rows::scan_range(&prefix, &bounds, Dir::Asc).is_some(), "valid empty range, not a short circuit");
@@ -264,7 +264,7 @@ fn sqlite_empty_scan_statement_storage_is_pinned_and_transient() {
     // @ref LLP 3000.007#20.24.1 — execution storage is measured and pinned, outside the payload ledger.
     const PIN: usize = 2_048; // Retain the original two-statement envelope; only the preflight now executes.
     for scans in [1, 1_000] {
-        let initial_runs = [PREFLIGHT, SQL].map(|sql| tx.conn().prepare_cached(sql).unwrap().get_status(Run));
+        let initial_runs = [PREFLIGHT, SQL].map(|sql| tx.test_support_conn().prepare_cached(sql).unwrap().get_status(Run));
         let mut meter = meter::Meter::new(Default::default(), meter::Cut::Cap);
         SQLITE_LIVE.with(|n| n.set(Some(SqliteLive::default())));
         let (maximum, _, native, _) = measured_sqlite(0, || {
@@ -288,7 +288,7 @@ fn sqlite_empty_scan_statement_storage_is_pinned_and_transient() {
         assert_eq!(counts.freed, native);
         assert!(counts.peak <= PIN * 2, "peak live {} > {}", counts.peak, PIN * 2);
         for ((sql, expected), initial) in [(PREFLIGHT, scans), (SQL, 0)].into_iter().zip(initial_runs) {
-            assert_eq!(tx.conn().prepare_cached(sql).unwrap().get_status(Run) - initial, expected);
+            assert_eq!(tx.test_support_conn().prepare_cached(sql).unwrap().get_status(Run) - initial, expected);
         }
         assert!(meter.capped_at.is_none());
         println!("W14A empty scans={scans} statements={} native_allocated={native} native_per_scan={} maximum_per_scan={maximum} pin={PIN} peak_live={} native_freed={} end_live={} charged={}",
@@ -308,11 +308,11 @@ fn sqlite_increasing_resident_preflight_charges_before_the_next_row() {
     let keys: Vec<_> = seed.iter().enumerate().map(|(n, (_, row))| rows::index_key(&fixture::schema().tables["messages"].indexes["byBucket"], row, &format!("m{n:05}"))).collect();
     let (min_json, max_json) = (jsons[0].len(), jsons[21].len());
     engine.seed(seed).unwrap();
-    let tx = (match engine.store_mut() { snapback4_core::store_port::AnyStore::Sqlite(store) => store }).read_transaction().unwrap();
-    let page_size = tx.conn().query_row("PRAGMA page_size", [], |r| r.get::<_, i64>(0)).unwrap() as u64;
+    let tx = (engine.store_mut()).read_transaction().unwrap();
+    let page_size = tx.test_support_conn().query_row("PRAGMA page_size", [], |r| r.get::<_, i64>(0)).unwrap() as u64;
     assert_eq!((min_json, max_json, page_size), (720, 888, 4096));
-    tx.conn().prepare_cached(PREFLIGHT).unwrap();
-    tx.conn().prepare_cached(SQL).unwrap();
+    tx.test_support_conn().prepare_cached(PREFLIGHT).unwrap();
+    tx.test_support_conn().prepare_cached(SQL).unwrap();
     let prefix = [Value::Int(0)];
     let bounds = Bounds::default();
     let scan = |meter: &mut meter::Meter| physical(meter, |meter, scope| Rows::scan_metered(&tx, "messages", "byBucket", &prefix, &bounds, Dir::Asc, 22, scope, meter));
@@ -323,12 +323,12 @@ fn sqlite_increasing_resident_preflight_charges_before_the_next_row() {
     let floor = |n: usize| 4 * accounting::allocation(jsons[n].len()) + accounting::allocation(keys[n].len());
     let stop = (1..=22).find(|&n| opened + (0..n).map(floor).sum::<u64>() > 9_000).unwrap();
     assert!(stop < 22);
-    let runs = tx.conn().prepare_cached(SQL).unwrap().get_status(Run);
+    let runs = tx.test_support_conn().prepare_cached(SQL).unwrap().get_status(Run);
     let mut low = meter::Meter::new(meter::Ceilings { heap_bytes: 9_000, ..Default::default() }, meter::Cut::Cap);
     let (result, rust, native, payload) = measured_sqlite_range(min_json, max_json, || scan(&mut low));
     assert!(matches!(result, Err(crate::error::RuntimeError::Bound { kind: crate::error::MeterKind::HeapBytes, .. })));
     println!("W14A increasing rows=22 limit=22 ceiling=9000 page_size={page_size} rust_allocated={rust} native_allocated={native} payload_allocated={payload} attempted={} guarded={}", low.used.heap_bytes, low.scratch);
-    assert_eq!(tx.conn().prepare_cached(SQL).unwrap().get_status(Run), runs + 1);
+    assert_eq!(tx.test_support_conn().prepare_cached(SQL).unwrap().get_status(Run), runs + 1);
     let fetched = (0..stop).map(|n| (jsons[n].len() + 2 + 7) & !7).sum::<usize>();
     assert!(payload <= 2 * fetched, "only the preflight and payload copies of entries up to the cut: {payload} > 2 x {fetched}");
     assert!(rust + native as u64 <= low.used.heap_bytes + low.scratch, "public charge plus guard covers every allocation");
@@ -366,7 +366,7 @@ fn sqlite_scratch_uses_the_open_connections_actual_page_size() {
     let read_only = snapback4_core::Store::open_read_only(&path).unwrap();
     for mut store in [store, reader, read_only] {
         let tx = store.read_transaction().unwrap();
-        assert_eq!(tx.conn().query_row("PRAGMA page_size", [], |r| r.get::<_, i64>(0)).unwrap(), 8192);
+        assert_eq!(tx.test_support_conn().query_row("PRAGMA page_size", [], |r| r.get::<_, i64>(0)).unwrap(), 8192);
         let scan = |meter: &mut meter::Meter| physical(meter, |meter, scope| Rows::scan_metered(&tx, "messages", "byBucket", &[value::Value::Int(0)], &Bounds::default(), Dir::Asc, 1, scope, meter));
         // @ref LLP 3000.007#20.24.5 — an 8 KiB page's 16 KiB column scratch is guarded, never public.
         let mut low = meter::Meter::new(meter::Ceilings { heap_bytes: 10_000, ..Default::default() }, meter::Cut::Cap);
@@ -390,29 +390,29 @@ fn sqlite_payload_probe(storage: &str, body_bytes: usize) {
     let row = value::object([("id", value::Value::Id("m00000".into())), ("bucket", value::Value::Int(0)), ("body", value::Value::String("x".repeat(body_bytes)))]);
     let json_bytes = value::canonical_json(&row).len();
     engine.seed(vec![("messages".into(), row)]).unwrap();
-    let tx = (match engine.store_mut() { snapback4_core::store_port::AnyStore::Sqlite(store) => store }).read_transaction().unwrap();
-    let page_size = tx.conn().query_row("PRAGMA page_size", [], |r| r.get::<_, i64>(0)).unwrap() as u64;
-    let initial_runs = tx.conn().prepare_cached(SQL).unwrap().get_status(Run);
-    let initial_preflight_runs = tx.conn().prepare_cached(PREFLIGHT).unwrap().get_status(Run);
-    let initial_memory = tx.conn().prepare_cached(PREFLIGHT).unwrap().get_status(MemUsed);
+    let tx = (engine.store_mut()).read_transaction().unwrap();
+    let page_size = tx.test_support_conn().query_row("PRAGMA page_size", [], |r| r.get::<_, i64>(0)).unwrap() as u64;
+    let initial_runs = tx.test_support_conn().prepare_cached(SQL).unwrap().get_status(Run);
+    let initial_preflight_runs = tx.test_support_conn().prepare_cached(PREFLIGHT).unwrap().get_status(Run);
+    let initial_memory = tx.test_support_conn().prepare_cached(PREFLIGHT).unwrap().get_status(MemUsed);
     let scan = |meter: &mut meter::Meter| physical(meter, |meter, scope| Rows::scan_metered(&tx, "messages", "byBucket", &[value::Value::Int(0)], &Bounds::default(), Dir::Asc, 1, scope, meter));
     // @ref LLP 3000.007#20.24.5 — the column scratch and preflight copy are guarded; the public meter
     // refuses on the entry's logical image, after the one-entry payload fetch that prices it.
     let mut low = meter::Meter::new(meter::Ceilings { heap_bytes: 500, ..Default::default() }, meter::Cut::Cap);
     let (result, rust_bytes, native_allocated, payload_allocated) = measured_sqlite(json_bytes, || scan(&mut low));
     assert!(matches!(result, Err(crate::error::RuntimeError::Bound { kind: crate::error::MeterKind::HeapBytes, .. })));
-    let preflight_runs = tx.conn().prepare_cached(PREFLIGHT).unwrap().get_status(Run) - initial_preflight_runs;
-    let native_bytes = tx.conn().prepare_cached(PREFLIGHT).unwrap().get_status(MemUsed) - initial_memory;
+    let preflight_runs = tx.test_support_conn().prepare_cached(PREFLIGHT).unwrap().get_status(Run) - initial_preflight_runs;
+    let native_bytes = tx.test_support_conn().prepare_cached(PREFLIGHT).unwrap().get_status(MemUsed) - initial_memory;
     println!("W14A {storage} json_bytes={json_bytes} page_size={page_size} ceiling=500 rust_allocated={rust_bytes} native_allocated={native_allocated} payload_allocated={payload_allocated} native_retained={native_bytes} preflight_runs={preflight_runs} charged={} guarded={}", low.used.heap_bytes, low.scratch);
     assert_eq!(preflight_runs, 1);
     assert!(native_bytes as u64 <= 2 * page_size);
-    assert_eq!(tx.conn().prepare_cached(SQL).unwrap().get_status(Run), initial_runs + 1, "the payload fetch stops at the refused entry");
+    assert_eq!(tx.test_support_conn().prepare_cached(SQL).unwrap().get_status(Run), initial_runs + 1, "the payload fetch stops at the refused entry");
     assert!(rust_bytes + native_allocated as u64 <= low.used.heap_bytes + low.scratch, "public charge plus guard covers every allocation");
     assert!(payload_allocated <= 2 * ((json_bytes + 2 + 7) & !7));
     // Inspect the actual cached preflight, not a separately copied SQL spelling.
     // A normal Column (P5=0), even inside length(CAST(...)), loads the payload.
     let preflight = unsafe {
-        let db = tx.conn().handle();
+        let db = tx.test_support_conn().handle();
         let mut statement = rusqlite::ffi::sqlite3_next_stmt(db, std::ptr::null_mut());
         let mut found = None;
         while !statement.is_null() {
@@ -422,7 +422,7 @@ fn sqlite_payload_probe(storage: &str, body_bytes: usize) {
         }
         found.expect("the metered scan ran its size preflight")
     };
-    let conn = tx.conn();
+    let conn = tx.test_support_conn();
     let root: i64 = conn.query_row("SELECT rootpage FROM sqlite_schema WHERE name = 'r'", [], |r| r.get(0)).unwrap();
     let mut explain = conn.prepare(&format!("EXPLAIN {preflight}")).unwrap();
     let ops = explain.query_map(rusqlite::params![0, 0, Vec::<u8>::new(), vec![255u8], 1], |r| {
@@ -439,7 +439,7 @@ fn sqlite_payload_probe(storage: &str, body_bytes: usize) {
     assert_eq!(rows[0].0.field("body").unwrap().as_str().unwrap().len(), body_bytes);
     assert!(rust_bytes <= ample.used.heap_bytes);
     assert!(rust_bytes + first_native as u64 <= ample.used.heap_bytes + ample.scratch);
-    assert_eq!(tx.conn().prepare_cached(SQL).unwrap().get_status(Run), initial_runs + 2);
+    assert_eq!(tx.test_support_conn().prepare_cached(SQL).unwrap().get_status(Run), initial_runs + 2);
     let (first, first_guard) = (ample.used.heap_bytes, ample.scratch);
     let (_, next_rust, next_native, next_payload) = measured_sqlite(json_bytes, || scan(&mut ample).unwrap());
     assert_eq!(ample.used.heap_bytes - first, first, "every fetch pays the same logical charge");
@@ -483,7 +483,7 @@ fn store_guard_refuses_a_pathological_scan_with_its_own_code() {
     for (table, row) in &seed { memory.put(table, &fixture::schema().tables["messages"], row, None).unwrap(); }
     let mut engine = fixture::engine(vec![], 0);
     engine.seed(seed).unwrap();
-    let tx = (match engine.store_mut() { snapback4_core::store_port::AnyStore::Sqlite(store) => store }).read_transaction().unwrap();
+    let tx = (engine.store_mut()).read_transaction().unwrap();
     accounting::TEST_GUARD.with(|limit| limit.set(Some(64 << 10)));
     let mut charges = Vec::new();
     for store in [&tx as &dyn Rows, &memory] {
@@ -530,8 +530,8 @@ fn ordinary_ceilings_never_reach_the_store_guards() {
     let mut engine = fixture::engine(vec![], 0);
     engine.seed((0..128).map(|n| ("messages".into(), object([("id", Value::Id(format!("{n}"))),
         ("bucket", Value::Int(0)), ("body", Value::String(String::new()))]))).collect::<Vec<(String, Value)>>()).unwrap();
-    let tx = (match engine.store_mut() { snapback4_core::store_port::AnyStore::Sqlite(store) => store }).read_transaction().unwrap();
-    let page_size = tx.conn().query_row("PRAGMA page_size", [], |r| r.get::<_, i64>(0)).unwrap() as u64;
+    let tx = (engine.store_mut()).read_transaction().unwrap();
+    let page_size = tx.test_support_conn().query_row("PRAGMA page_size", [], |r| r.get::<_, i64>(0)).unwrap() as u64;
     let mut meter = meter::Meter::new(Default::default(), meter::Cut::Cap);
     let rows = physical(&mut meter, |meter, scope| Rows::scan_metered(&tx, "messages", "byBucket", &[Value::Int(0)], &Bounds::default(), Dir::Asc, 128, scope, meter)).unwrap();
     assert_eq!(rows.len(), 128);

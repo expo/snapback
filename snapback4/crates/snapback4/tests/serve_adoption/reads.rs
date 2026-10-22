@@ -54,8 +54,8 @@ fn adoption_keeps_queries_and_sync_readable_and_serializes_writes_once() {
             let mut engine = lock(&shared.engine);
             lock(&shared.readers).begin_adoption(&candidate);
             let once = std::sync::atomic::AtomicBool::new(false);
-            (match engine
-                .store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn()
+            (engine
+                .store()).test_support_conn()
                 .authorizer(Some(move |ctx: rusqlite::hooks::AuthContext<'_>| {
                     if matches!(
                         ctx.action,
@@ -74,8 +74,8 @@ fn adoption_keeps_queries_and_sync_readable_and_serializes_writes_once() {
                     candidate.programs.iter().map(|p| p.program.clone()),
                 )
                 .unwrap();
-            (match engine
-                .store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn()
+            (engine
+                .store()).test_support_conn()
                 .authorizer(
                     None::<fn(rusqlite::hooks::AuthContext<'_>) -> rusqlite::hooks::Authorization>,
                 )
@@ -215,8 +215,8 @@ fn crash_during_adoption_child() {
         std::env::var("SNAPBACK4_ADOPTION_CRASH_DB").expect("spawn through restart witness"),
     );
     let mut engine = Engine::open(snapback4_core::Store::open(&path).unwrap()).unwrap();
-    (match engine
-        .store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn()
+    (engine
+        .store()).test_support_conn()
         .authorizer(Some(|ctx: rusqlite::hooks::AuthContext<'_>| {
             if matches!(
                 ctx.action,
@@ -238,7 +238,7 @@ fn crash_during_adoption_child() {
 fn fresh_storage_has_independent_readers_and_is_removed_by_its_owner() {
     let fresh = query_readers::FreshDirectory::new().unwrap();
     let store = fresh.store().unwrap();
-    let file = std::path::PathBuf::from((match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().path().unwrap());
+    let file = std::path::PathBuf::from((&store).test_support_conn().path().unwrap());
     assert!(file.exists());
     assert!(store.reader().is_ok());
     drop(store);
@@ -276,16 +276,16 @@ fn a_write_queued_behind_adoption_does_not_keep_expired_authority() {
         assert!(started.elapsed() < Duration::from_secs(5));
         thread::yield_now();
     }
-    (match engine
-        .store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn()
+    (engine
+        .store()).test_support_conn()
         .execute("UPDATE _sessions SET expires_at = 0", [])
         .unwrap();
     drop(engine);
     let response = writer.join().unwrap();
     assert_eq!(status(&response), 401, "{response}");
     assert_eq!(body(&response)["denied"]["code"], "E_AUTH");
-    let rows: i64 = (match lock(&host.shared.engine)
-        .store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn()
+    let rows: i64 = (lock(&host.shared.engine)
+        .store()).test_support_conn()
         .query_row("SELECT count(*) FROM r", [], |row| row.get(0))
         .unwrap();
     assert_eq!(rows, 0, "the queued mutation must not commit");

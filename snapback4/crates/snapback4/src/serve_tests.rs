@@ -157,10 +157,10 @@ pub(super) fn body(response: &str) -> Json {
 }
 fn effect_snapshot(host: &Host, id: &str) -> (Vec<rusqlite::types::Value>, i64) {
     let engine = lock(&host.shared.engine);
-    let mut statement = (match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().prepare("SELECT * FROM _outbox WHERE id = ?1").unwrap();
+    let mut statement = (engine.store()).test_support_conn().prepare("SELECT * FROM _outbox WHERE id = ?1").unwrap();
     let columns = statement.column_count();
     let row = statement.query_row([id], |row| (0..columns).map(|column| row.get(column)).collect()).unwrap();
-    let steps = (match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().query_row("SELECT COUNT(*) FROM _effect_steps WHERE effect_id = ?1", [id], |row| row.get(0)).unwrap();
+    let steps = (engine.store()).test_support_conn().query_row("SELECT COUNT(*) FROM _effect_steps WHERE effect_id = ?1", [id], |row| row.get(0)).unwrap();
     (row, steps)
 }
 fn wait_until(mut predicate: impl FnMut() -> bool) {
@@ -267,7 +267,7 @@ fn bound_session_http_requires_exact_shape_and_current_action_lease() {
     assert_eq!(status(&inverse), 400, "{inverse}");
     assert_eq!(body(&inverse)["denied"]["code"], "E_INPUT");
     { let engine = lock(&host.shared.engine);
-      assert_eq!((match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().query_row("SELECT COUNT(*) FROM _sessions WHERE principal = 'member:inverse'", [], |row| row.get::<_, i64>(0)).unwrap(), 0,
+      assert_eq!((engine.store()).test_support_conn().query_row("SELECT COUNT(*) FROM _sessions WHERE principal = 'member:inverse'", [], |row| row.get::<_, i64>(0)).unwrap(), 0,
           "a lease header without binding must never reach legacy minting"); }
 
     let legacy = body(&host.request("POST", "/auth/session", &service_header, r#"{"principal":"member:legacy"}"#));
@@ -364,9 +364,9 @@ fn public_live_logout_keeps_the_bound_family_tombstone_authoritative() {
     let refused = body(&host.request("POST", "/auth/session", &action_headers, &recovery));
     assert_eq!(refused["denied"]["code"], "E_ACTION_AUTHORITY", "{refused}");
     let engine = lock(&host.shared.engine);
-    let family: String = (match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().query_row("SELECT family FROM _session_mint_bindings WHERE invocation = 'logout-live-http'", [], |row| row.get(0)).unwrap();
-    assert_eq!((match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().query_row("SELECT COUNT(*) FROM _sessions WHERE family = ?1", [&family], |row| row.get::<_, i64>(0)).unwrap(), 0);
-    assert_eq!((match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().query_row("SELECT COUNT(*) FROM _session_mint_bindings WHERE invocation = 'logout-live-http'", [], |row| row.get::<_, i64>(0)).unwrap(), 1);
+    let family: String = (engine.store()).test_support_conn().query_row("SELECT family FROM _session_mint_bindings WHERE invocation = 'logout-live-http'", [], |row| row.get(0)).unwrap();
+    assert_eq!((engine.store()).test_support_conn().query_row("SELECT COUNT(*) FROM _sessions WHERE family = ?1", [&family], |row| row.get::<_, i64>(0)).unwrap(), 0);
+    assert_eq!((engine.store()).test_support_conn().query_row("SELECT COUNT(*) FROM _session_mint_bindings WHERE invocation = 'logout-live-http'", [], |row| row.get::<_, i64>(0)).unwrap(), 1);
 }
 
 #[test]
@@ -400,9 +400,9 @@ fn bound_session_http_refuses_stale_and_cancelled_claims_without_minting() {
 
     let engine = lock(&host.shared.engine);
     for principal in ["member:stale-http", "member:cancelled-http"] {
-        assert_eq!((match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().query_row("SELECT COUNT(*) FROM _sessions WHERE principal = ?1", [principal], |row| row.get::<_, i64>(0)).unwrap(), 0);
+        assert_eq!((engine.store()).test_support_conn().query_row("SELECT COUNT(*) FROM _sessions WHERE principal = ?1", [principal], |row| row.get::<_, i64>(0)).unwrap(), 0);
     }
-    assert_eq!((match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().query_row("SELECT COUNT(*) FROM _session_mint_bindings WHERE invocation IN ('stale-bound-http', 'cancelled-bound-http')", [], |row| row.get::<_, i64>(0)).unwrap(), 0);
+    assert_eq!((engine.store()).test_support_conn().query_row("SELECT COUNT(*) FROM _session_mint_bindings WHERE invocation IN ('stale-bound-http', 'cancelled-bound-http')", [], |row| row.get::<_, i64>(0)).unwrap(), 0);
 }
 
 #[test]
@@ -1509,6 +1509,10 @@ fn kit3_memory_http_retries_publish_only_the_ordinary_prelude_and_encountered_ro
     let reply = body(&host.request("POST", "/q/list", "x-snapback-persona: alice\r\n", r#"{"args":{}}"#));
     assert_eq!(reply["complete"], true, "{reply}"); assert_eq!(reply["data"].as_array().unwrap().len(), 3);
     let engine = lock(&host.shared.engine);
-    let pending: i64 = (match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().query_row("SELECT COUNT(*) FROM _time_openings WHERE t = 'a_unrelated'", [], |row|row.get(0)).unwrap();
+    let pending: i64 = (engine.store()).test_support_conn().query_row("SELECT COUNT(*) FROM _time_openings WHERE t = 'a_unrelated'", [], |row|row.get(0)).unwrap();
     assert_eq!(pending, 4, "only the one ordinary prelude may publish an unrelated row");
 }
+
+#[cfg(feature = "postgres")]
+#[path = "../tests/serve_postgres/mod.rs"]
+mod postgres_tests;

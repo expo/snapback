@@ -100875,3 +100875,543 @@ Report: `reports/20261021-publication-0.4.35/REPORT.md`.
 SEC7 owns note presentation, narrow security review gates and directed histories;
 DX6 owns session/upgrade/clock and frontend/proof-kit fixes for 0.4.38.
 Design and implementation evidence: LLP 3000.036.004 §16 and its review record.
+### 2026-10-22 — S1-FR: token-authenticated raw PG and matched control windows
+
+Added per-request HS256 verification to the typed-table raw-PG control with
+pinned jsonwebtoken 9.3.1. Signed fixture subjects determine principals;
+body principals cannot override them. The explicit no-token control remains
+labelled separately. Private S1-FR databases and login roles isolate this run;
+existing Supabase roles and cluster settings were not altered.
+
+Ran token raw PG, no-token raw PG and Supabase advocate serially, detached:
+36 cells, 501 trials, 53.7M measured arrivals, 10 s warm-up / 20 s measurement,
+three repetitions, 1M messages, natural/+0.5 ms proxy links and C=32 / pool32.
+The comparison reuses the existing Convex advocate's 12 matching headline
+cells. Its 32 connections include background workers; Supabase adds one
+listener. All 46 passing control cells have exact second-half arrival-cohort
+acknowledgements in every second and repetition. These are intended-arrival
+cohorts, not wall-clock per-second completion counts. Per-second latency
+medians/ranges and whole-window completion rates remain explicit.
+
+Eight new unknown-write-outcome trials were disqualified. The no-token W4
++0.5 ms row qualifies at 35/s amid large higher-rate tail variation; the report
+retains it without attributing a causal JWT gain. PostgREST's documented JWT
+signature cache remains enabled, and Convex's warmed query-cache rows remain
+native. Shared hosts, the co-located generator, proxy instead of netem,
+PostgREST-only scope and finite windows keep every result exploratory.
+
+All-trial accounting/histogram/SLO/counter audits and the fresh auth, rules,
+maintained-total, overload and full-seed checks pass. Formatting, the Rust
+unit test, Clippy with warnings denied and Python compilation pass. Clippy
+identified a redundant borrow in connection setup; the final source removes
+it without changing the measured request path. Archive extraction and full
+report regeneration pass. Root reference validation passed before this append;
+the final check includes this entry. The RFC keeps one prepended Revised line
+and fills the W1–W5 control ledger as “S1, matched method, exploratory.”
+
+Raw evidence is archived outside Git (SHA-256 in ARCHIVE.md); code, configs,
+summaries and four SVGs are committed. Supervisor 3495011, campaigns 3495015 /
+3854217 / 45210 and checks 705050 all exited. The final census finds zero live
+owned PIDs; private app connections are zero. Only the handed-over durable
+PG17.9 cluster remains running, postmaster 2735539, with all three durability
+settings on. No push, stash, clone, sub-agents, sudo, Docker or paid services.
+[Matched report](./experiments/scale-controls/results-20261022-fairness/README.md).
+### 2026-10-22 — S10c: Postgres arm and named refusals
+
+The neutral handles now dispatch the landed Postgres family traits, with scoped
+shared-receiver borrows and explicit optional-family refusals. Asset capability
+checks are fallible and occur only for actual asset columns; capability errors
+abort the member before failed-program receipt handling. Read snapshots forward
+the adapter overrides. This is the first separately building commit; opening,
+admission, the member-safe tail and real-Postgres witnesses follow. The public
+CLI and producer routing are unchanged. `cargo check -p snapback4-core --features
+postgres` and `cargo build -p snapback4` pass on the owned target with ten jobs.
+No push or stash.
+
+### 2026-10-22 — S10c: concrete SQLite fixture exhaustiveness
+
+SQLite corruption/inspection fixtures and the evaluator's SQLite control now
+explicitly reject the other enum variant. These test-only matches preserve
+the fixture's concrete-store precondition when the Postgres feature is linked;
+they add no owning bridge. This mechanical follow-up is a separate building
+commit to keep the dispatch and admission changes reviewable. The binary build
+and Postgres-feature library check pass; full feature-linked fixture compilation
+is being qualified with the private-cluster script.
+
+### 2026-10-22 — S10c: admission and opening foundation
+
+The internal library opener now initializes a fresh private Postgres namespace
+only after common-engine admission. Activation uses the common semantic builder,
+the landed opening/activation families and one solo transaction. Persisted open
+checks the admitted profile before upgrades; detached readers retain the same
+connection settings, validate identity/backend and skip write upgrades. Named
+refusals cover union sync, timed publication, assets beyond placement, jobs,
+actions, routes, schedules, native programs and unsupported maintained shapes.
+Ephemeral hubs stay admitted. Identity snapshots, typed metadata, the actual
+placement reader and insert-then-bind receipts dispatch through the enum.
+Schema evolution outside this initial subset refuses before preparation writes.
+The binary and Postgres-feature library builds pass. Real-cluster qualification
+and the tail/witness results are recorded after completion.
+
+### 2026-10-22 — S10c: refuse unused families and retain opening atomicity
+
+Real enum probes exposed the shared row-change path's unconditional timed-ledger
+call. Untimed row changes and imports now skip that family, matching SQLite's
+existing early return; direct unsupported calls still refuse. Opening upgrades
+now remain inside the validated opening transaction, after selected-release
+checks, and readers never upgrade. Private-Postgres probes pass ordinary
+mutations, reopen/readers, receipt replay/id reuse, capability refusal without
+id consumption, ephemeral hub writes/reads with no durable rows, and a refused
+selected release with no committed opening upgrade. No public serving or lease
+claim follows.
+
+### 2026-10-22 — S10c: member-safe Postgres tail
+
+The tail completes inside the member savepoint, advances the cached head only
+on success and cannot overwrite an occupied commit slot. `execute` never
+flushes. Savepoints snapshot head/tail; rollback restores them and invalidates
+speculative rows. Effect admissions and presence batch into one CTE; explicit
+release facts survive. Orphan effects refuse without being discarded. The
+existing NUL-tail regression now checks explicit completion and proves that
+ordinary execution leaves the tail pending. Real-Postgres facade rollback/error,
+flush failure, contiguous heads, slot, nested/cache, terminal-NUL and batched
+effect-call-count probes pass. Production remains single-member; no producer
+is newly routed through K0.
+
+### 2026-10-22 — S10c: retain the opening key bound
+
+The common Postgres opener now repeats the evaluator's existing portable
+index-key bound before accepting stored data. The isolated real-Postgres
+regression inserts an over-bound raw index entry and confirms the same
+`E_INDEX_KEY_BYTES` opening refusal. No bound or retry policy changes. Additional
+opening probes pass the evaluator-admitted aggregate, expiring-count and
+recorded-attribution shapes on the common engine.
+
+### 2026-10-22 — S10c: common-engine Postgres HTTP and oracle evidence
+
+The private-cluster in-process HTTP host passes guest bearer identity,
+identified writes, replay/id reuse, queries, failed receipt replay, unknown
+preservation and logout. The three-store overlap (SQLite, common Postgres,
+retained Postgres evaluator) agrees with prefetch off and on, including logical
+meters, cursors, rows, logs and ledger. The small C1 derived page uses the same
+20 off / 23 on physical calls in both Postgres engines with eight marked reads,
+within the unchanged allowance. Existing family cases and enum probes cover
+identity, metadata/audience epochs, requests, jobs, outbox, asset intent and real
+placement binding/cancellation. Family qualification does not admit background
+producers. Change evidence stays unknown and certified changes/sync stay outside
+S10d's passed denominator.
+
+Concrete enum payload declarations now live inside the existing port adapter,
+retaining public exports and the ratchet's zero production allowance. The HTTP
+harness is behind an internal Cargo feature; public serve/deploy configuration,
+leases and new K0 producer routing remain outside this slice. The Postgres test
+script includes compiled handle guards, member rollback tests and this HTTP
+witness, and allows its owned cluster's shutdown checkpoint 180 seconds before
+independent stop confirmation. Full checks, isolated reruns, the retained 40001
+flake and generated-metadata repair are recorded in
+`reports/20261022-s10c-postgres-arm.md`.
+
+
+### 2026-10-22 — S10c: final qualification record
+
+Full SQLite core and device runs pass: 1,042 / 0 failed / 5 ignored and
+1,573 / 0 failed / 4 ignored. The host run records 1,409 passed / 2 failed /
+15 ignored; its inherited clock timeout passes alone, and the lexical
+store-port false positive is resolved by adapter-owned declarations with all
+seven ratchet tests passing. All three supplied host baseline cases pass.
+The combined ratchets/census pass 16 tests; compiled owning-handle guards pass
+in default and Postgres builds. Binary, no-default core, device web/wasm and
+internal Postgres production checks pass, as do guide error-code coverage and
+all 27 codec census tests.
+
+The final private-Postgres stages pass 208 family/oracle tests, both member
+savepoint tests, the compiled guard and the HTTP witness. The known default-C
+40001 exhausts its retry budget in the full run and two isolated reruns; the
+unchanged case passes under en_US.utf8. The full script exits and the corrected
+metadata/harness/stop-wait stages are recorded without claiming an all-green
+full script. Every owned cluster is independently confirmed stopped, and the
+shared scale cluster was untouched. See `reports/20261022-s10c-postgres-arm.md`
+for the admission/refusal list, tail evidence, oracles, exact qualifications
+and remaining S10d boundaries.
+
+### 2026-10-22 — S10c fix round 1: close owning payloads and retain driver errors
+
+Rebased the eight S10c commits onto main-mirror `280fbc9774`, preserving the
+measurement/docs additions, preview operations, both journal histories and the
+RFC's single Revised line. Both SQLite and Postgres store/transaction variants
+now carry non-exhaustive wrappers with fields private to the store port. There
+is no backend dereference, extraction or trait-default surface on a payload.
+Postgres raw query/execute/batch and its store's driver client are crate-private.
+Adapter activation uses scoped internal port callbacks; existing corruption
+fixtures use the debug-only port hooks, and Postgres instrumentation is
+crate-test-only. External-consumer compile-fail doctests cover extraction,
+raw statements, backend type names and Rows-default bypasses on both arms;
+the Postgres script now runs them with its existing compiled trait guards.
+
+A missing evidence footprint remains unknown; real driver, snapshot-opening
+and rollback errors now propagate. The new real-cluster regression injects a
+relation-lock timeout for direct and scoped reads, then verifies connection
+reuse. The common/evaluator C1 oracle now asserts the observed 20 off / 23 on
+physical-call ceilings and eight marked reads, preserving the relative bound
+and all outcome/meter comparisons. No retry or production timeout policy changes.
+
+Sol's blind review passed the exact concurrency case 13/13 on `bd4d265df5`
+and 13/13 on `ad87e0ddb3`, always retaining 65 increments. All 461 instrumented
+serialization errors in the first six runs occurred at UPDATE r before the
+tail. The report and existing serialization ticket retain this evidence;
+S10c causation and tail-order contention effects remain unverified.
+
+Binary build, core no-default, device web/wasm, workspace-wide test compilation
+with Postgres and all 27 codec census cases pass. Full suites are in progress;
+the completed qualification is appended separately. Only inactive generated
+incremental caches and pre-task, unmapped/unopened test executables in the owned
+`target` were reclaimed for headroom. Cargo uses ten jobs; the 15 GB stop
+threshold has not been reached. No push, stash or sub-agents.
+
+### 2026-10-22 — S10c fix round 1: standalone evaluator version facts
+
+The separate evaluator workspace had two remaining SQLite payload extractions
+for its JSON version field. Both now use the existing typed
+`store::evaluation::sqlite_version()` fact. The linked version and timed
+workloads are unchanged; neither site needs a backend store. The required
+Postgres script qualifies this workspace after the main suites. No push or stash.
+
+### 2026-10-22 — S10c fix round 1: complete qualification
+
+The requested full commands pass: core **1,061 / 0 failed / 5 ignored**,
+host **1,418 / 0 / 15**, and device **1,573 / 0 / 4**, including the full
+unfiltered generated disclosure/row-view/sequence matrices. All three supplied
+host baselines pass. Binary build (including the final default rebuild), core
+no-default, device web/wasm, workspace test compilation with Postgres, all
+**16** ratchet/census tests, **127** guide cases and **27** codec census cases
+pass. Compiled owning-handle guards pass in default and Postgres builds. The
+updated external consumer doctests pass **26** default / **37** Postgres cases,
+including **9** SQLite / **20** combined boundary/private-backend probes. The
+four extra payload-Deref probes explicitly close that future escape on each
+owning payload. No allowance, retry bound or producer routing changes.
+
+The complete final private-Postgres script exits zero: **58 evaluator + 209
+family/oracle + 2 member + 1 compiled trait guard + 37 doctest + 1 HTTP + 19
+corpus tests pass**. Both evaluator-enabled runs retain 65 increments in each
+mode, no losses, zero serialized retries and 93 aggregate serializable retries.
+No 40001 exhaustion occurs; the existing ticket retains these observations and
+Sol's 13/13 A/B evidence without closing the attribution question. The new
+missing-footprint/real-lock-timeout distinction passes for direct and scoped
+reads. Common/evaluator C1 calls remain exactly 20 off / 23 on, with eight
+marked reads, passing the new ceilings and unchanged relative bound.
+
+Two qualification-path failures are retained: the inherited evaluator lockfile
+still named local packages 0.4.36 after main advanced to 0.4.37; only those three
+local version entries were aligned. Then the shared target reproduced the old
+serde/core crate-identity mix in the HTTP build after the separate evaluator
+workspace. With an explicit shared CARGO_TARGET_DIR, the script now refreshes
+only core/lang/device debug artifacts at each manifest handoff. The full repeat
+passes, including HTTP, with unchanged profiles, registry dependencies and test
+workload. This is an artifact handoff repair, with no product-source workaround.
+
+Every owned cluster is stopped and independently rechecked (status 3, no
+postmaster.pid): `/tmp/sb4-pg-eval.b9AgdR`, `2If1mh`, and `gTdwbp`; data is
+retained and the shared scale service was untouched. Only the lane's own Cargo
+target was used, with ten jobs. The lowest continuously recorded free space
+was **24.52 GiB**, above the 15 GB stop threshold. Inactive incremental caches
+and unmapped/unopened old or completed test executables were reclaimed; the
+scoped Cargo refresh later regenerated the three local packages' libraries and
+metadata as well. No source, other target or registry cache was removed.
+
+Runtime commits are `fc7e2eb740` and `a1b6a53138`; the following qualification
+commit records the final guards, path corrections and evidence. Full results
+and retained failed attempts are in
+[the S10c report](./reports/20261022-s10c-postgres-arm.md), with transcripts and
+stop receipts under `/tmp/s10c-r1-checks`. The affected LLP audit updates the
+existing §3.4 shape/note; the other scoped references remain applicable. Final
+reference/whitespace validation follows this append. No push, stash or sub-agents.
+
+
+Final root `./ref-check` passes: **564 LLPs / 11,693 refs / 0 errors / 0
+unchecked**. Diff whitespace validation passes. The final default CLI rebuild
+passes after the Postgres handoff. About **186 GB** remains free; the 15 GB
+stop threshold was never reached.
+
+## 2026-10-22 — S1-SK implementation checkpoint: Quarry and native serve HTTP
+
+Lane S1-SK, one worker on 450b, implements the scale RFC's W1–W5 SQLite
+cell in experiments/scale-controls. The Quarry fixture uses inferred indexes,
+member message rules, exact owner/shared counter updates, and engine-owned
+room.total/user.sent maintained columns. A deterministic 1M-message seed goes
+through dev /seed, stopped-store backup and deploy; no managed rows are written
+with SQL. Administrative read-only SQL verifies every message image, membership,
+last-read offset, counter image and both maintained totals. The disposable HTTP
+check covers all 256 principals, exact pages/inboxes, denied reads/writes,
+missing/malformed/revoked bearer tokens and atomic post maintenance.
+
+The harness adds a store-independent native /q and /m target. Scheduler,
+arrival assignments, deadlines, search, SLOs and whole-cohort counter equality
+are inherited unchanged. Snapback's application sessions are minted before load
+and resolved per request by shipped serve; no personas are measured. The current
+serve reuses detached query readers while writes queue on its FIFO engine;
+the RFC's one-connection wording predates those readers. No core topology or
+durability change is made. SQLite retains WAL and synchronous=FULL on 450b's
+local Samsung NVMe. The database RTT sweep does not apply to this local cell.
+
+Builds use release mode and separate target directories within this worktree,
+with the packaged SQLite build flag. Both release builds, Quarry check, Python
+compilation, Rust formatting and reference validation pass. Six detached short
+smoke cells pass with zero errors and exact counters; they are method checks,
+not the headline. The matched 10-second warm-up, 20-second window,
+three-repetition natural-link campaign follows this checkpoint. App authoring
+friction: explicit SQL-style index declarations are unnecessary in Quarry;
+the guide points to inferred indexes. Referenced room fields are nullable, so
+the inbox uses the explicit zero default on its known-present fixture rooms.
+The implementation/seed/check/smoke supervisors have exited and their owned
+servers are stopped. No push, stash, clone, sub-agents, sudo, Docker or services.
+
+## 2026-10-22 — S1-SK measured: Snapback serve on local SQLite
+
+The matched SQLite cell is complete on 450b: six natural-link W1–W5 shapes,
+30 offered rates, 90 trials and 3,218,100 measured arrivals. Read brackets are
+2,828/s point, 5,656/s newest 20, and 2,828/s inbox; disjoint, exact shared and
+nominal 1% shared writes each qualify at 100/s and fail at 141/s. The report
+puts them beside S1-FR's four natural-link control columns, including raw PG
+with per-request verification and the labelled no-token row. This is the
+10-second warm-up / 20-second window, all-three-repetition method, not the
+older short-window matrix. No SQLite database RTT sweep is meaningful.
+
+Every headline repetition has zero errors; all 180 second-half arrival cohorts
+acknowledge exactly their offered rate. Every write witness includes warm-up
+and measurement, with zero unknown outcomes. Failed rates and all repetitions
+remain in the raw archive. Read qualification fails on native worker-admission
+errors before the 50 ms latency threshold. At 100/s, writes have median p50
+about 8.6–8.7 ms and about 1.0–1.1 serve CPU ms per acknowledgement; captures
+include filesystem journal waits. This is consistent with durable serialized
+writes, not a direct flush-cost measurement or causal gap attribution. The
+SQLite file/OS-write bytes cannot stand in for H5's Postgres logical-WAL ratio.
+The §8 report evaluates each rule; Postgres, N=16/flush, W6/W7, device, growth
+and graduation measurements remain necessary for the corresponding rules.
+
+Implementation b2917e7dd4 is the measured request/Quarry source. The original
+supervisor 836781 stopped with exit 1 in W3 when an observed thread disappeared
+between /proc check and read. Observer-only fix c98041046c tolerates that race;
+a regression probe covers disappeared and live threads. Complete original
+W1/W2 cells are retained; supervisor 921842 reran the full W3 cell from a fresh
+process and continued W4/W5, exiting 0. The interrupted observations are archived,
+not spliced into the headline. The native binaries, scheduler, request adapter
+and Quarry hashes are identical between those campaigns. Reporting was corrected
+without affecting measurement; final Clippy also collapsed nested ID-decoding
+conditions without changing behavior. Hashes bind the original measured binary.
+
+The independent audit, full seed/HTTP proof, Python compilation, Rust formatting
+and strict Clippy pass. The raw archive is SHA-256 verified and all aggregate
+JSON/tables regenerate identically from extraction. The RFC has one prepended
+Revised line, the exploratory SQLite ledger column and a short S1 progress note;
+its serve topology description now names current detached query readers and
+the FIFO writer. Relevant-corpus review keeps the Postgres candidate and live
+workloads open; no new LLP, ceiling, engine change or publication claim is made.
+
+The final census finds zero live owned processes across 131 recorded PIDs.
+Both release builds use owned targets inside this worktree. The app store is
+local ext4 on /dev/nvme0n1p3, Samsung MZVL2512HCJQ-00B00 NVMe, with shipped
+SQLite WAL/synchronous=FULL. No PG cluster was touched. No push, stash, clone,
+sub-agents, sudo, Docker or paid services.
+[Report and archive receipt](./experiments/scale-controls/results-20261022-snapback-sqlite/README.md).
+### 2026-10-22 — K0d (S10d-1): admitted direct identity operations
+
+The common engine now routes guest/open/signup/login, full/read refresh,
+resolve's expired-token pruning, close, family logout, principal revoke-all and
+read narrowing through `Committer::run` as Direct members. Startup's
+unconditional stale supervised-family cleanup follows the same path. A scoped
+port opener preserves each original SQLite transaction mode while lending only
+`MemberTx` to the body. Typed identity facts and edits stay behind that facade;
+there is no owning transaction, connection or raw callback on it. Postgres
+retains its serialized opener and suppressed-write row-count refusals.
+
+SQLite's convenience mint/close keep a member per originally autocommitted
+statement, including partial durability and lazy read-session storage surviving
+a later refused insert. Atomic composites retain their original rollback
+boundaries. Read-refresh absence/refusal aborts; an empty full replacement
+completes its expiry cleanup. Logout/narrow still sample time after their
+immediate writer boundary. Direct operations publish no sequence. Existing
+Program members already cover mutation receipts, receipt-only outcomes and
+replay/id reuse; ordinary bearer checks remain read snapshots.
+
+The committer allowlist falls from 11 files / 49 sites to 10 / 47, removing
+logout's opener and read narrowing's only opener. Adapter-internal identity
+writers were outside the lexical denominator. The existing committer RFC's
+§9 K0d note and [lane report](./reports/20261022-s10d1-direct-members.md) record
+the routing, conservative read matches and remaining off-profile direct
+families. The administrative opening match remains separate public-bootstrap
+work. No queue, thread, batching, retry, ownership file or `engine/postgres/`
+file changes. Six targeted SQLite failure/clock/storage regressions and the
+expanded existing private-Postgres HTTP witness cover the shared-port paths.
+The lane uses its own target with ten Cargo jobs and a 20 GiB disk stop bound;
+no push, stash or sub-agents.
+
+### 2026-10-22 — S10d-1 qualification and recovery review
+
+The saved K0d runtime and test changes are retained in full. The recovery review
+checked the admitted query/mutation and identity paths, original SQLite SQL
+and transaction modes, explicit member dispositions, and post-commit work.
+It clarified that supervised-worker status reports and development replay's
+effect-policy write also remain deferred outside the admitted profile. The
+scoped governing context and existing references still apply; no new protocol,
+queue or production scope is introduced.
+
+All requested checks pass: CLI build and SQLite-free core check; full core
+(646 unit tests passed, three ignored, plus all integration/doctest targets,
+including the six new failure/clock/storage witnesses); full host (all three
+supplied baselines pass); 16 ratchet/census tests; compiled guards in both
+builds; 127 guide tests; 27 codec-census tests; and the stock Postgres script
+(58 evaluator, 209 family/oracle, two member, one compiled guard, 37 doctest,
+one expanded HTTP and 19 corpus tests). The fresh actual committer census is
+10 files / 47 sites, down from 11 / 49. The default CLI rebuild after the
+Postgres handoff passes. No unexpected test failure needed an isolated rerun.
+Named exclusions and ignored tests remain outside the passed denominator.
+
+The sole created cluster, `/tmp/sb4-pg-eval.DcDqvh`, was stopped by the script
+and independently confirmed stopped: `pg_ctl status` returned 3 and no
+`postmaster.pid` remains. Data and stop receipts are retained; no unrelated
+cluster was touched. Minimum free space was 133.0 GiB, above the 20 GiB stop
+bound. Original logs remain in `/tmp/s10d1-checks/`; the fresh results, commands,
+transcripts and stop receipt are in its `continuation/` directory. Final root
+reference and whitespace checks pass. The
+[lane report](./reports/20261022-s10d1-direct-members.md) records the complete
+remaining-opener inventory and qualification. Commits remain local, with
+Charlie Cheever as committer and Codex as author/co-author; no stash or agents.
+
+
+## 2026-10-22 — S1-DX: SQLite write ceiling diagnosis
+
+All eleven requested W4 rates, three fresh-process trials each with 10 s
+warm-up and 20 s measurement, confirm 100/s as the highest tested passing
+rate. From 141/s upward both p99 and expired arrivals fail; completions stay
+109–117/s and all counters remain exact. The same deployed 1M fixture and
+program through the engine reach 118–122/s; a SQLite-only WAL/FULL primitive
+reaches 125 transactions/s. Ordinary WAL fsync costs about 7.9 ms on 450b,
+versus S0's 77–79 microseconds on a different datacenter NVMe.
+
+A separate release timing build, using only a local uncommitted patch,
+finds four read-only session resolutions and one durable COMMIT per W4.
+Auth averages 0.22 ms; COMMIT averages 8.55 ms at 100/s. A 403 ms ordinary
+WAL flush adds tail evidence. Profiling changes worker-admission behavior,
+so those diagnostic rows do not replace the unchanged-build bracket. Product
+source is restored. A batch-16 integer primitive reaches 2,051/s; the full
+Snapback K0 queue/K3 batch estimate is 760–1,000/s, pending keyed/full-tail
+and p99 qualification. The RFC receives a short §9 note, not a new gate or
+product implementation. [Report and archive receipt](./experiments/scale-controls/results-20261022-snapback-sqlite-diagnosis/README.md).
+
+### 2026-10-22 — S10d-2: store-level Postgres ownership and unknown COMMIT
+
+The common Postgres arm now creates a shape-checked `_owner` bound to its
+logical store id and takes `FOR KEY SHARE` as the first ordinary writer lock,
+before the head. Fresh creation installs/fences it before core/head writes.
+Legacy attach serializes missing-owner DDL with a bootstrap-only advisory
+transaction lock and rolls it back with refused opening; a positive acquired
+token cannot recreate a lost row. The store-level lease API uses its own
+connection outside the committer, database-clock/token-fenced renew/release,
+W11's expired-lease claim before termination, bounded `FOR UPDATE` retries,
+and exact same-role/store/token blocker filtering. Hygiene follows COMMIT;
+connection tags retain the complete token within 60 bytes. Public serving
+still must acquire a positive token and reopen through the owned factory.
+
+COMMIT disables both adapter timeouts. Lost acknowledgements and cancelled
+synchronous-wait warnings propagate as typed `E_COMMIT_OUTCOME_UNKNOWN`, with
+retry disabled, distinct from a refusal. The worker ledger now has a neutral
+logical-id/state-directory binding API; SQLite keeps its adjacent filename,
+and missing Postgres identity/location refuse by name. The supervisor uses
+the seam; S10d-3 still supplies its configured durable location and cadence.
+
+Final private-Postgres script passes **58 evaluator + 209 family/oracle +
+15 ownership + 1 compiled guard + 37 doctest + 2 member + 1 HTTP + 19 corpus**
+cases. The exact final ownership group also passes **15/15** as a non-superuser
+on a separate private PostgreSQL 16.15 cluster. Witnesses cover both owners,
+stale writes independent of hygiene, renewal winning a stale claim, standby
+races, SIGKILL takeover, a non-head transaction beyond its lease, first-lock
+ordering, token-bounded blockers, interrupted COMMIT, a durable receipt whose
+acknowledgement is dropped by a local relay, zero COMMIT timeouts, injected
+synchronous-wait warning handling, atomic legacy upgrade and ledger identity.
+The oracle keeps 65 increments in both modes with no losses (54 serializable
+retries); C1 remains 20 off / 23 on with eight marked reads.
+
+Full core passes (aggregate **1,062 / 0 failed / 5 ignored**), as do no-default
+core, **16** ratchet/census cases, compiled guards, **127** guide cases and
+**27** codec census cases. The full host run initially has six failures;
+all six pass alone after dedicated guide sections/routing and recovery pins,
+adapter-owned re-export, and frozen local JS dependency setup. No clean
+full-host repeat is claimed. Earlier fixture/visibility failures and the
+unqualified full client build's missing ignored wasm artifacts are retained
+in [the S10d-2 report](./reports/20261022-s10d2-postgres-ownership.md), along with
+transcripts, limitations and the S10d-3 handoff. All six owned clusters are
+stopped and independently confirmed; other clusters were untouched. Only
+the specified target/profiles and at most 16 jobs were used; the lowest
+observed free space was about 77 GiB, above the 30 GiB stop threshold.
+No identity/committer implementation edits, push, stash, cloning, other
+machines or sub-agents. Final root reference and whitespace checks follow.
+
+
+Final S10d-2 follow-up: the COMMIT warning hook now uses SQLSTATE `57014`
+alone, independent of localized message text. The affected ownership group
+passes **15/15** again on the final source with a non-English injected warning,
+as a non-superuser. The seventh owned cluster, `/tmp/s10d2-owner.tVEHVs`, is
+stopped and confirmed (status 3, no postmaster.pid); all seven owned clusters
+are now stopped. Root `./ref-check` passes **564 LLPs / 11,704 refs / 0 errors /
+0 unchecked**. Whitespace and formatting of all four new Rust files pass.
+About **79 GiB** remains free. No push or stash.
+
+### 2026-10-22 — S10d-2 fix round 1: classify blockers and force lease races
+
+Rebased the ownership lane onto main's S10d-1 identity routing and scale
+measurement records, resolving the journal by union and retaining both
+identity-member and ownership exports. The integrated Postgres core compiles.
+The ownership implementation now classifies the complete observed blocker set
+before signalling any member; an ineligible member aborts, matching §3.4's
+choice rather than the prototype's skip-and-wait behavior. Both policy wait
+timeouts require a one-second margin below the lease session's five-second
+statement timeout. A cancelled conditional claim abandons before its watcher
+exists. After a returned claim row, statement timeout is disabled while bounded
+lock-timeout/savepoint retries and blocker handling run.
+
+The retained evaluator refuses unified namespaces with `E_STORE_OWNERSHIP`,
+including token zero. Its session retains a shared namespace bootstrap guard;
+legacy adoption needs the exclusive transaction counterpart, so it cannot
+install ownership underneath an already-open evaluator or its in-flight write.
+The legacy path guards before a logical id exists; positive tokens still refuse
+to bootstrap over a lost owner record. Ordinary evaluator write calls and its
+two oracle modes are unchanged.
+
+The revised witnesses require observed blocking: a losing standby behind the
+winner's actual claim lock; renewal blocked both before and after a forced
+`55P03`/savepoint rollback; and the second legacy opener behind the first one's
+advisory lock. Renewal between expiry poll and conditional claim now runs in a
+hook inside public `acquire`, proving a zero-row claim with no watcher. The
+retry witness also starts with a 20 ms session statement timeout and reaches a
+one-second lock timeout. A mixed shared-advisory blocker set, with both owner
+key-shares retained, proves termination refuses without killing either session
+or losing the tagged transaction's staged write. Row multixact waits may expose
+holders one at a time, so this mixed-set witness exercises the termination
+function with both actual blockers visible at once.
+
+The corrected private non-superuser ownership group passes 21/21. The first
+executing run's two fixture failures and the prior hook-visibility compile
+failure remain in `/tmp/s10d2-fix1-checks/`; each cluster is stopped and
+confirmed. The existing RFC implementation note and §5.2 now describe the
+choice, timeout phases, evaluator isolation and forcing observations. Its
+single Revised line begins `S10d-2 fix round 1`; the affected-corpus audit keeps
+the other scoped owner/head, claim-retention and unknown-COMMIT references.
+The lane report records final qualification as it completes. No push, stash,
+sub-agents, other targets or unrelated cluster operations.
+
+
+S10d-2 fix round 1 qualification completes on the final source: full core
+**1,068 passed / 0 failed / 5 ignored**; full host **1,405 / 0 / 15**, with all
+three supplied baselines passing; no-default core check; **16** ratchet/census
+cases; default and Postgres compiled guards; **127** guide and **27** codec
+cases. The stock Postgres script passes **58 evaluator + 209 family/oracle +
+21 ownership + 1 compiled guard + 37 doctest + 2 member + 1 HTTP + 19 corpus**
+cases. C1 remains 20 off / 23 on with eight marked reads; both oracle modes
+retain 65 increments without losses. No unexpected test needed an isolated
+rerun. The runner's wrong-directory reference check was corrected; repository
+root `./ref-check` passes **564 LLPs / 11,709 refs / 0 errors / 0 unchecked**.
+All four clusters created in this fix round are stopped and independently
+confirmed with status 3 and no postmaster.pid; receipts and retained failures
+are in `/tmp/s10d2-fix1-checks/` and the lane report. Only the specified target,
+profiles and at most 16 jobs were used. Lowest observed free space was about
+91 GiB, above the 30 GiB stop threshold. No push or stash.

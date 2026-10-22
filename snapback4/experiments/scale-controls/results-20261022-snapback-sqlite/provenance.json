@@ -1,0 +1,24 @@
+{
+  "request_source_and_binary_digests_equal": true,
+  "selected_cells": {
+    "w1-n1000000-d0-c128-disjoint": "s1sk-campaign-20261022",
+    "w2-n1000000-d0-c128-disjoint": "s1sk-campaign-20261022",
+    "w3-n1000000-d0-c128-disjoint": "s1sk-continuation-20261022",
+    "w4-n1000000-d0-c32-disjoint": "s1sk-continuation-20261022",
+    "w5-n1000000-d0-c32-hot1": "s1sk-continuation-20261022",
+    "w5-n1000000-d0-c32-same": "s1sk-continuation-20261022"
+  },
+  "implementation_commit": "b2917e7dd4c8c4abb832c3faa89d7e2753b99616",
+  "observer_fix_commit": "c98041046c8de27bba9887897a2e28d5773e709d",
+  "measured_binaries": {
+    "harness": "efb69be37cbdebcf7e515bf671757e166815aba1085b888e56c1ceba24582dd6",
+    "snapback": "9c2b4fb0f4b155d415f33b6726c3964c66298ec764d34ef516733c7b2c0857db"
+  },
+  "control_inputs": {
+    "results-20261022-fairness/comparison.json": "70531bf4d07157572862b1367343bab7656ad12e4952ff56c2a628d16fb516fd",
+    "results-20261022-fairness/curves.json": "eb0890051afea2d08842b1a934bd85e32e8ec8c6556327ad30948a79e9c5052c",
+    "results-20261022-fairness/provenance.json": "99ab6cf89de2da96ff02757b0bf723d28718c12511e721c2125d24a5ad295b78"
+  },
+  "report_tool_sha256": "5fa413767b2f52494074ce913ec7abeb03f9760bcf050329d198274bdad42966",
+  "archive_sha256": "0852a5a676a9d9e13766d4e6c746a86888b92a1264b8c662c725f16adf511d02"
+}

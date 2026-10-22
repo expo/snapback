@@ -37,7 +37,7 @@ fn engine() -> Engine {
 }
 
 fn logged(engine: &Engine) -> i64 {
-    (match &engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().query_row("SELECT count(*) FROM _log", [], |r| r.get(0)).unwrap()
+    (&engine.store()).test_support_conn().query_row("SELECT count(*) FROM _log", [], |r| r.get(0)).unwrap()
 }
 
 fn seed_rows(count: i64) -> Duration {

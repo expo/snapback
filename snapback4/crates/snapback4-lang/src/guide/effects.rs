@@ -138,6 +138,13 @@ replays the result without repeating the handler. Keep the ledger with the store
 across releases and backups. There is no automatic pruning. It serializes
 opted-in handlers sharing that local file, including across processes; hosts
 with separate disks do not share deduplication. Failures record no completion.
+
+The store-level Postgres worker binding uses the logical store id and an
+explicit absolute durable state directory. A missing id refuses with
+`E_WORKER_STORE_ID`; a missing location refuses with `E_WORKER_STATE`. The
+Postgres ledger binding is currently a library API. A Postgres URL never
+substitutes for a local SQLite filename.
+
 One hung provider call therefore stalls all handlers sharing that file; set a
 provider timeout, as above. Keeping the lock prevents simultaneous duplicate
 calls for one key. A busy commit retains its transaction and retries only the

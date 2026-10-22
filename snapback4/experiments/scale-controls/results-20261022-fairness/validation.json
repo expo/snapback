@@ -1,0 +1,71 @@
+{
+  "fmt": {
+    "exit_status": 0,
+    "command": [
+      "cargo",
+      "fmt",
+      "--manifest-path",
+      "snapback4/experiments/scale-controls/Cargo.toml",
+      "--check"
+    ]
+  },
+  "unit": {
+    "exit_status": 0,
+    "command": [
+      "cargo",
+      "test",
+      "--manifest-path",
+      "snapback4/experiments/scale-controls/Cargo.toml",
+      "--locked",
+      "-j",
+      "4"
+    ]
+  },
+  "clippy": {
+    "exit_status": 0,
+    "command": [
+      "cargo",
+      "clippy",
+      "--manifest-path",
+      "snapback4/experiments/scale-controls/Cargo.toml",
+      "--locked",
+      "-j",
+      "4",
+      "--",
+      "-D",
+      "warnings"
+    ]
+  },
+  "python": {
+    "exit_status": 0,
+    "command": [
+      "python3",
+      "-m",
+      "py_compile",
+      "snapback4/experiments/scale-controls/scripts/run.py",
+      "snapback4/experiments/scale-controls/scripts/supabase.py",
+      "snapback4/experiments/scale-controls/scripts/fairness.py",
+      "snapback4/experiments/scale-controls/scripts/check-fairness.py",
+      "snapback4/experiments/scale-controls/scripts/replay-fairness-cell.py",
+      "snapback4/experiments/scale-controls/scripts/report-fairness.py"
+    ]
+  },
+  "references": {
+    "exit_status": 0,
+    "command": [
+      "./ref-check",
+      "--verbose"
+    ],
+    "summary": "ref-check: ok \u2014 564 LLP docs, 11682 refs in 42395 files, 0 errors, 0 unchecked"
+  },
+  "archive_regeneration": {
+    "exit_status": 0,
+    "source": "s1fr-20261022-fairness.tar.zst",
+    "report": "fairness-rederived.log",
+    "cells": 36,
+    "trials": 501,
+    "measured_arrivals": 53700000
+  },
+  "measured_binary_sha256": "4146ebce4275e45ef1d41e594200f04bbb5bbc364386e8b2c48dba5f04e0ee3f",
+  "post_measurement_source_cleanup": "Removed only a redundant borrow in connection setup; measured request path unchanged."
+}

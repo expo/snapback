@@ -90,13 +90,13 @@ fn release_contract_sqlite_facts_history_and_terminal_error() {
         test_cases::opening_facts(&tx);
         test_cases::bookkeeping(
             &tx,
-            |k, v| (match &tx { snapback4_core::store_port::AnyTx::Sqlite(inner) => inner }).set_meta(k, v).unwrap(),
-            |k| (match &tx { snapback4_core::store_port::AnyTx::Sqlite(inner) => inner }).meta(k).unwrap(),
+            |k, v| (&tx).test_support_set_meta(k, v).unwrap(),
+            |k| (&tx).test_support_meta(k).unwrap(),
         );
-        test_cases::malformed_generation(&tx, |k, v| (match &tx { snapback4_core::store_port::AnyTx::Sqlite(inner) => inner }).set_meta(k, v).unwrap());
-        test_cases::worker_history(&tx, |k, v| (match &tx { snapback4_core::store_port::AnyTx::Sqlite(inner) => inner }).set_meta(k, v).unwrap());
+        test_cases::malformed_generation(&tx, |k, v| (&tx).test_support_set_meta(k, v).unwrap());
+        test_cases::worker_history(&tx, |k, v| (&tx).test_support_set_meta(k, v).unwrap());
         let backend = tx.opening_backend().unwrap();
-        test_cases::preparation(&super::release::ReleaseCheck((match &tx { snapback4_core::store_port::AnyTx::Sqlite(inner) => inner }).conn()), &backend);
+        test_cases::preparation(&super::release::ReleaseCheck((&tx).test_support_conn()), &backend);
         test_cases::history(&tx);
         tx.rollback().unwrap();
     }
@@ -121,7 +121,7 @@ fn release_contract_sqlite_activation_race() {
         let race = Arc::new(test_race::FenceRace::sqlite());
         let other = race.clone();
         let thread = std::thread::spawn(move || {
-            other.install_sqlite_busy_handler((match &peer.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).conn());
+            other.install_sqlite_busy_handler((&peer.store()).test_support_conn());
             other.arm_activation(false);
             let (schema, programs) = test_cases::compile(3);
             peer.adopt_release_at(
@@ -161,11 +161,11 @@ fn release_contract_sqlite_admission_and_exhaustion() {
         assert_eq!(h.status(), before);
     }
     let tx = h.engine.store_mut().transaction().unwrap();
-    (match &tx { snapback4_core::store_port::AnyTx::Sqlite(inner) => inner }).conn()
+    (&tx).test_support_conn()
         .execute("UPDATE _release_events SET id=?1", [i64::MAX])
         .unwrap();
     test_cases::event_id_exhaustion(&tx);
-    (match &tx { snapback4_core::store_port::AnyTx::Sqlite(inner) => inner }).set_meta("release_revision", &i64::MAX.to_string())
+    (&tx).test_support_set_meta("release_revision", &i64::MAX.to_string())
         .unwrap();
     assert_eq!(
         release_history::record_event(&tx, 0, "activate", None, None, serde_json::json!({}), &[])
@@ -174,7 +174,7 @@ fn release_contract_sqlite_admission_and_exhaustion() {
         "E_GENERATION"
     );
     assert_eq!(
-        (match &tx { snapback4_core::store_port::AnyTx::Sqlite(inner) => inner }).meta("release_revision").unwrap().unwrap(),
+        (&tx).test_support_meta("release_revision").unwrap().unwrap(),
         i64::MAX.to_string()
     );
     tx.rollback().unwrap();
@@ -186,8 +186,8 @@ fn release_contract_sqlite_timeline_counts() {
     let table = h.engine.schema().tables["items"].clone();
     let tx = h.engine.store_mut().transaction().unwrap();
     test_cases::timeline_seed(&tx, &table);
-    let num = (match &tx { snapback4_core::store_port::AnyTx::Sqlite(inner) => inner }).num("items").unwrap();
-    (match &tx { snapback4_core::store_port::AnyTx::Sqlite(inner) => inner }).conn()
+    let num = (&tx).test_support_conn().query_row("SELECT num FROM _catalog WHERE name = 'items'", [], |r| r.get::<_, i64>(0)).unwrap();
+    (&tx).test_support_conn()
         .execute(
             "INSERT INTO r(t,id,data) VALUES (?1,'invalid','invalid json')",
             [num],
@@ -241,7 +241,7 @@ impl test_cases::OpeningRepairs for Harness {
     }
 
     fn damage(&mut self, live_sum: bool) {
-        (match &self.engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).conn().execute_batch(if live_sum {
+        (&self.engine.store()).test_support_conn().execute_batch(if live_sum {
             "DELETE FROM r WHERE t=(SELECT num FROM _catalog WHERE name='totals'); DELETE FROM i WHERE ti IN (SELECT num FROM _catalog WHERE name LIKE 'totals.%'); DELETE FROM _meta WHERE key='live_sum_candidates';"
         } else { "DELETE FROM _cap_counts; DELETE FROM _meta WHERE key='cap_counts_schema';" }).unwrap();
     }

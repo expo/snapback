@@ -273,7 +273,7 @@ impl AssetTransaction for Tx<'_> {
 // host to them; keeping the byte writer out of this adapter is intentional.
 #[allow(dead_code)]
 impl Tx<'_> {
-    pub(super) fn record_asset(&self, asset: &Asset) -> Result<(), RuntimeError> {
+    pub(crate) fn record_asset(&self, asset: &Asset) -> Result<(), RuntimeError> {
         assets::validate_ledger_text(&[
             &asset.id,
             &asset.owner,
@@ -285,11 +285,11 @@ impl Tx<'_> {
         Ok(())
     }
 
-    pub(super) fn stale_assets(&self, now: i64) -> Result<Vec<Asset>, RuntimeError> {
+    pub(crate) fn stale_assets(&self, now: i64) -> Result<Vec<Asset>, RuntimeError> {
         self.query("SELECT id,owner,kind,content_type,bytes,width,height,duration,created_at,home_table,home_id,home_column,released_at,name FROM _assets WHERE released_at IS NOT NULL OR (home_table IS NULL AND created_at < $1 AND NOT EXISTS(SELECT 1 FROM _asset_intents u WHERE u.asset=_assets.id AND u.state='pending' AND NOT EXISTS(SELECT 1 FROM _ops o WHERE o.principal=u.owner AND o.id=u.intent))) ORDER BY created_at,id LIMIT 256", &[&(assets::stale_asset_cutoff(now))])?.iter().map(read).collect()
     }
 
-    pub(super) fn stage_stale_assets_for(
+    pub(crate) fn stage_stale_assets_for(
         &self,
         now: i64,
         budget: std::time::Duration,
@@ -316,7 +316,7 @@ impl Tx<'_> {
         Ok(assets)
     }
 
-    pub(super) fn forget_asset(&self, id: &str) -> Result<(), RuntimeError> {
+    pub(crate) fn forget_asset(&self, id: &str) -> Result<(), RuntimeError> {
         self.require_serialized_head_fence("forget asset")?;
         if nul(&[id]) {
             return Ok(());
@@ -327,7 +327,7 @@ impl Tx<'_> {
         Ok(())
     }
 
-    pub(super) fn release_asset(
+    pub(crate) fn release_asset(
         &self,
         id: &str,
         table: &str,
@@ -343,7 +343,7 @@ impl Tx<'_> {
         Ok(())
     }
 
-    pub(super) fn asset_viewed(&self, id: &str, principal: &str) -> Result<bool, RuntimeError> {
+    pub(crate) fn asset_viewed(&self, id: &str, principal: &str) -> Result<bool, RuntimeError> {
         if nul(&[id, principal]) {
             return Ok(false);
         }
@@ -354,7 +354,7 @@ impl Tx<'_> {
             .get(0))
     }
 
-    pub(super) fn record_asset_view(
+    pub(crate) fn record_asset_view(
         &self,
         id: &str,
         principal: &str,

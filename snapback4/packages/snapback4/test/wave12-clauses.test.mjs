@@ -33,7 +33,7 @@ async function serve(t, deployment) {
     try { await closed; } finally { clearTimeout(timer); }
   };
   t.after(stop);
-  await waitFor(() => { assert.equal(child.exitCode, null, out() + err); return /SNAPBACK4_READY/.test(err); }, 'serve readiness', { diagnostics: () => out() + err });
+  await waitFor(() => { assert.equal(child.exitCode, null, out() + err); return /SNAPBACK4_READY/.test(err) && /http:\/\/127\.0\.0\.1:\d+/.test(out()); }, 'serve readiness', { diagnostics: () => out() + err });
   const url = out().match(/http:\/\/127\.0\.0\.1:\d+/)[0];
   const signIn = await (await fetch(url + '/auth/guest', { method: 'POST', body: '{}' })).json();
   const headers = { authorization: `Bearer ${signIn.session.token}`, 'content-type': 'application/json' };

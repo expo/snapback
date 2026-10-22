@@ -1,27 +1,11 @@
 //! Server store handles. The device continues to use the concrete SQLite API.
-// @ref LLP 3000.009.001.000#3.4 — one concrete engine, explicit enum dispatch; SQLite-only S10b.
-use crate::{Value, store as sqlite};
+// @ref LLP 3000.009.001.000#3.4 — one concrete engine, explicit enum dispatch; Postgres admitted profile in S10c.
+use crate::Value;
 
-pub enum AnyStore {
-    Sqlite(sqlite::Store),
-}
-
-pub enum AnyTx<'store> {
-    Sqlite(sqlite::Tx<'store>),
-}
-
-/// A deferred read snapshot retains its physical transaction until closed.
-pub struct ReadSnapshot<'store> {
-    tx: AnyTx<'store>,
-}
-
-pub(crate) enum AnyPreparation<'store> {
-    Sqlite(sqlite::release::ReleaseCheck<'store>),
-}
-
-pub enum AnyInspection {
-    Sqlite(sqlite::inspect::Inspection),
-}
+#[path = "store/port/handles.rs"]
+mod handles;
+pub use handles::{AnyStore, AnyTx, AnyInspection, ReadSnapshot};
+pub(crate) use handles::AnyPreparation;
 
 /// A local byte location, available only after the store admits asset storage.
 /// A store without blob storage must return `StoreUnsupported { family: "assets" }`
@@ -46,6 +30,17 @@ pub(crate) struct OpeningMetadata {
 
 #[path = "store/port/lifecycle.rs"]
 mod lifecycle;
+pub(crate) use lifecycle::IdentitySource;
+#[path = "store/port/identity_members.rs"]
+mod identity_members;
+pub(crate) use identity_members::SessionEdit;
+#[path = "store/port/worker_ledger.rs"]
+mod worker_ledger;
+#[cfg(feature = "postgres")]
+#[path = "store/port/ownership.rs"]
+mod ownership;
+#[cfg(feature = "postgres")]
+pub use ownership::{StoreLease, LeasePolicy, LeaseAcquisition};
 #[path = "store/port/operations.rs"]
 mod operations;
 pub(crate) use operations::FollowingHistoryReader;
@@ -107,10 +102,14 @@ pub(crate) struct EffectStepTransaction<'tx, 'store> { tx: &'tx AnyTx<'store> }
 #[path = "store/port/steps.rs"]
 mod steps;
 
-impl AnyTx<'_> {
-    pub(crate) fn action_steps(&self) -> ActionStepTransaction<'_, '_> { ActionStepTransaction { tx: self } }
-    pub(crate) fn effect_steps(&self) -> EffectStepTransaction<'_, '_> { EffectStepTransaction { tx: self } }
+impl<'store> AnyTx<'store> {
+    pub(crate) fn action_steps(&self) -> ActionStepTransaction<'_, 'store> { ActionStepTransaction { tx: self } }
+    pub(crate) fn effect_steps(&self) -> EffectStepTransaction<'_, 'store> { EffectStepTransaction { tx: self } }
 }
+
+#[cfg(feature = "test-support")]
+#[path = "store/port/fixtures.rs"]
+mod fixtures;
 
 #[cfg(test)]
 mod tests;

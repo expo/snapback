@@ -183,6 +183,7 @@ pub fn sync_error(site: &Site, message: impl Into<String>, rewrite: impl Into<St
 pub fn guide_for(code: &str) -> &'static str {
     match code {
         "E_SECURITY_NOTES" | "N_RETAINED_ROLE_GRANT" | "N_OPTIONAL_UPLOAD_CREATE" | "N_CREATION_REASON" | "N_CREATION_MONEY" | "N_CONSTANT_APPROVAL" | "N_TRANSITION_BYPASS" | "N_STALE_CREATION_CHECK" | "N_DURATION_BOUNDS" | "N_ROLE_WIDE_WRITE" | "N_SELF_CLAIMED_RELATIONSHIP" | "N_CALLER_TIME" | "E_SESSION" | "E_SECURITY_REVIEW" | "N_INSERT_WRITE_INTENT" | "N_COLUMN_RESULT_EXPOSURE" | "E_SECURITY_TARGET" | "N_SECURITY_INTENT" | "N_BROAD_READ" | "N_GRANT_OUTLIVES_ROLE" | "N_ARGUMENT_GRANT" | "N_OPTIONAL_EVIDENCE" | "N_SWEEP_ONLY_DEADLINE" | "N_EXISTENCE_ORACLE" | "N_PRIVILEGE_ESCALATION" | "N_INVARIANT_RESTATES_RULE" | "N_ROLE_WIDE_READ" => "security",
+        "E_WORKER_STORE_ID" | "E_WORKER_STATE" => "effects",
         "E_EXPIRY_ORPHAN" => "expire",
         "E_PROOF_BROWSER" | "E_PROOF_USAGE" => "testing",
         "E_QUARRY_IDENTITY_DUPLICATE" => "production",
@@ -254,7 +255,7 @@ pub fn guide_for(code: &str) -> &'static str {
         "E_HTTP_RESPONSE" | "E_HTTP_LIMIT" | "E_HTTP_LISTENER" | "E_ADDRINUSE" => "refusals",
         "E_STREAMS" => "wire",
         "E_IDENTITY_TIMEOUT" | "E_STAGING" | "E_STAGING_INPUT" | "E_STAGING_SIGNUP" | "E_STAGING_PROVISION" | "E_STAGING_TIMEOUT" => "staging",
-        "E_STORE_UNSUPPORTED" | "E_STORE_GENERATION" | "E_STORE_BUSY" | "E_RUN_BUSY" | "E_RUN_SOURCE_CHANGED" | "E_SCHEMA" | "E_STORE" | "E_GENERATION" | "E_CLIENT" | "E_CLOSED" | "E_DEVICE_VERSION" => "refusals",
+        "E_STORE_OWNERSHIP" | "E_COMMIT_OUTCOME_UNKNOWN" | "E_STORE_UNSUPPORTED" | "E_STORE_GENERATION" | "E_STORE_BUSY" | "E_RUN_BUSY" | "E_RUN_SOURCE_CHANGED" | "E_SCHEMA" | "E_STORE" | "E_GENERATION" | "E_CLIENT" | "E_CLOSED" | "E_DEVICE_VERSION" => "refusals",
         code if code.strip_prefix("E_").is_some_and(|name| name.starts_with("ASSET_") || name.starts_with("UPLOAD_") || name == "UPLOAD" || name == "CANCELLED") => "assets",
         code if code.starts_with("E_NATIVE") => "native",
         code if code.strip_prefix("E_").is_some_and(|name| name.starts_with("WITNESS_")) => "witness",

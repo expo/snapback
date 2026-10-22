@@ -126,3 +126,44 @@ All four owned clusters were stopped and independently confirmed with
 `/tmp/sb4-s10b-pg-check.COWSJw`. Data was retained. Details and remaining
 SQLite/device qualification are in the
 [S10b report](../snapback4/reports/20261021-s10b-semantic-store-boundary.md).
+
+## 2026-10-22 — S10c blind-review A/B evidence
+
+Sol's blind review of lane S10c used private PostgreSQL 16.15 clusters with
+locale C and ran the exact
+`concurrent_read_modify_write_and_duplicate_ops_are_atomic_in_both_modes`
+case **13/13 successfully on `bd4d265df5` and 13/13 on `ad87e0ddb3`**.
+Every run retained all 65 increments. Clean evaluator suites passed all
+58 tests on both revisions. In the first six isolated runs, all **461**
+instrumented serialization errors occurred at **`UPDATE r`**, before tail
+completion. The retry loop still encloses the entire transaction, including
+commit; the evaluator does not use `SAVEPOINT member` and discards the
+completed transaction's head cache.
+
+These reviewer observations do not reproduce a persistent S10c regression or
+attribute earlier exhaustion to its tail ordering. Contention-timing effects
+remain unverified. Grok separately passed 8/8 HEAD and 2/2 base runs on private
+default-C clusters, with 65 increments per mode and no lost updates. The
+original failures and this ticket remain open evidence; **no retry limit,
+backoff, timeout, durability or workload policy changes** are made in S10c fix
+round 1. Review source: `/tmp/s10c-review.md` on expo-build-450a; see the
+[S10c report](../snapback4/reports/20261022-s10c-postgres-arm.md).
+
+## 2026-10-22 — S10c fix-round-1 full-script observations
+
+Both evaluator-enabled full default-C runs on expo-build-450a pass the exact
+concurrency case: 65 increments per mode, no lost updates, zero serialized
+retries and 93 aggregate serializable transaction retries in each run. No
+40001 exhaustion was observed, so an isolated concurrency rerun was not needed.
+The final complete Postgres script exits zero after aligning the three local
+package versions in its stale lockfile and refreshing local debug artifacts
+at shared-target manifest handoffs. These are qualification-path corrections;
+retry limits, backoff, timeout, workload and durability policy remain unchanged.
+The stress ticket remains open; these passes do not establish a root cause.
+
+Runtime changes are `fc7e2eb740` and the evaluator-report adaptation
+`a1b6a53138`, followed by the qualification/guard/cache-handoff record. Logs:
+`/tmp/s10c-r1-checks/postgres-metadata.log` and `postgres.log`; the preceding
+lockfile-only preflight failure is retained separately. All three owned
+clusters are independently confirmed stopped (status 3, no postmaster.pid).
+See the [round-1 report](../snapback4/reports/20261022-s10c-postgres-arm.md#s10c-fix-round-1--2026-10-22).

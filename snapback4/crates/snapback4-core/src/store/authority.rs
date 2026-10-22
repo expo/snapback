@@ -143,22 +143,11 @@ impl Store {
             sql.rollback()?;
             return Ok(None);
         }
-        let tx = crate::store_port::AnyTx::Sqlite(Tx { activation_scan: None, changes: Default::default(), sequence_table: Default::default(), tx: sql, page_size: self.page_size,
+        let tx = crate::store_port::AnyTx::from_sqlite(Tx { activation_scan: None, changes: Default::default(), sequence_table: Default::default(), tx: sql, page_size: self.page_size,
             server: self.server, catalog: &self.catalog });
         let resolved = crate::identity::resolve_session_tx(&tx, digest, now, supervisor_revision)?;
         tx.rollback()?;
         Ok(resolved)
-    }
-
-    /// Expiry pruning follows a completed authority snapshot. Keeping this
-    /// best-effort cleanup outside the deferred read transaction avoids a
-    /// read-to-write lock upgrade while rechecking the expiry predicate.
-    pub(crate) fn invalidate_expired_authority_session(&self, digest: &str, now: i64) -> Result<(), RuntimeError> {
-        self.conn.execute(
-            "DELETE FROM _sessions WHERE token_digest = ?1 AND expires_at <= ?2",
-            params![digest, now],
-        )?;
-        Ok(())
     }
 }
 

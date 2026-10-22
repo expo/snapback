@@ -10,7 +10,7 @@ fn engine(source: &str) -> Engine {
 }
 fn sample(now: i64) -> ServiceSample { ServiceSample { now, supervisor_revision: 0 } }
 fn recorded_steps(e: &Engine, id: &str) -> Vec<(String, String, String)> {
-    let mut q = (match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().prepare("SELECT name, provider_key, state FROM _effect_steps WHERE effect_id = ?1 ORDER BY name").unwrap();
+    let mut q = (&e.store()).test_support_conn().prepare("SELECT name, provider_key, state FROM _effect_steps WHERE effect_id = ?1 ORDER BY name").unwrap();
     q.query_map([id], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?))).unwrap().collect::<Result<_, _>>().unwrap()
 }
 

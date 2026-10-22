@@ -4,14 +4,14 @@ use super::*;
 fn http_mutation_nul_id_is_refused_without_a_receipt_or_commit() {
     let host = Host::with_store(true, snapback4_core::Store::memory().unwrap(),
         "use personas alice\nmutation ping():\n  return 1\n");
-    let changes = (match lock(&host.shared.engine).store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().total_changes();
+    let changes = (lock(&host.shared.engine).store()).test_support_conn().total_changes();
     let response = host.request("POST", "/m/ping", "x-snapback-persona: alice\r\n", r#"{"id":"op\u0000id","args":{}}"#);
     assert_eq!(body(&response)["state"], "failed", "{response}");
     assert_eq!(body(&response)["why"]["code"], "E_INPUT", "{response}");
     let engine = lock(&host.shared.engine);
-    assert_eq!((match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().total_changes(), changes);
+    assert_eq!((engine.store()).test_support_conn().total_changes(), changes);
     for table in ["_ops", "_commits"] {
-        assert_eq!((match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().query_row(&format!("SELECT count(*) FROM {table}"), [], |r| r.get::<_, i64>(0)).unwrap(), 0);
+        assert_eq!((engine.store()).test_support_conn().query_row(&format!("SELECT count(*) FROM {table}"), [], |r| r.get::<_, i64>(0)).unwrap(), 0);
     }
 }
 

@@ -1,6 +1,6 @@
-//! Evaluation layout: the same canonical row images and ordered binary keys
-//! as SQLite. This deliberately measures the existing Rows boundary, not a
-//! relational schema/compiler or a production Postgres control plane.
+//! Canonical row images and ordered binary keys shared by the common engine
+//! and its retained evaluation oracle. Common-engine durable transactions
+//! take the store owner fence before the head; serving policy lives above it.
 use crate::{
     error::RuntimeError,
     key,
@@ -70,9 +70,13 @@ pub enum WriteMode {
     Serializable,
 }
 
-pub(super) struct Store {
+pub struct Store {
+    pub(super) unified: bool,
+    pub(super) fence: Option<super::ownership::Fence>,
+    pub(super) commit_warning: std::sync::Arc<std::sync::atomic::AtomicBool>,
     pub generation: u64,
-    pub client: Client,
+    pub(crate) read_only: bool,
+    pub(crate) client: Client,
     cache: BTreeMap<&'static str, Statement>,
     pub calls: Cell<u64>,
     pub prefetch: bool,
@@ -84,10 +88,11 @@ pub(super) struct Store {
 
 impl Store {
     pub fn new(client: Client) -> Self {
-        Self { generation:1, client, cache: BTreeMap::new(), calls: Cell::new(0), prefetch: true, marked_reads: Cell::new(0), page_reads: Cell::new(0), prefetch_rows: Cell::new(0), prefetch_bytes: Cell::new(0) }
+        Self { unified: false, fence: None, commit_warning: Default::default(), generation:1, read_only: false, client, cache: BTreeMap::new(), calls: Cell::new(0), prefetch: true, marked_reads: Cell::new(0), page_reads: Cell::new(0), prefetch_rows: Cell::new(0), prefetch_bytes: Cell::new(0) }
     }
 
-    fn begin(&mut self, mode: Option<WriteMode>) -> Result<Tx<'_>, RuntimeError> {
+    fn begin(&mut self, mode: Option<WriteMode>, opening: bool) -> Result<Tx<'_>, RuntimeError> {
+        if self.read_only && mode.is_some() { return Err(RuntimeError::Store("Postgres reader is read-only".into())); }
         self.calls.set(self.calls.get() + 1);
         self.page_reads.set(0);
         let isolation = match mode {
@@ -96,14 +101,48 @@ impl Store {
             Some(WriteMode::Serializable) => IsolationLevel::Serializable,
         };
         let inner = self.client.build_transaction().isolation_level(isolation).read_only(mode.is_none()).start()?;
-        Ok(Tx { inner: RefCell::new(inner), bind_refused: Cell::new(false), cache: RefCell::new(&mut self.cache), calls: &self.calls, marked_reads: &self.marked_reads, page_reads: &self.page_reads, prefetch_rows: &self.prefetch_rows, prefetch_bytes: &self.prefetch_bytes,
-            rows_cache: RefCell::new(super::prefetch::Cache::default()), prefetch_enabled: self.prefetch, head: Cell::new(None), serialized_head: Cell::new(false), tail: RefCell::new(super::tail::Tail::default()) })
+        let tx = Tx { commit_warning: &self.commit_warning, inner: RefCell::new(inner), bind_refused: Cell::new(false), cache: RefCell::new(&mut self.cache), calls: &self.calls, marked_reads: &self.marked_reads, page_reads: &self.page_reads, prefetch_rows: &self.prefetch_rows, prefetch_bytes: &self.prefetch_bytes,
+            rows_cache: RefCell::new(super::prefetch::Cache::default()), prefetch_enabled: self.prefetch, head: Cell::new(None), serialized_head: Cell::new(false), tail: RefCell::new(super::tail::Tail::default()), savepoints: RefCell::new(Vec::new()) };
+        if self.unified && mode.is_some() {
+            // Bootstrap is the sole exception: an absent owner relation is
+            // installed in the successful opening transaction, never by readers.
+            let mut exists = !opening || tx.query("SELECT to_regclass('_owner') IS NOT NULL", &[])?[0].get::<_, bool>(0);
+            if !exists {
+                if self.fence.as_ref().is_some_and(|fence| fence.token != 0) {
+                    return Err(RuntimeError::StoreOwnership("acquired owner record disappeared; refuse to bootstrap over lost ownership".into()));
+                }
+                // @ref LLP 3000.009.001.000#3.4 — legacy owner installation is atomic with attach and excludes a live evaluator.
+                // Guard legacy namespaces even when no logical id exists yet.
+                // Fresh creation has no backend relation and takes no lock.
+                tx.query("SELECT pg_advisory_xact_lock(hashtextextended('sb4-owner-bootstrap:' || current_schema(),0)) WHERE to_regclass('_backend') IS NOT NULL", &[])?;
+                #[cfg(test)]
+                super::ownership::test_hooks::run(super::ownership::test_hooks::Point::AfterBootstrapLock);
+                if let Some(fence) = &self.fence {
+                    super::ownership::install(&tx, &fence.store_id)?;
+                    exists = true;
+                }
+            }
+            if exists {
+                // @ref LLP 3000.009.001.000#5.1 — first row lock, before head, generation or any family write.
+                let rows = tx.query("SELECT store_id,token FROM _owner WHERE singleton FOR KEY SHARE", &[]).map_err(|error| {
+                    if matches!(&error, RuntimeError::Postgres(e) if e.code() == Some(&postgres::error::SqlState::T_R_SERIALIZATION_FAILURE)) {
+                        RuntimeError::StoreOwnership("owner changed in this transaction snapshot".into())
+                    } else { error }
+                })?;
+                let expected = self.fence.as_ref().map_or(0, |f| f.token);
+                if rows.len() != 1 || rows[0].get::<_, i64>(1) != expected
+                    || self.fence.as_ref().is_some_and(|f| rows[0].get::<_, &str>(0) != f.store_id) {
+                    return Err(RuntimeError::StoreOwnership("stale owner token or logical store identity".into()));
+                }
+            }
+        }
+        Ok(tx)
     }
 
     // Opening validates its backend and installs every physical upgrade before
     // this transaction can commit. It cannot assume generation columns exist.
     pub(super) fn opening_transaction(&mut self) -> Result<Tx<'_>, RuntimeError> {
-        self.begin(Some(WriteMode::Serialized))
+        self.begin(Some(WriteMode::Serialized), true)
     }
 
     pub fn transaction(&mut self, mode: Option<WriteMode>) -> Result<Tx<'_>, RuntimeError> {
@@ -116,8 +155,16 @@ impl Store {
     // Tests rendezvous after BEGIN and before the ordinary head fence. Both
     // transactions must exist before either may select or mutate request facts.
     pub(super) fn transaction_with_begin_hook(&mut self, mode: Option<WriteMode>, after_begin: impl FnOnce()) -> Result<Tx<'_>, RuntimeError> {
+        self.checked_transaction(mode, false, after_begin)
+    }
+
+    pub(crate) fn attach_transaction(&mut self, mode: Option<WriteMode>) -> Result<Tx<'_>, RuntimeError> {
+        self.checked_transaction(mode, true, || {})
+    }
+
+    fn checked_transaction(&mut self, mode: Option<WriteMode>, opening: bool, after_begin: impl FnOnce()) -> Result<Tx<'_>, RuntimeError> {
         let generation_expected = self.generation;
-        let tx = self.begin(mode)?;
+        let tx = self.begin(mode, opening)?;
         after_begin();
         #[cfg(test)]
         crate::store::test_race::activation_after_begin();
@@ -143,7 +190,8 @@ impl Store {
     }
 }
 
-pub(super) struct Tx<'a> {
+pub struct Tx<'a> {
+    commit_warning: &'a std::sync::atomic::AtomicBool,
     inner: RefCell<Transaction<'a>>,
     bind_refused: Cell<bool>,
     cache: RefCell<&'a mut BTreeMap<&'static str, Statement>>,
@@ -158,6 +206,7 @@ pub(super) struct Tx<'a> {
     // A read snapshot also captures a head, without owning the writer fence.
     pub(super) serialized_head: Cell<bool>,
     pub(super) tail: RefCell<super::tail::Tail>,
+    pub(super) savepoints: RefCell<Vec<(String, super::semantic::Checkpoint)>>,
 }
 
 pub(super) fn signed(n: u64) -> Result<i64, RuntimeError> {
@@ -214,7 +263,7 @@ fn guard_text_params(statement: &Statement, params: &[&(dyn ToSql + Sync)]) -> R
 
 impl Tx<'_> {
     // @ref LLP 3000.009.001.000#9.1 — a pre-bind refusal is terminal too; catching it cannot commit earlier writes without their tail.
-    fn ensure_active(&self) -> Result<(), RuntimeError> {
+    pub(super) fn ensure_active(&self) -> Result<(), RuntimeError> {
         if self.bind_refused.get() {
             return Err(RuntimeError::Input("transaction aborted by a refused Postgres parameter; roll back".into()));
         }
@@ -236,7 +285,7 @@ impl Tx<'_> {
         Ok(statement)
     }
 
-    pub fn query(&self, sql: &'static str, params: &[&(dyn ToSql + Sync)]) -> Result<Vec<Row>, RuntimeError> {
+    pub(crate) fn query(&self, sql: &'static str, params: &[&(dyn ToSql + Sync)]) -> Result<Vec<Row>, RuntimeError> {
         let statement = self.prepared(sql)?;
         self.guard_params(&statement, params)?;
         self.calls.set(self.calls.get() + 1);
@@ -256,10 +305,9 @@ impl Tx<'_> {
         Ok(total)
     }
 
-    pub fn execute(&self, sql: &'static str, params: &[&(dyn ToSql + Sync)]) -> Result<u64, RuntimeError> {
+    pub(crate) fn execute(&self, sql: &'static str, params: &[&(dyn ToSql + Sync)]) -> Result<u64, RuntimeError> {
         let statement = self.prepared(sql)?;
         self.guard_params(&statement, params)?;
-        self.flush_tail()?;
         self.calls.set(self.calls.get() + 1);
         Ok(self.inner.borrow_mut().execute(&statement, params)?)
     }
@@ -273,9 +321,9 @@ impl Tx<'_> {
         Ok(())
     }
 
-    pub fn batch(&self, sql: &str) -> Result<(), RuntimeError> {
+    pub(crate) fn batch(&self, sql: &str) -> Result<(), RuntimeError> {
         self.ensure_active()?;
-        if sql.to_ascii_uppercase().contains("ROLLBACK") {
+        if sql.split(|c: char| !c.is_ascii_alphanumeric() && c != '_').any(|token| token.eq_ignore_ascii_case("ROLLBACK")) {
             return Err(RuntimeError::Store("use the explicit transaction/savepoint rollback method".into()));
         }
         self.calls.set(self.calls.get() + 1);
@@ -283,12 +331,17 @@ impl Tx<'_> {
         Ok(())
     }
 
-    pub fn rollback_program(&self) -> Result<(), RuntimeError> {
+    pub(super) fn rollback_named(&self, name: &str) -> Result<(), RuntimeError> {
         self.ensure_active()?;
         self.rows_cache.borrow_mut().clear();
         self.calls.set(self.calls.get() + 1);
-        self.inner.borrow_mut().batch_execute("ROLLBACK TO SAVEPOINT program; RELEASE SAVEPOINT program")?;
+        self.inner.borrow_mut().batch_execute(&format!("ROLLBACK TO SAVEPOINT {name}; RELEASE SAVEPOINT {name}"))?;
         Ok(())
+    }
+
+    pub fn rollback_program(&self) -> Result<(), RuntimeError> {
+        if self.savepoints.borrow().iter().any(|(name, _)| name == "program") { self.rollback_to("program") }
+        else { self.rollback_named("program") }
     }
 
     pub(super) fn rollback_prefetch(&self) -> Result<(), RuntimeError> {
@@ -301,8 +354,8 @@ impl Tx<'_> {
     pub fn commit(self) -> Result<(), RuntimeError> {
         self.ensure_active()?;
         self.flush_tail()?;
-        self.calls.set(self.calls.get() + 1);
-        self.inner.into_inner().commit()?;
+        self.calls.set(self.calls.get() + 2);
+        super::ownership::commit(self.inner.into_inner(), self.commit_warning)?;
         Ok(())
     }
 
@@ -323,7 +376,10 @@ impl Tx<'_> {
         writes: u64,
     ) -> Result<(), RuntimeError> {
         self.ensure_active()?;
-        self.tail.borrow_mut().commit = Some(super::tail::Commit {
+        signed(seq)?; signed(writes)?;
+        let mut tail = self.tail.borrow_mut();
+        if tail.commit.is_some() { return Err(RuntimeError::Store("commit tail slot already occupied".into())); }
+        tail.commit = Some(super::tail::Commit {
             seq, at, program: program.into(), principal: principal.into(), kind: kind.into(),
             touched: canonical_json(&touched), writes,
         });
@@ -338,6 +394,7 @@ impl Tx<'_> {
 
     // @ref LLP 3000.009.001.000#33-extraction-first-with-no-behavior-change — full admissions share policy and remain one tail flight.
     pub fn record_effects(&self, outbox: &[crate::engine::presence::Emission], seq: u64, now: i64, schema: &crate::schema::Schema) -> Result<(), RuntimeError> {
+        self.ensure_active()?;
         crate::engine::effects::validate_emissions(outbox, seq)?;
         let mut prepared = Vec::with_capacity(outbox.len());
         for (id, effect, payload, presence) in outbox {
@@ -345,11 +402,13 @@ impl Tx<'_> {
             prepared.push(super::tail::Effect {
                 id: id.clone(), effect: effect.clone(), payload: canonical_json(payload),
                 next_at: presence.values().flatten().max().copied(), work: canonical_json(&work), deadline, contract,
-                presence: presence.iter().filter_map(|(p,d)| d.map(|d| (p.clone(),d))).collect(),
+                presence: presence.iter().filter_map(|(p,d)| d.map(|d| (p.clone(),d))).collect(), release: None,
             });
         }
         let mut tail = self.tail.borrow_mut();
-        debug_assert!(tail.commit.as_ref().is_some_and(|commit| commit.seq == seq && commit.at == now), "effects require their matching commit tail");
+        if !tail.commit.as_ref().is_some_and(|commit| commit.seq == seq && commit.at == now) {
+            return Err(RuntimeError::Store("effects require their matching commit tail".into()));
+        }
         tail.effects.extend(prepared);
         Ok(())
     }

@@ -1,0 +1,139 @@
+{
+  "native_request_source_commit": "b2917e7dd4c8c4abb832c3faa89d7e2753b99616",
+  "observer_fix_commit": "c98041046c8de27bba9887897a2e28d5773e709d",
+  "campaigns": [
+    {
+      "pid": 836782,
+      "pgid": 836781,
+      "source_commit": "b2917e7dd4c8c4abb832c3faa89d7e2753b99616",
+      "source_sha256": {
+        "Cargo.toml": "cf86481a9cd5f22eef755335e48e9a5d61d5d28e60154f949337b98c24f36bbe",
+        "Cargo.lock": "08a84604051a0b05620c91da961d84c75525bd54fb6f6914183759a02f887ad3",
+        "src/auth.rs": "a7e540f37ba0c294227359363bd2ae84bbca9c5851760b2e43d0c6aa5cd236c8",
+        "src/convex.rs": "a2e818c03d1ac70eb7903dc4b081caf6de9d5f1cdd7d05118c11893e1aac3f8d",
+        "src/db.rs": "238c9a66bfa7c0c4b7081efb85a235589655f5ffc14376f439d439de7b69bcb7",
+        "src/load.rs": "c6b3619dc3492e47f2c7d4685056faa9a1894393e2b516156e6dfda8e01b0fcf",
+        "src/main.rs": "617127132e89cecbfb6d896faa7777f364327642ce906ca9c7d31a6924e1f059",
+        "src/snapback.rs": "dff45cb63aba95ffcee5e5c8d0a66af6c40a51d13a38b4fc25277eb4093222c0",
+        "src/supabase.rs": "363836f645d2257615a4fcdf95368b3e5b83daba00a5b3f294719286350fb66a",
+        "scripts/archive.py": "e7f7450280ab0b81206ad4b9325bc44a31542faa5f559714b523e8261efa75fc",
+        "scripts/audit.py": "9f021b0be02ebf60272e6081469c21c828f426c6490cd431c3ee4b892482bb13",
+        "scripts/check-convex.py": "44cf3414e4c5f7fd76e8fb7281c9278970fb36ce5b056a625c1beb7df4db75fc",
+        "scripts/check-fairness.py": "f8cc9ecaee10338dc32e836b358f41120e0d69912daa0f9fd7e2299b0160f325",
+        "scripts/check-snapback.py": "f4fc57f2ae8a426034b1f2662196092479973b464f3e0d12c6c902123d1e0ff5",
+        "scripts/check-supabase.py": "6827a25c72c09d4f7ec0438afa9cb393318e5d861996d32b34be8596fdc095f6",
+        "scripts/check.py": "3e263dfc97aa7c24dded7becd309be9d7c0fa304a19184aae34d6ee325b79813",
+        "scripts/compare.py": "ba1e0c19f94d8e3bdf7eaf1395cae2c6206ea39a7051c7b0095fb26da66876d3",
+        "scripts/convex.py": "caeef90dbfaea6d33ff6e155632cadd2c47345e8ee47379aa171a55a779b3045",
+        "scripts/db-monitor.py": "2f6e291bc211f7dbaf381f61068891be5b9aadac8f87a361b36d8002340745d2",
+        "scripts/fairness.py": "0abf2c2bb4aa2f3ff4c375feb6e54fc36544b7cce0ac8e49090924824de6e311",
+        "scripts/install-convex.py": "72154a18f53753e106d7e4de34c34562ba2bb50f28836a4fa0eb3170f939b920",
+        "scripts/install-postgrest.py": "25451dd7d64e4db421e789ea104e50e633b0ec3588332c934a6069fa7b78084b",
+        "scripts/plot-convex-comparison.py": "8984c8b11c563f5756072384db5fad4d1fc47af32f92cc5e2048efa19ec4b91f",
+        "scripts/plot.py": "d133db78dea739b7da853cdeadf6cbb67e58d5db257a7ff9387acbf5dea12225",
+        "scripts/replay-fairness-cell.py": "1c2512b76e3bb26afd9542d31b4fb1109e3e5ec06634403b87ed0ad2c77b4aae",
+        "scripts/report-convex.py": "d533be0c42f8919eb36bae5dd251afb4345dcd5b7856d73b55c8e38afba468c1",
+        "scripts/report-fairness.py": "c9843f2937ebda0201b750b4b980600c2d7b2662d73870b149c0152b558ad4f2",
+        "scripts/report-snapback.py": "c0755477f926bdb0d9971dc6b0e7f0acfd0d3c43185426abeca51137d08e7c94",
+        "scripts/report.py": "7bf629d4088a89477496d2f2ac422a719abef6515f9744a48accd8b267c9ca6a",
+        "scripts/run.py": "454d794f7c3ba87bf16f48a561933a287bde6cfdfb421fa879d7ecf093c0e58b",
+        "scripts/snapback.py": "3c6dbad4fb65628c81a8b2b13b912b337b045463279c772946c52ebef0d7fc67",
+        "scripts/supabase.py": "e115a0b08656732746b97da0342618787af89c4fc0a7aecbc29641bd4efc8bd1",
+        "snapback-app/snapback/schema.q": "d81afc50e1ead9ba3c8fd245fc2fd84f2ed1b179e03d3382fccf18b2bef9c65f"
+      },
+      "binary_sha256": "efb69be37cbdebcf7e515bf671757e166815aba1085b888e56c1ceba24582dd6",
+      "snapback_binary_sha256": "9c2b4fb0f4b155d415f33b6726c3964c66298ec764d34ef516733c7b2c0857db",
+      "command": [
+        "scripts/snapback.py",
+        "matrix",
+        "--out",
+        "target/s1sk-campaign-20261022",
+        "--fixture",
+        "target/s1sk/s1sk-prepare-20261022/deployment"
+      ],
+      "app_cores": "0-2,6-8",
+      "load_cores": "3-5,9-11",
+      "method": {
+        "warmup_ms": 10000,
+        "duration_ms": 20000,
+        "repeats": 3
+      },
+      "sqlite": {
+        "durability": "shipped WAL, synchronous=FULL",
+        "database": "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/s1sk/s1sk-campaign-20261022/deployment/store.sqlite"
+      }
+    },
+    {
+      "pid": 921843,
+      "pgid": 921842,
+      "source_commit": "c98041046c8de27bba9887897a2e28d5773e709d",
+      "source_sha256": {
+        "Cargo.toml": "cf86481a9cd5f22eef755335e48e9a5d61d5d28e60154f949337b98c24f36bbe",
+        "Cargo.lock": "08a84604051a0b05620c91da961d84c75525bd54fb6f6914183759a02f887ad3",
+        "src/auth.rs": "a7e540f37ba0c294227359363bd2ae84bbca9c5851760b2e43d0c6aa5cd236c8",
+        "src/convex.rs": "a2e818c03d1ac70eb7903dc4b081caf6de9d5f1cdd7d05118c11893e1aac3f8d",
+        "src/db.rs": "238c9a66bfa7c0c4b7081efb85a235589655f5ffc14376f439d439de7b69bcb7",
+        "src/load.rs": "c6b3619dc3492e47f2c7d4685056faa9a1894393e2b516156e6dfda8e01b0fcf",
+        "src/main.rs": "617127132e89cecbfb6d896faa7777f364327642ce906ca9c7d31a6924e1f059",
+        "src/snapback.rs": "dff45cb63aba95ffcee5e5c8d0a66af6c40a51d13a38b4fc25277eb4093222c0",
+        "src/supabase.rs": "363836f645d2257615a4fcdf95368b3e5b83daba00a5b3f294719286350fb66a",
+        "scripts/archive.py": "e7f7450280ab0b81206ad4b9325bc44a31542faa5f559714b523e8261efa75fc",
+        "scripts/audit.py": "9f021b0be02ebf60272e6081469c21c828f426c6490cd431c3ee4b892482bb13",
+        "scripts/check-convex.py": "44cf3414e4c5f7fd76e8fb7281c9278970fb36ce5b056a625c1beb7df4db75fc",
+        "scripts/check-fairness.py": "f8cc9ecaee10338dc32e836b358f41120e0d69912daa0f9fd7e2299b0160f325",
+        "scripts/check-snapback.py": "f4fc57f2ae8a426034b1f2662196092479973b464f3e0d12c6c902123d1e0ff5",
+        "scripts/check-supabase.py": "6827a25c72c09d4f7ec0438afa9cb393318e5d861996d32b34be8596fdc095f6",
+        "scripts/check.py": "3e263dfc97aa7c24dded7becd309be9d7c0fa304a19184aae34d6ee325b79813",
+        "scripts/compare.py": "ba1e0c19f94d8e3bdf7eaf1395cae2c6206ea39a7051c7b0095fb26da66876d3",
+        "scripts/convex.py": "caeef90dbfaea6d33ff6e155632cadd2c47345e8ee47379aa171a55a779b3045",
+        "scripts/db-monitor.py": "2f6e291bc211f7dbaf381f61068891be5b9aadac8f87a361b36d8002340745d2",
+        "scripts/fairness.py": "0abf2c2bb4aa2f3ff4c375feb6e54fc36544b7cce0ac8e49090924824de6e311",
+        "scripts/install-convex.py": "72154a18f53753e106d7e4de34c34562ba2bb50f28836a4fa0eb3170f939b920",
+        "scripts/install-postgrest.py": "25451dd7d64e4db421e789ea104e50e633b0ec3588332c934a6069fa7b78084b",
+        "scripts/plot-convex-comparison.py": "8984c8b11c563f5756072384db5fad4d1fc47af32f92cc5e2048efa19ec4b91f",
+        "scripts/plot.py": "d133db78dea739b7da853cdeadf6cbb67e58d5db257a7ff9387acbf5dea12225",
+        "scripts/replay-fairness-cell.py": "1c2512b76e3bb26afd9542d31b4fb1109e3e5ec06634403b87ed0ad2c77b4aae",
+        "scripts/report-convex.py": "d533be0c42f8919eb36bae5dd251afb4345dcd5b7856d73b55c8e38afba468c1",
+        "scripts/report-fairness.py": "c9843f2937ebda0201b750b4b980600c2d7b2662d73870b149c0152b558ad4f2",
+        "scripts/report-snapback.py": "e7f86b375f8dfd49d2057b77cde8e6a923d5cd2393f1a0da01a05ff20230561a",
+        "scripts/report.py": "7bf629d4088a89477496d2f2ac422a719abef6515f9744a48accd8b267c9ca6a",
+        "scripts/run.py": "454d794f7c3ba87bf16f48a561933a287bde6cfdfb421fa879d7ecf093c0e58b",
+        "scripts/snapback.py": "8a4530c769495bc4c514fa7fd55b04a8c9f85971104eac9ededb7f83e9b6d2bf",
+        "scripts/supabase.py": "e115a0b08656732746b97da0342618787af89c4fc0a7aecbc29641bd4efc8bd1",
+        "snapback-app/snapback/schema.q": "d81afc50e1ead9ba3c8fd245fc2fd84f2ed1b179e03d3382fccf18b2bef9c65f"
+      },
+      "binary_sha256": "efb69be37cbdebcf7e515bf671757e166815aba1085b888e56c1ceba24582dd6",
+      "snapback_binary_sha256": "9c2b4fb0f4b155d415f33b6726c3964c66298ec764d34ef516733c7b2c0857db",
+      "command": [
+        "scripts/snapback.py",
+        "matrix",
+        "--start-at",
+        "W3",
+        "--out",
+        "target/s1sk-continuation-20261022",
+        "--fixture",
+        "target/s1sk/s1sk-prepare-20261022/deployment"
+      ],
+      "app_cores": "0-2,6-8",
+      "load_cores": "3-5,9-11",
+      "method": {
+        "warmup_ms": 10000,
+        "duration_ms": 20000,
+        "repeats": 3
+      },
+      "sqlite": {
+        "durability": "shipped WAL, synchronous=FULL",
+        "database": "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/s1sk/s1sk-continuation-20261022/deployment/store.sqlite"
+      }
+    }
+  ],
+  "selected_cells": {
+    "w1-n1000000-d0-c128-disjoint": "s1sk-campaign-20261022",
+    "w2-n1000000-d0-c128-disjoint": "s1sk-campaign-20261022",
+    "w3-n1000000-d0-c128-disjoint": "s1sk-continuation-20261022",
+    "w4-n1000000-d0-c32-disjoint": "s1sk-continuation-20261022",
+    "w5-n1000000-d0-c32-hot1": "s1sk-continuation-20261022",
+    "w5-n1000000-d0-c32-same": "s1sk-continuation-20261022"
+  },
+  "request_source_and_binary_digests_equal": true
+}

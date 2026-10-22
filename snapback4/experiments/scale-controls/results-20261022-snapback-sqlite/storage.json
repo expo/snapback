@@ -1,0 +1,304 @@
+{
+  "database_bytes": 556982272,
+  "page_count": 135982,
+  "page_size": 4096,
+  "journal_mode": "wal",
+  "freelist_count": 0,
+  "physical_pages": [
+    {
+      "name": "_action_steps",
+      "pages": 1,
+      "bytes": 4096
+    },
+    {
+      "name": "_asset_gc",
+      "pages": 1,
+      "bytes": 4096
+    },
+    {
+      "name": "_asset_intents",
+      "pages": 1,
+      "bytes": 4096
+    },
+    {
+      "name": "_asset_views",
+      "pages": 1,
+      "bytes": 4096
+    },
+    {
+      "name": "_assets",
+      "pages": 1,
+      "bytes": 4096
+    },
+    {
+      "name": "_catalog",
+      "pages": 1,
+      "bytes": 4096
+    },
+    {
+      "name": "_change_evidence",
+      "pages": 4,
+      "bytes": 16384
+    },
+    {
+      "name": "_commits",
+      "pages": 6,
+      "bytes": 24576
+    },
+    {
+      "name": "_credentials",
+      "pages": 1,
+      "bytes": 4096
+    },
+    {
+      "name": "_dormant_columns",
+      "pages": 1,
+      "bytes": 4096
+    },
+    {
+      "name": "_dormant_indexes",
+      "pages": 1,
+      "bytes": 4096
+    },
+    {
+      "name": "_dormant_narrow_rows",
+      "pages": 1,
+      "bytes": 4096
+    },
+    {
+      "name": "_dormant_parent",
+      "pages": 1,
+      "bytes": 4096
+    },
+    {
+      "name": "_dormant_refs",
+      "pages": 1,
+      "bytes": 4096
+    },
+    {
+      "name": "_dormant_rows",
+      "pages": 1,
+      "bytes": 4096
+    },
+    {
+      "name": "_dormant_tables",
+      "pages": 1,
+      "bytes": 4096
+    },
+    {
+      "name": "_dormant_values",
+      "pages": 1,
+      "bytes": 4096
+    },
+    {
+      "name": "_effect_presence",
+      "pages": 1,
+      "bytes": 4096
+    },
+    {
+      "name": "_effect_presence_id",
+      "pages": 1,
+      "bytes": 4096
+    },
+    {
+      "name": "_effect_steps",
+      "pages": 1,
+      "bytes": 4096
+    },
+    {
+      "name": "_generations",
+      "pages": 9,
+      "bytes": 36864
+    },
+    {
+      "name": "_jobs",
+      "pages": 1,
+      "bytes": 4096
+    },
+    {
+      "name": "_log",
+      "pages": 1,
+      "bytes": 4096
+    },
+    {
+      "name": "_meta",
+      "pages": 1,
+      "bytes": 4096
+    },
+    {
+      "name": "_ops",
+      "pages": 1,
+      "bytes": 4096
+    },
+    {
+      "name": "_outbox",
+      "pages": 1,
+      "bytes": 4096
+    },
+    {
+      "name": "_outbox_due",
+      "pages": 1,
+      "bytes": 4096
+    },
+    {
+      "name": "_principal_generations",
+      "pages": 1,
+      "bytes": 4096
+    },
+    {
+      "name": "_principals",
+      "pages": 1,
+      "bytes": 4096
+    },
+    {
+      "name": "_release_event_items",
+      "pages": 1,
+      "bytes": 4096
+    },
+    {
+      "name": "_release_events",
+      "pages": 1,
+      "bytes": 4096
+    },
+    {
+      "name": "_requests",
+      "pages": 1,
+      "bytes": 4096
+    },
+    {
+      "name": "_requests_due",
+      "pages": 1,
+      "bytes": 4096
+    },
+    {
+      "name": "_requests_session",
+      "pages": 1,
+      "bytes": 4096
+    },
+    {
+      "name": "_session_mint_bindings",
+      "pages": 1,
+      "bytes": 4096
+    },
+    {
+      "name": "_sessions",
+      "pages": 1,
+      "bytes": 4096
+    },
+    {
+      "name": "_sessions_expiry",
+      "pages": 1,
+      "bytes": 4096
+    },
+    {
+      "name": "_sessions_family",
+      "pages": 1,
+      "bytes": 4096
+    },
+    {
+      "name": "_time_openings",
+      "pages": 1,
+      "bytes": 4096
+    },
+    {
+      "name": "_time_openings_due",
+      "pages": 1,
+      "bytes": 4096
+    },
+    {
+      "name": "_time_publications",
+      "pages": 1,
+      "bytes": 4096
+    },
+    {
+      "name": "i",
+      "pages": 45235,
+      "bytes": 185282560
+    },
+    {
+      "name": "r",
+      "pages": 90671,
+      "bytes": 371388416
+    },
+    {
+      "name": "sqlite_autoindex__action_steps_1",
+      "pages": 1,
+      "bytes": 4096
+    },
+    {
+      "name": "sqlite_autoindex__assets_1",
+      "pages": 1,
+      "bytes": 4096
+    },
+    {
+      "name": "sqlite_autoindex__catalog_1",
+      "pages": 1,
+      "bytes": 4096
+    },
+    {
+      "name": "sqlite_autoindex__catalog_2",
+      "pages": 1,
+      "bytes": 4096
+    },
+    {
+      "name": "sqlite_autoindex__credentials_1",
+      "pages": 1,
+      "bytes": 4096
+    },
+    {
+      "name": "sqlite_autoindex__credentials_2",
+      "pages": 1,
+      "bytes": 4096
+    },
+    {
+      "name": "sqlite_autoindex__dormant_tables_1",
+      "pages": 1,
+      "bytes": 4096
+    },
+    {
+      "name": "sqlite_autoindex__effect_steps_1",
+      "pages": 1,
+      "bytes": 4096
+    },
+    {
+      "name": "sqlite_autoindex__jobs_1",
+      "pages": 1,
+      "bytes": 4096
+    },
+    {
+      "name": "sqlite_autoindex__meta_1",
+      "pages": 1,
+      "bytes": 4096
+    },
+    {
+      "name": "sqlite_autoindex__outbox_1",
+      "pages": 1,
+      "bytes": 4096
+    },
+    {
+      "name": "sqlite_autoindex__principal_generations_1",
+      "pages": 1,
+      "bytes": 4096
+    },
+    {
+      "name": "sqlite_autoindex__principals_1",
+      "pages": 1,
+      "bytes": 4096
+    },
+    {
+      "name": "sqlite_autoindex__requests_1",
+      "pages": 1,
+      "bytes": 4096
+    },
+    {
+      "name": "sqlite_autoindex__sessions_1",
+      "pages": 1,
+      "bytes": 4096
+    },
+    {
+      "name": "sqlite_schema",
+      "pages": 4,
+      "bytes": 16384
+    }
+  ]
+}

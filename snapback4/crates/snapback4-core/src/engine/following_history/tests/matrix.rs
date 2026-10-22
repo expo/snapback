@@ -650,7 +650,7 @@ fn rewind_after_an_observed_later_commit_restarts_even_above_the_birth_bound() {
     assert_eq!(step(&mut r, &mut e, &q).answer.bytes(), out.answer.bytes());
     let observed = owned(&r, &q).head;
     assert!(observed > initial + 1);
-    (match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).conn()
+    (&e.store()).test_support_conn()
         .execute(
             "DELETE FROM _commits WHERE seq > ?1",
             [(initial + 1) as i64],

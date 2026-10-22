@@ -12,7 +12,7 @@ fn expired_unswept_parent_is_never_physically_written_and_lifetime_edits_reconci
     e.load_mode([("posts".into(), object([("id", id("p")), ("at", Value::Int(1)), ("until", Value::Int(900))]))], LoadMode::Restore).unwrap();
     // A legacy image missing a required literal-default field is interpreted
     // through that default, including in Table::expired.
-    (match e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().execute_batch("UPDATE r SET data = json_remove(data, '$.Row.until') WHERE t = (SELECT num FROM _catalog WHERE name = 'posts');").unwrap();
+    (e.store()).test_support_conn().execute_batch("UPDATE r SET data = json_remove(data, '$.Row.until') WHERE t = (SELECT num FROM _catalog WHERE name = 'posts');").unwrap();
     let before = e.store().rows("posts").unwrap();
     assert!(before[0].field("until").is_err());
     assert!(e.schema().tables["posts"].expired(&before[0],1000));
@@ -25,7 +25,7 @@ fn expired_unswept_parent_is_never_physically_written_and_lifetime_edits_reconci
             }
         }
     };
-    (match e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().execute_batch("CREATE TRIGGER no_expired_mirror BEFORE UPDATE ON r WHEN NEW.t = (SELECT num FROM _catalog WHERE name = 'posts') BEGIN SELECT RAISE(ABORT, 'expired parent written'); END;").unwrap();
+    (e.store()).test_support_conn().execute_batch("CREATE TRIGGER no_expired_mirror BEFORE UPDATE ON r WHEN NEW.t = (SELECT num FROM _catalog WHERE name = 'posts') BEGIN SELECT RAISE(ABORT, 'expired parent written'); END;").unwrap();
     like(&mut e, "l", id("p"), true, 3);
     check(&e,1,3);
     mutate(&mut e, "unlike", &[("id", id("l"))]);
@@ -36,7 +36,7 @@ fn expired_unswept_parent_is_never_physically_written_and_lifetime_edits_reconci
     check(&e,1,1);
     assert_eq!(e.store().rows("posts").unwrap(), before);
     // Reviving the defaulted missing expiry must mirror the current total.
-    (match e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().execute_batch("DROP TRIGGER no_expired_mirror;").unwrap();
+    (e.store()).test_support_conn().execute_batch("DROP TRIGGER no_expired_mirror;").unwrap();
     let mut candidate = b.schema.clone();
     candidate.tables.get_mut("posts").unwrap().columns.insert("until".into(), ColumnType::Optional(Box::new(ColumnType::Time)));
     e.adopt(candidate, b.programs.iter().map(|p| p.program.clone())).unwrap();
@@ -84,7 +84,7 @@ fn restore_preserves_values_import_rebuilds_and_neither_publishes_private_names(
     for (target, image) in &private { assert_eq!(e.store().rows(target).unwrap(), vec![image.clone()]); }
     assert_eq!(totals(&mut e, "p"), (77, 78, 79));
     assert!(!serde_json::to_string(&e.stream("alice", from, 100).unwrap()).unwrap().contains("$column:"));
-    let metadata: Vec<String> = (match e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().prepare("SELECT touched FROM _commits").unwrap().query_map([], |r| r.get(0)).unwrap().collect::<Result<_, _>>().unwrap();
+    let metadata: Vec<String> = (e.store()).test_support_conn().prepare("SELECT touched FROM _commits").unwrap().query_map([], |r| r.get(0)).unwrap().collect::<Result<_, _>>().unwrap();
     assert!(metadata.iter().all(|s| !s.contains("$column:")));
     let before = e.seq().unwrap();
     assert_eq!(e.load(private).unwrap_err().code(), "E_MAINTAINED_COLUMN_PRIVATE");
@@ -95,7 +95,7 @@ fn restore_preserves_values_import_rebuilds_and_neither_publishes_private_names(
         let expected = if m.private.as_ref().unwrap().column == "total" { 3 } else { 1 };
         assert_eq!(e.store().rows(&m.target).unwrap()[0].field("value").unwrap(), &Value::Int(expected));
     }
-    let metadata: Vec<String> = (match e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().prepare("SELECT touched FROM _commits").unwrap().query_map([], |r| r.get(0)).unwrap().collect::<Result<_, _>>().unwrap();
+    let metadata: Vec<String> = (e.store()).test_support_conn().prepare("SELECT touched FROM _commits").unwrap().query_map([], |r| r.get(0)).unwrap().collect::<Result<_, _>>().unwrap();
     assert!(metadata.iter().all(|s| !s.contains("$column:")));
     assert!(!serde_json::to_string(&e.stream("alice", before, 100).unwrap()).unwrap().contains("$column:"));
 }

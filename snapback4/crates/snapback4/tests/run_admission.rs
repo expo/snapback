@@ -66,10 +66,10 @@ fn bound(source: &str) -> snapback4_lang::Bound {
 
 /// Stop an actual activation after it wrote its new generation but before commit.
 /// Readers still see the old activation; the writer lock is held by real adoption.
-fn pause_activation(store: &Store) -> (mpsc::Receiver<()>, mpsc::Sender<()>) {
+fn pause_activation(conn: &rusqlite::Connection) -> (mpsc::Receiver<()>, mpsc::Sender<()>) {
     let (arrive, arrived) = mpsc::channel(); let (release, released) = mpsc::channel();
     let mut paused = false;
-    store.test_support_conn().update_hook(Some(move |_: rusqlite::hooks::Action, _: &str, table: &str, _: i64| {
+    conn.update_hook(Some(move |_: rusqlite::hooks::Action, _: &str, table: &str, _: i64| {
         if table == "_generations" && !paused { paused = true; arrive.send(()).unwrap(); released.recv_timeout(Duration::from_secs(25)).unwrap(); }
     })).unwrap();
     (arrived, release)
@@ -79,7 +79,7 @@ fn pause_activation(store: &Store) -> (mpsc::Receiver<()>, mpsc::Sender<()>) {
 fn startup_adoption_and_run_wait_then_admit_once() {
     let p = Project::new();
     let store = Store::open(&p.store()).unwrap();
-    let (arrived, release) = pause_activation(&store);
+    let (arrived, release) = pause_activation(store.test_support_conn());
     let b = bound(SOURCE);
     let adopter = std::thread::spawn(move || Engine::new(store, b.schema, b.programs.into_iter().map(|p| p.program)).unwrap());
     arrived.recv_timeout(Duration::from_secs(5)).unwrap();
@@ -98,7 +98,7 @@ fn changed_maintain_writer_and_backfill_outlast_the_old_five_second_wait() {
     let p = Project::new(); p.initialize();
     let old = bound(SOURCE);
     let mut engine = Engine::new(Store::open(&p.store()).unwrap(), old.schema, old.programs.into_iter().map(|p| p.program)).unwrap();
-    let (arrived, release) = pause_activation(match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner });
+    let (arrived, release) = pause_activation(engine.store().test_support_conn());
     let changed = SOURCE.replace("count items where .active by owner", "count items by owner");
     p.source(&changed); let new = bound(&changed);
     let adopter = std::thread::spawn(move || engine.adopt(new.schema, new.programs.into_iter().map(|p| p.program)).unwrap());

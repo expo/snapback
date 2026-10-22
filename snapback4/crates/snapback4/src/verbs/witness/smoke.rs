@@ -290,10 +290,10 @@ query required(id: heldRows):
         use snapback4_core::value::{Value, object};
         engine.seed([("items".into(), object([("id", Value::Id("sentinel".into())), ("value", Value::Int(42))]))]).unwrap();
         let counts = |store: &snapback4_core::store_port::AnyStore| ["r", "i", "_log", "_ops"].map(|table| {
-            (match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().query_row(&format!("SELECT COUNT(*) FROM {table}"), [], |r| r.get::<_, i64>(0)).unwrap()
+            (&store).test_support_conn().query_row(&format!("SELECT COUNT(*) FROM {table}"), [], |r| r.get::<_, i64>(0)).unwrap()
         });
         let held = counts(engine.store());
-        let row: String = (match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().query_row("SELECT data FROM r WHERE id = 'sentinel'", [], |r| r.get(0)).unwrap();
+        let row: String = (engine.store()).test_support_conn().query_row("SELECT data FROM r WHERE id = 'sentinel'", [], |r| r.get(0)).unwrap();
         let before = engine.seq().unwrap();
         let identity = engine.store().store_identity().unwrap().unwrap();
         drop(engine);
@@ -317,7 +317,7 @@ query required(id: heldRows):
         let store = snapback4_core::store_port::AnyStore::open(&path).unwrap();
         assert_eq!(store.seq().unwrap(), seq);
         assert_eq!(counts(&store), held);
-        assert_eq!((match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().query_row("SELECT data FROM r WHERE id = 'sentinel'", [], |r| r.get::<_, String>(0)).unwrap(), row);
+        assert_eq!((&store).test_support_conn().query_row("SELECT data FROM r WHERE id = 'sentinel'", [], |r| r.get::<_, String>(0)).unwrap(), row);
         drop(store);
         assert!(barrier(&path, "wrong-store", seq).is_err());
         let _ = fs::remove_dir_all(dir);

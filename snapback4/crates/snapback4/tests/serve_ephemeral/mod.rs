@@ -208,7 +208,7 @@ fn legacy_poll_reply_has_base_shape_plus_change_evidence() {
     assert!(!wire.to_ascii_lowercase().contains("x-snapback-ephemeral"));
     let reply = body(&wire);
     // Durable evidence is additive; ephemeral negotiation is unchanged.
-    let expected = json!({"changes":{"after":0,"through":0,"writes":{}},"seq":0,"tables":[],"preserved":["items"],"generation":1,"store_id":(match lock(&h.shared.engine).store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_meta("store_id").unwrap().unwrap()});
+    let expected = json!({"changes":{"after":0,"through":0,"writes":{}},"seq":0,"tables":[],"preserved":["items"],"generation":1,"store_id":(lock(&h.shared.engine).store()).test_support_meta("store_id").unwrap().unwrap()});
     assert_eq!(
         serde_json::to_string(&reply).unwrap(),
         serde_json::to_string(&expected).unwrap()

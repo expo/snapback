@@ -1,0 +1,6 @@
+{
+  "messages": 1000000,
+  "elapsed_s": 213.94373774528503,
+  "path": "dev /seed (4000-message transactions), stopped-store backup, deploy, serve",
+  "assigned_maintained_columns": false
+}
