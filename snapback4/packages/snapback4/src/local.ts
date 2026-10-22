@@ -43,7 +43,7 @@ import { serverClock } from "./clock.ts";
 import { defaultFetch } from "#fetch";
 import { ClosingResponses, trackClose, type ClosingResponse } from "./closing-responses.ts";
 import type { Queued, StoreCapture, LocalResult } from "./local-types.ts";
-import { deferStart, startDeferred, trackRotation } from "./client-start.ts";
+import { deferCommit, deferStart, startDeferred, trackRotation } from "./client-start.ts";
 import { evaluateLocal } from "./local-query.ts";
 import { FollowingIntents, FollowingHistory } from "./local-following.ts";
 import { answerIdentity } from "./read-observation.ts";
@@ -190,7 +190,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   generation = Number((state.ok as { generation?: number } | undefined)?.generation ?? 0);
   if (!backend || Number(backend.generation ?? 0) !== generation) backend = (await call({ op: "backend" })).ok as BackendJson;
   stopOutbox = core.onOutbox?.((time, entries) => { clock.raiseIssued(time ?? 0); followingIntents?.recovered(entries ?? []); pending.notify(); flushRecovered?.(); });
-  await clock.attach(core);
+  // @ref LLP 3000.000.000.001#11-wave-22-loop-repairs-dx6 — App preparation stages credentials, so its clock offset remains provisional until the actual identity commit.
+  await clock.attach(core, deferCommit(options, () => clock.commitPersistence()));
   if (session && session.expiresAt <= clock.issuedDeviceNow()) {
     await forgetSession(base, sessions);
     throw new Error("createLocalClient: E_AUTH: this session expired; sign in again");

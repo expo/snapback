@@ -598,7 +598,7 @@ function createAppInner(options: AppOptions): App {
       finally { for (const signal of signals) signal.removeEventListener("abort", abort); }
     };
     const scopedFetch: typeof fetch = (input, init) => scopedRequest(input, init);
-    let raw: Client | undefined, startClient: (() => Promise<void>) | undefined;
+    let raw: Client | undefined, startClient: (() => Promise<void>) | undefined, commitClient: (() => Promise<void>) | undefined;
     let notifyPublished: ((published: Client) => void) | undefined;
     // Native host observers must not adopt a restoration candidate that can
     // still be discarded when its rotated session is persisted.
@@ -663,7 +663,7 @@ function createAppInner(options: AppOptions): App {
           recheck: () => { void authorized().catch(() => {}); },
         });
         const local = await prepareClient(prepared, () => createLocalClient(prepared));
-        raw = local.client; startClient = local.start;
+        raw = local.client; startClient = local.start; commitClient = local.commit;
       } else {
         const prepared = { url, session, readOnly, ...(readOnly && options.waitSeconds !== undefined ? { waitSeconds: options.waitSeconds } : {}), fetch: clock.wrap(scopedFetch), ...(options.onDeliveryRefused ? { onDeliveryRefused: options.onDeliveryRefused } : {}), onStoreChange: (why: Refusal) => { changedStore = why; recoverStore(); } };
         const online = await prepareClient(prepared, () => sdkOwned(() => createClient(prepared)));
@@ -791,6 +791,13 @@ function createAppInner(options: AppOptions): App {
       committing = true;
       await keepSession(url, next, scopedStore, readOnly);
       preparing = false;
+      // The scoped store acknowledged only private preparation until the set
+      // above committed. Persist its sampled device clock only after that
+      // credential image is durable. Bookkeeping failure cannot roll back an
+      // identity commit; subsequent device work retries the same clock save.
+      if (scope.valid && !closed && revision === expected) {
+        try { await commitClient?.(); } catch (error) { warning = problem(error); }
+      }
       if (previous) {
         previous.valid = false; previous.pause(); previous.stop(); previous.aborter.abort();
         void previous.client.signOut().catch(() => {}).finally(() => scopes.delete(previous));

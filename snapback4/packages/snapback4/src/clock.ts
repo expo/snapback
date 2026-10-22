@@ -24,6 +24,7 @@ export class ServerClock {
   private responseListeners = new Set<(response: Response, request: Dispatch) => void | boolean | Promise<void | boolean>>();
   private reconciling: Promise<void> = Promise.resolve();
   private save: ((value: string) => Promise<void>) | undefined;
+  private persistenceEnabled = true;
   private saving: Promise<void> = Promise.resolve();
   private lastSave: { owner: (value: string) => Promise<void>; value: string; result: Promise<void> } | undefined;
   constructor(private wall: () => number = Date.now) { readers.set(this.issuedDeviceNow, this); }
@@ -132,7 +133,8 @@ export class ServerClock {
     // The server writes this stamp at the end of its hold, not at request send.
     this.sample(serverNow, received, received, revision, order, true);
   }
-  async attach(core: DeviceCore) {
+  async attach(core: DeviceCore, deferPersistence = false) {
+    this.persistenceEnabled = !deferPersistence;
     const kept = await core.call({ op: "meta", key: "server-clock" });
     if (kept.denied) throw new Error(JSON.stringify(kept.denied));
     try {
@@ -166,7 +168,7 @@ export class ServerClock {
   }
   // @ref LLP 3000.019#3.3 — share unchanged offset persistence, never admission floors.
   persist(): Promise<void> {
-    if (!this.save) return Promise.resolve();
+    if (!this.save || !this.persistenceEnabled) return Promise.resolve();
     const save = this.save, value = JSON.stringify({ offset: this.offset, issuedOffset: this.issuedOffset ?? 0 });
     if (this.lastSave?.owner === save && this.lastSave.value === value) return this.lastSave.result;
     this.saving = this.saving.catch(() => {}).then(() => save(value));
@@ -176,6 +178,8 @@ export class ServerClock {
     void this.saving.catch(() => { if (this.lastSave === saved) this.lastSave = undefined; });
     return this.saving;
   }
+  /** App commits identity first; a discarded provisional clock never saves. */
+  async commitPersistence() { this.persistenceEnabled = true; await this.persist(); }
   async detach() { const pending = this.persist(); this.save = undefined; await pending; }
 }
 
