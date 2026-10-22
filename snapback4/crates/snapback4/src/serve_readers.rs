@@ -130,12 +130,14 @@ impl Shared {
         Err(snapback4_core::RuntimeError::Store("detached reader unavailable; retry the request after the store is available".into()))
     }
     pub(super) fn reader_after_handoff(&self) -> Result<(Arc<()>, TimedReader), snapback4_core::RuntimeError> {
-        self.engine.attempt(|engine, shared| {
+        let (epoch, engine, sites) = self.engine.attempt(|engine, shared| {
             let reader = shared.open_reader(engine)?;
             let readers = lock(&shared.readers);
-            Ok((readers.epoch.clone(), TimedReader { engine: reader,
-                refusal_sites: readers.refusal_sites.clone(), _timing: latency::EngineSpan::new() }))
-        })
+            Ok::<_, snapback4_core::RuntimeError>((readers.epoch.clone(), reader, readers.refusal_sites.clone()))
+        })?;
+        // The reader crosses the queue; its thread-local timing guard must be
+        // created and dropped on the request thread, just as in reader().
+        Ok((epoch, TimedReader { engine, refusal_sites: sites, _timing: latency::EngineSpan::new() }))
     }
 
     fn acquire_reader<T>(&self, open: impl FnOnce() -> T) -> T {

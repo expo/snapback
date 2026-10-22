@@ -102371,3 +102371,15 @@ submission-time capture and isolation of subsequent unscoped commands, including
 unwind. The private RT0 cluster is independently confirmed stopped (status 3,
 no postmaster.pid). Full round-2 qualification continues in the lane report;
 this entry does not replace the earlier checkpoint's stop evidence.
+
+
+The final-source adoption witnesses each failed again in isolation before the
+full suites: a `TimedReader` created on the committer carried a thread-local
+latency span back to the request thread and underflowed its depth; the handoff
+fixture also waited for two queued commands although its counter excludes the
+running adoption. The handoff now transports only reader data and creates the
+span on its consuming request thread; the fixture waits for the one blocked
+query. The complete affected query selector passes (14 passed, one ignored),
+including exact COMMIT-gap data/generation and genuine foreign activation.
+The real 31-second clock witness also passes. Initial reds and isolated
+reproductions remain in the qualification receipt.

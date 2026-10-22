@@ -329,7 +329,9 @@ fn query_retries_behind_adoption_commit_before_reader_replacement() {
     let query = thread::spawn(move || sent.send(exchange_held(address, Duration::from_secs(10),
         "POST /q/read HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nx-snapback-persona: alice\r\nContent-Length: 2\r\n\r\n{}")).unwrap());
     let mut early = None;
-    wait_until(|| host.shared.engine.waiting() >= 2 || { early = response.try_recv().ok(); early.is_some() });
+    // waiting() excludes the running adoption, so one waiter is the query
+    // parked behind its committed-but-not-published reader handoff.
+    wait_until(|| host.shared.engine.waiting() >= 1 || { early = response.try_recv().ok(); early.is_some() });
     release.send(()).unwrap();
     adoption.join().unwrap();
     assert!(early.is_none(), "query must wait behind the committed adoption handoff: {early:?}");
