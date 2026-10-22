@@ -1,0 +1,11 @@
+{
+  "command": "node scripts/check-inventories.mjs",
+  "cwd": ".",
+  "exitCode": 0,
+  "timeoutSeconds": 900,
+  "earlierAttempt": {
+    "timeoutSeconds": 180,
+    "exitCode": 124,
+    "contentVerdict": "none before diagnostics classifier completed"
+  }
+}

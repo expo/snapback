@@ -1,0 +1,150 @@
+{
+  "status": "passed",
+  "recordedAt": "2026-10-22T04:36:55.400942+00:00",
+  "sourceCommit": "c424f3dca7bdb4ec51b0013bb8fb1e23bd1249f3",
+  "preconditions": {
+    "initialAttempt": {
+      "toolchain": "bun 1.4.2",
+      "result": "root generated-artifact setup failed resolving acorn while root dependencies were unavailable",
+      "provenance": "parent session report; initial log superseded by the successful retry"
+    },
+    "successfulCorrection": {
+      "packageManager": "bun 1.3.12 (root package.json pin)",
+      "commands": [
+        "bun install --frozen-lockfile",
+        "node scripts/ensure-workspace-hoist.mjs",
+        "scripts/check-generated-artifacts"
+      ],
+      "exitCode": 0,
+      "installLog": "root-install.log",
+      "generatedLog": "root-generated.log",
+      "generatedSummary": "35 authorization-review projections current; corpus exemplar and Contract bindings pass"
+    },
+    "acorn": {
+      "resolvedVersion": "8.17.0",
+      "resolution": "packages/snapback-codegen/node_modules/acorn -> root node_modules/.bun/acorn@8.17.0/node_modules/acorn",
+      "rootDirectLink": "not required; acorn is declared by snapback-codegen, not the root package",
+      "productOrDependencySourcesChanged": false
+    }
+  },
+  "checks": {
+    "ref-check": {
+      "command": "./ref-check",
+      "cwd": ".",
+      "exitCode": 0
+    },
+    "docs-budget": {
+      "command": "env CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 node scripts/docs-budget.mjs",
+      "cwd": "snapback4",
+      "exitCode": 0
+    },
+    "root-inventories": {
+      "command": "node scripts/check-inventories.mjs",
+      "cwd": ".",
+      "exitCode": 0,
+      "timeoutSeconds": 900,
+      "earlierAttempt": {
+        "timeoutSeconds": 180,
+        "exitCode": 124,
+        "contentVerdict": "none before diagnostics classifier completed"
+      }
+    },
+    "root-guide": {
+      "command": "node scripts/check-guide.mjs",
+      "cwd": ".",
+      "exitCode": 0
+    }
+  },
+  "guideSummary": {
+    "passed": 22,
+    "failed": 0,
+    "skipped": 0,
+    "preconditions": 0,
+    "pages": 162,
+    "snippets": 1937,
+    "routes": 174,
+    "hostOperations": 51,
+    "advisoryWarnings": 121,
+    "note": "Existing root Guide freshness/GAP advice; no root Guide source was changed by DX6."
+  },
+  "docsBudgetSummary": {
+    "readmePhysicalLines": 319,
+    "readmeBudget": 320,
+    "selfContainmentTestsPassed": 1,
+    "selfContainmentTestsFailed": 0,
+    "initialNonqualifyingAttempt": {
+      "exitCode": 124,
+      "note": "The product script internally invokes Cargo; corrected retry coordinated the compile slot and inherited all requested Cargo profile variables."
+    }
+  },
+  "scopedAuditContext": {
+    "scope": "DX6 Snapback 4 product, its guide cards, and the separately requested repository-root mechanical checks.",
+    "governingDocuments": [
+      {
+        "path": "snapback4/AGENTS.md",
+        "constraint": "Snapback 4 owns independent workspaces; repository-root Snapback 1 gates are extra checks requested for this workstream."
+      },
+      {
+        "path": "llp/3000-snapback4.explainer.md",
+        "anchor": "4-fence-numbering-routing",
+        "constraint": "Do not import sibling product gates or runtime bootstraps into the Snapback 4 fence."
+      },
+      {
+        "path": "llp/3000.000.000.001-staging-with-real-users.rfc.md",
+        "anchor": "11-wave-22-loop-repairs-dx6",
+        "constraint": "Session compatibility, clock controls, upgrade advice and frontend proof behavior follow the reviewed DX6 amendment."
+      },
+      {
+        "path": "llp/3000.036.004-security-invariants-and-exposure.rfc.md",
+        "anchor": "154-supplied-client-sessions",
+        "constraint": "Complete sessions validate before effects and retain immutable primitive snapshots; the DX6 amendment narrows legacy online credentials to token-only transport."
+      },
+      {
+        "path": "llp/0010-agent-dx-and-acceptance.spec.md",
+        "anchor": "ci-and-review-gates",
+        "constraint": "Root inventory checks must retain their exact registered sets."
+      },
+      {
+        "path": "llp/0061-agent-first-snapback-guide.rfc.md",
+        "anchor": "design",
+        "constraint": "Root Guide checks validate source-bound snippets, projections and honest capability claims; warning-only freshness must not be silently promoted into a review claim."
+      },
+      {
+        "path": "guide/conventions.md",
+        "anchor": "running-the-checks-in-a-fresh-tree",
+        "constraint": "Install frozen root dependencies and regenerate ignored demo artifacts before judging Guide or generated-manifest failures."
+      }
+    ],
+    "affectedDocSurfaces": [
+      "snapback4/crates/snapback4-lang/src/guide/client.md",
+      "snapback4/crates/snapback4-lang/src/guide/deploy.md",
+      "snapback4/crates/snapback4-lang/src/guide/staging.md",
+      "snapback4/crates/snapback4-lang/src/guide/proof_api.md",
+      "snapback4/packages/snapback4/CLIENT-AND-OPERATIONS.md",
+      "snapback4/packages/snapback4/CHANGELOG.md"
+    ],
+    "rootProductOrGuideFilesModified": [],
+    "generatedChainRepair": "No committed regeneration was needed after dependencies and ignored codegen prerequisites were restored.",
+    "snapback4TestInventory": "New Snapback 4 tests are inside its independent workspace and are not added to the root Snapback 1 package inventory.",
+    "ownership": "Parent owns final WORKSTREAM-REPORT.md and the LLP amendment/review artifacts; this lane writes verification evidence only.",
+    "crossLanePointer": "Parent was notified that the historical complete-only statement in LLP 3000.036.004 \u00a715.4 should point to the explicit DX6 online bearer-only amendment in staging LLP \u00a711; this verification lane did not edit the cross-lane LLP."
+  },
+  "referenceSummary": {
+    "llpDocuments": 564,
+    "references": 12303,
+    "files": 45775,
+    "errors": 0,
+    "unchecked": 0
+  },
+  "inventorySummary": {
+    "packageTests": 365,
+    "scriptsTests": 35,
+    "demos": 31,
+    "catalogEntries": 31,
+    "publicationLeaves": 487,
+    "guidePages": 162,
+    "guideSnippets": 1937,
+    "advisoryGapWarnings": 18
+  },
+  "deferrals": []
+}
