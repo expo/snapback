@@ -74,7 +74,7 @@ impl AnyStore {
         after: u64,
         items_after: Option<&str>,
         event_id: Option<u64>,
-    ) -> Result<serde_json::Value, RuntimeError> { match self { Self::Sqlite(SqliteStore(inner)) => inner.release_status(after, items_after, event_id), #[cfg(feature = "postgres")] Self::Postgres(_) => Err(RuntimeError::StoreUnsupported { family: "inspection" }) } }
+    ) -> Result<serde_json::Value, RuntimeError> { match self { Self::Sqlite(SqliteStore(inner)) => inner.release_status(after, items_after, event_id), #[cfg(feature = "postgres")] Self::Postgres(PostgresStore(handle)) => handle.read(|tx| crate::release_history::status(tx, after, items_after, event_id)) } }
     pub fn prune_dormant(
         &mut self,
         confirm: bool,
@@ -299,4 +299,16 @@ impl AnyTx<'_> {
 }
 impl crate::store_port::ReadSnapshot<'_> {
     pub fn read_log(&self, partition: &str, after: u64, limit: usize) -> Result<Vec<crate::store_port::LogEvent>, RuntimeError> { self.tx.read_log(partition, after, limit) }
+}
+
+impl AnyStore {
+    /// Family adapters alone do not admit public worker execution or claims.
+    // @ref LLP 3000.009.001.000#initial-http-profile-and-public-release-bootstrap — workers wait for their full recovery/producer contract.
+    pub fn admit_worker_execution(&self) -> Result<(), RuntimeError> {
+        match self {
+            Self::Sqlite(_) => Ok(()),
+            #[cfg(feature = "postgres")]
+            Self::Postgres(_) => Err(RuntimeError::StoreUnsupported { family: "worker-execution" }),
+        }
+    }
 }

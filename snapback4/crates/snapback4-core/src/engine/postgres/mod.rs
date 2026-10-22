@@ -85,7 +85,7 @@ impl PostgresEngine {
         mut schema: Schema,
         programs: impl IntoIterator<Item = Program>,
     ) -> Result<Self, RuntimeError> {
-        let name = namespace(name)?;
+        let name = evaluation_namespace(name)?;
         refuse_maintained_columns(&schema)?;
         super::columns::validate_before_prepare(&schema)?;
         schema.prepare_contribution_indexes();
@@ -101,7 +101,7 @@ impl PostgresEngine {
     }
 
     fn open_with_expected(mut client: Client, name: &str, expected_release: Option<u64>) -> Result<Self, RuntimeError> {
-        let name = namespace(name)?;
+        let name = evaluation_namespace(name)?;
         client.batch_execute(&format!("SET search_path = {name}, pg_catalog;"))?;
         let mut store = Store::new(client);
         let tx = store.opening_transaction()?;
@@ -563,3 +563,10 @@ mod semantic;
 
 mod opening;
 mod profile;
+
+mod deployment;
+
+fn evaluation_namespace(name: &str) -> Result<String, RuntimeError> {
+    if !name.starts_with("sb4_eval_") { return Err(RuntimeError::Input("evaluation schema must start with sb4_eval_".into())); }
+    namespace(name)
+}

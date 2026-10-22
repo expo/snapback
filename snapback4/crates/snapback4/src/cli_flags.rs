@@ -155,6 +155,8 @@ pub(crate) fn help(verb: &str) -> String {
             (_, "release") => " — release directory (check --store instead selects N or latest)",
             ("sql", "dormant") => " — inspect retained dormant rows and cells; requires --release",
             ("sql", "all-releases") => " — inspect active and retained records together; requires --release",
+            (_, "store-url") => " — Postgres URL with explicit schema and ha=none; overrides SNAPBACK4_STORE_URL",
+            (_, "worker-state-dir") => " — absolute durable state directory; or SNAPBACK4_WORKER_STATE_DIR",
             (_, "store") => " — select the store path for inspection or adoption checking",
             (_, "fixture") => " — fixture directory containing table.jsonl rows and test.cases.jsonl",
             (_, "source") => " — saved complete Quarry source outside snapback/",

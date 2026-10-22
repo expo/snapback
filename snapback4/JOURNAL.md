@@ -101437,3 +101437,28 @@ All four `latest` = 0.4.37:
   the Mac print 0.4.37 and pass init + check.
 
 Report: `reports/20261022-publication-0.4.37/REPORT.md`.
+## 2026-10-22 — S10d-3: public Postgres deploy and serve
+
+Implemented the public configuration/release/startup slice of LLP
+3000.009.001.000 §3.4. The CLI resolves an explicit namespace and HA mode from
+`--store-url` / `SNAPBACK4_STORE_URL`, retains credential-free logical-store
+bindings in immutable local releases, and refuses conflicting path selectors.
+The admitted transport is a Unix socket on PostgreSQL 16/17 with `ha=none`;
+TLS transport/provider continuity remain named refusals.
+
+First deploy bootstraps the initial generation, then acquires a positive lease
+for release activation. Serve selects the persisted release and validates its
+binding and compiled backend before listening. Dedicated renewal and a separate
+lease deadline watchdog exit on loss/uncertainty; second owners refuse, and a
+crashed owner's lease can expire into takeover. Unsupported runners/worker claims
+are gated; ephemeral hubs stay active. Explicit durable worker state is validated
+through the logical-store-bound ledger seam. Doctor returns typed owner/lease
+facts; SQL inspection refuses by name. SQLite retains its serving path.
+
+The CLI witness owns its private socket cluster and detached server PIDs, checks
+HTTP auth/query/mutation/replay/unknown changes evidence/logout, restart and lease
+takeover, and independently confirms its cluster stopped. Detailed final check
+results and limitations are in reports/20261022-s10d3-postgres-serving.md. The
+parallel K0 lane retains request-committer routing; this lane changes startup,
+configuration, release and defensive worker-family gating only. No push, stash,
+sub-agents, clones or other-machine commands.

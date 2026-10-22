@@ -1,5 +1,5 @@
-//! Internal Postgres opening/activation for S10c. Namespace selection is a
-//! library seam; public deployment configuration and lease cadence remain S10d-3.
+//! Postgres opening/activation behind the neutral store handle. Public URL
+//! configuration and lease cadence belong to the host configuration boundary.
 // @ref LLP 3000.009.001.000#3.4 — shared builders own semantic activation; the adapter owns physical installation.
 use super::{Handle, activation::Preparation, store::{self, Tx}};
 use crate::{RuntimeError, Schema, Program, activation::Backend, metadata::MetadataReader,
@@ -8,7 +8,8 @@ use crate::{RuntimeError, Schema, Program, activation::Backend, metadata::Metada
 use std::{cell::RefCell, collections::BTreeMap};
 
 impl AnyStore {
-    /// Internal, private-cluster API. No schema is created before Engine admission.
+    /// Bootstrap only. No schema is created before Engine admission; public serve
+    /// must reopen with a positive acquired token through open_postgres_owned.
     pub fn create_postgres(connection: &str, namespace: &str) -> Result<Self, RuntimeError> {
         Handle::connect(connection.parse()?, namespace, true).map(AnyStore::from_postgres)
     }
@@ -16,7 +17,7 @@ impl AnyStore {
     pub fn open_postgres(connection: &str, namespace: &str) -> Result<Self, RuntimeError> {
         Handle::connect(connection.parse()?, namespace, false).map(AnyStore::from_postgres)
     }
-    pub(crate) fn admit(&self, schema: &Schema, programs: &BTreeMap<String, Program>) -> Result<(), RuntimeError> {
+    pub fn admit(&self, schema: &Schema, programs: &BTreeMap<String, Program>) -> Result<(), RuntimeError> {
         match self { Self::Sqlite(_) => Ok(()), Self::Postgres(_) => super::profile::admit(schema, programs) }
     }
 }

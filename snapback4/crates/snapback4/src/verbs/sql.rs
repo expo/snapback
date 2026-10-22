@@ -24,6 +24,7 @@ pub fn sql(options: &Options) -> i32 {
 }
 
 fn inspect(options: &Options) -> Result<()> {
+    if crate::store_config::StoreConfig::resolve(options).map_err(|e| ("E_STORE_CONFIG", e))?.is_some() { return Err(("E_STORE_UNSUPPORTED", "inspection is outside the admitted store profile".into())); }
     let [statement] = options.positionals.as_slice() else { return Err(("E_INPUT", format!("usage: {}; {CATALOG_HINT}", crate::cli_flags::synopsis("sql")))); };
     if let Some(flag) = misplaced_flag(statement) {
         return Err(("E_INPUT", format!("{flag} is inside the SQL argument; put CLI options after its closing quote: snapback4 sql 'SELECT …' {flag}{}", if flag == "--release" { " <dir>" } else if flag == "--limit" { " N" } else { "" })));

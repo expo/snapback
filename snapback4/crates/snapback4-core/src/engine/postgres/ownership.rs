@@ -110,7 +110,15 @@ pub(super) fn connect(mut config: Config) -> Result<(Client, Arc<AtomicBool>), R
             seen.store(true, Ordering::SeqCst);
         }
     });
-    Ok((config.connect(NoTls)?, warning))
+    let mut client = config.connect(NoTls)?;
+    // @ref LLP 3000.009.001.000#8 — every serving/lease/reader connection needs session affinity.
+    let first = client.query_one("SELECT pg_backend_pid(),current_setting('application_name'),current_setting('server_version_num')::int", &[])?;
+    let second = client.query_one("SELECT pg_backend_pid(),current_setting('application_name')", &[])?;
+    if first.get::<_, i32>(0) != second.get::<_, i32>(0) || first.get::<_, String>(1) != second.get::<_, String>(1) {
+        return Err(RuntimeError::StoreUnsupported { family: "transaction-pooling" });
+    }
+    if !(160000..180000).contains(&first.get::<_, i32>(2)) { return Err(RuntimeError::StoreUnsupported { family: "postgres-version" }); }
+    Ok((client, warning))
 }
 
 // @ref LLP 3000.009.001.000#5.4.1 — COMMIT has no adapter timeout or cancellation; loss of acknowledgement is unknown.

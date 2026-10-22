@@ -106,7 +106,7 @@ impl PostgresEngine {
         options: &ReleaseActivation,
     ) -> Result<Self, RuntimeError> {
         options.validate()?;
-        let name = super::store::namespace(name)?;
+        let name = super::evaluation_namespace(name)?;
         super::refuse_maintained_columns(&schema)?;
         super::super::columns::validate_before_prepare(&schema)?;
         schema.prepare_contribution_indexes();

@@ -1,0 +1,301 @@
+//! The only host boundary that selects a storage adapter.
+// @ref LLP 3000.009.001.000#backend-selection-and-the-host — deployment secrets stay in configuration.
+use crate::verbs::Options;
+use snapback4_core::{
+    RuntimeError,
+    store_port::{AnyStore, DeploymentState, LeasePolicy, StoreLease},
+};
+use std::{
+    path::{Path, PathBuf},
+    sync::{Arc, Mutex, mpsc},
+    time::{Duration, Instant},
+};
+
+#[derive(Clone)]
+pub(crate) struct StoreConfig {
+    connection: String,
+    namespace: String,
+    pub binding: String,
+    pub state_directory: PathBuf,
+}
+fn input(message: &str) -> String {
+    format!("E_STORE_CONFIG: {message}")
+}
+pub(crate) fn selected(options: &Options) -> bool {
+    options.flags.contains_key("store-url") || std::env::var_os("SNAPBACK4_STORE_URL").is_some()
+}
+impl StoreConfig {
+    pub fn resolve(options: &Options) -> Result<Option<Self>, String> {
+        let url = match options.flags.get("store-url") {
+            Some(value) => Some(value.clone()),
+            None => match std::env::var("SNAPBACK4_STORE_URL") {
+                Ok(value) => Some(value),
+                Err(std::env::VarError::NotPresent) => None,
+                Err(_) => return Err(input("SNAPBACK4_STORE_URL must be UTF-8")),
+            },
+        };
+        let Some(url) = url else {
+            return Ok(None);
+        };
+        if options.flags.contains_key("store") {
+            return Err(input(
+                "--store and --store-url/SNAPBACK4_STORE_URL conflict",
+            ));
+        }
+        let (base, query) = url
+            .split_once('?')
+            .ok_or_else(|| input("store URL requires explicit ?schema=NAME&ha=none"))?;
+        if !base.starts_with("postgres://") && !base.starts_with("postgresql://") {
+            return Err(input("store URL must use postgres://"));
+        }
+        let mut namespace = None;
+        let mut ha = None;
+        let mut parameters = Vec::new();
+        for part in query.split('&') {
+            let (key, value) = part
+                .split_once('=')
+                .ok_or_else(|| input("invalid store URL parameter"))?;
+            if !key.bytes().all(|b| b.is_ascii_lowercase() || b == b'_') {
+                return Err(input(
+                    "store URL parameter names must be plain lowercase ASCII",
+                ));
+            }
+            match key {
+                "schema" if namespace.is_none() => namespace = Some(value.to_owned()),
+                "ha" if ha.is_none() => ha = Some(value),
+                "schema" | "ha" => return Err(input("duplicate store URL setting")),
+                "options" | "application_name" => {
+                    return Err(input(
+                        "session options and application_name are owned by the store",
+                    ));
+                }
+                _ => parameters.push(part),
+            }
+        }
+        let namespace = namespace
+            .filter(|n| !n.is_empty())
+            .ok_or_else(|| input("store URL requires an explicit schema"))?;
+        let ha = ha.ok_or_else(|| input("store URL requires an explicit HA mode"))?;
+        if ha != "none" {
+            return Err("E_STORE_UNSUPPORTED: ha-continuity requires provider qualification; this profile admits ha=none".into());
+        }
+        let connection = format!("{base}?{}", parameters.join("&"));
+        let binding = AnyStore::postgres_binding(&connection, &namespace).map_err(redact)?;
+        let state_directory = options
+            .flags
+            .get("worker-state-dir")
+            .cloned()
+            .or_else(|| std::env::var("SNAPBACK4_WORKER_STATE_DIR").ok())
+            .map(PathBuf::from)
+            .unwrap_or_default();
+        Ok(Some(Self {
+            connection,
+            namespace,
+            binding,
+            state_directory,
+        }))
+    }
+    pub fn probe(&self) -> Result<Option<DeploymentState>, String> {
+        AnyStore::postgres_deployment(&self.connection, &self.namespace).map_err(redact)
+    }
+    pub fn create(&self) -> Result<AnyStore, String> {
+        AnyStore::create_postgres(&self.connection, &self.namespace).map_err(redact)
+    }
+    pub fn acquire(&self, store_id: &str, release_on_drop: bool) -> Result<OwnedStore, String> {
+        let holder = format!("{:04x}", snapback4_core::ids::seed() as u16);
+        let mut lease = StoreLease::connect(
+            &self.connection,
+            &self.namespace,
+            store_id,
+            &holder,
+            LeasePolicy::default(),
+        )
+        .map_err(redact)?;
+        if lease.acquire().map_err(redact)?.is_none() {
+            return Err(
+                "E_STORE_OWNERSHIP: another owner holds an unexpired lease; retry after expiry"
+                    .into(),
+            );
+        }
+        if !lease.renew().map_err(redact)? {
+            return Err("E_STORE_OWNERSHIP: acquisition expired before startup".into());
+        }
+        let lease = Arc::new(Mutex::new(lease));
+        let renew = lease.clone();
+        let last_renewed = Arc::new(Mutex::new(Instant::now()));
+        let renewed = last_renewed.clone();
+        let finished = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let watchdog_finished = finished.clone();
+        let (stop, receive) = mpsc::channel();
+        let thread = std::thread::Builder::new().name("store-lease".into()).spawn(move || {
+            while receive.recv_timeout(Duration::from_millis(500)) == Err(mpsc::RecvTimeoutError::Timeout) {
+                if !renew.lock().unwrap_or_else(|p| p.into_inner()).renew().unwrap_or(false) {
+                    // Exit the process on the first uncertain/lost renewal. The fence orders
+                    // in-flight COMMIT before takeover; no listener or producer survives.
+                    eprintln!("E_STORE_OWNERSHIP: lease renewal lost; stopping all admission and exiting");
+                    std::process::exit(1);
+                }
+                *renewed.lock().unwrap_or_else(|p|p.into_inner()) = Instant::now();
+            }
+        }).map_err(|_| input("cannot start lease renewal"))?;
+        let watchdog = std::thread::Builder::new().name("store-lease-deadline".into()).spawn(move || {
+            while !watchdog_finished.load(std::sync::atomic::Ordering::Acquire) {
+                if last_renewed.lock().unwrap_or_else(|p|p.into_inner()).elapsed() >= Duration::from_secs(3) {
+                    eprintln!("E_STORE_OWNERSHIP: lease renewal deadline lost; stopping all admission and exiting");
+                    std::process::exit(1);
+                }
+                std::thread::sleep(Duration::from_millis(50));
+            }
+        }).map_err(|_|input("cannot start lease deadline watchdog"))?;
+        Ok(OwnedStore {
+            config: self.clone(),
+            lease,
+            stop: Some(stop),
+            thread: Some(thread),
+            watchdog: Some(watchdog),
+            finished,
+            release_on_drop,
+        })
+    }
+    pub fn validate_binding(&self, dir: &Path, state: &DeploymentState) -> Result<(), String> {
+        let record: Binding = serde_json::from_slice(
+            &std::fs::read(dir.join("store-binding.json"))
+                .map_err(|_| input("deployment store binding is missing"))?,
+        )
+        .map_err(|_| input("invalid deployment store binding"))?;
+        if record.store_id != state.store_id || record.binding != self.binding {
+            return Err(input(
+                "deployment store identity or configuration binding differs",
+            ));
+        }
+        Ok(())
+    }
+    pub fn record(&self, dir: &Path, store_id: &str) -> Result<(), String> {
+        let path = dir.join("store-binding.json");
+        if path.exists() {
+            let record: Binding =
+                serde_json::from_slice(&std::fs::read(&path).map_err(|e| e.to_string())?)
+                    .map_err(|_| input("invalid deployment binding"))?;
+            if record.store_id != store_id || record.binding != self.binding {
+                return Err(input("existing deployment binding differs"));
+            }
+            return Ok(());
+        }
+        let record = serde_json::to_vec_pretty(&Binding {
+            store_id: store_id.into(),
+            binding: self.binding.clone(),
+        })
+        .unwrap();
+        let mut file = snapback4_core::private_fs::file(&dir.join("store-binding.json"), true)
+            .map_err(|e| e.to_string())?;
+        use std::io::Write;
+        file.write_all(&record)
+            .and_then(|_| file.sync_all())
+            .and_then(|_| std::fs::File::open(dir)?.sync_all())
+            .map_err(|e| e.to_string())
+    }
+}
+#[derive(serde::Serialize, serde::Deserialize)]
+struct Binding {
+    store_id: String,
+    binding: String,
+}
+
+pub(crate) struct OwnedStore {
+    pub config: StoreConfig,
+    lease: Arc<Mutex<StoreLease>>,
+    stop: Option<mpsc::Sender<()>>,
+    thread: Option<std::thread::JoinHandle<()>>,
+    release_on_drop: bool,
+    finished: Arc<std::sync::atomic::AtomicBool>,
+    watchdog: Option<std::thread::JoinHandle<()>>,
+}
+impl OwnedStore {
+    pub fn open(&self) -> Result<AnyStore, RuntimeError> {
+        AnyStore::open_postgres_owned(
+            &self.config.connection,
+            &self.config.namespace,
+            &self.lease.lock().unwrap_or_else(|p| p.into_inner()),
+        )
+    }
+    pub fn worker_state(&self, store: &AnyStore) -> Result<PathBuf, String> {
+        let path = store
+            .worker_ledger_path(Some(&self.config.state_directory))
+            .map_err(redact)?;
+        snapback4_core::private_fs::directory(&self.config.state_directory)
+            .map_err(|e| e.to_string())?;
+        Ok(path)
+    }
+}
+impl Drop for OwnedStore {
+    fn drop(&mut self) {
+        self.finished
+            .store(true, std::sync::atomic::Ordering::Release);
+        self.stop.take();
+        if let Some(watchdog) = self.watchdog.take() {
+            let _ = watchdog.join();
+        }
+        if let Some(thread) = self.thread.take() {
+            let _ = thread.join();
+        }
+        if self.release_on_drop {
+            let _ = self
+                .lease
+                .lock()
+                .unwrap_or_else(|p| p.into_inner())
+                .release();
+        }
+    }
+}
+// Driver errors may echo connection or role material. Structural refusals are safe.
+pub(crate) fn redact(error: RuntimeError) -> String {
+    match error {
+        RuntimeError::Postgres(_) => "E_STORE: database connection/operation failed; check deployment configuration and server logs".into(),
+        other => other.to_string(),
+    }
+}
+
+/// Keep the existing SQLite path selector and deployment aliases in configuration.
+pub(crate) fn local_deployment(options: &Options, dir: &Path) -> Result<(), String> {
+    if dir.join("store-binding.json").exists() {
+        return Err(input(
+            "this deployment requires its store URL from configuration",
+        ));
+    }
+    let Some(path) = options.flags.get("store") else {
+        return Ok(());
+    };
+    let requested = PathBuf::from(path);
+    let requested = if requested.is_absolute() {
+        requested
+    } else {
+        std::env::current_dir()
+            .map_err(|e| e.to_string())?
+            .join(requested)
+    };
+    if !requested.exists() {
+        return Err(input(
+            "--store requires an existing SQLite store path; omit it for a new deployment",
+        ));
+    }
+    let requested = requested.canonicalize().map_err(|e| e.to_string())?;
+    let local = dir.join("store.sqlite");
+    if local.exists() {
+        if local.canonicalize().map_err(|e| e.to_string())? != requested {
+            return Err(input("deployment already binds a different SQLite path"));
+        }
+    } else {
+        #[cfg(unix)]
+        std::os::unix::fs::symlink(&requested, &local).map_err(|e| e.to_string())?;
+        #[cfg(not(unix))]
+        return Err(input("SQLite deployment aliases require Unix"));
+    }
+    Ok(())
+}
+
+pub(crate) fn retain_candidate(error: &RuntimeError) -> bool {
+    matches!(
+        error,
+        RuntimeError::Postgres(_) | RuntimeError::CommitOutcomeUnknown(_)
+    )
+}

@@ -917,6 +917,11 @@ fn human(bytes: u64) -> String {
 pub(crate) mod doctor_tests;
 
 pub fn doctor(options: &Options) -> i32 {
+    match crate::store_config::StoreConfig::resolve(options) {
+        Ok(Some(config)) => return match configured_release::doctor(options, config) { Ok(()) => 0, Err(e) => {eprintln!("doctor: {e}"); 1} },
+        Err(e) => {eprintln!("doctor: {e}"); return 1;},
+        Ok(None) => {},
+    }
     if options.flags.contains_key("repair-expiry-orphan") { return expiry_orphans::repair(options); }
     if options.flags.contains_key("latency") || options.flags.contains_key("reset") { return latency::doctor(options); }
     let started = Instant::now();
@@ -1293,6 +1298,7 @@ fn arg_word(kind: &ir::ArgType) -> String {
 
 
 mod releases;
+mod configured_release;
 mod release_safeguards;
 mod release_preview;
 mod release_visibility;

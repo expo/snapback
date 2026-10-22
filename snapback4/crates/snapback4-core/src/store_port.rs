@@ -41,6 +41,19 @@ mod worker_ledger;
 mod ownership;
 #[cfg(feature = "postgres")]
 pub use ownership::{StoreLease, LeasePolicy, LeaseAcquisition};
+
+/// Read-only deployment facts; no connection or secret leaves an adapter.
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+pub struct DeploymentState {
+    pub store_id: String,
+    pub release: Option<u64>,
+    pub revision: u64,
+    pub generation: u64,
+    pub holder: String,
+    pub token: i64,
+    pub lease_until: String,
+    pub expired: bool,
+}
 #[path = "store/port/operations.rs"]
 mod operations;
 pub(crate) use operations::FollowingHistoryReader;
