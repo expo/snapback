@@ -18,6 +18,7 @@ pub(super) const ACTIONS: &[(&str, &[&str])] = &[
     ("E_STORE_OWNERSHIP", &["A stale token refuses before durable work.", "Stop admission, acquire ownership on the lease connection and reopen with the acquired token."]),
     ("E_COMMIT_OUTCOME_UNKNOWN", &["The operation may already be durable.", "Resolve its persisted receipt or operation key before any retry.", "Automatic retry is disabled"]),
     ("E_WORKER_STORE_ID", &["Repair the store binding before starting workers.", "Keep the ledger with the store across releases and backups."]),
+    ("E_STORE_CONFIG", &["Use one store selector.", "Restore the matching immutable release and logical store binding before serving."]),
     ("E_WORKER_STATE", &["Configure that directory before starting workers.", "The ledger filename uses the logical store id"]),
     ("E_STORE_UNSUPPORTED", &["Postgres schema evolution currently refuses before activation preparation writes.", "Keep the current schema or use SQLite for the schema transition.", "Repeating the same activation cannot enable the missing family."]),
     ("E_STORE_GENERATION", &["Opening refuses before trusting that value, and a failed read does not abort its transaction.", "Restore a known-good store backup before reopening; preserve the current store for operator inspection.", "Never delete the store to make adoption pass."]),

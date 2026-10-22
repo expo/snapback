@@ -1,0 +1,34 @@
+{
+  "pid": 2353392,
+  "source_commit": "459413c0fe33568c61ba8ad8ffaa95f5ed5490bd",
+  "snapback_binary_sha256": "d392be2274e85e61338790d0ae05517d563ee6e482f26366712c84a383d0b81e",
+  "harness_binary_sha256": "7618879a6762d49092c34aa2de9ec1ef784f0d569ac1906459b4a35ed693bb45",
+  "app_cores": "0-2,6-8",
+  "ssh_cores": "4-5,10-11",
+  "method": "blocked full cells; unqualified tiny serial diagnostic only",
+  "source_sha256": {
+    "src/main.rs": "f6e003264fda4450c04f9189cc4670a3cafdc13a3009b7701fa1722ed60a7d01",
+    "src/unix.rs": "36cb3af8eaef8c5c89b3cf3737d4baf15dc35e433f148e0983abdb28dbc24c04",
+    "src/snapback.rs": "cad18abbd44f8eb4e24d1ef7cf55a47cccde0eab5b49ffd04a928fd8d7c3e064",
+    "src/load.rs": "c6b3619dc3492e47f2c7d4685056faa9a1894393e2b516156e6dfda8e01b0fcf",
+    "scripts/postgres.py": "40657afc977e1fe9d713f3f55372023305d0ed450854cf4e2fa3c9f78041edec",
+    "scripts/postgres-probes.py": "9c9641b2588a1ff0545259d124c744edf873b8eb591ac925f067a24c3e95ee92",
+    "snapback-app/snapback/schema.q": "d81afc50e1ead9ba3c8fd245fc2fd84f2ed1b179e03d3382fccf18b2bef9c65f"
+  },
+  "build": {
+    "profile": "release",
+    "snapback_target": "snapback4/target/s1sk",
+    "harness_target": "scale-controls/target",
+    "LIBSQLITE3_FLAGS": "-USQLITE_ENABLE_MEMORY_MANAGEMENT",
+    "product_source_unmodified": true
+  },
+  "transport": {
+    "local_socket": "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/s1pg/socket/.s.PGSQL.55440",
+    "path": "450b Unix socket -> OpenSSH direct-streamlocal forwarding -> 450a 127.0.0.1:55440",
+    "ssh_cores": "4-5,10-11",
+    "cluster_postmaster_pid": 2735539
+  },
+  "proxy_socket": "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/s1pg/d2",
+  "durability": "unchanged shared PG17.9: fsync/synchronous_commit/full_page_writes on",
+  "measured_controls": "S1-FR matched 10 s/20 s; historical noncontemporaneous controls"
+}

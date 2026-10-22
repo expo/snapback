@@ -4,6 +4,7 @@ mod db;
 mod load;
 mod snapback;
 mod supabase;
+mod unix;
 // Same per-chunk, per-direction delay implementation used by S0.
 #[path = "../../postgres-commit-path/src/proxy.rs"]
 #[allow(dead_code)]
@@ -45,6 +46,19 @@ enum Command {
         delay_us: u64,
         #[arg(long, default_value_t = 3000)]
         count: usize,
+    },
+    /// S1-PG: the same prepared SELECT 1 timing over serve's Unix path.
+    PingUnix {
+        #[arg(long)] socket_dir: String,
+        #[arg(long, default_value_t = 55440)] port: u16,
+        #[arg(long, default_value_t = 1000)] count: usize,
+    },
+    /// S1-PG only: S0's per-direction delay, accepting a Unix socket.
+    UnixProxy {
+        #[arg(long)] socket_dir: String,
+        #[arg(long)] upstream_dir: String,
+        #[arg(long, default_value_t = 55440)] port: u16,
+        #[arg(long, default_value_t = 500)] delay_us: u64,
     },
 }
 
@@ -133,6 +147,9 @@ async fn main() -> anyhow::Result<()> {
         Command::Load(options) => load::run(options).await?,
         Command::Dispatch { delay_us } => supabase::dispatch(delay_us).await?,
         Command::Ping { delay_us, count } => db::ping(delay_us, count).await?,
+        Command::PingUnix { socket_dir, port, count } => unix::ping(&socket_dir, port, count).await?,
+        Command::UnixProxy { socket_dir, upstream_dir, port, delay_us } =>
+            unix::serve(&socket_dir, &upstream_dir, port, delay_us)?,
     }
     Ok(())
 }

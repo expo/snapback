@@ -31,6 +31,7 @@ pub fn serve(
         ));
     }
     let dev = matches!(mode, Mode::Dev { .. });
+    let full_runners = !matches!(mode, Mode::ConfiguredRelease { .. });
     // @ref LLP 3000.007#20.2 — replay suppresses new effects and holds schedule admission; ordinary holds keep their separate meanings.
     let replay = matches!(mode, Mode::Dev { replay: true, .. });
     let hold_effects = matches!(
@@ -56,6 +57,7 @@ pub fn serve(
         dev || staging,
         match mode {
             Mode::Dev { clock_offset, .. } | Mode::Release { clock_offset, .. } => clock_offset,
+            Mode::ConfiguredRelease { .. } => 0,
         },
     )
     .map_err(|e| e.to_string())?;
@@ -117,6 +119,7 @@ pub fn serve(
             clock.now(),
         ),
         Mode::Dev { .. } => adoption::open(host_owner.as_deref().unwrap(), &bound, &clock),
+        Mode::ConfiguredRelease { expected, owner } => owner.open().and_then(|store| project.open_release_engine(store, &bound, *expected, clock.now())),
         Mode::Release { expected, .. } => host_owner
             .as_ref()
             .unwrap()
@@ -137,7 +140,7 @@ pub fn serve(
             snapback4_core::diagnostic!("{line}");
         }
     }
-    crate::dev_worker::clear_child_session(engine.store()).map_err(|e| e.to_string())?;
+    if full_runners { crate::dev_worker::clear_child_session(engine.store()).map_err(|e| e.to_string())?; }
     // A native job's module (LLP 3000.005): built by `check`, in `dev` also
     // here so a fresh clone serves without a separate step.
     if dev {
@@ -148,15 +151,13 @@ pub fn serve(
         crate::dev_replay::schedules(&mut engine, hold_schedules, clock.now())
             .map_err(|e| e.to_string())?;
     }
-    if !hold_schedules {
+    if full_runners && !hold_schedules {
         engine
             .fire_schedules(clock.now())
             .map_err(|e| e.to_string())?;
     }
-    let installed = crate::native::install(&mut engine, &project).map_err(|p| p.to_string())?;
-    let authoritative_now = engine
-        .advance_time_audiences_at(clock.now())
-        .map_err(|e| e.to_string())?;
+    let installed = if full_runners { crate::native::install(&mut engine, &project).map_err(|p| p.to_string())? } else { None };
+    let authoritative_now = if full_runners { engine.advance_time_audiences_at(clock.now()).map_err(|e| e.to_string())? } else { clock.now() };
     let time_audience_clock = if engine.schema().tables.values().any(|table| table.not_before.is_some()) {
         authoritative_now
     } else {
@@ -226,6 +227,7 @@ pub fn serve(
         time_audience_clock: AtomicI64::new(time_audience_clock),
         maintenance: FairMutex::gate(maintenance::State::default()),
         staging: !dev && engine.store().deployment_environment().map_err(|e|e.to_string())?.as_deref() == Some("staging"),
+        worker_execution: engine.store().admit_worker_execution().is_ok(),
         engine: FairMutex::new(engine),
         readers,
         read_cuts: Mutex::new(read_cost::ReadCuts::default()),
@@ -281,6 +283,7 @@ pub fn serve(
         .replace("0.0.0.0", "127.0.0.1")
         .replace("[::]", "[::1]");
     let worker = match &mode {
+        Mode::ConfiguredRelease { .. } => None,
         Mode::Dev { .. } => {
             crate::dev_worker::DevWorker::start(&project, shared.clone(), worker_url.clone())?
         }
@@ -311,7 +314,7 @@ pub fn serve(
         .map(|bound| bound.schema.hash()).unwrap_or_else(|| "unavailable".into());
     let mut background = Vec::new();
     #[cfg(unix)]
-    if !dev {
+    if !dev && full_runners {
         // @ref LLP 3000.000.000#5-hot-activation-and-ownership — control belongs to immutable release source, even when its store is a symlink elsewhere.
         let dir = shared.project.parent().and_then(std::path::Path::parent)
             .ok_or("deployment parent")?.to_owned();
@@ -388,14 +391,14 @@ pub fn serve(
             })?,
         ));
     }
-    {
+    if full_runners {
         let shared = shared.clone();
         background.push((
             "maintenance",
             crate::lifecycle::background("maintenance", move || maintain(shared))?,
         ));
     }
-    {
+    if full_runners {
         let shared = shared.clone();
         background.push((
             "bulk-maintenance",
@@ -408,10 +411,23 @@ pub fn serve(
             shared.auth.kdf_slots(true)
         );
     }
-    let worker =
-        crate::dev_worker::Supervisor::start(project, shared.clone(), worker_url, dev, worker)?;
+    if !full_runners {
+        let shared = shared.clone();
+        background.push(("ephemeral-maintenance", crate::lifecycle::background("ephemeral-maintenance", move || {
+            while !crate::lifecycle::stopping() {
+                if let Err(error) = shared.ephemeral.sweep(shared.now()) { snapback4_core::diagnostic!("ephemeral sweep: {error}"); }
+                std::thread::sleep(Duration::from_millis(100));
+            }
+        })?));
+    }
+    let worker = if full_runners {
+        crate::dev_worker::Supervisor::start(project, shared.clone(), worker_url, dev, worker)?
+    } else { crate::dev_worker::Supervisor::idle() };
     // @ref LLP 3000#contended-read-serving — dev and serve drain startup banners before accepting work, bounded for stalled output.
     let _ = snapback4_core::diagnostics::drain(Duration::from_secs(3));
+    if let Mode::ConfiguredRelease { owner, .. } = &mode {
+        owner.serving();
+    }
     serve_requests(
         server,
         shared,

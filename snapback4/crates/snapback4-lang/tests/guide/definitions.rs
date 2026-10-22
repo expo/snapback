@@ -153,6 +153,7 @@ const DEFINITIONS: &[(&str, &str)] = &[
     ("E_STORE_OWNERSHIP", "E_STORE_OWNERSHIP means the owner token, logical store binding or bounded takeover is no longer valid."),
     ("E_COMMIT_OUTCOME_UNKNOWN", "E_COMMIT_OUTCOME_UNKNOWN means COMMIT was sent without a reliable acknowledgement, or a synchronous replication wait was cancelled."),
     ("E_WORKER_STORE_ID", "E_WORKER_STORE_ID means the completion ledger has no nonempty logical store identity."),
+    ("E_STORE_CONFIG", "E_STORE_CONFIG means store selectors conflict or the deployment binding is missing or invalid."),
     ("E_WORKER_STATE", "E_WORKER_STATE means the Postgres completion ledger has no explicitly configured absolute durable state directory."),
     ("E_STORE_UNSUPPORTED", "E_STORE_UNSUPPORTED names a family the selected store does not yet implement."),
     ("E_STORE_GENERATION", "E_STORE_GENERATION means the persisted generation metadata is malformed, non-positive or outside the signed integer range."),

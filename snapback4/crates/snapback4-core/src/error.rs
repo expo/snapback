@@ -149,7 +149,7 @@ pub enum RuntimeError {
     #[error("E_STORE_BUSY at {path}: a backend writer owns this database; no device work was admitted. Exclusion holds while <database>-owner is left in place; deleting or replacing it while a process runs ends exclusion and does not stop that process")]
     StoreBusy { path: String },
     #[cfg(feature = "postgres")]
-    #[error("E_STORE: {0}")]
+    #[error("E_STORE: database connection/operation failed; check deployment configuration and server logs")]
     Postgres(#[from] postgres::Error),
     #[error("E_STORE_OWNERSHIP: {0}")]
     StoreOwnership(String),
@@ -158,7 +158,7 @@ pub enum RuntimeError {
     /// COMMIT was sent but no reliable acknowledgement was received. Resolve
     /// the existing receipt/key before retrying; this is not a refusal.
     #[cfg(feature = "postgres")]
-    #[error("E_COMMIT_OUTCOME_UNKNOWN: {0}; resolve the persisted receipt or operation key before retrying")]
+    #[error("E_COMMIT_OUTCOME_UNKNOWN: database acknowledgement unavailable; resolve the persisted receipt or operation key before retrying; check server logs")]
     CommitOutcomeUnknown(String),
     #[error("E_TIME_AUDIENCE_PENDING: timed publication is still advancing; retry this operation")]
     TimeAudiencePending,

@@ -1,0 +1,11 @@
+security exposure: 2 tables, 1 conditional audiences, 2 broadly readable tables; run snapback4 audit for exact role/column predicates
+SECURITY REVIEW — rules changed
+  REVIEW schema.q:8:3 N_BROAD_READ: messages.read: branch `allow` lets every signed-in user read every row
+    restrict this branch to the intended role and row relationship, or confirm that every row is public to signed-in users
+  REVIEW schema.q:3:3 N_BROAD_READ: rooms.read: branch `allow` lets every signed-in user read every row
+    restrict this branch to the intended role and row relationship, or confirm that every row is public to signed-in users
+  REVIEW schema.q:1:1 N_SECURITY_INTENT: 2 tables have access rules and no security invariants: messages, rooms; declare the spec's privacy rules as invariants (`guide security`)
+    review snapback/generated/security-invariants.q.draft against the spec; candidates are never auto-accepted
+  last test: NEVER RECORDED; run `snapback4 test` before deployment; no matching completed campaign for this source, fixtures and CLI; 0 independent invariants
+  0 independent invariants; 3 coverage gaps; finite campaigns are not proof
+deploy: E_STORE_UNSUPPORTED: maintained-columns is not yet available on Postgres

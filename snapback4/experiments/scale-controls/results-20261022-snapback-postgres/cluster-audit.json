@@ -1,0 +1,7 @@
+{
+  "database_exists": false,
+  "role_exists": false,
+  "server_version": "17.9 (Ubuntu 17.9-1.pgdg24.04+1)",
+  "postmaster_pid": 2735539,
+  "postmaster_process": "postgres"
+}

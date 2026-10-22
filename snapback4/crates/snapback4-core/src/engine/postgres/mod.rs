@@ -1,6 +1,6 @@
 //! Postgres adapter for the common Engine and its retained evaluation oracle.
-//! Handle serves the internal admitted profile; PostgresEngine below remains
-//! the prefetch-on/off comparison executor through S10d. No public deploy target.
+//! Handle serves the admitted public HTTP profile; PostgresEngine below remains
+//! the prefetch-on/off comparison executor through S10d.
 //! @ref LLP 3000#7-decisions-during-execution — evaluate storage portability before productizing it
 mod log;
 pub(crate) mod store;
@@ -33,6 +33,8 @@ pub(crate) mod activation;
 mod activation_schema;
 mod release;
 mod release_schema;
+mod bootstrap;
+mod bootstrap_schema;
 #[cfg(test)]
 mod tests;
 pub use store::{SCAN_MEMORY_GUARD, WriteMode};
@@ -86,7 +88,7 @@ impl PostgresEngine {
         mut schema: Schema,
         programs: impl IntoIterator<Item = Program>,
     ) -> Result<Self, RuntimeError> {
-        let name = namespace(name)?;
+        let name = evaluation_namespace(name)?;
         refuse_maintained_columns(&schema)?;
         super::columns::validate_before_prepare(&schema)?;
         schema.prepare_contribution_indexes();
@@ -102,7 +104,7 @@ impl PostgresEngine {
     }
 
     fn open_with_expected(mut client: Client, name: &str, expected_release: Option<u64>) -> Result<Self, RuntimeError> {
-        let name = namespace(name)?;
+        let name = evaluation_namespace(name)?;
         client.batch_execute(&format!("SET search_path = {name}, pg_catalog;"))?;
         let mut store = Store::new(client);
         let tx = store.opening_transaction()?;
@@ -564,3 +566,10 @@ mod semantic;
 
 mod opening;
 mod profile;
+
+mod deployment;
+
+fn evaluation_namespace(name: &str) -> Result<String, RuntimeError> {
+    if !name.starts_with("sb4_eval_") { return Err(RuntimeError::Input("evaluation schema must start with sb4_eval_".into())); }
+    namespace(name)
+}

@@ -145,6 +145,12 @@ impl Store {
         self.begin(Some(WriteMode::Serialized), true)
     }
 
+    // Recovery checks the physical bootstrap before assuming any columns exist.
+    // PostgreSQL enforces read-only access for this entire repeatable snapshot.
+    pub(super) fn bootstrap_read_transaction(&mut self) -> Result<Tx<'_>, RuntimeError> {
+        self.begin(None, false)
+    }
+
     pub fn transaction(&mut self, mode: Option<WriteMode>) -> Result<Tx<'_>, RuntimeError> {
         self.transaction_with_begin_hook(mode, || {
             #[cfg(test)]
@@ -216,10 +222,10 @@ pub(super) fn decode<T: serde::de::DeserializeOwned>(text: &str) -> Result<T, Ru
     serde_json::from_str(text).map_err(|e| RuntimeError::Store(e.to_string()))
 }
 pub(super) fn namespace(name: &str) -> Result<String, RuntimeError> {
-    if !name.starts_with("sb4_eval_") || name.len() > 63 || !name.bytes().all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'_')
+    if name.is_empty() || name.starts_with("pg_") || matches!(name, "public" | "information_schema") || !name.as_bytes()[0].is_ascii_lowercase() || name.len() > 63 || !name.bytes().all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'_')
     {
         return Err(RuntimeError::Input(
-            "evaluation schema must start with sb4_eval_ and contain only lowercase ASCII letters, digits, underscores (at most 63 bytes)"
+            "store schema must start with a lowercase ASCII letter and contain only lowercase letters, digits, underscores (at most 63 bytes); public and system schemas refuse"
                 .into(),
         ));
     }

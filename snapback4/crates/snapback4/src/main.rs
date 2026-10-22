@@ -39,6 +39,7 @@ mod scale;
 mod presentation;
 mod sync_wire;
 mod store_owner;
+mod store_config;
 mod supervisor;
 
 use snapback4_lang::guide;
@@ -83,11 +84,17 @@ fn main() -> ExitCode {
     // Release-directory inspection can create SQLite WAL bookkeeping too.
     // Admit its directory before any administrative reader opens the database.
     // Token and lifecycle consumers perform this same guard at their own entry.
-    if matches!(verb, "run" | "why" | "data" | "sql" | "doctor")
+    if !store_config::selected(&options) && matches!(verb, "run" | "why" | "data" | "sql" | "doctor")
         && let Some(directory) = options.flags.get("release")
         && let Err(error) = verbs::existing_deployment(std::path::Path::new(directory)) {
         eprintln!("{verb}: {error}");
         return ExitCode::from(2);
+    }
+    let stateless_why = verb == "why" && options.positionals.first().is_some_and(|code| guide::explain_code(code).is_some());
+    if !stateless_why && store_config::selected(&options) && matches!(verb, "rollback"|"prune"|"releases"|"run"|"why"|"data"|"token") {
+        if let Err(error) = store_config::StoreConfig::resolve(&options) { eprintln!("{error}"); return ExitCode::from(2); }
+        eprintln!("E_STORE_UNSUPPORTED: this operator command is outside the admitted store profile");
+        return ExitCode::from(1);
     }
     let code = match verb {
         "--version" | "-V" | "version" => {

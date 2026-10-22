@@ -121,7 +121,7 @@ impl AnyTx<'_> {
 
 #[cfg(not(feature = "postgres"))]
 impl AnyStore {
-    pub(crate) fn admit(&self, _: &Schema, _: &BTreeMap<String, Program>) -> Result<(), RuntimeError> { Ok(()) }
+    pub fn admit(&self, _: &Schema, _: &BTreeMap<String, Program>) -> Result<(), RuntimeError> { Ok(()) }
 }
 #[cfg(not(feature = "postgres"))]
 impl AnyTx<'_> {

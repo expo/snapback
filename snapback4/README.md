@@ -13,9 +13,12 @@ Start at [`AGENTS.md`](./AGENTS.md). The root is
 scope is [`NOT-DOING.md`](./NOT-DOING.md); the chronology is
 [`JOURNAL.md`](./JOURNAL.md).
 
-Storage experiment: [Postgres evaluation prototype](./experiments/postgres/README.md)
-runs real Quarry queries, mutations and sync against Postgres. It is opt-in,
-not a CLI/deployment target; SQLite remains the shipped backend.
+SQLite is the default backend. Postgres `deploy`/`serve` support the initial
+HTTP profile on PostgreSQL 16/17 through Unix sockets with `ha=none`; see
+`snapback4 guide release-json` for configuration and exclusions. Prefer
+`SNAPBACK4_STORE_URL`: passwords in `--store-url` are visible in process arguments.
+The separate [Postgres evaluation prototype](./experiments/postgres/README.md)
+retains broader adapter comparisons without expanding the public serving profile.
 
 | | |
 |---|---|

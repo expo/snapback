@@ -1,0 +1,372 @@
+[
+  {
+    "delay_us": 0,
+    "qualifies_w4": false,
+    "fixture": "one own counter; guest bearer; no 1M messages",
+    "measured_mutations": 10,
+    "warmup_mutations": 10,
+    "acknowledged_values": [
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20
+    ],
+    "latency_ms": [
+      44.337477535009384,
+      38.025448098778725,
+      38.476737216115,
+      43.717047199606895,
+      45.089924708008766,
+      40.83314538002014,
+      42.800216004252434,
+      44.281139969825745,
+      84.7267210483551,
+      45.205008238554
+    ],
+    "p50_ms": 43.99909358471632,
+    "read_only_transactions_per_mutation": 9,
+    "durable_mutation_transactions_per_mutation": 1,
+    "session_resolutions_per_mutation": 4,
+    "background_lease_transactions": 1,
+    "statements_per_mutation_excluding_renewal": 58,
+    "inferred_warm_synchronous_driver_exchanges_per_mutation": 57,
+    "exchange_caveat": "source inference: two SET LOCAL statements share one batch_execute; not a packet trace; cold prepares add exchanges",
+    "measured_server_statement_exec_ms_per_mutation": 0.4284302999999999,
+    "commit_wall_ms": null,
+    "engine_queue_wait_ms": null,
+    "timing_caveat": "pg_stat_statements utility COMMIT timing does not isolate durable flush; no instrumented product or wire capture",
+    "statements": [
+      {
+        "query": "SELECT c.seq,e.footprint FROM _commits c LEFT JOIN _change_evidence e ON e.seq=c.seq WHERE c.seq>$1 AND c.seq<=$2 ORDER BY c.seq LIMIT $3",
+        "calls": 10,
+        "total_exec_time": 0.15124500000000002,
+        "rows": 10,
+        "wal_bytes": 0
+      },
+      {
+        "query": "SELECT seq FROM _head WHERE singleton FOR UPDATE",
+        "calls": 10,
+        "total_exec_time": 0.13694099999999995,
+        "rows": 10,
+        "wal_bytes": 540
+      },
+      {
+        "query": "SELECT r.data, i.k FROM i JOIN r ON r.t = i.t AND r.id = i.id WHERE i.t = $1 AND i.ix = $2 AND i.k >= $3 AND i.k < $4 ORDER BY i.k ASC LIMIT $5",
+        "calls": 20,
+        "total_exec_time": 0.2774740000000001,
+        "rows": 20,
+        "wal_bytes": 0
+      },
+      {
+        "query": "SAVEPOINT $1",
+        "calls": 20,
+        "total_exec_time": 0.008375999999999995,
+        "rows": 0,
+        "wal_bytes": 0
+      },
+      {
+        "query": "SET LOCAL statement_timeout = 0",
+        "calls": 11,
+        "total_exec_time": 0.03752100000000003,
+        "rows": 0,
+        "wal_bytes": 0
+      },
+      {
+        "query": "SET LOCAL lock_timeout = 0",
+        "calls": 11,
+        "total_exec_time": 0.009205999999999999,
+        "rows": 0,
+        "wal_bytes": 0
+      },
+      {
+        "query": "START TRANSACTION",
+        "calls": 1,
+        "total_exec_time": 0.0019130000000000015,
+        "rows": 0,
+        "wal_bytes": 0
+      },
+      {
+        "query": "WITH head AS (\n            UPDATE _head SET seq = $1::bigint WHERE singleton AND seq = $1::bigint - $26 RETURNING seq\n        ), committed AS (\n            INSERT INTO _commits(seq,at,program,principal,kind,touched,writes) SELECT seq,$2,$3,$4,$5,$6,$7 FROM head RETURNING seq\n        ), logged AS (\n            INSERT INTO _log(partition,seq,ord,t,kind,id,data) SELECT l.partition,c.seq,l.ord,l.t,l.kind,l.id,l.data FROM committed c\n            CROSS JOIN unnest($8::text[],$9::bigint[],$10::text[],$11::text[],$12::text[],$13::text[]) AS l(partition,ord,t,kind,id,data)\n        ), effects AS (\n            INSERT INTO _outbox(id,seq,effect,payload,state,attempts,at,next_at,work_spec,deadline,contract,release)\n            SELECT e.id,c.seq,e.effect,e.payload,$27,$28,$2,e.next_at,e.work,e.deadline,e.contract,CASE WHEN e.explicit_release THEN e.release ELSE (SELECT value FROM _meta WHERE key = $29) END FROM committed c\n            CROSS JOIN unnest($14::text[],$15::text[],$16::text[],$17::bigint[],$18::text[],$19::bigint[],$20::text[],$24::boolean[],$25::text[]) AS e(id,effect,payload,next_at,work,deadline,contract,explicit_release,release)\n        ), presence AS (\n            INSERT INTO _effect_presence(principal,id,deadline) SELECT p.principal,p.id,p.deadline FROM committed c\n            CROSS JOIN unnest($21::text[],$22::text[],$23::bigint[]) AS p(principal,id,deadline)\n        ) SELECT count(*) FROM committed",
+        "calls": 10,
+        "total_exec_time": 0.5192919999999996,
+        "rows": 10,
+        "wal_bytes": 3400
+      },
+      {
+        "query": "SELECT generation FROM _backend WHERE singleton",
+        "calls": 10,
+        "total_exec_time": 0.042588000000000015,
+        "rows": 10,
+        "wal_bytes": 0
+      },
+      {
+        "query": "START TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY",
+        "calls": 90,
+        "total_exec_time": 0.35114,
+        "rows": 0,
+        "wal_bytes": 0
+      },
+      {
+        "query": "SELECT value FROM _meta WHERE key=$1",
+        "calls": 110,
+        "total_exec_time": 0.4062240000000006,
+        "rows": 30,
+        "wal_bytes": 0
+      },
+      {
+        "query": "SELECT generation, (SELECT seq FROM _head WHERE singleton) FROM _backend WHERE singleton",
+        "calls": 90,
+        "total_exec_time": 1.4129929999999984,
+        "rows": 90,
+        "wal_bytes": 0
+      },
+      {
+        "query": "SELECT store_id,token FROM _owner WHERE singleton FOR KEY SHARE",
+        "calls": 10,
+        "total_exec_time": 0.16347,
+        "rows": 10,
+        "wal_bytes": 540
+      },
+      {
+        "query": "START TRANSACTION ISOLATION LEVEL READ COMMITTED, READ WRITE",
+        "calls": 10,
+        "total_exec_time": 0.03366299999999994,
+        "rows": 0,
+        "wal_bytes": 0
+      },
+      {
+        "query": "ROLLBACK",
+        "calls": 90,
+        "total_exec_time": 0.03575299999999998,
+        "rows": 0,
+        "wal_bytes": 0
+      },
+      {
+        "query": "COMMIT",
+        "calls": 11,
+        "total_exec_time": 0.0034580000000000027,
+        "rows": 0,
+        "wal_bytes": 0
+      },
+      {
+        "query": "UPDATE _owner SET lease_until=clock_timestamp()+make_interval(secs=>$1) WHERE singleton AND store_id=$2 AND token=$3",
+        "calls": 1,
+        "total_exec_time": 0.16563299999999997,
+        "rows": 1,
+        "wal_bytes": 73
+      },
+      {
+        "query": "UPDATE r SET data = $3 WHERE t = $1 AND id = $2",
+        "calls": 10,
+        "total_exec_time": 0.18447,
+        "rows": 10,
+        "wal_bytes": 711
+      },
+      {
+        "query": "SELECT principal, COALESCE(family, token_digest), kind, token_digest, expires_at, $2, $3::BIGINT, $4::BIGINT FROM _sessions WHERE token_digest = $1 UNION ALL SELECT principal, family, kind, token_digest, expires_at, $5, cap_expires_at, principal_generation FROM _read_sessions WHERE token_digest = $1",
+        "calls": 40,
+        "total_exec_time": 0.33376400000000017,
+        "rows": 40,
+        "wal_bytes": 0
+      },
+      {
+        "query": "RELEASE SAVEPOINT $1",
+        "calls": 20,
+        "total_exec_time": 0.009179,
+        "rows": 0,
+        "wal_bytes": 0
+      }
+    ]
+  },
+  {
+    "delay_us": 500,
+    "qualifies_w4": false,
+    "fixture": "one own counter; guest bearer; no 1M messages",
+    "measured_mutations": 10,
+    "warmup_mutations": 10,
+    "acknowledged_values": [
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20
+    ],
+    "latency_ms": [
+      77.96278223395348,
+      76.37163810431957,
+      74.78423416614532,
+      121.42140604555607,
+      75.03198087215424,
+      73.24356585741043,
+      72.36007787287235,
+      75.10163262486458,
+      118.90819109976292,
+      118.6259388923645
+    ],
+    "p50_ms": 75.73663536459208,
+    "read_only_transactions_per_mutation": 9,
+    "durable_mutation_transactions_per_mutation": 1,
+    "session_resolutions_per_mutation": 4,
+    "background_lease_transactions": 2,
+    "statements_per_mutation_excluding_renewal": 58,
+    "inferred_warm_synchronous_driver_exchanges_per_mutation": 57,
+    "exchange_caveat": "source inference: two SET LOCAL statements share one batch_execute; not a packet trace; cold prepares add exchanges",
+    "measured_server_statement_exec_ms_per_mutation": 0.5299363000000004,
+    "commit_wall_ms": null,
+    "engine_queue_wait_ms": null,
+    "timing_caveat": "pg_stat_statements utility COMMIT timing does not isolate durable flush; no instrumented product or wire capture",
+    "statements": [
+      {
+        "query": "SAVEPOINT $1",
+        "calls": 20,
+        "total_exec_time": 0.011099999999999999,
+        "rows": 0,
+        "wal_bytes": 0
+      },
+      {
+        "query": "SELECT r.data, i.k FROM i JOIN r ON r.t = i.t AND r.id = i.id WHERE i.t = $1 AND i.ix = $2 AND i.k >= $3 AND i.k < $4 ORDER BY i.k ASC LIMIT $5",
+        "calls": 20,
+        "total_exec_time": 0.3429609999999999,
+        "rows": 20,
+        "wal_bytes": 0
+      },
+      {
+        "query": "SET LOCAL statement_timeout = 0",
+        "calls": 12,
+        "total_exec_time": 0.056378000000000095,
+        "rows": 0,
+        "wal_bytes": 0
+      },
+      {
+        "query": "SET LOCAL lock_timeout = 0",
+        "calls": 12,
+        "total_exec_time": 0.012272000000000005,
+        "rows": 0,
+        "wal_bytes": 0
+      },
+      {
+        "query": "UPDATE r SET data = $3 WHERE t = $1 AND id = $2",
+        "calls": 10,
+        "total_exec_time": 0.217383,
+        "rows": 10,
+        "wal_bytes": 711
+      },
+      {
+        "query": "START TRANSACTION",
+        "calls": 2,
+        "total_exec_time": 0.0025550000000000017,
+        "rows": 0,
+        "wal_bytes": 0
+      },
+      {
+        "query": "SELECT store_id,token FROM _owner WHERE singleton FOR KEY SHARE",
+        "calls": 10,
+        "total_exec_time": 0.20523599999999997,
+        "rows": 10,
+        "wal_bytes": 540
+      },
+      {
+        "query": "SELECT generation, (SELECT seq FROM _head WHERE singleton) FROM _backend WHERE singleton",
+        "calls": 90,
+        "total_exec_time": 1.7223860000000024,
+        "rows": 90,
+        "wal_bytes": 0
+      },
+      {
+        "query": "SELECT generation FROM _backend WHERE singleton",
+        "calls": 10,
+        "total_exec_time": 0.05923999999999996,
+        "rows": 10,
+        "wal_bytes": 0
+      },
+      {
+        "query": "SELECT seq FROM _head WHERE singleton FOR UPDATE",
+        "calls": 10,
+        "total_exec_time": 0.14005600000000007,
+        "rows": 10,
+        "wal_bytes": 540
+      },
+      {
+        "query": "START TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY",
+        "calls": 90,
+        "total_exec_time": 0.4270690000000006,
+        "rows": 0,
+        "wal_bytes": 0
+      },
+      {
+        "query": "WITH head AS (\n            UPDATE _head SET seq = $1::bigint WHERE singleton AND seq = $1::bigint - $26 RETURNING seq\n        ), committed AS (\n            INSERT INTO _commits(seq,at,program,principal,kind,touched,writes) SELECT seq,$2,$3,$4,$5,$6,$7 FROM head RETURNING seq\n        ), logged AS (\n            INSERT INTO _log(partition,seq,ord,t,kind,id,data) SELECT l.partition,c.seq,l.ord,l.t,l.kind,l.id,l.data FROM committed c\n            CROSS JOIN unnest($8::text[],$9::bigint[],$10::text[],$11::text[],$12::text[],$13::text[]) AS l(partition,ord,t,kind,id,data)\n        ), effects AS (\n            INSERT INTO _outbox(id,seq,effect,payload,state,attempts,at,next_at,work_spec,deadline,contract,release)\n            SELECT e.id,c.seq,e.effect,e.payload,$27,$28,$2,e.next_at,e.work,e.deadline,e.contract,CASE WHEN e.explicit_release THEN e.release ELSE (SELECT value FROM _meta WHERE key = $29) END FROM committed c\n            CROSS JOIN unnest($14::text[],$15::text[],$16::text[],$17::bigint[],$18::text[],$19::bigint[],$20::text[],$24::boolean[],$25::text[]) AS e(id,effect,payload,next_at,work,deadline,contract,explicit_release,release)\n        ), presence AS (\n            INSERT INTO _effect_presence(principal,id,deadline) SELECT p.principal,p.id,p.deadline FROM committed c\n            CROSS JOIN unnest($21::text[],$22::text[],$23::bigint[]) AS p(principal,id,deadline)\n        ) SELECT count(*) FROM committed",
+        "calls": 10,
+        "total_exec_time": 0.6447720000000001,
+        "rows": 10,
+        "wal_bytes": 3400
+      },
+      {
+        "query": "SELECT c.seq,e.footprint FROM _commits c LEFT JOIN _change_evidence e ON e.seq=c.seq WHERE c.seq>$1 AND c.seq<=$2 ORDER BY c.seq LIMIT $3",
+        "calls": 10,
+        "total_exec_time": 0.19854600000000003,
+        "rows": 10,
+        "wal_bytes": 0
+      },
+      {
+        "query": "SELECT value FROM _meta WHERE key=$1",
+        "calls": 110,
+        "total_exec_time": 0.5835559999999993,
+        "rows": 30,
+        "wal_bytes": 0
+      },
+      {
+        "query": "SELECT principal, COALESCE(family, token_digest), kind, token_digest, expires_at, $2, $3::BIGINT, $4::BIGINT FROM _sessions WHERE token_digest = $1 UNION ALL SELECT principal, family, kind, token_digest, expires_at, $5, cap_expires_at, principal_generation FROM _read_sessions WHERE token_digest = $1",
+        "calls": 40,
+        "total_exec_time": 0.45384100000000027,
+        "rows": 40,
+        "wal_bytes": 0
+      },
+      {
+        "query": "START TRANSACTION ISOLATION LEVEL READ COMMITTED, READ WRITE",
+        "calls": 10,
+        "total_exec_time": 0.04671700000000001,
+        "rows": 0,
+        "wal_bytes": 0
+      },
+      {
+        "query": "ROLLBACK",
+        "calls": 90,
+        "total_exec_time": 0.05614700000000006,
+        "rows": 0,
+        "wal_bytes": 0
+      },
+      {
+        "query": "COMMIT",
+        "calls": 12,
+        "total_exec_time": 0.006113,
+        "rows": 0,
+        "wal_bytes": 0
+      },
+      {
+        "query": "UPDATE _owner SET lease_until=clock_timestamp()+make_interval(secs=>$1) WHERE singleton AND store_id=$2 AND token=$3",
+        "calls": 2,
+        "total_exec_time": 0.10084199999999999,
+        "rows": 2,
+        "wal_bytes": 146
+      },
+      {
+        "query": "RELEASE SAVEPOINT $1",
+        "calls": 20,
+        "total_exec_time": 0.01219300000000001,
+        "rows": 0,
+        "wal_bytes": 0
+      }
+    ]
+  }
+]

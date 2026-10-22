@@ -1,0 +1,70 @@
+diff --git a/snapback4/crates/snapback4-core/Cargo.toml b/snapback4/crates/snapback4-core/Cargo.toml
+index ec479f895f..75aed0473f 100644
+--- a/snapback4/crates/snapback4-core/Cargo.toml
++++ b/snapback4/crates/snapback4-core/Cargo.toml
+@@ -37,7 +37,7 @@ serde_json = "1"
+ sha2 = "0.10"
+ thiserror = "2"
+ unicode-normalization = "0.1"
+-rusqlite = { version = "0.40.2", features = ["bundled", "backup", "hooks"], optional = true }
++rusqlite = { version = "0.40.2", features = ["bundled", "backup", "hooks", "trace"], optional = true }
+ argon2 = { version = "0.5", optional = true }
+ getrandom = "0.3"
+ postgres = { version = "0.19.14", optional = true }
+diff --git a/snapback4/crates/snapback4-core/src/engine/postgres/store.rs b/snapback4/crates/snapback4-core/src/engine/postgres/store.rs
+index c875fc4ce5..02f7104dd3 100644
+--- a/snapback4/crates/snapback4-core/src/engine/postgres/store.rs
++++ b/snapback4/crates/snapback4-core/src/engine/postgres/store.rs
+@@ -92,6 +92,9 @@ impl Store {
+     }
+
+     fn begin(&mut self, mode: Option<WriteMode>, opening: bool) -> Result<Tx<'_>, RuntimeError> {
++        if std::env::var_os("RT_A_TRACE").is_some() {
++            eprintln!("RT_A {}", serde_json::json!({"kind":"pg_begin", "ns":std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos().to_string(),"mode":format!("{mode:?}"),"stack":std::backtrace::Backtrace::force_capture().to_string()}));
++        }
+         if self.read_only && mode.is_some() { return Err(RuntimeError::Store("Postgres reader is read-only".into())); }
+         self.calls.set(self.calls.get() + 1);
+         self.page_reads.set(0);
+diff --git a/snapback4/crates/snapback4-core/src/store.rs b/snapback4/crates/snapback4-core/src/store.rs
+index 77df96981f..6b98a682c0 100644
+--- a/snapback4/crates/snapback4-core/src/store.rs
++++ b/snapback4/crates/snapback4-core/src/store.rs
+@@ -163,6 +163,7 @@ impl Store {
+     /// running the writable store's initialization and upgrade path.
+     pub fn open_read_only(path: &Path) -> Result<Self, RuntimeError> {
+         let mut conn = Connection::open_with_flags(path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)?;
++        rt_a_trace(&conn);
+         #[cfg(unix)]
+         let file_identity = file_identity(&conn)?;
+         conn.busy_timeout(std::time::Duration::from_secs(5))?;
+@@ -285,6 +286,7 @@ impl Store {
+     }
+
+     fn prepare(mut conn: Connection, assets_dir: PathBuf, ephemeral_assets: bool, server: bool) -> Result<Self, RuntimeError> {
++        rt_a_trace(&conn);
+         #[cfg(unix)]
+         let file_identity = file_identity(&conn)?;
+         // Our fixed indexed SQL should reuse its plan when keys or limits
+@@ -458,6 +460,7 @@ impl Store {
+                 RuntimeError::Store("an in-memory store has no independent reader".into())
+             })?;
+         let conn = Connection::open_with_flags(path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)?;
++        rt_a_trace(&conn);
+         // @ref LLP 3000.019#3.4 — detached readers must answer from the owned database, not a replacement at its path.
+         // Compare after opening, before reading. Stat only: closing another raw
+         // database descriptor would discard this process's SQLite POSIX locks.
+@@ -1370,3 +1373,14 @@ impl RuntimeError {
+             Some(rusqlite::ErrorCode::DatabaseBusy | rusqlite::ErrorCode::DatabaseLocked)))
+     }
+ }
++
++// RT-A LOCAL DIAGNOSTIC ONLY: not part of the product landing.
++fn rt_a_trace(conn: &Connection) {
++    if std::env::var_os("RT_A_TRACE").is_some() {
++        conn.trace_v2(rusqlite::trace::TraceEventCodes::SQLITE_TRACE_STMT, Some(|event| {
++            if let rusqlite::trace::TraceEvent::Stmt(_, sql) = event {
++                eprintln!("RT_A {}", serde_json::json!({"kind":"sqlite", "thread":format!("{:?}",std::thread::current().id()), "ns":std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos().to_string(),"sql":sql}));
++            }
++        }));
++    }
++}

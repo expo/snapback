@@ -82,7 +82,7 @@ on the hub fixture. Everything not required to pass them does not exist yet.
 - No compatibility with Snapback 1 or Snapback 2 apps, packages or on-disk formats.
 - No API stability before the clock; every publish is `0.0.x`.
 - Sparse prose documentation; the diagnostics and the recipes carry the load.
-- One hosted target, one platform binary at a time. SQLite remains the default store; Postgres as a production store is being built under LLP 3000.009.001 (Moves, 2026-10-20) and is not yet a supported deployment target.
+- One hosted target, one platform binary at a time. SQLite remains the default store; Postgres deploy/serve admits the initial Unix-socket HTTP profile under LLP 3000.009.001 (Moves, 2026-10-20; `guide release-json`). Provider HA, full parity and publication remain outside that profile.
 
 ## Moves
 
