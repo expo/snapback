@@ -1,0 +1,56 @@
+{
+  "lane": "S1-SK",
+  "host_alias": "expo-build-450b",
+  "hostname": "expose-builder-pixel-a",
+  "measured_source_commit": "b2917e7dd4c8c4abb832c3faa89d7e2753b99616",
+  "binaries": {
+    "snapback4/target/s1sk/release/snapback4": "9c2b4fb0f4b155d415f33b6726c3964c66298ec764d34ef516733c7b2c0857db",
+    "snapback4/experiments/scale-controls/target/release/sb4-scale-controls": "efb69be37cbdebcf7e515bf671757e166815aba1085b888e56c1ceba24582dd6"
+  },
+  "build": {
+    "profile": "release",
+    "snapback_package": "0.4.37",
+    "LIBSQLITE3_FLAGS": "-USQLITE_ENABLE_MEMORY_MANAGEMENT",
+    "snapback_target": "snapback4/target/s1sk",
+    "harness_target": "snapback4/experiments/scale-controls/target"
+  },
+  "durability": {
+    "journal_mode": "wal",
+    "synchronous": "FULL (2)",
+    "configuration": "unchanged shipped store.rs::open"
+  },
+  "disk": {
+    "device": "/dev/nvme0n1p3",
+    "model": "SAMSUNG MZVL2512HCJQ-00B00",
+    "filesystem": "ext4"
+  },
+  "server": {
+    "command": "snapback4 serve <deployment> --port 58080",
+    "request_workers": 32,
+    "mutation_workers": 32,
+    "read_path": "reused detached SQLite readers; a fresh identity-checked transaction per query",
+    "write_path": "single FIFO writer engine",
+    "tables": "online only"
+  },
+  "auth": {
+    "mode": "application-owned sessions",
+    "issuance": "operator service + POST /auth/session before warmup",
+    "verification": "SHA-256 digest and stored session/expiry/authority per request"
+  },
+  "method": {
+    "rows": 1000000,
+    "warmup_ms": 10000,
+    "duration_ms": 20000,
+    "repetitions": 3,
+    "read_clients": 128,
+    "write_clients": 32,
+    "app_cores": "0-2,6-8",
+    "load_cores": "3-5,9-11",
+    "deadline_ms": 1000,
+    "sqlite_database_rtt": "none; +0.5 ms is not comparable",
+    "rate_search": "same S1 double/halve and one geometric midpoint",
+    "qualification": "all three p99 <=50ms reads /100ms writes, errors <=0.1%, warmup+measurement counter equality"
+  },
+  "observer_fix_commit": "c98041046c8de27bba9887897a2e28d5773e709d",
+  "headline_selection": "original complete W1/W2; complete continuation W3/W4/W5; no repetitions combined across attempts"
+}

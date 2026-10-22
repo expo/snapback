@@ -36,10 +36,10 @@ pub fn normalize(op: &Operation, mut value: Value) -> Value {
             Value::Object(o) => {
                 for (key, v) in o {
                     if ["id", "room", "sender"].contains(&key.as_str()) {
-                        if let Some(s) = v.as_str() {
-                            if let Some(n) = s.get(1..).and_then(|s| s.parse::<i64>().ok()) {
-                                *v = json!(n);
-                            }
+                        if let Some(s) = v.as_str()
+                            && let Some(n) = s.get(1..).and_then(|s| s.parse::<i64>().ok())
+                        {
+                            *v = json!(n);
                         }
                     } else {
                         ids(v);

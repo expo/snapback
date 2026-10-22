@@ -1,0 +1,3852 @@
+[
+  {
+    "cell": {
+      "workload": "W1",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 128,
+      "keys": "disjoint",
+      "target": "snapback",
+      "rerun": [
+        "python3",
+        "scripts/snapback.py",
+        "cell",
+        "--out",
+        "target/replay-w1-n1000000-d0-c128-disjoint",
+        "--fixture",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/s1sk/s1sk-campaign-20261022/deployment",
+        "--workload",
+        "W1",
+        "--rows",
+        "1000000",
+        "--writers",
+        "128",
+        "--keys",
+        "disjoint",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "summary": {
+      "highest_passing_offered_per_s": 2828,
+      "lowest_failing_offered_per_s": 4000,
+      "bracketed": true,
+      "rates": [
+        1000,
+        2000,
+        2828,
+        4000
+      ],
+      "repeats": 3
+    },
+    "rates": [
+      {
+        "rate": 1000,
+        "pass_all": true,
+        "p50_ms": [
+          0.491007,
+          0.483839,
+          0.478719
+        ],
+        "p99_ms": [
+          0.690687,
+          0.672255,
+          0.671743
+        ],
+        "p999_ms": [
+          1.517567,
+          1.004031,
+          1.266687
+        ],
+        "errors": [
+          0,
+          0,
+          0
+        ],
+        "completed_in_window_per_s": [
+          1000.0,
+          1000.0,
+          1000.0
+        ],
+        "resources": [
+          {
+            "serve_cpu_ms_per_op": 0.3933333333333333,
+            "load_cpu_ms_per_op": 0.221,
+            "serve_os_write_bytes_per_op": 2.8672,
+            "serve_cpu_s": 11.8,
+            "sample_span_s": 29.946315050125122,
+            "counter_check": null,
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 557047808,
+              "store.sqlite-wal": 4128272,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 952,
+              "inet_csk_accept": 120,
+              "hrtimer_nanosleep": 240,
+              "wait_woken": 271,
+              "0": 51
+            },
+            "serve_rss_mib_range": [
+              30.5,
+              39.125
+            ]
+          },
+          {
+            "serve_cpu_ms_per_op": 0.38366666666666666,
+            "load_cpu_ms_per_op": 0.21666666666666667,
+            "serve_os_write_bytes_per_op": 1.9114666666666666,
+            "serve_cpu_s": 11.51,
+            "sample_span_s": 29.933130502700806,
+            "counter_check": null,
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 557047808,
+              "store.sqlite-wal": 4128272,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 954,
+              "inet_csk_accept": 120,
+              "hrtimer_nanosleep": 240,
+              "0": 46,
+              "wait_woken": 198
+            },
+            "serve_rss_mib_range": [
+              39.125,
+              39.13671875
+            ]
+          },
+          {
+            "serve_cpu_ms_per_op": 0.38566666666666666,
+            "load_cpu_ms_per_op": 0.21866666666666668,
+            "serve_os_write_bytes_per_op": 1.9114666666666666,
+            "serve_cpu_s": 11.57,
+            "sample_span_s": 29.951250553131104,
+            "counter_check": null,
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 557047808,
+              "store.sqlite-wal": 4128272,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 951,
+              "inet_csk_accept": 120,
+              "hrtimer_nanosleep": 240,
+              "0": 56,
+              "wait_woken": 234
+            },
+            "serve_rss_mib_range": [
+              39.13671875,
+              39.21875
+            ]
+          }
+        ]
+      },
+      {
+        "rate": 2000,
+        "pass_all": true,
+        "p50_ms": [
+          0.452863,
+          0.446463,
+          0.463871
+        ],
+        "p99_ms": [
+          0.664575,
+          0.682495,
+          0.675327
+        ],
+        "p999_ms": [
+          1.195007,
+          1.463295,
+          1.339391
+        ],
+        "errors": [
+          0,
+          0,
+          0
+        ],
+        "completed_in_window_per_s": [
+          1999.95,
+          2000.0,
+          2000.0
+        ],
+        "resources": [
+          {
+            "serve_cpu_ms_per_op": 0.3468333333333333,
+            "load_cpu_ms_per_op": 0.19866666666666666,
+            "serve_os_write_bytes_per_op": 1.5701333333333334,
+            "serve_cpu_s": 20.81,
+            "sample_span_s": 29.95603656768799,
+            "counter_check": null,
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 557047808,
+              "store.sqlite-wal": 4128272,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 1080,
+              "inet_csk_accept": 120,
+              "hrtimer_nanosleep": 240,
+              "0": 86,
+              "wait_woken": 437
+            },
+            "serve_rss_mib_range": [
+              38.98046875,
+              41.73046875
+            ]
+          },
+          {
+            "serve_cpu_ms_per_op": 0.34983333333333333,
+            "load_cpu_ms_per_op": 0.19666666666666666,
+            "serve_os_write_bytes_per_op": 1.2288,
+            "serve_cpu_s": 20.99,
+            "sample_span_s": 29.976176023483276,
+            "counter_check": null,
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 557047808,
+              "store.sqlite-wal": 4128272,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 1184,
+              "inet_csk_accept": 120,
+              "hrtimer_nanosleep": 240,
+              "wait_woken": 539,
+              "0": 103,
+              "__schedule": 1
+            },
+            "serve_rss_mib_range": [
+              41.30859375,
+              44.80859375
+            ]
+          },
+          {
+            "serve_cpu_ms_per_op": 0.374,
+            "load_cpu_ms_per_op": 0.19933333333333333,
+            "serve_os_write_bytes_per_op": 0.9557333333333333,
+            "serve_cpu_s": 22.44,
+            "sample_span_s": 29.98084807395935,
+            "counter_check": null,
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 557047808,
+              "store.sqlite-wal": 4128272,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 1198,
+              "inet_csk_accept": 120,
+              "hrtimer_nanosleep": 240,
+              "wait_woken": 499,
+              "0": 95
+            },
+            "serve_rss_mib_range": [
+              44.796875,
+              44.80859375
+            ]
+          }
+        ]
+      },
+      {
+        "rate": 2828,
+        "pass_all": true,
+        "p50_ms": [
+          0.482303,
+          0.484607,
+          0.484095
+        ],
+        "p99_ms": [
+          0.687615,
+          0.700927,
+          0.688639
+        ],
+        "p999_ms": [
+          1.783807,
+          1.705983,
+          1.504255
+        ],
+        "errors": [
+          0,
+          0,
+          0
+        ],
+        "completed_in_window_per_s": [
+          2828.0,
+          2828.0,
+          2828.0
+        ],
+        "resources": [
+          {
+            "serve_cpu_ms_per_op": 0.3965110796793965,
+            "load_cpu_ms_per_op": 0.19035832154644033,
+            "serve_os_write_bytes_per_op": 0.6276284771334276,
+            "serve_cpu_s": 33.64,
+            "sample_span_s": 29.99271035194397,
+            "counter_check": null,
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 557047808,
+              "store.sqlite-wal": 4128272,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 4381,
+              "inet_csk_accept": 119,
+              "hrtimer_nanosleep": 237,
+              "wait_woken": 947,
+              "0": 168
+            },
+            "serve_rss_mib_range": [
+              83.640625,
+              84.140625
+            ]
+          },
+          {
+            "serve_cpu_ms_per_op": 0.3991041961338991,
+            "load_cpu_ms_per_op": 0.1901225836869401,
+            "serve_os_write_bytes_per_op": 0.6759075907590759,
+            "serve_cpu_s": 33.86,
+            "sample_span_s": 30.007741928100586,
+            "counter_check": null,
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 557047808,
+              "store.sqlite-wal": 4128272,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 4414,
+              "inet_csk_accept": 119,
+              "hrtimer_nanosleep": 238,
+              "0": 135,
+              "wait_woken": 809
+            },
+            "serve_rss_mib_range": [
+              84.140625,
+              85.140625
+            ]
+          },
+          {
+            "serve_cpu_ms_per_op": 0.3994578029231495,
+            "load_cpu_ms_per_op": 0.18965110796793966,
+            "serve_os_write_bytes_per_op": 0.8207449316360207,
+            "serve_cpu_s": 33.89,
+            "sample_span_s": 29.989229917526245,
+            "counter_check": null,
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 557047808,
+              "store.sqlite-wal": 4128272,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 4381,
+              "inet_csk_accept": 119,
+              "hrtimer_nanosleep": 238,
+              "0": 167,
+              "wait_woken": 661
+            },
+            "serve_rss_mib_range": [
+              85.140625,
+              85.515625
+            ]
+          }
+        ]
+      },
+      {
+        "rate": 4000,
+        "pass_all": false,
+        "p50_ms": [
+          0.472831,
+          0.476927,
+          0.476415
+        ],
+        "p99_ms": [
+          0.784895,
+          0.732671,
+          0.788479
+        ],
+        "p999_ms": [
+          19.660799,
+          2.969599,
+          2.195455
+        ],
+        "errors": [
+          109,
+          0,
+          0
+        ],
+        "completed_in_window_per_s": [
+          3994.55,
+          4000.0,
+          4000.0
+        ],
+        "resources": [
+          {
+            "serve_cpu_ms_per_op": 0.36866820695465047,
+            "load_cpu_ms_per_op": 0.19167410397777981,
+            "serve_os_write_bytes_per_op": 0.7857804172123012,
+            "serve_cpu_s": 44.2,
+            "sample_span_s": 29.959152460098267,
+            "counter_check": null,
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 557047808,
+              "store.sqlite-wal": 4128272,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 3036,
+              "inet_csk_accept": 119,
+              "hrtimer_nanosleep": 237,
+              "0": 220,
+              "wait_woken": 1655
+            },
+            "serve_rss_mib_range": [
+              44.796875,
+              79.9375
+            ]
+          },
+          {
+            "serve_cpu_ms_per_op": 0.3863333333333333,
+            "load_cpu_ms_per_op": 0.19141666666666668,
+            "serve_os_write_bytes_per_op": 0.6144,
+            "serve_cpu_s": 46.36,
+            "sample_span_s": 29.997080326080322,
+            "counter_check": null,
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 557047808,
+              "store.sqlite-wal": 4128272,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 4391,
+              "inet_csk_accept": 119,
+              "hrtimer_nanosleep": 238,
+              "wait_woken": 957,
+              "0": 220,
+              "srso_return_thunk": 1
+            },
+            "serve_rss_mib_range": [
+              79.9375,
+              81.9375
+            ]
+          },
+          {
+            "serve_cpu_ms_per_op": 0.3814166666666667,
+            "load_cpu_ms_per_op": 0.19141666666666668,
+            "serve_os_write_bytes_per_op": 0.6826666666666666,
+            "serve_cpu_s": 45.77,
+            "sample_span_s": 29.957675457000732,
+            "counter_check": null,
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 557047808,
+              "store.sqlite-wal": 4128272,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 4399,
+              "inet_csk_accept": 119,
+              "hrtimer_nanosleep": 238,
+              "0": 190,
+              "wait_woken": 1142
+            },
+            "serve_rss_mib_range": [
+              81.765625,
+              83.640625
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W2",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 128,
+      "keys": "disjoint",
+      "target": "snapback",
+      "rerun": [
+        "python3",
+        "scripts/snapback.py",
+        "cell",
+        "--out",
+        "target/replay-w2-n1000000-d0-c128-disjoint",
+        "--fixture",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/s1sk/s1sk-campaign-20261022/deployment",
+        "--workload",
+        "W2",
+        "--rows",
+        "1000000",
+        "--writers",
+        "128",
+        "--keys",
+        "disjoint",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "summary": {
+      "highest_passing_offered_per_s": 5656,
+      "lowest_failing_offered_per_s": 8000,
+      "bracketed": true,
+      "rates": [
+        1000,
+        2000,
+        4000,
+        5656,
+        8000
+      ],
+      "repeats": 3
+    },
+    "rates": [
+      {
+        "rate": 1000,
+        "pass_all": true,
+        "p50_ms": [
+          0.726527,
+          0.716799,
+          0.725503
+        ],
+        "p99_ms": [
+          1.009151,
+          0.976383,
+          1.010687
+        ],
+        "p999_ms": [
+          1.341439,
+          1.292287,
+          1.546239
+        ],
+        "errors": [
+          0,
+          0,
+          0
+        ],
+        "completed_in_window_per_s": [
+          1000.0,
+          1000.0,
+          1000.0
+        ],
+        "resources": [
+          {
+            "serve_cpu_ms_per_op": 0.59,
+            "load_cpu_ms_per_op": 0.252,
+            "serve_os_write_bytes_per_op": 1.9114666666666666,
+            "serve_cpu_s": 17.7,
+            "sample_span_s": 29.967028379440308,
+            "counter_check": null,
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 557047808,
+              "store.sqlite-wal": 4128272,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 1072,
+              "inet_csk_accept": 120,
+              "hrtimer_nanosleep": 240,
+              "wait_woken": 282,
+              "0": 73
+            },
+            "serve_rss_mib_range": [
+              29.875,
+              39.875
+            ]
+          },
+          {
+            "serve_cpu_ms_per_op": 0.5823333333333334,
+            "load_cpu_ms_per_op": 0.25333333333333335,
+            "serve_os_write_bytes_per_op": 1.7749333333333333,
+            "serve_cpu_s": 17.47,
+            "sample_span_s": 29.97813105583191,
+            "counter_check": null,
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 557047808,
+              "store.sqlite-wal": 4128272,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 1198,
+              "inet_csk_accept": 120,
+              "hrtimer_nanosleep": 240,
+              "wait_woken": 243,
+              "0": 78
+            },
+            "serve_rss_mib_range": [
+              40.375,
+              41.25
+            ]
+          },
+          {
+            "serve_cpu_ms_per_op": 0.5896666666666667,
+            "load_cpu_ms_per_op": 0.25133333333333335,
+            "serve_os_write_bytes_per_op": 2.1845333333333334,
+            "serve_cpu_s": 17.69,
+            "sample_span_s": 29.96948266029358,
+            "counter_check": null,
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 557047808,
+              "store.sqlite-wal": 4128272,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 1184,
+              "inet_csk_accept": 120,
+              "hrtimer_nanosleep": 240,
+              "0": 89,
+              "wait_woken": 223
+            },
+            "serve_rss_mib_range": [
+              41.25,
+              41.38671875
+            ]
+          }
+        ]
+      },
+      {
+        "rate": 2000,
+        "pass_all": true,
+        "p50_ms": [
+          0.713727,
+          0.742399,
+          0.730623
+        ],
+        "p99_ms": [
+          1.062911,
+          1.062911,
+          1.035775
+        ],
+        "p999_ms": [
+          11.952127,
+          2.134015,
+          1.657855
+        ],
+        "errors": [
+          28,
+          0,
+          0
+        ],
+        "completed_in_window_per_s": [
+          1998.6,
+          2000.0,
+          2000.0
+        ],
+        "resources": [
+          {
+            "serve_cpu_ms_per_op": 0.5746014806909892,
+            "load_cpu_ms_per_op": 0.22510504902287734,
+            "serve_os_write_bytes_per_op": 1.0244780897752284,
+            "serve_cpu_s": 34.46,
+            "sample_span_s": 30.06425380706787,
+            "counter_check": null,
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 557047808,
+              "store.sqlite-wal": 4128272,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 1742,
+              "inet_csk_accept": 120,
+              "hrtimer_nanosleep": 240,
+              "0": 148,
+              "wait_woken": 957
+            },
+            "serve_rss_mib_range": [
+              41.38671875,
+              77.8671875
+            ]
+          },
+          {
+            "serve_cpu_ms_per_op": 0.63,
+            "load_cpu_ms_per_op": 0.22333333333333333,
+            "serve_os_write_bytes_per_op": 0.9557333333333333,
+            "serve_cpu_s": 37.8,
+            "sample_span_s": 30.014214992523193,
+            "counter_check": null,
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 557047808,
+              "store.sqlite-wal": 4128272,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 4389,
+              "inet_csk_accept": 119,
+              "hrtimer_nanosleep": 237,
+              "0": 166,
+              "wait_woken": 574
+            },
+            "serve_rss_mib_range": [
+              77.8671875,
+              83.3671875
+            ]
+          },
+          {
+            "serve_cpu_ms_per_op": 0.6143333333333333,
+            "load_cpu_ms_per_op": 0.222,
+            "serve_os_write_bytes_per_op": 0.8874666666666666,
+            "serve_cpu_s": 36.86,
+            "sample_span_s": 29.977097988128662,
+            "counter_check": null,
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 557047808,
+              "store.sqlite-wal": 4128272,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 4385,
+              "inet_csk_accept": 119,
+              "hrtimer_nanosleep": 238,
+              "0": 169,
+              "wait_woken": 439,
+              "dequeue_entity": 1,
+              "__schedule": 1
+            },
+            "serve_rss_mib_range": [
+              83.3671875,
+              86.33203125
+            ]
+          }
+        ]
+      },
+      {
+        "rate": 4000,
+        "pass_all": true,
+        "p50_ms": [
+          0.698879,
+          0.707071,
+          0.698367
+        ],
+        "p99_ms": [
+          1.286143,
+          1.240063,
+          1.331199
+        ],
+        "p999_ms": [
+          3.694591,
+          2.695167,
+          3.913727
+        ],
+        "errors": [
+          0,
+          0,
+          0
+        ],
+        "completed_in_window_per_s": [
+          3999.9,
+          4000.1,
+          3999.95
+        ],
+        "resources": [
+          {
+            "serve_cpu_ms_per_op": 0.6011666666666666,
+            "load_cpu_ms_per_op": 0.2255,
+            "serve_os_write_bytes_per_op": 0.5802666666666667,
+            "serve_cpu_s": 72.14,
+            "sample_span_s": 30.00468420982361,
+            "counter_check": null,
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 557047808,
+              "store.sqlite-wal": 4128272,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 4428,
+              "inet_csk_accept": 119,
+              "hrtimer_nanosleep": 238,
+              "0": 278,
+              "wait_woken": 1429,
+              "srso_return_thunk": 1
+            },
+            "serve_rss_mib_range": [
+              84.203125,
+              95.078125
+            ]
+          },
+          {
+            "serve_cpu_ms_per_op": 0.6083333333333333,
+            "load_cpu_ms_per_op": 0.22341666666666668,
+            "serve_os_write_bytes_per_op": 0.5802666666666667,
+            "serve_cpu_s": 73.0,
+            "sample_span_s": 30.08114790916443,
+            "counter_check": null,
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 557047808,
+              "store.sqlite-wal": 4128272,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 4372,
+              "inet_csk_accept": 119,
+              "hrtimer_nanosleep": 238,
+              "0": 360,
+              "wait_woken": 1264,
+              "x64_sys_call": 1,
+              "tcp_recvmsg": 1,
+              "aa_inet_opt_perm": 1
+            },
+            "serve_rss_mib_range": [
+              92.90234375,
+              97.4609375
+            ]
+          },
+          {
+            "serve_cpu_ms_per_op": 0.5981666666666666,
+            "load_cpu_ms_per_op": 0.22325,
+            "serve_os_write_bytes_per_op": 0.47786666666666666,
+            "serve_cpu_s": 71.78,
+            "sample_span_s": 29.99664545059204,
+            "counter_check": null,
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 557047808,
+              "store.sqlite-wal": 4128272,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 4408,
+              "inet_csk_accept": 119,
+              "hrtimer_nanosleep": 238,
+              "0": 283,
+              "wait_woken": 1718
+            },
+            "serve_rss_mib_range": [
+              95.48046875,
+              99.60546875
+            ]
+          }
+        ]
+      },
+      {
+        "rate": 5656,
+        "pass_all": true,
+        "p50_ms": [
+          0.501759,
+          0.495103,
+          0.500479
+        ],
+        "p99_ms": [
+          1.116159,
+          1.058815,
+          1.125375
+        ],
+        "p999_ms": [
+          2.664447,
+          2.981887,
+          2.670591
+        ],
+        "errors": [
+          0,
+          0,
+          0
+        ],
+        "completed_in_window_per_s": [
+          5656.0,
+          5655.95,
+          5656.05
+        ],
+        "resources": [
+          {
+            "serve_cpu_ms_per_op": 0.4377062706270627,
+            "load_cpu_ms_per_op": 0.2151107967939651,
+            "serve_os_write_bytes_per_op": 0.4345120226308345,
+            "serve_cpu_s": 74.27,
+            "sample_span_s": 29.967544078826904,
+            "counter_check": null,
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 557113344,
+              "store.sqlite-wal": 4132392,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 4387,
+              "inet_csk_accept": 119,
+              "hrtimer_nanosleep": 237,
+              "0": 331,
+              "wait_woken": 1723,
+              "__schedule": 1
+            },
+            "serve_rss_mib_range": [
+              126.390625,
+              129.015625
+            ]
+          },
+          {
+            "serve_cpu_ms_per_op": 0.43317597552997755,
+            "load_cpu_ms_per_op": 0.21393588995562157,
+            "serve_os_write_bytes_per_op": 0.3620997542389363,
+            "serve_cpu_s": 73.5,
+            "sample_span_s": 30.004019498825073,
+            "counter_check": null,
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 557113344,
+              "store.sqlite-wal": 4132392,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 4399,
+              "inet_csk_accept": 119,
+              "hrtimer_nanosleep": 241,
+              "0": 351,
+              "wait_woken": 2165
+            },
+            "serve_rss_mib_range": [
+              125.1796875,
+              129.015625
+            ]
+          },
+          {
+            "serve_cpu_ms_per_op": 0.43876709099481376,
+            "load_cpu_ms_per_op": 0.21546440358321547,
+            "serve_os_write_bytes_per_op": 0.3620933521923621,
+            "serve_cpu_s": 74.45,
+            "sample_span_s": 29.995322704315186,
+            "counter_check": null,
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 557113344,
+              "store.sqlite-wal": 4132392,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 4399,
+              "inet_csk_accept": 119,
+              "hrtimer_nanosleep": 237,
+              "0": 311,
+              "wait_woken": 2036
+            },
+            "serve_rss_mib_range": [
+              124.8984375,
+              125.9296875
+            ]
+          }
+        ]
+      },
+      {
+        "rate": 8000,
+        "pass_all": false,
+        "p50_ms": [
+          0.522239,
+          0.528383,
+          0.525823
+        ],
+        "p99_ms": [
+          1.855487,
+          2.053119,
+          2.059263
+        ],
+        "p999_ms": [
+          4.751359,
+          30.179327,
+          11.878399
+        ],
+        "errors": [
+          0,
+          202,
+          78
+        ],
+        "completed_in_window_per_s": [
+          7999.85,
+          7989.85,
+          7996.05
+        ],
+        "resources": [
+          {
+            "serve_cpu_ms_per_op": 0.43910245724002267,
+            "load_cpu_ms_per_op": 0.20925716000400094,
+            "serve_os_write_bytes_per_op": 0.32434234654752775,
+            "serve_cpu_s": 105.36,
+            "sample_span_s": 30.06046414375305,
+            "counter_check": null,
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 557047808,
+              "store.sqlite-wal": 4128272,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 4369,
+              "inet_csk_accept": 118,
+              "hrtimer_nanosleep": 238,
+              "0": 556,
+              "wait_woken": 3281,
+              "srso_return_thunk": 1,
+              "__wait_rcu_gp": 1
+            },
+            "serve_rss_mib_range": [
+              99.60546875,
+              116.703125
+            ]
+          },
+          {
+            "serve_cpu_ms_per_op": 0.44037852784531906,
+            "load_cpu_ms_per_op": 0.21211906360652455,
+            "serve_os_write_bytes_per_op": 0.9395631665213892,
+            "serve_cpu_s": 105.59,
+            "sample_span_s": 30.09417152404785,
+            "counter_check": null,
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 557113344,
+              "store.sqlite-wal": 4132392,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 4417,
+              "inet_csk_accept": 119,
+              "hrtimer_nanosleep": 238,
+              "0": 527,
+              "wait_woken": 3407,
+              "__vm_munmap": 1,
+              "__schedule": 1
+            },
+            "serve_rss_mib_range": [
+              112.37109375,
+              124.359375
+            ]
+          },
+          {
+            "serve_cpu_ms_per_op": 0.4420159027323179,
+            "load_cpu_ms_per_op": 0.2101045310695359,
+            "serve_os_write_bytes_per_op": 0.290335358353521,
+            "serve_cpu_s": 106.01,
+            "sample_span_s": 30.15858793258667,
+            "counter_check": null,
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 557113344,
+              "store.sqlite-wal": 4132392,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 4403,
+              "inet_csk_accept": 119,
+              "hrtimer_nanosleep": 238,
+              "0": 521,
+              "wait_woken": 4618
+            },
+            "serve_rss_mib_range": [
+              124.359375,
+              127.28515625
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W3",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 128,
+      "keys": "disjoint",
+      "target": "snapback",
+      "rerun": [
+        "python3",
+        "scripts/snapback.py",
+        "cell",
+        "--out",
+        "target/replay-w3-n1000000-d0-c128-disjoint",
+        "--fixture",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/s1sk/s1sk-continuation-20261022/deployment",
+        "--workload",
+        "W3",
+        "--rows",
+        "1000000",
+        "--writers",
+        "128",
+        "--keys",
+        "disjoint",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "summary": {
+      "highest_passing_offered_per_s": 2828,
+      "lowest_failing_offered_per_s": 4000,
+      "bracketed": true,
+      "rates": [
+        1000,
+        2000,
+        2828,
+        4000
+      ],
+      "repeats": 3
+    },
+    "rates": [
+      {
+        "rate": 1000,
+        "pass_all": true,
+        "p50_ms": [
+          1.455103,
+          1.429503,
+          1.435647
+        ],
+        "p99_ms": [
+          2.435071,
+          2.465791,
+          2.420735
+        ],
+        "p999_ms": [
+          2.895871,
+          2.912255,
+          2.793471
+        ],
+        "errors": [
+          0,
+          0,
+          0
+        ],
+        "completed_in_window_per_s": [
+          1000.1,
+          1000.05,
+          1000.0
+        ],
+        "resources": [
+          {
+            "serve_cpu_ms_per_op": 1.411,
+            "load_cpu_ms_per_op": 0.235,
+            "serve_os_write_bytes_per_op": 2.4576,
+            "serve_cpu_s": 42.33,
+            "sample_span_s": 29.95209813117981,
+            "counter_check": null,
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 557047808,
+              "store.sqlite-wal": 4120032,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 1065,
+              "inet_csk_accept": 120,
+              "hrtimer_nanosleep": 240,
+              "0": 191,
+              "wait_woken": 287
+            },
+            "serve_rss_mib_range": [
+              30.75,
+              42.0
+            ]
+          },
+          {
+            "serve_cpu_ms_per_op": 1.4003333333333334,
+            "load_cpu_ms_per_op": 0.237,
+            "serve_os_write_bytes_per_op": 2.048,
+            "serve_cpu_s": 42.01,
+            "sample_span_s": 29.953113317489624,
+            "counter_check": null,
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 557047808,
+              "store.sqlite-wal": 4120032,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 1073,
+              "inet_csk_accept": 120,
+              "hrtimer_nanosleep": 240,
+              "0": 186,
+              "wait_woken": 301,
+              "__x64_sys_futex": 1
+            },
+            "serve_rss_mib_range": [
+              41.671875,
+              43.046875
+            ]
+          },
+          {
+            "serve_cpu_ms_per_op": 1.4146666666666667,
+            "load_cpu_ms_per_op": 0.23866666666666667,
+            "serve_os_write_bytes_per_op": 2.4576,
+            "serve_cpu_s": 42.44,
+            "sample_span_s": 30.17886185646057,
+            "counter_check": null,
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 557047808,
+              "store.sqlite-wal": 4120032,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 1089,
+              "inet_csk_accept": 121,
+              "hrtimer_nanosleep": 242,
+              "0": 164,
+              "wait_woken": 221
+            },
+            "serve_rss_mib_range": [
+              43.046875,
+              43.171875
+            ]
+          }
+        ]
+      },
+      {
+        "rate": 2000,
+        "pass_all": true,
+        "p50_ms": [
+          1.071103,
+          1.091583,
+          1.119231
+        ],
+        "p99_ms": [
+          2.392063,
+          2.256895,
+          2.619391
+        ],
+        "p999_ms": [
+          3.524607,
+          2.787327,
+          4.825087
+        ],
+        "errors": [
+          0,
+          0,
+          0
+        ],
+        "completed_in_window_per_s": [
+          1999.95,
+          2000.05,
+          1999.95
+        ],
+        "resources": [
+          {
+            "serve_cpu_ms_per_op": 1.0775000000000001,
+            "load_cpu_ms_per_op": 0.22083333333333333,
+            "serve_os_write_bytes_per_op": 1.4336,
+            "serve_cpu_s": 64.65,
+            "sample_span_s": 29.949257612228394,
+            "counter_check": null,
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 557047808,
+              "store.sqlite-wal": 4120032,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 1384,
+              "inet_csk_accept": 120,
+              "hrtimer_nanosleep": 240,
+              "0": 288,
+              "wait_woken": 711,
+              "__futex_wait": 1
+            },
+            "serve_rss_mib_range": [
+              43.171875,
+              50.3515625
+            ]
+          },
+          {
+            "serve_cpu_ms_per_op": 1.0688333333333333,
+            "load_cpu_ms_per_op": 0.21916666666666668,
+            "serve_os_write_bytes_per_op": 0.8874666666666666,
+            "serve_cpu_s": 64.13,
+            "sample_span_s": 29.941015243530273,
+            "counter_check": null,
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 557047808,
+              "store.sqlite-wal": 4120032,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 1438,
+              "inet_csk_accept": 120,
+              "hrtimer_nanosleep": 240,
+              "0": 260,
+              "wait_woken": 553,
+              "pick_next_task": 1
+            },
+            "serve_rss_mib_range": [
+              50.3515625,
+              51.7265625
+            ]
+          },
+          {
+            "serve_cpu_ms_per_op": 1.0831666666666666,
+            "load_cpu_ms_per_op": 0.22083333333333333,
+            "serve_os_write_bytes_per_op": 0.8874666666666666,
+            "serve_cpu_s": 64.99,
+            "sample_span_s": 29.9478497505188,
+            "counter_check": null,
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 557047808,
+              "store.sqlite-wal": 4120032,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 1487,
+              "inet_csk_accept": 120,
+              "hrtimer_nanosleep": 240,
+              "0": 278,
+              "wait_woken": 577
+            },
+            "serve_rss_mib_range": [
+              51.5859375,
+              54.42578125
+            ]
+          }
+        ]
+      },
+      {
+        "rate": 2828,
+        "pass_all": true,
+        "p50_ms": [
+          1.181695,
+          1.178623,
+          1.180671
+        ],
+        "p99_ms": [
+          2.269183,
+          2.373631,
+          2.445311
+        ],
+        "p999_ms": [
+          3.854335,
+          4.378623,
+          4.227071
+        ],
+        "errors": [
+          0,
+          0,
+          0
+        ],
+        "completed_in_window_per_s": [
+          2828.05,
+          2828.0,
+          2828.0
+        ],
+        "resources": [
+          {
+            "serve_cpu_ms_per_op": 1.1396746817538896,
+            "load_cpu_ms_per_op": 0.22477604903347478,
+            "serve_os_write_bytes_per_op": 0.6276284771334276,
+            "serve_cpu_s": 96.69,
+            "sample_span_s": 30.09274411201477,
+            "counter_check": null,
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 557047808,
+              "store.sqlite-wal": 4120032,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 4420,
+              "inet_csk_accept": 120,
+              "hrtimer_nanosleep": 241,
+              "0": 425,
+              "wait_woken": 957
+            },
+            "serve_rss_mib_range": [
+              124.1796875,
+              125.3046875
+            ]
+          },
+          {
+            "serve_cpu_ms_per_op": 1.1455681282413956,
+            "load_cpu_ms_per_op": 0.2248939179632249,
+            "serve_os_write_bytes_per_op": 0.6276284771334276,
+            "serve_cpu_s": 97.19,
+            "sample_span_s": 30.122634649276733,
+            "counter_check": null,
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 557047808,
+              "store.sqlite-wal": 4120032,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 4424,
+              "inet_csk_accept": 120,
+              "hrtimer_nanosleep": 240,
+              "0": 408,
+              "wait_woken": 1176
+            },
+            "serve_rss_mib_range": [
+              125.01953125,
+              125.51953125
+            ]
+          },
+          {
+            "serve_cpu_ms_per_op": 1.138967468175389,
+            "load_cpu_ms_per_op": 0.22312588401697311,
+            "serve_os_write_bytes_per_op": 0.8207449316360207,
+            "serve_cpu_s": 96.63,
+            "sample_span_s": 30.080442905426025,
+            "counter_check": null,
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 557047808,
+              "store.sqlite-wal": 4120032,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 4433,
+              "inet_csk_accept": 120,
+              "hrtimer_nanosleep": 240,
+              "0": 439,
+              "wait_woken": 963
+            },
+            "serve_rss_mib_range": [
+              125.51953125,
+              126.01953125
+            ]
+          }
+        ]
+      },
+      {
+        "rate": 4000,
+        "pass_all": false,
+        "p50_ms": [
+          5.685247,
+          5.890047,
+          5.992447
+        ],
+        "p99_ms": [
+          25.247743,
+          26.198015,
+          26.099711
+        ],
+        "p999_ms": [
+          40.239103,
+          40.370175,
+          39.583743
+        ],
+        "errors": [
+          1071,
+          2021,
+          2175
+        ],
+        "completed_in_window_per_s": [
+          3946.65,
+          3898.8,
+          3891.3
+        ],
+        "resources": [
+          {
+            "serve_cpu_ms_per_op": 1.4910440945148251,
+            "load_cpu_ms_per_op": 0.22021886575444413,
+            "serve_os_write_bytes_per_op": 0.7620722899717538,
+            "serve_cpu_s": 176.31,
+            "sample_span_s": 30.195764780044556,
+            "counter_check": null,
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 557047808,
+              "store.sqlite-wal": 4120032,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 4144,
+              "inet_csk_accept": 117,
+              "hrtimer_nanosleep": 236,
+              "0": 3664,
+              "wait_woken": 562,
+              "__vm_munmap": 1
+            },
+            "serve_rss_mib_range": [
+              54.42578125,
+              113.43359375
+            ]
+          },
+          {
+            "serve_cpu_ms_per_op": 1.5069698315624038,
+            "load_cpu_ms_per_op": 0.22455498992107692,
+            "serve_os_write_bytes_per_op": 0.6997164235197649,
+            "serve_cpu_s": 176.43,
+            "sample_span_s": 30.203017711639404,
+            "counter_check": null,
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 557047808,
+              "store.sqlite-wal": 4120032,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 4125,
+              "inet_csk_accept": 116,
+              "hrtimer_nanosleep": 233,
+              "0": 3859,
+              "wait_woken": 367,
+              "__schedule": 2
+            },
+            "serve_rss_mib_range": [
+              113.43359375,
+              119.68359375
+            ]
+          },
+          {
+            "serve_cpu_ms_per_op": 1.5099732165013735,
+            "load_cpu_ms_per_op": 0.2247931338404799,
+            "serve_os_write_bytes_per_op": 0.7710909355399057,
+            "serve_cpu_s": 176.46,
+            "sample_span_s": 30.198885202407837,
+            "counter_check": null,
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 557047808,
+              "store.sqlite-wal": 4120032,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 4102,
+              "inet_csk_accept": 110,
+              "hrtimer_nanosleep": 240,
+              "0": 3934,
+              "wait_woken": 427,
+              "vm_mmap_pgoff": 9
+            },
+            "serve_rss_mib_range": [
+              119.5546875,
+              124.1796875
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W4",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 32,
+      "keys": "disjoint",
+      "target": "snapback",
+      "rerun": [
+        "python3",
+        "scripts/snapback.py",
+        "cell",
+        "--out",
+        "target/replay-w4-n1000000-d0-c32-disjoint",
+        "--fixture",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/s1sk/s1sk-continuation-20261022/deployment",
+        "--workload",
+        "W4",
+        "--rows",
+        "1000000",
+        "--writers",
+        "32",
+        "--keys",
+        "disjoint",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "summary": {
+      "highest_passing_offered_per_s": 100,
+      "lowest_failing_offered_per_s": 141,
+      "bracketed": true,
+      "rates": [
+        100,
+        141,
+        200,
+        400,
+        800,
+        1600,
+        3200
+      ],
+      "repeats": 3
+    },
+    "rates": [
+      {
+        "rate": 100,
+        "pass_all": true,
+        "p50_ms": [
+          8.544255,
+          8.749055,
+          8.601599
+        ],
+        "p99_ms": [
+          23.117823,
+          69.599231,
+          21.069823
+        ],
+        "p999_ms": [
+          28.262399,
+          102.825983,
+          24.215551
+        ],
+        "errors": [
+          0,
+          0,
+          0
+        ],
+        "completed_in_window_per_s": [
+          99.95,
+          99.9,
+          100.05
+        ],
+        "resources": [
+          {
+            "serve_cpu_ms_per_op": 1.0366666666666666,
+            "load_cpu_ms_per_op": 0.2733333333333333,
+            "serve_os_write_bytes_per_op": 21991.424,
+            "serve_cpu_s": 3.11,
+            "sample_span_s": 30.073123455047607,
+            "counter_check": {
+              "delta": 3000,
+              "acknowledged_including_warmup": 3000,
+              "ok": true
+            },
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 560451584,
+              "store.sqlite-wal": 4144752,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 4450,
+              "inet_csk_accept": 120,
+              "hrtimer_nanosleep": 237,
+              "0": 14,
+              "wait_woken": 264,
+              "jbd2_log_wait_commit": 89,
+              "folio_wait_bit": 1
+            },
+            "serve_rss_mib_range": [
+              41.25,
+              41.25
+            ]
+          },
+          {
+            "serve_cpu_ms_per_op": 1.0366666666666666,
+            "load_cpu_ms_per_op": 0.2833333333333333,
+            "serve_os_write_bytes_per_op": 21972.309333333335,
+            "serve_cpu_s": 3.11,
+            "sample_span_s": 30.077699184417725,
+            "counter_check": {
+              "delta": 3000,
+              "acknowledged_including_warmup": 3000,
+              "ok": true
+            },
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 560615424,
+              "store.sqlite-wal": 4148872,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 4464,
+              "inet_csk_accept": 120,
+              "hrtimer_nanosleep": 238,
+              "0": 16,
+              "wait_woken": 417,
+              "jbd2_log_wait_commit": 92
+            },
+            "serve_rss_mib_range": [
+              41.25,
+              41.25
+            ]
+          },
+          {
+            "serve_cpu_ms_per_op": 1.0633333333333332,
+            "load_cpu_ms_per_op": 0.2733333333333333,
+            "serve_os_write_bytes_per_op": 21988.693333333333,
+            "serve_cpu_s": 3.19,
+            "sample_span_s": 30.072046995162964,
+            "counter_check": {
+              "delta": 3000,
+              "acknowledged_including_warmup": 3000,
+              "ok": true
+            },
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 560795648,
+              "store.sqlite-wal": 4148872,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 4451,
+              "inet_csk_accept": 120,
+              "hrtimer_nanosleep": 235,
+              "jbd2_log_wait_commit": 91,
+              "wait_woken": 247,
+              "0": 11
+            },
+            "serve_rss_mib_range": [
+              41.25,
+              41.25
+            ]
+          }
+        ]
+      },
+      {
+        "rate": 141,
+        "pass_all": false,
+        "p50_ms": [
+          1133.510655,
+          1139.802111,
+          1134.559231
+        ],
+        "p99_ms": [
+          1278.214143,
+          1279.262719,
+          1279.262719
+        ],
+        "p999_ms": [
+          1298.137087,
+          1289.748479,
+          1289.748479
+        ],
+        "errors": [
+          512,
+          536,
+          544
+        ],
+        "completed_in_window_per_s": [
+          115.35,
+          114.95,
+          114.8
+        ],
+        "resources": [
+          {
+            "serve_cpu_ms_per_op": 1.018774157923799,
+            "load_cpu_ms_per_op": 0.2567642186637217,
+            "serve_os_write_bytes_per_op": 21978.39867476532,
+            "serve_cpu_s": 3.69,
+            "sample_span_s": 31.244446277618408,
+            "counter_check": {
+              "delta": 3622,
+              "acknowledged_including_warmup": 3622,
+              "ok": true
+            },
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 560996352,
+              "store.sqlite-wal": 4148872,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 8313,
+              "inet_csk_accept": 124,
+              "hrtimer_nanosleep": 228,
+              "jbd2_log_wait_commit": 111,
+              "wait_woken": 29,
+              "0": 18
+            },
+            "serve_rss_mib_range": [
+              41.25,
+              41.5
+            ]
+          },
+          {
+            "serve_cpu_ms_per_op": 1.0258572231590781,
+            "load_cpu_ms_per_op": 0.25295109612141653,
+            "serve_os_write_bytes_per_op": 22004.20011242271,
+            "serve_cpu_s": 3.65,
+            "sample_span_s": 30.981001615524292,
+            "counter_check": {
+              "delta": 3558,
+              "acknowledged_including_warmup": 3558,
+              "ok": true
+            },
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 561213440,
+              "store.sqlite-wal": 4148872,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 8272,
+              "inet_csk_accept": 123,
+              "hrtimer_nanosleep": 225,
+              "jbd2_log_wait_commit": 109,
+              "wait_woken": 14,
+              "0": 16,
+              "folio_wait_bit_common": 1
+            },
+            "serve_rss_mib_range": [
+              41.5,
+              41.625
+            ]
+          },
+          {
+            "serve_cpu_ms_per_op": 1.0306406685236769,
+            "load_cpu_ms_per_op": 0.2562674094707521,
+            "serve_os_write_bytes_per_op": 21965.513091922006,
+            "serve_cpu_s": 3.7,
+            "sample_span_s": 30.990878343582153,
+            "counter_check": {
+              "delta": 3590,
+              "acknowledged_including_warmup": 3590,
+              "ok": true
+            },
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 561414144,
+              "store.sqlite-wal": 4148872,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 8253,
+              "inet_csk_accept": 123,
+              "hrtimer_nanosleep": 228,
+              "jbd2_log_wait_commit": 112,
+              "0": 15,
+              "wait_woken": 16,
+              "__schedule": 1
+            },
+            "serve_rss_mib_range": [
+              41.625,
+              41.625
+            ]
+          }
+        ]
+      },
+      {
+        "rate": 200,
+        "pass_all": false,
+        "p50_ms": [
+          1141.899263,
+          1137.704959,
+          1142.947839
+        ],
+        "p99_ms": [
+          1281.359871,
+          1276.116991,
+          1288.699903
+        ],
+        "p999_ms": [
+          1293.942783,
+          1288.699903,
+          1303.379967
+        ],
+        "errors": [
+          1696,
+          1688,
+          1740
+        ],
+        "completed_in_window_per_s": [
+          114.45,
+          115.8,
+          112.45
+        ],
+        "resources": [
+          {
+            "serve_cpu_ms_per_op": 1.0201793721973094,
+            "load_cpu_ms_per_op": 0.30829596412556054,
+            "serve_os_write_bytes_per_op": 21996.484304932736,
+            "serve_cpu_s": 3.64,
+            "sample_span_s": 31.24955463409424,
+            "counter_check": {
+              "delta": 3568,
+              "acknowledged_including_warmup": 3568,
+              "ok": true
+            },
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 559869952,
+              "store.sqlite-wal": 4144752,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 8381,
+              "inet_csk_accept": 124,
+              "hrtimer_nanosleep": 226,
+              "0": 23,
+              "jbd2_log_wait_commit": 106,
+              "wait_woken": 18
+            },
+            "serve_rss_mib_range": [
+              41.125,
+              41.125
+            ]
+          },
+          {
+            "serve_cpu_ms_per_op": 1.0310421286031042,
+            "load_cpu_ms_per_op": 0.31596452328159647,
+            "serve_os_write_bytes_per_op": 21964.91352549889,
+            "serve_cpu_s": 3.72,
+            "sample_span_s": 31.245441675186157,
+            "counter_check": {
+              "delta": 3608,
+              "acknowledged_including_warmup": 3608,
+              "ok": true
+            },
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 560070656,
+              "store.sqlite-wal": 4144752,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 8362,
+              "inet_csk_accept": 124,
+              "hrtimer_nanosleep": 230,
+              "jbd2_log_wait_commit": 107,
+              "0": 20,
+              "wait_woken": 35
+            },
+            "serve_rss_mib_range": [
+              41.125,
+              41.125
+            ]
+          },
+          {
+            "serve_cpu_ms_per_op": 1.0235327473773745,
+            "load_cpu_ms_per_op": 0.3118797845194216,
+            "serve_os_write_bytes_per_op": 21987.40232492203,
+            "serve_cpu_s": 3.61,
+            "sample_span_s": 31.244892835617065,
+            "counter_check": {
+              "delta": 3527,
+              "acknowledged_including_warmup": 3527,
+              "ok": true
+            },
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 560271360,
+              "store.sqlite-wal": 4144752,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 8378,
+              "inet_csk_accept": 124,
+              "hrtimer_nanosleep": 226,
+              "jbd2_log_wait_commit": 107,
+              "0": 19,
+              "wait_woken": 23
+            },
+            "serve_rss_mib_range": [
+              41.125,
+              41.25
+            ]
+          }
+        ]
+      },
+      {
+        "rate": 400,
+        "pass_all": false,
+        "p50_ms": [
+          1137.704959,
+          1140.850687,
+          1137.704959
+        ],
+        "p99_ms": [
+          1274.019839,
+          1285.554175,
+          1275.068415
+        ],
+        "p999_ms": [
+          1285.554175,
+          1306.525695,
+          1286.602751
+        ],
+        "errors": [
+          5650,
+          5725,
+          5672
+        ],
+        "completed_in_window_per_s": [
+          117.35,
+          113.5,
+          116.25
+        ],
+        "resources": [
+          {
+            "serve_cpu_ms_per_op": 1.0149336283185841,
+            "load_cpu_ms_per_op": 0.4728982300884956,
+            "serve_os_write_bytes_per_op": 21970.690265486726,
+            "serve_cpu_s": 3.67,
+            "sample_span_s": 31.242076873779297,
+            "counter_check": {
+              "delta": 3616,
+              "acknowledged_including_warmup": 3616,
+              "ok": true
+            },
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 559247360,
+              "store.sqlite-wal": 4144752,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 8387,
+              "inet_csk_accept": 124,
+              "hrtimer_nanosleep": 234,
+              "jbd2_log_wait_commit": 114,
+              "0": 16,
+              "wait_woken": 21
+            },
+            "serve_rss_mib_range": [
+              40.75,
+              41.0
+            ]
+          },
+          {
+            "serve_cpu_ms_per_op": 1.0158013544018059,
+            "load_cpu_ms_per_op": 0.4796839729119639,
+            "serve_os_write_bytes_per_op": 21977.86004514673,
+            "serve_cpu_s": 3.6,
+            "sample_span_s": 31.24608588218689,
+            "counter_check": {
+              "delta": 3544,
+              "acknowledged_including_warmup": 3544,
+              "ok": true
+            },
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 559448064,
+              "store.sqlite-wal": 4144752,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 8400,
+              "inet_csk_accept": 124,
+              "hrtimer_nanosleep": 227,
+              "0": 9,
+              "jbd2_log_wait_commit": 114,
+              "wait_woken": 22
+            },
+            "serve_rss_mib_range": [
+              41.0,
+              41.0
+            ]
+          },
+          {
+            "serve_cpu_ms_per_op": 1.0227272727272727,
+            "load_cpu_ms_per_op": 0.47117516629711753,
+            "serve_os_write_bytes_per_op": 21971.725055432373,
+            "serve_cpu_s": 3.69,
+            "sample_span_s": 31.252021551132202,
+            "counter_check": {
+              "delta": 3608,
+              "acknowledged_including_warmup": 3608,
+              "ok": true
+            },
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 559656960,
+              "store.sqlite-wal": 4144752,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 8405,
+              "inet_csk_accept": 124,
+              "hrtimer_nanosleep": 228,
+              "jbd2_log_wait_commit": 108,
+              "0": 8,
+              "wait_woken": 23
+            },
+            "serve_rss_mib_range": [
+              41.0,
+              41.125
+            ]
+          }
+        ]
+      },
+      {
+        "rate": 800,
+        "pass_all": false,
+        "p50_ms": [
+          1139.802111,
+          1136.656383,
+          1139.802111
+        ],
+        "p99_ms": [
+          1280.311295,
+          1272.971263,
+          1280.311295
+        ],
+        "p999_ms": [
+          1291.845631,
+          1284.505599,
+          1294.991359
+        ],
+        "errors": [
+          13703,
+          13649,
+          13711
+        ],
+        "completed_in_window_per_s": [
+          114.4,
+          117.55,
+          114.55
+        ],
+        "resources": [
+          {
+            "serve_cpu_ms_per_op": 1.0136833286791398,
+            "load_cpu_ms_per_op": 0.8042446244065904,
+            "serve_os_write_bytes_per_op": 21962.38369170623,
+            "serve_cpu_s": 3.63,
+            "sample_span_s": 31.245749711990356,
+            "counter_check": {
+              "delta": 3581,
+              "acknowledged_including_warmup": 3581,
+              "ok": true
+            },
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 558620672,
+              "store.sqlite-wal": 4140632,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 8401,
+              "inet_csk_accept": 124,
+              "hrtimer_nanosleep": 229,
+              "jbd2_log_wait_commit": 107,
+              "0": 17,
+              "wait_woken": 18
+            },
+            "serve_rss_mib_range": [
+              40.25,
+              40.375
+            ]
+          },
+          {
+            "serve_cpu_ms_per_op": 1.0174577195853791,
+            "load_cpu_ms_per_op": 0.7855973813420621,
+            "serve_os_write_bytes_per_op": 21989.464266230225,
+            "serve_cpu_s": 3.73,
+            "sample_span_s": 31.238496780395508,
+            "counter_check": {
+              "delta": 3666,
+              "acknowledged_including_warmup": 3666,
+              "ok": true
+            },
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 558837760,
+              "store.sqlite-wal": 4140632,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 8392,
+              "inet_csk_accept": 124,
+              "hrtimer_nanosleep": 231,
+              "jbd2_log_wait_commit": 112,
+              "0": 16,
+              "wait_woken": 20,
+              "folio_wait_bit_common": 1
+            },
+            "serve_rss_mib_range": [
+              40.375,
+              40.75
+            ]
+          },
+          {
+            "serve_cpu_ms_per_op": 1.0185185185185186,
+            "load_cpu_ms_per_op": 0.8052749719416387,
+            "serve_os_write_bytes_per_op": 21975.200897867566,
+            "serve_cpu_s": 3.63,
+            "sample_span_s": 31.233985900878906,
+            "counter_check": {
+              "delta": 3564,
+              "acknowledged_including_warmup": 3564,
+              "ok": true
+            },
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 559038464,
+              "store.sqlite-wal": 4140632,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 8404,
+              "inet_csk_accept": 124,
+              "hrtimer_nanosleep": 228,
+              "0": 10,
+              "jbd2_log_wait_commit": 113,
+              "wait_woken": 17
+            },
+            "serve_rss_mib_range": [
+              40.75,
+              40.75
+            ]
+          }
+        ]
+      },
+      {
+        "rate": 1600,
+        "pass_all": false,
+        "p50_ms": [
+          1136.656383,
+          1139.802111,
+          1136.656383
+        ],
+        "p99_ms": [
+          1271.922687,
+          1279.262719,
+          1272.971263
+        ],
+        "p999_ms": [
+          1284.505599,
+          1291.845631,
+          1287.651327
+        ],
+        "errors": [
+          29649,
+          29709,
+          29653
+        ],
+        "completed_in_window_per_s": [
+          117.45,
+          114.55,
+          117.45
+        ],
+        "resources": [
+          {
+            "serve_cpu_ms_per_op": 1.0163934426229508,
+            "load_cpu_ms_per_op": 1.4262295081967213,
+            "serve_os_write_bytes_per_op": 21960.603278688526,
+            "serve_cpu_s": 3.72,
+            "sample_span_s": 31.245240449905396,
+            "counter_check": {
+              "delta": 3660,
+              "acknowledged_including_warmup": 3660,
+              "ok": true
+            },
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 558006272,
+              "store.sqlite-wal": 4136512,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 8403,
+              "inet_csk_accept": 124,
+              "hrtimer_nanosleep": 228,
+              "jbd2_log_wait_commit": 108,
+              "0": 14,
+              "wait_woken": 19
+            },
+            "serve_rss_mib_range": [
+              39.5,
+              39.75
+            ]
+          },
+          {
+            "serve_cpu_ms_per_op": 1.0201793721973094,
+            "load_cpu_ms_per_op": 1.4658071748878925,
+            "serve_os_write_bytes_per_op": 21968.93273542601,
+            "serve_cpu_s": 3.64,
+            "sample_span_s": 31.255141496658325,
+            "counter_check": {
+              "delta": 3568,
+              "acknowledged_including_warmup": 3568,
+              "ok": true
+            },
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 558206976,
+              "store.sqlite-wal": 4136512,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 8392,
+              "inet_csk_accept": 124,
+              "hrtimer_nanosleep": 231,
+              "jbd2_log_wait_commit": 108,
+              "0": 20,
+              "wait_woken": 21
+            },
+            "serve_rss_mib_range": [
+              39.75,
+              39.875
+            ]
+          },
+          {
+            "serve_cpu_ms_per_op": 1.0172272354388843,
+            "load_cpu_ms_per_op": 1.427399507793273,
+            "serve_os_write_bytes_per_op": 21988.698933552092,
+            "serve_cpu_s": 3.72,
+            "sample_span_s": 31.25252389907837,
+            "counter_check": {
+              "delta": 3657,
+              "acknowledged_including_warmup": 3657,
+              "ok": true
+            },
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 558419968,
+              "store.sqlite-wal": 4136512,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 8393,
+              "inet_csk_accept": 124,
+              "hrtimer_nanosleep": 231,
+              "jbd2_log_wait_commit": 115,
+              "0": 12,
+              "wait_woken": 21
+            },
+            "serve_rss_mib_range": [
+              39.875,
+              40.25
+            ]
+          }
+        ]
+      },
+      {
+        "rate": 3200,
+        "pass_all": false,
+        "p50_ms": [
+          1139.802111,
+          1135.607807,
+          1139.802111
+        ],
+        "p99_ms": [
+          1279.262719,
+          1270.874111,
+          1278.214143
+        ],
+        "p999_ms": [
+          1296.039935,
+          1284.505599,
+          1299.185663
+        ],
+        "errors": [
+          61699,
+          61639,
+          61705
+        ],
+        "completed_in_window_per_s": [
+          115.05,
+          118.1,
+          114.55
+        ],
+        "resources": [
+          {
+            "serve_cpu_ms_per_op": 1.0080757449178501,
+            "load_cpu_ms_per_op": 2.7736006683375103,
+            "serve_os_write_bytes_per_op": 20953.3611807296,
+            "serve_cpu_s": 3.62,
+            "sample_span_s": 31.23740577697754,
+            "counter_check": {
+              "delta": 3591,
+              "acknowledged_including_warmup": 3591,
+              "ok": true
+            },
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 557395968,
+              "store.sqlite-wal": 4136512,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 8358,
+              "inet_csk_accept": 124,
+              "hrtimer_nanosleep": 232,
+              "jbd2_log_wait_commit": 109,
+              "wait_woken": 19,
+              "0": 22
+            },
+            "serve_rss_mib_range": [
+              29.75,
+              38.375
+            ]
+          },
+          {
+            "serve_cpu_ms_per_op": 0.9994553376906318,
+            "load_cpu_ms_per_op": 2.7178649237472765,
+            "serve_os_write_bytes_per_op": 21968.0348583878,
+            "serve_cpu_s": 3.67,
+            "sample_span_s": 31.245527982711792,
+            "counter_check": {
+              "delta": 3672,
+              "acknowledged_including_warmup": 3672,
+              "ok": true
+            },
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 557592576,
+              "store.sqlite-wal": 4136512,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 8399,
+              "inet_csk_accept": 124,
+              "hrtimer_nanosleep": 229,
+              "jbd2_log_wait_commit": 114,
+              "0": 10,
+              "wait_woken": 20
+            },
+            "serve_rss_mib_range": [
+              38.5,
+              39.0
+            ]
+          },
+          {
+            "serve_cpu_ms_per_op": 1.012304250559284,
+            "load_cpu_ms_per_op": 2.79082774049217,
+            "serve_os_write_bytes_per_op": 22005.691275167785,
+            "serve_cpu_s": 3.62,
+            "sample_span_s": 31.240413665771484,
+            "counter_check": {
+              "delta": 3576,
+              "acknowledged_including_warmup": 3576,
+              "ok": true
+            },
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 557805568,
+              "store.sqlite-wal": 4136512,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 8409,
+              "inet_csk_accept": 124,
+              "hrtimer_nanosleep": 228,
+              "jbd2_log_wait_commit": 105,
+              "0": 13,
+              "wait_woken": 17
+            },
+            "serve_rss_mib_range": [
+              39.0,
+              39.5
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 32,
+      "keys": "same",
+      "target": "snapback",
+      "rerun": [
+        "python3",
+        "scripts/snapback.py",
+        "cell",
+        "--out",
+        "target/replay-w5-n1000000-d0-c32-same",
+        "--fixture",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/s1sk/s1sk-continuation-20261022/deployment",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--writers",
+        "32",
+        "--keys",
+        "same",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "summary": {
+      "highest_passing_offered_per_s": 100,
+      "lowest_failing_offered_per_s": 141,
+      "bracketed": true,
+      "rates": [
+        100,
+        141,
+        200
+      ],
+      "repeats": 3
+    },
+    "rates": [
+      {
+        "rate": 100,
+        "pass_all": true,
+        "p50_ms": [
+          8.691711,
+          8.683519,
+          8.806399
+        ],
+        "p99_ms": [
+          28.098559,
+          77.266943,
+          63.340543
+        ],
+        "p999_ms": [
+          38.207487,
+          110.362623,
+          67.174399
+        ],
+        "errors": [
+          0,
+          0,
+          0
+        ],
+        "completed_in_window_per_s": [
+          100.0,
+          100.0,
+          100.0
+        ],
+        "resources": [
+          {
+            "serve_cpu_ms_per_op": 1.0733333333333333,
+            "load_cpu_ms_per_op": 0.27,
+            "serve_os_write_bytes_per_op": 21929.984,
+            "serve_cpu_s": 3.22,
+            "sample_span_s": 29.91807723045349,
+            "counter_check": {
+              "delta": 3000,
+              "acknowledged_including_warmup": 3000,
+              "ok": true
+            },
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 561573888,
+              "store.sqlite-wal": 4148872,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 993,
+              "inet_csk_accept": 120,
+              "hrtimer_nanosleep": 240,
+              "wait_woken": 269,
+              "jbd2_log_wait_commit": 98,
+              "0": 8
+            },
+            "serve_rss_mib_range": [
+              29.5,
+              33.0
+            ]
+          },
+          {
+            "serve_cpu_ms_per_op": 1.0766666666666667,
+            "load_cpu_ms_per_op": 0.27,
+            "serve_os_write_bytes_per_op": 21946.368,
+            "serve_cpu_s": 3.23,
+            "sample_span_s": 29.93369770050049,
+            "counter_check": {
+              "delta": 3000,
+              "acknowledged_including_warmup": 3000,
+              "ok": true
+            },
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 561750016,
+              "store.sqlite-wal": 4148872,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 1199,
+              "inet_csk_accept": 120,
+              "hrtimer_nanosleep": 240,
+              "wait_woken": 355,
+              "0": 12,
+              "jbd2_log_wait_commit": 91,
+              "__schedule": 1
+            },
+            "serve_rss_mib_range": [
+              33.25,
+              34.75
+            ]
+          },
+          {
+            "serve_cpu_ms_per_op": 1.0833333333333333,
+            "load_cpu_ms_per_op": 0.26666666666666666,
+            "serve_os_write_bytes_per_op": 21946.368,
+            "serve_cpu_s": 3.25,
+            "sample_span_s": 29.968483924865723,
+            "counter_check": {
+              "delta": 3000,
+              "acknowledged_including_warmup": 3000,
+              "ok": true
+            },
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 561926144,
+              "store.sqlite-wal": 4148872,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 2085,
+              "inet_csk_accept": 120,
+              "hrtimer_nanosleep": 238,
+              "wait_woken": 315,
+              "jbd2_log_wait_commit": 91,
+              "0": 12
+            },
+            "serve_rss_mib_range": [
+              34.875,
+              35.5
+            ]
+          }
+        ]
+      },
+      {
+        "rate": 141,
+        "pass_all": false,
+        "p50_ms": [
+          1140.850687,
+          1136.656383,
+          1138.753535
+        ],
+        "p99_ms": [
+          1281.359871,
+          1272.971263,
+          1279.262719
+        ],
+        "p999_ms": [
+          1291.845631,
+          1285.554175,
+          1304.428543
+        ],
+        "errors": [
+          544,
+          512,
+          520
+        ],
+        "completed_in_window_per_s": [
+          114.35,
+          115.85,
+          114.9
+        ],
+        "resources": [
+          {
+            "serve_cpu_ms_per_op": 1.0792580101180438,
+            "load_cpu_ms_per_op": 0.26981450252951095,
+            "serve_os_write_bytes_per_op": 21940.883642495784,
+            "serve_cpu_s": 3.84,
+            "sample_span_s": 31.24621319770813,
+            "counter_check": {
+              "delta": 3558,
+              "acknowledged_including_warmup": 3558,
+              "ok": true
+            },
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 562745344,
+              "store.sqlite-wal": 4148872,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 8318,
+              "inet_csk_accept": 124,
+              "hrtimer_nanosleep": 225,
+              "jbd2_log_wait_commit": 109,
+              "wait_woken": 10,
+              "0": 17,
+              "posix_lock_inode": 1
+            },
+            "serve_rss_mib_range": [
+              41.0,
+              41.25
+            ]
+          },
+          {
+            "serve_cpu_ms_per_op": 1.0724233983286908,
+            "load_cpu_ms_per_op": 0.2562674094707521,
+            "serve_os_write_bytes_per_op": 21967.794986072422,
+            "serve_cpu_s": 3.85,
+            "sample_span_s": 31.249674797058105,
+            "counter_check": {
+              "delta": 3590,
+              "acknowledged_including_warmup": 3590,
+              "ok": true
+            },
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 562950144,
+              "store.sqlite-wal": 4148872,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 8333,
+              "inet_csk_accept": 124,
+              "hrtimer_nanosleep": 225,
+              "jbd2_log_wait_commit": 112,
+              "0": 13,
+              "wait_woken": 27
+            },
+            "serve_rss_mib_range": [
+              41.25,
+              41.625
+            ]
+          },
+          {
+            "serve_cpu_ms_per_op": 1.0764474423833614,
+            "load_cpu_ms_per_op": 0.26981450252951095,
+            "serve_os_write_bytes_per_op": 21939.73243395166,
+            "serve_cpu_s": 3.83,
+            "sample_span_s": 31.2444486618042,
+            "counter_check": {
+              "delta": 3558,
+              "acknowledged_including_warmup": 3558,
+              "ok": true
+            },
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 563150848,
+              "store.sqlite-wal": 4148872,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 8313,
+              "inet_csk_accept": 124,
+              "hrtimer_nanosleep": 228,
+              "jbd2_log_wait_commit": 112,
+              "wait_woken": 12,
+              "0": 15
+            },
+            "serve_rss_mib_range": [
+              41.625,
+              41.625
+            ]
+          }
+        ]
+      },
+      {
+        "rate": 200,
+        "pass_all": false,
+        "p50_ms": [
+          1137.704959,
+          1140.850687,
+          1140.850687
+        ],
+        "p99_ms": [
+          1278.214143,
+          1279.262719,
+          1280.311295
+        ],
+        "p999_ms": [
+          1292.894207,
+          1292.894207,
+          1293.942783
+        ],
+        "errors": [
+          1691,
+          1704,
+          1701
+        ],
+        "completed_in_window_per_s": [
+          116.15,
+          114.1,
+          115.2
+        ],
+        "resources": [
+          {
+            "serve_cpu_ms_per_op": 1.0679611650485437,
+            "load_cpu_ms_per_op": 0.31622746185852985,
+            "serve_os_write_bytes_per_op": 21941.15284327323,
+            "serve_cpu_s": 3.85,
+            "sample_span_s": 31.252668857574463,
+            "counter_check": {
+              "delta": 3605,
+              "acknowledged_including_warmup": 3605,
+              "ok": true
+            },
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 562126848,
+              "store.sqlite-wal": 4148872,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 8318,
+              "inet_csk_accept": 123,
+              "hrtimer_nanosleep": 230,
+              "expand_files": 1,
+              "__wait_rcu_gp": 1,
+              "0": 20,
+              "wait_woken": 36,
+              "jbd2_log_wait_commit": 109
+            },
+            "serve_rss_mib_range": [
+              35.5,
+              40.375
+            ]
+          },
+          {
+            "serve_cpu_ms_per_op": 1.0646067415730338,
+            "load_cpu_ms_per_op": 0.3089887640449438,
+            "serve_os_write_bytes_per_op": 21942.36404494382,
+            "serve_cpu_s": 3.79,
+            "sample_span_s": 31.245723009109497,
+            "counter_check": {
+              "delta": 3560,
+              "acknowledged_including_warmup": 3560,
+              "ok": true
+            },
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 562327552,
+              "store.sqlite-wal": 4148872,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 8375,
+              "inet_csk_accept": 124,
+              "hrtimer_nanosleep": 225,
+              "jbd2_log_wait_commit": 108,
+              "0": 23,
+              "wait_woken": 23,
+              "folio_wait_bit_common": 1
+            },
+            "serve_rss_mib_range": [
+              40.375,
+              40.75
+            ]
+          },
+          {
+            "serve_cpu_ms_per_op": 1.062586926286509,
+            "load_cpu_ms_per_op": 0.30598052851182195,
+            "serve_os_write_bytes_per_op": 21961.168289290683,
+            "serve_cpu_s": 3.82,
+            "sample_span_s": 31.24520254135132,
+            "counter_check": {
+              "delta": 3595,
+              "acknowledged_including_warmup": 3595,
+              "ok": true
+            },
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 562544640,
+              "store.sqlite-wal": 4148872,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 8373,
+              "inet_csk_accept": 124,
+              "hrtimer_nanosleep": 231,
+              "jbd2_log_wait_commit": 113,
+              "0": 17,
+              "wait_woken": 20
+            },
+            "serve_rss_mib_range": [
+              40.75,
+              41.0
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 32,
+      "keys": "hot1",
+      "target": "snapback",
+      "rerun": [
+        "python3",
+        "scripts/snapback.py",
+        "cell",
+        "--out",
+        "target/replay-w5-n1000000-d0-c32-hot1",
+        "--fixture",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/s1sk/s1sk-continuation-20261022/deployment",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--writers",
+        "32",
+        "--keys",
+        "hot1",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "summary": {
+      "highest_passing_offered_per_s": 100,
+      "lowest_failing_offered_per_s": 141,
+      "bracketed": true,
+      "rates": [
+        100,
+        141,
+        200,
+        400,
+        800,
+        1600,
+        3200
+      ],
+      "repeats": 3
+    },
+    "rates": [
+      {
+        "rate": 100,
+        "pass_all": true,
+        "p50_ms": [
+          8.757247,
+          8.544255,
+          8.683519
+        ],
+        "p99_ms": [
+          23.035903,
+          21.250047,
+          21.643263
+        ],
+        "p999_ms": [
+          34.045951,
+          23.642111,
+          23.969791
+        ],
+        "errors": [
+          0,
+          0,
+          0
+        ],
+        "completed_in_window_per_s": [
+          99.95,
+          100.0,
+          100.1
+        ],
+        "resources": [
+          {
+            "serve_cpu_ms_per_op": 1.06,
+            "load_cpu_ms_per_op": 0.27,
+            "serve_os_write_bytes_per_op": 21999.616,
+            "serve_cpu_s": 3.18,
+            "sample_span_s": 30.079917192459106,
+            "counter_check": {
+              "delta": 3000,
+              "acknowledged_including_warmup": 3000,
+              "ok": true
+            },
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 566431744,
+              "store.sqlite-wal": 4148872,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 4436,
+              "inet_csk_accept": 120,
+              "hrtimer_nanosleep": 240,
+              "0": 17,
+              "wait_woken": 261,
+              "jbd2_log_wait_commit": 95
+            },
+            "serve_rss_mib_range": [
+              42.0,
+              42.0
+            ]
+          },
+          {
+            "serve_cpu_ms_per_op": 1.05,
+            "load_cpu_ms_per_op": 0.27666666666666667,
+            "serve_os_write_bytes_per_op": 21976.405333333332,
+            "serve_cpu_s": 3.15,
+            "sample_span_s": 30.07210898399353,
+            "counter_check": {
+              "delta": 3000,
+              "acknowledged_including_warmup": 3000,
+              "ok": true
+            },
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 566591488,
+              "store.sqlite-wal": 4148872,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 4446,
+              "inet_csk_accept": 120,
+              "hrtimer_nanosleep": 238,
+              "wait_woken": 245,
+              "jbd2_log_wait_commit": 95,
+              "0": 7
+            },
+            "serve_rss_mib_range": [
+              42.0,
+              42.0
+            ]
+          },
+          {
+            "serve_cpu_ms_per_op": 1.0566666666666666,
+            "load_cpu_ms_per_op": 0.27,
+            "serve_os_write_bytes_per_op": 22009.173333333332,
+            "serve_cpu_s": 3.17,
+            "sample_span_s": 30.085809469223022,
+            "counter_check": {
+              "delta": 3000,
+              "acknowledged_including_warmup": 3000,
+              "ok": true
+            },
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 566767616,
+              "store.sqlite-wal": 4148872,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 4462,
+              "inet_csk_accept": 120,
+              "hrtimer_nanosleep": 240,
+              "wait_woken": 412,
+              "jbd2_log_wait_commit": 88,
+              "0": 11
+            },
+            "serve_rss_mib_range": [
+              42.0,
+              42.0
+            ]
+          }
+        ]
+      },
+      {
+        "rate": 141,
+        "pass_all": false,
+        "p50_ms": [
+          1137.704959,
+          1143.996415,
+          1136.656383
+        ],
+        "p99_ms": [
+          1270.874111,
+          1280.311295,
+          1268.776959
+        ],
+        "p999_ms": [
+          1283.457023,
+          1290.797055,
+          1287.651327
+        ],
+        "errors": [
+          457,
+          512,
+          460
+        ],
+        "completed_in_window_per_s": [
+          117.6,
+          114.85,
+          117.6
+        ],
+        "resources": [
+          {
+            "serve_cpu_ms_per_op": 1.02880658436214,
+            "load_cpu_ms_per_op": 0.26337448559670784,
+            "serve_os_write_bytes_per_op": 21985.799725651577,
+            "serve_cpu_s": 3.75,
+            "sample_span_s": 31.23960566520691,
+            "counter_check": {
+              "delta": 3645,
+              "acknowledged_including_warmup": 3645,
+              "ok": true
+            },
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 566968320,
+              "store.sqlite-wal": 4148872,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 8327,
+              "inet_csk_accept": 124,
+              "hrtimer_nanosleep": 231,
+              "jbd2_log_wait_commit": 110,
+              "wait_woken": 25,
+              "0": 10,
+              "folio_wait_bit_common": 1
+            },
+            "serve_rss_mib_range": [
+              42.0,
+              42.125
+            ]
+          },
+          {
+            "serve_cpu_ms_per_op": 1.0306406685236769,
+            "load_cpu_ms_per_op": 0.2562674094707521,
+            "serve_os_write_bytes_per_op": 22030.547075208913,
+            "serve_cpu_s": 3.7,
+            "sample_span_s": 31.256750345230103,
+            "counter_check": {
+              "delta": 3590,
+              "acknowledged_including_warmup": 3590,
+              "ok": true
+            },
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 567185408,
+              "store.sqlite-wal": 4148872,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 8334,
+              "inet_csk_accept": 124,
+              "hrtimer_nanosleep": 231,
+              "jbd2_log_wait_commit": 109,
+              "wait_woken": 27,
+              "0": 12,
+              "srso_return_thunk": 1
+            },
+            "serve_rss_mib_range": [
+              42.125,
+              42.125
+            ]
+          },
+          {
+            "serve_cpu_ms_per_op": 1.0241625480505216,
+            "load_cpu_ms_per_op": 0.26359143327841844,
+            "serve_os_write_bytes_per_op": 21990.414058209775,
+            "serve_cpu_s": 3.73,
+            "sample_span_s": 31.236380100250244,
+            "counter_check": {
+              "delta": 3642,
+              "acknowledged_including_warmup": 3642,
+              "ok": true
+            },
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 567386112,
+              "store.sqlite-wal": 4148872,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 8322,
+              "inet_csk_accept": 124,
+              "hrtimer_nanosleep": 228,
+              "jbd2_log_wait_commit": 113,
+              "wait_woken": 31,
+              "0": 8
+            },
+            "serve_rss_mib_range": [
+              42.125,
+              42.125
+            ]
+          }
+        ]
+      },
+      {
+        "rate": 200,
+        "pass_all": false,
+        "p50_ms": [
+          1137.704959,
+          1138.753535,
+          1138.753535
+        ],
+        "p99_ms": [
+          1283.457023,
+          1281.359871,
+          1281.359871
+        ],
+        "p999_ms": [
+          1360.003071,
+          1294.991359,
+          1347.420159
+        ],
+        "errors": [
+          1696,
+          1727,
+          1686
+        ],
+        "completed_in_window_per_s": [
+          116.05,
+          114.1,
+          115.85
+        ],
+        "resources": [
+          {
+            "serve_cpu_ms_per_op": 1.02147577092511,
+            "load_cpu_ms_per_op": 0.30561674008810574,
+            "serve_os_write_bytes_per_op": 21988.933920704847,
+            "serve_cpu_s": 3.71,
+            "sample_span_s": 31.25296449661255,
+            "counter_check": {
+              "delta": 3632,
+              "acknowledged_including_warmup": 3632,
+              "ok": true
+            },
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 565837824,
+              "store.sqlite-wal": 4148872,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 8367,
+              "inet_csk_accept": 124,
+              "hrtimer_nanosleep": 228,
+              "0": 19,
+              "wait_woken": 29,
+              "jbd2_log_wait_commit": 111
+            },
+            "serve_rss_mib_range": [
+              41.75,
+              41.875
+            ]
+          },
+          {
+            "serve_cpu_ms_per_op": 1.022982062780269,
+            "load_cpu_ms_per_op": 0.31109865470852016,
+            "serve_os_write_bytes_per_op": 21988.448430493274,
+            "serve_cpu_s": 3.65,
+            "sample_span_s": 31.24254536628723,
+            "counter_check": {
+              "delta": 3568,
+              "acknowledged_including_warmup": 3568,
+              "ok": true
+            },
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 566038528,
+              "store.sqlite-wal": 4148872,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 8373,
+              "inet_csk_accept": 124,
+              "hrtimer_nanosleep": 224,
+              "jbd2_log_wait_commit": 114,
+              "0": 12,
+              "wait_woken": 32
+            },
+            "serve_rss_mib_range": [
+              41.875,
+              41.875
+            ]
+          },
+          {
+            "serve_cpu_ms_per_op": 1.0187224669603525,
+            "load_cpu_ms_per_op": 0.30561674008810574,
+            "serve_os_write_bytes_per_op": 22038.555066079294,
+            "serve_cpu_s": 3.7,
+            "sample_span_s": 31.24880337715149,
+            "counter_check": {
+              "delta": 3632,
+              "acknowledged_including_warmup": 3632,
+              "ok": true
+            },
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 566255616,
+              "store.sqlite-wal": 4148872,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 8373,
+              "inet_csk_accept": 124,
+              "hrtimer_nanosleep": 232,
+              "jbd2_log_wait_commit": 116,
+              "0": 13,
+              "wait_woken": 20
+            },
+            "serve_rss_mib_range": [
+              41.875,
+              42.0
+            ]
+          }
+        ]
+      },
+      {
+        "rate": 400,
+        "pass_all": false,
+        "p50_ms": [
+          1139.802111,
+          1138.753535,
+          1138.753535
+        ],
+        "p99_ms": [
+          1279.262719,
+          1283.457023,
+          1278.214143
+        ],
+        "p999_ms": [
+          1292.894207,
+          1351.614463,
+          1290.797055
+        ],
+        "errors": [
+          5698,
+          5681,
+          5694
+        ],
+        "completed_in_window_per_s": [
+          114.65,
+          115.95,
+          115.15
+        ],
+        "resources": [
+          {
+            "serve_cpu_ms_per_op": 1.0217755443886096,
+            "load_cpu_ms_per_op": 0.47459519821328866,
+            "serve_os_write_bytes_per_op": 21976.835287548856,
+            "serve_cpu_s": 3.66,
+            "sample_span_s": 31.24015760421753,
+            "counter_check": {
+              "delta": 3582,
+              "acknowledged_including_warmup": 3582,
+              "ok": true
+            },
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 565223424,
+              "store.sqlite-wal": 4148872,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 8397,
+              "inet_csk_accept": 124,
+              "hrtimer_nanosleep": 229,
+              "jbd2_log_wait_commit": 116,
+              "0": 11,
+              "wait_woken": 19
+            },
+            "serve_rss_mib_range": [
+              41.5,
+              41.625
+            ]
+          },
+          {
+            "serve_cpu_ms_per_op": 1.0247252747252746,
+            "load_cpu_ms_per_op": 0.46703296703296704,
+            "serve_os_write_bytes_per_op": 21981.116483516482,
+            "serve_cpu_s": 3.73,
+            "sample_span_s": 31.24456763267517,
+            "counter_check": {
+              "delta": 3640,
+              "acknowledged_including_warmup": 3640,
+              "ok": true
+            },
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 565424128,
+              "store.sqlite-wal": 4148872,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 8392,
+              "inet_csk_accept": 124,
+              "hrtimer_nanosleep": 229,
+              "jbd2_log_wait_commit": 112,
+              "wait_woken": 22,
+              "0": 17
+            },
+            "serve_rss_mib_range": [
+              41.625,
+              41.75
+            ]
+          },
+          {
+            "serve_cpu_ms_per_op": 1.0171840354767183,
+            "load_cpu_ms_per_op": 0.46840354767184034,
+            "serve_os_write_bytes_per_op": 22009.188470066518,
+            "serve_cpu_s": 3.67,
+            "sample_span_s": 31.23900842666626,
+            "counter_check": {
+              "delta": 3608,
+              "acknowledged_including_warmup": 3608,
+              "ok": true
+            },
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 565637120,
+              "store.sqlite-wal": 4148872,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 8391,
+              "inet_csk_accept": 124,
+              "hrtimer_nanosleep": 226,
+              "jbd2_log_wait_commit": 112,
+              "0": 22,
+              "wait_woken": 21
+            },
+            "serve_rss_mib_range": [
+              41.75,
+              41.75
+            ]
+          }
+        ]
+      },
+      {
+        "rate": 800,
+        "pass_all": false,
+        "p50_ms": [
+          1138.753535,
+          1139.802111,
+          1138.753535
+        ],
+        "p99_ms": [
+          1284.505599,
+          1279.262719,
+          1281.359871
+        ],
+        "p999_ms": [
+          1365.245951,
+          1294.991359,
+          1343.225855
+        ],
+        "errors": [
+          13682,
+          13710,
+          13678
+        ],
+        "completed_in_window_per_s": [
+          115.85,
+          114.55,
+          116.3
+        ],
+        "resources": [
+          {
+            "serve_cpu_ms_per_op": 1.0211364260225089,
+            "load_cpu_ms_per_op": 0.7933022234422179,
+            "serve_os_write_bytes_per_op": 22014.73510842712,
+            "serve_cpu_s": 3.72,
+            "sample_span_s": 31.245501041412354,
+            "counter_check": {
+              "delta": 3643,
+              "acknowledged_including_warmup": 3643,
+              "ok": true
+            },
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 564600832,
+              "store.sqlite-wal": 4148872,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 8394,
+              "inet_csk_accept": 124,
+              "hrtimer_nanosleep": 232,
+              "jbd2_log_wait_commit": 117,
+              "0": 10,
+              "wait_woken": 19
+            },
+            "serve_rss_mib_range": [
+              41.0,
+              41.125
+            ]
+          },
+          {
+            "serve_cpu_ms_per_op": 1.019893527598767,
+            "load_cpu_ms_per_op": 0.8013449145418885,
+            "serve_os_write_bytes_per_op": 21984.582796301485,
+            "serve_cpu_s": 3.64,
+            "sample_span_s": 31.245364665985107,
+            "counter_check": {
+              "delta": 3569,
+              "acknowledged_including_warmup": 3569,
+              "ok": true
+            },
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 564801536,
+              "store.sqlite-wal": 4148872,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 8401,
+              "inet_csk_accept": 124,
+              "hrtimer_nanosleep": 225,
+              "jbd2_log_wait_commit": 108,
+              "0": 19,
+              "wait_woken": 19
+            },
+            "serve_rss_mib_range": [
+              41.125,
+              41.375
+            ]
+          },
+          {
+            "serve_cpu_ms_per_op": 1.019736842105263,
+            "load_cpu_ms_per_op": 0.7949561403508771,
+            "serve_os_write_bytes_per_op": 22008.140350877195,
+            "serve_cpu_s": 3.72,
+            "sample_span_s": 31.238317012786865,
+            "counter_check": {
+              "delta": 3648,
+              "acknowledged_including_warmup": 3648,
+              "ok": true
+            },
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 565022720,
+              "store.sqlite-wal": 4148872,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 8408,
+              "inet_csk_accept": 124,
+              "hrtimer_nanosleep": 225,
+              "jbd2_log_wait_commit": 104,
+              "0": 15,
+              "wait_woken": 20
+            },
+            "serve_rss_mib_range": [
+              41.375,
+              41.5
+            ]
+          }
+        ]
+      },
+      {
+        "rate": 1600,
+        "pass_all": false,
+        "p50_ms": [
+          1140.850687,
+          1137.704959,
+          1139.802111
+        ],
+        "p99_ms": [
+          1284.505599,
+          1277.165567,
+          1280.311295
+        ],
+        "p999_ms": [
+          1301.282815,
+          1296.039935,
+          1292.894207
+        ],
+        "errors": [
+          29723,
+          29664,
+          29705
+        ],
+        "completed_in_window_per_s": [
+          114.0,
+          116.5,
+          114.7
+        ],
+        "resources": [
+          {
+            "serve_cpu_ms_per_op": 1.0207515423443634,
+            "load_cpu_ms_per_op": 1.4666292765002804,
+            "serve_os_write_bytes_per_op": 21992.740325294446,
+            "serve_cpu_s": 3.64,
+            "sample_span_s": 31.230738401412964,
+            "counter_check": {
+              "delta": 3566,
+              "acknowledged_including_warmup": 3566,
+              "ok": true
+            },
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 563978240,
+              "store.sqlite-wal": 4140632,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 8398,
+              "inet_csk_accept": 124,
+              "hrtimer_nanosleep": 233,
+              "0": 14,
+              "jbd2_log_wait_commit": 109,
+              "wait_woken": 18
+            },
+            "serve_rss_mib_range": [
+              40.125,
+              40.375
+            ]
+          },
+          {
+            "serve_cpu_ms_per_op": 1.021021021021021,
+            "load_cpu_ms_per_op": 1.4277914277914279,
+            "serve_os_write_bytes_per_op": 21978.40021840022,
+            "serve_cpu_s": 3.74,
+            "sample_span_s": 31.252967596054077,
+            "counter_check": {
+              "delta": 3663,
+              "acknowledged_including_warmup": 3663,
+              "ok": true
+            },
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 564178944,
+              "store.sqlite-wal": 4140632,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 8400,
+              "inet_csk_accept": 124,
+              "hrtimer_nanosleep": 228,
+              "jbd2_log_wait_commit": 111,
+              "0": 15,
+              "wait_woken": 18
+            },
+            "serve_rss_mib_range": [
+              40.375,
+              40.625
+            ]
+          },
+          {
+            "serve_cpu_ms_per_op": 1.0186994138989673,
+            "load_cpu_ms_per_op": 1.4624616243371475,
+            "serve_os_write_bytes_per_op": 22039.29221322914,
+            "serve_cpu_s": 3.65,
+            "sample_span_s": 31.232040643692017,
+            "counter_check": {
+              "delta": 3583,
+              "acknowledged_including_warmup": 3583,
+              "ok": true
+            },
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 564391936,
+              "store.sqlite-wal": 4144752,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 8398,
+              "inet_csk_accept": 124,
+              "hrtimer_nanosleep": 228,
+              "jbd2_log_wait_commit": 111,
+              "0": 18,
+              "sched_clock": 1,
+              "wait_woken": 16
+            },
+            "serve_rss_mib_range": [
+              40.625,
+              41.0
+            ]
+          }
+        ]
+      },
+      {
+        "rate": 3200,
+        "pass_all": false,
+        "p50_ms": [
+          1137.704959,
+          1139.802111,
+          1137.704959
+        ],
+        "p99_ms": [
+          1276.116991,
+          1278.214143,
+          1276.116991
+        ],
+        "p999_ms": [
+          1291.845631,
+          1293.942783,
+          1289.748479
+        ],
+        "errors": [
+          61661,
+          61697,
+          61666
+        ],
+        "completed_in_window_per_s": [
+          117.1,
+          115.15,
+          116.7
+        ],
+        "resources": [
+          {
+            "serve_cpu_ms_per_op": 1.0125545851528384,
+            "load_cpu_ms_per_op": 2.721069868995633,
+            "serve_os_write_bytes_per_op": 21957.868995633187,
+            "serve_cpu_s": 3.71,
+            "sample_span_s": 31.23695397377014,
+            "counter_check": {
+              "delta": 3664,
+              "acknowledged_including_warmup": 3664,
+              "ok": true
+            },
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 563359744,
+              "store.sqlite-wal": 4132392,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 8364,
+              "inet_csk_accept": 124,
+              "hrtimer_nanosleep": 234,
+              "jbd2_log_wait_commit": 117,
+              "0": 9,
+              "wait_woken": 16
+            },
+            "serve_rss_mib_range": [
+              30.0,
+              39.0
+            ]
+          },
+          {
+            "serve_cpu_ms_per_op": 1.0169491525423728,
+            "load_cpu_ms_per_op": 2.7702139483189776,
+            "serve_os_write_bytes_per_op": 21982.283967768824,
+            "serve_cpu_s": 3.66,
+            "sample_span_s": 31.243976354599,
+            "counter_check": {
+              "delta": 3599,
+              "acknowledged_including_warmup": 3599,
+              "ok": true
+            },
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 563560448,
+              "store.sqlite-wal": 4140632,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 8396,
+              "inet_csk_accept": 124,
+              "hrtimer_nanosleep": 226,
+              "0": 21,
+              "jbd2_log_wait_commit": 111,
+              "wait_woken": 18
+            },
+            "serve_rss_mib_range": [
+              39.375,
+              39.625
+            ]
+          },
+          {
+            "serve_cpu_ms_per_op": 1.012623490669594,
+            "load_cpu_ms_per_op": 2.74423710208562,
+            "serve_os_write_bytes_per_op": 22009.81778265642,
+            "serve_cpu_s": 3.69,
+            "sample_span_s": 31.24915647506714,
+            "counter_check": {
+              "delta": 3644,
+              "acknowledged_including_warmup": 3644,
+              "ok": true
+            },
+            "files_bytes_after": {
+              "store.sqlite-token": 64,
+              "store.sqlite": 563777536,
+              "store.sqlite-wal": 4140632,
+              "store.sqlite-owner": 0,
+              "store.sqlite-shm": 32768
+            },
+            "thread_wait_channel_samples": {
+              "futex_wait_queue": 8393,
+              "inet_csk_accept": 124,
+              "hrtimer_nanosleep": 230,
+              "jbd2_log_wait_commit": 113,
+              "0": 16,
+              "wait_woken": 20
+            },
+            "serve_rss_mib_range": [
+              39.625,
+              40.125
+            ]
+          }
+        ]
+      }
+    ]
+  }
+]

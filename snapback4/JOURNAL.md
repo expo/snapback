@@ -101157,3 +101157,52 @@ the guide points to inferred indexes. Referenced room fields are nullable, so
 the inbox uses the explicit zero default on its known-present fixture rooms.
 The implementation/seed/check/smoke supervisors have exited and their owned
 servers are stopped. No push, stash, clone, sub-agents, sudo, Docker or services.
+
+## 2026-10-22 — S1-SK measured: Snapback serve on local SQLite
+
+The matched SQLite cell is complete on 450b: six natural-link W1–W5 shapes,
+30 offered rates, 90 trials and 3,218,100 measured arrivals. Read brackets are
+2,828/s point, 5,656/s newest 20, and 2,828/s inbox; disjoint, exact shared and
+nominal 1% shared writes each qualify at 100/s and fail at 141/s. The report
+puts them beside S1-FR's four natural-link control columns, including raw PG
+with per-request verification and the labelled no-token row. This is the
+10-second warm-up / 20-second window, all-three-repetition method, not the
+older short-window matrix. No SQLite database RTT sweep is meaningful.
+
+Every headline repetition has zero errors; all 180 second-half arrival cohorts
+acknowledge exactly their offered rate. Every write witness includes warm-up
+and measurement, with zero unknown outcomes. Failed rates and all repetitions
+remain in the raw archive. Read qualification fails on native worker-admission
+errors before the 50 ms latency threshold. At 100/s, writes have median p50
+about 8.6–8.7 ms and about 1.0–1.1 serve CPU ms per acknowledgement; captures
+include filesystem journal waits. This is consistent with durable serialized
+writes, not a direct flush-cost measurement or causal gap attribution. The
+SQLite file/OS-write bytes cannot stand in for H5's Postgres logical-WAL ratio.
+The §8 report evaluates each rule; Postgres, N=16/flush, W6/W7, device, growth
+and graduation measurements remain necessary for the corresponding rules.
+
+Implementation b2917e7dd4 is the measured request/Quarry source. The original
+supervisor 836781 stopped with exit 1 in W3 when an observed thread disappeared
+between /proc check and read. Observer-only fix c98041046c tolerates that race;
+a regression probe covers disappeared and live threads. Complete original
+W1/W2 cells are retained; supervisor 921842 reran the full W3 cell from a fresh
+process and continued W4/W5, exiting 0. The interrupted observations are archived,
+not spliced into the headline. The native binaries, scheduler, request adapter
+and Quarry hashes are identical between those campaigns. Reporting was corrected
+without affecting measurement; final Clippy also collapsed nested ID-decoding
+conditions without changing behavior. Hashes bind the original measured binary.
+
+The independent audit, full seed/HTTP proof, Python compilation, Rust formatting
+and strict Clippy pass. The raw archive is SHA-256 verified and all aggregate
+JSON/tables regenerate identically from extraction. The RFC has one prepended
+Revised line, the exploratory SQLite ledger column and a short S1 progress note;
+its serve topology description now names current detached query readers and
+the FIFO writer. Relevant-corpus review keeps the Postgres candidate and live
+workloads open; no new LLP, ceiling, engine change or publication claim is made.
+
+The final census finds zero live owned processes across 131 recorded PIDs.
+Both release builds use owned targets inside this worktree. The app store is
+local ext4 on /dev/nvme0n1p3, Samsung MZVL2512HCJQ-00B00 NVMe, with shipped
+SQLite WAL/synchronous=FULL. No PG cluster was touched. No push, stash, clone,
+sub-agents, sudo, Docker or paid services.
+[Report and archive receipt](./experiments/scale-controls/results-20261022-snapback-sqlite/README.md).

@@ -1,6 +1,10 @@
-# S1: scale harness, raw PostgreSQL and Supabase controls
+# S1: scale controls and native Snapback serve
 
 ## S1-SK: native Snapback serve on SQLite
+
+[Completed matched-method report](./results-20261022-snapback-sqlite/README.md):
+W1–W5 natural-link cells, 1M messages, latency/CPU/I/O, steady-state evidence,
+control comparison, decision-rule status and raw archive SHA-256.
 
 The [Quarry application](./snapback-app/README.md) implements the same W1–W5
 fixture with maintained columns and membership/ownership rules. Build both

@@ -1,0 +1,430 @@
+{
+  "processes": [
+    {
+      "pid": 836923,
+      "status": 143
+    },
+    {
+      "pid": 837532,
+      "status": 0
+    },
+    {
+      "pid": 839724,
+      "status": 0
+    },
+    {
+      "pid": 841859,
+      "status": 0
+    },
+    {
+      "pid": 843920,
+      "status": 0
+    },
+    {
+      "pid": 846022,
+      "status": 0
+    },
+    {
+      "pid": 848075,
+      "status": 0
+    },
+    {
+      "pid": 850145,
+      "status": 0
+    },
+    {
+      "pid": 852356,
+      "status": 0
+    },
+    {
+      "pid": 854342,
+      "status": 0
+    },
+    {
+      "pid": 856379,
+      "status": 0
+    },
+    {
+      "pid": 858541,
+      "status": 0
+    },
+    {
+      "pid": 860712,
+      "status": 0
+    },
+    {
+      "pid": 862956,
+      "status": 143
+    },
+    {
+      "pid": 862976,
+      "status": 0
+    },
+    {
+      "pid": 865027,
+      "status": 0
+    },
+    {
+      "pid": 867074,
+      "status": 0
+    },
+    {
+      "pid": 869262,
+      "status": 0
+    },
+    {
+      "pid": 871418,
+      "status": 0
+    },
+    {
+      "pid": 873276,
+      "status": 0
+    },
+    {
+      "pid": 875412,
+      "status": 0
+    },
+    {
+      "pid": 877289,
+      "status": 0
+    },
+    {
+      "pid": 879260,
+      "status": 0
+    },
+    {
+      "pid": 881316,
+      "status": 0
+    },
+    {
+      "pid": 883457,
+      "status": 0
+    },
+    {
+      "pid": 885601,
+      "status": 0
+    },
+    {
+      "pid": 887863,
+      "status": 0
+    },
+    {
+      "pid": 889832,
+      "status": 0
+    },
+    {
+      "pid": 891954,
+      "status": 0
+    },
+    {
+      "pid": 894085,
+      "status": 143
+    },
+    {
+      "pid": 894119,
+      "status": 0
+    },
+    {
+      "pid": 896211,
+      "status": 0
+    },
+    {
+      "pid": 898370,
+      "status": 0
+    },
+    {
+      "pid": 900531,
+      "status": 0
+    },
+    {
+      "pid": 902648,
+      "status": 0
+    },
+    {
+      "pid": 904588,
+      "status": 0
+    },
+    {
+      "pid": 906706,
+      "status": 0
+    },
+    {
+      "pid": 910026,
+      "status": -15
+    },
+    {
+      "pid": 921977,
+      "status": 143
+    },
+    {
+      "pid": 922582,
+      "status": 0
+    },
+    {
+      "pid": 924668,
+      "status": 0
+    },
+    {
+      "pid": 926866,
+      "status": 0
+    },
+    {
+      "pid": 928971,
+      "status": 0
+    },
+    {
+      "pid": 930965,
+      "status": 0
+    },
+    {
+      "pid": 933008,
+      "status": 0
+    },
+    {
+      "pid": 935262,
+      "status": 0
+    },
+    {
+      "pid": 938991,
+      "status": 0
+    },
+    {
+      "pid": 943851,
+      "status": 0
+    },
+    {
+      "pid": 948981,
+      "status": 0
+    },
+    {
+      "pid": 950911,
+      "status": 0
+    },
+    {
+      "pid": 952860,
+      "status": 0
+    },
+    {
+      "pid": 954977,
+      "status": 143
+    },
+    {
+      "pid": 954992,
+      "status": 0
+    },
+    {
+      "pid": 957218,
+      "status": 0
+    },
+    {
+      "pid": 959395,
+      "status": 0
+    },
+    {
+      "pid": 961347,
+      "status": 0
+    },
+    {
+      "pid": 963622,
+      "status": 0
+    },
+    {
+      "pid": 965947,
+      "status": 0
+    },
+    {
+      "pid": 968126,
+      "status": 0
+    },
+    {
+      "pid": 970436,
+      "status": 0
+    },
+    {
+      "pid": 972732,
+      "status": 0
+    },
+    {
+      "pid": 974989,
+      "status": 0
+    },
+    {
+      "pid": 977254,
+      "status": 0
+    },
+    {
+      "pid": 979497,
+      "status": 0
+    },
+    {
+      "pid": 981664,
+      "status": 0
+    },
+    {
+      "pid": 983807,
+      "status": 0
+    },
+    {
+      "pid": 985983,
+      "status": 0
+    },
+    {
+      "pid": 988150,
+      "status": 0
+    },
+    {
+      "pid": 990283,
+      "status": 0
+    },
+    {
+      "pid": 992464,
+      "status": 0
+    },
+    {
+      "pid": 994757,
+      "status": 0
+    },
+    {
+      "pid": 996994,
+      "status": 0
+    },
+    {
+      "pid": 999249,
+      "status": 0
+    },
+    {
+      "pid": 1001599,
+      "status": 143
+    },
+    {
+      "pid": 1001619,
+      "status": 0
+    },
+    {
+      "pid": 1003845,
+      "status": 0
+    },
+    {
+      "pid": 1005982,
+      "status": 0
+    },
+    {
+      "pid": 1008134,
+      "status": 0
+    },
+    {
+      "pid": 1010155,
+      "status": 0
+    },
+    {
+      "pid": 1012260,
+      "status": 0
+    },
+    {
+      "pid": 1014528,
+      "status": 0
+    },
+    {
+      "pid": 1016839,
+      "status": 0
+    },
+    {
+      "pid": 1018975,
+      "status": 0
+    },
+    {
+      "pid": 1021360,
+      "status": 143
+    },
+    {
+      "pid": 1021380,
+      "status": 0
+    },
+    {
+      "pid": 1023669,
+      "status": 0
+    },
+    {
+      "pid": 1025814,
+      "status": 0
+    },
+    {
+      "pid": 1027807,
+      "status": 0
+    },
+    {
+      "pid": 1029999,
+      "status": 0
+    },
+    {
+      "pid": 1032310,
+      "status": 0
+    },
+    {
+      "pid": 1034647,
+      "status": 0
+    },
+    {
+      "pid": 1036762,
+      "status": 0
+    },
+    {
+      "pid": 1039041,
+      "status": 0
+    },
+    {
+      "pid": 1041324,
+      "status": 0
+    },
+    {
+      "pid": 1043548,
+      "status": 0
+    },
+    {
+      "pid": 1045815,
+      "status": 0
+    },
+    {
+      "pid": 1048038,
+      "status": 0
+    },
+    {
+      "pid": 1050402,
+      "status": 0
+    },
+    {
+      "pid": 1052631,
+      "status": 0
+    },
+    {
+      "pid": 1054709,
+      "status": 0
+    },
+    {
+      "pid": 1056727,
+      "status": 0
+    },
+    {
+      "pid": 1058997,
+      "status": 0
+    },
+    {
+      "pid": 1061159,
+      "status": 0
+    },
+    {
+      "pid": 1063433,
+      "status": 0
+    },
+    {
+      "pid": 1065507,
+      "status": 0
+    }
+  ],
+  "still_running": [],
+  "campaign_exit_status": {
+    "s1sk-campaign-20261022": 1,
+    "s1sk-continuation-20261022": 0
+  },
+  "interruption": "original campaign resource-sampler thread-exit race; complete W1/W2 retained; complete fresh W3 rerun"
+}

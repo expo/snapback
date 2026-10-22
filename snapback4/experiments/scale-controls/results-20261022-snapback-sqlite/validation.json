@@ -1,0 +1,26 @@
+{
+  "release_builds": true,
+  "quarry_check": true,
+  "full_seed_equality": true,
+  "all_256_principal_http_checks": true,
+  "six_short_smoke_cells": true,
+  "independent_90_trial_audit": true,
+  "all_headline_trials_zero_errors": true,
+  "all_180_second_half_cohorts_equal_offered": true,
+  "unknown_write_outcomes": 0,
+  "python_compile": true,
+  "rustfmt": true,
+  "clippy_all_targets_deny_warnings": true,
+  "reference_check": true,
+  "raw_archive_sha256_and_regeneration": true,
+  "live_owned_benchmark_pids": [],
+  "affected_corpus_review": {
+    "documents": [
+      "llp/3000.009.001.002-scale-limits-against-postgres-controls.rfc.md",
+      "llp/3000-snapback4.explainer.md",
+      "snapback4/NOT-DOING.md",
+      "snapback4/JOURNAL.md"
+    ],
+    "outcome": "SQLite W1-W5 exploratory evidence recorded; Postgres, batch/flush and remaining workloads stay open; no engine, protocol, budget, publication or readiness claim"
+  }
+}

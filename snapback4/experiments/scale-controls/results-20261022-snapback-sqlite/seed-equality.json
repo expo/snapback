@@ -1,0 +1,12 @@
+{
+  "messages": 1000000,
+  "rooms": 1025,
+  "users": 256,
+  "memberships": 8448,
+  "counters": 257,
+  "every_message_image_matches": true,
+  "room_totals_exact": true,
+  "sender_totals_exact": true,
+  "every_membership_and_last_read_matches": true,
+  "every_counter_image_matches": true
+}
