@@ -1,0 +1,279 @@
+[
+  {
+    "name": "rt5-c-initial",
+    "argv": [
+      "cargo",
+      "test",
+      "--locked",
+      "-p",
+      "snapback4-core",
+      "--features",
+      "postgres",
+      "--lib",
+      "engine::postgres::literal_tests",
+      "-j",
+      "6",
+      "--",
+      "--include-ignored",
+      "--nocapture"
+    ],
+    "exit_status": 101,
+    "pid": 1066244,
+    "stopped": true,
+    "seconds": 56.87,
+    "free_bytes_at_start": 47721394176
+  },
+  {
+    "name": "rt5-c",
+    "argv": [
+      "cargo",
+      "test",
+      "--locked",
+      "-p",
+      "snapback4-core",
+      "--features",
+      "postgres",
+      "--lib",
+      "engine::postgres::literal_tests",
+      "-j",
+      "6",
+      "--",
+      "--include-ignored",
+      "--nocapture"
+    ],
+    "exit_status": 0,
+    "pid": 1069194,
+    "stopped": true,
+    "seconds": 46.0,
+    "free_bytes_at_start": 48218087424
+  },
+  {
+    "name": "rt5-en-us",
+    "argv": [
+      "cargo",
+      "test",
+      "--locked",
+      "-p",
+      "snapback4-core",
+      "--features",
+      "postgres",
+      "--lib",
+      "engine::postgres::literal_tests",
+      "-j",
+      "6",
+      "--",
+      "--include-ignored",
+      "--nocapture"
+    ],
+    "exit_status": 0,
+    "pid": 1070504,
+    "stopped": true,
+    "seconds": 1.25,
+    "free_bytes_at_start": 47686635520
+  },
+  {
+    "name": "build",
+    "argv": [
+      "cargo",
+      "build",
+      "--locked",
+      "-p",
+      "snapback4",
+      "-j",
+      "6"
+    ],
+    "exit_status": 0,
+    "pid": 1070603,
+    "stopped": true,
+    "seconds": 17.45,
+    "free_bytes_at_start": 47683514368
+  },
+  {
+    "name": "no-default",
+    "argv": [
+      "cargo",
+      "check",
+      "--locked",
+      "-p",
+      "snapback4-core",
+      "--no-default-features",
+      "-j",
+      "6"
+    ],
+    "exit_status": 0,
+    "pid": 1072165,
+    "stopped": true,
+    "seconds": 5.85,
+    "free_bytes_at_start": 47144562688
+  },
+  {
+    "name": "core",
+    "argv": [
+      "cargo",
+      "test",
+      "--locked",
+      "-p",
+      "snapback4-core",
+      "--no-fail-fast",
+      "-j",
+      "6"
+    ],
+    "exit_status": 0,
+    "pid": 1072348,
+    "stopped": true,
+    "seconds": 1359.34,
+    "free_bytes_at_start": 47085039616
+  },
+  {
+    "name": "postgres-script",
+    "argv": [
+      "bash",
+      "scripts/test-postgres.sh"
+    ],
+    "exit_status": 1,
+    "pid": 1160188,
+    "stopped": true,
+    "seconds": 1559.0,
+    "free_bytes_at_start": 65586614272
+  },
+  {
+    "name": "release-build",
+    "argv": [
+      "cargo",
+      "build",
+      "--locked",
+      "--release",
+      "-p",
+      "snapback4",
+      "-j",
+      "6"
+    ],
+    "exit_status": 0,
+    "pid": 1222949,
+    "stopped": true,
+    "seconds": 217.17,
+    "free_bytes_at_start": 106205118464
+  },
+  {
+    "name": "retry-cluster-start-initial",
+    "argv": [
+      "pg_ctl",
+      "-D",
+      "/tmp/rt5-fix1-pg.jsj5ixgd/data",
+      "-l",
+      "/tmp/rt5-fix1-pg.jsj5ixgd/retry-server.log",
+      "-w",
+      "start"
+    ],
+    "exit_status": 1,
+    "pid": 1234558,
+    "stopped": true,
+    "seconds": 0.11
+  },
+  {
+    "name": "retry-cluster-start",
+    "argv": [
+      "pg_ctl",
+      "-D",
+      "/tmp/rt5-fix1-pg.jsj5ixgd/data",
+      "-l",
+      "/tmp/rt5-fix1-pg.jsj5ixgd/retry-server.log",
+      "-o",
+      "-k /tmp/rt5-fix1-pg.jsj5ixgd -c listen_addresses= -c max_connections=400 -p 55492",
+      "-w",
+      "start"
+    ],
+    "exit_status": 0,
+    "pid": 1235469,
+    "stopped": true,
+    "seconds": 0.21
+  },
+  {
+    "name": "concurrency-alone",
+    "argv": [
+      "/home/ccheever/projects/sb4-p0-s8/snapback4/target/debug/deps/conformance-138dacc5dd1bc223",
+      "concurrent_read_modify_write_and_duplicate_ops_are_atomic_in_both_modes",
+      "--exact",
+      "--include-ignored",
+      "--nocapture"
+    ],
+    "exit_status": 101,
+    "pid": 1235490,
+    "stopped": true,
+    "seconds": 3.62
+  },
+  {
+    "name": "rt5-c-final",
+    "argv": [
+      "cargo",
+      "test",
+      "--locked",
+      "-p",
+      "snapback4-core",
+      "--features",
+      "postgres",
+      "--lib",
+      "engine::postgres::literal_tests",
+      "-j",
+      "6",
+      "--",
+      "--include-ignored",
+      "--nocapture"
+    ],
+    "exit_status": 0,
+    "pid": 1235557,
+    "stopped": true,
+    "seconds": 35.57
+  },
+  {
+    "name": "rt5-en-us-final",
+    "argv": [
+      "cargo",
+      "test",
+      "--locked",
+      "-p",
+      "snapback4-core",
+      "--features",
+      "postgres",
+      "--lib",
+      "engine::postgres::literal_tests",
+      "-j",
+      "6",
+      "--",
+      "--include-ignored",
+      "--nocapture"
+    ],
+    "exit_status": 0,
+    "pid": 1236724,
+    "stopped": true,
+    "seconds": 1.87
+  },
+  {
+    "name": "retry-cluster-stop",
+    "argv": [
+      "pg_ctl",
+      "-D",
+      "/tmp/rt5-fix1-pg.jsj5ixgd/data",
+      "-m",
+      "fast",
+      "-t",
+      "60",
+      "-w",
+      "stop"
+    ],
+    "exit_status": 0,
+    "pid": 1236815,
+    "stopped": true,
+    "seconds": 1.2
+  },
+  {
+    "name": "ref-check-final",
+    "argv": [
+      "./ref-check"
+    ],
+    "exit_status": 0,
+    "pid": 1239596,
+    "stopped": true,
+    "seconds": 5.49
+  }
+]

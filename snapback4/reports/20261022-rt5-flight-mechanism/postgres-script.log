@@ -1,0 +1,1640 @@
+Evaluation cluster locale: en_US.utf8
+Evaluation cluster PID 501389; directory /tmp/sb4-pg-eval.bxS5ji
+Refreshing core/lang/device debug artifacts at a shared-target manifest handoff
+    Updating crates.io index
+warning: failed to write cache, path: /home/ccheever/.cargo/registry/index/index.crates.io-1949cf8c6b5b557f/.cache/we/b-/web-sys, error: Permission denied (os error 13)
+     Removed 16964 files, 98.8GiB total
+    Updating crates.io index
+warning: failed to write cache, path: /home/ccheever/.cargo/registry/index/index.crates.io-1949cf8c6b5b557f/.cache/we/b-/web-sys, error: Permission denied (os error 13)
+   Compiling tinyvec v1.13.3
+   Compiling smallvec v1.16.1
+   Compiling cc v1.4.6
+   Compiling hashbrown v0.17.1
+   Compiling thiserror v2.0.20
+   Compiling serde v1.0.229
+   Compiling snapback4-lang v0.4.38 (/home/ccheever/projects/sb4-p0-s8/snapback4/crates/snapback4-lang)
+warning: function `interval` is never used
+  --> /home/ccheever/projects/sb4-p0-s8/snapback4/crates/snapback4-lang/src/release_changes.rs:57:8
+   |
+57 | pub fn interval(previous: &str, installed: &str) -> String {
+   |        ^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+   Compiling parking_lot_core v0.9.12
+   Compiling unicode-normalization v0.1.25
+   Compiling parking_lot v0.12.5
+warning: `snapback4-lang` (build script) generated 1 warning
+   Compiling hashlink v0.12.2
+   Compiling stringprep v0.1.5
+   Compiling postgres-protocol v0.6.12
+   Compiling libsqlite3-sys v0.38.2
+   Compiling postgres-types v0.2.14
+   Compiling tokio-postgres v0.7.18
+   Compiling postgres v0.19.14
+   Compiling rusqlite v0.40.2
+   Compiling snapback4-core v0.4.38 (/home/ccheever/projects/sb4-p0-s8/snapback4/crates/snapback4-core)
+warning: unused variable: `fields`
+   --> /home/ccheever/projects/sb4-p0-s8/snapback4/crates/snapback4-core/src/engine/following_history/projection.rs:296:13
+    |
+296 |         let fields: Vec<String> = fields.into_iter().collect();
+    |             ^^^^^^ help: if this is intentional, prefix it with an underscore: `_fields`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `digest` is never read
+  --> /home/ccheever/projects/sb4-p0-s8/snapback4/crates/snapback4-core/src/engine/native.rs:45:5
+   |
+42 | pub struct Module {
+   |            ------ field in this struct
+...
+45 |     digest: String,
+   |     ^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: struct `Logs` is never constructed
+  --> /home/ccheever/projects/sb4-p0-s8/snapback4/crates/snapback4-core/src/engine/native.rs:54:19
+   |
+54 | pub(crate) struct Logs {
+   |                   ^^^^
+
+warning: methods `extend` and `take` are never used
+  --> /home/ccheever/projects/sb4-p0-s8/snapback4/crates/snapback4-core/src/engine/native.rs:60:19
+   |
+59 | impl Logs {
+   | --------- methods in this implementation
+60 |     pub(crate) fn extend(&mut self, job: &str, lines: Vec<String>) {
+   |                   ^^^^^^
+...
+76 |     pub(crate) fn take(&mut self) -> Vec<String> {
+   |                   ^^^^
+
+warning: struct `ChunkOutcome` is never constructed
+  --> /home/ccheever/projects/sb4-p0-s8/snapback4/crates/snapback4-core/src/engine/native.rs:94:19
+   |
+94 | pub(crate) struct ChunkOutcome {
+   |                   ^^^^^^^^^^^^
+
+warning: function `native_output_ceiling` is never used
+   --> /home/ccheever/projects/sb4-p0-s8/snapback4/crates/snapback4-core/src/engine/native.rs:168:4
+    |
+168 | fn native_output_ceiling() -> usize {
+    |    ^^^^^^^^^^^^^^^^^^^^^
+
+warning: method `digest` is never used
+   --> /home/ccheever/projects/sb4-p0-s8/snapback4/crates/snapback4-core/src/engine/native.rs:272:19
+    |
+242 | impl Module {
+    | ----------- method in this implementation
+...
+272 |     pub(crate) fn digest(&self) -> &str {
+    |                   ^^^^^^
+
+warning: function `run_chunk` is never used
+   --> /home/ccheever/projects/sb4-p0-s8/snapback4/crates/snapback4-core/src/engine/native.rs:390:15
+    |
+390 | pub(crate) fn run_chunk(module: &Module, runner: Runner<'_>, job: &str, args: &BTreeMap<String, Value>, state: Option<Json>, now: i...
+    |               ^^^^^^^^^
+
+warning: function `missing` is never used
+   --> /home/ccheever/projects/sb4-p0-s8/snapback4/crates/snapback4-core/src/engine/native.rs:504:15
+    |
+504 | pub(crate) fn missing(runner: Runner<'_>, job: &str) -> ChunkOutcome {
+    |               ^^^^^^^
+
+warning: variant `Lifetime` is never constructed
+   --> /home/ccheever/projects/sb4-p0-s8/snapback4/crates/snapback4-core/src/store/port/handles.rs:156:5
+    |
+151 | pub(crate) enum AnyPreparation<'tx, 'store> {
+    |                 -------------- variant in this enum
+...
+156 |     Lifetime(std::convert::Infallible, std::marker::PhantomData<&'store ()>),
+    |     ^^^^^^^^
+
+warning: `snapback4-core` (lib) generated 10 warnings (run `cargo fix --lib -p snapback4-core` to apply 1 suggestion)
+   Compiling snapback4-device v0.4.38 (/home/ccheever/projects/sb4-p0-s8/snapback4/crates/snapback4-device)
+warning: variable does not need to be mutable
+   --> /home/ccheever/projects/sb4-p0-s8/snapback4/crates/snapback4-device/src/device.rs:464:51
+    |
+464 |     #[allow(unreachable_code)] fn open_store_mode(mut store: S, backend: Option<Backend>, initial: bool) -> Result<Self, RuntimeErr...
+    |                                                   ----^^^^^
+    |                                                   |
+    |                                                   help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-device` (lib) generated 1 warning (run `cargo fix --lib -p snapback4-device` to apply 1 suggestion)
+   Compiling snapback4-postgres-evaluation v0.1.0 (/home/ccheever/projects/sb4-p0-s8/snapback4/experiments/postgres)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1m 10s
+     Running unittests src/lib.rs (target/debug/deps/snapback4_postgres_evaluation-e83cddb0fa544062)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (target/debug/deps/snapback4_postgres_evaluation-ad8b496bd3444131)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/conformance.rs (target/debug/deps/conformance-138dacc5dd1bc223)
+
+running 18 tests
+test fixture_compiles ... ok
+test existing_or_unsafe_namespace_is_never_overwritten_and_unsupported_backends_refuse ... ok
+test concurrent_mismatching_receipts_admit_one_binding_and_replay_only_its_arguments ... ok
+test racing_refused_operations_replay_one_receipt_without_advancing_head ... ok
+test real_quarry_queries_mutations_cursors_rules_defaults_maintains_and_receipts_match_sqlite ... ok
+Serialized: 65 increments, no lost updates, 0 transaction retries
+test readers_observe_matching_rows_and_watermarks_while_a_writer_commits ... ok
+PREFETCH largest call excess: 4; derived, calls=(26, 22), marked=8, allowance=12
+test prefetch::word_entries_and_truncated_query_terms_match_sqlite ... ok
+test prefetch::expiring_maintains_are_unmarked_and_keep_next_expiry_and_live_values ... ok
+PREFETCH largest call excess: 6; conflict, calls=(61, 55), marked=16, allowance=20
+test receipt_bindings_match_sqlite_before_lookup_and_validation ... ok
+test version_one_and_two_evaluation_stores_are_refused_instead_of_being_adopted ... ok
+test rollback_covers_rows_indexes_maintains_log_head_outbox_and_receipt ... ok
+PREFETCH inbox warmed calls on/off: (8, 68)
+test prefetch::prefetch_complete_fixture_queries_mutations_and_hidden_rows ... ok
+test snapshot_stream_membership_revoke_rejoin_and_whole_commit_paging_match_sqlite ... ok
+test wide_index_key_has_the_same_portable_refusal_on_both_stores ... ok
+Serializable: 65 increments, no lost updates, 93 transaction retries
+test concurrent_read_modify_write_and_duplicate_ops_are_atomic_in_both_modes ... ok
+test prefetch::rows_beyond_prefetch_byte_budget_have_identical_results ... ok
+PREFETCH differential: 7418 pre-charge positions; 2856 query positions incurred speculative physical-call overhead; every complete outcome/refusal equal
+test prefetch::prefetch_every_charge_position_and_early_cut_matches_complete_outcomes ... ok
+test prefetch::aliases_derived_pages_mutation_invalidation_and_conflict_reread has been running for over 60 seconds
+PREFETCH write-loop differential: 19265 pre-charge positions; complete MutationOutcome equality
+test prefetch::aliases_derived_pages_mutation_invalidation_and_conflict_reread ... ok
+
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 470.76s
+
+     Running tests/device.rs (target/debug/deps/device-173b4ac4e77fb8d0)
+
+running 1 test
+test postgres_snapshot_offline_queue_reopen_retry_stream_and_revocation_on_existing_device ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.56s
+
+     Running tests/key_limit.rs (target/debug/deps/key_limit-dfae1d691dc3c525)
+
+running 2 tests
+KEY_LIMIT: Postgres 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1), block_size=8192, i PK (t,ix,k), t=items ix=byRoomTitle: largest encoded key 2672 bytes; 2673 refused (54000)
+test portable_bound_accepts_exactly_the_limit_and_refuses_the_next_byte_on_both_stores ... ok
+KEY_LIMIT: 2048 encoded bytes plus 512 combined label bytes accepted
+test measure_incompressible_encoded_index_key_limit ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.84s
+
+     Running tests/read_through.rs (target/debug/deps/read_through-db3895e291b36ae0)
+
+running 7 tests
+test recursive_expiry ... ok
+test issue_tracker ... ok
+test clique ... ok
+test lifetime_restore_reuse_and_import_match_sqlite ... ok
+test activation_is_atomic_and_old_connections_cannot_write_the_new_generation ... ok
+test four_level_chains ... ok
+test refusal_codes_and_meters_match_sqlite_above_and_below_reservation ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 14.83s
+
+     Running tests/read_through_review.rs (target/debug/deps/read_through_review-73c4c7f405a89cb1)
+
+running 30 tests
+test aggregate_multi_batch ... ok
+test aggregate_authorized_shortcut_cut ... ok
+test aggregate_actual_row ... ok
+test aggregate_page_cut_expiry ... ok
+test aggregate_live_recount_cut_expiry ... ok
+test aggregate_existence ... ok
+test ordinary_expiring_page_recounts ... ok
+test aggregate_inherited_only_dependencies ... ok
+test admitted_aggregate_emission_expiry ... ok
+test authorized_expiring_sum_overflow ... ok
+test expiry_default ... ok
+test predicate_kept_row_expiry ... ok
+test partial_page_keeps_emitted_expiry ... ok
+test predicate_id_expiry ... ok
+test predicate_index_expiry ... ok
+test delete_refusal ... ok
+test authorized_expired_backlog_stays_metered ... ok
+test aggregate_denial_dependencies ... ok
+test aggregate_sequential_reads ... ok
+test unreturned_candidates_discard_expiry ... ok
+test predicate_cut_discards_expiry ... ok
+test predicate_private_authorization_expiry ... ok
+test streaming_count_expiry ... ok
+test predicate_point_expiry ... ok
+test aggregate_tables_constant ... ok
+test reuse_refusal ... ok
+test probe_meter_equivalence ... ok
+test aggregate_denied_gate_expiry ... ok
+test aggregate_denial_work ... ok
+test uniform_prefix_emission_expiry ... ok
+
+test result: ok. 30 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 36.51s
+
+   Doc-tests snapback4_postgres_evaluation
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+Refreshing core/lang/device debug artifacts at a shared-target manifest handoff
+    Updating crates.io index
+warning: failed to write cache, path: /home/ccheever/.cargo/registry/index/index.crates.io-1949cf8c6b5b557f/.cache/we/b-/web-sys, error: Permission denied (os error 13)
+     Removed 1403 files, 4.9GiB total
+    Updating crates.io index
+warning: failed to write cache, path: /home/ccheever/.cargo/registry/index/index.crates.io-1949cf8c6b5b557f/.cache/we/b-/web-sys, error: Permission denied (os error 13)
+warning: failed to auto-clean cache data
+
+failed to clean entries from the global cache
+
+Caused by:
+  failed to remove file `/home/ccheever/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/cranelift-codegen-meta-0.132.1/Cargo.toml`
+
+Caused by:
+  Permission denied (os error 13)
+   Compiling snapback4-lang v0.4.38 (/home/ccheever/projects/sb4-p0-s8/snapback4/crates/snapback4-lang)
+   Compiling snapback4-core v0.4.38 (/home/ccheever/projects/sb4-p0-s8/snapback4/crates/snapback4-core)
+warning: function `interval` is never used
+  --> crates/snapback4-lang/src/release_changes.rs:57:8
+   |
+57 | pub fn interval(previous: &str, installed: &str) -> String {
+   |        ^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-lang` (build script) generated 1 warning
+error[E0423]: expected value, found struct `Client`
+  --> crates/snapback4-core/src/engine/postgres/literal_tests.rs:18:9
+   |
+18 |         Client,
+   |         ^^^^^^
+   |
+  ::: /home/ccheever/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/postgres-0.19.14/src/client.rs:13:1
+   |
+13 | pub struct Client {
+   | ----------------- `Client` defined here
+
+error[E0423]: expected value, found enum `SimpleQueryMessage`
+  --> crates/snapback4-core/src/engine/postgres/literal_tests.rs:20:9
+   |
+20 |         SimpleQueryMessage,
+   |         ^^^^^^^^^^^^^^^^^^
+   |
+help: the following enum variants are available
+   |
+20 -         SimpleQueryMessage,
+20 +         (engine::postgres::literal_tests::SimpleQueryMessage::CommandComplete(/* fields */)),
+   |
+20 -         SimpleQueryMessage,
+20 +         (engine::postgres::literal_tests::SimpleQueryMessage::Row(/* fields */)),
+   |
+20 -         SimpleQueryMessage,
+20 +         (engine::postgres::literal_tests::SimpleQueryMessage::RowDescription(/* fields */)),
+   |
+
+error[E0061]: this function takes 2 arguments but 4 arguments were supplied
+  --> crates/snapback4-core/src/engine/postgres/literal_tests.rs:16:5
+   |
+16 |     Client::connect(
+   |     ^^^^^^^^^^^^^^^
+...
+19 |         NoTls,
+   |         ----- unexpected argument #3 of type `postgres::NoTls`
+20 |         SimpleQueryMessage,
+   |         ------------------ unexpected argument #4
+   |
+note: associated function defined here
+  --> /home/ccheever/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/postgres-0.19.14/src/client.rs:34:12
+   |
+34 |     pub fn connect<T>(params: &str, tls_mode: T) -> Result<Client, Error>
+   |            ^^^^^^^
+help: remove the extra arguments
+   |
+18 -         Client,
+19 -         NoTls,
+20 -         SimpleQueryMessage,
+18 +         Client,
+   |
+
+warning: unused import: `LedgerTransaction`
+ --> crates/snapback4-core/src/store_port/tests.rs:2:50
+  |
+2 | use crate::{RuntimeError, ledger::{LedgerReader, LedgerTransaction}, revocation::{self, ChangeEvidence}};
+  |                                                  ^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+Some errors have detailed explanations: E0061, E0423.
+For more information about an error, try `rustc --explain E0061`.
+warning: `snapback4-core` (lib test) generated 1 warning
+error: could not compile `snapback4-core` (lib test) due to 3 previous errors; 1 warning emitted
+    Updating crates.io index
+warning: failed to write cache, path: /home/ccheever/.cargo/registry/index/index.crates.io-1949cf8c6b5b557f/.cache/we/b-/web-sys, error: Permission denied (os error 13)
+warning: failed to auto-clean cache data
+
+failed to clean entries from the global cache
+
+Caused by:
+  failed to remove file `/home/ccheever/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/cranelift-codegen-meta-0.132.1/Cargo.toml`
+
+Caused by:
+  Permission denied (os error 13)
+warning: function `interval` is never used
+  --> crates/snapback4-lang/src/release_changes.rs:57:8
+   |
+57 | pub fn interval(previous: &str, installed: &str) -> String {
+   |        ^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-lang` (build script) generated 1 warning
+   Compiling snapback4-core v0.4.38 (/home/ccheever/projects/sb4-p0-s8/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.38 (/home/ccheever/projects/sb4-p0-s8/snapback4/crates/snapback4-lang)
+error[E0423]: expected value, found struct `Client`
+  --> crates/snapback4-core/src/engine/postgres/literal_tests.rs:18:9
+   |
+18 |         Client,
+   |         ^^^^^^
+   |
+  ::: /home/ccheever/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/postgres-0.19.14/src/client.rs:13:1
+   |
+13 | pub struct Client {
+   | ----------------- `Client` defined here
+
+error[E0423]: expected value, found enum `SimpleQueryMessage`
+  --> crates/snapback4-core/src/engine/postgres/literal_tests.rs:20:9
+   |
+20 |         SimpleQueryMessage,
+   |         ^^^^^^^^^^^^^^^^^^
+   |
+help: the following enum variants are available
+   |
+20 -         SimpleQueryMessage,
+20 +         (engine::postgres::literal_tests::SimpleQueryMessage::CommandComplete(/* fields */)),
+   |
+20 -         SimpleQueryMessage,
+20 +         (engine::postgres::literal_tests::SimpleQueryMessage::Row(/* fields */)),
+   |
+20 -         SimpleQueryMessage,
+20 +         (engine::postgres::literal_tests::SimpleQueryMessage::RowDescription(/* fields */)),
+   |
+
+error[E0061]: this function takes 2 arguments but 4 arguments were supplied
+  --> crates/snapback4-core/src/engine/postgres/literal_tests.rs:16:5
+   |
+16 |     Client::connect(
+   |     ^^^^^^^^^^^^^^^
+...
+19 |         NoTls,
+   |         ----- unexpected argument #3 of type `postgres::NoTls`
+20 |         SimpleQueryMessage,
+   |         ------------------ unexpected argument #4
+   |
+note: associated function defined here
+  --> /home/ccheever/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/postgres-0.19.14/src/client.rs:34:12
+   |
+34 |     pub fn connect<T>(params: &str, tls_mode: T) -> Result<Client, Error>
+   |            ^^^^^^^
+help: remove the extra arguments
+   |
+18 -         Client,
+19 -         NoTls,
+20 -         SimpleQueryMessage,
+18 +         Client,
+   |
+
+warning: unused import: `LedgerTransaction`
+ --> crates/snapback4-core/src/store_port/tests.rs:2:50
+  |
+2 | use crate::{RuntimeError, ledger::{LedgerReader, LedgerTransaction}, revocation::{self, ChangeEvidence}};
+  |                                                  ^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+Some errors have detailed explanations: E0061, E0423.
+For more information about an error, try `rustc --explain E0061`.
+warning: `snapback4-core` (lib test) generated 1 warning
+error: could not compile `snapback4-core` (lib test) due to 3 previous errors; 1 warning emitted
+    Updating crates.io index
+warning: failed to write cache, path: /home/ccheever/.cargo/registry/index/index.crates.io-1949cf8c6b5b557f/.cache/we/b-/web-sys, error: Permission denied (os error 13)
+warning: failed to auto-clean cache data
+
+failed to clean entries from the global cache
+
+Caused by:
+  failed to remove file `/home/ccheever/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/cranelift-codegen-meta-0.132.1/Cargo.toml`
+
+Caused by:
+  Permission denied (os error 13)
+warning: function `interval` is never used
+  --> crates/snapback4-lang/src/release_changes.rs:57:8
+   |
+57 | pub fn interval(previous: &str, installed: &str) -> String {
+   |        ^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-lang` (build script) generated 1 warning
+   Compiling snapback4-core v0.4.38 (/home/ccheever/projects/sb4-p0-s8/snapback4/crates/snapback4-core)
+error[E0423]: expected value, found struct `Client`
+  --> crates/snapback4-core/src/engine/postgres/literal_tests.rs:18:9
+   |
+18 |         Client,
+   |         ^^^^^^
+   |
+  ::: /home/ccheever/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/postgres-0.19.14/src/client.rs:13:1
+   |
+13 | pub struct Client {
+   | ----------------- `Client` defined here
+
+error[E0423]: expected value, found enum `SimpleQueryMessage`
+  --> crates/snapback4-core/src/engine/postgres/literal_tests.rs:20:9
+   |
+20 |         SimpleQueryMessage,
+   |         ^^^^^^^^^^^^^^^^^^
+   |
+help: the following enum variants are available
+   |
+20 -         SimpleQueryMessage,
+20 +         (engine::postgres::literal_tests::SimpleQueryMessage::CommandComplete(/* fields */)),
+   |
+20 -         SimpleQueryMessage,
+20 +         (engine::postgres::literal_tests::SimpleQueryMessage::Row(/* fields */)),
+   |
+20 -         SimpleQueryMessage,
+20 +         (engine::postgres::literal_tests::SimpleQueryMessage::RowDescription(/* fields */)),
+   |
+
+error[E0061]: this function takes 2 arguments but 4 arguments were supplied
+  --> crates/snapback4-core/src/engine/postgres/literal_tests.rs:16:5
+   |
+16 |     Client::connect(
+   |     ^^^^^^^^^^^^^^^
+...
+19 |         NoTls,
+   |         ----- unexpected argument #3 of type `postgres::NoTls`
+20 |         SimpleQueryMessage,
+   |         ------------------ unexpected argument #4
+   |
+note: associated function defined here
+  --> /home/ccheever/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/postgres-0.19.14/src/client.rs:34:12
+   |
+34 |     pub fn connect<T>(params: &str, tls_mode: T) -> Result<Client, Error>
+   |            ^^^^^^^
+help: remove the extra arguments
+   |
+18 -         Client,
+19 -         NoTls,
+20 -         SimpleQueryMessage,
+18 +         Client,
+   |
+
+warning: unused import: `LedgerTransaction`
+ --> crates/snapback4-core/src/store_port/tests.rs:2:50
+  |
+2 | use crate::{RuntimeError, ledger::{LedgerReader, LedgerTransaction}, revocation::{self, ChangeEvidence}};
+  |                                                  ^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+Some errors have detailed explanations: E0061, E0423.
+For more information about an error, try `rustc --explain E0061`.
+warning: `snapback4-core` (lib test) generated 1 warning
+error: could not compile `snapback4-core` (lib test) due to 3 previous errors; 1 warning emitted
+    Updating crates.io index
+warning: failed to write cache, path: /home/ccheever/.cargo/registry/index/index.crates.io-1949cf8c6b5b557f/.cache/we/b-/web-sys, error: Permission denied (os error 13)
+warning: failed to auto-clean cache data
+
+failed to clean entries from the global cache
+
+Caused by:
+  failed to remove file `/home/ccheever/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/cranelift-codegen-meta-0.132.1/Cargo.toml`
+
+Caused by:
+  Permission denied (os error 13)
+warning: function `interval` is never used
+  --> crates/snapback4-lang/src/release_changes.rs:57:8
+   |
+57 | pub fn interval(previous: &str, installed: &str) -> String {
+   |        ^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-lang` (build script) generated 1 warning
+   Compiling snapback4-core v0.4.38 (/home/ccheever/projects/sb4-p0-s8/snapback4/crates/snapback4-core)
+    Finished `test` profile [optimized + debuginfo] target(s) in 1.24s
+     Running tests/store_handle_traits.rs (target/debug/deps/store_handle_traits-36e7c28f19d4b99b)
+
+running 1 test
+test non_test_library_owning_handles_have_no_implicit_backend_access ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+    Updating crates.io index
+warning: failed to write cache, path: /home/ccheever/.cargo/registry/index/index.crates.io-1949cf8c6b5b557f/.cache/we/b-/web-sys, error: Permission denied (os error 13)
+warning: failed to auto-clean cache data
+
+failed to clean entries from the global cache
+
+Caused by:
+  failed to remove file `/home/ccheever/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/cranelift-codegen-meta-0.132.1/Cargo.toml`
+
+Caused by:
+  Permission denied (os error 13)
+warning: function `interval` is never used
+  --> crates/snapback4-lang/src/release_changes.rs:57:8
+   |
+57 | pub fn interval(previous: &str, installed: &str) -> String {
+   |        ^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-lang` (build script) generated 1 warning
+    Finished `test` profile [optimized + debuginfo] target(s) in 0.46s
+   Doc-tests snapback4_core
+
+running 37 tests
+test crates/snapback4-core/src/store/port/handles.rs - store_port::handles::AnyStore (line 37) - compile fail ... ok
+test crates/snapback4-core/src/store/port/handles.rs - store_port::handles::AnyStore (line 49) - compile fail ... ok
+test crates/snapback4-core/src/store/port/handles.rs - store_port::handles::AnyStore (line 6) - compile fail ... ok
+test crates/snapback4-core/src/store/port/handles.rs - store_port::handles::AnyStore (line 13) - compile fail ... ok
+test crates/snapback4-core/src/store/port/handles.rs - store_port::handles::AnyStore (line 25) - compile fail ... ok
+test crates/snapback4-core/src/store/port/handles.rs - store_port::handles::AnyTx (line 100) - compile fail ... ok
+test crates/snapback4-core/src/store/port/handles.rs - store_port::handles::AnyStore (line 43) - compile fail ... ok
+test crates/snapback4-core/src/store/port/handles.rs - store_port::handles::AnyTx (line 106) - compile fail ... ok
+test crates/snapback4-core/src/store/port/handles.rs - store_port::handles::AnyTx (line 118) - compile fail ... ok
+test crates/snapback4-core/src/store/port/handles.rs - store_port::handles::AnyTx (line 112) - compile fail ... ok
+test crates/snapback4-core/src/store/port/handles.rs - store_port::handles::AnyStore (line 31) - compile fail ... ok
+test crates/snapback4-core/src/store/port/handles.rs - store_port::handles::AnyStore (line 19) - compile fail ... ok
+test crates/snapback4-core/src/store/port/handles.rs - store_port::handles::AnyTx (line 84) - compile fail ... ok
+test crates/snapback4-core/src/store/port/handles.rs - store_port::handles::AnyTx (line 124) - compile fail ... ok
+test crates/snapback4-core/src/store/port/handles.rs - store_port::handles::AnyTx (line 72) - compile fail ... ok
+test crates/snapback4-core/src/store/port/handles.rs - store_port::handles::AnyTx (line 91) - compile fail ... ok
+test crates/snapback4-core/src/store/port/handles.rs - store_port::handles::AnyTx (line 131) - compile fail ... ok
+test crates/snapback4-core/src/store/port/handles.rs - store_port::handles::AnyTx (line 65) - compile fail ... ok
+test crates/snapback4-core/src/store/port/handles.rs - store_port::handles::AnyTx (line 78) - compile fail ... ok
+test crates/snapback4-core/src/store/port/handles.rs - store_port::handles::AnyTx (line 97) - compile fail ... ok
+test crates/snapback4-core/src/value/disclosed.rs - value::disclosed::Disclosed (line 109) - compile fail ... ok
+test crates/snapback4-core/src/value/disclosed.rs - value::disclosed::Disclosed (line 103) - compile fail ... ok
+test crates/snapback4-core/src/value/disclosed.rs - value::disclosed::Disclosed (line 11) - compile fail ... ok
+test crates/snapback4-core/src/value/disclosed.rs - value::disclosed::Disclosed (line 39) - compile fail ... ok
+test crates/snapback4-core/src/value/disclosed.rs - value::disclosed::Disclosed (line 19) - compile fail ... ok
+test crates/snapback4-core/src/value/disclosed.rs - value::disclosed::Disclosed (line 116) - compile fail ... ok
+test crates/snapback4-core/src/value/disclosed.rs - value::disclosed::Disclosed (line 23) - compile fail ... ok
+test crates/snapback4-core/src/value/disclosed.rs - value::disclosed::Disclosed (line 15) - compile fail ... ok
+test crates/snapback4-core/src/value/disclosed.rs - value::disclosed::Disclosed (line 27) - compile fail ... ok
+test crates/snapback4-core/src/value/disclosed.rs - value::disclosed::Disclosed (line 51) - compile fail ... ok
+test crates/snapback4-core/src/value/disclosed.rs - value::disclosed::Disclosed (line 43) - compile fail ... ok
+test crates/snapback4-core/src/value/disclosed.rs - value::disclosed::Disclosed (line 59) - compile fail ... ok
+test crates/snapback4-core/src/value/disclosed.rs - value::disclosed::Disclosed (line 32) - compile fail ... ok
+test crates/snapback4-core/src/value/disclosed.rs - value::disclosed::Disclosed (line 76) - compile fail ... ok
+test crates/snapback4-core/src/value/disclosed.rs - value::disclosed::Disclosed (line 66) - compile fail ... ok
+test crates/snapback4-core/src/value/disclosed.rs - value::disclosed::Disclosed (line 88) - compile fail ... ok
+test crates/snapback4-core/src/value/disclosed.rs - value::disclosed::Disclosed (line 96) - compile fail ... ok
+
+test result: ok. 37 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.31s
+
+    Updating crates.io index
+warning: failed to write cache, path: /home/ccheever/.cargo/registry/index/index.crates.io-1949cf8c6b5b557f/.cache/we/b-/web-sys, error: Permission denied (os error 13)
+warning: failed to auto-clean cache data
+
+failed to clean entries from the global cache
+
+Caused by:
+  failed to remove file `/home/ccheever/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/cranelift-codegen-meta-0.132.1/Cargo.toml`
+
+Caused by:
+  Permission denied (os error 13)
+warning: function `interval` is never used
+  --> crates/snapback4-lang/src/release_changes.rs:57:8
+   |
+57 | pub fn interval(previous: &str, installed: &str) -> String {
+   |        ^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-lang` (build script) generated 1 warning
+   Compiling snapback4-core v0.4.38 (/home/ccheever/projects/sb4-p0-s8/snapback4/crates/snapback4-core)
+error[E0423]: expected value, found struct `Client`
+  --> crates/snapback4-core/src/engine/postgres/literal_tests.rs:18:9
+   |
+18 |         Client,
+   |         ^^^^^^
+   |
+  ::: /home/ccheever/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/postgres-0.19.14/src/client.rs:13:1
+   |
+13 | pub struct Client {
+   | ----------------- `Client` defined here
+
+error[E0423]: expected value, found enum `SimpleQueryMessage`
+  --> crates/snapback4-core/src/engine/postgres/literal_tests.rs:20:9
+   |
+20 |         SimpleQueryMessage,
+   |         ^^^^^^^^^^^^^^^^^^
+   |
+help: the following enum variants are available
+   |
+20 -         SimpleQueryMessage,
+20 +         (engine::postgres::literal_tests::SimpleQueryMessage::CommandComplete(/* fields */)),
+   |
+20 -         SimpleQueryMessage,
+20 +         (engine::postgres::literal_tests::SimpleQueryMessage::Row(/* fields */)),
+   |
+20 -         SimpleQueryMessage,
+20 +         (engine::postgres::literal_tests::SimpleQueryMessage::RowDescription(/* fields */)),
+   |
+
+error[E0061]: this function takes 2 arguments but 4 arguments were supplied
+  --> crates/snapback4-core/src/engine/postgres/literal_tests.rs:16:5
+   |
+16 |     Client::connect(
+   |     ^^^^^^^^^^^^^^^
+...
+19 |         NoTls,
+   |         ----- unexpected argument #3 of type `postgres::NoTls`
+20 |         SimpleQueryMessage,
+   |         ------------------ unexpected argument #4
+   |
+note: associated function defined here
+  --> /home/ccheever/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/postgres-0.19.14/src/client.rs:34:12
+   |
+34 |     pub fn connect<T>(params: &str, tls_mode: T) -> Result<Client, Error>
+   |            ^^^^^^^
+help: remove the extra arguments
+   |
+18 -         Client,
+19 -         NoTls,
+20 -         SimpleQueryMessage,
+18 +         Client,
+   |
+
+warning: unused import: `LedgerTransaction`
+ --> crates/snapback4-core/src/store_port/tests.rs:2:50
+  |
+2 | use crate::{RuntimeError, ledger::{LedgerReader, LedgerTransaction}, revocation::{self, ChangeEvidence}};
+  |                                                  ^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+Some errors have detailed explanations: E0061, E0423.
+For more information about an error, try `rustc --explain E0061`.
+warning: `snapback4-core` (lib test) generated 1 warning
+error: could not compile `snapback4-core` (lib test) due to 3 previous errors; 1 warning emitted
+    Updating crates.io index
+warning: failed to write cache, path: /home/ccheever/.cargo/registry/index/index.crates.io-1949cf8c6b5b557f/.cache/we/b-/web-sys, error: Permission denied (os error 13)
+warning: failed to auto-clean cache data
+
+failed to clean entries from the global cache
+
+Caused by:
+  failed to remove file `/home/ccheever/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/cranelift-codegen-meta-0.132.1/Cargo.toml`
+
+Caused by:
+  Permission denied (os error 13)
+warning: function `interval` is never used
+  --> crates/snapback4-lang/src/release_changes.rs:57:8
+   |
+57 | pub fn interval(previous: &str, installed: &str) -> String {
+   |        ^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-lang` (build script) generated 1 warning
+   Compiling snapback4-core v0.4.38 (/home/ccheever/projects/sb4-p0-s8/snapback4/crates/snapback4-core)
+error[E0423]: expected value, found struct `Client`
+  --> crates/snapback4-core/src/engine/postgres/literal_tests.rs:18:9
+   |
+18 |         Client,
+   |         ^^^^^^
+   |
+  ::: /home/ccheever/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/postgres-0.19.14/src/client.rs:13:1
+   |
+13 | pub struct Client {
+   | ----------------- `Client` defined here
+
+error[E0423]: expected value, found enum `SimpleQueryMessage`
+  --> crates/snapback4-core/src/engine/postgres/literal_tests.rs:20:9
+   |
+20 |         SimpleQueryMessage,
+   |         ^^^^^^^^^^^^^^^^^^
+   |
+help: the following enum variants are available
+   |
+20 -         SimpleQueryMessage,
+20 +         (engine::postgres::literal_tests::SimpleQueryMessage::CommandComplete(/* fields */)),
+   |
+20 -         SimpleQueryMessage,
+20 +         (engine::postgres::literal_tests::SimpleQueryMessage::Row(/* fields */)),
+   |
+20 -         SimpleQueryMessage,
+20 +         (engine::postgres::literal_tests::SimpleQueryMessage::RowDescription(/* fields */)),
+   |
+
+error[E0061]: this function takes 2 arguments but 4 arguments were supplied
+  --> crates/snapback4-core/src/engine/postgres/literal_tests.rs:16:5
+   |
+16 |     Client::connect(
+   |     ^^^^^^^^^^^^^^^
+...
+19 |         NoTls,
+   |         ----- unexpected argument #3 of type `postgres::NoTls`
+20 |         SimpleQueryMessage,
+   |         ------------------ unexpected argument #4
+   |
+note: associated function defined here
+  --> /home/ccheever/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/postgres-0.19.14/src/client.rs:34:12
+   |
+34 |     pub fn connect<T>(params: &str, tls_mode: T) -> Result<Client, Error>
+   |            ^^^^^^^
+help: remove the extra arguments
+   |
+18 -         Client,
+19 -         NoTls,
+20 -         SimpleQueryMessage,
+18 +         Client,
+   |
+
+warning: unused import: `LedgerTransaction`
+ --> crates/snapback4-core/src/store_port/tests.rs:2:50
+  |
+2 | use crate::{RuntimeError, ledger::{LedgerReader, LedgerTransaction}, revocation::{self, ChangeEvidence}};
+  |                                                  ^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+Some errors have detailed explanations: E0061, E0423.
+For more information about an error, try `rustc --explain E0061`.
+warning: `snapback4-core` (lib test) generated 1 warning
+error: could not compile `snapback4-core` (lib test) due to 3 previous errors; 1 warning emitted
+    Updating crates.io index
+warning: failed to write cache, path: /home/ccheever/.cargo/registry/index/index.crates.io-1949cf8c6b5b557f/.cache/we/b-/web-sys, error: Permission denied (os error 13)
+warning: failed to auto-clean cache data
+
+failed to clean entries from the global cache
+
+Caused by:
+  failed to remove file `/home/ccheever/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/cranelift-codegen-meta-0.132.1/Cargo.toml`
+
+Caused by:
+  Permission denied (os error 13)
+   Compiling serde v1.0.229
+   Compiling zerofrom v0.1.8
+   Compiling zerotrie v0.2.5
+   Compiling oxc_span v0.154.0
+   Compiling thiserror v2.0.20
+   Compiling inout v0.1.4
+   Compiling universal-hash v0.5.1
+warning: function `interval` is never used
+  --> crates/snapback4-lang/src/release_changes.rs:57:8
+   |
+57 | pub fn interval(previous: &str, installed: &str) -> String {
+   |        ^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+   Compiling aead v0.5.2
+warning: `snapback4-lang` (build script) generated 1 warning
+   Compiling tiny_http v0.12.0 (/home/ccheever/projects/sb4-p0-s8/snapback4/vendor/tiny_http)
+   Compiling yoke v0.8.3
+   Compiling snapback4-core v0.4.38 (/home/ccheever/projects/sb4-p0-s8/snapback4/crates/snapback4-core)
+   Compiling hmac v0.12.1
+   Compiling cipher v0.4.4
+   Compiling poly1305 v0.8.0
+   Compiling zerovec v0.11.8
+   Compiling chacha20 v0.9.1
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:168:7
+    |
+168 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+   Compiling chacha20poly1305 v0.10.1
+   Compiling smallvec v1.16.1
+   Compiling oxc_index v5.0.0
+   Compiling serde_spanned v0.6.9
+   Compiling toml_datetime v0.6.11
+   Compiling parking_lot_core v0.9.12
+   Compiling rusqlite v0.40.2
+   Compiling parking_lot v0.12.5
+   Compiling oxc_syntax v0.154.0
+   Compiling toml_edit v0.22.27
+   Compiling tinystr v0.8.4
+   Compiling icu_locale_core v2.3.0
+   Compiling potential_utf v0.1.6
+   Compiling tokio-postgres v0.7.18
+   Compiling icu_collections v2.3.0
+   Compiling icu_provider v2.3.1
+   Compiling icu_locale_fallback v2.3.0
+   Compiling toml v0.8.23
+   Compiling icu_segmenter v2.3.0
+   Compiling postgres v0.19.14
+   Compiling textwrap v0.16.4
+warning: `tiny_http` (lib) generated 1 warning
+   Compiling oxc_diagnostics v0.154.0
+   Compiling oxc_regular_expression v0.154.0
+   Compiling oxc_ast v0.154.0
+warning: unused variable: `fields`
+   --> crates/snapback4-core/src/engine/following_history/projection.rs:296:13
+    |
+296 |         let fields: Vec<String> = fields.into_iter().collect();
+    |             ^^^^^^ help: if this is intentional, prefix it with an underscore: `_fields`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+   Compiling oxc_ecmascript v0.154.0
+   Compiling oxc_ast_visit v0.154.0
+   Compiling oxc_parser v0.154.0
+warning: field `digest` is never read
+  --> crates/snapback4-core/src/engine/native.rs:45:5
+   |
+42 | pub struct Module {
+   |            ------ field in this struct
+...
+45 |     digest: String,
+   |     ^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: struct `Logs` is never constructed
+  --> crates/snapback4-core/src/engine/native.rs:54:19
+   |
+54 | pub(crate) struct Logs {
+   |                   ^^^^
+
+warning: methods `extend` and `take` are never used
+  --> crates/snapback4-core/src/engine/native.rs:60:19
+   |
+59 | impl Logs {
+   | --------- methods in this implementation
+60 |     pub(crate) fn extend(&mut self, job: &str, lines: Vec<String>) {
+   |                   ^^^^^^
+...
+76 |     pub(crate) fn take(&mut self) -> Vec<String> {
+   |                   ^^^^
+
+warning: struct `ChunkOutcome` is never constructed
+  --> crates/snapback4-core/src/engine/native.rs:94:19
+   |
+94 | pub(crate) struct ChunkOutcome {
+   |                   ^^^^^^^^^^^^
+
+warning: function `native_output_ceiling` is never used
+   --> crates/snapback4-core/src/engine/native.rs:168:4
+    |
+168 | fn native_output_ceiling() -> usize {
+    |    ^^^^^^^^^^^^^^^^^^^^^
+
+warning: method `digest` is never used
+   --> crates/snapback4-core/src/engine/native.rs:272:19
+    |
+242 | impl Module {
+    | ----------- method in this implementation
+...
+272 |     pub(crate) fn digest(&self) -> &str {
+    |                   ^^^^^^
+
+warning: function `run_chunk` is never used
+   --> crates/snapback4-core/src/engine/native.rs:390:15
+    |
+390 | pub(crate) fn run_chunk(module: &Module, runner: Runner<'_>, job: &str, args: &BTreeMap<String, Value>, state: Option<Json>, now: i...
+    |               ^^^^^^^^^
+
+warning: function `missing` is never used
+   --> crates/snapback4-core/src/engine/native.rs:504:15
+    |
+504 | pub(crate) fn missing(runner: Runner<'_>, job: &str) -> ChunkOutcome {
+    |               ^^^^^^^
+
+warning: variant `Lifetime` is never constructed
+   --> crates/snapback4-core/src/store/port/handles.rs:156:5
+    |
+151 | pub(crate) enum AnyPreparation<'tx, 'store> {
+    |                 -------------- variant in this enum
+...
+156 |     Lifetime(std::convert::Infallible, std::marker::PhantomData<&'store ()>),
+    |     ^^^^^^^^
+
+warning: `snapback4-core` (lib) generated 10 warnings (run `cargo fix --lib -p snapback4-core` to apply 1 suggestion)
+   Compiling snapback4-device v0.4.38 (/home/ccheever/projects/sb4-p0-s8/snapback4/crates/snapback4-device)
+   Compiling snapback4-lang v0.4.38 (/home/ccheever/projects/sb4-p0-s8/snapback4/crates/snapback4-lang)
+warning: variable does not need to be mutable
+   --> crates/snapback4-device/src/device.rs:464:51
+    |
+464 |     #[allow(unreachable_code)] fn open_store_mode(mut store: S, backend: Option<Backend>, initial: bool) -> Result<Self, RuntimeErr...
+    |                                                   ----^^^^^
+    |                                                   |
+    |                                                   help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-device` (lib) generated 1 warning (run `cargo fix --lib -p snapback4-device` to apply 1 suggestion)
+   Compiling snapback4 v0.4.38 (/home/ccheever/projects/sb4-p0-s8/snapback4/crates/snapback4)
+warning: variable does not need to be mutable
+   --> crates/snapback4/src/serve_routes.rs:115:30
+    |
+115 | ...   let collected = {let mut engine=lock(&shared.engine);crate::release_requests::stamp(engine.generation());engine.route_request...
+    |                            ----^^^^^^
+    |                            |
+    |                            help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable does not need to be mutable
+   --> crates/snapback4/src/serve_routes.rs:138:30
+    |
+138 | ...   let collected = {let mut engine=lock(&shared.engine);crate::release_requests::stamp(engine.generation());engine.route_request...
+    |                            ----^^^^^^
+    |                            |
+    |                            help: remove this `mut`
+
+warning: function `check` is never used
+   --> crates/snapback4/src/exact_device.rs:413:8
+    |
+413 | pub fn check(root: &Path, schema: &Schema, json: bool) -> bool {
+    |        ^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `work` is never used
+  --> crates/snapback4/src/serve_maintenance.rs:66:4
+   |
+66 | fn work(shared: &Shared, drain: bool, tick: u64) -> Result<Work, RuntimeError> {
+   |    ^^^^
+
+warning: method `push` is never used
+  --> crates/snapback4/src/dev_refusal_console.rs:22:12
+   |
+16 | impl Console {
+   | ------------ method in this implementation
+...
+22 |     pub fn push(&mut self, record: Value, identity: &Value, out: &mut impl Write) {
+   |            ^^^^
+
+warning: function `human_period` is never used
+   --> crates/snapback4/src/verbs.rs:912:4
+    |
+912 | fn human_period(ms: u64) -> String {
+    |    ^^^^^^^^^^^^
+
+warning: `snapback4` (bin "snapback4" test) generated 6 warnings (run `cargo fix --bin "snapback4" -p snapback4 --tests` to apply 2 suggestions)
+    Finished `test` profile [optimized + debuginfo] target(s) in 2m 36s
+     Running unittests src/main.rs (target/debug/deps/snapback4-a45b16f2d79e2bd1)
+
+running 1 test
+snapback4 host: uploads=2; file descriptors (this process): soft=65536 hard=1048576; descriptor_exhaustions=0; startup soft=1024 target=65536
+test serve::tests::postgres_tests::s10c_postgres_internal_http_host_witness ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 528 filtered out; finished in 1.14s
+
+    Updating crates.io index
+warning: failed to write cache, path: /home/ccheever/.cargo/registry/index/index.crates.io-1949cf8c6b5b557f/.cache/we/b-/web-sys, error: Permission denied (os error 13)
+warning: failed to auto-clean cache data
+
+failed to clean entries from the global cache
+
+Caused by:
+  failed to remove file `/home/ccheever/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/cranelift-codegen-meta-0.132.1/Cargo.toml`
+
+Caused by:
+  Permission denied (os error 13)
+warning: unused variable: `fields`
+   --> crates/snapback4-core/src/engine/following_history/projection.rs:296:13
+    |
+296 |         let fields: Vec<String> = fields.into_iter().collect();
+    |             ^^^^^^ help: if this is intentional, prefix it with an underscore: `_fields`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `digest` is never read
+  --> crates/snapback4-core/src/engine/native.rs:45:5
+   |
+42 | pub struct Module {
+   |            ------ field in this struct
+...
+45 |     digest: String,
+   |     ^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: struct `Logs` is never constructed
+  --> crates/snapback4-core/src/engine/native.rs:54:19
+   |
+54 | pub(crate) struct Logs {
+   |                   ^^^^
+
+warning: methods `extend` and `take` are never used
+  --> crates/snapback4-core/src/engine/native.rs:60:19
+   |
+59 | impl Logs {
+   | --------- methods in this implementation
+60 |     pub(crate) fn extend(&mut self, job: &str, lines: Vec<String>) {
+   |                   ^^^^^^
+...
+76 |     pub(crate) fn take(&mut self) -> Vec<String> {
+   |                   ^^^^
+
+warning: struct `ChunkOutcome` is never constructed
+  --> crates/snapback4-core/src/engine/native.rs:94:19
+   |
+94 | pub(crate) struct ChunkOutcome {
+   |                   ^^^^^^^^^^^^
+
+warning: function `native_output_ceiling` is never used
+   --> crates/snapback4-core/src/engine/native.rs:168:4
+    |
+168 | fn native_output_ceiling() -> usize {
+    |    ^^^^^^^^^^^^^^^^^^^^^
+
+warning: method `digest` is never used
+   --> crates/snapback4-core/src/engine/native.rs:272:19
+    |
+242 | impl Module {
+    | ----------- method in this implementation
+...
+272 |     pub(crate) fn digest(&self) -> &str {
+    |                   ^^^^^^
+
+warning: function `run_chunk` is never used
+   --> crates/snapback4-core/src/engine/native.rs:390:15
+    |
+390 | pub(crate) fn run_chunk(module: &Module, runner: Runner<'_>, job: &str, args: &BTreeMap<String, Value>, state: Option<Json>, now: i...
+    |               ^^^^^^^^^
+
+warning: function `missing` is never used
+   --> crates/snapback4-core/src/engine/native.rs:504:15
+    |
+504 | pub(crate) fn missing(runner: Runner<'_>, job: &str) -> ChunkOutcome {
+    |               ^^^^^^^
+
+warning: variant `Lifetime` is never constructed
+   --> crates/snapback4-core/src/store/port/handles.rs:156:5
+    |
+151 | pub(crate) enum AnyPreparation<'tx, 'store> {
+    |                 -------------- variant in this enum
+...
+156 |     Lifetime(std::convert::Infallible, std::marker::PhantomData<&'store ()>),
+    |     ^^^^^^^^
+
+warning: `snapback4-core` (lib) generated 10 warnings (run `cargo fix --lib -p snapback4-core` to apply 1 suggestion)
+warning: function `interval` is never used
+  --> crates/snapback4-lang/src/release_changes.rs:57:8
+   |
+57 | pub fn interval(previous: &str, installed: &str) -> String {
+   |        ^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-lang` (build script) generated 1 warning
+warning: variable does not need to be mutable
+   --> crates/snapback4-device/src/device.rs:464:51
+    |
+464 |     #[allow(unreachable_code)] fn open_store_mode(mut store: S, backend: Option<Backend>, initial: bool) -> Result<Self, RuntimeErr...
+    |                                                   ----^^^^^
+    |                                                   |
+    |                                                   help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-device` (lib) generated 1 warning (run `cargo fix --lib -p snapback4-device` to apply 1 suggestion)
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:168:7
+    |
+168 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+warning: variable does not need to be mutable
+   --> crates/snapback4/src/serve_routes.rs:115:30
+    |
+115 | ...   let collected = {let mut engine=lock(&shared.engine);crate::release_requests::stamp(engine.generation());engine.route_request...
+    |                            ----^^^^^^
+    |                            |
+    |                            help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable does not need to be mutable
+   --> crates/snapback4/src/serve_routes.rs:138:30
+    |
+138 | ...   let collected = {let mut engine=lock(&shared.engine);crate::release_requests::stamp(engine.generation());engine.route_request...
+    |                            ----^^^^^^
+    |                            |
+    |                            help: remove this `mut`
+
+warning: function `check` is never used
+   --> crates/snapback4/src/exact_device.rs:413:8
+    |
+413 | pub fn check(root: &Path, schema: &Schema, json: bool) -> bool {
+    |        ^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `work` is never used
+  --> crates/snapback4/src/serve_maintenance.rs:66:4
+   |
+66 | fn work(shared: &Shared, drain: bool, tick: u64) -> Result<Work, RuntimeError> {
+   |    ^^^^
+
+warning: method `push` is never used
+  --> crates/snapback4/src/dev_refusal_console.rs:22:12
+   |
+16 | impl Console {
+   | ------------ method in this implementation
+...
+22 |     pub fn push(&mut self, record: Value, identity: &Value, out: &mut impl Write) {
+   |            ^^^^
+
+warning: function `human_period` is never used
+   --> crates/snapback4/src/verbs.rs:912:4
+    |
+912 | fn human_period(ms: u64) -> String {
+    |    ^^^^^^^^^^^^
+
+warning: `snapback4` (bin "snapback4" test) generated 6 warnings (run `cargo fix --bin "snapback4" -p snapback4 --tests` to apply 2 suggestions)
+    Finished `test` profile [optimized + debuginfo] target(s) in 1.39s
+     Running unittests src/main.rs (target/debug/deps/snapback4-a45b16f2d79e2bd1)
+
+running 1 test
+test store_config::tests::postgres_startup_renewal_error_releases_committed_claim ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 528 filtered out; finished in 0.76s
+
+    Updating crates.io index
+warning: failed to write cache, path: /home/ccheever/.cargo/registry/index/index.crates.io-1949cf8c6b5b557f/.cache/we/b-/web-sys, error: Permission denied (os error 13)
+warning: failed to auto-clean cache data
+
+failed to clean entries from the global cache
+
+Caused by:
+  failed to remove file `/home/ccheever/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/cranelift-codegen-meta-0.132.1/Cargo.toml`
+
+Caused by:
+  Permission denied (os error 13)
+warning: unused variable: `fields`
+   --> crates/snapback4-core/src/engine/following_history/projection.rs:296:13
+    |
+296 |         let fields: Vec<String> = fields.into_iter().collect();
+    |             ^^^^^^ help: if this is intentional, prefix it with an underscore: `_fields`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `digest` is never read
+  --> crates/snapback4-core/src/engine/native.rs:45:5
+   |
+42 | pub struct Module {
+   |            ------ field in this struct
+...
+45 |     digest: String,
+   |     ^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: struct `Logs` is never constructed
+  --> crates/snapback4-core/src/engine/native.rs:54:19
+   |
+54 | pub(crate) struct Logs {
+   |                   ^^^^
+
+warning: methods `extend` and `take` are never used
+  --> crates/snapback4-core/src/engine/native.rs:60:19
+   |
+59 | impl Logs {
+   | --------- methods in this implementation
+60 |     pub(crate) fn extend(&mut self, job: &str, lines: Vec<String>) {
+   |                   ^^^^^^
+...
+76 |     pub(crate) fn take(&mut self) -> Vec<String> {
+   |                   ^^^^
+
+warning: struct `ChunkOutcome` is never constructed
+  --> crates/snapback4-core/src/engine/native.rs:94:19
+   |
+94 | pub(crate) struct ChunkOutcome {
+   |                   ^^^^^^^^^^^^
+
+warning: function `native_output_ceiling` is never used
+   --> crates/snapback4-core/src/engine/native.rs:168:4
+    |
+168 | fn native_output_ceiling() -> usize {
+    |    ^^^^^^^^^^^^^^^^^^^^^
+
+warning: method `digest` is never used
+   --> crates/snapback4-core/src/engine/native.rs:272:19
+    |
+242 | impl Module {
+    | ----------- method in this implementation
+...
+272 |     pub(crate) fn digest(&self) -> &str {
+    |                   ^^^^^^
+
+warning: function `run_chunk` is never used
+   --> crates/snapback4-core/src/engine/native.rs:390:15
+    |
+390 | pub(crate) fn run_chunk(module: &Module, runner: Runner<'_>, job: &str, args: &BTreeMap<String, Value>, state: Option<Json>, now: i...
+    |               ^^^^^^^^^
+
+warning: function `missing` is never used
+   --> crates/snapback4-core/src/engine/native.rs:504:15
+    |
+504 | pub(crate) fn missing(runner: Runner<'_>, job: &str) -> ChunkOutcome {
+    |               ^^^^^^^
+
+warning: variant `Lifetime` is never constructed
+   --> crates/snapback4-core/src/store/port/handles.rs:156:5
+    |
+151 | pub(crate) enum AnyPreparation<'tx, 'store> {
+    |                 -------------- variant in this enum
+...
+156 |     Lifetime(std::convert::Infallible, std::marker::PhantomData<&'store ()>),
+    |     ^^^^^^^^
+
+warning: `snapback4-core` (lib) generated 10 warnings (run `cargo fix --lib -p snapback4-core` to apply 1 suggestion)
+warning: function `interval` is never used
+  --> crates/snapback4-lang/src/release_changes.rs:57:8
+   |
+57 | pub fn interval(previous: &str, installed: &str) -> String {
+   |        ^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-lang` (build script) generated 1 warning
+warning: variable does not need to be mutable
+   --> crates/snapback4-device/src/device.rs:464:51
+    |
+464 |     #[allow(unreachable_code)] fn open_store_mode(mut store: S, backend: Option<Backend>, initial: bool) -> Result<Self, RuntimeErr...
+    |                                                   ----^^^^^
+    |                                                   |
+    |                                                   help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-device` (lib) generated 1 warning (run `cargo fix --lib -p snapback4-device` to apply 1 suggestion)
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:168:7
+    |
+168 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+warning: variable does not need to be mutable
+   --> crates/snapback4/src/serve_routes.rs:115:30
+    |
+115 | ...   let collected = {let mut engine=lock(&shared.engine);crate::release_requests::stamp(engine.generation());engine.route_request...
+    |                            ----^^^^^^
+    |                            |
+    |                            help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable does not need to be mutable
+   --> crates/snapback4/src/serve_routes.rs:138:30
+    |
+138 | ...   let collected = {let mut engine=lock(&shared.engine);crate::release_requests::stamp(engine.generation());engine.route_request...
+    |                            ----^^^^^^
+    |                            |
+    |                            help: remove this `mut`
+
+warning: function `check` is never used
+   --> crates/snapback4/src/exact_device.rs:413:8
+    |
+413 | pub fn check(root: &Path, schema: &Schema, json: bool) -> bool {
+    |        ^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `work` is never used
+  --> crates/snapback4/src/serve_maintenance.rs:66:4
+   |
+66 | fn work(shared: &Shared, drain: bool, tick: u64) -> Result<Work, RuntimeError> {
+   |    ^^^^
+
+warning: method `push` is never used
+  --> crates/snapback4/src/dev_refusal_console.rs:22:12
+   |
+16 | impl Console {
+   | ------------ method in this implementation
+...
+22 |     pub fn push(&mut self, record: Value, identity: &Value, out: &mut impl Write) {
+   |            ^^^^
+
+warning: function `human_period` is never used
+   --> crates/snapback4/src/verbs.rs:912:4
+    |
+912 | fn human_period(ms: u64) -> String {
+    |    ^^^^^^^^^^^^
+
+warning: `snapback4` (bin "snapback4" test) generated 6 warnings (run `cargo fix --bin "snapback4" -p snapback4 --tests` to apply 2 suggestions)
+    Finished `test` profile [optimized + debuginfo] target(s) in 0.63s
+     Running unittests src/main.rs (target/debug/deps/snapback4-a45b16f2d79e2bd1)
+
+running 1 test
+snapback4 host: uploads=2; file descriptors (this process): soft=65536 hard=1048576; descriptor_exhaustions=0; startup soft=1024 target=65536
+RT0 postgres warm: {"action_session_w1":29,"keyed_first":77,"narrowed_argument":26,"one_membership":58,"rate_limited":0,"replay_hit":30,"unauthenticated":0,"unkeyed_increment":57,"unknown_operation":26,"unknown_token":5,"w1_point":23,"w2_newest20":23}
+RT0 postgres cold/first-use: {"action_session_w1":32,"keyed_first":81,"narrowed_argument":26,"one_membership":58,"rate_limited":0,"replay_hit":30,"unauthenticated":0,"unkeyed_increment":58,"unknown_operation":26,"unknown_token":5,"w1_point":56,"w2_newest20":24}
+test serve::tests::round_trip_tests::round_trips_postgres ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 528 filtered out; finished in 1.25s
+
+    Updating crates.io index
+warning: failed to write cache, path: /home/ccheever/.cargo/registry/index/index.crates.io-1949cf8c6b5b557f/.cache/we/b-/web-sys, error: Permission denied (os error 13)
+warning: failed to auto-clean cache data
+
+failed to clean entries from the global cache
+
+Caused by:
+  failed to remove file `/home/ccheever/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/cranelift-codegen-meta-0.132.1/Cargo.toml`
+
+Caused by:
+  Permission denied (os error 13)
+warning: function `interval` is never used
+  --> crates/snapback4-lang/src/release_changes.rs:57:8
+   |
+57 | pub fn interval(previous: &str, installed: &str) -> String {
+   |        ^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-lang` (build script) generated 1 warning
+   Compiling snapback4-core v0.4.38 (/home/ccheever/projects/sb4-p0-s8/snapback4/crates/snapback4-core)
+    Finished `test` profile [optimized + debuginfo] target(s) in 3.64s
+     Running tests/corpus.rs (target/debug/deps/corpus-17704c26e2ac18f1)
+
+running 19 tests
+test adapter::asset_exclusion_requires_an_argument_that_needs_uploaded_facts ... ok
+test adapter::auxiliary_preview_and_lane_discovery_limits_do_not_truncate_the_outer_page ... ok
+test adapter::cursorless_limit_is_complete_and_cursored_ownership_still_applies ... ok
+test adapter::expected_cursor_and_state_are_required_contract_fields ... ok
+test adapter::receipt_specific_oracles_have_named_exclusions ... ok
+test adapter::schema_and_program_regressions_cannot_turn_into_skips ... ok
+test adapter::refusal_state_mapping_preserves_application_rejection_and_engine_refusal ... ok
+test adapter::capped_merge_cursor_oracle_keeps_the_frozen_absent_continuation ... ok
+test adapter::capped_cursor_oracles_continue_from_the_golden_last_visible_row ... ok
+test adapter::exhausted_underfilled_result_pages_end_despite_a_limited_preview ... ok
+test adapter::typed_schema_admission_is_compared_with_the_refusal_oracle ... ok
+test adapter::independent_effect_ids_replace_only_the_frozen_shared_supply_oracle ... ok
+test adapter::current_sb4_asset_references_use_server_metadata_before_mutation_evaluation ... ok
+test adapter::a_capped_partial_query_is_executed_and_static_prices_are_distinct_from_structure ... ok
+test adapter::implicit_old_store_keys_are_executed_through_explicit_sb4_indexes ... ok
+test adapter::translated_asset_clearing_deletion_and_metadata_reads_still_execute ... ok
+test adapter::state_and_next_are_checked_even_when_the_result_matches ... ok
+test adapter::legacy_null_points_have_sb4_misses_and_unchanged_maintained_groups ... ok
+test corpus has been running for over 60 seconds
+corpus (Rust server only; no TypeScript/replica conformance claim): 210 passed, 85 skipped, 0 failed
+corpus Postgres: 207 passed, 88 skipped
+  skipped 10: legacy-asset-record
+  skipped 15: legacy-asset-upload
+  skipped 19: legacy-delivery
+  skipped 2: legacy-null-point
+  skipped 7: legacy-word-search
+  skipped 3: postgres-unsupported-capability
+  skipped 14: receipt-authority
+  skipped 15: receipt-coverage
+  skipped 1: receipt-replacement
+  skipped 1: shared-effect-id-supply
+  skipped 1: static-resource-price
+  skipped 10: legacy-asset-record
+  skipped 15: legacy-asset-upload
+  skipped 19: legacy-delivery
+  skipped 2: legacy-null-point
+  skipped 7: legacy-word-search
+  skipped 14: receipt-authority
+  skipped 15: receipt-coverage
+  skipped 1: receipt-replacement
+  skipped 1: shared-effect-id-supply
+  skipped 1: static-resource-price
+test corpus ... ok
+
+test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 161.02s
+
+    Updating crates.io index
+warning: failed to write cache, path: /home/ccheever/.cargo/registry/index/index.crates.io-1949cf8c6b5b557f/.cache/we/b-/web-sys, error: Permission denied (os error 13)
+warning: failed to auto-clean cache data
+
+failed to clean entries from the global cache
+
+Caused by:
+  failed to remove file `/home/ccheever/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/cranelift-codegen-meta-0.132.1/Cargo.toml`
+
+Caused by:
+  Permission denied (os error 13)
+   Compiling snapback4-core v0.4.38 (/home/ccheever/projects/sb4-p0-s8/snapback4/crates/snapback4-core)
+warning: function `interval` is never used
+  --> crates/snapback4-lang/src/release_changes.rs:57:8
+   |
+57 | pub fn interval(previous: &str, installed: &str) -> String {
+   |        ^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-lang` (build script) generated 1 warning
+   Compiling snapback4-lang v0.4.38 (/home/ccheever/projects/sb4-p0-s8/snapback4/crates/snapback4-lang)
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:168:7
+    |
+168 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+warning: unused variable: `fields`
+   --> crates/snapback4-core/src/engine/following_history/projection.rs:296:13
+    |
+296 |         let fields: Vec<String> = fields.into_iter().collect();
+    |             ^^^^^^ help: if this is intentional, prefix it with an underscore: `_fields`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `digest` is never read
+  --> crates/snapback4-core/src/engine/native.rs:45:5
+   |
+42 | pub struct Module {
+   |            ------ field in this struct
+...
+45 |     digest: String,
+   |     ^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: struct `Logs` is never constructed
+  --> crates/snapback4-core/src/engine/native.rs:54:19
+   |
+54 | pub(crate) struct Logs {
+   |                   ^^^^
+
+warning: methods `extend` and `take` are never used
+  --> crates/snapback4-core/src/engine/native.rs:60:19
+   |
+59 | impl Logs {
+   | --------- methods in this implementation
+60 |     pub(crate) fn extend(&mut self, job: &str, lines: Vec<String>) {
+   |                   ^^^^^^
+...
+76 |     pub(crate) fn take(&mut self) -> Vec<String> {
+   |                   ^^^^
+
+warning: struct `ChunkOutcome` is never constructed
+  --> crates/snapback4-core/src/engine/native.rs:94:19
+   |
+94 | pub(crate) struct ChunkOutcome {
+   |                   ^^^^^^^^^^^^
+
+warning: function `native_output_ceiling` is never used
+   --> crates/snapback4-core/src/engine/native.rs:168:4
+    |
+168 | fn native_output_ceiling() -> usize {
+    |    ^^^^^^^^^^^^^^^^^^^^^
+
+warning: method `digest` is never used
+   --> crates/snapback4-core/src/engine/native.rs:272:19
+    |
+242 | impl Module {
+    | ----------- method in this implementation
+...
+272 |     pub(crate) fn digest(&self) -> &str {
+    |                   ^^^^^^
+
+warning: function `run_chunk` is never used
+   --> crates/snapback4-core/src/engine/native.rs:390:15
+    |
+390 | pub(crate) fn run_chunk(module: &Module, runner: Runner<'_>, job: &str, args: &BTreeMap<String, Value>, state: Option<Json>, now: i...
+    |               ^^^^^^^^^
+
+warning: function `missing` is never used
+   --> crates/snapback4-core/src/engine/native.rs:504:15
+    |
+504 | pub(crate) fn missing(runner: Runner<'_>, job: &str) -> ChunkOutcome {
+    |               ^^^^^^^
+
+warning: variant `Lifetime` is never constructed
+   --> crates/snapback4-core/src/store/port/handles.rs:156:5
+    |
+151 | pub(crate) enum AnyPreparation<'tx, 'store> {
+    |                 -------------- variant in this enum
+...
+156 |     Lifetime(std::convert::Infallible, std::marker::PhantomData<&'store ()>),
+    |     ^^^^^^^^
+
+warning: `snapback4-core` (lib) generated 10 warnings (run `cargo fix --lib -p snapback4-core` to apply 1 suggestion)
+   Compiling snapback4-device v0.4.38 (/home/ccheever/projects/sb4-p0-s8/snapback4/crates/snapback4-device)
+warning: variable does not need to be mutable
+   --> crates/snapback4-device/src/device.rs:464:51
+    |
+464 |     #[allow(unreachable_code)] fn open_store_mode(mut store: S, backend: Option<Backend>, initial: bool) -> Result<Self, RuntimeErr...
+    |                                                   ----^^^^^
+    |                                                   |
+    |                                                   help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-device` (lib) generated 1 warning (run `cargo fix --lib -p snapback4-device` to apply 1 suggestion)
+   Compiling snapback4 v0.4.38 (/home/ccheever/projects/sb4-p0-s8/snapback4/crates/snapback4)
+warning: unused import: `start::serve_requests`
+   --> crates/snapback4/src/serve.rs:333:5
+    |
+333 | use start::serve_requests;
+    |     ^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable does not need to be mutable
+   --> crates/snapback4/src/serve_routes.rs:115:30
+    |
+115 | ...   let collected = {let mut engine=lock(&shared.engine);crate::release_requests::stamp(engine.generation());engine.route_request...
+    |                            ----^^^^^^
+    |                            |
+    |                            help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable does not need to be mutable
+   --> crates/snapback4/src/serve_routes.rs:138:30
+    |
+138 | ...   let collected = {let mut engine=lock(&shared.engine);crate::release_requests::stamp(engine.generation());engine.route_request...
+    |                            ----^^^^^^
+    |                            |
+    |                            help: remove this `mut`
+
+warning: function `check` is never used
+   --> crates/snapback4/src/exact_device.rs:413:8
+    |
+413 | pub fn check(root: &Path, schema: &Schema, json: bool) -> bool {
+    |        ^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `work` is never used
+  --> crates/snapback4/src/serve_maintenance.rs:66:4
+   |
+66 | fn work(shared: &Shared, drain: bool, tick: u64) -> Result<Work, RuntimeError> {
+   |    ^^^^
+
+warning: method `push` is never used
+  --> crates/snapback4/src/dev_refusal_console.rs:22:12
+   |
+16 | impl Console {
+   | ------------ method in this implementation
+...
+22 |     pub fn push(&mut self, record: Value, identity: &Value, out: &mut impl Write) {
+   |            ^^^^
+
+warning: function `human_period` is never used
+   --> crates/snapback4/src/verbs.rs:912:4
+    |
+912 | fn human_period(ms: u64) -> String {
+    |    ^^^^^^^^^^^^
+
+warning: function `wave14_native_smoke` is never used
+   --> crates/snapback4/src/verbs/init/starter.rs:466:15
+    |
+466 | pub(super) fn wave14_native_smoke(password: bool) -> String {
+    |               ^^^^^^^^^^^^^^^^^^^
+
+warning: function `run` is never used
+  --> crates/snapback4/src/verbs/test_cases.rs:71:8
+   |
+71 | pub fn run(engine: &mut Engine, bound: &Bound, fixture: &str, sources: &[(String, String)], now: i64) -> Result<(usize, usize), Stri...
+   |        ^^^
+
+warning: `snapback4` (bin "snapback4") generated 9 warnings (run `cargo fix --bin "snapback4" -p snapback4` to apply 3 suggestions)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1m 05s
+public witness binary /home/ccheever/projects/sb4-p0-s8/snapback4/target/debug/snapback4
+transport: hostaddr override, TCP host and mixed hosts refused before any TCP connect
+public witness cluster locale en_US.utf8
+cluster pid 576252 directory /tmp/s10d3-serve-ghouuwuv
+check: admitted app compiled; help distinguishes backends and unsupported flags refuse
+owned cluster stopped and confirmed: status=3, no postmaster.pid; retained /tmp/s10d3-serve-ghouuwuv
+Traceback (most recent call last):
+  File "/home/ccheever/projects/sb4-p0-s8/snapback4/scripts/test-postgres-serve.py", line 139, in <module>
+    failed=cli(['deploy',str(WORK/'deployment')],False,url=url)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ccheever/projects/sb4-p0-s8/snapback4/scripts/test-postgres-serve.py", line 26, in cli
+    result = run([BIN, *args], cwd=WORK / 'app', env=environment)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ccheever/projects/sb4-p0-s8/snapback4/scripts/test-postgres-serve.py", line 21, in run
+    return subprocess.run([str(x) for x in args], text=True, capture_output=True, timeout=45, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 550, in run
+    stdout, stderr = process.communicate(input, timeout=timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 1209, in communicate
+    stdout, stderr = self._communicate(input, endtime, timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 2116, in _communicate
+    self._check_timeout(endtime, orig_timeout, stdout, stderr)
+  File "/usr/lib/python3.12/subprocess.py", line 1253, in _check_timeout
+    raise TimeoutExpired(
+subprocess.TimeoutExpired: Command '['/home/ccheever/projects/sb4-p0-s8/snapback4/target/debug/snapback4', 'deploy', '/tmp/s10d3-serve-ghouuwuv/deployment']' timed out after 45 seconds
+Evaluation cluster stopped and confirmed (status=3, no postmaster.pid); data retained at /tmp/sb4-pg-eval.bxS5ji

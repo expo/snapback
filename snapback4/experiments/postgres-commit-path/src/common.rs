@@ -51,6 +51,9 @@ pub struct Net {
 
 impl Net {
     pub fn parse(label: &str) -> Net {
+        if label == "rt5-external" {
+            return Net { label: label.into(), rtt_us: None, url: env("RT5_CONNECTION"), _proxy: None };
+        }
         if label == "tunnels" {
             return Net { label: label.into(), rtt_us: None, url: String::new(), _proxy: None };
         }

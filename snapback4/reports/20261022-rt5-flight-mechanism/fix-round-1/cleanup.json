@@ -1,0 +1,80 @@
+{
+  "clusters": [
+    {
+      "directory": "/tmp/rt5-fix1-pg.jsj5ixgd",
+      "pid": 1064149,
+      "connection": "host=/tmp/rt5-fix1-pg.jsj5ixgd port=55492 user=sb4_eval dbname=postgres",
+      "status": 3,
+      "postmaster_pid_absent": true,
+      "pid_absent": true
+    },
+    {
+      "directory": "/tmp/rt5-fix1-pg.jsj5ixgd",
+      "pid": 1235472,
+      "connection": "host=/tmp/rt5-fix1-pg.jsj5ixgd port=55492 user=sb4_eval dbname=postgres",
+      "role": "final RT5 two-locale checks and isolated concurrency rerun",
+      "status": 3,
+      "postmaster_pid_absent": true
+    },
+    {
+      "pid": 1160424,
+      "directory": "/tmp/sb4-pg-eval.xGbDa6",
+      "log": "postgres-script.log",
+      "status": 3,
+      "postmaster_pid_absent": true
+    },
+    {
+      "pid": 1215830,
+      "directory": "/tmp/s10d3-serve-7h0rq9es",
+      "log": "postgres-script.log",
+      "status": 3,
+      "postmaster_pid_absent": true
+    }
+  ],
+  "public_serve_pids": [
+    1220428,
+    1220463,
+    1220542,
+    1220657,
+    1220702,
+    1222918
+  ],
+  "recorded_pids_checked": [
+    1063393,
+    1063406,
+    1064149,
+    1066244,
+    1069191,
+    1069193,
+    1069194,
+    1070504,
+    1070603,
+    1072165,
+    1072348,
+    1076870,
+    1160188,
+    1160424,
+    1215830,
+    1220428,
+    1220463,
+    1220542,
+    1220657,
+    1220702,
+    1222918,
+    1222949,
+    1234558,
+    1234561,
+    1235460,
+    1235469,
+    1235472,
+    1235490,
+    1235557,
+    1236724,
+    1236815,
+    1236934,
+    1239596
+  ],
+  "pids_left": [],
+  "target_executables_left": [],
+  "PG17_55440_touched": false
+}

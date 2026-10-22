@@ -1,0 +1,19 @@
+
+running 1 test
+Serialized: 65 increments, no lost updates, 0 transaction retries
+
+thread '<unnamed>' (1235548) panicked at tests/conformance.rs:244:106:
+called `Result::unwrap()` on an `Err` value: Postgres(Error { kind: Db, cause: Some(DbError { severity: "ERROR", parsed_severity: Some(Error), code: SqlState(E40001), message: "could not serialize access due to concurrent update", detail: None, hint: None, position: None, where_: None, schema: None, table: None, column: None, datatype: None, constraint: None, file: Some("nodeModifyTable.c"), line: Some(2418), routine: Some("ExecUpdate") }) })
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+thread 'concurrent_read_modify_write_and_duplicate_ops_are_atomic_in_both_modes' (1235491) panicked at tests/conformance.rs:257:38:
+called `Result::unwrap()` on an `Err` value: Any { .. }
+test concurrent_read_modify_write_and_duplicate_ops_are_atomic_in_both_modes ... FAILED
+
+failures:
+
+failures:
+    concurrent_read_modify_write_and_duplicate_ops_are_atomic_in_both_modes
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 17 filtered out; finished in 3.61s
+

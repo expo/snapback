@@ -1,0 +1,32 @@
+[
+  {
+    "name": "first",
+    "pid": 906927,
+    "directory": "/tmp/s10d3-serve-46nikjxb"
+  },
+  {
+    "name": "contender",
+    "pid": 906971,
+    "directory": "/tmp/s10d3-serve-46nikjxb"
+  },
+  {
+    "name": "restart",
+    "pid": 907062,
+    "directory": "/tmp/s10d3-serve-46nikjxb"
+  },
+  {
+    "name": "standby",
+    "pid": 907244,
+    "directory": "/tmp/s10d3-serve-46nikjxb"
+  },
+  {
+    "name": "second-release",
+    "pid": 907287,
+    "directory": "/tmp/s10d3-serve-46nikjxb"
+  },
+  {
+    "name": "p1mc-scale",
+    "pid": 909242,
+    "directory": "/tmp/s10d3-serve-46nikjxb"
+  }
+]

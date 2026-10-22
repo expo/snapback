@@ -1,0 +1,10 @@
+{
+  "scope": "/home/ccheever/projects/sb4-p0-s8/snapback4/target",
+  "pattern": "b3-pair-*.sqlite*",
+  "cutoff_unix": 1792627200,
+  "cutoff_utc": "2026-10-22T00:00:00Z",
+  "files_removed": 8180,
+  "bytes_removed": 8192474840,
+  "open_files_excluded": true,
+  "reason": "Prior-day generated B3 test database cache only; no compiled or active artifacts removed"
+}

@@ -11,7 +11,8 @@ benchmark. It feeds:
 - [LLP 3000.009.001.002](../../../llp/3000.009.001.002-scale-limits-against-postgres-controls.rfc.md)
   §3 (H1), §8 (the first decision rule) and §9 (S0).
 
-Nothing under `crates/` was changed. The harness has its own Cargo workspace
+The original S0 cells changed nothing under `crates/`. RT5 adds the core's
+test-only codec described below; serving does not use it. The harness has its own Cargo workspace
 and depends on `snapback4-core` (feature `postgres`) and on
 [`../postgres`](../postgres/README.md) (its fixture, `compiled()`, `context()`)
 by path.
@@ -1152,3 +1153,117 @@ across the two smokes, failed setup and sweep were stopped; the full run's
 `cleanup.json` also verifies its database is absent. `postgres-after.txt`
 records unchanged durability. The experiment-only target directory is below
 5 GiB, so the requested size-triggered cargo clean was unnecessary.
+
+## RT5: flight mechanism qualification (2026-10-22)
+
+RT5 extends this harness with `rt5-flight`, using `common::closed_loop`, the
+same warm-up/window, percentile aggregation, WAL/wait sampling and fresh
+process per measured repetition as S1b. It is a **statement model**, not an
+engine/HTTP benchmark. The per-statement baseline is the structurally reduced
+B1 envelope, not RT0's repeated authentication snapshots. Both alternatives
+execute the same facts and three dependent increment steps. W1 uses a message
+room returned by the first read to address its membership read. A single head
+serializes all 32 mutation connections, as on the in-place writer path.
+
+| Shape | Per-statement Bind | (a) ordered SimpleQuery | (b) VOLATILE PL/pgSQL |
+| --- | ---: | ---: | ---: |
+| W1 (including ingress) | 6 | 3 | 5 |
+| Unkeyed increment (including ingress) | 16 | 8 | 11 |
+
+These are the implemented schedules' dependent exchanges, not packet counts.
+COMMIT is always a separate flight, after checking the tail and program result.
+The model's `sb4_read`, `sb4_open` and `sb4_tail` are installed only by the
+experiment/test fixture, never by store attach. SQL fetches facts; the client
+computes and checks the increment. Every operation checks its read transcript,
+and each cell checks the acknowledged count (including warm-up and drain)
+against both the stored sum and head. Read cells verify neither changed.
+
+The single encoder/decoder source is
+`crates/snapback4-core/src/engine/postgres/literal.rs`. Core compiles it only
+under `test`/`test-support`; this separate release experiment includes that
+source directly, because the core intentionally refuses release builds with
+`test-support`. Build the same binary with `--features rt5`: that scope omits
+historical SQLite cells whose raw `Store::conn` calls no longer compile after
+the port extraction. Their sources and historical results are retained; RT5
+adds no raw-handle escape and does not claim those old cells work. Typed SQL PREPARE/driver prepares happen outside timing;
+per-operation literal construction and typed text decoding are timed. The
+benchmark does not use S1b's older ad hoc text quoting helper.
+
+Encoder session independence: inputs are ASCII-only SQL, text as
+`pg_catalog.convert_from(pg_catalog.decode('<UTF8 hex>','hex'),'UTF8')`, bytes
+as `pg_catalog.decode`, arrays as typed `ARRAY[...]`. Every emitted cast type
+and function name is qualified with `pg_catalog`, including PREPARE parameter
+types and the output-setting verification query. Connection qualification pins
+and verifies **client_encoding=UTF8, extra_float_digits=3, bytea_output=hex**.
+The decoder dispatches on prepared type OIDs and parses output in Rust; it
+performs no SQL name lookup. DateStyle, standard_conforming_strings, lc_* and
+an app-first search_path cannot change admitted inputs' meaning. This session
+independence is separate from parent §9.1 rule 9's locale-independent attach
+shape checks.
+
+Admitted inputs: bool, i16/i32/i64, f32/f64, TEXT, BYTEA and unit-bound 1-D
+arrays of those types (including optional values/elements). Port strings bind
+as TEXT; numeric and binary primitives retain the codec's boundary qualification. NAME, BPCHAR and VARCHAR
+(including `varchar(n)`), their arrays, NUMERIC, dates, custom types and
+multidimensional/non-unit-bound arrays refuse. No coercing string type is
+silently treated as TEXT. Saturation remains in shared policy before encoding.
+Finite floats, subnormals, negative zero and infinities compare exact bits.
+Postgres text output maps **every NaN sign/payload** to `NaN`; the literal input
+and decoder use exactly positive quiet NaN, f32 `0x7fc00000` / f64
+`0x7ff8000000000000`. Tests check those exact bits, native Bind's preservation
+of input payload/sign, server binary-send output, and scalar/array cases.
+This is explicit canonicalization, not preservation of arbitrary NaN bits;
+current port values do not expose binary NaN payload/sign as facts.
+RT6 must qualify each new physical connection and account for encoder scratch.
+
+From this experiment directory on **450b**, build into its assigned target,
+then supply the given PG16 address as seen by 450a and mode-600 password file:
+
+```sh
+export PATH="$HOME/.cargo/bin:$HOME/.local/bin:$PATH"
+export CARGO_TARGET_DIR="$HOME/projects/sb4-p0-s8/snapback4/target"
+export CARGO_BUILD_JOBS=10
+cargo build --locked --release --features rt5 -j 10
+python3 scripts/rt5.py results-rt5-hetzner \
+  --target '<host:port>' --password-file '<password-file>' \
+  --ssh expo-build-450a --user postgres --database postgres
+```
+
+Replace only the two supplied placeholders. `--ssh` preserves S1b's one
+independent SSH stream per physical database connection; 64 recorded local
+forwards occupy ports 62200–62263 (change `--tunnel-base` if needed). There is
+no connection sharing across streams. To measure a supplied **direct TCP**
+endpoint on the same 450b→450a route, omit only `--ssh expo-build-450a`; the
+record states the transport, so it must not be silently pooled with S1b's SSH
+results. Do not target the unrelated PG17 instance on port 55440.
+
+Both commands use C=32, **1 s warm-up, 4 s measurement, three fresh processes
+per shape/form**, three standalone 3,000-ping RTT controls and 1,000-ping
+before/after controls for each shape/form. No retries or configuration tuning.
+Each process creates and drops only `rt5_bench_<pid>` in the supplied database.
+No cluster or database is started/stopped/dropped. Use an explicitly supplied
+private evaluation database/role that may create schemas. Credentials stay in
+child environments, never argv or records. The runner records every child PID
+at launch and waits for it; cleanup records tunnel termination. Failed cells
+are retained; if a process dies before dropping its schema, its recorded PID
+identifies that schema for inspection and cleanup. Read `cleanup.json`.
+
+The loopback smoke command, with the lane's owned private cluster on 55491:
+
+```sh
+python3 scripts/rt5.py results-20261022-rt5-loopback \
+  --target 127.0.0.1:55491 --user sb4_eval --database postgres --loopback-smoke
+```
+
+This has the full timing/repetition method but is **non-qualifying** for the
+Hetzner mechanism choice. `summary.json` records median executions/s, median
+p50/p99 and worst-run p99 for all six settings; individual JSON retains raw
+runs, correctness counters, backend waits, WAL, timing and host load. The
+short RT5 report links the results and records the executed checks. The lead's
+[qualifying Hetzner run](./results-rt5-hetzner/README.md) is now recorded:
+W1 (a) 8,535/s vs (b) 5,589/s vs per-statement 4,686/s; mutations 141/s vs
+110/s vs 79/s, all correctness counters passing. RT5 fix round 1 qualifies
+the reviewed codec with unchanged flight schedules; see the
+[RT5 report](../../reports/20261022-rt5-flight-mechanism/REPORT.md) for the
+§3.6 decision and checks. Catalog qualification changes no flight boundary
+or expression structure; the Hetzner figures still apply without a rerun.

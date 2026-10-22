@@ -17,6 +17,10 @@ mod outbox_schema;
 mod outbox_store;
 mod prefetch;
 mod tail;
+#[cfg(any(test, feature = "test-support"))]
+pub mod literal;
+#[cfg(test)]
+mod literal_tests;
 mod through;
 mod jobs;
 mod jobs_schema;
