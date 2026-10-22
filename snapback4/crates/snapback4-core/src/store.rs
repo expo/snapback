@@ -756,7 +756,10 @@ impl<'a> Tx<'a> {
         let id = row.field("id")?.as_str()?;
         narrowed::check_write(self,table_name,table,row,old)?;
         backfills::observe_write(self,t,id,table,row,old)?;
-        extractions::observe_write(self,t,id,row,old)?;
+        // @ref LLP 3000.000.000#204-reference-renames-and-asset-extraction — an admitted extraction child must contain a mapped asset. Asset-free tables cannot own an active extraction receipt, so ordinary writes need no metadata probe.
+        if table.columns.values().any(|kind|kind.contains_asset()) {
+            extractions::observe_write(self,t,id,row,old)?;
+        }
         let keys = crate::rows::index_write(table_name, table, row, old, id)?;
         self.changes.borrow_mut().record(table_name, table, old, Some(row));
         let data = canonical_json(row);

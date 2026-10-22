@@ -194,8 +194,7 @@ mutation revise(ticket: tickets, weight: int):
 query ticket(ticket: tickets):
   return tickets[ticket]
 `;
-const v2 = v1
-  .replace("  owner: principal", "  vehicleClass: enum('car', 'van', 'commercial')\n  owner: principal")
+const v2 = v1.replace("  owner: principal", "  vehicleClass: enum('car', 'van', 'commercial')\n  owner: principal")
   .replace("  read <- .owner = viewer or exists roles[principal = viewer, role = 'reviewer']", "  read <- .owner = viewer")
   .replace("{owner:viewer, body, legacy:body, weight, length}", "{owner:viewer, body, legacy:body, weight, length, vehicleClass:'commercial' if weight > 3500 else 'van' if length >= 500 else 'car'}")
   + `backfill tickets vehicleClass(weight: int, length: int):
@@ -257,17 +256,14 @@ try {
   assert.equal(oldCall.state, "sent"); assert.equal(oldCall.result.vehicleClass, "commercial");
   const allV2 = await snapshot(); assert.equal(allV2.size, historical.size + 1);
   await rollback(directory, 1);
-  assert.deepEqual(await snapshot(), allV2, "native rows preserved");
-  assert.equal((await post("/q/ticket", reviewer, {ticket})).data, null, "default view keeps current privacy");
+  assert.deepEqual(await snapshot(), allV2, "native rows preserved"); assert.equal((await post("/q/ticket", reviewer, {ticket})).data, null, "default view keeps current privacy");
   assert.equal((await post("/q/ticket", alice, {ticket})).data.vehicleClass, "car");
-  // Deliberate original-source compatibility exercise; default keeps v2 policy.
-  await rollback(directory, 1, {args:["--exact"]});
+  await rollback(directory, 1, {args:["--exact"]}); // Deliberate original-source exercise; default keeps v2 policy.
   const oldView = (await post("/q/ticket", reviewer, {ticket})).data;
   assert.equal(oldView.body, "historical ticket"); assert.ok(!("vehicleClass" in oldView));
   assert.equal((await post("/q/ticket", alice, {ticket:oldCall.result.id})).data.legacy, "old-shaped call on v2", "declared reverse view for native row");
   assert.equal((await post("/m/revise", alice, {ticket, weight:4000})).state, "sent");
-  const changed = await snapshot();
-  const expected = new Map(allV2); const changedRow = [...expected.get(ticket)]; changedRow[3] = 4000; expected.set(ticket, changedRow);
+  const changed = await snapshot(); const expected = new Map(allV2); const changedRow = [...expected.get(ticket)]; changedRow[3] = 4000; expected.set(ticket, changedRow);
   assert.deepEqual(changed, expected, "only intended edit");
   await rollback(directory, "latest");
   assert.deepEqual(await snapshot(), changed, "complete population preserved");

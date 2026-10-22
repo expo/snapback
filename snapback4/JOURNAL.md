@@ -101985,3 +101985,17 @@ versus qualified 0.4.38. ROLL reference/lifetime migration support and the
 measurement + 500 B: 735,425 B. Family and absence audits pass. An initial
 measurement lacked the Brotli executable; it was discarded and repeated using
 the packaged Brotli 1.1.0 encoder, rather than recording zero as a measurement.
+
+Integration 23 follow-through: both review families mark the same current-intent
+revision 7 READY; all seven real review rounds and the initial material audit
+are retained verbatim with common snapshot hashes. The 17 language cases and
+eight CLI view cases pass, including unchanged-Quarry worker repairs. The
+request-count ratchet exposed an unconditional extraction metadata query on
+ordinary writes. Asset-free tables cannot be admitted extraction children, so
+they now skip that observation probe; the original warm count tables remain
+unchanged and the complete CLI unit target passes (522, nine declared ignores).
+Eight real extraction/lifetime cases pass. Composed read-authority fixtures and
+private residency bulk-load schemas now rederive admission facts after changing
+their declarations; the core's forged-metadata validation stays enforced. The
+production guide exercises both the guarded default view and explicit exact
+rollback within its existing 280-line budget.
