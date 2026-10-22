@@ -66,10 +66,10 @@ pub(super) fn notes(sources:&[(String,String)],bound:&Bound)->Vec<Diagnostic>{
             let creating_contexts=writes.iter().filter(|a|std::ptr::eq(a.p,w.p)&&matches!(a.op,WriteOp::Insert|WriteOp::Upsert)).collect::<Vec<_>>();
             for f in &w.fields{let Some(value)=field_value(f)else{continue;};let Some(kind)=t.columns.get(&f.name)else{continue;};
                 for arg in &w.p.args{if !uses(value,&arg.name){continue;}
-                    let parent_required=mandatory_parent_for(bound,w,&writes);
+                    let parent_required=mandatory_parent_for(bound,w,&writes,&arg.name);
                     let asserted=asserted_argument(value,&arg.name);
                     let omittable_attachment=(nonnull_mode(&w.context,&arg.name,true)||asserted)&&(!parent_required||asserted&&ordinary_unconditional(w.p,&w.site));
-                    if arg.type_.optional&&matches!(arg.type_.kind,TypeKind::Image{..}|TypeKind::File{..})&&kind.contains_asset()&&(parent_required&&nonnull_mode(&w.context,&arg.name,true)&&!nonnull(&w.context,&arg.name)||required_media(bound,&w.table,&f.name)&&kind.is_optional()&&matches!(value,Expr::Name{name,..} if name==&arg.name))&&!omittable_attachment&&!creating_contexts.iter().all(|a|nonnull(&a.context,&arg.name))&&seen.insert((w.name.clone(),format!("upload:{}:{}:{}:{}",arg.name,w.table,f.name,w.site))){
+                    if arg.type_.optional&&matches!(arg.type_.kind,TypeKind::Image{..}|TypeKind::File{..})&&kind.contains_asset()&&(parent_required&&branch_nonnull(&w.context,&arg.name)||required_media(bound,&w.table,&f.name)&&kind.is_optional()&&matches!(value,Expr::Name{name,..} if name==&arg.name))&&!omittable_attachment&&!creating_contexts.iter().all(|a|nonnull(&a.context,&arg.name))&&seen.insert((w.name.clone(),format!("upload:{}:{}:{}:{}",arg.name,w.table,f.name,w.site))){
                         note(&mut out,&w.site,"N_OPTIONAL_UPLOAD_CREATE",format!("{}: optional {} can omit media while creating {}.{}; independent non-null or parent evidence intent requires it; can parent creation skip required evidence?",w.name,arg.name,w.table,f.name),"make the creating mutation's upload argument required, or require it before creating the parent; match the required column/intent at creation; review an intentional exception individually");
                     }
                     if arg.type_.optional&&matches!(arg.type_.kind,TypeKind::Image{..}|TypeKind::File{..})&&kind.contains_asset()&&nonnull_mode(&w.context,&arg.name,true)&&!nonnull(&w.context,&arg.name)&&links_created_parent(w,&creating_contexts)&&seen.insert((w.name.clone(),format!("attachment:{}",arg.name))){
@@ -249,7 +249,7 @@ fn required_child(bound:&Bound,parent:&str,child:&str,reference:&str)->bool{
 
 // The obligation names a relationship and any literal discriminator, not every
 // attachment in the child table (e.g. required checkout vs optional return).
-fn mandatory_parent_for(bound:&Bound,w:&Write<'_>,writes:&[Write<'_>])->bool{
+fn mandatory_parent_for(bound:&Bound,w:&Write<'_>,writes:&[Write<'_>],arg:&str)->bool{
     fn linked(w:&Write<'_>,reference:&str,parent:&Write<'_>)->bool{w.fields.iter().find(|f|f.name==reference).and_then(field_value).is_some_and(|e|matches!(e,Expr::Member{base,name,..} if name=="id"&&matches!(base.as_ref(),Expr::Write{table,site,..} if table==&parent.table&&site==&parent.site)))}
     fn literal(e:&Expr,v:&snapback4_core::Value)->bool{match(e,v){
         (Expr::Literal{value:ast::Literal::Str(a),..},snapback4_core::Value::String(b))=>a==b,
@@ -259,6 +259,7 @@ fn mandatory_parent_for(bound:&Bound,w:&Write<'_>,writes:&[Write<'_>])->bool{
     }}
     for (reference,kind) in &bound.schema.tables[&w.table].columns{let ColumnType::Ref{table:parent}=kind.required()else{continue;};
         for p in writes.iter().filter(|p|std::ptr::eq(p.p,w.p)&&p.table==*parent&&matches!(p.op,WriteOp::Insert|WriteOp::Upsert)&&linked(w,reference,p)){
+            if nonnull_mode(&p.context,arg,true)||!parent_omits_argument(p,arg){continue;}
             for policy in bound.invariants.iter().filter(|i|i.table==*parent&&i.target=="always").filter_map(|i|i.policy.as_ref()).flat_map(conjuncts){
                 let RuleExpr::Exists{table,index,key,equalities,..}=policy else{continue;};if table!=&w.table{continue;}
                 let pairs=super::privilege::probe_pairs(bound,table,index,key,equalities);
@@ -293,4 +294,18 @@ fn asserted_argument(value:&Expr,arg:&str)->bool{
 
 fn links_created_parent(w:&Write<'_>,writes:&[&Write<'_>])->bool{
     writes.iter().any(|p|w.fields.iter().any(|f|matches!(field_value(f),Some(Expr::Member{base,name,..}) if name=="id"&&matches!(base.as_ref(),Expr::Write{table,site,..} if table==&p.table&&site==&p.site))))
+}
+
+fn branch_nonnull(p:&ast::ProgramDecl,arg:&str)->bool{
+ let mut branch=p.clone();branch.body.retain(|s|matches!(s,Stmt::Require{code,..} if code=="$advice"));nonnull_mode(&branch,arg,true)
+}
+// A parent gate needs a known straight-line creation that does not inspect the
+// omitted argument, rather than guessing through a helper that may assert it.
+fn parent_omits_argument(w:&Write<'_>,arg:&str)->bool{
+ if !ordinary_unconditional(w.p,&w.site){return false;}
+ for s in w.p.prelude.iter().chain(&w.p.body){
+  let value=match s{Stmt::Bind{value,..}|Stmt::Expr{value,..}|Stmt::Return{value,..}=>value,Stmt::Require{condition,..}=>condition,_=>return false};
+  if uses(value,arg){return false;}
+  if matches!(value,Expr::Write{site,..} if site==&w.site){return true;}
+ }false
 }

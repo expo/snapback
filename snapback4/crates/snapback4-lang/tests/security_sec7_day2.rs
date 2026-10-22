@@ -201,3 +201,10 @@ const CHILD:&str="table parents:\n  n: int default 0\n  read <- allow\n  insert 
  let required=format!("{s}invariant parents always exists photos[parent = .id]\n");let r=notes(&required);let ns=r.notes.iter().filter(|n|n.code=="N_EVIDENCE_REMOVAL").collect::<Vec<_>>();assert_eq!(ns.len(),1);assert!(ns[0].message.contains("remove (delete)"));
  let clear=required.replace("delete photos[photo]", "update photos[photo] {photo:null}").replace("  delete <- allow", "  delete <- allow\n  update <- allow");assert!(!has(&clear,"N_EVIDENCE_REMOVAL"),"parent presence alone does not make a nullable photo required");
 }
+
+#[test]fn parent_upload_guards_are_relative_to_parent_creation(){
+ let required="invariant parents always exists photos[parent = .id]\n";
+ let redundant=CHILD.replace("    insert photos {parent:p.id,photo}","    require photo != null else REQUIRED\n    insert photos {parent:p.id,photo}");assert!(has(&(redundant+required),"N_OPTIONAL_UPLOAD_CREATE"));
+ let both=CHILD.replace("  p = insert parents {}\n  if photo != null:\n    insert photos {parent:p.id,photo}\n  return p", "  if photo != null:\n    p = insert parents {}\n    insert photos {parent:p.id,photo}\n  return null");assert!(!has(&(both+required),"N_OPTIONAL_UPLOAD_CREATE"));
+ let checked=CHILD.replace("  p = insert parents {}", "  checked(photo)\n  p = insert parents {}")+"fn checked(photo:image <=10000 ?):\n  return photo ! else REQUIRED\n";assert!(!has(&(checked+required),"N_OPTIONAL_UPLOAD_CREATE"),"unknown validating prefixes cannot establish a parent-omission gate");
+}

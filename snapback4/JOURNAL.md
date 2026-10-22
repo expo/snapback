@@ -101427,3 +101427,13 @@ cover the new day-two shapes; non-null intent witnesses retain actual replay.
 Design, independent reviews and qualification are recorded in LLP3000.036.004 §16.9
 and WORKSTREAM-REPORT.md. Deploy notices and release/adoption work remain outside
 this addendum's scope; DX6 owns its previously commissioned regressions.
+
+SEC7 day-two final precision cuts: parent omission is relative to the parent
+creation context, with a direct argument-independent parent prefix. Child-local
+requirements cannot protect a parent already created; a guard enclosing both
+creations does. Explicit parent-presence intent covers nullable-media children
+for skipped creation and deletion, while ordinary nullable-cell clearing stays
+quiet. Review obligations distinguish module, operation, argument, table, column
+and site. Eligibility captures use compiler-selected indexes/source maps and one
+resolved parent identity. Historical generated-table updates remain total in the
+source advice pass. Thirty-seven focused day-two regressions pass.
