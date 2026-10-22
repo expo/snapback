@@ -13,6 +13,7 @@ struct Surface {
     #[serde(default)] completeness: Option<BTreeMap<String, String>>,
     notes: BTreeMap<String, usize>,
     refusals: BTreeMap<String, usize>,
+    #[serde(default)] pending_gates: Option<BTreeMap<String, usize>>,
 }
 fn path(project: &Project) -> PathBuf { project.data_dir().join("check-surface.json") }
 fn counts(notes: &[snapback4_lang::Diagnostic]) -> BTreeMap<String, usize> {
@@ -20,10 +21,18 @@ fn counts(notes: &[snapback4_lang::Diagnostic]) -> BTreeMap<String, usize> {
     for note in notes { *counts.entry(note.code.clone()).or_default() += 1; }
     counts
 }
-fn current(project: &Project, bound: &Bound) -> Surface {
+type Security<'a> = Option<(&'a snapback4_lang::security::Report, &'a [super::security_reviews::Disposition])>;
+fn current(project: &Project, bound: &Bound, security: Security<'_>) -> Surface {
+    let mut notes = counts(&bound.notes);
+    if let Some((report, _)) = security { for note in &report.notes { *notes.entry(note.code.clone()).or_default() += 1; } }
+    let pending_gates = security.map(|(_, dispositions)| {
+        let mut counts = BTreeMap::new();
+        for d in dispositions.iter().filter(|d|d.gated && !d.acknowledged) { *counts.entry(d.code.clone()).or_default() += 1; }
+        counts
+    });
     Surface { version: env!("CARGO_PKG_VERSION").into(), sources: project.sources().ok(),
         api: if bound.diagnostics.is_empty() { snapback4_lang::emit::typescript(bound) } else { String::new() },
-        notes: counts(&bound.notes), refusals: counts(&bound.diagnostics), completeness: Some(completeness(bound)) }
+        notes, pending_gates, refusals: counts(&bound.diagnostics), completeness: Some(completeness(bound)) }
 }
 /// Static proof class, never a promise about a concrete runtime page.
 fn completeness(bound: &Bound) -> BTreeMap<String, String> {
@@ -87,21 +96,27 @@ fn operation_types(value: &str) -> Option<(String, String)> {
     None
 }
 
-pub(super) fn report(project: &Project, bound: &Bound, json: bool) {
+pub(super) fn report(project: &Project, bound: &Bound, json: bool, security: Security<'_>) {
     let old: Surface = match fs::read(path(project)).ok().and_then(|b| serde_json::from_slice(&b).ok()) { Some(old) => old, None => {
         return;
     } };
-    let new = current(project, bound);
+    let new = current(project, bound, security);
     if old.version == new.version { return; }
     let mut lines = vec![format!("upgrade delta: {} → {} for snapback/*.q{}", old.version, new.version,
         if old.sources.is_some() && old.sources != new.sources { " (schema also changed)" } else { "" })];
-    for (label, before, after) in [("new notes", &old.notes, &new.notes), ("new refusals", &old.refusals, &new.refusals)] {
+    for (label, before, after) in [("new notes", &old.notes, &new.notes), ("new compiler refusals", &old.refusals, &new.refusals)] {
         let added = after.iter().filter_map(|(code, count)| {
             let delta = count.saturating_sub(*before.get(code).unwrap_or(&0));
             (delta > 0).then(|| format!("{code} +{delta}"))
         }).collect::<Vec<_>>();
         lines.push(format!("  {label}: {}", if added.is_empty() { "none".into() } else { added.join(", ") }));
     }
+    if let Some(gates) = &new.pending_gates {
+        let summary = gates.iter().map(|(code,count)|format!("{code}: {count}")).collect::<Vec<_>>();
+        lines.push(format!("  pending security review gates: {}{}", if summary.is_empty(){"none".into()}else{summary.join(", ")},
+            if old.pending_gates.is_none(){" (previous gate data unavailable)"}else{""}));
+    }
+    if security.is_some_and(|(report,_)|report.refuted()) { lines.push("  security invariant refuted: repair policy/intent; acknowledgments cannot override a refutation".into()); }
     if new.api.is_empty() { lines.push("  generated/api.ts: unavailable until the schema compiles; previous types kept".into()); }
     else {
         let before = types(&old.api); let after = types(&new.api);
@@ -119,12 +134,12 @@ pub(super) fn report(project: &Project, bound: &Bound, json: bool) {
     for line in lines { if json { eprintln!("{line}"); } else { println!("{line}"); } }
 }
 
-pub(super) fn remember(project: &Project, bound: &Bound) {
+pub(super) fn remember(project: &Project, bound: &Bound, security: Security<'_>) {
     if !bound.diagnostics.is_empty() || std::env::var("SNAPBACK4_UPGRADE_BASELINE").as_deref() == Ok("1") { return; }
     let save = || -> std::io::Result<()> {
         fs::create_dir_all(project.data_dir())?;
         let temporary = path(project).with_extension(format!("{}.tmp", std::process::id()));
-        fs::write(&temporary, serde_json::to_vec_pretty(&current(project, bound))?)?;
+        fs::write(&temporary, serde_json::to_vec_pretty(&current(project, bound, security))?)?;
         fs::rename(temporary, path(project))?;
         let _ = fs::remove_file(project.data_dir().join("upgrade-version.json"));
         Ok(())

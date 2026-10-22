@@ -7,6 +7,20 @@ import { randomUUID } from 'node:crypto';
 import { previousVersion, compareVersions } from './release-changes.js';
 const excluded = new Set(['node_modules', '.git', '.snapback4', 'generated', 'dist', 'build', 'target', 'deploy', 'logs', 'store', 'output', '.runtime']);
 // @ref LLP 3000.000.000.001#11-wave-22-loop-repairs-dx6 — transition-specific advice and durable nonterminal delivery.
+// Bounded source advice, never an authority parser. Couple numeric uses to
+// the actual result binding; operators elsewhere in a file prove nothing.
+export function numericAdvanceUse(source) {
+  const code = source.replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*|(["'`])(?:\\[\s\S]|(?!\1)[^\\])*?\1/g, text => " ".repeat(text.length));
+  const call = String.raw`(?:[A-Za-z_$][\w$]*\s*\.\s*)?advance\s*\([^;\n]{0,512}?\)`;
+  if (new RegExp(String.raw`new\s+Date\s*\(\s*(?:await\s+)?${call}`).test(code)
+    || new RegExp(String.raw`(?:await\s+)?${call}\s*\)*\s*(?:[<>+*/-]|===?\s*\d)`).test(code)) return true;
+  for (const match of code.matchAll(new RegExp(String.raw`\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*await\s+${call}`, "g"))) {
+    const name = match[1].replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const tail = code.slice(match.index + match[0].length);
+    if (new RegExp(String.raw`\bnew\s+Date\s*\(\s*${name}\s*\)|\b${name}\s*(?:[<>+*/-]|===?\s*\d)|[<>+*/-]\s*${name}\b|\bassert\.(?:equal|strictEqual)\s*\(\s*${name}\s*,\s*\d`).test(tail)) return true;
+  }
+  return false;
+}
 export function upgradeWarnings(root, declarations, previous, current) {
   if (current && (!previous || compareVersions(previous, current) >= 0)) return [];
   const applies = introduced => !current || (compareVersions(previous, introduced) < 0 && compareVersions(current, introduced) >= 0);
@@ -34,7 +48,7 @@ export function upgradeWarnings(root, declarations, previous, current) {
       if (activeDoors) doors.push(relative);
       if ([...source.matchAll(/\bstartDev\s*\(([^)]*)\)/g)].some(match => !/["']--memory["']/.test(match[1]))) persistence.push(relative);
       if (/\bsession\s*:\s*\{/.test(source)) partialSessions.push(relative);
-      if (/\badvance\s*\(/.test(source) && /(?:\bnew\s+Date\s*\(|\bassert\.|[<>+*-])/.test(source)) numericAdvance.push(relative);
+      if (numericAdvanceUse(source)) numericAdvance.push(relative);
       // Candidate scan: shell commands, argv arrays and npm-script strings.
       // Never infer how the parsed result is used or rewrite application code.
       const commandText = source.replace(/\s+/g, ' ');

@@ -333,7 +333,7 @@ pub fn check(options: &Options) -> i32 {
         return 1;
     }
     if !bound.diagnostics.is_empty() {
-        check_surface::report(&project, &bound, options.json);
+        check_surface::report(&project, &bound, options.json, None);
         report_diagnostics(&bound, options.json, true, options.flags.contains_key("verbose"));
         if !options.json { print_prediction(&bound, options.flags.contains_key("verbose")); }
         return 1;
@@ -345,7 +345,7 @@ pub fn check(options: &Options) -> i32 {
         Err(error) => { failed_check(&bound, options.json, "E_STORE", format!("cannot check store adoption: {error}")); return 2; }
     }
     if !bound.diagnostics.is_empty() {
-        check_surface::report(&project, &bound, options.json);
+        check_surface::report(&project, &bound, options.json, None);
         report_diagnostics(&bound, options.json, true, options.flags.contains_key("verbose"));
         if !options.json { print_prediction(&bound, options.flags.contains_key("verbose")); }
         return 1;
@@ -359,7 +359,6 @@ pub fn check(options: &Options) -> i32 {
         return 1;
     }
     bound.notes.extend(snapback4_lang::bind::residency::change_notes(&bound, &residency::previous(&project)));
-    check_surface::report(&project, &bound, options.json);
     if let Err(error) = project.write_generated(&bound) {
         failed_check(&bound, options.json, "E_STORE", format!("cannot write generated types: {error}"));
         return 2;
@@ -383,7 +382,6 @@ pub fn check(options: &Options) -> i32 {
             return 1;
         }
     };
-    check_surface::remember(&project, &bound);
     if let Err(error) = residency::remember(&project, &bound) { failed_check(&bound, options.json, "E_STORE", format!("cannot write residency facts: {error}")); return 2; }
     let acquisition = if options.flags.contains_key("residency") {
         match residency::at_check(&project, &bound, options) {
@@ -402,10 +400,15 @@ pub fn check(options: &Options) -> i32 {
             return 2;
         }
     } };
+    let acknowledgment_not_applied = (security.refuted() && options.flags.contains_key("ack-security")).then_some(
+        "--ack-security was not applied: a security invariant is refuted; an acknowledgment records specification rationale for a review note and cannot override a concrete counterexample. Repair the policy or the invariant and rerun check.");
+    if !options.json { if let Some(message) = acknowledgment_not_applied { eprintln!("check: {message}"); } }
     let dispositions = match security_reviews::review(&project,&compiled_sources,&security.notes,
         if security.refuted(){None}else{options.flags.get("ack-security").map(|id|(id.as_str(),options.flags.get("reason").map(String::as_str).unwrap_or("")))}) {
         Ok(d)=>d,Err(error)=>{if options.json {println!("{}",json!({"ok":false,"security":&security,"problems":[{"code":"E_SECURITY_NOTES","message":error}]}));}else{eprintln!("check: E_SECURITY_NOTES: {error}");}return 2;}
     };
+    check_surface::report(&project, &bound, options.json, Some((&security, &dispositions)));
+    check_surface::remember(&project, &bound, Some((&security, &dispositions)));
     let security_failed=security.refuted()||security_reviews::pending(&dispositions);
     let visible_security=security.notes.iter().zip(&dispositions).filter(|(_,d)|!d.acknowledged).map(|(n,_)|n).collect::<Vec<_>>();
     let present = |text: &str| crate::presentation::indexes(&bound.schema, text, options.flags.contains_key("verbose"));
@@ -425,7 +428,7 @@ pub fn check(options: &Options) -> i32 {
         format!("sequence {name}.{column}: counter per {} row through .{reference}; immutable, provisional while pending", table.columns[reference])
     })).collect();
     if options.json {
-        println!("{}", json!({ "ok": !security_failed, "securityReviews": &dispositions, "security": &security, "followingHistory": bound.programs.iter().filter_map(|p| crate::scale::following::certificate(&bound.schema, &p.program)).collect::<Vec<_>>(), "rowViews": row_views, "fieldAuthority": field_authority, "sequences": sequences, "scaleSummary": scale_summary, "search": certificates.iter().flat_map(|certificate| &certificate.search).collect::<Vec<_>>(), "plans": if options.flags.contains_key("cost") { Some(bound.programs.iter().map(|p| (&p.program.name, p.selections())).collect::<BTreeMap<_, _>>()) } else { None }, "scale": if options.flags.contains_key("cost") { Some(&certificates) } else { None }, "tables": bound.schema.visible_tables().filter(|(name, _)| bound.schema.maintain_for(name).is_none()).count(), "views": bound.schema.visible_tables().filter(|(name, _)| bound.schema.maintain_for(name).is_some()).count(), "synced": synced, "operations": bound.programs.len(), "heldQueries": bound.schema.operations.iter().filter(|(_, fact)| fact.held).map(|(name, _)| name).collect::<Vec<_>>(), "notes": bound.notes, "newNotes": reviewed.new, "acknowledgedNotes": reviewed.acknowledged, "predictionSummary": snapback4_lang::bind::residency::prediction_summary(&bound), "starterLeftovers": init::starter_leftovers_json(&project.root), "acquisition": acquisition, "residency": if options.flags.contains_key("residency") { Some(residency::facts(&bound)) } else { None }, "native": native.as_ref().map(|b| json!({ "module": b.path, "bytes": b.bytes, "jobs": b.jobs, "ms": b.ms })), "ms": elapsed.as_millis() }));
+        println!("{}", json!({ "ok": !security_failed, "acknowledgmentNotApplied": acknowledgment_not_applied, "securityReviews": &dispositions, "security": &security, "followingHistory": bound.programs.iter().filter_map(|p| crate::scale::following::certificate(&bound.schema, &p.program)).collect::<Vec<_>>(), "rowViews": row_views, "fieldAuthority": field_authority, "sequences": sequences, "scaleSummary": scale_summary, "search": certificates.iter().flat_map(|certificate| &certificate.search).collect::<Vec<_>>(), "plans": if options.flags.contains_key("cost") { Some(bound.programs.iter().map(|p| (&p.program.name, p.selections())).collect::<BTreeMap<_, _>>()) } else { None }, "scale": if options.flags.contains_key("cost") { Some(&certificates) } else { None }, "tables": bound.schema.visible_tables().filter(|(name, _)| bound.schema.maintain_for(name).is_none()).count(), "views": bound.schema.visible_tables().filter(|(name, _)| bound.schema.maintain_for(name).is_some()).count(), "synced": synced, "operations": bound.programs.len(), "heldQueries": bound.schema.operations.iter().filter(|(_, fact)| fact.held).map(|(name, _)| name).collect::<Vec<_>>(), "notes": bound.notes, "newNotes": reviewed.new, "acknowledgedNotes": reviewed.acknowledged, "predictionSummary": snapback4_lang::bind::residency::prediction_summary(&bound), "starterLeftovers": init::starter_leftovers_json(&project.root), "acquisition": acquisition, "residency": if options.flags.contains_key("residency") { Some(residency::facts(&bound)) } else { None }, "native": native.as_ref().map(|b| json!({ "module": b.path, "bytes": b.bytes, "jobs": b.jobs, "ms": b.ms })), "ms": elapsed.as_millis() }));
     } else {
         println!("check: {} — {} ({synced} synced), {} operations, {}{}, {:.1} ms{}", if security_failed { "failed" } else { "ok" }, table_counts(&bound.schema), bound.programs.len(), if security.refuted() { "security invariant refuted" } else if security_failed { "security review required" } else { "compiled" }, if note_count == 0 { String::new() } else { format!(", {} note{}", note_count, if note_count == 1 { "" } else { "s" }) }, elapsed.as_secs_f64() * 1000.0, match &native { Some(b) => format!("; native: {} → {} ({} B, {} ms)", b.jobs.join(", "), b.path.display(), b.bytes, b.ms), None => String::new() });
         if !reviewed.acknowledged.is_empty() { println!("{} reviewed notes (check --verbose to inspect); source edits require review again", reviewed.acknowledged.len()); }
