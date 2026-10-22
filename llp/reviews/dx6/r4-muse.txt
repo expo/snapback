@@ -1,0 +1,36 @@
+muse: workspace root: /home/ccheever/projects/sb4-b22-dx6 (cwd default)
+muse: workspace trust: trusted source=run-flag
+No material design/code finding remains for `3383a0626`. Verdict: **READY**.
+
+Independent review of the frozen proposal (`llp/reviews/dx6/r4-amendment.md`) against the frozen implementation at `3383a062624f65f9ead3cfb13dbe87fd4e4f6811` (all reads via `git show`/`git diff` on that commit; no working-copy reads, no builds, no other reviewers' artifacts). Headline areas inspected first, then every other DX6 semantic area in the proposal.
+
+## Newest repair (LLP 3000.013 §6/§12.7 cutoff) — sound
+
+- Scope-owned capture lease: [app.ts:363](/snapback4/packages/snapback4/src/app.ts) (`cleanupScope`) acquires `holdClose(scope.client)` only when a `Client` exists, refcounts reentrant credential work (`depth`), and releases at zero. The `finally` awaits only `scope.logout` (a `removeSession` storage barrier) and the `persist` chain — both local storage-locked work (`app.ts` `removeSession`/`persist`), never auth, network, or the revocation queue (`revokeRetired` is fire-and-forget). This matches the proposal's "without waiting for auth/network/revocation queues."
+- No wait cycle: `client.close()` resolves its `closing` promise after calling `finish()` without awaiting `done`, so `cleanupScope(scope, () => raw.close())` cannot deadlock against `closingResponses.done`. The local-mutate `await closingResponses.done` path ([local.ts:1311](/snapback4/packages/snapback4/src/local.ts)) waits on inner settlement resolved by `resolveClosingWrites` during close, not on the caller's own promise in `active`. The online `act()` recovery callback is not a member of the `requests` set awaited by `close()`.
+- No authority adoption: `onParsed` capture fires synchronously inside `readResponse` before caller continuations, gated by `phase !== "complete"` and `status < 500` ([closing-responses.ts](/snapback4/packages/snapback4/src/closing-responses.ts)). 5xx envelopes and invalid bodies are consumed for validation but never captured (`http-response.ts` returns the denied envelope without calling `onParsed`). `begin()` is `open→closing` only, post-`complete` `hold()` is a no-op, and `complete()` runs once — a completed capture cannot reopen.
+- No lost known outcomes: closed online `act()` recovers via `await done` then `response.take()`; closed online mutate maps pending outcomes through `entry.response.write(outcome)`; closed local mutate awaits `done` then `response.write(await result)`. Unknown/never-captured outcomes stay `pending`, never upgraded.
+- Early local post-admission close uses the existing arbitration (`cleanupScope` around `raw.close()`/`raw.signOut()`, [app.ts:704](/snapback4/packages/snapback4/src/app.ts)) and preserves the settlement entry; no outcome rewrite on that path.
+
+## Earlier repairs — confirmed in frozen code
+
+- Heartbeat/authority timing: streamed final frames reuse the exact `session_clock_headers` snapshot instead of re-stamping after the hold ([serve_changes.rs](/snapback4/crates/snapback4/src/serve_changes.rs)); staging-only, exact-Bearer [REDACTED] detached-reader authority snapshot, `unavailable` on failure with clock suppression ([serve.rs](/snapback4/crates/snapback4/src/serve.rs), `session_clock_headers`).
+- Durable saves before publication (local/device): `beforeSample` awaits `keepSession` via `persistingSession`, returns `false` (suppress) on mismatch/rotation, keeps `timingChanged` set for retry on failure ([local.ts:93–106,397](/snapback4/packages/snapback4/src/local.ts)).
+- Text clipping/composition: per-character visible-range evidence, smallest-match-wins, layout-less wrapper forwarding, no editable/input matching ([proof-text.ts](/snapback4/packages/snapback4/src/proof-text.ts)).
+- Prepared clocks: `attach(core, deferCommit(...))` keeps offsets non-durable; `commitPersistence()` runs only after the `keepSession` identity commit, discard/close paths never commit ([local.ts:194](/snapback4/packages/snapback4/src/local.ts), [app.ts:816–823](/snapback4/packages/snapback4/src/app.ts)).
+
+## Other material scope — no defects
+
+- Held-before-effects refusal precedes any clock/session effect; `drain:false` pauses, `drain()` resumes, failed drain stays paused with time intact ([serve_maintenance.rs](/snapback4/crates/snapback4/src/serve_maintenance.rs)).
+- Transactional preservation uses effective time above the disclosure floor (`effective_delta`), never revives expired/capped/revoked families, no double-shift of worker-lease-owned authority.
+- Legacy partial online session input is bearer-only with no invented expiry/identity; complete shapes strictly validated with a field-listing `E_SESSION`; local/device stays complete-only ([session-input.ts](/snapback4/packages/snapback4/src/session-input.ts)).
+- Transition-scoped, version-gated warnings with durable non-TTY receipts (old-quiet-path acknowledgment-without-display disclosed in proposal); future-format stores refuse nonzero with the `FORMAT` repair ([upgrade-warnings.js](/snapback4/packages/snapback4/bin/upgrade-warnings.js), [sql_objects.rs](/snapback4/crates/snapback4/tests/check/sql_objects.rs)).
+- Starters render through packaged `ReadState` with historical wave9/wave22 templates immutable; public same-origin TEST observer is locked, first-App-selected, cross-App refusing, granting no credentials ([starter.rs](/snapback4/crates/snapback4/src/verbs/init/starter.rs), [witness-web.ts](/snapback4/packages/snapback4/src/witness-web.ts)). Proof uses the caller's installed Playwright peer with a same-copy fallback ([proof.ts](/snapback4/packages/snapback4/src/proof.ts)).
+
+## One noted non-material deviation (not a readiness blocker)
+
+- Online (non-device) session-timing reconciliation ([client.ts:244](/snapback4/packages/snapback4/src/client.ts)) updates the in-memory session and notifies synchronously inside `beforeSample`, while its durable `keepSession` runs fire-and-forget from the `onSession` listener — so on a save failure the clock still publishes and there is no dirty-timing retry flag, unlike the local path. The proposal's "failed save leaves the clock unchanged" sentence strictly describes the local path's behavior. Impact is fail-closed (a restart sees the older expiry and the staging probe can re-restore it) and self-healing, so I do not rate it material.
+
+Pending full qualification (fresh-pack, Mac) is unclaimed by this review and, per instructions, is not treated as a code defect.
+
+**READY**
