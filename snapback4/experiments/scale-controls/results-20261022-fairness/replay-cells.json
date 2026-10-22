@@ -1,0 +1,974 @@
+[
+  {
+    "target": "raw-pg",
+    "cell": {
+      "workload": "W1",
+      "keys": "disjoint",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 128
+    },
+    "command": [
+      "setsid",
+      "nohup",
+      "python3",
+      "scripts/replay-fairness-cell.py",
+      "--target",
+      "raw-pg",
+      "--out",
+      "target/replay-raw-pg-w1-n1000000-d0-c128-disjoint",
+      "--workload",
+      "W1",
+      "--delay-us",
+      "0",
+      "--keys",
+      "disjoint"
+    ],
+    "note": "Redirect stdin from /dev/null and stdout/stderr to a private log; background, record PID and poll until exit."
+  },
+  {
+    "target": "raw-pg-no-token",
+    "cell": {
+      "workload": "W1",
+      "keys": "disjoint",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 128
+    },
+    "command": [
+      "setsid",
+      "nohup",
+      "python3",
+      "scripts/replay-fairness-cell.py",
+      "--target",
+      "raw-pg-no-token",
+      "--out",
+      "target/replay-raw-pg-no-token-w1-n1000000-d0-c128-disjoint",
+      "--workload",
+      "W1",
+      "--delay-us",
+      "0",
+      "--keys",
+      "disjoint"
+    ],
+    "note": "Redirect stdin from /dev/null and stdout/stderr to a private log; background, record PID and poll until exit."
+  },
+  {
+    "target": "supabase",
+    "cell": {
+      "workload": "W1",
+      "keys": "disjoint",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 128
+    },
+    "command": [
+      "setsid",
+      "nohup",
+      "python3",
+      "scripts/replay-fairness-cell.py",
+      "--target",
+      "supabase",
+      "--out",
+      "target/replay-supabase-w1-n1000000-d0-c128-disjoint",
+      "--workload",
+      "W1",
+      "--delay-us",
+      "0",
+      "--keys",
+      "disjoint"
+    ],
+    "note": "Redirect stdin from /dev/null and stdout/stderr to a private log; background, record PID and poll until exit."
+  },
+  {
+    "target": "raw-pg",
+    "cell": {
+      "workload": "W1",
+      "keys": "disjoint",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 128
+    },
+    "command": [
+      "setsid",
+      "nohup",
+      "python3",
+      "scripts/replay-fairness-cell.py",
+      "--target",
+      "raw-pg",
+      "--out",
+      "target/replay-raw-pg-w1-n1000000-d500-c128-disjoint",
+      "--workload",
+      "W1",
+      "--delay-us",
+      "500",
+      "--keys",
+      "disjoint"
+    ],
+    "note": "Redirect stdin from /dev/null and stdout/stderr to a private log; background, record PID and poll until exit."
+  },
+  {
+    "target": "raw-pg-no-token",
+    "cell": {
+      "workload": "W1",
+      "keys": "disjoint",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 128
+    },
+    "command": [
+      "setsid",
+      "nohup",
+      "python3",
+      "scripts/replay-fairness-cell.py",
+      "--target",
+      "raw-pg-no-token",
+      "--out",
+      "target/replay-raw-pg-no-token-w1-n1000000-d500-c128-disjoint",
+      "--workload",
+      "W1",
+      "--delay-us",
+      "500",
+      "--keys",
+      "disjoint"
+    ],
+    "note": "Redirect stdin from /dev/null and stdout/stderr to a private log; background, record PID and poll until exit."
+  },
+  {
+    "target": "supabase",
+    "cell": {
+      "workload": "W1",
+      "keys": "disjoint",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 128
+    },
+    "command": [
+      "setsid",
+      "nohup",
+      "python3",
+      "scripts/replay-fairness-cell.py",
+      "--target",
+      "supabase",
+      "--out",
+      "target/replay-supabase-w1-n1000000-d500-c128-disjoint",
+      "--workload",
+      "W1",
+      "--delay-us",
+      "500",
+      "--keys",
+      "disjoint"
+    ],
+    "note": "Redirect stdin from /dev/null and stdout/stderr to a private log; background, record PID and poll until exit."
+  },
+  {
+    "target": "raw-pg",
+    "cell": {
+      "workload": "W2",
+      "keys": "disjoint",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 128
+    },
+    "command": [
+      "setsid",
+      "nohup",
+      "python3",
+      "scripts/replay-fairness-cell.py",
+      "--target",
+      "raw-pg",
+      "--out",
+      "target/replay-raw-pg-w2-n1000000-d0-c128-disjoint",
+      "--workload",
+      "W2",
+      "--delay-us",
+      "0",
+      "--keys",
+      "disjoint"
+    ],
+    "note": "Redirect stdin from /dev/null and stdout/stderr to a private log; background, record PID and poll until exit."
+  },
+  {
+    "target": "raw-pg-no-token",
+    "cell": {
+      "workload": "W2",
+      "keys": "disjoint",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 128
+    },
+    "command": [
+      "setsid",
+      "nohup",
+      "python3",
+      "scripts/replay-fairness-cell.py",
+      "--target",
+      "raw-pg-no-token",
+      "--out",
+      "target/replay-raw-pg-no-token-w2-n1000000-d0-c128-disjoint",
+      "--workload",
+      "W2",
+      "--delay-us",
+      "0",
+      "--keys",
+      "disjoint"
+    ],
+    "note": "Redirect stdin from /dev/null and stdout/stderr to a private log; background, record PID and poll until exit."
+  },
+  {
+    "target": "supabase",
+    "cell": {
+      "workload": "W2",
+      "keys": "disjoint",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 128
+    },
+    "command": [
+      "setsid",
+      "nohup",
+      "python3",
+      "scripts/replay-fairness-cell.py",
+      "--target",
+      "supabase",
+      "--out",
+      "target/replay-supabase-w2-n1000000-d0-c128-disjoint",
+      "--workload",
+      "W2",
+      "--delay-us",
+      "0",
+      "--keys",
+      "disjoint"
+    ],
+    "note": "Redirect stdin from /dev/null and stdout/stderr to a private log; background, record PID and poll until exit."
+  },
+  {
+    "target": "raw-pg",
+    "cell": {
+      "workload": "W2",
+      "keys": "disjoint",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 128
+    },
+    "command": [
+      "setsid",
+      "nohup",
+      "python3",
+      "scripts/replay-fairness-cell.py",
+      "--target",
+      "raw-pg",
+      "--out",
+      "target/replay-raw-pg-w2-n1000000-d500-c128-disjoint",
+      "--workload",
+      "W2",
+      "--delay-us",
+      "500",
+      "--keys",
+      "disjoint"
+    ],
+    "note": "Redirect stdin from /dev/null and stdout/stderr to a private log; background, record PID and poll until exit."
+  },
+  {
+    "target": "raw-pg-no-token",
+    "cell": {
+      "workload": "W2",
+      "keys": "disjoint",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 128
+    },
+    "command": [
+      "setsid",
+      "nohup",
+      "python3",
+      "scripts/replay-fairness-cell.py",
+      "--target",
+      "raw-pg-no-token",
+      "--out",
+      "target/replay-raw-pg-no-token-w2-n1000000-d500-c128-disjoint",
+      "--workload",
+      "W2",
+      "--delay-us",
+      "500",
+      "--keys",
+      "disjoint"
+    ],
+    "note": "Redirect stdin from /dev/null and stdout/stderr to a private log; background, record PID and poll until exit."
+  },
+  {
+    "target": "supabase",
+    "cell": {
+      "workload": "W2",
+      "keys": "disjoint",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 128
+    },
+    "command": [
+      "setsid",
+      "nohup",
+      "python3",
+      "scripts/replay-fairness-cell.py",
+      "--target",
+      "supabase",
+      "--out",
+      "target/replay-supabase-w2-n1000000-d500-c128-disjoint",
+      "--workload",
+      "W2",
+      "--delay-us",
+      "500",
+      "--keys",
+      "disjoint"
+    ],
+    "note": "Redirect stdin from /dev/null and stdout/stderr to a private log; background, record PID and poll until exit."
+  },
+  {
+    "target": "raw-pg",
+    "cell": {
+      "workload": "W3",
+      "keys": "disjoint",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 128
+    },
+    "command": [
+      "setsid",
+      "nohup",
+      "python3",
+      "scripts/replay-fairness-cell.py",
+      "--target",
+      "raw-pg",
+      "--out",
+      "target/replay-raw-pg-w3-n1000000-d0-c128-disjoint",
+      "--workload",
+      "W3",
+      "--delay-us",
+      "0",
+      "--keys",
+      "disjoint"
+    ],
+    "note": "Redirect stdin from /dev/null and stdout/stderr to a private log; background, record PID and poll until exit."
+  },
+  {
+    "target": "raw-pg-no-token",
+    "cell": {
+      "workload": "W3",
+      "keys": "disjoint",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 128
+    },
+    "command": [
+      "setsid",
+      "nohup",
+      "python3",
+      "scripts/replay-fairness-cell.py",
+      "--target",
+      "raw-pg-no-token",
+      "--out",
+      "target/replay-raw-pg-no-token-w3-n1000000-d0-c128-disjoint",
+      "--workload",
+      "W3",
+      "--delay-us",
+      "0",
+      "--keys",
+      "disjoint"
+    ],
+    "note": "Redirect stdin from /dev/null and stdout/stderr to a private log; background, record PID and poll until exit."
+  },
+  {
+    "target": "supabase",
+    "cell": {
+      "workload": "W3",
+      "keys": "disjoint",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 128
+    },
+    "command": [
+      "setsid",
+      "nohup",
+      "python3",
+      "scripts/replay-fairness-cell.py",
+      "--target",
+      "supabase",
+      "--out",
+      "target/replay-supabase-w3-n1000000-d0-c128-disjoint",
+      "--workload",
+      "W3",
+      "--delay-us",
+      "0",
+      "--keys",
+      "disjoint"
+    ],
+    "note": "Redirect stdin from /dev/null and stdout/stderr to a private log; background, record PID and poll until exit."
+  },
+  {
+    "target": "raw-pg",
+    "cell": {
+      "workload": "W3",
+      "keys": "disjoint",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 128
+    },
+    "command": [
+      "setsid",
+      "nohup",
+      "python3",
+      "scripts/replay-fairness-cell.py",
+      "--target",
+      "raw-pg",
+      "--out",
+      "target/replay-raw-pg-w3-n1000000-d500-c128-disjoint",
+      "--workload",
+      "W3",
+      "--delay-us",
+      "500",
+      "--keys",
+      "disjoint"
+    ],
+    "note": "Redirect stdin from /dev/null and stdout/stderr to a private log; background, record PID and poll until exit."
+  },
+  {
+    "target": "raw-pg-no-token",
+    "cell": {
+      "workload": "W3",
+      "keys": "disjoint",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 128
+    },
+    "command": [
+      "setsid",
+      "nohup",
+      "python3",
+      "scripts/replay-fairness-cell.py",
+      "--target",
+      "raw-pg-no-token",
+      "--out",
+      "target/replay-raw-pg-no-token-w3-n1000000-d500-c128-disjoint",
+      "--workload",
+      "W3",
+      "--delay-us",
+      "500",
+      "--keys",
+      "disjoint"
+    ],
+    "note": "Redirect stdin from /dev/null and stdout/stderr to a private log; background, record PID and poll until exit."
+  },
+  {
+    "target": "supabase",
+    "cell": {
+      "workload": "W3",
+      "keys": "disjoint",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 128
+    },
+    "command": [
+      "setsid",
+      "nohup",
+      "python3",
+      "scripts/replay-fairness-cell.py",
+      "--target",
+      "supabase",
+      "--out",
+      "target/replay-supabase-w3-n1000000-d500-c128-disjoint",
+      "--workload",
+      "W3",
+      "--delay-us",
+      "500",
+      "--keys",
+      "disjoint"
+    ],
+    "note": "Redirect stdin from /dev/null and stdout/stderr to a private log; background, record PID and poll until exit."
+  },
+  {
+    "target": "raw-pg",
+    "cell": {
+      "workload": "W4",
+      "keys": "disjoint",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 32
+    },
+    "command": [
+      "setsid",
+      "nohup",
+      "python3",
+      "scripts/replay-fairness-cell.py",
+      "--target",
+      "raw-pg",
+      "--out",
+      "target/replay-raw-pg-w4-n1000000-d0-c32-disjoint",
+      "--workload",
+      "W4",
+      "--delay-us",
+      "0",
+      "--keys",
+      "disjoint"
+    ],
+    "note": "Redirect stdin from /dev/null and stdout/stderr to a private log; background, record PID and poll until exit."
+  },
+  {
+    "target": "raw-pg-no-token",
+    "cell": {
+      "workload": "W4",
+      "keys": "disjoint",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 32
+    },
+    "command": [
+      "setsid",
+      "nohup",
+      "python3",
+      "scripts/replay-fairness-cell.py",
+      "--target",
+      "raw-pg-no-token",
+      "--out",
+      "target/replay-raw-pg-no-token-w4-n1000000-d0-c32-disjoint",
+      "--workload",
+      "W4",
+      "--delay-us",
+      "0",
+      "--keys",
+      "disjoint"
+    ],
+    "note": "Redirect stdin from /dev/null and stdout/stderr to a private log; background, record PID and poll until exit."
+  },
+  {
+    "target": "supabase",
+    "cell": {
+      "workload": "W4",
+      "keys": "disjoint",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 32
+    },
+    "command": [
+      "setsid",
+      "nohup",
+      "python3",
+      "scripts/replay-fairness-cell.py",
+      "--target",
+      "supabase",
+      "--out",
+      "target/replay-supabase-w4-n1000000-d0-c32-disjoint",
+      "--workload",
+      "W4",
+      "--delay-us",
+      "0",
+      "--keys",
+      "disjoint"
+    ],
+    "note": "Redirect stdin from /dev/null and stdout/stderr to a private log; background, record PID and poll until exit."
+  },
+  {
+    "target": "raw-pg",
+    "cell": {
+      "workload": "W4",
+      "keys": "disjoint",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 32
+    },
+    "command": [
+      "setsid",
+      "nohup",
+      "python3",
+      "scripts/replay-fairness-cell.py",
+      "--target",
+      "raw-pg",
+      "--out",
+      "target/replay-raw-pg-w4-n1000000-d500-c32-disjoint",
+      "--workload",
+      "W4",
+      "--delay-us",
+      "500",
+      "--keys",
+      "disjoint"
+    ],
+    "note": "Redirect stdin from /dev/null and stdout/stderr to a private log; background, record PID and poll until exit."
+  },
+  {
+    "target": "raw-pg-no-token",
+    "cell": {
+      "workload": "W4",
+      "keys": "disjoint",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 32
+    },
+    "command": [
+      "setsid",
+      "nohup",
+      "python3",
+      "scripts/replay-fairness-cell.py",
+      "--target",
+      "raw-pg-no-token",
+      "--out",
+      "target/replay-raw-pg-no-token-w4-n1000000-d500-c32-disjoint",
+      "--workload",
+      "W4",
+      "--delay-us",
+      "500",
+      "--keys",
+      "disjoint"
+    ],
+    "note": "Redirect stdin from /dev/null and stdout/stderr to a private log; background, record PID and poll until exit."
+  },
+  {
+    "target": "supabase",
+    "cell": {
+      "workload": "W4",
+      "keys": "disjoint",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 32
+    },
+    "command": [
+      "setsid",
+      "nohup",
+      "python3",
+      "scripts/replay-fairness-cell.py",
+      "--target",
+      "supabase",
+      "--out",
+      "target/replay-supabase-w4-n1000000-d500-c32-disjoint",
+      "--workload",
+      "W4",
+      "--delay-us",
+      "500",
+      "--keys",
+      "disjoint"
+    ],
+    "note": "Redirect stdin from /dev/null and stdout/stderr to a private log; background, record PID and poll until exit."
+  },
+  {
+    "target": "raw-pg",
+    "cell": {
+      "workload": "W5",
+      "keys": "same",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 32
+    },
+    "command": [
+      "setsid",
+      "nohup",
+      "python3",
+      "scripts/replay-fairness-cell.py",
+      "--target",
+      "raw-pg",
+      "--out",
+      "target/replay-raw-pg-w5-n1000000-d0-c32-same",
+      "--workload",
+      "W5",
+      "--delay-us",
+      "0",
+      "--keys",
+      "same"
+    ],
+    "note": "Redirect stdin from /dev/null and stdout/stderr to a private log; background, record PID and poll until exit."
+  },
+  {
+    "target": "raw-pg-no-token",
+    "cell": {
+      "workload": "W5",
+      "keys": "same",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 32
+    },
+    "command": [
+      "setsid",
+      "nohup",
+      "python3",
+      "scripts/replay-fairness-cell.py",
+      "--target",
+      "raw-pg-no-token",
+      "--out",
+      "target/replay-raw-pg-no-token-w5-n1000000-d0-c32-same",
+      "--workload",
+      "W5",
+      "--delay-us",
+      "0",
+      "--keys",
+      "same"
+    ],
+    "note": "Redirect stdin from /dev/null and stdout/stderr to a private log; background, record PID and poll until exit."
+  },
+  {
+    "target": "supabase",
+    "cell": {
+      "workload": "W5",
+      "keys": "same",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 32
+    },
+    "command": [
+      "setsid",
+      "nohup",
+      "python3",
+      "scripts/replay-fairness-cell.py",
+      "--target",
+      "supabase",
+      "--out",
+      "target/replay-supabase-w5-n1000000-d0-c32-same",
+      "--workload",
+      "W5",
+      "--delay-us",
+      "0",
+      "--keys",
+      "same"
+    ],
+    "note": "Redirect stdin from /dev/null and stdout/stderr to a private log; background, record PID and poll until exit."
+  },
+  {
+    "target": "raw-pg",
+    "cell": {
+      "workload": "W5",
+      "keys": "same",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 32
+    },
+    "command": [
+      "setsid",
+      "nohup",
+      "python3",
+      "scripts/replay-fairness-cell.py",
+      "--target",
+      "raw-pg",
+      "--out",
+      "target/replay-raw-pg-w5-n1000000-d500-c32-same",
+      "--workload",
+      "W5",
+      "--delay-us",
+      "500",
+      "--keys",
+      "same"
+    ],
+    "note": "Redirect stdin from /dev/null and stdout/stderr to a private log; background, record PID and poll until exit."
+  },
+  {
+    "target": "raw-pg-no-token",
+    "cell": {
+      "workload": "W5",
+      "keys": "same",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 32
+    },
+    "command": [
+      "setsid",
+      "nohup",
+      "python3",
+      "scripts/replay-fairness-cell.py",
+      "--target",
+      "raw-pg-no-token",
+      "--out",
+      "target/replay-raw-pg-no-token-w5-n1000000-d500-c32-same",
+      "--workload",
+      "W5",
+      "--delay-us",
+      "500",
+      "--keys",
+      "same"
+    ],
+    "note": "Redirect stdin from /dev/null and stdout/stderr to a private log; background, record PID and poll until exit."
+  },
+  {
+    "target": "supabase",
+    "cell": {
+      "workload": "W5",
+      "keys": "same",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 32
+    },
+    "command": [
+      "setsid",
+      "nohup",
+      "python3",
+      "scripts/replay-fairness-cell.py",
+      "--target",
+      "supabase",
+      "--out",
+      "target/replay-supabase-w5-n1000000-d500-c32-same",
+      "--workload",
+      "W5",
+      "--delay-us",
+      "500",
+      "--keys",
+      "same"
+    ],
+    "note": "Redirect stdin from /dev/null and stdout/stderr to a private log; background, record PID and poll until exit."
+  },
+  {
+    "target": "raw-pg",
+    "cell": {
+      "workload": "W5",
+      "keys": "hot1",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 32
+    },
+    "command": [
+      "setsid",
+      "nohup",
+      "python3",
+      "scripts/replay-fairness-cell.py",
+      "--target",
+      "raw-pg",
+      "--out",
+      "target/replay-raw-pg-w5-n1000000-d0-c32-hot1",
+      "--workload",
+      "W5",
+      "--delay-us",
+      "0",
+      "--keys",
+      "hot1"
+    ],
+    "note": "Redirect stdin from /dev/null and stdout/stderr to a private log; background, record PID and poll until exit."
+  },
+  {
+    "target": "raw-pg-no-token",
+    "cell": {
+      "workload": "W5",
+      "keys": "hot1",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 32
+    },
+    "command": [
+      "setsid",
+      "nohup",
+      "python3",
+      "scripts/replay-fairness-cell.py",
+      "--target",
+      "raw-pg-no-token",
+      "--out",
+      "target/replay-raw-pg-no-token-w5-n1000000-d0-c32-hot1",
+      "--workload",
+      "W5",
+      "--delay-us",
+      "0",
+      "--keys",
+      "hot1"
+    ],
+    "note": "Redirect stdin from /dev/null and stdout/stderr to a private log; background, record PID and poll until exit."
+  },
+  {
+    "target": "supabase",
+    "cell": {
+      "workload": "W5",
+      "keys": "hot1",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 32
+    },
+    "command": [
+      "setsid",
+      "nohup",
+      "python3",
+      "scripts/replay-fairness-cell.py",
+      "--target",
+      "supabase",
+      "--out",
+      "target/replay-supabase-w5-n1000000-d0-c32-hot1",
+      "--workload",
+      "W5",
+      "--delay-us",
+      "0",
+      "--keys",
+      "hot1"
+    ],
+    "note": "Redirect stdin from /dev/null and stdout/stderr to a private log; background, record PID and poll until exit."
+  },
+  {
+    "target": "raw-pg",
+    "cell": {
+      "workload": "W5",
+      "keys": "hot1",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 32
+    },
+    "command": [
+      "setsid",
+      "nohup",
+      "python3",
+      "scripts/replay-fairness-cell.py",
+      "--target",
+      "raw-pg",
+      "--out",
+      "target/replay-raw-pg-w5-n1000000-d500-c32-hot1",
+      "--workload",
+      "W5",
+      "--delay-us",
+      "500",
+      "--keys",
+      "hot1"
+    ],
+    "note": "Redirect stdin from /dev/null and stdout/stderr to a private log; background, record PID and poll until exit."
+  },
+  {
+    "target": "raw-pg-no-token",
+    "cell": {
+      "workload": "W5",
+      "keys": "hot1",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 32
+    },
+    "command": [
+      "setsid",
+      "nohup",
+      "python3",
+      "scripts/replay-fairness-cell.py",
+      "--target",
+      "raw-pg-no-token",
+      "--out",
+      "target/replay-raw-pg-no-token-w5-n1000000-d500-c32-hot1",
+      "--workload",
+      "W5",
+      "--delay-us",
+      "500",
+      "--keys",
+      "hot1"
+    ],
+    "note": "Redirect stdin from /dev/null and stdout/stderr to a private log; background, record PID and poll until exit."
+  },
+  {
+    "target": "supabase",
+    "cell": {
+      "workload": "W5",
+      "keys": "hot1",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 32
+    },
+    "command": [
+      "setsid",
+      "nohup",
+      "python3",
+      "scripts/replay-fairness-cell.py",
+      "--target",
+      "supabase",
+      "--out",
+      "target/replay-supabase-w5-n1000000-d500-c32-hot1",
+      "--workload",
+      "W5",
+      "--delay-us",
+      "500",
+      "--keys",
+      "hot1"
+    ],
+    "note": "Redirect stdin from /dev/null and stdout/stderr to a private log; background, record PID and poll until exit."
+  }
+]

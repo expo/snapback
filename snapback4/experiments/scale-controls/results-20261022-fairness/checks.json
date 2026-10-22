@@ -1,0 +1,17 @@
+{
+  "raw-pg": {
+    "member_nonmember": true,
+    "counter_ownership_and_shared": true,
+    "signed_identity_and_jwt_refusals": true,
+    "atomic_post_maintains": true,
+    "overload_accounting": true
+  },
+  "supabase": {
+    "member_nonmember": true,
+    "counter_ownership_and_shared": true,
+    "signed_identity_and_jwt_refusals": true,
+    "atomic_post_maintains": true,
+    "overload_accounting": true
+  },
+  "private_seed_equivalence": true
+}

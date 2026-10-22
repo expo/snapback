@@ -39,6 +39,10 @@ mints the same claims shape as Supabase and keeps tokens/keys under ignored
 `target/private/`. `--target raw-pg-no-token` explicitly reproduces the
 historical trusted-principal path (`serve --no-token`); label it separately.
 
+The [completed S1-FR report](./results-20261022-fairness/README.md) compares token raw PG,
+labelled no-token raw PG, Supabase advocate and Convex advocate with matched
+10 s/20 s windows and three repetitions.
+
 The S1-FR matched campaign (three controls run serially, 12 cells each) is:
 
 ```sh

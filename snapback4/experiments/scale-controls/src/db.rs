@@ -47,7 +47,7 @@ pub async fn connect(index: usize, delay_us: u64, app: &str) -> Result<Client> {
     config
         .host("127.0.0.1")
         .port(port)
-        .user(&std::env::var("SCALE_DB_USER").unwrap_or_else(|_| "scale_app".into()))
+        .user(std::env::var("SCALE_DB_USER").unwrap_or_else(|_| "scale_app".into()))
         .password(password.trim())
         .dbname(&std::env::var("SCALE_DATABASE")?)
         .application_name(app)

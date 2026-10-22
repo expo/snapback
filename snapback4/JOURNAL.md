@@ -100868,3 +100868,44 @@ reports/integration21/storage-port-merge.json; full report: ../WORKSTREAM-REPORT
   pass init + check.
 
 Report: `reports/20261021-publication-0.4.35/REPORT.md`.
+### 2026-10-22 — S1-FR: token-authenticated raw PG and matched control windows
+
+Added per-request HS256 verification to the typed-table raw-PG control with
+pinned jsonwebtoken 9.3.1. Signed fixture subjects determine principals;
+body principals cannot override them. The explicit no-token control remains
+labelled separately. Private S1-FR databases and login roles isolate this run;
+existing Supabase roles and cluster settings were not altered.
+
+Ran token raw PG, no-token raw PG and Supabase advocate serially, detached:
+36 cells, 501 trials, 53.7M measured arrivals, 10 s warm-up / 20 s measurement,
+three repetitions, 1M messages, natural/+0.5 ms proxy links and C=32 / pool32.
+The comparison reuses the existing Convex advocate's 12 matching headline
+cells. Its 32 connections include background workers; Supabase adds one
+listener. All 46 passing control cells have exact second-half arrival-cohort
+acknowledgements in every second and repetition. These are intended-arrival
+cohorts, not wall-clock per-second completion counts. Per-second latency
+medians/ranges and whole-window completion rates remain explicit.
+
+Eight new unknown-write-outcome trials were disqualified. The no-token W4
++0.5 ms row qualifies at 35/s amid large higher-rate tail variation; the report
+retains it without attributing a causal JWT gain. PostgREST's documented JWT
+signature cache remains enabled, and Convex's warmed query-cache rows remain
+native. Shared hosts, the co-located generator, proxy instead of netem,
+PostgREST-only scope and finite windows keep every result exploratory.
+
+All-trial accounting/histogram/SLO/counter audits and the fresh auth, rules,
+maintained-total, overload and full-seed checks pass. Formatting, the Rust
+unit test, Clippy with warnings denied and Python compilation pass. Clippy
+identified a redundant borrow in connection setup; the final source removes
+it without changing the measured request path. Archive extraction and full
+report regeneration pass. Root reference validation passed before this append;
+the final check includes this entry. The RFC keeps one prepended Revised line
+and fills the W1–W5 control ledger as “S1, matched method, exploratory.”
+
+Raw evidence is archived outside Git (SHA-256 in ARCHIVE.md); code, configs,
+summaries and four SVGs are committed. Supervisor 3495011, campaigns 3495015 /
+3854217 / 45210 and checks 705050 all exited. The final census finds zero live
+owned PIDs; private app connections are zero. Only the handed-over durable
+PG17.9 cluster remains running, postmaster 2735539, with all three durability
+settings on. No push, stash, clone, sub-agents, sudo, Docker or paid services.
+[Matched report](./experiments/scale-controls/results-20261022-fairness/README.md).
