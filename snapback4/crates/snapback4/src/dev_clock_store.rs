@@ -426,21 +426,22 @@ mod staging_tests {
         engine.store().set_deployment_environment("staging").unwrap();
         let guest = snapback4_core::identity::guest(engine.store(), 100_000, &mut snapback4_core::ids::Mint::default()).unwrap();
         let expiry = guest.expires_at;
+        let identity = engine.store().store_identity().unwrap().unwrap();
         let old=StagingClock {offset:10,now:100_010,paused:true};
         engine.checkpoint_staging_clock_at(0,100_000,false,&old).unwrap();
         engine.store().test_staging_clock_write_failure(true).unwrap();
         for paused in [true,false] {
             let next=StagingClock {offset:1000,now:101_000,paused};
             assert!(engine.checkpoint_staging_clock_at(if paused {1000}else{0},100_000,true,&next).is_err());
-            assert!(snapback4_core::identity::resolve_read_only(engine.store(), &guest.token, expiry + 500, None).unwrap().is_none(), "checkpoint failure rolls back credential preservation");
+            assert_eq!(engine.staging_session_timing(&guest.token, 100_010, &identity).unwrap().unwrap().expires_at, expiry, "checkpoint failure rolls back credential preservation");
             assert_eq!(staging_clock(engine.store(),0,100_000).unwrap().now,old.now);
             assert!(staging_clock(engine.store(),0,100_000).unwrap().paused);
         }
         engine.store().test_staging_clock_write_failure(false).unwrap();
         let next = StagingClock {offset:1010,now:101_010,paused:true};
         engine.checkpoint_staging_clock_at(1000,100_010,true,&next).unwrap();
-        assert!(snapback4_core::identity::resolve_read_only(engine.store(), &guest.token, expiry + 500, None).unwrap().is_some());
+        assert_eq!(engine.staging_session_timing(&guest.token, 101_010, &identity).unwrap().unwrap().expires_at, expiry + 1000);
         engine.checkpoint_staging_clock_at(0,101_010,false,&next).unwrap();
-        assert!(snapback4_core::identity::resolve_read_only(engine.store(), &guest.token, expiry + 1500, None).unwrap().is_none(), "startup does not shift a preserved credential twice");
+        assert_eq!(engine.staging_session_timing(&guest.token, 101_010, &identity).unwrap().unwrap().expires_at, expiry + 1000, "startup does not shift a preserved credential twice");
     }
 }
