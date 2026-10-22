@@ -153,6 +153,8 @@ pub(super) fn deploy(options: &Options, config: StoreConfig) -> Result<(), Strin
         restore_dormant: false,
         native_digest: None,
         operation: "deploy".into(),
+        // Postgres admits same-schema deployment; rollback/evolution remain S10-owned refusals.
+        visibility: None,
     };
     let result = snapback4_core::Engine::new_release_prepared(
         store,
