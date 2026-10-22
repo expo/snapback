@@ -251,7 +251,7 @@ impl QueueError for snapback4_core::RuntimeError {
                 message: why.message,
             }
         } else {
-            Self::Store(why.message)
+            snapback4_core::RuntimeError::Store(why.message)
         }
     }
 }
@@ -321,7 +321,7 @@ mod tests {
     fn a_full_mailbox_uses_the_http_overload_refusal_without_running_the_write() {
         let host = Host::with_store(
             true,
-            snapback4_core::Store::memory().unwrap(),
+            snapback4_core::store_port::AnyStore::memory().unwrap(),
             "use personas alice\ntable rows:\n  n: int\n  read <- allow\n  insert <- allow\n  online only\nmutation add():\n  return insert rows { n: 1 }\n",
         );
         let (entered, started) = std::sync::mpsc::channel();

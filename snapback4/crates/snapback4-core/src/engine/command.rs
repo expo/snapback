@@ -19,7 +19,7 @@ impl<T> Command<T> {
             body: Box::new(body),
         }
     }
-    pub fn execute(self, engine: &mut Engine) -> T {
+    pub fn execute_on(self, engine: &mut Engine) -> T {
         (self.body)(engine)
     }
 }
@@ -76,7 +76,7 @@ impl Queue {
         let (sent, reply) = mpsc::sync_channel(1);
         let work = Box::new(move |engine: &mut Engine| {
             let result =
-                std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| command.execute(engine)));
+                std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| command.execute_on(engine)));
             // A lost submitter does not cancel an admitted write or its continuation.
             let _ = sent.send(result);
         });
