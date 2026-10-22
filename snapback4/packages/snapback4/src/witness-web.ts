@@ -8,6 +8,11 @@ type Operations = Record<string, unknown>;
 export function registerWebWitness(app: App, api?: Operations): void {
   const handlerClaim = Symbol("witness explicit handler claim");
   if (typeof window === "undefined" || typeof window.location?.search !== "string") return;
+  const locked = Object.getOwnPropertyDescriptor(window, "__snapback4Witness");
+  if (locked?.configurable === false) {
+    (locked.value as { registerApi(owner: App, api?: Operations): void }).registerApi(app, api);
+    return;
+  }
   const enabled = new URLSearchParams(window.location.search).get("witness") === "web";
   const armed = () => { if (!enabled) throw Object.assign(Error("E_WITNESS_DISABLED: add &witness=web"), { code: "E_WITNESS_DISABLED" }); };
   const operations: unknown[] = [];
@@ -22,6 +27,10 @@ export function registerWebWitness(app: App, api?: Operations): void {
   void app.ready.then(result => { ready = result.ok; }, () => {});
   let form: { terminal: Promise<unknown>; cancel: () => void; claimHandler: (owner: App, event: Event) => { mutate: App["mutate"]; done: () => void } | undefined } | undefined;
   Object.defineProperty(window, "__snapback4Witness", { configurable: true, value: {
+    registerApi: (owner: App, operationsApi?: Operations) => {
+      if (owner !== app) throw Error("E_WITNESS_APP_SELECTION: this proof selected another App; use a separate page for another application instance");
+      if (operationsApi) { api = operationsApi; operations.length = 0; walk(operationsApi); }
+    },
     ready: () => app.ready,
     viewer: () => app.client?.viewer(),
     clock: () => {

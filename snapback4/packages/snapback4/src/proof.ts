@@ -9,6 +9,7 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 import type { BrowserContext, BrowserType, LaunchOptions, Locator, Page } from "playwright-core";
+import { renderedSelector, registerRenderedSelector, visibleText } from "./proof-text.ts";
 import { registerWebWitness } from "./witness-web.ts";
 import { resolveBinary } from "./bin-path.ts";
 import { bounded, deadline, logged, logText, portRange, ready, stopChild, type ProofHost, type ProofOptions, logsDir } from "./proof-process.ts";
@@ -237,13 +238,14 @@ export async function withBrowser<T>(options: LaunchOptions & Pick<ProofOptions,
   const { chromium: suppliedChromium, executablePath, cwd: _cwd, logsDir: _logs, ...other } = options;
   const requireCaller = createRequire(resolve(options.cwd ?? process.cwd(), "package.json"));
   let caller = suppliedChromium;
-  if (!caller) {
+  {
     for (const peer of ["playwright-core", "@playwright/test", "playwright"]) {
       let path: string;
       try { path = requireCaller.resolve(peer); }
       catch (error) { if ((error as NodeJS.ErrnoException).code === "MODULE_NOT_FOUND") continue; throw error; }
       const peerModule = await import(path);
-      caller = (peerModule.chromium ?? peerModule.default?.chromium) as BrowserType;
+      await registerRenderedSelector(peerModule.selectors ?? peerModule.default?.selectors);
+      caller ??= (peerModule.chromium ?? peerModule.default?.chromium) as BrowserType;
       break;
     }
   }
@@ -286,7 +288,18 @@ export async function withBrowser<T>(options: LaunchOptions & Pick<ProofOptions,
       });
       // The bridge function is self-contained after TypeScript erases types.
       // Proof code lives in this realm, outside the application's bundle.
-      await context.addInitScript({ content: `window[Symbol.for("snapback4.proof.app")] = (${registerWebWitness.toString()});` });
+      await context.addInitScript({ content: `(() => {
+        const register = (${registerWebWitness.toString()});
+        let selected;
+        Object.defineProperty(window, Symbol.for("snapback4.proof.app"), { configurable: false, writable: false, value: app => {
+          if (selected) return;
+          selected = app;
+          register(app);
+          const bridge = window.__snapback4Witness;
+          Object.freeze(bridge);
+          Object.defineProperty(window, "__snapback4Witness", { configurable: false, writable: false, value: bridge });
+        }});
+      })();` });
       context.setDefaultTimeout(30_000); context.setDefaultNavigationTimeout(30_000);
       return await proof(context);
     } finally {
@@ -304,13 +317,11 @@ const substringLocators = new WeakMap<Locator, { locator: Locator; scoped: boole
 // @ref LLP 3000.000.000.001#11-wave-22-loop-repairs-dx6 — composed text preserves exactness and ambiguity.
 export function renderedText(page: Page, text: string | RegExp, options: { within?: Locator; exact?: boolean } = {}): Locator {
   const root = options.within ?? page;
-  const match = (exact: boolean) => {
-    const escaped = typeof text === "string" ? text.trim().split(/\s+/).map(word => word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("\\s+") : "";
-    const pattern = typeof text === "string" ? new RegExp(exact ? `^\\s*${escaped}\\s*$` : escaped, exact ? "" : "i") : text;
-    const elements = ":not(input):not(textarea):not(script):not(style):visible";
-    const descendants = page.locator(elements).filter({ hasText: pattern });
-    return root.locator(elements).filter({ hasText: pattern }).filter({ hasNot: descendants });
-  };
+  const match = (exact: boolean) => root.locator(`${renderedSelector}=${JSON.stringify({
+    source: typeof text === "string" ? text : text.source,
+    flags: typeof text === "string" ? "" : text.flags,
+    regex: typeof text !== "string", exact,
+  })}`);
   const locator = match(options.exact ?? true);
   if (typeof text === "string" && options.exact !== false) substringLocators.set(locator, { locator: match(false), scoped: options.within !== undefined });
   return locator;
@@ -319,7 +330,7 @@ export function renderedText(page: Page, text: string | RegExp, options: { withi
 /** @throws page closed or browser activation failed. */
 export async function frontPage(page: Page): Promise<Page> { await page.bringToFront(); return page; }
 export { logsDir } from "./proof-process.ts";
-/** Returns the fresh nonempty text as a string, after it differs from previous. */
+/** Returns normalized visible nonempty text after it differs from previous. Hidden and editable descendants do not confer freshness. */
 /** @throws observation deadline with scoped locator, last text and visible headings; selector ambiguity is propagated. */
 export async function waitForFresh(locator: Locator, previous: string | null, options: number | { within?: Locator; timeoutMs?: number } = 30_000): Promise<string> {
   const timeoutMs = deadline(typeof options === "number" ? options : options.timeoutMs, 30_000);
@@ -333,7 +344,7 @@ export async function waitForFresh(locator: Locator, previous: string | null, op
   while (performance.now() < end) {
     try {
       count = await bounded(locator.count(), Math.max(1, end - performance.now()), "locator count");
-      text = count ? await bounded(locator.textContent({ timeout: Math.max(1, Math.min(1000, end - performance.now())) }), Math.max(1, end - performance.now()), "locator text") : null;
+      text = count ? await bounded(visibleText(locator, Math.max(1, Math.min(1000, end - performance.now()))), Math.max(1, end - performance.now()), "locator text") : null;
       if (text && text !== previous) return text;
     } catch (error) {
       detail = error instanceof Error && (error.name === "TimeoutError" || /timed out after/.test(error.message))

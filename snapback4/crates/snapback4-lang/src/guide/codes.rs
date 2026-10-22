@@ -188,6 +188,7 @@ pub const CODES: &[(&str, &str)] = &[
     ("E_WITNESS_EXPORT", "the export has no index.html; Run build:web first; guide testing."),
     ("E_WITNESS_READY", "the app could not open its write custody; Repair the reported schema or storage refusal; guide testing."),
     ("E_WITNESS_SENT", "the write failed, stayed pending or timed out; Inspect the refusal; pending is not success; guide testing."),
+    ("E_WITNESS_APP_SELECTION", "the proof already selected another App; Use a separate browser page for another application instance; guide testing."),
     ("E_WITNESS_DISABLED", "witness claiming is disabled; Add &witness=web to the proof URL; guide testing."),
     ("E_WITNESS_NO_WRITE", "armed click produced no durable mutation; check the form handler and useAppReady(); guide testing."),
     ("E_WITNESS_UNCLAIMED", "an armed durable write could not be claimed; Inspect event, operation and exact arguments; guide testing."),

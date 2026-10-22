@@ -132,8 +132,8 @@ export function createApp(options: AppOptions): App {
   // The proof driver installs this callback before page scripts. Ordinary
   // applications neither import the witness nor publish an app global.
   if (typeof window !== "undefined" && typeof window.location?.search === "string" && new URLSearchParams(window.location.search).get("witness") === "web") {
-    const install = (window as unknown as Record<symbol, unknown>)[Symbol.for("snapback4.proof.app")];
-    if (typeof install === "function") install(app);
+    const observer = Object.getOwnPropertyDescriptor(window, Symbol.for("snapback4.proof.app"));
+    if (observer?.writable === false && observer.configurable === false && typeof observer.value === "function") observer.value(app);
   }
   return app;
 }

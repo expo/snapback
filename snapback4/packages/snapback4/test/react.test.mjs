@@ -305,12 +305,15 @@ for (const platform of ["web", "expo"]) test(`DX6 ${platform} starter ReadState 
   }
 });
 
-test("DX6 createApp proof callback requires the explicit browser witness URL", async () => {
+test("DX6 createApp proof observer requires an immutable descriptor and explicit witness URL", async () => {
   const { createApp } = await import("../dist/app.js");
   const previous = Object.getOwnPropertyDescriptor(globalThis, "window"), seen=[];
   try {
+    Object.defineProperty(globalThis,"window",{configurable:true,value:{location:{search:"?witness=web"},[Symbol.for("snapback4.proof.app")]:()=>{throw Error("unlocked arbitrary callback");}}});
+    const unobserved=createApp({url:"http://127.0.0.1:1",writes:"invalid"}); await unobserved.close();
     for (const search of ["", "?witness=wrong", "?witness=web"]) {
-      const fake={location:{search},[Symbol.for("snapback4.proof.app")]:app=>seen.push(app)};
+      const fake={location:{search}};
+      Object.defineProperty(fake,Symbol.for("snapback4.proof.app"),{configurable:false,writable:false,value:app=>seen.push(app)});
       Object.defineProperty(globalThis,"window",{configurable:true,value:fake});
       const app=createApp({url:"http://127.0.0.1:1",writes:"invalid"});
       assert.equal(seen.includes(app),search==="?witness=web");
