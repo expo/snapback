@@ -201,7 +201,7 @@ query all():
   return orders where .owner = viewer first 100 by .id
 `;
     const newer=old.replace('table orders:','table consignments renamed from orders:')
-      .replace('  names: file <=1000','  roster: file <=1000 ? renamed from names\n  quantity: int\n  hasReceipt: bool default false')
+      .replace('  names: file <=1000','  roster: file <=1000 ? renamed from names\n  quantity: int default 0\n  hasReceipt: bool default false')
       .replace('  legacyQuantity: int default 0\n','')
       .replaceAll('parent: orders','parent: consignments')
       .replace('mutation add(names: file <=1000):','mutation add(names: file <=1000 ?, quantity: int):')
@@ -227,8 +227,8 @@ down consignments oldQuantity(roster: file <=1000 ?):
     const native=await post('/m/add',{names:null,quantity:0});assert.equal(native.state,'sent');assert.equal((await post('/m/receipt',{parent:native.result.id})).state,'sent');
     const second=await client.upload(new TextEncoder().encode('Bo\nCy\n'),{file:{name:'later.txt',type:'text/plain'}});assert.equal(second.ok,true);
     const nativeFile=await post('/m/add',{names:{id:second.asset.id},quantity:2});assert.equal(nativeFile.state,'sent');
-    const strict=JSON.parse((await run(['rollback',deployment,'--to','1','--check','--json'])).stdout);
-    const strictText=(await run(['rollback',deployment,'--to','1','--check'])).stdout;
+    const strict=JSON.parse((await run(['rollback',deployment,'--to','1','--exact','--check','--json'])).stdout);
+    const strictText=(await run(['rollback',deployment,'--to','1','--exact','--check'])).stdout;
     const legacyLine=strictText.split('\n').find(line=>line.includes('.legacyQuantity:'));assert.ok(legacyLine,strictText);
     assert.match(legacyLine,/preimage/,'empty/default advice accounts for predecessor ownership');
     assert.doesNotMatch(legacyLine,/because the target field has no nonempty carried/,'values equal to defaults are facts, not proof of an absent projection');

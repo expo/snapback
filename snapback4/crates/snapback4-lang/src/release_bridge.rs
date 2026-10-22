@@ -4,10 +4,39 @@ use crate::{ast::{self,TypeKind}, lexer::{self,Kind}, parser, print};
 use std::collections::BTreeMap;
 pub struct Bridge {pub sources:Vec<(String,String)>,pub changes:Vec<String>,pub diagnostics:Vec<crate::diag::Diagnostic>}
 
+/// Source-domain inclusion includes text minima/formats, which live outside
+/// ColumnType in the compiled schema. Never infer admission from advice prose.
+pub fn requires_view(target:&[(String,String)],current:&[(String,String)])->bool {
+    let docs=current.iter().map(|(f,t)|parser::parse_document(f,t).0).collect::<Vec<_>>();
+    let tables=docs.iter().flat_map(|d|&d.tables).collect::<Vec<_>>();
+    let mut aliases=tables.iter().filter_map(|t|t.renamed_from.as_ref().map(|old|(t.name.clone(),old.clone()))).collect::<BTreeMap<_,_>>();
+    for(file,text)in target{for t in parser::parse_document(file,text).0.tables{if let Some(prior)=t.renamed_from{aliases.insert(t.name,prior);}}}
+    fn normalize(t:&mut ast::ScalarType,aliases:&BTreeMap<String,String>){match &mut t.kind{TypeKind::Ref{table}=>{let mut seen=std::collections::BTreeSet::new();while let Some(old)=aliases.get(table){if !seen.insert(table.clone()){*table=seen.into_iter().min().unwrap();break}*table=old.clone();}},TypeKind::List{item,..}=>normalize(item,aliases),_=>()}}
+    for(file,text)in target {
+        for old in parser::parse_document(file,text).0.tables {
+            let Some(next)=tables.iter().find(|t|t.name==old.name||t.renamed_from.as_ref()==Some(&old.name)||old.renamed_from.as_ref()==Some(&t.name))else{continue};
+            for col in &old.columns {
+                let Some(candidate)=next.columns.iter().find(|c|c.name==col.name||c.renamed_from.as_ref()==Some(&col.name)||col.renamed_from.as_ref()==Some(&c.name))else{continue};
+                let scalar=!matches!(&col.type_.kind,TypeKind::Ref{..}|TypeKind::List{..}|TypeKind::Image{..}|TypeKind::File{..}|TypeKind::Video{..});
+                if scalar&&docs.iter().flat_map(|d|&d.downfills).any(|d|d.table==next.name&&matches!(&d.value,ast::Expr::Object{fields,..}if fields.iter().any(|f|f.name==col.name))){continue;}
+                let mut from=candidate.type_.clone();let mut to=col.type_.clone();normalize(&mut from,&aliases);normalize(&mut to,&aliases);
+                if !crate::client_contracts::accepts(&crate::types::scalar_to_arg(&from),&crate::types::scalar_to_arg(&to)){return true}
+            }
+            let mut columns=next.columns.iter().filter_map(|c|c.renamed_from.as_ref().filter(|old_name|old.columns.iter().any(|o|&o.name==*old_name)).map(|old_name|(c.name.clone(),old_name.clone()))).collect::<BTreeMap<_,_>>();
+            for c in &old.columns{if let Some(prior)=&c.renamed_from{if next.columns.iter().any(|n|&n.name==prior)&&!next.columns.iter().any(|n|n.name==c.name){columns.insert(prior.clone(),c.name.clone());}}}
+            let normalize_columns=|fields:&[String]|fields.iter().map(|c|columns.get(c).unwrap_or(c).clone()).collect::<Vec<_>>();
+            if old.indexes.iter().any(|i|i.unique&&!next.indexes.iter().any(|n|n.unique&&normalize_columns(&n.columns)==i.columns)){return true}
+            if old.caps.iter().any(|c|!next.caps.iter().any(|n|normalize_columns(&n.by)==c.by&&n.max<=c.max)){return true}
+            if old.final_exists.iter().any(|(expr,_)|!next.final_exists.iter().any(|(n,_)|print::expression(expr)==print::expression(n))){return true}
+        }
+    }false
+}
+
 pub fn loosen(target:&[(String,String)],current:&[(String,String)])->Bridge {
     let new: BTreeMap<_,_>=current.iter().flat_map(|(file,text)|parser::parse_document(file,text).0.tables.into_iter().map(move|t|(t.name.clone(),(file,text,t)))).collect();
     let mut new=new;
     for (_,(_,_,table)) in new.clone() {if let Some(old)=&table.renamed_from {if let Some(value)=new.get(&table.name).cloned(){new.insert(old.clone(),value);}}}
+    for(file,text)in target {for old in parser::parse_document(file,text).0.tables {if let Some(prior)=&old.renamed_from {if !new.contains_key(&old.name){if let Some(value)=new.get(prior).cloned(){new.insert(old.name.clone(),value);}}}}}
     let mut domain_diagnostics=Vec::new();let mut changes=Vec::new();let mut affected=std::collections::BTreeSet::new();let mut sources=target.to_vec();let mut names=std::collections::BTreeSet::new();
     for (file,text) in &mut sources {
         let document=parser::parse_document(file,text).0;let mut edits=Vec::new();
@@ -16,7 +45,7 @@ pub fn loosen(target:&[(String,String)],current:&[(String,String)])->Bridge {
             let Some((_,_,next))=new.get(&table.name) else {continue};
             if next.name!=table.name {affected.insert(table.name.clone());changes.push(format!("table {}: current spelling {}; target spelling routes the same identity",table.name,next.name));}
             for column in &table.columns {
-                let Some(candidate)=next.columns.iter().find(|c|c.name==column.name || c.renamed_from.as_ref()==Some(&column.name)) else {continue};
+                let Some(candidate)=next.columns.iter().find(|c|c.name==column.name || c.renamed_from.as_ref()==Some(&column.name)||column.renamed_from.as_ref()==Some(&c.name)) else {continue};
                 if candidate.name!=column.name {affected.insert(table.name.clone());changes.push(format!("{}.{}: current column spelling {}; target spelling routes the same cell",table.name,column.name,candidate.name));}
                 let Some(joined)=join(&column.type_,&candidate.type_,&new) else {domain_diagnostics.push(crate::diag::type_error(&column.site,format!("rollback view for {}.{} has incompatible predecessor/current domains {} / {}",table.name,column.name,print::scalar_type(&column.type_),print::scalar_type(&candidate.type_)),"author a truthful compatible source and typed migration before deploying").guide("deploy"));continue};
                 // A current guard may rely on a value being impossible under its
@@ -69,11 +98,11 @@ pub fn loosen(target:&[(String,String)],current:&[(String,String)])->Bridge {
     }
     // New concepts keep their current rules. They are retained populations,
     // not a promise that a frozen old operation exposes a new concept.
-    let aliases:BTreeMap<_,_>=new.values().filter_map(|(_,_,t)|t.renamed_from.as_ref().filter(|old|names.contains(*old)).map(|old|(t.name.clone(),old.clone()))).collect();
+    let aliases:BTreeMap<_,_>=names.iter().filter_map(|old|new.get(old).filter(|(_,_,t)|&t.name!=old).map(|(_,_,t)|(t.name.clone(),old.clone()))).collect();
     let mut additions=String::new();
     for (name,(file,text,table)) in &new {
         if name!=&table.name {continue;} // Alias lookup entries are not declarations.
-        if names.contains(name) || table.renamed_from.as_ref().is_some_and(|old|names.contains(old)){continue;}
+        if names.contains(name)||aliases.contains_key(name)||table.renamed_from.as_ref().is_some_and(|old|names.contains(old)){continue;}
         affected.insert(name.clone());
         additions.push_str(&retained_declaration(file,text,table,&aliases));additions.push('\n');
         changes.push(format!("new table {name}: retained with its current rules; old operations may not expose it"));
@@ -163,7 +192,7 @@ fn join(old:&ast::ScalarType,new:&ast::ScalarType,tables:&BTreeMap<String,(&Stri
         (TypeKind::List{item:a,min:b,max:c},TypeKind::List{item:x,min:y,max:z})=>TypeKind::List{item:Box::new(join(a,x,tables)?),min:(*b).min(*y),max:(*c).max(*z)},
         // Only an explicit rename provides nominal identity; structural similarity
         // or independently declared replacement tables cannot justify a bridge.
-        (TypeKind::Ref{table:a},TypeKind::Ref{table:b}) if a==b || tables.get(a).is_some_and(|(_,_,t)| t.name==*b && t.renamed_from.as_ref()==Some(a))=>TypeKind::Ref{table:a.clone()},
+        (TypeKind::Ref{table:a},TypeKind::Ref{table:b}) if a==b || tables.get(a).is_some_and(|(_,_,t)| t.name==*b)=>TypeKind::Ref{table:a.clone()},
         (a,b) if a==b=>a.clone(),
         // Other conversions require an explicit typed migration. A bridge never
         // guesses a nominal reference, money currency or asset policy.
@@ -194,6 +223,25 @@ mod tests {
             let b=loosen(&[("schema.q".into(),old.into())],&[("schema.q".into(),new)]);
             assert!(!b.diagnostics.is_empty());
         }
+    }
+    #[test]
+    fn view_trigger_uses_full_domains_and_identity_not_advice_strings(){
+        let old="table items:\n  text: text 4..100\n  cap 2 by text\n  public\n  online only\n";
+        for new in [old.replace("4..100","<=100"),old.replace("cap 2","cap 3")] {assert!(requires_view(&[("s.q".into(),old.into())],&[("s.q".into(),new)]));}
+        assert!(!requires_view(&[("s.q".into(),old.into())],&[("s.q".into(),old.replace("cap 2","cap 1"))]));
+        let old="table people:\n  public\n  online only\ntable items:\n  buyer: people\n  unique buyer\n  public\n  online only\n";
+        let new=old.replace("buyer: people","customer: people renamed from buyer").replace("unique buyer","unique customer");
+        assert!(!requires_view(&[("s.q".into(),old.into())],&[("s.q".into(),new.clone())]));
+        assert!(!requires_view(&[("s.q".into(),new)],&[("s.q".into(),old.into())]));
+    }
+    #[test]
+    fn current_quota_immutability_and_lifetime_survive_a_widened_view(){
+        let old="table items:\n  amount: int\n  owner: principal\n  until: time\n  cap 2 by owner\n  insert <- allow\n  online only\nmutation add():\n  return insert items {amount:1,owner:viewer,until:1000000}\n";
+        let new=old.replace("amount: int","amount: int ?").replace("cap 2 by owner","cap 1 by owner\n  immutable owner\n  expire at .until");
+        let b=loosen(&[("s.q".into(),old.into())],&[("s.q".into(),new)]);assert!(b.diagnostics.is_empty(),"{:?} {:?}",b.diagnostics,b.sources);
+        let bound=crate::compile(&b.sources);let table=&bound.schema.tables["items"];
+        assert!(table.constraints.contains(&snapback4_core::schema::Constraint::Cap{by:vec!["owner".into()],max:1}));
+        assert!(table.constraints.contains(&snapback4_core::schema::Constraint::Immutable{fields:vec!["owner".into()]}));assert_eq!(table.expire.as_deref(),Some("until"));
     }
     #[test]
     fn aliased_current_endpoint_keeps_its_guard_on_a_union_view() {

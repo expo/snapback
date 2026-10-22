@@ -60,6 +60,7 @@ pub(super) fn carry(
         }
         for(name,target,_)in &doc.aliases {if let Some(p)=doc.programs.iter().find(|p|p.name==*target){programs.insert(name.clone(),(*file,*text,p));}}
     }
+    for(file,text)in sources.iter(){for old in parser::parse_document(file,text).0.tables{if let Some(prior)=&old.renamed_from{if !tables.contains_key(&old.name){if let Some(next)=tables.get(prior).copied(){tables.insert(old.name.clone(),next);aliases.insert(prior.clone(),old.name.clone());}}}}}
     let remap = |expr: &ast::Expr| {
         let mut expr = expr.clone();
         crate::bind::intent_walk::expression(&mut expr, &mut |e| {
@@ -83,6 +84,12 @@ pub(super) fn carry(
             let Some(next) = tables.get(&old.name) else {
                 continue;
             };
+            let current_text=docs.iter().find(|(_,_,d)|d.tables.iter().any(|t|t.name==next.name)).map(|(_,text,_)|*text).unwrap();
+            let authored_read=|rule:&ast::RuleDecl|->Option<String>{
+                if rule.effect!=ast::Effect::Read{return None}
+                let(a,b)=line_span(&rule.site.file,current_text,&rule.site)?;let raw=&current_text[a..b];
+                raw.trim_start().starts_with("read through ").then(||raw.to_owned())
+            };
             for index in old.indexes.iter().filter(|i| {
                 i.unique
                     && !next
@@ -100,7 +107,7 @@ pub(super) fn carry(
                 if old
                     .columns
                     .iter()
-                    .any(|c| c.name == column.name || column.renamed_from.as_ref() == Some(&c.name))
+                    .any(|c| c.name == column.name || column.renamed_from.as_ref() == Some(&c.name)||c.renamed_from.as_ref()==Some(&column.name))
                 {
                     continue;
                 }
@@ -120,11 +127,14 @@ pub(super) fn carry(
                     ));
                 }
             }
+            if next.public.is_none(){if let Some((_,site))=&old.public {if let Some((a,b))=line_span(file,text,site){edits.push((a,b,String::new()));}}}
+            if old.public.is_none(){if let Some((_,site))=&next.public {if let Some((a,b))=line_span(&site.file,current_text,site){let at=declaration(text,old.site.line).1;edits.push((at,at,format!("{}\n",&current_text[a..b])));}}}
             for current in &next.rules {
                 if old.rules.iter().any(|r| r.effect == current.effect) {
                     continue;
                 }
                 let at = declaration(text, old.site.line).1;
+                if let Some(raw)=authored_read(current){edits.push((at,at,format!("{raw}\n")));continue;}
                 let bindings = if current.bindings.is_empty() {
                     String::new()
                 } else {
@@ -145,25 +155,21 @@ pub(super) fn carry(
                     current.effect.word()
                 ));
             }
-            for (fields, site) in &old.immutable {
-                let kept = fields
-                    .iter()
-                    .filter(|c| next.immutable.iter().any(|(fs, _)| fs.contains(c)))
-                    .cloned()
-                    .collect::<Vec<_>>();
-                if kept.len() != fields.len() {
-                    if let Some((start, end)) = line_span(file, text, site) {
-                        edits.push((
-                            start,
-                            end,
-                            if kept.is_empty() {
-                                String::new()
-                            } else {
-                                format!("  immutable {}", kept.join(", "))
-                            },
-                        ));
-                        changes.push(format!("{}: current immutable columns retained", old.name));
-                    }
+            // Constraints are current authority too: carry authored quotas,
+            // immutable fields and final-existence requirements verbatim.
+            for (_,site) in &old.immutable {if let Some((a,b))=line_span(file,text,site){edits.push((a,b,String::new()));}}
+            for cap in &old.caps {if let Some((a,b))=line_span(file,text,&cap.site){edits.push((a,b,String::new()));}}
+            for (_,site) in &old.final_exists {if let Some((a,b))=line_span(file,text,site){edits.push((a,b,String::new()));}}
+            let at=declaration(text,old.site.line).1;
+            for(fields,_)in &next.immutable {edits.push((at,at,format!("  immutable {}\n",fields.join(", "))));}
+            for cap in &next.caps {edits.push((at,at,format!("  cap {} by {}\n",cap.max,cap.by.join(", "))));}
+            for(expr,_)in &next.final_exists {edits.push((at,at,format!("  after insert <- {}\n",print::expression(&remap(expr)))));}
+            for prior in [&old.expire,&old.not_before].into_iter().flatten(){if let Some((a,b))=line_span(file,text,&prior.1){edits.push((a,b,String::new()));}}
+            if let Some((field,_))=&next.expire {edits.push((at,at,format!("  expire at .{field}\n")));}
+            if let Some((field,_))=&next.not_before {edits.push((at,at,format!("  not before .{field}\n")));}
+            for index in next.indexes.iter().filter(|i|i.unique&&!old.indexes.iter().any(|o|o.unique&&o.columns==i.columns)) {
+                if let Some((_,current_text,_))=docs.iter().find(|(_,_,d)|d.tables.iter().any(|t|t.name==next.name)) {
+                    if let Some((a,b))=line_span(&index.site.file,current_text,&index.site){edits.push((at,at,format!("{}\n",&current_text[a..b])));}
                 }
             }
             let mut replaced = BTreeSet::new();
@@ -182,6 +188,7 @@ pub(super) fn carry(
                         let effect = old_rule.effect.word();
                         match next.rules.iter().find(|r| r.effect == old_rule.effect) {
                             Some(current) => {
+                                if let Some(raw)=authored_read(current){return raw}
                                 let bindings = if current.bindings.is_empty() {
                                     String::new()
                                 } else {
@@ -192,6 +199,7 @@ pub(super) fn carry(
                                     print::expression(&remap(&current.value))
                                 )
                             }
+                            None if old_rule.effect==ast::Effect::Read&&next.public.is_some()=>String::new(),
                             None => format!("  {effect} <- deny"),
                         }
                     })

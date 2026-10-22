@@ -1,3 +1,4 @@
+// Frozen-source hazard coverage uses --exact; roll_views and dormant-visibility cover the registered default.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
@@ -81,7 +82,7 @@ test('H9 additive preview-noise budget: unchanged guards stay quiet beside rollb
   assert.match(deploy,/old-client compatibility.*RESULT REVIEW/);
   assert.doesNotMatch(deploy,/\.require|roles changed|guards unproved/);
   run('deploy',deployment);
-  const rollback=run('rollback',deployment,'--to','1','--check').stdout;
+  const rollback=run('rollback',deployment, '--exact','--to','1','--check').stdout;
   assert.equal((rollback.match(/WARNING/g)??[]).length,1,rollback);
   assert.match(rollback,/old-client compatibility.*RESULT REVIEW/);
   assert.doesNotMatch(rollback,/\.require|roles changed|guards unproved/);
@@ -149,24 +150,24 @@ test('DT7 golden preview: query/count populations, dormant dependents, then grou
   assert.equal((await host.post('/m/parent',{id:'p'})).state,'sent');
   assert.equal((await host.post('/m/child',{id:'c',parent:'p'})).state,'sent');
   await host.stop();
-  const plan=JSON.parse(run('rollback',deployment,'--to','1','--check','--json').stdout);
+  const plan=JSON.parse(run('rollback',deployment, '--exact','--to','1','--check','--json').stdout);
   assert.deepEqual(plan.hazards.slice(0,4),[
     'queries/counts childList read children: active table population 1 → 0, 1 active row leaves; verify filtered results and progress denominators before selecting release 1 (dependency, not a query-result count)',
     'queries/counts dayCount, legsList read parents: active table population 1 → 0, 1 active row leaves; verify filtered results and progress denominators before selecting release 1 (dependency, not a query-result count)',
     'dependent children: 1 active row goes dormant with parent tables parents; preserve these linked records in a bridge or accept their absence in release 1',
     "release 1's safety dependencies on parents: `book`, `pay` cannot see 1 dormant parents row (sample ids [p]); verify refusal cases and preserve this gate in a bridge release or pause the workflow (guide deploy; dependency, not a predicate match)",
   ]);
-  const text=run('rollback',deployment,'--to','1','--check').stdout;
+  const text=run('rollback',deployment, '--exact','--to','1','--check').stdout;
   const parentLine=text.split('\n').filter(line=>line.startsWith('  WARNING parents:'));
   assert.equal(parentLine.length,1,text);
   assert.match(parentLine[0],/queries\/counts/);
   assert.match(parentLine[0],/safety dependencies/);
   assert.doesNotMatch(text,/tables\.parents\.columns\.state/);
-  const verbose=run('rollback',deployment,'--to','1','--check','--verbose').stdout;
+  const verbose=run('rollback',deployment, '--exact','--to','1','--check','--verbose').stdout;
   assert.match(verbose,/tables\.parents\.columns\.state/);
   assert.equal(plan.plan.items.filter(i=>i.kind==='rows').reduce((n,i)=>n+i.rows,0),2);
-  run('rollback',deployment,'--to','1');
-  const again=JSON.parse(run('rollback',deployment,'--to','1','--check','--json').stdout);
+  run('rollback',deployment, '--exact','--to','1');
+  const again=JSON.parse(run('rollback',deployment, '--exact','--to','1','--check','--json').stdout);
   assert.ok(!again.hazards.some(h=>h.includes('active rows leave')||h.startsWith('dependent')));
 });
 
@@ -234,11 +235,11 @@ mutation book(item: gates):
   assert.equal((await host.post('/m/book',{item:'gate'})).why.code,'MISSING');
   const dropped=source.replace("  state: enum('hold', 'inspection')\n",'').replace(", state: 'inspection'",'');
   writeFileSync(schema,dropped);
-  const preview=run('deploy',deployment,'--check').stdout;
-  assert.doesNotMatch(preview,/gates changed: .*guards? unproved across book/);
-  assert.match(preview,/gates\.state/);
-  run('deploy',deployment);
-  assert.equal((await host.post('/m/book',{item:'gate'})).state,'sent');
+  const refused=spawnSync(binary,['deploy',deployment,'--check'],{cwd:join(schema,'../..'),encoding:'utf8',timeout:hangBudget()});
+  assert.equal(refused.status,1);assert.match(refused.stderr,/E_ADOPT/);assert.doesNotMatch(refused.stderr,/guards? unproved across book/);
+  assert.equal((await host.post('/m/book',{item:'gate'})).why.code,'MISSING','refusal preserves the active population');
+  writeFileSync(schema,source);run('deploy',deployment);
+  assert.equal((await host.post('/m/book',{item:'gate'})).state,'sent','an authored widened bridge restores the truthful population');
   await host.stop();
 });
 
@@ -271,7 +272,7 @@ test('row-presence guards and field guards ignore new unconsulted defaulted colu
   writeFileSync(schema,source);run('deploy',deployment);
   writeFileSync(schema,source.replace('  body: text <=80',"  body: text <=80\n  label: text <=20 default 'label'"));
   const added=run('deploy',deployment,'--check').stdout;
-  assert.match(added,/old-client compatibility.*operation add: RESULT REVIEW/);
+  assert.match(JSON.parse(run('deploy',deployment,'--check','--json').stdout).clientCompatibility.join('\n'),/operation add: RESULT REVIEW/);
   assert.doesNotMatch(added,/publish.require|guards unproved|operation publish:/);
   writeFileSync(schema,source.replace('  body: text <=80','  body: text <=90'));
   const widened=run('deploy',deployment,'--check').stdout;
@@ -712,7 +713,7 @@ mutation resultGuard():
   assert.equal((await host.post('/m/resultGuard',{})).state,'sent');
   writeFileSync(schema,source.replace('  body: text <=80', "  body: text <=80\n  label: text <=20 default 'none'"));
   const added=run('deploy',deployment,'--check').stdout;
-  assert.match(added,/old-client compatibility.*operation seedNote: RESULT REVIEW/);
+  assert.match(JSON.parse(run('deploy',deployment,'--check','--json').stdout).clientCompatibility.join('\n'),/operation seedNote: RESULT REVIEW/);
   assert.doesNotMatch(added,/resultGuard.require|guards unproved|operation resultGuard:/);
   writeFileSync(schema,source.replace("{body: 'safe'}","{body: 'blocked'}"));
   assert.match(run('deploy',deployment,'--check').stdout,/WARNING.*changes \(implication unproved\) resultGuard.require/);
@@ -813,19 +814,19 @@ mutation grant():
   const nullable=source.replace('  immutable principal, role', '  team: teams ?\n  immutable principal, role');
   writeFileSync(schema,nullable);
   const forward=run('deploy',deployment,'--check').stdout;
-  assert.match(forward,/old-client compatibility.*operation grant: RESULT REVIEW/);
+  assert.match(JSON.parse(run('deploy',deployment,'--check','--json').stdout).clientCompatibility.join('\n'),/operation grant: RESULT REVIEW/);
   assert.doesNotMatch(forward,/\.require|guards unproved|operation (add|edit|remove):/);
   run('deploy',deployment);
-  const backward=run('rollback',deployment,'--to','1','--check').stdout;
-  assert.match(backward,/old-client compatibility.*operation grant: RESULT REVIEW/);
+  const backward=run('rollback',deployment, '--exact','--to','1','--check').stdout;
+  assert.match(JSON.parse(run('rollback',deployment,'--exact','--to','1','--check','--json').stdout).clientCompatibility.join('\n'),/operation grant: RESULT REVIEW/);
   assert.doesNotMatch(backward,/\.require|guards unproved|operation (add|edit|remove):/);
   const assigned=nullable+`mutation assignTeam():
   return update roles['role'] {team: 'team'}
 `;
   writeFileSync(schema,assigned);run('deploy',deployment);
   assert.equal((await host.post('/m/assignTeam',{})).state,'sent');
-  assert.match(run('rollback',deployment,'--to','1','--check').stdout,/changed: 3 guards unproved across add, edit, remove/);
-  run('rollback',deployment,'--to','1');
+  assert.match(run('rollback',deployment, '--exact','--to','1','--check').stdout,/changed: 3 guards unproved across add, edit, remove/);
+  run('rollback',deployment, '--exact','--to','1');
   assert.match(run('deploy',deployment,'--check','--restore-dormant').stdout,/changed: 3 guards unproved across add, edit, remove/);
   await host.stop();
 });

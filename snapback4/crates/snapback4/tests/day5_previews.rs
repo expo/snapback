@@ -83,7 +83,7 @@ fn grouped_rollback_keeps_all_quotas_and_confidentiality_loss() {
     let v2=v1.replace("cap 10 by owner","cap 12 by owner").replace("cap 20 by team","cap 24 by team").replace("  public","  read <- .owner = viewer");
     app.write("snapback/schema.q",v1);app.ok(&["deploy","deployment"]);
     app.write("snapback/schema.q",&v2);app.ok(&["deploy","deployment"]);
-    let text=app.ok(&["rollback","deployment","--to","1","--check"]);
+    let text=app.ok(&["rollback","deployment","--to","1","--exact","--check"]);
     for fact in ["cap 12 by owner; cap 24 by team", "cap 10 by owner; cap 20 by team", "confidentiality"] {assert!(text.contains(fact),"{fact}: {text}");}
 }
 

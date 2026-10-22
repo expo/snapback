@@ -37,19 +37,15 @@ pub(super) fn manifest(root: &Path) -> Result<Vec<View>, String> {
         Err(e) => Err(e.to_string()),
     }
 }
-pub(super) fn resolve(dir: &Path, target: u64) -> Result<Option<View>, String> {
-    let mut parents = super::releases::ordinary_releases(dir)?;
-    parents.sort_unstable_by(|a, b| b.cmp(a));
-    for parent in parents {
-        if let Some(view) = manifest(&dir.join("releases").join(parent.to_string()))?
-            .into_iter()
-            .find(|v| v.target == target)
-        {
-            verify(dir, &view)?;
-            return Ok(Some(view));
-        }
-    }
-    Ok(None)
+pub(super) fn resolve(dir:&Path,target:u64)->Result<Option<View>,String>{
+    let store=snapback4_core::store_port::AnyStore::open_read_only(&dir.join("store.sqlite")).map_err(|e|e.to_string())?;
+    let Some(active)=store.release_value().map_err(|e|e.to_string())?.map(|s|s.parse::<u64>().map_err(|e|e.to_string())).transpose()?else{return Ok(None)};
+    drop(store);
+    let root=dir.join("releases").join(active.to_string());
+    let context=if let Some(view)=metadata(&root)?{verify(dir,&view)?;view.parent}else{active};
+    super::releases::selectable(dir,context)?;
+    let view=manifest(&dir.join("releases").join(context.to_string()))?.into_iter().find(|v|v.target==target);
+    if let Some(view)=&view{verify(dir,view)?;}Ok(view)
 }
 pub(super) fn verify(dir: &Path, view: &View) -> Result<(), String> {
     if view.parent == view.release || is_view(dir, view.parent) {
@@ -81,25 +77,11 @@ pub(super) fn prepare(
     for target in super::releases::ordinary_releases(dir)? {
         let old_root = dir.join("releases").join(target.to_string());
         let old = super::releases::bound_at(old_root.clone())?;
+        let original=Project{root:old_root.clone()}.sources().map_err(|e|e.to_string())?;
         let risks = super::rollback_foresight::risks(&bound.schema, &old.schema, target, dir);
-        let widening = risks.iter().any(|r| {
-            r.contains("so rollback can hide rows")
-                || r.contains("future writes may introduce duplicate keys")
-        });
-        let defaulting = risks
-            .iter()
-            .filter(|r| r.contains("will show the old default"))
-            .collect::<Vec<_>>();
-        if !defaulting.is_empty() {
-            return Err(format!(
-                "E_ADOPT: rollback to release {target} would misrepresent a removed defaulted column; declare a truthful cross-table down before deploy: {}",
-                defaulting
-                    .iter()
-                    .map(|s| s.as_str())
-                    .collect::<Vec<_>>()
-                    .join("; ")
-            ));
-        }
+        let widening=snapback4_lang::release_bridge::requires_view(&original,&current);
+        let defaulting=super::rollback_foresight::missing_defaults(&bound.schema,&old.schema)?;
+        if !defaulting.is_empty(){return Err(format!("E_ADOPT: rollback to release {target} would misrepresent a removed defaulted column {}; declare a truthful cross-table down before deploy: {}",defaulting.join(", "),risks.join("; ")))}
         if !widening {
             continue;
         }
@@ -161,9 +143,7 @@ pub(super) fn prepare(
             }
         }
         let bridge = snapback4_lang::release_bridge::loosen(
-            &Project { root: old_root }
-                .sources()
-                .map_err(|e| e.to_string())?,
+            &original,
             &source,
         );
         if !bridge.diagnostics.is_empty() {
@@ -178,19 +158,44 @@ pub(super) fn prepare(
             ));
         }
         let compiled = snapback4_lang::compile(&bridge.sources);
-        let aliases = bound
+        let mut aliases:std::collections::BTreeMap<String,String> = bound
             .schema
             .table_renames
             .iter()
             .filter(|(_, old)| compiled.schema.tables.contains_key(*old))
             .map(|(new, old)| (new.clone(), old.clone()))
             .collect();
+        for(new,prior)in &compiled.schema.table_renames{if bound.schema.tables.contains_key(prior)&&!bound.schema.tables.contains_key(new){aliases.insert(prior.clone(),new.clone());}}
         let current = bound
             .schema
             .with_table_names(&aliases)
             .map_err(|e| e.to_string())?;
+        let mut columns=std::collections::BTreeMap::new();
+        for(name,table)in &compiled.schema.tables{if let Some(next)=current.table(name){
+            let mut map=std::collections::BTreeMap::new();
+            for(new,prior)in current.asset_renames.get(name).into_iter().flatten(){if next.columns.contains_key(new)&&table.columns.contains_key(prior)&&!table.columns.contains_key(new){map.insert(new.clone(),prior.clone());}}
+            for(new,prior)in compiled.schema.asset_renames.get(name).into_iter().flatten(){if next.columns.contains_key(prior)&&table.columns.contains_key(new)&&!next.columns.contains_key(new){map.insert(prior.clone(),new.clone());}}
+            if !map.is_empty(){columns.insert(name.clone(),map);}
+        }}
+        let current=current.with_column_names(&columns);
         for (name, table) in &compiled.schema.tables {
             if let Some(next) = current.table(name) {
+                use snapback4_core::schema::Constraint;
+                let hard=|c:&Constraint|!matches!(c,Constraint::Text{..}|Constraint::Unique{..}|Constraint::Capabilities(_)|Constraint::Recorded);
+                let column=|field:&String|field.clone();
+                for c in next.constraints.iter().filter(|c|hard(c)) {
+                    let mut constraint=c.clone();
+                    match &mut constraint {Constraint::Cap{by,..}|Constraint::Immutable{fields:by}=>for f in by{*f=column(f)},_=>()}
+                    if !table.constraints.contains(&constraint){return Err(format!("E_ADOPT: rollback view for release {target} cannot preserve current constraint on {name}; author a compatible guarded rollback workflow"))}
+                }
+                for index in next.indexes.values().filter(|i|i.unique){
+                    let mut components=index.components.clone();for part in &mut components{if let snapback4_core::schema::IndexComponent::Column(c)=part{*c=column(c);}}
+                    if !table.indexes.values().any(|i|i.unique&&i.components==components){return Err(format!("E_ADOPT: rollback view for release {target} cannot preserve a current unique key on {name}; author a compatible guarded rollback workflow"))}
+                }
+                let on_delete=next.on_delete.iter().map(|(field,policy)|(column(field),policy.clone())).collect::<std::collections::BTreeMap<_,_>>();
+                if table.expire!=next.expire||table.not_before!=next.not_before||table.through!=next.through||table.on_delete!=on_delete||table.sync!=next.sync||table.leave!=next.leave {
+                    return Err(format!("E_ADOPT: rollback view for release {target} cannot preserve current lifetime or sync audience on {name}; author a compatible guarded rollback workflow"))
+                }
                 if ![
                     (&table.rules.read, &next.rules.read),
                     (&table.rules.insert, &next.rules.insert),
@@ -297,26 +302,8 @@ pub(super) fn install(
     Ok(installed)
 }
 
-pub(super) fn needs_registration(
-    dir: &Path,
-    bound: &snapback4_lang::Bound,
-) -> Result<bool, String> {
-    for target in super::releases::ordinary_releases(dir)? {
-        let old = super::releases::bound_at(dir.join("releases").join(target.to_string()))?;
-        let risks = super::rollback_foresight::risks(&bound.schema, &old.schema, target, dir);
-        if risks
-            .iter()
-            .any(|r| r.contains("will show the old default"))
-        {
-            return Ok(true);
-        }
-        if risks.iter().any(|r| {
-            r.contains("so rollback can hide rows")
-                || r.contains("future writes may introduce duplicate keys")
-        }) && resolve(dir, target)?.is_none()
-        {
-            return Ok(true);
-        }
-    }
-    Ok(false)
+pub(super) fn needs_registration(dir:&Path,matched:Option<u64>,prepared:&[View])->Result<bool,String>{
+    let held=matched.map(|n|manifest(&dir.join("releases").join(n.to_string()))).transpose()?.unwrap_or_default();
+    for view in &held{verify(dir,view)?;}
+    Ok(held.len()!=prepared.len()||prepared.iter().any(|v|!held.iter().any(|old|old.target==v.target&&old.digest==v.digest&&old.hides==v.hides)))
 }

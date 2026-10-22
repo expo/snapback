@@ -27,6 +27,11 @@ fn table(table:&mut Table,map:&BTreeMap<String,String>){
         _=>(),
     }}
 }
+// @ref LLP 3000.000.000#20-visible-rollback-views-roll — comparison uses the same typed identity codec as activation.
+impl Schema {
+    /// Compare schema authority using declared physical column identities.
+    pub fn with_column_names(&self,maps:&BTreeMap<String,BTreeMap<String,String>>)->Self{schema(self.clone(),maps)}
+}
 pub(super) fn schema(mut schema:Schema,maps:&Maps)->Schema {
     for(name,map)in maps {if let Some(t)=schema.tables.get_mut(name){table(t,map);}}
     for e in &mut schema.extractions {

@@ -328,8 +328,10 @@ fn activate(
         if let Some(summary)=options.flags.get("security-summary"){result["security"]=serde_json::from_str(summary).unwrap_or_default();}
         if let Some(view)=options.flags.get("rollback-view"){result["rollbackView"]=serde_json::from_str(view).unwrap_or_default();}
         if let Some(preview)=options.flags.get("release-preview"){result["preview"]=serde_json::from_str(preview).unwrap_or_default();}
+        if let Some(origin)=options.flags.get("source-release").and_then(|v|v.parse::<u64>().ok()){result["sourceRelease"]=origin.into();}
         if options.json {println!("{}",result);} else {
             println!("release {release} is current as generation {}; {}; running serve adopted the release",result["generation"],result["adoption"].as_str().unwrap_or("adopted"));
+            if let Some(origin)=options.flags.get("source-release"){println!("  retained source {origin} requalified as release {release} to register its current rollback views");}
             for fill in result["backfills"].as_array().into_iter().flatten().filter_map(|f|f.as_str()) {println!("  backfill: {fill}");}
             if options.flags.contains_key("verbose") {println!("{}",result["details"].as_str().unwrap_or(""));}
         }
@@ -434,17 +436,6 @@ pub fn deploy(options: &Options) -> i32 {
             }
             std::fs::write(stage.join("device-compatibility.json"), serde_json::to_vec_pretty(&snapback4_core::device_protocol::compatibility(&bound.schema.public_projection())).map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
             crate::dev_worker::package_entry(build_project, &stage)?;
-            let register_views=super::rollback_views::needs_registration(&dir,&bound)?;
-            if let Some(previous)=previous {
-                if !register_views && held["release"].as_u64()==Some(previous) && crate::release_files::executable_digest(&stage)?==crate::release_files::executable_digest(&releases.join(previous.to_string()))? {
-                    std::fs::remove_dir_all(&stage).map_err(|e|e.to_string())?;
-                    if let Some(saved) = &mut saved_version { saved.finish(previous,&source_hash)?; }
-                    if options.json {println!("{}",serde_json::json!({"unchanged":true,"release":previous,"generation":held["generation"]}));}
-                    else {println!("deploy verdict: UNCHANGED; {}",super::security::release_verdict(security_summary.as_ref()));println!("unchanged; release {previous} stays current as generation {}",held["generation"]);}
-                    return Ok(());
-                }
-            }
-            // @ref LLP 3000.000.000#16-release-reactivation-and-rollback-foresight-rel5 — equal retained executable bytes select their existing identity.
             let staged_digest = crate::release_files::executable_digest(&stage)?;
             let mut matching = std::fs::read_dir(&releases).map_err(|e|e.to_string())?
                 .filter_map(Result::ok).filter_map(|e| e.file_name().to_str()?.parse::<u64>().ok())
@@ -454,6 +445,20 @@ pub fn deploy(options: &Options) -> i32 {
             let mut matched = None;
             for n in matching {
                 if crate::release_files::executable_digest(&releases.join(n.to_string()))? == staged_digest { matched=Some(n); break; }
+            }
+            let mut n=std::fs::read_dir(&releases).map_err(|e|e.to_string())?.filter_map(Result::ok).filter_map(|e|e.file_name().to_str()?.parse::<u64>().ok()).max().unwrap_or(0);
+            let staged_bound=bound_at(stage.clone())?;
+            let parent=n.checked_add(1).ok_or("release identity exhausted")?;
+            let views=super::rollback_views::prepare(&dir,&stage,&staged_bound,parent)?;
+            let register_views=super::rollback_views::needs_registration(&dir,matched,&views)?;
+            if let Some(previous)=previous {
+                if !register_views && held["release"].as_u64()==Some(previous) && staged_digest==crate::release_files::executable_digest(&releases.join(previous.to_string()))? {
+                    std::fs::remove_dir_all(&stage).map_err(|e|e.to_string())?;
+                    if let Some(saved) = &mut saved_version { saved.finish(previous,&source_hash)?; }
+                    if options.json {println!("{}",serde_json::json!({"unchanged":true,"release":previous,"generation":held["generation"]}));}
+                    else {println!("deploy verdict: UNCHANGED; {}",super::security::release_verdict(security_summary.as_ref()));println!("unchanged; release {previous} stays current as generation {}",held["generation"]);}
+                    return Ok(());
+                }
             }
             if let Some(n) = matched.filter(|_|!register_views) {
                 let mut preview_options=options.clone();
@@ -469,10 +474,9 @@ pub fn deploy(options: &Options) -> i32 {
                 if let Some(saved)=&mut saved_version {saved.finish(n,&source_hash)?;}
                 return Ok(());
             }
-            let mut n=std::fs::read_dir(&releases).map_err(|e|e.to_string())?.filter_map(Result::ok).filter_map(|e|e.file_name().to_str()?.parse::<u64>().ok()).max().unwrap_or(0);
-            let staged_bound = bound_at(stage.clone())?;
-            let parent=n.checked_add(1).ok_or("release identity exhausted")?;
-            let views=super::rollback_views::prepare(&dir,&stage,&staged_bound,parent)?;
+            let mut qualified_options=options.clone();
+            if let Some(origin)=matched.filter(|_|register_views){qualified_options.flags.insert("source-release".into(),origin.to_string());}
+            let options=&qualified_options;
             if options.flags.contains_key("check") {
                 let mut preview_options=options.clone();
                 if let Some(summary)=&security_summary {preview_options.flags.insert("security-summary".into(),summary.clone());}preview_options.flags.insert("deploy-direction".into(),String::new());
@@ -878,8 +882,8 @@ mod tests {
 }
 
 fn receipt(release:u64,generation:u64,report:&snapback4_core::store_port::report::AdoptionReport,options:&Options){
-    if options.json {println!("{}",serde_json::json!({"release":release,"generation":generation,"adoption":report.compact(),"details":report.summary(),"backfills":report.backfills,"security":options.flags.get("security-summary").and_then(|s|serde_json::from_str::<serde_json::Value>(s).ok()),"rollbackView":options.flags.get("rollback-view").and_then(|s|serde_json::from_str::<serde_json::Value>(s).ok()),"preview":options.flags.get("release-preview").and_then(|s|serde_json::from_str::<serde_json::Value>(s).ok())}));}
-    else {println!("release {release} is current as generation {generation}; {}",report.compact());for fill in &report.backfills {println!("  backfill: {fill}");}if options.flags.contains_key("verbose"){println!("{}",report.summary());}}
+    if options.json {println!("{}",serde_json::json!({"sourceRelease":options.flags.get("source-release").and_then(|s|s.parse::<u64>().ok()),"release":release,"generation":generation,"adoption":report.compact(),"details":report.summary(),"backfills":report.backfills,"security":options.flags.get("security-summary").and_then(|s|serde_json::from_str::<serde_json::Value>(s).ok()),"rollbackView":options.flags.get("rollback-view").and_then(|s|serde_json::from_str::<serde_json::Value>(s).ok()),"preview":options.flags.get("release-preview").and_then(|s|serde_json::from_str::<serde_json::Value>(s).ok())}));}
+    else {println!("release {release} is current as generation {generation}; {}",report.compact());if let Some(origin)=options.flags.get("source-release"){println!("  retained source {origin} requalified as release {release} to register its current rollback views");}for fill in &report.backfills {println!("  backfill: {fill}");}if options.flags.contains_key("verbose"){println!("{}",report.summary());}}
 }
 pub(super) fn latest(dir:&Path)->Result<u64,String>{
     std::fs::read_dir(dir.join("releases")).map_err(|e|e.to_string())?.filter_map(Result::ok)

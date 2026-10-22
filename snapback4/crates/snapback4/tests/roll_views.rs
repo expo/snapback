@@ -266,3 +266,40 @@ fn failed_guard_transport_does_not_register_or_leave_prepared_views(){
     let next=old.replace("amount: int 100..50000", "amount: int 100..50000 ?").replace("viewer = 'alice'", "viewer = 'bob'").replace("  return insert payments", "  require a.amount != null else NO_AMOUNT\n  return insert payments");app.source(&next);
     for check in [true,false]{let args=if check{vec!["deploy","deployment","--check","--json"]}else{vec!["deploy","deployment","--json"]};let out=app.run(&args);assert!(!out.status.success(),"{}",text(&out));assert!(text(&out).contains("guard dependency"));assert_eq!(fs::read_dir(app.0.join("deployment/releases")).unwrap().count(),1);assert_eq!(app.json(&["releases","deployment"])["current"],1);}
 }
+
+#[test]
+fn text_minimum_widening_registers_a_view_that_keeps_the_current_quota() {
+    let app=App::new();
+    let old="table items:\n  owner: principal\n  body: text 4..100\n  cap 2 by owner\n  public 'fixture'\n  insert <- allow\n  online only\nmutation add():\n  return insert items {owner:viewer,body:'kept'}\nquery all():\n  return items first 10 by .id\n";
+    app.source(old);app.ok(&["deploy","deployment","--json"]);
+    let next=old.replace("text 4..100","text <=100").replace("public 'fixture'","read <- .owner = viewer").replace("cap 2 by owner","cap 1 by owner\n  immutable owner");
+    app.source(&next);let preview=app.json(&["deploy","deployment","--check","--json"]);
+    assert_eq!(preview["rollbackViews"].as_array().unwrap().len(),1);
+    app.ok(&["deploy","deployment","--json"]);app.seed(&next,vec![json!({"id":"short","owner":"alice","body":"x"})]);
+    let selected=app.json(&["rollback","deployment","--to","1","--json"])["release"].as_u64().unwrap();assert_eq!(app.count(),1);
+    let source=fs::read_to_string(app.0.join(format!("deployment/releases/{selected}/snapback/schema.q"))).unwrap();
+    let b=snapback4_lang::compile(&[("schema.q".into(),source)]);assert!(b.diagnostics.is_empty());
+    let store=snapback4_core::store_port::AnyStore::open(&app.0.join("deployment/store.sqlite")).unwrap();
+    let mut engine=snapback4_core::Engine::new_release(store,b.schema,b.programs.into_iter().map(|p|p.program),selected,Some(selected)).unwrap();
+    let hidden=engine.query("all",snapback4_core::Context::new("bob",Default::default())).unwrap();assert_eq!(snapback4_core::wire::to_json(&hidden.data),json!([]));
+    let write=engine.mutate("add",None,snapback4_core::Context::new("alice",Default::default())).unwrap();
+    assert!(matches!(write.state,snapback4_core::WriteState::Failed{..}),"old quota would have admitted this second row: {write:?}");
+    assert_eq!(engine.store().count("items").unwrap(),1);
+}
+
+#[test]
+fn rollback_uses_active_source_context_after_a_later_branch_changed_privacy() {
+    let app=App::new();let old=OLD.replacen("  amount: int 100..50000","  owner: principal\n  amount: int 100..50000",1);
+    app.source(&old);app.ok(&["deploy","deployment","--json"]);
+    let private=old.replace("amount: int 100..50000","amount: int 100..50000 ?").replacen("  public 'fixture'","  read <- .owner = viewer",1).replace("  return insert payments","  require a.amount != null else NO_AMOUNT\n  return insert payments");
+    app.source(&private);let parent=app.json(&["deploy","deployment","--json"])["release"].as_u64().unwrap();
+    app.seed(&private,vec![json!({"id":"pending","owner":"alice","amount":null})]);
+    let public=private.replacen("  read <- .owner = viewer","  public 'fixture'",1);app.source(&public);app.ok(&["deploy","deployment","--json"]);
+    app.ok(&["rollback","deployment","--to",&parent.to_string(),"--exact","--json"]);
+    let selected=app.json(&["rollback","deployment","--to","1","--json"]);assert_eq!(selected["rollbackView"]["parent"],parent);
+    let release=selected["release"].as_u64().unwrap();let source=fs::read_to_string(app.0.join(format!("deployment/releases/{release}/snapback/schema.q"))).unwrap();
+    let b=snapback4_lang::compile(&[("schema.q".into(),source)]);assert!(b.diagnostics.is_empty());let store=snapback4_core::store_port::AnyStore::open(&app.0.join("deployment/store.sqlite")).unwrap();
+    let mut e=snapback4_core::Engine::new_release(store,b.schema,b.programs.into_iter().map(|p|p.program),release,Some(release)).unwrap();
+    let outcome=e.query("read",snapback4_core::Context::new("bob",std::collections::BTreeMap::from([("id".into(),snapback4_core::Value::Id("pending".into()))]))).unwrap();
+    assert_eq!(snapback4_core::wire::to_json(&outcome.data),json!(null));
+}

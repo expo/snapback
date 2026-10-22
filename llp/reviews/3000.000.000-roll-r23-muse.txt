@@ -1,0 +1,13 @@
+muse: workspace root: /home/ccheever/projects/sb4-b23-roll (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=19735767-6405-4592-8179-9096a40024bc]: Subscription quota exhausted. Your usage window resets at 2026-10-26T00:00:00Z. (rate_limit_error)
+[muse-exec] plan quota exhausted; retrying with the Meta API key
+muse: workspace root: /home/ccheever/projects/sb4-b23-roll (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY
+
+Active-context mapping uses active ordinary release or active view's committed parent, never newest globally, under command lock. No cross-branch borrowing of later weaker guards.
+
+Source-equal no-op/reuse privately prepares desired set and compares target/executable digest/hiding reasons against that source's own verified manifest. Missing/stale/newly-needed commits fresh ordinary parent with equivalent source, sourceRelease provenance, full adoption/CAS; unselectable before commit. Temporary views cleaned on no-op/reuse/refusal/preview. Matching permits id reuse.
+
+No mapping uses original with writer zero-hiding, never a different branch. Strict current-authority/constraints, unconditional wire custody, and alias laws remain. No qualification/publication claim.

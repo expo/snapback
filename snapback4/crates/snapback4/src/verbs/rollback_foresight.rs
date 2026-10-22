@@ -2,6 +2,19 @@
 use snapback4_core::{Schema, successor::{self, Change}, schema::ColumnDefault};
 use std::path::Path;
 
+pub(super) fn missing_defaults(candidate:&Schema,old:&Schema)->Result<Vec<String>,String>{
+    let names=candidate.table_renames.iter().filter(|(new,prior)|old.table(prior).is_some()&&old.table(new).is_none()).map(|(new,prior)|(prior.clone(),new.clone())).collect();
+    let old=old.with_table_names(&names).map_err(|e|e.to_string())?;
+    let mut missing=Vec::new();
+    for(name,target)in old.visible_tables().filter(|(_,t)|t.ephemeral.is_none()){
+        let Some(from)=candidate.table(name)else{continue};if old.maintain_for(name).is_some(){continue}
+        for(column,kind)in &target.columns {
+            let renamed=candidate.asset_renames.get(name).is_some_and(|map|map.iter().any(|(new,prior)|prior==column&&from.columns.contains_key(new)));
+            if !target.engine_field(column)&&!target.maintained.contains_key(column)&&matches!(target.defaults.get(column),Some(ColumnDefault::Literal(_)))&&!from.columns.contains_key(column)&&!renamed&&!projected(candidate,name,column,kind){missing.push(format!("{name}.{column}"));}
+        }
+    }Ok(missing)
+}
+
 pub(super) fn risks(candidate: &Schema, old: &Schema, release: u64, dir: &Path) -> Vec<String> {
     let names:std::collections::BTreeMap<_,_>=candidate.table_renames.iter().filter(|(new,prior)|old.table(prior).is_some() && old.table(new).is_none()).map(|(new,prior)|(prior.clone(),new.clone())).collect();
     if names.is_empty(){return risks_aligned(candidate,old,release,dir)}

@@ -63476,7 +63476,7 @@ What it merges:
   a runs table, a `progress` catch-up page, and a hook that owes every run it
   holds and every view, for the life of the signed-in client, until the server
   shows it covered;
-- live presence (LLP 3000.018 revision 21): a presence answer asks for a
+- live presence (LLP 3000.018 revision 23): a presence answer asks for a
   5-second refresh, a background reply publishes only what nothing overtook,
   and remembered answers follow the store cut each reply names, the highest
   cut named staying known, composed reads included;
@@ -101428,3 +101428,5 @@ hidden old-table rows in all 16 dormancy lanes, with lane 032 first refusing its
 misleading default and then accepting its truthful down. Broader qualification
 and the required Mac Studio attempt are recorded in WORKSTREAM-REPORT.md; this
 entry makes no publication or unrun-test claim.
+
+ROLL qualification follow-up: source-domain admission now uses full structural types (including text minima), caps and unique keys rather than matching advisory prose. Compiled views retain current constraints, read-through syntax and identity-aligned authority. A private read plus quota regression checks actual enforcement. Registry resolution belongs to the active ordinary source or active view's parent; a later branch cannot lend it weaker guards. Equal-source reuse first compares privately prepared view content against that source's own manifest; sourceRelease explains a necessary fresh registration parent. Revision 23 is READY from Muse and fresh Codex. Full client-pool fallout now explicitly separates exact-source hazard tests from default-view tests and uses JSON for complete advice. Final packed qualification is still pending; no publication claim.
