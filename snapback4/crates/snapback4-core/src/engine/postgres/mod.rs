@@ -27,6 +27,7 @@ mod change_evidence;
 mod foundation_schema;
 mod ledger_schema;
 mod shape;
+pub(crate) mod ownership;
 pub(crate) mod activation;
 mod activation_schema;
 mod release;
@@ -128,6 +129,7 @@ impl PostgresEngine {
             tx.execute("INSERT INTO _backend VALUES (true,$1,$2,$3)",
                 &[&store::VERSION, &canonical_json(&schema), &canonical_json(&programs)])?;
         }
+        ownership::isolate_evaluator(&tx)?;
         activation_schema::verify_core(&tx)?;
         let head = tx.query("SELECT seq FROM _head WHERE singleton FOR UPDATE", &[])?[0].get::<_, i64>(0);
         tx.head.set(Some(head as u64));

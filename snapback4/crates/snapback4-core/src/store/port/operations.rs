@@ -59,7 +59,7 @@ impl AnyStore {
             if expected_store_id.is_none() || tx.store_identity()?.as_deref() != expected_store_id { return Ok(None); }
             crate::identity::resolve_session_tx(tx, digest, now, supervisor_revision)
         }) } }
-    pub(crate) fn invalidate_expired_authority_session(&self, digest: &str, now: i64) -> Result<(), RuntimeError> { match self { Self::Sqlite(SqliteStore(inner)) => inner.invalidate_expired_authority_session(digest, now), #[cfg(feature = "postgres")] Self::Postgres(_) => crate::identity::IdentityStore::delete_expired_identity_session(self, digest, now) } }
+    pub(crate) fn invalidate_expired_authority_session(&self, digest: &str, now: i64) -> Result<(), RuntimeError> { self.delete_expired_session_member(digest, now) }
     pub fn retain_ownership(&mut self, owner: std::sync::Arc<std::fs::File>) -> Result<(), RuntimeError> { match self { Self::Sqlite(SqliteStore(inner)) => inner.retain_ownership(owner), #[cfg(feature = "postgres")] Self::Postgres(_) => Err(RuntimeError::StoreUnsupported { family: "ownership" }) } }
     pub fn check_ownership(&self) -> Result<(), RuntimeError> { match self { Self::Sqlite(SqliteStore(inner)) => inner.check_ownership(), #[cfg(feature = "postgres")] Self::Postgres(_) => Err(RuntimeError::StoreUnsupported { family: "ownership" }) } }
 }

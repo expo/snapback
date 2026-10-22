@@ -31,7 +31,7 @@ impl AnyStore {
         match self { Self::Sqlite(SqliteStore(store)) => store.read_transaction().map(|tx| ReadSnapshot { tx: AnyTx::Sqlite(SqliteTx(tx)) }), #[cfg(feature = "postgres")] Self::Postgres(PostgresStore(handle)) => handle.store.get_mut().transaction(None).map(|tx| ReadSnapshot { tx: AnyTx::Postgres(PostgresTx(tx)) }) }
     }
     pub(crate) fn opening_transaction(&mut self) -> Result<AnyTx<'_>, RuntimeError> {
-        match self { Self::Sqlite(SqliteStore(store)) => store.opening_transaction().map(|inner| AnyTx::Sqlite(SqliteTx(inner))), #[cfg(feature = "postgres")] Self::Postgres(PostgresStore(handle)) => { let store = handle.store.get_mut(); let mode = if store.read_only { None } else { Some(crate::engine::postgres::WriteMode::Serialized) }; store.transaction(mode).map(|inner| AnyTx::Postgres(PostgresTx(inner))) } }
+        match self { Self::Sqlite(SqliteStore(store)) => store.opening_transaction().map(|inner| AnyTx::Sqlite(SqliteTx(inner))), #[cfg(feature = "postgres")] Self::Postgres(PostgresStore(handle)) => { let store = handle.store.get_mut(); let mode = if store.read_only { None } else { Some(crate::engine::postgres::WriteMode::Serialized) }; store.attach_transaction(mode).map(|inner| AnyTx::Postgres(PostgresTx(inner))) } }
     }
     pub(crate) fn finish_open(tx: AnyTx<'_>) -> Result<OpeningMetadata, RuntimeError> {
         match tx { AnyTx::Sqlite(SqliteTx(tx)) => sqlite::Store::finish_open(tx), #[cfg(feature = "postgres")] AnyTx::Postgres(PostgresTx(tx)) => tx.finish_open() }
@@ -144,4 +144,19 @@ impl<'store> AnyTx<'store> {
 #[cfg(feature = "postgres")]
 impl AnyStore {
     pub(crate) fn from_postgres(handle: crate::engine::postgres::Handle) -> Self { Self::Postgres(PostgresStore(handle)) }
+}
+
+// @ref LLP 3000.009.001.000.000#3.7 — the committer alone owns identity COMMIT; the port preserves the original opener.
+pub(crate) struct IdentitySource<'a>(pub &'a AnyStore, pub bool);
+impl crate::engine::committer::TransactionSource for IdentitySource<'_> {
+    fn with_transaction<T>(self, run: impl FnOnce(AnyTx<'_>) -> Result<T, RuntimeError>) -> Result<T, RuntimeError> {
+        match self.0 {
+            AnyStore::Sqlite(SqliteStore(store)) => run(AnyTx::from_sqlite(store.identity_member_transaction(self.1)?)),
+            #[cfg(feature = "postgres")]
+            AnyStore::Postgres(PostgresStore(handle)) => {
+                let mut store = handle.borrow()?;
+                run(AnyTx::Postgres(PostgresTx(store.transaction(Some(crate::engine::postgres::WriteMode::Serialized))?)))
+            }
+        }
+    }
 }

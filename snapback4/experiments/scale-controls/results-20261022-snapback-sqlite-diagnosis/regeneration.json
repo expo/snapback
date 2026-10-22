@@ -1,0 +1,14 @@
+{
+  "archive_sha256": "7adc302f284707965b139023854db34f3cd80ced4243686fe81e43cafa16c323",
+  "regenerated_identically": [
+    "bracket.json",
+    "bracket.md",
+    "breakdown.json",
+    "breakdown.md",
+    "layers.json",
+    "predictions.json",
+    "audit.json",
+    "bracket.svg"
+  ],
+  "passed": true
+}

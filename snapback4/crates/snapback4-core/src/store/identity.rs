@@ -67,7 +67,7 @@ fn mint_binding_record(
 }
 
 // @ref LLP 3000.033#1.3 — only minting installs read-session storage.
-pub(super) fn present(conn: &Connection) -> Result<bool, RuntimeError> {
+pub(crate) fn present(conn: &Connection) -> Result<bool, RuntimeError> {
     Ok(conn.prepare_cached("SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE type = 'table' AND name = '_read_sessions')")?.query_row([], |r| r.get(0))?)
 }
 
@@ -603,3 +603,15 @@ mod tests {
 
 #[cfg(test)]
 mod legacy_tests;
+
+impl Store {
+    // Identity composites historically use unchecked transactions, without the
+    // application catalog fence. Do not substitute the engine's write opener.
+    pub(crate) fn identity_member_transaction(&self, immediate: bool) -> Result<Tx<'_>, RuntimeError> {
+        let tx = rusqlite::Transaction::new_unchecked(&self.conn, if immediate {
+            rusqlite::TransactionBehavior::Immediate
+        } else { rusqlite::TransactionBehavior::Deferred })?;
+        Ok(Tx { activation_scan: None, changes: Default::default(), sequence_table: Default::default(),
+            tx, page_size: self.page_size, server: self.server, catalog: &self.catalog })
+    }
+}

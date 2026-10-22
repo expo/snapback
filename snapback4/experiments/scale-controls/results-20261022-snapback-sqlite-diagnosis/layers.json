@@ -1,0 +1,155 @@
+[
+  {
+    "counter_delta": 3627,
+    "counter_ok": true,
+    "durability": "production Store::open: WAL/FULL; no pragma overrides",
+    "measured": 2449,
+    "mode": "engine",
+    "ops_per_s": 122.42249279827628,
+    "seconds": 20.004493815,
+    "sqlite_version": "3.53.2",
+    "total": 3627,
+    "warmup_s": 10.0,
+    "latency_ms": {
+      "count": 2449,
+      "mean": 8.165910363821968,
+      "p50": 8.018352,
+      "p99": 16.187063000000002,
+      "p999": 22.672904,
+      "maximum": 22.826121
+    },
+    "bookkeeping_delta": {
+      "counter_sum": 3627,
+      "commits": 3627,
+      "receipts": 0,
+      "sessions": 0,
+      "maintained": 0
+    }
+  },
+  {
+    "counter_delta": 3389,
+    "counter_ok": true,
+    "durability": "production Store::open: WAL/FULL; no pragma overrides",
+    "measured": 2441,
+    "mode": "engine",
+    "ops_per_s": 122.05824686544946,
+    "seconds": 19.9986487,
+    "sqlite_version": "3.53.2",
+    "total": 3389,
+    "warmup_s": 10.0,
+    "latency_ms": {
+      "count": 2441,
+      "mean": 8.190311849651781,
+      "p50": 8.016967999999999,
+      "p99": 16.505292,
+      "p999": 22.798499,
+      "maximum": 23.089676
+    },
+    "bookkeeping_delta": {
+      "counter_sum": 3389,
+      "commits": 3389,
+      "receipts": 0,
+      "sessions": 0,
+      "maintained": 0
+    }
+  },
+  {
+    "counter_delta": 3457,
+    "counter_ok": true,
+    "durability": "production Store::open: WAL/FULL; no pragma overrides",
+    "measured": 2371,
+    "mode": "engine",
+    "ops_per_s": 117.74991396787031,
+    "seconds": 20.135895816,
+    "sqlite_version": "3.53.2",
+    "total": 3457,
+    "warmup_s": 10.0,
+    "latency_ms": {
+      "count": 2371,
+      "mean": 8.489998615773935,
+      "p50": 8.078033,
+      "p99": 16.088117999999998,
+      "p999": 143.301726,
+      "maximum": 227.91620500000002
+    },
+    "bookkeeping_delta": {
+      "counter_sum": 3457,
+      "commits": 3457,
+      "receipts": 0,
+      "sessions": 0,
+      "maintained": 0
+    }
+  },
+  {
+    "batch": 1,
+    "counter_ok": true,
+    "journal_mode": "wal",
+    "measured": 2502,
+    "mode": "raw-batch",
+    "ops_per_s": 125.12100147251246,
+    "seconds": 19.996643014,
+    "synchronous": 2,
+    "total": 3751,
+    "wal_autocheckpoint": 1000,
+    "transaction_latency_ms": {
+      "count": 2502,
+      "mean": 7.992007444444445,
+      "p50": 7.8040970000000005,
+      "p99": 11.47928,
+      "p999": 17.639986999999998,
+      "maximum": 27.198784
+    },
+    "all_process_flush_ms_including_setup": {
+      "count": 3770,
+      "mean": 7.972225345888594,
+      "p50": 7.746189,
+      "p99": 11.428454,
+      "p999": 22.36828,
+      "maximum": 189.575145
+    },
+    "wal_flush_ms": {
+      "count": 3761,
+      "mean": 7.923548469290083,
+      "p50": 7.746229,
+      "p99": 11.390173,
+      "p999": 22.307164,
+      "maximum": 27.157527
+    }
+  },
+  {
+    "batch": 16,
+    "counter_ok": true,
+    "journal_mode": "wal",
+    "measured": 41008,
+    "mode": "raw-batch",
+    "ops_per_s": 2050.651889979319,
+    "seconds": 19.997543317999998,
+    "synchronous": 2,
+    "total": 60928,
+    "wal_autocheckpoint": 1000,
+    "transaction_latency_ms": {
+      "count": 2563,
+      "mean": 7.802145484588373,
+      "p50": 7.623298,
+      "p99": 10.779824,
+      "p999": 15.790298000000002,
+      "maximum": 16.508238000000002
+    },
+    "all_process_flush_ms_including_setup": {
+      "count": 3827,
+      "mean": 7.796475103214005,
+      "p50": 7.632354,
+      "p99": 10.844325,
+      "p999": 15.168689,
+      "maximum": 16.447805
+    },
+    "wal_flush_ms": {
+      "count": 3818,
+      "mean": 7.796693008119434,
+      "p50": 7.632194,
+      "p99": 10.844325,
+      "p999": 15.168689,
+      "maximum": 16.447805
+    }
+  }
+]

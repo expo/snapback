@@ -1,0 +1,82 @@
+{
+  "base_commit": "608202dc58709142c3ef9b8184575cd5ead13635",
+  "branch": "sb4-pg/s1-diagnose",
+  "machine": {
+    "alias": "expo-build-450b",
+    "hostname": "expose-builder-pixel-a",
+    "tailscale_ip": "100.85.211.16",
+    "disks": "NAME        MODEL                      ROTA   SIZE MOUNTPOINTS\nnvme0n1     SAMSUNG MZVL2512HCJQ-00B00    0 476.9G \n\u251c\u2500nvme0n1p1                               0    32G [SWAP]\n\u251c\u2500nvme0n1p2                               0     1G /boot\n\u2514\u2500nvme0n1p3                               0 443.9G /\nnvme1n1     SAMSUNG MZVL2512HCJQ-00B00    0 476.9G \n\u2514\u2500nvme1n1p1                               0 476.9G /var/cache/expose-build\n",
+    "filesystem": "Filesystem      Size  Used Avail Use% Mounted on\n/dev/nvme0n1p3  436G  224G  191G  54% /\n"
+  },
+  "method": {
+    "rates": [
+      100,
+      141,
+      200,
+      282,
+      400,
+      566,
+      800,
+      1131,
+      1600,
+      2262,
+      3200
+    ],
+    "warmup_s": 10,
+    "measurement_s": 20,
+    "repetitions": 3,
+    "workers": 32,
+    "process": "fresh serve for every trial",
+    "app_cores": "0-2,6-8",
+    "load_cores": "3-5,9-11",
+    "sessions": "256 pre-minted ordinary sessions, resolved on every request"
+  },
+  "build": {
+    "profile": "release",
+    "LIBSQLITE3_FLAGS": "-USQLITE_ENABLE_MEMORY_MANAGEMENT",
+    "CARGO_TARGET_DIR": "snapback4/target/s1dx",
+    "load_target": "snapback4/experiments/scale-controls/target",
+    "rustc": "rustc 1.97.0 (2d8144b78 2026-07-07)"
+  },
+  "baseline_build_inputs": {
+    "time": 1792652562.6217155,
+    "source_commit": "608202dc58709142c3ef9b8184575cd5ead13635",
+    "sha256": {
+      "snapback4/experiments/scale-controls/diagnosis-engine/Cargo.toml": "94d944a79cc78ac3989116bdc1ee546ed52f1c5842d66825463279c59c5cd77d",
+      "snapback4/experiments/scale-controls/diagnosis-engine/Cargo.lock": "e9ab6a9f3276075fd80b57e493960a2d7207f99a2c1ac2ea7f1a59e6d6527250",
+      "snapback4/experiments/scale-controls/diagnosis-engine/src/main.rs": "0959d17764a7b412eae871638e5686001d32f7efe343c1a0c15de99a2205ca0c",
+      "snapback4/experiments/scale-controls/Cargo.lock": "08a84604051a0b05620c91da961d84c75525bd54fb6f6914183759a02f887ad3",
+      "snapback4/target/s1dx/release/snapback4": "c907fe671f60d5245a271c98c2ecdcafb706653d8563f38daa5a856151d5a4a5",
+      "snapback4/target/s1dx/release/sb4-sqlite-diagnosis-engine": "fe80b9d8f54507d5b40cef3b98498d5e2d727e85b7db2e4f05485c84f71a5f39",
+      "snapback4/experiments/scale-controls/target/release/sb4-scale-controls": "2f0cd027e63fa632d1244b87fde30f57d4a183aff29888b7a24213dbd1211d26"
+    }
+  },
+  "timing": {
+    "local_uncommitted_product_patch": true,
+    "restored_after_measurement": true,
+    "sha256": {
+      "snapback4/target/s1dx/release/snapback4": "332102bf28b596add3c3fbbbb66206415424d2492312d28e4e78a572b2903aed",
+      "snapback4/experiments/scale-controls/target/s1dx-layers/fsync-timing.so": "456649fc1d158e7fd53d0bf3d17d9505aab01568353fd78d171746c41630665e",
+      "snapback4/target/s1dx-local-patch/measurement.patch": "502e98dcb6eb074cc4aa4f8cd6f807e91660f3e3f116b798ebd3a946cbfba928",
+      "snapback4/target/s1dx-local-patch/dx_timing.rs": "378f5a7cd1f33a26b7e8b84c7ac64613c02032afba616909ffb79888dd5f0b39"
+    },
+    "settings": {
+      "cache_size": -2000,
+      "journal_mode": "wal",
+      "page_size": 4096,
+      "synchronous": 2,
+      "wal_autocheckpoint": 1000
+    },
+    "array_order": [
+      "auth_ns",
+      "program_ns",
+      "mutate_ns",
+      "commit_ns",
+      "transaction_begin_ns",
+      "unused",
+      "physical_commit_count",
+      "auth_resolution_count"
+    ]
+  },
+  "source_note": "Baseline product is base commit unchanged; direct-driver formatting after measurement changes no execution. Timing build adds only the reproducible local uncommitted patch. Diagnostic admission/latency results are not qualified baseline results."
+}

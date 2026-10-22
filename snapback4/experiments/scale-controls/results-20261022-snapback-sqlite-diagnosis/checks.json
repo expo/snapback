@@ -1,0 +1,10 @@
+{
+  "rustfmt": "pass",
+  "release_driver_clippy": "pass (-D warnings; inherited dependency warning retained)",
+  "python_compile": "pass",
+  "c_syntax_warnings": "pass (-Wall -Wextra -Werror)",
+  "ref_check": "pass; see archived ref-check-final.txt",
+  "product_source_diff": "empty",
+  "known_tokens": "zero hits",
+  "owned_processes": "313 recorded; zero live"
+}

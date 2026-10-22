@@ -63,7 +63,7 @@ class Snapback(Run):
         self.args = args
         self.out = Path(args.out).resolve()
         self.out.mkdir(parents=True, exist_ok=False)
-        self.runtime = HERE / 'target/s1sk' / self.out.name
+        self.runtime = HERE / 'target/s1sk' / getattr(args, 'runtime_name', self.out.name)
         self.runtime.mkdir(parents=True, exist_ok=False, mode=0o700)
         self.project = self.runtime / 'app'
         shutil.copytree(APP, self.project, ignore=shutil.ignore_patterns('generated', '.snapback4'))

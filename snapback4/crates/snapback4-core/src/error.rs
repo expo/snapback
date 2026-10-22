@@ -151,6 +151,15 @@ pub enum RuntimeError {
     #[cfg(feature = "postgres")]
     #[error("E_STORE: {0}")]
     Postgres(#[from] postgres::Error),
+    #[error("E_STORE_OWNERSHIP: {0}")]
+    StoreOwnership(String),
+    #[error("E_WORKER_STORE_ID: worker completion ledger requires a logical store identity")]
+    WorkerStoreIdentity,
+    /// COMMIT was sent but no reliable acknowledgement was received. Resolve
+    /// the existing receipt/key before retrying; this is not a refusal.
+    #[cfg(feature = "postgres")]
+    #[error("E_COMMIT_OUTCOME_UNKNOWN: {0}; resolve the persisted receipt or operation key before retrying")]
+    CommitOutcomeUnknown(String),
     #[error("E_TIME_AUDIENCE_PENDING: timed publication is still advancing; retry this operation")]
     TimeAudiencePending,
     #[error("E_STORE: {0}")]
@@ -217,6 +226,10 @@ impl RuntimeError {
             Self::StoreBusy { .. } => "E_STORE_BUSY".into(),
             #[cfg(feature = "postgres")]
             Self::Postgres(_) => "E_STORE".into(),
+            Self::StoreOwnership(_) => "E_STORE_OWNERSHIP".into(),
+            Self::WorkerStoreIdentity => "E_WORKER_STORE_ID".into(),
+            #[cfg(feature = "postgres")]
+            Self::CommitOutcomeUnknown(_) => "E_COMMIT_OUTCOME_UNKNOWN".into(),
             Self::TimeAudiencePending => "E_TIME_AUDIENCE_PENDING".into(),
             Self::Store(_) => "E_STORE".into(),
         }
@@ -256,18 +269,21 @@ impl RuntimeError {
             Self::StoreBusy { .. } => "store",
             #[cfg(feature = "postgres")]
             Self::Postgres(_) => "store",
+            Self::StoreOwnership(_) | Self::WorkerStoreIdentity => "store",
+            #[cfg(feature = "postgres")]
+            Self::CommitOutcomeUnknown(_) => "store",
             Self::TimeAudiencePending => "store",
             Self::Store(_) => "store",
         }
     }
 
     /// Whether a program's refusal is the caller's to repair (as opposed to
-    /// a store failure the caller should retry later).
+    /// a store failure whose availability or durable outcome needs resolution).
     fn is_store_failure(&self) -> bool {
         #[cfg(feature = "sqlite")]
         if let Self::Continuation(source) = self { return source.is_store_failure(); }
         #[cfg(feature = "postgres")]
-        if matches!(self, Self::Postgres(_)) {
+        if matches!(self, Self::Postgres(_) | Self::CommitOutcomeUnknown(_)) {
             return true;
         }
         #[cfg(feature = "sqlite")]

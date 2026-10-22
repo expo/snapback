@@ -390,23 +390,7 @@ impl DevWorker {
         // @ref LLP 3000.009#5.2 — a new store can reuse sequence/ordinal effect ids.
         let ledger = {
             let engine = lock(&shared.engine);
-            let path = engine
-                .store()
-                .database_path()
-                .filter(|s| !s.is_empty())
-                .ok_or("worker ledger needs a file-backed store")?;
-            let identity = engine
-                .store()
-                .store_identity()
-                .map_err(|e| e.to_string())?
-                .ok_or("worker ledger needs a store identity")?;
-            let namespace = format!("{:x}", Sha256::digest(identity.as_bytes()));
-            PathBuf::from(path)
-                .canonicalize()
-                .map_err(|e| e.to_string())?
-                .parent()
-                .ok_or("store parent")?
-                .join(format!("worker-ledger-{namespace}.sqlite"))
+            engine.store().worker_ledger_path(None).map_err(|e| e.to_string())?
         };
         let worker = Self {
             name: None,

@@ -1,4 +1,8 @@
 pub const CODES: &[(&str, &str)] = &[
+    ("E_STORE_OWNERSHIP", "the Postgres owner token, store binding or bounded takeover is no longer valid; stop admission, renew or reacquire ownership and reopen with its token before writing."),
+    ("E_COMMIT_OUTCOME_UNKNOWN", "COMMIT was sent without a reliable acknowledgement, including a cancelled synchronous replication wait. This is an unknown outcome, not a refusal. Resolve the persisted receipt or operation key before any retry; automatic retry is disabled."),
+    ("E_WORKER_STORE_ID", "the worker completion ledger requires a nonempty logical store identity; repair the binding before starting workers."),
+    ("E_WORKER_STATE", "Postgres workers require an explicitly configured absolute durable state directory for their completion ledger bound to the logical store id; configure that location before starting workers."),
     ("E_STORE_UNSUPPORTED", "the named family is not yet available on the selected store; evolution on Postgres currently refuses before activation writes. Keep the current schema or use SQLite."),
     ("E_STORE_GENERATION", "stored generation metadata is malformed or outside the positive signed integer domain; restore valid store metadata before reopening."),
     ("E_SECURITY_REVIEW", "strict rule-changing deployment refused reachable refuted security intent; repair enforcement and rerun test for the selected source and fixtures. Unproved notes and synthetic-only observations stay advisory. guide security."),

@@ -1,5 +1,5 @@
 //! Internal Postgres opening/activation for S10c. Namespace selection is a
-//! library test seam; public deployment configuration and fencing remain S10d.
+//! library seam; public deployment configuration and lease cadence remain S10d-3.
 // @ref LLP 3000.009.001.000#3.4 — shared builders own semantic activation; the adapter owns physical installation.
 use super::{Handle, activation::Preparation, store::{self, Tx}};
 use crate::{RuntimeError, Schema, Program, activation::Backend, metadata::MetadataReader,
@@ -28,8 +28,14 @@ impl AnyTx<'_> {
 
 impl Handle {
     pub(super) fn connect(config: postgres::Config, name: &str, fresh: bool) -> Result<Self, RuntimeError> {
+        Self::connect_inner(config, name, fresh, None)
+    }
+    pub(super) fn connect_owned(config: postgres::Config, name: &str, fence: Option<super::ownership::Fence>) -> Result<Self, RuntimeError> {
+        Self::connect_inner(config, name, false, fence)
+    }
+    fn connect_inner(config: postgres::Config, name: &str, fresh: bool, fence: Option<super::ownership::Fence>) -> Result<Self, RuntimeError> {
         let quoted = store::namespace(name)?;
-        let mut client = config.connect(postgres::NoTls)?;
+        let (mut client, warning) = super::ownership::connect(config.clone())?;
         if fresh {
             if client.query_one("SELECT to_regnamespace($1) IS NOT NULL", &[&name])?.get::<_, bool>(0) {
                 return Err(RuntimeError::Store("Postgres namespace already exists".into()));
@@ -37,7 +43,15 @@ impl Handle {
         }
         client.batch_execute(&format!("SET search_path = {quoted}, pg_catalog; SET statement_timeout = '5s'; SET lock_timeout = '5s'"))?;
         let mut store = store::Store::new(client);
+        store.unified = true;
+        store.commit_warning = warning;
+        store.fence = fence;
         if !fresh {
+            if store.fence.is_none() {
+                let id = store.client.query_opt("SELECT value FROM _meta WHERE key='store_id'", &[])?.map(|r| r.get::<_, String>(0));
+                if let Some(store_id) = id { store.fence = Some(super::ownership::Fence { store_id, holder: "0000".into(), token: 0 }); }
+            }
+            if let Some(fence) = &store.fence { store.client.execute("SELECT set_config('application_name',$1,false)", &[&fence.tag()?])?; }
             let tx = store.opening_transaction()?;
             let row = tx.query("SELECT version,schema,programs,generation FROM _backend WHERE singleton", &[])?.remove(0);
             if row.get::<_, &str>(0) != store::VERSION { return Err(RuntimeError::StoreUnsupported { family: "opening" }); }
@@ -61,6 +75,9 @@ impl Handle {
         super::profile::admit(schema, programs)?;
         if reset { return Err(RuntimeError::StoreUnsupported { family: "dev-reset" }); }
         let fresh = self.fresh;
+        let bootstrap_fence = fresh.then(|| super::ownership::Fence {
+            store_id: format!("{:016x}{:016x}", crate::ids::seed(), crate::ids::seed()), holder: "0000".into(), token: 0,
+        });
         let quoted = store::namespace(&self.connection.1)?;
         let mut report = AdoptionReport::default();
         let result = Committer::run_committed_with(self.store.get_mut(), |store| Committer::run_solo(Kind::Administrative, |solo| {
@@ -68,6 +85,10 @@ impl Handle {
             let tx = solo.open_solo_with(|| store.opening_transaction())?;
             if fresh {
                 tx.batch(&format!("CREATE SCHEMA {quoted}; SET search_path = {quoted}, pg_catalog;"))?;
+                if let Some(fence) = &bootstrap_fence {
+                    super::ownership::install(&tx, &fence.store_id)?;
+                    tx.query("SELECT token FROM _owner WHERE singleton FOR KEY SHARE", &[])?;
+                }
                 tx.batch(store::DDL)?;
                 tx.execute_one("INSERT INTO _backend(singleton,version,schema,programs) VALUES (true,$1,$2,$3)", &[&store::VERSION, &crate::value::canonical_json(schema), &crate::value::canonical_json(programs)])?;
                 tx.batch("ALTER TABLE _backend ADD COLUMN generation BIGINT NOT NULL DEFAULT 1; ALTER TABLE _backend ADD COLUMN through_shortened TEXT NOT NULL DEFAULT '{}'; ALTER TABLE _backend ADD COLUMN maintained_identity_version TEXT;")?;
@@ -80,7 +101,12 @@ impl Handle {
             // This slice has no row-evolution runner. Refuse before preparation writes.
             if !fresh && store::decode::<Schema>(&before.1)?.hash() != schema.hash() { return Err(RuntimeError::StoreUnsupported { family: "release-activation" }); }
             initialize(&tx, schema)?;
-            if fresh { tx.set_meta("store_id", &format!("{:016x}{:016x}", crate::ids::seed(), crate::ids::seed()))?; }
+            if let Some(fence) = &bootstrap_fence {
+                tx.set_meta("store_id", &fence.store_id)?;
+                tx.execute("SELECT set_config('application_name',$1,false)", &[&fence.tag()?])?;
+            }
+            let store_id = tx.meta("store_id")?.ok_or(RuntimeError::WorkerStoreIdentity)?;
+            super::ownership::install(&tx, &store_id)?;
             let changed = fresh || before.2 != crate::value::canonical_json(programs);
             let generation = if !fresh && changed { before.0.checked_add(1).ok_or_else(|| RuntimeError::Generation("generation overflow".into()))? } else { before.0 };
             let tx = AnyTx::from_postgres(tx);
@@ -96,7 +122,10 @@ impl Handle {
             solo.commit(tx)?;
             Ok(Pending::new((generation as u64, value), generation as u64))
         }), |store, generation, value| { store.generation = generation; Ok(value) });
-        if result.is_ok() { self.fresh = false; self.report = report; }
+        if result.is_ok() {
+            self.fresh = false; self.report = report;
+            if let Some(fence) = bootstrap_fence { self.store.get_mut().fence = Some(fence); }
+        }
         result
     }
 }
@@ -133,6 +162,8 @@ impl Tx<'_> {
         if self.serialized_head.get() {
             let schema: Schema = store::decode(&crate::activation::ActivationReader::opening_backend(&self)?.1)?;
             initialize(&self, &schema)?;
+            let id = self.meta("store_id")?.ok_or(RuntimeError::WorkerStoreIdentity)?;
+            super::ownership::install(&self, &id)?;
             let metadata = crate::store_port::OpeningMetadata::read(&self)?;
             self.commit()?;
             Ok(metadata)
