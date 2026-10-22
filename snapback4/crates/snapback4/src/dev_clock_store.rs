@@ -236,8 +236,8 @@ pub fn held_schedules(engine: &Engine, now: i64) -> Vec<String> {
     engine.schema().schedules.iter().zip(saved_boundaries(engine)).filter_map(|(schedule, saved)| {
         let saved = saved.filter(|saved| *saved > schedule.boundary(now))?;
         let due = schedule.next(saved);
-        Some(format!("clock     schedule {} is held until {} ({} from now): its saved boundary {} is ahead of this clock; `clock advance {}` or restart with dev --resume-clock",
-            schedule.name, utc(due), span(due - now), utc(saved), format!("{}ms", due - now)))
+        Some(format!("clock     schedule {} is held until {} ({} from now): catch up to its saved boundary; next unprocessed window {}; `clock advance {}` or restart with dev --resume-clock",
+            schedule.name, utc(saved), span(saved - now), utc(due), format!("{}ms", saved - now)))
     }).collect()
 }
 
@@ -308,6 +308,34 @@ mod tests {
         assert_eq!(before, saved_boundaries(&engine));
         assert!(REPORT_BYTE_BUDGET < crate::serve::JSON_RESPONSE_CEILING);
     }
+    #[test]
+    fn startup_hold_instruction_catches_up_without_repeating_the_saved_window() {
+        let source = "table rows:\n  n: int\n  public 'fixture'\njob tick():\n  for row in rows:\n    update rows[row.id] {n:1}\nschedule hourly every 1h: tick\n";
+        let bound = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
+        assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+        let mut engine = Engine::new_at(snapback4_core::store_port::AnyStore::memory().unwrap(), bound.schema,
+            bound.programs.into_iter().map(|p|p.program), 0).unwrap();
+        engine.fire_schedules(0).unwrap();
+        let saved = 5 * 3_600_000;
+        engine.fire_schedules(saved).unwrap();
+        let raw = 1_234;
+        let lines = held_schedules(&engine, raw);
+        assert_eq!(lines.len(), 1);
+        let line = &lines[0];
+        assert!(line.contains(&format!("held until {}", utc(saved))), "{line}");
+        assert!(line.contains(&format!("next unprocessed window {}", utc(saved + 3_600_000))), "{line}");
+        let duration = line.split_once("`clock advance ").unwrap().1.split_once('`').unwrap().0;
+        let delta = crate::dev_clock::duration(duration).unwrap();
+        assert_eq!(delta, saved - raw);
+        let before = saved_boundaries(&engine);
+        refuse_held(&engine, &before, raw, raw + delta).unwrap();
+        assert!(engine.fire_schedules(raw + delta).unwrap().is_empty());
+        assert!(held_schedules(&engine, raw + delta).is_empty());
+        let report = schedule_report(&engine, &before, &[], raw + delta, raw + delta, false, false, None);
+        assert_eq!(report[0]["holdCode"], "not-due");
+        assert_eq!(engine.fire_schedules(saved + 3_600_000).unwrap(), vec!["hourly"]);
+    }
+
     #[test]
     fn utc_text_and_spans_match_the_calendar() {
         assert_eq!(utc(0), "1970-01-01T00:00:00Z");

@@ -866,6 +866,9 @@ fn advance_explains_each_schedule_and_resume_clock_releases_a_restart_hold() {
     let ticker = &held["schedules"][0];
     assert_eq!(ticker["fired"], false);
     assert!(ticker["reason"].as_str().unwrap().contains("held by the store") && ticker["heldUntil"].is_string(), "{held}");
+    let startup_hold = log.lines().find(|line| line.contains("schedule ticker is held until")).unwrap();
+    assert!(startup_hold.contains(&format!("held until {}", ticker["heldUntil"].as_str().unwrap())), "{startup_hold}; {held}");
+    assert!(startup_hold.contains(&format!("next unprocessed window {}", ticker["nextBoundary"].as_str().unwrap())), "{startup_hold}; {held}");
     let doctor = output_json(f.command(&["doctor", "--json"]));
     assert!(doctor.to_string().contains("ahead of the clock: held until"), "{doctor}");
     drop(host);
