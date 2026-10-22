@@ -314,7 +314,8 @@ Shape validation grants no authority; the server still decides session validity.
 ## Individual security review
 
 Default check puts likely holes before result inventories and restating questions.
-`N_RETAINED_ROLE_GRANT` and `N_OPTIONAL_UPLOAD_CREATE` require a repair or an
+Questions about retained role grants and optional uploads at creation require
+a repair or an
 individual disposition. They fail check without claiming an invariant refutation.
 Read the note, compare it with the specification, then use
 `check --ack-security ID --reason 'specification rationale'` with its current ID

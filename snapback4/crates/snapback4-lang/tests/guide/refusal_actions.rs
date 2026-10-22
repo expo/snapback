@@ -2,6 +2,16 @@
 //! These facts supplement the definition pins. A code label alone cannot tell
 //! a caller whether to retry, replace intent, change a declaration, or show no data.
 pub(super) const ACTIONS: &[(&str, &[&str])] = &[
+    ("N_RETAINED_ROLE_GRANT", &["Recheck current role or revoke derived grants.", "Intentional retained authority needs an individual source-bound disposition."]),
+    ("N_OPTIONAL_UPLOAD_CREATE", &["Require the upload before creating the parent when the spec requires evidence.", "Intentional optional attachments need an individual source-bound disposition."]),
+    ("N_CREATION_REASON", &["Compare the justification requirement with the spec", "use text 1..N when required.", "This name-based question is advisory."]),
+    ("N_CREATION_MONEY", &["Model and require the amount when the spec requires a fee or payment", "confirm intentional optional amounts against the spec.", "This name-based question is advisory."]),
+    ("N_CONSTANT_APPROVAL", &["record the required amount/evidence and the independently authorized decision.", "This name-based question is advisory."]),
+    ("N_TRANSITION_BYPASS", &["Apply the decision authority to every path reaching that state", "write independent transition intent and run test."]),
+    ("N_STALE_CREATION_CHECK", &["Decide whether eligibility must remain current", "write independent intent", "test create, eligibility change, approval."]),
+    ("N_DURATION_BOUNDS", &["Compare the windows with the specification", "make them consistent or document deliberate differences."]),
+    ("N_ROLE_WIDE_WRITE", &["Ask whether any role member may write any row", "model the target-to-owner relationship and guard it.", "See the Wall ownership rule recipe."]),
+    ("E_SECURITY_NOTES", &["Inspect snapback/security-reviews.json and run check --json for current IDs.", "Supply a nonempty specification reason for one current note", "neither bulk acknowledgments nor this file can clear an actual refutation."]),
     ("E_STORE_UNSUPPORTED", &["Postgres schema evolution currently refuses before activation preparation writes.", "Keep the current schema or use SQLite for the schema transition.", "Repeating the same activation cannot enable the missing family."]),
     ("E_STORE_GENERATION", &["Opening refuses before trusting that value, and a failed read does not abort its transaction.", "Restore a known-good store backup before reopening; preserve the current store for operator inspection.", "Never delete the store to make adoption pass."]),
     ("E_IDENTITY_TIMEOUT", &["Signup outcome may be unknown: inspect before retrying.", "Increase timeoutMs to allow server retryAfterMs waits.", "seedAccounts maps it to E_STAGING_TIMEOUT"]),

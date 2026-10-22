@@ -137,6 +137,16 @@ fn w11_every_registered_code_quotes_its_definition() {
 // independent of the paragraph selector: do not regenerate them to bless a new
 // first mention. Whitespace may change; the reason for the code must survive.
 const DEFINITIONS: &[(&str, &str)] = &[
+    ("N_RETAINED_ROLE_GRANT", "A recipient role required when storing a grant is mutable and missing from a reader branch"),
+    ("N_OPTIONAL_UPLOAD_CREATE", "An optional upload argument can be omitted while a mutation creates a parent or evidence row."),
+    ("N_CREATION_REASON", "Creating a row accepts a reason argument without a positive non-whitespace minimum."),
+    ("N_CREATION_MONEY", "Creating a row accepts omitted money."),
+    ("N_CONSTANT_APPROVAL", "Creation stores a constant true approval/payment flag."),
+    ("N_TRANSITION_BYPASS", "A generic enum setter reaches a state also reached by a stricter decision mutation."),
+    ("N_STALE_CREATION_CHECK", "A creator checks mutable eligibility that a later approval/transition does not recheck."),
+    ("N_DURATION_BOUNDS", "Operations apply different server-relative duration bounds to one column."),
+    ("N_ROLE_WIDE_WRITE", "A global role plus viewer attribution does not identify the owner of this resource."),
+    ("E_SECURITY_NOTES", "the individual disposition file is malformed, cannot be written, or sources changed while recording a review."),
     ("E_STORE_UNSUPPORTED", "E_STORE_UNSUPPORTED names a family the selected store does not yet implement."),
     ("E_STORE_GENERATION", "E_STORE_GENERATION means the persisted generation metadata is malformed, non-positive or outside the signed integer range."),
     ("E_IDENTITY_TIMEOUT", "E_IDENTITY_TIMEOUT is the internal sign-in deadline cause (SDK E_OFFLINE)."),
