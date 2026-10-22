@@ -73,3 +73,12 @@ six additional initial-run SEC8 expectation failures are repaired and pass the
 final workspace-feature affected rerun (228 tests). The full final security/guide
 set also passes374 tests (two ignored). The complete raw log remains red and is
 retained; no full-suite pass is claimed.
+
+The complete client pool (428 ordinary files) reproduces the same refusal in
+`packages/snapback4/test/residency.test.mjs:251`, test "check sidecar, why and test
+residency print facts, changes and measured cold rows" (failure at line267).
+The original ordinary run has7831 passes,2 failures,56 skips: its other failure
+was an internal ownership sentence in the new public changelog, now removed and
+verified by the packaged-docs2/2 rerun. Full model files pass89 tests at the
+required5000/3000 counts. No full client/source-suite pass or publication receipt
+is claimed while the residency/core metadata failure remains open.

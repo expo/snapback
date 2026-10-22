@@ -1,0 +1,22 @@
+{
+  "files": 428,
+  "concurrency": 24,
+  "models": {
+    "sessionSequences": 5000,
+    "onlineSequences": 3000
+  },
+  "commands": [
+    {
+      "mode": "files",
+      "exitCode": 1,
+      "seconds": 1627,
+      "log": "/tmp/sec8-client-files.log"
+    },
+    {
+      "mode": "models",
+      "exitCode": 0,
+      "seconds": 337,
+      "log": "/tmp/sec8-client-models.log"
+    }
+  ]
+}

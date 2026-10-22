@@ -102154,3 +102154,28 @@ target executable census is empty. PIDs left: none. Minimum observed disk was
 24 G; inactive completed incremental sessions in this target were removed
 under their session locks (5.34 GB recorded). No other worktree/target,
 PG17/55440, push, stash or Git configuration change was involved.
+
+### 2026-10-23 — SEC8 final child dependencies, client pool and integration
+
+R11 recognizes explicit concrete-assertion table reads as well as bound-policy
+dependencies when choosing the single pre-child fixture observation. Both fresh
+reviewers READY; legacy suspension and wave24 child/approval histories all pass
+at exact invariant sites. Final security+guide374 passed (2 ignored), workspace-
+feature affected228 passed, Mac SEC7/SEC8 sets29 passed. All39 finding variants
+and450 corpus projects completed:12/13 relevant questions,9 exact spec catches,
+2 upload gates;36 inherited corpus gates on15 projects, zero added gates.
+
+Full Cargo:7443 passed,27 initial failures/275 ignored;6 repaired expectations
+pass the final rerun,21 unchanged metadata fixtures remain in the core ticket.
+The428-file client pool:7831 passed,2 failures/56 skipped. Its internal ownership
+sentence was removed from packaged release notes and the docs rerun passes2/2;
+the other failure is the same residency E_SCHEMA. Full model suites pass89 tests
+at5000/3000 counts. Post-pool git status was clean. No suite/publication receipt
+is claimed while metadata validation remains red.
+
+Merged main's RT5 commits through fc5b38f511; preserved both complete append-only
+journal additions in the sole conflict. SEC8 reviewed input hashes are unchanged;
+the incoming Postgres-only offline codec test passes. Version remains0.4.38;
+0.4.40 guide changes are recorded without an internal ownership label. Safe
+measurements, reviews and validation are under reports/20261022-sec8 and
+llp/reviews; WORKSTREAM-REPORT.md is the complete handoff. No push or version bump.
