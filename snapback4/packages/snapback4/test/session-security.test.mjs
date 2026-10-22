@@ -2,22 +2,196 @@ import { waitFor as awaitState } from './helpers/wait.mjs';
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import {
-  defaultSessionStore,
-  forgetSession,
-  keepSession,
-  localStorageSessionStore,
-  memorySessionStore,
-  restoreSession,
-} from "../dist/auth.js";
-import { createClient } from "../dist/client.js";
-import { createLocalClient } from "../dist/local.js";
-import { listEffects, mintSession, revokeSessions, runWorker } from "../dist/worker.js";
+import { resolve } from "node:path";
+import { pathToFileURL } from "node:url";
+const selectedDist = process.env.SNAPBACK4_CLIENT_DIST ?? process.env.KIT2_BASELINE_DIST;
+const dist = selectedDist ? pathToFileURL(resolve(selectedDist) + "/") : new URL("../dist/", import.meta.url);
+const [{ defaultSessionStore, forgetSession, keepSession, localStorageSessionStore, memorySessionStore, restoreSession },
+  { createClient }, { createLocalClient }, { listEffects, mintSession, revokeSessions, runWorker }] = await Promise.all(
+  ["auth.js", "client.js", "local.js", "worker.js"].map(file => import(new URL(file, dist).href)));
 
 const session = (token, expiresAt = Date.now() + 7 * 24 * 60 * 60 * 1000) => ({ principal: "user:alice", kind: "user", token, expiresAt });
 const auth = (init) => new Headers(init?.headers).get("authorization");
 const deferred = () => { let resolve; const promise = new Promise((done) => { resolve = done; }); return { promise, resolve }; };
 const until = async (predicate, message) => { return awaitState(predicate, message); };
+
+let authFixtureSerial = 0;
+async function outcomeAuthFixture(t, tier, request, extra = {}) {
+  const base = `https://outcome-auth-${++authFixtureSerial}.invalid`, queued = [], terminal = [];
+  let settlements = 0;
+  const backend = { generation: 1, schema: { tables: { remote: { columns: {}, indexes: {}, sync: null } } }, programs: [
+    { name: "send", kind: "Mutation", args: {}, body: [] },
+    { name: "remote", kind: "Query", runs: "server", args: {}, body: [{ table: "remote" }] },
+  ] };
+  const fetcher = async (input, init = {}) => {
+    const path = new URL(input).pathname;
+    if (path === "/schema") return Response.json(backend);
+    if (path === "/probe") return Response.json({ ok: true, seq: 0, store_id: "kept-store" });
+    if (path === "/sync") return Response.json({ snapshot: false, events: [], watermark: 0, more: false, generation: 1, acknowledged: [], store_id: "kept-store" });
+    if (path === "/q/identify") return Response.json({ data: null, seq: 0, complete: true, store_id: "kept-store", tables: [] });
+    if (path === "/changes") return new Promise((_, reject) => {
+      const stop = () => reject(init.signal.reason);
+      if (init.signal?.aborted) stop(); else init.signal?.addEventListener("abort", stop, { once: true });
+    });
+    if (path === "/auth/logout") return Response.json({ ok: true });
+    return request(path, init);
+  };
+  const core = { async call(value) {
+    switch (value.op) {
+      case "engine_info": return { ok: { format: 1, version: "0.4.24", capabilities: ["sync-generation-v1"] } };
+      case "sync_state": return { ok: { acquired: false, backend_required: false, store_id: "kept-store", watermark: 0, generation: 1, send_revision: 0, restore_watermark: 0, restore_images_at: 0, receipt_outcomes: true, outbox_status: true, adoption_capture: {}, pending_ids: queued.map(entry => entry.id) } };
+      case "state": return { ok: { watermark: 0, generation: 1, native: null } };
+      case "backend": return { ok: backend };
+      case "next_submission": return { ok: 1 };
+      case "meta": return { ok: 0 };
+      case "apply": return { ok: { touched: [] } };
+      case "admit": queued.push(value.entry); return { ok: value.entry };
+      case "queued": return { ok: queued };
+      case "query": return { ok: { loading: true, unknown: true, tables: ["remote"] } };
+      case "begin_send": return { ok: { send_revision: 1 } };
+      case "settle": settlements++; queued.splice(0, 1); return { ok: null };
+      default: return { ok: true };
+    }
+  }, async close() {} };
+  const options = { url: base, session: session("token-zero"), fetch: fetcher, waitSeconds: 1, ...extra };
+  const client = tier === "local" ? await createLocalClient({ ...options, device: { open: async () => core } }) : createClient(options);
+  t.after(() => client.close()); client.onWrite(write => terminal.push(write));
+  if (tier === "online") await client.query({ kind: "query", name: "identify" }, {});
+  return { client, queued, terminal, settlements: () => settlements };
+}
+
+const authDenied = message => Response.json({ denied: { code: "E_AUTH", family: "auth", message } }, { status: 401 });
+const effectCall = (client, kind) => kind === "mutation" ? client.mutate({ kind, name: "send" }, {}) : client.act({ kind: "action", name: "work" }, {});
+
+for (const tier of ["online", "local"]) test(`${tier}: stale captured E_AUTH stays obsolete after current-bearer sign-out`, async t => {
+  const held = deferred(); let entered = false;
+  t.after(() => held.resolve());
+  const f = await outcomeAuthFixture(t, tier, async (path, init) => {
+    if (path === "/auth/refresh") return Response.json({ session: session("token-one") });
+    if (path === "/q/remote") { assert.equal(auth(init), "Bearer token-one"); return authDenied("current revoked"); }
+    assert.equal(path, "/m/send"); assert.equal(auth(init), "Bearer token-zero"); entered = true;
+    await held.promise; return authDenied("retired bearer");
+  });
+  const writing = effectCall(f.client, "mutation"); await until(() => entered);
+  const refreshing = f.client.refreshSession(); await until(() => f.client.session()?.token === "token-one");
+  await f.client.query({ kind: "query", name: "remote" }, {});
+  assert.equal(f.client.session(), null); held.resolve(); await refreshing; await f.client.close();
+  assert.equal((await writing).state, "pending"); assert.deepEqual(f.terminal, []);
+  assert.equal(f.settlements(), 0); if (tier === "local") assert.equal(f.queued.length, 1);
+});
+
+for (const tier of ["online", "local"]) for (const kind of ["mutation", "action"]) test(`${tier} ${kind}: E_AUTH captured before rotation is rechecked at settlement`, async t => {
+  let client, rotation, scheduled = false;
+  const f = await outcomeAuthFixture(t, tier, async (path, init) => {
+    if (path === "/auth/refresh") return Response.json({ session: session("token-one") });
+    assert.ok(path === "/m/send" || path === "/a/work");
+    if (auth(init) === "Bearer token-one") throw Error("retry transport offline");
+    const response = authDenied("captured before rotation");
+    Object.defineProperty(response, "status", { get() {
+      if (!scheduled) { scheduled = true; queueMicrotask(() => { rotation = client.refreshSession(); }); }
+      return 401;
+    } });
+    return response;
+  }); client = f.client;
+  const writing = effectCall(client, kind);
+  await until(() => rotation && client.session()?.token === "token-one"); await rotation;
+  await client.close(); assert.equal((await writing).state, "pending");
+  assert.deepEqual(f.terminal, []); assert.equal(f.settlements(), 0);
+});
+
+for (const tier of ["online", "local"]) for (const kind of ["mutation", "action"]) test(`${tier} ${kind}: current E_AUTH survives the sign-out it causes`, async t => {
+  const f = await outcomeAuthFixture(t, tier, async path => {
+    assert.ok(path === "/m/send" || path === "/a/work"); return authDenied("authoritative current refusal");
+  });
+  f.client.onSession(next => { if (!next) void f.client.close(); });
+  const result = await effectCall(f.client, kind);
+  assert.equal((result.why ?? result.denied)?.message, "authoritative current refusal");
+  if (kind === "mutation") assert.equal(result.state, "failed");
+  assert.equal(f.client.session(), null);
+});
+
+for (const tier of ["online", "local"]) for (const retryable of [false, true]) test(`${tier}: an action dispatched around ${retryable ? "retryable failed" : "successful"} rotation keeps its actual bearer authority`, async t => {
+  const rotation = deferred(), reply = deferred(); let refreshEntered = false, actionBearer;
+  t.after(() => { rotation.resolve(); reply.resolve(); });
+  const f = await outcomeAuthFixture(t, tier, async (path, init) => {
+    if (path === "/auth/refresh") { refreshEntered = true; await rotation.promise; return retryable ? Response.json({ denied: { code: "E_OFFLINE", family: "client", message: "refresh unavailable", retryable: true } }, { status: 503 }) : Response.json({ session: session("token-one") }); }
+    assert.equal(path, "/a/work"); actionBearer = auth(init); await reply.promise; return authDenied("action bearer refused");
+  });
+  const refreshing = f.client.refreshSession(); await until(() => refreshEntered);
+  const acting = effectCall(f.client, "action");
+  if (tier === "local") await until(() => actionBearer);
+  rotation.resolve(); await refreshing; await until(() => actionBearer);
+  assert.equal(actionBearer, tier === "local" || retryable ? "Bearer token-zero" : "Bearer token-one");
+  reply.resolve();
+  if (tier === "local") { await f.client.close(); assert.equal((await acting).state, "pending"); }
+  else assert.equal((await acting).denied?.message, "action bearer refused");
+});
+
+test("local: an intermediate bearer refusal cannot sign out a rotation still in progress", async t => {
+  const rotation = deferred(); let refreshingStarted = false;
+  t.after(() => rotation.resolve());
+  const f = await outcomeAuthFixture(t, "local", async (path, init) => {
+    if (path === "/auth/refresh") { refreshingStarted = true; await rotation.promise; return Response.json({ session: session("token-one") }); }
+    assert.equal(path, "/a/work"); assert.equal(auth(init), "Bearer token-zero");
+    return authDenied("retiring bearer during rotation");
+  });
+  const refreshing = f.client.refreshSession(); await until(() => refreshingStarted);
+  assert.equal((await effectCall(f.client, "action")).state, "pending");
+  assert.equal(f.client.session()?.token, "token-zero");
+  rotation.resolve(); assert.equal((await refreshing).ok, true);
+  assert.equal(f.client.session()?.token, "token-one");
+});
+
+test("local: a successor bearer refusal remains authoritative while rotation persistence is held", async t => {
+  const save = deferred(); let saving = false;
+  t.after(() => save.resolve());
+  const store = memorySessionStore();
+  const f = await outcomeAuthFixture(t, "local", async (path, init) => {
+    if (path === "/auth/refresh") return Response.json({ session: session("token-one") });
+    assert.equal(path, "/a/work"); assert.equal(auth(init), "Bearer token-one");
+    return authDenied("successor refused during persistence");
+  }, { sessionStore: { ...store, async set(key, value) {
+    if (JSON.parse(value).token === "token-one") { saving = true; await save.promise; }
+    await store.set(key, value);
+  } } });
+  const refreshing = f.client.refreshSession(); await until(() => saving);
+  const acting = effectCall(f.client, "action");
+  await until(() => f.client.session() === null);
+  save.resolve(); await refreshing;
+  assert.equal((await acting).denied?.message, "successor refused during persistence");
+});
+
+test("local: an intermediate retiring bearer stays obsolete after rotation is canceled by sign-out", async t => {
+  const rotation = deferred(), reply = deferred(); let refreshingStarted = false, actionEntered = false;
+  t.after(() => { rotation.resolve(); reply.resolve(); });
+  const f = await outcomeAuthFixture(t, "local", async (path, init) => {
+    if (path === "/auth/refresh") { refreshingStarted = true; await rotation.promise; return Response.json({ session: session("token-one") }); }
+    assert.equal(path, "/a/work"); assert.equal(auth(init), "Bearer token-zero");
+    actionEntered = true; await reply.promise; return authDenied("canceled rotation's retiring bearer");
+  });
+  const refreshing = f.client.refreshSession(); await until(() => refreshingStarted);
+  const acting = effectCall(f.client, "action"); await until(() => actionEntered);
+  await f.client.signOut(); await refreshing;
+  reply.resolve(); await f.client.close();
+  assert.equal((await acting).state, "pending");
+  rotation.resolve();
+});
+
+for (const tier of ["online", "local"]) test(`${tier}: retryable refresh failure retries stale E_AUTH with the original write id`, async t => {
+  const held = deferred(); let entered = false, sends = 0; const ids = [];
+  t.after(() => held.resolve());
+  const f = await outcomeAuthFixture(t, tier, async (path, init) => {
+    if (path === "/auth/refresh") return Response.json({ denied: { code: "E_OFFLINE", family: "client", message: "refresh unavailable", retryable: true } }, { status: 503 });
+    assert.equal(path, "/m/send"); assert.equal(auth(init), "Bearer token-zero"); ids.push(JSON.parse(init.body).id);
+    if (++sends === 1) { entered = true; await held.promise; return authDenied("request from preceding revision"); }
+    return Response.json({ state: "sent", id: ids.at(-1), seq: 1, store_id: "kept-store" });
+  });
+  const writing = effectCall(f.client, "mutation"); await until(() => entered);
+  const refreshed = await f.client.refreshSession(); assert.equal(refreshed.ok, false); assert.equal(refreshed.why.retryable, true);
+  held.resolve(); const result = await writing;
+  assert.equal(result.state, "sent"); assert.equal(f.client.session()?.token, "token-zero");
+  assert.ok(ids.length >= 2); assert.equal(new Set(ids).size, 1); assert.deepEqual(f.terminal.map(write => write.state), ["sent"]);
+});
 
 test("the default session store stays in memory and browser persistence is explicit", async () => {
   const calls = [];

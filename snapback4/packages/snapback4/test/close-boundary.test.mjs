@@ -20,6 +20,15 @@ const why = { code: "E_MODEL_REFUSED", family: "input", message: "the second inv
 
 test("a body validated before close remains known; bodies after its cutoff cannot replace it", async () => {
   const owner = new ClosingResponses(), known = owner.request(), unknown = owner.request();
+  let currentBearer = true;
+  const authReply = owner.request(), businessReply = owner.request();
+  const denial = { denied: { code: "E_AUTH", family: "auth", message: "retiring bearer" } };
+  authReply.capture(denial, 401, () => currentBearer);
+  businessReply.capture({ denied: why }, 400);
+  currentBearer = false;
+  assert.equal(authReply.take(), undefined);
+  assert.deepEqual(authReply.write({ state: "pending", id: "auth" }), { state: "pending", id: "auth" });
+  assert.deepEqual(businessReply.write({ state: "pending", id: "business" }), { state: "failed", id: "business", why });
   const sent = { state: "sent", id: "known", seq: 7, result: { answer: "before close" } };
   await readResponse(Response.json(sent), undefined, json => known.capture(json, 200));
   owner.begin(); owner.finish(); await owner.done;

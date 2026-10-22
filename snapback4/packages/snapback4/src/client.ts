@@ -362,7 +362,10 @@ export function createClient(options: ClientOptions): Client {
     }
   };
 
-  let credentialRevision = 0;
+  let credentialRevision = 0, authenticationFloor = 0;
+  // Reserve the completed revision before rotation starts: an intermediate
+  // dispatch still uses the retiring bearer, even if rotation later aborts.
+  const advanceRotation = (starting = false) => { authenticationFloor = ++credentialRevision + (starting ? 1 : 0); };
   let refreshing: Promise<SignIn> | null = null;
   let stopRefresh!: (why: Refusal) => void;
   const refreshStopped = new Promise<SignIn>(resolve => {
@@ -524,7 +527,7 @@ export function createClient(options: ClientOptions): Client {
     if (refreshing) return refreshing;
     if (!credentials || !token || options.persona) return Promise.resolve({ ok: false, why: authRefusal ?? { code: "E_AUTH", family: "auth", message: "sign in with a session to refresh it" } });
     const expectedPrincipal = viewer;
-    credentialRevision += 1;
+    advanceRotation(true);
     const deliverReset = resetWatches(false, "credentials");
     const rotation = rotateSession(base, token, doFetch);
     let retired = false;
@@ -544,7 +547,7 @@ export function createClient(options: ClientOptions): Client {
       if (closed) { retire(refreshed); return { ok: false, why: ended() }; }
       // Sign-out separately ends credentials and cancels adoption.
       if (!credentials) { retire(refreshed); return { ok: false, why: auth() }; }
-      credentialRevision += 1;
+      advanceRotation();
       if (!refreshed.ok) {
         if (refreshed.why.code === "E_AUTH" && !refreshed.why.retryable) endCredentials(refreshed.why);
         else if (refreshed.why.retryable) scheduleRefresh(60_000);
@@ -578,8 +581,8 @@ export function createClient(options: ClientOptions): Client {
   async function obsoleteRefusal(why: Refusal | undefined, revision: number): Promise<boolean> {
     if (why?.code !== "E_AUTH" || why.retryable) return false;
     if (refreshing) await refreshing;
+    if (revision < authenticationFloor) return true;
     if (storeRefusal || closed) return false;
-    if (revision !== credentialRevision && credentials && !closed && !storeRefusal) return true;
     if (!closed) endCredentials(why);
     return false;
   }
@@ -632,7 +635,10 @@ export function createClient(options: ClientOptions): Client {
       const send = () => doFetch(`${base}${path}`, armRequest({ method: "POST", headers: { ...headers, ...(options.meter && path.startsWith("/q/") ? { "x-snapback-meter": "1" } : {}) }, body: encoded, ...((path.startsWith("/q/") || path.startsWith("/following/")) ? { signal: signal ?? eph?.signal ?? aborter.signal } : {}) }, arm));
       const { response, json } = path.startsWith("/q/")
         ? await readWithAdmissionRetry(send, () => !armRefusal(arm) && !closed && credentials && revision === credentialRevision && (!eph || ephemeralReads.current(eph)) && !signal?.aborted, signal ?? eph?.signal ?? aborter.signal)
-        : await send().then(async response => ({ response, json: await readResponse(response, undefined, json => captured?.capture(json, response.status)) }));
+        : await send().then(async response => ({ response, json: await readResponse(response, undefined, json => {
+          const why = (json.denied ?? json.why) as Refusal | undefined;
+          captured?.capture(json, response.status, why?.code === "E_AUTH" ? () => revision >= authenticationFloor : undefined);
+        }) }));
       // Late bodies are consumed without adoption. A parsed effect response
       // already known at close still finishes its local settlement.
       if (signal?.aborted || (eph && !ephemeralReads.current(eph))) return { ok: false };
@@ -656,7 +662,7 @@ export function createClient(options: ClientOptions): Client {
       // credential. Retired calls cannot retry under its replacement either.
       if (!armRefusal(arm) && await obsoleteRefusal((json.denied ?? json.why) as Refusal | undefined, revision)) {
         arrived(false);
-        if (attempt === 3) return { ok: false };
+        if (attempt === 3 || closed || !credentials) return { ok: false };
         await new Promise(resolve => setTimeout(resolve, 25 * 2 ** attempt));
         return sendPost(path, body, attempt + 1, arrived, captured, eph, quiet, signal, arm);
       }

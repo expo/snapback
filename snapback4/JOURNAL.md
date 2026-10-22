@@ -100920,3 +100920,17 @@ window. Genuine future markers still refuse before effects. Credential timing
 updates precede every clock sample; awaited durable custody applies to
 local/device clocks, while online clocks remain volatile. See LLP
 3000.000.000.001 §11 and the committed round-5 amendment snapshot.
+
+### 2026-10-22 — DX6 retained authentication refusal authority
+
+Packed qualification exposed an old-bearer E_AUTH retained during rotation and
+later mistaken for a terminal write failure after the current bearer signed out.
+Both client tiers now retain the body with a rotation-scoped authority check,
+revalidated when consumed. Rotation reserves its completed revision before any
+intermediate dispatch; cancellation and retryable failure cannot revive an old
+refusal. Sign-out itself preserves a legitimate current-bearer refusal, including
+a successor dispatched while credential persistence is pending. Sent and business
+outcomes retain their existing invocation custody, and retryable refresh failures
+still permit same-id retries. See LLP 3000.000.000.001 §11 and the round-6 frozen
+amendment. Mocked-transport regressions run against the installed tarball in the
+DX6 publication qualification as well as the checkout SDK.

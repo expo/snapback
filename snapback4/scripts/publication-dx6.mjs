@@ -24,6 +24,9 @@ export async function proveDX6(directory) {
       cwd:root,env:{...env,SNAPBACK4_CLIENT_DIST:join(parent,"node_modules/snapback4/dist"),
         SNAPBACK4_BIN:join(parent,"node_modules",`snapback4-${process.platform}-${process.arch}`,"snapback4")},timeout:180000,
     });
+    await runToolchainCommand(process.execPath,["--test",join(root,"packages/snapback4/test/session-security.test.mjs")],{
+      cwd:root,env:{...env,SNAPBACK4_CLIENT_DIST:join(parent,"node_modules/snapback4/dist")},timeout:180000,
+    });
     // Inspection must refuse before reading a future store's application rows.
     await runToolchainCommand("python3",["-c",`import sqlite3,sys
 p=sys.argv[1]
@@ -32,7 +35,7 @@ c.execute("UPDATE _meta SET value = ? WHERE key = 'version'",('snapback4-release
 c.commit()
 c.close()`,join(clock,"staging/store.sqlite")],{cwd:scratch,env,timeout:30000});
     await proveDX6FutureStore(parent,join(clock,"staging"));
-    return {status:"passed",installedSDK:true,clock:"preserved session, deadline before sweep, pause/drain, explicit expiry, held refusal",sessions:"complete seeded account and legacy partial literal",numericAdvance:"valueOf/date/arithmetic",text:"composed RN, wrapping label, scoped exactness and strict ambiguity",outcomes:"live decoded body, irreversible cutoff, Wasm/native admission continuation",futureStore:"nonzero sql refusal before inspection"};
+    return {status:"passed",installedSDK:true,clock:"preserved session, deadline before sweep, pause/drain, explicit expiry, held refusal",sessions:"complete seeded account and legacy partial literal",numericAdvance:"valueOf/date/arithmetic",text:"composed RN, wrapping label, scoped exactness and strict ambiguity",outcomes:"live decoded body, irreversible cutoff, Wasm/native admission continuation, bearer-scoped auth refusals",futureStore:"nonzero sql refusal before inspection"};
   } finally {rmSync(scratch,{recursive:true,force:true});}
 }
 // Kept separate so future-format refusal can be checked against a retained pack

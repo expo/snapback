@@ -36,16 +36,19 @@ export class ClosingResponses {
  * the transport may reuse it; overlapping submissions cannot steal its body. */
 export class ClosingResponse {
   private json?: Record<string, unknown>;
+  // A decoded auth refusal can be superseded by rotation before settlement;
+  // retaining its body does not grant it authority over a successor bearer.
+  private applicable: () => boolean = () => true;
   constructor(private capturing: () => boolean) {}
-  capture(json: Record<string, unknown>, status: number): void {
-    if (this.capturing() && status < 500) this.json = json;
+  capture(json: Record<string, unknown>, status: number, applicable: () => boolean = () => true): void {
+    if (this.capturing() && status < 500 && applicable()) { this.json = json; this.applicable = applicable; }
   }
   take(): { ok: true; json: Record<string, unknown> } | undefined {
-    return this.json ? { ok: true, json: this.json } : undefined;
+    return this.json && this.applicable() ? { ok: true, json: this.json } : undefined;
   }
   write<R>(pending: Write<R>): Write<R> {
     if (pending.state !== "pending") return pending;
-    const json = this.json;
+    const json = this.take()?.json;
     if (json?.state === "sent") return { state: "sent", id: pending.id, seq: Number(json.seq ?? 0),
       ...(json.replayed === true ? { replayed: true } : { result: json.result as R }) };
     const why = (json?.why ?? json?.denied) as Refusal | undefined;

@@ -137,7 +137,10 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   }
   const viewer: Principal = (options.persona ? `dev:${options.persona}` : session!.principal) as Principal;
   const principal: string = viewer;
-  let credentialRevision = 0, rotating = false;
+  let credentialRevision = 0, authenticationFloor = 0, rotating = false;
+  // Reserve the completed revision before rotation starts: an intermediate
+  // dispatch still uses the retiring bearer, even if rotation later aborts.
+  const advanceRotation = (starting = false) => { authenticationFloor = ++credentialRevision + (starting ? 1 : 0); };
   const sessionListeners = new Set<(session: Session | null) => void>();
   const viewerListeners = new Set<(viewer: Principal | null) => void>();
   const writeListeners = new Set<(write: Exclude<Write, { state: "pending" }>) => void>();
@@ -453,8 +456,10 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     }
     return work;
   };
+  // The successor may already be dispatched while its persistence is pending.
+  // Only the floor excludes retiring-bearer dispatches during that same rotation.
   const refusedSession = async (denied: unknown, revision: number) => {
-    if (!sessionDead && !rotating && revision === credentialRevision && (denied as Refusal | undefined)?.code === "E_AUTH" && !(denied as Refusal).retryable) await endSession(denied as Refusal);
+    if (!sessionDead && revision >= authenticationFloor && revision === credentialRevision && (denied as Refusal | undefined)?.code === "E_AUTH" && !(denied as Refusal).retryable) await endSession(denied as Refusal);
   };
   const scheduleRefresh = (retryAfter?: number) => {
     if (refreshTimer) clearTimeout(refreshTimer);
@@ -477,7 +482,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     const token = session.token;
     const expectedPrincipal = session.principal;
     rotating = true;
-    credentialRevision += 1;
+    advanceRotation(true);
     const approvals = deferReadNotifications(() => {
       endLingering(watches.values());
       answers.serverAnswers.clear(); answers.evidence(); for (const watch of watches.values()) { watch.reset({ loading: true }, false, "credentials"); scheduleExpiry(watch, null, null, false, null, null); }
@@ -498,7 +503,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       if (closed) { retire(refreshed); return { ok: false, why: { code: "E_CLOSED", family: "client", message: "this client is closed" } }; }
       if (!refreshed.ok) {
         rotating = false;
-        credentialRevision += 1;
+        advanceRotation();
         if (refreshed.why.code === "E_AUTH" && !refreshed.why.retryable && session?.token === token) await endSession(refreshed.why);
         else if (refreshed.why.retryable) scheduleRefresh(60_000);
         return refreshed;
@@ -506,13 +511,13 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       if (refreshed.session.principal !== expectedPrincipal) {
         const why: Refusal = { code: "E_AUTH", family: "auth", message: "a refreshed session changed principal" };
         rotating = false;
-        credentialRevision += 1;
+        advanceRotation();
         await endSession();
         return { ok: false, why };
       }
       session = refreshed.session;
       headers.authorization = `Bearer ${session.token}`;
-      credentialRevision += 1;
+      advanceRotation();
       const refreshedRevision = credentialRevision;
       let persistenceError: unknown;
       try { await persistingSession; await (persistingSession = keepSession(base, session, sessions)); }
@@ -561,7 +566,15 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       const capture = control ?? (path.startsWith("/q/") ? await captureStore() : undefined);
       if (versionBlocked() || partitionDenied?.code === "E_STORE_RESTORE" || signal?.aborted) return { ok: false };
       const request = requestCredentials();
-      const reply = await withReadSignal(path.startsWith("/q/") ? version.signal : undefined, eph?.signal ?? aborter.signal, lifetime => withReadSignal(signal, lifetime, stopped => postForCaller(doFetch, base, path, request.headers, body, stopped, (json, status) => captured?.capture(json, status), decode, () => !versionBlocked())));
+      let authAtDecode: boolean | undefined;
+      const received = (json: Record<string, unknown>, status: number) => {
+        const why = (json.denied ?? json.why) as Refusal | undefined;
+        if (why?.code !== "E_AUTH") { captured?.capture(json, status); return; }
+        const applicable = request.revision >= authenticationFloor;
+        authAtDecode = applicable;
+        captured?.capture(json, status, () => applicable && request.revision >= authenticationFloor);
+      };
+      const reply = await withReadSignal(path.startsWith("/q/") ? version.signal : undefined, eph?.signal ?? aborter.signal, lifetime => withReadSignal(signal, lifetime, stopped => postForCaller(doFetch, base, path, request.headers, body, stopped, received, decode, () => !versionBlocked())));
       if (!reply || (versionBlocked() && !path.startsWith("/m/")) || signal?.aborted || (eph && !ephemeralReads.current(eph))) return { ok: false };
       const { response, json } = reply;
       const why = (json.denied ?? json.why) as Refusal | undefined;
@@ -573,8 +586,9 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       // I12: committed writes outlive their caller; reads require the live view.
       if (closed && !path.startsWith("/m/") && !path.startsWith("/a/")) return { ok: false };
       const denied = (json.denied ?? json.why) as Refusal | undefined;
-      const obsoleteAuth = denied?.code === "E_AUTH" && (request.revision !== credentialRevision || rotating);
+      const obsoleteAuth = denied?.code === "E_AUTH" && (authAtDecode === false || request.revision < authenticationFloor);
       await refusedSession(denied, request.revision);
+      if (obsoleteAuth && path.startsWith("/a/")) return { ok: false };
       if (link !== "online") setLink("online");
       if (denied && typeof json.store_id !== "string") return { ok: true, json, obsoleteAuth };
       if (control) {
