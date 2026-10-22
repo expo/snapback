@@ -10,7 +10,7 @@ import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 import type { BrowserContext, BrowserType, LaunchOptions, Locator, Page } from "playwright-core";
 import { renderedSelector, registerRenderedSelector, visibleText } from "./proof-text.ts";
-import { registerWebWitness } from "./witness-web.ts";
+import { webWitnessObserverScript } from "./witness-web.ts";
 import { resolveBinary } from "./bin-path.ts";
 import { bounded, deadline, logged, logText, portRange, ready, stopChild, type ProofHost, type ProofOptions, logsDir } from "./proof-process.ts";
 export { bounded, cleanup, stopChild, portRange } from "./proof-process.ts";
@@ -293,18 +293,7 @@ export async function withBrowser<T>(options: LaunchOptions & Pick<ProofOptions,
       });
       // The bridge function is self-contained after TypeScript erases types.
       // Proof code lives in this realm, outside the application's bundle.
-      await context.addInitScript({ content: `(() => {
-        const register = (${registerWebWitness.toString()});
-        let selected;
-        Object.defineProperty(window, Symbol.for("snapback4.proof.app"), { configurable: false, writable: false, value: app => {
-          if (selected) return;
-          selected = app;
-          register(app);
-          const bridge = window.__snapback4Witness;
-          Object.freeze(bridge);
-          Object.defineProperty(window, "__snapback4Witness", { configurable: false, writable: false, value: bridge });
-        }});
-      })();` });
+      await context.addInitScript({ content: webWitnessObserverScript() });
       context.setDefaultTimeout(30_000); context.setDefaultNavigationTimeout(30_000);
       return await proof(context);
     } finally {

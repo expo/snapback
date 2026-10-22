@@ -400,6 +400,9 @@ pub(super) const EXPO_ENV: &str = include_str!("starter/expo-env.d.ts");
 // @ref LLP 3000.011.003.000#8 — password identity gets an executable sign-in screen.
 pub(super) fn identity_screens(platform: Platform, personas: Option<&[String]>, body: &Body, password: bool) -> (String, String) {
     let (app, client) = identity_screens_version(platform, personas, body, password, false, true);
+    // Keep the published guest --as and direct SDK witness paths. Password
+    // clients use the driver-owned observer and carry no witness plumbing.
+    let client = if !password && personas.is_none() { known_client(platform, false, false).to_owned() } else { client };
     let app = if platform == Platform::Expo { app.replace("import { useNativeSmokeGuest } from \"./src/native-smoke\";", "import { useNativeSmoke } from \"snapback4-expo/native-smoke\";")
         .replace("useNativeSmokeGuest();", if password { "useNativeSmoke(true);" } else { "useNativeSmoke();" }) } else { app };
     (app, client)

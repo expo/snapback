@@ -8,6 +8,7 @@ import { resolve, join, extname, sep } from 'node:path';
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { idFrom } from '../dist/client.js';
+import { webWitnessObserverScript } from '../dist/witness-web.js';
 
 function options(args) {
   const out = { export: 'dist', timeout: 30 };
@@ -125,6 +126,7 @@ async function run(o) {
     const api = o.url ?? dev.url;
     browser = await chromium.launch({ executablePath: browserPath, headless: true, timeout: o.timeout * 1000, args: process.getuid?.() === 0 ? ['--no-sandbox'] : [] });
     const page = await browser.newPage(); // Fresh storage; the external backend is never reset.
+    await page.addInitScript({ content: webWitnessObserverScript() });
     page.setDefaultTimeout(o.timeout * 1000);
     let pageError;
     page.on('pageerror', error => { pageError = error.message; });
@@ -193,7 +195,7 @@ async function run(o) {
 }
 try {
   const o = options(process.argv.slice(2));
-  if (!o) console.log(`usage: ${synopsis('witness')}\nSet SNAPBACK4_CHROMIUM to a Chromium executable. Run build:web first. Register the app with registerWebWitness(app, api) from snapback4/witness-web (starters do). An omitted --url starts an owned, fresh dev --memory.`);
+  if (!o) console.log(`usage: ${synopsis('witness')}\nSet SNAPBACK4_CHROMIUM to a Chromium executable. Run build:web first. The driver installs the App observer before page scripts. --field/--value/--button captures the clicked durable UI write without application witness imports. Direct SDK mutation proof requires registerWebWitness(app, api) from snapback4/witness-web. An omitted --url starts an owned, fresh dev --memory.`);
   else await run(o);
 } catch (error) {
   // Playwright call logs can contain fill(password). Never print foreign exception text.

@@ -29,3 +29,12 @@ Final Linux validation:
 Original evidence is hash-identical. No original lane, credential file or other worktree was modified.
 
 Parent owns final amendment reviews, full Rust workspace tests (including new exact historical adaptation regression), packed starter/guide qualification, Mac affected tests, root checks and final WORKSTREAM-REPORT.md. No version bump or push.
+
+
+## Standalone browser driver follow-up
+
+The native `snapback4 witness web` driver now installs the same shared, locked public observer as withBrowser before application scripts. The Node-only script factory lives in witness-web.ts; custody logic is shared. Help distinguishes visible UI capture (no registration needed) from direct SDK mutation proof (generated API registration required). Password starter native visible-form proof is covered locally and added to the packed starter consumer. Guest-only generated clients retain their previously published witness/persona branch, preserving `--as alice` and direct SDK proof compatibility while both UIs still teach ReadState.
+
+Current-source CLI build passed. Final `wave10-witness.test.mjs`: **13 passed, 0 failed**, including guest UI proof, persona UI/direct-SDK proof and the new generated password UI proof. Before guest-only restoration the complete affected group had 30 passes and exactly the persona compatibility failure; that failure is now fixed. The shared-factory proof-contract tests (12) and missing-peer help fixture passed. Test scratch cleans in finally / t.after.
+
+The legacy native-smoke custody test now uses the actual frozen 0.4.37 Expo screen/client, rather than grafting the old helper onto today's changed ReadState UI. Its custom-source-reference and edited-helper preservation assertions remain intact. Parent final Rust run must cover `untouched_wave22_lists_and_clients_adapt_without_rewriting_owned_source`, `--test init` and `--test day5_starters` after these final source changes.

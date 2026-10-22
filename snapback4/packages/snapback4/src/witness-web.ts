@@ -170,6 +170,22 @@ export function registerWebWitness(app: App, api?: Operations): void {
   } });
 }
 
+/** @internal Shared by the Node proof kit and the native browser driver. */
+export function webWitnessObserverScript(): string {
+  return `(() => {
+    const register = (${registerWebWitness.toString()});
+    let selected;
+    Object.defineProperty(window, Symbol.for("snapback4.proof.app"), { configurable: false, writable: false, value: app => {
+      if (selected) return;
+      selected = app;
+      register(app);
+      const bridge = window.__snapback4Witness;
+      Object.freeze(bridge);
+      Object.defineProperty(window, "__snapback4Witness", { configurable: false, writable: false, value: bridge });
+    }});
+  })();`;
+}
+
 /** Run an event handler with an explicit write claim that survives awaited uploads.
  * @ref LLP 3000.011.003.000.000#11 — only explicit per-arm custody survives an async handler.
  * Call synchronously from the clicked control. Use the supplied mutate inside

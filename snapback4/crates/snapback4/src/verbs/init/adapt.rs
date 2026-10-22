@@ -535,7 +535,7 @@ fn untouched_wave22_lists_and_clients_adapt_without_rewriting_owned_source() {
             std::fs::write(dir.join(client_path), &client).unwrap();
             let (changes, _) = leftovers(&dir);
             assert!(changes.iter().any(|change| change.path == app_path), "{platform:?} password={password}: upgrade teaches ReadState");
-            assert!(changes.iter().any(|change| change.path == client_path), "{platform:?} password={password}: upgrade removes witness plumbing");
+            assert_eq!(changes.iter().any(|change| change.path == client_path), password, "{platform:?} password={password}: only password upgrades remove witness plumbing; guest persona and direct-SDK proofs stay supported");
             std::fs::write(dir.join(client_path), format!("{client}\n// application-owned edit\n")).unwrap();
             let (changes, _) = leftovers(&dir);
             assert!(!changes.iter().any(|change| change.path == app_path || change.path == client_path));
