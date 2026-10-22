@@ -10,6 +10,13 @@ query checkedName(name: text <=80):
   return name
 ```
 
+`E_COMMIT_OUTCOME_UNKNOWN` is an unknown durable outcome: COMMIT was sent but
+its acknowledgement was lost. Resolve the persisted receipt or operation key
+before retrying. `E_STORE_OWNERSHIP` means the store's owner token or binding
+refused the transaction before its durable work. Neither authorizes a blind
+retry under an old owner. The Postgres adapter disables statement timeouts
+during COMMIT; a cancelled synchronous replication wait remains unacknowledged.
+
 Every refusal is `{ code, family, message, detail?, site?, rewrite?, guide?, rule?,
 retryable? }`: `code` and `family` are stable, `rewrite` compiles, `guide`
 names a card, `rule` is the program's own code on a `require` or named unique refusal, and

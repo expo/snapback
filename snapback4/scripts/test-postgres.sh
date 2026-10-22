@@ -54,6 +54,7 @@ refresh_shared_target || status=1
 cargo test --locked --manifest-path experiments/postgres/Cargo.toml -- --include-ignored --nocapture || status=1
 refresh_shared_target || status=1
 cargo test --locked -p snapback4-core --features postgres --lib engine::postgres::tests -- --include-ignored --nocapture || status=1
+cargo test --locked -p snapback4-core --features postgres --lib engine::postgres::ownership::tests -- --include-ignored --nocapture || status=1
 cargo test --locked -p snapback4-core --features postgres --test store_handle_traits || status=1
 cargo test --locked -p snapback4-core --features postgres --doc || status=1
 cargo test --locked -p snapback4-core --features postgres --lib engine::committer::postgres_tests -- --include-ignored --nocapture || status=1

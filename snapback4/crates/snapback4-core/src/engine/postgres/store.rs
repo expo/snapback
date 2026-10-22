@@ -1,6 +1,6 @@
-//! Evaluation layout: the same canonical row images and ordered binary keys
-//! as SQLite. This deliberately measures the existing Rows boundary, not a
-//! relational schema/compiler or a production Postgres control plane.
+//! Canonical row images and ordered binary keys shared by the common engine
+//! and its retained evaluation oracle. Common-engine durable transactions
+//! take the store owner fence before the head; serving policy lives above it.
 use crate::{
     error::RuntimeError,
     key,
@@ -71,6 +71,9 @@ pub enum WriteMode {
 }
 
 pub struct Store {
+    pub(super) unified: bool,
+    pub(super) fence: Option<super::ownership::Fence>,
+    pub(super) commit_warning: std::sync::Arc<std::sync::atomic::AtomicBool>,
     pub generation: u64,
     pub(crate) read_only: bool,
     pub(crate) client: Client,
@@ -85,10 +88,10 @@ pub struct Store {
 
 impl Store {
     pub fn new(client: Client) -> Self {
-        Self { generation:1, read_only: false, client, cache: BTreeMap::new(), calls: Cell::new(0), prefetch: true, marked_reads: Cell::new(0), page_reads: Cell::new(0), prefetch_rows: Cell::new(0), prefetch_bytes: Cell::new(0) }
+        Self { unified: false, fence: None, commit_warning: Default::default(), generation:1, read_only: false, client, cache: BTreeMap::new(), calls: Cell::new(0), prefetch: true, marked_reads: Cell::new(0), page_reads: Cell::new(0), prefetch_rows: Cell::new(0), prefetch_bytes: Cell::new(0) }
     }
 
-    fn begin(&mut self, mode: Option<WriteMode>) -> Result<Tx<'_>, RuntimeError> {
+    fn begin(&mut self, mode: Option<WriteMode>, opening: bool) -> Result<Tx<'_>, RuntimeError> {
         if self.read_only && mode.is_some() { return Err(RuntimeError::Store("Postgres reader is read-only".into())); }
         self.calls.set(self.calls.get() + 1);
         self.page_reads.set(0);
@@ -98,14 +101,46 @@ impl Store {
             Some(WriteMode::Serializable) => IsolationLevel::Serializable,
         };
         let inner = self.client.build_transaction().isolation_level(isolation).read_only(mode.is_none()).start()?;
-        Ok(Tx { inner: RefCell::new(inner), bind_refused: Cell::new(false), cache: RefCell::new(&mut self.cache), calls: &self.calls, marked_reads: &self.marked_reads, page_reads: &self.page_reads, prefetch_rows: &self.prefetch_rows, prefetch_bytes: &self.prefetch_bytes,
-            rows_cache: RefCell::new(super::prefetch::Cache::default()), prefetch_enabled: self.prefetch, head: Cell::new(None), serialized_head: Cell::new(false), tail: RefCell::new(super::tail::Tail::default()), savepoints: RefCell::new(Vec::new()) })
+        let tx = Tx { commit_warning: &self.commit_warning, inner: RefCell::new(inner), bind_refused: Cell::new(false), cache: RefCell::new(&mut self.cache), calls: &self.calls, marked_reads: &self.marked_reads, page_reads: &self.page_reads, prefetch_rows: &self.prefetch_rows, prefetch_bytes: &self.prefetch_bytes,
+            rows_cache: RefCell::new(super::prefetch::Cache::default()), prefetch_enabled: self.prefetch, head: Cell::new(None), serialized_head: Cell::new(false), tail: RefCell::new(super::tail::Tail::default()), savepoints: RefCell::new(Vec::new()) };
+        if self.unified && mode.is_some() {
+            // Bootstrap is the sole exception: an absent owner relation is
+            // installed in the successful opening transaction, never by readers.
+            let mut exists = !opening || tx.query("SELECT to_regclass('_owner') IS NOT NULL", &[])?[0].get::<_, bool>(0);
+            if !exists {
+                if let Some(fence) = &self.fence {
+                    if fence.token != 0 {
+                        return Err(RuntimeError::StoreOwnership("acquired owner record disappeared; refuse to bootstrap over lost ownership".into()));
+                    }
+                    // @ref LLP 3000.009.001.000#3.4 — legacy owner installation is atomic with attach and precedes the head.
+                    // Only legacy attach lacks the relation. Serialize that
+                    // one-time DDL before installing the ordinary first fence.
+                    tx.query("SELECT pg_advisory_xact_lock(hashtextextended($1,0))", &[&format!("sb4-owner-bootstrap:{}", fence.store_id)])?;
+                    super::ownership::install(&tx, &fence.store_id)?;
+                    exists = true;
+                }
+            }
+            if exists {
+                // @ref LLP 3000.009.001.000#5.1 — first row lock, before head, generation or any family write.
+                let rows = tx.query("SELECT store_id,token FROM _owner WHERE singleton FOR KEY SHARE", &[]).map_err(|error| {
+                    if matches!(&error, RuntimeError::Postgres(e) if e.code() == Some(&postgres::error::SqlState::T_R_SERIALIZATION_FAILURE)) {
+                        RuntimeError::StoreOwnership("owner changed in this transaction snapshot".into())
+                    } else { error }
+                })?;
+                let expected = self.fence.as_ref().map_or(0, |f| f.token);
+                if rows.len() != 1 || rows[0].get::<_, i64>(1) != expected
+                    || self.fence.as_ref().is_some_and(|f| rows[0].get::<_, &str>(0) != f.store_id) {
+                    return Err(RuntimeError::StoreOwnership("stale owner token or logical store identity".into()));
+                }
+            }
+        }
+        Ok(tx)
     }
 
     // Opening validates its backend and installs every physical upgrade before
     // this transaction can commit. It cannot assume generation columns exist.
     pub(super) fn opening_transaction(&mut self) -> Result<Tx<'_>, RuntimeError> {
-        self.begin(Some(WriteMode::Serialized))
+        self.begin(Some(WriteMode::Serialized), true)
     }
 
     pub fn transaction(&mut self, mode: Option<WriteMode>) -> Result<Tx<'_>, RuntimeError> {
@@ -118,8 +153,16 @@ impl Store {
     // Tests rendezvous after BEGIN and before the ordinary head fence. Both
     // transactions must exist before either may select or mutate request facts.
     pub(super) fn transaction_with_begin_hook(&mut self, mode: Option<WriteMode>, after_begin: impl FnOnce()) -> Result<Tx<'_>, RuntimeError> {
+        self.checked_transaction(mode, false, after_begin)
+    }
+
+    pub(crate) fn attach_transaction(&mut self, mode: Option<WriteMode>) -> Result<Tx<'_>, RuntimeError> {
+        self.checked_transaction(mode, true, || {})
+    }
+
+    fn checked_transaction(&mut self, mode: Option<WriteMode>, opening: bool, after_begin: impl FnOnce()) -> Result<Tx<'_>, RuntimeError> {
         let generation_expected = self.generation;
-        let tx = self.begin(mode)?;
+        let tx = self.begin(mode, opening)?;
         after_begin();
         #[cfg(test)]
         crate::store::test_race::activation_after_begin();
@@ -146,6 +189,7 @@ impl Store {
 }
 
 pub struct Tx<'a> {
+    commit_warning: &'a std::sync::atomic::AtomicBool,
     inner: RefCell<Transaction<'a>>,
     bind_refused: Cell<bool>,
     cache: RefCell<&'a mut BTreeMap<&'static str, Statement>>,
@@ -308,8 +352,8 @@ impl Tx<'_> {
     pub fn commit(self) -> Result<(), RuntimeError> {
         self.ensure_active()?;
         self.flush_tail()?;
-        self.calls.set(self.calls.get() + 1);
-        self.inner.into_inner().commit()?;
+        self.calls.set(self.calls.get() + 2);
+        super::ownership::commit(self.inner.into_inner(), self.commit_warning)?;
         Ok(())
     }
 

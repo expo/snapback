@@ -34,6 +34,13 @@ pub(crate) use lifecycle::IdentitySource;
 #[path = "store/port/identity_members.rs"]
 mod identity_members;
 pub(crate) use identity_members::SessionEdit;
+#[path = "store/port/worker_ledger.rs"]
+mod worker_ledger;
+#[cfg(feature = "postgres")]
+#[path = "store/port/ownership.rs"]
+mod ownership;
+#[cfg(feature = "postgres")]
+pub use ownership::{StoreLease, LeasePolicy, LeaseAcquisition};
 #[path = "store/port/operations.rs"]
 mod operations;
 pub(crate) use operations::FollowingHistoryReader;

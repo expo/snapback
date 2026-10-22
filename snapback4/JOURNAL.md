@@ -101290,3 +101290,61 @@ source is restored. A batch-16 integer primitive reaches 2,051/s; the full
 Snapback K0 queue/K3 batch estimate is 760–1,000/s, pending keyed/full-tail
 and p99 qualification. The RFC receives a short §9 note, not a new gate or
 product implementation. [Report and archive receipt](./experiments/scale-controls/results-20261022-snapback-sqlite-diagnosis/README.md).
+
+### 2026-10-22 — S10d-2: store-level Postgres ownership and unknown COMMIT
+
+The common Postgres arm now creates a shape-checked `_owner` bound to its
+logical store id and takes `FOR KEY SHARE` as the first ordinary writer lock,
+before the head. Fresh creation installs/fences it before core/head writes.
+Legacy attach serializes missing-owner DDL with a bootstrap-only advisory
+transaction lock and rolls it back with refused opening; a positive acquired
+token cannot recreate a lost row. The store-level lease API uses its own
+connection outside the committer, database-clock/token-fenced renew/release,
+W11's expired-lease claim before termination, bounded `FOR UPDATE` retries,
+and exact same-role/store/token blocker filtering. Hygiene follows COMMIT;
+connection tags retain the complete token within 60 bytes. Public serving
+still must acquire a positive token and reopen through the owned factory.
+
+COMMIT disables both adapter timeouts. Lost acknowledgements and cancelled
+synchronous-wait warnings propagate as typed `E_COMMIT_OUTCOME_UNKNOWN`, with
+retry disabled, distinct from a refusal. The worker ledger now has a neutral
+logical-id/state-directory binding API; SQLite keeps its adjacent filename,
+and missing Postgres identity/location refuse by name. The supervisor uses
+the seam; S10d-3 still supplies its configured durable location and cadence.
+
+Final private-Postgres script passes **58 evaluator + 209 family/oracle +
+15 ownership + 1 compiled guard + 37 doctest + 2 member + 1 HTTP + 19 corpus**
+cases. The exact final ownership group also passes **15/15** as a non-superuser
+on a separate private PostgreSQL 16.15 cluster. Witnesses cover both owners,
+stale writes independent of hygiene, renewal winning a stale claim, standby
+races, SIGKILL takeover, a non-head transaction beyond its lease, first-lock
+ordering, token-bounded blockers, interrupted COMMIT, a durable receipt whose
+acknowledgement is dropped by a local relay, zero COMMIT timeouts, injected
+synchronous-wait warning handling, atomic legacy upgrade and ledger identity.
+The oracle keeps 65 increments in both modes with no losses (54 serializable
+retries); C1 remains 20 off / 23 on with eight marked reads.
+
+Full core passes (aggregate **1,062 / 0 failed / 5 ignored**), as do no-default
+core, **16** ratchet/census cases, compiled guards, **127** guide cases and
+**27** codec census cases. The full host run initially has six failures;
+all six pass alone after dedicated guide sections/routing and recovery pins,
+adapter-owned re-export, and frozen local JS dependency setup. No clean
+full-host repeat is claimed. Earlier fixture/visibility failures and the
+unqualified full client build's missing ignored wasm artifacts are retained
+in [the S10d-2 report](./reports/20261022-s10d2-postgres-ownership.md), along with
+transcripts, limitations and the S10d-3 handoff. All six owned clusters are
+stopped and independently confirmed; other clusters were untouched. Only
+the specified target/profiles and at most 16 jobs were used; the lowest
+observed free space was about 77 GiB, above the 30 GiB stop threshold.
+No identity/committer implementation edits, push, stash, cloning, other
+machines or sub-agents. Final root reference and whitespace checks follow.
+
+
+Final S10d-2 follow-up: the COMMIT warning hook now uses SQLSTATE `57014`
+alone, independent of localized message text. The affected ownership group
+passes **15/15** again on the final source with a non-English injected warning,
+as a non-superuser. The seventh owned cluster, `/tmp/s10d2-owner.tVEHVs`, is
+stopped and confirmed (status 3, no postmaster.pid); all seven owned clusters
+are now stopped. Root `./ref-check` passes **564 LLPs / 11,704 refs / 0 errors /
+0 unchecked**. Whitespace and formatting of all four new Rust files pass.
+About **79 GiB** remains free. No push or stash.

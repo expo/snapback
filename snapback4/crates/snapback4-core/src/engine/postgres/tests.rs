@@ -584,7 +584,7 @@ fn live_adoption_rebuilds_indexes_from_rows_and_keeps_transfer_and_restore_atomi
     e.load_trusted([("projects".into(),object([("id",Value::Id("p".into())),("owner",Value::Id("carol".into()))]))],104).unwrap();assert!(e.query("all",query("bob")).unwrap().data.as_array().unwrap().is_empty());assert_eq!(e.query("all",query("carol")).unwrap().data.as_array().unwrap().len(),1);
 }
 
-mod unified;
+pub(super) mod unified;
 
 mod unified_tail;
 

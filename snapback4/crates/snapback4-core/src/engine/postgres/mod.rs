@@ -27,6 +27,7 @@ mod change_evidence;
 mod foundation_schema;
 mod ledger_schema;
 mod shape;
+pub(crate) mod ownership;
 pub(crate) mod activation;
 mod activation_schema;
 mod release;
