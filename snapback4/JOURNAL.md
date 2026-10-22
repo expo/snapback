@@ -102439,3 +102439,33 @@ on a test thread and bounds observation with a separate receiver, retaining
 the original 50 ms ownership-loss requirement and pre-assertion unlock/cleanup.
 The full Postgres-feature test tree type-checks; complete-script qualification
 is repeated below in the lane report. No production timeout API was restored.
+
+
+Final K0-Q fix-round-2 qualification on 2026-10-23 runs every requested check.
+Both unchanged RT0 tables match all twelve warm rows exactly (keyed first
+87 SQLite / 77 Postgres). Default/no-default/wasm builds, 1,085 core passes,
+535 final CLI-unit passes, 29 lifecycle passes, 127 guide passes, 27 wasm codec
+cases, both compiled/release feature guards and the final 16-case census pass.
+The corrected full Postgres repeat runs all five formerly blocked core stages
+(218/25/2/1/12), plus handle/doc/HTTP/RT0/corpus/public-serving witnesses: 376
+Rust passes and the single evaluator 40001 failure, whose exact unchanged
+isolated rerun passes both modes. Initial compile gaps and reds remain visible.
+
+Full CLI/device qualification retains six and eight reproducible unrelated or
+provided-baseline cases after every exact isolated rerun; two other CLI failures
+pass alone. No clean full-CLI/device/Postgres-script claim is made. The adoption
+issue is closed by the exact COMMIT-gap/foreign-activation witnesses and full
+29-case lifecycle target. The SDK unknown-outcome issue stays open as commissioned.
+
+Fresh successful W4 samples measure 95.30 -> 95.55 ops/s,
+332.38 -> 332.69 ms p50, 438.69 -> 463.91 ms p99;
+both durable totals are 4,960. Two failed baseline HTTP-503 samples are retained;
+the third identical-workload baseline succeeds with diagnostic-only error logging.
+No tail-latency or promotion claim is inferred from these busy-host probes.
+All five owned clusters independently report stopped, all 97 recorded PIDs are
+absent, and the executable/runner census is empty. Lowest sampled free space
+23.31 GiB; only this lane's completed target executables were reclaimed.
+No RT5 touch, push or stash. Final records and post-record reference checks
+are in reports/20261022-k0q/REPORT.md and its fix2-final receipts.
+
+Final post-record reference check: 565 LLP documents, 11,757 references, zero errors and zero unchecked. Whitespace and the repeated independent 97-PID/five-cluster/table-digest audit pass. All work is committed locally; no push or stash.

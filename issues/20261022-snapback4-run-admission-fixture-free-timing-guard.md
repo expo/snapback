@@ -39,3 +39,12 @@ The complete repeat with one outer test case at eaa3a60098 passed this unchanged
 five-second guard. That repeat failed a separate concurrent-adoption lifecycle
 case; it is not a clean-full-suite claim. Keep this issue open because the
 reproduced fixture-free wall-clock proxy flaw remains.
+
+
+K0-Q fix round 2 observation at `aeb62378f7`: the complete CLI pass again
+failed `live_dev_forwards_run_refuses_other_offline_writers_with_its_address_and_releases_on_exit`
+at the unchanged five-second assertion (`tests/run_admission.rs:200`,
+"must not enter SQLite's writer wait"). Its exact isolated rerun also fails
+(5.24 s). No guard or product behavior was changed. Logs:
+`/tmp/sb4-k0q-fix2-final/cli.log` and `cli-isolated-6.log`; the earlier fixture-free
+timing investigation remains above.

@@ -1,0 +1,3549 @@
+{
+  "start_head": "3d842b63f403e12ab42be9e7abc366f8ee9b93de",
+  "compiler_jobs": 6,
+  "outer_test_threads": 4,
+  "target_dir": "/home/ccheever/projects/sb4-s10a/snapback4/target",
+  "logs": "/tmp/sb4-k0q-fix2-final",
+  "checks": [
+    {
+      "name": "build",
+      "command": [
+        "cargo",
+        "build",
+        "--locked",
+        "-p",
+        "snapback4",
+        "-j",
+        "6"
+      ],
+      "cwd": "/home/ccheever/projects/sb4-s10a/snapback4",
+      "pid": 494669,
+      "log": "/tmp/sb4-k0q-fix2-final/build.log",
+      "exit": 0,
+      "seconds": 64.02
+    },
+    {
+      "name": "ordinary-symbols",
+      "command": [
+        "bash",
+        "-e",
+        "-c",
+        "nm --defined-only target/debug/snapback4 > /tmp/k0q-fix2-nm.txt; if rg \"round_trips|trace_round_trips\" /tmp/k0q-fix2-nm.txt; then exit 1; fi; echo \"zero round_trips / trace_round_trips symbols\""
+      ],
+      "cwd": "/home/ccheever/projects/sb4-s10a/snapback4",
+      "pid": 496259,
+      "log": "/tmp/sb4-k0q-fix2-final/ordinary-symbols.log",
+      "exit": 0,
+      "seconds": 2.01
+    },
+    {
+      "name": "core-no-default",
+      "command": [
+        "cargo",
+        "check",
+        "--locked",
+        "-p",
+        "snapback4-core",
+        "--no-default-features",
+        "-j",
+        "6"
+      ],
+      "cwd": "/home/ccheever/projects/sb4-s10a/snapback4",
+      "pid": 496346,
+      "log": "/tmp/sb4-k0q-fix2-final/core-no-default.log",
+      "exit": 0,
+      "seconds": 6.01
+    },
+    {
+      "name": "device-web-check",
+      "command": [
+        "cargo",
+        "check",
+        "--locked",
+        "-p",
+        "snapback4-device",
+        "--no-default-features",
+        "--features",
+        "web",
+        "--target",
+        "wasm32-unknown-unknown",
+        "-j",
+        "6"
+      ],
+      "cwd": "/home/ccheever/projects/sb4-s10a/snapback4",
+      "pid": 496472,
+      "log": "/tmp/sb4-k0q-fix2-final/device-web-check.log",
+      "exit": 0,
+      "seconds": 14.01
+    },
+    {
+      "name": "focused-committer",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "snapback4",
+        "--bin",
+        "snapback4",
+        "committer",
+        "--no-fail-fast",
+        "-j",
+        "6"
+      ],
+      "cwd": "/home/ccheever/projects/sb4-s10a/snapback4",
+      "pid": 496838,
+      "log": "/tmp/sb4-k0q-fix2-final/focused-committer.log",
+      "exit": 0,
+      "seconds": 104.03,
+      "rust_results": {
+        "totals": {
+          "passed": 13,
+          "failed": 0,
+          "ignored": 0
+        },
+        "targets": {
+          "1: Running unittests src/main.rs (target/debug/deps/snapback4-4dae3967bd525305)": {
+            "result": "ok",
+            "passed": 13,
+            "failed": 0,
+            "ignored": 0
+          }
+        }
+      }
+    },
+    {
+      "name": "adoption-witnesses",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "snapback4",
+        "--bin",
+        "snapback4",
+        "query_",
+        "-j",
+        "6",
+        "--",
+        "--nocapture"
+      ],
+      "cwd": "/home/ccheever/projects/sb4-s10a/snapback4",
+      "pid": 509995,
+      "log": "/tmp/sb4-k0q-fix2-final/adoption-witnesses.log",
+      "exit": 101,
+      "seconds": 6.0,
+      "failed_tests": [
+        {
+          "target": [
+            "--bin",
+            "snapback4"
+          ],
+          "test": "serve::tests::adoption_tests::query_handoff_does_not_accept_a_genuine_foreign_activation"
+        },
+        {
+          "target": [
+            "--bin",
+            "snapback4"
+          ],
+          "test": "serve::tests::adoption_tests::query_retries_behind_adoption_commit_before_reader_replacement"
+        }
+      ],
+      "rust_results": {
+        "totals": {
+          "passed": 12,
+          "failed": 2,
+          "ignored": 1
+        },
+        "targets": {
+          "1: Running unittests src/main.rs (target/debug/deps/snapback4-4dae3967bd525305)": {
+            "result": "FAILED",
+            "passed": 12,
+            "failed": 2,
+            "ignored": 1
+          }
+        }
+      }
+    },
+    {
+      "name": "adoption-witnesses-isolated-0",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "snapback4",
+        "--bin",
+        "snapback4",
+        "-j",
+        "6",
+        "--",
+        "serve::tests::adoption_tests::query_handoff_does_not_accept_a_genuine_foreign_activation",
+        "--exact",
+        "--nocapture"
+      ],
+      "cwd": "/home/ccheever/projects/sb4-s10a/snapback4",
+      "pid": 511833,
+      "log": "/tmp/sb4-k0q-fix2-final/adoption-witnesses-isolated-0.log",
+      "exit": 101,
+      "seconds": 2.23,
+      "rust_results": {
+        "totals": {
+          "passed": 0,
+          "failed": 1,
+          "ignored": 0
+        },
+        "targets": {
+          "1: Running unittests src/main.rs (target/debug/deps/snapback4-4dae3967bd525305)": {
+            "result": "FAILED",
+            "passed": 0,
+            "failed": 1,
+            "ignored": 0
+          }
+        }
+      }
+    },
+    {
+      "name": "adoption-witnesses-isolated-1",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "snapback4",
+        "--bin",
+        "snapback4",
+        "-j",
+        "6",
+        "--",
+        "serve::tests::adoption_tests::query_retries_behind_adoption_commit_before_reader_replacement",
+        "--exact",
+        "--nocapture"
+      ],
+      "cwd": "/home/ccheever/projects/sb4-s10a/snapback4",
+      "pid": 512039,
+      "log": "/tmp/sb4-k0q-fix2-final/adoption-witnesses-isolated-1.log",
+      "exit": 101,
+      "seconds": 4.0,
+      "rust_results": {
+        "totals": {
+          "passed": 0,
+          "failed": 1,
+          "ignored": 0
+        },
+        "targets": {
+          "1: Running unittests src/main.rs (target/debug/deps/snapback4-4dae3967bd525305)": {
+            "result": "FAILED",
+            "passed": 0,
+            "failed": 1,
+            "ignored": 0
+          }
+        }
+      }
+    },
+    {
+      "name": "clock-31-second",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "snapback4",
+        "--bin",
+        "snapback4",
+        "admitted_clock_waits_past_old_deadline_and_advances_only_once",
+        "-j",
+        "6",
+        "--",
+        "--nocapture"
+      ],
+      "cwd": "/home/ccheever/projects/sb4-s10a/snapback4",
+      "pid": 512285,
+      "log": "/tmp/sb4-k0q-fix2-final/clock-31-second.log",
+      "exit": 0,
+      "seconds": 144.87,
+      "rust_results": {
+        "totals": {
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0
+        },
+        "targets": {
+          "1: Running unittests src/main.rs (target/debug/deps/snapback4-4dae3967bd525305)": {
+            "result": "ok",
+            "passed": 1,
+            "failed": 0,
+            "ignored": 0
+          }
+        }
+      }
+    },
+    {
+      "name": "core",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "snapback4-core",
+        "--no-fail-fast",
+        "-j",
+        "6"
+      ],
+      "cwd": "/home/ccheever/projects/sb4-s10a/snapback4",
+      "pid": 523076,
+      "log": "/tmp/sb4-k0q-fix2-final/core.log",
+      "exit": 0,
+      "seconds": 1398.18,
+      "rust_results": {
+        "totals": {
+          "passed": 1085,
+          "failed": 0,
+          "ignored": 5
+        },
+        "targets": {
+          "1: Running unittests src/lib.rs (target/debug/deps/snapback4_core-83c4ab85fd086d4b)": {
+            "result": "ok",
+            "passed": 662,
+            "failed": 0,
+            "ignored": 3
+          },
+          "2: Running tests/action_context.rs (target/debug/deps/action_context-034f27571376af32)": {
+            "result": "ok",
+            "passed": 10,
+            "failed": 0,
+            "ignored": 0
+          },
+          "3: Running tests/adoption_scale.rs (target/debug/deps/adoption_scale-bdf67fd9884427af)": {
+            "result": "ok",
+            "passed": 0,
+            "failed": 0,
+            "ignored": 1
+          },
+          "4: Running tests/asset_lists.rs (target/debug/deps/asset_lists-6d2203cd5c3d9f33)": {
+            "result": "ok",
+            "passed": 28,
+            "failed": 0,
+            "ignored": 0
+          },
+          "5: Running tests/born_perf.rs (target/debug/deps/born_perf-a5c06b739c6e0bfd)": {
+            "result": "ok",
+            "passed": 2,
+            "failed": 0,
+            "ignored": 0
+          },
+          "6: Running tests/bound_session.rs (target/debug/deps/bound_session-9b21cb3a72fe045d)": {
+            "result": "ok",
+            "passed": 8,
+            "failed": 0,
+            "ignored": 0
+          },
+          "7: Running tests/corpus.rs (target/debug/deps/corpus-60740d08aa5c0339)": {
+            "result": "ok",
+            "passed": 19,
+            "failed": 0,
+            "ignored": 0
+          },
+          "8: Running tests/delivery_bounds.rs (target/debug/deps/delivery_bounds-b8ab7061db9aa1b9)": {
+            "result": "ok",
+            "passed": 2,
+            "failed": 0,
+            "ignored": 0
+          },
+          "9: Running tests/dev_reset.rs (target/debug/deps/dev_reset-5c91afe3de1f5f0d)": {
+            "result": "ok",
+            "passed": 5,
+            "failed": 0,
+            "ignored": 0
+          },
+          "10: Running tests/disclosure.rs (target/debug/deps/disclosure-9ac93e8ee956042e)": {
+            "result": "ok",
+            "passed": 32,
+            "failed": 0,
+            "ignored": 0
+          },
+          "11: Running tests/effect_policy.rs (target/debug/deps/effect_policy-8cb2546a77f3a9a7)": {
+            "result": "ok",
+            "passed": 14,
+            "failed": 0,
+            "ignored": 0
+          },
+          "12: Running tests/ephemeral.rs (target/debug/deps/ephemeral-9983c0eb6dffd654)": {
+            "result": "ok",
+            "passed": 18,
+            "failed": 0,
+            "ignored": 0
+          },
+          "13: Running tests/event_slot_snapshot.rs (target/debug/deps/event_slot_snapshot-6720cbec3cea6049)": {
+            "result": "ok",
+            "passed": 6,
+            "failed": 0,
+            "ignored": 0
+          },
+          "14: Running tests/expiring_adoption.rs (target/debug/deps/expiring_adoption-ddb4b674352dd1ed)": {
+            "result": "ok",
+            "passed": 5,
+            "failed": 0,
+            "ignored": 0
+          },
+          "15: Running tests/file_assets.rs (target/debug/deps/file_assets-457b7170e55232a7)": {
+            "result": "ok",
+            "passed": 8,
+            "failed": 0,
+            "ignored": 0
+          },
+          "16: Running tests/identity.rs (target/debug/deps/identity-c56b06b8837b1a01)": {
+            "result": "ok",
+            "passed": 2,
+            "failed": 0,
+            "ignored": 0
+          },
+          "17: Running tests/job_time_audiences.rs (target/debug/deps/job_time_audiences-692efbf7123c54cb)": {
+            "result": "ok",
+            "passed": 5,
+            "failed": 0,
+            "ignored": 0
+          },
+          "18: Running tests/lane_source.rs (target/debug/deps/lane_source-56fa3f8132ce5910)": {
+            "result": "ok",
+            "passed": 10,
+            "failed": 0,
+            "ignored": 0
+          },
+          "19: Running tests/maintained_columns_review.rs (target/debug/deps/maintained_columns_review-fc05d4e8210ff0fa)": {
+            "result": "ok",
+            "passed": 4,
+            "failed": 0,
+            "ignored": 0
+          },
+          "20: Running tests/membership_discovery_steps.rs (target/debug/deps/membership_discovery_steps-161065d067103a68)": {
+            "result": "ok",
+            "passed": 1,
+            "failed": 0,
+            "ignored": 0
+          },
+          "21: Running tests/meter.rs (target/debug/deps/meter-01bd53f899640044)": {
+            "result": "ok",
+            "passed": 9,
+            "failed": 0,
+            "ignored": 0
+          },
+          "22: Running tests/nul_chokepoints.rs (target/debug/deps/nul_chokepoints-f046a83d97674f6d)": {
+            "result": "ok",
+            "passed": 9,
+            "failed": 0,
+            "ignored": 0
+          },
+          "23: Running tests/pending_metadata_heap.rs (target/debug/deps/pending_metadata_heap-2df261d022fbc3ec)": {
+            "result": "ok",
+            "passed": 4,
+            "failed": 0,
+            "ignored": 0
+          },
+          "24: Running tests/read_sessions.rs (target/debug/deps/read_sessions-bd09a67f2371b696)": {
+            "result": "ok",
+            "passed": 7,
+            "failed": 0,
+            "ignored": 0
+          },
+          "25: Running tests/refused_open.rs (target/debug/deps/refused_open-ecbba1a57bc850da)": {
+            "result": "ok",
+            "passed": 7,
+            "failed": 0,
+            "ignored": 0
+          },
+          "26: Running tests/review_walk.rs (target/debug/deps/review_walk-b17e94209dc4fcd1)": {
+            "result": "ok",
+            "passed": 16,
+            "failed": 0,
+            "ignored": 0
+          },
+          "27: Running tests/revocation_history.rs (target/debug/deps/revocation_history-0344925bc2eca70d)": {
+            "result": "ok",
+            "passed": 3,
+            "failed": 0,
+            "ignored": 1
+          },
+          "28: Running tests/routes.rs (target/debug/deps/routes-710f8e0e3ee475d9)": {
+            "result": "ok",
+            "passed": 14,
+            "failed": 0,
+            "ignored": 0
+          },
+          "29: Running tests/row_view_accounting.rs (target/debug/deps/row_view_accounting-b68159af3f5520d9)": {
+            "result": "ok",
+            "passed": 6,
+            "failed": 0,
+            "ignored": 0
+          },
+          "30: Running tests/row_view_disclosure.rs (target/debug/deps/row_view_disclosure-f25a8918183d42ec)": {
+            "result": "ok",
+            "passed": 18,
+            "failed": 0,
+            "ignored": 0
+          },
+          "31: Running tests/row_view_legacy.rs (target/debug/deps/row_view_legacy-2e559eda066709fc)": {
+            "result": "ok",
+            "passed": 1,
+            "failed": 0,
+            "ignored": 0
+          },
+          "32: Running tests/row_view_witness.rs (target/debug/deps/row_view_witness-428a5aa27087d51e)": {
+            "result": "ok",
+            "passed": 6,
+            "failed": 0,
+            "ignored": 0
+          },
+          "33: Running tests/rows.rs (target/debug/deps/rows-984aac2d495771ee)": {
+            "result": "ok",
+            "passed": 10,
+            "failed": 0,
+            "ignored": 0
+          },
+          "34: Running tests/schema_capabilities.rs (target/debug/deps/schema_capabilities-d646254d2c9f6771)": {
+            "result": "ok",
+            "passed": 11,
+            "failed": 0,
+            "ignored": 0
+          },
+          "35: Running tests/schema_capabilities_legacy.rs (target/debug/deps/schema_capabilities_legacy-a172b282f3eb4268)": {
+            "result": "ok",
+            "passed": 3,
+            "failed": 0,
+            "ignored": 0
+          },
+          "36: Running tests/sequence_by.rs (target/debug/deps/sequence_by-104b6e38b1667232)": {
+            "result": "ok",
+            "passed": 17,
+            "failed": 0,
+            "ignored": 0
+          },
+          "37: Running tests/sequence_disclosure.rs (target/debug/deps/sequence_disclosure-ce26b39e4ffe1ad9)": {
+            "result": "ok",
+            "passed": 29,
+            "failed": 0,
+            "ignored": 0
+          },
+          "38: Running tests/store_handle_traits.rs (target/debug/deps/store_handle_traits-f89012df386817be)": {
+            "result": "ok",
+            "passed": 1,
+            "failed": 0,
+            "ignored": 0
+          },
+          "39: Running tests/stream_receipts.rs (target/debug/deps/stream_receipts-a0916626163fc96d)": {
+            "result": "ok",
+            "passed": 2,
+            "failed": 0,
+            "ignored": 0
+          },
+          "40: Running tests/sync_count_batch.rs (target/debug/deps/sync_count_batch-7878238deafbdca4)": {
+            "result": "ok",
+            "passed": 1,
+            "failed": 0,
+            "ignored": 0
+          },
+          "41: Running tests/time_audiences.rs (target/debug/deps/time_audiences-dfd04fa1b47de608)": {
+            "result": "ok",
+            "passed": 22,
+            "failed": 0,
+            "ignored": 0
+          },
+          "42: Running tests/unicode_fold.rs (target/debug/deps/unicode_fold-c7049d6d48cf7df9)": {
+            "result": "ok",
+            "passed": 2,
+            "failed": 0,
+            "ignored": 0
+          },
+          "43: Running tests/update_rule_images.rs (target/debug/deps/update_rule_images-ce6e7e314b4c697f)": {
+            "result": "ok",
+            "passed": 6,
+            "failed": 0,
+            "ignored": 0
+          },
+          "44: Running tests/upload_intents.rs (target/debug/deps/upload_intents-cb0d45859d8eca89)": {
+            "result": "ok",
+            "passed": 7,
+            "failed": 0,
+            "ignored": 0
+          },
+          "45: Running tests/work_records.rs (target/debug/deps/work_records-35f2da37c6c223c3)": {
+            "result": "ok",
+            "passed": 6,
+            "failed": 0,
+            "ignored": 0
+          },
+          "46: Doc-tests snapback4_core": {
+            "result": "ok",
+            "passed": 27,
+            "failed": 0,
+            "ignored": 0
+          }
+        }
+      }
+    },
+    {
+      "name": "cli",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "snapback4",
+        "--no-fail-fast",
+        "-j",
+        "6"
+      ],
+      "cwd": "/home/ccheever/projects/sb4-s10a/snapback4",
+      "pid": 623026,
+      "log": "/tmp/sb4-k0q-fix2-final/cli.log",
+      "exit": 101,
+      "seconds": 1412.5,
+      "failed_tests": [
+        {
+          "target": [
+            "--bin",
+            "snapback4"
+          ],
+          "test": "serve::maintenance::tests::kit3_interrupted_clock_drain_refuses_with_clock_evidence_and_queued_work"
+        },
+        {
+          "target": [
+            "--bin",
+            "snapback4"
+          ],
+          "test": "verbs::doctor_tests::w11_check_renderer_has_a_dedicated_excerpt_for_every_registered_code"
+        },
+        {
+          "target": [
+            "--test",
+            "check"
+          ],
+          "test": "w11_why_every_registered_code_returns_its_dedicated_section"
+        },
+        {
+          "target": [
+            "--test",
+            "clock"
+          ],
+          "test": "advance_drains_expiry_across_multiple_bounded_sweeps"
+        },
+        {
+          "target": [
+            "--test",
+            "init"
+          ],
+          "test": "w8b_residency_measures_the_wired_calibration_shape"
+        },
+        {
+          "target": [
+            "--test",
+            "init"
+          ],
+          "test": "w7a_residency_measures_the_wired_500_follow_reader"
+        },
+        {
+          "target": [
+            "--test",
+            "run_admission"
+          ],
+          "test": "live_dev_forwards_run_refuses_other_offline_writers_with_its_address_and_releases_on_exit"
+        },
+        {
+          "target": [
+            "--test",
+            "security_wave19"
+          ],
+          "test": "check_refutes_excluded_contact_roles_before_any_full_test"
+        },
+        {
+          "target": [
+            "--test",
+            "timeline_adoption"
+          ],
+          "test": "check_and_adoption_agree_across_expiry_through_changes_and_following_presence"
+        },
+        {
+          "target": [
+            "--test",
+            "timeline_adoption"
+          ],
+          "test": "retirement_resets_dependent_aggregates_even_when_all_names_survive"
+        },
+        {
+          "target": [
+            "--test",
+            "witness_web"
+          ],
+          "test": "web_witness_help_and_invalid_input"
+        }
+      ],
+      "rust_results": {
+        "totals": {
+          "passed": 1422,
+          "failed": 11,
+          "ignored": 19
+        },
+        "targets": {
+          "1: Running unittests src/main.rs (target/debug/deps/snapback4-4dae3967bd525305)": {
+            "result": "FAILED",
+            "passed": 533,
+            "failed": 2,
+            "ignored": 9
+          },
+          "2: Running tests/aggregate_identity_upgrade.rs (target/debug/deps/aggregate_identity_upgrade-b74ea9222fc6752e)": {
+            "result": "ok",
+            "passed": 0,
+            "failed": 0,
+            "ignored": 4
+          },
+          "3: Running tests/check.rs (target/debug/deps/check-4c39ab2732fd20fd)": {
+            "result": "FAILED",
+            "passed": 105,
+            "failed": 1,
+            "ignored": 0
+          },
+          "4: Running tests/check_cost_source.rs (target/debug/deps/check_cost_source-315cef2bac493723)": {
+            "result": "ok",
+            "passed": 10,
+            "failed": 0,
+            "ignored": 0
+          },
+          "5: Running tests/check_notes.rs (target/debug/deps/check_notes-65de04fe30519290)": {
+            "result": "ok",
+            "passed": 15,
+            "failed": 0,
+            "ignored": 0
+          },
+          "6: Running tests/cli_friction.rs (target/debug/deps/cli_friction-a2c55c3e94048e32)": {
+            "result": "ok",
+            "passed": 40,
+            "failed": 0,
+            "ignored": 0
+          },
+          "7: Running tests/clock.rs (target/debug/deps/clock-9e52c638bc0d2052)": {
+            "result": "FAILED",
+            "passed": 44,
+            "failed": 1,
+            "ignored": 0
+          },
+          "8: Running tests/column_commit.rs (target/debug/deps/column_commit-0ca2299b880770f2)": {
+            "result": "ok",
+            "passed": 1,
+            "failed": 0,
+            "ignored": 0
+          },
+          "9: Running tests/committer_ratchet.rs (target/debug/deps/committer_ratchet-4da7c9350f409e41)": {
+            "result": "ok",
+            "passed": 3,
+            "failed": 0,
+            "ignored": 0
+          },
+          "10: Running tests/day3.rs (target/debug/deps/day3-0cbae1965aafe1d9)": {
+            "result": "ok",
+            "passed": 20,
+            "failed": 0,
+            "ignored": 0
+          },
+          "11: Running tests/day4.rs (target/debug/deps/day4-fd96e690e82c791d)": {
+            "result": "ok",
+            "passed": 6,
+            "failed": 0,
+            "ignored": 0
+          },
+          "12: Running tests/day5_evidence.rs (target/debug/deps/day5_evidence-48c99fcd6b3d29ab)": {
+            "result": "ok",
+            "passed": 7,
+            "failed": 0,
+            "ignored": 0
+          },
+          "13: Running tests/day5_previews.rs (target/debug/deps/day5_previews-ce2908015c19be69)": {
+            "result": "ok",
+            "passed": 7,
+            "failed": 0,
+            "ignored": 0
+          },
+          "14: Running tests/day5_starters.rs (target/debug/deps/day5_starters-a0cb78e988dd43c1)": {
+            "result": "ok",
+            "passed": 8,
+            "failed": 0,
+            "ignored": 0
+          },
+          "15: Running tests/delivery_page.rs (target/debug/deps/delivery_page-ec8f34e39fa9ecf3)": {
+            "result": "ok",
+            "passed": 1,
+            "failed": 0,
+            "ignored": 0
+          },
+          "16: Running tests/dev_refusals.rs (target/debug/deps/dev_refusals-ed8c88d7299e2a2a)": {
+            "result": "ok",
+            "passed": 27,
+            "failed": 0,
+            "ignored": 0
+          },
+          "17: Running tests/dev_reset.rs (target/debug/deps/dev_reset-38a1b1f9e1bc0a28)": {
+            "result": "ok",
+            "passed": 4,
+            "failed": 0,
+            "ignored": 0
+          },
+          "18: Running tests/expiry_writes.rs (target/debug/deps/expiry_writes-4e133cbc3ef78564)": {
+            "result": "ok",
+            "passed": 41,
+            "failed": 0,
+            "ignored": 0
+          },
+          "19: Running tests/familiar.rs (target/debug/deps/familiar-80a0670fafe94517)": {
+            "result": "ok",
+            "passed": 3,
+            "failed": 0,
+            "ignored": 0
+          },
+          "20: Running tests/feed_bridge.rs (target/debug/deps/feed_bridge-5743acb2f346ceec)": {
+            "result": "ok",
+            "passed": 13,
+            "failed": 0,
+            "ignored": 0
+          },
+          "21: Running tests/fix.rs (target/debug/deps/fix-a0771b7851ff577d)": {
+            "result": "ok",
+            "passed": 27,
+            "failed": 0,
+            "ignored": 0
+          },
+          "22: Running tests/following_view.rs (target/debug/deps/following_view-6743cc51b3592a95)": {
+            "result": "ok",
+            "passed": 3,
+            "failed": 0,
+            "ignored": 0
+          },
+          "23: Running tests/http.rs (target/debug/deps/http-1bc7f8b1010e40ee)": {
+            "result": "ok",
+            "passed": 11,
+            "failed": 0,
+            "ignored": 0
+          },
+          "24: Running tests/http_emfile.rs (target/debug/deps/http_emfile-0e301f7ab702b42b)": {
+            "result": "ok",
+            "passed": 12,
+            "failed": 0,
+            "ignored": 0
+          },
+          "25: Running tests/init.rs (target/debug/deps/init-26f2d8e4934bb088)": {
+            "result": "FAILED",
+            "passed": 49,
+            "failed": 2,
+            "ignored": 0
+          },
+          "26: Running tests/init_dx3.rs (target/debug/deps/init_dx3-41a93770a1c8fabe)": {
+            "result": "ok",
+            "passed": 7,
+            "failed": 0,
+            "ignored": 0
+          },
+          "27: Running tests/init_production.rs (target/debug/deps/init_production-b643454555212a84)": {
+            "result": "ok",
+            "passed": 14,
+            "failed": 0,
+            "ignored": 0
+          },
+          "28: Running tests/intent_issue_tracker.rs (target/debug/deps/intent_issue_tracker-430e375ef5303481)": {
+            "result": "ok",
+            "passed": 13,
+            "failed": 0,
+            "ignored": 0
+          },
+          "29: Running tests/latency.rs (target/debug/deps/latency-5b0e20235927a257)": {
+            "result": "ok",
+            "passed": 21,
+            "failed": 0,
+            "ignored": 0
+          },
+          "30: Running tests/lifecycle.rs (target/debug/deps/lifecycle-60364057d1ce2ce7)": {
+            "result": "ok",
+            "passed": 29,
+            "failed": 0,
+            "ignored": 0
+          },
+          "31: Running tests/maintenance_chunks.rs (target/debug/deps/maintenance_chunks-6a584d27707d885c)": {
+            "result": "ok",
+            "passed": 5,
+            "failed": 0,
+            "ignored": 0
+          },
+          "32: Running tests/maintenance_latency.rs (target/debug/deps/maintenance_latency-32530983590970b8)": {
+            "result": "ok",
+            "passed": 0,
+            "failed": 0,
+            "ignored": 4
+          },
+          "33: Running tests/overload.rs (target/debug/deps/overload-b3cc5433670d161b)": {
+            "result": "ok",
+            "passed": 2,
+            "failed": 0,
+            "ignored": 0
+          },
+          "34: Running tests/read_latency.rs (target/debug/deps/read_latency-77780615a85529cc)": {
+            "result": "ok",
+            "passed": 0,
+            "failed": 0,
+            "ignored": 2
+          },
+          "35: Running tests/replay.rs (target/debug/deps/replay-a9ac7ed93bca6177)": {
+            "result": "ok",
+            "passed": 24,
+            "failed": 0,
+            "ignored": 0
+          },
+          "36: Running tests/run_admission.rs (target/debug/deps/run_admission-b9d7ad30de0cb684)": {
+            "result": "FAILED",
+            "passed": 27,
+            "failed": 1,
+            "ignored": 0
+          },
+          "37: Running tests/scale.rs (target/debug/deps/scale-6909007484cd4f16)": {
+            "result": "ok",
+            "passed": 29,
+            "failed": 0,
+            "ignored": 0
+          },
+          "38: Running tests/scale_curves.rs (target/debug/deps/scale_curves-24d9d34c902b88ac)": {
+            "result": "ok",
+            "passed": 2,
+            "failed": 0,
+            "ignored": 0
+          },
+          "39: Running tests/scale_extremum_expressions.rs (target/debug/deps/scale_extremum_expressions-3f508aeb4f38010d)": {
+            "result": "ok",
+            "passed": 22,
+            "failed": 0,
+            "ignored": 0
+          },
+          "40: Running tests/scale_intent.rs (target/debug/deps/scale_intent-51bcc491f08eeda1)": {
+            "result": "ok",
+            "passed": 17,
+            "failed": 0,
+            "ignored": 0
+          },
+          "41: Running tests/scale_row_ranges.rs (target/debug/deps/scale_row_ranges-11d572e3498a4f9c)": {
+            "result": "ok",
+            "passed": 14,
+            "failed": 0,
+            "ignored": 0
+          },
+          "42: Running tests/scale_variants.rs (target/debug/deps/scale_variants-b65d828726e86a0c)": {
+            "result": "ok",
+            "passed": 36,
+            "failed": 0,
+            "ignored": 0
+          },
+          "43: Running tests/scale_windows_expiry.rs (target/debug/deps/scale_windows_expiry-5cd07384fbfe881a)": {
+            "result": "ok",
+            "passed": 16,
+            "failed": 0,
+            "ignored": 0
+          },
+          "44: Running tests/security_reviews.rs (target/debug/deps/security_reviews-4f20ee539afef074)": {
+            "result": "ok",
+            "passed": 4,
+            "failed": 0,
+            "ignored": 0
+          },
+          "45: Running tests/security_wave19.rs (target/debug/deps/security_wave19-3ec77765cc2860bc)": {
+            "result": "FAILED",
+            "passed": 10,
+            "failed": 1,
+            "ignored": 0
+          },
+          "46: Running tests/store_handle_census.rs (target/debug/deps/store_handle_census-ba4efb56c44964e5)": {
+            "result": "ok",
+            "passed": 6,
+            "failed": 0,
+            "ignored": 0
+          },
+          "47: Running tests/store_port_ratchet.rs (target/debug/deps/store_port_ratchet-70c5ea865971df85)": {
+            "result": "ok",
+            "passed": 7,
+            "failed": 0,
+            "ignored": 0
+          },
+          "48: Running tests/surf4.rs (target/debug/deps/surf4-79b79fd64e353105)": {
+            "result": "ok",
+            "passed": 20,
+            "failed": 0,
+            "ignored": 0
+          },
+          "49: Running tests/timeline.rs (target/debug/deps/timeline-4fab85e349510ee1)": {
+            "result": "ok",
+            "passed": 23,
+            "failed": 0,
+            "ignored": 0
+          },
+          "50: Running tests/timeline_adoption.rs (target/debug/deps/timeline_adoption-e2a87e1211377869)": {
+            "result": "FAILED",
+            "passed": 13,
+            "failed": 2,
+            "ignored": 0
+          },
+          "51: Running tests/timeline_delivery.rs (target/debug/deps/timeline_delivery-82b53c6bca2b84cf)": {
+            "result": "ok",
+            "passed": 1,
+            "failed": 0,
+            "ignored": 0
+          },
+          "52: Running tests/timeline_delivery_counterexample.rs (target/debug/deps/timeline_delivery_counterexample-5123d42bee33b4ee)": {
+            "result": "ok",
+            "passed": 1,
+            "failed": 0,
+            "ignored": 0
+          },
+          "53: Running tests/timeline_design.rs (target/debug/deps/timeline_design-e2c7a36323b308c9)": {
+            "result": "ok",
+            "passed": 2,
+            "failed": 0,
+            "ignored": 0
+          },
+          "54: Running tests/token_live.rs (target/debug/deps/token_live-e98a0d9617c64273)": {
+            "result": "ok",
+            "passed": 22,
+            "failed": 0,
+            "ignored": 0
+          },
+          "55: Running tests/wave13_rules.rs (target/debug/deps/wave13_rules-0ea9c166f90437be)": {
+            "result": "ok",
+            "passed": 9,
+            "failed": 0,
+            "ignored": 0
+          },
+          "56: Running tests/witness.rs (target/debug/deps/witness-82674cf31d36026b)": {
+            "result": "ok",
+            "passed": 34,
+            "failed": 0,
+            "ignored": 0
+          },
+          "57: Running tests/witness_web.rs (target/debug/deps/witness_web-d60ea07b2cd9c652)": {
+            "result": "FAILED",
+            "passed": 0,
+            "failed": 1,
+            "ignored": 0
+          },
+          "58: Running tests/work_records.rs (target/debug/deps/work_records-8b32671084830b8f)": {
+            "result": "ok",
+            "passed": 1,
+            "failed": 0,
+            "ignored": 0
+          },
+          "59: Running tests/written_by.rs (target/debug/deps/written_by-89655da2865b3a26)": {
+            "result": "ok",
+            "passed": 1,
+            "failed": 0,
+            "ignored": 0
+          }
+        }
+      }
+    },
+    {
+      "name": "cli-isolated-0",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "snapback4",
+        "--bin",
+        "snapback4",
+        "-j",
+        "6",
+        "--",
+        "serve::maintenance::tests::kit3_interrupted_clock_drain_refuses_with_clock_evidence_and_queued_work",
+        "--exact",
+        "--nocapture"
+      ],
+      "cwd": "/home/ccheever/projects/sb4-s10a/snapback4",
+      "pid": 859253,
+      "log": "/tmp/sb4-k0q-fix2-final/cli-isolated-0.log",
+      "exit": 101,
+      "seconds": 2.0,
+      "rust_results": {
+        "totals": {
+          "passed": 0,
+          "failed": 1,
+          "ignored": 0
+        },
+        "targets": {
+          "1: Running unittests src/main.rs (target/debug/deps/snapback4-4dae3967bd525305)": {
+            "result": "FAILED",
+            "passed": 0,
+            "failed": 1,
+            "ignored": 0
+          }
+        }
+      }
+    },
+    {
+      "name": "cli-isolated-1",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "snapback4",
+        "--bin",
+        "snapback4",
+        "-j",
+        "6",
+        "--",
+        "verbs::doctor_tests::w11_check_renderer_has_a_dedicated_excerpt_for_every_registered_code",
+        "--exact",
+        "--nocapture"
+      ],
+      "cwd": "/home/ccheever/projects/sb4-s10a/snapback4",
+      "pid": 859327,
+      "log": "/tmp/sb4-k0q-fix2-final/cli-isolated-1.log",
+      "exit": 101,
+      "seconds": 2.0,
+      "rust_results": {
+        "totals": {
+          "passed": 0,
+          "failed": 1,
+          "ignored": 0
+        },
+        "targets": {
+          "1: Running unittests src/main.rs (target/debug/deps/snapback4-4dae3967bd525305)": {
+            "result": "FAILED",
+            "passed": 0,
+            "failed": 1,
+            "ignored": 0
+          }
+        }
+      }
+    },
+    {
+      "name": "cli-isolated-2",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "snapback4",
+        "--test",
+        "check",
+        "-j",
+        "6",
+        "--",
+        "w11_why_every_registered_code_returns_its_dedicated_section",
+        "--exact",
+        "--nocapture"
+      ],
+      "cwd": "/home/ccheever/projects/sb4-s10a/snapback4",
+      "pid": 859388,
+      "log": "/tmp/sb4-k0q-fix2-final/cli-isolated-2.log",
+      "exit": 101,
+      "seconds": 2.0,
+      "rust_results": {
+        "totals": {
+          "passed": 0,
+          "failed": 1,
+          "ignored": 0
+        },
+        "targets": {
+          "1: Running tests/check.rs (target/debug/deps/check-4c39ab2732fd20fd)": {
+            "result": "FAILED",
+            "passed": 0,
+            "failed": 1,
+            "ignored": 0
+          }
+        }
+      }
+    },
+    {
+      "name": "cli-isolated-3",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "snapback4",
+        "--test",
+        "clock",
+        "-j",
+        "6",
+        "--",
+        "advance_drains_expiry_across_multiple_bounded_sweeps",
+        "--exact",
+        "--nocapture"
+      ],
+      "cwd": "/home/ccheever/projects/sb4-s10a/snapback4",
+      "pid": 859466,
+      "log": "/tmp/sb4-k0q-fix2-final/cli-isolated-3.log",
+      "exit": 0,
+      "seconds": 4.0,
+      "rust_results": {
+        "totals": {
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0
+        },
+        "targets": {
+          "1: Running tests/clock.rs (target/debug/deps/clock-9e52c638bc0d2052)": {
+            "result": "ok",
+            "passed": 1,
+            "failed": 0,
+            "ignored": 0
+          }
+        }
+      }
+    },
+    {
+      "name": "cli-isolated-4",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "snapback4",
+        "--test",
+        "init",
+        "-j",
+        "6",
+        "--",
+        "w8b_residency_measures_the_wired_calibration_shape",
+        "--exact",
+        "--nocapture"
+      ],
+      "cwd": "/home/ccheever/projects/sb4-s10a/snapback4",
+      "pid": 859590,
+      "log": "/tmp/sb4-k0q-fix2-final/cli-isolated-4.log",
+      "exit": 101,
+      "seconds": 4.0,
+      "rust_results": {
+        "totals": {
+          "passed": 0,
+          "failed": 1,
+          "ignored": 0
+        },
+        "targets": {
+          "1: Running tests/init.rs (target/debug/deps/init-26f2d8e4934bb088)": {
+            "result": "FAILED",
+            "passed": 0,
+            "failed": 1,
+            "ignored": 0
+          }
+        }
+      }
+    },
+    {
+      "name": "cli-isolated-5",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "snapback4",
+        "--test",
+        "init",
+        "-j",
+        "6",
+        "--",
+        "w7a_residency_measures_the_wired_500_follow_reader",
+        "--exact",
+        "--nocapture"
+      ],
+      "cwd": "/home/ccheever/projects/sb4-s10a/snapback4",
+      "pid": 859699,
+      "log": "/tmp/sb4-k0q-fix2-final/cli-isolated-5.log",
+      "exit": 101,
+      "seconds": 4.0,
+      "rust_results": {
+        "totals": {
+          "passed": 0,
+          "failed": 1,
+          "ignored": 0
+        },
+        "targets": {
+          "1: Running tests/init.rs (target/debug/deps/init-26f2d8e4934bb088)": {
+            "result": "FAILED",
+            "passed": 0,
+            "failed": 1,
+            "ignored": 0
+          }
+        }
+      }
+    },
+    {
+      "name": "cli-isolated-6",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "snapback4",
+        "--test",
+        "run_admission",
+        "-j",
+        "6",
+        "--",
+        "live_dev_forwards_run_refuses_other_offline_writers_with_its_address_and_releases_on_exit",
+        "--exact",
+        "--nocapture"
+      ],
+      "cwd": "/home/ccheever/projects/sb4-s10a/snapback4",
+      "pid": 859736,
+      "log": "/tmp/sb4-k0q-fix2-final/cli-isolated-6.log",
+      "exit": 101,
+      "seconds": 10.0,
+      "rust_results": {
+        "totals": {
+          "passed": 0,
+          "failed": 1,
+          "ignored": 0
+        },
+        "targets": {
+          "1: Running tests/run_admission.rs (target/debug/deps/run_admission-b9d7ad30de0cb684)": {
+            "result": "FAILED",
+            "passed": 0,
+            "failed": 1,
+            "ignored": 0
+          }
+        }
+      }
+    },
+    {
+      "name": "cli-isolated-7",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "snapback4",
+        "--test",
+        "security_wave19",
+        "-j",
+        "6",
+        "--",
+        "check_refutes_excluded_contact_roles_before_any_full_test",
+        "--exact",
+        "--nocapture"
+      ],
+      "cwd": "/home/ccheever/projects/sb4-s10a/snapback4",
+      "pid": 860260,
+      "log": "/tmp/sb4-k0q-fix2-final/cli-isolated-7.log",
+      "exit": 0,
+      "seconds": 6.0,
+      "rust_results": {
+        "totals": {
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0
+        },
+        "targets": {
+          "1: Running tests/security_wave19.rs (target/debug/deps/security_wave19-3ec77765cc2860bc)": {
+            "result": "ok",
+            "passed": 1,
+            "failed": 0,
+            "ignored": 0
+          }
+        }
+      }
+    },
+    {
+      "name": "cli-isolated-8",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "snapback4",
+        "--test",
+        "timeline_adoption",
+        "-j",
+        "6",
+        "--",
+        "check_and_adoption_agree_across_expiry_through_changes_and_following_presence",
+        "--exact",
+        "--nocapture"
+      ],
+      "cwd": "/home/ccheever/projects/sb4-s10a/snapback4",
+      "pid": 860468,
+      "log": "/tmp/sb4-k0q-fix2-final/cli-isolated-8.log",
+      "exit": 101,
+      "seconds": 4.01,
+      "rust_results": {
+        "totals": {
+          "passed": 0,
+          "failed": 1,
+          "ignored": 0
+        },
+        "targets": {
+          "1: Running tests/timeline_adoption.rs (target/debug/deps/timeline_adoption-e2a87e1211377869)": {
+            "result": "FAILED",
+            "passed": 0,
+            "failed": 1,
+            "ignored": 0
+          }
+        }
+      }
+    },
+    {
+      "name": "cli-isolated-9",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "snapback4",
+        "--test",
+        "timeline_adoption",
+        "-j",
+        "6",
+        "--",
+        "retirement_resets_dependent_aggregates_even_when_all_names_survive",
+        "--exact",
+        "--nocapture"
+      ],
+      "cwd": "/home/ccheever/projects/sb4-s10a/snapback4",
+      "pid": 860650,
+      "log": "/tmp/sb4-k0q-fix2-final/cli-isolated-9.log",
+      "exit": 101,
+      "seconds": 2.01,
+      "rust_results": {
+        "totals": {
+          "passed": 0,
+          "failed": 1,
+          "ignored": 0
+        },
+        "targets": {
+          "1: Running tests/timeline_adoption.rs (target/debug/deps/timeline_adoption-e2a87e1211377869)": {
+            "result": "FAILED",
+            "passed": 0,
+            "failed": 1,
+            "ignored": 0
+          }
+        }
+      }
+    },
+    {
+      "name": "cli-isolated-10",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "snapback4",
+        "--test",
+        "witness_web",
+        "-j",
+        "6",
+        "--",
+        "web_witness_help_and_invalid_input",
+        "--exact",
+        "--nocapture"
+      ],
+      "cwd": "/home/ccheever/projects/sb4-s10a/snapback4",
+      "pid": 860789,
+      "log": "/tmp/sb4-k0q-fix2-final/cli-isolated-10.log",
+      "exit": 101,
+      "seconds": 265.44,
+      "rust_results": {
+        "totals": {
+          "passed": 0,
+          "failed": 1,
+          "ignored": 0
+        },
+        "targets": {
+          "1: Running tests/witness_web.rs (target/debug/deps/witness_web-d60ea07b2cd9c652)": {
+            "result": "FAILED",
+            "passed": 0,
+            "failed": 1,
+            "ignored": 0
+          }
+        }
+      }
+    },
+    {
+      "name": "device",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "snapback4-device",
+        "--no-fail-fast",
+        "-j",
+        "6"
+      ],
+      "cwd": "/home/ccheever/projects/sb4-s10a/snapback4",
+      "pid": 899630,
+      "log": "/tmp/sb4-k0q-fix2-final/device.log",
+      "exit": 101,
+      "seconds": 5142.48,
+      "failed_tests": [
+        {
+          "target": [
+            "--test",
+            "readauth"
+          ],
+          "test": "outcomes::bridge_publish_memory"
+        },
+        {
+          "target": [
+            "--test",
+            "readauth"
+          ],
+          "test": "outcomes::bridge_publish_sqlite"
+        },
+        {
+          "target": [
+            "--test",
+            "readauth"
+          ],
+          "test": "outcomes::bridge_repost_memory"
+        },
+        {
+          "target": [
+            "--test",
+            "readauth"
+          ],
+          "test": "outcomes::bridge_repost_sqlite"
+        },
+        {
+          "target": [
+            "--test",
+            "readauth"
+          ],
+          "test": "outcomes::recipe_post_memory"
+        },
+        {
+          "target": [
+            "--test",
+            "readauth"
+          ],
+          "test": "outcomes::recipe_post_sqlite"
+        },
+        {
+          "target": [
+            "--test",
+            "readauth"
+          ],
+          "test": "outcomes::recipe_repost_memory"
+        },
+        {
+          "target": [
+            "--test",
+            "readauth"
+          ],
+          "test": "outcomes::recipe_repost_sqlite"
+        }
+      ],
+      "rust_results": {
+        "totals": {
+          "passed": 1565,
+          "failed": 8,
+          "ignored": 4
+        },
+        "targets": {
+          "1: Running unittests src/lib.rs (target/debug/deps/snapback4_device-fad54f1ba6d8b8ef)": {
+            "result": "ok",
+            "passed": 63,
+            "failed": 0,
+            "ignored": 0
+          },
+          "2: Running tests/acquisition_crash.rs (target/debug/deps/acquisition_crash-57dfb08fa2cb90eb)": {
+            "result": "ok",
+            "passed": 3,
+            "failed": 0,
+            "ignored": 0
+          },
+          "3: Running tests/adoption.rs (target/debug/deps/adoption-3d48519d89929813)": {
+            "result": "ok",
+            "passed": 6,
+            "failed": 0,
+            "ignored": 0
+          },
+          "4: Running tests/asset_lists.rs (target/debug/deps/asset_lists-134922416c73e270)": {
+            "result": "ok",
+            "passed": 22,
+            "failed": 0,
+            "ignored": 0
+          },
+          "5: Running tests/background_durability.rs (target/debug/deps/background_durability-0767af3b5365e4e8)": {
+            "result": "ok",
+            "passed": 2,
+            "failed": 0,
+            "ignored": 0
+          },
+          "6: Running tests/bounded_calendar_caps.rs (target/debug/deps/bounded_calendar_caps-81385b41d066f9ed)": {
+            "result": "ok",
+            "passed": 8,
+            "failed": 0,
+            "ignored": 0
+          },
+          "7: Running tests/bounded_following.rs (target/debug/deps/bounded_following-06917e9ae6fbb333)": {
+            "result": "ok",
+            "passed": 11,
+            "failed": 0,
+            "ignored": 0
+          },
+          "8: Running tests/branch_merge.rs (target/debug/deps/branch_merge-d52a1741441103e8)": {
+            "result": "ok",
+            "passed": 21,
+            "failed": 0,
+            "ignored": 0
+          },
+          "9: Running tests/codec.rs (target/debug/deps/codec-b5fc5fdef86285c2)": {
+            "result": "ok",
+            "passed": 12,
+            "failed": 0,
+            "ignored": 0
+          },
+          "10: Running tests/column_activation.rs (target/debug/deps/column_activation-23f1eeb4381fe875)": {
+            "result": "ok",
+            "passed": 1,
+            "failed": 0,
+            "ignored": 0
+          },
+          "11: Running tests/column_reads.rs (target/debug/deps/column_reads-31e4e525b3243f1e)": {
+            "result": "ok",
+            "passed": 4,
+            "failed": 0,
+            "ignored": 0
+          },
+          "12: Running tests/components.rs (target/debug/deps/components-0d85a561eaff81ae)": {
+            "result": "ok",
+            "passed": 10,
+            "failed": 0,
+            "ignored": 0
+          },
+          "13: Running tests/cut.rs (target/debug/deps/cut-72a8694ec68a6f1a)": {
+            "result": "ok",
+            "passed": 5,
+            "failed": 0,
+            "ignored": 0
+          },
+          "14: Running tests/delivery.rs (target/debug/deps/delivery-741b38e60148ec89)": {
+            "result": "ok",
+            "passed": 30,
+            "failed": 0,
+            "ignored": 0
+          },
+          "15: Running tests/device.rs (target/debug/deps/device-8c46c11db1145dbf)": {
+            "result": "ok",
+            "passed": 440,
+            "failed": 0,
+            "ignored": 0
+          },
+          "16: Running tests/device_diet.rs (target/debug/deps/device_diet-cd5b11423bd275d4)": {
+            "result": "ok",
+            "passed": 2,
+            "failed": 0,
+            "ignored": 0
+          },
+          "17: Running tests/diet_timing.rs (target/debug/deps/diet_timing-41de706fe7e07cca)": {
+            "result": "ok",
+            "passed": 0,
+            "failed": 0,
+            "ignored": 1
+          },
+          "18: Running tests/disclosure.rs (target/debug/deps/disclosure-e340e60624b76530)": {
+            "result": "ok",
+            "passed": 21,
+            "failed": 0,
+            "ignored": 0
+          },
+          "19: Running tests/ephemeral.rs (target/debug/deps/ephemeral-74470aa0d347f79e)": {
+            "result": "ok",
+            "passed": 2,
+            "failed": 0,
+            "ignored": 0
+          },
+          "20: Running tests/event_slots.rs (target/debug/deps/event_slots-460b3c34e2680734)": {
+            "result": "ok",
+            "passed": 8,
+            "failed": 0,
+            "ignored": 0
+          },
+          "21: Running tests/event_slots_trace.rs (target/debug/deps/event_slots_trace-da97e91645bfaf3c)": {
+            "result": "ok",
+            "passed": 2,
+            "failed": 0,
+            "ignored": 0
+          },
+          "22: Running tests/expiring_counts.rs (target/debug/deps/expiring_counts-53e49bac0350adb3)": {
+            "result": "ok",
+            "passed": 9,
+            "failed": 0,
+            "ignored": 1
+          },
+          "23: Running tests/expiring_counts_probe.rs (target/debug/deps/expiring_counts_probe-eceee3329e9e7888)": {
+            "result": "ok",
+            "passed": 2,
+            "failed": 0,
+            "ignored": 0
+          },
+          "24: Running tests/expiring_counts_upgrade.rs (target/debug/deps/expiring_counts_upgrade-b6906318543e9ae9)": {
+            "result": "ok",
+            "passed": 5,
+            "failed": 0,
+            "ignored": 0
+          },
+          "25: Running tests/expiring_mutations.rs (target/debug/deps/expiring_mutations-2f1d94cd4117a68c)": {
+            "result": "ok",
+            "passed": 4,
+            "failed": 0,
+            "ignored": 0
+          },
+          "26: Running tests/expiry_maintained_columns.rs (target/debug/deps/expiry_maintained_columns-10ea5f97d4e98bbe)": {
+            "result": "ok",
+            "passed": 2,
+            "failed": 0,
+            "ignored": 0
+          },
+          "27: Running tests/extrema.rs (target/debug/deps/extrema-ba2816bf9ae4f481)": {
+            "result": "ok",
+            "passed": 2,
+            "failed": 0,
+            "ignored": 0
+          },
+          "28: Running tests/extremum_expressions.rs (target/debug/deps/extremum_expressions-e738615ba04b4c87)": {
+            "result": "ok",
+            "passed": 8,
+            "failed": 0,
+            "ignored": 0
+          },
+          "29: Running tests/file_assets.rs (target/debug/deps/file_assets-29485292679a8813)": {
+            "result": "ok",
+            "passed": 4,
+            "failed": 0,
+            "ignored": 0
+          },
+          "30: Running tests/first_instinct.rs (target/debug/deps/first_instinct-a3be6cee1323c2e2)": {
+            "result": "ok",
+            "passed": 4,
+            "failed": 0,
+            "ignored": 0
+          },
+          "31: Running tests/first_paste.rs (target/debug/deps/first_paste-918baa033c430f1c)": {
+            "result": "ok",
+            "passed": 2,
+            "failed": 0,
+            "ignored": 0
+          },
+          "32: Running tests/following_meters.rs (target/debug/deps/following_meters-0a2021be417c6ef0)": {
+            "result": "ok",
+            "passed": 2,
+            "failed": 0,
+            "ignored": 0
+          },
+          "33: Running tests/following_model.rs (target/debug/deps/following_model-6216a26c59591f2d)": {
+            "result": "ok",
+            "passed": 2,
+            "failed": 0,
+            "ignored": 0
+          },
+          "34: Running tests/following_view.rs (target/debug/deps/following_view-b7a55ba2cc90d97f)": {
+            "result": "ok",
+            "passed": 6,
+            "failed": 0,
+            "ignored": 0
+          },
+          "35: Running tests/heavy_acquisition.rs (target/debug/deps/heavy_acquisition-9514a562cd2c9d16)": {
+            "result": "ok",
+            "passed": 1,
+            "failed": 0,
+            "ignored": 0
+          },
+          "36: Running tests/helper_pages.rs (target/debug/deps/helper_pages-8305d33404d6c140)": {
+            "result": "ok",
+            "passed": 90,
+            "failed": 0,
+            "ignored": 0
+          },
+          "37: Running tests/index_key_bound.rs (target/debug/deps/index_key_bound-0f54d3dadfb6ce99)": {
+            "result": "ok",
+            "passed": 3,
+            "failed": 0,
+            "ignored": 0
+          },
+          "38: Running tests/intent_variants.rs (target/debug/deps/intent_variants-7109867c02352af8)": {
+            "result": "ok",
+            "passed": 4,
+            "failed": 0,
+            "ignored": 0
+          },
+          "39: Running tests/intent_views.rs (target/debug/deps/intent_views-db2d4823716e0a3c)": {
+            "result": "ok",
+            "passed": 16,
+            "failed": 0,
+            "ignored": 0
+          },
+          "40: Running tests/list_lower_bounds.rs (target/debug/deps/list_lower_bounds-ef9ffa9db2b59fe8)": {
+            "result": "ok",
+            "passed": 2,
+            "failed": 0,
+            "ignored": 0
+          },
+          "41: Running tests/live_parent.rs (target/debug/deps/live_parent-27d003b115ccdc53)": {
+            "result": "ok",
+            "passed": 7,
+            "failed": 0,
+            "ignored": 0
+          },
+          "42: Running tests/matching_order.rs (target/debug/deps/matching_order-e9483698969475bb)": {
+            "result": "ok",
+            "passed": 6,
+            "failed": 0,
+            "ignored": 0
+          },
+          "43: Running tests/mixed_keys.rs (target/debug/deps/mixed_keys-4eba8737ff320ab5)": {
+            "result": "ok",
+            "passed": 2,
+            "failed": 0,
+            "ignored": 0
+          },
+          "44: Running tests/monotonic_ids.rs (target/debug/deps/monotonic_ids-c70fcf420d392481)": {
+            "result": "ok",
+            "passed": 2,
+            "failed": 0,
+            "ignored": 0
+          },
+          "45: Running tests/mp_builder.rs (target/debug/deps/mp_builder-6a2ae511b37874e9)": {
+            "result": "ok",
+            "passed": 5,
+            "failed": 0,
+            "ignored": 0
+          },
+          "46: Running tests/named_key_lookup.rs (target/debug/deps/named_key_lookup-8b3cc719f31502d0)": {
+            "result": "ok",
+            "passed": 17,
+            "failed": 0,
+            "ignored": 0
+          },
+          "47: Running tests/native.rs (target/debug/deps/native-4379208e6ca3ed23)": {
+            "result": "ok",
+            "passed": 8,
+            "failed": 0,
+            "ignored": 0
+          },
+          "48: Running tests/native_following.rs (target/debug/deps/native_following-5ee6472d968360ff)": {
+            "result": "ok",
+            "passed": 2,
+            "failed": 0,
+            "ignored": 0
+          },
+          "49: Running tests/native_reads.rs (target/debug/deps/native_reads-f35070a2e8083050)": {
+            "result": "ok",
+            "passed": 8,
+            "failed": 0,
+            "ignored": 0
+          },
+          "50: Running tests/natural_forms.rs (target/debug/deps/natural_forms-dae9b2b625567ee3)": {
+            "result": "ok",
+            "passed": 5,
+            "failed": 0,
+            "ignored": 0
+          },
+          "51: Running tests/nl_qe2_integration.rs (target/debug/deps/nl_qe2_integration-7e735a8f7d7f3457)": {
+            "result": "ok",
+            "passed": 9,
+            "failed": 0,
+            "ignored": 0
+          },
+          "52: Running tests/own_keys.rs (target/debug/deps/own_keys-16d2b2510063e31d)": {
+            "result": "ok",
+            "passed": 6,
+            "failed": 0,
+            "ignored": 0
+          },
+          "53: Running tests/own_keys_cost.rs (target/debug/deps/own_keys_cost-01b061c50890d736)": {
+            "result": "ok",
+            "passed": 0,
+            "failed": 0,
+            "ignored": 2
+          },
+          "54: Running tests/point_probe_admission.rs (target/debug/deps/point_probe_admission-1c56bc913fcf1317)": {
+            "result": "ok",
+            "passed": 11,
+            "failed": 0,
+            "ignored": 0
+          },
+          "55: Running tests/prediction_write_set.rs (target/debug/deps/prediction_write_set-5f29d9ca388f8597)": {
+            "result": "ok",
+            "passed": 2,
+            "failed": 0,
+            "ignored": 0
+          },
+          "56: Running tests/qe2_allocations.rs (target/debug/deps/qe2_allocations-8143750fcd09c0f2)": {
+            "result": "ok",
+            "passed": 8,
+            "failed": 0,
+            "ignored": 0
+          },
+          "57: Running tests/qe2_ergonomics.rs (target/debug/deps/qe2_ergonomics-352f460f628df118)": {
+            "result": "ok",
+            "passed": 2,
+            "failed": 0,
+            "ignored": 0
+          },
+          "58: Running tests/query_unavailable.rs (target/debug/deps/query_unavailable-4a2fcbe096227945)": {
+            "result": "ok",
+            "passed": 2,
+            "failed": 0,
+            "ignored": 0
+          },
+          "59: Running tests/read_through.rs (target/debug/deps/read_through-23ebfd33d379639e)": {
+            "result": "ok",
+            "passed": 9,
+            "failed": 0,
+            "ignored": 0
+          },
+          "60: Running tests/read_through_review.rs (target/debug/deps/read_through_review-23822cf16e84cb2c)": {
+            "result": "ok",
+            "passed": 3,
+            "failed": 0,
+            "ignored": 0
+          },
+          "61: Running tests/readauth.rs (target/debug/deps/readauth-5a3f20b2def6e338)": {
+            "result": "FAILED",
+            "passed": 80,
+            "failed": 8,
+            "ignored": 0
+          },
+          "62: Running tests/recorded_coverage.rs (target/debug/deps/recorded_coverage-363f9686b06a1a9b)": {
+            "result": "ok",
+            "passed": 24,
+            "failed": 0,
+            "ignored": 0
+          },
+          "63: Running tests/reference_actions.rs (target/debug/deps/reference_actions-3315d1795f169b0b)": {
+            "result": "ok",
+            "passed": 4,
+            "failed": 0,
+            "ignored": 0
+          },
+          "64: Running tests/repair_b.rs (target/debug/deps/repair_b-f72d96a3cac39560)": {
+            "result": "ok",
+            "passed": 110,
+            "failed": 0,
+            "ignored": 0
+          },
+          "65: Running tests/repair_b_boundaries.rs (target/debug/deps/repair_b_boundaries-84803df4527636d4)": {
+            "result": "ok",
+            "passed": 6,
+            "failed": 0,
+            "ignored": 0
+          },
+          "66: Running tests/repair_b_counterexample.rs (target/debug/deps/repair_b_counterexample-3c7b01f43cf45d0e)": {
+            "result": "ok",
+            "passed": 2,
+            "failed": 0,
+            "ignored": 0
+          },
+          "67: Running tests/repair_b_legacy_r6.rs (target/debug/deps/repair_b_legacy_r6-77ea3a93365722c6)": {
+            "result": "ok",
+            "passed": 4,
+            "failed": 0,
+            "ignored": 0
+          },
+          "68: Running tests/repair_b_round2_counterexample.rs (target/debug/deps/repair_b_round2_counterexample-18f4d4a7b7d8f58b)": {
+            "result": "ok",
+            "passed": 4,
+            "failed": 0,
+            "ignored": 0
+          },
+          "69: Running tests/repair_b_round3_counterexample.rs (target/debug/deps/repair_b_round3_counterexample-8e357ea10ad11aa7)": {
+            "result": "ok",
+            "passed": 6,
+            "failed": 0,
+            "ignored": 0
+          },
+          "70: Running tests/residency.rs (target/debug/deps/residency-f16f5fa98aef7b4e)": {
+            "result": "ok",
+            "passed": 7,
+            "failed": 0,
+            "ignored": 0
+          },
+          "71: Running tests/retained_history.rs (target/debug/deps/retained_history-0304fba5051be329)": {
+            "result": "ok",
+            "passed": 20,
+            "failed": 0,
+            "ignored": 0
+          },
+          "72: Running tests/retained_release.rs (target/debug/deps/retained_release-8f496cc951a1abd9)": {
+            "result": "ok",
+            "passed": 3,
+            "failed": 0,
+            "ignored": 0
+          },
+          "73: Running tests/review_parent_floor.rs (target/debug/deps/review_parent_floor-2e5ca5b4dd79b529)": {
+            "result": "ok",
+            "passed": 2,
+            "failed": 0,
+            "ignored": 0
+          },
+          "74: Running tests/row_keyed_views.rs (target/debug/deps/row_keyed_views-52dbebe32b0914f5)": {
+            "result": "ok",
+            "passed": 24,
+            "failed": 0,
+            "ignored": 0
+          },
+          "75: Running tests/row_view_disclosure.rs (target/debug/deps/row_view_disclosure-c732346425532958)": {
+            "result": "ok",
+            "passed": 6,
+            "failed": 0,
+            "ignored": 0
+          },
+          "76: Running tests/row_view_expiry.rs (target/debug/deps/row_view_expiry-a855e2c4aa9bc2aa)": {
+            "result": "ok",
+            "passed": 14,
+            "failed": 0,
+            "ignored": 0
+          },
+          "77: Running tests/rx_rule_hops.rs (target/debug/deps/rx_rule_hops-656e14e8a3e6862b)": {
+            "result": "ok",
+            "passed": 2,
+            "failed": 0,
+            "ignored": 0
+          },
+          "78: Running tests/schema_capabilities.rs (target/debug/deps/schema_capabilities-809a803fe296da20)": {
+            "result": "ok",
+            "passed": 12,
+            "failed": 0,
+            "ignored": 0
+          },
+          "79: Running tests/schema_capabilities_legacy.rs (target/debug/deps/schema_capabilities_legacy-a341ca20dfaebd67)": {
+            "result": "ok",
+            "passed": 6,
+            "failed": 0,
+            "ignored": 0
+          },
+          "80: Running tests/search_exists.rs (target/debug/deps/search_exists-5a9ac71cbad1d7b4)": {
+            "result": "ok",
+            "passed": 3,
+            "failed": 0,
+            "ignored": 0
+          },
+          "81: Running tests/sequence_by.rs (target/debug/deps/sequence_by-e41dc28f59583a8d)": {
+            "result": "ok",
+            "passed": 12,
+            "failed": 0,
+            "ignored": 0
+          },
+          "82: Running tests/sequence_disclosure.rs (target/debug/deps/sequence_disclosure-8f2262144c27949e)": {
+            "result": "ok",
+            "passed": 4,
+            "failed": 0,
+            "ignored": 0
+          },
+          "83: Running tests/server_clock.rs (target/debug/deps/server_clock-ee43ad5d9616a274)": {
+            "result": "ok",
+            "passed": 9,
+            "failed": 0,
+            "ignored": 0
+          },
+          "84: Running tests/shape_overrides.rs (target/debug/deps/shape_overrides-9cf8c76f454f7ed1)": {
+            "result": "ok",
+            "passed": 2,
+            "failed": 0,
+            "ignored": 0
+          },
+          "85: Running tests/spread_metadata.rs (target/debug/deps/spread_metadata-0236c96365a63de5)": {
+            "result": "ok",
+            "passed": 2,
+            "failed": 0,
+            "ignored": 0
+          },
+          "86: Running tests/spread_pending_union.rs (target/debug/deps/spread_pending_union-dfbb75dff0e1cf28)": {
+            "result": "ok",
+            "passed": 2,
+            "failed": 0,
+            "ignored": 0
+          },
+          "87: Running tests/sqlite_bulk.rs (target/debug/deps/sqlite_bulk-14a3dafe33433e1f)": {
+            "result": "ok",
+            "passed": 1,
+            "failed": 0,
+            "ignored": 0
+          },
+          "88: Running tests/sync_windows.rs (target/debug/deps/sync_windows-6fdda7dbc03ef19e)": {
+            "result": "ok",
+            "passed": 2,
+            "failed": 0,
+            "ignored": 0
+          },
+          "89: Running tests/time_audiences.rs (target/debug/deps/time_audiences-9373d1fe0abed38c)": {
+            "result": "ok",
+            "passed": 6,
+            "failed": 0,
+            "ignored": 0
+          },
+          "90: Running tests/timed_search.rs (target/debug/deps/timed_search-8ef52d0bd596322f)": {
+            "result": "ok",
+            "passed": 2,
+            "failed": 0,
+            "ignored": 0
+          },
+          "91: Running tests/timeline.rs (target/debug/deps/timeline-06dabd28b9b37647)": {
+            "result": "ok",
+            "passed": 26,
+            "failed": 0,
+            "ignored": 0
+          },
+          "92: Running tests/topn_complete.rs (target/debug/deps/topn_complete-9d851a7a6b889e25)": {
+            "result": "ok",
+            "passed": 8,
+            "failed": 0,
+            "ignored": 0
+          },
+          "93: Running tests/unicode.rs (target/debug/deps/unicode-158accdc3f9815a2)": {
+            "result": "ok",
+            "passed": 1,
+            "failed": 0,
+            "ignored": 0
+          },
+          "94: Running tests/unread_range.rs (target/debug/deps/unread_range-85cd5a6926a3f79d)": {
+            "result": "ok",
+            "passed": 7,
+            "failed": 0,
+            "ignored": 0
+          },
+          "95: Running tests/upload_intents.rs (target/debug/deps/upload_intents-9b90eb983b3129c7)": {
+            "result": "ok",
+            "passed": 6,
+            "failed": 0,
+            "ignored": 0
+          },
+          "96: Running tests/upload_receipts.rs (target/debug/deps/upload_receipts-f2562dc930e61aca)": {
+            "result": "ok",
+            "passed": 2,
+            "failed": 0,
+            "ignored": 0
+          },
+          "97: Running tests/upsert_constraints.rs (target/debug/deps/upsert_constraints-116fbd5486f895dd)": {
+            "result": "ok",
+            "passed": 2,
+            "failed": 0,
+            "ignored": 0
+          },
+          "98: Running tests/w13g_probe.rs (target/debug/deps/w13g_probe-733c55b2ca659d52)": {
+            "result": "ok",
+            "passed": 142,
+            "failed": 0,
+            "ignored": 0
+          },
+          "99: Running tests/wave11_qdiag.rs (target/debug/deps/wave11_qdiag-6ae7ba8f631f1646)": {
+            "result": "ok",
+            "passed": 2,
+            "failed": 0,
+            "ignored": 0
+          },
+          "100: Running tests/wave12_language.rs (target/debug/deps/wave12_language-2d5a693fd488bf14)": {
+            "result": "ok",
+            "passed": 2,
+            "failed": 0,
+            "ignored": 0
+          },
+          "101: Running tests/wave13_lang2.rs (target/debug/deps/wave13_lang2-d0ba17929eb6b040)": {
+            "result": "ok",
+            "passed": 4,
+            "failed": 0,
+            "ignored": 0
+          },
+          "102: Running tests/write_authority.rs (target/debug/deps/write_authority-d13c4d5feb6de8fa)": {
+            "result": "ok",
+            "passed": 10,
+            "failed": 0,
+            "ignored": 0
+          },
+          "103: Running tests/written_by.rs (target/debug/deps/written_by-b9e32a3e8adc696d)": {
+            "result": "ok",
+            "passed": 17,
+            "failed": 0,
+            "ignored": 0
+          },
+          "104: Doc-tests snapback4_device": {
+            "result": "ok",
+            "passed": 0,
+            "failed": 0,
+            "ignored": 0
+          }
+        }
+      }
+    },
+    {
+      "name": "device-isolated-0",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "snapback4-device",
+        "--test",
+        "readauth",
+        "-j",
+        "6",
+        "--",
+        "outcomes::bridge_publish_memory",
+        "--exact",
+        "--nocapture"
+      ],
+      "cwd": "/home/ccheever/projects/sb4-s10a/snapback4",
+      "pid": 1181158,
+      "log": "/tmp/sb4-k0q-fix2-final/device-isolated-0.log",
+      "exit": 101,
+      "seconds": 2.0,
+      "rust_results": {
+        "totals": {
+          "passed": 0,
+          "failed": 1,
+          "ignored": 0
+        },
+        "targets": {
+          "1: Running tests/readauth.rs (target/debug/deps/readauth-5a3f20b2def6e338)": {
+            "result": "FAILED",
+            "passed": 0,
+            "failed": 1,
+            "ignored": 0
+          }
+        }
+      }
+    },
+    {
+      "name": "device-isolated-1",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "snapback4-device",
+        "--test",
+        "readauth",
+        "-j",
+        "6",
+        "--",
+        "outcomes::bridge_publish_sqlite",
+        "--exact",
+        "--nocapture"
+      ],
+      "cwd": "/home/ccheever/projects/sb4-s10a/snapback4",
+      "pid": 1181231,
+      "log": "/tmp/sb4-k0q-fix2-final/device-isolated-1.log",
+      "exit": 101,
+      "seconds": 2.0,
+      "rust_results": {
+        "totals": {
+          "passed": 0,
+          "failed": 1,
+          "ignored": 0
+        },
+        "targets": {
+          "1: Running tests/readauth.rs (target/debug/deps/readauth-5a3f20b2def6e338)": {
+            "result": "FAILED",
+            "passed": 0,
+            "failed": 1,
+            "ignored": 0
+          }
+        }
+      }
+    },
+    {
+      "name": "device-isolated-2",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "snapback4-device",
+        "--test",
+        "readauth",
+        "-j",
+        "6",
+        "--",
+        "outcomes::bridge_repost_memory",
+        "--exact",
+        "--nocapture"
+      ],
+      "cwd": "/home/ccheever/projects/sb4-s10a/snapback4",
+      "pid": 1181257,
+      "log": "/tmp/sb4-k0q-fix2-final/device-isolated-2.log",
+      "exit": 101,
+      "seconds": 2.0,
+      "rust_results": {
+        "totals": {
+          "passed": 0,
+          "failed": 1,
+          "ignored": 0
+        },
+        "targets": {
+          "1: Running tests/readauth.rs (target/debug/deps/readauth-5a3f20b2def6e338)": {
+            "result": "FAILED",
+            "passed": 0,
+            "failed": 1,
+            "ignored": 0
+          }
+        }
+      }
+    },
+    {
+      "name": "device-isolated-3",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "snapback4-device",
+        "--test",
+        "readauth",
+        "-j",
+        "6",
+        "--",
+        "outcomes::bridge_repost_sqlite",
+        "--exact",
+        "--nocapture"
+      ],
+      "cwd": "/home/ccheever/projects/sb4-s10a/snapback4",
+      "pid": 1181277,
+      "log": "/tmp/sb4-k0q-fix2-final/device-isolated-3.log",
+      "exit": 101,
+      "seconds": 2.0,
+      "rust_results": {
+        "totals": {
+          "passed": 0,
+          "failed": 1,
+          "ignored": 0
+        },
+        "targets": {
+          "1: Running tests/readauth.rs (target/debug/deps/readauth-5a3f20b2def6e338)": {
+            "result": "FAILED",
+            "passed": 0,
+            "failed": 1,
+            "ignored": 0
+          }
+        }
+      }
+    },
+    {
+      "name": "device-isolated-4",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "snapback4-device",
+        "--test",
+        "readauth",
+        "-j",
+        "6",
+        "--",
+        "outcomes::recipe_post_memory",
+        "--exact",
+        "--nocapture"
+      ],
+      "cwd": "/home/ccheever/projects/sb4-s10a/snapback4",
+      "pid": 1181313,
+      "log": "/tmp/sb4-k0q-fix2-final/device-isolated-4.log",
+      "exit": 101,
+      "seconds": 2.0,
+      "rust_results": {
+        "totals": {
+          "passed": 0,
+          "failed": 1,
+          "ignored": 0
+        },
+        "targets": {
+          "1: Running tests/readauth.rs (target/debug/deps/readauth-5a3f20b2def6e338)": {
+            "result": "FAILED",
+            "passed": 0,
+            "failed": 1,
+            "ignored": 0
+          }
+        }
+      }
+    },
+    {
+      "name": "device-isolated-5",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "snapback4-device",
+        "--test",
+        "readauth",
+        "-j",
+        "6",
+        "--",
+        "outcomes::recipe_post_sqlite",
+        "--exact",
+        "--nocapture"
+      ],
+      "cwd": "/home/ccheever/projects/sb4-s10a/snapback4",
+      "pid": 1181439,
+      "log": "/tmp/sb4-k0q-fix2-final/device-isolated-5.log",
+      "exit": 101,
+      "seconds": 2.0,
+      "rust_results": {
+        "totals": {
+          "passed": 0,
+          "failed": 1,
+          "ignored": 0
+        },
+        "targets": {
+          "1: Running tests/readauth.rs (target/debug/deps/readauth-5a3f20b2def6e338)": {
+            "result": "FAILED",
+            "passed": 0,
+            "failed": 1,
+            "ignored": 0
+          }
+        }
+      }
+    },
+    {
+      "name": "device-isolated-6",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "snapback4-device",
+        "--test",
+        "readauth",
+        "-j",
+        "6",
+        "--",
+        "outcomes::recipe_repost_memory",
+        "--exact",
+        "--nocapture"
+      ],
+      "cwd": "/home/ccheever/projects/sb4-s10a/snapback4",
+      "pid": 1181767,
+      "log": "/tmp/sb4-k0q-fix2-final/device-isolated-6.log",
+      "exit": 101,
+      "seconds": 2.0,
+      "rust_results": {
+        "totals": {
+          "passed": 0,
+          "failed": 1,
+          "ignored": 0
+        },
+        "targets": {
+          "1: Running tests/readauth.rs (target/debug/deps/readauth-5a3f20b2def6e338)": {
+            "result": "FAILED",
+            "passed": 0,
+            "failed": 1,
+            "ignored": 0
+          }
+        }
+      }
+    },
+    {
+      "name": "device-isolated-7",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "snapback4-device",
+        "--test",
+        "readauth",
+        "-j",
+        "6",
+        "--",
+        "outcomes::recipe_repost_sqlite",
+        "--exact",
+        "--nocapture"
+      ],
+      "cwd": "/home/ccheever/projects/sb4-s10a/snapback4",
+      "pid": 1181823,
+      "log": "/tmp/sb4-k0q-fix2-final/device-isolated-7.log",
+      "exit": 101,
+      "seconds": 2.0,
+      "rust_results": {
+        "totals": {
+          "passed": 0,
+          "failed": 1,
+          "ignored": 0
+        },
+        "targets": {
+          "1: Running tests/readauth.rs (target/debug/deps/readauth-5a3f20b2def6e338)": {
+            "result": "FAILED",
+            "passed": 0,
+            "failed": 1,
+            "ignored": 0
+          }
+        }
+      }
+    },
+    {
+      "name": "ratchets-censuses",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "snapback4",
+        "--test",
+        "committer_ratchet",
+        "--test",
+        "store_port_ratchet",
+        "--test",
+        "store_handle_census",
+        "-j",
+        "6"
+      ],
+      "cwd": "/home/ccheever/projects/sb4-s10a/snapback4",
+      "pid": 1181883,
+      "log": "/tmp/sb4-k0q-fix2-final/ratchets-censuses.log",
+      "exit": 0,
+      "seconds": 70.01,
+      "rust_results": {
+        "totals": {
+          "passed": 16,
+          "failed": 0,
+          "ignored": 0
+        },
+        "targets": {
+          "1: Running tests/committer_ratchet.rs (target/debug/deps/committer_ratchet-4da7c9350f409e41)": {
+            "result": "ok",
+            "passed": 3,
+            "failed": 0,
+            "ignored": 0
+          },
+          "2: Running tests/store_handle_census.rs (target/debug/deps/store_handle_census-ba4efb56c44964e5)": {
+            "result": "ok",
+            "passed": 6,
+            "failed": 0,
+            "ignored": 0
+          },
+          "3: Running tests/store_port_ratchet.rs (target/debug/deps/store_port_ratchet-70c5ea865971df85)": {
+            "result": "ok",
+            "passed": 7,
+            "failed": 0,
+            "ignored": 0
+          }
+        }
+      }
+    },
+    {
+      "name": "compiled-guards",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "snapback4-core",
+        "--test",
+        "store_handle_traits",
+        "-j",
+        "6"
+      ],
+      "cwd": "/home/ccheever/projects/sb4-s10a/snapback4",
+      "pid": 1183773,
+      "log": "/tmp/sb4-k0q-fix2-final/compiled-guards.log",
+      "exit": 0,
+      "seconds": 50.01,
+      "rust_results": {
+        "totals": {
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0
+        },
+        "targets": {
+          "1: Running tests/store_handle_traits.rs (target/debug/deps/store_handle_traits-f89012df386817be)": {
+            "result": "ok",
+            "passed": 1,
+            "failed": 0,
+            "ignored": 0
+          }
+        }
+      }
+    },
+    {
+      "name": "release-guards",
+      "command": [
+        "bash",
+        "scripts/check-release-guard.sh"
+      ],
+      "cwd": "/home/ccheever/projects/sb4-s10a/snapback4",
+      "pid": 1184828,
+      "log": "/tmp/sb4-k0q-fix2-final/release-guards.log",
+      "exit": 0,
+      "seconds": 66.01
+    },
+    {
+      "name": "guide",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "snapback4-lang",
+        "--test",
+        "guide",
+        "-j",
+        "6"
+      ],
+      "cwd": "/home/ccheever/projects/sb4-s10a/snapback4",
+      "pid": 1188959,
+      "log": "/tmp/sb4-k0q-fix2-final/guide.log",
+      "exit": 101,
+      "seconds": 40.0,
+      "failed_tests": [
+        {
+          "target": [
+            "--test",
+            "guide"
+          ],
+          "test": "definitions::w11_every_registered_code_quotes_its_definition"
+        }
+      ],
+      "rust_results": {
+        "totals": {
+          "passed": 126,
+          "failed": 1,
+          "ignored": 0
+        },
+        "targets": {
+          "1: Running tests/guide.rs (target/debug/deps/guide-38ec70f2b9e739a7)": {
+            "result": "FAILED",
+            "passed": 126,
+            "failed": 1,
+            "ignored": 0
+          }
+        }
+      }
+    },
+    {
+      "name": "guide-isolated-0",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "snapback4-lang",
+        "--test",
+        "guide",
+        "-j",
+        "6",
+        "--",
+        "definitions::w11_every_registered_code_quotes_its_definition",
+        "--exact",
+        "--nocapture"
+      ],
+      "cwd": "/home/ccheever/projects/sb4-s10a/snapback4",
+      "pid": 1190400,
+      "log": "/tmp/sb4-k0q-fix2-final/guide-isolated-0.log",
+      "exit": 101,
+      "seconds": 2.0,
+      "rust_results": {
+        "totals": {
+          "passed": 0,
+          "failed": 1,
+          "ignored": 0
+        },
+        "targets": {
+          "1: Running tests/guide.rs (target/debug/deps/guide-38ec70f2b9e739a7)": {
+            "result": "FAILED",
+            "passed": 0,
+            "failed": 1,
+            "ignored": 0
+          }
+        }
+      }
+    },
+    {
+      "name": "wasm-codec",
+      "command": [
+        "node",
+        "--test",
+        "test/wasm-codec-census.test.mjs"
+      ],
+      "cwd": "/home/ccheever/projects/sb4-s10a/snapback4/packages/snapback4",
+      "pid": 1190472,
+      "log": "/tmp/sb4-k0q-fix2-final/wasm-codec.log",
+      "exit": 0,
+      "seconds": 48.01
+    },
+    {
+      "name": "sqlite-rt0-full-scope",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "snapback4",
+        "round_trip",
+        "-j",
+        "6",
+        "--",
+        "--nocapture"
+      ],
+      "cwd": "/home/ccheever/projects/sb4-s10a/snapback4",
+      "pid": 1191745,
+      "log": "/tmp/sb4-k0q-fix2-final/sqlite-rt0-full-scope.log",
+      "exit": 0,
+      "seconds": 208.11,
+      "rust_results": {
+        "totals": {
+          "passed": 2,
+          "failed": 0,
+          "ignored": 1
+        },
+        "targets": {
+          "1: Running unittests src/main.rs (target/debug/deps/snapback4-4dae3967bd525305)": {
+            "result": "ok",
+            "passed": 2,
+            "failed": 0,
+            "ignored": 1
+          },
+          "2: Running tests/aggregate_identity_upgrade.rs (target/debug/deps/aggregate_identity_upgrade-b74ea9222fc6752e)": {
+            "result": "ok",
+            "passed": 0,
+            "failed": 0,
+            "ignored": 0
+          },
+          "3: Running tests/check.rs (target/debug/deps/check-4c39ab2732fd20fd)": {
+            "result": "ok",
+            "passed": 0,
+            "failed": 0,
+            "ignored": 0
+          },
+          "4: Running tests/check_cost_source.rs (target/debug/deps/check_cost_source-315cef2bac493723)": {
+            "result": "ok",
+            "passed": 0,
+            "failed": 0,
+            "ignored": 0
+          },
+          "5: Running tests/check_notes.rs (target/debug/deps/check_notes-65de04fe30519290)": {
+            "result": "ok",
+            "passed": 0,
+            "failed": 0,
+            "ignored": 0
+          },
+          "6: Running tests/cli_friction.rs (target/debug/deps/cli_friction-a2c55c3e94048e32)": {
+            "result": "ok",
+            "passed": 0,
+            "failed": 0,
+            "ignored": 0
+          },
+          "7: Running tests/clock.rs (target/debug/deps/clock-9e52c638bc0d2052)": {
+            "result": "ok",
+            "passed": 0,
+            "failed": 0,
+            "ignored": 0
+          },
+          "8: Running tests/column_commit.rs (target/debug/deps/column_commit-0ca2299b880770f2)": {
+            "result": "ok",
+            "passed": 0,
+            "failed": 0,
+            "ignored": 0
+          },
+          "9: Running tests/committer_ratchet.rs (target/debug/deps/committer_ratchet-4da7c9350f409e41)": {
+            "result": "ok",
+            "passed": 0,
+            "failed": 0,
+            "ignored": 0
+          },
+          "10: Running tests/day3.rs (target/debug/deps/day3-0cbae1965aafe1d9)": {
+            "result": "ok",
+            "passed": 0,
+            "failed": 0,
+            "ignored": 0
+          },
+          "11: Running tests/day4.rs (target/debug/deps/day4-fd96e690e82c791d)": {
+            "result": "ok",
+            "passed": 0,
+            "failed": 0,
+            "ignored": 0
+          },
+          "12: Running tests/day5_evidence.rs (target/debug/deps/day5_evidence-48c99fcd6b3d29ab)": {
+            "result": "ok",
+            "passed": 0,
+            "failed": 0,
+            "ignored": 0
+          },
+          "13: Running tests/day5_previews.rs (target/debug/deps/day5_previews-ce2908015c19be69)": {
+            "result": "ok",
+            "passed": 0,
+            "failed": 0,
+            "ignored": 0
+          },
+          "14: Running tests/day5_starters.rs (target/debug/deps/day5_starters-a0cb78e988dd43c1)": {
+            "result": "ok",
+            "passed": 0,
+            "failed": 0,
+            "ignored": 0
+          },
+          "15: Running tests/delivery_page.rs (target/debug/deps/delivery_page-ec8f34e39fa9ecf3)": {
+            "result": "ok",
+            "passed": 0,
+            "failed": 0,
+            "ignored": 0
+          },
+          "16: Running tests/dev_refusals.rs (target/debug/deps/dev_refusals-ed8c88d7299e2a2a)": {
+            "result": "ok",
+            "passed": 0,
+            "failed": 0,
+            "ignored": 0
+          },
+          "17: Running tests/dev_reset.rs (target/debug/deps/dev_reset-38a1b1f9e1bc0a28)": {
+            "result": "ok",
+            "passed": 0,
+            "failed": 0,
+            "ignored": 0
+          },
+          "18: Running tests/expiry_writes.rs (target/debug/deps/expiry_writes-4e133cbc3ef78564)": {
+            "result": "ok",
+            "passed": 0,
+            "failed": 0,
+            "ignored": 0
+          },
+          "19: Running tests/familiar.rs (target/debug/deps/familiar-80a0670fafe94517)": {
+            "result": "ok",
+            "passed": 0,
+            "failed": 0,
+            "ignored": 0
+          },
+          "20: Running tests/feed_bridge.rs (target/debug/deps/feed_bridge-5743acb2f346ceec)": {
+            "result": "ok",
+            "passed": 0,
+            "failed": 0,
+            "ignored": 0
+          },
+          "21: Running tests/fix.rs (target/debug/deps/fix-a0771b7851ff577d)": {
+            "result": "ok",
+            "passed": 0,
+            "failed": 0,
+            "ignored": 0
+          },
+          "22: Running tests/following_view.rs (target/debug/deps/following_view-6743cc51b3592a95)": {
+            "result": "ok",
+            "passed": 0,
+            "failed": 0,
+            "ignored": 0
+          },
+          "23: Running tests/http.rs (target/debug/deps/http-1bc7f8b1010e40ee)": {
+            "result": "ok",
+            "passed": 0,
+            "failed": 0,
+            "ignored": 0
+          },
+          "24: Running tests/http_emfile.rs (target/debug/deps/http_emfile-0e301f7ab702b42b)": {
+            "result": "ok",
+            "passed": 0,
+            "failed": 0,
+            "ignored": 0
+          },
+          "25: Running tests/init.rs (target/debug/deps/init-26f2d8e4934bb088)": {
+            "result": "ok",
+            "passed": 0,
+            "failed": 0,
+            "ignored": 0
+          },
+          "26: Running tests/init_dx3.rs (target/debug/deps/init_dx3-41a93770a1c8fabe)": {
+            "result": "ok",
+            "passed": 0,
+            "failed": 0,
+            "ignored": 0
+          },
+          "27: Running tests/init_production.rs (target/debug/deps/init_production-b643454555212a84)": {
+            "result": "ok",
+            "passed": 0,
+            "failed": 0,
+            "ignored": 0
+          },
+          "28: Running tests/intent_issue_tracker.rs (target/debug/deps/intent_issue_tracker-430e375ef5303481)": {
+            "result": "ok",
+            "passed": 0,
+            "failed": 0,
+            "ignored": 0
+          },
+          "29: Running tests/latency.rs (target/debug/deps/latency-5b0e20235927a257)": {
+            "result": "ok",
+            "passed": 0,
+            "failed": 0,
+            "ignored": 0
+          },
+          "30: Running tests/lifecycle.rs (target/debug/deps/lifecycle-60364057d1ce2ce7)": {
+            "result": "ok",
+            "passed": 0,
+            "failed": 0,
+            "ignored": 0
+          },
+          "31: Running tests/maintenance_chunks.rs (target/debug/deps/maintenance_chunks-6a584d27707d885c)": {
+            "result": "ok",
+            "passed": 0,
+            "failed": 0,
+            "ignored": 0
+          },
+          "32: Running tests/maintenance_latency.rs (target/debug/deps/maintenance_latency-32530983590970b8)": {
+            "result": "ok",
+            "passed": 0,
+            "failed": 0,
+            "ignored": 0
+          },
+          "33: Running tests/overload.rs (target/debug/deps/overload-b3cc5433670d161b)": {
+            "result": "ok",
+            "passed": 0,
+            "failed": 0,
+            "ignored": 0
+          },
+          "34: Running tests/read_latency.rs (target/debug/deps/read_latency-77780615a85529cc)": {
+            "result": "ok",
+            "passed": 0,
+            "failed": 0,
+            "ignored": 0
+          },
+          "35: Running tests/replay.rs (target/debug/deps/replay-a9ac7ed93bca6177)": {
+            "result": "ok",
+            "passed": 0,
+            "failed": 0,
+            "ignored": 0
+          },
+          "36: Running tests/run_admission.rs (target/debug/deps/run_admission-b9d7ad30de0cb684)": {
+            "result": "ok",
+            "passed": 0,
+            "failed": 0,
+            "ignored": 0
+          },
+          "37: Running tests/scale.rs (target/debug/deps/scale-6909007484cd4f16)": {
+            "result": "ok",
+            "passed": 0,
+            "failed": 0,
+            "ignored": 0
+          },
+          "38: Running tests/scale_curves.rs (target/debug/deps/scale_curves-24d9d34c902b88ac)": {
+            "result": "ok",
+            "passed": 0,
+            "failed": 0,
+            "ignored": 0
+          },
+          "39: Running tests/scale_extremum_expressions.rs (target/debug/deps/scale_extremum_expressions-3f508aeb4f38010d)": {
+            "result": "ok",
+            "passed": 0,
+            "failed": 0,
+            "ignored": 0
+          },
+          "40: Running tests/scale_intent.rs (target/debug/deps/scale_intent-51bcc491f08eeda1)": {
+            "result": "ok",
+            "passed": 0,
+            "failed": 0,
+            "ignored": 0
+          },
+          "41: Running tests/scale_row_ranges.rs (target/debug/deps/scale_row_ranges-11d572e3498a4f9c)": {
+            "result": "ok",
+            "passed": 0,
+            "failed": 0,
+            "ignored": 0
+          },
+          "42: Running tests/scale_variants.rs (target/debug/deps/scale_variants-b65d828726e86a0c)": {
+            "result": "ok",
+            "passed": 0,
+            "failed": 0,
+            "ignored": 0
+          },
+          "43: Running tests/scale_windows_expiry.rs (target/debug/deps/scale_windows_expiry-5cd07384fbfe881a)": {
+            "result": "ok",
+            "passed": 0,
+            "failed": 0,
+            "ignored": 0
+          },
+          "44: Running tests/security_reviews.rs (target/debug/deps/security_reviews-4f20ee539afef074)": {
+            "result": "ok",
+            "passed": 0,
+            "failed": 0,
+            "ignored": 0
+          },
+          "45: Running tests/security_wave19.rs (target/debug/deps/security_wave19-3ec77765cc2860bc)": {
+            "result": "ok",
+            "passed": 0,
+            "failed": 0,
+            "ignored": 0
+          },
+          "46: Running tests/store_handle_census.rs (target/debug/deps/store_handle_census-ba4efb56c44964e5)": {
+            "result": "ok",
+            "passed": 0,
+            "failed": 0,
+            "ignored": 0
+          },
+          "47: Running tests/store_port_ratchet.rs (target/debug/deps/store_port_ratchet-70c5ea865971df85)": {
+            "result": "ok",
+            "passed": 0,
+            "failed": 0,
+            "ignored": 0
+          },
+          "48: Running tests/surf4.rs (target/debug/deps/surf4-79b79fd64e353105)": {
+            "result": "ok",
+            "passed": 0,
+            "failed": 0,
+            "ignored": 0
+          },
+          "49: Running tests/timeline.rs (target/debug/deps/timeline-4fab85e349510ee1)": {
+            "result": "ok",
+            "passed": 0,
+            "failed": 0,
+            "ignored": 0
+          },
+          "50: Running tests/timeline_adoption.rs (target/debug/deps/timeline_adoption-e2a87e1211377869)": {
+            "result": "ok",
+            "passed": 0,
+            "failed": 0,
+            "ignored": 0
+          },
+          "51: Running tests/timeline_delivery.rs (target/debug/deps/timeline_delivery-82b53c6bca2b84cf)": {
+            "result": "ok",
+            "passed": 0,
+            "failed": 0,
+            "ignored": 0
+          },
+          "52: Running tests/timeline_delivery_counterexample.rs (target/debug/deps/timeline_delivery_counterexample-5123d42bee33b4ee)": {
+            "result": "ok",
+            "passed": 0,
+            "failed": 0,
+            "ignored": 0
+          },
+          "53: Running tests/timeline_design.rs (target/debug/deps/timeline_design-e2c7a36323b308c9)": {
+            "result": "ok",
+            "passed": 0,
+            "failed": 0,
+            "ignored": 0
+          },
+          "54: Running tests/token_live.rs (target/debug/deps/token_live-e98a0d9617c64273)": {
+            "result": "ok",
+            "passed": 0,
+            "failed": 0,
+            "ignored": 0
+          },
+          "55: Running tests/wave13_rules.rs (target/debug/deps/wave13_rules-0ea9c166f90437be)": {
+            "result": "ok",
+            "passed": 0,
+            "failed": 0,
+            "ignored": 0
+          },
+          "56: Running tests/witness.rs (target/debug/deps/witness-82674cf31d36026b)": {
+            "result": "ok",
+            "passed": 0,
+            "failed": 0,
+            "ignored": 0
+          },
+          "57: Running tests/witness_web.rs (target/debug/deps/witness_web-d60ea07b2cd9c652)": {
+            "result": "ok",
+            "passed": 0,
+            "failed": 0,
+            "ignored": 0
+          },
+          "58: Running tests/work_records.rs (target/debug/deps/work_records-8b32671084830b8f)": {
+            "result": "ok",
+            "passed": 0,
+            "failed": 0,
+            "ignored": 0
+          },
+          "59: Running tests/written_by.rs (target/debug/deps/written_by-89655da2865b3a26)": {
+            "result": "ok",
+            "passed": 0,
+            "failed": 0,
+            "ignored": 0
+          }
+        }
+      }
+    },
+    {
+      "name": "postgres",
+      "command": [
+        "bash",
+        "scripts/test-postgres.sh"
+      ],
+      "cwd": "/home/ccheever/projects/sb4-s10a/snapback4",
+      "pid": 1199981,
+      "log": "/tmp/sb4-k0q-fix2-final/postgres.log",
+      "exit": 1,
+      "seconds": 1480.19,
+      "rust_results": {
+        "totals": {
+          "passed": 118,
+          "failed": 1,
+          "ignored": 0
+        },
+        "targets": {
+          "1: Running unittests src/lib.rs (target/debug/deps/snapback4_postgres_evaluation-52a1da95fe6d1017)": {
+            "result": "ok",
+            "passed": 0,
+            "failed": 0,
+            "ignored": 0
+          },
+          "2: Running unittests src/main.rs (target/debug/deps/snapback4_postgres_evaluation-69ab7c0c48b7ce15)": {
+            "result": "ok",
+            "passed": 0,
+            "failed": 0,
+            "ignored": 0
+          },
+          "3: Running tests/conformance.rs (target/debug/deps/conformance-930fc00961c4d399)": {
+            "result": "FAILED",
+            "passed": 17,
+            "failed": 1,
+            "ignored": 0
+          },
+          "4: Running tests/device.rs (target/debug/deps/device-6cc4bbd7ffb4bf82)": {
+            "result": "ok",
+            "passed": 1,
+            "failed": 0,
+            "ignored": 0
+          },
+          "5: Running tests/key_limit.rs (target/debug/deps/key_limit-661d118db9ac00b0)": {
+            "result": "ok",
+            "passed": 2,
+            "failed": 0,
+            "ignored": 0
+          },
+          "6: Running tests/read_through.rs (target/debug/deps/read_through-81201e9f3a724863)": {
+            "result": "ok",
+            "passed": 7,
+            "failed": 0,
+            "ignored": 0
+          },
+          "7: Running tests/read_through_review.rs (target/debug/deps/read_through_review-4b2859459c3028f7)": {
+            "result": "ok",
+            "passed": 30,
+            "failed": 0,
+            "ignored": 0
+          },
+          "8: Doc-tests snapback4_postgres_evaluation": {
+            "result": "ok",
+            "passed": 0,
+            "failed": 0,
+            "ignored": 0
+          },
+          "9: Running tests/store_handle_traits.rs (target/debug/deps/store_handle_traits-e779690bead7d28b)": {
+            "result": "ok",
+            "passed": 1,
+            "failed": 0,
+            "ignored": 0
+          },
+          "10: Doc-tests snapback4_core": {
+            "result": "ok",
+            "passed": 38,
+            "failed": 0,
+            "ignored": 0
+          },
+          "11: Running unittests src/main.rs (target/debug/deps/snapback4-4dae3967bd525305)": {
+            "result": "ok",
+            "passed": 1,
+            "failed": 0,
+            "ignored": 0
+          },
+          "12: Running unittests src/main.rs (target/debug/deps/snapback4-4dae3967bd525305)": {
+            "result": "ok",
+            "passed": 1,
+            "failed": 0,
+            "ignored": 0
+          },
+          "13: Running unittests src/main.rs (target/debug/deps/snapback4-4dae3967bd525305)": {
+            "result": "ok",
+            "passed": 1,
+            "failed": 0,
+            "ignored": 0
+          },
+          "14: Running tests/corpus.rs (target/debug/deps/corpus-e213de5e3952c5ee)": {
+            "result": "ok",
+            "passed": 19,
+            "failed": 0,
+            "ignored": 0
+          }
+        }
+      },
+      "blocked_core_compile_stages": [
+        "engine::postgres::tests",
+        "engine::postgres::ownership::tests",
+        "engine::committer::postgres_tests",
+        "engine::committer::maintained_members",
+        "engine::command::tests"
+      ]
+    },
+    {
+      "name": "postgres-concurrency-isolated",
+      "command": [
+        "bash",
+        "/tmp/k0q-fix2-pg-isolated.sh"
+      ],
+      "cwd": "/home/ccheever/projects/sb4-s10a/snapback4",
+      "pid": 1304977,
+      "log": "/tmp/sb4-k0q-fix2-final/postgres-concurrency-isolated.log",
+      "exit": 0,
+      "seconds": 44.0,
+      "rust_results": {
+        "totals": {
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0
+        },
+        "targets": {
+          "1: Running tests/conformance.rs (target/debug/deps/conformance-930fc00961c4d399)": {
+            "result": "ok",
+            "passed": 1,
+            "failed": 0,
+            "ignored": 0
+          }
+        }
+      }
+    },
+    {
+      "name": "restore-main-artifacts",
+      "command": [
+        "cargo",
+        "clean",
+        "--manifest-path",
+        "Cargo.toml",
+        "--profile",
+        "dev",
+        "-p",
+        "snapback4-core",
+        "-p",
+        "snapback4-lang",
+        "-p",
+        "snapback4-device"
+      ],
+      "cwd": "/home/ccheever/projects/sb4-s10a/snapback4",
+      "pid": 1305950,
+      "log": "/tmp/sb4-k0q-fix2-final/restore-main-artifacts.log",
+      "exit": 0,
+      "seconds": 2.01
+    },
+    {
+      "name": "final-main-build",
+      "command": [
+        "cargo",
+        "build",
+        "--locked",
+        "-p",
+        "snapback4",
+        "-j",
+        "6"
+      ],
+      "cwd": "/home/ccheever/projects/sb4-s10a/snapback4",
+      "pid": 1306020,
+      "log": "/tmp/sb4-k0q-fix2-final/final-main-build.log",
+      "exit": 0,
+      "seconds": 54.01
+    },
+    {
+      "name": "final-ordinary-symbols",
+      "command": [
+        "bash",
+        "-e",
+        "-c",
+        "nm --defined-only target/debug/snapback4 > /tmp/k0q-fix2-final-nm.txt; if rg \"round_trips|trace_round_trips\" /tmp/k0q-fix2-final-nm.txt; then exit 1; fi; echo \"zero round_trips / trace_round_trips symbols\""
+      ],
+      "cwd": "/home/ccheever/projects/sb4-s10a/snapback4",
+      "pid": 1307586,
+      "log": "/tmp/sb4-k0q-fix2-final/final-ordinary-symbols.log",
+      "exit": 0,
+      "seconds": 2.0
+    },
+    {
+      "name": "w4-before",
+      "command": [
+        "python3",
+        "reports/20261022-k0q/w4.py",
+        "/tmp/sb4-k0q/before",
+        "before-fix2"
+      ],
+      "cwd": "/home/ccheever/projects/sb4-s10a/snapback4",
+      "pid": 1307630,
+      "log": "/tmp/sb4-k0q-fix2-final/w4-before.log",
+      "exit": 1,
+      "seconds": 74.01
+    },
+    {
+      "name": "w4-after",
+      "command": [
+        "python3",
+        "reports/20261022-k0q/w4.py",
+        "/home/ccheever/projects/sb4-s10a/snapback4/target/debug/snapback4",
+        "after-fix2"
+      ],
+      "cwd": "/home/ccheever/projects/sb4-s10a/snapback4",
+      "pid": 1313128,
+      "log": "/tmp/sb4-k0q-fix2-final/w4-after.log",
+      "exit": 0,
+      "seconds": 94.01
+    },
+    {
+      "name": "refs",
+      "command": [
+        "/home/ccheever/projects/sb4-s10a/ref-check"
+      ],
+      "cwd": "/home/ccheever/projects/sb4-s10a",
+      "pid": 1324647,
+      "log": "/tmp/sb4-k0q-fix2-final/refs.log",
+      "exit": 0,
+      "seconds": 10.01
+    },
+    {
+      "name": "w4-before-repeat",
+      "command": [
+        "python3",
+        "reports/20261022-k0q/w4.py",
+        "/tmp/sb4-k0q/before",
+        "before-fix2-repeat1"
+      ],
+      "cwd": "/home/ccheever/projects/sb4-s10a/snapback4",
+      "pid": 1336045,
+      "log": "/tmp/sb4-k0q-fix2-final/w4-before-repeat.log",
+      "exit": 1,
+      "seconds": 56.01
+    },
+    {
+      "name": "w4-before-diagnostic",
+      "command": [
+        "python3",
+        "/tmp/k0q-w4-refusal-diagnostic.py",
+        "/tmp/sb4-k0q/before",
+        "before-fix2-diagnostic3"
+      ],
+      "cwd": "/home/ccheever/projects/sb4-s10a/snapback4",
+      "pid": 1349826,
+      "log": "/tmp/sb4-k0q-fix2-final/w4-before-diagnostic.log",
+      "exit": 0,
+      "seconds": 88.01
+    },
+    {
+      "name": "postgres-repeat",
+      "command": [
+        "bash",
+        "scripts/test-postgres.sh"
+      ],
+      "cwd": "/home/ccheever/projects/sb4-s10a/snapback4",
+      "pid": 1367157,
+      "log": "/tmp/sb4-k0q-fix2-final/postgres-repeat.log",
+      "exit": 1,
+      "seconds": 1466.12,
+      "rust_results": {
+        "totals": {
+          "passed": 376,
+          "failed": 1,
+          "ignored": 0
+        },
+        "targets": {
+          "1: Running unittests src/lib.rs (target/debug/deps/snapback4_postgres_evaluation-52a1da95fe6d1017)": {
+            "result": "ok",
+            "passed": 0,
+            "failed": 0,
+            "ignored": 0
+          },
+          "2: Running unittests src/main.rs (target/debug/deps/snapback4_postgres_evaluation-69ab7c0c48b7ce15)": {
+            "result": "ok",
+            "passed": 0,
+            "failed": 0,
+            "ignored": 0
+          },
+          "3: Running tests/conformance.rs (target/debug/deps/conformance-930fc00961c4d399)": {
+            "result": "FAILED",
+            "passed": 17,
+            "failed": 1,
+            "ignored": 0
+          },
+          "4: Running tests/device.rs (target/debug/deps/device-6cc4bbd7ffb4bf82)": {
+            "result": "ok",
+            "passed": 1,
+            "failed": 0,
+            "ignored": 0
+          },
+          "5: Running tests/key_limit.rs (target/debug/deps/key_limit-661d118db9ac00b0)": {
+            "result": "ok",
+            "passed": 2,
+            "failed": 0,
+            "ignored": 0
+          },
+          "6: Running tests/read_through.rs (target/debug/deps/read_through-81201e9f3a724863)": {
+            "result": "ok",
+            "passed": 7,
+            "failed": 0,
+            "ignored": 0
+          },
+          "7: Running tests/read_through_review.rs (target/debug/deps/read_through_review-4b2859459c3028f7)": {
+            "result": "ok",
+            "passed": 30,
+            "failed": 0,
+            "ignored": 0
+          },
+          "8: Doc-tests snapback4_postgres_evaluation": {
+            "result": "ok",
+            "passed": 0,
+            "failed": 0,
+            "ignored": 0
+          },
+          "9: Running unittests src/lib.rs (target/debug/deps/snapback4_core-8155f3e18aa72cd9)": {
+            "result": "ok",
+            "passed": 218,
+            "failed": 0,
+            "ignored": 0
+          },
+          "10: Running unittests src/lib.rs (target/debug/deps/snapback4_core-8155f3e18aa72cd9)": {
+            "result": "ok",
+            "passed": 25,
+            "failed": 0,
+            "ignored": 0
+          },
+          "11: Running tests/store_handle_traits.rs (target/debug/deps/store_handle_traits-e779690bead7d28b)": {
+            "result": "ok",
+            "passed": 1,
+            "failed": 0,
+            "ignored": 0
+          },
+          "12: Doc-tests snapback4_core": {
+            "result": "ok",
+            "passed": 38,
+            "failed": 0,
+            "ignored": 0
+          },
+          "13: Running unittests src/lib.rs (target/debug/deps/snapback4_core-8155f3e18aa72cd9)": {
+            "result": "ok",
+            "passed": 2,
+            "failed": 0,
+            "ignored": 0
+          },
+          "14: Running unittests src/lib.rs (target/debug/deps/snapback4_core-8155f3e18aa72cd9)": {
+            "result": "ok",
+            "passed": 1,
+            "failed": 0,
+            "ignored": 0
+          },
+          "15: Running unittests src/lib.rs (target/debug/deps/snapback4_core-8155f3e18aa72cd9)": {
+            "result": "ok",
+            "passed": 12,
+            "failed": 0,
+            "ignored": 0
+          },
+          "16: Running unittests src/main.rs (target/debug/deps/snapback4-4dae3967bd525305)": {
+            "result": "ok",
+            "passed": 1,
+            "failed": 0,
+            "ignored": 0
+          },
+          "17: Running unittests src/main.rs (target/debug/deps/snapback4-4dae3967bd525305)": {
+            "result": "ok",
+            "passed": 1,
+            "failed": 0,
+            "ignored": 0
+          },
+          "18: Running unittests src/main.rs (target/debug/deps/snapback4-4dae3967bd525305)": {
+            "result": "ok",
+            "passed": 1,
+            "failed": 0,
+            "ignored": 0
+          },
+          "19: Running tests/corpus.rs (target/debug/deps/corpus-e213de5e3952c5ee)": {
+            "result": "ok",
+            "passed": 19,
+            "failed": 0,
+            "ignored": 0
+          }
+        }
+      }
+    },
+    {
+      "name": "final-symbols-after-pg-repeat",
+      "command": [
+        "bash",
+        "-e",
+        "-c",
+        "nm --defined-only target/debug/snapback4 > /tmp/k0q-fix2-postgres-repeat-nm.txt; if rg \"round_trips|trace_round_trips\" /tmp/k0q-fix2-postgres-repeat-nm.txt; then exit 1; fi; echo \"zero round_trips / trace_round_trips symbols\""
+      ],
+      "cwd": "/home/ccheever/projects/sb4-s10a/snapback4",
+      "pid": 1452908,
+      "log": "/tmp/sb4-k0q-fix2-final/final-symbols-after-pg-repeat.log",
+      "exit": 0,
+      "seconds": 2.01
+    },
+    {
+      "name": "final-ratchets-censuses",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "snapback4",
+        "--test",
+        "committer_ratchet",
+        "--test",
+        "store_port_ratchet",
+        "--test",
+        "store_handle_census",
+        "-j",
+        "6"
+      ],
+      "cwd": "/home/ccheever/projects/sb4-s10a/snapback4",
+      "pid": 1453457,
+      "log": "/tmp/sb4-k0q-fix2-final/final-ratchets-censuses.log",
+      "exit": 0,
+      "seconds": 102.05,
+      "rust_results": {
+        "totals": {
+          "passed": 16,
+          "failed": 0,
+          "ignored": 0
+        },
+        "targets": {
+          "1: Running tests/committer_ratchet.rs (target/debug/deps/committer_ratchet-4da7c9350f409e41)": {
+            "result": "ok",
+            "passed": 3,
+            "failed": 0,
+            "ignored": 0
+          },
+          "2: Running tests/store_handle_census.rs (target/debug/deps/store_handle_census-ba4efb56c44964e5)": {
+            "result": "ok",
+            "passed": 6,
+            "failed": 0,
+            "ignored": 0
+          },
+          "3: Running tests/store_port_ratchet.rs (target/debug/deps/store_port_ratchet-70c5ea865971df85)": {
+            "result": "ok",
+            "passed": 7,
+            "failed": 0,
+            "ignored": 0
+          }
+        }
+      }
+    }
+  ],
+  "min_free_bytes": 25026174976,
+  "owned_runner_pid": 494665,
+  "resume_runner_pid": 1304975,
+  "orchestration_note": "The initial runner cannot infer a Cargo -p package from a failed bash Postgres stage. Preserve that failure; run its exact evaluator fixture separately, then finish the remaining stages.",
+  "finished": true,
+  "baseline_repeat_runner_pid": 1349819,
+  "postgres_repeat_runner_pid": 1367155,
+  "final_code_commit": "adeb2c192406c37d70d1fd648298183dc9f8330e",
+  "last_runtime_code_commit": "2ddab22685",
+  "attribution_commit": "3d842b63f4",
+  "guide_fact_pin_commit": "40f4811534",
+  "postgres_fixture_commit": "adeb2c1924",
+  "status": "all required checks completed; unrelated/baseline reds retained with exact isolated reruns",
+  "supplemental_results": {
+    "adoption": "fix2-adoption-followup.json",
+    "cli": "fix2-cli-followup.json",
+    "guide": "fix2-guide-followup.json",
+    "postgres": "fix2-postgres-followup.json",
+    "cleanup": "fix2-final-cleanup.json"
+  },
+  "post_record_reference_check": {
+    "command": [
+      "./ref-check"
+    ],
+    "exit": 0,
+    "llp_docs": 565,
+    "references": 11757,
+    "errors": 0,
+    "unchecked": 0,
+    "log": "/tmp/sb4-k0q-fix2-final/refs-after-records.log"
+  },
+  "whitespace_check": {
+    "command": [
+      "git",
+      "diff",
+      "--check"
+    ],
+    "exit": 0
+  },
+  "completed_at_utc": "2026-10-22T23:23:07.568812+00:00",
+  "owned_pids_left": [],
+  "closed_adoption_issue": "issues/closed/20261022-snapback4-concurrent-adoption-generation-refusal.md"
+}

@@ -479,7 +479,7 @@ a concurrent request during adoption received **503 / E_GENERATION**, while the
 fixture requires every response to be 200. Its exact unchanged isolated rerun
 passed in 1.41 seconds. A subsequent full lifecycle target passed all 29 cases.
 This does not resolve the race or establish baseline attribution; the
-[open adoption issue](../../../issues/20261022-snapback4-concurrent-adoption-generation-refusal.md)
+[adoption issue, now closed by fix round 2](../../../issues/closed/20261022-snapback4-concurrent-adoption-generation-refusal.md)
 retains the response, missing door attribution and follow-up. No clean full CLI
 repeat is claimed.
 
@@ -674,3 +674,202 @@ receipt. No PostgreSQL cluster was started. Final /proc checks show no lane targ
 executable, check runner, or recorded Cargo PID alive. Owned PIDs left: **none**.
 No push, stash, clone, sub-agent or remote build. Changes are preserved as a local
 checkpoint rather than reported as completed qualification.
+
+
+## K0-Q fix round 2 — completed after explicit RT0 attribution transfer
+
+This continuation supersedes the incomplete qualification status at checkpoints
+`96b7f976e8` / `92b659297a`; their RT0 failure and stop evidence remain above.
+The base remains main-mirror `2281138019`, with rebased prior tip `f7d33edb32`.
+No additional rebase, push or stash was performed. The existing rebase map and
+conflict resolutions remain authoritative: both journal sides, one RFC Revised
+line with all entries, DX6 staging clock/floor/session behavior inside owned
+commands, both test modules and every Postgres script stage, and S10d-3's
+holder-bound release/known rollback fix.
+
+Attribution implementation: `3d842b63f4`; adoption timing repair: `aeb62378f7`; refusal explanations and clock assertions: `2ddab22685`; guide fact pins: `40f4811534`; Postgres observation fixture: `adeb2c1924`. The production command/body/queue shapes
+are unchanged. Under `cfg(any(test, feature = "test-support"))`, `Scope` owns an
+`Arc` of two atomic counters and its submitting-thread installation. Its
+cloneable handle can be explicitly installed on another thread. Guards refuse
+nesting and are bound to their installing thread; drop clears attribution on
+normal return and unwind. `Queue::work` captures the submitter's current handle
+at submission, and `Command::execute_on` installs it only around that body's
+execution and synchronous continuation. The next command starts without that
+scope. Unscoped maintenance and background threads do not inherit attribution;
+the Postgres lease-renewal connection and its SQL remain unchanged and uncounted.
+The ordinary CLI has zero `round_trips` / `trace_round_trips` symbols in
+`nm --defined-only`, checked before and after full qualification.
+
+The new regression creates a command before beginning the request scope, submits
+inside it, then proves the worker counts reach the submitting scope. It checks
+an unscoped next command, a new request's independent counts, and unwind cleanup.
+Two scope tests cover cross-thread totals/background exclusion and nesting
+refusal without losing the outer scope. Existing ordering/exactly-once and
+reader/ephemeral progress witnesses remain unchanged.
+
+The final-source adoption selector initially failed both new witnesses, and each
+failure reproduced alone. The foreign-activation path exposed a `TimedReader`
+whose thread-local latency span was created on the committer and dropped on the
+request thread, underflowing its depth. The deterministic handoff fixture also
+waited for two waiting commands even though its counter excludes the running
+adoption. `aeb62378f7` returns only reader data across the queue, creates the span
+on the consuming request thread, and waits for the one blocked query. All 14
+affected query cases then pass (one existing ignore); the full CLI exercises the
+repaired source again. A first compile attempt needed an explicit Result error
+type; it was corrected before the passing witness run. The original reds,
+isolated reproductions and repair receipt are retained in
+[fix2-adoption-followup.json](./fix2-adoption-followup.json). The clock witness's
+harness time is 31.06 seconds; its runner wall time includes the pause for this
+repair, after that child had completed.
+
+Governing context and affected-scope doc audit: LLP 3000.009.001.000.000 §§3.1,
+3.4, 3.7 and 9 retain the worker-owned engine, single-member transaction
+boundaries and continuation-before-acknowledgement contract; LLP
+3000.009.001.000.001 §5 retains exact request-class ratchets and the ordinary
+binary's instrumentation exclusion. The K0-Q implementation note and RT0 note
+each record attribution transfer. The current refusal guide and its defining
+facts retain real-result waiting, before-start/not-applied versus after-start
+unknown outcomes, and non-retryable incomplete clock reports. No new allowance,
+budget, SQL, protected ownership-adapter edit or client source change was made.
+
+| Round-2 item | Result and evidence |
+| --- | --- |
+| 1. Admitted acknowledgement | No acknowledgement deadline; immediate/100 ms admission and ownership bounds retained. The real 31-second queue witness holds both running and queued commands, receives no early result, then receives 7 and 11. The clock witness also waits 31 seconds and advances exactly once. Before-start disconnect is not-applied `E_COMMITTER_STOPPED`; after-start death is genuine `E_COMMIT_OUTCOME_UNKNOWN`. |
+| 2. Clock after advance | Full-mailbox report witness gets non-retryable HTTP 500 `E_CLOCK_REPORT_INCOMPLETE`, `advancedMs: 1000`, no `Retry-After`. Recovery with `0ms` leaves offset at 1000. Repeating the original relative duration deliberately adds another second: this door has no idempotency key, so the response forbids that retry and instructs inspection/drain instead. |
+| 3. Worker mint | Unknown outcomes fence `worker_revision` exactly once before replacement; known not-applied refusals preserve the revision. Witness rejects the orphan bearer and accepts the replacement. |
+| 4. Source watcher | Overload is retried without exiting; the deterministic witness adopts the pending source and a later edit. Both outer acknowledgement unknown and inner ambiguous adoption COMMIT remember the source digest without replay; later edits remain eligible. |
+| 5. Adoption read handoff | Deterministic after-COMMIT/before-reader-replacement pause yields HTTP 200, correct row and new generation. Genuine foreign activation still yields `E_GENERATION`. Full lifecycle, including the original 1600-row/62-edge replay assertions, passes; the adoption ticket is closed with its resolution. |
+| 6. SDK unknown outcome | Open filesystem ticket records Reviewer A's SDK reproduction, unresolved-intent custody, receipt reconciliation and prohibition on unkeyed auto-replay. Client implementation remains outside the lane. |
+| 7. Renewal/disconnect wording | Accepted availability tradeoff remains documented: renewal COMMIT followed by failed `renewed()` drops without release, never reviving expired authority. Before-start disconnect explicitly says not applied. |
+
+The complete CLI pass at `aeb62378f7` is **1,422 passed / 11 failed /
+19 ignored**. Every failure was rerun alone before repairs. `2ddab22685` gives
+both new runtime codes dedicated explanations and guide routing, and updates the
+interrupted-clock fixture to require the incomplete-report envelope while
+retaining its original interruption cause, pause, clock and queued-work checks.
+The full CLI unit-binary repeat is **535 passed / 0 failed / 9 ignored**; the
+exact `why` integration passes all **405 codes with zero fallback sections**.
+Those affected repeats repair all three lane-owned failures.
+
+The clock socket-timeout and security-refutation failures pass unchanged in
+isolation. Six cases remain reproducible: four direct-engine residency/timeline
+fixtures disagree with derived source reservations (new
+[issue](../../../issues/20261022-snapback4-residency-timeline-reservation-fixtures.md));
+the unchanged five-second run-admission guard fails again (existing
+[issue](../../../issues/20261022-snapback4-run-admission-fixture-free-timing-guard.md)
+appended); and supplied baseline `web_witness_help_and_invalid_input` still
+misses `E_INPUT` on stderr. The other supplied toolchain/TypeScript baselines
+pass. No guard was relaxed, and no baseline runtime attribution is claimed for
+the reservation cases. The direct timeline failures do not involve the serving
+queue. This is a completed full CLI pass plus affected repairs, **not a clean
+full-CLI claim**. Details and exact isolated commands are in
+[fix2-final-checks.json](./fix2-final-checks.json) and
+[fix2-cli-followup.json](./fix2-cli-followup.json).
+
+Full device qualification is **1,565 passed / 8 failed / 4 ignored**. All eight
+exact isolated reruns reproduce the same reservation disagreement in
+`readauth::outcomes::{bridge_publish,bridge_repost,recipe_post,recipe_repost}` on
+memory and SQLite; the shared fixture ticket includes them. They fail in direct
+engine construction before a serving command is submitted. Every other device
+target passes. No validator, fixture schema or test bound was relaxed.
+
+The first guide pass is 126/1 and its exact isolated failure reproduces: the
+new runtime codes were absent from the manually reviewed defining/recovery fact
+matrices. `40f4811534` adds both codes' semantic facts while retaining every
+registry/duplicate/paragraph/recovery assertion. The complete guide repeat is
+**127/0**. See [fix2-guide-followup.json](./fix2-guide-followup.json).
+
+Both warm RT0 tables match **exactly**, all twelve rows on each store. Neither
+JSON table changed from `2281138019`; cold/first-use observations are diagnostic,
+not warm table rows. The concise first qualification receipt is
+[fix2-attribution-rt0.txt](./fix2-attribution-rt0.txt); the full-scope SQLite repeat
+and Postgres-script repeat also pass.
+
+| Request class | SQLite statements | Postgres flights |
+| --- | ---: | ---: |
+| action_session_w1 | 39 | 29 |
+| keyed_first | 87 | 77 |
+| narrowed_argument | 46 | 26 |
+| one_membership | 80 | 58 |
+| rate_limited | 0 | 0 |
+| replay_hit | 40 | 30 |
+| unauthenticated | 0 | 0 |
+| unkeyed_increment | 79 | 57 |
+| unknown_operation | 46 | 26 |
+| unknown_token | 5 | 5 |
+| w1_point | 31 | 23 |
+| w2_newest20 | 31 | 23 |
+
+The first full Postgres script did **not** run five core unit-test stages: a
+retired `Reply::wait_timeout` call prevented their shared test target from
+compiling. The earlier main-store-pass claim was incorrect. `adeb2c1924` keeps
+the fixture's 50 ms observation on a separate test receiver around real-result
+waiting, with its original ownership, unlock and cleanup assertions. No
+production timeout API returns. The full Postgres-feature test tree type-checks,
+and the complete script repeat now runs every stage: **376 Rust passes / one
+evaluator concurrency failure**. The five formerly blocked stages pass **218,
+25, 2, 1 and 12** cases; the compiled handle guard and 38 doctests also pass.
+HTTP, startup release, RT0, the corpus and public serving (including P1-MC)
+pass. The exact unchanged evaluator concurrency rerun passes both modes with
+65 durable increments each, no lost updates and 0/89 total retries. The
+[existing evaluator issue](../../../issues/20260916-snapback4-postgres-serializable-benchmark-failures.md)
+is appended; no clean-full-Postgres-script claim is made. See
+[fix2-postgres-followup.json](./fix2-postgres-followup.json).
+
+The temporary runner's Cargo-only failure mapper stopped after the initial
+shell stage. Its real failed status and trace remain recorded; an explicit
+evaluator rerun and every remaining check completed. This affected orchestration,
+not product behavior. The corrected complete-script repeat also remains red
+only on that evaluator fixture.
+
+| Required check | Final evidence |
+| --- | --- |
+| Ordinary CLI build | Pass, repeated after restoring main-workspace artifacts and by the corrected Postgres script |
+| Ordinary instrumentation exclusion | Zero `round_trips` / `trace_round_trips` defined symbols before qualification and after both final builds |
+| Core no-default check | Pass |
+| Wasm device no-default/web check | Pass |
+| Full core | 1,085 passed / 0 failed / 5 ignored; 27 doctests included |
+| Full CLI | 1,422 passed / 11 failed / 19 ignored; all exact isolated reruns retained; lane repairs pass full unit binary 535/0 and exact why 1/0; six unrelated/provided-baseline cases remain reproducible |
+| Full lifecycle within CLI | 29/0, including concurrent replay/backfill; adoption issue closed |
+| Full device | 1,565 passed / 8 failed / 4 ignored; every failure reproduces reservation/schema disagreement alone |
+| Committer/store-port/handle censuses | 16/0, final repeat after the last fixture repair; no allowances changed |
+| Compiled handle guards | Default and Postgres 1/0 each; core doctests 27 and Postgres 38 |
+| Release feature guards | Both exact diagnostic refusals pass |
+| Guide | Initial 126/1 and isolated red retained; final complete repeat 127/0 |
+| Wasm codec census | 27/0 |
+| SQLite RT0 full-scope command | Pass, 12 exact rows, parser round-trip case also passes; Postgres witness deliberately ignored in this command |
+| Complete Postgres script repeat | 376 Rust passes / one evaluator failure; all five core stages, HTTP/corpus/RT0/public serving execute and pass; exact evaluator rerun passes |
+| `./ref-check` | Pass; final post-record repeat recorded below |
+| Whitespace | `git diff --check` passes |
+
+Fresh local W4: **95.30 → 95.55 ops/s**,
+**332.38 → 332.69 ms p50**, and
+**438.69 → 463.91 ms p99** (median of three 1,600-operation
+trials; 32 disjoint writers, 160 warm-up writes, SQLite WAL/FULL). Both durable
+totals are **4,960**. Throughput changes +0.26%,
+p50 +0.09%, and p99 +5.75%.
+No throughput lift or unchanged-tail claim is made. These are busy-host local
+probes, not a promotion result.
+
+The first two cached-baseline attempts returned HTTP 503 and yielded no valid
+sample set; both failures remain in the ledger. A third fresh-fixture probe
+completed, using a diagnostic-only copy that logs an HTTPError body before
+rethrowing; no error branch fired on that successful run. Workload, assertions,
+limits and retry behavior were unchanged. The successful fixed probe ran before
+that successful baseline sample. The baseline is a fresh execution of the
+retained pre-K0-Q binary, not a current-main rebuild. Binary hashes, all trials,
+failed sample identities and counter totals are in
+[fix2-measurements.json](./fix2-measurements.json),
+[before-fix2.json](./before-fix2.json) and [after-fix2.json](./after-fix2.json).
+
+All five owned Postgres data directories independently return `pg_ctl status`
+**3** with no `postmaster.pid`, including the evaluator cluster restarted for
+the exact isolated case. All **97 recorded PIDs** are absent, with no zombies,
+no executable under this lane's target or cached baseline, and no task runner
+left. The lowest sampled free space is **23.31 GiB**
+(above the 20 GB stop rule). Only completed executables in this lane's target
+were reclaimed; active and not-yet-run targets were retained. Cleanup receipts
+and both table digests are in [fix2-final-cleanup.json](./fix2-final-cleanup.json).
+RT5 was untouched. Six build jobs, no push, no stash. **PIDs left: none.**
+
+Final post-record `./ref-check`: **565 LLP documents, 11,757 references, zero errors and zero unchecked**. Final whitespace and independent PID/cluster/table-digest repeats pass.

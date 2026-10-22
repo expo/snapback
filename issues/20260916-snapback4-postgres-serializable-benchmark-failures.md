@@ -219,3 +219,23 @@ Transcripts: `/tmp/sb4-k0q-rebase/postgres.log`, `postgres-isolated.log` and
 independently confirmed with status 3 and no postmaster.pid. The
 [K0-Q rebase report](../snapback4/reports/20261022-k0q/REPORT.md#fresh-rebase-qualification)
 retains source, binary, check and cleanup receipts.
+
+
+## 2026-10-23 — K0-Q fix round 2 conformance observation
+
+Both complete `scripts/test-postgres.sh` runs escape raw `40001` (concurrent
+update) in `concurrent_read_modify_write_and_duplicate_ops_are_atomic_in_both_modes`
+at `tests/conformance.rs:244`, followed by the join at :257. This is the
+standalone evaluator fixture, not a production serving claim; the mode at the
+full-run failure is not recorded. The first run also had a separate stale
+queue-fixture compile gap, repaired before the complete repeat. That repeat
+runs every core stage, with 376 Rust passes and this one evaluator failure;
+public serving and all exact RT0 rows pass.
+
+The exact unchanged conformance rerun on the restarted owned evaluation
+cluster passes both modes: 65 increments with no lost updates, 0 serialized
+and 89 serializable total transaction retries. No retry budget, workload,
+durability or timeout was changed. Full and isolated logs are
+`/tmp/sb4-k0q-fix2-final/postgres{,-repeat}.log` and
+`postgres-concurrency-isolated.log`; the lane report retains all results.
+The restarted cluster is independently confirmed stopped.
