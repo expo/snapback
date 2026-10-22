@@ -475,7 +475,7 @@ pub fn deploy(options: &Options) -> i32 {
                 return Ok(());
             }
             let mut qualified_options=options.clone();
-            if let Some(origin)=matched.filter(|_|register_views){qualified_options.flags.insert("source-release".into(),origin.to_string());}
+            if let Some(origin)=matched.filter(|_|register_views){qualified_options.flags.insert("source-release".into(),origin.to_string());qualified_options.flags.insert("restore-dormant".into(),String::new());}
             let options=&qualified_options;
             if options.flags.contains_key("check") {
                 let mut preview_options=options.clone();
