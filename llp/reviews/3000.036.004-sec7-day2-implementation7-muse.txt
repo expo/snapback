@@ -1,0 +1,17 @@
+muse: workspace root: /home/ccheever/projects/sb4-b22-sec7 (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY.
+
+Blind review of [LLP 16.9](llp/3000.036.004-security-invariants-and-exposure.rfc.md:2308) against [creation_advice.rs](snapback4/crates/snapback4-lang/src/bind/security/creation_advice.rs), [eligibility.rs](snapback4/crates/snapback4-lang/src/bind/security/creation_advice/eligibility.rs), [write_advice.rs](snapback4/crates/snapback4-lang/src/bind/security/write_advice.rs), [security_reviews.rs](snapback4/crates/snapback4/src/verbs/security_reviews.rs), [security_sec7_day2.rs](snapback4/crates/snapback4-lang/tests/security_sec7_day2.rs) and [security_reviews.rs tests](snapback4/crates/snapback4/tests/security_reviews.rs).
+
+No material valid-schema violation found:
+
+- Two upload alternatives are independent: direct `optional arg → optional column` with exact `always .col != null` / `not (.col = null)` conjunct, and parent `always exists child[parent=.id]` plus nullable-arg branch that can skip the child, even when child media is nullable. Child required media alone does not gate. Unconditional/helper/asserted/direct children do not trigger the parent gate; unknown helpers, nullable-expression alternatives and unrelated boolean skips do not infer omission gates.
+- Parent link/filters and sibling discharge are conservative: exact created-parent `Write.id` link, literal-only discriminator match, unconditional straight-line `Insert` discharge only. Loop/expression/if-absent siblings do not discharge.
+- Gate identity keeps qualified operation, argument, table, column and source site; messages distinguish columns; two sites/columns keep separate review IDs.
+- Eligibility suppression uses compiler actual index, non-`id` named selector is not primary, unknown identity keeps the question, child capture needs exactly one resolved parent identity; multiple/unknown refs cannot suppress.
+- Generated-table writes skip specific-source recovery; historical schemas are regressed. Analyzer `sec7-8` invalidates `sec7-2` through `sec7-7`.
+- Tests cover 12 loosen lanes, 003/040 negatives, 030 grouping/suppression, 042 private asymmetry plus non-null replay, 028 removal, loop/effect/branch/helper/module boundaries, unconditional-helper child, nullable-child parent obligation, and two-site/two-column reviews.
+
+Conservative advisory fallbacks and explicit uncovered cases were not counted as safety proofs.
+

@@ -1,0 +1,94 @@
+{
+  "source": "0d950b53ae",
+  "analyzer": "sec7-10",
+  "binarySha256": "547c019c61ef526482d4b7b84899a6a2e64688955bf408f24b23067198ac16f3",
+  "checks": 900,
+  "projects": 450,
+  "ownGatingProjects": 15,
+  "ownGatingNotes": 36,
+  "gateCodes": {
+    "N_RETAINED_ROLE_GRANT": 36
+  },
+  "unexpectedCheckExits": [],
+  "byWave": {
+    "15": {
+      "projects": 100,
+      "gatedProjects": 0,
+      "uploadGatedProjects": 0
+    },
+    "16": {
+      "projects": 50,
+      "gatedProjects": 3,
+      "uploadGatedProjects": 0
+    },
+    "18": {
+      "projects": 50,
+      "gatedProjects": 2,
+      "uploadGatedProjects": 0
+    },
+    "19": {
+      "projects": 50,
+      "gatedProjects": 2,
+      "uploadGatedProjects": 0
+    },
+    "20": {
+      "projects": 50,
+      "gatedProjects": 3,
+      "uploadGatedProjects": 0
+    },
+    "21": {
+      "projects": 50,
+      "gatedProjects": 3,
+      "uploadGatedProjects": 0
+    },
+    "22": {
+      "projects": 50,
+      "gatedProjects": 1,
+      "uploadGatedProjects": 0
+    },
+    "23": {
+      "projects": 50,
+      "gatedProjects": 1,
+      "uploadGatedProjects": 0
+    }
+  },
+  "latencyJSONAndHumanSeconds": {
+    "max": 3.396,
+    "p95": 3.231
+  },
+  "day2": {
+    "003": {
+      "beforeExit": 1,
+      "afterExit": 0,
+      "code": "N_OPTIONAL_UPLOAD_CREATE",
+      "beforeNoteCount": 1,
+      "afterNoteCount": 0,
+      "afterDefaultVisible": false
+    },
+    "028": {
+      "beforeExit": 0,
+      "afterExit": 0,
+      "code": "N_EVIDENCE_REMOVAL",
+      "beforeNoteCount": 0,
+      "afterNoteCount": 1,
+      "afterDefaultVisible": true
+    },
+    "030": {
+      "beforeExit": 0,
+      "afterExit": 0,
+      "code": "N_STALE_CREATION_CHECK",
+      "beforeNoteCount": 28,
+      "afterNoteCount": 1,
+      "afterDefaultVisible": true
+    },
+    "042": {
+      "beforeExit": 0,
+      "afterExit": 0,
+      "code": "N_PRIVATE_CREATE_EDIT_ASYMMETRY",
+      "beforeNoteCount": 0,
+      "afterNoteCount": 1,
+      "afterDefaultVisible": true
+    }
+  },
+  "nonReviewFailingChecks": 0
+}

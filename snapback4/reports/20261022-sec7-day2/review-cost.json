@@ -1,0 +1,239 @@
+[
+  {
+    "lane": "w16-013-snapback-hackathon-rubric-judging",
+    "before": 1,
+    "notes": 1,
+    "codes": [
+      "N_RETAINED_ROLE_GRANT"
+    ],
+    "ackExits": [
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0
+  },
+  {
+    "lane": "w16-019-snapback-apiary-hive-inspections",
+    "before": 1,
+    "notes": 2,
+    "codes": [
+      "N_RETAINED_ROLE_GRANT",
+      "N_RETAINED_ROLE_GRANT"
+    ],
+    "ackExits": [
+      1,
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0
+  },
+  {
+    "lane": "w16-027-snapback-podcast-guest-releases",
+    "before": 1,
+    "notes": 1,
+    "codes": [
+      "N_RETAINED_ROLE_GRANT"
+    ],
+    "ackExits": [
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0
+  },
+  {
+    "lane": "w18-019-snapback-chimney-sweep-reports",
+    "before": 1,
+    "notes": 4,
+    "codes": [
+      "N_RETAINED_ROLE_GRANT",
+      "N_RETAINED_ROLE_GRANT",
+      "N_RETAINED_ROLE_GRANT",
+      "N_RETAINED_ROLE_GRANT"
+    ],
+    "ackExits": [
+      1,
+      1,
+      1,
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0
+  },
+  {
+    "lane": "w18-030-snapback-cat-show-ring-judging",
+    "before": 1,
+    "notes": 4,
+    "codes": [
+      "N_RETAINED_ROLE_GRANT",
+      "N_RETAINED_ROLE_GRANT",
+      "N_RETAINED_ROLE_GRANT",
+      "N_RETAINED_ROLE_GRANT"
+    ],
+    "ackExits": [
+      1,
+      1,
+      1,
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0
+  },
+  {
+    "lane": "w19-019-snapback-chimney-sweep-reports",
+    "before": 1,
+    "notes": 4,
+    "codes": [
+      "N_RETAINED_ROLE_GRANT",
+      "N_RETAINED_ROLE_GRANT",
+      "N_RETAINED_ROLE_GRANT",
+      "N_RETAINED_ROLE_GRANT"
+    ],
+    "ackExits": [
+      1,
+      1,
+      1,
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0
+  },
+  {
+    "lane": "w19-030-snapback-cat-show-ring-judging",
+    "before": 1,
+    "notes": 4,
+    "codes": [
+      "N_RETAINED_ROLE_GRANT",
+      "N_RETAINED_ROLE_GRANT",
+      "N_RETAINED_ROLE_GRANT",
+      "N_RETAINED_ROLE_GRANT"
+    ],
+    "ackExits": [
+      1,
+      1,
+      1,
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0
+  },
+  {
+    "lane": "w20-013-snapback-piano-competition-juries",
+    "before": 1,
+    "notes": 4,
+    "codes": [
+      "N_RETAINED_ROLE_GRANT",
+      "N_RETAINED_ROLE_GRANT",
+      "N_RETAINED_ROLE_GRANT",
+      "N_RETAINED_ROLE_GRANT"
+    ],
+    "ackExits": [
+      1,
+      1,
+      1,
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0
+  },
+  {
+    "lane": "w20-015-snapback-sailmaker-repair-orders",
+    "before": 1,
+    "notes": 1,
+    "codes": [
+      "N_RETAINED_ROLE_GRANT"
+    ],
+    "ackExits": [
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0
+  },
+  {
+    "lane": "w20-048-snapback-therapeutic-riding-sessions",
+    "before": 1,
+    "notes": 2,
+    "codes": [
+      "N_RETAINED_ROLE_GRANT",
+      "N_RETAINED_ROLE_GRANT"
+    ],
+    "ackExits": [
+      1,
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0
+  },
+  {
+    "lane": "w21-013-snapback-piano-competition-juries",
+    "before": 1,
+    "notes": 4,
+    "codes": [
+      "N_RETAINED_ROLE_GRANT",
+      "N_RETAINED_ROLE_GRANT",
+      "N_RETAINED_ROLE_GRANT",
+      "N_RETAINED_ROLE_GRANT"
+    ],
+    "ackExits": [
+      1,
+      1,
+      1,
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0
+  },
+  {
+    "lane": "w21-015-snapback-sailmaker-repair-orders",
+    "before": 1,
+    "notes": 1,
+    "codes": [
+      "N_RETAINED_ROLE_GRANT"
+    ],
+    "ackExits": [
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0
+  },
+  {
+    "lane": "w21-048-snapback-therapeutic-riding-sessions",
+    "before": 1,
+    "notes": 2,
+    "codes": [
+      "N_RETAINED_ROLE_GRANT",
+      "N_RETAINED_ROLE_GRANT"
+    ],
+    "ackExits": [
+      1,
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0
+  },
+  {
+    "lane": "w22-021-snapback-wash-fold-laundry",
+    "before": 1,
+    "notes": 1,
+    "codes": [
+      "N_RETAINED_ROLE_GRANT"
+    ],
+    "ackExits": [
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0
+  },
+  {
+    "lane": "w23-021-snapback-wash-fold-laundry",
+    "before": 1,
+    "notes": 1,
+    "codes": [
+      "N_RETAINED_ROLE_GRANT"
+    ],
+    "ackExits": [
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0
+  }
+]

@@ -1,0 +1,19 @@
+muse: workspace root: /home/ccheever/projects/sb4-b22-sec7 (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY.
+
+No concrete material valid-schema issue found. The final source matches the §16.9 boundaries.
+
+Verified against the exact final source:
+
+- [creation advice](snapback4/crates/snapback4-lang/src/bind/security/creation_advice.rs:66): the two upload alternatives are an independent OR. Parent-presence requires a nullable-argument branch (`nonnull_mode` with `$advice` included, `nonnull` without it). Direct nullable column+argument requires exact independent non-null intent plus optional column plus a bare `Name` write. Unconditional, helper-validated, asserted, and direct children cannot satisfy the parent skip condition. Nullable alternatives, unknown helpers, and unrelated boolean skips stay out of the gate.
+- [Gate identity](snapback4/crates/snapback4-lang/src/bind/security/creation_advice.rs:72): keyed by qualified operation, argument, table, column, and source site. Messages name the column. Two-site and two-column tests pin separate review IDs.
+- [Parent obligation](snapback4/crates/snapback4-lang/src/bind/security/creation_advice.rs:252): exact created-parent link, exact literal discriminator match, unknown filters rejected, sibling discharge restricted to a direct ordinary insert in the straight-line prefix. Conditional, expression-conditional, loop, helper, and if-absent siblings cannot discharge.
+- [Eligibility](snapback4/crates/snapback4-lang/src/bind/security/creation_advice/eligibility.rs:1): suppression uses the compiler source-map index. Named non-ID selectors are not primary. Unknown decision identity cannot suppress. Child capture needs exactly one fully resolved parent identity. Multiple and unknown parent refs keep the question.
+- [Write advice](snapback4/crates/snapback4-lang/src/bind/security/write_advice.rs:1): specific column-guard recovery is isolated, requires one resolved write, matches exact row and assigned expression, unions every edit path, emits only on definite failed implication, and suppresses the generic inventory only after emitting. Loop, effect, branch, emit, and alias poisoning stay conservative.
+- [Evidence removal](snapback4/crates/snapback4-lang/src/bind/security/creation_advice.rs:225): parent-presence intent is checked before the nullable-media exclusion. Delete and detach of an independently required child stay grouped advice with nullable media. Clearing nullable media alone is quiet unless independent non-null intent applies. Both the deletion-positive and nullable-clear-negative regressions are pinned, and the 028 class is retained.
+- [Analyzer and dispositions](snapback4/crates/snapback4/src/verbs/security_reviews.rs:6): revision is sec7-9, and the unit test rejects sec7-2 through sec7-8. IDs hash the complete diagnostic, the source digest covers sorted source bytes, and every edit invalidates.
+
+The focused [day-two regressions](snapback4/crates/snapback4-lang/tests/security_sec7_day2.rs:1) pin the twelve loosen lanes, 003, 040, the 030 grouping and identity controls, 042 asymmetry and non-null replay, 028 removal, boundary controls, helper and nullable-child cases, and the two-site and two-column reviews. The public [security reviews](snapback4/crates/snapback4/tests/security_reviews.rs:1) pin per-note disposition, bulk-ack refusal, source-edit invalidation, and the social no-review case.
+
+Conservative fallback and explicitly uncovered cases remain advisory only, as specified.

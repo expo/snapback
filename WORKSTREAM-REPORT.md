@@ -153,3 +153,149 @@ reclaimed). The local target tree and Lean build output were removed after all
 verification ended. No source
 lane was modified and no push was performed. The report/evidence commit records
 validation and cleanup; it adds no product semantics.
+
+
+## Wave-23 day-two addendum — final source 0d950b53ae
+
+This section supersedes the original broad upload-gate counts and review costs
+above. origin/main was merged first at 01bae70281. Package versions remain
+0.4.37; user-visible changes are recorded in guide changes for 0.4.38. DX6 owns
+clock/session/upgrade and frontend/proof-kit weight; SEC7 changes no such behavior.
+
+### Requested changes and commits
+
+1. Optional-upload precision, including 003: 63089244bc, dd2db9a14b,
+   dd1381d5af, 5a574708ac and c846640532. Optional media and deliberate v2
+   loosening do not gate by syntax or evidence-like names. A gate needs direct
+   nullable-media flow with explicit non-null intent, or independent parent-child
+   presence intent plus a nullable-upload branch that skips its child. The parent
+   must be a known direct, argument-independent insertion; unknown helper/control
+   prefixes stay independent integrity/test coverage. Required media/assertions
+   already enforce executed writes. Child-local requirements cannot protect an
+   already-created parent; a guard enclosing both creations can. All twelve
+   loosen lanes pass with own/no intent, including 003. The social starter ships
+   no stock acknowledgment and still checks after edits.
+2. 030 stale creation: 63089244bc, 19fbd8f0d5, dd2db9a14b, dd1381d5af and
+   5a574708ac. **28 notes become one**, naming submitApplication,
+   approveApplication and mutable operatorFlags.suspended. Group by created
+   table/dependency; exclude immutable ownership and unrelated decisions. Suppress
+   only complete rechecks of the same entity using compiler-selected indexes,
+   source maps and immutable captures. Unknown/multiple parent identities keep the
+   question. Different inspectors, partial rechecks and non-ID selectors cannot
+   silence it.
+3. New questions: 63089244bc through 7fcad927a8. 042 gets a specific,
+   leading N_PRIVATE_CREATE_EDIT_ASYMMETRY naming agencyBillingNotes and its
+   owner-only change guard; ordinary create/edit asymmetry has its own class.
+   Recover only the exact supported column-change fragment; effects, alias joins,
+   loops, mutable keys and multiple writes fall back to ordinary inventory.
+   028 gets a grouped N_EVIDENCE_REMOVAL for removeVehicle deleting the linked
+   photo. Delete/detach of an independently required child is also questioned
+   with nullable media, while nullable-cell clearing alone stays quiet. All are
+   advisory. Unconditional replacements remain quiet.
+4. Review identity and regressions: 5a574708ac, 7fcad927a8, c846640532 and
+   0d950b53ae. Module, operation, argument, table, column and source site keep
+   independent review obligations. One acknowledgment cannot clear the other
+   site. Analyzer sec7-10 invalidates earlier revisions. Three historical corpus
+   schemas exposed a generated-table advice panic; the catalog guard and frozen
+   regressions repair it. The non-null argument frontier preserves nullable
+   reference/principal setup histories; the complete SEC6 target passes again.
+   The guide action quotation was updated to match its already-reviewed repair.
+
+The amendment is LLP 3000.036.004 §16.9. Final fresh Codex and Muse reviews both
+returned READY. All 22 actual design/implementation review outputs, including
+negative rounds and the final Muse plan-quota/Meta fallback, are saved verbatim
+with hashes in llp/reviews/3000.036.004-sec7-day2-review-record.md. No key material was inspected or printed by the agent. Conservative cuts are documented coverage boundaries, not safety
+proofs or lane-specific exemptions.
+
+### Final measurement
+
+The final binary checks 450 copied projects / 900 own/no-invariant variants:
+100 wave15, then50 each in16,18,19,20,21,22,23. No source lane was changed.
+There are **zero upload gates**, no panics and no compiler/non-review check
+refusals. Retained-role review gates fail15 projects, by wave:0,3,2,2,3,3,1,1.
+They contain36 individual notes; mechanical per-note disposition probes clear all
+36, leaving zero pending/failing checks. These probes are not judgments that
+retained authority meets the specification. Raw review refusals are reported,
+not relabeled as zero refusals. JSON plus human check together take at most
+3.396s (p95 3.231s), within the existing five-second authoring target.
+
+Wave23 raw gating falls from10/50 to1/50 (021 retained-role only). The six falsely
+gated loosen lanes and 003 no longer fail. 030's one grouped note, 028's removal
+question and 042's private create/edit question all reach default check. Exact
+before/after default output for all50 lanes and source hashes are retained in
+snapback4/reports/20261022-sec7-day2/.
+
+The original eight-lane matrix was rerun:24 experiments, none/own intent refute0;
+spec-worded intent refutes004,011,021,026,030,037. Important correction to the
+original report: 011's existing spec fixture refutes a read-privacy rule; it does
+not prove the missing wall-owner relationship was caught. Do not count it as that
+finding-specific catch. 040 and044 remain unrefuted by their tested intent;
+044's constant-payment/duration questions remain visible. Finite history and
+unmodeled-money limitations are retained rather than called safe.
+
+The day-two matrix adds15 experiments on003,028,039,041,042. None/own intent
+refutes0; independent spec intent refutes003,028,042 with2,86,12 reachable
+witnesses respectively. Counts are witnesses, not separate holes. 042 includes
+an actually admitted non-null billing-note history. 039's once-quoted-history
+intent and041's count boundary remain uncovered by these campaigns. Those gaps
+are not repaired or claimed caught by the new advice classes. Directed campaigns
+retain at most12 worlds here, within the existing <=16 test bound and2048 directed
+mutation-attempt cap.
+
+### Requalification
+
+- Full seven-crate cargo workspace and full language suite completed; both began
+  before the final review repairs. Each had
+  the same sole SEC6 nullable-relationship frontier failure; it was repaired and
+  the whole12-test target passed. These are completed full runs plus affected
+  repairs, not claimed clean full reruns. Final day-two37/37, legacy SEC7 17/17,
+  CLI515 passed/5 ignored plus4/4 public tests, and guide127/127 pass. A late
+  stale guide-action pin initially failed126/127 and its corrected full rerun
+  passed127/127. Earlier rejected binding/gating candidates remain in review
+  and validation evidence.
+- Full client pool at63089244bc:425/425 files pass,7773 tests pass/56 skip; both full default
+  model files pass81/81 using5000/3000 sequences. The affected packed-security
+  and social-starter20 tests passed during refinement; subsequent Native-only
+  advice changes are covered by the final affected tests and packed qualification.
+  Final installed-test verification is recorded below.
+- Difftest run20k:1,222,111 executions,0 disagreements/new signatures. Devices
+  0–999:27,922 executions,0 disagreements. Lean model build passes; run20k has
+  56,917 executions and exit1 on130 disagreements in exactly four previously
+  CLASSIFIED signatures,0 NEW. It is not an all-green Lean claim.
+- Wasm735,093 gzip bytes /735,407 budget passes after the main merge; subsequent
+  SEC7 changes do not affect wasm inputs. Root frozen install, hoist, generated
+  artifacts, inventories and guide22/22 pass. Final docs budget319/320 and its
+  named guide test pass. Ref-check564 LLPs/12,330 refs,0 errors/unchecked before
+  final evidence curation. An early docs-budget invocation omitted the flags for
+  its nested Cargo call; it was rerun with all required flags and its redundant
+  build output is removed during cleanup.
+- Fresh packed Linux consumer-only qualification passes at0d950b53ae, including
+  both clean Linux userspaces, six starter toolchains, twelve generated frontend
+  proofs, packed security, migrations, staging and rule recipes. --consumer-only
+  avoids the prohibited scripts/test.sh; the full Rust/client batteries ran
+  separately. No publication receipt or promotion claim is made. A prior run
+  correctly rejected concurrent source repairs; an early retry was stopped before
+  consumer work for another review repair. Only the final frozen-source pass is
+  counted. The final installed security/starter files pass20/20 against that same musl
+  binary (sha25696c0c3c8538db2d20479f43e9323bff4a53eaaad321ed62c63b8b16a7cf5f433).
+- Final Mac Studio SSH retry to the permitted worktree still times out. No final
+  Mac pass is claimed, and the black publication Mac was not used.
+
+### Decisions, limits and cleanup
+
+No app-specific runtime authorization, natural-language specification parser,
+new intent syntax, package version bump or publication receipt is introduced.
+Independent intent remains necessary for finding requirements absent from the
+schema. This work improves detection and review precision; it does not certify
+zero security holes across the apps. The remaining finite-search/unmodeled-intent
+limits above are explicit deferrals.
+
+Cleanup completed after all verification ended: removed the owned Snapback4
+Target tree (including duplicate Rust builds, musl output, packs, proof projects
+and the private npm cache) and Lean build output. No active process used those
+outputs before deletion. All six SEC7 experiment scratch prefixes have zero
+remaining directories under /tmp. Compact compressed evidence and artifact
+hashes are retained. Whitespace checks pass for code/report/evidence metadata;
+raw review transcripts retain their original whitespace as explicitly required.
+Source lanes and other worktrees were untouched. No push
+was performed.

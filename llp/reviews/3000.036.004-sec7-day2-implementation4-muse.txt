@@ -1,0 +1,23 @@
+muse: workspace root: /home/ccheever/projects/sb4-b22-sec7 (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY.
+
+Final review at HEAD `dd2db9a14b` — all 12 files in scope read. No material issues found; every closed fragment is implemented as specified and pinned by tests.
+
+Verified semantics
+
+- Entity identity (`creation_advice/eligibility.rs`): `named_id` accepts only string literals or typed reference args (including `.id` of an already-pinned read); `stable_field` accepts only literals and viewer/operation-input values against immutable creator fields. Mutable lookups can no longer equate by spelling. Pinned by `mutable_named_id_selectors…` (stale retained) and the `wrong`/`alias` variants (viewer recheck and mutable member never suppress).
+- Capture-source suppression: a decision program that inserts/upserts/deletes the captured source table yields no checks, so it cannot suppress. The cut only adds notes and is inert on every `!has` control.
+- Branch/loop joins (`authority_walk.rs`): assignments in either branch poison aliases to `$advice_unknown_*`; loops clear pending column facts before the domain, walk bodies from an empty fact set, and poison loop-assigned aliases after. Pinned by `reassigned` (no specific note), the bounded-loop test (no pre-loop guard reuse), and the helper-survival/equality positive controls.
+- Specific edit advice (`write_advice.rs`): requires exactly one resolved write to the editor's target table, literal-or-input/viewer stable keys on both the old read and the write, module-scoped `(file, editor, table, column)` grouping, creator-local arg flow via `supplied(field, creator)`, and skips editors whose compiled write set intersects the guard's authority dependencies. Pinned by mixed/other-row/intervening/early-return fallbacks, the module-local `a.edit` test, and retained generic inventory.
+- Media assertions (`creation_advice.rs`): `argument ! else CODE` counts as enforced via `asserted_argument`; with no parent obligation the wave18/19 pass-card shape (assert inside a conditional branch, `require … or photo != null`) emits no `N_OPTIONAL_UPLOAD_CREATE`. With an explicit `always exists` obligation, only the same direct unconditional-creation fragment discharges; branch-skipped assertions and nullable-alternative wraps still gate. All six sub-cases pinned in `asserting_an_optional_photo…`.
+- Analyzer `sec7-5` invalidates `sec7-2/3/4` in `security_reviews.rs`, with the unit test asserting all three old records unacknowledged. Only gated codes remain `N_RETAINED_ROLE_GRANT` and `N_OPTIONAL_UPLOAD_CREATE`.
+- Counts reconcile from source: 27 `#[test]` in `security_sec7_day2.rs`, 17 in `security_sec7.rs`, 127 in the guide binary (53 in `guide.rs` + 74 in included `guide/` modules). New fixtures `wave18/19-046.q` are in the manifest and exercised.
+- Guide text matches code, and guide tests assert only on unchanged sentences, so the doc edits cannot break them. No new unbounded work: implication calls use the existing kernel budget.
+
+Residual, non-blocking
+
+- `Stmt::As` (principal-switching scope) still inherits outer column facts without poisoning on exit. Untouched by this amendment, unpinned by any test, and outside the listed fragments. Suggest a follow-up ticket, not a blocker.
+- Two conservative cuts lack isolated negative pins but fail safe (generic inventory retained): mutable key expressions in change-guard matching, and call-valued capture rejection in `stable_field`.
+
+Not verified by me: test execution (already running elsewhere, per instructions); manifest hashes taken as stated.
