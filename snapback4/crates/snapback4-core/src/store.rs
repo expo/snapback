@@ -52,6 +52,7 @@ mod outbox;
 mod change_evidence;
 pub(crate) mod release;
 mod authority;
+mod session_clock;
 mod identity;
 mod receipts;
 mod jobs;

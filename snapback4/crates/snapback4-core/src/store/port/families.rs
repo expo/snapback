@@ -588,3 +588,14 @@ mod placement {
         fn placement_record(&self, owner: &str, id: &str) -> Result<Option<IntentRecord>, RuntimeError> { match self { Self::Sqlite(inner) => <sqlite::Tx<'_> as AssetPlacementReader>::placement_record(inner, owner, id) } }
     }
 }
+
+mod session_clock {
+    use super::*;
+    use crate::{authority::SessionScope, engine::session_clock::{ClockMint, ClockSession, SessionClockTransaction}};
+    impl SessionClockTransaction for AnyTx<'_> {
+        fn clock_sessions(&self, read: bool, after: Option<&str>) -> Result<Vec<ClockSession>, RuntimeError> { match self { Self::Sqlite(inner) => inner.clock_sessions(read, after) } }
+        fn set_clock_session(&self, digest: &str, scope: SessionScope, created_at: i64, expires_at: i64, cap: Option<i64>) -> Result<(), RuntimeError> { match self { Self::Sqlite(inner) => inner.set_clock_session(digest, scope, created_at, expires_at, cap) } }
+        fn clock_mints(&self, after: Option<(&str, &str)>) -> Result<Vec<ClockMint>, RuntimeError> { match self { Self::Sqlite(inner) => inner.clock_mints(after) } }
+        fn set_clock_mint(&self, invocation: &str, intent: &str, expires_at: i64) -> Result<(), RuntimeError> { match self { Self::Sqlite(inner) => inner.set_clock_mint(invocation, intent, expires_at) } }
+    }
+}

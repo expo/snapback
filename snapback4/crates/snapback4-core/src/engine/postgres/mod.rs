@@ -8,6 +8,7 @@ mod caps;
 mod contribution_upgrade;
 mod maintained_identity_upgrade;
 mod authority;
+mod session_clock;
 mod identity;
 mod identity_schema;
 mod requests;
