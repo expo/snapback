@@ -69,20 +69,23 @@ down entries legacyReason(id: id):
     writeFileSync(schema,newer);await run(['deploy',deployment]);
     const native=await post('/m/add',{count:3,reason:'exact v2 text'});assert.equal(native.state,'sent',JSON.stringify(native));
     const zero=await post('/m/add',{count:0,reason:'zero is not one'});assert.equal(zero.state,'sent',JSON.stringify(zero));
-    const preview=JSON.parse((await run(['rollback',deployment,'--to','1','--check','--json'])).stdout);
+    const visible=JSON.parse((await run(['rollback',deployment,'--to','1','--check','--json'])).stdout);
+    assert.equal(visible.visibility.hiddenRows,0,'default registered view keeps widened old-table rows visible');
+    assert.equal(visible.rollbackView.target,1);
+    const preview=JSON.parse((await run(['rollback',deployment,'--to','1','--exact','--check','--json'])).stdout);
     assert.equal(preview.visibility.hiddenRows,1,JSON.stringify(preview));
     assert.equal(preview.visibility.emptyCells,0,'declared reverse keeps reason text');
     assert.equal(preview.visibility.newerOnlyRows,2);
     assert.equal((await post('/q/all')).data.length,3,'preview never activates');
     const bridge=join(cwd,'bridge');
-    await run(['rollback',deployment,'--to','1','--check','--bridge',bridge]);
+    await run(['rollback',deployment,'--to','1','--exact','--check','--bridge',bridge]);
     const loosened=JSON.parse((await run(['deploy',deployment,'--schema',bridge,'--restore-dormant','--check','--json'])).stdout);
     assert.equal(loosened.visibility.hiddenRows,0,'generated bridge represents zero without inventing one');
     await run(['deploy',deployment,'--schema',bridge,'--restore-dormant']);
     assert.equal((await post('/q/all')).data.length,3,'target operations read all representable rows under the generated bridge');
     await run(['deploy',deployment]);
 
-    await run(['rollback',deployment,'--to','1']);
+    await run(['rollback',deployment,'--to','1','--exact']);
     const oldRows=(await post('/q/all')).data;
     assert.equal(oldRows.length,2,'unrepresentable zero is dormant');
     assert.equal(oldRows.find(row=>row.id===native.result.id).reason,'exact v2 text');
@@ -99,7 +102,7 @@ down entries legacyReason(id: id):
     assert.equal(forward.find(row=>row.id===zero.result.id).count,0,'exact zero restored');
     assert.ok(!('reason' in forward.find(row=>row.id===native.result.id)),'old projected field is absent from v2');
     assert.equal((await post('/m/explain',{entry:native.result.id,reason:'current v2 text'})).state,'sent');
-    await run(['rollback',deployment,'--to','1']);
+    await run(['rollback',deployment,'--to','1','--exact']);
     assert.equal((await post('/q/all')).data.find(row=>row.id===native.result.id).reason,'current v2 text','prior down image never suppresses current truth');
     assert.equal((await post('/m/reason',{entry:native.result.id,reason:'authored old edit'})).state,'sent');
     const refused=await invoke(['deploy',deployment]);assert.equal(refused.code,1,refused.stderr+refused.stdout);assert.match(refused.stderr,/E_ADOPT|conflict|changed/i);
@@ -150,7 +153,7 @@ query all():
     const native=await post('/m/add',{title:'native',weight:200});assert.equal(native.state,'sent');
     for(const [item,weight] of [[historical.result.id,200],[native.result.id,50]]) assert.equal((await post('/m/revise',{item,weight})).state,'sent','ordinary v2 edits survive re-entry');
     for(let cycle=0;cycle<2;cycle++) {
-      await run(['rollback',deployment,'--to','1']);
+      await run(['rollback',deployment,'--to','1','--exact']);
       const older=(await post('/q/all')).data;
       assert.ok(older.every(row=>typeof row.title==='string'),'old source sees carried title');
       assert.equal((await post('/m/add',{title:'while-old-'+cycle,weight:150})).state,'sent');
@@ -198,7 +201,7 @@ query all():
   return orders where .owner = viewer first 100 by .id
 `;
     const newer=old.replace('table orders:','table consignments renamed from orders:')
-      .replace('  names: file <=1000','  roster: file <=1000 ? renamed from names\n  quantity: int\n  hasReceipt: bool default false')
+      .replace('  names: file <=1000','  roster: file <=1000 ? renamed from names\n  quantity: int default 0\n  hasReceipt: bool default false')
       .replace('  legacyQuantity: int default 0\n','')
       .replaceAll('parent: orders','parent: consignments')
       .replace('mutation add(names: file <=1000):','mutation add(names: file <=1000 ?, quantity: int):')
@@ -224,14 +227,14 @@ down consignments oldQuantity(roster: file <=1000 ?):
     const native=await post('/m/add',{names:null,quantity:0});assert.equal(native.state,'sent');assert.equal((await post('/m/receipt',{parent:native.result.id})).state,'sent');
     const second=await client.upload(new TextEncoder().encode('Bo\nCy\n'),{file:{name:'later.txt',type:'text/plain'}});assert.equal(second.ok,true);
     const nativeFile=await post('/m/add',{names:{id:second.asset.id},quantity:2});assert.equal(nativeFile.state,'sent');
-    const strict=JSON.parse((await run(['rollback',deployment,'--to','1','--check','--json'])).stdout);
-    const strictText=(await run(['rollback',deployment,'--to','1','--check'])).stdout;
+    const strict=JSON.parse((await run(['rollback',deployment,'--to','1','--exact','--check','--json'])).stdout);
+    const strictText=(await run(['rollback',deployment,'--to','1','--exact','--check'])).stdout;
     const legacyLine=strictText.split('\n').find(line=>line.includes('.legacyQuantity:'));assert.ok(legacyLine,strictText);
     assert.match(legacyLine,/preimage/,'empty/default advice accounts for predecessor ownership');
     assert.doesNotMatch(legacyLine,/because the target field has no nonempty carried/,'values equal to defaults are facts, not proof of an absent projection');
     assert.equal(strict.visibility.hiddenRows,2,'required file hides its row and its typed child');assert.equal(strict.visibility.newerOnlyRows,0,'renamed identity is an old table');
     assert.ok(strict.visibility.tables.some(t=>t.causes.some(([cause])=>cause.includes('hidden parent'))));
-    const bridge=join(cwd,'bridge');await run(['rollback',deployment,'--to','1','--check','--bridge',bridge]);await run(['deploy',deployment,'--schema',bridge,'--restore-dormant']);
+    const bridge=join(cwd,'bridge');await run(['rollback',deployment,'--to','1','--exact','--check','--bridge',bridge]);await run(['deploy',deployment,'--schema',bridge,'--restore-dormant']);
     rows=(await post('/q/all')).data;assert.equal(rows.length,3);assert.equal(rows.find(r=>r.id===historical.result.id).names.id,uploaded.asset.id);
     assert.equal(rows.find(r=>r.id===nativeFile.result.id).legacyQuantity,2,'native-v2 down reads retained file bytes in exact previews and activation');
     assert.equal(rows.find(r=>r.id===native.result.id).names,null,'bridge preserves absence without fabricating a file');

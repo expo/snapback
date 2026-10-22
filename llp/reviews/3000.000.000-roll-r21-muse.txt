@@ -1,0 +1,13 @@
+muse: workspace root: /home/ccheever/projects/sb4-b23-roll (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=ba773d24-3228-4ae4-ad18-8f4767a06830]: Subscription quota exhausted. Your usage window resets at 2026-10-26T00:00:00Z. (rate_limit_error)
+[muse-exec] plan quota exhausted; retrying with the Meta API key
+muse: workspace root: /home/ccheever/projects/sb4-b23-roll (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY.
+
+Top finding: revision 21 closes the alias-preservation gap without opening a guard, authority, or atomicity hole.
+
+* §20.1 binds old aliases as old names and resolves current aliases to authored targets for inputs, guards, helpers, and authority; renaming cannot drop guards under same-module/no-chain law.
+* Fail-closed union, closed-fallback, hiding, edited-output, rename, and extraction rules remain intact.
+* Unconditional registry-custody wire gate remains; no qualification or publication claim in §20.5.

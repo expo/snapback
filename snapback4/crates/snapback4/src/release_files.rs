@@ -53,7 +53,7 @@ fn bundle_digest(root: &Path, executable: bool) -> Result<String, String> {
         // @ref LLP 3000.000.000#16-release-reactivation-and-rollback-foresight-rel5 — compiler and host-location reports are not executable content.
         // Keep both reports in control-request integrity; only release identity
         // ignores them. Activation recompiles and checks the retained source normally.
-        if executable && matches!(name.as_ref(), "device-compatibility.json" | "worker-package.json") {continue;}
+        if executable && (matches!(name.as_ref(), "device-compatibility.json" | "worker-package.json" | "rollback-view.json" | "rollback-views.json") || name.starts_with("rollback-views/")) {continue;}
         hash.update((name.len() as u64).to_le_bytes());
         hash.update(name.as_bytes());
         #[cfg(unix)]

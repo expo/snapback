@@ -29,6 +29,10 @@ fn bind_one(
 }
 
 pub(super) fn bind(catalog: &Catalog, schema: &mut Schema, diagnostics: &mut Vec<Diagnostic>) {
+    for d in catalog.documents.iter().flat_map(|d|&d.extractions) {
+        let extraction=snapback4_core::schema::Extraction{child:d.child.clone(),parent:d.parent.clone(),reference:d.reference.clone(),fields:d.fields.iter().cloned().collect()};
+        schema.extractions.push(extraction);
+    }
     let mut forward_names=BTreeSet::new();let mut forward_outputs=BTreeSet::new();
     for d in catalog.documents.iter().flat_map(|d|&d.backfills) {bind_one(catalog,schema,diagnostics,d,false,&mut forward_names,&mut forward_outputs);}
     let mut down_names=BTreeSet::new();let mut down_outputs=BTreeSet::new();
@@ -45,7 +49,7 @@ pub(super) fn bind(catalog: &Catalog, schema: &mut Schema, diagnostics: &mut Vec
                 diagnostics.push(type_error(&column.site,format!("rename source {}.{old} must be a distinct predecessor-only column",table.name),"remove the current old column and retain only the renamed declaration"));continue
             }
             fn asset(kind:&ast::TypeKind)->bool {match kind {ast::TypeKind::Image{..}|ast::TypeKind::Video{..}|ast::TypeKind::File{..}=>true,ast::TypeKind::List{item,..}=>asset(&item.kind),_=>false}}
-            if asset(&column.type_.kind) && column.maintained.is_none() && column.sequence.is_none() && column.written_by.is_none() {
+            if (asset(&column.type_.kind)||matches!(&column.type_.kind,ast::TypeKind::Ref{..})) && column.maintained.is_none() && column.sequence.is_none() && column.written_by.is_none() {
                 schema.asset_renames.entry(table.name.clone()).or_default().insert(column.name.clone(),old.clone());continue;
             }
             if matches!(&column.type_.kind, ast::TypeKind::Ref{..}|ast::TypeKind::Image{..}|ast::TypeKind::Video{..}|ast::TypeKind::File{..}|ast::TypeKind::List{..})

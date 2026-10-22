@@ -1,0 +1,12 @@
+muse: workspace root: /home/ccheever/projects/sb4-b23-roll (cwd default)
+muse: workspace trust: trusted source=run-flag
+NOT READY
+
+Material correctness/security/atomicity gaps in the supplied text:
+
+1. Relaxed-unique replacement permits arbitrary row choice (§20.1). A copied `require` needs identical transitive bindings, lookup predicates and control-flow, but the relaxed-unique replacement path checks only same name/kind/argument contract. An already-authored current endpoint over a now-non-unique key can implement first-row/latest-row choice. The generator promise ("never invents first-row selection") does not cover authored first-row logic. Old unique-lookup callers then get non-deterministic rows. Must refuse unless the replacement is still uniqueness-guaranteed or deterministically tie-broken over the relaxed key.
+
+2. Operation result contracts are unenforced (§20.1/§20.5). Views retain "operation names and argument contracts" only. Nullable/widened-cardinality result fields are relegated to a non-mandatory "action-focused checklist" as "facts, not mandatory decisions". There is no hiding-acknowledgment path for results (hiding spelling is table-column only) and no refuse rule. A current nullable result flowing to a predecessor nonnull caller breaks the predecessor contract silently. Must refuse compilation or enforce hiding; checklist-only is insufficient.
+
+3. Hidden-reference closure is not closed (§20.2). The writer check allows "acknowledged null rows and the actual hidden-reference closure rooted in them", but the edge set is undefined: which renamed references, extraction parent links, cascade/restrict/set-null edges, native anchors, and active vs dormant overlays count, computed under the writer transaction. Over-approximation silently admits unrelated hidden rows (hiding bypass/data loss). Must define the exact physical-reference edge set, including dormant, evaluated under the same writer transaction.
+

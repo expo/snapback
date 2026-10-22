@@ -1,3 +1,4 @@
+// Frozen-source hazard coverage uses --exact; roll_views and dormant-visibility cover the registered default.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
@@ -66,7 +67,7 @@ mutation grouped(a: bool, b: bool, c: bool):
   assert.match(preview, /note: .*release 2 tightens grouped\.require/);
   assert.match(preview, /require \(a and \(b or c\)\) else BASE 'base refusal'/);
   run('deploy', deployment);
-  const rollback = JSON.parse(run('rollback', deployment, '--to', '1', '--check', '--json').stdout);
+  const rollback = JSON.parse(run('rollback', deployment, '--exact', '--to', '1', '--check', '--json').stdout);
   assert.ok(rollback.hazards.some(line => line.includes('loosens grouped.require') && line.includes('rollback users lose a current safety guard') && line.includes('bridge release')), JSON.stringify(rollback.hazards));
   writeFileSync(schema, v2.replace("BASE 'base refusal'", "RENAMED 'changed refusal'"));
   const changed = run('deploy', deployment, '--check').stdout;
@@ -215,7 +216,7 @@ query entriesList():
   assert.equal((await host.post('/m/add', {})).state, 'sent');
   await host.stop();
 
-  const jsonResult = run('rollback', deployment, '--to', '1', '--check', '--json');
+  const jsonResult = run('rollback', deployment, '--exact', '--to', '1', '--check', '--json');
   const plan = JSON.parse(jsonResult.stdout);
   assert.match(jsonResult.stderr, /resolved rollback target: release 1 \(current release 2\)/);
   for (const fragment of [
@@ -228,8 +229,8 @@ query entriesList():
   ]) assert.ok(plan.hazards.some(line => line.includes(fragment)), `${fragment}: ${JSON.stringify(plan.hazards)}`);
   assert.ok(!plan.hazards.some(line => /entries changed: .*guards? unproved/.test(line)), JSON.stringify(plan.hazards));
 
-  const preview = run('rollback', deployment, '--to', '1', '--check').stdout;
+  const preview = run('rollback', deployment, '--exact', '--to', '1', '--check').stdout;
   assert.ok(preview.indexOf('resolved rollback target: release 1') < preview.indexOf('preview: release 1 would be current'), preview);
-  const activated = run('rollback', deployment, '--to', '1').stdout;
+  const activated = run('rollback', deployment, '--exact', '--to', '1').stdout;
   assert.ok(activated.indexOf('resolved rollback target: release 1') < activated.indexOf('release 1 is current as generation'), activated);
 });

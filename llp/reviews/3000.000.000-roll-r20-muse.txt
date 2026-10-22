@@ -1,0 +1,18 @@
+muse: workspace root: /home/ccheever/projects/sb4-b23-roll (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=5021439c-3867-4096-8393-20f1a26c85ba]: Subscription quota exhausted. Your usage window resets at 2026-10-26T00:00:00Z. (rate_limit_error)
+[muse-exec] plan quota exhausted; retrying with the Meta API key
+muse: workspace root: /home/ccheever/projects/sb4-b23-roll (cwd default)
+muse: workspace trust: trusted source=run-flag
+NOT READY — missing required operation-alias preservation clause.
+
+Wire custody is unconditional in the supplied text. Every hot activation carries registry-custody, including exact, empty registry, and format-8. Updated hosts require it before admission with no old-wire exception. Older hosts reject unknown field before admission.
+
+Operation aliases are not preserved. §20.1 requires every predecessor operation name/kind, but never states existing authored aliases count under their compilation law. Table/reference aliases are mentioned. Operation aliases are not.
+
+Mixed-domain closure passes. It requires same-spelling tables/columns, same operation names, accepting input domains, exact current domains, no translation or resurrection.
+
+No qualification/publication claim. §20.5 disclaims unrun tests, publication, push, and version bump.
+
+One missing preservation rule blocks READY. Add explicit operation-alias sentence and resubmit.
+

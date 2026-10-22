@@ -1,0 +1,16 @@
+muse: workspace root: /home/ccheever/projects/sb4-b23-roll (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=3e770bd9-771d-4b6f-9d58-57c53d5a1541]: Subscription quota exhausted. Your usage window resets at 2026-10-26T00:00:00Z. (rate_limit_error)
+[muse-exec] plan quota exhausted; retrying with the Meta API key
+muse: workspace root: /home/ccheever/projects/sb4-b23-roll (cwd default)
+muse: workspace trust: trusted source=run-flag
+NOT READY
+
+Material finding in §20.4 wire fencing:
+
+* `Every hot activation request from this CLI carries the explicit registry-custody feature field, including exact/original-source selection, an empty registry and an existing format-8 store` and `Updated hosts reject activation clients omitting it` contradict `New hosts require it whenever the candidate has such custody` and `Plain source changes needing no new custody keep the old control shape`.
+* The latter two reintroduce conditional fencing. That violates the final correction: EVERY updated-CLI hot activation carries the field, even exact, empty-registry, format-8, and edited-output-only; updated hosts refuse clients omitting it unconditionally.
+* Conditional fencing makes old-host rejection depend on the CLI correctly classifying custody. A misclassified custody-needing activation would be admitted by an old engine without enforcement. Unconditional `always-send / reject-if-missing-before-admission` is required so all format-9 laws run only in the new runtime.
+
+Fix: delete the conditional sentences. Require unconditional send and unconditional missing-field refusal on hot activation; keep `failed adoption leaves old format unchanged` and `upgrade to 9 transactionally` as stated.
+

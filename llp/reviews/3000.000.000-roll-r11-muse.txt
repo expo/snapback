@@ -1,0 +1,10 @@
+muse: workspace root: /home/ccheever/projects/sb4-b23-roll (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY — No MATERIAL correctness, security, or atomicity issues in the supplied design.
+
+Compatible-input endpoint reuse is closed: identical, optional widening, and integer-bound widening only, never narrowing or new required args. Missing or incompatible endpoints refuse. Reused workflows require identical transitive meanings, and point/limited selection retains deterministic total ordering with stable id tie-break.
+
+Forward-migration custody is preserved: shared columns keep current declarations, retired predecessor transforms are not resurrected, original source and receipts persist, and removed-field transforms still require truthful projection and complete adoption.
+
+Population checks are closed: tainted guards, branch/loop/conditional-write keys, persisted write values, negative/count guards, nested scope, and maintained populations refuse. Unknown paths refuse. Transitive bindings and helper bodies are followed, with current authority retained and negative-existence authority rejected. Atomic writer with before-image, full adoption, CAS, command lock, and private-copy preview prevents TOCTOU. Nullable/wider results are explicitly disclosed, not claimed as nonnull retention.
+

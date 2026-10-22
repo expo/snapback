@@ -34,15 +34,21 @@ fn enable(tx: &Tx<'_>) -> Result<(), RuntimeError> {
     if !tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM pragma_table_info('_backfill_active') WHERE name='input_names')",[],|r|r.get::<_,bool>(0))? {
         tx.conn().execute_batch("ALTER TABLE _backfill_active ADD COLUMN input_names TEXT NOT NULL DEFAULT '[]';")?;
     }
+    if !tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM pragma_table_info('_backfill_evidence') WHERE name='computed_image')",[],|r|r.get::<_,bool>(0))?{tx.conn().execute_batch("ALTER TABLE _backfill_evidence ADD COLUMN computed_image TEXT NOT NULL DEFAULT '{}';")?;}
     if tx.meta("version")?.as_deref()==Some(super::table_renames::VERSION){Ok(())}else{tx.set_meta("version", VERSION)}
 }
 #[derive(serde::Serialize, serde::Deserialize)]
-struct Evidence { #[serde(default)] reversed:BTreeMap<String,Option<Value>>, #[serde(default)] absent:BTreeSet<String>, #[serde(default)] epoch:i64, #[serde(default)] retained:BTreeSet<String>, active:bool, inputs: Value, before: BTreeMap<String,Value>, after: BTreeMap<String,Value> }
+struct Evidence { #[serde(default)] computed:BTreeMap<String,Value>, #[serde(default)] authored:BTreeSet<String>, #[serde(default)] reversed:BTreeMap<String,Option<Value>>, #[serde(default)] absent:BTreeSet<String>, #[serde(default)] epoch:i64, #[serde(default)] retained:BTreeSet<String>, active:bool, inputs: Value, before: BTreeMap<String,Value>, after: BTreeMap<String,Value> }
 fn evidence(tx: &Tx<'_>, t:i64,id:&str,key:&str) -> Result<Option<Evidence>,RuntimeError> {
     let bytes:Option<i64>=tx.conn().query_row("SELECT octet_length(inputs)+octet_length(before_image)+octet_length(after_image)+octet_length(retained_outputs)+octet_length(reversed_image) FROM _backfill_evidence WHERE t=?1 AND id=?2 AND definition=?3",params![t,id,key],|r|r.get(0)).optional()?;
     let mut admission=Meter::new(Ceilings::job(),Cut::Abort);admission.heap(bytes.unwrap_or(0).max(0) as u64 * 64 + 8192)?;
     let value:Option<(String,String,String,bool,i64,String,String)>=tx.conn().query_row("SELECT inputs,before_image,after_image,active,epoch,retained_outputs,reversed_image FROM _backfill_evidence WHERE t=?1 AND id=?2 AND definition=?3",params![t,id,key],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?,r.get(4)?,r.get(5)?,r.get(6)?))).optional()?;
-    value.map(|(inputs,before,after,active,epoch,retained,reversed)|Ok(Evidence {reversed:decode(&reversed)?,retained:decode(&retained)?,absent:absence(tx,t,id,key)?,epoch,active,inputs:decode(&inputs)?,before:decode(&before)?,after:decode(&after)?})).transpose()
+    let computed:Option<String>=if tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM pragma_table_info('_backfill_evidence') WHERE name='computed_image')",[],|r|r.get::<_,bool>(0))?{
+        let bytes:Option<i64>=tx.conn().query_row("SELECT octet_length(computed_image) FROM _backfill_evidence WHERE t=?1 AND id=?2 AND definition=?3",params![t,id,key],|r|r.get(0)).optional()?;
+        admission.heap((bytes.unwrap_or(0).max(0) as u64).saturating_mul(64))?;
+        tx.conn().query_row("SELECT computed_image FROM _backfill_evidence WHERE t=?1 AND id=?2 AND definition=?3",params![t,id,key],|r|r.get(0)).optional()?
+    }else{None};
+    value.map(|(inputs,before,after,active,epoch,retained,reversed)|Ok(Evidence {computed:computed.as_ref().map(|s|decode(s)).transpose()?.unwrap_or_default(),authored:absence(tx,t,id,&format!("$authored:{key}"))?,reversed:decode(&reversed)?,retained:decode(&retained)?,absent:absence(tx,t,id,key)?,epoch,active,inputs:decode(&inputs)?,before:decode(&before)?,after:decode(&after)?})).transpose()
 }
 fn decode<T:serde::de::DeserializeOwned>(s:&str)->Result<T,RuntimeError>{serde_json::from_str(s).map_err(|e|RuntimeError::Store(e.to_string()))}
 fn absence(tx:&Tx<'_>,t:i64,id:&str,key:&str)->Result<BTreeSet<String>,RuntimeError>{
@@ -52,9 +58,14 @@ fn save(tx:&Tx<'_>,t:i64,id:&str,key:&str,e:&Evidence,active:bool)->Result<(),Ru
     let inputs=canonical_json(&e.inputs);let before=canonical_json(&e.before);let after=canonical_json(&e.after);let retained=canonical_json(&e.retained);let reversed=canonical_json(&e.reversed);
     let mut admission=Meter::new(Ceilings::job(),Cut::Abort);admission.heap((inputs.len()+before.len()+after.len()+retained.len()+reversed.len()) as u64 * 64 + 8192).map_err(|err|refusal(format!("backfill reversal evidence exceeds its future read budget: {err}; reduce the per-row migration image")))?;
     tx.conn().execute("INSERT INTO _backfill_evidence(t,id,definition,inputs,before_image,after_image,active,epoch,retained_outputs,reversed_image) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10) ON CONFLICT(t,id,definition) DO UPDATE SET inputs=excluded.inputs,before_image=excluded.before_image,after_image=excluded.after_image,active=excluded.active,epoch=excluded.epoch,retained_outputs=excluded.retained_outputs,reversed_image=excluded.reversed_image",params![t,id,key,inputs,before,after,active,e.epoch,retained,reversed])?;
+    let computed=canonical_json(&e.computed);admission.heap((computed.len() as u64).saturating_mul(64))?;
+    tx.conn().execute("UPDATE _backfill_evidence SET computed_image=?1 WHERE t=?2 AND id=?3 AND definition=?4",params![computed,t,id,key])?;
     tx.conn().execute("DELETE FROM _backfill_pruned WHERE t=?1 AND id=?2 AND definition=?3",params![t,id,key])?;
     tx.conn().execute("DELETE FROM _backfill_absence WHERE t=?1 AND id=?2 AND definition=?3",params![t,id,key])?;
     for c in &e.absent {tx.conn().execute("INSERT INTO _backfill_absence VALUES(?1,?2,?3,?4)",params![t,id,key,c])?;}
+    tx.conn().execute("DELETE FROM _backfill_absence WHERE t=?1 AND id=?2 AND definition=?3",params![t,id,format!("$authored:{key}")])?;
+    if !e.authored.is_empty(){tx.set_meta("version",super::table_renames::VERSION)?;}
+    for c in &e.authored {tx.conn().execute("INSERT INTO _backfill_absence VALUES(?1,?2,?3,?4)",params![t,id,format!("$authored:{key}"),c])?;}
     Ok(())
 }
 pub(super) fn delete(tx:&Tx<'_>,t:i64,id:&str)->Result<(),RuntimeError>{
@@ -229,7 +240,7 @@ fn restore_downfills(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,sources:&B
             let fields=row.as_object()?;
             if validate {
             for (column,expected) in &e.after {
-                if fields.get(column)!=Some(expected) {bad.add(id,&format!("{}.{} changed while the older release was active; repair it under a bridge before selecting this release",fill.table,column));return Ok(())}
+                if fields.get(column)!=Some(expected) {bad.add(id,&format!("{}.{} changed while the older release was active; expected projected {}, current {}; repair it under a bridge before selecting this release",fill.table,column,canonical_json(expected),fields.get(column).map(canonical_json).unwrap_or_else(||"<absent>".into())));return Ok(())}
             }
             let mut inputs_meter=Meter::new(Ceilings::job(),Cut::Abort);
             let source=row_source(tx,t,id,sources.get(&fill.table))?;
@@ -238,7 +249,7 @@ fn restore_downfills(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,sources:&B
                     let current=source_value(tx,t,id,&row,column,source.as_deref().or(Some(table)),&mut inputs_meter)?.unwrap_or(Value::Null);
                     if &current!=original
                         && !receipt_preimage(tx,next,&fill.table,t,id,column,fields.get(column),original,source.as_deref())? {
-                        bad.add(id,&format!("{}.{} changed while the older release was active; reverse dependencies cannot be recaptured",fill.table,column));return Ok(())
+                        bad.add(id,&format!("{}.{} changed while the older release was active; original input {}, current {}; reverse dependencies cannot be recaptured",fill.table,column,canonical_json(original),canonical_json(&current)));return Ok(())
                     }
             }
             return Ok(())
@@ -313,7 +324,13 @@ fn stage_downfills(tx:&Tx<'_>,next:&Schema,previous:&Schema,sources:&BTreeMap<St
             let mut receipts=q.query(params![t,id])?;
             while let Some(r)=receipts.next()? {
                 let mut admission=Meter::new(Ceilings::job(),Cut::Abort);admission.heap((r.get::<_,i64>(0)?.max(0) as u64).saturating_mul(64).saturating_add(8192))?;
-                forward_outputs.extend(decode::<Backfill>(&r.get::<_,String>(1)?)?.outputs);
+                let definition:Backfill=decode(&r.get::<_,String>(1)?)?;
+                if let Some(receipt)=evidence(tx,t,id,&definition.key())? {
+                    // A declared down owns the view of an edited in-place output.
+                    // Unedited outputs still restore their exact predecessor.
+                    forward_outputs.extend(definition.outputs.into_iter().filter(|c|
+                        !receipt.authored.contains(c) && (fields.get(c)==receipt.after.get(c) || fields.get(c)==receipt.before.get(c))));
+                }
             }
             drop(receipts);drop(q);
             // An entering inactive receipt restores exact native cells. Those
@@ -385,11 +402,11 @@ fn stage_downfills(tx:&Tx<'_>,next:&Schema,previous:&Schema,sources:&BTreeMap<St
                 let value=fields.get(c).cloned();
                 (c.clone(),value)
             }).collect();
-            let e=Evidence{reversed,retained:BTreeSet::new(),absent:BTreeSet::new(),epoch:tx.meta("generation")?.and_then(|s|s.parse::<i64>().ok()).unwrap_or(0).saturating_add(1),active:false,inputs,before:BTreeMap::new(),after:patch.clone()};
+            let e=Evidence{computed:BTreeMap::new(),authored:BTreeSet::new(),reversed,retained:BTreeSet::new(),absent:BTreeSet::new(),epoch:tx.meta("generation")?.and_then(|s|s.parse::<i64>().ok()).unwrap_or(0).saturating_add(1),active:false,inputs,before:BTreeMap::new(),after:patch.clone()};
             tx.conn().execute("INSERT INTO temp._downfill_pending VALUES(?1,?2,?3,?4,?5)",params![t,id,key,canonical_json(&patch),canonical_json(&e)])?;count+=1;Ok(())
         })?;
         if bad.count>0{return Err(refusal(format!("down {} {}: {}",fill.table,fill.name,bad.describe())))}
-        if preimages>0 {report.backfills.push(format!("{} {} retained predecessor preimages on {preimages} rows; sample ids [{}]; newer source cells remain retained for forward",fill.table,fill.name,preimage_ids.join(", ")));}
+        if preimages>0 {report.backfills.push(format!("{} {} retained predecessor preimages on {preimages} rows; sample ids [{}]; these rows read stale under the older release until forward; newer source cells remain retained for forward",fill.table,fill.name,preimage_ids.join(", ")));}
         if count>0{report.backfills.push(format!("{} {} projected {count} {} down",fill.table,fill.name,if count==1{"row"}else{"rows"}));}
     }
     Ok(true)
@@ -485,7 +502,30 @@ pub(super) fn transition(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,source
                 if !table.columns.contains_key(c){e.retained.insert(c.clone());continue;}
 
                 let current=fields.get(c);let before=e.before.get(c);let after=e.after.get(c);
-                if current!=after && current!=before {bad.add(id,&format!("{}.{} changed after backfill {}; keep a bridge and repair through an authorized mutation before rollback",fill.table,c,fill.name));return Ok(())}
+                if (current!=after && current!=before) || e.authored.contains(c) {
+                    let projected=if down_pending {
+                        let patches:Vec<String>=tx.conn().prepare("SELECT patch FROM temp._downfill_pending WHERE t=?1 AND id=?2")?.query_map(params![t,id],|r|r.get(0))?.collect::<Result<_,_>>()?;
+                        let mut value=None;
+                        for patch in patches {let patch:BTreeMap<String,Value>=decode(&patch)?;if let Some(v)=patch.get(c){value=Some(v.clone());}}
+                        value
+                    } else {None};
+                    if let Some(view)=projected {
+                        if e.computed.is_empty(){e.computed=e.after.clone();}
+                        if let Some(value)=current {e.after.insert(c.clone(),value.clone());e.authored.insert(c.clone());}
+                        e.reversed.insert(c.clone(),Some(view));
+                        e.retained.insert(c.clone());
+                        continue;
+                    }
+                    if crate::engine::validate::validate_column(&fill.table,c,&table.columns[c],current).is_ok() {
+                        // The selected bridge can represent this exact authored value.
+                        if e.computed.is_empty(){e.computed=e.after.clone();}
+                        if let Some(value)=current {e.after.insert(c.clone(),value.clone());e.authored.insert(c.clone());}
+                        e.reversed.insert(c.clone(),current.cloned());
+                        e.retained.insert(c.clone());
+                        continue;
+                    }
+                    bad.add(id,&format!("{}.{} changed after backfill {}; current {}; backfill {}; predecessor {}; declare a truthful down or select a bridge admitting the current value",fill.table,c,fill.name,display_cell(current),display_cell(after),display_cell(before)));return Ok(())
+                }
                 if let Some(value)=before {fields.insert(c.clone(),value.clone());}else{
                     fields.remove(c);
                     note_native_absence(tx,t,id,c)?;
@@ -633,7 +673,7 @@ pub(super) fn transition(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,source
                 if let Some(kind)=row_source.as_deref().and_then(|t|t.columns.get(c)) {if protected(kind) && prior.as_ref().is_none_or(|e|e.before.contains_key(c)) {bad.add(id,&format!("cannot overwrite historical reference or asset {}.{c}; derive into a new column",fill.table));return Ok(())}}
                 if prior.is_none() && fill.name.starts_with("$rename:up:") {
                     if let Some(existing)=physical_value(tx,t,id,&current,c,&mut preimage_meter)? {
-                        if &existing!=value {bad.add(id,&format!("rename destination {}.{c} already has a conflicting value; resolve it in a bridge",fill.table));return Ok(())}
+                        if &existing!=value {bad.add(id,&format!("rename destination {}.{c} already has a conflicting value: destination {}, source {}; resolve through an authorized mutation under a bridge; see guide deploy",fill.table,display_cell(Some(&existing)),display_cell(Some(value))));return Ok(())}
                     }
                 }
                 let transformed=prior.as_ref().is_some_and(|e|e.active || e.retained.contains(c));
@@ -649,18 +689,26 @@ pub(super) fn transition(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,source
                     let expected=prior.reversed.get(c).cloned().unwrap_or_else(||original.cloned());
                     let actual=if transformed {None}else{source_value_impl(tx,t,id,&current,c,row_source.as_deref(),&mut preimage_meter,false)?};
                     if !transformed && actual.as_ref()!=expected.as_ref() && actual.as_ref()!=prior.after.get(c) && actual.as_ref()!=Some(value) {
-                        bad.add(id,&format!("{}.{} changed while backfill {} was absent; keep a bridge and resolve the conflict",fill.table,c,fill.name));return Ok(())
+                        bad.add(id,&format!("{}.{} changed while backfill {} was absent: older-release value {}, expected old view {}, retained newer value {}, recomputed value {}; keep a bridge and resolve through an authorized mutation; see guide deploy",fill.table,c,fill.name,display_cell(actual.as_ref()),display_cell(expected.as_ref()),display_cell(prior.after.get(c)),display_cell(Some(value))));return Ok(())
                     }
-                    if deps_same && transformed && current_field.is_some() {
+                    let computed=if prior.computed.is_empty(){&prior.after}else{&prior.computed};
+                    if prior.authored.contains(c)&&(prior.inputs!=inputs||computed!=&patch)&&current_field!=Some(value){
+                        bad.add(id,&format!("{}.{} authored output {} conflicts with changed historical inputs/dependencies and recomputation {}; retain a bridge and resolve explicitly",fill.table,c,display_cell(current_field),display_cell(Some(value))));return Ok(())
+                    }
+                    if prior.authored.contains(c) && computed==&patch && prior.inputs==inputs && current_field==prior.after.get(c) && current_field.is_some() {
+                        desired.insert(c.clone(),current_field.unwrap().clone());
+                    } else if deps_same && transformed && current_field.is_some() {
                         // Added columns retain edits under v1's dormant storage.
                         desired.insert(c.clone(),current_field.unwrap().clone());
                     } else if transformed && !deps_same && current_field!=prior.after.get(c) && current_field!=original && current_field!=Some(value) {
-                        bad.add(id,&format!("{}.{} was edited and its historical inputs changed; keep a bridge and resolve the conflict",fill.table,c));return Ok(())
+                        bad.add(id,&format!("{}.{} was edited and its historical inputs changed: current {}, retained output {}, recomputed {}; keep a bridge and resolve through an authorized mutation; see guide deploy",fill.table,c,display_cell(current_field),display_cell(prior.after.get(c)),display_cell(Some(value))));return Ok(())
                     }
                 }
             }
             for(c,value)in &desired {if let Err(e)=validate_output(&fill.table,table,c,value){bad.add(id,&e.to_string());return Ok(())}}
-            let e=Evidence{reversed:BTreeMap::new(),retained:BTreeSet::new(),absent:original_absence,epoch:epoch.unwrap_or(fresh_epoch),active:true,inputs,before,after:patch};
+            let mut after=patch.clone();
+            for c in prior.as_ref().into_iter().flat_map(|e|&e.authored){if let Some(value)=desired.get(c){after.insert(c.clone(),value.clone());}}
+            let e=Evidence{computed:if prior.as_ref().is_some_and(|e|!e.authored.is_empty()){patch.clone()}else{BTreeMap::new()},authored:prior.as_ref().map(|e|e.authored.clone()).unwrap_or_default(),reversed:BTreeMap::new(),retained:BTreeSet::new(),absent:original_absence,epoch:epoch.unwrap_or(fresh_epoch),active:true,inputs,before,after};
             tx.conn().execute("INSERT INTO temp._backfill_pending VALUES(?1,?2,?3,?4,?5)",params![t,id,key,canonical_json(&desired),canonical_json(&e)])?;count+=1;
             Ok(())
         })?;
@@ -1115,3 +1163,5 @@ fn validate_action_bounds(tx:&Tx<'_>,source:&Schema,now:i64)->Result<(),RuntimeE
         }
     }}Ok(())
 }
+
+fn display_cell(value:Option<&Value>)->String {value.map(|v|crate::wire::to_json(v).to_string()).unwrap_or_else(||"<absent>".into())}

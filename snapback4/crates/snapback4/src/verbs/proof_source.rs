@@ -63,7 +63,7 @@ impl Candidate {
             let _ = original.check_entry(&entry);
             crate::dev_worker::package_entry(original, &candidate.project.root)?;
         }
-        candidate.project.write_generated_from(bound, original).map_err(|e| e.to_string())?;
+        candidate.project.write_generated_quiet(bound, original).map_err(|e| e.to_string())?;
         if !crate::native::declared(bound).is_empty() && original.native_manifest().exists() {
             copy_tree(&original.native_dir(), &candidate.project.native_dir()).map_err(|e| e.to_string())?;
             rebase_tree(&candidate.project.native_dir(), &original.native_dir()).map_err(|e| format!("saved-source native snapshot: {e}"))?;

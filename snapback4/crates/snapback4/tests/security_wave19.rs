@@ -98,7 +98,7 @@ fn column_only_policy_change_is_in_the_combined_json_release_preview(){
  app.write("snapback/schema.q",&source.replace("secret: text <=40","secret: text <=40 read <- .owner = viewer"));
  let out=app.run(&["deploy","deployment","--check","--json"]);assert!(out.status.success(),"{}",text(&out));
  let report:serde_json::Value=serde_json::from_slice(&out.stdout).unwrap();
- assert!(report["security"].as_str().unwrap().contains("run `snapback4 test`"),"{report}");
+ assert!(report["security"]["notice"].as_str().unwrap().contains("run `snapback4 test`"),"{report}");
  for field in ["visibility","rollbackVisibility","clientCompatibility","backfills"]{assert!(report.get(field).is_some(),"{field}: {report}");}
  assert!(report["clientCompatibility"].as_array().unwrap().iter().any(|x|x.as_str().unwrap().contains("RESULT REVIEW")),"{report}");
 }

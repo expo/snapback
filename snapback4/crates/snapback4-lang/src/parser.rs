@@ -61,7 +61,7 @@ struct Parser {
     repair_args: Option<(Site, Vec<ArgDecl>)>,
 }
 
-const TOP_LEVEL: [&str; 23] = ["alias", "backfill", "down", "invariant", "view", "use", "table", "maintain", "channel", "query", "mutation", "job", "action", "route", "effect", "shape", "fn", "proc", "cursor", "schedule", "index", "unique", "deliver"];
+const TOP_LEVEL: [&str; 25] = ["extract","rollback","alias", "backfill", "down", "invariant", "view", "use", "table", "maintain", "channel", "query", "mutation", "job", "action", "route", "effect", "shape", "fn", "proc", "cursor", "schedule", "index", "unique", "deliver"];
 
 impl Parser {
     fn document(&mut self) {
@@ -93,6 +93,21 @@ impl Parser {
         self.repair_args = None;
         let token = self.peek().clone();
         match token.value.as_str() {
+            "extract" => {
+                let site=self.take("extract")?.site;let child=self.word()?.value;self.take("from")?;let parent=self.word()?.value;self.take("via")?;let reference=self.word()?.value;self.take(":")?;
+                self.take("{")?;let mut fields=Vec::new();
+                loop {let target=self.word()?.value;self.take(":")?;let source=self.word()?.value;fields.push((target,source));if !self.at(","){break}self.take(",")?;}
+                self.take("}")?;self.newline()?;self.document.extractions.push(ExtractionDecl{child,parent,reference,fields,site});Ok(())
+            }
+            "rollback" => {
+                let site=self.take("rollback")?.site;
+                let release=self.peek().value.parse::<u64>().ok().filter(|n|*n>0).ok_or_else(||syntax(&site,"rollback needs a positive target release"))?;
+                self.position+=1;self.take("hides")?;let table=self.word()?.value;
+                self.take("where")?;let column=self.word()?.value;self.take("=")?;self.take("null")?;self.take("because")?;
+                let reason=self.take_kind(Kind::Str)?.value;
+                if reason.trim().is_empty(){return Err(syntax(&site,"rollback hiding needs a nonempty reason"))}
+                self.newline()?;self.document.rollback_hides.push(RollbackHide{release,table,column,reason,site});Ok(())
+            }
             "alias" => self.parse_alias(),
             "backfill" | "down" => {
                 let direction = self.peek().value.clone();

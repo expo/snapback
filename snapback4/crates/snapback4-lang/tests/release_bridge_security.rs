@@ -38,7 +38,7 @@ fn bridge_recognizes_references_to_a_renamed_parent_as_the_same_identity() {
     assert!(bridge.sources[0].1.contains("parent: parents on delete restrict"));
     let independent = target.replace("parents", "guardians");
     let bridge = release_bridge::loosen(&[("schema.q".into(), target.into())], &[("schema.q".into(), independent)]);
-    assert!(bridge.changes.iter().any(|line| line.contains("docs.parent: incompatible")), "independent identities must not be unified: {:?}", bridge.changes);
+    assert!(bridge.diagnostics.iter().any(|d|d.message.contains("incompatible predecessor/current domains")),"independent identities must refuse typed adaptation: {:?}",bridge.diagnostics);
 }
 
 #[test]

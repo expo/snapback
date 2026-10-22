@@ -284,6 +284,10 @@ backend and programs together. If checked source still fails on an existing
 store, preserve that store and the diagnostic for investigation; deleting
 application data is not a schema repair.
 
+E_RELEASE_RUNTIME means the running serve predates release-activation custody.
+Stop it and restart serve using the current CLI/runtime, then inspect releases
+before retrying. The old host refuses the control feature before admission.
+
 E_STORE_BUSY at store.sqlite means a live host or another CLI owns this database.
 `token` normally asks a live dev/serve owner to mint over loopback with its
 private store proof. Its E_STORE_BUSY means that path is unavailable: restore

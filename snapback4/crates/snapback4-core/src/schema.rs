@@ -44,6 +44,8 @@ pub use routes::RouteSpec;
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Schema {
     #[cfg(feature = "sqlite")]
+    pub extractions:Vec<Extraction>,
+    #[cfg(feature = "sqlite")]
     pub table_renames: BTreeMap<String,String>,
     #[cfg(feature = "sqlite")]
     pub asset_renames: BTreeMap<String,BTreeMap<String,String>>,
@@ -1139,6 +1141,7 @@ pub fn validate(schema: &Schema) -> Vec<SchemaIssue> {
         }
     }
     issues.extend(backfill::validate_downs(schema));
+    for e in &schema.extractions {if let Err(message)=e.admit(schema){issues.push(SchemaIssue{path:format!("extractions.{}",e.child),message});}}
     }
     issues.extend(ephemeral::validate(schema));
     issues.extend(field_authority::validate(schema));
@@ -1160,7 +1163,7 @@ pub fn validate(schema: &Schema) -> Vec<SchemaIssue> {
             let mut sources=BTreeSet::new();
             let table=schema.table(name);
             for (new,old) in renames {
-                let allowed=table.is_some_and(|t|old!=new && !t.columns.contains_key(old) && t.columns.get(new).is_some_and(ColumnType::contains_asset) && !t.engine_field(new) && !t.written_by.contains_key(new));
+                let allowed=table.is_some_and(|t|old!=new && !t.columns.contains_key(old) && t.columns.get(new).is_some_and(|k|k.contains_asset()||matches!(k.required(),ColumnType::Ref{..})) && !t.engine_field(new) && !t.written_by.contains_key(new));
                 if !allowed || !sources.insert(old) {issue(&mut issues,format!("asset_renames.{name}.{new}"),"asset rename requires a distinct predecessor-only source and an authoritative asset destination".into());}
             }
         }
@@ -1936,3 +1939,8 @@ pub fn arg_as_column(kind: &ArgType) -> Option<ColumnType> {
     })
 }
 #[cfg(feature = "sqlite")] pub mod inspection;
+
+#[cfg(feature="sqlite")]
+mod extraction;
+#[cfg(feature="sqlite")]
+pub use extraction::Extraction;

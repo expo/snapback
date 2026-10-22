@@ -134,3 +134,18 @@ pub fn compare(old: &Bound, new: &Bound, label: &str) -> Vec<String> {
     }
     lines
 }
+
+/// Human result advice groups source columns across operations. JSON keeps compare().
+pub fn compact(lines:&[String])->Vec<String>{
+    use std::collections::BTreeSet;
+    let mut out=Vec::new();let mut groups=BTreeMap::<String,BTreeSet<String>>::new();
+    for line in lines {
+        let Some((prefix,detail))=line.split_once(": RESULT REVIEW: ") else {out.push(line.clone());continue};
+        let operation=prefix.rsplit_once("operation ").map(|(_,name)|name).unwrap_or("unknown");
+        if let Some((_,columns))=detail.split_once("declared source domains consumed by this operation changed: ") {
+            for column in columns.split(';').next().unwrap_or(columns).split(", "){groups.entry(column.into()).or_default().insert(operation.into());}
+        }else{groups.entry(detail.into()).or_default().insert(operation.into());}
+    }
+    for(detail,ops)in groups{out.push(format!("old-client compatibility: RESULT REVIEW: {detail}; operations [{}]; verify old-client handling (full per-operation evidence in --json)",ops.into_iter().collect::<Vec<_>>().join(", ")));}
+    out
+}

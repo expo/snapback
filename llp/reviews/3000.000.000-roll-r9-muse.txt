@@ -1,0 +1,9 @@
+muse: workspace root: /home/ccheever/projects/sb4-b23-roll (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY — no MATERIAL correctness, security, or atomicity issues in the supplied design.
+
+Zero-hidden default views retain old-table data with current authority and IR equality. Intentional hiding is closed: identical spelling only, null-row plus reference-closure allowance, before/newer tables distinguished, no invented edges.
+
+Writer-time checks are fail-closed: full adoption under transaction, atomic refusal on unrelated hiding, bindings and helper expansion followed, unknown paths refuse. Negative existence, absence-admitting comparisons, tainted requirements and control flow, and affected maintained populations refuse. Point-assertion discharge requires the same exact guard.
+
+Commissioned nullable and wider results are disclosed RESULT changes, not retained nonnull claims. `--exact` bypasses only view selection. CAS, command lock, immutable prepared source, format 9, and capability fences preserve atomicity and ordering.

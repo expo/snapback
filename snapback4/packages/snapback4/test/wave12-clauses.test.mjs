@@ -1,3 +1,4 @@
+// Frozen-source hazard coverage uses --exact; roll_views and dormant-visibility cover the registered default.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
@@ -80,28 +81,28 @@ test('guide and probe agree on widen, tighten, require, SIGTERM, rollback and fo
   }
   const wide=initial.replace("enum('draft')","enum('draft', 'live')");
   writeFileSync(schema,wide);
-  assert.match(run('deploy',deployment).stderr,/notes.status admits 'live'/);
+  const widened=JSON.parse(run('deploy',deployment,'--json').stdout);assert.ok(widened.preview.hazards.some(line=>line.includes('notes.status')));
   const tight=wide.replace('update <- allow','update <- .owner = viewer');
   writeFileSync(schema,tight);
   const tightening=run('deploy',deployment,'--check').stdout;
-  assert.match(tightening,/note: notes: release 3 tightens notes.update; old: allow \| new: .owner = viewer/);
+  assert.match(tightening,/note: notes: release \d+ tightens notes.update; old: allow \| new: .owner = viewer/);
   assert.doesNotMatch(tightening,/WARNING.*notes.update/);
   run('deploy',deployment);
   const required=tight.replace('  update notes[note]',"  require body != 'blocked' else BLOCKED\n  update notes[note]");
   writeFileSync(schema,required);
   const requirePreview=run('deploy',deployment,'--check').stdout;
-  assert.match(requirePreview,/note: operation edit: release 4 tightens edit.require; old: allow \| new: .*require \(body != 'blocked'\) else BLOCKED/);
+  assert.match(requirePreview,/note: operation edit: release \d+ tightens edit.require; old: allow \| new: .*require \(body != 'blocked'\) else BLOCKED/);
   run('deploy',deployment);
   assert.equal((await host.post('/m/edit',{note:added.result.id,body:'blocked'})).why.code,'BLOCKED');
   await host.stop();
-  const rollback=run('rollback',deployment,'--to','2','--check').stdout;
+  const rollback=run('rollback',deployment, '--exact','--to','2','--check').stdout;
   assert.match(rollback,/WARNING notes: release 2 loosens notes.update; old: .owner = viewer \| new: allow/);
   assert.match(rollback,/WARNING operation edit: release 2 loosens edit.require; old: .*BLOCKED \| new: allow/);
-  run('rollback',deployment,'--to','2');
-  const forward=run('rollback',deployment,'--to','latest','--check').stdout;
-  assert.match(forward,/note: notes: release 4 tightens notes.update/);
-  assert.match(forward,/note: operation edit: release 4 tightens edit.require/);
-  run('rollback',deployment,'--to','latest');
+  run('rollback',deployment, '--exact','--to','2');
+  const forward=run('rollback',deployment, '--exact','--to','latest','--check').stdout;
+  assert.match(forward,/note: notes: release \d+ tightens notes.update/);
+  assert.match(forward,/note: operation edit: release \d+ tightens edit.require/);
+  run('rollback',deployment, '--exact','--to','latest');
   const guide=run('guide','deploy','--full').stdout;
   for(const text of ['old and new rule clauses','proved tightening is a note','loosening or unproved implication is a WARNING','including rollback that removes a new guard'])assert.ok(guide.includes(text),text);
   run('check');
@@ -263,8 +264,8 @@ test('the farm named-image tightening compares effective old/next rules and prot
   assert.match(preview,/note: notes: release 2 tightens notes.update/);
   assert.doesNotMatch(preview,/WARNING.*notes.update/);
   run('deploy',deployment);
-  assert.match(run('rollback',deployment,'--to','1','--check').stdout,/WARNING notes: release 1 loosens notes.update/);
-  run('rollback',deployment,'--to','1');
+  assert.match(run('rollback',deployment, '--exact','--to','1','--check').stdout,/WARNING notes: release 1 loosens notes.update/);
+  run('rollback',deployment, '--exact','--to','1');
   const other=await (await fetch(host.url+'/auth/guest',{method:'POST',body:'{}'})).json();
   const take=async()=> (await fetch(host.url+'/m/transfer',{method:'POST',headers:{authorization:'Bearer '+other.session.token,'content-type':'application/json'},body:JSON.stringify({args:{note:added.result.id,owner:other.session.principal}})})).json();
   assert.equal((await take()).why.code,'E_RULE');

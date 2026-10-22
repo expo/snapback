@@ -1,0 +1,22 @@
+[
+  {
+    "path": "/home/ccheever/sb4-roll-packs-final/snapback4-0.4.37.tgz",
+    "bytes": 1323711,
+    "sha256": "6e129ad6a301b22737ecc16dd962dffbe6bb6a7ca1e7118aa9005ae77b8e8fb2"
+  },
+  {
+    "path": "/home/ccheever/sb4-roll-packs-final/snapback4-expo-0.4.37.tgz",
+    "bytes": 23101,
+    "sha256": "b1630b112e23bd06c23ad28f8ea631fecbd710f7407464877aabb28a75df721b"
+  },
+  {
+    "path": "snapback4/target/x86_64-unknown-linux-musl/production/snapback4",
+    "bytes": 36330240,
+    "sha256": "dd9f7bf25b61d0cf424331ae70dbcad651490089d56e0f39af98c90584682e66"
+  },
+  {
+    "path": "/home/ccheever/sb4-roll-linux-merged/snapback4-linux-x64-0.4.37.tgz",
+    "bytes": 15126383,
+    "sha256": "b203a1cbd1a372a4bbe8fc15e868254ee144ca285d312ca7ebdb3b99bac8dd1d"
+  }
+]

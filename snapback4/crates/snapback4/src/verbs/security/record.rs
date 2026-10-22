@@ -106,7 +106,7 @@ mod tests{
   security::challenges::fixture_observers(&bound,&e,&mut c);assert!(!c.violations.is_empty());
   remember(&project,&options,&c,true,&key).unwrap();
   let mut strict=options.clone();strict.flags.insert("strict".into(),String::new());
-  let denied=super::super::release_loop(&project,&bound,&sources,None,&strict).unwrap_err();assert!(denied.contains("E_SECURITY_REVIEW"));
+  let summary=super::super::release_loop(&project,&bound,&sources,None,&strict).unwrap();let denied=super::super::enforce_release(summary.as_ref(),&strict).unwrap_err();assert!(denied.contains("E_SECURITY_REVIEW"));
   let advisory=super::super::release_loop(&project,&bound,&sources,None,&options).unwrap().unwrap();assert!(advisory.contains("FIX")&&advisory.contains("FAILED"));
   assert!(super::super::release_loop(&project,&bound,&sources,Some(&bound),&strict).unwrap().is_none());
  }

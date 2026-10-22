@@ -1,0 +1,18 @@
+muse: workspace root: /home/ccheever/projects/sb4-b23-roll (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY
+
+No MATERIAL correctness, security, or atomicity issue in supplied text.
+
+Checked: prepared-view all-or-nothing prepare-or-refuse; immutable prepared source bound under command lock to digest/release/revision with CAS and ABA revision change; views never ordinary-latest; failed parents remove stages/views, unknown outcomes retained but uncommitted parents cannot authorize selection; bootstrap creates ordinary parent with same adoption/CAS and no selectable view before commit.
+
+Writer visibility is fail-closed: zero unacknowledged hidden rows by default, including reverse-snapshot preview; hiding limited to `rollback N hides TABLE where COLUMN=null`, nullable candidate vs nonnull predecessor, identical spellings, reason in immutable metadata; before-image capture with full adoption then retained-hidden comparison allowing only acknowledged nulls plus scalar/optional-Ref closure with active-before, retained-hidden-after, valid-lifetime edges; no list/asset/overlay/cascade edge invention; population-tainted negative/count/branch/persisted-write/nested-scope cases outside initial form refuse; disclosed as closed syntactic check, not a proof.
+
+Authority preserved via bound-IR equality after identity alignment, plus population-sensitive recheck when hiding; no invented defaults/conversions/first-row choice; backfill reuse keeps output custody; replacement endpoints allow only identical/optional/bound/enum-superset widening with deterministic total ordering plus id tie-break retained; retired transforms not resurrected; downs omitted only when generated domains admit native values with receipts intact; `--exact` bypasses only default selection, never security/authority/migration.
+
+Edited outputs reverse via down or stay exact only if full view type/constraints admit the physical value, with no per-row widening/coercion/null-fill; preimage/newer-image/computation/physical-presence kept separate, no native birth; forward requires unchanged args plus fresh recomputation agreement.
+
+Extraction/rename closed: exact rename equality with widening separate; extraction requires mapped asset with identical types, parent column removal, immutable-scalar-only copies with bidirectional agreement, deterministic child id equal to parent id, mint never overwrites, forced collision refuses, id never freed while retained; ledger home moves with cell, distinct overlay refuses; native-child reverse requires exactly-one candidate with valid private anchor; activation revalidates active plus dormant emptiness/bytes/types/bindings/ambiguity under lock/CAS, preview on private copy cannot authorize, failure rolls back evidence/format/homes/selection/generation together.
+
+Store-format fencing is correctly ordered: successful adoption marks 9 transactionally before registry entries become selectable; failed adoption rolls back marker with everything else; no-op without new custody may remain 8 with no custody to misread; 9 survives old-source selection; 8 opens, 9 refuses older CLIs; capabilities fence new schema forms. Nullable/wider results are commissioned and disclosed as RESULT changes, not claimed as nonnull retention.
+
