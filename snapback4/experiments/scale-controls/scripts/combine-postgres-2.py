@@ -60,7 +60,7 @@ def main():
     writes=sorted((c for c in chosen if read(c/'cell.json')['workload'] in ('W4','W5')),
                   key=lambda c:read(c/'probe.before.json')['time'])
     expected=0;probe_increments=0;actual=0;acks=0;unknown=0;trials=0
-    discarded=None
+    discarded=None;gaps=[];previous=None
     for c in writes:
         if c.parent==last and discarded is None:
             recovered=read(last/'resume-counter.json')['counter_sum']
@@ -88,19 +88,31 @@ def main():
             pre=f.stem;b=read(c/(pre+'.before.json'));a=read(c/(pre+'.after.json'))
             completed.append((b['time'],f,b,a))
         for _,f,b,a in sorted(completed):
-            assert b['counters']['sum']==expected,('counter gap before',f.name)
-            r=read(f);check=r['counter_check'];assert a['counters']['sum']-b['counters']['sum']==check['delta']
+            r=read(f)
+            gap=b['counters']['sum']-expected
+            assert gap>=0,('counter decreased before',c.name,f.name)
+            if gap:
+                # FIFO identity mints do not fence HTTP requests that have not
+                # yet entered the engine. Keep spillover visible and unassigned.
+                assert previous and not previous['slo_pass'] and not r['slo_pass']
+                gaps.append(dict(after=previous['trial'],before=c.name+'/'+f.name,
+                    increments=gap,previous_snapshot_sum=expected,next_snapshot_sum=b['counters']['sum'],
+                    both_adjacent_trials_already_disqualified=True))
+            check=r['counter_check'];assert a['counters']['sum']-b['counters']['sum']==check['delta']
             assert check['delta']>=check['acknowledged_including_warmup']
             assert check['ok']==(check['delta']==check['acknowledged_including_warmup'])
             expected=a['counters']['sum'];actual+=check['delta'];acks+=check['acknowledged_including_warmup'];unknown+=not check['ok'];trials+=1
+            previous=dict(trial=c.name+'/'+f.name,slo_pass=r['slo_pass'])
     assert probe_increments==500 and discarded is not None
-    assert expected==probe_increments+actual+discarded['physical_counter_offset']
+    spillover=sum(g['increments'] for g in gaps)
+    assert expected==probe_increments+actual+discarded['physical_counter_offset']+spillover
     write(out/'whole-write-audit.json',dict(write_trials=trials,probe_increments=probe_increments,
-        actual_counter_increments_in_load_cohorts=actual,acknowledged_load_writes_including_warmup=acks,
-        unknown_outcome_trials=unknown,last_drained_counter_sum=expected,cross_trial_counter_gaps=0,
-        acknowledged_write_losses=0,discarded_write_attempt=discarded,
-        caveat='last drained counter image; abandoned delayed W4 physical offset is separately recovered, not qualified'))
-    print(json.dumps(dict(cells=len(chosen),write_trials=trials,unknown_outcome_trials=unknown,cross_trial_counter_gaps=0)))
+        actual_counter_increments_in_snapshot_intervals=actual,acknowledged_load_writes_including_warmup=acks,
+        unknown_outcome_trials=unknown,last_counter_sum=expected,cross_trial_counter_gaps=gaps,
+        late_increments_between_snapshot_intervals=spillover,
+        aggregate_acknowledgement_deficit=0,discarded_write_attempt=discarded,
+        caveat='FIFO mints/stability checks do not fence HTTP requests not yet enqueued; spillover remains unassigned; abandoned W4 offset separately recovered; unkeyed counts cannot detect compensating loss/extra-write pairs'))
+    print(json.dumps(dict(cells=len(chosen),write_trials=trials,unknown_outcome_trials=unknown,cross_trial_counter_gaps=len(gaps),spillover_increments=spillover)))
 
 
 if __name__=='__main__':main()

@@ -99,3 +99,16 @@ predictions use its explicit schedules: W1 6/3/5, W2 6/2/(2 or 4), and the
 three-program-flight unkeyed mutation 16/8/11 (B1/B2a/B2b). W3's dependent
 program work is explicitly outside those constant schedules. The earlier
 clarification request is resolved without requiring user input.
+
+## End-of-campaign cross-trial audit
+
+The first aggregation correctly stopped on a counter gap rather than silently
+claiming zero. The completed audit finds eight late increments in four gaps,
+including two in natural W5-same and six across the delayed writes. All adjacent
+trials already fail; no qualification verdict changes. `whole-write-audit.json`
+records the boundaries, reconciles the final 46072 image, and leaves spillover
+unassigned. Two FIFO identity mints and stable snapshots are not a proof of
+HTTP quiescence. This is an [open experiment-harness issue](../../../../issues/20261022-sb4-scale-drain-does-not-fence-late-http-writes.md),
+not evidence of Postgres corruption. Snapshot delta/time remains diagnostic;
+unkeyed aggregate counts are not operation-id receipt correspondence. The
+failed first aggregation command/error is archived too.

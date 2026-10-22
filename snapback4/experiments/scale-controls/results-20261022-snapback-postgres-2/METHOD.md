@@ -33,7 +33,9 @@ As in the controls, generator and SSH share some cores. A stable Unix socket
 symlink selects the natural SSH forward or the experiment's unchanged delay
 algorithm, adding 250 us in each direction. It leaves the deployment's textual
 socket binding unchanged. Prepared SELECT 1 RTT is captured before and after
-each cell. Added delay is confined to the database link.
+each cell. Added delay is confined to the database link. One SSH process carries
+all product connections; the controls used separately forwarded streams per
+connection. Idle median agreement does not establish concurrency equivalence.
 
 Each workload/link cell gets a fresh serve process. Within it, the common S1
 rate search halves/doubles to bracket, then tests a geometric midpoint. Each
@@ -101,3 +103,8 @@ All benchmarks and observers launch with setsid/nohup, recording PIDs. Cleanup
 signals only owned processes; only this lane's database and role may be dropped.
 Private remote configuration/session files are removed after use; verbose raw
 evidence is archived separately with SHA-256. No password or token is committed.
+
+Final cross-trial checking exposes eight increments in four gaps after the apparent
+drain/stability witness. Both adjacent trials always already fail. They remain
+unassigned spillover in whole-write-audit.json; snapshot rates are not fully
+isolated cohorts. This limitation is tracked in the linked drain ticket.

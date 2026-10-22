@@ -92,7 +92,7 @@ def probe(directory,cell):
         commits_per_op=durable/n,rollbacks_per_op=rollbacks/n,
         session_resolutions_per_op=count('SELECT principal, COALESCE(family')/n,
         background_renewals=renew,raw_statement_calls=calls,
-        sql_exec_ms_per_op=execution,utility_commit_exec_ms=commit_exec,
+        sql_exec_ms_per_op=execution,sql_exec_includes_background_renewals=True,utility_commit_exec_ms=commit_exec,
         db_xact_commit_delta=after['database']['xact_commit']-before['database']['xact_commit'],
         db_xact_rollback_delta=after['database']['xact_rollback']-before['database']['xact_rollback'],
         db_total_transactions_per_op_uncorrected=((after['database']['xact_commit']-before['database']['xact_commit'])+
@@ -119,7 +119,9 @@ def main():
             for pid in pids:
                 vs=[s['processes'][pid]['ticks'] for s in rows if s['roles'].get(pid)==role and pid in s['processes']]
                 if len(vs)>1:ticks+=max(0,vs[-1]-vs[0])
-            result[role+'_cpu_ms_per_acknowledged_op']=ticks/rows[0]['clock_ticks']*1000/max(1,n) if rows else None
+            seconds=ticks/rows[0]['clock_ticks'] if rows else None
+            result[role+'_cpu_ms_per_acknowledged_op']=seconds*1000/n if n and rows else None
+            result[role+'_mean_logical_cores']=seconds/(capture['end']-capture['start']) if rows else None
         ws=[s for s in wal if capture['start']<=s['time']<=capture['end']]
         if len(ws)>1:
             a,b=ws[0]['wal'],ws[-1]['wal'];syncs=b['wal_sync']-a['wal_sync'];ms=b['wal_sync_time']-a['wal_sync_time']
@@ -153,17 +155,19 @@ def main():
                         vs=[s['processes'].get(pid) for s in samples if s['processes'].get(pid)]
                         if len(vs)>1:ticks+=vs[-1]['ticks']-vs[0]['ticks']
                     return ticks/capture['clock_ticks']
-                resources.append(dict(serve_cpu_ms_per_op=cpu([app])*1000/max(1,n),
-                    load_cpu_ms_per_op=cpu([load])*1000/max(1,n),
+                per_ack=lambda v:v/n if n else None
+                resources.append(dict(serve_cpu_ms_per_op=per_ack(cpu([app])*1000),
+                    load_cpu_ms_per_op=per_ack(cpu([load])*1000),
+                    per_op_denominator='acknowledged including warm-up; null when zero',
                     serve_mean_logical_cores=cpu([app])/(capture['end']-capture['start']),
                     load_mean_logical_cores=cpu([load])/(capture['end']-capture['start']),
-                    statements_per_op_including_background=sum(s['calls'] for s in ss)/max(1,n),
-                    sql_exec_ms_per_op=sum(s['total_exec_time'] for s in ss)/max(1,n),
-                    wal_bytes_per_op_role_filtered=sum(s['wal_bytes'] for s in ss)/max(1,n),
+                    statements_per_op_including_background=per_ack(sum(s['calls'] for s in ss)),
+                    sql_exec_ms_per_op=per_ack(sum(s['total_exec_time'] for s in ss)),
+                    wal_bytes_per_op_role_filtered=per_ack(sum(s['wal_bytes'] for s in ss)),
                     xact_commit_delta=after['database']['xact_commit']-before['database']['xact_commit'],
                     xact_rollback_delta=after['database']['xact_rollback']-before['database']['xact_rollback'],
                     actual_counter_increments=increments,
-                    whole_cohort_committed_per_s_including_drain=increments/(after['time']-before['time']) if increments is not None else None,
+                    counter_increments_per_s_between_snapshots=increments/(after['time']-before['time']) if increments is not None else None,
                     nonrenewal_statements_per_actual_counter_increment=(sum(s['calls'] for s in ss)-5*renew)/increments if increments else None,
                     counter_check=r.get('counter_check'),
                     thread_wait_channels=dict(Counter(v for s in samples for v in s.get('server_wchan',{}).values())),
@@ -191,6 +195,28 @@ def main():
         combined.append(dict(cell=c,label=control['label'],rates=rates))
         table.append('| '+control['label']+' | '+('natural' if c['delay_us']==0 else '+0.5 ms')+' | '+' | '.join(fmt(x) for x in rates.values())+' |')
     (out/'comparison.md').write_text('\n'.join(table)+'\n');write(out/'comparison.json',combined)
+    control_curves=read(HERE/'results-20261022-fairness/curves.json')['raw-pg']
+    read_ratios=[]
+    table=['| Read | Link | Snapback offered/s | Raw token offered/s | Snapback p50 ms | Raw token p50 ms | Ratio | Snapback all reps pass |',
+           '|---|---|---:|---:|---:|---:|---:|---|']
+    for row in curves:
+        c=row['cell']
+        if c['workload'] not in ('W1','W2','W3'):continue
+        control=next(x for x in control_curves if all(c[k]==x['cell'][k] for k in ('workload','keys','delay_us')))
+        # At a common overload rate, fast admission refusals dominate some
+        # native medians. Use the qualified rate or lowest failed diagnostic,
+        # explicitly retaining the unequal offered rates and error counts.
+        rate=row['summary']['highest_passing_offered_per_s'] or min(row['summary']['rates'])
+        native=next(x for x in row['rates'] if x['rate']==rate)
+        raw=min((x for x in control['rates'] if x['all_pass']),key=lambda x:x['offered_per_s'])
+        n=median(native['p50_ms']);ratio=n/raw['p50_ms']
+        read_ratios.append(dict(cell=c,snapback_offered_per_s=rate,raw_token_offered_per_s=raw['offered_per_s'],
+            snapback_p50_ms=n,raw_token_p50_ms=raw['p50_ms'],snapback_errors=native['errors'],
+            ratio=ratio,exceeds_3x=ratio>3,snapback_all_repetitions_pass=native['pass_all'],raw_all_repetitions_pass=raw['all_pass'],
+            caveat='diagnostic with explicitly unequal offered rates, historical controls and different RTT tails; baseline before B1/B2, not a formal exact-0.5ms or post-B2 decision'))
+        table.append(f"| {c['workload']} | "+('natural' if c['delay_us']==0 else '+0.5 ms')+f" | {rate} | {raw['offered_per_s']} | {n:.3f} | {raw['p50_ms']:.3f} | {ratio:.1f}× | {native['pass_all']} |")
+    write(out/'read-rule-comparison.json',read_ratios)
+    (out/'read-rule-comparison.md').write_text('\n'.join(table)+'\n')
     table=['| Cell | Offered/s | p50 ms median | p99 ms median (range) | App CPU ms/op | Role WAL B/op |','|---|---:|---:|---:|---:|---:|']
     for row in ledger:
         b=row['passing']
@@ -235,14 +261,18 @@ def main():
         rtt=median(x['p50_ms'] for x in rtts if all(x['cell'][k]==c[k] for k in ('workload','keys','delay_us')))
         curve=next(x for x in curves if x['cell']==c)
         failed=[r for r in curve['rates'] if not r['pass_all']]
+        highest=max(curve['rates'],key=lambda r:r['rate'])
         model_ms=s['inferred_driver_exchanges_per_op']*rtt+s['sql_exec_ms_per_op']
         diagnosis.append(dict(cell=c,prepared_rtt_p50_ms=rtt,exchanges=s['inferred_driver_exchanges_per_op'],
             serial_probe_ms=s['latencies_ms'],network_only_ms=s['inferred_driver_exchanges_per_op']*rtt,
             server_sql_exec_ms_per_op=s['sql_exec_ms_per_op'],utility_commit_exec_ms=s['utility_commit_exec_ms'],
             no_separate_flush_model_ms=model_ms,reciprocal_serial_model_per_s=1000/model_ms,
             serial_probe_reciprocal_per_s=1000/s['latencies_ms']['mean'],
-            overload_acknowledged_in_window_per_s=span([v for r in failed for v in r['completed_in_window_per_s']]) if failed else None,
-            overload_whole_cohort_committed_per_s_including_drain=span([x['whole_cohort_committed_per_s_including_drain'] for r in failed for x in r['resources'] if x['whole_cohort_committed_per_s_including_drain'] is not None]) if failed else None,
+            failed_rates_acknowledged_in_window_per_s=span([v for r in failed for v in r['completed_in_window_per_s']]) if failed else None,
+            failed_rates_counter_increments_per_s_between_snapshots=span([x['counter_increments_per_s_between_snapshots'] for r in failed for x in r['resources'] if x['counter_increments_per_s_between_snapshots'] is not None]) if failed else None,
+            highest_tested_offered_per_s=highest['rate'],
+            highest_rate_acknowledged_in_window_per_s=span(highest['completed_in_window_per_s']),
+            highest_rate_counter_increments_per_s_between_snapshots=span([x['counter_increments_per_s_between_snapshots'] for x in highest['resources']]),
             engine_or_committer_queue_ms=None,
             caveat='statement exec plus k*prepared RTT is a serial request model; COMMIT utility timing does not isolate flush; pipeline overlap, variable RTT and queues prevent treating it as a measured writer ceiling'))
     write(out/'write-diagnosis.json',diagnosis)
@@ -275,7 +305,10 @@ def main():
         method='sum pg_table_size + pg_indexes_size after ordinary VACUUM ANALYZE; all Snapback namespace tables versus five typed app tables',
         caveat='includes metadata, generic indexes and allocated free space; native incremental seed and typed bulk seed have different write histories; not a live-byte or layout-only causal attribution'))
     for name in ('ownership.json','audit.json','whole-write-audit.json','selection.json','seed.json','seed-equality.json','final-equality.json','storage.json','postgres.txt','cleanup.json','database-cleanup.json','check.txt','lscpu.txt','disks.txt','filesystem.txt'):
-        if (root/name).exists():shutil.copyfile(root/name,out/name)
+        if (root/name).exists():
+            if name.endswith('.txt'):
+                (out/name).write_text('\n'.join(x.rstrip() for x in (root/name).read_text().splitlines())+'\n')
+            else:shutil.copyfile(root/name,out/name)
     # Role-filtered activity samples retain ClientRead/ClientWrite, WAL and lock
     # waits; labels use wall time shared with the per-trial resource records.
     observations=[]
@@ -309,6 +342,7 @@ def main():
     import matplotlib
     matplotlib.use('Agg');matplotlib.rcParams['svg.fonttype']='none';matplotlib.rcParams['svg.hashsalt']='s1pg2'
     import matplotlib.pyplot as plt
+    from matplotlib.ticker import NullFormatter
     fig,axes=plt.subplots(2,6,figsize=(21,7))
     for ax,row in zip(axes.flat,curves):
         rs=row['rates'];xs=[r['rate'] for r in rs]
@@ -319,6 +353,8 @@ def main():
         ax.scatter([r['rate'] for r in failed],[median(r['p99_ms']) for r in failed],marker='x',color='red')
         ax.axhline(100 if row['cell']['workload'] in ('W4','W5') else 50,ls='--',color='gray')
         ax.set(xscale='log',yscale='log',title=label(row['cell']),xlabel='Offered/s',ylabel='Intended-arrival ms');ax.grid(alpha=.2)
+        if len(xs)<=4:ax.set_xticks(xs,[str(x) for x in xs])
+        ax.xaxis.set_minor_formatter(NullFormatter())
     axes.flat[0].legend();fig.tight_layout();fig.savefig(out/'curves.svg',metadata={'Date':None});plt.close(fig)
     fig,axes=plt.subplots(2,6,figsize=(21,7))
     for ax,row in zip(axes.flat,steady):

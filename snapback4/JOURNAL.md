@@ -101944,3 +101944,44 @@ Minimum observed disk free space was 64G. Only this worktree's assigned target w
 used, incremental off and dev/test debug at line-tables-only, with at most 16
 build jobs. No clone, remote command, sub-agent, stash, push, publication or budget
 increase. The journal's prior content remains an exact prefix.
+
+## 2026-10-22 — S1-PG2: admitted Quarry/Postgres baseline
+
+One worker on 450b, branch `sb4-pg/s1-snapback-pg2`, product base `45416b150c`.
+No product or application edit. Native Engine::seed_at imports 1M messages on
+450a in 916.504 s; all source images and every maintained room/user recount are
+exact after seed and at completion. Release targets remain inside this worktree.
+
+Twelve natural/+0.5 ms cells, 303 trials and 2,447,520 measured arrivals retain
+the matched 10 s/20 s, three-repetition, C=32 method. Natural W1/W2 qualify at
+1,000/500 offered ops/s; delayed W1 at 707/s. Other cells have no pass down to
+1/s, not zero throughput. Clean statement counts are 23/23/153 for W1/W2/W3
+and 58/61/58.03 for the three write shapes; nine read snapshots, one durable
+commit and four session resolutions per mutation. Inferred exchanges agree
+with the request RFC's 57-flight unkeyed baseline, with program-dependent extras.
+
+The 186 selected write trials include 134 unknown-outcome failures. Full counter
+continuity finds eight late increments in four gaps after apparent FIFO drains;
+all adjacent trials already fail. The report retains unassigned spillover,
+reconciles final sum 46,072 and records no aggregate acknowledgement deficit.
+An open harness ticket addresses the absence of a full HTTP quiescence fence.
+The first delayed W4 attempt, every setup/observer interruption and both seed
+histories remain raw. No timed mutation is retried or successful cell invented.
+
+Natural median RTT is about 0.637 ms, delayed 1.331 ms across captures; later
+ping p99 is about 41–43 ms and differs from historical controls. One native SSH
+forward also differs from controls' separate streams. A second open ticket
+tracks the transport tails. Serial mutation wall time, snapshot counter rates,
+PG statement/wait evidence and clearly scoped global WAL timing support the
+round-trip diagnosis without attributing unobservable queue or flush time.
+B1/B2 are network-only counterfactuals. Allocated storage is 4.118× typed PG,
+crossing the exploratory storage rule and reopening the typed/projection
+comparison; allocation and seed histories prevent layout-only causal attribution.
+
+Scale RFC §7/§9 and every applicable §8 disposition are updated. The report is
+`snapback4/experiments/scale-controls/results-20261022-snapback-postgres-2/`;
+code/configs/summaries are in Git and raw evidence is digest-bound in ARCHIVE.md.
+Owned database/role/private setup files are removed; independent custody checks
+confirm no live owned process and shared postmaster 2735539 remains alive with
+durability settings on. No cluster restart/reconfiguration, push, stash, clone,
+sub-agent, sudo, Docker, paid service or production/readiness claim.

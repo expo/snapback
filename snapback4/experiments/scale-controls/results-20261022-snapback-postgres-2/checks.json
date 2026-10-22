@@ -1,0 +1,13 @@
+{
+  "data_audit": "pass",
+  "counter_reconciliation": "pass; 8 spillover increments explicitly assigned to gaps",
+  "unchanged_product_and_app": "pass",
+  "append_only_journal": "pass",
+  "single_revised_header": "pass",
+  "local_report_links": 27,
+  "python_compile": "pass",
+  "ref_check": "564 LLP docs, 11723 refs, 0 errors, 0 unchecked",
+  "product_tests": "not rerun: no product source change",
+  "measurements_detached": true,
+  "push": false
+}

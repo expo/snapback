@@ -20,7 +20,8 @@ retain the exact failure.
 
 P1-MC later resolved this admission blocker and qualified the unchanged application
 with a small public Postgres fixture; see the [resolution report](../../../reports/20261022-p1mc-maintained-columns.md).
-The ledger below remains the original blocked measurement, pending a matched rerun.
+The [S1-PG2 matched rerun](../results-20261022-snapback-postgres-2/README.md) now supplies
+the admitted 1M-fixture baseline. The ledger below remains the original blocked measurement.
 
 No product code was patched. No maintained field, authorization rule or
 background feature was removed from the required application. Because all

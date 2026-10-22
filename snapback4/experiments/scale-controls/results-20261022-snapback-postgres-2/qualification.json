@@ -1,0 +1,894 @@
+{
+  "status": "complete, exploratory",
+  "cells": [
+    {
+      "cell": {
+        "workload": "W1",
+        "rows": 1000000,
+        "delay_us": 0,
+        "writers": 128,
+        "keys": "disjoint",
+        "target": "snapback",
+        "rerun": [
+          "python3",
+          "scripts/run.py",
+          "cell",
+          "--out",
+          "results-NEW-w1-n1000000-d0-c128-disjoint",
+          "--workload",
+          "W1",
+          "--rows",
+          "1000000",
+          "--delay-us",
+          "0",
+          "--writers",
+          "128",
+          "--keys",
+          "disjoint",
+          "--target",
+          "snapback",
+          "--load-cores",
+          "3-5,9-11",
+          "--warmup-ms",
+          "10000",
+          "--duration-ms",
+          "20000",
+          "--repeats",
+          "3"
+        ],
+        "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+      },
+      "highest_passing_offered_per_s": 1000,
+      "lowest_tested_offered_per_s": 1000,
+      "shown_rate": 1000,
+      "shown_rate_qualifies": true,
+      "p50_ms": [
+        24.854527,
+        24.969215,
+        24.772607
+      ],
+      "p99_ms": [
+        29.409279,
+        29.458431,
+        29.687807
+      ],
+      "errors": [
+        6,
+        16,
+        8
+      ],
+      "repetition_slo_pass": [
+        true,
+        true,
+        true
+      ],
+      "counter_checks": [
+        null,
+        null,
+        null
+      ]
+    },
+    {
+      "cell": {
+        "workload": "W2",
+        "rows": 1000000,
+        "delay_us": 0,
+        "writers": 128,
+        "keys": "disjoint",
+        "target": "snapback",
+        "rerun": [
+          "python3",
+          "scripts/run.py",
+          "cell",
+          "--out",
+          "results-NEW-w2-n1000000-d0-c128-disjoint",
+          "--workload",
+          "W2",
+          "--rows",
+          "1000000",
+          "--delay-us",
+          "0",
+          "--writers",
+          "128",
+          "--keys",
+          "disjoint",
+          "--target",
+          "snapback",
+          "--load-cores",
+          "3-5,9-11",
+          "--warmup-ms",
+          "10000",
+          "--duration-ms",
+          "20000",
+          "--repeats",
+          "3"
+        ],
+        "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+      },
+      "highest_passing_offered_per_s": 500,
+      "lowest_tested_offered_per_s": 500,
+      "shown_rate": 500,
+      "shown_rate_qualifies": true,
+      "p50_ms": [
+        27.557887,
+        27.705343,
+        27.705343
+      ],
+      "p99_ms": [
+        32.030719,
+        32.964607,
+        33.390591
+      ],
+      "errors": [
+        0,
+        0,
+        0
+      ],
+      "repetition_slo_pass": [
+        true,
+        true,
+        true
+      ],
+      "counter_checks": [
+        null,
+        null,
+        null
+      ]
+    },
+    {
+      "cell": {
+        "workload": "W3",
+        "rows": 1000000,
+        "delay_us": 0,
+        "writers": 128,
+        "keys": "disjoint",
+        "target": "snapback",
+        "rerun": [
+          "python3",
+          "scripts/run.py",
+          "cell",
+          "--out",
+          "results-NEW-w3-n1000000-d0-c128-disjoint",
+          "--workload",
+          "W3",
+          "--rows",
+          "1000000",
+          "--delay-us",
+          "0",
+          "--writers",
+          "128",
+          "--keys",
+          "disjoint",
+          "--target",
+          "snapback",
+          "--load-cores",
+          "3-5,9-11",
+          "--warmup-ms",
+          "10000",
+          "--duration-ms",
+          "20000",
+          "--repeats",
+          "3"
+        ],
+        "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+      },
+      "highest_passing_offered_per_s": null,
+      "lowest_tested_offered_per_s": 1,
+      "shown_rate": 1,
+      "shown_rate_qualifies": false,
+      "p50_ms": [
+        191.234047,
+        190.054399,
+        194.117631
+      ],
+      "p99_ms": [
+        271.843327,
+        243.400703,
+        245.104639
+      ],
+      "errors": [
+        0,
+        0,
+        0
+      ],
+      "repetition_slo_pass": [
+        false,
+        false,
+        false
+      ],
+      "counter_checks": [
+        null,
+        null,
+        null
+      ]
+    },
+    {
+      "cell": {
+        "workload": "W4",
+        "rows": 1000000,
+        "delay_us": 0,
+        "writers": 32,
+        "keys": "disjoint",
+        "target": "snapback",
+        "rerun": [
+          "python3",
+          "scripts/run.py",
+          "cell",
+          "--out",
+          "results-NEW-w4-n1000000-d0-c32-disjoint",
+          "--workload",
+          "W4",
+          "--rows",
+          "1000000",
+          "--delay-us",
+          "0",
+          "--writers",
+          "32",
+          "--keys",
+          "disjoint",
+          "--target",
+          "snapback",
+          "--load-cores",
+          "3-5,9-11",
+          "--warmup-ms",
+          "10000",
+          "--duration-ms",
+          "20000",
+          "--repeats",
+          "3"
+        ],
+        "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+      },
+      "highest_passing_offered_per_s": null,
+      "lowest_tested_offered_per_s": 1,
+      "shown_rate": 1,
+      "shown_rate_qualifies": false,
+      "p50_ms": [
+        96.337919,
+        55.050239,
+        52.756479
+      ],
+      "p99_ms": [
+        185.466879,
+        136.314879,
+        142.737407
+      ],
+      "errors": [
+        0,
+        0,
+        0
+      ],
+      "repetition_slo_pass": [
+        false,
+        false,
+        false
+      ],
+      "counter_checks": [
+        {
+          "delta": 30,
+          "acknowledged_including_warmup": 30,
+          "ok": true
+        },
+        {
+          "delta": 30,
+          "acknowledged_including_warmup": 30,
+          "ok": true
+        },
+        {
+          "delta": 30,
+          "acknowledged_including_warmup": 30,
+          "ok": true
+        }
+      ]
+    },
+    {
+      "cell": {
+        "workload": "W5",
+        "rows": 1000000,
+        "delay_us": 0,
+        "writers": 32,
+        "keys": "same",
+        "target": "snapback",
+        "rerun": [
+          "python3",
+          "scripts/run.py",
+          "cell",
+          "--out",
+          "results-NEW-w5-n1000000-d0-c32-same",
+          "--workload",
+          "W5",
+          "--rows",
+          "1000000",
+          "--delay-us",
+          "0",
+          "--writers",
+          "32",
+          "--keys",
+          "same",
+          "--target",
+          "snapback",
+          "--load-cores",
+          "3-5,9-11",
+          "--warmup-ms",
+          "10000",
+          "--duration-ms",
+          "20000",
+          "--repeats",
+          "3"
+        ],
+        "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+      },
+      "highest_passing_offered_per_s": null,
+      "lowest_tested_offered_per_s": 1,
+      "shown_rate": 1,
+      "shown_rate_qualifies": false,
+      "p50_ms": [
+        93.650943,
+        96.534527,
+        101.908479
+      ],
+      "p99_ms": [
+        148.635647,
+        364.118015,
+        223.084543
+      ],
+      "errors": [
+        0,
+        0,
+        0
+      ],
+      "repetition_slo_pass": [
+        false,
+        false,
+        false
+      ],
+      "counter_checks": [
+        {
+          "delta": 30,
+          "acknowledged_including_warmup": 30,
+          "ok": true
+        },
+        {
+          "delta": 30,
+          "acknowledged_including_warmup": 30,
+          "ok": true
+        },
+        {
+          "delta": 30,
+          "acknowledged_including_warmup": 30,
+          "ok": true
+        }
+      ]
+    },
+    {
+      "cell": {
+        "workload": "W5",
+        "rows": 1000000,
+        "delay_us": 0,
+        "writers": 32,
+        "keys": "hot1",
+        "target": "snapback",
+        "rerun": [
+          "python3",
+          "scripts/run.py",
+          "cell",
+          "--out",
+          "results-NEW-w5-n1000000-d0-c32-hot1",
+          "--workload",
+          "W5",
+          "--rows",
+          "1000000",
+          "--delay-us",
+          "0",
+          "--writers",
+          "32",
+          "--keys",
+          "hot1",
+          "--target",
+          "snapback",
+          "--load-cores",
+          "3-5,9-11",
+          "--warmup-ms",
+          "10000",
+          "--duration-ms",
+          "20000",
+          "--repeats",
+          "3"
+        ],
+        "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+      },
+      "highest_passing_offered_per_s": null,
+      "lowest_tested_offered_per_s": 1,
+      "shown_rate": 1,
+      "shown_rate_qualifies": false,
+      "p50_ms": [
+        140.902399,
+        217.448447,
+        262.012927
+      ],
+      "p99_ms": [
+        294.649855,
+        432.537599,
+        1001.914367
+      ],
+      "errors": [
+        0,
+        0,
+        1
+      ],
+      "repetition_slo_pass": [
+        false,
+        false,
+        false
+      ],
+      "counter_checks": [
+        {
+          "delta": 30,
+          "acknowledged_including_warmup": 30,
+          "ok": true
+        },
+        {
+          "delta": 30,
+          "acknowledged_including_warmup": 30,
+          "ok": true
+        },
+        {
+          "delta": 30,
+          "acknowledged_including_warmup": 29,
+          "ok": false
+        }
+      ]
+    },
+    {
+      "cell": {
+        "workload": "W1",
+        "rows": 1000000,
+        "delay_us": 500,
+        "writers": 128,
+        "keys": "disjoint",
+        "target": "snapback",
+        "rerun": [
+          "python3",
+          "scripts/run.py",
+          "cell",
+          "--out",
+          "results-NEW-w1-n1000000-d500-c128-disjoint",
+          "--workload",
+          "W1",
+          "--rows",
+          "1000000",
+          "--delay-us",
+          "500",
+          "--writers",
+          "128",
+          "--keys",
+          "disjoint",
+          "--target",
+          "snapback",
+          "--load-cores",
+          "3-5,9-11",
+          "--warmup-ms",
+          "10000",
+          "--duration-ms",
+          "20000",
+          "--repeats",
+          "3"
+        ],
+        "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+      },
+      "highest_passing_offered_per_s": 707,
+      "lowest_tested_offered_per_s": 500,
+      "shown_rate": 707,
+      "shown_rate_qualifies": true,
+      "p50_ms": [
+        37.486591,
+        37.683199,
+        37.617663
+      ],
+      "p99_ms": [
+        41.844735,
+        42.237951,
+        42.958847
+      ],
+      "errors": [
+        0,
+        3,
+        9
+      ],
+      "repetition_slo_pass": [
+        true,
+        true,
+        true
+      ],
+      "counter_checks": [
+        null,
+        null,
+        null
+      ]
+    },
+    {
+      "cell": {
+        "workload": "W2",
+        "rows": 1000000,
+        "delay_us": 500,
+        "writers": 128,
+        "keys": "disjoint",
+        "target": "snapback",
+        "rerun": [
+          "python3",
+          "scripts/run.py",
+          "cell",
+          "--out",
+          "results-NEW-w2-n1000000-d500-c128-disjoint",
+          "--workload",
+          "W2",
+          "--rows",
+          "1000000",
+          "--delay-us",
+          "500",
+          "--writers",
+          "128",
+          "--keys",
+          "disjoint",
+          "--target",
+          "snapback",
+          "--load-cores",
+          "3-5,9-11",
+          "--warmup-ms",
+          "10000",
+          "--duration-ms",
+          "20000",
+          "--repeats",
+          "3"
+        ],
+        "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+      },
+      "highest_passing_offered_per_s": null,
+      "lowest_tested_offered_per_s": 1,
+      "shown_rate": 1,
+      "shown_rate_qualifies": false,
+      "p50_ms": [
+        39.911423,
+        44.924927,
+        41.451519
+      ],
+      "p99_ms": [
+        116.719615,
+        155.713535,
+        111.280127
+      ],
+      "errors": [
+        0,
+        0,
+        0
+      ],
+      "repetition_slo_pass": [
+        false,
+        false,
+        false
+      ],
+      "counter_checks": [
+        null,
+        null,
+        null
+      ]
+    },
+    {
+      "cell": {
+        "workload": "W3",
+        "rows": 1000000,
+        "delay_us": 500,
+        "writers": 128,
+        "keys": "disjoint",
+        "target": "snapback",
+        "rerun": [
+          "python3",
+          "scripts/run.py",
+          "cell",
+          "--out",
+          "results-NEW-w3-n1000000-d500-c128-disjoint",
+          "--workload",
+          "W3",
+          "--rows",
+          "1000000",
+          "--delay-us",
+          "500",
+          "--writers",
+          "128",
+          "--keys",
+          "disjoint",
+          "--target",
+          "snapback",
+          "--load-cores",
+          "3-5,9-11",
+          "--warmup-ms",
+          "10000",
+          "--duration-ms",
+          "20000",
+          "--repeats",
+          "3"
+        ],
+        "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+      },
+      "highest_passing_offered_per_s": null,
+      "lowest_tested_offered_per_s": 1,
+      "shown_rate": 1,
+      "shown_rate_qualifies": false,
+      "p50_ms": [
+        345.505791,
+        344.457215,
+        316.669951
+      ],
+      "p99_ms": [
+        499.384319,
+        555.745279,
+        489.947135
+      ],
+      "errors": [
+        0,
+        0,
+        0
+      ],
+      "repetition_slo_pass": [
+        false,
+        false,
+        false
+      ],
+      "counter_checks": [
+        null,
+        null,
+        null
+      ]
+    },
+    {
+      "cell": {
+        "workload": "W4",
+        "rows": 1000000,
+        "delay_us": 500,
+        "writers": 32,
+        "keys": "disjoint",
+        "target": "snapback",
+        "rerun": [
+          "python3",
+          "scripts/run.py",
+          "cell",
+          "--out",
+          "results-NEW-w4-n1000000-d500-c32-disjoint",
+          "--workload",
+          "W4",
+          "--rows",
+          "1000000",
+          "--delay-us",
+          "500",
+          "--writers",
+          "32",
+          "--keys",
+          "disjoint",
+          "--target",
+          "snapback",
+          "--load-cores",
+          "3-5,9-11",
+          "--warmup-ms",
+          "10000",
+          "--duration-ms",
+          "20000",
+          "--repeats",
+          "3"
+        ],
+        "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+      },
+      "highest_passing_offered_per_s": null,
+      "lowest_tested_offered_per_s": 1,
+      "shown_rate": 1,
+      "shown_rate_qualifies": false,
+      "p50_ms": [
+        150.994943,
+        133.496831,
+        147.324927
+      ],
+      "p99_ms": [
+        256.901119,
+        252.051455,
+        226.492415
+      ],
+      "errors": [
+        0,
+        0,
+        0
+      ],
+      "repetition_slo_pass": [
+        false,
+        false,
+        false
+      ],
+      "counter_checks": [
+        {
+          "delta": 30,
+          "acknowledged_including_warmup": 30,
+          "ok": true
+        },
+        {
+          "delta": 30,
+          "acknowledged_including_warmup": 30,
+          "ok": true
+        },
+        {
+          "delta": 30,
+          "acknowledged_including_warmup": 30,
+          "ok": true
+        }
+      ]
+    },
+    {
+      "cell": {
+        "workload": "W5",
+        "rows": 1000000,
+        "delay_us": 500,
+        "writers": 32,
+        "keys": "same",
+        "target": "snapback",
+        "rerun": [
+          "python3",
+          "scripts/run.py",
+          "cell",
+          "--out",
+          "results-NEW-w5-n1000000-d500-c32-same",
+          "--workload",
+          "W5",
+          "--rows",
+          "1000000",
+          "--delay-us",
+          "500",
+          "--writers",
+          "32",
+          "--keys",
+          "same",
+          "--target",
+          "snapback",
+          "--load-cores",
+          "3-5,9-11",
+          "--warmup-ms",
+          "10000",
+          "--duration-ms",
+          "20000",
+          "--repeats",
+          "3"
+        ],
+        "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+      },
+      "highest_passing_offered_per_s": null,
+      "lowest_tested_offered_per_s": 1,
+      "shown_rate": 1,
+      "shown_rate_qualifies": false,
+      "p50_ms": [
+        235.536383,
+        219.545599,
+        148.242431
+      ],
+      "p99_ms": [
+        348.651519,
+        304.087039,
+        332.922879
+      ],
+      "errors": [
+        0,
+        0,
+        0
+      ],
+      "repetition_slo_pass": [
+        false,
+        false,
+        false
+      ],
+      "counter_checks": [
+        {
+          "delta": 30,
+          "acknowledged_including_warmup": 30,
+          "ok": true
+        },
+        {
+          "delta": 30,
+          "acknowledged_including_warmup": 30,
+          "ok": true
+        },
+        {
+          "delta": 30,
+          "acknowledged_including_warmup": 30,
+          "ok": true
+        }
+      ]
+    },
+    {
+      "cell": {
+        "workload": "W5",
+        "rows": 1000000,
+        "delay_us": 500,
+        "writers": 32,
+        "keys": "hot1",
+        "target": "snapback",
+        "rerun": [
+          "python3",
+          "scripts/run.py",
+          "cell",
+          "--out",
+          "results-NEW-w5-n1000000-d500-c32-hot1",
+          "--workload",
+          "W5",
+          "--rows",
+          "1000000",
+          "--delay-us",
+          "500",
+          "--writers",
+          "32",
+          "--keys",
+          "hot1",
+          "--target",
+          "snapback",
+          "--load-cores",
+          "3-5,9-11",
+          "--warmup-ms",
+          "10000",
+          "--duration-ms",
+          "20000",
+          "--repeats",
+          "3"
+        ],
+        "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+      },
+      "highest_passing_offered_per_s": null,
+      "lowest_tested_offered_per_s": 1,
+      "shown_rate": 1,
+      "shown_rate_qualifies": false,
+      "p50_ms": [
+        136.708095,
+        143.785983,
+        140.902399
+      ],
+      "p99_ms": [
+        224.919551,
+        331.874303,
+        411.303935
+      ],
+      "errors": [
+        0,
+        0,
+        0
+      ],
+      "repetition_slo_pass": [
+        false,
+        false,
+        false
+      ],
+      "counter_checks": [
+        {
+          "delta": 30,
+          "acknowledged_including_warmup": 30,
+          "ok": true
+        },
+        {
+          "delta": 30,
+          "acknowledged_including_warmup": 30,
+          "ok": true
+        },
+        {
+          "delta": 30,
+          "acknowledged_including_warmup": 30,
+          "ok": true
+        }
+      ]
+    }
+  ],
+  "planned_cells": 12,
+  "completed_cells": 12,
+  "cells_with_passing_rate": 3,
+  "method": {
+    "warmup_ms": 10000,
+    "duration_ms": 20000,
+    "repetitions": 3,
+    "read_workers": 128,
+    "write_workers": 32,
+    "read_p99_ms": 50,
+    "write_p99_ms": 100,
+    "max_error_fraction": 0.001
+  }
+}

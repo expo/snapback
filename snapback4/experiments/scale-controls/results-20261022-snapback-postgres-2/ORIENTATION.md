@@ -31,4 +31,8 @@ worktree at bd0da3c11188ce61d55bb7b8348e196f61ecc863; sections 1/2/4 and
 explicit B1/B2 budgets are now available. Its snapshot/SHA are archived.
 
 Likely updates: scale RFC §7/§9, journal append, experiment report/archive.
+The affected storage-rule audit also reads LLP 3000.009 §13: typed managed
+layout trades schema-successor DDL and index dialect complexity against the
+current generic layout and opt-in projections. The measurement reopens that
+comparison; it does not select a replacement layout or SQL lowering.
 Hand-off: none.

@@ -1,0 +1,116 @@
+{
+  "pid": 1299256,
+  "pgid": 1299252,
+  "source_commit": "21140a24f870acdbe4af16e6fb94bfe71f688262",
+  "source_sha256": {
+    "scripts/postgres-2.py": "3f57990f69b1c5e202bd97da37d17cbc60871e6f0a11b9c351dd60a90111966a",
+    "postgres-seed/src/main.rs": "481fb7e09844d4f4d08b4799c73ee8f5d1de794965c45ccb508bf13ee1439c63",
+    "snapback-app/snapback/schema.q": "d81afc50e1ead9ba3c8fd245fc2fd84f2ed1b179e03d3382fccf18b2bef9c65f"
+  },
+  "snapback_binary_sha256": "773f7d9a8c313b617cf35379cde412745b703e10f9c5a1a9752a13efde666f53",
+  "binary_sha256": "7618879a6762d49092c34aa2de9ec1ef784f0d569ac1906459b4a35ed693bb45",
+  "app_cores": "0-2,6-8",
+  "load_cores": "3-5,9-11",
+  "ssh_cores": "4-5,10-11",
+  "product_source_unmodified": true,
+  "release_path": "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/s1sk/s1pg2-raw-v2/deployment",
+  "socket_path": "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/p3/s",
+  "upstream_path": "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/p3/u",
+  "timing": {
+    "warmup_ms": 10000,
+    "duration_ms": 20000,
+    "repeats": 3
+  },
+  "database": "sb4_snapback_s1pg2",
+  "role": "s1pg2_app",
+  "cluster_postmaster_pid": 2735539,
+  "transport": "450b stable symlink -> SSH Unix socket, or +500us proxy -> SSH -> 450a:55440",
+  "segments": [
+    {
+      "pid": 3001335,
+      "pgid": 3001333,
+      "source_commit": "b6a5ab5dcd65bb7d23302aec02c45ba6f0b1c5f8",
+      "source_sha256": {
+        "scripts/postgres-2.py": "24f3f2cd55e03246047421eb188a44c41f586ac7fc9b2aad171d57f6d4b91384",
+        "postgres-seed/src/main.rs": "481fb7e09844d4f4d08b4799c73ee8f5d1de794965c45ccb508bf13ee1439c63",
+        "snapback-app/snapback/schema.q": "d81afc50e1ead9ba3c8fd245fc2fd84f2ed1b179e03d3382fccf18b2bef9c65f"
+      },
+      "snapback_binary_sha256": "773f7d9a8c313b617cf35379cde412745b703e10f9c5a1a9752a13efde666f53",
+      "binary_sha256": "7618879a6762d49092c34aa2de9ec1ef784f0d569ac1906459b4a35ed693bb45",
+      "app_cores": "0-2,6-8",
+      "load_cores": "3-5,9-11",
+      "ssh_cores": "4-5,10-11",
+      "product_source_unmodified": true,
+      "release_path": "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/s1sk/s1pg2-raw-v2/deployment",
+      "socket_path": "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/p3/s",
+      "upstream_path": "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/p3/u",
+      "timing": {
+        "warmup_ms": 10000,
+        "duration_ms": 20000,
+        "repeats": 3
+      },
+      "database": "sb4_snapback_s1pg2",
+      "role": "s1pg2_app",
+      "cluster_postmaster_pid": 2735539,
+      "transport": "450b stable symlink -> SSH Unix socket, or +500us proxy -> SSH -> 450a:55440"
+    },
+    {
+      "pid": 3262090,
+      "pgid": 3262088,
+      "source_commit": "b6a5ab5dcd65bb7d23302aec02c45ba6f0b1c5f8",
+      "source_sha256": {
+        "scripts/postgres-2.py": "bdc73953521ac01dde88645ddf528d211c31b2a6db1bed30c363e16db4580de0",
+        "postgres-seed/src/main.rs": "481fb7e09844d4f4d08b4799c73ee8f5d1de794965c45ccb508bf13ee1439c63",
+        "snapback-app/snapback/schema.q": "d81afc50e1ead9ba3c8fd245fc2fd84f2ed1b179e03d3382fccf18b2bef9c65f"
+      },
+      "snapback_binary_sha256": "773f7d9a8c313b617cf35379cde412745b703e10f9c5a1a9752a13efde666f53",
+      "binary_sha256": "7618879a6762d49092c34aa2de9ec1ef784f0d569ac1906459b4a35ed693bb45",
+      "app_cores": "0-2,6-8",
+      "load_cores": "3-5,9-11",
+      "ssh_cores": "4-5,10-11",
+      "product_source_unmodified": true,
+      "release_path": "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/s1sk/s1pg2-raw-v2/deployment",
+      "socket_path": "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/p3/s",
+      "upstream_path": "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/p3/u",
+      "timing": {
+        "warmup_ms": 10000,
+        "duration_ms": 20000,
+        "repeats": 3
+      },
+      "database": "sb4_snapback_s1pg2",
+      "role": "s1pg2_app",
+      "cluster_postmaster_pid": 2735539,
+      "transport": "450b stable symlink -> SSH Unix socket, or +500us proxy -> SSH -> 450a:55440"
+    },
+    {
+      "pid": 1299256,
+      "pgid": 1299252,
+      "source_commit": "21140a24f870acdbe4af16e6fb94bfe71f688262",
+      "source_sha256": {
+        "scripts/postgres-2.py": "3f57990f69b1c5e202bd97da37d17cbc60871e6f0a11b9c351dd60a90111966a",
+        "postgres-seed/src/main.rs": "481fb7e09844d4f4d08b4799c73ee8f5d1de794965c45ccb508bf13ee1439c63",
+        "snapback-app/snapback/schema.q": "d81afc50e1ead9ba3c8fd245fc2fd84f2ed1b179e03d3382fccf18b2bef9c65f"
+      },
+      "snapback_binary_sha256": "773f7d9a8c313b617cf35379cde412745b703e10f9c5a1a9752a13efde666f53",
+      "binary_sha256": "7618879a6762d49092c34aa2de9ec1ef784f0d569ac1906459b4a35ed693bb45",
+      "app_cores": "0-2,6-8",
+      "load_cores": "3-5,9-11",
+      "ssh_cores": "4-5,10-11",
+      "product_source_unmodified": true,
+      "release_path": "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/s1sk/s1pg2-raw-v2/deployment",
+      "socket_path": "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/p3/s",
+      "upstream_path": "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/p3/u",
+      "timing": {
+        "warmup_ms": 10000,
+        "duration_ms": 20000,
+        "repeats": 3
+      },
+      "database": "sb4_snapback_s1pg2",
+      "role": "s1pg2_app",
+      "cluster_postmaster_pid": 2735539,
+      "transport": "450b stable symlink -> SSH Unix socket, or +500us proxy -> SSH -> 450a:55440"
+    }
+  ],
+  "selection": "natural W1/W2 from raw-final, seven complete cells from raw-tail, three delayed write cells from raw-writes",
+  "workload_and_product_semantics_unchanged": true
+}
