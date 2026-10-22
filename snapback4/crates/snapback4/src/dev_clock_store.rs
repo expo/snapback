@@ -186,14 +186,14 @@ pub fn schedule_report(engine: &Engine, before: &[Option<i64>], fired: &[String]
             }
         } else if held {
             entry["holdCode"] = "disabled".into();
-            entry["reason"] = "schedules are held (dev --hold-schedules or --replay); a restart without the flag resumes at the next boundary".into();
+            entry["reason"] = "schedules are held by explicit maintenance control; clock drain resumes paused work (a staging pause survives restart); dev --hold-schedules/--replay require restarting without the flag".into();
         } else if let Some(saved) = saved.filter(|saved| old.is_some() && *saved > current) {
             let due = schedule.next(saved);
             entry["holdCode"] = "saved-boundary".into();
             entry["savedBoundary"] = saved.into();
             entry["heldUntil"] = utc(saved).into();
             entry["nextBoundary"] = utc(due).into();
-            entry["reason"] = format!("held by the store: boundary {} was already processed and this clock {} is in an earlier window (restarting resets the process offset, not the saved boundary). One fire per boundary. Advance {} more to reach the saved window, or use a fresh staging deployment/store for an independent test; keep the same --clock-offset when continuing a test across serve restarts",
+            entry["reason"] = format!("held by the store: boundary {} was already processed and this clock {} is in an earlier window (an explicitly selected clock is behind the saved boundary). One fire per boundary. Advance {} more to reach the saved window, or use a fresh staging deployment/store for an independent test; keep the same --clock-offset when continuing a test across serve restarts",
                 utc(saved), utc(now), span(saved.saturating_sub(current_clock))).into();
         } else if old != saved {
             entry["holdCode"] = "initialized".into();
@@ -256,13 +256,13 @@ pub fn has_data(engine: &Engine) -> bool {
 }
 
 pub fn offset_line(offset: i64, running: bool) -> String {
-    format!("clock     offset from wall time: {offset:+}ms{}", if running { " (lasts until restart)" } else { " (no running dev; inspecting against wall time)" })
+    format!("clock     offset from wall time: {offset:+}ms{}", if running { " (development process; staging persists with its store)" } else { " (no running dev; inspecting against wall time)" })
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    fn engine() -> Engine {
+    pub(super) fn engine() -> Engine {
         let bound = snapback4_lang::compile(&[("schema.q".into(), "table alpha:\n  at: time\n  public\ntable beta:\n  at: time\n  public\n".into())]);
         assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
         Engine::new_at(snapback4_core::store_port::AnyStore::memory().unwrap(), bound.schema,
@@ -378,5 +378,60 @@ mod tests {
         (engine.store()).test_support_conn().execute("UPDATE _commits SET at = 200000, touched = ?1 WHERE seq = (SELECT MAX(seq) FROM _commits)", ["x".repeat(TABLE_BYTES + 1)]).unwrap();
         let note = ahead(&engine, 100_000).unwrap().unwrap();
         assert!(note.contains("100000ms") && note.contains("additional tables omitted"), "{note}");
+    }
+}
+
+// @ref LLP 3000.000.000.001#12-wave-24-loop-repairs-dx7 — staging owns time; legacy stores recover from retained evidence.
+pub fn staging_clock(store: &snapback4_core::store_port::AnyStore, requested: i64, wall: i64) -> Result<snapback4_core::metadata::StagingClock, RuntimeError> {
+    use snapback4_core::metadata::{DevMetadata, StagingClock};
+    let saved = store.dev_value(DevMetadata::StagingClock)?
+        .map(|text| serde_json::from_str::<StagingClock>(&text)
+            .map_err(|_| RuntimeError::Input("invalid persisted staging clock; refusing to reset staging time".into())))
+        .transpose()?;
+    if let Some(saved) = &saved { saved.validate()?; }
+    let floor = store.time_audience_clock_value()?.map(|text| text.parse::<i64>()
+        .map_err(|_| RuntimeError::Input("invalid staging disclosure clock".into()))).transpose()?.unwrap_or(0);
+    let legacy_floor = store.recent_commit_max_at(RECENT_COMMITS as i64)?.into_iter()
+        .chain(store.latest_schedule_boundary()?).max().unwrap_or(wall);
+    let recovered = if let Some(saved) = &saved { wall.checked_add(saved.offset).unwrap_or(i64::MAX).max(saved.now) }
+        else { wall.saturating_add(resume_offset(store, wall)?) };
+    let now = wall.checked_add(requested).unwrap_or(i64::MAX).max(recovered).max(floor).max(legacy_floor);
+    let state = StagingClock { now, offset: now.saturating_sub(wall), paused: saved.is_some_and(|s| s.paused) };
+    state.validate()?;
+    Ok(state)
+}
+
+#[cfg(test)]
+mod staging_tests {
+    use super::*;
+    use snapback4_core::metadata::{DevMetadata, StagingClock};
+    #[test]
+    fn staging_checkpoint_recovers_precise_time_pause_and_later_legacy_boundaries() {
+        let bound = snapback4_lang::compile(&[("schema.q".into(), "table rows:\n  n: int\n  public 'fixture'\njob tick():\n  for row in rows:\n    update rows[row.id] {n:1}\nschedule hourly every 1h: tick\n".into())]);
+        let mut engine = Engine::new_at(snapback4_core::store_port::AnyStore::memory().unwrap(), bound.schema, bound.programs.into_iter().map(|p|p.program),0).unwrap();
+        engine.store().set_deployment_environment("staging").unwrap();
+        let saved = StagingClock {offset:1000,now:2000,paused:true};
+        engine.checkpoint_staging_clock_at(0,1000,false,&saved).unwrap();
+        let resumed=staging_clock(engine.store(),0,1100).unwrap();
+        assert_eq!(resumed.offset,1000);assert_eq!(resumed.now,2100);assert!(resumed.paused);
+        let rollback=staging_clock(engine.store(),0,500).unwrap();assert_eq!(rollback.now,2000);
+        engine.fire_schedules(0).unwrap();engine.fire_schedules(7_200_000).unwrap();
+        let recovered=staging_clock(engine.store(),0,1100).unwrap();assert!(recovered.now>=7_200_000);assert!(recovered.paused);
+        engine.store().set_dev_value(DevMetadata::StagingClock,"malformed").unwrap();
+        assert!(staging_clock(engine.store(),0,1100).is_err());
+    }
+    #[test]
+    fn failed_checkpoint_keeps_the_previous_time_and_pause_record() {
+        let mut engine=super::tests::engine();
+        engine.store().set_deployment_environment("staging").unwrap();
+        let old=StagingClock {offset:10,now:100_010,paused:true};
+        engine.checkpoint_staging_clock_at(0,100_000,false,&old).unwrap();
+        engine.store().test_support_conn().execute_batch("CREATE TRIGGER refuse_clock BEFORE INSERT ON _meta WHEN NEW.key = 'dev:staging-clock' BEGIN SELECT RAISE(ABORT,'injected checkpoint failure'); END;").unwrap();
+        for paused in [true,false] {
+            let next=StagingClock {offset:1000,now:101_000,paused};
+            assert!(engine.checkpoint_staging_clock_at(1000,100_000,false,&next).is_err());
+            assert_eq!(staging_clock(engine.store(),0,100_000).unwrap().now,old.now);
+            assert!(staging_clock(engine.store(),0,100_000).unwrap().paused);
+        }
     }
 }

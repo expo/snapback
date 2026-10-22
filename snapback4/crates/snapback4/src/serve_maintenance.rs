@@ -172,6 +172,7 @@ impl Default for State {
     }
 }
 impl State {
+    pub(super) fn with_pause(paused: bool) -> Self { Self { paused, ..Self::default() } }
     fn aged(&self, now: Instant) -> bool { now.saturating_duration_since(self.serviced) >= BULK_AGE }
     fn eligible(&self, now: Instant, aged_only: bool) -> bool {
         !self.advancing && !self.paused && if aged_only { self.aged(now) } else { now >= self.resume_at }
@@ -375,6 +376,13 @@ fn clock_service(request: &Request, shared: &Shared) -> Result<Option<String>, s
         _ => Err(snapback4_core::Refusal::new("E_AUTH", "auth", "staging clock control requires a full service token").guide("clock")),
     }
 }
+fn checkpoint_clock(engine: &mut snapback4_core::Engine, delta: i64, before: i64, preserve: bool, checkpoint: &snapback4_core::metadata::StagingClock) -> Result<(), RuntimeError> {
+    let result = engine.checkpoint_staging_clock_at(delta, before, preserve, checkpoint);
+    #[cfg(feature = "postgres")]
+    if matches!(result, Err(RuntimeError::CommitOutcomeUnknown(_))) { crate::lifecycle::uncertain_clock_commit(); }
+    result
+}
+
 pub(super) fn advance(request: Request, shared: &Shared, body: &str) {
     let service = match clock_service(&request, shared) {
         Ok(service) => service,
@@ -445,7 +453,8 @@ pub(super) fn advance(request: Request, shared: &Shared, body: &str) {
             // raw process time and revive an already expired family.
             let effective_delta = now.checked_sub(effective_before)
                 .ok_or_else(|| crate::dev_clock::input("effective clock advance overflow"))?;
-            if milliseconds > 0 && effective_delta > 0 { engine.advance_staging_clock_at(effective_delta, effective_before, preserve_sessions).map_err(|e|e.refusal())?; }
+            let checkpoint = snapback4_core::metadata::StagingClock { now, offset: next.offset(), paused: true };
+            checkpoint_clock(&mut engine, effective_delta, effective_before, preserve_sessions, &checkpoint).map_err(|e|e.refusal())?;
         } else if milliseconds > 0 {
             engine.advance_worker_leases_at(milliseconds, clock.now()).map_err(|e|e.refusal())?;
         }
@@ -456,7 +465,8 @@ pub(super) fn advance(request: Request, shared: &Shared, body: &str) {
         let isolated = if crate::dev_clock_store::has_data(&engine) {
             format!("; use {} for isolated time tests; clock advance --port N targets its printed port (guide jobs)", crate::dev_clock::isolated_command())
         } else { String::new() };
-        let message = format!("cumulative offset {offset:+}ms (requested process offset; now includes the authoritative floor); process offset lasts until restart{isolated}");
+        let lifetime = if shared.personas { "development offset lasts until restart" } else { "offset persists with this staging store across restarts" };
+        let message = format!("cumulative offset {offset:+}ms (now includes the authoritative floor); {lifetime}{isolated}");
         Ok((now, clock.now(), offset, skew, message, before, boundaries))
     })();
     let (now, raw_now, offset, skew, message, before, boundaries) = match advanced {
@@ -476,6 +486,14 @@ pub(super) fn advance(request: Request, shared: &Shared, body: &str) {
         let mut work = work_at(shared, true, 0, Some(now))?;
         work.schedules += crossed.len();
         work.fired.extend(crossed);
+        // Clearing the durable pause is the last part of a completed drain.
+        // Failure leaves both the record and runtime paused; never replay time.
+        if !shared.personas && !crate::lifecycle::stopping() {
+            let mut engine = lock(&shared.engine);
+            let clock = lock(&shared.clock);
+            let checkpoint = snapback4_core::metadata::StagingClock { now: clock.now(), offset: clock.offset(), paused: false };
+            checkpoint_clock(&mut engine, 0, checkpoint.now, false, &checkpoint)?;
+        }
         Ok::<_, RuntimeError>(work)
     })();
     match drained.map_err(|error| error.refusal()).and_then(|work| completed_drain(work, crate::lifecycle::stopping())) {

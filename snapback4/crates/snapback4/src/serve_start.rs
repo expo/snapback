@@ -53,13 +53,20 @@ pub fn serve(
     let staging = if let Mode::Release { owner, .. } = &mode {
         owner.open_store(Duration::from_secs(5)).map_err(|e|e.to_string())?.deployment_environment().map_err(|e|e.to_string())?.as_deref() == Some("staging")
     } else { false };
-    let clock = crate::dev_clock::Clock::new(
+    let staging_clock = if staging {
+        let Mode::Release { owner, clock_offset, .. } = &mode else { unreachable!() };
+        let store = owner.open_store(Duration::from_secs(5)).map_err(|e|e.to_string())?;
+        Some(crate::dev_clock_store::staging_clock(&store, *clock_offset, snapback4_core::now_ms()).map_err(|e|e.to_string())?)
+    } else { None };
+    let clock = if let Some(saved) = &staging_clock {
+        crate::dev_clock::Clock::staging(saved.offset, saved.now)
+    } else { crate::dev_clock::Clock::new(
         dev || staging,
         match mode {
-            Mode::Dev { clock_offset, .. } | Mode::Release { clock_offset, .. } => clock_offset,
+            Mode::Dev { clock_offset, .. } | Mode::Release { clock_offset, .. } => staging_clock.as_ref().map_or(clock_offset, |saved| saved.offset),
             Mode::ConfiguredRelease { .. } => 0,
         },
-    )
+    ) }
     .map_err(|e| e.to_string())?;
     let generated = if dev {
         Some(project.write_generated(&bound).map_err(|e| e.to_string())?)
@@ -127,6 +134,12 @@ pub fn serve(
             .and_then(|store| project.open_release_engine(store, &bound, *expected, clock.now())),
     }
     .map_err(|e| e.to_string())?;
+    let staging_paused = staging_clock.as_ref().is_some_and(|saved| saved.paused);
+    if let Some(saved) = &staging_clock {
+        let saved = snapback4_core::metadata::StagingClock { now: clock.now(), offset: clock.offset(), paused: saved.paused };
+        engine.checkpoint_staging_clock_at(0, saved.now, false, &saved).map_err(|e|e.to_string())?;
+        snapback4_core::diagnostic!("clock     staging store offset {:+}ms; resumed business time {}; maintenance {}", saved.offset, saved.now, if saved.paused { "paused until clock drain" } else { "running" });
+    }
     adoption::report(&engine);
     if dev {
         match crate::dev_clock_store::ahead(&engine, clock.now()) {
@@ -151,7 +164,7 @@ pub fn serve(
         crate::dev_replay::schedules(&mut engine, hold_schedules, clock.now())
             .map_err(|e| e.to_string())?;
     }
-    if full_runners && !hold_schedules {
+    if full_runners && !hold_schedules && !staging_paused {
         engine
             .fire_schedules(clock.now())
             .map_err(|e| e.to_string())?;
@@ -225,7 +238,7 @@ pub fn serve(
         adoption,
         clock,
         time_audience_clock: AtomicI64::new(time_audience_clock),
-        maintenance: FairMutex::gate(maintenance::State::default()),
+        maintenance: FairMutex::gate(maintenance::State::with_pause(staging_paused)),
         staging: !dev && engine.store().deployment_environment().map_err(|e|e.to_string())?.as_deref() == Some("staging"),
         worker_execution: engine.store().admit_worker_execution().is_ok(),
         engine: FairMutex::new(engine),

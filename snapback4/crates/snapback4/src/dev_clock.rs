@@ -68,6 +68,12 @@ impl Clock {
         Ok(Self { dev, offset, base: time(snapback4_core::now_ms().checked_add(offset))?, started: Instant::now(),
             epoch: snapback4_core::ids::mint(snapback4_core::now_ms(), &mut snapback4_core::ids::Mint::default()).map_err(|e| e.refusal())?, revision: 0, #[cfg(test)] frozen: false })
     }
+    pub fn staging(offset: i64, floor: i64) -> Result<Self, Refusal> {
+        let mut clock = Self::new(true, offset)?;
+        let delta = floor.saturating_sub(clock.now()).max(0);
+        if delta > 0 { clock.advance(delta)?; }
+        Ok(clock)
+    }
     #[cfg(test)]
     pub(crate) fn freeze(&mut self, now: i64) { self.base = now; self.frozen = true; }
     pub fn now(&self) -> i64 {
