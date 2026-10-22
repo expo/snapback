@@ -70,7 +70,7 @@ impl Host {
     fn with_store_on(dev: bool, store: impl Into<snapback4_core::store_port::AnyStore>, source: &str, bind: &str) -> Self {
         Self::with_evidence(dev, store, source, bind, None)
     }
-    fn request(&self, method: &str, path: &str, headers: &str, body: &str) -> String {
+    pub(super) fn request(&self, method: &str, path: &str, headers: &str, body: &str) -> String {
         let device = if path == "/sync" && !headers.to_ascii_lowercase().contains("x-snapback-device:") {
             format!("x-snapback-device: {}\r\n", serde_json::to_string(&snapback4_core::device_protocol::DeviceEngine::current()).unwrap())
         } else { String::new() };
@@ -1519,3 +1519,6 @@ mod postgres_tests;
 
 #[path = "../tests/round_trips/mod.rs"]
 pub(super) mod round_trip_tests;
+
+#[path = "../tests/serve_committer/mod.rs"]
+mod committer_tests;

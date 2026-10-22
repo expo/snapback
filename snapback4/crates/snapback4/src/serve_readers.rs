@@ -154,9 +154,10 @@ impl Shared {
                 head
             }
             Err(_) if self.memory_store() => {
-                let mut engine = lock(&self.engine);
-                let generation = engine.generation();
-                response_head(&mut engine).map(|(id, head)| (id, head, generation))
+                self.engine.attempt(|engine, _| {
+                    let generation = engine.generation();
+                    response_head(engine).map(|(id, head)| (id, head, generation))
+                })
             }
             Err(error) => Err(error.refusal()),
         }
@@ -169,7 +170,7 @@ impl Shared {
                 lock(&self.readers).put(&epoch, reader.into_inner());
                 head
             }
-            Err(_) if self.memory_store() => response_head(&mut lock(&self.engine)),
+            Err(_) if self.memory_store() => self.engine.attempt(|engine, _| response_head(engine)),
             Err(error) => Err(error.refusal()),
         }
     }

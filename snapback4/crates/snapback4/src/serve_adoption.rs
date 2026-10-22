@@ -141,10 +141,7 @@ pub(super) fn watch_sources(project: Project, shared: Arc<Shared>, mut stamp: cr
         std::thread::sleep(Duration::from_millis(400));
         if crate::lifecycle::stopping() { return; }
         let now = project.sources_stamp();
-        let stored_generation = {
-            let engine = lock(&shared.engine);
-            engine.store().generation_value().ok().flatten().and_then(|s| s.parse::<u64>().ok()).unwrap_or(seen_generation)
-        };
+        let stored_generation = shared.engine.call(move |engine, _| engine.store().generation_value().ok().flatten().and_then(|s| s.parse::<u64>().ok()).unwrap_or(seen_generation));
         if now == stamp && !retry && stored_generation == seen_generation {
             continue;
         }
@@ -188,19 +185,23 @@ pub(super) fn watch_sources(project: Project, shared: Arc<Shared>, mut stamp: cr
                         continue;
                     }
                 }
-                let mut engine = lock(&shared.engine);
-                let adopted = adopt_candidate(&shared, &mut engine, &bound, || {
+                let project = Project { root: project.root.clone() };
+                let (next_generation, next_retry) = shared.engine.call(move |engine, shared| {
+                    let mut seen_generation = seen_generation;
+                    let mut retry = false;
+
+                let adopted = adopt_candidate(shared, engine, &bound, || {
                     shared.owner.as_ref().ok_or_else(|| RuntimeError::Store("temporary server cannot reopen a persisted store".into()))
                         .and_then(|owner| owner.open_engine(&bound, Duration::from_secs(5), shared.now()))
                 });
                 match adopted {
                     Ok((next, reopened)) => {
-                        shared.refresh_time_audience_clock(&engine, shared.now());
+                        shared.refresh_time_audience_clock(engine, shared.now());
                         seen_generation = next;
                         crate::lifecycle::generation(next);
 
                         if reopened || rebuilt.is_some() {
-                            match crate::native::install(&mut engine, &project) {
+                            match crate::native::install(engine, &project) {
                                 Ok(installed) => {
                                     *lock(&shared.native) = installed;
                                     if let Some(built) = &rebuilt { snapback4_core::diagnostic!("snapback4 dev: native module rebuilt ({} B, {} ms): {}", built.bytes, built.ms, built.jobs.join(", ")); }
@@ -208,7 +209,7 @@ pub(super) fn watch_sources(project: Project, shared: Arc<Shared>, mut stamp: cr
                                 Err(problem) => snapback4_core::diagnostic!("snapback4 dev: {problem}"),
                             }
                         }
-                        lock(&shared.readers).replace(&engine, &bound.refusal_sites);
+                        lock(&shared.readers).replace(engine, &bound.refusal_sites);
                         // Publish the advertised backend and identity together:
                         // /schema takes these guards in the same order.
                         let mut active = lock(&shared.bound);
@@ -222,17 +223,22 @@ pub(super) fn watch_sources(project: Project, shared: Arc<Shared>, mut stamp: cr
                         // holding this engine guard: the old child cannot
                         // claim new work during the supervisor's stop delay.
                         shared.worker_revision.fetch_add(1, std::sync::atomic::Ordering::Release);
-                        snapback4_core::diagnostic!("snapback4 dev: schema adopted as generation {} ({:?}) in {} ms; types: {}{}", *generation, worst, started.elapsed().as_millis(), generated.display(), summary(&engine));
+                        snapback4_core::diagnostic!("snapback4 dev: schema adopted as generation {} ({:?}) in {} ms; types: {}{}", *generation, worst, started.elapsed().as_millis(), generated.display(), summary(engine));
                         for step in steps {
                             snapback4_core::diagnostic!("  {:?}: {}", step.change, step.message);
                         }
                         // Adoption can itself commit a populated maintain rebuild.
-                        shared.publish_engine(&engine);
+                        shared.publish_engine(engine);
                     }
                     Err(error) => {
                         retry = retryable(&error);
                     }
                 }
+                    (seen_generation, retry)
+                });
+                seen_generation = next_generation;
+                retry = next_retry;
+
             }
             Ok(bound) => {
                 let (reports, hidden) = crate::verbs::problem_reports(&bound, true, verbose);

@@ -63,6 +63,11 @@ pub(crate) mod read_cost;
 #[path = "serve_lock.rs"]
 mod engine_lock;
 use engine_lock::{FairMutex, Lockable};
+#[path = "serve_committer.rs"]
+mod committer;
+#[path = "serve_request_facts.rs"]
+mod request_facts;
+pub(crate) use request_facts::{RequestFacts, RequestInfo};
 
 #[path = "latency.rs"]
 pub(crate) mod latency;
@@ -90,7 +95,7 @@ pub struct Shared {
     /// never regress below the authority clock even if wall time rolls back.
     time_audience_clock: AtomicI64,
     maintenance: FairMutex<maintenance::State>,
-    pub engine: FairMutex<Engine>,
+    pub engine: committer::Writer,
     adoption: Mutex<adoption::Status>,
     readers: Mutex<QueryReaders>,
     read_cuts: Mutex<read_cost::ReadCuts>,
@@ -185,17 +190,19 @@ impl Shared {
         // Non-timed reader traffic must retain its independent reader lane,
         // including while adoption or a mutation deliberately holds the writer.
         if self.time_audience_clock.load(Ordering::Acquire) == i64::MIN { return Ok(requested); }
-        let mut engine = lock(&self.engine);
-        let before = engine.seq()?;
-        let now = engine.advance_time_audiences_at(requested)?;
-        self.refresh_time_audience_clock(&engine, now);
-        if engine.seq()? != before { self.durable_committed(&engine); }
-        Ok(now)
+        self.engine.attempt(move |engine, shared| {
+            let before = engine.seq()?;
+            let now = engine.advance_time_audiences_at(requested)?;
+            shared.refresh_time_audience_clock(engine, now);
+            if engine.seq()? != before { shared.durable_committed(engine); }
+            Ok(now)
+        })
     }
     fn next_time_audience(&self) -> Result<Option<i64>, snapback4_core::RuntimeError> {
         if self.time_audience_clock.load(Ordering::Acquire) == i64::MIN { return Ok(None); }
-        lock(&self.engine).next_time_audience_at()
+        self.engine.attempt(|engine, _| engine.next_time_audience_at())
     }
+
     fn time_audience_delay(&self, at: i64) -> Duration {
         let raw = lock(&self.clock).now();
         let floor = self.time_audience_clock.load(Ordering::Acquire);
@@ -463,32 +470,11 @@ pub(crate) fn wait_seconds(url: &str) -> u64 {
     query_params(url).get("wait").and_then(|s| s.parse().ok()).unwrap_or(0).min(25)
 }
 
-// @ref LLP 3000.000.000#93-http-admission-and-reporting — stamp actual engine work after buffered intake, without pinning worker waits or socket I/O.
-pub(crate) fn producing_engine(shared:&Shared) -> engine_lock::FairGuard<'_,Engine> {
-    let engine=lock(&shared.engine);
-    crate::release_requests::stamp(engine.generation());
-    engine
-}
+#[path = "serve_service.rs"]
+mod service;
+use service::{service_admission, service_token_of, service_of, service_of_locked};
 
-/// A worker's seat: a bearer session of a service principal.
-fn service_of(request: &Request, shared: &Shared) -> Result<String, Refusal> {
-    let engine=lock(&shared.engine);
-    let result=service_of_locked(request,shared,&engine);
-    if result.is_err() {crate::release_requests::stamp(engine.generation());}
-    result
-}
-
-fn service_of_locked(request: &Request, shared: &Shared, engine: &Engine) -> Result<String, Refusal> {
-    dev_request(request, shared)?;
-    let refused = || Refusal::new("E_AUTH", "auth", "this is a worker's door: send a live service token (`snapback4 token --service <name>`)").guide("effects");
-    if !matches!(single_header(request, "x-snapback-persona"), Ok(None)) { return Err(refused()); }
-    let token = crate::auth::bearer_token(request).map_err(|e| e.refusal())?;
-    snapback4_core::identity::current_service(engine.store(), &token, snapback4_core::identity::ServiceSample {
-        now: shared.now(), supervisor_revision: shared.worker_revision.load(Ordering::Acquire),
-    }).map_err(|e| e.refusal())?.ok_or_else(refused)
-}
-
-pub(crate) fn single_header<'a>(request: &'a Request, name: &str) -> Result<Option<&'a str>, ()> {
+pub(crate) fn single_header<'a>(request: &'a impl RequestInfo, name: &str) -> Result<Option<&'a str>, ()> {
     let mut headers = request.headers().iter().filter(|h| h.field.as_str().as_str().eq_ignore_ascii_case(name));
     let value = headers.next().map(|h| h.value.as_str());
     if headers.next().is_some() { Err(()) } else { Ok(value) }
@@ -595,7 +581,7 @@ fn origin_authority(origin: &str) -> Option<&str> {
 
 /// Browser developers use different local app ports. Trust literal loopback
 /// names, never DNS resolution: a foreign hostname may resolve to loopback.
-fn dev_request(request: &Request, shared: &Shared) -> Result<(), Refusal> {
+fn dev_request(request: &impl RequestInfo, shared: &Shared) -> Result<(), Refusal> {
     if !shared.personas { return Ok(()); }
     let host = single_header(request, "host");
     let origin = single_header(request, "origin");
@@ -610,7 +596,7 @@ fn dev_request(request: &Request, shared: &Shared) -> Result<(), Refusal> {
 }
 
 // @ref LLP 3000.007#20.2 — public routes bypass dev admission, never the privacy boundary.
-pub(crate) fn trusted_dev_request(request: &Request, shared: &Shared) -> bool {
+pub(crate) fn trusted_dev_request(request: &impl RequestInfo, shared: &Shared) -> bool {
     shared.personas && dev_request(request, shared).is_ok()
 }
 
@@ -754,6 +740,7 @@ fn respond_full(request: Request, status: u16, body: impl latency::Reply, allow_
     let refused = refused || encoded.is_err();
     trace::mark("encode_end");
     let _evidence = dev_refusals::response::response(&bytes.0);
+    let overload = status == 503 && serde_json::from_slice::<Json>(&bytes.0).ok().is_some_and(|body| body.get("denied").or_else(|| body.get("why")).is_some_and(|why| why["code"] == "E_RATE_LIMIT"));
     let capacity = bytes.0.len() + 512;
     let mut response = Response::from_data(bytes.0).with_status_code(status);
     if let Some(shared) = shared && let Some(identity) = lock(&shared.dev_reset_store).as_ref() {
@@ -768,6 +755,10 @@ fn respond_full(request: Request, status: u16, body: impl latency::Reply, allow_
     if let Some(generation)=generation {response.add_header(Header::from_bytes("X-Snapback-Generation",generation.to_string()).unwrap());}
     response.add_header(Header::from_bytes("Content-Type", "application/json").unwrap());
     response.add_header(Header::from_bytes("Cache-Control", "no-store").unwrap());
+    if overload {
+        response.add_header(Header::from_bytes("Retry-After", "1").unwrap());
+        response.add_header(Header::from_bytes("Access-Control-Expose-Headers", "Retry-After").unwrap());
+    }
     for header in extra { response.add_header(header); }
     if allow_origin {
         for header in cors(&request) { response.add_header(header); }
@@ -840,21 +831,9 @@ pub(crate) fn query_params(url: &str) -> BTreeMap<String, String> {
 
 // Identity and head are a single snapshot from the owner of the evaluated
 // operation. Mutation replay's seq is historical; head is never that receipt.
-fn response_head(engine: &mut Engine) -> Result<(String, u64), Refusal> {
-    let tx = engine.store_mut().read_transaction()?;
-    let id: String = tx.store_id()?;
-    Ok((id, tx.next_seq()? - 1))
-}
-
-// @ref LLP 3000.013#6 — a replay belongs to its acknowledged store, even if
-// the endpoint changes between the client's probe and this transaction.
-fn intent_store(engine: &Engine, payload: &Json) -> Result<(), Refusal> {
-    let Some(expected) = payload.get("store_id").filter(|id| !id.is_null()) else { return Ok(()); };
-    let current = engine.store().store_identity()?;
-    if expected.as_str().is_some_and(|id| Some(id) == current.as_deref()) { return Ok(()); }
-    Err(Refusal::new("E_STORE_REPLACED", "store", "the intent belongs to another store; its original outcome is unknown")
-        .site("request.store_id").rewrite("reconcile this write with its original store before submitting new intent").guide("sync"))
-}
+#[path = "serve_head.rs"]
+mod head;
+use head::{response_head, intent_store};
 
 fn operation_refusal(request: Request, shared: &Shared, status: u16, why: Refusal) {
     let metadata = shared.read_identity();
@@ -1099,12 +1078,11 @@ fn handle(mut request: Request, shared: &Shared) {
             Err(refusal) => respond_timed(request, shared, if refusal.retryable { 503 } else { 401 }, json!({ "denied": refusal_json(&refusal) })),
         },
         (Method::Get, "/auth/config") => {
-            let (auth, environment) = {
-                let engine = producing_engine(shared);
+            let (auth, environment) = shared.engine.call(|engine, shared| {
                 let environment = if shared.personas { "development" }
                     else if engine.store().deployment_environment().ok().flatten().as_deref() == Some("staging") { "staging" } else { "production" };
                 (engine.schema().auth.clone(), environment)
-            };
+            });
             // @ref LLP 3000.011.003.000.000#1 — an opt-in proof marker asserts the directly bound server, without granting authority.
             let mut config = json!({ "guests": auth.guests, "password": auth.password, "development": shared.personas, "devDoors": shared.dev_doors(), "environment": environment });
             if let Ok(id) = std::env::var("SNAPBACK4_PROOF_ID") && !id.is_empty() {
@@ -1206,26 +1184,27 @@ fn handle(mut request: Request, shared: &Shared) {
             let signature = if path.starts_with("/m/") {
                 let id = payload.get("id").and_then(Json::as_str);
                 #[cfg(test)] test_work(&shared.mutation_wait);
-                let (replay, metadata, signature) = {
-                    let mut engine = lock(&shared.engine);
-                    if let Err(refusal) = mutation_authority(&request, shared, &engine, &principal) {
-                        drop(engine);
-                        return respond_timed(request, shared, 401, json!({"denied":refusal_json(&refusal)}));
-                    }
-                    let replay = intent_store(&engine, &payload).and_then(|()| {
-                        let replay = id.map(|id| engine.replay_mutation(&principal, id, &op, &args_json)).transpose().map_err(|e| e.refusal())?.flatten();
-                        if replay.is_none() { engine.schema().check_delivery(&op, delivery_fingerprint.as_deref()).map_err(|e| e.refusal())?; }
+                let admission = match session_identity::Admission::capture(&request, shared) {
+                    Ok(admission) => admission,
+                    Err(why) => return respond_timed(request, shared, 401, json!({"denied": why})),
+                };
+                let (owned_op, owned_id, owned_args, owned_principal, owned_payload, fingerprint) =
+                    (op.clone(), id.map(str::to_owned), args_json.clone(), principal.clone(), payload.clone(), delivery_fingerprint.clone());
+                let preflight = shared.engine.submit(move |engine, shared| {
+                    admission.check(shared, engine, &owned_principal)?;
+                    let replay = intent_store(engine, &owned_payload).and_then(|()| {
+                        let replay = owned_id.as_deref().map(|id| engine.replay_mutation(&owned_principal, id, &owned_op, &owned_args)).transpose().map_err(|e| e.refusal())?.flatten();
+                        if replay.is_none() { engine.schema().check_delivery(&owned_op, fingerprint.as_deref()).map_err(|e| e.refusal())?; }
                         Ok(replay)
                     });
-                    if matches!(replay, Ok(None)) && engine.schema().operations.get(&op).is_some_and(|f| f.ephemeral) {
-                        drop(engine);
-                        return ephemeral::serve(request, shared, &op, &body);
-                    }
-                    // @ref LLP 3000.022#5 — decoding uses the signature whose binding
-                    // passed preflight; adoption is rechecked by the executing writer.
-                    let signature = engine.program(&op).cloned();
-                    (replay, response_head(&mut engine), signature)
+                    let ephemeral = matches!(replay, Ok(None)) && engine.schema().operations.get(&owned_op).is_some_and(|f| f.ephemeral);
+                    Ok((replay, response_head(engine), engine.program(&owned_op).cloned(), ephemeral))
+                });
+                let (replay, metadata, signature, ephemeral) = match preflight.and_then(|v| v) {
+                    Ok(value) => value,
+                    Err(why) => return respond_timed(request, shared, if why.retryable {503} else {401}, json!({"denied": why})),
                 };
+                if ephemeral { return ephemeral::serve(request, shared, &op, &body); }
                 let (store_id, head) = match metadata { Ok(head) => head, Err(why) => { respond_timed(request, shared, 503, json!({ "denied": why })); return; } };
                 match replay {
                     Ok(Some(outcome)) => { let mut reply = outcome.reply(id); reply["store_id"] = json!(store_id); reply["head"] = json!(head); respond_timed(request, shared, 200, reply); return; }
@@ -1240,7 +1219,7 @@ fn handle(mut request: Request, shared: &Shared) {
             };
             // @ref LLP 3000.018#3.1 — refresh follows what a query may read on any path, never what one run read,
             // and comes from the schema of the engine that evaluates it.
-            let presence_of = |engine: &Engine| engine.schema().operations.get(&op).is_some_and(|fact| fact.sites.iter().any(|site| site.kind == "presence"));
+            let presence_of = |engine: &Engine, name: &str| engine.schema().operations.get(name).is_some_and(|fact| fact.sites.iter().any(|site| site.kind == "presence"));
             let Some(program) = signature else {
                 if path.starts_with("/q/") && lock(&shared.readers).pending(&op) {
                     match shared.read_head() {
@@ -1300,7 +1279,7 @@ fn handle(mut request: Request, shared: &Shared) {
                         }
                         // Take identity from the same reader that evaluates the query,
                         // never from an engine that may have replaced it meanwhile.
-                        let reads_presence = presence_of(&reader);
+                        let reads_presence = presence_of(&reader, &op);
                         let context = dev_refusals::response::context(context.clone(), reader.refusal_sites.clone(), &reader);
                         let query_generation = reader.generation();
                         let decoration_paths = reader.program(&op).filter(|_| reader.schema().operations.get(&op).is_some_and(|f| f.search_decoration)).map(snapback4_core::search_decoration::paths);
@@ -1317,20 +1296,23 @@ fn handle(mut request: Request, shared: &Shared) {
                         return respond_timed(request, shared, 503, json!({"denied": error.refusal()}));
                     }
                     Err(_) => {
-                        let mut engine = lock(&shared.engine);
-                        if let Err(why) = session_identity::persona_read_authority(&request, shared, &engine) {
-                            drop(engine); return respond_timed(request, shared, 401, json!({"denied":refusal_json(&why)}));
-                        }
-                        let metadata = response_head(&mut engine);
-                        let reads_presence = presence_of(&engine);
+                        let admission = session_identity::Admission::capture(&request, shared);
+                        let (op, context, retained) = (op.clone(), context.clone(), retained.clone());
+                        let result = shared.engine.attempt(move |engine, shared| {
+                            admission?.check(shared, engine, &context.viewer)?;
+                        let metadata = response_head(engine);
+                        let reads_presence = presence_of(engine, &op);
                         let mut context = context.clone();
-                        if shared.personas { context = dev_refusals::response::context(context, Arc::new(lock(&shared.bound).refusal_sites.clone()), &engine); }
+                        if shared.personas { context = dev_refusals::response::context(context, Arc::new(lock(&shared.bound).refusal_sites.clone()), engine); }
                         let query_generation = engine.generation();
                         let decoration_paths = engine.program(&op).filter(|_| engine.schema().operations.get(&op).is_some_and(|f| f.search_decoration)).map(snapback4_core::search_decoration::paths);
-                        let scopes = read_scopes::dependencies(&engine, &op, &context);
+                        let scopes = read_scopes::dependencies(engine, &op, &context);
                         let (outcome, cut, current) = engine.query_materialized_search_with_delivery_at(&op, context, retained.as_deref(), manifest);
                         let scopes = read_scopes::complete(scopes, engine.schema(), outcome.as_ref().map_or(&[], |o| &o.tables));
-                        (outcome, cut, metadata, reads_presence, query_generation, current, scopes, decoration_paths)
+                        Ok::<_, Refusal>((outcome, cut, metadata, reads_presence, query_generation, current, scopes, decoration_paths))
+                        });
+                        match result { Ok(value) => value, Err(why) => return respond_timed(request, shared, 401, json!({"denied":why})) }
+
                     },
                 };
                 if let Some((table, id)) = evaluated.0.as_ref().ok().and_then(|outcome| outcome.pending_opening.as_ref()) {
@@ -1339,14 +1321,14 @@ fn handle(mut request: Request, shared: &Shared) {
                         why.retryable = true;
                         return respond_timed(request, shared, 503, json!({"denied":why}));
                     }
-                    let mut engine = lock(&shared.engine);
-                    let now = match engine.materialize_time_audience_at(table, id, context.now.unwrap_or_else(|| shared.now())) {
-                        Ok(now) => now,
-                        Err(error) => return respond_timed(request, shared, 503, json!({"denied":error.refusal()})),
-                    };
-                    shared.refresh_time_audience_clock(&engine, now);
-                    shared.durable_committed(&engine);
-                    drop(engine);
+                    let (table, id, requested) = (table.clone(), id.clone(), context.now);
+                    let result = shared.engine.attempt(move |engine, shared| {
+                        let now = engine.materialize_time_audience_at(&table, &id, requested.unwrap_or_else(|| shared.now()))?;
+                        shared.refresh_time_audience_clock(engine, now);
+                        shared.durable_committed(engine);
+                        Ok::<_, snapback4_core::RuntimeError>(())
+                    });
+                    if let Err(error) = result { return respond_timed(request, shared, 503, json!({"denied":error.refusal()})); }
                     if let Err(why) = session_identity::principal_of(&request, shared) {
                         return respond_timed(request, shared, 401, json!({"denied":why}));
                     }
@@ -1441,26 +1423,28 @@ fn handle(mut request: Request, shared: &Shared) {
                     context = context.with_ids(ids.iter().filter_map(Json::as_str).map(str::to_owned));
                 }
                 #[cfg(test)] test_work(&shared.mutation_wait);
-                let (outcome, metadata, preserved, generation) = {
-                    let mut engine = lock(&shared.engine);
-                    if let Err(refusal) = mutation_authority(&request, shared, &engine, &principal) {
-                        drop(engine);
-                        return respond_timed(request, shared, 401, json!({"denied":refusal_json(&refusal)}));
-                    }
-                    if engine.schema().operations.get(&op).is_some_and(|f| f.ephemeral) {
-                        drop(engine);
-                        return ephemeral::serve(request, shared, &op, &body);
-                    }
-                    if shared.personas { context = dev_refusals::response::context(context, Arc::new(lock(&shared.bound).refusal_sites.clone()), &engine); }
+                let admission = match session_identity::Admission::capture(&request, shared) {
+                    Ok(admission) => admission,
+                    Err(why) => return respond_timed(request, shared, 401, json!({"denied": why})),
+                };
+                let (owned_op, owned_id, owned_principal) = (op.clone(), id.clone(), principal.clone());
+                let result = shared.engine.submit(move |engine, shared| {
+                    admission.check(shared, engine, &owned_principal)?;
+                    if engine.schema().operations.get(&owned_op).is_some_and(|f| f.ephemeral) { return Ok(None); }
+                    if shared.personas { context = dev_refusals::response::context(context, Arc::new(lock(&shared.bound).refusal_sites.clone()), engine); }
                     context.delivery_fingerprint = delivery_fingerprint;
-                    let outcome = intent_store(&engine, &payload).and_then(|()| engine.mutate(&op, id.as_deref(), context.with_wire_args(args_json)).map_err(|error| error.refusal()));
+                    let outcome = intent_store(engine, &payload).and_then(|()| engine.mutate(&owned_op, owned_id.as_deref(), context.with_wire_args(args_json)).map_err(|error| error.refusal()));
                     if matches!(&outcome, Ok(outcome) if !outcome.receipt_only && matches!(outcome.state, WriteState::Sent { .. })) {
-                        // @ref LLP 3000.019#3.7 — opt-in qualification observes commit before poll wakeup.
                         trace::mark("mutation_commit");
-                        shared.durable_committed(&engine);
+                        shared.durable_committed(engine);
                     }
-                    let preserved = changes::ack_preserved(&engine, outcome.as_ref().ok());
-                    (outcome, response_head(&mut engine), preserved, engine.generation())
+                    let preserved = changes::ack_preserved(engine, outcome.as_ref().ok());
+                    Ok(Some((outcome, response_head(engine), preserved, engine.generation())))
+                });
+                let (outcome, metadata, preserved, generation) = match result.and_then(|v| v) {
+                    Ok(Some(value)) => value,
+                    Ok(None) => return ephemeral::serve(request, shared, &op, &body),
+                    Err(why) => return respond_timed(request, shared, if why.retryable {503} else {401}, json!({"denied": why})),
                 };
                 let (store_id, head) = match metadata { Ok(head) => head, Err(why) => { respond_timed(request, shared, 503, json!({ "denied": why })); return; } };
                 match outcome {
@@ -1485,9 +1469,9 @@ fn handle(mut request: Request, shared: &Shared) {
             let payload: Json = serde_json::from_str(if body.is_empty() { "{}" } else { &body }).unwrap_or(Json::Null);
             let wire = session_mint_wire(&request, &payload);
             let legacy_now = shared.now();
-            let outcome = {
-                let mut engine = producing_engine(shared);
-                match service_of_locked(&request, shared, &engine) {
+            let authority = service_admission(&request, shared);
+            let outcome = shared.engine.attempt(move |engine, shared| {
+                match authority.and_then(|token| service_token_of(&token, shared, engine)) {
                     Err(refusal) => Err((401, refusal)),
                     Ok(service) => match wire {
                         Err(error) => Err(error),
@@ -1503,7 +1487,7 @@ fn handle(mut request: Request, shared: &Shared) {
                         }
                     },
                 }
-            };
+            });
             match outcome {
                 Ok(body) => respond_timed(request, shared, 200, body),
                 Err((status, refusal)) => respond_timed(request, shared, status, json!({ "denied": refusal_json(&refusal) })),
@@ -1518,10 +1502,8 @@ fn handle(mut request: Request, shared: &Shared) {
             let Some(principal) = payload.get("principal").and_then(Json::as_str).map(str::to_owned) else {
                 return respond_timed(request, shared, 400, json!({ "denied": refusal_json(&Refusal::new("E_INPUT", "input", "name the account: { \"principal\": \"member:42\" }")) }));
             };
-            let outcome = {
-                let engine = producing_engine(shared);
-                snapback4_core::identity::revoke_principal(engine.store(), &principal)
-            };
+            let target = principal.clone();
+            let outcome = shared.engine.attempt(move |engine, _| snapback4_core::identity::revoke_principal(engine.store(), &target));
             match outcome {
                 Ok(revoked) => respond_timed(request, shared, 200, json!({ "revoked": revoked, "principal": principal })),
                 Err(error) => respond_timed(request, shared, crate::auth::error_status(&error), json!({ "denied": refusal_json(&error.refusal()) })),

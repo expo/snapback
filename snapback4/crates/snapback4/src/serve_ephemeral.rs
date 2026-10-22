@@ -56,6 +56,7 @@ impl Rate {
 impl Shared {
     // @ref LLP 3000.017#3.3 — lock order engine → hub → wake.
     pub(super) fn install_ephemeral_wake(self: &Arc<Self>) {
+        self.engine.bind(self);
         let owner = Arc::downgrade(self);
         self.ephemeral.set_publisher(move |snapshot| {
             if let Some(shared) = owner.upgrade() {
@@ -139,38 +140,33 @@ pub(super) fn serve(request: Request, shared: &Shared, op: &str, body: &str) {
         Ok(value) => value,
         Err(why) => return failed(request, why),
     };
-    {
-        let mut engine = producing_engine(shared);
-        let preflight = mutation_authority(&request, shared, &engine, &principal)
-            .and_then(|()| intent_store(&engine, &payload))
-            .and_then(|()| {
-                let args = payload.get("args").cloned().unwrap_or(json!({}));
-                id.as_deref().map(|id| engine.replay_mutation(&principal, id, op, &args))
-                    .transpose().map(Option::flatten).map_err(|e| e.refusal())
-            });
-        match preflight {
-            Ok(Some(out)) => {
-                let (store_id, head) = match response_head(&mut engine) {
-                    Ok(value) => value,
-                    Err(why) => return respond_timed(request, shared, 503, json!({"denied":why})),
-                };
-                let mut reply = out.reply(id.as_deref());
-                reply["store_id"] = json!(store_id);
-                reply["head"] = json!(head);
-                return respond_timed(request, shared, 200, reply);
-            }
-            Err(why) => return failed(request, why),
-            Ok(None) => {
-                if let Err(error)=engine.require_non_media_ephemeral(&principal,id.as_deref()) { return failed(request,error.refusal()); }
-                // @ref LLP 3000#http-overload-diagnostics — an ID alone does not deduplicate ephemeral writes, including after schema adoption.
-                if payload.get("retry_write").and_then(Json::as_bool) == Some(true) {
-                    return failed(request, Refusal::new("E_INPUT", "input", "retry_write requires a durable mutation; refresh the operation signature"));
-                }
-                if let Err(error) = engine.schema().check_delivery(op, fingerprint.as_deref()) {
-                    return failed(request, error.refusal());
-                }
-            }
+    let admission = match super::session_identity::Admission::capture(&request, shared) {
+        Ok(admission) => admission,
+        Err(why) => return failed(request, why),
+    };
+    let (owned_principal, owned_payload, owned_id, owned_op, owned_fingerprint) =
+        (principal.clone(), payload.clone(), id.clone(), op.to_owned(), fingerprint.clone());
+    let preflight = shared.engine.attempt(move |engine, shared| {
+        admission.check(shared, engine, &owned_principal)?;
+        intent_store(engine, &owned_payload)?;
+        let args = owned_payload.get("args").cloned().unwrap_or(json!({}));
+        let replay = owned_id.as_deref().map(|id| engine.replay_mutation(&owned_principal, id, &owned_op, &args)).transpose().map(Option::flatten).map_err(|e| e.refusal())?;
+        if let Some(out) = replay { return Ok(Some((out, response_head(engine)?))); }
+        engine.require_non_media_ephemeral(&owned_principal, owned_id.as_deref()).map_err(|e| e.refusal())?;
+        if owned_payload.get("retry_write").and_then(Json::as_bool) == Some(true) {
+            return Err(Refusal::new("E_INPUT", "input", "retry_write requires a durable mutation; refresh the operation signature"));
         }
+        engine.schema().check_delivery(&owned_op, owned_fingerprint.as_deref()).map_err(|e| e.refusal())?;
+        Ok(None)
+    });
+    match preflight {
+        Ok(Some((out, (store_id, head)))) => {
+            let mut reply = out.reply(id.as_deref());
+            reply["store_id"] = json!(store_id); reply["head"] = json!(head);
+            return respond_timed(request, shared, 200, reply);
+        }
+        Err(why) => return failed(request, why),
+        Ok(None) => {}
     }
     // Bearer digests identify sessions without retaining secrets. Dev personas
     // have no session token and each principal is their development session.
@@ -207,14 +203,13 @@ pub(super) fn serve(request: Request, shared: &Shared, op: &str, body: &str) {
     };
     #[cfg(test)]
     test_work(&shared.mutation_wait);
-    let (reader, sites) = {
-        let engine = producing_engine(shared);
-        // @ref LLP 3000.019#3.6 — ephemeral writes also lose authority while queued for adoption.
-        if let Err(why) = mutation_authority(&request, shared, &engine, &principal) {
-            return failed(request, why);
-        }
-        (shared.take_reader(&engine), shared.personas.then(|| Arc::new(lock(&shared.bound).refusal_sites.clone())))
-    };
+    let admission = super::session_identity::Admission::capture(&request, shared);
+    let principal_check = principal.clone();
+    let checkout = shared.engine.attempt(move |engine, shared| {
+        admission?.check(shared, engine, &principal_check)?;
+        Ok::<_, Refusal>((shared.take_reader(engine), shared.personas.then(|| Arc::new(lock(&shared.bound).refusal_sites.clone()))))
+    });
+    let (reader, sites) = match checkout { Ok(value) => value, Err(why) => return failed(request, why) };
     let mut context = Context::new(principal.clone(), args).at(shared.now());
     context.delivery_fingerprint = fingerprint;
     let result = match reader {
@@ -224,7 +219,7 @@ pub(super) fn serve(request: Request, shared: &Shared, op: &str, body: &str) {
             let result = intent_store(&reader, &payload).and_then(|()| {
                 reader.require_non_media_ephemeral(&principal,id.as_deref()).map_err(|e|e.refusal())?;
                 reader
-                    .mutate_ephemeral(op, context)
+                    .mutate_ephemeral(&op, context)
                     .map_err(|e| snapback4_core::engine::seat_refusal(reader.schema(),&e,&principal))
             });
             let store_id = reader.store().store_identity().ok().flatten();
@@ -237,17 +232,20 @@ pub(super) fn serve(request: Request, shared: &Shared, op: &str, body: &str) {
         Err(_) => {
             #[cfg(test)]
             test_work(&shared.mutation_wait);
-            let mut engine = producing_engine(shared);
-            if shared.personas { context = super::dev_refusals::response::context(context, Arc::new(lock(&shared.bound).refusal_sites.clone()), &engine); }
-            mutation_authority(&request, shared, &engine, &principal)
-                .and_then(|()| intent_store(&engine, &payload))
+            let admission = super::session_identity::Admission::capture(&request, shared);
+            let (op, id) = (op.to_owned(), id.clone());
+            shared.engine.attempt(move |engine, shared| {
+            if shared.personas { context = super::dev_refusals::response::context(context, Arc::new(lock(&shared.bound).refusal_sites.clone()), engine); }
+            admission?.check(shared, engine, &principal)
+                .and_then(|()| intent_store(engine, &payload))
                 .and_then(|()| {
                     engine.require_non_media_ephemeral(&principal,id.as_deref()).map_err(|e|e.refusal())?;
                     engine
-                        .mutate_ephemeral(op, context)
+                        .mutate_ephemeral(&op, context)
                         .map_err(|e| snapback4_core::engine::seat_refusal(engine.schema(),&e,&principal))
                 })
                 .map(|out| (out, engine.store().store_identity().ok().flatten()))
+            })
         }
     };
     match result {

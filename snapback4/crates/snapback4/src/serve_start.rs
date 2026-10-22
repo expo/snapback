@@ -228,7 +228,7 @@ pub fn serve(
         maintenance: FairMutex::gate(maintenance::State::default()),
         staging: !dev && engine.store().deployment_environment().map_err(|e|e.to_string())?.as_deref() == Some("staging"),
         worker_execution: engine.store().admit_worker_execution().is_ok(),
-        engine: FairMutex::new(engine),
+        engine: committer::Writer::new(engine).map_err(|e| format!("cannot start committer: {e}"))?,
         readers,
         read_cuts: Mutex::new(read_cost::ReadCuts::default()),
         bound: Mutex::new(bound),

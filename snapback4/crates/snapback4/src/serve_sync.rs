@@ -63,10 +63,9 @@ pub(super) fn serve(request: Request, shared: &Shared, body: &str, now: i64) {
     // admission pool and authenticates before waiting on atomic launch.
     let launching = lock(&shared.readers).launching_feed();
     if launching {
-        let engine = lock(&shared.engine);
-        // A long wait cannot preserve an expired or revoked bearer.
-        let authority = mutation_authority(&request, shared, &engine, &principal);
-        drop(engine);
+        let admission = session_identity::Admission::capture(&request, shared);
+        let principal = principal.clone();
+        let authority = shared.engine.attempt(move |engine, shared| admission?.check(shared, engine, &principal));
         if let Err(refusal) = authority {
             respond_timed(request, shared, if refusal.retryable { 503 } else { 401 }, json!({ "denied": refusal_json(&refusal) }));
             return;
@@ -104,23 +103,27 @@ pub(super) fn serve(request: Request, shared: &Shared, body: &str, now: i64) {
                     return respond_timed(request, shared, 503, json!({"denied": error.refusal()}));
                 }
                 Err(_) => {
-                    let mut engine = lock(&shared.engine);
-                    if let Err(why) = super::session_identity::persona_read_authority(&request, shared, &engine) {
-                        drop(engine); return respond_timed(request, shared, 401, json!({"denied":refusal_json(&why)}));
-                    }
+                    let admission = session_identity::Admission::capture(&request, shared);
+                    let (principal, after, store_id, pending) = (principal.clone(), after.clone(), store_id.clone(), pending.clone());
+                    let result = shared.engine.attempt(move |engine, shared| {
+                        admission?.check(shared, engine, &principal)?;
+                        Ok::<_, Refusal>({
                     let generation = engine.generation();
-                    (under_generation(&mut engine, requested_generation, generation, &store_id, &device, |engine| {
+                    (under_generation(engine, requested_generation, generation, &store_id, &device, |engine| {
                                 engine.snapshot_acquisition_page_at(&principal, after.as_deref(), limit, now).and_then(|page| {
                                         engine.acknowledged(&principal, &pending, page.watermark).map(|acks| (page, acks))
                                     })
                             },
                         ), generation,
-                    )
+                    )                        })
+                    });
+                    match result { Ok(value) => value, Err(why) => return respond_timed(request, shared, 401, json!({"denied":why})) }
+
                 }
             }
         };
         if shared.memory_store() {
-            shared.publish_engine(&lock(&shared.engine));
+            shared.engine.call(|engine, shared| shared.publish_engine(engine));
         }
         match outcome {
             Ok(SyncOutcome::Page((page, acknowledged))) => {
@@ -158,23 +161,27 @@ pub(super) fn serve(request: Request, shared: &Shared, body: &str, now: i64) {
                     return respond_timed(request, shared, 503, json!({"denied": error.refusal()}));
                 }
                 Err(_) => {
-                    let mut engine = lock(&shared.engine);
-                    if let Err(why) = super::session_identity::persona_read_authority(&request, shared, &engine) {
-                        drop(engine); return respond_timed(request, shared, 401, json!({"denied":refusal_json(&why)}));
-                    }
+                    let admission = session_identity::Admission::capture(&request, shared);
+                    let (principal, store_id, pending) = (principal.clone(), store_id.clone(), pending.clone());
+                    let result = shared.engine.attempt(move |engine, shared| {
+                        admission?.check(shared, engine, &principal)?;
+                        Ok::<_, Refusal>({
                     let generation = engine.generation();
-                    (under_generation(&mut engine, requested_generation, generation, &store_id, &device, |engine| {
+                    (under_generation(engine, requested_generation, generation, &store_id, &device, |engine| {
                                 engine.stream_at(&principal, from, limit, now).and_then(|page| {
                                         engine.acknowledged_at(&principal, &pending, page.watermark, page.images_at.unwrap_or(page.watermark)).map(|acks| { let preserved = engine.store().preserved_between(engine.schema(), from, page.images_at.unwrap_or(page.watermark)); let changes = super::changes::settlement_changes(engine.store().footprint_between(from, page.images_at.unwrap_or(page.watermark)), engine.schema(), from, page.images_at.unwrap_or(page.watermark)); (page, acks, preserved, changes) })
                                     })
                             },
                         ), generation,
-                    )
+                    )                        })
+                    });
+                    match result { Ok(value) => value, Err(why) => return respond_timed(request, shared, 401, json!({"denied":why})) }
+
                 }
             }
         };
         if shared.memory_store() {
-            shared.publish_engine(&lock(&shared.engine));
+            shared.engine.call(|engine, shared| shared.publish_engine(engine));
         }
         match outcome {
             Ok(SyncOutcome::Page((page, (acknowledged, committed_above), preserved, changes))) => {

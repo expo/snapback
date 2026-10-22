@@ -153,7 +153,7 @@ impl Host {
             wake: Mutex::new(ephemeral::Wake::new(&engine)), polls: Condvar::new(),
             adoption: Mutex::new(adoption::Status::new(String::new())),
             worker_execution: engine.store().admit_worker_execution().is_ok(),
-            engine: super::engine_lock::FairMutex::new(engine),
+            engine: committer::Writer::new(engine).unwrap(),
             readers, read_cuts: Mutex::new(read_cost::ReadCuts::default()), refusals,
             bound: Mutex::new(bound),
             generation: Mutex::new(generation),

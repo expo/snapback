@@ -251,6 +251,7 @@ impl RuntimeError {
             Self::Structural { code, .. } if code.starts_with(concat!("E_", "ROUTE_")) => "route",
             Self::Structural { code: "E_STORE_RESTORE" | "E_STORE_MEMORY", .. } => "store",
             Self::Structural { code: "E_RULE", .. } => "auth",
+            Self::Structural { code: "E_RATE_LIMIT", .. } => "limit",
             Self::Schema(_) | Self::Structural { .. } => "schema",
             Self::Rule { .. } | Self::AuthorizationBudget { .. } | Self::Auth(_) => "auth",
             Self::Require { .. } => "rule",
@@ -376,6 +377,9 @@ impl RuntimeError {
             Self::Structural { code: "E_FIELD_AUTHORITY", message } => {
                 refusal.guide = Some("rules".into());
                 refusal.rewrite = Some(message.clone());
+            }
+            Self::Structural { code: "E_RATE_LIMIT", message } => {
+                refusal.message = message.clone(); refusal.retryable = true; refusal.guide = Some("assets".into());
             }
             Self::Structural { code: "E_EPHEMERAL_FULL", .. } => {
                 refusal.retryable = true; refusal.guide = Some("ephemeral".into());

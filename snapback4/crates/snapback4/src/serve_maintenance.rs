@@ -11,6 +11,10 @@ struct Work { delivery_chunks: usize, expired: u64, schedules: usize, chunks: us
 const WORK_TIME: Duration = Duration::from_millis(2);
 const CONTENDED_TIME: Duration = Duration::from_micros(250);
 
+fn refusal_status(why: &snapback4_core::Refusal, fallback: u16) -> u16 {
+    if why.code == "E_RATE_LIMIT" && why.family == "limit" { 503 } else { fallback }
+}
+
 // Charge consumed CPU for pacing, not time the OS already kept this thread off
 // CPU. The cooperative chunk deadline still uses wall time. A failed clock
 // sample falls back to the more conservative wall-time pause.
@@ -44,15 +48,14 @@ fn host_contended() -> bool {
     sample.1
 }
 
-fn engine_work<T>(shared: &Shared, run: impl FnOnce(&mut snapback4_core::Engine, Duration) -> T) -> T {
-    let mut engine = shared.engine.background();
-    lock(&shared.readers).retry_missing(&engine);
-    let budget = if engine.contended() || host_contended() { CONTENDED_TIME } else { WORK_TIME };
-    let result = run(&mut engine, budget);
-    // Publish from this guard: a second ordinary admission would both delay
-    // notification and mistake maintenance for a newly arrived request.
-    shared.publish_engine(&engine);
-    result
+fn engine_work<T: super::committer::QueueResult + Send + 'static>(shared: &Shared, run: impl FnOnce(&mut snapback4_core::Engine, Duration, &Shared) -> T + Send + 'static) -> T {
+    shared.engine.background_call(move |engine, shared, contended| {
+        lock(&shared.readers).retry_missing(engine);
+        let budget = if contended || host_contended() { CONTENDED_TIME } else { WORK_TIME };
+        let result = run(engine, budget, shared);
+        shared.publish_engine(engine);
+        result
+    })
 }
 
 fn phase<T: Default>(shared: &Shared, result: Result<T, RuntimeError>, drain: bool, name: &str) -> Result<T, RuntimeError> {
@@ -72,19 +75,19 @@ fn work_at(shared: &Shared, drain: bool, tick: u64, schedule_sample: Option<i64>
     shared.ephemeral.sweep(shared.now())?;
     work.delivery_chunks = delivery(shared, drain)?;
     loop {
-        if phase(shared, engine_work(shared, |engine, budget| engine.run_view_chunk_for(shared.now(), budget)), drain, "view recount")?.is_none() {break;}
+        if phase(shared, engine_work(shared, move |engine, budget, shared| engine.run_view_chunk_for(shared.now(), budget)), drain, "view recount")?.is_none() {break;}
         work.chunks += 1;
         if !drain && work.chunks >= 500 {break;}
         std::thread::yield_now();
     }
     loop {
-        let swept = phase(shared, engine_work(shared, |engine, budget| engine.sweep_expired_for(shared.now(), 2_000, budget)), drain, "the expiry sweep")?;
+        let swept = phase(shared, engine_work(shared, move |engine, budget, shared| engine.sweep_expired_for(shared.now(), 2_000, budget)), drain, "the expiry sweep")?;
         work.expired += swept;
         if !drain || swept == 0 { break; }
     }
     // @ref LLP 3000.007#20.2 — advancing a replay clock does not release its schedule hold.
     if !shared.hold_schedules {
-        let fired = phase(shared, engine_work(shared, |engine, _| {
+        let fired = phase(shared, engine_work(shared, move |engine, _, shared| {
             // @ref LLP 3000.007#20.12.2 — select advance windows before draining; admission deadlines still use the live advanced clock.
             if let Some(sample) = schedule_sample {
                 let windows = engine.schema().schedules.iter().enumerate().map(|(index, schedule)| (index, schedule.boundary(sample))).collect::<Vec<_>>();
@@ -99,7 +102,7 @@ fn work_at(shared: &Shared, drain: bool, tick: u64, schedule_sample: Option<i64>
     }
     while drain || work.chunks < 500 {
         if crate::lifecycle::stopping() { break; }
-        let (run, logs) = engine_work(shared, |engine, budget| {
+        let (run, logs) = engine_work(shared, move |engine, budget, shared| {
             let run = engine.run_job_chunk_for(shared.now(), budget);
             (run, engine.take_native_logs())
         });
@@ -120,18 +123,21 @@ fn work_at(shared: &Shared, drain: bool, tick: u64, schedule_sample: Option<i64>
     }
     if drain || tick % 5 == 0 {
         loop {
-            let actions = phase(shared, engine_work(shared, |engine, budget| engine.requeue_expired_actions_for(shared.now(), budget)), drain, "the action lease sweep")?;
-            let effects = phase(shared, engine_work(shared, |engine, budget| engine.requeue_expired_effects_for(shared.now(), budget)), drain, "the effect lease sweep")?;
-            if actions + effects > 0 { shared.durable_committed(&lock(&shared.engine)); }
+            let actions = phase(shared, engine_work(shared, move |engine, budget, shared| engine.requeue_expired_actions_for(shared.now(), budget)), drain, "the action lease sweep")?;
+            let effects = phase(shared, engine_work(shared, move |engine, budget, shared| engine.requeue_expired_effects_for(shared.now(), budget)), drain, "the effect lease sweep")?;
+            if actions + effects > 0 { shared.engine.call(|engine, shared| shared.durable_committed(engine)); }
             if effects > 0 { snapback4_core::diagnostic!("snapback4: {effects} effect lease{} expired; queued again", if effects == 1 { "" } else { "s" }); }
             if !drain || actions + effects == 0 { break; }
         }
     }
     if drain || tick % 60 == 0 {
         phase(shared, (|| {
-            let mut sweep = engine_work(shared, |engine, budget| engine.prepare_asset_sweep_for(shared.now(), budget))?;
+            let mut sweep = engine_work(shared, move |engine, budget, shared| engine.prepare_asset_sweep_for(shared.now(), budget))?;
             sweep.remove_files()?;
-            while !sweep.is_empty() { engine_work(shared, |engine, budget| engine.finish_asset_sweep_for(&mut sweep, budget))?; }
+            while !sweep.is_empty() {
+                let (_, next) = engine_work(shared, move |engine, budget, _| engine.finish_asset_sweep_for(&mut sweep, budget).map(|finished| (finished, sweep)))?;
+                sweep = next;
+            }
             Ok(())
         })(), drain, "the asset sweep")?;
     }
@@ -142,7 +148,7 @@ fn delivery(shared: &Shared, drain: bool) -> Result<usize, RuntimeError> {
     let mut chunks = 0;
     while drain || chunks < 500 {
         if crate::lifecycle::stopping() { break; }
-        if phase(shared, engine_work(shared, |engine, budget| engine.run_timeline_chunk_for(shared.now(), budget)), drain, "timeline delivery")?.is_none() { break; }
+        if phase(shared, engine_work(shared, move |engine, budget, shared| engine.run_timeline_chunk_for(shared.now(), budget)), drain, "timeline delivery")?.is_none() { break; }
         chunks += 1;
     }
     Ok(chunks)
@@ -208,7 +214,7 @@ impl State {
 // accesses. Ordinary work never waits for a bulk thread to enter the engine.
 fn bulk_slice(shared: &Shared, aged_only: bool) -> bool {
     if !lock(&shared.maintenance).eligible(Instant::now(), aged_only) { return false; }
-    engine_work(shared, |engine, budget| {
+    engine_work(shared, move |engine, budget, shared| {
         let kind = {
             let state = lock(&shared.maintenance);
             if !state.eligible(Instant::now(), aged_only) { return false; }
@@ -241,33 +247,33 @@ fn bulk_slice(shared: &Shared, aged_only: bool) -> bool {
     })
 }
 
-fn timely_engine_work<T: Default>(shared: &Shared, run: impl FnOnce(&mut snapback4_core::Engine, Duration) -> Result<T, RuntimeError>) -> Result<T, RuntimeError> {
-    let result = engine_work(shared, |engine, budget| {
+fn timely_engine_work<T: Default + Send + 'static>(shared: &Shared, run: impl FnOnce(&mut snapback4_core::Engine, Duration, &Shared) -> Result<T, RuntimeError> + Send + 'static) -> Result<T, RuntimeError> {
+    let result = engine_work(shared, move |engine, budget, shared| {
         if { let state = lock(&shared.maintenance); state.advancing || state.paused } { return Ok(T::default()); }
-        run(engine, budget)
+        run(engine, budget, shared)
     });
     promote_aged(shared, Instant::now());
     result
 }
 
 fn timely(shared: &Shared, tick: u64) -> Result<(), RuntimeError> {
-    phase(shared, timely_engine_work(shared, |engine, budget| engine.sweep_expired_for(shared.now(), 2_000, budget)), false, "the expiry sweep")?;
+    phase(shared, timely_engine_work(shared, move |engine, budget, shared| engine.sweep_expired_for(shared.now(), 2_000, budget)), false, "the expiry sweep")?;
     if !shared.hold_schedules {
-        let count = timely_engine_work(shared, |engine, _| Ok(engine.schema().schedules.len()))?;
+        let count = timely_engine_work(shared, move |engine, _, _| Ok(engine.schema().schedules.len()))?;
         for index in 0..count {
             // One atomic boundary per admission, never the entire schedule set.
             // Adoption between slices is harmless: the next tick visits its set.
-            let fired = phase(shared, timely_engine_work(shared, |engine, _| engine.fire_schedule_at(shared.now(), index)), false, "schedules")?;
+            let fired = phase(shared, timely_engine_work(shared, move |engine, _, shared| engine.fire_schedule_at(shared.now(), index)), false, "schedules")?;
             for name in fired { snapback4_core::diagnostic!("snapback4: schedule {name} fired"); }
         }
     }
     if tick % 5 == 0 {
-        phase(shared, timely_engine_work(shared, |engine, budget| {
+        phase(shared, timely_engine_work(shared, move |engine, budget, shared| {
             let result = engine.requeue_expired_actions_for(shared.now(), budget);
             if result.as_ref().is_ok_and(|n| *n > 0) { shared.durable_committed(engine); }
             result
         }), false, "the action lease sweep")?;
-        let effects = phase(shared, timely_engine_work(shared, |engine, budget| {
+        let effects = phase(shared, timely_engine_work(shared, move |engine, budget, shared| {
             let result = engine.requeue_expired_effects_for(shared.now(), budget);
             if result.as_ref().is_ok_and(|n| *n > 0) { shared.durable_committed(engine); }
             result
@@ -276,14 +282,16 @@ fn timely(shared: &Shared, tick: u64) -> Result<(), RuntimeError> {
     }
     if tick % 60 == 0 {
         phase(shared, (|| {
-            let Some(mut sweep) = timely_engine_work(shared, |engine, budget| engine.prepare_asset_sweep_for(shared.now(), budget).map(Some))? else { return Ok(()); };
+            let Some(mut sweep) = timely_engine_work(shared, move |engine, budget, shared| engine.prepare_asset_sweep_for(shared.now(), budget).map(Some))? else { return Ok(()); };
             // Bounded stale batch; filesystem work owns no engine lock.
             sweep.remove_files()?;
             while !sweep.is_empty() {
                 // A clock drain that began between file removal and retirement
                 // owns the sweep now. Its durable metadata also permits retry
                 // on the next asset tick; do not spin on skipped slices.
-                if timely_engine_work(shared, |engine, budget| engine.finish_asset_sweep_for(&mut sweep, budget))? == 0 { break; }
+                let Some((finished, next)) = timely_engine_work(shared, move |engine, budget, _| engine.finish_asset_sweep_for(&mut sweep, budget).map(|finished| Some((finished, sweep))))? else { break; };
+                sweep = next;
+                if finished == 0 { break; }
             }
             Ok(())
         })(), false, "the asset sweep")?;
@@ -365,7 +373,7 @@ fn completed_drain(work: Work, stopping: bool) -> Result<Work, snapback4_core::R
 
 // @ref LLP 3000.000.000.002#4-staging-clock — staging grants clock control, never fixture or persona authority.
 pub(super) fn staging(shared: &Shared) -> bool {
-    lock(&shared.engine).store().deployment_environment().ok().flatten().as_deref() == Some("staging")
+    shared.engine.call(|engine, _| engine.store().deployment_environment().ok().flatten().as_deref() == Some("staging"))
 }
 fn clock_service(request: &Request, shared: &Shared) -> Result<Option<String>, snapback4_core::Refusal> {
     if shared.personas { return Ok(None); }
@@ -410,7 +418,7 @@ pub(super) fn advance(request: Request, shared: &Shared, body: &str) {
     let milliseconds = match duration.ok_or_else(|| crate::dev_clock::input("clock advance takes {\"duration\":\"+2m\"}"))
         .and_then(|duration| if duration == "0ms" && drain { Ok(0) } else { crate::dev_clock::duration(duration) }) {
         Ok(milliseconds) => milliseconds,
-        Err(error) => return respond(request, 400, json!({"denied":refusal_json(&error)})),
+        Err(error) => return respond(request, refusal_status(&error, 400), json!({"denied":refusal_json(&error)})),
     };
     // Serialize clock callers only. Background slices check advancing after
     // engine admission and skip during this synchronous drain.
@@ -418,15 +426,13 @@ pub(super) fn advance(request: Request, shared: &Shared, body: &str) {
     let _advance = lock(&advance);
     let _advancing = Advancing(shared);
     // @ref LLP 3000.007#20.12 — simulated time makes retries due without stealing a live worker's claim or viewer session.
-    let advanced = (|| {
-        // Match claims' engine-then-clock lock order: no claim can land
-        // between shifting its lease and publishing the advanced clock.
-        let mut engine = lock(&shared.engine);
-        let before = crate::dev_clock_store::saved_boundaries(&engine);
+    let facts = super::RequestFacts::capture(&request);
+    let advanced = shared.engine.attempt(move |engine, shared| {
+        let before = crate::dev_clock_store::saved_boundaries(engine);
         if let Some(principal) = &service {
             if engine.store().deployment_environment().map_err(|e|e.refusal())?.as_deref() != Some("staging") { return Err(crate::dev_clock::release()); }
-            super::session_identity::mutation_authority(&request,shared,&engine,principal)?;
-        } else { shared.dev_authority(&engine)?; }
+            super::session_identity::mutation_authority(&facts,shared,engine,principal)?;
+        } else { shared.dev_authority(engine)?; }
         let mut clock = lock(&shared.clock);
         let floor = shared.time_audience_clock.load(std::sync::atomic::Ordering::Acquire);
         let effective_before = clock.now().max(floor);
@@ -434,9 +440,9 @@ pub(super) fn advance(request: Request, shared: &Shared, body: &str) {
         let now = (if milliseconds == 0 { next.now() } else { next.advance(milliseconds)? }).max(floor);
         // @ref LLP 3000.000.000.001#11-wave-22-loop-repairs-dx6 — refuse a saved boundary before any clock/session effect.
         if drain && !allow_held && !shared.hold_schedules {
-            crate::dev_clock_store::refuse_held(&engine, &before, clock.now(), now)?;
+            crate::dev_clock_store::refuse_held(engine, &before, clock.now(), now)?;
         }
-        let boundaries = crate::dev_clock_store::crossed_boundaries(&engine, &before, now, shared.hold_schedules || !drain, each_boundary)?;
+        let boundaries = crate::dev_clock_store::crossed_boundaries(engine, &before, now, shared.hold_schedules || !drain, each_boundary)?;
         lock(&shared.maintenance).advancing = true;
         if !shared.personas {
             // @ref LLP 3000.000.000.001#11-wave-22-loop-repairs-dx6 — a retained disclosure floor is also the credential authority clock.
@@ -453,15 +459,15 @@ pub(super) fn advance(request: Request, shared: &Shared, body: &str) {
         *clock = next;
         let offset = clock.offset();
         let skew = now - snapback4_core::now_ms();
-        let isolated = if crate::dev_clock_store::has_data(&engine) {
+        let isolated = if crate::dev_clock_store::has_data(engine) {
             format!("; use {} for isolated time tests; clock advance --port N targets its printed port (guide jobs)", crate::dev_clock::isolated_command())
         } else { String::new() };
         let message = format!("cumulative offset {offset:+}ms (requested process offset; now includes the authoritative floor); process offset lasts until restart{isolated}");
         Ok((now, clock.now(), offset, skew, message, before, boundaries))
-    })();
+    });
     let (now, raw_now, offset, skew, message, before, boundaries) = match advanced {
         Ok(result) => result,
-        Err(error) => return respond(request, 400, json!({"denied":refusal_json(&error)})),
+        Err(error) => return respond(request, refusal_status(&error, 400), json!({"denied":refusal_json(&error)})),
     };
     // @ref LLP 3000#contended-read-serving — a developer is awaiting this
     // request; synchronous clock-advance work intentionally keeps request QoS.
@@ -470,7 +476,7 @@ pub(super) fn advance(request: Request, shared: &Shared, body: &str) {
         let mut crossed = Vec::new();
         if each_boundary {
             for (index, at) in boundaries {
-                crossed.extend(engine_work(shared, |engine, _| engine.fire_schedule_boundary_at(shared.now(), index, at))?);
+                crossed.extend(engine_work(shared, move |engine, _, shared| engine.fire_schedule_boundary_at(shared.now(), index, at))?);
             }
         }
         let mut work = work_at(shared, true, 0, Some(now))?;
@@ -481,25 +487,29 @@ pub(super) fn advance(request: Request, shared: &Shared, body: &str) {
     match drained.map_err(|error| error.refusal()).and_then(|work| completed_drain(work, crate::lifecycle::stopping())) {
         Ok(work) => {
             lock(&shared.maintenance).paused = !drain;
-            let schedules = crate::dev_clock_store::schedule_report(&lock(&shared.engine), &before, &work.fired, now, raw_now, shared.hold_schedules || !drain, each_boundary, shared.dev_identity.as_ref().map(|i| i.address.port()));
+            let fired = work.fired.clone();
+            let schedules = shared.engine.call(move |engine, shared| crate::dev_clock_store::schedule_report(engine, &before, &fired, now, raw_now, shared.hold_schedules || !drain, each_boundary, shared.dev_identity.as_ref().map(|i| i.address.port())));
             let (fired, held) = crate::dev_clock_store::outcomes(&schedules);
             respond(request, 200, json!({"now":now, "advancedMs":milliseconds, "sessionNotice":if preserve_sessions { crate::dev_clock::PRESERVED_SESSION_NOTICE } else { crate::dev_clock::SESSION_NOTICE }, "maintenancePaused":!drain, "sessionsPreserved":preserve_sessions, "offsetMs":offset, "skewMs":skew, "eachBoundary":each_boundary, "message":message, "work":work, "schedules":schedules, "fired":fired, "held":held}))
         }
         // Time remains advanced on failure. Stay paused until an explicit drain;
         // never retry an ambiguous advance to resume pending work.
         Err(error) => {
-            let engine = lock(&shared.engine);
-            let after = crate::dev_clock_store::saved_boundaries(&engine);
+            let schedules = shared.engine.call(move |engine, shared| {
+
+            let after = crate::dev_clock_store::saved_boundaries(engine);
             let fired: Vec<_> = engine.schema().schedules.iter().enumerate().filter(|(i, _)| {
                 matches!((before.get(*i).copied().flatten(), after.get(*i).copied().flatten()), (Some(old), Some(new)) if new > old)
             }).map(|(_, schedule)| schedule.name.clone()).collect();
-            let mut schedules = crate::dev_clock_store::schedule_report(&engine, &before, &fired, now, raw_now, shared.hold_schedules || !drain, each_boundary, shared.dev_identity.as_ref().map(|i| i.address.port()));
+            let mut schedules = crate::dev_clock_store::schedule_report(engine, &before, &fired, now, raw_now, shared.hold_schedules || !drain, each_boundary, shared.dev_identity.as_ref().map(|i| i.address.port()));
             for (index, schedule) in schedules.iter_mut().enumerate() {
                 if schedule["fired"] != true && !shared.hold_schedules && before.get(index).copied().flatten().is_some_and(|old| old < engine.schema().schedules[index].boundary(now)) {
                     schedule["holdCode"] = "maintenance-failed".into();
                     schedule["reason"] = "clock advanced but maintenance stopped before this due boundary was queued; inspect clock and queued jobs before continuing; do not replay the advance".into();
                 }
             }
+                schedules
+            });
             let (fired, held) = crate::dev_clock_store::outcomes(&schedules);
             respond(request, 500, json!({"now":now, "advancedMs":milliseconds, "sessionNotice":if preserve_sessions { crate::dev_clock::PRESERVED_SESSION_NOTICE } else { crate::dev_clock::SESSION_NOTICE }, "maintenancePaused":true, "sessionsPreserved":preserve_sessions, "offsetMs":offset, "skewMs":skew, "eachBoundary":each_boundary, "message":message, "schedules":schedules, "fired":fired, "held":held, "reportIncomplete":true, "denied":refusal_json(&error)}))
         },
@@ -544,35 +554,35 @@ pub(super) fn run_job(request: Request, shared: &Shared, name: &str, body: &str)
             }
         }
     }
-    let mut admitted=lock(&shared.engine);
-    crate::release_requests::stamp(admitted.generation());
-    if !service_route && let Err(why) = shared.dev_authority(&admitted) { drop(admitted); return refuse(request,403,why); }
-    if let Some(service)=&service {
-        if let Err(why)=super::session_identity::mutation_authority(&request,shared,&admitted,service) {drop(admitted);return refuse(request,403,why);}
-    }
-    let queued=admitted.enqueue_job(name,args,shared.now());
-    drop(admitted);
+    let (facts, name) = (super::RequestFacts::capture(&request), name.to_owned());
+    let checked = shared.engine.attempt(move |engine, shared| {
+        if !service_route { shared.dev_authority(engine)?; }
+        if let Some(service) = &service { super::session_identity::mutation_authority(&facts, shared, engine, service)?; }
+        Ok::<_, Refusal>(engine.enqueue_job(&name, args, shared.now()))
+    });
+    let queued = match checked { Ok(value) => value, Err(why) => return refuse(request, refusal_status(&why, 403), why) };
     crate::release_requests::executed();
     let id = match queued {
         Ok(id) => id,
-        Err(error) => return respond(request, 400, json!({"denied":refusal_json(&error.refusal())})),
+        Err(error) => return respond(request, refusal_status(&error.refusal(), 400), json!({"denied":refusal_json(&error.refusal())})),
     };
     // FIFO: earlier queued runs finish first, as with `run` on a stopped store;
     // the background tick may run some chunks too, through the same engine.
     let run = loop {
-        let current = {let engine=lock(&shared.engine);crate::release_requests::stamp(engine.generation());engine.job(&id)};
+        let job_id = id.clone();
+        let current = shared.engine.attempt(move |engine, _| engine.job(&job_id));
         match current {
             Ok(Some(run)) if matches!(run.state, JobState::Done | JobState::Parked) || crate::lifecycle::stopping() => break run,
             Ok(Some(_)) => {}
             Ok(None) => return respond(request, 500, json!({"denied":refusal_json(&RuntimeError::Store(format!("job {id} vanished")).refusal())})),
-            Err(error) => return respond(request, 500, json!({"denied":refusal_json(&error.refusal())})),
+            Err(error) => return respond(request, refusal_status(&error.refusal(), 500), json!({"denied":refusal_json(&error.refusal())})),
         }
-        let (chunk, logs) = engine_work(shared, |engine, budget| (engine.run_job_chunk_for(shared.now(), budget), engine.take_native_logs()));
+        let (chunk, logs) = engine_work(shared, move |engine, budget, shared| (engine.run_job_chunk_for(shared.now(), budget), engine.take_native_logs()));
         for line in logs { snapback4_core::diagnostic!("snapback4: native {line}"); }
         match chunk {
             Ok(Some(chunk)) if chunk.state == JobState::Parked && shared.personas => shared.refusals.job(&chunk),
             Ok(_) => {}
-            Err(error) => return respond(request, 500, json!({"denied":refusal_json(&error.refusal())})),
+            Err(error) => return respond(request, refusal_status(&error.refusal(), 500), json!({"denied":refusal_json(&error.refusal())})),
         }
     };
     snapback4_core::diagnostic!("snapback4: job {} {} on request: {} chunk{}, {} row{} written", run.name, if run.state == JobState::Done { "done" } else { "parked" },
@@ -590,7 +600,7 @@ pub(super) fn clock_status(request: Request, shared: &Shared) {
     })();
     match result {
         Ok(note) => { let now = shared.now(); respond(request, 200, json!({"storeAhead":note,"now":now,"skewMs":now - snapback4_core::now_ms()})) },
-        Err(error) => respond(request, 500, json!({"denied":refusal_json(&error.refusal())})),
+        Err(error) => respond(request, refusal_status(&error.refusal(), 500), json!({"denied":refusal_json(&error.refusal())})),
     }
 }
 
@@ -915,7 +925,7 @@ mod tests {
             // Ordinary can enter its coordination slice while bulk is stopped.
             drop(lock(&ordinary.maintenance));
             sent.send(None).unwrap();
-            let expired = timely_engine_work(&ordinary, |engine, budget| engine.sweep_expired_for(ordinary.now(), 2_000, budget)).unwrap();
+            let expired = timely_engine_work(&ordinary, move |engine, budget, shared| engine.sweep_expired_for(shared.now(), 2_000, budget)).unwrap();
             sent.send(Some(expired)).unwrap();
         });
         observed.recv_timeout(Duration::from_secs(5)).expect("ordinary slice blocked on the bulk gate");
@@ -1034,7 +1044,7 @@ mod tests {
         let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
             let _advancing = Advancing(&host.shared);
             lock(&host.shared.maintenance).advancing = true;
-            assert_eq!(timely_engine_work(&host.shared, |_, _| -> Result<u64, RuntimeError> { panic!("ordinary slice ran during drain") }).unwrap(), 0);
+            assert_eq!(timely_engine_work(&host.shared, |_, _, _| -> Result<u64, RuntimeError> { panic!("ordinary slice ran during drain") }).unwrap(), 0);
             assert!(!bulk_slice(&host.shared, false));
             panic!("clock drain");
         }));

@@ -124,13 +124,13 @@ impl Registry {
 struct Timing {
     accepted: Instant, wait: Duration, engine: Duration,
     engine_started: Option<Instant>, depth: usize, acquiring: bool, cpu_start: Option<Duration>,
-    headers: bool, finished: Option<(Duration, bool, Option<Duration>, Duration)>,
+    worker_cpu: Option<Duration>, headers: bool, finished: Option<(Duration, bool, Option<Duration>, Duration)>,
 }
 impl Timing {
     fn engine_elapsed(&self) -> Duration {
         self.engine + self.engine_started.map_or(Duration::ZERO, |at| at.elapsed())
     }
-    fn cpu_elapsed(&self) -> Option<Duration> { thread_cpu()?.checked_sub(self.cpu_start?) }
+    fn cpu_elapsed(&self) -> Option<Duration> { thread_cpu()?.checked_sub(self.cpu_start?)?.checked_add(self.worker_cpu?) }
 }
 thread_local! { static CURRENT: Cell<Option<Timing>> = const { Cell::new(None) }; }
 
@@ -174,7 +174,7 @@ impl Sample {
     }
     pub fn run(mut self, handle: impl FnOnce()) {
         let timing = Timing { accepted: self.accepted, wait: Duration::ZERO, engine: Duration::ZERO,
-            engine_started: None, depth: 0, acquiring: false, cpu_start: thread_cpu(), headers: self.headers, finished: None };
+            engine_started: None, depth: 0, acquiring: false, cpu_start: thread_cpu(), worker_cpu: Some(Duration::ZERO), headers: self.headers, finished: None };
         CURRENT.with(|current| { assert!(current.get().is_none()); current.set(Some(timing)); });
         struct Clear<'a>(&'a mut Sample);
         impl Drop for Clear<'_> { fn drop(&mut self) {
@@ -310,3 +310,42 @@ pub(super) fn endpoint(request: Request, shared: &Shared, reset: bool) {
 #[cfg(test)]
 #[path = "../tests/latency/histogram.rs"]
 mod tests;
+
+/// Queue waiting is distinct from writer execution; CPU samples belong to the
+/// thread that actually executes each part of a request.
+pub(super) struct WorkerSample(Instant);
+pub(super) struct WorkerTiming { wait: Duration, engine: Duration, cpu: Option<Duration> }
+pub(super) fn worker_sample() -> Option<WorkerSample> {
+    CURRENT.with(|slot| {
+        let mut timing = slot.get().filter(|t| t.finished.is_none())?;
+        if let Some(started) = timing.engine_started.take() { timing.engine += started.elapsed(); }
+        slot.set(Some(timing));
+        Some(WorkerSample(Instant::now()))
+    })
+}
+pub(super) fn run_worker<T>(sample: Option<WorkerSample>, run: impl FnOnce() -> T) -> (T, Option<WorkerTiming>) {
+    let Some(sample) = sample else { return (run(), None); };
+    let timing = Timing { accepted: sample.0, wait: sample.0.elapsed(), engine: Duration::ZERO,
+        engine_started: None, depth: 0, acquiring: false, cpu_start: thread_cpu(), worker_cpu: Some(Duration::ZERO), headers: false, finished: None };
+    CURRENT.with(|slot| { assert!(slot.get().is_none()); slot.set(Some(timing)); });
+    struct Clear;
+    impl Drop for Clear { fn drop(&mut self) { CURRENT.with(|slot| slot.set(None)); } }
+    let _clear = Clear;
+    let value = { let _span = EngineSpan::new(); run() };
+    let timing = CURRENT.with(|slot| slot.take().expect("worker timing"));
+    let cpu = timing.cpu_elapsed();
+    (value, Some(WorkerTiming { wait: timing.wait, engine: timing.engine, cpu }))
+}
+pub(super) fn merge_worker(worker: Option<WorkerTiming>) {
+    CURRENT.with(|slot| {
+        if let Some(mut timing) = slot.get() {
+            if let Some(worker) = worker {
+                timing.wait += worker.wait;
+                timing.engine += worker.engine;
+                timing.worker_cpu = timing.worker_cpu.zip(worker.cpu).and_then(|(a,b)| a.checked_add(b));
+            }
+            if timing.depth > 0 && !timing.acquiring && timing.engine_started.is_none() { timing.engine_started = Some(Instant::now()); }
+            slot.set(Some(timing));
+        }
+    });
+}
