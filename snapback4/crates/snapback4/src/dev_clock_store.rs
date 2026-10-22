@@ -112,13 +112,14 @@ pub fn crossed_boundaries(engine: &Engine, before: &[Option<i64>], now: i64, hel
 }
 
 // @ref LLP 3000.000.000.001#11-wave-22-loop-repairs-dx6 — no silent successful advance behind retained schedule markers.
-pub fn refuse_held(engine: &Engine, before: &[Option<i64>], now: i64) -> Result<(), snapback4_core::Refusal> {
+pub fn refuse_held(engine: &Engine, before: &[Option<i64>], current_clock: i64, now: i64) -> Result<(), snapback4_core::Refusal> {
     for (schedule, saved) in engine.schema().schedules.iter().zip(before) {
-        if let Some(saved) = saved.filter(|saved| *saved >= schedule.boundary(now) && *saved > schedule.boundary(snapback4_core::now_ms())) {
-            let due = schedule.next(saved);
+        // Equality is the already processed current window, not a hold. The
+        // authoritative requested clock defines the window, never wall time.
+        if let Some(saved) = saved.filter(|saved| *saved > schedule.boundary(now)) {
             return Err(snapback4_core::Refusal::new("E_CLOCK_HELD", "clock", format!(
-                "schedule {} already processed boundary {}; requested clock {} has not reached its next window {}. Nothing advanced. Advance {} or use a fresh staging deployment; allowHeld:true explicitly accepts this hold. Never rewind saved boundaries",
-                schedule.name, utc(saved), utc(now), utc(due), format!("{}ms", due - now))).guide("clock"));
+                "schedule {} already processed boundary {}; requested clock {} is in an earlier window; next unprocessed boundary is {}. Nothing advanced. Advance {} to reach the saved window or use a fresh staging deployment; allowHeld:true explicitly accepts this hold. Never rewind saved boundaries",
+                schedule.name, utc(saved), utc(now), utc(schedule.next(saved)), format!("{}ms", saved.saturating_sub(current_clock)))).guide("clock"));
         }
     }
     Ok(())
@@ -132,7 +133,7 @@ fn period(schedule: &snapback4_core::schema::Schedule) -> String {
 /// The core fires each schedule at most once per advance, for the latest
 /// boundary, and holds it while its saved boundary is ahead of the clock.
 // @ref LLP 3000#7-decisions-during-execution — missed boundaries fire once; this only explains them.
-pub fn schedule_report(engine: &Engine, before: &[Option<i64>], fired: &[String], now: i64, held: bool, each_boundary: bool, port: Option<u16>) -> Vec<serde_json::Value> {
+pub fn schedule_report(engine: &Engine, before: &[Option<i64>], fired: &[String], now: i64, current_clock: i64, held: bool, each_boundary: bool, port: Option<u16>) -> Vec<serde_json::Value> {
     let after = saved_boundaries(engine);
     // Read only bounded summaries: job args/cursors and full error payloads
     // are irrelevant to this report and must not be loaded then replicated.
@@ -186,14 +187,14 @@ pub fn schedule_report(engine: &Engine, before: &[Option<i64>], fired: &[String]
         } else if held {
             entry["holdCode"] = "disabled".into();
             entry["reason"] = "schedules are held (dev --hold-schedules or --replay); a restart without the flag resumes at the next boundary".into();
-        } else if let Some(saved) = saved.filter(|saved| old.is_some() && (*saved > current || *saved == current && *saved > schedule.boundary(snapback4_core::now_ms()))) {
+        } else if let Some(saved) = saved.filter(|saved| old.is_some() && *saved > current) {
             let due = schedule.next(saved);
             entry["holdCode"] = "saved-boundary".into();
             entry["savedBoundary"] = saved.into();
-            entry["heldUntil"] = utc(due).into();
+            entry["heldUntil"] = utc(saved).into();
             entry["nextBoundary"] = utc(due).into();
-            entry["reason"] = format!("held by the store: boundary {} was already processed and this clock {} has not reached its next window (restarting resets the process offset, not the saved boundary). One fire per boundary. Advance {} more, or use a fresh staging deployment/store for an independent test; keep the same --clock-offset when continuing a test across serve restarts",
-                utc(saved), utc(now), span(due - now)).into();
+            entry["reason"] = format!("held by the store: boundary {} was already processed and this clock {} is in an earlier window (restarting resets the process offset, not the saved boundary). One fire per boundary. Advance {} more to reach the saved window, or use a fresh staging deployment/store for an independent test; keep the same --clock-offset when continuing a test across serve restarts",
+                utc(saved), utc(now), span(saved.saturating_sub(current_clock))).into();
         } else if old != saved {
             entry["holdCode"] = "initialized".into();
             entry["reason"] = format!("{} started at boundary {}: a schedule fires at the boundary after the first one it sees, next {} ({} from now)",
@@ -286,7 +287,7 @@ mod tests {
         let fired = engine.fire_schedules(60_000).unwrap();
         let message = "🧪\n\\".repeat(30_000);
         (match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().execute("UPDATE _jobs SET error = ?1 WHERE id = (SELECT id FROM _jobs ORDER BY created_at DESC, id DESC LIMIT 1)", [&message]).unwrap();
-        let report = schedule_report(&engine, &before, &fired, 60_000, false, false, None);
+        let report = schedule_report(&engine, &before, &fired, 60_000, 60_000, false, false, None);
         assert_eq!(report.len(), 500);
         assert!(report.iter().all(|s| s["run"]["errorTruncated"] == true));
         assert!(report.iter().all(|s| s["run"]["error"].as_str().unwrap().len() <= REPORT_ERROR_BYTES + 3));

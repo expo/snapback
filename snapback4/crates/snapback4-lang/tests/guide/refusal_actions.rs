@@ -192,7 +192,7 @@ pub(super) const ACTIONS: &[(&str, &[&str])] = &[
     ("E_CLIENT", &["repair the client adapter to return the declared outcome", "collect with the original intent ID before starting another write"]),
     ("N_CLOCK_STORE_AHEAD", &["Use a fresh store per offset test", "restart with the same cumulative `--clock-offset`"]),
     ("E_CLOCK_DEV_ONLY", &["`serve` on production refuses clock flags and the control endpoint", "Classified staging allows the controls only with a full service credential", "Dev is loopback `POST /dev/clock/advance`"]),
-    ("E_CLOCK_HELD", &["Nothing advanced.", "Continue by the reported duration", "saved boundaries never rewind"]),
+    ("E_CLOCK_HELD", &["Nothing advanced.", "An already processed current window is not-due, not held", "repeated advances and zero-time drains remain available", "Continue by the reported duration", "saved boundaries never rewind"]),
     ("E_CLOCK_INTERRUPTED", &["Inspect queued work", "leaves maintenance paused", "clock drain", "Do not repeat the advance blindly"]),
     ("E_CLOCK_INPUT", &["Backward/zero advances and invalid values refuse", "{\"duration\":\"+2m\"}"]),
     ("E_CLOSED", &["collect with the same write ID instead of sending duplicate intent", "A durable local write remains pending and can settle after reopen"]),

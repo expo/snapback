@@ -100908,3 +100908,15 @@ during implicit retirement. Scope cleanup holds that cutoff through local
 credential tasks, and validated bodies belong to their invocation while open
 and closing; completed capture cannot reopen. No network or remote revocation
 wait is added. Design and review record: LLP 3000.000.000.001 §11.
+
+### 2026-10-22 — DX6 current schedule window correction
+
+Round-4 review found the held-boundary check compared an advanced current window
+to wall time. A normal repeated advance or same-time drain could therefore
+refuse after a successful jump. Both preflight and reports now reserve held for
+saved boundaries strictly ahead of the requested effective window; equality
+remains not-due and queued drain recovery does not move time or re-enqueue the
+window. Genuine future markers still refuse before effects. Credential timing
+updates precede every clock sample; awaited durable custody applies to
+local/device clocks, while online clocks remain volatile. See LLP
+3000.000.000.001 §11 and the committed round-5 amendment snapshot.

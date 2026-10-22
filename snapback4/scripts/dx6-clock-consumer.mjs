@@ -124,10 +124,19 @@ try {
   const drained=await host.drain();assert.equal(drained.maintenancePaused,false);
   assert.equal(drained.fired[0].name,"expiryHourly");
   assert.equal((await post("/q/mine")).body.data[0].status,"expired");
+  const nextWindow=await host.advance("2h");
+  assert.equal(nextWindow.fired[0].name,"expiryHourly");
+  const sameWindow=await host.advance("1ms");
+  assert.equal(sameWindow.held[0].holdCode,"not-due","processed current windows are not future holds");
+  await host.advance("1ms",{drain:false});
+  const resumed=await host.drain();
+  assert.equal(resumed.maintenancePaused,false);
+  assert.equal(resumed.held[0].holdCode,"not-due","zero-time drain needs no allowHeld for the current window");
   const cliPause=await cli(["clock","advance","1ms","--release","staging","--no-drain"]);
   assert.equal(cliPause.code,0,cliPause.stderr);assert.equal(JSON.parse(cliPause.stdout).maintenancePaused,true);
-  const cliDrain=await cli(["clock","drain","--release","staging","--allow-held"]);
+  const cliDrain=await cli(["clock","drain","--release","staging"]);
   assert.equal(cliDrain.code,0,cliDrain.stderr);assert.equal(JSON.parse(cliDrain.stdout).maintenancePaused,false);
+  assert.equal(JSON.parse(cliDrain.stdout).advancedMs,0,"CLI zero-time recovery does not replay an advance");
   await host.advance("8d",{sessions:"expire"});
   assert.equal((await post("/q/mine")).status,401,"explicit mode still expires sessions");
 } finally {
@@ -145,5 +154,13 @@ try {
   assert.notEqual(refused.code,0);assert.match(refused.stderr,/E_CLOCK_HELD/);
   const accepted=await host.advance("1h",{allowHeld:true});
   assert.equal(accepted.held[0].holdCode,"saved-boundary");
+  const held=accepted.held[0];
+  assert.equal(Date.parse(held.heldUntil),held.savedBoundary);
+  assert.equal(Date.parse(held.nextBoundary)-held.savedBoundary,3600000);
+  const caughtUp=await host.advance(`${Math.max(0,held.savedBoundary-accepted.now)}ms`);
+  assert.equal(caughtUp.held[0].holdCode,"not-due","catching up never repeats the saved window");
+  const next=await host.advance("1h");
+  assert.equal(next.fired[0].name,"expiryHourly","the next unprocessed window fires once");
+  assert.equal((await host.drain()).held[0].holdCode,"not-due");
 } finally {await host.stop();}
 console.log("DX6 packed clock: legacy sessions, actual kind, numeric coercion, 22-day preserved user, mutation-before-sweep, drain, explicit expiry and no-effect held refusal passed");
