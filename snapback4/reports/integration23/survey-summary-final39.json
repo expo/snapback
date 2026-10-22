@@ -1,0 +1,20 @@
+{
+  "projects": 450,
+  "checks": 900,
+  "ownRefusals": 15,
+  "gatingNotes": 36,
+  "gatingCodes": {
+    "N_RETAINED_ROLE_GRANT": 36
+  },
+  "nonReviewRefusals": 0,
+  "humanJsonDisagreement": 0,
+  "byWave": {
+    "w16": 3,
+    "w18": 2,
+    "w19": 2,
+    "w20": 3,
+    "w21": 3,
+    "w22": 1,
+    "w23": 1
+  }
+}

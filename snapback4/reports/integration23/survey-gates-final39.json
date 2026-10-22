@@ -1,0 +1,284 @@
+[
+  {
+    "lane": "w16-013-snapback-hackathon-rubric-judging",
+    "before": 1,
+    "notes": 1,
+    "codes": [
+      "N_RETAINED_ROLE_GRANT"
+    ],
+    "ackExits": [
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0,
+    "sourceHashes": {
+      "schema.q": "cca90a1a5b901961bc869141f9df6eb2a68f7068a14461d17e2ae1bb320fa2db"
+    }
+  },
+  {
+    "lane": "w16-019-snapback-apiary-hive-inspections",
+    "before": 1,
+    "notes": 2,
+    "codes": [
+      "N_RETAINED_ROLE_GRANT",
+      "N_RETAINED_ROLE_GRANT"
+    ],
+    "ackExits": [
+      1,
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0,
+    "sourceHashes": {
+      "schema.q": "67b76528e9ec9f7a3038440f8b53785339bb94a3c02451ec5de6242a545f6162"
+    }
+  },
+  {
+    "lane": "w16-027-snapback-podcast-guest-releases",
+    "before": 1,
+    "notes": 1,
+    "codes": [
+      "N_RETAINED_ROLE_GRANT"
+    ],
+    "ackExits": [
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0,
+    "sourceHashes": {
+      "schema.q": "6b7b951188cdfa933d498b82373bb00dfb42d45c8db3e3ecfcffbdd6e0600b83"
+    }
+  },
+  {
+    "lane": "w18-019-snapback-chimney-sweep-reports",
+    "before": 1,
+    "notes": 4,
+    "codes": [
+      "N_RETAINED_ROLE_GRANT",
+      "N_RETAINED_ROLE_GRANT",
+      "N_RETAINED_ROLE_GRANT",
+      "N_RETAINED_ROLE_GRANT"
+    ],
+    "ackExits": [
+      1,
+      1,
+      1,
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0,
+    "sourceHashes": {
+      "schema.q": "8ab8cf7fdc337841a4d3d88084f13ccc461e3c2cdb64f6713e162dfc9259984a"
+    }
+  },
+  {
+    "lane": "w18-030-snapback-cat-show-ring-judging",
+    "before": 1,
+    "notes": 4,
+    "codes": [
+      "N_RETAINED_ROLE_GRANT",
+      "N_RETAINED_ROLE_GRANT",
+      "N_RETAINED_ROLE_GRANT",
+      "N_RETAINED_ROLE_GRANT"
+    ],
+    "ackExits": [
+      1,
+      1,
+      1,
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0,
+    "sourceHashes": {
+      "schema.q": "91027d692641b354cc0295a9a5f1e7a54c2c7b8fc779627f6f499d465cb39d27"
+    }
+  },
+  {
+    "lane": "w19-019-snapback-chimney-sweep-reports",
+    "before": 1,
+    "notes": 4,
+    "codes": [
+      "N_RETAINED_ROLE_GRANT",
+      "N_RETAINED_ROLE_GRANT",
+      "N_RETAINED_ROLE_GRANT",
+      "N_RETAINED_ROLE_GRANT"
+    ],
+    "ackExits": [
+      1,
+      1,
+      1,
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0,
+    "sourceHashes": {
+      "schema.q": "f07c9db9e86c3acf8c59068560790349a4ae5ca8737848bbb1c27fc6422f925b"
+    }
+  },
+  {
+    "lane": "w19-030-snapback-cat-show-ring-judging",
+    "before": 1,
+    "notes": 4,
+    "codes": [
+      "N_RETAINED_ROLE_GRANT",
+      "N_RETAINED_ROLE_GRANT",
+      "N_RETAINED_ROLE_GRANT",
+      "N_RETAINED_ROLE_GRANT"
+    ],
+    "ackExits": [
+      1,
+      1,
+      1,
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0,
+    "sourceHashes": {
+      "schema.q": "d9bdeaa1ac949317b72abed2a016a7b0de6795ea413d45f54ef831ecbbb9201b"
+    }
+  },
+  {
+    "lane": "w20-013-snapback-piano-competition-juries",
+    "before": 1,
+    "notes": 4,
+    "codes": [
+      "N_RETAINED_ROLE_GRANT",
+      "N_RETAINED_ROLE_GRANT",
+      "N_RETAINED_ROLE_GRANT",
+      "N_RETAINED_ROLE_GRANT"
+    ],
+    "ackExits": [
+      1,
+      1,
+      1,
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0,
+    "sourceHashes": {
+      "schema.q": "41a6c99aa7dcd0f0868149b78a6563207cbdd0c2166ee7e3710c70d98238e0cf"
+    }
+  },
+  {
+    "lane": "w20-015-snapback-sailmaker-repair-orders",
+    "before": 1,
+    "notes": 1,
+    "codes": [
+      "N_RETAINED_ROLE_GRANT"
+    ],
+    "ackExits": [
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0,
+    "sourceHashes": {
+      "schema.q": "f43021d9c92a5f852c895696a0f578a741dd9cad47b290cd3cfd6093c4726fd8"
+    }
+  },
+  {
+    "lane": "w20-048-snapback-therapeutic-riding-sessions",
+    "before": 1,
+    "notes": 2,
+    "codes": [
+      "N_RETAINED_ROLE_GRANT",
+      "N_RETAINED_ROLE_GRANT"
+    ],
+    "ackExits": [
+      1,
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0,
+    "sourceHashes": {
+      "schema.q": "45a47c44adb9b8b51dfd775f78e58a7f215355f1e798d45c7d04572af240c91c"
+    }
+  },
+  {
+    "lane": "w21-013-snapback-piano-competition-juries",
+    "before": 1,
+    "notes": 4,
+    "codes": [
+      "N_RETAINED_ROLE_GRANT",
+      "N_RETAINED_ROLE_GRANT",
+      "N_RETAINED_ROLE_GRANT",
+      "N_RETAINED_ROLE_GRANT"
+    ],
+    "ackExits": [
+      1,
+      1,
+      1,
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0,
+    "sourceHashes": {
+      "schema.q": "f9ddc52e05eb18f1e0c56fd309db5a0f5b69358e76e23a4fab385bfd54e49495"
+    }
+  },
+  {
+    "lane": "w21-015-snapback-sailmaker-repair-orders",
+    "before": 1,
+    "notes": 1,
+    "codes": [
+      "N_RETAINED_ROLE_GRANT"
+    ],
+    "ackExits": [
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0,
+    "sourceHashes": {
+      "schema.q": "0f49723ae78179f7618671fb02904f8e0659c32cd9eff6d347a3fd9397592d0a"
+    }
+  },
+  {
+    "lane": "w21-048-snapback-therapeutic-riding-sessions",
+    "before": 1,
+    "notes": 2,
+    "codes": [
+      "N_RETAINED_ROLE_GRANT",
+      "N_RETAINED_ROLE_GRANT"
+    ],
+    "ackExits": [
+      1,
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0,
+    "sourceHashes": {
+      "schema.q": "da790661c431de5027d6cd5ff405a9f8eab2b0df0c8f6df486f55a5d48652571"
+    }
+  },
+  {
+    "lane": "w22-021-snapback-wash-fold-laundry",
+    "before": 1,
+    "notes": 1,
+    "codes": [
+      "N_RETAINED_ROLE_GRANT"
+    ],
+    "ackExits": [
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0,
+    "sourceHashes": {
+      "schema.q": "483ac21603cb56a387e9254aac0d4b2195459c827c2c9f1205d0a12476de8cad"
+    }
+  },
+  {
+    "lane": "w23-021-snapback-wash-fold-laundry",
+    "before": 1,
+    "notes": 1,
+    "codes": [
+      "N_RETAINED_ROLE_GRANT"
+    ],
+    "ackExits": [
+      0
+    ],
+    "after": 0,
+    "pendingAfter": 0,
+    "sourceHashes": {
+      "schema.q": "12abecfd5e5605c6727e7cfc09734e82aae16e20a315b542a73933664fc5807c"
+    }
+  }
+]

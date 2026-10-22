@@ -1,0 +1,88 @@
+{
+  "merge": "7b051e5f3f",
+  "base": "951ecdd4df",
+  "incoming": "bd0da3c111",
+  "ffAttempt": "expected divergence refusal",
+  "rootSetup": "passed",
+  "rootGuide": {
+    "passed": 22,
+    "failed": 0,
+    "skipped": 0,
+    "preconditions": 0
+  },
+  "inventories": {
+    "packageTests": 365,
+    "scriptTests": 35,
+    "demos": 31,
+    "publicationLeaves": 487
+  },
+  "refCheck": {
+    "documents": 565,
+    "refs": 12361,
+    "errors": 0
+  },
+  "affectedClients": {
+    "tests": 78,
+    "passed": 78
+  },
+  "platformAudit": {
+    "tests": 5,
+    "passed": 5
+  },
+  "typecheck": "passed",
+  "docsBudget": "319/320",
+  "native": {
+    "exit": 0,
+    "scopes": 452,
+    "passed": 7348,
+    "failed": 0,
+    "ignored": 266,
+    "observedCompletedAt": "2026-10-22T18:20:39.169312+00:00"
+  },
+  "nativeProgress": {
+    "scopes": 438,
+    "passed": 7174,
+    "failed": 0,
+    "ignored": 264
+  },
+  "postgresServing": "passed; private cluster stopped, pg_ctl status3 and no postmaster.pid",
+  "incomingAfterSuiteStarted": [
+    "c5c5914e2e",
+    "92f566d0d6",
+    "202826334f"
+  ],
+  "merges": [
+    "7b051e5f3f",
+    "c3f23ff2c2"
+  ],
+  "lockfileCommit": "2281138019",
+  "postMergeCoreLibrary": {
+    "passed": 653,
+    "failed": 0,
+    "ignored": 3
+  },
+  "postMergeCliFullRepeat": {
+    "passed": 520,
+    "failed": 0,
+    "ignored": 9,
+    "knownFlake": "stopping_admission_flushes_console_entries_that_cannot_expire",
+    "isolated": "passed",
+    "completeCliUnitRepeat": "passed",
+    "assertionsAndDeadlines": "unchanged"
+  },
+  "postMergePostgres": {
+    "exit": 0,
+    "passed": 364,
+    "failed": 0,
+    "publicServe": "passed",
+    "maintainedColumnsS1Recount": "passed",
+    "bothOwnedClustersStopped": true
+  },
+  "postMergeRoot": {
+    "guidePassed": 22,
+    "guideSkipped": 0,
+    "refErrors": 0,
+    "refs": 12368,
+    "inventory": "passed"
+  }
+}
