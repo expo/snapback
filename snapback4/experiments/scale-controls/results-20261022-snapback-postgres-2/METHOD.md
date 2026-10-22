@@ -45,6 +45,12 @@ and errors <=0.1%; every repetition must pass. Intended-arrival scheduling,
 expired-arrival accounting, errors, per-second cohorts and complete histograms
 are inherited unchanged from the matched Rust harness.
 
+Write bodies carry only operation arguments, without an operation id or
+`store_id`. Receipt replay and the common keyed first-party path are outside
+this baseline class. The timed writes increment counters; aggregate maintenance
+is exercised by the native 1M seed and verified by recounts, not benchmarked as
+message-insertion throughput.
+
 After each load, two service-authorized native account-session writes cross the serving writer
 before counter stability checks. An operator helper creates the service seat
 through the same owned native engine after seed; no member token is rotated.
@@ -72,6 +78,8 @@ The unchanged release has no enabled production engine/committer queue timing.
 Serial probes, intended-arrival HTTP/service latency, thread wait channels,
 role-filtered PG wait samples and SQL/COMMIT execution time diagnose the path.
 Utility COMMIT execution time is not a separately instrumented flush latency.
+The supplementary WAL timing observer is cluster-wide and includes ownership
+renewals/background work; it is never labelled database-only COMMIT time.
 Any B1/B2 estimate is a counterfactual at the measured RTT, not measured new
 product behavior or a qualified ceiling.
 
@@ -81,6 +89,13 @@ arrivals, durations, SLO, fixture and core method, but not observation time,
 storage layout, cache behavior, identity verification protocol or background
 work. These shared-host short-window results are exploratory. No managed
 service, production capacity, long-term stability or publication claim follows.
+
+The natural-link median ping remains near 0.6 ms, while a later SSH transport
+has roughly 41 ms ping p99, versus roughly 1 ms before W1/W2 and the historical
+controls. Every per-cell capture is retained. This limits latency attribution
+and is tracked in `issues/20261022-sb4-scale-ssh-rtt-tail.md`. The +0.5 ms proxy
+also sleeps/spins on app cores; its sampled CPU cost is retained separately.
+Counts and RTT-median models do not isolate these transport/CPU effects.
 
 All benchmarks and observers launch with setsid/nohup, recording PIDs. Cleanup
 signals only owned processes; only this lane's database and role may be dropped.

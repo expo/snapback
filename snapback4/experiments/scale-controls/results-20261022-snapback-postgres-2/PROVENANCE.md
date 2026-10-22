@@ -71,7 +71,16 @@ whose code changed while their detached process was still polling the seed.
 Head revisions can move as evidence is committed; content digests bind the
 measured inputs, and no product delta is integrated during measurement.
 
-The requested request-round-trip RFC is absent from this branch, fetched
-`origin/main` and the lead checkout on 450a at setup. A user clarification is
-pending for its commit/path. The supplied ~57 mutation/~23 read envelope is
-compared with observations; unavailable B1/B2 target counts are not invented.
+The requested request-round-trip RFC was initially absent from this branch,
+fetched `origin/main` and the Git origin server's default checkout. The origin
+server identifies as `expose-builder-pixel`; its default checkout is `ts-audit`.
+The document was subsequently found in its existing P0 worktree
+`/home/ccheever/projects/sb4-pg-p0`, branch `sb4-pg/rt-rfc`, at source commit
+`bd0da3c11188ce61d55bb7b8348e196f61ecc863`. Sections 1, 2 and 4 were read.
+Its exact snapshot is archived as `request-round-trip-budget.reference.md`,
+SHA-256 `754ac1a22b2d4e4e4c127ee7663843931e124f6dd5c08f8b9e6f97385e428190`.
+No source from that branch was integrated into the measured product. B1/B2
+predictions use its explicit schedules: W1 6/3/5, W2 6/2/(2 or 4), and the
+three-program-flight unkeyed mutation 16/8/11 (B1/B2a/B2b). W3's dependent
+program work is explicitly outside those constant schedules. The earlier
+clarification request is resolved without requiring user input.

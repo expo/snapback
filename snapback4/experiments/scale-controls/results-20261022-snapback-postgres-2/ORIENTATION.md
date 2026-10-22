@@ -26,7 +26,9 @@ statistics report lag, shared-host and noncontemporaneous control comparisons,
 unknown outcomes under overload. No code instrumentation or product fix.
 The requested round-trip RFC was absent from the branch, fetched origin/main
 and the lead checkout on 100.65.137.99 at setup; the user was asked for its
-location. The supplied ~57/~23 exchange counts remain labelled predictions.
+location. The source was subsequently found on the origin server in its existing P0
+worktree at bd0da3c11188ce61d55bb7b8348e196f61ecc863; sections 1/2/4 and
+explicit B1/B2 budgets are now available. Its snapshot/SHA are archived.
 
 Likely updates: scale RFC §7/§9, journal append, experiment report/archive.
 Hand-off: none.
