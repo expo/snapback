@@ -101206,3 +101206,22 @@ local ext4 on /dev/nvme0n1p3, Samsung MZVL2512HCJQ-00B00 NVMe, with shipped
 SQLite WAL/synchronous=FULL. No PG cluster was touched. No push, stash, clone,
 sub-agents, sudo, Docker or paid services.
 [Report and archive receipt](./experiments/scale-controls/results-20261022-snapback-sqlite/README.md).
+
+## 2026-10-22 — ROLL / wave-23 day-two
+
+Release selection now registers compiled immutable predecessor views with the
+committed parent deployment. Compatible widening retains current authority and
+native values; optional money never gets an invented zero. Exact original source
+remains explicit. Intentional null hiding is checked by the writer, including
+reference closure and population-sensitive guard refusals. A moved default needs
+an authored cross-table reverse projection. Reference renames carry lifetime
+bindings; child extraction moves an existing image/file ledger home with bytes
+and private transfer evidence. Deploy verdicts surround a changed-scope security
+notice; JSON retains full detail. SEC7 owns ordinary check ranking/gates.
+
+The final amendment received blind Muse and fresh Codex READY reviews (revision
+12); earlier reviews and dispositions remain recorded. Copy replays reached zero
+hidden old-table rows in all 16 dormancy lanes, with lane 032 first refusing its
+misleading default and then accepting its truthful down. Broader qualification
+and the required Mac Studio attempt are recorded in WORKSTREAM-REPORT.md; this
+entry makes no publication or unrun-test claim.

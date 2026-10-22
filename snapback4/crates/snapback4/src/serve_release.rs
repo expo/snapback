@@ -64,6 +64,7 @@ pub(super) fn apply(
             expected_revision,
             digest,
             rollback,
+            visible_rollback,
             restore_dormant,
             allow_feed_adoption,
         } => {
@@ -80,6 +81,7 @@ pub(super) fn apply(
                     "release {release} is not an immutable release directory"
                 ));
             }
+            crate::verbs::validate_registered_view(dir,&project.root)?;
             if crate::release_files::digest(&project.root)? != digest {
                 return Err("staged release content changed; redeploy its exact source".into());
             }
@@ -107,6 +109,7 @@ pub(super) fn apply(
             let mut pointer =
                 crate::release_files::Pointer::prepare(dir, release, expected_release, rollback)?;
             let options = ReleaseActivation {
+                visibility:crate::verbs::visibility_policy(&project.root)?.or_else(||visible_rollback.then(Default::default)),
                 release,
                 expected_previous: expected_release,
                 expected_revision: Some(expected_revision),

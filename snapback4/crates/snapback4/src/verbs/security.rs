@@ -81,24 +81,29 @@ pub(super) fn summary(report:&Report,verbose:bool){
 /// A rule-changing preflight demands a current campaign, without pretending
 /// finite tests or undeclared intent certify a deployment.
 pub(super) fn release_loop(project:&Project,bound:&Bound,sources:&[(String,String)],prior:Option<&Bound>,options:&Options)->Result<Option<String>,String>{
-    let changed=prior.is_none_or(|old|bound.schema.tables.iter().any(|(name,t)|old.schema.tables.get(name).is_none_or(|o|serde_json::to_value((&o.rules,&o.column_reads,&o.written_by)).ok()!=serde_json::to_value((&t.rules,&t.column_reads,&t.written_by)).ok()))||old.schema.tables.keys().any(|t|!bound.schema.tables.contains_key(t)));
-    if !changed{return Ok(None);}
+    let scope=release_scope(bound,prior,sources);
+    if scope.is_empty(){return Ok(None);}
     // @ref LLP 3000.036.004#153-rule-changing-deployment-review — review is prominent, strictness is explicit and failure-origin aware.
     let report=report(project,bound,sources,options);
-    let mut notice=String::from("SECURITY REVIEW — rules changed\n");
-    for v in report.invariants.iter().filter(|v|v.status==security::Status::Refuted&&v.counterexample.as_ref().is_some_and(|c|c.reachability.is_reachable())){
+    let mut notice=String::from("SECURITY REVIEW — rules changed; changed tables and operations only\n");
+    let failures=report.invariants.iter().filter(|v|v.status==security::Status::Refuted&&v.counterexample.as_ref().is_some_and(|c|c.reachability.is_reachable())).collect::<Vec<_>>();
+    // FIX evidence is never capped. Scoped advice follows in consequence order.
+    for v in &failures {
         let c=v.counterexample.as_ref().unwrap();
-        notice.push_str(&format!("  FIX {} {}: refuted via {} as {} ({:?}); repair enforcement to match intent, then run snapback4 test\n",v.invariant.site,v.invariant.target_label(),c.operation,c.viewer,c.reachability));
+        notice.push_str(&format!("  FIX {} {}: refuted via {} as {}; repair enforcement and run snapback4 test\n",v.invariant.site,v.invariant.target_label(),c.operation,c.viewer));
     }
-    for v in report.invariants.iter().filter(|v|v.status!=security::Status::Proved&&!v.counterexample.as_ref().is_some_and(|c|c.reachability.is_reachable())){
-        notice.push_str(&format!("  REVIEW {} {}: unproved — {}; run snapback4 audit for all paths; preserve spec intent\n",v.invariant.site,v.invariant.target_label(),v.reasons.first().map(String::as_str).unwrap_or("finite observations do not prove intent")));
-    }
-    for n in &report.notes{notice.push_str(&format!("  REVIEW {} {}: {}\n    {}\n",n.site,n.code,n.message,n.rewrite));}
-    notice.push_str(&format!("  {}\n",release_notice(project,bound,sources,options)));
-    notice.push_str(&format!("  {} independent invariants; {} coverage gaps; finite campaigns are not proof",bound.invariants.len(),report.campaign_coverage.len()));
-    exposure(&report);eprintln!("{notice}");
-    if options.flags.contains_key("strict")&&report.refuted(){return Err("E_SECURITY_REVIEW: --strict refuses reachable refuted security intent; repair the named rules and rerun snapback4 test before deploy".into());}
-    Ok(Some(notice))
+    let mut notes=report.notes.iter().filter(|n|n.code!="N_SECURITY_INTENT"&&scope.iter().any(|(file,start,end)|n.site.file==*file&&n.site.line>=*start&&n.site.line<*end)).collect::<Vec<_>>();
+    notes.sort_by_key(|n|crate::note_rank::summary_order(&n.code));
+    let count=notes.len();
+    for n in notes.into_iter().take(5){notice.push_str(&format!("  REVIEW {} {}: {}\n    {}\n",n.site,n.code,n.message,n.rewrite));}
+    if count>5 {notice.push_str(&format!("  {} further changed-scope notes; deploy --check --json retains every finding\n",count-5));}
+    let test=release_notice(project,bound,sources,options);
+    notice.push_str(&format!("  security exposure: {} tables; {} independent invariants; {} coverage gaps\n  {}",report.exposures.len(),bound.invariants.len(),report.campaign_coverage.len(),test));
+    let verdict=format!("security FIX {}; {}",failures.len(),test);
+    let summary=serde_json::json!({"notice":notice,"verdict":verdict,"fixes":failures.len(),"changedNotes":count,"report":report}).to_string();
+
+
+    Ok(Some(summary))
 }
 fn age(timestamp:Option<i64>,now:i64)->String{
     timestamp.map(|t|format!("at {t} ms since Unix epoch, age {}s",now.saturating_sub(t).max(0)/1000)).unwrap_or_else(||"time/age unknown (legacy record)".into())
@@ -118,4 +123,30 @@ fn release_notice(project:&Project,bound:&Bound,sources:&[(String,String)],optio
         },
         None=>format!("last test: NEVER RECORDED; run `snapback4 test{selection}{fixture}` before deployment; no matching completed campaign for this source, fixtures and CLI; {} independent invariants",bound.invariants.len()),
     }
+}
+
+// SEC7 owns ordinary check ranking/gates; this scope and output belong to ROLL.
+fn release_scope(bound:&Bound,prior:Option<&Bound>,sources:&[(String,String)])->Vec<(String,u32,u32)> {
+    let mut scope=Vec::new();
+    fn normalized(p:&impl serde::Serialize)->serde_json::Value {
+        fn clear(v:&mut serde_json::Value){match v{serde_json::Value::Object(o)=>{o.remove("site");for v in o.values_mut(){clear(v);}},serde_json::Value::Array(a)=>for v in a{clear(v)},_=>()}}
+        let mut v=serde_json::to_value(p).unwrap();clear(&mut v);v
+    }
+    for(file,text)in sources {
+        let doc=snapback4_lang::parser::parse_document(file,text).0;
+        let mut starts=text.lines().enumerate().filter(|(_,s)|!s.is_empty()&&!s.starts_with(char::is_whitespace)&&!s.starts_with("--")).map(|(i,_)|i as u32+1).collect::<Vec<_>>();starts.sort();
+        let mut add=|line:u32|scope.push((file.clone(),line,starts.iter().copied().find(|n|*n>line).unwrap_or(u32::MAX)));
+        for t in &doc.tables {if prior.is_none_or(|old|old.schema.tables.get(&t.name).map(normalized)!=bound.schema.tables.get(&t.name).map(normalized)){add(t.site.line);}}
+        for p in &doc.programs {
+            let next=bound.programs.iter().find(|b|b.program.name==p.name);
+            let old=prior.and_then(|b|b.programs.iter().find(|b|b.program.name==p.name));
+            if next.map(|b|normalized(&b.program))!=old.map(|b|normalized(&b.program)){add(p.site.line);}
+        }
+    }scope
+}
+pub(super) fn print_release(summary:Option<&String>){if let Some(s)=summary.and_then(|s|serde_json::from_str::<serde_json::Value>(s).ok()){eprintln!("{}",s["notice"].as_str().unwrap_or(""));}}
+pub(super) fn release_verdict(summary:Option<&String>)->String {summary.and_then(|s|serde_json::from_str::<serde_json::Value>(s).ok()).and_then(|s|s["verdict"].as_str().map(str::to_owned)).unwrap_or_else(||"security unchanged".into())}
+
+pub(super) fn enforce_release(summary:Option<&String>,options:&Options)->Result<(),String>{
+    if options.flags.contains_key("strict")&&summary.and_then(|s|serde_json::from_str::<serde_json::Value>(s).ok()).and_then(|s|s["fixes"].as_u64()).is_some_and(|n|n>0){return Err("E_SECURITY_REVIEW: --strict refuses reachable refuted security intent; repair enforcement and rerun snapback4 test".into())}Ok(())
 }

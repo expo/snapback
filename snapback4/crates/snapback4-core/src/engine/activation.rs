@@ -81,7 +81,7 @@ impl Engine {
                 options.check(release_check)?;
                 *prior_items.borrow_mut()=release_check.activation_inventory()?;
                 release_check.enable_dormant()?;
-                release_check.prepare_release_metadata(options.native_digest.as_deref().unwrap_or(""), options.restore_dormant)?;
+                release_check.prepare_release_metadata(options.native_digest.as_deref().unwrap_or(""), options.restore_dormant,options.visibility.as_ref())?;
             }
             Ok(())
         }, |tx, changed, report| {

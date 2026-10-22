@@ -183,7 +183,7 @@ impl PostgresEngine {
             let prep = activation::Preparation(&tx);
             options.check(&prep)?;
             prep.enable_dormant()?;
-            prep.prepare_release_metadata(options.native_digest.as_deref().unwrap_or(""), options.restore_dormant)?;
+            prep.prepare_release_metadata(options.native_digest.as_deref().unwrap_or(""), options.restore_dormant,options.visibility.as_ref())?;
         }
         let now = crate::now_ms();
         activation::initialize(&tx, &schema, &programs, generation, now)?;

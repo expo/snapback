@@ -1,0 +1,9 @@
+muse: workspace root: /home/ccheever/projects/sb4-b23-roll (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY
+
+No MATERIAL correctness, security, or atomicity issue found in this amendment.
+
+Nullable and wider result domains are disclosed compatibility changes, not retained v1 nonnull contracts, per commission. Input contracts and current authority are preserved. Deterministic ordering with id tie-breaks, durable id reservation, and explicit-collision refusal are taken as given. Conservative refusals outside initial forms are taken as intentional.
+
+Checked: view preparation refusal, compatible join with no inferred conversion or defaults, authority equality, hiding acknowledgment with writer-enforced atomic closure, edited-output no per-row widening, rename equality, extraction id and ledger-home safety, activation revalidation under lock and CAS, format and capability fencing, and limited `--exact` bypass.

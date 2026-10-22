@@ -1,0 +1,16 @@
+muse: workspace root: /home/ccheever/projects/sb4-b23-roll (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY — no MATERIAL correctness/security/atomicity issue in supplied design.
+
+Checked against commissioned laws:
+
+* Visible rollback: manifests, digests, original/actual source identity, `--exact`/`--restore-dormant`, checklist + JSON view mapping. `--exact` bypasses only view selection, never security/authority/migration checks.
+* Disclosed nullable results: nullable/wider results are explicit RESULT compatibility facts, never claimed as retained nonnull v1 contract.
+* Deterministic ordering / id reservation / atomic writer: replacement point/limited selection must keep total ordering + id tie-break or refuse; mint never overwrites occupied id, receipt/dormant same as ordinary, rollback never frees retained id; CAS + command lock + ABA revision, preview on private copy cannot authorize activation, failure rolls back evidence/format/homes/selection/generation together.
+* Unsupported forms refuse: no conversion/zero-money/default/row-choice inference, missing/incompatible endpoints refuse, unknown helper paths refuse, undefined fields/changed closures refuse, bad projections refuse selection.
+* Input-compatibility: endpoint replacement permits only identical, optional widening, integer-bound widening, enum-superset widening; never narrowing/new required args. Require-copy is stricter (identical).
+* Endpoint reuse custody: all helpers including write/return/system-scope need identical transitive meanings; retained backfill keeps output custody; view retains current forward-migration set, never resurrects retired transform over native values, never restores stale preimages.
+* Writer closure: IR-equal current authority plus §20.2 before-image/adoption/newly-hidden comparison, acknowledged-null + Ref-closure only, no list/asset/overlay-invented edges; rejects negative-existence authority, absence-admitting reference comparisons, tainted requirements/control-flow; point-presence discharge only; tainted keys/write-values, count/negative guards, job scope, maintained populations are outside initial form and refuse; transitive bindings/helper bodies followed. Extraction/audience closed separately in §20.4 with through-policy identity and no byte-access conferral.
+
+No per-row widening, coercion, truncation, null-fill, or invented defaults in §20.3/§9; edited outputs need down or exact domain admission, fresh recomputation agreement, and never gain native birth.
+

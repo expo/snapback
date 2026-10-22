@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.39
+
+### Guide changes
+
+- Default rollback selects an immutable compiled view registered by the latest committed deployment, preserving widened values and current guards. Explicit `--exact` selects original source. Null hiding needs a source declaration with a reason; removed defaulted fields need a truthful reverse projection. Generated checklists focus on decisions and name `--restore-dormant`.
+- Edited transformed values survive ordinary release cycles through a declared down or a fitting rollback view; genuine forward conflicts print competing values.
+- Reference-column `renamed from` preserves parent lifetime evidence. Declarative `extract child from parent via reference: {destination:source}` moves existing image/file homes into a child table and reverses unambiguous mappings, preserving read authority and bytes.
+- Deploy leads with a verdict, groups result advice and prints changed-scope security review last, with a trailing verdict for tail readers. JSON retains full evidence. SEC7 owns ordinary check ranking and gates.
+
 ## 0.4.37
 
 - Release re-entry accepts ordinary edits made while a backfill's declaring source is active: native input fingerprints and actually edited non-output migration inputs refresh, and matching recomputation is accepted. Conflicting authored outputs still refuse. A physically absent nullable rename destination no longer conflicts as an invented null.

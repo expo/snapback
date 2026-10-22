@@ -150,6 +150,7 @@ impl PostgresEngine {
         prep.prepare_release_metadata(
             options.native_digest.as_deref().unwrap_or(""),
             options.restore_dormant,
+            options.visibility.as_ref(),
         )?;
         let hash = activation::activation_hash(
             &schema,

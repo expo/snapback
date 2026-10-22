@@ -339,7 +339,9 @@ impl ActivationPreparation for Preparation<'_, '_> {
         &self,
         native_digest: &str,
         restore: bool,
+        visibility:Option<&crate::engine::release::VisibilityPolicy>,
     ) -> Result<(), RuntimeError> {
+        if visibility.is_some(){return Err(RuntimeError::StoreUnsupported{family:"rollback visibility"})}
         self.0.set_meta("release_native_digest", native_digest)?;
         self.0
             .set_meta("activation_restore", if restore { "true" } else { "false" })

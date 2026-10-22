@@ -1,0 +1,18 @@
+muse: workspace root: /home/ccheever/projects/sb4-b23-roll (cwd default)
+muse: workspace trust: trusted source=run-flag
+NOT READY — 2 MATERIAL correctness/atomicity issues.
+
+1. Extraction deterministic id has no collision fence — §20.4:
+`child's deterministic id equals parent id in the child namespace` plus `Future independent children are allowed` with only `Independent active or dormant destination history refuses` at extraction time.
+No reservation, allocation fence, or reuse refusal for later independent inserts in the same child namespace. A later independent child allocating the same numeric id collides with a receipt-owned row, or forces a duplicate-id refusal on a explicitly allowed write. This also breaks reverse determinism (`exactly one eligible child`, anchor validity, ambiguity revalidation).
+
+2. Native-child reverse admits ambiguous multiples — §20.4:
+`reverses only when exactly one eligible child exists` counts eligible, not total. With 2+ total children where 1 is eligible, the rule literally passes while `Deletion/id reuse, reparenting and ambiguity refuse; no arbitrary photo selection` requires refusal. Must require exactly one total candidate child in scope, or explicitly refuse when any ineligible sibling exists. As written it risks arbitrary photo selection on reverse.
+
+Checked and accepted per commission:
+
+* Nullable/wider result domains disclosed as RESULT changes; v1 nonnull contract not required.
+* Input names/contracts preserved, current authority retained for shared tables, IR-equality for guards.
+* Deterministic Quarry ordering with id tie-break retained.
+* Narrow initial forms (`cascade/restrict` only, identical asset types, immutable scalars only, closed audience rules, no inferred defaults) treated as intentional.
+

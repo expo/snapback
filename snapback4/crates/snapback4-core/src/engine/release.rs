@@ -2,8 +2,13 @@
 // @ref LLP 3000.000.000#5-hot-activation-and-ownership — CAS includes every activation, not only semantic changes.
 use super::*;
 
+#[derive(Clone,Debug,serde::Serialize,serde::Deserialize)]
+pub struct HiddenNull {pub table:String,pub column:String,pub reason:String}
+#[derive(Clone,Debug,serde::Serialize,serde::Deserialize,Default)]
+pub struct VisibilityPolicy {pub hides:Vec<HiddenNull>}
 #[derive(Clone, Debug)]
 pub struct ReleaseActivation {
+    pub visibility:Option<VisibilityPolicy>,
     pub release: u64,
     pub expected_previous: Option<u64>,
     pub expected_revision: Option<u64>,
@@ -19,6 +24,7 @@ pub(crate) trait ReleaseTransaction {
 impl ReleaseActivation {
     pub fn new(release: u64, expected_previous: Option<u64>) -> Self {
         Self {
+            visibility:None,
             release,
             expected_previous,
             expected_revision: None,

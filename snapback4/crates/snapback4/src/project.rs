@@ -186,6 +186,10 @@ impl Project {
     /// Resolve app-owned compatibility sources at their original project root,
     /// even when generated contracts belong to a private saved-source build.
     pub(crate) fn write_generated_from(&self, bound: &Bound, original: &Project) -> std::io::Result<PathBuf> {
+        self.write_generated_mode(bound,original,false)
+    }
+    pub(crate) fn write_generated_quiet(&self,bound:&Bound,original:&Project)->std::io::Result<PathBuf>{self.write_generated_mode(bound,original,true)}
+    fn write_generated_mode(&self,bound:&Bound,original:&Project,quiet:bool)->std::io::Result<PathBuf>{
         let dir = self.generated_dir();
         std::fs::create_dir_all(&dir)?;
         // @ref LLP 3000.036.004#103-adoption — draft is never part of compiled source discovery.
@@ -195,7 +199,7 @@ impl Project {
             std::fs::write(draft, text)?;
         }
         let path = dir.join("api.ts");
-        let text = crate::client_compatibility::typescript(original, bound)?;
+        let text = if quiet{crate::client_compatibility::report(original,bound)?.0}else{crate::client_compatibility::typescript(original, bound)?};
         // @ref LLP 3000.007#20.2 — the generated API's ESM boundary is rebuilt with its artifacts, not imposed on existing scripts.
         let package = dir.join("package.json");
         if std::fs::read_to_string(&package).ok().as_deref() != Some(GENERATED_PACKAGE) {

@@ -1,0 +1,12 @@
+muse: workspace root: /home/ccheever/projects/sb4-b23-roll (cwd default)
+muse: workspace trust: trusted source=run-flag
+NOT READY
+
+- **Edited-output fallback admits out-of-domain values without refusal.** "Otherwise a bridge that admits its exact current value preserves that value" has no domain/refusal boundary. If the edited current image lies outside the old joined domain and no declared `down` maps the assembled image, this reads as a per-value widening that invents old-view membership.
+  Repair: require atomic refusal unless (a) an applicable declared `down` maps the full assembled current image, or (b) the exact current value is already within the old view's joined domain. Never coerce, truncate, null-fill, or widen the old domain per-row to fit. State that this refusal is per-row-target and fails the rollback selection atomically.
+
+- **Asset extraction broadens read authority and discards dormant state; devices cannot enforce home.** "Read authorization follows the currently selected home row's rules" with no no-broadening guard lets a move from a restricted parent to a weaker child (and immutable scalar copies readable under the child's rules) broaden confidentiality. "Removes the former home's actual asset cell, including dormant cell overlays" deletes retained newer-only staged state, contradicting continuing retention. "Device projections omit all migration metadata" then removes the home pointer needed to enforce either.
+  Repair: require destination home-row read policy no broader than source for moved bytes, and scalar copies readable only under the intersection of source and child policies (refuse registration otherwise); retain the displaced cell/dormant overlays as retained evidence in the same atomic adoption transaction instead of deleting them; device projections must either carry the current home pointer or refuse migrated asset tables.
+
+- **Bridge authority "match" is unenforceable as written.** "Must match the generated view after identity alignment, or registration refuses" does not define match. A loose implementation can treat incorporation of current requirements as sufficient and still broaden table/column/ownership policy.
+  Repair: define match as effective-policy equality with no broadening: generated view's table rule, every shared-field column read rule, and field ownership must be no broader than both predecessor and current after identity alignment; any broadening, unaligned shared field, or helper/lookup-closure meaning change refuses registration.

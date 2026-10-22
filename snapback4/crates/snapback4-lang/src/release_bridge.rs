@@ -1,4 +1,4 @@
-//! A rollback bridge keeps the target's operations and loosens only value domains.
+//! A rollback view joins value domains and retains current authored authority.
 // @ref LLP 3000.000.000.002#8-wave-21-release-evolution — generated source is reviewable; no automatic business-policy synthesis.
 use crate::{ast::{self,TypeKind}, lexer::{self,Kind}, parser, print};
 use std::collections::BTreeMap;
@@ -41,20 +41,17 @@ pub fn loosen(target:&[(String,String)],current:&[(String,String)])->Bridge {
         changes.push(format!("new table {name}: retained with its current rules; old operations may not expose it"));
     }
     if !additions.is_empty() {let mut name="rollback-retained.q".to_owned();while sources.iter().any(|(f,_)|f==&name){name.insert_str(0,"retained-");}sources.push((name,additions));}
-    let bound=crate::compile(&sources);
-    for program in &bound.programs {
-        let reads= snapback4_core::ir::read_sites(&program.program);
-        let writes=snapback4_core::ir::write_tables(&program.program);
-        let sites:std::collections::BTreeSet<_>=reads.iter().map(|r|r.table.as_str()).chain(writes.iter().map(|(table,_)|table.as_str())).filter(|table|affected.contains(*table)).collect();
-        if !sites.is_empty(){changes.push(format!("verify operation {} reads or writes affected tables: {}",program.program.name,sites.into_iter().collect::<Vec<_>>().join(", ")));}
-    }
-    Bridge {sources,changes,diagnostics:bound.diagnostics}
+    let transported=super::release_bridge_rules::carry(&mut sources,current,&mut changes,&affected);
+    affected.extend(transported);
+    let mut diagnostics=super::release_bridge_guards::carry(&mut sources,current,&affected,&mut changes);
+    let bound=crate::compile(&sources);diagnostics.extend(bound.diagnostics);
+    Bridge {sources,changes,diagnostics}
 }
 fn offset(text:&str,line:u32,col:u32)->usize {
     let start=text.split_inclusive('\n').take(line.saturating_sub(1) as usize).map(str::len).sum::<usize>();
     start+text[start..].chars().take(col.saturating_sub(1) as usize).map(char::len_utf8).sum::<usize>()
 }
-fn type_span(file:&str,text:&str,column:&ast::ColumnDecl)->Option<(usize,usize)> {
+pub fn type_span(file:&str,text:&str,column:&ast::ColumnDecl)->Option<(usize,usize)> {
     let(tokens,_)=lexer::lex(file,text);let at=tokens.iter().position(|t|t.site==column.site)?;
     let start=tokens.get(at+2)?;let mut depth=0;
     for token in tokens.iter().skip(at+2) {
@@ -142,6 +139,6 @@ mod tests {
         let b=loosen(&[("schema.q".into(),old.into())],&[("schema.q".into(),new)]);
         assert!(b.diagnostics.is_empty(),"{:?}\n{:?}",b.diagnostics,b.sources);
         assert!(b.sources[0].1.contains("query oldRead"));assert!(!b.sources[0].1.contains("query newRead"));
-        assert!(b.sources[0].1.contains("amount: money USD 2 ?"));assert!(b.changes.iter().any(|c|c.contains("verify operation oldRead")));
+        assert!(b.sources[0].1.contains("amount: money USD 2 ?"));assert!(!b.changes.iter().any(|c|c.contains("verify operation oldRead")));
     }
 }

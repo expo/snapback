@@ -150,9 +150,13 @@ impl ActivationPreparation for super::release::ReleaseCheck<'_> {
         &self,
         native_digest: &str,
         restore: bool,
+        visibility:Option<&crate::engine::release::VisibilityPolicy>,
     ) -> Result<(), RuntimeError> {
         self.0.execute("INSERT INTO _meta(key,value) VALUES('release_native_digest',?1) ON CONFLICT(key) DO UPDATE SET value=excluded.value",[native_digest])?;
         self.0.execute("INSERT INTO _meta(key,value) VALUES('activation_restore',?1) ON CONFLICT(key) DO UPDATE SET value=excluded.value",[if restore {"true"}else{"false"}])?;
+        self.0.execute("DELETE FROM _meta WHERE key='activation_visibility'",[])?;
+        if let Some(policy)=visibility {self.0.execute("INSERT INTO _meta(key,value) VALUES('activation_visibility',?1)",[serde_json::to_string(policy).map_err(|e|RuntimeError::Store(e.to_string()))?])?;}
+
         Ok(())
     }
 }

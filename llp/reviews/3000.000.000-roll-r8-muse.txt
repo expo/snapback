@@ -1,0 +1,13 @@
+muse: workspace root: /home/ccheever/projects/sb4-b23-roll (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY
+
+No MATERIAL correctness, security, or atomicity issue in the supplied amendment.
+
+Default visible rollback with disclosed nullable/wider results is the commissioned contract. Nullable/wider domains are disclosed via checklist and JSON, never claimed as nonnull v1 retention.
+
+Deterministic ordering, id reservation, and atomic writer laws are preserved. All needed views must prepare or deploy refuses. CAS-bound immutable source, command locking, full revalidation, and joint rollback of evidence/format/homes/selection hold.
+
+Narrow refusals are intentional and fail-closed. No conversion, zero-money fallback, invented defaults, first-row choice, or policy prover is admitted.
+
+Clarified boundary is safe. Omitting an obsolete predecessor-only down applies only when every output remains a current column in the compiled union. Native values are then within the widened view domain. Downs for removed fields remain. `--exact` retains old projection/conflict behavior. Evidence is never deleted.

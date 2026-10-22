@@ -407,7 +407,7 @@ pub(super) fn transition(
             inventory.iter().map(|i|format!("{}: {} rows; sample ids [{}]",i.key,i.rows,i.sample_ids.join(", "))).collect::<Vec<_>>().join("; ")
         )));
     }
-    let backfilling=!next.backfills.is_empty() || !next.downfills.is_empty()
+    let backfilling=!next.extractions.is_empty() || previous.is_some_and(|s|!s.extractions.is_empty()) || !next.backfills.is_empty() || !next.downfills.is_empty()
         || previous.is_some_and(|s|!s.downfills.is_empty()) || super::backfills::has_evidence(tx)?;
     if let Some(previous) = previous {
         for (name, old) in previous
@@ -586,6 +586,7 @@ pub(super) fn transition(
     }else{super::narrowed::retire_sources(tx,next,previous,now)?;}
     // Reverse projections still read the complete predecessor snapshot,
     // including tables absent from the rollback target.
+    super::extractions::transition(tx,next,previous,&source_definitions,report)?;
     super::backfills::transition(tx,next,previous,&source_definitions,now,report)?;
     // Archive removed tables only after source expiry and every migration
     // projection have closed over the predecessor image.
@@ -767,6 +768,7 @@ fn check_references(tx: &Tx<'_>, next: &Schema,sources:&BTreeMap<String,Table>) 
 
 pub(super) fn delete(tx: &Tx<'_>, t: i64, id: &str, name: &str) -> Result<(), RuntimeError> {
     super::backfills::delete(tx,t,id)?;
+    super::extractions::delete(tx,t,id)?;
     if !enabled(tx)? {
         return Ok(());
     }

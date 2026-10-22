@@ -240,7 +240,7 @@ fn restore_downfills(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,sources:&B
             let fields=row.as_object()?;
             if validate {
             for (column,expected) in &e.after {
-                if fields.get(column)!=Some(expected) {bad.add(id,&format!("{}.{} changed while the older release was active; repair it under a bridge before selecting this release",fill.table,column));return Ok(())}
+                if fields.get(column)!=Some(expected) {bad.add(id,&format!("{}.{} changed while the older release was active; expected projected {}, current {}; repair it under a bridge before selecting this release",fill.table,column,canonical_json(expected),fields.get(column).map(canonical_json).unwrap_or_else(||"<absent>".into())));return Ok(())}
             }
             let mut inputs_meter=Meter::new(Ceilings::job(),Cut::Abort);
             let source=row_source(tx,t,id,sources.get(&fill.table))?;
@@ -249,7 +249,7 @@ fn restore_downfills(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,sources:&B
                     let current=source_value(tx,t,id,&row,column,source.as_deref().or(Some(table)),&mut inputs_meter)?.unwrap_or(Value::Null);
                     if &current!=original
                         && !receipt_preimage(tx,next,&fill.table,t,id,column,fields.get(column),original,source.as_deref())? {
-                        bad.add(id,&format!("{}.{} changed while the older release was active; reverse dependencies cannot be recaptured",fill.table,column));return Ok(())
+                        bad.add(id,&format!("{}.{} changed while the older release was active; original input {}, current {}; reverse dependencies cannot be recaptured",fill.table,column,canonical_json(original),canonical_json(&current)));return Ok(())
                     }
             }
             return Ok(())

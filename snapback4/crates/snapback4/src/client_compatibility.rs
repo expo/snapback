@@ -8,11 +8,14 @@ use std::io;
 #[serde(deny_unknown_fields)]
 struct Configuration { baseline: String, since_release: u64 }
 
-pub(crate) fn typescript(project: &Project, bound: &Bound) -> io::Result<String> {
+pub(crate) fn typescript(project:&Project,bound:&Bound)->io::Result<String>{
+    let(text,warnings)=report(project,bound)?;for warning in warnings{eprintln!("WARNING {warning}");}Ok(text)
+}
+pub(crate) fn report(project: &Project, bound: &Bound) -> io::Result<(String,Vec<String>)> {
     let path = project.root.join("snapback/client-compatibility.json");
     let text = match std::fs::read_to_string(path) {
         Ok(text) => text,
-        Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(snapback4_lang::emit::typescript(bound)),
+        Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok((snapback4_lang::emit::typescript(bound),Vec::new())),
         Err(error) => return Err(error),
     };
     let bad = |message: String| io::Error::new(io::ErrorKind::InvalidInput, format!("client-compatibility.json: {message}; guide deploy"));
@@ -28,10 +31,8 @@ pub(crate) fn typescript(project: &Project, bound: &Bound) -> io::Result<String>
     let sources = sources(&path).map_err(|e| baseline_error(e.to_string()))?;
     let baseline = snapback4_lang::compile(&sources);
     if !baseline.diagnostics.is_empty() { return Err(baseline_error(format!("saved baseline does not compile: {:?}", baseline.diagnostics))); }
-    for warning in snapback4_lang::client_contracts::compare(&baseline,bound,&format!("baseline {}",absolute.display())) {
-        eprintln!("WARNING {warning}");
-    }
-    Ok(snapback4_lang::emit::typescript_spanning(bound, &baseline, config.since_release))
+    let warnings=snapback4_lang::client_contracts::compare(&baseline,bound,&format!("baseline {}",absolute.display()));
+    Ok((snapback4_lang::emit::typescript_spanning(bound, &baseline, config.since_release),warnings))
 }
 
 /// Shared schema-first ordering retains saved modules' original namespaces.

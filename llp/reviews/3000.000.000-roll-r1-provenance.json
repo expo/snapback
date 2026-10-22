@@ -1,0 +1,22 @@
+{
+  "date": "2026-10-22",
+  "design_sha256": "99f2c9708dd991fd737df2a1ef06f7323cb22d8368f45150474607306eb15594",
+  "reviewers": [
+    {
+      "provider": "Muse wrapper",
+      "model": "muse-spark-1.3-contributor",
+      "effort": "high",
+      "response": "3000.000.000-roll-r1-muse.txt"
+    },
+    {
+      "provider": "fresh codex exec",
+      "model": "gpt-6.1-sol",
+      "effort": "high",
+      "response": "3000.000.000-roll-r1-codex.txt"
+    }
+  ],
+  "verdicts": [
+    "NOT READY",
+    "NOT READY"
+  ]
+}

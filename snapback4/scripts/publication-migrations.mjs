@@ -1,5 +1,6 @@
 // @ref LLP 3000.000.000.002#5-evidence — execute the installed guide's persistent production lifecycle verbatim.
 import assert from "node:assert/strict";
+import { proveRollInstalled } from "./publication-roll.mjs";
 import { mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -19,11 +20,11 @@ export async function proveMigrations(client, platform, directory) {
     // Compile the new self-contained language example using the installed CLI.
     const language=spawnSync(process.execPath,[binary,"guide","language","--full"],{cwd,env,encoding:"utf8",timeout:30000});
     assert.equal(language.status,0,language.stderr);
-    const examples=[...language.stdout.matchAll(/```quarry\n([\s\S]*?)\n```/g)].map(m=>m[1]).filter(s=>s.includes("backfill parcels sizes"));
-    assert.equal(examples.length,1);
+    const examples=[...language.stdout.matchAll(/```quarry\n([\s\S]*?)\n```/g)].map(m=>m[1]).filter(s=>s.includes("backfill parcels sizes")||s.includes("extract scans from orders"));
+    assert.equal(examples.length,2);
     const example=join(cwd,"language-example");
-    mkdirSync(join(example,"snapback"),{recursive:true});writeFileSync(join(example,"snapback/schema.q"),examples[0]);
-    await run(process.execPath,[binary,"check"],example);
+    mkdirSync(join(example,"snapback"),{recursive:true});
+    for(const [index,source]of examples.entries()){writeFileSync(join(example,"snapback/schema.q"),source);await run(process.execPath,[binary,"check"],example);await run(process.execPath,[binary,"deploy",join(example,`deployment-${index}`)],example);}
     const scripts=[...guide.stdout.matchAll(/```js\n([\s\S]*?)\n```/g)].map(m=>m[1]).filter(s=>s.startsWith("// day-two-production.mjs"));
     assert.equal(scripts.length,1,"one complete installed production recipe");
     writeFileSync(join(cwd,"day-two-production.mjs"),scripts[0]);
@@ -31,6 +32,7 @@ export async function proveMigrations(client, platform, directory) {
     // No reset, snapshot replacement, fixture seed, or production deletion.
     await run(process.execPath,["day-two-production.mjs"]);
     await run(process.execPath,["day-two-production.mjs"]);
-    return {status:"passed",guide:"deploy",recipe:"verbatim installed card",runs:2,persistentProduction:true,realUsers:true,backfill:true,privacyInvariant:true,rollback:true,forwardCatchup:true,fullPopulationAssertions:true};
+    const roll=await proveRollInstalled(cwd,binary,run);
+    return {roll,status:"passed",guide:"deploy",recipe:"verbatim installed card",runs:2,persistentProduction:true,realUsers:true,backfill:true,privacyInvariant:true,rollback:true,forwardCatchup:true,fullPopulationAssertions:true};
   } finally { rmSync(cwd,{recursive:true,force:true}); }
 }

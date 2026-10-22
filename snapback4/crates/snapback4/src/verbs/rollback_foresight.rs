@@ -44,7 +44,8 @@ fn risks_aligned(candidate:&Schema,old:&Schema,release:u64,dir:&Path)->Vec<Strin
         for (column,kind) in &target.columns {
             if projected(candidate,name,column,kind) || from.columns.contains_key(column) || target.engine_field(column) || target.maintained.contains_key(column) {continue;}
             let interpretation=if kind.is_optional() {"null".to_owned()} else if let Some(ColumnDefault::Literal(value))=target.defaults.get(column) {format!("the old default {}",snapback4_core::wire::to_json(value))} else {continue;};
-            risks.push(format!("rollback foresight: release {release}, {name}.{column}: without a fitting reverse projection, records created while this field is absent have no retained old cell and will show {interpretation} to release {release} users; declare a reverse projection from the replacement value, or retain the field in a bridge release; run `snapback4 rollback {} --to {release} --check --bridge <new-dir>` after writes",dir.display()));
+            let suggestions=cross_table_suggestions(candidate,old,name,column,kind,target.defaults.get(column));
+            risks.push(format!("rollback foresight: release {release}, {name}.{column}: without a fitting reverse projection, records created while this field is absent have no retained old cell and will show {interpretation} to release {release} users; declare a reverse projection from the replacement value, or retain the field in a bridge release; {suggestions}run `snapback4 rollback {} --to {release} --check --bridge <new-dir>` after writes",dir.display()));
         }
         for (index,definition) in &target.indexes {
             if definition.unique && from.indexes.get(index)!=Some(definition) {
@@ -59,7 +60,7 @@ fn risks_aligned(candidate:&Schema,old:&Schema,release:u64,dir:&Path)->Vec<Strin
 }
 
 fn projected(candidate:&Schema,table:&str,column:&str,kind:&snapback4_core::schema::ColumnType)->bool {
-    (scalar(kind) && candidate.downfills.iter().any(|f|f.table==table && f.outputs.contains(column))) || candidate.asset_renames.get(table).is_some_and(|map|map.iter().any(|(new,old)|old==column && candidate.tables.get(table).and_then(|t|t.columns.get(new))==Some(kind)))
+    candidate.extractions.iter().any(|e|e.parent==table&&e.fields.values().any(|c|c==column)) || (scalar(kind) && candidate.downfills.iter().any(|f|f.table==table && f.outputs.contains(column))) || candidate.asset_renames.get(table).is_some_and(|map|map.iter().any(|(new,old)|old==column && candidate.tables.get(table).and_then(|t|t.columns.get(new))==Some(kind)))
 }
 fn scalar(kind:&snapback4_core::schema::ColumnType)->bool {
     use snapback4_core::schema::ColumnType::*;
@@ -123,4 +124,23 @@ mod tests {
         assert!(!warnings.iter().any(|w|w.contains("new table records")),"{warnings:?}");
     }
 
+}
+
+fn cross_table_suggestions(candidate:&Schema,old:&Schema,parent:&str,column:&str,kind:&snapback4_core::schema::ColumnType,default:Option<&ColumnDefault>)->String {
+    let fallback=match default {Some(ColumnDefault::Literal(v))=>match v{snapback4_core::Value::Bool(v)=>v.to_string(),snapback4_core::Value::Int(v)=>v.to_string(),snapback4_core::Value::String(v)=>snapback4_lang::print::quote(v),_=>return String::new()},_ if kind.is_optional()=>"null".into(),_=>return String::new()};
+    let mut proposals=Vec::new();
+    for(child,table)in candidate.visible_tables().filter(|(name,_)|old.table(name).is_none()) {
+        for(reference,ty)in &table.columns {
+            if !matches!(ty.required(),snapback4_core::schema::ColumnType::Ref{table} if table==parent){continue}
+            let values=table.columns.iter().filter(|(c,k)|!table.engine_field(c)&&c.as_str()!=reference.as_str()&&k.required()==kind.required()).collect::<Vec<_>>();
+            let unique=table.indexes.values().any(|i|i.unique&&i.columns()==vec![reference.clone()]);
+            if unique&&values.len()==1 {
+                let value=values[0].0;
+                proposals.push(format!("candidate cross-table down (confirm the replacement field's meaning): `down {parent} rollback{column}(id: id): {{{column}: {child}[{reference} = id].{value} ?? {fallback}}}`"));
+            }else if kind.required()==&snapback4_core::schema::ColumnType::Bool {
+                proposals.push(format!("if child existence exactly means {column}, candidate cross-table down: `down {parent} rollback{column}(id: id): {{{column}: exists {child} where .{reference} = id}}`"));
+            }
+        }
+    }
+    if proposals.is_empty(){String::new()}else{proposals.join("; ")+"; "}
 }

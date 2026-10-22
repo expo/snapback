@@ -17,6 +17,7 @@ fn candidate(
         expected_revision: revision,
         digest: crate::release_files::digest(&root).unwrap(),
         rollback: false,
+        visible_rollback: false,
         restore_dormant: true,
         allow_feed_adoption: false,
     }

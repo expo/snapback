@@ -10,13 +10,13 @@ impl Drop for Snapshot {
     }
 }
 
-pub(super) fn preview(
+pub(super) fn plan(
     store_path: &Path,
     root: PathBuf,
     release: u64,
     options: &Options,
     held_owner: Option<&crate::store_owner::Owner>,
-) -> Result<(), String> {
+) -> Result<serde_json::Value, String> {
     let bound = super::releases::bound_at(root.clone())?;
     let project = Project { root };
     let native = crate::native::prepare(&project, &bound).map_err(|e| e.to_string())?;
@@ -65,6 +65,7 @@ pub(super) fn preview(
     }else{snapback4_core::now_ms()};
     let mut activation =
         snapback4_core::engine::release::ReleaseActivation::new(release, held["release"].as_u64());
+    activation.visibility=super::releases::visibility_policy(&project.root)?.or_else(||options.flags.contains_key("visible-rollback").then(Default::default));
     activation.expected_revision = held["revision"].as_u64();
     activation.native_digest = native.installed.map(|n| n.digest);
     activation.operation = "preview".into();
@@ -79,6 +80,7 @@ pub(super) fn preview(
         let prior=super::releases::bound_at(store_path.parent().ok_or("no deployment directory")?.join("releases").join(current.to_string()))?;
         client_compatibility=snapback4_lang::client_contracts::compare(&prior,&bound,&format!("release {current}"));
     }
+    if let Some(advice)=options.flags.get("client-baseline-advice"){client_compatibility.extend(serde_json::from_str::<Vec<String>>(advice).map_err(|e|e.to_string())?);}
     let candidate_schema=bound.schema.clone();
     let candidate_programs:std::collections::BTreeMap<_,_>=bound.programs.iter().map(|p|(p.program.name.clone(),p.program.clone())).collect();
     let mut hazards=Vec::new();
@@ -123,6 +125,26 @@ pub(super) fn preview(
         activation_now,
     )
     .map_err(|e| e.to_string())?;
+    let mut view_effects=Vec::new();
+    let rollback_views=super::rollback_views::manifest(&project.root)?;
+    for view in &rollback_views {
+        let prepared=project.root.join("rollback-views").join(view.release.to_string());
+        let root=if prepared.is_dir(){prepared}else{store_path.parent().unwrap().join("releases").join(view.release.to_string())};
+        let target=super::releases::bound_at(root.clone())?;
+        let path=snapshot.0.join(format!("view-{}.sqlite",view.release));
+        engine.store().snapshot_to(&path).map_err(|e|e.to_string())?;
+        let mut store=snapback4_core::store_port::AnyStore::open(&path).map_err(|e|e.to_string())?;
+        store.preview_asset_root(&store_path.parent().unwrap().join("assets")).map_err(|e|e.to_string())?;
+        super::release_safeguards::capture(&store)?;
+        let mut selection=snapback4_core::engine::release::ReleaseActivation::new(view.release,Some(release));
+        selection.visibility=super::releases::visibility_policy(&root)?;selection.operation="preview".into();selection.restore_dormant=true;
+        let target_schema=target.schema.clone();
+        let selected=snapback4_core::Engine::new_release_prepared_at(store,target.schema,target.programs.into_iter().map(|p|p.program),&selection,options.flags.contains_key("allow-feed-adoption"),activation_now).map_err(|e|format!("rollback view for release {} refuses: {e}",view.target))?;
+        let visible=super::release_visibility::assess(selected.store(),Some(&candidate_schema),&target_schema)?;
+        if visible.hidden_rows>0&&view.hides.is_empty(){return Err(format!("E_ADOPT: rollback view for release {} still hides {} old-table rows; declare a truthful down or intentional hiding",view.target,visible.hidden_rows))}
+        view_effects.push(serde_json::json!({"target":view.target,"view":view.release,"visibility":visible}));
+        notes.push(format!("rollback to release {} via bridge {}: {} hidden old-table rows; {} newer-only rows; {}",view.target,view.release,visible.hidden_rows,visible.newer_only_rows,view.hides.join("; ")));
+    }
     let mut planned = engine
         .store_mut()
         .release_status(0, None, None)
@@ -188,6 +210,7 @@ pub(super) fn preview(
                     if effects.hidden_rows>0 || effects.empty_cells>0 || effects.newer_only_rows>0 {
                         for line in effects.lines(release,current) { hazards.push(format!("rollback foresight: {}",line.trim())); }
                     }
+                    if effects.hidden_rows>0&&!rollback_views.iter().any(|v|v.target==current){return Err(format!("E_ADOPT: deploy would hide {} old-table rows on rollback to release {current}; retain a compiled guarded bridge or declare intentional hiding",effects.hidden_rows))}
                     rollback_visibility=Some(effects);
                 },
                 Err(error) => hazards.push(format!("rollback to release {current} refuses on the post-deploy snapshot: {error}; run `snapback4 rollback {} --to {current} --check --bridge <new-dir>` and preserve the required fields/domains in a bridge",store_path.parent().unwrap().display())),
@@ -195,27 +218,32 @@ pub(super) fn preview(
         }
     }
     hazards.extend(client_compatibility.iter().cloned());
-    if options.flags.contains_key("validation-only") {
-        if !options.flags.contains_key("deploy-direction") {
-            for line in visibility.lines(held["release"].as_u64().unwrap_or(0),release) {eprintln!("{line}");}
-        }
-        for hazard in &hazards { eprintln!("WARNING {hazard}"); }
-        return Ok(());
-    }
     let checklist = super::release_bridge::checklist(held["release"].as_u64().unwrap_or(0),release,&hazards);
+    let payload=serde_json::json!({"preview":true,"security":options.flags.get("security-summary").and_then(|s|serde_json::from_str::<serde_json::Value>(s).ok()),"visibility":visibility,"rollbackVisibility":rollback_visibility,"rollbackViews":rollback_views,"rollbackViewEffects":view_effects,"rollbackView":options.flags.get("rollback-view").and_then(|s|serde_json::from_str::<serde_json::Value>(s).ok()),"clientCompatibility":client_compatibility,"checklist":checklist,"hazards":hazards,"notes":notes,"current":held,"plan":planned,"steps":steps,"estimate":estimate,"phases":engine.store().adoption_report().summary(),"backfills":engine.store().adoption_report().backfills});
+    if !options.json&&options.flags.contains_key("deploy-direction") {
+        let hidden=view_effects.iter().filter_map(|v|v["visibility"]["hiddenRows"].as_u64()).sum::<u64>();
+        println!("deploy verdict: READY; {} rollback views, {hidden} hidden old-table rows across those views; {}",rollback_views.len(),super::security::release_verdict(options.flags.get("security-summary")));
+    }
+    if options.flags.contains_key("validation-only") {
+        if !options.json {
+            if !options.flags.contains_key("deploy-direction") {for line in visibility.lines(held["release"].as_u64().unwrap_or(0),release) {eprintln!("{line}");}}
+            super::release_summary::print(prior_schema.as_ref(),&candidate_schema,&candidate_programs,&snapback4_lang::client_contracts::compact(&hazards),&notes,&steps,&items);
+        }
+        return Ok(payload);
+    }
     if let Some(path) = options.flags.get("bridge") {
         let current = held["release"].as_u64().ok_or("a bridge needs a current deployed release")?;
         super::release_bridge::write(Path::new(path),store_path.parent().ok_or("no deployment directory")?,current,release,&checklist)?;
         eprintln!("bridge starter written to {path}; review its loosened target source and follow ROLLBACK-CHECKLIST.md before activation");
     }
     if options.json {
-        println!("{}",serde_json::to_string_pretty(&serde_json::json!({"preview":true,"security":options.flags.get("security-summary"),"visibility":visibility,"rollbackVisibility":rollback_visibility,"clientCompatibility":client_compatibility,"checklist":checklist,"hazards":hazards,"notes":notes,"current":held,"plan":planned,"steps":steps,"estimate":estimate,"phases":engine.store().adoption_report().summary(),"backfills":engine.store().adoption_report().backfills})).unwrap());
+        println!("{}",serde_json::to_string_pretty(&payload).unwrap());
     } else {
         if !options.flags.contains_key("deploy-direction") {
             for line in visibility.lines(held["release"].as_u64().unwrap_or(0),release) {println!("{line}");}
         }
         println!("preview: release {release} would be current as generation {}; live release unchanged", engine.generation());
-        super::release_summary::print(prior_schema.as_ref(), &candidate_schema, &candidate_programs, &hazards, &notes, &steps, &items);
+        super::release_summary::print(prior_schema.as_ref(), &candidate_schema, &candidate_programs, &snapback4_lang::client_contracts::compact(&hazards), &notes, &steps, &items);
         if !options.flags.contains_key("deploy-direction") { println!("  checklist: prove the named refusal cases and affected lists/counts as real accounts before release {release}; `--bridge <new-dir>` saves loosened target source plus this app's ROLLBACK-CHECKLIST.md"); }
         println!("  storage: {}",snapback4_core::store_port::report::AdoptionReport::dormant(&items));
         if options.flags.contains_key("verbose") {
@@ -229,5 +257,7 @@ pub(super) fn preview(
             }
         }
     }
-    Ok(())
+    Ok(payload)
 }
+
+pub(super) fn preview(store_path:&Path,root:PathBuf,release:u64,options:&Options,held_owner:Option<&crate::store_owner::Owner>)->Result<(),String>{plan(store_path,root,release,options,held_owner).map(|_|())}
