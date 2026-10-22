@@ -24,8 +24,44 @@ test('H9 renderedText opts into substring matching for a row with more than the 
   assert.equal(await row.count(), 1, 'explicit substring matches the whole rendered row');
   assert.equal(await kit.waitForFresh(row, null, {timeoutMs:500}), 'Proof needle — more row text');
   assert.equal(await kit.waitForFresh(kit.renderedText(page, /Proof needle/, {within}), null, 500), 'Proof needle — more row text');
-  await assert.rejects(kit.waitForFresh(row, 'Proof needle — more row text', {timeoutMs:1000}), /getByText.*last count=1.*Proof needle.*present but unchanged/);
+  await assert.rejects(kit.waitForFresh(row, 'Proof needle — more row text', {timeoutMs:1000}), /locator.*last count=1.*Proof needle.*present but unchanged/);
   await assert.rejects(kit.waitForFresh(kit.renderedText(page,'missing'), null, {timeoutMs:1000}), /last count=0.*text=null.*absent/);
+}));
+test('DX6 composed RN text and wrapping labels preserve scope, exactness and ambiguity', {timeout:30000}, async t => browser(t, async page => {
+  await page.setContent(`<section aria-label="Rows"><div><span>Order </span><span>42</span><span> saved</span></div>
+    <label><span>Due </span><strong>tomorrow</strong><input value="secret value"></label>
+    <p hidden>Order 42 saved</p><p>Order 42 saved later</p></section>`);
+  const within = page.getByRole('region', {name:'Rows'});
+  for (const text of ['Order 42 saved', /^Order 42 saved$/]) {
+    const found = kit.renderedText(page, text, {within});
+    assert.equal(await found.count(), 1, 'composed text selects the smallest rendered container');
+    assert.equal(await kit.waitForFresh(found, null, 500), 'Order 42 saved');
+  }
+  assert.equal(await kit.renderedText(page, 'Due tomorrow', {within}).count(), 1, 'wrapping input label composes descendants without its value');
+  assert.equal(await kit.statusText(page, 'Due tomorrow').count(), 1);
+  assert.equal(await kit.renderedText(page, 'secret value', {within}).count(), 0);
+  assert.equal(await kit.renderedText(page, 'order 42 saved', {within}).count(), 0, 'exact remains case sensitive');
+  assert.equal(await kit.renderedText(page, 'Order 42 saved', {within, exact:false}).count(), 2);
+  await page.getByRole('region', {name:'Rows'}).evaluate(el => el.insertAdjacentHTML('beforeend', '<p>Order 42 saved</p>'));
+  await assert.rejects(kit.waitForFresh(kit.renderedText(page, 'Order 42 saved', {within}), null, 500), /strict mode violation/);
+}));
+test('DX6 proof driver installs the SDK bridge without application witness imports', {timeout:30000}, async t => browser(t, async (page, cwd) => {
+  mkdirSync(join(cwd, 'dist'));
+  writeFileSync(join(cwd,'dist/index.html'), `<button>Save</button><script>
+    const op={kind:'mutation',name:'save'}, listeners=new Set();
+    const client={mutate:async()=>({state:'sent',id:'write',seq:1}),onWrite:fn=>{listeners.add(fn);return()=>listeners.delete(fn)}};
+    const app={client,mutate:client.mutate,ready:Promise.resolve({ok:true})};
+    window[Symbol.for('snapback4.proof.app')](app);
+    document.querySelector('button').onclick=()=>app.mutate(op,{title:'composed'});
+  </script>`);
+  const host = await kit.startStatic('dist', {cwd}); t.after(() => host.stop());
+  await page.goto(host.url, {waitUntil:'domcontentloaded'});
+  const button = page.getByRole('button', {name:'Save'});
+  await button.evaluate(el => window.__snapback4Witness.beginForm('save',{title:'composed'},el));
+  await button.click();
+  const result=await kit.bounded(page.evaluate(()=>window.__snapback4Witness.formResult()),1000,'injected receipt');
+  assert.equal(result.state,'sent'); assert.equal(result.mutation,'save');
+  await assert.rejects(page.evaluate(()=>window.__snapback4Witness.mutate('save',{},'direct')), /no matching durable mutation/);
 }));
 test('KIT4 substring advice stays inside explicit scope and timeout names the visible screen', {timeout:30000}, async t => browser(t, async page => {
   await page.setContent('<h1>Open status link</h1><p>Explains Cleared status</p><section aria-label="Status"><p>Waiting</p></section>');

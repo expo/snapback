@@ -9,6 +9,7 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 import type { BrowserContext, BrowserType, LaunchOptions, Locator, Page } from "playwright-core";
+import { registerWebWitness } from "./witness-web.ts";
 import { resolveBinary } from "./bin-path.ts";
 import { bounded, deadline, logged, logText, portRange, ready, stopChild, type ProofHost, type ProofOptions, logsDir } from "./proof-process.ts";
 export { bounded, cleanup, stopChild, portRange } from "./proof-process.ts";
@@ -283,6 +284,9 @@ export async function withBrowser<T>(options: LaunchOptions & Pick<ProofOptions,
         url.searchParams.set("witness", "web");
         history.replaceState(history.state, "", url.href);
       });
+      // The bridge function is self-contained after TypeScript erases types.
+      // Proof code lives in this realm, outside the application's bundle.
+      await context.addInitScript({ content: `window[Symbol.for("snapback4.proof.app")] = (${registerWebWitness.toString()});` });
       context.setDefaultTimeout(30_000); context.setDefaultNavigationTimeout(30_000);
       return await proof(context);
     } finally {
@@ -292,12 +296,23 @@ export async function withBrowser<T>(options: LaunchOptions & Pick<ProofOptions,
   } finally { closeSync(err); closeSync(diagnostic); }
 }
 const substringLocators = new WeakMap<Locator, { locator: Locator; scoped: boolean }>();
-/** Strings match exactly by default; use exact:false or a RegExp for a row with more text. Excludes editable values. */
+/** Match the smallest visible element whose composed descendant text matches.
+ * Strings normalize whitespace and stay exact by default; regexes keep their
+ * own semantics. Editable values never count. Independent matches remain
+ * ambiguous, including repeated rows. */
 /** @throws None at construction; locator observation can refuse ambiguous or invalid selectors. */
+// @ref LLP 3000.000.000.001#11-wave-22-loop-repairs-dx6 — composed text preserves exactness and ambiguity.
 export function renderedText(page: Page, text: string | RegExp, options: { within?: Locator; exact?: boolean } = {}): Locator {
-  const root = options.within ?? page, rendered = page.locator(":not(input):not(textarea)");
-  const locator = root.getByText(text, { exact: options.exact ?? true }).and(rendered);
-  if (typeof text === "string" && options.exact !== false) substringLocators.set(locator, { locator: root.getByText(text, { exact: false }).and(rendered), scoped: options.within !== undefined });
+  const root = options.within ?? page;
+  const match = (exact: boolean) => {
+    const escaped = typeof text === "string" ? text.trim().split(/\s+/).map(word => word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("\\s+") : "";
+    const pattern = typeof text === "string" ? new RegExp(exact ? `^\\s*${escaped}\\s*$` : escaped, exact ? "" : "i") : text;
+    const elements = ":not(input):not(textarea):not(script):not(style):visible";
+    const descendants = page.locator(elements).filter({ hasText: pattern });
+    return root.locator(elements).filter({ hasText: pattern }).filter({ hasNot: descendants });
+  };
+  const locator = match(options.exact ?? true);
+  if (typeof text === "string" && options.exact !== false) substringLocators.set(locator, { locator: match(false), scoped: options.within !== undefined });
   return locator;
 }
 /** Activate before taking a screenshot, particularly on loaded shared hosts. */
@@ -368,6 +383,6 @@ export async function fillRN(locator: Locator, text: string): Promise<void> {
   await locator.pressSequentially(text);
 }
 /** @throws None at construction; ambiguous text is refused when observed. */
-export function statusText(page: Page, text: string | RegExp = /^(?:Ready|pending|sent|failed)$/): Locator { return page.getByText(text, { exact: true }); }
+export function statusText(page: Page, text: string | RegExp = /^(?:Ready|pending|sent|failed)$/): Locator { return renderedText(page, text); }
 /** @throws locator ambiguity, unavailable option or Playwright deadline. */
 export async function selectByValue(locator: Locator, value: string): Promise<void> { await locator.selectOption({ value }); }

@@ -4,10 +4,9 @@ import type { Mutation, Write } from "./contract.js";
 
 export type WitnessReason = "not-ready" | "returned-early" | "event" | "arguments";
 
-const handlerClaim = Symbol("witness explicit handler claim");
-
 type Operations = Record<string, unknown>;
-export function registerWebWitness(app: App, api: Operations): void {
+export function registerWebWitness(app: App, api?: Operations): void {
+  const handlerClaim = Symbol("witness explicit handler claim");
   if (typeof window === "undefined" || typeof window.location?.search !== "string") return;
   const enabled = new URLSearchParams(window.location.search).get("witness") === "web";
   const armed = () => { if (!enabled) throw Object.assign(Error("E_WITNESS_DISABLED: add &witness=web"), { code: "E_WITNESS_DISABLED" }); };
@@ -18,7 +17,7 @@ export function registerWebWitness(app: App, api: Operations): void {
       else if (!("kind" in entry)) walk(entry as Operations);
     }
   } };
-  walk(api);
+  if (api) walk(api);
   let ready = false;
   void app.ready.then(result => { ready = result.ok; }, () => {});
   let form: { terminal: Promise<unknown>; cancel: () => void; claimHandler: (owner: App, event: Event) => { mutate: App["mutate"]; done: () => void } | undefined } | undefined;
@@ -77,7 +76,7 @@ export function registerWebWitness(app: App, api: Operations): void {
       const canonical = (value: unknown): unknown => Array.isArray(value) ? value.map(canonical) : value && typeof value === "object"
         ? Object.fromEntries(Object.keys(value).sort().map(key => [key, canonical((value as Record<string, unknown>)[key])])) : value;
       const execute = async (original: Function, receiver: unknown, op: Mutation<any, any>, args: Record<string, unknown>, options?: any): Promise<Write> => {
-        const durable = operations.some(value => (value as Mutation<any, any>).name === op.name);
+        const durable = api ? operations.some(value => (value as Mutation<any, any>).name === op.name) : op.kind === "mutation" && (op as { ephemeral?: boolean }).ephemeral !== true;
         const eventMatches = options?.[handlerClaim] !== undefined
           ? handlerClaimed && options[handlerClaim] === handlerToken
           : !!click && (window.event === click || (!!submit && window.event === submit));

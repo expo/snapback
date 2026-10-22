@@ -126,7 +126,19 @@ function refusedApp(options: AppOptions, why: Refusal): App {
     ready: Promise.resolve(result), mutate: client.mutate, close: () => client.close() };
 }
 
+// @ref LLP 3000.000.000.001#11-wave-22-loop-repairs-dx6 — proof custody stays outside authored screens.
 export function createApp(options: AppOptions): App {
+  const app = createAppInner(options);
+  // The proof driver installs this callback before page scripts. Ordinary
+  // applications neither import the witness nor publish an app global.
+  if (typeof window !== "undefined" && typeof window.location?.search === "string" && new URLSearchParams(window.location.search).get("witness") === "web") {
+    const install = (window as unknown as Record<symbol, unknown>)[Symbol.for("snapback4.proof.app")];
+    if (typeof install === "function") install(app);
+  }
+  return app;
+}
+
+function createAppInner(options: AppOptions): App {
   validateReadOptions(options);
   // @ref LLP 3000.013.000#17 — refuse unwritable configuration before identity branching.
   if (options.writes !== undefined && (options.writes !== "online" || options.device || options.readOnly)) {

@@ -280,3 +280,42 @@ const expiryRecipe = ts.transpile(readFileSync(new URL("../CLIENT-AND-OPERATIONS
 const receiptsRecipe = ts.transpile(readFileSync(new URL("../../../crates/snapback4-lang/src/guide/receipts.rs", import.meta.url), "utf8")
   .match(/function useReceipts[\s\S]*?\n}/)[0], { target: ts.ScriptTarget.ES2022 });
 const harness = reactHarness(expiryRecipe, receiptsRecipe);
+
+// Render the literal starter list fragments against the shipped component.
+for (const platform of ["web", "expo"]) test(`DX6 ${platform} starter ReadState preserves refused and uncertain answers`, async () => {
+  const { createElement } = await import("react"), { renderToString } = await import("react-dom/server");
+  const sdk = await import("../dist/react.js"), contract = await import("../dist/contract.js");
+  const path = join(root, `crates/snapback4/src/verbs/init/starter/${platform}/todos.tsx`);
+  const fragment = readFileSync(path, "utf8").split("function TodoList")[1];
+  const source = `export function TodoList${fragment}`;
+  const output = ts.transpileModule(source, {compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}}).outputText;
+  const exports = {}, require = createRequire(import.meta.url);
+  const host = tag => ({children, testID, ...props}) => createElement(tag, {"data-testid":testID}, children);
+  const module = {exports};
+  new Function("exports", "require", "ReadState", "existence", "View", "Text", "Pressable", "Button", output)(exports, require, sdk.ReadState, contract.existence, host("div"), host("span"), host("button"), host("button"));
+  const render = read => renderToString(createElement(module.exports.TodoList, {todos:{read,items:"data" in read ? read.data:[],hasMore:false},toggle:{run(){}},remove:{run(){}}}));
+  const ready = (data, flags={}) => ({data,existence:data.length?"present":"absent",complete:true,fresh:true,cut:null,next:null,...flags});
+  assert.match(render({loading:true}), /Loading/);
+  assert.match(render({denied:{message:"No access",code:"DENIED",family:"rule"}}), /Not available: .*No access/);
+  assert.match(render(ready([])), /No tasks yet/);
+  const partial = render(ready([],{existence:"partial",complete:false,fresh:false,cut:"offline"}));
+  assert.match(partial, /No known tasks yet/); assert.doesNotMatch(partial,/No tasks yet/);
+  for (const flags of [{complete:false,existence:"partial",cut:"offline"},{fresh:false},{revalidating:true}]) {
+    assert.match(render(ready([{id:"task",title:"Held task",done:false}],flags)),/Held task/);
+  }
+});
+
+test("DX6 createApp proof callback requires the explicit browser witness URL", async () => {
+  const { createApp } = await import("../dist/app.js");
+  const previous = Object.getOwnPropertyDescriptor(globalThis, "window"), seen=[];
+  try {
+    for (const search of ["", "?witness=wrong", "?witness=web"]) {
+      const fake={location:{search},[Symbol.for("snapback4.proof.app")]:app=>seen.push(app)};
+      Object.defineProperty(globalThis,"window",{configurable:true,value:fake});
+      const app=createApp({url:"http://127.0.0.1:1",writes:"invalid"});
+      assert.equal(seen.includes(app),search==="?witness=web");
+      assert.equal(fake.__snapback4Witness,undefined,"ordinary SDK does not publish a witness global");
+      assert.equal((await app.ready).ok,false); await app.close();
+    }
+  } finally { if(previous)Object.defineProperty(globalThis,"window",previous);else delete globalThis.window; }
+});

@@ -1786,7 +1786,7 @@ export function Home() {
 
 #### Status components and a form
 
-Two shared components cover most screens' status lines: `ReadState` for any read that is not
+Two shared components cover most screens' status lines: `ReadNotice` for any read that is not
 showing rows (it takes `Read<unknown>`, so every query's read fits) and `WriteNote` for any
 write, signal or action outcome (`Outcome`; a hook's `last` is undefined before its first run).
 A read whose arguments do not exist yet takes `{ skip: true }` instead of a wrapper component:
@@ -1798,7 +1798,7 @@ import { isFailed, matchRead, otherwiseAll, readPresentation, useMutation, usePa
 import { api } from "../snapback/generated/api";
 type Message = RowOf<typeof api.thread>;
 /** Loading, refused, proven empty or possibly incomplete: one line for any read. */
-export function ReadState({ read }: { read: Read<unknown> }) {
+export function ReadNotice({ read }: { read: Read<unknown> }) {
   const status = readPresentation(read);
   if (status.why) return <p role="alert">{status.why.message}</p>;
   if (status.pending) return <p role="status">Loading…</p>;
@@ -1820,7 +1820,7 @@ export function Messages({ conversationId }: { conversationId: string | null }) 
     if (!isFailed(write)) setDraft(""); // sent, or pending offline: the outbox owns it now
   }
   return <>
-    {matchRead(page, { ...otherwiseAll(read => <ReadState read={read} />), present: list, partial: rows => <>{list(rows)}<ReadState read={page.read} /></> })}
+    {matchRead(page, { ...otherwiseAll(read => <ReadNotice read={read} />), present: list, partial: rows => <>{list(rows)}<ReadNotice read={page.read} /></> })}
     {page.hasMore && <button onClick={page.loadMore}>More</button>}
     <input value={draft} onChange={e => setDraft(e.target.value)} />
     <button disabled={!conversationId || !draft || send.inFlight} onClick={() => void submit()}>Send</button>

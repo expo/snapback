@@ -141,14 +141,37 @@ impl Platform {
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub(super) enum Body { Todos, Home(Option<String>) }
 
+// Historical templates are exact snapshots: current improvements must not
+// erase the evidence that an older untouched application is still generated.
+fn known_todos(platform: Platform, previous: bool, latest: bool) -> &'static str {
+    match (platform, previous, latest) {
+        (Platform::Web, true, _) => include_str!("starter/previous/wave9/web-todos.tsx"),
+        (Platform::Expo, true, _) => include_str!("starter/previous/wave9/expo-todos.tsx"),
+        (Platform::Web, false, false) => include_str!("starter/previous/wave22/web-todos.tsx"),
+        (Platform::Expo, false, false) => include_str!("starter/previous/wave22/expo-todos.tsx"),
+        (Platform::Web, false, true) => include_str!("starter/web/todos.tsx"),
+        (Platform::Expo, false, true) => include_str!("starter/expo/todos.tsx"),
+    }
+}
+fn known_client(platform: Platform, previous: bool, latest: bool) -> &'static str {
+    match (platform, previous, latest) {
+        (Platform::Web, true, _) => include_str!("starter/previous/wave9/web-client.ts"),
+        (Platform::Expo, true, _) => include_str!("starter/previous/wave9/expo-client.ts"),
+        (Platform::Web, false, false) => include_str!("starter/previous/wave22/web-client.ts"),
+        (Platform::Expo, false, false) => include_str!("starter/previous/wave22/expo-client.ts"),
+        (Platform::Web, false, true) => include_str!("starter/web/client.ts"),
+        (Platform::Expo, false, true) => include_str!("starter/expo/client.ts"),
+    }
+}
+
 /// The starter's screen and client for a schema: the guest sign-in, or, with
 /// `personas`, the persona picker, around `body`. The texts are as the
 /// starter ships them, before init's port rewrite.
-fn screens_version(platform: Platform, personas: Option<&[String]>, body: &Body, previous: bool) -> (String, String) {
+fn screens_version(platform: Platform, personas: Option<&[String]>, body: &Body, previous: bool, latest: bool) -> (String, String) {
     let version = |current, old| if previous { old } else { current };
     let (guest, guest_client, persona, persona_client, todos, home) = match platform {
-        Platform::Web => (include_str!("starter/web/guest.tsx"), version(include_str!("starter/web/client.ts"), include_str!("starter/previous/wave9/web-client.ts")), include_str!("starter/personas/web-app.tsx"), include_str!("starter/personas/web-client.ts"), version(include_str!("starter/web/todos.tsx"), include_str!("starter/previous/wave9/web-todos.tsx")), include_str!("starter/web/home.tsx")),
-        Platform::Expo => (include_str!("starter/expo/guest.tsx"), version(include_str!("starter/expo/client.ts"), include_str!("starter/previous/wave9/expo-client.ts")), version(include_str!("starter/personas/expo-app.tsx"), include_str!("starter/previous/wave9/expo-personas.tsx")), include_str!("starter/personas/expo-client.ts"), version(include_str!("starter/expo/todos.tsx"), include_str!("starter/previous/wave9/expo-todos.tsx")), include_str!("starter/expo/home.tsx")),
+        Platform::Web => (include_str!("starter/web/guest.tsx"), known_client(Platform::Web, previous, latest), include_str!("starter/personas/web-app.tsx"), include_str!("starter/personas/web-client.ts"), known_todos(Platform::Web, previous, latest), include_str!("starter/web/home.tsx")),
+        Platform::Expo => (include_str!("starter/expo/guest.tsx"), known_client(Platform::Expo, previous, latest), version(include_str!("starter/personas/expo-app.tsx"), include_str!("starter/previous/wave9/expo-personas.tsx")), include_str!("starter/personas/expo-client.ts"), known_todos(Platform::Expo, previous, latest), include_str!("starter/expo/home.tsx")),
     };
     let first_read = match platform { Platform::Web => include_str!("starter/web/first-read.tsx"), Platform::Expo => include_str!("starter/expo/first-read.tsx") };
     let (head, client) = match personas {
@@ -376,22 +399,28 @@ pub(super) const EXPO_ENV: &str = include_str!("starter/expo-env.d.ts");
 
 // @ref LLP 3000.011.003.000#8 — password identity gets an executable sign-in screen.
 pub(super) fn identity_screens(platform: Platform, personas: Option<&[String]>, body: &Body, password: bool) -> (String, String) {
+    let (app, client) = identity_screens_version(platform, personas, body, password, false, true);
+    let app = if platform == Platform::Expo { app.replace("import { useNativeSmokeGuest } from \"./src/native-smoke\";", "import { useNativeSmoke } from \"snapback4-expo/native-smoke\";")
+        .replace("useNativeSmokeGuest();", if password { "useNativeSmoke(true);" } else { "useNativeSmoke();" }) } else { app };
+    (app, client)
+}
+pub(super) fn wave22_screens(platform: Platform, personas: Option<&[String]>, body: &Body, password: bool) -> (String, String) {
     let (app, client) = wave20_screens(platform, personas, body, password);
     let app = if platform == Platform::Expo { app.replace("import { useNativeSmokeGuest } from \"./src/native-smoke\";", "import { useNativeSmoke } from \"snapback4-expo/native-smoke\";")
         .replace("useNativeSmokeGuest();", if password { "useNativeSmoke(true);" } else { "useNativeSmoke();" }) } else { app };
     (app, client)
 }
-pub(super) fn wave20_screens(platform: Platform, personas: Option<&[String]>, body: &Body, password: bool) -> (String, String) { identity_screens_version(platform, personas, body, password, false) }
+pub(super) fn wave20_screens(platform: Platform, personas: Option<&[String]>, body: &Body, password: bool) -> (String, String) { identity_screens_version(platform, personas, body, password, false, false) }
 // Recognize only complete known templates; edited application source never matches.
-pub(super) fn previous_screens(platform: Platform, personas: Option<&[String]>, body: &Body, password: bool) -> (String, String) { identity_screens_version(platform, personas, body, password, true) }
-fn identity_screens_version(platform: Platform, personas: Option<&[String]>, body: &Body, password: bool, previous: bool) -> (String, String) {
+pub(super) fn previous_screens(platform: Platform, personas: Option<&[String]>, body: &Body, password: bool) -> (String, String) { identity_screens_version(platform, personas, body, password, true, false) }
+fn identity_screens_version(platform: Platform, personas: Option<&[String]>, body: &Body, password: bool, previous: bool, latest: bool) -> (String, String) {
     let version = |current, old| if previous { old } else { current };
-    if !password { return screens_version(platform, personas, body, previous); }
+    if !password { return screens_version(platform, personas, body, previous, latest); }
     let head = match platform { Platform::Web => include_str!("starter/web/password.tsx"), Platform::Expo => version(include_str!("starter/expo/password.tsx"), include_str!("starter/previous/wave9/expo-password.tsx")) };
-    let (_, client) = screens_version(platform, None, body, previous);
+    let (_, client) = screens_version(platform, None, body, previous, latest);
     let body_source = match (platform, body) {
-        (Platform::Web, Body::Todos) => version(include_str!("starter/web/todos.tsx"), include_str!("starter/previous/wave9/web-todos.tsx")).to_owned(),
-        (Platform::Expo, Body::Todos) => version(include_str!("starter/expo/todos.tsx"), include_str!("starter/previous/wave9/expo-todos.tsx")).to_owned(),
+        (Platform::Web, Body::Todos) => known_todos(Platform::Web, previous, latest).to_owned(),
+        (Platform::Expo, Body::Todos) => known_todos(Platform::Expo, previous, latest).to_owned(),
         (platform, Body::Home(op)) => {
             let (home, first) = match platform { Platform::Web => (include_str!("starter/web/home.tsx"), include_str!("starter/web/first-read.tsx")), Platform::Expo => (include_str!("starter/expo/home.tsx"), include_str!("starter/expo/first-read.tsx")) };
             match op { Some(op) => compose(home, &first.replace("api.OP", &format!("api.{op}"))), None => home.replace("    <FirstRead />\n", "") }
@@ -450,8 +479,8 @@ pub(super) fn native_smoke_version(password: bool, guest: &str) -> String {
 pub(super) fn wave14_screens(platform: Platform, personas: Option<&[String]>, body: &Body, password: bool) -> (String, String) {
     let (app, client) = wave20_screens(platform, personas, body, password);
     let (current, previous) = match platform {
-        Platform::Web => (include_str!("starter/web/todos.tsx"), include_str!("starter/previous/wave14/web-todos.tsx")),
-        Platform::Expo => (include_str!("starter/expo/todos.tsx"), include_str!("starter/previous/wave14/expo-todos.tsx")),
+        Platform::Web => (include_str!("starter/previous/wave22/web-todos.tsx"), include_str!("starter/previous/wave14/web-todos.tsx")),
+        Platform::Expo => (include_str!("starter/previous/wave22/expo-todos.tsx"), include_str!("starter/previous/wave14/expo-todos.tsx")),
     };
     let (_, current_body) = current.split_once("\n\n").expect("imports end");
     let (_, previous_body) = previous.split_once("\n\n").expect("imports end");
