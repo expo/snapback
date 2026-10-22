@@ -1,0 +1,195 @@
+{"runner_pid": 3399892, "started": 1792702188.1612823}
+{"pid": 3399944, "argv": ["ssh", "-o", "BatchMode=yes", "-o", "ControlMaster=no", "-o", "ControlPath=none", "-o", "ExitOnForwardFailure=yes", "-o", "Compression=no", "-N", "-L", "127.0.0.1:62200:127.0.0.1:55493", "expo-build-450a"], "started": 1792702188.8905458}
+{"pid": 3399955, "argv": ["ssh", "-o", "BatchMode=yes", "-o", "ControlMaster=no", "-o", "ControlPath=none", "-o", "ExitOnForwardFailure=yes", "-o", "Compression=no", "-N", "-L", "127.0.0.1:62201:127.0.0.1:55493", "expo-build-450a"], "started": 1792702189.0738318}
+{"pid": 3399957, "argv": ["ssh", "-o", "BatchMode=yes", "-o", "ControlMaster=no", "-o", "ControlPath=none", "-o", "ExitOnForwardFailure=yes", "-o", "Compression=no", "-N", "-L", "127.0.0.1:62202:127.0.0.1:55493", "expo-build-450a"], "started": 1792702189.2561524}
+{"pid": 3399970, "argv": ["ssh", "-o", "BatchMode=yes", "-o", "ControlMaster=no", "-o", "ControlPath=none", "-o", "ExitOnForwardFailure=yes", "-o", "Compression=no", "-N", "-L", "127.0.0.1:62203:127.0.0.1:55493", "expo-build-450a"], "started": 1792702189.438455}
+{"pid": 3399974, "argv": ["ssh", "-o", "BatchMode=yes", "-o", "ControlMaster=no", "-o", "ControlPath=none", "-o", "ExitOnForwardFailure=yes", "-o", "Compression=no", "-N", "-L", "127.0.0.1:62204:127.0.0.1:55493", "expo-build-450a"], "started": 1792702189.600857}
+{"pid": 3399994, "argv": ["ssh", "-o", "BatchMode=yes", "-o", "ControlMaster=no", "-o", "ControlPath=none", "-o", "ExitOnForwardFailure=yes", "-o", "Compression=no", "-N", "-L", "127.0.0.1:62205:127.0.0.1:55493", "expo-build-450a"], "started": 1792702189.7828975}
+{"pid": 3400027, "argv": ["ssh", "-o", "BatchMode=yes", "-o", "ControlMaster=no", "-o", "ControlPath=none", "-o", "ExitOnForwardFailure=yes", "-o", "Compression=no", "-N", "-L", "127.0.0.1:62206:127.0.0.1:55493", "expo-build-450a"], "started": 1792702189.9451573}
+{"pid": 3400028, "argv": ["ssh", "-o", "BatchMode=yes", "-o", "ControlMaster=no", "-o", "ControlPath=none", "-o", "ExitOnForwardFailure=yes", "-o", "Compression=no", "-N", "-L", "127.0.0.1:62207:127.0.0.1:55493", "expo-build-450a"], "started": 1792702190.1073349}
+{"pid": 3400039, "argv": ["ssh", "-o", "BatchMode=yes", "-o", "ControlMaster=no", "-o", "ControlPath=none", "-o", "ExitOnForwardFailure=yes", "-o", "Compression=no", "-N", "-L", "127.0.0.1:62208:127.0.0.1:55493", "expo-build-450a"], "started": 1792702190.289383}
+{"pid": 3400040, "argv": ["ssh", "-o", "BatchMode=yes", "-o", "ControlMaster=no", "-o", "ControlPath=none", "-o", "ExitOnForwardFailure=yes", "-o", "Compression=no", "-N", "-L", "127.0.0.1:62209:127.0.0.1:55493", "expo-build-450a"], "started": 1792702190.451386}
+{"pid": 3400057, "argv": ["ssh", "-o", "BatchMode=yes", "-o", "ControlMaster=no", "-o", "ControlPath=none", "-o", "ExitOnForwardFailure=yes", "-o", "Compression=no", "-N", "-L", "127.0.0.1:62210:127.0.0.1:55493", "expo-build-450a"], "started": 1792702190.6338804}
+{"pid": 3400067, "argv": ["ssh", "-o", "BatchMode=yes", "-o", "ControlMaster=no", "-o", "ControlPath=none", "-o", "ExitOnForwardFailure=yes", "-o", "Compression=no", "-N", "-L", "127.0.0.1:62211:127.0.0.1:55493", "expo-build-450a"], "started": 1792702190.796127}
+{"pid": 3400080, "argv": ["ssh", "-o", "BatchMode=yes", "-o", "ControlMaster=no", "-o", "ControlPath=none", "-o", "ExitOnForwardFailure=yes", "-o", "Compression=no", "-N", "-L", "127.0.0.1:62212:127.0.0.1:55493", "expo-build-450a"], "started": 1792702190.9581027}
+{"pid": 3400081, "argv": ["ssh", "-o", "BatchMode=yes", "-o", "ControlMaster=no", "-o", "ControlPath=none", "-o", "ExitOnForwardFailure=yes", "-o", "Compression=no", "-N", "-L", "127.0.0.1:62213:127.0.0.1:55493", "expo-build-450a"], "started": 1792702191.1199572}
+{"pid": 3400092, "argv": ["ssh", "-o", "BatchMode=yes", "-o", "ControlMaster=no", "-o", "ControlPath=none", "-o", "ExitOnForwardFailure=yes", "-o", "Compression=no", "-N", "-L", "127.0.0.1:62214:127.0.0.1:55493", "expo-build-450a"], "started": 1792702191.3019679}
+{"pid": 3400103, "argv": ["ssh", "-o", "BatchMode=yes", "-o", "ControlMaster=no", "-o", "ControlPath=none", "-o", "ExitOnForwardFailure=yes", "-o", "Compression=no", "-N", "-L", "127.0.0.1:62215:127.0.0.1:55493", "expo-build-450a"], "started": 1792702191.483974}
+{"pid": 3400114, "argv": ["ssh", "-o", "BatchMode=yes", "-o", "ControlMaster=no", "-o", "ControlPath=none", "-o", "ExitOnForwardFailure=yes", "-o", "Compression=no", "-N", "-L", "127.0.0.1:62216:127.0.0.1:55493", "expo-build-450a"], "started": 1792702191.6457005}
+{"pid": 3400133, "argv": ["ssh", "-o", "BatchMode=yes", "-o", "ControlMaster=no", "-o", "ControlPath=none", "-o", "ExitOnForwardFailure=yes", "-o", "Compression=no", "-N", "-L", "127.0.0.1:62217:127.0.0.1:55493", "expo-build-450a"], "started": 1792702191.8274863}
+{"pid": 3400182, "argv": ["ssh", "-o", "BatchMode=yes", "-o", "ControlMaster=no", "-o", "ControlPath=none", "-o", "ExitOnForwardFailure=yes", "-o", "Compression=no", "-N", "-L", "127.0.0.1:62218:127.0.0.1:55493", "expo-build-450a"], "started": 1792702191.9893203}
+{"pid": 3400193, "argv": ["ssh", "-o", "BatchMode=yes", "-o", "ControlMaster=no", "-o", "ControlPath=none", "-o", "ExitOnForwardFailure=yes", "-o", "Compression=no", "-N", "-L", "127.0.0.1:62219:127.0.0.1:55493", "expo-build-450a"], "started": 1792702192.1515987}
+{"pid": 3400195, "argv": ["ssh", "-o", "BatchMode=yes", "-o", "ControlMaster=no", "-o", "ControlPath=none", "-o", "ExitOnForwardFailure=yes", "-o", "Compression=no", "-N", "-L", "127.0.0.1:62220:127.0.0.1:55493", "expo-build-450a"], "started": 1792702192.3136208}
+{"pid": 3400206, "argv": ["ssh", "-o", "BatchMode=yes", "-o", "ControlMaster=no", "-o", "ControlPath=none", "-o", "ExitOnForwardFailure=yes", "-o", "Compression=no", "-N", "-L", "127.0.0.1:62221:127.0.0.1:55493", "expo-build-450a"], "started": 1792702192.495911}
+{"pid": 3400215, "argv": ["ssh", "-o", "BatchMode=yes", "-o", "ControlMaster=no", "-o", "ControlPath=none", "-o", "ExitOnForwardFailure=yes", "-o", "Compression=no", "-N", "-L", "127.0.0.1:62222:127.0.0.1:55493", "expo-build-450a"], "started": 1792702192.6782405}
+{"pid": 3400235, "argv": ["ssh", "-o", "BatchMode=yes", "-o", "ControlMaster=no", "-o", "ControlPath=none", "-o", "ExitOnForwardFailure=yes", "-o", "Compression=no", "-N", "-L", "127.0.0.1:62223:127.0.0.1:55493", "expo-build-450a"], "started": 1792702192.8602712}
+{"pid": 3400246, "argv": ["ssh", "-o", "BatchMode=yes", "-o", "ControlMaster=no", "-o", "ControlPath=none", "-o", "ExitOnForwardFailure=yes", "-o", "Compression=no", "-N", "-L", "127.0.0.1:62224:127.0.0.1:55493", "expo-build-450a"], "started": 1792702193.0422761}
+{"pid": 3400248, "argv": ["ssh", "-o", "BatchMode=yes", "-o", "ControlMaster=no", "-o", "ControlPath=none", "-o", "ExitOnForwardFailure=yes", "-o", "Compression=no", "-N", "-L", "127.0.0.1:62225:127.0.0.1:55493", "expo-build-450a"], "started": 1792702193.2043602}
+{"pid": 3400263, "argv": ["ssh", "-o", "BatchMode=yes", "-o", "ControlMaster=no", "-o", "ControlPath=none", "-o", "ExitOnForwardFailure=yes", "-o", "Compression=no", "-N", "-L", "127.0.0.1:62226:127.0.0.1:55493", "expo-build-450a"], "started": 1792702193.3863757}
+{"pid": 3400270, "argv": ["ssh", "-o", "BatchMode=yes", "-o", "ControlMaster=no", "-o", "ControlPath=none", "-o", "ExitOnForwardFailure=yes", "-o", "Compression=no", "-N", "-L", "127.0.0.1:62227:127.0.0.1:55493", "expo-build-450a"], "started": 1792702193.5683832}
+{"pid": 3400297, "argv": ["ssh", "-o", "BatchMode=yes", "-o", "ControlMaster=no", "-o", "ControlPath=none", "-o", "ExitOnForwardFailure=yes", "-o", "Compression=no", "-N", "-L", "127.0.0.1:62228:127.0.0.1:55493", "expo-build-450a"], "started": 1792702193.7302406}
+{"pid": 3400301, "argv": ["ssh", "-o", "BatchMode=yes", "-o", "ControlMaster=no", "-o", "ControlPath=none", "-o", "ExitOnForwardFailure=yes", "-o", "Compression=no", "-N", "-L", "127.0.0.1:62229:127.0.0.1:55493", "expo-build-450a"], "started": 1792702193.9124093}
+{"pid": 3400312, "argv": ["ssh", "-o", "BatchMode=yes", "-o", "ControlMaster=no", "-o", "ControlPath=none", "-o", "ExitOnForwardFailure=yes", "-o", "Compression=no", "-N", "-L", "127.0.0.1:62230:127.0.0.1:55493", "expo-build-450a"], "started": 1792702194.0945785}
+{"pid": 3400323, "argv": ["ssh", "-o", "BatchMode=yes", "-o", "ControlMaster=no", "-o", "ControlPath=none", "-o", "ExitOnForwardFailure=yes", "-o", "Compression=no", "-N", "-L", "127.0.0.1:62231:127.0.0.1:55493", "expo-build-450a"], "started": 1792702194.276756}
+{"pid": 3400324, "argv": ["ssh", "-o", "BatchMode=yes", "-o", "ControlMaster=no", "-o", "ControlPath=none", "-o", "ExitOnForwardFailure=yes", "-o", "Compression=no", "-N", "-L", "127.0.0.1:62232:127.0.0.1:55493", "expo-build-450a"], "started": 1792702194.4587736}
+{"pid": 3400341, "argv": ["ssh", "-o", "BatchMode=yes", "-o", "ControlMaster=no", "-o", "ControlPath=none", "-o", "ExitOnForwardFailure=yes", "-o", "Compression=no", "-N", "-L", "127.0.0.1:62233:127.0.0.1:55493", "expo-build-450a"], "started": 1792702194.6409056}
+{"pid": 3400350, "argv": ["ssh", "-o", "BatchMode=yes", "-o", "ControlMaster=no", "-o", "ControlPath=none", "-o", "ExitOnForwardFailure=yes", "-o", "Compression=no", "-N", "-L", "127.0.0.1:62234:127.0.0.1:55493", "expo-build-450a"], "started": 1792702194.8232284}
+{"pid": 3400363, "argv": ["ssh", "-o", "BatchMode=yes", "-o", "ControlMaster=no", "-o", "ControlPath=none", "-o", "ExitOnForwardFailure=yes", "-o", "Compression=no", "-N", "-L", "127.0.0.1:62235:127.0.0.1:55493", "expo-build-450a"], "started": 1792702195.0055308}
+{"pid": 3400364, "argv": ["ssh", "-o", "BatchMode=yes", "-o", "ControlMaster=no", "-o", "ControlPath=none", "-o", "ExitOnForwardFailure=yes", "-o", "Compression=no", "-N", "-L", "127.0.0.1:62236:127.0.0.1:55493", "expo-build-450a"], "started": 1792702195.167503}
+{"pid": 3400375, "argv": ["ssh", "-o", "BatchMode=yes", "-o", "ControlMaster=no", "-o", "ControlPath=none", "-o", "ExitOnForwardFailure=yes", "-o", "Compression=no", "-N", "-L", "127.0.0.1:62237:127.0.0.1:55493", "expo-build-450a"], "started": 1792702195.3497655}
+{"pid": 3400386, "argv": ["ssh", "-o", "BatchMode=yes", "-o", "ControlMaster=no", "-o", "ControlPath=none", "-o", "ExitOnForwardFailure=yes", "-o", "Compression=no", "-N", "-L", "127.0.0.1:62238:127.0.0.1:55493", "expo-build-450a"], "started": 1792702195.511735}
+{"pid": 3400393, "argv": ["ssh", "-o", "BatchMode=yes", "-o", "ControlMaster=no", "-o", "ControlPath=none", "-o", "ExitOnForwardFailure=yes", "-o", "Compression=no", "-N", "-L", "127.0.0.1:62239:127.0.0.1:55493", "expo-build-450a"], "started": 1792702195.6738887}
+{"pid": 3400412, "argv": ["ssh", "-o", "BatchMode=yes", "-o", "ControlMaster=no", "-o", "ControlPath=none", "-o", "ExitOnForwardFailure=yes", "-o", "Compression=no", "-N", "-L", "127.0.0.1:62240:127.0.0.1:55493", "expo-build-450a"], "started": 1792702195.8358457}
+{"pid": 3400420, "argv": ["ssh", "-o", "BatchMode=yes", "-o", "ControlMaster=no", "-o", "ControlPath=none", "-o", "ExitOnForwardFailure=yes", "-o", "Compression=no", "-N", "-L", "127.0.0.1:62241:127.0.0.1:55493", "expo-build-450a"], "started": 1792702196.0182772}
+{"pid": 3400442, "argv": ["ssh", "-o", "BatchMode=yes", "-o", "ControlMaster=no", "-o", "ControlPath=none", "-o", "ExitOnForwardFailure=yes", "-o", "Compression=no", "-N", "-L", "127.0.0.1:62242:127.0.0.1:55493", "expo-build-450a"], "started": 1792702196.1801941}
+{"pid": 3400445, "argv": ["ssh", "-o", "BatchMode=yes", "-o", "ControlMaster=no", "-o", "ControlPath=none", "-o", "ExitOnForwardFailure=yes", "-o", "Compression=no", "-N", "-L", "127.0.0.1:62243:127.0.0.1:55493", "expo-build-450a"], "started": 1792702196.3424742}
+{"pid": 3400458, "argv": ["ssh", "-o", "BatchMode=yes", "-o", "ControlMaster=no", "-o", "ControlPath=none", "-o", "ExitOnForwardFailure=yes", "-o", "Compression=no", "-N", "-L", "127.0.0.1:62244:127.0.0.1:55493", "expo-build-450a"], "started": 1792702196.5250614}
+{"pid": 3400472, "argv": ["ssh", "-o", "BatchMode=yes", "-o", "ControlMaster=no", "-o", "ControlPath=none", "-o", "ExitOnForwardFailure=yes", "-o", "Compression=no", "-N", "-L", "127.0.0.1:62245:127.0.0.1:55493", "expo-build-450a"], "started": 1792702196.6873844}
+{"pid": 3400483, "argv": ["ssh", "-o", "BatchMode=yes", "-o", "ControlMaster=no", "-o", "ControlPath=none", "-o", "ExitOnForwardFailure=yes", "-o", "Compression=no", "-N", "-L", "127.0.0.1:62246:127.0.0.1:55493", "expo-build-450a"], "started": 1792702196.8696632}
+{"pid": 3400494, "argv": ["ssh", "-o", "BatchMode=yes", "-o", "ControlMaster=no", "-o", "ControlPath=none", "-o", "ExitOnForwardFailure=yes", "-o", "Compression=no", "-N", "-L", "127.0.0.1:62247:127.0.0.1:55493", "expo-build-450a"], "started": 1792702197.051952}
+{"pid": 3400495, "argv": ["ssh", "-o", "BatchMode=yes", "-o", "ControlMaster=no", "-o", "ControlPath=none", "-o", "ExitOnForwardFailure=yes", "-o", "Compression=no", "-N", "-L", "127.0.0.1:62248:127.0.0.1:55493", "expo-build-450a"], "started": 1792702197.2139728}
+{"pid": 3400506, "argv": ["ssh", "-o", "BatchMode=yes", "-o", "ControlMaster=no", "-o", "ControlPath=none", "-o", "ExitOnForwardFailure=yes", "-o", "Compression=no", "-N", "-L", "127.0.0.1:62249:127.0.0.1:55493", "expo-build-450a"], "started": 1792702197.376038}
+{"pid": 3400507, "argv": ["ssh", "-o", "BatchMode=yes", "-o", "ControlMaster=no", "-o", "ControlPath=none", "-o", "ExitOnForwardFailure=yes", "-o", "Compression=no", "-N", "-L", "127.0.0.1:62250:127.0.0.1:55493", "expo-build-450a"], "started": 1792702197.5382447}
+{"pid": 3400520, "argv": ["ssh", "-o", "BatchMode=yes", "-o", "ControlMaster=no", "-o", "ControlPath=none", "-o", "ExitOnForwardFailure=yes", "-o", "Compression=no", "-N", "-L", "127.0.0.1:62251:127.0.0.1:55493", "expo-build-450a"], "started": 1792702197.7004328}
+{"pid": 3400528, "argv": ["ssh", "-o", "BatchMode=yes", "-o", "ControlMaster=no", "-o", "ControlPath=none", "-o", "ExitOnForwardFailure=yes", "-o", "Compression=no", "-N", "-L", "127.0.0.1:62252:127.0.0.1:55493", "expo-build-450a"], "started": 1792702197.8694234}
+{"pid": 3400550, "argv": ["ssh", "-o", "BatchMode=yes", "-o", "ControlMaster=no", "-o", "ControlPath=none", "-o", "ExitOnForwardFailure=yes", "-o", "Compression=no", "-N", "-L", "127.0.0.1:62253:127.0.0.1:55493", "expo-build-450a"], "started": 1792702198.051635}
+{"pid": 3400551, "argv": ["ssh", "-o", "BatchMode=yes", "-o", "ControlMaster=no", "-o", "ControlPath=none", "-o", "ExitOnForwardFailure=yes", "-o", "Compression=no", "-N", "-L", "127.0.0.1:62254:127.0.0.1:55493", "expo-build-450a"], "started": 1792702198.2140126}
+{"pid": 3400562, "argv": ["ssh", "-o", "BatchMode=yes", "-o", "ControlMaster=no", "-o", "ControlPath=none", "-o", "ExitOnForwardFailure=yes", "-o", "Compression=no", "-N", "-L", "127.0.0.1:62255:127.0.0.1:55493", "expo-build-450a"], "started": 1792702198.3964243}
+{"pid": 3400579, "argv": ["ssh", "-o", "BatchMode=yes", "-o", "ControlMaster=no", "-o", "ControlPath=none", "-o", "ExitOnForwardFailure=yes", "-o", "Compression=no", "-N", "-L", "127.0.0.1:62256:127.0.0.1:55493", "expo-build-450a"], "started": 1792702198.5787299}
+{"pid": 3400586, "argv": ["ssh", "-o", "BatchMode=yes", "-o", "ControlMaster=no", "-o", "ControlPath=none", "-o", "ExitOnForwardFailure=yes", "-o", "Compression=no", "-N", "-L", "127.0.0.1:62257:127.0.0.1:55493", "expo-build-450a"], "started": 1792702198.7404442}
+{"pid": 3400609, "argv": ["ssh", "-o", "BatchMode=yes", "-o", "ControlMaster=no", "-o", "ControlPath=none", "-o", "ExitOnForwardFailure=yes", "-o", "Compression=no", "-N", "-L", "127.0.0.1:62258:127.0.0.1:55493", "expo-build-450a"], "started": 1792702198.902493}
+{"pid": 3400610, "argv": ["ssh", "-o", "BatchMode=yes", "-o", "ControlMaster=no", "-o", "ControlPath=none", "-o", "ExitOnForwardFailure=yes", "-o", "Compression=no", "-N", "-L", "127.0.0.1:62259:127.0.0.1:55493", "expo-build-450a"], "started": 1792702199.0846782}
+{"pid": 3400621, "argv": ["ssh", "-o", "BatchMode=yes", "-o", "ControlMaster=no", "-o", "ControlPath=none", "-o", "ExitOnForwardFailure=yes", "-o", "Compression=no", "-N", "-L", "127.0.0.1:62260:127.0.0.1:55493", "expo-build-450a"], "started": 1792702199.2670112}
+{"pid": 3400624, "argv": ["ssh", "-o", "BatchMode=yes", "-o", "ControlMaster=no", "-o", "ControlPath=none", "-o", "ExitOnForwardFailure=yes", "-o", "Compression=no", "-N", "-L", "127.0.0.1:62261:127.0.0.1:55493", "expo-build-450a"], "started": 1792702199.4491556}
+{"pid": 3400641, "argv": ["ssh", "-o", "BatchMode=yes", "-o", "ControlMaster=no", "-o", "ControlPath=none", "-o", "ExitOnForwardFailure=yes", "-o", "Compression=no", "-N", "-L", "127.0.0.1:62262:127.0.0.1:55493", "expo-build-450a"], "started": 1792702199.6114178}
+{"pid": 3400665, "argv": ["ssh", "-o", "BatchMode=yes", "-o", "ControlMaster=no", "-o", "ControlPath=none", "-o", "ExitOnForwardFailure=yes", "-o", "Compression=no", "-N", "-L", "127.0.0.1:62263:127.0.0.1:55493", "expo-build-450a"], "started": 1792702199.7934206}
+{"pid": 3400671, "argv": ["/home/ccheever/projects/sb4-s1sk/snapback4/target/release/snapback4-postgres-commit-path", "ping", "--n", "3000", "--net", "tunnels"], "started": 1792702199.9756398}
+{"pid": 3400671, "exit_status": 0, "stopped": true}
+{"pid": 3400784, "argv": ["/home/ccheever/projects/sb4-s1sk/snapback4/target/release/snapback4-postgres-commit-path", "ping", "--n", "3000", "--net", "tunnels"], "started": 1792702202.0044968}
+{"pid": 3400784, "exit_status": 0, "stopped": true}
+{"pid": 3400869, "argv": ["/home/ccheever/projects/sb4-s1sk/snapback4/target/release/snapback4-postgres-commit-path", "ping", "--n", "3000", "--net", "tunnels"], "started": 1792702203.9863176}
+{"pid": 3400869, "exit_status": 0, "stopped": true}
+{"pid": 3400978, "argv": ["/home/ccheever/projects/sb4-s1sk/snapback4/target/release/snapback4-postgres-commit-path", "ping", "--n", "1000", "--net", "tunnels"], "started": 1792702206.015063}
+{"pid": 3400978, "exit_status": 0, "stopped": true}
+{"pid": 3401002, "argv": ["/home/ccheever/projects/sb4-s1sk/snapback4/target/release/snapback4-postgres-commit-path", "rt5-flight", "--shape", "w1", "--variant", "serial", "--connections", "32", "--runs", "1", "--net", "tunnels"], "started": 1792702206.781108}
+{"pid": 3401002, "exit_status": 0, "stopped": true}
+{"pid": 3401249, "argv": ["/home/ccheever/projects/sb4-s1sk/snapback4/target/release/snapback4-postgres-commit-path", "rt5-flight", "--shape", "w1", "--variant", "serial", "--connections", "32", "--runs", "1", "--net", "tunnels"], "started": 1792702212.1675844}
+{"pid": 3401249, "exit_status": 0, "stopped": true}
+{"pid": 3401550, "argv": ["/home/ccheever/projects/sb4-s1sk/snapback4/target/release/snapback4-postgres-commit-path", "rt5-flight", "--shape", "w1", "--variant", "serial", "--connections", "32", "--runs", "1", "--net", "tunnels"], "started": 1792702217.529356}
+{"pid": 3401550, "exit_status": 0, "stopped": true}
+{"pid": 3401862, "argv": ["/home/ccheever/projects/sb4-s1sk/snapback4/target/release/snapback4-postgres-commit-path", "ping", "--n", "1000", "--net", "tunnels"], "started": 1792702222.905036}
+{"pid": 3401862, "exit_status": 0, "stopped": true}
+{"pid": 3401892, "argv": ["/home/ccheever/projects/sb4-s1sk/snapback4/target/release/snapback4-postgres-commit-path", "ping", "--n", "1000", "--net", "tunnels"], "started": 1792702223.6771204}
+{"pid": 3401892, "exit_status": 0, "stopped": true}
+{"pid": 3401949, "argv": ["/home/ccheever/projects/sb4-s1sk/snapback4/target/release/snapback4-postgres-commit-path", "rt5-flight", "--shape", "w1", "--variant", "simple", "--connections", "32", "--runs", "1", "--net", "tunnels"], "started": 1792702224.5489125}
+{"pid": 3401949, "exit_status": 0, "stopped": true}
+{"pid": 3402330, "argv": ["/home/ccheever/projects/sb4-s1sk/snapback4/target/release/snapback4-postgres-commit-path", "rt5-flight", "--shape", "w1", "--variant", "simple", "--connections", "32", "--runs", "1", "--net", "tunnels"], "started": 1792702229.8725798}
+{"pid": 3402330, "exit_status": 0, "stopped": true}
+{"pid": 3402635, "argv": ["/home/ccheever/projects/sb4-s1sk/snapback4/target/release/snapback4-postgres-commit-path", "rt5-flight", "--shape", "w1", "--variant", "simple", "--connections", "32", "--runs", "1", "--net", "tunnels"], "started": 1792702235.295562}
+{"pid": 3402635, "exit_status": 0, "stopped": true}
+{"pid": 3402962, "argv": ["/home/ccheever/projects/sb4-s1sk/snapback4/target/release/snapback4-postgres-commit-path", "ping", "--n", "1000", "--net", "tunnels"], "started": 1792702240.7365825}
+{"pid": 3402962, "exit_status": 0, "stopped": true}
+{"pid": 3402990, "argv": ["/home/ccheever/projects/sb4-s1sk/snapback4/target/release/snapback4-postgres-commit-path", "ping", "--n", "1000", "--net", "tunnels"], "started": 1792702241.482712}
+{"pid": 3402990, "exit_status": 0, "stopped": true}
+{"pid": 3403040, "argv": ["/home/ccheever/projects/sb4-s1sk/snapback4/target/release/snapback4-postgres-commit-path", "rt5-flight", "--shape", "w1", "--variant", "envelope", "--connections", "32", "--runs", "1", "--net", "tunnels"], "started": 1792702242.2488558}
+{"pid": 3403040, "exit_status": 0, "stopped": true}
+{"pid": 3403395, "argv": ["/home/ccheever/projects/sb4-s1sk/snapback4/target/release/snapback4-postgres-commit-path", "rt5-flight", "--shape", "w1", "--variant", "envelope", "--connections", "32", "--runs", "1", "--net", "tunnels"], "started": 1792702247.610248}
+{"pid": 3403395, "exit_status": 0, "stopped": true}
+{"pid": 3403725, "argv": ["/home/ccheever/projects/sb4-s1sk/snapback4/target/release/snapback4-postgres-commit-path", "rt5-flight", "--shape", "w1", "--variant", "envelope", "--connections", "32", "--runs", "1", "--net", "tunnels"], "started": 1792702253.0210454}
+{"pid": 3403725, "exit_status": 0, "stopped": true}
+{"pid": 3404080, "argv": ["/home/ccheever/projects/sb4-s1sk/snapback4/target/release/snapback4-postgres-commit-path", "ping", "--n", "1000", "--net", "tunnels"], "started": 1792702258.4047644}
+{"pid": 3404080, "exit_status": 0, "stopped": true}
+{"pid": 3404138, "argv": ["/home/ccheever/projects/sb4-s1sk/snapback4/target/release/snapback4-postgres-commit-path", "ping", "--n", "1000", "--net", "tunnels"], "started": 1792702259.1404378}
+{"pid": 3404138, "exit_status": 0, "stopped": true}
+{"pid": 3404187, "argv": ["/home/ccheever/projects/sb4-s1sk/snapback4/target/release/snapback4-postgres-commit-path", "rt5-flight", "--shape", "mutation", "--variant", "serial", "--connections", "32", "--runs", "1", "--net", "tunnels"], "started": 1792702259.913257}
+{"pid": 3404187, "exit_status": 0, "stopped": true}
+{"pid": 3404520, "argv": ["/home/ccheever/projects/sb4-s1sk/snapback4/target/release/snapback4-postgres-commit-path", "rt5-flight", "--shape", "mutation", "--variant", "serial", "--connections", "32", "--runs", "1", "--net", "tunnels"], "started": 1792702265.6647215}
+{"pid": 3404520, "exit_status": 0, "stopped": true}
+{"pid": 3404873, "argv": ["/home/ccheever/projects/sb4-s1sk/snapback4/target/release/snapback4-postgres-commit-path", "rt5-flight", "--shape", "mutation", "--variant", "serial", "--connections", "32", "--runs", "1", "--net", "tunnels"], "started": 1792702271.424999}
+{"pid": 3404873, "exit_status": 0, "stopped": true}
+{"pid": 3405220, "argv": ["/home/ccheever/projects/sb4-s1sk/snapback4/target/release/snapback4-postgres-commit-path", "ping", "--n", "1000", "--net", "tunnels"], "started": 1792702277.1664414}
+{"pid": 3405220, "exit_status": 0, "stopped": true}
+{"pid": 3405296, "argv": ["/home/ccheever/projects/sb4-s1sk/snapback4/target/release/snapback4-postgres-commit-path", "ping", "--n", "1000", "--net", "tunnels"], "started": 1792702277.938785}
+{"pid": 3405296, "exit_status": 0, "stopped": true}
+{"pid": 3405329, "argv": ["/home/ccheever/projects/sb4-s1sk/snapback4/target/release/snapback4-postgres-commit-path", "rt5-flight", "--shape", "mutation", "--variant", "simple", "--connections", "32", "--runs", "1", "--net", "tunnels"], "started": 1792702278.7234993}
+{"pid": 3405329, "exit_status": 0, "stopped": true}
+{"pid": 3405806, "argv": ["/home/ccheever/projects/sb4-s1sk/snapback4/target/release/snapback4-postgres-commit-path", "rt5-flight", "--shape", "mutation", "--variant", "simple", "--connections", "32", "--runs", "1", "--net", "tunnels"], "started": 1792702284.79876}
+{"pid": 3405806, "exit_status": 0, "stopped": true}
+{"pid": 3406313, "argv": ["/home/ccheever/projects/sb4-s1sk/snapback4/target/release/snapback4-postgres-commit-path", "rt5-flight", "--shape", "mutation", "--variant", "simple", "--connections", "32", "--runs", "1", "--net", "tunnels"], "started": 1792702290.3982124}
+{"pid": 3406313, "exit_status": 0, "stopped": true}
+{"pid": 3406739, "argv": ["/home/ccheever/projects/sb4-s1sk/snapback4/target/release/snapback4-postgres-commit-path", "ping", "--n", "1000", "--net", "tunnels"], "started": 1792702296.0338132}
+{"pid": 3406739, "exit_status": 0, "stopped": true}
+{"pid": 3406778, "argv": ["/home/ccheever/projects/sb4-s1sk/snapback4/target/release/snapback4-postgres-commit-path", "ping", "--n", "1000", "--net", "tunnels"], "started": 1792702296.7682707}
+{"pid": 3406778, "exit_status": 0, "stopped": true}
+{"pid": 3406841, "argv": ["/home/ccheever/projects/sb4-s1sk/snapback4/target/release/snapback4-postgres-commit-path", "rt5-flight", "--shape", "mutation", "--variant", "envelope", "--connections", "32", "--runs", "1", "--net", "tunnels"], "started": 1792702297.5917718}
+{"pid": 3406841, "exit_status": 0, "stopped": true}
+{"pid": 3407228, "argv": ["/home/ccheever/projects/sb4-s1sk/snapback4/target/release/snapback4-postgres-commit-path", "rt5-flight", "--shape", "mutation", "--variant", "envelope", "--connections", "32", "--runs", "1", "--net", "tunnels"], "started": 1792702303.2667196}
+{"pid": 3407228, "exit_status": 0, "stopped": true}
+{"pid": 3407555, "argv": ["/home/ccheever/projects/sb4-s1sk/snapback4/target/release/snapback4-postgres-commit-path", "rt5-flight", "--shape", "mutation", "--variant", "envelope", "--connections", "32", "--runs", "1", "--net", "tunnels"], "started": 1792702308.9698071}
+{"pid": 3407555, "exit_status": 0, "stopped": true}
+{"pid": 3407916, "argv": ["/home/ccheever/projects/sb4-s1sk/snapback4/target/release/snapback4-postgres-commit-path", "ping", "--n", "1000", "--net", "tunnels"], "started": 1792702314.5883546}
+{"pid": 3407916, "exit_status": 0, "stopped": true}
+{"pid": 3399944, "stopped": true, "exit_status": 0}
+{"pid": 3399955, "stopped": true, "exit_status": 0}
+{"pid": 3399957, "stopped": true, "exit_status": 0}
+{"pid": 3399970, "stopped": true, "exit_status": 0}
+{"pid": 3399974, "stopped": true, "exit_status": 0}
+{"pid": 3399994, "stopped": true, "exit_status": 0}
+{"pid": 3400027, "stopped": true, "exit_status": 0}
+{"pid": 3400028, "stopped": true, "exit_status": 0}
+{"pid": 3400039, "stopped": true, "exit_status": 0}
+{"pid": 3400040, "stopped": true, "exit_status": 0}
+{"pid": 3400057, "stopped": true, "exit_status": 0}
+{"pid": 3400067, "stopped": true, "exit_status": 0}
+{"pid": 3400080, "stopped": true, "exit_status": 0}
+{"pid": 3400081, "stopped": true, "exit_status": 0}
+{"pid": 3400092, "stopped": true, "exit_status": 0}
+{"pid": 3400103, "stopped": true, "exit_status": 0}
+{"pid": 3400114, "stopped": true, "exit_status": 0}
+{"pid": 3400133, "stopped": true, "exit_status": 0}
+{"pid": 3400182, "stopped": true, "exit_status": 0}
+{"pid": 3400193, "stopped": true, "exit_status": 0}
+{"pid": 3400195, "stopped": true, "exit_status": 0}
+{"pid": 3400206, "stopped": true, "exit_status": 0}
+{"pid": 3400215, "stopped": true, "exit_status": 0}
+{"pid": 3400235, "stopped": true, "exit_status": 0}
+{"pid": 3400246, "stopped": true, "exit_status": 0}
+{"pid": 3400248, "stopped": true, "exit_status": 0}
+{"pid": 3400263, "stopped": true, "exit_status": 0}
+{"pid": 3400270, "stopped": true, "exit_status": 0}
+{"pid": 3400297, "stopped": true, "exit_status": 0}
+{"pid": 3400301, "stopped": true, "exit_status": 0}
+{"pid": 3400312, "stopped": true, "exit_status": 0}
+{"pid": 3400323, "stopped": true, "exit_status": 0}
+{"pid": 3400324, "stopped": true, "exit_status": 0}
+{"pid": 3400341, "stopped": true, "exit_status": 0}
+{"pid": 3400350, "stopped": true, "exit_status": 0}
+{"pid": 3400363, "stopped": true, "exit_status": 0}
+{"pid": 3400364, "stopped": true, "exit_status": 0}
+{"pid": 3400375, "stopped": true, "exit_status": 0}
+{"pid": 3400386, "stopped": true, "exit_status": 0}
+{"pid": 3400393, "stopped": true, "exit_status": 0}
+{"pid": 3400412, "stopped": true, "exit_status": 0}
+{"pid": 3400420, "stopped": true, "exit_status": 0}
+{"pid": 3400442, "stopped": true, "exit_status": 0}
+{"pid": 3400445, "stopped": true, "exit_status": 0}
+{"pid": 3400458, "stopped": true, "exit_status": 0}
+{"pid": 3400472, "stopped": true, "exit_status": 0}
+{"pid": 3400483, "stopped": true, "exit_status": 0}
+{"pid": 3400494, "stopped": true, "exit_status": 0}
+{"pid": 3400495, "stopped": true, "exit_status": 0}
+{"pid": 3400506, "stopped": true, "exit_status": 0}
+{"pid": 3400507, "stopped": true, "exit_status": 0}
+{"pid": 3400520, "stopped": true, "exit_status": 0}
+{"pid": 3400528, "stopped": true, "exit_status": 0}
+{"pid": 3400550, "stopped": true, "exit_status": 0}
+{"pid": 3400551, "stopped": true, "exit_status": 0}
+{"pid": 3400562, "stopped": true, "exit_status": 0}
+{"pid": 3400579, "stopped": true, "exit_status": 0}
+{"pid": 3400586, "stopped": true, "exit_status": 0}
+{"pid": 3400609, "stopped": true, "exit_status": 0}
+{"pid": 3400610, "stopped": true, "exit_status": 0}
+{"pid": 3400621, "stopped": true, "exit_status": 0}
+{"pid": 3400624, "stopped": true, "exit_status": 0}
+{"pid": 3400641, "stopped": true, "exit_status": 0}
+{"pid": 3400665, "stopped": true, "exit_status": 0}

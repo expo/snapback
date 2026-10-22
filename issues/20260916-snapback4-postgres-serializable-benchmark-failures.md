@@ -167,3 +167,26 @@ Runtime changes are `fc7e2eb740` and the evaluator-report adaptation
 lockfile-only preflight failure is retained separately. All three owned
 clusters are independently confirmed stopped (status 3, no postmaster.pid).
 See the [round-1 report](../snapback4/reports/20261022-s10c-postgres-arm.md#s10c-fix-round-1--2026-10-22).
+
+## 2026-10-23 — RT5 fix-round-1 qualification
+
+The RT5 worktree above `8f6d9b0b0d` reproduced SQLSTATE 40001 from the
+increment at `experiments/postgres/tests/conformance.rs:244` (joined at line
+257) in the full en_US.utf8 PG16.15 script: 371 Rust passes / one failure,
+with all remaining stages and the public serving/P1-MC milestone passing.
+Serialized completed 65 increments with zero retries; a Serializable worker
+returned `could not serialize access due to concurrent update`.
+
+The required isolated rerun **also fails** with the same SQLSTATE and site,
+after Serialized again completes all 65 increments with zero retries. It ran
+the exact conformance executable produced by the script, filtered with
+`--exact --include-ignored --nocapture`, on the lane's separate en_US.utf8
+database. The executable hash, full outputs and cleanup are retained in the
+[RT5 fix-round-1 report](../snapback4/reports/20261022-rt5-flight-mechanism/REPORT.md#fix-round-1-checks-and-cleanup--2026-10-23).
+
+RT5 changes no evaluator source, mutation or retry path, and the evaluator
+has no literal-codec calls. No limit, backoff, timeout, concurrency or
+durability input changed. This adds a repeated occurrence of the open stress
+failure, not a root-cause attribution or a claim of a green full script.
+All owned PG16 clusters are stopped, with status 3, no postmaster.pid and
+absent PIDs; all eight codec/flight tests pass on both C and en_US.utf8.

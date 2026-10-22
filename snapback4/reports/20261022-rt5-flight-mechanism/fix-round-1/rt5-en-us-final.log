@@ -1,0 +1,51 @@
+    Updating crates.io index
+warning: failed to write cache, path: /home/ccheever/.cargo/registry/index/index.crates.io-1949cf8c6b5b557f/.cache/we/b-/web-sys, error: Permission denied (os error 13)
+warning: failed to auto-clean cache data
+
+failed to clean entries from the global cache
+
+Caused by:
+  failed to remove file `/home/ccheever/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/cranelift-codegen-meta-0.132.1/Cargo.toml`
+
+Caused by:
+  Permission denied (os error 13)
+warning: function `interval` is never used
+  --> crates/snapback4-lang/src/release_changes.rs:57:8
+   |
+57 | pub fn interval(previous: &str, installed: &str) -> String {
+   |        ^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-lang` (build script) generated 1 warning
+warning: unused import: `LedgerTransaction`
+ --> crates/snapback4-core/src/store_port/tests.rs:2:50
+  |
+2 | use crate::{RuntimeError, ledger::{LedgerReader, LedgerTransaction}, revocation::{self, ChangeEvidence}};
+  |                                                  ^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-core` (lib test) generated 1 warning
+    Finished `test` profile [optimized + debuginfo] target(s) in 1.14s
+     Running unittests src/lib.rs (target/debug/deps/snapback4_core-c5a241412d631780)
+
+running 8 tests
+test engine::postgres::literal_tests::encoder_refuses_nul_and_unsupported_types_without_server ... ok
+test engine::postgres::literal_tests::rt5_length_boundaries_and_excluded_coercing_types ... ok
+test engine::postgres::literal_tests::rt5_nan_canonicalization_exact_bits ... ok
+
+thread 'engine::postgres::literal_tests::rt5_decode_failure_leaves_transaction_usable_like_bind' (1236757) panicked at crates/snapback4-core/src/engine/postgres/literal_tests.rs:361:82:
+error retrieving column 0: error deserializing column 0
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test engine::postgres::literal_tests::rt5_decode_failure_leaves_transaction_usable_like_bind ... ok
+test engine::postgres::literal_tests::rt5_nul_refusal_poisons_exactly_like_bind ... ok
+RT5 simple: proven lock wait; generation=2 principal=after receipt=Some("after")
+test engine::postgres::literal_tests::rt5_ordered_error_guard_and_envelope_refusals ... ok
+test engine::postgres::literal_tests::rt5_literal_bind_difftest ... ok
+RT5 plpgsql: proven lock wait; generation=2 principal=after receipt=Some("after")
+RT5 sql: proven lock wait; generation=1 principal=before receipt=None
+test engine::postgres::literal_tests::rt5_lock_wait_visibility_simple_plpgsql_and_sql_control ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 908 filtered out; finished in 0.68s
+

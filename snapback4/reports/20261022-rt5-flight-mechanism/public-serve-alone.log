@@ -1,0 +1,26 @@
+public witness binary /home/ccheever/projects/sb4-p0-s8/snapback4/target/debug/snapback4
+transport: hostaddr override, TCP host and mixed hosts refused before any TCP connect
+public witness cluster locale en_US.utf8
+cluster pid 894705 directory /tmp/s10d3-serve-46nikjxb
+check: admitted app compiled; help distinguishes backends and unsupported flags refuse
+bootstrap: missing additive columns, changed type/default/constraint/index refuse read-only; catalog and pg_stat_user_tables writes unchanged, token=0, no binding
+bootstrap: missing intent, same-target store swap, probe-only schema, missing tables/markers, generation mismatch and owner shape refuse; token=0, intent unchanged, no binding
+recovery binding: unknown password and nested fields dropped
+binding failure: retry adopted the same unselected bootstrap and recorded its effective socket
+release 1 is current as generation 1
+failed startup: lease explicitly released; immediate corrected serve succeeded
+HTTP: server exception detail redacted; store failure code retained
+HTTP: guest/session, query, identified mutation, receipt replay, changes preserved=null; doctor positive owner/lease
+second serve: E_STORE_OWNERSHIP before readiness
+server stopped and confirmed: pid 906927 status -15
+restart: data, session, store id, generation and receipt persisted
+server stopped and confirmed: pid 907062 status -9
+SIGKILL: recorded owner reaped; standby acquired after database-clock lease expiry
+logout: old session refused; ownership loss: process exits and listener closes
+server stopped and confirmed: pid 907287 status -15
+reopened deploy: release 2/generation 2, changed program and original data persist; serving role is non-superuser
+out-of-profile deploy: E_STORE_UNSUPPORTED; no schema/activation published
+server stopped and confirmed: pid 909242 status -15
+P1-MC PASS: unchanged S1 Quarry deploy --store-url and public serve; 24 seeded + one public post; every room/user total equals recount
+PASS public Postgres serving milestone; artifacts /tmp/s10d3-serve-46nikjxb
+owned cluster stopped and confirmed: status=3, no postmaster.pid; retained /tmp/s10d3-serve-46nikjxb

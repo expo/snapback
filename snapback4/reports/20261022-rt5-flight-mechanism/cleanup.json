@@ -1,0 +1,89 @@
+{
+  "clusters": [
+    {
+      "pid": 319073,
+      "directory": "/tmp/rt5-pg.SZaNV8",
+      "kind": "RT5 loopback/default locale",
+      "status": 3,
+      "postmaster_pid_absent": true
+    },
+    {
+      "pid": 501389,
+      "directory": "/tmp/sb4-pg-eval.bxS5ji",
+      "kind": "postgres-script.log evaluation",
+      "status": 3,
+      "postmaster_pid_absent": true
+    },
+    {
+      "pid": 576252,
+      "directory": "/tmp/s10d3-serve-ghouuwuv",
+      "kind": "postgres-script.log public witness",
+      "status": 3,
+      "postmaster_pid_absent": true
+    },
+    {
+      "pid": 590474,
+      "directory": "/tmp/sb4-pg-eval.KQERvx",
+      "kind": "postgres-script-final.log evaluation",
+      "status": 3,
+      "postmaster_pid_absent": true
+    },
+    {
+      "pid": 864864,
+      "directory": "/tmp/s10d3-serve-vn823yli",
+      "kind": "postgres-script-final.log public witness",
+      "status": 3,
+      "postmaster_pid_absent": true
+    },
+    {
+      "pid": 894705,
+      "directory": "/tmp/s10d3-serve-46nikjxb",
+      "kind": "public-serve-alone.log public witness",
+      "status": 3,
+      "postmaster_pid_absent": true
+    }
+  ],
+  "public_serve_pids": [
+    {
+      "name": "first",
+      "pid": 906927,
+      "directory": "/tmp/s10d3-serve-46nikjxb"
+    },
+    {
+      "name": "contender",
+      "pid": 906971,
+      "directory": "/tmp/s10d3-serve-46nikjxb"
+    },
+    {
+      "name": "restart",
+      "pid": 907062,
+      "directory": "/tmp/s10d3-serve-46nikjxb"
+    },
+    {
+      "name": "standby",
+      "pid": 907244,
+      "directory": "/tmp/s10d3-serve-46nikjxb"
+    },
+    {
+      "name": "second-release",
+      "pid": 907287,
+      "directory": "/tmp/s10d3-serve-46nikjxb"
+    },
+    {
+      "name": "p1mc-scale",
+      "pid": 909242,
+      "directory": "/tmp/s10d3-serve-46nikjxb"
+    }
+  ],
+  "recorded_pid_checks": 59,
+  "pids_left": [],
+  "target_executables_left": [],
+  "benchmark_cleanup": {
+    "complete": true,
+    "all_recorded_children_stopped": true,
+    "children": 33,
+    "tunnels": 0,
+    "schemas_removed_by_completed_cells": true,
+    "pids_left": []
+  }
+}
