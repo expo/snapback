@@ -102049,3 +102049,11 @@ Owned database/role/private setup files are removed; independent custody checks
 confirm no live owned process and shared postmaster 2735539 remains alive with
 durability settings on. No cluster restart/reconfiguration, push, stash, clone,
 sub-agent, sudo, Docker, paid service or production/readiness claim.
+
+Integration 23 packed follow-through: the production-account day-two guide
+probe still expected an added `note` to disappear on default rollback. The
+registered current guarded closure correctly preserves `evolved`; the recipe
+now asserts that value, while retaining every membership and outsider refusal
+assertion. The packed proof found this before qualification could pass. The
+newly merged PG2 seed tool's standalone lock is aligned from core 0.4.37 to
+0.4.39; a disposable manifest with the same source passes locked cargo check.

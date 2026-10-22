@@ -88,7 +88,8 @@ await withBrowser({ executablePath: process.env.CHROME }, async context => {
     const invited = await call(admin, "m", "invite", { teamId, principal: member.session.principal, role: "member" });
     assert.equal(invited.state, "sent", JSON.stringify(invited));
     await business("v2", true, true);
-    await rollback(directory, 1); await business("rollback-v1", false, true);
+    // Default rollback keeps the current guarded closure and its added note.
+    await rollback(directory, 1); await business("rollback-v1", true, true);
     await rollback(directory, "latest"); await business("forward-v2", true, true);
     console.log("day-two accounts passed: v1, hot v2, rollback, forward; business assertions at every step");
   } finally { await cleanup(() => web?.stop(), () => serve?.stop(), () => rm(work, { recursive: true, force: true })); }
