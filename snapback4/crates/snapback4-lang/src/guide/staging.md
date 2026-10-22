@@ -84,7 +84,8 @@ try {
 optional `args(account)` merges over `{principal, role}` (explicit keys win).
 Use `service: "ops"` for a provisioning mutation authorized as `service:ops`.
 Each call creates new random email/password pairs and returns role arrays of
-`{role,email,password,principal,token,expiresAt}`. Ordinary sessions last seven
+`{kind:"user",role,email,password,principal,token,expiresAt}`. These complete
+sessions can be passed directly to createClient. Ordinary sessions last seven
 days; sign in again with `login` from snapback4/auth when needed. Setup is
 sequential and bounded (default five minutes, timeoutMs overrides it, max 100
 accounts). Identity 429 refusals wait for retryAfterMs (Retry-After on older

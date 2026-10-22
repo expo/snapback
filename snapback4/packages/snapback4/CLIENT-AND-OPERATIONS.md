@@ -622,6 +622,13 @@ receives it. A persona client's `session()` is null; a bare-token client's
 is null until `refreshSession()` returns the session. Applications that
 persist an online session keep its replacements from `onSession`.
 
+Both constructors validate complete sessions before effects and snapshot their
+primitive fields. `E_SESSION` names every missing or invalid field and the
+repair `createClient({ url, token })`. Online legacy partial objects such as
+`{principal, token}` use only the bearer: `session()` stays null, the server
+supplies the viewer, and no automatic refresh timer is installed. Complete
+sessions retain managed refresh; local/device constructors require them.
+
 **Read-only observers.** Sign in with `{ scope: "read" }`, or narrow a password/guest session without revoking its full credential. Use the returned credential with `readOnly: true`. Startup verifies server scope before queries or assets; `createApp` uses a separate `.read` session key. Read clients have no device or write queue, cannot consume once-media, and do not advance delivered/seen watermarks or presence. `refreshSession()` refuses `E_READ_ONLY_REFRESH` locally; the SDK never rotates read sessions, automatically or explicitly. At `expiresAt`, reads surface `E_AUTH`: sign in again or narrow a full session again. See `guide read-only` for the expiry cap and allowed routes.
 
 ```ts

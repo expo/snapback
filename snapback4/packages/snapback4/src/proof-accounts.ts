@@ -3,7 +3,7 @@ import { randomUUID, randomBytes } from "node:crypto";
 import type { ServeHost } from "./proof.ts";
 
 export interface StagingAccount {
-  role: string; email: string; password: string; principal: string; token: string; expiresAt: number;
+  kind: "user"; role: string; email: string; password: string; principal: string; token: string; expiresAt: number;
 }
 export type StagingSessions = Record<string, StagingAccount[]>;
 export interface SeedAccountsOptions {
@@ -53,11 +53,11 @@ export async function seedAccounts(host: Pick<ServeHost, "url" | "operatorToken"
       if ((reply.denied as {code?:string} | undefined)?.code === "E_RATE_LIMIT") {
         throw Error("E_STAGING_TIMEOUT: identity retry budget exhausted; increase timeoutMs or inspect partial accounts/grants before retrying");
       }
-      const session = reply.session as {principal?:string;token?:string;expiresAt?:number} | undefined;
-      if (typeof session?.principal !== "string" || typeof session.token !== "string" || typeof session.expiresAt !== "number") {
+      const session = reply.session as {principal?:string;kind?:string;token?:string;expiresAt?:number} | undefined;
+      if (typeof session?.principal !== "string" || typeof session.token !== "string" || typeof session.expiresAt !== "number" || session.kind !== "user") {
         throw Error(`E_STAGING_SIGNUP: signup refused (${(reply.denied as {code?:string} | undefined)?.code ?? "invalid reply"}); partial accounts/grants may exist`);
       }
-      const account: StagingAccount = { role, email, password, principal: session.principal, token: session.token, expiresAt: session.expiresAt };
+      const account: StagingAccount = { kind: session.kind, role, email, password, principal: session.principal, token: session.token, expiresAt: session.expiresAt };
       const args = { principal: account.principal, role, ...options.args?.(account) };
       const response = await request(`/m/${options.provision.name}`, { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${operator}` }, body: JSON.stringify({ id: randomUUID(), args }) });
       const result = await response.json();

@@ -1,4 +1,4 @@
-import { suppliedSession } from "./session-input.ts";
+import { suppliedOnlineSession } from "./session-input.ts";
 import { servedRelease } from "./release.ts";
 import { dependencies, intersects, intervalChanges, readFootprint, type Changes, QueryCuts, waitForQueryWrites } from "./query-dependencies.ts";
 import { bindSessionRefusal } from "./session-refusal.ts";
@@ -62,8 +62,8 @@ export interface ClientOptions {
   readonly url: string;
   /** A development persona (loopback only): `alice` acts as `dev:alice`. */
   readonly persona?: string;
-  /** A session from `guest()`, `login()` or `signup()` (deployed servers). */
-  readonly session?: Session;
+  /** A complete session enables managed refresh. Legacy partial objects use only their token, like the token option. */
+  readonly session?: Session | { readonly token: string; readonly principal?: string; readonly kind?: string; readonly expiresAt?: number | string };
   /** A bare bearer token, when the app keeps sessions itself. */
   readonly token?: string;
   /** Explicitly request engine work; loopback dev includes it by default and serve never returns it. */
@@ -178,7 +178,8 @@ export function idFrom(key: string): string {
 let warnedBrowserWrites = false;
 
 export function createClient(options: ClientOptions): Client {
-  const initialSession = suppliedSession(options.session, "createClient");
+  const supplied = suppliedOnlineSession(options.session);
+  const initialSession = supplied.session;
   let release: ReturnType<typeof servedRelease> | undefined;
   validateReadOptions(options);
   // @ref LLP 3000.013#6.2 — say so at construction, not at the first refused click.
@@ -212,7 +213,7 @@ export function createClient(options: ClientOptions): Client {
   const headers: Record<string, string> = { "content-type": "application/json" };
   if (options.persona) headers["x-snapback-persona"] = options.persona;
   let session = options.persona ? null : initialSession ?? null;
-  const token = options.persona ? undefined : session?.token ?? options.token;
+  const token = options.persona ? undefined : session?.token ?? supplied.token ?? options.token;
   if (token) headers.authorization = `Bearer ${token}`;
   let viewer: Principal | null = options.persona ? (`dev:${options.persona}` as Principal) : initialSession ? (initialSession.principal as Principal) : null;
   let credentials = Boolean(viewer || token);
