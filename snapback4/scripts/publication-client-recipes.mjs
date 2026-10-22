@@ -70,7 +70,7 @@ export async function proveClientRecipes(client, platform, directory) {
   await run(process.execPath, ["--test", join(root, "packages/snapback4/test/kit2-client-react.test.mjs"), join(root, "packages/snapback4/test/front-data-react.test.mjs")], {
     SNAPBACK4_CLIENT_GUIDE: join(cwd, "guide-client.md"), SNAPBACK4_CLIENT_DIST: join(cwd, "node_modules/snapback4/dist"),
   });
-  return { status: "passed", recipes: ["guide client listLabel", "guide client StaffWorkspace", "guide client uploadPdf"], contracts: ["matchRead", "matchReadList", "otherwiseAll", "usePage", "useAuth configuration refusal"] };
+  return { status: "passed", recipes: ["guide client listLabel", "guide client StaffWorkspace", "guide client uploadPdf", "client reference ReadNotice/WriteNote/Messages"], contracts: ["matchRead", "matchReadList", "otherwiseAll", "usePage", "useAuth configuration refusal"] };
 }
 
 const schema = `use identity

@@ -17,6 +17,39 @@ export async function registerRenderedSelector(selectors: Selectors): Promise<vo
 // self-contained: no application script, global callback or injected DOM marker.
 function renderedTextEngine() {
   let observedText = "";
+  const parent = (node: Node): Element | null => (node as Element).assignedSlot ?? node.parentElement ?? (node.getRootNode() as ShadowRoot).host ?? null;
+  function textInView(node: Node): string {
+    const text = node.textContent ?? "";
+    if (!text) return "";
+    const clips: { box: DOMRect; x: boolean; y: boolean }[] = [];
+    for (let element = parent(node); element; element = parent(element)) {
+      const style = getComputedStyle(element);
+      if (style.display === "none" || style.opacity === "0" || style.contentVisibility === "hidden") return "";
+      const clipsOverflow = style.display !== "contents" && style.display !== "inline";
+      const x = clipsOverflow && style.overflowX !== "visible", y = clipsOverflow && style.overflowY !== "visible";
+      if (x || y) clips.push({ box: element.getBoundingClientRect(), x, y });
+    }
+    const visible = (rect: DOMRect) => {
+      let left = rect.left, right = rect.right, top = rect.top, bottom = rect.bottom;
+      for (const {box,x,y} of clips) {
+        if (x) { left = Math.max(left,box.left); right = Math.min(right,box.right); }
+        if (y) { top = Math.max(top,box.top); bottom = Math.min(bottom,box.bottom); }
+      }
+      return right > left && bottom > top;
+    };
+    const range = document.createRange(); range.selectNodeContents(node);
+    const rects = [...range.getClientRects()];
+    if (!rects.some(visible)) return "";
+    if (rects.every(rect => clips.every(({box,x,y}) => (!x || rect.left >= box.left && rect.right <= box.right) && (!y || rect.top >= box.top && rect.bottom <= box.bottom)))) return text;
+    // A clipped prefix must not claim the hidden suffix. Range geometry also
+    // works through display:contents and wrappers with visible overflow.
+    let result = "", offset = 0;
+    for (const character of text) {
+      range.setStart(node,offset); offset += character.length; range.setEnd(node,offset);
+      if ([...range.getClientRects()].some(visible)) result += character;
+    }
+    return result;
+  }
   function queryAll(root: Document | Element | ShadowRoot, selector: string): Element[] {
     const options = JSON.parse(selector) as { source: string; flags: string; regex: boolean; exact: boolean };
     const regex = options.regex ? new RegExp(options.source, options.flags) : null;
@@ -28,7 +61,7 @@ function renderedTextEngine() {
       return options.exact ? text === needle : text.toLowerCase().includes(needle.toLowerCase());
     };
     const walk = (node: Node, ancestorSuppressed = false): { text: string; matched: boolean } => {
-      if (node.nodeType === Node.TEXT_NODE) return { text: ancestorSuppressed ? "" : node.textContent ?? "", matched: false };
+      if (node.nodeType === Node.TEXT_NODE) return { text: ancestorSuppressed ? "" : textInView(node), matched: false };
       if (node.nodeType !== Node.ELEMENT_NODE && node.nodeType !== Node.DOCUMENT_NODE && node.nodeType !== Node.DOCUMENT_FRAGMENT_NODE) return { text: "", matched: false };
       const element = node.nodeType === Node.ELEMENT_NODE ? node as HTMLElement : null;
       if (element && (/^(INPUT|TEXTAREA|SCRIPT|STYLE|NOSCRIPT|TEMPLATE)$/.test(element.tagName) || element.isContentEditable)) return { text: "", matched: false };
