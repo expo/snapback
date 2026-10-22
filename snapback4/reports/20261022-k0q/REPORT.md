@@ -366,3 +366,204 @@ release/startup policy remain S10d-3; the leased internal host and queue are
 qualified here. The committer note and append-only journal record the integration
 and guard repairs. The existing serialization ticket gains these observations
 without changing its open state.
+
+
+## K0-Q fix round 1
+
+Implementation commits: `c1163d0c3b`, `7183074287`, `e7b957fad6`,
+`0de2e163dc`, `eaa3a60098`, `e888877fb5`. All use the requested identities and footer.
+
+Starting point: `02292e57365df4886b885d416f70727a4ac6e5a1`, on
+`sb4-pg/k0q`, after the lead's integration onto S10d-3 `eeb79ebc7c`.
+No push or stash; the other lane's worktree and target were untouched. Cargo
+uses this lane's `snapback4/target`, ten jobs, and the brief's 20 GiB disk floor.
+
+### Review dispositions and witnesses
+
+| Item | Change | Regression evidence |
+|---|---|---|
+| 1. Queue-result panic and refused post-commit follow-ups | `Writer::call` returns `Result<T, Refusal>`. Auth config, asset ceiling, adoption, worker supervision, staging and maintenance handle it. Action/effect/route wakes, maintenance wakes and memory-sync publication run inside their original command. Route verification ticket insertion wakes its condition variable directly. | `writer_call_returns_ownership_loss_and_every_client_gets_the_same_response`; `admitted_notification_finishes_even_when_ownership_is_lost_before_wake` commits a session, latches ownership loss while the command is held, and still receives the committed result and wake. |
+| 2. Unbounded waits | Control admission expires after **100 ms**, allowing a short scheduling burst. HTTP durable admission remains immediate. All acknowledgement waits expire after **30 s**, allowing the existing 25-second polls plus scheduling allowance. Expiry never cancels or retries admitted SQL; it reports unknown outcome. Effect/action steps no longer enqueue a second notification on Full. Clock serialization also uses 100 ms admission; its maintenance pause stays owned by the request, so a late admitted body cannot reinstall it after timeout. | `control_admission_has_a_deadline_and_does_not_execute_refused_work`; `acknowledgement_deadline_reports_unknown_without_cancelling_admitted_work`; overloaded effect-step HTTP request returns 503 while the writer remains held. `clock_timeout_releases_maintenance_when_admitted_advance_finishes_late` reproduced the real 30-second pause leak and passes after repair; `occupied_clock_admission_returns_overload_without_advancing_time` returns 503 while the clock gate remains held. |
+| 3. View-once overload | With per-asset/principal delivery custody retained, commit the view reservation before releasing bytes. A refused or unknown reservation sends no bytes; transport failure after a confirmed reservation conservatively consumes the view. | `view_once_record_survives_mailbox_overload_before_delivery_custody_is_released` fills the mailbox before the first byte release, confirms the first fetch succeeds, the saturated second fetch is 503, and a second fetch after draining is 410 `E_ASSET_VIEWED`. |
+| 4. Status and outcome consistency | Queue overload is **503 / E_RATE_LIMIT / limit**, retryable, with `Retry-After: 1`; ownership loss is **409 / E_STORE_OWNERSHIP**, not retryable; stopped/disconnected or timed-out acknowledgements are **500 / E_COMMIT_OUTCOME_UNKNOWN**, not retryable. The existing unknown-outcome type now also covers SQLite worker acknowledgement loss. Common JSON status selection runs before generation stamping; tuple errors use the same mapping. | Three refusal tests compare **complete JSON bodies**, statuses, retryability and Retry-After across `/m/add`, `/auth/login`, `/assets/missing`, `/changes` and `/auth/config`. Disconnection drops an admitted acknowledgement without a panic. |
+| 5. Independent lease watchdog | Queue and public S10d-3 serving share `LeaseDeadline`. Authority expires at renewal SQL start + lease duration − **min(50 ms, lease / 4)**. Watchdogs sleep for min(10 ms, the remaining deadline); admission and queued execution also check expiry. A renewal COMMIT cannot block the watchdog or revive expired authority. | `renewal_commit_stall_expires_admission_and_queued_replies_independently` holds the renewal in deferred-trigger COMMIT, then receives ownership refusals for queued acknowledgement and new admission before unblocking it. Existing independent-renewal and unknown-COMMIT witnesses remain green. |
+| 6. Startup lease leak | A release guard spans validation, initial renewal and thread installation. Failure retains cleanup custody. `engine/postgres/ownership.rs` only gains `lease_duration()`; release SQL and holder/token logic are untouched. | `failed_queue_lease_installation_releases_the_acquired_claim` injects renewal failure, checks explicit `lease_until = -infinity`, and immediately acquires from a standby. |
+| 7. Refused bulk turn looks idle | Remove `QueueResult for bool`; bulk work returns `Result<bool, RuntimeError>`. Refusal logs through background diagnostics, preserves the due scheduler and takes a bounded retry pause. Only `Ok(false)` is idle. | Existing bulk/clock maintenance tests compile against the explicit result and pass in the CLI suite; queue overload tests prove refused bodies do not run. |
+| 8. Writer-level and independent-progress witnesses | Writer ownership is tested through serving, including an HTTP answer. Ephemeral authentication, receipt checks and reader checkout now use detached readers, retaining hub serialization and generation checks; memory fixtures keep their explicit queue fallback. | `detached_reads_and_ephemeral_finish_while_the_writer_and_a_mutation_are_blocked` requires a query and ephemeral mutation to return before releasing a held writer. This test initially failed on the old queue-dependent ephemeral admission and passed after the fix. Existing 48-submitter and concurrent HTTP receipt/order witnesses remain. |
+
+A held change poll that already emitted HTTP 200 heartbeat headers cannot change
+its status later; its final typed body still carries any later refusal. The
+four-door status witnesses exercise refusals before streaming begins. Ordinary
+ephemeral rate-limit refusals keep their existing auth-family behavior; only
+queue overload uses the new uniform limit-family admission mapping.
+
+The affected LLP audit updates the committer RFC's existing §9 note and single
+Revised line, the ephemeral RFC's mutex/reader claim, and the root LLP's old
+post-send-only view consumption wording. The guide describes the actual bounded
+waits, refusal statuses, unknown outcomes and conservative view reservation.
+The journal receives an append-only dated entry. No new LLP or raised guard
+allowance is introduced.
+
+Serving entry modules are now below 1,500 lines: auth config lives in the auth
+module, argument refusal rendering with head helpers, and the memory publication
+and duplicate-id witnesses with the other committer serving tests. These moves
+preserve the original behavior. Focused progress assertions check actual query
+data, a successful ephemeral outcome, and the committed durable outcome.
+
+
+
+### Fix-round qualification
+
+All commands use this lane's target and ten compiler jobs. The first full core,
+CLI and device runs used four outer test cases; the complete Postgres command
+and final full CLI repeat used one outer case. Internal writer concurrency,
+workloads, retry budgets, test timeout guards and durability settings were unchanged.
+Checks span the implementation checkpoints: the full core/device runs precede
+the final deadline-sleep and layout follow-ups; the complete Postgres run and
+full CLI repeat cover code checkpoint `eaa3a60098`. The later clock-only
+follow-up is qualified separately below. No new blind-review
+verdict is claimed.
+
+| Check from the brief | Result |
+|---|---|
+| `cargo build -p snapback4` | Pass, including final default rebuild |
+| Core `--no-default-features` check | Pass |
+| Device web `wasm32-unknown-unknown` check | Pass |
+| Full core suite | **1,074 passed / 0 failed / 5 ignored** (46 targets) |
+| Full CLI initial run | 1,411 passed / 2 failed / 17 ignored; details below |
+| Full CLI complete repeat | **Exit 101: 1,412 passed / 1 failed / 17 ignored** (58 targets); exact isolated and subsequent full lifecycle target pass |
+| Full device suite | **1,573 passed / 0 failed / 4 ignored** (104 targets) |
+| Committer ratchet, store-port ratchet, opener census | **16 passed / 0 failed**; no allowances changed |
+| Default compiled handle guard | Pass; Postgres compiled guard also passes in full script |
+| Guide | **127 passed / 0 failed** on repeat |
+| Wasm codec census | **27 passed / 0 failed** |
+| `bash scripts/test-postgres.sh` | **Exit 0**, complete script, including public S10d-3 serving |
+| Queue deadline/ownership faults | Default **5 passed**; full real-Postgres group **10 passed** |
+| Final clock-only follow-up | **14 maintenance + 10 committer + 29 lifecycle + 16 guard cases passed**; default build and Postgres test typecheck pass |
+| Root `./ref-check` | Pass; final post-report receipt linked below |
+| `git diff --check` | Pass |
+
+The complete Postgres script passed **58 evaluator + 209 common adapter + 22
+ownership + 1 compiled guard + 38 doctest + 2 member + 10 queue + 1 internal
+HTTP + 1 startup cleanup + 19 corpus** cases, then its public CLI campaign.
+The four-writer evaluator retained 65 increments per mode, no lost updates,
+zero serialized retries and 87 serializable retries. Existing named corpus
+exclusions remain outside the supported claim. The public campaign confirms
+that terminal ownership loss closes its listener. Its process-exit policy is
+preserved; the queue separately refuses with typed ownership errors and has the
+new blocked-renewal-COMMIT deadline witness.
+
+The first CLI run's authority-gap fixture expected file-backed ephemeral
+admission to queue behind the writer. That failure reproduced alone before the
+fixture was adapted to park at detached reader checkout. The expiry, revocation,
+adoption, no-write and no-new-commit assertions remain. Its isolated repaired
+run passed. The initial guide run was 126/1: its defining-fact witness still
+expected the old Postgres-COMMIT-only sentence. It reproduced alone; updating
+that one expected sentence to include admitted acknowledgement loss retained
+all code-definition assertions, and the complete 127-case repeat passed.
+
+The initial CLI run also failed the fixture-free command's unchanged five-second
+wall-clock guard. An unchanged isolated run passed, then another failed. Private
+exit-0 timing samples of the fixed CLI took 7.218 s without a live server and
+6.837 / 15.324 s with a live server while device compilation was active. This
+shows that total campaign time is a poor proxy for SQLite writer waiting; it
+does not establish baseline attribution or prove the absence of every possible
+store wait. The retained pre-K0-Q executable failed private HTTP preparation in
+this diagnostic and is excluded from the timing comparison. See the open
+[timing issue](../../../issues/20261022-snapback4-run-admission-fixture-free-timing-guard.md)
+and [timing receipt](./fix1-fixture-timing.json). No guard was weakened.
+
+The unchanged five-second admission guard passed in the complete repeat. The
+repeat remained red for `sqlite_replay_survives_counter_split_and_an_offline_cli_backfill`:
+a concurrent request during adoption received **503 / E_GENERATION**, while the
+fixture requires every response to be 200. Its exact unchanged isolated rerun
+passed in 1.41 seconds. A subsequent full lifecycle target passed all 29 cases.
+This does not resolve the race or establish baseline attribution; the
+[open adoption issue](../../../issues/20261022-snapback4-concurrent-adoption-generation-refusal.md)
+retains the response, missing door attribution and follow-up. No clean full CLI
+repeat is claimed.
+
+[Check commands, statuses, counts and source provenance](./fix1-checks.json)
+retain initial reds and repeats. Unabridged transcripts and isolated attempts
+remain in `/tmp/sb4-k0q-fix1/` on expo-build-450a. Focused serving also passes
+all eight new/affected witnesses; its filter includes two relocated existing
+witnesses in the final layout. No product assertion, matcher or stress budget
+was relaxed.
+
+### Clock deadline follow-up
+
+After the complete repeat, an additional real-deadline witness reproduced a
+maintenance leak: a clock command held behind the writer returned unknown
+outcome at 30 seconds, its request guard cleared the pause, and the late body
+then installed a pause with no owner left to release it. The old source failed
+this test after 30.01 seconds. Commit `e888877fb5` moves pause acquisition before
+queue admission into the request guard's lifetime; admitted clock work still
+advances time after timeout, without reacquiring the abandoned pause. Clock
+serialization now refuses after the same 100 ms admission window, using the
+canonical 503/retryable/Retry-After overload response.
+
+Final affected checks pass: **14 maintenance**, **10 committer serving**,
+**29 lifecycle** and **16 guard/census** cases, the default build, and
+Postgres-feature test typechecking. The new HTTP tests require the actual
+unknown-outcome answer, subsequent 1,000 ms clock advance and cleared maintenance
+pause, plus refusal before acquiring an occupied clock gate with no time change.
+The receipt's two source-file SHA-256 values match the committed blobs at
+`e888877fb5c1eb159c56c85621350c582a77159a`.
+[Reproduction and final affected-check receipt](./fix1-clock-followup.json).
+
+The complete CLI/Postgres runs and W4 samples remain bound to `eaa3a60098`.
+This later delta changes clock-control admission and pause lifetime only; its
+scoped repeats qualify that final content. It does not change mutation hot-path
+inputs, SQL, lease arithmetic, receipts or the benchmark workload. Existing
+test assertions, ceilings, retry budgets and timeout guards remain unchanged.
+
+### Fix-round local W4 samples
+
+Adjacent fresh samples use the retained harness and unchanged reduced fixture:
+32 disjoint writers through real `serve`, local SQLite WAL/FULL, 160 warm-ups
+plus three 1,600-operation trials. No other build or test from this lane ran
+alongside them. Values are medians of the three trial statistics, rather than
+pooled latency percentiles.
+
+| Run | ops/s | p50 ms | p99 ms |
+|---|---:|---:|---:|
+| Retained baseline, freshly sampled | 97.03 | 328.11 | 357.49 |
+| Fixed binary, adjacent sample | 95.32 | 334.72 | 355.21 |
+
+Observed changes are **-1.76%** throughput,
+**+6.60 ms** p50 and
+**-2.28 ms** p99. This is a small local debug-build
+sample with one durable commit per member; it does not establish a production
+SLO or resolve small performance differences. Both durable counter totals are
+independently checked at **4,960**.
+
+The baseline is cached pre-K0-Q executable SHA-256
+`17b57a6eefb1081e59fb945c135cbce5d11aef6f29bb61de508bf24654ef03da`, freshly sampled rather than freshly rebuilt from current
+main. The measured fixed binary is the default build at `eaa3a60098`,
+SHA-256 `eeb8c55cf248f00e064370234cd489fcf9f8481ac8746f59c7f78f99ab871788`.
+[Baseline sample](./before-fix1.json), [fixed sample](./after-fix1.json),
+[computed medians and identities](./fix1-measurements.json).
+
+### Fix-round cleanup and delivery
+
+All **three** clusters created for this fix round are independently confirmed
+stopped: focused queue faults, the full evaluator and public S10d-3 serving.
+Each returns `pg_ctl status = 3` with no `postmaster.pid`. All **11**
+recorded public-serving, diagnostic and W4 process PIDs are absent. Both W4
+harnesses confirm every owned process stopped. Cleanup uses exact owned paths
+and recorded PIDs.
+
+Observed disk space never crossed the 20 GiB stop floor; the lowest observed
+reading was about 28.9 GiB. During the cold full suites, 54 completed CLI test
+executables (about 18.14 GiB) and 43 completed passing core test executables
+(about 14.99 GiB) were removed from this lane's target. Source, logs and retained
+baseline bytes were preserved; the final CLI repeat rebuilt missing targets.
+During that repeat, another 23 completed passing executables (about 7.45 GiB)
+were removed to keep shared-host disk headroom, preserving its active target,
+the CLI binary and guard executables.
+[Cleanup and artifact-removal receipts](./fix1-cleanup.json).
+
+The committer RFC has one Revised line prefixed with this fix round; its §9
+note, governing LLP claims, guide and append-only journal describe the final
+behavior. Final [root reference validation](./fix1-ref-check.txt) passes after
+the report update. Work remains local on `sb4-pg/k0q`; no push or stash.

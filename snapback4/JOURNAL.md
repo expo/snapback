@@ -102288,3 +102288,31 @@ also has the same 100 ms admission deadline and canonical overload response.
 The full CLI repeat's separate concurrent-adoption E_GENERATION/503 failure
 and successful exact isolated rerun remain visible in the qualification report;
 no assertion or retry policy was weakened to hide that race.
+
+
+K0-Q fix round 1 qualification: full core 1,074/0, device 1,573/0, guide
+127/0, wasm codec 27/0, and the complete Postgres script (including public
+S10d-3 serving) pass. The full CLI repeat is 1,412 passed / 1 failed / 17
+ignored: concurrent replay received E_GENERATION/503 during adoption. Its exact
+isolated rerun and the final full lifecycle target (29/0) pass; the race remains
+an open filesystem ticket, with no baseline attribution or clean-full-repeat
+claim. The unchanged five-second admission guard passed in that full repeat.
+Final clock-only checks at e888877fb5 pass 14 maintenance, 10 committer and
+16 guard/census cases, default build and Postgres-feature test typechecking.
+The real 30-second late-clock regression first failed, then passed with pause
+ownership moved to the request and clock admission bounded at 100 ms.
+
+Adjacent local W4 samples at eaa3a60098 measured 97.03 → 95.32 ops/s,
+328.11 → 334.72 ms p50 and 357.49 → 355.21 ms p99; both durable totals are
+4,960. The retained baseline is freshly sampled cached bytes, not a current-main
+rebuild. All three owned Postgres clusters are independently confirmed stopped,
+as are all 11 recorded serving/diagnostic/benchmark PIDs. The report retains
+source and binary identities, initial reds, scoped passing repeats and artifact
+cleanup receipts. Disk observations stayed above the 20 GiB floor; only this
+lane's completed test executables were removed. No push or stash.
+
+
+Final K0-Q fix-round root validation passes: 564 LLPs, 11,719 references,
+zero errors and zero unchecked. Whitespace checks pass. The qualification
+report retains the single full-CLI adoption race, passing exact/full-target
+repeats, and final clock follow-up content receipts; no push or stash.
