@@ -123,6 +123,9 @@ impl Host {
         Self::with_capacity_recent(dev, store, source, bind, evidence, capacity, None, dev)
     }
     fn with_capacity_recent(dev: bool, store: impl Into<snapback4_core::store_port::AnyStore>, source: &str, bind: &str, evidence: Option<&std::path::Path>, capacity: crate::host_limits::Capacity, recent: Option<dev_refusals::Recent>, unsafe_dev_doors: bool) -> Self {
+        Self::with_capacity_recent_writer(dev, store, source, bind, evidence, capacity, recent, unsafe_dev_doors, |engine| committer::Writer::new(engine).unwrap())
+    }
+    pub(super) fn with_capacity_recent_writer(dev: bool, store: impl Into<snapback4_core::store_port::AnyStore>, source: &str, bind: &str, evidence: Option<&std::path::Path>, capacity: crate::host_limits::Capacity, recent: Option<dev_refusals::Recent>, unsafe_dev_doors: bool, writer: impl FnOnce(Engine) -> committer::Writer) -> Self {
         crate::host_limits::prepare_tests();
         let bound = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
         assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
@@ -153,7 +156,7 @@ impl Host {
             wake: Mutex::new(ephemeral::Wake::new(&engine)), polls: Condvar::new(),
             adoption: Mutex::new(adoption::Status::new(String::new())),
             worker_execution: engine.store().admit_worker_execution().is_ok(),
-            engine: committer::Writer::new(engine).unwrap(),
+            engine: writer(engine),
             readers, read_cuts: Mutex::new(read_cost::ReadCuts::default()), refusals,
             bound: Mutex::new(bound),
             generation: Mutex::new(generation),

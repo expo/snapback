@@ -47,6 +47,15 @@ impl Writer {
     pub(super) fn bind(&self, host: &Arc<Shared>) {
         let _ = self.host.set(Arc::downgrade(host));
     }
+    #[cfg(feature = "postgres")]
+    pub(super) fn with_lease(
+        mut self,
+        lease: snapback4_core::store_port::StoreLease,
+        cadence: Duration,
+    ) -> Result<Self, snapback4_core::RuntimeError> {
+        self.queue.hold_lease(lease, cadence)?;
+        Ok(self)
+    }
     fn command<T: Send + 'static>(
         &self,
         run: impl FnOnce(&mut Engine, &Shared) -> T + Send + 'static,
@@ -230,6 +239,7 @@ fn queue_error(error: SubmitError) -> snapback4_core::RuntimeError {
             code: "E_RATE_LIMIT", message: "HTTP connections or request workers are occupied; wait for pending writes to settle or reduce concurrent clients before retrying".into(),
         },
         SubmitError::Stopped => snapback4_core::RuntimeError::Store("committer stopped before acknowledgement; the durable outcome may be unknown".into()),
+        SubmitError::OwnershipLost => snapback4_core::RuntimeError::StoreOwnership("store ownership lost; this committer refuses further writes".into()),
     }
 }
 pub(crate) trait QueueResult {
@@ -250,6 +260,8 @@ impl QueueError for snapback4_core::RuntimeError {
                 code: "E_RATE_LIMIT",
                 message: why.message,
             }
+        } else if why.code == "E_STORE_OWNERSHIP" {
+            Self::StoreOwnership(why.message)
         } else {
             snapback4_core::RuntimeError::Store(why.message)
         }

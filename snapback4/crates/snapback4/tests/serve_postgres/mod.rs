@@ -7,7 +7,20 @@ fn s10c_postgres_internal_http_host_witness() {
     let connection = std::env::var("SNAPBACK4_EVAL_POSTGRES").expect("private scripts/test-postgres.sh database");
     let namespace = format!("sb4_eval_http_{:x}", snapback4_core::ids::seed());
     let source = "use identity\ntable notes:\n  n: int\n  public\n  insert <- allow\n  update <- allow\n  delete <- allow\n  sync public\nmutation put(key: id, n: int):\n  upsert notes[key] { n }\n  return n\nquery peek(key: id):\n  return notes[key]\nmutation refuse():\n  require false else NO\n";
-    let host = Host::with_store(false, snapback4_core::store_port::AnyStore::create_postgres(&connection, &namespace).unwrap(), source);
+    let bound = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
+    let bootstrap = Engine::new(
+        snapback4_core::store_port::AnyStore::create_postgres(&connection, &namespace).unwrap(),
+        bound.schema, bound.programs.into_iter().map(|p| p.program),
+    ).unwrap();
+    let store_id = bootstrap.store().store_identity().unwrap().unwrap();
+    drop(bootstrap);
+    let mut lease = snapback4_core::store_port::StoreLease::connect(&connection, &namespace, &store_id, "a001", Default::default()).unwrap();
+    assert_eq!(lease.acquire().unwrap().unwrap().token, 1);
+    let store = snapback4_core::store_port::AnyStore::open_postgres_owned(&connection, &namespace, &lease).unwrap();
+    // The acquired fence and independently scheduled renewal are installed
+    // before this constructor opens the HTTP listener.
+    let host = Host::with_capacity_recent_writer(false, store, source, "127.0.0.1", None, crate::host_limits::Capacity::default(), None, false,
+        |engine| committer::Writer::new(engine).unwrap().with_lease(lease, Duration::from_millis(50)).unwrap());
     let session = body(&host.request("POST", "/auth/guest", "", "{}"));
     let token = session["session"]["token"].as_str().expect("guest session");
     let headers = format!("Authorization: Bearer {token}\r\n");

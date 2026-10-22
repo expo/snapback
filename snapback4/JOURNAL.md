@@ -102138,3 +102138,27 @@ regression or lift and do not qualify a capacity claim. The committer RFC §9 no
 records K0-Q; batching remains the next slice. The [lane report](./reports/20261022-k0q/REPORT.md)
 retains all four runs, toolchain, binary digests and check receipts. Commits remain
 local; protected Postgres and store ownership files are untouched.
+
+
+## 2026-10-22 — K0-Q: integrate S10d-2 ownership with the queue
+
+Rebased the same lane onto `8f909dc734` (including `49153622a9`). The journal
+conflict keeps both S10d-2 entries before K0-Q's entry. The worker conflict
+keeps `worker_ledger_path(None)` and runs it through the owned-command handle;
+the backend-neutral path and its Postgres state-location refusal survive.
+
+The queue can retain an acquired lease, with independent renewal and release
+after accepted work drains. The internal Postgres HTTP host acquires a positive
+token, opens the fenced engine and starts renewal before its listener. The
+fetched S10d-2 records explicitly leave public Postgres configuration and
+release/startup integration to S10d-3; this lane does not claim that public
+surface. No Postgres adapter or store_owner implementation file changes.
+
+Lease loss stops admission and immediately refuses all waiting replies with
+ownership loss, even behind a blocked COMMIT. Queued bodies drain without
+execution. Capacity-blocked callers observe the same loss. Running work keeps
+its actual outcome, including typed CommitOutcomeUnknown; physical COMMIT and
+the adapter's first-lock token fence remain unchanged. Three private-Postgres
+queue witnesses exercise queued loss, renewal during a full queue and blocked
+COMMIT, and COMMIT connection loss. The Postgres script includes them. The
+committer RFC §9 records the integration; the lane report retains qualification.
