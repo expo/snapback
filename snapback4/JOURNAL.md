@@ -100868,3 +100868,32 @@ reports/integration21/storage-port-merge.json; full report: ../WORKSTREAM-REPORT
   pass init + check.
 
 Report: `reports/20261021-publication-0.4.35/REPORT.md`.
+
+
+## 2026-10-22 — DX6: wave-22 gate, staging-clock and frontend repairs
+
+Wave-22 fixes #5/#6/#8 are implemented under the amendment in
+LLP 3000.000.000.001 §11. Seeded accounts carry their actual user kind;
+incomplete online session literals use bearer-only transport, while complete
+and local sessions retain shape validation. Migration advice applies to actual
+transitions, acknowledges piped delivery and scans partial sessions and numeric
+advance uses. SQL inspection refuses future store formats before reading rows.
+
+Staging advances preserve live credential lifetime transactionally, with
+SDK timing reconciliation before business-clock sampling. Explicit expiry mode
+retains expiry tests. No-drain pauses maintenance before mutation deadline
+tests; drain resumes without moving time and a failed drain stays paused.
+Blocked saved schedule boundaries refuse before effects with an executable
+recovery duration. Clock reports coerce to now for numeric JavaScript callers.
+
+Starter lists use ReadState and password clients omit witness boilerplate.
+The proof driver owns the locked public observer channel (trusted same-origin
+application scripts, no new auth boundary). Composed visible text matching
+retains exactness and ambiguity, excluding hidden/editable text from signals.
+Copied wave-22 frontend reductions are 336/354/354 non-whitespace characters.
+
+Fresh Muse and Codex round-2 design reviews are both READY; verbatim artifacts
+and proposal hashes are under llp/reviews/dx6. The exact verification results,
+packed upgrade proofs and limitations are in WORKSTREAM-REPORT.md and
+reports/20261022-dx6/. No package version change or push is made by this lane.
+SEC7 owns security advice/campaign semantics and security recipe changes.

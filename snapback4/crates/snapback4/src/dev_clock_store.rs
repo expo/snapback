@@ -111,6 +111,19 @@ pub fn crossed_boundaries(engine: &Engine, before: &[Option<i64>], now: i64, hel
     Ok(boundaries)
 }
 
+// @ref LLP 3000.000.000.001#11-wave-22-loop-repairs-dx6 — no silent successful advance behind retained schedule markers.
+pub fn refuse_held(engine: &Engine, before: &[Option<i64>], now: i64) -> Result<(), snapback4_core::Refusal> {
+    for (schedule, saved) in engine.schema().schedules.iter().zip(before) {
+        if let Some(saved) = saved.filter(|saved| *saved >= schedule.boundary(now) && *saved > schedule.boundary(snapback4_core::now_ms())) {
+            let due = schedule.next(saved);
+            return Err(snapback4_core::Refusal::new("E_CLOCK_HELD", "clock", format!(
+                "schedule {} already processed boundary {}; requested clock {} has not reached its next window {}. Nothing advanced. Advance {} or use a fresh staging deployment; allowHeld:true explicitly accepts this hold. Never rewind saved boundaries",
+                schedule.name, utc(saved), utc(now), utc(due), format!("{}ms", due - now))).guide("clock"));
+        }
+    }
+    Ok(())
+}
+
 fn period(schedule: &snapback4_core::schema::Schedule) -> String {
     schedule.describe()
 }
@@ -223,7 +236,7 @@ pub fn held_schedules(engine: &Engine, now: i64) -> Vec<String> {
         let saved = saved.filter(|saved| *saved > schedule.boundary(now))?;
         let due = schedule.next(saved);
         Some(format!("clock     schedule {} is held until {} ({} from now): its saved boundary {} is ahead of this clock; `clock advance {}` or restart with dev --resume-clock",
-            schedule.name, utc(due), span(due - now), utc(saved), span(due - now)))
+            schedule.name, utc(due), span(due - now), utc(saved), format!("{}ms", due - now)))
     }).collect()
 }
 

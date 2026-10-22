@@ -1,0 +1,4 @@
+*.log
+/pack/
+/qualification*/
+/mac/

@@ -1,0 +1,15 @@
+muse: workspace root: /home/ccheever/projects/sb4-b22-dx6 (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY
+
+Reviewed frozen `llp/reviews/dx6/r2-amendment.md` only; did not read `r*-*.txt`, did not edit or implement.
+
+Prior topics are sound as specified:
+
+- Witness is a locked public same-origin test channel, not a secret/auth boundary. Explicit trusted-app model, `witness=web` gating, immutable Symbol claim, first-App selection with `E_WITNESS_APP_SELECTION`, no new credentials, ordinary bundles carry only dispatch. Matches narrow `witness-web.ts` structure.
+- Failed drain is fail-paused: time stays advanced, report incomplete, maintenance stays paused until successful explicit `drain()`, no auto-replay, no repeat-advance recovery. Staging-only wedge with restart/draining-advance recovery is disclosed.
+- Staging expiry reconciliation before clock sampling is fail-closed: detached liveness-checked read, `unavailable` suppresses sample including streaming-final, bearer/URL matching, per-bearer isolation, monotonic increase, custody fences before listeners, restored-expired requires live authenticated probe. Server admission remains authoritative; monotonic-only-increase is correct because preservation headers only extend for jumps.
+
+Alongside that, no-revival, positive-jump/explicit-expiry, before-effects `E_CLOCK_HELD` refusal, legacy online bearer-only with partial metadata ignored, upgrade scoping with disclosed old-quiet ack-without-display limit, and composed visible-text rules are coherent and explicitly bounded. Remaining work is implementation completion, not design.
+
+READY

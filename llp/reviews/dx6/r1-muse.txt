@@ -1,0 +1,50 @@
+muse: workspace root: /home/ccheever/projects/sb4-b22-dx6 (cwd default)
+muse: workspace trust: trusted source=run-flag
+Review complete. I read only the frozen proposal plus governing decisions and the in-progress implementation (for grounding, not grading). I did not read the other two reviews, made no edits, and printed no credentials.
+
+# DX6 amendment review (independent, adversarial)
+
+**Proposal:** `llp/reviews/dx6/r1-amendment.md` (frozen, sha in `r1-provenance.json`)
+**Governing baselines read:** `llp/3000.000.000.001` §§10–11, `llp/3000.000.000.002` §4, `llp/3000.036.004` §§15.4–15.5, `llp/3000.013.002` §2.
+**Implementation sampled (read-only):** `session-input.ts`, `engine/session_clock.rs`, `serve_maintenance.rs`, `dev_clock*.rs`, `app.ts`, `witness-web.ts`, `upgrade*.js`, `store/opening.rs`.
+
+## What the proposal gets right (checked against code, not just claimed)
+
+- **No authority revival in preservation.** `advance_staging_clock_at` evaluates liveness at old-now (`live_session(tx, digest, before)`), skips `action` kind and worker-marked families (no double shift with the lease path), skips expired mints and superseded generations, validates all shifts with `checked_add` before any write, and commits atomically in one writer txn. Mid-jump expiries being shifted is the stated intent (remaining-lifetime preservation), with `sessions:'expire'` as the escape hatch. Sound.
+- **HELD-before-effects ordering.** `refuse_held` runs under the engine lock before preservation, clock publish, and pause-flag changes. Sound.
+- **Token-only partials are authority-coherent.** The server resolves the bearer from its own store (`serve_identity.rs`), never from client-asserted kind/expiry — so ignoring partial metadata adds no authority. Complete shapes stay strict, ISO expiries refuse fail-closed, local/device stays complete-only. The `hasOwnProperty`-based complete/partial boundary fails closed (a present-but-invalid field → `E_SESSION`, never silent downgrade). Sound, with one advisory below.
+- **Future-format refusal and SQL-inspection gating** are fail-closed and honest about unrepairable old binaries.
+- **Non-TTY acknowledgement hole is disclosed**, bounded to published old quiet CLIs, with changelog/explicit-scan mitigations. A deliberate tradeoff, not a hidden flaw.
+
+## Material issue 1 (must fix): the "private Symbol hook" is a global, URL-gated App-handle dispatch shipping in ordinary bundles
+
+The proposal states: "createApp calls a private Symbol hook only under explicit witness=web. Ordinary app bundles do not include the bridge."
+
+- The implementation in `snapback4/packages/snapback4/src/app.ts:129-137` uses `Symbol.for("snapback4.proof.app")` — the **global** symbol registry, retrievable by *any* script in the realm — and fires on the **user-controlled query string** `?witness=web`, passing the live authenticated `app`.
+- The dispatch site is in `app.ts`, i.e. it **ships in every ordinary bundle**; only `witness-web.ts` (the receiver) is proof-side. "Ordinary bundles do not include the bridge" is literally true and safety-irrelevant.
+- Consequences: any realm script present before app creation can overwrite the slot, blinding the driver's witness (proof-integrity: silent witness failure, a false-proof vector) and receiving the authenticated App handle itself (accidental authority exposure, remotely triggerable by appending `?witness=web` once a script is present). `witness-web.ts`'s own `?witness=web` check does not protect the handle — it is already handed to the slot-holder.
+- Fix (small): make the channel actually private (module-scoped registry shared only with the proof-driver entry chunk, or a driver-injected closure token via `addInitScript`, which page scripts cannot read) — or remove/neutralize the dispatch in ordinary bundles — and correct the "private" claim. As written the safety paragraph is false.
+
+## Material issue 2 (must fix): failed-`drain()` pause state is unspecified, and the implementation fails open
+
+The proposal pins pause release to "host.drain(), another draining advance, or process restart", and its "failed drain" sentence covers only failed *draining advances* ("leaves its advanced time intact" is vacuous for `drain()`'s `0ms`). The failed-`drain()` case — the resume attempt itself failing — is unspecified.
+
+- In `serve_maintenance.rs:443`, `paused = !drain` is set in the advance phase **before** the drain-work phase runs. A failed `drain()` therefore reports failure (`reportIncomplete`) while having already resumed (`maintenancePaused:false`): the operator's "nothing runs until I say drain" invariant is violated by the failure path, and jumped-time maintenance runs while the operator investigates.
+- Fix (small): pin fail-paused semantics in the proposal — the pause lifts only on successful drain (`drain()` is `0ms`/idempotent, so retry is safe) — and move the flag change after successful work (or re-pause on error with an explicit report). Either the text or the code must change; currently both are wrong-together.
+
+## Advisories (not verdict-driving, concrete)
+
+1. **Silent partial→token-only downgrade has no runtime signal.** A legacy literal missing `kind` is accepted with no refresh timer and `session()` null. Disclosed in design and statically scanned, but a one-time dev-mode warning on degraded acceptance would prevent expiry-death surprises. Consider.
+2. **`valueOf` without `Symbol.toPrimitive`.** Template literals/string concat yield `[object Object]`; a destructured `valueOf` loses `this` (`valueOf() { return this.now; }` in `proof.ts:120`). Specify `Symbol.toPrimitive` (or a `toString`) if "numeric coercion" is the compat promise.
+3. **"Real elapsed time still consumes credentials" is ambiguous** — read literally it contradicts preservation. State plainly that expiry is evaluated on the business clock and preservation holds *remaining* lifetime constant in business-time terms.
+4. **"Normalized" text matching is undefined** (whitespace/case/normalization form) while "exact by default" is promised. One sentence defining normalization.
+5. **Negative advance durations** are unspecified under default preservation (`preserve` rejects `delta < 0`, so a negative staging advance now errors where lease-shifting alone may have worked). State whether negative advances are supported and under which `sessions:` mode.
+6. **No-bump + transition-scoped advice**: users already on 0.4.37 will never auto-receive the new 0.4.36/0.4.37 warnings (correct per spec, but confirm the explicit `upgrade` scan surfaces them independent of a version transition, or the advice is changelog-only for this cohort).
+
+## Implementation vs design (per brief)
+
+Issues 1–2 are **design flaws in the proposal text**, not implementation lag: #1's "private" claim is false of the specified mechanism; #2's lifecycle sentence does not cover the failed-resume case. Everything else I sampled (classification boundary, kernel-gated selection, two-pass overflow validation, HELD ordering, pause-before-publish, format refusal, per-version warning scoping) is either implemented consistently with the proposal or a disclosed tradeoff. I did not verify seeded-kind preservation or ReadState starter wiring; treating those as implementation status, with no design objection beyond advisory 4.
+
+## Verdict
+
+**NOT READY.** Two small, concrete must-fix items block readiness: (1) correct or truly privatize the witness hook channel (global `Symbol.for` + URL gate + production dispatch site contradicts the proposal's privacy/safety claims and exposes the live App handle while permitting witness blinding); (2) pin failed-`drain()` to fail-paused semantics so a failed resume cannot silently end the maintenance hold.

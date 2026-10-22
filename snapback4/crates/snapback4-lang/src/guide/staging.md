@@ -189,14 +189,29 @@ dev. A proof for real users uses the serve recipe above.
 
 ## Time and reused stores
 
-`await host.advance("49h")` returns `{now, fired, held}`; `await host.now()` still
-returns a timestamp. The CLI `clock advance 49h --release staging` returns the
-same outcomes. Fired means enqueued, so inspect each run state for parked work.
-Every held schedule gives a reason and next boundary. Saved boundaries survive
-restart: each boundary fires once; missed periods coalesce unless eachBoundary
-is explicit. A reused store can hold a due application row because that window
-already ran. The helper and CLI print the saved-boundary hold and recovery on
-stderr. Advance beyond the saved boundary's next window, keep --clock-offset
-across serve restarts when continuing, or deploy a fresh staging directory for
-an independent test. Never replay a lost advance reply. Time travel also ages
-sessions and unplaced uploads: log in again and upload bytes after a large jump.
+`await host.advance("49h")` returns `{now, fired, held, maintenancePaused}`;
+`await host.now()` returns a timestamp. Numeric coercion of the report returns
+now, so arithmetic and `new Date(report)` still work; typed callers use report.now.
+The CLI `clock advance 49h --release staging` reports the same outcomes. Fired
+means enqueued: inspect the run state for parked work. Missed periods coalesce
+unless eachBoundary is explicit. Each held schedule explains its next boundary.
+
+Staging jumps preserve the remaining lifetime of live password/guest/full/read
+sessions by default. Expired or revoked authority stays expired or revoked.
+Use `await host.advance("8d", {sessions:"expire"})` to test session expiry
+explicitly (CLI --expire-sessions). Dev keeps its existing expiry behavior.
+Unplaced uploads and application deadlines still age; upload bytes after the jump.
+
+To exercise a mutation's own deadline check before due sweeps, use
+`await host.advance("22d", {drain:false})`, run the mutation, then
+`await host.drain()`. All background maintenance stays paused until drain,
+a draining advance, or restart; logical expiry and ordinary authorization still
+apply. CLI: `clock advance 22d --release staging --no-drain`, then
+`clock drain --release staging`. eachBoundary requires draining.
+
+Saved boundaries survive restart and never rewind. A blocked draining advance
+refuses E_CLOCK_HELD before moving time, naming the schedule and next window.
+Advance beyond that window, keep the cumulative --clock-offset when continuing
+across restarts, or deploy a fresh staging directory for an independent test.
+`allowHeld:true` (CLI --allow-held) explicitly accepts an already-processed
+boundary. Never repeat an ambiguous advance; inspect clock and queued work first.

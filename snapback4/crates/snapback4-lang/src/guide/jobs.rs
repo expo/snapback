@@ -295,7 +295,9 @@ or start `snapback4 dev --resume-clock`, which takes the offset from the store's
 newest commit stamp (or saved schedule boundary). After a plain restart, a
 schedule whose saved boundary is ahead of the clock is held: dev prints
 `schedule <name> is held until …` at startup, `doctor` marks it, and the advance
-reply names the wait.
+refuses E_CLOCK_HELD before moving time and names the next window. Explicit --allow-held accepts the retained boundary.
+Use --no-drain for a mutation deadline test before maintenance; clock drain resumes it.
+Staging preserves remaining session lifetime by default; --expire-sessions tests expiry explicitly.
 Rows stamped under an offset keep their times after restart; use a fresh store per offset test.
 Run time-travel suites on a disposable store and a separate port, from the project directory:
 
@@ -350,13 +352,15 @@ to wall time. Use an absolute past time to create an old post without a seed.
 It does not advance a running host or fire schedules. Durations are positive
 whole numbers with `ms`, `s`, `m`, `h`, `d` or `w`, optionally prefixed `+`;
 a startup offset may also be negative. Backward/zero advances and invalid
-values refuse E_CLOCK_INPUT. `serve` refuses clock flags and the control
-endpoint with E_CLOCK_DEV_ONLY. The endpoint is dev-only loopback
+values refuse E_CLOCK_INPUT. `serve` on production refuses clock flags and the control
+endpoint with E_CLOCK_DEV_ONLY. Classified staging allows the controls only
+with a full service credential; ordinary users cannot advance time. Dev is loopback
 `POST /dev/clock/advance` with `{"duration":"+2m"}`.
 
 E_CLOCK_INTERRUPTED means time advanced but shutdown interrupted the drain.
-The refusal retains `now`/`skewMs`; inspect queued work or restart the test with
-`reset --clock reset`. Do not repeat the advance blindly.
+The refusal retains `now`/`skewMs` and leaves maintenance paused. Inspect queued
+work, then use `clock drain` to resume it without advancing time. Do not repeat
+the advance blindly. The zero-time drain is distinct from a positive advance.
 
 For a replay mode that must not emit notifications, run `snapback4 dev --replay`.
 New emits are counted as `suppressed` by `doctor`, with no queued payload:

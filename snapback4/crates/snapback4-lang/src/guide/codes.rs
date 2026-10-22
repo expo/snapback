@@ -167,6 +167,7 @@ pub const CODES: &[(&str, &str)] = &[
     ("E_CLOCK_DEV_ONLY", "clock controls require dev; serve always uses wall time. Use dev --clock-offset, clock advance or a local run --now; guide clock."),
     ("E_CLOCK_INTERRUPTED", "family clock — time already advanced, but host shutdown interrupted queued work. Inspect run status or reset the test; do not repeat the advance blindly. guide clock."),
     ("E_DEV_RESET", "reopen the client after /dev/reset; the development store was replaced. Outstanding writes retain unknown outcomes and are never retried automatically; guide testing."),
+    ("E_CLOCK_HELD", "a retained schedule boundary blocks this clock; nothing advanced. Use the reported duration or a fresh staging deployment, or explicitly allowHeld; guide clock."),
     ("E_CLOCK_INPUT", "clock advances need a positive whole duration with ms, s, m, h, d or w; run --now accepts Unix milliseconds or +duration. Backward advances and out-of-range times are refused; guide clock."),
     ("E_SCHEMA_CAPABILITY", "this backend or stored schema needs unsupported engine/device capabilities, or its derived capability declaration is inconsistent. Upgrade the engine and devices together; see guide sync."),
     ("N_READ_DENIED", "a query or mutation looks up an aggregate by key whose read rule is deny, so every caller reads null for both a stored and absent group. Give the aggregate the read rule its readers need over its group keys, or read it in a job, which runs as the system; guide rules."),

@@ -84,12 +84,15 @@ export interface ScheduleOutcome {
   skippedBoundariesOmitted?: number;
   run?: { id: string; state: string; rowsWritten: number; error: string | null; errorTruncated: boolean };
 }
-export interface ClockAdvance { now: number; fired: ScheduleOutcome[]; held: ScheduleOutcome[] }
+export interface ClockAdvance { now: number; fired: ScheduleOutcome[]; held: ScheduleOutcome[]; maintenancePaused: boolean; valueOf(): number }
+export interface AdvanceOptions { eachBoundary?: boolean; drain?: boolean; allowHeld?: boolean; sessions?: "preserve" | "expire" }
 export interface ServeHost extends ProofHost {
   /** Authoritative staging time; requires a staging store and local operator authority. */
   now(): Promise<number>;
   /** Advance staging time once and drain due work. A lost reply must not be retried. */
-  advance(duration: string, options?: { eachBoundary?: boolean }): Promise<ClockAdvance>;
+  advance(duration: string, options?: AdvanceOptions): Promise<ClockAdvance>;
+  /** Resume and drain maintenance without advancing time. */
+  drain(options?: Pick<AdvanceOptions, "eachBoundary" | "allowHeld">): Promise<ClockAdvance>;
   operatorToken(service?: string, days?: number): Promise<string>;
   seedAccounts(options: SeedAccountsOptions): Promise<StagingSessions>;
   sessions?: StagingSessions;
@@ -115,7 +118,8 @@ export async function startServe(deployDir: string, options: ServeOptions | read
     if (!response.ok || result.denied || !Number.isSafeInteger(result.now)) throw Object.assign(Error(`staging clock refused or reply unavailable; inspect clock and queued work before retrying: ${result.denied?.code ?? response.status} ${result.denied?.message ?? ""}`), { report: result });
     if (body && (!Array.isArray(result.fired) || !Array.isArray(result.held))) throw Error("staging clock reply has no schedule report; inspect clock and queued work before retrying");
     for (const schedule of result.held ?? []) if (schedule.holdCode === "saved-boundary") process.stderr.write(`snapback4: schedule ${schedule.name}: ${schedule.reason}\n`);
-    return { now: result.now!, fired: result.fired ?? [], held: result.held ?? [] };
+    const report: ClockAdvance = { now: result.now!, fired: result.fired ?? [], held: result.held ?? [], maintenancePaused: result.maintenancePaused ?? false, valueOf() { return this.now; } };
+    return report;
   };
   // Exit can precede inherited watchdog flock release. The private local
   // barrier observes the same canonical ownership sidecar without writing data.
@@ -128,9 +132,10 @@ export async function startServe(deployDir: string, options: ServeOptions | read
   const served: ServeHost = { ...host, stop,
     now: async () => (await clockCall()).now,
     advance: (duration, options = {}) => {
-      if (typeof duration !== "string" || !/^\+?\d+(ms|s|m|h|d|w)$/.test(duration)) throw new TypeError("E_PROOF_USAGE: advance requires a positive whole duration");
-      return clockCall({ duration, eachBoundary: options.eachBoundary ?? false });
+      if (typeof duration !== "string" || (!/^\+?\d+(ms|s|m|h|d|w)$/.test(duration) || BigInt(duration.replace(/\D/g, "")) === 0n)) throw new TypeError("E_PROOF_USAGE: advance requires a positive whole duration");
+      return clockCall({ duration, ...options });
     },
+    drain: (options = {}) => clockCall({ duration: "0ms", drain: true, ...options }),
     operatorToken: async (service = "operator", days = 1) => {
       if (!/^[A-Za-z0-9_-]{1,64}$/.test(service) || !Number.isSafeInteger(days) || days < 1 || days > 3650) throw Error("proof operatorToken: invalid service or days (1..3650)");
       const result = await cli(["token", "--service", service, "--days", String(days), "--release", directory, "--quiet"], opts);

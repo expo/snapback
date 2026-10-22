@@ -5,6 +5,8 @@ use std::time::{Duration, Instant};
 // @ref LLP 3000.000.000.001#8-wave-18-developer-loop-amendment-dx4 — preserve expiry tests and tell callers how to recover.
 pub(crate) const SESSION_NOTICE: &str = "Time travel also advances session expiry and unplaced-upload collection: seven-day password sessions may now be expired. Sign in again after the jump and upload unplaced bytes after it; never replay an ambiguous clock advance.";
 
+pub(crate) const PRESERVED_SESSION_NOTICE: &str = "Staging sessions keep their remaining lifetime across this jump; sessions:expire explicitly tests credential expiry. Unplaced uploads still age. Never replay an ambiguous advance.";
+
 const MAX_TIME: i64 = snapback4_core::value::I53_MAX;
 
 pub fn input(message: impl Into<String>) -> Refusal { Refusal::new("E_CLOCK_INPUT", "clock", message).guide("clock") }
@@ -107,10 +109,12 @@ impl Clock {
 /// The control CLI only talks to a loopback dev host. It does not open its store.
 pub fn command(options: &crate::verbs::Options) -> i32 {
     let result = (|| -> Result<String, String> {
-        if options.positionals.len() != 2 || options.positionals[0] != "advance" {
+        let draining = options.positionals == ["drain"];
+        if !draining && (options.positionals.len() != 2 || options.positionals[0] != "advance") {
             return Err(input(format!("usage: {}", crate::cli_flags::synopsis("clock"))).to_string());
         }
-        duration(&options.positionals[1]).map_err(|e| e.to_string())?;
+        let duration_text = if draining { "0ms" } else { options.positionals[1].as_str() };
+        if !draining { duration(duration_text).map_err(|e| e.to_string())?; }
         let release_path = options.flags.get("release").map(|dir| std::path::PathBuf::from(dir).join("store.sqlite"));
         if release_path.is_some() && options.flags.contains_key("port") { return Err("clock --release does not accept --port".into()); }
         let (address, instance, token) = if let Some(path) = &release_path {
@@ -120,7 +124,10 @@ pub fn command(options: &crate::verbs::Options) -> i32 {
             let session = crate::serve::token::mint_live(path, "clock", 1).map_err(|(_,error)|error)?;
             (address,None,Some(session.token))
         } else { let (address,instance)=crate::verbs::dev_address(options)?; (address,instance,None) };
-        let body = serde_json::json!({"duration":options.positionals[1],"eachBoundary":options.flags.contains_key("each-boundary")}).to_string();
+        let mut body = serde_json::json!({"duration":duration_text,"eachBoundary":options.flags.contains_key("each-boundary"), "drain":!options.flags.contains_key("no-drain"), "allowHeld":options.flags.contains_key("allow-held")});
+        if options.flags.contains_key("expire-sessions") { body["sessions"] = "expire".into(); }
+        if draining && options.flags.contains_key("no-drain") { return Err(input("clock drain does not accept --no-drain").to_string()); }
+        let body = body.to_string();
         // The common HTTP/1.0 exchange is EOF-delimited and bounds replies at
         // 64 MiB, enough for the preflight's complete explicit window report.
         let response = if let Some(token) = &token {
