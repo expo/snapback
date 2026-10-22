@@ -38,13 +38,14 @@ export async function proveDX7Upgrades(client,platform){
    const upstream=await fetch("https://registry.npmjs.org"+req.url,{signal:AbortSignal.timeout(30000)});res.writeHead(upstream.status,{"content-type":upstream.headers.get("content-type")??"application/json"});res.end(Buffer.from(await upstream.arrayBuffer()));
   }catch{res.writeHead(502).end("registry proxy failed");}});
   await new Promise(resolve=>registry.listen(0,"127.0.0.1",resolve));origin="http://127.0.0.1:"+registry.address().port;
-  const env={...process.env,CI:"1",npm_config_registry:origin,npm_config_audit:"false",npm_config_fund:"false",npm_config_update_notifier:"false"};delete env.SNAPBACK4_BIN;delete env.PORT_LO;delete env.PORT_HI;
+  writeFileSync(join(scratch,"empty-global.npmrc"),"");
+  const env={...process.env,NPM_CONFIG_USERCONFIG:"/dev/null",NPM_CONFIG_GLOBALCONFIG:join(scratch,"empty-global.npmrc"),CI:"1",npm_config_registry:origin,npm_config_audit:"false",npm_config_fund:"false",npm_config_update_notifier:"false"};delete env.SNAPBACK4_BIN;delete env.PORT_LO;delete env.PORT_HI;
   for(const version of ["0.4.35","0.4.37"]){
    const metadata=await fetch(`https://registry.npmjs.org/snapback4/${version}`,{signal:AbortSignal.timeout(30000)});assert.equal(metadata.status,200,`published ${version} required`);const published=await metadata.json();
    const cwd=join(scratch,version);mkdirSync(join(cwd,"snapback"),{recursive:true});writeFileSync(join(cwd,"package.json"),JSON.stringify({name:"dx7-old-cli-proof",private:true,type:"module"}));
    const recorder=join(cwd,"record.cjs");writeFileSync(recorder,`const {spawnSync}=require('node:child_process');const {writeFileSync}=require('node:fs');const [command,...args]=process.argv.slice(2);const result=spawnSync(command,args,{encoding:'utf8',timeout:240000,maxBuffer:8<<20});writeFileSync('result.json',JSON.stringify({status:result.status,stdout:result.stdout??'',stderr:result.stderr??''}));`);
    const run=async(cmd,args,extra={})=>{await runToolchainCommand(process.execPath,[recorder,cmd,...args],{cwd,env:{...env,...extra},timeout:270000});return JSON.parse(readFileSync(join(cwd,"result.json")));};
-   let r=await run("npm",["install","--save-exact",`snapback4@${version}`],{npm_config_registry:"https://registry.npmjs.org"});assert.equal(r.status,0,"published old CLI install failed");
+   let r=await run("npm",["install","--save-exact",`snapback4@${version}`],{npm_config_registry:"https://registry.npmjs.org"});assert.equal(r.status,0,"published old CLI install failed: "+(r.stderr.match(/npm (?:error|ERR!) code ([A-Z0-9_]+)/)?.[1]??"see private npm log"));
    const cli=join(cwd,"node_modules/snapback4/bin/snapback4.js"),oldWrapperSha256=createHash("sha256").update(readFileSync(cli)).digest("hex");
    writeFileSync(join(cwd,"snapback/schema.q"),schema);
    r=await run(process.execPath,[cli,"check","--json"]);assert.equal(r.status,0,`old ${version} accepts the gate fixture`);
