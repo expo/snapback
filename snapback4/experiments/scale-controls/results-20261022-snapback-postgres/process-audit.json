@@ -1,0 +1,763 @@
+{
+  "recorded_processes": 48,
+  "distinct_pids": 48,
+  "live_owned_pids": [],
+  "events": [
+    {
+      "event_file": "snapback4/experiments/scale-controls/target/s1pg/raw/pids.jsonl",
+      "pid": 2331592,
+      "name": "tunnel",
+      "command": [
+        "taskset",
+        "-c",
+        "4-5,10-11",
+        "ssh",
+        "-o",
+        "BatchMode=yes",
+        "-o",
+        "ControlMaster=no",
+        "-o",
+        "ControlPath=none",
+        "-o",
+        "Compression=no",
+        "-o",
+        "ExitOnForwardFailure=yes",
+        "-N",
+        "-L",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/s1pg/socket/.s.PGSQL.55440:127.0.0.1:55440",
+        "expo-build-450a"
+      ],
+      "time": 1792675085.8035557,
+      "exists_now": false
+    },
+    {
+      "event_file": "snapback4/experiments/scale-controls/target/s1pg/raw/pids.jsonl",
+      "pid": 2337650,
+      "name": "deploy",
+      "command": [
+        "/home/ccheever/projects/sb4-s1sk/snapback4/target/s1sk/release/snapback4",
+        "deploy",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/s1pg/deployment",
+        "--json"
+      ],
+      "time": 1792675175.6526816,
+      "exists_now": false
+    },
+    {
+      "event_file": "snapback4/experiments/scale-controls/target/s1pg/probes/pids.jsonl",
+      "pid": 2347502,
+      "name": "tunnel",
+      "command": [
+        "taskset",
+        "-c",
+        "4-5,10-11",
+        "ssh",
+        "-o",
+        "BatchMode=yes",
+        "-o",
+        "ControlMaster=no",
+        "-o",
+        "ControlPath=none",
+        "-o",
+        "Compression=no",
+        "-o",
+        "ExitOnForwardFailure=yes",
+        "-o",
+        "StreamLocalBindUnlink=yes",
+        "-N",
+        "-L",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/s1pg/socket/.s.PGSQL.55440:127.0.0.1:55440",
+        "expo-build-450a"
+      ],
+      "time": 1792675359.6124177,
+      "exists_now": false
+    },
+    {
+      "event_file": "snapback4/experiments/scale-controls/target/s1pg/probes/pids.jsonl",
+      "pid": 2347562,
+      "name": "full-check",
+      "command": [
+        "/home/ccheever/projects/sb4-s1sk/snapback4/target/s1sk/release/snapback4",
+        "check",
+        "--cost"
+      ],
+      "time": 1792675360.7601042,
+      "exists_now": false
+    },
+    {
+      "event_file": "snapback4/experiments/scale-controls/target/s1pg/probes/pids.jsonl",
+      "pid": 2347563,
+      "name": "delay-proxy",
+      "command": [
+        "taskset",
+        "-c",
+        "0-2,6-8",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/release/sb4-scale-controls",
+        "unix-proxy",
+        "--socket-dir",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/s1pg/delay-socket",
+        "--upstream-dir",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/s1pg/socket",
+        "--delay-us",
+        "500"
+      ],
+      "time": 1792675360.8743093,
+      "exists_now": false
+    },
+    {
+      "event_file": "snapback4/experiments/scale-controls/target/s1pg/probes/pids.jsonl",
+      "pid": 2348148,
+      "name": "ping-d0-r0",
+      "command": [
+        "taskset",
+        "-c",
+        "0-2,6-8",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/release/sb4-scale-controls",
+        "ping-unix",
+        "--socket-dir",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/s1pg/socket"
+      ],
+      "time": 1792675370.9278767,
+      "exists_now": false
+    },
+    {
+      "event_file": "snapback4/experiments/scale-controls/target/s1pg/probes/pids.jsonl",
+      "pid": 2348195,
+      "name": "ping-d0-r1",
+      "command": [
+        "taskset",
+        "-c",
+        "0-2,6-8",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/release/sb4-scale-controls",
+        "ping-unix",
+        "--socket-dir",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/s1pg/socket"
+      ],
+      "time": 1792675371.6433322,
+      "exists_now": false
+    },
+    {
+      "event_file": "snapback4/experiments/scale-controls/target/s1pg/probes/pids.jsonl",
+      "pid": 2348220,
+      "name": "ping-d0-r2",
+      "command": [
+        "taskset",
+        "-c",
+        "0-2,6-8",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/release/sb4-scale-controls",
+        "ping-unix",
+        "--socket-dir",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/s1pg/socket"
+      ],
+      "time": 1792675372.408863,
+      "exists_now": false
+    },
+    {
+      "event_file": "snapback4/experiments/scale-controls/target/s1pg/probes/pids.jsonl",
+      "pid": 2348256,
+      "name": "full-deploy-d0",
+      "command": [
+        "/home/ccheever/projects/sb4-s1sk/snapback4/target/s1sk/release/snapback4",
+        "deploy",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/s1pg/full-d0",
+        "--json"
+      ],
+      "time": 1792675373.0740073,
+      "exists_now": false
+    },
+    {
+      "event_file": "snapback4/experiments/scale-controls/target/s1pg/probes/pids.jsonl",
+      "pid": 2348289,
+      "name": "minimal-deploy-d0",
+      "command": [
+        "/home/ccheever/projects/sb4-s1sk/snapback4/target/s1sk/release/snapback4",
+        "deploy",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/s1pg/minimal-d0",
+        "--json"
+      ],
+      "time": 1792675373.4387023,
+      "exists_now": false
+    },
+    {
+      "event_file": "snapback4/experiments/scale-controls/target/s1pg/probes/pids.jsonl",
+      "pid": 2348307,
+      "name": "ping-d500-r0",
+      "command": [
+        "taskset",
+        "-c",
+        "0-2,6-8",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/release/sb4-scale-controls",
+        "ping-unix",
+        "--socket-dir",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/s1pg/delay-socket"
+      ],
+      "time": 1792675373.826457,
+      "exists_now": false
+    },
+    {
+      "event_file": "snapback4/experiments/scale-controls/target/s1pg/probes-complete/pids.jsonl",
+      "pid": 2353401,
+      "name": "tunnel",
+      "command": [
+        "taskset",
+        "-c",
+        "4-5,10-11",
+        "ssh",
+        "-o",
+        "BatchMode=yes",
+        "-o",
+        "ControlMaster=no",
+        "-o",
+        "ControlPath=none",
+        "-o",
+        "Compression=no",
+        "-o",
+        "ExitOnForwardFailure=yes",
+        "-o",
+        "StreamLocalBindUnlink=yes",
+        "-N",
+        "-L",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/s1pg/socket/.s.PGSQL.55440:127.0.0.1:55440",
+        "expo-build-450a"
+      ],
+      "time": 1792675464.8335788,
+      "exists_now": false
+    },
+    {
+      "event_file": "snapback4/experiments/scale-controls/target/s1pg/probes-complete/pids.jsonl",
+      "pid": 2353462,
+      "name": "full-check",
+      "command": [
+        "/home/ccheever/projects/sb4-s1sk/snapback4/target/s1sk/release/snapback4",
+        "check",
+        "--cost"
+      ],
+      "time": 1792675465.9810402,
+      "exists_now": false
+    },
+    {
+      "event_file": "snapback4/experiments/scale-controls/target/s1pg/probes-complete/pids.jsonl",
+      "pid": 2353463,
+      "name": "delay-proxy",
+      "command": [
+        "taskset",
+        "-c",
+        "0-2,6-8",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/release/sb4-scale-controls",
+        "unix-proxy",
+        "--socket-dir",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/s1pg/d2",
+        "--upstream-dir",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/s1pg/socket",
+        "--delay-us",
+        "500"
+      ],
+      "time": 1792675466.0953498,
+      "exists_now": false
+    },
+    {
+      "event_file": "snapback4/experiments/scale-controls/target/s1pg/probes-complete/pids.jsonl",
+      "pid": 2353479,
+      "name": "ping-d0-r0",
+      "command": [
+        "taskset",
+        "-c",
+        "0-2,6-8",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/release/sb4-scale-controls",
+        "ping-unix",
+        "--socket-dir",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/s1pg/socket"
+      ],
+      "time": 1792675466.1685596,
+      "exists_now": false
+    },
+    {
+      "event_file": "snapback4/experiments/scale-controls/target/s1pg/probes-complete/pids.jsonl",
+      "pid": 2353520,
+      "name": "ping-d0-r1",
+      "command": [
+        "taskset",
+        "-c",
+        "0-2,6-8",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/release/sb4-scale-controls",
+        "ping-unix",
+        "--socket-dir",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/s1pg/socket"
+      ],
+      "time": 1792675466.833986,
+      "exists_now": false
+    },
+    {
+      "event_file": "snapback4/experiments/scale-controls/target/s1pg/probes-complete/pids.jsonl",
+      "pid": 2353566,
+      "name": "ping-d0-r2",
+      "command": [
+        "taskset",
+        "-c",
+        "0-2,6-8",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/release/sb4-scale-controls",
+        "ping-unix",
+        "--socket-dir",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/s1pg/socket"
+      ],
+      "time": 1792675467.5493305,
+      "exists_now": false
+    },
+    {
+      "event_file": "snapback4/experiments/scale-controls/target/s1pg/probes-complete/pids.jsonl",
+      "pid": 2353608,
+      "name": "full-deploy-d0",
+      "command": [
+        "/home/ccheever/projects/sb4-s1sk/snapback4/target/s1sk/release/snapback4",
+        "deploy",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/s1pg/full-d0",
+        "--json"
+      ],
+      "time": 1792675468.2151937,
+      "exists_now": false
+    },
+    {
+      "event_file": "snapback4/experiments/scale-controls/target/s1pg/probes-complete/pids.jsonl",
+      "pid": 2353642,
+      "name": "minimal-deploy-d0",
+      "command": [
+        "/home/ccheever/projects/sb4-s1sk/snapback4/target/s1sk/release/snapback4",
+        "deploy",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/s1pg/minimal-d0",
+        "--json"
+      ],
+      "time": 1792675468.5798726,
+      "exists_now": false
+    },
+    {
+      "event_file": "snapback4/experiments/scale-controls/target/s1pg/probes-complete/pids.jsonl",
+      "pid": 2353654,
+      "name": "ping-d500-r0",
+      "command": [
+        "taskset",
+        "-c",
+        "0-2,6-8",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/release/sb4-scale-controls",
+        "ping-unix",
+        "--socket-dir",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/s1pg/d2"
+      ],
+      "time": 1792675468.9671392,
+      "exists_now": false
+    },
+    {
+      "event_file": "snapback4/experiments/scale-controls/target/s1pg/probes-complete/pids.jsonl",
+      "pid": 2353725,
+      "name": "ping-d500-r1",
+      "command": [
+        "taskset",
+        "-c",
+        "0-2,6-8",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/release/sb4-scale-controls",
+        "ping-unix",
+        "--socket-dir",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/s1pg/d2"
+      ],
+      "time": 1792675470.333457,
+      "exists_now": false
+    },
+    {
+      "event_file": "snapback4/experiments/scale-controls/target/s1pg/probes-complete/pids.jsonl",
+      "pid": 2353815,
+      "name": "ping-d500-r2",
+      "command": [
+        "taskset",
+        "-c",
+        "0-2,6-8",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/release/sb4-scale-controls",
+        "ping-unix",
+        "--socket-dir",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/s1pg/d2"
+      ],
+      "time": 1792675471.6996014,
+      "exists_now": false
+    },
+    {
+      "event_file": "snapback4/experiments/scale-controls/target/s1pg/probes-complete/pids.jsonl",
+      "pid": 2353890,
+      "name": "full-deploy-d500",
+      "command": [
+        "/home/ccheever/projects/sb4-s1sk/snapback4/target/s1sk/release/snapback4",
+        "deploy",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/s1pg/full-d500",
+        "--json"
+      ],
+      "time": 1792675473.066017,
+      "exists_now": false
+    },
+    {
+      "event_file": "snapback4/experiments/scale-controls/target/s1pg/probes-complete/pids.jsonl",
+      "pid": 2353910,
+      "name": "minimal-deploy-d500",
+      "command": [
+        "/home/ccheever/projects/sb4-s1sk/snapback4/target/s1sk/release/snapback4",
+        "deploy",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/s1pg/minimal-d500",
+        "--json"
+      ],
+      "time": 1792675473.3308556,
+      "exists_now": false
+    },
+    {
+      "event_file": "snapback4/experiments/scale-controls/target/s1pg/probes-complete/pids.jsonl",
+      "pid": 2353938,
+      "name": "tiny-deploy-d0",
+      "command": [
+        "/home/ccheever/projects/sb4-s1sk/snapback4/target/s1sk/release/snapback4",
+        "deploy",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/s1pg/diagnostic-deployment-d0",
+        "--json"
+      ],
+      "time": 1792675473.595964,
+      "exists_now": false
+    },
+    {
+      "event_file": "snapback4/experiments/scale-controls/target/s1pg/probes-complete/pids.jsonl",
+      "pid": 2354112,
+      "name": "tiny-serve-d0",
+      "command": [
+        "taskset",
+        "-c",
+        "0-2,6-8",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/target/s1sk/release/snapback4",
+        "serve",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/s1pg/diagnostic-deployment-d0",
+        "--worker-state-dir",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/s1pg/tiny-workers",
+        "--port",
+        "58080"
+      ],
+      "time": 1792675476.587758,
+      "exists_now": false
+    },
+    {
+      "event_file": "snapback4/experiments/scale-controls/target/s1pg/probes-complete/pids.jsonl",
+      "pid": 2354455,
+      "name": "tiny-deploy-d500",
+      "command": [
+        "/home/ccheever/projects/sb4-s1sk/snapback4/target/s1sk/release/snapback4",
+        "deploy",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/s1pg/diagnostic-deployment-d500",
+        "--json"
+      ],
+      "time": 1792675483.142172,
+      "exists_now": false
+    },
+    {
+      "event_file": "snapback4/experiments/scale-controls/target/s1pg/probes-complete/pids.jsonl",
+      "pid": 2354674,
+      "name": "tiny-serve-d500",
+      "command": [
+        "taskset",
+        "-c",
+        "0-2,6-8",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/target/s1sk/release/snapback4",
+        "serve",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/s1pg/diagnostic-deployment-d500",
+        "--worker-state-dir",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/s1pg/tiny-workers",
+        "--port",
+        "58080"
+      ],
+      "time": 1792675486.5322235,
+      "exists_now": false
+    },
+    {
+      "event_file": "snapback4/experiments/scale-controls/target/s1pg/probes-final/pids.jsonl",
+      "pid": 2350324,
+      "name": "tunnel",
+      "command": [
+        "taskset",
+        "-c",
+        "4-5,10-11",
+        "ssh",
+        "-o",
+        "BatchMode=yes",
+        "-o",
+        "ControlMaster=no",
+        "-o",
+        "ControlPath=none",
+        "-o",
+        "Compression=no",
+        "-o",
+        "ExitOnForwardFailure=yes",
+        "-o",
+        "StreamLocalBindUnlink=yes",
+        "-N",
+        "-L",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/s1pg/socket/.s.PGSQL.55440:127.0.0.1:55440",
+        "expo-build-450a"
+      ],
+      "time": 1792675411.3554187,
+      "exists_now": false
+    },
+    {
+      "event_file": "snapback4/experiments/scale-controls/target/s1pg/probes-final/pids.jsonl",
+      "pid": 2350390,
+      "name": "full-check",
+      "command": [
+        "/home/ccheever/projects/sb4-s1sk/snapback4/target/s1sk/release/snapback4",
+        "check",
+        "--cost"
+      ],
+      "time": 1792675412.5228164,
+      "exists_now": false
+    },
+    {
+      "event_file": "snapback4/experiments/scale-controls/target/s1pg/probes-final/pids.jsonl",
+      "pid": 2350399,
+      "name": "delay-proxy",
+      "command": [
+        "taskset",
+        "-c",
+        "0-2,6-8",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/release/sb4-scale-controls",
+        "unix-proxy",
+        "--socket-dir",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/s1pg/d",
+        "--upstream-dir",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/s1pg/socket",
+        "--delay-us",
+        "500"
+      ],
+      "time": 1792675412.6373837,
+      "exists_now": false
+    },
+    {
+      "event_file": "snapback4/experiments/scale-controls/target/s1pg/probes-final/pids.jsonl",
+      "pid": 2350405,
+      "name": "ping-d0-r0",
+      "command": [
+        "taskset",
+        "-c",
+        "0-2,6-8",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/release/sb4-scale-controls",
+        "ping-unix",
+        "--socket-dir",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/s1pg/socket"
+      ],
+      "time": 1792675412.711189,
+      "exists_now": false
+    },
+    {
+      "event_file": "snapback4/experiments/scale-controls/target/s1pg/probes-final/pids.jsonl",
+      "pid": 2350435,
+      "name": "ping-d0-r1",
+      "command": [
+        "taskset",
+        "-c",
+        "0-2,6-8",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/release/sb4-scale-controls",
+        "ping-unix",
+        "--socket-dir",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/s1pg/socket"
+      ],
+      "time": 1792675413.3763852,
+      "exists_now": false
+    },
+    {
+      "event_file": "snapback4/experiments/scale-controls/target/s1pg/probes-final/pids.jsonl",
+      "pid": 2350487,
+      "name": "ping-d0-r2",
+      "command": [
+        "taskset",
+        "-c",
+        "0-2,6-8",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/release/sb4-scale-controls",
+        "ping-unix",
+        "--socket-dir",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/s1pg/socket"
+      ],
+      "time": 1792675414.0915017,
+      "exists_now": false
+    },
+    {
+      "event_file": "snapback4/experiments/scale-controls/target/s1pg/probes-final/pids.jsonl",
+      "pid": 2350530,
+      "name": "full-deploy-d0",
+      "command": [
+        "/home/ccheever/projects/sb4-s1sk/snapback4/target/s1sk/release/snapback4",
+        "deploy",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/s1pg/full-d0",
+        "--json"
+      ],
+      "time": 1792675414.7569804,
+      "exists_now": false
+    },
+    {
+      "event_file": "snapback4/experiments/scale-controls/target/s1pg/probes-final/pids.jsonl",
+      "pid": 2350541,
+      "name": "minimal-deploy-d0",
+      "command": [
+        "/home/ccheever/projects/sb4-s1sk/snapback4/target/s1sk/release/snapback4",
+        "deploy",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/s1pg/minimal-d0",
+        "--json"
+      ],
+      "time": 1792675415.1220267,
+      "exists_now": false
+    },
+    {
+      "event_file": "snapback4/experiments/scale-controls/target/s1pg/probes-final/pids.jsonl",
+      "pid": 2350569,
+      "name": "ping-d500-r0",
+      "command": [
+        "taskset",
+        "-c",
+        "0-2,6-8",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/release/sb4-scale-controls",
+        "ping-unix",
+        "--socket-dir",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/s1pg/d"
+      ],
+      "time": 1792675415.5068278,
+      "exists_now": false
+    },
+    {
+      "event_file": "snapback4/experiments/scale-controls/target/s1pg/probes-final/pids.jsonl",
+      "pid": 2350656,
+      "name": "ping-d500-r1",
+      "command": [
+        "taskset",
+        "-c",
+        "0-2,6-8",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/release/sb4-scale-controls",
+        "ping-unix",
+        "--socket-dir",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/s1pg/d"
+      ],
+      "time": 1792675416.8226519,
+      "exists_now": false
+    },
+    {
+      "event_file": "snapback4/experiments/scale-controls/target/s1pg/probes-final/pids.jsonl",
+      "pid": 2350723,
+      "name": "ping-d500-r2",
+      "command": [
+        "taskset",
+        "-c",
+        "0-2,6-8",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/release/sb4-scale-controls",
+        "ping-unix",
+        "--socket-dir",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/s1pg/d"
+      ],
+      "time": 1792675418.1891928,
+      "exists_now": false
+    },
+    {
+      "event_file": "snapback4/experiments/scale-controls/target/s1pg/probes-final/pids.jsonl",
+      "pid": 2350824,
+      "name": "full-deploy-d500",
+      "command": [
+        "/home/ccheever/projects/sb4-s1sk/snapback4/target/s1sk/release/snapback4",
+        "deploy",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/s1pg/full-d500",
+        "--json"
+      ],
+      "time": 1792675419.5056632,
+      "exists_now": false
+    },
+    {
+      "event_file": "snapback4/experiments/scale-controls/target/s1pg/probes-final/pids.jsonl",
+      "pid": 2350846,
+      "name": "minimal-deploy-d500",
+      "command": [
+        "/home/ccheever/projects/sb4-s1sk/snapback4/target/s1sk/release/snapback4",
+        "deploy",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/s1pg/minimal-d500",
+        "--json"
+      ],
+      "time": 1792675419.8708866,
+      "exists_now": false
+    },
+    {
+      "event_file": "snapback4/experiments/scale-controls/target/s1pg/probes-final/pids.jsonl",
+      "pid": 2350875,
+      "name": "tiny-deploy-d0",
+      "command": [
+        "/home/ccheever/projects/sb4-s1sk/snapback4/target/s1sk/release/snapback4",
+        "deploy",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/s1pg/tiny-deployment-d0",
+        "--json"
+      ],
+      "time": 1792675420.2361028,
+      "exists_now": false
+    },
+    {
+      "event_file": "snapback4/experiments/scale-controls/target/s1pg/probes-final/pids.jsonl",
+      "pid": 2351010,
+      "name": "tiny-serve-d0",
+      "command": [
+        "taskset",
+        "-c",
+        "0-2,6-8",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/target/s1sk/release/snapback4",
+        "serve",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/s1pg/tiny-deployment-d0",
+        "--worker-state-dir",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/s1pg/tiny-workers",
+        "--port",
+        "58080"
+      ],
+      "time": 1792675423.1275237,
+      "exists_now": false
+    },
+    {
+      "event_file": "snapback4/experiments/scale-controls/target/s1pg/launch.json",
+      "pid": 2324489,
+      "kind": "release-build",
+      "command": [
+        "bash",
+        "-c",
+        "export PATH=\"$HOME/.cargo/bin:$PATH\" CARGO_TARGET_DIR=\"$PWD/target/s1sk\" LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT; cargo build --release --locked -p snapback4 -j 4; result=$?; echo \"$result\" > experiments/scale-controls/target/s1pg/build.exit; exit \"$result\""
+      ],
+      "time": 1792674994.1417816,
+      "exists_now": false
+    },
+    {
+      "event_file": "snapback4/experiments/scale-controls/target/s1pg/final-probe-launch.json",
+      "pid": 2350316,
+      "time": 1792675411.308881,
+      "command": [
+        "bash",
+        "-c",
+        "python3 scripts/postgres-probes.py --out-name probes-final > target/s1pg/probes-final.log 2>&1; result=$?; echo \"$result\" > target/s1pg/probes-final.exit; exit \"$result\""
+      ],
+      "exists_now": false
+    },
+    {
+      "event_file": "snapback4/experiments/scale-controls/target/s1pg/complete-probe-launch.json",
+      "pid": 2353391,
+      "time": 1792675464.7866223,
+      "command": [
+        "bash",
+        "-c",
+        "python3 scripts/postgres-probes.py --out-name probes-complete --proxy-name d2 > target/s1pg/probes-complete.log 2>&1; result=$?; echo \"$result\" > target/s1pg/probes-complete.exit; exit \"$result\""
+      ],
+      "exists_now": false
+    },
+    {
+      "event_file": "snapback4/experiments/scale-controls/target/s1pg/probe-launch.json",
+      "pid": 2346977,
+      "time": 1792675350.965613,
+      "command": [
+        "bash",
+        "-c",
+        "export PATH=\"$HOME/.cargo/bin:$PATH\" CARGO_TARGET_DIR=\"$PWD/target\"; cargo build --release --locked -j 3 > target/s1pg/harness-build.log 2>&1; result=$?; echo \"$result\" > target/s1pg/harness-build.exit; test \"$result\" = 0 && python3 scripts/postgres-probes.py > target/s1pg/probes.log 2>&1; result=$?; echo \"$result\" > target/s1pg/probes.exit; exit \"$result\""
+      ],
+      "exists_now": false
+    },
+    {
+      "event_file": "snapback4/experiments/scale-controls/target/s1pg/provision-launch.json",
+      "pid": 2331586,
+      "time": 1792675085.7567186,
+      "exists_now": false
+    }
+  ]
+}

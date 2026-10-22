@@ -1,0 +1,9 @@
+{
+  "pid": 2353392,
+  "source_commit": "459413c0fe33568c61ba8ad8ffaa95f5ed5490bd",
+  "snapback_binary_sha256": "d392be2274e85e61338790d0ae05517d563ee6e482f26366712c84a383d0b81e",
+  "harness_binary_sha256": "7618879a6762d49092c34aa2de9ec1ef784f0d569ac1906459b4a35ed693bb45",
+  "app_cores": "0-2,6-8",
+  "ssh_cores": "4-5,10-11",
+  "method": "blocked full cells; unqualified tiny serial diagnostic only"
+}

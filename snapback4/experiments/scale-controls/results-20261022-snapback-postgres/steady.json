@@ -1,0 +1,8 @@
+{
+  "status": "unavailable",
+  "reason": "deploy refused before fixture seeding or load",
+  "planned_cells": 12,
+  "completed_cells": 0,
+  "per_second_observations": null,
+  "unknown_write_outcome_trials": null
+}

@@ -101548,3 +101548,23 @@ confirmed stopped and all 20 recorded public-server PIDs absent. Minimum recorde
 stage free space was 42.49 GiB (lowest observed df display 43G). No push or stash.
 Final reference audit passes: 564 LLP documents, 12,329 references, zero errors
 and zero unchecked references.
+
+
+## 2026-10-22 — S1-PG: scale application blocked at Postgres admission
+
+The unchanged S1-SK Quarry app on release source `459413c0fe` refuses deploy
+with `E_STORE_UNSUPPORTED: maintained-columns`, exit 1. Both ordinary maintained
+counts are outside the initial HTTP profile. All twelve W1–W5/link cells are
+blocked before the required 1M seed or load; no product patch, weakened schema
+or synthetic throughput replaces them. The two-table repro and open filesystem
+ticket link from `experiments/scale-controls/results-20261022-snapback-postgres/`.
+
+Unix/SSH prepared SELECT 1 p50s are 0.562 / 1.192 ms on the matched PG17.9
+cluster. A separate guest-owned one-counter probe uses native sessions and the
+unchanged write body: one durable mutation transaction plus nine read snapshots
+and four session resolutions, about 57 inferred synchronous exchanges, serial
+p50 44 / 76 ms. It is not a matching W4 cell or batch qualification. The report
+records the conditional committer queue/batch model and limits of statement
+timing, every decision-rule status, setup interruptions, raw archive and custody.
+The owned database and role are dropped, all owned processes exited, cluster
+2735539 remains running and unchanged. No push, stash, clone or sub-agents.

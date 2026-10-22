@@ -1,0 +1,20 @@
+{
+  "archive_member_hashes_verified": 168,
+  "aggregate_regeneration_matches": [
+    "ledger.json",
+    "rtt.json",
+    "write-diagnosis.json",
+    "qualification.json",
+    "steady.json",
+    "refusals.json",
+    "configuration.json"
+  ],
+  "python_syntax": "pass",
+  "harness_release_build": "pass",
+  "harness_clippy_release_warnings_denied": "pass",
+  "product_release_build": "pass",
+  "reference_audit": "564 LLP docs, 11719 refs, 0 errors, 0 unchecked",
+  "matched_cells_completed": 0,
+  "planned_cells_blocked": 12,
+  "product_diff_empty": true
+}
