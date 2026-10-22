@@ -9,6 +9,13 @@ fn build(source: &str) -> snapback4_lang::Bound {
     assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
     b
 }
+// These raw-schema fixtures edit index/column declarations after compilation.
+// Recompute the compiler-owned caches before exercising the unchanged bounds.
+fn refresh_derived_facts(schema: &mut snapback4_core::Schema) {
+    schema.source_reservations.clear();
+    schema.receipt_dependencies.clear();
+    schema.prepare_receipt_dependencies();
+}
 fn engine() -> Engine {
     let b = build(SOURCE);
     let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
@@ -718,7 +725,7 @@ fn bulk_restore_reserves_all_index_vectors_before_put() {
     let b=build(SOURCE);let mut schema=b.schema;
     let mut table=public_table([("id".into(),ColumnType::Id),("body".into(),ColumnType::Bytes{max:900})].into(),[("byId".into(),Index::of(&["id"],true))].into());
     for n in 0..6000 {table.indexes.insert(format!("byBody{n}"),Index::of(&["body"],false));}
-    schema.tables.insert("wideIndexes".into(),table.clone());let mut e=Engine::memory(schema,b.programs.into_iter().map(|p|p.program)).unwrap();
+    schema.tables.insert("wideIndexes".into(),table.clone());let mut e={ refresh_derived_facts(&mut schema); Engine::memory(schema,b.programs.into_iter().map(|p|p.program)).unwrap() };
     let old=snapback4_core::value::object([("id",Value::Id("r".into())),("body",Value::Bytes(vec![0;900]))]);
     {let tx=e.store_mut().transaction().unwrap();tx.put("wideIndexes",&table,&old,None).unwrap();tx.commit().unwrap();}
     let mut bytes=vec![0;900];bytes[899]=1;let row=snapback4_core::value::object([("id",Value::Id("r".into())),("body",Value::Bytes(bytes))]);
@@ -754,10 +761,10 @@ fn raw_live_rule_literals_obey_scalar_admission() {
 fn adoption_reserves_destination_index_sets_before_live_callback() {
     use snapback4_core::schema::{Index,ColumnType};
     let b=build(SOURCE);let mut schema=b.schema;schema.tables.get_mut("tasks").unwrap().columns.insert("blob".into(),ColumnType::Bytes{max:800});
-    let mut e=Engine::memory(schema,b.programs.into_iter().map(|p|p.program)).unwrap();
+    let mut e={ refresh_derived_facts(&mut schema); Engine::memory(schema,b.programs.into_iter().map(|p|p.program)).unwrap() };
     let rows=[("projects".into(),snapback4_core::value::object([("id",Value::Id("p".into())),("owner",Value::Id("alice".into()))])),("tasks".into(),snapback4_core::value::object([("id",Value::Id("c".into())),("project",Value::Id("p".into())),("body",Value::String("private".into())),("blob",Value::Bytes(vec![0;800]))]))];e.seed(rows).unwrap();let generation=e.generation();
     let mut next=e.schema().clone();for n in 0..6000 {next.tables.get_mut("tasks").unwrap().indexes.insert(format!("byBlob{n}"),Index::of(&["blob"],false));}
-    let programs=e.programs().cloned().collect::<Vec<_>>();let error=e.adopt(next,programs).unwrap_err();assert_eq!(error.code(),"E_BOUND");assert_eq!(e.generation(),generation);assert!(visible(&mut e,"alice"));
+    refresh_derived_facts(&mut next);let programs=e.programs().cloned().collect::<Vec<_>>();let error=e.adopt(next,programs).unwrap_err();assert_eq!(error.code(),"E_BOUND");assert_eq!(e.generation(),generation);assert!(visible(&mut e,"alice"));
 }
 #[test]
 fn cap_restore_selects_a_plain_index_instead_of_word_entries() {
@@ -765,7 +772,7 @@ fn cap_restore_selects_a_plain_index_instead_of_word_entries() {
     let b=build(SOURCE);let mut schema=b.schema;
     let mut table=public_table([("id".into(),ColumnType::Id),("owner".into(),ColumnType::Principal),("body".into(),ColumnType::Text{max:40})].into(),[("byId".into(),Index::of(&["id"],true)),("zOwner".into(),Index::of(&["owner","id"],false))].into());
     table.indexes.insert("aWords".into(),Index{components:vec![IndexComponent::Column("owner".into()),IndexComponent::WordPrefixes{fields:vec!["body".into()],contract:serde_json::Value::String(snapback4_core::words::CONTRACT.into())},IndexComponent::Column("id".into())],unique:false});table.constraints.push(Constraint::Cap{by:vec!["owner".into()],max:1});schema.tables.insert("wordCaps".into(),table);
-    let mut e=Engine::memory(schema,b.programs.into_iter().map(|p|p.program)).unwrap();let row=snapback4_core::value::object([("id",Value::Id("r".into())),("owner",Value::Id("alice".into())),("body",Value::String("one two".into()))]);e.load_trusted([("wordCaps".into(),row)]).unwrap();
+    let mut e={ refresh_derived_facts(&mut schema); Engine::memory(schema,b.programs.into_iter().map(|p|p.program)).unwrap() };let row=snapback4_core::value::object([("id",Value::Id("r".into())),("owner",Value::Id("alice".into())),("body",Value::String("one two".into()))]);e.load_trusted([("wordCaps".into(),row)]).unwrap();
 }
 #[test]
 fn dormant_live_cap_changes_restamp_current_authority_and_validate_occupancy() {
@@ -820,7 +827,7 @@ fn live_to_captured_adoption_prepays_word_index_fanout() {
     next.tables.get_mut("projects").unwrap().constraints.push(Constraint::Immutable{fields:vec!["owner".into()]});
     let t=next.tables.get_mut("tasks").unwrap();t.through.as_mut().unwrap().live=None;
     for n in 0..4 {t.indexes.insert(format!("words{n}"),Index{components:vec![IndexComponent::WordPrefixes{fields:vec!["body".into()],contract:serde_json::Value::String(snapback4_core::words::CONTRACT.into())},IndexComponent::Column("id".into())],unique:false});}
-    let programs=e.programs().cloned().collect::<Vec<_>>();assert_eq!(e.adopt(next,programs).unwrap_err().code(),"E_BOUND");
+    refresh_derived_facts(&mut next);let programs=e.programs().cloned().collect::<Vec<_>>();assert_eq!(e.adopt(next,programs).unwrap_err().code(),"E_BOUND");
     assert_eq!(e.generation(),generation);assert!(visible(&mut e,"alice"));transfer(&mut e,"bob");assert!(visible(&mut e,"bob"));
 }
 
@@ -829,7 +836,7 @@ fn seed_prepays_source_index_vectors_before_ordinary_upsert() {
     use snapback4_core::schema::{Index,ColumnType,public_table};
     let b=build(SOURCE);let mut schema=b.schema;let mut t=public_table([("id".into(),ColumnType::Id),("body".into(),ColumnType::Bytes{max:900})].into(),[("byId".into(),Index::of(&["id"],true))].into());
     for n in 0..10_000 {t.indexes.insert(format!("byBody{n}"),Index::of(&["body"],false));}
-    schema.tables.insert("wideIndexes".into(),t);let mut e=Engine::memory(schema,b.programs.into_iter().map(|p|p.program)).unwrap();let seq=e.seq().unwrap();
+    schema.tables.insert("wideIndexes".into(),t);let mut e={ refresh_derived_facts(&mut schema); Engine::memory(schema,b.programs.into_iter().map(|p|p.program)).unwrap() };let seq=e.seq().unwrap();
     let row=snapback4_core::value::object([("id",Value::Id("r".into())),("body",Value::Bytes(vec![0;900]))]);assert_eq!(e.seed([("wideIndexes".into(),row)]).unwrap_err().code(),"E_BOUND");assert_eq!(e.seq().unwrap(),seq);
     let tx=e.store_mut().transaction().unwrap();assert!(tx.get("wideIndexes","r").unwrap().is_none());tx.rollback().unwrap();
 }
@@ -914,10 +921,10 @@ fn reverse_manual_correspondence_cannot_rewrite_immutable_parent_binding() {
 #[test]
 fn reverse_manual_adoption_reserves_destination_index_sets() {
     use snapback4_core::schema::{Index,ColumnType};
-    let b=build(SOURCE);let mut schema=b.schema;schema.tables.get_mut("tasks").unwrap().columns.insert("blob".into(),ColumnType::Bytes{max:800});let mut e=Engine::memory(schema,b.programs.into_iter().map(|p|p.program)).unwrap();
+    let b=build(SOURCE);let mut schema=b.schema;schema.tables.get_mut("tasks").unwrap().columns.insert("blob".into(),ColumnType::Bytes{max:800});let mut e={ refresh_derived_facts(&mut schema); Engine::memory(schema,b.programs.into_iter().map(|p|p.program)).unwrap() };
     let rows=[("projects".into(),snapback4_core::value::object([("id",Value::Id("p".into())),("owner",Value::Id("alice".into()))])),("tasks".into(),snapback4_core::value::object([("id",Value::Id("c".into())),("project",Value::Id("p".into())),("body",Value::String("private".into())),("blob",Value::Bytes(vec![0;800]))]))];e.seed(rows).unwrap();let generation=e.generation();
     let b=build(&manual());let mut next=b.schema;let t=next.tables.get_mut("tasks").unwrap();t.columns.insert("blob".into(),ColumnType::Bytes{max:800});for n in 0..6000 {t.indexes.insert(format!("byBlob{n}"),Index::of(&["blob"],false));}
-    assert_eq!(e.adopt(next,b.programs.into_iter().map(|p|p.program)).unwrap_err().code(),"E_BOUND");assert_eq!(e.generation(),generation);assert!(visible(&mut e,"alice"));transfer(&mut e,"bob");assert!(visible(&mut e,"bob"));
+    refresh_derived_facts(&mut next);assert_eq!(e.adopt(next,b.programs.into_iter().map(|p|p.program)).unwrap_err().code(),"E_BOUND");assert_eq!(e.generation(),generation);assert!(visible(&mut e,"alice"));transfer(&mut e,"bob");assert!(visible(&mut e,"bob"));
 }
 
 #[test]

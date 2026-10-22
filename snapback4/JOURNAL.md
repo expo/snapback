@@ -102067,3 +102067,11 @@ the published binary must still refuse that format and preserve all store
 bytes, tables and release files. This is a Darwin-only fixture correction,
 with no engine, client or Linux execution change. The Mac pool is repeated
 after the isolated fence and final guide tests.
+
+### 2026-10-23 — Integration 23: raw live-parent fixture facts
+
+The complete five-crate qualification exposed six live-parent bounds fixtures
+that edit compiled columns/indexes but retain the former derived reservation
+facts. Recompute the fixture-owned receipt/reservation cache after each raw edit;
+retain every `E_BOUND`, atomicity and visibility assertion. The complete
+`live_parent` target passes: 48 tests. Production admission remains strict.
