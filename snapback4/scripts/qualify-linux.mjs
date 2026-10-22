@@ -19,6 +19,7 @@ import { proveProduction } from "./publication-production.mjs";
 import { proveProofKit } from "./publication-proof-kit.mjs";
 import { proveMigrations } from "./publication-migrations.mjs";
 import { proveDX4 } from "./publication-dx4.mjs";
+import { proveDX6 } from "./publication-dx6.mjs";
 import { proveDX5 } from "./publication-dx5.mjs";
 import { proveStaging } from "./publication-staging.mjs";
 import { proveSecurity } from "./publication-security.mjs";
@@ -110,6 +111,7 @@ export async function qualify(args = process.argv.slice(2)) {
     const day2Proof = await proveDay2(client, tarball, out);
     save(join(out, "day2-proof.json"), day2Proof);
     save(join(out, "dx4-proof.json"), await proveDX4(day2Proof.directory));
+    save(join(out, "dx6-proof.json"), await proveDX6(day2Proof.directory));
     const dx5Proof = await proveDX5(day2Proof.directory, client, tarball, expo);
     save(join(out, "dx5-proof.json"), dx5Proof);
     const regressions = await proveExpoUpgrades(client, tarball, expo, out);

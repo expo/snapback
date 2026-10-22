@@ -95,7 +95,7 @@ export function changeFeed(fetchNow: typeof fetch, base: string, lifetime: Abort
           }
           json = JSON.parse(text + decoder.decode()) as Change;
         } else json = await response.json() as Change;
-        sampleChanges(response, json);
+        await sampleChanges(response, json);
         if (json.denied?.code === "E_STREAMS") {
           unheldUntil = Date.now() + UNHELD_MS;
           unheldEvery = Math.max(1000, retryAfter(response.headers.get("retry-after")));

@@ -26,6 +26,20 @@ for (const persona of [undefined, 'alice']) test(`default web starter ${persona 
   if (persona) { const sdk = invoke(['witness', 'web', 'dist', '--as', 'alice', '--mutation', 'add', '--args', '{"title":"SDK proof"}'], dir); success(sdk); }
 });
 
+test('password web starter native witness captures its visible write without app witness imports', {timeout:120000}, t => {
+  const dir=project(t,'dx6-password-witness-');
+  success(invoke(['init','--web'],dir));
+  symlinkSync(join(root,'node_modules'),join(dir,'node_modules'));
+  const schema=join(dir,'snapback/schema.q');
+  writeFileSync(schema,readFileSync(schema,'utf8').replace(/^use identity[^\n]*/m,'use identity password'));
+  success(invoke(['init','--adapt','--apply'],dir));
+  assert.doesNotMatch(readFileSync(join(dir,'src/client.ts'),'utf8'),/registerWebWitness|witnessPersona|snapback\/generated\/api/);
+  success(invoke(['check'],dir));
+  success(spawnSync(join(root,'node_modules/.bin/vite'),['build'],{cwd:dir,encoding:'utf8',timeout:120000}));
+  const proof=invoke(['witness','web','dist','--email','native-proof@example.test','--password-env','SNAPBACK4_DX6_TEST_PASSWORD','--mutation','add','--args','{"title":"Password native proof"}','--field','Task','--value','Password native proof','--button','Add'],dir,{SNAPBACK4_DX6_TEST_PASSWORD:'Proof-password-928!'});
+  success(proof); assert.equal(JSON.parse(proof.stdout).proof,'visible-form'); assert.equal(JSON.parse(proof.stdout).state,'sent');
+});
+
 test('visible-form arming ignores old sent state, isolates the clicked mutation and cleans repeated observers', async t => {
   const { registerWebWitness } = await import('../dist/witness-web.js');
   const old = Object.getOwnPropertyDescriptor(globalThis, 'window');

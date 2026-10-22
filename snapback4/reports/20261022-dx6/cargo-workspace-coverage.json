@@ -1,0 +1,5596 @@
+[
+  {
+    "package": "snapback4",
+    "kind": "Running",
+    "target": "unittests src/main.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 516,
+      "failed": 0,
+      "ignored": 5,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4",
+    "kind": "Running",
+    "target": "tests/aggregate_identity_upgrade.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 4,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4",
+    "kind": "Running",
+    "target": "tests/check.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 106,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4",
+    "kind": "Running",
+    "target": "tests/check_cost_source.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 10,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4",
+    "kind": "Running",
+    "target": "tests/check_notes.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 15,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4",
+    "kind": "Running",
+    "target": "tests/cli_friction.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 40,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4",
+    "kind": "Running",
+    "target": "tests/clock.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "FAILED",
+      "passed": 45,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4",
+    "kind": "Running",
+    "target": "tests/column_commit.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4",
+    "kind": "Running",
+    "target": "tests/committer_ratchet.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "FAILED",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4",
+    "kind": "Running",
+    "target": "tests/day3.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 20,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4",
+    "kind": "Running",
+    "target": "tests/day4.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4",
+    "kind": "Running",
+    "target": "tests/day5_evidence.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4",
+    "kind": "Running",
+    "target": "tests/day5_previews.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4",
+    "kind": "Running",
+    "target": "tests/day5_starters.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "FAILED",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4",
+    "kind": "Running",
+    "target": "tests/delivery_page.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4",
+    "kind": "Running",
+    "target": "tests/dev_refusals.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 27,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4",
+    "kind": "Running",
+    "target": "tests/dev_reset.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4",
+    "kind": "Running",
+    "target": "tests/expiry_writes.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 41,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4",
+    "kind": "Running",
+    "target": "tests/familiar.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4",
+    "kind": "Running",
+    "target": "tests/feed_bridge.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 13,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4",
+    "kind": "Running",
+    "target": "tests/fix.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 27,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4",
+    "kind": "Running",
+    "target": "tests/following_view.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4",
+    "kind": "Running",
+    "target": "tests/http.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4",
+    "kind": "Running",
+    "target": "tests/http_emfile.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 12,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4",
+    "kind": "Running",
+    "target": "tests/init.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 51,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4",
+    "kind": "Running",
+    "target": "tests/init_dx3.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4",
+    "kind": "Running",
+    "target": "tests/init_production.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 14,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4",
+    "kind": "Running",
+    "target": "tests/intent_issue_tracker.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 13,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4",
+    "kind": "Running",
+    "target": "tests/latency.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 21,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4",
+    "kind": "Running",
+    "target": "tests/lifecycle.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 29,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4",
+    "kind": "Running",
+    "target": "tests/maintenance_chunks.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4",
+    "kind": "Running",
+    "target": "tests/maintenance_latency.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 4,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4",
+    "kind": "Running",
+    "target": "tests/overload.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4",
+    "kind": "Running",
+    "target": "tests/read_latency.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 2,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4",
+    "kind": "Running",
+    "target": "tests/replay.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 24,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4",
+    "kind": "Running",
+    "target": "tests/run_admission.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 28,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4",
+    "kind": "Running",
+    "target": "tests/scale.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 29,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4",
+    "kind": "Running",
+    "target": "tests/scale_curves.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4",
+    "kind": "Running",
+    "target": "tests/scale_extremum_expressions.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 22,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4",
+    "kind": "Running",
+    "target": "tests/scale_intent.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 17,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4",
+    "kind": "Running",
+    "target": "tests/scale_row_ranges.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 14,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4",
+    "kind": "Running",
+    "target": "tests/scale_variants.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 36,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4",
+    "kind": "Running",
+    "target": "tests/scale_windows_expiry.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 16,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4",
+    "kind": "Running",
+    "target": "tests/security_wave19.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4",
+    "kind": "Running",
+    "target": "tests/store_handle_census.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4",
+    "kind": "Running",
+    "target": "tests/store_port_ratchet.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "FAILED",
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4",
+    "kind": "Running",
+    "target": "tests/surf4.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 20,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4",
+    "kind": "Running",
+    "target": "tests/timeline.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 23,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4",
+    "kind": "Running",
+    "target": "tests/timeline_adoption.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 15,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4",
+    "kind": "Running",
+    "target": "tests/timeline_delivery.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4",
+    "kind": "Running",
+    "target": "tests/timeline_delivery_counterexample.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4",
+    "kind": "Running",
+    "target": "tests/timeline_design.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4",
+    "kind": "Running",
+    "target": "tests/token_live.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 22,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4",
+    "kind": "Running",
+    "target": "tests/wave13_rules.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4",
+    "kind": "Running",
+    "target": "tests/witness.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 34,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4",
+    "kind": "Running",
+    "target": "tests/witness_web.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4",
+    "kind": "Running",
+    "target": "tests/work_records.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4",
+    "kind": "Running",
+    "target": "tests/written_by.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-core",
+    "kind": "Running",
+    "target": "unittests src/lib.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 645,
+      "failed": 0,
+      "ignored": 3,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-core",
+    "kind": "Running",
+    "target": "tests/action_context.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 10,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-core",
+    "kind": "Running",
+    "target": "tests/adoption_scale.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 1,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-core",
+    "kind": "Running",
+    "target": "tests/asset_lists.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 28,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-core",
+    "kind": "Running",
+    "target": "tests/born_perf.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-core",
+    "kind": "Running",
+    "target": "tests/bound_session.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-core",
+    "kind": "Running",
+    "target": "tests/corpus.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 19,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-core",
+    "kind": "Running",
+    "target": "tests/delivery_bounds.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-core",
+    "kind": "Running",
+    "target": "tests/dev_reset.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-core",
+    "kind": "Running",
+    "target": "tests/disclosure.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 32,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-core",
+    "kind": "Running",
+    "target": "tests/effect_policy.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 14,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-core",
+    "kind": "Running",
+    "target": "tests/ephemeral.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 18,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-core",
+    "kind": "Running",
+    "target": "tests/event_slot_snapshot.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-core",
+    "kind": "Running",
+    "target": "tests/expiring_adoption.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-core",
+    "kind": "Running",
+    "target": "tests/file_assets.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-core",
+    "kind": "Running",
+    "target": "tests/identity.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-core",
+    "kind": "Running",
+    "target": "tests/job_time_audiences.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-core",
+    "kind": "Running",
+    "target": "tests/lane_source.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 10,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-core",
+    "kind": "Running",
+    "target": "tests/maintained_columns_review.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-core",
+    "kind": "Running",
+    "target": "tests/membership_discovery_steps.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-core",
+    "kind": "Running",
+    "target": "tests/meter.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-core",
+    "kind": "Running",
+    "target": "tests/nul_chokepoints.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-core",
+    "kind": "Running",
+    "target": "tests/pending_metadata_heap.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-core",
+    "kind": "Running",
+    "target": "tests/read_sessions.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-core",
+    "kind": "Running",
+    "target": "tests/refused_open.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-core",
+    "kind": "Running",
+    "target": "tests/review_walk.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 16,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-core",
+    "kind": "Running",
+    "target": "tests/revocation_history.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 1,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-core",
+    "kind": "Running",
+    "target": "tests/routes.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 14,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-core",
+    "kind": "Running",
+    "target": "tests/row_view_accounting.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-core",
+    "kind": "Running",
+    "target": "tests/row_view_disclosure.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 18,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-core",
+    "kind": "Running",
+    "target": "tests/row_view_legacy.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-core",
+    "kind": "Running",
+    "target": "tests/row_view_witness.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-core",
+    "kind": "Running",
+    "target": "tests/rows.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 10,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-core",
+    "kind": "Running",
+    "target": "tests/schema_capabilities.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-core",
+    "kind": "Running",
+    "target": "tests/schema_capabilities_legacy.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-core",
+    "kind": "Running",
+    "target": "tests/sequence_by.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 17,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-core",
+    "kind": "Running",
+    "target": "tests/sequence_disclosure.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 29,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-core",
+    "kind": "Running",
+    "target": "tests/store_handle_traits.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-core",
+    "kind": "Running",
+    "target": "tests/stream_receipts.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-core",
+    "kind": "Running",
+    "target": "tests/sync_count_batch.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-core",
+    "kind": "Running",
+    "target": "tests/time_audiences.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 22,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-core",
+    "kind": "Running",
+    "target": "tests/unicode_fold.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-core",
+    "kind": "Running",
+    "target": "tests/update_rule_images.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-core",
+    "kind": "Running",
+    "target": "tests/upload_intents.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-core",
+    "kind": "Running",
+    "target": "tests/work_records.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "unittests src/lib.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 63,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/acquisition_crash.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/adoption.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/asset_lists.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 22,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/background_durability.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/bounded_calendar_caps.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/bounded_following.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/branch_merge.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 21,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/codec.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 12,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/column_activation.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/column_reads.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/components.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 10,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/cut.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/delivery.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 30,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/device.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 440,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/device_diet.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/diet_timing.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 1,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/disclosure.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 21,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/ephemeral.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/event_slots.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/event_slots_trace.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/expiring_counts.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 1,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/expiring_counts_probe.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/expiring_counts_upgrade.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/expiring_mutations.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/expiry_maintained_columns.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/extrema.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/extremum_expressions.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/file_assets.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/first_instinct.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/first_paste.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/following_meters.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/following_model.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/following_view.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/heavy_acquisition.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/helper_pages.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 90,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/index_key_bound.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/intent_variants.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/intent_views.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 16,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/list_lower_bounds.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/live_parent.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/matching_order.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/mixed_keys.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/monotonic_ids.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/mp_builder.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/named_key_lookup.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 17,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/native.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/native_following.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/native_reads.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/natural_forms.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/nl_qe2_integration.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/own_keys.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/own_keys_cost.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 2,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/point_probe_admission.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/prediction_write_set.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/qe2_allocations.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/qe2_ergonomics.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/query_unavailable.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/read_through.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/read_through_review.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/readauth.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 88,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/recorded_coverage.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 24,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/reference_actions.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/repair_b.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 110,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/repair_b_boundaries.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/repair_b_counterexample.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/repair_b_legacy_r6.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/repair_b_round2_counterexample.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/repair_b_round3_counterexample.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/residency.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/retained_history.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 20,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/retained_release.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/review_parent_floor.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/row_keyed_views.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 24,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/row_view_disclosure.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/row_view_expiry.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 14,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/rx_rule_hops.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/schema_capabilities.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 12,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/schema_capabilities_legacy.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/search_exists.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/sequence_by.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 12,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/sequence_disclosure.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/server_clock.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/shape_overrides.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/spread_metadata.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/spread_pending_union.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/sqlite_bulk.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/sync_windows.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/time_audiences.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/timed_search.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/timeline.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 26,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/topn_complete.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/unicode.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "outcome": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/unread_range.rs",
+    "log": "cargo-workspace-complete.log",
+    "result": {
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/upload_intents.rs",
+    "log": "cargo-resume-device-tail.log",
+    "result": {
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/upload_receipts.rs",
+    "log": "cargo-resume-device-tail.log",
+    "result": {
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/upsert_constraints.rs",
+    "log": "cargo-resume-device-tail.log",
+    "result": {
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/w13g_probe.rs",
+    "log": "cargo-resume-device-tail.log",
+    "result": {
+      "passed": 142,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/wave11_qdiag.rs",
+    "log": "cargo-resume-device-tail.log",
+    "result": {
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/wave12_language.rs",
+    "log": "cargo-resume-device-tail.log",
+    "result": {
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/wave13_lang2.rs",
+    "log": "cargo-resume-device-tail.log",
+    "result": {
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/write_authority.rs",
+    "log": "cargo-resume-device-tail.log",
+    "result": {
+      "passed": 10,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Running",
+    "target": "tests/written_by.rs",
+    "log": "cargo-resume-device-tail.log",
+    "result": {
+      "passed": 17,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-difftest",
+    "kind": "Running",
+    "target": "unittests src/lib.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 0,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-difftest",
+    "kind": "Running",
+    "target": "unittests src/main.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 0,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-difftest",
+    "kind": "Running",
+    "target": "tests/column_reads_lean.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-difftest",
+    "kind": "Running",
+    "target": "tests/devices.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 15,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-difftest",
+    "kind": "Running",
+    "target": "tests/lang2.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-difftest",
+    "kind": "Running",
+    "target": "tests/lean.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 45,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-difftest",
+    "kind": "Running",
+    "target": "tests/smoke.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 29,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-difftest",
+    "kind": "Running",
+    "target": "tests/stores.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 0,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-difftest",
+    "kind": "Running",
+    "target": "tests/wave11_qdiag.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-difftest",
+    "kind": "Running",
+    "target": "tests/wave12_expiry_actions_generated.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-difftest",
+    "kind": "Running",
+    "target": "tests/wave12_generated_semantics.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-difftest",
+    "kind": "Running",
+    "target": "tests/wave13_lang2.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "unittests src/lib.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 36,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/actions.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/aggregate_copies.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 64,
+      "failed": 0,
+      "ignored": 4,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/attribution_guide.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/audience_bounds.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 10,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/audience_bounds_runtime.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 2,
+      "failed": 0,
+      "ignored": 1,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/bounded_calendar_caps.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/bounded_following.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/branch_merge.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 57,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/builder_guidance.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/chat.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/clique_03.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/column_read_lanes.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/column_reads.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 21,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/components.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/constraint_diagnostics.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/control_flow.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/cursor_advice.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/declarative_receipts.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 211,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/delivery.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 16,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/delivery_clause.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/delivery_integration.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/delivery_replay_conversion.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 2,
+      "failed": 0,
+      "ignored": 1,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/denied_writes.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/derived_maintains.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 14,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/effect_reads.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/emit_compatibility.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 16,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/ephemeral.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 15,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/ephemeral_compat.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/ergonomics.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 25,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/expiring_mutations.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 19,
+      "failed": 0,
+      "ignored": 1,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/extrema.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 21,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/extremum_expressions.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 12,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/familiar_guesses.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/familiar_predicates.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/familiar_repairs.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/familiar_source_repairs.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/familiar_verified_repairs.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 14,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/feed_forms.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/file_assets.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/first_paste.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/following_adoption_research.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 4,
+      "failed": 0,
+      "ignored": 2,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/following_atomic_launch.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 9,
+      "failed": 0,
+      "ignored": 2,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/following_history.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 10,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/following_history_research.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 1,
+      "failed": 0,
+      "ignored": 2,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/following_view.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/front_semantics.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/frontend_regressions.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 40,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/guide.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 127,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/held_unknown.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 14,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/helper_placement.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/intent_aggregate_safety.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/intent_delta10.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/intent_followup.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/intent_nulls.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/intent_order.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/intent_predicates.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/intent_review.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/intent_target.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 21,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/intent_variants.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/intent_variants_review.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/job_viewer.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 18,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/joined_shapes.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 17,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/lane_domains.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/lean_emit.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 18,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/list_expressions.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 14,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/list_lower_bounds.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 14,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/list_reference_repair.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/list_widening.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/live_parent.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 48,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/live_parent_admission.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/lookup_selection.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/lowering.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/maintained_columns.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 42,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/maintained_result_types.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 14,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/maintains.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 15,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/matching_order.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 13,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/membership_nullable_authorization.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/membership_paths.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/mixed_keys.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/mp_reproduction.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 18,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/mutation_result_types.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/natural_forms.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 16,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/operation_evolution.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 15,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/optional_lookup_notes.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/own_keys.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/page2_membership.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/page3.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 15,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/page4.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 18,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/papercuts.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/prefix_reads.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 10,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/presence.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/printed_rewrites.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/pure_call_narrowing.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/qe2_ergonomics.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 17,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/query_read_paths.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/query_settlement.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/read_through.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 10,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/read_through_provenance.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/read_through_review.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 35,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/read_through_sync.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/read_through_transactions.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 14,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/receipt_gaps.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 17,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/recorded_round1.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/reference_actions.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 32,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/release_bridge_security.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/repairs.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/reservation_app_headroom.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/residency_notes.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 44,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/revocation_soundness.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/routes.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/row_keyed_views.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 46,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/rx_legacy_identity.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/rx_rule_enforcement.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/rx_rule_hops.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 10,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/schedule_durations.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/search_guidance.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/security.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 46,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/security_custody.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/security_histories.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 28,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/security_observers.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 13,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/security_sec4.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 20,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/security_sec5_intent.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/security_sec5_notes.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 18,
+      "failed": 0,
+      "ignored": 2,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/security_sec5_output.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/security_sec5_refutations.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/security_sec6.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 12,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/security_wave16.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/security_wave19.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 25,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/selected_prefix.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/selected_prefix_cursors.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/selected_prefix_regressions.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/sequence_by.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/server_opt_in.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/shape_meter.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/shape_overrides.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/sparse_filter.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/spelling.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 19,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/surf4_guide.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/sync_audiences.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/sync_windows.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 40,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/system_principal.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/time_audiences.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/time_indexes.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/timeline_background.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 17,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/timeline_epoch_counterexample.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/timeline_fairness.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/timeline_guide.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/timeline_live_latency.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/typed_positional_keys.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 10,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/typed_positional_sync.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/union_limits.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/verified_index_repairs.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 21,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/wave10_guard_notes.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 23,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/wave10_rules_expressiveness.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/wave10_runtime_diagnostics.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/wave11_docs.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/wave11_qdiag.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 19,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/wave11_runtime.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/wave12_diagnostics.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 12,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/wave12_rule_composition.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/wave12_rule_recipes.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 13,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/wave12_semantics.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/wave13_lang2.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 43,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/wave13_rules.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/wave14_authorization.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 10,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/wave14_client_docs.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/wave14_lang3.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 16,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/wave14_snapshot_ir.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 10,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/wave15_notes.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 15,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/wave1_rule_language.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 16,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/wave2_rule_language.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 17,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/wave3_rule_language.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 15,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/wave4_rule_language.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 13,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/wave5_rule_language.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/wave6_rule_language.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 12,
+      "failed": 0,
+      "ignored": 1,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/wave7_rule_language.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 16,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/wave8_rule_language.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/wave9_completeness_notes.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/wave9_rule_diagnostic_rewrites.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Running",
+    "target": "tests/written_by.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-native",
+    "kind": "Running",
+    "target": "unittests src/lib.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 0,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-sim",
+    "kind": "Running",
+    "target": "unittests src/lib.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 17,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-sim",
+    "kind": "Running",
+    "target": "tests/adoption.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-sim",
+    "kind": "Running",
+    "target": "tests/clique.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 254,
+      "failed": 0,
+      "ignored": 1,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-sim",
+    "kind": "Running",
+    "target": "tests/condition_authority.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-sim",
+    "kind": "Running",
+    "target": "tests/decorated_search.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-sim",
+    "kind": "Running",
+    "target": "tests/device.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-sim",
+    "kind": "Running",
+    "target": "tests/digest_count.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-sim",
+    "kind": "Running",
+    "target": "tests/exhaustive.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 1,
+      "failed": 0,
+      "ignored": 1,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-sim",
+    "kind": "Running",
+    "target": "tests/expiry_reference_actions.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-sim",
+    "kind": "Running",
+    "target": "tests/filters.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-sim",
+    "kind": "Running",
+    "target": "tests/helper_pages.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 43,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-sim",
+    "kind": "Running",
+    "target": "tests/helper_sweep.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-sim",
+    "kind": "Running",
+    "target": "tests/intent_integration.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-sim",
+    "kind": "Running",
+    "target": "tests/loopbar.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-sim",
+    "kind": "Running",
+    "target": "tests/maintain_measurement.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 0,
+      "failed": 0,
+      "ignored": 2,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-sim",
+    "kind": "Running",
+    "target": "tests/maintains.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 16,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-sim",
+    "kind": "Running",
+    "target": "tests/maintains_recorded.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 19,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-sim",
+    "kind": "Running",
+    "target": "tests/maintains_review.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-sim",
+    "kind": "Running",
+    "target": "tests/membership.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 29,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-sim",
+    "kind": "Running",
+    "target": "tests/membership_search.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 24,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-sim",
+    "kind": "Running",
+    "target": "tests/native.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 12,
+      "failed": 0,
+      "ignored": 1,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-sim",
+    "kind": "Running",
+    "target": "tests/ordinary_search.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 19,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-sim",
+    "kind": "Running",
+    "target": "tests/page_admission.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 15,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-sim",
+    "kind": "Running",
+    "target": "tests/reference_exhaustive.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-sim",
+    "kind": "Running",
+    "target": "tests/residency.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 17,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-sim",
+    "kind": "Running",
+    "target": "tests/retained_release.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-sim",
+    "kind": "Running",
+    "target": "tests/review_corrections.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 32,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-sim",
+    "kind": "Running",
+    "target": "tests/reviews.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 30,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-sim",
+    "kind": "Running",
+    "target": "tests/roster.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-sim",
+    "kind": "Running",
+    "target": "tests/search_merge.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-sim",
+    "kind": "Running",
+    "target": "tests/security.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 12,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-sim",
+    "kind": "Running",
+    "target": "tests/time_audiences.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-sim",
+    "kind": "Running",
+    "target": "tests/timed_search.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-sim",
+    "kind": "Running",
+    "target": "tests/topn_complete.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-sim",
+    "kind": "Running",
+    "target": "tests/union.rs",
+    "log": "cargo-resume-remaining-crates.log",
+    "result": {
+      "passed": 29,
+      "failed": 0,
+      "ignored": 2
+    }
+  },
+  {
+    "package": "snapback4-sim",
+    "kind": "Running",
+    "target": "tests/wave11_qdiag.rs",
+    "log": "cargo-resume-sim-tail.log",
+    "result": {
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-sim",
+    "kind": "Running",
+    "target": "tests/wave12_language.rs",
+    "log": "cargo-resume-sim-tail.log",
+    "result": {
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-sim",
+    "kind": "Running",
+    "target": "tests/wave13_lang2.rs",
+    "log": "cargo-resume-sim-tail.log",
+    "result": {
+      "passed": 43,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-sim",
+    "kind": "Running",
+    "target": "tests/work_intent.rs",
+    "log": "cargo-resume-sim-tail.log",
+    "result": {
+      "passed": 12,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-sim",
+    "kind": "Running",
+    "target": "tests/work_intent_review.rs",
+    "log": "cargo-resume-sim-tail.log",
+    "result": {
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-sim",
+    "kind": "Running",
+    "target": "tests/work_intent_review2.rs",
+    "log": "cargo-resume-sim-tail.log",
+    "result": {
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-sim",
+    "kind": "Running",
+    "target": "tests/work_intent_review3.rs",
+    "log": "cargo-resume-sim-tail.log",
+    "result": {
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-sim",
+    "kind": "Running",
+    "target": "tests/work_intent_review4.rs",
+    "log": "cargo-resume-sim-tail.log",
+    "result": {
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-sim",
+    "kind": "Running",
+    "target": "tests/write_authority.rs",
+    "log": "cargo-resume-sim-tail.log",
+    "result": {
+      "passed": 35,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-core",
+    "kind": "Doc-tests",
+    "target": "snapback4_core",
+    "log": "cargo-resume-core-device-docs.log",
+    "result": {
+      "passed": 17,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-device",
+    "kind": "Doc-tests",
+    "target": "snapback4_device",
+    "log": "cargo-resume-core-device-docs.log",
+    "result": {
+      "passed": 0,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-difftest",
+    "kind": "Doc-tests",
+    "target": "snapback4_difftest",
+    "log": "cargo-resume-remaining-docs.log",
+    "result": {
+      "passed": 0,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-lang",
+    "kind": "Doc-tests",
+    "target": "snapback4_lang",
+    "log": "cargo-resume-remaining-docs.log",
+    "result": {
+      "passed": 0,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-native",
+    "kind": "Doc-tests",
+    "target": "snapback4_native",
+    "log": "cargo-resume-remaining-docs.log",
+    "result": {
+      "passed": 0,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  {
+    "package": "snapback4-sim",
+    "kind": "Doc-tests",
+    "target": "snapback4_sim",
+    "log": "cargo-resume-remaining-docs.log",
+    "result": {
+      "passed": 0,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  }
+]

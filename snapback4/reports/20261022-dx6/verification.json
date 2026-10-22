@@ -1,0 +1,194 @@
+{
+  "format": 1,
+  "recordedAt": "2026-10-22T07:29:31.922141+00:00",
+  "functionalSource": "0bf50ac18696a2414dd836968ccda17607f0a45c",
+  "reviews": {
+    "proposalSha256": "94921e914251509fb831b2264420f2455a6c2c677514d896c23f01f0b2616fae",
+    "codex": "READY",
+    "muse": "READY",
+    "provenance": "../../../llp/reviews/dx6/r6-provenance.json"
+  },
+  "pack": {
+    "format": 1,
+    "source": "0bf50ac18696a2414dd836968ccda17607f0a45c",
+    "expo": {
+      "name": "snapback4-expo",
+      "version": "0.4.37",
+      "filename": "snapback4-expo-0.4.37.tgz",
+      "integrity": "sha512-OTPBlWLHJo322OnKnDOif5kZSMsfKWduymDFEXkmQKr6s3FB/zIjx0D6sOFsdNdWJqR6YyaKcJXTiPNkYActSg==",
+      "bytes": 23101
+    },
+    "client": {
+      "name": "snapback4",
+      "version": "0.4.37",
+      "filename": "snapback4-0.4.37.tgz",
+      "integrity": "sha512-bG5Lhkc8t7+FwkJYAfQQntTvhk07gg4Gc73XvIL9rGvGPXoFQXaDeLBJk69yLCrs8A4IAJteavs+pX26NqC05Q==",
+      "bytes": 1332978,
+      "files": 328
+    }
+  },
+  "linux": {
+    "exitCode": 0,
+    "mode": "consumer-only",
+    "publicationQualified": false,
+    "route": "proot",
+    "binarySha256": "945f2a63168e351fca8a910765e4ccdc76a82c3ffecc972821ca3be9025fc040",
+    "platform": {
+      "name": "snapback4-linux-x64",
+      "version": "0.4.37",
+      "filename": "snapback4-linux-x64-0.4.37.tgz",
+      "integrity": "sha512-bNNxg4te9at4pebZsI64aWJ+nhWDTi8oQEKvcrqOYrJa9qxAN9bSV9zJxl4g/fCQuBdXyy66yxkfLYMlTL6vHw==",
+      "bytes": 14306319
+    },
+    "consumerSha256": "3c894008b525b61a9a215ab8f5699f9b9455ed3875d46864eea75532a617dc83",
+    "cleanUserspaces": [
+      {
+        "base": "ubuntu:24.04",
+        "status": "passed",
+        "elapsedMs": 375751,
+        "starters": {
+          "web": "passed",
+          "expo": "passed",
+          "adapted": "passed",
+          "templates": "passed"
+        }
+      },
+      {
+        "base": "alpine",
+        "status": "passed",
+        "elapsedMs": 485695,
+        "starters": {
+          "web": "passed",
+          "expo": "passed",
+          "adapted": "passed",
+          "templates": "passed"
+        }
+      }
+    ],
+    "starters": [
+      {
+        "starter": "web",
+        "status": "passed",
+        "typecheck": "passed",
+        "build": "passed",
+        "frontendAttempts": 2,
+        "adapted": "passed"
+      },
+      {
+        "starter": "web-online",
+        "status": "passed",
+        "typecheck": "passed",
+        "build": "passed",
+        "frontendAttempts": 2,
+        "adapted": null
+      },
+      {
+        "starter": "expo",
+        "status": "passed",
+        "typecheck": "passed",
+        "build": "passed",
+        "frontendAttempts": 2,
+        "adapted": "passed"
+      },
+      {
+        "starter": "web-chat",
+        "status": "passed",
+        "typecheck": "passed",
+        "build": "passed",
+        "frontendAttempts": 2,
+        "adapted": null
+      },
+      {
+        "starter": "expo-chat",
+        "status": "passed",
+        "typecheck": "passed",
+        "build": "passed",
+        "frontendAttempts": 2,
+        "adapted": null
+      },
+      {
+        "starter": "expo-social",
+        "status": "passed",
+        "typecheck": "passed",
+        "build": "passed",
+        "frontendAttempts": 2,
+        "adapted": null
+      }
+    ],
+    "frontendProofs": 12,
+    "priorInterruptedRun": {
+      "exitCode": 1,
+      "cause": "Shared npm cache ENOENT fetching @types/react-dom during production starter install",
+      "log": "qualification-r6.log",
+      "sameTarballs": true,
+      "privateCacheRetry": "qualification-r6-isolated.log"
+    }
+  },
+  "clients": {
+    "files": 23,
+    "tests": 384,
+    "passed": 383,
+    "failed": 0,
+    "skipped": 1,
+    "skipReason": "Historical0.4.13 downgrade binary unavailable",
+    "log": "affected-clients-r6.log",
+    "expandedGroup": {
+      "passed": 329,
+      "failed": 0,
+      "log": "auth-capture-affected-final.log"
+    },
+    "models": {
+      "tests": 60,
+      "passed": 60,
+      "failed": 0,
+      "onlineHistories": 5000,
+      "localHistories": 5000,
+      "log": "auth-capture-model-final.log"
+    }
+  },
+  "rust": "cargo-workspace-completion.json",
+  "rootChecks": "root-checks.json",
+  "finalRefs": {
+    "llps": 564,
+    "references": 12312,
+    "errors": 0,
+    "unchecked": 0,
+    "log": "ref-check-handoff.log"
+  },
+  "docsBudget": {
+    "exitCode": 0,
+    "README": 319,
+    "limit": 320,
+    "selfContainmentPassed": 1,
+    "selfContainmentTotal": 1,
+    "log": "docs-budget-r6.log"
+  },
+  "scopedLlpAudit": {
+    "status": "passed",
+    "governing": [
+      "LLP3000.000.000.001\u00a711",
+      "LLP3000.000.000.002\u00a74",
+      "LLP3000.013\u00a76/\u00a712.7",
+      "LLP3000.013.002\u00a72",
+      "LLP3000.036.004\u00a715.4"
+    ],
+    "reconciliation": "Session, clock, cleanup outcome authority and starter/proof behavior match reviewed\u00a711. The security-invariants LLP points to the online partial-session exception. Sixteen executable client/deploy fences remained byte-identical; changed reference snippet and staging literals execute against the pack.",
+    "crossLane": "SEC7 owns security advice/recipes; DX6 makes no all-app security-hole-free claim."
+  },
+  "mac": {
+    "evidence": "mac-platform.json",
+    "state": "incomplete-network-unreachable",
+    "confirmedPassed": 106,
+    "unverified": [
+      "clock/init_production59",
+      "maintenance14",
+      "clock-store7",
+      "ratchets10",
+      "SDK build",
+      "23 affected client files"
+    ],
+    "remoteCleanupVerified": false,
+    "localMonitoringEnded": true
+  },
+  "cleanup": "cleanup.json"
+}

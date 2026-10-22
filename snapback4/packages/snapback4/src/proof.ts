@@ -9,6 +9,8 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 import type { BrowserContext, BrowserType, LaunchOptions, Locator, Page } from "playwright-core";
+import { renderedSelector, registerRenderedSelector, visibleText } from "./proof-text.ts";
+import { webWitnessObserverScript } from "./witness-web.ts";
 import { resolveBinary } from "./bin-path.ts";
 import { bounded, deadline, logged, logText, portRange, ready, stopChild, type ProofHost, type ProofOptions, logsDir } from "./proof-process.ts";
 export { bounded, cleanup, stopChild, portRange } from "./proof-process.ts";
@@ -82,12 +84,15 @@ export interface ScheduleOutcome {
   skippedBoundariesOmitted?: number;
   run?: { id: string; state: string; rowsWritten: number; error: string | null; errorTruncated: boolean };
 }
-export interface ClockAdvance { now: number; fired: ScheduleOutcome[]; held: ScheduleOutcome[] }
+export interface ClockAdvance { now: number; fired: ScheduleOutcome[]; held: ScheduleOutcome[]; maintenancePaused: boolean; valueOf(): number }
+export interface AdvanceOptions { eachBoundary?: boolean; drain?: boolean; allowHeld?: boolean; sessions?: "preserve" | "expire" }
 export interface ServeHost extends ProofHost {
   /** Authoritative staging time; requires a staging store and local operator authority. */
   now(): Promise<number>;
   /** Advance staging time once and drain due work. A lost reply must not be retried. */
-  advance(duration: string, options?: { eachBoundary?: boolean }): Promise<ClockAdvance>;
+  advance(duration: string, options?: AdvanceOptions): Promise<ClockAdvance>;
+  /** Resume and drain maintenance without advancing time. */
+  drain(options?: Pick<AdvanceOptions, "eachBoundary" | "allowHeld">): Promise<ClockAdvance>;
   operatorToken(service?: string, days?: number): Promise<string>;
   seedAccounts(options: SeedAccountsOptions): Promise<StagingSessions>;
   sessions?: StagingSessions;
@@ -113,7 +118,8 @@ export async function startServe(deployDir: string, options: ServeOptions | read
     if (!response.ok || result.denied || !Number.isSafeInteger(result.now)) throw Object.assign(Error(`staging clock refused or reply unavailable; inspect clock and queued work before retrying: ${result.denied?.code ?? response.status} ${result.denied?.message ?? ""}`), { report: result });
     if (body && (!Array.isArray(result.fired) || !Array.isArray(result.held))) throw Error("staging clock reply has no schedule report; inspect clock and queued work before retrying");
     for (const schedule of result.held ?? []) if (schedule.holdCode === "saved-boundary") process.stderr.write(`snapback4: schedule ${schedule.name}: ${schedule.reason}\n`);
-    return { now: result.now!, fired: result.fired ?? [], held: result.held ?? [] };
+    const report: ClockAdvance = { now: result.now!, fired: result.fired ?? [], held: result.held ?? [], maintenancePaused: result.maintenancePaused ?? false, valueOf() { return this.now; } };
+    return report;
   };
   // Exit can precede inherited watchdog flock release. The private local
   // barrier observes the same canonical ownership sidecar without writing data.
@@ -126,9 +132,10 @@ export async function startServe(deployDir: string, options: ServeOptions | read
   const served: ServeHost = { ...host, stop,
     now: async () => (await clockCall()).now,
     advance: (duration, options = {}) => {
-      if (typeof duration !== "string" || !/^\+?\d+(ms|s|m|h|d|w)$/.test(duration)) throw new TypeError("E_PROOF_USAGE: advance requires a positive whole duration");
-      return clockCall({ duration, eachBoundary: options.eachBoundary ?? false });
+      if (typeof duration !== "string" || (!/^\+?\d+(ms|s|m|h|d|w)$/.test(duration) || BigInt(duration.replace(/\D/g, "")) === 0n)) throw new TypeError("E_PROOF_USAGE: advance requires a positive whole duration");
+      return clockCall({ duration, ...options });
     },
+    drain: (options = {}) => clockCall({ duration: "0ms", drain: true, ...options }),
     operatorToken: async (service = "operator", days = 1) => {
       if (!/^[A-Za-z0-9_-]{1,64}$/.test(service) || !Number.isSafeInteger(days) || days < 1 || days > 3650) throw Error("proof operatorToken: invalid service or days (1..3650)");
       const result = await cli(["token", "--service", service, "--days", String(days), "--release", directory, "--quiet"], opts);
@@ -236,13 +243,14 @@ export async function withBrowser<T>(options: LaunchOptions & Pick<ProofOptions,
   const { chromium: suppliedChromium, executablePath, cwd: _cwd, logsDir: _logs, ...other } = options;
   const requireCaller = createRequire(resolve(options.cwd ?? process.cwd(), "package.json"));
   let caller = suppliedChromium;
-  if (!caller) {
+  {
     for (const peer of ["playwright-core", "@playwright/test", "playwright"]) {
       let path: string;
       try { path = requireCaller.resolve(peer); }
       catch (error) { if ((error as NodeJS.ErrnoException).code === "MODULE_NOT_FOUND") continue; throw error; }
       const peerModule = await import(path);
-      caller = (peerModule.chromium ?? peerModule.default?.chromium) as BrowserType;
+      await registerRenderedSelector(peerModule.selectors ?? peerModule.default?.selectors);
+      caller ??= (peerModule.chromium ?? peerModule.default?.chromium) as BrowserType;
       break;
     }
   }
@@ -283,6 +291,9 @@ export async function withBrowser<T>(options: LaunchOptions & Pick<ProofOptions,
         url.searchParams.set("witness", "web");
         history.replaceState(history.state, "", url.href);
       });
+      // The bridge function is self-contained after TypeScript erases types.
+      // Proof code lives in this realm, outside the application's bundle.
+      await context.addInitScript({ content: webWitnessObserverScript() });
       context.setDefaultTimeout(30_000); context.setDefaultNavigationTimeout(30_000);
       return await proof(context);
     } finally {
@@ -292,19 +303,28 @@ export async function withBrowser<T>(options: LaunchOptions & Pick<ProofOptions,
   } finally { closeSync(err); closeSync(diagnostic); }
 }
 const substringLocators = new WeakMap<Locator, { locator: Locator; scoped: boolean }>();
-/** Strings match exactly by default; use exact:false or a RegExp for a row with more text. Excludes editable values. */
+/** Match the smallest visible element whose composed descendant text matches.
+ * Strings normalize whitespace and stay exact by default; regexes keep their
+ * own semantics. Editable values never count. Independent matches remain
+ * ambiguous, including repeated rows. */
 /** @throws None at construction; locator observation can refuse ambiguous or invalid selectors. */
+// @ref LLP 3000.000.000.001#11-wave-22-loop-repairs-dx6 — composed text preserves exactness and ambiguity.
 export function renderedText(page: Page, text: string | RegExp, options: { within?: Locator; exact?: boolean } = {}): Locator {
-  const root = options.within ?? page, rendered = page.locator(":not(input):not(textarea)");
-  const locator = root.getByText(text, { exact: options.exact ?? true }).and(rendered);
-  if (typeof text === "string" && options.exact !== false) substringLocators.set(locator, { locator: root.getByText(text, { exact: false }).and(rendered), scoped: options.within !== undefined });
+  const root = options.within ?? page;
+  const match = (exact: boolean) => root.locator(`${renderedSelector}=${JSON.stringify({
+    source: typeof text === "string" ? text : text.source,
+    flags: typeof text === "string" ? "" : text.flags,
+    regex: typeof text !== "string", exact,
+  })}`);
+  const locator = match(options.exact ?? true);
+  if (typeof text === "string" && options.exact !== false) substringLocators.set(locator, { locator: match(false), scoped: options.within !== undefined });
   return locator;
 }
 /** Activate before taking a screenshot, particularly on loaded shared hosts. */
 /** @throws page closed or browser activation failed. */
 export async function frontPage(page: Page): Promise<Page> { await page.bringToFront(); return page; }
 export { logsDir } from "./proof-process.ts";
-/** Returns the fresh nonempty text as a string, after it differs from previous. */
+/** Returns normalized visible nonempty text after it differs from previous. Hidden and editable descendants do not confer freshness. */
 /** @throws observation deadline with scoped locator, last text and visible headings; selector ambiguity is propagated. */
 export async function waitForFresh(locator: Locator, previous: string | null, options: number | { within?: Locator; timeoutMs?: number } = 30_000): Promise<string> {
   const timeoutMs = deadline(typeof options === "number" ? options : options.timeoutMs, 30_000);
@@ -318,7 +338,7 @@ export async function waitForFresh(locator: Locator, previous: string | null, op
   while (performance.now() < end) {
     try {
       count = await bounded(locator.count(), Math.max(1, end - performance.now()), "locator count");
-      text = count ? await bounded(locator.textContent({ timeout: Math.max(1, Math.min(1000, end - performance.now())) }), Math.max(1, end - performance.now()), "locator text") : null;
+      text = count ? await bounded(visibleText(locator, Math.max(1, Math.min(1000, end - performance.now()))), Math.max(1, end - performance.now()), "locator text") : null;
       if (text && text !== previous) return text;
     } catch (error) {
       detail = error instanceof Error && (error.name === "TimeoutError" || /timed out after/.test(error.message))
@@ -368,6 +388,6 @@ export async function fillRN(locator: Locator, text: string): Promise<void> {
   await locator.pressSequentially(text);
 }
 /** @throws None at construction; ambiguous text is refused when observed. */
-export function statusText(page: Page, text: string | RegExp = /^(?:Ready|pending|sent|failed)$/): Locator { return page.getByText(text, { exact: true }); }
+export function statusText(page: Page, text: string | RegExp = /^(?:Ready|pending|sent|failed)$/): Locator { return renderedText(page, text); }
 /** @throws locator ambiguity, unavailable option or Playwright deadline. */
 export async function selectByValue(locator: Locator, value: string): Promise<void> { await locator.selectOption({ value }); }

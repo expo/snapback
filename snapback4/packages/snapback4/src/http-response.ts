@@ -38,13 +38,16 @@ export const jitter = (delay: number): number => delay * (1 + Math.random() * 0.
 export function pauseProbe(response: Response | undefined, signal: AbortSignal): Promise<void> {
   return pause(jitter(Math.max(1000, retryAfter(response?.headers.get('retry-after') ?? null))), signal);
 }
-export async function readResponse(response: Response, decode?: (response: Response) => Promise<Record<string, unknown>>): Promise<Record<string, unknown>> {
+export async function readResponse(response: Response, decode?: (response: Response) => Promise<Record<string, unknown>>, onParsed?: (json: Record<string, unknown>) => void): Promise<Record<string, unknown>> {
   let json: Record<string, unknown>;
   try { json = decode ? await decode(response) : await response.json() as Record<string, unknown>; }
   catch (error) { if (!(error instanceof SyntaxError)) throw error; return { denied: invalidResponse(response.status) }; }
   if (!json || typeof json !== 'object' || Array.isArray(json)) return { denied: invalidResponse(response.status) };
   const why = json.denied ?? json.why;
   if (why !== undefined && !refusal(why) || !response.ok && !refusal(why)) return { denied: invalidResponse(response.status) };
+  // @ref LLP 3000.013#6 — decoded-body custody precedes the caller's next
+  // await, so local session cleanup cannot overtake a known response.
+  onParsed?.(json);
   return json;
 }
 /** Only safe reads use this helper. Same-ID mutations retain their outbox's

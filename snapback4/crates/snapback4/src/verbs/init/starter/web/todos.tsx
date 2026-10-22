@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
-import { existence, isDenied, isFailed, isLoading } from "snapback4/contract";
-import { useAuth, useLink, useMutation, usePage, useSignedInViewer, type UseMutation, type UsePage } from "snapback4/react";
+import { existence, isFailed } from "snapback4/contract";
+import { ReadState, useAuth, useLink, useMutation, usePage, useSignedInViewer, type UseMutation, type UsePage } from "snapback4/react";
 import { api } from "../snapback/generated/api.ts";
 
 function Todos() {
@@ -11,7 +11,7 @@ function Todos() {
   // unconfirmed writes (marked `pending`) and changes from other devices.
   // usePage is for a query that takes `c: cursor ?`; any other query reads
   // with useQuery(api.op, args), which returns the Read itself (render it
-  // with matchRead from snapback4/contract).
+  // with ReadState for lists, or matchRead from snapback4/contract).
   // Keep the draft in this screen, above release-sensitive read children.
   const [title, setTitle] = useState("");
   const todos = usePage(api.list, {});
@@ -45,10 +45,10 @@ function Todos() {
 // UseMutation<typeof api.toggle>, and UseQuery<typeof api.op> for useQuery.
 function TodoList({ todos, toggle, remove }: { todos: UsePage<typeof api.list>; toggle: UseMutation<typeof api.toggle>; remove: UseMutation<typeof api.remove> }) {
   return <>
-    {isLoading(todos.read) && <p>Loading…</p>}
-    {isDenied(todos.read) && <p role="alert">Not available: {todos.read.denied.message}</p>}
-    {existence(todos.read) === "absent" && <p>No tasks yet.</p>}
-    <ul>
+    <ReadState read={todos} loading={<p>Loading…</p>}
+      denied={why => <p role="alert">Not available: {why.message}</p>}
+      empty={<p>{existence(todos.read) === "absent" ? "No tasks yet." : "No known tasks yet."}</p>}>
+    {() => <ul>
       {todos.items.map(todo => <li key={todo.id} className={todo.pending ? "pending" : undefined}>
         <label>
           <input type="checkbox" checked={todo.done} onChange={() => void toggle.run({ todoId: todo.id })} />
@@ -56,7 +56,8 @@ function TodoList({ todos, toggle, remove }: { todos: UsePage<typeof api.list>; 
         </label>
         <button onClick={() => void remove.run({ todoId: todo.id })} aria-label={`Delete ${todo.title}`}>×</button>
       </li>)}
-    </ul>
+    </ul>}
+    </ReadState>
     {todos.hasMore && <button onClick={todos.loadMore}>Show more</button>}
   </>;
 }

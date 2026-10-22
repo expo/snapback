@@ -33,6 +33,8 @@ mod effect_steps;
 #[cfg(feature = "sqlite")]
 pub mod effects;
 #[cfg(feature = "sqlite")]
+pub(crate) mod session_clock;
+#[cfg(feature = "sqlite")]
 pub mod ephemeral;
 #[cfg(feature = "sqlite")]
 pub mod job;

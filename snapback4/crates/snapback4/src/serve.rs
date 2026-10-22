@@ -101,6 +101,8 @@ pub struct Shared {
     pub seq: Mutex<u64>,
     /// `dev` admits loopback personas; a release refuses them.
     pub personas: bool,
+    /// Immutable deployment classification captured before the listener starts.
+    pub(crate) staging: bool,
     pub unsafe_dev_doors: bool,
     pub hold_effects: bool,
     pub hold_schedules: bool,
@@ -611,7 +613,7 @@ pub(crate) fn trusted_dev_request(request: &Request, shared: &Shared) -> bool {
 pub(crate) fn cors(request: &Request) -> Vec<Header> {
     let mut headers = vec![
         Header::from_bytes("Vary", "Origin").unwrap(),
-        Header::from_bytes("Access-Control-Expose-Headers", "X-Snapback-Time, X-Snapback-Clock, X-Snapback-Generation, X-Snapback-Dev-Reset").unwrap(),
+        Header::from_bytes("Access-Control-Expose-Headers", "X-Snapback-Time, X-Snapback-Clock, X-Snapback-Generation, X-Snapback-Dev-Reset, X-Snapback-Session-Expires, X-Snapback-Session-Cap, X-Snapback-Session-Timing").unwrap(),
         Header::from_bytes("Access-Control-Allow-Headers", "content-type, x-snapback-persona, x-snapback-meter, authorization, range, x-snapback-device").unwrap(),
         Header::from_bytes("Access-Control-Allow-Methods", "GET, POST, OPTIONS").unwrap(),
     ];
@@ -653,6 +655,39 @@ pub(crate) fn clock_headers(shared: &Shared) -> [Header; 2] {
     let now = clock.now().max(shared.time_audience_clock.load(Ordering::Acquire));
     [Header::from_bytes("X-Snapback-Time", now.to_string()).unwrap(),
      Header::from_bytes("X-Snapback-Clock", clock.revision()).unwrap()]
+}
+
+// @ref LLP 3000.000.000.001#11-wave-22-loop-repairs-dx6 — reconcile the exact bearer before the SDK observes advanced business time.
+fn session_clock_headers(request: &Request, shared: &Shared) -> Vec<Header> {
+    if !shared.staging { return clock_headers(shared).into(); }
+    let Ok(token) = crate::auth::bearer_token(request) else { return clock_headers(shared).into(); };
+    // Detached readers never fall back to the writer: callers may still hold it.
+    // Keep the process clock fixed across the committed authority snapshot, so
+    // preserved lifetime and the clock stamp describe the same staging jump.
+    let Ok((epoch, reader)) = shared.reader() else {
+        return vec![Header::from_bytes("X-Snapback-Session-Timing", "unavailable").unwrap()];
+    };
+    let identity = lock(&shared.wake).store_id.clone();
+    let clock = lock(&shared.clock);
+    let now = clock.now().max(shared.time_audience_clock.load(Ordering::Acquire));
+    let timing = identity.as_deref().ok_or_else(|| snapback4_core::RuntimeError::Auth("store identity unavailable".into()))
+        .and_then(|identity| reader.staging_session_timing(token, now, identity));
+    let headers = match timing {
+        Ok(timing) => {
+            let mut headers = vec![Header::from_bytes("X-Snapback-Session-Timing", "staging").unwrap(),
+                Header::from_bytes("X-Snapback-Time", now.to_string()).unwrap(),
+                Header::from_bytes("X-Snapback-Clock", clock.revision()).unwrap()];
+            if let Some(timing) = timing {
+                headers.push(Header::from_bytes("X-Snapback-Session-Expires", timing.expires_at.to_string()).unwrap());
+                if let Some(cap) = timing.cap_expires_at { headers.push(Header::from_bytes("X-Snapback-Session-Cap", cap.to_string()).unwrap()); }
+            }
+            headers
+        }
+        Err(_) => vec![Header::from_bytes("X-Snapback-Session-Timing", "unavailable").unwrap()],
+    };
+    drop(clock);
+    lock(&shared.readers).put(&epoch, reader.into_inner());
+    headers
 }
 
 // @ref LLP 3000.017#3.3 — advertise only on ephemeral backends; durable-only HTTP bytes stay unchanged.
@@ -721,7 +756,7 @@ fn respond_full(request: Request, status: u16, body: impl latency::Reply, allow_
         response.add_header(Header::from_bytes("X-Snapback-Dev-Reset", identity.as_str()).unwrap());
     }
     if let Some(shared) = shared {
-        for header in clock_headers(shared).into_iter().chain(ephemeral_headers(shared)) { response.add_header(header); }
+        for header in session_clock_headers(&request, shared).into_iter().chain(ephemeral_headers(shared)) { response.add_header(header); }
         // @ref LLP 3000.023#11 — discover compiler dependency summaries without probing older servers.
         response.add_header(Header::from_bytes("X-Snapback-Settlement", "1").unwrap());
         response.add_header(Header::from_bytes("Access-Control-Expose-Headers", "X-Snapback-Settlement, X-Snapback-Generation").unwrap());

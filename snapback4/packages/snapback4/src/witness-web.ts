@@ -4,11 +4,15 @@ import type { Mutation, Write } from "./contract.js";
 
 export type WitnessReason = "not-ready" | "returned-early" | "event" | "arguments";
 
-const handlerClaim = Symbol("witness explicit handler claim");
-
 type Operations = Record<string, unknown>;
-export function registerWebWitness(app: App, api: Operations): void {
+export function registerWebWitness(app: App, api?: Operations): void {
+  const handlerClaim = Symbol("witness explicit handler claim");
   if (typeof window === "undefined" || typeof window.location?.search !== "string") return;
+  const locked = Object.getOwnPropertyDescriptor(window, "__snapback4Witness");
+  if (locked?.configurable === false) {
+    (locked.value as { registerApi(owner: App, api?: Operations): void }).registerApi(app, api);
+    return;
+  }
   const enabled = new URLSearchParams(window.location.search).get("witness") === "web";
   const armed = () => { if (!enabled) throw Object.assign(Error("E_WITNESS_DISABLED: add &witness=web"), { code: "E_WITNESS_DISABLED" }); };
   const operations: unknown[] = [];
@@ -18,11 +22,15 @@ export function registerWebWitness(app: App, api: Operations): void {
       else if (!("kind" in entry)) walk(entry as Operations);
     }
   } };
-  walk(api);
+  if (api) walk(api);
   let ready = false;
   void app.ready.then(result => { ready = result.ok; }, () => {});
   let form: { terminal: Promise<unknown>; cancel: () => void; claimHandler: (owner: App, event: Event) => { mutate: App["mutate"]; done: () => void } | undefined } | undefined;
   Object.defineProperty(window, "__snapback4Witness", { configurable: true, value: {
+    registerApi: (owner: App, operationsApi?: Operations) => {
+      if (owner !== app) throw Error("E_WITNESS_APP_SELECTION: this proof selected another App; use a separate page for another application instance");
+      if (operationsApi) { api = operationsApi; operations.length = 0; walk(operationsApi); }
+    },
     ready: () => app.ready,
     viewer: () => app.client?.viewer(),
     clock: () => {
@@ -77,7 +85,7 @@ export function registerWebWitness(app: App, api: Operations): void {
       const canonical = (value: unknown): unknown => Array.isArray(value) ? value.map(canonical) : value && typeof value === "object"
         ? Object.fromEntries(Object.keys(value).sort().map(key => [key, canonical((value as Record<string, unknown>)[key])])) : value;
       const execute = async (original: Function, receiver: unknown, op: Mutation<any, any>, args: Record<string, unknown>, options?: any): Promise<Write> => {
-        const durable = operations.some(value => (value as Mutation<any, any>).name === op.name);
+        const durable = api ? operations.some(value => (value as Mutation<any, any>).name === op.name) : op.kind === "mutation" && (op as { ephemeral?: boolean }).ephemeral !== true;
         const eventMatches = options?.[handlerClaim] !== undefined
           ? handlerClaimed && options[handlerClaim] === handlerToken
           : !!click && (window.event === click || (!!submit && window.event === submit));
@@ -160,6 +168,22 @@ export function registerWebWitness(app: App, api: Operations): void {
       } finally { stop(); }
     },
   } });
+}
+
+/** @internal Shared by the Node proof kit and the native browser driver. */
+export function webWitnessObserverScript(): string {
+  return `(() => {
+    const register = (${registerWebWitness.toString()});
+    let selected;
+    Object.defineProperty(window, Symbol.for("snapback4.proof.app"), { configurable: false, writable: false, value: app => {
+      if (selected) return;
+      selected = app;
+      register(app);
+      const bridge = window.__snapback4Witness;
+      Object.freeze(bridge);
+      Object.defineProperty(window, "__snapback4Witness", { configurable: false, writable: false, value: bridge });
+    }});
+  })();`;
 }
 
 /** Run an event handler with an explicit write claim that survives awaited uploads.

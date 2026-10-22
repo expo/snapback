@@ -1,4 +1,5 @@
-import { suppliedSession } from "./session-input.ts";
+import { reconciledTiming, requestMatchesSession } from "./session-timing.ts";
+import { suppliedOnlineSession } from "./session-input.ts";
 import { servedRelease } from "./release.ts";
 import { dependencies, intersects, intervalChanges, readFootprint, type Changes, QueryCuts, waitForQueryWrites } from "./query-dependencies.ts";
 import { bindSessionRefusal } from "./session-refusal.ts";
@@ -62,8 +63,8 @@ export interface ClientOptions {
   readonly url: string;
   /** A development persona (loopback only): `alice` acts as `dev:alice`. */
   readonly persona?: string;
-  /** A session from `guest()`, `login()` or `signup()` (deployed servers). */
-  readonly session?: Session;
+  /** A complete session enables managed refresh. Legacy partial objects use only their token, like the token option. */
+  readonly session?: Session | { readonly token: string; readonly principal?: string; readonly kind?: string; readonly expiresAt?: number | string };
   /** A bare bearer token, when the app keeps sessions itself. */
   readonly token?: string;
   /** Explicitly request engine work; loopback dev includes it by default and serve never returns it. */
@@ -178,7 +179,8 @@ export function idFrom(key: string): string {
 let warnedBrowserWrites = false;
 
 export function createClient(options: ClientOptions): Client {
-  const initialSession = suppliedSession(options.session, "createClient");
+  const supplied = suppliedOnlineSession(options.session);
+  const initialSession = supplied.session;
   let release: ReturnType<typeof servedRelease> | undefined;
   validateReadOptions(options);
   // @ref LLP 3000.013#6.2 — say so at construction, not at the first refused click.
@@ -186,7 +188,7 @@ export function createClient(options: ClientOptions): Client {
     warnedBrowserWrites = true;
     console.warn(`snapback4: createClient in a browser reads, but refuses durable writes with E_ADMISSION: it has no synchronous admission journal. For browser writes use ${ONLINE_WRITE_FIX} when no table syncs, otherwise ${BROWSER_WRITE_FIX}. Pass readOnly: true to silence this.`);
   }
-  const clock = serverClock(options.fetch ?? defaultFetch);
+  const clock = serverClock(options.fetch ?? defaultFetch).fork();
   // @ref LLP 3000.017#3.3 — ordinary responses discover schema capability without changing durable traffic.
   const transport = clock.wrap(options.fetch ?? defaultFetch);
   const doFetch: typeof fetch = async (...args) => {
@@ -212,7 +214,7 @@ export function createClient(options: ClientOptions): Client {
   const headers: Record<string, string> = { "content-type": "application/json" };
   if (options.persona) headers["x-snapback-persona"] = options.persona;
   let session = options.persona ? null : initialSession ?? null;
-  const token = options.persona ? undefined : session?.token ?? options.token;
+  const token = options.persona ? undefined : session?.token ?? supplied.token ?? options.token;
   if (token) headers.authorization = `Bearer ${token}`;
   let viewer: Principal | null = options.persona ? (`dev:${options.persona}` as Principal) : initialSession ? (initialSession.principal as Principal) : null;
   let credentials = Boolean(viewer || token);
@@ -239,6 +241,15 @@ export function createClient(options: ClientOptions): Client {
   let storeRefusal: Refusal | null = null;
   const linkListeners = new Set<(link: Link) => void>();
   const sessionListeners = new Set<(session: Session | null) => void>();
+  const stopSessionTiming = clock.beforeSample((response, request) => {
+    if (response.headers.get("x-snapback-session-timing") === "staging" && request.authorization &&
+        (closed || !credentials || !session || !requestMatchesSession(request, base, session))) return false;
+    if (closed || !credentials || !session || !requestMatchesSession(request, base, session)) return;
+    const next = reconciledTiming(session, response);
+    if (next === session) return;
+    session = next;
+    for (const listener of [...sessionListeners]) listener(session);
+  });
   const viewerListeners = new Set<(viewer: Principal | null) => void>();
   const history = options.readOnly ? undefined : new WriteHistory();
   const mutationIds = options.readOnly ? undefined : new MutationIds();
@@ -351,7 +362,10 @@ export function createClient(options: ClientOptions): Client {
     }
   };
 
-  let credentialRevision = 0;
+  let credentialRevision = 0, authenticationFloor = 0;
+  // Reserve the completed revision before rotation starts: an intermediate
+  // dispatch still uses the retiring bearer, even if rotation later aborts.
+  const advanceRotation = (starting = false) => { authenticationFloor = ++credentialRevision + (starting ? 1 : 0); };
   let refreshing: Promise<SignIn> | null = null;
   let stopRefresh!: (why: Refusal) => void;
   const refreshStopped = new Promise<SignIn>(resolve => {
@@ -513,7 +527,7 @@ export function createClient(options: ClientOptions): Client {
     if (refreshing) return refreshing;
     if (!credentials || !token || options.persona) return Promise.resolve({ ok: false, why: authRefusal ?? { code: "E_AUTH", family: "auth", message: "sign in with a session to refresh it" } });
     const expectedPrincipal = viewer;
-    credentialRevision += 1;
+    advanceRotation(true);
     const deliverReset = resetWatches(false, "credentials");
     const rotation = rotateSession(base, token, doFetch);
     let retired = false;
@@ -533,7 +547,7 @@ export function createClient(options: ClientOptions): Client {
       if (closed) { retire(refreshed); return { ok: false, why: ended() }; }
       // Sign-out separately ends credentials and cancels adoption.
       if (!credentials) { retire(refreshed); return { ok: false, why: auth() }; }
-      credentialRevision += 1;
+      advanceRotation();
       if (!refreshed.ok) {
         if (refreshed.why.code === "E_AUTH" && !refreshed.why.retryable) endCredentials(refreshed.why);
         else if (refreshed.why.retryable) scheduleRefresh(60_000);
@@ -567,8 +581,8 @@ export function createClient(options: ClientOptions): Client {
   async function obsoleteRefusal(why: Refusal | undefined, revision: number): Promise<boolean> {
     if (why?.code !== "E_AUTH" || why.retryable) return false;
     if (refreshing) await refreshing;
+    if (revision < authenticationFloor) return true;
     if (storeRefusal || closed) return false;
-    if (revision !== credentialRevision && credentials && !closed && !storeRefusal) return true;
     if (!closed) endCredentials(why);
     return false;
   }
@@ -621,11 +635,13 @@ export function createClient(options: ClientOptions): Client {
       const send = () => doFetch(`${base}${path}`, armRequest({ method: "POST", headers: { ...headers, ...(options.meter && path.startsWith("/q/") ? { "x-snapback-meter": "1" } : {}) }, body: encoded, ...((path.startsWith("/q/") || path.startsWith("/following/")) ? { signal: signal ?? eph?.signal ?? aborter.signal } : {}) }, arm));
       const { response, json } = path.startsWith("/q/")
         ? await readWithAdmissionRetry(send, () => !armRefusal(arm) && !closed && credentials && revision === credentialRevision && (!eph || ephemeralReads.current(eph)) && !signal?.aborted, signal ?? eph?.signal ?? aborter.signal)
-        : await send().then(async response => ({ response, json: await readResponse(response) }));
+        : await send().then(async response => ({ response, json: await readResponse(response, undefined, json => {
+          const why = (json.denied ?? json.why) as Refusal | undefined;
+          captured?.capture(json, response.status, why?.code === "E_AUTH" ? () => revision >= authenticationFloor : undefined);
+        }) }));
       // Late bodies are consumed without adoption. A parsed effect response
       // already known at close still finishes its local settlement.
       if (signal?.aborted || (eph && !ephemeralReads.current(eph))) return { ok: false };
-      captured?.capture(json, response.status);
       if (closed) return { ok: false };
       arrived(true);
       if (storeRefusal) return { ok: false };
@@ -646,7 +662,7 @@ export function createClient(options: ClientOptions): Client {
       // credential. Retired calls cannot retry under its replacement either.
       if (!armRefusal(arm) && await obsoleteRefusal((json.denied ?? json.why) as Refusal | undefined, revision)) {
         arrived(false);
-        if (attempt === 3) return { ok: false };
+        if (attempt === 3 || closed || !credentials) return { ok: false };
         await new Promise(resolve => setTimeout(resolve, 25 * 2 ** attempt));
         return sendPost(path, body, attempt + 1, arrived, captured, eph, quiet, signal, arm);
       }
@@ -1309,6 +1325,7 @@ export function createClient(options: ClientOptions): Client {
       closeWatchAnswers(watches, storeRefusal ?? ended())();
       pendingEvents.notify(); pendingEvents.clear();
       stopClock();
+      stopSessionTiming();
       closingResponses.begin();
       stopRefresh(ended());
       aborter.abort();
@@ -1349,7 +1366,8 @@ export function createClient(options: ClientOptions): Client {
   bindWatchPeek(client, watches, () => storeRefusal ?? (closed ? ended() : !credentials ? auth() : null));
   const start = async () => {
     if (closed) return;
-    if (readGate) { scheduleRefresh(); await readGate.verify(); return; }
+    if (readGate) { await readGate.verify(); scheduleRefresh(); return; }
+    if (session && isReadToken(session.token) && session.expiresAt <= clock.issuedDeviceNow()) { await probe(); scheduleRefresh(); return; }
     if (session && !isReadToken(session.token) && session.kind !== "action" && session.expiresAt - clock.issuedDeviceNow() <= refreshBeforeExpiry) void refreshCurrent();
     else scheduleRefresh();
   };

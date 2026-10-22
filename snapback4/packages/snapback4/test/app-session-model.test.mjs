@@ -193,6 +193,43 @@ test("I12 local close retains a body delivered while cleanup awaits another runt
   { op: "handleQuery", app: 1, fault: { kind: "delete", at: 10 } }, { op: "close", app: 1 },
 ], {}, "local"));
 
+for (const tier of ["online", "local"]) test(`I12 ${tier}: implicit retirement retains a body parsed during session cleanup`, () => execute([
+  { op: "guest", app: 0 }, { op: "reopen", app: 1 },
+  { op: "handleMutate", app: 1, account: 0, hold: true, fault: { kind: "delete", at: 6 }, holdDispatch: false },
+  { op: "login", app: 1, account: 0, hold: true, fault: null, holdDispatch: true },
+  { op: "revoke", app: 1, account: 1, hold: false, fault: null, holdDispatch: false },
+], {}, tier));
+
+for (const tier of ["online", "local"]) test(`I12 ${tier}: peer fencing retains a body through overlapping credential cleanup`, () => execute([
+  { op: "guest", app: 0 }, { op: "reopen", app: 1 },
+  { op: "handleMutate", app: 0, account: 0, hold: true, fault: null, holdDispatch: true },
+  { op: "holdStore", app: 0, account: 0, hold: false, fault: null, holdDispatch: true },
+  { op: "revokeCurrent", app: 1, account: 1, hold: false, fault: null, holdDispatch: false },
+  { op: "signup", app: 0, account: 1, hold: false, fault: { kind: "delete", at: 6 }, holdDispatch: false },
+], {}, tier));
+
+for (const tier of ["online", "local"]) test(`I12 ${tier}: validated body capture precedes a logout cleanup continuation`, () => execute([
+  { op: "guest", app: 0 }, { op: "reopen", app: 1 }, { op: "release", app: 1 },
+  { op: "handleWrite", app: 1 }, { op: "receiptOnline", app: 1 }, { op: "handleWrite", app: 1 },
+  { op: "reopenOffline", app: 0, account: 1, hold: true, fault: null, holdDispatch: false },
+  { op: "handleMutate", app: 1, account: 1, hold: true, fault: null, holdDispatch: false },
+  { op: "holdStore", app: 0, account: 0, hold: false, fault: { kind: "delete", at: 3 }, holdDispatch: true },
+  { op: "logout", app: 1, account: 0, hold: false, fault: null, holdDispatch: false },
+], {}, tier));
+
+for (const tier of ["online", "local"]) test(`I12 ${tier}: a live validated body survives a peer replacement before settlement`, () => execute([
+  { op: "guest", app: 0 }, { op: "reopen", app: 1 },
+  { op: "handleRefresh", app: 2, account: 0, hold: true, fault: null, holdDispatch: false },
+  { op: "holdStore", app: 0, account: 0, hold: true, fault: { kind: "set", at: 8 }, holdDispatch: false },
+  { op: "holdStore", app: 1, account: 1, hold: false, fault: null, holdDispatch: true },
+  { op: "closeClient", app: 2, account: 1, hold: false, fault: null, holdDispatch: false },
+  { op: "guest", app: 2, account: 1, hold: true, fault: null, holdDispatch: false },
+  { op: "handleMutate", app: 0, account: 0, hold: true, fault: null, holdDispatch: false },
+  { op: "release", app: 2, account: 1, hold: false, fault: null, holdDispatch: false },
+  { op: "logoutEverywhere", app: 1, account: 1, hold: false, fault: { kind: "get", at: 10 }, holdDispatch: false },
+  { op: "handleRefresh", app: 0, account: 1, hold: false, fault: null, holdDispatch: false },
+], {}, tier));
+
 for (const tier of ["online", "local"]) test(`I12 ${tier}: the full terminal oracle catches an in-memory refusal-message corruption`, async () => {
   const commands = [{ op: "guest", app: 0 }, { op: "handleMutate", app: 0, refuse: true }];
   await execute(commands, {}, tier);

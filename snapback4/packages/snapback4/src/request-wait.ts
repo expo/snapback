@@ -18,8 +18,8 @@ export function postForCaller(doFetch: typeof fetch, base: string, path: string,
     const send = () => doFetch(`${base}${path}`, { method: "POST", headers, body: JSON.stringify(path.startsWith("/m/") ? { ...(body as object), retry_write: true } : body), ...(path.startsWith("/q/") ? { signal: stopped } : {}) });
     const { response, json } = path.startsWith("/q/")
       ? await readWithAdmissionRetry(send, () => !stopped.aborted && current(), stopped, decode)
-      : await send().then(async response => ({ response, json: await readResponse(response, decode) }));
-    received(json, response.status);
+      : await send().then(async response => ({ response, json: await readResponse(response, decode, json => received(json, response.status)) }));
+    if (path.startsWith("/q/")) received(json, response.status);
     arrived = !stopped.aborted;
     return { response, json };
   })();

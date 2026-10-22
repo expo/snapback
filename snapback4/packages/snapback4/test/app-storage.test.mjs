@@ -21,7 +21,8 @@ const secureModule = held => ({getItemAsync: held.store.get, setItemAsync: held.
 
 const mutation = { kind: "mutation", name: "write" };
 const url = "https://app.invalid";
-const session = principal => ({ principal, token: "token-" + principal, kind: "user", expiresAt: Date.now() + 7 * 86400000 });
+// Principals exercise Unicode storage keys; HTTP bearer bytes remain ASCII.
+const session = principal => ({ principal, token: "token-" + encodeURIComponent(principal), kind: "user", expiresAt: Date.now() + 7 * 86400000 });
 const until = async read => { return awaitState(read); };
 function storage() {
   const values = new Map(), keys = [];
@@ -95,10 +96,10 @@ for (const [a, b] of [["a!b", "a~b"], ["a*b", "a'b"], ["a(b", "a)b"], ["user:01A
   await app.auth.logout(); await app.auth.login(b, "password");
   assert.equal(await app.client.write(pending.id), undefined);
   wire.online(); await app.mutate(mutation, { body: "from B" });
-  assert.deepEqual(wire.sent.map(write => [write.args.body, write.token]), [["from B", "Bearer token-" + b]]);
+  assert.deepEqual(wire.sent.map(write => [write.args.body, write.token]), [["from B", "Bearer token-" + encodeURIComponent(b)]]);
   await app.auth.login(a, "password");
   await until(async () => (await app.client.write(pending.id))?.state === "sent");
-  assert.deepEqual(wire.sent.map(write => [write.args.body, write.token]), [["from B", "Bearer token-" + b], ["secret from " + a, "Bearer token-" + a]]);
+  assert.deepEqual(wire.sent.map(write => [write.args.body, write.token]), [["from B", "Bearer token-" + encodeURIComponent(b)], ["secret from " + a, "Bearer token-" + encodeURIComponent(a)]]);
   assert.notEqual(storeKey("writes", url, a), storeKey("writes", url, b));
   assert.ok([...held.values.keys()].every(key => !key.includes(".writes")), "SecureStore contains no newly written intent text");
   assert.ok([...held.intentValues.keys()].some(key => key.endsWith(".writes")));

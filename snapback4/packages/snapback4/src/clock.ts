@@ -6,7 +6,8 @@ const MAX_SAMPLES = 32;
 const SHORT_RTT_MS = 1000;
 const clocks = new WeakMap<typeof fetch, ServerClock>();
 const readers = new WeakMap<() => number, ServerClock>();
-const responses = new WeakMap<Response, { clock: ServerClock; order: number }>();
+type Dispatch = { url: string; authorization: string | null };
+const responses = new WeakMap<Response, { clock: ServerClock; order: number; request: Dispatch }>();
 interface Sample { offset: number; roundTrip: number; received: number; provisional: boolean }
 
 /** One bounded, minimum-round-trip window, reset on a server clock revision.
@@ -20,7 +21,10 @@ export class ServerClock {
   private order = 0;
   private epochBarrier = 0;
   private listeners = new Set<(shift: number, reschedule: boolean) => void>();
+  private responseListeners = new Set<(response: Response, request: Dispatch) => void | boolean | Promise<void | boolean>>();
+  private reconciling: Promise<void> = Promise.resolve();
   private save: ((value: string) => Promise<void>) | undefined;
+  private persistenceEnabled = true;
   private saving: Promise<void> = Promise.resolve();
   private lastSave: { owner: (value: string) => Promise<void>; value: string; result: Promise<void> } | undefined;
   constructor(private wall: () => number = Date.now) { readers.set(this.issuedDeviceNow, this); }
@@ -82,15 +86,39 @@ export class ServerClock {
       for (const listener of this.listeners) listener(shift, revisionChanged);
     }
   }
+  /** Credential metadata must be reconciled before a business-time sample
+   * can reschedule expiry. The immutable dispatch bearer fences rotations. */
+  beforeSample(listener: (response: Response, request: Dispatch) => void | boolean | Promise<void | boolean>): () => void {
+    this.responseListeners.add(listener);
+    return () => { this.responseListeners.delete(listener); };
+  }
+  /** Serialize credential custody and the corresponding clock publication.
+   * A failed save leaves both the durable and live clock at its prior value. */
+  reconcile(response: Response, request: Dispatch, publish: () => void): Promise<void> {
+    const work = this.reconciling.catch(() => {}).then(async () => {
+      if (response.headers.get("x-snapback-session-timing") === "unavailable") return;
+      for (const listener of this.responseListeners) if (await listener(response, request) === false) return;
+      publish();
+    });
+    this.reconciling = work;
+    return work;
+  }
   wrap(fetcher: typeof fetch): typeof fetch {
     if (clocks.get(fetcher) === this) return fetcher;
     const wrapped: typeof fetch = async (input, init) => {
       const sent = this.wall(), order = ++this.order;
+      const request = { url: typeof input === "string" ? input : input instanceof URL ? input.href : input.url,
+        authorization: new Headers(init?.headers ?? (input instanceof Request ? input.headers : undefined)).get("authorization") };
       const response = await fetcher(input, init);
       const received = this.wall();
-      responses.set(response, { clock: this, order });
-      const stamp = response.headers.get("x-snapback-time");
-      if (stamp !== null) this.sample(Number(stamp), sent, received, response.headers.get("x-snapback-clock") ?? undefined, order);
+      // An unavailable staging authority snapshot cannot publish business time
+      // without its credential lifetime. Stream-final samples obey the same rule.
+      if (response.headers.get("x-snapback-session-timing") === "unavailable") return response;
+      await this.reconcile(response, request, () => {
+        responses.set(response, { clock: this, order, request });
+        const stamp = response.headers.get("x-snapback-time");
+        if (stamp !== null) this.sample(Number(stamp), sent, received, response.headers.get("x-snapback-clock") ?? undefined, order);
+      });
       return response;
     };
     clocks.set(wrapped, this);
@@ -105,7 +133,8 @@ export class ServerClock {
     // The server writes this stamp at the end of its hold, not at request send.
     this.sample(serverNow, received, received, revision, order, true);
   }
-  async attach(core: DeviceCore) {
+  async attach(core: DeviceCore, deferPersistence = false) {
+    this.persistenceEnabled = !deferPersistence;
     const kept = await core.call({ op: "meta", key: "server-clock" });
     if (kept.denied) throw new Error(JSON.stringify(kept.denied));
     try {
@@ -139,7 +168,7 @@ export class ServerClock {
   }
   // @ref LLP 3000.019#3.3 — share unchanged offset persistence, never admission floors.
   persist(): Promise<void> {
-    if (!this.save) return Promise.resolve();
+    if (!this.save || !this.persistenceEnabled) return Promise.resolve();
     const save = this.save, value = JSON.stringify({ offset: this.offset, issuedOffset: this.issuedOffset ?? 0 });
     if (this.lastSave?.owner === save && this.lastSave.value === value) return this.lastSave.result;
     this.saving = this.saving.catch(() => {}).then(() => save(value));
@@ -149,15 +178,24 @@ export class ServerClock {
     void this.saving.catch(() => { if (this.lastSave === saved) this.lastSave = undefined; });
     return this.saving;
   }
+  /** App commits identity first; a discarded provisional clock never saves. */
+  async commitPersistence() { this.persistenceEnabled = true; await this.persist(); }
   async detach() { const pending = this.persist(); this.save = undefined; await pending; }
 }
 
 export const serverClock = (fetcher: typeof fetch): ServerClock => clocks.get(fetcher) ?? new ServerClock();
 
 /** Streaming final stamps are provisional receipt-time samples, never poll midpoints. */
-export function sampleChanges(response: Response, body: { serverNow?: number; clockRevision?: string }) {
+export async function sampleChanges(response: Response, body: { serverNow?: number; clockRevision?: string; sessionTiming?: string; sessionExpiresAt?: number; sessionCapExpiresAt?: number }) {
   const sample = responses.get(response);
-  if (sample && body.serverNow !== undefined) sample.clock.sampleStream(body.serverNow, body.clockRevision, sample.order);
+  if (!sample || body.sessionTiming === "unavailable") return;
+  const headers = new Headers();
+  if (body.sessionTiming !== undefined) headers.set("x-snapback-session-timing", body.sessionTiming);
+  if (body.sessionExpiresAt !== undefined) headers.set("x-snapback-session-expires", String(body.sessionExpiresAt));
+  if (body.sessionCapExpiresAt !== undefined) headers.set("x-snapback-session-cap", String(body.sessionCapExpiresAt));
+  await sample.clock.reconcile(new Response(null, { headers }), sample.request, () => {
+    if (body.serverNow !== undefined) sample.clock.sampleStream(body.serverNow, body.clockRevision, sample.order);
+  });
 }
 
 export function onClock(now: () => number, listener: () => void): () => void {

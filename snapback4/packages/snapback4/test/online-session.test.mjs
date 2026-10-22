@@ -375,7 +375,7 @@ test("supplied sessions fail at construction before transport or local side effe
   const options = { url: "https://card.invalid", fetch: async () => { effects++; throw Error("unexpected network"); },
     device: { open: async () => { effects++; throw Error("unexpected device"); } },
     sessionStore: { get: async () => { effects++; return null; }, set: async () => { effects++; }, remove: async () => { effects++; } } };
-  const malformed = [null, [], "token", {}, { principal: valid.principal, token: valid.token },
+  const malformed = [null, [], "token", {},
     ...["principal", "kind", "token"].flatMap(field => [undefined, "", "  ", 1].map(value => ({ ...valid, [field]: value }))),
     ...[undefined, NaN, Infinity, -Infinity, 0, -1, 1.5, "123", Number.MAX_SAFE_INTEGER + 1].map(expiresAt => ({ ...valid, expiresAt })),
     { ...valid, scope: "admin" }, { ...valid, capExpiresAt: NaN }];
@@ -412,4 +412,32 @@ test("session snapshots preserve explicitly undefined legacy metadata", async ()
   const c = createClient({ url: "https://card.invalid", session: supplied });
   assert.deepEqual(c.session(), supplied);
   await c.close();
+});
+
+
+test("legacy partial online credentials use only the bearer and never invent session metadata", async () => {
+  for (const partial of [{ token: "legacy", principal: "forged" }, { token: "legacy", principal: "forged", expiresAt: 1 },
+    { token: "legacy", principal: "forged", expiresAt: "2026-01-01T00:00:00Z" }]) {
+    const requests = [];
+    const client = createClient({ url: "https://legacy.invalid", session: partial, fetch: async (url, init) => {
+      requests.push(new URL(url).pathname);
+      assert.equal(new Headers(init.headers).get("authorization"), "Bearer legacy");
+      return Response.json({ data: 7, complete: true, seq: 0, tables: [], viewer: "user:real" });
+    } });
+    try {
+      partial.token = "mutated";
+      assert.equal(client.session(), null);
+      assert.equal(client.viewer(), null);
+      assert.equal((await client.query({name:"read"}, {})).data, 7);
+      assert.equal(client.viewer(), "user:real");
+      assert.deepEqual(requests, ["/q/read"]);
+      await assert.rejects(createLocalClient({url:"https://legacy.invalid", session:partial}), /E_SESSION.*session.kind/);
+    } finally { await client.close(); }
+  }
+});
+
+test("E_SESSION names all missing fields without revealing credentials and gives an executable repair", () => {
+  assert.throws(() => createClient({url:"https://invalid.invalid",session:{token:""}}), error =>
+    /session.principal, session.kind, session.token, session.expiresAt/.test(error.message)
+    && error.message.includes("createClient({ url, token })"));
 });

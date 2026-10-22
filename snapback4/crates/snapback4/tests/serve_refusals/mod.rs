@@ -132,7 +132,8 @@ impl Host {
             bound.programs.iter().map(|p| p.program.clone()),
         )
         .unwrap();
-        let clock = Arc::new(Mutex::new(crate::dev_clock::Clock::new(dev, 0).unwrap()));
+        let staging = !dev && engine.store().deployment_environment().unwrap().as_deref() == Some("staging");
+        let clock = Arc::new(Mutex::new(crate::dev_clock::Clock::new(dev || staging, 0).unwrap()));
         let authoritative_now = if engine.schema().tables.values().any(|table| table.not_before.is_some()) {
             lock(&clock).now()
         } else { i64::MIN };
@@ -158,7 +159,7 @@ impl Host {
             worker_revision: AtomicUsize::new(0),
             committed: Condvar::new(),
             seq: Mutex::new(0),
-            personas: dev,
+            personas: dev, staging,
             unsafe_dev_doors,
             hold_effects: false,
             hold_schedules: false,

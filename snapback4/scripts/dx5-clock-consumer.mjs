@@ -46,14 +46,15 @@ try {
 host = await startServe("staging");
 try {
   assert.equal((await post("/m/add")).state, "sent");
-  const report = await host.advance("49h");
+  await assert.rejects(host.advance("49h"), /E_CLOCK_HELD/);
+  const report = await host.advance("49h", {allowHeld:true});
   assert.equal(report.fired.length, 0);
   assert.equal(report.held.length, 1);
   assert.equal(report.held[0].holdCode, "saved-boundary");
   assert.match(report.held[0].reason, /already processed.*One fire per boundary/);
   assert.match(report.held[0].reason, /fresh staging/);
   assert.equal((await post("/q/mine")).data.filter(r => r.status === "pending").length, 1);
-  const held = await cli(["clock", "advance", "1ms", "--release", "staging"]);
+  const held = await cli(["clock", "advance", "1ms", "--release", "staging", "--allow-held"]);
   assert.equal(held.code, 0, held.stderr);
   assert.match(held.stderr, /schedule releaseHourly:.*already processed/);
   const body = JSON.parse(held.stdout);

@@ -1,0 +1,63 @@
+{
+  "format": 1,
+  "completedAt": "2026-10-22T07:30:55.835075+00:00",
+  "functionalSource": "0bf50ac18696a2414dd836968ccda17607f0a45c",
+  "activeLocalReferencesBeforeRemoval": [],
+  "completedLocalTestsExited": true,
+  "devProfile": {
+    "command": "timeout300 env CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 cargo clean --profile dev",
+    "removedFiles": 10055,
+    "removedGiB": 28.8
+  },
+  "remainingTarget": {
+    "command": "timeout300 env CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 cargo clean",
+    "removedFiles": 2908,
+    "removedGiB": 1.4,
+    "targetAbsent": true
+  },
+  "removedOwnedDirectories": [
+    "qualification-r6-isolated/starter-web-chat",
+    "qualification-r6-isolated/starter-web",
+    "qualification-r6-isolated/frontend-web-online",
+    "qualification-r6-isolated/frontend-expo-social",
+    "qualification-r6-isolated/expo-upgrade-adapter-first",
+    "qualification-r6-isolated/frontend-web-chat",
+    "qualification-r6-isolated/client-recipes",
+    "qualification-r6-isolated/frontend-web",
+    "qualification-r6-isolated/frontend-expo-chat",
+    "qualification-r6-isolated/starter-expo-chat",
+    "qualification-r6-isolated/expo-upgrade-literal-install",
+    "qualification-r6-isolated/production-adapt-persona",
+    "qualification-r6-isolated/proof-kit",
+    "qualification-r6-isolated/production-web",
+    "qualification-r6-isolated/production-expo",
+    "qualification-r6-isolated/starter-web-online",
+    "qualification-r6-isolated/security-policy-f1AXR1",
+    "qualification-r6-isolated/expo-upgrade-upgrade",
+    "qualification-r6-isolated/staging-recipe",
+    "qualification-r6-isolated/starter-expo-social",
+    "qualification-r6-isolated/day2-compatibility",
+    "qualification-r6-isolated/starter-expo",
+    "qualification-r6-isolated/frontend-expo",
+    "qualification-r6/expo-upgrade-adapter-first",
+    "qualification-r6/expo-upgrade-literal-install",
+    "qualification-r6/production-web",
+    "qualification-r6/expo-upgrade-upgrade",
+    "qualification-r6/day2-compatibility",
+    "qualification-final/day2-compatibility",
+    "qualification/day2-compatibility",
+    "guide-work/npm-cache-r6",
+    "mac/r5-source.tgz"
+  ],
+  "preserved": [
+    "compactJSONevidence",
+    "logs",
+    "finalclientExpoLinuxTarballs",
+    "MacR6recoveryarchive/manifest/uploader"
+  ],
+  "privateNpmCacheRemoved": true,
+  "globalCachesChanged": false,
+  "otherWorktreesChanged": false,
+  "originalEvidenceLanesChanged": false,
+  "mac": "Unverified while assignedhost offline; no remote cleanup inferred."
+}

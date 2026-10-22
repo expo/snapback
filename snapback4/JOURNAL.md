@@ -101437,3 +101437,69 @@ All four `latest` = 0.4.37:
   the Mac print 0.4.37 and pass init + check.
 
 Report: `reports/20261022-publication-0.4.37/REPORT.md`.
+
+
+## 2026-10-22 — DX6: wave-22 gate, staging-clock and frontend repairs
+
+Wave-22 fixes #5/#6/#8 are implemented under the amendment in
+LLP 3000.000.000.001 §11. Seeded accounts carry their actual user kind;
+incomplete online session literals use bearer-only transport, while complete
+and local sessions retain shape validation. Migration advice applies to actual
+transitions, acknowledges piped delivery and scans partial sessions and numeric
+advance uses. SQL inspection refuses future store formats before reading rows.
+
+Staging advances preserve live credential lifetime transactionally, with
+SDK timing reconciliation before business-clock sampling. Explicit expiry mode
+retains expiry tests. No-drain pauses maintenance before mutation deadline
+tests; drain resumes without moving time and a failed drain stays paused.
+Blocked saved schedule boundaries refuse before effects with an executable
+recovery duration. Clock reports coerce to now for numeric JavaScript callers.
+
+Starter lists use ReadState and password clients omit witness boilerplate.
+The proof driver owns the locked public observer channel (trusted same-origin
+application scripts, no new auth boundary). Composed visible text matching
+retains exactness and ambiguity, excluding hidden/editable text from signals.
+Copied wave-22 frontend reductions are 336/354/354 non-whitespace characters.
+
+Fresh Muse and Codex round-2 design reviews are both READY; verbatim artifacts
+and proposal hashes are under llp/reviews/dx6. The exact verification results,
+packed upgrade proofs and limitations are in WORKSTREAM-REPORT.md and
+reports/20261022-dx6/. No package version change or push is made by this lane.
+SEC7 owns security advice/campaign semantics and security recipe changes.
+
+### 2026-10-22 — DX6 App timing and invocation cleanup
+
+Integrated review found that a prepared App could save an advanced device clock
+before committing the corresponding credential. Prepared clocks now activate
+durable saves only after that commit. Full session models also exposed the
+existing LLP 3000.013 response cutoff losing decoded write/effect outcomes
+during implicit retirement. Scope cleanup holds that cutoff through local
+credential tasks, and validated bodies belong to their invocation while open
+and closing; completed capture cannot reopen. No network or remote revocation
+wait is added. Design and review record: LLP 3000.000.000.001 §11.
+
+### 2026-10-22 — DX6 current schedule window correction
+
+Round-4 review found the held-boundary check compared an advanced current window
+to wall time. A normal repeated advance or same-time drain could therefore
+refuse after a successful jump. Both preflight and reports now reserve held for
+saved boundaries strictly ahead of the requested effective window; equality
+remains not-due and queued drain recovery does not move time or re-enqueue the
+window. Genuine future markers still refuse before effects. Credential timing
+updates precede every clock sample; awaited durable custody applies to
+local/device clocks, while online clocks remain volatile. See LLP
+3000.000.000.001 §11 and the committed round-5 amendment snapshot.
+
+### 2026-10-22 — DX6 retained authentication refusal authority
+
+Packed qualification exposed an old-bearer E_AUTH retained during rotation and
+later mistaken for a terminal write failure after the current bearer signed out.
+Both client tiers now retain the body with a rotation-scoped authority check,
+revalidated when consumed. Rotation reserves its completed revision before any
+intermediate dispatch; cancellation and retryable failure cannot revive an old
+refusal. Sign-out itself preserves a legitimate current-bearer refusal, including
+a successor dispatched while credential persistence is pending. Sent and business
+outcomes retain their existing invocation custody, and retryable refresh failures
+still permit same-id retries. See LLP 3000.000.000.001 §11 and the round-6 frozen
+amendment. Mocked-transport regressions run against the installed tarball in the
+DX6 publication qualification as well as the checkout SDK.

@@ -1,7 +1,7 @@
 // @ref LLP 3000.013.002#2 — one snapshot, no extra authority or hidden loading refusals.
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, writeFileSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync, rmSync, mkdirSync, symlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { createRequire } from "node:module";
@@ -85,4 +85,65 @@ window.refusalIsOriginal=()=>window.boundaryWhy===read.denied;window.inlineIsOri
   await publish({mode:'inline',read:{denied:why}});assert.equal(await text(),'NO_ACCESS');assert.equal(await page.evaluate(()=>window.inlineIsOriginal()),true);
   await publish({mode:'recipe',auth:{state:'signed-out',viewer:null}});assert.equal(await text(),'Sign in');
   const final=await page.evaluate(()=>window.finish());assert.equal(final.active,0);assert.equal(final.listeners,0);assert.equal(final.opens,final.closes);
+});
+
+test("packed status/form recipe runs verbatim with generated API and real hooks", {timeout:hangBudget(5)}, async t => {
+  const dir=mkdtempSync(join(tmpdir(),'sb4-status-recipe-'));let browser,server;
+  t.after(async()=>{await browser?.close();await server?.close();rmSync(dir,{recursive:true,force:true});});
+  const source=[...guide().matchAll(/```tsx\n([\s\S]*?)\n```/g)].map(m=>m[1]).find(s=>s.includes('export function ReadNotice'));
+  assert.ok(source,'packed guide carries the shared status and form recipe');
+  mkdirSync(join(dir,'src'));mkdirSync(join(dir,'snapback'));
+  writeFileSync(join(dir,'src/recipe.tsx'),source);
+  writeFileSync(join(dir,'snapback/schema.q'),`use identity guests
+table posts:
+  conversationId: text <=80
+  body: text <=2000
+  read <- allow
+  insert <- allow
+  online only
+query thread(conversationId: text <=80, c: cursor ?):
+  return posts where .conversationId = conversationId after c first 20 by .id
+mutation send(conversationId: text <=80, body: text <=2000):
+  return insert posts {conversationId, body}
+mutation setLike(postId: posts, set: bool):
+  return null
+`);
+  const env={...process.env};delete env.SNAPBACK4_BIN;
+  const checked=spawnSync(process.execPath,[join(dist,'../bin/snapback4.js'),'check'],{cwd:dir,env,encoding:'utf8',timeout:60000});
+  assert.equal(checked.status,0,checked.stdout+checked.stderr);
+  // Resolve the literal bare imports against the packed SDK and the installed
+  // React/TypeScript toolchain; the extracted source itself remains unchanged.
+  mkdirSync(join(dir,'node_modules/@types'),{recursive:true});
+  const require=createRequire(join(root,'packages/snapback4/package.json'));
+  for(const [name,target] of [['snapback4',resolve(dist,'..')],['react',resolve(require.resolve('react/package.json'),'..')],['@types/react',resolve(require.resolve('@types/react/package.json'),'..')]]) symlinkSync(target,join(dir,'node_modules',name),'dir');
+  const typed=spawnSync(process.execPath,[require.resolve('typescript/bin/tsc'),'--strict','--skipLibCheck','--noEmit','--target','ES2022','--module','ESNext','--moduleResolution','Bundler','--jsx','react-jsx',join(dir,'src/recipe.tsx')],{cwd:dir,encoding:'utf8',timeout:60000});
+  assert.equal(typed.status,0,typed.stdout+typed.stderr);
+  writeFileSync(join(dir,'index.html'),'<div id="root"></div><script type="module" src="/harness.tsx"></script>');
+  writeFileSync(join(dir,'harness.tsx'),`
+import React,{act,StrictMode}from'react';import{createRoot}from'react-dom/client';
+import{SnapbackProvider}from'snapback4/react';import{ReadNotice,WriteNote,Messages}from'./src/recipe';
+window.IS_REACT_ACT_ENVIRONMENT=true;
+let read={loading:true},conversationId='thread-one',failed=false,last;const records=new Set(),writes=new Set(),calls=[];
+const client={observe(op,args){const r={getSnapshot:()=>read,subscribe(fn){r.fn=fn;return()=>{r.fn=null}},close(){records.delete(r)}};records.add(r);return r;},onWrite(fn){writes.add(fn);return()=>writes.delete(fn)},async mutate(op,args,options){calls.push({name:op.name,args});return failed?{state:'failed',id:options.id,why:{code:'NO_WRITE',family:'rule',message:'Cannot send'}}:{state:'sent',id:options.id,seq:1,result:null};}};
+const root=createRoot(document.querySelector('#root'));const render=()=>root.render(<StrictMode><section aria-label="Notice"><ReadNotice read={read}/><WriteNote last={last}/></section><section aria-label="Messages"><SnapbackProvider client={client}><Messages conversationId={conversationId}/></SnapbackProvider></section></StrictMode>);
+window.publish=async patch=>{await act(async()=>{if('read'in patch)read=patch.read;if('conversationId'in patch)conversationId=patch.conversationId;if('failed'in patch)failed=patch.failed;if('last'in patch)last=patch.last;for(const r of records)r.fn?.();render();});return records.size;};window.calls=()=>calls;window.finish=async()=>{await act(async()=>root.unmount());return{observations:records.size,writes:writes.size};};
+`);
+  server=await createBrowserServer({root:dir,configFile:false,logLevel:'error',server:{host:'127.0.0.1',port:0,fs:{allow:[root,dir,dist]}},resolve:{alias:[{find:'snapback4/react',replacement:join(dist,'react.js')}],dedupe:['react','react-dom']}});
+  await server.listen();const{chromium}=require('playwright-core');
+  browser=await chromium.launch({executablePath:chromiumExecutable(),headless:true,args:['--no-sandbox']});const page=await browser.newPage();page.setDefaultTimeout(hangBudget());
+  await loadBrowserPage(t,page,server.resolvedUrls.local[0]);await page.waitForFunction(()=>window.publish);
+  const publish=patch=>page.evaluate(p=>window.publish(p),patch),notice=page.getByRole('region',{name:'Notice',exact:true}),messages=page.getByRole('region',{name:'Messages',exact:true});
+  const ready=(data,existence='present',extra={})=>({data,existence,complete:true,cut:null,fresh:true,...extra});
+  await publish({});assert.equal(await notice.innerText(),'Loading…');assert.equal(await messages.getByRole('status').innerText(),'Loading…');
+  await publish({read:{denied:{code:'NO_ACCESS',family:'rule',message:'No access'}}});assert.equal(await notice.getByRole('alert').innerText(),'No access');assert.equal(await messages.getByRole('alert').innerText(),'No access');
+  await publish({read:ready([],'absent')});assert.equal(await notice.innerText(),'Nothing yet');assert.equal(await messages.locator('li').count(),0);assert.match(await messages.innerText(),/Nothing yet/);
+  await publish({read:ready([],'partial',{complete:false})});assert.equal(await notice.innerText(),'More may exist');assert.equal(await messages.getByRole('status').innerText(),'More may exist');
+  await publish({read:ready([{id:'post-one',body:'Known row'}],'present',{complete:false})});assert.equal(await notice.innerText(),'More may exist');assert.match(await messages.locator('li').innerText(),/Known row/);
+  await publish({read:ready([{id:'post-one',body:'Known row'}])});assert.equal(await notice.innerText(),'');assert.equal(await messages.getByRole('status').count(),0);
+  await messages.getByRole('textbox').fill('A new message');await messages.getByRole('button',{name:'Send',exact:true}).click();await page.waitForFunction(()=>document.querySelector('input').value==='');
+  await messages.getByRole('button',{name:'Like',exact:true}).click();await page.waitForFunction(()=>window.calls().length===2);
+  assert.deepEqual(await page.evaluate(()=>window.calls()),[{name:'send',args:{conversationId:'thread-one',body:'A new message'}},{name:'setLike',args:{postId:'post-one',set:true}}]);
+  await publish({failed:true});await messages.getByRole('textbox').fill('Keep my draft');await messages.getByRole('button',{name:'Send',exact:true}).click();assert.equal(await messages.getByRole('alert').innerText(),'Cannot send');assert.equal(await messages.getByRole('textbox').inputValue(),'Keep my draft');
+  assert.equal(await publish({conversationId:null}),0,'skipped arguments close the observation');assert.equal(await messages.getByRole('button',{name:'Send',exact:true}).isDisabled(),true);
+  assert.deepEqual(await page.evaluate(()=>window.finish()),{observations:0,writes:0});
 });

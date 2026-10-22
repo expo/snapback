@@ -241,8 +241,8 @@ fn screens(dir: &Path, platform: Platform, own: &OwnSchema, todos: bool, found: 
     let client_shape = normalized(&client);
     let matches_client = |reference: &str, personas: bool| [reference, starter::previous_client(platform, personas)].iter().any(|reference|
         client_shape == normalized(reference) || client_shape == normalized(&starter::web_client((*reference).to_owned(), &journal_shape)) || client_shape == normalized(&starter::online_web_client((*reference).to_owned())) || client_shape == normalized(&starter::expo_client((*reference).to_owned(), &journal_shape)));
-    let current = [Body::Todos, Body::Home(first_read(&app))].into_iter().find_map(|body| [0, 1, 2, 3].into_iter().find_map(|version| {
-        let screens = |personas: Option<&[String]>, password| match version { 1 => starter::previous_screens(platform, personas, &body, password), 2 => starter::wave14_screens(platform, personas, &body, password), 3 => starter::wave20_screens(platform, personas, &body, password), _ => starter::identity_screens(platform, personas, &body, password) };
+    let current = [Body::Todos, Body::Home(first_read(&app))].into_iter().find_map(|body| [0, 1, 2, 3, 4].into_iter().find_map(|version| {
+        let screens = |personas: Option<&[String]>, password| match version { 1 => starter::previous_screens(platform, personas, &body, password), 2 => starter::wave14_screens(platform, personas, &body, password), 3 => starter::wave20_screens(platform, personas, &body, password), 4 => starter::wave22_screens(platform, personas, &body, password), _ => starter::identity_screens(platform, personas, &body, password) };
         let (guest_app, guest_client) = screens(None, false);
         let (persona_app, persona_client) = screens(Some(&[]), false);
         let (password_app, password_client) = screens(None, true);
@@ -516,5 +516,30 @@ fn old_native_smoke_distinguishes_starter_age_from_sign_in_changes() {
         std::fs::write(dir.join("src/native-smoke.ts"), format!("{}\n// mine", starter::wave14_native_smoke(password))).unwrap();
         assert!(!leftovers(&dir).0.iter().any(|f| f.path == "src/native-smoke.ts"));
         std::fs::remove_dir_all(dir).unwrap();
+    }
+}
+
+#[test]
+fn untouched_wave22_lists_and_clients_adapt_without_rewriting_owned_source() {
+    for platform in [Platform::Web, Platform::Expo] {
+        for password in [false, true] {
+            let dir = std::env::temp_dir().join(format!("sb4-w22-adapt-{}-{platform:?}-{password}", std::process::id()));
+            std::fs::create_dir_all(dir.join("snapback")).unwrap();
+            std::fs::create_dir_all(dir.join("src")).unwrap();
+            let schema = include_str!("starter/schema.q");
+            let schema = if password { schema.replace("use identity ", "use identity password ") } else { schema.to_owned() };
+            std::fs::write(dir.join("snapback/schema.q"), schema).unwrap();
+            let (app, client) = starter::wave22_screens(platform, None, &Body::Todos, password);
+            let (app_path, client_path) = platform.paths();
+            std::fs::write(dir.join(app_path), app).unwrap();
+            std::fs::write(dir.join(client_path), &client).unwrap();
+            let (changes, _) = leftovers(&dir);
+            assert!(changes.iter().any(|change| change.path == app_path), "{platform:?} password={password}: upgrade teaches ReadState");
+            assert_eq!(changes.iter().any(|change| change.path == client_path), password, "{platform:?} password={password}: only password upgrades remove witness plumbing; guest persona and direct-SDK proofs stay supported");
+            std::fs::write(dir.join(client_path), format!("{client}\n// application-owned edit\n")).unwrap();
+            let (changes, _) = leftovers(&dir);
+            assert!(!changes.iter().any(|change| change.path == app_path || change.path == client_path));
+            std::fs::remove_dir_all(dir).unwrap();
+        }
     }
 }

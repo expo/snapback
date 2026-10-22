@@ -5,6 +5,7 @@ import { tmpdir, networkInterfaces } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { cli, deploy, startDev, startServe, seedAccounts, rollback } from "../dist/proof.js";
+import { createClient } from "../dist/client.js";
 import { login, signup } from "../dist/auth.js";
 const root = fileURLToPath(new URL("../../../", import.meta.url));
 process.env.SNAPBACK4_BIN ??= join(root, "target/debug/snapback4");
@@ -44,6 +45,10 @@ test("staging accounts are real password users; service grants obey rules; marke
       assert.equal(accounts.length, 2);
       for (const account of accounts) {
         assert.ok(account.principal.startsWith("user:"));
+        assert.equal(account.kind, "user");
+        const client = createClient({url:host.url, session:account});
+        try { assert.equal((await client.query({name:"myRole"}, {})).data.role, role); }
+        finally { await client.close(); }
         const signed = await login(host.url, account.email, account.password); assert.equal(signed.ok, true);
         const me = await post(host, "/q/myRole", signed.session.token); assert.equal(me.data.role, role);
         assert.equal((await post(host, "/m/add", signed.session.token, { body: "real user data" })).state, "sent");

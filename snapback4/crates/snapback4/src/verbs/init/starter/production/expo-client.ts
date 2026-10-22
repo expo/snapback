@@ -1,5 +1,3 @@
-import { registerWebWitness } from "snapback4/witness-web";
-import { api } from "../snapback/generated/api";
 import { Platform } from "react-native";
 import * as SecureStore from "expo-secure-store";
 import { createApp, type App } from "snapback4/app";
@@ -19,15 +17,12 @@ export const tier = Platform.OS === "web" ? "web" : nativeAvailable() ? "native"
 
 const sessionStore = secureStoreSessionStore(SecureStore);
 // Browser storage is readable by any script on the page; SecureStore is not.
-const witnessPersona = Platform.OS === "web" && new URLSearchParams(window.location.search).get("witness") === "web"
-  ? new URLSearchParams(window.location.search).get("as") ?? undefined : undefined;
-export const app = createApp({ ...(witnessPersona ? { persona: witnessPersona } : {}),
+export const app = createApp({
   url,
   sessionStore: Platform.OS === "web" ? localStorageSessionStore() : sessionStore,
   device: tier === "web" ? webDevice() : tier === "native" ? nativeDevice : undefined,
 });
 
-registerWebWitness(app, api);
 
 // Development persona apps have separate device/write stores and no account
 // session store. usePersonaApp closes each one when the choice changes.

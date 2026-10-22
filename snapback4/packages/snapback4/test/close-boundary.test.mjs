@@ -2,19 +2,43 @@ import { hangBudget } from './helpers/wait.mjs';
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { join } from "node:path";
-import { createApp } from "../dist/app.js";
-import { createLocalClient } from "../dist/local.js";
-import { memorySessionStore, sessionKey } from "../dist/auth.js";
-import { mintId } from "../dist/client.js";
-import { processDevice } from "../dist/native.js";
-import { webDevice, memoryPersistence } from "../dist/web.js";
+import { join, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import { binary, server, until } from "./helpers/app-server.mjs";
 
-const wasm = readFileSync(new URL("../src/wasm/snapback4_device_bg.wasm", import.meta.url));
+const selectedDist = process.env.SNAPBACK4_CLIENT_DIST ?? process.env.KIT2_BASELINE_DIST;
+const dist = selectedDist ? pathToFileURL(resolve(selectedDist) + "/") : new URL("../dist/", import.meta.url);
+const [{ createApp }, { createLocalClient }, { memorySessionStore, sessionKey }, { mintId }, { processDevice },
+  { webDevice, memoryPersistence }, { ClosingResponses }, { readResponse }] = await Promise.all([
+  "app.js", "local.js", "auth.js", "client.js", "native.js", "web.js", "closing-responses.js", "http-response.js",
+].map(file => import(new URL(file, dist).href)));
+
+const wasm = readFileSync(new URL("wasm/snapback4_device_bg.wasm", dist));
 const gate = () => { let release; const promise = new Promise(resolve => { release = resolve; }); return { promise, release }; };
 const mutation = { kind: "mutation", name: "add" }, action = { kind: "action", name: "work" };
 const why = { code: "E_MODEL_REFUSED", family: "input", message: "the second invocation was refused", site: "work", rewrite: "submit the original arguments" };
+
+test("a body validated before close remains known; bodies after its cutoff cannot replace it", async () => {
+  const owner = new ClosingResponses(), known = owner.request(), unknown = owner.request();
+  let currentBearer = true;
+  const authReply = owner.request(), businessReply = owner.request();
+  const denial = { denied: { code: "E_AUTH", family: "auth", message: "retiring bearer" } };
+  authReply.capture(denial, 401, () => currentBearer);
+  businessReply.capture({ denied: why }, 400);
+  currentBearer = false;
+  assert.equal(authReply.take(), undefined);
+  assert.deepEqual(authReply.write({ state: "pending", id: "auth" }), { state: "pending", id: "auth" });
+  assert.deepEqual(businessReply.write({ state: "pending", id: "business" }), { state: "failed", id: "business", why });
+  const sent = { state: "sent", id: "known", seq: 7, result: { answer: "before close" } };
+  await readResponse(Response.json(sent), undefined, json => known.capture(json, 200));
+  owner.begin(); owner.finish(); await owner.done;
+  owner.begin(); const releaseLate = owner.hold();
+  known.capture({ ...sent, seq: 8 }, 200);
+  unknown.capture({ ...sent, id: "unknown" }, 200);
+  releaseLate(); owner.finish();
+  assert.deepEqual(known.write({ state: "pending", id: "known" }), sent);
+  assert.deepEqual(unknown.write({ state: "pending", id: "unknown" }), { state: "pending", id: "unknown" });
+});
 
 async function fixture(t, tier, cleanupAt = "device") {
   const { url, dir } = await server(t), cleanup = gate(), replies = [], releases = [];
@@ -23,7 +47,20 @@ async function fixture(t, tier, cleanupAt = "device") {
     ? webDevice({ wasm, persist: memoryPersistence() }) : processDevice({ binary, dir: join(dir, "device") });
   const device = underlying && { ...underlying, async open(...args) {
     const core = await underlying.open(...args);
-    return { ...core, async close() {
+    let outbox;
+    return { ...core, onOutbox(listener) {
+      outbox = listener; return core.onOutbox?.(listener) ?? (() => {});
+    }, async call(request, ...rest) {
+      const reply = await core.call(request, ...rest);
+      if (armed && cleanupAt === "admission" && request.op === "admit") {
+        cleaning = true;
+        // A provider can announce committed outbox work before its admission
+        // caller resumes (for example after independent journal recovery).
+        outbox?.(request.entry.now, [reply.ok]);
+        await cleanup.promise;
+      }
+      return reply;
+    }, async close() {
       if (armed && cleanupAt === "device") { cleaning = true; await cleanup.promise; }
       await core.close(); deviceClosed = true;
     } };
@@ -50,6 +87,17 @@ async function fixture(t, tier, cleanupAt = "device") {
   await app.ready; assert.equal((await app.auth.guest()).ok, true);
   return { app, replies, cleanup, arm() { armed = true; }, cleaning: () => cleaning };
 }
+
+for (const tier of ["wasm", "native"]) test(`${tier}: a dispatched body stays known when close overtakes the admission continuation`, { timeout: hangBudget(12) }, async t => {
+  const f = await fixture(t, tier, "admission"), id = mintId();
+  f.arm(); const writing = f.app.mutate(mutation, { body: "admission still returning" }, { id });
+  await until(() => f.cleaning() && f.replies.length === 1);
+  const sent = { state: "sent", id, seq: 7, result: { answer: "known during admission" } };
+  f.replies[0].body = sent; f.replies[0].held.release();
+  await until(() => f.replies[0].delivered);
+  const closing = f.app.close(); f.cleanup.release();
+  await closing; assert.deepEqual(await writing, sent);
+});
 
 for (const tier of ["online", "wasm", "native"]) for (const kind of ["mutation", "action"]) for (const different of [false, true]) {
   test(`${tier} ${kind}: concurrent same-id calls with ${different ? "different" : "identical"} arguments keep their own cleanup outcomes`, { timeout: hangBudget(12) }, async t => {

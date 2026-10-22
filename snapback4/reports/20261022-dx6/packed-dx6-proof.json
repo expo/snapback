@@ -1,0 +1,16 @@
+{
+  "source": "0bf50ac18696a2414dd836968ccda17607f0a45c",
+  "clientIntegrity": "sha512-bG5Lhkc8t7+FwkJYAfQQntTvhk07gg4Gc73XvIL9rGvGPXoFQXaDeLBJk69yLCrs8A4IAJteavs+pX26NqC05Q==",
+  "expoIntegrity": "sha512-OTPBlWLHJo322OnKnDOif5kZSMsfKWduymDFEXkmQKr6s3FB/zIjx0D6sOFsdNdWJqR6YyaKcJXTiPNkYActSg==",
+  "platformIntegrity": "sha512-bNNxg4te9at4pebZsI64aWJ+nhWDTi8oQEKvcrqOYrJa9qxAN9bSV9zJxl4g/fCQuBdXyy66yxkfLYMlTL6vHw==",
+  "proof": {
+    "status": "passed",
+    "installedSDK": true,
+    "clock": "preserved session, deadline before sweep, pause/drain, explicit expiry, held refusal",
+    "sessions": "complete seeded account and legacy partial literal",
+    "numericAdvance": "valueOf/date/arithmetic",
+    "text": "composed RN, wrapping label, scoped exactness and strict ambiguity",
+    "outcomes": "live decoded body, irreversible cutoff, Wasm/native admission continuation, bearer-scoped auth refusals",
+    "futureStore": "nonzero sql refusal before inspection"
+  }
+}

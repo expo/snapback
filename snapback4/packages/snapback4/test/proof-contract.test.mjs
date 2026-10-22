@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
+import { createRequire } from 'node:module';
 import { chromiumExecutable } from '../../../witness/lib.mjs';
 const dist = process.env.KIT2_BASELINE_DIST ?? resolve(import.meta.dirname, '../dist');
 const kit = await import(pathToFileURL(join(dist, 'proof.js')));
@@ -24,8 +25,79 @@ test('H9 renderedText opts into substring matching for a row with more than the 
   assert.equal(await row.count(), 1, 'explicit substring matches the whole rendered row');
   assert.equal(await kit.waitForFresh(row, null, {timeoutMs:500}), 'Proof needle — more row text');
   assert.equal(await kit.waitForFresh(kit.renderedText(page, /Proof needle/, {within}), null, 500), 'Proof needle — more row text');
-  await assert.rejects(kit.waitForFresh(row, 'Proof needle — more row text', {timeoutMs:1000}), /getByText.*last count=1.*Proof needle.*present but unchanged/);
+  await assert.rejects(kit.waitForFresh(row, 'Proof needle — more row text', {timeoutMs:1000}), /locator.*last count=1.*Proof needle.*present but unchanged/);
   await assert.rejects(kit.waitForFresh(kit.renderedText(page,'missing'), null, {timeoutMs:1000}), /last count=0.*text=null.*absent/);
+}));
+test('DX6 composed RN text and wrapping labels preserve scope, exactness and ambiguity', {timeout:30000}, async t => browser(t, async page => {
+  await page.setContent(`<section aria-label="Rows"><div><span>Order </span><span>42</span><span> saved</span></div>
+    <label><span>Due </span><strong>tomorrow</strong><input value="secret value"></label>
+    <p hidden>Order 42 saved</p><p>Order 42 saved later</p></section>`);
+  const within = page.getByRole('region', {name:'Rows'});
+  for (const text of ['Order 42 saved', /^Order 42 saved$/]) {
+    const found = kit.renderedText(page, text, {within});
+    assert.equal(await found.count(), 1, 'composed text selects the smallest rendered container');
+    assert.equal(await kit.waitForFresh(found, null, 500), 'Order 42 saved');
+  }
+  assert.equal(await kit.renderedText(page, 'Due tomorrow', {within}).count(), 1, 'wrapping input label composes descendants without its value');
+  assert.equal(await kit.renderedText(page,'Due tomorrow',{within:page.locator('label')}).count(),1,'a wrapping label can itself be the scope, as with Playwright getByText');
+  assert.equal(await kit.statusText(page, 'Due tomorrow').count(), 1);
+  assert.equal(await kit.renderedText(page, 'secret value', {within}).count(), 0);
+  await page.getByRole('region',{name:'Rows'}).evaluate(el=>el.insertAdjacentHTML('beforeend', `<style>.invisible{display:none}</style><div><span hidden>Approved</span><button>Save</button></div><div><span class="invisible">Accepted</span><button>Submit</button></div><div><span style="visibility:hidden">Confirmed</span><button>Go</button></div><div><span style="opacity:0">Done</span><button>Finish</button></div><div contenteditable="true">Editable</div><div><span>Visible </span><span hidden>secret </span><strong>composed</strong></div>`));
+  for(const text of ['Approved','Accepted','Confirmed','Done','Editable']) for(const needle of [text,new RegExp(text)]) assert.equal(await kit.renderedText(page,needle,{within}).count(),0,`${text}: hidden or editable text is not evidence`);
+  assert.equal(await kit.renderedText(page,'Visible composed',{within}).count(),1,'hidden adornment does not prevent composed visible evidence');
+  await page.getByRole('region',{name:'Rows'}).evaluate(el=>el.insertAdjacentHTML('beforeend', `<div><span style="display:block;width:0;height:0;overflow:hidden">Submitted</span><button>Continue</button></div><div><span style="display:block;width:0;height:0;overflow:scroll">Finished</span></div><div><span style="display:block;width:0;height:0;border:100px solid transparent;overflow:hidden">Authorized</span></div><div style="width:10px;overflow:hidden;white-space:nowrap;font:20px monospace">Completed</div><p><span style="display:contents;overflow:hidden">Layoutless </span><span style="display:inline-block;width:0;height:0;overflow:visible">wrapper</span></p>`));
+  for(const text of ['Submitted','Finished','Completed','Authorized']) assert.equal(await kit.renderedText(page,text,{within}).count(),0,`${text}: clipped text cannot manufacture full rendered evidence`);
+  assert.equal(await kit.renderedText(page,'Layoutless wrapper',{within}).count(),1,'layoutless and zero-size visible-overflow wrappers retain rendered text');
+  const clipped=within.locator('div').filter({has:page.locator('span').filter({hasText:'Submitted'})}).first();
+  assert.equal(await kit.waitForFresh(clipped,null,500),'Continue','arbitrary locator freshness uses the same clipping rules');
+  const visible=kit.renderedText(page,'Visible composed',{within});
+  assert.equal(await kit.waitForFresh(visible,null,500),'Visible composed');
+  await visible.evaluate(el=>el.querySelector('[hidden]').textContent='changed invisible text');
+  await assert.rejects(kit.waitForFresh(visible,'Visible composed',50),/present but unchanged/);
+  await assert.rejects(kit.waitForFresh(visible.filter({visible:true}),'Visible composed',50),/present but unchanged/);
+
+
+  assert.equal(await kit.renderedText(page, 'order 42 saved', {within}).count(), 0, 'exact remains case sensitive');
+  assert.equal(await kit.renderedText(page, 'Order 42 saved', {within, exact:false}).count(), 2);
+  await page.getByRole('region', {name:'Rows'}).evaluate(el => el.insertAdjacentHTML('beforeend', '<p>Order 42 saved</p>'));
+  await assert.rejects(kit.waitForFresh(kit.renderedText(page, 'Order 42 saved', {within}), null, 500), /strict mode violation/);
+}));
+test('DX6 rendered locators work on caller-owned Chromium outside withBrowser', {timeout:30000}, async t => {
+  const {chromium}=createRequire(join(dist,'proof.js'))('playwright-core');
+  const browser=await chromium.launch({headless:true,executablePath:process.env.CHROME??chromiumExecutable(),args:['--no-sandbox']});
+  t.after(()=>kit.bounded(browser.close(),5000,'caller browser close'));
+  const page=await browser.newPage();
+  await page.setContent('<p><span>Caller </span><strong>visible</strong><span hidden> hidden</span></p>');
+  assert.equal(await kit.waitForFresh(kit.renderedText(page,'Caller visible'),null,1000),'Caller visible');
+});
+test('DX6 proof driver installs the SDK bridge without application witness imports', {timeout:30000}, async t => browser(t, async (page, cwd) => {
+  mkdirSync(join(cwd, 'dist'));
+  writeFileSync(join(cwd,'dist/index.html'), `<button>Save</button><script>
+    const op={kind:'mutation',name:'save'}, listeners=new Set();
+    const client={mutate:async()=>({state:'sent',id:'write',seq:1}),onWrite:fn=>{listeners.add(fn);return()=>listeners.delete(fn)}};
+    const app={client,mutate:client.mutate,ready:Promise.resolve({ok:true})};
+    window[Symbol.for('snapback4.proof.app')](app);
+    window.selectedApp=app;
+    window[Symbol.for('snapback4.proof.app')]({ready:Promise.resolve({ok:true}),client:{}});
+    document.querySelector('button').onclick=()=>app.mutate(op,{title:'composed'});
+  </script>`);
+  const host = await kit.startStatic('dist', {cwd}); t.after(() => host.stop());
+  await page.goto(host.url, {waitUntil:'domcontentloaded'});
+  const tamper = await page.evaluate(() => {
+    const key=Symbol.for('snapback4.proof.app'), observer=window[key], bridge=window.__snapback4Witness;
+    const results=[Reflect.set(window,key,()=>{}),Reflect.deleteProperty(window,key),Reflect.set(window,'__snapback4Witness',{}),Reflect.deleteProperty(window,'__snapback4Witness'),Reflect.set(bridge,'formResult',()=>({state:'sent'}))];
+    return {results,observerUnchanged:window[key]===observer,bridgeUnchanged:window.__snapback4Witness===bridge};
+  });
+  assert.deepEqual(tamper,{results:[false,false,false,false,false],observerUnchanged:true,bridgeUnchanged:true});
+  await assert.rejects(page.evaluate(()=>window.__snapback4Witness.registerApi({},{})),/E_WITNESS_APP_SELECTION/);
+  const button = page.getByRole('button', {name:'Save'});
+  await button.evaluate(el => window.__snapback4Witness.beginForm('save',{title:'composed'},el));
+  await button.click();
+  const result=await kit.bounded(page.evaluate(()=>window.__snapback4Witness.formResult()),1000,'injected receipt');
+  assert.equal(result.state,'sent'); assert.equal(result.mutation,'save');
+  await assert.rejects(page.evaluate(()=>window.__snapback4Witness.mutate('save',{},'direct')), /no matching durable mutation/);
+  await page.evaluate(()=>window.__snapback4Witness.registerApi(window.selectedApp,{save:{kind:'mutation',name:'save'}}));
+  assert.equal((await page.evaluate(()=>window.__snapback4Witness.mutate('save',{},'direct'))).state,'sent','same-App explicit registration enriches the selected bridge');
 }));
 test('KIT4 substring advice stays inside explicit scope and timeout names the visible screen', {timeout:30000}, async t => browser(t, async page => {
   await page.setContent('<h1>Open status link</h1><p>Explains Cleared status</p><section aria-label="Status"><p>Waiting</p></section>');

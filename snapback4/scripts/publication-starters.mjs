@@ -227,6 +227,21 @@ assert.ok(host.url);const inspected=JSON.parse((await cli(['releases','deploymen
 `);
     await run(process.execPath, [surfaceProof], cwd);
     const frontendProofs = browserProofs ? await proveFrontendTwice(run, cwd, starter) : [];
+    if (browserProofs && id === "web") {
+      // Execute the standalone native driver against an installed, generated
+      // password starter. The child resolves this packed consumer's toolchain.
+      const password = join(cwd, "password-witness"); mkdirSync(password);
+      try {
+        await run(cli, ["init", "--web"], password);
+        const schema = join(password, "snapback/schema.q");
+        writeFileSync(schema, readFileSync(schema, "utf8").replace(/^use identity[^\n]*/m, "use identity password"));
+        await run(cli, ["init", "--adapt", "--apply"], password);
+        assert.doesNotMatch(readFileSync(join(password, "src/client.ts"), "utf8"), /registerWebWitness|witnessPersona|snapback\/generated\/api/);
+        await run(cli, ["check"], password);
+        await run(join(cwd, "node_modules/.bin/vite"), ["build"], password);
+        await run(cli, ["witness", "web", "dist", "--email", "native-proof@example.test", "--password-env", "SNAPBACK4_DX6_TEST_PASSWORD", "--mutation", "add", "--args", '{"title":"Packed native proof"}', "--field", "Task", "--value", "Packed native proof", "--button", "Add"], password, { SNAPBACK4_DX6_TEST_PASSWORD: "Proof-password-928!" });
+      } finally { rmSync(password, {recursive:true, force:true}); }
+    }
     if (template || id === "web-online") {
       results.push({ starter: id, kind, template, fixtureGuide: browserProofs ? "passed" : "not-run-build-only", status: "passed", typecheck: "passed", build: "passed", frontendProofs });
       continue;

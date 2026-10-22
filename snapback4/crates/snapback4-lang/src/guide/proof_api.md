@@ -33,8 +33,9 @@ Every runtime and type export of `snapback4/proof` is listed below. Signatures, 
 
 | Exported type | Fields |
 |---|---|
+| `AdvanceOptions` | `eachBoundary?: boolean; drain?: boolean; allowHeld?: boolean; sessions?: "preserve" \| "expire"` |
 | `CliResult` | `{ code: number \| null; signal: NodeJS.Signals \| null; stdout: string; stderr: string; logs: { stdout: string; stderr: string; } }` |
-| `ClockAdvance` | `now: number; fired: ScheduleOutcome[]; held: ScheduleOutcome[]` |
+| `ClockAdvance` | `now: number; fired: ScheduleOutcome[]; held: ScheduleOutcome[]; maintenancePaused: boolean; valueOf: () => number` |
 | `DevHost` | `{ personas: string[]; now: () => Promise<number>; url: string; pid: number; logs: { stdout: string; stderr: string; }; stop: () => Promise<void> }` |
 | `FixtureRow` | `{ table: string; row: Record<string, unknown> }` |
 | `LoadFixturesOptions` | `url: string; cwd?: string; persona?: string; headers?: Record<string, string>; now?: number; timeoutMs?: number` |
@@ -42,9 +43,9 @@ Every runtime and type export of `snapback4/proof` is listed below. Signatures, 
 | `ProofOptions` | `cwd?: string; env?: NodeJS.ProcessEnv; args?: readonly string[]; timeoutMs?: number; stopTimeoutMs?: number; logsDir?: string; secret?: boolean; detached?: boolean; livenessPipe?: boolean` |
 | `ScheduleOutcome` | `name: string; target: string; period: string; fired: boolean; reason: string; holdCode?: "disabled" \| "saved-boundary" \| "initialized" \| "not-due" \| "maintenance-failed"; savedBoundary?: number; nextBoundary: string; heldUntil?: string; periodStart?: number; periodEnd?: number; firedWindows: { periodStart: number; periodEnd: number; }[]; skippedPeriods?: number; skippedBoundaries: { periodStart: number; periodEnd: number; command: string; }[]; skippedBoundariesOmitted?: number; run?: { id: string; state: string; rowsWritten: number; error: string \| null; errorTruncated: boolean; }` |
 | `SeedAccountsOptions` | `roles: Record<string, number>; provision: { readonly name: string; }; service?: string; args?: (account: StagingAccount) => Record<string, unknown>; timeoutMs?: number` |
-| `ServeHost` | `now: () => Promise<number>; advance: (duration: string, options?: { eachBoundary?: boolean; }) => Promise<ClockAdvance>; operatorToken: (service?: string, days?: number) => Promise<string>; seedAccounts: (options: SeedAccountsOptions) => Promise<StagingSessions>; sessions?: StagingSessions; url: string; pid: number; logs: { stdout: string; stderr: string; }; stop: () => Promise<void>` |
+| `ServeHost` | `now: () => Promise<number>; advance: (duration: string, options?: AdvanceOptions) => Promise<ClockAdvance>; drain: (options?: Pick<AdvanceOptions, "eachBoundary" \| "allowHeld">) => Promise<ClockAdvance>; operatorToken: (service?: string, days?: number) => Promise<string>; seedAccounts: (options: SeedAccountsOptions) => Promise<StagingSessions>; sessions?: StagingSessions; url: string; pid: number; logs: { stdout: string; stderr: string; }; stop: () => Promise<void>` |
 | `ServeOptions` | `seedUsers?: SeedAccountsOptions; clockOffset?: string; cwd?: string; env?: NodeJS.ProcessEnv; args?: readonly string[]; timeoutMs?: number; stopTimeoutMs?: number; logsDir?: string; secret?: boolean; detached?: boolean; livenessPipe?: boolean` |
-| `StagingAccount` | `role: string; email: string; password: string; principal: string; token: string; expiresAt: number` |
+| `StagingAccount` | `kind: "user"; role: string; email: string; password: string; principal: string; token: string; expiresAt: number` |
 | `StagingSessions` | `` |
 | `TestSourceOptions` | `fixtureOnly?: boolean; cwd?: string; env?: NodeJS.ProcessEnv; args?: readonly string[]; timeoutMs?: number; stopTimeoutMs?: number; logsDir?: string; secret?: boolean; detached?: boolean; livenessPipe?: boolean` |
 | `TestSourceResult` | `{ casesRun: number; casesSkipped: number; code: number \| null; signal: NodeJS.Signals \| null; stdout: string; stderr: string; logs: { stdout: string; stderr: string; } }` |

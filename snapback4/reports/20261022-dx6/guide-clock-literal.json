@@ -1,0 +1,14 @@
+{
+  "source": "0bf50ac18696a2414dd836968ccda17607f0a45c",
+  "completedAt": "2026-10-22T07:06:27.905778+00:00",
+  "status": "passed",
+  "installedSDK": true,
+  "log": "guide-clock-literal-r6.log",
+  "case": "The packed dx6-clock-consumer case additionally executes the guide literal CLI duration22d instead of the1ms same-window CLI step, retaining the guide8d explicit-expiry and22d mutation-before-sweep helper calls.",
+  "literalCommands": [
+    "clock advance 22d --release staging --no-drain",
+    "clock drain --release staging"
+  ],
+  "clientIntegrity": "sha512-bG5Lhkc8t7+FwkJYAfQQntTvhk07gg4Gc73XvIL9rGvGPXoFQXaDeLBJk69yLCrs8A4IAJteavs+pX26NqC05Q==",
+  "scratchRemoved": true
+}

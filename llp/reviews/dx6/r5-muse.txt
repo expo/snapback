@@ -1,0 +1,31 @@
+muse: workspace root: /home/ccheever/projects/sb4-b22-dx6 (cwd default)
+muse: workspace trust: trusted source=run-flag
+No material findings for `efcbc21344665a0720f3afaf1fc216dc81aa8027` and the committed proposal in `llp/reviews/dx6/r5-amendment.md`.
+
+Newest functional delta since `3383a06262`, confined to native clock classification/report guidance plus regressions, is consistent:
+
+- Future-held is strictly greater: `snapback4/crates/snapback4/src/dev_clock_store.rs:118` — `saved > boundary(now)`. Equality is processed-current, not a hold.
+- Report equality is not-due without wall time: `dev_clock_store.rs:190` — `saved > current`, else `not-due`/`initialized`.
+- `heldUntil` is saved, `nextBoundary` is `next(saved)`: `dev_clock_store.rs:190-193`.
+- Refusal repair from unchanged raw: `snapback4/crates/snapback4/src/serve_maintenance.rs:437` passes `clock.now()` (raw, pre-mutation) as `current_clock`; `dev_clock_store.rs:122` uses `saved.saturating_sub(current_clock)`. Refusal precedes `crossed_boundaries`, `advance_staging_clock_at` / `advance_worker_leases_at`, and `*clock = next`.
+- Accepted held reports use post-advance raw: `serve_maintenance.rs:465` captures `clock.now()` after `*clock = next` as `raw_now`, passed to both `schedule_report` call sites (`:484`, `:496`). This can lag the disclosure floor, as the proposal states.
+- Shared effective clock confirmed: `snapback4/crates/snapback4/src/serve.rs:170` — `now() = clock.now().max(floor)`. Advance `now` is effective; repair spans are raw.
+- Zero-time drain recovery without `allowHeld` for the current window, catch-up to `heldUntil` is `not-due` without re-enqueue, next boundary fires once: covered by `serve_maintenance.rs:602` test `dx6_current_window_drains_resume_queued_work_and_only_future_markers_refuse`, including future-marker refusal leaving clock, `saved_boundaries`, queued job, and staging timing untouched, plus the floor-lag repair case.
+- Packed consumer matches: `snapback4/scripts/dx6-clock-consumer.mjs:127-166` — same-window `not-due`, zero-time `drain` without `allowHeld`, `heldUntil == savedBoundary`, `nextBoundary - savedBoundary == 3600000`, catch-up `not-due`, next fires once.
+
+Other proposal areas spot-checked against the frozen tree and match with no material defect:
+
+- Transactional full/read/cap/mint preservation without revival, effective-floor deltas, overflow-validated-before-write, worker/action exclusion: `snapback4/crates/snapback4-core/src/engine/session_clock.rs:30-56`, `snapback4/crates/snapback4-core/src/store/session_clock.rs:5-33`.
+- Exact-bearer heartbeat/timing before serialized durable local publication; failed save suppresses publish and surfaces as transport failure: `snapback4/packages/snapback4/src/clock.ts:89-113`, `snapback4/packages/snapback4/src/local.ts:91-110,397-415`.
+- Prepared App clock non-durable until real credential commit: `snapback4/packages/snapback4/src/local.ts:193`, `snapback4/packages/snapback4/src/clock.ts:181-183`.
+- Per-invocation validated-body retention with irreversible completed cutoff: `snapback4/packages/snapback4/src/closing-responses.ts:19-35`.
+- Safe legacy partial online sessions, seeded kinds, complete `E_SESSION` field list and one-line repair: `snapback4/packages/snapback4/src/session-input.ts:24-44`.
+- Staging-only timing evidence, production no-metadata, authenticated expired-restore probe: `snapback4/crates/snapback4-core/src/engine/session_clock.rs:84-92`, `snapback4/packages/snapback4/src/app.ts:306-313`.
+- Locked public same-origin TEST observer and composed visible-text matching: `snapback4/packages/snapback4/src/app.ts:130-140`, `snapback4/packages/snapback4/src/proof-text.ts:1-115`.
+
+Note (non-material): `dev_clock_store.rs:235-241` startup `held_schedules` phrases “held until” as `next(saved)` from raw `clock.now()`, while reports define `heldUntil` as `saved`. Informational only; does not affect refusal, drain, preservation, or firing.
+
+Pending fresh-pack qualification and full Rust/Mac checks are honestly pending per the brief and are not counted as defects.
+
+READY
+

@@ -34,10 +34,10 @@ impl Inspection {
             denied: Arc::new(AtomicU8::new(0)),
         })
     }
+    // @ref LLP 3000.000.000.001#11-wave-22-loop-repairs-dx6 — inspection refuses future formats before exposing any records.
     pub fn begin_snapshot(&self) -> Result<()> {
-        self.conn
-            .execute_batch("BEGIN DEFERRED")
-            .map_err(store_error)
+        self.conn.execute_batch("BEGIN DEFERRED").map_err(store_error)?;
+        super::Store::check_version(&self.conn).map_err(|error| ("E_SCHEMA_CAPABILITY", error.to_string()))
     }
     pub fn build_views(&self, schema: &Schema, ephemeral: impl FnMut(&str)) -> Result<()> {
         self.build_retained_views(schema, false, false, ephemeral)

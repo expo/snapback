@@ -1,0 +1,33 @@
+{
+  "sourceCommit": "0bf50ac18696a2414dd836968ccda17607f0a45c",
+  "proposalSha256": "94921e914251509fb831b2264420f2455a6c2c677514d896c23f01f0b2616fae",
+  "proposalCommittedPath": "llp/reviews/dx6/r6-amendment.md",
+  "startedAt": "2026-10-22T06:42:41.297845+00:00",
+  "completedObservedAt": "2026-10-22T06:48:24.456158+00:00",
+  "authorAcceptanceClaimed": false,
+  "reviews": [
+    {
+      "family": "codex",
+      "requestedModel": "gpt-6.1-sol",
+      "reasoningEffort": "high",
+      "freshSession": true,
+      "command": "timeout 1200 codex exec -m gpt-6.1-sol -c model_reasoning_effort=high --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox - < llp/reviews/dx6/r6-brief.md > llp/reviews/dx6/r6-codex.txt 2>&1",
+      "exitCode": 0,
+      "verdict": "READY",
+      "artifact": "llp/reviews/dx6/r6-codex.txt",
+      "sha256": "e5e1af04a88e7cf91cef774dc816d414b01d953a909df12832d58ea7d85380bc"
+    },
+    {
+      "family": "muse",
+      "requestedModel": "muse-spark-1.3-contributor",
+      "reasoningEffort": "high",
+      "freshSession": true,
+      "command": "timeout 1200 ~/sb4-loop/muse-exec.sh --yolo --model muse-spark-1.3-contributor --reasoning-effort high --prompt-file llp/reviews/dx6/r6-brief.md > llp/reviews/dx6/r6-muse.txt 2>&1",
+      "exitCode": 0,
+      "verdict": "READY",
+      "artifact": "llp/reviews/dx6/r6-muse.txt",
+      "sha256": "fe1c0504f82cff6bf60f2f8191c8199f684ad8a5abb6c62df7dc0a265fbd0082"
+    }
+  ],
+  "result": "Both independent reviewers returned READY on the same committed proposal and source. Local5000 models subsequently completed60/60; exact packed qualification and Mac verification remain pending at review capture."
+}

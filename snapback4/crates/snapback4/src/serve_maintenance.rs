@@ -159,6 +159,8 @@ pub(super) struct State {
     resume_at: Instant,
     empty_pause: Duration,
     advancing: bool,
+    // Explicit mutation-boundary tests pause all background maintenance until drain.
+    paused: bool,
     // Separate clock callers (and a dev reset) may wait here; maintenance never takes this lock.
     pub(super) advance: Arc<std::sync::Mutex<()>>,
 }
@@ -166,13 +168,13 @@ impl Default for State {
     fn default() -> Self {
         let now = Instant::now();
         Self { next: BulkKind::Delivery, serviced: now, resume_at: now, empty_pause: Duration::ZERO,
-            advancing: false, advance: Arc::new(std::sync::Mutex::new(())) }
+            advancing: false, paused: false, advance: Arc::new(std::sync::Mutex::new(())) }
     }
 }
 impl State {
     fn aged(&self, now: Instant) -> bool { now.saturating_duration_since(self.serviced) >= BULK_AGE }
     fn eligible(&self, now: Instant, aged_only: bool) -> bool {
-        !self.advancing && if aged_only { self.aged(now) } else { now >= self.resume_at }
+        !self.advancing && !self.paused && if aged_only { self.aged(now) } else { now >= self.resume_at }
     }
     fn completed(&mut self, now: Instant, elapsed: Duration, contended: bool, worked: bool) {
         self.next = match self.next { BulkKind::Delivery => BulkKind::Recount, BulkKind::Recount => BulkKind::Job, BulkKind::Job => BulkKind::Delivery };
@@ -241,7 +243,7 @@ fn bulk_slice(shared: &Shared, aged_only: bool) -> bool {
 
 fn timely_engine_work<T: Default>(shared: &Shared, run: impl FnOnce(&mut snapback4_core::Engine, Duration) -> Result<T, RuntimeError>) -> Result<T, RuntimeError> {
     let result = engine_work(shared, |engine, budget| {
-        if lock(&shared.maintenance).advancing { return Ok(T::default()); }
+        if { let state = lock(&shared.maintenance); state.advancing || state.paused } { return Ok(T::default()); }
         run(engine, budget)
     });
     promote_aged(shared, Instant::now());
@@ -296,7 +298,7 @@ pub(super) fn maintain(shared: Arc<Shared>) {
         if crate::lifecycle::stopping() { return; }
         {
             let state = lock(&shared.maintenance);
-            if !state.advancing && let Err(error) = shared.ephemeral.sweep(shared.now()) { snapback4_core::diagnostic!("snapback4: ephemeral sweep: {error}"); }
+            if !state.advancing && !state.paused && let Err(error) = shared.ephemeral.sweep(shared.now()) { snapback4_core::diagnostic!("snapback4: ephemeral sweep: {error}"); }
         }
         if last_tick.elapsed() >= Duration::from_secs(1) {
             tick += 1; last_tick = Instant::now();
@@ -387,9 +389,26 @@ pub(super) fn advance(request: Request, shared: &Shared, body: &str) {
         Some(serde_json::Value::Bool(value)) => *value,
         Some(_) => return respond(request, 400, json!({"denied":refusal_json(&crate::dev_clock::input("eachBoundary must be a boolean"))})),
     };
+    let boolean = |key: &str, default: bool| -> Result<bool, snapback4_core::Refusal> {
+        match payload.get(key) {
+            None => Ok(default), Some(serde_json::Value::Bool(value)) => Ok(*value),
+            Some(_) => Err(crate::dev_clock::input(format!("{key} must be a boolean"))),
+        }
+    };
+    let (drain, allow_held) = match boolean("drain", true).and_then(|drain| Ok((drain, boolean("allowHeld", false)?))) {
+        Ok(options) => options,
+        Err(error) => return respond(request, 400, json!({"denied":refusal_json(&error)})),
+    };
+    if each_boundary && !drain { return respond(request, 400, json!({"denied":refusal_json(&crate::dev_clock::input("eachBoundary requires drain:true"))})); }
+    let preserve_sessions = match payload.get("sessions").and_then(|s| s.as_str()) {
+        None if payload.get("sessions").is_none() => !shared.personas,
+        Some("preserve") if !shared.personas => true,
+        Some("expire") => false,
+        _ => return respond(request, 400, json!({"denied":refusal_json(&crate::dev_clock::input("sessions must be preserve (staging only) or expire"))})),
+    };
     let duration = payload.get("duration").and_then(|value| value.as_str());
     let milliseconds = match duration.ok_or_else(|| crate::dev_clock::input("clock advance takes {\"duration\":\"+2m\"}"))
-        .and_then(crate::dev_clock::duration) {
+        .and_then(|duration| if duration == "0ms" && drain { Ok(0) } else { crate::dev_clock::duration(duration) }) {
         Ok(milliseconds) => milliseconds,
         Err(error) => return respond(request, 400, json!({"denied":refusal_json(&error)})),
     };
@@ -409,11 +428,28 @@ pub(super) fn advance(request: Request, shared: &Shared, body: &str) {
             super::session_identity::mutation_authority(&request,shared,&engine,principal)?;
         } else { shared.dev_authority(&engine)?; }
         let mut clock = lock(&shared.clock);
+        let floor = shared.time_audience_clock.load(std::sync::atomic::Ordering::Acquire);
+        let effective_before = clock.now().max(floor);
         let mut next = clock.clone();
-        let now = next.advance(milliseconds)?.max(shared.time_audience_clock.load(std::sync::atomic::Ordering::Acquire));
-        let boundaries = crate::dev_clock_store::crossed_boundaries(&engine, &before, now, shared.hold_schedules, each_boundary)?;
+        let now = (if milliseconds == 0 { next.now() } else { next.advance(milliseconds)? }).max(floor);
+        // @ref LLP 3000.000.000.001#11-wave-22-loop-repairs-dx6 — refuse a saved boundary before any clock/session effect.
+        if drain && !allow_held && !shared.hold_schedules {
+            crate::dev_clock_store::refuse_held(&engine, &before, clock.now(), now)?;
+        }
+        let boundaries = crate::dev_clock_store::crossed_boundaries(&engine, &before, now, shared.hold_schedules || !drain, each_boundary)?;
         lock(&shared.maintenance).advancing = true;
-        engine.advance_worker_leases_at(milliseconds, clock.now()).map_err(|e| e.refusal())?;
+        if !shared.personas {
+            // @ref LLP 3000.000.000.001#11-wave-22-loop-repairs-dx6 — a retained disclosure floor is also the credential authority clock.
+            // A raw jump below that floor advances no business time and cannot
+            // extend credentials or leases. Selection must never see an older
+            // raw process time and revive an already expired family.
+            let effective_delta = now.checked_sub(effective_before)
+                .ok_or_else(|| crate::dev_clock::input("effective clock advance overflow"))?;
+            if milliseconds > 0 && effective_delta > 0 { engine.advance_staging_clock_at(effective_delta, effective_before, preserve_sessions).map_err(|e|e.refusal())?; }
+        } else if milliseconds > 0 {
+            engine.advance_worker_leases_at(milliseconds, clock.now()).map_err(|e|e.refusal())?;
+        }
+        lock(&shared.maintenance).paused = true;
         *clock = next;
         let offset = clock.offset();
         let skew = now - snapback4_core::now_ms();
@@ -421,15 +457,16 @@ pub(super) fn advance(request: Request, shared: &Shared, body: &str) {
             format!("; use {} for isolated time tests; clock advance --port N targets its printed port (guide jobs)", crate::dev_clock::isolated_command())
         } else { String::new() };
         let message = format!("cumulative offset {offset:+}ms (requested process offset; now includes the authoritative floor); process offset lasts until restart{isolated}");
-        Ok((now, offset, skew, message, before, boundaries))
+        Ok((now, clock.now(), offset, skew, message, before, boundaries))
     })();
-    let (now, offset, skew, message, before, boundaries) = match advanced {
+    let (now, raw_now, offset, skew, message, before, boundaries) = match advanced {
         Ok(result) => result,
         Err(error) => return respond(request, 400, json!({"denied":refusal_json(&error)})),
     };
     // @ref LLP 3000#contended-read-serving — a developer is awaiting this
     // request; synchronous clock-advance work intentionally keeps request QoS.
     let drained = (|| {
+        if !drain { return Ok(Work::default()); }
         let mut crossed = Vec::new();
         if each_boundary {
             for (index, at) in boundaries {
@@ -443,19 +480,20 @@ pub(super) fn advance(request: Request, shared: &Shared, body: &str) {
     })();
     match drained.map_err(|error| error.refusal()).and_then(|work| completed_drain(work, crate::lifecycle::stopping())) {
         Ok(work) => {
-            let schedules = crate::dev_clock_store::schedule_report(&lock(&shared.engine), &before, &work.fired, now, shared.hold_schedules, each_boundary, shared.dev_identity.as_ref().map(|i| i.address.port()));
+            lock(&shared.maintenance).paused = !drain;
+            let schedules = crate::dev_clock_store::schedule_report(&lock(&shared.engine), &before, &work.fired, now, raw_now, shared.hold_schedules || !drain, each_boundary, shared.dev_identity.as_ref().map(|i| i.address.port()));
             let (fired, held) = crate::dev_clock_store::outcomes(&schedules);
-            respond(request, 200, json!({"now":now, "advancedMs":milliseconds, "sessionNotice":crate::dev_clock::SESSION_NOTICE, "offsetMs":offset, "skewMs":skew, "eachBoundary":each_boundary, "message":message, "work":work, "schedules":schedules, "fired":fired, "held":held}))
+            respond(request, 200, json!({"now":now, "advancedMs":milliseconds, "sessionNotice":if preserve_sessions { crate::dev_clock::PRESERVED_SESSION_NOTICE } else { crate::dev_clock::SESSION_NOTICE }, "maintenancePaused":!drain, "sessionsPreserved":preserve_sessions, "offsetMs":offset, "skewMs":skew, "eachBoundary":each_boundary, "message":message, "work":work, "schedules":schedules, "fired":fired, "held":held}))
         }
-        // Time remains advanced if maintenance fails; callers must not
-        // retry the advance blindly. The normal tick retries pending work.
+        // Time remains advanced on failure. Stay paused until an explicit drain;
+        // never retry an ambiguous advance to resume pending work.
         Err(error) => {
             let engine = lock(&shared.engine);
             let after = crate::dev_clock_store::saved_boundaries(&engine);
             let fired: Vec<_> = engine.schema().schedules.iter().enumerate().filter(|(i, _)| {
                 matches!((before.get(*i).copied().flatten(), after.get(*i).copied().flatten()), (Some(old), Some(new)) if new > old)
             }).map(|(_, schedule)| schedule.name.clone()).collect();
-            let mut schedules = crate::dev_clock_store::schedule_report(&engine, &before, &fired, now, shared.hold_schedules, each_boundary, shared.dev_identity.as_ref().map(|i| i.address.port()));
+            let mut schedules = crate::dev_clock_store::schedule_report(&engine, &before, &fired, now, raw_now, shared.hold_schedules || !drain, each_boundary, shared.dev_identity.as_ref().map(|i| i.address.port()));
             for (index, schedule) in schedules.iter_mut().enumerate() {
                 if schedule["fired"] != true && !shared.hold_schedules && before.get(index).copied().flatten().is_some_and(|old| old < engine.schema().schedules[index].boundary(now)) {
                     schedule["holdCode"] = "maintenance-failed".into();
@@ -463,7 +501,7 @@ pub(super) fn advance(request: Request, shared: &Shared, body: &str) {
                 }
             }
             let (fired, held) = crate::dev_clock_store::outcomes(&schedules);
-            respond(request, 500, json!({"now":now, "advancedMs":milliseconds, "sessionNotice":crate::dev_clock::SESSION_NOTICE, "offsetMs":offset, "skewMs":skew, "eachBoundary":each_boundary, "message":message, "schedules":schedules, "fired":fired, "held":held, "reportIncomplete":true, "denied":refusal_json(&error)}))
+            respond(request, 500, json!({"now":now, "advancedMs":milliseconds, "sessionNotice":if preserve_sessions { crate::dev_clock::PRESERVED_SESSION_NOTICE } else { crate::dev_clock::SESSION_NOTICE }, "maintenancePaused":true, "sessionsPreserved":preserve_sessions, "offsetMs":offset, "skewMs":skew, "eachBoundary":each_boundary, "message":message, "schedules":schedules, "fired":fired, "held":held, "reportIncomplete":true, "denied":refusal_json(&error)}))
         },
     }
 }
@@ -562,6 +600,173 @@ mod tests {
     use super::super::tests::Host;
 
     #[test]
+    fn dx6_current_window_drains_resume_queued_work_and_only_future_markers_refuse() {
+        let store = snapback4_core::store_port::AnyStore::memory().unwrap();
+        store.set_deployment_environment("staging").unwrap();
+        let host = Host::with_store(false, store,
+            "use identity\ntable counters:\n  n: int\n  public 'fixture'\njob tick():\n  for counter in counters:\n    update counters[counter.id] {n:counter.n+1}\nschedule hourly every 1h: tick\n");
+        let hour = 3_600_000;
+        let raw = (snapback4_core::now_ms() / hour + 3) * hour + 1_000;
+        lock(&host.shared.clock).freeze(raw);
+        let service = {
+            let mut engine = lock(&host.shared.engine);
+            engine.seed_at([("counters".into(), snapback4_core::value::object([
+                ("id", snapback4_core::Value::Id("counter".into())), ("n", snapback4_core::Value::Int(0)),
+            ]))], raw).unwrap();
+            engine.fire_schedules(raw).unwrap();
+            snapback4_core::identity::service_session(engine.store(), "clock", raw, 1).unwrap()
+        };
+        let call = |duration: &str, drain: bool, allow_held: bool, status: u16| {
+            let payload = json!({"duration":duration,"drain":drain,"allowHeld":allow_held}).to_string();
+            let response = super::super::tests::exchange(host.address, &format!(
+                "POST /dev/clock/advance HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nAuthorization: Bearer {}\r\nContent-Length: {}\r\n\r\n{payload}", service.token, payload.len()));
+            assert_eq!(super::super::tests::status(&response), status, "{response}");
+            super::super::tests::body(&response)
+        };
+        let request = |duration: &str, drain: bool, status: u16| call(duration, drain, false, status);
+        let advanced = request("2h", true, 200);
+        assert_eq!(advanced["schedules"][0]["fired"], true, "{advanced}");
+        let current = request("1ms", true, 200);
+        assert_eq!(current["schedules"][0]["holdCode"], "not-due", "{current}");
+        assert_eq!(request("1ms", false, 200)["maintenancePaused"], true);
+        let now = host.shared.now();
+        let (queued, saved) = {
+            let mut engine = lock(&host.shared.engine);
+            (engine.enqueue_job("tick", Default::default(), now).unwrap(), crate::dev_clock_store::saved_boundaries(&engine))
+        };
+        // Interrupted completion can leave already-enqueued work behind the
+        // current marker. Recovery must not require accepting a future hold.
+        assert_eq!(completed_drain(Work::default(), true).err().unwrap().code, "E_CLOCK_INTERRUPTED");
+        let recovered = request("0ms", true, 200);
+        assert_eq!(recovered["advancedMs"], 0);
+        assert_eq!(recovered["now"], now);
+        assert_eq!(recovered["maintenancePaused"], false);
+        assert_eq!(recovered["schedules"][0]["holdCode"], "not-due", "{recovered}");
+        {
+            let engine = lock(&host.shared.engine);
+            assert_eq!(crate::dev_clock_store::saved_boundaries(&engine), saved);
+            assert_eq!(engine.job(&queued).unwrap().unwrap().state, snapback4_core::JobState::Done);
+            assert_eq!(engine.store().rows("counters").unwrap()[0].field("n").unwrap(), &snapback4_core::Value::Int(2));
+        }
+        // A strictly future marker still refuses before shifting time or
+        // credentials, and leaves its queued run untouched.
+        let (future_job, before, timing) = {
+            let mut engine = lock(&host.shared.engine);
+            let boundary = engine.schema().schedules[0].boundary(now) + hour;
+            // Simulate a prior process that admitted this later window.
+            engine.fire_schedule_boundary_at(boundary, 0, boundary).unwrap();
+            let future_job = engine.store().job_summaries(0).unwrap().into_iter().find(|run| run.state == "queued").unwrap().id;
+            let identity = engine.store().store_identity().unwrap().unwrap();
+            let timing = engine.staging_session_timing(&service.token, now, &identity).unwrap().unwrap();
+            (future_job, crate::dev_clock_store::saved_boundaries(&engine), timing.expires_at)
+        };
+        {
+            let engine = lock(&host.shared.engine);
+            let report = crate::dev_clock_store::schedule_report(&engine, &before, &[], now, now, false, false, None);
+            assert_eq!(report[0]["holdCode"], "saved-boundary");
+            assert_eq!(report[0]["heldUntil"], crate::dev_clock_store::utc(before[0].unwrap()));
+            assert_eq!(report[0]["nextBoundary"], crate::dev_clock_store::utc(before[0].unwrap() + hour));
+        }
+        let refused = request("1ms", true, 400);
+        assert_eq!(refused["denied"]["code"], "E_CLOCK_HELD", "{refused}");
+        assert_eq!(host.shared.now(), now);
+        {
+            let engine = lock(&host.shared.engine);
+            assert_eq!(crate::dev_clock_store::saved_boundaries(&engine), before);
+            assert_eq!(engine.job(&future_job).unwrap().unwrap().state, snapback4_core::JobState::Queued);
+            let identity = engine.store().store_identity().unwrap().unwrap();
+            assert_eq!(engine.staging_session_timing(&service.token, now, &identity).unwrap().unwrap().expires_at, timing);
+        }
+        let catchup = before[0].unwrap() - now;
+        assert!(refused["denied"]["message"].as_str().unwrap().contains(&format!("Advance {catchup}ms")), "{refused}");
+        let caught_up = request(&format!("{catchup}ms"), true, 200);
+        assert_eq!(caught_up["schedules"][0]["holdCode"], "not-due", "{caught_up}");
+        assert_eq!(lock(&host.shared.engine).store().rows("counters").unwrap()[0].field("n").unwrap(), &snapback4_core::Value::Int(3));
+        let next = request("1h", true, 200);
+        assert_eq!(next["schedules"][0]["fired"], true, "{next}");
+        assert_eq!(request("0ms", true, 200)["schedules"][0]["holdCode"], "not-due");
+        assert_eq!(lock(&host.shared.engine).store().rows("counters").unwrap()[0].field("n").unwrap(), &snapback4_core::Value::Int(4));
+        // Disclosure floors can hide a lower raw process clock. Relative
+        // recovery advice must cover that hidden distance as well.
+        let raw = host.shared.now() - hour;
+        let floor = raw + hour + hour / 2;
+        lock(&host.shared.clock).freeze(raw);
+        host.shared.time_audience_clock.store(floor, std::sync::atomic::Ordering::Release);
+        let saved = {
+            let mut engine = lock(&host.shared.engine);
+            let saved = engine.schema().schedules[0].boundary(floor) + hour;
+            engine.fire_schedule_boundary_at(saved, 0, saved).unwrap();
+            saved
+        };
+        let refused = request("1ms", true, 400);
+        let duration = saved - raw;
+        assert!(refused["denied"]["message"].as_str().unwrap().contains(&format!("Advance {duration}ms")), "{refused}");
+        assert_eq!(lock(&host.shared.clock).now(), raw);
+        let held = call("0ms", true, true, 200);
+        assert_eq!(held["schedules"][0]["heldUntil"], crate::dev_clock_store::utc(saved));
+        assert_eq!(held["schedules"][0]["nextBoundary"], crate::dev_clock_store::utc(saved + hour));
+        assert!(held["schedules"][0]["reason"].as_str().unwrap().contains(&format!("Advance {} more", crate::dev_clock_store::span(duration))), "{held}");
+        let recovered = request(&format!("{duration}ms"), true, 200);
+        assert_eq!(recovered["schedules"][0]["holdCode"], "not-due", "{recovered}");
+    }
+
+    #[test]
+    fn dx6_staging_preservation_uses_effective_time_above_the_disclosure_floor() {
+        let store = snapback4_core::store_port::AnyStore::memory().unwrap();
+        store.set_deployment_environment("staging").unwrap();
+        let host = Host::with_store(false, store, "use identity\ntable timed:\n  opens: time\n  not before .opens\n  public 'fixture'\n  online only\nquery clock():\n  return now\neffect notify\nmutation queue():\n  emit notify {}\n");
+        let store_id = lock(&host.shared.engine).store().store_identity().unwrap().unwrap();
+        let raw = snapback4_core::now_ms() + 1_000;
+        let floor = raw + 10_000;
+        lock(&host.shared.clock).freeze(raw);
+        host.shared.time_audience_clock.store(floor, std::sync::atomic::Ordering::Release);
+        let (service, live, expired) = {
+            let mut engine = lock(&host.shared.engine);
+            let service = snapback4_core::identity::service_session(engine.store(), "clock", floor, 1).unwrap();
+            // Construct boundary credentials through the existing identity port;
+            // backdating their one-day mint gives exact expiry without raw SQL.
+            let day = 86_400_000;
+            let live = snapback4_core::identity::custom_session(engine.store(), "member:live", "member", floor + 500 - day, 1).unwrap();
+            let expired = snapback4_core::identity::custom_session(engine.store(), "member:expired", "member", floor - 500 - day, 1).unwrap();
+            let queued = engine.mutate("queue", None, snapback4_core::Context::new("member:live", Default::default()).at(floor)).unwrap();
+            assert!(matches!(queued.state, snapback4_core::WriteState::Sent { .. }));
+            let claimed = engine.claim_effects("service:worker", None, 1, 3_000, floor).unwrap();
+            assert_eq!(claimed.len(), 1);
+            assert_eq!(claimed[0].lease_until, Some(floor + 3_000));
+            (service, live, expired)
+        };
+        let headers = format!("Authorization: Bearer {}\r\n", service.token);
+        let advance = |duration: &str| {
+            let payload = json!({"duration":duration,"drain":false}).to_string();
+            let reply = super::super::tests::exchange(host.address, &format!("POST /dev/clock/advance HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nContent-Length: {}\r\n{headers}\r\n{payload}", payload.len()));
+            assert_eq!(super::super::tests::status(&reply), 200, "{reply}");
+            super::super::tests::body(&reply)
+        };
+        for _ in 0..2 {
+            assert_eq!(advance("4s")["now"], floor);
+            let engine = lock(&host.shared.engine);
+            assert!(snapback4_core::identity::resolve_read_only(engine.store(), &expired.token, floor, Some(&store_id)).unwrap().is_none());
+            let timing = engine.staging_session_timing(&live.token, floor, &store_id).unwrap().unwrap();
+            assert_eq!(timing.expires_at, floor + 500, "below-floor jumps preserve the exact remaining time");
+            let held = engine.effects(Some("running"), 1).unwrap();
+            assert_eq!(held.len(), 1);
+            assert_eq!(held[0].lease_until, Some(floor + 3_000));
+        }
+        // Raw time has advanced eight seconds. Crossing the ten-second floor
+        // with three more seconds advances effective authority by only one.
+        assert_eq!(advance("3s")["now"],floor+1_000);
+        let engine = lock(&host.shared.engine);
+        assert!(snapback4_core::identity::resolve_read_only(engine.store(), &expired.token, floor+1_000, Some(&store_id)).unwrap().is_none());
+        assert!(snapback4_core::identity::resolve_read_only(engine.store(), &live.token, floor+1_000, Some(&store_id)).unwrap().is_some());
+        let timing = engine.staging_session_timing(&live.token, floor + 1_000, &store_id).unwrap().unwrap();
+        assert_eq!(timing.expires_at, floor + 1_500, "exactly the original 500ms remains");
+        assert!(engine.staging_session_timing(&expired.token, floor + 1_000, &store_id).unwrap().is_none(), "an expired token never shifts back to life");
+        let held = engine.effects(Some("running"), 1).unwrap();
+        assert_eq!(held.len(), 1);
+        assert_eq!(held[0].lease_until, Some(floor + 4_000), "leases shift by effective elapsed time once");
+    }
+
+    #[test]
     fn kit4_slow_advance_reports_only_windows_it_actually_admitted() {
         for each_boundary in [false, true] {
             let host = Host::with_store(true, snapback4_core::store_port::AnyStore::memory().unwrap(),
@@ -645,6 +850,10 @@ mod tests {
         assert_eq!(super::super::tests::status(&response), 500, "{response}");
         let reply = super::super::tests::body(&response);
         assert_eq!(reply["denied"]["code"], "E_CLOCK_INTERRUPTED", "{reply}");
+        assert_eq!(reply["maintenancePaused"], true, "failed drains stay paused");
+        assert!(lock(&shared.maintenance).paused);
+        timely(&shared, 0).unwrap();
+        assert!(!lock(&shared.maintenance).eligible(Instant::now() + BULK_AGE, false));
         assert!(reply["now"].as_i64().unwrap() >= before+60_000 && reply["skewMs"].is_i64());
         assert_eq!(lock(&shared.engine).job(&id).unwrap().unwrap().state, snapback4_core::JobState::Queued);
     }

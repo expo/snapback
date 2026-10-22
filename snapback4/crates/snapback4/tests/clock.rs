@@ -855,11 +855,20 @@ fn advance_explains_each_schedule_and_resume_clock_releases_a_restart_hold() {
     drop(host);
     let (host, log) = start(&["dev", "--no-watch"]);
     assert!(log.contains("schedule ticker is held until") && log.contains("--resume-clock"), "{log}");
-    let held = host.post("/dev/clock/advance", json!({"duration":"2h"}));
+    let before = host.request("GET", "/dev/status", Value::Null)["now"].as_i64().unwrap();
+    let refused = host.post("/dev/clock/advance", json!({"duration":"2h"}));
+    assert_eq!(refused["denied"]["code"], "E_CLOCK_HELD", "{refused}");
+    assert!(refused.get("now").is_none(), "refusal must precede effects");
+    let after = host.request("GET", "/dev/status", Value::Null)["now"].as_i64().unwrap();
+    assert!(after - before < 60_000, "blocked request must not advance time");
+    let held = host.post("/dev/clock/advance", json!({"duration":"2h", "allowHeld":true}));
     assert_eq!(held["work"]["schedules"], 0, "{held}");
     let ticker = &held["schedules"][0];
     assert_eq!(ticker["fired"], false);
     assert!(ticker["reason"].as_str().unwrap().contains("held by the store") && ticker["heldUntil"].is_string(), "{held}");
+    let startup_hold = log.lines().find(|line| line.contains("schedule ticker is held until")).unwrap();
+    assert!(startup_hold.contains(&format!("held until {}", ticker["heldUntil"].as_str().unwrap())), "{startup_hold}; {held}");
+    assert!(startup_hold.contains(&format!("next unprocessed window {}", ticker["nextBoundary"].as_str().unwrap())), "{startup_hold}; {held}");
     let doctor = output_json(f.command(&["doctor", "--json"]));
     assert!(doctor.to_string().contains("ahead of the clock: held until"), "{doctor}");
     drop(host);
@@ -867,7 +876,9 @@ fn advance_explains_each_schedule_and_resume_clock_releases_a_restart_hold() {
     assert!(!refused.status.success() && String::from_utf8_lossy(&refused.stderr).contains("cannot be combined"), "{refused:?}");
     let (host, log) = start(&["dev", "--no-watch", "--resume-clock"]);
     assert!(log.contains("--resume-clock: offset +") && !log.contains("N_CLOCK_STORE_AHEAD") && !log.contains("is held until"), "{log}");
-    let resumed = host.post("/dev/clock/advance", json!({"duration":"1h"}));
+    // The hourly boundary resumes; the independent daily boundary may still
+    // be ahead, so explicitly accept that held daily schedule in this check.
+    let resumed = host.post("/dev/clock/advance", json!({"duration":"1h", "allowHeld":true}));
     assert_eq!(resumed["schedules"][0]["fired"], true, "{resumed}");
     let resumed_ticks = resumed["schedules"].as_array().unwrap().iter().filter(|schedule| schedule["fired"] == true && schedule["target"] == "tick").count();
     assert_eq!(host.query("counters")[0]["n"], advanced_ticks + resumed_ticks, "{resumed}");

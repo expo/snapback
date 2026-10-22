@@ -131,7 +131,10 @@ fn old_metro_readme_is_still_owned_but_custom_readme_is_preserved() {
 fn adapting_legacy_smoke_imports_removes_only_an_unused_unmodified_helper() {
     for custody in ["unused", "custom-reference", "edited-helper"] {
         let app=App::new();app.ok(&["init","--expo"]);
-        let old=app.read("App.tsx").replace("useNativeSmoke", "useNativeSmokeGuest").replace("snapback4-expo/native-smoke", "./src/native-smoke");
+        // Use the actual published 0.4.37 screen, not today's ReadState UI
+        // with a legacy helper grafted onto it (an app-owned hybrid).
+        let old=include_str!("../src/verbs/init/starter/previous/wave22/expo-app.tsx").replace("useNativeSmoke", "useNativeSmokeGuest").replace("snapback4-expo/native-smoke", "./src/native-smoke");
+        app.write("src/client.ts",include_str!("../src/verbs/init/starter/previous/wave22/expo-client.ts"));
         app.write("App.tsx",&old);
         let helper=include_str!("../src/verbs/init/native-smoke.ts");
         let helper=if custody=="edited-helper" {format!("{helper}\n// app-owned\n")} else {helper.into()};

@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.4.38
+
+- Seeded staging accounts are complete sessions. Legacy partial online session literals use bearer-only transport without inventing refresh metadata; E_SESSION names all invalid/missing fields and the token-only repair.
+- Staging clock reports coerce to their numeric now. Blocked saved boundaries refuse before effects; allowHeld explicitly accepts them. Live sessions preserve their remaining lifetime across business-time jumps by default; sessions:"expire" explicitly tests expiry. advance(duration, {drain:false}) pauses maintenance for mutation deadline tests, and drain() resumes it. Production clock controls remain refused.
+- Already-processed current schedule windows remain not-due. Repeated advances and same-time drains can resume queued work without allowHeld.
+- Local/device clocks save staging credential lifetimes before publishing a jump. App preparation saves clock offsets after committing credentials. Decoded write and effect outcomes survive local session cleanup through the established close cutoff. Authentication refusals remain scoped to their dispatched bearer across rotation; a stale refusal cannot become a failed write when its successor signs out.
+- Upgrade warnings apply only to actual transitions and affected scripts, acknowledge nonterminal delivery, and scan partial sessions/numeric advances. Fresh init is quiet. Future store formats name a newer Snapback; sql refuses with a nonzero exit. Published old quiet CLIs may hide captured migration advice.
+- React and Expo starter lists use ReadState. Password client modules omit web witness registration and persona plumbing; proof drivers install the bridge. Proof text matching accepts composed React Native text and wrapping labels, while exact matching and independent-match ambiguity remain strict.
+- SEC7 owns security advice and security recipe changes for this release.
+
 ## 0.4.37
 
 - Release re-entry accepts ordinary edits made while a backfill's declaring source is active: native input fingerprints and actually edited non-output migration inputs refresh, and matching recomputation is accepted. Conflicting authored outputs still refuse. A physically absent nullable rename destination no longer conflicts as an invented null.

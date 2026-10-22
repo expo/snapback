@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Button, Pressable, Text, TextInput, View } from "react-native";
-import { existence, isDenied, isFailed, isLoading } from "snapback4/contract";
-import { useAuth, useLink, useMutation, usePage, useSignedInViewer, type UseMutation, type UsePage } from "snapback4/react";
+import { existence, isFailed } from "snapback4/contract";
+import { ReadState, useAuth, useLink, useMutation, usePage, useSignedInViewer, type UseMutation, type UsePage } from "snapback4/react";
 import { api } from "./snapback/generated/api";
 import { tier } from "./src/client";
 
@@ -13,7 +13,7 @@ function Todos() {
   // unconfirmed writes (marked `pending`) and changes from other devices.
   // usePage is for a query that takes `c: cursor ?`; any other query reads
   // with useQuery(api.op, args), which returns the Read itself (render it
-  // with matchRead from snapback4/contract).
+  // with ReadState for lists, or matchRead from snapback4/contract).
   // Keep the draft in this screen, above release-sensitive read children.
   const [title, setTitle] = useState("");
   const todos = usePage(api.list, {});
@@ -43,15 +43,16 @@ function Todos() {
 // UseMutation<typeof api.toggle>, and UseQuery<typeof api.op> for useQuery.
 function TodoList({ todos, toggle, remove }: { todos: UsePage<typeof api.list>; toggle: UseMutation<typeof api.toggle>; remove: UseMutation<typeof api.remove> }) {
   return <>
-    {isLoading(todos.read) && <Text>Loading…</Text>}
-    {isDenied(todos.read) && <Text style={{ color: "crimson" }}>Not available: {todos.read.denied.message}</Text>}
-    {existence(todos.read) === "absent" && <Text>No tasks yet.</Text>}
-    <View testID="todo-results">{todos.items.map(todo => <View key={todo.id} style={{ flexDirection: "row", alignItems: "center", gap: 8, opacity: todo.pending ? 0.6 : 1 }}>
+    <ReadState read={todos} loading={<Text>Loading…</Text>}
+      denied={why => <Text style={{ color: "crimson" }}>Not available: {why.message}</Text>}
+      empty={<Text>{existence(todos.read) === "absent" ? "No tasks yet." : "No known tasks yet."}</Text>}>
+    {() => <View testID="todo-results">{todos.items.map(todo => <View key={todo.id} style={{ flexDirection: "row", alignItems: "center", gap: 8, opacity: todo.pending ? 0.6 : 1 }}>
       <Pressable style={{ flex: 1 }} onPress={() => void toggle.run({ todoId: todo.id })}>
         <Text style={{ textDecorationLine: todo.done ? "line-through" : "none" }}>{todo.done ? "☑" : "☐"} {todo.title}</Text>
       </Pressable>
       <Button title="Delete" onPress={() => void remove.run({ todoId: todo.id })} />
-    </View>)}</View>
+    </View>)}</View>}
+    </ReadState>
     {todos.hasMore && <Button title="Show more" onPress={todos.loadMore} />}
   </>;
 }

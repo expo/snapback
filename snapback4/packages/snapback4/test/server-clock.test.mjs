@@ -89,7 +89,7 @@ test('streaming advances are provisional receipt stamps with no half-wait oversh
   clock.issuedDeviceNow();
   wall += 20_000;
   const actual = wall + 120_000;
-  sampleChanges(response, { serverNow: actual - 15, clockRevision: 'host:1' });
+  await sampleChanges(response, { serverNow: actual - 15, clockRevision: 'host:1' });
   assert.equal(clock.issuedDeviceNow(), actual - 15);
   assert.ok(clock.issuedDeviceNow() <= actual, 'the 20-second hold cannot advance the floor by ten seconds');
   const sent = wall; wall += 40;
@@ -171,7 +171,7 @@ test('stream final-body clock stamp supersedes pre-advance response headers', as
     'x-snapback-time': String(before), 'x-snapback-clock': 'host:0',
   } }));
   const response = await transport('http://clock.test/changes');
-  sampleChanges(response, { serverNow: Date.now() + 120000, clockRevision: 'host:1' });
+  await sampleChanges(response, { serverNow: Date.now() + 120000, clockRevision: 'host:1' });
   assert.ok(clock.issuedDeviceNow() >= before + 120000);
 });
 
