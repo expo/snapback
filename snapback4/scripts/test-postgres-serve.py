@@ -123,20 +123,134 @@ try:
         refused=cli(['doctor','--store-url',invalid],False)
         assert code in refused.stderr and 'private-password' not in refused.stderr,refused.stderr
     cli(['check'])
-    print('check: admitted app compiled',flush=True)
+    for verb in ['deploy', 'serve']:
+        help_text = cli([verb, '--help']).stdout
+        assert 'SQLite' in help_text and 'Postgres' in help_text and 'E_STORE_UNSUPPORTED' in help_text, help_text
+    for arguments in [['deploy',str(WORK/'deployment'),'--check'],
+                      ['serve',str(WORK/'deployment'),'--worker','worker.mjs']]:
+        refused=cli(arguments,False,url=url)
+        assert 'E_STORE_UNSUPPORTED' in refused.stderr,refused.stderr
+    print('check: admitted app compiled; help distinguishes backends and unsupported flags refuse',flush=True)
     # Reproduce the failed binding write after bootstrap, then recover that id.
     obstruction = WORK/'deployment/store-binding.json'
     obstruction.mkdir(parents=True)
     failed=cli(['deploy',str(WORK/'deployment')],False,url=url)
     bootstrap=run(['psql',connection,'-Atc',"SELECT store_id FROM serving._owner WHERE token=0 AND NOT EXISTS (SELECT 1 FROM serving._meta WHERE key='release')"])
     assert bootstrap.returncode==0 and len(bootstrap.stdout.strip())==32,(failed.stderr,bootstrap)
+    pending = WORK/'deployment/store-pending.json'
+    intent = pending.read_bytes()
+    assert json.loads(intent)['store_id'] == bootstrap.stdout.strip()
+    assert 'private-password' not in intent.decode()
     obstruction.rmdir()
+    def sql(statement):
+        result = run(['psql', connection, '-v', 'ON_ERROR_STOP=1', '-Atc', statement])
+        assert result.returncode == 0, result.stderr
+        return result.stdout.strip()
+    def recovery_refuses(message):
+        refused = cli(['deploy', str(WORK/'deployment')], False, url=url)
+        assert 'E_STORE_CONFIG' in refused.stderr and message in refused.stderr, refused.stderr
+        assert 'retry' in refused.stderr and 'private-password' not in refused.stderr, refused.stderr
+        assert not obstruction.exists(), 'published binding before validation'
+        assert pending.read_bytes() == intent, 'changed pending intent on refusal'
+        assert sql('SELECT token FROM serving._owner') == '0', 'consumed token before validation'
+    # No identity intent means no right to adopt even a complete initial store.
+    saved_intent = pending.with_suffix('.saved')
+    pending.rename(saved_intent)
+    try:
+        refused = cli(['deploy', str(WORK/'deployment')], False, url=url)
+        assert 'pending bootstrap intent is missing' in refused.stderr, refused.stderr
+        assert not obstruction.exists() and sql('SELECT token FROM serving._owner') == '0'
+    finally:
+        saved_intent.rename(pending)
+    socket_alias = WORK/'socket-alias'
+    socket_alias.symlink_to(WORK, target_is_directory=True)
+    try:
+        alias_url = url.replace(urllib.parse.quote(str(WORK), safe=''), urllib.parse.quote(str(socket_alias), safe=''))
+        refused = cli(['deploy', str(WORK/'deployment')], False, url=alias_url)
+        assert 'namespace/socket target differs' in refused.stderr and 'retry' in refused.stderr, refused.stderr
+        assert pending.read_bytes() == intent and not obstruction.exists()
+        assert sql('SELECT token FROM serving._owner') == '0'
+    finally:
+        socket_alias.unlink()
+    # Independently bootstrap another store, then replace the original behind
+    # exactly the same URL/socket/namespace, as in Sol's reproduction.
+    second = WORK/'second-deployment'
+    (second/'store-binding.json').mkdir(parents=True)
+    cli(['deploy', str(second)], False, url=url.replace('schema=serving', 'schema=replacement'))
+    assert sql('SELECT store_id FROM replacement._owner') != bootstrap.stdout.strip()
+    sql('ALTER SCHEMA serving RENAME TO original; ALTER SCHEMA replacement RENAME TO serving')
+    try:
+        recovery_refuses('store id differs')
+    finally:
+        sql('ALTER SCHEMA serving RENAME TO replacement; ALTER SCHEMA original RENAME TO serving')
+    # Grok's probe-only schema even has the correct identity and exact owner
+    # shape. Full open must refuse before publishing or claiming anything.
+    sql('ALTER SCHEMA serving RENAME TO original; CREATE SCHEMA serving AUTHORIZATION s10d3_app; '
+        + '; '.join(f'CREATE TABLE serving.{table} (LIKE original.{table} INCLUDING ALL); '
+                    f'INSERT INTO serving.{table} SELECT * FROM original.{table}; '
+                    f'ALTER TABLE serving.{table} OWNER TO s10d3_app'
+                    for table in ['_owner', '_backend', '_meta']))
+    try:
+        recovery_refuses('missing _head')
+    finally:
+        sql('DROP SCHEMA serving CASCADE; ALTER SCHEMA original RENAME TO serving')
+    for table in ['_backend', '_meta', '_head', '_generations', 'r', '_sessions', '_release_events']:
+        sql(f'ALTER TABLE serving.{table} RENAME TO removed_table')
+        try:
+            recovery_refuses('missing '+table)
+            assert sql("SELECT to_regclass('serving."+table+"') IS NULL") == 't', 'repaired missing table'
+        finally:
+            sql(f'ALTER TABLE serving.removed_table RENAME TO {table}')
+    sql('ALTER TABLE serving._owner RENAME TO removed_owner')
+    try:
+        refused = cli(['deploy', str(WORK/'deployment')], False, url=url)
+        assert 'E_STORE_CONFIG' in refused.stderr and 'missing _owner' in refused.stderr, refused.stderr
+        assert pending.read_bytes() == intent and not obstruction.exists()
+        assert sql('SELECT token FROM serving.removed_owner') == '0'
+    finally:
+        sql('ALTER TABLE serving.removed_owner RENAME TO _owner')
+    for marker in ['schema_hash', 'activation_hash', 'generation', 'live_sum_candidates', 'time_audience_publications_v1']:
+        value = sql(f"DELETE FROM serving._meta WHERE key='{marker}' RETURNING value")
+        # psql prints its command tag after the returned value.
+        value = value.splitlines()[0]
+        try:
+            recovery_refuses('marker '+marker)
+            assert sql(f"SELECT count(*) FROM serving._meta WHERE key='{marker}'") == '0'
+        finally:
+            sql(f"INSERT INTO serving._meta VALUES ('{marker}','{value}')")
+    sql("UPDATE serving._generations SET programs='{}'")
+    try:
+        recovery_refuses('generation history differs')
+    finally:
+        sql('UPDATE serving._generations SET programs=(SELECT programs FROM serving._backend)')
+    sql('ALTER TABLE serving._owner ADD COLUMN extra int')
+    try:
+        recovery_refuses('unexpected column set')
+    finally:
+        sql('ALTER TABLE serving._owner DROP COLUMN extra')
+    print('bootstrap: missing intent, same-target store swap, probe-only schema, missing tables/markers, generation mismatch and owner shape refuse; token=0, intent unchanged, no binding', flush=True)
     deploy=cli(['deploy',str(WORK/'deployment')],url=url)
     binding=json.loads((WORK/'deployment/store-binding.json').read_text())
     assert binding['store_id']==bootstrap.stdout.strip(),binding
+    assert not pending.exists() and obstruction.read_bytes() == intent, 'intent did not become binding atomically'
     assert json.loads(binding['binding'])['targets']==[{'transport':'unix','socket':str(WORK/'.s.PGSQL.55483')}],binding
     print('binding failure: retry adopted the same unselected bootstrap and recorded its effective socket',flush=True)
     print(deploy.stdout.strip(),flush=True)
+    # A stale intent beside an existing binding cannot authorize recreating a
+    # missing selected store. Keep the original schema out of the target briefly.
+    selected_token = sql('SELECT token FROM serving._owner')
+    selected_binding = obstruction.read_bytes()
+    pending.write_bytes(intent)
+    sql('ALTER SCHEMA serving RENAME TO selected_original')
+    try:
+        refused = cli(['deploy', str(WORK/'deployment')], False, url=url)
+        assert 'bound store is missing' in refused.stderr and 'E_STORE_CONFIG' in refused.stderr, refused.stderr
+        assert sql("SELECT to_regnamespace('serving') IS NULL") == 't', 'recreated a bound store'
+        assert sql('SELECT token FROM selected_original._owner') == selected_token
+        assert obstruction.read_bytes() == selected_binding and pending.read_bytes() == intent
+    finally:
+        sql('ALTER SCHEMA selected_original RENAME TO serving')
+        pending.unlink()
     # CLI wins over malformed environment; conflicting local selector fails by name.
     env={**ENV,'SNAPBACK4_STORE_URL':'invalid ambient secret'}
     result=cli(['doctor','--store-url',url.replace(':private-password',''),'--json'],env=env)

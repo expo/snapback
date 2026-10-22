@@ -11,7 +11,7 @@ try {
 } finally { await cleanup(() => host.stop()); }
 ```
 
-## Fields
+## Fields and automatic workers (SQLite)
 
 `releases <dir> --json` prints the same JSON object as plain `releases`.
 The active identity is `current`; `release` is its equal compatibility spelling.
@@ -62,9 +62,14 @@ omit it to create the default `store.sqlite`. A path plus a URL (including the
 environment URL) refuses `E_STORE_CONFIG`. A deployment with a store binding
 requires that URL again on restart. The immutable `store-binding.json` records
 only the logical store id and non-secret connection binding, including effective
-Unix socket paths. A failed first binding write can be retried after fixing the
-filesystem error: deploy adopts the same unselected, never-owned initial bootstrap.
-Selected stores still require their existing binding. Preserve its local
+Unix socket paths. Before bootstrap, a synced `store-pending.json` intent records
+that identity and target without credentials. A failed first binding write can be
+retried after fixing the filesystem error: deploy requires the original intent,
+matching store id, complete tables/generation/markers and normal open/admit checks.
+Only then does an atomic rename replace the intent with the binding, before any
+owner claim. An identity/target mismatch or incomplete bootstrap refuses
+`E_STORE_CONFIG`; restore the original complete store and intent before retrying.
+Never edit the intent to adopt another store. Selected stores require their binding. Preserve its local
 `releases/N` source tree; serve selects the release recorded in Postgres and
 checks its compiled schema/programs before admitting traffic.
 
@@ -84,16 +89,21 @@ schedules, native programs, union sync, timed publication, row-keyed recounts an
 unsupported maintained/private-column shapes. These runners and worker handlers
 stay off. Schema evolution, rollback, previews, prune, staging, saved versions,
 SQL/data inspection, service token minting (`token`), release inspection and hot
-activation are outside this profile and refuse by name; stop serve before deploying another admitted release. Same-schema program
+activation are outside this profile. `token`, `rollback`, `releases`, `data` and
+`prune` return `E_STORE_UNSUPPORTED: this operator command is outside the admitted store profile`; `sql` returns
+`E_STORE_UNSUPPORTED: inspection is outside the admitted store profile`.
+Stop serve and wait about three seconds for its lease to expire before deploying
+another admitted release. Same-schema program
 changes can activate; identical content stays on its existing release/generation.
 
 Serve acquires a positive store lease before its listener. A second serve refuses
 `E_STORE_OWNERSHIP` while that lease is live; retry after expiry to take over a
 crashed process. Renewal uses its own connection every 500 ms. Any failed or
 uncertain renewal exits the process, closing listener and producers. In-flight
-transactions remain token-fenced. A startup failure releases its lease so a
-corrected start can run immediately. Once serving, serve leaves the lease to
-expire on exit; deploy releases it after its fenced activation finishes. Doctor reports backend,
+transactions remain token-fenced. A startup failure attempts token-guarded
+release even after renewal loss. Successful cleanup permits immediate corrected
+startup; otherwise retry after expiry. Once serving, serve leaves the lease to
+expire about three seconds after its last renewal, including on clean shutdown; deploy releases it after its fenced activation finishes. Doctor reports backend,
 logical identity, owner token/holder and database-clock lease state without raw SQL.
 SQL inspection currently refuses `E_STORE_UNSUPPORTED`. An unknown activation
 COMMIT is resolved from persisted selection, without replaying activation; an

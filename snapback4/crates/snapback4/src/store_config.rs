@@ -98,8 +98,66 @@ impl StoreConfig {
     pub fn probe(&self) -> Result<Option<DeploymentState>, String> {
         AnyStore::postgres_deployment(&self.connection, &self.namespace).map_err(redact)
     }
-    pub fn create(&self) -> Result<AnyStore, String> {
-        AnyStore::create_postgres(&self.connection, &self.namespace).map_err(redact)
+    pub fn probe_for_deploy(&self, dir: &Path) -> Result<Option<DeploymentState>, String> {
+        self.probe().or_else(|error| {
+            if !dir.join("store-binding.json").is_file() {
+                let id = self.pending(dir, false)?;
+                // Probe reads only three relations. Diagnose missing/malformed
+                // probe relations through the complete recovery validator too.
+                self.check_bootstrap(&id)?;
+                return Err(input("bootstrap deployment probe differs from validated state; restore the original complete store and intent, then retry deploy"));
+            }
+            Err(error)
+        })
+    }
+    pub fn create(&self, id: &str) -> Result<AnyStore, String> {
+        AnyStore::create_postgres_with_id(&self.connection, &self.namespace, id).map_err(redact)
+    }
+    pub fn pending(&self, dir: &Path, create: bool) -> Result<String, String> {
+        if create && dir.join("store-binding.json").is_file() {
+            return Err(input("bound store is missing; restore its original store URL/database before retrying deploy"));
+        }
+        let path = dir.join("store-pending.json");
+        if path.exists() {
+            let record: Binding = serde_json::from_slice(&std::fs::read(&path)
+                .map_err(|_| input("cannot read pending bootstrap intent; restore the original intent, then retry deploy"))?)
+                .map_err(|_| input("invalid pending bootstrap intent; restore the original intent, then retry deploy"))?;
+            if record.binding != self.binding {
+                return Err(input("pending bootstrap namespace/socket target differs; restore the original store URL and intent, then retry deploy"));
+            }
+            if record.store_id.len() != 32 || !record.store_id.bytes().all(|c| c.is_ascii_hexdigit()) {
+                return Err(input("invalid pending bootstrap identity; restore the original intent, then retry deploy"));
+            }
+            // A prior attempt may have failed syncing the directory after its
+            // rename. Re-establish durability before trusting an existing intent.
+            std::fs::File::open(&path).and_then(|f| f.sync_all())
+                .and_then(|_| std::fs::File::open(dir)?.sync_all()).map_err(|e| e.to_string())?;
+            return Ok(record.store_id);
+        }
+        if !create {
+            return Err(input("pending bootstrap intent is missing; restore the original intent from the failed deployment, then retry deploy; do not adopt an unrelated store"));
+        }
+        let id = format!("{:016x}{:016x}", snapback4_core::ids::seed(), snapback4_core::ids::seed());
+        self.write_record(dir, "store-pending.json", &id)?;
+        Ok(id)
+    }
+    pub fn recover(&self, dir: &Path, state: &DeploymentState) -> Result<(), String> {
+        if state.release.is_some() || state.generation != 1 || state.revision != 0 || state.token != 0 {
+            return Err(input("deployment store binding is missing for a selected or previously owned store; restore its original binding before retrying deploy"));
+        }
+        let id = self.pending(dir, false)?;
+        if state.store_id != id {
+            return Err(input("pending bootstrap store id differs from the connected store; restore the original store at the recorded socket/namespace and retry deploy"));
+        }
+        self.check_bootstrap(&id)?;
+        // The synced intent itself becomes the binding in one atomic rename.
+        // On failure, keep the intent for an identity-bound retry.
+        std::fs::rename(dir.join("store-pending.json"), dir.join("store-binding.json"))
+            .and_then(|_| std::fs::File::open(dir)?.sync_all()).map_err(|e| e.to_string())
+    }
+    fn check_bootstrap(&self, id: &str) -> Result<(), String> {
+        AnyStore::validate_postgres_bootstrap(&self.connection, &self.namespace, id)
+            .map_err(|e| input(&format!("pending bootstrap validation failed: {}; restore the original complete bootstrap and intent, then retry deploy", redact(e))))
     }
     pub fn acquire(&self, store_id: &str) -> Result<OwnedStore, String> {
         let holder = format!("{:04x}", snapback4_core::ids::seed() as u16);
@@ -111,6 +169,9 @@ impl StoreConfig {
             LeasePolicy::default(),
         )
         .map_err(redact)?;
+        self.acquire_connected(lease)
+    }
+    fn acquire_connected(&self, lease: StoreLease) -> Result<OwnedStore, String> {
         let lease = Arc::new(Mutex::new(lease));
         // Install cleanup before any further fallible startup, including renewal
         // and spawning either thread. Serving disarms release only at admission.
@@ -185,6 +246,10 @@ impl StoreConfig {
             }
             return Ok(());
         }
+        self.write_record(dir, "store-binding.json", store_id)
+    }
+    fn write_record(&self, dir: &Path, filename: &str, store_id: &str) -> Result<(), String> {
+        let path = dir.join(filename);
         let record = serde_json::to_vec_pretty(&Binding {
             store_id: store_id.into(),
             binding: self.binding.clone(),
@@ -267,7 +332,7 @@ pub(crate) fn redact(error: RuntimeError) -> String {
 
 /// Keep the existing SQLite path selector and deployment aliases in configuration.
 pub(crate) fn local_deployment(options: &Options, dir: &Path) -> Result<(), String> {
-    if dir.join("store-binding.json").exists() {
+    if dir.join("store-binding.json").exists() || dir.join("store-pending.json").exists() {
         return Err(input(
             "this deployment requires its store URL from configuration",
         ));
@@ -308,4 +373,51 @@ pub(crate) fn retain_candidate(error: &RuntimeError) -> bool {
         error,
         RuntimeError::Postgres(_) | RuntimeError::CommitOutcomeUnknown(_)
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    #[ignore = "requires private Postgres; scripts/test-postgres.sh"]
+    fn postgres_startup_renewal_error_releases_committed_claim() {
+        let connection = std::env::var("SNAPBACK4_EVAL_POSTGRES").expect("private cluster required");
+        let namespace = format!("sb4_eval_startup_{:x}", snapback4_core::ids::seed());
+        let source = "table notes:\n  n: int\n  public\n  insert <- allow\n  online only\nquery peek():\n  return 1\n";
+        let bound = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
+        assert!(bound.diagnostics.is_empty());
+        let engine = snapback4_core::Engine::new(
+            AnyStore::create_postgres(&connection, &namespace).unwrap(),
+            bound.schema,
+            bound.programs.into_iter().map(|p| p.program),
+        ).unwrap();
+        let id = engine.store().store_identity().unwrap().unwrap();
+        drop(engine);
+        let config = StoreConfig {
+            binding: AnyStore::postgres_binding(&connection, &namespace).unwrap(),
+            connection: connection.clone(), namespace: namespace.clone(), state_directory: PathBuf::new(),
+        };
+        let command = |statement: &str| {
+            let result = std::process::Command::new("psql")
+                .args([&connection, "-v", "ON_ERROR_STOP=1", "-Atc", statement]).output().unwrap();
+            assert!(result.status.success(), "{}", String::from_utf8_lossy(&result.stderr));
+            String::from_utf8(result.stdout).unwrap()
+        };
+        let lease = StoreLease::connect(&connection, &namespace, &id, "abcd", LeasePolicy::default()).unwrap();
+        // Grok's injection: shape verification has finished; only renewal fails.
+        command(&format!(r#"CREATE FUNCTION {namespace}.fail_renewal() RETURNS trigger LANGUAGE plpgsql AS $$
+            BEGIN IF NEW.token=OLD.token AND NEW.lease_until>OLD.lease_until THEN
+              RAISE EXCEPTION 'private-password renewal failure'; END IF; RETURN NEW; END $$;
+            CREATE TRIGGER fail_renewal BEFORE UPDATE ON {namespace}._owner FOR EACH ROW
+            EXECUTE FUNCTION {namespace}.fail_renewal();"#));
+        let error = config.acquire_connected(lease).err().expect("renewal must fail");
+        assert!(error.contains("E_STORE") && !error.contains("private-password"), "{error}");
+        assert_eq!(command(&format!("SELECT token,lease_until='-infinity'::timestamptz FROM {namespace}._owner")).trim(), "1|t");
+        command(&format!("DROP TRIGGER fail_renewal ON {namespace}._owner; DROP FUNCTION {namespace}.fail_renewal()"));
+        // No expiry wait: this is the same startup acquisition used by serve.
+        let restarted = config.acquire(&id).unwrap();
+        assert_eq!(restarted.lease.lock().unwrap().token(), Some(2));
+        drop(restarted);
+    }
 }

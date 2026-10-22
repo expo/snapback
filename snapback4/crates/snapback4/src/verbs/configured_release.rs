@@ -31,20 +31,17 @@ pub(super) fn deploy(options: &Options, config: StoreConfig) -> Result<(), Strin
         return Err("E_STORE_UNSUPPORTED: workers are outside the admitted store profile".into());
     }
     // Validate profile before creating a schema, release tree or durable activation.
-    let mut state = config.probe()?;
     let dir = super::releases::canonical_directory(options)?;
     if dir.join("store.sqlite").exists() {
         return Err("E_STORE_CONFIG: deployment already selects a local store".into());
     }
     let _command = super::releases::command_lock(&dir)?;
+    let mut state = config.probe_for_deploy(&dir)?;
     if let Some(state) = &state {
-        // A crash or failed binding write can leave only the initial bootstrap.
-        // Adopt its observed logical id before acquiring or selecting a release.
-        // A selected/previously owned store still requires its existing binding.
-        if state.release.is_none() && state.generation == 1 && state.revision == 0 && state.token == 0 {
-            config.record(&dir, &state.store_id)?;
-        } else {
+        if dir.join("store-binding.json").is_file() {
             config.validate_binding(&dir, state)?;
+        } else {
+            config.recover(&dir, state)?;
         }
     }
     let prior = state
@@ -59,7 +56,10 @@ pub(super) fn deploy(options: &Options, config: StoreConfig) -> Result<(), Strin
         .map(|p| (p.program.name.clone(), p.program.clone()))
         .collect();
     if state.is_none() {
-        let store = config.create()?;
+        // The intent is durable before the bootstrap transaction. Creating its
+        // handle makes no database writes; Engine admission precedes bootstrap.
+        let id = config.pending(&dir, true)?;
+        let store = config.create(&id)?;
         store
             .admit(&bound.schema, &programs)
             .map_err(crate::store_config::redact)?;
@@ -72,14 +72,17 @@ pub(super) fn deploy(options: &Options, config: StoreConfig) -> Result<(), Strin
             snapback4_core::now_ms(),
         )
         .map_err(crate::store_config::redact)?;
-        let id = bootstrap
+        let observed = bootstrap
             .store()
             .store_identity()
             .map_err(crate::store_config::redact)?
             .ok_or("store identity absent")?;
-        config.record(&dir, &id)?;
+        if observed != id {
+            return Err("E_STORE_CONFIG: bootstrap identity differs from pending intent; restore the original store and retry deploy".into());
+        }
         drop(bootstrap);
         state = config.probe()?;
+        config.recover(&dir, state.as_ref().ok_or("bootstrap did not establish store identity")?)?;
     }
     let state = state.ok_or("bootstrap did not establish store identity")?;
     let owner = config.acquire(&state.store_id)?;

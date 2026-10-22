@@ -235,3 +235,102 @@ Custody receipts are in `cluster-audit.log`. Only the specified top-level Cargo
 target/profile settings and at most 16 build jobs were used; inherited native
 fixture builders retain their private build subdirectories. The lowest observed
 `df -h /` free-space display was 39G, above the stop threshold. No push or stash.
+
+## S10d-3 fix round 2 — 2026-10-22
+
+Continued in the same clean worktree/branch from `76424cf733`, without rebase,
+push, stash or delegation. This round replaces the recovery mechanism introduced
+in fix round 1, and completes the remaining review findings.
+
+| Item | Structural change and regression |
+|---|---|
+| Bootstrap adoption has no identity | Before the bootstrap transaction, atomically write and fsync a credential-free `store-pending.json` containing the minted store id and namespace/effective socket binding, then sync its directory. Keep the proposed id separate from an active owner fence until the bootstrap installs the schema. Recovery requires the intent's exact id/target, every bootstrap relation, required markers and initial generation history, exact owner shape, and a successful normal `Engine::open`/admit with all family checks. Missing state refuses without repair. Only then atomically rename the intent to the binding, before claiming ownership. A pending intent also prevents SQLite fallback. |
+| Startup renewal failure retains claim | Retain the attempted/committed claim token separately from `held`. Renewal loss still disables write authority; startup drop cleanup can nevertheless attempt its id/token-guarded release. Record the cleanup token before COMMIT so unknown claim outcomes and errors after a committed claim also reach that release attempt. The host regression injects Grok's renewal-only trigger after connect validation, proves token 1 committed and was released on the returned error, drops the trigger, then immediately reacquires token 2 without waiting for expiry. The ownership regression loses renewal to a successor token and proves cleanup does not expire its lease. |
+| Help and guide distinction | Deploy/serve help qualifies previews, hot adoption and automatic workers as SQLite workflows. Real public invocations verify Postgres `deploy --check` and `serve --worker` refuse `E_STORE_UNSUPPORTED`. Token, migrations and rollback recipes have explicit SQLite headings. `release-json` quotes the actual operator and SQL refusal messages and states clean shutdown also leaves the lease to expire about three seconds after its last renewal. |
+
+The public witness reproduces Sol's swap by independently bootstrapping another
+store and renaming the two schemas behind the **same URL, socket and namespace**.
+Retry refuses the changed store id with a recovery instruction. Grok's probe-only
+schema has the original id and exact owner relation, but only `_owner`, `_backend`
+and `_meta`; retry refuses its missing `_head`. Further cases remove core/family
+relations, `_generations`, each required marker, or alter generation history and
+owner shape. Every refusal preserves the original intent, writes no binding and
+leaves the token zero. Missing intent and effective socket target mismatch also
+refuse. The genuine failed-binding retry keeps its id and replaces the exact
+intent bytes with the binding; it then passes the existing serving, HTTP,
+redaction, restart and takeover witnesses.
+
+An initial witness caught an implementation error: assigning the proposed id to
+an active fence before the schema existed made opening try to install the owner
+relation too early. The corrected handle stores the pending bootstrap id
+separately and promotes it to a fence only after successful bootstrap. Its private
+cluster was stopped and independently confirmed. Subsequent public witnesses
+pass without relaxing any expectation or timing bound.
+
+Full transcripts, exit files and final custody receipts are retained under
+`/tmp/s10d3-fix2-checks/`. The following results are filled from those receipts.
+
+The state audit also covers a stale intent left beside a selected store's binding:
+if the bound namespace disappears, deploy must refuse rather than recreate it
+with the old id. The guard checks for a binding before reusing any pending intent;
+the witness temporarily renames the selected schema and proves no replacement
+schema, binding change or owner claim occurs.
+
+Verification initially found three guide failures because SQLite prefixes
+renamed established section-routing prefixes and the operational-card split
+marker. Qualifying the existing headings with SQLite preserves routing and the
+unchanged 150/280-line limits. The first complete Postgres attempt passed all 350
+Rust cases, including both new renewal regressions, but its added stale-intent
+case exposed a binary compiled while that guard was being edited. Source was
+then frozen, the host source timestamp advanced to force compilation, and the
+public witness plus complete Postgres script repeated. The initial transcripts
+remain intact; final results use the `*-final` receipts.
+
+### Final verification for fix round 2
+
+| Check | Result |
+|---|---|
+| Default CLI build | Pass, including the forced final build and the complete Postgres script's final build. |
+| Core without default features | Pass. |
+| Web device without default features, wasm target | Pass. |
+| Complete core tests | Exit 0: 1,068 unfiltered passes / 0 failures / 5 intentional ignores, plus the filtered subprocess witness. |
+| Complete CLI tests | Exit 0: 1,405 unfiltered passes / 0 failures / 17 intentional ignores; 13 filtered subprocess cases also pass. The new ignored startup test runs explicitly in the Postgres script. |
+| Ratchets and handle census | Final 16 pass; no allowance increases. |
+| Compiled handle guards | Default and Postgres guards each pass. |
+| Release guards | Both raw-fixture and wasm-profile refusals pass. |
+| Language guide | Final 127 pass, preserving alias routing and the 150/280-line deploy-card limits. |
+| Root guide | 22 pass / 0 failures / 0 skips / 0 preconditions; 121 inherited warnings. |
+| Wasm codec census | 27 pass. |
+| README budget | Pass, 319/320 physical lines and its self-containment case. |
+| Complete Postgres script | Final exit 0: 58 evaluator + 209 family/oracle + 22 ownership + 2 committer + 1 internal HTTP + 1 startup-renewal + 19 corpus + 1 compiled guard + 37 doctest cases, totaling 350 Rust passes; public CLI witness also passes. |
+| Public witness | Final standalone pass and pass inside the repeated complete Postgres script; the added bound-store guard is verified by the rebuilt CLI. |
+| Binding/redaction regressions | Both final unit invocations pass. |
+| Reference audit | Final pass: 564 LLP documents / 12,329 references / 0 errors / 0 unchecked. |
+
+The full native core/CLI checks passed before the final bound-store guard was
+moved ahead of intent reuse. That Postgres-only branch is covered by the rebuilt
+public witness, repeated complete Postgres script and final ratchet checks;
+no native behavior or timing limit changed. PostgreSQL is 16.15. Both evaluator
+modes retain 65 increments without losses. The admitted profile and earlier
+qualification exclusions remain unchanged.
+
+### Fix-round-2 cluster and resource custody
+
+Independent audit in `cluster-audit.log` confirms all eight clusters stopped:
+`pg_ctl status = 3`, no `postmaster.pid`, and all 20 recorded public-server PIDs
+absent. No process remains for this lane's CLI binary. Data and logs are retained:
+
+- `/tmp/s10d3-serve-hy9ro9ma`
+- `/tmp/s10d3-serve-y8td1k80`
+- `/tmp/s10d3-serve-2zzg46b7`
+- `/tmp/s10d3-serve-8gkmryia`
+- `/tmp/sb4-pg-eval.z6FKb0`
+- `/tmp/s10d3-serve-022nr4wp`
+- `/tmp/sb4-pg-eval.qV9D02`
+- `/tmp/s10d3-serve-z6yiqkiv`
+
+Only the specified top-level Cargo target, incremental/debug profile settings and
+at most 16 build jobs were used; existing native-fixture builders retain their
+inherited private subdirectories. Minimum recorded stage free space was 42.49
+GiB; the lowest observed `df -h /` display was 43G, above the 30 GB stop threshold.
+No push or stash, sub-agents, unrelated cluster operations or other-machine work.

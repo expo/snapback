@@ -13,6 +13,14 @@ impl AnyStore {
     pub fn create_postgres(connection: &str, namespace: &str) -> Result<Self, RuntimeError> {
         Handle::connect(connection.parse()?, namespace, true).map(AnyStore::from_postgres)
     }
+    /// Public bootstrap uses the identity durably recorded by its host intent.
+    pub fn create_postgres_with_id(connection: &str, namespace: &str, store_id: &str) -> Result<Self, RuntimeError> {
+        let fence = super::ownership::Fence { store_id: store_id.into(), holder: "0000".into(), token: 0 };
+        fence.tag()?;
+        let mut handle = Handle::connect(connection.parse()?, namespace, true)?;
+        handle.bootstrap_id = Some(fence.store_id);
+        Ok(AnyStore::from_postgres(handle))
+    }
     /// Open the persisted generation, using the same connection settings for readers.
     pub fn open_postgres(connection: &str, namespace: &str) -> Result<Self, RuntimeError> {
         Handle::connect(connection.parse()?, namespace, false).map(AnyStore::from_postgres)
@@ -64,7 +72,7 @@ impl Handle {
             store.generation = generation;
 
         }
-        Ok(Self { store: RefCell::new(store), report: AdoptionReport::default(), connection: (config, name.into()), fresh })
+        Ok(Self { store: RefCell::new(store), report: AdoptionReport::default(), connection: (config, name.into()), fresh, bootstrap_id: None })
     }
 
     pub(crate) fn activate<R>(&mut self, schema: &Schema, programs: Option<&BTreeMap<String, Program>>, reset: bool, now: i64,
@@ -77,7 +85,7 @@ impl Handle {
         if reset { return Err(RuntimeError::StoreUnsupported { family: "dev-reset" }); }
         let fresh = self.fresh;
         let bootstrap_fence = fresh.then(|| super::ownership::Fence {
-            store_id: format!("{:016x}{:016x}", crate::ids::seed(), crate::ids::seed()), holder: "0000".into(), token: 0,
+            store_id: self.bootstrap_id.clone().unwrap_or_else(|| format!("{:016x}{:016x}", crate::ids::seed(), crate::ids::seed())), holder: "0000".into(), token: 0,
         });
         let quoted = store::namespace(&self.connection.1)?;
         let mut report = AdoptionReport::default();

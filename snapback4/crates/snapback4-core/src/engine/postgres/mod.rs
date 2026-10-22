@@ -1,6 +1,6 @@
 //! Postgres adapter for the common Engine and its retained evaluation oracle.
-//! Handle serves the internal admitted profile; PostgresEngine below remains
-//! the prefetch-on/off comparison executor through S10d. No public deploy target.
+//! Handle serves the admitted public HTTP profile; PostgresEngine below remains
+//! the prefetch-on/off comparison executor through S10d.
 //! @ref LLP 3000#7-decisions-during-execution — evaluate storage portability before productizing it
 mod log;
 pub(crate) mod store;
@@ -32,6 +32,7 @@ pub(crate) mod activation;
 mod activation_schema;
 mod release;
 mod release_schema;
+mod bootstrap;
 #[cfg(test)]
 mod tests;
 pub use store::{SCAN_MEMORY_GUARD, WriteMode};

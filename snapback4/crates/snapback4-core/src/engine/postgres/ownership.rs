@@ -90,6 +90,9 @@ pub struct StoreLease {
     policy: LeasePolicy,
     warning: Arc<AtomicBool>,
     held: bool,
+    // A failed renewal revokes write authority, but does not erase the token
+    // needed for best-effort startup cleanup (including an unknown claim COMMIT).
+    claimed: bool,
 }
 #[derive(Debug, PartialEq, Eq)]
 pub struct LeaseAcquisition {
@@ -205,6 +208,15 @@ fn check_record(tx: &Tx<'_>, id: &str) -> Result<(), RuntimeError> {
     Ok(())
 }
 
+pub(super) fn verify_record(tx: &Tx<'_>, id: &str) -> Result<(), RuntimeError> {
+    verify(tx)?;
+    check_record(tx, id)?;
+    if tx.meta("store_id")?.as_deref() != Some(id) {
+        return Err(RuntimeError::StoreOwnership("bootstrap metadata identity differs from pending intent".into()));
+    }
+    Ok(())
+}
+
 impl Handle {
     pub(crate) fn open_owned(
         connection: &str,
@@ -260,6 +272,7 @@ impl StoreLease {
             policy,
             warning,
             held: false,
+            claimed: false,
         })
     }
     pub fn token(&self) -> Option<i64> {
@@ -348,8 +361,9 @@ impl StoreLease {
         let tag = next.tag()?;
         tx.execute("UPDATE _owner SET token=$1,holder=$2,lease_until=clock_timestamp()+make_interval(secs=>$3) WHERE singleton", &[&token,&next.holder,&self.policy.lease.as_secs_f64()])?;
         tx.execute("SELECT set_config('application_name',$1,false)", &[&tag])?;
-        commit(tx, &self.warning)?;
         self.fence = next;
+        self.claimed = true;
+        commit(tx, &self.warning)?;
         self.held = true;
         // Hygiene is after COMMIT. A late sweep is still bounded by the old token.
         terminated.extend(terminate(
@@ -376,13 +390,14 @@ impl StoreLease {
         Ok(result? == 1)
     }
     pub fn release(&mut self) -> Result<bool, RuntimeError> {
-        if !self.held {
+        if !self.claimed {
             return Ok(false);
         }
         self.held = false;
         let mut tx = self.client.transaction()?;
         let rows = tx.execute("UPDATE _owner SET lease_until='-infinity' WHERE singleton AND store_id=$1 AND token=$2", &[&self.fence.store_id,&self.fence.token])?;
         commit(tx, &self.warning)?;
+        self.claimed = false;
         Ok(rows == 1)
     }
 }

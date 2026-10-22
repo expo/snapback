@@ -101502,3 +101502,49 @@ Both public-witness clusters and the evaluation cluster are stopped and
 independently confirmed, as are all ten recorded witness servers. No lane binary
 remains serving after the full suite. Minimum observed free space was 39G; builds
 used the specified top-level target/profiles and at most 16 jobs. No push or stash.
+
+## 2026-10-22 — S10d-3 fix round 2: identity-bound recovery and claim cleanup
+
+Replaced counter-only bootstrap adoption with a durable pending intent. Before
+bootstrap commits, deploy records the minted logical id and credential-free
+namespace/effective socket binding through a synced temporary file and atomic
+rename, then fsyncs the directory. Bootstrap uses that exact id. A retry requires
+the original intent and id/target, every bootstrap table, matching generation
+history and required markers, valid owner shape and the same full engine
+open/admit/family validation used by ordinary opening. It refuses incomplete
+state instead of rebuilding it for adoption. Only successful validation permits
+an atomic intent-to-binding rename and a subsequent positive owner claim.
+SQLite selection also refuses a deployment with a pending Postgres intent.
+
+Startup cleanup now retains the claim token independently of local write
+permission. Renewal failure still disables writes, but release-on-drop attempts
+a conditional release with that token, including after unknown claim COMMIT or
+post-commit claim cleanup errors. A successor's token never matches this release.
+The regression injects Grok's renewal-only SQL trigger after connect/shape checks,
+observes a committed token followed by an expired lease on the returned startup
+error, then acquires immediately without an expiry sleep. Another ownership
+regression proves cleanup after lost renewal leaves a successor's lease live.
+
+Help explicitly qualifies previews, hot adoption and automatic workers by
+backend; the deploy guide puts service-token and rollback recipes under SQLite
+headings. The Postgres guide quotes actual operator/SQL refusal text and states
+that clean serve shutdown also leaves the lease to expire about three seconds
+after its last renewal. The RFC retains one Revised line, with this round first.
+The lane report records per-item regressions, full round-one check results and
+private-cluster custody. No push, stash, sub-agents or unrelated target work.
+
+Final qualification for round 2: complete core 1,068 unfiltered passes plus its
+filtered subprocess witness, five ignores; complete CLI 1,405 unfiltered passes,
+13 filtered subprocess cases and 17 ignores, with the new private-cluster test
+run separately. Final guide 127, ratchets/census 16, root guide 22 and codec
+census 27 pass. Both no-default checks, compiled handles, release guards and
+README budget pass. The repeated complete Postgres script passes all 350 Rust
+cases and the public witness, including the stale-intent/bound-store safeguard.
+The rebuilt standalone witness and both redaction/binding unit regressions pass.
+Initial guide routing failures and a witness run compiled during a source edit
+are retained in the report; source was frozen for the final rebuild/repeat, with
+no test expectation or budget relaxed. Eight private clusters are independently
+confirmed stopped and all 20 recorded public-server PIDs absent. Minimum recorded
+stage free space was 42.49 GiB (lowest observed df display 43G). No push or stash.
+Final reference audit passes: 564 LLP documents, 12,329 references, zero errors
+and zero unchecked references.
