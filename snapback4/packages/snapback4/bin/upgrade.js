@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // @ref LLP 3000.011.003.000#14 — resolve once, pin core and adapters to that same release.
-import { upgradeWarnings } from './upgrade-warnings.js';
+import { upgradeWarnings, acknowledgeWarnings } from './upgrade-warnings.js';
 import { synopsis } from './cli-usage.js';
 import { readFileSync, existsSync, writeFileSync, mkdirSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -113,8 +113,9 @@ try {
     }
     if (!quiet) log(`upgrade plan: snapback4/snapback4-expo → ${version}; expo ${current ?? '(absent)'} → ${expo}; align ${[...pins].filter(([name]) => !targets.includes(name)).map(([name, pin]) => `${name}@${pin}`).join(', ')}`);
   }
-  const warnings = migrationWarnings = compareVersions(version, "0.4.33") >= 0 && (!installed || compareVersions(installed, version) < 0) ? upgradeWarnings(root, declarations) : [];
+  const warnings = migrationWarnings = compareVersions(version, "0.4.33") >= 0 && (!installed || compareVersions(installed, version) < 0) ? upgradeWarnings(root, declarations, previous ?? installed, version) : [];
   for (const warning of warnings) process.stderr.write(`project ${pkg.name ?? root}: upgrade warning: ${warning}\n`);
+  if (warnings.length) { try { acknowledgeWarnings(root, version); } catch { /* Repeat advice if delivery receipt cannot be saved. */ } }
   if (previous) acknowledgeVersion(root, previous);
   if (schema && installed === previous) {
     // A previous package may predate snapshots. Capture its own compiler output
@@ -178,7 +179,11 @@ try {
   }
   if (schema) {
     const checked = check();
-    if (checked.stderr && (!quiet || checked.status !== 0)) process.stderr.write(checked.stderr);
+    if (checked.stderr) {
+      const advice = checked.stderr.split("\n").filter(line => line.includes(": upgrade warning:")).join("\n");
+      if (!quiet || checked.status !== 0) process.stderr.write(checked.stderr);
+      else if (advice) process.stderr.write(advice + "\n");
+    }
     if (json) {
       try { checkedFacts = JSON.parse(checked.stdout); }
       catch { if (checked.stdout && (checked.error || checked.status !== 0)) process.stderr.write(checked.stdout); }

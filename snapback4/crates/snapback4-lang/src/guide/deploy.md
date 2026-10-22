@@ -278,3 +278,10 @@ try {
 ```
 Storage, users and rows survive. Resolve reported conflicts through a truthful bridge.
 When table rules change, deploy and deploy --check lead with outstanding security FIX/REVIEW items, exposure counts and the last test result with its age; stale or missing evidence is explicit. Without a matching completed campaign they demand `snapback4 test` for the selected source and fixtures (saved-source previews name `test --source`). Add `--strict` to refuse reachable refuted intent before activation; unproved intent and no-invariant notes remain advisory. A finite campaign is evidence, not proof. See `guide security` for the independent-intent loop.
+
+Migration warnings require a recorded older version and apply only when crossing
+the behavior's introduction. Fresh init/check stays quiet; delivered stderr is
+acknowledged once per installed version, including CI. Candidate script paths
+cover session literals, advance arithmetic, persistent startDev and data --json.
+Future known-family store formats refuse with “a newer Snapback (FORMAT)”;
+upgrade the CLI. SQL inspection refuses with a nonzero exit too.

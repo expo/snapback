@@ -4,7 +4,7 @@ import type { Session } from "./contract.ts";
 export function suppliedSession(value: unknown, constructor: string): Session | undefined {
   if (value === undefined) return undefined;
   const invalid = (field: string): never => {
-    throw new TypeError(`${constructor}: E_SESSION: session.${field} is missing or invalid. Pass the complete Session returned by guest(), login(), signup() or your service's session minting; One-line token-only fix: createClient({ url, token }).`);
+    throw new TypeError(`${constructor}: E_SESSION: session.${field} is missing or invalid. Pass the complete Session returned by guest(), login(), signup() or your service's session minting; one-line token-only fix: createClient({ url, token }).`);
   };
   if (value === null || typeof value !== "object" || Array.isArray(value)) invalid("object");
   const input = value as Record<string, unknown>;
@@ -21,6 +21,7 @@ export function suppliedSession(value: unknown, constructor: string): Session | 
   return Object.freeze({ principal, kind, token, expiresAt, ...(Object.prototype.hasOwnProperty.call(input, "scope") ? { scope } : {}), ...(Object.prototype.hasOwnProperty.call(input, "capExpiresAt") ? { capExpiresAt } : {}) }) as Session;
 }
 
+// @ref LLP 3000.000.000.001#11-wave-22-loop-repairs-dx6 — incomplete online credentials use the existing bearer-only path, without invented expiry.
 /** Legacy online credentials carry only a bearer; identity and expiry stay server facts. */
 export function suppliedOnlineSession(value: unknown): { session?: Session; token?: string } {
   if (value !== null && typeof value === "object" && !Array.isArray(value)) {

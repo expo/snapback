@@ -53,3 +53,33 @@ test('DX4 unreadable migration subdirectories report incomplete scans without ab
   t.after(()=>{chmodSync(denied,0o700);rmSync(cwd,{recursive:true,force:true});});
   const warnings=upgradeWarnings(cwd,'use identity password');assert.match(warnings.join('\n'),/migration scan incomplete/);assert.match(warnings.join('\n'),/accept.mjs/);
 });
+
+
+test('DX6 warning thresholds require an actual upgrade and ignore refusal probes', async t => {
+  const {upgradeWarnings}=await import('../bin/upgrade-warnings.js');
+  const cwd=mkdtempSync(join(tmpdir(),'dx6-warnings-'));t.after(()=>rmSync(cwd,{recursive:true,force:true}));
+  writeFileSync(join(cwd,'refusal.test.mjs'),'assert.equal((await fetch(url+"/seed")).status,403);');
+  writeFileSync(join(cwd,'acceptance.mjs'),'await startDev({args:["--memory"]}); createClient({session:{principal,token}}); const now=await host.advance(10);new Date(now);');
+  assert.deepEqual(upgradeWarnings(cwd,'use identity password','0.4.37','0.4.37'),[]);
+  assert.deepEqual(upgradeWarnings(cwd,'use identity password',undefined,'0.4.37'),[]);
+  const warnings=upgradeWarnings(cwd,'use identity password','0.4.35','0.4.37');
+  assert.equal(warnings.length,2,warnings.join('\n'));
+  assert.match(warnings[0],/session literals.*acceptance.mjs/);
+  assert.match(warnings[1],/advance\(\).*acceptance.mjs/);
+  assert.ok(warnings.every(w=>!w.includes('CLOSED')&&!w.includes('startDev() persists')));
+});
+
+test('DX6 nonterminal checks acknowledge advice once and fresh projects stay quiet', t => {
+  const cwd=mkdtempSync(join(tmpdir(),'dx6-delivery-'));t.after(()=>rmSync(cwd,{recursive:true,force:true}));
+  mkdirSync(join(cwd,'snapback'));mkdirSync(join(cwd,'.snapback4'));
+  writeFileSync(join(cwd,'package.json'),JSON.stringify({name:'warning-test'}));
+  writeFileSync(join(cwd,'snapback/schema.q'),'use identity password');
+  writeFileSync(join(cwd,'acceptance.mjs'),'startDev();');
+  const module=pathToFileURL(fileURLToPath(new URL('../bin/upgrade-warnings.js',import.meta.url))).href;
+  const check=()=>spawnSync(process.execPath,['--input-type=module','-e',`import {firstCheckWarnings} from ${JSON.stringify(module)};firstCheckWarnings();`],{cwd,encoding:'utf8',timeout:10000});
+  assert.equal(check().stderr,'','fresh init has no historical migration');
+  rmSync(join(cwd,'.snapback4/project-warnings-version.json'));
+  writeFileSync(join(cwd,'.snapback4/runtime-version.json'),JSON.stringify({version:'0.4.32'}));
+  const first=check();assert.equal(first.status,0);assert.match(first.stderr,/startDev\(\) persists/);
+  assert.equal(check().stderr,'','piped stderr is acknowledged after delivery');
+});

@@ -16,10 +16,10 @@ export async function proveDX5Upgrades(client, platform) {
     const r=spawnSync(cmd,args,{cwd:scratch,encoding:"utf8",timeout:120000,maxBuffer:4<<20,...options});
     assert.equal(r.status,0,(r.stdout??"")+(r.stderr??"")); return r.stdout.trim();
   };
-  // The source stays at its commissioned version. An isolated 0.4.36 package
-  // alias forces replacement even when the candidate and old CLI are 0.4.35.
+  // The source keeps its commissioned version. An isolated 0.4.38 package
+  // alias exercises every intervening migration threshold with old executables.
   // The native executable bytes are unchanged, and this is never published.
-  const candidate="0.4.36";
+  const candidate="0.4.38";
   for(const [i,path] of [client,platform].entries()) {
     const unpack=join(scratch,"candidate-"+i);mkdirSync(unpack);
     sync("tar",["-xzf",resolve(path),"-C",unpack]);
@@ -76,17 +76,20 @@ if(result.status!==0) {process.stdout.write(result.stdout??'');process.stderr.wr
       const oldWrapper=readFileSync(join(cwd,"node_modules/snapback4/bin/snapback4.js"));
       assert.doesNotMatch(oldWrapper.toString(),/firstCheckWarnings/);
       writeFileSync(join(cwd,"snapback/schema.q"),"use identity password\ntable notes:\n  body: text <=80\n  public\nquery list():\n  return notes first 10 by .id\n");
-      writeFileSync(join(cwd,"scripts/legacy.mjs"),'startDev(); fetch("/seed"); const rows=JSON.parse(run(["data","notes","--json"])); rows.map(row=>row.id);\n');
+      writeFileSync(join(cwd,"scripts/legacy.mjs"),'startDev(); fetch("/seed"); const rows=JSON.parse(run(["data","notes","--json"])); rows.map(row=>row.id); createClient({session:{principal,token}});new Date(await host.advance(10));\n');
       const upgrade=await run("npx",["--no-install","snapback4","upgrade",candidate,...flags]);
       assert.equal(JSON.parse(readFileSync(join(cwd,"node_modules/snapback4/package.json"))).version,candidate);
       assert.match(readFileSync(join(cwd,"node_modules/snapback4/bin/snapback4.js"),"utf8"),/firstCheckWarnings/);
       const transcript=upgrade.stdout+upgrade.stderr;
-      if(!flags.includes("--quiet")) for(const phrase of [/doors are CLOSED/,/startDev\(\) persists/,/JSON.parse\(stdout\).rows/,/scripts\/legacy.mjs/]) assert.match(transcript,phrase);
+      if(!flags.includes("--quiet")) {
+        for(const phrase of [/session literals/,/advance\(\) returns/,/scripts\/legacy.mjs/]) assert.match(transcript,phrase);
+        if(version==="0.4.33") assert.match(transcript,/JSON.parse\(stdout\).rows/);
+      }
       if(flags.includes("--json")) assert.equal(JSON.parse(upgrade.stdout).ok,true);
       const check=await run("npx",["--no-install","snapback4","check","--json"]);
       assert.equal(JSON.parse(check.stdout).ok,true);
-      for(const phrase of [/doors are CLOSED/,/startDev\(\) persists/,/JSON.parse\(stdout\).rows/,/scripts\/legacy.mjs/]) assert.match(check.stderr,phrase,"captured old quiet output must not acknowledge warnings");
-      results.push({from:version,flags,candidate,oldPackage:oldRegistries[version],oldWrapperSha256:createHash("sha256").update(oldWrapper).digest("hex"),status:"passed",acquisition:"installed old npx snapback4 upgrade",warnings:flags.includes("--quiet")?"deferred to next check":"during upgrade and next visible check"});
+      assert.doesNotMatch(check.stderr,/upgrade warning:/,"nonterminal delivery is durably acknowledged, including an old helper's hidden capture");
+      results.push({from:version,flags,candidate,oldPackage:oldRegistries[version],oldWrapperSha256:createHash("sha256").update(oldWrapper).digest("hex"),status:"passed",acquisition:"installed old npx snapback4 upgrade",warnings:flags.includes("--quiet")?"old helper capture limitation; first check does not repeat":"during upgrade only"});
     }
     return results;
   } finally {if(registry?.listening){registry.closeAllConnections();await new Promise(resolve=>registry.close(resolve));}rmSync(scratch,{recursive:true,force:true});}
