@@ -443,8 +443,21 @@ pub(super) fn advance(request: Request, shared: &Shared, body: &str) {
     // Serialize clock callers only. Background slices check advancing after
     // engine admission and skip during this synchronous drain.
     let advance = lock(&shared.maintenance).advance.clone();
-    let _advance = lock(&advance);
+    let deadline = Instant::now() + snapback4_core::engine::command::ADMISSION_TIMEOUT;
+    let _advance = loop {
+        if Instant::now() >= deadline {
+            let why = super::committer::queue_error(snapback4_core::engine::command::SubmitError::Full).refusal();
+            return respond(request, 503, json!({"denied":why}));
+        }
+        match advance.try_lock() {
+            Ok(guard) => break guard,
+            Err(std::sync::TryLockError::Poisoned(error)) => break error.into_inner(),
+            Err(std::sync::TryLockError::WouldBlock) => std::thread::park_timeout(Duration::from_millis(1)),
+        }
+    };
     let _advancing = Advancing(shared);
+    // @ref LLP 3000.009.001.000.000#9 — admitted clock work may outlive its acknowledgement; only the request owns the maintenance pause.
+    lock(&shared.maintenance).advancing = true;
     // @ref LLP 3000.007#20.12 — simulated time makes retries due without stealing a live worker's claim or viewer session.
     let facts = super::RequestFacts::capture(&request);
     let advanced = shared.engine.attempt(move |engine, shared| {
@@ -463,7 +476,6 @@ pub(super) fn advance(request: Request, shared: &Shared, body: &str) {
             crate::dev_clock_store::refuse_held(engine, &before, clock.now(), now)?;
         }
         let boundaries = crate::dev_clock_store::crossed_boundaries(engine, &before, now, shared.hold_schedules || !drain, each_boundary)?;
-        lock(&shared.maintenance).advancing = true;
         if !shared.personas {
             // @ref LLP 3000.000.000.001#11-wave-22-loop-repairs-dx6 — a retained disclosure floor is also the credential authority clock.
             // A raw jump below that floor advances no business time and cannot
@@ -802,6 +814,59 @@ mod tests {
         let held = engine.effects(Some("running"), 1).unwrap();
         assert_eq!(held.len(), 1);
         assert_eq!(held[0].lease_until, Some(floor + 4_000), "leases shift by effective elapsed time once");
+    fn clock_timeout_releases_maintenance_when_admitted_advance_finishes_late() {
+        let host = Host::with_store(true, snapback4_core::store_port::AnyStore::memory().unwrap(),
+            "query time():\n  return now\n");
+        let shared = host.shared.clone();
+        let advance = lock(&shared.maintenance).advance.clone();
+        let held = lock(&shared.engine);
+        let address = host.address;
+        let timeout = snapback4_core::engine::command::ACK_TIMEOUT;
+        let (finished, response) = std::sync::mpsc::channel();
+        let client = std::thread::spawn(move || {
+            let payload = r#"{"duration":"1s"}"#;
+            let wire = format!("POST /dev/clock/advance HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nContent-Length: {}\r\n\r\n{payload}", payload.len());
+            finished.send(super::super::tests::exchange_held(address, timeout, wire)).unwrap();
+        });
+        let response = response.recv_timeout(timeout + Duration::from_secs(5));
+        // Always release the fixture before assertions or host cleanup.
+        if response.is_err() { drop(held); panic!("clock request did not return its bounded acknowledgement: {response:?}"); }
+        let deadline = Instant::now() + Duration::from_secs(5);
+        let retired_request = loop {
+            if let Ok(guard) = advance.try_lock() { break guard; }
+            assert!(Instant::now() < deadline, "responded clock request retained its serialization guard");
+            std::thread::sleep(Duration::from_millis(1));
+        };
+        // Acquiring the gate proves the request's pause guard has dropped.
+        drop(held);
+        let response = response.unwrap();
+        client.join().unwrap();
+        assert_eq!(super::super::tests::status(&response), 500, "{response}");
+        assert_eq!(super::super::tests::body(&response)["denied"]["code"], "E_COMMIT_OUTCOME_UNKNOWN");
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while lock(&shared.clock).offset() != 1_000 && Instant::now() < deadline {
+            std::thread::sleep(Duration::from_millis(1));
+        }
+        assert_eq!(lock(&shared.clock).offset(), 1_000, "timeout must not cancel admitted clock work");
+        assert!(!lock(&shared.maintenance).advancing, "late clock work reacquired an abandoned request's maintenance pause");
+        drop(retired_request);
+    }
+
+    #[test]
+    fn occupied_clock_admission_returns_overload_without_advancing_time() {
+        let host = Host::with_store(true, snapback4_core::store_port::AnyStore::memory().unwrap(),
+            "query time():\n  return now\n");
+        let advance = lock(&host.shared.maintenance).advance.clone();
+        let held = lock(&advance);
+        let response = host.request("POST", "/dev/clock/advance", "", r#"{"duration":"1s"}"#);
+        drop(held);
+        assert_eq!(super::super::tests::status(&response), 503, "{response}");
+        let why = super::super::tests::body(&response);
+        assert_eq!(why["denied"]["code"], "E_RATE_LIMIT");
+        assert_eq!(why["denied"]["retryable"], true);
+        assert!(response.to_ascii_lowercase().contains("retry-after: 1\r\n"));
+        assert_eq!(lock(&host.shared.clock).offset(), 0);
+        assert!(!lock(&host.shared.maintenance).advancing);
     }
 
     #[test]

@@ -102277,3 +102277,14 @@ unknown-COMMIT sentence. Its unchanged isolated failure reproduced; the single
 expected defining fact now includes admitted serving acknowledgement loss and
 the 30-second deadline, matching the implemented cross-store error. The guard
 still checks the first paragraph of every registered code explanation.
+
+
+K0-Q fix round 1 deadline follow-up: a real 30-second held-writer regression
+reproduced a late clock command reinstalling its request's maintenance pause
+after the unknown-outcome response had released the request guard. The pause
+now starts before admission and stays owned by that guard; late admitted work
+still advances time, but cannot leave maintenance paused. Clock serialization
+also has the same 100 ms admission deadline and canonical overload response.
+The full CLI repeat's separate concurrent-adoption E_GENERATION/503 failure
+and successful exact isolated rerun remain visible in the qualification report;
+no assertion or retry policy was weakened to hide that race.

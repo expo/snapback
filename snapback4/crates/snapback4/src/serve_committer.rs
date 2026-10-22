@@ -249,7 +249,7 @@ impl Lockable for Writer {
     }
 }
 
-fn queue_error(error: SubmitError) -> snapback4_core::RuntimeError {
+pub(super) fn queue_error(error: SubmitError) -> snapback4_core::RuntimeError {
     match error {
         SubmitError::Full => snapback4_core::RuntimeError::Structural {
             code: "E_RATE_LIMIT", message: "HTTP connections or request workers are occupied; wait for pending writes to settle or reduce concurrent clients before retrying".into(),
