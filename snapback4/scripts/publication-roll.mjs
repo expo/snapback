@@ -133,11 +133,16 @@ query doc(id: docs):
     assert.equal(restarted.state,'sent');assert.equal(restarted.result.owner,alice.principal);
     await cli('rollback',intentDir,'--to','latest');
   } finally {await host.stop();}
-  const workerSource=source('intent-worker',intentNext);const worker=join(workerSource,'worker.mjs');
-  writeFileSync(worker,'export {}; // original\n');const workerDir=join(cwd,'roll-worker-intent');
-  await cli('deploy',workerDir,'--schema',workerSource);await cli('deploy',workerDir,'--schema',workerSource);
+  const workerRoot=join(cwd,'intent-worker-project');mkdirSync(join(workerRoot,'snapback'),{recursive:true});
+  writeFileSync(join(workerRoot,'snapback/schema.q'),intentNext);
+  const worker=join(workerRoot,'snapback/worker.mjs');writeFileSync(worker,'export {}; // original\n');
+  const workerDir=join(workerRoot,'deployment');
+  const workerCall=(args)=>proofCli(args,{cwd:workerRoot,env:{SNAPBACK4_BIN:undefined}});
+  for(let attempt=0;attempt<2;attempt++) {
+    const initial=await workerCall(['deploy',workerDir]);assert.equal(initial.code,0,initial.stderr+initial.stdout);
+  }
   writeFileSync(worker,'export {}; // changed executable, identical Quarry\n');
-  const refused=await proofCli(['deploy',workerDir,'--schema',workerSource,'--check'],{cwd,env:{SNAPBACK4_BIN:undefined}});
+  const refused=await workerCall(['deploy',workerDir,'--check']);
   assert.equal(refused.code,1);assert.match(refused.stderr+refused.stdout,/authored worker bundle/);
   return {status:'passed',visibleRollback:true,currentGuards:true,currentIntentWorkflow:true,executableOnlyRefusal:true,editedOutputs:true,referenceRename:true,privateFileExtraction:true,cycles:2};
 }
