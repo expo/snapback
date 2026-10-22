@@ -1,0 +1,125 @@
+{
+  "warm_request_checks": 18,
+  "checks": "protocol framing/completion, no warm pipeline overlap or prepare, exact counts, W1 point and W2 newest twenty, thread-scoped SQLite counts, all owned processes absent and clusters stopped",
+  "custody": [
+    {
+      "run": "tiny",
+      "work": "/tmp/rta-6upxqkbe",
+      "processes": [
+        {
+          "label": "postmaster",
+          "pid": 1167100,
+          "absent_now": true
+        },
+        {
+          "label": "tiny-postgres",
+          "pid": 1170608,
+          "absent_now": true
+        },
+        {
+          "label": "tiny-postgres-restart",
+          "pid": 1171184,
+          "absent_now": true
+        },
+        {
+          "label": "tiny-sqlite",
+          "pid": 1175171,
+          "absent_now": true
+        },
+        {
+          "label": "tiny-sqlite-restart",
+          "pid": 1175467,
+          "absent_now": true
+        },
+        {
+          "label": "reads-postgres",
+          "pid": 1180485,
+          "absent_now": true
+        }
+      ],
+      "cluster_status": "pg_ctl: no server running",
+      "settings": {
+        "fsync": "on",
+        "synchronous_commit": "on",
+        "full_page_writes": "on",
+        "server_version": "16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)"
+      }
+    },
+    {
+      "run": "reads",
+      "work": "/tmp/rta-8b6l6wkn",
+      "processes": [
+        {
+          "label": "postmaster",
+          "pid": 1182426,
+          "absent_now": true
+        },
+        {
+          "label": "reads-postgres",
+          "pid": 1190282,
+          "absent_now": true
+        },
+        {
+          "label": "reads-postgres-restart",
+          "pid": 1191157,
+          "absent_now": true
+        },
+        {
+          "label": "reads-sqlite",
+          "pid": 1197938,
+          "absent_now": true
+        },
+        {
+          "label": "reads-sqlite-restart",
+          "pid": 1198322,
+          "absent_now": true
+        }
+      ],
+      "cluster_status": "pg_ctl: no server running",
+      "settings": {
+        "fsync": "on",
+        "synchronous_commit": "on",
+        "full_page_writes": "on",
+        "server_version": "16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)"
+      }
+    },
+    {
+      "run": "sqlite",
+      "work": "/tmp/rta-sqlite-619g_kb5",
+      "processes": [
+        {
+          "label": "tiny",
+          "pid": 1210298,
+          "absent_now": true
+        },
+        {
+          "label": "tiny-restart",
+          "pid": 1210348,
+          "absent_now": true
+        },
+        {
+          "label": "reads",
+          "pid": 1213689,
+          "absent_now": true
+        },
+        {
+          "label": "reads-restart",
+          "pid": 1213792,
+          "absent_now": true
+        }
+      ]
+    }
+  ],
+  "sha256": {
+    "raw-tiny.json.gz": "eef0e806e1e0f7c5c63084f5eea4392990e6a2f0deb138cb193e147e78e1fea8",
+    "raw-reads.json.gz": "bd5ec774c2a31418cc2dc3621ab2b6b406c234b77d1c2bfb5e38500390763f4a",
+    "raw-sqlite.json.gz": "11e35c082ebc0e0075deb14174544bab80821296183684a583871b9386071327"
+  },
+  "source": "eeb79ebc7c083bf3cb1cd77f8dcfd730048e6349",
+  "binary_sha256": {
+    "tiny": "5473b6fec4a58c24997dbafb56f58a79e22a8c4e3c19b2588b627ab3945be710",
+    "reads": "5473b6fec4a58c24997dbafb56f58a79e22a8c4e3c19b2588b627ab3945be710",
+    "sqlite": "1523ee308af92e79d171bc326d1ff90852f11c9e2775763970471bd96e3ffa3f"
+  },
+  "restored_binary_sha256": "f445d2e90be3662ae667ab88b126c81859526563c9c0e6e46150c7fd8237d530"
+}

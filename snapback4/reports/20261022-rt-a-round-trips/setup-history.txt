@@ -1,0 +1,35 @@
+work /tmp/rta-6upxqkbe
+postgres increment-first ok 18.44 ms
+postgres increment-warm-0 ok 16.42 ms
+postgres increment-warm-1 ok 19.94 ms
+postgres increment-warm-2 ok 34.77 ms
+postgres q-cold-prepare ok 22.32 ms
+postgres q-warm-0 ok 11.88 ms
+postgres q-warm-1 ok 14.0 ms
+postgres q-warm-2 ok 14.3 ms
+postgres q-new-session-0 ok 14.22 ms
+postgres q-new-session-1 ok 13.73 ms
+postgres q-cold-process ok 24.1 ms
+postgres q-warm-process ok 7.93 ms
+sqlite increment-first ok 5.7 ms
+sqlite increment-warm-0 ok 5.68 ms
+sqlite increment-warm-1 ok 7.93 ms
+sqlite increment-warm-2 ok 11.32 ms
+sqlite q-cold-prepare ok 6.03 ms
+sqlite q-warm-0 ok 3.18 ms
+sqlite q-warm-1 ok 3.04 ms
+sqlite q-warm-2 ok 5.14 ms
+sqlite q-new-session-0 ok 4.24 ms
+sqlite q-new-session-1 ok 4.96 ms
+sqlite q-cold-process ok 4.95 ms
+sqlite q-warm-process ok 3.16 ms
+cleanup {'alive': [], 'errors': [], 'work': '/tmp/rta-6upxqkbe'}
+Traceback (most recent call last):
+  File "/home/ccheever/projects/sb4-pg-s10d3/snapback4/reports/20261022-rt-a-round-trips/probe.py", line 241, in <module>
+
+  File "/home/ccheever/projects/sb4-pg-s10d3/snapback4/reports/20261022-rt-a-round-trips/probe.py", line 185, in suite
+    http(base,'/m/setup',{'args':{}},token)
+  File "/home/ccheever/projects/sb4-pg-s10d3/snapback4/reports/20261022-rt-a-round-trips/probe.py", line 146, in http
+    assert 'denied' not in body and body.get('state')!='failed',(path,body)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: ('/m/setup', {'generation': 1, 'head': 0, 'preserved': None, 'state': 'failed', 'store_id': '18f157f46ca1af0d18f157f46ca27887', 'why': {'code': 'E_RULE', 'family': 'auth', 'guide': 'rules', 'message': "table authorization layer: users's insert rule does not admit this viewer, or a sequence insert requires read authority independent of its ordinal, or a row you cannot read holds this key (a unique key or cap group), or authorization cannot be established within its physical work allowance. A unique declaration's `else CODE` applies only to a readable conflict; private conflicts keep this generic refusal. Review the authored read/write rules and unique declarations; use an operator-mediated claim or a minimal readable key projection when intended, without exposing private row fields", 'rewrite': 'a mutation require decides intent; each write still passes its table rule; see: guide rule-recipes role-workflow'}})

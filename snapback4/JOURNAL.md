@@ -101568,3 +101568,42 @@ records the conditional committer queue/batch model and limits of statement
 timing, every decision-rule status, setup interruptions, raw archive and custody.
 The owned database and role are dropped, all owned processes exited, cluster
 2735539 remains running and unchanged. No push, stash, clone or sub-agents.
+
+
+## 2026-10-22 — RT-A: exact public-serve database round trips
+
+Diagnosis lane on `eeb79ebc7c`, one local worker, no sub-agents or product/RFC
+change. A Unix-socket PostgreSQL protocol recorder confirms the tiny counter's
+58 executed statements and 57 serial exchanges with warm prepared statements.
+Four session resolutions cost 24 exchanges; the nine read snapshots cost 43,
+and the durable transaction costs 14. The snapshots belong to ingress/route/two
+writer authority checks, preflight/final response heads, publication head and
+identity, and preservation evidence. The publication continuation's metadata
+calls open Postgres snapshots underneath its no-transaction abstraction.
+
+The unchanged S1 schema still refuses maintained columns. An explicitly reduced
+fixture preserves W1/W2 bodies and membership rules, omits maintained fields/W3,
+and uses fixture insertion helpers. Its point and newest-20 reads each cost 23
+warm exchanges; adding one explicit membership check to a counter update costs
+58. A fresh bearer's first and second constant queries both cost 21: session
+resolution is not cached. First-reader setup adds 35 SQL protocol cycles plus a
+startup handshake; asynchronous Close cycles are distinguished from blocking
+waits. Lease renewal separately costs five statements, six cycles and five
+waits per tick because its statement is prepared and closed every time.
+
+Thread-tagged SQLite tracing separates concurrent maintenance: tiny increment
+79 statements, point 30, W1/W2 31, checked mutation 80. The report enumerates
+all stages, preserves scrubbed protocol JSON/call stacks and count derivation,
+and proposes reductions with correctness constraints. The raw-PG control here
+uses one statement even for W4, so strict 2× network budgets are two dependent
+exchanges; intermediate six-read/eight-mutation budgets are not claimed as 2×.
+The tail is already one statement and owner fencing cannot be cached across
+physical transactions.
+
+See `reports/20261022-rt-a-round-trips/REPORT.md`. The temporary instrumentation
+is preserved as an unapplied patch; product files and the ordinary binary were
+restored. Diagnostic and restored builds passed with the authorized target,
+CARGO_INCREMENTAL=0 and 16 jobs. Eighteen warm request checks, exact framing,
+W1/W2 outcomes and thread-scoped counts pass. Both private PG16.15 clusters are
+independently stopped, all fifteen recorded server/postmaster PIDs absent.
+Minimum recorded free space 78 GB. No push, stash, clone or remote command.
