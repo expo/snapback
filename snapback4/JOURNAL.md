@@ -102428,3 +102428,14 @@ reporting, preserving every registry-equality and recovery assertion. The full
 guide repeat passes all 127 cases. Full Postgres qualification continues; its
 evaluator has so far exposed the existing raw 40001 concurrency signature.
 The lane report retains the original reds and final scoped repairs.
+
+
+The first full Postgres log audit found five core unit-test stages never
+compiled: the renewal-COMMIT-stall fixture retained `Reply::wait_timeout`,
+removed with the acknowledgement deadline. The initial main-store-pass claim
+was wrong; only its compiled-handle guard, 38 doctests, HTTP/RT0/corpus and
+public-serving stages ran. The fixture now waits through the real `Reply::wait`
+on a test thread and bounds observation with a separate receiver, retaining
+the original 50 ms ownership-loss requirement and pre-assertion unlock/cleanup.
+The full Postgres-feature test tree type-checks; complete-script qualification
+is repeated below in the lane report. No production timeout API was restored.

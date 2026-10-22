@@ -358,7 +358,10 @@ fn renewal_commit_stall_expires_admission_and_queued_replies_independently() {
         thread::sleep(Duration::from_millis(5));
     }
     let lost = queue.ownership_lost();
-    let refused = queued.wait_timeout(Duration::from_millis(50));
+    // Bound this test's observation, not the admitted command's acknowledgement.
+    let (delivered, observed) = mpsc::channel();
+    let waiter = thread::spawn(move || delivered.send(queued.wait()).unwrap());
+    let refused = observed.recv_timeout(Duration::from_millis(50));
     let admission = queue.call(Command::new(|_| ()));
     // Unlock the exact renewal COMMIT and the active command before assertions.
     fixture
@@ -367,8 +370,9 @@ fn renewal_commit_stall_expires_admission_and_queued_replies_independently() {
         .unwrap();
     release.send(()).unwrap();
     held.wait().unwrap();
+    waiter.join().unwrap();
     assert!(lost, "watchdog waited for renewal COMMIT");
-    assert_eq!(refused, Err(SubmitError::OwnershipLost));
+    assert_eq!(refused, Ok(Err(SubmitError::OwnershipLost)));
     assert_eq!(admission, Err(SubmitError::OwnershipLost));
     drop(queue);
 }
