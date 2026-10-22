@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 """Public deploy/serve witness; owns a private socket cluster and recorded children."""
 # @ref LLP 3000.009.001.000#3.4 — public CLI, persisted releases and real lease custody.
-import json, os, pathlib, shutil, signal, subprocess, tempfile, time, urllib.request, urllib.error, urllib.parse
+import json, os, pathlib, shutil, signal, socket, subprocess, tempfile, time, urllib.request, urllib.error, urllib.parse
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-BIN = ROOT / 'target/debug/snapback4'
+TARGET = pathlib.Path(os.environ.get('CARGO_TARGET_DIR', 'target'))
+if not TARGET.is_absolute(): TARGET = ROOT / TARGET
+BIN = TARGET / 'debug/snapback4'
+ENV = {k:v for k,v in os.environ.items() if k not in ('SNAPBACK4_STORE_URL', 'SNAPBACK4_WORKER_STATE_DIR')}
 WORK = pathlib.Path(tempfile.mkdtemp(prefix='s10d3-serve-', dir='/tmp'))
 DATA = WORK / 'data'
 children = []
@@ -17,8 +20,10 @@ def run(args, **kwargs):
     disk()
     return subprocess.run([str(x) for x in args], text=True, capture_output=True, timeout=45, **kwargs)
 
-def cli(args, success=True, env=None):
-    result = run([BIN, *args], cwd=WORK / 'app', env=env)
+def cli(args, success=True, env=None, url=None):
+    environment = dict(ENV if env is None else env)
+    if url is not None: environment['SNAPBACK4_STORE_URL'] = url
+    result = run([BIN, *args], cwd=WORK / 'app', env=environment)
     if success:
         assert result.returncode == 0, (args[0], result.stdout, result.stderr)
     else:
@@ -28,8 +33,9 @@ def cli(args, success=True, env=None):
 def start(label, url, ready=True):
     out, err = WORK / (label+'.out'), WORK / (label+'.err')
     with out.open('w') as stdout, err.open('w') as stderr:
-        child = subprocess.Popen([str(BIN), 'serve', str(WORK/'deployment'), '--store-url', url,
-            '--worker-state-dir', str(WORK/'worker-state'), '--port', '0'], cwd=WORK/'app', stdout=stdout, stderr=stderr, start_new_session=True)
+        child = subprocess.Popen([str(BIN), 'serve', str(WORK/'deployment'),
+            '--worker-state-dir', str(WORK/'worker-state'), '--port', '0'], cwd=WORK/'app',
+            env={**ENV, 'SNAPBACK4_STORE_URL':url}, stdout=stdout, stderr=stderr, start_new_session=True)
     children.append(child)
     with (WORK/'pids.jsonl').open('a') as record: record.write(json.dumps({'name':label, 'pid':child.pid})+'\n')
     until = time.monotonic()+20
@@ -46,6 +52,7 @@ def start(label, url, ready=True):
 def stop(child, sig=signal.SIGTERM):
     if child.poll() is None: child.send_signal(sig)
     child.wait(timeout=15)
+    print('server stopped and confirmed: pid', child.pid, 'status', child.returncode, flush=True)
 
 def http(base, method, path, payload=None, token=None, expected=200):
     headers={'Content-Type':'application/json'}
@@ -75,6 +82,26 @@ try:
     disk()
     (WORK/'app/snapback').mkdir(parents=True)
     (WORK/'app/snapback/schema.q').write_text(source)
+    print('public witness binary', BIN.resolve(strict=True), flush=True)
+    # Prove refusal precedes even the TCP handshake, independently of Postgres.
+    with socket.socket() as listener:
+        listener.bind(('127.0.0.1', 0))
+        listener.listen()
+        tcp_port = listener.getsockname()[1]
+        for target in [f'host=%2Ftmp%2Fsocket&hostaddr=127.0.0.1&port={tcp_port}',
+                       f'host=127.0.0.1&port={tcp_port}',
+                       f'host=%2Ftmp%2Fsocket&host=127.0.0.1&port={tcp_port}']:
+            result = cli(['doctor'], False, url=f'postgres://app:private-password@/postgres?{target}&schema=my_app&ha=none')
+            assert 'connection-tls' in result.stderr and 'private-password' not in result.stderr,result.stderr
+        listener.settimeout(.2)
+        try:
+            connection_attempt, _ = listener.accept()
+        except socket.timeout:
+            pass
+        else:
+            connection_attempt.close()
+            raise AssertionError('socket-only refusals attempted a TCP connection')
+    print('transport: hostaddr override, TCP host and mixed hosts refused before any TCP connect', flush=True)
     share=['-L',os.environ['SNAPBACK4_PG_SHARE']] if os.environ.get('SNAPBACK4_PG_SHARE') else []
     result=run(['initdb','-D',DATA,'-U','s10d3','--auth-local=trust','--auth-host=reject','--encoding=UTF8','--no-locale',*share])
     assert result.returncode==0,result.stderr
@@ -97,12 +124,24 @@ try:
         assert code in refused.stderr and 'private-password' not in refused.stderr,refused.stderr
     cli(['check'])
     print('check: admitted app compiled',flush=True)
-    deploy=cli(['deploy',str(WORK/'deployment'),'--store-url',url])
+    # Reproduce the failed binding write after bootstrap, then recover that id.
+    obstruction = WORK/'deployment/store-binding.json'
+    obstruction.mkdir(parents=True)
+    failed=cli(['deploy',str(WORK/'deployment')],False,url=url)
+    bootstrap=run(['psql',connection,'-Atc',"SELECT store_id FROM serving._owner WHERE token=0 AND NOT EXISTS (SELECT 1 FROM serving._meta WHERE key='release')"])
+    assert bootstrap.returncode==0 and len(bootstrap.stdout.strip())==32,(failed.stderr,bootstrap)
+    obstruction.rmdir()
+    deploy=cli(['deploy',str(WORK/'deployment')],url=url)
+    binding=json.loads((WORK/'deployment/store-binding.json').read_text())
+    assert binding['store_id']==bootstrap.stdout.strip(),binding
+    assert json.loads(binding['binding'])['targets']==[{'transport':'unix','socket':str(WORK/'.s.PGSQL.55483')}],binding
+    print('binding failure: retry adopted the same unselected bootstrap and recorded its effective socket',flush=True)
     print(deploy.stdout.strip(),flush=True)
     # CLI wins over malformed environment; conflicting local selector fails by name.
-    env={**os.environ,'SNAPBACK4_STORE_URL':'invalid ambient secret'}
-    result=cli(['doctor','--store-url',url,'--json'],env=env)
+    env={**ENV,'SNAPBACK4_STORE_URL':'invalid ambient secret'}
+    result=cli(['doctor','--store-url',url.replace(':private-password',''),'--json'],env=env)
     assert json.loads(result.stdout)['backend']=='postgres'
+    assert 'private-password' not in result.stdout+result.stderr
     explanation=cli(['why','E_STORE_CONFIG'],env={**os.environ,'SNAPBACK4_STORE_URL':url})
     assert 'Use one store selector' in explanation.stdout,explanation.stdout
     result=cli(['deploy',str(WORK/'deployment'),'--store','elsewhere','--store-url',url],False)
@@ -110,15 +149,47 @@ try:
     result=cli(['sql','SELECT 1','--store-url',url],False)
     assert 'E_STORE_UNSUPPORTED' in result.stderr
     assert 'private-password' not in ''.join(p.read_text() for p in (WORK/'deployment').rglob('*') if p.is_file())
-    unchanged=cli(['deploy',str(WORK/'deployment'),'--store-url',url])
+    unchanged=cli(['deploy',str(WORK/'deployment')],url=url)
     assert 'unchanged' in unchanged.stdout,unchanged.stderr
+    saved_binding = obstruction.with_suffix('.saved')
+    obstruction.rename(saved_binding)
+    try:
+        refused=cli(['deploy',str(WORK/'deployment')],False,url=url)
+        assert 'deployment store binding is missing' in refused.stderr,refused.stderr
+    finally:
+        saved_binding.rename(obstruction)
+    missing=cli(['serve',str(WORK/'deployment'),'--port','0'],False,url=url)
+    assert 'E_WORKER_STATE' in missing.stderr and 'SNAPBACK4_READY' not in missing.stderr,missing.stderr
+    released=run(['psql',connection,'-Atc',"SELECT lease_until='-infinity'::timestamptz FROM serving._owner"])
+    assert released.returncode==0 and released.stdout.strip()=='t',released
+    # Failure in serve_start after configuration validation also releases.
+    with socket.socket() as busy:
+        busy.bind(('127.0.0.1',0))
+        busy.listen()
+        refused=cli(['serve',str(WORK/'deployment'),'--worker-state-dir',str(WORK/'worker-state'),
+                     '--port',str(busy.getsockname()[1])],False,url=url)
+        assert 'SNAPBACK4_READY' not in refused.stderr and 'E_ADDRINUSE' in refused.stderr,refused.stderr
+    released=run(['psql',connection,'-Atc',"SELECT lease_until='-infinity'::timestamptz FROM serving._owner"])
+    assert released.returncode==0 and released.stdout.strip()=='t',released
     first,base=start('first',url)
+    if pathlib.Path('/proc').exists():
+        assert b'private-password' not in pathlib.Path(f'/proc/{first.pid}/cmdline').read_bytes()
+    print('failed startup: lease explicitly released; immediate corrected serve succeeded',flush=True)
     claims=http(base,'POST','/effects/claim',{},expected=503)
     assert claims['denied']['code']=='E_STORE_UNSUPPORTED',claims
     session=http(base,'POST','/auth/guest',{})['session']
     token=session['token']
     probe=http(base,'GET','/probe',token=token)
     identity=probe['store_id']
+    failure=run(['psql',connection,'-v','ON_ERROR_STOP=1','-c',"CREATE FUNCTION serving.fail_write() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'private-password from server'; END $$; CREATE TRIGGER fail_write BEFORE INSERT OR UPDATE ON serving.r FOR EACH ROW EXECUTE FUNCTION serving.fail_write();"])
+    assert failure.returncode==0,failure.stderr
+    try:
+        denied=http(base,'POST','/m/put',{'id':'redaction','args':{'key':'n0','n':0},'store_id':identity},token,expected=503)
+        assert denied['why']['code']=='E_STORE' and 'private-password' not in json.dumps(denied),denied
+    finally:
+        restored=run(['psql',connection,'-v','ON_ERROR_STOP=1','-c','DROP TRIGGER fail_write ON serving.r; DROP FUNCTION serving.fail_write();'])
+        assert restored.returncode==0,restored.stderr
+    print('HTTP: server exception detail redacted; store failure code retained',flush=True)
     payload={'id':'first','args':{'key':'n1','n':7},'store_id':identity}
     sent=http(base,'POST','/m/put',payload,token)
     assert sent['state']=='sent' and sent['seq']==1 and sent['preserved'] is None,sent
@@ -130,11 +201,14 @@ try:
     assert page['data']['n']==7,page
     changes=http(base,'GET','/changes?after=0&wait=0',token=token)
     assert changes['preserved'] is None,changes
-    doctor=json.loads(cli(['doctor','--release',str(WORK/'deployment'),'--store-url',url,'--json']).stdout)
+    doctor_result=cli(['doctor','--release',str(WORK/'deployment'),'--json'],url=url)
+    assert 'private-password' not in doctor_result.stdout+doctor_result.stderr
+    doctor=json.loads(doctor_result.stdout)
     assert doctor['store']['token']>0 and not doctor['store']['expired'],doctor
     print('HTTP: guest/session, query, identified mutation, receipt replay, changes preserved=null; doctor positive owner/lease',flush=True)
     other,message=start('contender',url,False)
     assert 'E_STORE_OWNERSHIP' in message,message
+    assert http(base,'POST','/q/peek',{'args':{'key':'n1'}},token)['data']['n']==7
     print('second serve: E_STORE_OWNERSHIP before readiness',flush=True)
     stop(first)
     time.sleep(3.2)
@@ -173,7 +247,7 @@ try:
     print('logout: old session refused; ownership loss: process exits and listener closes',flush=True)
     # Reopen deploy under a fresh positive token and activate same-schema program bytes.
     (WORK/'app/snapback/schema.q').write_text(source.replace('  return n\n','  return n + 1\n'))
-    next_release=cli(['deploy',str(WORK/'deployment'),'--store-url',url,'--json'])
+    next_release=cli(['deploy',str(WORK/'deployment'),'--json'],url=url)
     selected=json.loads(next_release.stdout)
     assert selected['release']==2 and selected['generation']==2,selected
     final,base=start('second-release',url)

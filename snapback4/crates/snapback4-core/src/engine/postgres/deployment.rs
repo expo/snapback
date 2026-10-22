@@ -11,8 +11,10 @@ impl AnyStore {
     pub fn postgres_binding(connection: &str, namespace: &str) -> Result<String, RuntimeError> {
         store::namespace(namespace)?;
         let config: postgres::Config = connection.parse()?;
-        // NoTls is the current adapter. Refuse TCP rather than silently dropping TLS.
-        if config.get_hosts().is_empty()
+        // hostaddr takes precedence over host in the driver, including Unix hosts.
+        // NoTls is the current adapter: every possible target must be a socket.
+        if !config.get_hostaddrs().is_empty()
+            || config.get_hosts().is_empty()
             || config
                 .get_hosts()
                 .iter()
@@ -22,8 +24,18 @@ impl AnyStore {
                 family: "connection-tls",
             });
         }
+        let targets = config.get_hosts().iter().enumerate().map(|(i, host)| {
+            let postgres::config::Host::Unix(directory) = host else { unreachable!() };
+            let port = config.get_ports().get(i).or_else(|| config.get_ports().first())
+                .copied().unwrap_or(5432);
+            let socket = directory.join(format!(".s.PGSQL.{port}"));
+            let socket = socket.to_str().ok_or_else(|| RuntimeError::Input(
+                "Postgres socket paths must be UTF-8 for the deployment binding".into()
+            ))?;
+            Ok(serde_json::json!({"transport":"unix", "socket":socket}))
+        }).collect::<Result<Vec<_>, RuntimeError>>()?;
         Ok(crate::value::canonical_json(&serde_json::json!({
-            "backend":"postgres", "hosts":config.get_hosts().iter().map(|h| match h {
+            "backend":"postgres", "targets":targets, "hosts":config.get_hosts().iter().map(|h| match h {
                 postgres::config::Host::Unix(p) => p.to_string_lossy().into_owned(),
                 postgres::config::Host::Tcp(h) => h.clone(),
             }).collect::<Vec<_>>(), "ports":config.get_ports(), "database":config.get_dbname().unwrap_or(""),
@@ -86,5 +98,47 @@ impl AnyStore {
         }
         tx.rollback()?;
         Ok(Some(state))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn driver_errors_are_redacted_in_display_and_wire_refusals() {
+        let driver = "password=private-password port=not_a_port".parse::<postgres::Config>().unwrap_err();
+        for error in [RuntimeError::Postgres(driver), RuntimeError::CommitOutcomeUnknown("server detail: private-password".into())] {
+            let rendered = error.to_string();
+            let refusal = error.refusal();
+            assert_eq!(refusal.code, error.code());
+            assert_eq!(refusal.family, "store");
+            assert!(!rendered.contains("private-password"), "{rendered}");
+            assert!(!serde_json::to_string(&refusal).unwrap().contains("private-password"));
+            if matches!(error, RuntimeError::CommitOutcomeUnknown(_)) {
+                assert!(rendered.contains("resolve the persisted receipt"));
+                assert!(!refusal.retryable);
+            }
+        }
+    }
+
+    #[test]
+    fn binding_records_effective_socket_targets_without_connecting() {
+        assert!(AnyStore::postgres_binding("postgres://app@/db?host=%2Ftmp%FF", "my_app").is_err());
+        for (parameters, expected) in [
+            ("host=/tmp/socket", vec!["/tmp/socket/.s.PGSQL.5432"]),
+            ("host=/tmp/one&host=/tmp/two&port=5433,5434", vec!["/tmp/one/.s.PGSQL.5433", "/tmp/two/.s.PGSQL.5434"]),
+            ("host=/tmp/one&host=/tmp/two&port=5435", vec!["/tmp/one/.s.PGSQL.5435", "/tmp/two/.s.PGSQL.5435"]),
+        ] {
+            let binding = AnyStore::postgres_binding(&format!("postgres://app:private-password@/db?{parameters}"), "my_app").unwrap();
+            assert!(!binding.contains("private-password"));
+            let binding: serde_json::Value = serde_json::from_str(&binding).unwrap();
+            let targets = binding["targets"].as_array().unwrap();
+            assert_eq!(targets.len(), expected.len());
+            for (target, socket) in targets.iter().zip(expected) {
+                assert_eq!(target["transport"], "unix");
+                assert_eq!(target["socket"], socket);
+            }
+        }
     }
 }

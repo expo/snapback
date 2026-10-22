@@ -165,3 +165,73 @@ call-count controls onto the common engine. TCP/TLS, full P1 family parity/schem
 evolution, certified changes/sync, durable worker recovery/attempt reconciliation,
 remote blob/release custody, and provider HA/continuity qualification remain later
 work. No production-provider, full HA, publication or certified-sync claim is made.
+
+## S10d-3 fix round 1 — 2026-10-22
+
+Rebased first with `git fetch -q origin main && git rebase origin/main`; the
+branch was already current. The cold default CLI build passed. This round
+addresses both blind reviews of `a0161a6426` without changing the admitted profile.
+
+| Finding | Change and regression evidence |
+|---|---|
+| Socket-only transport bypass | Reject nonempty driver `hostaddrs` and every non-Unix host before probing. Bind each effective `.s.PGSQL.PORT` socket path, including default/per-host ports; reject paths that cannot be represented faithfully in the binding. The public witness holds a local TCP listener and proves the reviewer's socket-host/hostaddr URL, a TCP host and mixed hosts refuse without even a TCP connection. |
+| Failed first binding write | Recover only an unselected generation-1 bootstrap with revision/token zero, adopting its observed logical store id. Existing bindings must match; selected/previously owned stores still require their binding. Publish records through a synced temporary file and atomic rename. The witness obstructs `store-binding.json` with a directory, observes the committed unselected bootstrap, removes the obstruction and deploys the same id successfully. Removing a selected store's binding still refuses. |
+| Failed serve retains lease | Arm release-on-drop before acquisition/renewal/thread startup, and disarm immediately before HTTP admission after fallible startup. Serving retains expiry-based shutdown. The witness omits worker state, then occupies the HTTP port; both failures leave `lease_until = '-infinity'`, and the immediate corrected serve succeeds. A contender still leaves the first server answering. |
+| Witness runs another binary | Resolve the public witness binary from `CARGO_TARGET_DIR`, relative to the Cargo workspace when necessary, and print its resolved path. The required lane target is used for the default build and public witness. |
+| Contradictory guidance/help | `guide deploy` distinguishes SQLite's token/staging/release operations from Postgres refusals and supplies the worker-state requirement. `release-json` lists token/release-inspection refusals, recovery and startup cleanup. README and NOT-DOING now describe the admitted deployment profile. Deploy/serve `--store` help describes the existing SQLite alias. |
+| Credential surfaces | Prefer environment configuration in guides/README and warn in help that passwords in `--store-url` appear in process arguments. Shared RuntimeError Display redacts Postgres and unknown-COMMIT driver details, so CLI formatting and HTTP refusals agree without changing codes/outcome classification. Unit assertions cover both formats and unknown-COMMIT retry policy. A real database trigger raises a synthetic secret and the public HTTP response omits it; doctor/binding/tree and Linux server argv checks also omit that secret. |
+
+The public regression witness passed on private PostgreSQL 16.15 at
+`/tmp/s10d3-serve-eg_s4tzu`. Its five recorded server PIDs were reaped and
+independently checked absent; `pg_ctl status` returned 3 and `postmaster.pid`
+was absent. The first witness attempt exposed an incorrectly written mixed-host
+fixture (the URL driver treats a comma-containing socket query value as one
+path); the corrected fixture uses repeated `host` query parameters. That first
+attempt refused before any cluster was started.
+
+The root guide prerequisites were restored with a frozen Bun install, the
+normal generated-artifact bootstrap and a local ignored workspace link for
+`@expo/snapback-contract`. No tracked root output changed. The final root guide
+check passes all 22 checks, with no failure, skip or precondition. Detailed
+transcripts and exit files for this round are in `/tmp/s10d3-fix1-checks/`.
+
+### Final verification for fix round 1
+
+| Check | Result |
+|---|---|
+| Default `cargo build -p snapback4` | Pass after the initial rebase/cold build and in the final Postgres script's default-binary build. |
+| Core `--no-default-features` check | Pass. |
+| Complete core tests | Exit 0; 1,068 unfiltered passes, 5 intentional ignores, plus one filtered subprocess witness. |
+| Complete CLI tests | Final serial run exits 0; 1,405 unfiltered passes, 16 intentional ignores. All three supplied toolchain/web baseline cases pass. |
+| Ratchets and handle census | 16 pass; no allowance increases. Default/Postgres compiled handle guards pass. |
+| Release guards | Pass: raw fixtures refuse in release; `web-device-check` refuses in the wasm profile. |
+| Language guide | 127 pass; deploy card retains its 150-line operational and 280-line complete limits. |
+| Root guide | 22 pass, no failures/skips/preconditions; 121 inherited warnings. |
+| Wasm codec census | 27 pass. |
+| Complete Postgres script | Exit 0: 58 evaluator, 209 family/oracle, 21 ownership, 2 committer, 1 internal HTTP, 19 corpus, 1 compiled handle and 37 doctest cases; public CLI witness also passes. |
+| Binding and redaction unit regressions | Each runs one test and passes. |
+| Docs budget | Pass, 319/320 README physical lines. |
+| Reference audit | Pass, 564 LLP documents / 12,328 refs / 0 errors / 0 unchecked. |
+
+Verification found two issues in the new tests/docs: the redaction fixture's
+combined cfg was classified as production driver access, and the expanded deploy
+paragraph exceeded its existing line budget. Both failures were reproduced alone;
+the fixture now lives in the adapter tests, and the paragraph fits the unchanged
+limits. The affected tests and final complete CLI run pass.
+
+An intermediate full CLI repeat overlapped the Postgres script's Cargo cleanup:
+seven binaries were absent before execution, and a SQLite ownership case exceeded
+its existing five-second guard. Each affected target passed individually; the
+ownership case passed alone. The final complete CLI run was performed without
+other Cargo work and has no failure. No product code or timing ceiling was changed
+for these verification retries.
+
+All three clusters created this round are independently confirmed stopped
+(`pg_ctl status = 3`, no `postmaster.pid`):
+`/tmp/s10d3-serve-eg_s4tzu`, `/tmp/s10d3-serve-uyg9g3f9`, and
+`/tmp/sb4-pg-eval.nCb7qZ`. All ten recorded public-server PIDs are absent, and
+no dev/serve process remains for this lane's binary after the final suite.
+Custody receipts are in `cluster-audit.log`. Only the specified top-level Cargo
+target/profile settings and at most 16 build jobs were used; inherited native
+fixture builders retain their private build subdirectories. The lowest observed
+`df -h /` free-space display was 39G, above the stop threshold. No push or stash.

@@ -424,6 +424,9 @@ pub fn serve(
     } else { crate::dev_worker::Supervisor::idle() };
     // @ref LLP 3000#contended-read-serving — dev and serve drain startup banners before accepting work, bounded for stalled output.
     let _ = snapback4_core::diagnostics::drain(Duration::from_secs(3));
+    if let Mode::ConfiguredRelease { owner, .. } = &mode {
+        owner.serving();
+    }
     serve_requests(
         server,
         shared,

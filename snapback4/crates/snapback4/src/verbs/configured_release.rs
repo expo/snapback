@@ -32,21 +32,21 @@ pub(super) fn deploy(options: &Options, config: StoreConfig) -> Result<(), Strin
     }
     // Validate profile before creating a schema, release tree or durable activation.
     let mut state = config.probe()?;
-    state
-        .as_ref()
-        .map(|state| {
-            let requested = options
-                .positionals
-                .first()
-                .ok_or("deployment directory required")?;
-            config.validate_binding(Path::new(requested), state)
-        })
-        .transpose()?;
     let dir = super::releases::canonical_directory(options)?;
     if dir.join("store.sqlite").exists() {
         return Err("E_STORE_CONFIG: deployment already selects a local store".into());
     }
     let _command = super::releases::command_lock(&dir)?;
+    if let Some(state) = &state {
+        // A crash or failed binding write can leave only the initial bootstrap.
+        // Adopt its observed logical id before acquiring or selecting a release.
+        // A selected/previously owned store still requires its existing binding.
+        if state.release.is_none() && state.generation == 1 && state.revision == 0 && state.token == 0 {
+            config.record(&dir, &state.store_id)?;
+        } else {
+            config.validate_binding(&dir, state)?;
+        }
+    }
     let prior = state
         .as_ref()
         .and_then(|s| s.release)
@@ -82,7 +82,7 @@ pub(super) fn deploy(options: &Options, config: StoreConfig) -> Result<(), Strin
         state = config.probe()?;
     }
     let state = state.ok_or("bootstrap did not establish store identity")?;
-    let owner = config.acquire(&state.store_id, true)?;
+    let owner = config.acquire(&state.store_id)?;
     let store = owner.open().map_err(crate::store_config::redact)?;
     store
         .admit(&bound.schema, &programs)
@@ -233,7 +233,7 @@ pub(super) fn serve(options: &Options, config: StoreConfig) -> Result<(), String
         .map_err(|e| e.to_string())?;
     let state = config.probe()?.ok_or("no store; deploy first")?;
     config.validate_binding(&dir, &state)?;
-    let owner = Arc::new(config.acquire(&state.store_id, false)?);
+    let owner = Arc::new(config.acquire(&state.store_id)?);
     // Re-read selection after acquisition: a concurrent deploy may have won first.
     let store = owner.open().map_err(crate::store_config::redact)?;
     let current = store

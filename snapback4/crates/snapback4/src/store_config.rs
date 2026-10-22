@@ -101,9 +101,9 @@ impl StoreConfig {
     pub fn create(&self) -> Result<AnyStore, String> {
         AnyStore::create_postgres(&self.connection, &self.namespace).map_err(redact)
     }
-    pub fn acquire(&self, store_id: &str, release_on_drop: bool) -> Result<OwnedStore, String> {
+    pub fn acquire(&self, store_id: &str) -> Result<OwnedStore, String> {
         let holder = format!("{:04x}", snapback4_core::ids::seed() as u16);
-        let mut lease = StoreLease::connect(
+        let lease = StoreLease::connect(
             &self.connection,
             &self.namespace,
             store_id,
@@ -111,23 +111,35 @@ impl StoreConfig {
             LeasePolicy::default(),
         )
         .map_err(redact)?;
-        if lease.acquire().map_err(redact)?.is_none() {
+        let lease = Arc::new(Mutex::new(lease));
+        // Install cleanup before any further fallible startup, including renewal
+        // and spawning either thread. Serving disarms release only at admission.
+        let mut owner = OwnedStore {
+            config: self.clone(),
+            lease: lease.clone(),
+            stop: None,
+            thread: None,
+            watchdog: None,
+            finished: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            release_on_drop: std::sync::atomic::AtomicBool::new(true),
+        };
+        let acquired = lease.lock().unwrap_or_else(|p| p.into_inner()).acquire().map_err(redact)?;
+        if acquired.is_none() {
             return Err(
                 "E_STORE_OWNERSHIP: another owner holds an unexpired lease; retry after expiry"
                     .into(),
             );
         }
-        if !lease.renew().map_err(redact)? {
+        if !lease.lock().unwrap_or_else(|p| p.into_inner()).renew().map_err(redact)? {
             return Err("E_STORE_OWNERSHIP: acquisition expired before startup".into());
         }
-        let lease = Arc::new(Mutex::new(lease));
         let renew = lease.clone();
         let last_renewed = Arc::new(Mutex::new(Instant::now()));
         let renewed = last_renewed.clone();
-        let finished = Arc::new(std::sync::atomic::AtomicBool::new(false));
-        let watchdog_finished = finished.clone();
+        let watchdog_finished = owner.finished.clone();
         let (stop, receive) = mpsc::channel();
-        let thread = std::thread::Builder::new().name("store-lease".into()).spawn(move || {
+        owner.stop = Some(stop);
+        owner.thread = Some(std::thread::Builder::new().name("store-lease".into()).spawn(move || {
             while receive.recv_timeout(Duration::from_millis(500)) == Err(mpsc::RecvTimeoutError::Timeout) {
                 if !renew.lock().unwrap_or_else(|p| p.into_inner()).renew().unwrap_or(false) {
                     // Exit the process on the first uncertain/lost renewal. The fence orders
@@ -137,8 +149,8 @@ impl StoreConfig {
                 }
                 *renewed.lock().unwrap_or_else(|p|p.into_inner()) = Instant::now();
             }
-        }).map_err(|_| input("cannot start lease renewal"))?;
-        let watchdog = std::thread::Builder::new().name("store-lease-deadline".into()).spawn(move || {
+        }).map_err(|_| input("cannot start lease renewal"))?);
+        owner.watchdog = Some(std::thread::Builder::new().name("store-lease-deadline".into()).spawn(move || {
             while !watchdog_finished.load(std::sync::atomic::Ordering::Acquire) {
                 if last_renewed.lock().unwrap_or_else(|p|p.into_inner()).elapsed() >= Duration::from_secs(3) {
                     eprintln!("E_STORE_OWNERSHIP: lease renewal deadline lost; stopping all admission and exiting");
@@ -146,16 +158,8 @@ impl StoreConfig {
                 }
                 std::thread::sleep(Duration::from_millis(50));
             }
-        }).map_err(|_|input("cannot start lease deadline watchdog"))?;
-        Ok(OwnedStore {
-            config: self.clone(),
-            lease,
-            stop: Some(stop),
-            thread: Some(thread),
-            watchdog: Some(watchdog),
-            finished,
-            release_on_drop,
-        })
+        }).map_err(|_|input("cannot start lease deadline watchdog"))?);
+        Ok(owner)
     }
     pub fn validate_binding(&self, dir: &Path, state: &DeploymentState) -> Result<(), String> {
         let record: Binding = serde_json::from_slice(
@@ -186,13 +190,17 @@ impl StoreConfig {
             binding: self.binding.clone(),
         })
         .unwrap();
-        let mut file = snapback4_core::private_fs::file(&dir.join("store-binding.json"), true)
+        // Never leave a partial record that prevents recovery of a bootstrap.
+        let temporary = dir.join(format!(".store-binding-{:016x}", snapback4_core::ids::seed()));
+        let mut file = snapback4_core::private_fs::file(&temporary, true)
             .map_err(|e| e.to_string())?;
         use std::io::Write;
-        file.write_all(&record)
+        let result = file.write_all(&record)
             .and_then(|_| file.sync_all())
-            .and_then(|_| std::fs::File::open(dir)?.sync_all())
-            .map_err(|e| e.to_string())
+            .and_then(|_| std::fs::rename(&temporary, &path))
+            .and_then(|_| std::fs::File::open(dir)?.sync_all());
+        let _ = std::fs::remove_file(temporary);
+        result.map_err(|e| e.to_string())
     }
 }
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -206,11 +214,16 @@ pub(crate) struct OwnedStore {
     lease: Arc<Mutex<StoreLease>>,
     stop: Option<mpsc::Sender<()>>,
     thread: Option<std::thread::JoinHandle<()>>,
-    release_on_drop: bool,
+    release_on_drop: std::sync::atomic::AtomicBool,
     finished: Arc<std::sync::atomic::AtomicBool>,
     watchdog: Option<std::thread::JoinHandle<()>>,
 }
 impl OwnedStore {
+    pub fn serving(&self) {
+        // Once admission starts, in-flight work must drain behind the token
+        // fence; leave the lease to expire rather than releasing on host drop.
+        self.release_on_drop.store(false, std::sync::atomic::Ordering::Release);
+    }
     pub fn open(&self) -> Result<AnyStore, RuntimeError> {
         AnyStore::open_postgres_owned(
             &self.config.connection,
@@ -238,7 +251,7 @@ impl Drop for OwnedStore {
         if let Some(thread) = self.thread.take() {
             let _ = thread.join();
         }
-        if self.release_on_drop {
+        if self.release_on_drop.load(std::sync::atomic::Ordering::Acquire) {
             let _ = self
                 .lease
                 .lock()
@@ -247,12 +260,9 @@ impl Drop for OwnedStore {
         }
     }
 }
-// Driver errors may echo connection or role material. Structural refusals are safe.
+// RuntimeError's Display and refusal serialization share driver-text redaction.
 pub(crate) fn redact(error: RuntimeError) -> String {
-    match error {
-        RuntimeError::Postgres(_) => "E_STORE: database connection/operation failed; check deployment configuration and server logs".into(),
-        other => other.to_string(),
-    }
+    error.to_string()
 }
 
 /// Keep the existing SQLite path selector and deployment aliases in configuration.

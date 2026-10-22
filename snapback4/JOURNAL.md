@@ -101462,3 +101462,43 @@ results and limitations are in reports/20261022-s10d3-postgres-serving.md. The
 parallel K0 lane retains request-committer routing; this lane changes startup,
 configuration, release and defensive worker-family gating only. No push, stash,
 sub-agents, clones or other-machine commands.
+
+## 2026-10-22 — S10d-3 fix round 1: transport, recovery and startup cleanup
+
+Addressed the two blind reviews of the public Postgres serving lane. The
+socket-only profile now rejects hostaddr overrides before connecting and binds
+effective Unix socket paths. Failed first binding writes recover the same
+unselected, never-owned generation-1 bootstrap; records publish atomically after
+sync. Selected or previously owned stores still require the existing binding.
+
+Startup holds a release-on-drop guard through acquisition, renewal thread setup
+and listener startup, disarming only before HTTP admission. The private CLI
+witness proves explicit lease release after missing worker state and an occupied
+port, then immediate corrected startup. It also proves no TCP connection for
+the transport bypass, same-id binding recovery, selected-binding refusal and
+continued service after a contender refuses. It honors the configured target.
+
+Guides, README, NOT-DOING and flag help now state the admitted deployment profile,
+SQLite-only operator operations and worker-state requirement. Credentials use
+the environment in normal witness launches; docs/help warn about passwords on
+argv. Postgres and unknown-COMMIT messages share redaction in RuntimeError Display
+and HTTP refusals, preserving their distinct codes and retry classification.
+A real server exception carrying a synthetic secret is redacted on the wire.
+The RFC's single Revised line records this round; the lane report carries the
+per-finding evidence and final check results. No push or stash.
+
+Final verification: the serial complete CLI run passes 1,405 tests with 16
+intentional ignores; all three supplied baseline cases pass. Core passes 1,068
+unfiltered tests plus its filtered subprocess witness, with 5 ignores. Ratchets
+and census pass 16; guide 127; root guide 22 (no skips); codec census 27; release
+and compiled-handle guards pass. The complete Postgres script and both new unit
+regressions pass. Reference audit is clean. Verification corrected a test-module
+census classification and the deploy card's line count without raising either
+limit. An intermediate overlapping Cargo cleanup invalidated seven test binaries;
+all affected targets passed alone and the final full CLI run passed serially.
+The lane report preserves the exact failures, retries and result counts.
+
+Both public-witness clusters and the evaluation cluster are stopped and
+independently confirmed, as are all ten recorded witness servers. No lane binary
+remains serving after the full suite. Minimum observed free space was 39G; builds
+used the specified top-level target/profiles and at most 16 jobs. No push or stash.
