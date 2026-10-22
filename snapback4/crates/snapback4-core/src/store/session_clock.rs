@@ -39,7 +39,7 @@ mod tests {
     use super::*;
     use crate::{engine::session_clock::{self, test_cases}, identity::{IdentityTransaction, Session, SessionScope}};
     fn connection(store: &crate::store_port::AnyStore) -> &rusqlite::Connection {
-        match store { crate::store_port::AnyStore::Sqlite(store) => store.conn() }
+        store.test_support_conn()
     }
     fn seeded() -> super::super::Store {
         let mut store = super::super::Store::memory().unwrap();
