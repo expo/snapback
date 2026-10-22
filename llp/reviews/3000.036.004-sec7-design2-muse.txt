@@ -1,0 +1,63 @@
+muse: workspace root: /home/ccheever/projects/sb4-b22-sec7 (cwd default)
+muse: workspace trust: trusted source=run-flag
+# Design review: LLP 3000.036.004 §16 (SEC7)
+
+**Verdict: NOT READY** — one normative conflict and one mechanism-correctness gap must be fixed first; four further precision gaps should be closed in the same revision. No implementation-blocking feasibility problem was found: the detectors reuse existing machinery, budgets are bounded, and the invalidation direction is conservative.
+
+**Provenance:** Reviewer: Muse Code (inline review, no subagents). Scope: design review of §16 (lines 1995–2196) against governing §§1–15, read in full. Focus: precision, security semantics, acknowledgment invalidation, finite-history soundness, implementation feasibility. No edits made. No credentials read.
+
+## M1 (blocking): gate exit-1 contradicts the standing failure-eligibility bars; supersession is under-scoped
+
+§16 introduces a new failing category: unreviewed gates exit check 1 with no replayed violation and possibly no declared invariants (§16.2; §16.4 "optional evidence can legitimately fail pending a disposition"). But three standing rules still read as normative and forbid exactly that:
+
+- §14.2: "No invariant-free source may acquire a security refusal."
+- §13.5/§14.5: false refusal = a new refusal without a replayed violation of independently confirmed intent; invariant-free schemas must have zero new refusals.
+- §14.6: "every newly refusing declared invariant must have a replayed violation."
+
+§16's supersession sentence covers only "§15.2's special display cap" and "§12.3's advisory-only boundary," and §16.5's "zero false *unacknowledgeable* refusals" never defines which refusals are unacknowledgeable or states that it revises the older bars. An implementer following §16 and a qualifier enforcing §14.2 will disagree on pass/fail.
+
+**Fix:** extend the §16 intro to state explicitly that acknowledgeable gate exit-1 is a new failure-eligible category alongside replayed violations, that §§13.5/14.2/14.6 zero-refusal bars now apply only to *unacknowledgeable* refusals, and define that term (reachable refutations + compilation failures, i.e. failures no disposition can clear).
+
+## M2 (blocking): acknowledgment IDs assume a stability property the spec never requires
+
+The whole disposition mechanism depends on diagnostic IDs being stable across runs on unchanged inputs. §16.5 pins ID computation to "the existing Diagnostic serialization" but never requires those bytes to be canonical/deterministic, and §16.4's qualification lists only per-note/source/analyzer *invalidation* tests — no same-input-same-ID *stability* test. If field ordering or formatting in that serialization is nondeterministic, acknowledgments flake and every gate becomes unacknowledgeable in practice. Residual risk in the same area: "a release alone does not invalidate unchanged analysis" relies on discipline to bump `security_reviews::ANALYZER` whenever detector meaning changes; a detector change that yields byte-identical diagnostics with different meaning would leave stale acks live.
+
+**Fix:** require canonical (deterministic, key-sorted, fixed field order) bytes for ID hashing, and add a stability regression (identical source tree ⇒ identical IDs and digest) to §16.4 alongside the invalidation tests.
+
+## M3: the enforcement chain for gates ends at `check`; deploy acceptance is an unenforced "must"
+
+§16.5 says "acceptance must run check before deploy" but provides no mechanism, while "Deploy/preview/--strict keep §15.3" means unacknowledged gates neither appear in deploy review nor block `--strict` (refutations only). So the teeth of "requires review" (§16.2) isNama check-CI exit status, and a flow that deploys without running check silently bypasses both gates.
+
+**Fix:** state the intended chain explicitly — either deploy invokes (or demands fresh matching) check evidence and lists unacked gates in its review, or declare gates check-CI-only and downgrade "acceptance must run check before deploy" to a recommendation. One sentence plus a deploy-review line item closes it.
+
+## M4: unknown / cap-exhaustion behavior is specified for one detector but not the others
+
+§16.5 correctly specifies fail-closed behavior for the retained-role gate (only `Ok(true)` implication suppresses; false/unknown/exhaustion retain the question). The other new detectors are silent: transition-bypass "does not imply" (does unknown emit or suppress?), duration comparison, stale-creation, and the reason/money/approval name heuristics. Emit-on-unknown risks load-dependent noise; suppress-on-unknown risks silent misses — either is defensible for advisories, but the choice determines output determinism and must be per-detector explicit.
+
+**Fix:** one line per detector stating emit vs. suppress on unknown/cap-exhaustion.
+
+## M5: disposition lifecycle and display have four small holes
+
+(a) The exit-0 condition is only implied ("unreviewed gates exit 1" ⇒ acknowledged gates don't fail) — state it: acknowledged gates + no refutations ⇒ exit 0. (b) Acked-gate visibility in default short output is unspecified (JSON/audit retention is specified; short output is not). (c) Stale file entries (acks for IDs no longer emitted) have no handling — prune, retain, or report? (d) "Broad-advice dispositions change display, never exit status" never defines the display change, and "read-only inspection remains available" (§16.5) is vague about which flags provide it.
+
+**Fix:** a short paragraph covering all four; none affects soundness, all affect implementability.
+
+## M6: three overlapping retained-grant signals with no stated dedup
+
+§12.3 `N_GRANT_OUTLIVES_ROLE` (advisory), §13.7 conditional retained-grant lifetime advice, and the §16.2 `N_RETAINED_ROLE_GRANT` gate can co-fire on the same shape. §16.2 says only that the general note "stays advisory."
+
+**Fix:** state whether all three co-fire by design or how they group/deduplicate (per-branch, per-table, or gate-supersedes-note), so wave-22 gate-count measurement (§16.4) is not confounded by double counting.
+
+## M7 (minor): directed search needs a determinism requirement
+
+§16.3/§16.5 specify preferences (unseen signatures, changed enums, true booleans) and bounds (depth 8, 2048 attempts, 16-world frontier, 4 priority worlds, 2 worlds per op/world, 4 argument tuples) but — unlike the breadth campaigns in §§13.5/14.7 — never require deterministic successor/argument ordering. Deterministic output under fixed inputs should hold for the new enumeration too.
+
+**Fix:** one sentence requiring deterministic ordering of successor generation and argument tuples.
+
+## Explicitly verified as sound (no change requested)
+
+- Invalidation is fail-closed throughout: any source edit voids all dispositions (deliberately conservative, §16.5); any reachable refutation or compilation failure blocks all ack writes; TOCTOU skew between analysis and ack-write can only produce non-matching entries, never a wrongful pass.
+- Unknown/exhaustion retains (rather than clears) the retained-role question; revocation is never treated as a safety theorem; gates are review records, never authority or proof, and stay visible in JSON/audit.
+- Directed histories (§16.3) add only candidate traces; the failure oracle (admission + executed-write judgments + ordinary observers) is unchanged, every cut is named uncovered, and check/test budget sharing is explicit — so finite-history soundness arguments in §§3/8.1/13.7 are preserved.
+- Detectors reuse existing machinery (authority walker, `lints::mutable_role`, kernel implication); no new kernel axiom or runtime authority change is introduced.
+
