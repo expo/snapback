@@ -1,0 +1,14 @@
+{
+  "status": "passed",
+  "modes": [
+    "human",
+    "json"
+  ],
+  "exitCode": 1,
+  "signal": null,
+  "json": "only denied code/message; no rows",
+  "installedSDK": "0.4.37",
+  "installedPlatform": "0.4.37",
+  "sourceStoreUnchanged": true,
+  "scratchRemoved": true
+}

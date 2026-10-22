@@ -1,0 +1,40 @@
+{
+  "recordedAt": "2026-10-22T05:24:05.524889+00:00",
+  "qualifier": {
+    "requestedToolSession": 58894,
+    "pidAtInspection": null,
+    "state": "already exited before inspection",
+    "childExitCodeFromRetainedLog": 1,
+    "exactFinalExitCode": 1,
+    "remainingOwnedProcesses": [],
+    "signalsSent": [],
+    "scratch": "/tmp/snapback4-linux-ENWTDY",
+    "scratchBasis": "snapback4/reports/20261022-dx6/qualification-final/day2-compatibility/package-lock.json packages[node_modules/snapback4-linux-x64].resolved",
+    "scratchExists": false,
+    "scratchDeletion": "none; qualifier finally had already removed it",
+    "keeperCleanupEvidence": "The retained failure is runToolchainCommand toolchain command exited 1 (publication-starters.mjs:45). That branch runs only after owned keeper release/completion and two empty process-group observations; no cleanup failure was reported."
+  },
+  "macSync": {
+    "requestedToolSession": 14554,
+    "recordedPid": 3978450,
+    "pidExists": false,
+    "matchingLiveSshProcesses": [],
+    "signalsSent": [],
+    "remoteAction": "none; requested PID and matching SSH command already absent",
+    "exactFinalExitCode": 255
+  },
+  "preserved": [
+    "reports/20261022-dx6/qualification-final",
+    "reports/20261022-dx6/qualify-linux-final.log",
+    "existing packed tarballs"
+  ],
+  "scope": "No unrelated serving, browser, SSH or Cargo process signalled; no other worktree touched.",
+  "inspectionSnapshots": 2,
+  "focusedFixtureFollowup": {
+    "sourceCommit": "2185fc50a2",
+    "report": "future-format-packed-focused.json",
+    "privateFixtureScratchRemoved": true,
+    "retainedStoreByteIdentical": true,
+    "signalsOrDeletionOfOriginalJobs": "none"
+  }
+}
