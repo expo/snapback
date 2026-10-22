@@ -42,7 +42,7 @@ fn time_samples(bound:&Bound,out:&mut Campaign)->Vec<Value>{
     let mut samples=Vec::new();
     let mut add=|time:Option<i64>|if let Some(time)=time{let value=Value::Int(time);if !samples.contains(&value){samples.push(value);}};
     add(durations.last().and_then(|d|NOW.checked_add(*d)).and_then(|n|n.checked_add(1)));
-    for time in [NOW+DAY,NOW,NOW-DAY]{add(Some(time));}
+    for time in [NOW-DAY,NOW+DAY,NOW]{add(Some(time));}
     for d in durations.iter().rev(){for sign in [1,-1]{for delta in [1,0,-1]{add(d.checked_mul(sign).and_then(|d|NOW.checked_add(d)).and_then(|n|n.checked_add(delta)));}}}
     if cut||samples.len()>16{out.unsupported.insert("time arguments keep sixteen source-offset boundary samples from at most 64 offsets; other windows remain uncovered".into());}
     samples.truncate(16);out.time_samples=Some(samples.clone());samples
@@ -113,7 +113,7 @@ fn directed_cases(p:&Program,cases:Vec<BTreeMap<String,Value>>,campaign:&mut Cam
     let mut seen=BTreeSet::new();let mut groups=Vec::new();
     for base in cases{let key=serde_json::to_string(&identities.iter().map(|n|(*n,base.get(*n))).collect::<Vec<_>>()).unwrap();if !seen.insert(key){continue;}
         let mut group=vec![base.clone()];
-        for (name,kind) in &p.args{let values=match kind{ir::ArgType::Bool=>vec![Value::Bool(false),Value::Bool(true)],ir::ArgType::Enum{variants}=>variants.iter().cloned().map(Value::String).collect(),_=>Vec::new()};
+        for (name,kind) in &p.args{let values=match kind{ir::ArgType::Bool=>vec![Value::Bool(false),Value::Bool(true)],ir::ArgType::Enum{variants}=>variants.iter().cloned().map(Value::String).collect(),ir::ArgType::Time=>original.iter().filter_map(|case|case.get(name).cloned()).collect(),ir::ArgType::Optional(inner) if matches!(inner.as_ref(),ir::ArgType::Time)=>original.iter().filter_map(|case|case.get(name).cloned()).collect(),_=>Vec::new()};
             for value in values{let mut candidate=base.clone();candidate.insert(name.clone(),value);if !group.contains(&candidate){group.push(candidate);}}
         }groups.push(group);
     }
@@ -458,7 +458,11 @@ pub(super) fn run(bound:&Bound,fixture:&Engine,out:&mut Campaign){
     let probes=Vec::new();
     let mut groups=Vec::new();
     for bp in bound.programs.iter().filter(|p|p.program.kind==ProgramKind::Mutation&&!p.program.native&&!bound.schema.operations.get(&p.program.name).is_some_and(|f|f.ephemeral)){
-        let cases=fixture_cases(bound,&bp.program,&initial,&actors,out);
+        let mut cases=fixture_cases(bound,&bp.program,&initial,&actors,out);
+        // @ref LLP 3000.036.004#178-past-time-breadth-controls — preserve the old past-deadline control before compact trace deduplication.
+        let time_args=bp.program.args.iter().filter(|(_,kind)|match kind{ir::ArgType::Time=>true,ir::ArgType::Optional(inner)=>matches!(inner.as_ref(),ir::ArgType::Time),_=>false}).map(|(name,_)|name).collect::<Vec<_>>();
+        cases.sort_by_key(|args|!time_args.iter().any(|name|matches!(args.get(*name),Some(Value::Int(n)) if *n<NOW)));
+
         let mut group=relationship_candidates(bound,&bp.program,&initial,&actors,&cases,fixture,out);
         group.extend(role_candidates(bound,&bp.program,&initial,&actors,&cases,fixture,out));
         // Diagonal order gives both actors and argument values an early turn.

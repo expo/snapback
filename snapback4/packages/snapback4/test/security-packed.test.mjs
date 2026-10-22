@@ -66,7 +66,12 @@ test('packed security card and starter run as written; broad reads refute', {tim
   const checked=JSON.parse(run(process.execPath,[cli,'check','--json'],cwd));
   assert.equal(checked.ok,true,`installed day-two check ${lane}`);
   assert.ok(!checked.securityReviews.some(r=>r.code==='N_OPTIONAL_UPLOAD_CREATE'));
-  if(lane==='030')assert.equal(checked.security.notes.filter(n=>n.code==='N_STALE_CREATION_CHECK').length,1);
+  if(lane==='030'){
+   const stale=checked.security.notes.filter(n=>n.code==='N_STALE_CREATION_CHECK');
+   assert.equal(stale.length,2,'independent applications and permits eligibility questions stay separate');
+   assert.ok(stale.some(n=>n.message.startsWith('applications:')&&n.message.includes('operatorFlags.suspended')));
+   assert.ok(stale.some(n=>n.message.startsWith('permits:')&&n.message.includes('applications.lastPassed,status')));
+  }
   if(lane==='028')assert.equal(checked.security.notes.filter(n=>n.code==='N_EVIDENCE_REMOVAL').length,1);
   if(lane==='042'){
    const text=run(process.execPath,[cli,'check'],cwd);
