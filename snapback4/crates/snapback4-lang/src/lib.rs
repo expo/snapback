@@ -70,5 +70,6 @@ pub fn compile(sources: &[(String, String)]) -> Bound {
 
 pub mod release_bridge;
 
+mod release_bridge_current;
 mod release_bridge_guards;
 mod release_bridge_rules;

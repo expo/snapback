@@ -7,6 +7,12 @@ pub struct Bridge {pub sources:Vec<(String,String)>,pub changes:Vec<String>,pub 
 /// Source-domain inclusion includes text minima/formats, which live outside
 /// ColumnType in the compiled schema. Never infer admission from advice prose.
 pub fn requires_view(target:&[(String,String)],current:&[(String,String)])->bool {
+    // Policy repairs need a current-closure view even when no value domain
+    // widened. Byte-identical source needs no adapter (and equal-source
+    // registration must not create an endless chain of equivalent parents).
+    let mut old_text=target.iter().map(|(_,s)|s).collect::<Vec<_>>();old_text.sort();
+    let mut next_text=current.iter().map(|(_,s)|s).collect::<Vec<_>>();next_text.sort();
+    if old_text!=next_text && !crate::compile(current).invariants.is_empty(){return true;}
     let docs=current.iter().map(|(f,t)|parser::parse_document(f,t).0).collect::<Vec<_>>();
     let tables=docs.iter().flat_map(|d|&d.tables).collect::<Vec<_>>();
     let mut aliases=tables.iter().filter_map(|t|t.renamed_from.as_ref().map(|old|(t.name.clone(),old.clone()))).collect::<BTreeMap<_,_>>();
@@ -33,6 +39,9 @@ pub fn requires_view(target:&[(String,String)],current:&[(String,String)])->bool
 }
 
 pub fn loosen(target:&[(String,String)],current:&[(String,String)])->Bridge {
+    if !crate::compile(current).invariants.is_empty() {
+        return super::release_bridge_current::prepare(target,current);
+    }
     let new: BTreeMap<_,_>=current.iter().flat_map(|(file,text)|parser::parse_document(file,text).0.tables.into_iter().map(move|t|(t.name.clone(),(file,text,t)))).collect();
     let mut new=new;
     for (_,(_,_,table)) in new.clone() {if let Some(old)=&table.renamed_from {if let Some(value)=new.get(&table.name).cloned(){new.insert(old.clone(),value);}}}
@@ -141,7 +150,7 @@ fn declaration(text:&str,line:u32)->String {
 }
 // Rewrite only structural table references; strings, column names and bound
 // rule parameters retain their spelling and policy meaning.
-fn retained_declaration(file:&str,text:&str,table:&ast::TableDecl,aliases:&BTreeMap<String,String>)->String {
+pub(super) fn retained_declaration(file:&str,text:&str,table:&ast::TableDecl,aliases:&BTreeMap<String,String>)->String {
     let mut source=declaration(text,table.site.line);
     let mut decl=parser::parse_document(file,&source).0.tables.remove(0);
     let mut edits=Vec::new();

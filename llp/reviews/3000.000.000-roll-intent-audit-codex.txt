@@ -1,0 +1,55 @@
+Revision 23 has a **MATERIAL gap**: the generated bridge can restore a write that the current authored workflow prevents. This applies whether the invariant is newly introduced or already existed in the predecessor.
+
+This assessment is by read-only inspection of `cd20d7ebc9dcc0d490ccd1d2b787660db5504396`. I ran no builds, tests, or regression campaign and changed no files.
+
+1. **MATERIAL — guard transport does not preserve invariant-relevant executable behavior.**
+
+   In the supplied case:
+
+   - `release_bridge::loosen` starts with `sources = target.to_vec()`. Joining the table’s `secret` domain produces the current `text <=80 ?` domain, so no domain diagnostic triggers its complete-current-source fallback.
+   - [`release_bridge_rules::carry`](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/src/release_bridge_rules.rs:271) replaces programs only for relaxed unique keys, added fields, or explicitly forced programs. This case has none.
+   - [`release_bridge_guards::carry`](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/src/release_bridge_guards.rs:120) follows bindings used by current `require` conditions, checks current helper closures, and compares nested `If`/`For`/`As` statements. Neither version has those here. It does **not** compare the changed top-level return/write expression, so `added.is_empty()` reaches the unchanged-workflow continuation at line 178.
+
+   Consequently, the generated executable retains:
+
+   ```quarry
+   return insert docs {owner,secret}
+   ```
+
+   instead of the current:
+
+   ```quarry
+   return insert docs {owner:viewer,secret}
+   ```
+
+   A concrete witness needs no sampling assumption: authenticated Alice calls `create(owner: Bob, secret: 'x')`. The current workflow writes Alice as owner; the bridge writes Bob as owner. Its `insert <- allow` admits the write, while `.owner = viewer` is false. The payload read guard does not authorize writes.
+
+   [`rollback_views::prepare`](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4/src/verbs/rollback_views.rs:181) does not close this gap. Its comparisons cover schema constraints, lifetime/sync configuration, table rules, column reads and ownership. Those all match here; it does not compare this workflow change or require preservation of current independent intent.
+
+2. **MATERIAL — the ordinary union path can omit current invariant declarations.**
+
+   [`release_bridge::loosen`](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/src/release_bridge.rs:40) retains predecessor source and adds selected current declarations. Neither carry pass transports the current invariant set.
+
+   Therefore:
+
+   | Predecessor case | Generated declaration | Generated write |
+   |---|---|---|
+   | Invariant newly introduced | Omitted | Restores caller-chosen owner |
+   | Invariant already declared | Retained from predecessor | Still restores caller-chosen owner |
+
+   Copying the missing invariant alone fixes specification custody, **not execution**. Invariants are independent analysis declarations; [`security::bind`](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/src/bind/security.rs:62) explicitly does not install a runtime gate. The probe in the proposed regression correctly exposes the executable against current intent even when the generated source omitted that intent.
+
+The existing `renamed_loosened_bridge_preserves_privacy_and_challenges_creation` test does not contradict these findings. Its unguarded variant keeps the unsafe creation workflow in **both current and generated source** and expects an insert violation. That is an existing current defect. Your adversarial case instead repairs creation in current source and then restores the unsafe path through generation. Rejecting that restoration does not require changing SEC7’s ordinary check policy or rejecting every already-unsafe current workflow.
+
+The smallest defensible correction is a **closed generation-admission rule**, alongside preservation of current independent declarations:
+
+- Preserve current invariants with typed table/column identity alignment, including operation targets and policy references. Consider all applicable current declarations, not only newly added ones.
+- Retain an old workflow only where a closed structural comparison establishes preservation of its relevant current executable closure. Comparing `require` strings alone is insufficient: include write values and keys, intermediate writes, bindings, helpers, conditional expressions, statement order, return observers and system scopes.
+- Include transitive authority, reference, temporal and grant dependencies. An unchanged protected-table operation can still acquire a newly unsafe history through a restored grant writer or changed dependency. Unknown dependency paths must refuse; finite campaigns cannot establish equivalence.
+- When comparison fails, reuse an authored current endpoint only under the existing name/kind/input compatibility laws and with its complete dependencies preserved. Otherwise refuse preparation. Use the existing complete-current-source alternative only when its predecessor field/name/input conditions actually hold.
+
+There is a concrete compatibility limit in **this exact regression**: [`input_accepts`](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/src/release_bridge_rules.rs:386) does not admit text-bound widening. Changing the argument from `text <=40` to `text <=80 ?` therefore fails the existing endpoint-reuse and complete-current-source input check. Under the present closed laws, refusal is defensible unless the author supplies a compatible endpoint. The table-domain join must not silently become a broader operation-input rule.
+
+Keep the existing real-app migration paths: a universal switch to current source would lose predecessor spellings and removed fields that supported bridges preserve. Resolve exported aliases under their same-module, no-chain law, align only declared table/column identities, and retain migration custody. These corrections govern automatic bridge registration; they neither synthesize invariant runtime enforcement nor claim a semantic implication theorem.
+
+MATERIAL

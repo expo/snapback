@@ -1,0 +1,63 @@
+{
+  "inputs": {
+    "source": "cd20d7ebc9dcc0d490ccd1d2b787660db5504396",
+    "briefSha256": "5aba8e18e4636f95bcf2f439a948ee1ae4094f751fcac82cf698d7045708e28f",
+    "contentSha256": {
+      "llp/3000.000.000-retained-storage-and-hot-release.rfc.md": "e58d68f348d524c219570b36b67546578b26f5ca1b2afad60c0baa094610fc4b",
+      "snapback4/crates/snapback4-lang/src/release_bridge.rs": "b9145cf6963621c461d0bd1d14a5439a6a05036a4736e8e438d66cc2e8c67b65",
+      "snapback4/crates/snapback4-lang/src/release_bridge_guards.rs": "10b70850e8cbabfc4da8cbd3ce561afe704396d99ff1d1453235c7c97c680f0c",
+      "snapback4/crates/snapback4-lang/src/release_bridge_rules.rs": "692c5d6bff576eaf4564ba9f4eb8febceb8ef9b1c6564d1f6aa23079ce19b030",
+      "snapback4/crates/snapback4/src/verbs/rollback_views.rs": "200fdf8524fd1b0e148f2e85b87d6c0964f61bbc285d483f2a0fa85c96e6c57d",
+      "snapback4/crates/snapback4-lang/tests/release_bridge_security.rs": "e09ba80482fee7e636d9584c012d4b73cc468f10d3ee15e571dda4dc2e8ee2a6"
+    },
+    "at": "2026-10-22T17:44:45.383727+00:00"
+  },
+  "purpose": "additional independent audit of existing ROLL revision23, not readiness of a new amendment",
+  "reviews": [
+    {
+      "family": "muse",
+      "requestedModel": "muse-spark-1.3-contributor",
+      "requestedReasoningEffort": "high",
+      "argv": [
+        "/home/ccheever/sb4-loop/muse-exec.sh",
+        "--yolo",
+        "--model",
+        "muse-spark-1.3-contributor",
+        "--reasoning-effort",
+        "high",
+        "--prompt-file",
+        "/tmp/integ23/roll-intent-audit-brief.md"
+      ],
+      "stdinBrief": false,
+      "exit": 0,
+      "outputSha256": "d78752e34926936ef7a60793c8a8c710d5f05f76e6067334e192087cb14b8700",
+      "outputFile": "roll-intent-audit-muse.txt",
+      "verdict": "MATERIAL",
+      "observedCompleteAt": "2026-10-22T17:50:24.943188+00:00",
+      "routingNote": "helper returned review after initial subscription429 using its configured fallback"
+    },
+    {
+      "family": "codex",
+      "requestedModel": "gpt-6.1-sol",
+      "requestedReasoningEffort": "high",
+      "argv": [
+        "codex",
+        "exec",
+        "-m",
+        "gpt-6.1-sol",
+        "-c",
+        "model_reasoning_effort=high",
+        "--skip-git-repo-check",
+        "--dangerously-bypass-approvals-and-sandbox",
+        "-"
+      ],
+      "stdinBrief": true,
+      "exit": 0,
+      "outputSha256": "ba2a353bb748d2417b676a4d08d37444f311cb3b75e1af04f8e382337b71f5cb",
+      "outputFile": "roll-intent-audit-codex.txt",
+      "verdict": "MATERIAL",
+      "observedCompleteAt": "2026-10-22T17:50:24.943234+00:00",
+      "routingNote": "fresh independent codex exec; no conversation history; read-only inspection"
+    }
+  ]
+}

@@ -4,6 +4,7 @@
 
 ### Guide changes
 
+- Existing stores adopt format 9 transactionally on a successful deployment; restart the server with the upgraded runtime before hot activation. Deployments that could hide v1 rows now register a compatible view or require a source-level acknowledged hide, which cannot bypass current authority or independent intent. With declared intent, bridges retain the complete current authored workflow and accepted old inputs, or require an authored compatible source.
 - Default rollback selects an immutable compiled view registered by the active deployment, preserving widened values and current guards. Explicit `--exact` selects original source. Null hiding needs a source declaration with a reason; removed defaulted fields need a truthful reverse projection. Generated checklists focus on decisions and name `--restore-dormant`. Structural text, key and quota changes prepare views too; carried quotas and read-through guards retain current enforcement. Equivalent saved source reuses its id only when its own view set is current, otherwise output names the new registration parent.
 - Edited transformed values survive ordinary release cycles through a declared down or a fitting rollback view; genuine forward conflicts print competing values.
 - Reference-column `renamed from` preserves parent lifetime evidence. Declarative `extract child from parent via reference: {destination:source}` moves existing image/file homes into a child table and reverses unambiguous mappings, preserving read authority and bytes.

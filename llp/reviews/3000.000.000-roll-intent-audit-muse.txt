@@ -1,0 +1,35 @@
+muse: workspace root: /home/ccheever/projects/snapback-sb4loop (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=3b600bad-41d9-44f6-9b3e-090ca9b5cb16]: Subscription quota exhausted. Your usage window resets at 2026-10-26T00:00:00Z. (rate_limit_error)
+MATERIAL — the bridge can restore a write the current workflow forbids.
+
+Current control is safe. `current` forces `owner:viewer` and declares `invariant docs.secret write only .owner = viewer`. Its campaign has no reachable violation.
+
+Generated bridge is unsafe. It widens `secret` to `text <=80 ?`, keeps predecessor `mutation create` body `insert docs {owner,secret}`, and keeps `insert <- allow`. That restores an arbitrary-owner write over the widened domain.
+
+| Attribute | New invariant (`already_declared=false`) | Pre-declared (`already_declared=true`) |
+|---|---|---|
+| Intent in `bridge.sources` | Missing | Present via predecessor |
+| Retained operation body | Old `{owner,secret}` | Old `{owner,secret}` |
+| Probe campaign vs current intent | Reachable `insert` | Reachable `insert` |
+| Finding | New unsafe path, plus omission | New unsafe path despite text |
+
+This is a newly restored path, not same-current behavior. Current has zero reachable; bridge reintroduces reachable.
+
+Precise causes in pinned `cd20d7ebc9dcc0d490ccd1d2b787660db5504396`:
+
+- [release_bridge.rs](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/src/release_bridge.rs): `loosen()` starts from `target`, joins `text <=40` with `text <=80 ?` to `text <=80 ?`, finds `current_domain == joined_domain`, so no mixed-domain refusal. It never unions current `invariant` declarations.
+- [release_bridge_rules.rs](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/src/release_bridge_rules.rs): `carry()` replaces an old program only when it reads `relaxed` (unique relaxation) or `expanded` (added field) or `forced_programs`. Pure domain widening leaves `relaxed`/`expanded` empty, so it `continue`s and retains the old `Write` value. `input_accepts()` also rejects text-bound widening, so even a replacement path would skip rather than fix.
+- [release_bridge_guards.rs](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/src/release_bridge_guards.rs): `carry()` transports only added `Stmt::Require` after identical transitive binding/helper and control-flow checks. A body change from `{owner,secret}` to `{owner:viewer,secret}` produces no `added` require, no `unsafe_binding`, no `unsafe_helper`, no `nested()` difference, so nothing is carried and no fallback fires.
+- [rollback_views.rs](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4/src/verbs/rollback_views.rs): `prepare()` checks hard constraints, unique keys, lifetimes, sync, `rules` and `column_reads`/`written_by` equality. It does not compare `invariant` sets, program `Write` values, or campaign reachability. The violating view passes.
+
+`SEC7` is preserved in this reading: no new universal runtime policy is inferred from the invariant. The defect is omission plus body retention, not gate semantics.
+
+Smallest correction under closed laws:
+
+- Retain current independent intent declarations verbatim in the bridge, like authority. No synthesis of `require` from an invariant.
+- Treat an old operation that writes an invariant-covered field as affected when its canonical `Write`/`Return`/system-closure expression differs from the current same-name/kind endpoint. Reuse the current authored endpoint only under the existing closed input rule, old-name preservation, alias resolution, identical transitive helper/binding meanings, deterministic ordering, and temporal/grant closure equality. Otherwise refuse compilation and advise an authored compatible source and truthful migration.
+- Do not widen `input_accepts()` to smuggle the fix through. If text-bound widening blocks replacement, refusal is the safe result. This preserves no-invention, no-default, no-first-row-selection, and real-app migration compatibility.
+
+MATERIAL
+

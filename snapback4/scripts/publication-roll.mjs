@@ -101,5 +101,33 @@ query scan(id: scans):
       assert.equal((await post(host,alice,'order',{id:order.result.id},'q')).data.buyer,customer.result.id);await cli('rollback',md,'--to','latest');
     }
   }finally{await host.stop();}
-  return {status:'passed',visibleRollback:true,currentGuards:true,editedOutputs:true,referenceRename:true,privateFileExtraction:true,cycles:2};
+  // A current literal/helper repair must survive the default old-client view,
+  // even when all table guards and input names are unchanged.
+  const intentOld=`use identity guests
+table docs:
+  owner: principal
+  secret: text <=40 read <- .owner = viewer
+  read <- allow
+  insert <- allow
+  online only
+mutation create(owner: principal, secret: text <=40):
+  return insert docs {owner,secret}
+query doc(id: docs):
+  return docs[id]
+`;
+  const intentNext=intentOld.replace('{owner,secret}','{owner:viewer,secret}')+'invariant docs.secret write only .owner = viewer\n';
+  const intentDir=join(cwd,'roll-current-intent');
+  await cli('deploy',intentDir,'--schema',source('intent-v1',intentOld));
+  host=await startServe(intentDir,hostOptions);
+  try {
+    const [alice,bob]=await users(host);
+    const path=source('intent-v2',intentNext);await cli('deploy',intentDir,'--schema',path);
+    const selected=await json('rollback',intentDir,'--to','1');assert.equal(selected.rollbackView.target,1);
+    const created=await post(host,alice,'create',{owner:bob.principal,secret:'current-intent'});
+    assert.equal(created.state,'sent');assert.equal(created.result.owner,alice.principal);
+    assert.equal((await post(host,alice,'doc',{id:created.result.id},'q')).data.secret,'current-intent');
+    assert.equal((await post(host,bob,'doc',{id:created.result.id},'q')).data.secret,undefined);
+    await cli('rollback',intentDir,'--to','latest');
+  } finally {await host.stop();}
+  return {status:'passed',visibleRollback:true,currentGuards:true,currentIntentWorkflow:true,editedOutputs:true,referenceRename:true,privateFileExtraction:true,cycles:2};
 }

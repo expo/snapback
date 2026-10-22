@@ -101966,3 +101966,22 @@ Minimum observed disk free space was 64G. Only this worktree's assigned target w
 used, incremental off and dev/test debug at line-tables-only, with at most 16
 build jobs. No clone, remote command, sub-agent, stash, push, publication or budget
 increase. The journal's prior content remains an exact prefix.
+
+## 2026-10-22 — Integration 23: rollback views and current independent intent
+
+Landed qualified 0.4.38 first, including maintained-column Postgres evolution
+and request ratchets from main, then merged ROLL for 0.4.39. An independent
+Muse/fresh Codex audit found that old straight-line writes could bypass current
+intent even with transported guards. The integration regression reproduced that
+violation. With current independent intent, differing predecessor source now
+uses the complete current authored closure (including literal-only repairs),
+under closed old-name/input compatibility and a bounded typed rename adapter.
+Unsupported adaptations require authored compatible guarded source. Review and
+qualification evidence are recorded with their actual outcomes in the report.
+
+Wasm: 2,406,499 B raw, 734,925 B gzip, 553,444 B Brotli; +37 B gzip
+versus qualified 0.4.38. ROLL reference/lifetime migration support and the
+0.4.39 stamp account for the changed device artifact. The new budget is exactly
+measurement + 500 B: 735,425 B. Family and absence audits pass. An initial
+measurement lacked the Brotli executable; it was discarded and repeated using
+the packaged Brotli 1.1.0 encoder, rather than recording zero as a measurement.
