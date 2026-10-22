@@ -26,7 +26,9 @@ if [[ -z "${SNAPBACK4_EVAL_POSTGRES:-}" ]]; then
   initdb -D "$eval_dir/data" -U sb4_eval --auth-local=trust --auth-host=reject --encoding=UTF8 "${locale_args[@]}" "${share_args[@]}" >/dev/null
   cleanup() {
     local stop_status=0 status_status=0
-    pg_ctl -D "$eval_dir/data" -m fast -w stop >/dev/null || stop_status=$?
+    # The broad fixtures can leave a large checkpoint; wait for this owned
+    # cluster to finish it before independently checking that it stopped.
+    pg_ctl -D "$eval_dir/data" -m fast -t 180 -w stop >/dev/null || stop_status=$?
     pg_ctl -D "$eval_dir/data" status >/dev/null 2>&1 || status_status=$?
     if [[ "$stop_status" != 0 || "$status_status" != 3 || -e "$eval_dir/data/postmaster.pid" ]]; then
       echo "Evaluation cluster stop NOT confirmed: $eval_dir (stop=$stop_status status=$status_status)" >&2
@@ -43,6 +45,9 @@ fi
 status=0
 cargo test --locked --manifest-path experiments/postgres/Cargo.toml -- --include-ignored --nocapture || status=1
 cargo test --locked -p snapback4-core --features postgres --lib engine::postgres::tests -- --include-ignored --nocapture || status=1
+cargo test --locked -p snapback4-core --features postgres --test store_handle_traits || status=1
+cargo test --locked -p snapback4-core --features postgres --lib engine::committer::postgres_tests -- --include-ignored --nocapture || status=1
+cargo test --locked -p snapback4 --features postgres --bin snapback4 s10c_postgres_internal_http_host_witness -- --include-ignored --nocapture || status=1
 cargo test --locked -p snapback4-core --features postgres --test corpus -- --nocapture || status=1
 if [[ "${1:-}" == "--bench" ]]; then
   cargo run --locked --release --manifest-path experiments/postgres/Cargo.toml -- "${SNAPBACK4_EVAL_ITERATIONS:-200}" || status=1

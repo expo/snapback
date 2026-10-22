@@ -1512,3 +1512,7 @@ fn kit3_memory_http_retries_publish_only_the_ordinary_prelude_and_encountered_ro
     let pending: i64 = (match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().query_row("SELECT COUNT(*) FROM _time_openings WHERE t = 'a_unrelated'", [], |row|row.get(0)).unwrap();
     assert_eq!(pending, 4, "only the one ordinary prelude may publish an unrelated row");
 }
+
+#[cfg(feature = "postgres")]
+#[path = "../tests/serve_postgres/mod.rs"]
+mod postgres_tests;

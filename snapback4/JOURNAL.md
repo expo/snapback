@@ -100979,3 +100979,27 @@ regression inserts an over-bound raw index entry and confirms the same
 `E_INDEX_KEY_BYTES` opening refusal. No bound or retry policy changes. Additional
 opening probes pass the evaluator-admitted aggregate, expiring-count and
 recorded-attribution shapes on the common engine.
+
+### 2026-10-22 — S10c: common-engine Postgres HTTP and oracle evidence
+
+The private-cluster in-process HTTP host passes guest bearer identity,
+identified writes, replay/id reuse, queries, failed receipt replay, unknown
+preservation and logout. The three-store overlap (SQLite, common Postgres,
+retained Postgres evaluator) agrees with prefetch off and on, including logical
+meters, cursors, rows, logs and ledger. The small C1 derived page uses the same
+20 off / 23 on physical calls in both Postgres engines with eight marked reads,
+within the unchanged allowance. Existing family cases and enum probes cover
+identity, metadata/audience epochs, requests, jobs, outbox, asset intent and real
+placement binding/cancellation. Family qualification does not admit background
+producers. Change evidence stays unknown and certified changes/sync stay outside
+S10d's passed denominator.
+
+Concrete enum payload declarations now live inside the existing port adapter,
+retaining public exports and the ratchet's zero production allowance. The HTTP
+harness is behind an internal Cargo feature; public serve/deploy configuration,
+leases and new K0 producer routing remain outside this slice. The Postgres test
+script includes compiled handle guards, member rollback tests and this HTTP
+witness, and allows its owned cluster's shutdown checkpoint 180 seconds before
+independent stop confirmation. Full checks, isolated reruns, the retained 40001
+flake and generated-metadata repair are recorded in
+`reports/20261022-s10c-postgres-arm.md`.
