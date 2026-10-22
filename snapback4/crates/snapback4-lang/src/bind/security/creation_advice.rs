@@ -50,6 +50,11 @@ pub(super) fn notes(sources:&[(String,String)],bound:&Bound)->Vec<Diagnostic>{
             writes.push(Write{p,op,table,fields,keys,site,context,gate:RuleExpr::And(requirements.into_iter().chain([rule]).collect())});
         }
     }
+    // @ref LLP 3000.036.004#168-typed-upsert-key-binding — reuse checked type-directed selection.
+    let mut write_indexes=BTreeMap::<(String,String),BTreeSet<String>>::new();
+    for site in bound.programs.iter().flat_map(|p|snapback4_core::ir::read_sites(&p.program)).filter(|s|s.kind=="write target"){
+        write_indexes.entry((site.table,site.site)).or_default().insert(site.index);
+    }
     let mut out=Vec::new();let mut seen=BTreeSet::new();
     for w in &writes{
         let t=&bound.schema.tables[&w.table];let creating=matches!(w.op,WriteOp::Insert|WriteOp::Upsert);
@@ -86,8 +91,16 @@ pub(super) fn notes(sources:&[(String,String)],bound:&Bound)->Vec<Diagnostic>{
         if creating||w.op==WriteOp::Update{
             let mut recipient_fields=w.fields.iter().filter_map(|f|field_value(f).map(|v|(f.name.clone(),v.clone()))).collect::<BTreeMap<_,_>>();
             if w.op==WriteOp::Upsert{
-                let read=ast::ReadExpr{cursor_prefix:None,computed:Default::default(),order_keys:Vec::new(),table:w.table.clone(),keys:w.keys.clone(),index:None,range:None,matching:None,filter:None,seeks:Vec::new(),site:w.site.clone()};
-                if let Some(pins)=super::super::auth_lints::pins(&catalog,&read){for (column,value) in pins{recipient_fields.entry(column).or_insert(value);}}
+                // The planner resolves overloaded positional keys by type. Reusing
+                // that selected index avoids guessing from declared arity alone.
+                let index=write_indexes.get(&(w.table.clone(),w.site.to_string())).filter(|names|names.len()==1).and_then(|names|names.first()).and_then(|name|t.index(name));
+                let pins=if let Some(index)=index{
+                    Some(w.keys.iter().zip(index.columns()).map(|(key,column)|(key.column.clone().unwrap_or(column),key.value.clone())).collect::<BTreeMap<_,_>>())
+                }else{
+                    let read=ast::ReadExpr{cursor_prefix:None,computed:Default::default(),order_keys:Vec::new(),table:w.table.clone(),keys:w.keys.clone(),index:None,range:None,matching:None,filter:None,seeks:Vec::new(),site:w.site.clone()};
+                    super::super::auth_lints::pins(&catalog,&read)
+                };
+                if let Some(pins)=pins{for (column,value) in pins{recipient_fields.entry(column).or_insert(value);}}
             }
             for (column,value) in &recipient_fields{if !matches!(t.columns.get(column).map(ColumnType::required),Some(ColumnType::Principal)){continue;}
                 let Expr::Name{name:recipient,..}=value else{continue;};

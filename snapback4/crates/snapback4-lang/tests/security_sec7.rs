@@ -107,3 +107,10 @@ const DOCS:&str="table docs:\n  owner: principal\n  photo: image <=10000 ?\n  pr
  let source=source.replace("read <- exists driverRoutes[viewer, route = .route]","read <- exists roles[viewer,role = 'driver'] and exists driverRoutes[viewer, route = .route]");
  assert!(!notes(&source).notes.iter().any(|n|n.code=="N_RETAINED_ROLE_GRANT"));
 }
+
+#[test]fn retained_grant_uses_the_planners_typed_overloaded_key(){
+ let source=include_str!("security/wave22/021.q").replace("table driverRoutes:\n","table driverRoutes:\n  code: int default 0\n  unique code\n").replace("upsert driverRoutes[driver] { driver, route }","upsert driverRoutes[driver] { route }");
+ assert!(notes(&source).notes.iter().any(|n|n.code=="N_RETAINED_ROLE_GRANT"));
+ let guarded=source.replace("or exists driverRoutes[viewer, route = .route]","or (exists roles[viewer,role = 'driver'] and exists driverRoutes[viewer, route = .route])");
+ assert!(!notes(&guarded).notes.iter().any(|n|n.code=="N_RETAINED_ROLE_GRANT"));
+}

@@ -1,0 +1,13 @@
+muse: workspace root: /home/ccheever/projects/sb4-b22-sec7 (cwd default)
+muse: workspace trust: trusted source=run-flag
+Verdict: **NOT READY as written; READY with a one-line amendment** (remove the spurious `+    }` opening hunk 1).
+
+What I verified against current source at `ba9fc4c735`:
+
+- Spec match ([§16.8](llp/3000.036.004-security-invariants-and-exposure.rfc.md), ll. 2293–2306): the approach is exactly what the section prescribes — consume the planner-selected write-target index, keyed by source site+table, single-index guard, align named/positional keys to bound columns, merge into recipient fields, keep `pins` fallback, no planner/runtime change. Test hunk has both the two-unique-index positive and the role-recheck negative.
+- Types check out: `ReadSite.site/table/index` are `String` ([ir.rs:675](/home/ccheever/projects/sb4-b22-sec7/snapback4/crates/snapback4-core/src/ir.rs:675)); write-target `site` is built as `site.to_string()` ([program.rs:1204](/home/ccheever/projects/sb4-b22-sec7/snapback4/crates/snapback4-lang/src/bind/program.rs:1204)), so the patch's lookup key matches; `KeyPart.column: Option<String>` ([ast.rs:44](/home/ccheever/projects/sb4-b22-sec7/snapback4/crates/snapback4-lang/src/ast.rs:44)); `pins` returns `Option<BTreeMap<String, Expr>>`, which the constructed map unifies with; `t.index(name)` matches existing use at [creation_advice.rs:108](/home/ccheever/projects/sb4-b22-sec7/snapback4/crates/snapback4-lang/src/bind/security/creation_advice.rs:108).
+- The defect is mechanical, in hunk 1: both loop closers (inner `for`, outer `for p`, [creation_advice.rs:51-52](/home/ccheever/projects/sb4-b22-sec7/snapback4/crates/snapback4-lang/src/bind/security/creation_advice.rs:51)) are already context lines, so the added `+    }` is a third, unbalanced closer. As written the `notes` fn would terminate early and the file would not compile. Deleting that one line puts the cache block after the writes loop — once per analysis, per spec.
+
+Minor non-blocking note: `zip` truncates silently on key/column arity mismatch; the planner guarantees the match (`write_key` errors otherwise) and the `len()==1` guard covers the probe shape, so this is acceptable but worth a glance when applying.
+
+No tests were run for this delta (per instructions); packed qualification and corpus re-measure remain separate pending work.
