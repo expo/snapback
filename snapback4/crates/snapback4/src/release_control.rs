@@ -473,7 +473,7 @@ mod tests {
             snapback4_core::Engine::new_release_prepared(snapback4_core::store_port::AnyStore::open(&database).unwrap(),second.schema,second.programs.into_iter().map(|p|p.program),&options,false).unwrap().generation()
         });
         let mut candidate=crate::release_files::Candidate::new(&dir.0,2);
-        let result=request_observed(&dir.0,Command::Activate{release:2,expected_release:Some(1),expected_revision:1,digest:"test".into(),rollback:false,visible_rollback:false,registry_custody:false,restore_dormant:false,allow_feed_adoption:false},|pending|candidate.pending=pending);
+        let result=request_observed(&dir.0,Command::Activate{release:2,expected_release:Some(1),expected_revision:1,digest:"test".into(),rollback:false,visible_rollback:false,registry_custody:true,restore_dormant:false,allow_feed_adoption:false},|pending|candidate.pending=pending);
         assert!(result.is_err());assert!(candidate.pending);
         let before=snapback4_core::store_port::AnyStore::open_read_only(&dir.0.join("store.sqlite")).unwrap();assert_eq!(before.release_value().unwrap().as_deref(),Some("1"));drop(before);
         drop(candidate);assert!(root.join("snapback/schema.q").is_file());

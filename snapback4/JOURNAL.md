@@ -63476,7 +63476,7 @@ What it merges:
   a runs table, a `progress` catch-up page, and a hook that owes every run it
   holds and every view, for the life of the signed-in client, until the server
   shows it covered;
-- live presence (LLP 3000.018 revision 17): a presence answer asks for a
+- live presence (LLP 3000.018 revision 21): a presence answer asks for a
   5-second refresh, a background reply publishes only what nothing overtook,
   and remembered answers follow the store cut each reply names, the highest
   cut named staying known, composed reads included;

@@ -82,7 +82,7 @@ pub(super) fn apply(
                     "release {release} is not an immutable release directory"
                 ));
             }
-            if crate::verbs::needs_registry_custody(&project.root)?&&!registry_custody{return Err("compiled rollback views require an updated release-control client; use this runtime's CLI".into())}
+            if !registry_custody{return Err("release custody requires an updated release-control client; use this runtime's CLI".into())}
             crate::verbs::validate_registered_view(dir,&project.root)?;
             if crate::release_files::digest(&project.root)? != digest {
                 return Err("staged release content changed; redeploy its exact source".into());

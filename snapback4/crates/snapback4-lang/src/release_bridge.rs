@@ -45,6 +45,28 @@ pub fn loosen(target:&[(String,String)],current:&[(String,String)])->Bridge {
         }
         edits.sort_by_key(|e|std::cmp::Reverse(e.0));for(start,end,value)in edits{text.replace_range(start..end,&value);}
     }
+    if !domain_diagnostics.is_empty() {
+        // Reusing the complete authored current closure preserves its schema
+        // impossibility facts as well as guards. This closed fallback requires
+        // every old field/name and accepted input; it invents no translation.
+        let old_docs=target.iter().map(|(f,t)|parser::parse_document(f,t).0).collect::<Vec<_>>();
+        let current_docs=current.iter().map(|(f,t)|parser::parse_document(f,t).0).collect::<Vec<_>>();
+        let fields_survive=old_docs.iter().flat_map(|d|&d.tables).all(|old|current_docs.iter().flat_map(|d|&d.tables).find(|t|t.name==old.name).is_some_and(|next|old.columns.iter().all(|c|next.columns.iter().any(|n|n.name==c.name))));
+        fn exports(docs:&[ast::Document])->BTreeMap<String,&ast::ProgramDecl>{
+            let mut out=BTreeMap::new();
+            for doc in docs {for p in &doc.programs {out.insert(p.name.clone(),p);}
+                for (name,target,_) in &doc.aliases {if let Some(p)=doc.programs.iter().find(|p|p.name==*target){out.insert(name.clone(),p);}}
+            }out
+        }
+        let next_exports=exports(&current_docs);
+        let inputs_survive=exports(&old_docs).iter().all(|(name,old)|next_exports.get(name).is_some_and(|next|old.kind==next.kind&&old.args.len()==next.args.len()&&old.args.iter().zip(&next.args).all(|(a,b)|a.name==b.name&&super::release_bridge_rules::input_accepts(&a.type_,&b.type_))));
+        if fields_survive&&inputs_survive {
+            let bound=crate::compile(current);
+            changes.clear();
+            changes.push("mixed domains: retained the complete current authored schema and workflow closure, preserving every predecessor table/field/operation name and accepted input; review current results in the old UI".into());
+            return Bridge{sources:current.to_vec(),changes,diagnostics:bound.diagnostics};
+        }
+    }
     // New concepts keep their current rules. They are retained populations,
     // not a promise that a frozen old operation exposes a new concept.
     let aliases:BTreeMap<_,_>=new.values().filter_map(|(_,_,t)|t.renamed_from.as_ref().filter(|old|names.contains(*old)).map(|old|(t.name.clone(),old.clone()))).collect();
@@ -153,11 +175,33 @@ fn join(old:&ast::ScalarType,new:&ast::ScalarType,tables:&BTreeMap<String,(&Stri
 mod tests {
     use super::*;
     #[test]
-    fn mixed_narrowing_cannot_restore_values_that_change_current_rule_meaning() {
+    fn mixed_narrowing_keeps_current_domains_and_the_complete_current_closure() {
         let old="table items:\n  kind: enum('private', 'public')\n  amount: int\n  read <- .kind != 'public'\n  online only\nquery readItem(id: items):\n  return items[id]\n";
         let new=old.replace("enum('private', 'public')","enum('public')").replace("amount: int","amount: int ?");
         let b=loosen(&[("schema.q".into(),old.into())],&[("schema.q".into(),new)]);
-        assert!(b.diagnostics.iter().any(|d|d.message.contains("excluded by the current domain")),"{:?}",b.diagnostics);
+        assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
+        assert!(b.sources[0].1.contains("kind: enum('public')"));
+        assert!(!b.sources[0].1.contains("'private'"));
+        let renamed=b.sources[0].1.replace("query readItem", "query currentRead")+"alias readItem = currentRead\n";
+        let aliased=loosen(&[("schema.q".into(),old.into())],&[("schema.q".into(),renamed)]);
+        assert!(aliased.diagnostics.is_empty(),"{:?}",aliased.diagnostics);
+        assert!(aliased.sources[0].1.contains("alias readItem = currentRead"));
+    }
+    #[test]
+    fn mixed_domain_closure_refuses_missing_fields_and_incompatible_inputs() {
+        let old="table items:\n  kind: enum('private', 'public')\n  amount: int\n  public\n  online only\nquery readItem(id: items, n: int):\n  return items[id]\n";
+        for new in [old.replace("enum('private', 'public')","enum('public')").replace("amount: int\n", ""),old.replace("enum('private', 'public')","enum('public')").replace("n: int)","n: int 1..10)")] {
+            let b=loosen(&[("schema.q".into(),old.into())],&[("schema.q".into(),new)]);
+            assert!(!b.diagnostics.is_empty());
+        }
+    }
+    #[test]
+    fn aliased_current_endpoint_keeps_its_guard_on_a_union_view() {
+        let old="table items:\n  amount: int\n  public\n  online only\nquery oldRead(id: items):\n  item = items[id] ! else MISSING\n  return item.amount + 1\n";
+        let new="table items:\n  amount: int ?\n  public\n  online only\nquery currentRead(id: items):\n  item = items[id] ! else MISSING\n  require item.amount != null else AMOUNT_PENDING\n  return item.amount + 1\nalias oldRead = currentRead\n";
+        let b=loosen(&[("schema.q".into(),old.into())],&[("schema.q".into(),new.into())]);
+        assert!(b.diagnostics.is_empty(),"{:?} {:?}",b.diagnostics,b.sources);
+        assert!(b.sources[0].1.contains("query oldRead"));assert!(b.sources[0].1.contains("AMOUNT_PENDING"));
     }
     #[test]
     fn loosens_target_domains_preserving_its_operations_and_rules() {

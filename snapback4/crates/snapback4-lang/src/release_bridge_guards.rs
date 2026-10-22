@@ -51,11 +51,11 @@ pub(super) fn carry(
     };
     let current_helpers = helper_signatures(&current_documents);
     let target_helpers = helper_signatures(&target_documents);
-    let next = current
-        .iter()
-        .flat_map(|(file, text)| parser::parse_document(file, text).0.programs.into_iter())
-        .map(|p| (p.name.clone(), p))
-        .collect::<std::collections::BTreeMap<_, _>>();
+    let mut next=std::collections::BTreeMap::new();
+    for doc in &current_documents {
+        for p in &doc.programs {next.insert(p.name.clone(),p.clone());}
+        for(name,target,_)in &doc.aliases {if let Some(p)=doc.programs.iter().find(|p|p.name==*target){let mut exported=p.clone();exported.name=name.clone();next.insert(name.clone(),exported);}}
+    }
     for (file, text) in sources {
         let doc = parser::parse_document(file, text).0;
         let mut edits = Vec::new();

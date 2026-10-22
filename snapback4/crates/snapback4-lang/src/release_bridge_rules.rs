@@ -58,6 +58,7 @@ pub(super) fn carry(
         for p in &doc.programs {
             programs.insert(p.name.clone(), (*file, *text, p));
         }
+        for(name,target,_)in &doc.aliases {if let Some(p)=doc.programs.iter().find(|p|p.name==*target){programs.insert(name.clone(),(*file,*text,p));}}
     }
     let remap = |expr: &ast::Expr| {
         let mut expr = expr.clone();
@@ -281,6 +282,7 @@ pub(super) fn carry(
             let (_, _, mut source) = declaration(current_text, next.site.line);
             let (tokens, _) = lexer::lex(current_file, &source);
             let mut replacements = Vec::new();
+            if next.name!=old.name {if let Some(name)=tokens.iter().find(|t|t.value==next.name){let at=offset(&source,name.site.line,name.site.col);replacements.push((at,at+name.value.len(),old.name.clone()));}}
             let parsed = parser::parse_document(current_file, &source).0;
             let mut parsed = parsed;
             crate::bind::intent_walk::document(&mut parsed, &mut |e| {
@@ -373,7 +375,7 @@ pub(super) fn carry(
     relaxed
 }
 
-fn input_accepts(old: &ast::ScalarType, new: &ast::ScalarType) -> bool {
+pub(super) fn input_accepts(old: &ast::ScalarType, new: &ast::ScalarType) -> bool {
     if old == new {
         return true;
     }

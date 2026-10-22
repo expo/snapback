@@ -1303,7 +1303,7 @@ mod release_summary;
 mod release_narration;
 mod release_dependencies;
 mod clause_compare;
-pub(crate) use releases::{visibility_policy,validate_registered_view,needs_registry_custody};
+pub(crate) use releases::{visibility_policy,validate_registered_view};
 pub use releases::{deploy, prune, releases, rollback, serve_release};
 pub(crate) use releases::existing_deployment;
 pub(crate) use releases::release_bind;

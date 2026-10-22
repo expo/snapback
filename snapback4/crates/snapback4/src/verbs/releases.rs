@@ -319,12 +319,12 @@ fn activate(
                 digest,
                 rollback,
                 visible_rollback:options.flags.contains_key("visible-rollback"),
-                registry_custody:needs_registry_custody(&root)?,
+                registry_custody:true,
                 restore_dormant,
                 allow_feed_adoption,
             },
             |pending| { if let Some(candidate)=candidate.as_deref_mut() {candidate.pending=pending;} },
-        ).map_err(|e|if e.contains("unknown field")&&(e.contains("registry_custody")||e.contains("visible_rollback")){format!("E_RELEASE_RUNTIME: serving runtime predates visible rollback; restart serve with this CLI before switching; {e}")}else{e})?;
+        ).map_err(|e|if e.contains("unknown field")&&(e.contains("registry_custody")||e.contains("visible_rollback")){format!("E_RELEASE_RUNTIME: serving runtime predates release custody; restart serve with this CLI before switching; {e}")}else{e})?;
         if let Some(summary)=options.flags.get("security-summary"){result["security"]=serde_json::from_str(summary).unwrap_or_default();}
         if let Some(view)=options.flags.get("rollback-view"){result["rollbackView"]=serde_json::from_str(view).unwrap_or_default();}
         if let Some(preview)=options.flags.get("release-preview"){result["preview"]=serde_json::from_str(preview).unwrap_or_default();}
@@ -930,5 +930,3 @@ pub(crate) fn validate_registered_view(dir:&Path,root:&Path)->Result<(),String>{
         super::rollback_views::verify(dir,&view)?;
     }Ok(())
 }
-
-pub(crate) fn needs_registry_custody(root:&Path)->Result<bool,String>{Ok(super::rollback_views::metadata(root)?.is_some()||!super::rollback_views::manifest(root)?.is_empty())}
