@@ -314,23 +314,7 @@ A maintained column such as `likeCount: count likes by postId` belongs to the en
 `readUpTo: int default 0 written by .principal` gives that field its own writer: the required `principal` column on the same row. An insert by anyone else omits it and receives the declared default. Supplying even the default explicitly requires ownership. On update and the patch arm of upsert, the old row's owner authorizes each touched owned field. Other touched fields still require the row's update rule. An owner can patch just their fields when the table has no update rule. A named `update (old, next)` rule also constrains owner writes; it can compare matching integers or times with `<`, `<=`, `>` and `>=`. Read rules keep their equality-only contract.
 
 ### Private owned fields
-The field is private to its owner unless declared `readable by audience`.
-Group/public log images omit private fields; the owner's principal partition carries their image, and every owner's device receives it while the row is
-readable. Queries, shapes, write results and snapshots apply the same
-projection. Selecting an omitted field returns null, including in `{ * }` and as a `group`
-or `sort` key; generated row types mark the field optional. Asset downloads apply the same field visibility.
-Field ownership does not grant read access to the row. Ownership changes
-redact the former owner's copy, or remove it if the row also becomes unreadable.
-A device queues a transition that needs another owner's omitted value or
-would acquire ownership of that value. An independent owned-field patch on a
-held row predicts when its own transition and resource limits permit it.
-Untouched self-equalities do not require the omitted value. Ordinary row grants do not add dependencies to such a patch.
-Unknown owner-delivery witnesses also do not prevent that prediction; the
-server decides which owners may receive the committed image.
-Private-field rule inputs require a named transition and ownership or audience
-visibility; ordinary writers cannot test another owner's private value.
-Accounting, nullable self-comparisons and expiring authority witnesses are
-specified in `snapback4 why E_FIELD_AUTHORITY`.
+The field is private to its owner unless declared `readable by audience`. Group/public log images omit private fields; the owner's principal partition carries their image, and every owner's device receives it while the row is readable. Queries, shapes, write results and snapshots apply the same projection. Selecting an omitted field returns null, including in `{ * }` and as a `group` or `sort` key; generated row types mark the field optional. Asset downloads apply the same field visibility. Field ownership does not grant read access to the row. Ownership changes redact the former owner's copy, or remove it if the row also becomes unreadable. A device queues a transition that needs another owner's omitted value or would acquire ownership of that value. An independent owned-field patch on a held row predicts when its own transition and resource limits permit it. Untouched self-equalities do not require the omitted value. Ordinary row grants do not add dependencies to such a patch. Unknown owner-delivery witnesses also do not prevent that prediction; the server decides which owners may receive the committed image. Private-field rule inputs require a named transition and ownership or audience visibility; ordinary writers cannot test another owner's private value. Accounting, nullable self-comparisons and expiring authority witnesses are specified in `snapback4 why E_FIELD_AUTHORITY`.
 
 Clique read marks use this recipe. Add `readable by audience` after `written by .principal` when other conversation members should see receipts. The monotonic rule is an application decision, enforced on the server and under prediction. `markRead` predicts on a held row, including offline.
 
