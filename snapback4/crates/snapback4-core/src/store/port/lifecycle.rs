@@ -60,7 +60,7 @@ impl AnyStore {
 impl AnyTx<'_> {
     pub fn commit(self) -> Result<(), RuntimeError> { match self { Self::Sqlite(SqliteTx(tx)) => tx.commit(), #[cfg(feature = "postgres")] Self::Postgres(PostgresTx(tx)) => tx.commit() } }
     pub fn rollback(self) -> Result<(), RuntimeError> { match self { Self::Sqlite(SqliteTx(tx)) => tx.rollback(), #[cfg(feature = "postgres")] Self::Postgres(PostgresTx(tx)) => tx.rollback() } }
-    pub(crate) fn begin_member_evidence(&self) { match self { Self::Sqlite(SqliteTx(tx)) => tx.begin_member_evidence(), #[cfg(feature = "postgres")] Self::Postgres(_) => () } }
+    pub(crate) fn begin_member_evidence(&self) { match self { Self::Sqlite(SqliteTx(tx)) => tx.begin_member_evidence(), #[cfg(feature = "postgres")] Self::Postgres(PostgresTx(tx)) => tx.begin_member_evidence() } }
 }
 impl ReadSnapshot<'_> {
     pub fn commit(self) -> Result<(), RuntimeError> { self.tx.commit() }

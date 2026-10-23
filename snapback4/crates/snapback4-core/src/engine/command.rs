@@ -41,6 +41,8 @@ type Work = Box<dyn FnOnce(&mut Engine) + Send>;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SubmitError {
     Full,
+    /// This queue's sole consumer cannot wait for another command on itself.
+    Reentrant,
     /// Worker disconnected before execution; the command was not applied.
     Stopped,
     /// Worker disconnected after execution started; reconcile the durable outcome.
@@ -138,6 +140,7 @@ impl Queue {
         &self,
         command: Command<T>,
     ) -> Result<(Work, Reply<T>), SubmitError> {
+        debug_assert!(!self.on_worker(), "committer commands must use inline continuations");
         #[cfg(any(test, feature = "test-support"))]
         let command = Command {
             attribution: crate::round_trips::current(),
@@ -225,11 +228,18 @@ impl Queue {
         reply.wait()
     }
     fn check_admission(&self) -> Result<(), SubmitError> {
+        // @ref LLP 3000.009.001.000.000#9 — continuations run inline; neither submission door may enqueue onto its own consumer.
+        if self.on_worker() {
+            return Err(SubmitError::Reentrant);
+        }
         if self.ownership_lost() {
             Err(SubmitError::OwnershipLost)
         } else {
             Ok(())
         }
+    }
+    fn on_worker(&self) -> bool {
+        self.worker.as_ref().is_some_and(|worker| worker.thread().id() == thread::current().id())
     }
     pub fn ownership_lost(&self) -> bool {
         latch_expired(&self.admission);

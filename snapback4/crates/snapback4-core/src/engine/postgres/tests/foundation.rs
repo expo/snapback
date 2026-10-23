@@ -455,6 +455,7 @@ fn change_evidence_missing_table_or_rows_always_widen() {
     tx.record_commit(1, 0, "test", "alice", "mutation", &[], 0)
         .unwrap();
     tx.commit().unwrap();
+    e.store.client.batch_execute("DELETE FROM _change_evidence").unwrap();
     assert!(footprint_between(&RefCell::new(&mut e.store), 0, 1).is_none());
     e.store
         .client
@@ -488,14 +489,6 @@ fn change_evidence_snapshots_additive_cached_reads_and_reopen() {
     let write = peer.store.transaction(Some(WriteMode::Serialized)).unwrap();
     write
         .record_commit(1, 0, "test", "alice", "mutation", &[], 0)
-        .unwrap();
-    write
-        .execute(
-            "INSERT INTO _change_evidence(seq,footprint) VALUES (1,$1)",
-            &[&crate::value::canonical_json(
-                &crate::revocation::Footprint::default(),
-            )],
-        )
         .unwrap();
     write.commit().unwrap();
     assert!(footprint_between(&tx, 0, 1).is_none());
@@ -541,6 +534,7 @@ fn change_evidence_distinguishes_missing_footprints_from_driver_errors() {
     let tx = e.store.transaction(Some(WriteMode::Serialized)).unwrap();
     tx.record_commit(1, 0, "test", "alice", "mutation", &[], 0).unwrap();
     tx.commit().unwrap();
+    e.store.client.batch_execute("DELETE FROM _change_evidence").unwrap();
     let tx = e.store.transaction(None).unwrap();
     assert_eq!(tx.change_evidence(0, 1, |_| panic!("missing footprint must not be visited")).unwrap(), None);
     tx.rollback().unwrap();

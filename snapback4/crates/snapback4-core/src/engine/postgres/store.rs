@@ -110,7 +110,7 @@ impl Store {
             #[cfg(any(test, feature = "test-support"))]
             rollback_count: crate::round_trips::RollbackCount::new(),
             bind_refused: Cell::new(false), cache: RefCell::new(&mut self.cache), calls: &self.calls, marked_reads: &self.marked_reads, page_reads: &self.page_reads, prefetch_rows: &self.prefetch_rows, prefetch_bytes: &self.prefetch_bytes,
-            rows_cache: RefCell::new(super::prefetch::Cache::default()), prefetch_enabled: self.prefetch, head: Cell::new(None), serialized_head: Cell::new(false), tail: RefCell::new(super::tail::Tail::default()), savepoints: RefCell::new(Vec::new()) };
+            rows_cache: RefCell::new(super::prefetch::Cache::default()), prefetch_enabled: self.prefetch, head: Cell::new(None), serialized_head: Cell::new(false), tail: RefCell::new(super::tail::Tail::default()), changes: Default::default(), savepoints: RefCell::new(Vec::new()) };
         if self.unified && mode.is_some() {
             // Bootstrap is the sole exception: an absent owner relation is
             // installed in the successful opening transaction, never by readers.
@@ -223,6 +223,7 @@ pub struct Tx<'a> {
     pub(super) serialized_head: Cell<bool>,
     pub(super) tail: RefCell<super::tail::Tail>,
     pub(super) savepoints: RefCell<Vec<(String, super::semantic::Checkpoint)>>,
+    pub(super) changes: RefCell<crate::revocation::Recorder>,
 }
 
 pub(super) fn signed(n: u64) -> Result<i64, RuntimeError> {
@@ -412,9 +413,11 @@ impl Tx<'_> {
         signed(seq)?; signed(writes)?;
         let mut tail = self.tail.borrow_mut();
         if tail.commit.is_some() { return Err(RuntimeError::Store("commit tail slot already occupied".into())); }
+        // @ref LLP 3000.009.001.000#33-extraction-first-with-no-behavior-change — P1-CE uses SQLite's recorder and coverage fallback, in the existing tail flight.
+        if !self.changes.borrow().covers(touched) { self.changes.borrow_mut().widen(); }
         tail.commit = Some(super::tail::Commit {
             seq, at, program: program.into(), principal: principal.into(), kind: kind.into(),
-            touched: canonical_json(&touched), writes,
+            touched: canonical_json(&touched), writes, footprint: canonical_json(&self.changes.borrow().footprint()),
         });
         Ok(())
     }
@@ -448,6 +451,8 @@ impl Tx<'_> {
 }
 
 impl Rows for Tx<'_> {
+    fn change_footprint(&self) -> crate::revocation::Footprint { self.changes.borrow().footprint() }
+    fn widen_change_evidence(&self) { self.changes.borrow_mut().widen(); }
     fn sequence_value(&self, parent: &str, id: &str) -> Result<i64, RuntimeError> {
         Ok(self.query("SELECT value FROM _sequences WHERE parent = $1 AND id = $2", &[&parent, &id])?.first().map_or(0, |r| r.get(0)))
     }
@@ -620,6 +625,7 @@ impl Rows for Tx<'_> {
 
     fn put(&self, table_name: &str, table: &Table, row: &Value, old: Option<&Value>) -> Result<u64, RuntimeError> {
         self.rows_cache.borrow_mut().invalidate(table_name);
+        self.changes.borrow_mut().record(table_name, table, old, Some(row));
         let id = row.field("id")?.as_str()?;
         let keys = crate::rows::index_write(table_name, table, row, old, id)?;
         let data = canonical_json(row);
@@ -642,6 +648,7 @@ impl Rows for Tx<'_> {
 
     fn delete(&self, table_name: &str, table: &Table, old: &Value) -> Result<u64, RuntimeError> {
         self.rows_cache.borrow_mut().invalidate(table_name);
+        self.changes.borrow_mut().record(table_name, table, Some(old), None);
         let id = old.field("id")?.as_str()?;
         self.execute("DELETE FROM r WHERE t = $1 AND id = $2", &[&table_name, &id])?;
         let mut entries = 0;

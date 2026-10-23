@@ -9,7 +9,7 @@ pub const LIMIT: usize = 256;
 /// Net transaction images, bounded independently of the mutation's row budget.
 /// Prediction restore/replay may delete and reinstall the same id internally;
 /// only its final image can change the displayed answer's authority.
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub struct Recorder {
     rows: BTreeMap<(String,String), (Option<Value>,Option<Value>)>,
     bytes: usize,

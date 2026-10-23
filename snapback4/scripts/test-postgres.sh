@@ -56,6 +56,7 @@ refresh_shared_target || status=1
 cargo test --locked --no-fail-fast --manifest-path experiments/postgres/Cargo.toml -- --include-ignored --nocapture || status=1
 refresh_shared_target || status=1
 cargo test --locked -p snapback4-core --features postgres --lib engine::postgres::tests -- --include-ignored --nocapture || status=1
+cargo test --locked -p snapback4-core --features postgres --lib change_evidence -- --include-ignored --nocapture || status=1
 cargo test --locked -p snapback4-core --features postgres --lib engine::postgres::literal_tests -- --include-ignored --nocapture || status=1
 cargo test --locked -p snapback4-core --features postgres --lib engine::postgres::ownership::tests -- --include-ignored --nocapture || status=1
 cargo test --locked -p snapback4-core --features postgres --test store_handle_traits || status=1
@@ -64,6 +65,7 @@ cargo test --locked -p snapback4-core --features postgres --lib engine::committe
 cargo test --locked -p snapback4-core --features postgres --lib engine::committer::maintained_members -- --include-ignored --nocapture || status=1
 cargo test --locked -p snapback4-core --features postgres --lib engine::command::tests -- --include-ignored --nocapture || status=1
 cargo test --locked -p snapback4 --features postgres --bin snapback4 s10c_postgres_internal_http_host_witness -- --include-ignored --nocapture || status=1
+cargo test --locked -p snapback4 --features postgres --bin snapback4 change_evidence_changes_snapshot -- --include-ignored --nocapture || status=1
 cargo test --locked -p snapback4 --features postgres --bin snapback4 postgres_startup_renewal_error_releases_committed_claim -- --include-ignored --nocapture || status=1
 cargo test --locked -p snapback4 --features postgres --bin snapback4 round_trips_postgres -- --include-ignored --nocapture || status=1
 cargo test --locked -p snapback4-core --features postgres --test corpus -- --nocapture || status=1

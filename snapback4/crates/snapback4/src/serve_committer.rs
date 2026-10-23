@@ -254,6 +254,9 @@ pub(super) fn queue_error(error: SubmitError) -> snapback4_core::RuntimeError {
         SubmitError::Full => snapback4_core::RuntimeError::Structural {
             code: "E_RATE_LIMIT", message: "HTTP connections or request workers are occupied; wait for pending writes to settle or reduce concurrent clients before retrying".into(),
         },
+        SubmitError::Reentrant => snapback4_core::RuntimeError::Structural {
+            code: "E_COMMITTER_REENTRANT", message: "committer command cannot submit to its own queue; use an inline member continuation".into(),
+        },
         SubmitError::Stopped => snapback4_core::RuntimeError::Structural {
             code: "E_COMMITTER_STOPPED", message: "committer stopped before execution; command not applied".into(),
         },
@@ -268,6 +271,7 @@ pub(super) fn refusal_status(code: &str) -> Option<u16> {
         "E_STORE_OWNERSHIP" => Some(409),
         "E_COMMITTER_STOPPED" => Some(503),
         "E_COMMIT_OUTCOME_UNKNOWN" => Some(500),
+        "E_COMMITTER_REENTRANT" => Some(500),
         _ => None,
     }
 }
@@ -288,6 +292,7 @@ impl QueueError for snapback4_core::RuntimeError {
             "E_RATE_LIMIT" => SubmitError::Full,
             "E_STORE_OWNERSHIP" => SubmitError::OwnershipLost,
             "E_COMMITTER_STOPPED" => SubmitError::Stopped,
+            "E_COMMITTER_REENTRANT" => SubmitError::Reentrant,
             _ => SubmitError::OutcomeUnknown,
         })
     }
@@ -403,3 +408,7 @@ mod tests {
 #[cfg(test)]
 #[path = "serve_committer_fix_tests.rs"]
 mod fix_tests;
+
+#[cfg(test)]
+#[path = "dev_worker_tests.rs"]
+mod worker_mint_tests;

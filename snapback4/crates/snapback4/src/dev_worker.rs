@@ -316,11 +316,16 @@ pub(crate) struct DevWorker {
     // claiming work for a connection nobody reads.
     child_expires_at: Option<i64>,
     child_revision: Option<usize>,
+    // A conventional mint may have committed without returning its token.
+    // Retire its single stored family before a replacement overwrites that marker.
+    uncertain_mint: bool,
     child_clock: Option<String>,
     restart: Instant,
     started: Instant,
     backoff: Duration,
     revision: usize,
+    #[cfg(test)]
+    pub(crate) mint_unknown: Option<std::sync::mpsc::Sender<String>>,
 }
 
 fn fence_revision(shared: &Shared, revision: usize) {
@@ -329,7 +334,7 @@ fn fence_revision(shared: &Shared, revision: usize) {
 }
 
 pub(crate) fn mint_refusal(shared: &Shared, revision: usize, why: &snapback4_core::Refusal) -> bool {
-    if matches!(why.code.as_str(), "E_RATE_LIMIT" | "E_COMMITTER_STOPPED" | "E_STORE_OWNERSHIP") { return false; }
+    if matches!(why.code.as_str(), "E_RATE_LIMIT" | "E_COMMITTER_STOPPED" | "E_STORE_OWNERSHIP" | "E_COMMITTER_REENTRANT") { return false; }
     // A lost mint acknowledgement can leave a durable token we cannot revoke
     // by family. Fence that revision exactly as failed retirement does.
     fence_revision(shared, revision);
@@ -427,11 +432,14 @@ impl DevWorker {
             worker_pid: None,
             child_expires_at: None,
             child_revision: None,
+            uncertain_mint: false,
             child_clock: None,
             restart: Instant::now(),
             started: Instant::now(),
             backoff: Duration::from_millis(250),
             revision,
+            #[cfg(test)]
+            mint_unknown: None,
         };
         crate::lifecycle::managed_cleanup();
         // The host's first tick follows its listening URL; keep that readiness line first on stdout.
@@ -463,6 +471,10 @@ impl DevWorker {
                 }
             }
             return;
+        }
+        if self.uncertain_mint {
+            if Instant::now() < self.restart { return; }
+            if !self.close_child_session() { self.retry_later(); return; }
         }
         // Root/revision are captured under the publication guards. Never
         // re-label an immutable old source with the latest credential revision.
@@ -644,6 +656,7 @@ impl DevWorker {
         crate::serve::test_work(&self.shared.worker_prepare);
         // @ref LLP 3000.007#9.2 — a restarted worker's orphaned claim poll must not lease work to the dead child.
         let (name, revision) = (self.name.clone(), self.revision);
+        #[cfg(test)] let mint_unknown = self.mint_unknown.take();
         let minted = preparation_shared.engine.call(move |engine, shared| {
             if shared.worker_revision.load(std::sync::atomic::Ordering::Acquire) != prepared_revision { return None; }
             let clock = lock(&shared.clock);
@@ -652,6 +665,11 @@ impl DevWorker {
             let minted = if let Some(name) = &name {
                 identity::mint_supervised_child(engine.store(), Some(name), now, revision)
             } else { child_session(engine.store(), now, revision) };
+            #[cfg(test)]
+            let minted = if let (Some(sent), Ok(session)) = (mint_unknown, &minted) {
+                sent.send(session.token.clone()).unwrap();
+                Err(RuntimeError::CommitOutcomeUnknown("injected lost acknowledgement after mint COMMIT".into()))
+            } else { minted };
             #[cfg(test)] crate::serve::test_work(&shared.worker_minted);
             Some((minted, clock_revision, name.is_some()))
         });
@@ -659,7 +677,7 @@ impl DevWorker {
             Ok(minted) => minted,
             Err(why) => {
                 snapback4_core::diagnostic!("snapback4 worker: session preparation refused: {why}");
-                if mint_refusal(&self.shared, revision, &why) { self.snapshot = None; }
+                self.mint_refused(revision, &why);
                 self.retry_later(); return;
             }
         };
@@ -671,6 +689,9 @@ impl DevWorker {
         let session = match session {
             Ok(session) => session,
             Err(error) => {
+                if error.code() == "E_COMMIT_OUTCOME_UNKNOWN" {
+                    self.mint_refused(revision, &error.refusal());
+                }
                 snapback4_core::diagnostic!(
                     "snapback4 worker: cannot mint the child's session: {error}"
                 );
@@ -782,8 +803,19 @@ impl DevWorker {
         }
     }
 
+    fn mint_refused(&mut self, revision: usize, why: &snapback4_core::Refusal) {
+        if mint_refusal(&self.shared, revision, why) {
+            self.snapshot = None;
+            // @ref LLP 3000.009.001.000.000#9 — a conventional unknown mint retains retirement custody so replacing its single family marker cannot revive the orphan.
+            if self.name.is_none() {
+                self.uncertain_mint = true;
+                self.child_revision = Some(revision);
+            }
+        }
+    }
+
     fn close_child_session(&mut self) -> bool {
-        if self.child_expires_at.is_none() {
+        if self.child_expires_at.is_none() && !self.uncertain_mint {
             return true;
         }
         let family = self.family.clone();
@@ -803,6 +835,7 @@ impl DevWorker {
             return false;
         }
         self.child_expires_at = None;
+        self.uncertain_mint = false;
         self.child_revision = None;
         self.family = None;
         true

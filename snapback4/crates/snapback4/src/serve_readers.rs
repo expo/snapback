@@ -1,6 +1,17 @@
 //! Read checkout is independent of the schema-adoption writer.
 use super::*;
 
+// @ref LLP 3000.009.001.000.000#9 — each handoff decodes the original wire arguments against the program that will execute them.
+pub(super) fn query_context(engine: &Engine, shared: &Shared, op: &str, args: &Json, mut context: Context) -> Result<Context, Refusal> {
+    let program = engine.program(op).ok_or_else(|| snapback4_core::RuntimeError::UnknownOp(op.into()).refusal())?;
+    if program.kind != ProgramKind::Query {
+        return Err(Refusal::new("E_OP", "op", format!("{op} is no longer a query")));
+    }
+    if let Some(why) = dev_doors::persona_argument(shared, &program.args, args) { return Err(why); }
+    context.args = wire::arguments_from_json_with_refusal(program, args)?;
+    Ok(context)
+}
+
 // @ref LLP 3000#7-decisions-during-execution — reader reuse retains fresh transactions and retires old native modules.
 /// Reuse only detached read owners. Each query still opens and rolls back
 /// its own identity-checked SQLite transaction; no result or viewer is cached.

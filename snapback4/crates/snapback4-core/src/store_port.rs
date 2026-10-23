@@ -126,3 +126,6 @@ mod fixtures;
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+#[path = "store_port/change_evidence_tests.rs"]
+pub(crate) mod change_evidence_tests;
