@@ -149,3 +149,10 @@ fn common_open_preserves_the_portable_index_key_refusal() {
 fn publication_postgres_concurrent_commands_and_adoption_match_rereads() {
     crate::engine::mutation::tests::check_store(AnyStore::create_postgres(&connection(), &name()).unwrap());
 }
+
+#[cfg(feature = "server-search")]
+#[test]
+#[ignore = "requires private Postgres; scripts/test-postgres.sh"]
+fn response_head_postgres_borrows_the_query_snapshot_across_commit_and_adoption() {
+    crate::engine::query_response_tests::check_store(AnyStore::create_postgres(&connection(), &name()).unwrap());
+}

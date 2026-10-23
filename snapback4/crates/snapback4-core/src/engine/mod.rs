@@ -741,7 +741,7 @@ impl Engine {
     /// carries, so a client can order it against answers (LLP 3000.018 §3.2).
     pub fn query_at(&mut self, name: &str, context: Context) -> (Result<QueryOutcome, Refusal>, Option<u64>) {
         let mut cut = None;
-        let result = self.query_reading(name, context, &mut cut, None, &mut None, DeliveryManifest::Build, true);
+        let result = self.query_reading(name, context, &mut cut, None, &mut None, DeliveryManifest::Build, true, None);
         (result, cut)
     }
 
@@ -757,7 +757,7 @@ impl Engine {
     pub fn query_search_with_delivery_at(&mut self, name: &str, context: Context, retained: Option<&[String]>, manifest: DeliveryManifest) -> (Result<QueryOutcome, Refusal>, Option<u64>, Option<Vec<String>>,
     ) {
         let (mut cut, mut current) = (None, None);
-        let result = self.query_reading(name, context, &mut cut, retained, &mut current, manifest, true);
+        let result = self.query_reading(name, context, &mut cut, retained, &mut current, manifest, true, None);
         (result, cut, current)
     }
 
@@ -768,11 +768,23 @@ impl Engine {
     pub fn query_materialized_search_with_delivery_at(&mut self, name: &str, context: Context, retained: Option<&[String]>, manifest: DeliveryManifest)
         -> (Result<QueryOutcome, Refusal>, Option<u64>, Option<Vec<String>>) {
         let (mut cut, mut current) = (None, None);
-        let result = self.query_reading(name, context, &mut cut, retained, &mut current, manifest, false);
+        let result = self.query_reading(name, context, &mut cut, retained, &mut current, manifest, false, None);
         (result, cut, current)
     }
 
-    fn query_reading(&mut self, name: &str, mut context: Context, cut: &mut Option<u64>, _retained: Option<&[String]>, _current: &mut Option<Vec<String>>, manifest: DeliveryManifest, advance_opening: bool) -> Result<QueryOutcome, Refusal> {
+    /// Observe response facts in the very snapshot that evaluates this request.
+    // @ref LLP 3000.009.001.000.001#3.3 — borrow the query snapshot for its envelope, without a second transaction.
+    #[cfg(feature = "server-search")]
+    pub fn query_materialized_search_with_snapshot(
+        &mut self, name: &str, context: Context, retained: Option<&[String]>, manifest: DeliveryManifest,
+        mut snapshot: impl FnMut(&crate::store_port::ReadSnapshot<'_>, u64) -> Result<(), Refusal>,
+    ) -> (Result<QueryOutcome, Refusal>, Option<u64>, Option<Vec<String>>) {
+        let (mut cut, mut current) = (None, None);
+        let result = self.query_reading(name, context, &mut cut, retained, &mut current, manifest, false, Some(&mut snapshot));
+        (result, cut, current)
+    }
+
+    fn query_reading(&mut self, name: &str, mut context: Context, cut: &mut Option<u64>, _retained: Option<&[String]>, _current: &mut Option<Vec<String>>, manifest: DeliveryManifest, advance_opening: bool, snapshot: Option<&mut dyn FnMut(&crate::store_port::ReadSnapshot<'_>, u64) -> Result<(), Refusal>>) -> Result<QueryOutcome, Refusal> {
         context.generation = self.generation;
         let requested = context.now.unwrap_or_else(crate::now_ms);
         context.now = Some(if advance_opening { self.advance_time_audience(requested)? } else { requested });
@@ -793,6 +805,7 @@ impl Engine {
         )?);
         let seq = tx.next_seq()? - 1;
         *cut = Some(seq);
+        if let Some(snapshot) = snapshot { snapshot(&tx, seq)?; }
         let touches = self.schema.operations.get(name).is_some_and(|f| !f.ephemeral_reads.is_empty());
         let mut hub = if touches { Some(self.ephemeral.lock()?) } else { None };
         if let Some(hub) = &mut hub {
@@ -1309,3 +1322,7 @@ pub use mutation::{MutationAcknowledgement, DurablePublication};
 
 #[cfg(all(test, feature = "sqlite"))]
 mod update_image_tests;
+
+#[cfg(all(test, feature = "sqlite", feature = "server-search"))]
+#[path = "../store/query_response_tests.rs"]
+pub(crate) mod query_response_tests;

@@ -18,6 +18,9 @@ HTTP 200 still requires inspecting `denied`, `state`, and `why`.
 Relative times such as `"now+1h"` work in typed seed/fixture time fields and
 fixture case arguments. `/m` takes Unix milliseconds; it never interprets
 relative time strings. Query data and mutation results have different envelopes.
+An evaluated query's `store_id`, `generation` and `seq` describe one durable
+snapshot. An evaluated refusal's `head` equals its `seq`; order replies by
+`seq` when present. Authentication refusals can omit that sequence.
 
 Save this schema as snapback/schema.q in a scratch project with snapback4
 installed. Save the JavaScript as scripts/wire-proof.mjs and run it with Node.

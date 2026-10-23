@@ -122,3 +122,16 @@ pub(super) fn mutation_acknowledgement(shared: &Shared, engine: &mut Engine, ack
         }
     }
 }
+
+// @ref LLP 3000.009.001.000.001#3.3 — identity and head belong to the borrowed query snapshot.
+pub(super) fn borrowed_response_head(snapshot: &snapback4_core::store_port::ReadSnapshot<'_>, head: u64) -> Result<(String, u64), Refusal> {
+    Ok((snapshot.store_id()?, head))
+}
+
+// A failed generation boundary already supplied the refusal; opening another
+// snapshot would repeat it during every adoption handoff.
+pub(super) fn query_response_head(engine: &mut Engine, metadata: Option<Result<(String, u64), Refusal>>, outcome: &Result<snapback4_core::QueryOutcome, Refusal>) -> Result<(String, u64), Refusal> {
+    if let Some(metadata) = metadata { return metadata; }
+    if let Err(why) = outcome && why.code == "E_GENERATION" { return Err(why.clone()); }
+    response_head(engine)
+}

@@ -173,3 +173,127 @@ The measurement cluster remains running solely for RT2's required checks.
 The script's private public-serving cluster at `/tmp/s10d3-serve-lfor7_iz/data`
 is stopped (status 3, no PID file). Final all-process/all-cluster cleanup is
 recorded with RT2 below; no publication, push, stash or git settings edit.
+
+## RT2 design and measured warm counts
+
+RT1 commit: `af1888b8129e9585e02454a2b552078f97b7c741`. The next change makes
+mutation preflight metadata conditional on a replay/refusal actually using it.
+A query supplies a borrowed read-only snapshot to its response-facts callback;
+the existing identity SELECT and the already known head are extracted before
+program reads. The callback cannot return an owning transaction. Normal query
+APIs retain their existing behavior. Generation failures reuse their original
+refusal without a second snapshot; early validation refusals still obtain a
+head when no query snapshot exists. Metadata/generation handoff retains its
+precedence over a persona-auth refusal on obsolete readers.
+
+| Class | SQLite RT1 → RT2 | Postgres RT1 → RT2 |
+| --- | ---: | ---: |
+| action_session_w1 | 39 → 32 | 29 → 26 |
+| keyed_first | 76 → 68 | 62 → 58 |
+| narrowed_argument | 46 → 38 | 26 → 22 |
+| one_membership | 69 → 61 | 43 → 39 |
+| rate_limited | 0 → 0 | 0 → 0 |
+| replay_hit | 40 → 40 | 30 → 30 |
+| unauthenticated | 0 → 0 | 0 → 0 |
+| unkeyed_increment | 68 → 60 | 42 → 38 |
+| unknown_operation | 46 → 38 | 26 → 22 |
+| unknown_token | 5 → 5 | 5 → 5 |
+| w1_point | 31 → 24 | 23 → 20 |
+| w2_newest20 | 31 → 24 | 23 → 20 |
+
+The mutation prediction is exact (PG 38). The W1 prediction 19 counted removal
+of the entire four-wait response snapshot, but the live identity SELECT remains
+necessary inside the query snapshot: actual PG **20**, SQLite **24**. Neither
+an attach-time identity substitution nor a SQL join is introduced. Other fresh
+mutation/refusal classes save that unused preflight; action reads save the same
+query metadata work. Replays retain their current-head boundary. Every class
+has three identical warm samples; no class increases.
+
+The existing HTTP refusal witness initially failed because it deliberately
+asserted the old gap (`seq = head + 1`) after a commit between metadata and
+evaluation. RT2 requires one snapshot, so its stronger assertion is now
+`seq = head`, above the earlier answer's cut, with identity/generation checked
+against re-reads. The exact updated witness passes. The affected adoption
+filter passes 34 cases with two named ignores. New shared snapshot witnesses
+hold a read across a competing commit, compare metadata in that snapshot,
+keep the original row and then read the acknowledged write, test a refusal at
+its cut, reject obsolete readers after adoption and validate a fresh reader.
+The focused SQLite snapshot witness passes; the Postgres form is included in
+the adapter stage of the complete script.
+
+
+## RT2 completed CLI and guide checks
+
+The complete CLI run finishes every target: 1,429 unfiltered passes, six
+initial failures and twenty ignores. One initial failure is the deliberately
+obsolete two-snapshot assertion described above; the corrected exact witness
+passes. The clock-drain case passes on its exact isolated repeat. Four cases
+persist alone, with the same schema-source reservation errors seen in RT1:
+
+- `init::w7a_residency_measures_the_wired_500_follow_reader`
+- `init::w8b_residency_measures_the_wired_calibration_shape`
+- `timeline_adoption::check_and_adoption_agree_across_expiry_through_changes_and_following_presence`
+- `timeline_adoption::retirement_resets_dependent_aggregates_even_when_all_names_survive`
+
+RT1's missing generated security-record case passes in this full run, as do
+its two transient toolchain fixtures and the five-second run-admission guard.
+The affected adoption filter passes 34 cases (two ignores). The guide's final
+repeat after the wire-contract update passes all 127 cases. The initial
+reference check passes 565 documents and 11,769 references, with no unchecked
+references or errors; the final post-record check follows below.
+
+
+The complete RT2 core run passes 1,089 unfiltered cases with five ignores,
+plus its passing filtered subprocess witness. The final no-default-features
+repeat passes, and the final SQLite HTTP ratchet passes against the updated
+table. Its warm map is retained in `rt2-measurements.txt`. The full Postgres
+script begins only after that core process exits, so its prescribed manifest
+handoff cleanup cannot remove any pending core integration executable.
+
+
+## RT2 final checks and process custody
+
+| Required check | Result |
+| --- | --- |
+| `cargo build -p snapback4` | Pass, including the script's final normal CLI build |
+| `cargo check -p snapback4-core --no-default-features` | Pass, explicit final repeat |
+| `cargo test -p snapback4-core --no-fail-fast` | Complete: 1,089 unfiltered passes, five ignores; passing subprocess witness |
+| `cargo test -p snapback4 --no-fail-fast` | Every target completed; four reservation fixtures persist alone; obsolete head-gap assertion corrected and passes exactly; clock case passes alone |
+| Guide tests | Final repeat 127/127 pass |
+| `bash scripts/test-postgres.sh` | Complete: 387 Rust passes, one supplied Serializable stress red; exact isolated repeat passes both modes; public serving passes |
+| Final SQLite/Postgres HTTP ratchets | Pass on both stores; all twelve warm classes equal the tables, no increase |
+| `./ref-check` | Pass: 565 LLP documents, 11,769 refs; zero errors/unchecked |
+| Whitespace | `git diff --check` pass |
+
+The main Postgres adapter passes 220 cases, including the new shared snapshot
+witness. Literal/ownership stages pass 8/25; handle/doc checks 1/38;
+committer/maintained/queue stages 2/1/12; internal HTTP/startup cleanup 1/1;
+ratchet and zero-SQL post-loss publication 2; corpus 19. The complete evaluator
+has only `concurrent_read_modify_write_and_duplicate_ops_are_atomic_in_both_modes`
+red (Serializable 40001). Its exact isolated repeat passes: 65 increments in
+each mode, no lost updates, Serialized 0 retries and Serializable 94 retries.
+The initial suite red remains recorded; a passing isolated repeat does not
+relabel the whole run green.
+
+The public serving witness passes guest/session queries, identified writes and
+receipt replay, persisted restart, SIGKILL/lease-expiry takeover, logout and
+ownership-loss shutdown, release-2/generation-2 adoption, non-superuser serving,
+and P1-MC recount equality. It stops and independently confirms its private
+cluster. Final warm/cold maps are retained in `rt2-measurements.txt`.
+
+All owned clusters are now independently stopped (status 3, no PID file):
+measurement `/tmp/sb4-rt12.8znlN2/data` (master 517607), RT1 public
+`/tmp/s10d3-serve-lfor7_iz/data` (886719), and RT2 public
+`/tmp/s10d3-serve-jfmndwv6/data` (1311686). Their data and logs are retained.
+`process-custody.json` records the control/master ledger and every public
+server PID, plus the retained descendant-monitor ledger path/hash. The final
+birth-aware process audit finds no recorded owned process still present, and
+an independent executable/cwd census finds no process under the owned target
+or cluster directories. Every public server PID is also absent. **PIDs left:
+none.** All sampled disk space stayed above 40 GB; final available space is
+67 GB. Only the authorized Cargo target and ten build jobs were used. There
+was no push, stash, git settings command or contact with the PG17 cluster on
+expo-build-450a port 55440.
+
+The final reference audit passes after the source, RFC, guide and qualification
+records: 565 LLP documents, 11,769 references, zero errors and unchecked refs.

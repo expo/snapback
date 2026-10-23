@@ -1237,10 +1237,15 @@ fn a_refusal_names_the_cut_its_evaluation_read() {
         lock(&shared.engine).mutate("stop", None, Context::new("dev:alice", Default::default()).at(now)).unwrap();
     }));
     let gate = body(&host.request("POST", "/q/gate", alice, "{}"));
-    assert!(host.shared.query_wait.lock().unwrap().is_none(), "the commit ran between the metadata and the query");
+    assert!(host.shared.query_wait.lock().unwrap().is_none(), "the commit ran before the borrowed query snapshot");
     assert_eq!(gate["denied"]["code"], "STOPPED", "{gate}");
     let head = gate["head"].as_u64().unwrap();
-    assert_eq!(gate["seq"].as_u64(), Some(head + 1), "the refusal names its evaluation's cut, past the head taken before it: {gate}");
+    assert_eq!(gate["seq"].as_u64(), Some(head), "the refusal head and evaluation cut share one snapshot: {gate}");
+    assert!(head > open["seq"].as_u64().unwrap(), "the intervening commit is observed");
+    let engine = lock(&host.shared.engine);
+    assert_eq!(head, engine.seq().unwrap());
+    assert_eq!(gate["store_id"], engine.store().store_identity().unwrap().unwrap());
+    assert_eq!(gate["generation"], engine.generation());
 }
 
 pub(super) struct ReaderTestDirectory(pub(super) std::path::PathBuf);

@@ -102653,3 +102653,37 @@ record); all names/errors and initial setup corrections remain in the report.
 The preparatory wasm build is over the unchanged budget; no device/publication
 qualification is claimed. Confirmed writes publish with zero database work
 after queue loss; executing-writer replays retain their old current-head wake.
+
+
+## 2026-10-23 — RT2: lazy response heads from the borrowed query snapshot
+
+After RT1 `af1888b812`, mutation preflight skips its unused response snapshot
+on a replay miss; queries extract live identity/head from the snapshot already
+evaluating the request. Generation validation, authority/replay boundaries,
+error/status/header/receipt policy and notifications retain their paths. No SQL
+text, batching or flight changes. A generation failure reuses its refusal;
+early metadata-bearing outcomes without a query snapshot still take a fresh head.
+
+Postgres measures mutation 42→38 as predicted, W1/W2 23→20 versus W1's 19:
+the live identity SELECT is retained inside the query snapshot. SQLite mutation
+68→60 and W1/W2 31→24; all twelve classes on both stores agree across three
+warm samples and none increases. The tables and RFC §6 record every class and
+why the read prediction differs. Evaluated refusals now have head=seq, with
+one-snapshot identity/generation; the old two-snapshot-gap witness is strengthened
+accordingly. LLP 3000.018's living contract and the wire guide record that cut.
+
+Shared SQLite/Postgres witnesses hold the query snapshot across another commit,
+compare metadata with re-reads, keep its original row/cut, then read the
+acknowledged new row; refusal and adoption/obsolete-reader cases share the same
+proof. Qualification and process custody follow in `reports/20261023-rt12/REPORT.md`.
+
+
+RT2 qualification: complete core 1,089 passes/five ignores, final no-default
+and normal build pass, guide 127/127 and both final HTTP ratchets pass. Four
+CLI reservation fixtures persist alone; the transient clock case passes alone.
+All Postgres stages finish: 387 Rust passes and only the supplied Serializable
+stress red, passing exactly alone in both modes; public restart/takeover and
+release adoption pass. The report retains names, counts, the corrected refusal
+cut witness and process custody. All three private clusters are independently
+stopped, every owned server/process is absent, and PIDs left are none. Disk
+stays above 40 GB. Two local increments; no push.

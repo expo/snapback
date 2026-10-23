@@ -1151,18 +1151,21 @@ fn handle(mut request: Request, shared: &Shared) {
                         Ok(replay)
                     });
                     let ephemeral = matches!(replay, Ok(None)) && engine.schema().operations.get(&owned_op).is_some_and(|f| f.ephemeral);
-                    Ok((replay, response_head(engine), engine.program(&owned_op).cloned(), ephemeral))
+                    let metadata = if matches!(replay, Ok(None)) { None } else { Some(response_head(engine)) };
+                    Ok((replay, metadata, engine.program(&owned_op).cloned(), ephemeral))
                 });
                 let (replay, metadata, signature, ephemeral) = match preflight.and_then(|v| v) {
                     Ok(value) => value,
                     Err(why) => return respond_timed(request, shared, if why.retryable {503} else {401}, json!({"denied": why})),
                 };
                 if ephemeral { return ephemeral::serve(request, shared, &op, &body); }
-                let (store_id, head) = match metadata { Ok(head) => head, Err(why) => { respond_timed(request, shared, 503, json!({ "denied": why })); return; } };
-                match replay {
-                    Ok(Some(outcome)) => { let mut reply = outcome.reply(id); reply["store_id"] = json!(store_id); reply["head"] = json!(head); respond_timed(request, shared, 200, reply); return; }
-                    Err(why) => { respond_timed(request, shared, if why.retryable { 503 } else { 200 }, mutation_reply(json!({ "state": "failed", "id": id, "why": why, "store_id": store_id, "head": head }))); return; }
-                    Ok(None) => {}
+                if let Some(metadata) = metadata {
+                    let (store_id, head) = match metadata { Ok(head) => head, Err(why) => { respond_timed(request, shared, 503, json!({ "denied": why })); return; } };
+                    match replay {
+                        Ok(Some(outcome)) => { let mut reply = outcome.reply(id); reply["store_id"] = json!(store_id); reply["head"] = json!(head); respond_timed(request, shared, 200, reply); return; }
+                        Err(why) => { respond_timed(request, shared, if why.retryable { 503 } else { 200 }, mutation_reply(json!({ "state": "failed", "id": id, "why": why, "store_id": store_id, "head": head }))); return; }
+                        Ok(None) => {}
+                    }
                 }
                 #[cfg(test)] test_work(&shared.mutation_wait);
                 signature
@@ -1225,15 +1228,14 @@ fn handle(mut request: Request, shared: &Shared) {
                 let reader = if handoffs == 0 { shared.reader() } else { shared.reader_after_handoff() };
                 let evaluated = match reader {
                     Ok((epoch, mut reader)) => {
-                        let metadata = response_head(&mut reader);
-                        if let Err(why) = &metadata && why.code == "E_GENERATION" {
-                            if handoffs < 2 { handoffs += 1; continue; }
-                            return respond_timed(request, shared, 503, json!({"denied":why}));
-                        }
                         #[cfg(test)] test_work(&shared.query_wait);
                         let authority = if handoffs == 0 { session_identity::persona_read_authority(&request, shared, &reader) }
                             else { session_identity::Admission::capture(&request, shared).and_then(|admission| admission.check_detached(shared, &reader, &principal)) };
                         if let Err(why) = authority {
+                            if let Err(stale) = response_head(&mut reader) && stale.code == "E_GENERATION" {
+                                if handoffs < 2 { handoffs += 1; continue; }
+                                return respond_timed(request, shared, 503, json!({"denied":stale}));
+                            }
                             return respond_timed(request, shared, 401, json!({"denied":refusal_json(&why)}));
                         }
                         // Take identity from the same reader that evaluates the query,
@@ -1245,7 +1247,13 @@ fn handle(mut request: Request, shared: &Shared) {
                         let decoration_paths = reader.program(&op).filter(|_| reader.schema().operations.get(&op).is_some_and(|f| f.search_decoration)).map(snapback4_core::search_decoration::paths);
                         let scopes = read_scopes::dependencies(&reader, &op, &context);
                         trace::mark("query_start");
-                        let (outcome, cut, current) = reader.query_materialized_search_with_delivery_at(&op, context, retained.as_deref(), manifest);
+                        let mut metadata = None;
+                        let (outcome, cut, current) = reader.query_materialized_search_with_snapshot(&op, context, retained.as_deref(), manifest, |snapshot, head| { metadata = Some(head::borrowed_response_head(snapshot, head)); Ok(()) });
+                        let metadata = head::query_response_head(&mut reader, metadata, &outcome);
+                        if let Err(why) = &metadata && why.code == "E_GENERATION" {
+                            if handoffs < 2 { handoffs += 1; continue; }
+                            return respond_timed(request, shared, 503, json!({"denied":why}));
+                        }
                         trace::mark("query_end");
                         let scopes = read_scopes::complete(scopes, reader.schema(), outcome.as_ref().map_or(&[], |o| &o.tables));
                         if outcome.is_ok() && metadata.is_ok() { lock(&shared.readers).put(&epoch, reader.into_inner()); }
@@ -1264,7 +1272,6 @@ fn handle(mut request: Request, shared: &Shared) {
                         let (op, context, retained, args_json) = (op.clone(), context.clone(), retained.clone(), args_json.clone());
                         let result = shared.engine.attempt(move |engine, shared| {
                             admission?.check(shared, engine, &context.viewer)?;
-                        let metadata = response_head(engine);
                         let reads_presence = presence_of(engine, &op);
                         let mut context = context.clone();
                         context = query_readers::query_context(engine, shared, &op, &args_json, context)?;
@@ -1272,7 +1279,9 @@ fn handle(mut request: Request, shared: &Shared) {
                         let query_generation = engine.generation();
                         let decoration_paths = engine.program(&op).filter(|_| engine.schema().operations.get(&op).is_some_and(|f| f.search_decoration)).map(snapback4_core::search_decoration::paths);
                         let scopes = read_scopes::dependencies(engine, &op, &context);
-                        let (outcome, cut, current) = engine.query_materialized_search_with_delivery_at(&op, context, retained.as_deref(), manifest);
+                        let mut metadata = None;
+                        let (outcome, cut, current) = engine.query_materialized_search_with_snapshot(&op, context, retained.as_deref(), manifest, |snapshot, head| { metadata = Some(head::borrowed_response_head(snapshot, head)); Ok(()) });
+                        let metadata = head::query_response_head(engine, metadata, &outcome);
                         let scopes = read_scopes::complete(scopes, engine.schema(), outcome.as_ref().map_or(&[], |o| &o.tables));
                         Ok::<_, Refusal>((outcome, cut, metadata, reads_presence, query_generation, current, scopes, decoration_paths))
                         });
@@ -1370,8 +1379,8 @@ fn handle(mut request: Request, shared: &Shared) {
                     }
                     Err(refusal) => {
                         let mut reply = json!({ "denied": refusal_json(&refusal), "generation": query_generation, "complete": false, "store_id": store_id, "head": head });
-                        // @ref LLP 3000.018#3.2 — a refusal names the cut its evaluation read, which the head
-                        // taken before it may predate, so a client can order it against a remembered answer.
+                        // @ref LLP 3000.018#3.2 — a refusal names its evaluation cut so a client
+                        // can order it against a remembered answer; its head now shares that snapshot.
                         if let Some(cut) = cut { reply["seq"] = json!(cut); }
                         // A refusal can depend on presence too: its watch keeps refreshing (LLP 3000.018 §3.2).
                         if reads_presence && !refusal.retryable { reply["refresh"] = json!(PRESENCE_REFRESH.as_millis() as u64); }
