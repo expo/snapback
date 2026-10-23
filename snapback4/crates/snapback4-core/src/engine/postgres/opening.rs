@@ -128,7 +128,10 @@ impl Handle {
             let previous_programs = store::decode(&before.2)?;
             crate::engine::activation_facts::check_operations(&previous, schema, &previous_programs, programs)?;
             let schema_changed = !fresh && previous.hash() != schema.hash();
-            if schema_changed { super::column_evolution::admit(&previous, schema)?; }
+            if schema_changed {
+                super::column_evolution::admit(&previous, schema)?;
+                crate::engine::activation_facts::check_postgres_ordinary_operations(&previous, schema, &previous_programs, programs)?;
+            }
             if !fresh { super::evolution_admission::retained(&tx, &previous, schema)?; }
             initialize(&tx, schema)?;
             if let Some(fence) = &bootstrap_fence {

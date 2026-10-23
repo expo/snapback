@@ -1,4 +1,4 @@
-//! A closed ordinary release slice; unchanged authority-bearing tables survive.
+//! A closed ordinary release slice, preserving the existing maintained-column lane.
 // @ref LLP 3000.009.001.000#3.5 — unsupported changes refuse before installation/preparation writes.
 use super::store::{Tx, decode};
 use crate::{
@@ -113,6 +113,7 @@ pub(super) fn admit(previous: &Schema, next: &Schema) -> Result<(), RuntimeError
     new.authored_indexes = Default::default();
     old.unique_refusals.clear();
     new.unique_refusals.clear();
+    let ordinary_changed = old != new;
     for name in old.tables.keys().chain(new.tables.keys()) {
         match (old.table(name), new.table(name)) {
             (Some(a), Some(b)) => compatible(a, b)?,
@@ -126,6 +127,14 @@ pub(super) fn admit(previous: &Schema, next: &Schema) -> Result<(), RuntimeError
     new.tables.clear();
     if old != new {
         return Err(refuse("release-activation"));
+    }
+    // SQLite's release source-retirement barrier visits unchanged lifetime /
+    // read-through populations too. Their dormant closure belongs to EV-4;
+    // an unrelated ordinary edit cannot silently skip that barrier on Postgres.
+    // Preserve the previously admitted P1-MC transition (ordinary unchanged).
+    if ordinary_changed && previous.tables.values().chain(next.tables.values()).any(|table|
+        table.ephemeral.is_none() && (table.is_expiring() || table.through.is_some() || !table.recorded.is_empty())) {
+        return Err(refuse("evolution-authority"));
     }
     Ok(())
 }

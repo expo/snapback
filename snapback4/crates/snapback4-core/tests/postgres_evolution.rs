@@ -174,6 +174,20 @@ fn contract(store: AnyStore) {
     release(&mut e, &redefined, 9, true).unwrap();
     release(&mut e, V1, 10, true).unwrap();
     assert_eq!(e.store().rows("notes").unwrap(), notes);
+    // Required cells can be retired/restored too. A new row written while the
+    // column is absent has no historical value: restoration must refuse rather
+    // than invent one, and leave its historical cells available for repair.
+    release(&mut e,&v2(),11,true).unwrap();
+    let partial=V1.replace("  value: text <=100\n", "");
+    release(&mut e,&partial,12,true).unwrap();
+    let schema=e.schema().clone();let fresh=object([("id",id("fresh"))]);
+    let tx=e.store_mut().transaction().unwrap();tx.put("retired",&schema.tables["retired"],&fresh,None).unwrap();tx.commit().unwrap();
+    assert_eq!(release(&mut e,V1,13,true).unwrap_err().code(),"E_ADOPT");
+    assert_eq!(e.generation(),12);
+    assert!(e.store().rows("retired").unwrap().iter().all(|row|row.field("value").is_err()));
+    let tx=e.store_mut().transaction().unwrap();tx.delete("retired",&schema.tables["retired"],&fresh).unwrap();tx.commit().unwrap();
+    release(&mut e,V1,13,true).unwrap();
+    assert_eq!(e.store().rows("retired").unwrap(),retired);
 }
 #[test]
 fn ev1_sqlite_release_contract() {
@@ -464,4 +478,75 @@ fn ev1_postgres_authoritative_column_cannot_become_maintained() {
     ));
     assert_eq!(e.generation(), 1);
     assert_eq!(e.store().rows("posts").unwrap(), before);
+}
+
+#[cfg(feature = "postgres")]
+#[test]
+#[ignore = "requires private Postgres; scripts/test-postgres.sh"]
+fn ev1_postgres_ordinary_addition_cannot_forge_execution_facts() {
+    let (schema, programs) = bound(V1);
+    let c = std::env::var("SNAPBACK4_EVAL_POSTGRES").unwrap();
+    let mut e = Engine::new_release(
+        AnyStore::create_postgres(
+            &c,
+            &format!("sb4_ev1_facts_{:x}", snapback4_core::ids::seed()),
+        )
+        .unwrap(),
+        schema.clone(),
+        programs.clone(),
+        1,
+        None,
+    )
+    .unwrap();
+    seed(&mut e);
+    let before = e.store().rows("notes").unwrap();
+    for case in 0..4 {
+        let mut next = schema.clone();
+        next.tables.get_mut("notes").unwrap().columns.insert(
+            "extra".into(),
+            snapback4_core::schema::ColumnType::Optional(Box::new(
+                snapback4_core::schema::ColumnType::Int,
+            )),
+        );
+        match case {
+            0 => next.operations.get_mut("peek").unwrap().held = true,
+            1 => next.operations.get_mut("peek").unwrap().branch_merge = true,
+            2 => next.operations.get_mut("peek").unwrap().sites[0].class = snapback4_core::schema::SiteClass::Held,
+            _ => {
+                next.operations
+                    .insert("missing".into(), next.operations["peek"].clone());
+            }
+        }
+        let error = e
+            .adopt_release_at(
+                next,
+                programs.clone(),
+                &ReleaseActivation::new(2, Some(1)),
+                false,
+                1000,
+            )
+            .unwrap_err();
+        assert_eq!(error.code(), "E_SCHEMA");
+        assert!(
+            error
+                .to_string()
+                .contains("execution facts changed without a program change")
+        );
+        assert_eq!(e.generation(), 1);
+        assert_eq!(e.store().rows("notes").unwrap(), before);
+    }
+}
+
+#[cfg(feature="postgres")]
+#[test]
+#[ignore="requires private Postgres; scripts/test-postgres.sh"]
+fn ev1_postgres_unchanged_lifetime_requires_the_lifecycle_slice() {
+    let source="table timed:\n  at: time\n  expire at .at\n  public\n  insert <- allow\n  online only\nquery peek(key: id):\n  return timed[key]\n";
+    let (schema,programs)=bound(source);
+    let c=std::env::var("SNAPBACK4_EVAL_POSTGRES").unwrap();
+    let mut e=Engine::new_release(AnyStore::create_postgres(&c,&format!("sb4_ev1_life_{:x}",snapback4_core::ids::seed())).unwrap(),schema,programs,1,None).unwrap();
+    let changed=format!("{source}\ntable added:\n  n: int\n  public\n  online only\n");
+    let error=release(&mut e,&changed,2,true).unwrap_err();
+    assert!(matches!(error,RuntimeError::StoreUnsupported {family:"evolution-authority"}));
+    assert_eq!(e.generation(),1);assert!(e.store().rows("added").unwrap().is_empty());
 }
