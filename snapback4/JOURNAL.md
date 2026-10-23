@@ -102604,3 +102604,24 @@ rebased tree. The remaining full-suite reds reproduce without K0-Q (e.g.
 are ticketed. The lane's `/tmp/sb4-k0q{,-fix1,-rebase}` transcripts on
 expo-build-450a were deleted by the lead when that host's disk filled; the
 committed receipts remain.
+
+
+## 2026-10-23 — Integration 23: correct the rollback-view publish blocker
+
+Wave 25 exposed the overbroad any-invariant/code-change registration rule. The
+independent replay of production-store copies reproduced 15 refused v2 deploys,
+including all ten false refusals. Commit 33ab430e29 requires old-row visibility
+or misrepresentation risks instead; executable-only repairs remain protected
+behind unchanged data/intent/signatures. A complete current closure and a
+selective current-guarded bridge are alternatives, with current independent
+intent retained. Default rollback on an older unregistered store names exact
+selection and redeployment to register a view. Eleven focused CLI regressions
+(including six small independent schema shapes and an uploaded image), eighteen
+language security tests and the executable-only negative control pass. The
+candidate replay clears all ten false refusals and keeps all six widening lanes
+at zero hidden v1 rows; temporary copied stores are deleted after each run.
+
+Main's K0-Q committer is integrated as 121107c574, preserving both journal
+histories, the combined refusal vocabulary and ROLL's Bound field in the new
+committer test fixture. Full qualification is being repeated on this merge.
+Integration 23 after the K0-Q main merge (121107c574): measured 2,407,070 B raw / 735,469 B gzip / 553,849 B Brotli on locked Linux. Budget 735,969 B is exactly measurement + 500 B. The merged shared core/error vocabulary changes whole-device layout (+544 B gzip versus the earlier Integration 23 candidate); this is a whole-artifact allowance, not independent feature-cost attribution or a runtime authority ceiling change.
