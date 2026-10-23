@@ -102,7 +102,8 @@ fn principal_with_owner(request: &impl RequestInfo, shared: &Shared, owner: Opti
     let path = request.url().split('?').next().unwrap_or("");
     let ephemeral = request.method() == &Method::Post && path.strip_prefix("/m/").is_some_and(|name|
         lock(&shared.bound).schema.operations.get(name).is_some_and(|fact| fact.ephemeral));
-    if detached_request(request.method(), path) || ephemeral {
+    // @ref LLP 3000.009.001.000.001#31-authority-boundaries — ingress refuses before buffering, but never waits for or authorizes the writer.
+    if detached_request(request.method(), path) || ephemeral || path.starts_with("/m/") {
         match shared.reader() {
             Ok((epoch, reader)) => {
                 let identity = lock(&shared.wake).store_id.clone();

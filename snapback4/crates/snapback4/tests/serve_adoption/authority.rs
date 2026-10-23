@@ -1,6 +1,41 @@
 use super::*;
 
 #[test]
+fn mutation_ingress_refuses_without_waiting_for_the_writer() {
+    ingress_reader(false);
+}
+
+#[cfg(feature = "postgres")]
+#[test]
+#[ignore = "requires private Postgres; scripts/test-postgres.sh"]
+fn postgres_mutation_ingress_refuses_without_waiting_for_the_writer() {
+    ingress_reader(true);
+}
+
+fn ingress_reader(pg: bool) {
+    let dir = ReaderTestDirectory::new();
+    let store = if pg {
+        #[cfg(feature = "postgres")]
+        { snapback4_core::store_port::AnyStore::create_postgres(
+            &std::env::var("SNAPBACK4_EVAL_POSTGRES").expect("private Postgres cluster"),
+            &format!("sb4_rt3b_ingress_{:x}", snapback4_core::ids::seed()),
+        ).unwrap() }
+        #[cfg(not(feature = "postgres"))]
+        { unreachable!() }
+    } else { snapback4_core::store_port::AnyStore::open(&dir.0.join("ingress.db")).unwrap() };
+    let host = Host::with_store(false, store, reads::SOURCE);
+    let engine = lock(&host.shared.engine);
+    // The writer remains held until the complete refusal has arrived. No body
+    // or queue slot is needed to reject an unknown credential at ingress.
+    let reply = host.request("POST", "/m/add", "Authorization: Bearer unknown\r\n", "{}");
+    assert_eq!(status(&reply), 401, "{reply}");
+    assert_eq!(body(&reply)["denied"]["code"], "E_AUTH");
+    assert!(body(&reply).get("store_id").is_none());
+    assert_eq!(host.shared.engine.waiting(), 0);
+    drop(engine);
+}
+
+#[test]
 fn bearer_is_checked_after_durable_and_ephemeral_mutation_lock_gaps() {
     queued_authority(false);
 }

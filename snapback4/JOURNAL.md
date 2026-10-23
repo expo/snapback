@@ -103249,3 +103249,11 @@ sb4-pg/s10e1; no push, stash, Git configuration change or raw log in the commit.
 
 Root reference validation passes: 565 LLP documents, 11,774 references, zero
 errors and zero unchecked. Both RT0 JSON digests match the starting commit.
+## 2026-10-23 — RT3b: mutation ingress uses a reader
+
+The first RT3b increment moves non-detached `/m` ingress off the committer.
+A held-writer witness on SQLite and Postgres receives its complete unknown-bearer
+401 without queueing. Build, both RT0 ratchets and all four authority witnesses
+pass; all twelve counts per store remain at RT3a as predicted. This increment
+retains the later checks; boundary consolidation follows. Evidence:
+[RT3b report](./reports/20261023-rt3b/REPORT.md).
