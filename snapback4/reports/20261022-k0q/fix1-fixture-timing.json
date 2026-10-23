@@ -1,0 +1,18 @@
+[
+  {"label": "baseline", "step": "init", "args": ["run", "put", "--json"], "status": 0, "seconds": 0.30375368706882},
+  {"label": "baseline", "step": "offline-test", "args": ["test"], "status": 1, "seconds": 71.8033029269427},
+  {"label": "baseline", "step": "backfill", "args": ["run", "backfill", "--json"], "status": 0, "seconds": 0.08511032909154892},
+  {"label": "baseline", "step": "put", "args": ["run", "put", "--as", "dev:bob", "--json"], "status": 0, "seconds": 0.03362656012177467},
+  {"label": "baseline", "step": "rows", "args": ["run", "rows", "--json"], "status": 0, "seconds": 0.023487571626901627},
+  {"label": "baseline", "step": "live-test-1", "args": ["test"], "status": 1, "seconds": 69.51529103890061},
+  {"label": "baseline", "step": "live-test-2", "args": ["test"], "status": 1, "seconds": 69.32465412467718},
+  {"label": "baseline", "host_pid": 4010385, "stopped": true, "status": 143},
+  {"label": "fixed", "step": "init", "args": ["run", "put", "--json"], "status": 0, "seconds": 0.12371250800788403},
+  {"label": "fixed", "step": "offline-test", "args": ["test"], "status": 0, "seconds": 7.217571144923568},
+  {"label": "fixed", "step": "backfill", "args": ["run", "backfill", "--json"], "status": 0, "seconds": 0.032879963517189026},
+  {"label": "fixed", "step": "put", "args": ["run", "put", "--as", "dev:bob", "--json"], "status": 0, "seconds": 0.027753235772252083},
+  {"label": "fixed", "step": "rows", "args": ["run", "rows", "--json"], "status": 0, "seconds": 0.01444869302213192},
+  {"label": "fixed", "step": "live-test-1", "args": ["test"], "status": 0, "seconds": 6.837209384888411},
+  {"label": "fixed", "step": "live-test-2", "args": ["test"], "status": 0, "seconds": 15.324360243976116},
+  {"label": "fixed", "host_pid": 4017731, "stopped": true, "status": 143}
+]

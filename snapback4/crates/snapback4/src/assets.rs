@@ -7,7 +7,7 @@
 //! the server verifies against the bytes; it is only ever served as an
 //! attachment under `nosniff` and a sandboxing CSP.
 
-use crate::serve::{Shared, cors, producing_engine, principal_of, refusal_json, respond};
+use crate::serve::{Shared, cors, RequestFacts, principal_of, refusal_json, respond};
 use serde_json::json;
 use snapback4_core::error::Refusal;
 use std::io::{self, Read as _, Seek, SeekFrom};
@@ -36,7 +36,7 @@ pub fn is_file_upload(url: &str) -> bool {
 /// bound, under the general upload ceiling. A schema with no file column
 /// refuses before any body is read.
 pub fn file_ceiling(shared: &Shared) -> Result<usize, Refusal> {
-    match producing_engine(shared).file_upload_ceiling() {
+    match shared.engine.call(|engine, _| engine.file_upload_ceiling())? {
         Some(max) => Ok((max as usize).min(UPLOAD_CEILING)),
         None => Err(Refusal::new("E_ASSET_TYPE", "asset", "no column of this backend takes a file; declare one (`doc: file <=10000000`)").guide("assets")),
     }
@@ -68,49 +68,47 @@ pub fn upload(request: Request, body: Vec<u8>, shared: &Shared) {
     let fingerprint = snapback4_core::value::digest(&(format!("{:x}", Sha256::digest(&body)), &file.as_ref().map(|name| snapback4_core::assets::sanitize_name(name)), &declared));
     let expected_store = params.get("store_id");
     if intent.is_some() && expected_store.is_none() { return respond(request,400,json!({"denied":Refusal::new("E_INPUT","input","intent uploads require store_id from the identified backend")})); }
+    let facts = RequestFacts::capture(&request);
     let stored = (|| {
-        if let Some(expected) = expected_store {
-            if producing_engine(shared).store().store_identity()?.as_ref() != Some(expected) {
-                return Err(snapback4_core::RuntimeError::Structural { code: "E_STORE_REPLACED", message: "upload intent belongs to another backend store".into() });
+        let (intent, expected_store) = (intent.map(str::to_owned), expected_store.cloned());
+        let (principal_check, fingerprint_check, intent_check, expected_check, facts_check) =
+            (principal.clone(), fingerprint.clone(), intent.clone(), expected_store.clone(), facts.clone());
+        let (replay, placement) = shared.engine.attempt(move |engine, shared| {
+            if let Some(expected) = &expected_check {
+                if engine.store().store_identity()?.as_ref() != Some(expected) {
+                    return Err(snapback4_core::RuntimeError::Structural { code: "E_STORE_REPLACED", message: "upload intent belongs to another backend store".into() });
+                }
             }
-        }
-        if let Some(id) = intent {
-            let mut engine = producing_engine(shared);
-            crate::serve::session_identity::mutation_authority(&request, shared, &engine, &principal)
-                .map_err(|why| snapback4_core::RuntimeError::Auth(why.message))?;
-            if let Some(asset) = engine.asset_intent(&principal, id, &fingerprint)? { return Ok(asset); }
-        }
-        let placement=if let Some(id)=intent {Some(producing_engine(shared).asset_declaration(&principal,id)?.ok_or_else(||snapback4_core::RuntimeError::Asset{code:"E_UPLOAD_INTENT",message:"declare this intent's immutable placement before sending its bytes".into()} )?)}else{None};
-        let upload = match &file {
-            // @ref LLP 3000.038#2 — the declared type is verified against the bytes before admission.
-            Some(name) => {
-                let content_type = snapback4_core::assets::verify_file(&body, declared.as_deref())?;
-                let mut engine = producing_engine(shared);
-                crate::serve::session_identity::mutation_authority(&request, shared, &engine, &principal)
-                    .map_err(|why| snapback4_core::RuntimeError::Auth(why.message))?;
-                engine.prepare_file(&principal, content_type, name, body.len() as u64, shared.now())?
+            if let Some(id) = &intent_check {
+                crate::serve::session_identity::mutation_authority(&facts_check, shared, engine, &principal_check).map_err(|why| snapback4_core::RuntimeError::Auth(why.message))?;
+                if let Some(asset) = engine.asset_intent(&principal_check, id, &fingerprint_check)? { return Ok((Some(asset), None)); }
             }
-            None => {
-                let sniffed = snapback4_core::assets::sniff(&body)?;
-                let mut engine = producing_engine(shared);
-                crate::serve::session_identity::mutation_authority(&request, shared, &engine, &principal)
-                    .map_err(|why| snapback4_core::RuntimeError::Auth(why.message))?;
-                engine.prepare_asset(&principal, sniffed, body.len() as u64, shared.now())?
-            }
-        };
+            let placement = if let Some(id) = &intent_check { Some(engine.asset_declaration(&principal_check, id)?.ok_or_else(|| snapback4_core::RuntimeError::Asset { code: "E_UPLOAD_INTENT", message: "declare this intent's immutable placement before sending its bytes".into() })?) } else { None };
+            Ok((None, placement))
+        })?;
+        if let Some(asset) = replay { return Ok(asset); }
+        // Preserve replay-before-sniff and keep filesystem I/O off the writer.
+        let sniffed = if file.is_none() { Some(snapback4_core::assets::sniff(&body)?) } else { None };
+        let content_type = if file.is_some() { Some(snapback4_core::assets::verify_file(&body, declared.as_deref())?) } else { None };
+        let (principal_check, facts_check, bytes) = (principal.clone(), facts.clone(), body.len() as u64);
+        let upload = shared.engine.attempt(move |engine, shared| {
+            crate::serve::session_identity::mutation_authority(&facts_check, shared, engine, &principal_check).map_err(|why| snapback4_core::RuntimeError::Auth(why.message))?;
+            if let Some(name) = &file {
+                engine.prepare_file(&principal_check, content_type.unwrap(), name, bytes, shared.now())
+            } else { engine.prepare_asset(&principal_check, sniffed.unwrap(), bytes, shared.now()) }
+        })?;
         #[cfg(test)] crate::serve::test_work(&shared.upload_work);
-        let upload = if let Some(id) = intent { upload.with_intent(id, &fingerprint).with_placement(placement.unwrap()) } else { upload };
+        let upload = if let Some(id) = &intent { upload.with_intent(id, &fingerprint).with_placement(placement.unwrap()) } else { upload };
         let upload = upload.write(&body)?;
-        // Logout while disk I/O was in flight cannot publish a new asset.
         principal_of(&request, shared).map_err(|_| snapback4_core::RuntimeError::Auth("sign in again".into()))?;
-        let mut engine = producing_engine(shared);
-        crate::serve::session_identity::mutation_authority(&request, shared, &engine, &principal)
-            .map_err(|why| snapback4_core::RuntimeError::Auth(why.message))?;
-        crate::release_requests::stamp(engine.generation());
-        if let Some(expected) = expected_store {
-            if engine.store().store_identity()?.as_ref() != Some(expected) { return Err(snapback4_core::RuntimeError::Structural {code:"E_STORE_REPLACED",message:"upload store changed during disk write".into()}); }
-        }
-        engine.finish_asset(upload)
+        let principal = principal.clone();
+        shared.engine.attempt(move |engine, shared| {
+            crate::serve::session_identity::mutation_authority(&facts, shared, engine, &principal).map_err(|why| snapback4_core::RuntimeError::Auth(why.message))?;
+            if let Some(expected) = &expected_store {
+                if engine.store().store_identity()?.as_ref() != Some(expected) { return Err(snapback4_core::RuntimeError::Structural {code:"E_STORE_REPLACED",message:"upload store changed during disk write".into()}); }
+            }
+            engine.finish_asset(upload)
+        })
     })();
     match stored {
         Ok(asset) => {
@@ -136,14 +134,12 @@ pub fn serve(request: Request, id: &str, shared: &Shared) {
     }
     let _transfer = shared.asset_transfers.enter(id, &principal);
     let range_requested = request.headers().iter().any(|h| h.field.equiv("range"));
-    let granted = {
-        let mut engine=producing_engine(shared);
-        if let Err(why) = crate::serve::session_identity::persona_read_authority(&request, shared, &engine) {
-            drop(engine); return respond(request, 401, json!({"denied":refusal_json(&why)}));
-        }
-        crate::release_requests::stamp(engine.generation());
-        engine.asset_access_request(&principal, id, shared.now(), range_requested)
-    };
+    let (facts, owned_principal, owned_id) = (RequestFacts::capture(&request), principal.clone(), id.to_owned());
+    let granted = shared.engine.attempt(move |engine, shared| {
+        crate::serve::session_identity::persona_read_authority(&facts, shared, engine)?;
+        Ok::<_, Refusal>(engine.asset_access_request(&owned_principal, &owned_id, shared.now(), range_requested))
+    });
+    let granted = match granted { Ok(value) => value, Err(why) => return respond(request, 401, json!({"denied":why})) };
     let grant = match granted {
         Ok(grant) => grant,
         Err(error) => {
@@ -220,17 +216,21 @@ pub fn serve(request: Request, id: &str, shared: &Shared) {
     if status == 206 {
         response = response.with_status_code(206);
     }
-    // @ref LLP 3000.019#3.7 — finish before reader disposal and one-view bookkeeping.
-    let delivered = request.respond_checked_with_completion(response, |result| crate::serve::latency::finished(result.is_err()));
-    if grant.once && delivered.is_ok() {
-        if let Err(error) = producing_engine(shared).record_asset_view(&principal, id, shared.now()) {
-            snapback4_core::diagnostic!("snapback4: one-view asset {id} was delivered to {principal}, but its view could not be recorded: {error}");
+    // @ref LLP 3000.009.001.000.000#3.7 — consume the one-view grant before
+    // releasing bytes: a refused/unknown bookkeeping command never delivers.
+    // Failed transports conservatively consume a confirmed view reservation.
+    if grant.once {
+        let (owned_principal, owned_id) = (principal.clone(), id.to_owned());
+        if let Err(error) = shared.engine.attempt(move |engine, shared| engine.record_asset_view(&owned_principal, &owned_id, shared.now())) {
+            return respond(request, 500, json!({"denied":error.refusal()}));
         }
     }
+    #[cfg(test)] crate::serve::test_work(&shared.asset_delivery);
+    let _ = request.respond_checked_with_completion(response, |result| crate::serve::latency::finished(result.is_err()));
 }
 
 /// `io::copy` considers an early EOF successful. Convert it to an error so a
-/// truncated asset cannot consume a one-view grant after a short response.
+/// truncated asset cannot be reported as a complete response.
 struct ExactReader<R> {
     inner: R,
     remaining: u64,
@@ -310,14 +310,16 @@ pub fn cancel(request: Request, id: &str, shared: &Shared) {
         return respond(request, 400, json!({"denied":Refusal::new("E_INPUT","input","invalid upload intent id")}));
     }
     let params = crate::serve::query_params(request.url());
-    let mut engine = producing_engine(shared);
-    if let Err(why) = crate::serve::session_identity::mutation_authority(&request, shared, &engine, &principal) {
-        drop(engine); return respond(request,401,json!({"denied":refusal_json(&why)}));
-    }
+    let facts = RequestFacts::capture(&request);
+    let id = id.to_owned();
+    let checked = shared.engine.attempt(move |engine, shared| {
+        crate::serve::session_identity::mutation_authority(&facts, shared, engine, &principal)?;
     let result = if params.get("store_id") != engine.store().store_identity().ok().flatten().as_ref() {
         Err(snapback4_core::RuntimeError::Structural {code:"E_STORE_REPLACED",message:"cancellation belongs to another backend store".into()})
-    } else { engine.cancel_asset_intent(&principal,id) };
-    drop(engine);
+    } else { engine.cancel_asset_intent(&principal,&id) };
+    Ok::<_, Refusal>(result)
+    });
+    let result = match checked { Ok(value) => value, Err(why) => return respond(request, 401, json!({"denied":why})) };
     match result { Ok(()) => respond(request,200,json!({"ok":true})), Err(e) => respond(request,200,json!({"denied":refusal_json(&e.refusal())})) }
 }
 
@@ -325,18 +327,20 @@ pub fn cancel(request: Request, id: &str, shared: &Shared) {
 pub fn finish(request: Request, id: &str, body: Vec<u8>, shared: &Shared) {
     let principal = match principal_of(&request,shared) { Ok(p)=>p.0,Err(why)=>return respond(request,401,json!({"denied":refusal_json(&why)})) };
     let params = crate::serve::query_params(request.url());
-    let result = (|| {
+    let facts = RequestFacts::capture(&request);
+    let owned_id = id.to_owned();
+    let result = shared.engine.attempt(move |engine, shared| {
+        let id = owned_id.as_str();
         let payload: serde_json::Value = serde_json::from_slice(&body).map_err(|e| snapback4_core::RuntimeError::Input(e.to_string()))?;
         if serde_json::to_vec(&payload).map_err(|e|snapback4_core::RuntimeError::Input(e.to_string()))?.len()>96<<10 {return Err(snapback4_core::RuntimeError::Asset{code:"E_UPLOAD_ARGUMENT",message:"finalization envelope exceeds 96 KiB".into()});}
         let name = payload.get("op").and_then(serde_json::Value::as_str).ok_or_else(|| snapback4_core::RuntimeError::Input("finalization needs op".into()))?;
         let args = payload.get("args").ok_or_else(|| snapback4_core::RuntimeError::Input("finalization needs args".into()))?;
         let why: Refusal = serde_json::from_value(payload.get("why").cloned().unwrap_or_default()).map_err(|e| snapback4_core::RuntimeError::Input(e.to_string()))?;
-        let mut engine = producing_engine(shared);
-        crate::serve::session_identity::mutation_authority(&request, shared, &engine, &principal)
+        crate::serve::session_identity::mutation_authority(&facts, shared, engine, &principal)
             .map_err(|why| snapback4_core::RuntimeError::Auth(why.message))?;
         if params.get("store_id") != engine.store().store_identity()?.as_ref() { return Err(snapback4_core::RuntimeError::Structural {code:"E_STORE_REPLACED",message:"finalization belongs to another backend store".into()}); }
         engine.finish_asset_intent(&principal,id,name,args,&why)
-    })();
+    });
     match result { Ok(outcome) => respond(request,200,outcome.receipt(Some(id))), Err(error)=>respond(request,200,json!({"denied":refusal_json(&error.refusal())})) }
 }
 
@@ -344,17 +348,18 @@ pub fn finish(request: Request, id: &str, body: Vec<u8>, shared: &Shared) {
 pub fn intents(request: Request, shared: &Shared) {
     let principal = match principal_of(&request,shared) { Ok(p)=>p.0,Err(why)=>return respond(request,401,json!({"denied":refusal_json(&why)})) };
     let params=crate::serve::query_params(request.url());
-    let mut engine=producing_engine(shared);
-    if let Err(why) = crate::serve::session_identity::mutation_authority(&request, shared, &engine, &principal) {
-        drop(engine); return respond(request,401,json!({"denied":refusal_json(&why)}));
-    }
+    let facts = RequestFacts::capture(&request);
+    let checked = shared.engine.attempt(move |engine, shared| {
+        crate::serve::session_identity::mutation_authority(&facts, shared, engine, &principal)?;
     let result=(|| {
         if params.get("store_id") != engine.store().store_identity()?.as_ref() { return Err(snapback4_core::RuntimeError::Structural {code:"E_STORE_REPLACED",message:"intent inventory requires the current backend store_id".into()}); }
         let after=params.get("after").map(String::as_str).unwrap_or("");
         if after.len()>128 { return Err(snapback4_core::RuntimeError::Input("invalid intent continuation".into())); }
         engine.pending_asset_intents(&principal,after)
     })();
-    drop(engine);
+    Ok::<_, Refusal>(result)
+    });
+    let result = match checked { Ok(value) => value, Err(why) => return respond(request, 401, json!({"denied":why})) };
     match result {Ok(json)=>respond(request,200,json),Err(error)=>respond(request,200,json!({"denied":refusal_json(&error.refusal())}))}
 }
 
@@ -362,7 +367,10 @@ pub fn intents(request: Request, shared: &Shared) {
 pub fn declare(request:Request,id:&str,body:Vec<u8>,shared:&Shared){
     let principal=match principal_of(&request,shared){Ok(p)=>p.0,Err(why)=>return respond(request,401,json!({"denied":refusal_json(&why)}))};
     let params=crate::serve::query_params(request.url());
-    let result=(||{
+    let facts = RequestFacts::capture(&request);
+    let owned_id = id.to_owned();
+    let result=shared.engine.attempt(move |engine, shared| {
+        let id = owned_id.as_str();
         if id.is_empty()||id.len()>128||!id.bytes().all(|b|b.is_ascii_alphanumeric()||b==b'-'||b==b'_'){return Err(snapback4_core::RuntimeError::Input("invalid upload intent id".into()));}
         let payload:serde_json::Value=serde_json::from_slice(&body).map_err(|e|snapback4_core::RuntimeError::Input(e.to_string()))?;
         if serde_json::to_vec(&payload).map_err(|e|snapback4_core::RuntimeError::Input(e.to_string()))?.len()>96<<10 {return Err(snapback4_core::RuntimeError::Asset{code:"E_UPLOAD_ARGUMENT",message:"declaration envelope exceeds 96 KiB".into()});}
@@ -373,11 +381,10 @@ pub fn declare(request:Request,id:&str,body:Vec<u8>,shared:&Shared){
         let file=payload.get("file").map(|f|snapback4_core::assets::sanitize_name(f["name"].as_str().unwrap_or("")));
         let declared=payload.get("file").and_then(|f|snapback4_core::assets::declared_type(f["type"].as_str()));
         let fingerprint=snapback4_core::value::digest(&(digest,file,declared));
-        let mut engine=producing_engine(shared);
-        crate::serve::session_identity::mutation_authority(&request, shared, &engine, &principal)
+        crate::serve::session_identity::mutation_authority(&facts, shared, engine, &principal)
             .map_err(|why| snapback4_core::RuntimeError::Auth(why.message))?;
         if params.get("store_id")!=engine.store().store_identity()?.as_ref(){return Err(snapback4_core::RuntimeError::Structural{code:"E_STORE_REPLACED",message:"declaration belongs to another backend store".into()});}
         engine.declare_asset_intent(&principal,id,&fingerprint,placement)
-    })();
+    });
     match result{Ok(())=>respond(request,200,json!({"ok":true})),Err(error)=>respond(request,200,json!({"denied":refusal_json(&error.refusal())}))}
 }

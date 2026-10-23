@@ -1,0 +1,31 @@
+{
+  "baseline": {
+    "ops_s": 95.2992513407211,
+    "p50_ms": 332.38488994538784,
+    "p99_ms": 438.69005516171455
+  },
+  "fixed": {
+    "ops_s": 95.54602332796168,
+    "p50_ms": 332.6916452497244,
+    "p99_ms": 463.9128390699625
+  },
+  "baseline_binary_sha256": "17b57a6eefb1081e59fb945c135cbce5d11aef6f29bb61de508bf24654ef03da",
+  "fixed_binary_sha256": "e90e8e93a04a085f9a79ed29931477b57ef2e00ae8c41beb039160a32e45e572",
+  "durable_totals": [
+    4960,
+    4960
+  ],
+  "initial_baseline_failures": [
+    "w4-before",
+    "w4-before-repeat"
+  ],
+  "successful_baseline": "w4-before-diagnostic",
+  "diagnostic_change": "only log HTTPError response body and preserve original exception; same workload, assertions, limits and no retries",
+  "baseline_caveat": "retained pre-K0-Q binary, freshly executed; not a current-main rebuild",
+  "successful_run_order": "fixed sample, failed baseline repeat, successful baseline diagnostic sample",
+  "percent_change": {
+    "ops_s": 0.25894430834330073,
+    "p50_ms": 0.0922891845014151,
+    "p99_ms": 5.749568200024524
+  }
+}

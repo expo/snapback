@@ -58,40 +58,40 @@ pub(super) fn call(request: Request, shared: &Shared, name: &str, body: &str) {
     let principal = match principal_of(&request, shared) { Ok(p) => p.0, Err(why) => return respond(request, 401, json!({ "denied": why })) };
     let payload: Json = match serde_json::from_str(body) { Ok(Json::Object(p)) => Json::Object(p), _ => return respond(request, 400, json!({ "denied": Refusal::new("E_INPUT", "input", "an action takes { id, args }") })) };
     let Some(id) = payload.get("id").and_then(Json::as_str) else { return respond(request, 400, json!({ "denied": Refusal::new("E_INPUT", "input", "mint an id on the client and reuse it when retrying this action") })); };
-    let admitted = {
-        let mut engine = producing_engine(shared);
-        // @ref LLP 3000.000.000.001#4-development-doors — queued actions cannot inherit a retired persona's authority.
-        if let Err(why) = mutation_authority(&request, shared, &engine, &principal) {
-            drop(engine); return respond(request, 401, json!({"denied":why}));
+    let facts = RequestFacts::capture(&request);
+    let (owned_id, name, principal_copy, payload) = (id.to_owned(), name.to_owned(), principal.clone(), payload.clone());
+    let admitted = shared.engine.attempt_and_notify(move |engine, shared| {
+        let (id, principal) = (owned_id, principal_copy);
+        mutation_authority(&facts, shared, engine, &principal).map_err(|why| (401, json!({"denied":why})))?;
+        if let Err(why) = intent_store(engine, &payload) {
+            return Err((200, match response_head(engine) {
+                Ok((store_id, head)) => json!({"denied":why,"store_id":store_id,"head":head}),
+                Err(why) => json!({"denied":why}),
+            }));
         }
-        if let Err(why) = intent_store(&engine, &payload) {
-            let metadata = response_head(&mut engine);
-            drop(engine);
-            return respond(request, 200, match metadata {
-                Ok((store_id, head)) => json!({ "denied": why, "store_id": store_id, "head": head }),
-                Err(why) => json!({ "denied": why }),
-            });
-        }
+        Ok({
         let raw_args = payload.get("args").cloned().unwrap_or_else(|| json!({}));
-        match engine.replay_action(id, &principal, name, &raw_args, shared.now()) {
+        match engine.replay_action(&id, &principal, &name, &raw_args, shared.now()) {
             Ok(Some(run)) => Ok((run, true)),
             Err(error) => Err(error),
             Ok(None) => {
-                let args = engine.program(name).filter(|p| p.kind == ProgramKind::Action).ok_or_else(|| snapback4_core::RuntimeError::Structural { code: "E_ACTION_UNKNOWN", message: format!("no action {name} is declared") })
+                let args = engine.program(&name).filter(|p| p.kind == ProgramKind::Action).ok_or_else(|| snapback4_core::RuntimeError::Structural { code: "E_ACTION_UNKNOWN", message: format!("no action {name} is declared") })
                     .and_then(|p| {
                         if let Some(why)=super::dev_doors::persona_argument(shared,&p.args,&raw_args) {Err(snapback4_core::RuntimeError::Input(why.message))}
                         else {arguments(p, &raw_args)}
                     });
                 args.and_then(|args| {
                     let mut context = Context::new(&principal, args).with_wire_args(raw_args).at(shared.now());
-                    if let Ok(token) = crate::auth::bearer_token(&request) { context = context.with_session(token); }
-                    engine.request_action(name, id, context)
+                    if let Ok(token) = crate::auth::bearer_token(&facts) { context = context.with_session(token); }
+                    engine.request_action(&name, &id, context)
                 })
             }
         }
-    };
+        })
+    }, |r| r.as_ref().is_ok_and(|r| r.is_ok()));
+    let admitted = match admitted { Ok(value) => value, Err((status, reply)) => return respond(request, status, reply) };
     let (mut run, replayed) = match admitted { Ok(run) => run, Err(error) => { let why = failure(&error); return respond(request, if why.retryable { 503 } else { 200 }, json!({ "denied": why })); } };
-    shared.durable_committed(&lock(&shared.engine));
+
     let wait = query_params(request.url()).get("wait").and_then(|s| s.parse::<u64>().ok()).unwrap_or(25).min(25);
     let deadline = Instant::now() + Duration::from_secs(wait);
     while !matches!(run.state.as_str(), "done" | "failed" | "parked") && Instant::now() < deadline {
@@ -101,7 +101,8 @@ pub(super) fn call(request: Request, shared: &Shared, name: &str, body: &str) {
         }
         // The caller's session may expire or be revoked while the handler runs.
         if let Err(why) = principal_of(&request, shared) { return respond(request, 401, json!({ "denied": why })); }
-        run = match producing_engine(shared).action_request_at(id, &principal, shared.now()) { Ok(run) => run, Err(error) => return respond(request, if error.refusal().retryable { 503 } else { 200 }, json!({ "denied": failure(&error) })) };
+        let (id, principal) = (id.to_owned(), principal.clone());
+        run = match shared.engine.attempt(move |engine, shared| engine.action_request_at(&id, &principal, shared.now())) { Ok(run) => run, Err(error) => return respond(request, if error.refusal().retryable { 503 } else { 200 }, json!({ "denied": failure(&error) })) };
     }
     if let Err(why) = principal_of(&request, shared) { return respond(request, 401, json!({ "denied": why })); }
     respond(request, if matches!(run.state.as_str(), "done" | "failed" | "parked") { 200 } else { 202 }, outcome(&run, replayed));
@@ -132,16 +133,18 @@ fn claim_selected(request: Request, shared: &Shared, body: &str, registry: bool)
     let session = payload.get("session").and_then(Json::as_i64).unwrap_or(SESSION_SECONDS);
     let deadline = Instant::now() + Duration::from_secs(payload.get("wait").and_then(Json::as_u64).unwrap_or(0).min(25));
     loop {
-        let (worker, claimed) = {
-            let mut engine = producing_engine(shared);
-            let worker = match service_of_locked(&request, shared, &engine) { Ok(worker) => worker, Err(why) => return respond(request, 401, json!({ "denied": why })) };
+        let facts = RequestFacts::capture(&request);
+        let (names, action) = (names.clone(), action.map(str::to_owned));
+        let result = shared.engine.attempt_and_notify(move |engine, shared| {
+            let worker = service_of_locked(&facts, shared, engine)?;
             let claimed = match &names {
                 Some(names) => engine.claim_action_set(&worker, names, limit, lease, session, shared.now()),
-                None => engine.claim_actions(&worker, action, limit, lease, session, shared.now()),
+                None => engine.claim_actions(&worker, action.as_deref(), limit, lease, session, shared.now()),
             };
-            (worker, claimed)
-        };
-        if claimed.as_ref().is_ok_and(|runs| !runs.is_empty()) { shared.durable_committed(&lock(&shared.engine)); }
+            Ok::<_, Refusal>((worker, claimed))
+        }, |r| r.as_ref().is_ok_and(|(_, runs)| runs.as_ref().is_ok_and(|runs| !runs.is_empty())));
+        let (worker, claimed) = match result { Ok(value) => value, Err(why) => return respond(request, 401, json!({"denied":why})) };
+
         match claimed {
             Ok(claims) if claims.is_empty() && Instant::now() < deadline => {
                 let seq = lock(&shared.seq);
@@ -156,15 +159,14 @@ fn claim_selected(request: Request, shared: &Shared, body: &str, registry: bool)
 pub(super) fn settle(request: Request, shared: &Shared, path: &str, body: &str) {
     if let Some(id) = path.strip_prefix("/actions/").and_then(|path| path.strip_suffix("/cancel")).and_then(decode_id) {
         let principal = match principal_of(&request, shared) { Ok(p) => p.0, Err(why) => return respond(request, 401, json!({ "denied": why })) };
-        let answer = {
-            let mut engine = producing_engine(shared);
-            if let Err(why) = mutation_authority(&request, shared, &engine, &principal) {
-                drop(engine); return respond(request, 401, json!({"denied":why}));
-            }
-            engine.cancel_action(&id, &principal, shared.now())
-        };
+        let facts = RequestFacts::capture(&request);
+        let answer = shared.engine.attempt_and_notify(move |engine, shared| {
+            mutation_authority(&facts, shared, engine, &principal)?;
+            Ok::<_, Refusal>(engine.cancel_action(&id, &principal, shared.now()))
+        }, |r| r.as_ref().is_ok_and(|r| r.is_ok()));
+        let answer = match answer { Ok(value) => value, Err(why) => return respond(request, 401, json!({"denied":why})) };
         return match answer {
-            Ok(run) => { shared.durable_committed(&lock(&shared.engine)); respond(request, 200, json!({ "ok": true, "request": outcome(&run, false) })); }
+            Ok(run) => {  respond(request, 200, json!({ "ok": true, "request": outcome(&run, false) })); }
             Err(error) => respond(request, if error.refusal().retryable { 503 } else { 200 }, json!({ "denied": failure(&error) })),
         };
     }
@@ -173,7 +175,7 @@ pub(super) fn settle(request: Request, shared: &Shared, path: &str, body: &str) 
     let payload: Json = match serde_json::from_str(body) { Ok(Json::Object(p)) => Json::Object(p), _ => return respond(request, 400, json!({ "denied": Refusal::new("E_INPUT", "input", "settlement takes { result } or { error, retry }") })) };
     if let Some(tail) = path.strip_prefix("/actions/") {
         if let Some(id) = tail.strip_suffix("/status").and_then(decode_id) {
-            let answer = producing_engine(shared).action_status(&id, &worker, &token, shared.now());
+            let answer = shared.engine.attempt(move |engine, shared| engine.action_status(&id, &worker, &token, shared.now()));
             return match answer {
                 Ok(run) => respond(request, 200, json!({ "invocation": { "id": run.id, "attempt": run.attempt, "deadline": run.deadline, "cancelled": run.cancelled, "state": run.state, "errorCode": run.error_code } })),
                 Err(error) => respond(request, if error.refusal().retryable { 503 } else { 200 }, json!({ "denied": failure(&error) })),
@@ -186,16 +188,16 @@ pub(super) fn settle(request: Request, shared: &Shared, path: &str, body: &str) 
                     if field.is_some_and(|field| payload.get(field).is_none()) {
                         return respond(request, 400, json!({ "denied": Refusal::new("E_INPUT", "input", "a step begin requires input and a step done requires result (null is explicit)") }));
                     }
-                    let answer = {
-                        let mut engine = producing_engine(shared);
-                        match verb {
+                    let verb = verb.to_owned();
+                    let answer = shared.engine.attempt_and_notify(move |engine, shared| {
+                        match verb.as_str() {
                             "begin" => engine.begin_action_step(&id, &worker, &token, &name, payload.get("input").unwrap_or(&Json::Null), payload.get("reconcile").and_then(Json::as_bool).unwrap_or(false), shared.now()).map(|step| json!({ "step": step })),
                             "done" => engine.complete_action_step(&id, &worker, &token, &name, payload.get("result").unwrap_or(&Json::Null), shared.now()).map(|step| json!({ "ok": true, "step": step })),
                             "park" => engine.park_action_step(&id, &worker, &token, &name, payload.get("error").and_then(Json::as_str).unwrap_or("the provider outcome is unknown"), shared.now()).map(|()| json!({ "ok": true })),
                             _ => Err(snapback4_core::RuntimeError::Input("step routes are begin, done or park".into())),
                         }
-                    };
-                    shared.durable_committed(&lock(&shared.engine));
+                    }, |_| true);
+
                     return match answer {
                         Ok(answer) => respond(request, 200, answer),
                         Err(error) => respond(request, if error.refusal().retryable { 503 } else { 200 }, json!({ "denied": failure(&error) })),
@@ -228,11 +230,11 @@ pub(super) fn settle(request: Request, shared: &Shared, path: &str, body: &str) 
             if !retry && code.is_some() { ActionSettled::Refused { code: code.unwrap(), error } } else { ActionSettled::Failed { error, retry } }
         };
     let Some(id) = decode_id(id) else { return respond(request, 400, json!({ "denied": Refusal::new("E_INPUT", "input", "the action id must be percent-encoded UTF-8") })); };
-    let answer = producing_engine(shared).settle_action(&id, &worker, &token, settled, shared.now());
+    let answer = shared.engine.attempt_and_notify(move |engine, shared| engine.settle_action(&id, &worker, &token, settled, shared.now()), |r| r.is_ok());
     match answer {
         Ok(run) => {
             if !done && shared.personas { snapback4_core::diagnostic!("snapback4: action {} {} attempt {} settled {}: {}", run.action, run.id, run.attempt, run.state, serde_json::to_string(&run.error).unwrap_or_default()); }
-            shared.durable_committed(&lock(&shared.engine)); respond(request, 200, json!({ "ok": true, "request": outcome(&run, false) }));
+             respond(request, 200, json!({ "ok": true, "request": outcome(&run, false) }));
         }
         Err(error) => { let why = failure(&error); respond(request, if why.retryable { 503 } else { 200 }, json!({ "denied": why })); }
     }

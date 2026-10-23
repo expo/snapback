@@ -1,0 +1,102 @@
+{
+  "clusters": [
+    {
+      "path": "/tmp/sb4-k0qr-isolate.cjxnf22b",
+      "status_exit": 3,
+      "pid_file": false,
+      "output": "pg_ctl: no server running\n"
+    },
+    {
+      "path": "/tmp/sb4-k0qr-pg.69uay7rf",
+      "status_exit": 3,
+      "pid_file": false,
+      "output": "pg_ctl: no server running\n"
+    },
+    {
+      "path": "/tmp/sb4-k0qr-pg.7mqqvv7g",
+      "status_exit": 3,
+      "pid_file": false,
+      "output": "pg_ctl: no server running\n"
+    },
+    {
+      "path": "/tmp/sb4-pg-eval.0xbF00",
+      "status_exit": 3,
+      "pid_file": false,
+      "output": "pg_ctl: no server running\n"
+    },
+    {
+      "path": "/tmp/sb4-pg-eval.Rcacud",
+      "status_exit": 3,
+      "pid_file": false,
+      "output": "pg_ctl: no server running\n"
+    }
+  ],
+  "benchmarks": [
+    {
+      "pid": 3461750,
+      "args": [
+        "dev",
+        "--port",
+        "0",
+        "--no-watch"
+      ],
+      "label": "after-rebase",
+      "pid_exists": false
+    },
+    {
+      "pid": 3462328,
+      "args": [
+        "serve",
+        "/home/ccheever/projects/sb4-s10a/snapback4/target/k0q-w4/after-rebase/deployment",
+        "--port",
+        "0"
+      ],
+      "label": "after-rebase",
+      "pid_exists": false
+    },
+    {
+      "pid": 3468170,
+      "args": [
+        "dev",
+        "--port",
+        "0",
+        "--no-watch"
+      ],
+      "label": "before-rebase",
+      "pid_exists": false
+    },
+    {
+      "pid": 3468818,
+      "args": [
+        "serve",
+        "/home/ccheever/projects/sb4-s10a/snapback4/target/k0q-w4/before-rebase/deployment",
+        "--port",
+        "0"
+      ],
+      "label": "before-rebase",
+      "pid_exists": false
+    },
+    {
+      "pid": 3474860,
+      "args": [
+        "dev",
+        "--port",
+        "0",
+        "--no-watch"
+      ],
+      "label": "after-rebase-repeat",
+      "pid_exists": false
+    },
+    {
+      "pid": 3475389,
+      "args": [
+        "serve",
+        "/home/ccheever/projects/sb4-s10a/snapback4/target/k0q-w4/after-rebase-repeat/deployment",
+        "--port",
+        "0"
+      ],
+      "label": "after-rebase-repeat",
+      "pid_exists": false
+    }
+  ]
+}

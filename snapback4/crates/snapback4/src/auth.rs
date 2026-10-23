@@ -1,6 +1,6 @@
 //! HTTP identity admission. Password work owns a bounded KDF slot, never
 //! the engine guard. Rate keys use the socket peer, never forwarded headers.
-use crate::serve::{Shared, principal_of, refusal_json, respond_timed};
+use crate::serve::{Shared, refusal_json, respond_timed};
 use serde_json::{Value as Json, json};
 use sha2::{Digest, Sha256};
 use snapback4_core::error::Refusal;
@@ -169,7 +169,8 @@ enum Outcome {
 }
 
 pub(crate) fn error_status(error: &RuntimeError) -> u16 {
-    if matches!(error, RuntimeError::Auth(_)) { 401 }
+    if error.code() == "E_RATE_LIMIT" { 503 }
+    else if matches!(error, RuntimeError::Auth(_)) { 401 }
     else if error.is_refusal() { 200 } else { 503 }
 }
 
@@ -178,19 +179,19 @@ fn respond_refused(request: Request, shared: &Shared, why: Refusal) {
     respond_timed(request, shared, if why.retryable { 503 } else { 401 }, json!({ "denied": refusal_json(&why) }));
 }
 
-fn refused_bearer(request: &Request, shared: &Shared, engine: &snapback4_core::Engine, token: &str) -> Outcome {
-    Outcome::Refused(identity::diagnostics::refused(engine.store(), token, shared.now(), crate::serve::trusted_dev_request(request, shared)))
+fn refused_bearer(trusted: bool, shared: &Shared, engine: &snapback4_core::Engine, token: &str) -> Outcome {
+    Outcome::Refused(identity::diagnostics::refused(engine.store(), token, shared.now(), trusted))
 }
 
 /// Translate only after the identity operation's own transactional check failed.
 /// A still-live but wrong-kind credential keeps its endpoint-specific explanation.
-fn credential_result(request: &Request, shared: &Shared, engine: &snapback4_core::Engine, token: &str,
+fn credential_result(trusted: bool, shared: &Shared, engine: &snapback4_core::Engine, token: &str,
     result: Result<Outcome, RuntimeError>) -> Result<Outcome, RuntimeError> {
     match result {
         Err(RuntimeError::Auth(message)) => {
             let sample = identity::ServiceSample { now: shared.now(), supervisor_revision: shared.worker_revision.load(Ordering::Acquire) };
             if identity::resolve_supervised(engine.store(), token, sample)?.is_none() {
-                Ok(refused_bearer(request, shared, engine, token))
+                Ok(refused_bearer(trusted, shared, engine, token))
             } else { Ok(Outcome::Refused(Refusal::new("E_AUTH", "auth", message).guide("personas"))) }
         }
         result => result,
@@ -206,7 +207,7 @@ pub(crate) fn parse_bearer(value: &str) -> Option<&str> {
     (scheme.eq_ignore_ascii_case("Bearer") && words.next().is_none()).then_some(token)
 }
 
-pub(crate) fn bearer_token(request: &Request) -> Result<&str, RuntimeError> {
+pub(crate) fn bearer_token(request: &impl crate::serve::RequestInfo) -> Result<&str, RuntimeError> {
     let mut headers = request
         .headers()
         .iter()
@@ -223,6 +224,13 @@ pub(crate) fn bearer_token(request: &Request) -> Result<&str, RuntimeError> {
         .ok_or_else(|| RuntimeError::Auth("send Authorization: Bearer <token>".into()))
 }
 
+fn enabled(engine: &snapback4_core::Engine, path: &str) -> Result<(), RuntimeError> {
+    let auth = &engine.schema().auth;
+    if (path == "/auth/guest" && !auth.guests) || (matches!(path, "/auth/signup" | "/auth/login") && !auth.password) {
+        Err(RuntimeError::Auth("this identity method is not enabled in schema.q".into()))
+    } else { Ok(()) }
+}
+
 fn perform(
     request: &Request,
     shared: &Shared,
@@ -231,103 +239,73 @@ fn perform(
     password: &str,
     scope: identity::SessionScope,
 ) -> Result<Outcome, RuntimeError> {
-    let enabled = |engine:&snapback4_core::Engine| {
-        let auth=&engine.schema().auth;
-        if (path=="/auth/guest" && !auth.guests) || (matches!(path,"/auth/signup"|"/auth/login") && !auth.password) {
-            Err(RuntimeError::Auth("this identity method is not enabled in schema.q".into()))
-        } else {Ok(())}
-    };
-    enabled(&crate::serve::producing_engine(shared))?;
-    match path {
+    let path = path.to_owned();
+    let check_path = path.clone();
+    shared.engine.attempt(move |engine, _| enabled(engine, &check_path))?;
+    let trusted = crate::serve::trusted_dev_request(request, shared);
+    match path.as_str() {
         "/auth/signup" => {
-            #[cfg(test)]
-            crate::serve::test_work(&shared.auth_work);
+            #[cfg(test)] crate::serve::test_work(&shared.auth_work);
             let prepared = identity::prepare_signup(email, password)?;
-            let engine = crate::serve::producing_engine(shared);
-            enabled(&engine)?;
-            identity::finish_signup_scoped(
-                engine.store(),
-                prepared,
-                shared.now(),
-                &mut shared.entropy.lock().unwrap(),
-                scope,
-            )
-            .map(Outcome::Session)
+            shared.engine.attempt(move |engine, shared| {
+                enabled(engine, &path)?;
+                identity::finish_signup_scoped(engine.store(), prepared, shared.now(), &mut shared.entropy.lock().unwrap(), scope).map(Outcome::Session)
+            })
         }
         "/auth/login" => {
             identity::password_bound(password)?;
-            let found = {
-                let engine = crate::serve::producing_engine(shared);
-                enabled(&engine)?;
-                identity::credential(engine.store(), email)?
-            };
-            #[cfg(test)]
-            crate::serve::test_work(&shared.auth_work);
+            let email = email.to_owned();
+            let found = shared.engine.attempt(move |engine, _| {
+                enabled(engine, "/auth/login")?;
+                identity::credential(engine.store(), &email)
+            })?;
+            #[cfg(test)] crate::serve::test_work(&shared.auth_work);
             identity::verify_password(found.as_ref(), password)?;
-            let engine = crate::serve::producing_engine(shared);
-            enabled(&engine)?;
-            identity::finish_login_scoped(
-                engine.store(),
-                found.expect("verified account"),
-                shared.now(),
-                scope,
-            )
-            .map(Outcome::Session)
+            shared.engine.attempt(move |engine, shared| {
+                enabled(engine, "/auth/login")?;
+                identity::finish_login_scoped(engine.store(), found.expect("verified account"), shared.now(), scope).map(Outcome::Session)
+            })
         }
-        "/auth/guest" => {
-            let engine = crate::serve::producing_engine(shared);
-            enabled(&engine)?;
-            identity::guest_scoped(
-                engine.store(),
-                shared.now(),
-                &mut shared.entropy.lock().unwrap(),
-                scope,
-            )
-            .map(Outcome::Session)
-        }
-        "/auth/narrow" => {
-            let token = bearer_token(request)?;
-            let mut engine = crate::serve::producing_engine(shared);
-            let result = identity::narrow_session(engine.store_mut(), token, || identity::ServiceSample {
-                now: shared.now(), supervisor_revision: shared.worker_revision.load(Ordering::Acquire),
-            }).map(Outcome::Session);
-            credential_result(request, shared, &engine, token, result)
-        }
-        "/auth/refresh" => {
-            let token = bearer_token(request)?;
-            let engine = crate::serve::producing_engine(shared);
-            let sample = identity::ServiceSample { now: shared.now(), supervisor_revision: shared.worker_revision.load(std::sync::atomic::Ordering::Acquire) };
-            if identity::resolve_supervised(engine.store(), &token, sample)?.is_none() {
-                return Ok(refused_bearer(request, shared, &engine, token));
-            }
-            // @ref LLP 3000.009#5.3 — only the supervisor replaces its bearer;
-            // returning a refresh successor would escape its live log redactors.
-            // Match family, not principal: a manual seat with the same name
-            // remains refreshable. The engine guard also owns supervisor writes.
-            let supervised = identity::is_supervised_family(engine.store(),
-                &format!("{:x}", Sha256::digest(token.as_bytes())))?;
-            if supervised { return Ok(Outcome::SupervisedRefresh); }
-            #[cfg(test)]
-            crate::serve::test_work(&shared.auth_work);
-            let result = identity::rotate_session(engine.store(), token, shared.now())
-                .map(|session| session.map(Outcome::Session).unwrap_or_else(|| refused_bearer(request, shared, &engine, token)));
-            credential_result(request, shared, &engine, token, result)
-        }
+        "/auth/guest" => shared.engine.attempt(move |engine, shared| {
+            enabled(engine, "/auth/guest")?;
+            identity::guest_scoped(engine.store(), shared.now(), &mut shared.entropy.lock().unwrap(), scope).map(Outcome::Session)
+        }),
         "/auth/logout-all" => {
-            let principal = match principal_of(request, shared) {
-                Ok(principal) => principal,
-                Err(why) => return Ok(Outcome::Refused(why)),
-            };
-            let engine = crate::serve::producing_engine(shared);
-            identity::revoke_principal(engine.store(), &principal.0).map(Outcome::LogoutAll)
+            let admission = crate::serve::session_identity::Admission::capture(request, shared);
+            shared.engine.attempt(move |engine, shared| {
+                let principal = match admission.and_then(|admission| admission.resolve(shared, engine)) {
+                    Ok(principal) => principal,
+                    Err(why) => return Ok(Outcome::Refused(why)),
+                };
+                identity::revoke_principal(engine.store(), &principal.0).map(Outcome::LogoutAll)
+            })
         }
         _ => {
-            let token = bearer_token(request)?;
-            let mut engine = crate::serve::producing_engine(shared);
-            let result = identity::logout_session(engine.store_mut(), token, || shared.now()).map(|()| Outcome::Logout);
-            credential_result(request, shared, &engine, token, result)
+            let token = bearer_token(request)?.to_owned();
+            shared.engine.attempt(move |engine, shared| {
+                let result = match path.as_str() {
+                    "/auth/narrow" => identity::narrow_session(engine.store_mut(), &token, || identity::ServiceSample {
+                        now: shared.now(), supervisor_revision: shared.worker_revision.load(Ordering::Acquire),
+                    }).map(Outcome::Session),
+                    "/auth/refresh" => {
+                        let sample = identity::ServiceSample { now: shared.now(), supervisor_revision: shared.worker_revision.load(Ordering::Acquire) };
+                        if identity::resolve_supervised(engine.store(), &token, sample)?.is_none() {
+                            return Ok(refused_bearer(trusted, shared, engine, &token));
+                        }
+                        // @ref LLP 3000.009#5.3 — supervised families cannot escape the supervisor's redactors through refresh.
+                        if identity::is_supervised_family(engine.store(), &format!("{:x}", Sha256::digest(token.as_bytes())))? {
+                            return Ok(Outcome::SupervisedRefresh);
+                        }
+                        #[cfg(test)] crate::serve::test_work(&shared.auth_work);
+                        identity::rotate_session(engine.store(), &token, shared.now()).map(|session| session.map(Outcome::Session).unwrap_or_else(|| refused_bearer(trusted, shared, engine, &token)))
+                    }
+                    _ => identity::logout_session(engine.store_mut(), &token, || shared.now()).map(|()| Outcome::Logout),
+                };
+                credential_result(trusted, shared, engine, &token, result)
+            })
         }
     }
+
 }
 
 #[cfg(test)]
@@ -398,4 +376,23 @@ mod tests {
         assert_eq!(a.attempts.lock().unwrap()["email:new@example.com"].1, 2);
         assert!(a.attempt("3", None, now));
     }
+}
+
+/// Public identity options use the same bounded writer and typed refusals.
+pub(crate) fn config(request: Request, shared: &Shared) {
+    let config = shared.engine.call(|engine, shared| {
+        let environment = if shared.personas { "development" }
+            else if engine.store().deployment_environment().ok().flatten().as_deref() == Some("staging") { "staging" } else { "production" };
+        (engine.schema().auth.clone(), environment)
+    });
+    let (auth, environment) = match config {
+        Ok(config) => config,
+        Err(why) => return respond_timed(request, shared, 503, json!({"denied":why})),
+    };
+    // @ref LLP 3000.011.003.000.000#1 — an opt-in proof marker asserts the directly bound server, without granting authority.
+    let mut config = json!({ "guests": auth.guests, "password": auth.password, "development": shared.personas, "devDoors": shared.dev_doors(), "environment": environment });
+    if let Ok(id) = std::env::var("SNAPBACK4_PROOF_ID") && !id.is_empty() {
+        config["proof_id"] = json!(id);
+    }
+    respond_timed(request, shared, 200, config);
 }

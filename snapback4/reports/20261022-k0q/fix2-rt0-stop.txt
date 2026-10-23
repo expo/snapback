@@ -1,0 +1,23 @@
+running 3 tests
+test serve::tests::round_trip_tests::round_trips_postgres ... ignored, requires private Postgres; scripts/test-postgres.sh
+test cli_flags::surface_parser_tests::every_flag_round_trips_through_options_with_its_declared_arity ... ok
+snapback4 host: uploads=2; file descriptors (this process): soft=65536 hard=1048576; descriptor_exhaustions=0; startup soft=1024 target=65536
+test serve::tests::round_trip_tests::round_trips_sqlite ... FAILED
+
+failures:
+
+---- serve::tests::round_trip_tests::round_trips_sqlite stdout ----
+RT0 sqlite warm: {"action_session_w1":39,"keyed_first":0,"narrowed_argument":8,"one_membership":0,"rate_limited":0,"replay_hit":0,"unauthenticated":0,"unkeyed_increment":0,"unknown_operation":8,"unknown_token":5,"w1_point":31,"w2_newest20":31}
+RT0 sqlite cold/first-use: {"action_session_w1":39,"keyed_first":0,"narrowed_argument":8,"one_membership":0,"rate_limited":0,"replay_hit":0,"unauthenticated":0,"unkeyed_increment":0,"unknown_operation":8,"unknown_token":5,"w1_point":32,"w2_newest20":31}
+
+thread 'serve::tests::round_trip_tests::round_trips_sqlite' (408253) panicked at crates/snapback4/src/../tests/round_trips/mod.rs:253:9:
+sqlite keyed_first: table 87, measured 0: lower the table
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    serve::tests::round_trip_tests::round_trips_sqlite
+
+test result: FAILED. 1 passed; 1 failed; 1 ignored; 0 measured; 541 filtered out; finished in 1.59s
+
+error: test failed, to rerun pass `-p snapback4 --bin snapback4`

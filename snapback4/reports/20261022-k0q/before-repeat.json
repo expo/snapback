@@ -1,0 +1,47 @@
+{
+  "label": "before-repeat",
+  "binary_sha256": "17b57a6eefb1081e59fb945c135cbce5d11aef6f29bb61de508bf24654ef03da",
+  "method": "W4 increment over serve, WAL/FULL local disk, 32 disjoint writers; 160 warmup then 3 x 1600 closed-loop operations, no receipts, reduced fixture of 32 counters/1 room",
+  "trials": [
+    {
+      "ops": 1600,
+      "elapsed_s": 16.236975820735097,
+      "ops_s": 98.54051749937035,
+      "p50_ms": 322.59576395154,
+      "p99_ms": 343.7967039644718,
+      "max_ms": 345.0907040387392
+    },
+    {
+      "ops": 1600,
+      "elapsed_s": 16.707196528092027,
+      "ops_s": 95.76711432763167,
+      "p50_ms": 333.3751671016216,
+      "p99_ms": 423.7850047647953,
+      "max_ms": 431.0852959752083
+    },
+    {
+      "ops": 1600,
+      "elapsed_s": 16.826521169394255,
+      "ops_s": 95.08798544230513,
+      "p50_ms": 334.3726173043251,
+      "p99_ms": 357.53619112074375,
+      "max_ms": 358.56315679848194
+    }
+  ],
+  "counter": {
+    "columns": [
+      "n"
+    ],
+    "header": "sql: developer's own store /home/ccheever/projects/sb4-s10a/snapback4/target/k0q-w4/before-repeat/deployment/store.sqlite \u2014 active records; read-only, not rule-filtered",
+    "inspection": "active records",
+    "limit": 200,
+    "more": false,
+    "rows": [
+      {
+        "n": 4960
+      }
+    ],
+    "ruleFiltered": false
+  },
+  "all_owned_processes_stopped": true
+}

@@ -7,6 +7,7 @@ use snapback4_core::{Context, engine::refusal_trace::RefusalTrace};
 use std::{cell::RefCell, sync::{Arc, atomic::Ordering}};
 
 thread_local! { static CURRENT: RefCell<Option<Evidence>> = const { RefCell::new(None) }; }
+#[derive(Clone)]
 struct Evidence {
     recent: Recent,
     operation: String,
@@ -230,4 +231,22 @@ mod roster_tests {
             assert_eq!(positive, program.program.name != "negative", "{}: {:?}",program.program.name,program.program.body);
         }
     }
+}
+
+/// Evidence follows the request's owned command and returns before encoding.
+pub(in crate::serve) struct WorkerEvidence(Evidence);
+pub(in crate::serve) fn worker_sample() -> Option<WorkerEvidence> {
+    CURRENT.with(|slot| slot.borrow().clone().map(WorkerEvidence))
+}
+pub(in crate::serve) fn run_worker<T>(sample: Option<WorkerEvidence>, run: impl FnOnce() -> T) -> (T, Option<WorkerEvidence>) {
+    let Some(WorkerEvidence(evidence)) = sample else { return (run(), None); };
+    CURRENT.with(|slot| { assert!(slot.borrow().is_none()); *slot.borrow_mut() = Some(evidence); });
+    struct Clear;
+    impl Drop for Clear { fn drop(&mut self) { CURRENT.with(|slot| { slot.take(); }); } }
+    let _clear = Clear;
+    let value = run();
+    (value, CURRENT.with(|slot| slot.take()).map(WorkerEvidence))
+}
+pub(in crate::serve) fn merge_worker(evidence: Option<WorkerEvidence>) {
+    if let Some(WorkerEvidence(evidence)) = evidence { CURRENT.with(|slot| *slot.borrow_mut() = Some(evidence)); }
 }

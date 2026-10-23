@@ -1,4 +1,5 @@
-//! FIFO admission to the single writer: a chunk cannot overtake a waiting request.
+//! FIFO coordination gates and test fixture guards. Production writer
+//! admission lives in serve_committer.rs.
 use std::{collections::BTreeMap, ops::{Deref, DerefMut}, sync::{Arc, Condvar, LockResult, Mutex, MutexGuard, PoisonError}};
 use std::time::{Duration, Instant};
 

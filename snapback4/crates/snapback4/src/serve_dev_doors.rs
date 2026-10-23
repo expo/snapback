@@ -48,22 +48,19 @@ pub(super) fn seed(request: Request, shared: &Shared, body: &str) {
         Ok(Json::Array(rows)) => rows,
         _ => return refuse(request, Refusal::new("E_INPUT", "input", "seed takes a JSON array of {table, row}")),
     };
-    let mut engine = lock(&shared.engine);
-    if let Err(why) = shared.dev_authority(&engine) { drop(engine); return respond_timed(request, shared, 403, json!({"denied":refusal_json(&why)})); }
-    let now = shared.now();
-    let typed = match typed_rows(engine.schema(), &rows, now) {
-        Ok(typed) => typed,
-        Err(refusal) => { drop(engine); return refuse(request, refusal); }
-    };
-    let outcome = engine.seed_at(typed, now);
-    drop(engine);
+    let outcome = shared.engine.attempt(move |engine, shared| {
+        shared.dev_authority(engine).map_err(|why| (403, why))?;
+        let now = shared.now();
+        let typed = typed_rows(engine.schema(), &rows, now).map_err(|why| (400, why.guide("personas")))?;
+        let count = engine.seed_at(typed, now).map_err(|error| (200, seed_refusal(error)))?;
+        shared.durable_committed(engine);
+        Ok::<_, (u16, Refusal)>(count)
+    });
     match outcome {
-        Ok(count) => {
-            shared.durable_committed(&lock(&shared.engine));
-            respond_timed(request, shared, 200, json!({ "seeded": count }));
-        }
-        Err(error) => respond_timed(request, shared, 200, json!({ "denied": refusal_json(&seed_refusal(error)) })),
+        Ok(count) => respond_timed(request, shared, 200, json!({"seeded":count})),
+        Err((status, why)) => respond_timed(request, shared, status, json!({"denied":why})),
     }
+
 }
 
 /// `/seed` rows checked against the served schema and typed, or the first problem.
@@ -145,23 +142,15 @@ pub(super) fn reset(request: Request, shared: &Shared, body: &str) {
     // the order clock advance and worker claims use.
     let advance = lock(&shared.maintenance).advance.clone();
     let _advance = lock(&advance);
-    let mut engine = lock(&shared.engine);
-    if let Err(why) = shared.dev_authority(&engine) { drop(engine); return respond_timed(request, shared, 403, json!({"denied":refusal_json(&why)})); }
+    let result = shared.engine.attempt(move |engine, shared| {
+
+    shared.dev_authority(engine).map_err(|why| (403, why))?;
     let mut clock = lock(&shared.clock).clone();
-    if asked.clock && let Err(refusal) = clock.reset() { drop(engine); return refuse(request, refusal); }
+    if asked.clock { clock.reset().map_err(|why| (400, why))?; }
     let now = clock.now();
     // Resolve against the prospective reset clock before changing any durable state.
-    let typed = match typed_rows(engine.schema(), &asked.seed, now) {
-        Ok(typed) => typed,
-        Err(refusal) => { drop(engine); return refuse(request, refusal); }
-    };
-    let reset = match engine.dev_reset_at(typed, now) {
-        Ok(reset) => reset,
-        Err(error) => {
-            drop(engine);
-            return respond_timed(request, shared, 200, json!({ "denied": refusal_json(&seed_refusal(error)) }));
-        }
-    };
+    let typed = typed_rows(engine.schema(), &asked.seed, now).map_err(|why| (400, why))?;
+    let reset = engine.dev_reset_at(typed, now).map_err(|error| (200, seed_refusal(error)))?;
     if asked.clock { *lock(&shared.clock) = clock; }
     *lock(&shared.dev_reset_store) = Some(reset.store_id.clone());
     // The reset committed a new identity and a new authority clock. Replace,
@@ -171,13 +160,18 @@ pub(super) fn reset(request: Request, shared: &Shared, body: &str) {
     // `/dev/status` forget the old identity. Wake then names the new store,
     // so every held poll returns and each client sees the replacement.
     let sites = lock(&shared.bound).refusal_sites.clone();
-    lock(&shared.readers).replace(&engine, &sites);
+    lock(&shared.readers).replace(engine, &sites);
     lock(&shared.adoption).store_id = reset.store_id.clone();
     if let Ok(reader) = snapback4_core::engine::following_history::Reader::new() { *lock(&shared.following) = reader; }
     *lock(&shared.change_answers) = Default::default();
-    shared.durable_committed(&engine);
+    shared.durable_committed(engine);
     let generation = engine.generation();
-    drop(engine);
+    Ok::<_, (u16, Refusal)>((reset, generation))
+    });
+    let (reset, generation) = match result {
+        Ok(value) => value,
+        Err((status, why)) => return respond_timed(request, shared, status, json!({"denied":why})),
+    };
     let assets = reset.assets.len();
     if let Err(error) = reset.assets.remove_files() { snapback4_core::diagnostic!("snapback4 dev: reset left asset bytes behind: {error}"); }
     let now = shared.now();

@@ -258,7 +258,7 @@ fn maintenance_writer_admission_under_a_request_sample_is_wait() {
         sample.run(|| {
             // The admission used by maintenance::engine_work, also called
             // synchronously by /dev/clock/advance inside its request sample.
-            drop(shared.engine.background());
+            shared.engine.background_call(|_, _, _| Ok::<_, snapback4_core::RuntimeError>(())).unwrap();
             reply = format!("{}\r\n\r\n", latency::header().unwrap());
             latency::finished(false);
         });

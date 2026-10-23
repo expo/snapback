@@ -720,8 +720,9 @@ expired, or that the viewer may not read answers 404 E_ASSET_UNKNOWN.
 For one-view React photos, own the handle above the list (`guide client`).
 `once`: the second fetch by the same principal is 410 E_ASSET_VIEWED, and
 the uploader is counted after placement; before placement the uploader may
-preview. A Range request against a once asset is refused before consuming a
-view (E_ASSET_RANGE). Unsatisfiable ordinary ranges return HTTP 416. Every
+preview. The host durably reserves the view before releasing bytes; a failed
+transport after reservation still consumes that view. A Range request against a
+once asset is refused before consuming a view (E_ASSET_RANGE). Unsatisfiable ordinary ranges return HTTP 416. Every
 asset response is `private, no-store`, so a browser must reauthorize each
 viewer. At most two uploads run at once, and their disk writes happen outside
 the engine mutex. client.upload transfers bytes online and never queues them; device-owned uploadAndPlace/useUpload keeps durable offline capture and placement custody (below).

@@ -38,40 +38,34 @@ pub(super) fn serve(request: Request, shared: &Shared, operation: &str, body: &s
             );
         }
     };
+    let facts = RequestFacts::capture(&request);
+    let operation = operation.to_owned();
+    let (status, bytes, pinned) = shared.engine.attempt(move |engine, shared| {
+        let operation = operation.as_str();
     // Lock order is engine then controller. Authentication is checked again at
     // the same engine incarnation that owns the source read transaction.
-    let mut engine = lock(&shared.engine);
+
     crate::release_requests::stamp(engine.generation());
-    if let Err(r) = mutation_authority(&request, shared, &engine, &principal) {
-        drop(engine);
-        return respond_timed(request, shared, 401, json!({"denied":refusal_json(&r)}));
+    if let Err(r) = mutation_authority(&facts, shared, engine, &principal) {
+
+        return (401, json!({"denied":refusal_json(&r)}).to_string(), false);
     }
     let Some(program) = engine.program(operation) else {
-        drop(engine);
-        return respond_timed(request, shared, 200, json!({"phase":"restart"}));
+
+        return (200, json!({"phase":"restart"}).to_string(), false);
     };
     let Some(plan) = projection::plan(engine.schema(), program) else {
-        drop(engine);
-        return respond_timed(
-            request,
-            shared,
-            200,
-            json!({"phase":"refused","code":"E_FOLLOWING_DECLARATION"}),
-        );
+
+        return (200, json!({"phase":"refused","code":"E_FOLLOWING_DECLARATION"}).to_string(), false);
     };
     let binding = plan.binding;
     let mut args = BTreeMap::new();
     let Some(fields) = payload.get("args").and_then(Json::as_object) else {
-        drop(engine);
-        return respond_timed(
-            request,
-            shared,
-            400,
-            json!({"phase":"refused","code":"E_FOLLOWING_INPUT"}),
-        );
+
+        return (400, json!({"phase":"refused","code":"E_FOLLOWING_INPUT"}).to_string(), false);
     };
     if let Some(why)=super::dev_doors::persona_argument(shared,&program.args,&Json::Object(fields.clone())) {
-        drop(engine);return respond_timed(request,shared,400,json!({"phase":"refused","code":"E_FOLLOWING_INPUT","message":why.message,"denied":why}));
+        return (400, json!({"phase":"refused","code":"E_FOLLOWING_INPUT","message":why.message,"denied":why}).to_string(), false);
     }
     for (name, value) in fields {
         let Some(value) = program
@@ -79,13 +73,8 @@ pub(super) fn serve(request: Request, shared: &Shared, operation: &str, body: &s
             .get(name)
             .and_then(|kind| wire::from_json(kind, value).ok())
         else {
-            drop(engine);
-            return respond_timed(
-                request,
-                shared,
-                400,
-                json!({"phase":"refused","code":"E_FOLLOWING_INPUT"}),
-            );
+
+            return (400, json!({"phase":"refused","code":"E_FOLLOWING_INPUT"}).to_string(), false);
         };
         args.insert(name.clone(), value);
     }
@@ -97,13 +86,13 @@ pub(super) fn serve(request: Request, shared: &Shared, operation: &str, body: &s
         .unwrap_or("unit");
     let answer = if action == "open" {
         reader
-            .opening_projected(&engine, operation, Context::new(&principal, args).at(now))
+            .opening_projected(engine, operation, Context::new(&principal, args).at(now))
             .map(|o| json!({"opening":o.request.opening}).to_string())
     } else if let Some(opening) = payload.get("opening").and_then(Json::as_str) {
         if action == "cancel" {
             reader
                 .cancel_projected(
-                    &mut engine,
+                    engine,
                     opening,
                     operation,
                     Context::new(&principal, args).at(now),
@@ -119,7 +108,7 @@ pub(super) fn serve(request: Request, shared: &Shared, operation: &str, body: &s
             match (mounted, seen) {
                 (Ok(mounted), Ok(seen)) => reader
                     .refresh_slice_metered(
-                        &mut engine,
+                        engine,
                         opening,
                         operation,
                         Context::new(&principal, args).at(now),
@@ -147,7 +136,7 @@ pub(super) fn serve(request: Request, shared: &Shared, operation: &str, body: &s
             };
             reader
                 .request_projected(
-                    &mut engine,
+                    engine,
                     q,
                     Context::new(&principal, args).at(now),
                     operation,
@@ -160,11 +149,13 @@ pub(super) fn serve(request: Request, shared: &Shared, operation: &str, body: &s
         Ok(json!({"phase":"refused","code":"E_FOLLOWING_INPUT"}).to_string())
     };
     drop(reader);
-    drop(engine);
-    let bytes =
-        answer.unwrap_or_else(|e| json!({"phase":"refused","code":e.refusal().code}).to_string());
+
+    let bytes = answer.unwrap_or_else(|e| json!({"phase":"refused","code":e.refusal().code}).to_string());
+    (200, bytes, true)
+    });
+    if !pinned { return respond_timed(request, shared, status, serde_json::from_str::<Json>(&bytes).expect("owned reply")); }
     // Do not parse/re-encode a pinned response or attach a fresh store counter.
-    let mut response = Response::from_string(bytes);
+    let mut response = Response::from_string(bytes).with_status_code(status);
     if let Some(header)=crate::serve::generation_header(){response.add_header(header);}
     response.add_header(Header::from_bytes("Content-Type", "application/json").unwrap());
     response.add_header(Header::from_bytes("Cache-Control", "private, no-store").unwrap());

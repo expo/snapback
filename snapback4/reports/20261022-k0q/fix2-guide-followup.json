@@ -1,0 +1,19 @@
+{
+  "test_pin_commit": "40f4811534",
+  "initial": {
+    "passed": 126,
+    "failed": 1,
+    "log": "/tmp/sb4-k0q-fix2-final/guide.log"
+  },
+  "isolated_failure": {
+    "exit": 101,
+    "test": "definitions::w11_every_registered_code_quotes_its_definition",
+    "log": "/tmp/sb4-k0q-fix2-final/guide-isolated-0.log"
+  },
+  "repair": "Add explicit defining and recovery/boundary facts for both new codes; retain all registry equality, duplication, paragraph and recovery assertions",
+  "final": {
+    "passed": 127,
+    "failed": 0,
+    "log": "/tmp/sb4-k0q-fix2-final/guide-fixed.log"
+  }
+}

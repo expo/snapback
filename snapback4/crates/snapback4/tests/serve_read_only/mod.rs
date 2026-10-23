@@ -266,13 +266,14 @@ fn request_manifest_construction_counter_alternates_on_reused_engine() {
     let session=narrowed(&h);
     for read in [true,true,false,true,false] {
         let token=if read {session["token"].as_str().unwrap()} else {"full"};
-        let before=snapback4_core::engine::delivery::manifest_constructions();
+        let constructions = || snapback4_core::engine::delivery::manifest_constructions() + h.shared.engine.call(|_, _| snapback4_core::engine::delivery::manifest_constructions()).unwrap();
+        let before=constructions();
         let request=tiny_http::TestRequest::new().with_method(Method::Post).with_path("/q/raw")
             .with_body("{\"args\":{}}")
             .with_header(Header::from_bytes("Host","localhost").unwrap())
             .with_header(Header::from_bytes("Authorization",format!("Bearer {token}")).unwrap());
         handle(request.into(),&h.shared);
-        assert_eq!(snapback4_core::engine::delivery::manifest_constructions()-before,u64::from(!read), "disk={disk}, read={read}");
+        assert_eq!(constructions()-before,u64::from(!read), "disk={disk}, read={read}");
     }
     }
     std::fs::remove_dir_all(dir).unwrap();

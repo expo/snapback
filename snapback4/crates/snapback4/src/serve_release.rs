@@ -35,18 +35,17 @@ pub(super) fn apply(
             items_after,
             event,
         } => {
-            let mut engine=lock(&shared.engine);
+            shared.engine.attempt(move |engine, shared| {
             let mut status=engine.store_mut().release_status(after,items_after.as_deref(),event).map_err(|e|e.to_string())?;
             status["clock"]=json!({"now":shared.now(),"offsetMs":lock(&shared.clock).offset()});
             Ok(status)
+            })
         },
         Command::Prune {
             confirm,
             expected_revision,
         } => {
-            let mut result = lock(&shared.engine)
-                .store_mut()
-                .prune_dormant(confirm, Some(expected_revision))
+            let mut result = shared.engine.attempt(move |engine, _| engine.store_mut().prune_dormant(confirm, Some(expected_revision)))
                 .map_err(|e| e.to_string())?;
             if let Some(items) = result["items"].as_array_mut() {
                 items.truncate(16);
@@ -120,7 +119,7 @@ pub(super) fn apply(
                 operation: if rollback { "rollback" } else { "deploy" }.into(),
             };
             let _requests=shared.release_requests.write();
-            let mut engine = lock(&shared.engine);
+            shared.engine.attempt(move |engine, shared| {
             lock(&shared.readers).begin_adoption(&bound);
             let generation = match engine.adopt_release_at(
                 bound.schema.clone(),
@@ -139,8 +138,8 @@ pub(super) fn apply(
             test_work(&shared.release_committed);
             engine.set_prepared_native(prepared.module);
             engine.set_presence(Some(shared.presence.clone()));
-            shared.refresh_time_audience_clock(&engine, shared.now());
-            lock(&shared.readers).replace(&engine, &bound.refusal_sites);
+            shared.refresh_time_audience_clock(engine, shared.now());
+            lock(&shared.readers).replace(engine, &bound.refusal_sites);
             {
                 let mut active = lock(&shared.bound);
                 let mut advertised = lock(&shared.generation);
@@ -154,7 +153,7 @@ pub(super) fn apply(
                 shared.worker_revision.fetch_add(1, Ordering::Release);
             }
             crate::lifecycle::generation(generation);
-            shared.publish_engine(&engine);
+            shared.publish_engine(engine);
             // Completion I/O can fail, but never abandons the new runtime.
             pointer.finish(generation)?;
             snapback4_core::diagnostic!(
@@ -163,6 +162,7 @@ pub(super) fn apply(
             Ok(
                 json!({"release":release,"generation":generation,"revision":expected_revision+1,"hot":true,"adoption":engine.store().adoption_report().compact(),"details":engine.store().adoption_report().summary(),"backfills":engine.store().adoption_report().backfills}),
             )
+            })
         }
     }
 }

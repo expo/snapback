@@ -1,5 +1,5 @@
 //! The CLI's local service-seat door. This capability never comes from a bearer session.
-use super::{Shared, single_header, authority_host, producing_engine, respond_with_cors};
+use super::{Shared, single_header, authority_host, respond_with_cors};
 use snapback4_core::{error::Refusal, identity::{self, Session}};
 use std::{io::{self, Read, Seek, SeekFrom, Write}, net::TcpStream, path::{Path, PathBuf}, time::Duration};
 use serde_json::{Value as Json, json};
@@ -105,16 +105,13 @@ pub(super) fn handle(mut request: Request, shared: &Shared) {
     if !authority.consume(&client, &server, &binding, proof.as_deref().unwrap(), std::time::Instant::now()) {
         return denied(request);
     }
-    let result = {
-        // Use the same writer and identity routine as offline minting. Sample
-        // the current host clock, as session resolution does (including dev jumps).
-        let engine = producing_engine(shared);
+    let result = shared.engine.attempt(move |engine, shared| {
         shared.owner.as_ref().expect("authorized owner").path().and_then(|_| {
             // @ref LLP 3000.000.000.001#8-wave-18-developer-loop-amendment-dx4 — live mint and resolution use the same host clock.
             let now = shared.now();
             identity::service_session(engine.store(), &mint.service, now, mint.days)
         })
-    };
+    });
     let reply = match result {
         Ok(session) => json!({"session": session}),
         Err(error) => {
