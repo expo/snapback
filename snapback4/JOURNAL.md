@@ -104700,3 +104700,26 @@ the nontransactional later-command sentinel. All 19 literal/serving tests
 pass. Production code and the passing 1/1/1 warm PG ratchets are unchanged.
 The top-level full-core census is 1,168 passes across 47 targets; the earlier
 checkpoint's 1,169/48 included one successful nested child-test result twice.
+
+## 2026-10-24 — G4a final qualification and confirmed shutdown
+
+Completed the workspace build, full core (1,168 top-level passes), full binary
+(580 passes), both RT0 ratchets, five collector witnesses, composed store
+oracle, 19 literal/serving faults and reference check. Warm PG W1/W2/W3 is
+1/1/1; SQLite is 5/5/132. No other warm class increases; first-use costs remain
+disclosed in reports/20261023-g4a-reads/REPORT.md and its numeric evidence.
+
+The full stock Postgres sweep completes all stages, including 64 authority
+witnesses, 237 adapter / 25 ownership / 60 evolution tests, 22 five-backend
+corpus tests, 12+4 difftest tests and the complete public CLI/S1 recount.
+Its exit 1 retains the known evaluator 40001 and the initial stale second-W1-
+flight expectation; the latter is fixed and all 19 affected cases pass.
+No guard, retry, skip or allowance was raised. The existing race ticket records
+this occurrence; there is no new failing product witness from this lane.
+
+Primary private PG16.15 master 4057748 and public-witness master 481445 are
+stopped and independently confirmed: status 3, no PID file, no process. The
+monitor exits; all 826 recorded lane PIDs and the private-directory/target
+census show none left. Final free space is about 115 GiB, above the 40 GB
+stop threshold. Raw logs/data remain outside Git. Local lane commits keep
+the exact RT6 base 2fdab64882; final qualification details are in the report.

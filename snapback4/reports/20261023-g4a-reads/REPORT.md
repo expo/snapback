@@ -161,8 +161,8 @@ bearers with malformed JSON/unknown operations (one PG discovery flight,
 no metadata). No warm class allowance increased. RT6 was independently
 checked during qualification and remains exactly the requested base.
 
-The remaining private Postgres sweep, final focused checks and confirmed
-PID shutdown are recorded below when complete.
+The complete sweep disposition, affected reruns and confirmed PID shutdown
+are recorded below. The lane delivers local commits on `sb4-pg/g4a`.
 
 ### 2026-10-24: statement-fault witness refinement
 
@@ -176,3 +176,50 @@ later-command sentinel are retained for every injected error. All 19
 literal/serving cases pass in the full affected-suite rerun (8.99 seconds).
 This changes only the witness; production code and RT0 tables are unchanged.
 The original broad red remains visible in the sweep disposition.
+
+### Completed checks
+
+All Cargo commands use the lane's target, debug profiles and four build jobs;
+grouped tests use four test threads. Full suites are followed by the final
+affected collector/HTTP tests; the later fault refinement changes tests only.
+
+| Check | Result |
+| --- | --- |
+| `cargo build --locked -j 4` (workspace) | Pass |
+| Full core with `--features postgres --no-fail-fast` | 1,168 pass; 318 existing ignored; 47 top-level targets |
+| Full `snapback4` binary with `--features postgres` | 580 pass; 46 existing ignored |
+| Both-store RT0 ratchets and publication cases | 5 pass; warm PG W1/W2/W3 = 1/1/1 |
+| Final composed collector witnesses, private PG16 | 5 pass |
+| Final composed request/store oracle | Pass; four seeded variants and planted differentials |
+| Literal/serving error-boundary suite after refinement | 19 pass, composed and sequence fallback |
+| Stock sweep's RT3b authority boundaries | 64 pass, both stores |
+| Stock sweep's private adapter / ownership / evolution | 237 / 25 / 60 pass |
+| Stock sweep's five-backend corpus overlap | 22 pass (1,171.06 seconds) |
+| Stock sweep's difftest library / store integration | 12 / 4 pass |
+| Full public Postgres CLI witness | Pass, including both-store wire/meters and unchanged S1 maintained-total recount |
+| `./ref-check` | Pass: 566 LLPs, 11,836 refs, zero errors/unchecked |
+
+### Stock sweep disposition and cleanup (2026-10-24)
+
+`bash scripts/test-postgres.sh` completed every stage in 3,760.183 seconds,
+exit 1. Its two recorded reds are retained: the inherited evaluator
+Serializable `40001` at `conformance.rs:294`/`:307` (21 pass / 1 fail), and
+the obsolete RT6 second-flight expectation described above (18 pass / 1 fail
+in that initial target). The latter is corrected in `1eb697ee75`; the complete
+19-case affected suite passes. No production behavior, retry, skip, workload,
+deadline, durability setting or ratchet allowance was relaxed. The inherited
+race is recorded in [its existing ticket](../../../issues/20260916-snapback4-postgres-serializable-benchmark-failures.md).
+All other stock targets pass, including all 64 authority witnesses, the
+five-backend corpus, the new oracle, and the complete public CLI milestone.
+
+The public witness uses private PG16 master **481445** at
+`/tmp/s10d3-serve-6zt790vo`; all 537 recorded commands are reaped. Its own
+cleanup and an independent check both confirm status 3, no `postmaster.pid`,
+and no master process. The primary private PG16.15 master **4057748** at
+`/tmp/sb4-g4a/data` had zero clients before `pg_ctl -m fast -t 180 -w stop`;
+stop exits 0, independent status is 3, and both PID file and process are absent.
+The monitor **4153738** exits normally. The final census checks **826 unique
+recorded PIDs**, including the 36 worker children from both binary runs, plus
+processes belonging to the lane's target and private directories: **none left**.
+Final `/home` free space is about 115 GiB; the 40 GB stop guard never fires.
+Raw logs, cluster data and PID inventories remain outside Git under `/tmp`.

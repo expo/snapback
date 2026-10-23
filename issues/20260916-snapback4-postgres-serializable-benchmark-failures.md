@@ -357,3 +357,16 @@ skip or durability setting changes. The broad-run red is retained. Raw logs
 and binary metadata stay outside Git under `/tmp/rt6-evidence`; the
 [RT6 report](../snapback4/reports/20261023-rt6-serving-flights/REPORT.md)
 records the remaining qualification and owned-process cleanup.
+
+## 2026-10-23 — G4a bounded-read qualification
+
+The unchanged stock runner above RT6 `2fdab64882`, with G4a collector
+`0e60410c17`, reproduces the same evaluator `40001` at
+`experiments/postgres/tests/conformance.rs:294`, joined at :307. The target
+finishes 21 passed / 1 failed / three filtered, in 557.43 seconds. The common
+serialized control still completes 65 increments with no lost updates and
+zero retries. This run uses the lane's private PG16.15 and four test threads;
+no retry, backoff, workload, skip, timeout or durability change was made.
+The broad red is retained; the [G4a report](../snapback4/reports/20261023-g4a-reads/REPORT.md)
+records the complete sweep and confirmed owned-process cleanup. Raw logs
+remain outside Git under `/tmp/sb4-g4a`.
