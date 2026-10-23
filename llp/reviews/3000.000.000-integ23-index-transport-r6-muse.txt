@@ -1,0 +1,24 @@
+muse: workspace root: /home/ccheever/projects/snapback-sb4loop (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=9c8c0be6-da4a-474d-add1-3107b73d439c]: Subscription quota exhausted. Your usage window resets at 2026-10-26T00:00:00Z. (rate_limit_error)
+[muse-exec] plan quota exhausted; retrying with the Meta API key
+muse: workspace root: /home/ccheever/projects/snapback-sb4loop (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY
+
+No MATERIAL counterexample in the actual Round 6 code at `c7c0c7afb8c66ff71f0eb6bee69624c356d32c60`.
+
+Checked at-SHA:
+
+- [§20.1 amendment](llp/3000.000.000-retained-storage-and-hot-release.rfc.md) — compiled FinalExists / rule probes / sync windows compare aligned target + complete `Index` definition, keep operands/provenance/equalities/branch/audience/limit exact, no executable renaming, shared-label meaning change still refuses.
+- [rollback_view_policy.rs](snapback4/crates/snapback4/src/verbs/rollback_view_policy.rs) — `index()` uses full `Index ==` (ordered `IndexComponent`s + `unique`, covering token/calendar/contribution contracts); `constraint()` only relaxes label for `FinalExistsOnInsert` with `table/key` exact; `rule()` only relaxes label for `Exists`/`Created` with `table/key/provenance/equalities` exact, `And`/`Or` length+order+recurse, `Not` recurse; `sync()`/`horizon()` keep `audience`/`also` order/length, `last`, presence, and `by` via complete key meaning. Negative tests cover shared-label changed key/uniqueness, missing index, changed operands/provenance/equalities, `Exists`-vs-`Created`, `And`-vs-`Or`, changed audience/limit/missing window.
+- [rollback_views.rs](snapback4/crates/snapback4/src/verbs/rollback_views.rs) — hard-constraint admission uses `Policies` for constraints/rules/sync/column-reads; unique loop requires a view `unique` with identical `components` (no label aliasing); lifetimes/on-delete/leave/`written_by` remain exact after `with_column_names` + `with_table_names` injective alignment.
+- [release_bridge_indexes.rs](snapback4/crates/snapback4-lang/src/release_bridge_indexes.rs) — `current_context_needed` forces current context on same-name component drift and on non-plain use of a renamed column; `column_names` + caller merge check enforce injectivity; `plain_declaration` rewrites only plain-key tokens; `prune_unused_equivalent_keys` keeps every explicitly used name and at least one enforcing key, preferring current.
+- [release_bridge_rules.rs](snapback4/crates/snapback4-lang/src/release_bridge_rules.rs) / [release_bridge.rs](snapback4/crates/snapback4-lang/src/release_bridge.rs) / [release_bridge_current.rs](snapback4/crates/snapback4-lang/src/release_bridge_current.rs) / [release_bridge_guards.rs](snapback4/crates/snapback4-lang/src/release_bridge_guards.rs) — same-name strengthening removes exactly the reinserted declaration; renamed equivalent keys are carried then pruned only after both source sets compile; wire `endpoint_contract` keeps kind/positions/aliases/`accepts` with no collapse.
+- [rollback_foresight.rs](snapback4/crates/snapback4/src/verbs/rollback_foresight.rs) / [postgres_evolution_witness.py](snapback4/scripts/postgres_evolution_witness.py) — `byN` → `byCount` carry path matches the described SQLite omission fix; no bypass of current intent via older executable.
+
+Nits (not material, fail closed or handled via complete-current closure preference):
+
+- `with_column_names` does not rewrite `expire`/`not_before`/`through`, `written_by.owner`, `Audience::Target.principal`, or `Exists` equality column-name strings; selective-bridge comparison then refuses rather than mis-aligning. Complete closure is tried first, so ordinary renames still succeed there.
+- `RuleExpr::Public{reason}` compares the reason string exactly; a reason-only change refuses rather than ignoring advice text.
+

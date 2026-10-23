@@ -1,0 +1,54 @@
+{
+  "reviewedSource": "c7c0c7afb8c66ff71f0eb6bee69624c356d32c60",
+  "recordedAt": "2026-10-23T14:49:23.811538+00:00",
+  "briefSha256": "0fbe072688fe04ca7fa78de9a1b99268c79e3d4b6f051993cf88c7ac42294b0d",
+  "reviews": {
+    "muse": {
+      "exit": 0,
+      "output": "3000.000.000-integ23-index-transport-r6-muse.txt",
+      "sha256": "feed4a1421a651517058e84e854f679ce5545cdf8245905fa36b8b1bb730b758",
+      "outputModifiedAt": "2026-10-23T14:39:13.490176+00:00",
+      "verdict": "READY",
+      "model": "muse-spark-1.3-contributor",
+      "reasoning": "high",
+      "argv": [
+        "/home/ccheever/sb4-loop/muse-exec.sh",
+        "--yolo",
+        "--model",
+        "muse-spark-1.3-contributor",
+        "--reasoning-effort",
+        "high",
+        "--prompt-file",
+        "/tmp/integ23/index-review-r6-brief.md"
+      ],
+      "timeoutSeconds": 1700,
+      "stdinBrief": false,
+      "redacted": false,
+      "fallback": "Actual Meta API fallback after plan quota429; key not read or printed"
+    },
+    "codex": {
+      "exit": 0,
+      "output": "3000.000.000-integ23-index-transport-r6-codex.txt",
+      "sha256": "aca18d183658c4257084a351f4b15f9cedf4f1468a1481fc6c8fc94da3881070",
+      "outputModifiedAt": "2026-10-23T14:38:46.457227+00:00",
+      "verdict": "MATERIAL: raw-column uniqueness-loss comparison deletes an explicitly needed key across a declared scalar rename",
+      "model": "gpt-6.1-sol",
+      "reasoning": "high",
+      "argv": [
+        "codex",
+        "exec",
+        "-m",
+        "gpt-6.1-sol",
+        "-c",
+        "model_reasoning_effort=high",
+        "--skip-git-repo-check",
+        "--dangerously-bypass-approvals-and-sandbox",
+        "-"
+      ],
+      "timeoutSeconds": 1700,
+      "stdinBrief": true,
+      "redacted": false,
+      "fallback": null
+    }
+  }
+}
