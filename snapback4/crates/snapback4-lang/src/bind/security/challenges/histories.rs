@@ -421,7 +421,7 @@ pub(super) fn lifecycle_observers_to(bound:&Bound,fixture:&Engine,out:&mut Campa
                     if ordered.len()<actor_count{out.unsupported.insert(format!("{}: directed role-class deduplication omits actors with matching role/target projections; actor-specific histories uncovered",p.name));}
                     if ordered.len()>2{out.unsupported.insert(format!("{}: directed actor ordering keeps two candidates per argument tuple; other actors remain in breadth campaign",p.name));}
                     for (viewer,_,_) in ordered.into_iter().take(2){
-                    for clock in clock_candidates(bound,&before,&steps,out){
+                    for clock in clock_candidates(bound,p,&before,&steps,out){
                     if out.directed_attempts>=limit||!out.reserve(1){out.unsupported.insert("directed lifecycle successors reached their shared attempt limit; remaining histories uncovered".into());return;}out.directed_attempts+=1;
                     let Ok(mut engine)=base.fork_fixture()else{continue;};
                     let Ok(args)=materialize_arguments(&mut engine,&p.args,&args,viewer)else{continue;};
@@ -610,8 +610,23 @@ pub(super) fn run(bound:&Bound,fixture:&Engine,out:&mut Campaign){
 }}
 
 pub(super) fn history_clock(steps:&[Step])->i64{steps.iter().rev().find_map(|s|s.clock).unwrap_or(NOW)}
-fn clock_candidates(bound:&Bound,rows:&BTreeMap<String,Vec<Value>>,steps:&[Step],out:&mut Campaign)->Vec<i64>{
-    let current=history_clock(steps);let mut times=BTreeSet::new();let mut bases=Vec::new();
+fn clock_candidates(bound:&Bound,p:&Program,rows:&BTreeMap<String,Vec<Value>>,steps:&[Step],out:&mut Campaign)->Vec<i64>{
+    let current=history_clock(steps);
+    fn walk(value:&serde_json::Value,f:&mut impl FnMut(&serde_json::Value)){f(value);match value{serde_json::Value::Array(xs)=>for x in xs{walk(x,f)},serde_json::Value::Object(xs)=>for x in xs.values(){walk(x,f)},_=>{}}}
+    let json=serde_json::to_value(p).unwrap();let mut bindings=BTreeMap::new();
+    walk(&json,&mut |v|{for tag in ["Let","Const"]{if let Some(b)=v.get(tag)&&let(Some(name),Some(value))=(b.get("name").and_then(|v|v.as_str()),b.get("value")){bindings.insert(name.to_owned(),value.clone());}}});
+    fn clock(value:&serde_json::Value,bindings:&BTreeMap<String,serde_json::Value>,depth:usize)->bool{
+        if depth>32{return true;}
+        if matches!(value.get("Input").and_then(|v|v.as_str()),Some("Now"|"ReadTime")){return true;}
+        if let Some(name)=value.get("Variable").and_then(|v|v.as_str())&&let Some(value)=bindings.get(name)&&clock(value,bindings,depth+1){return true;}
+        match value{serde_json::Value::Array(xs)=>xs.iter().any(|v|clock(v,bindings,depth+1)),serde_json::Value::Object(xs)=>xs.values().any(|v|clock(v,bindings,depth+1)),_=>false}
+    }
+    let mut advances=bound.invariants.iter().filter_map(|i|i.syntax.as_ref()).any(|e|{
+        let mut e=e.clone();let mut found=false;super::super::super::intent_walk::expression(&mut e,&mut |e|if matches!(e,ast::Expr::Name{name,..} if name=="now"){found=true;});found
+    });
+    walk(&json,&mut |v|{for tag in ["Require","Check"]{if let Some(condition)=v.get(tag).and_then(|v|v.get("condition")){advances|=clock(condition,&bindings,0);}}});
+    if !advances{out.unsupported.insert(format!("{}: clock advance proposals prioritize clock-dependent guards or intent; temporal payload-only histories remain uncovered",p.name));return vec![current];}
+    let mut times=BTreeSet::new();let mut bases=Vec::new();
     for (table,rs) in rows {for row in rs {for (c,k) in &bound.schema.tables[table].columns {
         if matches!(k.required(),C::Time)&&let Ok(Value::Int(n))=row.field(c) {
             bases.push(*n);if *n>=current {times.insert(*n);if let Some(next)=n.checked_add(1){times.insert(next);}}
@@ -667,5 +682,18 @@ pub(super) fn principal_preferences(bound:&Bound,p:&Program,rows:&BTreeMap<Strin
  let prefs=principal_preferences(&b,&b.programs[0].program,&rows);
  assert_eq!(prefs.get("client"),Some(&vec![Value::Id("account:client".into())]),"{}",serde_json::to_string(&b.programs[0].program).unwrap());
  assert_eq!(prefs.get("inspector"),Some(&vec![Value::Id("account:inspector".into())]));
+}
+}
+
+#[cfg(test)]mod sec9_clock_priority_tests{use super::*;
+#[test]fn timestamp_payloads_preserve_depth_but_aliased_clock_guards_advance(){
+ for guarded in [false,true]{
+  let source=format!("table docs:\n  at: time\n  seenAt: time ?\n  read <- allow\n  insert <- allow\n  update <- allow\n  online only\nmutation touch(doc: docs):\n  row = docs[doc] ! else MISSING\n{}  update docs[doc] {{seenAt:now}}\n",if guarded{"  clock = now\n  require clock >= row.at else EARLY\n"}else{""});
+  let b=crate::compile(&[("schema.q".into(),source)]);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
+  let rows=BTreeMap::from([("docs".into(),vec![snapback4_core::value::object([("id",Value::Id("d".into())),("at",Value::Int(NOW+86400000))])])]);let mut campaign=Campaign::default();
+  let clocks=clock_candidates(&b,&b.programs[0].program,&rows,&[],&mut campaign);
+  assert_eq!(clocks.iter().any(|time|*time>NOW),guarded);
+  assert_eq!(clocks[0],NOW);
+ }
 }
 }
