@@ -533,10 +533,11 @@ pub(super) fn advance(request: Request, shared: &Shared, body: &str) {
         // Clearing the durable pause is the last part of a completed drain.
         // Failure leaves both the record and runtime paused; never replay time.
         if !shared.personas && !crate::lifecycle::stopping() {
-            let mut engine = lock(&shared.engine);
-            let clock = lock(&shared.clock);
-            let checkpoint = snapback4_core::metadata::StagingClock { now: clock.now(), offset: clock.offset(), paused: false };
-            checkpoint_clock(&mut engine, 0, checkpoint.now, false, &checkpoint)?;
+            shared.engine.attempt(|engine, shared| {
+                let clock = lock(&shared.clock);
+                let checkpoint = snapback4_core::metadata::StagingClock { now: clock.now(), offset: clock.offset(), paused: false };
+                checkpoint_clock(engine, 0, checkpoint.now, false, &checkpoint)
+            })?;
         }
         Ok::<_, RuntimeError>(work)
     })();
