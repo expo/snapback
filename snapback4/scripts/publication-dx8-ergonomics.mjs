@@ -5,6 +5,7 @@ import { runToolchainCommand } from "./publication-starters.mjs";
 import { chromiumExecutable } from "../witness/lib.mjs";
 
 export async function proveDX8Ergonomics(directory, client, platform) {
+  void client; void platform;
   const parent = resolve(directory), scratch = mkdtempSync(join(parent, "dx8-ergonomics-"));
   const root = fileURLToPath(new URL("../", import.meta.url));
   const env = { ...process.env, CHROME: chromiumExecutable() };
@@ -13,7 +14,7 @@ export async function proveDX8Ergonomics(directory, client, platform) {
     writeFileSync(join(scratch, "consumer.mjs"), readFileSync(join(root, "scripts/dx8-ergonomics-consumer.mjs")));
     await runToolchainCommand(process.execPath, ["consumer.mjs"], { cwd: scratch, env, timeout: 300_000 });
     return {
-      status: "passed", installedSDK: true, client: resolve(client), platform: resolve(platform),
+      status: "passed", installedSDK: true,
       dayTwo: "stable ids with v1-write exclusion and optional rollback-only v2-native rows",
       text: "null defaults and lane-031 full line in a scrollable RN-style root",
       paging: "opaque cursor exhaustion and terminal completeness",
