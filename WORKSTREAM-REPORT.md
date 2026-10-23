@@ -1,6 +1,6 @@
 # Integration 23 — snapback4 0.4.39
 
-0.4.39 qualification complete; final nonforce landing is recorded in git.
+0.4.39 qualified for nonforce landing; delivery is recorded by the integration commits.
 Worktree: `/home/ccheever/projects/snapback-sb4loop`, branch `sb4-loop`.
 
 ## Changes and commits
@@ -56,7 +56,156 @@ Worktree: `/home/ccheever/projects/snapback-sb4loop`, branch `sb4-loop`.
   The codec census fix `f07884e368` has a real mutation control. No production
   census allowance, test assertion, deadline or seed was weakened.
 
-## Final qualification
+## Final verification after the view-once main merge
+
+Merge `fb5c6335d9` integrates `da7b5e3a1d`. Its asset host checks the actual
+response-chain abort state before admission and before committing a once view,
+and returns HTTP 410 for a duplicate view or 503 for retryable bookkeeping.
+Consumption still commits before any full-response bytes; subsequent transport
+loss conservatively consumes the view. Range probes and known pre-admission
+aborts never consume it. TCP half-close is not inferred to be cancellation.
+Core's change is documentation only; the collector verifies that fact.
+
+The sole test conflict keeps the incoming three fresh-asset HTTP cases and
+exact body comparisons. The inspected full-file diff shows only that fixture
+change; previous child-probe and pipeline checks remain. Both journal histories
+survive. No production code conflict occurs. Measurement commit `3cd7b7636f`
+records unchanged clean wasm and its existing measurement-plus-500 budget.
+
+Latest qualified source: `3cd7b7636f0f496b1e45e59d4efb97f5f13dc2e2`. Production native SHA-256:
+`8aa998f61e2a0402e276dc10e17830b2dbd0fe5dd754af367af3579b1420673c`. Client tar SHA-256:
+`1a082e7ba810831999c2401f63ec1d780fbe8fb9999cdd7cfb22b1b9fd77a103`. All 312 shipping SDK leaves and the client tar are
+byte-identical to the preceding complete client-pool qualification. Current
+command ledgers, raw logs, artifact/source bindings and cleanup receipts are in
+[view-once integration evidence](snapback4/reports/integration23/qualification-view-once/README.md).
+
+After this incoming merge, affected verification passes:
+
+- Linux: all 21 asset cases and four view-once cases, including a fresh private
+  Postgres ledger; standalone vendored HTTP 13, language guide 127 and rollback
+  views 19. Debug and production native builds pass. The private cluster is
+  independently stopped. PG HTTP asset schemas/blob locations remain fenced
+  (P1b); ledger evidence is not a PG HTTP asset capability claim.
+- All ten affected client files pass against both debug and production builds:
+  190 passes, zero failures/skips per pass, source status empty afterward. The
+  prior full pool remains 431 files, 7,940 passes/56 declared skips in one pass.
+  No shipping SDK input changed after that full pool.
+- Fresh `publish.mjs --prepare-client` pack and complete `qualify-linux.mjs
+  --consumer-only` pass, including security/ROLL and Ubuntu/Alpine. The receipt
+  explicitly remains publicationQualified=false; no npm publication is claimed.
+- The new production binary repeats all 21 wave-25 copies: original before
+  15 refusals/10 false, after two genuine deploy refusals (004/024), zero false
+  refusals and zero hidden v1 rows in all six ROLL controls. Lane 030's genuine
+  default rollback refusal for two unprojectable rows still names recovery.
+  Every replay store is deleted; originals are read-only.
+- All 50 published-0.4.37 upgrade/rollback/forward cycles again preserve rows:
+  48 unchanged copies plus the same two disclosed authored compatibility steps
+  (010/032). The complete 450-project/900-record/1,800-call survey again has
+  zero false refusals; 15 gated projects and all 36 original findings are
+  individually acknowledged on copies, zero unresolved.
+- All 50 original acceptance scripts again pass unchanged, with the same three
+  disclosed baseline expiry helpers and headless tsconfig adjustment.
+- Fresh Exact synced/online apps under `~/sb4-loop/prewave23/`, clean Exact2
+  origin/main clone base `14c091f205f62c32ed9d585ae75148cffc12dfa2`, pass the
+  literal `bun exact.mjs snapback` and `bun exact.mjs test web` commands (2+1
+  web tests). `exact-commands-r12.md` records cwd, environment, commands,
+  artifact hashes and ports 27418/27419; owned servers are stopped/reaped.
+- Black M5 scratch clone: asset 20 and once three pass with the private-PG
+  ledger explicitly ignored on Mac, standalone HTTP 13 and guide 127 pass,
+  current native builds, and all ten client files pass (190/0/0). All 3,314
+  source inputs and 312 SDK leaves bind exactly except one precisely verified
+  clean measurement append of the unchanged wasm. The preceding full Mac scope
+  remains 105 platform/model files, 2,357 passes/14 declared skips, plus affected
+  Core/CLI/Lean targets. No unreachable-Mac deferral is used.
+- Root docs budget, ref-check, inventories and guide pass after client runs.
+  Diagnostics/symbol registries and guide manifest regenerate with no diff;
+  authoring census remains 875, delivery census 215, production store-port
+  allowance zero. Fresh wasm is still 2,407,070 raw / 735,469 gzip / 553,849
+  Brotli bytes; budget 735,969 is exactly measurement+500 B with the recorded
+  whole-artifact reason. Strict family/absence checks pass.
+
+Two harness corrections are preserved in raw evidence: Cargo requires testing
+vendored HTTP dev-dependencies from a standalone copy, and the initial Mac
+command selected an ignored private-PG test without a server. Corrected scopes
+pass without changing product code or assertions; the real PG ledger passes on
+Linux. The empty workspace table is added only to the Mac temporary copy.
+
+The full five-crate run below remains the complete run after the last authored
+rollback fix. Later main merges repeat changed semantic inputs under the final
+merge clause; they are not relabeled as another complete five-crate run. Known
+baseline Lean mismatches and the three ticketed stock-PG exclusions remain
+explicit below; no new product failure is waived. No full scripts/test.sh,
+npm publication, publication worktree or target/publication is used.
+
+## Verification after the Postgres and account merge
+
+Complete baseline qualification is committed as `d848af3dc9`. Main then moved;
+merge `0d17e223d3` integrates `a025d67cd3` (P1-EV-2 Postgres admission/parity and
+RT3c projected authority for account/OIDC/service sessions). The only manual
+conflict is the parent RFC revision header; both histories survive, with no
+code conflict. `4e3b52f1b3` records unchanged clean wasm. The standalone release
+bump remains `8550d12b65`; the single 0.4.39 guide-changes entry remains coherent.
+
+Latest qualified source: `4e3b52f1b3bf3c78055834d3d00decc732fc3f5c`; production native SHA-256
+`ef2f106306a07a5b5b3d9ac12ac4fb249b2fec86d4a6539a06eca93e3b9e314e`. Client pack SHA-256 `1a082e7ba810831999c2401f63ec1d780fbe8fb9999cdd7cfb22b1b9fd77a103`;
+all 312 SDK leaves are byte-identical to the complete baseline pack. Unchanged
+rollback/compiler source hashes and all new native proof bindings are recorded
+in [late-main evidence](snapback4/reports/integration23/qualification-late-main/README.md).
+
+As required by the final merge clause, verification repeats the semantic inputs
+that changed. The complete five-crate run above remains the full run after the
+last authored rollback fix, f6922d049f; it is not relabeled as a second full run
+at the new merge. Latest affected verification passes:
+
+- Full Core with Postgres: 48 reported
+  scopes, 1185 reported passes,
+  304 declared ignores, zero failures.
+- Affected CLI (including the account RT0 ratchets, serve identity/authority and
+  all 19 rollback cases): 19 reported
+  scopes, 762 reported passes, zero failures.
+- Language unit/rollback security/guide/read-through: 240
+  reported passes, zero failures. Core no-default check and all three difftest
+  campaigns repeat with the same strict no-new-signature baseline result.
+- Full client pool again, one pass: 431 files, 7940 passes,
+  56 declared skips, zero failures, source status empty after the pool.
+- Fresh prepare-client pack and complete packed consumer qualification, including
+  Ubuntu/Alpine, current security/ROLL and all lane cases: pass. The receipt
+  remains consumer-only/publicationQualified=false; npm publication is not claimed.
+- Stock private Postgres, now including all 60 EV-2 evolution cases and the public
+  EV-2 release/restore witness: pass. Its initial run stopped on the unchanged
+  40GiB disk guard. Audited cleanup removed only unused node_modules from completed
+  own qualification directories, preserved evidence and active dependency roots,
+  then the full stock runner passed without changing the guard or retry budget.
+  Both attempts' owned clusters are independently confirmed stopped.
+- Current production binary repeats all 21 wave25 copies (2 genuine deploy
+  refusals, zero false, six ROLL controls hide zero), all 50 published-0.4.37
+  cycles (48 unchanged + 2 disclosed authored compatibility cases), the complete
+  450-project survey/15 gated projects/36 individually acknowledged findings,
+  and all 50 original acceptance scripts with the same disclosed support patches.
+  The genuine lane030 default rollback refusal remains explicit. Replay stores
+  are deleted; original stores remain read-only.
+- Fresh Exact synced/online apps repeat literal snapback/web-test commands against
+  the latest production binary and client: 2+1 tests pass. Commands and cleanup
+  for ports27416/27417 are saved in exact-commands-r11.md.
+- Black M5 scratch clone repeats all affected Cargo/Lean and all
+  105 platform/affected/model files: 2357
+  passes/14 declared skips, zero failures. The new
+  source binding covers current executable inputs and all 312 SDK leaves; only
+  the explicit platform-generated test census differs, with production allowance zero.
+- Root docs budget, ref-check, inventories and guide pass after the full pool.
+  Required root dependencies are checked/restored with the frozen install and
+  named bootstrap when needed. The authoring census remains875 rows, delivery215
+  sites, and store-port production allowance zero.
+
+Wasm remains 2,407,070 B raw /735,469 B gzip /553,849 B Brotli, budget735,969 B,
+exactly measurement+500 B with the recorded whole-artifact reason. Incoming EV-2
+retains its residual dev-adoption diagnostic-text ticket and the shared active-row
+bound (no full3MiB restoration claim). Stock PG's three inherited ticketed
+exclusions remain explicit; no new product red or unreported check deferral is
+waived. No full scripts/test.sh, npm publication, publication worktree or
+target/publication access is claimed.
+
+## Complete qualification of the rollback correction (baseline a34)
 
 Source `a34a9192bcd241bb98e45c3f222e0f30074e97f9`; native SHA-256 `364370f89c269d7614ed06d0e0f58aa14fe38c36066f12999b5fa6e71e1857b1`;
 client pack SHA-256 `1a082e7ba810831999c2401f63ec1d780fbe8fb9999cdd7cfb22b1b9fd77a103`. Actual command ledgers,
