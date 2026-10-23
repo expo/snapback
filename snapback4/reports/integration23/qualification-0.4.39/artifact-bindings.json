@@ -1,0 +1,11 @@
+{
+  "qualificationSource": "a34a9192bcd241bb98e45c3f222e0f30074e97f9",
+  "binarySha256": "364370f89c269d7614ed06d0e0f58aa14fe38c36066f12999b5fa6e71e1857b1",
+  "clientSha256": "1a082e7ba810831999c2401f63ec1d780fbe8fb9999cdd7cfb22b1b9fd77a103",
+  "allCurrentStoreExactProofsUseQualifiedNative": true,
+  "shippingLeavesIdenticalToPreviousPrepared18": true,
+  "shippingLeavesIdenticalToHistoricalF078": false,
+  "mode": "consumer-only",
+  "publicationQualified": false,
+  "previousSnapshot": "../qualification-f078/"
+}
