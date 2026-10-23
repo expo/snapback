@@ -149,7 +149,6 @@ table posts:
   update <- deny
   delete <- .authorId = viewer
   sync public last 200 by .at      -- everyone holds the same rows
-
 table follows:
   followerId: principal
   followedId: principal
