@@ -394,3 +394,19 @@ test("serve stop waits for delayed worker cleanup before resolving and is replay
     await host.stop();
   } finally {await host.stop();}
 });
+
+// The kernel can transiently deny a signal-0 group probe during keeper exit.
+// A denial is presence, and only a subsequent ESRCH proves cleanup complete.
+test("process-group cleanup waits through a transient EPERM", async () => {
+  const cwd = mkdtempSync(join(tmpdir(), "sb4-proof-eperm-"));
+  const originalKill = process.kill;
+  const run = logged(process.execPath, ["-e", ""], { cwd, processGroup: true });
+  let probes = 0;
+  process.kill = function (pid, signal) {
+    if (pid === -run.child.pid && signal === 0 && ++probes === 1)
+      throw Object.assign(Error("retiring process group"), { code: "EPERM" });
+    return originalKill.call(process, pid, signal);
+  };
+  try { await run.closed; assert.ok(probes >= 2); }
+  finally { process.kill = originalKill; await stopChild(run.child); rmSync(cwd, { recursive: true, force: true }); }
+});

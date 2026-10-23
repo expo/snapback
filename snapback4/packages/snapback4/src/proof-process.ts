@@ -97,7 +97,14 @@ async function groupGone(child: ChildProcess): Promise<void> {
     const expires = performance.now() + 5000;
     for (;;) {
       try { process.kill(-pid, 0); }
-      catch (error) { if ((error as NodeJS.ErrnoException).code === "ESRCH") return; throw error; }
+      catch (error) {
+        const code = (error as NodeJS.ErrnoException).code;
+        if (code === "ESRCH") return;
+        // Darwin can report EPERM while the keeper's group is retiring.
+        // It still means present: wait within the same bound, never claim
+        // cleanup success until the kernel reports ESRCH.
+        if (code !== "EPERM") throw error;
+      }
       const remaining = expires - performance.now();
       if (remaining <= 0) throw Error("proof process-group cleanup timed out after 5000 ms");
       await sleep(Math.min(10, remaining));

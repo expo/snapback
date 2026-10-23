@@ -102,7 +102,7 @@ const storedUnknown=/E_STORE: (?:invalid stored schema: )?unknown variant [`'"]?
 function releaseStoreRefusal(result,path) {
   const db=new DatabaseSync(path,{readOnly:true});
   let version;try {version=db.prepare("SELECT value FROM _meta WHERE key='version'").get()?.value;} finally {db.close();}
-  assert.equal(version,'snapback4-release-store-9','fresh current deployment must use the retained release format');
+  assert.equal(version,'snapback4-release-store-10','fresh current deployment must use the retained release format');
   assert.notEqual(result.status,0,'published server must refuse the release-store format');
   assert.ok((result.stdout+result.stderr).includes(`E_STORE: store version ${version} is not snapback4-store-1`),result.stdout+result.stderr);
 }

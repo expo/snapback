@@ -104579,3 +104579,5 @@ stores are file-copied before SQLite opens; deploy copies exclude owner/token
 credentials. The day-two replay verifies all original SQLite/WAL/SHM hashes
 unchanged. The root WORKSTREAM-REPORT.md belongs to this integration and will
 record final suites, schema survey, real artifact refusals, Exact and Mac scope.
+
+Mac follow-up: a repeated private-command probe reproduced Darwin signal-0 EPERM with no remaining group rows. Cleanup now treats EPERM as presence and retries within the existing five-second bound; only ESRCH succeeds, so persistent permission failures still refuse. A deterministic transient-EPERM regression covers the race. The published capability test now checks DX8's monotonic release-store format 10.
