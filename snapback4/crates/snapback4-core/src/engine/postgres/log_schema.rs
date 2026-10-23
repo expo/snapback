@@ -3,12 +3,12 @@
 use super::{shape, store::Tx};
 use crate::RuntimeError;
 
-const LEGACY_KEYS: &str = "SELECT c.conname::text,(c.contype = 'f' AND c.convalidated
+const LEGACY_KEYS: &str = "SELECT c.conname::text,COALESCE((c.contype = 'f' AND c.convalidated
     AND NOT c.condeferrable AND NOT c.condeferred
     AND c.confrelid = to_regclass('_commits')
     AND c.conkey = ARRAY[(SELECT attnum FROM pg_attribute WHERE attrelid=c.conrelid AND attname='seq' AND NOT attisdropped)]
     AND c.confkey = ARRAY[(SELECT attnum FROM pg_attribute WHERE attrelid=c.confrelid AND attname='seq' AND NOT attisdropped)]
-    AND c.confupdtype = 'a' AND c.confdeltype = 'a' AND c.confmatchtype = 's') FROM pg_constraint c WHERE c.conrelid=to_regclass('_log') AND c.contype='f'";
+    AND c.confupdtype = 'a' AND c.confdeltype = 'a' AND c.confmatchtype = 's'), false) FROM pg_constraint c WHERE c.conrelid=to_regclass('_log') AND c.contype='f'";
 
 pub(super) fn legacy_keys(tx: &Tx<'_>) -> Result<Vec<postgres::Row>, RuntimeError> {
     tx.query(LEGACY_KEYS, &[])
