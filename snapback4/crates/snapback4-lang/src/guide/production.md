@@ -239,12 +239,12 @@ mutation enroll(team: teams, principal: principal):
   return insert members { team: t.id, principal: p.principal }
 query directory(c: cursor ?):
   require exists staff[viewer] else NOT_STAFF
-  return profiles first 20 by .id after c { principal, displayName }
+  return profiles last 20 by .id after c { principal, displayName }
 query teammates(team: teams, c: cursor ?):
   require exists members[team, viewer] or exists staff[viewer] else NOT_MEMBER
-  return members where .team = team first 20 by .id after c { principal }
+  return members where .team = team last 20 by .id after c { principal }
 query catalogue(c: cursor ?):
-  return catalogues first 20 by .id after c
+  return catalogues last 20 by .id after c
 query myProfile():
   return profiles[principal = viewer]
 query myStaff():

@@ -89,6 +89,12 @@ A device predicts a plain child insert only with a live parent covered by its cu
 
 `read through live .parent` maintains the whole current parent rule. Require `immutable parent` without a default and `cap N by parent`. Parent writes prepay maximum fanout, update children atomically and queue on devices. Bare `read through` stays captured.
 
+| Access needed for existing children | Form | Meaning |
+| --- | --- | --- |
+| Keep the audience and parent lifetime in effect when the child was inserted | `read through .parent` | Captures the parent's immutable audience inputs and lifetime; a later owner or roster change does not move the child. |
+| Follow the parent's current audience after an owner or roster change | `read through live .parent` | Recomputes existing children atomically from the bounded live parent. |
+| Keep a child-specific, stricter audience | An explicit child `read <- ...` rule | The child deliberately does not inherit later parent audience changes. |
+
 Use ordinary nonexpiring endpoints/probes and bounded plain indexes. Chains, derived/private/receipt endpoints and writing reference actions refuse. Sync requires one exact all-current/until-revoked audience; other whole rules work online.
 
 `N_LIVE_PARENT_COST` means fixed fanout exceeds ordinary ceilings. Reduce caps or row/index bounds, or maintain manually. Parent writes queue on devices.
@@ -189,7 +195,7 @@ E_QUARRY_RULE_SPELLING locates a guessed table rule: `select <-` and `view <-` b
 
 ### What a refused write returns: E_RULE, NOT_FOUND, E_UNIQUE, E_CONSTRAINT
 
-A mutation's `require` decides intent; each write still passes its table's rule. An unnamed update rule judges old and next. For a deliberate pre-write gate, use `update (old, next) <- old.owner = viewer and old.state = 'pending'`; that permits leaving pending, so constrain next too when the policy needs it. `E_RULE` identifies table authorization; `why recent` privately names the failing old/next image (or the named transition). Hidden targets retain `NOT_FOUND`, with no image or clause exposed to the caller. See: `guide rule-recipes update-images`.
+A mutation's `require` decides intent; it never grants table authority. Every write independently passes the table's rule for its effect. An unnamed update rule judges old and next. For a deliberate pre-write gate, use `update (old, next) <- old.owner = viewer and old.state = 'pending'`; that permits leaving pending, so constrain next too when the policy needs it. `E_RULE` identifies table authorization; `why recent` privately names the failing old/next image (or the named transition). Hidden targets retain `NOT_FOUND`, with no image or clause exposed to the caller. See: `guide rule-recipes update-images`.
 
 For update/upsert, "readable" means the read rule admits the old row in the pre-write state, before the patch or any of its effects. The engine resolves id and unique-key targets privately; the update rule judges old and next.
 

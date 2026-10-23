@@ -16,7 +16,7 @@ table todos:
   sync to .ownerId            -- each owner's devices hold their own todos and work offline
 
 query list(c: cursor ?):
-  return todos where .ownerId = viewer after c first 100 by .id
+  return todos where .ownerId = viewer after c last 100 by .id
 
 mutation add(title: text 1..200):
   return insert todos { title, done: false, ownerId: viewer }

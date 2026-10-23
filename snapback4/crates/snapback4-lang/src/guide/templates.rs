@@ -17,7 +17,7 @@ table todos:
 invariant todos.toggle only .ownerId = viewer
 
 query list(c: cursor ?):
-  return todos where .ownerId = viewer after c first 100 by .id
+  return todos where .ownerId = viewer after c last 100 by .id
 
 mutation add(title: text <=200):
   return insert todos { title, done: false, ownerId: viewer }
@@ -50,7 +50,7 @@ table todos:
 invariant todos.toggle only .ownerId = viewer
 
 query list(c: cursor ?):
-  return todos where .ownerId = viewer after c first 100 by .id
+  return todos where .ownerId = viewer after c last 100 by .id
 
 mutation add(title: text <=200):
   return insert todos { title, done: false, ownerId: viewer }

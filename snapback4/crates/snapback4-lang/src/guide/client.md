@@ -14,6 +14,26 @@ export function Inbox() { const page = usePage(api.inboxCards, {}), status = rea
 - `E_OFFLINE`: unavailable; reconnect.
 - `E_QUERY_RETRY`: exhausted; retry.
 
+## Paging every row
+
+For a screen, use `usePage` and let the person request more. For a proof or
+one-shot export that must have every row, use the bounded helper:
+
+```ts
+import { exhaustPages } from "snapback4/proof";
+const cards = await exhaustPages(
+  c => client.query(api.inboxCards, { c }),
+  { label: "inboxCards" },
+);
+```
+
+The cursor is opaque: pass each reply's `next` back unchanged as `c`. Do not
+decode it, build one from a row id, or use a projected `id` as the cursor.
+Projection changes row fields only; it does not change page order, cursor
+meaning, or completeness. `exhaustPages` refuses denied, loading, malformed,
+repeated, over-limit, capped, or incomplete pages instead of returning a
+partial snapshot.
+
 ## Reference
 
 `Write`: pending custody, fresh sent result, replay without result, or failed. Clear on sentResult; undefined is not success.

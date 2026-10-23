@@ -49,7 +49,7 @@ table requests:                           -- owner or clerk/officer: one roster,
 query myLists(c: cursor ?):               -- a page; pass the answer's `next` back as `c`
   return lists where .owner = viewer last 20 by .at after c   -- `last` reads newest first; `first` oldest first
 query itemsOf(list: lists, c: cursor ?):
-  return items where .owner = viewer and .list = list first 50 by .id after c
+  return items where .owner = viewer and .list = list last 50 by .id after c
 query openCount(list: lists):
   return openItems[viewer, list]
 query board(c: cursor ?):                 -- owner or staff on one page: complete for both (guide indexes)
@@ -87,7 +87,7 @@ roles and replayable first-admin setup. Staging clock: `guide time` (MIG).
 - Text: `'it\'s'` or `"it's"`; `\\`, `\n`, `\t` escape; `+` joins; a reference never becomes text. Durations (ms): `500ms 30s 15m 24h 7d`, `now + 1h`, `day(now)` (day number; UTC midnight: `day(now) * 1d`), `month(now)`, `monthStart(m)` (`guide time`).
 - Rows: `t[id]` (null when absent or hidden), `r = t[id] ! else CODE`, `require cond else CODE 'message'`. `t[a, b]` takes
   a unique key's values in column order; `t[col = x]` names a column; in brackets a bare name is a local or argument, `.col` the row's.
-- Pages: `where` is optional (`return pieces first 50 by .id after c`). Shapes: `t[x] { id, name: .title }` renames `title`; `name: title` reads a local.
+- Pages: `where` is optional (`return pieces last 50 by .id after c`; newest first). Shapes: `t[x] { id, name: .title }` renames `title`; `name: title` reads a local.
 - Writes: `insert t { .. }`, `update t[id] { .. }`, `upsert t[k] { .. }`, `delete t[id]` (`guide writes`).
   A missing target refuses NOT_FOUND, `delete` too: guard it with `if exists t[id]:` and `delete t[id]` on the next line.
   Each statement checks `unique`, so swap two keys through a free value. A reference says what deleting
@@ -123,7 +123,7 @@ table teams:
   online only
 query divisionTeams(division: text 1..40, c: cursor ?):
   require exists coaches[viewer, division] else NOT_COACH
-  return teams where .division = division first 50 by .id after c
+  return teams where .division = division last 50 by .id after c
 ```
 
 - Positional values bind in order: one value of the table's own id (or a reference to it) is that row;

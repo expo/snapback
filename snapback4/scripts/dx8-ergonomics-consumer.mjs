@@ -1,0 +1,78 @@
+// Runs unchanged with a packed client/platform installation in the cwd.
+import assert from "node:assert/strict";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { cli, exhaustPages, renderedText, waitForFresh, withBrowser } from "snapback4/proof";
+
+const guide = async name => {
+  const result = await cli(["guide", name, "--full"]);
+  assert.equal(result.code, 0, result.stderr);
+  return result.stdout;
+};
+
+const [clientGuide, wireGuide, rulesGuide, recipesGuide, testingGuide, cheatsheetGuide, productionGuide] = await Promise.all([
+  guide("client"), guide("wire"), guide("rules"), guide("rule-recipes"),
+  guide("testing"), guide("cheatsheet"), guide("production"),
+]);
+assert.match(clientGuide, /exhaustPages/); assert.match(clientGuide, /cursor is opaque/i);
+assert.match(wireGuide, /opaque continuation/); assert.match(wireGuide, /projected `id`/);
+assert.match(rulesGuide, /`require` decides intent; it never grants table authority/);
+assert.match(rulesGuide, /`read through live \.parent`/); assert.match(recipesGuide, /audience and lifetime captured/);
+assert.match(testingGuide, /compareById/); assert.match(testingGuide, /v1ClientWrites/); assert.match(testingGuide, /v2Native/);
+assert.match(cheatsheetGuide, /return items .* last 50 by \.id after c/);
+assert.match(productionGuide, /return profiles last 20 by \.id after c \{ principal, displayName \}/);
+
+const cursors = [];
+const rows = await exhaustPages(async cursor => {
+  cursors.push(cursor);
+  return cursor === null
+    ? { data: [{ id: "newest" }], next: "opaque:not-a-row-id", complete: true, cut: null }
+    : { data: [{ id: "older" }], next: null, complete: true, cut: null };
+}, { label: "packed board" });
+assert.deepEqual(cursors, [null, "opaque:not-a-row-id"]);
+assert.deepEqual(rows.map(row => row.id), ["newest", "older"]);
+await assert.rejects(exhaustPages(async () => ({ data: [], next: "would-continue", complete: false, cut: "meter" })), /E_PROOF_PAGE.*incomplete/);
+
+await withBrowser({ logsDir: "browser-logs", executablePath: process.env.CHROME }, async context => {
+  const page = await context.newPage(); await page.setViewportSize({ width: 700, height: 400 });
+  await page.setContent('<main style="height:90px;overflow-y:auto"><div style="height:600px"></div><div><span>Pump </span><span>logged.</span></div></main>');
+  const root = page.locator("main");
+  assert.equal(await renderedText(page, "Pump logged.", null).count(), 1, "null uses default options");
+  assert.equal(await waitForFresh(renderedText(page, "Pump logged.", { within: root, exact: false }), null), "Pump logged.");
+  assert.equal(await root.evaluate(element => element.scrollTop), 0, "text proof does not scroll the app");
+});
+
+async function initialized(name, args) {
+  const cwd = join(process.cwd(), name); mkdirSync(cwd);
+  const result = await cli(["init", ...args], { cwd }); assert.equal(result.code, 0, result.stderr);
+  const schema = readFileSync(join(cwd, "snapback/schema.q"), "utf8");
+  const checked = await cli(["check", "--json"], { cwd }); assert.equal(checked.code, 0, checked.stderr + checked.stdout);
+  return schema;
+}
+for (const [name, args] of [["local", []], ["online", ["--online"]], ["web", ["--web"]], ["web-online", ["--web", "--online"]]]) {
+  assert.match(await initialized(name, args), /return todos .* last 100 by \.id/, `${name} lists newest first`);
+}
+const social = await initialized("social", ["--template", "social"]);
+assert.match(social, /return members .* last 50 by \.conversation after c/, "social inbox lists newest first");
+
+const proofModule = fileURLToPath(import.meta.resolve("snapback4/proof"));
+const packageRoot = dirname(dirname(proofModule));
+const production = readFileSync(join(packageRoot, "dist/recipes/production/web/schema.q"), "utf8");
+for (const query of [
+  /return members where \.principal = viewer after c last 100 by \.id/,
+  /return members where \.teamId = teamId after c last 100 by \.id/,
+]) assert.match(production, query);
+const productionCwd = join(process.cwd(), "production"); mkdirSync(join(productionCwd, "snapback"), { recursive: true });
+writeFileSync(join(productionCwd, "snapback/schema.q"), production);
+const productionCheck = await cli(["check", "--json"], { cwd: productionCwd });
+assert.equal(productionCheck.code, 0, productionCheck.stderr + productionCheck.stdout);
+
+const deniedCwd = join(process.cwd(), "write-auth"); mkdirSync(join(deniedCwd, "snapback"), { recursive: true });
+writeFileSync(join(deniedCwd, "snapback/schema.q"), "use personas alice\ntable notes:\n  title: text <=80\n  read <- allow\n  online only\nmutation add(title: text <=80):\n  require viewer = 'dev:alice' else NO\n  return insert notes {title}\n");
+const deniedCheck = await cli(["check", "--json"], { cwd: deniedCwd });
+assert.equal(deniedCheck.code, 0, deniedCheck.stderr + deniedCheck.stdout);
+const deniedFacts = JSON.parse(deniedCheck.stdout);
+assert.ok(deniedFacts.notes.some(note => note.code === "N_WRITE_DENIED" && note.rewrite.includes("never grants table authority")));
+
+console.log("DX8 ergonomics consumer passed: day-two comparison, null/full-line text, opaque paging, newest-first starters, and two-layer authorization guidance");

@@ -59,7 +59,7 @@ query conversationScreen(conversation: conversations):
   return conversations[conversation]
 
 query inbox(c: cursor ?):
-  return members where .principal = viewer first 50 by .conversation after c { conversation, chat: conversations[.conversation] }
+  return members where .principal = viewer last 50 by .conversation after c { conversation, chat: conversations[.conversation] }
 
 -- A quote opens one indexed window ending at its original, even beyond sync.
 query history(conversation: conversations, c: cursor ?, through: int ?):

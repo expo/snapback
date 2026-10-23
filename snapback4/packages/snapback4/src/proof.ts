@@ -9,6 +9,7 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 import type { BrowserContext, BrowserType, LaunchOptions, Locator, Page } from "playwright-core";
+import type { Cursor, Refusal } from "./contract.ts";
 import { renderedSelector, registerRenderedSelector, registeredLocator, visibleText } from "./proof-text.ts";
 import { webWitnessObserverScript } from "./witness-web.ts";
 import { resolveBinary } from "./bin-path.ts";
@@ -309,16 +310,56 @@ const substringLocators = new WeakMap<Locator, { locator: Locator; scoped: boole
  * ambiguous, including repeated rows. */
 /** @throws None at construction; locator observation can refuse ambiguous or invalid selectors. */
 // @ref LLP 3000.000.000.001#11-wave-22-loop-repairs-dx6 — composed text preserves exactness and ambiguity.
-export function renderedText(page: Page, text: string | RegExp, options: { within?: Locator; exact?: boolean } = {}): Locator {
-  const root = options.within ?? page;
+export function renderedText(page: Page, text: string | RegExp, options: { within?: Locator; exact?: boolean } | null = {}): Locator {
+  const normalized = options ?? {};
+  const root = normalized.within ?? page;
   const match = (exact: boolean) => registeredLocator(root.locator(`${renderedSelector}=${JSON.stringify({
     source: typeof text === "string" ? text : text.source,
     flags: typeof text === "string" ? "" : text.flags,
     regex: typeof text !== "string", exact,
   })}`));
-  const locator = match(options.exact ?? true);
-  if (typeof text === "string" && options.exact !== false) substringLocators.set(locator, { locator: match(false), scoped: options.within !== undefined });
+  const locator = match(normalized.exact ?? true);
+  if (typeof text === "string" && normalized.exact !== false) substringLocators.set(locator, { locator: match(false), scoped: normalized.within !== undefined });
   return locator;
+}
+
+export interface ExhaustPagesOptions {
+  /** Refuse rather than loop forever when a backend returns bad continuations. */
+  maxPages?: number;
+  /** Names the read in a refusal without exposing its rows or cursor. */
+  label?: string;
+}
+type ProofPage<Row> =
+  | { readonly data: readonly Row[]; readonly next?: Cursor | null; readonly complete?: boolean; readonly cut?: string | null }
+  | { readonly denied: Refusal }
+  | { readonly loading: true };
+/** Read every page by passing each opaque `next` back unchanged. The callback
+ * receives null first. Refusals, loading, malformed/repeated cursors and a
+ * capped or incomplete page fail instead of returning a partial snapshot. */
+/** @throws E_PROOF_PAGE for a refused, loading, malformed, repeated, incomplete or over-limit traversal; callback errors propagate. */
+// @ref LLP 3000.000.000.002#9-wave-25-day-two-friction-dx8 — proof traversal must never promote capped or partial reads to complete evidence.
+export async function exhaustPages<Row>(readPage: (cursor: Cursor | null) => Promise<ProofPage<Row>>, options: ExhaustPagesOptions = {}): Promise<Row[]> {
+  const maxPages = options.maxPages ?? 1_000, label = options.label ?? "paged read";
+  if (!Number.isSafeInteger(maxPages) || maxPages < 1) throw new Error(`E_PROOF_PAGE: ${label}: maxPages must be a positive safe integer`);
+  const rows: Row[] = [], seen = new Set<string>();
+  let cursor: Cursor | null = null;
+  for (let pageNumber = 1; pageNumber <= maxPages; pageNumber++) {
+    const page = await readPage(cursor);
+    if (!page || typeof page !== "object") throw new Error(`E_PROOF_PAGE: ${label}: page ${pageNumber} returned no read envelope`);
+    if ("denied" in page) throw new Error(`E_PROOF_PAGE: ${label}: page ${pageNumber} refused ${page.denied.code}: ${page.denied.message}`);
+    if ("loading" in page) throw new Error(`E_PROOF_PAGE: ${label}: page ${pageNumber} is still loading`);
+    if (!Array.isArray(page.data)) throw new Error(`E_PROOF_PAGE: ${label}: page ${pageNumber} data is not an array`);
+    const cut = page.cut ?? null;
+    if (page.complete === false || cut !== null) throw new Error(`E_PROOF_PAGE: ${label}: page ${pageNumber} is incomplete${cut === null ? "" : ` (${cut} cut)`}`);
+    rows.push(...page.data);
+    const next = page.next ?? null;
+    if (next === null) return rows;
+    if (typeof next !== "string" || next.length === 0) throw new Error(`E_PROOF_PAGE: ${label}: page ${pageNumber} returned a malformed cursor`);
+    if (seen.has(next)) throw new Error(`E_PROOF_PAGE: ${label}: page ${pageNumber} returned a repeated cursor`);
+    seen.add(next);
+    cursor = next as Cursor;
+  }
+  throw new Error(`E_PROOF_PAGE: ${label}: exceeded maxPages ${maxPages}`);
 }
 /** Activate before taking a screenshot, particularly on loaded shared hosts. */
 /** @throws page closed or browser activation failed. */

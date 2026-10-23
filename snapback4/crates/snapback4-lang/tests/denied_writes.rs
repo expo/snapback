@@ -41,6 +41,7 @@ fn each_denied_effect_and_upsert_arm_is_noted_with_its_clause() {
     assert_eq!(update[0].guide, "rules");
     assert!(update[0].message.starts_with("table authorization layer: orders has `update <- deny` (schema.q:8:3); the update at schema.q:"), "{}", update[0]);
     assert!(update[0].message.contains("in `submit` cannot pass it for any caller but the system"), "{}", update[0]);
+    assert!(update[0].rewrite.contains("a mutation `require` decides intent but never grants table authority"), "{}", update[0]);
 
     let omitted = notes("mutation alert(body: text <=80):\n  insert alerts { body }\n");
     assert!(omitted.len() == 1 && omitted[0].message.starts_with("table authorization layer: alerts has no `insert` rule (schema.q:9:1), so it is deny"), "{omitted:?}");
