@@ -8,6 +8,26 @@ fn engine() -> Engine {
 }
 
 #[test]
+fn same_worker_call_and_submit_refuse_before_enqueueing() {
+    let queue = Arc::new(Queue::start(engine(), 1).unwrap());
+    let own = queue.clone();
+    let (sent, received) = mpsc::channel();
+    let reply = queue.submit(Command::new(move |_| {
+        let call = own.call(Command::new(|_| panic!("reentrant call ran")));
+        let submit = own.submit(Command::new(|_| panic!("reentrant submit ran"))).err();
+        sent.send((call, submit, own.admission.lock().unwrap().waiting.len())).unwrap();
+    })).unwrap();
+    // Observe with a deadline outside the worker so this witnesses the former deadlock.
+    let observed = received.recv_timeout(std::time::Duration::from_secs(2));
+    if observed.is_err() { queue.refuse_ownership(); }
+    reply.wait().unwrap();
+    assert_eq!(observed.unwrap(), (Err(SubmitError::Reentrant), Some(SubmitError::Reentrant), 0));
+    assert_eq!(queue.call(Command::new(|_| 7)), Ok(7));
+    let other = Arc::new(Queue::start(engine(), 1).unwrap());
+    assert_eq!(queue.call(Command::new(move |_| other.call(Command::new(|_| 11)))), Ok(Ok(11)));
+}
+
+#[test]
 fn queued_members_finish_continuations_on_one_worker_in_durable_order() {
     let directory = std::env::temp_dir().join(format!(
         "sb4-command-order-{}-{}",

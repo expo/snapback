@@ -8,6 +8,8 @@ pub const CODES: &[(&str, &str)] = &[
     ("N_CALENDAR_DURATION", "A 365-day multiple may differ from a calendar anniversary. Decide fixed elapsed days versus a calendar date and test leap-year boundaries. Advisory only. guide security."),
     ("N_DEPENDENT_WINDOW", "A written deadline is bounded against now without consulting a dependent stored deadline. Confirm the window base and enforce the actual resource deadline when required. Advisory only. guide security."),
 
+
+    ("E_COMMITTER_REENTRANT", "the committer refused submission from its own worker before enqueueing; use an inline member continuation."),
     ("E_STORE_CONFIG", "store selectors conflict or the deployment binding/configuration is missing or invalid; use one selector with explicit schema and HA mode and the original logical store binding. guide deploy."),
     ("E_STORE_OWNERSHIP", "the Postgres owner token, store binding or bounded takeover is no longer valid; stop admission, renew or reacquire ownership and reopen with its token before writing."),
     ("E_COMMITTER_STOPPED", "the committer disconnected before execution; the command was not applied and can be retried after the server recovers."),
