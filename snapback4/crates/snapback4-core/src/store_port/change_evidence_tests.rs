@@ -1,7 +1,7 @@
 //! One writer/pruning contract through both enum adapters.
 // @ref LLP 3000.009.001.000#9.1 — shared inputs, ordered bounded reads and real snapshots.
 use crate::{Engine, Schema, Value, rows::Rows,
-    revocation::{self, ChangeEvidence}, store_port::{AnyStore, AnyTx}, value::{object, canonical_json}};
+    revocation::{self, ChangeEvidence}, store_port::{AnyStore, AnyTx}, value::object};
 
 const SOURCE: &str = "table notes:\n  body: text\n  owner: principal\n  read <- .owner = viewer\n  insert <- allow\n  update <- allow\n  sync to .owner\nmutation put(key: id, body: text):\n  upsert notes[key] {body, owner: viewer}\n  return body\nmutation refused(key: id):\n  upsert notes[key] {body: 'refused', owner: viewer}\n  require false else NO\n";
 pub(crate) fn engine(pg: bool) -> Engine {
@@ -38,11 +38,22 @@ fn writer(pg: bool) {
         assert_eq!(begin(&tx), seq);
         if let Some(new) = &new { tx.put("notes", table, new, old.as_ref()).unwrap(); }
         else { tx.delete("notes", table, old.as_ref().unwrap()).unwrap(); }
-        let expected = canonical_json(&tx.change_footprint());
+        let (deleted, population, columns) = match seq {
+            1 => (false, true, vec![]),
+            2 => (false, false, vec!["body"]),
+            3 => (false, false, vec!["owner"]),
+            4 => (true, true, vec![]),
+            _ => unreachable!(),
+        };
+        let expected = serde_json::json!({"unknown":false,"tables":{"notes":{
+            "deleted":deleted,"population":population,"columns":columns
+        }}});
         complete(&tx, seq, &["notes".into()]);
         let mut actual = Vec::new();
         tx.change_evidence(seq-1, seq, |r| { actual.push(r.footprint.unwrap()); Some(()) }).unwrap();
-        assert_eq!(actual, [expected]);
+        assert_eq!(actual.len(), 1);
+        assert_eq!(serde_json::from_str::<serde_json::Value>(&actual[0]).unwrap(), expected);
+        assert!(!actual[0].contains("a\\u0000b"), "row values never cross the footprint envelope");
         assert_eq!(revocation::preserved_between(&tx, &schema, seq-1, seq), Some(if seq <= 2 { vec!["notes".into()] } else { vec![] }));
         old = new;
     }
