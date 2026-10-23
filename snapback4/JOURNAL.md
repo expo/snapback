@@ -104628,3 +104628,13 @@ preserve both fixture corrections. PG16 PID 1459278, socket directory
 `/tmp/rt6g4a-hja_khbn`, remains owned for the immediately following G4a work;
 final shutdown/absence will be recorded there. The shared-host stop floor is
 not reached. No push, stash, persistent Git configuration change or raw logs.
+## 2026-10-23 — G4a short-request admission
+
+Lane `sb4-pg/g4a` starts at the required RT6 `2fdab64882`. Short handling
+now has 30 workers and 98 queue slots, with the original intake/body
+deadlines retained. Waiting consumes no DB reader. The 128-request held
+burst drains successfully, the 129th refuses, and an expired streaming
+request refuses without draining. Eight overload witnesses and both RT0
+tables pass; existing W1/W2 are still 3/2 PG and 6/6 SQLite. Report:
+reports/20261023-g4a-reads/REPORT.md. Private PG16 master 4057748 is owned
+until final shutdown; raw logs are outside Git. No connection cap increased.

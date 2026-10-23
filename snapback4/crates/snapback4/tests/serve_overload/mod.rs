@@ -124,3 +124,50 @@ fn failed_thread_spawn_refuses_unfinished_upload_and_releases_permit() {
     assert_eq!(host.admission.refused[RequestClass::Mutation as usize].load(Ordering::Relaxed), 1);
     assert_eq!(status(&host.request("GET", "/auth/config", "", "")), 200);
 }
+
+#[test]
+fn short_burst_queues_without_extra_workers_and_refuses_only_at_the_bound() {
+    let host = Host::new(true);
+    let gate = Arc::new(WorkGate::default()); let _release = ReleaseGate(gate.clone());
+    let hook = gate.clone();
+    *lock(&host.shared.request_work) = Some(Arc::new(move || hook.park()));
+    let mut peers = Vec::new();
+    for _ in 0..REQUEST_WORKERS + SHORT_REQUEST_QUEUE {
+        let mut stream = TcpStream::connect(host.address).unwrap();
+        stream.set_read_timeout(Some(Duration::from_secs(15))).unwrap();
+        stream.write_all(b"GET /auth/config HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n").unwrap();
+        peers.push(stream);
+    }
+    wait_until(|| host.admission.short.load(Ordering::Acquire) == REQUEST_WORKERS + SHORT_REQUEST_QUEUE);
+    wait_until(|| gate.entered.load(Ordering::Acquire) == REQUEST_WORKERS);
+    let overflow = host.request("GET", "/auth/config", "", "");
+    assert_eq!(status(&overflow), 503, "{overflow}");
+    assert_eq!(body(&overflow)["denied"]["code"], "E_RATE_LIMIT");
+    assert_eq!(gate.entered.load(Ordering::Acquire), REQUEST_WORKERS);
+    gate.release();
+    for mut peer in peers {
+        let mut reply = String::new(); peer.read_to_string(&mut reply).unwrap();
+        assert_eq!(status(&reply), 200, "{reply}");
+    }
+    wait_until(|| host.admission.short.load(Ordering::Acquire) == 0);
+    assert_eq!(host.admission.refused[RequestClass::Short as usize].load(Ordering::Relaxed), 1);
+}
+
+#[test]
+fn queued_short_request_keeps_its_original_body_deadline() {
+    let host = Host::new(true);
+    let server = Server::http_with_limits("127.0.0.1:0", tiny_http::ConnectionLimits {
+        body_timeout: Duration::from_millis(20), ..Default::default()
+    }).unwrap();
+    let mut peer = TcpStream::connect(server.server_addr().to_ip().unwrap()).unwrap();
+    peer.set_read_timeout(Some(Duration::from_secs(3))).unwrap();
+    peer.write_all(b"POST /q/held HTTP/1.1\r\nHost: localhost\r\nContent-Length: 100000\r\n\r\n").unwrap();
+    let request = server.recv_timeout(Duration::from_secs(1)).unwrap().unwrap();
+    let until = request.body_deadline().unwrap();
+    while Instant::now() < until { thread::sleep(Duration::from_millis(1)); }
+    dispatch(request, host.shared.clone(), host.admission.clone(), true);
+    let mut reply = String::new(); peer.read_to_string(&mut reply).unwrap();
+    assert_eq!(status(&reply), 503, "{reply}");
+    assert_eq!(body(&reply)["denied"]["code"], "E_RATE_LIMIT");
+    wait_until(|| host.admission.short.load(Ordering::Acquire) == 0);
+}

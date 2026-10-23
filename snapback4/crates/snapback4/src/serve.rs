@@ -349,7 +349,11 @@ mod start;
 pub use start::serve;
 use start::serve_requests;
 
-const REQUEST_WORKERS: usize = 32;
+// Thirty executing reads leave the matched 32-connection budget's writer and
+// lease reservations intact. Waiting requests own sockets, never DB readers.
+const REQUEST_WORKERS: usize = 30;
+const SHORT_REQUEST_QUEUE: usize = 98;
+const SHORT_REQUEST_DEADLINE: Duration = Duration::from_secs(30);
 // Writer-dependent requests have their own budget: queued behind adoption, they cannot take
 // the slots reads and discovery need, and neither class loses capacity.
 const MUTATION_WORKERS: usize = 32;
@@ -407,7 +411,7 @@ impl RequestAdmission {
     }
     fn limit(&self, class: RequestClass) -> usize { self.limits[class as usize] }
     fn acquire(self: &Arc<Self>, class: RequestClass) -> Option<RequestPermit> {
-        let limit = self.limit(class);
+        let limit = self.limit(class) + if class == RequestClass::Short { SHORT_REQUEST_QUEUE } else { 0 };
         self.counter(class).fetch_update(Ordering::AcqRel, Ordering::Acquire, |n| (n < limit).then_some(n + 1)).ok()?;
         Some(RequestPermit { admission: self.clone(), class })
     }
@@ -452,6 +456,9 @@ fn dispatch_with_builder(request: Request, shared: Arc<Shared>, admission: Arc<R
     };
     let pending = PendingRequest { request: Some(request), admission: admission.clone(), class };
     if let Err(error) = admission.workers[class as usize].submit(admission.limit(class), builder, Box::new(move || { let _permit = permit;
+        // Intake time survives the queue; neither execution nor body reading
+        // receives a renewed lease. Refuse without draining an expired body.
+        if class == RequestClass::Short && pending.request.as_ref().is_some_and(|r| r.accepted_at().elapsed() >= SHORT_REQUEST_DEADLINE || r.body_deadline().is_some_and(|at| Instant::now() >= at)) { return; }
         let request = pending.take();
         let run = || { if let Some(sample) = sample { sample.run(|| handle(request, &shared)); } else { handle(request, &shared); } };
         if let Some(trace) = trace { trace.run(run); } else { run(); } })) {

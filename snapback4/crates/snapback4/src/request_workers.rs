@@ -10,7 +10,7 @@ struct Inner { state: Mutex<State>, ready: Condvar }
 pub(super) struct Workers(Arc<Inner>);
 
 impl Workers {
-    // @ref LLP 3000#contended-read-serving — separate class capacity; no extra admission queue.
+    // @ref LLP 3000.009.001.000.001#31-authority-boundaries — queued work retains its intake deadline and opens no snapshot before execution.
     pub(super) fn submit(&self, limit: usize, builder: thread::Builder, job: Job) -> std::io::Result<()> {
         let mut state = self.0.state.lock().unwrap_or_else(|e| e.into_inner());
         if state.jobs.len() >= state.idle && state.threads < limit {
