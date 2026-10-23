@@ -149,3 +149,4 @@
 {"at":"2026-10-23T16:04:35Z","sha":"e1f424691a","dirty":false,"wasm":{"raw":2407070,"gzip":735469,"brotli":553849},"glue":{"raw":16053,"gzip":3695,"brotli":3260},"wasmOpt":true,"budget":735969,"over":0}
 {"at":"2026-10-23T18:30:13Z","sha":"0d17e223d3","dirty":false,"wasm":{"raw":2407070,"gzip":735469,"brotli":553849},"glue":{"raw":16053,"gzip":3695,"brotli":3260},"wasmOpt":true,"budget":735969,"over":0}
 {"at":"2026-10-23T19:53:19Z","sha":"fb5c6335d9","dirty":false,"wasm":{"raw":2407070,"gzip":735469,"brotli":553849},"glue":{"raw":16053,"gzip":3695,"brotli":3260},"wasmOpt":true,"budget":735969,"over":0}
+{"at":"2026-10-23T20:55:17Z","sha":"bfef9d0902","dirty":false,"wasm":{"raw":2415003,"gzip":737990,"brotli":555572},"glue":{"raw":16053,"gzip":3695,"brotli":3260},"wasmOpt":true,"budget":738490,"over":0}
