@@ -1,0 +1,32 @@
+[
+  {
+    "cell": {
+      "workload": "W1",
+      "keys": "disjoint",
+      "delay_us": 0
+    },
+    "phase": "before",
+    "count": 1000,
+    "p50_ms": 0.625,
+    "p99_ms": 41.279,
+    "port": 55440,
+    "query": "prepared SELECT 1",
+    "socket_dir": "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/b1p3/s",
+    "warmup_queries": 100
+  },
+  {
+    "cell": {
+      "workload": "W1",
+      "keys": "disjoint",
+      "delay_us": 0
+    },
+    "phase": "after",
+    "count": 1000,
+    "p50_ms": 0.644,
+    "p99_ms": 41.151,
+    "port": 55440,
+    "query": "prepared SELECT 1",
+    "socket_dir": "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/b1p3/s",
+    "warmup_queries": 100
+  }
+]

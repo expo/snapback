@@ -103619,3 +103619,33 @@ old-accept timeout worker. Final checks use the owned lane target, eight Cargo
 jobs, line-tables-only dev/test debug and disabled incremental compilation to
 limit disk use. Work stays local: no push, stash, Git configuration change or
 raw log committed. The nine comparison items are closed; no executor deletion.
+## 2026-10-23 — S1-PG3: B1 attempt stopped on RTT tails and concurrent work
+
+The [B1 repeat](./experiments/scale-controls/results-20261023-snapback-postgres-b1/README.md)
+builds unchanged product `69ab3076b9` in the owned release target and reuses the
+S1-PG2 app, native 1M seed, account sessions and trial/search code. Every source
+image and maintained recount is exact after seed and at cleanup. Setup was
+contended; its 867.192 s seed time is not a performance comparison.
+
+W1 natural starts at one-minute loads 1.75 /0.63, with no active build/test lane
+detected. Nine trials /132,420 measured arrivals pass the independent raw audit.
+The native SLO-only candidate is 707/s (median p50/p99 15.458/27.738 ms); it is
+**disqualified**, not a B1 ceiling. Four of six before/after prepared RTT captures
+have p99 around 41 ms. The initial all-three-high guard was too permissive about
+intermittent clears; the operator stopped after recurrence across the cell.
+An unrelated 450a Cargo job also overlaps every 707/s measurement window.
+Eleven cells remain unrun; no product or transport fix was attempted.
+
+Clean W1 probes count 13 warm inferred exchanges/request, against the ordinary
+B1 budget 6 and PG2's measured 23. The inherited helper mints `account` sessions;
+the ordinary fast path admits guest/user/member. Complete ingress fallback and
+additional supervisor metadata reads explain the extra 7. The session kind was
+preserved, and no six-flight end-to-end claim follows for this account class.
+
+Database `sb4_snapback_s1pg3` and role `s1pg3_app` are dropped; 912 local and 347
+remote recorded PIDs are independently audited with no live owned process.
+Private session/config files are removed after a zero-match secret scan. Shared
+postmaster 2735539 and durable settings are unchanged. Final reporting helpers
+receive an additional exit audit. Raw data and source snapshots remain outside
+Git with location/SHA-256 in the report. Only results and this journal change;
+no push, stash, Git configuration change, product edit or sub-agent.

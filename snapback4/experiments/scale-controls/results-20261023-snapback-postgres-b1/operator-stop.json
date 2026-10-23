@@ -1,0 +1,68 @@
+{
+  "time": 1792767150.1234877,
+  "controller_pid": 2116493,
+  "reason": "User RTT stop rule: recurrent ~41ms p99 before and after W1 natural, including confirmations. Also another 450a Cargo lane resumed during cell; provisional SLO result is disqualified.",
+  "captures": [
+    {
+      "file": "rtt-after-confirm1.json",
+      "count": 1000,
+      "p50_ms": 0.679,
+      "p99_ms": 4.027,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/b1p3/s",
+      "warmup_queries": 100
+    },
+    {
+      "file": "rtt-after-confirm2.json",
+      "count": 1000,
+      "p50_ms": 0.62,
+      "p99_ms": 41.215,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/b1p3/s",
+      "warmup_queries": 100
+    },
+    {
+      "file": "rtt-after.json",
+      "count": 1000,
+      "p50_ms": 0.644,
+      "p99_ms": 41.151,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/b1p3/s",
+      "warmup_queries": 100
+    },
+    {
+      "file": "rtt-before-confirm1.json",
+      "count": 1000,
+      "p50_ms": 0.632,
+      "p99_ms": 41.119,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/b1p3/s",
+      "warmup_queries": 100
+    },
+    {
+      "file": "rtt-before-confirm2.json",
+      "count": 1000,
+      "p50_ms": 0.612,
+      "p99_ms": 3.337,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/b1p3/s",
+      "warmup_queries": 100
+    },
+    {
+      "file": "rtt-before.json",
+      "count": 1000,
+      "p50_ms": 0.625,
+      "p99_ms": 41.279,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/b1p3/s",
+      "warmup_queries": 100
+    }
+  ],
+  "note": "Initial all-three-consecutive guard allowed intermittent clear captures. Operator stops on sustained tail across cell boundaries; no product, app or trial/search semantics changed."
+}

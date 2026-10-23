@@ -1,0 +1,28 @@
+{
+  "pid": 2116493,
+  "pgid": 2116493,
+  "source_commit": "69ab3076b97bab9d0affc6022e7598cb81fd7545",
+  "source_sha256": {
+    "scripts/postgres-2.py": "3f57990f69b1c5e202bd97da37d17cbc60871e6f0a11b9c351dd60a90111966a",
+    "postgres-seed/src/main.rs": "481fb7e09844d4f4d08b4799c73ee8f5d1de794965c45ccb508bf13ee1439c63",
+    "snapback-app/snapback/schema.q": "d81afc50e1ead9ba3c8fd245fc2fd84f2ed1b179e03d3382fccf18b2bef9c65f"
+  },
+  "snapback_binary_sha256": "e20851319adaba621ce1aac19d515b66cc2b1a71952cb7f1a188e963b6c166aa",
+  "binary_sha256": "7618879a6762d49092c34aa2de9ec1ef784f0d569ac1906459b4a35ed693bb45",
+  "app_cores": "0-2,6-8",
+  "load_cores": "3-5,9-11",
+  "ssh_cores": "4-5,10-11",
+  "product_source_unmodified": true,
+  "release_path": "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/s1sk/s1pg3-raw/deployment",
+  "socket_path": "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/b1p3/s",
+  "upstream_path": "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/b1p3/u",
+  "timing": {
+    "warmup_ms": 10000,
+    "duration_ms": 20000,
+    "repeats": 3
+  },
+  "database": "sb4_snapback_s1pg3",
+  "role": "s1pg3_app",
+  "cluster_postmaster_pid": 2735539,
+  "transport": "450b stable symlink -> SSH Unix socket, or +500us proxy -> SSH -> 450a:55440"
+}

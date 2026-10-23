@@ -1,0 +1,52 @@
+check: ok — 5 tables (0 synced), 5 operations, compiled, 14 notes, 96.7 ms
+2 more actionable notes in check --verbose/JSON
+12 things to review (advisory; check --verbose explains each, snapback4 why <CODE> one):
+review — can cost correctness or completeness:
+note: schema.q:7:3 — N_BROAD_READ: review: confirm each admitted audience and row state. users.read: branch `allow` lets every signed-in user read every row — snapback4 why N_BROAD_READ
+note: schema.q:12:3 — N_BROAD_READ: review: confirm each admitted audience and row state. rooms.read: branch `allow` lets every signed-in user read every row — snapback4 why N_BROAD_READ
+note: schema.q:30:3 — N_BROAD_READ: review: confirm each admitted audience and row state. messages.read: branch `exists memberships[.room, viewer]` lets every memberships member read every row, regardless of ownership — snapback4 why N_BROAD_READ
+note: schema.q:2:1 — N_NO_PRODUCTION_WRITER: fix: add a production bootstrap writer. users: no production writer can bootstrap this root; messages depend on it; fixtures and /seed are dev-only — snapback4 why N_NO_PRODUCTION_WRITER
+note: schema.q:4:3 — N_MAINTAINED_COLUMN_DISCLOSURE: review: who can read this. users.sent discloses the count of messages rows to every parent reader; parent readers are not proven able to read those source rows; source writers can observe aggregate overflow — snapback4 why N_MAINTAINED_COLUMN_DISCLOSURE
+note: N_NO_PRODUCTION_WRITER (as above) also for rooms: no production writer can bootstrap this root (schema.q:10:1); memberships: no production writer can bootstrap this root (schema.q:15:1); counters: no production writer can bootstrap this root (schema.q:34:1) — snapback4 why N_NO_PRODUCTION_WRITER
+note: N_MAINTAINED_COLUMN_DISCLOSURE (as above) also for rooms.total discloses the count of messages rows to every parent reader (schema.q:11:3) — snapback4 why N_MAINTAINED_COLUMN_DISCLOSURE
+note: schema.q:55:7 — N_LOOKUP_FILTERED: review: confirm lookup authority and the hidden-row outcome. mutation increment: lookup of counters uses `read <- .owner = viewer or .owner = null and exists memberships[.room, viewer]` (schema.q:39:3); its key and preceding guards do not prove read authority. A hidden, expired or missing row returns null; `! else CODE` refuses with that authored code for all three. A later field/default or require may report a different business condition — snapback4 why N_LOOKUP_FILTERED
+note: schema.q:60:10 — N_REFERENCE_UNCHECKED: review: this reference argument has no mandatory target lookup. mutation post stores argument room directly in messages.room, without a mandatory lookup of rooms[room] on every committing path: a reference accepts any well-formed id even when the row is absent — snapback4 why N_REFERENCE_UNCHECKED
+note: schema.q:1:1 — N_SECURITY_INTENT: review: write independent intent from the spec. 5 tables have access rules and no security invariants: counters, memberships, messages, rooms, users; declare the spec's privacy rules as invariants (`guide security`) — snapback4 why N_SECURITY_INTENT
+scale: 4 of 5 operations are constant; 1 grow with data (W3) — `check --cost` gives the certificate
+check --verbose for explanations, rewrites and execution details; why <op> for one operation
+  query W1:
+    scale: constant — at most 1 rows examined, 2 probes, 0 lanes
+    point messages.byId — one row, one rule check
+  query W2:
+    scale: constant — at most 22 rows examined, 2 probes, 0 lanes
+    point memberships using index (room, principal), chosen by the planner — one row, one rule check
+    scan messages using index (room, at), chosen by the planner last 20 — rule uniform over the prefix: one verdict
+      selected index (room, at), chosen by the planner (room = room); result: page; read: messages where .room = room last 20 by .at, .id
+      sort/group/sum/count consume this page, not the whole population
+  query W3:
+    scale: grows with memberships skipped by `.room != 'r1024'` before 32 match
+      programs.W3.0: memberships skipped by `.room != 'r1024'` before 32 match; rewrite: pin the filter column in the read, or add a view indexed by that predicate
+    scan memberships using index (principal, room), chosen by the planner first 32 — rule decided by the prefix: no probes
+      selected index (principal, room), chosen by the planner (principal = viewer); result: page; read: memberships where .principal = viewer and .room != 'r1024' first 32 by .room
+      sort/group/sum/count consume this page, not the whole population
+      filter over ≤ examined ceiling (8192)
+    point rooms.byId — one row, one rule check
+    point rooms.byId — one row, one rule check
+  mutation increment:
+    scale: constant — at most 8202 rows examined, 8199 probes, 0 lanes
+    point counters.byId — one row, one rule check
+    write target counters.byId — engine-private lookup; the update rule decides
+    update counters
+  mutation post:
+    scale: constant — at most 8201 rows examined, 8197 probes, 0 lanes; per write: `rooms.total`: at most 4 derived writes per source transition (old/new groups); `users.sent`: at most 4 derived writes per source transition (old/new groups)
+    maintained columns from messages: rooms.total, users.sent
+      per source attempt: 1 application write + 8 reserved private/mirror writes; <= 4 whole-parent puts (old/new groups); all share the 1024-row mutation ceiling
+      composed mutation: <= 113 such source transitions, <= 452 parent puts; other writes and meters can lower this bound
+      rooms.total: <= 0 B per parent put, including event framing; private total emits 0 B; mirror preserves other fields and maintains every parent index
+      users.sent: <= 0 B per parent put, including event framing; private total emits 0 B; mirror preserves other fields and maintains every parent index
+      own derived stream bytes: <= 0 B per composed mutation, per recipient (application events, acknowledgements and reply envelope excluded)
+      activation: private rebuild + in-place mirror, 0 row-event bytes; parent barrier always commits; device reacquires, no column prediction
+      schema bounds may exceed 16777216 B; no write-time byte guard; an oversized current-generation stream at limit 1 restarts by snapshot with pending writes preserved
+    point users using index (principal), chosen by the planner — one row, one rule check
+    insert messages
+      write rule hop 1: users.byId -> principal; 1 prepaid rule probe; live readable row, current device coverage
