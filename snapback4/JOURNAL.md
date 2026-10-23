@@ -105040,3 +105040,44 @@ prove the lock is held and the original 1234 ms busy policy is restored; a
 subsequent 10,000-step VM query proves progress cleanup. Both pass, as do all
 six outcome/deadline witnesses including the PG remaining-flight deadline.
 The final batch matrix and measurements are recorded in the completion entry.
+
+## 2026-10-24 — G2/G3 completion and private loopback diagnostic
+
+The final program/identity/transcript/batch scope passes 19/19 on both stores,
+including the three-seed N=1 versus N=4/16/32 serial oracle and all member,
+savepoint and tail boundaries. Six outcome/deadline witnesses pass after the
+SQLite lock-budget follow-up. The full core run passes all unignored targets
+(730 unit passes, 279 named ignores, 38 doc passes); the final full binary
+passes 577 with 45 named ignores. Both RT0 ratchets and the normal CLI build
+pass. The committer census passes. The store-port census retains only five
+unchanged evaluator-module references, now a filesystem ticket.
+
+The complete Postgres script runs every stage. It retains its known evaluator
+Serializable 40001 red and exposed the now-corrected five-column RT6 count
+fixture; the corrected 19-case codec scope passes. Other stages, including
+232 adapter, 25 ownership, 60 evolution, 15 command, 62 HTTP-boundary, 22
+corpus, 11 differential-library and four store-campaign cases, pass. The public
+CLI witness passes byte/meter restore parity, takeover/restart and unchanged
+S1 Quarry P1-MC. Broader CLI-package fixture/security baseline reds remain
+explicit in the report; no clean full-package or full-script result is claimed.
+
+A fresh private PG16.15 cluster measures the actual S1 increment with live
+account credentials, a fenced owned queue and 32 closed-loop writers.
+Three counterbalanced trials per N use 1 s warmup and 3 s timed work, with
+fsync/synchronous_commit/full_page_writes on. Median writes/s for N=1/4/16/32:
+233.4/527.6/884.3/979.6. Physical COMMIT microseconds/member:
+2763.3/694.4/173.3/86.4. Mean actual fills: 1.00/4.00/15.94/31.45;
+91.6% of N=32 batches fill completely. Host one-minute load spans 1.53–1.75
+with 12 available CPUs. This core-queue loopback test excludes HTTP and the
+1M-message scale seed and makes no scale claim. The aggregate
+[report](./reports/20261024-g23-program-group-commit/REPORT.md) includes ranges,
+latencies, the complete fill distribution and qualification limits.
+
+Qualification postmaster 4027594, public-witness postmaster 686738 and fresh
+measurement postmaster 955188 are stopped and independently confirmed. All
+581 recorded masters, public children, measured backends and measurement
+background workers are absent; no pidfile/socket/listener remains. PIDs left:
+none. Final /home free space is 80 G, always above the 40 GB stop threshold.
+Raw logs/JSON/PG data stay outside Git. No push, stash, Git configuration
+change, PG17/55440 operation or q24 work occurs. Final `./ref-check` passes: 567 LLP
+docs, 11,838 refs, zero errors and zero unchecked references.
