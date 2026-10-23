@@ -38,7 +38,7 @@ pub(super) fn current_context_needed(
 }
 
 /// One injective declared identity map serves both source transport and checks.
-pub(super) fn column_names(prior: &ast::TableDecl, next: &ast::TableDecl) -> Option<BTreeMap<String, String>> {
+pub fn column_names(prior: &ast::TableDecl, next: &ast::TableDecl) -> Option<BTreeMap<String, String>> {
     let mut columns = BTreeMap::new();
     for column in &next.columns {
         if let Some(old) = column.renamed_from.as_ref().filter(|old| prior.columns.iter().any(|p| &p.name == *old)) {

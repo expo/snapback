@@ -182,11 +182,20 @@ pub(super) fn prepare(
             .with_table_names(&aliases)
             .map_err(|e| e.to_string())?;
         let mut columns=std::collections::BTreeMap::new();
-        for(name,table)in &compiled.schema.tables{if let Some(next)=current.table(name){
-            let mut map=std::collections::BTreeMap::new();
-            for(new,prior)in current.asset_renames.get(name).into_iter().flatten(){if next.columns.contains_key(new)&&table.columns.contains_key(prior)&&!table.columns.contains_key(new){map.insert(new.clone(),prior.clone());}}
-            for(new,prior)in compiled.schema.asset_renames.get(name).into_iter().flatten(){if next.columns.contains_key(prior)&&table.columns.contains_key(new)&&!next.columns.contains_key(new){map.insert(prior.clone(),new.clone());}}
-            if !map.is_empty(){columns.insert(name.clone(),map);}
+        let view_docs=bridge.sources.iter().map(|(file,text)|snapback4_lang::parse_document(file,text).0).collect::<Vec<_>>();
+        let current_docs=source.iter().map(|(file,text)|snapback4_lang::parse_document(file,text).0).collect::<Vec<_>>();
+        // @ref LLP 3000.000.000#20-visible-rollback-views-roll — source transport and hard constraints must agree on scalar as well as reference identities.
+        for name in compiled.schema.tables.keys(){if let Some(next)=current.table(name){
+            let prior=view_docs.iter().flat_map(|d|&d.tables).find(|t|&t.name==name);
+            let authored=current_docs.iter().flat_map(|d|&d.tables).find(|t|aliases.get(&t.name).unwrap_or(&t.name)==name);
+            if let(Some(prior),Some(authored))=(prior,authored){
+                let map=snapback4_lang::release_bridge::declared_column_names(prior,authored)
+                    .ok_or_else(||format!("E_ADOPT: rollback view for release {target} needs unambiguous column identities on {name}; author a compatible guarded rollback workflow"))?;
+                if next.columns.keys().map(|c|map.get(c).unwrap_or(c)).collect::<std::collections::BTreeSet<_>>().len()!=next.columns.len(){
+                    return Err(format!("E_ADOPT: rollback view for release {target} cannot merge independent column identities on {name}; author a compatible guarded rollback workflow"));
+                }
+                if !map.is_empty(){columns.insert(name.clone(),map);}
+            }
         }}
         let current=current.with_column_names(&columns);
         for (name, table) in &compiled.schema.tables {

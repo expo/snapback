@@ -4,6 +4,10 @@ use crate::{ast::{self,TypeKind}, lexer::{self,Kind}, parser, print};
 use std::collections::BTreeMap;
 pub struct Bridge {pub sources:Vec<(String,String)>,pub changes:Vec<String>,pub diagnostics:Vec<crate::diag::Diagnostic>}
 
+/// Injective current-to-view column identities from authored rename declarations.
+/// Shared by index source transport and CLI hard-constraint admission.
+pub use super::release_bridge_indexes::column_names as declared_column_names;
+
 /// Source-domain inclusion includes text minima/formats, which live outside
 /// ColumnType in the compiled schema. Never infer admission from advice prose.
 pub fn requires_view(target:&[(String,String)],current:&[(String,String)])->bool {
