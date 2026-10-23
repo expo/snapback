@@ -31,7 +31,10 @@ fn dev_headers_cover_operations_and_refusals_without_data_and_respect_the_fence(
         assert_eq!(keys, ["cpu", "engine", "total", "wait"]);
         assert!(metrics["engine"] <= metrics["total"] + 0.001, "{metrics:?}");
         assert!(metrics["wait"] <= metrics["total"] + 0.001, "{metrics:?}");
-        assert!(reply.to_ascii_lowercase().contains("access-control-expose-headers: server-timing"));
+        assert!(reply.split("\r\n\r\n").next().unwrap().lines().any(|line| {
+            line.split_once(':').is_some_and(|(name, value)| name.eq_ignore_ascii_case("Access-Control-Expose-Headers")
+                && value.split(',').any(|field| field.trim().eq_ignore_ascii_case("Server-Timing")))
+        }), "{reply}");
     }
     for origin in ["Origin: https://evil.example\r\n", "Origin: http://localhost.evil:4400\r\n"] {
         let reply = host.request("POST", "/q/read", &format!("{PERSONA}{origin}"), "{}");

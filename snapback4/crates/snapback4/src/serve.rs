@@ -674,7 +674,7 @@ pub(crate) fn respond_with_headers(request: Request, shared: &Shared, status: u1
 fn respond_full(request: Request, status: u16, body: impl latency::Reply, allow_origin: bool, sync_overflow: Option<Json>, shared: Option<&Shared>, extra: Vec<Header>) {
     // @ref LLP 3000.009.001.000.001#31-authority-boundaries — generation loss never revokes credentials or authenticates response metadata.
     if body.refusal_code() == Some("E_GENERATION") {
-        let body = serde_json::to_value(&body).expect("a generation refusal is JSON");
+        let body = serde_json::to_value(&body).unwrap_or(Json::Null);
         let body = operation_request::generation_reply(body);
         return respond_full_normalized(request, 503, latency::Unobserved(body), allow_origin, None, shared,
             extra.into_iter().filter(|h| !h.field.equiv("X-Snapback-Generation") && !h.field.equiv("Retry-After")).chain([Header::from_bytes("Retry-After", "1").unwrap(), Header::from_bytes("Access-Control-Expose-Headers", "Retry-After").unwrap()]).collect());
@@ -698,7 +698,8 @@ fn respond_full_normalized(request: Request, status: u16, body: impl latency::Re
     // Online-only refusals retain HTTP 200; failed authentication still cannot
     // disclose a store generation through the ordinary response stamp.
     let unauthenticated = body.refusal_code() == Some("E_AUTH") && body.refusal_family() == Some("auth");
-    let generation = if status == 401 || unauthenticated || queue_status.is_some() || !body.stamp_generation() { None } else { body.generation().or_else(crate::release_requests::reply_generation).or_else(|| shared.map(|s| *lock(&s.generation))) };
+    let unobserved = status == 401 || unauthenticated || queue_status.is_some() || !body.stamp_generation();
+    let generation = if unobserved { None } else { body.generation().or_else(crate::release_requests::reply_generation).or_else(|| shared.map(|s| *lock(&s.generation))) };
     crate::release_requests::executed();
     let encoded = serde_json::to_writer(&mut bytes, &body);
     // Append only to envelopes without a generation, without cloning row payloads.
@@ -724,27 +725,29 @@ fn respond_full_normalized(request: Request, status: u16, body: impl latency::Re
     let overload = overload && status == 503;
     let capacity = bytes.0.len() + 512;
     let mut response = Response::from_data(bytes.0).with_status_code(status);
-    if !generation_refusal && let Some(shared) = shared && let Some(identity) = lock(&shared.dev_reset_store).as_ref() {
-        response.add_header(Header::from_bytes("X-Snapback-Dev-Reset", identity.as_str()).unwrap());
+    let mut headers = Vec::new();
+    if !unobserved && !generation_refusal && let Some(shared) = shared && let Some(identity) = lock(&shared.dev_reset_store).as_ref() {
+        headers.push(Header::from_bytes("X-Snapback-Dev-Reset", identity.as_str()).unwrap());
     }
     if let Some(shared) = shared {
-        for header in session_clock_headers(&request, shared).into_iter().chain(ephemeral_headers(shared)) { response.add_header(header); }
+        for header in session_clock_headers(&request, shared).into_iter().chain(ephemeral_headers(shared)) { headers.push(header); }
         // @ref LLP 3000.023#11 — discover compiler dependency summaries without probing older servers.
-        response.add_header(Header::from_bytes("X-Snapback-Settlement", "1").unwrap());
-        response.add_header(Header::from_bytes("Access-Control-Expose-Headers", "X-Snapback-Settlement, X-Snapback-Generation").unwrap());
+        headers.push(Header::from_bytes("X-Snapback-Settlement", "1").unwrap());
+        headers.push(Header::from_bytes("Access-Control-Expose-Headers", "X-Snapback-Settlement, X-Snapback-Generation").unwrap());
     }
-    if let Some(generation)=generation {response.add_header(Header::from_bytes("X-Snapback-Generation",generation.to_string()).unwrap());}
-    response.add_header(Header::from_bytes("Content-Type", "application/json").unwrap());
-    response.add_header(Header::from_bytes("Cache-Control", "no-store").unwrap());
+    if let Some(generation)=generation {headers.push(Header::from_bytes("X-Snapback-Generation",generation.to_string()).unwrap());}
+    headers.push(Header::from_bytes("Content-Type", "application/json").unwrap());
+    headers.push(Header::from_bytes("Cache-Control", "no-store").unwrap());
     if overload {
-        response.add_header(Header::from_bytes("Retry-After", "1").unwrap());
-        response.add_header(Header::from_bytes("Access-Control-Expose-Headers", "Retry-After").unwrap());
+        headers.push(Header::from_bytes("Retry-After", "1").unwrap());
+        headers.push(Header::from_bytes("Access-Control-Expose-Headers", "Retry-After").unwrap());
     }
-    for header in extra { response.add_header(header); }
+    for header in extra { headers.push(header); }
     if allow_origin {
-        for header in cors(&request) { response.add_header(header); }
+        for header in cors(&request) { headers.push(header); }
     }
-    if let Some(header) = latency::header() { response.add_header(header); }
+    if let Some(header) = latency::header() { headers.push(header); }
+    for header in merge_exposed_headers(headers) { response.add_header(header); }
     trace::mark("write_start");
     if status >= 400 && request.method() == &Method::Post {
         let _ = request.respond_and_close_with_completion(response, |result| latency::finished(result.is_err() || refused));
@@ -814,7 +817,7 @@ pub(crate) fn query_params(url: &str) -> BTreeMap<String, String> {
 // operation. Mutation replay's seq is historical; head is never that receipt.
 #[path = "serve_head.rs"]
 mod head;
-use head::{response_head, intent_store, session_clock_headers};
+use head::{response_head, intent_store, session_clock_headers, merge_exposed_headers};
 pub(crate) use head::{ephemeral_headers, mutation_reply};
 
 #[path = "serve_operation.rs"]

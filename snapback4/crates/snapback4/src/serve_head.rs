@@ -1,6 +1,20 @@
 //! Read-only durable metadata and request store binding.
 use super::*;
 
+pub(super) fn merge_exposed_headers(headers: impl IntoIterator<Item = Header>) -> Vec<Header> {
+    let mut output = Vec::new();
+    let mut names: Vec<String> = Vec::new();
+    for header in headers {
+        if header.field.equiv("Access-Control-Expose-Headers") {
+            for name in header.value.as_str().split(',').map(str::trim).filter(|s| !s.is_empty()) {
+                if !names.iter().any(|old| old.eq_ignore_ascii_case(name)) { names.push(name.to_owned()); }
+            }
+        } else { output.push(header); }
+    }
+    if !names.is_empty() { output.push(Header::from_bytes("Access-Control-Expose-Headers", names.join(", ")).unwrap()); }
+    output
+}
+
 pub(super) fn response_head(engine: &mut Engine) -> Result<(String, u64), Refusal> {
     let tx = engine.store_mut().read_transaction()?;
     let id: String = tx.store_id()?;

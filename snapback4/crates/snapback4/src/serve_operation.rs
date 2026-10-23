@@ -137,7 +137,8 @@ pub(super) fn query_argument_refusal(request: Request, shared: &Shared, name: St
 // The wire envelope carries no reliable adoption provenance: stale readers and
 // foreign activation share E_GENERATION. Use the lead's bounded-retry fallback.
 pub(super) fn generation_reply(body: Json) -> Json {
-    let mut why = body.get("denied").or_else(|| body.get("why")).expect("generation refusal").clone();
+    let mut why = body.get("denied").or_else(|| body.get("why")).filter(|why| why.is_object()).cloned()
+        .unwrap_or_else(|| json!(Refusal::new("E_GENERATION", "generation", "the serving generation changed; retry current admission")));
     why["retryable"] = json!(true);
     json!({"denied":why,"complete":false})
 }

@@ -22,7 +22,7 @@ fn adopt(shared: &Shared, source: String) {
         *lock(&shared.generation) = generation;
     }).unwrap();
 }
-fn generation_reply(reply: &str) {
+pub(super) fn generation_reply(reply: &str) {
     refused(reply, "E_GENERATION");
     assert_eq!(status(reply), 503, "{reply}");
     assert_eq!(body(reply)["denied"]["retryable"], true, "{reply}");

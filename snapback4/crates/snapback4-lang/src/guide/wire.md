@@ -322,8 +322,18 @@ Authentication refuses before an operation executes. Identity helpers in the
 JS client preserve the `denied` body on 401/403; do not replace it with a proxy
 error page. Rule/constraint refusals after operation admission remain HTTP 200.
 Identity scope/value validation can also return 200 denied/E_INPUT; inspect the body.
-After a streaming heartbeat starts, HTTP stays 200; inspect the final JSON for
-`denied` if the session expires while waiting.
+After a `/changes` whitespace heartbeat starts, HTTP stays 200. Inspect the
+final JSON's `denied`: it carries the same code and retryability as an ordinary
+refusal. `E_GENERATION` carries `retryable:true` and `retryAfterMs:1000`
+instead of a late `Retry-After: 1` header, with no store id, head, sequence,
+generation, evaluation data or generation header. A revoked session still
+carries terminal `E_AUTH`. The SDK changes reader handles streamed generation
+refusals and ordinary 503s identically: four attempts per request, a ten-second
+cumulative retry-wait bound, jitter and the retry delay floor. Each attempt
+retains the cursor and credential; cancellation by the credential owner stops
+retries. The byte-silence watchdog runs during each transport attempt and pauses
+after a completed body while waiting to retry. Existing live-poll scheduling
+owns any later request after that bound.
 
 Two layers answer differently. The HTTP layer decodes the request against the
 operation's signature before anything runs: a body that is not JSON, an
@@ -340,9 +350,12 @@ bounds, `''` for a `text 1..500` argument too (`why.code` E_INPUT) — rules (E_
 (E_CONSTRAINT), a delete that rows still reference (E_REFERENCED, naming the
 referencing column), `NOT_FOUND`, the program's own `require … else CODE` (with
 `why.site` and `why.rule`), and a reused write id (E_ID_REUSED). A retryable
-refusal is 503 instead. E_GENERATION is always 503, including after the
+refusal is 503 instead. Before streaming starts, E_GENERATION is always 503, including after the
 server exhausts its two query handoffs; it omits store id, head, sequence,
-generation and the generation header. Preserve the session. Safe SDK reads
+generation and the generation header. Following source-snapshot failures use
+this 503 `denied` envelope too, rather than a pinned 200 `phase:"refused"`.
+Following success/page/restart replies retain their existing pinned protocol.
+Preserve the session. Safe SDK reads, including online/local Following,
 retry a retryable generation 503 at most three times after the first attempt,
 respecting Retry-After, jitter and a ten-second cumulative wait limit, just
 like E_RATE_LIMIT. A known foreign activation is non-retryable: reopen the

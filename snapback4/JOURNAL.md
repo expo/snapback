@@ -103492,3 +103492,65 @@ Disk stayed above the floor: recorded minimum 29.4 GiB, final 70.9 GiB. Cargo
 handoffs preserve inherited artifacts and remove only manifest-proven round-2
 outputs. Raw evidence stays in `/tmp/sb4-rt3b-fix2/`. One additive local commit;
 no push, stash, history rewrite or Git configuration change.
+
+
+## 2026-10-23 — RT3b fix round 3 (final): presence and raw transport doors
+
+Presence entry now carries principal, credential kind and scope into its actual
+writer queue. The full capability is checked before reconnect bookkeeping or
+presence publication. Following retains and checks that tuple too; stale scope
+or kind refuses retryable E_AUTH with HTTP 503 and no store metadata.
+
+A Following source-snapshot E_GENERATION leaves the pinned success path and
+uses the ordinary metadata-free 503 denied envelope, retryable with
+Retry-After: 1. Both SDK Following transports use the existing bounded read
+retry owner. Once a changes heartbeat has sent 200, its final denied carries
+the same code/retryability policy; E_GENERATION carries retryAfterMs:1000 and
+no store facts. The SDK changes reader applies the same four-attempt and
+ten-second cumulative wait bound, cursor/credential custody, cancellation and
+jitter to that chunk and a 503. Its byte-silence watchdog pauses only after a
+completed body, while waiting to retry. Later live polling keeps its owner.
+The wire guide and request-round-trip RFC document both transport decisions.
+
+Unobserved/pre-authentication replies suppress cached X-Snapback-Dev-Reset,
+including unknown-bearer ingress E_STORE_REPLACED. Exposure headers merge into
+one comma-separated list. Generation normalization has a graceful fallback
+for an absent/non-object denied or why value. The existing latency assertion
+now checks Server-Timing membership in that list instead of requiring a
+separate header beginning with that name.
+
+Against af4bf9c14e product behavior, the final dual-store witnesses fail in
+18 cases: four presence scope/kind, four Following scope/kind, two Following
+source-snapshot, two streamed generation, two ingress reset-header, two merged
+exposure and two normalizer fallback cases. Both streamed revoked-session
+controls pass. Only synchronization hooks and the test overlay differ from
+that parent product. All 20 cases pass with the fix. Exact-parent SDK sources
+fail six of 17 cases (changes 503/stream recovery and both retry bounds,
+online/local Following recovery); eleven controls pass. Fixed SDK sources
+pass all 17. Raw logs remain outside Git under /tmp/sb4-rt3b-fix3/.
+
+Final qualification: shipped build; complete binary 577 pass/45 named ignores;
+authority 70/70; RT3b 62/62, repeated in the complete Postgres script; identity
+92/92 and both 4,545-state matrices; both unchanged RT0 ratchets; guide 127/127;
+SDK build/typecheck and all 126 generation/overload cases; ref-check and diff
+whitespace check pass. The broader SDK run exposed an introduced overload
+pacing regression; it is corrected by retaining the existing poll-loop owner
+for overload while retrying generation admissions inside changes.
+
+Two inherited check failures remain outside this final-round scope. The
+view-once HTTP-bounds leaf and parent suite fail identically on the fixed CLI
+and a CLI rebuilt from parent product sources (410 where the test expects a
+second 200 after an interrupted download). The unchanged Postgres experiment
+conformance test returns 40001 in Serializable mode, also in isolation; its
+Serialized mode completes 65 increments correctly. The complete Postgres
+script exits 1 for that experiment; every later stage passes, including public
+P1-CE parity, restart/takeover, release persistence/adoption and P1-MC. The
+[continuation report](./reports/20261023-rt3br-rt4.md) records commands,
+before/after distinctions, door policy, unchanged hashes and check results.
+
+Evaluator 1081829 and public master 1310938 are stopped, independently
+confirmed with status 3 and absent postmaster.pid. None of 899 recorded
+workload identities or either master remains. Monitored minimum free space
+47.4 GiB; final about 59 GiB. The three requested previous temporary directories
+are removed. Raw evidence stays in /tmp/sb4-rt3b-fix3/; one additive local
+commit, no push, stash or Git configuration change.

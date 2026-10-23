@@ -12,13 +12,14 @@ pub(super) fn serve(request: Request, shared: &Shared, operation: &str, body: &s
             json!({"phase":"refused","code":"E_FOLLOWING_INPUT"}),
         );
     }
-    let (principal, _, scope) = match principal_of(&request, shared) {
+    let capability = match principal_of(&request, shared) {
         Ok(p) => p,
         Err(r) => return respond_timed(request, shared, 401, json!({"denied":refusal_json(&r)})),
     };
+    let (principal, _, scope) = &capability;
     // @ref LLP 3000.033#1.2 — Following custody is outside the closed read allow-list.
     // The outer guard refuses before body intake; retain the boundary here too.
-    if scope == snapback4_core::identity::SessionScope::Read {
+    if *scope == snapback4_core::identity::SessionScope::Read {
         let why = Refusal::new(
             "E_READ_ONLY",
             "auth",
@@ -39,17 +40,23 @@ pub(super) fn serve(request: Request, shared: &Shared, operation: &str, body: &s
         }
     };
     let facts = RequestFacts::capture(&request);
+    let principal = principal.clone();
     let operation = operation.to_owned();
+    #[cfg(test)]
+    super::test_work(&shared.query_wait);
     let (status, bytes, pinned) = shared.engine.attempt(move |engine, shared| {
         let operation = operation.as_str();
     // Lock order is engine then controller. Authentication is checked again at
     // the same engine incarnation that owns the source read transaction.
 
     crate::release_requests::stamp(engine.generation());
-    if let Err(r) = mutation_authority(&facts, shared, engine, &principal) {
+    if let Err(r) = session_identity::Admission::capture(&facts, shared)
+        .and_then(|admission| admission.check_expected(shared, engine, &capability)) {
 
-        return (401, json!({"denied":refusal_json(&r)}).to_string(), false);
+        return (if r.retryable {503} else {401}, json!({"denied":refusal_json(&r)}).to_string(), false);
     }
+    #[cfg(test)]
+    super::test_work(&shared.changes_refresh);
     let Some(program) = engine.program(operation) else {
 
         return (200, json!({"phase":"restart"}).to_string(), false);
@@ -150,7 +157,17 @@ pub(super) fn serve(request: Request, shared: &Shared, operation: &str, body: &s
     };
     drop(reader);
 
-    let bytes = answer.unwrap_or_else(|e| json!({"phase":"refused","code":e.refusal().code}).to_string());
+    let bytes = match answer {
+        Ok(bytes) => bytes,
+        Err(error) => {
+            let why = error.refusal();
+            // @ref LLP 3000.009.001.000.001#6-increments — RT3b source refusals leave the pinned success protocol for a metadata-free 503.
+            if why.code == "E_GENERATION" {
+                return (503, json!({"denied":why}).to_string(), false);
+            }
+            json!({"phase":"refused","code":why.code}).to_string()
+        }
+    };
     (200, bytes, true)
     });
     if !pinned { return respond_timed(request, shared, status, serde_json::from_str::<Json>(&bytes).expect("owned reply")); }
@@ -159,7 +176,7 @@ pub(super) fn serve(request: Request, shared: &Shared, operation: &str, body: &s
     if let Some(header)=crate::serve::generation_header(){response.add_header(header);}
     response.add_header(Header::from_bytes("Content-Type", "application/json").unwrap());
     response.add_header(Header::from_bytes("Cache-Control", "private, no-store").unwrap());
-    for header in cors(&request).into_iter().chain(latency::header()) {
+    for header in super::merge_exposed_headers(cors(&request).into_iter().chain(latency::header())) {
         response.add_header(header);
     }
     let _ = request.respond(response);
