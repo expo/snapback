@@ -44,11 +44,7 @@ pub(super) fn current_context_needed(
     }
     for p in next.values_mut() {
         let mut doc=crate::ast::Document::default();doc.programs.push(p.clone());
-        crate::bind::intent_walk::document(&mut doc,&mut |expr|match expr {
-            crate::ast::Expr::Read(r)|crate::ast::Expr::Exists{read:r,..}|crate::ast::Expr::Created{read:r,..}=>{if let Some(old)=names.get(&r.table){r.table=old.clone();}},
-            crate::ast::Expr::Write{table,..}=>{if let Some(old)=names.get(table){*table=old.clone();}},
-            _=>(),
-        });
+        normalize_identities(&mut doc,&names);
         *p=doc.programs.pop().unwrap();
     }
     for(name,p)in next {
@@ -64,6 +60,27 @@ pub(super) fn current_context_needed(
     false
 }
 
+// Only typed row-reference slots change spelling. Literal values, member names,
+// helper identities and business strings retain their authored meaning.
+fn normalize_identities(doc:&mut crate::ast::Document,names:&std::collections::BTreeMap<String,String>) {
+    fn kind(ty:&mut crate::ast::ScalarType,names:&std::collections::BTreeMap<String,String>){
+        match &mut ty.kind {
+            crate::ast::TypeKind::Ref{table}=>if let Some(old)=names.get(table){*table=old.clone();},
+            crate::ast::TypeKind::List{item,..}=>kind(item,names),
+            _=>(),
+        }
+    }
+    for p in &mut doc.programs{for a in &mut p.args{kind(&mut a.type_,names);}}
+    for f in &mut doc.functions{for a in &mut f.args{kind(&mut a.type_,names);}}
+    let table=|name:&mut String|{if let Some(old)=names.get(name){*name=old.clone();}};
+    crate::bind::intent_walk::document(doc,&mut |expr|match expr {
+        crate::ast::Expr::Read(r)|crate::ast::Expr::Exists{read:r,..}|crate::ast::Expr::Created{read:r,..}=>table(&mut r.table),
+        crate::ast::Expr::Write{table:name,..}|crate::ast::Expr::Walk{table:name,..}=>table(name),
+        crate::ast::Expr::Merge(m)=>{table(&mut m.table);for lane in &mut m.lanes{if let Some(name)=&mut lane.table{table(name);}if let Some(r)=&mut lane.planned{table(&mut r.table);}if let Some((_,r))=&mut lane.nulls{table(&mut r.table);}}},
+        _=>(),
+    });
+}
+
 pub(super) fn carry(
     sources: &mut [(String, String)],
     current: &[(String, String)],
@@ -72,7 +89,7 @@ pub(super) fn carry(
 ) -> (Vec<crate::Diagnostic>,BTreeSet<String>) {
     let mut diagnostics = Vec::new();
     let mut fallback=BTreeSet::new();
-    let current_documents = current
+    let mut current_documents = current
         .iter()
         .map(|(file, text)| parser::parse_document(file, text).0)
         .collect::<Vec<_>>();
@@ -80,35 +97,30 @@ pub(super) fn carry(
         .iter()
         .map(|(file, text)| parser::parse_document(file, text).0)
         .collect::<Vec<_>>();
+    let target_tables=target_documents.iter().flat_map(|d|&d.tables).map(|t|t.name.clone()).collect::<BTreeSet<_>>();
+    let current_tables=current_documents.iter().flat_map(|d|&d.tables).map(|t|t.name.clone()).collect::<BTreeSet<_>>();
+    let mut identities=std::collections::BTreeMap::new();
+    for table in current_documents.iter().flat_map(|d|&d.tables) {
+        if let Some(prior)=table.renamed_from.as_ref().filter(|prior|target_tables.contains(*prior)){identities.insert(table.name.clone(),prior.clone());}
+    }
+    for table in target_documents.iter().flat_map(|d|&d.tables) {
+        if let Some(prior)=table.renamed_from.as_ref().filter(|prior|current_tables.contains(*prior)&&!current_tables.contains(&table.name)){identities.insert(prior.clone(),table.name.clone());}
+    }
+    for doc in &mut current_documents{normalize_identities(doc,&identities);}
     let helper_signatures = |docs: &[crate::ast::Document]| {
-        docs.iter()
-            .flat_map(|d| {
-                d.functions.iter().map(move |f| {
-                    let text = d
-                        .source
-                        .declarations
-                        .get(&f.site.to_string())
-                        .cloned()
-                        .unwrap_or_default();
-                    let (tokens, _) = crate::lexer::lex(&d.file, &text);
-                    let calls = tokens
-                        .windows(2)
-                        .filter(|p| p[0].kind == crate::lexer::Kind::Word && p[1].value == "(")
-                        .map(|p| p[0].value.clone())
-                        .collect::<Vec<_>>();
-                    (
-                        f.name.clone(),
-                        (
-                            tokens
-                                .into_iter()
-                                .map(|t| (t.kind, t.value))
-                                .collect::<Vec<_>>(),
-                            calls,
-                        ),
-                    )
-                })
-            })
-            .collect::<std::collections::BTreeMap<_, _>>()
+        let mut out=std::collections::BTreeMap::new();
+        for doc in docs {
+            for f in &doc.functions {
+                let args=f.args.iter().map(|a|(a.name.clone(),print::scalar_type(&a.type_),a.alias.clone(),a.default.as_ref().map(print::expression),a.deprecated)).collect::<Vec<_>>();
+                let body=match &f.body {
+                    crate::ast::FunctionBody::Expression(e)=>vec![format!("expression {}",print::expression(e))],
+                    crate::ast::FunctionBody::Block(body)=>body.iter().map(normalized_statement).collect(),
+                };
+                let mut function=crate::ast::Document::default();function.functions.push(f.clone());
+                let mut calls=Vec::new();crate::bind::intent_walk::document(&mut function,&mut |e|if let crate::ast::Expr::Call{name,..}=e{calls.push(name.clone());});
+                out.insert(f.name.clone(),((args,body),calls));
+            }
+        }out
     };
     let current_helpers = helper_signatures(&current_documents);
     let target_helpers = helper_signatures(&target_documents);

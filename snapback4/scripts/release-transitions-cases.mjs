@@ -80,12 +80,16 @@ mutation add():
 `;
     const next=prior.replace('  minPressure: int 0..2000\n','  lowPressure: int 0..2000 default 0\n').replace('{minPressure: 4}','{lowPressure: 4}');
     g.source(prior);await g.run(['deploy',g.deployment]);g.source(next);
-    const foresight=JSON.parse((await g.run(['deploy',g.deployment,'--check','--json'])).stdout);
-    assert.ok(foresight.hazards.some(s=>s.includes('gauges.minPressure')&&s.includes('new rows')&&s.includes('--to 1 --check --bridge')));
-    const adopted=JSON.parse((await g.run(['deploy',g.deployment,'--json'])).stdout);
-    assert.ok(adopted.preview.hazards.some(s=>s.includes('gauges.minPressure')),'JSON retains full reverse-adoption risk');
+    const unsafePreview=await g.invoke(['deploy',g.deployment,'--check','--json']);
+    assert.equal(unsafePreview.code,1);assert.match(unsafePreview.stderr,/minPressure/);assert.match(unsafePreview.stderr,/guarded|truthful|compatible/);
+    const unsafeDeploy=await g.invoke(['deploy',g.deployment,'--json']);assert.equal(unsafeDeploy.code,1);assert.match(unsafeDeploy.stderr,/minPressure/);
+    assert.deepEqual(g.releases(),['1'],'an unrepresented required old field refuses before a release is adopted');
+    const compatible=next+"\ndown gauges oldMinimum(lowPressure: int 0..2000): {minPressure:lowPressure}\n";
+    g.source(compatible);const foresight=JSON.parse((await g.run(['deploy',g.deployment,'--check','--json'])).stdout);
+    assert.ok(!foresight.hazards.some(s=>s.startsWith('rollback foresight:')&&s.includes('gauges.minPressure')),'a truthful authored reverse resolves the old-row risk');
+    await g.run(['deploy',g.deployment,'--json']);
     const h=await g.serve();assert.equal((await h.post('/m/add',{},'rel5-new-gauge')).state,'sent');
-    const rollback=await g.invoke(['rollback',g.deployment,'--to','1','--check']);assert.equal(rollback.code,1);assert.match(rollback.stderr,/minPressure/);
+    const rollback=JSON.parse((await g.run(['rollback',g.deployment,'--to','1','--check','--json'])).stdout);assert.equal(rollback.visibility.hiddenRows,0);
     await h.host.stop();active.delete(h.host);
 
     const c=fixture('contracts');

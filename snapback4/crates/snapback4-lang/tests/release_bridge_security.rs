@@ -724,3 +724,18 @@ fn changed_existing_column_authority_selects_the_guarded_current_fallback() {
     assert!(bridge.diagnostics.is_empty(),"{:?}",bridge.diagnostics);
     assert_eq!(bridge.sources,sources,"a valid current guarded view must be selected before late CLI authority admission");
 }
+
+#[test]
+fn table_identity_renames_preserve_transitive_helpers_and_old_wire_aliases() {
+    let old="table docs:\n  n: int\n  read <- allow\n  insert <- allow\n  online only\nfn present(key: docs): exists docs[key] and 'docs' = 'docs'\nfn wrapped(key: docs): present(key)\nmutation add():\n  return insert docs {n:1}\nquery one(key: docs alias legacyKey):\n  return wrapped(key)\n";
+    let current=old.replace("table docs:","table records renamed from docs:").replace("n: int","n: int ?").replace("key: docs","key: records").replace("exists docs[","exists records[").replace("insert docs {","insert records {").replace(" alias legacyKey","");
+    let bridge=release_bridge::loosen(&[("schema.q".into(),old.into())],&[("schema.q".into(),current)]);
+    assert!(bridge.diagnostics.is_empty(),"{:?}",bridge.diagnostics);
+    assert!(bridge.sources.iter().any(|(_,text)|text.contains("'docs' = 'docs'")),"business strings are not row-reference slots");
+    let bound=compile(&bridge.sources);let mut engine=snapback4_core::Engine::memory(bound.schema,bound.programs.into_iter().map(|p|p.program)).unwrap();
+    let out=engine.mutate("add",None,snapback4_core::Context::new("alice",Default::default())).unwrap();
+    let snapback4_core::WriteState::Sent{result,..}=out.state else{panic!("{out:?}")};
+    let args=std::collections::BTreeMap::from([("legacyKey".into(),result.field("id").unwrap().clone())]);
+    let read=engine.query("one",snapback4_core::Context::new("alice",args)).unwrap();
+    assert_eq!(read.data,snapback4_core::Value::Bool(true));
+}

@@ -1,0 +1,17 @@
+muse: workspace root: /home/ccheever/projects/snapback-sb4loop (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=140af914-4b8b-4e46-841e-fdd2f2e355e2]: Subscription quota exhausted. Your usage window resets at 2026-10-26T00:00:00Z. (rate_limit_error)
+READY.
+
+Reviewed §20 (lines 1201–1498) against the 6ccc707 diff and the full bridge/selection path. No material flaw found.
+
+What I verified by reading code:
+
+- **Guard-context narrowing is safe.** Removing the broad `view_data != current_data` schema comparison does not drop authority: [release_bridge_rules.rs](snapback4/crates/snapback4-lang/src/release_bridge_rules.rs) transports current table rules (same-effect replacement, missing-effect `deny`), added-effect rules, caps, immutability, final-existence, expiry, indexes, and column payload read guards into the selective view (lines 131–255), and [rollback_views.rs](snapback4/crates/snapback4/src/verbs/rollback_views.rs) (lines 192–227) re-verifies rules/authority/lifetime equality at the CLI gate. The DORM migration-declaration noise that motivated the narrowing (backfills/downfills) is not guard-relevant, so excluding it only removes false current-selection.
+- **Rename normalization resolves safe.** The `names` map in `current_context_needed` is built only from declared `renamed_from` identities in both directions; anything it cannot equate (Walk/Merge slots, invariant subjects, unmapped spellings) compares unequal and selects current execution. Equating happens only under a declared typed identity, consistent with the selective view's own bidirectional routing.
+- **Position collapse check is correct.** [release_bridge.rs](snapback4/crates/snapback4-lang/src/release_bridge.rs) (lines 193–203) refuses when one old wire position fans out or two old positions collide behind current guards, then falls through to the current-workflow strategies whose `endpoint_contract` enforces distinct positions. The retained-alias restoration in `guarded()` only points at already-authored compatible endpoints.
+- **Alpha-failure gating matches the spec.** Non-unsupported alpha errors (capture/ambiguity/scalar-reparse) block guarded fallback via `allow_guarded=false`, which is exactly the specified "failed/capturing/ambiguous typed identity mapping cannot authorize fallback."
+- **Authority-before-gate holds.** Field-authority/default diagnostics (lines 204–216) feed strategy selection in `loosen()` before the CLI admission gate; with invariants, complete-current is attempted first and guarded-current second.
+- **Legacy actionability present.** [releases.rs:611](snapback4/crates/snapback4/src/verbs/releases.rs:611) names both `rollback --to N --exact` and redeploy with 0.4.39 in one refusal.
+
+Nits (non-material, safe-direction over-approximation): `shapes_changed` is still global rather than per-export, so an unrelated shape edit conservatively selects current for all sensitive exports; normalization skips Walk/Merge table slots, which likewise only over-selects current. The finite-test counts cited in the brief are taken as regression evidence as stated, not re-run (read-only scope).

@@ -134,14 +134,18 @@ test("HTTP admission, encoding, slow readers and idle changes polls", { timeout:
       assert.notEqual(upload.status, 413, "uploads keep the 64 MiB ceiling");
       assert.match((await upload.json()).denied?.code ?? "", /^E_ASSET/);
     });
-    await t.test("one-view assets finalize only after a complete non-range response", async () => {
+    await t.test("one-view reservations consume before transport and truncated responses close the pipeline", async () => {
       const png = new Uint8Array(8 * MiB);
       png.set([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13, 0x49, 0x48, 0x44, 0x52, 0, 0, 0, 2, 0, 0, 0, 3, 8, 6]);
-      const uploaded = await (await post("/assets", png)).json();
-      assert.ok(uploaded.asset?.id, JSON.stringify(uploaded));
-      const id = uploaded.asset.id;
-      const attached = await (await post("/m/attach", JSON.stringify({ args: { photo: { id } } }))).json();
-      assert.equal(attached.state, "sent", JSON.stringify(attached));
+      const attach = async () => {
+        const uploaded = await (await post("/assets", png)).json();
+        assert.ok(uploaded.asset?.id, JSON.stringify(uploaded));
+        const id = uploaded.asset.id;
+        const attached = await (await post("/m/attach", JSON.stringify({ args: { photo: { id } } }))).json();
+        assert.equal(attached.state, "sent", JSON.stringify(attached));
+        return id;
+      };
+      const id = await attach();
 
       const ranged = await fetch(`${url}/assets/${id}`, { headers: { ...headers, range: "bytes=0-0" }, signal: AbortSignal.timeout(hangBudget()) });
       assert.equal(ranged.status, 416);
@@ -163,10 +167,15 @@ test("HTTP admission, encoding, slow readers and idle changes polls", { timeout:
         socket.on("close", () => { sockets.delete(socket); resolve(); });
       });
 
-      const assetPath = join(directory, ".snapback4", "assets", id);
+      // @ref LLP 3000.009.001.000.000#3.7 — K0-Q reserves before releasing bytes; an aborted confirmed transfer is consumed.
+      const aborted = await fetch(`${url}/assets/${id}`, { headers, signal: AbortSignal.timeout(hangBudget()) });
+      assert.equal(aborted.status, 410);
+      assert.equal((await aborted.json()).denied?.code, "E_ASSET_VIEWED");
+      const truncatedId = await attach();
+      const assetPath = join(directory, ".snapback4", "assets", truncatedId);
       writeFileSync(assetPath, png.subarray(0, 2 * MiB));
       const pipelined = await rawBytes(
-        `GET /assets/${id} HTTP/1.1\r\nHost: localhost\r\nTE: identity\r\nx-snapback-persona: alice\r\n\r\n`
+        `GET /assets/${truncatedId} HTTP/1.1\r\nHost: localhost\r\nTE: identity\r\nx-snapback-persona: alice\r\n\r\n`
         + "POST /q/ping HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nContent-Length: 2\r\nx-snapback-persona: alice\r\n\r\n{}",
       );
       const headerEnd = pipelined.indexOf(Buffer.from("\r\n\r\n")) + 4;
@@ -175,12 +184,15 @@ test("HTTP admission, encoding, slow readers and idle changes polls", { timeout:
       assert.ok(pipelined.length > headerEnd, "the peer receives the available asset prefix");
       assert.ok(pipelined.length - headerEnd < png.length, "the peer reaches EOF before the declared asset length");
       assert.equal(pipelined.indexOf(Buffer.from("HTTP/1.1"), 1), -1, "a queued response cannot append bytes after the truncated body");
-      writeFileSync(assetPath, png);
+      const truncated = await fetch(`${url}/assets/${truncatedId}`, { headers, signal: AbortSignal.timeout(hangBudget()) });
+      assert.equal(truncated.status, 410);
+      assert.equal((await truncated.json()).denied?.code, "E_ASSET_VIEWED");
+      const completeId = await attach();
 
-      const complete = await fetch(`${url}/assets/${id}`, { headers, signal: AbortSignal.timeout(hangBudget()) });
+      const complete = await fetch(`${url}/assets/${completeId}`, { headers, signal: AbortSignal.timeout(hangBudget()) });
       assert.equal(complete.status, 200);
       assert.equal((await complete.arrayBuffer()).byteLength, png.length);
-      const viewed = await fetch(`${url}/assets/${id}`, { headers, signal: AbortSignal.timeout(hangBudget()) });
+      const viewed = await fetch(`${url}/assets/${completeId}`, { headers, signal: AbortSignal.timeout(hangBudget()) });
       assert.equal(viewed.status, 410);
       assert.equal((await viewed.json()).denied?.code, "E_ASSET_VIEWED");
     });

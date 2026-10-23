@@ -154,7 +154,7 @@ A table declares `table observations renamed from behaviors:` to preserve its ro
 
 Computed `down` cannot replace files/images, asset lists, references or a missing table. Required → optional media, an album becoming empty, or nullable money needs a generated loosened-target bridge when no truthful scalar substitution exists. Review target operations reading loosened columns and nullable UI assumptions. Keep current safety guards absent from the target; retaining new tables does not make them visible through frozen old operations. Automatic registered views handle compatible widenings. For an authored bridge, deploy it as a new release with `--restore-dormant`, first with `--check`.
 
-Save this script and run it with Node. `PRODUCTION_DIR` selects its persistent store; reruns preserve rows/users. It proves backfill, privacy and rollback/forward behavior. Default rollback preserves current privacy through a registered view; `--exact` deliberately restores v1's broader reads after an explicit review. REL5 owns reactivation/old-client reporting; SEC3 owns privacy/audit.
+Save this script and run it with Node. `PRODUCTION_DIR` selects its persistent store; reruns preserve rows/users. It proves backfill, privacy and rollback/forward behavior. This example widens the stored weight domain, so deploy registers a view. Default rollback preserves current privacy through that view; `--exact` deliberately restores v1's broader reads after an explicit review. REL5 owns reactivation/old-client reporting; SEC3 owns privacy/audit.
 
 ```js
 // day-two-production.mjs — this exact fence runs against the packed package.
@@ -181,20 +181,20 @@ table tickets:
   owner: principal
   body: text 1..200
   legacy: text <=200 ?
-  weight: int
+  weight: int 0..5000
   length: int
   read <- .owner = viewer or exists roles[principal = viewer, role = 'reviewer']
   insert <- .owner = viewer
   update <- .owner = viewer
   online only
-mutation add(body: text 1..200, weight: int, length: int):
+mutation add(body: text 1..200, weight: int 0..5000, length: int):
   return insert tickets {owner:viewer, body, legacy:body, weight, length}
-mutation revise(ticket: tickets, weight: int):
+mutation revise(ticket: tickets, weight: int 0..5000):
   update tickets[ticket] {weight}
 query ticket(ticket: tickets):
   return tickets[ticket]
 `;
-const v2 = v1.replace("  owner: principal", "  vehicleClass: enum('car', 'van', 'commercial')\n  owner: principal")
+const v2 = v1.replaceAll("weight: int 0..5000", "weight: int 0..10000").replace("  owner: principal", "  vehicleClass: enum('car', 'van', 'commercial')\n  owner: principal")
   .replace("  read <- .owner = viewer or exists roles[principal = viewer, role = 'reviewer']", "  read <- .owner = viewer")
   .replace("{owner:viewer, body, legacy:body, weight, length}", "{owner:viewer, body, legacy:body, weight, length, vehicleClass:'commercial' if weight > 3500 else 'van' if length >= 500 else 'car'}")
   + `backfill tickets vehicleClass(weight: int, length: int):

@@ -1,0 +1,25 @@
+MATERIAL: a declared table rename can still cause a false refusal through helper comparison at `6ccc707b4e`.
+
+Small counterexample, entirely in `schema.q`, without invariants:
+
+```quarry
+table docs:
+  n: int
+  read <- allow
+  online only
+fn present(key: docs): exists docs[key]
+query one(key: docs alias legacyKey):
+  return present(key)
+```
+
+For v2, rename `docs` to `records` using `table records renamed from docs:`, update both reference types and the helper’s table reference, widen `n` to `int ?`, and remove `alias legacyKey`.
+
+A valid selective view keeps the old helper/query and wire alias, widening only `n`. The helper still probes the same declared table identity.
+
+Instead, [release_bridge_guards.rs:221](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/src/release_bridge_guards.rs:221) compares raw helper tokens, treating `docs` versus `records` as a changed helper closure. The forced endpoint replacement also rejects the unaligned nominal argument types at [release_bridge_rules.rs:287](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/src/release_bridge_rules.rs:287).
+
+Neither fallback rescues it: complete-current alpha conversion leaves `legacyKey` missing, while guarded-current rejects the missing literal `docs` table at [release_bridge_current.rs:68](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/src/release_bridge_current.rs:68). Deploy therefore refuses this safe selective bridge.
+
+Helper closure comparisons need typed identity normalization, including helper parameter types and transitive table references. This contradicts §20.1’s declared-identity comparison and preservation of the selective route’s old wire contract.
+
+This finding is from static tracing; no files were changed and no builds or tests were run.
