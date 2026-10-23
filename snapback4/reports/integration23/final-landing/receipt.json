@@ -1,0 +1,31 @@
+{
+  "merge": "5176be3e7d47f66939caca7d7cfca96125b3b0d4",
+  "originIntegrated": "fcc2aa96ad916174abe7045c8fccc5a66384a297",
+  "qualifiedProductSource": "3cd7b7636f0f496b1e45e59d4efb97f5f13dc2e2",
+  "qualificationCommit": "b169b84115",
+  "productionNativeSha256": "8aa998f61e2a0402e276dc10e17830b2dbd0fe5dd754af367af3579b1420673c",
+  "incomingPaths": [
+    "llp/3000.009.001.000.002-beating-the-postgres-controls.rfc.md",
+    "llp/current/3000.009.001.000.002-beating-the-postgres-controls.rfc.md"
+  ],
+  "changedSnapback4ShippingPaths": [],
+  "sourceStatusAfterChecks": "",
+  "checks": [
+    {
+      "argv": [
+        "node",
+        "scripts/generate-guide-manifest.mjs"
+      ],
+      "exit": 0,
+      "result": "Diagnostics/symbol registries and guide manifest regenerate with no tracked diff."
+    },
+    {
+      "argv": [
+        "./ref-check"
+      ],
+      "exit": 0,
+      "result": "ref-check: ok \u2014 567 LLP docs, 12460 refs in 46791 files, 0 errors, 0 unchecked"
+    }
+  ],
+  "scope": "Incoming only accepted performance RFC + current link. Full root docs/inventory/guide checks retain their source3cd receipts; their Guide artifacts and all shipping inputs remain unchanged. No new performance capability claim."
+}

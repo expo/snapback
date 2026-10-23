@@ -56,6 +56,24 @@ Worktree: `/home/ccheever/projects/snapback-sb4loop`, branch `sb4-loop`.
   The codec census fix `f07884e368` has a real mutation control. No production
   census allowance, test assertion, deadline or seed was weakened.
 
+## Final main merge and landing checks
+
+Evidence/report commit `b169b84115` completes the source `3cd7b7636f`
+qualification below. Final fetch finds only six incoming documentation commits;
+merge `5176be3e7d` integrates `fcc2aa96ad`. The sole additions are accepted
+performance RFC `3000.009.001.000.002` and its current-set link. There is no
+conflict and no Snapback 4 shipping file changes after the qualified source.
+The RFC is a performance plan, not a new measured performance claim.
+
+Affected verification: `./ref-check` passes 567 LLPs/12,460 references, zero
+errors/unchecked. Diagnostics/symbol registries and guide manifest regenerate
+with no diff; the tree is clean afterward. Existing full root checks and all
+qualified native/client/store/Mac inputs remain unchanged. The final receipt
+and hashed raw logs are in
+[final landing evidence](snapback4/reports/integration23/final-landing/README.md).
+Main delivery uses the authorized nonforce `git push origin sb4-loop:main`,
+with fetch/merge/retry on a race; git records its landed commit.
+
 ## Final verification after the view-once main merge
 
 Merge `fb5c6335d9` integrates `da7b5e3a1d`. Its asset host checks the actual

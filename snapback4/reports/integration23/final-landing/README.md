@@ -1,0 +1,3 @@
+# Integration 23 final main merge
+
+Merge5176be3e7d integrates origin/main fcc2aa96ad: only the accepted Postgres performance RFC and its current-set link. No shipping Snapback4 file changes after qualified source3cd7b7636f. Reference check passes567 LLPs/12460 references with zero errors/unchecked; diagnostics, symbols and guide regenerate without changes. Full scoped qualification remains in ../qualification-view-once/, with the earlier broad runs explicitly bound to their actual sources. receipt.json and hashed raw logs record this final affected verification. Git records the subsequent nonforce main landing.
