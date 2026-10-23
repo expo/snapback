@@ -94,16 +94,8 @@ pub(super) fn carry(
             let columns=super::release_bridge_indexes::column_names(old,next);
             let same_key=|before:&ast::IndexDecl,after:&ast::IndexDecl| {
                 let Some(columns)=&columns else{return false};
-                if before.is_plain()&&after.is_plain() {
-                    return before.columns==after.columns.iter().map(|c|columns.get(c).unwrap_or(c).clone()).collect::<Vec<_>>();
-                }
-                // Opaque components are never inferred from their printed
-                // column advice. Preserve only their full compiled meaning.
-                match (before_schema.table(&old.name).and_then(|t|t.index(&before.name)),
-                    current_schema.as_ref().and_then(|s|s.table(&old.name)).and_then(|t|t.index(&after.name))) {
-                    (Some(before),Some(after))=>before.components==after.components,
-                    _=>false,
-                }
+                current_schema.as_ref().is_some_and(|schema|
+                    super::release_bridge_indexes::same_key(&before_schema,schema,&old.name,before,after,columns))
             };
             let carried_indexes=next.indexes.iter().filter(|i|
                 !old.indexes.iter().any(|o|o.name==i.name)

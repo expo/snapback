@@ -37,6 +37,27 @@ pub(super) fn current_context_needed(
     false
 }
 
+/// Complete enforcing-key identity, shared by registration and preparation.
+/// Opaque contracts are compared intact; only typed plain-column identities
+/// may be aligned. Printed calendar/function names are not their meaning.
+pub(super) fn same_key(
+    before: &Schema, after: &Schema, table: &str,
+    old: &ast::IndexDecl, next: &ast::IndexDecl,
+    columns: &BTreeMap<String, String>,
+) -> bool {
+    let (Some(old), Some(next)) = (
+        before.table(table).and_then(|t| t.index(&old.name)),
+        after.table(table).and_then(|t| t.index(&next.name)),
+    ) else { return false };
+    let mut next = next.clone();
+    for component in &mut next.components {
+        if let IndexComponent::Column(column) = component {
+            if let Some(prior) = columns.get(column) { *column = prior.clone(); }
+        }
+    }
+    old == &next
+}
+
 /// One injective declared identity map serves both source transport and checks.
 pub fn column_names(prior: &ast::TableDecl, next: &ast::TableDecl) -> Option<BTreeMap<String, String>> {
     let mut columns = BTreeMap::new();

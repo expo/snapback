@@ -213,3 +213,13 @@ fn a_declared_private_field_rename_keeps_the_guard_on_a_retained_old_export() {
         }
     }
 }
+
+#[test]
+fn changed_computed_unique_meaning_requires_a_view_before_conflicting_rows_exist() {
+    let old="table items:\n  at: time\n  other: time\n  unique byDay: day(at)\n  public\n  insert <- allow\n  online only\nmutation add(at: time, other: time):\n  return insert items {at, other}\n";
+    let current=old.replace("day(at)","day(other)");
+    assert!(crate::compile(&source(old)).diagnostics.is_empty());
+    assert!(crate::compile(&source(&current)).diagnostics.is_empty());
+    assert!(crate::release_bridge::requires_view(&source(old),&source(&current)));
+    assert!(!crate::release_bridge::requires_view(&source(old),&source(old)));
+}

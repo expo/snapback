@@ -553,3 +553,19 @@ fn ordinary_constraint_rename_with_unchanged_worker_does_not_require_a_view() {
     assert_eq!(plan["visibility"]["hiddenRows"],0);
     app.ok(&["rollback","deployment","--to","1"]);
 }
+
+#[test]
+fn changed_computed_unique_key_registers_before_rows_and_rolls_back_visibly() {
+    let app=App::new();
+    let old="table items:\n  at: time\n  other: time\n  unique byDay: day(at)\n  public\n  insert <- allow\n  online only\nmutation add(at: time, other: time):\n  return insert items {at, other}\n";
+    app.source(old);app.ok(&["deploy","deployment"]);
+    let current=old.replace("day(at)","day(other)");app.source(&current);
+    let plan=app.json(&["deploy","deployment","--check","--json"]);
+    assert_eq!(plan["rollbackViews"].as_array().unwrap().len(),1,"{plan}");
+    app.ok(&["deploy","deployment"]);
+    app.seed(&current,vec![json!({"id":"a","at":0,"other":0}),json!({"id":"b","at":1,"other":86400000})]);
+    let plan=app.json(&["rollback","deployment","--to","1","--check","--json"]);
+    assert_eq!(plan["visibility"]["hiddenRows"],0,"{plan}");
+    app.ok(&["rollback","deployment","--to","1"]);assert_eq!(app.count(),2);
+    app.ok(&["rollback","deployment","--to","latest"]);assert_eq!(app.count(),2);
+}

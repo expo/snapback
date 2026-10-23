@@ -19,6 +19,17 @@ pub fn requires_view(target:&[(String,String)],current:&[(String,String)])->bool
     if same_data_and_intent(target,current)
         && !crate::compile(current).invariants.is_empty()
         && modules(target)!=modules(current) {return true;}
+    let before_schema=crate::compile(target).schema;
+    let after_schema=crate::compile(current).schema;
+    let mut table_names=after_schema.table_renames.iter()
+        .filter(|(_,old)|before_schema.tables.contains_key(*old))
+        .map(|(new,old)|(new.clone(),old.clone())).collect::<BTreeMap<_,_>>();
+    for(new,prior)in &before_schema.table_renames {
+        if after_schema.tables.contains_key(prior)&&!after_schema.tables.contains_key(new) {
+            table_names.insert(prior.clone(),new.clone());
+        }
+    }
+    let after_schema=after_schema.with_table_names(&table_names).ok();
     let docs=current.iter().map(|(f,t)|parser::parse_document(f,t).0).collect::<Vec<_>>();
     let tables=docs.iter().flat_map(|d|&d.tables).collect::<Vec<_>>();
     let mut aliases=tables.iter().filter_map(|t|t.renamed_from.as_ref().map(|old|(t.name.clone(),old.clone()))).collect::<BTreeMap<_,_>>();
@@ -37,7 +48,8 @@ pub fn requires_view(target:&[(String,String)],current:&[(String,String)])->bool
             }
             let Some(columns)=declared_column_names(&old,next)else{return true};
             let normalize_columns=|fields:&[String]|fields.iter().map(|c|columns.get(c).unwrap_or(c).clone()).collect::<Vec<_>>();
-            if old.indexes.iter().any(|i|i.unique&&!next.indexes.iter().any(|n|n.unique&&normalize_columns(&n.columns)==i.columns)){return true}
+            if old.indexes.iter().any(|i|i.unique&&!next.indexes.iter().any(|n|n.unique&&after_schema.as_ref().is_some_and(|schema|
+                super::release_bridge_indexes::same_key(&before_schema,schema,&old.name,i,n,&columns)))){return true}
             if old.caps.iter().any(|c|!next.caps.iter().any(|n|normalize_columns(&n.by)==c.by&&n.max<=c.max)){return true}
         }
     }false

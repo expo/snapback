@@ -103820,3 +103820,22 @@ export, with positive owner access and negative non-owner redaction. It does
 not relax the closed current-endpoint requirement for independent intent.
 All required full Linux, packed, store, Exact and Mac qualification is repeated
 after the final accepted correction; interrupted attempts remain superseded.
+
+
+### 2026-10-23 — Integration 23: register changed computed enforcing keys before rows exist
+
+Independent R8 review found that `day(at)` and `day(other)` share the AST's
+printed `day` column advice. Registration now uses the same complete compiled
+Index comparison as bridge preparation, after injective declared table/plain
+column identity alignment. Opaque calendar/token/contribution contracts stay
+intact. This corrects the missed trigger without broadening policy equivalence
+or rewriting authored expressions. LLP 3000.000.000 §20.1 records the boundary.
+
+The new small language regression fails before this correction (actual 101).
+After correction, 65 language unit tests, 38 release_bridge_security cases and
+all 19 roll_views CLI cases pass. The CLI regression deploys into an empty
+store, seeds two rows current-valid under day(other) but conflicting under the
+old day(at), then defaults rollback/forward with both rows visible. One initial
+preflight named the nonexistent rollback_bridge_security target; its unit
+phase passed and the corrected actual release_bridge_security target passed.
+Full release qualification follows independent review of this correction.
