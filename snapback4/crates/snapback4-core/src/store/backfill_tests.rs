@@ -1160,3 +1160,46 @@ fn r11_raw_existence_fragments_require_declared_plain_indexes(){
 
 #[path="evolution_tests.rs"]
 mod evolution_tests;
+
+#[test]
+fn dx8_rename_projects_the_edited_current_cell_instead_of_the_retained_preimage(){
+ let old="table items:\n  title: text <=40\n  public 'fixture'\n  update <- allow\n  online only\n";
+ let current="table items:\n  name: text <=40 renamed from title\n  public 'fixture'\n  update <- allow\n  online only\nmutation edit():\n  update items['old'] {name:'current quote'}\n";
+ let mut e=engine(old);seed(&mut e,"items",json!({"id":"old","title":"stale quote"}));
+ adopt(&mut e,current,2).unwrap();write(&mut e,"edit");
+ for _ in 0..3 {
+  adopt(&mut e,old,1).unwrap();assert_eq!(field(&mut e,"items","old","title"),Value::String("current quote".into()));
+  adopt(&mut e,current,2).unwrap();assert_eq!(field(&mut e,"items","old","name"),Value::String("current quote".into()));
+ }
+}
+
+#[test]
+fn dx8_changed_declarations_name_old_and_new_digests_continuously_and_after_a_gap(){
+ let old="table items:\n  n: int\n  public 'fixture'\n  online only\n";
+ for down in [false,true] {
+  let word=if down {"down"}else{"backfill"};
+  let first=format!("{old}{word} items meaning(n: int): {{n:n + 1}}\n");
+  let changed=first.replace("n + 1","n + 2");
+  let a=compile(&first).0;let b=compile(&changed).0;
+  let old_key=if down{a.downfills[0].down_key()}else{a.backfills[0].key()};
+  let new_key=if down{b.downfills[0].down_key()}else{b.backfills[0].key()};
+  for gap in [false,true] {
+   let mut e=engine(old);seed(&mut e,"items",json!({"id":"a","n":3}));adopt(&mut e,&first,2).unwrap();
+   if gap {adopt(&mut e,old,1).unwrap();}
+   let generation=e.generation();let error=adopt(&mut e,&changed,3).unwrap_err().to_string();
+   assert!(error.contains(&format!("old digest {old_key}"))&&error.contains(&format!("new digest {new_key}")),"{error}");
+   assert_eq!(e.generation(),generation);
+  }
+ }
+}
+
+#[test]
+fn dx8_prune_announces_a_blinded_down_without_mutating_the_store(){
+ let old="table items:\n  n: int\n  public 'fixture'\n  online only\n";
+ let current=format!("{old}down items legacy(): {{n:0}}\n");
+ let mut e=engine(&current);seed(&mut e,"items",json!({"id":"a","n":5}));
+ adopt(&mut e,old,1).unwrap();
+ let generation=e.generation();let preview=e.store_mut().prune_dormant(false,None).unwrap();
+ assert!(preview["warnings"].as_array().unwrap().iter().any(|w|w.as_str().unwrap().contains("blinds down items legacy")),"{preview}");
+ assert_eq!(e.generation(),generation);adopt(&mut e,&current,2).unwrap();assert_eq!(field(&mut e,"items","a","n"),Value::Int(5));
+}

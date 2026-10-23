@@ -57,6 +57,23 @@ This roster is synced. A whole service-seat branch may add the first member; ord
 ## Migrations and adoption (SQLite)
 Optional/defaulted columns, new tables/ops, non-unique indexes and wider types are additive. Required new fields need a literal default or a declarative `backfill table name(fields: types): {column: expression}`; default now/viewer cannot invent historical values. Dev check/adoption refuses incompatible values with E_ADOPT. Release type narrowing instead retains each row whose present values cannot fit. Unique/cap conflicts still refuse atomically; repair active rows, or restore through a widened non-unique bridge, repair, then reinstate constraints. Prefer expand → migrate → contract for client compatibility. Generations climb on actual switches, including rollback/forward; identical execution content is a no-op.
 
+## Which migration shape survives edits and rollback?
+
+Choose the shape before writing a migration:
+
+- **Only a spelling changed, with identical types?** Use `renamed from`. The generated `$rename:down` presents the current edited scalar under its old name, including rows predating v2. File/reference renames keep the existing home/lifetime. Preserve old endpoint/result wrappers separately for frozen clients.
+- **A historical value must be computed?** Use a named `backfill`. Every input and lookup reads the assembled **pre-patch row/snapshot**, before any simultaneous backfill or rename has written an output. A backfill of a renamed destination must name the historical source field, not the new spelling. Keep that declaration in later sources that retain its meaning; use a new name for a different transform. A refusal prints the old and new normalized digests. Pruning never resets a name.
+- **The current value needs a truthful old representation?** Declare `down`. Authored down projections run on leaving the newer source and read its assembled snapshot. Exact forward-preimages and non-null retained old cells still win over an authored down; a generated identical-type rename is the current-value exception. Edits after migration can require a bridge or a declared representation rather than restoring a stale computed state. Preview both directions after ordinary edits, not just immediately after the backfill.
+- **An image/file/list moved into a child record?** Use `extract CHILD from PARENT via REF` to move existing homes. Scalar backfill/down expressions cannot duplicate assets. One child per parent and one child per list element are distinct shapes; see `guide evolution` for extraction forms and their reverse limits.
+- **The old domain cannot hold the value (null media, new enum, wider money)?** Keep a widened rollback view or an authored bridge carrying the current guards. An exact old source can retain incompatible rows as dormant; it cannot invent an image or a truthful business value. Integration 23 owns automatic rollback-view selection and its trigger.
+
+Preview rollback after a v2 edit, forward after a v1 edit, and v2-native rows
+with no v1 preimage. A bridge preserves both the current value and the old
+workflow until an authorized repair makes their representations agree.
+`prune` discards migration preimages as well as dormant data: its preview names
+known `down` projections whose evidence it blinds. Later reversal/re-entry can
+refuse. Keep the history, or keep a backup; prune is never a migration repair.
+
 ## Rollback after widening, restore and prune (SQLite)
 ```sh
 bunx snapback4 rollback ./deployment --to 1 --check

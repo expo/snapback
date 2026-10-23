@@ -820,7 +820,7 @@ table parcels renamed from shipments:
   read <- deny
   online only
 backfill parcels sizes(weight: int): {sizeClass: 'large' if weight > 3500 else 'small'}
-backfill parcels quantities(manifest: file <=100000 ?): {quantity: nonemptyLines(fileText(manifest)) if manifest != null else 0}
+backfill parcels quantities(legacyManifest: file <=100000 ?): {quantity: nonemptyLines(fileText(legacyManifest)) if legacyManifest != null else 0}
 ```
-**Historical data:** `backfill` patches historical inputs atomically; retain declarations. Rollback restores untouched preimages; conflicts refuse. `before`/`after` split first, `beforeLast`/`afterLast` last (absent: whole-before/empty-after; empty: refusal). `startsWith` matches exact prefixes; `allDigits` requires nonempty ASCII digits. Renames preserve identities/file homes. Migration-only `fileText` reads UTF-8; `nonemptyLines` counts repeated nonempty lines. See `guide deploy`.
+**Historical data:** `backfill` inputs and lookups read the pre-patch row/snapshot, before simultaneous backfills or renames. Name the historical input (`legacyManifest` above), not another patch’s destination. Patches commit atomically; retain declarations. Rollback restores untouched preimages; conflicts refuse. `before`/`after` split first, `beforeLast`/`afterLast` last (absent: whole-before/empty-after; empty: refusal). `startsWith` matches exact prefixes; `allDigits` requires nonempty ASCII digits. Renames preserve identities/file homes. Migration-only `fileText` reads UTF-8; `nonemptyLines` counts repeated nonempty lines. See `guide deploy`.
 "##;

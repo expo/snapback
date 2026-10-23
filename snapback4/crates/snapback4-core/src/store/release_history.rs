@@ -227,10 +227,11 @@ impl Store {
             ));
         }
         let items = inventory(tx.conn(), None, usize::MAX)?;
+        let warnings = super::backfills::prune_warnings(&tx)?;
         if !confirm {
             tx.rollback()?;
             return Ok(
-                serde_json::json!({"pruned":false,"items":items,"rewrite":"snapback4 prune <dir> --allow-destructive"}),
+                serde_json::json!({"pruned":false,"items":items,"warnings":warnings,"rewrite":"snapback4 prune <dir> --allow-destructive"}),
             );
         }
         if !present(tx.conn())? {
@@ -256,6 +257,6 @@ impl Store {
         super::backfills::prune(&tx)?;
         tx.conn().execute_batch("DELETE FROM _dormant_values;DELETE FROM _dormant_rows;DELETE FROM _dormant_refs;DELETE FROM _dormant_columns;DELETE FROM _dormant_indexes;DELETE FROM _dormant_tables;")?;
         tx.commit()?;
-        Ok(serde_json::json!({"pruned":true,"items":items,"revision":revision,"event":event_id}))
+        Ok(serde_json::json!({"pruned":true,"items":items,"warnings":warnings,"revision":revision,"event":event_id}))
     }
 }

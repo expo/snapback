@@ -347,7 +347,8 @@ fn stage_downfills(tx:&Tx<'_>,next:&Schema,previous:&Schema,sources:&BTreeMap<St
                 // the explicit down declaration is the author's substitution
                 // policy for that otherwise ambiguous evidence-free case.
                 let retained=tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM _dormant_values WHERE t=?1 AND id=?2 AND column_name=?3 AND data!=?4)",params![t,id,c,canonical_json(&Value::Null)],|r|r.get::<_,bool>(0))?;
-                if !retained {projected_outputs.insert(c.clone());}
+                // @ref LLP 3000.000.000.002#9-wave-25-day-two-friction-dx8 — an identical-type rename presents the current business value in the old spelling.
+                if !retained || fill.name.starts_with("$rename:down:") {projected_outputs.insert(c.clone());}
             }
             if projected_outputs.len()<target_outputs.len(){preimages+=1;if preimage_ids.len()<5{preimage_ids.push(id.to_owned());}}
             if projected_outputs.is_empty(){return Ok(())}
@@ -435,8 +436,8 @@ pub(super) fn transition(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,source
     }
     // A name is immutable within a continuous lineage. Replacing a transform
     // deliberately goes through an old-source/bridge transition first.
-    if let Some(old)=previous {for f in &next.backfills {if old.backfills.iter().any(|p|p.table==f.table && p.name==f.name && p.key()!=f.key()) {return Err(refusal(format!("backfill {} {} changed; use a new name in a bridge release rather than replacing historical meaning",f.table,f.name)));}}}
-    if let Some(old)=previous {for f in &next.downfills {if old.downfills.iter().any(|p|p.table==f.table && p.name==f.name && p.down_key()!=f.down_key()) {return Err(refusal(format!("down {} {} changed; use a new name in a bridge release rather than replacing historical meaning",f.table,f.name)));}}}
+    if let Some(old)=previous {for f in &next.backfills {if let Some(p)=old.backfills.iter().find(|p|p.table==f.table && p.name==f.name && p.key()!=f.key()) {return Err(refusal(format!("backfill {} {} changed historical meaning; old digest {}; new digest {}; use a new name in a bridge release rather than replacing historical meaning",f.table,f.name,p.key(),f.key())));}}}
+    if let Some(old)=previous {for f in &next.downfills {if let Some(p)=old.downfills.iter().find(|p|p.table==f.table && p.name==f.name && p.down_key()!=f.down_key()) {return Err(refusal(format!("down {} {} changed historical meaning; old digest {}; new digest {}; use a new name in a bridge release rather than replacing historical meaning",f.table,f.name,p.down_key(),f.down_key())));}}}
     // Names keep one meaning throughout durable store history, including gaps
     // without the table or declaration. A different transform needs a new name.
     let mut known=tx.conn().prepare("SELECT octet_length(definition),definition FROM _backfill_definitions ORDER BY digest")?;
@@ -444,8 +445,8 @@ pub(super) fn transition(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,source
     while let Some(row)=definitions.next()? {
         let mut meter=Meter::new(Ceilings::job(),Cut::Abort);meter.heap((row.get::<_,i64>(0)?.max(0) as u64).saturating_mul(64).saturating_add(8192))?;
         let old:Backfill=decode(&row.get::<_,String>(1)?)?;
-        if next.backfills.iter().any(|f|f.table==old.table && f.name==old.name && f.key()!=old.key()) {
-            return Err(refusal(format!("backfill {} {} changed historical meaning; use a new name in a bridge release",old.table,old.name)));
+        if let Some(new)=next.backfills.iter().find(|f|f.table==old.table && f.name==old.name && f.key()!=old.key()) {
+            return Err(refusal(format!("backfill {} {} changed historical meaning; old digest {}; new digest {}; use a new name in a bridge release",old.table,old.name,old.key(),new.key())));
         }
     }
     let mut known_down=tx.conn().prepare("SELECT octet_length(definition),definition FROM _downfill_definitions ORDER BY digest")?;
@@ -453,8 +454,8 @@ pub(super) fn transition(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,source
     while let Some(row)=down_definitions.next()? {
         let mut meter=Meter::new(Ceilings::job(),Cut::Abort);meter.heap((row.get::<_,i64>(0)?.max(0) as u64).saturating_mul(64).saturating_add(8192))?;
         let old:Backfill=decode(&row.get::<_,String>(1)?)?;
-        if next.downfills.iter().any(|f|f.table==old.table && f.name==old.name && f.down_key()!=old.down_key()) {
-            return Err(refusal(format!("down {} {} changed historical meaning; use a new name in a bridge release",old.table,old.name)))
+        if let Some(new)=next.downfills.iter().find(|f|f.table==old.table && f.name==old.name && f.down_key()!=old.down_key()) {
+            return Err(refusal(format!("down {} {} changed historical meaning; old digest {}; new digest {}; use a new name in a bridge release",old.table,old.name,old.down_key(),new.down_key())))
         }
     }
     for fill in &next.backfills {
@@ -712,6 +713,26 @@ fn collect_reads(body:&[crate::ir::Stmt],out:&mut BTreeSet<(String,String)>){
         Expr::Binary{left,right,..}=>{expr(left,out);expr(right,out);},Expr::Block{body,value}=>{collect_reads(body,out);expr(value,out);},_=>()
     }}
     for s in body{match s{Stmt::Let{value,..}|Stmt::Const{value,..}|Stmt::Assign{value,..}|Stmt::Return(value)=>expr(value,out),Stmt::Require{condition,..}=>expr(condition,out),Stmt::If{condition,then_body,else_body}=>{expr(condition,out);collect_reads(then_body,out);collect_reads(else_body,out);},_=>()}}
+}
+
+// @ref LLP 3000.000.000.002#9-wave-25-day-two-friction-dx8 — pruning is a loss of migration evidence, not a way to reset immutable declaration names.
+pub(super) fn prune_warnings(tx:&Tx<'_>)->Result<Vec<String>,RuntimeError>{
+    if !present(tx)? {return Ok(Vec::new())}
+    let mut outputs:BTreeMap<String,BTreeSet<String>>=BTreeMap::new();
+    let mut q=tx.conn().prepare("SELECT d.definition FROM _backfill_definitions d WHERE EXISTS(SELECT 1 FROM _backfill_evidence e WHERE e.definition=d.digest)")?;
+    for definition in q.query_map([],|r|r.get::<_,String>(0))? {
+        let f:Backfill=decode(&definition?)?;
+        outputs.entry(f.table).or_default().extend(f.outputs);
+    }
+    let mut warnings=Vec::new();
+    let mut q=tx.conn().prepare("SELECT d.digest,d.definition,EXISTS(SELECT 1 FROM _backfill_evidence e WHERE e.definition=d.digest) FROM _downfill_definitions d ORDER BY d.digest")?;
+    for definition in q.query_map([],|r|Ok((r.get::<_,String>(0)?,r.get::<_,String>(1)?,r.get::<_,bool>(2)?)))? {
+        let (_,definition,has_receipt)=definition?;let f:Backfill=decode(&definition)?;
+        if has_receipt || outputs.get(&f.table).is_some_and(|fields|!fields.is_disjoint(&f.outputs)) {
+            warnings.push(format!("prune blinds down {} {}: its reverse/native or predecessor preimages will be discarded; future rollback or forward may refuse; retain history or restore a backup. Prune does not reset declaration names or digests",f.table,f.name));
+        }
+    }
+    Ok(warnings)
 }
 
 // Prune forgets historical values, retaining only the fact that exact reversal
