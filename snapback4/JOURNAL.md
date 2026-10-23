@@ -103649,3 +103649,30 @@ postmaster 2735539 and durable settings are unchanged. Final reporting helpers
 receive an additional exit audit. Raw data and source snapshots remain outside
 Git with location/SHA-256 in the report. Only results and this journal change;
 no push, stash, Git configuration change, product edit or sub-agent.
+
+
+## 2026-10-23 — P1-EV-2: ordinary value-domain evolution on Postgres
+
+The lane extends EV-1's retained release walk with SQLite's type/bound,
+requiredness/default and text/cap constraint semantics. `_dormant_narrow_rows`
+keeps exact historical values and source definitions; hiding follows references
+to a fixed point, and compatible later releases restore only surviving rows.
+Partial row/table restoration keeps unused cells dormant. Missing required or
+context-defaulted historical fields refuse rather than inventing their values.
+Retained column definition edits now follow SQLite's verdict; ownership and
+parent deletion policy remain fenced. The implementation note and slice table
+are in LLP 3000.009.001.000 §3.5.
+
+The shared dual-store cases compare raw `r.data`, narrowed images, definitions,
+causes, retained values, physical keys, occupancy, interpreted outcomes, meters
+and inventory at every transition, including failed activation rollback. The
+public configured witness narrows then widens a referenced population and
+checks restored 300 KiB defaults through `/changes`. Expiring cap populations
+remain EV-4: ordinary EV-2 caps use live index groups, and their empty physical
+`_cap_counts` ledger is compared. No temporal narrowing claim is made.
+
+Reserved-id checks and deletion evidence remain within the existing row SQL
+statements; RT0 tables are unchanged. All evidence and recorded processes stay
+in `/tmp/sb4-p1ev2/`. Private PG16 only; PG17/55440 is untouched. Builds use the
+owned warm target, four jobs and line-tables-only dev/test debug. Commits stay
+local on `sb4-pg/p1-ev2`, with no push, stash or Git configuration change.

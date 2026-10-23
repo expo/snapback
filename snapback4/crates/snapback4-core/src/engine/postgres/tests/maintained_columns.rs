@@ -253,12 +253,13 @@ fn maintained_columns_release_backfill_redefine_drop_readd_and_atomic_failure() 
         }
         if i!=2 { assert_eq!(sqlite.query("ranked",ctx(&[("c",Value::Null)])).unwrap(),postgres.query("ranked",ctx(&[("c",Value::Null)])).unwrap()); }
     }
-    let before=postgres.store().rows("posts").unwrap(); let generation=postgres.generation();
-    // EV-1 admits ordinary additions; an existing type change still refuses.
-    let bad=SOURCE.replace("at: time", "at: int");
-    let (schema,programs)=bound(&bad);
-    assert!(matches!(postgres.adopt_at(schema,programs,1000),Err(RuntimeError::StoreUnsupported {family:"evolution-narrowing"})));
-    assert_eq!(postgres.generation(),generation);assert_eq!(postgres.store().rows("posts").unwrap(),before);
+    // EV-2 admits this edit: time and int have the same stored integer values.
+    // SQLite's actual verdict governs the Postgres transition.
+    let changed=SOURCE.replace("at: time", "at: int");
+    let (schema,programs)=bound(&changed);
+    let a=sqlite.adopt_at(schema.clone(),programs.clone(),1000);
+    let b=postgres.adopt_at(schema,programs,1000);
+    assert_eq!(a.unwrap(),b.unwrap());
     // Existing rows overflow only when a new aggregate is backfilled. The entire
     // release (projection, private rows, selection and generation) must roll back.
     let (schema,programs)=bound(&base); postgres.adopt_at(schema,programs,1000).unwrap();

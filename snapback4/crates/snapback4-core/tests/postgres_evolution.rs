@@ -87,25 +87,25 @@ fn restore_definition_case(store: AnyStore, case: &str, postgres: bool, restore:
             "text <=100",
             "text <=100 format email",
             Value::String("long@example.com".into()),
-            Some("evolution-narrowing"),
+            None,
         ),
         "email_invalid" => (
             "text <=100",
             "text <=100 format email",
             Value::String("x".into()),
-            Some("evolution-narrowing"),
+            None,
         ),
         "min_valid" => (
             "text <=100",
             "text 8..100",
             Value::String("long enough".into()),
-            Some("evolution-narrowing"),
+            None,
         ),
         "min_invalid" => (
             "text <=100",
             "text 8..100",
             Value::String("x".into()),
-            Some("evolution-narrowing"),
+            None,
         ),
         "identical_url" => (
             "text <=200 format url ?",
@@ -117,9 +117,9 @@ fn restore_definition_case(store: AnyStore, case: &str, postgres: bool, restore:
             "int default 7",
             "int default 8",
             Value::Int(7),
-            Some("evolution-narrowing"),
+            None,
         ),
-        "optional_required" => ("int ?", "int", Value::Int(7), Some("evolution-narrowing")),
+        "optional_required" => ("int ?", "int", Value::Int(7), None),
         _ => unreachable!(),
     };
     // No authored parent delete entry point: cascade needs no unrelated product cap.
@@ -689,8 +689,6 @@ fn stale(store: AnyStore, reopen: impl Fn() -> AnyStore, refusals: bool) {
     }
     let (base, programs) = bound(&v2());
     for (case, family) in [
-        (0, "evolution-narrowing"),
-        (1, "evolution-required-column"),
         (2, "evolution-authority"),
         (3, "evolution-renames"),
     ] {
@@ -950,3 +948,7 @@ fn ev1_postgres_unchanged_lifetime_requires_the_lifecycle_slice() {
     assert!(matches!(error,RuntimeError::StoreUnsupported {family:"evolution-authority"}));
     assert_eq!(e.generation(),1);assert!(e.store().rows("added").unwrap().is_empty());
 }
+
+#[cfg(feature="postgres")]
+#[path="postgres_evolution/ev2.rs"]
+mod ev2;

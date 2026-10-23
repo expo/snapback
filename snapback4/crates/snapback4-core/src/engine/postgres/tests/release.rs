@@ -78,7 +78,7 @@ impl Drop for Harness {
 }
 
 #[test]
-fn retained_column_refusals_precede_preparation_writes() {
+fn retained_column_admission_precedes_preparation_writes() {
     let Ok(url) = std::env::var("SNAPBACK4_EVAL_POSTGRES") else {
         return;
     };
@@ -101,21 +101,21 @@ fn retained_column_refusals_precede_preparation_writes() {
         (
             "parents ? on delete restrict",
             "parents ? on delete keep",
-            "evolution-authority",
+            Some("evolution-authority"),
         ),
         (
             "parents ? on delete cascade",
             "parents ?",
-            "evolution-authority",
+            Some("evolution-authority"),
         ),
         (
             "text <=100",
             "text <=100 format email",
-            "evolution-narrowing",
+            None,
         ),
-        ("text <=100", "text 8..100", "evolution-narrowing"),
-        ("int default 7", "int default 8", "evolution-narrowing"),
-        ("int ?", "int", "evolution-narrowing"),
+        ("text <=100", "text 8..100", None),
+        ("int default 7", "int default 8", None),
+        ("int ?", "int", None),
     ] {
         let name = format!("sb4_ev1_preparation_{:x}", crate::ids::seed());
         let store = crate::store_port::AnyStore::create_postgres(&url, &name).unwrap();
@@ -137,6 +137,13 @@ fn retained_column_refusals_precede_preparation_writes() {
         let mut options = ReleaseActivation::new(3, Some(2));
         options.restore_dormant = true;
         let result = e.adopt_release_at(s, p, &options, false, 1000);
+        if family.is_none() {
+            result.unwrap();
+            assert!(client.query_one("SELECT is_called FROM preparation_writes",&[]).unwrap().get::<_,bool>(0));
+            drop(e);
+            client.batch_execute(&format!("DROP SCHEMA \"{name}\" CASCADE")).unwrap();
+            continue;
+        }
         assert!(
             !client
                 .query_one("SELECT is_called FROM preparation_writes", &[])
@@ -145,7 +152,7 @@ fn retained_column_refusals_precede_preparation_writes() {
             "preparation wrote before {result:?}"
         );
         assert!(
-            matches!(result,Err(RuntimeError::StoreUnsupported {family: f}) if f==family),
+            matches!(result,Err(RuntimeError::StoreUnsupported {family: f}) if Some(f)==family),
             "{before} -> {after}: {result:?}"
         );
         assert_eq!(e.generation(), 2);

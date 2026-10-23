@@ -4,12 +4,16 @@ use crate::{error::RuntimeError, schema::Schema, value::Value};
 pub(super) const DDL: &str = "CREATE TABLE _cap_counts (t TEXT COLLATE \"C\" NOT NULL, k BYTEA NOT NULL, n BIGINT NOT NULL CHECK(n >= 0), PRIMARY KEY(t,k))";
 
 pub(super) fn install(tx: &super::store::Tx<'_>, schema: &Schema) -> Result<(), RuntimeError> {
+    rebuild(tx,schema,false)
+}
+// Population changes must rebuild occupancy even when the schema hash is equal.
+pub(super) fn rebuild(tx:&super::store::Tx<'_>,schema:&Schema,force:bool)->Result<(),RuntimeError> {
     let present: Option<String> = tx.query("SELECT to_regclass('_cap_counts')::text", &[])?[0].get(0);
     if present.is_none() {
         tx.batch(DDL)?;
     }
     let hash = schema.hash();
-    if present.is_none() || tx.meta("cap_counts_schema")?.as_deref() != Some(&hash) {
+    if force || present.is_none() || tx.meta("cap_counts_schema")?.as_deref() != Some(&hash) {
         tx.execute("DELETE FROM _cap_counts", &[])?;
         for (name, table) in &schema.tables {
             if !table.is_expiring() || !table.constraints.iter().any(|c| matches!(c, crate::schema::Constraint::Cap { .. })) { continue; }

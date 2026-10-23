@@ -56,6 +56,9 @@ pub(super) fn walk(
         "r" => {
             "SELECT id,data FROM r WHERE t=$1 AND ($2::text IS NULL OR id>$2) ORDER BY id LIMIT 1"
         }
+        "_dormant_narrow_rows" => {
+            "SELECT id,data FROM _dormant_narrow_rows WHERE t=$1 AND ($2::text IS NULL OR id>$2) ORDER BY id LIMIT 1"
+        }
         "_dormant_rows" => {
             "SELECT id,data FROM _dormant_rows WHERE t=$1 AND ($2::text IS NULL OR id>$2) ORDER BY id LIMIT 1"
         }
@@ -64,6 +67,9 @@ pub(super) fn walk(
     let sizes = match relation {
         "r" => {
             "SELECT octet_length(id),octet_length(data) FROM r WHERE t=$1 AND ($2::text IS NULL OR id>$2) ORDER BY id LIMIT 1"
+        }
+        "_dormant_narrow_rows" => {
+            "SELECT octet_length(id),octet_length(data)+64*octet_length(definition) FROM _dormant_narrow_rows WHERE t=$1 AND ($2::text IS NULL OR id>$2) ORDER BY id LIMIT 1"
         }
         "_dormant_rows" => {
             "SELECT octet_length(id),octet_length(data) FROM _dormant_rows WHERE t=$1 AND ($2::text IS NULL OR id>$2) ORDER BY id LIMIT 1"
@@ -109,12 +115,12 @@ pub(super) fn walk(
         after = Some(id);
     }
 }
-fn definition(tx: &Tx<'_>, name: &str, table: &Table, column: &str) -> Result<(), RuntimeError> {
+pub(super) fn definition(tx: &Tx<'_>, name: &str, table: &Table, column: &str) -> Result<(), RuntimeError> {
     let definition = canonical_json(&Column::retained(table, column));
     tx.execute("INSERT INTO _dormant_columns(table_name,column_name,definition) VALUES($1,$2,$3) ON CONFLICT(table_name,column_name) DO UPDATE SET definition=excluded.definition", &[&name,&column,&definition])?;
     Ok(())
 }
-fn refs(kind: &ColumnType, value: &Value, out: &mut Vec<(String, String)>) {
+pub(super) fn refs(kind: &ColumnType, value: &Value, out: &mut Vec<(String, String)>) {
     match (kind, value) {
         (ColumnType::Optional(inner), value) => refs(inner, value, out),
         (ColumnType::List { of, .. } | ColumnType::ListRange { of, .. }, Value::Array(values)) => {
@@ -126,7 +132,7 @@ fn refs(kind: &ColumnType, value: &Value, out: &mut Vec<(String, String)>) {
         _ => {}
     }
 }
-fn capture(
+pub(super) fn capture(
     tx: &Tx<'_>,
     name: &str,
     id: &str,
@@ -141,13 +147,13 @@ fn capture(
     let mut references = Vec::new();
     refs(kind, value, &mut references);
     for (parent, parent_id) in references {
-        let exists: bool = tx.query("SELECT EXISTS(SELECT 1 FROM r WHERE t=$1 AND id=$2) OR EXISTS(SELECT 1 FROM _dormant_rows WHERE t=$1 AND id=$2)", &[&parent,&parent_id])?[0].get(0);
+        let exists: bool = tx.query("SELECT EXISTS(SELECT 1 FROM r WHERE t=$1 AND id=$2) OR EXISTS(SELECT 1 FROM _dormant_rows WHERE t=$1 AND id=$2) OR EXISTS(SELECT 1 FROM _dormant_narrow_rows WHERE t=$1 AND id=$2)", &[&parent,&parent_id])?[0].get(0);
         let invalid: i64 = if exists { 0 } else { 2 };
         tx.execute("INSERT INTO _dormant_refs(t,id,column_name,parent_t,parent_id,invalid) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT DO NOTHING", &[&name,&id,&column,&parent,&parent_id,&invalid])?;
     }
     Ok(())
 }
-fn save(
+pub(super) fn save(
     tx: &Tx<'_>,
     name: &str,
     id: &str,
@@ -364,6 +370,7 @@ pub(super) fn transition(
             Ok(())
         })?;
     }
+    super::narrowed::transition(tx, previous, next, &restoring)?;
     // invalid=1 remembers a deleted parent even after its id is reused. invalid=2
     // denotes a parent already absent when captured, matching SQLite's policy.
     for row in tx.query("SELECT d.t,d.id,d.column_name FROM _dormant_refs d WHERE EXISTS(SELECT 1 FROM r c WHERE c.t=d.t AND c.id=d.id) AND (invalid=1 OR (invalid<>2 AND NOT EXISTS(SELECT 1 FROM r p WHERE p.t=d.parent_t AND p.id=d.parent_id))) ORDER BY d.t,d.id,d.column_name", &[])? {
@@ -373,15 +380,15 @@ pub(super) fn transition(
     for (name, table) in &next.tables {
         for column in table.columns.keys() {
             tx.execute(
-                "DELETE FROM _dormant_values WHERE t=$1 AND column_name=$2",
+                "DELETE FROM _dormant_values v WHERE t=$1 AND column_name=$2 AND NOT EXISTS(SELECT 1 FROM _dormant_narrow_rows n WHERE n.t=v.t AND n.id=v.id)",
                 &[name, column],
             )?;
             tx.execute(
-                "DELETE FROM _dormant_refs WHERE t=$1 AND column_name=$2",
+                "DELETE FROM _dormant_refs v WHERE t=$1 AND column_name=$2 AND NOT EXISTS(SELECT 1 FROM _dormant_narrow_rows n WHERE n.t=v.t AND n.id=v.id)",
                 &[name, column],
             )?;
             tx.execute(
-                "DELETE FROM _dormant_columns WHERE table_name=$1 AND column_name=$2",
+                "DELETE FROM _dormant_columns WHERE table_name=$1 AND column_name=$2 AND NOT EXISTS(SELECT 1 FROM _dormant_values WHERE t=$1 AND column_name=$2)",
                 &[name, column],
             )?;
         }
