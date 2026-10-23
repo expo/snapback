@@ -119,7 +119,7 @@ pub(super) fn failed(request: Request, shared: &Shared, id: Option<&str>, why: R
     );
 }
 
-pub(super) fn serve(request: Request, shared: &Shared, op: &str, body: &str) {
+pub(super) fn serve(request: Request, shared: &Shared, op: &str, body: &str, expected: snapback4_core::identity::Capability) {
     let payload = serde_json::from_str::<Json>(if body.is_empty() { "{}" } else { body });
     let id = payload
         .as_ref()
@@ -141,10 +141,7 @@ pub(super) fn serve(request: Request, shared: &Shared, op: &str, body: &str) {
             );
         }
     };
-    let principal = match principal_of(&request, shared) {
-        Ok(p) => p.0,
-        Err(e) => return failed(request, e),
-    };
+    let principal = expected.0.clone();
     // A name may have been durable in a previous generation. Receipt custody
     // precedes signature decoding, rate admission and ephemeral execution.
     // @ref LLP 3000.022#6 — a stored success never executes a replacement body.
@@ -158,12 +155,13 @@ pub(super) fn serve(request: Request, shared: &Shared, op: &str, body: &str) {
     };
     let (owned_principal, owned_payload, owned_id, owned_op, owned_fingerprint) =
         (principal.clone(), payload.clone(), id.clone(), op.to_owned(), fingerprint.clone());
+    let owned_expected = expected.clone();
     // @ref LLP 3000.009.001.000.000#3.1 — read-only admission and checkout
     // must not park ephemeral requests behind a durable command.
     let detached = !shared.memory_store();
     let preflight = move |engine: &mut Engine, shared: &Shared| {
-        if detached { admission.check_detached(shared, engine, &owned_principal)?; }
-        else { admission.check(shared, engine, &owned_principal)?; }
+        if detached { admission.check_detached(shared, engine, &owned_expected)?; }
+        else { admission.check_expected(shared, engine, &owned_expected)?; }
         intent_store(engine, &owned_payload)?;
         let args = owned_payload.get("args").cloned().unwrap_or(json!({}));
         let replay = owned_id.as_deref().map(|id| engine.replay_mutation(&owned_principal, id, &owned_op, &args)).transpose().map(Option::flatten).map_err(|e| e.refusal())?;
@@ -238,7 +236,7 @@ pub(super) fn serve(request: Request, shared: &Shared, op: &str, body: &str) {
             if let Some(sites) = sites { context = super::dev_refusals::response::context(context, sites, &reader); }
             let _timing = latency::EngineSpan::new();
             let result = super::session_identity::Admission::capture(&request, shared)
-                .and_then(|admission| admission.check_detached(shared, &reader, &principal))
+                .and_then(|admission| admission.check_detached(shared, &reader, &expected))
                 .and_then(|()| intent_store(&reader, &payload)).and_then(|()| {
                 reader.require_non_media_ephemeral(&principal,id.as_deref()).map_err(|e|e.refusal())?;
                 reader
@@ -259,7 +257,7 @@ pub(super) fn serve(request: Request, shared: &Shared, op: &str, body: &str) {
             let (op, id) = (op.to_owned(), id.clone());
             shared.engine.attempt(move |engine, shared| {
             if shared.personas { context = super::dev_refusals::response::context(context, Arc::new(lock(&shared.bound).refusal_sites.clone()), engine); }
-            admission?.check(shared, engine, &principal)
+            admission?.check_expected(shared, engine, &expected)
                 .and_then(|()| intent_store(engine, &payload))
                 .and_then(|()| {
                     engine.require_non_media_ephemeral(&principal,id.as_deref()).map_err(|e|e.refusal())?;

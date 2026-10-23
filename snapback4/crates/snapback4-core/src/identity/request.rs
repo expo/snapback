@@ -53,10 +53,15 @@ pub fn with_request_snapshot<T>(store: &AnyStore, digest: &str, sample: ServiceS
 
 /// Early refusal only. Ordinary credentials need one statement; discovering a
 /// different kind discards those facts and starts its complete borrowed snapshot.
-pub fn resolve_ingress_supervised(store: &AnyStore, digest: &str, sample: ServiceSample, expected_store: Option<&str>) -> Result<Option<Capability>, RuntimeError> {
-    let facts = store.ingress_session_authority_facts(digest)?;
+/// Refusals disclose no store facts, including a mismatched serving binding.
+pub fn resolve_ingress_supervised(store: &AnyStore, digest: &str, sample: ServiceSample, expected_store: Option<&str>) -> Result<Option<Capability>, crate::Refusal> {
+    let facts = store.ingress_session_authority_facts(digest).map_err(|e| e.refusal())?;
+    // @ref LLP 3000.009.001.000.001#31-authority-boundaries — ingress compares its existing projection without reading or disclosing another metadata cut.
+    if let (Some(expected), Some(actual)) = (expected_store, facts.store_id.as_deref()) && actual != expected {
+        return Err(crate::Refusal::new("E_STORE_REPLACED", "store", "the serving store identity changed; reconcile with the original store").guide("sync"));
+    }
     if expected_store.is_none() || facts.store_id.as_deref() != expected_store { return Ok(None); }
-    let session = if facts::ordinary(&facts) { facts::projected(facts, sample.now, Some(sample.supervisor_revision))? }
-        else { return store.resolve_session_snapshot(digest, sample.now, expected_store, Some(sample.supervisor_revision)); };
+    let session = if facts::ordinary(&facts) { facts::projected(facts, sample.now, Some(sample.supervisor_revision)).map_err(|e| e.refusal())? }
+        else { return store.resolve_session_snapshot(digest, sample.now, expected_store, Some(sample.supervisor_revision)).map_err(|e| e.refusal()); };
     Ok(session.map(|s| (s.principal, s.kind, s.scope)))
 }

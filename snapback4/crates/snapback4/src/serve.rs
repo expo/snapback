@@ -938,8 +938,9 @@ fn handle(mut request: Request, shared: &Shared) {
             Ok(capability) => operation_capability = Some(capability),
             Err(refusal) => {
             // No authenticated viewer: metadata cannot disclose a store head.
-            if path.starts_with("/q/") { return respond_timed(request, shared, if refusal.retryable { 503 } else { 401 }, latency::Unobserved(json!({"denied":refusal_json(&refusal)}))); }
-            return reject(request, if refusal.retryable { 503 } else { 401 }, refusal);
+            let status = if refusal.code == "E_STORE_REPLACED" { 409 } else if refusal.retryable { 503 } else { 401 };
+            if path.starts_with("/q/") { return respond_timed(request, shared, status, latency::Unobserved(json!({"denied":refusal_json(&refusal)}))); }
+            return reject(request, status, refusal);
             }
         }
     }
@@ -1148,7 +1149,7 @@ fn handle(mut request: Request, shared: &Shared) {
                     return respond_timed(request, shared, reply.status, reply.body);
                 },
             };
-            if ephemeral { return ephemeral::serve(request, shared, &op, &body); }
+            if ephemeral { return ephemeral::serve(request, shared, &op, &body, (principal, credential_kind, scope)); }
             let manifest = if scope == snapback4_core::identity::SessionScope::Read { snapback4_core::engine::DeliveryManifest::Skip } else { snapback4_core::engine::DeliveryManifest::Build };
             let presence_of = |engine: &Engine, name: &str| engine.schema().operations.get(name).is_some_and(|fact| fact.sites.iter().any(|site| site.kind == "presence"));
             let viewer = principal.clone();
@@ -1368,6 +1369,7 @@ fn handle(mut request: Request, shared: &Shared) {
                     Err(why) => return respond_timed(request, shared, 401, json!({"denied": why})),
                 };
                 let (owned_op, owned_id, owned_principal) = (op.clone(), id.clone(), principal.clone());
+                let diverted_capability = (principal.clone(), credential_kind.clone(), scope);
                 let result = shared.engine.submit(move |engine, shared| {
                     if engine.schema().operations.get(&owned_op).is_some_and(|f| f.ephemeral) { return Ok(None); }
                     if shared.personas { context = dev_refusals::response::context(context, Arc::new(lock(&shared.bound).refusal_sites.clone()), engine); }
@@ -1386,7 +1388,7 @@ fn handle(mut request: Request, shared: &Shared) {
                 });
                 let (outcome, metadata, preserved, generation) = match result.and_then(|v| v) {
                     Ok(Some(value)) => value,
-                    Ok(None) => return ephemeral::serve(request, shared, &op, &body),
+                    Ok(None) => return ephemeral::serve(request, shared, &op, &body, diverted_capability),
                     Err(mut why) => { if id.is_some() && why.code == "E_STORE_OWNERSHIP" { why.retryable = true; } return respond_timed(request, shared, if why.retryable {503} else {401}, latency::Unobserved(json!({"denied": why}))); },
                 };
                 let (store_id, head) = match metadata { Ok(head) => head, Err(why) => { respond_timed(request, shared, 503, json!({ "denied": why })); return; } };

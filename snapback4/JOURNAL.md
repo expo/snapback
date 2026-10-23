@@ -103407,3 +103407,46 @@ workload PIDs remains. Disk stayed above the floor; a birth-time/size manifest
 allowed removal only of files this lane created in its preserved handoff,
 retaining inherited artifacts. Raw evidence stays in `/tmp/sb4-rt3br/`.
 Separate local RT4 commit; no push, stash or git configuration change.
+
+
+## 2026-10-23 — RT3b fix round 1: ephemeral capability freshness
+
+Direct ephemeral dispatch and queued durable-to-ephemeral conversion now carry
+the prepared principal/kind/scope through detached preflight and final reader
+checkout, including the memory fallback. The shared freshness comparison also
+checks credential kind for durable and query execution. A same-principal kind
+or scope change refuses with retryable E_AUTH and no store metadata; ephemeral
+refusals keep their HTTP 200 envelope. Refresh preserves kind and mints a new
+token; narrowing and custom/supervised minting also mint new tokens. There is
+no documented same-token kind transition to preserve.
+
+Ingress uses its existing facts projection to distinguish store replacement
+from an absent session: E_STORE_REPLACED, HTTP 409 on query/durable ingress,
+with no store metadata or extra SQL. Missing identities still fail closed.
+The RT3b note in LLP 3000.009.001.000.001 records both choices.
+
+Before the product fix, both-store HTTP witnesses reproduce all findings:
+14 regression tests fail while two positive controls pass. Stale ephemeral
+writes publish epoch 1, changed-kind query/durable requests succeed, and the
+ingress mismatch says E_AUTH. After the fix all 16 pass, including direct and
+queued-conversion final-reader gaps and a scope change in the conversion's
+actual writer queue. Stale requests leave both hub and wake versions unchanged.
+Raw evidence is retained under `/tmp/sb4-rt3b-fix1/`, outside Git; final
+qualification and process custody are recorded in the continuation report.
+
+RT3b fix round 1 final qualification passes: shipped build; complete binary
+558 passed/26 named ignores with eight test threads; RT3b both-store authority
+24/24; identity conformance 84/84 including both 4,545-state matrices; both RT0
+ratchets, with byte-identical tables and unchanged SHA-256s; complete Postgres
+script including corpus and public P1-CE/restart/takeover/release/P1-MC; and
+ref-check (565 LLP docs, 11,796 refs, zero errors/unchecked). The initial broad
+binary run hit the existing committer fixture's three-second socket timeout;
+it passes alone and in the unchanged complete binary at eight test threads.
+No product assertion or guard changed.
+
+Evaluator 221217 and public cluster 606417 are stopped and independently
+confirmed (status 3, no postmaster.pid). None of 274 recorded PIDs remains.
+Disk stayed above the user floor; a birth-time/size/inode manifest allowed
+removal only of 1,568 handoff files created by this fix round, retaining 7,279
+inherited files. Final free space is 35 GiB. Raw evidence stays in
+`/tmp/sb4-rt3b-fix1/`; one new local commit, no push, stash or Git config change.

@@ -70,6 +70,17 @@ impl AnyStore {
         tx.commit()
     }
 
+    pub fn test_request_kind(&mut self, token: &str, kind: &str) -> Result<(), RuntimeError> {
+        let digest = crate::identity::digest(token);
+        let tx = self.transaction()?;
+        match &tx {
+            AnyTx::Sqlite(SqliteTx(inner)) => { inner.conn().execute("UPDATE _sessions SET kind=?1 WHERE token_digest=?2", [kind, &digest])?; }
+            #[cfg(feature = "postgres")]
+            AnyTx::Postgres(super::handles::PostgresTx(inner)) => { inner.execute("UPDATE _sessions SET kind=$1 WHERE token_digest=$2", &[&kind, &digest])?; }
+        }
+        tx.commit()
+    }
+
     #[cfg(feature = "postgres")]
     pub fn test_request_owner_loss(&mut self) -> Result<(), RuntimeError> {
         let tx = self.transaction()?;

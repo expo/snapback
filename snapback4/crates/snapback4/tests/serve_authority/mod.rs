@@ -44,7 +44,7 @@ fn park(host: &Host, visit: usize) -> (Arc<WorkGate>, ReleaseGate) {
 }
 fn refused(reply: &str, code: &str) {
     let value = body(reply);
-    assert_eq!(value.get("denied").or_else(|| value.get("why")).unwrap()["code"], code, "{reply}");
+    assert_eq!(value.get("denied").or_else(|| value.get("why")).map(|why| &why["code"]), Some(&json!(code)), "{reply}");
 }
 fn no_store_metadata(reply: &str) {
     let value=body(reply);
@@ -303,3 +303,160 @@ fn refusal_generation(pg: bool) {
     assert_eq!(reply["replayed"]==true,replay,"{reply}");
     }
 }
+
+fn adopt_ephemeral(f: &Fixture, engine: &mut Engine) {
+    let source = SOURCE.replace("update counters[\"c\"] { n: (counters[\"c\"].n ?? 0) + n }", "upsert typing[owner = viewer] {}");
+    let bound = snapback4_lang::compile(&[("schema.q".into(), source)]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    let generation = engine.adopt(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone())).unwrap();
+    lock(&f.host.shared.readers).replace(engine, &bound.refusal_sites);
+    *lock(&f.host.shared.bound) = bound;
+    *lock(&f.host.shared.generation) = generation;
+    f.host.shared.publish_engine(engine);
+}
+fn change_capability(f: &Fixture, session: &identity::Session, change: &str) {
+    change_capability_on(&mut lock(&f.host.shared.engine), session, change);
+}
+fn change_capability_on(engine: &mut Engine, session: &identity::Session, change: &str) {
+    match change {
+        "scope" => engine.store_mut().test_request_read_scope(&session.token, false).unwrap(),
+        "kind" => engine.store_mut().test_request_kind(&session.token, "member").unwrap(),
+        "unchanged" => {},
+        _ => unreachable!(),
+    }
+}
+
+fn ephemeral_freshness(pg: bool, queued: bool, at_final_reader: bool, change: &str) {
+    let f = Fixture::new(pg); let session = f.session(false);
+    if !queued { adopt_ephemeral(&f, &mut lock(&f.host.shared.engine)); }
+    let queue = Arc::new(WorkGate::default()); let _queue_release = ReleaseGate(queue.clone());
+    let final_reader = Arc::new(WorkGate::default()); let _final_release = ReleaseGate(final_reader.clone());
+    let (queue_hook, final_hook) = (queue.clone(), final_reader.clone());
+    let visits = AtomicUsize::new(0);
+    *lock(&f.host.shared.mutation_wait) = Some(Arc::new(move || {
+        let visit = visits.fetch_add(1, Ordering::AcqRel) + 1;
+        if queued && visit == 3 { queue_hook.park(); }
+        if visit == if queued { 4 } else { 3 } { final_hook.park(); }
+    }));
+    let address = f.host.address; let request = wire("/m/change", &session, &f.payload("ephemeral-freshness"));
+    let task = thread::spawn(move || exchange_held(address, 2*WAIT_TIMEOUT, request));
+    if queued {
+        wait_until(|| queue.entered.load(Ordering::Acquire) == 1);
+        let mut engine = lock(&f.host.shared.engine);
+        queue.release();
+        wait_until(|| f.host.shared.engine.waiting() == 1);
+        adopt_ephemeral(&f, &mut engine);
+        if !at_final_reader { change_capability_on(&mut engine, &session, change); }
+        drop(engine);
+    }
+    let before = f.host.shared.ephemeral.snapshot().unwrap().version;
+    if !at_final_reader { final_reader.release(); }
+    if at_final_reader {
+        wait_until(|| final_reader.entered.load(Ordering::Acquire) == 1);
+        change_capability(&f, &session, change);
+        final_reader.release();
+    }
+    let reply = task.join().unwrap();
+    assert_eq!(status(&reply), 200, "ephemeral envelope: {reply}");
+    let after = f.host.shared.ephemeral.snapshot().unwrap().version;
+    if change == "unchanged" {
+        assert_eq!(body(&reply)["state"], "sent", "{reply}");
+        assert_eq!(after.epoch, before.epoch + 1, "the positive control publishes");
+    } else {
+        refused(&reply, "E_AUTH");
+        assert_eq!(body(&reply)["why"]["retryable"], true, "{reply}");
+        no_store_metadata(&reply);
+        assert!(body(&reply).get("ephemeral").is_none(), "{reply}");
+        assert_eq!(after, before, "a stale request cannot publish to the hub");
+        assert_eq!(lock(&f.host.shared.wake).eph.version, before, "no wake publication");
+    }
+    assert_eq!(f.count(), 0);
+}
+
+#[test]
+fn rt3b_fix_ephemeral_direct_scope_sqlite() { ephemeral_freshness(false, false, true, "scope"); }
+#[test]
+fn rt3b_fix_ephemeral_conversion_scope_sqlite() { ephemeral_freshness(false, true, true, "scope"); }
+#[test]
+fn rt3b_fix_ephemeral_conversion_queue_scope_sqlite() { ephemeral_freshness(false, true, false, "scope"); }
+#[test]
+fn rt3b_fix_ephemeral_kind_sqlite() { ephemeral_freshness(false, false, true, "kind"); }
+#[test]
+fn rt3b_fix_ephemeral_controls_sqlite() {
+    ephemeral_freshness(false, false, true, "unchanged");
+    ephemeral_freshness(false, true, true, "unchanged");
+}
+#[cfg(feature = "postgres")]
+#[test]
+#[ignore = "requires private Postgres; scripts/test-postgres.sh"]
+fn rt3b_fix_ephemeral_direct_scope_postgres() { ephemeral_freshness(true, false, true, "scope"); }
+#[cfg(feature = "postgres")]
+#[test]
+#[ignore = "requires private Postgres; scripts/test-postgres.sh"]
+fn rt3b_fix_ephemeral_conversion_scope_postgres() { ephemeral_freshness(true, true, true, "scope"); }
+#[cfg(feature = "postgres")]
+#[test]
+#[ignore = "requires private Postgres; scripts/test-postgres.sh"]
+fn rt3b_fix_ephemeral_conversion_queue_scope_postgres() { ephemeral_freshness(true, true, false, "scope"); }
+#[cfg(feature = "postgres")]
+#[test]
+#[ignore = "requires private Postgres; scripts/test-postgres.sh"]
+fn rt3b_fix_ephemeral_kind_postgres() { ephemeral_freshness(true, false, true, "kind"); }
+#[cfg(feature = "postgres")]
+#[test]
+#[ignore = "requires private Postgres; scripts/test-postgres.sh"]
+fn rt3b_fix_ephemeral_controls_postgres() {
+    ephemeral_freshness(true, false, true, "unchanged");
+    ephemeral_freshness(true, true, true, "unchanged");
+}
+
+fn kind_freshness(pg: bool, query: bool) {
+    let f = Fixture::new(pg); let session = f.session(false);
+    let (gate, _release) = if query {
+        let gate = Arc::new(WorkGate::default()); let hook = gate.clone();
+        *lock(&f.host.shared.query_wait) = Some(Arc::new(move || hook.park()));
+        (gate.clone(), ReleaseGate(gate))
+    } else { park(&f.host, 3) };
+    let (path, payload) = if query { ("/q/count", json!({})) } else { ("/m/change", f.payload("kind")) };
+    let address = f.host.address; let request = wire(path, &session, &payload);
+    let task = thread::spawn(move || exchange_held(address, 2*WAIT_TIMEOUT, request));
+    wait_until(|| gate.entered.load(Ordering::Acquire) == 1);
+    change_capability(&f, &session, "kind");
+    gate.release(); let reply = task.join().unwrap();
+    refused(&reply, "E_AUTH"); assert_eq!(status(&reply), 503, "{reply}");
+    assert_eq!(body(&reply)["denied"]["retryable"], true, "{reply}");
+    no_store_metadata(&reply); assert_eq!(f.count(), 0);
+}
+#[test]
+fn rt3b_fix_kind_query_sqlite() { kind_freshness(false, true); }
+#[test]
+fn rt3b_fix_kind_mutation_sqlite() { kind_freshness(false, false); }
+#[cfg(feature = "postgres")]
+#[test]
+#[ignore = "requires private Postgres; scripts/test-postgres.sh"]
+fn rt3b_fix_kind_query_postgres() { kind_freshness(true, true); }
+#[cfg(feature = "postgres")]
+#[test]
+#[ignore = "requires private Postgres; scripts/test-postgres.sh"]
+fn rt3b_fix_kind_mutation_postgres() { kind_freshness(true, false); }
+
+fn ingress_mismatch(pg: bool) {
+    for replay in [false, true] {
+        let f = Fixture::new(pg); let session = f.session(false); let payload = f.payload("ingress-store");
+        if replay { assert_eq!(f.call(&session, &payload)["state"], "sent"); }
+        // Wake advanced but an existing reader still points at the old store.
+        lock(&f.host.shared.wake).store_id = Some("replacement".into());
+        for (path, input) in [("/m/change", payload), ("/q/count", json!({}))] {
+            let reply = f.host.request("POST", path, &headers(&session), &input.to_string());
+            refused(&reply, "E_STORE_REPLACED"); assert_eq!(status(&reply), 409, "{reply}");
+            no_store_metadata(&reply); assert!(body(&reply).get("replayed").is_none());
+        }
+        assert_eq!(f.count(), i64::from(replay));
+    }
+}
+#[test]
+fn rt3b_fix_ingress_store_mismatch_sqlite() { ingress_mismatch(false); }
+#[cfg(feature = "postgres")]
+#[test]
+#[ignore = "requires private Postgres; scripts/test-postgres.sh"]
+fn rt3b_fix_ingress_store_mismatch_postgres() { ingress_mismatch(true); }

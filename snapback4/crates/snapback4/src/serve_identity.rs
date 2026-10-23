@@ -55,7 +55,7 @@ impl Admission {
         let Some(token) = &self.bearer else { return self.resolve(shared, engine); };
         let sample = self.sample(shared);
         let result = snapback4_core::identity::resolve_ingress_supervised(engine.store(), &self.digest(), sample, identity)
-            .map_err(|e| e.refusal()).and_then(|value| value.ok_or_else(|| snapback4_core::identity::diagnostics::refused(engine.store(), token, sample.now, self.trusted_dev)));
+            .and_then(|value| value.ok_or_else(|| snapback4_core::identity::diagnostics::refused(engine.store(), token, sample.now, self.trusted_dev)));
         if result.is_err() { crate::release_requests::stamp(engine.generation()); }
         result
     }
@@ -68,9 +68,13 @@ impl Admission {
     }
     pub(crate) fn check_facts(&self, expected: &snapback4_core::identity::Capability, facts: &snapback4_core::identity::RequestAuthority, persona: Option<snapback4_core::identity::Capability>) -> Result<(), Refusal> {
         let current = persona.or_else(|| facts.capability.clone()).ok_or_else(|| Refusal::new("E_AUTH", "auth", "this session is not live; sign in again").guide("personas"))?;
+        self.check_capability(expected, current)
+    }
+    // @ref LLP 3000.009.001.000.001#31-authority-boundaries — every execution path retains the capability selected before its wait.
+    fn check_capability(&self, expected: &snapback4_core::identity::Capability, current: snapback4_core::identity::Capability) -> Result<(), Refusal> {
         if current.0 != expected.0 { return Err(Refusal::new("E_AUTH", "auth", "the request's session changed; sign in again").guide("personas")); }
-        if current.2 != expected.2 {
-            let mut why = Refusal::new("E_AUTH", "auth", "the session scope changed while the request waited; retry with current authority").guide("personas");
+        if current.1 != expected.1 || current.2 != expected.2 {
+            let mut why = Refusal::new("E_AUTH", "auth", "the session kind or scope changed while the request waited; retry with current authority").guide("personas");
             why.retryable = true;
             return Err(why);
         }
@@ -94,9 +98,11 @@ impl Admission {
         let identity = lock(&shared.wake).store_id.clone();
         self.resolve_at(shared, engine, identity.as_deref(), true)
     }
-    pub(crate) fn check_detached(&self, shared: &Shared, engine: &Engine, principal: &str) -> Result<(), Refusal> {
-        if self.resolve_detached(shared, engine)?.0 == principal { Ok(()) }
-        else { Err(Refusal::new("E_AUTH", "auth", "the request's session changed; sign in again").guide("personas")) }
+    pub(crate) fn check_detached(&self, shared: &Shared, engine: &Engine, expected: &snapback4_core::identity::Capability) -> Result<(), Refusal> {
+        self.check_capability(expected, self.resolve_detached(shared, engine)?)
+    }
+    pub(crate) fn check_expected(&self, shared: &Shared, engine: &Engine, expected: &snapback4_core::identity::Capability) -> Result<(), Refusal> {
+        self.check_capability(expected, self.resolve(shared, engine)?)
     }
     fn resolve_at(&self, shared: &Shared, engine: &Engine, identity: Option<&str>, detached: bool) -> Result<snapback4_core::identity::Capability, Refusal> {
     if let Some(persona) = self.persona.clone() {
