@@ -64,3 +64,15 @@ const ASYMMETRY:&str="table records:\n  owner: principal\n  value: text ?\n  rea
  let sources=vec![("schema.q".into(),source.into())];let b=security::derived::augmented(&sources,&bound(source));assert!(b.invariants.iter().any(|i|security::derived::is_derived(i)&&i.column.as_deref()==Some("value")));let mut c=Campaign::default();challenges::generated_campaign(&b,&mut c,false);
  assert!(!c.violations.iter().any(|v|v.reachability.is_reachable()),"{}",serde_json::to_string(&c).unwrap());assert!(c.operations.get("edit").copied().unwrap_or(0)>0);
 }
+
+#[test]
+fn filtered_creator_role_implies_the_same_unfiltered_editor_probe() {
+    let source="table staff:\n  principal: principal\n  role: enum('host', 'manager')\n  unique principal\n  read <- .principal = viewer\n  online only\ntable docs:\n  script: text <=100\n  read <- allow\n  insert <- exists staff[viewer, role = 'host']\n  update (old, next) <- old.script = next.script or exists staff[viewer]\n  online only\nmutation create(script: text <=100):\n  return insert docs {script}\n";
+    let safe=snapback4_lang::compile(&[("schema.q".into(),source.into())]);
+    assert!(safe.diagnostics.is_empty(),"{:?}",safe.diagnostics);
+    assert!(!safe.notes.iter().any(|n|n.code=="N_CREATE_EDIT_ASYMMETRY"),"{:?}",safe.notes);
+    let wider=source.replace("insert <- exists staff[viewer, role = 'host']","insert <- exists staff[viewer]")
+        .replace("or exists staff[viewer]","or exists staff[viewer, role = 'host']");
+    let unsafe_=snapback4_lang::compile(&[("schema.q".into(),wider)]);
+    assert!(unsafe_.notes.iter().any(|n|n.code=="N_CREATE_EDIT_ASYMMETRY"),"{:?}",unsafe_.notes);
+}

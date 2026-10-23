@@ -1,6 +1,20 @@
 //! Creation is a write even when an edit operation has the stronger guard.
 // @ref LLP 3000.036.004#151-every-executed-write — conditional advice never infers creation policy.
 use super::*;
+// A filtered point probe can only succeed when the same unfiltered point
+// succeeds. The finite kernel treats these as independent atoms; use this
+// exact structural fact only to suppress a disproved creation-asymmetry shape.
+fn probe_implies(admission:&RuleExpr,policy:&RuleExpr)->bool {
+    if kernel::implies(admission,policy)==Ok(true){return true;}
+    match (admission,policy) {
+        (_,RuleExpr::And(xs))=>xs.iter().all(|p|probe_implies(admission,p)),
+        (RuleExpr::Or(xs),_)=>!xs.is_empty()&&xs.iter().all(|a|probe_implies(a,policy)),
+        (RuleExpr::And(xs),_)=>xs.iter().any(|a|probe_implies(a,policy)),
+        (_,RuleExpr::Or(xs))=>xs.iter().any(|p|probe_implies(admission,p)),
+        (RuleExpr::Exists{table:a,index:ai,key:ak,equalities:ae,..},RuleExpr::Exists{table:b,index:bi,key:bk,equalities:be,..})=>a==b&&ai==bi&&ak==bk&&be.iter().all(|e|ae.contains(e)),
+        _=>false,
+    }
+}
 pub(super) fn notes(sources:&[(String,String)],bound:&Bound)->Vec<Diagnostic>{
     let documents=sources.iter().map(|(file,text)|crate::parse_document(file,text).0).collect::<Vec<_>>();
     let catalog=Catalog::build(documents.clone(),&mut Vec::new());
@@ -45,7 +59,7 @@ pub(super) fn notes(sources:&[(String,String)],bound:&Bound)->Vec<Diagnostic>{
             let known=creation_values(&bound.schema.tables[table],fields);
             let admission=terms(admission,&mut |t|if let RuleTerm::Field(c)|RuleTerm::NextField(c)=t {if let Some(value)=known.get(c){*t=value.clone();}});
             let creation_guard=terms(&guard,&mut |t|if let RuleTerm::Field(c)=t {if let Some(value)=known.get(c){*t=value.clone();}});
-            if kernel::implies(&admission,&creation_guard)==Ok(false) {
+            if kernel::implies(&admission,&creation_guard)==Ok(false)&&!probe_implies(&admission,&creation_guard) {
                 if !table_replaced.insert((creator.site.file.clone(),name.clone(),table.clone(),column.clone())){continue;}
                 out.push(Diagnostic::new(site,"N_CREATE_EDIT_ASYMMETRY",format!("{name}: {table}.{column} is supplied at create/upsert without its table update change guard {}",guard.quarry()),format!("enforce `{column}: <type> write <- {}` or declare deliberate creation asymmetry with `invariant {table}.{column} update only {}`; run test with non-null input",guard.quarry(),guard.quarry())).guide("security"));
             }
@@ -65,7 +79,7 @@ pub(super) fn notes(sources:&[(String,String)],bound:&Bound)->Vec<Diagnostic>{
             let Some(program)=bound.programs.iter().find(|p|p.program.name==operation)else{continue;};
             let dependencies=kernel::dependencies(&guard);
             if snapback4_core::ir::write_tables(&program.program).iter().any(|(table,_)|dependencies.contains(table)){continue;}
-            if kernel::implies(admission,&guard)!=Ok(false)||!seen.insert((creator.site.file.clone(),name.clone(),table.clone(),BTreeSet::from([column.clone()]),guard.quarry())){continue;}
+            if kernel::implies(admission,&guard)!=Ok(false)||probe_implies(admission,&guard)||!seen.insert((creator.site.file.clone(),name.clone(),table.clone(),BTreeSet::from([column.clone()]),guard.quarry())){continue;}
             let audience=bound.schema.tables[table].column_reads.get(column);
             let private=audience.is_some_and(|r|kernel::implies(admission,r)==Ok(false));
             let code=if private{"N_PRIVATE_CREATE_EDIT_ASYMMETRY"}else{"N_CREATE_EDIT_ASYMMETRY"};
@@ -80,7 +94,7 @@ pub(super) fn notes(sources:&[(String,String)],bound:&Bound)->Vec<Diagnostic>{
         for (_,editor,edit,other,patch,_,restricted) in &writes{
             if *edit!=ast::WriteOp::Update||other!=table{continue;}
             let restriction=necessary(restricted);
-            if kernel::implies(&RuleExpr::Allow,&restriction)==Ok(true)||kernel::implies(admission,&restriction)!=Ok(false){continue;}
+            if kernel::implies(&RuleExpr::Allow,&restriction)==Ok(true)||kernel::implies(admission,&restriction)!=Ok(false)||probe_implies(admission,&restriction){continue;}
             let columns=patch.iter().filter(|f|!replaced.contains(&(creator.site.file.clone(),name.clone(),table.clone(),f.name.clone()))&&fields.iter().any(|insert|insert.name==f.name&&supplied(insert,creator))).map(|f|f.name.clone()).collect::<BTreeSet<_>>();
             if columns.is_empty()||!seen.insert((creator.site.file.clone(),name.clone(),table.clone(),columns.clone(),restriction.quarry())){continue;}
             out.push(Diagnostic::new(site,"N_INSERT_WRITE_INTENT",format!("{name}: {table}.{} can be supplied at insert/upsert without the edit restriction of {editor}: {}; creation admission: {}",columns.into_iter().collect::<Vec<_>>().join(","),restriction.quarry(),admission.quarry()),"confirm whether the spec permits different creation authority; otherwise guard every insert/upsert arm too and declare column write only intent, then run snapback4 test").guide("security"));
