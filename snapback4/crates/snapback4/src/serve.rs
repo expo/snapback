@@ -17,7 +17,7 @@ use serde_json::{Value as Json, json};
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::{self, Write as _};
 use std::net::IpAddr;
-use std::sync::atomic::{AtomicI64, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicI64, AtomicUsize, Ordering};
 use std::sync::{Arc, Condvar, Mutex};
 use std::time::{Duration, Instant};
 use tiny_http::{Header, Method, Request, Response, Server};
@@ -1397,26 +1397,36 @@ fn handle(mut request: Request, shared: &Shared) {
                 };
                 let (owned_op, owned_id, owned_principal) = (op.clone(), id.clone(), principal.clone());
                 let diverted_capability = (principal.clone(), credential_kind.clone(), scope);
-                let result = shared.engine.submit(move |engine, shared| {
-                    if engine.schema().operations.get(&owned_op).is_some_and(|f| f.ephemeral) { return Ok(None); }
+                let boundary=Arc::new(Mutex::new(None));
+                let boundary_check=boundary.clone();
+                let diverted=Arc::new(AtomicBool::new(false));
+                let diverted_prepare=diverted.clone();
+                let result = shared.engine.program(move |engine, shared| {
+                    if engine.schema().operations.get(&owned_op).is_some_and(|f| f.ephemeral) {
+                        diverted_prepare.store(true,Ordering::Release);
+                        return Err(Refusal::new("E_GENERATION","op","operation became ephemeral"));
+                    }
                     if shared.personas { context = dev_refusals::response::context(context, Arc::new(lock(&shared.bound).refusal_sites.clone()), engine); }
                     context.delivery_fingerprint = delivery_fingerprint;
-                    let persona = admission.persona(shared, engine)?;
+                    let persona = admission.persona(&shared, engine)?;
                     let expected = (owned_principal, credential_kind, scope);
-                    let mut boundary = None;
-                    let outcome = engine.mutate_authorized(&owned_op, owned_id.as_deref(), context.with_wire_args(args_json),
-                        &admission.digest(), || admission.sample(shared), |facts| {
-                            admission.check_facts(&expected, &facts, persona)?;
-                            boundary = Some((facts.store_id.clone(), facts.head));
-                            head::intent_store_id(&payload, Some(&facts.store_id))
-                        });
-                    if let Err(why) = &outcome && (boundary.is_none() || matches!(why.code.as_str(), "E_AUTH" | "E_COMMIT_OUTCOME_UNKNOWN")) { return Err(why.clone()); }
-                    Ok(Some(head::mutation_acknowledgement_at(shared, engine, outcome, boundary)))
+                    let sample_host=shared.clone();let sample_admission=admission.clone();
+                    Ok(snapback4_core::engine::program::Invocation::new(owned_op,owned_id,context.with_wire_args(args_json))
+                        .authorized(admission.digest(),move ||sample_admission.sample(&sample_host),move |facts| {
+                            admission.check_facts(&expected,&facts,persona.clone())?;
+                            *lock(&boundary_check)=Some((facts.store_id.clone(),facts.head));
+                            head::intent_store_id(&payload,Some(&facts.store_id))
+                        }))
+                },move |engine,shared,outcome| {
+                    if diverted.load(Ordering::Acquire) {return Ok(None);}
+                    let boundary=lock(&boundary).clone();
+                    if let Err(why)=&outcome && (boundary.is_none() || matches!(why.code.as_str(),"E_AUTH"|"E_COMMIT_OUTCOME_UNKNOWN")) {return Err(why.clone());}
+                    Ok(Some(head::mutation_acknowledgement_at(shared,engine,outcome,boundary)))
                 });
                 let (outcome, metadata, preserved, generation) = match result.and_then(|v| v) {
                     Ok(Some(value)) => value,
                     Ok(None) => return ephemeral::serve(request, shared, &op, &body, diverted_capability),
-                    Err(mut why) => { if id.is_some() && why.code == "E_STORE_OWNERSHIP" { why.retryable = true; } return respond_timed(request, shared, if why.retryable {503} else {401}, latency::Unobserved(json!({"denied": why}))); },
+                    Err(mut why) => { if id.is_some() && why.code == "E_STORE_OWNERSHIP" { why.retryable = true; } return respond_timed(request, shared, if why.code=="E_COMMIT_OUTCOME_UNKNOWN" {500} else if why.retryable {503} else {401}, latency::Unobserved(json!({"denied": why}))); },
                 };
                 let (store_id, head) = match metadata { Ok(head) => head, Err(why) => { respond_timed(request, shared, 503, json!({ "denied": why })); return; } };
                 match outcome {

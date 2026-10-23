@@ -171,6 +171,7 @@ fn run(pg: bool) {
                 assert_eq!(reply["data"][31]["room"],"r0032");
             } else {
                 assert_eq!(reply["state"], "sent", "{reply}");
+                if class.contains("unkeyed") {assert!(reply.get("id").is_none(),"private invocation identity leaked into HTTP: {reply}");}
             }
             record(&mut measured, &mut cold, class, repetition, counts, pg);
         }
@@ -286,6 +287,30 @@ fn run(pg: bool) {
             counts,
             pg,
         );
+    }
+    // Controlled store batches exclude HTTP ingress. Totals divided by N are
+    // per-member amortized flights/statements; the existing HTTP N=1 rows stay
+    // separate and unchanged.
+    for n in [4,32] {
+        for repetition in 0..4 {
+            let principal=session.principal.clone();
+            let digest=identity::session_digest(&session.token);
+            let counts=host.shared.engine.call(move |engine,_| {
+                let scope=Scope::begin();
+                let mut invocations:Vec<_>=(0..n).map(|_| {
+                    let principal=principal.clone();
+                    snapback4_core::engine::program::Invocation::new("increment",None,
+                        Context::new(principal.clone(),[("counter".into(),snapback4_core::Value::Id("c0000".into()))].into()).at(now).with_request_credential("guest"))
+                        .authorized(digest.clone(),move ||identity::ServiceSample{now,supervisor_revision:0},move |facts| {
+                            assert_eq!(facts.capability.unwrap().0,principal);Ok(())
+                        })
+                }).collect();
+                let results=engine.invoke_program_batch(&mut invocations);
+                assert!(results.iter().all(|r|matches!(r,Ok(ack) if matches!(ack.outcome.state,snapback4_core::WriteState::Sent{..}))),"{results:?}");
+                scope.counts()
+            }).unwrap();
+            record(&mut measured,&mut cold,&format!("program_batch_{n}_total"),repetition,counts,pg);
+        }
     }
     let store_name = if pg { "postgres" } else { "sqlite" };
     println!(

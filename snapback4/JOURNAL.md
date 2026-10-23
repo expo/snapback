@@ -104996,3 +104996,18 @@ stores, including raw receipt sequence/time fields, complete outcomes/meters,
 maintained rows, allocations, effects, intermediate log and change evidence.
 It passes on both stores. The final Postgres fault matrix, full qualification,
 serving handoff and recorded-load diagnostic follow in the completion entry.
+
+## 2026-10-24 — G3 serving admission and RT0 integration
+
+Durable `/m` now crosses the owned program lane, keeping live bearer/scope
+checks inside each serial member. Per-member timing, trace and refusal context
+survives the worker handoff. Post-COMMIT response/publication runs in submission
+order. Unknown outcomes return HTTP 500 without success/head metadata;
+unkeyed responses still omit `id`. Ephemeral diversion and solo command
+barriers retain their existing behavior.
+
+RT0 keeps every N=1 expectation and adds separate controlled core batch totals
+at N=4/32, excluding HTTP ingress: PG 20/132 flights (5/4.125 per member),
+SQLite 66/486 statements (16.5/15.1875 per member). The initial run passes both
+ratchets; the complete final repeat is recorded with the completion report.
+The Postgres script now includes the batch matrix and outcome/deadline scopes.

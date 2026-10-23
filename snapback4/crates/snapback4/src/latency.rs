@@ -340,6 +340,13 @@ mod tests;
 /// thread that actually executes each part of a request.
 pub(super) struct WorkerSample(Instant);
 pub(super) struct WorkerTiming { wait: Duration, engine: Duration, cpu: Option<Duration> }
+pub(super) fn resume_worker(active: bool) -> Option<WorkerSample> { active.then(||WorkerSample(Instant::now())) }
+pub(super) fn append_worker(total: &mut Option<WorkerTiming>, part: Option<WorkerTiming>) {
+    if let Some(part)=part { if let Some(total)=total {
+        total.wait+=part.wait; total.engine+=part.engine;
+        total.cpu=total.cpu.zip(part.cpu).and_then(|(a,b)|a.checked_add(b));
+    } else { *total=Some(part); } }
+}
 pub(super) fn worker_sample() -> Option<WorkerSample> {
     CURRENT.with(|slot| {
         let mut timing = slot.get().filter(|t| t.finished.is_none())?;
