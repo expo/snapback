@@ -103698,3 +103698,30 @@ validation as adoption failure before retain-by-default is enabled too. The
 shared regression covers type narrowing and a missing required column, asserting
 SQLite's verdict and unchanged rows/generation on both stores. Application write
 validation and the retained evaluator's profile are unchanged.
+
+
+## 2026-10-23 — P1-EV-2 qualification and cleanup
+
+The [qualification report](reports/20261023-p1-ev2.md) records the completed
+checks: full core, final 47-case evolution target, nine maintained-column cases,
+21 release contracts, the nontransactional preparation-write witness, 13 binary
+release cases, both unchanged RT0 ratchets, 127 guide tests, build/no-default and
+root reference validation all pass. Final history/refusal follow-ups receive
+affected-scope requalification after the complete core pass.
+
+Configured public deploy/serve passes twice with 15 byte-identical normalized
+EV-2 observations (1,538,672 bytes), including hidden parent/child restoration,
+query meters and 300 KiB `/changes` behavior. The complete ownership, recovery
+and S1 maintained-column harness passes too. The stock Postgres runner retains
+one red: the already-ticketed evaluator `40001` stress. Its exact executable
+passes alone with 65 increments per mode, no lost updates and 119 Serializable
+retries. The retained workload, retry/timeout limits and stock exclusions are
+unchanged. All later stages
+pass; the five-executor 295-card corpus has no overlap disagreement, and named
+exclusions stay visible.
+
+All four owned PG16 clusters are confirmed stopped (status 3, no pidfiles).
+The independent audit finds no surviving recorded owned identity,
+no public-witness PID and no executable from the lane target. PG17/55440 is
+untouched. Raw logs, wire bytes, saved test binary and PID traces stay outside
+Git under `/tmp/sb4-p1ev2/`. Work stays local, with no push or stash.
