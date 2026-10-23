@@ -455,10 +455,11 @@ fn clock_advance_preserves_a_live_action_claim_session_and_settlement() {
     println!("action clock: after_advance_state={state}");
     assert_eq!(state, "running", "clock advance must not sweep the worker's live action claim");
     assert_eq!(deadlines(), (original_expiry + 120_000, original_expiry + 120_000));
-    assert_eq!(host.post("/dev/clock/advance", json!({"duration":"120s"}))["advancedMs"], 120_000);
+    let second = output_json(f.command(&["clock", "advance", "120s", "--port", port]));
+    assert_eq!(second["advancedMs"], 120_000);
     assert_eq!(deadlines(), (original_expiry + 240_000, original_expiry + 240_000));
     assert_eq!(effect_deadline(), original_effect_expiry + 240_000);
-    assert_eq!(service_expiry(), original_service_expiry, "an advance does not renew ordinary service credentials");
+    assert_eq!(service_expiry(), original_service_expiry + 240_000, "preserve mode keeps an ordinary service credential's remaining lifetime across both advances");
     assert!(host.auth_request("POST", "/q/time", json!({"args":{}}), &viewer)["data"].is_number(), "the original viewer session remains usable");
     assert_eq!(host.auth_request("POST", "/actions/claim", json!({}), &auth)["requests"], json!([]), "another claim cannot steal the running request");
     let settled = host.auth_request("POST", "/actions/action-live/done", json!({"result":"sent once"}), &settle_auth);

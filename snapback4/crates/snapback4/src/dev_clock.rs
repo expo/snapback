@@ -131,6 +131,14 @@ pub fn command(options: &crate::verbs::Options) -> i32 {
             (address,None,Some(session.token))
         } else {
             let (address,instance)=crate::verbs::dev_address(options)?;
+            // A production listener has no development-token registry entry.
+            // Ask its read-only clock door first so the CLI preserves the
+            // server's actionable refusal instead of failing token discovery.
+            if let Ok((_, status)) = crate::verbs::run_forward::exchange(address, "GET", "/dev/clock/status", None, "", Duration::from_secs(5))
+                && status["denied"]["code"] == "E_CLOCK_DEV_ONLY"
+            {
+                return Err(release().to_string());
+            }
             let token=crate::verbs::mint_for_dev(address,"operator",1)?;
             (address,instance,Some(token))
         };
