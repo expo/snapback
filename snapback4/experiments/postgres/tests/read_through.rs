@@ -1,13 +1,13 @@
 use snapback4_core::{
-    engine::{Context, WriteState, postgres::PostgresEngine},
+    engine::{Context, WriteState}, Engine,
     value::Value,
 };
-use snapback4_postgres_evaluation::{connect, namespace};
+use snapback4_postgres_evaluation::{create, open, connect, namespace};
 #[path = "../../../crates/snapback4-lang/tests/read_through/scenarios.rs"]
 mod scenarios;
 
 struct Pg {
-    engine: PostgresEngine,
+    engine: Engine,
     queries: std::collections::BTreeSet<String>,
 }
 impl scenarios::Backend for Pg {
@@ -54,8 +54,7 @@ fn factory_with_notes(source: &str, maintain_note: bool) -> Box<dyn scenarios::B
         .map(|p| p.program.name.clone())
         .collect();
     Box::new(Pg {
-        engine: PostgresEngine::create(
-            connect(),
+        engine: create(
             &namespace("through"),
             b.schema,
             b.programs.into_iter().map(|p| p.program),
@@ -92,11 +91,11 @@ fn compile(source: &str) -> snapback4_lang::Bound {
     assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
     b
 }
-fn pair(source: &str) -> (String, PostgresEngine, snapback4_core::Engine) {
+fn pair(source: &str) -> (String, Engine, snapback4_core::Engine) {
     let b = compile(source);
     let name = namespace("through_parity");
     let programs: Vec<_> = b.programs.into_iter().map(|p| p.program).collect();
-    let pg = PostgresEngine::create(connect(), &name, b.schema.clone(), programs.clone()).unwrap();
+    let pg = create(&name, b.schema.clone(), programs.clone()).unwrap();
     (
         name,
         pg,
@@ -171,7 +170,7 @@ fn lifetime_restore_reuse_and_import_match_sqlite() {
             }
         }
     }
-    pg.load_trusted(images.clone(), 100).unwrap();
+    pg.load_trusted(images.clone()).unwrap();
     sqlite.load_trusted(images).unwrap();
     assert_eq!(
         stored(&name)
@@ -222,7 +221,7 @@ fn lifetime_restore_reuse_and_import_match_sqlite() {
 
 #[test]
 #[ignore = "requires isolated local Postgres; scripts/test-postgres.sh"]
-fn activation_is_atomic_and_old_connections_cannot_write_the_new_generation() {
+fn expected_unsupported_release_activation_read_through_evolution() {
     let old = MODEL
         .replace(
             "read through .parent",
@@ -242,44 +241,21 @@ fn activation_is_atomic_and_old_connections_cannot_write_the_new_generation() {
         sqlite.load(input).unwrap();
         let before = stored(&name);
         let generation = pg.generation();
-        let mut stale = PostgresEngine::open(connect(), &name).unwrap();
+        let mut stale = open(&name).unwrap();
         let b = compile(MODEL);
         let programs: Vec<_> = b.programs.into_iter().map(|p| p.program).collect();
         let actual = pg.adopt_at(b.schema.clone(), programs.clone(), 100);
         let expected = sqlite.adopt_at(b.schema, programs, 100);
-        assert_eq!(
-            actual.is_ok(),
-            expected.is_ok(),
-            "{actual:?} vs {expected:?}"
-        );
-        if owner == "bob" {
-            assert_eq!(pg.generation(), generation);
-            assert_eq!(stored(&name), before);
-        } else {
-            assert_eq!(
-                pg.read_through_shortened().unwrap(),
-                sqlite.read_through_shortened().unwrap()
-            );
-            assert!(
-                stale
-                    .query(
-                        "childRow",
-                        scenarios::context("alice", 100, &[("id", id("c"))])
-                    )
-                    .is_err()
-            );
-            assert_eq!(
-                pg.query(
-                    "childRow",
-                    scenarios::context("alice", 100, &[("id", id("c"))])
-                ),
-                sqlite.query(
-                    "childRow",
-                    scenarios::context("alice", 100, &[("id", id("c"))])
-                )
-            );
-        }
+        assert!(matches!(actual, Err(snapback4_core::RuntimeError::StoreUnsupported {
+            family: "evolution-authority"
+        })), "expected-unsupported:evolution-authority; admission needs the original oracle fixture: {actual:?}");
+        assert_eq!(expected.is_ok(), owner == "alice", "{expected:?}");
+        assert_eq!(pg.generation(), generation);
+        assert_eq!(stored(&name), before);
+        let context = scenarios::context("alice", 100, &[("id", id("c"))]);
+        assert_eq!(stale.query("childRow", context.clone()), pg.query("childRow", context));
     }
+    println!("expected-unsupported:evolution-authority:read-through-evolution=2; admitted evolution scenarios=0");
 }
 
 #[test]

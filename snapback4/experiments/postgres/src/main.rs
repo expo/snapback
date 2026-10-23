@@ -3,7 +3,6 @@
 use serde_json::{Value as Json, json};
 use snapback4_core::{
     Engine, Value,
-    engine::postgres::{PostgresEngine, WriteMode},
     store::Store,
     value::object,
 };
@@ -41,16 +40,16 @@ fn timings(label: &str, n: usize, mut run: impl FnMut() -> Value, expected: Opti
     json!({"label":label,"iterations":n,"p50_us":us[n/2],"p95_us":us[(n*95/100).min(n-1)],"mean_us":us.iter().sum::<f64>() / n as f64})
 }
 
-fn concurrent_pg(name: &str, mode: WriteMode, disjoint: bool, n: usize) -> Json {
+fn concurrent_pg(name: &str, disjoint: bool, n: usize) -> Json {
     let gate = Arc::new(Barrier::new(5));
     let handles: Vec<_> = (0..4)
         .map(|writer| {
             let name = name.to_owned();
             let gate = gate.clone();
             std::thread::spawn(move || {
-                let mut pg = PostgresEngine::open(connect(), &name).unwrap();
-                pg.set_prefetch(prefetch_enabled());
-                pg.set_write_mode(mode);
+                let mut pg = open(&name).unwrap();
+                pg.set_evaluation_prefetch(prefetch_enabled());
+
                 let slot = format!("c{}", if disjoint { writer } else { 0 });
                 gate.wait();
                 let mut completed = 0;
@@ -58,14 +57,14 @@ fn concurrent_pg(name: &str, mode: WriteMode, disjoint: bool, n: usize) -> Json 
                 for i in 0..n {
                     match pg.mutate(
                             "increment",
-                            Some(&format!("{mode:?}-{disjoint}-{writer}-{i}")),
+                            Some(&format!("Serialized-{disjoint}-{writer}-{i}")),
                             context("alice", &[("slot", id(&slot))]),
                         ) {
                         Ok(outcome) => { sent(&outcome); completed += 1; }
                         Err(error) => { failure = Some(error.to_string()); break; }
                     }
                 }
-                (pg.stats(), completed, failure)
+                (pg.evaluation_stats().unwrap(), completed, failure)
             })
         })
         .collect();
@@ -86,7 +85,7 @@ fn concurrent_pg(name: &str, mode: WriteMode, disjoint: bool, n: usize) -> Json 
     }
     let elapsed = start.elapsed().as_secs_f64();
     let complete = failures.iter().all(Option::is_none);
-    json!({"backend":"postgres","mode":format!("{mode:?}"),"disjoint":disjoint,"writers":4,
+    json!({"backend":"postgres","mode":"Serialized","disjoint":disjoint,"writers":4,
         "status":if complete {"complete"} else {"failed"}, "requested_mutations":4*n,
         "mutations":completed.iter().sum::<usize>(), "completed_per_writer":completed, "failures":failures,
         "seconds":elapsed,"mutations_per_second":complete.then_some(4.0*n as f64/elapsed),
@@ -184,8 +183,8 @@ fn main() {
     let store = Store::open(&path).unwrap();
     store.use_full_synchronous().unwrap();
     let mut sqlite = Engine::new(store, schema.clone(), programs.clone()).unwrap();
-    let mut pg = PostgresEngine::create(connect(), &name, schema, programs).unwrap();
-    pg.set_prefetch(prefetch_enabled());
+    let mut pg = create(&name, schema, programs).unwrap();
+    pg.set_evaluation_prefetch(prefetch_enabled());
     let rows = fixture(32, 25);
     sqlite.seed_at(rows.clone(), 10).unwrap();
     pg.seed_at(rows, 10).unwrap();
@@ -200,10 +199,10 @@ fn main() {
         let expected = sqlite.query(op, context("alice", &args)).unwrap();
         assert_eq!(pg.query(op, context("alice", &args)).unwrap(), expected);
         reads.push(timings(&format!("sqlite/{op}"), n, || sqlite.query(op, context("alice", &args)).unwrap().data, Some(&expected.data)));
-        let before = pg.stats();
+        let before = pg.evaluation_stats().unwrap();
         let mut result =
             timings(&format!("postgres/{op}"), n, || pg.query(op, context("alice", &args)).unwrap().data, Some(&expected.data));
-        result["database_calls_per_operation"] = json!((pg.stats().database_calls - before.database_calls) as f64 / (n + 20) as f64);
+        result["database_calls_per_operation"] = json!((pg.evaluation_stats().unwrap().database_calls - before.database_calls) as f64 / (n + 20) as f64);
         result["metered"] = json!(expected.metered);
         reads.push(result);
     }
@@ -258,7 +257,7 @@ fn main() {
         None,
     ));
     let mut pg_op = 0;
-    let before = pg.stats();
+    let before = pg.evaluation_stats().unwrap();
     let mut timing = timings(
         "postgres/increment",
         n,
@@ -270,14 +269,12 @@ fn main() {
         },
         None,
     );
-    timing["database_calls_per_operation"] = json!((pg.stats().database_calls - before.database_calls) as f64 / (n + 20) as f64);
+    timing["database_calls_per_operation"] = json!((pg.evaluation_stats().unwrap().database_calls - before.database_calls) as f64 / (n + 20) as f64);
     writes.push(timing);
     let mut concurrency = Vec::new();
     for disjoint in [false, true] {
         concurrency.push(concurrent_sqlite(&path, disjoint, n / 2));
-        for mode in [WriteMode::Serialized, WriteMode::Serializable] {
-            concurrency.push(concurrent_pg(&name, mode, disjoint, n / 2));
-        }
+        concurrency.push(concurrent_pg(&name, disjoint, n / 2));
     }
     // No lost increments across any measured run (including warm-up).
     assert_eq!(

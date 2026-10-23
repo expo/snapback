@@ -1,8 +1,9 @@
 //! Cell 2: a statement-level MODEL of the engine's increment protocol,
 //! replayed against the engine's own tables (a namespace created and seeded
-//! by the real PostgresEngine). The statement texts, parameter types and
-//! order are the ones captured from the engine with log_statement=all
-//! (see README "Captured statement sequence"). Every statement is one
+//! by the real Engine). The statement texts, parameter types and
+//! order remain the historical evaluator capture, not the common engine
+//! owner/member protocol now exercised by the engine cell (log_statement=all
+//! in README "Captured statement sequence"). Every statement is one
 //! synchronous round trip, as in the engine's driver.
 //!
 //! Protocols:

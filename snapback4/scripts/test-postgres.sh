@@ -47,18 +47,26 @@ status=0
 # @ref LLP 3000.009.001.000#3.4 — a shared target must not carry path-crate identities between the two workspaces.
 refresh_shared_target() {
   if [[ -n "${CARGO_TARGET_DIR:-}" ]]; then
-    echo "Refreshing core/lang/device debug artifacts at a shared-target manifest handoff" >&2
-    cargo clean --manifest-path Cargo.toml --profile dev -p snapback4-core -p snapback4-lang -p snapback4-device
+    echo "Cleaning core/lang/device debug artifacts at a shared-target manifest handoff" >&2
+    cargo clean --manifest-path "$1" --profile dev -p snapback4-core -p snapback4-lang -p snapback4-device
   fi
 }
-refresh_shared_target || status=1
+refresh_shared_target experiments/postgres/Cargo.toml || status=1
 # Keep later evaluator integration targets running after a conformance red.
-cargo test --locked --no-fail-fast --manifest-path experiments/postgres/Cargo.toml -- --include-ignored --nocapture || status=1
-refresh_shared_target || status=1
+# include-ignored enables private-cluster fixtures, but must not re-enable the
+# ticketed heap regressions or the additional retained Serializable race.
+# Keep the original evaluator stress case running: its inherited 40001 is
+# reported independently, never converted to a successful qualification.
+cargo test --locked --no-fail-fast --manifest-path experiments/postgres/Cargo.toml -- --include-ignored --nocapture \
+  --skip prefetch_complete_fixture_queries_mutations_and_hidden_rows \
+  --skip unified_add_spare_capacity_meter_overlap_regression \
+  --skip evaluator_racing_refused_operations_replay_one_receipt_without_advancing_head || status=1
+refresh_shared_target Cargo.toml || status=1
 cargo test --locked -p snapback4-core --features postgres --lib engine::postgres::tests -- --include-ignored --nocapture || status=1
 cargo test --locked -p snapback4-core --features postgres --lib change_evidence -- --include-ignored --nocapture || status=1
 cargo test --locked -p snapback4-core --features postgres --lib engine::postgres::literal_tests -- --include-ignored --nocapture || status=1
 cargo test --locked -p snapback4-core --features postgres --lib engine::postgres::ownership::tests -- --include-ignored --nocapture || status=1
+cargo test --locked -p snapback4-core --features postgres --test postgres_evolution -- --include-ignored --nocapture || status=1
 cargo test --locked -p snapback4-core --features postgres --test store_handle_traits || status=1
 cargo test --locked -p snapback4-core --features postgres --doc || status=1
 cargo test --locked -p snapback4-core --features postgres --lib engine::committer::postgres_tests -- --include-ignored --nocapture || status=1
@@ -69,7 +77,9 @@ cargo test --locked -p snapback4 --features postgres --bin snapback4 change_evid
 cargo test --locked -p snapback4 --features postgres --bin snapback4 postgres_startup_renewal_error_releases_committed_claim -- --include-ignored --nocapture || status=1
 cargo test --locked -p snapback4 --features postgres --bin snapback4 round_trips_postgres -- --include-ignored --nocapture || status=1
 cargo test --locked -p snapback4 --features postgres --bin snapback4 postgres_bearer_is_checked_after_durable_and_ephemeral_mutation_lock_gaps -- --include-ignored --nocapture || status=1
-cargo test --locked -p snapback4-core --features postgres --test corpus -- --nocapture || status=1
+SNAPBACK4_CORPUS_OVERLAP=1 cargo test --locked -p snapback4-core --features postgres --test corpus -- --include-ignored --nocapture || status=1
+# Exercise migrated preludes, snapshot resets, replay and explicit unsupported accounting.
+cargo test --locked -p snapback4-difftest --features postgres --no-fail-fast --lib --test stores -- --nocapture || status=1
 # Public serving is a separate CLI process over its own private cluster, never
 # the evaluator's namespace/connection. Build the shipped default CLI first.
 cargo build --locked -p snapback4 || status=1

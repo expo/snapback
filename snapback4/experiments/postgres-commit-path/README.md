@@ -1,5 +1,11 @@
 # S0: commit-path cells (Postgres and SQLite)
 
+S10e-1 (2026-10-23): new `capture` and `engine` runs use the common `Engine`
+over Postgres `AnyStore`, with evaluation-only prefetch and driver-call statistics.
+The tables and captured SQL below remain historical measurements of the named
+executor at their recorded source revision. The statement-model cells are still
+models; their old calibration does not qualify the migrated executor.
+
 Working measurement experiment for the committer decision, not a product
 benchmark. It feeds:
 

@@ -111,6 +111,7 @@ fn refused(why: snapback4_core::Refusal, mutation: bool) -> Actual {
 enum Verdict {
     Pass,
     Skip(String),
+    Unsupported(String),
     Fail(String),
 }
 
@@ -191,15 +192,54 @@ fn has_key(value: &serde_json::Value, names: &[&str]) -> bool {
     }
 }
 
-// Both hosts execute the same translated case and compare to the same oracle.
+#[derive(Clone, Copy, Debug)]
+enum Backend { Sqlite, Unified(bool), Oracle(bool) }
+// Compare typed outcomes: serde intentionally omits host-only receipt/opening facts.
+#[derive(Clone, Debug, PartialEq, Eq)]
+enum Observation {
+    Load(Result<u64, snapback4_core::Refusal>),
+    Query(Result<snapback4_core::QueryOutcome, snapback4_core::Refusal>),
+    Mutation(Result<snapback4_core::MutationOutcome, snapback4_core::Refusal>),
+}
+thread_local! { static OBSERVATIONS: std::cell::RefCell<Vec<Observation>> = const { std::cell::RefCell::new(Vec::new()) }; }
+
+// @ref LLP 3000.009.001.000#3.4 — named unsupported families are outside passed.
+// This corpus currently has none. Any addition needs its exact per-arm count
+// and an explicit disposition; a create code alone never authorizes an exclusion.
+const CORPUS_UNSUPPORTED_FAMILIES: &[(&str, usize)] = &[];
+
+#[cfg(feature = "postgres")]
+fn corpus_create_error(error: snapback4_core::RuntimeError) -> Verdict {
+    if let snapback4_core::RuntimeError::StoreUnsupported { family } = &error
+        && CORPUS_UNSUPPORTED_FAMILIES.iter().any(|(allowed, _)| allowed == family)
+    {
+        return Verdict::Unsupported(format!("E_STORE_UNSUPPORTED:{family}"));
+    }
+    Verdict::Fail(format!("postgres engine: {}: {error}", error.code()))
+}
+
 enum CorpusEngine {
     Sqlite(Engine),
     #[cfg(feature = "postgres")]
-    Postgres(snapback4_core::engine::postgres::PostgresEngine),
+    Postgres(Engine, OwnedNamespace),
+    #[cfg(feature = "postgres")]
+    Oracle(snapback4_core::engine::postgres::PostgresEngine, OwnedNamespace),
+}
+// Drop only a namespace this case successfully created, after its engine
+// connection closes. Thousands of retained catalogs otherwise dominate overlap.
+#[cfg(feature = "postgres")]
+struct OwnedNamespace { url: String, name: String }
+#[cfg(feature = "postgres")]
+impl Drop for OwnedNamespace {
+    fn drop(&mut self) {
+        let result = postgres::Client::connect(&self.url, postgres::NoTls)
+            .and_then(|mut client| client.batch_execute(&format!("DROP SCHEMA {} CASCADE", self.name)));
+        result.unwrap_or_else(|error| panic!("corpus owned-namespace cleanup failed for {}: {error}", self.name));
+    }
 }
 impl CorpusEngine {
-    fn create(schema: Schema, programs: Vec<Program>, postgres: bool) -> Result<Self, Verdict> {
-        if !postgres { return Engine::memory(schema, programs).map(Self::Sqlite).map_err(|e| Verdict::Fail(format!("engine: {e}"))); }
+    fn create(schema: Schema, programs: Vec<Program>, backend: Backend) -> Result<Self, Verdict> {
+        if matches!(backend, Backend::Sqlite) { return Engine::memory(schema, programs).map(Self::Sqlite).map_err(|e| Verdict::Fail(format!("engine: {e}"))); }
         #[cfg(feature = "postgres")]
         {
             use snapback4_core::engine::postgres::PostgresEngine;
@@ -211,25 +251,45 @@ impl CorpusEngine {
             }
             let client = postgres::Client::connect(&url, postgres::NoTls).map_err(|e| Verdict::Fail(format!("postgres connect: {e}")))?;
             let name = format!("sb4_eval_corpus_{:x}", snapback4_core::ids::seed());
-            PostgresEngine::create(client, &name, schema, programs).map(Self::Postgres).map_err(|e| Verdict::Fail(format!("postgres engine: {e}")))
+            let unsupported = corpus_create_error;
+            match backend {
+                Backend::Unified(enabled) => {
+                    drop(client);
+                    let mut engine = Engine::create_postgres_evaluation(url.parse().unwrap(), &name, schema, programs).map_err(unsupported)?;
+                    engine.set_evaluation_prefetch(enabled);
+                    Ok(Self::Postgres(engine, OwnedNamespace { url, name }))
+                }
+                Backend::Oracle(enabled) => {
+                    let mut engine = PostgresEngine::create(client, &name, schema, programs).map_err(unsupported)?;
+                    engine.set_prefetch(enabled);
+                    Ok(Self::Oracle(engine, OwnedNamespace { url, name }))
+                }
+                Backend::Sqlite => unreachable!(),
+            }
         }
         #[cfg(not(feature = "postgres"))]
         Err(Verdict::Skip("postgres-feature-disabled: enable the postgres feature".into()))
     }
     fn load(&mut self, rows: Vec<(String, Value)>) -> Result<u64, snapback4_core::RuntimeError> {
-        match self { Self::Sqlite(e) => e.load(rows), #[cfg(feature = "postgres")] Self::Postgres(e) => e.load(rows) }
+        let result = match self { Self::Sqlite(e) => e.load(rows), #[cfg(feature = "postgres")] Self::Postgres(e, _) => e.load(rows), #[cfg(feature = "postgres")] Self::Oracle(e, _) => e.load(rows) };
+        OBSERVATIONS.with_borrow_mut(|trace| trace.push(Observation::Load(result.as_ref().copied().map_err(|e| e.refusal()))));
+        result
     }
     fn query(&mut self, name: &str, context: Context) -> Result<snapback4_core::QueryOutcome, snapback4_core::Refusal> {
-        match self { Self::Sqlite(e) => e.query(name, context), #[cfg(feature = "postgres")] Self::Postgres(e) => e.query(name, context) }
+        let result = match self { Self::Sqlite(e) => e.query(name, context), #[cfg(feature = "postgres")] Self::Postgres(e, _) => e.query(name, context), #[cfg(feature = "postgres")] Self::Oracle(e, _) => e.query(name, context) };
+        OBSERVATIONS.with_borrow_mut(|trace| trace.push(Observation::Query(result.clone())));
+        result
     }
     fn mutate(&mut self, name: &str, op: Option<&str>, context: Context) -> Result<snapback4_core::MutationOutcome, snapback4_core::RuntimeError> {
-        match self { Self::Sqlite(e) => e.mutate(name, op, context), #[cfg(feature = "postgres")] Self::Postgres(e) => e.mutate(name, op, context) }
+        let result = match self { Self::Sqlite(e) => e.mutate(name, op, context), #[cfg(feature = "postgres")] Self::Postgres(e, _) => e.mutate(name, op, context), #[cfg(feature = "postgres")] Self::Oracle(e, _) => e.mutate(name, op, context) };
+        OBSERVATIONS.with_borrow_mut(|trace| trace.push(Observation::Mutation(result.as_ref().cloned().map_err(|e| e.refusal()))));
+        result
     }
 }
 
-fn run(case: &Case) -> Verdict { run_store(case, false) }
+fn run(case: &Case) -> Verdict { run_store(case, Backend::Sqlite) }
 
-fn run_store(case: &Case, postgres: bool) -> Verdict {
+fn run_store(case: &Case, backend: Backend) -> Verdict {
     if let Some(reason) = exclusion(case) {
         return Verdict::Skip(reason.to_owned());
     }
@@ -294,7 +354,7 @@ fn run_store(case: &Case, postgres: bool) -> Verdict {
     let mut serialized = serde_json::to_value(&context_args).expect("args");
     cursors::translate(&mut serialized,&schema,&program,&case.context.viewer,&case.context.args);
     context_args = serde_json::from_value(serialized).expect("scoped args");
-    let mut engine = match CorpusEngine::create(schema, programs, postgres) {
+    let mut engine = match CorpusEngine::create(schema, programs, backend) {
         Ok(engine) => engine,
         Err(verdict) => return verdict,
     };
@@ -638,10 +698,17 @@ fn compare(expected: &Expected, expected_state: LocalState, actual: Actual) -> V
 fn corpus() {
     let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../corpus");
     let mut passed = 0;
-    let mut pg_passed = 0;
-    let mut pg_skipped: BTreeMap<String, usize> = BTreeMap::new();
+    // Routine corpus callers use shared policy. The retained executor is an
+    // explicit overlap oracle, never the default Postgres execution path.
+    let backends = if std::env::var("SNAPBACK4_CORPUS_OVERLAP").as_deref() == Ok("1") {
+        vec![Backend::Sqlite, Backend::Unified(true), Backend::Unified(false), Backend::Oracle(true), Backend::Oracle(false)]
+    } else { vec![Backend::Sqlite, Backend::Unified(true)] };
+    let mut counts = vec![[0_usize; 4]; backends.len()]; // pass / unsupported / skip / fail
+    let mut skip_reasons = vec![BTreeMap::<String, usize>::new(); backends.len()];
+    let mut unsupported_reasons = vec![BTreeMap::<String, usize>::new(); backends.len()];
     let mut skipped: Vec<(String, String)> = Vec::new();
     let mut failed: Vec<(String, String)> = Vec::new();
+    let mut overlap_failed = Vec::new();
     let mut entries: Vec<_> = std::fs::read_dir(&dir).expect("corpus dir").flatten().map(|e| e.path()).collect();
     entries.sort();
     for path in entries {
@@ -657,25 +724,37 @@ fn corpus() {
                 continue;
             }
         };
-        match run(&case) {
-            Verdict::Pass => passed += 1,
-            Verdict::Skip(why) => skipped.push((case.name.clone(), why)),
-            Verdict::Fail(why) => failed.push((case.name.clone(), why)),
-        }
-        let pg = if !cfg!(feature = "postgres") {
-            Verdict::Skip("postgres-feature-disabled: enable the postgres feature".into())
-        } else if std::env::var_os("SNAPBACK4_EVAL_POSTGRES").is_none() {
-            Verdict::Skip("postgres-not-configured: SNAPBACK4_EVAL_POSTGRES is unset".into())
-        } else { run_store(&case, true) };
-        match pg {
-            Verdict::Pass => pg_passed += 1,
-            Verdict::Skip(why) => *pg_skipped.entry(why.split(':').next().unwrap().into()).or_default() += 1,
-            Verdict::Fail(why) => failed.push((format!("postgres/{}", case.name), why)),
+        let mut baseline = None;
+        for (i, backend) in backends.iter().copied().enumerate() {
+            OBSERVATIONS.with_borrow_mut(Vec::clear);
+            let verdict = if i > 0 && (!cfg!(feature = "postgres") || std::env::var_os("SNAPBACK4_EVAL_POSTGRES").is_none()) {
+                Verdict::Skip("postgres-not-configured: enable postgres and set SNAPBACK4_EVAL_POSTGRES".into())
+            } else { run_store(&case, backend) };
+            let trace = OBSERVATIONS.with_borrow(Clone::clone);
+            if matches!(verdict, Verdict::Pass) {
+                if i == 0 { baseline = Some(trace.clone()); }
+                else if let Some(expected) = &baseline { if expected != &trace {
+                    println!("S10e-1 DISAGREEMENT {backend:?}/{}: expected={expected:?} actual={trace:?}", case.name);
+                    // Keep conformance verdicts distinct from full outcome/meter overlap.
+                    overlap_failed.push(format!("{backend:?}/{}", case.name));
+                } }
+            }
+            match verdict {
+                Verdict::Pass => { counts[i][0] += 1; if i == 0 { passed += 1; } }
+                Verdict::Unsupported(why) => { counts[i][1] += 1; *unsupported_reasons[i].entry(why.clone()).or_default() += 1; println!("  UNSUPPORTED {backend:?}/{}: {why}", case.name); }
+                Verdict::Skip(why) => { counts[i][2] += 1; *skip_reasons[i].entry(why.split(':').next().unwrap().into()).or_default() += 1; if i == 0 { skipped.push((case.name.clone(), why)); } }
+                Verdict::Fail(why) => { counts[i][3] += 1; failed.push((format!("{backend:?}/{}", case.name), why)); }
+            }
         }
     }
-    println!("corpus (Rust server only; no TypeScript/replica conformance claim): {passed} passed, {} skipped, {} failed", skipped.len(), failed.len());
-    println!("corpus Postgres: {pg_passed} passed, {} skipped", pg_skipped.values().sum::<usize>());
-    for (why, count) in pg_skipped { println!("  skipped {count}: {why}"); }
+    println!("corpus (Rust server only): {passed} passed, {} skipped, {} failed", skipped.len(), failed.len());
+    for (backend, [pass, unsupported, skip, fail]) in backends.iter().zip(&counts) {
+        println!("S10e-1 corpus {backend:?}: cases={} passed={pass} unsupported={unsupported} skipped={skip} failed={fail}", pass+unsupported+skip+fail);
+    }
+
+    for (backend, reasons) in backends.iter().zip(skip_reasons) {
+        for (reason, count) in reasons { println!("  {backend:?} skipped {count}: {reason}"); }
+    }
     let mut reasons: BTreeMap<String, usize> = BTreeMap::new();
     for (_, why) in &skipped {
         *reasons.entry(why.split(':').next().unwrap_or(why).to_owned()).or_default() += 1;
@@ -686,6 +765,15 @@ fn corpus() {
     for (name, why) in &failed {
         println!("  FAIL {name}: {why}");
     }
+    for (i, backend) in backends.iter().enumerate() {
+        let expected = if matches!(backend, Backend::Sqlite) || counts[i][0] + counts[i][1] == 0 {
+            BTreeMap::new()
+        } else {
+            CORPUS_UNSUPPORTED_FAMILIES.iter().map(|(family, count)| (format!("E_STORE_UNSUPPORTED:{family}"), *count)).collect()
+        };
+        assert_eq!(unsupported_reasons[i], expected, "{backend:?}: exact named unsupported families/counts");
+    }
+    assert!(overlap_failed.is_empty(), "{} overlap disagreements: {overlap_failed:?}", overlap_failed.len());
     assert!(failed.is_empty(), "{} corpus cases failed", failed.len());
 }
 
@@ -693,6 +781,19 @@ fn corpus() {
 mod adapter {
     use super::*;
     use serde_json::json;
+
+    #[cfg(feature = "postgres")]
+    #[test]
+    fn create_refusals_require_a_named_corpus_family() {
+        use snapback4_core::RuntimeError;
+        for family in ["release-activation", "time-publication", "unknown"] {
+            assert!(matches!(corpus_create_error(RuntimeError::StoreUnsupported { family }), Verdict::Fail(_)));
+        }
+        for code in ["E_POSTGRES_MAINTAINED_COLUMN", "E_VIEW_KEY", "E_QUARRY_EPHEMERAL", "E_OTHER"] {
+            assert!(matches!(corpus_create_error(RuntimeError::Structural { code, message: "sentinel".into() }), Verdict::Fail(_)));
+        }
+        assert!(matches!(corpus_create_error(RuntimeError::Store("connection lost".into())), Verdict::Fail(_)));
+    }
 
     fn fixture() -> serde_json::Value {
         json!({
@@ -705,6 +806,37 @@ mod adapter {
     }
     fn case() -> Case {
         serde_json::from_value(fixture()).unwrap()
+    }
+
+    #[test]
+    fn overlap_preserves_host_only_query_and_mutation_fields() {
+        for mutation in [false, true] {
+            let mut value = fixture();
+            if mutation {
+                value["program"]["kind"] = json!("Mutation");
+                value["expected"]["localState"] = json!("predicted");
+            }
+            OBSERVATIONS.with_borrow_mut(Vec::clear);
+            assert!(matches!(run_store(&serde_json::from_value(value).unwrap(), Backend::Sqlite), Verdict::Pass));
+            let original = OBSERVATIONS.with_borrow(Clone::clone);
+            let mut changed = original.clone();
+            match changed.last_mut().unwrap() {
+                Observation::Query(Ok(outcome)) => outcome.pending_opening = Some(("principal".into(), "partition".into())),
+                Observation::Mutation(Ok(outcome)) => outcome.receipt_only = !outcome.receipt_only,
+                other => panic!("expected an outcome: {other:?}"),
+            }
+            assert_ne!(original, changed, "host-only facts must affect overlap equality");
+        }
+    }
+
+    #[test]
+    #[cfg(feature = "postgres")]
+    #[ignore = "requires private Postgres; S10e-1 corpus ownership smoke"]
+    fn postgres_namespaces_use_unified_policy_and_release_owned_case_state() {
+        for backend in [Backend::Unified(true), Backend::Unified(false), Backend::Oracle(true), Backend::Oracle(false)] {
+            let result = run_store(&case(), backend);
+            assert!(matches!(result, Verdict::Pass), "{backend:?}: {result:?}");
+        }
     }
 
     #[test]

@@ -239,3 +239,49 @@ durability or timeout was changed. Full and isolated logs are
 `/tmp/sb4-k0q-fix2-final/postgres{,-repeat}.log` and
 `postgres-concurrency-isolated.log`; the lane report retains all results.
 The restarted cluster is independently confirmed stopped.
+
+## 2026-10-23 — P1-EV-1 fix round 2 conformance observation
+
+Above `f8c54693c129`, the stock Postgres script's retained evaluator conformance
+target finishes 17 passed / 1 failed: the existing concurrent read/modify/write
+case escapes SQLSTATE `40001` at `tests/conformance.rs:244`, then its join at
+:257. EV-1 changes only the dormant restore walk; evaluator source and the
+mutation/retry path are unchanged.
+
+The exact failing executable (SHA-256
+`619849a44b8ce663c95fa1caceafeff4a379ceeb68e8299f6e96d8b2e21d6dd5`)
+passes the exact case alone: 65 increments per mode, no lost updates,
+zero serialized and 96 total serializable retries. No retry bound, backoff,
+internal writer concurrency, timeout or durability input changed. This adds an occurrence,
+not a root-cause attribution or a green full-script claim. Final stage
+results and owned-PG16 cleanup are in the
+[P1-EV-1 round-2 report](../snapback4/reports/20261023-p1-ev1-schema-evolution/REPORT.md#fix-round-2--2026-10-23-restore-byte-parity).
+Raw logs and process traces remain outside Git under `/tmp/sb4-p1ev1-fix2/`.
+## 2026-10-23 — S10e-1 fix round 1 retained race disposition
+
+S10e-1 keeps the original increment/duplicate-operation stress as
+`evaluator_concurrent_read_modify_write_and_duplicate_ops_are_atomic_in_both_modes`.
+The migration also retains the original Serializable refused-receipt race as
+`evaluator_racing_refused_operations_replay_one_receipt_without_advancing_head`,
+beside its common-engine serial replacement. Both oracle fixtures reproduced
+40001 in the initial lane evidence. Per the lead's fix-round instruction, the
+additional oracle race is ticket-ignored with this same reason and explicitly
+excluded from the private runner's `--include-ignored` sweep. The original
+stress remains enabled there; its red is never turned into a qualification.
+The exact race body, common serial witness, mismatching-receipt oracle,
+four-writer stress workload and existing retry budget are preserved.
+
+## 2026-10-23 — S10e-1 fix round 2 private sweep
+
+The stock private runner again reproduced `40001` in
+`evaluator_concurrent_read_modify_write_and_duplicate_ops_are_atomic_in_both_modes`:
+two Serializable writers failed the unchanged increment unwrap at
+`experiments/postgres/tests/conformance.rs:294`, then the parent join failed.
+That source is unchanged from `9766d2ffe1`. Conformance finished 20 passed /
+1 failed / 3 existing ticket exclusions; the added 32-room query witness passes
+at 8/68 calls and both exhaustive precharge sweeps pass. Common serial
+concurrency and receipt races pass. The runner continues after this red; no
+retry, timeout, skip or comparison change was made. See the
+[S10e-1 report](../snapback4/reports/20261023-s10e1-evaluation-callers.md#fix-round-2--2026-10-23)
+for the complete sweep and cleanup disposition. This is the same experimental
+failure class, not a new production retry claim.

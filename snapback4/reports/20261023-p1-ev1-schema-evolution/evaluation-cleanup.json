@@ -1,0 +1,9 @@
+{
+  "cluster_pid": 2840847,
+  "path": "/tmp/sb4-ev1-y11bpivb",
+  "stop_exit": 0,
+  "pg_ctl_status": 3,
+  "pidfile_exists": false,
+  "alive": [],
+  "scratch_removed": true
+}

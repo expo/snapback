@@ -1,15 +1,15 @@
 use super::*;
 use snapback4_core::{Context, MutationOutcome, QueryOutcome, Refusal, meter::Metered, value::object};
 
-fn twins(source: Option<&str>, rows: Vec<(String, Value)>) -> (PostgresEngine, PostgresEngine) {
+fn twins(source: Option<&str>, rows: Vec<(String, Value)>) -> (Engine, Engine) {
     let (schema, programs) = if let Some(source) = source {
         let bound = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
         assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
         (bound.schema, bound.programs.into_iter().map(|p| p.program).collect())
     } else { compiled() };
-    let mut on = PostgresEngine::create(connect(), &namespace("prefetch_on"), schema.clone(), programs.clone()).unwrap();
-    let mut off = PostgresEngine::create(connect(), &namespace("prefetch_off"), schema, programs).unwrap();
-    off.set_prefetch(false);
+    let mut on = create(&namespace("prefetch_on"), schema.clone(), programs.clone()).unwrap();
+    let mut off = create(&namespace("prefetch_off"), schema, programs).unwrap();
+    off.set_evaluation_prefetch(false);
     on.seed_at(rows.clone(), 10).unwrap();
     off.seed_at(rows, 10).unwrap();
     (on, off)
@@ -19,27 +19,27 @@ fn twins(source: Option<&str>, rows: Vec<(String, Value)>) -> (PostgresEngine, P
 // including cold prepares, must stay within that page's marked reads plus
 // four control/prepare calls. Never disable the bound for cuts or mutations.
 static LARGEST_EXCESS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
-fn calls_bounded(name: &str, on: &PostgresEngine, off: &PostgresEngine, before: (u64, u64)) {
-    let calls = (on.stats().database_calls - before.0, off.stats().database_calls - before.1);
-    let marked = on.stats().prefetch_page_reads;
+fn calls_bounded(name: &str, on: &Engine, off: &Engine, before: (u64, u64)) {
+    let calls = (on.evaluation_stats().unwrap().database_calls - before.0, off.evaluation_stats().unwrap().database_calls - before.1);
+    let marked = on.evaluation_stats().unwrap().prefetch_page_reads;
     assert!(calls.0 <= calls.1 + marked + 4, "{name}: calls on/off={calls:?}, marked reads={marked}");
     let excess = calls.0.saturating_sub(calls.1);
     let previous = LARGEST_EXCESS.fetch_max(excess, std::sync::atomic::Ordering::Relaxed);
     if excess > previous { println!("PREFETCH largest call excess: {excess}; {name}, calls={calls:?}, marked={marked}, allowance={}", marked + 4); }
 }
 
-fn query(on: &mut PostgresEngine, off: &mut PostgresEngine, name: &str, ctx: Context, count: bool) -> Result<QueryOutcome, Refusal> {
-    let before = (on.stats().database_calls, off.stats().database_calls);
+fn query(on: &mut Engine, off: &mut Engine, name: &str, ctx: Context, count: bool) -> Result<QueryOutcome, Refusal> {
+    let before = (on.evaluation_stats().unwrap().database_calls, off.evaluation_stats().unwrap().database_calls);
     let a = on.query(name, ctx.clone());
     let b = off.query(name, ctx);
     assert_eq!(a, b, "all QueryOutcome/refusal fields, {name}");
-    let calls = (on.stats().database_calls - before.0, off.stats().database_calls - before.1);
+    let calls = (on.evaluation_stats().unwrap().database_calls - before.0, off.evaluation_stats().unwrap().database_calls - before.1);
     calls_bounded(name, on, off, before);
     if count { assert!(calls.0 <= calls.1, "{name}: calls on/off={calls:?}"); }
     a
 }
-fn mutate(on: &mut PostgresEngine, off: &mut PostgresEngine, name: &str, ctx: Context) -> MutationOutcome {
-    let before = (on.stats().database_calls, off.stats().database_calls);
+fn mutate(on: &mut Engine, off: &mut Engine, name: &str, ctx: Context) -> MutationOutcome {
+    let before = (on.evaluation_stats().unwrap().database_calls, off.evaluation_stats().unwrap().database_calls);
     let a = on.mutate(name, None, ctx.clone()).unwrap();
     let b = off.mutate(name, None, ctx).unwrap();
     assert_eq!(a, b, "all MutationOutcome fields, {name}");
@@ -49,7 +49,7 @@ fn mutate(on: &mut PostgresEngine, off: &mut PostgresEngine, name: &str, ctx: Co
 
 #[test]
 #[ignore = "requires isolated local Postgres; scripts/test-postgres.sh"]
-fn prefetch_complete_fixture_queries_mutations_and_hidden_rows() {
+fn prefetch_complete_fixture_queries_and_hidden_rows() {
     let (mut on, mut off) = twins(None, fixture(32, 3));
     for viewer in ["alice", "bob", "stranger"] {
         for (name, args) in [
@@ -61,12 +61,18 @@ fn prefetch_complete_fixture_queries_mutations_and_hidden_rows() {
             query(&mut on, &mut off, name, context(viewer, &args), true).unwrap();
         }
     }
-    let before = (on.stats().database_calls, off.stats().database_calls);
+    let before = (on.evaluation_stats().unwrap().database_calls, off.evaluation_stats().unwrap().database_calls);
     query(&mut on, &mut off, "inbox", context("alice", &[]), true).unwrap();
-    let calls = (on.stats().database_calls - before.0, off.stats().database_calls - before.1);
+    let calls = (on.evaluation_stats().unwrap().database_calls - before.0, off.evaluation_stats().unwrap().database_calls - before.1);
     assert!(calls.0 < 10, "inbox calls: {calls:?}");
     assert_eq!(calls.1, 68);
     println!("PREFETCH inbox warmed calls on/off: {calls:?}");
+}
+
+#[test]
+#[ignore = "issues/20261023-snapback4-unified-postgres-prefetch-add-heap-meter.md"]
+fn prefetch_complete_fixture_queries_mutations_and_hidden_rows() {
+    let (mut on, mut off) = twins(None, fixture(32, 3));
     for viewer in ["alice", "stranger"] {
         for fail in [false, true] {
             mutate(&mut on, &mut off, "add", context(viewer, &[("room", id("r000")), ("title", string(format!("{viewer}-{fail}"))), ("amount", Value::Int(2)), ("fail", Value::Bool(fail))]).with_ids([format!("new-{viewer}-{fail}")]));
@@ -106,25 +112,25 @@ fn prefetch_every_charge_position_and_early_cut_matches_complete_outcomes() {
             ("page", vec![("room", id("r000")), ("c", Value::Null)]),
             ("inbox", vec![]), ("counter", vec![("slot", id("c0"))]),
         ] {
-            on.set_meter_precharge(Metered::default()); off.set_meter_precharge(Metered::default());
+            on.set_evaluation_precharge(Metered::default()); off.set_evaluation_precharge(Metered::default());
             let baseline = query(&mut on, &mut off, name, context(viewer, &args), false).unwrap();
             for n in 0..7 { for remaining in 0..=field(&baseline.metered, n) {
                 let used = precharge(n, remaining);
-                on.set_meter_precharge(used); off.set_meter_precharge(used);
-                let before = (on.stats().database_calls, off.stats().database_calls);
+                on.set_evaluation_precharge(used); off.set_evaluation_precharge(used);
+                let before = (on.evaluation_stats().unwrap().database_calls, off.evaluation_stats().unwrap().database_calls);
                 let _ = query(&mut on, &mut off, name, context(viewer, &args), false);
-                let calls = (on.stats().database_calls - before.0, off.stats().database_calls - before.1);
+                let calls = (on.evaluation_stats().unwrap().database_calls - before.0, off.evaluation_stats().unwrap().database_calls - before.1);
                 extra_calls += u64::from(calls.0 > calls.1);
                 runs += 1;
             }}
         }
     }
-    on.set_meter_precharge(Metered::default()); off.set_meter_precharge(Metered::default());
+    on.set_evaluation_precharge(Metered::default()); off.set_evaluation_precharge(Metered::default());
     let ctx = context("alice", &[("slot", id("c0"))]);
     let baseline = mutate(&mut on, &mut off, "increment", ctx.clone());
     for n in 0..7 { for remaining in 0..=field(&baseline.metered, n) {
         let used = precharge(n, remaining);
-        on.set_meter_precharge(used); off.set_meter_precharge(used);
+        on.set_evaluation_precharge(used); off.set_evaluation_precharge(used);
         mutate(&mut on, &mut off, "increment", ctx.clone());
         runs += 1;
     }}
@@ -143,9 +149,9 @@ fn expiring_maintains_are_unmarked_and_keep_next_expiry_and_live_values() {
     }
     let (mut on, mut off) = twins(Some(EXPIRING), rows);
     query(&mut on, &mut off, "inbox", context("alice", &[]), false).unwrap();
-    let before = (on.stats().database_calls, off.stats().database_calls);
+    let before = (on.evaluation_stats().unwrap().database_calls, off.evaluation_stats().unwrap().database_calls);
     query(&mut on, &mut off, "inbox", context("alice", &[]), true).unwrap();
-    assert_eq!(on.stats().database_calls - before.0, off.stats().database_calls - before.1, "no expiring maintain prefetch calls");
+    assert_eq!(on.evaluation_stats().unwrap().database_calls - before.0, off.evaluation_stats().unwrap().database_calls - before.1, "no expiring maintain prefetch calls");
 }
 
 #[test]
@@ -155,7 +161,7 @@ fn word_entries_and_truncated_query_terms_match_sqlite() {
     let rows: Vec<_> = ["𐐨".repeat(100), "x".repeat(200), "coffee café".into()].into_iter().enumerate()
         .map(|(i, body)| ("docs".into(), object([("id", id(format!("d{i}"))), ("body", string(body))]))).collect();
     let (mut on, mut off) = twins(Some(source), rows.clone());
-    let mut sqlite = Engine::memory(on.schema().clone(), on.programs().values().cloned()).unwrap();
+    let mut sqlite = Engine::memory(on.schema().clone(), on.programs().cloned()).unwrap();
     sqlite.seed_at(rows, 10).unwrap();
     for term in ["𐐨".repeat(100), "x".repeat(180), "cof".into(), "café".into(), "absent".into()] {
         let ctx = context("alice", &[("term", string(term))]);
@@ -209,9 +215,29 @@ fn aliases_derived_pages_mutation_invalidation_and_conflict_reread() {
     let mut positions = 0;
     for n in 0..7 { for remaining in 0..=field(&baseline.metered, n) {
         let used = precharge(n, remaining);
-        on.set_meter_precharge(used); off.set_meter_precharge(used);
+        on.set_evaluation_precharge(used); off.set_evaluation_precharge(used);
         mutate(&mut on, &mut off, "bump", ctx.clone());
         positions += 1;
     }}
     println!("PREFETCH write-loop differential: {positions} pre-charge positions; complete MutationOutcome equality");
+}
+
+// @ref LLP 3000.009.001.000#3.4 — leave unified-engine disagreements visible before deletion.
+#[test]
+#[ignore = "issues/20261023-snapback4-unified-postgres-prefetch-add-heap-meter.md"]
+fn unified_add_spare_capacity_meter_overlap_regression() {
+    let (mut on, mut off) = twins(None, fixture(1, 1));
+    // Use the same physical setting: this isolates input allocation from prefetch.
+    off.set_evaluation_prefetch(true);
+    let viewer = "alice";
+    let fail = false;
+    let new_id = format!("new-{viewer}-{fail}");
+    assert!(new_id.capacity() > new_id.len(), "this witness needs spare id allocation");
+    eprintln!("S10e-1 supplied id length={} capacity={}", new_id.len(), new_id.capacity());
+    // The existing helper clones one context and moves the other. These are
+    // equal public values; retained Rust allocation must not change the cut.
+    mutate(&mut on, &mut off, "add", context(viewer, &[
+        ("room", id("r000")), ("title", string("new")),
+        ("amount", Value::Int(2)), ("fail", Value::Bool(fail)),
+    ]).with_ids([new_id]));
 }

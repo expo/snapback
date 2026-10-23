@@ -58,6 +58,35 @@ pub(super) fn check_operations(previous: &Schema, next: &Schema,
     // sync, etc. This check governs only the otherwise-unchanged declarations
     // admitted by the Postgres column slice, including metadata-only forgeries.
     if ordinary(previous) != ordinary(next) { return Ok(()); }
+    check_unchanged_operations(previous, next, before, after)
+}
+
+// Binding selection explanations are appended by the binder's locate_sites.
+// Adding/removing an index can change that diagnostic suffix on the same read.
+// Keep the executable class, reason prefix, rewrite and every declaration exact.
+// @ref LLP 3000.009.001.000#3.5 — only diagnostic read-selection notes may vary with an ordinary index change.
+pub(super) fn check_postgres_ordinary_operations(previous: &Schema, next: &Schema,
+    before: &BTreeMap<String, Program>, after: &BTreeMap<String, Program>,
+) -> Result<(), RuntimeError> {
+    let mut previous = previous.clone(); let mut next = next.clone();
+    for schema in [&mut previous, &mut next] {
+        for fact in schema.operations.values_mut() {
+            for site in fact.sites.iter_mut().chain(&mut fact.effect_payload_reads) {
+                if matches!(site.kind.as_str(), "point" | "scan") {
+                    if let Some(at) = site.reason.find("; selected ") { site.reason.truncate(at); }
+                }
+            }
+        }
+    }
+    check_unchanged_operations(&previous, &next, before, after)
+}
+
+// The Postgres ordinary slice preserves existing authority declarations too.
+// An unrelated optional column or index must not bypass executable-fact checks.
+// @ref LLP 3000.009.001.000#3.5 — admission cannot erase or forge execution declarations.
+pub(super) fn check_unchanged_operations(previous: &Schema, next: &Schema,
+    before: &BTreeMap<String, Program>, after: &BTreeMap<String, Program>,
+) -> Result<(), RuntimeError> {
     for name in previous.operations.keys().chain(next.operations.keys()).filter(|name| !before.contains_key(*name) && !after.contains_key(*name)) {
         if previous.operations.get(name) != next.operations.get(name) {
             return Err(RuntimeError::Schema(format!("{name}: execution facts changed without a program change")));

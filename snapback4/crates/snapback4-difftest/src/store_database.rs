@@ -1,7 +1,7 @@
 //! Harness-owned physical state reset. No engine implementation is replaced.
 use crate::{execute, generate::Case};
 use postgres::{Client, NoTls};
-use snapback4_core::{Engine, engine::postgres::PostgresEngine, value::canonical_json, wire};
+use snapback4_core::{Engine, value::canonical_json, wire};
 use std::{
     collections::BTreeMap,
     error::Error,
@@ -31,6 +31,11 @@ pub(crate) fn error_chain(kind: &str, error: &(dyn Error + 'static)) -> String {
     }
     parts.join("; caused by: ")
 }
+fn setup_error(diagnostics: &crate::pg_diagnostics::Diagnostics, error: snapback4_core::RuntimeError) -> String {
+    let reason = crate::stores::setup_error(error);
+    // A capability refusal is a stable classifier, not a failed SQL exchange.
+    if reason.starts_with("postgres-unsupported:") { reason } else { diagnostics.describe(&reason) }
+}
 fn quote(s: &str) -> String {
     format!("'{}'", s.replace('\'', "''"))
 }
@@ -48,7 +53,7 @@ pub struct Database {
     seeded: String,
 }
 pub(crate) struct World {
-    pub engine: PostgresEngine,
+    pub engine: Engine,
     /// The prelude's outcomes (`execute::prelude`), run once after seeding.
     pub prelude: Vec<execute::Outcome>,
     name: String,
@@ -111,6 +116,9 @@ impl Database {
         })
     }
     pub(crate) fn create(&mut self, case: &Case, source: &str) -> Result<World, String> {
+        self.create_prefetch(case, source, true)
+    }
+    pub(crate) fn create_prefetch(&mut self, case: &Case, source: &str, prefetch: bool) -> Result<World, String> {
         let mut b = execute::compile(source).map_err(|e| format!("binder: {e}"))?;
         let rows = case
             .rows
@@ -131,20 +139,29 @@ impl Database {
             .into_iter()
             .map(|p| (p.program.name.clone(), p.program))
             .collect();
-        let (client, diagnostics) = crate::pg_diagnostics::Diagnostics::connect(&self.url)?;
+        let (config, diagnostics) = crate::pg_diagnostics::Diagnostics::connect(&self.url)?;
         let (name, mut engine) = if let Some(name) = self.name.clone().filter(|_| !self.fresh) {
             self.batch(&self.empty.clone())?;
-            // r/i store logical table names, not generated SQL tables. Install
-            // the test fixture then run ordinary engine admission through open.
-            b.schema.prepare_contribution_indexes();
-            self.admin
-                .execute(
-                    &format!("UPDATE {name}._backend SET schema=$1, programs=$2 WHERE singleton"),
-                    &[&canonical_json(&b.schema), &canonical_json(&programs)],
-                )
-                .map_err(|e| error_chain("UPDATE compiled fixture", &e))?;
-            let engine = PostgresEngine::open(client, &name)
-                .map_err(|e| diagnostics.describe(&crate::stores::setup_error(e)))?;
+            // Install an unrelated empty fixture, not a product migration.
+            // Engine::open reads the authoritative _generations catalog; the
+            // old evaluator read only _backend. Keep both coherent and force
+            // the ordinary common activation builder to refresh derived facts.
+            let checked = Engine::memory(b.schema, programs.values().cloned())
+                .map_err(crate::stores::setup_error)?;
+            b.schema = checked.schema().clone();
+            let schema = canonical_json(&b.schema);
+            let programs = canonical_json(&programs);
+            let install = (|| -> Result<(), postgres::Error> {
+                let mut tx = self.admin.transaction()?;
+                assert!(tx.query_one(&format!("SELECT NOT EXISTS(SELECT 1 FROM {name}.r) AND NOT EXISTS(SELECT 1 FROM {name}._ops)"), &[])?.get::<_, bool>(0), "fixture replacement requires the restored empty snapshot");
+                tx.execute(&format!("UPDATE {name}._backend SET schema=$1, programs=$2 WHERE singleton"), &[&schema, &programs])?;
+                tx.execute(&format!("UPDATE {name}._generations SET schema=$1, programs=$2 WHERE generation=(SELECT generation FROM {name}._backend WHERE singleton)"), &[&schema, &programs])?;
+                tx.execute(&format!("DELETE FROM {name}._meta WHERE key IN ('live_sum_candidates','cap_counts_schema')"), &[])?;
+                tx.commit()
+            })();
+            install.map_err(|e| error_chain("install compiled empty fixture", &e))?;
+            let engine = Engine::open_postgres_evaluation(config, &name)
+                .map_err(|e| setup_error(&diagnostics, e))?;
             (name, engine)
         } else {
             let stamp = std::time::SystemTime::now()
@@ -156,8 +173,8 @@ impl Database {
                 std::process::id(),
                 NEXT.fetch_add(1, Ordering::Relaxed)
             );
-            let engine = PostgresEngine::create(client, &name, b.schema, programs.into_values())
-                .map_err(|e| diagnostics.describe(&crate::stores::setup_error(e)))?;
+            let engine = Engine::create_postgres_evaluation(config, &name, b.schema, programs.into_values())
+                .map_err(|e| setup_error(&diagnostics, e))?;
             self.name = Some(name.clone());
             self.tables = self
                 .admin
@@ -177,7 +194,7 @@ impl Database {
         engine
             .seed_at(rows, execute::seed_clock(case))
             .map_err(|e| diagnostics.describe(&error_chain("seed INSERT/UPDATE/commit", &e)))?;
-        engine.set_prefetch(true);
+        engine.set_evaluation_prefetch(prefetch);
         let prelude = execute::prelude(&mut engine, case);
         engine.set_ceilings(case.budget);
         if case.program.mutation() {
@@ -189,6 +206,15 @@ impl Database {
             prelude,
             diagnostics,
         })
+    }
+    /// An independent namespace keeps the main world's seed/reset ownership intact.
+    pub(crate) fn prelude_prefetch_off(&self, case: &Case, source: &str) -> Result<Vec<execute::Outcome>, String> {
+        let mut probe = Self::connect_mode(self.fresh)?;
+        let world = probe.create_prefetch(case, source, false)?;
+        let outcomes = world.prelude.clone();
+        probe.remove(world)?;
+        probe.close()?;
+        Ok(outcomes)
     }
     fn snapshot(&mut self, name: &str) -> Result<String, String> {
         let mut sql = format!("BEGIN; SET LOCAL search_path={name},pg_catalog;");
@@ -230,9 +256,9 @@ impl Database {
             *world = self.create(case, source)?;
         } else {
             self.batch(&self.seeded.clone())?;
-            let (client, diagnostics) = crate::pg_diagnostics::Diagnostics::connect(&self.url)?;
-            let engine = PostgresEngine::open(client, &world.name)
-                .map_err(|e| diagnostics.describe(&crate::stores::setup_error(e)))?;
+            let (config, diagnostics) = crate::pg_diagnostics::Diagnostics::connect(&self.url)?;
+            let engine = Engine::open_postgres_evaluation(config, &world.name)
+                .map_err(|e| setup_error(&diagnostics, e))?;
             world.engine = engine;
             world.diagnostics = diagnostics;
         }
@@ -260,13 +286,48 @@ impl Drop for Database {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn failed_reused_snapshot_reports_sql_error_without_hanging_cleanup() {
+        let (send, receive) = std::sync::mpsc::channel();
+        let (ready, setup) = std::sync::mpsc::channel();
+        std::thread::spawn(move || {
+            let mut database = Database::connect().unwrap();
+            let case = crate::generate::generate(0);
+            let source = case.program.source();
+            let world = database.create(&case, &source).unwrap();
+            database.remove(world).unwrap();
+            let name = database.name.clone().unwrap();
+            database.admin.batch_execute(&format!("DROP TABLE {name}.r CASCADE")).unwrap();
+            ready.send(()).unwrap();
+            eprintln!("forcing missing-table snapshot restore in {name}");
+            let error = match database.create(&case, &source) {
+                Ok(_) => panic!("a missing snapshotted table must fail setup"),
+                Err(error) => error,
+            };
+            database.close().unwrap();
+            send.send(error).unwrap();
+        });
+        setup.recv_timeout(std::time::Duration::from_secs(60))
+            .expect("private fixture setup must finish before the failure probe");
+        let error = receive.recv_timeout(std::time::Duration::from_secs(10))
+            .expect("setup failure and observer cleanup must finish within ten seconds");
+        assert!(error.contains("SQLSTATE=42P01"), "{error}");
+        assert!(error.contains("snapshot restore DELETE/INSERT"), "{error}");
+        eprintln!("bounded setup failure: {error}");
+    }
+}
+
 /// Snapshot all SQLite rows once; preserve engine schema/catalog caches.
 pub(crate) struct SqliteSnapshot(snapback4_core::store::evaluation::Snapshot);
 impl SqliteSnapshot {
     pub fn capture(engine: &Engine) -> Result<Self, String> {
-        snapback4_core::store::evaluation::Snapshot::capture(engine.store(), error_chain).map(Self)
+        engine.store().evaluation_snapshot(error_chain).map(Self)
     }
     pub fn restore(&self, engine: &Engine) -> Result<(), String> {
-        self.0.restore(engine.store(), error_chain)
+        engine.store().restore_evaluation_snapshot(&self.0, error_chain)
     }
 }

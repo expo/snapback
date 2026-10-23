@@ -23,9 +23,12 @@ pub fn env(name: &str) -> String {
 
 /// Direct Unix-socket connection for setup, WAL LSNs and sampling. Never
 /// routed through the proxy, never measured.
+pub fn admin_url() -> String {
+    if std::env::var_os("CP_TUNNEL_PORTS").is_some() { tunnel_url("sb4cp_admin") } else { env("PG_UNIX_URL") }
+}
+
 pub fn admin() -> Client {
-    let url = if std::env::var_os("CP_TUNNEL_PORTS").is_some() { tunnel_url("sb4cp_admin") } else { env("PG_UNIX_URL") };
-    Client::connect(&url, NoTls).expect("admin connection")
+    Client::connect(&admin_url(), NoTls).expect("admin connection")
 }
 
 /// A fresh, non-recycling allocation across ALL connections in this process,
@@ -144,6 +147,21 @@ where
     F: Fn(usize) -> S + Send + Sync + 'static,
     O: Fn(&mut S, usize, u64) -> Result<u64, String> + Send + Sync + 'static,
 {
+    closed_loop_tagged(writers, timing, pg, None, setup, op)
+}
+
+/// Unified engine sessions retain their owner fence tag. Sample that exact
+/// logical store instead of silently counting only the old sb4cp label.
+pub fn closed_loop_tagged<S, F, O>(writers: usize, timing: &Timing, pg: Option<bool>, application_name: Option<String>, setup: F, op: O) -> Json
+where
+    F: Fn(usize) -> S + Send + Sync + 'static,
+    O: Fn(&mut S, usize, u64) -> Result<u64, String> + Send + Sync + 'static,
+{
+    // Capture existing setup sessions before measured writers open. Their
+    // fence tag is the same, but their idle states are outside this workload.
+    let excluded = if let Some(tag) = &application_name {
+        admin().query("SELECT pid FROM pg_stat_activity WHERE application_name=$1 AND datname=current_database()", &[tag]).unwrap().iter().map(|r| r.get::<_, i32>(0)).collect()
+    } else { Vec::new() };
     let setup = Arc::new(setup);
     let op = Arc::new(op);
     let stop = Arc::new(AtomicBool::new(false));
@@ -179,7 +197,7 @@ where
     let mut admin = pg.map(|_| admin());
     gate.wait();
     thread::sleep(timing.warmup);
-    let sampler = (pg == Some(true)).then(WaitSampler::start);
+    let sampler = (pg == Some(true)).then(|| WaitSampler::start(application_name.unwrap_or_else(|| APP.into()), excluded));
     let wal0 = admin.as_mut().map(pg_stat_wal);
     let lsn0 = admin.as_mut().map(wal_lsn);
     let t0 = Instant::now();
@@ -234,16 +252,16 @@ pub struct WaitSampler {
 }
 
 impl WaitSampler {
-    pub fn start() -> WaitSampler {
+    pub fn start(application_name: String, excluded: Vec<i32>) -> WaitSampler {
         let stop = Arc::new(AtomicBool::new(false));
         let flag = stop.clone();
         let handle = thread::spawn(move || {
             let mut client = admin();
-            let statement = client.prepare(&format!("SELECT coalesce(wait_event_type,'CPU'), coalesce(wait_event,'-'), coalesce(state,'-') FROM pg_stat_activity WHERE application_name = '{APP}' AND datname = current_database()")).unwrap();
+            let statement = client.prepare("SELECT coalesce(wait_event_type,'CPU'), coalesce(wait_event,'-'), coalesce(state,'-') FROM pg_stat_activity WHERE application_name = $1 AND datname = current_database() AND pid <> ALL($2)").unwrap();
             let mut counts: BTreeMap<String, u64> = BTreeMap::new();
             let mut samples = 0u64;
             while !flag.load(Ordering::Relaxed) {
-                for row in client.query(&statement, &[]).unwrap() {
+                for row in client.query(&statement, &[&application_name, &excluded]).unwrap() {
                     *counts.entry(format!("{}:{}:{}", row.get::<_, &str>(0), row.get::<_, &str>(1), row.get::<_, &str>(2))).or_default() += 1;
                 }
                 samples += 1;

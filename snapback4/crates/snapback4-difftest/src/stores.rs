@@ -31,10 +31,38 @@ use crate::{
 use snapback4_core::Ceilings;
 use std::{collections::BTreeSet, path::Path, time::Instant};
 
+// The widened generator intentionally supplies these invalid inputs. Keep the
+// classification tied to the actual shape/value and diagnostic: an arbitrary
+// E_INPUT (even in a program with a bounded column) must still fail the guard.
+// @ref LLP 3000.035#5.1 — expected generated refusals still compare exact outcomes on both stores.
+fn expected_generated_refusal(case: &Case, code: &str, message: Option<&str>) -> bool {
+    use crate::ast::{Body, Expr, Type};
+    match code {
+        "E_INPUT" => {
+            let Some((min, max)) = case.program.arg_bound else { return false };
+            let Some(value) = case.args["a"].as_i64() else { return false };
+            let outside = min.is_some_and(|min| value < min) || max.is_some_and(|max| value > max);
+            outside && message == Some(format!("a must be {}, not the number {value}",
+                Type::IntRange(min, max).source_text()).as_str())
+        }
+        "E_DIV_ZERO" => {
+            let Body::Scalar(Expr::RoundedDivide(_, _, _, divisor)) = &case.program.body else { return false };
+            let zero = match &**divisor {
+                Expr::Int(value) => *value == 0,
+                Expr::Arg(name, Type::Int) => case.args[name.as_str()].as_i64() == Some(0),
+                _ => false,
+            };
+            zero && message == Some("division by zero")
+        }
+        _ => false,
+    }
+}
+
 // Only explicit adapter refusals are unsupported. SQL and binder errors are not.
 pub(crate) fn setup_error(error: snapback4_core::RuntimeError) -> String {
     use snapback4_core::RuntimeError;
     match &error {
+        RuntimeError::StoreUnsupported { family } => format!("postgres-unsupported:E_STORE_UNSUPPORTED:{family}"),
         RuntimeError::Structural { code, .. }
             if matches!(
                 *code,
@@ -186,7 +214,7 @@ fn reproduce_in(
     };
     if dimension.as_deref() == Some(PRELUDE) {
         let (_, left) = execute::world(case, source)?;
-        let world = match db.create(case, source) {
+        let world = match db.create_prefetch(case, source, *prefetch) {
             Ok(w) => w,
             Err(e) if e.starts_with("postgres-unsupported:") => return Ok(Verdict::Unsupported(e)),
             Err(e) => return Err(e),
@@ -204,7 +232,7 @@ fn reproduce_in(
         let mut sqlite = execute::engine(case, source)?;
         sqlite.set_ceilings(budget(oracle, case));
         world.engine.set_ceilings(budget(oracle, case));
-        world.engine.set_prefetch(*prefetch);
+        world.engine.set_evaluation_prefetch(*prefetch);
         world.clear_errors();
         let left = record(&mut sqlite, case);
         let right = record(&mut world.engine, case);
@@ -252,16 +280,18 @@ pub fn check(
         Err(e) => return Err(e),
     };
     if !case.steps.is_empty() || case.sweep {
-        let oracle = Oracle::Store {
-            prefetch: true,
-            dimension: Some(PRELUDE.into()),
-            ceiling: 0,
-        };
-        let verdict = oracle::prelude_disagreement(&oracle, &sqlite_prelude, &world.prelude, false).unwrap_or(Verdict::Pass);
-        report.executed += 2 * sqlite_prelude.len() as u64;
-        report.by_oracle.entry("store-postgres-prelude".into()).or_default().record(&verdict);
-        if let Verdict::Disagree(f) = verdict {
-            found(f);
+        for prefetch in [true, false] {
+            let oracle = Oracle::Store { prefetch, dimension: Some(PRELUDE.into()), ceiling: 0 };
+            let off;
+            let prelude = if prefetch { &world.prelude } else {
+                off = db.prelude_prefetch_off(case, &source)?;
+                &off
+            };
+            let verdict = oracle::prelude_disagreement(&oracle, &sqlite_prelude, prelude, false).unwrap_or(Verdict::Pass);
+            report.executed += 2 * sqlite_prelude.len() as u64;
+            let name = if prefetch { "store-postgres-prelude" } else { "store-postgres-prelude-off" };
+            report.by_oracle.entry(name.into()).or_default().record(&verdict);
+            if let Verdict::Disagree(f) = verdict { found(f); }
         }
     }
     let result = (|| {
@@ -284,7 +314,8 @@ pub fn check(
                     | "E_ID_REUSED"
                     | "E_BOUND"
                     | "REQUIRED"
-            ) {
+            ) && !expected_generated_refusal(case, code,
+                baseline.refusal().and_then(|v| v["message"].as_str())) {
                 *report
                     .runtime_refused_unexpected
                     .entry(code.into())
@@ -422,13 +453,13 @@ pub fn check(
                     db.restore(&mut world, case, &source)?;
                 }
                 first_world = false;
-                world.engine.set_prefetch(prefetch);
+                world.engine.set_evaluation_prefetch(prefetch);
                 world.engine.set_ceilings(budget(&oracle, case));
-                let before = world.engine.stats();
+                let before = world.engine.evaluation_stats().map_err(|e| e.to_string())?;
                 world.clear_errors();
                 let right = record(&mut world.engine, case);
                 world.check_errors(&right)?;
-                let after = world.engine.stats();
+                let after = world.engine.evaluation_stats().map_err(|e| e.to_string())?;
                 for (name, delta) in [
                     (
                         "database_calls",
@@ -582,6 +613,27 @@ mod tests {
     use serde_json::json;
 
     #[test]
+    fn generated_invalid_inputs_are_classified_without_allowing_arbitrary_input_refusals() {
+        let mut bounded = generate(4);
+        assert!(expected_generated_refusal(&bounded, "E_INPUT",
+            Some("a must be int 1..1, not the number -9007199254740990")));
+        assert!(!expected_generated_refusal(&bounded, "E_INPUT", Some("key must be an id")));
+        bounded.args["a"] = json!(1);
+        assert!(!expected_generated_refusal(&bounded, "E_INPUT",
+            Some("a must be int 1..1, not the number -9007199254740990")));
+        bounded.program.arg_bound = None;
+        assert!(!expected_generated_refusal(&bounded, "E_INPUT", Some("unexpected input")));
+
+        let mut division = generate(15);
+        assert!(expected_generated_refusal(&division, "E_DIV_ZERO", Some("division by zero")));
+        if let Body::Scalar(crate::ast::Expr::RoundedDivide(_, _, _, divisor)) = &mut division.program.body {
+            *divisor = Box::new(crate::ast::Expr::Int(1));
+        } else { panic!("seed 15 must exercise rounded division"); }
+        assert!(!expected_generated_refusal(&division, "E_DIV_ZERO", Some("division by zero")));
+        assert!(!expected_generated_refusal(&division, "E_INPUT", Some("unexpected input")));
+    }
+
+    #[test]
     fn restored_world_matches_fresh_bytes() {
         let mut reuse = Database::connect().unwrap();
         let mut fresh = Database::connect_fresh().unwrap();
@@ -591,7 +643,7 @@ mod tests {
             (0..).find(|s| { let c = generate(*s); !c.steps.is_empty() && c.program.mutation() }).unwrap(),
             (0..).find(|s| { let c = generate(*s); c.sweep && c.program.mutation() }).unwrap(),
         ];
-        for seed in [0, 3, 19, 23, 24, 26].into_iter().chain(widened) {
+        for seed in [0, 1, 3, 19, 23, 24, 26].into_iter().chain(widened) {
             let case = generate(seed);
             let source = case.program.source();
             let mut a = reuse.create(&case, &source).unwrap();
@@ -606,8 +658,8 @@ mod tests {
                         reuse.restore(&mut a, &case, &source).unwrap();
                         fresh.restore(&mut b, &case, &source).unwrap();
                     }
-                    a.engine.set_prefetch(prefetch);
-                    b.engine.set_prefetch(prefetch);
+                    a.engine.set_evaluation_prefetch(prefetch);
+                    b.engine.set_evaluation_prefetch(prefetch);
                     a.engine.set_ceilings(ceilings);
                     b.engine.set_ceilings(ceilings);
                     let left = record(&mut a.engine, &case);
@@ -696,6 +748,12 @@ mod tests {
     #[test]
     fn unsupported_is_limited_to_explicit_adapter_reasons() {
         use snapback4_core::RuntimeError;
+        let reason = setup_error(RuntimeError::StoreUnsupported { family: "assets" });
+        assert_eq!(reason, "postgres-unsupported:E_STORE_UNSUPPORTED:assets");
+        let mut counts = crate::oracle::Counts::default();
+        counts.record(&Verdict::Unsupported(reason.clone()));
+        assert_eq!((counts.attempted, counts.passed, counts.disagreeing), (1, 0, 0));
+        assert_eq!(counts.unsupported[&reason], 1);
         assert_eq!(
             setup_error(RuntimeError::Structural {
                 code: "E_QUARRY_EPHEMERAL",

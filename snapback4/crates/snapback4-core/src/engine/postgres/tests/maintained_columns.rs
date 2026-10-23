@@ -254,10 +254,10 @@ fn maintained_columns_release_backfill_redefine_drop_readd_and_atomic_failure() 
         if i!=2 { assert_eq!(sqlite.query("ranked",ctx(&[("c",Value::Null)])).unwrap(),postgres.query("ranked",ctx(&[("c",Value::Null)])).unwrap()); }
     }
     let before=postgres.store().rows("posts").unwrap(); let generation=postgres.generation();
-    // Unrelated evolution cannot acquire this narrow admission by also editing a column.
-    let bad=SOURCE.replace("  at: time", "  at: time\n  extra: int default 0");
+    // EV-1 admits ordinary additions; an existing type change still refuses.
+    let bad=SOURCE.replace("at: time", "at: int");
     let (schema,programs)=bound(&bad);
-    assert!(matches!(postgres.adopt_at(schema,programs,1000),Err(RuntimeError::StoreUnsupported {family:"release-activation"})));
+    assert!(matches!(postgres.adopt_at(schema,programs,1000),Err(RuntimeError::StoreUnsupported {family:"evolution-narrowing"})));
     assert_eq!(postgres.generation(),generation);assert_eq!(postgres.store().rows("posts").unwrap(),before);
     // Existing rows overflow only when a new aggregate is backfilled. The entire
     // release (projection, private rows, selection and generation) must roll back.

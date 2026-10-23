@@ -22,6 +22,7 @@ pub(super) fn initialize(
     now: i64,
 ) -> Result<(), RuntimeError> {
     super::activation_schema::initialize(tx)?;
+    super::evolution_schema::initialize(tx)?;
     if tx.meta("store_id")?.is_none() {
         tx.set_meta(
             "store_id",
@@ -220,9 +221,7 @@ impl ActivationReader for Tx<'_> {
         self.meta(&format!("{prefix}:{path}"))
     }
     fn activation_inventory(&self) -> Result<Vec<DormantItem>, RuntimeError> {
-        // Maintained-column evolution discards derived images; no dormant
-        // ordinary population is admitted or hidden by this inventory.
-        Ok(Vec::new())
+        super::evolution_inventory::inventory(self, None, usize::MAX)
     }
     fn table_populated(&self, table: &str) -> Result<bool, RuntimeError> {
         if absent_text_key(&[table]) {
@@ -332,9 +331,7 @@ impl ActivationPreparation for Preparation<'_, '_> {
         self.0.activation_inventory()
     }
     fn enable_dormant(&self) -> Result<(), RuntimeError> {
-        // Only derived columns may be retired; their values are recounted on
-        // re-add. Ordinary dormant definitions/populations remain unadmitted.
-        Ok(())
+        self.0.set_meta("dormant_enabled", "1")
     }
     fn prepare_release_metadata(
         &self,

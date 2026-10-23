@@ -107,7 +107,7 @@ impl Store {
             Some(WriteMode::Serializable) => IsolationLevel::Serializable,
         };
         let inner = self.client.build_transaction().isolation_level(isolation).read_only(mode.is_none()).start()?;
-        let tx = Tx { read_sessions: &self.read_sessions, read_sessions_installed: Cell::new(false), commit_warning: &self.commit_warning, inner: RefCell::new(inner),
+        let tx = Tx { read_sessions: &self.read_sessions, read_sessions_installed: Cell::new(false), unified: self.unified, commit_warning: &self.commit_warning, inner: RefCell::new(inner),
             #[cfg(any(test, feature = "test-support"))]
             rollback_count: crate::round_trips::RollbackCount::new(),
             bind_refused: Cell::new(false), cache: RefCell::new(&mut self.cache), calls: &self.calls, marked_reads: &self.marked_reads, page_reads: &self.page_reads, prefetch_rows: &self.prefetch_rows, prefetch_bytes: &self.prefetch_bytes,
@@ -222,6 +222,7 @@ impl Store {
 pub struct Tx<'a> {
     pub(super) read_sessions: &'a Cell<bool>,
     pub(super) read_sessions_installed: Cell<bool>,
+    unified: bool,
     #[cfg(any(test, feature = "test-support"))]
     rollback_count: crate::round_trips::RollbackCount,
     commit_warning: &'a std::sync::atomic::AtomicBool,
@@ -671,7 +672,11 @@ impl Rows for Tx<'_> {
         self.rows_cache.borrow_mut().invalidate(table_name);
         self.changes.borrow_mut().record(table_name, table, Some(old), None);
         let id = old.field("id")?.as_str()?;
-        self.execute("DELETE FROM r WHERE t = $1 AND id = $2", &[&table_name, &id])?;
+        // @ref LLP 3000.009.001.000#3.5 — deletion evidence shares the existing row-delete round trip.
+        let sql = if self.unified {
+            "WITH refs AS (UPDATE _dormant_refs SET invalid=1 WHERE parent_t=$1 AND parent_id=$2 AND invalid=0 AND NOT(t=$1 AND id=$2)), cells AS (DELETE FROM _dormant_values WHERE t=$1 AND id=$2), images AS (DELETE FROM _dormant_rows WHERE t=$1 AND id=$2), own_refs AS (DELETE FROM _dormant_refs WHERE t=$1 AND id=$2) DELETE FROM r WHERE t=$1 AND id=$2"
+        } else { "DELETE FROM r WHERE t = $1 AND id = $2" };
+        self.execute(sql, &[&table_name, &id])?;
         let mut entries = 0;
         for (name, index) in &table.indexes {
             for key in stored_index_keys(table, index, old, id) {

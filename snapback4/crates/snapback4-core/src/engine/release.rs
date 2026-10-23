@@ -123,6 +123,8 @@ impl Engine {
         )?.into_inner();
         store.exclude_ephemeral(&schema);
         Ok(Self {
+            #[cfg(feature = "evaluation-support")]
+            evaluation_precharge: crate::meter::Metered::default(),
             timeline_schedule: timeline::Schedule::default(),
             ephemeral: std::sync::Arc::new(ephemeral::Hub::new(
                 metadata.store_id.clone(),

@@ -36,8 +36,12 @@ impl<'store> AnyTx<'store> {
     }
 }
 
-impl super::handles::ReadSnapshot<'_> {
+impl<'store> super::handles::ReadSnapshot<'store> {
     pub fn test_support_conn(&self) -> &rusqlite::Connection { self.tx.test_support_conn() }
+    #[cfg(all(test, feature = "postgres"))]
+    pub(crate) fn test_postgres_tx(&self) -> &crate::engine::postgres::store::Tx<'store> {
+        self.tx.test_postgres_tx()
+    }
 }
 
 #[cfg(test)]

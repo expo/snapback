@@ -20,6 +20,8 @@ pub(crate) fn admit(schema: &Schema, programs: &BTreeMap<String, Program>) -> Re
     if programs.values().any(|p| p.kind == ProgramKind::Job) { return refuse("jobs"); }
     if programs.values().any(|p| p.kind == ProgramKind::Action) { return refuse("actions"); }
     if schema.maintains.iter().any(|m| m.row_key.is_some()) { return refuse("view-recount"); }
+    if !schema.backfills.is_empty() || !schema.downfills.is_empty() { return refuse("evolution-backfill"); }
+    if !schema.table_renames.is_empty() || !schema.asset_renames.is_empty() { return refuse("evolution-renames"); }
     // Ephemeral hubs use process-local state and are deliberately admitted.
     schema.validate_column_owners()?;
     if let Some(issue) = crate::schema::validate(schema).first() {

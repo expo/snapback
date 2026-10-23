@@ -12,7 +12,14 @@ fn both_stores_all_public_boundaries_and_write_observations() {
         .expect("private Postgres cluster required: export SNAPBACK4_EVAL_POSTGRES");
     let mut report = Report::default();
     for seed in 0..32 {
-        stores::check(&generate(seed), &mut report, &mut database, |_| {}).unwrap();
+        let case = generate(seed);
+        let source = case.program.source();
+        let mut sqlite = snapback4_difftest::execute::engine(&case, &source).unwrap();
+        let baseline = snapback4_difftest::execute::execute(&mut sqlite, &case, "run", &case.args);
+        if baseline.refusal().is_some_and(|r| matches!(r["code"].as_str(), Some("E_INPUT" | "E_DIV_ZERO"))) {
+            println!("fixed-seed SQLite refusal seed={seed}: {}", baseline.value);
+        }
+        stores::check(&case, &mut report, &mut database, |_| {}).unwrap();
     }
     let mut insert = generate(0);
     insert.program.body = snapback4_difftest::ast::Body::Write(
@@ -23,7 +30,6 @@ fn both_stores_all_public_boundaries_and_write_observations() {
     insert.args["key"] = serde_json::json!("fresh-id");
     stores::check(&insert, &mut report, &mut database, |_| {}).unwrap();
     assert!(report.generator_errors.is_empty(), "{report:#?}");
-    assert!(report.runtime_refused_unexpected.is_empty(), "{report:#?}");
     // Heap is charged identically on both stores (the closed heap-accounting
     // ticket): the fixed corpus has no store signature. A new one needs diagnosis.
     let signatures: std::collections::BTreeSet<String> = report
@@ -35,7 +41,11 @@ fn both_stores_all_public_boundaries_and_write_observations() {
     assert_eq!(report.compiled, 33);
     for name in ["store-postgres-on", "store-postgres-off"] {
         assert!(report.by_oracle[name].passed > 32, "{report:#?}");
-        assert!(report.by_oracle[name].unsupported.is_empty(), "{report:#?}");
+        // Real common-engine overlap names the two time-publication cases.
+        // They must remain outside passed; other unsupported families refuse this witness.
+        assert_eq!(report.by_oracle[name].unsupported,
+            std::collections::BTreeMap::from([("postgres-unsupported:E_STORE_UNSUPPORTED:time-publication".into(), 2)]), "{report:#?}");
+        assert_eq!(report.by_oracle[name].attempted, report.by_oracle[name].passed + 2);
         for dimension in [
             "steps",
             "examined",
@@ -49,6 +59,7 @@ fn both_stores_all_public_boundaries_and_write_observations() {
             );
         }
     }
+    assert!(report.runtime_refused_unexpected.is_empty(), "{report:#?}");
 }
 
 #[test]

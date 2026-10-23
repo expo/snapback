@@ -83,7 +83,7 @@ impl AnyStore {
         &mut self,
         after: Option<&str>,
         limit: usize,
-    ) -> Result<Vec<crate::release_history::DormantItem>, RuntimeError> { match self { Self::Sqlite(SqliteStore(inner)) => inner.dormant_inventory(after, limit), #[cfg(feature = "postgres")] Self::Postgres(_) => Err(RuntimeError::StoreUnsupported { family: "inspection" }) } }
+    ) -> Result<Vec<crate::release_history::DormantItem>, RuntimeError> { match self { Self::Sqlite(SqliteStore(inner)) => inner.dormant_inventory(after, limit), #[cfg(feature = "postgres")] Self::Postgres(PostgresStore(handle)) => handle.read(|tx| crate::release_history::ReleaseHistoryReader::release_inventory(tx, after, limit)) } }
     pub fn release_status(
         &mut self,
         after: u64,

@@ -16,12 +16,20 @@ also limits concurrent writers, including writers touching disjoint rows.
 
 ## What runs
 
-Enable `snapback4-core`'s optional `postgres` feature and use
-`engine::postgres::PostgresEngine::{create,open}` with a configured
-`postgres::Client` and an isolated `sb4_eval_*` schema. `create` refuses an
-existing namespace. `open` reads the persisted compiled schema and programs;
-they are immutable in this prototype. The engine accepts trusted host contexts,
-just like the SQLite `Engine`; this is not an authenticated service endpoint.
+Enable `snapback4-core`'s `postgres` and `evaluation-support` features. The
+workloads use the common `Engine::{create_postgres_evaluation,open_postgres_evaluation}`
+over a Postgres `AnyStore`, taking a configured `postgres::Config` and a new
+isolated `sb4_eval_*` namespace. Production deploy/serve has its separately
+admitted profile; this harness is trusted evaluation, not a public endpoint.
+`Engine::set_evaluation_prefetch`, `evaluation_stats` and
+`set_evaluation_precharge` retain the C1 physical and logical probes.
+
+S10e-1 retains `engine::postgres::PostgresEngine` as the explicit comparison
+oracle. The original Serializable contention/race fixtures still run against
+it. Ordinary workloads run the common serial committer; Serializable migration
+and its experiment-only retry driver are deferred to the S10e-2 checklist in
+[the store-port RFC §3.4](../../../llp/3000.009.001.000-the-postgres-store-port.rfc.md#34-one-engine-over-both-stores).
+The historical reports below describe their original executor and measurements.
 
 - Real compiled Quarry queries/mutations through the unchanged `Runner`:
   rules, index reads, ordered cursors, meter cuts, constraints, defaults and maintains.
@@ -37,7 +45,7 @@ just like the SQLite `Engine`; this is not an authenticated service endpoint.
   transaction, including its commit watermark. Paged acquisition retains the
   existing snapshot/catch-up protocol, not a long-lived database snapshot.
 - Serialized writes reserve the head before reading, analogous to SQLite's
-  writer. Experimental serializable writes execute concurrently and retry the
+  writer. The retained oracle's experimental Serializable writes retry the
   entire operation on `40001`/`40P01`, or a duplicate receipt race, at most 32
   retries with backoff. All successful writes still update one commit head.
   `nextval()` is deliberately not used: allocation order is not commit order.
@@ -127,7 +135,7 @@ decoding reserve and exact heap accounting keep it within the remaining
 budget. An error or skipped group leaves earlier cache contents unchanged. Writes invalidate their table; program savepoint rollback
 (including conflict reread), transaction rollback and commit discard the
 appropriate cache. The interpreter still performs every rule and meter charge.
-`PostgresEngine::set_prefetch(false)` disables both planning and filling.
+`Engine::set_evaluation_prefetch(false)` disables both planning and filling.
 SQLite and device `Rows` use the default no-op and do not build a prefetch plan.
 Tiny batches unable to amortize the named two-call savepoint cost are skipped;
 only distinct, uncached, fillable keys count. Tests cover three versus four

@@ -1,0 +1,9 @@
+{
+  "cluster_pid": 3577028,
+  "path": "/tmp/s10d3-serve-qa15kti9",
+  "pg_ctl_status": 3,
+  "pidfile_exists": false,
+  "recorded_pids": 358,
+  "alive": [],
+  "scratch_removed": true
+}

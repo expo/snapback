@@ -58,18 +58,8 @@ use store::{Store, decode, namespace};
 use crate::rows::Rows;
 use crate::receipts::ReceiptReader;
 
-#[derive(Clone, Copy, Debug, Default, serde::Serialize)]
-pub struct Stats {
-    /// Explicit driver calls including BEGIN/COMMIT and cold prepares, not a
-    /// packet count. Implicit rollback when an errored transaction drops is omitted.
-    pub database_calls: u64,
-    pub transaction_retries: u64,
-    pub prefetch_marked_reads: u64,
-    /// Largest marked page in the most recent transaction.
-    pub prefetch_page_reads: u64,
-    pub prefetch_rows_transferred: u64,
-    pub prefetch_bytes_transferred: u64,
-}
+mod statistics;
+pub use statistics::Stats;
 
 pub struct PostgresEngine {
     minter: crate::ids::Mint,
@@ -571,11 +561,15 @@ mod semantic;
 
 mod opening;
 mod column_evolution;
+mod evolution;
+mod evolution_admission;
+mod evolution_schema;
+mod evolution_inventory;
 mod profile;
 
 mod deployment;
 
-fn evaluation_namespace(name: &str) -> Result<String, RuntimeError> {
+pub(super) fn evaluation_namespace(name: &str) -> Result<String, RuntimeError> {
     if !name.starts_with("sb4_eval_") { return Err(RuntimeError::Input("evaluation schema must start with sb4_eval_".into())); }
     namespace(name)
 }

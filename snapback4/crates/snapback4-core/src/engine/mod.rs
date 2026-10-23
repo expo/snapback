@@ -398,6 +398,8 @@ pub struct AssetGrant {
 
 #[cfg(feature = "sqlite")]
 pub struct Engine {
+    #[cfg(feature = "evaluation-support")]
+    evaluation_precharge: Metered,
     timeline_schedule: timeline::Schedule,
     ephemeral: std::sync::Arc<ephemeral::Hub>,
     store: AnyStore,
@@ -447,13 +449,13 @@ impl Engine {
         let (generation, metadata) = Self::activate(&mut store, &schema, &programs, None, now, true, None, None)?.into_inner();
         let dev_effects = metadata.dev_effects;
         store.exclude_ephemeral(&schema);
-        Ok(Self { timeline_schedule: timeline::Schedule::default(), ephemeral: std::sync::Arc::new(ephemeral::Hub::new(metadata.store_id.clone(), generation, &schema)), store_id: metadata.store_id, store, schema, programs, generation, expiry_after: BTreeMap::new(), dev_effects, ceilings: Ceilings::default(), entropy: crate::ids::seed(), minter: crate::ids::Mint::default(), #[cfg(feature = "native")] native: None, #[cfg(feature = "native")] native_logs: native::Logs::default(), presence: None })
+        Ok(Self { #[cfg(feature = "evaluation-support")] evaluation_precharge: Metered::default(), timeline_schedule: timeline::Schedule::default(), ephemeral: std::sync::Arc::new(ephemeral::Hub::new(metadata.store_id.clone(), generation, &schema)), store_id: metadata.store_id, store, schema, programs, generation, expiry_after: BTreeMap::new(), dev_effects, ceilings: Ceilings::default(), entropy: crate::ids::seed(), minter: crate::ids::Mint::default(), #[cfg(feature = "native")] native: None, #[cfg(feature = "native")] native_logs: native::Logs::default(), presence: None })
     }
 
     /// A detached read owner for HTTP query/sync computation. Creating it is
     /// brief; materializing its response does not hold the serving engine.
     pub fn reader(&self) -> Result<Self, RuntimeError> {
-        Ok(Self { timeline_schedule: timeline::Schedule::default(), ephemeral: self.ephemeral.clone(), store_id: self.store_id.clone(), store: self.store.reader()?, schema: self.schema.clone(), programs: self.programs.clone(),
+        Ok(Self { #[cfg(feature = "evaluation-support")] evaluation_precharge: self.evaluation_precharge, timeline_schedule: timeline::Schedule::default(), ephemeral: self.ephemeral.clone(), store_id: self.store_id.clone(), store: self.store.reader()?, schema: self.schema.clone(), programs: self.programs.clone(),
             ceilings: self.ceilings, entropy: 0, minter: self.minter.clone(), generation: self.generation, expiry_after: BTreeMap::new(), dev_effects: self.dev_effects,
             #[cfg(feature = "native")] native: self.native.clone(),
             #[cfg(feature = "native")] native_logs: native::Logs::default(), presence: self.presence.clone() })
@@ -505,7 +507,7 @@ impl Engine {
             else { tx.rollback()?; Self::activate(&mut store, &schema, &programs, None, now, true, expected_release, Some(&kept))?.into_inner() };
         let dev_effects = metadata.dev_effects;
         store.accept_open(); store.exclude_ephemeral(&schema);
-        Ok(Self { timeline_schedule: timeline::Schedule::default(), ephemeral: std::sync::Arc::new(ephemeral::Hub::new(metadata.store_id.clone(), generation, &schema)), store_id: metadata.store_id, store, schema, programs, generation, expiry_after: BTreeMap::new(), dev_effects, ceilings: Ceilings::default(), entropy: crate::ids::seed(), minter: crate::ids::Mint::default(), #[cfg(feature = "native")] native: None, #[cfg(feature = "native")] native_logs: native::Logs::default(), presence: None })
+        Ok(Self { #[cfg(feature = "evaluation-support")] evaluation_precharge: Metered::default(), timeline_schedule: timeline::Schedule::default(), ephemeral: std::sync::Arc::new(ephemeral::Hub::new(metadata.store_id.clone(), generation, &schema)), store_id: metadata.store_id, store, schema, programs, generation, expiry_after: BTreeMap::new(), dev_effects, ceilings: Ceilings::default(), entropy: crate::ids::seed(), minter: crate::ids::Mint::default(), #[cfg(feature = "native")] native: None, #[cfg(feature = "native")] native_logs: native::Logs::default(), presence: None })
     }
 
     /// Serving a selected immutable release may attach only while that release
@@ -847,6 +849,8 @@ impl Engine {
             }
         }
         let mut runner = Runner::new(rows, &self.schema, context, Meter::new(self.ceilings, Cut::Cap), seq);
+        #[cfg(feature = "evaluation-support")]
+        { runner.meter.used = self.evaluation_precharge; }
         #[cfg(feature = "server-search")]
         if let Some(ids) = _retained {
             let original = &self.programs[name];
@@ -1326,3 +1330,6 @@ mod update_image_tests;
 #[cfg(all(test, feature = "sqlite", feature = "server-search"))]
 #[path = "../store/query_response_tests.rs"]
 pub(crate) mod query_response_tests;
+
+#[cfg(feature = "evaluation-support")]
+mod evaluation;

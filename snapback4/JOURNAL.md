@@ -103032,3 +103032,393 @@ constructing the historical native database error now lives below the store
 port, through `duplicate_session_error`. Both adapters return the identical
 error and no authority policy or statement count changes. The production
 store-port allowance remains zero (LLP 3000.009.001.000 §3.2).
+
+## 2026-10-23 — P1-EV-1: ordinary Postgres release evolution and dormant retention
+
+Committed the SQLite evolution inventory and six independently admitted slices
+before implementing EV-1. The common Postgres adapter now adds ordinary tables,
+optional/literal-defaulted columns and indexes, drops/redefines indexes, and
+retires/restores ordinary tables and columns with their dormant definitions,
+exact rows/cells and reference lifetime evidence. Six exact C-collated ledgers
+are installed and shape-checked. Configured deploy accepts `--restore-dormant`.
+Defaults and optionals stay sparse in stored rows and are interpreted when
+building keys. Unique/required restore failures retain `E_ADOPT` and roll back
+the entire activation. All writers retain the owner-first fence and generation
+check. Dormant parent invalidation and child cleanup share the existing row
+delete CTE; SQLite behavior and request-path budgets are unchanged.
+
+The lifecycle code forced one tightening of the inventory-first plan: SQLite's
+source-retirement pass visits unchanged temporal/read-through/recorded durable
+tables too. Ordinary Postgres schema changes beside any such table therefore
+wait for EV-4 (`evolution-authority`). P1-MC transitions with unchanged ordinary
+declarations retain their admission. Narrowing/required additions, backfills,
+renames and the other authority/operator slices retain their named refusals.
+An ordinary edit cannot bypass checked execution facts; only the binder's
+appended index-selection diagnostic is ignored during that comparison. The
+S10e-1 read-through conversion and expiry/default fixtures remain refused, now
+under `evolution-authority`; that branch was inspected read-only.
+
+All 11 shared/negative evolution tests, eight maintained-column tests and 127
+guide tests pass. The contract covers partial restoration, JSON NUL/Unicode/null,
+required values, sparse defaults, unique rollback, inventory pagination,
+generation/stale writers and deleted/reused parent/child identities. The public
+v1-write → v2-add/retire → v3-restore witness passes on both stores. Its 13
+normalized responses match byte-for-byte: 2,578 bytes, SHA-256
+`0653a99b12df679f5de688b66ac7dd9299927d5cc56538262582896faf87fe38`.
+Only store id, now and the independently checked minted guest viewer are
+excluded. The initial full harness caught a new bootstrap diagnostic ordering
+regression; the foundational order is restored and all six dormant-table
+missing-shape cases were added to recovery refusal coverage.
+
+Build and the no-default-features core check pass. The full core command has
+1,092 passes, zero failures and five existing ignores. Both RT0 ratchets pass
+all 24 warm cells unchanged (keyed-first 87 SQLite / 77 Postgres; unkeyed
+increment 79 / 57); no table, budget or allowance changed. The broad binary
+sweep has 1,440 passes and ten failures: the supplied reservation/web reds,
+two release intake-switch timeouts, two clock failures and an inherited census
+mismatch. All 12 active release lifecycle cases pass alone. The two SQLite
+clock cases still fail alone and have a follow-up ticket; the unchanged
+dev-worker census baseline has a separate ticket, with no allowance increase.
+The requested Postgres script has 408 Rust passes and the supplied evaluator
+Serializable stress red. Final full-public and corrected stress results,
+reference validation and process custody are recorded below and in the
+[report](reports/20261023-p1-ev1-schema-evolution/REPORT.md).
+
+Final full public harness: pass (370.8 seconds), including the six new missing
+dormant-ledger fixtures and all prior recovery/lease/restart/S1 witnesses. The
+corrected isolated Serializable stress test passes, zero ignores: 65 increments
+in both modes, no lost updates, 104 Serializable retries. Final `./ref-check`
+passes: 565 LLPs, 11,777 references, zero errors and unchecked; whitespace
+validation passes. All six owned private clusters are stopped (status 3, no
+pidfile, absent postmasters), all 844 unique recorded PIDs are absent, and no
+executable from this worktree’s target remains. Owned database and verification
+scratch is removed after preserving evidence. Final sampled free space is
+170.97 GiB; no observed disk guard crossed 40 GiB. PG17/55440 and other sessions’
+clusters were untouched. Local commits only; no push, stash or config change.
+
+
+## 2026-10-23 — P1-EV-1 fix round 1: stopped on SQLite restore admission
+
+The requested SQLite parity check triggers the author's explicit stop condition.
+On unchanged production code at `1875a9e77f`, a seeded optional reference with
+`on delete restrict` is retired and restored as `on delete keep`; SQLite
+returns `Ok(3)`, publishes generation 3 and restores the original parent id.
+The focused witness expecting refusal compiles and fails (exit 101). Its source
+and output remain under `/tmp/sb4-p1ev1-fix1/`. An initial combined probe also
+observed this admission before an unrelated missing cascade product-bound
+fixture diagnostic; it establishes no verdict for that cascade case.
+
+SQLite's dormant column record contains type, default, ownership and optional
+capture source, with no deletion policy or text constraints. Matching the
+requested refusal would therefore require resolving the SQLite contract first.
+No engine/store change was made. The other restore cases, stored-byte decision,
+expanded public witness and implementation qualification remain pending under
+the stop instruction. The RFC Revised line and EV-1 note and the
+[report](reports/20261023-p1-ev1-schema-evolution/REPORT.md#fix-round-1--2026-10-23-stopped)
+record that boundary; original-round pass counts are historical only.
+
+The seven committed JSONL process traces were preserved under
+`/tmp/sb4-p1ev1-fix1/prior-jsonl/` and removed with `git rm`. No raw evidence was
+added to Git. The temporary in-tree probe was removed after compilation.
+Root `./ref-check` and whitespace validation pass for this documentation and
+trace cleanup. The requested implementation suites and both RT0 executions
+were not run after the stop condition; both ratchet tables remain unchanged.
+
+Both Cargo attempts used the authorized target, exported line-tables-only
+debug profiles and four jobs. No Postgres cluster/server was started; all
+recorded probe/compiler processes are confirmed absent. Disk samples stayed
+above 40 GB. PG17/55440 and other sessions' clusters were untouched. Local
+commit only; no push, stash or git config change.
+
+## 2026-10-23 — P1-EV-1 fix round 1 continuation: retained definitions and lead ruling
+
+Applied the lead ruling after the stop at `2e2bfe600b`: Postgres restoration
+stays within its equivalent in-place admission and requires an identical
+retained column definition. The ledger now includes ownership/capture source,
+deletion policy and text constraints alongside type/default. Changed policies
+refuse `evolution-authority`; changed type/default/requiredness/text constraints
+refuse `evolution-narrowing`, before initialization/preparation writes. Identical
+optional URL text restores. Cascade retirement also excludes schema-derived
+event prices from residual declarations while retaining input derivation and
+executable-fact checks.
+
+SQLite admits all nine tested edits both in place and across retirement;
+nonconforming text is hidden in either form. The report has every verdict.
+No admission loophole was found and SQLite production is unchanged. Its restore
+walk physically materializes optional/defaulted siblings; Postgres preserves
+their absence under RFC §3.5. The raw-row witness records that difference and
+identical interpreted queries; the public v3 keeps those sibling additions.
+The SQLite follow-up is
+`issues/20261023-snapback4-sqlite-restore-materializes-sibling-defaults.md`.
+
+On unchanged `1875a9e77f` production, the expanded target has three failures:
+restrict→keep restore wrongly admits, cascade retirement refuses before the
+restore probe, and identical URL restore wrongly refuses. The expanded public
+v3 independently fails on the old URL refusal. Baseline raw rows also differ
+across stores while interpreted rows match. Default-only, optional→required
+and valid/invalid text cases close the remaining witness gaps. A
+nontransactional DDL-event sequence witness confirms all four changed-definition
+refusals precede preparation; identical restores are its positive controls.
+
+Build and no-default check pass. Full core passes 1,102 tests with five
+existing ignores; evolution passes 31, the preparation witness one,
+maintained-column scope nine, core release contract 21, binary release
+lifecycle 12 (one existing ignore), and guide 127. Both RT0 ratchets reproduce
+all 24 original warm cells with unchanged tables/allowances. The complete
+public harness passes; its 13 EV-1 responses match across stores, 2,819 bytes,
+SHA-256 `b24af6ef8cb10d1a329319647c2ed133109853e5f83092952802daac4690cfa1`.
+
+The broad binary sweep has 1,424 passes, 13 failures and 20 ignores. Known
+clock, reservation, web and census failures remain; the census fix on main
+is not pulled into this lane. HTTP committer and ownership timing failures
+pass alone. Security-wave19 passes ten of eleven tests serially; its contact
+refutation expectation remains unresolved in a separate qualification ticket.
+No unrelated implementation or allowance is changed. The
+[report](reports/20261023-p1-ev1-schema-evolution/REPORT.md) records exact scopes
+and diagnostics, including corrected development probes.
+
+The required Postgres script passes completely: 431 Rust passes with zero
+failures/ignores, plus its complete public harness, in 1,708.44 seconds. Its
+stress has 65 increments per mode with no lost updates and 110 Serializable
+retries. Final EV-1 wire bytes retain the same length/hash above. Root
+`./ref-check` passes after this entry: 565 LLPs, 11,779 refs, zero errors and
+unchecked; whitespace validation passes.
+
+All Cargo commands use only the authorized target, four jobs and exported
+line-tables-only dev/test profiles. The seven JSONL traces were removed in
+the stopped-attempt commit; no raw logs or PID traces are added. Evidence
+and copied public harness artifacts remain under `/tmp/sb4-p1ev1-fix1/`.
+All four owned private PG16 clusters are independently stopped (status 3, no
+pidfile, absent postmasters); all 2,716 recorded PIDs are absent,
+and no target executable remains. Final sampled free space is
+231.60 GiB; no guard crossed 40 GiB. PG17/55440 and other
+sessions' clusters were untouched. Local commit only; no push, stash or git configuration change.
+
+## 2026-10-23 — P1-EV-1 fix round 2: byte parity on column restore
+
+Applied the lead's reversal of round 1's sparse-restore decision. Postgres now
+walks the same live population as SQLite, materializes the predecessor table's
+optional/default fields, overlays retained values and writes the canonical
+image. A restored table supplies its retained predecessor; rows without a
+retained cell also participate. Ordinary add-column remains physically absent.
+SQLite production and request-path statements are unchanged.
+
+New literal `r.data` comparisons fail on unchanged `f8c54693c129` production
+for both the small sibling fixture and the 300 KiB default. The latter stores
+307,298 bytes on SQLite versus 74 on old Postgres; this fix stores exactly
+307,298 equal bytes on both. Parent-delete evidence and public `/changes` also
+fail before the fix (SQLite unknown, Postgres certified) and now both return
+unknown. Query meters match in every dimension, including a 1 MiB heap ceiling
+where both point reads cap identically. The raw fixture includes a row born
+while memo was dormant, preserving its absence while materializing siblings.
+
+No compatibility decoder is added: EV-1 has not landed and the fix lands with
+it. Old private baseline-test clusters under `/tmp/` can retain experimental
+records if explicitly reused; this round uses a fresh cluster and fresh
+namespaces. RFC §3.5/Revised records that scope and the stored-byte ruling.
+The SQLite-only sparse follow-up is closed: both stores materialize on restore;
+going sparse would require a both-store change and observable-effect checks.
+Grok's two one-line preparation coverage additions pass alongside the prior
+four refusals and all identical-restore positive controls.
+
+Build and no-default check pass. Full core has 1,103 passes, five existing
+ignores and zero failures; evolution passes 35, maintained-column scope nine,
+core release contract 21, binary release lifecycle 12 with one existing ignore.
+Both RT0 ratchets retain all 24 warm counts and unchanged tables/allowances.
+The complete Postgres script runs every stage: 433 Rust passes and two failures,
+then a passing complete public harness. The retained evaluator stress escapes
+40001; its exact executable passes alone with 65 increments per mode and 96
+Serializable retries. A 300 ms ownership fixture misses its live-lease assertion
+and also passes alone. Neither implementation, retry policy nor timing bound is
+changed. The existing stress ticket records the occurrence. Known unrelated
+clock, reservation, security-wave19 and web failures are not chased.
+
+The final public EV-1 wire remains 2,819 bytes with SHA-256
+`b24af6ef8cb10d1a329319647c2ed133109853e5f83092952802daac4690cfa1`;
+the large-default `/changes` responses match too. The
+[round-2 report](reports/20261023-p1-ev1-schema-evolution/REPORT.md#fix-round-2--2026-10-23-restore-byte-parity)
+records baseline sensitivity, complete results, reference validation and custody.
+All Cargo uses this worktree's target, four jobs and exported line-tables-only
+dev/test profiles. Raw logs and process traces stay outside Git.
+
+All four owned private PG16 clusters are independently stopped (status 3,
+no pidfile, absent postmasters and cluster processes). All 1,235 recorded PIDs
+are absent; no target executable remains. Final sampled free space is
+149.38 GiB; no disk guard crossed 40 GiB. PG17/55440 and other sessions'
+clusters are untouched. Local commit only; no push, stash or Git configuration
+change.
+
+## 2026-10-23 — S10e-1 evaluation migration, implementation checkpoint
+
+Ordinary evaluation callers now use the common Engine over Postgres AnyStore;
+the old PostgresEngine stays as an explicit oracle. Added feature-gated
+constructors, prefetch, precharge and physical statistics, and preserved the
+wire observer. Difftest recognizes E_STORE_UNSUPPORTED without increasing
+passed, and executes/replays preludes with the requested prefetch setting.
+The RFC §3.4 records the evaluation-only Serializable driver plan and exact
+S10e-2 deletion checklist. No production retry authority was added.
+
+The private-cluster comparison exposed a prefetch-dependent heap charge on
+`add` (1,969 versus 1,979 B); its exact assertion remains and an issues ticket
+records it. Common read-through evolution also refuses release-activation where
+the retained oracle accepts. Both remain visible for disposition before
+executor deletion. Qualification results follow in a separate dated entry and
+the lane report; this checkpoint makes no complete-parity claim.
+
+
+## 2026-10-23 — S10e-1 corpus and reset comparison checkpoint
+
+The 295-case overlap completes: SQLite 210 passes / 85 named skips; common
+Postgres on and off, and retained PostgresEngine on and off, each 207 passes /
+88 skips; zero unsupported or failed cases. Full recorded outcome/meter traces
+agree in the supported intersection. The three extra Postgres skips are the
+existing asset-capability exclusions. Separate overlap tests compare stored
+receipts and their binding, rows, public log/commit order and all logical meters.
+
+Ordinary corpus runs now select the common engine; SNAPBACK4_CORPUS_OVERLAP=1
+opts into the five-executor table. Each case releases only its successfully
+created namespace. Shared seed snapshots forward through AnyStore. The migrated
+reuse harness must replace _generations as well as _backend: common opening
+reads the authoritative generation catalog. It restores an empty snapshot,
+installs both compiled catalogs atomically, then lets common activation refresh
+derived facts. Seed 1 now witnesses this in fresh-versus-restored coverage.
+
+The reduced heap discrepancy isolates supplied IDs, not physical prefetch: a
+formatted ID has length 15 and capacity 20, and moving it into common Engine
+charges 1,939 B where cloning charges 1,929 B. Both executors have prefetch on
+in the reduced case. The old evaluator's per-attempt context clone hides it.
+The original and reduced assertions remain exact and red; the open ticket now
+records that cause. Full core tests pass: 665 library tests, 44 integration
+targets and 27 doctests, with the existing named ignores. No executor is deleted.
+
+
+## 2026-10-23 — S10e-1 experiment callers and retained oracle fixtures
+
+The ordinary Postgres experiment, its conformance/device/read-through/key-limit
+fixtures, and the commit-path capture/engine cells now use common Engine.
+Original read-through evolution fixtures are retained explicitly as oracle
+sources: all seven and all thirty review scenarios pass there; the common
+profile's release-activation refusals stay visible in the migrated tests.
+Serializable contention and receipt races also remain explicit oracle fixtures;
+the old 40001 stress red still reproduces, including its refused-receipt race.
+Common serial concurrency and receipt races pass. Evaluation mode migration
+therefore remains the RFC's bounded follow-up, not production retry policy.
+
+The scale sampler follows the exact common engine owner tag and excludes
+pre-existing setup sessions. It no longer silently samples only the old sb4cp
+label. Short debug smoke cells finish with no lost increments: 70/70 and 66/66
+acknowledged/retained, prefetch on/off. These are correctness/call-count smoke
+runs, not throughput claims. Capture sees 33 cold then 24/24 warmed calls;
+the paired fixture sees 30/24 cold (common/oracle), then 24/19 warm. The warmed
+five-call delta is the common owner's fence, member save/release, placement
+lookup and separate insert/bind receipt work. The buffered tail remains one
+CTE exchange. Query overlap calls match: 20/20 off and 23/23 on for the derived
+page, with eight marked reads; the 32-room inbox remains 8 on versus 68 off.
+
+The 32-case migrated store campaign has no setup error and no store signature.
+Its refusal expectation guard stays red on matching SQLite/Postgres E_INPUT
+and E_DIV_ZERO outcomes; an issues ticket records deterministic seeds rather
+than broadening the allowed errors. Exact E_STORE_UNSUPPORTED exclusions remain
+outside passed. The first private-runner invocation also hit a 45-second public
+CLI deploy guard. All owned clusters in those runs stopped and were independently
+confirmed; final qualification and PID audit follow in the lane report.
+
+
+## 2026-10-23 — S10e-1 qualification and handoff
+
+The [lane report](reports/20261023-s10e1-evaluation-callers.md) records the
+five-executor table, exact disagreements and their tickets/dispositions, C1
+physical deltas, checks and the S10e-2 boundary. The full core command passes;
+the 218-test Postgres family/oracle target and the 5/29-test difftest library/
+smoke targets pass. Fixed-seed store comparisons have no signature; the refusal
+expectation guard remains red on matching bad-input/division outcomes. Exact
+unsupported accounting passes before that guard. The public private-runner
+stage records its 45-second deploy timeout without enlarging the guard.
+
+No deletion is safe yet: allocation-dependent metering, release-evolution
+coverage, evaluation-only Serializable migration and the physical call delta
+need disposition. Root reference validation passes (565 documents, 11,772
+references; zero errors or unchecked). The independent cleanup audit confirms
+17 owned clusters stopped and no living process among 4,237 recorded PID
+identities. PostgreSQL 17/55440 was untouched. Work remains local on sb4-pg/s10e1;
+no push, stash, configuration change, target cleaning or target copy.
+
+
+## 2026-10-23 — S10e-1 fix round 1: no new test reds
+
+The lead's allowed fallback preserves the shared retained-image meter: String
+and Id capacity is charged in `Value::retained_heap`, and existing SQLite
+pricing tests pin that contract. The original and reduced exact heap fixtures
+are ticket-ignored; the assertions remain intact. No meter code, ceiling,
+SQLite meter baseline or RT0 table changes. The extra retained Serializable
+refused-receipt race carries the same issue ignore as the known stress case;
+the private runner excludes just these three reproductions from its
+`--include-ignored` sweep. The original stress stays enabled and passes this
+run: 65 increments per mode, no lost updates, 113 Serializable retries.
+
+Migrated read-through/review evolution now asserts exact release-activation
+refusal as named expected-unsupported, outside supported passes. Original
+oracle targets pass 7/7 and 30/30. A real detached base probe of the fixed-seed
+guard fails compilation at the old Store/AnyStore snapshot seam, so it does not
+prove a base runtime red. The now-reachable guard is repaired narrowly: only
+an out-of-interval `a` with its matching diagnostic or scalar rounded division
+by a literal/supplied zero is expected. Arbitrary E_INPUT stays unexpected;
+negative controls pass, as do all six Postgres difftest library tests and all
+three store tests. The refusal ticket is resolved and moved to issues/closed.
+
+Three standalone public stages pass with the unchanged 45-second guard.
+Initial Postgres deploys take 17.735/18.026/17.220 seconds; 16.2–16.6 seconds
+precede bootstrap intent. Source call order implicates the bounded security
+preflight for profiling; differing host load alone does not explain it. The
+historical timeout remains unresolved in a new evidence ticket. The complete
+private runner's public stage also passes. No timeout or security review changes.
+
+All requested tests are green: full core (665 library, 44 integration targets,
+27 doctests), 97 experiment tests with the three explicit exclusions, 218
+Postgres family tests, unchanged 295-case corpus outcomes, exact two-store RT0,
+35 SQLite/memory review fixtures and 29 difftest smoke tests. The
+[updated report](reports/20261023-s10e1-evaluation-callers.md) records references,
+base/red dispositions and cleanup. The independent audit finds no remaining
+PID among 6,838 identities; all 23 owned clusters (17 previous, six this round)
+and all owned scratch worktrees/data are removed. PG17/55440 was untouched.
+Cold builds use line-tables-only dev/test debug and six Cargo jobs. Work stays
+local; no push, stash or Git configuration change. No executor deletion.
+
+Root reference validation passes: 565 LLP docs, 11,773 refs, zero errors and
+zero unchecked references. Both RT0 table digests match their original bytes.
+
+
+## 2026-10-23 — S10e-1 fix round 2: comparisons fail closed
+
+The [lane report](reports/20261023-s10e1-evaluation-callers.md#fix-round-2--2026-10-23)
+records failing-on-old witnesses for all six review items. Corpus observations
+now retain typed outcomes, including serde-hidden receipt/opening facts; overlap
+failures have their own failing assertion. The stock runner requires all five
+executors, with an asserted empty unsupported-family/count allowlist. Oracle
+fixtures compare full writes, replays and reads, complete receipt bytes plus
+receipt-only and deterministic timestamps. The 32-room query fixture runs
+separately from the ticketed heap mutation reproductions and passes at 8/68
+calls with its original bounds. Scoped package cleaning replaces source touching.
+
+Diagnostic cleanup cancels both pending accept and incomplete startup. The
+reused-snapshot regression returns SQLSTATE 42P01 within its ten-second bound;
+a minimal exact-old-module probe first observes that SQL error, then hangs
+through five seconds, while fixed cleanup returns it in 6 ms. Probe PIDs are
+reaped. Full core, default and Postgres difftest, 218 adapter/oracle tests, both
+unchanged RT0 ratchets and public deploy/serve/scale witnesses pass. The typed
+295-card five-way corpus has no unsupported case, conformance failure or overlap
+disagreement; its 22-test target passes. No comparison exception was needed.
+
+The stock runner remains red solely on the original retained-evaluator
+Serializable increment stress's documented 40001. Its source/retry budget and
+inclusion remain unchanged; the existing ticket gains this occurrence. The
+same three heap/race exclusions remain, while every later stage completes.
+No new ticketed ignore, product red, meter change or executor deletion. The
+independent final audit confirms all three owned clusters stopped and no live
+identity among 2,156 recorded processes, no public PID among 251 records, and
+no cleanup-probe PID. PG17/55440 was untouched. Cargo uses four jobs, the owned
+lane target and line-table-only dev/test debug. Work is committed locally on
+sb4-pg/s10e1; no push, stash, Git configuration change or raw log in the commit.
+
+Root reference validation passes: 565 LLP documents, 11,774 references, zero
+errors and zero unchecked. Both RT0 JSON digests match the starting commit.

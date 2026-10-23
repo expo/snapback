@@ -3,16 +3,16 @@ mod cases;
 use cases::{Backend, Outcome};
 use snapback4_core::{
     Context,
-    engine::{WriteState, postgres::PostgresEngine},
+    engine::WriteState, Engine,
     meter::Ceilings,
 };
-use snapback4_postgres_evaluation::{connect, namespace};
+use snapback4_postgres_evaluation::{create, namespace};
 
-struct Pg(PostgresEngine);
+struct Pg(Engine);
 impl Backend for Pg {
     fn run(&mut self, op: &str, context: Context, ceilings: Ceilings) -> Outcome {
         self.0.set_ceilings(ceilings);
-        if self.0.programs()[op].kind == snapback4_core::ir::ProgramKind::Query {
+        if self.0.programs().find(|p| p.name == op).unwrap().kind == snapback4_core::ir::ProgramKind::Query {
             let o = self.0.query(op, context).unwrap();
             assert!(o.complete && !o.unavailable, "{op}: {o:?}");
             (Ok(o.data), o.metered)
@@ -49,8 +49,7 @@ impl Backend for Pg {
 }
 fn factory(source: &str) -> Box<dyn Backend> {
     let b = cases::bound(source);
-    Box::new(Pg(PostgresEngine::create(
-        connect(),
+    Box::new(Pg(create(
         &namespace("through_review"),
         b.schema,
         b.programs.into_iter().map(|p| p.program),
@@ -68,7 +67,34 @@ macro_rules! scenario {
 }
 scenario!(aggregate_actual_row);
 scenario!(aggregate_existence);
-scenario!(expiry_default);
+#[test]
+#[ignore = "requires isolated local Postgres; scripts/test-postgres.sh"]
+fn expected_unsupported_release_activation_expiry_default() {
+    let original = cases::expiry_default_source();
+    let b = cases::bound(original);
+    let mut engine = create(&namespace("expiry_default_unsupported"), b.schema,
+        b.programs.into_iter().map(|p| p.program)).unwrap();
+    let context = cases::ctx("alice", 50, &[]);
+    assert!(matches!(engine.mutate("setup", None, context).unwrap().state, WriteState::Sent { .. }));
+    let generation = engine.generation();
+    for now in [100, 200] {
+        for deadline in [300, 150] {
+            let source = original.replace("immutable owner", &format!(
+                "immutable owner, until\n  until: time default {deadline}\n  expire at .until"));
+            let b = cases::bound(&source);
+            let result = engine.adopt_at(b.schema, b.programs.into_iter().map(|p| p.program), now);
+            assert!(matches!(result, Err(snapback4_core::RuntimeError::StoreUnsupported {
+                family: "evolution-authority"
+            })), "expected-unsupported:evolution-authority; admission needs oracle expiry_default: {result:?}");
+            assert_eq!(engine.generation(), generation);
+            for op in ["parent", "middle", "child"] {
+                assert_ne!(engine.query(op, cases::ctx("alice", 400, &[])).unwrap().data,
+                    snapback4_core::Value::Null, "refused activation changed {op}");
+            }
+        }
+    }
+    println!("expected-unsupported:evolution-authority:expiry-default=4; admitted expiry evolution scenarios=0");
+}
 scenario!(reuse_refusal);
 scenario!(delete_refusal);
 scenario!(probe_meter_equivalence);

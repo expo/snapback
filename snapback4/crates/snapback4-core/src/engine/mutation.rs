@@ -129,6 +129,8 @@ impl Engine {
             }
             tx.savepoint("program")?;
             let mut runner = Runner::new(&tx, &engine.schema, context, Meter::new(ceilings, Cut::Abort), tx.next_seq()?);
+            #[cfg(feature = "evaluation-support")]
+            { runner.meter.used = engine.evaluation_precharge; }
             let ran = runner.run(&program).and_then(|value| {
                 runner.charge_output(&value)?;
                 Ok(value)
