@@ -69,7 +69,7 @@ pub(super) fn walk(
             "SELECT octet_length(id),octet_length(data) FROM r WHERE t=$1 AND ($2::text IS NULL OR id>$2) ORDER BY id LIMIT 1"
         }
         "_dormant_narrow_rows" => {
-            "SELECT octet_length(id),octet_length(data)+64*octet_length(definition) FROM _dormant_narrow_rows WHERE t=$1 AND ($2::text IS NULL OR id>$2) ORDER BY id LIMIT 1"
+            "SELECT octet_length(id),octet_length(data) FROM _dormant_narrow_rows WHERE t=$1 AND ($2::text IS NULL OR id>$2) ORDER BY id LIMIT 1"
         }
         "_dormant_rows" => {
             "SELECT octet_length(id),octet_length(data) FROM _dormant_rows WHERE t=$1 AND ($2::text IS NULL OR id>$2) ORDER BY id LIMIT 1"
@@ -86,6 +86,8 @@ pub(super) fn walk(
         let Some(length) = lengths.first() else {
             return Ok(());
         };
+        // Like SQLite ordinary restoration, admit row bytes only; retained
+        // definitions are not live-activation provenance charges.
         // Reserve driver/text coexistence before fetching the payload, then
         // use the same decoder admission as the SQLite activation walker.
         let mut meter = Meter::new(Ceilings::job(), Cut::Abort);

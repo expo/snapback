@@ -156,7 +156,7 @@ impl Handle {
             if rebuilding { tx.with_postgres(|inner| super::column_evolution::project(inner, &previous, schema))?; }
             if rebuilding { tx.with_postgres(|inner| super::caps::rebuild(inner,schema,true))?; }
             build(&tx, changed || population, &mut report)?;
-            if rebuilding { tx.with_postgres(|inner| super::column_evolution::validate_groups(inner, &previous, schema))?; }
+            if rebuilding { tx.with_postgres(|inner| super::column_evolution::validate_adoption_groups(inner, &previous, schema))?; }
             tx.with_postgres(|inner| {
                 inner.publish_backend(&Backend(generation, crate::value::canonical_json(schema), crate::value::canonical_json(programs)), now)?;
                 inner.set_meta("schema_hash", &schema.hash())?;

@@ -13,10 +13,30 @@ pub(super) fn admit(previous: &Schema, next: &Schema) -> Result<(), RuntimeError
 /// so their primary key alone cannot enforce logical uniqueness. Compare the
 /// entire index definition (including all key columns), even on an index-only
 /// edit whose maintain declaration does not require a rebuild.
+pub(super) fn validate_adoption_groups(
+    tx: &Tx<'_>,
+    previous: &Schema,
+    next: &Schema,
+) -> Result<(), RuntimeError> {
+    validate_groups_inner(tx, previous, next, true)
+}
+
+// SQLite's defensive physical activation (programs=None) skips successor
+// assessment and adoption diagnostics. Preserve that separate contract too.
+#[cfg(test)]
 pub(super) fn validate_groups(
     tx: &Tx<'_>,
     previous: &Schema,
     next: &Schema,
+) -> Result<(), RuntimeError> {
+    validate_groups_inner(tx, previous, next, false)
+}
+
+fn validate_groups_inner(
+    tx: &Tx<'_>,
+    previous: &Schema,
+    next: &Schema,
+    adoption: bool,
 ) -> Result<(), RuntimeError> {
     let population = tx.meta("activation_population")?.as_deref() == Some("true");
     for (name, table) in &next.tables {
@@ -31,7 +51,19 @@ pub(super) fn validate_groups(
                     || rebuilt
                     || old.and_then(|old| old.indexes.get(*index_name)) != Some(*index))
         }) {
-            groups(tx, name, index_name, index.components.len(), 1, true)?;
+            groups(
+                tx,
+                previous,
+                next,
+                name,
+                table,
+                index_name,
+                index.components.len(),
+                1,
+                true,
+                None,
+                adoption,
+            )?;
         }
         if projected || rebuilt {
             for constraint in &table.constraints {
@@ -45,11 +77,16 @@ pub(super) fn validate_groups(
                         })?;
                     groups(
                         tx,
+                        previous,
+                        next,
                         name,
+                        table,
                         index_name,
                         by.len(),
                         u64::from(*max),
                         table.cap_exempts_null(by),
+                        Some(by),
+                        adoption,
                     )?;
                 }
             }
@@ -59,11 +96,16 @@ pub(super) fn validate_groups(
 }
 fn groups(
     tx: &Tx<'_>,
+    previous_schema: &Schema,
+    schema: &Schema,
     name: &str,
+    table: &crate::schema::Table,
     index: &str,
     prefix: usize,
     max: u64,
     nulls_distinct: bool,
+    cap_by: Option<&[String]>,
+    adoption: bool,
 ) -> Result<(), RuntimeError> {
     let mut after: Option<Vec<u8>> = None;
     let mut previous = None;
@@ -86,28 +128,141 @@ fn groups(
                     count = 1;
                 }
                 if count > max {
-                    let message = format!(
-                        "cannot activate {name}.{index}: existing group exceeds {}",
-                        if nulls_distinct {
-                            "a unique key".into()
-                        } else {
-                            format!("cap {max}")
-                        }
-                    );
-                    return Err(if tx.meta("dormant_enabled")?.as_deref() == Some("1") {
-                        RuntimeError::Structural {
-                            code: "E_ADOPT",
-                            message,
-                        }
-                    } else {
-                        RuntimeError::Constraint(message)
-                    });
+                    if !adoption {
+                        return Err(RuntimeError::Constraint(format!(
+                            "cannot activate {name}.{index}: existing group exceeds {}",
+                            if nulls_distinct {
+                                "a unique key".into()
+                            } else {
+                                format!("cap {max}")
+                            }
+                        )));
+                    }
+                    return Err(group_refusal(
+                        tx,
+                        previous_schema,
+                        schema,
+                        name,
+                        table,
+                        index,
+                        max,
+                        nulls_distinct,
+                        cap_by,
+                    )?);
                 }
             }
             after = Some(key);
         }
     }
     Ok(())
+}
+
+// @ref LLP 3000.009.001.000#3.5 — refusal evidence and bridge guidance match SQLite; spill populations, bound samples.
+fn group_refusal(
+    tx: &Tx<'_>,
+    previous: &Schema,
+    schema: &Schema,
+    name: &str,
+    table: &crate::schema::Table,
+    index: &str,
+    max: u64,
+    nulls: bool,
+    cap_by: Option<&[String]>,
+) -> Result<RuntimeError, RuntimeError> {
+    use crate::store::adopt_refusals::{Samples, bounded, group_refusal, value_sample};
+    let retained = tx.meta("dormant_enabled")?.as_deref() == Some("1");
+    let key = |row: &Value| match cap_by {
+        Some(by) => by
+            .iter()
+            .map(|c| row.field(c).cloned().unwrap_or(Value::Null))
+            .collect(),
+        None => crate::rows::index_values(&table.indexes[index], row),
+    };
+    tx.batch("CREATE TEMP TABLE _adopt_groups(k BYTEA PRIMARY KEY,n BIGINT NOT NULL) ON COMMIT DROP; CREATE TEMP TABLE _adopt_conflicts(k BYTEA NOT NULL,id TEXT COLLATE \"C\" NOT NULL,restored INTEGER NOT NULL,sample TEXT COLLATE \"C\" NOT NULL,PRIMARY KEY(k,id)) ON COMMIT DROP")?;
+    super::evolution::walk(tx, "r", name, |_, row| {
+        let row = crate::schema::row_image(&row, table);
+        let values = key(&row);
+        if !(nulls && values.contains(&Value::Null)) {
+            tx.execute("INSERT INTO _adopt_groups VALUES($1,1) ON CONFLICT(k) DO UPDATE SET n=_adopt_groups.n+1", &[&crate::key::encode(&values)])?;
+        }
+        Ok(())
+    })?;
+    let mut bad = Samples::default();
+    super::evolution::walk(tx, "r", name, |id, row| {
+        let row = crate::schema::row_image(&row, table);
+        let values = key(&row);
+        if !(nulls && values.contains(&Value::Null)) {
+            let encoded = crate::key::encode(&values);
+            let n: i64 = tx.query("SELECT n FROM _adopt_groups WHERE k=$1", &[&encoded])?[0].get(0);
+            if n > max as i64 {
+                let sample = value_sample(&Value::Array(values));
+                bad.add(id, &sample);
+                let restored = if retained {
+                    tx.query("SELECT EXISTS(SELECT 1 FROM _evolution_restored WHERE t=$1 AND id=$2 AND kind IN ('table','narrowed'))", &[&name,&id])?[0].get::<_,bool>(0)
+                } else {
+                    false
+                };
+                tx.execute(
+                    "INSERT INTO _adopt_conflicts VALUES($1,$2,$3,$4)",
+                    &[&encoded, &id, &i32::from(restored), &sample],
+                )?;
+            }
+        }
+        Ok(())
+    })?;
+    let mut origin = String::new();
+    for row in tx.query("SELECT k,max(sample),sum(restored),sum(1-restored) FROM _adopt_conflicts GROUP BY k HAVING max(restored)>0 ORDER BY k LIMIT 5", &[])? {
+        let key: Vec<u8> = row.get(0);
+        let sample: &str = row.get(1);
+        let restored: i64 = row.get(2);
+        let active: i64 = row.get(3);
+        let ids = |which: i32| -> Result<String, RuntimeError> {
+            Ok(tx.query("SELECT id FROM _adopt_conflicts WHERE k=$1 AND restored=$2 ORDER BY id LIMIT 5", &[&key,&which])?.iter().map(|r|bounded(r.get(0))).collect::<Vec<_>>().join(", "))
+        };
+        origin.push_str(&format!("; restoration group key {sample}: restoring dormant rows [{}] ({restored} rows); {active} active rows [{}]",ids(1)?,ids(0)?));
+    }
+    let groups: i64 = tx.query("SELECT count(*) FROM (SELECT k FROM _adopt_conflicts GROUP BY k HAVING max(restored)>0) AS groups", &[])?[0].get(0);
+    if groups > 5 {
+        origin.push_str(&format!("; {} more restoration groups (samples bounded to five groups and five ids per category)", groups-5));
+    }
+    let label = match cap_by {
+        Some(by) => format!("{name} cap by {}", by.join(",")),
+        None => format!("{name}.{index}"),
+    };
+    let error = group_refusal(name, &label, max, &bad, &origin);
+    if !retained {
+        // SQLite's dev successor assessment prefixes the group evidence with
+        // the failed schema step and appends that step's specific rewrite.
+        let step = crate::successor::classify(previous, schema)
+            .into_iter()
+            .find(|step| {
+                let path: Vec<_> = step.path.split('.').collect();
+                match path.as_slice() {
+                    ["tables", t, "columns", c]
+                        if *t == name
+                            && (step.change == crate::successor::Change::Narrowing
+                                || previous
+                                    .table(name)
+                                    .is_some_and(|old| old.columns.contains_key(*c))) =>
+                    {
+                        match cap_by {
+                            Some(by) => by.iter().any(|field| field == c),
+                            None => table.indexes[index].uses_column(c),
+                        }
+                    }
+                    ["tables", t, "indexes", i] => *t == name && cap_by.is_none() && *i == index,
+                    ["tables", t, "constraints"] => *t == name && cap_by.is_some(),
+                    _ => false,
+                }
+            });
+        if let Some(mut step) = step {
+            if let RuntimeError::Structural { message, .. } = &error {
+                step.message.push_str(&format!("; {message}"));
+            }
+            return Ok(step.refusal(schema));
+        }
+    }
+    Ok(error)
 }
 
 /// Called only by fenced attach, after admission and release CAS checks. All

@@ -103725,3 +103725,73 @@ The independent audit finds no surviving recorded owned identity,
 no public-witness PID and no executable from the lane target. PG17/55440 is
 untouched. Raw logs, wire bytes, saved test binary and PID traces stay outside
 Git under `/tmp/sb4-p1ev2/`. Work stays local, with no push or stash.
+
+
+## 2026-10-23 — P1-EV-2 fix round 1: admission and refusal parity
+
+The Sol P1 retained-definition finding and Grok Medium group-refusal finding
+are fixed within LLP 3000.009.001.000 §3.5. Ordinary Postgres restoration
+reserves row bytes without the extra 64× retained-definition payload term.
+Dev unique/cap conflicts now use SQLite's `E_ADOPT`, successor step and rewrite;
+release conflicts share its bounded sample formatter and bridge/inspect text.
+Postgres spills conflicting groups/ids transactionally, including restored-row
+origins, with five-id/key and five-group sample limits. Runtime ceilings and
+both RT0 tables stay unchanged; SQLite's behavior stays unchanged.
+
+New dual-store witnesses fail against unchanged `33d0c5120b` production:
+large-predecessor-default restoration is SQLite success / Postgres `E_BOUND`
+(59,981,832 / 16,777,216 bytes); dev uniqueness and cap 2 → 1 disagree on code,
+and release uniqueness/caps plus six-group restoration disagree on text.
+That negative control finishes 14 passed / six failed. The fixed evolution
+suite passes all 55 cases. The requested cap 1 → 0 cannot reach the stores:
+both Quarry text and typed schema validation require a positive maximum.
+Two separate typed-API guards compare identical dev/release `E_SCHEMA` text
+and unchanged state; 2 → 1 is the smallest valid tightening regression.
+
+The [EV-2 report](reports/20261023-p1-ev2.md) records the failing-before evidence
+and qualification. Raw logs and recorded identities remain outside Git in
+`/tmp/sb4-p1ev2-fix1/`. Work stays local on `sb4-pg/p1-ev2`; private PG16 only,
+with no push, stash, Git configuration change or raw-log commit.
+
+The separate maintained-column scope exposed a defensive adapter fixture that
+activates below public schema admission with no programs. SQLite skips successor
+assessment on that path and returns its physical `E_CONSTRAINT`. Postgres now
+selects adoption diagnostics only from public activation; the test-only physical
+entry point keeps SQLite's original code and text. Public adoption behavior is
+unchanged by this follow-up, and the existing maintained fixture is unchanged.
+
+Dev successor-step selection also skips newly added additive literal-default
+columns, matching SQLite: a conflicting new unique index is diagnosed at its
+index step. The same unique-refusal test now covers that combination too.
+
+
+## 2026-10-23 — P1-EV-2 fix round 1 qualification and cleanup
+
+The full core command passes 1,157 tests across 48 result blocks (zero failures,
+291 ignores, 1,352.80 seconds). It precedes the defensive physical-adapter and
+additive-default step-selection follow-ups; final affected runs after those
+follow-ups pass evolution 55, maintained-column scope nine, core release 21,
+binary release 13 and both RT0 ratchets plus publication checks five. Build
+and no-default core check pass. Both RT0 JSON tables remain byte-identical to
+`33d0c5120b`; no runtime ceiling or call budget changes.
+
+The stock Postgres runner remains red in 2,383.13 seconds on two existing
+signatures: the unchanged evaluator `40001` stress and the initial P1-CE deploy's
+45-second guard. All later Rust stages pass, including 225 adapter contracts,
+the 55-case evolution target, five-executor overlap corpus and difftest. EV-1/EV-2
+public wire parity passes before the later guard. The exact retained-stress
+executable passes alone (65 increments per mode, no lost updates, 105 Serializable
+retries). The complete standalone public harness then passes in 438.89 seconds,
+with the unchanged 45-second guard; maximum elapsed time across 519 timed
+commands is 34.111 seconds. Existing tickets record both occurrences; neither
+failed broad-run result is erased and the timeout's cause remains unexplained.
+
+All four owned private PG16 clusters are independently confirmed stopped
+(status 3, no pidfiles). Independent identity audits find no living recorded
+identity, public-witness PID or lane-target executable.
+PG17/55440 is untouched. The [EV-2 report](reports/20261023-p1-ev2.md) records
+scope, failures and passing reruns; raw evidence stays outside Git under
+`/tmp/sb4-p1ev2-fix1/`. No push, stash or Git configuration change.
+
+Final root `./ref-check` passes: 566 LLP documents, 11,806 refs, zero errors
+and zero unchecked references.

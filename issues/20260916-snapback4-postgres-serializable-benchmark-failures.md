@@ -318,3 +318,20 @@ timeout or skip changed. The broad-run red is retained as a red. Qualification
 and process cleanup are recorded in the
 [P1-EV-2 report](../snapback4/reports/20261023-p1-ev2.md); raw evidence remains
 outside Git under `/tmp/sb4-p1ev2/`.
+
+
+## 2026-10-23 — P1-EV-2 fix round 1 private sweep
+
+The unchanged stock runner again reproduced `40001` in
+`evaluator_concurrent_read_modify_write_and_duplicate_ops_are_atomic_in_both_modes`
+at `experiments/postgres/tests/conformance.rs:294`, followed by the parent join
+at line 307. That source is byte-identical to `33d0c5120b`. Common-engine
+concurrency passed. No workload, retry, timeout or exclusion changed; the
+broad-run failure remains a failure. The
+[P1-EV-2 fix-round report](../snapback4/reports/20261023-p1-ev2.md#fix-round-1--2026-10-23)
+records the remaining stages and cleanup; raw evidence remains outside Git
+under `/tmp/sb4-p1ev2-fix1/`.
+
+The exact saved executable passed in isolation during the compile-only manifest
+handoff in 4.14 seconds: 65 increments per mode, no lost updates, zero serialized
+retries and 105 Serializable retries. The broad run remains red.

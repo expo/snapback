@@ -71,3 +71,25 @@ children and serving PIDs are confirmed gone; all three scratch trees/clusters
 are removed. The report records the exact per-run process and timing summaries.
 The historical timeout remains open for profiling; these successful runs do
 not explain or erase it.
+
+
+## 2026-10-23 — P1-EV-2 fix round 1 occurrence
+
+The stock Postgres runner reproduced the same guard at initial P1-CE deploy:
+`/tmp/s10d3-serve-hppa948o/p1ce-postgres` exceeded 45 seconds. Both EV-1 and EV-2
+public lifecycle/wire witnesses passed earlier in that stage. The timed-out
+child was killed/waited by the existing harness, every recorded serving PID is
+gone, and the owned PG16 cluster is confirmed stopped (status 3, no pidfile).
+The main evaluation cluster is also confirmed stopped. The failed run has no
+phase/load timing evidence, so no causal load attribution is made. The command
+guard, workload and runner remain unchanged. The
+[EV-2 fix-round report](../snapback4/reports/20261023-p1-ev2.md#fix-round-1--2026-10-23)
+records the unchanged-bound standalone rerun; raw evidence stays outside Git
+under `/tmp/sb4-p1ev2-fix1/`.
+
+The complete standalone rerun passes with the same 45-second guard in 438.89
+seconds. All 519 timed subprocess commands complete within 34.111 seconds;
+both-store P1-CE, ownership/recovery and S1 recounts pass. The optional timing
+observer is unchanged. Its private PG16 cluster is stopped and independently
+confirmed; all recorded children are gone. The original timeout remains red
+and unexplained, with no causal load claim.

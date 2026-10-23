@@ -579,3 +579,195 @@ dual!(unversioned_adoption_refuses_incompatible_values, {
         );
     }
 });
+
+// The large literal must belong to the retained predecessor, not be added later.
+dual!(
+    large_retained_definition_restores_and_allows_later_release,
+    {
+        let literal = "x".repeat(300 * 1024);
+        let wide = format!(
+            "table notes:\n  n: int\n  payload: text <=400000 default \"{literal}\"\n  public\n  online only\n"
+        );
+        let mut p = Pair::new(&wide);
+        p.put("notes", object([("id", id("r")), ("n", Value::Int(99))]));
+        p.transition(&wide.replace("n: int", "n: int 0..10"), false)
+            .unwrap();
+        p.count("notes", 0);
+        assert!(
+            p.sql("SELECT octet_length(definition)::text FROM _dormant_narrow_rows")[0][0]
+                .parse::<usize>()
+                .unwrap()
+                > 300 * 1024
+        );
+        p.transition(&wide, false).unwrap();
+        p.count("notes", 1);
+        assert_eq!(
+            p.sqlite.store().rows("notes").unwrap()[0]
+                .field("payload")
+                .unwrap(),
+            &Value::String(literal)
+        );
+        p.transition(
+            &format!("{wide}table unrelated:\n  public\n  online only\n"),
+            false,
+        )
+        .unwrap();
+        p.count("notes", 1);
+    }
+);
+
+fn group_candidate(cap: bool) -> (String, String) {
+    if cap {
+        let before = source("int").replace("  public\n", "  cap 2 by item\n  public\n");
+        let after = before.replace("cap 2", "cap 1");
+        (before, after)
+    } else {
+        let before = source("int");
+        let after = before.replace("  public\n", "  unique byItem: item\n  public\n");
+        (before, after)
+    }
+}
+// Both source and typed schemas reject zero before store dispatch.
+fn group_bound(source: &str, zero: bool) -> (Schema, Vec<Program>) {
+    let (mut schema, programs) = bound(source);
+    if zero {
+        for constraint in &mut schema.tables.get_mut("notes").unwrap().constraints {
+            if let snapback4_core::schema::Constraint::Cap { max, .. } = constraint {
+                *max = 0;
+            }
+        }
+    }
+    (schema, programs)
+}
+fn dev_group_refusal(cap: bool, zero: bool, added_literal: bool) {
+    let (before, after) = group_candidate(cap);
+    let after = if added_literal {
+        after.replace(
+            "  unique byItem: item\n",
+            "  tag: int default 7\n  unique byTag: tag\n",
+        )
+    } else {
+        after
+    };
+    let before = if zero {
+        before.replace("cap 2", "cap 1")
+    } else {
+        before
+    };
+    let (schema, programs) = bound(&before);
+    let url = std::env::var("SNAPBACK4_EVAL_POSTGRES").unwrap();
+    let namespace = format!("sb4_ev2_dev_group_{:x}", snapback4_core::ids::seed());
+    let mut sqlite = Engine::new_at(
+        AnyStore::memory().unwrap(),
+        schema.clone(),
+        programs.clone(),
+        1000,
+    )
+    .unwrap();
+    let mut pg = Engine::new_at(
+        AnyStore::create_postgres(&url, &namespace).unwrap(),
+        schema,
+        programs,
+        1000,
+    )
+    .unwrap();
+    for e in [&mut sqlite, &mut pg] {
+        let table = e.schema().tables["notes"].clone();
+        let tx = e.store_mut().transaction().unwrap();
+        for key in if zero { vec!["a"] } else { vec!["a", "b"] } {
+            tx.put("notes", &table, &row(key, Value::Int(1)), None)
+                .unwrap();
+        }
+        tx.commit().unwrap();
+    }
+    let original = sqlite.store().rows("notes").unwrap();
+    let generation = pg.generation();
+    let (schema, programs) = group_bound(&after, zero);
+    let a = sqlite
+        .adopt_at(schema.clone(), programs.clone(), 1000)
+        .unwrap_err();
+    let b = pg.adopt_at(schema, programs, 1000).unwrap_err();
+    println!("SQLite {a:?}; PG {b:?}");
+    for e in [&sqlite, &pg] {
+        assert_eq!(e.generation(), generation);
+        assert_eq!(e.store().rows("notes").unwrap(), original);
+    }
+    assert_eq!(a.code(), if zero { "E_SCHEMA" } else { "E_ADOPT" });
+    assert_eq!(a.code(), b.code(), "SQLite {a:?}; PG {b:?}");
+    assert_eq!(a.to_string(), b.to_string());
+}
+fn release_group_refusal(cap: bool, zero: bool) {
+    let (before, after) = group_candidate(cap);
+    let before = if zero {
+        before.replace("cap 2", "cap 1")
+    } else {
+        before
+    };
+    let mut p = Pair::new(&before);
+    p.put("notes", row("a", Value::Int(1)));
+    if !zero {
+        p.put("notes", row("b", Value::Int(1)));
+    }
+    let snapshot = p.snapshot();
+    let (schema, programs) = group_bound(&after, zero);
+    let options = ReleaseActivation::new(2, Some(1));
+    let a = p
+        .sqlite
+        .adopt_release_at(schema.clone(), programs.clone(), &options, false, 1000)
+        .unwrap_err();
+    let b =
+        p.pg.adopt_release_at(schema, programs, &options, false, 1000)
+            .unwrap_err();
+    println!("SQLite {a:?}; PG {b:?}");
+    assert_eq!(snapshot, p.snapshot());
+    p.equal();
+    assert_eq!(a.code(), if zero { "E_SCHEMA" } else { "E_ADOPT" });
+    assert_eq!(a.to_string(), b.to_string());
+}
+dual!(dev_unique_refusal_matches_code_and_text, {
+    dev_group_refusal(false, false, false);
+    // A newly defaulted column is additive; SQLite diagnoses its unique index.
+    dev_group_refusal(false, false, true);
+});
+dual!(
+    dev_cap_refusal_matches_code_and_text,
+    dev_group_refusal(true, false, false)
+);
+dual!(
+    release_unique_refusal_matches_text,
+    release_group_refusal(false, false)
+);
+dual!(
+    release_cap_refusal_matches_text,
+    release_group_refusal(true, false)
+);
+
+dual!(restored_unique_refusal_bounds_samples_and_matches_text, {
+    let wide = source("int");
+    let mut p = Pair::new(&wide);
+    for n in 1..=6 {
+        for prefix in ["a", "b"] {
+            p.put("notes", row(&format!("{prefix}{n}"), Value::Int(n)));
+        }
+    }
+    p.transition(&source("int 0..0"), false).unwrap();
+    p.count("notes", 0);
+    let unique = wide.replace("  public\n", "  unique byItem: item\n  public\n");
+    let snapshot = p.snapshot();
+    let a = release(&mut p.sqlite, &unique, 3, false).unwrap_err();
+    let b = release(&mut p.pg, &unique, 3, false).unwrap_err();
+    assert_eq!(snapshot, p.snapshot());
+    p.equal();
+    assert_eq!(a.to_string(), b.to_string());
+    assert!(a.to_string().contains("1 more restoration groups"));
+    assert!(a.to_string().contains("sample ids [a1, a2, a3, a4, a5]"));
+});
+
+dual!(
+    dev_zero_cap_refuses_before_store_dispatch,
+    dev_group_refusal(true, true, false)
+);
+dual!(
+    release_zero_cap_refuses_before_store_dispatch,
+    release_group_refusal(true, true)
+);

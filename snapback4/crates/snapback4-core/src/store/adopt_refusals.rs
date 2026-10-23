@@ -4,13 +4,13 @@ use super::*;
 use crate::schema::{Constraint, materialize_optional_fields};
 
 #[derive(Default)]
-pub(super) struct Samples {
+pub(crate) struct Samples {
     pub count: u64,
     ids: Vec<String>,
     values: Vec<String>,
     last_id: Option<String>,
 }
-pub(super) fn bounded(text: &str) -> String {
+pub(crate) fn bounded(text: &str) -> String {
     if text.len() <= 256 {
         return text.into();
     }
@@ -21,7 +21,7 @@ pub(super) fn bounded(text: &str) -> String {
     format!("{}… [truncated]", &text[..end])
 }
 
-fn value_sample(value: &Value) -> String {
+pub(crate) fn value_sample(value: &Value) -> String {
     struct Prefix(Vec<u8>);
     impl std::io::Write for Prefix {
         fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
@@ -249,15 +249,26 @@ fn groups(
     }
     tx.conn().execute_batch("DROP TABLE temp._adopt_groups; DROP TABLE IF EXISTS temp._adopt_restored; DROP TABLE IF EXISTS temp._adopt_conflicts;")?;
     if count != 0 {
-        return Err(RuntimeError::Structural {
-            code: "E_ADOPT",
-            message: format!(
-                "{label}: {}; limit {max}{origin}; rewrite: repair duplicate/overfull groups through the current release; if those rows are dormant, deploy a bridge with widened types and this index non-unique / increased cap using --restore-dormant, repair through a bridge mutation, then reinstate the constraint; inspect: snapback4 sql \"SELECT * FROM [{name}]\" --release <dir>",
-                bad.describe()
-            ),
-        });
+        return Err(group_refusal(name, label, max, &bad, &origin));
     }
     Ok(())
+}
+
+// Shared wording and bounded samples are part of the adapter refusal contract.
+pub(crate) fn group_refusal(
+    name: &str,
+    label: &str,
+    max: u64,
+    bad: &Samples,
+    origin: &str,
+) -> RuntimeError {
+    RuntimeError::Structural {
+        code: "E_ADOPT",
+        message: format!(
+            "{label}: {}; limit {max}{origin}; rewrite: repair duplicate/overfull groups through the current release; if those rows are dormant, deploy a bridge with widened types and this index non-unique / increased cap using --restore-dormant, repair through a bridge mutation, then reinstate the constraint; inspect: snapback4 sql \"SELECT * FROM [{name}]\" --release <dir>",
+            bad.describe()
+        ),
+    }
 }
 
 pub(super) fn detail(
