@@ -14,3 +14,11 @@ passes. No allowance was raised or census test disabled.
 Move the fixture access behind the appropriate neutral test hook, or obtain
 the required reviewed allowance decision. Preserve the census coverage. Logs
 are retained in [the lane report](../snapback4/reports/20261023-p1-ev1-schema-evolution/REPORT.md).
+
+## Resolution (2026-10-23, lead)
+
+Fixed on main in `a044e8d606`. The four sites are the K0-Q fix-forward
+mint-retirement fixture's lock holder (a second real SQLite connection with
+`BEGIN IMMEDIATE`). They are now a reviewed test allowance,
+`crates/snapback4/src/dev_worker_tests.rs 4`. The same update lowered
+`serve_tests.rs` from 11 to 10. The store-port ratchet passes on main.

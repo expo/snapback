@@ -29,3 +29,12 @@ Postgres evolution only. No claim that this result was reproduced on an old
 binary is made. The broad sweep also failed missing-record and private-serve
 preparation cases, both of which pass serially. Raw evidence stays under
 `/tmp/sb4-p1ev1-fix1/`; the lane report records the remaining scope.
+
+## Resolution (2026-10-23, lead)
+
+Not reproducible off the loaded host.
+`check_refutes_excluded_contact_roles_before_any_full_test` passes on
+expo-build-1000 at both main `a044e8d606` and P1-EV-1 `f8c54693c1`
+(2.97 s each). The failure was seen only on expo-build-450a under heavy
+parallel load, so it is an environment failure, not a P1-EV-1 or security
+regression. Closed.

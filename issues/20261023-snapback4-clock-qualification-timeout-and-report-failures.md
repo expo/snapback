@@ -23,3 +23,13 @@ Full and isolated logs are retained in
 [the lane report](../snapback4/reports/20261023-p1-ev1-schema-evolution/REPORT.md).
 Investigate the actual HTTP/clock completion and the large command's captured
 stderr before changing any bound.
+
+## Lead note (2026-10-23)
+
+Both cases pass on expo-build-1000 (load ~4), on main `a044e8d606`:
+`advance_drains_expiry_across_multiple_bounded_sweeps ... ok` and
+`kit3_large_clock_report_uses_complete_http_and_runnable_no_argument_commands ... ok`
+(1.15 s). They failed only on expo-build-450a while three or four lanes were
+building there (load average 11–31). This ticket stays open for the
+timing-under-load question. Neither failure is a regression from the K0-Q
+clock changes.
