@@ -236,6 +236,7 @@ pub(super) fn transition(
             restored += n as u64;
         }
     }
+    tx.execute("INSERT INTO _evolution_restored(kind,t,col,id) SELECT 'narrowed',t,'',id FROM _dormant_narrow_rows n WHERE EXISTS(SELECT 1 FROM r WHERE r.t=n.t AND r.id=n.id) ON CONFLICT DO NOTHING",&[])?;
     tx.execute("DELETE FROM _dormant_narrow_rows n WHERE EXISTS(SELECT 1 FROM r WHERE r.t=n.t AND r.id=n.id)",&[])?;
     tx.set_meta("activation_narrowed_retained", &newly.to_string())?;
     tx.set_meta("activation_narrowed_restored", &restored.to_string())?;

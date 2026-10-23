@@ -287,6 +287,8 @@ try:
         assert code in refused.stderr and 'private-password' not in refused.stderr,refused.stderr
     from postgres_evolution_witness import witness as evolution_witness
     evolution_witness(globals(), url.replace('schema=serving','schema=ev1'))
+    from postgres_evolution_ev2_witness import witness as evolution_ev2_witness
+    evolution_ev2_witness(globals(), url.replace('schema=serving','schema=ev2'))
     if os.environ.get('SNAPBACK4_EV1_ONLY') == '1':
         raise SystemExit(0)
     change_evidence_witness(url.replace('schema=serving','schema=p1ce'))

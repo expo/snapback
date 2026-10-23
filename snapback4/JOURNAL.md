@@ -103676,3 +103676,16 @@ statements; RT0 tables are unchanged. All evidence and recorded processes stay
 in `/tmp/sb4-p1ev2/`. Private PG16 only; PG17/55440 is untouched. Builds use the
 owned warm target, four jobs and line-tables-only dev/test debug. Commits stay
 local on `sb4-pg/p1-ev2`, with no push, stash or Git configuration change.
+
+
+## 2026-10-23 — P1-EV-2: restoration narration follows survival
+
+Review found the inherited Postgres release-history stub still finalized every
+narrowed-restoration count as zero. The EV-2 walk now keeps transaction-local
+restoration identities through the common builder, then counts surviving images
+for table/column/narrowed history. These identities drop with commit or rollback;
+no population of row ids is retained in memory. Conformance also compares release
+summaries, restoration items and parent-lifetime evidence, and snapshots the
+history on failure. The public configured witness is added to the existing
+Postgres serve harness, with an old-binary failure at the intended narrowing
+refusal as its negative control.

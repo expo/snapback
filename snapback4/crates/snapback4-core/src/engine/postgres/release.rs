@@ -52,9 +52,18 @@ impl ReleaseHistoryReader for Tx<'_> {
 }
 impl ReleaseHistoryTransaction for Tx<'_> {
     fn finalize_restorations(&self) -> Result<(), RuntimeError> {
-        // The admitted profile has no dormant population. SQLite still records
-        // its finalized zero before the activation clears scratch metadata.
-        self.set_meta("activation_narrowed_restored", "0")
+        // @ref LLP 3000.009.001.000#3.5 — release counts follow final survival, including partial restoration.
+        let present:bool=self.query("SELECT to_regclass('pg_temp._evolution_restored') IS NOT NULL",&[])?[0].get(0);
+        let mut narrowed=0u64;
+        if present {
+            for row in self.query("SELECT s.kind,s.t,s.col,COUNT(r.id) FROM _evolution_restored s LEFT JOIN r ON r.t=s.t AND r.id=s.id GROUP BY s.kind,s.t,s.col ORDER BY s.kind,s.t,s.col",&[])? {
+                let kind:&str=row.get(0);let table:&str=row.get(1);let column:&str=row.get(2);let count:i64=row.get(3);
+                let path=if kind=="column" {format!("{table}.{column}")}else{table.into()};
+                self.set_meta(&format!("activation_{kind}_restored:{path}"),&count.to_string())?;
+                if kind=="narrowed" {narrowed+=count as u64;}
+            }
+        }
+        self.set_meta("activation_narrowed_restored", &narrowed.to_string())
     }
     fn insert_release_event(
         &self,

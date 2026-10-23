@@ -184,6 +184,9 @@ pub(super) fn transition(
         return Ok(());
     }
     let restore = tx.meta("activation_restore")?.as_deref() != Some("false");
+    // Keep restoration identities until the common builder finishes, so release
+    // narration counts only surviving images without a population-sized buffer.
+    tx.batch("CREATE TEMP TABLE _evolution_restored(kind TEXT COLLATE \"C\" NOT NULL,t TEXT COLLATE \"C\" NOT NULL,col TEXT COLLATE \"C\" NOT NULL,id TEXT COLLATE \"C\" NOT NULL,PRIMARY KEY(kind,t,col,id)) ON COMMIT DROP")?;
     let mut reuse = Vec::new();
     for (relation, query) in [
         (
@@ -321,6 +324,7 @@ pub(super) fn transition(
             &format!("activation_table_restored:{name}"),
             &count.to_string(),
         )?;
+        tx.execute("INSERT INTO _evolution_restored(kind,t,col,id) SELECT 'table',t,'',id FROM _dormant_rows WHERE t=$1 ON CONFLICT DO NOTHING",&[&name])?;
         tx.execute("DELETE FROM _dormant_rows WHERE t=$1", &[&name])?;
         tx.execute("DELETE FROM _dormant_tables WHERE table_name=$1", &[&name])?;
         restoring.insert(name, old);
@@ -379,6 +383,8 @@ pub(super) fn transition(
     }
     for (name, table) in &next.tables {
         for column in table.columns.keys() {
+            tx.set_meta(&format!("activation_column_restored:{name}.{column}"),"0")?;
+            tx.execute("INSERT INTO _evolution_restored(kind,t,col,id) SELECT 'column',t,column_name,id FROM _dormant_values v WHERE t=$1 AND column_name=$2 AND EXISTS(SELECT 1 FROM r WHERE r.t=v.t AND r.id=v.id) AND NOT EXISTS(SELECT 1 FROM _dormant_narrow_rows n WHERE n.t=v.t AND n.id=v.id) ON CONFLICT DO NOTHING",&[name,column])?;
             tx.execute(
                 "DELETE FROM _dormant_values v WHERE t=$1 AND column_name=$2 AND NOT EXISTS(SELECT 1 FROM _dormant_narrow_rows n WHERE n.t=v.t AND n.id=v.id)",
                 &[name, column],

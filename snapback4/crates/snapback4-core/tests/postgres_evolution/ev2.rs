@@ -76,6 +76,22 @@ impl Pair {
         let conn = self.sqlite.store().test_support_conn();
         for (sqlite, pg) in [
             (
+                "SELECT c.name,d.id,d.data FROM _dormant_rows d JOIN _catalog c ON c.num=d.t ORDER BY c.name,d.id",
+                "SELECT t,id,data FROM _dormant_rows ORDER BY t,id",
+            ),
+            (
+                "SELECT c.name,d.id,d.column_name,p.name,d.parent_id,CAST(d.invalid AS TEXT) FROM _dormant_refs d JOIN _catalog c ON c.num=d.t JOIN _catalog p ON p.num=d.parent_t ORDER BY c.name,d.id,d.column_name,p.name,d.parent_id",
+                "SELECT t,id,column_name,parent_t,parent_id,invalid::text FROM _dormant_refs ORDER BY t,id,column_name,parent_t,parent_id",
+            ),
+            (
+                "SELECT CAST(id AS TEXT),operation,CAST(generation AS TEXT),CAST(revision AS TEXT),summary FROM _release_events ORDER BY id",
+                "SELECT id::text,operation,generation::text,revision::text,summary FROM _release_events ORDER BY id",
+            ),
+            (
+                "SELECT CAST(event AS TEXT),path,detail FROM _release_event_items ORDER BY event,path",
+                "SELECT event::text,path,detail FROM _release_event_items ORDER BY event,path",
+            ),
+            (
                 "SELECT c.name,r.id,r.data FROM r JOIN _catalog c ON c.num=r.t ORDER BY c.name,r.id",
                 "SELECT t,id,data FROM r ORDER BY t,id",
             ),
@@ -175,7 +191,13 @@ impl Pair {
          "SELECT key,value FROM _meta ORDER BY key",
          "SELECT name,num::text FROM _catalog ORDER BY name",
          "SELECT generation::text,schema,programs,at::text FROM _generations ORDER BY generation",
-         "SELECT t,encode(k,'hex'),n::text FROM _cap_counts ORDER BY t,k"].iter().map(|sql|self.sql(sql)).collect()
+         "SELECT t,encode(k,'hex'),n::text FROM _cap_counts ORDER BY t,k",
+         "SELECT t,id,column_name,parent_t,parent_id,invalid::text FROM _dormant_refs ORDER BY t,id,column_name,parent_t,parent_id",
+         "SELECT table_name,definition FROM _dormant_tables ORDER BY table_name",
+         "SELECT table_name,index_name,definition FROM _dormant_indexes ORDER BY table_name,index_name",
+         "SELECT t,id,data FROM _dormant_rows ORDER BY t,id",
+         "SELECT id::text,at::text,operation,COALESCE(release::text,''),COALESCE(previous::text,''),generation::text,revision::text,summary FROM _release_events ORDER BY id",
+         "SELECT event::text,path,detail FROM _release_event_items ORDER BY event,path"].iter().map(|sql|self.sql(sql)).collect()
     }
     fn count(&self, name: &str, n: usize) {
         assert_eq!(self.sqlite.store().rows(name).unwrap().len(), n);
@@ -496,4 +518,19 @@ dual!(set_null_cap_groups, {
     p.count("notes", 1);
     p.transition(wide, false).unwrap();
     p.count("notes", 2);
+});
+
+dual!(default_change_rebuilds_unique_groups_atomically, {
+    let wide = source("int default 7").replace("  public\n", "  unique byItem: item\n  public\n");
+    let mut p = Pair::new(&wide);
+    p.put("notes", object([("id", id("sparse"))]));
+    p.put("notes", row("explicit", Value::Int(8)));
+    p.transition(&wide.replace("default 7", "default 8"), false)
+        .unwrap_err();
+    let nonunique = wide
+        .replace("unique byItem: item", "by byItem: item, id")
+        .replace("default 7", "default 8");
+    p.transition(&nonunique, false).unwrap();
+    p.count("notes", 2);
+    p.transition(&wide, false).unwrap();
 });
