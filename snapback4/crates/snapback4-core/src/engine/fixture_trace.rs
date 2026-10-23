@@ -66,6 +66,7 @@ impl Runner<'_> {
                     match (a,b){(Some(Some(false)),_)|(_,Some(Some(false)))=>Some(false),(Some(None),_)|(_,Some(None))=>None,_=>Some(true)}
                 })
             } else if intent.paired {
+                // @ref LLP 3000.036.004.000#5-derived-campaigns-and-production-deployment — retained approval uses the actual old/next pair.
                 match (old,next){(Some(_),Some(next))=>judge(next),_=>None}
             } else { match (old, next) {
                 (Some(old), Some(next)) => match (judge(old), judge(next)) {
