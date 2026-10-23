@@ -712,7 +712,7 @@ test('guide shared list recipe typechecks against PageHook and WriteHook', async
 test('guide useAuth member list typechecks against the emitted React declaration', async () => {
   const {readFileSync}=await import('node:fs');
   const card=readFileSync(new URL('../../../crates/snapback4-lang/src/guide/client.md',import.meta.url),'utf8');
-  const prose=card.split('`useAuth()`:')[1]?.split('Client:')[0];
+  const prose=card.match(/^`useAuth\(\)`:\s*(.+)$/m)?.[1].split('; client ')[0];
   assert.ok(prose, 'the current guide lists useAuth members');
   const members=[...prose.matchAll(/`([a-zA-Z]+)(?:\([^\)]*\))?`/g)].map(match=>match[1]);
   const result=check(`import {useAuth} from './dist/react.js';

@@ -272,7 +272,7 @@ test('row-presence guards and field guards ignore new unconsulted defaulted colu
   writeFileSync(schema,source);run('deploy',deployment);
   writeFileSync(schema,source.replace('  body: text <=80',"  body: text <=80\n  label: text <=20 default 'label'"));
   const added=run('deploy',deployment,'--check').stdout;
-  assert.match(JSON.parse(run('deploy',deployment,'--check','--json').stdout).clientCompatibility.join('\n'),/operation add: RESULT REVIEW/);
+  assert.match(JSON.parse(run('deploy',deployment,'--check','--json').stdout).clientCompatibility.join('\n'),/operation add: RESULT NOTE/);
   assert.doesNotMatch(added,/publish.require|guards unproved|operation publish:/);
   writeFileSync(schema,source.replace('  body: text <=80','  body: text <=90'));
   const widened=run('deploy',deployment,'--check').stdout;
@@ -713,7 +713,7 @@ mutation resultGuard():
   assert.equal((await host.post('/m/resultGuard',{})).state,'sent');
   writeFileSync(schema,source.replace('  body: text <=80', "  body: text <=80\n  label: text <=20 default 'none'"));
   const added=run('deploy',deployment,'--check').stdout;
-  assert.match(JSON.parse(run('deploy',deployment,'--check','--json').stdout).clientCompatibility.join('\n'),/operation seedNote: RESULT REVIEW/);
+  assert.match(JSON.parse(run('deploy',deployment,'--check','--json').stdout).clientCompatibility.join('\n'),/operation seedNote: RESULT NOTE/);
   assert.doesNotMatch(added,/resultGuard.require|guards unproved|operation resultGuard:/);
   writeFileSync(schema,source.replace("{body: 'safe'}","{body: 'blocked'}"));
   assert.match(run('deploy',deployment,'--check').stdout,/WARNING.*changes \(implication unproved\) resultGuard.require/);
@@ -814,7 +814,7 @@ mutation grant():
   const nullable=source.replace('  immutable principal, role', '  team: teams ?\n  immutable principal, role');
   writeFileSync(schema,nullable);
   const forward=run('deploy',deployment,'--check').stdout;
-  assert.match(JSON.parse(run('deploy',deployment,'--check','--json').stdout).clientCompatibility.join('\n'),/operation grant: RESULT REVIEW/);
+  assert.match(JSON.parse(run('deploy',deployment,'--check','--json').stdout).clientCompatibility.join('\n'),/operation grant: RESULT NOTE/);
   assert.doesNotMatch(forward,/\.require|guards unproved|operation (add|edit|remove):/);
   run('deploy',deployment);
   const backward=run('rollback',deployment, '--exact','--to','1','--check').stdout;

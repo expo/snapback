@@ -92,7 +92,7 @@ function PublicNotes() {
 ## React hooks and auth decisions
 
 Signed-out: show sign-in; restoring: keep shell. `useAppReady()` follows ready; sign-out/app replacement resets it. Keep drafts above role/release gates; readiness grants no authority. `writes:"online"` with device/readOnly yields signed-out `useAuth().why` and failed app.ready. Recreate corrected. Missing browser storage still throws `E_ADMISSION`.
-`useAuth()`: `state`/`viewer`/`why`, signup/login/guest/logout/logoutEverywhere; client `signOut()`; Expo secureStoreSessionStore(SecureStore). Password/custody: [reference](CLIENT-AND-OPERATIONS.md#password-react-and-expo). E_SESSION names invalid fields. Online tokens return no session and refresh explicitly; automatic refresh/devices need complete Sessions.
+`useAuth()`: `state`/`viewer`/`why`, `signup`/`login`/`guest`/`logout`/`logoutEverywhere`; client `signOut()`; Expo secureStoreSessionStore(SecureStore). Password/custody: [reference](CLIENT-AND-OPERATIONS.md#password-react-and-expo). E_SESSION names invalid fields. Online tokens return no session and refresh explicitly; automatic refresh/devices need complete Sessions.
 
 | Helper | Input/result | Handlers/arguments |
 | --- | --- | --- |

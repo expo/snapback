@@ -15,7 +15,7 @@ const [clientGuide, wireGuide, rulesGuide, recipesGuide, testingGuide, cheatshee
   guide("client"), guide("wire"), guide("rules"), guide("rule-recipes"),
   guide("testing"), guide("cheatsheet"), guide("production"),
 ]);
-assert.match(clientGuide, /exhaustPages/); assert.match(clientGuide, /cursor is opaque/i);
+assert.match(clientGuide, /exhaustPages/); assert.match(clientGuide, /treat the cursor as opaque/i);
 assert.match(wireGuide, /opaque continuation/); assert.match(wireGuide, /projected `id`/);
 assert.match(rulesGuide, /`require` decides intent; it never grants table authority/);
 assert.match(rulesGuide, /`read through live \.parent`/); assert.match(recipesGuide, /audience and lifetime captured/);
