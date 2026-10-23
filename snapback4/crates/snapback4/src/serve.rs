@@ -1254,7 +1254,9 @@ fn handle(mut request: Request, shared: &Shared) {
                         let metadata = head::query_response_head(&mut reader, metadata, &outcome);
                         if let Err(why) = &metadata && why.code == "E_GENERATION" {
                             if handoffs < 2 { handoffs += 1; continue; }
-                            return respond_timed(request, shared, 503, json!({"denied":why}));
+                            // @ref LLP 3000.018#3.2 — a refused query has no complete answer or certified cut.
+                            // Retain its refusal marker without opening another snapshot.
+                            return respond_timed(request, shared, 503, json!({"denied":why,"complete":false,"generation":query_generation}));
                         }
                         trace::mark("query_end");
                         let scopes = read_scopes::complete(scopes, reader.schema(), outcome.as_ref().map_or(&[], |o| &o.tables));

@@ -406,5 +406,7 @@ fn query_outcome_generation_after_two_handoffs_returns_503() {
     assert_eq!(status(&response), 503, "{response}");
     assert_eq!(body(&response)["denied"]["code"], "E_GENERATION", "{response}");
     assert_eq!(body(&response)["complete"], false, "query-outcome refusal, not metadata/open refusal");
+    assert!(body(&response).get("head").is_none(), "failed query admission must not invent a current head");
+    assert!(body(&response).get("seq").is_none(), "failed query admission has no certified evaluation cut");
     assert_eq!(body(&host.request("POST", "/q/read", "x-snapback-persona: alice\r\n", "{}"))["data"], 4);
 }

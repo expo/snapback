@@ -102870,3 +102870,16 @@ clusters are independently confirmed stopped; all 26 recorded launch PIDs and
 all executables under this lane's target are absent. PIDs left: none. Lowest
 observed /home free space 58 GB; only the authorized target, four build jobs,
 no preserved target copies, no push, stash or git config edit.
+
+
+### 2026-10-23 — Integration 23: preserve the query refusal envelope after RT2
+
+The incoming request-metadata optimization reused E_GENERATION without another
+snapshot, but its exhausted query-handoff path omitted the existing
+`complete: false` marker. The unchanged two-handoff witness reproduced this
+deterministically on the black M5. Keep that marker and the attempted generation
+without reading metadata again; no `head` or `seq` is invented for the failed
+admission. The witness now also requires those uncertified fields to be absent.
+The original status, refusal, bounded handoffs and next successful read remain
+asserted. Integration 23's final report records isolated, complete and packed
+qualification; the earlier interrupted full runs are not completion evidence.
