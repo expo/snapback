@@ -28,3 +28,15 @@ or the aborted read).
 
 Raw baseline evidence: the SDK-UNK baseline report on expo-build-450a,
 `/tmp/sdkbase-report-tsk5f0fc/REPORT.md` (not in git).
+
+## Author ruling (2026-10-23)
+
+A view-once asset's view is consumed when a full, non-range read **starts**.
+The view-once record commits before any bytes are sent, as K0-Q does today,
+so the bytes are never delivered without a durable view. A ranged read or a
+read the server can tell was aborted before it was admitted does not consume
+the view. Update the asset LLP and the K0 note to this contract, and change
+`http-bounds.test.mjs` to assert it: a full GET answers 200 and consumes the
+view, a later GET answers 410 `E_ASSET_VIEWED`, and a range probe before the
+full GET does not consume the view. First confirm which request in the
+current test consumes the view.
