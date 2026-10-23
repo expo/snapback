@@ -814,3 +814,22 @@ fn final_existence_reference_keys_keep_identity_and_literal_meaning() {
     let changed=next.replace("catalog[slug = .tag.name]","catalog[slug = 'name']");
     assert!(release_bridge::requires_view(&source(old),&source(&changed)));
 }
+
+#[test]
+fn current_column_write_and_freeze_survive_default_bridge_without_invariants() {
+    let old = "table docs:\n  owner: principal\n  approved: bool default false\n  body: text <=40 ?\n  read <- allow\n  insert <- allow\n  update <- allow\n  online only\nmutation create(owner: principal, body: text <=40 ?):\n  return insert docs {owner, body}\n";
+    let current=old.replace("body: text <=40 ?", "body: text <=80 ? write <- .owner = viewer")
+        .replace("  online only", "  immutable body when .approved = true\n  online only");
+    let target=vec![("schema.q".into(),old.into())];
+    let source=vec![("schema.q".into(),current)];
+    assert!(release_bridge::requires_view(&target,&source));
+    let bridge=release_bridge::loosen(&target,&source);
+    assert!(bridge.diagnostics.is_empty(),"{:?}",bridge.diagnostics);
+    let got=compile(&bridge.sources);let expected=compile(&source);
+    assert!(got.diagnostics.is_empty(),"{:?}",got.diagnostics);
+    assert!(!expected.schema.tables["docs"].column_writes.is_empty());
+    assert!(!expected.schema.tables["docs"].frozen_columns.is_empty());
+    assert_eq!(got.schema.tables["docs"].column_writes,expected.schema.tables["docs"].column_writes);
+    assert_eq!(got.schema.tables["docs"].frozen_columns,expected.schema.tables["docs"].frozen_columns);
+    assert_eq!(got.programs[0].program,expected.programs[0].program);
+}

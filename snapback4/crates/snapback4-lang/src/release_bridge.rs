@@ -20,6 +20,11 @@ pub fn requires_view(target:&[(String,String)],current:&[(String,String)])->bool
         && !crate::compile(current).invariants.is_empty()
         && modules(target)!=modules(current) {return true;}
     let before_schema=crate::compile(target).schema;
+    let current_schema=crate::compile(current).schema;
+    // Column authority is enforced independent intent: a default rollback
+    // must retain its current workflow even without an authored invariant.
+    if current_schema.tables.iter().any(|(name,t)| (!t.column_writes.is_empty()||!t.frozen_columns.is_empty()) && before_schema.table(name).is_none_or(|old| old.column_writes!=t.column_writes||old.frozen_columns!=t.frozen_columns)) {return true;}
+
     let after_schema=crate::compile(current).schema;
     let mut table_names=after_schema.table_renames.iter()
         .filter(|(_,old)|before_schema.tables.contains_key(*old))
@@ -96,7 +101,8 @@ pub fn same_data_and_intent(target:&[(String,String)],current:&[(String,String)]
 }
 
 pub fn loosen(target:&[(String,String)],current:&[(String,String)])->Bridge {
-    if !crate::compile(current).invariants.is_empty() {
+    let current_bound=crate::compile(current);
+    if !current_bound.invariants.is_empty()||current_bound.schema.tables.values().any(|t|!t.column_writes.is_empty()||!t.frozen_columns.is_empty()) {
         let mut allow_guarded=false;
         let complete=super::release_bridge_current::prepare(target,current,&mut allow_guarded);
         if complete.diagnostics.is_empty() || !allow_guarded{return complete;}
@@ -233,6 +239,8 @@ fn loosen_guarded(target:&[(String,String)],current:&[(String,String)])->Bridge 
             table.column_reads.len()!=authority.column_reads.len()
                 ||table.column_reads.iter().any(|(column,rule)|!policies.optional_rule(Some(rule),authority.column_reads.get(column)))
                 ||table.written_by!=authority.written_by
+                ||table.column_writes!=authority.column_writes
+                ||table.frozen_columns!=authority.frozen_columns
         })) {
             diagnostics.push(crate::diag::type_error(&next.site,format!("rollback view needs current field authority on {name}"),"retain the complete current guarded workflow and its column read/write authority").guide("deploy"));
         }
@@ -259,7 +267,7 @@ pub fn type_span(file:&str,text:&str,column:&ast::ColumnDecl)->Option<(usize,usi
     for (ordinal,token) in tokens.iter().skip(at+2).enumerate() {
         // A nominal type may itself be named `default`, `read`, etc. Only
         // recognize metadata after consuming the first token of the type.
-        if ordinal>0 && depth==0 && (token.kind==Kind::Newline || matches!(token.value.as_str(),"default"|"renamed"|"on"|"read"|"written"|"readable")) {
+        if ordinal>0 && depth==0 && (token.kind==Kind::Newline || matches!(token.value.as_str(),"default"|"renamed"|"on"|"read"|"write"|"written"|"readable")) {
             // End before whitespace preceding metadata/comment/newline.
             let end=offset(text,token.site.line,token.site.col);
             let start=offset(text,start.site.line,start.site.col);let end=text[..end].trim_end().len();
