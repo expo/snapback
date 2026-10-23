@@ -1,6 +1,7 @@
 //! SQLite erases booleans to integers. Recover direct column types from the
 //! adopted schema and SQL projection, never by guessing from names or 0/1.
 // @ref LLP 3000.007#20.26 — positional JSON stays compatible; boolean recovery is presentation on the operator's adopted snapshot.
+// @ref LLP 3000.000.000.002#10-wave-25-day-two-friction-dx8 — direct schema-proven media cells use their ordinary wire JSON in object rows.
 use snapback4_core::{inspection::InspectionColumnKind as Kind, schema::{ColumnType, Schema}};
 use sqlparser::{ast::{Expr, ObjectName, Query, SelectItem, SelectItemQualifiedWildcardKind, SetExpr, Statement, TableFactor}, dialect::SQLiteDialect, parser::Parser};
 use std::collections::{BTreeMap, BTreeSet};

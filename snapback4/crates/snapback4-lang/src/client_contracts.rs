@@ -1,4 +1,5 @@
 //! @ref LLP 3000.000.000.000#11-old-client-operation-contracts-rel5 — compare old callers with the candidate, separately from data adoption.
+// @ref LLP 3000.000.000.002#10-wave-25-day-two-friction-dx8 — declared table renames preserve Ref inputs; additive result fields are notes.
 use crate::{Bound, BoundProgram, types::Ty};
 use snapback4_core::ir::{ArgType as A, ProgramKind};
 use std::collections::BTreeMap;

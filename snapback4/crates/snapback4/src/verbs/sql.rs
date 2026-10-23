@@ -113,7 +113,7 @@ fn query_error(schema: &Schema, retained: &[snapback4_core::release_history::Dor
     if let Some(table) = missing {
         let rows = retained_table_rows(retained, table.trim_matches(['`', '"', '\'']));
         if rows > 0 {
-            return ("E_INPUT", format!("SQL: {message}; {rows} retained dormant {} exist for {table}; rerun with --dormant and an explicit --release", if rows == 1 { "row" } else { "rows" }));
+            return ("E_INPUT", format!("SQL: {message}; {rows} retained dormant {} exist for {table}; inspect them with `snapback4 sql 'SELECT * FROM {table}' --release <dir> --dormant`", if rows == 1 { "row" } else { "rows" }));
         }
     }
     snapback4_core::inspection::query_error(schema, message)

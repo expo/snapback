@@ -1,5 +1,5 @@
 //! Capture the selected deployed bytes, generated client and contemporary fixtures.
-// @ref LLP 3000.011.003.000.000#14-wave-15-saved-deployments-and-case-evidence-day5 — source and fixture evidence is immutable; identical-source refresh may repair derived artifacts.
+// @ref LLP 3000.000.000.002#10-wave-25-day-two-friction-dx8 — exact-source refresh repairs derived artifacts without changing source or fixture evidence.
 use super::{Options, Project};
 use std::{collections::BTreeMap, path::PathBuf};
 
