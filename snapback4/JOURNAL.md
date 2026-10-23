@@ -104438,3 +104438,7 @@ Read planning retains the existing 4 MiB prefetch allowance; encoder allocation
 and aggregate SQL are guarded within the existing 256 MiB physical envelope.
 Private PG16 lifetime 3342451 remains owned until final shutdown. No raw logs
 are committed, and no push, stash or persistent Git configuration change occurs.
+
+RT6 scope review: the credential planning hint is stored only with the Postgres
+feature; SQLite-only and device Context layouts retain their original fields.
+The host helper is a no-op without that feature. No SQL or meter behavior changes.
