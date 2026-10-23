@@ -897,26 +897,10 @@ impl Engine {
 
     /// The same receipt lookup split at the event cut and the image read head.
     pub fn acknowledged_at(&mut self, principal: &str, pending: &[String], through: u64, images_at: u64) -> Result<(BTreeMap<String, u64>, BTreeMap<String, u64>), RuntimeError> {
-        use crate::receipts::ReceiptReader;
-        if images_at < through { return Err(RuntimeError::Input("image head precedes the event watermark".into())); }
-        if pending.len() > 256 || pending.iter().any(|id| id.len() > 128) { return Err(RuntimeError::Input("sync accepts at most 256 pending ids of at most 128 bytes".into())); }
         let tx = self.store.read_transaction()?;
-        let mut acknowledged = BTreeMap::new();
-        let mut committed_above = BTreeMap::new();
-        for id in pending {
-            // @ref LLP 3000.013#6 — idempotency also records refusals; only
-            // committed success can acknowledge execution in a device outbox.
-            let seq: Option<i64> = tx.sent_sequence(principal, id, images_at.max(through).min(i64::MAX as u64) as i64)?;
-            if let Some(seq) = seq {
-                let seq = u64::try_from(seq).map_err(|_| {
-                    RuntimeError::Store("negative stored operation sequence".into())
-                })?;
-                if seq <= through { acknowledged.insert(id.clone(), seq); }
-                else { committed_above.insert(id.clone(), seq); }
-            }
-        }
+        let result = sync_evidence::acknowledged(&tx, principal, pending, through, images_at)?;
         tx.rollback()?;
-        Ok((acknowledged, committed_above))
+        Ok(result)
     }
 
     /// Inspect an existing receipt by id. This grants no historical result
@@ -1376,6 +1360,10 @@ impl Engine {
 pub use row_views::ViewChunk;
 
 mod receipts;
+#[cfg(feature = "sqlite")]
+mod sync_evidence;
+#[cfg(feature = "sqlite")]
+pub use sync_evidence::CertifiedStream;
 
 #[cfg(feature = "sqlite")]
 pub(crate) mod dev_reset;

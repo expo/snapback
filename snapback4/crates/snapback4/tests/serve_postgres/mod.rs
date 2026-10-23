@@ -30,7 +30,7 @@ fn s10c_postgres_internal_http_host_witness() {
     assert!(identity.as_str().is_some_and(|id| !id.is_empty()));
     let request = |id: &str, n: i64| json!({ "id": id, "args": { "key": "n1", "n": n }, "store_id": identity }).to_string();
     let sent = body(&host.request("POST", "/m/put", &headers, &request("first", 7)));
-    assert_eq!(sent["state"], "sent", "{sent}"); assert_eq!(sent["seq"], 1); assert!(sent["preserved"].is_null());
+    assert_eq!(sent["state"], "sent", "{sent}"); assert_eq!(sent["seq"], 1); assert_eq!(sent["preserved"], json!(["notes"]));
     let replay = body(&host.request("POST", "/m/put", &headers, &request("first", 7)));
     assert_eq!(replay["replayed"], true); assert_eq!(replay["seq"], 1); assert!(replay.get("result").is_none());
     let reused = body(&host.request("POST", "/m/put", &headers, &request("first", 8)));
@@ -41,7 +41,7 @@ fn s10c_postgres_internal_http_host_witness() {
     assert_eq!(refused["state"], "failed"); assert_eq!(refused["why"]["code"], "NO");
     let replay = body(&host.request("POST", "/m/refuse", &headers, r#"{"id":"failed","args":{}}"#));
     assert_eq!(replay["replayed"], true);
-    { let engine = lock(&host.shared.engine); assert!(engine.store().preserved_between(engine.schema(), 0, 1).is_none()); }
+    { let engine = lock(&host.shared.engine); assert_eq!(engine.store().preserved_between(engine.schema(), 0, 1), Some(vec!["notes".into()])); }
     let response = host.request("POST", "/auth/logout", &headers, "{}");
     assert_eq!(status(&response), 200, "{response}");
     let logged_out = body(&response);
