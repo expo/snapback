@@ -45,6 +45,9 @@ impl<const N: usize> Write for Line<N> {
 
 pub(crate) fn generation(next: u64) { GENERATION.store(next, Ordering::Release); }
 pub(crate) fn stopping() -> bool { SIGNAL.load(Ordering::Acquire) != 0 }
+/// Request the same managed shutdown path as SIGTERM after a private owner
+/// control command has been authenticated and acknowledged.
+pub(crate) fn request_stop() { SIGNAL.store(libc::SIGTERM, Ordering::Release); }
 /// An uncertain durable clock commit cannot serve from the old process clock.
 #[cfg(feature = "postgres")]
 pub(crate) fn uncertain_clock_commit() -> ! {

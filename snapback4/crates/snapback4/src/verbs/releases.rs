@@ -731,6 +731,35 @@ pub fn serve_release(options: &Options) -> Result<(), String> {
     )
 }
 
+/// Ask the current retained owner to stop through its private same-owner
+/// control socket, then wait until the store lock proves cleanup completed.
+pub fn stop_release(options: &Options) -> i32 {
+    let result = (|| {
+        if crate::store_config::StoreConfig::resolve(options)?.is_some() {
+            return Err("E_STORE_UNSUPPORTED: stop is outside the admitted store profile".into());
+        }
+        let dir = existing_deployment(&directory(options)?)?;
+        match crate::release_control::request(&dir, crate::release_control::Command::Stop) {
+            Ok(_) => {
+                crate::store_owner::wait_released(&dir.join("store.sqlite"), std::time::Duration::from_secs(10))?;
+                println!("store stopped: {}", dir.display());
+                Ok(())
+            }
+            Err(control) => match crate::store_owner::wait_released(&dir.join("store.sqlite"), std::time::Duration::ZERO) {
+                Ok(()) => {
+                    println!("store already stopped: {}", dir.display());
+                    Ok(())
+                }
+                Err(_) => Err(control),
+            },
+        }
+    })();
+    match result {
+        Ok(()) => 0,
+        Err(error) => { eprintln!("stop: {error}"); 1 }
+    }
+}
+
 pub(crate) fn release_bind(options: &Options) -> Result<std::net::IpAddr, String> {
     let bind = options
         .flags

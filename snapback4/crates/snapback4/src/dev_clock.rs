@@ -5,7 +5,7 @@ use std::time::{Duration, Instant};
 // @ref LLP 3000.000.000.001#8-wave-18-developer-loop-amendment-dx4 — preserve expiry tests and tell callers how to recover.
 pub(crate) const SESSION_NOTICE: &str = "Time travel also advances session expiry and unplaced-upload collection: seven-day password sessions may now be expired. Sign in again after the jump and upload unplaced bytes after it; never replay an ambiguous clock advance.";
 
-pub(crate) const PRESERVED_SESSION_NOTICE: &str = "Staging sessions keep their remaining lifetime across this jump; sessions:expire explicitly tests credential expiry. Unplaced uploads still age. Never replay an ambiguous advance.";
+pub(crate) const PRESERVED_SESSION_NOTICE: &str = "Authenticated development and staging sessions keep their remaining lifetime across this jump; sessions:expire explicitly tests credential expiry. Unplaced uploads still age. Never replay an ambiguous advance.";
 
 const MAX_TIME: i64 = snapback4_core::value::I53_MAX;
 
@@ -129,16 +129,22 @@ pub fn command(options: &crate::verbs::Options) -> i32 {
             let address = crate::store_owner::inspector_address(path).ok_or("staging clock requires a running serve")?;
             let session = crate::serve::token::mint_live(path, "clock", 1).map_err(|(_,error)|error)?;
             (address,None,Some(session.token))
-        } else { let (address,instance)=crate::verbs::dev_address(options)?; (address,instance,None) };
+        } else {
+            let (address,instance)=crate::verbs::dev_address(options)?;
+            let token=crate::verbs::mint_for_dev(address,"operator",1)?;
+            (address,instance,Some(token))
+        };
         let mut body = serde_json::json!({"duration":duration_text,"eachBoundary":options.flags.contains_key("each-boundary"), "drain":!options.flags.contains_key("no-drain"), "allowHeld":options.flags.contains_key("allow-held")});
         if options.flags.contains_key("expire-sessions") { body["sessions"] = "expire".into(); }
         if draining && options.flags.contains_key("no-drain") { return Err(input("clock drain does not accept --no-drain").to_string()); }
         let body = body.to_string();
         // The common HTTP/1.0 exchange is EOF-delimited and bounds replies at
         // 64 MiB, enough for the preflight's complete explicit window report.
-        let response = if let Some(token) = &token {
-            crate::verbs::run_forward::exchange_authorized(address,"POST","/dev/clock/advance",None,Some(token),&body,Duration::from_secs(60))
-        } else { crate::verbs::run_forward::exchange_dev(address, "/dev/clock/advance", instance.as_deref(), &body, Duration::from_secs(60)) };
+        let response = if release_path.is_some() {
+            crate::verbs::run_forward::exchange_authorized(address,"POST","/dev/clock/advance",None,token.as_deref(),&body,Duration::from_secs(60))
+        } else {
+            crate::verbs::run_forward::exchange_dev_authorized(address,"/dev/clock/advance",instance.as_deref(),token.as_deref().unwrap(),&body,Duration::from_secs(60))
+        };
         let (status, json) = response.map_err(|error| {
             let evidence = crate::verbs::run_forward::exchange(address, "GET", "/dev/status", None, "", Duration::from_secs(5)).ok()
                 .map(|(_, status)| format!("now={}, skewMs={}", status["now"], status["skewMs"]))

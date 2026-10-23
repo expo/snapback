@@ -397,7 +397,13 @@ pub(super) fn staging(shared: &Shared) -> Result<bool, snapback4_core::Refusal> 
     shared.engine.call(|engine, _| engine.store().deployment_environment().ok().flatten().as_deref() == Some("staging"))
 }
 fn clock_service(request: &Request, shared: &Shared) -> Result<Option<String>, snapback4_core::Refusal> {
-    if shared.personas { return Ok(None); }
+    if shared.personas {
+        match super::session_identity::principal_of(request,shared) {
+            Ok((principal,kind,snapback4_core::identity::SessionScope::Full)) if kind == "service" && principal == "service:operator" => return Ok(Some(principal)),
+            _ if shared.dev_doors() && crate::auth::bearer_token(request).is_err() => return Ok(None),
+            _ => return Err(snapback4_core::Refusal::new("E_AUTH", "auth", "development clock control requires a full service:operator token").guide("clock")),
+        }
+    }
     if !staging(shared)? { return Err(crate::dev_clock::release()); }
     match super::session_identity::principal_of(request,shared) {
         Ok((principal,kind,snapback4_core::identity::SessionScope::Full)) if kind == "service" && principal.starts_with("service:") => Ok(Some(principal)),
@@ -442,10 +448,10 @@ pub(super) fn advance(request: Request, shared: &Shared, body: &str) {
     };
     if each_boundary && !drain { return respond(request, 400, json!({"denied":refusal_json(&crate::dev_clock::input("eachBoundary requires drain:true"))})); }
     let preserve_sessions = match payload.get("sessions").and_then(|s| s.as_str()) {
-        None if payload.get("sessions").is_none() => !shared.personas,
-        Some("preserve") if !shared.personas => true,
+        None if payload.get("sessions").is_none() => service.is_some(),
+        Some("preserve") if service.is_some() => true,
         Some("expire") => false,
-        _ => return respond(request, 400, json!({"denied":refusal_json(&crate::dev_clock::input("sessions must be preserve (staging only) or expire"))})),
+        _ => return respond(request, 400, json!({"denied":refusal_json(&crate::dev_clock::input("sessions must be preserve (authenticated development or staging only) or expire"))})),
     };
     let duration = payload.get("duration").and_then(|value| value.as_str());
     let milliseconds = match duration.ok_or_else(|| crate::dev_clock::input("clock advance takes {\"duration\":\"+2m\"}"))
@@ -476,7 +482,7 @@ pub(super) fn advance(request: Request, shared: &Shared, body: &str) {
     let advanced = shared.engine.attempt(move |engine, shared| {
         let before = crate::dev_clock_store::saved_boundaries(engine);
         if let Some(principal) = &service {
-            if engine.store().deployment_environment().map_err(|e|e.refusal())?.as_deref() != Some("staging") { return Err(crate::dev_clock::release()); }
+            if !shared.personas && engine.store().deployment_environment().map_err(|e|e.refusal())?.as_deref() != Some("staging") { return Err(crate::dev_clock::release()); }
             super::session_identity::mutation_authority(&facts,shared,engine,principal)?;
         } else { shared.dev_authority(engine)?; }
         let mut clock = lock(&shared.clock);
@@ -497,7 +503,11 @@ pub(super) fn advance(request: Request, shared: &Shared, body: &str) {
             let effective_delta = now.checked_sub(effective_before)
                 .ok_or_else(|| crate::dev_clock::input("effective clock advance overflow"))?;
             let checkpoint = snapback4_core::metadata::StagingClock { now, offset: next.offset(), paused: true };
-            checkpoint_clock(&mut engine, effective_delta, effective_before, preserve_sessions, &checkpoint).map_err(|e|e.refusal())?;
+            checkpoint_clock(engine, effective_delta, effective_before, preserve_sessions, &checkpoint).map_err(|e|e.refusal())?;
+        } else if service.is_some() {
+            let effective_delta = now.checked_sub(effective_before)
+                .ok_or_else(|| crate::dev_clock::input("effective clock advance overflow"))?;
+            engine.advance_staging_clock_at(effective_delta, effective_before, preserve_sessions).map_err(|e|e.refusal())?;
         } else if milliseconds > 0 {
             engine.advance_worker_leases_at(milliseconds, clock.now()).map_err(|e|e.refusal())?;
         }

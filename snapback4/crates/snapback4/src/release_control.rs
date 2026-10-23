@@ -21,6 +21,7 @@ const OUTPUT: usize = 64 * 1024;
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "command", rename_all = "kebab-case", deny_unknown_fields)]
 pub(crate) enum Command {
+    Stop,
     Status {
         after: u64,
         items_after: Option<String>,

@@ -862,7 +862,7 @@ fn handle(mut request: Request, shared: &Shared) {
         return;
     }
     // /dev/token has already been routed through its mutual local-owner proof.
-    if shared.personas && (path.starts_with("/dev/") || path == "/seed") && !shared.dev_doors() {
+    if shared.personas && ((path.starts_with("/dev/") && !path.starts_with("/dev/clock")) || path == "/seed") && !shared.dev_doors() {
         return respond_timed(request, shared, 403, json!({"denied":refusal_json(&dev_doors::closed())}));
     }
     if path.starts_with("/dev/clock") && !shared.personas {

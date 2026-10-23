@@ -30,6 +30,10 @@ pub(super) fn apply(
     command: Command,
 ) -> Result<Json, String> {
     match command {
+        Command::Stop => {
+            crate::lifecycle::request_stop();
+            Ok(json!({"stopping":true}))
+        }
         Command::Status {
             after,
             items_after,

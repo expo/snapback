@@ -1331,11 +1331,12 @@ mod release_summary;
 mod release_narration;
 mod release_dependencies;
 mod clause_compare;
-pub use releases::{deploy, prune, releases, rollback, serve_release};
+pub use releases::{deploy, prune, releases, rollback, serve_release, stop_release};
 pub(crate) use releases::existing_deployment;
 pub(crate) use releases::release_bind;
 
 mod token;
+pub(crate) use token::mint_for_dev;
 pub use token::token;
 
 // @ref LLP 3000.020#3.1 — report the same normalized candidates execution chooses between.

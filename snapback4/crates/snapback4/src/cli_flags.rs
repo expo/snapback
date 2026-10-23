@@ -261,7 +261,7 @@ mod projection_tests {
 
 /// One synopsis for top-level help, per-verb help and usage errors. Flags come
 /// directly from the admission table, including value arity and retired forms.
-pub(crate) const VERBS: &[&str] = &["init","new","audit","check","device","types","dev","deploy","rollback","prune","releases","serve","run","clock","seed","reset","test","why","guide","data","sql","token","doctor","upgrade","witness","web-shell"];
+pub(crate) const VERBS: &[&str] = &["init","new","audit","check","device","types","dev","deploy","rollback","prune","releases","serve","stop","run","clock","seed","reset","test","why","guide","data","sql","token","doctor","upgrade","witness","web-shell"];
 pub(crate) fn synopsis(verb: &str) -> String {
     let positional = command(verb).map(|command|command.positional.as_str()).filter(|position|!position.is_empty()).map(|position|format!(" {position}")).unwrap_or_default();
     let mut out = format!("snapback4 {verb}{positional}");
@@ -283,6 +283,7 @@ pub(crate) fn top_help() -> String {
         "deploy"=>"Capture and activate an immutable release; running serve adopts it.", "rollback"=>"Preview or activate an existing release; preserve dormant storage.",
         "prune"=>"Preview or explicitly remove dormant release storage.", "releases"=>"Inspect database-authoritative release history and storage.",
         "serve"=>"Serve the active production release; bearer sessions only, behind a TLS proxy.",
+        "stop"=>"Gracefully stop the retained server that owns a deployment directory.",
         "run"=>"Run one operation or system job locally or against a serving backend.",
         "clock"=>"Advance the development clock, sweep expiry and run due jobs.", "reset"=>"Empty a development backend and optionally reseed it atomically.",
         "test"=>"Load fixtures, run cases and sweep queries as their personas; --residency: acquisition report only; add --verbose to run queries and print meters.", "why"=>"Explain a diagnostic, operation, table, work id or recent refusal.",

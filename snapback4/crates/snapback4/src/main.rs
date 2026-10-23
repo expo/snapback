@@ -91,7 +91,7 @@ fn main() -> ExitCode {
         return ExitCode::from(2);
     }
     let stateless_why = verb == "why" && options.positionals.first().is_some_and(|code| guide::explain_code(code).is_some());
-    if !stateless_why && store_config::selected(&options) && matches!(verb, "rollback"|"prune"|"releases"|"run"|"why"|"data"|"token") {
+    if !stateless_why && store_config::selected(&options) && matches!(verb, "rollback"|"prune"|"releases"|"stop"|"run"|"why"|"data"|"token") {
         if let Err(error) = store_config::StoreConfig::resolve(&options) { eprintln!("{error}"); return ExitCode::from(2); }
         eprintln!("E_STORE_UNSUPPORTED: this operator command is outside the admitted store profile");
         return ExitCode::from(1);
@@ -112,6 +112,7 @@ fn main() -> ExitCode {
         "prune" => verbs::prune(&options),
         "releases" => verbs::releases(&options),
         "serve" => lifecycle::run("serve", || verbs::serve_release(&options)),
+        "stop" => verbs::stop_release(&options),
         "check" => verbs::check(&options),
         "audit" => verbs::security::audit(&options),
         "types" => verbs::types(&options),
@@ -219,7 +220,7 @@ fn main() -> ExitCode {
 /// writer already discards a failed write; `deploy`/`rollback`/`token` change
 /// state and are left to finish.
 fn quiet_broken_pipe(verb: &str) {
-    if matches!(verb, "dev" | "serve" | "device" | "witness" | "deploy" | "rollback" | "prune" | "token") { return; }
+    if matches!(verb, "dev" | "serve" | "stop" | "device" | "witness" | "deploy" | "rollback" | "prune" | "token") { return; }
     // SAFETY: process entry, before any thread or child is started.
     unsafe { libc::signal(libc::SIGPIPE, libc::SIG_DFL); }
 }
