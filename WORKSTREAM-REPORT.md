@@ -1,191 +1,150 @@
-# DX7 — wave-24 fixes for 0.4.40
+# DX8 — day-two friction after 0.4.40
 
-Worktree: `/home/ccheever/projects/sb4-b24-dx7`; branch: `sb4-b24-dx7`.
-All four items are implemented and committed. No push, publication, or version
-bump. The source version remains 0.4.38. The 0.4.40 changelog entry feeds
-`guide changes` when that release version is selected; the current CLI filters
-future entries. SEC8's security questionnaire, intent, invariant-test and
-lifecycle work has a one-line ownership pointer in the entry.
+Worktree: `/home/ccheever/projects/sb4-b25-dx8`; branch `sb4-b25-dx8`.
+Source: complete wave-25 day-two bakeoff, especially §§3.4–3.5, §4, §8b and §8d. Source applications were read-only. This report replaces DX7's inherited report. No push or package version bump was performed. The user-visible changes are recorded for the next guide/package publication.
 
-## Per-item changes
+## Outcome
 
-### 3. Reused staging clock
+DX8 addressed all eleven requested day-two items. The current native candidate is `23b0d2f42daed3ab0b68cb008d4c11b5810931a9`, including the final empty-parent/lifetime-custody correction. The branch merged origin/main `06a9d2c47f` at `8be54b5269` with only append-only JOURNAL conflict resolution. User-visible changes are under `guide changes` for **0.4.41**; package versions remain unchanged.
 
-Persist cumulative offset, logical time and unfinished maintenance pause with
-the staging store. Recovery uses the maximum retained checkpoint, wall-plus-offset,
-commit, schedule and disclosure evidence. A smaller explicit offset cannot rewind.
-Checkpoint persistence and credential/lease shifts share the existing transaction;
-startup never shifts credentials twice. Failed persistence rolls both back, and
-an uncertain commit stops admission. Restart retains a paused drain; successful
-`drain()` finishes it without replaying a jump. Production controls remain refused.
+R7 obtained joint READY, then R8's deeper review found the empty-parent custody gap. The listener-rule amendment was READY in both families. The custody gap is fixed and covered by five regressions, with 20/20 extraction tests, 163/163 backfills and 734/734 nonignored core tests passing. Both fresh R9 reviewers returned **READY** on both complete amendments at `23b0d2f42d`; verbatim artifacts/provenance are committed in `a765a2c263`. The corrected native debug/production artifacts, exact fan-out replays and all four final installed helpers pass. Historical results retain their own source binding. The original fresh-pack Linux qualifier's inherited day5 source-reservation failure remains recorded; no publication receipt or subjective rating-win claim is made.
 
-Main commits: `591af24176`, `0f383b76ac`, `afa505baff`, `5e7e3f6856`.
-Tests: two rollback/recovery units; 45 clock integration tests on Mac; DX6/DX7
-client consumers; packed repeated restart/advance/pause/drain cases, lower explicit
-offset and production refusal. The packed staging group also passes.
+## Delivery by requested item
 
-### 6. Scrollable rendered text
+1. **Backfill and down interpretation.** Changed-meaning refusals print both complete digests; language and deployment examples show the actual pre-patch input; prune previews name known down projections whose retained evidence they would blind; and the deployment guide gives an explicit migration/rollback decision tree. Current-value and declaration-history checks remain atomic. The governing law is LLP 3000.000.000.002 §10. The final backfill module passes 163/163, including the forward and reverse aggregate-heap regressions. Principal commits: `fc060ff466`, `7dbd7c515b`, `474069d630`, `1446acb0f4`, `23b0d2f42d`.
 
-`renderedText` counts mounted text reachable through legal per-axis scroll ranges,
-composing nested clips without scrolling the application. Hidden content, real
-clips, unreachable negative origins and fixed text outside the viewport stay
-excluded. Fixed/sticky nodes use current geometry. Existing exact-match and
-smallest-element ambiguity behavior remains.
+2. **Process custody.** Authenticated `snapback4 stop <deployment-dir>` uses the owner control socket and waits for kernel lock release. Proof helpers own a bounded keeper/process group and terminate npm-wrapped descendants on timeout, startup failure, explicit stop, and caller death. R5 additionally registers detached frontend group leaders and refuses cleanup success while an inherited frontend descendant remains. CLI JSON guidance names `npm run --silent`, and the help scanner distinguishes that package-manager command from Snapback's own `run`. The full proof client file passes 29/29 at R6 with no cleanup failure or surviving owned process; three focused process-custody regressions pass. Principal commits: `0103051d68`, `0d4dd9059d`, `23dd4ba8d2`, `f89c203502`, `672a87f3ee`.
 
-Main commits: `d96fe03861`, `bd6ee0388e`.
-Tests: composed React Native labels below a ScrollView fold, nested scroll/hidden
-clips, hidden controls, fixed geometry and unchanged scroll positions. These run
-in the Linux client pool, fresh packed consumer and Mac Chromium tests.
+3. **Clock under real authentication.** Password development accepts exact `service:operator` clock control without opening unsafe fixture doors. Staging retains its existing full-service-seat authorization. Default jumps preserve full/read/action session lifetimes; explicit expiry remains available. Production performs a read-only status preflight only to surface the existing actionable `E_CLOCK_DEV_ONLY` refusal before token lookup. Development clock state remains process-local and restart returns to wall time; staging retains its durable clock checkpoint. The clock target passes 45/45 and presence passes 2/2. Packed qualification covers the real-password flow, two authenticated +120-second jumps, preservation, reconciliation, explicit expiry, and restart. Principal commits: `0103051d68`, `10e50cc9fc`, `7cc57aa7b3`, `80284aff10`, `7dc800a45f`.
 
-### 7. Gate and upgrade messaging
+4. **Inspection and dormancy.** `sql --json-objects` decodes schema-proven media into the public object shape; positional `--json` remains compatible. Human output warns on stderr when a rendered cell is truncated. SQL, data, and release inspection announce retained dormant populations and give an executable dormant-SQL command. Missing-table refusals name the retained table and its retained row count. Focused SQL/native tests and the packed inspection consumer pass. The copied lane-032 replay entered exact v1, reported 68 dormant `agreements` rows, refused the active-only SQL with an actionable `--dormant` command, returned all 68 through dormant SQL, and restored latest. Principal commits: `be4d4f58c6`, `f727679801`, `7e85c0e909`.
 
-Upgrade snapshots include security notes and pending gates while reading older
-snapshots compatibly. Deltas distinguish compiler refusals from pending security
-review gates. E_UPGRADE names individual `check --ack-security ID --reason ...`
-remediation. Refuted invariants explicitly suppress acknowledgment, explain the
-counterexample boundary and leave persisted review decisions unchanged. Numeric
-advance advice follows actual numeric consumption of that result, rather than
-unrelated operators elsewhere in the file. It remains a non-gating heuristic.
+5. **Production accounts.** `proof.provisionAccounts` follows `seedAccounts`' role/session shape while using ordinary real password signup followed by service-authorized grant mutations. Partial production setup errors advise inspection and completion; they never recommend discarding production. Service-token minting emits conservative warning metadata when the compiled schema has no explicit positive mention of the service principal, without treating mere text or result literals as authorization. Machine credential output remains clean. Proof-contract tests pass 16/16; focused production helper tests pass 2/2; scanner and live/stopped warning cases pass 1/1 each; exact installed README code creates a requested member against a fresh production deployment. Principal commits: `0d4dd9059d`, `f419561ce5`, `80284aff10`.
 
-Main commits: `c37460090b`, `c956cb4db3`, `bd6ee0388e`.
-Tests: gate/acknowledgment Rust integration, warning scanner positives/negatives,
-client upgrade/history tests, and actual published 0.4.35 and 0.4.37 wrappers
-upgrading through a private candidate registry. Both historical paths pass.
-Only candidate package manifests are aliased to 0.4.40; executable bytes remain
-unchanged. This is test metadata, not a publication or version bump.
+6. **Current-value rename rollback.** Identical-type generated `$rename:down` uses the edited current renamed value before a retained preimage, including repeated rollback/forward cycles. Different-type conversion and authored-down custody remain explicit. The semantic change is isolated in `backfills.rs`; DX8 did not edit `rollback_views.rs`, `release_bridge*`, or `rollback_visibility.rs`. Imported ROLL owns those files and its trigger. Principal commits: `fc060ff466`, `f773b041d8` (mandatory mixed-version hot-activation fence and restart guidance).
 
-### 8. Schema ergonomics
+7. **Saved v1 artifacts.** Repeating `deploy --save-version` with byte-identical complete source refreshes derived labels, release metadata, fixtures, and the generated client for that saved source. A different source still refuses. Focused saved-version tests and packed qualification pass. The lane-006 copied replay performed the save and an identical retry; both exited 0 and the retry reported `UNCHANGED`. Principal commit: `b9f32270ef`.
 
-Protected immutable payloads are allowed: inserts initialize them, and updates
-or existing upserts ignore supplied guesses for every viewer without comparing
-the stored value. Device prediction retains the known cell or omission; ignored
-asset guesses cannot create placements. Pure typed audience helpers expand
-hygienically into the existing rule grammar before planning, with cycle/depth/node
-limits and no effects or accidental caller captures.
+8. **Day-two proof recipe.** The recipe compares prior rows by ID, excludes frozen-v1-client writes from conservation, tracks v2-native rows separately, and validates rollback and forward. Generated-proof tests and the packed starter test execute the recipe. The actual fan-out proofs tolerate native v2 children while comparing all prior rows and fields; they do not require equal total counts. Principal commits: `4c9a167c27`, `f4b755dfbf`.
 
-Hidden program probes name the hiding rule and explain caller-visible absence.
-They gain no implicit privilege. The executable recipe demonstrates private roles
-and an explicitly public minimal eligibility projection, atomically maintained
-by its operator. Use that projection only when eligibility is public in the spec.
-The exact recipe is available through:
-`guide rule-recipes --section "Private immutable payloads and audience helpers"`.
+9. **Newest-first starters.** Every affected starter and recipe page query explicitly orders descending. The packed consumer exercises every shipped query and a real 101-row runtime population: the first page contains 100 rows, the opaque cursor reaches row 101, and order remains newest-first through exhaustion. Principal commits: `4c9a167c27`, `f4b755dfbf`.
 
-Main commits: `16fa79d8a2`, `6c3f8f064f`, `646415c8e7`, `0e551c8095`,
-`afa505baff`, `d0ac63f779`, `5d54630f3e`. Final explanations and independent
-fact pins: `3456537bf8`, `ea692a0505`. The legacy rule test now proves helper/inline
-equivalence and retains the ordered-read-rule refusal (`057441f038`).
-Tests: 23 language column-read cases, six device column-read cases, three helper
-cases, the full 127-case guide audit, asset placement/system-viewer cases and the
-fresh packed recipe. Packed rule recipes pass too.
+10. **Smaller friction and fan-out extraction.** `renderedText` accepts `null` options and recovers a complete line split across browser spans. `proof.exhaustPages` follows opaque cursors and requires explicit `complete:true` and nonpartial evidence; it rejects capped, partial, and missing-completeness pages. Guides explain paging versus projection, captured read-through versus a live parent, and that an operation `require` never grants table write authority. Compatibility diagnostics treat additive result fields as notes while preserving real wire-breaking warnings.
 
-## Design and reviews
+   Element extraction adds one stable child per media-list element, transfers the current asset home without copying bytes, preserves exact reverse ordering, accepts native v2 children, retains removed-element custody, refuses unsafe pruning, captures parent authority, and supports atomic suspension/restoration. R5 moved the parent page, child index, retained child decodes, values, scalar copies, and identifiers under shared job-meter allowances. The reverse regression combines 256 parents of 4 KiB with 60 children of 64 KiB; the forward regression combines 256 parents of 64 KiB with a returning 200 KiB child whose decode precharge crosses the shared 16 MiB ceiling. Both prove a `HeapBytes` cut leaves generation, rows, retained payloads, references, and asset homes unchanged. The extraction law is fenced by schema capability `release-child-extraction-each-v1` and monotonic store format 10; ordinary extraction serialization remains compatible. The final backfill module passes 163/163. Principal commits include `4c9a167c27`, `fac2daa22c`, `64c03002d0`, `e7e6a7fb37`, `ff7e9d9a1d`, `4787bb7f9b`, `f4c139c81f`, `7dbd7c515b`, `474069d630`, `1446acb0f4`, and `23b0d2f42d`.
 
-Amended LLP 3000.000.000.001 §12 and parent LLP 3000.036 §22.8/22.9; updated
-guides, changelog and journal with the implementation. Metadata: `0990be73d9`.
-Three required review rounds used Muse `muse-spark-1.3-contributor high` and fresh
-independent `codex gpt-6.1-sol high` sessions. **Both marked the same frozen r3
-amendment READY.** Verbatim transcripts, proposals, briefs and SHA-256 provenance
-are under `llp/reviews/dx7/`; recorded hashes were verified. Muse's prescribed
-fallback succeeded after a plan-quota refusal. No key file was read or printed.
+11. **Re-measurement.** The replay copied source applications into `/tmp/dx8-replay` and excluded `node_modules`, logs, harness scratch, account/session/credential JSON, `store.sqlite-owner`, `store.sqlite-token`, `store.sqlite-shm`, and `.release-command`. Outputs were bounded and sanitized. All scratch and owned processes were removed after the final run. The mode-0600 ledger and report are `~/sb4-loop/wave25-repro/dx8-replay-results.json` and `dx8-replay-report.md`; the mode-0700 harness is `~/sb4-loop/dx8-replay.mjs`. This is command-level remeasurement, not a new subjective-rating bakeoff.
 
-## Verification results
+## Replay command custody and outcomes
 
-Logs and retained artifacts below are under `~/sb4-loop/`. Every shell command
-was timeout-bounded. Every cargo invocation inherited `CARGO_INCREMENTAL=0`,
-`CARGO_PROFILE_DEV_DEBUG=0`, and `CARGO_PROFILE_TEST_DEBUG=0`. The prohibited
-full `scripts/test.sh` was never run.
+The ledger records each original command, adapted argv, copied cwd, start time, duration, timeout status, exit code/signal, and sanitized bounded output. Replacing `npx snapback4` with a named immutable binary and changing a source path to its filtered copy are execution substitutions, not source-app edits.
 
-| Check | Result / evidence |
-| --- | --- |
-| Setup | Frozen Bun install, CLI/SDK/wasm builds passed. Wasm gzip 734,816 bytes, below the existing 735,388-byte budget. |
-| Affected Rust | 170 passed; clock units separately 2 passed. `dx7-affected-r2.log`, `dx7-clock-unit-r3.log`. |
-| Final guide/helper checks | 130 passed; legacy rule-language target passed. `dx7-guide-final.log`, `dx7-rule-language-final.log`. |
-| Client pool | Final repeat: 8/8 files, 66/66 tests passed, zero skipped. Git status clean afterward. `dx7-client-pool-last.log`. |
-| Mac Studio | 217 Rust tests and 28 client tests passed. `dx7-mac-tests.log`, `dx7-mac-results.json`, `dx7-mac-client-final.{json,log}`. |
-| Root setup | Frozen install, workspace hoist and generated-artifact checks passed, including a final restoration of missing root dependencies. `dx7-root-setup-restored.log`. |
-| Post-merge root inventories | PASS: 365 package tests, 35 scripts, 31 demos, 487 publication leaves, 162 guide pages / 1,937 snippets. `dx7-inventories-merged.log`. |
-| Post-merge root guide | 22 passed, zero failed/skipped/preconditions. `dx7-root-guide-merged.log`. Existing warnings remain warnings. |
-| Post-merge ref-check | 565 LLPs, 12,378 references, zero errors/unchecked. `dx7-ref-check-merged.log`. |
-| Docs budget | README 319/320 physical lines; named self-containment test passed. Rules card stays at 374 lines. `dx7-docs-budget-reviewed-docs.log`. |
-| Final native artifact | Production musl build and static ELF validation passed. `dx7-native-reviewed-docs.log`. |
-| Final fresh packed DX7 cases | PASS, including both published old-CLI paths and installed native guide explanations. Source/integrities/binary hash: `dx7-scoped-final.json`; log: `dx7-scoped-final.log`. |
+| Cluster | Historical command or workflow | Custody and result |
+|---|---|---|
+| R2 | `npx snapback4 rollback ./deploy --to 1 --check`; rollback; renamed-scalar SQL; forward | Exact command shapes with immutable-binary/path substitution. All four exited 0 on R4. The v1 inspection returned `irisNotes`; forward restored 66 native rows and transformed later rows. |
+| R3 | `npx snapback4 deploy ./deploy --check`; `npx snapback4 prune .scratch/mig --json` | Exact preview commands against copied production paths. Deploy was `UNCHANGED`. Prune exited 0, enumerated the dormant lineage it would blind, and did not mutate it. No invented `releases prune --check` command was claimed. |
+| R5 / W | lane 020 and lane 040 `npm run day2:proof` | The invocation remained exact. First safe-copy attempts exposed excluded-account and excluded-empty-scratch prerequisites, then the intended `--json-objects` adoption: historical scripts redundantly parsed media strings now returned as objects. Scratch-only isolated account naming, empty `.scratch`, and string-or-object decoding were recorded. Source apps remained read-only. |
+| R7 / R8 | lane 032 rollback plus active/dormant SQL; lanes 006/032 bounded/media SQL | Exact command shapes with immutable-binary/path substitution. Active SQL named all 68 dormant rows and the repair command; dormant SQL returned 68. `--limit 1` reported `more:true` and truncation. Object mode returned logical media. The historical `data ... --dormant` attempt remains invalid because `data` has no such flag. |
+| R15 | lane 006 `deploy --save-version` and identical retry | Exact workflow on the copy; both exited 0, emitted the saved source's artifacts, and the retry reported `UNCHANGED`. |
+| R17 | lane 030 `npm run check`; compiled denied write | Check exited 0. Packed exact diagnostic produced `N_WRITE_DENIED` and the “never grants table authority” repair hint. |
+| R10 / R11 | proof process and clock workflows | Representative packed helper replay: descendant cleanup, retained stop and authenticated clock/session families. Historical R10 has ad hoc kill/timing actions without a preserved driver; R11 depends on an unpreserved old script/session/unsafe-door state. |
+| R12 | lane 006 `npx snapback4 token --service ops --release ./deploy` | Recovered exact command, with sealed R7 binary and copied cwd substitution only: exit 0 in 135 ms. Warning named minted `service:ops`, schema `service:operator`, and actual rule authority. Credential stdout was suppressed and never printed or written. Production account setup is separately exercised by the exact packed README helper. |
+| R14 | recovered lane-031 browser line | Static browser surrogate using the exact recovered text `Pump logged.` split across spans; explicitly not an exact lane-031 replay. Both `renderedText(..., null)` and `{within, exact:false}` passed. |
+| R16 | exhaustive paging | Exact installed helper fence plus a real 101-row runtime test. It crossed the 100-row boundary and rejected partial/capped/missing-completeness inputs. |
 
-Mac work stayed in `~/sb4-ws-dx7` on `macstudio-charlie-apt101-a`; no other Mac
-was used. Five source hashes were checked before compilation. Missing fixture,
-LLP and packed-JS inputs in the initial transfer were supplied without changing
-assertions. The initial client attempt lacked Vite/TypeScript and used the
-machine's Chrome; the final serial retry used the exact test dependencies and
-pinned Playwright Chromium and passed all 28. Mac source snapshot: `5d54630f3e`;
-subsequent DX7 changes affect guide copy, fact expectations, legacy tests and
-records, rather than runtime semantics.
+The earlier R6 aggregate-meter replay used immutable debug CLI SHA-256 `0908d758bc1d03c86e4604a872e10781699b275f121127feaa878aad81aba690`, client SHA-256 `5ef3cf8e39533ff89d196b443be119b8696b9c05dbca5a77fb016a719467b231`, and Expo SHA-256 `9086f7c4a43736518c3327e923d1680c78b916e75529613ff9151af12ece7d77`.
 
-### Full five-crate run
+- Lane 020's exact `npm run day2:proof` exited 0 in 133.7 seconds over 468 records. Frozen v1 completed 76/76 calls before v2, on v2, and after rollback; v2 completed 110/110. Preservation, migration values, rules, rollback, forward, image digests, references, and asset homes all passed.
+- Lane 040's exact command exited 0 in 70.1 seconds over 261 records. It passed 140 v2 checks and 62/62 frozen-v1 calls on v2 and after rollback. It compared all prior machine/role/photo fields, inspected native v2 children while dormant, and restored them on forward.
+- The R6 packed setup exited 0 in 1.1 seconds. The ergonomics consumer exited 0 in 70.9 seconds and the operator consumer in 19.0 seconds. They executed the exact installed README fences, all affected starter/guide queries, 101-row paging, browser surrogate, strict page refusals, authorization guidance, process cleanup, authenticated clock/session behavior, and production provisioning.
 
-The requested complete cargo command finished with exit 101: **7,334 passed,
-28 failed, 275 pre-existing ignored**, across 454 reported targets including
-doc-tests (`dx7-cargo-test-final.log`). It was started during development; seven
-failures in its early-built DX7 test artifacts were subsequently corrected and
-passed current targeted reruns: gate fixture, store-port ratchet, guide census,
-two helper expectations, guide budget, and the legacy helper ban. The affected
-checks above supersede those seven observations. No full-suite green is claimed.
+Final R7 repeats after the activation fence and final main merge also pass. Immutable debug CLI SHA-256 `eed6d1202226c51f8393bbfcb231bc34c5db61b44462317b66a0afc0e06ea5ff`; client `3082f62d44a00f5fb019a176264f04abced48bc91f760944825cf53daa4b3de7`; Expo remains `9086f7c4a43736518c3327e923d1680c78b916e75529613ff9151af12ece7d77`. Lane020 completed the same 468 records in 133.492 seconds, with 76/76 v1 checks at all three stages and 110/110 v2. Lane040 completed the same 261 records in 69.307 seconds, with 140 v2 and 62/62 frozen-v1 checks on v2 and after rollback. Both exact commands exited 0 without timeout, and `/tmp/dx8-replay` was deleted with no owned process remaining. Ledger phase: `finalFenceFanout`.
 
-The remaining **21 failures reproduce on unmodified origin/main `cadb7c55be`**:
-20 source-reservation admission failures, plus one authentic predecessor-store
-execution-facts mismatch. Disposable baseline snapshots used original git inputs,
-with no assertion or fixture edits, and were deleted after comparison.
+The shipped `proveDX8(directory, client, platform)` wrapper also passed all four DX8 publication helpers against the final client and optimized Linux platform packs. Setup with the documented `playwright-core@1.55.1` peer exited 0 in 1.518 seconds; the wrapper exited 0 in 23.327 seconds. Operator, inspection, ergonomics, and migrations each emitted their pass marker, and the wrapper returned `status:"passed"`. The first standalone attempt omitted that documented peer: operator and inspection passed before ergonomics correctly refused with `E_PROOF_BROWSER`. The setup-only failure is retained as ledger phase `finalFencePackedMissingPeer`; the unchanged wrapper passed after installing the peer as phase `finalFencePacked`. Final replay scratch was removed and the credential scan found no email address, bearer token, JWT, or known replay password.
 
-- Residency/init (2): `dx7-baseline-provenance.json`, `dx7-residency-baseline-{1,2}.log`.
-- Timeline adoption (2), device readauth recipes/bridges (8):
-  `dx7-baseline-extra-results.json`, `dx7-baseline-{timeline_adoption,readauth}.log`.
-- Live-parent reservation cases (6), authentic predecessor admission (1):
-  `dx7-baseline-lang-results.json`, `dx7-baseline-{live_parent,declarative_receipts}.log`.
-- Recorded-maintenance simulation (2): `dx7-baseline-sim-results.json`,
-  `dx7-baseline-maintains_recorded.log` (baseline 17 passed, 2 failed).
+Earlier R4/R6/R7 results remain in the ledger as the original attempt and repair chain, with their exact native/SDK hashes. Each command keeps its own source binding; the latest fan-out conservation results below bind to corrected native candidate R9. A post-run scan found no unredacted bearer token, JWT, email address, or known replay password.
 
-Tickets retain exact cases and evidence:
-`issues/20261022-snapback4-residency-source-reservations-baseline.md` and
-`issues/20261023-snapback4-predecessor-execution-facts-baseline.md`.
-No bound, ratchet, admission check or historical fixture was weakened to clear them.
+Final R9 custody replay (`finalCustodyFanout`) passes against immutable debug CLI SHA-256 `33bf08ab49f08302a3e2429999e264ff1135e9b12dde05594233e65dcb82b07e`, source `23b0d2f42d`, with unchanged client3082/Expo9086. Exact lane020 `npm run day2:proof` exits 0 without timeout in 132.686 seconds over 468 records: frozen v1 76/76 before/on/after rollback and v2 110/110. Exact lane040 exits 0 in 69.111 seconds over 261 records: 140 v2 checks and frozen v1 62/62 on v2 and rollback. All preservation/migration/rule/rollback/forward stages pass. Safe-copy account/scratch/logical-media adaptations are unchanged, source apps remain unedited, and both scratch/process and credential scans are clear.
 
-### Packed Linux qualification
+Exact-command coverage audit: the additional R12 mint command is recorded as ledger phase `finalExactServiceSeat`, with only a suppressed credential-byte count. R14 retains the `Pump logged.` observation but no original DOM/page command; R16 has API call shapes inside custom scripts rather than recoverable shell invocations. Their packed substitutes are identified in the table and run the exact installed helper fences. The audit found no other safely recoverable historical command skipped; it does not relabel representative tests as exact incident replays. The final sanitizer scan remains clear and scratch absent.
 
-`qualify-linux --consumer-only` ran on fresh SDK/Expo packs. Consumer-only mode
-honors the prohibition on `scripts/test.sh` and cannot emit a publication receipt.
-The first attempt passed DX7 but hit a shared npm-cache ENOENT during historical
-Expo installation. The isolated-cache retry passed DX7, DX5/DX6, all three
-historical Expo upgrade modes, day4, release transitions and dormant cases, then
-stopped at the day5 installed residency recipe on the baseline reservation error
-(`dx7-qualify-isolated.log`).
+## Semantic review
 
-All ten later groups passed in independent continuation: production, proof kit,
-client recipes, security, migrations, staging, rules, frontend proofs, starters,
-and clean Ubuntu 24.04 / Alpine userspaces (`dx7-qualify-continuation.{json,log}`).
-The original refusal remains recorded; there is no overall qualification receipt.
+The governing amendment is LLP 3000.000.000.002 §10. Frozen amendments, exact prompts and commands, model/session provenance, and verbatim stdout/stderr live under `llp/reviews/dx8/`.
 
-A separate final fresh-pack DX7 qualification includes the corrected explanations
-and both actual old-CLI upgrade paths. Its recorded source is `057441f038`; exact
-artifact integrities and native hash are in `dx7-scoped-final.json`. Final tarballs
-are retained in `dx7-pack-reviewed-docs/`. Earlier qualified packs remain separate
-so their existing integrity records stay verifiable.
+Across the preceding rounds, Muse returned READY while Codex found concrete safety defects in forward/reverse pruning validation, suspended extraction restoration, explicit paging completeness, bounded process custody, partial production-account semantics, compatibility diagnostics, and aggregate migration memory metering. Those findings were implemented and covered by focused regressions. R6 Codex found the mixed-version hot-adoption hole: a new CLI preview could reach a pre-DX8 host that still committed stale-preimage rename semantics on format 9. `f773b041d8` requires the exact `snapback4-activation-10` transport token on every hot activation, including `rollback --exact`; old strict decoders refuse the new field, updated decoders refuse missing fields, and updated hosts refuse wrong tokens before source compilation/adoption. There is no legacy fallback. The mixed-version wire decoder is an exact historical decoder model, not an actual old-binary process; a separate real format-9-store test proves refusal leaves edited rename state unchanged, then the valid current token rolls back while preserving the edit. Both tests pass again after the final main merge. R7 Codex and Muse both returned **READY** on the whole revision; verbatim reviews and frozen provenance were committed in `fbce03ec74`. This is semantic readiness, not author acceptance or publication qualification.
 
-## Integration, cleanup and deferrals
+R8 Codex subsequently found empty-parent known-definition re-entry was selecting forward rather than resume, and an unchanged-reference asset edit could manufacture the missing extraction anchor. `23b0d2f42d` fixes both causes, including active and retained-only unknown-history refusal. Known empty initialization/resumption remains valid; only birth or a real parent-reference change captures a lifetime. Five new full-state regressions pass. The shared observer's entire core library passes 734 tests with 242 ignored private-environment cases. R9 obtained both READY verdicts on both complete amendments at source `23b0d2f42d` (archive commit `a765a2c263`): primary SHA-256 `d2444f2d68e868cf0bc058e2531df555d3fa1a65f76cef4b73ab3ea65cf6c5f1`; proof-kit §8 SHA-256 `3b281399cd8e9ebaa75caa2b4e27ee010def61d1a3780985f282bbbd16147563`.
 
-Final fetch found origin/main `fc5b38f511` (RT5, still 0.4.38), merged as
-`37610aec49`. The only conflict was appended journal text; both entries were kept.
-RT5 adds guarded PostgreSQL test/experiment codec support with no serving caller;
-it leaves the DX7 tested semantic delta unchanged. Per repository optimistic
-integration policy, the expensive battery was not repeated just because main
-advanced. Post-merge ref-check, inventories and root guide checks passed. Packed
-claims remain explicitly bound to their recorded snapshot, not the merged HEAD.
-0.4.39 was not present on origin/main at this final integration.
+## Verification
 
-All requested DX7 implementations are complete. The inherited failures and the
-overall residency qualification refusal are outside this lane and remain the
-only validation deferrals. SEC8 owns its parallel items.
+### Historical snapshots and current affected checks
 
-Task-owned Linux and Mac build targets, installed qualification scratch,
-npm/browser caches and obsolete stages were removed after their processes exited.
-No process used the Linux build outputs and no DX7 temporary scratch remained.
-Mac cleanup detected no owned processes. Source, logs, JSON evidence and qualified
-tarballs are preserved. Cleanup receipts: `dx7-cleanup.json`, `dx7-mac-cleanup.json`.
-Workspace dependencies needed for future checks are preserved.
+- Full proof client file: 29/29 passed through the canonical one-file runner at R6, with no runner cleanup failure or surviving owned process.
+- Current R9 core library: 734 passed, 0 failed, 242 ignored (240.98 seconds). Extraction tests: 20/20; five new full-state lifetime regressions.
+- Backfills: 163/163 passed with `evaluation-support,postgres`, including direct forward and reverse aggregate-heap regressions.
+- Main full server run: 544 passed, one RT0 failure, nine ignored. The one failure is the inherited keyed-first roundtrip measurement `88 > 87`; it is owned by the committed filesystem follow-up (`db8f1ba64f`), whose source provenance points to ROLL `b7ca76be3d1`, and DX8 did not raise the ratchet.
+- Final-merge affected checks: change evidence 4/4 passed (8 private-Postgres cases ignored locally; imported P1-CE report supplies its real private-cluster evidence), server sync 17/17 passed (1 private-Postgres ignore), activation protocol 2/2 passed, native build and wasm rebuild passed. Wasm stayed byte-identical in size.
+- Main command target: 8 passed, 5 ignored. Clock: 45/45 passed. Rust guide target: 127/127 passed.
+- Network fixtures: 49/49 passed across three files. HTTP bounds: 10/10. Operation evolution: 19/19. Root-owned four client files: 116/116. Staging targeted: 1/1. API/read-type guide checks: 32/32.
+- Security packed against the fresh R6 musl production binary: 1/1 passed in 162.6 seconds under a 1,200-second outer deadline. It covered the installed guide refutation, guest/password campaigns, and all seven starter campaigns. Evidence: `~/sb4-loop/dx8-security-packed-r6.log` and `~/sb4-loop/dx8-security-r6/{packs.json,security-evidence.json}`.
+- R6 production musl CLI SHA-256: `9b8b0814e5a918e00dfe53f73c8bcff6f2425900dbdcb353625f0e3c87561dad`. Client SHA-256: `5ef3cf8e39533ff89d196b443be119b8696b9c05dbca5a77fb016a719467b231`. Linux platform SHA-256: `d35e3a25992a064807fe5a1d236b5a709732e920d4aa2833d40b4f80b598eebb`.
+
+### Final R9 artifacts and qualification boundary
+
+The final artifact manifest is `~/sb4-loop/dx8-r9-artifacts.json`, with native/product source `23b0d2f42daed3ab0b68cb008d4c11b5810931a9` and both full-amendment READY verdicts. Fresh debug and production musl builds, static-ELF/version checks and the exact three-file native npm pack pass. The native seal manifest is `~/sb4-loop/dx8-qualification/native-r9/manifest.json`; SDK/Expo bytes stay identical to R7 because the final correction is confined to SQLite-native extraction custody.
+
+- debug: `/home/ccheever/sb4-loop/dx8-qualification/bin/snapback4-r9`; SHA-256 `33bf08ab49f08302a3e2429999e264ff1135e9b12dde05594233e65dcb82b07e`.
+- client: `/home/ccheever/sb4-loop/dx8-qualification/packs-r7/snapback4-0.4.38.tgz`; SHA-256 `3082f62d44a00f5fb019a176264f04abced48bc91f760944825cf53daa4b3de7`.
+- expo: `/home/ccheever/sb4-loop/dx8-qualification/packs-r7/snapback4-expo-0.4.38.tgz`; SHA-256 `9086f7c4a43736518c3327e923d1680c78b916e75529613ff9151af12ece7d77`.
+- production: `/home/ccheever/sb4-loop/dx8-qualification/native-r9/snapback4`; SHA-256 `45d549333c29b6f04f1a0d16adda43106aca52653306e25603f885c8ae558577`.
+- platform: `/home/ccheever/sb4-loop/dx8-qualification/native-r9/snapback4-linux-x64-0.4.38.tgz`; SHA-256 `05ea4896fdd9c6a363914eb5e90cb45d47e3ac90646cf49340959b55d4147a7d`.
+
+Final installed qualification (`finalCustodyPacked`) uses exactly that production platform tarball and client3082: documented pinned browser-peer setup passes in 1.816 seconds; shipped all-four DX8 wrapper passes in 23.332 seconds. Operator, inspection, ergonomics and migrations each emit exactly one pass marker, with overall `status:"passed"`; the migration result runs the verbatim installed fan-out and pre-patch language recipes. Credential scan is clear; scratch and owned processes are absent.
+
+`qualify-linux.mjs --consumer-only` was used because the default path invokes the forbidden complete `scripts/test.sh`; the requested Rust/client/differential batteries were run separately. It cannot issue a publication receipt. The R6 fresh-pack run passed day2, DX4, DX6, DX7, all four DX8 consumers, DX5, Expo upgrade routes, day4, release transitions and dormant migration before the inherited day5 residency-fixture `E_SCHEMA`. Raw exit 1 is preserved in `~/sb4-loop/dx8-qualify-linux-r6.log`, with passed JSON artifacts and `linux-r6/prefix-summary.json`. The authentic source-reservation fixture was not rewritten.
+
+The separate R6 suffix passes production (47.702 seconds), proof kit (16.515), client recipes (8.703), security (150.194), migrations (20.512), staging (6.407) and rule recipes (21.190). Clean Linux distribution also passes Ubuntu and Alpine through proot in 904.58 seconds (388.585 / 509.125). Logs and per-group JSON live under `~/sb4-loop/dx8-r6-suffix/` and bind to those exact R6 packs/native bytes.
+
+Initial generated-frontend attempts on R6 and final R7 hit the same trace-decoder representation: an outer `???(inner listen(...)=0` followed immediately by the identical ordinary child record. `1f5cc1135a` recognizes only that exact corroborated duplicate; every normal listener check remains on the following record. The full qualification unit file passes 61/61, and added wrapped unresolved/out-of-range negatives pass. Governing proof-kit §8 and DX8 §10 are amended in `62c38dfca5` and sent to both fresh reviewers as R8. This is a qualification parser, absent from packed SDK/native content. The complete final-R7 generated-frontend retry passes **12/12** loaded-host proofs in 173.972 seconds, including listener audits, against client3082/platform085b/Expo9086. Evidence: `~/sb4-loop/dx8-r7-suffix/generatedFrontends/result.json` and `generatedFrontends.log`; first reds remain as `*-attempt1` artifacts.
+
+The initial starter attempt exposed the new paging fence preceding the expected development-host fence. Named-fence selector fix `4f25fc5cd0` has a focused missing/ambiguous/order regression. The complete final R7 starter matrix then passes **6/6** in 273.538 seconds, with 12 ordinary frontend attempts and 4 adapted attempts against client3082/platform085b/Expo9086. Results/logs are under `~/sb4-loop/dx8-r7-suffix/starters/` and `starters.log`. No original red was relabelled as a successful qualifier.
+
+### Repository and documentation checks
+
+- Reference checks at R7/R8: 565 documents, 12,409 references, 0 errors/unchecked. Final R9 reference check: 565 documents, 12,411 references, 0 errors/unchecked (`~/sb4-loop/dx8-ref-check-r9.log`).
+- Final guide check: 22 passed, 0 failed, 0 skipped/preconditions, and 121 inherited freshness warnings.
+- Inventories: 365 packages, 35 scripts, 31 demos, 487 publication leaves, 162 pages, and 1,937 verified snippets.
+- Final documentation budget: README 319/320 and exact embedded guide check 1/1; the budget gate passed. All root checks preserve actual exit 0 in `~/sb4-loop/dx8-r7-{ref-check,inventories,guide,docs-budget}.log`.
+- Generated artifacts, proof API generation, SDK typecheck, and SDK build passed in their affected runs.
+
+### Broad historical runs and honest supersession
+
+The development-state full Rust inventory executed 1,168 artifacts plus workspace doctests: 7,445 ordinary tests passed, 43 failed, 287 were ignored, and doctests passed 38/38. It ran while fan-out and guide work were changing. Current affected reruns above supersede the DX8 failures; the raw record remains `~/sb4-loop/dx8-full-rust-summary.json` and is not represented as a frozen green run.
+
+The clean-checkpoint client pool completed all 429 ordinary files plus 9 fixture files and 89 model tests. The ordinary aggregate was 7,897 tests: 7,772 passed, 68 failed, one was cancelled, and 56 were skipped. Twenty-two files were red. DX8 repairs and affected reruns reconciled 21 of those files; the remaining `residency` red matches the tracked 2026-10-22 source-reservations baseline and its authentic fixture was not regenerated. The fixture pool passed 9/9. Model tests passed 89/89: app-session 60/60 over 5,000 sequences and online 29/29 over 3,000 sequences. No runner-level hang/leak occurred, all files completed, no owned process survived, and a clean-status checkpoint was recorded. There is no claim that the original broad pool itself was green.
+
+### Differential and wasm evidence
+
+- Difftest `run`: 20,000 seeds passed, covering 1,222,111 executions.
+- `run-devices`: seeds 0–999 passed, covering 27,922 executions.
+- Lean comparison over 20,000 seeds: 16,697 agreed; 130 disagreements fell into exactly the four preclassified signatures; no new signature appeared. Its raw exit remains 1. Evidence: `~/sb4-loop/dx8-difftest-summary.json`.
+- Wasm: 2,407,197 raw bytes / 735,599 gzip bytes. Integrated DX7/K0Q/ROLL/DX8 exceeded the former gzip budget by 211 bytes. The measured budget is now 736,099 bytes, exactly measured plus 500, with rationale in JOURNAL (`5ba4383115`). Runtime ceilings did not change, and SQLite-only element extraction is absent from device wasm.
+
+## Integration, ownership, and limits
+
+The branch began from finished DX7, merged initial main/K0Q at `dfa2782faf`, merged finished ROLL at `a2249ef8a6`, integrated origin/main `46c6cdd056` at `a3f7c4becf`, and finally merged origin/main `06a9d2c47f` at `8be54b5269`. These merges preserved the independent checkpoint/maintenance and rollback fixes. No other worktree was modified.
+
+SEC9 owns column-write rules, the asymmetry gate, note ranking, derived adversarial deployment tests, conditional immutability, and test reach. DX8 leaves that policy untouched and carries the owner pointer in the amendment. Integration 23 owns rollback views and release bridges. The keyed-first RT0 follow-up belongs to ROLL and remains a measured issue rather than a raised limit. Existing source-reservation and predecessor-execution-facts baselines retain their filesystem tickets and authentic fixtures.
+
+No macOS qualification was run. The user reported the Studio unreachable and reserved the black M5 for publication; this work uses Linux integration evidence only.
+
+## Completion record
+
+- **Implemented and committed:** all requested items, with both complete semantic amendments READY from fresh Codex and Muse at source `23b0d2f42d`; exact provenance and raw reviews are committed under `llp/reviews/dx8/`.
+- **Final changed-path evidence:** core library 734 passed/0 failed/242 ignored; backfills163/163; extraction20/20; exact lanes020/040 and all four packed DX8 helpers pass on corrected R9 native artifacts. The full requested historical batteries and consumer suffix results above retain their honest raw outcomes and scoped supersession.
+- **Qualification limits:** original consumer-only qualifier raw exit1 remains the inherited day5 source-reservation error. Lean comparison retains four known signatures; the ROLL keyed-first ratchet remains 88>87 and was not raised. Source-reservation/predecessor baseline tickets remain open. No publication receipt or new subjective rating victory is claimed.
+- **Cleanup:** R7 build output was removed before the R9 rebuild. All R9 builds/tests and packed consumers finished; the regenerated owned target was removed after a zero-process build census. Six unneeded qualification consumer/cache directories were removed while JSON/log evidence and final sealed artifacts were retained. `/tmp/dx8-replay` is absent. Final independent owned-artifact process census is empty (`~/sb4-loop/dx8-final-cleanup.json`).
+- **Delivery:** origin/main06a9 is merged; no push, no package-version bump, and no Mac run. Integration owns Mac qualification and publication.
+
+Final source audit: native and SDK implementation files are unchanged from the reviewed/qualified R9 source `23b0d2f42d`; later changes record reviews and this report. The working tree was verified clean after the final report commit. The shared disk has recovered its build space.

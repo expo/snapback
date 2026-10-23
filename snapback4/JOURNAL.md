@@ -102783,6 +102783,17 @@ musl binary and native package are sealed from clean source23b; unchanged
 SDK/Expo bytes are reused by content. Neither review readiness nor these
 affected results turn the inherited day-five qualification failure into a
 publication receipt. Mac qualification remains assigned to integration.
+
+Final R9 installed all-four DX8 qualification passes in 23.332 seconds on the
+sealed corrected production tarball, including the verbatim installed migration
+and historical-input recipes. The replay ledger keeps R4/R6/R7 history and R9
+fan-out/packed phases separately. All owned proof/serve processes and replay
+scratch are absent; completed build outputs and obsolete consumer/cache scratch
+were removed, retaining final binaries, tarballs, logs and JSON evidence outside
+the checkout. WORKSTREAM-REPORT.md replaces the inherited DX7 report with per-item
+changes, review/source/artifact bindings, complete raw test outcomes and scoped
+reruns, known baseline/ROLL follow-ups and the requested Mac skip. Nothing was
+pushed or published and no package version was bumped.
 ## 2026-10-23 — P1-CE: Postgres change evidence and certified changes/sync
 
 The Postgres buffered tail now writes the shared net-image footprint and prunes
