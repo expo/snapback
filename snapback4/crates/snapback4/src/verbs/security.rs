@@ -115,7 +115,12 @@ pub(super) fn release_loop(project:&Project,bound:&Bound,sources:&[(String,Strin
             notice.push_str(&format!("  REVIEWED derived {}: individual specification decision retained\n",v.invariant.target_label()));continue;
         }
         notice.push_str(&format!("  FIX {} {}: refuted via {} as {} ({:?}); repair enforcement to match intent, then run snapback4 test\n",v.invariant.site,v.invariant.target_label(),c.operation,c.viewer,c.reachability));
-        if v.invariant.target=="read"&&v.invariant.column.is_none() {
+        let aggregates=bound.schema.maintains.iter().filter(|m|m.source==v.invariant.table).map(|m|m.target.as_str()).collect::<Vec<_>>();
+        if c.observations.is_some()&&!aggregates.is_empty()&&v.invariant.target=="read"&&v.invariant.column.is_none() {
+            notice.push_str(&format!("  DERIVED {}: a separately readable aggregate changes in the paired observation; tightening the source read rule alone cannot clear this disclosure\n",aggregates.join(", ")));
+            let field=v.invariant.predicate.split('.').skip(1).filter_map(|part|part.split(|c:char|!c.is_alphanumeric()&&c!='_').next()).find(|field|bound.schema.table(&v.invariant.table).and_then(|t|t.columns.get(*field)).is_some_and(|kind|matches!(kind.required(),snapback4_core::schema::ColumnType::Principal)));
+            if let Some(field)=field {notice.push_str(&format!("  INTENT {}: if aggregate counts are intentionally public, replace the whole-row assertion with `invariant {}.{} read only {}` for this protected field and independently declare any other private fields; otherwise restrict the aggregate audience; rerun snapback4 test\n",v.invariant.site,v.invariant.table,field,v.invariant.predicate));}
+        }else if v.invariant.target=="read"&&v.invariant.column.is_none() {
             for (file,text) in sources {
                 let doc=snapback4_lang::parser::parse_document(file,text).0;
                 if let Some(table)=doc.tables.iter().find(|t|t.name==v.invariant.table) {
