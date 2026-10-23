@@ -36,6 +36,7 @@ let generated=await import(pathToFileURL(resolve("versions/v1/generated/api.ts")
 rmSync("versions/v1/generated",{recursive:true});rmSync("versions/v1/release.json");
 result=await cli(["deploy","deployment","--save-version","versions/v1"]);assert.equal(result.code,0,result.stderr);assert.match(result.stderr,/refreshed release 1/);
 generated=await import(pathToFileURL(resolve("versions/v1/generated/api.ts")).href+"?refresh");assert.ok(generated.api.addLegacy);
+writeFileSync("snapback/client-compatibility.json",JSON.stringify({baseline:"versions/v1",since_release:2}));
 
 let host=await startServe("deployment");
 try{
@@ -55,9 +56,11 @@ const v2=v1.replace("  photo: image <=10000\n  public","  photo: image <=10000\n
  .replace("table commissions:","table sculptureOrders renamed from commissions:")
  .replaceAll("commissions[id]","sculptureOrders[id]").replace("id: commissions","id: sculptureOrders");
 writeFileSync("snapback/schema.q",v2);
+const preview=await cli(["deploy","deployment","--check","--json"]);assert.equal(preview.code,0,preview.stderr);
+const compatibility=JSON.parse(preview.stdout).clientCompatibility;
+assert.ok(compatibility.some(line=>/operation allPhotos: RESULT NOTE: result shape added fields/.test(line)),JSON.stringify(compatibility));
+assert.ok(compatibility.every(line=>!/operation oneOrder: INPUT BREAK/.test(line)),JSON.stringify(compatibility));
 result=await cli(["deploy","deployment"]);assert.equal(result.code,0,result.stderr);
-assert.match(result.stderr,/NOTE .*RESULT NOTE: result shape added fields/);
-assert.doesNotMatch(result.stderr,/operation oneOrder: INPUT BREAK/);
 
 const objects=await cli(["sql","SELECT id, photo FROM photos ORDER BY id","--release","deployment","--json-objects","--limit","1"]);assert.equal(objects.code,0,objects.stderr);
 const inspected=JSON.parse(objects.stdout);assert.equal(typeof inspected.rows[0].photo,"object");assert.equal(typeof inspected.rows[0].photo.id,"string");assert.equal(inspected.more,true);
