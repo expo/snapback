@@ -103149,3 +103149,23 @@ than broadening the allowed errors. Exact E_STORE_UNSUPPORTED exclusions remain
 outside passed. The first private-runner invocation also hit a 45-second public
 CLI deploy guard. All owned clusters in those runs stopped and were independently
 confirmed; final qualification and PID audit follow in the lane report.
+
+
+## 2026-10-23 — S10e-1 qualification and handoff
+
+The [lane report](reports/20261023-s10e1-evaluation-callers.md) records the
+five-executor table, exact disagreements and their tickets/dispositions, C1
+physical deltas, checks and the S10e-2 boundary. The full core command passes;
+the 218-test Postgres family/oracle target and the 5/29-test difftest library/
+smoke targets pass. Fixed-seed store comparisons have no signature; the refusal
+expectation guard remains red on matching bad-input/division outcomes. Exact
+unsupported accounting passes before that guard. The public private-runner
+stage records its 45-second deploy timeout without enlarging the guard.
+
+No deletion is safe yet: allocation-dependent metering, release-evolution
+coverage, evaluation-only Serializable migration and the physical call delta
+need disposition. Root reference validation passes (565 documents, 11,772
+references; zero errors or unchecked). The independent cleanup audit confirms
+17 owned clusters stopped and no living process among 4,237 recorded PID
+identities. PostgreSQL 17/55440 was untouched. Work remains local on sb4-pg/s10e1;
+no push, stash, configuration change, target cleaning or target copy.

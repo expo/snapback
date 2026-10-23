@@ -15,8 +15,10 @@ Minimal deterministic inputs:
 - `generate(4)`: argument `a` is -9007199254740990, while its compiled type is
   `int 1..1`; the baseline returns E_INPUT before evaluation.
 - `generate(15)`: the generated expression divides by zero, returning E_DIV_ZERO.
-- `generate(10)` and `generate(25)` also supply values outside their compiled
-  argument interval; the diagnostic test prints the remaining seeds.
+- `generate(10)`, `generate(25)`, `generate(27)`, `generate(28)`,
+  `generate(29)` and `generate(31)` also supply values outside their compiled
+  argument interval. Diagnostics include SQLite baselines for cases the
+  Postgres profile excludes; the supported store report counts six E_INPUTs.
 
 Run the `stores` integration target with a private Postgres cluster and
 `--nocapture`; its fixed-seed diagnostics expose each refusal before the guard.
