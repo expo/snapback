@@ -42,8 +42,11 @@ pub(super) fn notes(sources:&[(String,String)],bound:&Bound)->Vec<Diagnostic>{
         for (column,guard) in table_guards(&bound.schema.tables[table].rules.update) {
             let t=&bound.schema.tables[table];
             if t.column_writes.contains_key(&column) || update_only(bound,table,&column,&guard) || !fields.iter().any(|f|f.name==column&&supplied(f,creator)){continue;}
-            if kernel::implies(admission,&guard)==Ok(false) {
-                table_replaced.insert((creator.site.file.clone(),name.clone(),table.clone(),column.clone()));
+            let known=creation_values(&bound.schema.tables[table],fields);
+            let admission=terms(admission,&mut |t|if let RuleTerm::Field(c)|RuleTerm::NextField(c)=t {if let Some(value)=known.get(c){*t=value.clone();}});
+            let creation_guard=terms(&guard,&mut |t|if let RuleTerm::Field(c)=t {if let Some(value)=known.get(c){*t=value.clone();}});
+            if kernel::implies(&admission,&creation_guard)==Ok(false) {
+                if !table_replaced.insert((creator.site.file.clone(),name.clone(),table.clone(),column.clone())){continue;}
                 out.push(Diagnostic::new(site,"N_CREATE_EDIT_ASYMMETRY",format!("{name}: {table}.{column} is supplied at create/upsert without its table update change guard {}",guard.quarry()),format!("enforce `{column}: <type> write <- {}` or declare deliberate creation asymmetry with `invariant {table}.{column} update only {}`; run test with non-null input",guard.quarry(),guard.quarry())).guide("security"));
             }
         }
@@ -93,23 +96,60 @@ fn supplied(field:&ast::ObjectField,program:&ast::ProgramDecl)->bool{
 
 // Exact syntactic changed-column implication; the remainder is the authored policy.
 pub(super) fn table_guards(rule:&RuleExpr)->BTreeMap<String,RuleExpr>{
-    fn same(rule:&RuleExpr)->Option<String>{
-        if let RuleExpr::And(xs)=rule{return xs.iter().find_map(same);}
-        let RuleExpr::Eq(a,b)=rule else{return None;};
-        [(a,b),(b,a)].iter().find_map(|(a,b)|if let RuleTerm::OldField(c)=a {
+    fn same(rule:&RuleExpr)->BTreeSet<String>{
+        if let RuleExpr::And(xs)=rule{return xs.iter().flat_map(same).collect();}
+        let RuleExpr::Eq(a,b)=rule else{return BTreeSet::new();};
+        [(a,b),(b,a)].iter().filter_map(|(a,b)|if let RuleTerm::OldField(c)=a {
             matches!(b,RuleTerm::NextField(d)|RuleTerm::Field(d) if d==c).then(||c.clone())
-        }else{None})
+        }else{None}).collect()
     }
     let mut out=BTreeMap::new();
     match rule {
         RuleExpr::And(xs)=>for r in xs {out.extend(table_guards(r));},
-        RuleExpr::Or(xs)=>for (n,r) in xs.iter().enumerate(){if let Some(column)=same(r){
+        RuleExpr::Or(xs)=>for (n,r) in xs.iter().enumerate(){for column in same(r){
             let policy=RuleExpr::Or(xs.iter().enumerate().filter(|(i,_)|*i!=n).map(|(_,r)|r.clone()).collect());
-            if super::operation::safe(&policy){out.insert(column,policy);}
+            let policy=terms(&policy,&mut |t|if let RuleTerm::OldField(c)|RuleTerm::NextField(c)=t{*t=RuleTerm::Field(c.clone());});
+            if local_guard(&policy){out.insert(column,policy);}
         }},_=>{}
     }
     out
 }
 pub(super) fn update_only(bound:&Bound,table:&str,column:&str,guard:&RuleExpr)->bool{
     bound.invariants.iter().any(|i|!super::derived::is_derived(i)&&i.table==table&&i.column.as_deref()==Some(column)&&i.target=="update"&&i.policy.as_ref().is_some_and(|p|kernel::implies(p,guard)==Ok(true)&&kernel::implies(guard,p)==Ok(true)))
+}
+
+fn terms(rule:&RuleExpr,change:&mut impl FnMut(&mut RuleTerm))->RuleExpr{
+    let mut rule=rule.clone();
+    fn walk(rule:&mut RuleExpr,change:&mut impl FnMut(&mut RuleTerm)){
+        match rule {
+            RuleExpr::Eq(a,b)|RuleExpr::Ne(a,b)|RuleExpr::Compare(_,a,b)=>{change(a);change(b);},
+            RuleExpr::And(xs)|RuleExpr::Or(xs)=>for x in xs{walk(x,change)},RuleExpr::Not(x)=>walk(x,change),
+            RuleExpr::Exists{key,equalities,..}|RuleExpr::Created{key,equalities,..}=>for t in key.iter_mut().chain(equalities.iter_mut().map(|(_,t)|t)){change(t)},_=>{}
+        }
+    }
+    walk(&mut rule,change);rule
+}
+fn local_guard(rule:&RuleExpr)->bool{
+    match rule {
+        RuleExpr::Allow|RuleExpr::Deny|RuleExpr::Public{..}=>true,
+        RuleExpr::And(xs)|RuleExpr::Or(xs)=>xs.iter().all(local_guard),RuleExpr::Not(x)=>local_guard(x),
+        RuleExpr::Eq(..)|RuleExpr::Ne(..)|RuleExpr::Exists{..}=>!rule.any_term(&|t|!matches!(t,RuleTerm::Field(_)|RuleTerm::Viewer|RuleTerm::Literal(_))),_=>false,
+    }
+}
+fn creation_values(table:&snapback4_core::schema::Table,fields:&[ast::ObjectField])->BTreeMap<String,RuleTerm>{
+    use snapback4_core::{Value,schema::{ColumnType as C,ColumnDefault}};
+    let mut values=table.defaults.iter().map(|(c,d)|(c.clone(),match d{ColumnDefault::Viewer=>RuleTerm::Viewer,ColumnDefault::Literal(v)=>RuleTerm::Literal(v.clone()),ColumnDefault::Now=>RuleTerm::Field(c.clone())})).collect::<BTreeMap<_,_>>();
+    for field in fields {
+        values.remove(&field.name);
+        let Some(e)=&field.value else{continue;};
+        let value=match e {
+            ast::Expr::Name{name,..} if name=="viewer"=>Some(RuleTerm::Viewer),
+            ast::Expr::Literal{value,..}=>match value {
+                ast::Literal::Null=>Some(RuleTerm::Literal(Value::Null)),ast::Literal::Bool(v)=>Some(RuleTerm::Literal(Value::Bool(*v))),
+                ast::Literal::Str(s)=>Some(RuleTerm::Literal(if table.columns.get(&field.name).is_some_and(|k|matches!(k.required(),C::Id|C::Principal|C::Ref{..})){Value::Id(s.clone())}else{Value::String(s.clone())})),
+                ast::Literal::Number(_)=>super::creation_advice::duration_number(e).map(|n|RuleTerm::Literal(Value::Int(n))),
+            },_=>None,
+        };
+        if let Some(value)=value{values.insert(field.name.clone(),value);}
+    }values
 }

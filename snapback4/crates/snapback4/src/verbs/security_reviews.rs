@@ -17,7 +17,14 @@ pub(super) fn gated(code:&str)->bool{matches!(code,"N_RETAINED_ROLE_GRANT"|"N_OP
 fn hash(bytes:&[u8])->String{format!("{:x}",Sha256::digest(bytes))}
 fn digest(s:&str)->bool{s.len()==64&&s.bytes().all(|b|b.is_ascii_hexdigit())}
 pub(super) fn review(project:&Project,sources:&[(String,String)],notes:&[snapback4_lang::Diagnostic],ack:Option<(&str,&str)>)->Result<Vec<Disposition>,String>{
-    if project.sources().map_err(|e|e.to_string())?!=sources{return Err("Quarry sources changed during security review; rerun check".into());}
+    review_inner(project,sources,notes,ack,false)
+}
+/// Read-only decisions for a caller-validated immutable saved-source selection.
+pub(super) fn review_snapshot(project:&Project,sources:&[(String,String)],notes:&[snapback4_lang::Diagnostic])->Result<Vec<Disposition>,String>{
+    review_inner(project,sources,notes,None,true)
+}
+fn review_inner(project:&Project,sources:&[(String,String)],notes:&[snapback4_lang::Diagnostic],ack:Option<(&str,&str)>,snapshot:bool)->Result<Vec<Disposition>,String>{
+    if !snapshot&&project.sources().map_err(|e|e.to_string())?!=sources{return Err("Quarry sources changed during security review; rerun check".into());}
     let identities=binding::identities(notes,sources);
     let path=project.schema_dir().join("security-reviews.json");
     // Keep the lock inode in ignored generated output. Do not unlink a lock
@@ -29,7 +36,7 @@ pub(super) fn review(project:&Project,sources:&[(String,String)],notes:&[snapbac
         let lock=std::fs::OpenOptions::new().create(true).truncate(false).read(true).write(true).open(directory.join("security-reviews.lock")).map_err(|e|format!("cannot open security review lock: {e}"))?;
         lock.lock().map_err(|e|format!("cannot acquire security review lock: {e}"))?;Some(lock)
     }else{None};
-    if project.sources().map_err(|e|e.to_string())?!=sources{return Err("Quarry sources changed while waiting for security review; rerun check".into());}
+    if !snapshot&&project.sources().map_err(|e|e.to_string())?!=sources{return Err("Quarry sources changed while waiting for security review; rerun check".into());}
     let mut file:File=match std::fs::read(&path){
         Ok(bytes)=>serde_json::from_slice(&bytes).map_err(|_|"invalid snapback/security-reviews.json; expected version 1 with per-note source/analyzer/reason records".to_string())?,
         Err(e) if e.kind()==std::io::ErrorKind::NotFound=>File{version:1,entries:BTreeMap::new()},

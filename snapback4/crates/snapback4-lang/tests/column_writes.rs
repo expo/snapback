@@ -107,3 +107,21 @@ fn unreadable_guarded_payloads_do_not_offer_a_guessing_oracle(){
         assert_eq!(serde_json::to_value(existing.state).unwrap(),serde_json::to_value(absent.state).unwrap());
     }
 }
+#[test]
+fn sequence_assignment_cannot_invalidate_an_early_column_grant(){
+    use snapback4_core::value::object;
+    let source="table groups:\n  read <- allow\n  insert <- allow\n  online only\ntable entries:\n  parent: groups\n  ordinal: sequence by parent\n  payload: text write <- .ordinal != 1\n  immutable parent\n  read <- allow\n  insert <- allow\n  online only\nmutation add(parent: groups):\n  return insert entries {parent,payload:'value'}\nmutation absent(parent: groups):\n  return insert entries {parent,payload:'value'} if absent\nmutation put(id: entries,parent: groups):\n  return upsert entries[id] {parent,payload:'value'}\n";
+    for op in ["add","absent","put"]{
+        let mut e=engine(source);e.seed([("groups".into(),object([("id",Value::Id("g".into()))]))]).unwrap();
+        let mut args=BTreeMap::from([("parent".into(),Value::Id("g".into()))]);if op=="put"{args.insert("id".into(),Value::Id("new".into()));}
+        assert!(!e.mutate(op,None,Context::new("alice",args).at(1_800_000_000_000)).is_ok_and(|r|matches!(r.state,WriteState::Sent{..})),"{op} assigned ordinal 1 despite its column grant");
+        assert!(e.store().rows("entries").unwrap().is_empty());
+    }
+}
+#[test]
+fn omitted_optional_null_is_equal_during_frozen_import(){
+    use snapback4_core::value::object;
+    let mut e=engine(SOURCE);
+    e.seed([("docs".into(),object([("id",Value::Id("doc".into())),("owner",Value::Id("alice".into())),("cell",Value::Null),("approved",Value::Bool(true))]))]).unwrap();
+    e.load([("docs".into(),object([("id",Value::Id("doc".into())),("owner",Value::Id("alice".into())),("approved",Value::Bool(true))]))]).unwrap();
+}

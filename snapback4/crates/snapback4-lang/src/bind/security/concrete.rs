@@ -43,7 +43,8 @@ fn value(e:&Expr,row:&Value,rows:&Rows,schema:&Schema,viewer:&str,table:&str,now
     },
     Expr::Call{name,args,..} if name=="sum"&&args.len()==2 => {
         let Value::Array(values)=value(&args[0],row,rows,schema,viewer,table,now)?else{return None;};
-        let sum=values.iter().try_fold(0i128,|sum,r|match value(&args[1],r,rows,schema,viewer,table,now)? {Value::Int(n)=>sum.checked_add(i128::from(n)),_=>None})?;
+        let Expr::Read(population)=&args[0]else{return None;};
+        let sum=values.iter().try_fold(0i128,|sum,r|match value(&args[1],r,rows,schema,viewer,&population.table,now)? {Value::Int(n)=>sum.checked_add(i128::from(n)),_=>None})?;
         Value::int(sum).ok()?
     },
     Expr::Array{items,..}=>Value::Array(items.iter().map(|e|value(e,row,rows,schema,viewer,table,now)).collect::<Option<_>>()?),
@@ -119,4 +120,21 @@ fn logical_live(schema:&Schema,rows:&Rows,table:&str,row:&Value,now:i64,depth:us
         return logical_live(schema,rows,&through.parent,parent,now,depth+1);
     }
     Some(true)
+}
+
+#[cfg(test)]mod tests{
+    use super::*;
+    use snapback4_core::value::object;
+    #[test]fn sum_reference_hops_use_the_population_element_type(){
+        let source="table projectOwners:\n  limit: int\n  read <- allow\n  online only\ntable itemOwners:\n  limit: int\n  read <- allow\n  online only\ntable projects:\n  owner: projectOwners\n  read <- allow\n  online only\ntable items:\n  project: projects\n  owner: itemOwners\n  read <- allow\n  online only\ninvariant projects always sum(items[project = .id], .owner.limit) = 7\n";
+        let b=crate::compile(&[("schema.q".into(),source.into())]);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
+        let project=object([("id",Value::Id("p".into())),("owner",Value::Id("same-id".into()))]);
+        let rows=BTreeMap::from([
+            ("projects".into(),vec![project.clone()]),
+            ("projectOwners".into(),vec![object([("id",Value::Id("same-id".into())),("limit",Value::Int(0))])]),
+            ("itemOwners".into(),vec![object([("id",Value::Id("same-id".into())),("limit",Value::Int(7))])]),
+            ("items".into(),vec![object([("id",Value::Id("item".into())),("project",Value::Id("p".into())),("owner",Value::Id("same-id".into()))])]),
+        ]);
+        assert_eq!(evaluate(b.invariants[0].syntax.as_ref().unwrap(),&project,&rows,&b.schema,"viewer","projects",super::super::challenges::NOW),Some(true));
+    }
 }

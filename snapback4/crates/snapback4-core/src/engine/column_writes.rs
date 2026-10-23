@@ -5,7 +5,9 @@ use crate::{schema::{Effect, RuleExpr, materialize_optional_fields}, error::{Run
 impl Runner<'_> {
     pub(super) fn check_frozen_columns(&mut self, name:&str, old:&Value, next:&Value)->Result<(),RuntimeError>{
         let table=&self.schema.tables[name];
+        if table.frozen_columns.is_empty(){return Ok(());}
         let mut old=old.clone();materialize_optional_fields(&mut old,table);
+        let mut next=next.clone();materialize_optional_fields(&mut next,table);
         for (field,condition) in &table.frozen_columns {
             if old.field(field).ok()==next.field(field).ok(){continue;}
             let rule=RuleExpr::Not(Box::new(condition.clone()));

@@ -34,7 +34,7 @@ impl Runner<'_> {
     /// Reserve its exact copy and static authorization/counter allowance before
     /// learning a read witness; do not reserve schema-maximum hidden payloads.
     pub(super) fn reserve_sequence_authorization(&mut self, table: &Table, row: &crate::value::Supplied, insert_checks: u64) -> Result<(), RuntimeError> {
-        let probes = super::rules::rule_probes(&table.rules.read).saturating_add(super::rules::rule_probes(&table.rules.insert).saturating_mul(insert_checks));
+        let probes = super::rules::rule_probes(&table.rules.read).saturating_add(super::rules::rule_probes(&table.guarded_rule(Effect::Insert)).saturating_mul(insert_checks));
         for (kind, amount, used, ceiling) in [
             (MeterKind::RuleProbes, probes, self.meter.used.rule_probes, self.meter.ceilings.rule_probes),
             (MeterKind::IndexEntries, table.sequences.len() as u64, self.meter.used.index_entries, self.meter.ceilings.index_entries),

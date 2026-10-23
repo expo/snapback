@@ -4,13 +4,12 @@ use super::*;
 type Baseline=BTreeMap<String,BTreeMap<String,bool>>;
 fn baseline(bound:&Bound)->Baseline{bound.schema.visible_tables().map(|(n,t)|(n.clone(),t.columns.iter().map(|(c,k)|(c.clone(),k.is_optional())).collect())).collect()}
 fn path(project:&Project)->std::path::PathBuf{project.schema_dir().join("generated/security-presence-baseline.json")}
-pub(super) fn notes(project:&Project,bound:&Bound,prior:Option<&Bound>)->Result<Vec<snapback4_lang::Diagnostic>,String>{
+pub(super) fn notes(project:&Project,bound:&Bound,prior:Option<&Bound>,sources:&[(String,String)])->Result<Vec<snapback4_lang::Diagnostic>,String>{
     let old=if let Some(prior)=prior{baseline(prior)}else{match std::fs::read(path(project)){
         Ok(bytes)=>serde_json::from_slice(&bytes).map_err(|e|format!("invalid security presence baseline: {e}"))?,
         Err(e) if e.kind()==std::io::ErrorKind::NotFound=>return Ok(Vec::new()),
         Err(e)=>return Err(format!("cannot read security presence baseline: {e}")),
     }};
-    let sources=project.sources().map_err(|e|e.to_string())?;
     let mut out=Vec::new();
     for (table,columns) in baseline(bound){for (column,optional) in columns {
         if !optional||old.get(&table).and_then(|c|c.get(&column))!=Some(&false){continue;}
@@ -48,15 +47,15 @@ pub(in crate::verbs) fn remember(project:&Project,bound:&Bound)->Result<(),Strin
         let optional=required.replace("value: text","value: text ?");
         let compile=|source:&str|{std::fs::write(project.schema_dir().join("schema.q"),source).unwrap();let b=snapback4_lang::compile(&[("schema.q".into(),source.into())]);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);b};
         let old=compile(required);let current=compile(&optional);
-        assert!(notes(&project,&current,None).unwrap().is_empty());
+        assert!(notes(&project,&current,None,&project.sources().unwrap()).unwrap().is_empty());
         remember(&project,&old).unwrap();
-        assert_eq!(notes(&project,&current,None).unwrap().len(),1);
-        assert_eq!(notes(&project,&current,None).unwrap().len(),1,"failed checks do not advance the baseline");
+        assert_eq!(notes(&project,&current,None,&project.sources().unwrap()).unwrap().len(),1);
+        assert_eq!(notes(&project,&current,None,&project.sources().unwrap()).unwrap().len(),1,"failed checks do not advance the baseline");
         let permission=compile(&format!("{optional}\ninvariant rows.value write only viewer = 'service:desk'\n"));
-        assert_eq!(notes(&project,&permission,None).unwrap().len(),1,"write permission does not answer presence");
+        assert_eq!(notes(&project,&permission,None,&project.sources().unwrap()).unwrap().len(),1,"write permission does not answer presence");
         let deliberate=compile(&format!("{optional}\ninvariant rows always .value = null or .value != null\n"));
-        assert!(notes(&project,&deliberate,None).unwrap().is_empty());
+        assert!(notes(&project,&deliberate,None,&project.sources().unwrap()).unwrap().is_empty());
         std::fs::remove_file(path(&project)).unwrap();
-        assert_eq!(notes(&project,&current,Some(&old)).unwrap().len(),1,"release comparison survives deleted local state");
+        assert_eq!(notes(&project,&current,Some(&old),&project.sources().unwrap()).unwrap().len(),1,"release comparison survives deleted local state");
     }
 }

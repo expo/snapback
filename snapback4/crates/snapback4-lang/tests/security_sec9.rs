@@ -15,6 +15,14 @@ const ASYMMETRY:&str="table records:\n  owner: principal\n  value: text ?\n  rea
  let s=ASYMMETRY.replace("insert <- allow","insert <- viewer = 'service:desk' and .owner = viewer").replace("or viewer = 'service:desk'","or viewer = 'service:desk' or viewer = 'service:manager'");
  assert!(!report(&s).notes.iter().any(|n|n.code=="N_CREATE_EDIT_ASYMMETRY"));
 }
+#[test]fn row_dependent_change_audiences_gate_only_a_wider_creator(){
+ let wider=ASYMMETRY.replace("viewer = 'service:desk'","old.owner = viewer");
+ assert!(report(&wider).notes.iter().any(|n|n.code=="N_CREATE_EDIT_ASYMMETRY"));
+ let own=wider.replace("insert records { owner, value }","insert records { owner: viewer, value }");
+ assert!(!report(&own).notes.iter().any(|n|n.code=="N_CREATE_EDIT_ASYMMETRY"));
+ let sources=vec![("schema.q".into(),wider.clone())];
+ assert!(!security::derived::invariants(&sources,&bound(&wider)).is_empty());
+}
 #[test]fn non_null_creation_is_derived_without_specification_intent(){
  let sources=vec![("schema.q".into(),ASYMMETRY.into())];let b=security::derived::augmented(&sources,&bound(ASYMMETRY));
  assert!(!b.invariants.is_empty());assert!(b.invariants.iter().all(security::derived::is_derived));

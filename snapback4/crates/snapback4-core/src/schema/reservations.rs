@@ -76,7 +76,7 @@ pub fn capture_price(schema: &Schema, table: &Table) -> Price {
     let parent = &schema.tables[&through.parent];
     [through.fields.len() as u64+2, 0, 1, 0,
      row_copy_ceiling(parent)*2+row_copy_ceiling(table), 0,
-     crate::engine::rules::rule_probes(&parent.rules.read)+crate::engine::rules::rule_probes(&table.rules.insert)]
+     crate::engine::rules::rule_probes(&parent.rules.read)+crate::engine::rules::rule_probes(&table.guarded_rule(Effect::Insert))]
 }
 #[cfg(feature = "sqlite")]
 fn row_price(schema: &Schema, m: &Maintain, recipients: u64) -> Price {
