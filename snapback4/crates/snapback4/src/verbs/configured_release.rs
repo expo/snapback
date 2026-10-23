@@ -8,7 +8,6 @@ pub(super) fn deploy(options: &Options, config: StoreConfig) -> Result<(), Strin
     for flag in [
         "check",
         "staging",
-        "restore-dormant",
         "save-version",
         "allow-destructive",
         "allow-feed-adoption",
@@ -150,7 +149,7 @@ pub(super) fn deploy(options: &Options, config: StoreConfig) -> Result<(), Strin
         release: n,
         expected_previous: previous,
         expected_revision: Some(state.revision),
-        restore_dormant: false,
+        restore_dormant: options.flags.contains_key("restore-dormant"),
         native_digest: None,
         operation: "deploy".into(),
     };

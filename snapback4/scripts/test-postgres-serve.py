@@ -226,6 +226,10 @@ try:
     ]:
         refused=cli(['doctor','--store-url',invalid],False)
         assert code in refused.stderr and 'private-password' not in refused.stderr,refused.stderr
+    from postgres_evolution_witness import witness as evolution_witness
+    evolution_witness(globals(), url.replace('schema=serving','schema=ev1'))
+    if os.environ.get('SNAPBACK4_EV1_ONLY') == '1':
+        raise SystemExit(0)
     change_evidence_witness(url.replace('schema=serving','schema=p1ce'))
     cli(['check'])
     for verb in ['deploy', 'serve']:
@@ -299,7 +303,9 @@ try:
         recovery_refuses('missing _head')
     finally:
         sql('DROP SCHEMA serving CASCADE; ALTER SCHEMA original RENAME TO serving')
-    for table in ['_backend', '_meta', '_head', '_generations', 'r', '_sessions', '_release_events']:
+    for table in ['_backend', '_meta', '_head', '_generations', 'r', '_sessions', '_release_events',
+                  '_dormant_tables', '_dormant_columns', '_dormant_indexes', '_dormant_rows',
+                  '_dormant_values', '_dormant_refs']:
         sql(f'ALTER TABLE serving.{table} RENAME TO removed_table')
         try:
             recovery_refuses('missing '+table)
