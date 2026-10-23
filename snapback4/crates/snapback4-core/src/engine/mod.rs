@@ -112,6 +112,7 @@ pub(crate) mod timeline;
 mod timeline_authority;
 pub mod validate;
 pub mod write;
+mod column_writes;
 #[cfg(feature = "sqlite")]
 pub use recorded::RecordedNulls;
 use write::target as write_target;

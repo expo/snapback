@@ -209,7 +209,7 @@ pub fn validate(schema: &Schema) -> Vec<SchemaIssue> {
             &table.rules.insert,
             &table.rules.update,
             &table.rules.delete,
-        ] {
+        ].into_iter().chain(table.column_writes.values()).chain(table.frozen_columns.values()) {
             walk.rule(name, rule, &path);
         }
         for index in table.indexes.values() {

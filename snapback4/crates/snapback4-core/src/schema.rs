@@ -38,6 +38,7 @@ pub use receipts::ReceiptFamily;
 pub use delivery::DeliveryBinding;
 pub mod field_authority;
 pub mod column_reads;
+pub mod column_writes;
 pub mod own_keys;
 pub use field_authority::FieldAuthority;
 pub use routes::RouteSpec;
@@ -351,6 +352,10 @@ pub struct Table {
     /// Conjunctive payload gates, independent of row and write authority.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub column_reads: BTreeMap<String, RuleExpr>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub column_writes: BTreeMap<String, RuleExpr>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub frozen_columns: BTreeMap<String, RuleExpr>,
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub update_transition: bool,
     /// Lifetime-bound inherited authority. Absent on legacy schemas.
@@ -1101,7 +1106,7 @@ pub fn public_table(columns: BTreeMap<String, ColumnType>, indexes: BTreeMap<Str
     let public = RuleExpr::Public { reason: "fixture".to_owned() };
     Table {
         ephemeral: None,
-        sequences: Default::default(), column_reads: Default::default(), written_by: Default::default(), update_transition: false, through: None, on_delete: BTreeMap::new(),
+        sequences: Default::default(), column_writes: Default::default(), frozen_columns: Default::default(), column_reads: Default::default(), written_by: Default::default(), update_transition: false, through: None, on_delete: BTreeMap::new(),
         maintained: BTreeMap::new(), recorded: BTreeMap::new(),
         residency: Residency::default(),
         defaults: BTreeMap::new(),
@@ -1129,6 +1134,7 @@ pub struct SchemaIssue {
 pub fn validate(schema: &Schema) -> Vec<SchemaIssue> {
     let mut issues = columns::validate(schema);
     issues.extend(column_reads::validate(schema));
+    issues.extend(column_writes::validate(schema));
     #[cfg(feature = "sqlite")]
     {
     let mut backfill_outputs = BTreeSet::new(); let mut backfill_names = BTreeSet::new();

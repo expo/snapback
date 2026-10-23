@@ -67,6 +67,7 @@ struct Wire {
 const CAPABILITIES: &[(&str, fn(&Schema) -> bool)] = &[
     #[cfg(feature = "sqlite")]
     ("release-table-renames-v1",|s|!s.table_renames.is_empty() || !s.asset_renames.is_empty()),
+    ("column-write-v1", |s| s.tables.values().any(|t| !t.column_writes.is_empty() || !t.frozen_columns.is_empty())),
     ("column-read-v1", |s| s.tables.values().any(|t| !t.column_reads.is_empty())),
 
     // Table-bearing backend schemas carry this in the ordinary schema fence.

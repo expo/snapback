@@ -40,7 +40,7 @@ impl Runner<'_> {
     }
 
     fn insert_mode(&mut self, table_name: &str, row: Supplied, if_absent: bool) -> Result<bool, RuntimeError> {
-        if self.device && (self.schema.tables[table_name].not_before.is_some() || self.schema.tables[table_name].column_server_reads()) {
+        if self.device && (!self.schema.tables[table_name].column_writes.is_empty() || !self.schema.tables[table_name].frozen_columns.is_empty() || self.schema.tables[table_name].not_before.is_some() || self.schema.tables[table_name].column_server_reads()) {
             return Err(RuntimeError::Prediction(
                 "a mutation touching a `not before` table runs on the server".into(),
             ));
@@ -269,7 +269,7 @@ impl Runner<'_> {
     }
 
     pub(super) fn update(&mut self, table_name: &str, key: &Value, patch: Supplied) -> Result<(), RuntimeError> {
-        if self.device && (self.schema.tables[table_name].not_before.is_some() || self.schema.tables[table_name].column_server_reads()) {
+        if self.device && (!self.schema.tables[table_name].column_writes.is_empty() || !self.schema.tables[table_name].frozen_columns.is_empty() || self.schema.tables[table_name].not_before.is_some() || self.schema.tables[table_name].column_server_reads()) {
             return Err(RuntimeError::Prediction(
                 "a mutation touching a `not before` table runs on the server".into(),
             ));
@@ -303,7 +303,7 @@ impl Runner<'_> {
     }
 
     pub(super) fn upsert(&mut self, table_name: &str, key: &Value, row: Supplied) -> Result<(), RuntimeError> {
-        if self.device && (self.schema.tables[table_name].not_before.is_some() || self.schema.tables[table_name].column_server_reads()) {
+        if self.device && (!self.schema.tables[table_name].column_writes.is_empty() || !self.schema.tables[table_name].frozen_columns.is_empty() || self.schema.tables[table_name].not_before.is_some() || self.schema.tables[table_name].column_server_reads()) {
             return Err(RuntimeError::Prediction(
                 "a mutation touching a `not before` table runs on the server".into(),
             ));
@@ -397,6 +397,7 @@ impl Runner<'_> {
         }
         let new = self.with_asset_facts(table_name, new, Some(&old), (!readable || !self.schema.tables[table_name].column_reads.is_empty()).then_some(patch))?;
         if let Err(error) = super::validate::validate_projection(self.schema, table_name, &new, self.device.then_some(self.context.viewer.as_str())) { return Err(if readable { error } else { self.no_write_target() }); }
+        self.check_frozen_columns(table_name, &old, &new).map_err(|e|if readable{e}else{self.no_write_target()})?;
         self.check_constraints(table_name, Some(&old), &new, Effect::Update)?;
         let new = self.prepare_event_slots(table_name, Some(&old), new, copy)?;
         // A predicting device keeps another owner's omitted private field as an omission.
@@ -412,7 +413,7 @@ impl Runner<'_> {
     }
 
     pub(super) fn delete(&mut self, table_name: &str, id: &str) -> Result<(), RuntimeError> {
-        if self.device && (self.schema.tables[table_name].not_before.is_some() || self.schema.tables[table_name].column_server_reads()) {
+        if self.device && (!self.schema.tables[table_name].column_writes.is_empty() || !self.schema.tables[table_name].frozen_columns.is_empty() || self.schema.tables[table_name].not_before.is_some() || self.schema.tables[table_name].column_server_reads()) {
             return Err(RuntimeError::Prediction(
                 "a mutation touching a `not before` table runs on the server".into(),
             ));
