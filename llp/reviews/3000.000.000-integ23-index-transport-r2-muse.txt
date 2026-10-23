@@ -1,0 +1,61 @@
+muse: workspace root: /home/ccheever/projects/snapback-sb4loop (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=c5a8e28d-4e09-4ebe-9489-c4fade44c515]: Subscription quota exhausted. Your usage window resets at 2026-10-26T00:00:00Z. (rate_limit_error)
+[muse-exec] plan quota exhausted; retrying with the Meta API key
+muse: workspace root: /home/ccheever/projects/snapback-sb4loop (cwd default)
+muse: workspace trust: trusted source=run-flag
+NOT READY — one material regression in the final patch's interaction with deploy-time verification.
+
+## Material counterexample: scalar-renamed unique key now refuses a truthful deploy
+
+**Setup (ordinary evolution, no invariants).** v1:
+
+```
+table notes:
+  code: text <=20
+  memo: text <=20 ?
+  unique byCode: code
+  public
+  online only
+query ordered():
+  return notes first 10 by byCode
+```
+
+v2 renames the unique key's column and widens an unrelated column (the view trigger):
+
+```
+table notes:
+  label: text <=20 renamed from code
+  memo: text <=100 ?
+  unique byCode: label
+  public
+  online only
+query ordered():
+  return notes first 10 by byCode
+```
+
+**What happens at a036.** The selective bridge carries `unique byCode` and `plain_declaration` correctly rewrites the key to the predecessor spelling, so the view contains `unique byCode: code`, compiles cleanly, and `current_context_needed` correctly reports no meaning change. Then deploy-time verification in [`rollback_views.rs`](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4/src/verbs/rollback_views.rs) rejects it with `E_ADOPT: rollback view ... cannot preserve a current unique key on notes`:
+
+- The verifier's column map (`rollback_views.rs:184-191`) is built **only** from `asset_renames`, and the `column` closure (`:196`) is identity.
+- Per [`backfills.rs:46-66`](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/src/bind/backfills.rs), a scalar (`text`) `renamed from` creates `$rename` backfills but **no** `asset_renames` entry (only asset/`Ref` columns get one, `:52-53`).
+- So current `[label]` is compared against view `[code]` with no alignment (`:202-204`) → mismatch → refusal. Yet `requires_view`'s own unique comparison (`release_bridge.rs:32-35`, `normalize_columns`) treats them as equal. The trigger and the verifier disagree.
+
+**Why this is a regression, not just a gap.** Before a036, the carried declaration kept the current spelling (`unique byCode: label`), which failed to compile against the predecessor table, so `loosen` fell back to the guarded-current view and the deploy **succeeded**. After a036 the selective bridge compiles, the verifier (which never got the same injective alignment) refuses, and there is **no fallback after verification** (`prepare`, `rollback_views.rs:156-204`). A deploy that succeeded before now refuses, with advice ("author a compatible guarded rollback workflow") no authored source can satisfy — the generated view is already truthful. This violates the coordinator's no-ordinary-rename-refusal contract. The existing tests mask it because every rename under test uses `principal` (a `Ref`), which *is* covered via `asset_renames`.
+
+**Fix direction (not applied, read-only):** give the verifier the same injective declared plain-column identity map used for transport/comparison (including scalar `$rename` identities, rejecting on non-injective maps), or fall back to the guarded-current strategy on verifier mismatch instead of refusing.
+
+## What checked out clean
+
+- Index-dependency travel (c456): new-named indexes carried with bodies; equal-key/different-name uniques not treated as aliases; relaxation (delete old unique, carry current non-unique) correct; no historical-uniqueness resurrection.
+- Meaning comparison: same-named plain (`byOrder: n→rank`), word-field (`words(title)→words(body)`), and calendar/contribution/token contracts all force current context via full compiled-component equality; complex components with renames force current context rather than rewriting embedded semantics.
+- `plain_declaration`: rewrites only key tokens; label, refusal code, and business literals provably preserved (test asserts); unknown shapes fail closed to `raw` → compile diagnostic → existing fallback. Injectivity enforced in one shared `column_names` with a collapse regression test.
+- Wire contracts/aliases, `requires_view` triggers, and both current strategies are untouched; carried indexes are schema-only, so no older executable path is restored.
+- LLP §20.1 addition matches the implementation.
+
+## Nits (non-blocking)
+
+- `current_context_needed:19` re-checks injectivity already enforced by `column_names:53` — harmless duplication.
+- `rollback_views.rs:196`'s identity `column` closure is now the single unaligned site; a brief comment pointing at the §20.1 alignment rule would prevent recurrence.
+- Verification scope is static only: the 54 language-unit passes, the 5+2 regressions, and the PG/SQLite witness were not re-run here and are not taken as evidence, per instructions.
+
+**Files inspected:** the LLP §20.1 text, the a0361532 and c45653db diffs, `release_bridge_indexes.rs` + tests, `release_bridge_rules.rs`, `release_bridge_guards.rs`, `release_bridge.rs`, `release_bridge_current.rs` (contract/alpha sections), `rollback_views.rs:60-250`, `rollback_foresight.rs` (unique-risk scan), and `postgres_evolution_witness.py` (byN→byCount flow; covers the c456 case, not renames).
