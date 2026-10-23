@@ -126,6 +126,10 @@ pub mod postgres;
 pub(crate) mod presence;
 #[cfg(feature = "sqlite")]
 pub mod program;
+#[cfg(feature = "sqlite")]
+mod program_batch;
+#[cfg(feature="sqlite")]
+mod program_transcript;
 mod receipt;
 pub mod refusal_trace;
 #[cfg(test)]

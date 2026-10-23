@@ -37,25 +37,35 @@ impl Engine {
     /// is never re-judged: its row is on the server, and the device that
     /// queued it must learn `sent`, not `failed`.
     pub fn mutate(&mut self, name: &str, op: Option<&str>, context: Context) -> Result<MutationOutcome, RuntimeError> {
-        self.mutate_inner(name, op, context, false, None, None).map(|ack| ack.outcome)
+        self.mutate_inner(name, op, context, false, None, None, std::time::Instant::now() + std::time::Duration::from_millis(100)).map(|ack| ack.outcome)
     }
 
     /// Commit-local publication facts, exposed only after physical COMMIT.
     pub fn mutate_acknowledged(&mut self, name: &str, op: Option<&str>, context: Context) -> Result<MutationAcknowledgement, RuntimeError> {
-        self.mutate_inner(name, op, context, true, None, None)
+        self.mutate_inner(name, op, context, true, None, None, std::time::Instant::now() + std::time::Duration::from_millis(100))
     }
 
     /// Serving already performed unfenced replay-before-judgment. The final
     /// authority check and serial receipt check belong to this Program member.
     // @ref LLP 3000.009.001.000.001#31-authority-boundaries — a carried credential is not proof of current authority.
     pub fn mutate_authorized(&mut self, name: &str, op: Option<&str>, context: Context,
-        digest: &str, mut sample: impl FnMut() -> crate::identity::ServiceSample,
-        mut authorize: impl FnMut(crate::identity::RequestAuthority) -> Result<(), Refusal>,
+        digest: &str, sample: impl FnMut() -> crate::identity::ServiceSample,
+        authorize: impl FnMut(crate::identity::RequestAuthority) -> Result<(), Refusal>,
     ) -> Result<MutationAcknowledgement, Refusal> {
+        self.mutate_authorized_until(name,op,context,digest,sample,authorize,std::time::Instant::now() + std::time::Duration::from_millis(100))
+    }
+    pub(super) fn mutate_authorized_until(&mut self,name:&str,op:Option<&str>,context:Context,digest:&str,
+        mut sample:impl FnMut()->crate::identity::ServiceSample,
+        mut authorize:impl FnMut(crate::identity::RequestAuthority)->Result<(),Refusal>,deadline:std::time::Instant,
+    )->Result<MutationAcknowledgement,Refusal> {
         crate::identity::request::require_digest(digest).map_err(|e| e.refusal())?;
         let mut refusal = None;
-        let result = self.mutate_inner(name, op, context, true, Some(&mut |tx| {
-            let facts = tx.request_authority(digest, sample())?;
+        let mut attempted=false;
+        let result = self.mutate_inner(name, op, context, true, Some(&mut |tx,context: &mut Context| {
+            let sampled=sample();
+            if attempted {context.now=Some(context.now.unwrap_or(sampled.now).max(sampled.now));}
+            attempted=true;
+            let facts = tx.request_authority(digest, sampled)?;
             authorize(facts).map_err(|why| {
                 // The RuntimeError unwinds the member frame. Preserve the exact
                 // host refusal outside it, rather than converting its envelope.
@@ -63,7 +73,7 @@ impl Engine {
                 refusal = Some(why);
                 error
             })
-        }), Some(digest));
+        }), Some(digest), deadline);
         if let Some(why) = refusal { return Err(why); }
         result.map_err(|error| {
             let mut why = error.refusal();
@@ -73,9 +83,10 @@ impl Engine {
         })
     }
 
-    fn mutate_inner(&mut self, name: &str, op: Option<&str>, mut context: Context, publication_requested: bool, mut authority: Option<&mut dyn FnMut(&super::committer::MemberTx<'_, '_>) -> Result<(), RuntimeError>>, digest: Option<&str>) -> Result<MutationAcknowledgement, RuntimeError> {
+    pub(super) fn mutate_inner(&mut self, name: &str, op: Option<&str>, mut context: Context, publication_requested: bool, mut authority: Option<&mut dyn FnMut(&super::committer::MemberTx<'_, '_>, &mut Context) -> Result<(), RuntimeError>>, digest: Option<&str>, deadline: std::time::Instant) -> Result<MutationAcknowledgement, RuntimeError> {
         if authority.is_none() { validate::write_identity(&context.viewer, op)?; }
         context.generation = self.generation;
+        let dynamic_time=context.now.is_none();
         let requested = context.now.unwrap_or_else(crate::now_ms);
         context.now = Some(self.advance_time_audience(requested)?);
         let wire_args = if op.is_some() { context.wire_args.take().unwrap_or_else(|| {
@@ -104,12 +115,18 @@ impl Engine {
             store_id, generation: *generation, dev_effects: *dev_effects,
             #[cfg(feature = "evaluation-support")] evaluation_precharge: *evaluation_precharge };
         let mut minted = Vec::new();
+        let mut attempts = Vec::new();
         let original = context;
-        let resolution = Committer::run_program(store, digest, &original.viewer, op, |tx| {
+        let mut attempted=false;
+        let resolution = Committer::run_program_until(store, digest, &original.viewer, op, deadline, |tx| {
             let mut context = original.clone();
+            if attempted && dynamic_time {context.now=Some(crate::now_ms().max(context.now.unwrap_or(0)));}
+            attempted=true;
             context.new_ids = minted.iter().cloned().chain(original.new_ids.iter().skip(minted.len()).cloned()).collect();
-            program_attempt(&host, tx, name, op, context, publication_requested, &wire_args, &mut authority, &mut minted)
-                .map(|d| d.map(|(outcome, data)| Pending::new(outcome, data)))
+            let mut attempt=super::program_transcript::Attempt::default();
+            let result=program_attempt(&host, tx, name, op, context, publication_requested, &wire_args, &mut authority, &mut minted,&mut attempt)
+                .map(|d| d.map(|(outcome, data)| Pending::new(outcome, data)));
+            attempts.push(attempt);result
         })?;
         Committer::finish(self, resolution, |engine, data, mut ack| {
             if let Some((entropy, publication)) = data { engine.entropy = entropy; ack.publication = publication; }
@@ -137,14 +154,13 @@ pub(super) struct ProgramHost<'a> {
     #[cfg(feature = "evaluation-support")]
     pub evaluation_precharge: Metered,
 }
-pub(super) type ProgramPending = Pending<MutationAcknowledgement, Option<(u64, Option<DurablePublication>)>>;
-type AuthorityCheck<'a> = Option<&'a mut dyn FnMut(&super::committer::MemberTx<'_, '_>) -> Result<(), RuntimeError>>;
+type AuthorityCheck<'a> = Option<&'a mut dyn FnMut(&super::committer::MemberTx<'_, '_>, &mut Context) -> Result<(), RuntimeError>>;
 
 pub(super) fn program_attempt<'m, 's>(host: &ProgramHost<'_>, tx: super::committer::MemberTx<'m, 's>,
     name: &str, op: Option<&str>, mut context: Context, publication_requested: bool,
-    wire_args: &serde_json::Value, authority: &mut AuthorityCheck<'_>, minted: &mut Vec<String>,
+    wire_args: &serde_json::Value, authority: &mut AuthorityCheck<'_>, minted: &mut Vec<String>, attempt:&mut super::program_transcript::Attempt,
 ) -> Result<super::committer::Disposition<(MutationAcknowledgement, Option<(u64, Option<DurablePublication>)>)>, RuntimeError> {
-            if let Some(check) = authority.as_mut() { check(&tx)?; validate::write_identity(&context.viewer, op)?; }
+            if let Some(check) = authority.as_mut() { check(&tx,&mut context)?; validate::write_identity(&context.viewer, op)?; }
             // @ref LLP 3000.009.001.000.001#35-each-command-keeps-its-own-place — a later command observes a receipt committed during the head-lock wait.
             if let Some(op) = op
                 && let Some(outcome) = tx.replay_bound(&context.viewer, op, name, &wire_args)?
@@ -172,6 +188,7 @@ pub(super) fn program_attempt<'m, 's>(host: &ProgramHost<'_>, tx: super::committ
             if context.presence.is_none() {
                 context.presence = host.presence.clone();
             }
+            attempt.observe(&mut context);
             context.entropy = host.entropy;
             context.minter = host.minter.clone();
             let ceilings = host.ceilings;
@@ -225,6 +242,7 @@ pub(super) fn program_attempt<'m, 's>(host: &ProgramHost<'_>, tx: super::committ
             let mut read_tables = runner.read_tables.clone();
             let entropy = runner.context.entropy;
             *minted = runner.context.minted_ids.clone();
+            attempt.minted = runner.context.minted_ids.clone();
             drop(runner);
             let outcome = match ran {
                 Ok(result) => {

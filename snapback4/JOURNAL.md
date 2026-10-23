@@ -104975,3 +104975,24 @@ Both RT0 ratchets pass with every existing N=1 class unchanged. Controlled
 core batches add Postgres 20/132 total flights at N=4/32 and SQLite 66/486
 statements, excluding HTTP ingress. Final complete qualification and the local
 32-writer diagnostic are recorded in the completion entry, not claimed here.
+
+## 2026-10-24 — G3 serial group driver and FIFO program lane
+
+The owned committer now drains contiguous program commands into serial groups
+of at most 32, with no idle fill wait and a 1 ms collection cap. Rolling
+queue-through-COMMIT p99 adjusts N against the 100 ms write SLO. Other member
+kinds, native/long programs and timed-publication schemas stay solo. Each
+program retains its member/program savepoints, logical meter and ordinal.
+Application/authority refusals with acknowledged member rollback stay in their
+own frame; database errors roll back the physical batch. Explicitly named
+failures are removed before an ordered smaller-batch retry; unnamed known
+aborts get one solo attempt each. All fallbacks retain the original remaining
+admission deadline; fresh authority/time/presence and minted-id transcripts
+are observed on each attempt. Ambiguous COMMIT overrides every tentative
+result and never reruns. Durable per-member follow-up remains ordered.
+
+The strengthened randomized oracle compares N=1 with N=4/16/32 on both real
+stores, including raw receipt sequence/time fields, complete outcomes/meters,
+maintained rows, allocations, effects, intermediate log and change evidence.
+It passes on both stores. The final Postgres fault matrix, full qualification,
+serving handoff and recorded-load diagnostic follow in the completion entry.

@@ -87,6 +87,7 @@ pub struct Store {
     pub(crate) client: super::pipeline::Connection,
     qualified: bool,
     reader_binding: bool,
+    pub(crate) next_program_deadline: Option<std::time::Instant>,
     literal_cache: BTreeMap<String, super::literal::Prepared>,
     cache: BTreeMap<String, Statement>,
     pub calls: CallCounter,
@@ -100,7 +101,7 @@ pub struct Store {
 impl Store {
     pub fn new(client: Client) -> Self { Self::with_connection(super::pipeline::Connection::Sync(client)) }
     pub(super) fn with_connection(client: super::pipeline::Connection) -> Self {
-        Self { read_sessions: Cell::new(false), unified: false, fence: None, commit_warning: Default::default(), generation:1, read_only: false, client, qualified: false, reader_binding: false, literal_cache: BTreeMap::new(), cache: BTreeMap::new(), calls: CallCounter::new(0), prefetch: true, marked_reads: Cell::new(0), page_reads: Cell::new(0), prefetch_rows: Cell::new(0), prefetch_bytes: Cell::new(0) }
+        Self { read_sessions: Cell::new(false), unified: false, fence: None, commit_warning: Default::default(), generation:1, read_only: false, client, qualified: false, reader_binding: false, next_program_deadline: None, literal_cache: BTreeMap::new(), cache: BTreeMap::new(), calls: CallCounter::new(0), prefetch: true, marked_reads: Cell::new(0), page_reads: Cell::new(0), prefetch_rows: Cell::new(0), prefetch_bytes: Cell::new(0) }
     }
 
     // @ref LLP 3000.009.001.000#8 — only future requests reconnect, with fresh binding checks.
@@ -127,6 +128,7 @@ impl Store {
     }
 
     fn begin(&mut self, mode: Option<WriteMode>, opening: bool) -> Result<Tx<'_>, RuntimeError> {
+        let deadline = self.next_program_deadline.take();
         if self.read_only && mode.is_some() { return Err(RuntimeError::Store("Postgres reader is read-only".into())); }
         self.refresh_reader_connection()?;
         if !self.qualified {
@@ -145,7 +147,7 @@ impl Store {
         };
         let inner = super::flight::Session { client: &mut self.client, pending: begin.into(), started: false, done: false, settings_refused: false, checks: Vec::new() };
         let tx = Tx { read_sessions: &self.read_sessions, read_sessions_installed: Cell::new(false), unified: self.unified, commit_warning: &self.commit_warning, inner: RefCell::new(inner),
-            bind_refused: Cell::new(false), read_cache: RefCell::new(super::read_plan::Answers::default()), pending_read: RefCell::new(None), receipt_cache: RefCell::new(None), placement_cache: RefCell::new(None), authority_cache: RefCell::new(None), commit_settings: Cell::new(false), literal_cache: RefCell::new(&mut self.literal_cache), cache: RefCell::new(&mut self.cache), calls: &self.calls, marked_reads: &self.marked_reads, page_reads: &self.page_reads, prefetch_rows: &self.prefetch_rows, prefetch_bytes: &self.prefetch_bytes,
+            bind_refused: Cell::new(false), program_deadline: Cell::new(deadline), read_cache: RefCell::new(super::read_plan::Answers::default()), pending_read: RefCell::new(None), receipt_cache: RefCell::new(None), placement_cache: RefCell::new(None), authority_cache: RefCell::new(None), commit_settings: Cell::new(false), literal_cache: RefCell::new(&mut self.literal_cache), cache: RefCell::new(&mut self.cache), calls: &self.calls, marked_reads: &self.marked_reads, page_reads: &self.page_reads, prefetch_rows: &self.prefetch_rows, prefetch_bytes: &self.prefetch_bytes,
             rows_cache: RefCell::new(super::prefetch::Cache::default()), prefetch_enabled: self.prefetch, head: Cell::new(None), serialized_head: Cell::new(false), tail: RefCell::new(super::tail::Tail::default()), group_head: Cell::new(None), group_tails: RefCell::new(Vec::new()), changes: Default::default(), savepoints: RefCell::new(Vec::new()) };
         if self.unified && mode.is_some() {
             // Bootstrap is the sole exception: an absent owner relation is
@@ -284,12 +286,14 @@ impl Store {
 
     // @ref LLP 3000.009.001.000.001#35-each-command-keeps-its-own-place — head, generation, authority and receipt remain distinct commands after the owner flight.
     pub(crate) fn request_transaction(&mut self, digest: &str, principal: &str, id: Option<&str>) -> Result<Tx<'_>,RuntimeError> {
+        let deadline=self.next_program_deadline.take();
         if self.read_only { return Err(RuntimeError::Store("Postgres reader is read-only".into())); }
         let id = id.filter(|id| !absent_text_key(&[principal,id]));
         let auth = super::authority::session_facts_sql(self.read_sessions.get());
         for sql in ["SELECT seq FROM _head WHERE singleton FOR UPDATE", "SELECT generation FROM _backend WHERE singleton", auth] { self.prewarm_flight(sql)?; }
         if id.is_some() { self.prewarm_flight(super::receipts::LOOKUP)?; self.prewarm_flight(super::assets::PLACEMENT)?; }
         let expected = self.generation;
+        self.next_program_deadline=deadline;
         let tx = self.begin(Some(WriteMode::Serialized),false)?;
         let auth = super::authority::session_facts_sql(tx.read_sessions.get());
         let auth_params: &[&(dyn ToSql+Sync)] = &[&digest];
@@ -361,13 +365,23 @@ impl Store {
 }
 
 impl Tx<'_> {
-    pub(crate) fn bound_program_attempt(&self, remaining: std::time::Duration) -> Result<(), RuntimeError> {
-        let ms = remaining.as_millis().clamp(1, i32::MAX as u128);
-        self.defer_control(&format!("SET LOCAL statement_timeout={ms}; SET LOCAL lock_timeout={ms}"))
+    pub(crate) fn bound_program_attempt(&self, deadline: std::time::Instant) -> Result<(), RuntimeError> {
+        self.program_deadline.set(Some(self.program_deadline.get().map_or(deadline,|prior|prior.min(deadline))));
+        self.refresh_program_budget()
+    }
+    fn refresh_program_budget(&self) -> Result<(),RuntimeError> {
+        if let Some(deadline)=self.program_deadline.get() {
+            let remaining=deadline.checked_duration_since(std::time::Instant::now()).filter(|r|!r.is_zero())
+                .ok_or_else(||RuntimeError::Store("program invocation's remaining deadline elapsed".into()))?;
+            let ms=remaining.as_millis().clamp(1,i32::MAX as u128);
+            self.defer_control(&format!("SET LOCAL statement_timeout={ms}; SET LOCAL lock_timeout={ms}"))?;
+        }
+        Ok(())
     }
 }
 
 pub struct Tx<'a> {
+    program_deadline: Cell<Option<std::time::Instant>>,
     pub(super) read_sessions: &'a Cell<bool>,
     pub(super) read_sessions_installed: Cell<bool>,
     unified: bool,
@@ -455,6 +469,9 @@ impl Tx<'_> {
     // @ref LLP 3000.009.001.000#9.1 — a pre-bind refusal is terminal too; catching it cannot commit earlier writes without their tail.
     pub(super) fn ensure_active(&self) -> Result<(), RuntimeError> {
         self.inner.borrow().ensure_settings()?;
+        if self.program_deadline.get().is_some_and(|deadline|std::time::Instant::now()>=deadline) {
+            return Err(RuntimeError::Store("program invocation's remaining deadline elapsed".into()));
+        }
         if self.bind_refused.get() {
             return Err(RuntimeError::Input("transaction aborted by a refused Postgres parameter; roll back".into()));
         }
@@ -530,6 +547,7 @@ impl Tx<'_> {
             return Ok(self.flight(&[(sql, params)], "")?.remove(0).rows);
         }
         self.guard_params(&statement, params)?;
+        self.refresh_program_budget()?;
         let mut inner = self.inner.borrow_mut();
         inner.before_bind(self.calls)?;
         self.calls.set(self.calls.get() + 1);
@@ -539,6 +557,7 @@ impl Tx<'_> {
     /// Only adapter constants are SQL; every value uses RT5's single encoder.
     pub(super) fn flight(&self, commands: &[(&str, &[&(dyn ToSql + Sync)])], end: &str) -> Result<Vec<super::flight::ResultSet>, RuntimeError> {
         self.ensure_active()?;
+        self.refresh_program_budget()?;
         let mut sql = String::new();
         let mut statements = Vec::new();
         for (source, params) in commands {
@@ -609,6 +628,7 @@ impl Tx<'_> {
 
         let statement = self.prepared(sql)?;
         self.guard_params(&statement,params)?;
+        self.refresh_program_budget()?;
         self.calls.set(self.calls.get() + 1);
         let mut inner = self.inner.borrow_mut();
         inner.before_bind(self.calls)?;
@@ -622,6 +642,7 @@ impl Tx<'_> {
             return Ok(self.flight(&[(sql, params)], "")?.remove(0).count);
         }
         self.guard_params(&statement, params)?;
+        self.refresh_program_budget()?;
         let mut inner = self.inner.borrow_mut();
         inner.before_bind(self.calls)?;
         self.calls.set(self.calls.get() + 1);
@@ -639,6 +660,7 @@ impl Tx<'_> {
 
     pub(crate) fn batch(&self, sql: &str) -> Result<(), RuntimeError> {
         self.ensure_active()?;
+        self.refresh_program_budget()?;
         if sql.split(|c: char| !c.is_ascii_alphanumeric() && c != '_').any(|token| token.eq_ignore_ascii_case("ROLLBACK")) {
             return Err(RuntimeError::Store("use the explicit transaction/savepoint rollback method".into()));
         }
@@ -670,7 +692,17 @@ impl Tx<'_> {
         Ok(())
     }
 
+    pub(crate) fn commit_program(self) -> Result<(), crate::engine::committer::outcome::Failure> {
+        self.commit().map_err(|error| {
+            let aborted=matches!(&error,RuntimeError::Postgres(source) if source.code().is_some_and(|code|matches!(code.code(),"40001"|"40P01")||code.code().starts_with("23")));
+            crate::engine::committer::outcome::Failure {error,aborted,member:None}
+        })
+    }
+
     pub fn commit(self) -> Result<(), RuntimeError> {
+        // The driver already validated its tail within the remaining budget.
+        // Once it selects COMMIT, no deadline may cancel that outcome.
+        self.program_deadline.set(None);
         self.ensure_active()?;
         if self.inner.borrow().done { return Ok(()); }
         self.flush_tail()?;
@@ -693,7 +725,9 @@ impl Tx<'_> {
         if self.inner.borrow().done { return Ok(()); }
         self.calls.set(self.calls.get() + 1);
         let mut inner = self.inner.into_inner();
-        inner.flush(self.calls)?;
+        // Pending writes/control need not execute to abort the original
+        // transaction. In particular, expiry must not flush them first.
+        inner.pending.clear(); inner.checks.clear();
         inner.client.batch_execute("ROLLBACK")?;
         inner.client.finish();
         inner.done = true;

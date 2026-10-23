@@ -408,3 +408,65 @@ fn failed_queue_lease_installation_releases_the_acquired_claim() {
         "failed installation retained an unexpired claim"
     );
 }
+
+fn program(id:&str)->crate::engine::program::Invocation {
+    crate::engine::program::Invocation::new("put",Some(id.into()),Context::new("alice",BTreeMap::from([
+        ("key".into(),Value::Id(id.into())),("n".into(),Value::Int(7))])))
+}
+#[test]
+#[ignore="private PG16; scripts/test-postgres.sh"]
+fn program_batch_killed_commit_is_unknown_for_all_then_new_owner_retries_keyed_intent() {
+    use crate::engine::command::ProgramCommand;
+    let mut fixture=Fixture::new();let(queue,_)=fixture.queue(16);
+    let key=fixture.barrier();
+    let(entered,started)=mpsc::channel();let(release,resume)=mpsc::channel();
+    let held=queue.submit(Command::new(move |_|{entered.send(()).unwrap();resume.recv_timeout(Duration::from_secs(10)).unwrap();})).unwrap();
+    started.recv_timeout(Duration::from_secs(5)).unwrap();
+    let callbacks=Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let replies:Vec<_>=(0..4).map(|i|{
+        let callbacks=callbacks.clone();queue.submit_program(ProgramCommand::new(program(&format!("batch-{i}")),move |_,result|{
+            callbacks.fetch_add(1,Ordering::SeqCst);result
+        })).unwrap()
+    }).collect();
+    release.send(()).unwrap();held.wait().unwrap();
+    let mut pid=None;wait(||{pid=fixture.committing();pid.is_some()});
+    assert_eq!(callbacks.load(Ordering::SeqCst),0,"no continuation before durability");
+    assert_eq!(fixture.control.query_one("SELECT seq FROM _head",&[]).unwrap().get::<_,i64>(0),0);
+    assert_eq!(fixture.control.query_one("SELECT count(*) FROM _ops",&[]).unwrap().get::<_,i64>(0),0);
+    // This PID was observed inside this fixture's private namespace and tag.
+    assert!(fixture.control.query_one("SELECT pg_terminate_backend($1)",&[&pid.unwrap()]).unwrap().get::<_,bool>(0));
+    for reply in replies {let why=reply.wait().unwrap().unwrap_err();assert_eq!(why.code,"E_COMMIT_OUTCOME_UNKNOWN");assert!(!why.retryable);}
+    assert_eq!(callbacks.load(Ordering::SeqCst),4);
+    assert_eq!(queue.batch_stats().fills[4],1);
+    drop(queue);
+    fixture.control.query_one("SELECT pg_advisory_unlock($1)",&[&key]).unwrap();
+    fixture.control.batch_execute("DROP TRIGGER commit_barrier ON r; DROP FUNCTION commit_barrier()").unwrap();
+    let mut successor=fixture.lease("a002");assert_eq!(successor.acquire().unwrap().unwrap().token,2);
+    let mut engine=Engine::open(AnyStore::open_postgres_owned(&fixture.connection,&fixture.namespace,&successor).unwrap()).unwrap();
+    assert_eq!(engine.seq().unwrap(),0);
+    for i in 0..4 {assert!(!engine.invoke_program(&mut program(&format!("batch-{i}"))).unwrap().outcome.replayed);}
+    assert_eq!(engine.seq().unwrap(),4);assert_eq!(engine.store().applied_ops().unwrap(),4);
+    for i in 0..4 {assert!(engine.invoke_program(&mut program(&format!("batch-{i}"))).unwrap().outcome.replayed);}
+    assert_eq!(engine.seq().unwrap(),4);
+    drop(engine);assert!(successor.release().unwrap());
+}
+
+#[test]
+#[ignore="private PG16; scripts/test-postgres.sh"]
+fn program_batch_waits_for_durability_then_continues_in_revision_order() {
+    use crate::engine::command::ProgramCommand;
+    let mut fixture=Fixture::new();let(queue,_)=fixture.queue(16);let key=fixture.barrier();
+    let(entered,started)=mpsc::channel();let(release,resume)=mpsc::channel();
+    let held=queue.submit(Command::new(move |_|{entered.send(()).unwrap();resume.recv_timeout(Duration::from_secs(10)).unwrap();})).unwrap();
+    started.recv_timeout(Duration::from_secs(5)).unwrap();
+    let hooks=Arc::new(Mutex::new(Vec::new()));
+    let replies:Vec<_>=(0..4).map(|i|{let hooks=hooks.clone();queue.submit_program(ProgramCommand::new(program(&format!("durable-{i}")),move |engine,result|{
+        assert_eq!(engine.seq().unwrap(),4,"all members durable before any continuation");
+        hooks.lock().unwrap().push(i);result
+    })).unwrap()}).collect();
+    release.send(()).unwrap();held.wait().unwrap();wait(||fixture.committing().is_some());
+    assert!(hooks.lock().unwrap().is_empty());
+    fixture.control.query_one("SELECT pg_advisory_unlock($1)",&[&key]).unwrap();
+    for (i,reply) in replies.into_iter().enumerate(){assert_eq!(reply.wait().unwrap().unwrap().publication.unwrap().head,i as u64+1);}
+    assert_eq!(*hooks.lock().unwrap(),vec![0,1,2,3]);drop(queue);
+}

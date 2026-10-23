@@ -1,5 +1,8 @@
-//! Reference committer: a physical transaction with one savepoint-scoped member.
-use crate::{RuntimeError, store_port::{AnyTx, AnyStore}};
+//! Physical transaction custody and savepoint-scoped members.
+use crate::{
+    RuntimeError,
+    store_port::{AnyStore, AnyTx},
+};
 use std::cell::Cell;
 
 mod member_store;
@@ -55,7 +58,7 @@ impl<T> Disposition<T> {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum Frame {
+pub(super) enum Frame {
     Active,
     Complete,
     Abort,
@@ -73,6 +76,8 @@ pub(crate) struct MemberTx<'member, 'store> {
 impl MemberTx<'_, '_> {
     /// Release this member; the driver still owes the physical COMMIT.
     pub(crate) fn complete<T>(self, value: T) -> MemberResult<T> {
+        #[cfg(test)]
+        super::program_batch::fault::current(super::program_batch::fault::Point::MemberRelease)?;
         self.tx.release("member")?;
         self.frame.set(Frame::Complete);
         Ok(Disposition {
@@ -118,9 +123,21 @@ impl MemberTx<'_, '_> {
         }
     }
     pub(crate) fn savepoint(&self, name: &str) -> Result<(), RuntimeError> {
+        #[cfg(test)]
+        if name == "program" {
+            super::program_batch::fault::current(
+                super::program_batch::fault::Point::ProgramSavepoint,
+            )?;
+        }
         self.tx.savepoint(Self::nested(name)?)
     }
     pub(crate) fn release(&self, name: &str) -> Result<(), RuntimeError> {
+        #[cfg(test)]
+        if name == "program" {
+            super::program_batch::fault::current(
+                super::program_batch::fault::Point::ProgramRelease,
+            )?;
+        }
         self.tx.release(Self::nested(name)?)
     }
     pub(crate) fn rollback_to(&self, name: &str) -> Result<(), RuntimeError> {
@@ -135,8 +152,8 @@ impl Drop for MemberTx<'_, '_> {
 
 /// Owned follow-up data and the value acknowledged after it runs.
 pub(crate) struct Pending<T, D = ()> {
-    value: T,
-    data: D,
+    pub(super) value: T,
+    pub(super) data: D,
 }
 impl<T, D> Pending<T, D> {
     pub(crate) fn new(value: T, data: D) -> Self {
@@ -165,23 +182,46 @@ impl<T> Committed<T> {
 
 /// Constructed only by the physical driver, before any continuation runs.
 pub(crate) struct Resolution<T, D = ()> {
-    committed: bool,
-    pending: Pending<T, D>,
+    pub(super) committed: bool,
+    pub(super) pending: Pending<T, D>,
 }
 
 /// Scoped openers preserve legacy identity transaction modes without exposing
 /// an owning transaction to member bodies. Only the driver receives the handle.
 pub(crate) trait TransactionSource {
-    fn with_transaction<T>(self, run: impl FnOnce(AnyTx<'_>) -> Result<T, RuntimeError>) -> Result<T, RuntimeError>;
+    fn with_transaction<T>(
+        self,
+        run: impl FnOnce(AnyTx<'_>) -> Result<T, RuntimeError>,
+    ) -> Result<T, RuntimeError>;
 }
 impl TransactionSource for &mut AnyStore {
-    fn with_transaction<T>(self, run: impl FnOnce(AnyTx<'_>) -> Result<T, RuntimeError>) -> Result<T, RuntimeError> {
+    fn with_transaction<T>(
+        self,
+        run: impl FnOnce(AnyTx<'_>) -> Result<T, RuntimeError>,
+    ) -> Result<T, RuntimeError> {
         run(self.transaction()?)
     }
 }
 
 pub(crate) struct Committer;
 impl Committer {
+    pub(super) fn open_program<'store>(
+        store: &'store mut AnyStore,
+        digest: Option<&str>,
+        principal: &str,
+        id: Option<&str>,
+    ) -> Result<AnyTx<'store>, RuntimeError> {
+        match digest {
+            Some(digest) => store.request_write_transaction(digest, principal, id),
+            None => store.transaction(),
+        }
+    }
+    pub(super) fn resolution<T, D>(disposition: Disposition<Pending<T, D>>) -> Resolution<T, D> {
+        Resolution {
+            committed: disposition.end == Frame::Complete,
+            pending: disposition.value,
+        }
+    }
     pub(crate) fn run<T>(
         store: impl TransactionSource,
         member: Member<impl FnOnce(MemberTx<'_, '_>) -> MemberResult<T>>,
@@ -272,19 +312,47 @@ impl Committer {
         tx: &AnyTx<'_>,
         member: Member<impl FnOnce(MemberTx<'_, '_>) -> MemberResult<T>>,
     ) -> MemberResult<T> {
+        Self::execute_handled(tx, member, None::<fn(RuntimeError) -> T>)
+    }
+    pub(super) fn execute_program<T>(
+        tx: &AnyTx<'_>,
+        member: Member<impl FnOnce(MemberTx<'_, '_>) -> MemberResult<T>>,
+        refused: impl FnOnce(RuntimeError) -> T,
+    ) -> MemberResult<T> {
+        Self::execute_handled(tx, member, Some(refused))
+    }
+    fn execute_handled<T>(
+        tx: &AnyTx<'_>,
+        member: Member<impl FnOnce(MemberTx<'_, '_>) -> MemberResult<T>>,
+        refused: Option<impl FnOnce(RuntimeError) -> T>,
+    ) -> MemberResult<T> {
         let Member { kind, run } = member;
-        // The queue owns the engine; this driver still commits one member,
-        // without batching, durable revision allocation or retries.
+        // Legacy producers enter alone; the program-only driver reuses this
+        // facade serially inside its fenced group transaction.
         let _kind = kind;
         tx.begin_member_evidence();
+        #[cfg(test)]
+        super::program_batch::fault::current(super::program_batch::fault::Point::MemberSavepoint)?;
         tx.savepoint("member")?;
         let frame = Cell::new(Frame::Active);
-        let disposition = run(MemberTx {
+        let ran = run(MemberTx {
             tx,
             frame: &frame,
             #[cfg(test)]
             rollback_failure: Cell::new(None),
-        })?;
+        });
+        let disposition = match ran {
+            Ok(disposition) => disposition,
+            Err(error)
+                if error.is_refusal() && frame.get() == Frame::Abort && refused.is_some() =>
+            {
+                Disposition {
+                    end: Frame::Abort,
+                    value: refused.unwrap()(error),
+                }
+            }
+            Err(error) => return Err(error),
+        };
         if !matches!(frame.get(), Frame::Complete | Frame::Abort) || frame.get() != disposition.end
         {
             return Err(RuntimeError::Store(
@@ -294,7 +362,7 @@ impl Committer {
         Ok(disposition)
     }
 
-    /// Test-only batch driver: production still submits exactly one member.
+    /// Facade-only batch witness; production program groups use program_batch.
     #[cfg(test)]
     fn run_batch_with<T, D>(
         store: &mut AnyStore,

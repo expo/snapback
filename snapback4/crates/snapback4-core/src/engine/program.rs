@@ -1,7 +1,13 @@
 //! An admitted program invocation is private process state, not an HTTP id.
 use super::{Context, Engine, MutationAcknowledgement};
-use crate::{Refusal, identity::{RequestAuthority, ServiceSample}};
-use std::{sync::{Arc, Mutex}, time::{Duration, Instant}};
+use crate::{
+    Refusal,
+    identity::{RequestAuthority, ServiceSample},
+};
+use std::{
+    sync::{Arc, Mutex},
+    time::{Duration, Instant},
+};
 
 type Result = std::result::Result<MutationAcknowledgement, Refusal>;
 pub(super) struct Authority {
@@ -22,6 +28,10 @@ pub struct Invocation {
     pub(super) admitted: Instant,
     pub(super) deadline: Instant,
     pub(super) minted: Vec<String>,
+    pub(super) attempts: Vec<super::program_transcript::Attempt>,
+    pub(super) scope: Option<Box<dyn FnMut(&mut dyn FnMut()) + Send>>,
+    #[cfg(any(test, feature = "test-support"))]
+    pub(super) attribution: Option<crate::round_trips::Handle>,
 }
 pub(super) struct Identity {
     binding: Option<(String, String, String, String)>,
@@ -30,25 +40,66 @@ pub(super) struct Identity {
 impl Invocation {
     pub fn new(name: impl Into<String>, id: Option<String>, context: Context) -> Self {
         let admitted = Instant::now();
-        Self { name: name.into(), id, context, authority: None,
-            identity: Arc::new(Mutex::new(Identity { binding: None, result: None })),
-            admitted, deadline: admitted + Duration::from_millis(100), minted: Vec::new() }
+        Self {
+            name: name.into(),
+            id,
+            context,
+            authority: None,
+            identity: Arc::new(Mutex::new(Identity {
+                binding: None,
+                result: None,
+            })),
+            admitted,
+            deadline: admitted + Duration::from_millis(100),
+            minted: Vec::new(),
+            attempts: Vec::new(),
+            scope: None,
+            #[cfg(any(test, feature = "test-support"))]
+            attribution: None,
+        }
     }
     /// The resolver and authority clock are sampled again for every attempt.
-    pub fn authorized(mut self, digest: String,
+    pub fn authorized(
+        mut self,
+        digest: String,
         sample: impl FnMut() -> ServiceSample + Send + 'static,
         check: impl FnMut(RequestAuthority) -> std::result::Result<(), Refusal> + Send + 'static,
     ) -> Self {
-        self.authority = Some(Authority { digest, sample: Box::new(sample), check: Box::new(check) });
+        self.authority = Some(Authority {
+            digest,
+            sample: Box::new(sample),
+            check: Box::new(check),
+        });
         self
     }
     pub(super) fn bind(&self, engine: &Engine) -> std::result::Result<(), Refusal> {
-        let raw = self.context.wire_args.clone().unwrap_or_else(|| serde_json::Value::Object(crate::wire::map_to_json(&self.context.args)));
-        let binding = (engine.store_id.clone(), self.context.viewer.clone(), self.name.clone(),
-            crate::receipts::payload_digest(&serde_json::json!([raw, self.id, self.context.kind, self.context.now, self.context.new_ids, self.context.delivery_fingerprint])));
+        let raw = self.context.wire_args.clone().unwrap_or_else(|| {
+            serde_json::Value::Object(crate::wire::map_to_json(&self.context.args))
+        });
+        let binding = (
+            engine.store_id.clone(),
+            self.context.viewer.clone(),
+            self.name.clone(),
+            crate::receipts::payload_digest(&serde_json::json!([
+                raw,
+                self.id,
+                self.context.kind,
+                self.context.now,
+                self.context.new_ids,
+                self.context.delivery_fingerprint
+            ])),
+        );
         let mut identity = self.identity.lock().unwrap();
-        if identity.binding.as_ref().is_some_and(|previous| previous != &binding) {
-            return Err(Refusal::new("E_STORE_REPLACED", "store", "private invocation identity belongs to different intent or store incarnation"));
+        if identity
+            .binding
+            .as_ref()
+            .is_some_and(|previous| previous != &binding)
+        {
+            return Err(Refusal::new(
+                "E_STORE_REPLACED",
+                "store",
+                "private invocation identity belongs to different intent or store incarnation",
+            ));
         }
         identity.binding = Some(binding);
         Ok(())
@@ -57,7 +108,32 @@ impl Invocation {
         self.identity.lock().unwrap().result = Some(result.clone());
         result
     }
-    pub(super) fn cached(&self) -> Option<Result> { self.identity.lock().unwrap().result.clone() }
+    pub(super) fn cached(&self) -> Option<Result> {
+        self.identity.lock().unwrap().result.clone()
+    }
+    /// Host instrumentation is entered separately for each serial attempt;
+    /// process state never leaks from one member to its neighbour.
+    pub fn instrument(mut self, scope: impl FnMut(&mut dyn FnMut()) + Send + 'static) -> Self {
+        self.scope = Some(Box::new(scope));
+        self
+    }
+    pub(super) fn eligible(&self, engine: &Engine) -> bool {
+        engine.ceilings == crate::meter::Ceilings::default()
+            && !engine
+                .schema
+                .tables
+                .values()
+                .any(|table| table.not_before.is_some())
+            && engine
+                .programs
+                .get(&self.name)
+                .is_some_and(|p| p.kind == crate::ir::ProgramKind::Mutation && !p.native)
+            && !engine
+                .schema
+                .operations
+                .get(&self.name)
+                .is_some_and(|p| p.ephemeral)
+    }
 }
 
 impl Engine {
@@ -65,35 +141,54 @@ impl Engine {
     /// duplicated internal command receives the same terminal outcome.
     pub fn invoke_program(&mut self, invocation: &mut Invocation) -> Result {
         invocation.bind(self)?;
-        if let Some(result) = invocation.cached() { return result; }
-        let result = if let Some(authority) = invocation.authority.as_mut() {
-            self.mutate_authorized(&invocation.name, invocation.id.as_deref(), invocation.context.clone(),
-                &authority.digest, &mut authority.sample, &mut authority.check)
-        } else {
-            self.mutate_acknowledged(&invocation.name, invocation.id.as_deref(), invocation.context.clone()).map_err(|error| error.refusal())
+        if let Some(result) = invocation.cached() {
+            return result;
+        }
+        #[cfg(any(test, feature = "test-support"))]
+        let _guard = invocation
+            .attribution
+            .clone()
+            .map(crate::round_trips::Handle::enter);
+        let mut scope = invocation.scope.take();
+        let mut result = None;
+        let mut run = || {
+            if result.is_some() {
+                return;
+            }
+            let value = if let Some(authority) = invocation.authority.as_mut() {
+                self.mutate_authorized_until(
+                    &invocation.name,
+                    invocation.id.as_deref(),
+                    invocation.context.clone(),
+                    &authority.digest,
+                    &mut authority.sample,
+                    &mut authority.check,
+                    invocation.deadline,
+                )
+            } else {
+                self.mutate_inner(
+                    &invocation.name,
+                    invocation.id.as_deref(),
+                    invocation.context.clone(),
+                    true,
+                    None,
+                    None,
+                    invocation.deadline,
+                )
+                .map_err(|error| error.refusal())
+            };
+            result = Some(invocation.remember(value));
         };
-        invocation.remember(result)
+        if let Some(scope) = scope.as_mut() {
+            scope(&mut run);
+        } else {
+            run();
+        }
+        invocation.scope = scope;
+        result.unwrap()
     }
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn duplicate_internal_command_and_new_unkeyed_invocation() {
-        let bound = snapback4_lang::compile(&[("schema.q".into(), "table counts:\n  n: int\n  public\n  insert <- allow\n  update <- allow\nmutation increment():\n  c = counts[\"c\"]\n  upsert counts[\"c\"] { n: (c.n ?? 0) + 1 }\n  return counts[\"c\"]\n".into())]);
-        assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
-        let schema = serde_json::from_value(serde_json::to_value(bound.schema).unwrap()).unwrap();
-        let programs = bound.programs.into_iter().map(|p| serde_json::from_value(serde_json::to_value(p.program).unwrap()).unwrap());
-        let mut engine = Engine::new_at(crate::store_port::AnyStore::memory().unwrap(), schema, programs, 1000).unwrap();
-        let mut first = Invocation::new("increment", None, Context::new("alice", Default::default()).at(1000));
-        let a = engine.invoke_program(&mut first).unwrap();
-        let b = engine.invoke_program(&mut first).unwrap();
-        assert_eq!(a.outcome, b.outcome);
-        assert_eq!(engine.seq().unwrap(), 1);
-        let mut second = Invocation::new("increment", None, Context::new("alice", Default::default()).at(1000));
-        engine.invoke_program(&mut second).unwrap();
-        assert_eq!(engine.seq().unwrap(), 2);
-        assert_eq!(engine.store().test_support_conn().query_row("SELECT count(*) FROM _ops", [], |row| row.get::<_, i64>(0)).unwrap(), 0);
-    }
-}
+#[path = "../store/program_invocation_tests.rs"]
+mod tests;

@@ -36,6 +36,10 @@ impl<T> Command<T> {
 }
 
 type Work = Box<dyn FnOnce(&mut Engine) + Send>;
+#[path = "command_batch.rs"]
+mod batching;
+pub use batching::{ProgramCommand, BatchStats, BatchPolicy};
+use batching::{Queued, ProgramTask};
 
 /// A disconnected worker never retries a command: its durable outcome may be unknown.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -73,12 +77,13 @@ impl<T> Reply<T> {
     }
 }
 
-/// FIFO bounded mailbox. Every work item retains the existing single-member
-/// commits, including follow-on members and their synchronous continuations.
+/// FIFO bounded mailbox. Typed program commands may group; every other command
+/// retains its solo commits and synchronous continuations.
 pub struct Queue {
-    sender: Option<mpsc::SyncSender<Work>>,
+    sender: Option<mpsc::SyncSender<Queued>>,
     worker: Option<thread::JoinHandle<()>>,
     admission: Arc<Mutex<Admission>>,
+    batching: Arc<Mutex<BatchStats>>,
     #[cfg(feature = "postgres")]
     lease: Option<LeaseRenewal>,
 }
@@ -117,29 +122,31 @@ impl Queue {
     /// Hosts with additional execution instrumentation may supply worker state.
     pub fn start_with(
         capacity: usize,
-        mut execute: impl FnMut(Work) + Send + 'static,
+        execute: impl FnMut(Work) + Send + 'static,
     ) -> std::io::Result<Self> {
-        assert!(capacity > 0);
-        let (sender, receiver) = mpsc::sync_channel::<Work>(capacity);
-        let worker = thread::Builder::new()
-            .name("snapback4-committer".into())
-            .spawn(move || {
-                while let Ok(work) = receiver.recv() {
-                    execute(work);
-                }
-            })?;
-        Ok(Self {
-            sender: Some(sender),
-            worker: Some(worker),
-            admission: Arc::new(Mutex::new(Admission::default())),
-            #[cfg(feature = "postgres")]
-            lease: None,
-        })
+        Self::start_with_policy(capacity, execute, BatchPolicy::Adaptive)
     }
+    fn start_with_policy(capacity: usize, execute: impl FnMut(Work) + Send + 'static, policy: BatchPolicy) -> std::io::Result<Self> {
+        assert!(capacity > 0);
+        let (sender, receiver) = mpsc::sync_channel::<Queued>(capacity);
+        let batching = Arc::new(Mutex::new(BatchStats::new(policy)));
+        let stats = batching.clone();
+        let worker = thread::Builder::new().name("snapback4-committer".into())
+            .spawn(move || batching::run(receiver, execute, stats))?;
+        Ok(Self { sender:Some(sender), worker:Some(worker), admission:Arc::new(Mutex::new(Admission::default())), batching,
+            #[cfg(feature="postgres")] lease:None })
+    }
+    /// Controlled N=1/4/16/32 witnesses use the same queue and transaction path.
+    #[cfg(any(test, feature="test-support"))]
+    pub fn start_fixed(mut engine: Engine, capacity: usize, n: usize) -> std::io::Result<Self> {
+        Self::start_with_policy(capacity, move |work|work(&mut engine), BatchPolicy::Fixed(n))
+    }
+    pub fn batch_stats(&self) -> BatchStats { self.batching.lock().unwrap().clone() }
+
     fn work<T: Send + 'static>(
         &self,
         command: Command<T>,
-    ) -> Result<(Work, Reply<T>), SubmitError> {
+    ) -> Result<(Queued, Reply<T>), SubmitError> {
         debug_assert!(!self.on_worker(), "committer commands must use inline continuations");
         #[cfg(any(test, feature = "test-support"))]
         let command = Command {
@@ -182,7 +189,24 @@ impl Queue {
             // A lost submitter does not cancel an admitted write or its continuation.
             let _ = sent.send(Ok(result));
         });
-        Ok((work, Reply { receiver, started }))
+        Ok((Queued::Solo(work), Reply { receiver, started }))
+    }
+    pub fn submit_program<T: Send + 'static>(&self, command: ProgramCommand<T>) -> Result<Reply<T>, SubmitError> {
+        self.check_admission()?;
+        let (sent, receiver) = mpsc::sync_channel(1);
+        let started = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let ticket = {
+            let mut state = self.admission.lock().unwrap();
+            if state.lost { return Err(SubmitError::OwnershipLost); }
+            let id = state.next; state.next = state.next.wrapping_add(1);
+            let refused = sent.clone();
+            state.waiting.insert(id, Box::new(move ||{ let _ = refused.send(Err(SubmitError::OwnershipLost)); }));
+            Ticket { admission:self.admission.clone(), id, started:started.clone() }
+        };
+        let task = ProgramTask::new(command, sent, ticket);
+        self.sender.as_ref().ok_or(SubmitError::Stopped)?.try_send(Queued::Program(Box::new(task)))
+            .map_err(|error| match error { mpsc::TrySendError::Full(_) => self.check_admission().err().unwrap_or(SubmitError::Full), mpsc::TrySendError::Disconnected(_) => SubmitError::Stopped })?;
+        Ok(Reply { receiver, started })
     }
     pub fn submit<T: Send + 'static>(&self, command: Command<T>) -> Result<Reply<T>, SubmitError> {
         self.check_admission()?;
