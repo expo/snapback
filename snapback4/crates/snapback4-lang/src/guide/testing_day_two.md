@@ -10,9 +10,10 @@ Adapt the assertions to your own business model when replacing this example.
 
 The proof keeps one live serve process and one browser page through v1 → v2 →
 rollback → forward. It tests real password accounts, a rendered durable write,
-existing-row defaults, a new membership, authorization refusals, and retained
-rows at every transition. Saved sources and deployments belong to its private
-scratch directory. It changes the fresh starter's working schema and UI to the
+existing-row defaults, a widened title, a new membership, authorization refusals,
+and retained rows at every transition. The wider title needs a registered current
+guarded rollback view, which also keeps the added member note. Saved sources and
+deployments belong to its private scratch directory. It changes the fresh starter's working schema and UI to the
 production recipe; run it in a copy when preserving an existing application.
 
 <!-- DAY TWO ACCOUNTS BEGIN -->
@@ -39,7 +40,8 @@ await withBrowser({ executablePath: process.env.CHROME }, async context => {
     const v1 = join(work, "v1"), v2 = join(work, "v2"), directory = join(work, "deployment");
     await mkdir(v1); await mkdir(v2);
     const base = await readFile("node_modules/snapback4/dist/recipes/production/web/schema.q", "utf8");
-    const evolved = base.replace("table members:\n", "table members:\n  note: text <=40 default 'evolved'\n");
+    const evolved = base.replace("table members:\n", "table members:\n  note: text <=40 default 'evolved'\n")
+      .replaceAll("text 1..80", "text 1..160");
     assert.notEqual(evolved, base);
     await writeFile(join(v1, "schema.q"), base); await writeFile(join(v2, "schema.q"), evolved);
     await deploy(directory, v1);
@@ -70,10 +72,16 @@ await withBrowser({ executablePath: process.env.CHROME }, async context => {
         body: JSON.stringify({ ...(door === "m" ? { id: crypto.randomUUID() } : {}), args }) });
       assert.equal(response.status, 200); return response.json();
     }
+    let wideTeamId;
     async function business(label, evolved, joined) {
       const own = await waitForServer(() => call(admin, "q", "myRole", { teamId }), read => read.complete === true, { label });
       assert.equal(own.data.principal, admin.session.principal); assert.equal(own.data.role, "admin");
       assert.equal(own.data.note, evolved ? "evolved" : undefined, label);
+      if (wideTeamId) {
+        // invite reads the team first: an old narrow schema would hide this team.
+        const usable = await call(admin, "m", "invite", { teamId: wideTeamId, principal: member.session.principal, role: "member" });
+        assert.equal(usable.state, "sent", `${label}: wider team stays usable: ${JSON.stringify(usable)}`);
+      }
       const roster = await call(admin, "q", "roster", { teamId, c: null });
       assert.equal(roster.complete, true); assert.equal(roster.data.length, joined ? 2 : 1, label);
       assert.ok(roster.data.some(row => row.principal === admin.session.principal));
@@ -85,10 +93,15 @@ await withBrowser({ executablePath: process.env.CHROME }, async context => {
     }
     await business("v1", false, false);
     await deploy(directory, v2);
+    const wideTitle = `Team ${"x".repeat(100)}`;
+    const wider = await call(admin, "m", "createTeam", { title: wideTitle });
+    assert.equal(wider.state, "sent", JSON.stringify(wider));
+    assert.equal(wider.result.title, wideTitle);
+    wideTeamId = wider.result.id;
     const invited = await call(admin, "m", "invite", { teamId, principal: member.session.principal, role: "member" });
     assert.equal(invited.state, "sent", JSON.stringify(invited));
     await business("v2", true, true);
-    // Default rollback keeps the current guarded closure and its added note.
+    // Widening needs a current guarded view; the wider team and added note remain.
     await rollback(directory, 1); await business("rollback-v1", true, true);
     await rollback(directory, "latest"); await business("forward-v2", true, true);
     console.log("day-two accounts passed: v1, hot v2, rollback, forward; business assertions at every step");
