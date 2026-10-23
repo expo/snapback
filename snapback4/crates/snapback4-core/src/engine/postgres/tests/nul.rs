@@ -38,7 +38,7 @@ fn nul_bind_guard_refuses_text_options_arrays_and_aborts_transaction() {
         assert_input(tx.rollback_prefetch());
         assert_eq!(tx.calls.get(), calls, "poisoned transactions must send no further statements");
         assert_input(tx.commit());
-        for table in ["_commits", "_log", "r"] {
+        for table in ["_commits", "_change_evidence", "_log", "r"] {
             assert_eq!(e.store.client.query_one(&format!("SELECT count(*) FROM {table}"), &[]).unwrap().get::<_, i64>(0), 0);
         }
         assert_eq!(e.store.client.query_one("SELECT count(*) FROM _meta WHERE key='guard'", &[]).unwrap().get::<_, i64>(0), 0);
@@ -61,7 +61,7 @@ fn nul_tail_refusal_cannot_commit_earlier_row_writes() {
     assert_input(tx.flush_tail());
     assert_input(tx.commit());
     assert_eq!(e.store.client.query_one("SELECT seq FROM _head WHERE singleton", &[]).unwrap().get::<_, i64>(0), 0);
-    for table in ["r", "i", "_commits", "_log", "_outbox"] {
+    for table in ["r", "i", "_commits", "_change_evidence", "_log", "_outbox"] {
         assert_eq!(e.store.client.query_one(&format!("SELECT count(*) FROM {table}"), &[]).unwrap().get::<_, i64>(0), 0, "{table} persisted after a refused tail");
     }
 }

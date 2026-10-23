@@ -3,11 +3,12 @@
 use super::store::{Tx, signed, decode, absent_text_key};
 use crate::{RuntimeError, Value, ledger::LedgerReader, partition::PartitionRows, receipts::ReceiptTransaction};
 impl Tx<'_> {
+    pub(crate) fn begin_member_evidence(&self) { *self.changes.borrow_mut() = Default::default(); }
     pub(crate) fn abandon(&self) -> Result<(), RuntimeError> { self.ensure_active() }
     pub(crate) fn savepoint(&self, name: &str) -> Result<(), RuntimeError> {
         validate_name(name)?;
         self.batch(&format!("SAVEPOINT {name}"))?;
-        self.savepoints.borrow_mut().push((name.into(), Checkpoint { head: self.head.get(), tail: self.tail.borrow().clone() }));
+        self.savepoints.borrow_mut().push((name.into(), Checkpoint { head: self.head.get(), tail: self.tail.borrow().clone(), changes: self.changes.borrow().clone() }));
         Ok(())
     }
     pub(crate) fn release(&self, name: &str) -> Result<(), RuntimeError> {
@@ -30,6 +31,10 @@ impl Tx<'_> {
         frames.truncate(index);
         self.head.set(checkpoint.head);
         *self.tail.borrow_mut() = checkpoint.tail;
+        *self.changes.borrow_mut() = checkpoint.changes;
+        // Match SQLite's conservative treatment of a recovered savepoint:
+        // partial interpreter writes must never regain certification.
+        self.changes.borrow_mut().widen();
         Ok(())
     }
     pub(crate) fn rows(&self, table: &str) -> Result<Vec<Value>, RuntimeError> {
@@ -70,6 +75,7 @@ impl ReceiptTransaction for Tx<'_> {
 pub(super) struct Checkpoint {
     head: Option<u64>,
     tail: super::tail::Tail,
+    changes: crate::revocation::Recorder,
 }
 fn validate_name(name: &str) -> Result<(), RuntimeError> {
     let mut bytes = name.bytes();

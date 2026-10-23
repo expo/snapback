@@ -25,7 +25,7 @@ pub(super) struct Effect {
 #[derive(Clone)]
 pub(super) struct Commit {
     pub seq: u64, pub at: i64, pub program: String, pub principal: String,
-    pub kind: String, pub touched: String, pub writes: u64,
+    pub kind: String, pub touched: String, pub writes: u64, pub footprint: String,
 }
 
 impl Tx<'_> {
@@ -63,6 +63,10 @@ impl Tx<'_> {
             UPDATE _head SET seq = $1::bigint WHERE singleton AND seq = $1::bigint - 1 RETURNING seq
         ), committed AS (
             INSERT INTO _commits(seq,at,program,principal,kind,touched,writes) SELECT seq,$2,$3,$4,$5,$6,$7 FROM head RETURNING seq
+        ), evidence AS (
+            INSERT INTO _change_evidence(seq,footprint) SELECT seq,$26 FROM committed
+        ), pruned AS (
+            DELETE FROM _change_evidence WHERE seq <= $27 AND EXISTS (SELECT 1 FROM committed)
         ), logged AS (
             INSERT INTO _log(partition,seq,ord,t,kind,id,data) SELECT l.partition,c.seq,l.ord,l.t,l.kind,l.id,l.data FROM committed c
             CROSS JOIN unnest($8::text[],$9::bigint[],$10::text[],$11::text[],$12::text[],$13::text[]) AS l(partition,ord,t,kind,id,data)
@@ -76,6 +80,7 @@ impl Tx<'_> {
         ) SELECT count(*) FROM committed", &[
             &signed(commit.seq)?, &commit.at, &commit.program, &commit.principal, &commit.kind, &commit.touched, &signed(commit.writes)?,
             &tail.partitions, &tail.ords, &tail.tables, &tail.kinds, &tail.ids, &tail.data, &ids, &effects, &payloads, &next_at, &work, &deadlines, &contracts, &principals, &presence_ids, &presence_deadlines, &explicit_release, &releases,
+            &commit.footprint, &signed(commit.seq.saturating_sub(1000))?,
         ])?;
         if rows[0].get::<_, i64>(0) != 1 {
             return Err(RuntimeError::Store("Postgres commit head changed without a serialization failure".into()));
