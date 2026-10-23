@@ -166,6 +166,8 @@ pub struct Shared {
     pub changes_refresh: WorkHook,
     #[cfg(test)]
     pub mutation_wait: WorkHook,
+    #[cfg(test)]
+    pub mutation_committed: WorkHook,
 }
 
 impl Shared {
@@ -1248,7 +1250,7 @@ fn handle(mut request: Request, shared: &Shared) {
                         let scopes = read_scopes::dependencies(&reader, &op, &context);
                         trace::mark("query_start");
                         let mut metadata = None;
-                        let (outcome, cut, current) = reader.query_materialized_search_with_snapshot(&op, context, retained.as_deref(), manifest, |snapshot, head| { metadata = Some(head::borrowed_response_head(snapshot, head)); Ok(()) });
+                        let (outcome, cut, current) = reader.query_materialized_search_with_snapshot(&op, context, retained.as_deref(), manifest, |snapshot, head| { metadata = Some(head::borrowed_response_head(snapshot, head)); metadata.as_ref().unwrap().as_ref().map(|_| ()).map_err(Clone::clone) });
                         let metadata = head::query_response_head(&mut reader, metadata, &outcome);
                         if let Err(why) = &metadata && why.code == "E_GENERATION" {
                             if handoffs < 2 { handoffs += 1; continue; }

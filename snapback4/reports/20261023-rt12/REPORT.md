@@ -297,3 +297,144 @@ expo-build-450a port 55440.
 
 The final reference audit passes after the source, RFC, guide and qualification
 records: 565 LLP documents, 11,769 references, zero errors and unchecked refs.
+
+## RT1/RT2 fix round 1 — 2026-10-23
+
+Base `bfdf05127889775a693960ad21cc6920147a3781`, lane `sb4-pg/rt12-fix1`.
+The two supplied blind reviews were read from `/tmp/rt12-review-sol.md` and
+`/tmp/rt12-review-grok.md`. The author explicitly selected RT1's confirmed
+commit behavior: document and witness it, rather than restore a post-COMMIT
+refusal. No additional review is claimed.
+
+Orientation scope: the request-budget RFC §3.3, §3.4, §6 and §7; the committer
+RFC §3.7; the port RFC §5.1; root LLP 3000 and brief LLP 2000.000; Snapback 4's
+AGENTS/NOT-DOING/JOURNAL; the wire, reads, deploy, search and receipts guide
+cards. The port, committer, root and brief are in `llp/current/`; this fence
+does not inherit the root inventory or Ibex gates. The context pack's binding
+constraints remain COMMIT-before-continuation, no facts for unknown COMMIT,
+ordered wakeups, fresh authority/ownership checks for later requests and one
+query snapshot for evaluated metadata. Relevant `@ref`s still resolve. No
+new design document, capability, ceiling or delivery step is introduced;
+hand-off: none.
+
+Changes and witnesses:
+
+1. RFC §3.4/RT1 and `guide/wire.md` state that confirmed durable commits remain
+   HTTP 200 sent with their commit-time seq/head/generation/incarnation after
+   intervening activation or ownership changes. A test-only pause immediately
+   before publication drives real HTTP mutations, a real committed foreign
+   Postgres activation, and hard-link ownership loss on an owned SQLite file.
+   Each requires the committed metadata, a condition-variable subscriber wake,
+   proof that fresh seq now fails, and a refused next HTTP query. Postgres is
+   selected by the existing `round_trips_postgres` filter; SQLite runs normally.
+2. The refusal-cut witness comment matches its existing head=seq assertion.
+3. RFC §3.4 now distinguishes carried request facts from non-request publishers
+   that still call `continue_durable_publication` and take fresh snapshots.
+4. The query metadata callback returns its original error immediately. An HTTP
+   SQLite authorizer witness permits activation/head reads, denies the callback's
+   live store_id read, requires the same E_STORE/503 envelope and zero program
+   row reads. A healthy control requires successful program row reads. Normal
+   success adds no store read or metadata clone.
+5. The early-cut fallback is reachable over HTTP. Held queries return
+   E_QUERY_HELD before read_transaction; validate_inputs also sees missing
+   required arguments, text bounds and malformed cursors after JSON shape
+   decoding. HTTP witnesses require their existing denied status (held: 200;
+   E_INPUT: 400), fresh head and absent seq. Unknown names, wrong doors and JSON type/shape errors return
+   earlier. No fallback behavior changed.
+
+The first witness compile caught two literal Shared fixture initializers that
+needed the new test hook and one unconstrained collected Program type. Those
+fixture-only compile issues were corrected before executing the witnesses.
+
+The first witness execution passed the metadata short-circuit case and exposed
+two incorrect expectations in the new fixtures: SQLite's hard-link guard is
+E_STORE, and early engine E_INPUT query refusals use HTTP 400. The tests now
+assert those existing outcomes; no product behavior was changed to satisfy
+them. Final execution results below supersede those fixture attempts.
+
+This round uses only `/home/ccheever/projects/sb4-p0-s8/snapback4/target`, built
+cold with `-j 4` / `CARGO_BUILD_JOBS=4`; no preserved target copy was created.
+The complete core command passes 1,089 cases plus its passing subprocess
+witness, with five ignores. The complete CLI binary command passes 540 cases
+with eleven named ignores, covering serve, publication, committer, adoption and
+round trips. All three new non-Postgres regressions pass; the existing refusal
+cut witness and SQLite RT0 ratchet pass. Normal build and the explicit
+no-default-features core check pass. The full Postgres script and its final
+build use the extracted PG16 tools/libraries, TMPDIR=/tmp and only private
+socket clusters; its process cleanup and final results follow below.
+
+The main Postgres adapter stage passes all 220 cases; literal tests pass all
+8. Three additional, unchanged 300-ms lease fixtures fail in the full run:
+
+- `engine::postgres::ownership::tests::renewal_between_poll_and_claim_terminates_nothing`:
+  `renewed claim must match zero rows` at `ownership.rs:291`.
+- `engine::command::tests::postgres_tests::commit_outcome_unknown_reaches_the_queued_submitter_unchanged`:
+  `ownership lost before listener admission` at `command_postgres_tests.rs:87`.
+- `engine::command::tests::postgres_tests::ownership_loss_refuses_every_queued_command_and_new_admission`:
+  the same listener-admission setup failure.
+
+Each exact case passes alone using the identical compiled test binary and the
+same owned private cluster (respectively 9.19 s, 1.72 s and 3.17 s). No ownership,
+queue or lease source was changed, and no baseline run is claimed. The original
+failures remain recorded; the full script is not described as green. Logs:
+`/tmp/rt12-fix1-{ownership-alone,queue-unknown-alone,queue-ownership-alone}.log`.
+The supplied evaluator Serializable stress case also fails with 40001 and was
+not chased. All later stages continue; final HTTP results and custody follow.
+
+The full script's Postgres RT0 ratchet passes with the original table, as does
+the carried-publication queue-loss witness. The new foreign-activation witness
+passes its confirmed 200 sent reply, commit metadata, subscriber wake, and
+failing fresh seq read, then exposes one more fixture expectation error: the
+next request is refused at ingress with 401 E_GENERATION, before the query's
+503 handoff path. The corrected assertion preserves that existing 401 (SQLite
+remains 503 E_STORE). No product change was made for this mismatch. All three
+Postgres round-trip/publication witnesses are rerun below on a fresh owned
+private cluster, with the original tables retained.
+
+### Final qualification
+
+| Check | Result |
+| --- | --- |
+| `cargo build -p snapback4 -j 4` | Pass, including the complete Postgres script's final normal build |
+| `cargo check -p snapback4-core --no-default-features -j 4` | Pass |
+| `cargo test -p snapback4-core --no-fail-fast -j 4` | Pass: 1,089 cases plus the passing subprocess witness; five ignores |
+| `cargo test -p snapback4 --bin snapback4 --no-fail-fast -j 4` | Pass: 540 cases, eleven ignores; includes all affected serve/publication/committer/adoption/round-trip cases |
+| `bash scripts/test-postgres.sh` | Every stage completed; exit 1. Initial failures: supplied Serializable 40001, the three lease fixtures listed above, and the new witness's corrected next-request status assertion. The three lease cases pass exactly alone; the corrected Postgres witnesses pass below. No clean full-script claim |
+| Final `round_trips_postgres -- --include-ignored --nocapture` | Pass, 3/3: original ratchet, queue-loss publication, and the corrected foreign-activation HTTP witness |
+| Public Postgres serving | Pass: bootstrap refusal/read-only checks, HTTP identity/query/mutation/replay, restart, takeover, release 2, non-superuser serving and P1-MC |
+| `./ref-check` | Pass, zero errors or unchecked references |
+| `git diff --check` | Pass |
+
+The final Postgres filter ran on another fresh private PG16 cluster. Its
+foreign-activation witness now requires the actual next-request 401
+E_GENERATION; SQLite continues to require 503 E_STORE. The committed reply in
+both cases is 200 sent with commit-time seq/head/generation/incarnation and a
+subscriber wake at that head. Final focused output is retained at
+`/tmp/rt12-fix1-final-postgres.log`; full required-check logs are
+`/tmp/rt12-fix1-{build-final,no-default,core,binary,postgres}.log`.
+
+Both RT0 ratchets passed. Both JSON tables are byte-identical to
+`bfdf051278`, independently compared again after the final run:
+
+| Table | SHA-256 |
+| --- | --- |
+| SQLite | `dfce76ee390e0557076254a0aa0fc42f57985cad5ae5f9324e8c62654fc1722b` |
+| Postgres | `08f5fe9b83f1e70597d4760f9dc359ca8c26fb9c7d00fd36f62bfc1b79b8625f` |
+
+### Final process custody
+
+| Private cluster | Recorded postmaster PID | Independent final check |
+| --- | ---: | --- |
+| `/tmp/sb4-pg-eval.DGDiCY` | 2531216 | pg_ctl status 3; no postmaster.pid; PID absent |
+| `/tmp/s10d3-serve-sv28bk40` | 2748366 | pg_ctl status 3; no postmaster.pid; PID absent |
+| `/tmp/rt12-fix1-final-pg.myhg1H` | 2786637 | pg_ctl status 3; no postmaster.pid; PID absent |
+
+The public serving children (2771306, 2771466, 2772256, 2773027, 2773198,
+2782393) are all absent, as are every recorded command/test/client/driver PID.
+The complete 26-PID absence audit and table comparison are retained in
+`/tmp/rt12-fix1-cleanup.json`; `/tmp/rt12-fix1-pids.jsonl` and the public
+witness's `pids.jsonl` retain launch records. No executable under this lane's
+target remains running. Cluster data is retained for inspection. The PG17
+cluster on port 55440 was never used or touched. Lowest observed /home free
+space was 58 GB, above the 40-GB stop threshold. No target copies, push,
+stash, or git configuration changes. PIDs left: **none**.

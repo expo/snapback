@@ -14,6 +14,7 @@ mod adoption_tests;
 mod release_lifecycle_tests;
 #[path = "../tests/serve_routes/mod.rs"]
 mod route_tests;
+#[path = "../tests/serve_commit_gap/mod.rs"] mod commit_gap_tests;
 #[path = "../tests/serve_ephemeral/mod.rs"]
 mod ephemeral_tests;
 #[path = "../tests/serve_presence/mod.rs"]
@@ -1216,10 +1217,8 @@ fn opening_a_development_project_protects_its_data_directory_and_store() {
 }
 
 
-/// LLP 3000.018 §3.2: a refusal names the cut its evaluation read. A commit
-/// between the reply's metadata and the query's own read makes that cut newer
-/// than the head, and the refusal is the newer state's; the head alone would
-/// order it before an answer read at a cut where the query succeeds.
+/// LLP 3000.018 §3.2: a refusal's head and seq name the same evaluation cut.
+/// A commit before the query snapshot advances both beyond an earlier answer.
 #[test]
 fn a_refusal_names_the_cut_its_evaluation_read() {
     let directory = ReaderTestDirectory::new();

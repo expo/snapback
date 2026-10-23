@@ -22,6 +22,14 @@ An evaluated query's `store_id`, `generation` and `seq` describe one durable
 snapshot. An evaluated refusal's `head` equals its `seq`; order replies by
 `seq` when present. Authentication refusals can omit that sequence.
 
+A newly committed durable mutation answers HTTP 200 `state:"sent"` with the commit's
+`seq`, `head`, `generation` and `store_id` (incarnation). That metadata and the
+subscriber wake describe the commit even if the store's activation or ownership
+changes between COMMIT and the reply. The next request observes the change
+through the usual refusal or handoff. A confirmed write is never reported as
+a refusal merely because that later boundary changed; retrying such a refusal
+without an operation id could otherwise apply the write twice.
+
 Save this schema as snapback/schema.q in a scratch project with snapback4
 installed. Save the JavaScript as scripts/wire-proof.mjs and run it with Node.
 Qualification executes these exact blocks through the packed CLI and generates

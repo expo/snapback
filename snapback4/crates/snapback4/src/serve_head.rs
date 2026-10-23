@@ -103,6 +103,7 @@ pub(super) fn mutation_acknowledgement(shared: &Shared, engine: &mut Engine, ack
     match acknowledgement {
         Ok(ack) if ack.publication.is_some() => {
             let publication = ack.publication.unwrap();
+            #[cfg(test)] super::test_work(&shared.mutation_committed);
             if !ack.outcome.receipt_only {
                 trace::mark("mutation_commit");
                 shared.publish_commit(&publication);

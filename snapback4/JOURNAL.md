@@ -102687,3 +102687,51 @@ release adoption pass. The report retains names, counts, the corrected refusal
 cut witness and process custody. All three private clusters are independently
 stopped, every owned server/process is absent, and PIDs left are none. Disk
 stays above 40 GB. Two local increments; no push.
+
+## 2026-10-23 — RT1/RT2 fix round 1: confirmed commit replies and query metadata errors
+
+Lane `sb4-pg/rt12-fix1`, base `bfdf051278`. RT1 deliberately keeps a confirmed
+durable mutation successful across a foreign activation or ownership loss
+between COMMIT and publication. Its reply and subscriber wake describe the
+commit's sequence, head, generation and incarnation; the next request still
+crosses the existing refusal/handoff boundary. The request-budget RFC §3.4,
+RT1 note and wire guide now state why: a 503 for an applied unkeyed write
+would invite a duplicate application. Non-request publishers without commit
+facts still fresh-read; §3.4 no longer claims their transactions disappeared.
+
+New HTTP witnesses pause immediately before carried publication, after the
+acknowledged engine call has confirmed COMMIT. One commits a foreign activation
+on real private Postgres; the other hard-links its own SQLite file to break the
+retained ownership guard. They require 200 sent with the commit's facts, a real
+condition-variable subscriber woken with those facts, failure of the removed
+fresh seq read, and refusal of the next query. The SQLite witness is Unix-only;
+the Postgres named ignore is selected by the existing Postgres script filter.
+
+The query snapshot callback now propagates a store_id failure before running
+the program, preserving its original 503 denied response. A SQLite authorizer
+witness faults that live read after next_seq and requires no application-row
+reads; a healthy control requires those reads. The stale refusal-cut comment
+now describes head=seq. Checking early engine refusals found real HTTP paths:
+held queries and missing/bounded/cursor argument validation after wire shape
+decoding. A witness records their existing fresh-head, absent-seq envelopes;
+that behavior is unchanged. No SQL, authority boundary, flight, receipt, or
+round-trip ratchet table is changed. Qualification follows below.
+
+RT1/RT2 fix-round qualification: normal build and no-default-features check
+pass; complete core passes 1,089 cases plus its subprocess witness (five
+ignores); complete binary passes 540 (eleven ignores). Both RT0 tables remain
+byte-identical to bfdf051278 and both ratchets pass. The complete Postgres
+script runs every stage but exits red for the supplied Serializable 40001,
+three short-lease fixtures (each passes exactly alone), and the new witness's
+initial next-request status assumption. That assertion now preserves the
+actual Postgres ingress refusal, 401 E_GENERATION; SQLite remains 503 E_STORE.
+The final fresh-cluster Postgres filter passes all three cases, including
+foreign activation, committed publication after queue loss, and the ratchet.
+The committed response and subscriber wake require the original commit facts
+on both stores. Public bootstrap, restart/takeover, release adoption and P1-MC
+pass. Ref-check and whitespace pass. The report records each initial failure,
+exact isolated rerun, SHA-256 table digests, and PID custody. All three private
+clusters are independently confirmed stopped; all 26 recorded launch PIDs and
+all executables under this lane's target are absent. PIDs left: none. Lowest
+observed /home free space 58 GB; only the authorized target, four build jobs,
+no preserved target copies, no push, stash or git config edit.
