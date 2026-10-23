@@ -61,6 +61,6 @@ const ASYMMETRY:&str="table records:\n  owner: principal\n  value: text ?\n  rea
 
 #[test]fn edits_that_invalidate_approval_do_not_refute_derived_retained_approval_intent(){
  let source="table docs:\n  value: text ?\n  approved: bool default false\n  read <- allow\n  insert <- allow\n  update <- allow\n  online only\nmutation add(value: text ?):\n  return insert docs {value}\nmutation approve(doc: docs):\n  row = docs[doc] ! else NOT_FOUND\n  require row.value != null else MISSING\n  update docs[doc] {approved:true}\nmutation edit(doc: docs,value: text ?):\n  update docs[doc] {value,approved:false}\n";
- let sources=vec![("schema.q".into(),source.into())];let b=security::derived::augmented(&sources,&bound(source));let mut c=Campaign::default();challenges::generated_campaign(&b,&mut c,false);
+ let sources=vec![("schema.q".into(),source.into())];let b=security::derived::augmented(&sources,&bound(source));assert!(b.invariants.iter().any(|i|security::derived::is_derived(i)&&i.column.as_deref()==Some("value")));let mut c=Campaign::default();challenges::generated_campaign(&b,&mut c,false);
  assert!(!c.violations.iter().any(|v|v.reachability.is_reachable()),"{}",serde_json::to_string(&c).unwrap());assert!(c.operations.get("edit").copied().unwrap_or(0)>0);
 }

@@ -70,7 +70,7 @@ test('probe and deploy guide agree on exact compatibility, schedule, dormancy an
   for (const body of ['A', 'B', 'C']) { const write = await host.post('/m/add', { body }); assert.equal(write.state, 'sent'); ids.push(write.result.id); }
   writeFileSync(schema, v2);
   const widening = run('deploy', deployment);
-  assert.equal(widening.stderr.trim().split('\n')[0], "note: notes.status admits 'archived'; rollback to release 1 must represent those writes through declared projections or a loosened bridge; run the exact rollback preview after writes");
+  assert.equal(widening.stderr.split('\n').find(line => line.startsWith('note: notes.status admits')), "note: notes.status admits 'archived'; rollback to release 1 must represent those writes through declared projections or a loosened bridge; run the exact rollback preview after writes");
   assert.match(widening.stderr, /WARNING rollback foresight:.*notes.status/);
   assert.match(widening.stderr, /WARNING old-client compatibility.*RESULT REVIEW/);
   assert.doesNotMatch(widening.stderr, /existing rows/);

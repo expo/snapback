@@ -149,3 +149,24 @@ fn live_parent_approval_freezes_the_inspected_child_value(){
  e.mutate("depart",None,Context::new("alice",BTreeMap::from([("tour".into(),Value::Id("t".into()))])).at(1_800_000_000_000)).unwrap();
  assert!(!matches!(e.mutate("edit",None,edit(80)).unwrap().state,WriteState::Sent{..}));
 }
+
+#[test]
+fn schema_role_enumeration_covers_every_outside_role_and_write_arm(){
+ use snapback4_core::{schema::ColumnType as C,value::object};
+ let source="table roles:\n  principal: principal\n  role: enum('desk','manager','family','tech')\n  unique principal\n  immutable principal, role\n  read <- allow\n  online only\ntable docs:\n  cell: text ? write <- exists roles[viewer,role = 'desk']\n  read <- allow\n  insert <- allow\n  update <- allow\n  online only\nmutation add(cell: text ?):\n  return insert docs {cell}\nmutation absent(cell: text ?):\n  return insert docs {cell} if absent\nmutation put(id: docs,cell: text ?):\n  return upsert docs[id] {cell}\nmutation edit(id: docs,cell: text ?):\n  return update docs[id] {cell}\n";
+ let b=snapback4_lang::compile(&[("schema.q".into(),source.into())]);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
+ let C::Enum{variants}=&b.schema.tables["roles"].columns["role"]else{panic!("role enum")};
+ for role in variants.iter().filter(|role|role.as_str()!="desk"){
+  let actor=format!("account:{role}");
+  for op in ["add","absent","put","edit"]{for payload in [Value::Null,Value::String("different".into())]{
+   let mut e=engine(source);e.seed([("roles".into(),object([("id",Value::Id(role.clone())),("principal",Value::Id(actor.clone())),("role",Value::String(role.clone()))]))]).unwrap();
+   if matches!(op,"edit"|"put"){e.seed([("docs".into(),object([("id",Value::Id("doc".into())),("cell",Value::String("original".into()))]))]).unwrap();}
+   let mut inputs=BTreeMap::from([("cell".into(),payload.clone())]);if matches!(op,"edit"|"put"){inputs.insert("id".into(),Value::Id("doc".into()));}
+   let permitted=matches!(op,"add"|"absent")&&payload==Value::Null;
+   assert_eq!(e.mutate(op,None,Context::new(&actor,inputs).at(1_800_000_000_000)).is_ok_and(|r|matches!(r.state,WriteState::Sent{..})),permitted,"{role} {op} {payload:?}");
+  }}
+  // The upsert insertion arm has an independent fixture from its patch arm.
+  let mut e=engine(source);e.seed([("roles".into(),object([("id",Value::Id(role.clone())),("principal",Value::Id(actor.clone())),("role",Value::String(role.clone()))]))]).unwrap();
+  assert!(!sent(&mut e,"put",Context::new(&actor,BTreeMap::from([("id".into(),Value::Id("missing".into())),("cell".into(),Value::String("forged".into()))])).at(1_800_000_000_000)));
+ }
+}

@@ -443,6 +443,8 @@ N_DERIVED_WRITE_AUTHORITY identifies an inferred candidate from authored change
 guards or approval data. Enforce the candidate or record its individual specification
 decision; only replayed violations refuse deploy, never a failed abstract implication.
 
+A derived approval/edit violation requires approval to survive the edit. Clearing approval in that edit invalidates it; this is not a derived FIX. Authored `immutable c when P` still uses its stricter old-image constraint.
+
 ### N_PRESENCE_LOOSENING
 
 N_PRESENCE_LOOSENING identifies a required-to-optional column change. Declare
