@@ -6,6 +6,8 @@ export interface StagingAccount {
   kind: "user"; role: string; email: string; password: string; principal: string; token: string; expiresAt: number;
 }
 export type StagingSessions = Record<string, StagingAccount[]>;
+export type ProvisionedAccount = StagingAccount;
+export type ProvisionedSessions = StagingSessions;
 export interface SeedAccountsOptions {
   roles: Record<string, number>;
   provision: { readonly name: string };
@@ -18,7 +20,7 @@ export interface SeedAccountsOptions {
 
 // @ref LLP 3000.000.000.001#2-real-staging-accounts — real credentials and ordinary operator mutations, never system seeding or auth bypass.
 /** @throws E_STAGING_INPUT for invalid plans; E_STAGING for production/dev hosts; E_STAGING_TIMEOUT, E_STAGING_SIGNUP or E_STAGING_PROVISION for incomplete setup. Partial accounts/grants may exist; inspect or discard the staging store before retrying. */
-export async function seedAccounts(host: Pick<ServeHost, "url" | "operatorToken">, options: SeedAccountsOptions): Promise<StagingSessions> {
+async function accounts(host: Pick<ServeHost, "url" | "operatorToken">, options: SeedAccountsOptions, environment: "staging" | "production"): Promise<StagingSessions> {
   // @ref LLP 3000.000.000.001#8-wave-18-developer-loop-amendment-dx4 — custom argument keys override defaults; the seat grants no extra authority.
   const service = options.service ?? "operator";
   const roles = Object.entries(options.roles), timeout = options.timeoutMs ?? 300_000;
@@ -35,8 +37,15 @@ export async function seedAccounts(host: Pick<ServeHost, "url" | "operatorToken"
   const request = (path: string, init?: RequestInit) => fetch(host.url + path, { ...init, signal: AbortSignal.timeout(Math.min(remaining(), 30_000)) });
   const config = await request("/auth/config");
   const identity = await config.json();
-  if (!config.ok || identity.environment !== "staging" || identity.development !== false || !identity.password) {
-    throw Error("E_STAGING: account seeding requires serve on a fresh deploy --staging with password identity; production and dev refuse before creating users");
+  if (!config.ok || identity.environment !== environment || identity.development !== false || !identity.password) {
+    throw Error(environment === "staging"
+      ? "E_STAGING: account seeding requires serve on a fresh deploy --staging with password identity; production and dev refuse before creating users"
+      : "E_PRODUCTION_ACCOUNTS: account provisioning requires serve on a production deploy with password identity; staging and dev refuse before creating users");
+  }
+  if (environment === "production") {
+    const response = await request("/schema"), schema = await response.json();
+    const named = (value: unknown): boolean => value === `service:${service}` || (value !== null && typeof value === "object" && Object.values(value).some(named));
+    if (!response.ok || !named(schema)) process.stderr.write(`snapback4: WARNING minted service:${service} seat matches no schema-authorized identity; provisionAccounts(${options.provision.name}) will likely refuse.\n`);
   }
   const operator = await host.operatorToken(service);
   const sessions: StagingSessions = Object.create(null);
@@ -66,4 +75,17 @@ export async function seedAccounts(host: Pick<ServeHost, "url" | "operatorToken"
     }
   }
   return sessions;
+}
+
+// @ref LLP 3000.000.000.001#2-real-staging-accounts — real credentials and ordinary operator mutations, never system seeding or auth bypass.
+/** @throws E_STAGING_INPUT for invalid plans; E_STAGING for production/dev hosts; E_STAGING_TIMEOUT, E_STAGING_SIGNUP or E_STAGING_PROVISION for incomplete setup. */
+export function seedAccounts(host: Pick<ServeHost, "url" | "operatorToken">, options: SeedAccountsOptions): Promise<StagingSessions> {
+  return accounts(host, options, "staging");
+}
+
+/** Create real production password accounts and provision each one through the
+ * same ordinary service-authorized mutation contract as seedAccounts. */
+// @ref LLP 3000.000.000.002#9-wave-25-day-two-friction-dx8 — production setup shares the plan without acquiring fixture authority.
+export function provisionAccounts(host: Pick<ServeHost, "url" | "operatorToken">, options: SeedAccountsOptions): Promise<ProvisionedSessions> {
+  return accounts(host, options, "production");
 }

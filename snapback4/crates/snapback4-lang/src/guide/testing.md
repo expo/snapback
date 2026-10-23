@@ -188,12 +188,15 @@ TMPDIR cleanup (H6); set `logsDir` outside a source-discovery directory if your
 tool treats every file under cwd as source (for example, an Exact app/ root).
 Set `logsDir` explicitly to retain a chosen artifact directory. `startServe(deployDir)` serves a deployment;
 `startVite(dir)` serves the app's Vite config; `startStatic(dir)` serves built
-output, including wasm. Spawn servers with the kit or the binary, never `npx`:
-killing the npx wrapper leaves the server holding your pipe.
+output, including wasm. The kit owns the complete process group for native hosts
+and `command()`, including npm-created descendants and abrupt caller death. For
+a command whose stdout is one machine-readable line, use `npm run --silent` so
+npm does not add its banner.
 `startDev()` uses native dev's persistent `.snapback4/store.sqlite` in cwd.
-Disposable proofs select `{args:["--memory"]}` explicitly. Fixture, persona,
-and clock tools on password-only apps also require `--unsafe-dev-doors`;
-use `guide staging` for real password users under serve. The legacy kit-only
+Disposable proofs select `{args:["--memory"]}` explicitly. Fixture and persona
+tools on password-only apps require `--unsafe-dev-doors`; `startDev().now()`,
+`advance()` and `drain()` use an independent local `service:operator` token and
+preserve live sessions by default. Use `guide staging` for real users under serve. The legacy kit-only
 `--no-memory` alias is consumed for compatibility; it is not a native CLI flag.
 `--store` is forwarded to native validation (current dev refuses it).
 `startDev(args)` and `stopChild(ChildProcess | {url, stop})` remain supported.
