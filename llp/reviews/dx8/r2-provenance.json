@@ -1,0 +1,39 @@
+{
+  "round": 2,
+  "sourceCommit": "e7e6a7fb370ea9888477139598e7780637a3bd43",
+  "amendmentSha256": "4f1ac2ceb2d2722ecc01c6b645896588c3cfb9b5828ee763b083b8b9e17bcb60",
+  "createdAt": "2026-10-23T01:10:07.014233+00:00",
+  "reviewers": [
+    {
+      "family": "OpenAI",
+      "model": "gpt-6.1-sol",
+      "reasoning": "high",
+      "session": "fresh codex exec"
+    },
+    {
+      "family": "Meta",
+      "model": "muse-spark-1.3-contributor",
+      "reasoning": "high",
+      "session": "muse-exec with configured plan/fallback"
+    }
+  ],
+  "results": {
+    "codex": {
+      "verdict": "NOT READY",
+      "exitCode": 0,
+      "transcript": "r2-codex.txt",
+      "sha256": "dd1fda36da4aeeab0d28e93e8a339e690710e09445e079f3bb879c7fa3b8071b"
+    },
+    "muse": {
+      "verdict": "READY",
+      "exitCode": 0,
+      "transcript": "r2-muse.txt",
+      "sha256": "f5bd942d87b737a1c01ef4fb416048a40f4e540089bdac818ef72d16817519b8"
+    }
+  },
+  "commands": {
+    "codex": "codex exec -m gpt-6.1-sol -c model_reasoning_effort=high --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox - < r2-brief.txt",
+    "muse": "~/sb4-loop/muse-exec.sh --yolo --model muse-spark-1.3-contributor --reasoning-effort high --prompt-file r2-brief.txt"
+  },
+  "museFallback": "Configured Meta fallback succeeded after subscription quota refusal; no key file read or printed."
+}
