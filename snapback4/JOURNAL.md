@@ -102738,6 +102738,18 @@ resolution. Fresh merged wasm remains 735599 gzip / 2407197 raw, within the
 736099 budget. The Linux consumer-only run still records its inherited day-five
 source-reservation failure; its passed prefix and subsequent consumer results
 remain separate evidence without a publication receipt.
+
+The remaining generated-frontend qualification reproduced a strace duplicate
+decoder form on both R6 and final R7 packs: an outer `???(inner listen(...)`
+record immediately followed by the byte-identical ordinary child record.
+The listener parser now recognizes only that corroborated duplicate; the
+ordinary record still receives every result/address/range check. Missing
+corroboration, unresolved and out-of-range positive listens continue to refuse.
+The full qualification unit file passes 61 tests, with additional direct
+negative checks for wrapped unresolved/out-of-range records. LLP
+3000.011.003.000.000 §8 and the complete DX8 amendment record the precise
+acceptance rule and return to both fresh reviewers. This changes qualification
+decoding only; the final R7 SDK/native tarballs remain byte-identical.
 ## 2026-10-23 — P1-CE: Postgres change evidence and certified changes/sync
 
 The Postgres buffered tail now writes the shared net-image footprint and prunes
