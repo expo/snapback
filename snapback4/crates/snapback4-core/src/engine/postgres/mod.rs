@@ -565,6 +565,7 @@ mod evolution;
 mod evolution_admission;
 mod evolution_schema;
 mod evolution_inventory;
+mod narrowed;
 mod profile;
 
 mod deployment;

@@ -40,7 +40,7 @@ mod activation_scan;
 mod activation_walk;
 mod live_activation;
 mod authority_origin;
-mod adopt_refusals;
+pub(crate) mod adopt_refusals;
 pub mod adoption_estimate;
 pub mod adoption_report;
 #[cfg(test)]

@@ -677,7 +677,11 @@ impl Rows for Tx<'_> {
         let keys = crate::rows::index_write(table_name, table, row, old, id)?;
         let data = canonical_json(row);
         let sql = if old.is_some() { "UPDATE r SET data = $3 WHERE t = $1 AND id = $2" } else { "INSERT INTO r VALUES ($1,$2,$3)" };
-        self.execute(sql, &[&table_name, &id, &data])?;
+        // Keep reserved-id admission in the existing insertion round trip (RT0).
+        let sql = if self.unified && old.is_none() { "INSERT INTO r(t,id,data) SELECT $1,$2,$3 WHERE NOT EXISTS(SELECT 1 FROM _dormant_narrow_rows WHERE t=$1 AND id=$2)" } else { sql };
+        if self.execute(sql, &[&table_name, &id, &data])? == 0 && old.is_none() {
+            return Err(RuntimeError::Rule { table: table_name.into(), effect: crate::schema::Effect::Insert });
+        }
         let mut entries = 0;
         for crate::rows::IndexWrite { name, before, after } in keys {
             for key in before.iter().filter(|k| !after.contains(k)) {
@@ -699,7 +703,7 @@ impl Rows for Tx<'_> {
         let id = old.field("id")?.as_str()?;
         // @ref LLP 3000.009.001.000#3.5 — deletion evidence shares the existing row-delete round trip.
         let sql = if self.unified {
-            "WITH refs AS (UPDATE _dormant_refs SET invalid=1 WHERE parent_t=$1 AND parent_id=$2 AND invalid=0 AND NOT(t=$1 AND id=$2)), cells AS (DELETE FROM _dormant_values WHERE t=$1 AND id=$2), images AS (DELETE FROM _dormant_rows WHERE t=$1 AND id=$2), own_refs AS (DELETE FROM _dormant_refs WHERE t=$1 AND id=$2) DELETE FROM r WHERE t=$1 AND id=$2"
+            "WITH refs AS (UPDATE _dormant_refs SET invalid=1 WHERE parent_t=$1 AND parent_id=$2 AND invalid=0 AND NOT(t=$1 AND id=$2)), cells AS (DELETE FROM _dormant_values WHERE t=$1 AND id=$2), images AS (DELETE FROM _dormant_rows WHERE t=$1 AND id=$2), narrowed AS (DELETE FROM _dormant_narrow_rows WHERE t=$1 AND id=$2), own_refs AS (DELETE FROM _dormant_refs WHERE t=$1 AND id=$2) DELETE FROM r WHERE t=$1 AND id=$2"
         } else { "DELETE FROM r WHERE t = $1 AND id = $2" };
         self.execute(sql, &[&table_name, &id])?;
         let mut entries = 0;

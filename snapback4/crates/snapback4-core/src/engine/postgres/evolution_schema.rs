@@ -17,6 +17,7 @@ pub(super) fn verify(tx: &Tx<'_>) -> Result<(), RuntimeError> {
             &["definition"][..],
         ),
         ("_dormant_rows", &["t", "id"][..], &["data"][..]),
+        ("_dormant_narrow_rows", &["t", "id"][..], &["data", "definition", "reason"][..]),
         (
             "_dormant_values",
             &["t", "id", "column_name"][..],
@@ -45,6 +46,7 @@ pub(super) fn initialize(tx: &Tx<'_>) -> Result<(), RuntimeError> {
         CREATE TABLE IF NOT EXISTS _dormant_columns(table_name TEXT COLLATE "C" NOT NULL,column_name TEXT COLLATE "C" NOT NULL,definition TEXT NOT NULL,PRIMARY KEY(table_name,column_name));
         CREATE TABLE IF NOT EXISTS _dormant_indexes(table_name TEXT COLLATE "C" NOT NULL,index_name TEXT COLLATE "C" NOT NULL,definition TEXT NOT NULL,PRIMARY KEY(table_name,index_name));
         CREATE TABLE IF NOT EXISTS _dormant_rows(t TEXT COLLATE "C" NOT NULL,id TEXT COLLATE "C" NOT NULL,data TEXT NOT NULL,PRIMARY KEY(t,id));
+        CREATE TABLE IF NOT EXISTS _dormant_narrow_rows(t TEXT COLLATE "C" NOT NULL,id TEXT COLLATE "C" NOT NULL,data TEXT NOT NULL,definition TEXT NOT NULL,reason TEXT NOT NULL,PRIMARY KEY(t,id));
         CREATE TABLE IF NOT EXISTS _dormant_values(t TEXT COLLATE "C" NOT NULL,id TEXT COLLATE "C" NOT NULL,column_name TEXT COLLATE "C" NOT NULL,data TEXT NOT NULL,PRIMARY KEY(t,id,column_name));
         CREATE TABLE IF NOT EXISTS _dormant_refs(t TEXT COLLATE "C" NOT NULL,id TEXT COLLATE "C" NOT NULL,column_name TEXT COLLATE "C" NOT NULL,parent_t TEXT COLLATE "C" NOT NULL,parent_id TEXT COLLATE "C" NOT NULL,invalid BIGINT NOT NULL,PRIMARY KEY(t,id,column_name,parent_t,parent_id));
         CREATE INDEX IF NOT EXISTS _dormant_parent ON _dormant_refs(parent_t,parent_id);

@@ -151,9 +151,12 @@ impl Handle {
             let tx = AnyTx::from_postgres(tx);
             tx.with_postgres(|inner| check(&AnyPreparation::Postgres(Preparation(inner))))?;
             if !fresh { tx.with_postgres(|inner| super::evolution::transition(inner, &previous, schema))?; }
-            if schema_changed { tx.with_postgres(|inner| super::column_evolution::project(inner, &previous, schema))?; }
-            build(&tx, changed, &mut report)?;
-            if schema_changed { tx.with_postgres(|inner| super::column_evolution::validate_groups(inner, &previous, schema))?; }
+            let population=crate::activation::ActivationReader::activation_population(&tx)?.as_deref()==Some("true");
+            let rebuilding=schema_changed || population;
+            if rebuilding { tx.with_postgres(|inner| super::column_evolution::project(inner, &previous, schema))?; }
+            if rebuilding { tx.with_postgres(|inner| super::caps::rebuild(inner,schema,true))?; }
+            build(&tx, changed || population, &mut report)?;
+            if rebuilding { tx.with_postgres(|inner| super::column_evolution::validate_adoption_groups(inner, &previous, schema))?; }
             tx.with_postgres(|inner| {
                 inner.publish_backend(&Backend(generation, crate::value::canonical_json(schema), crate::value::canonical_json(programs)), now)?;
                 inner.set_meta("schema_hash", &schema.hash())?;

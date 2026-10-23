@@ -56,6 +56,9 @@ pub(super) fn walk(
         "r" => {
             "SELECT id,data FROM r WHERE t=$1 AND ($2::text IS NULL OR id>$2) ORDER BY id LIMIT 1"
         }
+        "_dormant_narrow_rows" => {
+            "SELECT id,data FROM _dormant_narrow_rows WHERE t=$1 AND ($2::text IS NULL OR id>$2) ORDER BY id LIMIT 1"
+        }
         "_dormant_rows" => {
             "SELECT id,data FROM _dormant_rows WHERE t=$1 AND ($2::text IS NULL OR id>$2) ORDER BY id LIMIT 1"
         }
@@ -64,6 +67,9 @@ pub(super) fn walk(
     let sizes = match relation {
         "r" => {
             "SELECT octet_length(id),octet_length(data) FROM r WHERE t=$1 AND ($2::text IS NULL OR id>$2) ORDER BY id LIMIT 1"
+        }
+        "_dormant_narrow_rows" => {
+            "SELECT octet_length(id),octet_length(data) FROM _dormant_narrow_rows WHERE t=$1 AND ($2::text IS NULL OR id>$2) ORDER BY id LIMIT 1"
         }
         "_dormant_rows" => {
             "SELECT octet_length(id),octet_length(data) FROM _dormant_rows WHERE t=$1 AND ($2::text IS NULL OR id>$2) ORDER BY id LIMIT 1"
@@ -80,41 +86,52 @@ pub(super) fn walk(
         let Some(length) = lengths.first() else {
             return Ok(());
         };
-        // Reserve driver/text coexistence before fetching the payload, then
-        // use the same decoder admission as the SQLite activation walker.
+        // @ref LLP 3000.009.001.000#3.5 — ordinary narrowed restoration decodes before checking compatibility, without live-activation admission.
+        // SQLite skips incompatible historical images before they enter its
+        // metered active-row walker. EV-4 live provenance is not admitted here.
+        let admit = relation != "_dormant_narrow_rows";
         let mut meter = Meter::new(Ceilings::job(), Cut::Abort);
         meter.at("adopt stored rows");
-        meter.heap(
-            8192 + after.as_deref().map_or(0, heap::text)
-                + 3 * (heap::allocation(length.get::<_, i32>(0) as usize)
-                    + heap::allocation(length.get::<_, i32>(1) as usize))
-                + 64
-                + heap::slots::<(String, String)>(1),
-        )?;
+        if admit {
+            meter.heap(
+                8192 + after.as_deref().map_or(0, heap::text)
+                    + 3 * (heap::allocation(length.get::<_, i32>(0) as usize)
+                        + heap::allocation(length.get::<_, i32>(1) as usize))
+                    + 64
+                    + heap::slots::<(String, String)>(1),
+            )?;
+        }
         let rows = tx.query(sql, &[&name, &after])?;
         let Some(row) = rows.first() else {
             return Ok(());
         };
         let id: String = row.get(0);
         let data: &str = row.get(1);
-        adoption::page_fits(
-            std::iter::once(data),
-            &mut meter,
-            adoption::Work::DECODE,
-            None,
-        )?;
-        adoption::charge(&mut meter, adoption::decode_bytes(data))?;
+        if admit {
+            adoption::page_fits(
+                std::iter::once(data),
+                &mut meter,
+                adoption::Work::DECODE,
+                None,
+            )?;
+            adoption::charge(&mut meter, adoption::decode_bytes(data))?;
+        }
         let image = decode(data)?;
         visit(&id, image)?;
         after = Some(id);
     }
 }
-fn definition(tx: &Tx<'_>, name: &str, table: &Table, column: &str) -> Result<(), RuntimeError> {
+pub(super) fn definition(
+    tx: &Tx<'_>,
+    name: &str,
+    table: &Table,
+    column: &str,
+) -> Result<(), RuntimeError> {
     let definition = canonical_json(&Column::retained(table, column));
     tx.execute("INSERT INTO _dormant_columns(table_name,column_name,definition) VALUES($1,$2,$3) ON CONFLICT(table_name,column_name) DO UPDATE SET definition=excluded.definition", &[&name,&column,&definition])?;
     Ok(())
 }
-fn refs(kind: &ColumnType, value: &Value, out: &mut Vec<(String, String)>) {
+pub(super) fn refs(kind: &ColumnType, value: &Value, out: &mut Vec<(String, String)>) {
     match (kind, value) {
         (ColumnType::Optional(inner), value) => refs(inner, value, out),
         (ColumnType::List { of, .. } | ColumnType::ListRange { of, .. }, Value::Array(values)) => {
@@ -126,7 +143,7 @@ fn refs(kind: &ColumnType, value: &Value, out: &mut Vec<(String, String)>) {
         _ => {}
     }
 }
-fn capture(
+pub(super) fn capture(
     tx: &Tx<'_>,
     name: &str,
     id: &str,
@@ -141,13 +158,13 @@ fn capture(
     let mut references = Vec::new();
     refs(kind, value, &mut references);
     for (parent, parent_id) in references {
-        let exists: bool = tx.query("SELECT EXISTS(SELECT 1 FROM r WHERE t=$1 AND id=$2) OR EXISTS(SELECT 1 FROM _dormant_rows WHERE t=$1 AND id=$2)", &[&parent,&parent_id])?[0].get(0);
+        let exists: bool = tx.query("SELECT EXISTS(SELECT 1 FROM r WHERE t=$1 AND id=$2) OR EXISTS(SELECT 1 FROM _dormant_rows WHERE t=$1 AND id=$2) OR EXISTS(SELECT 1 FROM _dormant_narrow_rows WHERE t=$1 AND id=$2)", &[&parent,&parent_id])?[0].get(0);
         let invalid: i64 = if exists { 0 } else { 2 };
         tx.execute("INSERT INTO _dormant_refs(t,id,column_name,parent_t,parent_id,invalid) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT DO NOTHING", &[&name,&id,&column,&parent,&parent_id,&invalid])?;
     }
     Ok(())
 }
-fn save(
+pub(super) fn save(
     tx: &Tx<'_>,
     name: &str,
     id: &str,
@@ -178,6 +195,9 @@ pub(super) fn transition(
         return Ok(());
     }
     let restore = tx.meta("activation_restore")?.as_deref() != Some("false");
+    // Keep restoration identities until the common builder finishes, so release
+    // narration counts only surviving images without a population-sized buffer.
+    tx.batch("CREATE TEMP TABLE _evolution_restored(kind TEXT COLLATE \"C\" NOT NULL,t TEXT COLLATE \"C\" NOT NULL,col TEXT COLLATE \"C\" NOT NULL,id TEXT COLLATE \"C\" NOT NULL,PRIMARY KEY(kind,t,col,id)) ON COMMIT DROP")?;
     let mut reuse = Vec::new();
     for (relation, query) in [
         (
@@ -315,6 +335,7 @@ pub(super) fn transition(
             &format!("activation_table_restored:{name}"),
             &count.to_string(),
         )?;
+        tx.execute("INSERT INTO _evolution_restored(kind,t,col,id) SELECT 'table',t,'',id FROM _dormant_rows WHERE t=$1 ON CONFLICT DO NOTHING",&[&name])?;
         tx.execute("DELETE FROM _dormant_rows WHERE t=$1", &[&name])?;
         tx.execute("DELETE FROM _dormant_tables WHERE table_name=$1", &[&name])?;
         restoring.insert(name, old);
@@ -364,6 +385,7 @@ pub(super) fn transition(
             Ok(())
         })?;
     }
+    super::narrowed::transition(tx, previous, next, &restoring)?;
     // invalid=1 remembers a deleted parent even after its id is reused. invalid=2
     // denotes a parent already absent when captured, matching SQLite's policy.
     for row in tx.query("SELECT d.t,d.id,d.column_name FROM _dormant_refs d WHERE EXISTS(SELECT 1 FROM r c WHERE c.t=d.t AND c.id=d.id) AND (invalid=1 OR (invalid<>2 AND NOT EXISTS(SELECT 1 FROM r p WHERE p.t=d.parent_t AND p.id=d.parent_id))) ORDER BY d.t,d.id,d.column_name", &[])? {
@@ -372,16 +394,18 @@ pub(super) fn transition(
     }
     for (name, table) in &next.tables {
         for column in table.columns.keys() {
+            tx.set_meta(&format!("activation_column_restored:{name}.{column}"), "0")?;
+            tx.execute("INSERT INTO _evolution_restored(kind,t,col,id) SELECT 'column',t,column_name,id FROM _dormant_values v WHERE t=$1 AND column_name=$2 AND EXISTS(SELECT 1 FROM r WHERE r.t=v.t AND r.id=v.id) AND NOT EXISTS(SELECT 1 FROM _dormant_narrow_rows n WHERE n.t=v.t AND n.id=v.id) ON CONFLICT DO NOTHING",&[name,column])?;
             tx.execute(
-                "DELETE FROM _dormant_values WHERE t=$1 AND column_name=$2",
+                "DELETE FROM _dormant_values v WHERE t=$1 AND column_name=$2 AND NOT EXISTS(SELECT 1 FROM _dormant_narrow_rows n WHERE n.t=v.t AND n.id=v.id)",
                 &[name, column],
             )?;
             tx.execute(
-                "DELETE FROM _dormant_refs WHERE t=$1 AND column_name=$2",
+                "DELETE FROM _dormant_refs v WHERE t=$1 AND column_name=$2 AND NOT EXISTS(SELECT 1 FROM _dormant_narrow_rows n WHERE n.t=v.t AND n.id=v.id)",
                 &[name, column],
             )?;
             tx.execute(
-                "DELETE FROM _dormant_columns WHERE table_name=$1 AND column_name=$2",
+                "DELETE FROM _dormant_columns WHERE table_name=$1 AND column_name=$2 AND NOT EXISTS(SELECT 1 FROM _dormant_values WHERE t=$1 AND column_name=$2)",
                 &[name, column],
             )?;
         }

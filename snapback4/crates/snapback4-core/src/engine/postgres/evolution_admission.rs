@@ -3,7 +3,7 @@
 use super::store::{Tx, decode};
 use crate::{
     RuntimeError, Schema,
-    schema::{ColumnDefault, Constraint, Table},
+    schema::{Constraint, Table},
 };
 
 fn refuse(family: &'static str) -> RuntimeError {
@@ -26,38 +26,16 @@ fn compatible(old: &Table, next: &Table) -> Result<(), RuntimeError> {
     if !plain(old) || !plain(next) {
         return Err(refuse("evolution-authority"));
     }
-    for (column, kind) in &old.columns {
-        if next.columns.get(column).is_some_and(|new| new != kind)
-            || (next.columns.contains_key(column)
-                && old.defaults.get(column) != next.defaults.get(column))
-        {
-            return Err(refuse("evolution-narrowing"));
-        }
-    }
     for column in old.columns.keys().filter(|c| next.columns.contains_key(*c)) {
         if old.on_delete.get(column) != next.on_delete.get(column) {
             return Err(refuse("evolution-authority"));
         }
     }
-    // Logical unique constraints are represented by their rebuilt index. Text
-    // constraints on a retired/new column travel with that column's definition.
-    let constraints = |table: &Table| {
-        table
-            .constraints
-            .iter()
-            .filter(|c| match c {
-                Constraint::Unique { .. } => false,
-                Constraint::Text { field, .. } => {
-                    old.columns.contains_key(field) && next.columns.contains_key(field)
-                }
-                _ => true,
-            })
-            .cloned()
-            .collect::<Vec<_>>()
-    };
-    if constraints(old) != constraints(next) {
-        return Err(refuse("evolution-narrowing"));
-    }
+    let outside = |table: &Table| table.constraints.iter().filter(|c| !matches!(c,
+        Constraint::Text { .. } | Constraint::Unique { .. } | Constraint::Cap { .. })).cloned().collect::<Vec<_>>();
+    if outside(old) != outside(next) { return Err(refuse("evolution-narrowing")); }
+    // EV-2 admits value domains, defaults and ordinary constraints. The
+    // closed-population pass and final group validation decide data fitness.
     let mut comparable = next.clone();
     comparable.constraints = old.constraints.clone();
     comparable.on_delete = old.on_delete.clone();
@@ -146,11 +124,10 @@ pub(super) fn admit(previous: &Schema, next: &Schema) -> Result<(), RuntimeError
 }
 
 /// Dormant definitions also constrain the transition: restored types cannot
-/// acquire narrowing or a new storage owner through a temporarily absent name.
-pub(super) fn retained(tx: &Tx<'_>, previous: &Schema, next: &Schema) -> Result<(), RuntimeError> {
+/// acquire a new storage owner through a temporarily absent name.
+pub(super) fn retained(tx: &Tx<'_>, _previous: &Schema, next: &Schema) -> Result<(), RuntimeError> {
     let installed =
         tx.query("SELECT to_regclass('_dormant_tables') IS NOT NULL", &[])?[0].get::<_, bool>(0);
-    let mut columns = std::collections::BTreeMap::new();
     if installed {
         super::evolution_schema::verify(tx)?;
         for row in tx.query("SELECT table_name,column_name,definition FROM _dormant_columns ORDER BY table_name,column_name", &[])? {
@@ -161,33 +138,12 @@ pub(super) fn retained(tx: &Tx<'_>, previous: &Schema, next: &Schema) -> Result<
                 if table.maintained.contains_key(&column) || table.engine_field(&column) {
                     return Err(refuse("evolution-authority"));
                 }
-                let restored = super::evolution::Column::retained(table, &column);
-                if old.kind != restored.kind || old.default != restored.default || old.constraints != restored.constraints {
-                    return Err(refuse("evolution-narrowing"));
-                }
+                let mut restored = super::evolution::Column::retained(table, &column);
+                restored.kind = old.kind.clone();
+                restored.default = old.default.clone();
+                restored.constraints = old.constraints.clone();
                 if old != restored {
                     return Err(refuse("evolution-authority"));
-                }
-            }
-            columns.insert((name,column),old);
-        }
-    }
-    for (name, table) in &next.tables {
-        if let Some(old) = previous.table(name) {
-            if table.constraints.iter().any(
-                |c| matches!(c, Constraint::Text {field,..} if !old.columns.contains_key(field) && !columns.contains_key(&(name.clone(),field.clone()))),
-            ) {
-                return Err(refuse("evolution-narrowing"));
-            }
-            for (column, kind) in &table.columns {
-                if !old.columns.contains_key(column)
-                    && !kind.is_optional()
-                    && !table.maintained.contains_key(column)
-                    && !matches!(table.defaults.get(column), Some(ColumnDefault::Literal(_)))
-                {
-                    if !columns.contains_key(&(name.clone(), column.clone())) {
-                        return Err(refuse("evolution-required-column"));
-                    }
                 }
             }
         }
@@ -207,14 +163,6 @@ pub(super) fn retained(tx: &Tx<'_>, previous: &Schema, next: &Schema) -> Result<
                 return Err(refuse("evolution-authority"));
             }
             compatible(&old, table)?;
-            for (column, kind) in &table.columns {
-                if !old.columns.contains_key(column)
-                    && !kind.is_optional()
-                    && !matches!(table.defaults.get(column), Some(ColumnDefault::Literal(_)))
-                {
-                    return Err(refuse("evolution-required-column"));
-                }
-            }
         }
     }
     Ok(())

@@ -103934,3 +103934,269 @@ postmaster 2735539 and durable settings are unchanged. Final reporting helpers
 receive an additional exit audit. Raw data and source snapshots remain outside
 Git with location/SHA-256 in the report. Only results and this journal change;
 no push, stash, Git configuration change, product edit or sub-agent.
+
+
+## 2026-10-23 — P1-EV-2: ordinary value-domain evolution on Postgres
+
+The lane extends EV-1's retained release walk with SQLite's type/bound,
+requiredness/default and text/cap constraint semantics. `_dormant_narrow_rows`
+keeps exact historical values and source definitions; hiding follows references
+to a fixed point, and compatible later releases restore only surviving rows.
+Partial row/table restoration keeps unused cells dormant. Missing required or
+context-defaulted historical fields refuse rather than inventing their values.
+Retained column definition edits now follow SQLite's verdict; ownership and
+parent deletion policy remain fenced. The implementation note and slice table
+are in LLP 3000.009.001.000 §3.5.
+
+The shared dual-store cases compare raw `r.data`, narrowed images, definitions,
+causes, retained values, physical keys, occupancy, interpreted outcomes, meters
+and inventory at every transition, including failed activation rollback. The
+public configured witness narrows then widens a referenced population and
+checks restored 300 KiB defaults through `/changes`. Expiring cap populations
+remain EV-4: ordinary EV-2 caps use live index groups, and their empty physical
+`_cap_counts` ledger is compared. No temporal narrowing claim is made.
+
+Reserved-id checks and deletion evidence remain within the existing row SQL
+statements; RT0 tables are unchanged. All evidence and recorded processes stay
+in `/tmp/sb4-p1ev2/`. Private PG16 only; PG17/55440 is untouched. Builds use the
+owned warm target, four jobs and line-tables-only dev/test debug. Commits stay
+local on `sb4-pg/p1-ev2`, with no push, stash or Git configuration change.
+
+
+## 2026-10-23 — P1-EV-2: restoration narration follows survival
+
+Review found the inherited Postgres release-history stub still finalized every
+narrowed-restoration count as zero. The EV-2 walk now keeps transaction-local
+restoration identities through the common builder, then counts surviving images
+for table/column/narrowed history. These identities drop with commit or rollback;
+no population of row ids is retained in memory. Conformance also compares release
+summaries, restoration items and parent-lifetime evidence, and snapshots the
+history on failure. The public configured witness is added to the existing
+Postgres serve harness, with an old-binary failure at the intended narrowing
+refusal as its negative control.
+
+## 2026-10-23 — P1-EV-2: dev-adoption refusal parity
+
+A new unversioned-adoption probe observed SQLite `E_ADOPT` versus Postgres
+`E_INPUT` for an incompatible stored integer. Postgres now wraps stored-image
+validation as adoption failure before retain-by-default is enabled too. The
+shared regression covers type narrowing and a missing required column, asserting
+SQLite's verdict and unchanged rows/generation on both stores. Application write
+validation and the retained evaluator's profile are unchanged.
+
+
+## 2026-10-23 — P1-EV-2 qualification and cleanup
+
+The [qualification report](reports/20261023-p1-ev2.md) records the completed
+checks: full core, final 47-case evolution target, nine maintained-column cases,
+21 release contracts, the nontransactional preparation-write witness, 13 binary
+release cases, both unchanged RT0 ratchets, 127 guide tests, build/no-default and
+root reference validation all pass. Final history/refusal follow-ups receive
+affected-scope requalification after the complete core pass.
+
+Configured public deploy/serve passes twice with 15 byte-identical normalized
+EV-2 observations (1,538,672 bytes), including hidden parent/child restoration,
+query meters and 300 KiB `/changes` behavior. The complete ownership, recovery
+and S1 maintained-column harness passes too. The stock Postgres runner retains
+one red: the already-ticketed evaluator `40001` stress. Its exact executable
+passes alone with 65 increments per mode, no lost updates and 119 Serializable
+retries. The retained workload, retry/timeout limits and stock exclusions are
+unchanged. All later stages
+pass; the five-executor 295-card corpus has no overlap disagreement, and named
+exclusions stay visible.
+
+All four owned PG16 clusters are confirmed stopped (status 3, no pidfiles).
+The independent audit finds no surviving recorded owned identity,
+no public-witness PID and no executable from the lane target. PG17/55440 is
+untouched. Raw logs, wire bytes, saved test binary and PID traces stay outside
+Git under `/tmp/sb4-p1ev2/`. Work stays local, with no push or stash.
+
+
+## 2026-10-23 — P1-EV-2 fix round 1: admission and refusal parity
+
+The Sol P1 retained-definition finding and Grok Medium group-refusal finding
+are fixed within LLP 3000.009.001.000 §3.5. Ordinary Postgres restoration
+reserves row bytes without the extra 64× retained-definition payload term.
+Dev unique/cap conflicts now use SQLite's `E_ADOPT`, successor step and rewrite;
+release conflicts share its bounded sample formatter and bridge/inspect text.
+Postgres spills conflicting groups/ids transactionally, including restored-row
+origins, with five-id/key and five-group sample limits. Runtime ceilings and
+both RT0 tables stay unchanged; SQLite's behavior stays unchanged.
+
+New dual-store witnesses fail against unchanged `33d0c5120b` production:
+large-predecessor-default restoration is SQLite success / Postgres `E_BOUND`
+(59,981,832 / 16,777,216 bytes); dev uniqueness and cap 2 → 1 disagree on code,
+and release uniqueness/caps plus six-group restoration disagree on text.
+That negative control finishes 14 passed / six failed. The fixed evolution
+suite passes all 55 cases. The requested cap 1 → 0 cannot reach the stores:
+both Quarry text and typed schema validation require a positive maximum.
+Two separate typed-API guards compare identical dev/release `E_SCHEMA` text
+and unchanged state; 2 → 1 is the smallest valid tightening regression.
+
+The [EV-2 report](reports/20261023-p1-ev2.md) records the failing-before evidence
+and qualification. Raw logs and recorded identities remain outside Git in
+`/tmp/sb4-p1ev2-fix1/`. Work stays local on `sb4-pg/p1-ev2`; private PG16 only,
+with no push, stash, Git configuration change or raw-log commit.
+
+The separate maintained-column scope exposed a defensive adapter fixture that
+activates below public schema admission with no programs. SQLite skips successor
+assessment on that path and returns its physical `E_CONSTRAINT`. Postgres now
+selects adoption diagnostics only from public activation; the test-only physical
+entry point keeps SQLite's original code and text. Public adoption behavior is
+unchanged by this follow-up, and the existing maintained fixture is unchanged.
+
+Dev successor-step selection also skips newly added additive literal-default
+columns, matching SQLite: a conflicting new unique index is diagnosed at its
+index step. The same unique-refusal test now covers that combination too.
+
+
+## 2026-10-23 — P1-EV-2 fix round 1 qualification and cleanup
+
+The full core command passes 1,157 tests across 48 result blocks (zero failures,
+291 ignores, 1,352.80 seconds). It precedes the defensive physical-adapter and
+additive-default step-selection follow-ups; final affected runs after those
+follow-ups pass evolution 55, maintained-column scope nine, core release 21,
+binary release 13 and both RT0 ratchets plus publication checks five. Build
+and no-default core check pass. Both RT0 JSON tables remain byte-identical to
+`33d0c5120b`; no runtime ceiling or call budget changes.
+
+The stock Postgres runner remains red in 2,383.13 seconds on two existing
+signatures: the unchanged evaluator `40001` stress and the initial P1-CE deploy's
+45-second guard. All later Rust stages pass, including 225 adapter contracts,
+the 55-case evolution target, five-executor overlap corpus and difftest. EV-1/EV-2
+public wire parity passes before the later guard. The exact retained-stress
+executable passes alone (65 increments per mode, no lost updates, 105 Serializable
+retries). The complete standalone public harness then passes in 438.89 seconds,
+with the unchanged 45-second guard; maximum elapsed time across 519 timed
+commands is 34.111 seconds. Existing tickets record both occurrences; neither
+failed broad-run result is erased and the timeout's cause remains unexplained.
+
+All four owned private PG16 clusters are independently confirmed stopped
+(status 3, no pidfiles). Independent identity audits find no living recorded
+identity, public-witness PID or lane-target executable.
+PG17/55440 is untouched. The [EV-2 report](reports/20261023-p1-ev2.md) records
+scope, failures and passing reruns; raw evidence stays outside Git under
+`/tmp/sb4-p1ev2-fix1/`. No push, stash or Git configuration change.
+
+Final root `./ref-check` passes: 566 LLP documents, 11,806 refs, zero errors
+and zero unchecked references.
+
+## 2026-10-23 — P1-EV-2 fix round 2: dormant admission and diagnostic parity
+
+Lane `sb4-pg/p1-ev2-fix2`, based on `d970705fa3`, expo-build-1000. The two
+blind re-reviews identified a dormant data reservation, successor-step order,
+dev null-cap samples and the maintain-target public backstop. All four have
+dual-store failing-before witnesses against unchanged production source from
+that commit: three failures and two passing controls in the final five-case
+evolution subset, plus the separate failing public maintain-target fixture.
+
+Ordinary narrowed restoration now decodes and skips incompatible images with
+SQLite's admission behavior. Dev uniqueness/cap checks follow the earliest
+applicable successor step, including dependent indexes at changed columns.
+Dev cap evidence includes exempt null groups after detecting a real violation;
+release evidence excludes them. Maintain-target collisions retain physical
+`E_CONSTRAINT`, including activation with programs. SQLite production, runtime
+ceilings, request paths and both RT0 JSON tables are unchanged.
+
+A 3 MiB default survives narrowing and the next unrelated bounded release on
+both stores. Full widening also establishes an existing common limit: both
+active-row walkers refuse 22,033,728 / 16,777,216 heap bytes and roll back.
+The witness preserves that SQLite verdict, then restores a partial row with the
+exact payload retained as a dormant cell. A 1 MiB control restores the complete
+original row bytes. No successful full 3 MiB restoration is claimed. The
+[EV-2 note](../llp/3000.009.001.000-the-postgres-store-port.rfc.md#3.5) and
+[report](reports/20261023-p1-ev2.md) record the distinction and qualification.
+
+The lane uses eight Cargo jobs, `line-tables-only` dev/test debug and only its
+owned `snapback4/target`. Raw evidence and process custody stay outside Git in
+`/tmp/claude-1000/-home-ccheever-projects-snapback/3d04fc0c-0698-42a7-917c-2880afdea35c/scratchpad/p1ev2f2/`.
+No Hetzner host, push, stash or Git configuration change.
+
+Fix-round-2 qualification passes: build; full core (1,157 passed, zero failed,
+297 ignored, with private PG families enabled separately); 60 evolution cases;
+10 maintained-column-scope tests; 21 both-store release contracts; 13 binary
+release lifecycle tests; both unchanged RT0 ratchets and their five-test scope;
+no-default core; and the full stock `test-postgres.sh` runner (1,094.58 s).
+The stock runner passes 226 adapter contracts, the five-executor 295-card corpus,
+difftest and the complete public deploy/serve/ownership/recovery/S1 harness.
+Retained stress passes both 65-increment modes with no lost updates and
+84 Serializable retries. Public EV-2 still compares 1,538,672 identical wire
+bytes and meters. Root `./ref-check` passes with 566 LLPs, 11,808 refs and zero
+errors/unchecked references. Both owned private PG16 clusters are stopped
+(status 3, no pidfiles); an independent audit of 335 recorded identities finds
+no live process, zombie or lane-target executable. Other clusters were untouched;
+53 GB remains free. PIDs left: none.
+
+## 2026-10-23 — RT3c: account sessions use the one-statement authority path
+
+S1-PG3's native `account` bearer exposed a kind-allowlist gap in RT3a:
+account W1 took 13 exchanges rather than the ordinary six. Inventorying the
+actual issuers found three additional fixed-shape first-party kinds:
+`account` (worker mint default and native S1), `oidc` (first-party identity
+helper default), and `service` (manual and supervised worker seats).
+Password signup/login emits `user`; guest starters emit `guest`; the service
+guide's application-authenticated example uses `member`. All three were
+already covered. Persona credentials are development-only and have no session
+row; system execution is not a bearer kind. Arbitrary custom kinds remain an
+open namespace. The complete inventory and exact resolver facts are in
+[the round-trip RFC, §6](../llp/3000.009.001.000.001-the-request-round-trip-budget.rfc.md#6-increments).
+
+The only production change admits account/OIDC/service to the named projected
+resolver. The existing bounded SELECT already includes the session, read cap,
+principal generation, global worker revision and per-family revision, plus
+store generation/incarnation and head. The shared Rust liveness and supervisor
+policy still decides. No SQL, snapshot boundary or cache changed. Account
+therefore loses both its five-flight ingress fallback and the two final-query
+supervisor reads. Action sessions still read claims and walk admission/delegation
+families inside the complete resolver; unknown custom kinds conservatively
+retain that path. Specialized service-only endpoints keep their existing
+scope/kind/principal checks.
+
+Predictions were written to the RFC before implementation. Both RT0 account
+classes ran against the old code first and failed their new target tables:
+SQLite W1/increment 13/29, Postgres 13/23. After the change they match the
+predictions exactly: SQLite **6/22**, Postgres **6/16**. The account bearer
+shares the seeded principal to exercise exactly the existing row permissions
+and program reads, including a successful increment. All twelve previous
+warm classes on each adapter are unchanged, including action W1 at 21/19.
+First-use account measurements also equal the warm targets in this fixture;
+other cold prepares remain separately reported.
+
+The independent old-vs-new facts matrix now passes **8,477 states on each
+adapter**, with account/OIDC added and service covered on its new path. It
+covers deleted/revoked and expired rows, full/read scope and read caps,
+principal and store generations, incarnation, global/per-worker families,
+current/stale/missing supervisor revisions, absent generations, duplicate
+session rows, legacy null families and live action claims. Each new kind
+asserts zero SQL during resolution after facts were fetched. The baselines
+retain separate session, generation and supervisor reads; Postgres retains
+catalog discovery independently of the projection flags. Authority policy
+remains the original shared Rust resolver in both arms.
+
+Qualification: build passes. The full default core passes 681 library tests
+(three existing ignores), all 45 integration targets and 27 doctests. The full
+binary passes 577 tests (45 existing ignores). Identity conformance on both
+adapters and both account/ordinary RT0 tables pass; the broader Postgres family
+target passes 231 cases, and Postgres difftest passes 11 library/four store cases.
+No existing RT0 allowance, test retry, timeout, workload or durability setting
+was raised or skipped by this change.
+
+The stock `bash scripts/test-postgres.sh` finishes red on the retained evaluator
+Serializable stress (`40001`, conformance.rs:294 and its join at :307) and a
+45-second public-witness SQLite `deploy --restore-dormant` guard. The
+[existing guard ticket](../issues/20261023-snapback4-public-postgres-deploy-45-second-guard.md)
+records this new phase without claiming that concurrent work caused it. Every
+other Rust stage passes. The unchanged standalone public stage then passes
+completely with timing observations enabled: 442 commands, maximum 17.575
+seconds, original 45-second guard intact. Both-store release evolution and wire
+comparison, change evidence/SDK sync, bootstrap recovery/refusals, ownership
+restart/takeover and maintained-total recount pass. The initial timeout remains
+a failed attempt; the retry does not establish its cause.
+
+Cleanup independently confirms all 574 recorded owned PIDs absent. Primary
+PG16 master 2548461 and public-witness masters 2853216 and 3015122 all stop
+with `pg_ctl status` 3 and absent `postmaster.pid`. Raw logs, timings and PID
+records stay outside Git under `/tmp/sb4-rt3c/` and the two owned public fixture
+directories. Final free space is about 57 GiB, above the 25 GiB stop threshold.
+The previous `sb4-pg/s1-pg3` branch remains at 09ea38dbb3. No push, stash or Git
+configuration change.

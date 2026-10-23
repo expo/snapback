@@ -303,3 +303,35 @@ All later script stages pass, including the supported five-executor overlap,
 public serving and owned-cluster shutdown. Evidence remains outside
 Git in `/tmp/sb4-s10e2a/test-postgres.log`; the S10e-2a JOURNAL entry records
 the final check and owned-process cleanup results. No exclusion is added.
+## 2026-10-23 — P1-EV-2 private sweep
+
+The unchanged stock runner reproduced `40001` in
+`evaluator_concurrent_read_modify_write_and_duplicate_ops_are_atomic_in_both_modes`
+at `experiments/postgres/tests/conformance.rs:294`, followed by the parent join
+at line 307. The conformance target finished 20 passed / 1 failed / three existing
+ticket exclusions. Its source is byte-identical to the lane's `19ac8b7e47` base.
+An isolated rerun of the exact saved executable passed in 4.04 seconds: 65
+increments in each mode, no lost updates, zero serialized retries and 119
+Serializable retries. It ran during the stock runner's compile-only handoff,
+with no other test workload on this lane's private cluster. No workload, retry,
+timeout or skip changed. The broad-run red is retained as a red. Qualification
+and process cleanup are recorded in the
+[P1-EV-2 report](../snapback4/reports/20261023-p1-ev2.md); raw evidence remains
+outside Git under `/tmp/sb4-p1ev2/`.
+
+
+## 2026-10-23 — P1-EV-2 fix round 1 private sweep
+
+The unchanged stock runner again reproduced `40001` in
+`evaluator_concurrent_read_modify_write_and_duplicate_ops_are_atomic_in_both_modes`
+at `experiments/postgres/tests/conformance.rs:294`, followed by the parent join
+at line 307. That source is byte-identical to `33d0c5120b`. Common-engine
+concurrency passed. No workload, retry, timeout or exclusion changed; the
+broad-run failure remains a failure. The
+[P1-EV-2 fix-round report](../snapback4/reports/20261023-p1-ev2.md#fix-round-1--2026-10-23)
+records the remaining stages and cleanup; raw evidence remains outside Git
+under `/tmp/sb4-p1ev2-fix1/`.
+
+The exact saved executable passed in isolation during the compile-only manifest
+handoff in 4.14 seconds: 65 increments per mode, no lost updates, zero serialized
+retries and 105 Serializable retries. The broad run remains red.

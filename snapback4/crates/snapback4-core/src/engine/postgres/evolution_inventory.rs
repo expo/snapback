@@ -8,14 +8,16 @@ pub(super) fn inventory(
     after: Option<&str>,
     limit: usize,
 ) -> Result<Vec<DormantItem>, RuntimeError> {
-    let rows = tx.query("SELECT path,kind,table_name,part FROM (SELECT table_name AS path,'table' AS kind,table_name,NULL::text AS part FROM _dormant_tables UNION ALL SELECT table_name||'.'||column_name,'column',table_name,column_name FROM _dormant_columns c WHERE NOT EXISTS(SELECT 1 FROM _dormant_tables d WHERE d.table_name=c.table_name) OR EXISTS(SELECT 1 FROM _dormant_values v WHERE v.t=c.table_name AND v.column_name=c.column_name) UNION ALL SELECT table_name||'.'||index_name,'index',table_name,index_name FROM _dormant_indexes) s WHERE ($1::bytea IS NULL OR convert_to(kind||':'||path,'UTF8')>$1) ORDER BY (kind||':'||path) COLLATE \"C\" LIMIT $2", &[&after.map(str::as_bytes),&(limit.min(i64::MAX as usize) as i64)])?;
+    let rows = tx.query("SELECT path,kind,table_name,part FROM (SELECT table_name AS path,'table' AS kind,table_name,NULL::text AS part FROM _dormant_tables UNION ALL SELECT table_name||'.'||column_name,'column',table_name,column_name FROM _dormant_columns c WHERE NOT EXISTS(SELECT 1 FROM _dormant_tables d WHERE d.table_name=c.table_name) OR EXISTS(SELECT 1 FROM _dormant_values v WHERE v.t=c.table_name AND v.column_name=c.column_name) UNION ALL SELECT table_name||'.'||index_name,'index',table_name,index_name FROM _dormant_indexes UNION ALL SELECT DISTINCT t,'rows',t,NULL::text FROM _dormant_narrow_rows) s WHERE ($1::bytea IS NULL OR convert_to(kind||':'||path,'UTF8')>$1) ORDER BY (kind||':'||path) COLLATE \"C\" LIMIT $2", &[&after.map(str::as_bytes),&(limit.min(i64::MAX as usize) as i64)])?;
     let mut out = Vec::new();
     for row in rows {
         let path: String = row.get(0);
         let kind: String = row.get(1);
         let name: String = row.get(2);
         let column: Option<String> = row.get(3);
-        let stats = if kind == "table" {
+        let stats = if kind == "rows" {
+            tx.query("SELECT COUNT(*),COALESCE(SUM(octet_length(id)+octet_length(data)),0)::bigint FROM _dormant_narrow_rows WHERE t=$1 AND $2::text IS NULL",&[&name,&column])?
+        } else if kind == "table" {
             tx.query("SELECT COUNT(*),COALESCE(SUM(octet_length(id)+octet_length(data)),0)::bigint FROM _dormant_rows WHERE t=$1 AND $2::text IS NULL", &[&name,&column])?
         } else if kind == "column" {
             tx.query("SELECT COUNT(*),COALESCE(SUM(octet_length(id)+octet_length(data)),0)::bigint FROM _dormant_values v WHERE t=$1 AND column_name=$2 AND EXISTS(SELECT 1 FROM r WHERE r.t=v.t AND r.id=v.id)", &[&name,&column])?
@@ -36,7 +38,7 @@ pub(super) fn inventory(
             let index = decode(&text)?;
             let schema: Option<Schema> =
                 tx.previous_schema_text()?.map(|s| decode(&s)).transpose()?;
-            for relation in ["r", "_dormant_rows"] {
+            for relation in ["r", "_dormant_rows", "_dormant_narrow_rows"] {
                 super::evolution::walk(tx, relation, &name, |id, mut image| {
                     if let Some(table) = schema.as_ref().and_then(|s| s.table(&name)) {
                         crate::schema::materialize_optional_fields(&mut image, table);
@@ -57,7 +59,9 @@ pub(super) fn inventory(
             }
             definition_only = count == 0;
         } else {
-            let query = if kind == "table" {
+            let query = if kind == "rows" {
+                "SELECT id FROM _dormant_narrow_rows WHERE t=$1 AND $2::text IS NULL ORDER BY id LIMIT 5"
+            } else if kind == "table" {
                 "SELECT id FROM _dormant_rows WHERE t=$1 AND $2::text IS NULL ORDER BY id LIMIT 5"
             } else {
                 "SELECT id FROM _dormant_values v WHERE t=$1 AND column_name=$2 AND EXISTS(SELECT 1 FROM r WHERE r.t=v.t AND r.id=v.id) ORDER BY id LIMIT 5"
@@ -74,8 +78,13 @@ pub(super) fn inventory(
             } else {
                 count == 0
             };
-            if kind == "table" {
-                bytes += tx.query("SELECT COALESCE(SUM(octet_length(id)+octet_length(data)),0)::bigint FROM _dormant_values v WHERE t=$1 AND EXISTS(SELECT 1 FROM _dormant_rows d WHERE d.t=v.t AND d.id=v.id)",&[&name])?[0].get::<_,i64>(0) as u64;
+            if matches!(kind.as_str(),"table"|"rows") {
+                let query=if kind=="table" {
+                    "SELECT COALESCE(SUM(octet_length(id)+octet_length(data)),0)::bigint FROM _dormant_values v WHERE t=$1 AND EXISTS(SELECT 1 FROM _dormant_rows d WHERE d.t=v.t AND d.id=v.id)"
+                }else{
+                    "SELECT COALESCE(SUM(octet_length(id)+octet_length(data)),0)::bigint FROM _dormant_values v WHERE t=$1 AND EXISTS(SELECT 1 FROM _dormant_narrow_rows d WHERE d.t=v.t AND d.id=v.id)"
+                };
+                bytes += tx.query(query,&[&name])?[0].get::<_,i64>(0) as u64;
             }
         }
         if kind == "index" {
