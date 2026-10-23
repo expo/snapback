@@ -76,6 +76,7 @@ type CallCounter = Cell<u64>;
 use crate::round_trips::CallCounter;
 
 pub struct Store {
+    pub(super) read_sessions: Cell<bool>,
     pub(super) unified: bool,
     pub(super) fence: Option<super::ownership::Fence>,
     pub(super) commit_warning: std::sync::Arc<std::sync::atomic::AtomicBool>,
@@ -93,7 +94,7 @@ pub struct Store {
 
 impl Store {
     pub fn new(client: Client) -> Self {
-        Self { unified: false, fence: None, commit_warning: Default::default(), generation:1, read_only: false, client, cache: BTreeMap::new(), calls: CallCounter::new(0), prefetch: true, marked_reads: Cell::new(0), page_reads: Cell::new(0), prefetch_rows: Cell::new(0), prefetch_bytes: Cell::new(0) }
+        Self { read_sessions: Cell::new(false), unified: false, fence: None, commit_warning: Default::default(), generation:1, read_only: false, client, cache: BTreeMap::new(), calls: CallCounter::new(0), prefetch: true, marked_reads: Cell::new(0), page_reads: Cell::new(0), prefetch_rows: Cell::new(0), prefetch_bytes: Cell::new(0) }
     }
 
     fn begin(&mut self, mode: Option<WriteMode>, opening: bool) -> Result<Tx<'_>, RuntimeError> {
@@ -106,7 +107,7 @@ impl Store {
             Some(WriteMode::Serializable) => IsolationLevel::Serializable,
         };
         let inner = self.client.build_transaction().isolation_level(isolation).read_only(mode.is_none()).start()?;
-        let tx = Tx { commit_warning: &self.commit_warning, inner: RefCell::new(inner),
+        let tx = Tx { read_sessions: &self.read_sessions, read_sessions_installed: Cell::new(false), commit_warning: &self.commit_warning, inner: RefCell::new(inner),
             #[cfg(any(test, feature = "test-support"))]
             rollback_count: crate::round_trips::RollbackCount::new(),
             bind_refused: Cell::new(false), cache: RefCell::new(&mut self.cache), calls: &self.calls, marked_reads: &self.marked_reads, page_reads: &self.page_reads, prefetch_rows: &self.prefetch_rows, prefetch_bytes: &self.prefetch_bytes,
@@ -145,6 +146,20 @@ impl Store {
             }
         }
         Ok(tx)
+    }
+
+    // A dedicated authority boundary keeps its existing generation comparison,
+    // using the one fact statement. Program/writer openers keep their own command.
+    pub(crate) fn session_authority_transaction(&mut self, digest: &str) -> Result<(Tx<'_>, crate::identity::facts::SessionFacts), RuntimeError> {
+        let expected = self.generation;
+        let tx = self.begin(None, false)?;
+        let facts = tx.session_authority_facts(digest)?;
+        // A dedicated authority snapshot cannot have installed uncommitted DDL.
+        if tx.read_sessions_installed.get() { tx.read_sessions.set(true); }
+        if facts.backend_generation.map(|generation| generation as u64) != Some(expected) {
+            return Err(RuntimeError::Generation("another engine activated this store; reopen before reading or writing".into()));
+        }
+        Ok((tx, facts))
     }
 
     // Opening validates its backend and installs every physical upgrade before
@@ -205,6 +220,8 @@ impl Store {
 }
 
 pub struct Tx<'a> {
+    pub(super) read_sessions: &'a Cell<bool>,
+    pub(super) read_sessions_installed: Cell<bool>,
     #[cfg(any(test, feature = "test-support"))]
     rollback_count: crate::round_trips::RollbackCount,
     commit_warning: &'a std::sync::atomic::AtomicBool,
@@ -366,6 +383,9 @@ impl Tx<'_> {
         self.rows_cache.borrow_mut().clear();
         self.calls.set(self.calls.get() + 1);
         self.inner.borrow_mut().batch_execute(&format!("ROLLBACK TO SAVEPOINT {name}; RELEASE SAVEPOINT {name}"))?;
+        if self.read_sessions_installed.get() {
+            self.read_sessions_installed.set(super::identity::read_sessions_present(self)?);
+        }
         Ok(())
     }
 
@@ -388,6 +408,7 @@ impl Tx<'_> {
         #[cfg(any(test, feature = "test-support"))]
         self.rollback_count.disarm();
         super::ownership::commit(self.inner.into_inner(), self.commit_warning)?;
+        if self.read_sessions_installed.get() { self.read_sessions.set(true); }
         Ok(())
     }
 

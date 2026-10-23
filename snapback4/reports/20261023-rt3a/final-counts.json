@@ -1,0 +1,64 @@
+{
+  "sqlite": {
+    "warm": {
+      "action_session_w1": 28,
+      "keyed_first": 40,
+      "narrowed_argument": 17,
+      "one_membership": 33,
+      "rate_limited": 0,
+      "replay_hit": 19,
+      "unauthenticated": 0,
+      "unkeyed_increment": 32,
+      "unknown_operation": 17,
+      "unknown_token": 3,
+      "w1_point": 16,
+      "w2_newest20": 16
+    },
+    "cold_first_use": {
+      "action_session_w1": 28,
+      "keyed_first": 40,
+      "narrowed_argument": 17,
+      "one_membership": 33,
+      "rate_limited": 0,
+      "replay_hit": 19,
+      "unauthenticated": 0,
+      "unkeyed_increment": 32,
+      "unknown_operation": 17,
+      "unknown_token": 3,
+      "w1_point": 18,
+      "w2_newest20": 16
+    },
+    "matches_committed_table": true
+  },
+  "postgres": {
+    "warm": {
+      "action_session_w1": 22,
+      "keyed_first": 46,
+      "narrowed_argument": 13,
+      "one_membership": 27,
+      "rate_limited": 0,
+      "replay_hit": 21,
+      "unauthenticated": 0,
+      "unkeyed_increment": 26,
+      "unknown_operation": 13,
+      "unknown_token": 3,
+      "w1_point": 12,
+      "w2_newest20": 12
+    },
+    "cold_first_use": {
+      "action_session_w1": 25,
+      "keyed_first": 50,
+      "narrowed_argument": 13,
+      "one_membership": 27,
+      "rate_limited": 0,
+      "replay_hit": 21,
+      "unauthenticated": 0,
+      "unkeyed_increment": 27,
+      "unknown_operation": 13,
+      "unknown_token": 3,
+      "w1_point": 47,
+      "w2_newest20": 13
+    },
+    "matches_committed_table": true
+  }
+}

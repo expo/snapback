@@ -75,7 +75,9 @@ impl Handle {
             let programs = store::decode(row.get(2))?;
             super::profile::admit(&schema, &programs)?;
             let generation = u64::try_from(row.get::<_, i64>(3)).map_err(|_| RuntimeError::Generation("negative generation".into()))?;
+            let read_sessions: bool = tx.query("SELECT to_regclass('_read_sessions') IS NOT NULL", &[])?[0].get(0);
             tx.rollback()?;
+            store.read_sessions.set(read_sessions);
             store.generation = generation;
 
         }
@@ -150,7 +152,7 @@ impl Handle {
             let value = finish(&tx)?;
             solo.commit(tx)?;
             Ok(Pending::new((generation as u64, value), generation as u64))
-        }), |store, generation, value| { store.generation = generation; Ok(value) });
+        }), |store, generation, value| { store.generation = generation; store.read_sessions.set(true); Ok(value) });
         if result.is_ok() {
             self.fresh = false; self.report = report;
             if let Some(fence) = bootstrap_fence { self.store.get_mut().fence = Some(fence); }
@@ -173,7 +175,7 @@ pub(super) fn initialize(tx: &Tx<'_>, schema: &Schema) -> Result<(), RuntimeErro
     super::metadata::initialize(tx)?;
     super::receipts::initialize(tx)?;
     super::change_evidence::initialize(tx)?;
-    tx.batch(store::READ_SESSIONS_DDL)?;
+    tx.install_read_sessions()?;
     tx.batch(super::identity::DDL)?;
     super::requests::initialize(tx)?;
     super::outbox_schema::install(tx)?;

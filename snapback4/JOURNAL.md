@@ -102896,3 +102896,129 @@ All exact-line, single-consumption and decoder-bypass checks remain intact.
 This changes test classification only; shipping Rust, SDK and wasm inputs are
 unchanged. The final complete Rust and client qualification starts after this
 fix; earlier full-pool failures and interrupted runs remain diagnostic evidence.
+
+
+
+## 2026-10-23 — RT3a checkpoint; stopped at the disk floor
+
+Lane `sb4-pg/rt3a`, based on `bfdf051278`. Both adapters fetch a session's
+authority facts in one bounded parameterized SELECT. Existing Rust generation,
+live-session, cap and worker checks keep their policy and request boundaries;
+action/service/unknown kinds retain the complete resolver. Optional storage is
+attached once, with SQLite lazy installation published to readers after COMMIT
+and an older snapshot retaining its schema view. The typed member seam exposes
+resolution without SQL. No RT3b boundary move or RT5 flight change.
+
+The refined RT0 predictions match all twelve measured classes, three warm
+samples each: SQLite unkeyed 60→32, keyed 68→40, W1/W2 24→16; Postgres
+38→26, 58→46 and 20→12. Both tables are lowered; no class increases. The
+RFC retains initial/refined predictions and explains every removed statement.
+Interim matrices pass 3,456 generated states per adapter, including lazy/absent
+storage and old-snapshot rollback witnesses. The generation-integrated matrix
+and final green ratchet repeat remain pending. Production Postgres-feature
+check and no-default check pass; an earlier normal build passes. The original
+SQLite queued authority witness passes; the added Postgres fixture's unsupported
+generic adoption call was removed, and its queue checks still need a rerun.
+
+Qualification stopped when `/home` fell to 25 GB free, below the user's 30 GB
+floor; after cleanup it is 21 GB. Full core/CLI/Postgres compilation was
+interrupted, identity conformance and reference checking are incomplete. This
+is a recoverable, unqualified checkpoint, not a finished landing. No preexisting
+artifact was deleted, no push/stash/config change. The sole owned cluster is
+independently stopped and all 551 recorded PIDs are absent. Exact SQL, counts,
+logs, pending checks and custody are in `reports/20261023-rt3a/REPORT.md`.
+
+
+## 2026-10-23 — RT3a continuation: completed qualification
+
+Resumed the disk-stop checkpoint `9cffa36407` after the lead removed this lane's
+target. Cold builds use eight jobs and `line-tables-only` dev/test debug profiles.
+The 20 GB continuation floor was never crossed. Production authority code is
+unchanged: this remains §3.2, with shared Rust policy and existing boundaries.
+The malformed-read-storage fixture now persists its corruption before reattach,
+matching optional storage's attach-time discovery; both error assertions pass.
+
+The generation-integrated matrix passes 3,456 states per adapter and one SELECT
+per fetch, with lazy-install/rollback coverage. Both queued revocation/expiry
+witnesses and all 79 identity tests pass. Both RT0 ratchets pass against the
+committed measured tables, with every refined prediction matched and no increase.
+The complete final core repeat passes 1,091 tests (five ignored), the full binary
+537 (11 ignored), and the Postgres script 390 Rust cases plus public serving,
+restart/takeover, release adoption and P1-MC. Build, no-default and reference
+checks pass. Both private clusters and obsolete owned scratch files are removed;
+all owned workload PIDs are absent. No push/stash/configuration change. Exact
+statements, counts, the first fixture failure, final results and process custody
+are retained in `reports/20261023-rt3a/REPORT.md` and its `resume/` records.
+
+
+## 2026-10-23 — RT3a fix round 1: stopped on the SQLite unknown-token cell
+
+Lane `sb4-pg/rt3a-fix1` at `f9d714d4a2`, with the authored miss-only catalog
+fallback, copied-database fork flags, expanded equivalence edges, independent
+Postgres baseline, savepoint re-probe and zero-query NUL digest absence in the
+working tree. Both 4,545-state matrices pass. SQLite fork and independent-handle
+witnesses, and both adapters’ NUL plus Postgres rollback witnesses pass. The first
+Postgres two-connection fixture used a unified handle against a live evaluator
+and hit the owner-bootstrap isolation lock; its corrected two-evaluator source
+has not been rerun.
+
+The author required stopping if any RT0 cell moved. SQLite `unknown_token`
+measures 4 against its unchanged table’s 3: when read storage has never been
+installed, the absent digest now requires the extra catalog statement. Eleven
+other SQLite cells and every Postgres cell match. The qualification driver
+stopped before build/no-default/full-core/affected-binary/identity/full-Postgres
+stages. Both table files and all four facts projections remain byte-for-byte
+unchanged. A conditional catalog fact within the first statement could avoid
+this extra absent-storage statement; no such redesign was implemented.
+
+Raw RT3a logs and traces were copied out of the tracked report directory into
+`/tmp/sb4-rt3a-fix1/rt3a-original/`; report, SQL record and counts remain. Current
+raw evidence is under `/tmp/sb4-rt3a-fix1/`. The sole private PG16 cluster is
+stopped (status 3, no postmaster.pid), and all 46 recorded process identities
+are absent. Disk remains above 200 GB free. Initial reference checking passes;
+no final post-stop reference repeat. No commit, push, stash or git configuration
+change. Details: `reports/20261023-rt3a/REPORT.md`.
+
+
+## 2026-10-23 — RT3a fix round 1: lead-approved miss-path cost and continuation
+
+The lead approved SQLite `unknown_token` 3→4: a handle whose read-session storage
+flag is false now probes `sqlite_schema` after its no-read-arm facts SELECT misses.
+Full-session hits return before that probe; known read-session hits use the read
+arm directly. A stale independent reader's first read-token lookup starts as a
+miss, discovers storage and reruns the facts SELECT. A store that has ever minted
+a committed read session already knows the table exists and never pays this
+probe. All eleven other SQLite cells and all twelve Postgres cells retain their
+RT3a values; all four facts projections remain byte-for-byte unchanged.
+
+The corrected Postgres witness uses two evaluator adapter connections, preserving
+owner isolation: the held old snapshot retains absence, the next resolves the
+new read credential, and a subsequent hit takes one facts statement. All eleven
+focused witnesses pass, including both expanded 4,545-state equivalence matrices,
+SQLite copied fixtures and independent handles, both savepoint-install positions,
+and raw NUL absence with zero SQL on both adapters. Both RT0 ratchets, normal
+build and no-default check pass on continuation. Final broad qualification and
+process custody are recorded in `reports/20261023-rt3a/REPORT.md`.
+
+The 84 removed raw evidence files have byte-identical copies under
+`/tmp/sb4-rt3a-fix1/rt3a-original/`; current raw logs and custody stay under
+`/tmp/sb4-rt3a-fix1/`. The report retains historical counts and adds the fix-round
+counts and table digests. The earlier stop entry remains historical. No push,
+stash or git configuration change.
+
+Continuation broad qualification passes: full core 1,094 tests/five ignored,
+affected binary 304/ten ignored, both-adapter identity conformance 82/zero ignored,
+and the complete Postgres script 393 Rust test executions plus public serving,
+restart/takeover, release adoption and P1-MC. The initial blanket ignored-test
+binary command wrongly launched three helpers without their required inputs;
+the normal-ignore command passes. The first Postgres script's skipped manifest
+cleanup caused binary-test artifact identity errors. Both cleanup handoffs now
+retain selected package artifacts under `/tmp/sb4-rt3a-fix1/handoff-*/` instead of
+deleting warm files, and the complete script rerun passes. No product red is
+dismissed as inherited and no baseline exception is used.
+
+The evaluator and both public-witness PG16 clusters are stopped and independently
+confirmed (status 3, no postmaster.pid). The final process-identity audit finds
+no living owned workload PID or zombie; PIDs left are none. Disk stayed above
+the 40 GiB floor. Raw evidence, retained warm package artifacts and final custody
+remain outside Git under `/tmp/sb4-rt3a-fix1/`.

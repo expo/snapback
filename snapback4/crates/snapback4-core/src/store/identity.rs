@@ -125,7 +125,10 @@ fn set_family(conn: &Connection, digest: &str, family: &str) -> Result<(), Runti
 
 impl IdentityTransaction for Tx<'_> {
     fn insert_identity_session(&self, session: &Session, now: i64) -> Result<(), RuntimeError> {
-        insert_session(self.conn(), session, now)
+        if session.scope == SessionScope::Read { self.prepare_read_session_storage()?; }
+        insert_session(self.conn(), session, now)?;
+        if session.scope == SessionScope::Read { self.read_sessions_installed.set(true); }
+        Ok(())
     }
     fn insert_read_session(
         &self,
@@ -133,7 +136,10 @@ impl IdentityTransaction for Tx<'_> {
         now: i64,
         family: Option<(&str, i64)>,
     ) -> Result<(), RuntimeError> {
-        insert_read(self.conn(), session, now, family)
+        self.prepare_read_session_storage()?;
+        insert_read(self.conn(), session, now, family)?;
+        self.read_sessions_installed.set(true);
+        Ok(())
     }
     fn initialize_mint_binding_scope(&self) -> Result<(), RuntimeError> {
         initialize_binding_scope(self.conn())
@@ -164,7 +170,10 @@ impl IdentityTransaction for Tx<'_> {
 
 impl IdentityStore for Store {
     fn insert_identity_session(&self, session: &Session, now: i64) -> Result<(), RuntimeError> {
-        insert_session(&self.conn, session, now)
+        let mut storage = if session.scope == SessionScope::Read { Some(self.read_sessions.install()?) } else { None };
+        insert_session(&self.conn, session, now)?;
+        if let Some(storage) = storage.as_mut() { **storage = true; }
+        Ok(())
     }
     fn insert_identity_session_atomic(
         &self,
@@ -172,8 +181,10 @@ impl IdentityStore for Store {
         now: i64,
     ) -> Result<(), RuntimeError> {
         let tx = self.conn.unchecked_transaction()?;
+        let mut storage = if session.scope == SessionScope::Read { Some(self.read_sessions.install()?) } else { None };
         insert_session(&tx, session, now)?;
         tx.commit()?;
+        if let Some(storage) = storage.as_mut() { **storage = true; }
         Ok(())
     }
     fn close_identity_session(&self, digest: &str) -> Result<(), RuntimeError> {
@@ -224,9 +235,11 @@ impl IdentityStore for Store {
             tx.commit()?;
             return Ok(false);
         }
+        let mut storage = if session.scope == SessionScope::Read { Some(self.read_sessions.install()?) } else { None };
         insert_session(&tx, session, now)?;
         set_family(&tx, &digest(&session.token), family)?;
         tx.commit()?;
+        if let Some(storage) = storage.as_mut() { **storage = true; }
         Ok(true)
     }
     fn signup_identity(
@@ -253,8 +266,10 @@ impl IdentityStore for Store {
             "INSERT INTO _credentials(principal, email, hash) VALUES (?1, ?2, ?3)",
             params![session.principal, prepared.email, prepared.hash],
         )?;
+        let mut storage = if session.scope == SessionScope::Read { Some(self.read_sessions.install()?) } else { None };
         insert_session(&tx, session, now)?;
         tx.commit()?;
+        if let Some(storage) = storage.as_mut() { **storage = true; }
         Ok(())
     }
     fn identity_credential(&self, email: &str) -> Result<Option<Credential>, RuntimeError> {
@@ -288,8 +303,10 @@ impl IdentityStore for Store {
             )
             .optional()?;
         validate(current)?;
+        let mut storage = if session.scope == SessionScope::Read { Some(self.read_sessions.install()?) } else { None };
         insert_session(&tx, session, now)?;
         tx.commit()?;
+        if let Some(storage) = storage.as_mut() { **storage = true; }
         Ok(())
     }
     fn rotate_read_session(
@@ -437,9 +454,11 @@ impl IdentityStore for Store {
 impl crate::identity::test_cases::RotationFixture for Store {
     fn seed_read_family(&self, session: &Session, generation: i64) {
         insert_read(&self.conn, session, 1_000, Some((&digest(&session.token), generation))).unwrap();
+        self.read_sessions.publish(true);
     }
     fn drop_read_sessions(&self) {
         self.conn.execute_batch("DROP TABLE IF EXISTS _read_sessions").unwrap();
+        self.read_sessions.publish(false);
     }
     fn read_sessions_present(&self) -> bool { present(&self.conn).unwrap() }
 }
@@ -611,7 +630,17 @@ impl Store {
         let tx = rusqlite::Transaction::new_unchecked(&self.conn, if immediate {
             rusqlite::TransactionBehavior::Immediate
         } else { rusqlite::TransactionBehavior::Deferred })?;
-        Ok(Tx { activation_scan: None, changes: Default::default(), sequence_table: Default::default(),
+        Ok(Tx { read_sessions: &self.read_sessions, read_sessions_installed: Default::default(), read_sessions_at_start: self.read_sessions.present(), read_sessions_installation: Default::default(), activation_scan: None, changes: Default::default(), sequence_table: Default::default(),
             tx, page_size: self.page_size, server: self.server, catalog: &self.catalog })
     }
+}
+
+impl Tx<'_> {
+    pub(crate) fn prepare_read_session_storage(&self) -> Result<(), RuntimeError> {
+        if !self.read_sessions_at_start && self.read_sessions_installation.borrow().is_none() {
+            *self.read_sessions_installation.borrow_mut() = Some(self.read_sessions.install()?);
+        }
+        Ok(())
+    }
+    pub(crate) fn note_read_session_storage(&self) { self.read_sessions_installed.set(true); }
 }

@@ -57,6 +57,8 @@ pub(crate) mod release;
 mod authority;
 pub(crate) mod identity;
 mod session_clock;
+mod read_session_storage;
+use read_session_storage::ReadSessionStorage;
 mod receipts;
 mod jobs;
 pub mod inspect;
@@ -106,6 +108,7 @@ fn file_identity(conn: &Connection) -> Result<Option<(u64, u64)>, RuntimeError> 
 }
 
 pub struct Store {
+    read_sessions: std::sync::Arc<ReadSessionStorage>,
     conn: Connection,
     /// Server stores own timed publication. Device stores receive only rows
     /// the server has already published and never consult this private ledger.
@@ -142,6 +145,10 @@ impl Drop for Store {
 
 /// One transaction over the store, with the catalog in reach.
 pub struct Tx<'a> {
+    read_sessions: &'a std::sync::Arc<ReadSessionStorage>,
+    read_sessions_installed: std::cell::Cell<bool>,
+    read_sessions_at_start: bool,
+    read_sessions_installation: std::cell::RefCell<Option<std::sync::RwLockWriteGuard<'a, bool>>>,
     activation_scan: Option<activation_scan::Buffer>,
     pub changes: std::cell::RefCell<crate::revocation::Recorder>,
     sequence_table: std::cell::Cell<Option<bool>>,
@@ -179,11 +186,12 @@ impl Store {
         Self::validate_version(&version)?;
         let catalog = tx.prepare("SELECT name, num FROM _catalog")?.query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?.collect::<Result<_, _>>()?;
         let identity = activation::identity(&tx)?;
+        let read_sessions = std::sync::Arc::new(ReadSessionStorage::new(identity::present(&tx)?));
         tx.rollback()?;
         let real = std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
         let assets_dir = real.parent().unwrap_or(Path::new(".")).join("assets");
         let page_size = conn.query_row("PRAGMA page_size", [], |row| row.get::<_, i64>(0))? as u64;
-        Ok(Self { #[cfg(test)] full_adoption: false, adoption_report: Default::default(), conn,
+        Ok(Self { #[cfg(test)] full_adoption: false, adoption_report: Default::default(), read_sessions, conn,
             server: false, ownership: None, #[cfg(unix)] file_identity, page_size, catalog, identity, assets_dir, ephemeral_assets: false })
     }
 
@@ -328,9 +336,10 @@ impl Store {
                 Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?))
             })?.collect::<Result<BTreeMap<_, _>, _>>()?;
         let identity = activation::identity(&opened)?;
+        let read_sessions = std::sync::Arc::new(ReadSessionStorage::new(identity::present(&opened)?));
         opened.commit()?;
         let page_size = conn.query_row("PRAGMA page_size", [], |row| row.get::<_, i64>(0))? as u64;
-        Ok(Self { #[cfg(test)] full_adoption: false, adoption_report: Default::default(), conn,
+        Ok(Self { #[cfg(test)] full_adoption: false, adoption_report: Default::default(), read_sessions, conn,
             server,
             ownership: None, #[cfg(unix)] file_identity, page_size, catalog, assets_dir, ephemeral_assets, identity })
     }
@@ -425,10 +434,11 @@ impl Store {
         // opened before another process activated a successor cannot write
         // or read with its stale schema/catalog.
         let tx = self.conn.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
+        let read_storage = self.read_sessions.snapshot()?;
         if activation::identity(&tx)? != self.identity {
             return Err(RuntimeError::Generation("the store adopted another backend; reopen this engine".into()));
         }
-        Ok(Tx { activation_scan: None, changes: Default::default(), sequence_table: Default::default(), tx, page_size: self.page_size,
+        Ok(Tx { read_sessions: &self.read_sessions, read_sessions_installed: Default::default(), read_sessions_at_start: *read_storage, read_sessions_installation: Default::default(), activation_scan: None, changes: Default::default(), sequence_table: Default::default(), tx, page_size: self.page_size,
             server: self.server,
             catalog: &self.catalog })
     }
@@ -437,10 +447,11 @@ impl Store {
     pub fn read_transaction(&mut self) -> Result<Tx<'_>, RuntimeError> {
         self.check_ownership()?;
         let tx = self.conn.transaction_with_behavior(rusqlite::TransactionBehavior::Deferred)?;
+        let read_storage = self.read_sessions.snapshot()?;
         if activation::identity(&tx)? != self.identity {
             return Err(RuntimeError::Generation("the store adopted another backend; reopen this engine".into()));
         }
-        Ok(Tx { activation_scan: None, changes: Default::default(), sequence_table: Default::default(), tx, page_size: self.page_size,
+        Ok(Tx { read_sessions: &self.read_sessions, read_sessions_installed: Default::default(), read_sessions_at_start: *read_storage, read_sessions_installation: Default::default(), activation_scan: None, changes: Default::default(), sequence_table: Default::default(), tx, page_size: self.page_size,
             server: self.server,
             catalog: &self.catalog })
     }
@@ -450,10 +461,11 @@ impl Store {
     pub(crate) fn authority_transaction(&self) -> Result<Tx<'_>, RuntimeError> {
         self.check_ownership()?;
         let tx = self.conn.unchecked_transaction()?;
+        let read_storage = self.read_sessions.snapshot()?;
         if activation::identity(&tx)? != self.identity {
             return Err(RuntimeError::Generation("the store adopted another backend; reopen this engine".into()));
         }
-        Ok(Tx { activation_scan: None, changes: Default::default(), sequence_table: Default::default(), tx, page_size: self.page_size,
+        Ok(Tx { read_sessions: &self.read_sessions, read_sessions_installed: Default::default(), read_sessions_at_start: *read_storage, read_sessions_installation: Default::default(), activation_scan: None, changes: Default::default(), sequence_table: Default::default(), tx, page_size: self.page_size,
             server: self.server,
             catalog: &self.catalog })
     }
@@ -482,7 +494,8 @@ impl Store {
         conn.busy_timeout(std::time::Duration::from_secs(5))?;
         // A reader never owns the directory; only the store that made it removes it.
         let page_size = conn.query_row("PRAGMA page_size", [], |row| row.get::<_, i64>(0))? as u64;
-        Ok(Self { #[cfg(test)] full_adoption: false, adoption_report: Default::default(), conn,
+        if identity::present(&conn)? { self.read_sessions.publish(true); }
+        Ok(Self { #[cfg(test)] full_adoption: false, adoption_report: Default::default(), read_sessions: self.read_sessions.clone(), conn,
             server: self.server,
             ownership: self.ownership.clone(), #[cfg(unix)] file_identity: self.file_identity, page_size, catalog: self.catalog.clone(), assets_dir: self.assets_dir.clone(), ephemeral_assets: false, identity: self.identity.clone() })
     }
@@ -649,6 +662,12 @@ impl<'a> Tx<'a> {
 
     pub fn commit(self) -> Result<(), RuntimeError> {
         self.tx.commit()?;
+        // A savepoint rollback clears the pending install. The write guard
+        // excludes new snapshots until physical COMMIT has published the DDL.
+        if self.read_sessions_installed.get() {
+            if let Some(guard) = self.read_sessions_installation.borrow_mut().as_mut() { **guard = true; }
+            else { self.read_sessions.publish(true); } // Catalog discovery, without a local installer.
+        }
         Ok(())
     }
 
@@ -679,6 +698,7 @@ impl<'a> Tx<'a> {
         self.conn().execute_batch(&format!("ROLLBACK TO {name}; RELEASE {name}"))?;
         // Lazy sequence-table creation may have belonged to this savepoint.
         self.sequence_table.set(None);
+        if self.read_sessions_installed.get() { self.read_sessions_installed.set(identity::present(self.conn())?); }
         Ok(())
     }
 

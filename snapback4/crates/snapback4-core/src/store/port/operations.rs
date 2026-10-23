@@ -8,6 +8,14 @@ use crate::store_port::{AnyStore, AnyTx};
 use crate::store_port::timeline_launch;
 use crate::store_port::Sizes;
 impl AnyTx<'_> {
+    pub(crate) fn session_authority_facts(&self, digest: &str) -> Result<crate::identity::facts::SessionFacts, RuntimeError> {
+        match self {
+            Self::Sqlite(SqliteTx(inner)) => inner.session_authority_facts(digest),
+            #[cfg(feature = "postgres")]
+            Self::Postgres(PostgresTx(inner)) => inner.session_authority_facts(digest),
+        }
+    }
+
     pub(crate) fn abandon(&self) -> Result<(), RuntimeError> { match self { Self::Sqlite(SqliteTx(inner)) => inner.abandon(), #[cfg(feature = "postgres")] Self::Postgres(PostgresTx(inner)) => inner.abandon() } }
     pub(crate) fn store_id(&self) -> Result<String, RuntimeError> { match self { Self::Sqlite(SqliteTx(inner)) => inner.store_id(), #[cfg(feature = "postgres")] Self::Postgres(_) => crate::metadata::MetadataReader::store_identity(self)?.ok_or_else(|| RuntimeError::Store("missing store identity".into())) } }
     pub(crate) fn savepoint(&self, name: &str) -> Result<(), RuntimeError> { match self { Self::Sqlite(SqliteTx(inner)) => inner.savepoint(name), #[cfg(feature = "postgres")] Self::Postgres(PostgresTx(inner)) => inner.savepoint(name) } }
@@ -55,9 +63,9 @@ impl AnyStore {
     pub fn successor(&mut self, schema: &Schema) -> Result<Vec<crate::successor::Step>, RuntimeError> { match self { Self::Sqlite(SqliteStore(inner)) => inner.successor(schema), #[cfg(feature = "postgres")] Self::Postgres(_) => Err(RuntimeError::StoreUnsupported { family: "release-activation" }) } }
     pub fn check_timeline_activation(&mut self, schema: &Schema) -> Result<Vec<timeline_launch::Estimate>, RuntimeError> { match self { Self::Sqlite(SqliteStore(inner)) => inner.check_timeline_activation(schema), #[cfg(feature = "postgres")] Self::Postgres(_) => Err(RuntimeError::StoreUnsupported { family: "release-activation" }) } }
     pub fn check_timeline_activation_at(&mut self, schema: &Schema, now: i64, allow_launch: bool) -> Result<Vec<timeline_launch::Estimate>, RuntimeError> { match self { Self::Sqlite(SqliteStore(inner)) => inner.check_timeline_activation_at(schema, now, allow_launch), #[cfg(feature = "postgres")] Self::Postgres(_) => Err(RuntimeError::StoreUnsupported { family: "release-activation" }) } }
-    pub(crate) fn resolve_session_snapshot(&self, digest: &str, now: i64, expected_store_id: Option<&str>, supervisor_revision: Option<usize>) -> Result<Option<crate::identity::Capability>, RuntimeError> { match self { Self::Sqlite(SqliteStore(inner)) => inner.resolve_session_snapshot(digest, now, expected_store_id, supervisor_revision), #[cfg(feature = "postgres")] Self::Postgres(_) => self.with_authority_snapshot(|tx| {
-            if expected_store_id.is_none() || tx.store_identity()?.as_deref() != expected_store_id { return Ok(None); }
-            crate::identity::resolve_session_tx(tx, digest, now, supervisor_revision)
+    pub(crate) fn resolve_session_snapshot(&self, digest: &str, now: i64, expected_store_id: Option<&str>, supervisor_revision: Option<usize>) -> Result<Option<crate::identity::Capability>, RuntimeError> { if digest.contains('\0') { return Ok(None); } match self { Self::Sqlite(SqliteStore(inner)) => inner.resolve_session_snapshot(digest, now, expected_store_id, supervisor_revision), #[cfg(feature = "postgres")] Self::Postgres(_) => self.with_session_authority_snapshot(digest, |tx, facts| {
+            if expected_store_id.is_none() || facts.store_id.as_deref() != expected_store_id { return Ok(None); }
+            Ok(crate::identity::facts::resolve(tx, facts, now, supervisor_revision)?.map(|s| (s.principal, s.kind, s.scope)))
         }) } }
     pub(crate) fn invalidate_expired_authority_session(&self, digest: &str, now: i64) -> Result<(), RuntimeError> { self.delete_expired_session_member(digest, now) }
     pub fn retain_ownership(&mut self, owner: std::sync::Arc<std::fs::File>) -> Result<(), RuntimeError> { match self { Self::Sqlite(SqliteStore(inner)) => inner.retain_ownership(owner), #[cfg(feature = "postgres")] Self::Postgres(_) => Err(RuntimeError::StoreUnsupported { family: "ownership" }) } }

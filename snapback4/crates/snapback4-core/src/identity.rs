@@ -21,6 +21,7 @@ pub const SESSION_DAYS: i64 = 7;
 #[cfg(test)]
 pub(crate) mod test_cases;
 pub(crate) mod read_sessions;
+pub(crate) mod facts;
 pub mod diagnostics;
 pub use read_sessions::{narrow_session, SessionScope, Capability};
 
@@ -203,40 +204,45 @@ pub(crate) fn current_service_tx(tx: &AnyTx<'_>, token: &str, sample: ServiceSam
 // All authenticated doors use the same family fence, in their session snapshot.
 // @ref LLP 3000.009#5.3 — failed retirement cannot preserve query authority.
 pub(crate) fn supervisor_current(tx: &impl MetadataReader, family: &str, revision: usize) -> Result<bool, RuntimeError> {
-    let supervised_family = tx.worker_session_family()?;
+    supervisor_current_with(family, revision, tx.worker_session_family()?,
+        || tx.worker_session_revision(), || tx.worker_family_revision(family))
+}
+
+fn supervisor_current_with(
+    family: &str, revision: usize, supervised_family: Option<String>,
+    session_revision: impl FnOnce() -> Result<Option<String>, RuntimeError>,
+    family_revision: impl FnOnce() -> Result<Option<String>, RuntimeError>,
+) -> Result<bool, RuntimeError> {
     if supervised_family.as_deref() == Some(family)
-        && tx.worker_session_revision()?.as_deref() != Some(revision.to_string().as_str())
+        && session_revision()?.as_deref() != Some(revision.to_string().as_str())
     {
         return Ok(false);
     }
     // @ref LLP 3000.009#5.3 — each named worker has an independently revoked family.
-    if let Some(stored_revision) = tx.worker_family_revision(family)? {
+    if let Some(stored_revision) = family_revision()? {
         if stored_revision != revision.to_string() { return Ok(false); }
     }
     Ok(true)
 }
 
-fn resolve_session_record_tx(tx: &AnyTx<'_>, token_digest: &str, now: i64, revision: Option<usize>) -> Result<Option<authority::SessionRecord>, RuntimeError> {
-    let Some(session) = authority::live_session(tx, token_digest, now)? else { return Ok(None); };
-    if let Some(revision) = revision {
-        if !supervisor_current(tx, &session.family, revision)? { return Ok(None); }
-    }
-    Ok(Some(session))
-}
-
 pub(crate) fn resolve_session_tx(tx: &AnyTx<'_>, token_digest: &str, now: i64, revision: Option<usize>) -> Result<Option<Capability>, RuntimeError> {
-    Ok(resolve_session_record_tx(tx, token_digest, now, revision)?.map(|session| (session.principal, session.kind, session.scope)))
+    if token_digest.contains('\0') { return Ok(None); }
+    Ok(facts::resolve(tx, tx.session_authority_facts(token_digest)?, now, revision)?
+        .map(|session| (session.principal, session.kind, session.scope)))
 }
 
 // @ref LLP 3000.009.001.000.000#k0a-implementation-note — capability and lifetime reads share one existing authority-snapshot seam.
 pub(crate) fn resolve_session_record_snapshot(store: &AnyStore, token_digest: &str, now: i64, revision: Option<usize>, expected_store: Option<&str>) -> Result<Option<authority::SessionRecord>, RuntimeError> {
-    store.with_authority_snapshot(|tx| {
+    // Absent before opening: the snapshot opener would otherwise validate
+    // the empty facts' generation and refuse with a false E_GENERATION.
+    if token_digest.contains('\0') { return Ok(None); }
+    store.with_session_authority_snapshot(token_digest, |tx, facts| {
         if let Some(expected_store) = expected_store {
-            if tx.store_identity()?.as_deref() != Some(expected_store) {
+            if facts.store_id.as_deref() != Some(expected_store) {
                 return Err(RuntimeError::Auth("the serving store identity changed".into()));
             }
         }
-        resolve_session_record_tx(tx, token_digest, now, revision)
+        facts::resolve(tx, facts, now, revision)
     })
 }
 

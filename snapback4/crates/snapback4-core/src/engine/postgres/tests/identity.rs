@@ -499,3 +499,112 @@ fn bound_read_only_family_lost_delivery_recovers() {
     test_cases::assert_bound_recovery(&tx, true);
     tx.commit().unwrap();
 }
+
+#[test]
+#[ignore = "requires SNAPBACK4_EVAL_POSTGRES (private PostgreSQL; scripts/test-postgres.sh)"]
+fn authority_facts_equivalence_postgres_generated_matrix() {
+    use crate::identity::facts::tests;
+    let mut total = 0;
+    for read_storage in [false, true] {
+        let mut engine = authority_engine();
+        if !read_storage {
+            let tx = engine.store.transaction(Some(WriteMode::Serialized)).unwrap();
+            tx.batch("DROP TABLE _read_sessions").unwrap();
+            tx.commit().unwrap();
+            // Model the read-only attach flag for a legacy store; writable
+            // Postgres attach itself installs this table before accepting open.
+            engine.store.read_sessions.set(false);
+        }
+        for case in tests::cases(read_storage) {
+            let tx = engine.store.transaction(Some(WriteMode::Serialized)).unwrap();
+            tx.batch(&case.seed()).unwrap();
+            tx.execute("UPDATE _backend SET generation=$1 WHERE singleton", &[&(if case.store_generation_changed { 2_i64 } else { 1_i64 })]).unwrap();
+            tests::compare(&tx, &super::super::authority::Baseline(&tx), |digest| tx.session_authority_facts(digest), &case);
+            tx.session_authority_facts("digest").unwrap(); // prepare before measuring
+            let scope = crate::round_trips::Scope::begin();
+            tx.session_authority_facts("digest").unwrap();
+            assert_eq!(scope.counts().postgres, if !read_storage && case.state == 2 { 2 } else { 1 });
+            drop(scope);
+            tx.rollback().unwrap();
+            total += 1;
+        }
+    }
+    println!("Postgres authority facts: {total} generated states; hits use one SELECT");
+}
+
+
+#[test]
+#[ignore = "requires private SNAPBACK4_EVAL_POSTGRES"]
+fn authority_facts_independent_postgres_connection_discovers_storage() {
+    let mut writer = authority_engine();
+    let name: String = writer.store.client.query_one("SELECT current_schema()::text", &[]).unwrap().get(0);
+    let tx = writer.store.transaction(Some(WriteMode::Serialized)).unwrap();
+    tx.batch("DROP TABLE _read_sessions").unwrap();
+    tx.commit().unwrap();
+    let mut client = postgres::Client::connect(&std::env::var("SNAPBACK4_EVAL_POSTGRES").unwrap(), postgres::NoTls).unwrap();
+    client.batch_execute(&format!("SET search_path = {}, pg_catalog", super::super::store::namespace(&name).unwrap())).unwrap();
+    // A legacy adapter connection attaches before optional storage exists.
+    // Use the evaluator adapter on both connections, preserving owner isolation.
+    let mut reader_store = Store::new(client);
+    assert!(!reader_store.read_sessions.get());
+    let held = reader_store.transaction(None).unwrap();
+    assert!(held.session_authority_facts("absent").unwrap().sessions.is_empty());
+    let session = Session { principal: "member:independent".into(), kind: "member".into(), token: "ro.independent".into(), expires_at: 10000, cap_expires_at: Some(10000), scope: SessionScope::Read };
+    let tx = writer.store.transaction(Some(WriteMode::Serialized)).unwrap();
+    tx.install_read_sessions().unwrap();
+    tx.insert_read_session(&session, 0, None).unwrap();
+    tx.commit().unwrap();
+    assert!(held.session_authority_facts(&digest(&session.token)).unwrap().sessions.is_empty(), "repeatable-read snapshot retains absence");
+    held.rollback().unwrap();
+    let (tx, facts) = reader_store.session_authority_transaction(&digest(&session.token)).unwrap();
+    assert!(crate::identity::facts::resolve(&tx, facts, 1000, None).unwrap().is_some());
+    tx.rollback().unwrap();
+    assert!(reader_store.read_sessions.get());
+    let tx = reader_store.transaction(None).unwrap();
+    tx.session_authority_facts(&digest(&session.token)).unwrap();
+    let scope = crate::round_trips::Scope::begin();
+    assert_eq!(tx.session_authority_facts(&digest(&session.token)).unwrap().sessions.len(), 1);
+    assert_eq!(scope.counts().postgres, 1);
+    drop(scope);
+    tx.rollback().unwrap();
+}
+
+#[test]
+#[ignore = "requires private SNAPBACK4_EVAL_POSTGRES"]
+fn authority_facts_postgres_installing_savepoint_rollback_reprobes_storage() {
+    let mut engine = authority_engine();
+    let tx = engine.store.transaction(Some(WriteMode::Serialized)).unwrap();
+    tx.batch("DROP TABLE _read_sessions").unwrap();
+    tx.commit().unwrap();
+    engine.store.read_sessions.set(false);
+    let tx = engine.store.transaction(Some(WriteMode::Serialized)).unwrap();
+    tx.batch("SAVEPOINT installing").unwrap();
+    tx.install_read_sessions().unwrap();
+    assert!(tx.read_sessions_installed.get());
+    tx.rollback_named("installing").unwrap();
+    assert!(!tx.read_sessions_installed.get());
+    assert!(tx.session_authority_facts("absent").unwrap().sessions.is_empty());
+    tx.commit().unwrap();
+    assert!(!engine.store.read_sessions.get());
+    // An installation before the savepoint must survive rollback and commit.
+    let tx = engine.store.transaction(Some(WriteMode::Serialized)).unwrap();
+    tx.install_read_sessions().unwrap();
+    tx.batch("SAVEPOINT after_install").unwrap();
+    tx.rollback_named("after_install").unwrap();
+    assert!(tx.read_sessions_installed.get());
+    tx.commit().unwrap();
+    assert!(engine.store.read_sessions.get());
+}
+
+#[test]
+#[ignore = "requires private SNAPBACK4_EVAL_POSTGRES"]
+fn authority_facts_raw_nul_digest_is_absent_without_querying_postgres() {
+    let mut engine = authority_engine();
+    let tx = crate::store_port::AnyTx::from_postgres(engine.store.transaction(None).unwrap());
+    let scope = crate::round_trips::Scope::begin();
+    assert!(crate::identity::resolve_session_tx(&tx, "raw\0digest", 1000, None).unwrap().is_none());
+    assert!(tx.session_authority_facts("raw\0digest").unwrap().sessions.is_empty());
+    assert_eq!(scope.counts().postgres, 0);
+    drop(scope);
+    tx.rollback().unwrap();
+}

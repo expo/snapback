@@ -61,11 +61,11 @@ impl AnyTx<'_> {
             Self::Sqlite(SqliteTx(tx)) => {
                 let conn = tx.conn();
                 (match edit {
-                    InitializeReadTable => conn.execute("CREATE TABLE IF NOT EXISTS _read_sessions (
+                    InitializeReadTable => { tx.prepare_read_session_storage()?; conn.execute("CREATE TABLE IF NOT EXISTS _read_sessions (
         token_digest TEXT PRIMARY KEY, principal TEXT NOT NULL, kind TEXT NOT NULL,
         family TEXT NOT NULL, created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL,
         cap_expires_at INTEGER NOT NULL, principal_generation INTEGER NOT NULL
-    )", [])?,
+    )", []).map(|n| { tx.note_read_session_storage(); n })? },
                     InitializeReadIndex => conn.execute("CREATE INDEX IF NOT EXISTS _read_sessions_family ON _read_sessions(principal, family, expires_at)", [])?,
                     ReadToken(s, now, generation) => conn.execute("INSERT INTO _read_sessions(token_digest, principal, kind, family, created_at, expires_at, cap_expires_at, principal_generation) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)", params![digest(&s.token), s.principal, s.kind, digest(&s.token), now, s.expires_at, s.cap_expires_at.expect("read cap"), generation])?,
 

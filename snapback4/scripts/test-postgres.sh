@@ -68,6 +68,7 @@ cargo test --locked -p snapback4 --features postgres --bin snapback4 s10c_postgr
 cargo test --locked -p snapback4 --features postgres --bin snapback4 change_evidence_changes_snapshot -- --include-ignored --nocapture || status=1
 cargo test --locked -p snapback4 --features postgres --bin snapback4 postgres_startup_renewal_error_releases_committed_claim -- --include-ignored --nocapture || status=1
 cargo test --locked -p snapback4 --features postgres --bin snapback4 round_trips_postgres -- --include-ignored --nocapture || status=1
+cargo test --locked -p snapback4 --features postgres --bin snapback4 postgres_bearer_is_checked_after_durable_and_ephemeral_mutation_lock_gaps -- --include-ignored --nocapture || status=1
 cargo test --locked -p snapback4-core --features postgres --test corpus -- --nocapture || status=1
 # Public serving is a separate CLI process over its own private cluster, never
 # the evaluator's namespace/connection. Build the shipped default CLI first.

@@ -27,8 +27,8 @@ CREATE INDEX IF NOT EXISTS _sessions_expiry ON _sessions(expires_at);
 CREATE INDEX IF NOT EXISTS _sessions_family ON _sessions(principal, family, expires_at);
 "#;
 
-fn read_sessions_present(tx: &Tx<'_>) -> Result<bool, RuntimeError> {
-    Ok(tx.query("SELECT to_regclass('_read_sessions') IS NOT NULL", &[])?[0].get(0))
+pub(super) fn read_sessions_present(tx: &Tx<'_>) -> Result<bool, RuntimeError> {
+    Ok(tx.query("SELECT pg_catalog.to_regclass('_read_sessions') IS NOT NULL", &[])?[0].get(0))
 }
 
 impl IdentityTransaction for Tx<'_> {
@@ -428,5 +428,13 @@ impl IdentityStore for RefCell<&mut Store> {
             }
             Ok(session)
         })
+    }
+}
+
+impl Tx<'_> {
+    pub(super) fn install_read_sessions(&self) -> Result<(), RuntimeError> {
+        self.batch(super::store::READ_SESSIONS_DDL)?;
+        self.read_sessions_installed.set(true);
+        Ok(())
     }
 }

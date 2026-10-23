@@ -157,6 +157,11 @@ impl MemberTx<'_, '_> {
         fn reset_tables(&self) -> Result<(), RuntimeError>;
         fn reset_identity(&self) -> Result<(), RuntimeError>;
     }
+    // @ref LLP 3000.009.001.000.001#32-one-statement-fetches-a-guest-sessions-authority-facts — typed Program/Direct member access; no raw transaction or SQL.
+    #[allow(dead_code)] // RT3b will place the execution boundary inside the member.
+    pub(crate) fn resolve_identity_session(&self, digest: &str, now: i64, revision: Option<usize>) -> Result<Option<crate::identity::Capability>, RuntimeError> {
+        crate::identity::resolve_session_tx(self.tx, digest, now, revision)
+    }
     pub(crate) fn live_identity_session(&self, digest: &str, now: i64) -> Result<Option<crate::authority::SessionRecord>, RuntimeError> {
         crate::authority::live_session(self.tx, digest, now)
     }

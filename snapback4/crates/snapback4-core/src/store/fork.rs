@@ -8,6 +8,7 @@ impl Store {
             let backup = rusqlite::backup::Backup::new(&self.conn, &mut fork.conn)?;
             backup.run_to_completion(256, std::time::Duration::ZERO, None)?;
         }
+        fork.read_sessions = std::sync::Arc::new(super::ReadSessionStorage::new(super::identity::present(&fork.conn)?));
         fork.catalog = self.catalog.clone();
         fork.identity = self.identity.clone();
         fork.server = self.server;

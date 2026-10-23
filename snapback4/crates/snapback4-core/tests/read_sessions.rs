@@ -181,9 +181,17 @@ fn absent_read_storage_is_empty_without_writes_and_full_logout_still_works() {
 
 #[test]
 fn malformed_read_storage_is_an_error_not_empty_authority() {
-    let store = Store::memory().unwrap();
+    let dir = std::env::temp_dir().join(format!("sb4-ro-malformed-{}-{}", std::process::id(), snapback4_core::ids::seed()));
+    std::fs::create_dir(&dir).unwrap();
+    let path = dir.join("store.sqlite");
+    let store = Store::open(&path).unwrap();
     (&store).test_support_conn().execute_batch("CREATE TABLE _read_sessions (wrong_column TEXT)").unwrap();
+    drop(store);
+    // @ref LLP 3000.009.001.000.001#32-one-statement-fetches-a-guest-sessions-authority-facts — discover optional storage at attach, before resolving authority.
+    let store = Store::open(&path).unwrap();
     let store_id = (&store).test_support_meta("store_id").unwrap();
     assert!(identity::resolve_read_only(&store, "ro.absent", 1, store_id.as_deref()).is_err());
     assert!(identity::rotate_session(&store, "ro.absent", 1).is_err());
+    drop(store);
+    std::fs::remove_dir_all(dir).unwrap();
 }
