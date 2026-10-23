@@ -104638,3 +104638,14 @@ request refuses without draining. Eight overload witnesses and both RT0
 tables pass; existing W1/W2 are still 3/2 PG and 6/6 SQLite. Report:
 reports/20261023-g4a-reads/REPORT.md. Private PG16 master 4057748 is owned
 until final shutdown; raw logs are outside Git. No connection cap increased.
+
+## 2026-10-23 — G4a non-authorizing query ingress
+
+`/q` now carries a bounded ordinary capability hint through intake; the
+query snapshot still runs the fresh shared Rust resolver, store binding and
+stale-kind/scope check. Cold discovery happens after bounded body intake;
+unknown tokens cost one PG flight and action/custom kinds stay uncached.
+PG W1/W2 improve 3/2→2/1; SQLite improves 6/6→5/5, with no other warm class
+increase. Five RT0/publication cases, 62 existing RT3b cases and two new
+both-store carried-hint witnesses pass. Failed discovery experiments remain
+in the report; no count allowance increased. Full qualification follows.

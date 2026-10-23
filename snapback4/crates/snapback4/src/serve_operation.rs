@@ -61,11 +61,12 @@ fn judge(shared: &Shared, engine: Option<&Engine>, name: &str, payload: Json, ca
     Ok(Prepared { capability, payload, args_json, args, delivery_fingerprint, ephemeral })
 }
 
-fn denied(why: Refusal) -> Reply { Reply { status: if why.retryable {503} else {401}, body: json!({"denied":why}) } }
+fn denied(why: Refusal) -> Reply { Reply { status: if why.code == "E_STORE_REPLACED" {409} else if why.retryable {503} else {401}, body: json!({"denied":why}) } }
 
-pub(super) fn prepare(request: &Request, shared: &Shared, name: &str, body: &str, capability: snapback4_core::identity::Capability) -> Result<Prepared, Reply> {
+pub(super) fn prepare(request: &Request, shared: &Shared, name: &str, body: &str, capability: Option<snapback4_core::identity::Capability>) -> Result<Prepared, Reply> {
     let mutation = request.url().starts_with("/m/");
-    let admission = session_identity::Admission::capture(request, shared).map_err(denied)?.planned(&capability);
+    let admission = session_identity::Admission::capture(request, shared).map_err(denied)?;
+    let admission = if let Some(capability) = &capability { admission.planned(capability) } else { admission.discovering() };
     let payload: Json = match serde_json::from_str(if body.is_empty() {"{}"} else {body}) {
         Ok(value) => value,
         Err(error) => {
@@ -73,6 +74,12 @@ pub(super) fn prepare(request: &Request, shared: &Shared, name: &str, body: &str
             let reply = shared.request_snapshot(admission, move |_, engine, _, snapshot| Ok(judgment.reply(mutation, &Json::Null, (snapshot.store_id.clone(), snapshot.head, engine.generation())))).map_err(denied)?;
             return Err(reply);
         }
+    };
+    let capability = match capability {
+        Some(capability) => capability,
+        // A cold bearer is learned only after bounded body intake. Unknown
+        // bearers finish here in one facts flight, without metadata or judgment.
+        None => session_identity::ingress_of(request, shared).map_err(denied)?,
     };
     if mutation { #[cfg(test)] test_work(&shared.mutation_wait); }
     let prepared = if mutation && payload.get("id").and_then(Json::as_str).is_some() {

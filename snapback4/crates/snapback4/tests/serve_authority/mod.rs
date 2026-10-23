@@ -463,3 +463,37 @@ fn rt3b_fix_ingress_store_mismatch_postgres() { ingress_mismatch(true); }
 
 mod generation;
 mod round3;
+
+fn carried_query(pg: bool) {
+    for change in ["revoke", "scope", "kind"] {
+        let f = Fixture::new(pg); let session = f.session(false);
+        let warm = f.host.request("POST", "/q/count", &headers(&session), "{}");
+        assert_eq!(body(&warm)["data"], 0, "{warm}");
+        assert_eq!(lock(&f.host.shared.readers).carried.len(), 1);
+        let gate=Arc::new(WorkGate::default()); let _release=ReleaseGate(gate.clone()); let hook=gate.clone();
+        *lock(&f.host.shared.operation_ingress)=Some(Arc::new(move||hook.park()));
+        let address=f.host.address; let request=wire("/q/count", &session, &json!({}));
+        let task=thread::spawn(move||exchange_held(address,2*WAIT_TIMEOUT,request));
+        wait_until(||gate.entered.load(Ordering::Acquire)==1);
+        {
+            let mut engine=lock(&f.host.shared.engine);
+            match change {
+                "revoke" => identity::close_session(engine.store(), &session.token).unwrap(),
+                "scope" => engine.store_mut().test_request_read_scope(&session.token, false).unwrap(),
+                _ => engine.store_mut().test_request_kind(&session.token, "account").unwrap(),
+            }
+        }
+        gate.release(); let reply=task.join().unwrap();
+        refused(&reply,"E_AUTH"); no_store_metadata(&reply);
+        assert_eq!(status(&reply), if change=="revoke" {401} else {503}, "{reply}");
+        *lock(&f.host.shared.operation_ingress)=None;
+        if change!="revoke" {
+            // The stale hint may be refreshed by the failed final check, but
+            // only another fresh final check can make the retry succeed.
+            assert_eq!(status(&f.host.request("POST", "/q/count", &headers(&session), "{}")),200);
+        }
+    }
+}
+#[test] fn rt3b_carried_query_sqlite() { carried_query(false); }
+#[cfg(feature="postgres")] #[test] #[ignore="requires private Postgres"]
+fn rt3b_carried_query_postgres() { carried_query(true); }

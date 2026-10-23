@@ -6,7 +6,21 @@ pub(crate) fn principal_of(request: &impl RequestInfo, shared: &Shared) -> Resul
 }
 
 pub(crate) fn ingress_of(request: &impl RequestInfo, shared: &Shared) -> Result<snapback4_core::identity::Capability, Refusal> {
-    principal_with_owner(request, shared, None, true)
+    let capability = principal_with_owner(request, shared, None, true)?;
+    Admission::capture(request, shared)?.remember(shared, &capability);
+    Ok(capability)
+}
+
+// @ref LLP 3000.009.001.000.001#31-authority-boundaries — a carried capability is only a planning hint; the query snapshot always resolves live facts.
+pub(crate) fn query_ingress(request: &impl RequestInfo, shared: &Shared) -> Result<Option<snapback4_core::identity::Capability>, Refusal> {
+    let admission = Admission::capture(request, shared)?;
+    if let Some(persona) = &admission.persona {
+        return Ok(Some((persona_principal(persona), "persona".into(), snapback4_core::identity::SessionScope::Full)));
+    }
+    if admission.bearer.is_none() { return Err(Refusal::new("E_AUTH", "auth", "sign in: send a bearer token").guide("personas")); }
+    let identity = lock(&shared.wake).store_id.clone();
+    Ok(lock(&shared.readers).carried.get(&admission.digest())
+        .filter(|(store,_)| Some(store) == identity.as_ref()).map(|(_,capability)| capability.clone()))
 }
 
 // @ref LLP 3000.009.001.000.000#3.6 — credentials are owned admission inputs; live authority and time are resolved on the executing writer.
@@ -61,6 +75,28 @@ impl Admission {
         if result.is_err() { crate::release_requests::stamp(engine.generation()); }
         result
     }
+    pub(crate) fn remember(&self, shared: &Shared, capability: &snapback4_core::identity::Capability) {
+        if self.bearer.is_none() || !matches!(capability.1.as_str(), "guest"|"user"|"member"|"account"|"oidc"|"service") { return; }
+        let Some(store) = lock(&shared.wake).store_id.clone() else { return; };
+        let mut readers = lock(&shared.readers);
+        // A bounded factual hint, never an authority cache. Eviction only adds
+        // cold discovery work; neither age nor presence can authorize a reply.
+        const CARRIED_CAPABILITIES: usize = 1024;
+        if readers.carried.len() >= CARRIED_CAPABILITIES { readers.carried.pop_first(); }
+        readers.carried.insert(self.digest(), (store, capability.clone()));
+    }
+    pub(crate) fn check_store(&self, shared: &Shared, store: &str) -> Result<(), Refusal> {
+        if lock(&shared.wake).store_id.as_deref() != Some(store) {
+            return Err(Refusal::new("E_STORE_REPLACED", "store", "the serving store identity changed; reconcile with the original store").guide("sync"));
+        }
+        Ok(())
+    }
+    pub(crate) fn check_query_facts(&self, shared: &Shared, expected: &snapback4_core::identity::Capability, facts: &snapback4_core::identity::RequestAuthority, persona: Option<snapback4_core::identity::Capability>) -> Result<(), Refusal> {
+        self.check_store(shared, &facts.store_id)?;
+        if let Some(current) = &facts.capability { self.remember(shared, current); }
+        self.check_facts(expected, facts, persona)
+    }
+    pub(crate) fn discovering(mut self) -> Self { self.planned_ordinary = true; self }
     pub(crate) fn digest(&self) -> String { self.bearer.as_deref().map(snapback4_core::identity::session_digest).unwrap_or_default() }
     pub(crate) fn sample(&self, shared: &Shared) -> snapback4_core::identity::ServiceSample {
         snapback4_core::identity::ServiceSample { now: shared.now(), supervisor_revision: shared.worker_revision.load(Ordering::Acquire) }
@@ -90,7 +126,9 @@ impl Admission {
         let sample = snapback4_core::identity::ServiceSample { now: shared.now(), supervisor_revision: shared.worker_revision.load(Ordering::Acquire) };
         let ordinary = self.planned_ordinary;
         snapback4_core::identity::with_request_preflight(engine.store(), &digest, sample, ordinary, receipt.map(|(p,id)|(p.as_str(),id.as_str())), |snapshot| {
+            self.check_store(shared, &snapshot.store_id)?;
             let capability = persona.or_else(|| snapshot.capability.clone()).ok_or_else(|| Refusal::new("E_AUTH", "auth", "this session is not live; sign in again").guide("personas"))?;
+            self.remember(shared, &capability);
             run(capability, &snapshot)
         }).map_err(|e| e.refusal())?
     }

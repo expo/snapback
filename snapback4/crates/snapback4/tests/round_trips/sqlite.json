@@ -1,6 +1,6 @@
 {
   "account_unkeyed_increment": 22,
-  "account_w1": 6,
+  "account_w1": 5,
   "action_session_w1": 21,
   "keyed_first": 30,
   "narrowed_argument": 4,
@@ -11,6 +11,6 @@
   "unkeyed_increment": 22,
   "unknown_operation": 4,
   "unknown_token": 2,
-  "w1_point": 6,
-  "w2_newest20": 6
+  "w1_point": 5,
+  "w2_newest20": 5
 }

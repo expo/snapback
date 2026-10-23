@@ -33,3 +33,37 @@ Postgres W1/W2/increment/keyed/replay: 3/2/8/9/2. SQLite: 6/6/22/30/5.
 These deterministic bursts establish bounded behavior, not a loaded S1 SLO
 or arrival-sampled capacity claim. Private PG16 master 4057748 is owned by
 this lane until final qualification/cleanup. Logs remain under /tmp/sb4-g4a.
+
+## 2. Non-authorizing `/q` ingress
+
+Ingress parses credentials and consults at most 1,024 carried ordinary
+capabilities, bound to the serving store id. Entries are factual planning
+hints only. No liveness, expiry, supervisor or allow bit is cached. The
+query snapshot always resolves fresh facts through the shared Rust resolver,
+compares the carried principal/kind/scope, and validates store binding before
+returning metadata. A changed scope/kind returns retryable stale authority;
+the freshly observed hint permits a subsequent freshly checked retry.
+Action/custom credentials retain the complete resolver and are not cached.
+
+A cache miss learns the credential after the existing bounded body intake,
+using the existing projection/complete resolver, then executes the query with
+its own final authority snapshot. Unknown tokens finish in that discovery
+statement, still at one PG flight. Cold discovery is disclosed separately
+from warm counts, and cannot produce a program result or metadata refusal.
+Personas carry their parsed identity; the final snapshot checks the current
+cast/auth policy. Cache invalidation/eviction changes work, never authority.
+
+Both RT0 tables pass (five HTTP/publication cases): PG W1/account W1 3→2,
+W2 2→1; SQLite W1/account W1/W2 6→5. Every other warm class stays unchanged,
+including PG action 17, unknown token 1 and metadata refusals 2. A first
+attempt used the ordinary preflight discovery for non-ordinary credentials,
+adding redundant resolver work; retained red counts led to reusing the
+existing one-statement discovery instead. No allowance was raised.
+
+All 62 original RT3b HTTP cases pass, including upload, wait/queue, stale
+scope/kind, store mismatch, duplicate authority and metadata order. Two added
+cache-populated witnesses pass on both stores: revoked, changed scope and
+changed kind at the intake/body boundary cannot reuse the hint, disclose
+metadata or preserve a full-scope manifest. The scope/kind retry succeeds
+only after another final check. The `rt4_` name filter matches zero binary
+tests; full binary/core qualification will cover RT4's actual snapshot tests.

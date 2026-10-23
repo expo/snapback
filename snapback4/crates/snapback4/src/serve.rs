@@ -956,8 +956,8 @@ fn handle(mut request: Request, shared: &Shared) {
     if method == Method::Post && (path == "/assets" || path.starts_with("/assets/intent/") || path == "/sync" || path.starts_with("/q/") || path.starts_with("/following/") || path.starts_with("/m/") || path.starts_with("/a/")
         || (path.starts_with("/actions/") && path.ends_with("/cancel"))
         || matches!(path.as_str(), "/auth/refresh" | "/auth/logout-all")) {
-        match session_identity::ingress_of(&request, shared) {
-            Ok(capability) => operation_capability = Some(capability),
+        match if path.starts_with("/q/") { session_identity::query_ingress(&request, shared) } else { session_identity::ingress_of(&request, shared).map(Some) } {
+            Ok(capability) => operation_capability = capability,
             Err(refusal) => {
             // No authenticated viewer: metadata cannot disclose a store head.
             let status = if refusal.code == "E_STORE_REPLACED" { 409 } else if refusal.retryable { 503 } else { 401 };
@@ -1150,7 +1150,7 @@ fn handle(mut request: Request, shared: &Shared) {
         (Method::Post, path) if path.starts_with("/following/") => following::serve(request,shared,&path[11..],&body),
         (Method::Post, path) if path.starts_with("/q/") || path.starts_with("/m/") => {
             let op = path[3..].to_owned();
-            let operation_request::Prepared { capability: (principal, credential_kind, scope), payload, args_json, args, delivery_fingerprint, ephemeral } = match operation_request::prepare(&request, shared, &op, &body, operation_capability.expect("operation ingress")) {
+            let operation_request::Prepared { capability: (principal, credential_kind, scope), payload, args_json, args, delivery_fingerprint, ephemeral } = match operation_request::prepare(&request, shared, &op, &body, operation_capability) {
                 Ok(prepared) => prepared,
                 Err(reply) => {
                     let id = serde_json::from_str::<Json>(&body).ok().and_then(|p| p.get("id").and_then(Json::as_str).map(str::to_owned));
@@ -1217,7 +1217,7 @@ fn handle(mut request: Request, shared: &Shared) {
                         let mut metadata = None;
                         let (outcome, cut, current) = reader.query_materialized_search_with_request(&op, context, retained.as_deref(), manifest, &admission.digest(), |snapshot, head| {
                             let authority = snapshot.request_authority(&admission.digest(), admission.sample(shared)).map_err(|e| e.refusal()).and_then(|facts| {
-                                persona.clone().and_then(|persona| admission.check_facts(&expected, &facts, persona))?;
+                                persona.clone().and_then(|persona| admission.check_query_facts(shared, &expected, &facts, persona))?;
                                 Ok((facts.store_id, head))
                             });
                             let result = authority.as_ref().map(|_| ()).map_err(Clone::clone);
@@ -1264,7 +1264,7 @@ fn handle(mut request: Request, shared: &Shared) {
                         let mut metadata = None;
                         let (outcome, cut, current) = engine.query_materialized_search_with_request(&op, context, retained.as_deref(), manifest, &admission.digest(), |snapshot, head| {
                             let authority = snapshot.request_authority(&admission.digest(), admission.sample(shared)).map_err(|e| e.refusal()).and_then(|facts| {
-                                persona.clone().and_then(|persona| admission.check_facts(&expected, &facts, persona))?;
+                                persona.clone().and_then(|persona| admission.check_query_facts(shared, &expected, &facts, persona))?;
                                 Ok((facts.store_id, head))
                             });
                             let result = authority.as_ref().map(|_| ()).map_err(Clone::clone);
