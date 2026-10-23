@@ -53,14 +53,14 @@ pub(super) fn carry(
     let target_helpers = helper_signatures(&target_documents);
     let mut next=std::collections::BTreeMap::new();
     for doc in &current_documents {
-        for p in &doc.programs {next.insert(p.name.clone(),p.clone());}
-        for(name,target,_)in &doc.aliases {if let Some(p)=doc.programs.iter().find(|p|p.name==*target){let mut exported=p.clone();exported.name=name.clone();next.insert(name.clone(),exported);}}
+        for p in &doc.programs {next.insert(super::release_bridge::operation_name(&doc.file,&p.name),p.clone());}
+        for(name,target,_)in &doc.aliases {if let Some(p)=doc.programs.iter().find(|p|p.name==*target){let mut exported=p.clone();exported.name=name.clone();next.insert(super::release_bridge::operation_name(&doc.file,name),exported);}}
     }
     for (file, text) in sources {
         let doc = parser::parse_document(file, text).0;
         let mut edits = Vec::new();
         for old in doc.programs {
-            let Some(new) = next.get(&old.name) else {
+            let Some(new) = next.get(&super::release_bridge::operation_name(file,&old.name)) else {
                 continue;
             };
             // The whole selected source must retain current matching guards,
@@ -171,7 +171,7 @@ pub(super) fn carry(
                     .collect::<Vec<_>>()
             };
             if unsafe_binding || unsafe_helper || nested(&old) != nested(new) {
-                fallback.insert(old.name.clone());
+                fallback.insert(super::release_bridge::operation_name(file,&old.name));
                 diagnostics.push(crate::diag::type_error(&old.site,format!("rollback guard dependency closure for {} differs; an old binding/helper or control-flow path cannot establish the current guard",old.name),"retain a compatible guarded old workflow or declare intentional hiding of the unrepresentable values").guide("deploy"));
                 continue;
             }

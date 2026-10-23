@@ -58,7 +58,7 @@ fn retained(sources: Vec<Source>, alpha: bool) -> Bridge {
 fn refused(current: &[Source], reason: &str) -> Bridge {
     Bridge {sources:current.to_vec(),changes:vec![],diagnostics:vec![crate::diag::type_error(&crate::Site::default(),format!("rollback view cannot preserve current independent intent: {reason}"),"author a compatible guarded source retaining the predecessor fields and inputs, truthful migrations and the current policy; an acknowledgment does not authorize restoring an unsafe workflow").guide("deploy")]}
 }
-fn contracts(old: &crate::Bound, new: &crate::Bound) -> bool {
+pub(super) fn contracts(old: &crate::Bound, new: &crate::Bound) -> bool {
     if !old.schema.tables.iter().all(|(name, table)| {
         new.schema.tables.get(name).is_some_and(|next| {
             table
@@ -512,7 +512,7 @@ fn header(
     }
     Ok(out)
 }
-fn arg_type(
+pub(super) fn arg_type(
     text: &str,
     tokens: &[lexer::Token],
     arg: &ast::ArgDecl,

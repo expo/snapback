@@ -435,3 +435,16 @@ fn incomplete_current_shape_uses_a_guarded_bridge_with_current_intent() {
     assert!(matches!(out.state,snapback4_core::WriteState::Failed{..}),"{out:?}");
     assert_eq!(engine.store().count("payments").unwrap(),0);
 }
+
+
+#[test]
+fn ordinary_quota_tightening_with_an_unchanged_worker_needs_no_view() {
+    let app=App::new();
+    let old="table items:\n  owner: principal\n  amount: int\n  cap 2 by owner\n  public 'fixture'\n  online only\ninvariant items.read only true\n";
+    app.source(old);fs::write(app.0.join("snapback/worker.mjs"),"export {};\n").unwrap();
+    app.ok(&["deploy","deployment"]);app.seed(old,vec![json!({"id":"kept","owner":"alice","amount":1})]);
+    app.source(&old.replace("cap 2 by owner","cap 1 by owner"));
+    let plan=app.json(&["deploy","deployment","--check","--json"]);
+    assert_eq!(plan["rollbackViews"].as_array().unwrap().len(),0);
+    app.ok(&["deploy","deployment"]);app.ok(&["rollback","deployment","--to","1"]);assert_eq!(app.count(),1);
+}

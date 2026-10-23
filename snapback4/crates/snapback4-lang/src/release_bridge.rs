@@ -42,6 +42,11 @@ fn modules(sources:&[(String,String)])->Vec<(String,String)> {
     let mut out=sources.iter().map(|(file,text)|(std::path::Path::new(file).file_stem().unwrap_or(std::ffi::OsStr::new("schema")).to_string_lossy().into_owned(),text.clone())).collect::<Vec<_>>();out.sort();out
 }
 
+pub(super) fn operation_name(file:&str,name:&str)->String {
+    let module=std::path::Path::new(file).file_stem().and_then(|s|s.to_str()).unwrap_or("schema");
+    if module=="schema"{name.to_owned()}else{format!("{module}.{name}")}
+}
+
 /// Compare authored data/intent declarations and executable signatures, while
 /// excluding executable bodies. Module identity and wire signatures still count.
 pub fn same_data_and_intent(target:&[(String,String)],current:&[(String,String)])->bool {
@@ -58,7 +63,7 @@ pub fn same_data_and_intent(target:&[(String,String)],current:&[(String,String)]
                     match token.value.as_str(){"("|"["|"{"=>depth+=1,")"|"]"|"}"=>depth-=1,_=>()}
                     token.value==":"&&depth==0
                 }) {
-                    let end=start+declaration.len();
+                    let end=(start+declaration.len()).min(text.len());
                     let body=start+offset(&declaration,colon.site.line,colon.site.col)+1;
                     edits.push((body,end));
                 }
@@ -173,7 +178,7 @@ fn loosen_guarded(target:&[(String,String)],current:&[(String,String)])->Bridge 
     if !additions.is_empty() {let mut name="rollback-retained.q".to_owned();while sources.iter().any(|(f,_)|f==&name){name.insert_str(0,"retained-");}sources.push((name,additions));}
     let has_intent=!crate::compile(current).invariants.is_empty();
     let forced=if has_intent {
-        target.iter().flat_map(|(f,t)|parser::parse_document(f,t).0.programs.into_iter().map(|p|p.name)).collect()
+        target.iter().flat_map(|(f,t)|parser::parse_document(f,t).0.programs.into_iter().map(|p|operation_name(f,&p.name)).collect::<Vec<_>>()).collect()
     }else{std::collections::BTreeSet::new()};
     let transported=super::release_bridge_rules::carry(&mut sources,current,&mut changes,&forced);
     affected.extend(transported);
@@ -208,7 +213,7 @@ fn loosen_guarded(target:&[(String,String)],current:&[(String,String)])->Bridge 
         for(file,text)in &mut sources {
             let doc=parser::parse_document(file,text).0;
             let mut edits=doc.invariants.iter().map(|inv| {
-                let start=offset(text,inv.site.line,1);let end=start+declaration(text,inv.site.line).len();(start,end)
+                let start=offset(text,inv.site.line,1);let end=(start+declaration(text,inv.site.line).len()).min(text.len());(start,end)
             }).collect::<Vec<_>>();
             edits.sort_by_key(|e|std::cmp::Reverse(e.0));
             for(start,end)in edits{text.replace_range(start..end,"");}
@@ -216,7 +221,22 @@ fn loosen_guarded(target:&[(String,String)],current:&[(String,String)])->Bridge 
         let mut name="rollback-intent.q".to_owned();while sources.iter().any(|(f,_)|f==&name){name.insert_str(0,"current-");}
         sources.push((name,intent));
     }
-    let bound=crate::compile(&sources);diagnostics.extend(bound.diagnostics);diagnostics.extend(domain_diagnostics);
+    let bound=crate::compile(&sources);
+    let current_bound=crate::compile(current);
+    for(name,table)in &bound.schema.tables {
+        let Some((_,_,next))=new.get(name)else{continue};
+        let Some(current_table)=current_bound.schema.table(&next.name)else{continue};
+        for column in &next.columns {
+            let old_name=column.renamed_from.as_ref().filter(|name|table.columns.contains_key(*name)).unwrap_or(&column.name);
+            if table.columns.contains_key(old_name)&&table.defaults.get(old_name)!=current_table.defaults.get(&column.name) {
+                diagnostics.push(crate::diag::type_error(&column.site,format!("rollback view cannot preserve current default for {name}.{}",column.name),"retain the current authored default in a compatible guarded rollback source").guide("deploy"));
+            }
+        }
+    }
+    if bound.diagnostics.is_empty() && !super::release_bridge_current::contracts(&crate::compile(target),&bound) {
+        diagnostics.push(crate::diag::type_error(&crate::Site::default(),"rollback view cannot preserve every predecessor wire contract, including argument aliases and distinct input positions","retain the old parameter aliases on compatible current endpoints, or author a guarded compatibility endpoint before deploying").guide("deploy"));
+    }
+    diagnostics.extend(bound.diagnostics);diagnostics.extend(domain_diagnostics);
     Bridge {sources,changes,diagnostics}
 }
 fn offset(text:&str,line:u32,col:u32)->usize {

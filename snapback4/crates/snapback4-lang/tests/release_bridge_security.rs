@@ -533,3 +533,58 @@ fn current_closure_accepts_authored_argument_aliases_without_merging_old_positio
     let bridge=release_bridge::loosen(&[("schema.q".into(),old)],&[("schema.q".into(),current)]);
     assert!(!bridge.diagnostics.is_empty(),"two independent old positions cannot collapse into one current alias target");
 }
+
+
+#[test]
+fn selective_bridge_uses_current_defaults_in_the_actual_insert() {
+    let old="table docs:\n  owner: principal default 'bøb'\n  secret: text <=40\n  legacy: int ?\n  read <- .owner = viewer\n  insert <- allow\n  online only\nmutation create(secret: text <=40):\n  return insert docs {secret}\n";
+    let current=old.replace("default 'bøb'","default viewer").replace("  legacy: int ?\n","")+"invariant docs.secret write only .owner = viewer\n";
+    let bridge=release_bridge::loosen(&[("schema.q".into(),old.into())],&[("schema.q".into(),current)]);
+    assert!(bridge.diagnostics.is_empty(),"{:?}",bridge.diagnostics);
+    let bound=compile(&bridge.sources);assert!(bound.diagnostics.is_empty(),"{:?}",bound.diagnostics);
+    let mut engine=snapback4_core::Engine::memory(bound.schema,bound.programs.into_iter().map(|p|p.program)).unwrap();
+    let context=snapback4_core::Context::new("alice",std::collections::BTreeMap::from([("secret".into(),snapback4_core::Value::String("private".into()))]));
+    let out=engine.mutate("create",None,context).unwrap();
+    let snapback4_core::WriteState::Sent{result,..}=out.state else{panic!("{out:?}")};
+    assert_eq!(result.field("owner").unwrap(),&snapback4_core::Value::Id("alice".into()));
+}
+
+#[test]
+fn selective_endpoints_keep_module_identity_and_each_current_guard() {
+    let schema="table docs:\n  owner: principal\n  legacy: int ?\n  public 'fixture'\n  insert <- allow\n  online only\n";
+    let open="mutation create():\n  return insert docs {owner:viewer}\n";
+    let guarded=open.replace("  return", "  require viewer = 'service:ops' else OPS\n  return");
+    let old=vec![("schema.q".into(),schema.into()),("a.q".into(),open.into()),("b.q".into(),open.into())];
+    let next=vec![("schema.q".into(),schema.replace("  legacy: int ?\n","")+"invariant docs.a.create only viewer = 'service:ops'\n"),("a.q".into(),guarded),("b.q".into(),open.into())];
+    let bridge=release_bridge::loosen(&old,&next);assert!(bridge.diagnostics.is_empty(),"{:?}",bridge.diagnostics);
+    let bound=compile(&bridge.sources);assert!(bound.diagnostics.is_empty(),"{:?}",bound.diagnostics);
+    let mut engine=snapback4_core::Engine::memory(bound.schema,bound.programs.into_iter().map(|p|p.program)).unwrap();
+    for(name,refused)in [("a.create",true),("b.create",false)] {
+        let out=engine.mutate(name,None,snapback4_core::Context::new("alice",Default::default())).unwrap();
+        assert_eq!(matches!(out.state,snapback4_core::WriteState::Failed{..}),refused,"{name}: {out:?}");
+    }
+}
+
+#[test]
+fn selective_endpoint_retains_old_wire_aliases_and_rejects_alias_rebinding() {
+    let old="table docs:\n  secret: text <=40\n  legacy: int ?\n  public 'fixture'\n  online only\nmutation create(secret: text <=40 alias legacySecret):\n  return insert docs {secret}\n";
+    let current=old.replace("  legacy: int ?\n","").replace(" alias legacySecret","")+"invariant docs.read only true\n";
+    let bridge=release_bridge::loosen(&[("schema.q".into(),old.into())],&[("schema.q".into(),current.clone())]);
+    assert!(bridge.diagnostics.is_empty(),"{:?}",bridge.diagnostics);
+    let bound=compile(&bridge.sources);assert!(bound.diagnostics.is_empty());
+    let endpoint=&bound.programs.iter().find(|p|p.program.name=="create").unwrap().program;
+    assert_eq!(endpoint.argument("legacySecret").map(|(name,_)|name),Some("secret"));
+    let rebound=current.replace("secret: text <=40):","secret: text <=40, other: text <=40 ? alias legacySecret):");
+    let refused=release_bridge::loosen(&[("schema.q".into(),old.into())],&[("schema.q".into(),rebound)]);
+    assert!(!refused.diagnostics.is_empty(),"old alias cannot move to another input position");
+}
+
+#[test]
+fn valid_final_declarations_without_a_newline_have_bounded_source_spans() {
+    let old="table docs:\n  owner: principal\n  public 'fixture'\n  online only\ninvariant docs.read only true\nmutation create():\n  return insert docs {owner:'bøb'}";
+    let before=vec![("schema.q".into(),old.into())];
+    let after=vec![("schema.q".into(),old.replace("owner:'bøb'","owner:viewer"))];
+    assert!(compile(&before).diagnostics.is_empty());assert!(compile(&after).diagnostics.is_empty());
+    assert!(!release_bridge::requires_view(&before,&before));
+    assert!(release_bridge::requires_view(&before,&after));
+}

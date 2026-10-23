@@ -8,11 +8,8 @@ use crate::{
 };
 use std::collections::{BTreeMap, BTreeSet};
 fn offset(text: &str, line: u32, col: u32) -> usize {
-    text.split_inclusive('\n')
-        .take(line.saturating_sub(1) as usize)
-        .map(str::len)
-        .sum::<usize>()
-        + col.saturating_sub(1) as usize
+    let start=text.split_inclusive('\n').take(line.saturating_sub(1) as usize).map(str::len).sum::<usize>();
+    start+text[start..].chars().take(col.saturating_sub(1) as usize).map(char::len_utf8).sum::<usize>()
 }
 fn line_span(file: &str, text: &str, site: &crate::Site) -> Option<(usize, usize)> {
     let (tokens, _) = lexer::lex(file, text);
@@ -56,9 +53,9 @@ pub(super) fn carry(
             }
         }
         for p in &doc.programs {
-            programs.insert(p.name.clone(), (*file, *text, p));
+            programs.insert(super::release_bridge::operation_name(file,&p.name), (*file, *text, p));
         }
-        for(name,target,_)in &doc.aliases {if let Some(p)=doc.programs.iter().find(|p|p.name==*target){programs.insert(name.clone(),(*file,*text,p));}}
+        for(name,target,_)in &doc.aliases {if let Some(p)=doc.programs.iter().find(|p|p.name==*target){programs.insert(super::release_bridge::operation_name(file,name),(*file,*text,p));}}
     }
     for(file,text)in sources.iter(){for old in parser::parse_document(file,text).0.tables{if let Some(prior)=&old.renamed_from{if !tables.contains_key(&old.name){if let Some(next)=tables.get(prior).copied(){tables.insert(old.name.clone(),next);aliases.insert(prior.clone(),old.name.clone());}}}}}
     let remap = |expr: &ast::Expr| {
@@ -104,11 +101,15 @@ pub(super) fn carry(
                 }
             }
             for column in &next.columns {
-                if old
+                if let Some(prior)=old
                     .columns
                     .iter()
-                    .any(|c| c.name == column.name || column.renamed_from.as_ref() == Some(&c.name)||c.renamed_from.as_ref()==Some(&column.name))
+                    .find(|c| c.name == column.name || column.renamed_from.as_ref() == Some(&c.name)||c.renamed_from.as_ref()==Some(&column.name))
                 {
+                    if let Some(edit)=current_default(file,text,prior,column){
+                        edits.push(edit);
+                        changes.push(format!("{}.{}: retained current authored default",old.name,prior.name));
+                    }
                     continue;
                 }
                 let Some((_, current_text, _)) = docs
@@ -270,11 +271,11 @@ pub(super) fn carry(
             });
             if reads.is_disjoint(&relaxed)
                 && reads.is_disjoint(&expanded)
-                && !forced_programs.contains(&old.name)
+                && !forced_programs.contains(&super::release_bridge::operation_name(file,&old.name))
             {
                 continue;
             }
-            let Some((current_file, current_text, next)) = programs.get(&old.name) else {
+            let Some((current_file, current_text, next)) = programs.get(&super::release_bridge::operation_name(file,&old.name)) else {
                 continue;
             };
             if old.kind != next.kind
@@ -293,6 +294,13 @@ pub(super) fn carry(
             if next.name!=old.name {if let Some(name)=tokens.iter().find(|t|t.value==next.name){let at=offset(&source,name.site.line,name.site.col);replacements.push((at,at+name.value.len(),old.name.clone()));}}
             let parsed = parser::parse_document(current_file, &source).0;
             let mut parsed = parsed;
+            if let Some(endpoint)=parsed.programs.first() {
+                for prior in &old.args {
+                    let Some(alias)=&prior.alias else{continue};
+                    let Some(arg)=endpoint.args.iter().find(|arg|arg.name==prior.name&&arg.alias.is_none())else{continue};
+                    if let Ok((_,end))=super::release_bridge_current::arg_type(&source,&tokens,arg){replacements.push((end,end,format!(" alias {alias}")));}
+                }
+            }
             crate::bind::intent_walk::document(&mut parsed, &mut |e| {
                 let (table, site) = match e {
                     ast::Expr::Read(r)
@@ -318,7 +326,7 @@ pub(super) fn carry(
             }
             let (a, b, _) = declaration(text, old.site.line);
             edits.push((a, b, source));
-            changes.push(format!("operation {}: current authored compatibility endpoint preserves its argument contract and guards",old.name));
+            changes.push(format!("operation {}: current authored compatibility endpoint preserves its argument contract and guards",super::release_bridge::operation_name(file,&old.name)));
         }
         for fill in &doc.backfills {
             let Some(current) = tables.get(&fill.table) else {
@@ -381,6 +389,23 @@ pub(super) fn carry(
     }
     relaxed.extend(expanded);
     relaxed
+}
+
+fn current_default(file:&str,text:&str,old:&ast::ColumnDecl,new:&ast::ColumnDecl)->Option<(usize,usize,String)> {
+    let authored=|column:&ast::ColumnDecl|column.default.as_ref().map(print::expression);
+    if authored(old)==authored(new){return None;}
+    let replacement=authored(new).map(|value|format!("default {value}")).unwrap_or_default();
+    if let Some(value)=&old.default {
+        let(tokens,_)=lexer::lex(file,text);
+        let at=tokens.iter().position(|token|token.site==*value.site())?;
+        let keyword=at.checked_sub(1).filter(|i|tokens[*i].value=="default")?;
+        let end=at+if matches!(value,ast::Expr::Unary{..}){2}else{1};
+        let end=offset(text,tokens.get(end)?.site.line,tokens.get(end)?.site.col).min(text.len());
+        Some((offset(text,tokens[keyword].site.line,tokens[keyword].site.col),text[..end].trim_end().len(),replacement))
+    }else{
+        let(_,end)=super::release_bridge::type_span(file,text,old)?;
+        Some((end,end,format!(" {replacement}")))
+    }
 }
 
 pub(super) fn input_accepts(old: &ast::ScalarType, new: &ast::ScalarType) -> bool {

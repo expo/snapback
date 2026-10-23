@@ -1,0 +1,44 @@
+**MATERIAL** — five concrete issues remain at `33ab430e29`. The listed files are unchanged by the integration merge.
+
+1. **The selective bridge can restore an unsafe column default.**  
+   [release_bridge_rules.rs:106](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/src/release_bridge_rules.rs:106) skips existing columns, retaining their predecessor defaults while replacing operation bodies with current bodies.
+
+   Counterexample predecessor:
+
+   ```quarry
+   table docs:
+     owner: principal default 'bob'
+     secret: text <=40
+     legacy: int ?
+     read <- .owner = viewer
+     insert <- allow
+     online only
+   mutation create(secret: text <=40):
+     return insert docs {secret}
+   ```
+
+   Current source removes `legacy`, changes the owner default to `viewer`, and declares `invariant docs.secret write only .owner = viewer`. The removed field makes complete-current closure unavailable and triggers selective bridging. That bridge copies current `create` but retains `default 'bob'`. Calling it as Alice writes Bob’s secret, violating current intent. Compilation materializes defaults into inserts; the authority comparison does not compare defaults. Carry the current default meaning or refuse this dependency.
+
+2. **Selective endpoint matching loses module identity and can remove current guards.**  
+   [release_bridge_rules.rs:59](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/src/release_bridge_rules.rs:59) indexes endpoints by bare `p.name`; [release_bridge_guards.rs:62](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/src/release_bridge_guards.rs:62) does likewise.
+
+   Concrete case: `a.q` and `b.q` both declare `mutation create()`. Current `a.create` requires `viewer = 'service:ops'`; current `b.create` remains open. Declare `invariant docs.a.create only viewer = 'service:ops'` and remove an unrelated optional predecessor column to force selective fallback. With `b.q` processed last, its open body replaces both predecessor endpoints, and guard comparison also uses B. The generated `a.create` admits ordinary callers. Matching and successful-transport accounting must preserve qualified identity.
+
+3. **The visibility trigger still falsely refuses ordinary quota tightening.**  
+   [rollback_foresight.rs:74](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4/src/verbs/rollback_foresight.rs:74) treats every changed cap as rollback risk, including `cap 2 by owner` → `cap 1 by owner`.
+
+   With one stored row and an unchanged `worker.mjs`, this otherwise ordinary deploy requests a view and hits the worker-bundle refusal at [rollback_views.rs:97](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4/src/verbs/rollback_views.rs:97). Current populations satisfying cap 1 also satisfy predecessor cap 2. The source-domain trigger correctly excludes this tightening, but foresight reintroduces it. Registration needs directional constraint comparison.
+
+4. **Selective replacement can silently discard accepted predecessor argument aliases.**  
+   [release_bridge_rules.rs:280](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/src/release_bridge_rules.rs:280) checks canonical argument names/types, then copies the entire current declaration without checking predecessor aliases.
+
+   Example: predecessor `create(secret: text <=40 alias legacySecret)`; current `create(secret: text <=40)` plus current intent and an unrelated removed optional field. Complete closure rejects the contract, but selective fallback accepts it and drops `legacySecret`. Previously valid calls using that wire name fail. Apply the alias-position checks to the final selective executable too.
+
+5. **A valid source without a final newline panics during trigger comparison.**  
+   [release_bridge.rs:61](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/src/release_bridge.rs:61) derives edit bounds from `declaration()`, which unconditionally appends a newline at [line 244](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/src/release_bridge.rs:244).
+
+   If the final program/function declaration lacks a terminating newline, its computed end is `text.len() + 1`; `replace_range` panics. A second deploy can therefore crash even without invariants or widening. Use original source spans.
+
+The complete-current strategy retains explicit alias-position and typed capture defenses. The legacy refusal names both required recovery paths and retains writer-transaction validation. The regressions exercise genuine stored rows and an uploaded asset, but do not cover the counterexamples above.
+
+No optional nits. This was a read-only source review; I ran no builds or tests and wrote no files.
