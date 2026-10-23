@@ -143,3 +143,9 @@ fn common_open_preserves_the_portable_index_key_refusal() {
     let error = Engine::open(AnyStore::open_postgres(&connection, &name).unwrap()).err().unwrap();
     assert_eq!(error.code(), "E_INDEX_KEY_BYTES");
 }
+
+#[test]
+#[ignore = "requires private Postgres; scripts/test-postgres.sh"]
+fn publication_postgres_concurrent_commands_and_adoption_match_rereads() {
+    crate::engine::mutation::tests::check_store(AnyStore::create_postgres(&connection(), &name()).unwrap());
+}

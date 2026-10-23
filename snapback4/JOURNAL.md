@@ -102625,3 +102625,31 @@ wire transcripts remain under `/tmp/s10d3-serve-nmlfm_xp/`. Local commits only.
 
 Post-entry root `./ref-check` passes: 565 LLP documents, 11,768 references,
 zero errors and zero unchecked. Whitespace validation also passes.
+## 2026-10-23 — RT1: carry the durable mutation's publication facts
+
+Lane `sb4-pg/rt12`, based on `901a362705`. The acknowledged mutation API
+carries committed head, accepted incarnation/generation and preservation through
+the worker's synchronous publication into the response, only after physical
+COMMIT. SQLite uses the recorder it persisted; Postgres keeps unknown evidence.
+Replay and refusal metadata still read a current head. Receipt-only reports
+still do not wake. No SQL, fence, receipt, batching or flight change.
+
+The warm HTTP ratchets measure SQLite 79→68 / membership 80→69 / keyed 87→76,
+Postgres 57→42 / 58→43 / 77→62; all nine other classes stay unchanged, including
+W1 31/23. The Postgres predictions match exactly. Both tables and the RFC's
+RT1 implementation note are updated together. Shared concurrent-command and
+adoption witnesses compare carried facts with re-reads and read their writes;
+reset, ownership-guard loss, stale-token replay and unknown COMMIT are covered.
+The report at `reports/20261023-rt12/REPORT.md` retains validation and custody.
+
+
+RT1 qualification: the complete final core repeat passes 1,088 cases (five
+ignores); no-default, build, guide 127/127, final SQLite/PG ratchets and affected
+publication tests pass. The full Postgres script completes with only the
+supplied Serializable stress red, passing alone in both modes; its public
+serving witness passes and stops its cluster. Six full-CLI cases persist alone
+(four reservation fixtures, a clock-drain timeout, missing generated security
+record); all names/errors and initial setup corrections remain in the report.
+The preparatory wasm build is over the unchanged budget; no device/publication
+qualification is claimed. Confirmed writes publish with zero database work
+after queue loss; executing-writer replays retain their old current-head wake.

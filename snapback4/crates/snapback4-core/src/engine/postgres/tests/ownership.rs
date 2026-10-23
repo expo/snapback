@@ -214,7 +214,10 @@ fn two_owners_stale_token_refuses_without_a_receipt() {
     let mut a = lease(&ns, &id, "0001");
     assert_eq!(a.acquire().unwrap().unwrap().token, 1);
     let mut e = open(&ns, &a);
-    e.mutate("put", Some("before"), context(1)).unwrap();
+    let before = e.mutate_acknowledged("put", Some("before"), context(1)).unwrap();
+    let carried = before.publication.unwrap();
+    assert_eq!(carried.head, e.seq().unwrap());
+    assert_eq!(Some(carried.store_id), e.store().store_identity().unwrap());
     // Keep a stale connection alive past hygiene to prove the fence itself,
     // independently of connection termination. Retagging is fault injection.
     e.store_mut()
@@ -230,11 +233,16 @@ fn two_owners_stale_token_refuses_without_a_receipt() {
     let won = b.acquire().unwrap().unwrap();
     assert_eq!(won.token, 2);
     assert_eq!(
-        e.mutate("put", Some("stale"), context(99))
+        e.mutate_acknowledged("put", Some("stale"), context(99))
             .unwrap_err()
             .code(),
         "E_STORE_OWNERSHIP"
     );
+    // Ownership loss cannot reuse the previous write's publication facts.
+    // The unfenced historical replay still works and deliberately carries none.
+    let replay = e.mutate_acknowledged("put", Some("before"), context(1)).unwrap();
+    assert!(replay.outcome.replayed);
+    assert!(replay.publication.is_none());
     drop(e);
     // Simulate an old owner's reconnect with its retained token, independent
     // of the post-takeover hygiene that closed its earlier connections.
@@ -683,7 +691,7 @@ fn commit_connection_loss_is_unknown_and_propagates_through_engine() {
         .query_one("SELECT pg_advisory_lock($1)", &[&key])
         .unwrap();
     control.batch_execute(&format!("CREATE FUNCTION commit_barrier() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN PERFORM pg_advisory_xact_lock({key}); RETURN NEW; END $$; CREATE CONSTRAINT TRIGGER commit_barrier AFTER INSERT OR UPDATE ON r DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION commit_barrier();")).unwrap();
-    let worker = thread::spawn(move || e.mutate("put", Some("unknown"), context(7)));
+    let worker = thread::spawn(move || e.mutate_acknowledged("put", Some("unknown"), context(7)));
     let tag = a.fence.tag().unwrap();
     let mut observer = client(&ns);
     let mut pid = None;

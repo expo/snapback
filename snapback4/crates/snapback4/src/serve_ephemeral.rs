@@ -75,8 +75,16 @@ impl Shared {
     pub(super) fn publish_engine(&self, engine: &Engine) {
         self.publish_durable(engine, false);
     }
+    pub(super) fn publish_commit(&self, publication: &snapback4_core::engine::DurablePublication) {
+        self.publish_head(true, publication.head, Some(publication.store_id.clone()), publication.generation);
+    }
     fn publish_durable(&self, engine: &Engine, committed: bool) {
         let _ = engine.continue_durable_publication(committed, |committed, seq, store_id, generation| {
+            self.publish_head(committed, seq, store_id, generation);
+            Ok(())
+        });
+    }
+    fn publish_head(&self, committed: bool, seq: u64, store_id: Option<String>, generation: u64) {
             let mut current = lock(&self.seq);
             let mut wake = lock(&self.wake);
             let changed = wake.seq != seq || wake.store_id != store_id || wake.generation != generation;
@@ -90,8 +98,6 @@ impl Shared {
                 self.polls.notify_all();
                 self.committed.notify_all();
             }
-            Ok(())
-        });
     }
 }
 

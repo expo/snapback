@@ -11,7 +11,7 @@ use session_identity::{mutation_authority, read_permitted};
 use crate::project::{Project, persona_principal};
 use snapback4_core::error::Refusal;
 use snapback4_core::ir::ProgramKind;
-use snapback4_core::{Context, Engine, Presence, WriteState, wire};
+use snapback4_core::{Context, Engine, Presence, wire};
 use snapback4_lang::Bound;
 use serde_json::{Value as Json, json};
 use std::collections::{BTreeMap, BTreeSet};
@@ -1402,13 +1402,8 @@ fn handle(mut request: Request, shared: &Shared) {
                     if engine.schema().operations.get(&owned_op).is_some_and(|f| f.ephemeral) { return Ok(None); }
                     if shared.personas { context = dev_refusals::response::context(context, Arc::new(lock(&shared.bound).refusal_sites.clone()), engine); }
                     context.delivery_fingerprint = delivery_fingerprint;
-                    let outcome = intent_store(engine, &payload).and_then(|()| engine.mutate(&owned_op, owned_id.as_deref(), context.with_wire_args(args_json)).map_err(|error| error.refusal()));
-                    if matches!(&outcome, Ok(outcome) if !outcome.receipt_only && matches!(outcome.state, WriteState::Sent { .. })) {
-                        trace::mark("mutation_commit");
-                        shared.durable_committed(engine);
-                    }
-                    let preserved = changes::ack_preserved(engine, outcome.as_ref().ok());
-                    Ok(Some((outcome, response_head(engine), preserved, engine.generation())))
+                    let outcome = intent_store(engine, &payload).and_then(|()| engine.mutate_acknowledged(&owned_op, owned_id.as_deref(), context.with_wire_args(args_json)).map_err(|error| error.refusal()));
+                    Ok(Some(head::mutation_acknowledgement(shared, engine, outcome)))
                 });
                 let (outcome, metadata, preserved, generation) = match result.and_then(|v| v) {
                     Ok(Some(value)) => value,
