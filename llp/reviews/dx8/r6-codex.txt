@@ -1,0 +1,11 @@
+NOT READY
+
+One material concern: **the hot-activation protocol does not fence pre-DX8 engines.**
+
+[release_control.rs:30](/home/ccheever/projects/sb4-b25-dx8/snapback4/crates/snapback4/src/release_control.rs:30) still carries only the existing `registry_custody` flag. The new CLI sends that flag in [releases.rs:330](/home/ccheever/projects/sb4-b25-dx8/snapback4/crates/snapback4/src/verbs/releases.rs:330); no DX8-specific requirement distinguishes it from a format-9 client.
+
+Concrete counterexample: leave a pre-DX8, format-9-capable host serving a format-9 store. Rename `oldQuote` to `quote`, then edit `quote`. Use the DX8 CLI to select the original source with `rollback --exact`. Its private preview applies current-value rename semantics, but the running older host accepts the familiar activation request and can restore the stale retained `oldQuote`, reporting success and retaining format 9. The format-10 marker cannot protect an activation executed by an engine that never writes it; the `each` capability does not cover scalar renames.
+
+**Required correction:** specify and implement a mandatory DX8 activation-protocol fence on every adoption request, including original-source selection. Older hosts must reject it before admission; updated hosts must require it. Add a mixed-version regression covering this edited scalar-rename rollback on a legacy format-9 store.
+
+Reviewed the complete canonical amendment; its extracted SHA256 matches the supplied digest.
