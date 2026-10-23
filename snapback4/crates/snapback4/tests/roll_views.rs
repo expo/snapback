@@ -33,7 +33,7 @@ fn scalar_key_rename_retains_an_explicit_legacy_lookup_on_default_rollback() {
     let current=old.replace("  code: text <=20", "  label: text <=20 renamed from code")
         .replace("unique byCode: code","unique byCurrentCode: label").replace("n: int", "n: int ?")
         .replace("query legacyLookup(code: text <=20):\n  return items[code] by byCode\n", "");
-    app.source(&current);app.ok(&["deploy","deployment","--check"]);app.ok(&["deploy","deployment"]);
+    app.source_with_presence(&current,"n");app.ok(&["deploy","deployment","--check"]);app.ok(&["deploy","deployment"]);
     let preview=app.json(&["rollback","deployment","--to","1","--check","--json"]);
     assert_eq!(preview["visibility"]["hiddenRows"],0);
     app.ok(&["rollback","deployment","--to","1"]);assert_eq!(app.count(),1);
@@ -50,7 +50,7 @@ fn equivalent_unique_labels_preserve_final_existence_in_default_rollback() {
     app.seed(old,vec![json!({"id":"kept","n":1,"code":"a"})]);
     let current=old.replace("n: int", "n: int ?").replace("unique byCode:","unique byCurrentCode:")
         .replace("query legacyLookup(code: text <=20):\n  return items[code] by byCode\n", "");
-    app.source(&current);app.ok(&["deploy","deployment","--check"]);app.ok(&["deploy","deployment"]);
+    app.source_with_presence(&current,"n");app.ok(&["deploy","deployment","--check"]);app.ok(&["deploy","deployment"]);
     let preview=app.json(&["rollback","deployment","--to","1","--check","--json"]);
     assert_eq!(preview["visibility"]["hiddenRows"],0);
     app.ok(&["rollback","deployment","--to","1"]);assert_eq!(app.count(),1);
@@ -65,7 +65,7 @@ fn equivalent_unique_index_rename_keeps_default_rollback_visible() {
     app.seed(old,vec![json!({"id":"kept","n":1,"code":"a"})]);
     let current=old.replace("n: int", "n: int ?").replace("unique byCode:","unique byCurrentCode:")
         .replace("table retired:\n  value: int\n  public\n  online only\n", "");
-    app.source(&current);app.ok(&["deploy","deployment","--check"]);app.ok(&["deploy","deployment"]);
+    app.source_with_presence(&current,"n");app.ok(&["deploy","deployment","--check"]);app.ok(&["deploy","deployment"]);
     let preview=app.json(&["rollback","deployment","--to","1","--check","--json"]);
     assert_eq!(preview["visibility"]["hiddenRows"],0);
     app.ok(&["rollback","deployment","--to","1"]);assert_eq!(app.count(),1);
@@ -82,7 +82,7 @@ fn scalar_renamed_unique_keys_keep_their_identity_in_default_rollback() {
         app.source(&old);app.ok(&["deploy","deployment"]);
         app.seed(&old,vec![json!({"id":"kept","n":1,"code":value,"memo":null})]);
         let next=format!("table items:\n  n: int ?\n  label: {kind} renamed from code\n  count: int default 7\n  by byCount: count, label, id\n  unique byCustomer: label\n  public\n  online only\nquery ordered():\n  return items where .count = 7 first 10 by byCount\n");
-        app.source(&next);
+        app.source_with_presence(&next,"n");
         app.ok(&["deploy","deployment","--check"]);app.ok(&["deploy","deployment"]);
         let preview=app.json(&["rollback","deployment","--to","1","--check","--json"]);
         assert_eq!(preview["visibility"]["hiddenRows"],0);
@@ -126,6 +126,11 @@ impl App {
     }
     fn source(&self, s: &str) {
         fs::write(self.0.join("snapback/schema.q"), s).unwrap();
+    }
+    // These fixtures intentionally loosen a field to represent pending data.
+    // State that specification decision explicitly; keep production gates on.
+    fn source_with_presence(&self, s: &str, column: &str) {
+        self.source(&format!("{s}\ninvariant items always .{column} = null or .{column} != null\n"));
     }
     fn run(&self, args: &[&str]) -> Output {
         Command::new(BIN)
@@ -211,7 +216,7 @@ fn default_rollback_uses_a_compiled_guarded_view_and_exact_remains_explicit() {
     app.ok(&["deploy", "deployment", "--json"]);
     let original = fs::read(app.0.join("deployment/releases/1/snapback/schema.q")).unwrap();
     let next = newer();
-    app.source(&next);
+    app.source_with_presence(&next,"amount");
     let preview = app.json(&["deploy", "deployment", "--check", "--json"]);
     assert_eq!(preview["rollbackViews"].as_array().unwrap().len(), 1);
     assert_eq!(
@@ -281,7 +286,7 @@ fn hiding_acknowledges_only_null_and_keeps_widened_nonnull_values_visible() {
     app.source(old);
     app.ok(&["deploy", "deployment", "--json"]);
     let next = "table items:\n  amount: int 0..1000 ?\n  public 'fixture'\n  online only\nrollback 1 hides items where amount = null because 'Fee to follow must not read as free.'\n";
-    app.source(next);
+    app.source_with_presence(next,"amount");
     app.ok(&["deploy", "deployment", "--json"]);
     app.seed(
         next,
@@ -331,7 +336,7 @@ fn deploy_verdict_leads_scoped_security_is_last_and_json_keeps_all_notes() {
             "  return insert payments",
             "  require a.amount != null else NO_AMOUNT\n  return insert payments",
         );
-    app.source(&next);
+    app.source_with_presence(&next,"amount");
     let out = app.ok(&["deploy", "deployment", "--schema", "snapback", "--check"]);
     let stdout = String::from_utf8_lossy(&out.stdout);
     let stderr = String::from_utf8_lossy(&out.stderr);
@@ -374,7 +379,7 @@ fn deploy_verdict_leads_scoped_security_is_last_and_json_keeps_all_notes() {
 fn failed_guard_transport_does_not_register_or_leave_prepared_views(){
     let app=App::new();let old=OLD.replace("mutation pay", "fn permitted():\n  return viewer = 'alice'\nmutation pay").replace("  a = items[id]", "  require permitted() else FORBIDDEN\n  a = items[id]");
     app.source(&old);app.ok(&["deploy","deployment","--json"]);
-    let next=old.replace("amount: int 100..50000", "amount: int 100..50000 ?").replace("viewer = 'alice'", "viewer = 'bob'").replace("  return insert payments", "  require a.amount != null else NO_AMOUNT\n  return insert payments");let next=next.replace("pay(id: items)","pay(item: items)").replace("  a = items[id]","  a = items[item]");app.source(&next);
+    let next=old.replace("amount: int 100..50000", "amount: int 100..50000 ?").replace("viewer = 'alice'", "viewer = 'bob'").replace("  return insert payments", "  require a.amount != null else NO_AMOUNT\n  return insert payments");let next=next.replace("pay(id: items)","pay(item: items)").replace("  a = items[id]","  a = items[item]");app.source_with_presence(&next,"amount");
     for check in [true,false]{let args=if check{vec!["deploy","deployment","--check","--json"]}else{vec!["deploy","deployment","--json"]};let out=app.run(&args);assert!(!out.status.success(),"{}",text(&out));assert!(text(&out).contains("guard dependency"));assert_eq!(fs::read_dir(app.0.join("deployment/releases")).unwrap().count(),1);assert_eq!(app.json(&["releases","deployment"])["current"],1);}
 }
 
@@ -403,7 +408,7 @@ fn rollback_uses_active_source_context_after_a_later_branch_changed_privacy() {
     let app=App::new();let old=OLD.replacen("  amount: int 100..50000","  owner: principal\n  amount: int 100..50000",1);
     app.source(&old);app.ok(&["deploy","deployment","--json"]);
     let private=old.replace("amount: int 100..50000","amount: int 100..50000 ?").replacen("  public 'fixture'","  read <- .owner = viewer",1).replace("  return insert payments","  require a.amount != null else NO_AMOUNT\n  return insert payments");
-    app.source(&private);let parent=app.json(&["deploy","deployment","--json"])["release"].as_u64().unwrap();
+    app.source_with_presence(&private,"amount");let parent=app.json(&["deploy","deployment","--json"])["release"].as_u64().unwrap();
     app.seed(&private,vec![json!({"id":"pending","owner":"alice","amount":null})]);
     let public=private.replacen("  read <- .owner = viewer","  public 'fixture'",1);app.source(&public);app.ok(&["deploy","deployment","--json"]);
     app.ok(&["rollback","deployment","--to",&parent.to_string(),"--exact","--json"]);
@@ -468,7 +473,7 @@ fn invariant_apps_keep_ordinary_rename_split_and_required_field_upgrades() {
 #[test]
 fn pre_view_release_refusal_names_exact_selection_and_registration_upgrade() {
     let app=App::new();app.source(OLD);app.ok(&["deploy","deployment"]);
-    let next=newer();app.source(&next);app.ok(&["deploy","deployment"]);
+    let next=newer();app.source_with_presence(&next,"amount");app.ok(&["deploy","deployment"]);
     app.seed(&next,vec![json!({"id":"pending","amount":null})]);
     // A pre-0.4.39 parent has no registration manifest. Its immutable original
     // source and SQLite history are otherwise the same release contract.
@@ -491,7 +496,7 @@ fn incomplete_current_shape_uses_a_guarded_bridge_with_current_intent() {
     app.source(&old);app.ok(&["deploy","deployment"]);
     let next=old.replace("  legacy: text <=20 ?\n","").replace("amount: int 100..50000","amount: int 100..50000 ?")
         .replace("  return insert payments","  require a.amount != null else NO_AMOUNT\n  return insert payments");
-    app.source(&next);let preview=app.json(&["deploy","deployment","--check","--json"]);
+    app.source_with_presence(&next,"amount");let preview=app.json(&["deploy","deployment","--check","--json"]);
     assert_eq!(preview["rollbackViews"].as_array().unwrap().len(),1);
     app.ok(&["deploy","deployment"]);
     app.seed(&next,vec![json!({"id":"pending","amount":null})]);
