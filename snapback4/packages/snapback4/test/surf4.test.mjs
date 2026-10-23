@@ -56,7 +56,7 @@ test('waitForFresh reports its overall deadline without the final 1 ms observati
 test('serve ready wait has a finite deadline and cleans up its owned child', {timeout:10000},async t=>{
  const cwd=fixture(t),fake=join(cwd,'stalled.mjs'),saved=process.env.SNAPBACK4_BIN;
  writeFileSync(fake,`#!${process.execPath}\nsetInterval(()=>{},1000);\n`,{mode:0o755});process.env.SNAPBACK4_BIN=fake;
- try{await assert.rejects(startServe('deployment',{cwd,timeoutMs:30}),/ready timed out after 30 ms/)}
+ try{await assert.rejects(startServe('deployment',{cwd,timeoutMs:30}),/(?:ready|process-group handshake) timed out after 30 ms/)}
  finally{if(saved===undefined)delete process.env.SNAPBACK4_BIN;else process.env.SNAPBACK4_BIN=saved;}
 });
 

@@ -26,6 +26,8 @@ function qualify(t, scenario = {}) {
   writeFileSync(join(root, "scripts/publication-dormant.mjs"), `export async function proveDormant(){if (${JSON.stringify(scenario.dormantFail ?? false)}) throw Error('deliberately failing packed dormant proof');return {status:'passed'};}`);
   writeFileSync(join(root, "scripts/publication-migrations.mjs"), `export async function proveMigrations(){if (${JSON.stringify(scenario.migrationsFail ?? false)}) throw Error('deliberately failing packed migrations');return {status:'passed'};}`);
   writeFileSync(join(root, "scripts/publication-proof-kit.mjs"), `export async function proveProofKit(){if (${JSON.stringify(scenario.proofKitFail ?? false)}) throw Error('deliberately failing packed proof kit');return {status:'passed'};}`);
+  writeFileSync(join(root, "scripts/publication-dx7.mjs"), `export async function proveDX7(){if (${JSON.stringify(scenario.dx7Fail ?? false)}) throw Error('deliberately failing packed DX7 guide');return {status:"passed",installedSDK:true};}`);
+  writeFileSync(join(root, "scripts/publication-dx8.mjs"), `export async function proveDX8(){if (${JSON.stringify(scenario.dx8Fail ?? false)}) throw Error('deliberately failing packed DX8 guide');return {status:"passed",installedSDK:true};}`);
   writeFileSync(join(root, "scripts/publication-dx6.mjs"), `export async function proveDX6(){if (${JSON.stringify(scenario.dx6Fail ?? false)}) throw Error('deliberately failing packed DX6 guide');return {status:"passed"};}`);
   writeFileSync(join(root, "scripts/publication-dx5.mjs"), `export async function proveDX5(){if (${JSON.stringify(scenario.dx5Fail ?? false)}) throw Error('deliberately failing packed DX5 guide');return {status:"passed"};}`);
   writeFileSync(join(root, "scripts/publication-dx4.mjs"), `export async function proveDX4(){if (${JSON.stringify(scenario.dx4Fail ?? false)}) throw Error('deliberately failing packed DX4 guide');return {status:"passed"};}`);
@@ -243,6 +245,8 @@ function assertAdditionalProofReports(r) {
   assert.deepEqual(json(join(r.root, "out/rule-recipes.json")), { status: "passed" });
   assert.deepEqual(json(join(r.root, "out/day4-proof.json")), { status: "passed" });
   assert.deepEqual(json(join(r.root, "out/day5-proof.json")), { status: "passed" });
+  assert.deepEqual(json(join(r.root, "out/dx7-proof.json")), { status: "passed", installedSDK: true });
+  assert.deepEqual(json(join(r.root, "out/dx8-proof.json")), { status: "passed", installedSDK: true });
 }
 
 for (const consumerOnly of [false, true]) for (const [refusal, message] of [
@@ -259,6 +263,8 @@ for (const consumerOnly of [false, true]) for (const [refusal, message] of [
 });
 
 for (const consumerOnly of [false, true]) for (const [refusal, message] of [
+  ["dx7Fail", "deliberately failing packed DX7 guide"],
+  ["dx8Fail", "deliberately failing packed DX8 guide"],
   ["releaseTransitionsFail", "deliberately failing packed release transitions"],
   ["migrationsFail", "deliberately failing packed migrations"],
 ]) test(`${consumerOnly ? "consumer-only" : "full"} qualification refuses ${refusal} before recording success`, t => {
