@@ -63,10 +63,16 @@ fn refused(current: &[Source], reason: &str) -> Bridge {
 /// field rather than invent its value. All current schema and executable
 /// declarations stay intact; old wire aliases are the only source additions.
 pub(super) fn guarded(target:&[Source],current:&[Source])->Bridge {
+    let normalized=match alpha(target,current) {
+        Ok(sources)=>sources,
+        Err(error)=>return refused(current,&error.reason),
+    };
+    let current=normalized.as_deref().unwrap_or(current);
     let old=crate::compile(target);let next=crate::compile(current);
     if !old.diagnostics.is_empty()||!next.diagnostics.is_empty(){return refused(current,"both authored sources must compile before preparing a guarded view");}
     if !table_contracts(&old,&next,true){return refused(current,"the guarded current workflow needs every predecessor table and required/defaulted field; author a truthful reverse projection or compatible guarded source");}
     let mut sources=current.to_vec();let mut changes=vec!["guarded loosened view: retained the complete current schema, defaults, helpers, programs, jobs, aliases and independent intent; omitted nullable default-free predecessor fields are absent results, never invented values; review current results in the old UI".into()];
+    if normalized.is_some(){changes.push("declared table identities: complete current guarded workflow retained under predecessor spellings, without rewriting business strings or weakening authority".into());}
     for(file,text)in &mut sources {
         let doc=parser::parse_document(file,text).0;
         let Some((prior_file,prior_text))=target.iter().find(|(f,_)|super::release_bridge::operation_name(f,"")==super::release_bridge::operation_name(file,""))else{continue};

@@ -10,7 +10,7 @@ pub(super) fn missing_defaults(candidate:&Schema,old:&Schema)->Result<Vec<String
         let Some(from)=candidate.table(name)else{continue};if old.maintain_for(name).is_some(){continue}
         for(column,kind)in &target.columns {
             let renamed=candidate.asset_renames.get(name).is_some_and(|map|map.iter().any(|(new,prior)|prior==column&&from.columns.contains_key(new)));
-            if !target.engine_field(column)&&!target.maintained.contains_key(column)&&matches!(target.defaults.get(column),Some(ColumnDefault::Literal(_)))&&!from.columns.contains_key(column)&&!renamed&&!projected(candidate,name,column,kind){missing.push(format!("{name}.{column}"));}
+            if !target.engine_field(column)&&!snapback4_core::schema::timeline::is_slot(column)&&!target.maintained.contains_key(column)&&matches!(target.defaults.get(column),Some(ColumnDefault::Literal(_)))&&!from.columns.contains_key(column)&&!renamed&&!projected(candidate,name,column,kind){missing.push(format!("{name}.{column}"));}
         }
     }Ok(missing)
 }
@@ -18,6 +18,8 @@ pub(super) fn missing_defaults(candidate:&Schema,old:&Schema)->Result<Vec<String
 pub(super) fn risks(candidate: &Schema, old: &Schema, release: u64, dir: &Path) -> Vec<String> {
     risks_for(candidate,old,release,dir,true,true)
 }
+// Timeline event slots are compiler-owned delivery metadata, not authored old
+// cells. Retiring a rebuildable feed must not manufacture a visibility view.
 pub(super) fn old_row_risks(candidate:&Schema,old:&Schema,release:u64,dir:&Path)->Vec<String>{
     risks_for(candidate,old,release,dir,false,false)
 }
@@ -36,7 +38,7 @@ fn risks_aligned(candidate:&Schema,old:&Schema,release:u64,dir:&Path,include_new
         let path=step.path.strip_prefix("tables.")?;
         let (table,column)=path.split_once(".columns.")?;
         let target=old.tables.get(table)?;
-        if target.engine_field(column) || old.maintain_for(table).is_some() || target.maintained.contains_key(column) {return None;}
+        if target.engine_field(column) || snapback4_core::schema::timeline::is_slot(column) || old.maintain_for(table).is_some() || target.maintained.contains_key(column) {return None;}
         let before=target.columns.get(column)?;
         if projected(candidate,table,column,before) {return None;}
 
@@ -61,7 +63,7 @@ fn risks_aligned(candidate:&Schema,old:&Schema,release:u64,dir:&Path,include_new
         let Some(from)=candidate.tables.get(name) else {continue;};
         if old.maintain_for(name).is_some() {continue;}
         for (column,kind) in &target.columns {
-            if projected(candidate,name,column,kind) || from.columns.contains_key(column) || target.engine_field(column) || target.maintained.contains_key(column) {continue;}
+            if projected(candidate,name,column,kind) || from.columns.contains_key(column) || target.engine_field(column) || snapback4_core::schema::timeline::is_slot(column) || target.maintained.contains_key(column) {continue;}
             let interpretation=if kind.is_optional() {"null".to_owned()} else if let Some(ColumnDefault::Literal(value))=target.defaults.get(column) {format!("the old default {}",snapback4_core::wire::to_json(value))} else {continue;};
             let suggestions=cross_table_suggestions(candidate,old,name,column,kind,target.defaults.get(column));
             risks.push(format!("rollback foresight: release {release}, {name}.{column}: without a fitting reverse projection, records created while this field is absent have no retained old cell and will show {interpretation} to release {release} users; declare a reverse projection from the replacement value, or retain the field in a bridge release; {suggestions}run `snapback4 rollback {} --to {release} --check --bridge <new-dir>` after writes",dir.display()));
@@ -176,4 +178,21 @@ fn cross_table_suggestions(candidate:&Schema,old:&Schema,parent:&str,column:&str
         }
     }
     if proposals.is_empty(){String::new()}else{proposals.join("; ")+"; "}
+}
+
+#[cfg(test)]
+mod timeline_ownership_tests {
+    #[test]
+    fn retirement_ignores_event_slots_but_still_checks_authored_source_fields() {
+        let source=snapback4_lang::guide::quarry(include_str!("../../../snapback4-lang/src/guide/feeds.md")).into_iter().find(|text|text.contains("view following:")).unwrap();
+        let retired=source.replace("view following: activity where .actor = viewer or exists follows[viewer, .actor]\n","").replace("return following last","return activity last");
+        let schema=|text:String|{let bound=snapback4_lang::compile(&[("schema.q".into(),text)]);assert!(bound.diagnostics.is_empty(),"{:?}",bound.diagnostics);bound.schema};
+        let old=schema(source.clone());let current=schema(retired);
+        assert!(old.tables["posts"].columns.keys().any(|field|snapback4_core::schema::timeline::is_slot(field)));
+        assert!(super::old_row_risks(&current,&old,1,std::path::Path::new("deployment")).is_empty());
+        let authored=schema(source.replacen("  authorId: principal","  note: text <=40 ?\n  authorId: principal",1));
+        let risks=super::old_row_risks(&current,&authored,1,std::path::Path::new("deployment"));
+        assert!(risks.iter().any(|line|line.contains("posts.note")),"{risks:?}");
+        assert!(risks.iter().all(|line|!line.contains("$timeline:")),"{risks:?}");
+    }
 }

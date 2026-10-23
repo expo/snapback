@@ -10,6 +10,8 @@
 - Reference-column `renamed from` preserves parent lifetime evidence. Declarative `extract child from parent via reference: {destination:source}` moves existing image/file homes into a child table and reverses unambiguous mappings, preserving read authority and bytes.
 - Deploy leads with a verdict, groups result advice and prints changed-scope security review last, with a trailing verdict for tail readers. `--json.security` contains `notice`, `verdict` and the full `report`; JSON retains all evidence. SEC7 owns ordinary check ranking and gates.
 
+- Existing admitted Postgres stores record bounded change evidence and certify `/changes` and ordinary SDK sync from one snapshot. Missing, pruned and unknown evidence remains unknown; other profile refusals stay in force.
+
 ## 0.4.38
 
 - Security questions lead default `check` and `audit`; result-exposure advice groups by table and creation advice ignores defaults and literal-only assignments. New questions cover evidence, money, approval bypasses, stale eligibility, inconsistent windows, role-wide writes, private create/edit asymmetry and evidence removal.

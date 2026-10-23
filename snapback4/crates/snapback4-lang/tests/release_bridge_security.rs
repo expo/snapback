@@ -761,3 +761,21 @@ fn merge_lane_repairs_preserve_current_read_scope_in_programs_and_helpers() {
         }
     }
 }
+
+#[test]
+fn renamed_field_authority_selects_current_even_with_a_nullable_legacy_gap() {
+    use snapback4_core::{Context,Engine,Value,value::object};
+    for legacy in [false,true] {
+        let old=format!("table docs:\n  owner: principal\n  amount: int\n{}  secret: text <=40 read <- .owner = viewer\n  read <- allow\n  online only\nquery list():\n  return docs first 10 by .id\n",if legacy{"  legacy: int ?\n"}else{""});
+        let current=old.replace("table docs:","table records renamed from docs:").replace("amount: int","amount: int ?").replace("return docs first","return records first").replace("read <- .owner = viewer","read <- deny").replace("  legacy: int ?\n","");
+        let bridge=release_bridge::loosen(&[("schema.q".into(),old)],&[("schema.q".into(),current)]);
+        assert!(bridge.diagnostics.is_empty(),"legacy {legacy}: {:?}",bridge.diagnostics);
+        let bound=compile(&bridge.sources);assert!(bound.schema.tables.contains_key("docs"));let mut engine=Engine::memory(bound.schema,bound.programs.into_iter().map(|p|p.program)).unwrap();
+        engine.seed([("docs".into(),object([("id",Value::Id("row".into())),("owner",Value::Id("alice".into())),("amount",Value::Int(1)),("secret",Value::String("private".into()))]))]).unwrap();
+        for who in ["alice","bob"] {
+            let out=engine.query("list",Context::new(who,Default::default())).unwrap();
+            assert_eq!(out.data.as_array().unwrap().len(),1);
+            assert!(!snapback4_core::wire::to_json(&out.data).to_string().contains("private"),"legacy {legacy}, {who}: {out:?}");
+        }
+    }
+}

@@ -1,0 +1,24 @@
+MATERIAL — renamed tables bypass authority-mismatch fallback at [release_bridge.rs:207](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/src/release_bridge.rs:207).
+
+Small counterexample, without invariants:
+
+```quarry
+table docs:
+  owner: principal
+  amount: int
+  secret: text <=40 read <- .owner = viewer
+  read <- allow
+  online only
+query list():
+  return docs first 10 by .id
+```
+
+For current source, rename `docs` to `records renamed from docs`, update the query’s table spelling, widen `amount` to `int ?`, and change the secret guard to `read <- deny`.
+
+The widening requires registration. Selective transport leaves the existing secret guard unchanged. Its ordered query comparison succeeds after identity normalization, but `name == &next.name` skips the early field-authority check because `docs != records`. Consequently, the bridge reports success and bypasses current-source fallback.
+
+The CLI then rejects it at [rollback_views.rs:219](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4/src/verbs/rollback_views.rs:219). This is a false refusal: the complete current closure can safely alpha-map `records` back to `docs`, preserving `deny` and every predecessor contract.
+
+Compare authority under declared identities before strategy selection, including renamed tables.
+
+Static finding at `1dc8696f1e`; no edits, builds, or tests run.

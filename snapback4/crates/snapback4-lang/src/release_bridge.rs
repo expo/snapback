@@ -201,10 +201,14 @@ fn loosen_guarded(target:&[(String,String)],current:&[(String,String)])->Bridge 
             }
         }
     }
+    let current_authority=match current_bound.schema.with_table_names(&aliases) {
+        Ok(schema)=>Some(schema),
+        Err(error)=>{diagnostics.push(crate::diag::type_error(&crate::Site::default(),format!("rollback current authority cannot align declared table identities: {error}"),"author a compatible guarded identity mapping").guide("deploy"));None},
+    };
     for(name,table)in &bound.schema.tables {
         let Some((_,_,next))=new.get(name)else{continue};
         let Some(current_table)=current_bound.schema.table(&next.name)else{continue};
-        if name==&next.name&&(table.column_reads!=current_table.column_reads||table.written_by!=current_table.written_by) {
+        if current_authority.as_ref().and_then(|schema|schema.table(name)).is_some_and(|authority|table.column_reads!=authority.column_reads||table.written_by!=authority.written_by) {
             diagnostics.push(crate::diag::type_error(&next.site,format!("rollback view needs current field authority on {name}"),"retain the complete current guarded workflow and its column read/write authority").guide("deploy"));
         }
         for column in &next.columns {
