@@ -70,12 +70,13 @@ fn every_recipe_compiles_in_its_own_snippet_class() {
     let blocks = guide::quarry(guide::card("rule-recipes").unwrap());
     assert_eq!(
         blocks.len(),
-        46, // 36 existing + one LIVE roster + eight wave-15 programs + wall ownership.
+        47, // 36 existing + one LIVE roster + nine wave-15 programs + wall ownership.
         "each standalone recipe has its own compilation class"
     );
     for s in blocks {
         let timed_peer = s.contains("mutation reportWords(") && s.contains("table peerCounts:");
         let live_roster = s.contains("table liveRosterFiles:");
+        let private_payload = s.contains("mutation dxCustomerGuard(");
         let b = snapback4_lang::compile(&[("schema.q".into(), s.clone())]);
         assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
         let notes = source_advice::remaining(&s, &b.notes);
@@ -92,6 +93,10 @@ fn every_recipe_compiles_in_its_own_snippet_class() {
             assert_eq!(notes[0].code, "N_NO_HORIZON");
             assert!(notes[0].rewrite.contains("online only"));
             assert!(!notes[0].rewrite.contains("last 500"));
+        } else if private_payload {
+            assert_eq!(notes.len(), 2, "{:?}", b.notes);
+            assert!(notes.iter().any(|n| n.code == "N_UNREADABLE_PROBE" && n.message.contains("dxIsCustomer")), "{:?}", b.notes);
+            assert!(notes.iter().any(|n| n.code == "N_REQUIRE_HIDDEN" && n.message.contains("dxCustomerGuard")), "{:?}", b.notes);
         } else {
             assert!(notes.iter().all(|n| n.code == "N_EPHEMERAL_SERVER"), "{:?}", b.notes);
         }

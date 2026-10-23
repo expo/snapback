@@ -360,7 +360,11 @@ fn w7c_service_token_output_names_its_owning_store() {
         let now = snapback4_core::now_ms();
         assert_eq!(snapback4_core::identity::resolve(&own, token, now).unwrap().unwrap().0, "service:audit");
         assert!(snapback4_core::identity::resolve(&other, token, now).unwrap().is_none());
-        assert!(out.stderr.is_empty());
+        let stderr = String::from_utf8(out.stderr).unwrap();
+        assert!(stderr.contains("WARNING minted service:audit"), "{stderr}");
+        assert!(stderr.contains("no explicit positive authorization mention"), "{stderr}");
+        assert!(stderr.contains("rules still decide every operation"), "{stderr}");
+        assert!(!stderr.contains(token), "the advisory must not print the credential");
         let reported = path.canonicalize().unwrap();
         assert_eq!(record["store"], reported.to_string_lossy().as_ref());
     }

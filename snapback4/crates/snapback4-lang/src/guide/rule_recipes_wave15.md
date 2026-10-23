@@ -477,7 +477,7 @@ The operator can provision a customer role, but a different caller's
 `dxIsCustomer(customer)` returns false: program exists applies
 `dxRoles.read <- .principal = viewer`. That result means caller-visible absence.
 A positive require on that result can therefore say NOT_CUSTOMER even when the
-hidden role exists. N_UNREADABLE_PROBE/N_LOOKUP_FILTERED name the hiding rule
+hidden role exists. N_UNREADABLE_PROBE/N_REQUIRE_HIDDEN name the hiding rule
 and its source site. Table-rule exists is a policy probe; it does not return
 that row or borrow its read audience. A staff require also does not replace
 `dxOrders.update`: dxStaffEdit still needs the order's owner rule.
