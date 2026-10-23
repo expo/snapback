@@ -1,5 +1,62 @@
 # P1-EV-1 — ordinary Postgres release evolution
 
+## Fix round 1 — 2026-10-23 (stopped)
+
+Base under test: `1875a9e77ff380cf6f51a4b724bb42e4b22445a8` on
+`sb4-pg/p1-ev1`. **SQLite admits a case the brief requires to refuse.**
+The author's instruction was: “if SQLite itself admits one of the refused
+cases, stop and report that rather than diverging.” Implementation stopped
+on that condition; this round does not claim the review findings are fixed.
+
+The focused in-process SQLite witness compiles these three releases and seeds
+parent `p` plus child `c` before retiring the column:
+
+```quarry
+-- v1: children.item
+item: parents ? on delete restrict
+-- v2: children.item omitted
+-- v3: children.item, with restore_dormant = true
+item: parents ? on delete keep
+```
+
+`Engine::adopt_release_at` returns `Ok(3)` for v3. Generation becomes 3 and
+the raw restored child contains `{id: Id("c"), item: Id("p")}`. The witness
+asserting refusal therefore fails on the old tip (one failed test, exit 101).
+No production source file was changed. The exact temporary test source is
+`/tmp/sb4-p1ev1-fix1/ev1_fix1_probe.rs`; it was copied into the existing core
+test directory solely for compilation and removed after the run. Its command:
+
+```sh
+cargo test --locked -j 4 -p snapback4-core --test ev1_fix1_probe -- --nocapture
+```
+
+Both Cargo attempts used only this worktree's target, four jobs and exported
+`CARGO_PROFILE_DEV_DEBUG=line-tables-only` /
+`CARGO_PROFILE_TEST_DEBUG=line-tables-only`. The initial multi-case probe
+already demonstrated this admission, then hit a cascade fixture's missing
+product-bound diagnostic; that attempt establishes no cascade verdict. The
+focused rerun contains only the valid restrict-to-keep case and fails at its
+expected-refusal assertion. Source, logs and process receipts are retained
+under `/tmp/sb4-p1ev1-fix1/`, outside Git.
+
+| Requested item | This round's result |
+| --- | --- |
+| Complete retained definitions/static refusal | Stopped: SQLite admits restrict → retire → keep. Its dormant `Column` contains kind, default, ownership and optional capture source, but no deletion policy or text constraints. No Postgres divergence introduced. |
+| Other SQLite restore verdicts | Cascade → omitted, text → email/minimum and identical optional URL round trip were not evaluated after the stop condition. |
+| Raw stored-row comparison/decision | Deferred; no change to either store and no new stored-byte qualification or SQLite ticket. |
+| Default/requiredness and expanded public witness | Deferred with implementation. |
+| Build, no-default check, full core, evolution/maintained/release targets, affected binary tests, RT0 and Postgres script | Not run for this stopped round. Prior results below are historical, not new qualification. Both RT0 tables remain unchanged. |
+
+No Postgres cluster or server was started, and PG17/55440 was untouched.
+All recorded probe processes exited and were confirmed absent. Disk samples
+remained above 40 GB. The seven previously committed `*.jsonl` process traces
+were copied to `/tmp/sb4-p1ev1-fix1/prior-jsonl/` and removed from Git as
+requested. Only documentation and those deletions are committed; no push,
+stash or git config change. Reference/whitespace validation for this report
+is recorded in the journal entry.
+
+## Original round qualification
+
 Date: 2026-10-23. Branch: `sb4-pg/p1-ev1`; base: `06a9d2c47f` from
 `origin/sb4-pg/main-mirror`. Local commits only; no push, stash or git config
 change. The inventory was committed before implementation (`c41b1551a8`).
@@ -183,12 +240,12 @@ when integrated. No file or commit on that branch was edited.
 
 ## Process custody
 
-All six owned private postmasters are stopped and absent: `2840847`,
-`2868310`, `2884150`, `3058232`, `3399491`, `3577028`. Stop checks used
+All six original-round private postmasters were stopped and absent. Stop checks used
 `pg_ctl status = 3`, no `postmaster.pid`, and independent PID absence before
 removing their exact owned directories. The final audit has **903 recorded PID
 entries, 844 unique PIDs, none present**, and no executable from this
-worktree’s target. PID ledgers and cleanup receipts are included. All logged
+worktree’s target. Cleanup receipts are included; raw JSONL PID ledgers were
+removed in fix round 1 and preserved outside Git. All logged
 test scratch paths are also absent. The final disk sample is 170.97 GiB free;
 no observed guard sample crossed 40 GiB. After preserving the logs, the lane’s
 verification scratch and temporary reference logs were removed. PostgreSQL 17

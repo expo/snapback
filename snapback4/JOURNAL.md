@@ -102922,3 +102922,37 @@ executable from this worktree’s target remains. Owned database and verificatio
 scratch is removed after preserving evidence. Final sampled free space is
 170.97 GiB; no observed disk guard crossed 40 GiB. PG17/55440 and other sessions’
 clusters were untouched. Local commits only; no push, stash or config change.
+
+
+## 2026-10-23 — P1-EV-1 fix round 1: stopped on SQLite restore admission
+
+The requested SQLite parity check triggers the author's explicit stop condition.
+On unchanged production code at `1875a9e77f`, a seeded optional reference with
+`on delete restrict` is retired and restored as `on delete keep`; SQLite
+returns `Ok(3)`, publishes generation 3 and restores the original parent id.
+The focused witness expecting refusal compiles and fails (exit 101). Its source
+and output remain under `/tmp/sb4-p1ev1-fix1/`. An initial combined probe also
+observed this admission before an unrelated missing cascade product-bound
+fixture diagnostic; it establishes no verdict for that cascade case.
+
+SQLite's dormant column record contains type, default, ownership and optional
+capture source, with no deletion policy or text constraints. Matching the
+requested refusal would therefore require resolving the SQLite contract first.
+No engine/store change was made. The other restore cases, stored-byte decision,
+expanded public witness and implementation qualification remain pending under
+the stop instruction. The RFC Revised line and EV-1 note and the
+[report](reports/20261023-p1-ev1-schema-evolution/REPORT.md#fix-round-1--2026-10-23-stopped)
+record that boundary; original-round pass counts are historical only.
+
+The seven committed JSONL process traces were preserved under
+`/tmp/sb4-p1ev1-fix1/prior-jsonl/` and removed with `git rm`. No raw evidence was
+added to Git. The temporary in-tree probe was removed after compilation.
+Root `./ref-check` and whitespace validation pass for this documentation and
+trace cleanup. The requested implementation suites and both RT0 executions
+were not run after the stop condition; both ratchet tables remain unchanged.
+
+Both Cargo attempts used the authorized target, exported line-tables-only
+debug profiles and four jobs. No Postgres cluster/server was started; all
+recorded probe/compiler processes are confirmed absent. Disk samples stayed
+above 40 GB. PG17/55440 and other sessions' clusters were untouched. Local
+commit only; no push, stash or git config change.

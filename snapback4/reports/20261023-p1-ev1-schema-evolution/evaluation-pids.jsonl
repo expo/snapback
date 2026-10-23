@@ -1,5 +1,0 @@
-{"label": "initdb", "pid": 2840828}
-{"label": "pg_ctl", "pid": 2840844}
-{"label": "postmaster", "pid": 2840847}
-{"label": "pg_ctl-stop", "pid": 3622451}
-{"label": "pg_ctl-status", "pid": 3622560}
