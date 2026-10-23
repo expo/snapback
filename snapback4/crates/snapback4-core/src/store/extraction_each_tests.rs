@@ -510,3 +510,80 @@ fn dx8_each_reverse_shares_parent_page_and_accumulated_child_heap_atomically() {
         );
     }
 }
+
+#[test]
+fn dx8_each_forward_shares_parent_page_and_retained_child_decode_atomically() {
+    let old = "table orders:\n  names: [file <=1000] <=64\n  padding: text <=65536\n  public 'fixture'\n  insert <- allow\n  update <- allow\n  online only\nmutation inflate(id: orders, padding: text <=65536):\n  return update orders[id] {padding}\n";
+    let new = "table orders:\n  padding: text <=65536\n  public 'fixture'\n  insert <- allow\n  online only\ntable documents:\n  order: orders on delete cascade\n  names: file <=1000\n  payload: text <=200000 ?\n  public 'fixture'\n  insert <- allow\n  update <- allow\n  online only\nextract documents from orders via order each: {names:names}\nmutation enlarge(id: documents, payload: text <=200000):\n  return update documents[id] {payload}\n";
+    let mut e = engine(old);
+    let asset = handle(&mut e, b"retained forward child");
+    let asset_id = crate::assets::asset_id(Some(&asset)).unwrap().to_owned();
+    for n in 0..256 {
+        seed(
+            &mut e,
+            "orders",
+            json!({
+                "id":format!("p{n:03}"),
+                "names":if n == 0 { json!([{"id":asset_id}]) } else { json!([]) },
+                "padding":"",
+            }),
+        );
+    }
+    adopt(&mut e, new, 2).unwrap();
+    let child = child_for(&e, &asset_id);
+    mutate(
+        &mut e,
+        "enlarge",
+        [
+            ("id", Value::Id(child.clone())),
+            ("payload", Value::String("x".repeat(200000))),
+        ],
+    );
+    adopt(&mut e, old, 1).unwrap();
+    let padding = "p".repeat(65536);
+    for n in 0..256 {
+        mutate(
+            &mut e,
+            "inflate",
+            [
+                ("id", Value::Id(format!("p{n:03}"))),
+                ("padding", Value::String(padding.clone())),
+            ],
+        );
+    }
+    let generation = e.generation();
+    let error = adopt(&mut e, new, 2).unwrap_err();
+    assert!(
+        matches!(error, RuntimeError::Bound { kind: crate::error::MeterKind::HeapBytes, .. }),
+        "{error:?}"
+    );
+    assert_eq!(e.generation(), generation, "a heap cut cannot select the new release");
+    assert_eq!(ids(&mut e, "p000"), vec![asset_id.clone()]);
+    for n in 0..256 {
+        assert_eq!(
+            field(&mut e, "orders", &format!("p{n:03}"), "padding")
+                .as_str()
+                .unwrap()
+                .len(),
+            65536
+        );
+    }
+    assert_eq!(
+        e.store().asset(&asset_id).unwrap().unwrap().home.unwrap().0,
+        "orders"
+    );
+    let retained: String = e
+        .store()
+        .test_support_conn()
+        .query_row(
+            "SELECT data FROM r WHERE t=(SELECT num FROM _catalog WHERE name='documents') AND id=?1 UNION ALL SELECT data FROM _dormant_rows WHERE t=(SELECT num FROM _catalog WHERE name='documents') AND id=?1 UNION ALL SELECT data FROM _dormant_narrow_rows WHERE t=(SELECT num FROM _catalog WHERE name='documents') AND id=?1 LIMIT 1",
+            [&child],
+            |row| row.get(0),
+        )
+        .unwrap();
+    let retained: Value = serde_json::from_str(&retained).unwrap();
+    assert_eq!(
+        retained.field("payload").unwrap().as_str().unwrap().len(),
+        200000
+    );
+}
