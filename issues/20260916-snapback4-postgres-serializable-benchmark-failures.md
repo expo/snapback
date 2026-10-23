@@ -239,3 +239,21 @@ durability or timeout was changed. Full and isolated logs are
 `/tmp/sb4-k0q-fix2-final/postgres{,-repeat}.log` and
 `postgres-concurrency-isolated.log`; the lane report retains all results.
 The restarted cluster is independently confirmed stopped.
+
+## 2026-10-23 — P1-EV-1 fix round 2 conformance observation
+
+Above `f8c54693c129`, the stock Postgres script's retained evaluator conformance
+target finishes 17 passed / 1 failed: the existing concurrent read/modify/write
+case escapes SQLSTATE `40001` at `tests/conformance.rs:244`, then its join at
+:257. EV-1 changes only the dormant restore walk; evaluator source and the
+mutation/retry path are unchanged.
+
+The exact failing executable (SHA-256
+`619849a44b8ce663c95fa1caceafeff4a379ceeb68e8299f6e96d8b2e21d6dd5`)
+passes the exact case alone: 65 increments per mode, no lost updates,
+zero serialized and 96 total serializable retries. No retry bound, backoff,
+internal writer concurrency, timeout or durability input changed. This adds an occurrence,
+not a root-cause attribution or a green full-script claim. Final stage
+results and owned-PG16 cleanup are in the
+[P1-EV-1 round-2 report](../snapback4/reports/20261023-p1-ev1-schema-evolution/REPORT.md#fix-round-2--2026-10-23-restore-byte-parity).
+Raw logs and process traces remain outside Git under `/tmp/sb4-p1ev1-fix2/`.

@@ -3,7 +3,10 @@
 use super::store::{Tx, decode};
 use crate::{
     RuntimeError, Schema, Value,
-    schema::{ColumnDefault, ColumnType, Constraint, Table, materialize_optional_fields, references::OnDelete},
+    schema::{
+        ColumnDefault, ColumnType, Constraint, Table, materialize_optional_fields,
+        references::OnDelete,
+    },
     value::canonical_json,
 };
 use serde::{Deserialize, Serialize};
@@ -274,6 +277,7 @@ pub(super) fn transition(
             tx.execute("DELETE FROM i WHERE t=$1", &[name])?;
         }
     }
+    let mut restoring = std::collections::BTreeMap::new();
     for row in tx.query(
         "SELECT table_name,definition FROM _dormant_tables ORDER BY table_name",
         &[],
@@ -313,34 +317,52 @@ pub(super) fn transition(
         )?;
         tx.execute("DELETE FROM _dormant_rows WHERE t=$1", &[&name])?;
         tx.execute("DELETE FROM _dormant_tables WHERE table_name=$1", &[&name])?;
+        restoring.insert(name, old);
     }
     for (name, table) in next.tables.iter().filter(|(_, t)| t.ephemeral.is_none()) {
+        let columns = tx.query(
+            "SELECT column_name FROM _dormant_columns WHERE table_name=$1 ORDER BY column_name",
+            &[name],
+        )?;
+        if !restoring.contains_key(name)
+            && !columns
+                .iter()
+                .any(|r| table.columns.contains_key(r.get::<_, &str>(0)))
+        {
+            continue;
+        }
         for column in table.columns.keys() {
             let count: i64 = tx.query("SELECT COUNT(*) FROM _dormant_values v WHERE t=$1 AND column_name=$2 AND EXISTS(SELECT 1 FROM r WHERE r.t=v.t AND r.id=v.id)", &[name,column])?[0].get(0);
             if count > 0 {
                 tx.set_meta("activation_population", "true")?;
-                walk(tx, "r", name, |id, mut image| {
-                    let rows = tx.query(
-                        "SELECT data FROM _dormant_values WHERE t=$1 AND id=$2 AND column_name=$3",
-                        &[name, &id, column],
-                    )?;
-                    if let Some(row) = rows.first() {
-                        if let Value::Row(fields) | Value::Map(fields) = &mut image {
-                            fields.insert(column.clone(), decode(row.get(0))?);
-                        }
-                        tx.execute(
-                            "UPDATE r SET data=$3 WHERE t=$1 AND id=$2",
-                            &[name, &id, &canonical_json(&image)],
-                        )?;
-                    }
-                    Ok(())
-                })?;
                 tx.set_meta(
                     &format!("activation_column_restored:{name}.{column}"),
                     &count.to_string(),
                 )?;
             }
         }
+        // @ref LLP 3000.009.001.000#3.5 — match SQLite's predecessor materialization before overlay; raw bytes decide meters and change-evidence widening.
+        walk(tx, "r", name, |id, mut image| {
+            if let Some(old) = restoring.get(name).or_else(|| previous.table(name)) {
+                materialize_optional_fields(&mut image, old);
+            }
+            for column in table.columns.keys() {
+                let rows = tx.query(
+                    "SELECT data FROM _dormant_values WHERE t=$1 AND id=$2 AND column_name=$3",
+                    &[name, &id, column],
+                )?;
+                if let Some(row) = rows.first() {
+                    if let Value::Row(fields) | Value::Map(fields) = &mut image {
+                        fields.insert(column.clone(), decode(row.get(0))?);
+                    }
+                }
+            }
+            tx.execute(
+                "UPDATE r SET data=$3 WHERE t=$1 AND id=$2",
+                &[name, &id, &canonical_json(&image)],
+            )?;
+            Ok(())
+        })?;
     }
     // invalid=1 remembers a deleted parent even after its id is reused. invalid=2
     // denotes a parent already absent when captured, matching SQLite's policy.

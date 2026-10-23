@@ -103020,3 +103020,57 @@ pidfile, absent postmasters); all 2,716 recorded PIDs are absent,
 and no target executable remains. Final sampled free space is
 231.60 GiB; no guard crossed 40 GiB. PG17/55440 and other
 sessions' clusters were untouched. Local commit only; no push, stash or git configuration change.
+
+## 2026-10-23 — P1-EV-1 fix round 2: byte parity on column restore
+
+Applied the lead's reversal of round 1's sparse-restore decision. Postgres now
+walks the same live population as SQLite, materializes the predecessor table's
+optional/default fields, overlays retained values and writes the canonical
+image. A restored table supplies its retained predecessor; rows without a
+retained cell also participate. Ordinary add-column remains physically absent.
+SQLite production and request-path statements are unchanged.
+
+New literal `r.data` comparisons fail on unchanged `f8c54693c129` production
+for both the small sibling fixture and the 300 KiB default. The latter stores
+307,298 bytes on SQLite versus 74 on old Postgres; this fix stores exactly
+307,298 equal bytes on both. Parent-delete evidence and public `/changes` also
+fail before the fix (SQLite unknown, Postgres certified) and now both return
+unknown. Query meters match in every dimension, including a 1 MiB heap ceiling
+where both point reads cap identically. The raw fixture includes a row born
+while memo was dormant, preserving its absence while materializing siblings.
+
+No compatibility decoder is added: EV-1 has not landed and the fix lands with
+it. Old private baseline-test clusters under `/tmp/` can retain experimental
+records if explicitly reused; this round uses a fresh cluster and fresh
+namespaces. RFC §3.5/Revised records that scope and the stored-byte ruling.
+The SQLite-only sparse follow-up is closed: both stores materialize on restore;
+going sparse would require a both-store change and observable-effect checks.
+Grok's two one-line preparation coverage additions pass alongside the prior
+four refusals and all identical-restore positive controls.
+
+Build and no-default check pass. Full core has 1,103 passes, five existing
+ignores and zero failures; evolution passes 35, maintained-column scope nine,
+core release contract 21, binary release lifecycle 12 with one existing ignore.
+Both RT0 ratchets retain all 24 warm counts and unchanged tables/allowances.
+The complete Postgres script runs every stage: 433 Rust passes and two failures,
+then a passing complete public harness. The retained evaluator stress escapes
+40001; its exact executable passes alone with 65 increments per mode and 96
+Serializable retries. A 300 ms ownership fixture misses its live-lease assertion
+and also passes alone. Neither implementation, retry policy nor timing bound is
+changed. The existing stress ticket records the occurrence. Known unrelated
+clock, reservation, security-wave19 and web failures are not chased.
+
+The final public EV-1 wire remains 2,819 bytes with SHA-256
+`b24af6ef8cb10d1a329319647c2ed133109853e5f83092952802daac4690cfa1`;
+the large-default `/changes` responses match too. The
+[round-2 report](reports/20261023-p1-ev1-schema-evolution/REPORT.md#fix-round-2--2026-10-23-restore-byte-parity)
+records baseline sensitivity, complete results, reference validation and custody.
+All Cargo uses this worktree's target, four jobs and exported line-tables-only
+dev/test profiles. Raw logs and process traces stay outside Git.
+
+All four owned private PG16 clusters are independently stopped (status 3,
+no pidfile, absent postmasters and cluster processes). All 1,235 recorded PIDs
+are absent; no target executable remains. Final sampled free space is
+149.38 GiB; no disk guard crossed 40 GiB. PG17/55440 and other sessions'
+clusters are untouched. Local commit only; no push, stash or Git configuration
+change.

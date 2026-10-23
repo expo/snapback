@@ -1,6 +1,155 @@
 # P1-EV-1 — ordinary Postgres release evolution
 
+## Fix round 2 — 2026-10-23 (restore byte parity)
+
+Base and failing-before production: `f8c54693c129`. The lead reverses
+round 1's sparse-restore decision. Local-only work on `sb4-pg/p1-ev1`;
+no push, stash or Git configuration change.
+
+### Changes and baseline sensitivity
+
+Postgres now matches SQLite's column-restore walk: select tables from retained
+definitions (including definition-only restoration), materialize predecessor
+optionals/defaults across every live row, overlay retained values, then write
+canonical JSON. Rows inserted while the column was absent also participate;
+a missing retained cell does not skip materializing the predecessor. A restored
+table supplies its retained predecessor. Ordinary add-column remains sparse.
+SQLite production is unchanged, and request-path statements are unchanged.
+
+The shared witnesses read **literal `r.data` strings** through the two physical
+adapters, without materializing or re-encoding them. They also compare complete
+small-row query outcomes, large-default point/scan meters, and parent-delete
+change evidence. The public witness uses only configured deploy/serve and
+HTTP to reproduce the large-default `/changes` difference.
+
+| Witness | On unchanged `f8c54693c129` production | With this fix |
+| --- | --- | --- |
+| `{id,n,memo}` → retire memo, add `extra?` / `count default 7` → restore | Literal row mismatch: SQLite stores both siblings; Postgres omits them. A third row inserted while memo is dormant exposes the same mismatch without a retained memo cell | Equal literal `r.data` for all three rows, including Unicode/NUL and explicit null memo; equal complete point-query outcomes |
+| 300 KiB required literal-default sibling, empty child with `on delete restrict` | Literal image sizes **307,298 B SQLite / 74 B Postgres** | **307,298 B on both**, byte-for-byte equal |
+| Delete the restored large-default parent | SQLite evidence is unknown; Postgres evidence is certified | Both unknown |
+| Public `/changes` for that delete | SQLite `changes: null, preserved: null`; Postgres `changes: {after: 1, through: 2, writes: {notes: null}}, preserved: [children]`. Focused public harness fails equality | Both complete HTTP answers equal: `changes: null, preserved: null`, generation 3, sequence 2, touched `notes` |
+| Post-restore scan and point query meters | Already equal for these queries; coverage, not a claimed baseline meter failure | Equal in every `Metered` dimension, data and completeness |
+
+The failing-before Rust run has 14 passes and exactly three failures: small
+literal bytes, large literal bytes, and large parent-delete evidence. The
+focused public witness separately fails the HTTP equality assertion. The
+first implementation run passes the complete 35-case dual-store evolution
+target. Final qualification is recorded below. Early development probes had
+Rust borrow/signature/assertion compile errors and were corrected before the
+failing-before execution; no compilation failure is counted as product evidence.
+
+The large-default scan's final meter is examined 1, index entries 0, rule
+probes 0, steps 3, heap 307,584 B, output 307,310 B, rows written 0 on both
+stores. The point query is steps 3, heap 615,170 B, output 307,298 B with
+otherwise the same counters. Both queries are complete with equal data.
+A second pass at a 1 MiB heap ceiling also matches every counter and result:
+the scan stays complete, while both point queries cap with heap 1,230,044 B
+and output 6 B. The public focused harness passes in 192.14 seconds, with
+its private cluster stopped and confirmed. The earlier HTTP baseline run
+failed as expected in 176.09 seconds and also stopped its own cluster.
+
+### Ledger scope and review nits
+
+No legacy compatibility decoding is added. EV-1 has not landed; its earlier
+experimental retained-column format cannot occur in a real supported store.
+These tests create fresh in-memory stores and uniquely named Postgres
+namespaces. A developer could explicitly reuse one of the old private
+clusters retained under `/tmp/` with a newer binary, carrying experimental
+pre-fix records across runs. Those disposable artifacts are not an upgrade
+contract; this round uses a fresh PG16 cluster and never opens an earlier
+round's database. The required retained fields keep failing closed.
+
+Grok's coverage nit is closed with two one-line preparation cases: default
+7→8 and optional→required. They join the existing four cases and their
+identical-restore positive controls. Other optional nits leave no required
+change. The previous SQLite-only sparse-storage ticket is
+[closed](../../../issues/closed/20261023-snapback4-sqlite-restore-materializes-sibling-defaults.md):
+both stores materialize on restore, and going sparse would require a
+both-store change plus observable-evidence/meter qualification. RFC §3.5 and
+its Revised line record the ruling and the pre-landing ledger boundary.
+
+### Checks and custody
+
+All targeted affected scopes pass. The full Postgres script completes all
+stages and exits **1** with the two classified Rust failures below; its
+complete public harness passes. Both exact failing cases pass alone. The
+Serializable stress occurrence is tracked in the
+[open evaluator ticket](../../../issues/20260916-snapback4-postgres-serializable-benchmark-failures.md).
+All Cargo commands use this worktree's own target, four jobs (including the
+script's inherited `CARGO_BUILD_JOBS=4`), and exported
+`CARGO_PROFILE_DEV_DEBUG=line-tables-only` /
+`CARGO_PROFILE_TEST_DEBUG=line-tables-only`. Only private PG16 clusters are
+used. Logs, wire artifacts and process records stay under
+`/tmp/sb4-p1ev1-fix2/` or the public harness's private `/tmp/` scratch; no raw
+log or PID trace is added to Git. The 40 GiB free-space guard is sampled while
+each command runs. PG17/55440 is untouched.
+
+| Check | Round-2 result |
+| --- | --- |
+| `cargo build --locked -j 4 -p snapback4` | Pass; 183.28 seconds |
+| Core `--no-default-features` check | Pass |
+| Full default core, `--no-fail-fast` | **1,103 passes, zero failures, five existing ignores**; 1,506.70 seconds |
+| Final dual-store evolution target | **35/35**, zero ignores; includes both heap ceilings |
+| Nontransactional preparation witness | Pass: six refusal cases plus identical-restore positive controls |
+| Maintained-column scope | **9/9** |
+| Core release contract | **21/21** |
+| Binary release lifecycle | **12 passes, one existing ignore**, zero failures |
+| Both RT0 ratchets | Pass: every one of 24 warm cells equals the original table; checked-in tables/allowances unchanged |
+| Focused public harness | Pass; 192.14 seconds. Original 13-response transcripts remain exactly 2,819 B and SHA-256 `b24af6ef8cb10d1a329319647c2ed133109853e5f83092952802daac4690cfa1`; both large-default `/changes` responses are equal and unknown |
+| `bash scripts/test-postgres.sh` | **433 Rust passes, two failures, zero ignores**; all stages run, complete public harness passes; exit 1, 2,090.97 seconds. Both exact failing cases pass alone; details below |
+| Root `./ref-check` | Pass: 565 LLPs, 11,781 refs, zero errors/unchecked; repeated after final report/journal |
+
+The evaluator conformance target completed with 17 passes and one failure:
+`concurrent_read_modify_write_and_duplicate_ops_are_atomic_in_both_modes`
+escaped SQLSTATE `40001` at `tests/conformance.rs:244`, followed by the join
+at :257. This is the existing open stress-failure class, not an EV-1 restore
+case. The evaluator source and retry path are unchanged. Its exact executable,
+SHA-256 `619849a44b8ce663c95fa1caceafeff4a379ceeb68e8299f6e96d8b2e21d6dd5`,
+passes the exact case in one isolated run: 65 increments per mode, no lost
+updates, zero serialized and 96 total serializable retries. No limit, backoff,
+internal writer concurrency, timeout or durability input changed. An isolated pass does not
+make the complete script green or establish a root cause. The existing
+[evaluator ticket](../../../issues/20260916-snapback4-postgres-serializable-benchmark-failures.md)
+retains this occurrence.
+
+The ownership subtarget has 24 passes and one failed live-lease assertion in
+`two_owners_stale_token_refuses_without_a_receipt` at
+`engine/postgres/tests/ownership.rs:228`: contender B acquires where the fixture
+expects `None`. Its lease is 300 ms. The exact unchanged core test executable
+passes that exact case alone in 1.41 seconds. This is a timing-sensitive
+observation, not a root-cause attribution; the ownership implementation and
+lease settings remain unchanged. This fixture uses an unversioned store,
+without dormant release restoration. The complete-script failure remains a
+failure despite the isolated pass.
+
+The requested binary scope is release lifecycle, not a new broad binary
+sweep. Round 1's historical clock, reservation, security-wave19 contact
+refutation and web-witness reds remain classified below; no unrelated fixture,
+implementation or allowance is changed in this round.
+
+
+Final public qualification repeats both EV-1 scenarios successfully and passes
+all existing serving/recovery/ownership/P1-CE/P1-MC stages. The original
+13-response wire transcripts still have the same 2,819-byte length and SHA-256
+above. Both large-default `/changes` responses are exactly equal after only
+store-id/time normalization: unknown changes and preservation, generation 3,
+sequence 2, touched `notes`. No complete-script green claim is made.
+
+All **four owned private PG16 clusters** are independently confirmed stopped:
+`pg_ctl status = 3`, no `postmaster.pid`, no recorded postmaster or remaining
+process with an owned cluster's data directory. The cleanup audit checks
+**1,235 unique recorded PIDs**, all absent, and finds no executable
+remaining from this worktree's target. Final sampled free space is
+**149.38 GiB**; the 40 GiB guard never fired. Raw logs, exact isolated
+executables, copied wire artifacts and process evidence remain under
+`/tmp/sb4-p1ev1-fix2/`; none is added to Git. PG17/55440 and other sessions'
+clusters are untouched. Whitespace validation passes. Local commit only;
+no push, stash or Git configuration change.
+
 ## Fix round 1 — 2026-10-23 (lead ruling applied)
+
+Historical qualification. Round 2 above supersedes the sparse-restore decision
+and the claim that interpreted-row parity made the storage difference unobservable.
 
 Continuation base: `2e2bfe600b`; production baseline: `1875a9e77f`.
 Local commit only; no push, stash or git configuration change. The prior
@@ -59,7 +208,7 @@ optionals/defaults to remain physically absent. `row_image` supplies those
 values for reads and index construction, making the distinction unobservable
 in application wire rows (raw owner inspection can see it).
 
-The [SQLite follow-up](../../../issues/20261023-snapback4-sqlite-restore-materializes-sibling-defaults.md)
+The [SQLite follow-up](../../../issues/closed/20261023-snapback4-sqlite-restore-materializes-sibling-defaults.md)
 records the reproduction and required preservation of physical absence. SQLite
 is unchanged. The differential witness pins the current raw difference and
 identical interpreted results rather than silently asserting raw parity.

@@ -121,3 +121,70 @@ def witness(h, pg_url):
     assert transcripts['postgres']==transcripts['sqlite'], 'EV-1 wire bytes differ'
     (work/'app/snapback/schema.q').write_text(h['source'])
     print('P1-EV-1 PASS: byte-identical wire after removing store_id, now and the checked minted guest viewer',flush=True)
+    large_default_witness(h, pg_url.replace('schema=ev1', 'schema=ev1_large'))
+
+
+def large_default_witness(h, pg_url):
+    """A restored raw parent image must widen /changes identically on both stores."""
+    work, cli, start, stop, http = (h[k] for k in ('WORK','cli','start','stop','http'))
+    v1 = '''use identity
+table notes:
+  n: int
+  memo: json <=100 ?
+  public
+  insert <- allow
+  delete <- allow
+  online only
+table children:
+  note: notes on delete restrict
+  public
+  insert <- allow
+  online only
+mutation put(key: id):
+  insert notes {id: key, n: 1}
+mutation erase(key: id):
+  delete notes[key]
+query peek(key: id):
+  return notes[key]
+'''
+    sibling = "  payload: text <=307200 default '" + 'x' * (300 * 1024) + "'\n"
+    versions = [v1, v1.replace('  memo: json <=100 ?\n', sibling),
+        v1.replace('  memo: json <=100 ?\n', '  memo: json <=100 ?\n' + sibling)]
+    answers = {}
+    for backend, target in [('postgres', pg_url), ('sqlite', None)]:
+        deployment = work / ('ev1-large-' + backend)
+        for version, source in enumerate(versions, 1):
+            (work/'app/snapback/schema.q').write_text(source)
+            cli(['deploy', str(deployment)] + (['--restore-dormant'] if version == 3 else []), url=target)
+            child, base = start(f'ev1-large-{backend}-v{version}', target, deployment=deployment)
+            guest = http(base, 'POST', '/auth/guest', {})['session']
+            token = guest['token']
+            state = http(base, 'GET', '/schema', token=token)
+            assert state['generation'] == version, state
+            def mutate(name):
+                return http(base, 'POST', '/m/'+name, {'id':f'large-{name}',
+                    'args':{'key':'a'}, 'store_id':state['store_id']}, token)
+            if version == 1:
+                assert mutate('put')['state'] == 'sent'
+            else:
+                row = http(base, 'POST', '/q/peek', {'args':{'key':'a'}}, token)
+                assert row['data']['payload'] == 'x' * (300 * 1024)
+                if version == 3:
+                    assert row['data']['memo'] is None
+                    assert mutate('erase')['state'] == 'sent'
+                    answer = http(base, 'GET', f"/changes?since={row['seq']}&wait=0", token=token)
+                    answers[backend] = {k:v for k,v in answer.items() if k not in ('store_id','now')}
+                    print('P1-EV-1 300 KiB', backend, '/changes:', answers[backend], flush=True)
+            stop(child)
+            if backend == 'postgres':
+                deadline = time.monotonic() + 15
+                while True:
+                    doctor = json.loads(cli(['doctor','--release',str(deployment),'--json'],url=target).stdout)
+                    if doctor['store']['expired']: break
+                    assert time.monotonic() < deadline, doctor
+                    time.sleep(.1)
+    assert answers['sqlite']['changes'] is None, answers
+    assert answers['postgres'] == answers['sqlite'], '300 KiB restored parent /changes differs'
+    (work/'ev1-large-changes.json').write_text(json.dumps(answers, sort_keys=True))
+    (work/'app/snapback/schema.q').write_text(h['source'])
+    print('P1-EV-1 PASS: 300 KiB restored parent /changes is null on both stores', flush=True)

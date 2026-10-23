@@ -114,6 +114,8 @@ fn retained_column_refusals_precede_preparation_writes() {
             "evolution-narrowing",
         ),
         ("text <=100", "text 8..100", "evolution-narrowing"),
+        ("int default 7", "int default 8", "evolution-narrowing"),
+        ("int ?", "int", "evolution-narrowing"),
     ] {
         let name = format!("sb4_ev1_preparation_{:x}", crate::ids::seed());
         let store = crate::store_port::AnyStore::create_postgres(&url, &name).unwrap();

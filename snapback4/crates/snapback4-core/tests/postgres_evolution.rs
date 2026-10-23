@@ -238,7 +238,7 @@ definition_cases!(
     optional_required
 );
 
-fn restored_sibling_bytes(store: AnyStore, postgres: bool) -> (Value, Value) {
+fn restored_sibling_bytes(store: AnyStore) -> Engine {
     let (s, p) = bound(V1);
     let mut e = Engine::new_release(store, s, p, 1, None).unwrap();
     seed(&mut e);
@@ -248,6 +248,17 @@ fn restored_sibling_bytes(store: AnyStore, postgres: bool) -> (Value, Value) {
         assert!(row.field("count").is_err());
         assert!(row.field("memo").is_err());
     }
+    // SQLite's restore walk also visits rows without a retained memo cell.
+    let schema = e.schema().clone();
+    let tx = e.store_mut().transaction().unwrap();
+    tx.put(
+        "notes",
+        &schema.tables["notes"],
+        &object([("id", id("c")), ("n", Value::Int(3))]),
+        None,
+    )
+    .unwrap();
+    tx.commit().unwrap();
     let v3 = V1.replace(
         "  memo: json <=100 ?\n",
         "  memo: json <=100 ?\n  extra: text <=100 ?\n  count: int default 7\n",
@@ -260,8 +271,6 @@ fn restored_sibling_bytes(store: AnyStore, postgres: bool) -> (Value, Value) {
     );
     let mut expected = raw.clone();
     snapback4_core::schema::materialize_optional_fields(&mut expected, &e.schema().tables["notes"]);
-    assert_eq!(raw.field("extra").is_err(), postgres);
-    assert_eq!(raw.field("count").is_err(), postgres);
     let interpreted = e
         .query(
             "peek",
@@ -270,28 +279,192 @@ fn restored_sibling_bytes(store: AnyStore, postgres: bool) -> (Value, Value) {
         .unwrap()
         .data;
     assert_eq!(interpreted, expected);
-    (raw, interpreted)
+    e
 }
 #[test]
 fn ev1_sqlite_restored_sibling_bytes() {
-    restored_sibling_bytes(AnyStore::memory().unwrap(), false);
+    let e = restored_sibling_bytes(AnyStore::memory().unwrap());
+    let raw = e.store().rows("notes").unwrap().remove(0);
+    assert_eq!(raw.field("extra").unwrap(), &Value::Null);
+    assert_eq!(raw.field("count").unwrap(), &Value::Int(7));
 }
+
+// Read literal r.data, without row interpretation or JSON re-encoding.
+fn sqlite_images(e: &Engine) -> Vec<String> {
+    e.store()
+        .test_support_conn()
+        .prepare(
+            "SELECT data FROM r WHERE t=(SELECT num FROM _catalog WHERE name='notes') ORDER BY id",
+        )
+        .unwrap()
+        .query_map([], |r| r.get(0))
+        .unwrap()
+        .collect::<Result<_, _>>()
+        .unwrap()
+}
+#[cfg(feature = "postgres")]
+fn pg_images(namespace: &str) -> Vec<String> {
+    let mut client = postgres::Client::connect(
+        &std::env::var("SNAPBACK4_EVAL_POSTGRES").unwrap(),
+        postgres::NoTls,
+    )
+    .unwrap();
+    client
+        .query(
+            &format!("SELECT data FROM {namespace}.r WHERE t='notes' ORDER BY id"),
+            &[],
+        )
+        .unwrap()
+        .into_iter()
+        .map(|r| r.get(0))
+        .collect()
+}
+
 #[cfg(feature = "postgres")]
 #[test]
 #[ignore = "requires private Postgres; scripts/test-postgres.sh"]
 fn ev1_dual_store_restored_sibling_bytes() {
     let c = std::env::var("SNAPBACK4_EVAL_POSTGRES").unwrap();
-    let pg = AnyStore::create_postgres(
-        &c,
-        &format!("sb4_ev1_bytes_{:x}", snapback4_core::ids::seed()),
+    let namespace = format!("sb4_ev1_bytes_{:x}", snapback4_core::ids::seed());
+    let mut pg = restored_sibling_bytes(AnyStore::create_postgres(&c, &namespace).unwrap());
+    let mut sqlite = restored_sibling_bytes(AnyStore::memory().unwrap());
+    let expected = sqlite_images(&sqlite);
+    assert_eq!(pg_images(&namespace), expected);
+    println!("Both stores' literal r.data: {expected:?}");
+    let args = Context::new("alice", [("key".into(), id("a"))].into()).at(1000);
+    assert_eq!(
+        sqlite.query("peek", args.clone()).unwrap(),
+        pg.query("peek", args).unwrap()
+    );
+}
+
+// @ref LLP 3000.009.001.000#3.5 — restore bytes feed scan accounting and bounded change evidence.
+fn restored_large_default(store: AnyStore) -> Engine {
+    let v1 = "table notes:\n  n: int\n  memo: json <=100 ?\n  by byN: n, id\n  public\n  insert <- allow\n  delete <- allow\n  online only\ntable children:\n  note: notes on delete restrict\n  public\n  insert <- allow\n  online only\nquery scan():\n  return notes where .n = 1 first 10 by byN\nquery peek(key: id):\n  return notes[key]\nmutation erase(key: id):\n  delete notes[key]\n";
+    let (s, p) = bound(v1);
+    let mut e = Engine::new_release(store, s.clone(), p, 1, None).unwrap();
+    let tx = e.store_mut().transaction().unwrap();
+    tx.put(
+        "notes",
+        &s.tables["notes"],
+        &object([
+            ("id", id("a")),
+            ("n", Value::Int(1)),
+            ("memo", Value::String("雪\0exact".into())),
+        ]),
+        None,
     )
     .unwrap();
-    let (sqlite_raw, sqlite_wire) = restored_sibling_bytes(AnyStore::memory().unwrap(), false);
-    let (pg_raw, pg_wire) = restored_sibling_bytes(pg, true);
-    assert_ne!(sqlite_raw, pg_raw);
-    assert_eq!(sqlite_wire, pg_wire);
+    tx.commit().unwrap();
+    let sibling = format!(
+        "  payload: text <=307200 default '{}'\n",
+        "x".repeat(300 * 1024)
+    );
+    let v2 = v1.replace("  memo: json <=100 ?\n", &sibling);
+    release(&mut e, &v2, 2, false).unwrap();
+    assert!(
+        e.store().rows("notes").unwrap()[0]
+            .field("payload")
+            .is_err(),
+        "ordinary add stays sparse"
+    );
+    let v3 = v1.replace(
+        "  memo: json <=100 ?\n",
+        &format!("  memo: json <=100 ?\n{sibling}"),
+    );
+    release(&mut e, &v3, 3, true).unwrap();
+    e
+}
+#[cfg(feature = "postgres")]
+fn large_default_pair() -> (Engine, Engine, String) {
+    let c = std::env::var("SNAPBACK4_EVAL_POSTGRES").unwrap();
+    let namespace = format!("sb4_ev1_large_{:x}", snapback4_core::ids::seed());
+    let pg = restored_large_default(AnyStore::create_postgres(&c, &namespace).unwrap());
+    (
+        restored_large_default(AnyStore::memory().unwrap()),
+        pg,
+        namespace,
+    )
+}
+#[test]
+fn ev1_sqlite_large_default_restore() {
+    let mut e = restored_large_default(AnyStore::memory().unwrap());
+    assert!(sqlite_images(&e)[0].len() > 300 * 1024);
+    assert!(erase_changes(&mut e).is_none());
+}
+fn erase_changes(e: &mut Engine) -> Option<snapback4_core::revocation::Footprint> {
+    let out = e
+        .mutate(
+            "erase",
+            Some("erase-restored"),
+            Context::new("alice", [("key".into(), id("a"))].into()).at(1000),
+        )
+        .unwrap();
+    let snapback4_core::WriteState::Sent { seq, .. } = out.state else {
+        panic!("{out:?}");
+    };
+    e.store()
+        .footprint_between(seq - 1, seq)
+        .filter(|f| !f.unknown)
+}
+#[cfg(feature = "postgres")]
+#[test]
+#[ignore = "requires private Postgres; scripts/test-postgres.sh"]
+fn ev1_dual_store_large_default_bytes() {
+    let (sqlite, _pg, namespace) = large_default_pair();
+    let expected = sqlite_images(&sqlite);
+    let actual = pg_images(&namespace);
     println!(
-        "SQLite stored: {sqlite_raw:?}; Postgres stored: {pg_raw:?}; interpreted: {pg_wire:?}"
+        "300 KiB default raw lengths: SQLite {}, Postgres {}",
+        expected[0].len(),
+        actual[0].len()
+    );
+    assert!(expected[0].len() > 300 * 1024);
+    assert!(actual == expected, "literal r.data differs (lengths above)");
+}
+#[cfg(feature = "postgres")]
+#[test]
+#[ignore = "requires private Postgres; scripts/test-postgres.sh"]
+fn ev1_dual_store_large_default_meters() {
+    let (mut sqlite, mut pg, _) = large_default_pair();
+    for heap_bytes in [16 << 20, 1 << 20] {
+        let ceilings = snapback4_core::meter::Ceilings {
+            heap_bytes,
+            ..Default::default()
+        };
+        sqlite.set_ceilings(ceilings);
+        pg.set_ceilings(ceilings);
+        for (name, args) in [
+            ("scan", Context::new("alice", Default::default()).at(1000)),
+            (
+                "peek",
+                Context::new("alice", [("key".into(), id("a"))].into()).at(1000),
+            ),
+        ] {
+            let expected = sqlite.query(name, args.clone()).unwrap();
+            let actual = pg.query(name, args).unwrap();
+            println!(
+                "{name} heap ceiling {heap_bytes} meters: SQLite {:?}; Postgres {:?}; complete {} / {}",
+                expected.metered, actual.metered, expected.complete, actual.complete
+            );
+            assert_eq!(actual.metered, expected.metered);
+            assert_eq!(actual.data, expected.data);
+            assert_eq!(actual.complete, expected.complete);
+        }
+    }
+}
+#[cfg(feature = "postgres")]
+#[test]
+#[ignore = "requires private Postgres; scripts/test-postgres.sh"]
+fn ev1_dual_store_large_default_changes() {
+    let (mut sqlite, mut pg, _) = large_default_pair();
+    let expected = erase_changes(&mut sqlite);
+    let actual = erase_changes(&mut pg);
+    println!("300 KiB parent delete changes: SQLite {expected:?}; Postgres {actual:?}");
+    assert!(expected.is_none());
+    assert_eq!(
+        serde_json::to_value(actual).unwrap(),
+        serde_json::to_value(expected).unwrap()
     );
 }
 fn contract(store: AnyStore) {
