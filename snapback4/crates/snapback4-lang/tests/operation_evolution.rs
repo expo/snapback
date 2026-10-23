@@ -59,10 +59,12 @@ fn reports_old_input_breaks_results_and_refusals_and_keeps_required_types() {
     assert!(compare(&old,&safe,"release 1").is_empty(),"{:?}",compare(&old,&safe,"release 1"));
 }
 #[test]
-fn same_named_nominal_rows_still_report_changed_result_fields() {
+fn same_named_nominal_rows_report_additive_result_fields_as_notes() {
     let old=checked("table items:\n  n: int\n  public\nquery q(id: items):\n  return items[id]\n");
     let new=checked("table items:\n  n: int\n  label: text <=20 default ''\n  public\nquery q(id: items):\n  return items[id]\n");
-    assert!(compare(&old,&new,"release 1").iter().any(|s|s.contains("RESULT REVIEW")));
+    let report=compare(&old,&new,"release 1");
+    assert!(report.iter().any(|s|s.contains("RESULT NOTE")),"{report:?}");
+    assert!(!report.iter().any(|s|s.contains("RESULT REVIEW")),"{report:?}");
 }
 
 #[test]
