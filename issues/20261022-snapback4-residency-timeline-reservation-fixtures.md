@@ -40,3 +40,16 @@ these fixtures do not submit a serving command. Reproduce with
 --nocapture` from `snapback4/`. Logs are
 `/tmp/sb4-k0q-fix2-final/device.log` and `device-isolated-{0..7}.log`.
 The validator and these fixture schemas were not changed by this lane.
+
+## Also seen: 0.4.38 publication, Linux qualify at `cadb7c55be` (2026-10-22)
+
+The same error is wider than these four cases. At `cadb7c55be` (the origin/main tip), the full suite failed 19 Rust tests in 6 targets, plus one client test:
+
+- `snapback4-device::readauth`: 8 tests;
+- `snapback4-lang::live_parent`: 6 tests;
+- `snapback4-sim::maintains_recorded`: 2 tests;
+- the four cases listed above;
+- `snapback4-lang::declarative_receipts`, the prediction round1 authentic-predecessor case, which fails with `add: execution facts changed without a program change`;
+- `packages/snapback4/test/residency.test.mjs` test 6.
+
+Both messages come from `snapback4-core/src/engine/activation_facts.rs`, which `202826334f` added (merged by `c3f23ff2c2`). `maintains_recorded` fails on its own on Linux (2/2) and on the Mac (1/1). 0.4.38 was published from `951ecdd4df`, which comes before the merge. Evidence: `snapback4/reports/20261022-publication-0.4.38/superseded/attempt-1-cadb7c55be-linux/`.

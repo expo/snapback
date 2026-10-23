@@ -1,0 +1,41 @@
+runtime changes: 0.4.37 → 0.4.38
+## 0.4.38
+
+- Security questions lead default `check` and `audit`; result-exposure advice groups by table and creation advice ignores defaults and literal-only assignments. New questions cover evidence, money, approval bypasses, stale eligibility, inconsistent windows, role-wide writes, private create/edit asymmetry and evidence removal.
+- Existing apps can now fail `check` on retained role grants or optional uploads that contradict explicit non-null or parent integrity intent. Repair the finding or acknowledge each ID with `check --ack-security <ID> --reason "<decision>"`. The source-bound decision lives in `snapback/security-reviews.json`; bulk `--ack-notes` does not clear it, and source/analyzer changes require renewed review. Deliberate optionality remains quiet; fresh starters pass without stock upload acknowledgments.
+- `test` explores directed lifecycle histories beyond pairs. The security guide explains review decisions; rule recipes model ownership of a particular wall. These bounded histories and naming-based questions do not certify application security.
+- Seeded staging accounts carry their session kind. Existing partial online session literals use bearer-only transport; complete and local/device sessions retain strict validation. `E_SESSION` names every invalid/missing field and shows the token-only repair.
+- `advance()` reports again coerce to numeric `now` for arithmetic and `Date`. Staging jumps preserve live session lifetimes by default; `{sessions:"expire"}` tests expiry. `{drain:false}` pauses maintenance for mutation deadline tests and `drain()` resumes at the same time. Held future boundaries refuse before effects unless `allowHeld` is explicit; already-processed current windows remain not-due. Production clock controls remain refused.
+- Staging clock publication follows credential persistence. Captured write/effect outcomes retain close-cutoff custody; stale authentication refusals cannot fail writes after bearer rotation or successor sign-out.
+- Upgrade warnings apply to actual version transitions and affected scripts, include partial-session/numeric-advance scans, and record piped delivery. Fresh init is quiet. Old quiet CLIs can hide captured migration advice. Future store formats name a newer Snapback and `sql` exits nonzero.
+- React and Expo starter lists use `ReadState`. Password clients omit witness/persona plumbing; proof drivers install the observer. Proof text matching accepts composed React Native text and wrapping labels while retaining strict ambiguity and explicit matching modes.
+History begins at 0.4.26; earlier changes are not recorded.
+upgrade delta: 0.4.37 → 0.4.38 for snapback/*.q
+  new notes: none
+  new refusals: none
+  generated/api.ts types: unchanged
+  query completeness: unchanged
+  release card: snapback4 guide changes
+check: ok — 5 tables, 1 view (5 synced), 12 operations, compiled, 17 notes, 9805.1 ms
+1 more actionable notes in check --verbose/JSON
+16 things to review (advisory; check --verbose explains each, snapback4 why <CODE> one):
+review — can cost correctness or completeness:
+note: schema.q:1:1 — N_BROAD_READ: review: confirm each admitted audience and row state. messageCounts.read: branch `exists memberships[.conversationId, viewer]` lets every memberships member read every row, regardless of ownership — snapback4 why N_BROAD_READ
+note: schema.q:16:1 — N_BROAD_READ: review: confirm each admitted audience and row state. profiles.read: branch `public` lets every signed-in user read every row — snapback4 why N_BROAD_READ
+note: schema.q:33:3 — N_BROAD_READ: review: confirm each admitted audience and row state. conversations.read: branch `exists memberships[.id, viewer]` lets every memberships member read every row, regardless of ownership — snapback4 why N_BROAD_READ
+note: schema.q:50:3 — N_BROAD_READ: review: confirm each admitted audience and row state. memberships.read: branch `exists memberships[.conversationId, viewer]` lets every memberships member read every row, regardless of ownership — snapback4 why N_BROAD_READ
+note: schema.q:59:3 — N_OPTIONAL_EVIDENCE: review. messages.photo permits omitted or empty media evidence — snapback4 why N_OPTIONAL_EVIDENCE
+note: schema.q:64:3 — N_BROAD_READ: review: confirm each admitted audience and row state. messages.read: branch `exists memberships[.conversationId, viewer]` lets every memberships member read every row, regardless of ownership — snapback4 why N_BROAD_READ
+note: schema.q:16:1 — N_NO_PRODUCTION_WRITER: fix: add a production bootstrap writer. profiles: no production writer can bootstrap this root; fixtures and /seed are dev-only — snapback4 why N_NO_PRODUCTION_WRITER
+note: N_NO_PRODUCTION_WRITER (as above) also for conversations: no production writer can bootstrap this root (schema.q:30:1); memberships: no production writer can bootstrap this root (schema.q:40:1) — snapback4 why N_NO_PRODUCTION_WRITER
+note: schema.q:85:10 — N_REFERENCE_UNCHECKED: review: this reference argument has no mandatory target lookup. mutation addMember stores argument conversationId directly in memberships.conversationId, without a mandatory lookup of conversations[conversationId] on every committing path: a reference accepts any well-formed id even when the row is absent — snapback4 why N_REFERENCE_UNCHECKED
+note: N_REFERENCE_UNCHECKED (as above) also for mutation send (schema.q:94:9); mutation sendPhoto (schema.q:99:9) — snapback4 why N_REFERENCE_UNCHECKED
+note: schema.q:103:9 — N_LOOKUP_FILTERED: review: confirm lookup authority and the hidden-row outcome. mutation edit: lookup of messages uses `read <- exists memberships[.conversationId, viewer]` (schema.q:64:3); its key and preceding guards do not prove read authority. A hidden, expired or missing row returns null; `! else CODE` refuses with that authored code for all three. A later field/default or require may report a different business condition — snapback4 why N_LOOKUP_FILTERED
+note: N_LOOKUP_FILTERED (as above) also for mutation unsend (schema.q:109:9) — snapback4 why N_LOOKUP_FILTERED
+note: schema.q:83:1 — N_COLUMN_RESULT_EXPOSURE: review: confirm every result/refusal audience. memberships: grouped result/refusal observers; review operation audiences and private columns (check --verbose/JSON lists every operation, column and site) — snapback4 why N_COLUMN_RESULT_EXPOSURE
+note: schema.q:1:1 — N_SECURITY_INTENT: review: write independent intent from the spec. 5 tables have access rules and no security invariants: conversations, memberships, messageCounts, profiles, readMarkers; declare the spec's privacy rules as invariants (`guide security`) — snapback4 why N_SECURITY_INTENT
+1 mutation is server-run (online app: no action): markRead (writes online-only table readMarkers); 1 mutations have insert arms that may queue; 2 eligible mutations may queue past a horizon — snapback4 why <op>
+check --verbose for explanations, rewrites and execution details; why <op> for one operation
+security: 0 proved, 0 refuted, 1 unproved (0 failing)
+  next: snapback4 test; 7 coverage gaps (check --verbose/JSON keeps every reason)
+  review audiences and 16 uncovered exposures: snapback4 audit

@@ -1,0 +1,13 @@
+{
+  "step": "registry-cli",
+  "command": [
+    "bash",
+    "/Users/ccheever/sb4-pub-0438/helpers-0.4.38/registry-retry.sh",
+    "cli"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-pub-0428/snapback4",
+  "start": 1792729334.806255,
+  "end": 1792729338.164663,
+  "seconds": 3.358,
+  "exit": 0
+}
