@@ -1,0 +1,138 @@
+{
+  "record_date": "2026-10-23",
+  "cluster_stop_confirmations": [
+    {
+      "data": "/tmp/sb4-rt12.8znlN2/data",
+      "before_status": 0,
+      "pid": 517607,
+      "birth": "1527455032",
+      "command": "/home/ccheever/tools/pg16/usr/lib/postgresql/16/bin/postgres -D /tmp/sb4-rt12.8znlN2/data -k /tmp/sb4-rt12.8znlN2 -c listen_addresses= -c max_connections=400 -p 55439 ",
+      "stop_status": 0,
+      "stop_output": "waiting for server to shut down..... done\nserver stopped\n",
+      "after_status": 3,
+      "pidfile_exists": false
+    },
+    {
+      "data": "/tmp/s10d3-serve-lfor7_iz/data",
+      "before_status": 3,
+      "after_status": 3,
+      "pidfile_exists": false
+    },
+    {
+      "data": "/tmp/s10d3-serve-jfmndwv6/data",
+      "before_status": 3,
+      "after_status": 3,
+      "pidfile_exists": false
+    }
+  ],
+  "public_server_pid_records": [
+    {
+      "name": "first",
+      "pid": 892451,
+      "cluster": "/tmp/s10d3-serve-lfor7_iz/data",
+      "pid_present": false
+    },
+    {
+      "name": "contender",
+      "pid": 892496,
+      "cluster": "/tmp/s10d3-serve-lfor7_iz/data",
+      "pid_present": false
+    },
+    {
+      "name": "restart",
+      "pid": 892797,
+      "cluster": "/tmp/s10d3-serve-lfor7_iz/data",
+      "pid_present": false
+    },
+    {
+      "name": "standby",
+      "pid": 893092,
+      "cluster": "/tmp/s10d3-serve-lfor7_iz/data",
+      "pid_present": false
+    },
+    {
+      "name": "second-release",
+      "pid": 893161,
+      "cluster": "/tmp/s10d3-serve-lfor7_iz/data",
+      "pid_present": false
+    },
+    {
+      "name": "p1mc-scale",
+      "pid": 895870,
+      "cluster": "/tmp/s10d3-serve-lfor7_iz/data",
+      "pid_present": false
+    },
+    {
+      "name": "first",
+      "pid": 1317651,
+      "cluster": "/tmp/s10d3-serve-jfmndwv6/data",
+      "pid_present": false
+    },
+    {
+      "name": "contender",
+      "pid": 1317697,
+      "cluster": "/tmp/s10d3-serve-jfmndwv6/data",
+      "pid_present": false
+    },
+    {
+      "name": "restart",
+      "pid": 1317932,
+      "cluster": "/tmp/s10d3-serve-jfmndwv6/data",
+      "pid_present": false
+    },
+    {
+      "name": "standby",
+      "pid": 1318195,
+      "cluster": "/tmp/s10d3-serve-jfmndwv6/data",
+      "pid_present": false
+    },
+    {
+      "name": "second-release",
+      "pid": 1318269,
+      "cluster": "/tmp/s10d3-serve-jfmndwv6/data",
+      "pid_present": false
+    },
+    {
+      "name": "p1mc-scale",
+      "pid": 1320731,
+      "cluster": "/tmp/s10d3-serve-jfmndwv6/data",
+      "pid_present": false
+    }
+  ],
+  "started_pid_ledger": [
+    "502198 rt1-build",
+    "506571 rt1-build",
+    "509869 rt1-build2",
+    "510701 rt1-build3",
+    "514001 rt1-focused",
+    "517607 rt12-postmaster",
+    "518417 rt1-no-default",
+    "523063 ref-check",
+    "886716 pg_ctl -D /tmp/s10d3-serve-lfor7_iz/data -l /tmp/s10d3-serve-lfor7_iz/postgres.log -o -k /tmp/s10d3-serve-lfor7_iz -c listen_addresses= -p 55483 -w start",
+    "886719 postmaster /tmp/s10d3-serve-lfor7_iz/data",
+    "895907 pg_ctl -D /tmp/s10d3-serve-lfor7_iz/data -m fast -w stop",
+    "895943 pg_ctl -D /tmp/s10d3-serve-lfor7_iz/data status",
+    "1311683 pg_ctl -D /tmp/s10d3-serve-jfmndwv6/data -l /tmp/s10d3-serve-jfmndwv6/postgres.log -o -k /tmp/s10d3-serve-jfmndwv6 -c listen_addresses= -p 55483 -w start",
+    "1311686 postmaster /tmp/s10d3-serve-jfmndwv6/data",
+    "1320772 pg_ctl -D /tmp/s10d3-serve-jfmndwv6/data -m fast -w stop",
+    "1320786 pg_ctl -D /tmp/s10d3-serve-jfmndwv6/data status",
+    "1323844 pg_ctl -D /tmp/sb4-rt12.8znlN2/data status",
+    "517607 postmaster /tmp/sb4-rt12.8znlN2/data",
+    "517607 cleanup-confirmed owned postmaster /tmp/sb4-rt12.8znlN2/data",
+    "1323846 pg_ctl -D /tmp/sb4-rt12.8znlN2/data -m fast -t 180 -w stop",
+    "1323948 pg_ctl -D /tmp/sb4-rt12.8znlN2/data status",
+    "1323950 pg_ctl -D /tmp/s10d3-serve-lfor7_iz/data status",
+    "1323952 pg_ctl -D /tmp/s10d3-serve-lfor7_iz/data status",
+    "1323954 pg_ctl -D /tmp/s10d3-serve-jfmndwv6/data status",
+    "1323956 pg_ctl -D /tmp/s10d3-serve-jfmndwv6/data status"
+  ],
+  "process_monitor": {
+    "path": "/tmp/sb4-rt12-records/processes.jsonl",
+    "records": 5843,
+    "sha256": "8a4c7e57c47f021b3f3661d94bc1fdfddac4c9e22415b3ea37e7bc4d807f6e1e"
+  },
+  "final_audit": {
+    "recorded_owned_processes_still_present": [],
+    "target_and_cluster_process_census": []
+  }
+}

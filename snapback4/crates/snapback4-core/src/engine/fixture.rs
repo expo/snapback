@@ -8,8 +8,8 @@ impl Engine {
         let identity=store.store_identity()?.ok_or_else(||RuntimeError::Store("fixture store has no identity".into()))?;
         Ok(Self {
             timeline_schedule:timeline::Schedule::default(),
-            ephemeral:std::sync::Arc::new(if self.schema.tables.values().any(|t|t.ephemeral.is_some()){self.ephemeral.fork_fixture(&identity,self.generation)?}else{ephemeral::Hub::new(identity,self.generation,&self.schema)}),
-            store,schema:self.schema.clone(),programs:self.programs.clone(),ceilings:self.ceilings,
+            ephemeral:std::sync::Arc::new(if self.schema.tables.values().any(|t|t.ephemeral.is_some()){self.ephemeral.fork_fixture(&identity,self.generation)?}else{ephemeral::Hub::new(identity.clone(),self.generation,&self.schema)}),
+            store_id:identity,store,schema:self.schema.clone(),programs:self.programs.clone(),ceilings:self.ceilings,
             entropy:crate::ids::seed(),minter:crate::ids::Mint::default(),generation:self.generation,
             expiry_after:self.expiry_after.clone(),dev_effects:self.dev_effects,
             #[cfg(feature="native")] native:self.native.clone(),

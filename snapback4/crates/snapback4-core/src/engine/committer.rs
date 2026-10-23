@@ -372,7 +372,7 @@ impl Solo {
 impl super::Engine {
     /// Publish the currently durable head and accepted engine identity to a
     /// host's wake state while the writer is owned. Serving runs this stage
-    /// on its committer thread; the continuation never opens a transaction.
+    /// on its committer thread. Callers without commit facts take fresh snapshots.
     pub fn continue_durable_publication<D, R>(
         &self,
         data: D,

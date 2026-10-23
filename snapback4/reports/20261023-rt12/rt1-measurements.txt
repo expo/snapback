@@ -1,0 +1,12 @@
+Three identical warm samples per class; actual HTTP dispatch.
+Initial measurement deliberately fails the old higher table (lower-the-table guard).
+RT0 sqlite warm: {"action_session_w1":39,"keyed_first":76,"narrowed_argument":46,"one_membership":69,"rate_limited":0,"replay_hit":40,"unauthenticated":0,"unkeyed_increment":68,"unknown_operation":46,"unknown_token":5,"w1_point":31,"w2_newest20":31}
+RT0 sqlite cold/first-use: {"action_session_w1":39,"keyed_first":76,"narrowed_argument":46,"one_membership":69,"rate_limited":0,"replay_hit":40,"unauthenticated":0,"unkeyed_increment":68,"unknown_operation":46,"unknown_token":5,"w1_point":32,"w2_newest20":31}
+RT0 postgres warm: {"action_session_w1":29,"keyed_first":62,"narrowed_argument":26,"one_membership":43,"rate_limited":0,"replay_hit":30,"unauthenticated":0,"unkeyed_increment":42,"unknown_operation":26,"unknown_token":5,"w1_point":23,"w2_newest20":23}
+RT0 postgres cold/first-use: {"action_session_w1":32,"keyed_first":66,"narrowed_argument":26,"one_membership":43,"rate_limited":0,"replay_hit":30,"unauthenticated":0,"unkeyed_increment":43,"unknown_operation":26,"unknown_token":5,"w1_point":56,"w2_newest20":24}
+
+Final passing ratchets:
+RT0 sqlite warm: {"action_session_w1":39,"keyed_first":76,"narrowed_argument":46,"one_membership":69,"rate_limited":0,"replay_hit":40,"unauthenticated":0,"unkeyed_increment":68,"unknown_operation":46,"unknown_token":5,"w1_point":31,"w2_newest20":31}
+RT0 sqlite cold/first-use: {"action_session_w1":39,"keyed_first":76,"narrowed_argument":46,"one_membership":69,"rate_limited":0,"replay_hit":40,"unauthenticated":0,"unkeyed_increment":68,"unknown_operation":46,"unknown_token":5,"w1_point":32,"w2_newest20":31}
+RT0 postgres warm: {"action_session_w1":29,"keyed_first":62,"narrowed_argument":26,"one_membership":43,"rate_limited":0,"replay_hit":30,"unauthenticated":0,"unkeyed_increment":42,"unknown_operation":26,"unknown_token":5,"w1_point":23,"w2_newest20":23}
+RT0 postgres cold/first-use: {"action_session_w1":32,"keyed_first":66,"narrowed_argument":26,"one_membership":43,"rate_limited":0,"replay_hit":30,"unauthenticated":0,"unkeyed_increment":43,"unknown_operation":26,"unknown_token":5,"w1_point":56,"w2_newest20":24}

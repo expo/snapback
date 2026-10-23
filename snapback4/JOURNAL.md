@@ -102760,3 +102760,113 @@ wire transcripts remain under `/tmp/s10d3-serve-nmlfm_xp/`. Local commits only.
 
 Post-entry root `./ref-check` passes: 565 LLP documents, 11,768 references,
 zero errors and zero unchecked. Whitespace validation also passes.
+## 2026-10-23 — RT1: carry the durable mutation's publication facts
+
+Lane `sb4-pg/rt12`, based on `901a362705`. The acknowledged mutation API
+carries committed head, accepted incarnation/generation and preservation through
+the worker's synchronous publication into the response, only after physical
+COMMIT. SQLite uses the recorder it persisted; Postgres keeps unknown evidence.
+Replay and refusal metadata still read a current head. Receipt-only reports
+still do not wake. No SQL, fence, receipt, batching or flight change.
+
+The warm HTTP ratchets measure SQLite 79→68 / membership 80→69 / keyed 87→76,
+Postgres 57→42 / 58→43 / 77→62; all nine other classes stay unchanged, including
+W1 31/23. The Postgres predictions match exactly. Both tables and the RFC's
+RT1 implementation note are updated together. Shared concurrent-command and
+adoption witnesses compare carried facts with re-reads and read their writes;
+reset, ownership-guard loss, stale-token replay and unknown COMMIT are covered.
+The report at `reports/20261023-rt12/REPORT.md` retains validation and custody.
+
+
+RT1 qualification: the complete final core repeat passes 1,088 cases (five
+ignores); no-default, build, guide 127/127, final SQLite/PG ratchets and affected
+publication tests pass. The full Postgres script completes with only the
+supplied Serializable stress red, passing alone in both modes; its public
+serving witness passes and stops its cluster. Six full-CLI cases persist alone
+(four reservation fixtures, a clock-drain timeout, missing generated security
+record); all names/errors and initial setup corrections remain in the report.
+The preparatory wasm build is over the unchanged budget; no device/publication
+qualification is claimed. Confirmed writes publish with zero database work
+after queue loss; executing-writer replays retain their old current-head wake.
+
+
+## 2026-10-23 — RT2: lazy response heads from the borrowed query snapshot
+
+After RT1 `af1888b812`, mutation preflight skips its unused response snapshot
+on a replay miss; queries extract live identity/head from the snapshot already
+evaluating the request. Generation validation, authority/replay boundaries,
+error/status/header/receipt policy and notifications retain their paths. No SQL
+text, batching or flight changes. A generation failure reuses its refusal;
+early metadata-bearing outcomes without a query snapshot still take a fresh head.
+
+Postgres measures mutation 42→38 as predicted, W1/W2 23→20 versus W1's 19:
+the live identity SELECT is retained inside the query snapshot. SQLite mutation
+68→60 and W1/W2 31→24; all twelve classes on both stores agree across three
+warm samples and none increases. The tables and RFC §6 record every class and
+why the read prediction differs. Evaluated refusals now have head=seq, with
+one-snapshot identity/generation; the old two-snapshot-gap witness is strengthened
+accordingly. LLP 3000.018's living contract and the wire guide record that cut.
+
+Shared SQLite/Postgres witnesses hold the query snapshot across another commit,
+compare metadata with re-reads, keep its original row/cut, then read the
+acknowledged new row; refusal and adoption/obsolete-reader cases share the same
+proof. Qualification and process custody follow in `reports/20261023-rt12/REPORT.md`.
+
+
+RT2 qualification: complete core 1,089 passes/five ignores, final no-default
+and normal build pass, guide 127/127 and both final HTTP ratchets pass. Four
+CLI reservation fixtures persist alone; the transient clock case passes alone.
+All Postgres stages finish: 387 Rust passes and only the supplied Serializable
+stress red, passing exactly alone in both modes; public restart/takeover and
+release adoption pass. The report retains names, counts, the corrected refusal
+cut witness and process custody. All three private clusters are independently
+stopped, every owned server/process is absent, and PIDs left are none. Disk
+stays above 40 GB. Two local increments; no push.
+
+## 2026-10-23 — RT1/RT2 fix round 1: confirmed commit replies and query metadata errors
+
+Lane `sb4-pg/rt12-fix1`, base `bfdf051278`. RT1 deliberately keeps a confirmed
+durable mutation successful across a foreign activation or ownership loss
+between COMMIT and publication. Its reply and subscriber wake describe the
+commit's sequence, head, generation and incarnation; the next request still
+crosses the existing refusal/handoff boundary. The request-budget RFC §3.4,
+RT1 note and wire guide now state why: a 503 for an applied unkeyed write
+would invite a duplicate application. Non-request publishers without commit
+facts still fresh-read; §3.4 no longer claims their transactions disappeared.
+
+New HTTP witnesses pause immediately before carried publication, after the
+acknowledged engine call has confirmed COMMIT. One commits a foreign activation
+on real private Postgres; the other hard-links its own SQLite file to break the
+retained ownership guard. They require 200 sent with the commit's facts, a real
+condition-variable subscriber woken with those facts, failure of the removed
+fresh seq read, and refusal of the next query. The SQLite witness is Unix-only;
+the Postgres named ignore is selected by the existing Postgres script filter.
+
+The query snapshot callback now propagates a store_id failure before running
+the program, preserving its original 503 denied response. A SQLite authorizer
+witness faults that live read after next_seq and requires no application-row
+reads; a healthy control requires those reads. The stale refusal-cut comment
+now describes head=seq. Checking early engine refusals found real HTTP paths:
+held queries and missing/bounded/cursor argument validation after wire shape
+decoding. A witness records their existing fresh-head, absent-seq envelopes;
+that behavior is unchanged. No SQL, authority boundary, flight, receipt, or
+round-trip ratchet table is changed. Qualification follows below.
+
+RT1/RT2 fix-round qualification: normal build and no-default-features check
+pass; complete core passes 1,089 cases plus its subprocess witness (five
+ignores); complete binary passes 540 (eleven ignores). Both RT0 tables remain
+byte-identical to bfdf051278 and both ratchets pass. The complete Postgres
+script runs every stage but exits red for the supplied Serializable 40001,
+three short-lease fixtures (each passes exactly alone), and the new witness's
+initial next-request status assumption. That assertion now preserves the
+actual Postgres ingress refusal, 401 E_GENERATION; SQLite remains 503 E_STORE.
+The final fresh-cluster Postgres filter passes all three cases, including
+foreign activation, committed publication after queue loss, and the ratchet.
+The committed response and subscriber wake require the original commit facts
+on both stores. Public bootstrap, restart/takeover, release adoption and P1-MC
+pass. Ref-check and whitespace pass. The report records each initial failure,
+exact isolated rerun, SHA-256 table digests, and PID custody. All three private
+clusters are independently confirmed stopped; all 26 recorded launch PIDs and
+all executables under this lane's target are absent. PIDs left: none. Lowest
+observed /home free space 58 GB; only the authorized target, four build jobs,
+no preserved target copies, no push, stash or git config edit.

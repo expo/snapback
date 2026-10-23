@@ -407,6 +407,7 @@ pub struct Engine {
     entropy: u64,
     minter: crate::ids::Mint,
     generation: u64,
+    store_id: String,
     /// Per-table physical expiry scan positions. Restricted or retained roots
     /// consume a visit, so later due keys make progress across short sweeps.
     expiry_after: BTreeMap<String, Vec<Value>>,
@@ -446,13 +447,13 @@ impl Engine {
         let (generation, metadata) = Self::activate(&mut store, &schema, &programs, None, now, true, None, None)?.into_inner();
         let dev_effects = metadata.dev_effects;
         store.exclude_ephemeral(&schema);
-        Ok(Self { timeline_schedule: timeline::Schedule::default(), ephemeral: std::sync::Arc::new(ephemeral::Hub::new(metadata.store_id, generation, &schema)), store, schema, programs, generation, expiry_after: BTreeMap::new(), dev_effects, ceilings: Ceilings::default(), entropy: crate::ids::seed(), minter: crate::ids::Mint::default(), #[cfg(feature = "native")] native: None, #[cfg(feature = "native")] native_logs: native::Logs::default(), presence: None })
+        Ok(Self { timeline_schedule: timeline::Schedule::default(), ephemeral: std::sync::Arc::new(ephemeral::Hub::new(metadata.store_id.clone(), generation, &schema)), store_id: metadata.store_id, store, schema, programs, generation, expiry_after: BTreeMap::new(), dev_effects, ceilings: Ceilings::default(), entropy: crate::ids::seed(), minter: crate::ids::Mint::default(), #[cfg(feature = "native")] native: None, #[cfg(feature = "native")] native_logs: native::Logs::default(), presence: None })
     }
 
     /// A detached read owner for HTTP query/sync computation. Creating it is
     /// brief; materializing its response does not hold the serving engine.
     pub fn reader(&self) -> Result<Self, RuntimeError> {
-        Ok(Self { timeline_schedule: timeline::Schedule::default(), ephemeral: self.ephemeral.clone(), store: self.store.reader()?, schema: self.schema.clone(), programs: self.programs.clone(),
+        Ok(Self { timeline_schedule: timeline::Schedule::default(), ephemeral: self.ephemeral.clone(), store_id: self.store_id.clone(), store: self.store.reader()?, schema: self.schema.clone(), programs: self.programs.clone(),
             ceilings: self.ceilings, entropy: 0, minter: self.minter.clone(), generation: self.generation, expiry_after: BTreeMap::new(), dev_effects: self.dev_effects,
             #[cfg(feature = "native")] native: self.native.clone(),
             #[cfg(feature = "native")] native_logs: native::Logs::default(), presence: self.presence.clone() })
@@ -504,7 +505,7 @@ impl Engine {
             else { tx.rollback()?; Self::activate(&mut store, &schema, &programs, None, now, true, expected_release, Some(&kept))?.into_inner() };
         let dev_effects = metadata.dev_effects;
         store.accept_open(); store.exclude_ephemeral(&schema);
-        Ok(Self { timeline_schedule: timeline::Schedule::default(), ephemeral: std::sync::Arc::new(ephemeral::Hub::new(metadata.store_id, generation, &schema)), store, schema, programs, generation, expiry_after: BTreeMap::new(), dev_effects, ceilings: Ceilings::default(), entropy: crate::ids::seed(), minter: crate::ids::Mint::default(), #[cfg(feature = "native")] native: None, #[cfg(feature = "native")] native_logs: native::Logs::default(), presence: None })
+        Ok(Self { timeline_schedule: timeline::Schedule::default(), ephemeral: std::sync::Arc::new(ephemeral::Hub::new(metadata.store_id.clone(), generation, &schema)), store_id: metadata.store_id, store, schema, programs, generation, expiry_after: BTreeMap::new(), dev_effects, ceilings: Ceilings::default(), entropy: crate::ids::seed(), minter: crate::ids::Mint::default(), #[cfg(feature = "native")] native: None, #[cfg(feature = "native")] native_logs: native::Logs::default(), presence: None })
     }
 
     /// Serving a selected immutable release may attach only while that release
@@ -626,6 +627,7 @@ impl Engine {
             engine.programs = programs;
             engine.generation = generation;
             engine.expiry_after.clear();
+            engine.store_id = metadata.store_id.clone();
             engine.ephemeral.rebind_committed(metadata.store_id, generation, &engine.schema);
             Ok(generation)
         })?.into_inner())
@@ -739,7 +741,7 @@ impl Engine {
     /// carries, so a client can order it against answers (LLP 3000.018 §3.2).
     pub fn query_at(&mut self, name: &str, context: Context) -> (Result<QueryOutcome, Refusal>, Option<u64>) {
         let mut cut = None;
-        let result = self.query_reading(name, context, &mut cut, None, &mut None, DeliveryManifest::Build, true);
+        let result = self.query_reading(name, context, &mut cut, None, &mut None, DeliveryManifest::Build, true, None);
         (result, cut)
     }
 
@@ -755,7 +757,7 @@ impl Engine {
     pub fn query_search_with_delivery_at(&mut self, name: &str, context: Context, retained: Option<&[String]>, manifest: DeliveryManifest) -> (Result<QueryOutcome, Refusal>, Option<u64>, Option<Vec<String>>,
     ) {
         let (mut cut, mut current) = (None, None);
-        let result = self.query_reading(name, context, &mut cut, retained, &mut current, manifest, true);
+        let result = self.query_reading(name, context, &mut cut, retained, &mut current, manifest, true, None);
         (result, cut, current)
     }
 
@@ -766,11 +768,23 @@ impl Engine {
     pub fn query_materialized_search_with_delivery_at(&mut self, name: &str, context: Context, retained: Option<&[String]>, manifest: DeliveryManifest)
         -> (Result<QueryOutcome, Refusal>, Option<u64>, Option<Vec<String>>) {
         let (mut cut, mut current) = (None, None);
-        let result = self.query_reading(name, context, &mut cut, retained, &mut current, manifest, false);
+        let result = self.query_reading(name, context, &mut cut, retained, &mut current, manifest, false, None);
         (result, cut, current)
     }
 
-    fn query_reading(&mut self, name: &str, mut context: Context, cut: &mut Option<u64>, _retained: Option<&[String]>, _current: &mut Option<Vec<String>>, manifest: DeliveryManifest, advance_opening: bool) -> Result<QueryOutcome, Refusal> {
+    /// Observe response facts in the very snapshot that evaluates this request.
+    // @ref LLP 3000.009.001.000.001#3.3 — borrow the query snapshot for its envelope, without a second transaction.
+    #[cfg(feature = "server-search")]
+    pub fn query_materialized_search_with_snapshot(
+        &mut self, name: &str, context: Context, retained: Option<&[String]>, manifest: DeliveryManifest,
+        mut snapshot: impl FnMut(&crate::store_port::ReadSnapshot<'_>, u64) -> Result<(), Refusal>,
+    ) -> (Result<QueryOutcome, Refusal>, Option<u64>, Option<Vec<String>>) {
+        let (mut cut, mut current) = (None, None);
+        let result = self.query_reading(name, context, &mut cut, retained, &mut current, manifest, false, Some(&mut snapshot));
+        (result, cut, current)
+    }
+
+    fn query_reading(&mut self, name: &str, mut context: Context, cut: &mut Option<u64>, _retained: Option<&[String]>, _current: &mut Option<Vec<String>>, manifest: DeliveryManifest, advance_opening: bool, snapshot: Option<&mut dyn FnMut(&crate::store_port::ReadSnapshot<'_>, u64) -> Result<(), Refusal>>) -> Result<QueryOutcome, Refusal> {
         context.generation = self.generation;
         let requested = context.now.unwrap_or_else(crate::now_ms);
         context.now = Some(if advance_opening { self.advance_time_audience(requested)? } else { requested });
@@ -791,6 +805,7 @@ impl Engine {
         )?);
         let seq = tx.next_seq()? - 1;
         *cut = Some(seq);
+        if let Some(snapshot) = snapshot { snapshot(&tx, seq)?; }
         let touches = self.schema.operations.get(name).is_some_and(|f| !f.ephemeral_reads.is_empty());
         let mut hub = if touches { Some(self.ephemeral.lock()?) } else { None };
         if let Some(hub) = &mut hub {
@@ -919,168 +934,6 @@ impl Engine {
     pub fn replay_mutation(&self, viewer: &str, id: &str, name: &str, args: &serde_json::Value) -> Result<Option<MutationOutcome>, RuntimeError> {
         self.store.replay_bound(viewer, id, name, args)?
             .map(|receipt| MutationOutcome::from_receipt(&receipt)).transpose()
-    }
-
-    /// Run a mutation. With an `op` id the write applies at most once: a
-    /// replay returns the recorded outcome. The replay check comes before
-    /// anything the current generation could refuse (an op renamed, an
-    /// argument narrowed), so a write that applied under an earlier schema
-    /// is never re-judged: its row is on the server, and the device that
-    /// queued it must learn `sent`, not `failed`.
-    pub fn mutate(&mut self, name: &str, op: Option<&str>, mut context: Context) -> Result<MutationOutcome, RuntimeError> {
-        validate::write_identity(&context.viewer, op)?;
-        context.generation = self.generation;
-        let requested = context.now.unwrap_or_else(crate::now_ms);
-        context.now = Some(self.advance_time_audience(requested)?);
-        let wire_args = if op.is_some() { context.wire_args.take().unwrap_or_else(|| {
-                serde_json::Value::Object(crate::wire::map_to_json(&context.args))
-            }) } else { serde_json::Value::Null };
-        if let Some(op) = op
-            && let Some(outcome) = self.replay_mutation(&context.viewer, op, name, &wire_args)?
-        {
-            return Ok(outcome);
-        }
-        // An existing durable receipt owns its id even after conversion to ephemeral.
-        if self.schema.operations.get(name).is_some_and(|f| f.ephemeral) {
-            self.require_non_media_ephemeral(&context.viewer,op)?;
-            self.schema.check_delivery(name, context.delivery_fingerprint.as_deref())?;
-            let viewer=context.viewer.clone();
-            return match self.mutate_ephemeral(name, context) {
-                Ok(out) => Ok(MutationOutcome { receipt_only: false, state: WriteState::Sent { seq: out.seq, result: out.result }, metered: out.metered, tables: out.ephemeral.tables, events: 0, replayed: false }),
-                Err(error) if error.is_refusal() => Ok(MutationOutcome { receipt_only: false, state: WriteState::Failed { why: seat_refusal(&self.schema,&error,&viewer), current: None }, metered: Metered::default(), tables: Vec::new(), events: 0, replayed: false }),
-                Err(error) => Err(error),
-            };
-        }
-        Committer::run_with(self, |engine| Committer::run_pending(&mut engine.store, Member::new(Kind::Program, |tx| {
-            if let Some(op) = op
-                && let Some(outcome) = tx.replay_bound(&context.viewer, op, name, &wire_args)?
-            {
-                // Applied between the check above and this transaction.
-                let outcome = MutationOutcome::from_receipt(&outcome)?;
-                return tx.rollback((outcome, None));
-            }
-            if let Some(op)=op{tx.require_placement(&context.viewer,op,name,&wire_args)?;}
-            context.now = Some(tx.pin_writer_time(&engine.schema, context.now.unwrap_or(0))?);
-            engine.schema.check_delivery(name, context.delivery_fingerprint.as_deref())?;
-            let program = engine.programs.get(name).ok_or_else(|| RuntimeError::UnknownOp(name.to_owned()))?.clone();
-            if program.kind == ProgramKind::Query {
-                return Err(RuntimeError::UnknownOp(format!("{name} is a query, not a mutation")));
-            }
-            if program.kind == ProgramKind::Action {
-                return Err(RuntimeError::UnknownOp(format!("{name} is an action: call it with client.act")));
-            }
-            if program.kind == ProgramKind::Job {
-                return Err(RuntimeError::UnknownOp(format!("{name} is a job: a schedule fires it, or `snapback4 run {name}` does; no caller can")));
-            }
-            if let Err(error) = validate::validate_inputs(&engine.schema, &program, &mut context.args) {
-                return tx.abort((MutationOutcome { receipt_only: false, state: WriteState::Failed { why: error.refusal(), current: None }, metered: Metered::default(), tables: Vec::new(), events: 0, replayed: false }, None));
-            }
-            if context.presence.is_none() {
-                context.presence = engine.presence.clone();
-            }
-            context.entropy = engine.entropy;
-            context.minter = engine.minter.clone();
-            let ceilings = engine.ceilings;
-            let viewer = context.viewer.clone();
-            let now = context.now.unwrap_or(0);
-            // An `image`/`video` argument names an upload by id; the program
-            // reads the facts the server established (`clip.duration`), so
-            // they are put in place before it runs. An id that is not the
-            // writer's own upload stays as sent and the write refuses it.
-            for (name, kind) in &program.args {
-                let inner = match kind {
-                    crate::ir::ArgType::Optional(inner) => inner.as_ref(),
-                    other => other,
-                };
-                if !matches!(inner, crate::ir::ArgType::Image { .. } | crate::ir::ArgType::Video { .. } | crate::ir::ArgType::File { .. }) {
-                    continue;
-                }
-                let Some(id) = asset_id(context.args.get(name)).map(str::to_owned) else { continue;
-                };
-                if let Some(asset) = tx.asset(&id)?
-                    && (asset.owner == viewer || context.is_system())
-                {
-                    // @ref LLP 3000.038#3 — a file argument never reads an image's facts, nor an image argument a file's.
-                    if (asset.kind == AssetKind::File) != matches!(inner, crate::ir::ArgType::File { .. }) {
-                        let wanted = if matches!(inner, crate::ir::ArgType::File { .. }) { "a file" } else { "an image or video" };
-                        let error = RuntimeError::Asset { code: "E_ASSET_TYPE", message: format!("{name} takes {wanted} and {id} is {}; upload it as {wanted}", asset.kind.word()) };
-                        return tx.abort((MutationOutcome { receipt_only: false, state: WriteState::Failed { why: error.refusal(), current: None }, metered: Metered::default(), tables: Vec::new(), events: 0, replayed: false }, None));
-                    }
-                    context.args.insert(name.clone(), asset.column_value());
-                }
-            }
-            tx.savepoint("program")?;
-            let mut runner = Runner::new(&tx, &engine.schema, context, Meter::new(ceilings, Cut::Abort), tx.next_seq()?);
-            let ran = runner.run(&program).and_then(|value| {
-                runner.charge_output(&value)?;
-                Ok(value)
-            });
-            // Commit-end expiry can cascade or clear rows that an `after insert`
-            // witness names. Final obligations therefore inspect the actual
-            // provisional commit state, after every retirement action.
-            let ran = ran.and_then(|value| runner.retire_expired_births().map(|_| value))
-                .and_then(|value| runner.check_final_exists().map(|_| value));
-            let metered = runner.meter.used;
-            let tables: Vec<String> = runner.written_tables.iter().cloned().collect();
-            let events: Vec<Event> = runner.events.take();
-            let action_tables = std::mem::take(&mut runner.action_tables);
-            let outbox = std::mem::take(&mut runner.outbox);
-            let rows_written = runner.rows_written;
-            let mut read_tables = runner.read_tables.clone();
-            let entropy = runner.context.entropy;
-            drop(runner);
-            let outcome = match ran {
-                Ok(result) => {
-                    tx.release("program")?;
-                    // @ref LLP 3000.019#4 — P7 reports keep at-most-once custody.
-                    // @ref LLP 3000.022#6 — a covered report keeps only a receipt at the committed head.
-                    let receipt_only = rows_written == 0 && outbox.is_empty()
-                        && engine.schema.delivery.iter().any(|binding| binding.mutation == name);
-                    let seq = tx.next_seq()? - u64::from(receipt_only);
-                    read_tables.extend(tables.iter().cloned());
-                    if !receipt_only {
-                        tx.record_commit(seq, now, (name, &viewer, program.kind.word()), &tables, rows_written)?;
-                        tx.append(seq, &events)?;
-                        tx.record_effects(&outbox, seq, now, engine.dev_effects, &engine.schema)?;
-                    }
-                    MutationOutcome { receipt_only, state: WriteState::Sent { seq, result }, metered, tables, events: partition::disclosed_event_count(&engine.schema, &events, &action_tables), replayed: false }
-                }
-                Err(error @ RuntimeError::StoreUnsupported { .. }) => {
-                    tx.rollback(())?;
-                    return Err(error);
-                }
-                Err(error) if error.is_refusal() => {
-                    tx.rollback_to("program")?;
-                    let current = match &error {
-                        RuntimeError::Conflict { current } => {
-                            let mut probe = Runner::new(&tx, &engine.schema, Context::new(viewer.clone(), BTreeMap::new()).at(now), Meter::new(Ceilings::default(), Cut::Cap), 0);
-                            let value = probe.get(current).ok();
-                            value
-                        }
-                        _ => None,
-                    };
-                    let why=seat_refusal(&engine.schema,&error,&viewer);
-                    MutationOutcome { receipt_only: false, state: WriteState::Failed { why, current }, metered, tables: Vec::new(), events: 0, replayed: false }
-                }
-                Err(error) => {
-                    tx.rollback(())?;
-                    return Err(error);
-                }
-            };
-            if let Some(op) = op {
-                let seq = match &outcome.state {
-                    WriteState::Sent { seq, .. } => *seq,
-                    WriteState::Failed { .. } => tx.next_seq()? - 1,
-                };
-                tx.record_applied(&viewer, op, seq, &serde_json::to_string(&outcome.receipt(Some(op))).map_err(|e| RuntimeError::Store(e.to_string()))?)?;
-                tx.bind_applied(&viewer, op, name, &wire_args, now)?;
-            }
-            tx.complete((outcome, Some(entropy)))
-        }).pending(|(outcome, entropy)| Pending::new(outcome, entropy))), |engine, entropy, outcome| {
-            // @ref LLP 3000.009.001.000.000#3.7 — entropy advances only in the durable member's continuation.
-            if let Some(entropy) = entropy { engine.entropy = entropy; }
-            Ok(outcome)
-        })
     }
 
     /// Write rows as the system principal: rules are bypassed, validation,
@@ -1462,5 +1315,14 @@ pub fn seat_refusal(schema:&Schema,error:&RuntimeError,viewer:&str)->Refusal {
     why
 }
 
+#[cfg(feature = "sqlite")]
+mod mutation;
+#[cfg(feature = "sqlite")]
+pub use mutation::{MutationAcknowledgement, DurablePublication};
+
 #[cfg(all(test, feature = "sqlite"))]
 mod update_image_tests;
+
+#[cfg(all(test, feature = "sqlite", feature = "server-search"))]
+#[path = "../store/query_response_tests.rs"]
+pub(crate) mod query_response_tests;

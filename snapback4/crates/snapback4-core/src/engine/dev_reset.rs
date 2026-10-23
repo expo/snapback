@@ -74,6 +74,7 @@ impl Engine {
             // after commit so a refused reset keeps the old store's continuation.
             engine.expiry_after.clear();
             engine.timeline_schedule = timeline::Schedule::default();
+            engine.store_id = store_id.clone();
             engine.ephemeral.rebind_committed(store_id.clone(), engine.generation, &engine.schema);
             Ok(DevReset { previous_store_id, store_id, seq, seeded, assets: assets::AssetSweep::named(assets, &directory) })
         })?.into_inner())

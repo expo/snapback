@@ -408,3 +408,80 @@ fn source_watcher_retries_overload_and_keeps_watching_later_edits() {
     assert!(continued, "watcher exited on transient refusal");
     assert!(adopted && later, "watcher must adopt the pending source and a later edit");
 }
+
+// @ref LLP 3000.009.001.000.001#7 — a confirmed commit keeps its facts through loss before publication; no second admission or database read.
+fn carried_publication_after_queue_loss(pg: bool) {
+    let store = if pg {
+        #[cfg(feature = "postgres")]
+        { snapback4_core::store_port::AnyStore::create_postgres(
+            &std::env::var("SNAPBACK4_EVAL_POSTGRES").expect("private Postgres cluster"),
+            &format!("sb4_rt1_loss_{:x}", snapback4_core::ids::seed()),
+        ).unwrap() }
+        #[cfg(not(feature = "postgres"))]
+        { unreachable!() }
+    } else { snapback4_core::store_port::AnyStore::memory().unwrap() };
+    let host = Host::with_store(false, store, SOURCE);
+    let shared = host.shared.clone();
+    let (entered, started) = mpsc::channel();
+    let (release, resume) = mpsc::channel();
+    let request = std::thread::spawn(move || shared.engine.attempt(move |engine, shared| {
+        let ack = engine.mutate_acknowledged("add", Some("confirmed"), Context::new("alice", Default::default()).at(1000))?;
+        let expected = super::super::head::response_head(engine).unwrap();
+        let publication = ack.publication.as_ref().unwrap();
+        assert_eq!((publication.store_id.clone(), publication.head), expected);
+        assert_eq!(publication.generation, engine.generation());
+        assert_eq!(publication.preserved, engine.store().preserved_between(engine.schema(), publication.head - 1, publication.head));
+        entered.send(()).unwrap();
+        resume.recv_timeout(Duration::from_secs(15)).unwrap();
+        let counted = snapback4_core::round_trips::Scope::begin();
+        let (outcome, metadata, preserved, generation) = super::super::head::mutation_acknowledgement(shared, engine, Ok(ack));
+        assert_eq!(counted.counts(), snapback4_core::round_trips::Counts::default());
+        drop(counted);
+        assert_eq!(super::super::head::response_head(engine).unwrap(), expected);
+        let outcome = outcome.unwrap();
+        assert!(matches!(outcome.state, snapback4_core::WriteState::Sent { seq, .. } if seq == expected.1));
+        assert_eq!(metadata.unwrap(), expected);
+        assert_eq!(generation, engine.generation());
+        Ok::<_, snapback4_core::RuntimeError>((expected, preserved, generation))
+    }));
+    started.recv_timeout(Duration::from_secs(15)).unwrap();
+    host.shared.engine.queue.refuse_ownership();
+    release.send(()).unwrap();
+    let ((identity, head), _, generation) = request.join().unwrap().unwrap();
+    let wake = lock(&host.shared.wake);
+    assert_eq!(wake.seq, head);
+    assert_eq!(wake.store_id.as_deref(), Some(identity.as_str()));
+    assert_eq!(wake.generation, generation);
+}
+
+#[test]
+fn carried_publication_sqlite_finishes_after_queue_loss_without_reads() {
+    carried_publication_after_queue_loss(false);
+}
+#[cfg(feature = "postgres")]
+#[test]
+#[ignore = "requires private Postgres; scripts/test-postgres.sh"]
+fn round_trips_postgres_committed_publication_after_queue_loss_without_reads() {
+    carried_publication_after_queue_loss(true);
+}
+
+#[test]
+fn executed_replay_keeps_its_current_head_publication() {
+    let host = host();
+    host.shared.engine.attempt(|engine, shared| {
+        let context = || Context::new("alice", Default::default()).at(1000);
+        let first = engine.mutate_acknowledged("add", Some("historical"), context())?;
+        let historical = first.publication.unwrap().head;
+        engine.mutate("add", None, context())?;
+        let expected = super::super::head::response_head(engine).unwrap();
+        assert!(expected.1 > historical);
+        let replay = engine.mutate_acknowledged("add", Some("historical"), context())?;
+        assert!(replay.outcome.replayed && replay.publication.is_none());
+        let (outcome, metadata, preserved, _) = super::super::head::mutation_acknowledgement(shared, engine, Ok(replay));
+        assert!(matches!(outcome.unwrap().state, snapback4_core::WriteState::Sent { seq, .. } if seq == historical));
+        assert_eq!(metadata.unwrap(), expected);
+        assert!(preserved.is_none());
+        assert_eq!(lock(&shared.wake).seq, expected.1);
+        Ok::<_, snapback4_core::RuntimeError>(())
+    }).unwrap();
+}

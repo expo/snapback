@@ -96,3 +96,43 @@ pub(crate) fn mutation_reply(mut body: Json) -> Json {
     if body.get("id").is_some_and(Json::is_null) { body.as_object_mut().unwrap().remove("id"); }
     body
 }
+
+// @ref LLP 3000.009.001.000.001#3.4 — committed facts cross the worker continuation into the response.
+pub(super) fn mutation_acknowledgement(shared: &Shared, engine: &mut Engine, acknowledgement: Result<snapback4_core::engine::MutationAcknowledgement, Refusal>)
+    -> (Result<snapback4_core::MutationOutcome, Refusal>, Result<(String, u64), Refusal>, Option<Vec<String>>, u64) {
+    match acknowledgement {
+        Ok(ack) if ack.publication.is_some() => {
+            let publication = ack.publication.unwrap();
+            #[cfg(test)] super::test_work(&shared.mutation_committed);
+            if !ack.outcome.receipt_only {
+                trace::mark("mutation_commit");
+                shared.publish_commit(&publication);
+            }
+            (Ok(ack.outcome), Ok((publication.store_id, publication.head)), publication.preserved, publication.generation)
+        }
+        other => {
+            let outcome = other.map(|ack| ack.outcome);
+            // A replay discovered during execution still republishes the current
+            // head, as before; its historical sequence is not publication data.
+            if matches!(&outcome, Ok(out) if !out.receipt_only && matches!(out.state, snapback4_core::WriteState::Sent { .. })) {
+                trace::mark("mutation_commit");
+                shared.durable_committed(engine);
+            }
+            let preserved = changes::ack_preserved(engine, outcome.as_ref().ok());
+            (outcome, response_head(engine), preserved, engine.generation())
+        }
+    }
+}
+
+// @ref LLP 3000.009.001.000.001#3.3 — identity and head belong to the borrowed query snapshot.
+pub(super) fn borrowed_response_head(snapshot: &snapback4_core::store_port::ReadSnapshot<'_>, head: u64) -> Result<(String, u64), Refusal> {
+    Ok((snapshot.store_id()?, head))
+}
+
+// A failed generation boundary already supplied the refusal; opening another
+// snapshot would repeat it during every adoption handoff.
+pub(super) fn query_response_head(engine: &mut Engine, metadata: Option<Result<(String, u64), Refusal>>, outcome: &Result<snapback4_core::QueryOutcome, Refusal>) -> Result<(String, u64), Refusal> {
+    if let Some(metadata) = metadata { return metadata; }
+    if let Err(why) = outcome && why.code == "E_GENERATION" { return Err(why.clone()); }
+    response_head(engine)
+}

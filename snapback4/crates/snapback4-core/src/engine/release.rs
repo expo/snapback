@@ -125,10 +125,11 @@ impl Engine {
         Ok(Self {
             timeline_schedule: timeline::Schedule::default(),
             ephemeral: std::sync::Arc::new(ephemeral::Hub::new(
-                metadata.store_id,
+                metadata.store_id.clone(),
                 generation,
                 &schema,
             )),
+            store_id: metadata.store_id,
             store,
             schema,
             programs,
@@ -183,6 +184,7 @@ impl Engine {
             engine.generation = generation;
             engine.expiry_after.clear();
             engine.dev_effects = false;
+            engine.store_id = metadata.store_id.clone();
             engine.ephemeral
                 .rebind_committed(metadata.store_id, generation, &engine.schema);
             Ok(generation)
