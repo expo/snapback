@@ -7,6 +7,7 @@ pub struct Bridge {pub sources:Vec<(String,String)>,pub changes:Vec<String>,pub 
 /// Injective current-to-view column identities from authored rename declarations.
 /// Shared by index source transport and CLI hard-constraint admission.
 pub use super::release_bridge_indexes::column_names as declared_column_names;
+pub use super::release_bridge_indexes::align_current_schema;
 pub use super::release_bridge_policy::Policies as PolicyComparison;
 
 /// Source-domain inclusion includes text minima/formats, which live outside
@@ -208,9 +209,9 @@ fn loosen_guarded(target:&[(String,String)],current:&[(String,String)])->Bridge 
             }
         }
     }
-    let current_authority=match current_bound.schema.with_table_names(&aliases) {
+    let current_authority=match align_current_schema(&bound.schema,&sources,&current_bound.schema,current,&aliases) {
         Ok(schema)=>Some(schema),
-        Err(error)=>{diagnostics.push(crate::diag::type_error(&crate::Site::default(),format!("rollback current authority cannot align declared table identities: {error}"),"author a compatible guarded identity mapping").guide("deploy"));None},
+        Err(error)=>{diagnostics.push(crate::diag::type_error(&crate::Site::default(),format!("rollback current authority cannot align declared table/column identities: {error}"),"author a compatible guarded identity mapping").guide("deploy"));None},
     };
     for(name,table)in &bound.schema.tables {
         let Some((_,_,next))=new.get(name)else{continue};

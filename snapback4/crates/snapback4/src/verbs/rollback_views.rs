@@ -177,27 +177,10 @@ pub(super) fn prepare(
             .map(|(new, old)| (new.clone(), old.clone()))
             .collect();
         for(new,prior)in &compiled.schema.table_renames{if bound.schema.tables.contains_key(prior)&&!bound.schema.tables.contains_key(new){aliases.insert(prior.clone(),new.clone());}}
-        let current = bound
-            .schema
-            .with_table_names(&aliases)
-            .map_err(|e| e.to_string())?;
-        let mut columns=std::collections::BTreeMap::new();
-        let view_docs=bridge.sources.iter().map(|(file,text)|snapback4_lang::parse_document(file,text).0).collect::<Vec<_>>();
-        let current_docs=source.iter().map(|(file,text)|snapback4_lang::parse_document(file,text).0).collect::<Vec<_>>();
         // @ref LLP 3000.000.000#20-visible-rollback-views-roll — source transport and hard constraints must agree on scalar as well as reference identities.
-        for name in compiled.schema.tables.keys(){if let Some(next)=current.table(name){
-            let prior=view_docs.iter().flat_map(|d|&d.tables).find(|t|&t.name==name);
-            let authored=current_docs.iter().flat_map(|d|&d.tables).find(|t|aliases.get(&t.name).unwrap_or(&t.name)==name);
-            if let(Some(prior),Some(authored))=(prior,authored){
-                let map=snapback4_lang::release_bridge::declared_column_names(prior,authored)
-                    .ok_or_else(||format!("E_ADOPT: rollback view for release {target} needs unambiguous column identities on {name}; author a compatible guarded rollback workflow"))?;
-                if next.columns.keys().map(|c|map.get(c).unwrap_or(c)).collect::<std::collections::BTreeSet<_>>().len()!=next.columns.len(){
-                    return Err(format!("E_ADOPT: rollback view for release {target} cannot merge independent column identities on {name}; author a compatible guarded rollback workflow"));
-                }
-                if !map.is_empty(){columns.insert(name.clone(),map);}
-            }
-        }}
-        let current=current.with_column_names(&columns);
+        let current=snapback4_lang::release_bridge::align_current_schema(
+            &compiled.schema,&bridge.sources,&bound.schema,&source,&aliases,
+        ).map_err(|e|format!("E_ADOPT: rollback view for release {target} cannot align declared identities: {e}; author a compatible guarded rollback workflow"))?;
         let policies=snapback4_lang::release_bridge::PolicyComparison::new(&compiled.schema,&current);
         for (name, table) in &compiled.schema.tables {
             if let Some(next) = current.table(name) {

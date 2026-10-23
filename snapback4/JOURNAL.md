@@ -103802,3 +103802,21 @@ secret and redacts an unauthorized one across the key rename. All 63 language
 unit tests, 38 rollback security cases and 18 CLI cases pass, including the
 new scalar-key legacy lookup/default rollback/forward cycle. General key
 inference, authored programs, operands and literals remain unchanged.
+
+
+### Integration 23: shared comparison-schema alignment
+
+The next independent review found a private-field identity mismatch before CLI
+admission: current detail and historical secret were compared under different
+map keys. An exact selective-case test reproduces the compiler field-authority
+refusal. Compiler preparation and CLI admission now share table/column schema
+alignment, including injectivity over compiler-owned fields. Only comparison
+metadata changes spelling; authored source, operands and data remain intact.
+
+The final focused targets pass 64 language unit cases, 38 rollback security
+cases and 18 CLI cases. The new privacy fixture checks the selective renamed-
+export case and an independent-intent case retaining its compatible wire
+export, with positive owner access and negative non-owner redaction. It does
+not relax the closed current-endpoint requirement for independent intent.
+All required full Linux, packed, store, Exact and Mac qualification is repeated
+after the final accepted correction; interrupted attempts remain superseded.

@@ -187,3 +187,29 @@ fn renamed_unique_columns_keep_an_explicitly_used_legacy_key() {
     let answer=engine.query("legacyLookup",Context::new("alice",[("code".into(),Value::String("a".into()))].into_iter().collect())).unwrap();
     assert_eq!(answer.data.field("id").unwrap(),&Value::Id("kept".into()));
 }
+
+#[test]
+fn a_declared_private_field_rename_keeps_the_guard_on_a_retained_old_export() {
+    for intent in [false,true] {
+        let mut old="table items:\n  owner: principal\n  secret: text <=20 read <- .owner = viewer\n  n: int\n  public\n  online only\nquery legacyRead(id: items):\n  return items[id]\n".to_owned();
+        if intent {old.push_str("invariant items.read only true\n");}
+        let mut current=old.replace("secret: text <=20", "detail: text <=20 renamed from secret")
+            .replace("n: int", "n: int ?");
+        // Independent-intent fallback retains the current wire export; the
+        // selective case also preserves an old read whose current name changed.
+        if !intent {current=current.replace("query legacyRead(","query currentRead(");}
+        assert!(crate::compile(&source(&current)).diagnostics.is_empty());
+        let bridge=crate::release_bridge::loosen(&source(&old),&source(&current));
+        assert!(bridge.diagnostics.is_empty(),"intent {intent}: {:?}",bridge.diagnostics);
+        let bound=crate::compile(&bridge.sources);
+        let private=if bound.schema.tables["items"].columns.contains_key("secret") {"secret"}else{"detail"};
+        let mut engine=Engine::memory(bound.schema,bound.programs.into_iter().map(|p|p.program)).unwrap();
+        use snapback4_core::value::object;
+        engine.seed([("items".into(),object([("id",Value::Id("kept".into())),("owner",Value::Id("alice".into())),(private,Value::String("private".into())),("n",Value::Int(1))]))]).unwrap();
+        for who in ["alice","bob"] {
+            let answer=engine.query("legacyRead",Context::new(who,[("id".into(),Value::Id("kept".into()))].into_iter().collect())).unwrap();
+            let json=snapback4_core::wire::to_json(&answer.data).to_string();
+            assert_eq!(json.contains("private"),who=="alice","intent {intent}, {who}: {json}");
+        }
+    }
+}

@@ -54,6 +54,31 @@ pub fn column_names(prior: &ast::TableDecl, next: &ast::TableDecl) -> Option<BTr
     (distinct.len() == next.columns.len()).then_some(columns)
 }
 
+/// Align comparison metadata only; never change authored executable source.
+/// Both preparation and CLI admission must see the same declared identities.
+pub fn align_current_schema(
+    view: &Schema, view_sources: &[(String,String)],
+    current: &Schema, current_sources: &[(String,String)],
+    table_names: &BTreeMap<String,String>,
+) -> Result<Schema,String> {
+    let current=current.with_table_names(table_names).map_err(|e|e.to_string())?;
+    let view_docs=view_sources.iter().map(|(f,t)|crate::parser::parse_document(f,t).0).collect::<Vec<_>>();
+    let current_docs=current_sources.iter().map(|(f,t)|crate::parser::parse_document(f,t).0).collect::<Vec<_>>();
+    let mut columns=BTreeMap::new();
+    for name in view.tables.keys() {if let Some(next)=current.table(name) {
+        let prior=view_docs.iter().flat_map(|d|&d.tables).find(|t|&t.name==name);
+        let authored=current_docs.iter().flat_map(|d|&d.tables).find(|t|table_names.get(&t.name).unwrap_or(&t.name)==name);
+        if let(Some(prior),Some(authored))=(prior,authored) {
+            let map=column_names(prior,authored).ok_or_else(||format!("unambiguous declared column identities required on {name}"))?;
+            if next.columns.keys().map(|c|map.get(c).unwrap_or(c)).collect::<BTreeSet<_>>().len()!=next.columns.len() {
+                return Err(format!("cannot merge independent column identities on {name}"));
+            }
+            if !map.is_empty(){columns.insert(name.clone(),map);}
+        }
+    }}
+    Ok(current.with_column_names(&columns))
+}
+
 /// Rewrite only plain-key column tokens. Index labels, refusal codes/messages
 /// and every other literal retain their current authored spelling.
 pub(super) fn plain_declaration(file: &str, raw: &str, index: &ast::IndexDecl, prior: &ast::TableDecl, next: &ast::TableDecl) -> String {
