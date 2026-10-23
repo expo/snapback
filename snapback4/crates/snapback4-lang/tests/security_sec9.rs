@@ -68,11 +68,10 @@ const ASYMMETRY:&str="table records:\n  owner: principal\n  value: text ?\n  rea
 #[test]
 fn filtered_creator_role_implies_the_same_unfiltered_editor_probe() {
     let source="table staff:\n  principal: principal\n  role: enum('host', 'manager')\n  unique principal\n  read <- .principal = viewer\n  online only\ntable docs:\n  script: text <=100\n  read <- allow\n  insert <- exists staff[viewer, role = 'host']\n  update (old, next) <- old.script = next.script or exists staff[viewer]\n  online only\nmutation create(script: text <=100):\n  return insert docs {script}\n";
-    let safe=snapback4_lang::compile(&[("schema.q".into(),source.into())]);
-    assert!(safe.diagnostics.is_empty(),"{:?}",safe.diagnostics);
+    let safe=report(source);
     assert!(!safe.notes.iter().any(|n|n.code=="N_CREATE_EDIT_ASYMMETRY"),"{:?}",safe.notes);
     let wider=source.replace("insert <- exists staff[viewer, role = 'host']","insert <- exists staff[viewer]")
         .replace("or exists staff[viewer]","or exists staff[viewer, role = 'host']");
-    let unsafe_=snapback4_lang::compile(&[("schema.q".into(),wider)]);
+    let unsafe_=report(&wider);
     assert!(unsafe_.notes.iter().any(|n|n.code=="N_CREATE_EDIT_ASYMMETRY"),"{:?}",unsafe_.notes);
 }
