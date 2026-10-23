@@ -58,22 +58,78 @@ fn retained(sources: Vec<Source>, alpha: bool) -> Bridge {
 fn refused(current: &[Source], reason: &str) -> Bridge {
     Bridge {sources:current.to_vec(),changes:vec![],diagnostics:vec![crate::diag::type_error(&crate::Site::default(),format!("rollback view cannot preserve current independent intent: {reason}"),"author a compatible guarded source retaining the predecessor fields and inputs, truthful migrations and the current policy; an acknowledgment does not authorize restoring an unsafe workflow").guide("deploy")]}
 }
-pub(super) fn contracts(old: &crate::Bound, new: &crate::Bound) -> bool {
-    if !old.schema.tables.iter().all(|(name, table)| {
-        new.schema.tables.get(name).is_some_and(|next| {
-            table
-                .columns
-                .keys()
-                .all(|column| next.columns.contains_key(column))
-        })
-    }) {
-        return false;
+
+/// A loosened current workflow may omit a predecessor's nullable, default-free
+/// field rather than invent its value. All current schema and executable
+/// declarations stay intact; old wire aliases are the only source additions.
+pub(super) fn guarded(target:&[Source],current:&[Source])->Bridge {
+    let old=crate::compile(target);let next=crate::compile(current);
+    if !old.diagnostics.is_empty()||!next.diagnostics.is_empty(){return refused(current,"both authored sources must compile before preparing a guarded view");}
+    if !table_contracts(&old,&next,true){return refused(current,"the guarded current workflow needs every predecessor table and required/defaulted field; author a truthful reverse projection or compatible guarded source");}
+    let mut sources=current.to_vec();let mut changes=vec!["guarded loosened view: retained the complete current schema, defaults, helpers, programs, jobs, aliases and independent intent; omitted nullable default-free predecessor fields are absent results, never invented values; review current results in the old UI".into()];
+    for(file,text)in &mut sources {
+        let doc=parser::parse_document(file,text).0;
+        let Some((prior_file,prior_text))=target.iter().find(|(f,_)|super::release_bridge::operation_name(f,"")==super::release_bridge::operation_name(file,""))else{continue};
+        let prior=parser::parse_document(prior_file,prior_text).0;
+        let(tokens,_)=lexer::lex(file,text);let mut edits=Vec::new();let mut extra=String::new();let mut restored=BTreeMap::new();
+        // Retain a missing old exported alias only to an authored current
+        // endpoint (including an explicitly authored current alias target).
+        // Existing/rebound current aliases remain exactly current-authored.
+        for(name,target,_)in &prior.aliases {
+            let qualified=super::release_bridge::operation_name(file,name);
+            if next.programs.iter().any(|p|p.program.name==qualified){continue;}
+            let endpoint=doc.programs.iter().find(|p|p.name==*target).or_else(||doc.aliases.iter().find(|(alias,_,_)|alias==target).and_then(|(_,target,_)|doc.programs.iter().find(|p|p.name==*target)));
+            if let Some(endpoint)=endpoint{extra.push_str(&format!("alias {name} = {}\n",endpoint.name));restored.insert(qualified,endpoint.name.clone());}
+        }
+        for previous in &old.programs {
+            let qualified=&previous.program.name;
+            let endpoint=doc.programs.iter().find(|p|super::release_bridge::operation_name(file,&p.name)==*qualified).or_else(|| {
+                let target=doc.aliases.iter().find(|(name,_,_)|super::release_bridge::operation_name(file,name)==*qualified).map(|(_,target,_)|target).or_else(||restored.get(qualified))?;
+                doc.programs.iter().find(|p|p.name==*target)
+            });
+            let Some(endpoint)=endpoint else{continue};
+            let actual=super::release_bridge::operation_name(file,&endpoint.name);
+            let Some(current)=next.programs.iter().find(|p|p.program.name==*qualified||p.program.name==actual)else{continue};
+            for(alias,owner)in &previous.program.arg_aliases {
+                if current.program.argument(alias).is_some(){continue;}
+                let Some((canonical,_))=current.program.argument(owner)else{continue};
+                let Some(arg)=endpoint.args.iter().find(|arg|arg.name==canonical&&arg.alias.is_none())else{continue};
+                if let Ok((_,end))=arg_type(text,&tokens,arg){edits.push((end,end,format!(" alias {alias}")));changes.push(format!("operation {qualified}: retained wire alias {alias} on {canonical}"));}
+            }
+        }
+        edits.sort();edits.dedup();edits.sort_by_key(|edit|std::cmp::Reverse(edit.0));
+        for(start,end,value)in edits{text.replace_range(start..end,&value);}
+        if !extra.is_empty(){if !text.ends_with('\n'){text.push('\n');}text.push_str(&extra);}
     }
+    let bound=crate::compile(&sources);
+    if !bound.diagnostics.is_empty(){return Bridge{sources,changes,diagnostics:bound.diagnostics};}
+    if !table_contracts(&old,&bound,true)||!endpoint_contracts(&old,&bound,true){return refused(current,"the guarded current workflow cannot retain a predecessor query or a retained export's wire aliases and distinct inputs; author a compatible guarded endpoint with the old accepted arguments");}
+    for(name,table)in &old.schema.tables {
+        for column in table.columns.keys().filter(|column|!bound.schema.tables[name].columns.contains_key(*column)) {
+            changes.push(format!("{name}.{column}: removed nullable default-free field remains absent in this guarded view; historical cells stay retained; review the old UI result"));
+        }
+    }
+    for previous in &old.programs {
+        if !bound.programs.iter().any(|p|p.program.name==previous.program.name){changes.push(format!("operation {}: paused because no compatible current authored write endpoint exists; old calls return E_OP; author a guarded compatibility endpoint if this old workflow is still needed",previous.program.name));}
+    }
+    Bridge{sources,changes,diagnostics:vec![]}
+}
+
+pub(super) fn contracts(old:&crate::Bound,new:&crate::Bound)->bool {
+    table_contracts(old,new,false)&&endpoint_contracts(old,new,false)
+}
+fn table_contracts(old:&crate::Bound,new:&crate::Bound,nullable_gaps:bool)->bool {
+    old.schema.tables.iter().all(|(name,table)|new.schema.tables.get(name).is_some_and(|next| {
+        table.columns.iter().all(|(column,kind)|next.columns.contains_key(column)
+            || (nullable_gaps&&kind.is_optional()&&!table.defaults.contains_key(column)&&!table.engine_field(column)&&!table.maintained.contains_key(column)))
+    }))
+}
+fn endpoint_contracts(old:&crate::Bound,new:&crate::Bound,pause_removed_writes:bool)->bool {
     old.programs.iter().all(|p| {
         new.programs
             .iter()
             .find(|n| n.program.name == p.program.name)
-            .is_some_and(|n| {
+            .map_or_else(||pause_removed_writes&&matches!(p.program.kind,snapback4_core::ir::ProgramKind::Mutation|snapback4_core::ir::ProgramKind::Job|snapback4_core::ir::ProgramKind::Action),|n| {
                 let (old, new) = (&p.program, &n.program);
                 if old.kind != new.kind {
                     return false;

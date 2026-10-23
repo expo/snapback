@@ -85,7 +85,7 @@ pub fn loosen(target:&[(String,String)],current:&[(String,String)])->Bridge {
         if complete.diagnostics.is_empty() || !allow_guarded{return complete;}
         // A complete current closure is preferred, but a selective guarded
         // predecessor is also truthful when its retained contracts compile.
-        let guarded=loosen_guarded(target,current);
+        let guarded=super::release_bridge_current::guarded(target,current);
         if guarded.diagnostics.is_empty(){return guarded;}
         return Bridge{diagnostics:complete.diagnostics.into_iter().chain(guarded.diagnostics).collect(),..guarded};
     }
@@ -93,6 +93,8 @@ pub fn loosen(target:&[(String,String)],current:&[(String,String)])->Bridge {
     if !guarded.diagnostics.is_empty(){
         let complete=super::release_bridge_current::prepare(target,current,&mut false);
         if complete.diagnostics.is_empty(){return complete;}
+        let current_bridge=super::release_bridge_current::guarded(target,current);
+        if current_bridge.diagnostics.is_empty(){return current_bridge;}
     }
     guarded
 }
@@ -140,26 +142,10 @@ fn loosen_guarded(target:&[(String,String)],current:&[(String,String)])->Bridge 
         edits.sort_by_key(|e|std::cmp::Reverse(e.0));for(start,end,value)in edits{text.replace_range(start..end,&value);}
     }
     if !domain_diagnostics.is_empty() {
-        // Reusing the complete authored current closure preserves its schema
-        // impossibility facts as well as guards. This closed fallback requires
-        // every old field/name and accepted input; it invents no translation.
-        let old_docs=target.iter().map(|(f,t)|parser::parse_document(f,t).0).collect::<Vec<_>>();
-        let current_docs=current.iter().map(|(f,t)|parser::parse_document(f,t).0).collect::<Vec<_>>();
-        let fields_survive=old_docs.iter().flat_map(|d|&d.tables).all(|old|current_docs.iter().flat_map(|d|&d.tables).find(|t|t.name==old.name).is_some_and(|next|old.columns.iter().all(|c|next.columns.iter().any(|n|n.name==c.name))));
-        fn exports(docs:&[ast::Document])->BTreeMap<String,&ast::ProgramDecl>{
-            let mut out=BTreeMap::new();
-            for doc in docs {for p in &doc.programs {out.insert(p.name.clone(),p);}
-                for (name,target,_) in &doc.aliases {if let Some(p)=doc.programs.iter().find(|p|p.name==*target){out.insert(name.clone(),p);}}
-            }out
-        }
-        let next_exports=exports(&current_docs);
-        let inputs_survive=exports(&old_docs).iter().all(|(name,old)|next_exports.get(name).is_some_and(|next|old.kind==next.kind&&old.args.len()==next.args.len()&&old.args.iter().zip(&next.args).all(|(a,b)|a.name==b.name&&super::release_bridge_rules::input_accepts(&a.type_,&b.type_))));
-        if fields_survive&&inputs_survive {
-            let bound=crate::compile(current);
-            changes.clear();
-            changes.push("mixed domains: retained the complete current authored schema and workflow closure, preserving every predecessor table/field/operation name and accepted input; review current results in the old UI".into());
-            return Bridge{sources:current.to_vec(),changes,diagnostics:bound.diagnostics};
-        }
+        let complete=super::release_bridge_current::prepare(target,current,&mut false);
+        if complete.diagnostics.is_empty(){return complete;}
+        let current_bridge=super::release_bridge_current::guarded(target,current);
+        if current_bridge.diagnostics.is_empty(){return current_bridge;}
     }
     // New concepts keep their current rules. They are retained populations,
     // not a promise that a frozen old operation exposes a new concept.
@@ -176,53 +162,26 @@ fn loosen_guarded(target:&[(String,String)],current:&[(String,String)])->Bridge 
         changes.push(format!("new table {name}: retained with its current rules; old operations may not expose it"));
     }
     if !additions.is_empty() {let mut name="rollback-retained.q".to_owned();while sources.iter().any(|(f,_)|f==&name){name.insert_str(0,"retained-");}sources.push((name,additions));}
-    let has_intent=!crate::compile(current).invariants.is_empty();
-    let forced=if has_intent {
-        target.iter().flat_map(|(f,t)|parser::parse_document(f,t).0.programs.into_iter().map(|p|operation_name(f,&p.name)).collect::<Vec<_>>()).collect()
-    }else{std::collections::BTreeSet::new()};
-    let transported=super::release_bridge_rules::carry(&mut sources,current,&mut changes,&forced);
+    let transported=super::release_bridge_rules::carry(&mut sources,current,&mut changes,&std::collections::BTreeSet::new());
     affected.extend(transported);
     let (mut diagnostics,fallback)=super::release_bridge_guards::carry(&mut sources,current,&affected,&mut changes);
     if !fallback.is_empty(){
         super::release_bridge_rules::carry(&mut sources,current,&mut changes,&fallback);
         (diagnostics,_)=super::release_bridge_guards::carry(&mut sources,current,&affected,&mut changes);
     }
-    if has_intent {
-        // Reuse each current compatible endpoint, not an old straight-line write
-        // whose effect may contradict intent without a changed `require`.
-        for name in &forced {
-            if !changes.iter().any(|change|change==&format!("operation {name}: current authored compatibility endpoint preserves its argument contract and guards")) {
-                diagnostics.push(crate::diag::type_error(&crate::Site::default(),format!("rollback view cannot preserve current independent intent for predecessor operation {name}"),"author a guarded compatibility endpoint with the predecessor wire arguments before deploying").guide("deploy"));
-            }
-        }
-        let mut intent=String::new();
-        for(file,text)in current {
-            for mut inv in parser::parse_document(file,text).0.invariants {
-                if let Some(prior)=aliases.get(&inv.table){inv.table=prior.clone();}
-                crate::bind::intent_walk::expression(&mut inv.value,&mut |expr| {
-                    if let ast::Expr::Read(read)|ast::Expr::Exists{read,..}|ast::Expr::Created{read,..}=expr {
-                        if let Some(prior)=aliases.get(&read.table){read.table=prior.clone();}
-                    }
-                });
-                let target=if let Some(column)=inv.column {format!("{}.{} {} only",inv.table,column,inv.target)}else if inv.target=="always"{format!("{} always",inv.table)}else{format!("{}.{} only",inv.table,inv.target)};
-                intent.push_str(&format!("invariant {target} {}\n",print::expression(&inv.value)));
-            }
-        }
-        // Replace historical declarations rather than silently conjoining stale
-        // business intent. The transported executable must satisfy current intent.
-        for(file,text)in &mut sources {
-            let doc=parser::parse_document(file,text).0;
-            let mut edits=doc.invariants.iter().map(|inv| {
-                let start=offset(text,inv.site.line,1);let end=(start+declaration(text,inv.site.line).len()).min(text.len());(start,end)
-            }).collect::<Vec<_>>();
-            edits.sort_by_key(|e|std::cmp::Reverse(e.0));
-            for(start,end)in edits{text.replace_range(start..end,"");}
-        }
-        let mut name="rollback-intent.q".to_owned();while sources.iter().any(|(f,_)|f==&name){name.insert_str(0,"current-");}
-        sources.push((name,intent));
-    }
     let bound=crate::compile(&sources);
     let current_bound=crate::compile(current);
+    for(file,text)in target {
+        let old=parser::parse_document(file,text).0;
+        let Some((_,next))=current.iter().find(|(f,_)|operation_name(f,"")==operation_name(file,""))else{continue};
+        let next=parser::parse_document(file,next).0;
+        for(name,prior,site)in &old.aliases {
+            if next.aliases.iter().any(|(alias,target,_)|alias==name&&target!=prior) {
+                diagnostics.push(crate::diag::type_error(site,format!("rollback export {} needs its current alias target",operation_name(file,name)),"retain the complete current guarded endpoint and dependency closure").guide("deploy"));
+            }
+        }
+    }
+
     for(name,table)in &bound.schema.tables {
         let Some((_,_,next))=new.get(name)else{continue};
         let Some(current_table)=current_bound.schema.table(&next.name)else{continue};

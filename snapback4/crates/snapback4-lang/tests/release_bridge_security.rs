@@ -246,7 +246,7 @@ fn independent_intent_keeps_current_helpers_defaults_and_complete_workflows() {
 }
 
 #[test]
-fn independent_intent_refuses_missing_old_fields_operations_and_narrowed_inputs() {
+fn independent_intent_refuses_required_field_gaps_and_narrowed_inputs() {
     let old="table docs:\n  owner: principal\n  secret: text <=40\n  public\n  online only\nmutation create(owner: principal, secret: text <=40):\n  return insert docs {owner,secret}\n";
     let next = format!(
         "{}invariant docs.secret write only .owner = viewer\n",
@@ -254,7 +254,6 @@ fn independent_intent_refuses_missing_old_fields_operations_and_narrowed_inputs(
     );
     for current in [
         next.replace("secret: text <=40):", "secret: text <=20):"),
-        next.replace("mutation create(", "mutation other("),
         next.replace("  owner: principal\n", "  author: principal\n")
             .replace("{owner:viewer,secret}", "{author:viewer,secret}")
             .replace(".owner = viewer", ".author = viewer"),
@@ -587,4 +586,59 @@ fn valid_final_declarations_without_a_newline_have_bounded_source_spans() {
     assert!(compile(&before).diagnostics.is_empty());assert!(compile(&after).diagnostics.is_empty());
     assert!(!release_bridge::requires_view(&before,&before));
     assert!(release_bridge::requires_view(&before,&after));
+}
+
+
+#[test]
+fn guarded_current_view_keeps_qualified_helper_repairs() {
+    let schema="table docs:\n  owner: principal\n  secret: text <=40\n  legacy: int ?\n  read <- .owner = viewer\n  insert <- allow\n  online only\nmutation create(owner: principal, secret: text <=40):\n  return insert docs {owner:helpers.ownerFor(owner),secret}\n";
+    let old=vec![("schema.q".into(),schema.into()),("helpers.q".into(),"fn ownerFor(value: principal): value\n".into())];
+    let current=vec![("schema.q".into(),schema.replace("  legacy: int ?\n","")+"invariant docs.secret write only .owner = viewer\n"),("helpers.q".into(),"fn ownerFor(value: principal): viewer\n".into())];
+    let bridge=release_bridge::loosen(&old,&current);assert!(bridge.diagnostics.is_empty(),"{:?}",bridge.diagnostics);
+    assert_eq!(bridge.sources,current,"the current helper closure remains current-authored");
+    let bound=compile(&bridge.sources);let mut engine=snapback4_core::Engine::memory(bound.schema,bound.programs.into_iter().map(|p|p.program)).unwrap();
+    let args=std::collections::BTreeMap::from([("owner".into(),snapback4_core::Value::Id("bob".into())),("secret".into(),snapback4_core::Value::String("private".into()))]);
+    let out=engine.mutate("create",None,snapback4_core::Context::new("alice",args)).unwrap();
+    let snapback4_core::WriteState::Sent{result,..}=out.state else{panic!("{out:?}")};
+    assert_eq!(result.field("owner").unwrap(),&snapback4_core::Value::Id("alice".into()));
+}
+
+#[test]
+fn guarded_current_view_follows_rebound_alias_guards_and_old_wire_names() {
+    let schema="table docs:\n  secret: text <=40\n  legacy: int ?\n  public 'fixture'\n  insert <- allow\n  online only\nmutation create(secret: text <=40 alias legacySecret):\n  return insert docs {secret}\nalias protected = create\n";
+    let current=schema.replace("  legacy: int ?\n","").replace(" alias legacySecret","").replace("alias protected = create\n","")+"mutation guarded(secret: text <=40):\n  require viewer = 'service:ops' else OPS\n  return insert docs {secret}\nalias protected = guarded\ninvariant docs.protected only viewer = 'service:ops'\n";
+    let bridge=release_bridge::loosen(&[("schema.q".into(),schema.into())],&[("schema.q".into(),current)]);assert!(bridge.diagnostics.is_empty(),"{:?}",bridge.diagnostics);
+    let bound=compile(&bridge.sources);let mut engine=snapback4_core::Engine::memory(bound.schema,bound.programs.into_iter().map(|p|p.program)).unwrap();
+    for(name,who,refused)in [("protected","alice",true),("protected","service:ops",false),("create","alice",false)] {
+        let args=std::collections::BTreeMap::from([("legacySecret".into(),snapback4_core::Value::String("value".into()))]);
+        let out=engine.mutate(name,None,snapback4_core::Context::new(who,args)).unwrap();
+        assert_eq!(matches!(out.state,snapback4_core::WriteState::Failed{..}),refused,"{name}/{who}: {out:?}");
+    }
+}
+
+#[test]
+fn mixed_domains_use_the_compiled_qualified_wire_contract() {
+    let schema="table docs:\n  kind: enum('private','public')\n  amount: int\n  public 'fixture'\n  online only\n";
+    let query="query echo(value: text <=40 alias legacy):\n  return value\n";
+    let old=vec![("schema.q".into(),schema.into()),("a.q".into(),query.into())];
+    let current_schema=schema.replace("enum('private','public')","enum('public')").replace("amount: int","amount: int ?");
+    let current=vec![("schema.q".into(),current_schema.clone()),("a.q".into(),query.replace(" alias legacy",""))];
+    let bridge=release_bridge::loosen(&old,&current);assert!(bridge.diagnostics.is_empty(),"{:?}",bridge.diagnostics);
+    let bound=compile(&bridge.sources);let mut engine=snapback4_core::Engine::memory(bound.schema,bound.programs.into_iter().map(|p|p.program)).unwrap();
+    let args=std::collections::BTreeMap::from([("legacy".into(),snapback4_core::Value::String("kept".into()))]);
+    let result=engine.query("a.echo",snapback4_core::Context::new("alice",args)).unwrap();assert_eq!(result.data,snapback4_core::Value::String("kept".into()));
+    let moved=vec![("schema.q".into(),current_schema),("b.q".into(),query.replace(" alias legacy",""))];
+    let refused=release_bridge::loosen(&old,&moved);assert!(!refused.diagnostics.is_empty(),"a.echo cannot silently become b.echo");
+}
+
+
+#[test]
+fn guarded_current_view_explicitly_pauses_a_removed_write() {
+    let old="table docs:\n  owner: principal\n  public 'fixture'\n  insert <- allow\n  online only\nmutation repair():\n  return insert docs {owner:'old-operator'}\nquery all():\n  return docs first 10 by .id\n";
+    let current="table docs:\n  owner: principal\n  public 'fixture'\n  insert <- allow\n  online only\nmutation currentWrite():\n  return insert docs {owner:viewer}\nquery all():\n  return docs first 10 by .id\ninvariant docs.read only true\n";
+    let bridge=release_bridge::loosen(&[("schema.q".into(),old.into())],&[("schema.q".into(),current.into())]);
+    assert!(bridge.diagnostics.is_empty(),"{:?}",bridge.diagnostics);
+    assert!(bridge.changes.iter().any(|change|change.contains("repair")&&change.contains("E_OP")),"{:?}",bridge.changes);
+    let bound=compile(&bridge.sources);assert!(!bound.programs.iter().any(|p|p.program.name=="repair"));
+    assert!(bound.programs.iter().any(|p|p.program.name=="all"));
 }

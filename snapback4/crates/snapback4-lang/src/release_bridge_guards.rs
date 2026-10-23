@@ -151,6 +151,9 @@ pub(super) fn carry(
             let mut visited = BTreeSet::new();
             let mut unsafe_helper = false;
             while let Some(name) = helpers.pop_first() {
+                // Helper declarations are global after the compiler validates
+                // optional file qualification. Compare the resolved identity.
+                let name=name.rsplit('.').next().unwrap_or(&name).to_owned();
                 if !visited.insert(name.clone()) {
                     continue;
                 }

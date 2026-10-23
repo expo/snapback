@@ -1,0 +1,20 @@
+**MATERIAL** — three release-blocking gaps remain at `4f9335bb65`. These are source-traced counterexamples; I ran no builds or tests and changed no files.
+
+1. **Qualified helper calls can restore an unsafe predecessor implementation.**  
+   [release_bridge_guards.rs:157](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/src/release_bridge_guards.rs:157) compares helper signatures keyed by bare declaration names against call names such as `helpers.ownerFor`. Both lookups return `None`, so the dependency passes unchecked.
+
+   Concrete case: `create(owner, secret)` inserts `{owner:helpers.ownerFor(owner),secret}`. The predecessor’s helper returns its argument; the current helper returns `viewer`, satisfying `invariant docs.secret write only .owner = viewer`. Also remove an optional `legacy` column, making the complete-current strategy unavailable and requiring the selective bridge. That bridge copies the current endpoint but retains the predecessor helper. After compilation normalizes the qualified call, Alice can again insert Bob’s secret. Normalize helper identities and check their transitive meanings before admitting transport.
+
+2. **Rebound operation aliases escape current-endpoint protection.**  
+   [release_bridge.rs:181](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/src/release_bridge.rs:181) forces only parsed program declarations; [release_bridge_rules.rs:257](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/src/release_bridge_rules.rs:257) likewise transports only those declarations.
+
+   Concrete case: the predecessor exports open `create()` and `alias protected = create`. Current source keeps open `create()`, adds `guarded()` requiring the ops viewer, and changes the alias to `protected = guarded`, with `invariant docs.protected only viewer = 'service:ops'`. Remove an optional legacy column to select the guarded fallback. The generated source transports `create` but retains `protected = create`. Its final argument-contract check passes, yet the protected export bypasses its current guard and intent. Every predecessor exported alias needs independent resolution against its current target.
+
+3. **The mixed-domain shortcut bypasses the corrected compiled-contract check.**  
+   [release_bridge.rs:149](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/src/release_bridge.rs:149) keys exports by unqualified names and checks only canonical AST argument names/types. Its return at line 161 bypasses the final compiled check at line 236.
+
+   Concrete case: change shared columns from `kind: enum('private','public')` to `enum('public')` and from `amount: int` to `int ?`. Keep `query echo(value: text <=40)` but remove its predecessor parameter modifier `alias legacy`. The mixed-domain fallback returns current source successfully, although an old call supplying `legacy` no longer works. Similarly, moving `a.echo` to `b.echo` passes the unqualified comparison while dropping the old endpoint. This path must use the same compiled contract validation as the other complete-current path.
+
+The inspected corrections otherwise address current shared-column defaults, directional quota tightening, and bounded no-final-LF spans. The new regressions include actual inserts, guarded/open qualified mutations, and genuine stored rows. The registration trigger now separates executable repairs behind unchanged declarations/signatures from ordinary structural evolution; missing-field visibility still triggers preparation. Legacy refusal supplies both recovery steps and retains the existing writer/CAS activation path.
+
+Those improvements do not cover the three paths above. No optional nits.

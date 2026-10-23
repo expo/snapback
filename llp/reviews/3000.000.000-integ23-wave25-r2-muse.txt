@@ -1,0 +1,26 @@
+muse: workspace root: /home/ccheever/projects/snapback-sb4loop (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=b6b4f991-577f-437b-a07c-9efc2b4f8354]: Subscription quota exhausted. Your usage window resets at 2026-10-26T00:00:00Z. (rate_limit_error)
+READY
+
+No material flaw in the §20 trigger, either generator, or legacy refusal.
+
+Trigger: `release_bridge::requires_view` fires only on structural widening (`accepts(candidate,old)` false), relaxed unique/final-exists, directional cap relaxation, missing-default misrepresentation, plus the narrow executable-only repair (`same_data_and_intent` + non-empty invariants + `modules` differ). Ordinary rename/split/required-default upgrades have identical domains or typed downs and no intent-only executable change, so no view. Verified against `requires_view` + `same_data_and_intent` + `modules` in [release_bridge.rs](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/src/release_bridge.rs).
+
+Generation safety:
+
+- Complete closure first with intent, selective loosened bridge fallback otherwise, in `loosen`. Complete `contracts` in [release_bridge_current.rs](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/src/release_bridge_current.rs) requires every table/column spelling, every op name/kind, distinct wire positions, alias-to-same-target with domain inclusion; new args must be covered or optional. Fallback reuses compatible current endpoints, replaces history with current intent, and final `contracts(target,bound)` check rejects alias/position violations.
+- (1) Current defaults: `current_default` + post-compile default-equality diagnostic in [release_bridge.rs](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/src/release_bridge.rs) and [release_bridge_rules.rs](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/src/release_bridge_rules.rs); positive test executes a real insert with `default viewer` replacing `default 'bøb'`.
+- (2) Module identity: `operation_name` (stem-qualified) used for `forced`, guard maps, and rule endpoint replacement in [release_bridge_guards.rs](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/src/release_bridge_guards.rs) and [release_bridge_rules.rs](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/src/release_bridge_rules.rs); module test executes guarded `a.create` refused and open `b.create` sent.
+- (3) Quota direction: `n.max<=c.max` with rename normalization needs no view on tightening; foresight constraints excluded from `old_row_risks` in [rollback_foresight.rs](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4/src/verbs/rollback_foresight.rs); CLI test has one stored row, unchanged worker, zero views.
+- (4) Aliases: `argument()` resolution, `positions` distinctness, old-alias-to-same-target checks, `arg_type` span rewrite, rebinding refusal, plus final compiled-contract check. Tests cover alias retention and `a alias b` collapse refusal.
+- (5) Spans: `offset` uses char `len_utf8`, `is_char_boundary`/overlap checks, `text.len()` bound; lexer emits synthetic `Newline` even without final LF so `type_span`/`arg_type` terminate boundedly. No-final-LF literal-repair trigger covered.
+
+Mapping/capture: alpha adapter in [release_bridge_current.rs](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/src/release_bridge_current.rs) enforces injective nominal-only remaps, reparse-as-Ref probe, shape/arg/binding capture, and derived/migration/action exclusion; job bindings and `text` maxima covered.
+
+Legacy: `rollback` in [releases.rs](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4/src/verbs/releases.rs) wraps `check_change`/preview/`activate` with `redeploy with 0.4.39 … --to N --exact` advice only when no view and not `--exact`; `resolve`/`verify`/`needs_registration` in [rollback_views.rs](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4/src/verbs/rollback_views.rs) keep registry branch-local and digest-stable; pre-view test asserts both strings and unchanged population, then redeploy registers.
+
+Regressions use genuine stored rows, engine `mutate`/`query`, and restart/branch cases in [roll_views.rs](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4/tests/roll_views.rs), [release_bridge_security.rs](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/tests/release_bridge_security.rs), and [publication-roll.mjs](/home/ccheever/projects/snapback-sb4loop/snapback4/scripts/publication-roll.mjs). Campaigns are labeled regression evidence, not equivalence proof.
+
+Nits (non-material): mixed-domain complete-closure fallback uses exact-spelling `fields_survive`/`inputs_survive` while selective join is rename-aware — fail-closed, only misses an optimization; worker-present widening views uniformly refuse pending bundle custody by design.
+

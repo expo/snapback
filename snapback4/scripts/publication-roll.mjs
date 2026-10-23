@@ -133,6 +133,24 @@ query doc(id: docs):
     assert.equal(restarted.state,'sent');assert.equal(restarted.result.owner,alice.principal);
     await cli('rollback',intentDir,'--to','latest');
   } finally {await host.stop();}
+  const guardedOld=intentOld.replace('  owner: principal','  owner: principal\n  legacy: int ?')
+    .replace('create(owner: principal,','create(owner: principal alias legacyOwner,')
+    .replace('{owner,secret}','{owner:helpers.ownerFor(owner),secret}')+'alias protected = create\n';
+  const guardedNext=guardedOld.replace('  legacy: int ?\n','').replace(' alias legacyOwner','').replace('alias protected = create\n','')+
+    "mutation guarded(owner: principal, secret: text <=40):\n  require viewer = 'service:ops' else OPS\n  return insert docs {owner:helpers.ownerFor(owner),secret}\nalias protected = guarded\ninvariant docs.secret write only .owner = viewer\ninvariant docs.protected only viewer = 'service:ops'\n";
+  const guardedV1=source('guarded-closure-v1',guardedOld);writeFileSync(join(guardedV1,'helpers.q'),'fn ownerFor(value: principal): value\n');
+  const guardedV2=source('guarded-closure-v2',guardedNext);writeFileSync(join(guardedV2,'helpers.q'),'fn ownerFor(value: principal): viewer\n');
+  const guardedDir=join(cwd,'roll-guarded-current');await cli('deploy',guardedDir,'--schema',guardedV1);host=await startServe(guardedDir,hostOptions);
+  try {
+    const [alice,bob]=await users(host);const before=await post(host,alice,'create',{legacyOwner:alice.principal,secret:'v1'});assert.equal(before.state,'sent');
+    await cli('deploy',guardedDir,'--schema',guardedV2);const selected=await json('rollback',guardedDir,'--to','1');assert.equal(selected.rollbackView.target,1);
+    const created=await post(host,alice,'create',{legacyOwner:bob.principal,secret:'qualified helper'});assert.equal(created.state,'sent');assert.equal(created.result.owner,alice.principal);
+    const blocked=await post(host,alice,'protected',{legacyOwner:bob.principal,secret:'rebound alias'});assert.equal(blocked.state,'failed');assert.equal(blocked.why.code,'OPS');
+    assert.equal((await post(host,alice,'doc',{id:before.result.id},'q')).data.secret,'v1');
+    await host.stop();host=await startServe(guardedDir,hostOptions);
+    const restarted=await post(host,alice,'protected',{legacyOwner:bob.principal,secret:'still guarded'});assert.equal(restarted.state,'failed');assert.equal(restarted.why.code,'OPS');
+    await cli('rollback',guardedDir,'--to','latest');
+  }finally{await host.stop();}
   const ordinary=`use identity guests
 table items:
   owner: principal
@@ -179,5 +197,5 @@ invariant items.read only .owner = viewer
   writeFileSync(worker,'export {}; // changed executable, identical Quarry\n');
   const refused=await workerCall(['deploy',workerDir,'--check']);
   assert.equal(refused.code,1);assert.match(refused.stderr+refused.stdout,/authored worker bundle/);
-  return {status:'passed',visibleRollback:true,currentGuards:true,currentIntentWorkflow:true,invariantRenameSplitRequired:true,executableOnlyRefusal:true,editedOutputs:true,referenceRename:true,privateFileExtraction:true,cycles:2};
+  return {status:'passed',visibleRollback:true,currentGuards:true,currentIntentWorkflow:true,guardedCurrentClosure:true,invariantRenameSplitRequired:true,executableOnlyRefusal:true,editedOutputs:true,referenceRename:true,privateFileExtraction:true,cycles:2};
 }
