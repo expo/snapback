@@ -18,6 +18,7 @@ pub(super) fn current_context_needed(
         if current_schema.tables.contains_key(prior)&&!current_schema.tables.contains_key(name){names.insert(prior.clone(),name.clone());}
     }
     for doc in &mut next_docs{normalize_identities(doc,&names);}
+    if super::release_bridge_indexes::current_context_needed(&view_docs,&next_docs,view_schema,current_schema,&names){return true;}
     let exports=|docs:&[crate::ast::Document]| {
         let mut out=std::collections::BTreeMap::new();
         for doc in docs {

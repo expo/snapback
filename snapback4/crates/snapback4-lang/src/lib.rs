@@ -73,4 +73,8 @@ pub mod release_bridge;
 mod release_bridge_constraints;
 mod release_bridge_current;
 mod release_bridge_guards;
+mod release_bridge_indexes;
 mod release_bridge_rules;
+
+#[cfg(test)]
+mod release_bridge_indexes_tests;

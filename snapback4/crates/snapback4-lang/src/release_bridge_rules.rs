@@ -168,9 +168,17 @@ pub(super) fn carry(
             for prior in [&old.expire,&old.not_before].into_iter().flatten(){if let Some((a,b))=line_span(file,text,&prior.1){edits.push((a,b,String::new()));}}
             if let Some((field,_))=&next.expire {edits.push((at,at,format!("  expire at .{field}\n")));}
             if let Some((field,_))=&next.not_before {edits.push((at,at,format!("  not before .{field}\n")));}
-            for index in next.indexes.iter().filter(|i|i.unique&&!old.indexes.iter().any(|o|o.unique&&o.columns==i.columns)) {
+            // An authored current endpoint or guard may name a new index. Keep
+            // that index with the body; an equal-key old name is not an alias.
+            for index in next.indexes.iter().filter(|i|
+                !old.indexes.iter().any(|o|o.name==i.name)
+                || (i.unique&&!old.indexes.iter().any(|o|o.unique&&o.columns==i.columns))
+                || old.indexes.iter().any(|o|o.name==i.name&&o.unique&&!next.indexes.iter().any(|n|n.unique&&n.columns==o.columns))) {
                 if let Some((_,current_text,_))=docs.iter().find(|(_,_,d)|d.tables.iter().any(|t|t.name==next.name)) {
-                    if let Some((a,b))=line_span(&index.site.file,current_text,&index.site){edits.push((at,at,format!("{}\n",&current_text[a..b])));}
+                    if let Some((a,b))=line_span(&index.site.file,current_text,&index.site){
+                        edits.push((at,at,format!("{}\n",&current_text[a..b])));
+                        changes.push(format!("{}: retained current named index {} for authored guards and endpoints",old.name,index.name));
+                    }
                 }
             }
             let mut replaced = BTreeSet::new();
