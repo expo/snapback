@@ -19,6 +19,7 @@ pub fn test(options: &Options) -> i32 {
     let project = match proof_source::project(options, "source") { Ok(project) => project, Err(e) => { eprintln!("test: {e}"); return 2; } };
     let sources = match proof_source::sources(&project, options, "source") { Ok(sources) => sources, Err(e) => { eprintln!("test: {e}"); return 2; } };
     let bound = compiled_or_exit(proof_source::compile(&sources, options, "source"), options.json);
+    let bound=snapback4_lang::security::derived::augmented(&sources,&bound);
     let mut defaults = options.clone();
     let mut skipped_business_cases = 0;
     if !defaults.flags.contains_key("fixture") {

@@ -366,7 +366,7 @@ mod integration20_tests {
 pub(crate) fn shortlist(notes:&mut Vec<Note>){
  let mut ordinary=std::collections::BTreeSet::new();
  notes.retain(|note|{
-  if snapback4_lang::security::note_priority(&note.code)<=2{return true;}
+  if snapback4_lang::security::note_priority(&note.code)<=3 || (tier(&note.code)==Tier::Review && !hygiene(&note.code)){return true;}
   if ordinary.contains(&note.code){return true;}
   if ordinary.len()<5{ordinary.insert(note.code.clone());true}else{false}
  });
@@ -375,5 +375,19 @@ pub(crate) fn shortlist(notes:&mut Vec<Note>){
 #[test]fn repeated_classes_keep_distinct_audiences_without_hiding_security(){
  let mut notes=vec![];
  for code in ["N_ROLE_WIDE_READ","N_NO_PRODUCTION_WRITER","N_NEVER_COMPLETE","N_MAINTAIN_SYNCED","N_NO_HORIZON","N_INSERT_WRITE_INTENT","N_SECURITY_INTENT"]{for n in 0..8{notes.push(Note{site:format!("schema.q:{n}:1"),code:code.into(),summary:String::new(),form:None,compact:None});}}
- shortlist(&mut notes);assert_eq!(notes.len(),48);assert!(!notes.iter().any(|n|n.code=="N_SECURITY_INTENT"));assert_eq!(notes.iter().filter(|n|n.code=="N_NEVER_COMPLETE").count(),8);
+ shortlist(&mut notes);assert_eq!(notes.len(),56);assert!(notes.iter().any(|n|n.code=="N_SECURITY_INTENT"));assert_eq!(notes.iter().filter(|n|n.code=="N_NEVER_COMPLETE").count(),8);
 }}
+
+fn hygiene(code:&str)->bool{matches!(code,"N_LOOKUP_FILTERED"|"N_QUERY_FILTERED"|"N_UNIQUE_HIDDEN"|"N_SPARSE_FILTER"|"N_MAINTAINED_COLUMN_DISCLOSURE")}
+#[cfg(test)]mod authority_visibility_tests{
+ use super::*;
+ #[test]fn no_authorization_review_is_cut_while_lookup_hygiene_is_visible(){
+   let codes=snapback4_lang::guide::codes();
+   let mut notes=codes.iter().map(|code|Note{site:"schema.q:1:1".into(),code:(*code).into(),summary:String::new(),form:None,compact:None}).collect::<Vec<_>>();
+   notes.sort_by_key(|n|summary_order(&n.code));shortlist(&mut notes);
+   for code in codes.into_iter().filter(|code|tier(code)==Tier::Review&&!hygiene(code)){
+     assert!(notes.iter().any(|n|n.code==code),"authorization/correctness review {code} was cut");
+   }
+   assert!(summary_order("N_INSERT_WRITE_INTENT")<summary_order("N_LOOKUP_FILTERED"));
+ }
+}

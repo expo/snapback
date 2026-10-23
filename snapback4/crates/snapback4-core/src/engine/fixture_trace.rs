@@ -4,8 +4,13 @@ use super::*;
 use crate::schema::RuleExpr;
 use std::sync::{Arc, Mutex};
 
+pub type FixtureRows = std::collections::BTreeMap<String,Vec<Value>>;
+#[derive(Clone)]
+pub struct ConcretePredicate(pub Arc<dyn Fn(&FixtureRows,&Value,&str,i64)->Option<bool> + Send + Sync>);
+impl std::fmt::Debug for ConcretePredicate {fn fmt(&self,f:&mut std::fmt::Formatter<'_>)->std::fmt::Result{f.write_str("concrete fixture predicate")}}
 #[derive(Clone, Debug)]
 pub struct Intent {
+    pub concrete: Option<ConcretePredicate>,
     pub site: String,
     pub table: String,
     pub effects: Vec<Effect>,
@@ -42,14 +47,30 @@ impl Runner<'_> {
             let judge = |image: &Value| self.fixture_judgment(&intent.policy, old, image).ok().and_then(|v| match v {
                 rules::Verdict::Readable => Some(true), rules::Verdict::Denied => Some(false), rules::Verdict::Unknown => None,
             });
-            let allowed = match (old, next) {
+            let allowed = if let Some(predicate)=&intent.concrete {
+                // Private fixture inspection, bounded and independent of the
+                // application's logical meter. Overlay the pending write:
+                // fixture_write runs immediately before the store put/remove.
+                let snapshot=self.fixture_snapshot();
+                snapshot.ok().and_then(|before|{
+                    let now=self.context.now.unwrap_or(0);
+                    let a=old.map(|row|(predicate.0)(&before,row,&self.context.viewer,now));
+                    let mut after=before;
+                    let rows=after.entry(table.into()).or_default();
+                    let id=next.or(old).and_then(|r|r.field("id").ok());
+                    rows.retain(|r|r.field("id").ok()!=id);
+                    if let Some(row)=next{rows.push(row.clone());}
+                    let b=next.map(|row|(predicate.0)(&after,row,&self.context.viewer,now));
+                    match (a,b){(Some(Some(false)),_)|(_,Some(Some(false)))=>Some(false),(Some(None),_)|(_,Some(None))=>None,_=>Some(true)}
+                })
+            } else { match (old, next) {
                 (Some(old), Some(next)) => match (judge(old), judge(next)) {
                     (Some(false), _) | (_, Some(false)) => Some(false),
                     (Some(true), Some(true)) => Some(true), _ => None,
                 },
                 (_, Some(row)) | (Some(row), _) => judge(row),
                 _ => None,
-            };
+            }};
             trace.observations.lock().expect("fixture trace lock").push(Observation {site:intent.site.clone(),table:table.into(),effect,old:old.cloned(),next:next.cloned(),allowed});
         }
     }

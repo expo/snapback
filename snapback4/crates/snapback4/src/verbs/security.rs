@@ -4,11 +4,15 @@ use super::*;
 use snapback4_lang::security::{self,Report};
 mod http;
 mod record;
+mod presence;
+pub(super) use presence::remember as remember_presence;
 pub(super) use record::{remember,capture};
 pub(super) fn unauthenticated(bound:&Bound,sources:&[(String,String)])->bool {
     match http::run(bound,sources){Ok(_)=>true,Err(why)=>{eprintln!("security HTTP failure: {why}");false}}
 }
 pub(super) fn report(project:&Project,bound:&Bound,sources:&[(String,String)],options:&Options)->Report{
+    let augmented=if options.flags.contains_key("security-deploy"){security::derived::augmented(sources,bound)}else{bound.clone()};
+    let bound=&augmented;
     let mut selection=options.clone();
     let selected_fixture=record::selected_fixture(project,options);
     if selected_fixture.is_dir(){selection.flags.insert("fixture".into(),selected_fixture.to_string_lossy().into_owned());}
@@ -18,7 +22,7 @@ pub(super) fn report(project:&Project,bound:&Bound,sources:&[(String,String)],op
     if let Some(snapshot)=&inputs{selection.flags.insert("fixture".into(),snapshot.0.to_string_lossy().into_owned());}
     let cached=record::matching(project,&selection,sources);
     let known_failure=cached.as_ref().is_some_and(|r|!r.violations.is_empty())&&!options.flags.contains_key("security-full");
-    let mut campaign=if options.flags.contains_key("security-full"){security::challenges::Campaign::default()}else{security::challenges::Campaign::bounded(1500)};
+    let mut campaign=if options.flags.contains_key("security-full"){security::challenges::Campaign::default()}else{if options.flags.contains_key("security-deploy"){let mut campaign=security::challenges::Campaign::bounded(10000);campaign.work_remaining=Some(8192);campaign}else{security::challenges::Campaign::bounded(1500)}};
     if known_failure {campaign.work_remaining=Some(0);campaign.unsupported.insert("matching full-test refutations retained; bounded resampling skipped; repair and rerun snapback4 test".into());}
     // An explicitly selected fixture remains the initial-state assumption.
     // Static generation runs only on the fixture-free path; both share this
@@ -45,6 +49,7 @@ pub(super) fn report(project:&Project,bound:&Bound,sources:&[(String,String)],op
     let sites=report.invariants.iter().filter(|v|v.status==security::Status::Unproved&&!campaign.violations.iter().any(|c|c.invariant_site==v.invariant.site.to_string()&&c.reachability.is_reachable())).map(|v|v.invariant.site.to_string()).collect();
     let campaign=security::challenges::run_selected_after(bound,Some(&sites),campaign);
     security::challenges::apply(&mut report,&campaign);
+    report.notes.extend(presence::notes(project,bound,None).unwrap_or_else(|why|vec![snapback4_lang::Diagnostic::new(&Default::default(),"N_PRESENCE_LOOSENING",why,"repair the unreadable generated presence baseline").guide("security")]));
     if let Some(record)=cached {security::challenges::apply(&mut report,&security::challenges::Campaign{violations:record.violations,..Default::default()});}
     report
 }
@@ -82,10 +87,19 @@ pub(super) fn summary(report:&Report,verbose:bool){
 /// A rule-changing preflight demands a current campaign, without pretending
 /// finite tests or undeclared intent certify a deployment.
 pub(super) fn release_loop(project:&Project,bound:&Bound,sources:&[(String,String)],prior:Option<&Bound>,options:&Options)->Result<Option<String>,String>{
-    let changed=prior.is_none_or(|old|bound.schema.tables.iter().any(|(name,t)|old.schema.tables.get(name).is_none_or(|o|serde_json::to_value((&o.rules,&o.column_reads,&o.written_by)).ok()!=serde_json::to_value((&t.rules,&t.column_reads,&t.written_by)).ok()))||old.schema.tables.keys().any(|t|!bound.schema.tables.contains_key(t)));
+    let changed=prior.is_none_or(|old|bound.schema.tables.iter().any(|(name,t)|old.schema.tables.get(name).is_none_or(|o|serde_json::to_value((&o.rules,&o.column_reads,&o.written_by,&o.column_writes,&o.frozen_columns,&o.columns,&o.defaults)).ok()!=serde_json::to_value((&t.rules,&t.column_reads,&t.written_by,&t.column_writes,&t.frozen_columns,&t.columns,&t.defaults)).ok()))||old.schema.tables.keys().any(|t|!bound.schema.tables.contains_key(t)));
+    let changed=changed||prior.is_none_or(|old|serde_json::to_value(&old.invariants).ok()!=serde_json::to_value(&bound.invariants).ok())||prior.is_none_or(|old|serde_json::to_value(old.programs.iter().map(|p|&p.program).collect::<Vec<_>>()).ok()!=serde_json::to_value(bound.programs.iter().map(|p|&p.program).collect::<Vec<_>>()).ok());
     if !changed{return Ok(None);}
     // @ref LLP 3000.036.004#153-rule-changing-deployment-review — review is prominent, strictness is explicit and failure-origin aware.
-    let report=report(project,bound,sources,options);
+    let started=std::time::Instant::now();
+    let mut preflight=options.clone();preflight.flags.insert("security-deploy".into(),String::new());
+    let mut report=report(project,bound,sources,&preflight);
+    report.notes.extend(presence::notes(project,bound,prior)?);
+    let dispositions=super::security_reviews::review(project,sources,&report.notes,None)?;
+    let derived=security::derived::notes(sources,bound);
+    let acknowledged=derived.iter().filter(|n|report.notes.iter().zip(&dispositions).any(|(r,d)|r.site==n.site&&r.code==n.code&&r.message==n.message&&d.acknowledged)).map(|n|n.site.to_string()).collect::<std::collections::BTreeSet<_>>();
+    let failing=super::security_reviews::pending(&dispositions)||report.invariants.iter().any(|v|v.status==security::Status::Refuted&&v.counterexample.as_ref().is_some_and(|c|c.reachability.is_reachable())&&(!security::derived::is_derived(&v.invariant)||!acknowledged.contains(&v.invariant.site.to_string())));
+    eprintln!("security deploy campaign: {} ms; bounded replay, remaining paths retain coverage gaps",started.elapsed().as_millis());
     let mut notice=String::from("SECURITY REVIEW — rules changed\n");
     for v in report.invariants.iter().filter(|v|v.status==security::Status::Refuted&&v.counterexample.as_ref().is_some_and(|c|c.reachability.is_reachable())){
         let c=v.counterexample.as_ref().unwrap();
@@ -98,7 +112,7 @@ pub(super) fn release_loop(project:&Project,bound:&Bound,sources:&[(String,Strin
     notice.push_str(&format!("  {}\n",release_notice(project,bound,sources,options)));
     notice.push_str(&format!("  {} independent invariants; {} coverage gaps; finite campaigns are not proof",bound.invariants.len(),report.campaign_coverage.len()));
     exposure(&report);eprintln!("{notice}");
-    if options.flags.contains_key("strict")&&report.refuted(){return Err("E_SECURITY_REVIEW: --strict refuses reachable refuted security intent; repair the named rules and rerun snapback4 test before deploy".into());}
+    if failing&&(!options.flags.contains_key("staging")||options.flags.contains_key("strict")){return Err("E_SECURITY_REVIEW: production deploy refuses reachable FIX; repair the named rule and rerun test; for a derived candidate only, record its rule-bound deliberate design with check --ack-security ID --reason <spec rationale>".into());}
     Ok(Some(notice))
 }
 fn age(timestamp:Option<i64>,now:i64)->String{

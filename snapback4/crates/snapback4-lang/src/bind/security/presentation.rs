@@ -35,7 +35,9 @@ pub fn note_priority(code: &str) -> u8 {
         "N_TABLE_QUESTIONNAIRE" | "N_APPROVAL_NOT_ENFORCED" | "N_EDIT_AFTER_APPROVAL" |
         "N_CHILD_EVIDENCE_PRESENCE" | "N_TIME_TRANSITION" | "N_GUARD_NOT_CONSUMED" |
         "N_CALENDAR_DURATION" | "N_DEPENDENT_WINDOW" | "N_ROLE_WIDE_WRITE" | "N_CREATE_EDIT_ASYMMETRY" | "N_EVIDENCE_REMOVAL" => 2,
-        "N_COLUMN_RESULT_EXPOSURE" | "N_INSERT_WRITE_INTENT" => 5,
+        "N_DERIVED_WRITE_AUTHORITY" | "N_INSERT_WRITE_INTENT" | "N_ARGUMENT_GRANT" | "N_WRITE_DENIED" | "N_PROBE_ONLY_READ" | "N_UNREADABLE_PROBE" | "N_MAINTAIN_AUTHORIZATION" => 3,
+        "N_LOOKUP_FILTERED" | "N_QUERY_FILTERED" | "N_UNIQUE_HIDDEN" | "N_SPARSE_FILTER" | "N_MAINTAINED_COLUMN_DISCLOSURE" => 6,
+        "N_COLUMN_RESULT_EXPOSURE" => 5,
         "N_INVARIANT_RESTATES_RULE" => 6,
         "N_SECURITY_INTENT" => 7,
         _ => 4,
@@ -60,7 +62,7 @@ impl Report {
         }
         let mut shown = 0;
         for note in notes.iter().enumerate().filter_map(|(i,n)|
-            (i < limit || note_priority(&n.code) <= 2).then_some(*n)) {
+            (i < limit || note_priority(&n.code) <= 3).then_some(*n)) {
             shown += 1;
             out.push_str(&format!("  REVIEW {} {}: {}\n    {}\n",note.site,note.code,note.message,note.rewrite));
         }

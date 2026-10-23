@@ -10,8 +10,11 @@ pub struct Observations {
 }
 
 pub(super) fn observe(engine:&mut Engine,p:&Program,viewer:&str,args:BTreeMap<String,Value>)->Result<serde_json::Value,String>{
+    observe_at(engine,p,viewer,args,NOW)
+}
+pub(super) fn observe_at(engine:&mut Engine,p:&Program,viewer:&str,args:BTreeMap<String,Value>,now:i64)->Result<serde_json::Value,String>{
     if p.kind==ProgramKind::Mutation&&engine.schema().operations.get(&p.name).is_some_and(|f|f.ephemeral){return Err("ephemeral mutation observer is outside the durable campaign".into());}
-    let context=Context::new(viewer,args).at(NOW);
+    let context=Context::new(viewer,args).at(now);
     if p.kind==ProgramKind::Query {
         match engine.query(&p.name,context) {
             Ok(q) if q.unavailable || !q.complete => Err("incomplete/metered query is outside logical payload comparison".into()),

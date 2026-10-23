@@ -3,7 +3,7 @@
 use super::*;
 const LIMIT:usize=512;
 #[derive(Clone,Debug,Serialize,serde::Deserialize)]
-pub struct Step {pub operation:String,pub viewer:String,pub args:BTreeMap<String,Value>,pub result:serde_json::Value}
+pub struct Step {#[serde(default,skip_serializing_if="Option::is_none")] pub clock:Option<i64>,pub operation:String,pub viewer:String,pub args:BTreeMap<String,Value>,pub result:serde_json::Value}
 
 pub(super) fn viewers(bound:&Bound)->Vec<String>{
     let mut out=BTreeSet::from([VIEWER.into(),OTHER.into(),"account:security-no-role".into(),"service:security".into()]);
@@ -181,7 +181,7 @@ fn observe(bound:&Bound,e:&mut Engine,rows:&BTreeMap<String,Vec<Value>>,initial:
             if out.exhausted(){return;}
             if out.violations.iter().any(|v|v.invariant_site==inv.site.to_string()&&v.viewer==*viewer&&v.reachability==Reachability::AuthoredFixtureTrace&&trace_key(&v.history)==trace_key(steps)){continue;}
             if !reserve_observers(out,1){return;}
-            match judged(inv,policy_in(bound,inv,rows,viewer,None,row,e),out){Ok(false)=>{},Ok(true)=>continue,Err(why)=>{out.unsupported.insert(format!("{}: {why}",inv.target_label()));continue;}}
+            match judged(inv,policy_in_at(bound,inv,rows,viewer,None,row,e,history_clock(steps)),out){Ok(false)=>{},Ok(true)=>continue,Err(why)=>{out.unsupported.insert(format!("{}: {why}",inv.target_label()));continue;}}
             let Ok(key)=row.field("id")else{continue;};
             if inv.column.as_ref().and_then(|c|bound.schema.tables[&inv.table].written_by.get(c)).is_some_and(|gate|!gate.audience&&row.field(&gate.owner).ok()!=Some(&Value::Id(viewer.clone()))){continue 'actors;}
 
@@ -194,9 +194,9 @@ fn observe(bound:&Bound,e:&mut Engine,rows:&BTreeMap<String,Vec<Value>>,initial:
                     if !reserve_observers(out,2){return;}
                     let args=match materialize_arguments(e,&bp.program.args,&args,viewer){Ok(a)=>a,Err(why)=>{out.unsupported.insert(format!("{}: typed history observer asset/input preparation: {why}",bp.program.name));continue;}};
                     out.attempted+=1;
-                    if let Ok(q)=e.query(&bp.program.name,Context::new(viewer,args.clone()).at(NOW))&&!q.unavailable&&typed_disclosure(&bp.result,&q.data,&inv.table,key,inv.column.as_deref(),row){
+                    if let Ok(q)=e.query(&bp.program.name,Context::new(viewer,args.clone()).at(history_clock(steps)))&&!q.unavailable&&typed_disclosure(&bp.result,&q.data,&inv.table,key,inv.column.as_deref(),row){
                         out.attempted+=1;
-                        if !matches!(e.query(&bp.program.name,Context::new(viewer,args.clone()).at(NOW)),Ok(again) if !again.unavailable&&again.data==q.data){
+                        if !matches!(e.query(&bp.program.name,Context::new(viewer,args.clone()).at(history_clock(steps))),Ok(again) if !again.unavailable&&again.data==q.data){
                             out.unsupported.insert(format!("{}: typed read payload is not repeatable on the committed image",bp.program.name));continue;
                         }
                         let added=violation(out,inv,steps,viewer,row,None,initial,if inv.column.is_some(){"column read observation"}else{"read"});
@@ -210,10 +210,10 @@ fn observe(bound:&Bound,e:&mut Engine,rows:&BTreeMap<String,Vec<Value>>,initial:
             let Ok(id)=key.as_str()else{continue;};
             if !reserve_observers(out,3){return;}
             let mut absent=match fork(bound,e,Vec::new()){Ok(e)=>e,Err(why)=>{out.unsupported.insert(format!("{}: absent world fork: {why}",inv.table));continue;}};
-            if let Err(why)=absent.seed_delete_at(&inv.table,id,NOW){out.unsupported.insert(format!("{}: absent world refused: {why}",inv.table));continue;}
+            if let Err(why)=absent.seed_delete_at(&inv.table,id,history_clock(steps)){out.unsupported.insert(format!("{}: absent world refused: {why}",inv.table));continue;}
             if let Err(why)=validate_fixture(bound,&mut absent){out.unsupported.insert(format!("{}: absent world invalid: {why}",inv.table));continue;}
             let absent_rows=match readback(&absent){Ok(r)=>r,Err(why)=>{out.unsupported.insert(format!("{}: absent world readback: {why}",inv.table));continue;}};
-            if judged(inv,policy_in(bound,inv,&absent_rows,viewer,None,row,&mut absent),out)!=Ok(false){continue;}
+            if judged(inv,policy_in_at(bound,inv,&absent_rows,viewer,None,row,&mut absent,history_clock(steps)),out)!=Ok(false){continue;}
             for bp in queries.iter().copied().filter(|p|observing.iter().any(|t|super::super::audit::mentions(&serde_json::to_value(&p.program).unwrap(),t))){
                 let p=&bp.program;
                 let cases=fixture_cases(bound,p,rows,actors,out);
@@ -225,14 +225,14 @@ fn observe(bound:&Bound,e:&mut Engine,rows:&BTreeMap<String,Vec<Value>>,initial:
                     if args!=raw_args{
                         if !reserve_observers(out,2){return;}
                         absent=match fork(bound,e,Vec::new()){Ok(e)=>e,Err(why)=>{out.unsupported.insert(format!("{}: paired history argument ledger fork: {why}",p.name));continue;}};
-                        if let Err(why)=absent.seed_delete_at(&inv.table,id,NOW){out.unsupported.insert(format!("{}: paired history argument ledger absence: {why}",p.name));continue;}
+                        if let Err(why)=absent.seed_delete_at(&inv.table,id,history_clock(steps)){out.unsupported.insert(format!("{}: paired history argument ledger absence: {why}",p.name));continue;}
                         if let Err(why)=validate_fixture(bound,&mut absent){out.unsupported.insert(format!("{}: ledger absence world invalid: {why}",p.name));continue;}
                         if readback(&absent)!=Ok(absent_rows.clone()){out.unsupported.insert(format!("{}: paired argument ledger changes the absent base world",p.name));continue;}
                     }
                     out.attempted+=2;
-                    let (Ok(a),Ok(b))=(paired::observe(e,p,viewer,args.clone()),paired::observe(&mut absent,p,viewer,args.clone()))else{continue;};
+                    let (Ok(a),Ok(b))=(paired::observe_at(e,p,viewer,args.clone(),history_clock(steps)),paired::observe_at(&mut absent,p,viewer,args.clone(),history_clock(steps)))else{continue;};
                     if a==b{continue;}
-                    if !matches!((paired::observe(e,p,viewer,args.clone()),paired::observe(&mut absent,p,viewer,args.clone())),(Ok(aa),Ok(bb)) if a==aa&&b==bb){out.unsupported.insert(format!("{} / {}: paired history observation is unstable or unavailable on repeat",p.name,inv.target_label()));continue;}
+                    if !matches!((paired::observe_at(e,p,viewer,args.clone(),history_clock(steps)),paired::observe_at(&mut absent,p,viewer,args.clone(),history_clock(steps))),(Ok(aa),Ok(bb)) if a==aa&&b==bb){out.unsupported.insert(format!("{} / {}: paired history observation is unstable or unavailable on repeat",p.name,inv.target_label()));continue;}
                     let added=violation(out,inv,steps,viewer,row,None,initial,"read");
                     if added&&let Some(v)=out.violations.last_mut(){v.operation=p.name.clone();v.args=args;v.observations=Some(paired::Observations{present:a,absent:b,absent_rows:absent_rows.clone()});}
                     continue 'actors;
@@ -241,17 +241,17 @@ fn observe(bound:&Bound,e:&mut Engine,rows:&BTreeMap<String,Vec<Value>>,initial:
         }}
     }
 }
-fn prior_policy(bound:&Bound,inv:&Invariant,rows:&BTreeMap<String,Vec<Value>>,viewer:&str,old:Option<&Value>,row:&Value,prior:&mut Option<Engine>)->Result<bool,String>{
-    match prior.as_mut(){Some(e)=>policy_in(bound,inv,rows,viewer,old,row,e),None=>policy(bound,inv,rows,viewer,old,row)}
+fn prior_policy(bound:&Bound,inv:&Invariant,rows:&BTreeMap<String,Vec<Value>>,viewer:&str,old:Option<&Value>,row:&Value,prior:&mut Option<Engine>,now:i64)->Result<bool,String>{
+    match prior.as_mut(){Some(e)=>policy_in_at(bound,inv,rows,viewer,old,row,e,now),None=>policy_at(bound,inv,rows,viewer,old,row,now)}
 }
 fn assertions(bound:&Bound,before:&BTreeMap<String,Vec<Value>>,after:&BTreeMap<String,Vec<Value>>,initial:&BTreeMap<String,Vec<Value>>,viewer:&str,steps:&[Step],prior:&mut Option<Engine>,current:&mut Engine,out:&mut Campaign){
     for inv in bound.invariants.iter().filter(|i|i.target=="always"){
         for row in after.get(&inv.table).into_iter().flatten(){
             let old=before.get(&inv.table).into_iter().flatten().find(|r|r.field("id").ok()==row.field("id").ok());
-            if judged(inv,policy_in(bound,inv,after,viewer,old,row,current),out)!=Ok(false){continue;}
+            if judged(inv,policy_in_at(bound,inv,after,viewer,old,row,current,history_clock(steps)),out)!=Ok(false){continue;}
             // A pre-existing seed defect is supplemental; a newly violated
             // assertion or changed image is an authored committed observation.
-            if old!=Some(row)||old.is_some_and(|r|judged(inv,prior_policy(bound,inv,before,viewer,Some(r),r,prior),out)==Ok(true)){
+            if old!=Some(row)||old.is_some_and(|r|judged(inv,prior_policy(bound,inv,before,viewer,Some(r),r,prior,history_clock(steps)),out)==Ok(true)){
                 violation(out,inv,steps,viewer,row,old,initial,"always");
             }
         }
@@ -405,6 +405,7 @@ pub(super) fn lifecycle_observers(bound:&Bound,fixture:&Engine,out:&mut Campaign
                     if ordered.len()<actor_count{out.unsupported.insert(format!("{}: directed role-class deduplication omits actors with matching role/target projections; actor-specific histories uncovered",p.name));}
                     if ordered.len()>2{out.unsupported.insert(format!("{}: directed actor ordering keeps two candidates per argument tuple; other actors remain in breadth campaign",p.name));}
                     for (viewer,_,_) in ordered.into_iter().take(2){
+                    for clock in clock_candidates(bound,&before,&steps){
                     if out.directed_attempts>=4096||!out.reserve(1){out.unsupported.insert("directed lifecycle successors capped at 4096 attempts/shared campaign budget; remaining histories uncovered".into());return;}out.directed_attempts+=1;
                     let Ok(mut engine)=base.fork_fixture()else{continue;};
                     let Ok(args)=materialize_arguments(&mut engine,&p.args,&args,viewer)else{continue;};
@@ -412,10 +413,10 @@ pub(super) fn lifecycle_observers(bound:&Bound,fixture:&Engine,out:&mut Campaign
                     if bound.invariants.iter().any(|i|i.target!="read"&&i.policy.as_ref().is_some_and(RuleExpr::has_reference)){if !out.reserve(1){return;}prior=base.fork_fixture().ok();}
                     out.attempted+=1;*out.operations.entry(p.name.clone()).or_default()+=1;
                     let trace=super::executed::trace(bound,p);
-                    let Ok(result)=engine.mutate(&p.name,None,Context::new(viewer,args.clone()).at(NOW).with_fixture_trace(trace.clone()))else{continue;};
+                    let Ok(result)=engine.mutate(&p.name,None,Context::new(viewer,args.clone()).at(clock).with_fixture_trace(trace.clone()))else{continue;};
                     if !matches!(result.state,snapback4_core::WriteState::Sent{..}){out.refused+=1;continue;}
                     let Ok(after)=readback(&engine)else{continue;};
-                    let mut history=steps.clone();history.push(Step{operation:p.name.clone(),viewer:viewer.clone(),args:args.clone(),result:serde_json::to_value(&result.state).unwrap()});
+                    let mut history=steps.clone();history.push(Step{clock:Some(clock),operation:p.name.clone(),viewer:viewer.clone(),args:args.clone(),result:serde_json::to_value(&result.state).unwrap()});
                     super::executed::record(bound,p,&trace,&result.state,&after,&initial,viewer,&history,&mut engine,out);
                     changed(bound,p,&before,&after,&initial,viewer,&history,&mut prior,&mut engine,out);
                     if selected_sites.iter().all(|site|out.violations.iter().any(|v|&v.invariant_site==site&&v.reachability.is_reachable())){
@@ -436,7 +437,7 @@ pub(super) fn lifecycle_observers(bound:&Bound,fixture:&Engine,out:&mut Campaign
                     out.directed_peak_worlds=out.directed_peak_worlds.max(frontier_count+next.len()+successors.len()+1);
                     successors.sort_by_key(|(_,_,priority,_)|std::cmp::Reverse(*priority));
                     if successors.len()>3{successors.truncate(3);out.unsupported.insert(format!("{}: directed successor selection keeps three priority resource states per operation/world; other states uncovered",p.name));}
-                }}
+                }}}
                 for (engine,history,priority,_) in successors{
                     next.push((engine,history,priority));
                     out.directed_peak_worlds=out.directed_peak_worlds.max(frontier_count+next.len()+1);
@@ -556,7 +557,7 @@ pub(super) fn run(bound:&Bound,fixture:&Engine,out:&mut Campaign){
             match engine.mutate(&p.name,None,Context::new(viewer,args.clone()).at(NOW).with_fixture_trace(trace.clone())){
                 Ok(result)=>{
                     let sent=matches!(result.state,snapback4_core::WriteState::Sent{..});
-                    steps.push(Step{operation:p.name.clone(),viewer:viewer.clone(),args:args.clone(),result:serde_json::to_value(&result.state).unwrap()});
+                    steps.push(Step{clock:None,operation:p.name.clone(),viewer:viewer.clone(),args:args.clone(),result:serde_json::to_value(&result.state).unwrap()});
                     let after=match readback(&engine){Ok(r)=>r,Err(e)=>{out.unsupported.insert(e);break;}};
                     if sent&&n<singles{
                         if before!=after{
@@ -591,3 +592,14 @@ pub(super) fn run(bound:&Bound,fixture:&Engine,out:&mut Campaign){
  let cases=[(false,false),(false,true),(true,false),(true,true)].into_iter().map(|(a,b)|BTreeMap::from([("a".into(),Value::Bool(a)),("b".into(),Value::Bool(b))])).collect();
  let mut out=Campaign::default();let selected=directed_cases(p,cases,&mut out);assert_eq!(selected.len(),3);assert!(out.unsupported.iter().any(|s|s.contains("argument grouping")));
 }}
+
+pub(super) fn history_clock(steps:&[Step])->i64{steps.iter().rev().find_map(|s|s.clock).unwrap_or(NOW)}
+fn clock_candidates(bound:&Bound,rows:&BTreeMap<String,Vec<Value>>,steps:&[Step])->Vec<i64>{
+    let current=history_clock(steps);let mut times=BTreeSet::new();
+    for (table,rs) in rows {for row in rs {for (c,k) in &bound.schema.tables[table].columns {
+        if matches!(k.required(),C::Time)&&let Ok(Value::Int(n))=row.field(c)&&*n>=current {
+            times.insert(*n);if let Some(next)=n.checked_add(1){times.insert(next);}
+        }
+    }}}
+    std::iter::once(current).chain(times.into_iter().filter(|n|*n>current).take(3)).collect()
+}

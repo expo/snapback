@@ -409,7 +409,7 @@ N_APPROVAL_NOT_ENFORCED: An approval flag is written but not inspected by a life
 
 ### N_EDIT_AFTER_APPROVAL
 
-N_EDIT_AFTER_APPROVAL: A checked value or media artifact can change without a positive creation-state restriction. Decide whether approval must be renewed after edits or replacements; declare column update intent. This is a specification question, never a proof or a new gate.
+N_EDIT_AFTER_APPROVAL: A checked value or media artifact can change without a positive creation-state restriction. Decide whether approval must be renewed after edits or replacements; declare column update intent. To freeze approved evidence use `immutable photo when .approved = true` from the complete rule recipe. This is a specification question, never a proof or a new gate.
 
 ### N_CHILD_EVIDENCE_PRESENCE
 
@@ -430,3 +430,25 @@ N_CALENDAR_DURATION: A 365-day multiple may differ from a calendar anniversary. 
 ### N_DEPENDENT_WINDOW
 
 N_DEPENDENT_WINDOW: A written deadline is bounded against now without consulting a dependent stored deadline. Confirm the window base and enforce the actual resource deadline when required. This is a specification question, never a proof or a new gate.
+
+## Structural column protection
+
+See `guide rule-recipes` for column write/freeze protection. Production deploy
+runs bounded derived candidates and refuses reachable FIX. Authored refutations
+require repair; deliberate derived policies accept individual rule-bound decisions.
+Clock arithmetic, typed references and logical read-through existence retain
+unknown results and explicit coverage gaps.
+
+### N_DERIVED_WRITE_AUTHORITY
+
+N_DERIVED_WRITE_AUTHORITY identifies an inferred candidate from authored change
+guards or approval data. Enforce the candidate or record its individual specification
+decision; only replayed violations refuse deploy, never a failed abstract implication.
+
+### N_PRESENCE_LOOSENING
+
+N_PRESENCE_LOOSENING identifies a required-to-optional column change. Declare
+presence intent or an individual specification decision. Successful check advances
+a local generated baseline; production compares the selected release independently.
+A fresh checkout has no invented predecessor. Deliberately optional evidence can
+state `invariant evidence always .photo = null or .photo != null`.

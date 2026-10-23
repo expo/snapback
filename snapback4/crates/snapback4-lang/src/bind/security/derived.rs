@@ -1,0 +1,80 @@
+//! Candidate contracts from authored change guards and inspected approval data.
+// @ref LLP 3000.036.004.000#5-derived-campaigns-and-production-deployment — inferred candidates require ordinary replay, never a proof claim.
+use super::*;
+
+pub fn is_derived(inv:&Invariant)->bool { inv.site.file.starts_with("$derived/") }
+fn add(out:&mut Vec<Invariant>,table:&str,column:&str,target:&str,policy:RuleExpr,site:&Site){
+    if target=="write" {
+        add(out,table,column,"insert",RuleExpr::Or(vec![RuleExpr::Eq(RuleTerm::Field(column.into()),RuleTerm::Literal(snapback4_core::Value::Null)),policy.clone()]),site);
+        add(out,table,column,"update",policy,site);return;
+    }
+    use sha2::{Digest,Sha256};
+    let identity=format!("{:x}",Sha256::digest(serde_json::to_vec(&policy).unwrap()));
+    let site=Site::new(&format!("$derived/{}/{table}/{column}/{target}/{identity}",site.file),site.line,site.col);
+    if out.iter().any(|i|i.site==site&&i.policy.as_ref()==Some(&policy)){return;}
+    out.push(Invariant{table:table.into(),column:Some(column.into()),target:target.into(),predicate:policy.quarry(),policy:Some(policy),site,operation:None,requirements:Vec::new(),syntax:None,unsupported:None});
+}
+pub fn invariants(sources:&[(String,String)],bound:&Bound)->Vec<Invariant>{
+    let docs=sources.iter().map(|(f,s)|crate::parse_document(f,s).0).collect::<Vec<_>>();
+    let catalog=Catalog::build(docs.clone(),&mut Vec::new());
+    let mut out=Vec::new();
+    for t in docs.iter().flat_map(|d|&d.tables){
+        let Some(table)=bound.schema.table(&t.name)else{continue;};
+        for (column,guard) in write_advice::table_guards(&table.rules.update){
+            if !table.column_writes.contains_key(&column)&&!write_advice::update_only(bound,&t.name,&column,&guard){add(&mut out,&t.name,&column,"write",guard,&t.site);}
+        }
+    }
+    for p in docs.iter().flat_map(|d|&d.programs).filter(|p|p.kind==ast::ProgramKind::Mutation){
+        let plain=authority_walk::writes(&catalog,p);
+        for (write,context) in &plain {
+            let ast::Expr::Write{op:ast::WriteOp::Update,table,fields,site,..}=write else{continue;};
+            let Some(info)=catalog.tables.get(table)else{continue;};
+            let definition=&bound.schema.tables[table];
+            // Guarded edits: only the additional, column-specific condition.
+            for field in fields {
+                if definition.column_writes.contains_key(&field.name){continue;}
+                let specialized=authority_walk::column_writes(&catalog,p,&field.name);
+                let mut policies=Vec::new();let mut conditional=false;
+                for ((candidate,specific),(_,base)) in specialized.iter().zip(&plain){
+                    if !matches!(candidate,ast::Expr::Write{op:ast::WriteOp::Update,table:t,fields,..} if t==table&&fields.iter().any(|f|f.name==field.name)){continue;}
+                    conditional|=specific.body.len()>base.body.len();
+                    let guards=operation::requirements(&catalog,info,specific);
+                    policies.push(RuleExpr::And(guards.into_iter().filter(operation::safe).collect()));
+                }
+                let guard=RuleExpr::Or(policies);
+                if conditional&&!write_advice::update_only(bound,table,&field.name,&guard){add(&mut out,table,&field.name,"write",guard,site);}
+            }
+            // Approval candidates keep their inferred origin explicit. Only
+            // values inspected by this approval (or media governed by its
+            // stored approval timestamp) are proposed for freezing.
+            let mut inspected=BTreeSet::new();
+            for statement in &context.body {if let ast::Stmt::Require{condition,..}=statement {
+                let mut e=condition.clone();super::super::intent_walk::expression(&mut e,&mut |e|if let ast::Expr::Member{base,name,..}=e {
+                    let mut b=*base.clone();let mut same=false;super::super::intent_walk::expression(&mut b,&mut |x|if matches!(x,ast::Expr::Read(r) if &r.table==table){same=true;});
+                    if same {inspected.insert(name.clone());}
+                });
+            }}
+            for approval in fields.iter().filter(|f|["approv","authoriz"].iter().any(|s|f.name.to_lowercase().contains(s))){
+                let Some(kind)=definition.columns.get(&approval.name)else{continue;};
+                let condition=match (kind.required(),approval.value.as_ref()) {
+                    (snapback4_core::schema::ColumnType::Bool,Some(ast::Expr::Literal{value:ast::Literal::Bool(true),..}))=>RuleExpr::Ne(RuleTerm::Field(approval.name.clone()),RuleTerm::Literal(snapback4_core::Value::Bool(true))),
+                    (snapback4_core::schema::ColumnType::Time,Some(ast::Expr::Name{name,..})) if name=="now"=>RuleExpr::Eq(RuleTerm::Field(approval.name.clone()),RuleTerm::Literal(snapback4_core::Value::Null)),
+                    _=>continue,
+                };
+                for (column,_kind) in &definition.columns {
+                    if !inspected.contains(column){continue;}
+                    if fields.iter().any(|f|&f.name==column)||definition.immutable_fields().any(|c|c==column)||definition.frozen_columns.contains_key(column){continue;}
+                    if !bound.programs.iter().any(|p|snapback4_core::ir::write_tables(&p.program).iter().any(|(t,e)|t==table&&matches!(*e,"update"|"upsert"))){continue;}
+                    if !write_advice::update_only(bound,table,column,&condition){add(&mut out,table,column,"update",condition.clone(),site);}
+                }
+            }
+        }
+    }
+    out
+}
+pub fn notes(sources:&[(String,String)],bound:&Bound)->Vec<Diagnostic>{
+    invariants(sources,bound).into_iter().map(|i|Diagnostic::new(&i.site,"N_DERIVED_WRITE_AUTHORITY",format!("{}: derived candidate {} only {}; a replayed violation needs a specification decision",i.target_label(),i.target,i.predicate),"enforce column write/freeze authority, declare matching update-only creation intent, or record this individual rule's deliberate design with check --ack-security ID --reason '<spec rationale>'").guide("security")).collect()
+}
+pub fn augmented(sources:&[(String,String)],bound:&Bound)->Bound{
+    let mut out=bound.clone();out.invariants.extend(invariants(sources,bound));out
+}

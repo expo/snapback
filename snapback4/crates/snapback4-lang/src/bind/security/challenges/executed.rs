@@ -3,8 +3,11 @@
 use super::*;
 use snapback4_core::engine::fixture_trace::{Trace,Intent};
 pub(super) fn trace(bound:&Bound,p:&Program)->Trace {
-    Trace::new(bound.invariants.iter().filter(|inv|!matches!(inv.target.as_str(),"read"|"always")&&inv.operation.as_ref().is_none_or(|op|op==&p.name)).filter_map(|inv|Some(Intent{
-        site:inv.site.to_string(),table:inv.table.clone(),column:inv.column.clone(),policy:inv.policy.clone()?,
+    Trace::new(bound.invariants.iter().filter(|inv|!matches!(inv.target.as_str(),"read"|"always")&&inv.operation.as_ref().is_none_or(|op|op==&p.name)).filter_map(|inv|Some(Intent{concrete:if inv.policy.is_none(){inv.syntax.clone().map(|syntax|{
+            let schema=bound.schema.clone();let table=inv.table.clone();
+            snapback4_core::engine::fixture_trace::ConcretePredicate(std::sync::Arc::new(move |rows,row,viewer,now|super::super::concrete::evaluate(&syntax,row,rows,&schema,viewer,&table,now)))
+        })}else{None},
+        site:inv.site.to_string(),table:inv.table.clone(),column:inv.column.clone(),policy:inv.policy.clone().unwrap_or(RuleExpr::Allow),
         effects:super::super::effects(inv).iter().map(|word|super::super::effect(word)).collect(),
     })).collect())
 }
@@ -36,7 +39,7 @@ pub(super) fn record(bound:&Bound,p:&Program,trace:&Trace,result:&snapback4_core
                 out.unsupported.insert(format!("{} / {}: returned policy image differs from committed image; disclosure boundary uncovered",p.name,inv.target_label()));continue;
             }
             if !out.reserve(1){return;}
-            if judged(inv,policy_in(bound,inv,after,viewer,None,row,engine),out)!=Ok(false){continue;}
+            if judged(inv,policy_in_at(bound,inv,after,viewer,None,row,engine,histories::history_clock(steps)),out)!=Ok(false){continue;}
             if histories::violation(out,inv,steps,viewer,row,None,initial,"mutation result"){
                 let v=out.violations.last_mut().unwrap();v.operation=p.name.clone();v.args=steps.last().map(|s|s.args.clone()).unwrap_or_default();v.rule_path="authored mutation returned a compiler-typed protected row/column payload; stable current policy false".into();
             }

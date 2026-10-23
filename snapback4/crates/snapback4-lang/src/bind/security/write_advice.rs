@@ -36,11 +36,23 @@ pub(super) fn notes(sources:&[(String,String)],bound:&Bound)->Vec<Diagnostic>{
             let entry=specific.entry((p.site.file.clone(),p.name.clone(),table,column.clone())).or_default();entry.0|=context.body.len()>base.body.len();entry.1.push(necessary(&restriction));
         }}
     }}
-    let mut out=Vec::new();let mut seen=BTreeSet::new();let mut replaced=BTreeSet::new();
+    let mut out=Vec::new();
+    for (creator,name,op,table,fields,site,admission) in &writes {
+        if !matches!(op,ast::WriteOp::Insert|ast::WriteOp::Upsert){continue;}
+        for (column,guard) in table_guards(&bound.schema.tables[table].rules.update) {
+            let t=&bound.schema.tables[table];
+            if t.column_writes.contains_key(&column) || update_only(bound,table,&column,&guard) || !fields.iter().any(|f|f.name==column&&supplied(f,creator)){continue;}
+            if kernel::implies(admission,&guard)==Ok(false) {
+                out.push(Diagnostic::new(site,"N_CREATE_EDIT_ASYMMETRY",format!("{name}: {table}.{column} is supplied at create/upsert without its table update change guard {}",guard.quarry()),format!("enforce `{column}: <type> write <- {}` or declare deliberate creation asymmetry with `invariant {table}.{column} update only {}`; run test with non-null input",guard.quarry(),guard.quarry())).guide("security"));
+            }
+        }
+    }
+    let mut seen=BTreeSet::new();let mut replaced=BTreeSet::new();
     for (creator,name,op,table,fields,site,admission) in &writes{
         if !matches!(op,ast::WriteOp::Insert|ast::WriteOp::Upsert){continue;}
         for ((file,editor,target,column),(conditional,guards)) in &specific{
             if !conditional{continue;}
+            if bound.schema.tables[table].column_writes.contains_key(column) || update_only(bound,table,column,&RuleExpr::Or(guards.clone())) {continue;}
             let guard=RuleExpr::Or(guards.clone());
             if target!=table||!fields.iter().any(|f|&f.name==column&&supplied(f,creator)){continue;}
             let guard=necessary(&guard);
@@ -76,4 +88,26 @@ fn supplied(field:&ast::ObjectField,program:&ast::ProgramDecl)->bool{
     let Some(value)=&field.value else{return true;};let mut value=value.clone();let mut supplied=false;
     super::super::intent_walk::expression(&mut value,&mut |e|if let ast::Expr::Name{name,..}=e{supplied|=program.args.iter().any(|a|a.name==*name);});
     supplied
+}
+
+// Exact syntactic changed-column implication; the remainder is the authored policy.
+pub(super) fn table_guards(rule:&RuleExpr)->BTreeMap<String,RuleExpr>{
+    fn same(rule:&RuleExpr)->Option<String>{
+        let RuleExpr::Eq(a,b)=rule else{return None;};
+        [(a,b),(b,a)].iter().find_map(|(a,b)|if let RuleTerm::OldField(c)=a {
+            matches!(b,RuleTerm::NextField(d)|RuleTerm::Field(d) if d==c).then(||c.clone())
+        }else{None})
+    }
+    let mut out=BTreeMap::new();
+    match rule {
+        RuleExpr::And(xs)=>for r in xs {out.extend(table_guards(r));},
+        RuleExpr::Or(xs)=>for (n,r) in xs.iter().enumerate(){if let Some(column)=same(r){
+            let policy=RuleExpr::Or(xs.iter().enumerate().filter(|(i,_)|*i!=n).map(|(_,r)|r.clone()).collect());
+            if super::operation::safe(&policy){out.insert(column,policy);}
+        }},_=>{}
+    }
+    out
+}
+pub(super) fn update_only(bound:&Bound,table:&str,column:&str,guard:&RuleExpr)->bool{
+    bound.invariants.iter().any(|i|i.table==table&&i.column.as_deref()==Some(column)&&i.target=="update"&&i.policy.as_ref().is_some_and(|p|kernel::implies(p,guard)==Ok(true)&&kernel::implies(guard,p)==Ok(true)))
 }

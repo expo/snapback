@@ -3,7 +3,7 @@
 use super::*;
 use serde::{Serialize,Deserialize};
 use sha2::{Digest,Sha256};
-const ANALYZER:&str="sec8-1";
+const ANALYZER:&str="sec9-1";
 mod binding;
 #[derive(Serialize,Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -13,7 +13,7 @@ struct File{version:u32,entries:BTreeMap<String,Entry>}
 struct Entry{sources:String,analyzer:String,reason:String}
 #[derive(Serialize)]
 pub(super) struct Disposition{pub id:String,pub code:String,pub site:String,pub gated:bool,pub acknowledged:bool,pub reason:Option<String>,pub scope:String}
-pub(super) fn gated(code:&str)->bool{matches!(code,"N_RETAINED_ROLE_GRANT"|"N_OPTIONAL_UPLOAD_CREATE")}
+pub(super) fn gated(code:&str)->bool{matches!(code,"N_RETAINED_ROLE_GRANT"|"N_OPTIONAL_UPLOAD_CREATE"|"N_CREATE_EDIT_ASYMMETRY"|"N_PRIVATE_CREATE_EDIT_ASYMMETRY"|"N_PRESENCE_LOOSENING")}
 fn hash(bytes:&[u8])->String{format!("{:x}",Sha256::digest(bytes))}
 fn digest(s:&str)->bool{s.len()==64&&s.bytes().all(|b|b.is_ascii_hexdigit())}
 pub(super) fn review(project:&Project,sources:&[(String,String)],notes:&[snapback4_lang::Diagnostic],ack:Option<(&str,&str)>)->Result<Vec<Disposition>,String>{

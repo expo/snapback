@@ -2,6 +2,9 @@
 //! These facts supplement the definition pins. A code label alone cannot tell
 //! a caller whether to retry, replace intent, change a declaration, or show no data.
 pub(super) const ACTIONS: &[(&str, &[&str])] = &[
+    ("E_COLUMN_WRITE", &["Name an ordinary column once", "use current-row rule syntax"]),
+    ("N_DERIVED_WRITE_AUTHORITY", &["Enforce the candidate", "record its individual specification decision"]),
+    ("N_PRESENCE_LOOSENING", &["Declare presence intent", "production compares the selected release independently"]),
     ("N_TABLE_QUESTIONNAIRE", &["Answer from the specification", "JSON retains every underlying note and individual decision ID.", "The grouped line is advisory and has no separate ID."]),
     ("N_APPROVAL_NOT_ENFORCED", &["Decide which transitions require approval", "declare independent intent", "test both gating boolean values."]),
     ("N_EDIT_AFTER_APPROVAL", &["Decide whether approval must be renewed after edits or replacements", "declare column update intent."]),

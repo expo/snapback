@@ -96,13 +96,13 @@ fn snapshot_mode(bound:&Bound,inv:&Invariant,variant:usize,timed:bool)->Result<B
     }
     Ok(out)
 }
-struct Snapshot<'a>{schema:&'a Schema,rows:&'a BTreeMap<String,Vec<Value>>}
+struct Snapshot<'a>{schema:&'a Schema,rows:&'a BTreeMap<String,Vec<Value>>,now:i64}
 impl Probe for Snapshot<'_>{
     fn exists(&mut self,table:&str,index:&str,key:&[Value],equalities:&[(String,Value)])->Result<bool,RuntimeError>{
         let t=&self.schema.tables[table];let Some(idx)=t.index(index)else{return Ok(false)};
         if idx.components.len()!=key.len(){return Ok(false);}
         if idx.unique&&idx.components.iter().any(|c|c.column().is_some_and(|n|t.columns.get(n).is_some_and(C::is_optional)))&&key.contains(&Value::Null){return Ok(false);}
-        Ok(self.rows.get(table).into_iter().flatten().filter(|r|live(t,r)).any(|r|idx.components.iter().zip(key).all(|(c,v)|c.column().is_some_and(|n|r.field(n).ok()==Some(v)))&&equalities.iter().all(|(n,v)|r.field(n).ok()==Some(v))))
+        Ok(self.rows.get(table).into_iter().flatten().filter(|r|!t.expired(r,self.now)&&t.not_before.as_ref().is_none_or(|c|matches!(r.field(c),Ok(Value::Null))||matches!(r.field(c),Ok(Value::Int(n)) if *n<=self.now))).any(|r|idx.components.iter().zip(key).all(|(c,v)|c.column().is_some_and(|n|r.field(n).ok()==Some(v)))&&equalities.iter().all(|(n,v)|r.field(n).ok()==Some(v))))
     }
     fn created(&mut self,_:&str,_:&str,_:&[Value])->bool{false}
 
@@ -110,19 +110,24 @@ impl Probe for Snapshot<'_>{
 fn live(t:&snapback4_core::schema::Table,row:&Value)->bool{
     !t.expired(row,NOW)&&t.not_before.as_ref().is_none_or(|c|match row.field(c){Ok(Value::Int(n))=>*n<=NOW,Ok(Value::Null)=>true,_=>false})
 }
-fn policy(bound:&Bound,inv:&Invariant,rows:&BTreeMap<String,Vec<Value>>,viewer:&str,old:Option<&Value>,row:&Value)->Result<bool,String>{
+fn policy(bound:&Bound,inv:&Invariant,rows:&BTreeMap<String,Vec<Value>>,viewer:&str,old:Option<&Value>,row:&Value)->Result<bool,String>{policy_at(bound,inv,rows,viewer,old,row,NOW)}
+fn policy_in(bound:&Bound,inv:&Invariant,rows:&BTreeMap<String,Vec<Value>>,viewer:&str,old:Option<&Value>,row:&Value,engine:&mut Engine)->Result<bool,String>{policy_in_at(bound,inv,rows,viewer,old,row,engine,NOW)}
+fn policy_at(bound:&Bound,inv:&Invariant,rows:&BTreeMap<String,Vec<Value>>,viewer:&str,old:Option<&Value>,row:&Value,now:i64)->Result<bool,String>{
 
-    let Some(p)=inv.policy.as_ref() else{return inv.syntax.as_ref().and_then(|e|super::concrete::evaluate(e,row,rows,&bound.schema,viewer)).ok_or_else(||"concrete policy expression is unknown/unsupported (including clock and typed literal coercions)".into());};
+    if inv.policy.as_ref().is_some_and(|p|kernel::dependencies(p).iter().any(|d|bound.schema.tables.get(d).is_some_and(|t|t.through.is_some()))) {
+        return inv.syntax.as_ref().and_then(|e|super::concrete::evaluate(e,row,rows,&bound.schema,viewer,&inv.table,now)).ok_or_else(||"logical read-through invariant judgment is unknown".into());
+    }
+    let Some(p)=inv.policy.as_ref() else{return inv.syntax.as_ref().and_then(|e|super::concrete::evaluate(e,row,rows,&bound.schema,viewer,&inv.table,now)).ok_or_else(||"concrete policy expression is unknown/unsupported (including clock and typed literal coercions)".into());};
 
-    let mut image=row.clone();if super::temporal::has_clock(p)&&let Value::Row(fields)=&mut image{fields.insert("$security:server-clock".into(),Value::Int(NOW));}
+    let mut image=row.clone();if super::temporal::has_clock(p)&&let Value::Row(fields)=&mut image{fields.insert("$security:server-clock".into(),Value::Int(now));}
     if p.has_reference(){return Err("reference intent requires authorized engine policy replay".into());}
-    rules::evaluate(p,viewer,old,&image,false,&mut Snapshot{schema:&bound.schema,rows}).map_err(|e|e.to_string())
+    rules::evaluate(p,viewer,old,&image,false,&mut Snapshot{schema:&bound.schema,rows,now}).map_err(|e|e.to_string())
 }
-fn policy_in(bound:&Bound,inv:&Invariant,rows:&BTreeMap<String,Vec<Value>>,viewer:&str,old:Option<&Value>,row:&Value,engine:&mut Engine)->Result<bool,String>{
-    let Some(p)=&inv.policy else{return policy(bound,inv,rows,viewer,old,row);};
-    if !p.has_reference(){return policy(bound,inv,rows,viewer,old,row);}
-    let mut image=row.clone();if super::temporal::has_clock(p)&&let Value::Row(fields)=&mut image{fields.insert("$security:server-clock".into(),Value::Int(NOW));}
-    match engine.fixture_policy(p,viewer,old,&image,NOW).map_err(|e|e.to_string())?{
+fn policy_in_at(bound:&Bound,inv:&Invariant,rows:&BTreeMap<String,Vec<Value>>,viewer:&str,old:Option<&Value>,row:&Value,engine:&mut Engine,now:i64)->Result<bool,String>{
+    let Some(p)=&inv.policy else{return policy_at(bound,inv,rows,viewer,old,row,now);};
+    if !p.has_reference(){return policy_at(bound,inv,rows,viewer,old,row,now);}
+    let mut image=row.clone();if super::temporal::has_clock(p)&&let Value::Row(fields)=&mut image{fields.insert("$security:server-clock".into(),Value::Int(now));}
+    match engine.fixture_policy(p,viewer,old,&image,now).map_err(|e|e.to_string())?{
         rules::Verdict::Readable=>Ok(true),rules::Verdict::Denied=>Ok(false),rules::Verdict::Unknown=>Err("policy reference/coverage judgment is unknown; never a refutation".into()),
     }
 }
@@ -394,13 +399,10 @@ fn materialize_arguments(engine:&mut Engine,args:&BTreeMap<String,ir::ArgType>,v
 pub fn evaluation_gaps(bound:&Bound)->Vec<String>{
     bound.invariants.iter().filter_map(|inv|{
         let mut reasons=BTreeSet::new();
-        if let Some(policy)=&inv.policy{for dep in kernel::dependencies(policy){if bound.schema.tables.get(&dep).is_some_and(|t|t.through.is_some()){
-            reasons.insert(format!("{dep}: read-through population requires authorized replay; raw invariant evaluator cannot cover it"));
-        }}}
         if inv.policy.is_none(){
             if let Some(syntax)=&inv.syntax{reasons.extend(super::concrete::limitations(syntax,&bound.schema,&inv.table));}
             else{reasons.insert("no concrete predicate syntax is available".into());}
-            if inv.operation.is_some(){reasons.insert("operation write-boundary tracing requires a bound rule policy".into());}
+
         }
         (!reasons.is_empty()).then(||format!("{} at {}: {}",inv.target_label(),inv.site,reasons.into_iter().collect::<Vec<_>>().join("; ")))
     }).collect()
@@ -491,7 +493,7 @@ pub fn operations(bound:&Bound,fixture:&Engine,campaign:&mut Campaign){
                     match engine.mutate(&p.program.name,None,Context::new(viewer,args.clone()).at(NOW).with_fixture_trace(trace.clone())){
                         Ok(result) if matches!(result.state,snapback4_core::WriteState::Sent{..})=>{
                             if let Ok(after)=readback(&engine){
-                                let steps=vec![histories::Step{operation:p.program.name.clone(),viewer:viewer.clone(),args:args.clone(),result:serde_json::to_value(&result.state).unwrap()}];
+                                let steps=vec![histories::Step{clock:None,operation:p.program.name.clone(),viewer:viewer.clone(),args:args.clone(),result:serde_json::to_value(&result.state).unwrap()}];
                                 let first_observation=campaign.violations.len();
                                 executed::record(bound,&p.program,&trace,&result.state,&after,&rows,viewer,&steps,&mut engine,campaign);
                                 if !has_fixture{for v in &mut campaign.violations[first_observation..]{v.reachability=Reachability::SyntheticOperation;v.scope="authored matrix operation on an invented schema snapshot; no trusted fixture or initialization trace".into();}}

@@ -35,6 +35,7 @@ mutation addNote(body: text):
 `not before .opensAt` sets a stored lower read lifetime; null is unbounded. With `expire at`, rows live in `[opensAt, expiresAt)`. See `guide timed disclosure`.
 
 `receipts chat by .conversation, .ordinal from .sender to members:` with field mappings generates reporting (`guide receipts`; expert recipe: `guide manual-receipts`).
+Column `write <-` and `immutable c when P`: complete runnable context in `guide rule-recipes`.
 
 ## Limits
 

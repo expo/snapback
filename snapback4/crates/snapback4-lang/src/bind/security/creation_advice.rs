@@ -164,7 +164,7 @@ fn transition_notes(bound:&Bound,_catalog:&Catalog,writes:&[Write<'_>],out:&mut 
     }
 }
 
-fn duration_number(e:&Expr)->Option<i64>{
+pub(super) fn duration_number(e:&Expr)->Option<i64>{
     let Expr::Literal{value:ast::Literal::Number(s),..}=e else{return None;};
     for (suffix,scale) in [("ms",1),("s",1000),("m",60_000),("h",3_600_000),("d",86_400_000)]{
         if let Some(n)=s.strip_suffix(suffix){return n.parse::<i64>().ok()?.checked_mul(scale);}

@@ -28,7 +28,9 @@ pub(super) fn exposures(bound:&Bound)->Vec<Exposure> {
             let authority=t.written_by.get(c).map(|a|format!("; written by .{}; {}",a.owner,if a.audience{"audience readable"}else{"private to owner"})).unwrap_or_default();
             (c.clone(),format!("{k}{authority}{}",t.column_reads.get(c).map_or(String::new(),|r|format!("; read <- {}; {}",r.quarry(),if r.column_row_local(){"row-local replica projection"}else{"server witnesses; online reads"}))))
         }).collect();
-        let effects=[("read",t.rules.read.quarry()),("insert",t.rules.insert.quarry()),("update",t.update_rule_judged().quarry()),("delete",t.rules.delete.quarry())].into_iter().map(|(k,v)|(k.into(),v)).collect();
+        let mut effects:BTreeMap<String,String>=[("read",t.rules.read.quarry()),("insert",t.rules.insert.quarry()),("update",t.update_rule_judged().quarry()),("delete",t.rules.delete.quarry())].into_iter().map(|(k,v)|(k.into(),v)).collect();
+        for (column,rule) in &t.column_writes {effects.insert(format!("{column} write"),rule.quarry());}
+        for (column,rule) in &t.frozen_columns {effects.insert(format!("{column} immutable when"),rule.quarry());}
         let operations=bound.programs.iter().filter(|p|mentions(&serde_json::to_value(&p.program).unwrap(),name)).map(|p|format!("{} ({})",p.program.name,p.program.kind.word())).collect::<Vec<_>>();
         let mut paths=vec!["server point/list/filter/view/search/count/exists/live-refetch: ordinary ruled reads".into(),"mutation valued write images: authorized final reread; logical refusals separately unproved".into()];
         if t.is_expiring()||t.not_before.is_some(){paths.push(format!("live rows only: not before {:?}, expire {:?}; server clock gates delivery",t.not_before,t.expire));}

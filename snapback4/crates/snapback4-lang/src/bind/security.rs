@@ -12,6 +12,7 @@ pub use presentation::{note_priority,questionnaire_notes};
 pub mod challenges;
 mod lints;
 mod write_advice;
+pub mod derived;
 mod creation_advice;
 mod result_advice;
 mod advice;
@@ -258,6 +259,7 @@ pub fn add_source_notes(report:&mut Report,sources:&[(String,String)],bound:&Bou
     report.notes.extend(write_advice::notes(sources,bound));
     report.notes.extend(creation_advice::notes(sources,bound));
     report.notes.extend(result_advice::notes(bound));
+    report.notes.extend(derived::notes(sources,bound));
     let mut sites=BTreeMap::new();
     for (file,source) in sources{let (doc,_)=crate::parse_document(file,source);for t in doc.tables{
         sites.insert(t.name.clone(),t.site.clone());for c in t.columns{sites.insert(format!("{}.{}",t.name,c.name),c.site);}

@@ -507,7 +507,9 @@ pub fn check(options: &Options) -> i32 {
     if !options.json { security::summary(&security,options.flags.contains_key("verbose")||options.flags.contains_key("all")); }
     // @ref LLP 3000.011.003.000#7.2 — init-first projects keep the todo starter's files; name them and the one command that fits them.
     if !options.json && let Some(report) = init::starter_leftovers(&project.root) { println!("{report}"); }
-    if security_failed { 1 } else { 0 }
+    if security_failed { 1 } else {
+        if let Err(error)=security::remember_presence(&project,&bound){eprintln!("check: E_SECURITY_NOTES: {error}");return 2;} 0
+    }
 }
 
 /// The structural cost class of a program: what `check --cost` prints

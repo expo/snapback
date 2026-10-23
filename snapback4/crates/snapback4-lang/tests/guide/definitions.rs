@@ -137,6 +137,9 @@ fn w11_every_registered_code_quotes_its_definition() {
 // independent of the paragraph selector: do not regenerate them to bless a new
 // first mention. Whitespace may change; the reason for the code must survive.
 const DEFINITIONS: &[(&str, &str)] = &[
+    ("E_COLUMN_WRITE", "a column write/freeze rule names an invalid or duplicate payload column"),
+    ("N_DERIVED_WRITE_AUTHORITY", "an inferred candidate from authored change guards or approval data"),
+    ("N_PRESENCE_LOOSENING", "a required-to-optional column change"),
     ("N_TABLE_QUESTIONNAIRE", "Role-wide access and restating invariants share one table questionnaire."),
     ("N_APPROVAL_NOT_ENFORCED", "An approval flag is written but not inspected by a lifecycle transition."),
     ("N_EDIT_AFTER_APPROVAL", "A checked value or media artifact can change without a positive creation-state restriction."),
