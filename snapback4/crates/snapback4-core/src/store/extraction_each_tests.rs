@@ -247,6 +247,11 @@ fn dx8_each_preserves_optional_null_and_narrows_removed_old_list_elements() {
         1,
         "removed element cannot regain an active asset home"
     );
+    for _ in 0..3 {
+        adopt(&mut e, OLD_EACH, 1).unwrap();
+        adopt(&mut e, NEW_EACH, 2).unwrap();
+        assert_eq!(e.store().count("documents").unwrap(), 1);
+    }
 }
 #[test]
 fn dx8_each_rejects_duplicate_homes_missing_bytes_and_competing_source_declarations() {
