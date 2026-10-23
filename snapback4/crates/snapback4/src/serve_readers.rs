@@ -166,6 +166,21 @@ impl Shared {
     }
     pub(super) fn memory_store(&self) -> bool { lock(&self.readers).memory }
 
+    // @ref LLP 3000.009.001.000.001#31-authority-boundaries — early outcomes share one fresh reader snapshot, with no writer fence.
+    pub(super) fn request_snapshot<T: Send + 'static>(&self, admission: session_identity::Admission,
+        run: impl FnOnce(&Shared, &Engine, snapback4_core::identity::Capability, &snapback4_core::identity::RequestSnapshot<'_, '_>) -> Result<T, Refusal> + Send + 'static,
+    ) -> Result<T, Refusal> {
+        match self.reader() {
+            Ok((epoch, reader)) => {
+                let result = admission.with_snapshot(self, &reader, |capability, snapshot| run(self, &reader, capability, snapshot));
+                if result.is_ok() { lock(&self.readers).put(&epoch, reader.into_inner()); }
+                result
+            }
+            Err(_) if self.memory_store() => self.engine.attempt(move |engine, shared| admission.with_snapshot(shared, engine, |capability, snapshot| run(shared, engine, capability, snapshot))),
+            Err(error) => Err(error.refusal()),
+        }
+    }
+
     // Identity, head and generation are captured from one reader incarnation.
     pub(super) fn read_identity(&self) -> Result<(String, u64, u64), Refusal> {
         match self.reader() {

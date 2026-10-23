@@ -5,6 +5,7 @@ use crate::{RuntimeError, authority::{self, AuthorityTransaction, SessionRecord}
 #[derive(Debug, Default, PartialEq, Eq)]
 pub(crate) struct SessionFacts {
     // At most one row per session table. Preserve the strict duplicate refusal.
+    pub head: u64,
     pub sessions: Vec<SessionRecord>,
     pub current_generation: i64,
     pub worker_family: Option<String>,

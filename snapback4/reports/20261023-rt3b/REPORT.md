@@ -31,3 +31,43 @@ later authority checks remain for this commit.
 | w2_newest20 | 16 | 16 | 12 | 12 |
 
 Validation: `cargo build -p snapback4`, both RT0 ratchets (three equal warm samples per class), and all four SQLite/Postgres queued-authority and ingress witnesses pass. Every cell matches its unchanged prediction. The new ingress witness holds the writer until the unauthenticated refusal arrives and asserts no writer waiter and no store metadata.
+
+## Commit 2 — reader preflight only when needed
+
+Prediction before coding: keep route and final authority checks for this
+increment. Combine keyed preflight authority, identity/head/generation and bound
+receipt in one reader snapshot. Skip successful unkeyed preflight. Metadata
+refusals authenticate in their own preflight snapshot.
+
+| Class | SQLite predicted | Postgres predicted |
+| --- | ---: | ---: |
+| action_session_w1 | 28 | 22 |
+| keyed_first | 39 | 39 |
+| narrowed_argument | 9 | 9 |
+| one_membership | 30 | 24 |
+| rate_limited | 0 | 0 |
+| replay_hit | 10 | 10 |
+| unauthenticated | 0 | 0 |
+| unkeyed_increment | 29 | 23 |
+| unknown_operation | 9 | 9 |
+| unknown_token | 3 | 3 |
+| w1_point | 16 | 12 |
+| w2_newest20 | 16 | 12 |
+
+Unkeyed success loses its three-statement preflight authority snapshot. Keyed
+first combines five SQLite statements / eleven Postgres flights into four.
+Replay replaces those plus the separate eight/four-statement metadata read
+with four. Unknown operation and bad arguments retain ingress and route (six)
+plus the three-statement authenticated refusal snapshot. Other cells retain
+their paths and counts.
+
+All predictions match measured counts exactly (three equal warm samples per
+class). The small `preflight-sqlite.json` and `preflight-postgres.json` files
+record the complete measured tables. Final build, both lowered ratchets, all
+four authority witnesses and the normal 206-case serving regression scope pass.
+The latency witness now counts the three readers used by its concurrent keyed
+write as well as the poll's two; the poll's own timing assertion is unchanged.
+An exploratory `--include-ignored` serving sweep also invoked three opt-in
+fixtures without their required input variables; those are not standalone
+checks. It found two affected regressions (delivery-refusal precedence and the
+reader-count assertion), both repaired and green in the normal repeat.

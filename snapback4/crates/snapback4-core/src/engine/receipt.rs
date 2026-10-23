@@ -41,7 +41,7 @@ impl MutationOutcome {
     }
 
     #[cfg(feature = "sqlite")]
-    pub(super) fn from_receipt(text: &str) -> Result<Self, RuntimeError> {
+    pub(crate) fn from_receipt(text: &str) -> Result<Self, RuntimeError> {
         let body: Json = serde_json::from_str(text).map_err(|e| RuntimeError::Store(e.to_string()))?;
         let malformed = || RuntimeError::Store("invalid mutation receipt".into());
         let state = match body["state"].as_str() {

@@ -103257,3 +103257,13 @@ A held-writer witness on SQLite and Postgres receives its complete unknown-beare
 pass; all twelve counts per store remain at RT3a as predicted. This increment
 retains the later checks; boundary consolidation follows. Evidence:
 [RT3b report](./reports/20261023-rt3b/REPORT.md).
+
+## 2026-10-23 — RT3b: conditional reader preflight
+
+Keyed mutations now resolve authority, identity/head/generation and their bound
+receipt in one unfenced reader snapshot, before current-program judgment.
+Successful unkeyed mutations skip preflight; metadata refusals authenticate their
+cut. Build, both ratchets, four authority witnesses and all 206 normal serving
+regressions pass. Predictions match all cells: Postgres unkeyed 23, keyed first
+39, replay 10, metadata refusals 9; SQLite 29/39/10/9 respectively. Route and
+execution checks still remain. [Evidence](./reports/20261023-rt3b/REPORT.md).

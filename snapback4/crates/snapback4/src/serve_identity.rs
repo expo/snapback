@@ -47,6 +47,17 @@ impl Admission {
     }
         Ok(Self { persona, bearer, trusted_dev: trusted_dev_request(request, shared) })
     }
+    pub(crate) fn with_snapshot<T>(&self, shared: &Shared, engine: &Engine,
+        run: impl FnOnce(snapback4_core::identity::Capability, &snapback4_core::identity::RequestSnapshot<'_, '_>) -> Result<T, Refusal>,
+    ) -> Result<T, Refusal> {
+        let persona = if self.persona.is_some() { Some(self.resolve(shared, engine)?) } else { None };
+        let digest = self.bearer.as_deref().map(snapback4_core::identity::session_digest).unwrap_or_default();
+        let sample = snapback4_core::identity::ServiceSample { now: shared.now(), supervisor_revision: shared.worker_revision.load(Ordering::Acquire) };
+        snapback4_core::identity::with_request_snapshot(engine.store(), &digest, sample, |snapshot| {
+            let capability = persona.or_else(|| snapshot.capability.clone()).ok_or_else(|| Refusal::new("E_AUTH", "auth", "this session is not live; sign in again").guide("personas"))?;
+            run(capability, &snapshot)
+        }).map_err(|e| e.refusal())?
+    }
     pub(crate) fn resolve(&self, shared: &Shared, engine: &Engine) -> Result<snapback4_core::identity::Capability, Refusal> {
         self.resolve_at(shared, engine, None, false)
     }

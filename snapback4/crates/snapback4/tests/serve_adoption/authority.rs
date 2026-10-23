@@ -89,7 +89,8 @@ fn queued_authority(pg: bool) {
             // adopt and expire/revoke its previously authenticated bearer.
             let mut engine = lock(&host.shared.engine);
             let detached_ephemeral = ephemeral && !memory;
-            if !detached_ephemeral {
+            let reader_preflight = detached_ephemeral || replay;
+            if !reader_preflight {
                 gate.release();
                 wait_until(|| host.shared.engine.waiting() == 1);
             }
@@ -117,7 +118,7 @@ fn queued_authority(pg: bool) {
             }
             let ephemeral_before = host.shared.ephemeral.snapshot().unwrap().version;
             drop(engine);
-            if detached_ephemeral { gate.release(); }
+            if reader_preflight { gate.release(); }
             let reply = request.join().unwrap();
             if ephemeral {
                 assert_eq!(body(&reply)["state"], "failed", "{reply}");

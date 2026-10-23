@@ -193,7 +193,9 @@ fn changes_reopens_after_a_commit_and_times_each_open_as_wait() {
     let reply = poll.join().unwrap();
     assert_eq!(status(&reply), 200, "{reply}");
     assert_eq!(body(&reply)["tables"], json!(["notes"]));
-    assert_eq!(opens.load(Ordering::SeqCst), 2);
+    // The poll opens twice; the concurrent keyed write opens ingress, route
+    // and preflight readers too. Only the poll's two delays belong to its reply.
+    assert_eq!(opens.load(Ordering::SeqCst), 5);
     assert_open_wait(&reply, 2);
 }
 

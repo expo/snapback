@@ -19,7 +19,8 @@ SELECT s.principal, s.family, s.kind, s.token_digest, s.expires_at, s.scope,
        NULL,
        (SELECT value FROM _meta WHERE key = 'schema_hash'),
        (SELECT value FROM _meta WHERE key = 'activation_hash'),
-       (SELECT value FROM _meta WHERE key = 'device:generation')
+       (SELECT value FROM _meta WHERE key = 'device:generation'),
+       (SELECT COALESCE(MAX(seq), 0) FROM _commits)
 FROM (SELECT 1) AS anchor LEFT JOIN sessions s ON true
 LEFT JOIN _principal_generations g ON g.principal = s.principal";
 const READ_FACTS: &str = "WITH sessions AS (SELECT principal, COALESCE(family, token_digest) AS family, kind, token_digest, expires_at, 0 AS scope, NULL AS cap_expires_at, NULL AS principal_generation FROM _sessions WHERE token_digest = ?1 UNION ALL SELECT principal, family, kind, token_digest, expires_at, 1, cap_expires_at, principal_generation FROM _read_sessions WHERE token_digest = ?1)
@@ -33,7 +34,8 @@ SELECT s.principal, s.family, s.kind, s.token_digest, s.expires_at, s.scope,
        NULL,
        (SELECT value FROM _meta WHERE key = 'schema_hash'),
        (SELECT value FROM _meta WHERE key = 'activation_hash'),
-       (SELECT value FROM _meta WHERE key = 'device:generation')
+       (SELECT value FROM _meta WHERE key = 'device:generation'),
+       (SELECT COALESCE(MAX(seq), 0) FROM _commits)
 FROM (SELECT 1) AS anchor LEFT JOIN sessions s ON true
 LEFT JOIN _principal_generations g ON g.principal = s.principal";
 
@@ -58,10 +60,11 @@ impl Tx<'_> {
         let mut facts = None;
         while let Some(row) = rows.next()? {
             let result = facts.get_or_insert_with(|| crate::identity::facts::SessionFacts {
-                sessions: Vec::new(), current_generation: 0, worker_family: None,
+                head: 0, sessions: Vec::new(), current_generation: 0, worker_family: None,
                 worker_revision: None, family_revision: None, store_generation: None, store_id: None,
                 backend_generation: None, schema_hash: None, activation_hash: None, device_generation: None,
             });
+            result.head = row.get::<_, i64>(18)? as u64;
             result.current_generation = row.get(8)?;
             result.worker_family = row.get(9)?; result.worker_revision = row.get(10)?;
             result.family_revision = row.get(11)?; result.store_generation = row.get(12)?; result.store_id = row.get(13)?;

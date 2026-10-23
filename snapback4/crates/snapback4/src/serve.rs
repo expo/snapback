@@ -795,8 +795,11 @@ pub(crate) fn query_params(url: &str) -> BTreeMap<String, String> {
 // operation. Mutation replay's seq is historical; head is never that receipt.
 #[path = "serve_head.rs"]
 mod head;
-use head::{response_head, intent_store, argument_refusal, session_clock_headers};
+use head::{response_head, intent_store, session_clock_headers};
 pub(crate) use head::{ephemeral_headers, mutation_reply};
+
+#[path = "serve_operation.rs"]
+mod operation_request;
 
 fn operation_refusal(request: Request, shared: &Shared, status: u16, why: Refusal) {
     let metadata = shared.read_identity();
@@ -1111,93 +1114,19 @@ fn handle(mut request: Request, shared: &Shared) {
         (Method::Post, path) if path.starts_with("/following/") => following::serve(request,shared,&path[11..],&body),
         (Method::Post, path) if path.starts_with("/q/") || path.starts_with("/m/") => {
             let op = path[3..].to_owned();
-            if path.starts_with("/m/") && lock(&shared.bound).schema.operations.get(&op).is_some_and(|f| f.ephemeral) {
-                return ephemeral::serve(request, shared, &op, &body);
-            }
-            let (principal, _kind, scope) = match principal_of(&request, shared) {
-                Ok(principal) => principal,
-                Err(refusal) => {
-                    respond_timed(request, shared, if refusal.retryable { 503 } else { 401 }, json!({ "denied": refusal_json(&refusal) }));
-                    return;
-                }
+            let operation_request::Prepared { capability: (principal, _kind, scope), payload, args_json, program, args, delivery_fingerprint, ephemeral } = match operation_request::prepare(&request, shared, &op, &body) {
+                Ok(prepared) => prepared,
+                Err(reply) => {
+                    if path.starts_with("/m/") && lock(&shared.bound).schema.operations.get(&op).is_some_and(|fact| fact.ephemeral)
+                        && let Some(why) = reply.body.get("denied").and_then(|why| serde_json::from_value::<Refusal>(why.clone()).ok()) {
+                        return ephemeral::failed(request, shared, None, why);
+                    }
+                    return respond_timed(request, shared, reply.status, reply.body);
+                },
             };
+            if ephemeral { return ephemeral::serve(request, shared, &op, &body); }
             let manifest = if scope == snapback4_core::identity::SessionScope::Read { snapback4_core::engine::DeliveryManifest::Skip } else { snapback4_core::engine::DeliveryManifest::Build };
-            let payload: Json = match serde_json::from_str(if body.is_empty() { "{}" } else { &body }) {
-                Ok(json) => json,
-                Err(error) => {
-                    operation_refusal(request, shared, 400, Refusal::new("E_INPUT", "input", format!("the request body is not JSON: {error}")));
-                    return;
-                }
-            };
-            let delivery_fingerprint = if path.starts_with("/m/") {
-                match ephemeral::delivery_fingerprint(&payload) {
-                    Ok(value) => value,
-                    Err(why) => return operation_refusal(request, shared, 200, why),
-                }
-            } else { None };
-            let args_json = payload.get("args").cloned().unwrap_or(json!({}));
-            let signature = if path.starts_with("/m/") {
-                let id = payload.get("id").and_then(Json::as_str);
-                #[cfg(test)] test_work(&shared.mutation_wait);
-                let admission = match session_identity::Admission::capture(&request, shared) {
-                    Ok(admission) => admission,
-                    Err(why) => return respond_timed(request, shared, 401, json!({"denied": why})),
-                };
-                let (owned_op, owned_id, owned_args, owned_principal, owned_payload, fingerprint) =
-                    (op.clone(), id.map(str::to_owned), args_json.clone(), principal.clone(), payload.clone(), delivery_fingerprint.clone());
-                let preflight = shared.engine.submit(move |engine, shared| {
-                    admission.check(shared, engine, &owned_principal)?;
-                    let replay = intent_store(engine, &owned_payload).and_then(|()| {
-                        let replay = owned_id.as_deref().map(|id| engine.replay_mutation(&owned_principal, id, &owned_op, &owned_args)).transpose().map_err(|e| e.refusal())?.flatten();
-                        if replay.is_none() { engine.schema().check_delivery(&owned_op, fingerprint.as_deref()).map_err(|e| e.refusal())?; }
-                        Ok(replay)
-                    });
-                    let ephemeral = matches!(replay, Ok(None)) && engine.schema().operations.get(&owned_op).is_some_and(|f| f.ephemeral);
-                    let metadata = if matches!(replay, Ok(None)) { None } else { Some(response_head(engine)) };
-                    Ok((replay, metadata, engine.program(&owned_op).cloned(), ephemeral))
-                });
-                let (replay, metadata, signature, ephemeral) = match preflight.and_then(|v| v) {
-                    Ok(value) => value,
-                    Err(why) => return respond_timed(request, shared, if why.retryable {503} else {401}, json!({"denied": why})),
-                };
-                if ephemeral { return ephemeral::serve(request, shared, &op, &body); }
-                if let Some(metadata) = metadata {
-                    let (store_id, head) = match metadata { Ok(head) => head, Err(why) => { respond_timed(request, shared, 503, json!({ "denied": why })); return; } };
-                    match replay {
-                        Ok(Some(outcome)) => { let mut reply = outcome.reply(id); reply["store_id"] = json!(store_id); reply["head"] = json!(head); respond_timed(request, shared, 200, reply); return; }
-                        Err(why) => { respond_timed(request, shared, if why.retryable { 503 } else { 200 }, mutation_reply(json!({ "state": "failed", "id": id, "why": why, "store_id": store_id, "head": head }))); return; }
-                        Ok(None) => {}
-                    }
-                }
-                #[cfg(test)] test_work(&shared.mutation_wait);
-                signature
-            } else {
-                lock(&shared.bound).programs.iter().find(|p| p.program.name == op)
-                    .map(|p| p.program.clone())
-            };
-            // @ref LLP 3000.018#3.1 — refresh follows what a query may read on any path, never what one run read,
-            // and comes from the schema of the engine that evaluates it.
             let presence_of = |engine: &Engine, name: &str| engine.schema().operations.get(name).is_some_and(|fact| fact.sites.iter().any(|site| site.kind == "presence"));
-            let Some(program) = signature else {
-                if path.starts_with("/q/") && lock(&shared.readers).pending(&op) {
-                    match shared.read_head() {
-                        Ok((store_id, head)) => respond_timed(request, shared, 200, json!({"loading":true,"complete":false,"data":null,"store_id":store_id,"seq":head,"tables":[],"viewer":principal})),
-                        Err(why) => respond_timed(request, shared, 503, json!({"denied":why})),
-                    }
-                    return;
-                }
-                operation_refusal(request, shared, 404, dev_doors::stale(shared, Refusal::new("E_OP", "op", format!("unknown operation {op}")).guide("programs")));
-                return;
-            };
-            if let Some(why) = dev_doors::persona_argument(shared, &program.args, &args_json) { argument_refusal(request, shared, payload.get("id").and_then(Json::as_str), why); return; }
-            let args = match wire::arguments_from_json_with_refusal(&program, &args_json) {
-                Ok(args) => args,
-                Err(refusal) => {
-                    let refusal = if refusal.guide.as_deref() == Some("programs") { dev_doors::stale(shared, refusal) } else { refusal };
-                    argument_refusal(request, shared, payload.get("id").and_then(Json::as_str), refusal);
-                    return;
-                }
-            };
             let kind = program.kind;
             let viewer = principal.clone();
             let mut context = Context::new(&principal, args).at(request_now.unwrap_or_else(|| shared.now()));

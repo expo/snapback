@@ -23,6 +23,8 @@ pub(crate) mod test_cases;
 pub(crate) mod read_sessions;
 pub(crate) mod facts;
 pub mod diagnostics;
+mod request;
+pub use request::{RequestSnapshot, with_request_snapshot, session_digest};
 pub use read_sessions::{narrow_session, SessionScope, Capability};
 
 /// Storage facts used by refresh policy. No credential is interpreted by the adapter.
