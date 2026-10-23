@@ -235,7 +235,8 @@ fn dx8_each_preserves_optional_null_and_narrows_removed_old_list_elements() {
     let Value::Array(mut values) = field(&mut e, "orders", &parent, "names") else {
         panic!()
     };
-    values.pop();
+    let removed = values.pop().unwrap();
+    let removed_id = crate::assets::asset_id(Some(&removed)).unwrap().to_owned();
     mutate(
         &mut e,
         "edit",
@@ -251,6 +252,9 @@ fn dx8_each_preserves_optional_null_and_narrows_removed_old_list_elements() {
         adopt(&mut e, OLD_EACH, 1).unwrap();
         adopt(&mut e, NEW_EACH, 2).unwrap();
         assert_eq!(e.store().count("documents").unwrap(), 1);
+        let released = e.store().asset(&removed_id).unwrap().unwrap();
+        assert!(released.home.is_none(), "removed asset must have no active home after repeated migration cycles");
+        assert!(released.released_at.is_some(), "removed asset remains eligible for ordinary garbage collection");
     }
 }
 #[test]
