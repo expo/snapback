@@ -104516,3 +104516,30 @@ The identical complete ownership group then passes 25/25 with one test thread
 five-thread red remains recorded. The expanded codec group passes 19/19 in
 both C and en_US.utf8; the exact restored inbox comparison passes at 7/67 calls.
 The normal main CLI is rebuilt after the experiment/main cache handoffs.
+
+## 2026-10-23 — RT6 qualification and final cleanup
+
+RT6 is complete locally. Warm Postgres W1/W2/increment/keyed-first/replay are
+3/2/8/9/2, with all fourteen RT0 classes stable and no increases; SQLite's
+table is unchanged. The full default core passes 1,120 unfiltered tests plus
+one subprocess check (five ignores); the final full binary passes 577 (45
+named ignores). Both ratchets, no-default core, the 232-case corrected adapter
+group, 19-case codec/serving group in C and en_US.utf8, and ref-check pass.
+
+The complete Postgres script runs every stage and exits 1. Retained evaluator
+40001 passes alone with the exact saved binary, 65 increments/mode and 109
+Serializable retries. Initial stale observers/censuses are corrected and
+qualified separately; the later five-thread short-lease reds and isolated/
+one-thread passes remain recorded. No grouped run is relabelled green.
+All later stock stages pass, including evolution, authority boundaries,
+five-executor corpus overlap, differential campaigns and public serving/S1.
+Full detail: reports/20261023-rt6-serving-flights/REPORT.md.
+
+Owned PG16 postmasters 3342451 and 3890225 are stopped: independent status 3,
+no pid files, absent PIDs. The primary's initial 180 s fast-stop guard expires
+while an existing checkpoint syncs; ordinary fast shutdown finishes cleanly
+after 193.85 s, without a stronger signal or changed settings. The final
+census checks 588 PIDs, all absent, with no running lane executable or PG
+process in either owned data directory. PIDs left: none. Final /home free
+space is 151 G, always above the 40 GB stop rule. No raw logs, push, stash,
+PG17/55440 access, q24 work or persistent Git configuration changes occur.

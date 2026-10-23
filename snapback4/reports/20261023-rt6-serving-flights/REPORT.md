@@ -3,7 +3,8 @@
 Base `a025d67cd3`, branch `sb4-pg/rt6`, expo-build-450a. No push.
 The [predictions](./CONTEXT.md) precede code; [counts](./counts.json) retain
 previous, warm and first-use measurements. Raw logs stay outside Git in
-`/tmp/rt6-evidence` on this host. Full qualification is running.
+`/tmp/rt6-evidence` on this host. Qualification results, including retained
+experimental and timing failures, are recorded below.
 
 The Postgres serving adapter now sends ordered SimpleQuery messages containing
 typed EXECUTEs through the RT5 encoder. SQLite's implementation and RT0 table
@@ -25,8 +26,18 @@ witnesses, not a latency/SLO or publication claim.
 
 Every warm class has three equal samples. The initial complete serving run
 reached all expected outcomes and then failed the intentional lower-the-table
-assertion; the Postgres table was lowered to those measurements. Final ratchet
-runs are recorded below when qualification completes.
+assertion; the Postgres table was lowered to those measurements. The final
+Postgres selector passes all three tests; the stock script repeats it
+successfully. SQLite's final ratchet also passes against its unchanged table.
+
+RT0 also checks outcomes: W1/account/action return HTTP 200 and `m24`; W2
+returns HTTP 200 with exactly twenty rows ordered `m24` through `m5`.
+Unkeyed/account/membership writes return HTTP 200 and `sent`. Keyed first is
+`sent` without replay; replay sets `replayed=true` and preserves its sequence.
+Unauthenticated/unknown-token requests return 401 `E_AUTH`; unknown operation
+returns 404 `E_OP`; narrowed arguments return HTTP 200 with `E_INPUT`.
+Both metadata refusals retain the correct store identity. Rate limiting returns
+429 `E_RATE_LIMIT`. All those assertions pass with the measured counts.
 
 ## Flight contents and client boundaries
 
@@ -51,6 +62,14 @@ runs are recorded below when qualification completes.
   with framing. **Unknown token (1)** and the two zero-flight refusals retain
   their ingress behavior. **Action W1 (17)** retains every complete-resolver
   read; two BEGIN messages now ride with their first command.
+
+For the RT0 action fixture, those 17 flights are: ingress projection;
+BEGIN + authority facts; claimed work; principal generation; latest live
+family member; worker-session-family metadata; worker-family-revision metadata;
+ROLLBACK; BEGIN + authority facts; claimed work; principal generation; latest
+live family member; worker-session-family metadata; worker-family-revision
+metadata; W1 row; membership probe; ROLLBACK. The five complete-resolver reads
+at each boundary remain separate because they depend on preceding facts.
 
 Savepoints ride with the first program read rather than moving ahead of the
 shared authority/time/placement checks. This preserves their semantic position
@@ -102,15 +121,20 @@ images after separate savepoint executions. No historical-result replay
 semantics were changed: receipts still omit result/current payloads.
 The actual statements also run with RT5's hostile shadow schema: authority
 NULLs and tail array types are catalog-qualified. The original multi-array
-unnest FROM syntax remains intact. Native execute retains Bind fallback for
+unnest [FROM syntax](https://www.postgresql.org/docs/16/functions-array.html)
+remains intact. Native execute retains Bind fallback for
 unsupported ignored output payloads, witnessed by a numeric result.
 
 ## Witness results
 
-The expanded RT5 + RT6 group has **19 cases**, including scratch refusal,
-cold preparation lock order and local-argument shadowing fallback. Targeted
-rewrap/shape/tail regressions also pass.
+The expanded RT5 + RT6 group passes **19/19** in C and en_US.utf8, including
+scratch refusal, cold preparation lock order and local-argument shadowing
+fallback. Targeted rewrap/shape/tail regressions also pass.
 The full qualification repeats this group.
+
+Fault insertion covers **39 command boundaries** across the folded messages.
+The final ownership run separately checks COMMIT loss and a durable receipt
+whose acknowledgement is lost; both preserve the previous classification.
 
 - Owner first: the contender is observed blocked on `_owner`; the holder can
   still acquire `_head NOWAIT`. Changing the token refuses the keyed request
@@ -127,8 +151,10 @@ The full qualification repeats this group.
   sentinels remain untouched, and heads/rows/receipts/commits/logs/evidence equal
   their pre-request images. A suppressed `_commits` insertion yields a zero-row
   tail, refuses before COMMIT and restores those same images.
-- Residual scalar and array NULs refuse as `E_INPUT` through folded commands
-  and the real tail. Savepoint recovery and COMMIT remain refused, rolling back
+- Residual scalar and array NULs refuse as `E_INPUT` through every parameterized
+  serving template: authority, receipt, placement, point, membership, page,
+  update and the real tail. Integer-only owner/head/generation and constant
+  controls have no text values. Savepoint recovery and COMMIT remain refused, rolling back
   earlier writes. The existing eight NUL admission/rollback tests also pass.
 - Hostile per-connection output settings are repaired on both ownership and
   raw Store paths. Serving statement/tail Bind difftests pass.
@@ -141,12 +167,88 @@ keys and primary-key lookup/get aliasing; action kind versus principal kind;
 SQL PREPARE name reuse; expected old tail counts; witness setup/type errors and
 an assertion that incorrectly expected a replay to contain historical result
 rows. Those were corrected without weakening outcome, meter or fault checks.
+The first broad run also caught an invalid attempted function qualification of
+the tail's multi-array unnest; the original FROM form was restored and the
+hostile-schema case passes. The final production source is `bfb1135fe3`.
+The subsequent experiment sweep found one stale exact count: its warmed
+prefetch-off inbox now uses 67 calls instead of 68 because BEGIN shares the
+first read. That assertion is lowered without changing outcome or meter checks.
 
 ## Required checks and cleanup
 
-Pending. The external runner records every command, PID, elapsed time, disk
-availability and exit status. All Cargo builds use this worktree's target,
-line-tables-only dev/test debug information and `-j 5`; test concurrency is five.
+The external runner records commands, PIDs, elapsed times, disk availability
+and exit status outside Git. All Cargo builds use this worktree's target,
+line-tables-only dev/test debug information and `-j 5`. Ordinary grouped
+tests use five threads; the explicitly labelled ownership repeat uses one.
+
+| Check | Result |
+| --- | --- |
+| Normal CLI build | Pass; rebuilt after the final experiment/main handoff (54.98 s) |
+| Full default core, including integration/doc targets | 1,120 unfiltered passes, five named ignores; one additional passing subprocess check |
+| Full `snapback4` binary with Postgres | 577 passes, 45 named ignores; final rerun 46.86 s test time |
+| SQLite RT0 | Pass, table unchanged |
+| Postgres RT0 selector | Three passes; all fourteen warm classes stable, no increases; repeated successfully in stock script |
+| Postgres adapter group after observer/census corrections | 232/232 pass (163.69 s) |
+| RT5/RT6 codec and serving witnesses | 19/19 in C; 19/19 in en_US.utf8 with every parameterized serving template's NUL check |
+| Ownership | Corrected bootstrap/head observers pass; all 25 pass with one test thread (82.00 s); grouped timing failures retained below |
+| Exact restored prefetch fixture | Pass, warmed on/off calls 7/67; complete outcomes equal |
+| No-default-features core check | Pass |
+| `./ref-check` | Pass: 566 LLP docs, 11,833 refs, zero errors/unchecked; final documentation repeat recorded separately |
+
+`bash scripts/test-postgres.sh` completes every stage and exits **1**
+(3,354.49 s). Its first experiment target has 20 passes / two failures: the
+retained evaluator Serializable `40001` and the stale 68-call census.
+Its first adapter group has 219 passes / thirteen stale observer/cold-count
+failures; ownership has 23 passes / two stale bootstrap-observer failures.
+Those transport-specific assertions are corrected and qualified by the
+fresh-executable reruns above. The head observers require the exact `_head`
+OID's RowShareLock and the expected blocker; advisory observers compare actual
+lock identities. No contention, meter, result or timeout check is removed.
+
+Every other stock stage passes: 60 evolution cases, handle traits, 38 doc
+tests, committer/maintained-member/command cases, internal HTTP and
+change-evidence snapshots, renewal cleanup, bearer lock gaps, all 62 selected
+authority-boundary cases, all 22 corpus tests with five-executor overlap,
+all eleven differential library tests and four store-campaign tests. The
+separate public CLI witness passes evolution/restore byte-and-meter parity,
+change-evidence, bootstrap refusals and binding recovery, ownership takeover,
+restart persistence, and the unchanged S1 Quarry P1-MC milestone.
+
+The exact saved evaluator executable passes its stress case alone in 4.12 s:
+65 increments per mode, zero serialized and 109 Serializable retries. No
+retry/backoff, workload, timeout, exclusion or durability input is changed.
+The broad red remains a red in the
+[existing ticket](../../../issues/20260916-snapback4-postgres-serializable-benchmark-failures.md).
+
+The fresh five-thread ownership repeat has two different, unchanged 300 ms
+lease assertions fail (23/25). Both passed in the stock-script run and pass
+alone using that identical fresh executable (2.59/2.21 s); the entire group
+passes with one test thread. These observations and prior occurrences are
+[tracked separately](../../../issues/20261023-snapback4-postgres-short-lease-fixture-timing.md).
+They establish no root cause and do not turn either grouped red into green.
+
+Source commits: `18dff42c92` predictions, `b946bca7b1` reads, `a150fb7b53`
+mutations/ratchet, `0a311bffb5` feature-local hint, `26671fcc26` cold lock order,
+`bfb1135fe3` final transport/settings/type fixes, `453d640dd7` physical
+witnesses/censuses and timing observations. The full default core preceded
+the final Postgres-only refinements; the affected Postgres groups above
+qualify those refinements. No expensive default-core repeat is implied.
+
 No `~/q24`, PG17/55440, stash, push or persistent Git configuration was touched.
-The owned private PG16 postmaster is 3342451, socket port 55493. It will be
-stopped and independently confirmed absent after qualification.
+No raw logs are committed. Final owned-process shutdown is recorded below.
+
+Private PG16 postmasters **3342451** (evaluation plus en_US database, socket
+55493) and **3890225** (public witness, private socket 55483) are absent.
+Both exact data directories independently return `pg_ctl status=3` and have
+no `postmaster.pid`. The public helper's 549 recorded PIDs are absent.
+The final cleanup receipt checks **588 PIDs**, all absent; this lane's target
+and saved test executable census is empty, as is the census of PG processes
+whose working directory is either owned data directory. **PIDs left: none.**
+
+The evaluation cluster's initial 180 s fast-stop guard exits 1 while its
+already-running checkpoint is syncing. Ordinary fast shutdown subsequently
+finishes cleanly after 193.85 s; no stronger signal, guard increase or
+durability setting change is used. The timeout and successful independent
+cleanup check are both retained outside Git. Data directories remain for
+inspection. Every disk observation stays above the 40 GB stop threshold;
+final `df -h /home` availability is 151 G.
