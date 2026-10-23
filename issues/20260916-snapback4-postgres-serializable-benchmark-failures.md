@@ -335,3 +335,25 @@ under `/tmp/sb4-p1ev2-fix1/`.
 The exact saved executable passed in isolation during the compile-only manifest
 handoff in 4.14 seconds: 65 increments per mode, no lost updates, zero serialized
 retries and 105 Serializable retries. The broad run remains red.
+
+## 2026-10-23 — RT6 serving-flight qualification
+
+The stock private PG16 sweep above `bfb1135fe3` again reproduces `40001`
+(concurrent update) at the retained evaluator's increment unwrap,
+`experiments/postgres/tests/conformance.rs:294`, followed by its join at :307.
+Common serial concurrency and both mismatching-receipt witnesses pass.
+The experiment conformance target reports 20 passes and two failures: this
+inherited stress case and an RT6-stale exact prefetch call census (68 versus
+the measured 67 after folding BEGIN). The latter assertion is lowered and
+qualified separately; it is unrelated to Serializable retries.
+
+The exact saved conformance executable (SHA-256
+`38b500d002122df5c3fe31939233fd060c214041d90783e7fe93db1a8f89cc8e`)
+passes the exact stress case in isolation during the compile-only workspace
+handoff: 4.12 seconds, 65 increments per mode, no lost updates, zero serialized
+and 109 Serializable total retries. Before launch, the owned database has
+zero other client connections. No retry budget, backoff, workload, timeout,
+skip or durability setting changes. The broad-run red is retained. Raw logs
+and binary metadata stay outside Git under `/tmp/rt6-evidence`; the
+[RT6 report](../snapback4/reports/20261023-rt6-serving-flights/REPORT.md)
+records the remaining qualification and owned-process cleanup.

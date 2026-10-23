@@ -73,6 +73,7 @@ enum Witness {
         observer: Box<postgres::Client>,
         holder: i32,
         contender: i32,
+        head: u32,
     },
 }
 
@@ -107,10 +108,9 @@ impl FenceRace {
         contender: &mut postgres::Client,
         observer: postgres::Client,
     ) -> Self {
-        let holder = holder
-            .query_one("SELECT pg_backend_pid()", &[])
-            .unwrap()
-            .get(0);
+        let facts = holder.query_one("SELECT pg_backend_pid(), '_head'::regclass::oid", &[]).unwrap();
+        let holder = facts.get(0);
+        let head = facts.get(1);
         let contender = contender
             .query_one("SELECT pg_backend_pid()", &[])
             .unwrap()
@@ -119,6 +119,7 @@ impl FenceRace {
             observer: Box::new(observer),
             holder,
             contender,
+            head,
         })
     }
 
@@ -171,21 +172,25 @@ impl FenceRace {
                     observer,
                     holder,
                     contender,
+                    head,
                 } => {
                     let blockers: Vec<i32> = observer
                         .query_one("SELECT pg_blocking_pids($1)", &[contender])
                         .map_err(|error| error.to_string())?
                         .get(0);
                     if blockers.contains(holder) {
-                        let query: String = observer
+                        // EXECUTE hides the prepared statement's source text.
+                        // Reaching the exact head relation plus waiting on the
+                        // known holder proves this same physical fence.
+                        let reached_head: bool = observer
                             .query_one(
-                                "SELECT query FROM pg_stat_activity WHERE pid = $1",
-                                &[contender],
+                                "SELECT EXISTS(SELECT 1 FROM pg_locks WHERE pid=$1 AND relation=$2 AND mode='RowShareLock' AND granted)",
+                                &[contender,head],
                             )
                             .map_err(|error| error.to_string())?
                             .get(0);
-                        if !query.contains("FROM _head WHERE singleton FOR UPDATE") {
-                            return Err(format!("contender blocked on the wrong fence: {query}"));
+                        if !reached_head {
+                            return Err("contender blocked before reaching the head relation".into());
                         }
                         true
                     } else {

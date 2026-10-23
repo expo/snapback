@@ -104473,3 +104473,46 @@ retain their Bind fallback, with a numeric-result witness. The combined group
 now has 19 cases. Final qualification uses frozen source; a temporary invalid
 qualification of multi-array unnest was reverted before that run. The tail
 retains PostgreSQL's existing multi-array FROM syntax with qualified types.
+
+RT6 full-script follow-up: the experiment's warmed prefetch-off inbox census
+is now 67 rather than 68 calls because BEGIN rides with the first read. Its
+exact assertion is lowered; outcome equality, the prefetch-on bound and every
+logical meter check remain intact. The running full script also reproduces
+the separately ticketed evaluator Serializable 40001 at conformance.rs:294;
+no retry policy, workload, timeout or durability setting changes.
+
+The NUL serving witness explicitly exercises every parameterized flight
+template (authority, receipt, placement, point, membership, page, update and
+the tail's text arrays); owner/head/generation/control commands contain no
+text inputs. Each residual NUL poisons the transaction and rolls back earlier
+writes despite attempted savepoint recovery/COMMIT. All use the same encoder.
+
+The broad core sweep also exposed lock witnesses that identified head waits
+from the old rendered SELECT text. Ordered EXECUTE now hides that text. The
+shared family race, jobs race, eight legacy attachers and owner/head ordering
+observers instead require a physical RowShareLock on the exact _head OID and
+the existing blocker observation (the specific holder where applicable).
+Race policy/outcome checks and timeout bounds remain unchanged. The affected
+core group is repeated with these transport-aware physical observations.
+The ordinary outbox-tail cold census is exactly three calls (native Parse,
+SQL PREPARE, tail flight); its former two-call Bind assertion is updated to
+that exact value. The existing warm tail witness still requires one flight.
+The two bootstrap advisory observers likewise compare granted/waiting advisory
+lock identities and the expected blocking PID, replacing their SELECT-text
+filters. The separate ownership group is repeated too; COMMIT-loss witnesses
+already pass with COMMIT observed as its own command.
+
+The corrected adapter group passes 232/232. The ownership repeat passes both
+bootstrap corrections and 23/25 overall, with two unchanged 300 ms live-lease
+assertions failing under grouped load. Both exact cases pass alone using the
+identical executable (2.59/2.21 s), without other database clients or changes
+to policy/bounds. The original stock-script run passed those two cases.
+The timing observations and prior occurrences are recorded in
+issues/20261023-snapback4-postgres-short-lease-fixture-timing.md; no root cause
+or green grouped run is claimed from the isolated passes.
+
+The identical complete ownership group then passes 25/25 with one test thread
+(82.00 s), preserving fixture bodies/internal concurrency and all bounds. The
+five-thread red remains recorded. The expanded codec group passes 19/19 in
+both C and en_US.utf8; the exact restored inbox comparison passes at 7/67 calls.
+The normal main CLI is rebuilt after the experiment/main cache handoffs.

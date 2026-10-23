@@ -250,15 +250,23 @@ fn rt6_encoder_bind_difftest_uses_serving_statements_and_full_tail() {
 fn rt6_nul_poison_is_terminal_in_folded_commands_and_tail_arrays() {
     use crate::{partition::PartitionRows,rows::Rows};
     let (mut e,mut c,_,digest)=fixture();let before=census(&mut c);
-    for at in 0..3 {
+    let bad="bad\0text";let low=vec![1u8];let high=vec![2u8];let limit=1i64;
+    let cases:Vec<(&str,&'static str,Vec<&(dyn postgres::types::ToSql+Sync)>)>=vec![
+        ("authority",super::super::authority::session_facts_sql(false),vec![&bad]),
+        ("receipt",super::super::receipts::LOOKUP,vec![&bad,&"id"]),
+        ("placement",super::super::assets::PLACEMENT,vec![&bad,&"id"]),
+        ("point",super::super::read_plan::GET,vec![&bad,&"id"]),
+        ("membership",super::super::read_plan::ASC,vec![&bad,&"index",&low,&high,&limit]),
+        ("page",super::super::read_plan::DESC,vec![&bad,&"index",&low,&high,&limit]),
+        ("update","UPDATE r SET data = $3 WHERE t = $1 AND id = $2",vec![&"counters",&"c0000",&bad]),
+    ];
+    // Covers each parameterized serving-flight template. Owner/head/generation
+    // and transaction controls have only adapter constants or integer values.
+    for (name,sql,params) in cases {
         let owner=e.store_mut().transaction().unwrap();let tx=owner.test_postgres_tx();
         tx.execute("UPDATE r SET data=data WHERE t='counters'",&[]).unwrap();
-        let bad="bad\0text";
-        let sqls=[super::super::authority::session_facts_sql(false),super::super::receipts::LOOKUP,super::super::read_plan::GET];
         let safe:&[&(dyn postgres::types::ToSql+Sync)]=&[&digest];
-        let bad_one:&[&(dyn postgres::types::ToSql+Sync)]=&[&bad];let bad_two:&[&(dyn postgres::types::ToSql+Sync)]=&[&bad,&"id"];
-        let params=if at==0 {bad_one} else {bad_two};
-        let error=tx.flight(&[(sqls[at],params),(sqls[0],safe)],"").err().unwrap();assert_eq!(error.code(),"E_INPUT");
+        let error=tx.flight(&[(sql,&params),(super::super::authority::session_facts_sql(false),safe)],"").err().unwrap();assert_eq!(error.code(),"E_INPUT","{name}");
         assert_eq!(tx.rollback_program().unwrap_err().code(),"E_INPUT");assert_eq!(owner.commit().unwrap_err().code(),"E_INPUT");assert_eq!(census(&mut c),before);
     }
     let owner=e.store_mut().transaction().unwrap();let tx=owner.test_postgres_tx();let seq=owner.next_seq().unwrap();

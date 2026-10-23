@@ -65,7 +65,7 @@ fn prefetch_complete_fixture_queries_and_hidden_rows() {
     query(&mut on, &mut off, "inbox", context("alice", &[]), true).unwrap();
     let calls = (on.evaluation_stats().unwrap().database_calls - before.0, off.evaluation_stats().unwrap().database_calls - before.1);
     assert!(calls.0 < 10, "inbox calls: {calls:?}");
-    assert_eq!(calls.1, 68);
+    assert_eq!(calls.1, 67); // RT6: BEGIN rides with the first physical read.
     println!("PREFETCH inbox warmed calls on/off: {calls:?}");
 }
 
