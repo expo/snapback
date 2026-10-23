@@ -576,7 +576,7 @@ fn default_view_keeps_new_column_write_and_freeze_authority() {
     let old="table items:\n  owner: principal\n  approved: bool default false\n  body: text <=40 ?\n  read <- allow\n  insert <- .owner = viewer\n  update <- allow\n  online only\nmutation create(body: text <=40 ?):\n  return insert items {owner:viewer,body}\n";
     app.source(old);app.ok(&["deploy","deployment"]);
     app.seed(old,vec![json!({"id":"kept","owner":"alice","approved":true,"body":"original"})]);
-    let next=old.replace("body: text <=40 ?", "body: text <=80 ? write <- .owner = viewer")
+    let next=old.replace("  body: text <=40 ?", "  body: text <=80 ? write <- .owner = viewer")
         .replace("  online only", "  immutable body when .approved = true\n  online only");
     app.source(&next);app.ok(&["deploy","deployment"]);
     app.ok(&["rollback","deployment","--to","1"]);

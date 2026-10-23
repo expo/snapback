@@ -818,7 +818,7 @@ fn final_existence_reference_keys_keep_identity_and_literal_meaning() {
 #[test]
 fn current_column_write_and_freeze_survive_default_bridge_without_invariants() {
     let old = "table docs:\n  owner: principal\n  approved: bool default false\n  body: text <=40 ?\n  read <- allow\n  insert <- allow\n  update <- allow\n  online only\nmutation create(owner: principal, body: text <=40 ?):\n  return insert docs {owner, body}\n";
-    let current=old.replace("body: text <=40 ?", "body: text <=80 ? write <- .owner = viewer")
+    let current=old.replace("  body: text <=40 ?", "  body: text <=80 ? write <- .owner = viewer")
         .replace("  online only", "  immutable body when .approved = true\n  online only");
     let target=vec![("schema.q".into(),old.into())];
     let source=vec![("schema.q".into(),current)];
