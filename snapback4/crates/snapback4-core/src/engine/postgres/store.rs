@@ -114,7 +114,7 @@ impl Store {
             Some(WriteMode::Serialized) => "BEGIN ISOLATION LEVEL READ COMMITTED READ WRITE;",
             Some(WriteMode::Serializable) => "BEGIN ISOLATION LEVEL SERIALIZABLE READ WRITE;",
         };
-        let inner = super::flight::Session { client: &mut self.client, pending: begin.into(), started: false, done: false, checks: Vec::new() };
+        let inner = super::flight::Session { client: &mut self.client, pending: begin.into(), started: false, done: false, settings_refused: false, checks: Vec::new() };
         let tx = Tx { read_sessions: &self.read_sessions, read_sessions_installed: Cell::new(false), unified: self.unified, commit_warning: &self.commit_warning, inner: RefCell::new(inner),
             bind_refused: Cell::new(false), read_cache: RefCell::new(super::read_plan::Answers::default()), pending_read: RefCell::new(None), receipt_cache: RefCell::new(None), placement_cache: RefCell::new(None), authority_cache: RefCell::new(None), commit_settings: Cell::new(false), literal_cache: RefCell::new(&mut self.literal_cache), cache: RefCell::new(&mut self.cache), calls: &self.calls, marked_reads: &self.marked_reads, page_reads: &self.page_reads, prefetch_rows: &self.prefetch_rows, prefetch_bytes: &self.prefetch_bytes,
             rows_cache: RefCell::new(super::prefetch::Cache::default()), prefetch_enabled: self.prefetch, head: Cell::new(None), serialized_head: Cell::new(false), tail: RefCell::new(super::tail::Tail::default()), changes: Default::default(), savepoints: RefCell::new(Vec::new()) };
@@ -197,6 +197,9 @@ impl Store {
     }
 
     pub(crate) fn preflight_transaction(&mut self, digest: &str, receipt: Option<(&str,&str)>) -> Result<(Tx<'_>,crate::identity::facts::SessionFacts),RuntimeError> {
+        // Match ReceiptReader before encoding: an impossible text key is absent,
+        // so it cannot preempt the callback's store-binding or replay policy.
+        let receipt = receipt.filter(|(principal,id)| !absent_text_key(&[principal,id]));
         let expected = self.generation;
         let tx = self.begin(None,false)?;
         let auth = super::authority::session_facts_sql(tx.read_sessions.get());
@@ -246,6 +249,7 @@ impl Store {
     // @ref LLP 3000.009.001.000.001#35-each-command-keeps-its-own-place — head, generation, authority and receipt remain distinct commands after the owner flight.
     pub(crate) fn request_transaction(&mut self, digest: &str, principal: &str, id: Option<&str>) -> Result<Tx<'_>,RuntimeError> {
         if self.read_only { return Err(RuntimeError::Store("Postgres reader is read-only".into())); }
+        let id = id.filter(|id| !absent_text_key(&[principal,id]));
         let auth = super::authority::session_facts_sql(self.read_sessions.get());
         for sql in ["SELECT seq FROM _head WHERE singleton FOR UPDATE", "SELECT generation FROM _backend WHERE singleton", auth] { self.prewarm_flight(sql)?; }
         if id.is_some() { self.prewarm_flight(super::receipts::LOOKUP)?; self.prewarm_flight(super::assets::PLACEMENT)?; }
@@ -405,6 +409,7 @@ fn guard_text_params(statement: &Statement, params: &[&(dyn ToSql + Sync)]) -> R
 impl Tx<'_> {
     // @ref LLP 3000.009.001.000#9.1 — a pre-bind refusal is terminal too; catching it cannot commit earlier writes without their tail.
     pub(super) fn ensure_active(&self) -> Result<(), RuntimeError> {
+        self.inner.borrow().ensure_settings()?;
         if self.bind_refused.get() {
             return Err(RuntimeError::Input("transaction aborted by a refused Postgres parameter; roll back".into()));
         }
@@ -419,8 +424,8 @@ impl Tx<'_> {
         !crate::identity::facts::ordinary(facts) || (!self.read_sessions.get() && facts.sessions.is_empty())
     }
     // A changed credential kind or newly installed optional session table can
-    // invalidate the planning hint. Discard that closed speculative cut in full;
-    // the complete resolver and program then share one fresh physical snapshot.
+    // invalidate the planning hint. Discard all speculative answers. An open
+    // transaction keeps its repeatable-read snapshot; a closed cut reopens once.
     pub(super) fn complete_request_facts(&self, digest: &str) -> Result<crate::identity::facts::SessionFacts,RuntimeError> {
         let mut inner = self.inner.borrow_mut();
         if inner.done {
@@ -611,6 +616,8 @@ impl Tx<'_> {
         }
         inner.flush(self.calls)?;
         self.calls.set(self.calls.get()+1);
+        // The last data flight verified the codec settings. Only client-side
+        // validation intervenes; COMMIT stays alone and decodes no row payload.
         // Once COMMIT is sent, even transport loss must retain unknown-outcome classification.
         inner.done = true;
         super::ownership::commit_prepared(inner.client,self.commit_warning)?;

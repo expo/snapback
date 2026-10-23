@@ -84,9 +84,10 @@ Unsupported scans, actual-size decoders, maintained/recorded/lifetime surfaces,
 private field gates, nested probes and unnamed credential kinds retain ordinary
 snapshot access. Planning reuses the existing 4 MiB exact-prefetch allowance;
 larger declarations/fanouts fall back. A changed credential kind or newly
-installed optional session storage invalidates the hint: any closed speculative
-cut and all its answers are discarded, and the complete resolver/program share
-one fresh snapshot. No result combines the two cuts. The context's explicit
+installed optional session storage invalidates the hint: all speculative answers
+are discarded. W1 with an open speculative transaction retains that original repeatable-read snapshot;
+an already closed plan opens a fresh snapshot for the complete resolver/program.
+No result combines answers from different cuts. The context's explicit
 credential hint is separate from the interpreter's principal kind.
 
 ## Codec and connection obligations
@@ -100,6 +101,16 @@ Bind statement. Flight values, optional scalars and arrays all use the same
 RT5 encoder, including the current tail's 27 arguments (eighteen arrays plus
 change-evidence fields). Parent §9.1 rule 5 now explicitly permits both Bind
 and this typed EXECUTE path.
+
+Fix round 1 additionally verifies all three settings before every SimpleQuery
+data flight using a constant server-side guard in that same message. Drift
+raises before any data command runs and makes the transaction refuse further
+work or COMMIT. The guard's completion is removed before result/count decoding;
+it adds no dependent exchange. No setting-changing command can intervene
+between the final guarded flight and standalone COMMIT. `BPCHAR`, including
+arrays, uses binary Bind fallback so fixed-width blanks remain intact.
+BEGIN runs before the guard to set isolation; a control-only savepoint recovery
+rolls back before checking settings, preserving recovery from ordinary SQL errors.
 
 The encoder admits at most 32 MiB of aggregate encoded command text inside
 the existing 256 MiB physical adapter envelope. Binary input length, array
@@ -132,7 +143,9 @@ scratch refusal, cold preparation lock order and local-argument shadowing
 fallback. Targeted rewrap/shape/tail regressions also pass.
 The full qualification repeats this group.
 
-Fault insertion covers **39 command boundaries** across the folded messages.
+Fault insertion covers **43 data/framing command boundaries** across the folded messages
+after fix round 1 adds UPDATE and the post-update read (originally 39).
+Settings-guard errors are exercised separately by the drift witnesses.
 The final ownership run separately checks COMMIT loss and a durable receipt
 whose acknowledgement is lost; both preserve the previous classification.
 
@@ -146,7 +159,7 @@ whose acknowledgement is lost; both preserve the previous classification.
   waiting. After the first commits, the second's distinct post-lock command
   sees its receipt. Exactly one increment, receipt and evidence record commit.
 - Statement errors are inserted at every command boundary of BEGIN/owner,
-  setup, savepoint/read, receipt/tail/release/settings, both W1 flights, W2 and
+setup, savepoint/read, UPDATE, post-update read, receipt/tail/release/settings, both W1 flights, W2 and
   replay preflight. Every outcome refuses, later nontransactional sequence
   sentinels remain untouched, and heads/rows/receipts/commits/logs/evidence equal
   their pre-request images. A suppressed `_commits` insertion yields a zero-row
@@ -174,7 +187,7 @@ The subsequent experiment sweep found one stale exact count: its warmed
 prefetch-off inbox now uses 67 calls instead of 68 because BEGIN shares the
 first read. That assertion is lowered without changing outcome or meter checks.
 
-## Required checks and cleanup
+## Original RT6 required checks and cleanup
 
 The external runner records commands, PIDs, elapsed times, disk availability
 and exit status outside Git. All Cargo builds use this worktree's target,
@@ -252,3 +265,111 @@ durability setting change is used. The timeout and successful independent
 cleanup check are both retained outside Git. Data directories remain for
 inspection. Every disk observation stays above the 40 GB stop threshold;
 final `df -h /home` availability is 151 G.
+
+## RT6 fix round 1 — 2026-10-23
+
+Review base `2fdab64882`, branch `sb4-pg/rt6-fix1`, worktree
+`/home/ccheever/projects/sb4-land2`. This round uses its initially cold
+`snapback4/target`, line-tables-only dev/test debug information and eight Cargo
+jobs. Evidence remains outside Git under
+`/tmp/claude-1000/-home-ccheever-projects-snapback/3d04fc0c-0698-42a7-917c-2880afdea35c/scratchpad/rt6f1/`.
+No RT0 table or SQLite implementation changes.
+
+The five new core regression witnesses were first run with production files
+unchanged from `2fdab64882`; **all five failed** for the reviewed reasons.
+The separate HTTP witness failed there too, after passing its SQLite control.
+
+- **Primary-index ranges:** `Access.id` is now explicitly optional. Only a
+  point carries an id; ranges select range SQL, bind bounds/limit, decode the
+  ordered key and match only range cache entries. The before witness found
+  SQLite's `firstId` rows `a,b` and `lastId` rows `e,d`, while Postgres returned
+  empty complete pages with zero examined rows. The final parity witness also
+  covers present/missing primary and secondary points, `exists`, mixed point
+  and range access, both directions on both indexes, all four opaque-cursor
+  walks, empty/populated tables and allowed/denied viewers. It asserts planner
+  admission versus cursor fallback and compares entire outcomes, including
+  logical meters, cuts, completeness and continuation values.
+- **NUL receipt keys:** folded preflight and writer fact lookup skip impossible
+  principal/id keys before encoding, matching `ReceiptReader`. The before
+  direct witness failed on ordinary preflight before its callback; the complete
+  resolver control passed. The before HTTP request with a valid bearer, NUL id
+  and foreign store returned **401 `E_INPUT`**, instead of the SQLite control's
+  **200 `E_STORE_REPLACED`**. The final witnesses require absent lookup results
+  for both NUL key components and the original HTTP refusal precedence/head.
+- **Fixed-width text:** `text_type` excludes `BPCHAR` recursively through arrays.
+  The before type assertion failed. The final witness requires binary Bind and
+  the exact four-character value `a` followed by three blanks.
+- **Settings drift:** the before witness accepted all six combinations of the
+  three changed settings and immediate/deferred flights. The final witness
+  requires refusal before a nontransactional sequence sentinel, refusal of a
+  subsequently attempted COMMIT and unchanged durable images. A reused-client
+  witness also changes each session setting after initial qualification and
+  requires the next opener to refuse. A separate SQL-error/savepoint witness
+  checks recovery remains usable. The initial guard prototype exposed `25001`
+  by querying before BEGIN; the final guard follows BEGIN and precedes data.
+  Recovery controls restore an aborted savepoint before their guard.
+- **Fault coverage:** writer flights 3 and 4 now exercise UPDATE and the
+  post-update read, adding four boundaries to the original 39. An index beyond
+  the actual command count now panics; its before witness demonstrated the
+  old silent clamp to the last boundary. A separate coverage census rejects
+  the base loop for missing flights 3/4 and accepts all six writer flights now.
+  Every one of the final 43 insertions
+  refuses, suppresses the later sequence sentinel and preserves the durable
+  head/rows/receipts/commits/log/evidence census.
+- **W1 description:** the report and implementation comment now distinguish an
+  open repeatable-read transaction from a closed speculative cut. The former
+  retains its original snapshot; the latter opens a fresh complete snapshot.
+  Both discard speculative answers. The external report assertion rejected the
+  previous unconditional fresh-snapshot description.
+
+The final targeted RT5/RT6 group passes **26/26**, including every new core
+witness and the expanded writer-fault loop, and repeats successfully in the
+stock Postgres script.
+
+The initial full-core invocation passes 681 unit tests (three ignores), then
+cannot launch its next integration executable: the concurrently started stock
+script's manifest-handoff cleanup removed it. This is a recorded qualification
+sequencing error, not a green full-core run. The complete core rerun is
+serialized after the stock script so no handoff can delete its artifacts.
+
+These are this round's executions; the original RT6 qualification record above
+is retained separately.
+
+| Check | Fix-round result |
+| --- | --- |
+| CLI build | Pass; initial cold build and rebuilt final CLI, including the stock script's final build |
+| Full default core, integration and doc targets | **Exit 0**; 1,120 unfiltered passes, five named ignores, one additional passing subprocess check; 921.21 s |
+| Full `snapback4` binary with Postgres | 577 pass, 46 named ignores |
+| NUL receipt HTTP regression | Pass on SQLite and Postgres; correct store refusal and unchanged head |
+| SQLite RT0 | Pass; table unchanged |
+| Postgres RT0 selector | Three pass; table unchanged; repeated successfully by the stock script |
+| RT5/RT6 codec and serving witnesses | 26/26 pass; repeated in the stock script |
+| `bash scripts/test-postgres.sh` | **Exit 0**, every stage, 1,430.62 s |
+| `./ref-check` | Pass: 566 LLP docs, 11,833 refs, zero errors or unchecked refs |
+| External coverage/report witnesses | Base fails; fix passes |
+
+The stock script passes its 22 evaluator conformance cases and all evaluator
+integration targets, 232 adapter cases, 13 change-evidence cases, 26 codec/serving
+cases, all 25 ownership cases with eight test threads, 60 evolution cases,
+handle/doc/committer/command tests, the internal HTTP and renewal cleanup cases,
+RT0, bearer lock gaps, all 62 selected authority cases, 22 five-executor corpus
+cases, eleven differential library tests and four store campaigns. The public
+CLI witness passes evolution/restoration byte-and-meter parity, bootstrap and
+binding refusals/recovery, takeover, restart persistence and unchanged S1
+Quarry P1-MC; its private cluster is stopped and retained for inspection.
+The inherited evaluator stress and short-lease fixtures pass in this execution;
+no retry, timeout, durability, workload or exclusion changes were made.
+
+The complete serialized core rerun passes every integration/doc target, so the
+initial missing-executable attempt remains recorded without leaving any core
+coverage unfinished.
+
+Private PG16 postmasters **2249844** (evaluation) and **3233606** (public CLI)
+are absent. Both exact data directories independently return `pg_ctl status=3`
+and contain no `postmaster.pid`. The evaluation fast shutdown succeeds in
+0.30 s; the initial failed socket-path startup PID **2227751** is absent too.
+The owned-process identity census and the independent lane-executable/data-dir
+scan find no survivors. **PIDs left: none.** Both clusters and all raw evidence
+remain outside Git for inspection. Every disk check stays above this round's
+22 GiB stop floor. No push, stash, persistent Git configuration change or raw
+log commit occurs.

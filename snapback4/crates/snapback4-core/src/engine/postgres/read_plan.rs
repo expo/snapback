@@ -10,28 +10,30 @@ pub(super) const GET: &str = "SELECT data FROM r WHERE t = $1 AND id = $2";
 pub(super) const ASC: &str = "SELECT r.data, i.k FROM i JOIN r ON r.t = i.t AND r.id = i.id WHERE i.t = $1 AND i.ix = $2 AND i.k >= $3 AND i.k < $4 ORDER BY i.k ASC LIMIT $5";
 pub(super) const DESC: &str = "SELECT r.data, i.k FROM i JOIN r ON r.t = i.t AND r.id = i.id WHERE i.t = $1 AND i.ix = $2 AND i.k >= $3 AND i.k < $4 ORDER BY i.k DESC LIMIT $5";
 #[derive(Clone, PartialEq, Eq)]
-struct Access { table: String, index: String, id: String, lo: Vec<u8>, hi: Vec<u8>, dir: Dir, n: i64 }
+struct Access { table: String, index: String, id: Option<String>, lo: Vec<u8>, hi: Vec<u8>, dir: Dir, n: i64 }
 impl Access {
     fn point(table: &str, index: &str, key: &[Value]) -> Option<Self> {
         if index == "byId" {
-            return Some(Self { table: table.into(), index: index.into(), id: key.first()?.as_str().ok()?.into(), lo: vec![], hi: vec![], dir: Dir::Asc, n: 1 });
+            return Some(Self { table: table.into(), index: index.into(), id: Some(key.first()?.as_str().ok()?.into()), lo: vec![], hi: vec![], dir: Dir::Asc, n: 1 });
         }
         Self::range(table, index, key, Dir::Asc, 1)
     }
     fn range(table: &str, index: &str, key: &[Value], dir: Dir, n: i64) -> Option<Self> {
         let (lo,hi) = crate::rows::scan_range(key, &Bounds::default(), dir)?;
-        Some(Self { table: table.into(), index: index.into(), id: String::new(), lo, hi, dir, n })
+        Some(Self { table: table.into(), index: index.into(), id: None, lo, hi, dir, n })
     }
-    fn sql(&self) -> &'static str { if self.index == "byId" { GET } else if self.dir == Dir::Asc { ASC } else { DESC } }
+    // The primary index can serve either a point or a range. Only an explicit
+    // point has an id; range answers always include their ordered index keys.
+    fn sql(&self) -> &'static str { if self.id.is_some() { GET } else if self.dir == Dir::Asc { ASC } else { DESC } }
     fn params(&self) -> Vec<&(dyn ToSql + Sync)> {
-        if self.index == "byId" { vec![&self.table, &self.id] } else { vec![&self.table, &self.index, &self.lo, &self.hi, &self.n] }
+        if let Some(id) = &self.id { vec![&self.table, id] } else { vec![&self.table, &self.index, &self.lo, &self.hi, &self.n] }
     }
 }
 #[derive(Default)]
 pub(super) struct Answers(Vec<(Access, Vec<(Value, Vec<u8>)>)>);
 impl Answers {
     pub fn get(&self, table: &str, id: &str) -> Option<Option<Value>> {
-        self.0.iter().find(|(a,_)| a.table == table && a.index == "byId" && a.id == id).map(|(_,v)| v.first().map(|(v,_)| v.clone()))
+        self.0.iter().find(|(a,_)| a.table == table && a.id.as_deref() == Some(id)).map(|(_,v)| v.first().map(|(v,_)| v.clone()))
     }
     pub fn lookup(&self, table: &str, index: &str, key: &[Value]) -> Option<Option<Value>> {
         if index == "byId" && key.len() == 1 { return self.get(table,key[0].as_str().ok()?); }
@@ -39,7 +41,7 @@ impl Answers {
         self.scan(table,index,&lo,&hi,Dir::Asc,1).map(|v| v.first().map(|(v,_)|v.clone()))
     }
     pub fn scan(&self, table: &str, index: &str, lo: &[u8], hi: &[u8], dir: Dir, n: usize) -> Option<Vec<(Value,Vec<u8>)>> {
-        self.0.iter().find(|(a,v)| a.table == table && a.index == index && a.lo == lo && a.hi == hi && a.dir == dir && (a.n as usize >= n || v.len() < a.n as usize))
+        self.0.iter().find(|(a,v)| a.id.is_none() && a.table == table && a.index == index && a.lo == lo && a.hi == hi && a.dir == dir && (a.n as usize >= n || v.len() < a.n as usize))
             .map(|(_,v)| v.iter().take(n).cloned().collect())
     }
 }
@@ -156,7 +158,7 @@ impl Plan {
     }
 }
 fn insert(tx: &Tx<'_>, access: Access, rows: Vec<super::store::Row>) -> Result<(),RuntimeError> {
-    let values = rows.iter().map(|row| Ok((decode(row.get(0))?, if access.index == "byId" {vec![]} else {row.get(1)}))).collect::<Result<_,RuntimeError>>()?;
+    let values = rows.iter().map(|row| Ok((decode(row.get(0))?, if access.id.is_some() {vec![]} else {row.get(1)}))).collect::<Result<_,RuntimeError>>()?;
     tx.read_cache.borrow_mut().0.push((access,values));
     Ok(())
 }

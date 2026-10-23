@@ -10,6 +10,7 @@ pub(super) struct Session<'a> {
     pub pending: String,
     pub started: bool,
     pub done: bool,
+    pub settings_refused: bool,
     pub checks: Vec<(usize,u64)>,
 }
 impl Drop for Session<'_> {
@@ -22,12 +23,47 @@ impl Drop for Session<'_> {
     }
 }
 impl Session<'_> {
+    pub fn ensure_settings(&self) -> Result<(), RuntimeError> {
+        if self.settings_refused { return Err(RuntimeError::Store("Postgres flight output settings drifted; roll back".into())); }
+        Ok(())
+    }
+    // A server-side guard runs before any data command in each flight, in the
+    // same message. Drift must stop execution, rather than be detected after
+    // text rows have already been decoded or writes have run. No policy or
+    // application values enter this constant control command.
+    fn guarded_query(&mut self, sql: &str) -> Result<Vec<SimpleQueryMessage>, RuntimeError> {
+        self.ensure_settings()?;
+        const GUARD: &str = "DO $sb4_settings$ BEGIN IF pg_catalog.current_setting('client_encoding') <> 'UTF8' OR pg_catalog.current_setting('extra_float_digits') <> '3' OR pg_catalog.current_setting('bytea_output') <> 'hex' THEN RAISE EXCEPTION 'Postgres flight output settings drifted' USING ERRCODE = 'S4001'; END IF; END $sb4_settings$;";
+        let mut command = String::with_capacity(GUARD.len() + sql.len());
+        // An aborted transaction accepts only rollback. These recovery flights
+        // contain controls alone: restore the savepoint before checking settings,
+        // which may themselves have been restored by that rollback.
+        let recovery = sql.starts_with("ROLLBACK TO SAVEPOINT ");
+        // BEGIN must precede the guard too: a query before BEGIN would start
+        // an implicit transaction and prevent setting its isolation level.
+        let opening = if sql.starts_with("BEGIN ") { sql.find(';').map_or(0, |n|n+1) } else { 0 };
+        command.push_str(&sql[..opening]);
+        if !recovery { command.push_str(GUARD); }
+        command.push_str(&sql[opening..]);
+        if recovery { command.push(';'); command.push_str(GUARD); }
+        let mut messages = self.client.simple_query(&command).map_err(|error| {
+            if error.code().is_some_and(|code| code.code() == "S4001") { self.settings_refused = true; }
+            RuntimeError::from(error)
+        })?;
+        let guard_index = usize::from(opening != 0);
+        let guard = if recovery { messages.last() } else { messages.get(guard_index) };
+        if !matches!(guard, Some(SimpleQueryMessage::CommandComplete(_))) {
+            return Err(RuntimeError::Store("missing Postgres output settings guard".into()));
+        }
+        if recovery { messages.pop(); } else { messages.remove(guard_index); }
+        Ok(messages)
+    }
     pub fn flush(&mut self, calls: &CallCounter) -> Result<(), RuntimeError> {
         if self.pending.is_empty() { return Ok(()); }
         calls.set(calls.get() + 1);
         self.started = true;
         let command = std::mem::take(&mut self.pending);
-        let messages = match self.client.simple_query(&command) { Ok(m)=>m,Err(e)=>{self.checks.clear();return Err(e.into());} };
+        let messages = match self.guarded_query(&command) { Ok(m)=>m,Err(e)=>{self.checks.clear();return Err(e);} };
         self.validate(&messages)
     }
     pub fn validate(&mut self, messages: &[SimpleQueryMessage]) -> Result<(),RuntimeError> {
@@ -43,7 +79,7 @@ impl Session<'_> {
         command.push_str(sql);
         #[cfg(test)]
         super::literal_tests::serving::inject(&mut command);
-        let messages = match self.client.simple_query(&command) { Ok(m)=>m,Err(e)=>{self.checks.clear();return Err(e.into());} };
+        let messages = match self.guarded_query(&command) { Ok(m)=>m,Err(e)=>{self.checks.clear();return Err(e);} };
         self.validate(&messages)?;
         Ok(messages)
     }
@@ -120,7 +156,7 @@ fn binary(ty: &Type, value: &literal::Datum) -> Result<Option<Vec<u8>>, RuntimeE
 pub(super) const SCRATCH_LIMIT: usize = 256 << 20;
 pub(super) const ENCODED_LIMIT: usize = SCRATCH_LIMIT / 8;
 pub(super) fn text_type(t: &Type) -> bool {
-    matches!(*t, Type::VOID | Type::BOOL | Type::INT2 | Type::INT4 | Type::INT8 | Type::FLOAT4 | Type::FLOAT8 | Type::TEXT | Type::BYTEA | Type::NAME | Type::VARCHAR | Type::BPCHAR)
+    matches!(*t, Type::VOID | Type::BOOL | Type::INT2 | Type::INT4 | Type::INT8 | Type::FLOAT4 | Type::FLOAT8 | Type::TEXT | Type::BYTEA | Type::NAME | Type::VARCHAR)
         || matches!(t.kind(), postgres::types::Kind::Array(element) if text_type(element))
 }
 pub(super) struct ResultSet { pub rows: Vec<Row>, pub count: u64 }

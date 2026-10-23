@@ -36,6 +36,39 @@ fn round_trips_postgres() {
     run(true);
 }
 
+#[cfg(feature = "postgres")]
+#[test]
+#[ignore = "requires private Postgres"]
+fn rt6_fix1_nul_receipt_preserves_http_store_refusal() {
+    let directory = ReaderTestDirectory::new();
+    for pg in [false, true] {
+        let store = if pg {
+            snapback4_core::store_port::AnyStore::create_postgres(
+                &std::env::var("SNAPBACK4_EVAL_POSTGRES").unwrap(),
+                &format!("rt6_nul_receipt_{:x}", snapback4_core::ids::seed()),
+            ).unwrap()
+        } else {
+            snapback4_core::store_port::AnyStore::open(&directory.0.join("store.sqlite")).unwrap()
+        };
+        let host = Host::with_store(false, store, "use identity\nmutation noop():\n  return 1\n");
+        let (token, store_id, head) = {
+            let engine = lock(&host.shared.engine);
+            (identity::open_session(engine.store(), "alice", "guest", host.shared.now()).unwrap().token,
+             engine.store().store_identity().unwrap().unwrap(), engine.store().seq().unwrap())
+        };
+        let headers = format!("Authorization: Bearer {token}\r\n");
+        for id in ["valid-id", "bad\0id"] {
+            let response = host.request("POST", "/m/noop", &headers,
+                &json!({"id":id,"store_id":"foreign-store","args":{}}).to_string());
+            assert_eq!(status(&response), 200, "pg={pg}: {response}");
+            let reply = body(&response);
+            assert_eq!(reply["why"]["code"], "E_STORE_REPLACED", "pg={pg}: {reply}");
+            assert_eq!(reply["store_id"], store_id);
+        }
+        assert_eq!(lock(&host.shared.engine).store().seq().unwrap(), head);
+    }
+}
+
 fn run(pg: bool) {
     let directory = ReaderTestDirectory::new();
     let store = if pg {

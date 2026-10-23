@@ -104543,3 +104543,56 @@ census checks 588 PIDs, all absent, with no running lane executable or PG
 process in either owned data directory. PIDs left: none. Final /home free
 space is 151 G, always above the 40 GB stop rule. No raw logs, push, stash,
 PG17/55440 access, q24 work or persistent Git configuration changes occur.
+
+## 2026-10-23 — RT6 fix round 1
+
+Review base `2fdab64882`, lane `sb4-pg/rt6-fix1`. Primary-index point reads
+and ranges now carry distinct access identities through SQL selection,
+parameter binding, answer lookup and key decoding. Authorized SQLite/Postgres
+parity covers primary and secondary points, exists, mixed point/range reads,
+first/last pages, four after-cursor walks, empty/populated tables and
+allowed/denied viewers on an online-only table with a read rule.
+
+Folded receipt openers skip NUL principal/id keys before encoding, retaining
+the shared reader's absent-key behavior and the callback's store-binding
+precedence. BPCHAR and its arrays retain binary Bind fallback. Every data
+flight checks the three codec settings in the existing message before data;
+drift refuses subsequent work and COMMIT. BEGIN precedes the guard to set
+isolation; control-only savepoint recovery rolls back before its guard.
+Standalone COMMIT is unchanged. The W1 report/comment now accurately retain
+an open repeatable-read snapshot, reopening only an already closed cut.
+
+Writer UPDATE and post-update read flights join the failure loop: 43
+boundaries, each checking refusal, untouched later-command sentinels and
+unchanged durable images. Fault indices past the actual command count refuse
+instead of silently clamping. A separate coverage census rejects the base
+loop's missing flights 3/4.
+
+Five core regression witnesses fail against unchanged RT6 production files;
+the HTTP NUL/foreign-store witness separately reproduces 401 E_INPUT before
+its expected 200 E_STORE_REPLACED. The final targeted group passes 26/26,
+including reused-client drift and SQL-error/savepoint recovery. Both RT0
+ratchets pass with their tables unchanged; the full binary passes 577 with
+46 named ignores. Full evidence and qualification are recorded in
+`reports/20261023-rt6-serving-flights/REPORT.md`; raw logs remain outside Git
+under the commissioned `rt6f1` scratch directory.
+
+Final qualification: rebuilt CLI, full binary, both unchanged RT0 ratchets,
+26 codec/serving witnesses and the complete stock Postgres script pass. The
+stock script exits 0 in 1,430.62 s, including all 232 adapter, 25 ownership,
+60 evolution, 62 selected authority, 22 corpus, eleven differential-library
+and four store-campaign cases plus the public S1 milestone. Inherited stress
+and short-lease fixtures pass without changed bounds, retries or exclusions.
+
+The first full-core command passed 681 unit cases, then lost its next executable
+to an overlapping stock-script target cleanup. That sequencing error is retained
+in the report. The complete serialized repeat exits 0 in 921.21 s: 1,120
+unfiltered passes, five named ignores and one additional passing subprocess
+check, with every integration/doc target completed. Ref-check passes.
+
+PG16 postmasters 2249844 and 3233606 are absent; independent status checks return
+3 with no pid files. Evaluation shutdown is clean in 0.30 s; the failed initial
+socket-path startup PID 2227751 is absent. Recorded owned identities and lane
+executable/data-directory scans have no survivors. PIDs left: none. The 22 GiB
+shared-host stop floor is never reached. Data and evidence remain outside Git;
+no raw logs, push, stash or persistent Git configuration change.

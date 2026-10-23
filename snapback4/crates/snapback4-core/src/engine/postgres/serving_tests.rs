@@ -1,4 +1,6 @@
 //! RT6 witnesses over the serving adapter, not the RT5 statement model.
+#[path = "serving_regressions.rs"]
+mod regressions;
 // @ref LLP 3000.009.001.000.001#35-each-command-keeps-its-own-place — every folded flight fails before COMMIT and retains post-lock visibility.
 use crate::{Context, Engine, Value, identity, engine::DeliveryManifest, store_port::AnyStore};
 use postgres::{Client, NoTls};
@@ -15,7 +17,10 @@ pub(in crate::engine::postgres) fn inject(sql: &mut String) {
         let Some((remaining,at,fired)) = slot.as_mut() else {return;};
         if *fired {return;}
         if *remaining != 0 { *remaining -= 1; return; }
-        let offset = if *at == 0 {0} else {sql.match_indices(';').nth(*at-1).map(|(n,_)|n+1).unwrap_or(sql.len())};
+        let tail = sql.rsplit_once(';').map_or(sql.as_str(), |(_,tail)|tail);
+        let commands = sql.bytes().filter(|b| *b == b';').count() + usize::from(!tail.trim().is_empty());
+        assert!(*at <= commands, "fault boundary {at} exceeds {commands} commands");
+        let offset = if *at == 0 {0} else if *at == commands {sql.len()} else {sql.match_indices(';').nth(*at-1).unwrap().0+1};
         sql.insert_str(offset,"; SELECT 1/0; SELECT nextval('_rt6_after_failure');");
         *fired = true;
     });
@@ -65,9 +70,9 @@ fn rt6_statement_failure_inside_every_serving_fold() {
     let (mut e,mut c,_,digest)=fixture();
     let before=census(&mut c);
     // BEGIN/owner; head/generation/authority/receipt/placement; savepoints/read;
-    // release/receipt insert/bind/tail/member release/settings. Every command
+    // UPDATE; post-update read; release/receipt insert/bind/tail/member release/settings. Every command
     // boundary includes an error plus a nontransactional later-command sentinel.
-    for (flight,commands) in [(0,2),(1,5),(2,3),(5,7)] {
+    for (flight,commands) in [(0,2),(1,5),(2,3),(3,1),(4,1),(5,7)] {
         for at in 0..=commands {
             assert!(fail(flight,at,||mutate(&mut e,&digest,Some("faulted"))).is_err(),"flight {flight}, at {at}");
             assert_eq!(census(&mut c),before,"flight {flight}, at {at}"); no_later(&mut c);
