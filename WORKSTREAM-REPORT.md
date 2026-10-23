@@ -5,7 +5,7 @@ Source: complete wave-25 day-two bakeoff, especially §§3.4–3.5, §4, §8b an
 
 ## Outcome
 
-DX8 addressed all eleven requested day-two items. The current native candidate is `23b0d2f42daed3ab0b68cb008d4c11b5810931a9`, including the final empty-parent/lifetime-custody correction. The branch merged origin/main `06a9d2c47f` at `8be54b5269` with only append-only JOURNAL conflict resolution. User-visible changes are under `guide changes` for **0.4.41**; package versions remain unchanged.
+DX8 addressed all eleven requested day-two items. The current native candidate is `23b0d2f42daed3ab0b68cb008d4c11b5810931a9`, including the final empty-parent/lifetime-custody correction. The branch merged origin/main `06a9d2c47f` at `8be54b5269` with only append-only JOURNAL conflict resolution, then the upstream publication-evidence-only commit `b31795e07d` at `2d11ef1646`. User-visible changes are under `guide changes` for **0.4.41**; package versions remain unchanged.
 
 R7 obtained joint READY, then R8's deeper review found the empty-parent custody gap. The listener-rule amendment was READY in both families. The custody gap is fixed and covered by five regressions, with 20/20 extraction tests, 163/163 backfills and 734/734 nonignored core tests passing. Both fresh R9 reviewers returned **READY** on both complete amendments at `23b0d2f42d`; verbatim artifacts/provenance are committed in `a765a2c263`. The corrected native debug/production artifacts, exact fan-out replays and all four final installed helpers pass. Historical results retain their own source binding. The original fresh-pack Linux qualifier's inherited day5 source-reservation failure remains recorded; no publication receipt or subjective rating-win claim is made.
 
@@ -133,7 +133,7 @@ The clean-checkpoint client pool completed all 429 ordinary files plus 9 fixture
 
 ## Integration, ownership, and limits
 
-The branch began from finished DX7, merged initial main/K0Q at `dfa2782faf`, merged finished ROLL at `a2249ef8a6`, integrated origin/main `46c6cdd056` at `a3f7c4becf`, and finally merged origin/main `06a9d2c47f` at `8be54b5269`. These merges preserved the independent checkpoint/maintenance and rollback fixes. No other worktree was modified.
+The branch began from finished DX7, merged initial main/K0Q at `dfa2782faf`, merged finished ROLL at `a2249ef8a6`, integrated origin/main `46c6cdd056` at `a3f7c4becf`, merged origin/main `06a9d2c47f` at `8be54b5269`, and finally merged its publication-evidence commit `b31795e07d` at `2d11ef1646`. These merges preserved the independent checkpoint/maintenance and rollback fixes. No other worktree was modified.
 
 SEC9 owns column-write rules, the asymmetry gate, note ranking, derived adversarial deployment tests, conditional immutability, and test reach. DX8 leaves that policy untouched and carries the owner pointer in the amendment. Integration 23 owns rollback views and release bridges. The keyed-first RT0 follow-up belongs to ROLL and remains a measured issue rather than a raised limit. Existing source-reservation and predecessor-execution-facts baselines retain their filesystem tickets and authentic fixtures.
 
@@ -142,9 +142,11 @@ No macOS qualification was run. The user reported the Studio unreachable and res
 ## Completion record
 
 - **Implemented and committed:** all requested items, with both complete semantic amendments READY from fresh Codex and Muse at source `23b0d2f42d`; exact provenance and raw reviews are committed under `llp/reviews/dx8/`.
-- **Final changed-path evidence:** core library 734 passed/0 failed/242 ignored; backfills163/163; extraction20/20; exact lanes020/040 and all four packed DX8 helpers pass on corrected R9 native artifacts. The full requested historical batteries and consumer suffix results above retain their honest raw outcomes and scoped supersession.
-- **Qualification limits:** original consumer-only qualifier raw exit1 remains the inherited day5 source-reservation error. Lean comparison retains four known signatures; the ROLL keyed-first ratchet remains 88>87 and was not raised. Source-reservation/predecessor baseline tickets remain open. No publication receipt or new subjective rating victory is claimed.
+- **Final changed-path evidence:** core library 734 passed / 0 failed / 242 ignored; backfills 163/163; extraction 20/20; exact lanes 020/040 and all four packed DX8 helpers pass on corrected R9 native artifacts. The full requested historical batteries and consumer suffix results above retain their honest raw outcomes and scoped supersession.
+- **Qualification limits:** original consumer-only qualifier raw exit 1 remains the inherited day5 source-reservation error. Lean comparison retains four known signatures; the ROLL keyed-first ratchet remains 88>87 and was not raised. Source-reservation/predecessor baseline tickets remain open. No publication receipt or new subjective rating victory is claimed.
 - **Cleanup:** R7 build output was removed before the R9 rebuild. All R9 builds/tests and packed consumers finished; the regenerated owned target was removed after a zero-process build census. Six unneeded qualification consumer/cache directories were removed while JSON/log evidence and final sealed artifacts were retained. `/tmp/dx8-replay` is absent. Final independent owned-artifact process census is empty (`~/sb4-loop/dx8-final-cleanup.json`).
-- **Delivery:** origin/main06a9 is merged; no push, no package-version bump, and no Mac run. Integration owns Mac qualification and publication.
+- **Delivery:** `origin/main` at `b31795e07d` is merged; no push, no package-version bump, and no Mac run. Integration owns Mac qualification and publication.
 
 Final source audit: native and SDK implementation files are unchanged from the reviewed/qualified R9 source `23b0d2f42d`; later changes record reviews and this report. The working tree was verified clean after the final report commit. The shared disk has recovered its build space.
+
+Final main integration: `b31795e07d` adds upstream 0.4.38 publication evidence, metrics and baseline tickets only. Merge `2d11ef1646` was clean; a scoped diff confirms zero native/SDK/package/amendment changes from the reviewed candidate. Those imported baseline publication receipts are not DX8 qualification or a publication of these tarballs. No expensive checks were repeated for that evidence-only merge.
