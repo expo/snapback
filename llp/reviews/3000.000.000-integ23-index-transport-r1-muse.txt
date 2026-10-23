@@ -1,0 +1,21 @@
+muse: workspace root: /home/ccheever/projects/snapback-sb4loop (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=9bc9135d-4987-4731-af3f-b518fc88d499]: Subscription quota exhausted. Your usage window resets at 2026-10-26T00:00:00Z. (rate_limit_error)
+[muse-exec] plan quota exhausted; retrying with the Meta API key
+muse: workspace root: /home/ccheever/projects/snapback-sb4loop (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY
+
+§20.1 named-index paragraph at [3000.000.000 §1279-1291](/home/ccheever/projects/snapback-sb4loop/llp/3000.000.000-retained-storage-and-hot-release.rfc.md) matches the bounded patch at `c45653db`:
+
+* New module [release_bridge_indexes.rs:7-48](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/src/release_bridge_indexes.rs) compares complete compiled `IndexComponent`s after injective `renamed_from` alignment, fail-closed on `with_table_names` error and column collision.
+* Complex use (`!is_plain` + `uses_column`) refuses rewrite and requires current context — covers `WordPrefixes{fields,contract}`, `CalendarKey{function,column,millis,offset}`, `Contribution` dependencies.
+* Hook at [release_bridge_guards.rs:21](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/src/release_bridge_guards.rs) only affects selective bridge; complete/guarded-current already build from current sources, so ordinary rename/split/defaulted-addition still succeed via current closure, no invariant-only refusal.
+* Carry at [release_bridge_rules.rs:171-183](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/src/release_bridge_rules.rs) retains new-name current indexes; relaxed-old-unique deletion at lines 90-102 plus hard check at [rollback_views.rs:202-204](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4/src/verbs/rollback_views.rs) preserve current uniqueness without reintroducing history.
+* Same-name plain change (`byOrder: n→rank`) and word change (`words(title)→words(body)`) correctly escalate to current context instead of running current body through old definition. New-name carry (`byN` + `byCount`) and non-alias equal-key (`byOwner` vs `byCurrentOwner`) and `renamed_from` identity cases are distinguished without false trigger.
+
+No MATERIAL bypass or false-refusal found in the inspected paths.
+
+Nits (non-material):
+* Same-name non-unique→unique tightening leaves duplicate name to compile-error fallback rather than explicit `current_context_needed`.
+* Table-name injectivity relies on validated renames; `with_table_names` collapse is not separately checked in the index module.

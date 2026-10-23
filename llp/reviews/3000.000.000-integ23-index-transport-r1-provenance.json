@@ -1,0 +1,64 @@
+{
+  "source": "c45653db2787d0f2ccaafeda6b88f9082709c164",
+  "briefSha256": "bfedc74d71b849fb8e27aa5273fea2c8a0146cf79ca65610c124d8b1fafcf52c",
+  "files": {
+    "llp/3000.000.000-retained-storage-and-hot-release.rfc.md": "cf541ff8208e47acb9bf964d93db4d0547e267ec0c30449809d483576903f395",
+    "snapback4/crates/snapback4-lang/src/release_bridge_indexes.rs": "e448db403c9fee32e42eb193b2ec106c5cfc733546566474cdae3183cc97311f",
+    "snapback4/crates/snapback4-lang/src/release_bridge_indexes_tests.rs": "957ab703c3c4a6c435fc6f4b38cc701b23de3eadac5f38b6a8bdbd4da1125a31",
+    "snapback4/crates/snapback4-lang/src/release_bridge_rules.rs": "95e2663d10f49560e3d639bad512f4babe4baf7f0cfef28e22f02ca92b73504e",
+    "snapback4/crates/snapback4-lang/src/release_bridge_guards.rs": "f12091df4eb0224237dd4177f13554a42228d325ae9f49ef769cf40afcfa126b",
+    "snapback4/crates/snapback4-lang/src/release_bridge.rs": "691e2d120c375f6cedf57235aed812b6f1c8d54ca6aba21dcd7b096aafef4e19",
+    "snapback4/crates/snapback4-lang/src/release_bridge_current.rs": "b67db8c70986306eabe0824b7c0de6d3663c16ab2efb46ce628fc0de9303c55f",
+    "snapback4/crates/snapback4/src/verbs/rollback_views.rs": "42472e5315aac911f6092de63bb073c025cf318f4feba08b0072ff3128737813",
+    "snapback4/crates/snapback4/src/verbs/rollback_foresight.rs": "4f72f7f444782ee67adce175644a8db3d22c0a3e4b860bd64c2862c2d3b5ed7a",
+    "snapback4/scripts/postgres_evolution_witness.py": "a5d5cba54bcb84d7b8264599665fd851ade5f2e76066b4536d6ffcfac22e02da"
+  },
+  "started": "2026-10-23T12:57:55.139171+00:00",
+  "finished": "2026-10-23T13:07:27.215119+00:00",
+  "reviews": {
+    "muse": {
+      "exit": 0,
+      "output": "3000.000.000-integ23-index-transport-r1-muse.txt",
+      "sha256": "436bf0a5898d770510747741cfa3098b790d9715c4581f803f79ae7b2990c4e8",
+      "verdict": "READY",
+      "argv": [
+        "/home/ccheever/sb4-loop/muse-exec.sh",
+        "--yolo",
+        "--model",
+        "muse-spark-1.3-contributor",
+        "--reasoning-effort",
+        "high",
+        "--prompt-file",
+        "/tmp/integ23/index-review-r1-brief.md"
+      ],
+      "timeoutSeconds": 2300,
+      "stdinBrief": false,
+      "providerRuntime": "Muse CLI with actual Meta API fallback",
+      "redacted": false,
+      "method": "Human-requested independent read-only CLI review; no tests or builds run by reviewer",
+      "observedFallback": "Plan quota429 followed by actual Meta API READY review; no key file was read or printed by the integration agent."
+    },
+    "codex": {
+      "exit": 0,
+      "output": "3000.000.000-integ23-index-transport-r1-codex.txt",
+      "sha256": "84bcd812020c95c68ceae1418043ccec5bc23eb34ec162945d1bf5dc6a1ea1fe",
+      "verdict": "NOT READY: one MATERIAL plain-column index transport false refusal",
+      "argv": [
+        "codex",
+        "exec",
+        "-m",
+        "gpt-6.1-sol",
+        "-c",
+        "model_reasoning_effort=high",
+        "--skip-git-repo-check",
+        "--dangerously-bypass-approvals-and-sandbox",
+        "-"
+      ],
+      "timeoutSeconds": 2300,
+      "stdinBrief": true,
+      "providerRuntime": "OpenAI Codex CLI 0.162.1, fresh session gpt-6.1-sol high",
+      "redacted": false,
+      "method": "Human-requested independent read-only CLI review; no tests or builds run by reviewer"
+    }
+  }
+}
