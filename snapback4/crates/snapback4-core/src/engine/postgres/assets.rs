@@ -369,6 +369,10 @@ impl Tx<'_> {
     }
 }
 
+pub(super) const PLACEMENT: &str = "SELECT placement,facts,state FROM _asset_intents WHERE owner=$1 AND intent=$2";
+pub(super) fn placement(rows: &[super::store::Row]) -> Result<Option<IntentRecord>,RuntimeError> {
+    rows.first().map(|r|Ok(IntentRecord {binding:r.try_get(0)?,facts:r.try_get(1)?,state:r.try_get(2)?})).transpose()
+}
 impl crate::assets::AssetPlacementReader for Tx<'_> {
     fn placement_record(
         &self,
@@ -378,18 +382,9 @@ impl crate::assets::AssetPlacementReader for Tx<'_> {
         if nul(&[owner, id]) {
             return Ok(None);
         }
-        self.query(
-            "SELECT placement,facts,state FROM _asset_intents WHERE owner=$1 AND intent=$2",
-            &[&owner, &id],
-        )?
-        .first()
-        .map(|r| {
-            Ok(IntentRecord {
-                binding: r.try_get(0)?,
-                facts: r.try_get(1)?,
-                state: r.try_get(2)?,
-            })
-        })
-        .transpose()
+        if let Some((key,value)) = self.placement_cache.borrow_mut().take() {
+            if key.0 == owner && key.1 == id { return Ok(value); }
+        }
+        placement(&self.query(PLACEMENT,&[&owner,&id])?)
     }
 }

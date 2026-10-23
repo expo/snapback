@@ -114,9 +114,9 @@ impl Store {
             Some(WriteMode::Serialized) => "BEGIN ISOLATION LEVEL READ COMMITTED;",
             Some(WriteMode::Serializable) => "BEGIN ISOLATION LEVEL SERIALIZABLE;",
         };
-        let inner = super::flight::Session { client: &mut self.client, pending: begin.into(), started: false, done: false };
+        let inner = super::flight::Session { client: &mut self.client, pending: begin.into(), started: false, done: false, checks: Vec::new() };
         let tx = Tx { read_sessions: &self.read_sessions, read_sessions_installed: Cell::new(false), unified: self.unified, commit_warning: &self.commit_warning, inner: RefCell::new(inner),
-            bind_refused: Cell::new(false), read_cache: RefCell::new(super::read_plan::Answers::default()), literal_cache: RefCell::new(&mut self.literal_cache), cache: RefCell::new(&mut self.cache), calls: &self.calls, marked_reads: &self.marked_reads, page_reads: &self.page_reads, prefetch_rows: &self.prefetch_rows, prefetch_bytes: &self.prefetch_bytes,
+            bind_refused: Cell::new(false), read_cache: RefCell::new(super::read_plan::Answers::default()), pending_read: RefCell::new(None), receipt_cache: RefCell::new(None), placement_cache: RefCell::new(None), authority_cache: RefCell::new(None), commit_settings: Cell::new(false), literal_cache: RefCell::new(&mut self.literal_cache), cache: RefCell::new(&mut self.cache), calls: &self.calls, marked_reads: &self.marked_reads, page_reads: &self.page_reads, prefetch_rows: &self.prefetch_rows, prefetch_bytes: &self.prefetch_bytes,
             rows_cache: RefCell::new(super::prefetch::Cache::default()), prefetch_enabled: self.prefetch, head: Cell::new(None), serialized_head: Cell::new(false), tail: RefCell::new(super::tail::Tail::default()), changes: Default::default(), savepoints: RefCell::new(Vec::new()) };
         if self.unified && mode.is_some() {
             // Bootstrap is the sole exception: an absent owner relation is
@@ -196,6 +196,24 @@ impl Store {
         Ok((tx, facts))
     }
 
+    pub(crate) fn preflight_transaction(&mut self, digest: &str, receipt: Option<(&str,&str)>) -> Result<(Tx<'_>,crate::identity::facts::SessionFacts),RuntimeError> {
+        let expected = self.generation;
+        let tx = self.begin(None,false)?;
+        let auth = super::authority::session_facts_sql(tx.read_sessions.get());
+        let auth_params: &[&(dyn ToSql+Sync)] = &[&digest];
+        let receipt_values = receipt.map(|(principal,id)|(principal.to_owned(),id.to_owned()));
+        let receipt_params: Vec<&(dyn ToSql+Sync)> = receipt_values.as_ref().map(|(p,id)|vec![p as _,id as _]).unwrap_or_default();
+        let mut commands = vec![(auth,auth_params)];
+        if receipt_values.is_some() { commands.push((super::receipts::LOOKUP,&receipt_params)); }
+        let mut results = tx.flight(&commands,"ROLLBACK")?;
+        tx.finish_read_flight();
+        let mut facts = super::authority::session_facts_rows(results.remove(0).rows);
+        if tx.needs_complete_facts(&facts) { facts = tx.complete_request_facts(digest)?; }
+        else if let Some(key) = receipt_values { *tx.receipt_cache.borrow_mut() = Some((key,super::receipts::record(&results.remove(0).rows))); }
+        if facts.backend_generation.map(|g|g as u64) != Some(expected) { return Err(RuntimeError::Generation("another engine activated this store; reopen before reading or writing".into())); }
+        Ok((tx,facts))
+    }
+
     // Opening validates its backend and installs every physical upgrade before
     // this transaction can commit. It cannot assume generation columns exist.
     pub(super) fn opening_transaction(&mut self) -> Result<Tx<'_>, RuntimeError> {
@@ -206,6 +224,34 @@ impl Store {
     // PostgreSQL enforces read-only access for this entire repeatable snapshot.
     pub(super) fn bootstrap_read_transaction(&mut self) -> Result<Tx<'_>, RuntimeError> {
         self.begin(None, false)
+    }
+
+    // @ref LLP 3000.009.001.000.001#35-each-command-keeps-its-own-place — head, generation, authority and receipt remain distinct commands after the owner flight.
+    pub(crate) fn request_transaction(&mut self, digest: &str, principal: &str, id: Option<&str>) -> Result<Tx<'_>,RuntimeError> {
+        let expected = self.generation;
+        let tx = self.begin(Some(WriteMode::Serialized),false)?;
+        let auth = super::authority::session_facts_sql(tx.read_sessions.get());
+        let auth_params: &[&(dyn ToSql+Sync)] = &[&digest];
+        let id_value = id.unwrap_or_default();
+        let receipt_params: &[&(dyn ToSql+Sync)] = &[&principal,&id_value];
+        let mut commands: Vec<(&'static str,&[&(dyn ToSql+Sync)])> = vec![
+            ("SELECT seq FROM _head WHERE singleton FOR UPDATE",&[]),
+            ("SELECT generation FROM _backend WHERE singleton",&[]),
+            (auth,auth_params),
+        ];
+        if id.is_some() { commands.push((super::receipts::LOOKUP,receipt_params)); commands.push((super::assets::PLACEMENT,receipt_params)); }
+        let mut results = tx.flight(&commands,"")?;
+        let head = results.remove(0).rows[0].get::<_,i64>(0) as u64;
+        tx.head.set(Some(head)); tx.serialized_head.set(true);
+        let generation = results.remove(0).rows[0].get::<_,i64>(0) as u64;
+        if generation != expected { return Err(RuntimeError::Generation("another engine activated this store; reopen before reading or writing".into())); }
+        let facts = super::authority::session_facts_rows(results.remove(0).rows);
+        *tx.authority_cache.borrow_mut() = Some((digest.into(),facts));
+        if let Some(id) = id {
+            *tx.receipt_cache.borrow_mut() = Some(((principal.into(),id.into()),super::receipts::record(&results.remove(0).rows)));
+            *tx.placement_cache.borrow_mut() = Some(((principal.into(),id.into()),super::assets::placement(&results.remove(0).rows)?));
+        }
+        Ok(tx)
     }
 
     pub fn transaction(&mut self, mode: Option<WriteMode>) -> Result<Tx<'_>, RuntimeError> {
@@ -261,7 +307,12 @@ pub struct Tx<'a> {
     inner: RefCell<super::flight::Session<'a>>,
     literal_cache: RefCell<&'a mut BTreeMap<&'static str, super::literal::Prepared>>,
     bind_refused: Cell<bool>,
+    pub(super) pending_read: RefCell<Option<super::read_plan::Plan>>,
     pub(super) read_cache: RefCell<super::read_plan::Answers>,
+    pub(super) authority_cache: RefCell<Option<(String,crate::identity::facts::SessionFacts)>>,
+    pub(super) commit_settings: Cell<bool>,
+    pub(super) placement_cache: RefCell<Option<((String,String),Option<crate::assets::IntentRecord>)>>,
+    pub(super) receipt_cache: RefCell<Option<((String,String),Option<crate::receipts::ReceiptRecord>)>>,
     cache: RefCell<&'a mut BTreeMap<&'static str, Statement>>,
     pub(super) calls: &'a CallCounter,
     pub(super) marked_reads: &'a Cell<u64>,
@@ -343,6 +394,27 @@ impl Tx<'_> {
         guard_text_params(statement, params).inspect_err(|_| self.bind_refused.set(true))
     }
 
+    pub(super) fn needs_complete_facts(&self, facts: &crate::identity::facts::SessionFacts) -> bool {
+        !crate::identity::facts::ordinary(facts) || (!self.read_sessions.get() && facts.sessions.is_empty())
+    }
+    // A changed credential kind or newly installed optional session table can
+    // invalidate the planning hint. Discard that closed speculative cut in full;
+    // the complete resolver and program then share one fresh physical snapshot.
+    pub(super) fn complete_request_facts(&self, digest: &str) -> Result<crate::identity::facts::SessionFacts,RuntimeError> {
+        let mut inner = self.inner.borrow_mut();
+        if inner.done {
+            inner.pending = "BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY;".into();
+            inner.done = false; inner.started = false;
+        }
+        drop(inner);
+        *self.read_cache.borrow_mut() = Default::default();
+        self.session_authority_facts(digest)
+    }
+    pub(crate) fn finish_planned_reads(&self) -> Result<(),RuntimeError> {
+        let plan = self.pending_read.borrow_mut().take();
+        if let Some(plan) = plan { plan.finish(self)?; }
+        Ok(())
+    }
     pub(super) fn finish_read_flight(&self) { self.inner.borrow_mut().done = true; }
 
     fn prepared(&self, sql: &'static str) -> Result<Statement, RuntimeError> {
@@ -379,13 +451,13 @@ impl Tx<'_> {
             let bind = self.prepared(source)?;
             let mut cache = self.literal_cache.borrow_mut();
             if !cache.contains_key(source) {
-                let name = format!("sb4_rt6_{}", cache.len());
+                let name = super::literal::serving_name();
                 self.calls.set(self.calls.get() + 1);
                 let prepared = super::literal::Prepared::from_bind(self.inner.borrow_mut().client, &name, source, bind.clone())?;
                 cache.insert(source, prepared);
             }
             let command = cache[source].command(params).inspect_err(|_| self.bind_refused.set(true))?;
-            if sql.len().saturating_add(command.len()) > super::flight::SCRATCH_LIMIT {
+            if sql.len().saturating_add(command.len()).saturating_add(self.inner.borrow().pending.len()) > super::flight::ENCODED_LIMIT {
                 self.bind_refused.set(true);
                 return Err(RuntimeError::Store("Postgres flight scratch guard".into()));
             }
@@ -398,6 +470,31 @@ impl Tx<'_> {
         self.calls.set(self.calls.get() + 1);
         let messages = inner.simple_query(&sql)?;
         super::flight::results(&statements, controls, messages)
+    }
+
+    pub(super) fn defer_control(&self, sql: &str) -> Result<(),RuntimeError> {
+        self.ensure_active()?;
+        let mut inner = self.inner.borrow_mut();
+        inner.pending.push_str(sql); inner.pending.push(';');
+        Ok(())
+    }
+    pub(super) fn defer_one(&self, sql: &'static str, params: &[&(dyn ToSql+Sync)]) -> Result<(),RuntimeError> {
+        self.ensure_active()?;
+        let bind = self.prepared(sql)?;
+        let mut cache = self.literal_cache.borrow_mut();
+        if !cache.contains_key(sql) {
+            let name = super::literal::serving_name();
+            self.calls.set(self.calls.get()+1);
+            let p = super::literal::Prepared::from_bind(self.inner.borrow_mut().client,&name,sql,bind)?;
+            cache.insert(sql,p);
+        }
+        let command = cache[sql].command(params).inspect_err(|_| self.bind_refused.set(true))?;
+        let mut inner = self.inner.borrow_mut();
+        let n = inner.pending.bytes().filter(|b| *b == b';').count();
+        if inner.pending.len().saturating_add(command.len()) > super::flight::ENCODED_LIMIT { self.bind_refused.set(true); return Err(RuntimeError::Input("Postgres flight scratch guard".into())); }
+        inner.checks.push((n,1));
+        inner.pending.push_str(&command); inner.pending.push(';');
+        Ok(())
     }
 
     // @ref LLP 3000.009.001.000.001#36-how-a-flight-is-sent-is-decided-by-measurement — same terminal refusal as Bind; RT5 qualification exercises the serving codec.
@@ -417,6 +514,7 @@ impl Tx<'_> {
     pub(super) fn query_fold<T>(&self, sql: &'static str, params: &[&(dyn ToSql + Sync)], mut total: T, mut fold: impl FnMut(T, Row) -> Result<T, RuntimeError>) -> Result<T, RuntimeError> {
         use postgres::fallible_iterator::FallibleIterator;
         let statement = self.prepared(sql)?;
+        self.guard_params(&statement,params)?;
         self.calls.set(self.calls.get() + 1);
         let mut inner = self.inner.borrow_mut();
         inner.flush(self.calls)?;
@@ -483,12 +581,17 @@ impl Tx<'_> {
 
     pub fn commit(self) -> Result<(), RuntimeError> {
         self.ensure_active()?;
+        if self.inner.borrow().done { return Ok(()); }
         self.flush_tail()?;
-        self.calls.set(self.calls.get() + 2);
         let mut inner = self.inner.into_inner();
+        if !self.commit_settings.get() {
+            inner.pending.push_str("SET LOCAL statement_timeout = 0; SET LOCAL lock_timeout = 0;");
+        }
         inner.flush(self.calls)?;
-        super::ownership::commit_client(inner.client, self.commit_warning)?;
+        self.calls.set(self.calls.get()+1);
+        // Once COMMIT is sent, even transport loss must retain unknown-outcome classification.
         inner.done = true;
+        super::ownership::commit_prepared(inner.client,self.commit_warning)?;
         if self.read_sessions_installed.get() { self.read_sessions.set(true); }
         Ok(())
     }

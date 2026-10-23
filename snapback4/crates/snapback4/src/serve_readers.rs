@@ -170,13 +170,18 @@ impl Shared {
     pub(super) fn request_snapshot<T: Send + 'static>(&self, admission: session_identity::Admission,
         run: impl FnOnce(&Shared, &Engine, snapback4_core::identity::Capability, &snapback4_core::identity::RequestSnapshot<'_, '_>) -> Result<T, Refusal> + Send + 'static,
     ) -> Result<T, Refusal> {
+        self.request_receipt_snapshot(admission,None,run)
+    }
+    pub(super) fn request_receipt_snapshot<T: Send + 'static>(&self, admission: session_identity::Admission, receipt: Option<(String,String)>,
+        run: impl FnOnce(&Shared, &Engine, snapback4_core::identity::Capability, &snapback4_core::identity::RequestSnapshot<'_, '_>) -> Result<T, Refusal> + Send + 'static,
+    ) -> Result<T, Refusal> {
         match self.reader() {
             Ok((epoch, reader)) => {
-                let result = admission.with_snapshot(self, &reader, |capability, snapshot| run(self, &reader, capability, snapshot));
+                let result = admission.with_snapshot(self, &reader, receipt.as_ref(), |capability, snapshot| run(self, &reader, capability, snapshot));
                 if result.is_ok() { lock(&self.readers).put(&epoch, reader.into_inner()); }
                 result
             }
-            Err(_) if self.memory_store() => self.engine.attempt(move |engine, shared| admission.with_snapshot(shared, engine, |capability, snapshot| run(shared, engine, capability, snapshot))),
+            Err(_) if self.memory_store() => self.engine.attempt(move |engine, shared| admission.with_snapshot(shared, engine, receipt.as_ref(), |capability, snapshot| run(shared, engine, capability, snapshot))),
             Err(error) => Err(error.refusal()),
         }
     }

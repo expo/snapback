@@ -104412,3 +104412,29 @@ The focused W1/W2 snapshot witness now passes, including the ordinary resolver
 and interpreter. Initial runs caught the distinct String/Id key encodings and
 primary-key access via lookup versus get; both are corrected. Failed outputs
 remain outside Git in /tmp/rt6-evidence. No HTTP budget claim is made yet.
+
+
+## 2026-10-23 — RT6 mutation flights and serving measurements
+
+Ordered serving preflight, post-lock setup and the validated tail now meet the
+committed predictions: Postgres W1/W2/increment/keyed-first/replay 3/2/8/9/2.
+Account W1/increment are 3/8, membership mutation 9, full action W1 17,
+metadata refusals 2, unknown token 1, unauthenticated/rate-limited 0. No class
+increases; the SQLite table is unchanged. Report and first-use counts:
+reports/20261023-rt6-serving-flights/REPORT.md and counts.json.
+
+Savepoints retain their original semantic position and ride with the first
+program read. Receipt re-check and generation are distinct post-head-lock
+commands. Asset placement facts join setup; shared Rust policy still decides.
+Deferred receipt row counts, tail count and member disposition precede COMMIT,
+which has its own message and retains unknown-outcome classification.
+
+The 17-case combined codec/serving group passes, including real adoption and
+receipt contenders observed in pg_blocking_pids, every folded command boundary,
+zero-row tail, NUL poison, hostile connection settings, serving Bind difftests
+and SQLite/Postgres outcomes/meters/rows/receipts/evidence parity. An additional
+scratch-refusal case and the full requested checks run in final qualification.
+Read planning retains the existing 4 MiB prefetch allowance; encoder allocation
+and aggregate SQL are guarded within the existing 256 MiB physical envelope.
+Private PG16 lifetime 3342451 remains owned until final shutdown. No raw logs
+are committed, and no push, stash or persistent Git configuration change occurs.

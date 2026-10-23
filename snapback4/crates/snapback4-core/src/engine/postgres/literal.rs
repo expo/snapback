@@ -196,6 +196,7 @@ pub fn binary(ty: &Type, bytes: &[u8]) -> Result<Datum, RuntimeError> {
                 }
                 _ => return Err(bad("multidimensional arrays are not port types")),
             };
+            if count > super::flight::ENCODED_LIMIT / std::mem::size_of::<Datum>() { return Err(bad("Postgres array scratch guard")); }
             let mut values = Vec::new();
             for _ in 0..count {
                 let len = i32_at(&mut rest)?;
@@ -221,7 +222,7 @@ pub fn binary(ty: &Type, bytes: &[u8]) -> Result<Datum, RuntimeError> {
 /// output qualification resolves any name through the application search_path.
 /// Text float output canonicalizes every NaN to positive quiet NaN (f32
 /// 0x7fc00000, f64 0x7ff8000000000000); NaN payload/sign are not port facts.
-/// RT6 must apply this to each new physical connection if candidate (a) lands.
+/// Applied at every physical ownership connection and before a Store first begins.
 pub fn configure(client: &mut Client) -> Result<(), RuntimeError> {
     client.batch_execute(
         "SET client_encoding='UTF8'; SET extra_float_digits=3; SET bytea_output='hex'",
@@ -330,6 +331,12 @@ fn array(v: &str) -> Result<Vec<Option<String>>, RuntimeError> {
     Ok(values)
 }
 
+pub(super) fn serving_name() -> String {
+    // A physical Client may be moved through several Store wrappers during
+    // attach/evaluation. SQL PREPARE survives their Rust caches and rollback.
+    static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    format!("sb4_rt6_{:x}_{}", std::process::id(), NEXT.fetch_add(1,std::sync::atomic::Ordering::Relaxed))
+}
 pub struct Prepared {
     pub bind: Statement,
     name: String,

@@ -6,9 +6,9 @@ use crate::{RuntimeError, Value, Schema, Program, engine::Context, ir::*, rows::
 use postgres::types::ToSql;
 use std::collections::BTreeMap;
 
-const GET: &str = "SELECT data FROM r WHERE t = $1 AND id = $2";
-const ASC: &str = "SELECT r.data, i.k FROM i JOIN r ON r.t = i.t AND r.id = i.id WHERE i.t = $1 AND i.ix = $2 AND i.k >= $3 AND i.k < $4 ORDER BY i.k ASC LIMIT $5";
-const DESC: &str = "SELECT r.data, i.k FROM i JOIN r ON r.t = i.t AND r.id = i.id WHERE i.t = $1 AND i.ix = $2 AND i.k >= $3 AND i.k < $4 ORDER BY i.k DESC LIMIT $5";
+pub(super) const GET: &str = "SELECT data FROM r WHERE t = $1 AND id = $2";
+pub(super) const ASC: &str = "SELECT r.data, i.k FROM i JOIN r ON r.t = i.t AND r.id = i.id WHERE i.t = $1 AND i.ix = $2 AND i.k >= $3 AND i.k < $4 ORDER BY i.k ASC LIMIT $5";
+pub(super) const DESC: &str = "SELECT r.data, i.k FROM i JOIN r ON r.t = i.t AND r.id = i.id WHERE i.t = $1 AND i.ix = $2 AND i.k >= $3 AND i.k < $4 ORDER BY i.k DESC LIMIT $5";
 #[derive(Clone, PartialEq, Eq)]
 struct Access { table: String, index: String, id: String, lo: Vec<u8>, hi: Vec<u8>, dir: Dir, n: i64 }
 impl Access {
@@ -47,7 +47,8 @@ struct Root { access: Access, fields: BTreeMap<String,Value> }
 pub(crate) struct Plan { roots: Vec<Root>, accesses: Vec<Access>, later: bool, schema: Schema, viewer: String }
 impl Plan {
     pub fn new(schema: &Schema, program: &Program, context: &Context) -> Option<Self> {
-        if program.native || program.kind != ProgramKind::Query || !matches!(context.kind.as_str(), "guest"|"user"|"member"|"account"|"oidc"|"service") { return None; }
+        if schema.tables.values().any(|t|t.not_before.is_some()) { return None; }
+        if program.native || program.kind != ProgramKind::Query || !matches!(context.request_credential_kind.as_deref()?, "guest"|"user"|"member"|"account"|"oidc"|"service") { return None; }
         let mut plan = Self { roots: vec![], accesses: vec![], later:false, schema:schema.clone(), viewer:context.viewer.clone() };
         plan.block(&program.body, context)?;
         if plan.roots.is_empty() { return None; }
@@ -59,7 +60,19 @@ impl Plan {
                 None => return None,
             }
         }
-        if plan.accesses.len() > 16 { return None; }
+        let mut bytes = 0u64;
+        let mut probes = 0u64;
+        for root in &plan.roots {
+            let rule = &schema.tables[&root.access.table].rules.read;
+            probes = probes.saturating_add(super::super::rules::rule_probes(rule));
+            bytes = bytes.saturating_add(probe_bytes(schema,rule));
+        }
+        for access in &plan.accesses {
+            bytes = bytes.saturating_add(crate::rows::disclosed::decode_reservation(&schema.tables[&access.table]).saturating_add(256).saturating_mul(access.n as u64));
+        }
+        // Reuse the existing exact-prefetch allowance. Larger declarations and
+        // probe fanouts retain the ordinary decoder admission path.
+        if plan.accesses.len().saturating_add(probes as usize) > 16 || bytes > super::prefetch::PREFETCH_ROW_BYTES as u64 { return None; }
         Some(plan)
     }
     fn block(&mut self, body: &[Stmt], context: &Context) -> Option<()> {
@@ -84,6 +97,7 @@ impl Plan {
                 self.add(Root { access,fields });
             },
             Expr::Scan(s) if s.after.is_none() && s.before.is_none() && s.range.is_none() && s.filter.is_none() && s.merge_site.is_none() && !s.opaque_cursor => {
+                if !super::super::rules::scan_visibility(&self.schema,s).uniform { return None; }
                 let values = s.prefix.iter().map(|v| key(v.scalar()?,c)).collect::<Option<Vec<_>>>()?;
                 let Bound::Literal(n) = s.take else { return None; };
                 if n > 128 { return None; }
@@ -108,8 +122,12 @@ impl Plan {
         let mut results = tx.flight(&commands, if self.later { "" } else { "ROLLBACK" })?;
         let facts = super::authority::session_facts_rows(results.remove(0).rows);
         if !self.later { tx.finish_read_flight(); }
+        if tx.needs_complete_facts(&facts) { return tx.complete_request_facts(digest); }
         for (access,result) in self.accesses.iter().zip(results) { insert(tx,access.clone(),result.rows)?; }
-        if self.later {
+        if self.later { *tx.pending_read.borrow_mut() = Some(self); }
+        Ok(facts)
+    }
+    pub(super) fn finish(self, tx: &Tx<'_>) -> Result<(),RuntimeError> {
             let mut next = Vec::new();
             for root in &self.roots {
                 let answers = tx.read_cache.borrow();
@@ -128,8 +146,7 @@ impl Plan {
             let results = tx.flight(&commands,"ROLLBACK")?;
             tx.finish_read_flight();
             for (access,result) in next.into_iter().zip(results) { insert(tx,access,result.rows)?; }
-        }
-        Ok(facts)
+        Ok(())
     }
 }
 fn insert(tx: &Tx<'_>, access: Access, rows: Vec<super::store::Row>) -> Result<(),RuntimeError> {
@@ -144,8 +161,9 @@ fn fields(s: &Schema,t: &str,i: &str,key: &[Value]) -> Option<BTreeMap<String,Va
     Some(s.table(t)?.index(i)?.columns().into_iter().zip(key.iter().cloned()).collect())
 }
 fn safe_table(s: &Schema,t: &str) -> bool {
-    let Some(t) = s.table(t) else { return false; };
-    t.ephemeral.is_none() && t.sync.is_none() && t.expire.is_none() && t.not_before.is_none() && t.through.is_none() && t.maintained.is_empty() && t.column_reads.is_empty() && !t.rules.read.has_reference()
+    let Some(t) = s.table(t).filter(|_|s.maintain_for(t).is_none()) else { return false; };
+    !crate::rows::disclosed::actual_size(t) && t.recorded.is_empty() && t.sequences.is_empty()
+        && t.written_by.values().all(|a|a.audience) && t.ephemeral.is_none() && t.sync.is_none() && t.expire.is_none() && t.not_before.is_none() && t.through.is_none() && t.maintained.is_empty() && t.column_reads.is_empty() && !t.rules.read.has_reference()
 }
 fn probes(s: &Schema,t: &str,fields: &BTreeMap<String,Value>, viewer: &str) -> Option<Vec<Access>> {
     fn walk(s: &Schema,r: &RuleExpr,f: &BTreeMap<String,Value>,v: &str,out: &mut Vec<Access>) -> Option<()> {
@@ -165,6 +183,14 @@ fn probes(s: &Schema,t: &str,fields: &BTreeMap<String,Value>, viewer: &str) -> O
         Some(())
     }
     let mut out = Vec::new(); walk(s,&s.table(t)?.rules.read,fields,viewer,&mut out)?; Some(out)
+}
+fn probe_bytes(s: &Schema,r: &RuleExpr) -> u64 {
+    match r {
+        RuleExpr::And(rs)|RuleExpr::Or(rs) => rs.iter().fold(0u64,|n,r|n.saturating_add(probe_bytes(s,r))),
+        RuleExpr::Not(r) => probe_bytes(s,r),
+        RuleExpr::Exists {table,..} => crate::rows::disclosed::decode_reservation(&s.tables[table]).saturating_add(256),
+        _ => 0,
+    }
 }
 fn has_probe(r: &RuleExpr) -> bool {
     match r { RuleExpr::Exists {..}|RuleExpr::Created{..} => true, RuleExpr::And(rs)|RuleExpr::Or(rs)=>rs.iter().any(has_probe), RuleExpr::Not(r)=>has_probe(r), _=>false }
@@ -201,7 +227,7 @@ mod tests {
         e.mutate("seedMessage",None,Context::new("alice",args).at(1000)).unwrap();
         let digest=identity::session_digest(&session.token);
         for (op,args) in [("W1",[("message".into(),Value::Id("m1".into()))].into()),("W2",[("room".into(),Value::Id("r0001".into()))].into())] {
-            let mut context=Context::new("alice",args).at(1000);context.kind="guest".into();
+            let mut context=Context::new("alice",args).at(1000);context=context.with_request_credential("guest");
             let (out,_,_)=e.query_materialized_search_with_request(op,context,None,DeliveryManifest::Skip,&digest,|snap,_| {snap.request_authority(&digest,identity::ServiceSample{now:1000,supervisor_revision:0})?;Ok(())});
             assert!(out.is_ok(),"{op}: {out:?}");
         }

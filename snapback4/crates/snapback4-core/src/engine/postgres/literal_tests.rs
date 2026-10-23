@@ -69,8 +69,9 @@ fn check(client: &mut Client, p: &Prepared, args: &[&(dyn ToSql + Sync)]) {
     let bind = client.query(&p.bind, args).unwrap();
     let messages = client.simple_query(&p.command(args).unwrap()).unwrap();
     let literal = p.rows(&messages).unwrap();
+    let wrapped: Vec<_> = messages.iter().filter_map(|m| if let SimpleQueryMessage::Row(r)=m {Some(super::flight::Row::text(&p.bind,r).unwrap())} else {None}).collect();
     assert_eq!(bind.len(), literal.len());
-    for (bind, literal) in bind.iter().zip(literal) {
+    for ((bind, literal),wrapped) in bind.iter().zip(literal).zip(wrapped) {
         for (i, got) in literal.iter().enumerate() {
             // The oracle uses the driver's ordinary typed Row::get, including
             // its array decoder, independently of the encoder's binary parser.
@@ -111,9 +112,52 @@ fn check(client: &mut Client, p: &Prepared, args: &[&(dyn ToSql + Sync)]) {
                 Type::BYTEA_ARRAY => array!(Vec<u8>, Datum::Bytes),
                 ref ty => panic!("uncovered binary type {ty}"),
             };
-            equal(&text_output(expected), got);
+            equal(&text_output(expected.clone()), got);
+            equal(&text_output(expected), &wrapped_datum(&wrapped,bind.columns()[i].type_(),i));
         }
     }
+}
+
+fn wrapped_datum(bind: &super::flight::Row, ty: &Type, i: usize) -> Datum {
+            macro_rules! scalar {
+                ($t:ty,$map:expr) => {
+                    bind.get::<_, Option<$t>>(i).map_or(Datum::Null, $map)
+                };
+            }
+            macro_rules! array {
+                ($t:ty,$map:expr) => {
+                    bind.get::<_, Option<Vec<Option<$t>>>>(i)
+                        .map_or(Datum::Null, |values| {
+                            Datum::Array(
+                                values
+                                    .into_iter()
+                                    .map(|v| v.map_or(Datum::Null, $map))
+                                    .collect(),
+                            )
+                        })
+                };
+            }
+            let expected = match *ty {
+                Type::BOOL => scalar!(bool, Datum::Bool),
+                Type::INT2 => scalar!(i16, |n| Datum::Int(n as i64)),
+                Type::INT4 => scalar!(i32, |n| Datum::Int(n as i64)),
+                Type::INT8 => scalar!(i64, Datum::Int),
+                Type::FLOAT4 => scalar!(f32, Datum::F32),
+                Type::FLOAT8 => scalar!(f64, Datum::F64),
+                Type::BYTEA => scalar!(Vec<u8>, Datum::Bytes),
+                Type::TEXT => scalar!(String, Datum::Text),
+                Type::BOOL_ARRAY => array!(bool, Datum::Bool),
+                Type::INT2_ARRAY => array!(i16, |n| Datum::Int(n as i64)),
+                Type::INT4_ARRAY => array!(i32, |n| Datum::Int(n as i64)),
+                Type::INT8_ARRAY => array!(i64, Datum::Int),
+                Type::FLOAT4_ARRAY => array!(f32, Datum::F32),
+                Type::FLOAT8_ARRAY => array!(f64, Datum::F64),
+                Type::TEXT_ARRAY => array!(String, Datum::Text),
+                Type::BYTEA_ARRAY => array!(Vec<u8>, Datum::Bytes),
+                ref ty => panic!("uncovered binary type {ty}"),
+            };
+
+    expected
 }
 
 #[test]
@@ -913,3 +957,6 @@ fn rt5_lock_wait_visibility_simple_plpgsql_and_sql_control() {
             .unwrap();
     }
 }
+
+#[path="serving_tests.rs"]
+pub(super) mod serving;

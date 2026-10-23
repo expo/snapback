@@ -10,6 +10,7 @@ pub(super) struct Session<'a> {
     pub pending: String,
     pub started: bool,
     pub done: bool,
+    pub checks: Vec<(usize,u64)>,
 }
 impl Drop for Session<'_> {
     fn drop(&mut self) {
@@ -25,14 +26,26 @@ impl Session<'_> {
         if self.pending.is_empty() { return Ok(()); }
         calls.set(calls.get() + 1);
         self.started = true;
-        self.client.batch_execute(&std::mem::take(&mut self.pending))?;
+        let command = std::mem::take(&mut self.pending);
+        let messages = match self.client.simple_query(&command) { Ok(m)=>m,Err(e)=>{self.checks.clear();return Err(e.into());} };
+        self.validate(&messages)
+    }
+    pub fn validate(&mut self, messages: &[SimpleQueryMessage]) -> Result<(),RuntimeError> {
+        let counts: Vec<_> = messages.iter().filter_map(|m| if let SimpleQueryMessage::CommandComplete(n) = m {Some(*n)} else {None}).collect();
+        for (n,expected) in std::mem::take(&mut self.checks) {
+            if counts.get(n) != Some(&expected) { return Err(RuntimeError::Store(format!("expected one affected row, got {:?}",counts.get(n)))); }
+        }
         Ok(())
     }
-    pub fn simple_query(&mut self, sql: &str) -> Result<Vec<SimpleQueryMessage>, postgres::Error> {
+    pub fn simple_query(&mut self, sql: &str) -> Result<Vec<SimpleQueryMessage>, RuntimeError> {
         self.started = true;
         let mut command = std::mem::take(&mut self.pending);
         command.push_str(sql);
-        self.client.simple_query(&command)
+        #[cfg(test)]
+        super::literal_tests::serving::inject(&mut command);
+        let messages = match self.client.simple_query(&command) { Ok(m)=>m,Err(e)=>{self.checks.clear();return Err(e.into());} };
+        self.validate(&messages)?;
+        Ok(messages)
     }
 }
 
@@ -62,6 +75,7 @@ impl Row {
     }
     pub fn text(statement: &Statement, row: &postgres::SimpleQueryRow) -> Result<Self, RuntimeError> {
         let fields = statement.columns().iter().enumerate().map(|(n,c)| {
+            if c.type_() == &Type::VOID && row.get(n).is_some() { return Ok(Some(Vec::new())); }
             let value = literal::text(c.type_(), row.get(n))?;
             binary(c.type_(), &value)
         }).collect::<Result<_,_>>()?;
@@ -100,8 +114,9 @@ fn binary(ty: &Type, value: &literal::Datum) -> Result<Option<Vec<u8>>, RuntimeE
 
 
 /// Physical transport guard, independent of public interpreter allowances.
-/// Input hex, command framing and typed decode must fit the existing 256 MiB
-/// adapter scratch envelope. Each command is checked before adding it.
+/// At most 32 MiB of encoded SQL leaves room in the existing 256 MiB
+/// adapter envelope for binary input, Datum arrays and construction copies.
+/// Read planning separately reuses the existing 4 MiB prefetch allowance.
 pub(super) const SCRATCH_LIMIT: usize = 256 << 20;
 pub(super) const ENCODED_LIMIT: usize = SCRATCH_LIMIT / 8;
 pub(super) fn text_type(t: &Type) -> bool {

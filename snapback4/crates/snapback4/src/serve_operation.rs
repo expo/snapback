@@ -65,7 +65,7 @@ fn denied(why: Refusal) -> Reply { Reply { status: if why.retryable {503} else {
 
 pub(super) fn prepare(request: &Request, shared: &Shared, name: &str, body: &str, capability: snapback4_core::identity::Capability) -> Result<Prepared, Reply> {
     let mutation = request.url().starts_with("/m/");
-    let admission = session_identity::Admission::capture(request, shared).map_err(denied)?;
+    let admission = session_identity::Admission::capture(request, shared).map_err(denied)?.planned(&capability);
     let payload: Json = match serde_json::from_str(if body.is_empty() {"{}"} else {body}) {
         Ok(value) => value,
         Err(error) => {
@@ -78,7 +78,8 @@ pub(super) fn prepare(request: &Request, shared: &Shared, name: &str, body: &str
     let prepared = if mutation && payload.get("id").and_then(Json::as_str).is_some() {
         let name = name.to_owned();
         let principal = capability.0.clone();
-        let result = shared.request_snapshot(admission, move |shared, engine, capability, snapshot| {
+        let lookup = Some((principal.clone(), payload["id"].as_str().unwrap().to_owned()));
+        let result = shared.request_receipt_snapshot(admission, lookup, move |shared, engine, capability, snapshot| {
             if capability.0 != principal { return Err(Refusal::new("E_AUTH", "auth", "the request's session changed; sign in again")); }
             let metadata = (snapshot.store_id.clone(), snapshot.head, engine.generation());
             let id = payload["id"].as_str().unwrap();

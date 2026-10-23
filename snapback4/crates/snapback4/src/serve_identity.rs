@@ -15,8 +15,10 @@ pub(crate) struct Admission {
     persona: Option<String>,
     bearer: Option<String>,
     trusted_dev: bool,
+    planned_ordinary: bool,
 }
 impl Admission {
+    pub(crate) fn planned(mut self, capability: &snapback4_core::identity::Capability) -> Self { self.planned_ordinary = matches!(capability.1.as_str(), "guest"|"user"|"member"|"account"|"oidc"|"service"); self }
     pub(crate) fn capture(request: &impl RequestInfo, shared: &Shared) -> Result<Self, Refusal> {
         // Declared public bearer routes keep their existing development admission.
     if !(request.method() == &Method::Post && routes::declared(shared, request.url()).is_some()
@@ -49,7 +51,7 @@ impl Admission {
     if persona.is_some() && bearer.is_some() {
         return Err(Refusal::new("E_AUTH", "auth", "send one credential: a development persona or a bearer token").guide("personas"));
     }
-        Ok(Self { persona, bearer, trusted_dev: trusted_dev_request(request, shared) })
+        Ok(Self { persona, bearer, planned_ordinary: false, trusted_dev: trusted_dev_request(request, shared) })
     }
     fn resolve_ingress(&self, shared: &Shared, engine: &Engine, identity: Option<&str>) -> Result<snapback4_core::identity::Capability, Refusal> {
         let Some(token) = &self.bearer else { return self.resolve(shared, engine); };
@@ -80,13 +82,14 @@ impl Admission {
         }
         Ok(())
     }
-    pub(crate) fn with_snapshot<T>(&self, shared: &Shared, engine: &Engine,
+    pub(crate) fn with_snapshot<T>(&self, shared: &Shared, engine: &Engine, receipt: Option<&(String,String)>,
         run: impl FnOnce(snapback4_core::identity::Capability, &snapback4_core::identity::RequestSnapshot<'_, '_>) -> Result<T, Refusal>,
     ) -> Result<T, Refusal> {
         let persona = if self.persona.is_some() { Some(self.resolve(shared, engine)?) } else { None };
         let digest = self.bearer.as_deref().map(snapback4_core::identity::session_digest).unwrap_or_default();
         let sample = snapback4_core::identity::ServiceSample { now: shared.now(), supervisor_revision: shared.worker_revision.load(Ordering::Acquire) };
-        snapback4_core::identity::with_request_snapshot(engine.store(), &digest, sample, |snapshot| {
+        let ordinary = self.planned_ordinary;
+        snapback4_core::identity::with_request_preflight(engine.store(), &digest, sample, ordinary, receipt.map(|(p,id)|(p.as_str(),id.as_str())), |snapshot| {
             let capability = persona.or_else(|| snapshot.capability.clone()).ok_or_else(|| Refusal::new("E_AUTH", "auth", "this session is not live; sign in again").guide("personas"))?;
             run(capability, &snapshot)
         }).map_err(|e| e.refusal())?

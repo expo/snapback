@@ -37,12 +37,12 @@ impl Engine {
     /// is never re-judged: its row is on the server, and the device that
     /// queued it must learn `sent`, not `failed`.
     pub fn mutate(&mut self, name: &str, op: Option<&str>, context: Context) -> Result<MutationOutcome, RuntimeError> {
-        self.mutate_inner(name, op, context, false, None).map(|ack| ack.outcome)
+        self.mutate_inner(name, op, context, false, None, None).map(|ack| ack.outcome)
     }
 
     /// Commit-local publication facts, exposed only after physical COMMIT.
     pub fn mutate_acknowledged(&mut self, name: &str, op: Option<&str>, context: Context) -> Result<MutationAcknowledgement, RuntimeError> {
-        self.mutate_inner(name, op, context, true, None)
+        self.mutate_inner(name, op, context, true, None, None)
     }
 
     /// Serving already performed unfenced replay-before-judgment. The final
@@ -65,7 +65,7 @@ impl Engine {
                 refusal = Some(why);
                 error
             })
-        }));
+        }), Some(digest));
         if let Some(why) = refusal { return Err(why); }
         result.map_err(|error| {
             let mut why = error.refusal();
@@ -75,7 +75,7 @@ impl Engine {
         })
     }
 
-    fn mutate_inner(&mut self, name: &str, op: Option<&str>, mut context: Context, publication_requested: bool, mut authority: Option<&mut dyn FnMut(&super::committer::MemberTx<'_, '_>) -> Result<(), RuntimeError>>) -> Result<MutationAcknowledgement, RuntimeError> {
+    fn mutate_inner(&mut self, name: &str, op: Option<&str>, mut context: Context, publication_requested: bool, mut authority: Option<&mut dyn FnMut(&super::committer::MemberTx<'_, '_>) -> Result<(), RuntimeError>>, digest: Option<&str>) -> Result<MutationAcknowledgement, RuntimeError> {
         if authority.is_none() { validate::write_identity(&context.viewer, op)?; }
         context.generation = self.generation;
         let requested = context.now.unwrap_or_else(crate::now_ms);
@@ -100,7 +100,12 @@ impl Engine {
                 Err(error) => Err(error),
             }.map(MutationAcknowledgement::unpublished);
         }
-        Committer::run_with(self, |engine| Committer::run_pending(&mut engine.store, Member::new(Kind::Program, |tx| {
+        Committer::run_with(self, |engine| {
+            let physical = match digest {
+                Some(digest) => engine.store.request_write_transaction(digest,&context.viewer,op)?,
+                None => engine.store.transaction()?,
+            };
+            Committer::run_transaction(physical, Member::new(Kind::Program, |tx| {
             if let Some(check) = authority.as_mut() { check(&tx)?; validate::write_identity(&context.viewer, op)?; }
             // @ref LLP 3000.009.001.000.001#35-each-command-keeps-its-own-place — a later command observes a receipt committed during the head-lock wait.
             if let Some(op) = op
@@ -238,7 +243,7 @@ impl Engine {
                 _ => None,
             };
             tx.complete((MutationAcknowledgement::unpublished(outcome), Some((entropy, publication))))
-        }).pending(|(outcome, entropy)| Pending::new(outcome, entropy))), |engine, data, mut ack| {
+        }).pending(|(outcome, entropy)| Pending::new(outcome, entropy))) }, |engine, data, mut ack| {
             // @ref LLP 3000.009.001.000.000#3.7 — entropy advances only in the durable member's continuation.
             if let Some((entropy, publication)) = data { engine.entropy = entropy; ack.publication = publication; }
             Ok(ack)

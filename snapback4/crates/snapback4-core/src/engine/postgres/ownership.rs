@@ -139,11 +139,11 @@ pub(super) fn commit(mut tx: Transaction<'_>, warning: &AtomicBool) -> Result<()
     warning.store(false, Ordering::SeqCst);
     commit_result(tx.commit(), warning)
 }
-pub(super) fn commit_client(client: &mut Client, warning: &AtomicBool) -> Result<(), RuntimeError> {
-    client.batch_execute("SET LOCAL statement_timeout = 0; SET LOCAL lock_timeout = 0")?;
+pub(super) fn commit_prepared(client: &mut Client, warning: &AtomicBool) -> Result<(), RuntimeError> {
     warning.store(false, Ordering::SeqCst);
     commit_result(client.batch_execute("COMMIT"), warning)
 }
+
 fn commit_result(result: Result<(), postgres::Error>, warning: &AtomicBool) -> Result<(), RuntimeError> {
     if warning.swap(false, Ordering::SeqCst) {
         return Err(RuntimeError::CommitOutcomeUnknown(

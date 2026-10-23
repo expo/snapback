@@ -24,7 +24,7 @@ pub(crate) mod read_sessions;
 pub(crate) mod facts;
 pub mod diagnostics;
 pub(crate) mod request;
-pub use request::{RequestSnapshot, RequestAuthority, with_request_snapshot, session_digest, resolve_ingress_supervised};
+pub use request::{RequestSnapshot, RequestAuthority, with_request_snapshot, with_request_preflight, session_digest, resolve_ingress_supervised};
 pub use read_sessions::{narrow_session, SessionScope, Capability};
 
 /// Storage facts used by refresh policy. No credential is interpreted by the adapter.
