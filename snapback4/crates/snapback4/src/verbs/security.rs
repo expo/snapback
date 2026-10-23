@@ -115,6 +115,17 @@ pub(super) fn release_loop(project:&Project,bound:&Bound,sources:&[(String,Strin
             notice.push_str(&format!("  REVIEWED derived {}: individual specification decision retained\n",v.invariant.target_label()));continue;
         }
         notice.push_str(&format!("  FIX {} {}: refuted via {} as {} ({:?}); repair enforcement to match intent, then run snapback4 test\n",v.invariant.site,v.invariant.target_label(),c.operation,c.viewer,c.reachability));
+        if v.invariant.target=="read"&&v.invariant.column.is_none() {
+            for (file,text) in sources {
+                let doc=snapback4_lang::parser::parse_document(file,text).0;
+                if let Some(table)=doc.tables.iter().find(|t|t.name==v.invariant.table) {
+                    if let Some(rule)=table.rules.iter().find(|r|r.effect==snapback4_lang::ast::Effect::Read) {
+                        notice.push_str(&format!("  SOURCE {}: retain the current audience and enforce this declared intent with `read <- ({}) and ({})`; rerun snapback4 test\n",v.invariant.table,snapback4_lang::print::expression(&rule.value),v.invariant.predicate));
+                    }
+                }
+            }
+        }
+
     }
     let mut notes=report.notes.iter().filter(|n|n.code!="N_SECURITY_INTENT"&&scope.iter().any(|(file,start,end)|n.site.file==*file&&n.site.line>=*start&&n.site.line<*end)).collect::<Vec<_>>();
     notes.sort_by_key(|n|crate::note_rank::summary_order(&n.code));
