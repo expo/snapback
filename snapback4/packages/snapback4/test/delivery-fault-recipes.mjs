@@ -38,6 +38,13 @@ export function fixtureIndex(index) {
   const added = site => (site.file === 'clock.ts' && site.expression.startsWith('this.reconcile('))
     || (site.file === 'changes.ts' && site.expression === 'sampleChanges(response, json)');
   const selected = deliverySites[index];
+  // RT3b moved body decoding before the retry-owner await. Keep the existing
+  // streaming/body/transport faults attached to their semantic operations.
+  if (selected.file === 'changes.ts') {
+    if (selected.expression === 'reader.read()') return 136;
+    if (selected.expression === 'response.json()') return 137;
+    if (selected.expression.startsWith('readWithAdmissionRetry(')) return 135;
+  }
   if (added(selected)) return selected.file === 'clock.ts' ? 164 : 165;
   index -= deliverySites.slice(0, index).filter(added).length;
   const sites = deliverySites.filter(site => !added(site));

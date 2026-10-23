@@ -1,0 +1,20 @@
+muse: workspace root: /home/ccheever/projects/snapback-sb4loop (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=5bf60b52-e0d6-45d3-b528-7080bb6f60dd]: Subscription quota exhausted. Your usage window resets at 2026-10-26T00:00:00Z. (rate_limit_error)
+[muse-exec] plan quota exhausted; retrying with the Meta API key
+muse: workspace root: /home/ccheever/projects/snapback-sb4loop (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY — no MATERIAL issue found.
+
+What I checked (read-only; no builds, tests, writes, or review-file reads):
+
+- The patch range `385d70d68f..74d365a27e` is three code commits: carry current index dependencies in guarded views (`c45653db27`), plain-key transport across declared identities (`a036153251`), and scalar-identity alignment in CLI hard-constraint admission (`e6716e0b0c`); tip commit only records a metrics line.
+- `release_bridge_indexes.rs`: same-name meaning check compares complete compiled ordered components (including token/calendar/contribution contracts via derived `PartialEq`, with `uses_column` covering all three) after table-rename alignment and plain-column identity mapping; any renamed input to a complex component forces current context. `column_names` supports forward and reverse `renamed from` and returns `None` on any collapse of distinct current columns. `plain_declaration` rewrites only positional key tokens, preserving labels, refusal codes, and business literals, and fails closed to unrewritten raw text on any token doubt.
+- The one apparent hole I chased — same-name unique-index rename duplicating the declaration (`duplicate index` is a compile error per `bind/catalog.rs:95`) — is closed by composition: `release_bridge_rules.rs:90-102` removes old uniques with no raw-column-matching current unique (rename qualifies), and the carry filter then inserts the rewritten current declaration. Net effect is replace, not duplicate. The relaxation path (old unique → current non-unique, same name) composes the same way.
+- `rollback_views.rs:184-214`: CLI admission uses the same injective map for scalar and reference columns, rejects collapse, and compares aligned unique components; expiry/lifetime/sync/authority checks are untouched and still identity-aligned.
+- `release_bridge.rs:106-229`, `release_bridge_current.rs`, `rollback_foresight.rs`, `postgres_evolution_witness.py`, and `llp/3000.000.000 §20.1`: the spec paragraph matches the code (travel-with-body, no aliasing, injective plain-column alignment, full-component comparison, current-context on meaning change, no resurrected historical uniqueness). No older executable path bypasses intent: native bundles still refused, old wire aliases/inputs still enforced, defaults still checked rename-aware.
+
+Optional nits (non-material, pre-existing, advisory-only):
+
+- `rollback_foresight.rs:77` compares unique definitions without identity alignment, so a renamed unique key can emit a "future writes may introduce duplicate keys" advisory even when uniqueness is preserved. Advisory text only; not an admission predicate.
+- `release_bridge.rs:36-39` (`requires_view` unique check) builds its own rename map without the shared injectivity check. Collapse there fails closed later at rollback (`E_ADOPT` via the `None` map), so no silent wrong behavior; just a less precise deploy-time gate.

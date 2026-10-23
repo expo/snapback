@@ -995,28 +995,28 @@
   },
   {
     "index": 142,
-    "id": "changes.ts:changeFeed:doFetch(`${base}/changes?since=${seq}&wait=${seconds}${streaming ? \"&heartbeat=1\" : \"\"}${storeIdentity === undefined ? \"\" : `&store_id=${encodeURIComponent(storeIdentity)}`}${parameters}`, { headers, signal: controller.signal })#1",
+    "id": "changes.ts:decode:reader.read()#1",
     "recipe": "follow",
     "classification": "optional",
     "absorbs": false
   },
   {
     "index": 143,
-    "id": "changes.ts:changeFeed:reader.read()#1",
+    "id": "changes.ts:decode:response.json()#1",
     "recipe": "follow",
     "classification": "optional",
     "absorbs": false
   },
   {
     "index": 144,
-    "id": "changes.ts:changeFeed:response.json()#1",
+    "id": "changes.ts:decode:sampleChanges(response, json)#1",
     "recipe": "follow",
     "classification": "optional",
     "absorbs": false
   },
   {
     "index": 145,
-    "id": "changes.ts:changeFeed:sampleChanges(response, json)#1",
+    "id": "changes.ts:changeFeed:readWithAdmissionRetry(send, () => !controller.signal.aborted, controller.signal, decode, true)#1",
     "recipe": "follow",
     "classification": "optional",
     "absorbs": false
