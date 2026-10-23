@@ -45,3 +45,8 @@ const ASYMMETRY:&str="table records:\n  owner: principal\n  value: text ?\n  rea
   let sources=vec![("schema.q".into(),s.clone())];assert!(security::derived::invariants(&sources,&bound(&s)).is_empty());
  }
 }
+
+#[test]fn unrelated_unchanged_fields_do_not_widen_a_creation_audience(){
+ let s="table docs:\n  fee: text\n  stage: enum('new','done')\n  score: int ?\n  read <- allow\n  insert <- viewer = 'service:registrar'\n  update (old,next) <- (viewer = 'service:teacher' and old.fee = next.fee) or (viewer = 'service:registrar' and old.stage = next.stage and old.score = next.score)\n  online only\nmutation create(fee: text):\n  return insert docs {fee,stage:'new'}\n";
+ assert!(!report(s).notes.iter().any(|n|n.code=="N_CREATE_EDIT_ASYMMETRY"));
+}

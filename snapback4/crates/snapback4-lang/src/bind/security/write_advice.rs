@@ -127,7 +127,12 @@ fn terms(rule:&RuleExpr,change:&mut impl FnMut(&mut RuleTerm))->RuleExpr{
             RuleExpr::Exists{key,equalities,..}|RuleExpr::Created{key,equalities,..}=>for t in key.iter_mut().chain(equalities.iter_mut().map(|(_,t)|t)){change(t)},_=>{}
         }
     }
-    walk(&mut rule,change);rule
+    walk(&mut rule,change);
+    fn reflexive(rule:RuleExpr)->RuleExpr{match rule{
+        RuleExpr::Eq(a,b) if a==b=>RuleExpr::Allow,RuleExpr::Ne(a,b) if a==b=>RuleExpr::Deny,
+        RuleExpr::And(xs)=>RuleExpr::And(xs.into_iter().map(reflexive).collect()),RuleExpr::Or(xs)=>RuleExpr::Or(xs.into_iter().map(reflexive).collect()),RuleExpr::Not(x)=>RuleExpr::Not(Box::new(reflexive(*x))),_=>rule,
+    }}
+    reflexive(rule)
 }
 fn local_guard(rule:&RuleExpr)->bool{
     match rule {
