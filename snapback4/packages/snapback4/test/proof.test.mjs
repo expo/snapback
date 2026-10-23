@@ -176,6 +176,36 @@ test("SIGKILLed driver closes frontend liveness and sweeps its whole private gro
   })(), 5000, "frontend group drain");
 });
 
+test("frontend stop waits for keeper-backed descendant cleanup", { skip: process.platform === "win32", timeout: 15000 }, async t => {
+  const cwd=fixture(t),pidFile=join(cwd,"descendant.pid");
+  writeFileSync(join(cwd,"descendant.cjs"),`const fs=require('node:fs');fs.writeFileSync(${JSON.stringify(pidFile)},String(process.pid));setInterval(()=>{},1000);`);
+  writeFileSync(join(cwd,"keeper.cjs"),`process.stdin.resume();process.stdin.once('end',()=>setTimeout(()=>process.kill(0,'SIGKILL'),250));`);
+  writeFileSync(join(cwd,"driver.cjs"),`const {spawn}=require('node:child_process');
+const guard=spawn(process.execPath,[${JSON.stringify(join(cwd,"keeper.cjs"))}],{stdio:['pipe','ignore','ignore']});
+spawn(process.execPath,[${JSON.stringify(join(cwd,"descendant.cjs"))}],{stdio:'ignore'});
+process.once('exit',()=>guard.stdin.destroy());process.once('SIGTERM',()=>process.exit(0));setInterval(()=>{},1000);`);
+  const run=logged(process.execPath,[join(cwd,"driver.cjs")],{cwd,detached:true,livenessPipe:true});
+  t.after(()=>{try{process.kill(-run.child.pid,"SIGKILL");}catch{}});
+  await bounded((async()=>{while(true){try{readFileSync(pidFile);return;}catch{}await new Promise(resolve=>setTimeout(resolve,10));}})(),5000,"descendant start");
+  const started=performance.now();await stopChild(run.child,1000);
+  assert.ok(performance.now()-started>=150,"stop waits for the keeper's delayed group sweep");
+  const rows=execFileSync("ps",["-eo","pgid=,stat="],{encoding:"utf8",timeout:2000});
+  assert.equal(rows.trim().split("\n").some(row=>{const [group,state]=row.trim().split(/\s+/);return Number(group)===run.child.pid&&!state.startsWith("Z");}),false);
+});
+
+test("frontend startup cleanup refuses when its keeper is lost with a live descendant", { skip: process.platform === "win32", timeout: 15000 }, async t => {
+  const cwd=fixture(t),pidFile=join(cwd,"orphan.pid");
+  writeFileSync(join(cwd,"orphan.cjs"),`const fs=require('node:fs');fs.writeFileSync(${JSON.stringify(pidFile)},String(process.pid));setInterval(()=>{},1000);`);
+  writeFileSync(join(cwd,"lost-keeper.cjs"),`const {spawn}=require('node:child_process');spawn(process.execPath,[${JSON.stringify(join(cwd,"orphan.cjs"))}],{stdio:'ignore'});setTimeout(()=>process.exit(1),25);`);
+  const run=logged(process.execPath,[join(cwd,"lost-keeper.cjs")],{cwd,detached:true,livenessPipe:true});
+  t.after(()=>{try{process.kill(-run.child.pid,"SIGKILL");}catch{}});
+  await bounded((async()=>{while(true){try{readFileSync(pidFile);return;}catch{}await new Promise(resolve=>setTimeout(resolve,10));}})(),5000,"orphan start");
+  await assert.rejects((async()=>{
+    try { await ready(run,()=>undefined,1000); }
+    catch (error) { await stopChild(run.child,250); throw error; }
+  })(),/proof process-group cleanup timed out after 5000 ms/);
+});
+
 test("saved schemas typecheck server companions against private candidate API without replacing working types", async t => {
   const cwd = fixture(t);
   symlinkSync(join(root, "node_modules"), join(cwd, "node_modules"), "dir");

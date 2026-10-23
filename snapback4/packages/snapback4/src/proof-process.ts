@@ -128,12 +128,16 @@ export function logged(command: string, args: readonly string[], options: ProofO
   if (options.secret) writeFileSync(logs.stdout, "stdout withheld: secret command (returned only to caller)\n", { flag: "wx", mode: 0o600 });
   const out = options.secret ? undefined : openSync(logs.stdout, "wx", 0o600), err = openSync(logs.stderr, "wx", 0o600);
   const grouped = options.processGroup === true && process.platform !== "win32";
+  // Frontends are already detached group leaders with an in-group keeper.
+  // Record their group too, so stop/startup cleanup cannot report success
+  // before Vite plugins and other inherited descendants have left custody.
+  const privateGroup = process.platform !== "win32" && (grouped || options.detached === true);
   const executable = grouped ? process.execPath : command;
   const executableArgs = grouped ? [resolve(fileURLToPath(new URL("./proof-command.js", import.meta.url))), command, ...args] : [...args];
   let child: ChildProcess;
   try { child = spawn(executable, executableArgs, { cwd, detached: grouped || (options.detached ?? false), env: { ...(options.env ?? process.env), SNAPBACK4_PROOF_LAUNCH: id }, stdio: [grouped || options.livenessPipe ? "pipe" : "ignore", options.secret ? "pipe" : out!, err, ...(grouped ? ["ipc" as const] : [])] }); }
   finally { if (out !== undefined) closeSync(out); closeSync(err); }
-  if (grouped && child.pid) privateGroups.set(child, child.pid);
+  if (privateGroup && child.pid) privateGroups.set(child, child.pid);
   // Secret stdout never reaches a file, even briefly. Callers still receive it.
   let stdout = "";
   child.stdout?.setEncoding("utf8");
@@ -160,6 +164,10 @@ export function logged(command: string, args: readonly string[], options: ProofO
     failedStart(error ?? Error("proof command exited before its process-group handshake"));
     groupGone(child).then(resolve,reject);
   }));
+  // Hosts use stopChild() as their cleanup join; commands await closed directly.
+  // Observe the promise here as well so an early frontend close cannot create
+  // an unhandled rejection before its startup catch reaches stopChild().
+  void closed.catch(() => {});
   return { child, logs, id, closed, started, pid: () => actualPid, code: () => grouped ? actualCode : child.exitCode, signal: () => grouped ? actualSignal : child.signalCode, stdout: () => options.secret ? stdout : logText(logs.stdout), error: () => error };
 }
 export const logText = (path: string): string => readFileSync(path, "utf8");
