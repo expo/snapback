@@ -104718,3 +104718,5 @@ disqualifications and the raw archive location/SHA-256. The requested directory
 date is 20261024; actual measurement/cleanup spans 2026-10-23 16:58–21:23 UTC.
 These short-window results qualify this comparison, not a production capacity
 or publication claim. Only this result directory and this journal entry land.
+
+The Mac published-0.2.33 control accepts DX8's descriptive service-seat hint at install/adopt/query/reopen. Its canonical-byte assertion now validates the empty hint explicitly and removes exactly that validated envelope alongside the existing handshake/store identity metadata; every schema/program byte remains pinned to the unchanged 3,100-byte fixture. No production serialization or authority changed.

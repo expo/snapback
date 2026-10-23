@@ -427,12 +427,15 @@ test('published 0.2.33 control: capability-free bytes stay compatible; release s
   assert.deepEqual(newApp.backend.device_compatibility,compatibility);
   const wireText=newApp.backendBytes.toString('utf8'),prefix='{"device_compatibility":'+JSON.stringify(compatibility)+',';
   assert.ok(wireText.startsWith(prefix),'canonical compatibility metadata precedes the backend');
-  // Remove exactly the validated envelope and the serving store's random identity
+  // Validate the descriptive service-seat hint separately from device IR.
+  // This control names no service identity; any nonempty hint still fails.
+  assert.deepEqual(newApp.backend.service_identities,[]);
+  // Remove exactly the validated handshake hints and random store identity
   // (LLP 3000.007 §20.4), retaining every byte of the schema and programs.
-  const schemaText='{'+wireText.slice(prefix.length),identity=/,"store_id":"[0-9a-f]{32}"}$/.exec(schemaText);
-  assert.ok(identity,'/schema reports the serving store identity as its last key');
+  const schemaText='{'+wireText.slice(prefix.length),identity=/,"service_identities":\[\],"store_id":"[0-9a-f]{32}"}$/.exec(schemaText);
+  assert.ok(identity,'/schema appends the validated service hint and serving store identity');
   assert.deepEqual(Buffer.from(schemaText.slice(0,identity.index)+'}'),pinned,'byte-for-byte canonical capability-free 0.4 backend');
-  const {device_compatibility:_compatibility,store_id:_servedStore,...backendProgram}=newApp.backend;
+  const {device_compatibility:_compatibility,service_identities:_services,store_id:_servedStore,...backendProgram}=newApp.backend;
   assert.equal(JSON.stringify(backendProgram),pinned.toString());
   // Stored schema uses Rust's field order; /schema uses canonical key order.
   // Pin its exact change against the real 0.2.33 encoding, allowing only the
