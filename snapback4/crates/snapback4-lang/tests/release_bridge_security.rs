@@ -739,3 +739,25 @@ fn table_identity_renames_preserve_transitive_helpers_and_old_wire_aliases() {
     let read=engine.query("one",snapback4_core::Context::new("alice",args)).unwrap();
     assert_eq!(read.data,snapback4_core::Value::Bool(true));
 }
+
+#[test]
+fn merge_lane_repairs_preserve_current_read_scope_in_programs_and_helpers() {
+    use snapback4_core::{Context,Engine,Value,value::object};
+    use std::collections::BTreeMap;
+    let table="table items:\n  owner: principal\n  at: int\n  body: text <=40\n  by byOwnerTime: owner, at, id\n  cap 100\n  read <- allow\n  online only\n";
+    let page="query page(owner: principal, c: cursor ?):\n  return merge items after c last 2 by byOwnerTime:\n    [owner]\n";
+    for helper in [false,true] {
+        let query=if helper{page.replace("query page(","fn selected(")+"query page(owner: principal, c: cursor ?):\n  return selected(owner,c)\n"}else{page.into()};
+        let old=table.to_owned()+&query;let current=old.replace("text <=40","text <=80").replace("[owner]","[viewer]");
+        let current_sources=vec![("schema.q".into(),current)];let bound=compile(&current_sources);assert!(bound.diagnostics.is_empty(),"helper {helper}: {:?}",bound.diagnostics);
+        let bridge=release_bridge::loosen(&[("schema.q".into(),old)],&current_sources);
+        assert!(bridge.diagnostics.is_empty(),"helper {helper}: {:?}",bridge.diagnostics);
+        let bound=compile(&bridge.sources);let mut engine=Engine::memory(bound.schema,bound.programs.into_iter().map(|p|p.program)).unwrap();
+        engine.seed([("items".into(),object([("id",Value::Id("row".into())),("owner",Value::Id("alice".into())),("at",Value::Int(1)),("body",Value::String("private".into()))]))]).unwrap();
+        for(who,count)in [("bob",0),("alice",1)] {
+            let args=BTreeMap::from([("owner".into(),Value::Id("alice".into())),("c".into(),Value::Null)]);
+            let out=engine.query("page",Context::new(who,args)).unwrap();
+            assert_eq!(out.data.as_array().unwrap().len(),count,"helper {helper}, viewer {who}: {out:?}");
+        }
+    }
+}

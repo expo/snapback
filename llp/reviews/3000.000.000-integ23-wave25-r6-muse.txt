@@ -1,0 +1,23 @@
+muse: workspace root: /home/ccheever/projects/snapback-sb4loop (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=6958f6eb-50a3-4ba4-ad76-a24bcd2bba65]: Subscription quota exhausted. Your usage window resets at 2026-10-26T00:00:00Z. (rate_limit_error)
+READY.
+
+Independent read-only review of LLP 3000.000.000 §20 (lines 1201–1499) against the round-6 correction at `eb26f0eb75`. No files edited, no builds/tests run, no review artifacts written, no credentials/targets/publication worktrees/prior reviews inspected.
+
+What I verified by reading code:
+
+- **Helper-identity false refusal is fixed.** `release_bridge_guards.rs:65-82` (`normalize_identities`) now normalizes helper parameter types (`Ref`/`List`) and all six table-carrying expression slots (`Read`/`Exists`/`Created`/`Write`/`Walk`/`Merge`) under forward/inverse declared renames before comparing complete helper meaning, with transitive calls (`:110-141`). Business strings, member names, and helper names are untouched — only typed slots rewrite. The `docs->records` + transitive-helper + `legacyKey` regression test exercises exactly the refused shape and asserts the old wire alias still resolves.
+- **Selective route preserves its old contract.** `release_bridge.rs:281-290` skips endpoint replacement on unaligned nominal arg types instead of refusing, so the renamed-table view keeps the old query/alias; position-collapse (`:193-203`) and alias-target (`:178-189`) checks remain.
+- **Authority mismatch fails forward, not late.** Field-authority/default diagnostics (`release_bridge.rs:204-216`) feed strategy selection in `loosen()` (`:92-99`), trying complete-current then guarded-current before refusing; the CLI gate in `rollback_views.rs` re-verifies rules/authority/lifetime/constraints independently.
+- **Alpha/capture gating matches spec.** `release_bridge_current.rs:390-397` — `Walk`/`Merge` and capturing/ambiguous mappings error without authorizing guarded fallback, consistent with "recursive/merge expressions require an authored compatible source" and "failed/capturing/ambiguous typed identity mapping cannot authorize fallback."
+- **Legacy actionability present.** `releases.rs:611` names both `rollback --to N --exact` and redeploy with 0.4.39.
+- **TypeKind coverage is closed.** Only `Ref` carries a table identity (`ast.rs:8-29`); `List` recursion is handled. No expression variant carrying a table name is missed by the normalizer.
+
+No material flaw found: I could not construct a small in-contract counterexample where a valid deploy is refused or an unsafe workflow is authorized. Finite-test counts are taken as regression evidence as stated, not re-run per read-only scope.
+
+Nits (safe-direction, non-blocking):
+
+- `shapes_changed` (`release_bridge_guards.rs:36`) is still global rather than per-export, so an unrelated shape edit conservatively selects current execution.
+- `normalize_identities` covers a closed slot set but nothing asserts that closure; a future table-carrying `Expr` variant or arg-default table reference would silently bypass normalization and over-select current. A comment or debug assertion tying it to the `Expr`/`TypeKind` variants would help.
+- The `Walk`/`Merge`-in-helper rename refusal reaches deploy refusal via the `From<String>` (non-unsupported) error path; the coupling to "cannot authorize fallback" is correct but implicit — a one-line comment at `release_bridge_current.rs:390-394` would make the intent explicit.

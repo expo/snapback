@@ -11,42 +11,36 @@ pub(super) fn current_context_needed(
     sources:&[(String,String)],current:&[(String,String)],
     view_schema:&snapback4_core::Schema,current_schema:&snapback4_core::Schema,
 )->bool {
-    let exports=|sources:&[(String,String)]| {
-        let mut out=std::collections::BTreeMap::new();
-        for(file,text)in sources {
-            let doc=parser::parse_document(file,text).0;
-            for p in &doc.programs{out.insert(super::release_bridge::operation_name(file,&p.name),p.clone());}
-            for(name,target,_)in &doc.aliases{if let Some(p)=doc.programs.iter().find(|p|p.name==*target){out.insert(super::release_bridge::operation_name(file,name),p.clone());}}
-        }out
-    };
-    let shapes=|sources:&[(String,String)]| {
-        let mut out=std::collections::BTreeMap::new();
-        for(file,text)in sources {
-            for shape in parser::parse_document(file,text).0.shapes {
-                let fields=shape.fields.iter().map(|field|match field {
-                    crate::ast::ShapeField::Spread{..}=>"...".into(),
-                    crate::ast::ShapeField::NamedSpread{name,..}=>format!("...{name}"),
-                    crate::ast::ShapeField::Bare{name,..}=>name.clone(),
-                    crate::ast::ShapeField::Field{name,value,..}=>format!("{name}:{}",print::expression(value)),
-                }).collect::<Vec<_>>();
-                out.insert(shape.name,fields);
-            }
-        }out
-    };
-    let shapes_changed=shapes(sources)!=shapes(current);
-    let view=exports(sources);let mut next=exports(current);
-    // Compare declared row identities, never raw business strings or an
-    // unrelated schema/domain addition. The selective view has its own
-    // compatible old wire workflow; current authority is checked separately.
+    let view_docs=sources.iter().map(|(f,t)|parser::parse_document(f,t).0).collect::<Vec<_>>();
+    let mut next_docs=current.iter().map(|(f,t)|parser::parse_document(f,t).0).collect::<Vec<_>>();
     let mut names=current_schema.table_renames.iter().filter(|(_,old)|view_schema.tables.contains_key(*old)).map(|(new,old)|(new.clone(),old.clone())).collect::<std::collections::BTreeMap<_,_>>();
     for(name,prior)in &view_schema.table_renames {
         if current_schema.tables.contains_key(prior)&&!current_schema.tables.contains_key(name){names.insert(prior.clone(),name.clone());}
     }
-    for p in next.values_mut() {
-        let mut doc=crate::ast::Document::default();doc.programs.push(p.clone());
-        normalize_identities(&mut doc,&names);
-        *p=doc.programs.pop().unwrap();
-    }
+    for doc in &mut next_docs{normalize_identities(doc,&names);}
+    let exports=|docs:&[crate::ast::Document]| {
+        let mut out=std::collections::BTreeMap::new();
+        for doc in docs {
+            for p in &doc.programs{out.insert(super::release_bridge::operation_name(&doc.file,&p.name),p.clone());}
+            for(name,target,_)in &doc.aliases{if let Some(p)=doc.programs.iter().find(|p|p.name==*target){out.insert(super::release_bridge::operation_name(&doc.file,name),p.clone());}}
+        }out
+    };
+    let shapes=|docs:&[crate::ast::Document]| {
+        let mut out=std::collections::BTreeMap::new();
+        for doc in docs {
+            for shape in &doc.shapes {
+                let fields=shape.fields.iter().map(|field|match field {
+                    crate::ast::ShapeField::Spread{..}=>"...".into(),
+                    crate::ast::ShapeField::NamedSpread{name,..}=>format!("...{name}"),
+                    crate::ast::ShapeField::Bare{name,..}=>name.clone(),
+                    crate::ast::ShapeField::Field{name,value,..}=>format!("{name}:{}",expression_signature(value)),
+                }).collect::<Vec<_>>();
+                out.insert(shape.name.clone(),fields);
+            }
+        }out
+    };
+    let shapes_changed=shapes(&view_docs)!=shapes(&next_docs);
+    let view=exports(&view_docs);let next=exports(&next_docs);
     for(name,p)in next {
         let Some(old)=view.get(&name)else{continue};
         let mut sensitive=p.prelude.iter().chain(&p.body).any(|s|matches!(s,Stmt::Require{..}|Stmt::If{..}|Stmt::For{..}|Stmt::As{..}));
@@ -111,9 +105,9 @@ pub(super) fn carry(
         let mut out=std::collections::BTreeMap::new();
         for doc in docs {
             for f in &doc.functions {
-                let args=f.args.iter().map(|a|(a.name.clone(),print::scalar_type(&a.type_),a.alias.clone(),a.default.as_ref().map(print::expression),a.deprecated)).collect::<Vec<_>>();
+                let args=f.args.iter().map(|a|(a.name.clone(),a.type_.clone(),a.alias.clone(),a.default.as_ref().map(expression_signature),a.deprecated)).collect::<Vec<_>>();
                 let body=match &f.body {
-                    crate::ast::FunctionBody::Expression(e)=>vec![format!("expression {}",print::expression(e))],
+                    crate::ast::FunctionBody::Expression(e)=>vec![format!("expression {}",expression_signature(e))],
                     crate::ast::FunctionBody::Block(body)=>body.iter().map(normalized_statement).collect(),
                 };
                 let mut function=crate::ast::Document::default();function.functions.push(f.clone());
@@ -166,7 +160,7 @@ pub(super) fn carry(
                         names.iter().enumerate().map(move |(at, name)| {
                             (
                                 name.clone(),
-                                (format!("{at}:{}", print::expression(value)), value.clone()),
+                                (format!("{at}:{}", expression_signature(value)), value.clone()),
                             )
                         })
                     })
@@ -331,17 +325,61 @@ fn has_write(e: &crate::ast::Expr) -> bool {
     writes
 }
 
+// A source printer is deliberately lossy (for example it prints a merge's
+// header without its lanes). Security comparison retains every AST field and
+// strips only diagnostic locations. Exhaustive Expr matching makes new
+// expression forms require an explicit location-normalization decision.
+fn expression_signature(value:&crate::ast::Expr)->String {
+    use crate::ast::{Expr,ShapeField};
+    fn shape(fields:&mut [ShapeField]) {
+        for field in fields {
+            match field {
+                ShapeField::Spread{site}|ShapeField::NamedSpread{site,..}|ShapeField::Bare{site,..}|ShapeField::Field{site,..}=>*site=crate::Site::default(),
+            }
+        }
+    }
+    fn read(r:&mut crate::ast::ReadExpr) {
+        r.site=crate::Site::default();
+        for k in &mut r.keys{k.site=crate::Site::default();}
+        for seek in &mut r.seeks{seek.site=crate::Site::default();}
+        if let Some(range)=&mut r.range{range.site=crate::Site::default();}
+    }
+    let mut value=value.clone();
+    crate::bind::intent_walk::expression(&mut value,&mut |expr| {
+        match expr {
+            Expr::Read(r)=>read(r),
+            Expr::Exists{read:r,site}|Expr::Created{read:r,site}=>{read(r);*site=crate::Site::default();},
+            Expr::Merge(m)=>{
+                m.site=crate::Site::default();
+                for lane in &mut m.lanes {
+                    lane.site=crate::Site::default();
+                    if let Some(fields)=&mut lane.project{shape(fields);}
+                    if let Some(r)=&mut lane.planned{read(r);}
+                    if let Some((_,r))=&mut lane.nulls{read(r);}
+                }
+            },
+            Expr::Object{fields,site}=>{*site=crate::Site::default();for f in fields{f.site=crate::Site::default();}},
+            Expr::Shape{fields,site,..}=>{*site=crate::Site::default();shape(fields);},
+            Expr::Write{keys,fields,site,..}=>{*site=crate::Site::default();for k in keys{k.site=crate::Site::default();}for f in fields{f.site=crate::Site::default();}},
+            Expr::Name{site,..}|Expr::Focal{site}|Expr::Literal{site,..}|Expr::Array{site,..}
+            |Expr::Unary{site,..}|Expr::Binary{site,..}|Expr::Member{site,..}|Expr::Call{site,..}
+            |Expr::Assert{site,..}|Expr::ShapeUse{site,..}|Expr::Walk{site,..}|Expr::If{site,..}=>*site=crate::Site::default(),
+        }
+    });
+    format!("{value:?}")
+}
+
 fn normalized_statement(s: &Stmt) -> String {
     match s {
         Stmt::As {
             principal, body, ..
         } => format!(
             "as {} {:?}",
-            print::expression(principal),
+            expression_signature(principal),
             body.iter().map(normalized_statement).collect::<Vec<_>>()
         ),
-        Stmt::Bind { names, value, .. } => format!("bind {names:?} {}", print::expression(value)),
-        Stmt::Expr { value, .. } => format!("expr {}", print::expression(value)),
+        Stmt::Bind { names, value, .. } => format!("bind {names:?} {}", expression_signature(value)),
+        Stmt::Expr { value, .. } => format!("expr {}", expression_signature(value)),
         Stmt::Require {
             condition,
             code,
@@ -349,9 +387,9 @@ fn normalized_statement(s: &Stmt) -> String {
             ..
         } => format!(
             "require {} {code:?} {message:?}",
-            print::expression(condition)
+            expression_signature(condition)
         ),
-        Stmt::Return { value, .. } => format!("return {}", print::expression(value)),
+        Stmt::Return { value, .. } => format!("return {}", expression_signature(value)),
         Stmt::Emit {
             effect,
             payload,
@@ -359,8 +397,8 @@ fn normalized_statement(s: &Stmt) -> String {
             ..
         } => format!(
             "emit {effect} {} {:?}",
-            print::expression(payload),
-            once.as_ref().map(print::expression)
+            expression_signature(payload),
+            once.as_ref().map(expression_signature)
         ),
         Stmt::If {
             condition,
@@ -369,7 +407,7 @@ fn normalized_statement(s: &Stmt) -> String {
             ..
         } => format!(
             "if {} {:?} {:?}",
-            print::expression(condition),
+            expression_signature(condition),
             then_body
                 .iter()
                 .map(normalized_statement)
@@ -383,7 +421,7 @@ fn normalized_statement(s: &Stmt) -> String {
             name, domain, body, ..
         } => format!(
             "for {name} {} {:?}",
-            print::expression(domain),
+            expression_signature(domain),
             body.iter().map(normalized_statement).collect::<Vec<_>>()
         ),
         Stmt::Break { .. } => "break".into(),

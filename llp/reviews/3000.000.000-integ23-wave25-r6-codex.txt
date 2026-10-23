@@ -1,0 +1,35 @@
+MATERIAL: selective rollback can restore a changed `merge` lane’s old read scope.
+
+At [release_bridge_guards.rs:57](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/src/release_bridge_guards.rs:57), execution comparison uses `normalized_statement`, which delegates to `print::expression`. That printer [omits every merge lane](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/src/print.rs:68). Different lane prefixes therefore compare equal.
+
+Small counterexample, without independent invariants:
+
+```quarry
+table items:
+  owner: principal
+  at: time
+  body: text <=40
+  by byOwnerTime: owner, at, id
+  cap 100
+  read <- allow
+  online only
+
+query page(owner: principal, c: cursor ?):
+  return merge items after c last 2 by byOwnerTime:
+    [owner]
+```
+
+In v2, widen `body` to `text <=80` and replace `[owner]` with `[viewer]`, retaining the query arguments. Store one Alice-owned row.
+
+V2 returns no Alice row when Bob calls `page(owner: Alice, c: null)`. Default rollback prepares a selective view because of the text widening, but retains v1’s `[owner]` lane:
+
+- No added fields or relaxed constraints force endpoint replacement.
+- No helper or requirement difference triggers fallback.
+- The ordered-body comparison sees identical merge headers.
+- Authority and visibility checks pass: table authority is unchanged and no row becomes hidden.
+
+Bob’s same call consequently returns Alice’s row after default rollback. This violates §20.1’s current execution-context protection for changed reads.
+
+Compare complete merge lanes—including prefixes, source tables, and loop domains—when comparing program and helper meaning.
+
+Static review only; no edits, builds, tests, or review files.
