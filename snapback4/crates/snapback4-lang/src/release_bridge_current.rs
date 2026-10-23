@@ -106,7 +106,8 @@ pub(super) fn guarded(target:&[Source],current:&[Source])->Bridge {
     if !table_contracts(&old,&bound,true)||!endpoint_contracts(&old,&bound,true){return refused(current,"the guarded current workflow cannot retain a predecessor query or a retained export's wire aliases and distinct inputs; author a compatible guarded endpoint with the old accepted arguments");}
     for(name,table)in &old.schema.tables {
         for column in table.columns.keys().filter(|column|!bound.schema.tables[name].columns.contains_key(*column)) {
-            changes.push(format!("{name}.{column}: removed nullable default-free field remains absent in this guarded view; historical cells stay retained; review the old UI result"));
+            if let Some(current)=renamed_column(&old,&bound,name,column){changes.push(format!("{name}.{column}: declared identity is now {name}.{current}; guarded view uses the current spelling and result semantics; review the old UI"));}
+            else{changes.push(format!("{name}.{column}: removed nullable default-free field remains absent in this guarded view; historical cells stay retained; review the old UI result"));}
         }
     }
     for previous in &old.programs {
@@ -121,42 +122,45 @@ pub(super) fn contracts(old:&crate::Bound,new:&crate::Bound)->bool {
 fn table_contracts(old:&crate::Bound,new:&crate::Bound,nullable_gaps:bool)->bool {
     old.schema.tables.iter().all(|(name,table)|new.schema.tables.get(name).is_some_and(|next| {
         table.columns.iter().all(|(column,kind)|next.columns.contains_key(column)
+            || (nullable_gaps&&renamed_column(old,new,name,column).is_some())
             || (nullable_gaps&&kind.is_optional()&&!table.defaults.contains_key(column)&&!table.engine_field(column)&&!table.maintained.contains_key(column)))
     }))
 }
 fn endpoint_contracts(old:&crate::Bound,new:&crate::Bound,pause_removed_writes:bool)->bool {
-    old.programs.iter().all(|p| {
-        new.programs
-            .iter()
-            .find(|n| n.program.name == p.program.name)
-            .map_or_else(||pause_removed_writes&&matches!(p.program.kind,snapback4_core::ir::ProgramKind::Mutation|snapback4_core::ir::ProgramKind::Job|snapback4_core::ir::ProgramKind::Action),|n| {
-                let (old, new) = (&p.program, &n.program);
-                if old.kind != new.kind {
-                    return false;
-                }
-                // Compare accepted wire names through authored aliases. Distinct
-                // old positions must remain distinct: an old call may send both.
-                let mut positions = BTreeSet::new();
-                for (name, kind) in &old.args {
-                    let Some((target, next)) = new.argument(name) else {
-                        return false;
-                    };
-                    if !accepts(kind, next) || !positions.insert(target) {
-                        return false;
-                    }
-                    if !old.arg_aliases.iter().filter(|(_, owner)| *owner == name).all(|(alias, _)| {
-                        new.argument(alias).is_some_and(|(canonical, next)| {
-                            canonical == target && accepts(kind, next)
-                        })
-                    }) {
-                        return false;
-                    }
-                }
-                new.args.iter().all(|(name, kind)| {
-                    positions.contains(name.as_str()) || matches!(kind, ArgType::Optional(_))
-                })
-            })
-    })
+    old.programs.iter().all(|p|new.programs.iter().find(|n|n.program.name==p.program.name)
+        .map_or_else(||pause_removed_writes&&matches!(p.program.kind,snapback4_core::ir::ProgramKind::Mutation|snapback4_core::ir::ProgramKind::Job|snapback4_core::ir::ProgramKind::Action),|n|endpoint_contract(&p.program,&n.program)))
+}
+pub(super) fn endpoint_contract(old:&snapback4_core::Program,new:&snapback4_core::Program)->bool {
+    if old.kind!=new.kind{return false;}
+    let mut positions=BTreeSet::new();
+    for(name,kind)in &old.args {
+        let Some((target,next))=new.argument(name)else{return false};
+        if !accepts(kind,next)||!positions.insert(target){return false;}
+        if !old.arg_aliases.iter().filter(|(_,owner)|*owner==name).all(|(alias,_)|new.argument(alias).is_some_and(|(canonical,next)|canonical==target&&accepts(kind,next))){return false;}
+    }
+    new.args.iter().all(|(name,kind)|positions.contains(name.as_str())||matches!(kind,ArgType::Optional(_)))
+}
+fn renamed_column<'a>(old:&crate::Bound,new:&'a crate::Bound,table:&str,column:&str)->Option<&'a str> {
+    let next=new.schema.table(table)?;
+    if let Some((name,_))=new.schema.asset_renames.get(table).into_iter().flatten().find(|(name,prior)|prior.as_str()==column&&next.columns.contains_key(*name)){return Some(name.as_str());}
+    if let Some(prior)=old.schema.asset_renames.get(table).and_then(|m|m.get(column)) {
+        if let Some((name,_))=next.columns.get_key_value(prior){return Some(name.as_str());}
+    }
+    for transform in &new.schema.backfills {
+        if transform.table==table&&transform.inputs.len()==1&&transform.inputs.contains_key(column)&&transform.outputs.len()==1 {
+            let name=transform.outputs.iter().next()?;
+            if transform.name==format!("$rename:up:{column}:{name}")&&next.columns.contains_key(name){return Some(name.as_str());}
+        }
+    }
+    for transform in &old.schema.backfills {
+        if transform.table==table&&transform.outputs.len()==1&&transform.outputs.contains(column)&&transform.inputs.len()==1 {
+            let prior=transform.inputs.keys().next()?;
+            if transform.name==format!("$rename:up:{prior}:{column}") {
+                if let Some((name,_))=next.columns.get_key_value(prior){return Some(name.as_str());}
+            }
+        }
+    }
+    None
 }
 // This is inclusion of wire domains for an unchanged authored current body,
 // not synthesis of a conversion or permission to reinterpret old arguments.

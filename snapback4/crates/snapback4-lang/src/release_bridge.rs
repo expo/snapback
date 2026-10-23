@@ -171,17 +171,30 @@ fn loosen_guarded(target:&[(String,String)],current:&[(String,String)])->Bridge 
     }
     let bound=crate::compile(&sources);
     let current_bound=crate::compile(current);
+    if bound.schema.auth!=current_bound.schema.auth
+        || super::release_bridge_guards::current_context_needed(&sources,current,&bound.schema,&current_bound.schema) {
+        diagnostics.push(crate::diag::type_error(&crate::Site::default(),"rollback guards need the current ordered execution and schema context","retain the complete current guarded workflow, including authentication and guard-dependent reads").guide("deploy"));
+    }
     for(file,text)in target {
         let old=parser::parse_document(file,text).0;
         let Some((_,next))=current.iter().find(|(f,_)|operation_name(f,"")==operation_name(file,""))else{continue};
         let next=parser::parse_document(file,next).0;
         for(name,prior,site)in &old.aliases {
-            if next.aliases.iter().any(|(alias,target,_)|alias==name&&target!=prior) {
-                diagnostics.push(crate::diag::type_error(site,format!("rollback export {} needs its current alias target",operation_name(file,name)),"retain the complete current guarded endpoint and dependency closure").guide("deploy"));
+            let qualified=operation_name(file,name);
+            let retained=current_bound.programs.iter().any(|p|p.program.name==qualified);
+            if retained&&!next.aliases.iter().any(|(alias,target,_)|alias==name&&target==prior) {
+                diagnostics.push(crate::diag::type_error(site,format!("rollback export {qualified} needs its current definition or alias target"),"retain the complete current guarded endpoint and dependency closure").guide("deploy"));
             }
         }
     }
 
+    for previous in &crate::compile(target).programs {
+        if let Some(current)=current_bound.programs.iter().find(|p|p.program.name==previous.program.name) {
+            if !super::release_bridge_current::endpoint_contract(&previous.program,&current.program) {
+                diagnostics.push(crate::diag::type_error(&crate::Site::default(),format!("rollback export {} cannot retain current input domains and distinct wire positions",previous.program.name),"author a compatible current guarded endpoint with the old accepted wire contract").guide("deploy"));
+            }
+        }
+    }
     for(name,table)in &bound.schema.tables {
         let Some((_,_,next))=new.get(name)else{continue};
         let Some(current_table)=current_bound.schema.table(&next.name)else{continue};

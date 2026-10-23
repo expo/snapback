@@ -3,6 +3,37 @@
 use crate::{ast::Stmt, parser, print};
 use std::collections::BTreeSet;
 
+// A guard's reads depend on statement order and the data schema, not merely
+// the last textual binding for each variable. Use current execution whenever
+// a guarded retained export cannot be transported as that complete context.
+pub(super) fn current_context_needed(
+    sources:&[(String,String)],current:&[(String,String)],
+    view_schema:&snapback4_core::Schema,current_schema:&snapback4_core::Schema,
+)->bool {
+    let exports=|sources:&[(String,String)]| {
+        let mut out=std::collections::BTreeMap::new();
+        for(file,text)in sources {
+            let doc=parser::parse_document(file,text).0;
+            for p in &doc.programs{out.insert(super::release_bridge::operation_name(file,&p.name),p.clone());}
+            for(name,target,_)in &doc.aliases{if let Some(p)=doc.programs.iter().find(|p|p.name==*target){out.insert(super::release_bridge::operation_name(file,name),p.clone());}}
+        }out
+    };
+    let view=exports(sources);let next=exports(current);
+    let mut view_data=view_schema.clone();let mut current_data=current_schema.clone();
+    view_data.operations.clear();current_data.operations.clear();
+    for(name,p)in next {
+        let Some(old)=view.get(&name)else{continue};
+        let mut sensitive=p.prelude.iter().chain(&p.body).any(|s|matches!(s,Stmt::Require{..}|Stmt::If{..}|Stmt::For{..}|Stmt::As{..}));
+        let mut doc=crate::ast::Document::default();doc.programs.push(p.clone());
+        crate::bind::intent_walk::document(&mut doc,&mut |expr|{
+            sensitive|=matches!(expr,crate::ast::Expr::Read(_)|crate::ast::Expr::Exists{..}|crate::ast::Expr::Created{..}|crate::ast::Expr::Walk{..}|crate::ast::Expr::Merge(_)|crate::ast::Expr::If{..}|crate::ast::Expr::Assert{..}|crate::ast::Expr::Call{..}|crate::ast::Expr::Write{condition:Some(_),..});
+        });
+        let body=|p:&crate::ast::ProgramDecl|p.prelude.iter().chain(&p.body).map(normalized_statement).collect::<Vec<_>>();
+        if sensitive&&(body(old)!=body(&p)||view_data!=current_data){return true;}
+    }
+    false
+}
+
 pub(super) fn carry(
     sources: &mut [(String, String)],
     current: &[(String, String)],

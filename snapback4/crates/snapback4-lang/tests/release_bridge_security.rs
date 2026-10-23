@@ -642,3 +642,58 @@ fn guarded_current_view_explicitly_pauses_a_removed_write() {
     let bound=compile(&bridge.sources);assert!(!bound.programs.iter().any(|p|p.program.name=="repair"));
     assert!(bound.programs.iter().any(|p|p.program.name=="all"));
 }
+
+
+#[test]
+fn non_intent_alias_replaced_by_a_program_keeps_its_current_guard() {
+    let old="table docs:\n  amount: int\n  public 'fixture'\n  insert <- allow\n  online only\nmutation create():\n  return insert docs {amount:1}\nalias protected = create\n";
+    let current=old.replace("  amount: int","  amount: int ?").replace("alias protected = create\n","")+"mutation protected():\n  require viewer = 'service:ops' else OPS\n  return insert docs {amount:1}\n";
+    let bridge=release_bridge::loosen(&[("schema.q".into(),old.into())],&[("schema.q".into(),current)]);assert!(bridge.diagnostics.is_empty(),"{:?}",bridge.diagnostics);
+    let bound=compile(&bridge.sources);let mut engine=snapback4_core::Engine::memory(bound.schema,bound.programs.into_iter().map(|p|p.program)).unwrap();
+    for(name,refused)in [("protected",true),("create",false)] {
+        let out=engine.mutate(name,None,snapback4_core::Context::new("alice",Default::default())).unwrap();
+        assert_eq!(matches!(out.state,snapback4_core::WriteState::Failed{..}),refused,"{name}: {out:?}");
+    }
+}
+
+#[test]
+fn non_intent_guard_transport_cannot_merge_old_input_positions() {
+    let old="table docs:\n  amount: int\n  public 'fixture'\n  insert <- allow\n  online only\nmutation create(owner: principal, actor: principal):\n  return insert docs {amount:1}\n";
+    let current=old.replace("  amount: int","  amount: int ?")
+        .replace("create(owner: principal, actor: principal)","create(actor: principal alias owner)")
+        .replace("  return insert", "  require actor = 'service:ops' else OPS\n  return insert");
+    assert!(compile(&[("schema.q".into(),current.clone())]).diagnostics.is_empty());
+    let bridge=release_bridge::loosen(&[("schema.q".into(),old.into())],&[("schema.q".into(),current)]);
+    assert!(!bridge.diagnostics.is_empty(),"old owner and actor cannot collapse behind the copied current guard");
+}
+
+#[test]
+fn guarded_current_view_follows_a_declared_required_column_identity() {
+    let old="table docs:\n  price: int\n  public 'fixture'\n  online only\nquery all():\n  return docs first 10 by .id\n";
+    let current=old.replace("  price: int","  quotedPrice: int renamed from price")+"invariant docs.read only true\n";
+    let sources=vec![("schema.q".into(),current)];let bridge=release_bridge::loosen(&[("schema.q".into(),old.into())],&sources);
+    assert!(bridge.diagnostics.is_empty(),"{:?}",bridge.diagnostics);assert_eq!(bridge.sources,sources);
+    assert!(bridge.changes.iter().any(|line|line.contains("docs.price")&&line.contains("docs.quotedPrice")),"{:?}",bridge.changes);
+}
+
+#[test]
+fn non_intent_query_filter_keeps_the_current_execution_context() {
+    let old="table docs:\n  amount: int\n  owner: principal\n  read <- allow\n  online only\nquery list():\n  return docs first 10 by .id\n";
+    let current=old.replace("amount: int","amount: int ?").replace("return docs first", "return docs where .owner = viewer first");
+    let sources=vec![("schema.q".into(),current)];
+    assert!(compile(&sources).diagnostics.is_empty());
+    let bridge=release_bridge::loosen(&[("schema.q".into(),old.into())],&sources);
+    assert!(bridge.diagnostics.is_empty(),"{:?}",bridge.diagnostics);
+    assert_eq!(bridge.sources,sources,"restoring an unfiltered query would disclose other viewers' rows");
+}
+
+#[test]
+fn non_intent_guard_bindings_keep_the_current_statement_order() {
+    let old="table docs:\n  amount: int\n  read <- allow\n  update <- allow\n  online only\nmutation change(doc: docs):\n  before = docs[doc]\n  update docs[doc] {amount:1}\n  require before.amount = 0 else CLOSED\n";
+    let current=old.replace("amount: int","amount: int ?").replace("  before = docs[doc]\n  update docs[doc] {amount:1}","  update docs[doc] {amount:1}\n  before = docs[doc]");
+    let sources=vec![("schema.q".into(),current)];
+    let bound=compile(&sources);assert!(bound.diagnostics.is_empty(),"{:?}",bound.diagnostics);
+    let bridge=release_bridge::loosen(&[("schema.q".into(),old.into())],&sources);
+    assert!(bridge.diagnostics.is_empty(),"{:?}",bridge.diagnostics);
+    assert_eq!(bridge.sources,sources,"identical last textual bindings cannot authorize restoring an earlier read before a guarded write");
+}

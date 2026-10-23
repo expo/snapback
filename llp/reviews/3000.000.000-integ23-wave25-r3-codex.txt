@@ -1,0 +1,32 @@
+**MATERIAL — a retained export can still lose its current guard.**
+
+At [release_bridge_guards.rs:62](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/src/release_bridge_guards.rs:62), guard transport visits predecessor program declarations but skips predecessor exported aliases. The additional check at [release_bridge.rs:178](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/src/release_bridge.rs:178) catches alias-to-alias rebinding only.
+
+Small counterexample, without invariants:
+
+```quarry
+table docs:
+  amount: int
+  public 'fixture'
+  insert <- allow
+  online only
+mutation create():
+  return insert docs {amount:1}
+alias protected = create
+```
+
+In v2, widen `amount` to `int ?`, retain `create`, and replace the alias with:
+
+```quarry
+mutation protected():
+  require viewer = 'service:ops' else OPS
+  return insert docs {amount:1}
+```
+
+The widening requires a view. The selective generator retains `alias protected = create`, checks only the unchanged `create` declaration, and produces no diagnostic. Compiled wire-contract checks pass because both exports still accept identical inputs. Table-authority checks also pass.
+
+Consequently, default rollback makes `protected()` succeed for Alice, whereas the authored current endpoint returns `OPS`. The safe current-workflow fallback is never reached because selective generation reports success. This violates the stated preservation of current guards on retained exports. Resolve and compare **every predecessor export**, including alias-to-program replacements, before accepting selective generation.
+
+The bounded intent-bearing fallback itself retains current executable source, checks qualified wire contracts and distinct positions, and explicitly discloses omitted nullable fields and paused writes. The scoped repair trigger, typed capture defenses, and actionable writer-enforced legacy refusal appear consistent with the amendment. Regression sources exercise stored SQLite rows and packed HTTP/hot/restart workflows, but omit the export replacement above; that evidence does not establish equivalence.
+
+No optional nits. Review was source-only at `7e06f1fb36`; no builds, tests, edits, or report files were produced.

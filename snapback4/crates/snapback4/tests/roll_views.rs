@@ -448,3 +448,18 @@ fn ordinary_quota_tightening_with_an_unchanged_worker_needs_no_view() {
     assert_eq!(plan["rollbackViews"].as_array().unwrap().len(),0);
     app.ok(&["deploy","deployment"]);app.ok(&["rollback","deployment","--to","1"]);assert_eq!(app.count(),1);
 }
+
+
+#[test]
+fn a_required_column_rename_does_not_block_an_unrelated_widening_view() {
+    let app=App::new();let old=OLD.replace("  amount: int 100..50000","  state: enum('old') default 'old'\n  amount: int 100..50000")+"invariant items.read only true\n";
+    app.source(&old);app.ok(&["deploy","deployment"]);
+    let next=old.replace("state: enum('old')","state: enum('old','new')")
+        .replace("  amount: int 100..50000","  quotedAmount: int 100..50000 renamed from amount")
+        .replace("amount:a.amount","amount:a.quotedAmount");
+    app.source(&next);app.ok(&["deploy","deployment"]);
+    app.seed(&next,vec![json!({"id":"kept","state":"new","quotedAmount":123})]);
+    let preview=app.json(&["rollback","deployment","--to","1","--check","--json"]);assert_eq!(preview["visibility"]["hiddenRows"],0);
+    app.ok(&["rollback","deployment","--to","1"]);assert_eq!(app.count(),1);
+    let data=app.json(&["sql","SELECT quotedAmount FROM items","--release","deployment","--json"]);assert_eq!(data["rows"][0][0],123);
+}
