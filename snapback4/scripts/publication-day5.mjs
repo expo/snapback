@@ -13,6 +13,8 @@ writeFileSync(join(cwd,'snapback/schema.q'),source);
 mkdirSync(join(cwd,'fixtures'));writeFileSync(join(cwd,'fixtures/test.cases.jsonl'),'{"op":"alive","as":"alice","data":true}\n');
 const run=async args=>{const r=await cli(args,{cwd});assert.equal(r.code,0,r.stdout+r.stderr);return r.stdout;};
 const guide=await run(['guide','deploy','--section','Capture a saved version']);
+assert.match(guide,/Hot deploy and rollback require the running .*serve.* host to support this CLI's activation protocol/);
+assert.match(guide,/mixed-version request refuses before activation/);
 const recipe=guide.match(/\x60\x60\x60sh\n([\s\S]*?)\x60\x60\x60/)[1];
 const result=await command('sh',['-eu','-c',recipe],{cwd,env:{PATH:join(process.cwd(),'node_modules/.bin')+':'+process.env.PATH}});
 assert.equal(result.code,0,result.stdout+result.stderr);

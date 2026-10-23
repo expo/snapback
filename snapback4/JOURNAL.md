@@ -102710,3 +102710,20 @@ those existing custody laws and returns to both reviewers again. The R5 Linux
 qualifier was stopped during its native build when these semantic inputs changed;
 it grants no final qualification. R6 rebuilds SDK/native artifacts and repeats
 the affected proofs.
+
+### DX8 review round6: mixed-version hot activation
+
+Muse marked db8f1ba64f READY; fresh Codex found that the format-10 store marker
+could not protect a format-9 store still served by an older engine. A new CLI's
+current-value scalar-rename preview could otherwise reach that host through
+the old activation command and commit stale-preimage semantics. Every hot
+activation now requires an explicit activation-10 transport token, including
+original-source selection. Historical strict decoders reject the new field;
+updated hosts reject missing or wrong tokens before adoption. There is no
+legacy fallback. The complete amendment returns to both families again.
+
+R6 packed consumers passed operator, inspection, ergonomics and exact migration
+guide snippets. The canonical proof file passed 29 tests with clean process
+and checkout boundaries. Fresh optimized packed security passed its broad-read
+refutation, guest/password campaigns and all seven starter campaigns. Those
+artifacts retain their frozen source binding; they are not a publication claim.

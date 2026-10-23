@@ -13,6 +13,7 @@
 - An identical saved-source deploy refreshes matching saved artifacts and emits that source's importable generated client; differing saved source refuses.
 - Day-two proofs compare by id and common fields, exclude frozen-client writes and allow v2-native rows to disappear only in an exact old view. Board starters list newest first. `exhaustPages` follows opaque cursors and rejects absent completeness, partial/capped pages and non-progress.
 - renderedText accepts null options and reachable full-line React Native text. Write hints name the mutation/table gates; the parent card distinguishes captured history from live authority. Additive result fields are notes; declared table renames preserve reference-input compatibility.
+- Hot deploy and rollback require a matching activation protocol. A mixed-version running host refuses before changing releases and tells the operator to restart `serve` with the current CLI, including for original-source rollback.
 - SEC9 owns column-write rules, create/edit gates, security-note ranking, conditional immutability and production adversarial-test reach. Integration 23 owns rollback-view triggers and release-bridge policy.
 
 ## 0.4.40

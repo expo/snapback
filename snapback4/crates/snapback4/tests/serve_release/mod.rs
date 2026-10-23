@@ -12,6 +12,7 @@ fn candidate(
     std::fs::create_dir_all(root.join("snapback")).unwrap();
     std::fs::write(root.join("snapback/schema.q"), source).unwrap();
     Command::Activate {
+        activation_protocol: crate::release_control::ACTIVATION_PROTOCOL.into(),
         release: n,
         expected_release: previous,
         expected_revision: revision,
@@ -33,6 +34,55 @@ fn hot_release_refuses_missing_format_nine_custody_before_admission() {
     assert!(refused.contains("release custody"),"{refused}");
     let mut engine=lock(&host.shared.engine);assert_eq!(engine.generation(),1);
     assert_eq!(engine.query("version",Context::new("alice",Default::default())).unwrap().data,snapback4_core::Value::Int(1));
+}
+
+#[test]
+fn activation_protocol_fences_format_nine_edited_rename_rollback_before_admission() {
+    const OLD: &str = "table items:\n  title: text <=40\n  public 'fixture'\n  update <- allow\n  online only\nquery item():\n  return items['old']\n";
+    const CURRENT: &str = "table items:\n  name: text <=40 renamed from title\n  public 'fixture'\n  update <- allow\n  online only\nmutation edit():\n  update items['old'] {name:'current quote'}\nquery item():\n  return items['old']\n";
+    let directory = ReaderTestDirectory::new();
+    let host = Host::with_store(
+        true,
+        snapback4_core::store_port::AnyStore::open(&directory.0.join("store.sqlite")).unwrap(),
+        OLD,
+    );
+    {
+        let mut engine = lock(&host.shared.engine);
+        let row = snapback4_core::wire::row_from_json(
+            &engine.schema().tables["items"],
+            &json!({"id":"old","title":"stale quote"}),
+        ).unwrap();
+        engine.seed([("items".into(), row)]).unwrap();
+    }
+    release::apply(&host.shared, &directory.0, candidate(&directory.0, 2, CURRENT, None, 0)).unwrap();
+    {
+        let mut engine = lock(&host.shared.engine);
+        engine.mutate("edit", None, Context::new("alice", Default::default())).unwrap();
+        engine.store().test_support_set_meta("version", "snapback4-release-store-9").unwrap();
+    }
+
+    let mut stale = candidate(&directory.0, 3, "this is not valid Quarry\n", Some(2), 1);
+    if let Command::Activate { activation_protocol, rollback, .. } = &mut stale {
+        *activation_protocol = "snapback4-activation-9".into();
+        *rollback = true;
+    }
+    let refused = release::apply(&host.shared, &directory.0, stale).unwrap_err();
+    assert!(refused.contains("activation protocol") && refused.contains("restart serve"), "{refused}");
+    {
+        let mut engine = lock(&host.shared.engine);
+        assert_eq!(engine.generation(), 2);
+        assert_eq!(engine.store().test_support_meta("release").unwrap().as_deref(), Some("2"));
+        assert_eq!(engine.store().test_support_meta("version").unwrap().as_deref(), Some("snapback4-release-store-9"));
+        assert_eq!(engine.query("item", Context::new("alice", Default::default())).unwrap().data.field("name").unwrap(), &snapback4_core::Value::String("current quote".into()));
+    }
+
+    let mut rollback = candidate(&directory.0, 1, OLD, Some(2), 1);
+    if let Command::Activate { rollback, .. } = &mut rollback { *rollback = true; }
+    release::apply(&host.shared, &directory.0, rollback).unwrap();
+    let mut engine = lock(&host.shared.engine);
+    assert_eq!(engine.generation(), 3);
+    assert_eq!(engine.store().test_support_meta("release").unwrap().as_deref(), Some("1"));
+    assert_eq!(engine.query("item", Context::new("alice", Default::default())).unwrap().data.field("title").unwrap(), &snapback4_core::Value::String("current quote".into()));
 }
 
 #[test]

@@ -321,6 +321,7 @@ fn activate(
         let mut result = crate::release_control::request_observed(
             dir,
             crate::release_control::Command::Activate {
+                activation_protocol:crate::release_control::ACTIVATION_PROTOCOL.into(),
                 release,
                 expected_release: previous,
                 expected_revision: revision,
@@ -332,7 +333,7 @@ fn activate(
                 allow_feed_adoption,
             },
             |pending| { if let Some(candidate)=candidate.as_deref_mut() {candidate.pending=pending;} },
-        ).map_err(|e|if e.contains("unknown field")&&(e.contains("registry_custody")||e.contains("visible_rollback")){format!("E_RELEASE_RUNTIME: serving runtime predates release custody; restart serve with this CLI before switching; {e}")}else{e})?;
+        ).map_err(|e|if e.contains("unknown field")&&(e.contains("activation_protocol")||e.contains("registry_custody")||e.contains("visible_rollback")){format!("E_RELEASE_RUNTIME: serving runtime predates release custody; restart serve with this CLI before switching; {e}")}else{e})?;
         if let Some(summary)=options.flags.get("security-summary"){result["security"]=serde_json::from_str(summary).unwrap_or_default();}
         if let Some(view)=options.flags.get("rollback-view"){result["rollbackView"]=serde_json::from_str(view).unwrap_or_default();}
         if let Some(preview)=options.flags.get("release-preview"){result["preview"]=serde_json::from_str(preview).unwrap_or_default();}
