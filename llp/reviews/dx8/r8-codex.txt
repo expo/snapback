@@ -1,0 +1,20 @@
+NOT READY
+
+Amended proof-kit §8: **READY**. The exact adjacent-record corroboration preserves normal listener validation. Both supplied section hashes match the frozen commit.
+
+**DX8 has one material custody gap: empty-parent re-entry skips child validation.**
+
+At `62c38dfca5f26d01ebc67465fad25dabb734caa7`, `store/extractions.rs:346` requires `populated` before selecting `each::resume`. With zero active parents, it instead runs `each::forward`, which visits no parents and validates only existing receipts.
+
+Concrete counterexample permitted by the frozen source:
+
+1. Successfully initialize an empty `each` extraction.
+2. Remove only its declaration, retaining the public parent/child tables.
+3. Insert an independent child referencing a not-yet-existing parent P. Ordinary references permit missing targets.
+4. Restore the extraction while the parent table remains empty. Adoption succeeds without checking that child’s missing extraction anchor.
+5. Create P, then update the child’s asset without changing its parent reference. `extractions.rs:483–499` captures the previously missing anchor.
+6. Reverse selection now accepts that child and transfers its asset into P’s historical list.
+
+This retroactively captures a child born while the declaration was absent, contradicting the amendment’s explicit lifetime-custody guarantee.
+
+**Required correction:** select the resume validator for known, consumed-source definitions regardless of parent population, and validate every current/restored child. Preserve legitimate empty initialization, but refuse unanchored existing children atomically. Prevent unchanged-reference updates from manufacturing missing extraction provenance. Add a regression covering this sequence and unchanged generation, format and asset homes on refusal.
