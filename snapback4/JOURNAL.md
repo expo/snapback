@@ -103784,3 +103784,21 @@ new real deploy/default rollback/forward fixture. The earlier 58-case language
 and 38-case rollback security preflight remains green; full qualification is
 repeated after the final correction. Fresh dual-family review continues with
 verbatim artifacts under llp/reviews.
+
+
+### Integration 23: one aligned comparison across source and admission
+
+The next fresh review found that uniqueness-loss detection still compared raw
+column spellings, dropping a historical explicit key across code-to-label
+identity renames. A failing seeded legacy-lookup regression reproduces it.
+Those removal/insertion decisions now share the injective declared identity
+map; opaque key contracts compare complete compiled components. The view trigger
+uses the same injective map as well.
+
+An additional actual test exposed the equivalent-label field-authority mismatch
+before CLI admission. The policy comparator now lives in the language release
+bridge and is shared by both gates. The runtime regression preserves an allowed
+secret and redacts an unauthorized one across the key rename. All 63 language
+unit tests, 38 rollback security cases and 18 CLI cases pass, including the
+new scalar-key legacy lookup/default rollback/forward cycle. General key
+inference, authored programs, operands and literals remain unchanged.

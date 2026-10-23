@@ -58,6 +58,8 @@ pub(super) fn carry(
         for(name,target,_)in &doc.aliases {if let Some(p)=doc.programs.iter().find(|p|p.name==*target){programs.insert(super::release_bridge::operation_name(file,name),(*file,*text,p));}}
     }
     for(file,text)in sources.iter(){for old in parser::parse_document(file,text).0.tables{if let Some(prior)=&old.renamed_from{if !tables.contains_key(&old.name){if let Some(next)=tables.get(prior).copied(){tables.insert(old.name.clone(),next);aliases.insert(prior.clone(),old.name.clone());}}}}}
+    let before_schema=crate::compile(sources).schema;
+    let current_schema=crate::compile(current).schema.with_table_names(&aliases).ok();
     let remap = |expr: &ast::Expr| {
         let mut expr = expr.clone();
         crate::bind::intent_walk::expression(&mut expr, &mut |e| {
@@ -89,14 +91,28 @@ pub(super) fn carry(
             };
             // Replacement and insertion must use the same set: strengthening
             // a named ordering to unique cannot leave two declarations behind.
+            let columns=super::release_bridge_indexes::column_names(old,next);
+            let same_key=|before:&ast::IndexDecl,after:&ast::IndexDecl| {
+                let Some(columns)=&columns else{return false};
+                if before.is_plain()&&after.is_plain() {
+                    return before.columns==after.columns.iter().map(|c|columns.get(c).unwrap_or(c).clone()).collect::<Vec<_>>();
+                }
+                // Opaque components are never inferred from their printed
+                // column advice. Preserve only their full compiled meaning.
+                match (before_schema.table(&old.name).and_then(|t|t.index(&before.name)),
+                    current_schema.as_ref().and_then(|s|s.table(&old.name)).and_then(|t|t.index(&after.name))) {
+                    (Some(before),Some(after))=>before.components==after.components,
+                    _=>false,
+                }
+            };
             let carried_indexes=next.indexes.iter().filter(|i|
                 !old.indexes.iter().any(|o|o.name==i.name)
                 || old.indexes.iter().any(|o|o.name==i.name&&o.unique!=i.unique)
-                || (i.unique&&!old.indexes.iter().any(|o|o.unique&&o.columns==i.columns))
-                || old.indexes.iter().any(|o|o.name==i.name&&o.unique&&!next.indexes.iter().any(|n|n.unique&&n.columns==o.columns)))
+                || (i.unique&&!old.indexes.iter().any(|o|o.unique&&same_key(o,i)))
+                || old.indexes.iter().any(|o|o.name==i.name&&o.unique&&!next.indexes.iter().any(|n|n.unique&&same_key(o,n))))
                 .collect::<Vec<_>>();
             for index in &old.indexes {
-                let loses_unique=index.unique&&!next.indexes.iter().any(|n|n.unique&&n.columns==index.columns);
+                let loses_unique=index.unique&&!next.indexes.iter().any(|n|n.unique&&same_key(index,n));
                 if !loses_unique&&!carried_indexes.iter().any(|n|n.name==index.name){continue}
                 if let Some((start, end)) = line_span(file, text, &index.site) {
                     edits.push((start, end, String::new()));

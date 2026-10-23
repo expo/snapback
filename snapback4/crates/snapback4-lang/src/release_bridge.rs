@@ -7,6 +7,7 @@ pub struct Bridge {pub sources:Vec<(String,String)>,pub changes:Vec<String>,pub 
 /// Injective current-to-view column identities from authored rename declarations.
 /// Shared by index source transport and CLI hard-constraint admission.
 pub use super::release_bridge_indexes::column_names as declared_column_names;
+pub use super::release_bridge_policy::Policies as PolicyComparison;
 
 /// Source-domain inclusion includes text minima/formats, which live outside
 /// ColumnType in the compiled schema. Never infer admission from advice prose.
@@ -33,8 +34,7 @@ pub fn requires_view(target:&[(String,String)],current:&[(String,String)])->bool
                 let mut from=candidate.type_.clone();let mut to=col.type_.clone();normalize(&mut from,&aliases);normalize(&mut to,&aliases);
                 if !crate::client_contracts::accepts(&crate::types::scalar_to_arg(&from),&crate::types::scalar_to_arg(&to)){return true}
             }
-            let mut columns=next.columns.iter().filter_map(|c|c.renamed_from.as_ref().filter(|old_name|old.columns.iter().any(|o|&o.name==*old_name)).map(|old_name|(c.name.clone(),old_name.clone()))).collect::<BTreeMap<_,_>>();
-            for c in &old.columns{if let Some(prior)=&c.renamed_from{if next.columns.iter().any(|n|&n.name==prior)&&!next.columns.iter().any(|n|n.name==c.name){columns.insert(prior.clone(),c.name.clone());}}}
+            let Some(columns)=declared_column_names(&old,next)else{return true};
             let normalize_columns=|fields:&[String]|fields.iter().map(|c|columns.get(c).unwrap_or(c).clone()).collect::<Vec<_>>();
             if old.indexes.iter().any(|i|i.unique&&!next.indexes.iter().any(|n|n.unique&&normalize_columns(&n.columns)==i.columns)){return true}
             if old.caps.iter().any(|c|!next.caps.iter().any(|n|normalize_columns(&n.by)==c.by&&n.max<=c.max)){return true}
@@ -215,7 +215,12 @@ fn loosen_guarded(target:&[(String,String)],current:&[(String,String)])->Bridge 
     for(name,table)in &bound.schema.tables {
         let Some((_,_,next))=new.get(name)else{continue};
         let Some(current_table)=current_bound.schema.table(&next.name)else{continue};
-        if current_authority.as_ref().and_then(|schema|schema.table(name)).is_some_and(|authority|table.column_reads!=authority.column_reads||table.written_by!=authority.written_by) {
+        if current_authority.as_ref().is_some_and(|schema|schema.table(name).is_some_and(|authority| {
+            let policies=PolicyComparison::new(&bound.schema,schema);
+            table.column_reads.len()!=authority.column_reads.len()
+                ||table.column_reads.iter().any(|(column,rule)|!policies.optional_rule(Some(rule),authority.column_reads.get(column)))
+                ||table.written_by!=authority.written_by
+        })) {
             diagnostics.push(crate::diag::type_error(&next.site,format!("rollback view needs current field authority on {name}"),"retain the complete current guarded workflow and its column read/write authority").guide("deploy"));
         }
         for column in &next.columns {

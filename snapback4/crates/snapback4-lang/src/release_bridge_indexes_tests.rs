@@ -150,3 +150,40 @@ fn unused_keys_with_different_ordered_meanings_remain_ambiguous() {
         assert_eq!(view,source(&text));
     }
 }
+
+#[test]
+fn equivalent_key_labels_keep_cross_table_column_read_authority() {
+    let old="table codes:\n  code: text <=20\n  n: int\n  unique byCode: code\n  public\n  online only\ntable records:\n  value: text <=20\n  secret: text <=20 read <- exists codes[.value]\n  public\n  online only\nquery legacyLookup(code: text <=20):\n  return codes[code] by byCode\nquery list():\n  return records first 10 by .id\n";
+    let current=old.replace("n: int", "n: int ?").replace("unique byCode:","unique byCurrentCode:")
+        .replace("query legacyLookup(code: text <=20):\n  return codes[code] by byCode\n", "");
+    let bridge=crate::release_bridge::loosen(&source(old),&source(&current));
+    assert!(bridge.diagnostics.is_empty(),"{:?}",bridge.diagnostics);
+    let bound=crate::compile(&bridge.sources);
+    let mut engine=Engine::memory(bound.schema,bound.programs.into_iter().map(|p|p.program)).unwrap();
+    use snapback4_core::value::object;
+    engine.seed([
+        ("codes".into(),object([("id",Value::Id("code".into())),("code",Value::String("a".into())),("n",Value::Int(1))])),
+        ("records".into(),object([("id",Value::Id("visible".into())),("value",Value::String("a".into())),("secret",Value::String("permitted".into()))])),
+        ("records".into(),object([("id",Value::Id("redacted".into())),("value",Value::String("b".into())),("secret",Value::String("hidden".into()))])),
+    ]).unwrap();
+    let answer=engine.query("list",Context::new("alice",Default::default())).unwrap();
+    let json=snapback4_core::wire::to_json(&answer.data).to_string();
+    assert!(json.contains("permitted"),"{json}");assert!(!json.contains("hidden"),"{json}");
+}
+
+#[test]
+fn renamed_unique_columns_keep_an_explicitly_used_legacy_key() {
+    let old="table items:\n  code: text <=20\n  n: int\n  unique byCode: code\n  public\n  online only\nquery legacyLookup(code: text <=20):\n  return items[code] by byCode\n";
+    let current=old.replace("code: text <=20", "label: text <=20 renamed from code")
+        .replace("unique byCode: code","unique byCurrentCode: label").replace("n: int", "n: int ?")
+        .replace("query legacyLookup(label: text <=20 renamed from code):\n  return items[code] by byCode\n", "");
+    assert!(crate::compile(&source(&current)).diagnostics.is_empty());
+    let bridge=crate::release_bridge::loosen(&source(old),&source(&current));
+    assert!(bridge.diagnostics.is_empty(),"{:?}",bridge.diagnostics);
+    let bound=crate::compile(&bridge.sources);assert!(bound.schema.tables["items"].indexes["byCode"].unique);
+    let mut engine=Engine::memory(bound.schema,bound.programs.into_iter().map(|p|p.program)).unwrap();
+    use snapback4_core::value::object;
+    engine.seed([("items".into(),object([("id",Value::Id("kept".into())),("code",Value::String("a".into())),("n",Value::Int(1))]))]).unwrap();
+    let answer=engine.query("legacyLookup",Context::new("alice",[("code".into(),Value::String("a".into()))].into_iter().collect())).unwrap();
+    assert_eq!(answer.data.field("id").unwrap(),&Value::Id("kept".into()));
+}

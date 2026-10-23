@@ -198,7 +198,7 @@ pub(super) fn prepare(
             }
         }}
         let current=current.with_column_names(&columns);
-        let policies=super::rollback_view_policy::Policies::new(&compiled.schema,&current);
+        let policies=snapback4_lang::release_bridge::PolicyComparison::new(&compiled.schema,&current);
         for (name, table) in &compiled.schema.tables {
             if let Some(next) = current.table(name) {
                 use snapback4_core::schema::Constraint;

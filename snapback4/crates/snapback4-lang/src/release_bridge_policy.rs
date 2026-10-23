@@ -2,13 +2,13 @@
 // @ref LLP 3000.000.000#20-visible-rollback-views-roll — compiled key meaning and every guard operand survive a visible rollback.
 use snapback4_core::{Schema, schema::{Constraint, Horizon, RuleExpr, Sync}};
 
-pub(super) struct Policies<'a> {
+pub struct Policies<'a> {
     view: &'a Schema,
     current: &'a Schema,
 }
 
 impl<'a> Policies<'a> {
-    pub(super) fn new(view: &'a Schema, current: &'a Schema) -> Self { Self { view, current } }
+    pub fn new(view: &'a Schema, current: &'a Schema) -> Self { Self { view, current } }
 
     fn index(&self, table: &str, view: &str, current: &str) -> bool {
         match (self.view.table(table).and_then(|t|t.indexes.get(view)),
@@ -18,7 +18,7 @@ impl<'a> Policies<'a> {
         }
     }
 
-    pub(super) fn constraint(&self, view: &Constraint, current: &Constraint) -> bool {
+    pub fn constraint(&self, view: &Constraint, current: &Constraint) -> bool {
         match (view,current) {
             (Constraint::FinalExistsOnInsert{table:a,index:ai,key:ak},
                 Constraint::FinalExistsOnInsert{table:b,index:bi,key:bk})=>
@@ -27,7 +27,7 @@ impl<'a> Policies<'a> {
         }
     }
 
-    pub(super) fn rule(&self, view: &RuleExpr, current: &RuleExpr) -> bool {
+    pub fn rule(&self, view: &RuleExpr, current: &RuleExpr) -> bool {
         use RuleExpr::*;
         match (view,current) {
             (Exists{table:a,index:ai,key:ak,provenance:ap,equalities:ae},
@@ -41,7 +41,7 @@ impl<'a> Policies<'a> {
         }
     }
 
-    pub(super) fn optional_rule(&self, view: Option<&RuleExpr>, current: Option<&RuleExpr>) -> bool {
+    pub fn optional_rule(&self, view: Option<&RuleExpr>, current: Option<&RuleExpr>) -> bool {
         match (view,current) { (Some(a),Some(b))=>self.rule(a,b),(None,None)=>true,_=>false }
     }
 
@@ -53,7 +53,7 @@ impl<'a> Policies<'a> {
         }
     }
 
-    pub(super) fn sync(&self, table: &str, view: Option<&Sync>, current: Option<&Sync>) -> bool {
+    pub fn sync(&self, table: &str, view: Option<&Sync>, current: Option<&Sync>) -> bool {
         match (view,current) {
             (Some(a),Some(b))=>a.audience==b.audience&&self.horizon(table,a.horizon.as_ref(),b.horizon.as_ref())
                 &&a.also.len()==b.also.len()&&a.also.iter().zip(&b.also).all(|(a,b)|
@@ -70,7 +70,7 @@ mod tests {
     use snapback4_core::{Value, ir::KeyProvenance, schema::{Audience, RuleTerm}};
     fn schema(name: &str, key: &str) -> Schema {
         let source=format!("table target:\n  code: text <=20\n  other: text <=20\n  unique {name}: {key}\n  public\n  online only\n");
-        let bound=snapback4_lang::compile(&[("schema.q".into(),source)]);
+        let bound=crate::compile(&[("schema.q".into(),source)]);
         assert!(bound.diagnostics.is_empty(),"{:?}",bound.diagnostics);bound.schema
     }
     fn probe(name: &str) -> RuleExpr {

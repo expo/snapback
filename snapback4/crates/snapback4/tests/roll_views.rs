@@ -25,6 +25,24 @@ fn current_first_worker_dependency_cannot_disappear_from_an_intent_view() {
 struct App(PathBuf);
 
 #[test]
+fn scalar_key_rename_retains_an_explicit_legacy_lookup_on_default_rollback() {
+    let app=App::new();
+    let old="table items:\n  code: text <=20\n  n: int\n  unique byCode: code\n  public\n  online only\nquery legacyLookup(code: text <=20):\n  return items[code] by byCode\n";
+    app.source(old);app.ok(&["deploy","deployment"]);
+    app.seed(old,vec![json!({"id":"kept","n":1,"code":"a"})]);
+    let current=old.replace("  code: text <=20", "  label: text <=20 renamed from code")
+        .replace("unique byCode: code","unique byCurrentCode: label").replace("n: int", "n: int ?")
+        .replace("query legacyLookup(code: text <=20):\n  return items[code] by byCode\n", "");
+    app.source(&current);app.ok(&["deploy","deployment","--check"]);app.ok(&["deploy","deployment"]);
+    let preview=app.json(&["rollback","deployment","--to","1","--check","--json"]);
+    assert_eq!(preview["visibility"]["hiddenRows"],0);
+    app.ok(&["rollback","deployment","--to","1"]);assert_eq!(app.count(),1);
+    assert_eq!(app.json(&["sql","SELECT code FROM items","--release","deployment","--json"])["rows"][0][0],"a");
+    app.ok(&["rollback","deployment","--to","latest"]);
+    assert_eq!(app.json(&["sql","SELECT label FROM items","--release","deployment","--json"])["rows"][0][0],"a");
+}
+
+#[test]
 fn equivalent_unique_labels_preserve_final_existence_in_default_rollback() {
     let app=App::new();
     let old="table items:\n  code: text <=20\n  n: int\n  unique byCode: code\n  public\n  online only\ntable records:\n  value: text <=20\n  public\n  after insert <- exists items[.value]\n  online only\nquery legacyLookup(code: text <=20):\n  return items[code] by byCode\n";
