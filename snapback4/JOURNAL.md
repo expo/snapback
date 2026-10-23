@@ -102727,6 +102727,17 @@ guide snippets. The canonical proof file passed 29 tests with clean process
 and checkout boundaries. Fresh optimized packed security passed its broad-read
 refutation, guest/password campaigns and all seven starter campaigns. Those
 artifacts retain their frozen source binding; they are not a publication claim.
+
+R7 fresh Codex gpt-6.1-sol/high and Muse spark-1.3-contributor/high both returned
+READY for the complete canonical amendment at 8be54b526934966a071537bfd4289fb7d80a8a96
+(amendment SHA-256 772bbf0d6ae6c392f5e360f6364b60a5960b83ba8ea64539d7d2e0e5b8a48bcc).
+Exact prompts, frozen amendment, verdicts and raw stdout/stderr with provenance
+are retained in llp/reviews/dx8/r7-*. This records semantic readiness, not author
+acceptance. Main's P1-CE changes merged with only append-only journal conflict
+resolution. Fresh merged wasm remains 735599 gzip / 2407197 raw, within the
+736099 budget. The Linux consumer-only run still records its inherited day-five
+source-reservation failure; its passed prefix and subsequent consumer results
+remain separate evidence without a publication receipt.
 ## 2026-10-23 — P1-CE: Postgres change evidence and certified changes/sync
 
 The Postgres buffered tail now writes the shared net-image footprint and prunes
