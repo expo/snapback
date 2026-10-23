@@ -1,0 +1,35 @@
+{
+  "code_commit": "aeb62378f7",
+  "initial": {
+    "log": "/tmp/sb4-k0q-fix2-final/adoption-witnesses.log",
+    "passed": 12,
+    "failed": 2,
+    "ignored": 1,
+    "isolated_reproductions": [
+      "adoption-witnesses-isolated-0.log",
+      "adoption-witnesses-isolated-1.log"
+    ]
+  },
+  "causes": [
+    "TimedReader carried a worker-created thread-local EngineSpan to the request thread, underflowing depth on foreign activation",
+    "witness incorrectly expected two waiting commands, although Writer::waiting excludes the running adoption"
+  ],
+  "fixes": [
+    "Return only epoch/Engine/sites through the command; create TimedReader and EngineSpan on the request thread",
+    "Wait for one queued query, retaining the early-response and data/generation assertions"
+  ],
+  "setup_correction": "First compile attempt needed an explicit RuntimeError type on the command Result; corrected before final witness run",
+  "final": {
+    "log": "/tmp/sb4-k0q-fix2-final/adoption-fixed-repeat.log",
+    "exit": 0,
+    "passed": 14,
+    "failed": 0,
+    "ignored": 1
+  },
+  "clock_witness": {
+    "log": "/tmp/sb4-k0q-fix2-final/clock-31-second.log",
+    "passed": 1,
+    "test_runtime_seconds": 31.06,
+    "runner_elapsed_includes_debugging_pause": true
+  }
+}

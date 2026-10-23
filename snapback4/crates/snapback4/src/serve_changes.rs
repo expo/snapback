@@ -44,16 +44,15 @@ pub(super) fn serve(request: Request, shared: &Shared, url: &str) {
         s.split(',').filter(|s|!s.is_empty()).map(str::to_owned).collect()
     });
     let wants_ephemeral = ["eph", "ephi", "ephTables"].iter().any(|k|params.contains_key(*k));
-    {
-        let mut engine = lock(&shared.engine);
-        if let Err(why) = super::session_identity::persona_read_authority(response.request.as_ref().unwrap(), shared, &engine) {
-            drop(engine); response.finish(401, json!({"denied":refusal_json(&why)})); return;
-        }
-        if present && let Err(error) = engine.presence_reconnected(&connected, shared.now()) {
-            response.finish(500, json!({ "denied": refusal_json(&error.refusal()) })); return;
-        }
-        if present { shared.presence.enter(&connected); }
-    }
+    let admission = super::session_identity::Admission::capture(response.request.as_ref().unwrap(), shared);
+    let principal = connected.clone();
+    let enter = shared.engine.attempt(move |engine, shared| {
+        admission?.check(shared, engine, &principal)?;
+        if present { engine.presence_reconnected(&principal, shared.now()).map_err(|e| e.refusal())?; }
+        if present { shared.presence.enter(&principal); }
+        Ok::<_, snapback4_core::error::Refusal>(())
+    });
+    if let Err(why) = enter { response.finish(if why.family == "auth" {401} else {500}, json!({"denied":why})); return; }
     let result = (|| -> Result<_, snapback4_core::RuntimeError> {
         // Entry always reads the store: the client may already know a head
         // committed after the last publication (LLP 3000 finding 5).
@@ -200,12 +199,10 @@ fn read_answer(shared: &Shared, since: u64) -> Result<Checked, snapback4_core::R
             return Ok(checked);
         }
     }
-    let mut engine = lock(&shared.engine);
-    match shared.open_reader(&engine) {
-        Ok(mut reader) => { drop(engine); check(&mut reader, since) }
-        // A memory store has no detached reader: read under the engine.
-        Err(_) => check(&mut engine, since),
-    }
+    shared.engine.attempt(move |engine, shared| match shared.open_reader(engine) {
+        Ok(mut reader) => check(&mut reader, since),
+        Err(_) => check(engine, since),
+    })
 }
 
 /// The notification's head, identity and invalidations share one read snapshot.

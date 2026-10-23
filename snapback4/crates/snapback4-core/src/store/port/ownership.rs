@@ -12,3 +12,40 @@ impl AnyStore {
             .map(Self::from_postgres)
     }
 }
+
+/// Conservative local authority deadline, independent of a renewal connection.
+/// Start the clock *before* issuing renewal SQL: its COMMIT can stall after the
+/// database sampled lease_until. A late completion must never revive authority.
+#[derive(Clone)]
+pub struct LeaseDeadline {
+    until: std::sync::Arc<std::sync::Mutex<std::time::Instant>>,
+    window: std::time::Duration,
+}
+impl LeaseDeadline {
+    pub fn new(lease: std::time::Duration, started: std::time::Instant) -> Self {
+        // Poll at <=10 ms and retain at least five ticks for normal leases;
+        // short test leases use a proportional quarter-lease safety margin.
+        let margin = std::time::Duration::from_millis(50).min(lease / 4);
+        let window = lease.saturating_sub(margin);
+        Self {
+            until: std::sync::Arc::new(std::sync::Mutex::new(started + window)),
+            window,
+        }
+    }
+    pub fn expired(&self) -> bool {
+        std::time::Instant::now() >= *self.until.lock().unwrap_or_else(|p| p.into_inner())
+    }
+    pub fn remaining(&self) -> std::time::Duration {
+        self.until.lock().unwrap_or_else(|p| p.into_inner())
+            .saturating_duration_since(std::time::Instant::now())
+    }
+    pub fn renewed(&self, started: std::time::Instant) -> bool {
+        let mut until = self.until.lock().unwrap_or_else(|p| p.into_inner());
+        let now = std::time::Instant::now();
+        if now >= *until || now >= started + self.window {
+            return false;
+        }
+        *until = started + self.window;
+        true
+    }
+}

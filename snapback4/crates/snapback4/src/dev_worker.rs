@@ -323,6 +323,19 @@ pub(crate) struct DevWorker {
     revision: usize,
 }
 
+fn fence_revision(shared: &Shared, revision: usize) {
+    let _ = shared.worker_revision.compare_exchange(revision, revision + 1,
+        std::sync::atomic::Ordering::AcqRel, std::sync::atomic::Ordering::Acquire);
+}
+
+pub(crate) fn mint_refusal(shared: &Shared, revision: usize, why: &snapback4_core::Refusal) -> bool {
+    if matches!(why.code.as_str(), "E_RATE_LIMIT" | "E_COMMITTER_STOPPED" | "E_STORE_OWNERSHIP") { return false; }
+    // A lost mint acknowledgement can leave a durable token we cannot revoke
+    // by family. Fence that revision exactly as failed retirement does.
+    fence_revision(shared, revision);
+    true
+}
+
 impl DevWorker {
     // @ref LLP 3000.007#9.2 — dev supervises the application's Node worker, outside the engine.
     pub(crate) fn start(
@@ -391,10 +404,9 @@ impl DevWorker {
             .worker_revision
             .load(std::sync::atomic::Ordering::Acquire);
         // @ref LLP 3000.009#5.2 — a new store can reuse sequence/ordinal effect ids.
-        let ledger = {
-            let engine = lock(&shared.engine);
-            engine.store().worker_ledger_path(None).map_err(|e| e.to_string())?
-        };
+        let ledger = shared.engine.attempt(move |engine, _| {
+            engine.store().worker_ledger_path(None).map_err(|e| e.to_string())
+        })?;
         let worker = Self {
             name: None,
             family: None,
@@ -631,35 +643,31 @@ impl DevWorker {
         #[cfg(test)]
         crate::serve::test_work(&self.shared.worker_prepare);
         // @ref LLP 3000.007#9.2 — a restarted worker's orphaned claim poll must not lease work to the dead child.
-        let session = {
-            let engine = lock(&preparation_shared.engine);
-            if self
-                .shared
-                .worker_revision
-                .load(std::sync::atomic::Ordering::Acquire)
-                != prepared_revision
-            {
-                self.snapshot = None;
-                self.retry_later();
-                return;
-            }
-            let clock = lock(&self.shared.clock);
+        let (name, revision) = (self.name.clone(), self.revision);
+        let minted = preparation_shared.engine.call(move |engine, shared| {
+            if shared.worker_revision.load(std::sync::atomic::Ordering::Acquire) != prepared_revision { return None; }
+            let clock = lock(&shared.clock);
             let now = clock.now();
-            self.child_clock = Some(clock.revision());
-            let minted = if let Some(name) = &self.name {
-                (|| -> Result<identity::Session, RuntimeError> {
-                    let session = identity::mint_supervised_child(engine.store(), Some(name), now, self.revision)?;
-                    let family = format!("{:x}", Sha256::digest(session.token.as_bytes()));
-                    self.family = Some(family);
-                    Ok(session)
-                })()
-            } else {
-                child_session(engine.store(), now, self.revision)
-            };
-            #[cfg(test)]
-            crate::serve::test_work(&self.shared.worker_minted);
-            minted
+            let clock_revision = clock.revision();
+            let minted = if let Some(name) = &name {
+                identity::mint_supervised_child(engine.store(), Some(name), now, revision)
+            } else { child_session(engine.store(), now, revision) };
+            #[cfg(test)] crate::serve::test_work(&shared.worker_minted);
+            Some((minted, clock_revision, name.is_some()))
+        });
+        let minted = match minted {
+            Ok(minted) => minted,
+            Err(why) => {
+                snapback4_core::diagnostic!("snapback4 worker: session preparation refused: {why}");
+                if mint_refusal(&self.shared, revision, &why) { self.snapshot = None; }
+                self.retry_later(); return;
+            }
         };
+        let Some((session, clock_revision, named)) = minted else {
+            self.snapshot = None; self.retry_later(); return;
+        };
+        self.child_clock = Some(clock_revision);
+        if named && let Ok(session) = &session { self.family = Some(format!("{:x}", Sha256::digest(session.token.as_bytes()))); }
         let session = match session {
             Ok(session) => session,
             Err(error) => {
@@ -768,10 +776,8 @@ impl DevWorker {
 
     fn record_status(&self, state: &str) {
         let record = serde_json::json!({ "name": self.name.as_deref().unwrap_or("worker"), "source": self.source, "mode": if self.explicit_env { "serve" } else { "dev" }, "state": state, "starts": self.starts, "restarts": self.starts.saturating_sub(1), "crashes": self.crashes, "pid": self.worker_pid });
-        if let Err(error) = lock(&self.shared.engine).store().set_worker_status(
-            self.name.as_deref(),
-            &record.to_string(),
-        ) {
+        let name = self.name.clone();
+        if let Err(error) = self.shared.engine.attempt(move |engine, _| engine.store().set_worker_status(name.as_deref(), &record.to_string())) {
             snapback4_core::diagnostic!("snapback4 worker: cannot record status: {error}");
         }
     }
@@ -780,8 +786,8 @@ impl DevWorker {
         if self.child_expires_at.is_none() {
             return true;
         }
-        let engine = lock(&self.shared.engine);
-        let result = identity::revoke_worker_family(engine.store(), self.family.as_deref());
+        let family = self.family.clone();
+        let result = self.shared.engine.attempt(move |engine, _| identity::revoke_worker_family(engine.store(), family.as_deref()));
         if let Err(error) = result {
             // @ref LLP 3000.009#5.3 — failed retirement fences the original revision once.
             // A blocked DELETE cannot keep the retired credential current.
@@ -789,12 +795,7 @@ impl DevWorker {
             // children renew under the new revision; manual seats are unchanged.
             // Keep the child's original revision across every retirement retry.
             if let Some(revision) = self.child_revision {
-                let _ = self.shared.worker_revision.compare_exchange(
-                    revision,
-                    revision + 1,
-                    std::sync::atomic::Ordering::AcqRel,
-                    std::sync::atomic::Ordering::Acquire,
-                );
+                fence_revision(&self.shared, revision);
             }
             snapback4_core::diagnostic!(
                 "snapback4 worker: cannot close the child's session; worker stopped, replacement suspended: {error}"

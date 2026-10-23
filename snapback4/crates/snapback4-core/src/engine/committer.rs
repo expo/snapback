@@ -272,7 +272,8 @@ impl Committer {
         member: Member<impl FnOnce(MemberTx<'_, '_>) -> MemberResult<T>>,
     ) -> MemberResult<T> {
         let Member { kind, run } = member;
-        // No production batching, queue, revision allocation or retries in K0c.
+        // The queue owns the engine; this driver still commits one member,
+        // without batching, durable revision allocation or retries.
         let _kind = kind;
         tx.begin_member_evidence();
         tx.savepoint("member")?;
@@ -370,8 +371,8 @@ impl Solo {
 
 impl super::Engine {
     /// Publish the currently durable head and accepted engine identity to a
-    /// host's wake state. The host keeps its existing engine lock and wake
-    /// selection; this final continuation stage never opens a transaction.
+    /// host's wake state while the writer is owned. Serving runs this stage
+    /// on its committer thread; the continuation never opens a transaction.
     pub fn continue_durable_publication<D, R>(
         &self,
         data: D,

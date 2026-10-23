@@ -298,3 +298,61 @@ mod scale;
 mod reader_failure;
 
 mod worker;
+
+#[test]
+fn query_retries_behind_adoption_commit_before_reader_replacement() {
+    let directory = ReaderTestDirectory::new();
+    let source = "use personas alice\ntable rows:\n  n: int\n  public 'fixture'\n  online only\nquery read():\n  return rows first 10\n";
+    let host = Host::with_store(true, snapback4_core::Store::open(&directory.0.join("handoff.sqlite")).unwrap(), source);
+    assert_eq!(status(&host.request("POST", "/seed", "", r#"[{"table":"rows","row":{"id":"one","n":7}}]"#)), 200);
+    // Cache a predecessor reader, then pause after the candidate's physical COMMIT.
+    assert_eq!(status(&host.request("POST", "/q/read", "x-snapback-persona: alice\r\n", "{}")), 200);
+    let (entered, committed) = mpsc::channel();
+    let (release, resume) = mpsc::channel();
+    let resume = Mutex::new(resume);
+    *lock(&host.shared.adoption_committed) = Some(Arc::new(move || {
+        entered.send(()).unwrap(); lock(&resume).recv_timeout(Duration::from_secs(10)).unwrap();
+    }));
+    let next = source.replace("return rows first 10", "return rows first 20");
+    let shared = host.shared.clone();
+    let adoption = thread::spawn(move || shared.engine.call(move |engine, shared| {
+        let bound = snapback4_lang::compile(&[("schema.q".into(), next)]);
+        assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+        let (generation, _) = adoption::adopt_candidate(shared, engine, &bound, || panic!("unexpected reopen")).unwrap();
+        lock(&shared.readers).replace(engine, &bound.refusal_sites);
+        *lock(&shared.bound) = bound;
+        *lock(&shared.generation) = generation;
+    }).unwrap());
+    committed.recv_timeout(Duration::from_secs(5)).unwrap();
+    let address = host.address;
+    let (sent, response) = mpsc::channel();
+    let query = thread::spawn(move || sent.send(exchange_held(address, Duration::from_secs(10),
+        "POST /q/read HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nx-snapback-persona: alice\r\nContent-Length: 2\r\n\r\n{}")).unwrap());
+    let mut early = None;
+    // waiting() excludes the running adoption, so one waiter is the query
+    // parked behind its committed-but-not-published reader handoff.
+    wait_until(|| host.shared.engine.waiting() >= 1 || { early = response.try_recv().ok(); early.is_some() });
+    release.send(()).unwrap();
+    adoption.join().unwrap();
+    assert!(early.is_none(), "query must wait behind the committed adoption handoff: {early:?}");
+    let response = response.recv_timeout(Duration::from_secs(5)).unwrap();
+    query.join().unwrap();
+    assert_eq!(status(&response), 200, "{response}");
+    let value = body(&response);
+    assert_eq!(value["data"][0]["n"], 7, "{value}");
+    assert_eq!(value["generation"], *lock(&host.shared.generation));
+}
+
+#[test]
+fn query_handoff_does_not_accept_a_genuine_foreign_activation() {
+    let directory = ReaderTestDirectory::new();
+    let file = directory.0.join("foreign.sqlite");
+    let source = "use personas alice\nquery read():\n  return 1\n";
+    let host = Host::with_store(true, snapback4_core::Store::open(&file).unwrap(), source);
+    let next = snapback4_lang::compile(&[("schema.q".into(), source.replace("return 1", "return 2"))]);
+    let foreign = Engine::new(snapback4_core::Store::open(&file).unwrap(), next.schema, next.programs.into_iter().map(|p| p.program)).unwrap();
+    drop(foreign);
+    let response = host.request("POST", "/q/read", "x-snapback-persona: alice\r\n", "{}");
+    assert_eq!(status(&response), 503, "{response}");
+    assert_eq!(body(&response)["denied"]["code"], "E_GENERATION", "{response}");
+}

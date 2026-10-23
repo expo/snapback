@@ -29,6 +29,8 @@ pub(super) const ACTIONS: &[(&str, &[&str])] = &[
     ("E_SECURITY_NOTES", &["Inspect snapback/security-reviews.json and run check --json for current IDs.", "Supply a nonempty specification reason for one current note", "neither bulk acknowledgments nor this file can clear an actual refutation."]),
     ("E_STORE_OWNERSHIP", &["A stale token refuses before durable work.", "Stop admission, acquire ownership on the lease connection and reopen with the acquired token."]),
     ("E_COMMIT_OUTCOME_UNKNOWN", &["The operation may already be durable.", "Resolve its persisted receipt or operation key before any retry.", "Automatic retry is disabled"]),
+    ("E_COMMITTER_STOPPED", &["The command was not applied.", "Retry only after the server recovers.", "A disconnection after execution starts is E_COMMIT_OUTCOME_UNKNOWN instead"]),
+    ("E_CLOCK_REPORT_INCOMPLETE", &["it is not retryable and has no Retry-After", "Inspect the clock and queued work or use clock drain (0ms).", "Never repeat the original relative duration to recover the report"]),
     ("E_WORKER_STORE_ID", &["Repair the store binding before starting workers.", "Keep the ledger with the store across releases and backups."]),
     ("E_STORE_CONFIG", &["Use one store selector.", "Restore the matching immutable release and logical store binding before serving."]),
     ("E_WORKER_STATE", &["Configure that directory before starting workers.", "The ledger filename uses the logical store id"]),

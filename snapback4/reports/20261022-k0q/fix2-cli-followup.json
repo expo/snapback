@@ -1,0 +1,51 @@
+{
+  "full_cli_code_commit": "aeb62378f7",
+  "full_cli": {
+    "passed": 1422,
+    "failed": 11,
+    "ignored": 19,
+    "log": "/tmp/sb4-k0q-fix2-final/cli.log"
+  },
+  "every_failure_rerun_alone": true,
+  "lane_repairs": [
+    "dedicated why explanations and guide routing for E_COMMITTER_STOPPED and E_CLOCK_REPORT_INCOMPLETE",
+    "interrupted-clock fixture requires incomplete-report envelope plus original interruption cause, advancedMs, pause and queued work; no retry header"
+  ],
+  "affected_repeat": {
+    "full_cli_unit_binary": {
+      "passed": 535,
+      "failed": 0,
+      "ignored": 9,
+      "log": "/tmp/sb4-k0q-fix2-final/cli-bin-fixed.log",
+      "outer_test_threads": "default (RUST_TEST_THREADS unset; host nproc=12)"
+    },
+    "exact_why_integration": {
+      "passed": 1,
+      "failed": 0,
+      "log": "/tmp/sb4-k0q-fix2-final/why-fixed.log"
+    }
+  },
+  "passed_isolated_after_full_failure": [
+    "advance_drains_expiry_across_multiple_bounded_sweeps",
+    "check_refutes_excluded_contact_roles_before_any_full_test"
+  ],
+  "remaining_reproduced": [
+    "w8b_residency_measures_the_wired_calibration_shape",
+    "w7a_residency_measures_the_wired_500_follow_reader",
+    "live_dev_forwards_run_refuses_other_offline_writers_with_its_address_and_releases_on_exit",
+    "check_and_adoption_agree_across_expiry_through_changes_and_following_presence",
+    "retirement_resets_dependent_aggregates_even_when_all_names_survive",
+    "web_witness_help_and_invalid_input"
+  ],
+  "full_cli_lifecycle": {
+    "passed": 29,
+    "failed": 0,
+    "seconds": 40.75,
+    "adoption_issue_closed": true
+  },
+  "other_supplied_baselines_pass": [
+    "farm2_typescript_7_is_refused_by_version_not_crashed_on",
+    "w11r1c_toolchain_why_explains_node_start_failure_too"
+  ],
+  "repair_commit": "2ddab22685"
+}

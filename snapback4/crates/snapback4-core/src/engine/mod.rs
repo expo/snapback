@@ -28,6 +28,8 @@ mod asset_uploads;
 #[cfg(feature = "sqlite")]
 pub(crate) mod committer;
 #[cfg(feature = "sqlite")]
+pub mod command;
+#[cfg(feature = "sqlite")]
 use committer::{Committed, Committer, Kind, Member, Pending};
 pub mod components;
 #[cfg(feature = "sqlite")]
