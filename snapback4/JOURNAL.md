@@ -102561,3 +102561,11 @@ missing affirmative paging evidence and two bounded process-cleanup defects.
 These are repaired before the final full amendment review. Mac is skipped by
 commission; integration owns it. Complete verification and copied-lane results
 will be recorded in the DX8 workstream report, with inherited failures separate.
+
+The final integrated Linux wasm build measured 2,407,197 B raw / 735,599 B
+gzip. It exceeded the inherited 735,388 B budget by 211 B, so the budget was
+measured-ratcheted to 736,099 B: exactly the artifact plus 500 B headroom. That
+is a +706 B raw / +711 B gzip whole-artifact change from qualified 0.4.38
+(2,406,491 B raw / 734,888 B gzip) across DX7, K0-Q, ROLL and DX8. It is not an
+independent feature-cost attribution and changes no runtime ceiling; fan-out
+extraction remains cfg(SQLite) and does not ship in the web device.
