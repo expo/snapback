@@ -198,22 +198,18 @@ pub(super) fn prepare(
             }
         }}
         let current=current.with_column_names(&columns);
+        let policies=super::rollback_view_policy::Policies::new(&compiled.schema,&current);
         for (name, table) in &compiled.schema.tables {
             if let Some(next) = current.table(name) {
                 use snapback4_core::schema::Constraint;
                 let hard=|c:&Constraint|!matches!(c,Constraint::Text{..}|Constraint::Unique{..}|Constraint::Capabilities(_)|Constraint::Recorded);
-                let column=|field:&String|field.clone();
                 for c in next.constraints.iter().filter(|c|hard(c)) {
-                    let mut constraint=c.clone();
-                    match &mut constraint {Constraint::Cap{by,..}|Constraint::Immutable{fields:by}=>for f in by{*f=column(f)},_=>()}
-                    if !table.constraints.contains(&constraint){return Err(format!("E_ADOPT: rollback view for release {target} cannot preserve current constraint on {name}; author a compatible guarded rollback workflow"))}
+                    if !table.constraints.iter().any(|view|policies.constraint(view,c)){return Err(format!("E_ADOPT: rollback view for release {target} cannot preserve current constraint on {name}; author a compatible guarded rollback workflow"))}
                 }
                 for index in next.indexes.values().filter(|i|i.unique){
-                    let mut components=index.components.clone();for part in &mut components{if let snapback4_core::schema::IndexComponent::Column(c)=part{*c=column(c);}}
-                    if !table.indexes.values().any(|i|i.unique&&i.components==components){return Err(format!("E_ADOPT: rollback view for release {target} cannot preserve a current unique key on {name}; author a compatible guarded rollback workflow"))}
+                    if !table.indexes.values().any(|i|i.unique&&i.components==index.components){return Err(format!("E_ADOPT: rollback view for release {target} cannot preserve a current unique key on {name}; author a compatible guarded rollback workflow"))}
                 }
-                let on_delete=next.on_delete.iter().map(|(field,policy)|(column(field),policy.clone())).collect::<std::collections::BTreeMap<_,_>>();
-                if table.expire!=next.expire||table.not_before!=next.not_before||table.through!=next.through||table.on_delete!=on_delete||table.sync!=next.sync||table.leave!=next.leave {
+                if table.expire!=next.expire||table.not_before!=next.not_before||table.through!=next.through||table.on_delete!=next.on_delete||!policies.sync(name,table.sync.as_ref(),next.sync.as_ref())||table.leave!=next.leave {
                     return Err(format!("E_ADOPT: rollback view for release {target} cannot preserve current lifetime or sync audience on {name}; author a compatible guarded rollback workflow"))
                 }
                 if ![
@@ -223,9 +219,9 @@ pub(super) fn prepare(
                     (&table.rules.delete, &next.rules.delete),
                 ]
                 .iter()
-                .all(|(view, current)| view == current)
+                .all(|(view, current)| policies.rule(view,current))
                     || table.columns.keys().any(|c| {
-                        table.column_reads.get(c) != next.column_reads.get(c)
+                        !policies.optional_rule(table.column_reads.get(c),next.column_reads.get(c))
                             || table.written_by.get(c) != next.written_by.get(c)
                     })
                 {

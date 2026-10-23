@@ -103768,3 +103768,19 @@ cycles and the new implicit lookup/default rollback case. Full qualification
 is repeated after the last correction; superseded interrupted runs are never
 counted green. Verbatim independent reviews and provenance are in llp/reviews.
 The final integration report binds runtime/store/packed/Exact and Mac evidence.
+
+
+### Integration 23 index review continuation: compiled policy key identity
+
+A further fresh review reproduced a CLI false refusal when a final-existence
+obligation kept the same target and ordered key under a different physical
+index label. The actual before test refuses the current constraint on records.
+Admission now compares the complete aligned Index definition and every policy
+operand, provenance and residual equality. Boolean guard structure, audiences,
+window limits, lifetimes and written-by authority remain exact. No executable
+read is renamed and no data or migration is synthesized. Three focused policy
+unit tests and the complete 17-case CLI rollback target pass, including the
+new real deploy/default rollback/forward fixture. The earlier 58-case language
+and 38-case rollback security preflight remains green; full qualification is
+repeated after the final correction. Fresh dual-family review continues with
+verbatim artifacts under llp/reviews.
