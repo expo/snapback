@@ -36,13 +36,20 @@ pub fn token(options: &Options) -> i32 {
     };
     let days: i64 = options.flags.get("days").and_then(|d| d.parse().ok()).unwrap_or(365);
     // @ref LLP 3000.000.000.001#8-wave-18-developer-loop-amendment-dx4 — project registry selects; private mutual proof authorizes.
+    let seat_facts;
     let path = match options.flags.get("release") {
         Some(dir) => match releases::existing_deployment(Path::new(dir)) {
-            Ok(dir) => dir.join("store.sqlite"),
+            Ok(dir) => {
+                seat_facts = releases::bound_current(&dir).map(|bound| crate::service_identities::collect(&bound));
+                dir.join("store.sqlite")
+            },
             Err(error) => { eprintln!("token: {error}"); return 2; }
         },
         None => {
             let project = project_or_exit();
+            seat_facts = project.compile().map_err(|error| error.to_string()).and_then(|bound| if bound.diagnostics.is_empty() {
+                Ok(crate::service_identities::collect(&bound))
+            } else { Err("the working schema has compiler diagnostics".into()) });
             let hosts = match crate::dev_hosts::live(&project.root.canonicalize().unwrap_or(project.root.clone())) {
                 Ok(hosts) => hosts,
                 Err(error) => { eprintln!("token: {error}"); return 2; }
@@ -93,6 +100,15 @@ pub fn token(options: &Options) -> i32 {
                     eprintln!("token: a session for {} until {}; printed once; keep it where the worker keeps secrets", session.principal, session.expires_at);
                     eprintln!("store: {}; this token belongs only to this store; each isolated store needs its own", store_path.display());
                 }
+            }
+            let principal = format!("service:{name}");
+            match &seat_facts {
+                Ok(seats) if !seats.contains(&principal) => {
+                    let known = if seats.is_empty() { "none".into() } else { seats.iter().cloned().collect::<Vec<_>>().join(", ") };
+                    eprintln!("token: WARNING minted {principal}, but the compiled schema reports no explicit positive authorization mention for that service identity; rules still decide every operation (explicit service identities: {known})");
+                }
+                Err(reason) => eprintln!("token: WARNING minted {principal}, but {reason}; verify an explicit positive authorization mention for this service identity because rules still decide every operation"),
+                _ => {}
             }
             0
         }

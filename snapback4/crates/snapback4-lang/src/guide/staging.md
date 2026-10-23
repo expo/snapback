@@ -107,8 +107,9 @@ refuse production or dev before minting a token or creating any account.
 `host.provisionAccounts(plan)` (or startServe's `provisionUsers`) accepts the
 same roles/provision/args/service plan in production, creates real password
 accounts, and performs the ordinary service-authorized mutation for each one.
-It warns when the minted service seat is absent from served schema authorization;
-the token gains no implicit grant. Partial failure can leave real accounts/grants.
+It warns when the served schema reports no explicit positive authorization
+mention for the minted service seat; rules still decide every operation and the
+token gains no implicit grant. Partial failure can leave real accounts/grants.
 
 ### E_STAGING
 

@@ -56,9 +56,20 @@ test("proof provisionAccounts authenticates schema inspection and warns for an u
  });
  const accounts=await provisionAccounts({url:"http://example",operatorToken:async service=>{assert.equal(service,"unused");return "operator";}},{roles:{member:1},provision:{name:"provision"},service:"unused",timeoutMs:1000});
  assert.equal(schemaAuthorization,"Bearer operator");
- assert.match(warning,/service:unused.*matches no schema-authorized identity/);
+ assert.match(warning,/service:unused.*no explicit positive authorization.*rules still decide/);
  assert.match(accounts.member[0].email,/^production-member-/);
  assert.deepEqual(provision.args,{principal:"user:one",role:"member"});
+});
+test("proof provisionAccounts gives production-safe partial setup advice",async t=>{
+ t.mock.method(globalThis,"fetch",async url=>{
+  if(url.endsWith("/auth/config"))return response({environment:"production",development:false,password:true});
+  if(url.endsWith("/schema"))return response({service_identities:["service:setup"]});
+  return response({denied:{code:"E_AUTH",family:"auth",message:"signup refused",retryable:false}},401);
+ });
+ await assert.rejects(
+  provisionAccounts({url:"http://example",operatorToken:async()=>"operator"},{roles:{member:1},provision:{name:"provision"},service:"setup",timeoutMs:1000}),
+  error=>error.message.includes("inspect partial production accounts/grants")&&!error.message.includes("discard")
+ );
 });
 test("proof seeding respects the remaining setup budget and never retries lost signup replies",async t=>{
  for(const failure of ["delay","network"]){let signups=0,provisions=0;

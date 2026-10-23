@@ -29,9 +29,10 @@ async function accounts(host: Pick<ServeHost, "url" | "operatorToken">, options:
     throw Error("E_STAGING_INPUT: provide 1..100 accounts across named roles, a mutation handle and a positive timeoutMs");
   }
   const end = performance.now() + timeout;
+  const partial = environment === "staging" ? "inspect or discard this staging deployment" : "inspect partial production accounts/grants before retrying";
   const remaining = () => {
     const ms = Math.ceil(end - performance.now());
-    if (ms <= 0) throw Error("E_STAGING_TIMEOUT: setup incomplete; partial accounts/grants may exist; inspect or discard this staging deployment");
+    if (ms <= 0) throw Error(`E_STAGING_TIMEOUT: setup incomplete; partial accounts/grants may exist; ${partial}`);
     return ms;
   };
   const request = (path: string, init?: RequestInit) => fetch(host.url + path, { ...init, signal: AbortSignal.timeout(Math.min(remaining(), 30_000)) });
@@ -45,8 +46,8 @@ async function accounts(host: Pick<ServeHost, "url" | "operatorToken">, options:
   const operator = await host.operatorToken(service);
   if (environment === "production") {
     const response = await request("/schema", { headers: { authorization: `Bearer ${operator}` } }), schema = await response.json();
-    const named = (value: unknown): boolean => value === `service:${service}` || (value !== null && typeof value === "object" && Object.values(value).some(named));
-    if (!response.ok || !named(schema)) process.stderr.write(`snapback4: WARNING minted service:${service} seat matches no schema-authorized identity; provisionAccounts(${options.provision.name}) will likely refuse.\n`);
+    const named = response.ok && Array.isArray(schema.service_identities) && schema.service_identities.includes(`service:${service}`);
+    if (!named) process.stderr.write(`snapback4: WARNING minted service:${service}, but the served schema reports no explicit positive authorization mention for that service identity; rules still decide every operation and provisionAccounts(${options.provision.name}) will likely refuse.\n`);
   }
   const sessions: StagingSessions = Object.create(null);
   for (const [role, count] of roles) {
@@ -64,13 +65,13 @@ async function accounts(host: Pick<ServeHost, "url" | "operatorToken">, options:
       }
       const session = reply.session as {principal?:string;kind?:string;token?:string;expiresAt?:number} | undefined;
       if (typeof session?.principal !== "string" || typeof session.token !== "string" || typeof session.expiresAt !== "number" || session.kind !== "user") {
-        throw Error(`E_STAGING_SIGNUP: signup refused (${(reply.denied as {code?:string} | undefined)?.code ?? "invalid reply"}); partial accounts/grants may exist`);
+        throw Error(`E_STAGING_SIGNUP: signup refused (${(reply.denied as {code?:string} | undefined)?.code ?? "invalid reply"}); partial accounts/grants may exist; ${partial}`);
       }
       const account: StagingAccount = { kind: session.kind, role, email, password, principal: session.principal, token: session.token, expiresAt: session.expiresAt };
       const args = { principal: account.principal, role, ...options.args?.(account) };
       const response = await request(`/m/${options.provision.name}`, { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${operator}` }, body: JSON.stringify({ id: randomUUID(), args }) });
       const result = await response.json();
-      if (!response.ok || result.state !== "sent") throw Error(`E_STAGING_PROVISION: ${options.provision.name} refused (${result.why?.code ?? result.denied?.code ?? "invalid reply"}); partial accounts/grants may exist`);
+      if (!response.ok || result.state !== "sent") throw Error(`E_STAGING_PROVISION: ${options.provision.name} refused (${result.why?.code ?? result.denied?.code ?? "invalid reply"}); partial accounts/grants may exist; ${partial}`);
       sessions[role]!.push(account);
     }
   }

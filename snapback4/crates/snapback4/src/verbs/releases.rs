@@ -111,6 +111,11 @@ fn inspect_current(dir: &Path) -> Result<u64, String> {
     release.trim().parse::<u64>().ok().filter(|n|*n>0).ok_or_else(missing)
 }
 
+pub(super) fn bound_current(dir: &Path) -> Result<snapback4_lang::Bound, String> {
+    let release = inspect_current(dir)?;
+    bound_at(dir.join("releases").join(release.to_string()))
+}
+
 fn pointer_current(dir: &Path, database: &Path) -> Result<u64, String> {
     let missing = || format!("no current release in {}; deploy first", dir.display());
     let pointer = std::fs::read_to_string(dir.join("current")).map_err(|_| missing())?;

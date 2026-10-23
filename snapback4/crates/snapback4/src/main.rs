@@ -37,6 +37,7 @@ mod timeline_cost;
 mod column_cost;
 mod scale;
 mod presentation;
+mod service_identities;
 mod sync_wire;
 mod store_owner;
 mod store_config;
