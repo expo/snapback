@@ -192,7 +192,7 @@ mutation setup():
   return insert items {n:1}
 `;
     timed.source(timedV1);await timed.run(['deploy',timed.deployment,'--staging']);
-    const clockHost=await timed.serve({clockOffset:'-2h'});
+    const clockHost=await timed.serve({clockOffset:'+2h'});
     assert.equal((await clockHost.post('/m/setup',{},'integ18-clock')).state,'sent');
     timed.source(timedV1+'backfill items double(n: int): {n:n * 2}\n');
     const timedPreview=JSON.parse((await timed.run(['deploy',timed.deployment,'--check','--json'])).stdout);

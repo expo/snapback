@@ -166,7 +166,7 @@ test("MIG staging clock is operator-only and production never accepts an offset"
 });
 
 
-test("MIG hot adoption and exact previews use both signs of the staging clock", {timeout:90000}, async t=>{
+test("MIG hot adoption and exact previews use negative dev and positive staging clocks", {timeout:90000}, async t=>{
  const cwd=fixture(t);
  const base=`use identity password
 table facts:
@@ -192,30 +192,38 @@ mutation report(fact: facts):
 query readReport(id: reports):
   return reports[id]
 `;
+ const negative=base.replace("  not before .opensAt\n","");
+ writeFileSync(join(cwd,"snapback/schema.q"),negative);
+ let host=await startDev({cwd,args:["--memory","--clock-offset","-2h","--no-watch"]});
+ try {
+  const account=await signup(host.url,"negative-dev@example.test","valid-staging-test-password");assert.equal(account.ok,true);
+  assert.ok(Math.abs((await host.now())-Date.now()+7200000)<5000,"development may deliberately run behind wall time");
+  const expiresAt=Date.now()-3600000;
+  const fact=await post(host,"/m/fact",account.session.token,{opensAt:0,expiresAt});assert.equal(fact.state,"sent",JSON.stringify(fact));
+  const report=await post(host,"/m/report",account.session.token,{fact:fact.result.id});assert.equal(report.state,"sent",JSON.stringify(report));
+ } finally {await host.stop();}
  mkdirSync(join(cwd,"v2"));
  const nonloop=Object.values(networkInterfaces()).flat().find(n=>n && !n.internal && n.family==="IPv4")?.address;
  if(!nonloop)t.diagnostic("non-loopback bind witness unavailable: no external IPv4 interface");
- for(const bind of [undefined,...(nonloop?[nonloop]:[])])for(const offset of ["-2h","+2h"]){
-  // A not-before store already deployed at wall time has a disclosure floor.
-  // Test negative expiry without that floor; positive tests not-before as well.
-  const current=offset==="-2h"?base.replace("  not before .opensAt\n",""):base;
+ for(const bind of [undefined,...(nonloop?[nonloop]:[])]){
+  const current=base;
   writeFileSync(join(cwd,"snapback/schema.q"),current);
   const v2=current.replace("table reports:","table reports:\n  copied: time").replace("return insert reports {owner:viewer, fact}","f = facts[fact] ! else NOT_FOUND\n  return insert reports {owner:viewer, fact, copied:f.expiresAt}")+`backfill reports deadlines(fact: facts):
   {copied:(facts[fact] ! else NOT_FOUND).expiresAt}
 `;
   writeFileSync(join(cwd,"v2/schema.q"),v2);
-  const dir=(offset==="-2h"?"negative":"positive")+(bind?"-lan":"");
+  const dir="positive"+(bind?"-lan":"");
   await deploy(dir,"snapback",{cwd,args:["--staging"]});
-  const host=await startServe(dir,{cwd,clockOffset:offset,...(bind?{args:["--bind",bind,"--i-understand-cleartext"]}:{})});
+  host=await startServe(dir,{cwd,clockOffset:"+2h",...(bind?{args:["--bind",bind,"--i-understand-cleartext"]}:{})});
   try{
    const account=await signup(host.url,dir+"@example.test","valid-staging-test-password");assert.equal(account.ok,true);
-   const expiresAt=Date.now()+(offset==="-2h"?-3600000:10800000);
-   const fact=await post(host,"/m/fact",account.session.token,{opensAt:offset==="-2h"?0:Date.now()+3600000,expiresAt});assert.equal(fact.state,"sent",JSON.stringify(fact));
+   const expiresAt=Date.now()+10800000;
+   const fact=await post(host,"/m/fact",account.session.token,{opensAt:Date.now()+3600000,expiresAt});assert.equal(fact.state,"sent",JSON.stringify(fact));
    const report=await post(host,"/m/report",account.session.token,{fact:fact.result.id});assert.equal(report.state,"sent",JSON.stringify(report));
    const preview=await cli(["deploy",dir,"--schema","v2","--check"],{cwd});assert.equal(preview.code,0,preview.stderr+preview.stdout);assert.match(preview.stdout,/transformed 1 row/);
    await deploy(dir,"v2",{cwd});
-   const got=await post(host,"/q/readReport",account.session.token,{id:report.result.id});assert.equal(got.data.copied,expiresAt,offset);
-   const status=await cli(["releases",dir,"--json"],{cwd});assert.equal(status.code,0,status.stderr);if(!bind)assert.ok(Math.abs((await host.now()) - Date.now() - (offset==="-2h"?-7200000:7200000))<5000);
+   const got=await post(host,"/q/readReport",account.session.token,{id:report.result.id});assert.equal(got.data.copied,expiresAt);
+   const status=await cli(["releases",dir,"--json"],{cwd});assert.equal(status.code,0,status.stderr);if(!bind)assert.ok(Math.abs((await host.now()) - Date.now() - 7200000)<5000);
   }finally{await host.stop();}
  }
 });
