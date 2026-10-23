@@ -5,9 +5,10 @@ crates/snapback4-core/src/engine/word_heap/tests.rs 34
 crates/snapback4-core/src/identity.rs 4
 crates/snapback4-core/src/identity/diagnostics.rs 4
 crates/snapback4/src/dev_clock_store.rs 3
+crates/snapback4/src/dev_worker_tests.rs 4
 crates/snapback4/src/release_files.rs 2
 crates/snapback4/src/serve_changes.rs 3
-crates/snapback4/src/serve_tests.rs 11
+crates/snapback4/src/serve_tests.rs 10
 crates/snapback4/src/store_owner_tests.rs 7
 crates/snapback4/src/verbs/run_admission.rs 4
 crates/snapback4/src/verbs/sql_catalog.rs 14
