@@ -1,7 +1,7 @@
 //! Harness-owned physical state reset. No engine implementation is replaced.
 use crate::{execute, generate::Case};
 use postgres::{Client, NoTls};
-use snapback4_core::{Engine, engine::postgres::PostgresEngine, value::canonical_json, wire};
+use snapback4_core::{Engine, value::canonical_json, wire};
 use std::{
     collections::BTreeMap,
     error::Error,
@@ -48,7 +48,7 @@ pub struct Database {
     seeded: String,
 }
 pub(crate) struct World {
-    pub engine: PostgresEngine,
+    pub engine: Engine,
     /// The prelude's outcomes (`execute::prelude`), run once after seeding.
     pub prelude: Vec<execute::Outcome>,
     name: String,
@@ -111,6 +111,9 @@ impl Database {
         })
     }
     pub(crate) fn create(&mut self, case: &Case, source: &str) -> Result<World, String> {
+        self.create_prefetch(case, source, true)
+    }
+    pub(crate) fn create_prefetch(&mut self, case: &Case, source: &str, prefetch: bool) -> Result<World, String> {
         let mut b = execute::compile(source).map_err(|e| format!("binder: {e}"))?;
         let rows = case
             .rows
@@ -131,7 +134,7 @@ impl Database {
             .into_iter()
             .map(|p| (p.program.name.clone(), p.program))
             .collect();
-        let (client, diagnostics) = crate::pg_diagnostics::Diagnostics::connect(&self.url)?;
+        let (config, diagnostics) = crate::pg_diagnostics::Diagnostics::connect(&self.url)?;
         let (name, mut engine) = if let Some(name) = self.name.clone().filter(|_| !self.fresh) {
             self.batch(&self.empty.clone())?;
             // r/i store logical table names, not generated SQL tables. Install
@@ -143,7 +146,7 @@ impl Database {
                     &[&canonical_json(&b.schema), &canonical_json(&programs)],
                 )
                 .map_err(|e| error_chain("UPDATE compiled fixture", &e))?;
-            let engine = PostgresEngine::open(client, &name)
+            let engine = Engine::open_postgres_evaluation(config, &name)
                 .map_err(|e| diagnostics.describe(&crate::stores::setup_error(e)))?;
             (name, engine)
         } else {
@@ -156,7 +159,7 @@ impl Database {
                 std::process::id(),
                 NEXT.fetch_add(1, Ordering::Relaxed)
             );
-            let engine = PostgresEngine::create(client, &name, b.schema, programs.into_values())
+            let engine = Engine::create_postgres_evaluation(config, &name, b.schema, programs.into_values())
                 .map_err(|e| diagnostics.describe(&crate::stores::setup_error(e)))?;
             self.name = Some(name.clone());
             self.tables = self
@@ -177,7 +180,7 @@ impl Database {
         engine
             .seed_at(rows, execute::seed_clock(case))
             .map_err(|e| diagnostics.describe(&error_chain("seed INSERT/UPDATE/commit", &e)))?;
-        engine.set_prefetch(true);
+        engine.set_evaluation_prefetch(prefetch);
         let prelude = execute::prelude(&mut engine, case);
         engine.set_ceilings(case.budget);
         if case.program.mutation() {
@@ -189,6 +192,15 @@ impl Database {
             prelude,
             diagnostics,
         })
+    }
+    /// An independent namespace keeps the main world's seed/reset ownership intact.
+    pub(crate) fn prelude_prefetch_off(&self, case: &Case, source: &str) -> Result<Vec<execute::Outcome>, String> {
+        let mut probe = Self::connect_mode(self.fresh)?;
+        let world = probe.create_prefetch(case, source, false)?;
+        let outcomes = world.prelude.clone();
+        probe.remove(world)?;
+        probe.close()?;
+        Ok(outcomes)
     }
     fn snapshot(&mut self, name: &str) -> Result<String, String> {
         let mut sql = format!("BEGIN; SET LOCAL search_path={name},pg_catalog;");
@@ -230,8 +242,8 @@ impl Database {
             *world = self.create(case, source)?;
         } else {
             self.batch(&self.seeded.clone())?;
-            let (client, diagnostics) = crate::pg_diagnostics::Diagnostics::connect(&self.url)?;
-            let engine = PostgresEngine::open(client, &world.name)
+            let (config, diagnostics) = crate::pg_diagnostics::Diagnostics::connect(&self.url)?;
+            let engine = Engine::open_postgres_evaluation(config, &world.name)
                 .map_err(|e| diagnostics.describe(&crate::stores::setup_error(e)))?;
             world.engine = engine;
             world.diagnostics = diagnostics;

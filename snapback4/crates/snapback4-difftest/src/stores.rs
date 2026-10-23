@@ -35,6 +35,7 @@ use std::{collections::BTreeSet, path::Path, time::Instant};
 pub(crate) fn setup_error(error: snapback4_core::RuntimeError) -> String {
     use snapback4_core::RuntimeError;
     match &error {
+        RuntimeError::StoreUnsupported { family } => format!("postgres-unsupported:E_STORE_UNSUPPORTED:{family}"),
         RuntimeError::Structural { code, .. }
             if matches!(
                 *code,
@@ -186,7 +187,7 @@ fn reproduce_in(
     };
     if dimension.as_deref() == Some(PRELUDE) {
         let (_, left) = execute::world(case, source)?;
-        let world = match db.create(case, source) {
+        let world = match db.create_prefetch(case, source, *prefetch) {
             Ok(w) => w,
             Err(e) if e.starts_with("postgres-unsupported:") => return Ok(Verdict::Unsupported(e)),
             Err(e) => return Err(e),
@@ -204,7 +205,7 @@ fn reproduce_in(
         let mut sqlite = execute::engine(case, source)?;
         sqlite.set_ceilings(budget(oracle, case));
         world.engine.set_ceilings(budget(oracle, case));
-        world.engine.set_prefetch(*prefetch);
+        world.engine.set_evaluation_prefetch(*prefetch);
         world.clear_errors();
         let left = record(&mut sqlite, case);
         let right = record(&mut world.engine, case);
@@ -252,16 +253,18 @@ pub fn check(
         Err(e) => return Err(e),
     };
     if !case.steps.is_empty() || case.sweep {
-        let oracle = Oracle::Store {
-            prefetch: true,
-            dimension: Some(PRELUDE.into()),
-            ceiling: 0,
-        };
-        let verdict = oracle::prelude_disagreement(&oracle, &sqlite_prelude, &world.prelude, false).unwrap_or(Verdict::Pass);
-        report.executed += 2 * sqlite_prelude.len() as u64;
-        report.by_oracle.entry("store-postgres-prelude".into()).or_default().record(&verdict);
-        if let Verdict::Disagree(f) = verdict {
-            found(f);
+        for prefetch in [true, false] {
+            let oracle = Oracle::Store { prefetch, dimension: Some(PRELUDE.into()), ceiling: 0 };
+            let off;
+            let prelude = if prefetch { &world.prelude } else {
+                off = db.prelude_prefetch_off(case, &source)?;
+                &off
+            };
+            let verdict = oracle::prelude_disagreement(&oracle, &sqlite_prelude, prelude, false).unwrap_or(Verdict::Pass);
+            report.executed += 2 * sqlite_prelude.len() as u64;
+            let name = if prefetch { "store-postgres-prelude" } else { "store-postgres-prelude-off" };
+            report.by_oracle.entry(name.into()).or_default().record(&verdict);
+            if let Verdict::Disagree(f) = verdict { found(f); }
         }
     }
     let result = (|| {
@@ -422,13 +425,13 @@ pub fn check(
                     db.restore(&mut world, case, &source)?;
                 }
                 first_world = false;
-                world.engine.set_prefetch(prefetch);
+                world.engine.set_evaluation_prefetch(prefetch);
                 world.engine.set_ceilings(budget(&oracle, case));
-                let before = world.engine.stats();
+                let before = world.engine.evaluation_stats().map_err(|e| e.to_string())?;
                 world.clear_errors();
                 let right = record(&mut world.engine, case);
                 world.check_errors(&right)?;
-                let after = world.engine.stats();
+                let after = world.engine.evaluation_stats().map_err(|e| e.to_string())?;
                 for (name, delta) in [
                     (
                         "database_calls",
@@ -606,8 +609,8 @@ mod tests {
                         reuse.restore(&mut a, &case, &source).unwrap();
                         fresh.restore(&mut b, &case, &source).unwrap();
                     }
-                    a.engine.set_prefetch(prefetch);
-                    b.engine.set_prefetch(prefetch);
+                    a.engine.set_evaluation_prefetch(prefetch);
+                    b.engine.set_evaluation_prefetch(prefetch);
                     a.engine.set_ceilings(ceilings);
                     b.engine.set_ceilings(ceilings);
                     let left = record(&mut a.engine, &case);
@@ -696,6 +699,12 @@ mod tests {
     #[test]
     fn unsupported_is_limited_to_explicit_adapter_reasons() {
         use snapback4_core::RuntimeError;
+        let reason = setup_error(RuntimeError::StoreUnsupported { family: "assets" });
+        assert_eq!(reason, "postgres-unsupported:E_STORE_UNSUPPORTED:assets");
+        let mut counts = crate::oracle::Counts::default();
+        counts.record(&Verdict::Unsupported(reason.clone()));
+        assert_eq!((counts.attempted, counts.passed, counts.disagreeing), (1, 0, 0));
+        assert_eq!(counts.unsupported[&reason], 1);
         assert_eq!(
             setup_error(RuntimeError::Structural {
                 code: "E_QUARRY_EPHEMERAL",

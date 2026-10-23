@@ -3,7 +3,7 @@
 //! Only used with the evaluation adapter's unencrypted local test connection.
 use crate::store_database::error_chain;
 use postgres::{
-    Client, Config, NoTls,
+    Config,
     config::{Host, SslMode},
 };
 use std::{
@@ -129,7 +129,7 @@ fn backend(bytes: &[u8], state: &Mutex<State>) {
     state.errors.push(error);
 }
 impl Diagnostics {
-    pub fn connect(url: &str) -> Result<(Client, Self), String> {
+    pub fn connect(url: &str) -> Result<(Config, Self), String> {
         let config: Config = url
             .parse()
             .map_err(|e| error_chain("parse connection", &e))?;
@@ -252,10 +252,7 @@ impl Diagnostics {
             join: Some(join),
             shutdown,
         };
-        let client = local
-            .connect(NoTls)
-            .map_err(|e| diagnostics.describe(&error_chain("CONNECT engine", &e)))?;
-        Ok((client, diagnostics))
+        Ok((local, diagnostics))
     }
     pub fn clear(&self) {
         self.state.lock().unwrap().errors.clear();
@@ -284,10 +281,12 @@ impl Drop for Diagnostics {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use postgres::NoTls;
     #[test]
     fn retains_sqlstate_detail_and_statement_before_refusal_conversion() {
         let url = std::env::var("SNAPBACK4_EVAL_POSTGRES").unwrap();
-        let (mut client, diagnostics) = Diagnostics::connect(&url).unwrap();
+        let (config, diagnostics) = Diagnostics::connect(&url).unwrap();
+        let mut client = config.connect(NoTls).unwrap();
         let sql = "DO $$ BEGIN RAISE EXCEPTION 'diagnostic sentinel' USING ERRCODE='P0001', DETAIL='full detail sentinel'; END $$";
         let error = client.batch_execute(sql).unwrap_err();
         let detail = diagnostics.describe(&error_chain("DO", &error));

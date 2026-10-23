@@ -7,6 +7,8 @@ impl Engine {
         let store=self.store.fork_memory()?;
         let identity=store.store_identity()?.ok_or_else(||RuntimeError::Store("fixture store has no identity".into()))?;
         Ok(Self {
+            #[cfg(feature = "evaluation-support")]
+            evaluation_precharge: crate::meter::Metered::default(),
             timeline_schedule:timeline::Schedule::default(),
             ephemeral:std::sync::Arc::new(if self.schema.tables.values().any(|t|t.ephemeral.is_some()){self.ephemeral.fork_fixture(&identity,self.generation)?}else{ephemeral::Hub::new(identity.clone(),self.generation,&self.schema)}),
             store_id:identity,store,schema:self.schema.clone(),programs:self.programs.clone(),ceilings:self.ceilings,

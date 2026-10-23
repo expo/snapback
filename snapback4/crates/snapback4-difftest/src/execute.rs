@@ -151,32 +151,6 @@ impl Executor for Engine {
         Engine::sweep_expired(self, now, 10_000).map_err(|e| e.to_string())
     }
 }
-#[cfg(feature = "postgres")]
-impl Executor for snapback4_core::engine::postgres::PostgresEngine {
-    fn program(&self, name: &str) -> &snapback4_core::ir::Program {
-        &self.programs()[name]
-    }
-    fn query(
-        &mut self,
-        name: &str,
-        context: Context,
-    ) -> Result<snapback4_core::QueryOutcome, Refusal> {
-        Self::query(self, name, context)
-    }
-    fn mutate(
-        &mut self,
-        name: &str,
-        context: Context,
-    ) -> Result<snapback4_core::MutationOutcome, snapback4_core::RuntimeError> {
-        Self::mutate(self, name, None, context)
-    }
-    fn set_ceilings(&mut self, ceilings: snapback4_core::Ceilings) {
-        Self::set_ceilings(self, ceilings);
-    }
-    fn sweep(&mut self, now: i64) -> Result<u64, String> {
-        Self::sweep_expired(self, now, 10_000).map_err(|e| e.to_string())
-    }
-}
 pub fn execute(engine: &mut impl Executor, case: &Case, name: &str, args: &Json) -> Outcome {
     execute_as(engine, case, name, args, &case.principal, case.clock)
 }

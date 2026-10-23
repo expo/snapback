@@ -36,7 +36,7 @@ impl AnyTx<'_> {
 }
 
 impl Handle {
-    pub(super) fn connect(config: postgres::Config, name: &str, fresh: bool) -> Result<Self, RuntimeError> {
+    pub(crate) fn connect(config: postgres::Config, name: &str, fresh: bool) -> Result<Self, RuntimeError> {
         Self::connect_inner(config, name, fresh, None)
     }
     pub(super) fn connect_owned(config: postgres::Config, name: &str, fence: Option<super::ownership::Fence>) -> Result<Self, RuntimeError> {

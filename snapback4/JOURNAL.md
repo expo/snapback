@@ -103074,3 +103074,20 @@ are absent; no target executable remains. Final sampled free space is
 149.38 GiB; no disk guard crossed 40 GiB. PG17/55440 and other sessions'
 clusters are untouched. Local commit only; no push, stash or Git configuration
 change.
+
+## 2026-10-23 — S10e-1 evaluation migration, implementation checkpoint
+
+Ordinary evaluation callers now use the common Engine over Postgres AnyStore;
+the old PostgresEngine stays as an explicit oracle. Added feature-gated
+constructors, prefetch, precharge and physical statistics, and preserved the
+wire observer. Difftest recognizes E_STORE_UNSUPPORTED without increasing
+passed, and executes/replays preludes with the requested prefetch setting.
+The RFC §3.4 records the evaluation-only Serializable driver plan and exact
+S10e-2 deletion checklist. No production retry authority was added.
+
+The private-cluster comparison exposed a prefetch-dependent heap charge on
+`add` (1,969 versus 1,979 B); its exact assertion remains and an issues ticket
+records it. Common read-through evolution also refuses release-activation where
+the retained oracle accepts. Both remain visible for disposition before
+executor deletion. Qualification results follow in a separate dated entry and
+the lane report; this checkpoint makes no complete-parity claim.
