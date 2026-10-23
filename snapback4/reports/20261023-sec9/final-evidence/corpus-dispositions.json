@@ -1,0 +1,193 @@
+[
+  {
+    "lane": "w15-016-day2-waste-accumulation-clock",
+    "lines": [
+      "invariant containers.hazard update only exists people[viewer, role = 'ehs']"
+    ],
+    "exit": 0,
+    "newGatesRemaining": [],
+    "parsed": true,
+    "diagnostics": [],
+    "classification": "explicit creation/edit difference requires one matching update-only line per column; no source app was modified"
+  },
+  {
+    "lane": "w18-047-snapback-hyperbaric-chamber-log",
+    "lines": [
+      "invariant staff.role update only exists staff[viewer, role = 'physician']"
+    ],
+    "exit": 0,
+    "newGatesRemaining": [],
+    "parsed": true,
+    "diagnostics": [],
+    "classification": "explicit creation/edit difference requires one matching update-only line per column; no source app was modified"
+  },
+  {
+    "lane": "w18-048-snapback-repair-cafe-intake",
+    "lines": [
+      "invariant roster.role update only exists hostSeats[viewer]"
+    ],
+    "exit": 0,
+    "newGatesRemaining": [],
+    "parsed": true,
+    "diagnostics": [],
+    "classification": "explicit creation/edit difference requires one matching update-only line per column; no source app was modified"
+  },
+  {
+    "lane": "w19-002-snapback-venison-processing-tags",
+    "lines": [
+      "invariant carcasses.intakeTagRef update only exists roles[viewer, role = 'clerk']",
+      "invariant carcasses.tagNumber update only exists roles[viewer, role = 'clerk']"
+    ],
+    "exit": 0,
+    "newGatesRemaining": [],
+    "parsed": true,
+    "diagnostics": [],
+    "classification": "explicit creation/edit difference requires one matching update-only line per column; no source app was modified"
+  },
+  {
+    "lane": "w19-029-snapback-coin-grading-submissions",
+    "lines": [
+      "invariant coins.insuranceTier update only exists roles[viewer, role = 'officer']"
+    ],
+    "exit": 0,
+    "newGatesRemaining": [],
+    "parsed": true,
+    "diagnostics": [],
+    "classification": "explicit creation/edit difference requires one matching update-only line per column; no source app was modified"
+  },
+  {
+    "lane": "w19-047-snapback-hyperbaric-chamber-log",
+    "lines": [
+      "invariant staff.role update only exists staff[viewer, role = 'physician']"
+    ],
+    "exit": 0,
+    "newGatesRemaining": [],
+    "parsed": true,
+    "diagnostics": [],
+    "classification": "explicit creation/edit difference requires one matching update-only line per column; no source app was modified"
+  },
+  {
+    "lane": "w19-048-snapback-repair-cafe-intake",
+    "lines": [
+      "invariant roster.role update only exists hostSeats[viewer]"
+    ],
+    "exit": 0,
+    "newGatesRemaining": [],
+    "parsed": true,
+    "diagnostics": [],
+    "classification": "explicit creation/edit difference requires one matching update-only line per column; no source app was modified"
+  },
+  {
+    "lane": "w21-001-snapback-luthier-crack-repairs",
+    "lines": [
+      "invariant estimates.appraisal update only exists roles[viewer, role = 'shopOwner']"
+    ],
+    "exit": 0,
+    "newGatesRemaining": [],
+    "parsed": true,
+    "diagnostics": [],
+    "classification": "explicit creation/edit difference requires one matching update-only line per column; no source app was modified"
+  },
+  {
+    "lane": "w21-026-snapback-bookbinding-restoration-jobs",
+    "lines": [
+      "invariant books.conditionOnArrival update only exists roles[viewer, role = 'head_conservator']",
+      "invariant books.damage update only exists roles[viewer, role = 'head_conservator']"
+    ],
+    "exit": 0,
+    "newGatesRemaining": [],
+    "parsed": true,
+    "diagnostics": [],
+    "classification": "explicit creation/edit difference requires one matching update-only line per column; no source app was modified"
+  },
+  {
+    "lane": "w21-042-snapback-english-class-placement",
+    "lines": [
+      "invariant tests.writing update only exists roles[viewer, role = 'coordinator']"
+    ],
+    "exit": 0,
+    "newGatesRemaining": [],
+    "parsed": true,
+    "diagnostics": [],
+    "classification": "explicit creation/edit difference requires one matching update-only line per column; no source app was modified"
+  },
+  {
+    "lane": "w23-001-snapback-stained-glass-restorations",
+    "lines": [
+      "invariant panels.quoteBand update only exists roles[viewer, role = 'director']"
+    ],
+    "exit": 0,
+    "newGatesRemaining": [],
+    "parsed": true,
+    "diagnostics": [],
+    "classification": "explicit creation/edit difference requires one matching update-only line per column; no source app was modified"
+  },
+  {
+    "lane": "w23-005-snapback-tool-library-loans",
+    "lines": [
+      "invariant loans.inspectionFocus update only exists roles[viewer, role = 'coordinator']"
+    ],
+    "exit": 0,
+    "newGatesRemaining": [],
+    "parsed": true,
+    "diagnostics": [],
+    "classification": "explicit creation/edit difference requires one matching update-only line per column; no source app was modified"
+  },
+  {
+    "lane": "w23-017-snapback-pawn-loan-tickets",
+    "lines": [
+      "invariant tickets.loanSize update only exists roles[viewer, role = 'manager']"
+    ],
+    "exit": 0,
+    "newGatesRemaining": [],
+    "parsed": true,
+    "diagnostics": [],
+    "classification": "explicit creation/edit difference requires one matching update-only line per column; no source app was modified"
+  },
+  {
+    "lane": "w23-022-snapback-court-interpreter-bookings",
+    "lines": [
+      "invariant bookings.minutes update only exists roles[viewer, role = 'coordinator']",
+      "invariant bookings.plannedInterpretingDuration update only exists roles[viewer, role = 'coordinator']"
+    ],
+    "exit": 0,
+    "newGatesRemaining": [],
+    "parsed": true,
+    "diagnostics": [],
+    "classification": "explicit creation/edit difference requires one matching update-only line per column; no source app was modified"
+  },
+  {
+    "lane": "w23-031-snapback-wedding-cake-orders",
+    "lines": [
+      "invariant orders.inspiration update only exists roles[viewer, role = 'owner']"
+    ],
+    "exit": 0,
+    "newGatesRemaining": [],
+    "parsed": true,
+    "diagnostics": [],
+    "classification": "explicit creation/edit difference requires one matching update-only line per column; no source app was modified"
+  },
+  {
+    "lane": "w23-041-snapback-swim-school-assessments",
+    "lines": [
+      "invariant billing.enrollmentType update only exists roles[viewer, role = 'frontDesk']",
+      "invariant billing.feeCents update only exists roles[viewer, role = 'frontDesk']"
+    ],
+    "exit": 0,
+    "newGatesRemaining": [],
+    "parsed": true,
+    "diagnostics": [],
+    "classification": "explicit creation/edit difference requires one matching update-only line per column; no source app was modified"
+  },
+  {
+    "lane": "w23-042-snapback-mobile-notary-signings",
+    "lines": [
+      "invariant signings.agencyBillingNotes update only (exists roles[viewer, role = 'dispatcher'] or exists roles[viewer, role = 'owner']) and exists roles[viewer, role = 'owner'] and allow and allow"
+    ],
+    "exit": 0,
+    "newGatesRemaining": [],
+    "parsed": true,
+    "diagnostics": [],
+    "classification": "explicit creation/edit difference requires one matching update-only line per column; no source app was modified"
+  }
+]

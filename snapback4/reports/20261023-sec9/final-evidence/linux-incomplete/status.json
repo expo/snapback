@@ -1,0 +1,8 @@
+{
+  "status": "incomplete",
+  "mode": "consumer-only",
+  "blocker": "proveDay5 testing-guide residency refuses E_SCHEMA: source reservations differ from the schema derivation",
+  "publicationReceipt": false,
+  "clientSha256": "d7abd25d477703a5d5a1400af98be10adc3f9c642bbd437e0034c54dc4d2d625",
+  "expoSha256": "9086f7c4a43736518c3327e923d1680c78b916e75529613ff9151af12ece7d77"
+}
