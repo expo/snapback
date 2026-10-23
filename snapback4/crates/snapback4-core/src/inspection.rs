@@ -83,3 +83,10 @@ pub struct InspectionRows {
     pub rows: Vec<Vec<serde_json::Value>>,
     pub more: bool,
 }
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum InspectionColumnKind {
+    Plain,
+    Bool,
+    Media,
+}
