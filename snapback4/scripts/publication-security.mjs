@@ -8,6 +8,19 @@ import { fileURLToPath } from "node:url";
 import { runToolchainCommand } from "./publication-starters.mjs";
 
 const sha256 = path => createHash("sha256").update(readFileSync(path)).digest("hex");
+const explorationWorkBound = "check concrete exploration work budget exhausted; remaining paths unproved; run snapback4 test for the full campaign";
+const explorationBounds = new Set([
+  explorationWorkBound,
+  "check concrete exploration time budget exhausted; remaining paths unproved; run snapback4 test for the full campaign",
+]);
+
+function normalizeExplorationBound(report) {
+  const coverage = report.campaign_coverage;
+  assert.ok(Array.isArray(coverage), "audit report carries campaign coverage");
+  const recognized = coverage.filter(item => explorationBounds.has(item));
+  assert.equal(recognized.length, 1, "audit report carries one recognized exploration bound");
+  return { ...report, campaign_coverage: coverage.map(item => explorationBounds.has(item) ? explorationWorkBound : item) };
+}
 
 /** Execute only the supplied packed client/CLI; never build or repack source.
  * Evidence contains counters and verdicts, never credentials or HTTP bodies. */
@@ -75,7 +88,11 @@ export async function proveSecurity(clientTarball, platformTarball, directory) {
     assert.equal(audited.format, 1); assert.ok(audited.exposures.some(exposure => exposure.table === "privateNotes"));
     assert.ok(audited.exposures.some(exposure => exposure.table === "privateNotes" && exposure.column_audiences?.body), "installed audit exposes the body column audience");
     const checkAudit = JSON.parse(command(["check", "--audit", "--json"], project));
-    assert.equal(checkAudit.format, 1); assert.deepEqual(checkAudit, audited, "check --audit is the structured audit alias");
+    assert.equal(checkAudit.format, 1);
+    // Wall-clock contention can reach the time bound just before the same
+    // finite campaign reaches its work bound. Both diagnostics describe the
+    // same bounded coverage; every other field remains exact.
+    assert.deepEqual(normalizeExplorationBound(checkAudit), normalizeExplorationBound(audited), "check --audit is the structured audit alias");
     const finite = campaign(project, true);
     const broad = source.replace("read <- .patient = viewer", "read <- allow");
     assert.notEqual(broad, source, "the installed card's private read is widened for the counterexample");

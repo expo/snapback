@@ -2513,6 +2513,19 @@ export async function prepareStaging(host: ServeHost) {
 }
 ```
 
+Production uses the same explicit role plan and ordinary operator-authorized
+mutation. Run this only against a fresh production deployment whose schema
+declares password identity and the `provision` mutation:
+
+```ts
+import { provisionAccounts, type ServeHost } from "snapback4/proof";
+export async function prepareProduction(host: ServeHost) {
+  return provisionAccounts(host, {
+    roles: { member: 1 }, provision: { name: "provision" },
+  });
+}
+```
+
 `signup` and `login` below work in Node 24 with the same server password hashing,
 rate limits and application rules as browser sign-in. Run `snapback4 guide auth`
 for a runnable `seed.mjs`: declare `use identity password`, run `snapback4 check`,
@@ -4041,6 +4054,16 @@ The application client declarations typecheck with ES2022 and WebWorker librarie
 imports remain usable with ES2022/WebWorker types alone. Use the generated
 `frontend:proof` first; `guide testing` shows the short browser recipe. A custom
 proof can compose the same bounded hosts, private logs and saved release inputs:
+
+For a complete paged assertion, pass each opaque continuation back unchanged.
+The helper refuses an incomplete, partial or over-limit traversal:
+
+```ts
+import { exhaustPages } from "snapback4/proof";
+export async function readEveryRow<Row>(readPage: Parameters<typeof exhaustPages<Row>>[0]) {
+  return exhaustPages(readPage, { label: "business assertion" });
+}
+```
 
 ```ts
 import { startDev, startServe, startStatic, startVite, cli, command, deploy,

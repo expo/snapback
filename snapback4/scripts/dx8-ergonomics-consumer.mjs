@@ -2,8 +2,8 @@
 import assert from "node:assert/strict";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
-import { cleanup, cli, exhaustPages, renderedText, startDev, waitForFresh, withBrowser } from "snapback4/proof";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { cleanup, cli, deploy, exhaustPages, renderedText, startDev, startServe, waitForFresh, withBrowser } from "snapback4/proof";
 
 const guide = async name => {
   const result = await cli(["guide", name, "--full"]);
@@ -93,6 +93,41 @@ try {
 
 const proofModule = fileURLToPath(import.meta.resolve("snapback4/proof"));
 const packageRoot = dirname(dirname(proofModule));
+const clientOperations = readFileSync(join(packageRoot, "CLIENT-AND-OPERATIONS.md"), "utf8");
+const typescriptBlocks = [...clientOperations.matchAll(/^```ts\n([\s\S]*?)^```\s*$/gm)].map(match => match[1]);
+async function installedExample(name, needle) {
+  const matches = typescriptBlocks.filter(block => block.includes(needle));
+  assert.equal(matches.length, 1, `${name} has one installed TypeScript fence`);
+  const path = join(process.cwd(), `${name}.ts`); writeFileSync(path, matches[0]);
+  return import(pathToFileURL(path).href);
+}
+const { readEveryRow } = await installedExample("guide-read-every-row", "function readEveryRow<Row>");
+const pagedRows = await readEveryRow(async cursor => cursor === null
+  ? { data: [{ id: "new" }], next: "opaque:guide", complete: true, cut: null }
+  : { data: [{ id: "old" }], next: null, complete: true, cut: null });
+assert.deepEqual(pagedRows.map(row => row.id), ["new", "old"], "installed paging fence exhausts every row");
+
+const accountSource = join(process.cwd(), "account-source"); mkdirSync(accountSource);
+writeFileSync(join(accountSource, "schema.q"), `use identity password
+table roles:
+  principal: principal
+  role: enum('member')
+  unique principal
+  read <- .principal = viewer
+  insert <- viewer = 'service:operator'
+  online only
+mutation provision(principal: principal, role: enum('member')):
+  require viewer = 'service:operator' else NOT_OPERATOR
+  return upsert roles[principal] {principal, role}
+`);
+await deploy("account-deployment", "account-source");
+const accountHost = await startServe("account-deployment");
+try {
+  const { prepareProduction } = await installedExample("guide-prepare-production", "function prepareProduction(host: ServeHost)");
+  const prepared = await prepareProduction(accountHost);
+  assert.equal(prepared.member.length, 1, "installed production fence provisions its requested role");
+} finally { await accountHost.stop(); }
+
 const production = readFileSync(join(packageRoot, "dist/recipes/production/web/schema.q"), "utf8");
 for (const query of [
   /return members where \.principal = viewer after c last 100 by \.id/,
