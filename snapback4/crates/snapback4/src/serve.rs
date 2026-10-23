@@ -98,6 +98,7 @@ pub struct Shared {
     pub engine: committer::Writer,
     adoption: Mutex<adoption::Status>,
     readers: Mutex<QueryReaders>,
+    carried: Mutex<BTreeMap<String, (String, snapback4_core::identity::Capability)>>,
     read_cuts: Mutex<read_cost::ReadCuts>,
     pub bound: Mutex<Bound>,
     pub generation: Mutex<u64>,
@@ -412,7 +413,7 @@ impl RequestAdmission {
     fn limit(&self, class: RequestClass) -> usize { self.limits[class as usize] }
     fn acquire(self: &Arc<Self>, class: RequestClass) -> Option<RequestPermit> {
         let limit = self.limit(class) + if class == RequestClass::Short { SHORT_REQUEST_QUEUE } else { 0 };
-        self.counter(class).fetch_update(Ordering::AcqRel, Ordering::Acquire, |n| (n < limit).then_some(n + 1)).ok()?;
+        self.counter(class).fetch_update(Ordering::AcqRel, Ordering::Acquire, |n| (n < limit).then(|| n + 1)).ok()?;
         Some(RequestPermit { admission: self.clone(), class })
     }
 }
@@ -948,9 +949,9 @@ fn handle(mut request: Request, shared: &Shared) {
         return respond_timed(request, shared, 403, json!({ "denied": refusal_json(&dev_doors::reset_release()) }));
     }
     let mut operation_capability = None;
-    // Check identity before upload admission or allocating any large body.
-    // Preflight or execution resolves again after reading, so expiry/revocation
-    // during a slow upload cannot retain the authority held at its start.
+    // Check credentials before upload admission; /q carries bounded hints.
+    // Fresh preflight/execution authority follows body and queue waits, so
+    // expiry/revocation cannot retain an earlier observation's authority.
     // Logout's body is only 4 KiB and its sole authentication happens inside
     // the SQLite writer transaction that closes the live session family.
     if method == Method::Post && (path == "/assets" || path.starts_with("/assets/intent/") || path == "/sync" || path.starts_with("/q/") || path.starts_with("/following/") || path.starts_with("/m/") || path.starts_with("/a/")

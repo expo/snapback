@@ -80,3 +80,84 @@ SQLite first use 132. W1/W2 remain 2/1 PG and 5/5 SQLite. Both ratchets and all
 five round-trip/publication cases pass. This is a new class, not an increased
 allowance for any existing class, and not the old M1 harness's 136-statement
 or PG2's 153-call measurement.
+
+## 4. One-statement bounded facts
+
+The conservative physical planner collects fixed-key and identity-dependent
+points, uniform literal-bounded pages and their single-level rule probes in
+one composed SELECT. W3's single excluded non-null total-unique key adds at
+most one candidate; Rust still evaluates its predicate. Dependent keys use
+the actual nominal Id tag, UTF-8 bytes and terminator; identity admission
+forbids NUL. Unicode, quotes, backslashes and newlines are exercised.
+
+Facts include ordinary authority, store identity, generation and head in the
+same snapshot. The existing shared Rust resolver, interpreter and meter still
+choose every authorization verdict, arithmetic result, refusal, cut and cursor.
+The query's Rust execution consumes transaction-local exact answers after
+physical collection; no result, snapshot or authority decision is retained
+across requests. Cached public scans reproduce the ordinary logical size,
+vector, key and preflight charges. Existing speculative prefetch skips facts
+already held by this snapshot instead of opening redundant savepoints.
+
+Physical limits remain the existing 4 MiB prefetch envelope, at most 16 access
+nodes and 32 prepared closure shapes per connection. The transfer guard also
+reserves keys, escaping and decode copies, not just payload bytes. Template
+values use the existing typed RT5/RT6 encoder; owned template keys avoid leaking
+runtime strings. Unsupported shapes, byte/shape admission and speculative
+decode failures retain/reopen ordinary access before execution. No public
+meter, workload, durability, timeout or flight allowance increases.
+Fixed speculative keys also stay within the existing portable key envelope;
+wider/non-scalar keys fall back without choosing an application refusal.
+
+Fallback includes unbounded/arbitrary filters, dynamic non-identity addresses,
+mutable/shadowed addresses, nullable uniqueness, nested rule probes, lifetimes,
+ephemeral/sync/through rows and private field/recording surfaces. A dependent
+address source containing arbitrary JSON/assets or an enum with NUL also
+falls back: PostgreSQL JSON extraction unescapes the entire image and rejects
+an otherwise valid unrelated JSON NUL. A real both-store fixture proves this
+retains the portable Rust behavior; same-level raw JSON facts stay eligible.
+
+The carried-capability map now has its own mutex, so its lookup cannot wait on
+reader-factory I/O. Cached principal sizes are bounded; no TTL or cached allow
+bit exists. Fresh metadata-refusal snapshots also compare a carried query
+scope/kind before returning their envelope. The deadline witness now expires
+an actual queued request behind all occupied workers.
+
+Initial full HTTP measurement, before lowering the final ratchet: **warm PG
+W1/account W1/W2/W3 = 1/1/1/1**. All remaining warm classes retain their RT6
+values. SQLite remains at its post-ingress values (W1/W2/W3 = 5/5/132).
+The run correctly refused the obsolete ratchet and requested lowering it;
+the final lowered-table run passes all five HTTP/publication tests. Numeric evidence is
+in [counts.json](./counts.json); no raw logs are committed.
+
+First-use PG W1/W2/W3 are 3/3/3. First-use keyed/action are 20/25 versus
+19/23 before composition: earlier composed reads no longer warm the separate
+authority templates those later classes first use. Their warmed budgets stay
+9/17. Cold preparation remains visible, not hidden or charged to background.
+These counts and deterministic bursts do not establish an S1 capacity/SLO.
+
+Focused evidence: five core cases pass, covering real maintained totals,
+all seven logical meter dimensions at zero/one/under/at observed use, complete
+outcomes/cursors/errors against ordinary PG and SQLite, static fallback,
+transaction-local planted membership/total/order/authority faults, a foreign
+commit plus revocation after fact collection, and valid JSON NUL fallback.
+The store-oracle's actual composed request path passes four seeded variants,
+including hidden membership and missing rows, with planted data/meter/cursor/
+refusal differentials and one-flight assertions for W2/W3.
+
+## 5. Qualification
+
+Full core: 1,169 passed across 48 targets, 318 existing ignored cases, no
+failures. Full binary: 580 passed, 46 existing ignored cases, no failures.
+The first binary run exposed a stale latency fixture: it filled only the
+old active-worker count, then reset the counter while an admitted request
+was live. The fixture now fills the full bounded admission; the counter
+increment is lazy at saturation. The complete binary rerun passes.
+
+The final both-store RT0 run passes all five tests, including cold unknown
+bearers with malformed JSON/unknown operations (one PG discovery flight,
+no metadata). No warm class allowance increased. RT6 was independently
+checked during qualification and remains exactly the requested base.
+
+The remaining private Postgres sweep, final focused checks and confirmed
+PID shutdown are recorded below when complete.

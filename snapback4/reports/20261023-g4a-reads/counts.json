@@ -1,0 +1,224 @@
+{
+  "before_composition": {
+    "postgres": {
+      "first_use": {
+        "account_unkeyed_increment": 8,
+        "account_w1": 3,
+        "action_session_w1": 23,
+        "keyed_first": 19,
+        "narrowed_argument": 2,
+        "one_membership": 9,
+        "rate_limited": 0,
+        "replay_hit": 2,
+        "unauthenticated": 0,
+        "unkeyed_increment": 10,
+        "unknown_operation": 2,
+        "unknown_token": 1,
+        "w1_point": 7,
+        "w2_newest20": 3,
+        "w3_membership_totals": 138
+      },
+      "warm": {
+        "account_unkeyed_increment": 8,
+        "account_w1": 2,
+        "action_session_w1": 17,
+        "keyed_first": 9,
+        "narrowed_argument": 2,
+        "one_membership": 9,
+        "rate_limited": 0,
+        "replay_hit": 2,
+        "unauthenticated": 0,
+        "unkeyed_increment": 8,
+        "unknown_operation": 2,
+        "unknown_token": 1,
+        "w1_point": 2,
+        "w2_newest20": 1,
+        "w3_membership_totals": 134
+      }
+    },
+    "sqlite": {
+      "first_use": {
+        "account_unkeyed_increment": 22,
+        "account_w1": 6,
+        "action_session_w1": 21,
+        "keyed_first": 30,
+        "narrowed_argument": 4,
+        "one_membership": 23,
+        "rate_limited": 0,
+        "replay_hit": 5,
+        "unauthenticated": 0,
+        "unkeyed_increment": 22,
+        "unknown_operation": 4,
+        "unknown_token": 2,
+        "w1_point": 5,
+        "w2_newest20": 5,
+        "w3_membership_totals": 132
+      },
+      "warm": {
+        "account_unkeyed_increment": 22,
+        "account_w1": 5,
+        "action_session_w1": 21,
+        "keyed_first": 30,
+        "narrowed_argument": 4,
+        "one_membership": 23,
+        "rate_limited": 0,
+        "replay_hit": 5,
+        "unauthenticated": 0,
+        "unkeyed_increment": 22,
+        "unknown_operation": 4,
+        "unknown_token": 2,
+        "w1_point": 5,
+        "w2_newest20": 5,
+        "w3_membership_totals": 132
+      }
+    }
+  },
+  "composed_initial_measurement": {
+    "postgres": {
+      "first_use": {
+        "account_unkeyed_increment": 8,
+        "account_w1": 2,
+        "action_session_w1": 25,
+        "keyed_first": 20,
+        "narrowed_argument": 2,
+        "one_membership": 9,
+        "rate_limited": 0,
+        "replay_hit": 2,
+        "unauthenticated": 0,
+        "unkeyed_increment": 10,
+        "unknown_operation": 2,
+        "unknown_token": 1,
+        "w1_point": 3,
+        "w2_newest20": 3,
+        "w3_membership_totals": 3
+      },
+      "warm": {
+        "account_unkeyed_increment": 8,
+        "account_w1": 1,
+        "action_session_w1": 17,
+        "keyed_first": 9,
+        "narrowed_argument": 2,
+        "one_membership": 9,
+        "rate_limited": 0,
+        "replay_hit": 2,
+        "unauthenticated": 0,
+        "unkeyed_increment": 8,
+        "unknown_operation": 2,
+        "unknown_token": 1,
+        "w1_point": 1,
+        "w2_newest20": 1,
+        "w3_membership_totals": 1
+      }
+    },
+    "sqlite": {
+      "first_use": {
+        "account_unkeyed_increment": 22,
+        "account_w1": 6,
+        "action_session_w1": 21,
+        "keyed_first": 30,
+        "narrowed_argument": 4,
+        "one_membership": 23,
+        "rate_limited": 0,
+        "replay_hit": 5,
+        "unauthenticated": 0,
+        "unkeyed_increment": 22,
+        "unknown_operation": 4,
+        "unknown_token": 2,
+        "w1_point": 5,
+        "w2_newest20": 5,
+        "w3_membership_totals": 132
+      },
+      "warm": {
+        "account_unkeyed_increment": 22,
+        "account_w1": 5,
+        "action_session_w1": 21,
+        "keyed_first": 30,
+        "narrowed_argument": 4,
+        "one_membership": 23,
+        "rate_limited": 0,
+        "replay_hit": 5,
+        "unauthenticated": 0,
+        "unkeyed_increment": 22,
+        "unknown_operation": 4,
+        "unknown_token": 2,
+        "w1_point": 5,
+        "w2_newest20": 5,
+        "w3_membership_totals": 132
+      }
+    }
+  },
+  "composed_final_ratchet_pass": {
+    "sqlite": {
+      "warm": {
+        "account_unkeyed_increment": 22,
+        "account_w1": 5,
+        "action_session_w1": 21,
+        "keyed_first": 30,
+        "narrowed_argument": 4,
+        "one_membership": 23,
+        "rate_limited": 0,
+        "replay_hit": 5,
+        "unauthenticated": 0,
+        "unkeyed_increment": 22,
+        "unknown_operation": 4,
+        "unknown_token": 2,
+        "w1_point": 5,
+        "w2_newest20": 5,
+        "w3_membership_totals": 132
+      },
+      "first_use": {
+        "account_unkeyed_increment": 22,
+        "account_w1": 6,
+        "action_session_w1": 21,
+        "keyed_first": 30,
+        "narrowed_argument": 4,
+        "one_membership": 23,
+        "rate_limited": 0,
+        "replay_hit": 5,
+        "unauthenticated": 0,
+        "unkeyed_increment": 22,
+        "unknown_operation": 4,
+        "unknown_token": 2,
+        "w1_point": 5,
+        "w2_newest20": 5,
+        "w3_membership_totals": 132
+      }
+    },
+    "postgres": {
+      "warm": {
+        "account_unkeyed_increment": 8,
+        "account_w1": 1,
+        "action_session_w1": 17,
+        "keyed_first": 9,
+        "narrowed_argument": 2,
+        "one_membership": 9,
+        "rate_limited": 0,
+        "replay_hit": 2,
+        "unauthenticated": 0,
+        "unkeyed_increment": 8,
+        "unknown_operation": 2,
+        "unknown_token": 1,
+        "w1_point": 1,
+        "w2_newest20": 1,
+        "w3_membership_totals": 1
+      },
+      "first_use": {
+        "account_unkeyed_increment": 8,
+        "account_w1": 2,
+        "action_session_w1": 25,
+        "keyed_first": 20,
+        "narrowed_argument": 2,
+        "one_membership": 9,
+        "rate_limited": 0,
+        "replay_hit": 2,
+        "unauthenticated": 0,
+        "unkeyed_increment": 10,
+        "unknown_operation": 2,
+        "unknown_token": 1,
+        "w1_point": 3,
+        "w2_newest20": 3,
+        "w3_membership_totals": 3
+      }
+    }
+  }
+}

@@ -120,7 +120,7 @@ fn latency_release_requires_a_live_service_and_never_allows_reset() {
 #[test]
 fn latency_admission_refusals_do_not_disappear() {
     let host = Host::with_store(true, snapback4_core::Store::memory().unwrap(), SOURCE);
-    host.admission.short.store(REQUEST_WORKERS, Ordering::Release);
+    host.admission.short.store(REQUEST_WORKERS + SHORT_REQUEST_QUEUE, Ordering::Release);
     let mut stream = TcpStream::connect(host.address).unwrap();
     stream.set_read_timeout(Some(Duration::from_secs(3))).unwrap();
     stream.write_all(b"POST /q/read HTTP/1.1\r\nHost: localhost\r\nContent-Length: 2\r\n\r\n{}").unwrap();

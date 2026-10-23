@@ -147,6 +147,7 @@ impl Host {
         let generation = engine.generation();
         let readers = Mutex::new(QueryReaders::new(&engine, &bound.refusal_sites));
         let shared = Arc::new(Shared {
+        carried: Mutex::new(BTreeMap::new()),
         dev_reset_store: Mutex::new(None), dev_identity: None,
         release_requests: Arc::new(crate::release_requests::Gate::default()),
         following: Mutex::new(snapback4_core::engine::following_history::Reader::new().unwrap()),

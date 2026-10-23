@@ -10,7 +10,7 @@ pub(super) const GET: &str = "SELECT data FROM r WHERE t = $1 AND id = $2";
 pub(super) const ASC: &str = "SELECT r.data, i.k FROM i JOIN r ON r.t = i.t AND r.id = i.id WHERE i.t = $1 AND i.ix = $2 AND i.k >= $3 AND i.k < $4 ORDER BY i.k ASC LIMIT $5";
 pub(super) const DESC: &str = "SELECT r.data, i.k FROM i JOIN r ON r.t = i.t AND r.id = i.id WHERE i.t = $1 AND i.ix = $2 AND i.k >= $3 AND i.k < $4 ORDER BY i.k DESC LIMIT $5";
 #[derive(Clone, PartialEq, Eq)]
-struct Access { table: String, index: String, id: Option<String>, lo: Vec<u8>, hi: Vec<u8>, dir: Dir, n: i64 }
+pub(super) struct Access { pub(super) table: String, pub(super) index: String, pub(super) id: Option<String>, pub(super) lo: Vec<u8>, pub(super) hi: Vec<u8>, pub(super) dir: Dir, pub(super) n: i64 }
 impl Access {
     fn point(table: &str, index: &str, key: &[Value]) -> Option<Self> {
         if index == "byId" {
@@ -18,7 +18,7 @@ impl Access {
         }
         Self::range(table, index, key, Dir::Asc, 1)
     }
-    fn range(table: &str, index: &str, key: &[Value], dir: Dir, n: i64) -> Option<Self> {
+    pub(super) fn range(table: &str, index: &str, key: &[Value], dir: Dir, n: i64) -> Option<Self> {
         let (lo,hi) = crate::rows::scan_range(key, &Bounds::default(), dir)?;
         Some(Self { table: table.into(), index: index.into(), id: None, lo, hi, dir, n })
     }
@@ -30,7 +30,7 @@ impl Access {
     }
 }
 #[derive(Default)]
-pub(super) struct Answers(Vec<(Access, Vec<(Value, Vec<u8>)>)>);
+pub(super) struct Answers(pub(super) Vec<(Access, Vec<(Value, Vec<u8>)>)>);
 impl Answers {
     pub fn get(&self, table: &str, id: &str) -> Option<Option<Value>> {
         self.0.iter().find(|(a,_)| a.table == table && a.id.as_deref() == Some(id)).map(|(_,v)| v.first().map(|(v,_)| v.clone()))
@@ -41,14 +41,33 @@ impl Answers {
         self.scan(table,index,&lo,&hi,Dir::Asc,1).map(|v| v.first().map(|(v,_)|v.clone()))
     }
     pub fn scan(&self, table: &str, index: &str, lo: &[u8], hi: &[u8], dir: Dir, n: usize) -> Option<Vec<(Value,Vec<u8>)>> {
-        self.0.iter().find(|(a,v)| a.id.is_none() && a.table == table && a.index == index && a.lo == lo && a.hi == hi && a.dir == dir && (a.n as usize >= n || v.len() < a.n as usize))
-            .map(|(_,v)| v.iter().take(n).cloned().collect())
+        self.0.iter().find_map(|(a,v)| {
+            if a.id.is_some() || a.table != table || a.index != index || a.lo.as_slice() > lo || a.hi.as_slice() < hi || a.dir != dir {return None;}
+            let selected:Vec<_>=v.iter().filter(|(_,k)|k.as_slice()>=lo && k.as_slice()<hi).take(n).cloned().collect();
+            let complete=v.len()<a.n as usize;
+            (selected.len()>=n || complete).then_some(selected)
+        })
+    }
+}
+pub(crate) enum Plan { Composed(super::read_closure::Closure), Sequence(Sequence) }
+impl Plan {
+    pub fn new(schema:&Schema,program:&Program,context:&Context)->Option<Self> {
+        // The two physical paths share the interpreter, without retaining two
+        // schema copies on the successful one-statement path.
+        if let Some(plan)=super::read_closure::Closure::new(schema,program,context) {return Some(Self::Composed(plan));}
+        Sequence::new(schema,program,context).map(Self::Sequence)
+    }
+    pub fn execute(self,tx:&Tx<'_>,digest:&str)->Result<crate::identity::facts::SessionFacts,RuntimeError> {
+        match self {Self::Composed(plan)=>plan.execute(tx,digest),Self::Sequence(plan)=>plan.execute(tx,digest)}
+    }
+    pub(super) fn finish(self,tx:&Tx<'_>)->Result<(),RuntimeError> {
+        match self {Self::Sequence(plan)=>plan.finish(tx),Self::Composed(_)=>Err(RuntimeError::Store("completed composed read plan".into()))}
     }
 }
 struct Root { access: Access, fields: BTreeMap<String,Value> }
-pub(crate) struct Plan { roots: Vec<Root>, accesses: Vec<Access>, later: bool, schema: Schema, viewer: String }
-impl Plan {
-    pub fn new(schema: &Schema, program: &Program, context: &Context) -> Option<Self> {
+pub(crate) struct Sequence { roots: Vec<Root>, accesses: Vec<Access>, later: bool, schema: Schema, viewer: String }
+impl Sequence {
+    fn new(schema: &Schema, program: &Program, context: &Context) -> Option<Self> {
         if schema.tables.values().any(|t|t.not_before.is_some()) { return None; }
         if program.native || program.kind != ProgramKind::Query || !matches!(context.request_credential_kind.as_deref()?, "guest"|"user"|"member"|"account"|"oidc"|"service") { return None; }
         let mut plan = Self { roots: vec![], accesses: vec![], later:false, schema:schema.clone(), viewer:context.viewer.clone() };
@@ -121,7 +140,7 @@ impl Plan {
         if !self.accesses.contains(&root.access) { self.accesses.push(root.access.clone()); }
         self.roots.push(root);
     }
-    pub fn execute(self, tx: &Tx<'_>, digest: &str) -> Result<crate::identity::facts::SessionFacts,RuntimeError> {
+    fn execute(self, tx: &Tx<'_>, digest: &str) -> Result<crate::identity::facts::SessionFacts,RuntimeError> {
         let facts_sql = super::authority::session_facts_sql(tx.read_sessions.get());
         let digest_params: &[&(dyn ToSql + Sync)] = &[&digest];
         let params: Vec<_> = self.accesses.iter().map(Access::params).collect();
@@ -132,7 +151,7 @@ impl Plan {
         if !self.later { tx.finish_read_flight(); }
         if tx.needs_complete_facts(&facts) { return tx.complete_request_facts(digest); }
         for (access,result) in self.accesses.iter().zip(results) { insert(tx,access.clone(),result.rows)?; }
-        if self.later { *tx.pending_read.borrow_mut() = Some(self); }
+        if self.later { *tx.pending_read.borrow_mut() = Some(Plan::Sequence(self)); }
         Ok(facts)
     }
     pub(super) fn finish(self, tx: &Tx<'_>) -> Result<(),RuntimeError> {
@@ -202,7 +221,7 @@ fn probe_bytes(s: &Schema,r: &RuleExpr) -> u64 {
         _ => 0,
     }
 }
-fn has_probe(r: &RuleExpr) -> bool {
+pub(super) fn has_probe(r: &RuleExpr) -> bool {
     match r { RuleExpr::Exists {..}|RuleExpr::Created{..} => true, RuleExpr::And(rs)|RuleExpr::Or(rs)=>rs.iter().any(has_probe), RuleExpr::Not(r)=>has_probe(r), _=>false }
 }
 

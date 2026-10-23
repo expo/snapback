@@ -21,6 +21,7 @@ mod tail;
 pub mod literal;
 mod flight;
 pub(crate) mod read_plan;
+mod read_closure;
 #[cfg(test)]
 mod literal_tests;
 mod through;

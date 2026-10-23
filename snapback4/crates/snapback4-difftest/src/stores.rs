@@ -810,3 +810,6 @@ mod tests {
     }
 
 }
+
+#[cfg(test)]
+mod composed_reads;

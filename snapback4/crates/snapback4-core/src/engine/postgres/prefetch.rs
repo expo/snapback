@@ -54,6 +54,15 @@ impl Tx<'_> {
         let mut lookups: BTreeMap<(String, String), BTreeMap<Vec<u8>, Vec<u8>>> = BTreeMap::new();
         let mut calls = BTreeSet::new();
         for request in requests {
+            // A composed snapshot already owns these exact facts. Never open
+            // speculative savepoints or issue another flight for them.
+            let exact=self.read_cache.borrow();
+            let covered=match request {
+                PrefetchRequest::Get{table,id}=>exact.get(table,id).is_some(),
+                PrefetchRequest::Lookup{table,index,key}=>exact.lookup(table,index,key).is_some(),
+            };
+            drop(exact);
+            if covered {continue;}
             let call = match request {
                 PrefetchRequest::Get { table, id } => Call::Get(table.clone(), id.clone()),
                 PrefetchRequest::Lookup { table, index, key: values } => Call::Lookup(table.clone(), index.clone(), key::encode(values)),

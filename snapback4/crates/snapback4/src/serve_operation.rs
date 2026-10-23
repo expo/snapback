@@ -66,7 +66,12 @@ fn denied(why: Refusal) -> Reply { Reply { status: if why.code == "E_STORE_REPLA
 pub(super) fn prepare(request: &Request, shared: &Shared, name: &str, body: &str, capability: Option<snapback4_core::identity::Capability>) -> Result<Prepared, Reply> {
     let mutation = request.url().starts_with("/m/");
     let admission = session_identity::Admission::capture(request, shared).map_err(denied)?;
-    let admission = if let Some(capability) = &capability { admission.planned(capability) } else { admission.discovering() };
+    // Intake has already bounded/read the body. Discover a cold credential
+    // before parsing it, so even an unknown bearer with malformed JSON costs
+    // only the discovery flight and cannot reach metadata judgment.
+    let capability = match capability { Some(capability)=>capability, None=>session_identity::ingress_of(request,shared).map_err(denied)? };
+    let admission=admission.planned(&capability);
+    let admission=if mutation {admission} else {admission.query_expected(&capability)};
     let payload: Json = match serde_json::from_str(if body.is_empty() {"{}"} else {body}) {
         Ok(value) => value,
         Err(error) => {
@@ -74,12 +79,6 @@ pub(super) fn prepare(request: &Request, shared: &Shared, name: &str, body: &str
             let reply = shared.request_snapshot(admission, move |_, engine, _, snapshot| Ok(judgment.reply(mutation, &Json::Null, (snapshot.store_id.clone(), snapshot.head, engine.generation())))).map_err(denied)?;
             return Err(reply);
         }
-    };
-    let capability = match capability {
-        Some(capability) => capability,
-        // A cold bearer is learned only after bounded body intake. Unknown
-        // bearers finish here in one facts flight, without metadata or judgment.
-        None => session_identity::ingress_of(request, shared).map_err(denied)?,
     };
     if mutation { #[cfg(test)] test_work(&shared.mutation_wait); }
     let prepared = if mutation && payload.get("id").and_then(Json::as_str).is_some() {

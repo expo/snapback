@@ -19,7 +19,6 @@ pub(super) fn query_context(engine: &Engine, shared: &Shared, op: &str, args: &J
 pub(super) struct QueryReaders {
     pub(super) epoch: Arc<()>,
     pub(super) idle: Vec<Engine>,
-    pub(super) carried: BTreeMap<String, (String, snapback4_core::identity::Capability)>,
     pub(super) source: Option<Engine>,
     memory: bool,
     pub(super) refusal_sites: Arc<dev_refusals::Sites>,
@@ -58,7 +57,6 @@ impl QueryReaders {
         // retain their old epoch so an in-flight return cannot repopulate it.
         self.epoch = Arc::new(());
         self.idle.clear();
-        self.carried.clear();
         self.source = None;
         self.candidate_queries.clear();
         self.launching_feed = false;

@@ -104658,3 +104658,33 @@ warm baseline is PG 134 flights, SQLite 132 statements; first use 138/132.
 Both tables and all five round-trip/publication cases pass. Existing class
 allowances are unchanged. This records the real pre-collector baseline;
 it does not borrow M1's different harness counts.
+
+## 2026-10-23 — G4a bounded one-statement fact closure
+
+Warm HTTP PG W1/W2/W3 now measure 1/1/1 flights, from RT6's 3/2 and the
+new W3 baseline's 134. SQL fetches bounded facts; the shared Rust resolver,
+interpreter and meters still choose outcomes. SQLite stays 5/5/132 after
+ingress refinement. The obsolete PG table correctly requested lowering;
+final verification uses the lowered table. No existing warm class increases.
+
+Five focused core witnesses and the composed store-oracle pass, including
+real maintained totals, all logical meter dimensions, cursor/error parity,
+planted fact faults, commit/revocation after collection and valid JSON NUL
+fallback. PostgreSQL JSON path extraction rejects NUL even in an unrelated
+legal JSON payload; affected dependent-address shapes conservatively retain
+Rust decoding. Statement/decode/key bytes and prepared shapes are bounded
+inside existing physical allowances. The hint map uses a separate mutex;
+metadata refusals retain the carried scope check and the queue expiry witness
+now holds a real queued request. Reports/20261023-g4a-reads/REPORT.md records
+counts, fallback and first-use costs; full checks/cleanup are in progress.
+
+## 2026-10-23 — G4a collector checkpoint qualification
+
+The frozen collector passes all five private-PG witnesses and both lowered
+RT0 ratchets (five HTTP/publication tests). Full core has 1,169 passes across
+48 targets; full binary rerun has 580 passes. Its first run exposed an old
+latency fixture that filled only active workers; the fixture now fills the
+bounded admission and the saturated increment is lazy. No bounds increased.
+The final affected collector/HTTP checks follow the full suites. The stock
+Postgres sweep is still running and its retained evaluator 40001 is red;
+cleanup and the complete sweep disposition will be recorded separately.

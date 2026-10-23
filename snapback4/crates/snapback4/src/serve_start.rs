@@ -181,6 +181,7 @@ pub fn serve(
         matches!(mode, Mode::Dev {fresh:true,..}), host_owner.as_ref().and_then(|o| o.path().ok()).map(std::path::Path::to_path_buf))?) } else {None};
     let readers = Mutex::new(QueryReaders::new(&engine, &bound.refusal_sites));
     let shared = Arc::new(Shared {
+        carried: Mutex::new(BTreeMap::new()),
         dev_reset_store: Mutex::new(None),
         dev_identity: registration.as_ref().map(|r| r.identity.clone()),
         release_requests: Arc::new(crate::release_requests::Gate::default()),

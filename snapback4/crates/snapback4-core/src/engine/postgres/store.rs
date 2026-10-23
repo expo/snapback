@@ -86,8 +86,8 @@ pub struct Store {
     pub(crate) read_only: bool,
     pub(crate) client: Client,
     qualified: bool,
-    literal_cache: BTreeMap<&'static str, super::literal::Prepared>,
-    cache: BTreeMap<&'static str, Statement>,
+    literal_cache: BTreeMap<String, super::literal::Prepared>,
+    cache: BTreeMap<String, Statement>,
     pub calls: CallCounter,
     pub prefetch: bool,
     pub marked_reads: Cell<u64>,
@@ -161,7 +161,7 @@ impl Store {
         let statement = if let Some(statement) = self.cache.get(sql) { statement.clone() } else {
             self.calls.set(self.calls.get() + 1);
             let statement = self.client.prepare(sql)?;
-            self.cache.insert(sql, statement.clone()); statement
+            self.cache.insert(sql.into(), statement.clone()); statement
         };
         guard_text_params(&statement, &[&digest])?;
         self.calls.set(self.calls.get() + 1);
@@ -236,12 +236,12 @@ impl Store {
         let bind = if let Some(bind) = self.cache.get(sql) {bind.clone()} else {
             self.calls.set(self.calls.get()+1);
             let bind = self.client.prepare(sql)?;
-            self.cache.insert(sql,bind.clone()); bind
+            self.cache.insert(sql.into(),bind.clone()); bind
         };
         if !self.literal_cache.contains_key(sql) {
             self.calls.set(self.calls.get()+1);
             let prepared = super::literal::Prepared::from_bind(&mut self.client,&super::literal::serving_name(),sql,bind)?;
-            self.literal_cache.insert(sql,prepared);
+            self.literal_cache.insert(sql.into(),prepared);
         }
         Ok(())
     }
@@ -330,7 +330,7 @@ pub struct Tx<'a> {
     unified: bool,
     commit_warning: &'a std::sync::atomic::AtomicBool,
     inner: RefCell<super::flight::Session<'a>>,
-    literal_cache: RefCell<&'a mut BTreeMap<&'static str, super::literal::Prepared>>,
+    literal_cache: RefCell<&'a mut BTreeMap<String, super::literal::Prepared>>,
     bind_refused: Cell<bool>,
     pub(super) pending_read: RefCell<Option<super::read_plan::Plan>>,
     pub(super) read_cache: RefCell<super::read_plan::Answers>,
@@ -338,7 +338,7 @@ pub struct Tx<'a> {
     pub(super) commit_settings: Cell<bool>,
     pub(super) placement_cache: RefCell<Option<((String,String),Option<crate::assets::IntentRecord>)>>,
     pub(super) receipt_cache: RefCell<Option<((String,String),Option<crate::receipts::ReceiptRecord>)>>,
-    cache: RefCell<&'a mut BTreeMap<&'static str, Statement>>,
+    pub(super) cache: RefCell<&'a mut BTreeMap<String, Statement>>,
     pub(super) calls: &'a CallCounter,
     pub(super) marked_reads: &'a Cell<u64>,
     pub(super) page_reads: &'a Cell<u64>,
@@ -443,14 +443,14 @@ impl Tx<'_> {
     }
     pub(super) fn finish_read_flight(&self) { self.inner.borrow_mut().done = true; }
 
-    fn prepared(&self, sql: &'static str) -> Result<Statement, RuntimeError> {
+    fn prepared(&self, sql: &str) -> Result<Statement, RuntimeError> {
         self.ensure_active()?;
         if let Some(statement) = self.cache.borrow().get(sql) {
             return Ok(statement.clone());
         }
         self.calls.set(self.calls.get() + 1);
         let statement = self.inner.borrow_mut().client.prepare(sql)?;
-        self.cache.borrow_mut().insert(sql, statement.clone());
+        self.cache.borrow_mut().insert(sql.into(), statement.clone());
         Ok(statement)
     }
 
@@ -469,20 +469,20 @@ impl Tx<'_> {
     }
 
     /// Only adapter constants are SQL; every value uses RT5's single encoder.
-    pub(super) fn flight(&self, commands: &[(&'static str, &[&(dyn ToSql + Sync)])], end: &str) -> Result<Vec<super::flight::ResultSet>, RuntimeError> {
+    pub(super) fn flight(&self, commands: &[(&str, &[&(dyn ToSql + Sync)])], end: &str) -> Result<Vec<super::flight::ResultSet>, RuntimeError> {
         self.ensure_active()?;
         let mut sql = String::new();
         let mut statements = Vec::new();
         for (source, params) in commands {
             let bind = self.prepared(source)?;
             let mut cache = self.literal_cache.borrow_mut();
-            if !cache.contains_key(source) {
+            if !cache.contains_key(*source) {
                 let name = super::literal::serving_name();
                 self.calls.set(self.calls.get() + 1);
                 let prepared = super::literal::Prepared::from_bind(self.inner.borrow_mut().client, &name, source, bind.clone())?;
-                cache.insert(source, prepared);
+                cache.insert((*source).into(), prepared);
             }
-            let command = cache[source].command(params).inspect_err(|_| self.bind_refused.set(true))?;
+            let command = cache[*source].command(params).inspect_err(|_| self.bind_refused.set(true))?;
             if sql.len().saturating_add(command.len()).saturating_add(self.inner.borrow().pending.len()) > super::flight::ENCODED_LIMIT {
                 self.bind_refused.set(true);
                 return Err(RuntimeError::Store("Postgres flight scratch guard".into()));
@@ -512,7 +512,7 @@ impl Tx<'_> {
             let name = super::literal::serving_name();
             self.calls.set(self.calls.get()+1);
             let p = super::literal::Prepared::from_bind(self.inner.borrow_mut().client,&name,sql,bind)?;
-            cache.insert(sql,p);
+            cache.insert(sql.into(),p);
         }
         let command = cache[sql].command(params).inspect_err(|_| self.bind_refused.set(true))?;
         let mut inner = self.inner.borrow_mut();
@@ -824,6 +824,21 @@ impl Rows for Tx<'_> {
         guard.range(meter, 2, prefix, bounds)?;
         guard.reserve(meter, DRIVER_SCRATCH)?;
         let Some((lo, hi)) = crate::rows::scan_range(prefix, bounds, dir) else { return Ok(Vec::new()) };
+        if let Some(cached) = self.read_cache.borrow().scan(table,name,&lo,&hi,dir,limit) {
+            let mut out=Vec::new();
+            let images=cached.iter().map(|(row,_)|crate::value::canonical_json(row)).collect::<Vec<_>>();
+            let mut preflight=heap::Preflight::new();
+            for (data,(_,key)) in images.iter().zip(&cached) {
+                if !preflight.entry(meter,&mut guard,data.len() as u64,key.len() as u64,ROW_SCRATCH)? {break;}
+            }
+            for ((row,key),data) in cached.into_iter().zip(images).take(preflight.entries) {
+                let additional=heap::scan_entry(meter,&mut guard,out.len(),out.capacity(),&data,&key)?;
+                if additional!=0 {out.reserve_exact(additional);}
+                out.push((row,key));
+            }
+            preflight.check()?;
+            return Ok(out);
+        }
         let sizes = match dir {
             Dir::Asc => "SELECT octet_length(r.data)::bigint, octet_length(i.k)::bigint FROM i JOIN r ON r.t = i.t AND r.id = i.id WHERE i.t = $1 AND i.ix = $2 AND i.k >= $3 AND i.k < $4 ORDER BY i.k ASC LIMIT $5",
             Dir::Desc => "SELECT octet_length(r.data)::bigint, octet_length(i.k)::bigint FROM i JOIN r ON r.t = i.t AND r.id = i.id WHERE i.t = $1 AND i.ix = $2 AND i.k >= $3 AND i.k < $4 ORDER BY i.k DESC LIMIT $5",

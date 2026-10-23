@@ -156,6 +156,12 @@ fn short_burst_queues_without_extra_workers_and_refuses_only_at_the_bound() {
 #[test]
 fn queued_short_request_keeps_its_original_body_deadline() {
     let host = Host::new(true);
+    let gate=Arc::new(WorkGate::default()); let _release=ReleaseGate(gate.clone());
+    for _ in 0..REQUEST_WORKERS {
+        let held=gate.clone();
+        host.admission.workers[RequestClass::Short as usize].submit(REQUEST_WORKERS,thread::Builder::new(),Box::new(move||held.park())).unwrap();
+    }
+    wait_until(||gate.entered.load(Ordering::Acquire)==REQUEST_WORKERS);
     let server = Server::http_with_limits("127.0.0.1:0", tiny_http::ConnectionLimits {
         body_timeout: Duration::from_millis(20), ..Default::default()
     }).unwrap();
@@ -164,8 +170,10 @@ fn queued_short_request_keeps_its_original_body_deadline() {
     peer.write_all(b"POST /q/held HTTP/1.1\r\nHost: localhost\r\nContent-Length: 100000\r\n\r\n").unwrap();
     let request = server.recv_timeout(Duration::from_secs(1)).unwrap().unwrap();
     let until = request.body_deadline().unwrap();
-    while Instant::now() < until { thread::sleep(Duration::from_millis(1)); }
     dispatch(request, host.shared.clone(), host.admission.clone(), true);
+    wait_until(||host.admission.short.load(Ordering::Acquire)==1);
+    while Instant::now() < until { thread::sleep(Duration::from_millis(1)); }
+    gate.release();
     let mut reply = String::new(); peer.read_to_string(&mut reply).unwrap();
     assert_eq!(status(&reply), 503, "{reply}");
     assert_eq!(body(&reply)["denied"]["code"], "E_RATE_LIMIT");

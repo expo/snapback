@@ -258,6 +258,16 @@ fn run(pg: bool) {
             record(&mut measured, &mut cold, class, repetition, counts, pg);
         }
     }
+    // Even malformed bodies and unknown operation names cannot turn an
+    // unknown token into a second flight or an authenticated refusal.
+    for (path,payload) in [("/q/W1","{"),("/q/noSuchOperation",r#"{"args":{"message":42}}"#)] {
+        let reply=host.request("POST",path,"Authorization: Bearer rt0-unknown-malformed\r\n",payload);
+        let counts=rx.recv_timeout(Duration::from_secs(10)).unwrap();
+        assert_eq!(status(&reply),401,"{reply}");
+        assert_eq!(body(&reply)["denied"]["code"],"E_AUTH");
+        for field in ["store_id","head","generation","data"] {assert!(body(&reply).get(field).is_none(),"{reply}");}
+        assert_eq!(if pg {counts.postgres}else{counts.sqlite},if pg {1}else{2});
+    }
     // Exhaust the actual production identity limiter, then measure repeated 429s.
     let limited = (0..31).any(|_| request("/auth/guest", None, json!({})).0 == 429);
     assert!(

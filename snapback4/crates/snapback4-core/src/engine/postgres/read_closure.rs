@@ -1,0 +1,708 @@
+//! Bounded physical fact closure. SQL fetches exact addresses; ordinary Rust
+//! still evaluates every rule, expression, refusal, cursor and logical charge.
+// @ref LLP 3000.009.001.000.001#13-g4a-read-refinement-2026-10-23 — one snapshot, no SQL semantic executor.
+use super::{
+    read_plan::{Access, Answers},
+    store::{Tx, decode},
+};
+use crate::{
+    Context, Program, RuntimeError, Schema, Value,
+    ir::*,
+    rows::Dir,
+    schema::{ColumnType, RuleExpr, RuleTerm},
+};
+use postgres::types::ToSql;
+use std::collections::BTreeMap;
+
+#[derive(Clone, PartialEq, Eq)]
+enum Key {
+    Fixed(Value),
+    Field(usize, String),
+}
+#[derive(Clone)]
+enum Binding {
+    Key(Key),
+    Row(usize),
+    Other,
+}
+#[derive(Clone, PartialEq, Eq)]
+struct Node {
+    table: String,
+    index: String,
+    key: Vec<Key>,
+    n: u32,
+    dir: Dir,
+    parent: Option<usize>,
+    count: u64,
+}
+pub(crate) struct Closure {
+    nodes: Vec<Node>,
+    schema: Schema,
+    viewer: String,
+}
+impl Closure {
+    pub fn new(schema: &Schema, program: &Program, context: &Context) -> Option<Self> {
+        if program.native
+            || program.kind != ProgramKind::Query
+            || !matches!(
+                context.request_credential_kind.as_deref()?,
+                "guest" | "user" | "member" | "account" | "oidc" | "service"
+            )
+            || schema
+                .tables
+                .values()
+                .any(|t| t.expire.is_some() || t.not_before.is_some())
+        {
+            return None;
+        }
+        let mut plan = Self {
+            nodes: Vec::new(),
+            schema: schema.clone(),
+            viewer: context.viewer.clone(),
+        };
+        let mut env = context
+            .args
+            .iter()
+            .map(|(n, v)| (n.clone(), Binding::Key(Key::Fixed(v.clone()))))
+            .collect();
+        plan.block(&program.body, &mut env, context)?;
+        if plan.nodes.is_empty() {
+            return None;
+        }
+        let bytes = plan.nodes.iter().try_fold(0u64, |sum, n| {
+            Some(
+                sum.checked_add(
+                    crate::rows::disclosed::decode_reservation(&schema.tables[&n.table])
+                        .saturating_add(1024)
+                        .checked_mul(n.count)?,
+                )?,
+            )
+        })?;
+        if bytes > super::prefetch::PREFETCH_ROW_BYTES as u64 {
+            return None;
+        }
+        Some(plan)
+    }
+    fn block(
+        &mut self,
+        body: &[Stmt],
+        env: &mut BTreeMap<String, Binding>,
+        c: &Context,
+    ) -> Option<()> {
+        for stmt in body {
+            match stmt {
+                Stmt::Let { name, value } | Stmt::Const { name, value } => {
+                    if c.args.contains_key(name) || env.contains_key(name) {
+                        return None;
+                    }
+                    let value = self.expr(value, env, c)?;
+                    env.insert(name.clone(), value);
+                }
+                Stmt::Assign { name, value } => {
+                    if !matches!(env.get(name), Some(Binding::Other)) {
+                        return None;
+                    }
+                    self.expr(value, env, c)?;
+                    env.insert(name.clone(), Binding::Other);
+                }
+                Stmt::Require { condition, .. }
+                | Stmt::Return(condition)
+                | Stmt::Push {
+                    value: condition, ..
+                } => {
+                    self.expr(condition, env, c)?;
+                }
+                Stmt::If {
+                    condition,
+                    then_body,
+                    else_body,
+                } => {
+                    self.expr(condition, env, c)?;
+                    self.block(then_body, &mut env.clone(), c)?;
+                    self.block(else_body, &mut env.clone(), c)?;
+                    // Branch assignments must never remain assumed addresses.
+                    for stmt in then_body.iter().chain(else_body) {
+                        if let Stmt::Assign { name, .. }
+                        | Stmt::Let { name, .. }
+                        | Stmt::Const { name, .. } = stmt
+                        {
+                            env.insert(name.clone(), Binding::Other);
+                        }
+                    }
+                }
+                Stmt::For {
+                    binding,
+                    domain: LoopDomain::Page(scan),
+                    body,
+                } => {
+                    let node = self.scan(scan, env, c)?;
+                    let mut inner = env.clone();
+                    inner.insert(binding.clone(), Binding::Row(node));
+                    self.block(body, &mut inner, c)?;
+                    // An outer mutable binding is not a fixed address after a loop.
+                    for value in env.values_mut() {
+                        if !matches!(value, Binding::Key(Key::Fixed(_))) {
+                            *value = Binding::Other;
+                        }
+                    }
+                }
+                _ => return None,
+            }
+        }
+        Some(())
+    }
+    fn expr(&mut self, e: &Expr, env: &BTreeMap<String, Binding>, c: &Context) -> Option<Binding> {
+        let other = Binding::Other;
+        Some(match e {
+            Expr::Literal(v) => Binding::Key(Key::Fixed(v.clone())),
+            Expr::Variable(n) => env.get(n).cloned().unwrap_or(other),
+            Expr::Input(Input::Viewer) => Binding::Key(Key::Fixed(Value::Id(c.viewer.clone()))),
+            Expr::Input(_) => return None,
+            Expr::Field { base, name } => match self.expr(base, env, c)? {
+                Binding::Row(n)
+                    if matches!(
+                        self.schema.table(&self.nodes[n].table)?.columns.get(name),
+                        Some(ColumnType::Id | ColumnType::Principal | ColumnType::Ref { .. })
+                    ) =>
+                {
+                    Binding::Key(Key::Field(n, name.clone()))
+                }
+                _ => other,
+            },
+            Expr::Array(items) => {
+                for item in items {
+                    self.expr(item, env, c)?;
+                }
+                other
+            }
+            Expr::Object(fields) => {
+                for item in fields.values() {
+                    self.expr(item, env, c)?;
+                }
+                other
+            }
+            Expr::Shape { base, fields } => {
+                self.expr(base, env, c)?;
+                for item in fields.values() {
+                    self.expr(item, env, c)?;
+                }
+                other
+            }
+            Expr::Binary { left, right, .. } => {
+                self.expr(left, env, c)?;
+                self.expr(right, env, c)?;
+                other
+            }
+            Expr::Unary { value, .. } => {
+                self.expr(value, env, c)?;
+                other
+            }
+            Expr::Builtin { builtin, args }
+                if matches!(
+                    builtin,
+                    Builtin::RequireUncapped
+                        | Builtin::Max
+                        | Builtin::Min
+                        | Builtin::Len
+                        | Builtin::OptionalField { .. }
+                ) =>
+            {
+                for item in args {
+                    self.expr(item, env, c)?;
+                }
+                other
+            }
+            Expr::Get(read) | Expr::Exists(read) => {
+                let keys = read
+                    .key
+                    .iter()
+                    .map(|e| match self.expr(e, env, c)? {
+                        Binding::Key(k) => Some(k),
+                        _ => None,
+                    })
+                    .collect::<Option<Vec<_>>>()?;
+                let n = self.add(&read.table, &read.index, keys, 1, Dir::Asc)?;
+                if matches!(e, Expr::Get(_)) {
+                    Binding::Row(n)
+                } else {
+                    other
+                }
+            }
+            Expr::Scan(scan) => Binding::Row(self.scan(scan, env, c)?),
+            _ => return None,
+        })
+    }
+    fn scan(&mut self, s: &Scan, env: &BTreeMap<String, Binding>, c: &Context) -> Option<usize> {
+        if s.after.is_some()
+            || s.before.is_some()
+            || s.range.is_some()
+            || s.merge_site.is_some()
+            || s.opaque_cursor
+            || !super::super::rules::scan_visibility(&self.schema, s).uniform
+        {
+            return None;
+        }
+        let Bound::Literal(n) = s.take else {
+            return None;
+        };
+        if n > 128 {
+            return None;
+        }
+        // A single excluded total-unique key can hide at most one candidate.
+        // Fetch that extra raw fact; Rust still evaluates the filter.
+        let extra = if let Some(filter) = &s.filter {
+            let Expr::Binary {
+                op: BinaryOp::Ne,
+                left,
+                right,
+            } = filter.as_ref()
+            else {
+                return None;
+            };
+            let (Expr::Field { base, name }, Expr::Literal(Value::Id(_))) =
+                (left.as_ref(), right.as_ref())
+            else {
+                return None;
+            };
+            if !matches!(base.as_ref(),Expr::Variable(v) if v=="$filter") {
+                return None;
+            }
+            let table = self.schema.table(&s.table)?;
+            let columns = table.index(&s.index)?.columns();
+            let pinned: std::collections::BTreeSet<_> = columns
+                .iter()
+                .take(s.prefix.len())
+                .map(String::as_str)
+                .chain(std::iter::once(name.as_str()))
+                .collect();
+            if !table.indexes.values().any(|ix| {
+                ix.unique
+                    && ix.is_plain()
+                    && ix.columns().iter().all(|c| {
+                        pinned.contains(c.as_str())
+                            && !matches!(table.columns.get(c), Some(ColumnType::Optional(_)))
+                    })
+            }) {
+                return None;
+            }
+            1
+        } else {
+            0
+        };
+        let keys = s
+            .prefix
+            .iter()
+            .map(|e| match self.expr(e.scalar()?, env, c)? {
+                Binding::Key(k) => Some(k),
+                _ => None,
+            })
+            .collect::<Option<Vec<_>>>()?;
+        self.add(
+            &s.table,
+            &s.index,
+            keys,
+            n + 1 + extra,
+            if s.order == Order::Asc {
+                Dir::Asc
+            } else {
+                Dir::Desc
+            },
+        )
+    }
+    fn add(
+        &mut self,
+        table: &str,
+        index: &str,
+        mut key: Vec<Key>,
+        n: u32,
+        dir: Dir,
+    ) -> Option<usize> {
+        // A field pinned by its source range is already a fixed address.
+        // This also deduplicates W2's per-message membership against its guard.
+        for k in &mut key {
+            if let Key::Field(p, f) = k {
+                let source = &self.nodes[*p];
+                if let Some(pos) = self
+                    .schema
+                    .table(&source.table)?
+                    .index(&source.index)?
+                    .columns()
+                    .iter()
+                    .position(|c| c == f)
+                    && let Some(pinned) = source.key.get(pos)
+                {
+                    *k = pinned.clone();
+                }
+            }
+        }
+        // byId accepts the same textual identity as the ordinary get port.
+        if index == "byId" {
+            for k in &mut key {
+                if let Key::Fixed(Value::String(v)) = k {
+                    *k = Key::Fixed(Value::Id(v.clone()));
+                }
+            }
+        }
+        // Speculative parameters stay within the portable key envelope.
+        // Wider or non-scalar keys retain ordinary Rust execution; this is
+        // physical admission and never chooses a public refusal.
+        key.iter().try_fold(0usize, |sum, k| {
+            let Key::Fixed(v) = k else { return Some(sum) };
+            let limit = crate::rows::MAX_INDEX_KEY_BYTES;
+            match v {
+                Value::String(s) | Value::Id(s) if s.len() <= limit => {}
+                Value::Bytes(b) if b.len() <= limit => {}
+                Value::Null | Value::Bool(_) | Value::Int(_) => {}
+                _ => return None,
+            }
+            sum.checked_add(crate::key::encode(std::slice::from_ref(v)).len())
+                .filter(|n| *n <= limit)
+        })?;
+        let t = self.schema.table(table)?;
+        if self.schema.maintain_for(table).is_some()
+            || t.ephemeral.is_some()
+            || t.sync.is_some()
+            || t.through.is_some()
+            || !t.column_reads.is_empty()
+            || !t.recorded.is_empty()
+            || !t.sequences.is_empty()
+            || t.written_by.values().any(|a| !a.audience)
+            || t.rules.read.has_reference()
+        {
+            return None;
+        }
+        let ix = t.index(index)?;
+        if !ix.is_plain() || key.len() > ix.components.len() {
+            return None;
+        }
+        let mut parent = None;
+        for k in &key {
+            if let Key::Field(p, f) = k {
+                // PostgreSQL's JSON path reader unescapes the entire source
+                // image. A legal JSON/asset payload (or enum) can contain NUL;
+                // such an address source must keep Rust's portable decoder.
+                if self
+                    .schema
+                    .table(&self.nodes[*p].table)?
+                    .columns
+                    .values()
+                    .any(rust_json_source)
+                {
+                    return None;
+                }
+                if parent.is_some_and(|old| old != *p) {
+                    return None;
+                }
+                parent = Some(*p);
+                if !matches!(
+                    self.schema.table(&self.nodes[*p].table)?.columns.get(f)?,
+                    ColumnType::Id | ColumnType::Principal | ColumnType::Ref { .. }
+                ) {
+                    return None;
+                }
+            }
+        }
+        let count = u64::from(n).checked_mul(parent.map_or(1, |p| self.nodes[p].count))?;
+        let node = Node {
+            table: table.into(),
+            index: index.into(),
+            key,
+            n,
+            dir,
+            parent,
+            count,
+        };
+        if let Some(n) = self.nodes.iter().position(|old| old == &node) {
+            return Some(n);
+        }
+        if self.nodes.len() >= 16 {
+            return None;
+        }
+        let rule = t.rules.read.clone();
+        let id = self.nodes.len();
+        self.nodes.push(node);
+        self.probes(&rule, id, 0)?;
+        Some(id)
+    }
+    fn probes(&mut self, rule: &RuleExpr, source: usize, depth: usize) -> Option<()> {
+        match rule {
+            RuleExpr::And(rs) | RuleExpr::Or(rs) => {
+                for r in rs {
+                    self.probes(r, source, depth)?;
+                }
+            }
+            RuleExpr::Not(r) => self.probes(r, source, depth)?,
+            RuleExpr::Exists {
+                table, index, key, ..
+            } => {
+                if depth > 0 || super::read_plan::has_probe(&self.schema.table(table)?.rules.read) {
+                    return None;
+                }
+                let keys = key
+                    .iter()
+                    .map(|k| match k {
+                        RuleTerm::Field(f) => Some(Key::Field(source, f.clone())),
+                        RuleTerm::Viewer => Some(Key::Fixed(Value::Id(self.viewer.clone()))),
+                        RuleTerm::Literal(v) => Some(Key::Fixed(v.clone())),
+                        _ => None,
+                    })
+                    .collect::<Option<Vec<_>>>()?;
+                self.add(table, index, keys, 1, Dir::Asc)?;
+            }
+            RuleExpr::Created { .. } => return None,
+            _ => {}
+        }
+        Some(())
+    }
+    pub fn execute(
+        self,
+        tx: &Tx<'_>,
+        digest: &str,
+    ) -> Result<crate::identity::facts::SessionFacts, RuntimeError> {
+        let mut sql = Sql {
+            params: vec![Param::Text(digest.into())],
+        };
+        let mut ctes = vec![format!(
+            "authority AS MATERIALIZED ({})",
+            super::authority::session_facts_sql(tx.read_sessions.get())
+        )];
+        for (id, node) in self.nodes.iter().enumerate() {
+            ctes.push(sql.node(id, node));
+        }
+        let unions = self
+            .nodes
+            .iter()
+            .enumerate()
+            .map(|(i, _)| format!("SELECT {i} AS node, keys, data, k, lo, hi FROM a{i}"))
+            .collect::<Vec<_>>()
+            .join(" UNION ALL ");
+        ctes.push(format!("facts AS MATERIALIZED ({unions})"));
+        // A failed speculative payload guard transfers no row images. Reopen
+        // the ordinary snapshot before resolving authority or executing Rust.
+        let statement = format!(
+            "WITH {} SELECT authority.*, (SELECT CASE WHEN COALESCE(SUM(COALESCE(pg_catalog.octet_length(data),0)+pg_catalog.octet_length(keys)+COALESCE(pg_catalog.octet_length(k),0)*6+512),0) <= {} THEN pg_catalog.json_agg(pg_catalog.json_build_array(node,keys,data,pg_catalog.encode(k,'hex')))::pg_catalog.text ELSE NULL END FROM facts) FROM authority",
+            ctes.join(","),
+            super::prefetch::PREFETCH_ROW_BYTES / 32
+        );
+        // Values are parameters. Bound the finite statement shapes as well:
+        // alias/dedup choices must not grow a connection cache without limit.
+        const PREPARED_CLOSURES: usize = 32;
+        if !tx.cache.borrow().contains_key(statement.as_str())
+            && tx
+                .cache
+                .borrow()
+                .keys()
+                .filter(|s| s.starts_with("WITH authority AS MATERIALIZED ("))
+                .count()
+                >= PREPARED_CLOSURES
+        {
+            return tx.complete_request_facts(digest);
+        }
+        let params: Vec<_> = sql.params.iter().map(Param::as_sql).collect();
+        let rows = tx
+            .flight(&[(&statement, &params)], "ROLLBACK")?
+            .remove(0)
+            .rows;
+        tx.finish_read_flight();
+        let payload = rows[0].get::<_, Option<String>>(19);
+        let facts = super::authority::session_facts_rows(rows);
+        if tx.needs_complete_facts(&facts) || payload.is_none() {
+            return tx.complete_request_facts(digest);
+        }
+        let decoded = (|| -> Result<_, RuntimeError> {
+            let payload: Vec<(usize, String, Option<String>, Option<String>)> =
+                serde_json::from_str(payload.as_deref().unwrap())
+                    .map_err(|e| RuntimeError::Store(e.to_string()))?;
+            let mut answers: Vec<(Access, Vec<(Value, Vec<u8>)>)> = Vec::new();
+            for (id, keys, data, k) in payload {
+                let node = &self.nodes[id];
+                let raw: Vec<serde_json::Value> =
+                    serde_json::from_str(&keys).map_err(|e| RuntimeError::Store(e.to_string()))?;
+                if raw.iter().any(serde_json::Value::is_null) {
+                    continue;
+                }
+                let keys: Vec<Value> = raw
+                    .into_iter()
+                    .map(serde_json::from_value)
+                    .collect::<Result<_, _>>()
+                    .map_err(|e| RuntimeError::Store(e.to_string()))?;
+                let mut access =
+                    Access::range(&node.table, &node.index, &keys, node.dir, i64::from(node.n))
+                        .ok_or_else(|| RuntimeError::Store("empty composed address".into()))?;
+                if node.index == "byId" {
+                    access.id = keys[0].as_str()?.into();
+                }
+                let pos = answers
+                    .iter()
+                    .position(|(a, _)| a == &access)
+                    .unwrap_or_else(|| {
+                        answers.push((access, vec![]));
+                        answers.len() - 1
+                    });
+                if let (Some(data), Some(k)) = (data, k) {
+                    let key = hex(&k)?;
+                    let out = &mut answers[pos].1;
+                    if !out.iter().any(|(_, old)| old == &key) {
+                        out.push((decode(&data)?, key));
+                    }
+                }
+            }
+            for (a, rows) in &mut answers {
+                rows.sort_by(|(_, a), (_, b)| a.cmp(b));
+                if a.dir == Dir::Desc {
+                    rows.reverse();
+                }
+            }
+            Ok(answers)
+        })();
+        // Speculation cannot choose a program error or outrank authority.
+        // Decode/address failures discard this cut and use ordinary access.
+        #[allow(unused_mut)]
+        let mut answers = match decoded {
+            Ok(answers) => answers,
+            Err(_) => return tx.complete_request_facts(digest),
+        };
+        #[allow(unused_mut)]
+        let mut facts = facts;
+        #[cfg(test)]
+        plant_fault(&mut answers, &mut facts);
+        *tx.read_cache.borrow_mut() = Answers(answers);
+        Ok(facts)
+    }
+}
+fn hex(s: &str) -> Result<Vec<u8>, RuntimeError> {
+    s.as_bytes()
+        .chunks(2)
+        .map(|v| {
+            std::str::from_utf8(v)
+                .ok()
+                .and_then(|s| u8::from_str_radix(s, 16).ok())
+                .ok_or_else(|| RuntimeError::Store("composed key hex".into()))
+        })
+        .collect()
+}
+enum Param {
+    Text(String),
+    Bytes(Vec<u8>),
+}
+impl Param {
+    fn as_sql(&self) -> &(dyn ToSql + Sync) {
+        match self {
+            Self::Text(v) => v,
+            Self::Bytes(v) => v,
+        }
+    }
+}
+struct Sql {
+    params: Vec<Param>,
+}
+impl Sql {
+    fn param(&mut self, p: Param) -> String {
+        self.params.push(p);
+        format!("${}", self.params.len())
+    }
+    fn node(&mut self, id: usize, n: &Node) -> String {
+        let table = self.param(Param::Text(n.table.clone()));
+        let index = self.param(Param::Text(n.index.clone()));
+        let mut json = Vec::new();
+        let mut parts = Vec::new();
+        for k in &n.key {
+            match k {
+                Key::Fixed(v) => {
+                    json.push(format!(
+                        "{}::pg_catalog.text::pg_catalog.json",
+                        self.param(Param::Text(crate::value::canonical_json(v)))
+                    ));
+                    parts.push(format!(
+                        "{}::pg_catalog.bytea",
+                        self.param(Param::Bytes(crate::key::encode(std::slice::from_ref(v))))
+                    ));
+                }
+                Key::Field(_, name) => {
+                    let field = self.param(Param::Text(name.clone()));
+                    let value = format!(
+                        "COALESCE(s.data::pg_catalog.json->'Row',s.data::pg_catalog.json->'Map')->{field}::pg_catalog.text"
+                    );
+                    json.push(value.clone());
+                    // Identity admission forbids NUL. UTF-8 therefore has no zero
+                    // bytes; the ordinary Id tag/terminator encoding is exact.
+                    parts.push(format!("'\\x06'::pg_catalog.bytea || pg_catalog.convert_to(({value})->>'Id','UTF8') || '\\x0000'::pg_catalog.bytea"));
+                }
+            }
+        }
+        let lo = if parts.is_empty() {
+            "'\\x'::pg_catalog.bytea".into()
+        } else {
+            format!("({})", parts.join(" || "))
+        };
+        let source = n
+            .parent
+            .map_or_else(|| "(SELECT 1) s".into(), |p| format!("a{p} s"));
+        let dir = if n.dir == Dir::Asc { "ASC" } else { "DESC" };
+        format!(
+            "a{id} AS MATERIALIZED (SELECT q.keys,q.lo,q.hi,h.data,h.k FROM {source} CROSS JOIN LATERAL (SELECT pg_catalog.json_build_array({})::pg_catalog.text AS keys, {lo} AS lo, {lo} || '\\xff'::pg_catalog.bytea AS hi) q LEFT JOIN LATERAL (SELECT r.data,i.k FROM i JOIN r ON r.t=i.t AND r.id=i.id WHERE i.t={table} AND i.ix={index} AND i.k>=q.lo AND i.k<q.hi ORDER BY i.k {dir} LIMIT {}) h ON true)",
+            json.join(","),
+            n.n
+        )
+    }
+}
+
+#[cfg(test)]
+#[derive(Clone, Copy)]
+pub(super) enum Fault {
+    Membership,
+    Total,
+    Order,
+    Authority,
+}
+#[cfg(test)]
+thread_local! {pub(super) static FAULT: std::cell::Cell<Option<Fault>>=const{std::cell::Cell::new(None)};}
+#[cfg(test)]
+fn plant_fault(
+    answers: &mut [(Access, Vec<(Value, Vec<u8>)>)],
+    facts: &mut crate::identity::facts::SessionFacts,
+) {
+    FAULT.with(|fault| match fault.get() {
+        Some(Fault::Authority) => facts.sessions.clear(),
+        Some(Fault::Membership) => {
+            for (a, rows) in answers {
+                if a.table == "memberships" {
+                    rows.clear();
+                }
+            }
+        }
+        Some(Fault::Total) => {
+            for (a, rows) in answers {
+                if a.table == "rooms" {
+                    for (v, _) in rows {
+                        if let Value::Row(fields) | Value::Map(fields) = v {
+                            fields.insert("total".into(), Value::Int(999));
+                        }
+                    }
+                }
+            }
+        }
+        Some(Fault::Order) => {
+            for (a, rows) in answers {
+                if a.table == "messages" {
+                    rows.reverse();
+                }
+            }
+        }
+        None => {}
+    });
+}
+
+fn rust_json_source(kind: &ColumnType) -> bool {
+    match kind {
+        ColumnType::Json { .. }
+        | ColumnType::Image { .. }
+        | ColumnType::Video { .. }
+        | ColumnType::File { .. } => true,
+        ColumnType::Enum { variants } => variants.iter().any(|v| v.contains('\0')),
+        ColumnType::Optional(inner)
+        | ColumnType::List { of: inner, .. }
+        | ColumnType::ListRange { of: inner, .. } => rust_json_source(inner),
+        _ => false,
+    }
+}

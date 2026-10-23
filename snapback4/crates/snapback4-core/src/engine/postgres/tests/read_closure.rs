@@ -1,0 +1,420 @@
+//! Real shared-executor comparisons: composed / ordinary PostgreSQL / SQLite.
+use crate::{
+    Ceilings, Context, Engine, Value, engine::DeliveryManifest, identity, store_port::AnyStore,
+};
+use serde_json::{Value as Json, json};
+use std::collections::BTreeMap;
+fn source() -> String {
+    format!(
+        "use identity\n{}",
+        include_str!("../../../../../../experiments/scale-controls/snapback-app/snapback/schema.q")
+    )
+}
+fn engine(pg: bool) -> (Engine, String, String) {
+    engine_with_json(pg, false)
+}
+fn engine_with_json(pg: bool, payload: bool) -> (Engine, String, String) {
+    let source = if payload {
+        source().replace(
+            "  body: text <=4000",
+            "  body: text <=4000\n  payload: json <=256 ?",
+        )
+    } else {
+        source()
+    };
+    let b = snapback4_lang::compile(&[("schema.q".into(), source)]);
+    assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+    let schema: crate::Schema =
+        serde_json::from_value(serde_json::to_value(&b.schema).unwrap()).unwrap();
+    let programs: Vec<crate::Program> = b
+        .programs
+        .into_iter()
+        .map(|p| serde_json::from_value(serde_json::to_value(p.program).unwrap()).unwrap())
+        .collect();
+    let store = if pg {
+        AnyStore::create_postgres(
+            &std::env::var("SNAPBACK4_EVAL_POSTGRES").unwrap(),
+            &format!("g4a_facts_{:x}", crate::ids::seed()),
+        )
+        .unwrap()
+    } else {
+        AnyStore::memory().unwrap()
+    };
+    let mut e = Engine::new_at(store, schema, programs, 1000).unwrap();
+    let viewer = "a'\\\n雪";
+    let mut rows = vec![("users", json!({"id":"u","principal":viewer}))];
+    for n in 0..34 {
+        let room = if n == 0 {
+            "r'\\\né".to_owned()
+        } else {
+            format!("r{n:04}")
+        };
+        rows.push(("rooms", json!({"id":room})));
+        rows.push((
+            "memberships",
+            json!({"id":format!("g{n}"),"room":room,"principal":viewer,"last_read":n/2}),
+        ));
+        for m in 0..3 {
+            rows.push(("messages",json!({"id":format!("m{n:04}-{m}"),"room":room,"sender":"u","at":m,"body":"a\tb ' \\ 雪"})));
+        }
+    }
+    rows.push(("rooms", json!({"id":"r1024"})));
+    rows.push((
+        "memberships",
+        json!({"id":"excluded","room":"r1024","principal":viewer,"last_read":0}),
+    ));
+    if payload {
+        for (table, row) in &mut rows {
+            if *table == "messages" {
+                row["payload"] = json!({"nul":"a\u{0}b"});
+            }
+        }
+    }
+    let rows = rows
+        .into_iter()
+        .map(|(t, v)| {
+            (
+                t.to_owned(),
+                crate::wire::row_from_json(&e.schema().tables[t], &v).unwrap(),
+            )
+        })
+        .collect::<Vec<_>>();
+    e.seed_at(rows, 1000).unwrap();
+    let token = identity::open_session(e.store(), viewer, "account", 1000)
+        .unwrap()
+        .token;
+    (e, identity::session_digest(&token), viewer.into())
+}
+fn run(
+    e: &mut Engine,
+    digest: &str,
+    viewer: &str,
+    name: &str,
+    args: BTreeMap<String, Value>,
+    composed: bool,
+) -> Json {
+    let context = Context::new(viewer, args)
+        .at(1000)
+        .with_request_credential(if composed { "account" } else { "reference" });
+    let (out, cut, current) = e.query_materialized_search_with_request(
+        name,
+        context,
+        None,
+        DeliveryManifest::Skip,
+        digest,
+        |snapshot, _| {
+            let facts = snapshot
+                .request_authority(
+                    digest,
+                    identity::ServiceSample {
+                        now: 1000,
+                        supervisor_revision: 0,
+                    },
+                )
+                .map_err(|e| e.refusal())?;
+            if facts.capability.as_ref().map(|c| c.0.as_str()) != Some(viewer) {
+                return Err(crate::Refusal::new("E_AUTH", "auth", "absent session"));
+            }
+            Ok(())
+        },
+    );
+    json!({"out":out,"cut":cut,"current":current})
+}
+#[test]
+#[ignore = "private PG16; scripts/test-postgres.sh"]
+fn composed_read_closure_matches_every_meter_cut_and_maintained_totals() {
+    let (mut pg, digest, viewer) = engine(true);
+    let (mut sqlite, sdigest, _) = engine(false);
+    for (name, args) in [
+        (
+            "W1",
+            [("message".into(), Value::Id("m0000-0".into()))].into(),
+        ),
+        ("W2", [("room".into(), Value::Id("r'\\\né".into()))].into()),
+        ("W3", BTreeMap::new()),
+        (
+            "W1",
+            [("message".into(), Value::Id("missing".into()))].into(),
+        ),
+    ] {
+        let context = Context::new(&viewer, args.clone()).with_request_credential("account");
+        assert!(
+            super::super::read_closure::Closure::new(
+                pg.schema(),
+                pg.program(name).unwrap(),
+                &context
+            )
+            .is_some(),
+            "{name} must actually compose"
+        );
+        let reference = run(&mut pg, &digest, &viewer, name, args.clone(), false);
+        assert_eq!(
+            reference,
+            run(&mut sqlite, &sdigest, &viewer, name, args.clone(), false)
+        );
+        assert_eq!(
+            reference,
+            run(&mut pg, &digest, &viewer, name, args.clone(), true)
+        );
+        let baseline = reference["out"]["Ok"]["metered"].clone();
+        for field in [
+            "examined",
+            "index_entries",
+            "rule_probes",
+            "steps",
+            "heap_bytes",
+            "output_bytes",
+            "rows_written",
+        ] {
+            for n in [
+                0,
+                1,
+                baseline[field].as_u64().unwrap_or(0).saturating_sub(1),
+                baseline[field].as_u64().unwrap_or(0),
+            ] {
+                let mut ceilings = serde_json::to_value(Ceilings::default()).unwrap();
+                ceilings[field] = json!(n);
+                let ceilings = serde_json::from_value(ceilings).unwrap();
+                pg.set_ceilings(ceilings);
+                sqlite.set_ceilings(ceilings);
+                let a = run(&mut pg, &digest, &viewer, name, args.clone(), false);
+                assert_eq!(
+                    a,
+                    run(&mut pg, &digest, &viewer, name, args.clone(), true),
+                    "{name} {field}={n}"
+                );
+                assert_eq!(
+                    a,
+                    run(&mut sqlite, &sdigest, &viewer, name, args.clone(), false),
+                    "SQLite {name} {field}={n}"
+                );
+            }
+        }
+        pg.set_ceilings(Ceilings::default());
+        sqlite.set_ceilings(Ceilings::default());
+    }
+}
+
+#[test]
+#[ignore = "private PG16; scripts/test-postgres.sh"]
+fn composed_read_closure_oracle_detects_planted_fact_faults() {
+    use super::super::read_closure::{FAULT, Fault};
+    let (mut pg, digest, viewer) = engine(true);
+    let (mut sqlite, sdigest, _) = engine(false);
+    for (fault, name, args) in [
+        (
+            Fault::Membership,
+            "W1",
+            [("message".into(), Value::Id("m0000-0".into()))].into(),
+        ),
+        (Fault::Total, "W3", BTreeMap::new()),
+        (
+            Fault::Order,
+            "W2",
+            [("room".into(), Value::Id("r'\\\né".into()))].into(),
+        ),
+        (
+            Fault::Authority,
+            "W1",
+            [("message".into(), Value::Id("m0000-0".into()))].into(),
+        ),
+    ] {
+        let expected = run(&mut sqlite, &sdigest, &viewer, name, args.clone(), false);
+        assert_eq!(
+            expected,
+            run(&mut pg, &digest, &viewer, name, args.clone(), true)
+        );
+        FAULT.with(|f| f.set(Some(fault)));
+        let actual = run(&mut pg, &digest, &viewer, name, args.clone(), true);
+        FAULT.with(|f| f.set(None));
+        assert_ne!(
+            expected, actual,
+            "the oracle must catch a planted {name} fact fault"
+        );
+        assert_eq!(
+            expected,
+            run(&mut pg, &digest, &viewer, name, args, true),
+            "facts remain transaction-local"
+        );
+    }
+}
+
+#[test]
+#[ignore = "private PG16; scripts/test-postgres.sh"]
+fn composed_read_closure_keeps_its_cut_across_commit_and_revocation() {
+    let (mut pg, digest, viewer) = engine(true);
+    let expected = run(&mut pg, &digest, &viewer, "W3", BTreeMap::new(), false);
+    let namespace = pg
+        .store_mut()
+        .test_postgres_handle_mut()
+        .connection
+        .1
+        .clone();
+    let mut foreign = Engine::open_at(
+        AnyStore::open_postgres(
+            &std::env::var("SNAPBACK4_EVAL_POSTGRES").unwrap(),
+            &namespace,
+        )
+        .unwrap(),
+        1000,
+    )
+    .unwrap();
+    let context = Context::new(&viewer, BTreeMap::new())
+        .at(1000)
+        .with_request_credential("account");
+    let (out, cut, current) = pg.query_materialized_search_with_request(
+        "W3",
+        context,
+        None,
+        DeliveryManifest::Skip,
+        &digest,
+        |snapshot, seq| {
+            let old = snapshot
+                .request_authority(
+                    &digest,
+                    identity::ServiceSample {
+                        now: 1000,
+                        supervisor_revision: 0,
+                    },
+                )
+                .unwrap();
+            assert_eq!(old.head, seq);
+            assert!(old.capability.is_some());
+            foreign
+                .mutate(
+                    "post",
+                    None,
+                    Context::new(
+                        &viewer,
+                        [
+                            ("room".into(), Value::Id("r'\\\né".into())),
+                            ("body".into(), Value::String("new".into())),
+                        ]
+                        .into(),
+                    )
+                    .at(1001),
+                )
+                .unwrap();
+            identity::revoke_principal(foreign.store(), &viewer).unwrap();
+            let again = snapshot
+                .request_authority(
+                    &digest,
+                    identity::ServiceSample {
+                        now: 1001,
+                        supervisor_revision: 0,
+                    },
+                )
+                .unwrap();
+            assert_eq!(old.head, again.head);
+            assert_eq!(old.capability, again.capability);
+            Ok(())
+        },
+    );
+    assert_eq!(expected, json!({"out":out,"cut":cut,"current":current}));
+    let next = run(&mut pg, &digest, &viewer, "W3", BTreeMap::new(), true);
+    assert_eq!(next["out"]["Err"]["code"], "E_AUTH");
+}
+
+#[test]
+fn composed_read_closure_declines_unbounded_or_mutable_addresses() {
+    use crate::{
+        ir::{Expr, Stmt},
+        schema::ColumnType,
+    };
+    let b = snapback4_lang::compile(&[("schema.q".into(), source())]);
+    assert!(b.diagnostics.is_empty());
+    let schema: crate::Schema =
+        serde_json::from_value(serde_json::to_value(b.schema).unwrap()).unwrap();
+    let programs: Vec<crate::Program> = b
+        .programs
+        .into_iter()
+        .map(|p| serde_json::from_value(serde_json::to_value(p.program).unwrap()).unwrap())
+        .collect();
+    let w3 = programs.iter().find(|p| p.name == "W3").unwrap();
+    let c = Context::new("alice", BTreeMap::new()).with_request_credential("account");
+    assert!(super::super::read_closure::Closure::new(&schema, w3, &c).is_some());
+    let mut large = schema.clone();
+    large
+        .tables
+        .get_mut("memberships")
+        .unwrap()
+        .columns
+        .insert("large".into(), ColumnType::Text { max: u32::MAX });
+    assert!(super::super::read_closure::Closure::new(&large, w3, &c).is_none());
+    let mut nullable = schema.clone();
+    nullable
+        .tables
+        .get_mut("memberships")
+        .unwrap()
+        .columns
+        .insert(
+            "room".into(),
+            ColumnType::Optional(Box::new(ColumnType::Ref {
+                table: "rooms".into(),
+            })),
+        );
+    assert!(super::super::read_closure::Closure::new(&nullable, w3, &c).is_none());
+    let mut arbitrary = w3.clone();
+    if let Stmt::For {
+        domain: crate::ir::LoopDomain::Page(scan),
+        ..
+    } = &mut arbitrary.body[1]
+    {
+        scan.filter = Some(Box::new(Expr::Literal(Value::Bool(true))));
+    }
+    assert!(super::super::read_closure::Closure::new(&schema, &arbitrary, &c).is_none());
+    let mut shadow = programs.iter().find(|p| p.name == "W1").unwrap().clone();
+    shadow.body.insert(
+        0,
+        Stmt::Let {
+            name: "message".into(),
+            value: Expr::Literal(Value::Id("other".into())),
+        },
+    );
+    let c = Context::new("alice", [("message".into(), Value::Id("m".into()))].into())
+        .with_request_credential("account");
+    assert!(super::super::read_closure::Closure::new(&schema, &shadow, &c).is_none());
+    let wide = Context::new(
+        "alice",
+        [(
+            "message".into(),
+            Value::Id("m".repeat(crate::rows::MAX_INDEX_KEY_BYTES + 1)),
+        )]
+        .into(),
+    )
+    .with_request_credential("account");
+    let w1 = programs.iter().find(|p| p.name == "W1").unwrap();
+    assert!(super::super::read_closure::Closure::new(&schema, w1, &wide).is_none());
+}
+
+#[test]
+#[ignore = "private PG16; scripts/test-postgres.sh"]
+fn composed_read_closure_json_nul_uses_portable_address_fallback() {
+    let (mut pg, digest, viewer) = engine_with_json(true, true);
+    let (mut sqlite, sdigest, _) = engine_with_json(false, true);
+    let args = [("message".into(), Value::Id("m0000-0".into()))].into();
+    let context = Context::new(&viewer, args).with_request_credential("account");
+    assert!(
+        super::super::read_closure::Closure::new(pg.schema(), pg.program("W1").unwrap(), &context)
+            .is_none()
+    );
+    for (name, args) in [
+        (
+            "W1",
+            [("message".into(), Value::Id("m0000-0".into()))].into(),
+        ),
+        ("W2", [("room".into(), Value::Id("r'\\\né".into()))].into()),
+        ("W3", BTreeMap::new()),
+    ] {
+        let expected = run(&mut sqlite, &sdigest, &viewer, name, args.clone(), false);
+        assert_eq!(
+            expected,
+            run(&mut pg, &digest, &viewer, name, args.clone(), false)
+        );
+        assert_eq!(
+            expected,
+            run(&mut pg, &digest, &viewer, name, args, true),
+            "{name}: valid NUL JSON cannot become a store error"
+        );
+    }
+}

@@ -469,7 +469,7 @@ fn carried_query(pg: bool) {
         let f = Fixture::new(pg); let session = f.session(false);
         let warm = f.host.request("POST", "/q/count", &headers(&session), "{}");
         assert_eq!(body(&warm)["data"], 0, "{warm}");
-        assert_eq!(lock(&f.host.shared.readers).carried.len(), 1);
+        assert_eq!(lock(&f.host.shared.carried).len(), 1);
         let gate=Arc::new(WorkGate::default()); let _release=ReleaseGate(gate.clone()); let hook=gate.clone();
         *lock(&f.host.shared.operation_ingress)=Some(Arc::new(move||hook.park()));
         let address=f.host.address; let request=wire("/q/count", &session, &json!({}));
