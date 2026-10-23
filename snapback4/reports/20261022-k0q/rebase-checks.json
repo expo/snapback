@@ -1,0 +1,475 @@
+{
+  "base_commit": "8f909dc73438d09f2166f1fd1b538df2d23b5cf8",
+  "final_code_commit": "07d53b52587a6d574de17a8d27d71b28b749b214",
+  "initial_core_and_cli_compiled_code": "aba2a824b67d6b111586403e4ebb3103c1b32806",
+  "provenance_note": "Later changes rename a private admission transition and place Postgres fault tests behind the store boundary; final affected queue/census/Postgres checks repeat on final_code_commit. No clean full CLI repeat is claimed.",
+  "host": {
+    "source_commit": "aba2a824b67d6b111586403e4ebb3103c1b32806",
+    "base_commit": "8f909dc73438d09f2166f1fd1b538df2d23b5cf8",
+    "branch": "sb4-pg/k0q",
+    "hostname": "expose-builder-nothing",
+    "rustc": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+    "node": "v24.13.1",
+    "target_dir": "/home/ccheever/projects/sb4-s10a/snapback4/target",
+    "compiler_jobs": 10,
+    "rust_test_threads": 4
+  },
+  "compiler_jobs": 10,
+  "test_case_parallelism": {
+    "initial_full_suites_and_postgres": 4,
+    "isolated_evaluator_and_complete_postgres_repeat": 1,
+    "evaluator_inner_writers": 4
+  },
+  "checks": [
+    {
+      "name": "build",
+      "command": [
+        "cargo",
+        "build",
+        "-p",
+        "snapback4",
+        "-j",
+        "10"
+      ],
+      "status": 0,
+      "seconds": 55.74643476866186,
+      "free_bytes": 165172121600
+    },
+    {
+      "name": "core-no-default",
+      "command": [
+        "cargo",
+        "check",
+        "-p",
+        "snapback4-core",
+        "--no-default-features",
+        "-j",
+        "10"
+      ],
+      "status": 0,
+      "seconds": 6.745379796251655,
+      "free_bytes": 163693572096
+    },
+    {
+      "name": "web-check",
+      "command": [
+        "cargo",
+        "check",
+        "-p",
+        "snapback4-device",
+        "--no-default-features",
+        "--features",
+        "web",
+        "--target",
+        "wasm32-unknown-unknown",
+        "-j",
+        "10"
+      ],
+      "status": 0,
+      "seconds": 13.8602882232517,
+      "free_bytes": 163633852416
+    },
+    {
+      "name": "core-tests",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "snapback4-core",
+        "--no-fail-fast",
+        "-j",
+        "10"
+      ],
+      "status": 0,
+      "seconds": 1165.8826793450862,
+      "free_bytes": 163063652352
+    },
+    {
+      "name": "cli-tests",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "snapback4",
+        "--no-fail-fast",
+        "-j",
+        "10"
+      ],
+      "status": 101,
+      "seconds": 1360.201403066516,
+      "free_bytes": 141945692160,
+      "isolated": [
+        {
+          "test": "committer_ratchet",
+          "command": [
+            "cargo",
+            "test",
+            "-p",
+            "snapback4",
+            "--test",
+            "committer_ratchet",
+            "-j",
+            "10",
+            "--",
+            "committer_ratchet",
+            "--exact",
+            "--nocapture"
+          ],
+          "status": 0
+        },
+        {
+          "test": "store_port_ratchet",
+          "command": [
+            "cargo",
+            "test",
+            "-p",
+            "snapback4",
+            "--test",
+            "store_port_ratchet",
+            "-j",
+            "10",
+            "--",
+            "store_port_ratchet",
+            "--exact",
+            "--nocapture"
+          ],
+          "status": 101
+        }
+      ]
+    },
+    {
+      "name": "ratchets-censuses-fixed",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "snapback4",
+        "--test",
+        "committer_ratchet",
+        "--test",
+        "store_port_ratchet",
+        "--test",
+        "store_handle_census",
+        "-j",
+        "10"
+      ],
+      "status": 0,
+      "seconds": 1.3497985042631626,
+      "free_bytes": 139935334400
+    },
+    {
+      "name": "queue-default-fixed",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "snapback4-core",
+        "--lib",
+        "engine::command::tests",
+        "-j",
+        "10"
+      ],
+      "status": 0,
+      "seconds": 21.59089431166649,
+      "free_bytes": 139935281152
+    },
+    {
+      "name": "device-tests",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "snapback4-device",
+        "--no-fail-fast",
+        "-j",
+        "10"
+      ],
+      "status": 0,
+      "seconds": 4213.275573978201,
+      "free_bytes": 140440207360
+    },
+    {
+      "name": "compiled-guards",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "snapback4-core",
+        "--test",
+        "store_handle_traits",
+        "-j",
+        "10"
+      ],
+      "status": 0,
+      "seconds": 0.9416139908134937,
+      "free_bytes": 74920837120
+    },
+    {
+      "name": "guide",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "snapback4-lang",
+        "--test",
+        "guide",
+        "-j",
+        "10"
+      ],
+      "status": 0,
+      "seconds": 104.67341674678028,
+      "free_bytes": 74919702528
+    },
+    {
+      "name": "wasm-census",
+      "command": [
+        "node",
+        "--test",
+        "test/wasm-codec-census.test.mjs"
+      ],
+      "status": 0,
+      "seconds": 43.2665416225791,
+      "free_bytes": 70990811136
+    },
+    {
+      "name": "postgres",
+      "command": [
+        "bash",
+        "scripts/test-postgres.sh"
+      ],
+      "status": 1,
+      "seconds": 985.932319900021,
+      "free_bytes": 70990782464,
+      "clusters": [
+        {
+          "path": "/tmp/sb4-pg-eval.0xbF00",
+          "status_exit": 3,
+          "pid_file": false,
+          "output": "pg_ctl: no server running\n"
+        }
+      ]
+    },
+    {
+      "name": "postgres-repeat",
+      "command": [
+        "bash",
+        "scripts/test-postgres.sh"
+      ],
+      "status": 0,
+      "seconds": 1258.6532879527658,
+      "free_bytes": 193932541952,
+      "clusters": [
+        {
+          "path": "/tmp/sb4-pg-eval.Rcacud",
+          "status_exit": 3,
+          "pid_file": false,
+          "output": "pg_ctl: no server running\n"
+        }
+      ]
+    },
+    {
+      "name": "measurement-build",
+      "command": [
+        "cargo",
+        "build",
+        "-p",
+        "snapback4",
+        "-j",
+        "10"
+      ],
+      "status": 0,
+      "seconds": 41.03670425526798,
+      "free_bytes": 192861261824
+    },
+    {
+      "name": "w4-rebased",
+      "command": [
+        "python3",
+        "reports/20261022-k0q/w4.py",
+        "/home/ccheever/projects/sb4-s10a/snapback4/target/debug/snapback4",
+        "after-rebase"
+      ],
+      "status": 0,
+      "seconds": 91.13565004616976,
+      "free_bytes": 191084027904
+    }
+  ],
+  "suite_counts": {
+    "core-tests": {
+      "passed": 1072,
+      "failed": 0,
+      "ignored": 5
+    },
+    "cli-tests": {
+      "passed": 1405,
+      "failed": 2,
+      "ignored": 15
+    },
+    "device-tests": {
+      "passed": 1573,
+      "failed": 0,
+      "ignored": 4
+    }
+  },
+  "focused_attempts": {
+    "initial": {
+      "cluster": "/tmp/sb4-k0qr-pg.69uay7rf",
+      "checks": [
+        {
+          "name": "queue-postgres",
+          "command": [
+            "cargo",
+            "test",
+            "--locked",
+            "-p",
+            "snapback4-core",
+            "--features",
+            "postgres",
+            "--lib",
+            "engine::command::tests",
+            "-j",
+            "10",
+            "--",
+            "--include-ignored",
+            "--nocapture"
+          ],
+          "status": 0,
+          "seconds": 128.08451010845602
+        },
+        {
+          "name": "http-postgres",
+          "command": [
+            "cargo",
+            "test",
+            "--locked",
+            "-p",
+            "snapback4",
+            "--features",
+            "postgres",
+            "--bin",
+            "snapback4",
+            "s10c_postgres_internal_http_host_witness",
+            "-j",
+            "10",
+            "--",
+            "--include-ignored",
+            "--nocapture"
+          ],
+          "status": 101,
+          "seconds": 106.3002489451319
+        }
+      ],
+      "stop_status": 0,
+      "status_exit": 3,
+      "pid_file": false
+    },
+    "passing": {
+      "cluster": "/tmp/sb4-k0qr-pg.7mqqvv7g",
+      "checks": [
+        {
+          "name": "queue-postgres",
+          "command": [
+            "cargo",
+            "test",
+            "--locked",
+            "-p",
+            "snapback4-core",
+            "--features",
+            "postgres",
+            "--lib",
+            "engine::command::tests",
+            "-j",
+            "10",
+            "--",
+            "--include-ignored",
+            "--nocapture"
+          ],
+          "status": 0,
+          "seconds": 66.73302315175533
+        },
+        {
+          "name": "http-postgres",
+          "command": [
+            "cargo",
+            "test",
+            "--locked",
+            "-p",
+            "snapback4",
+            "--features",
+            "postgres",
+            "--bin",
+            "snapback4",
+            "s10c_postgres_internal_http_host_witness",
+            "-j",
+            "10",
+            "--",
+            "--include-ignored",
+            "--nocapture"
+          ],
+          "status": 0,
+          "seconds": 80.09242866002023
+        }
+      ],
+      "stop_status": 0,
+      "status_exit": 3,
+      "pid_file": false
+    }
+  },
+  "isolated_evaluator": {
+    "cluster": "/tmp/sb4-k0qr-isolate.cjxnf22b",
+    "binary": {
+      "source": "/home/ccheever/projects/sb4-s10a/snapback4/target/debug/deps/conformance-50a6fabeb9c55048",
+      "retained_binary": "/tmp/sb4-k0q-rebase/evaluator-conformance",
+      "sha256": "658114e6198ec1b11412f5421a012f2b08bdad489f8ffd4a116a1b7f59bbef7b",
+      "test": "concurrent_read_modify_write_and_duplicate_ops_are_atomic_in_both_modes",
+      "source_commit": "07d53b5258",
+      "reason": "Exact failed test binary, isolated repeat without changing shared-target crate identities"
+    },
+    "command": [
+      "/tmp/sb4-k0q-rebase/evaluator-conformance",
+      "concurrent_read_modify_write_and_duplicate_ops_are_atomic_in_both_modes",
+      "--exact",
+      "--ignored",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "status": 0,
+    "seconds": 2.918841687962413,
+    "stop_status": 0,
+    "status_exit": 3,
+    "pid_file": false
+  },
+  "measurement_commands": [
+    {
+      "label": "before-rebase",
+      "status": 0,
+      "seconds": 86.38502941094339
+    },
+    {
+      "label": "after-rebase-repeat",
+      "status": 0,
+      "seconds": 90.26279390789568
+    }
+  ],
+  "cold_artifacts_removed": {
+    "kind": "completed CLI integration-test executables in this lane target only",
+    "count": 57,
+    "bytes": 17477104000
+  },
+  "transcript_directory": "/tmp/sb4-k0q-rebase",
+  "ref_check": {
+    "command": [
+      "./ref-check"
+    ],
+    "status": 0,
+    "summary": "ref-check: ok \u2014 564 LLP docs, 11708 refs in 42678 files, 0 errors, 0 unchecked"
+  },
+  "diff_check": {
+    "command": [
+      "git",
+      "diff",
+      "--check"
+    ],
+    "status": 0
+  }
+}

@@ -129,6 +129,17 @@ impl Shared {
         // Never acquire the writer to repair that failure under a read permit.
         Err(snapback4_core::RuntimeError::Store("detached reader unavailable; retry the request after the store is available".into()))
     }
+    pub(super) fn reader_after_handoff(&self) -> Result<(Arc<()>, TimedReader), snapback4_core::RuntimeError> {
+        let (epoch, engine, sites) = self.engine.attempt(|engine, shared| {
+            let reader = shared.open_reader(engine)?;
+            let readers = lock(&shared.readers);
+            Ok::<_, snapback4_core::RuntimeError>((readers.epoch.clone(), reader, readers.refusal_sites.clone()))
+        })?;
+        // The reader crosses the queue; its thread-local timing guard must be
+        // created and dropped on the request thread, just as in reader().
+        Ok((epoch, TimedReader { engine, refusal_sites: sites, _timing: latency::EngineSpan::new() }))
+    }
+
     fn acquire_reader<T>(&self, open: impl FnOnce() -> T) -> T {
         latency::acquire(|| {
             #[cfg(test)]
@@ -154,9 +165,10 @@ impl Shared {
                 head
             }
             Err(_) if self.memory_store() => {
-                let mut engine = lock(&self.engine);
-                let generation = engine.generation();
-                response_head(&mut engine).map(|(id, head)| (id, head, generation))
+                self.engine.attempt(|engine, _| {
+                    let generation = engine.generation();
+                    response_head(engine).map(|(id, head)| (id, head, generation))
+                })
             }
             Err(error) => Err(error.refusal()),
         }
@@ -169,7 +181,7 @@ impl Shared {
                 lock(&self.readers).put(&epoch, reader.into_inner());
                 head
             }
-            Err(_) if self.memory_store() => response_head(&mut lock(&self.engine)),
+            Err(_) if self.memory_store() => self.engine.attempt(|engine, _| response_head(engine)),
             Err(error) => Err(error.refusal()),
         }
     }

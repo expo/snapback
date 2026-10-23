@@ -101,15 +101,15 @@ pub(super) fn claim(request: Request, shared: &Shared, body: &str) {
     loop {
         // @ref LLP 3000.009#5.2 — every long-poll turn rechecks service,
         // supervisor revision, declaration and claimability in one writer transaction.
-        let claimed = {
-            let mut engine = producing_engine(shared);
+        let (token, effect, declaration_contract) = (token.clone(), effect.clone(), declaration_contract.clone());
+        let claimed = shared.engine.attempt_and_notify(move |engine, shared| {
             if shared.hold_effects {
                 engine.authorize_effect_poll_strict(&token, effect.as_deref(), declaration_contract.as_deref(), fenced, || sample(shared)).map(|()| Vec::new())
             } else {
                 engine.claim_effects_strict(&token, effect.as_deref(), limit, lease_ms, fenced, declaration_contract.as_deref(), || sample(shared))
             }
-        };
-        if claimed.as_ref().is_ok_and(|runs| !runs.is_empty()) { shared.durable_committed(&lock(&shared.engine)); }
+        }, |r| r.as_ref().is_ok_and(|runs| !runs.is_empty()));
+
         match claimed {
             Ok(runs) if runs.is_empty() && Instant::now() < deadline => {
                 let seq = lock(&shared.seq);
@@ -127,8 +127,9 @@ pub(super) fn claim(request: Request, shared: &Shared, body: &str) {
 pub(super) fn post(request: Request, shared: &Shared, path: &str, body: &str) {
     if let Some(id) = path.strip_prefix("/effects/").and_then(|tail| tail.strip_suffix("/cancel")) {
         if let Err(refusal) = service_of(&request, shared) { return respond(request, 401, json!({ "denied": refusal_json(&refusal) })); }
-        let outcome = { producing_engine(shared).cancel_effect(id, shared.now()) };
-        if outcome.is_ok() { shared.durable_committed(&lock(&shared.engine)); }
+        let id = id.to_owned();
+        let outcome = shared.engine.attempt_and_notify(move |engine, shared| engine.cancel_effect(&id, shared.now()), |r| r.is_ok());
+
         return match outcome {
             Ok(run) => respond(request, 200, json!({ "ok": true, "effect": effect_json(&run) })),
             Err(error) => answer_error(request, error),
@@ -144,7 +145,7 @@ pub(super) fn post(request: Request, shared: &Shared, path: &str, body: &str) {
             _ => return respond(request, 200, json!({ "denied": refusal_json(&Refusal::new("E_EFFECT_LEASE", "schema", "send exactly one nonempty effect claim token")) })),
         };
         let service_token = match worker_token(&request) { Ok(token) => token, Err(refusal) => return respond(request, 401, json!({ "denied": refusal_json(&refusal) })) };
-        let outcome = { producing_engine(shared).effect_status_strict(&service_token, &id, &lease, || sample(shared)) };
+        let outcome = shared.engine.attempt(move |engine, shared| engine.effect_status_strict(&service_token, &id, &lease, || sample(shared)));
         return match outcome {
             Ok(run) => respond(request, 200, json!({ "id": run.id, "attempt": run.attempts, "state": run.state, "deadline": run.deadline, "cancelled": run.cancelled, "errorCode": run.error_code })),
             Err(error) => answer_error(request, error),
@@ -178,18 +179,18 @@ pub(super) fn post(request: Request, shared: &Shared, path: &str, body: &str) {
                 _ => return respond(request, 200, json!({ "denied": refusal_json(&Refusal::new("E_EFFECT_LEASE", "schema", "send exactly one nonempty effect claim token")) })),
             };
             let service_token = match worker_token(&request) { Ok(token) => token, Err(refusal) => return respond(request, 401, json!({ "denied": refusal_json(&refusal) })) };
-            let input = payload.get("input").unwrap_or(&Json::Null);
-            let result = payload.get("result").unwrap_or(&Json::Null);
-            let outcome: Result<StepOutcome, snapback4_core::RuntimeError> = {
-                let mut engine = producing_engine(shared);
-                (|| Ok(match verb {
-                    "begin" => StepOutcome::Began(engine.begin_effect_step_strict(&service_token, &id, &lease, &name, input, reconcile, || sample(shared))?),
-                    "done" => StepOutcome::Completed(engine.complete_effect_step_strict(&service_token, &id, &lease, &name, result, || sample(shared))?),
+            let input = payload.get("input").cloned().unwrap_or(Json::Null);
+            let result = payload.get("result").cloned().unwrap_or(Json::Null);
+            let verb = verb.to_owned();
+            let outcome: Result<StepOutcome, snapback4_core::RuntimeError> = shared.engine.attempt_and_notify(move |engine, shared| {
+                (|| Ok(match verb.as_str() {
+                    "begin" => StepOutcome::Began(engine.begin_effect_step_strict(&service_token, &id, &lease, &name, &input, reconcile, || sample(shared))?),
+                    "done" => StepOutcome::Completed(engine.complete_effect_step_strict(&service_token, &id, &lease, &name, &result, || sample(shared))?),
                     "park" => { engine.park_effect_step_strict(&service_token, &id, &lease, &name, &error, || sample(shared))?; StepOutcome::Parked }
                     _ => unreachable!("step verb validated before taking the engine guard"),
                 }))()
-            };
-            shared.durable_committed(&lock(&shared.engine));
+            }, |_| true);
+
             return match outcome {
                 Ok(StepOutcome::Began(step)) => respond(request, 200, json!({ "step": step })),
                 Ok(StepOutcome::Completed(step)) => respond(request, 200, json!({ "ok": true, "step": step })),
@@ -219,11 +220,9 @@ pub(super) fn post(request: Request, shared: &Shared, path: &str, body: &str) {
         let retry = match bool_field(&payload, "retry") { Ok(value) => value.unwrap_or(true), Err(refusal) => return respond(request, 400, json!({ "denied": refusal_json(&refusal) })) };
         snapback4_core::Settled::Failed { error, retry }
     };
-    let outcome = {
-        let mut engine = producing_engine(shared);
-        engine.settle_effect_strict(&service_token, &id, lease, settled, || sample(shared))
-    };
-    if outcome.is_ok() { shared.durable_committed(&lock(&shared.engine)); }
+    let lease = lease.map(str::to_owned);
+    let outcome = shared.engine.attempt_and_notify(move |engine, shared| engine.settle_effect_strict(&service_token, &id, lease.as_deref(), settled, || sample(shared)), |r| r.is_ok());
+
     match outcome {
         Ok(run) => {
             if !done && shared.personas { snapback4_core::diagnostic!("snapback4: effect {} {} attempt {} settled {}: {}", run.effect, run.id, run.attempts, run.state, serde_json::to_string(&run.error).unwrap_or_default()); }
@@ -238,7 +237,7 @@ pub(super) fn list(request: Request, shared: &Shared, url: &str) {
     let params = query_params(url);
     let state = params.get("state").cloned();
     let limit: usize = params.get("limit").and_then(|value| value.parse().ok()).unwrap_or(100);
-    let outcome = { producing_engine(shared).effects(state.as_deref(), limit) };
+    let outcome = shared.engine.attempt(move |engine, _| engine.effects(state.as_deref(), limit));
     match outcome {
         Ok(runs) => respond(request, 200, json!({ "effects": runs.iter().map(effect_json).collect::<Vec<_>>() })),
         Err(error) => answer_error(request, error),

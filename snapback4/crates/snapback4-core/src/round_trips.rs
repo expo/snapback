@@ -1,38 +1,71 @@
 //! Request-scoped test instrumentation; absent from ordinary builds.
 // @ref LLP 3000.009.001.000.001#5 — driver waits and SQLite statements are separate units.
-use std::cell::Cell;
+use std::{
+    cell::{Cell, RefCell},
+    marker::PhantomData,
+    rc::Rc,
+    sync::{Arc, atomic::{AtomicU64, Ordering}},
+};
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize)]
 pub struct Counts {
     pub postgres: u64,
     pub sqlite: u64,
 }
-thread_local! { static ACTIVE: Cell<Option<Counts>> = const { Cell::new(None) }; }
-/// Synchronous dynamic scope. Background threads never inherit it; a future
-/// cross-thread committer must explicitly transfer request attribution.
-pub struct Scope;
+#[derive(Default)]
+struct AtomicCounts {
+    postgres: AtomicU64,
+    sqlite: AtomicU64,
+}
+/// Explicit request attribution; background threads never inherit it.
+#[derive(Clone)]
+pub struct Handle(Arc<AtomicCounts>);
+thread_local! { static ACTIVE: RefCell<Option<Handle>> = const { RefCell::new(None) }; }
+/// Owns request counts and their installation on the submitting thread.
+pub struct Scope {
+    handle: Handle,
+    _guard: Guard,
+}
 impl Scope {
     pub fn begin() -> Self {
-        ACTIVE.with(|a| {
-            assert!(a.get().is_none(), "nested request counter");
-            a.set(Some(Counts::default()));
-        });
-        Self
+        let handle = Handle(Arc::default());
+        let guard = handle.clone().enter();
+        Self { handle, _guard: guard }
+    }
+    pub fn handle(&self) -> Handle {
+        self.handle.clone()
     }
     pub fn counts(&self) -> Counts {
-        ACTIVE.with(|a| a.get().expect("active request"))
+        Counts {
+            postgres: self.handle.0.postgres.load(Ordering::Relaxed),
+            sqlite: self.handle.0.sqlite.load(Ordering::Relaxed),
+        }
     }
 }
-impl Drop for Scope {
+/// The guard must stay on the thread whose dynamic scope it installed.
+pub struct Guard(PhantomData<Rc<()>>);
+impl Handle {
+    pub fn enter(self) -> Guard {
+        ACTIVE.with(|a| {
+            let mut active = a.borrow_mut();
+            assert!(active.is_none(), "nested request counter");
+            *active = Some(self);
+        });
+        Guard(PhantomData)
+    }
+}
+pub(crate) fn current() -> Option<Handle> {
+    ACTIVE.with(|a| a.borrow().clone())
+}
+impl Drop for Guard {
     fn drop(&mut self) {
-        ACTIVE.with(|a| a.set(None));
+        ACTIVE.with(|a| *a.borrow_mut() = None);
     }
 }
 fn add(pg: u64, sqlite: u64) {
     ACTIVE.with(|a| {
-        if let Some(mut n) = a.get() {
-            n.postgres += pg;
-            n.sqlite += sqlite;
-            a.set(Some(n));
+        if let Some(handle) = a.borrow().as_ref() {
+            handle.0.postgres.fetch_add(pg, Ordering::Relaxed);
+            handle.0.sqlite.fetch_add(sqlite, Ordering::Relaxed);
         }
     });
 }
@@ -81,6 +114,35 @@ pub use fixtures_tests::action_claim;
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn transferred_scope_counts_both_threads_and_clears_after_unwind() {
+        let scope = Scope::begin();
+        let handle = scope.handle();
+        postgres(2);
+        std::thread::spawn(move || {
+            assert!(current().is_none());
+            let result = std::panic::catch_unwind(|| {
+                let _guard = handle.enter();
+                postgres(3);
+                sqlite_statement();
+                panic!("unwind the installed attribution");
+            });
+            assert!(result.is_err());
+            assert!(current().is_none());
+            postgres(100);
+        }).join().unwrap();
+        assert_eq!(scope.counts(), Counts { postgres: 5, sqlite: 1 });
+    }
+    #[test]
+    fn transferred_scope_refuses_nesting_without_losing_outer_scope() {
+        let scope = Scope::begin();
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let _nested = scope.handle().enter();
+        }));
+        assert!(result.is_err());
+        postgres(1);
+        assert_eq!(scope.counts().postgres, 1);
+    }
     #[test]
     fn scope_excludes_background_and_resets_between_requests() {
         let first = Scope::begin();

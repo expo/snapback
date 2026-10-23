@@ -1,0 +1,311 @@
+{
+  "source_commit": "2f3815f7fee550ab1d0d706149eda14fa3bbbfc5",
+  "base_commit": "e7d33f738d4d4adc22a060ee58ce295e8711efbc",
+  "target_dir": "/home/ccheever/projects/sb4-s10a/snapback4/target",
+  "compiler_jobs": 10,
+  "checks": [
+    {
+      "name": "core-no-default",
+      "command": [
+        "cargo",
+        "check",
+        "-p",
+        "snapback4-core",
+        "--no-default-features",
+        "-j",
+        "10"
+      ],
+      "status": 0,
+      "seconds": 43.52335310354829
+    },
+    {
+      "name": "web-check",
+      "command": [
+        "cargo",
+        "check",
+        "-p",
+        "snapback4-device",
+        "--no-default-features",
+        "--features",
+        "web",
+        "--target",
+        "wasm32-unknown-unknown",
+        "-j",
+        "10"
+      ],
+      "status": 0,
+      "seconds": 13.365370091050863
+    },
+    {
+      "name": "device-tests",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "snapback4-device",
+        "--no-fail-fast",
+        "-j",
+        "10"
+      ],
+      "status": 0,
+      "seconds": 4446.306394059211
+    },
+    {
+      "name": "guide",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "snapback4-lang",
+        "--test",
+        "guide",
+        "-j",
+        "10"
+      ],
+      "status": 0,
+      "seconds": 104.35304243117571
+    },
+    {
+      "name": "wasm-census",
+      "command": [
+        "node",
+        "--test",
+        "test/wasm-codec-census.test.mjs"
+      ],
+      "status": 0,
+      "seconds": 42.71379214711487
+    },
+    {
+      "name": "core-full",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "snapback4-core",
+        "--no-fail-fast",
+        "-j",
+        "10"
+      ],
+      "status": 0
+    },
+    {
+      "name": "cli-full",
+      "status": 0,
+      "seconds": 1179.83338701725,
+      "env": {
+        "RUST_TEST_THREADS": "4"
+      },
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "snapback4",
+        "--no-fail-fast",
+        "-j",
+        "10"
+      ]
+    },
+    {
+      "name": "compiled-guards-final",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "snapback4-core",
+        "--test",
+        "store_handle_traits",
+        "-j",
+        "10"
+      ],
+      "status": 0,
+      "seconds": 0.8236647266894579
+    },
+    {
+      "name": "queue-latest",
+      "status": 0,
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "snapback4-core",
+        "--features",
+        "postgres",
+        "--lib",
+        "engine::command::tests",
+        "-j",
+        "10"
+      ],
+      "seconds": 1.063877571374178
+    },
+    {
+      "name": "doc-latest",
+      "status": 0,
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "snapback4-core",
+        "--doc",
+        "-j",
+        "10"
+      ],
+      "seconds": 81.12277948111296
+    },
+    {
+      "name": "censuses-latest",
+      "status": 0,
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "snapback4",
+        "--test",
+        "committer_ratchet",
+        "--test",
+        "store_handle_census",
+        "--test",
+        "store_port_ratchet",
+        "-j",
+        "10"
+      ],
+      "seconds": 1.3535908665508032
+    },
+    {
+      "name": "build-measurement",
+      "status": 0,
+      "command": [
+        "cargo",
+        "build",
+        "-p",
+        "snapback4",
+        "-j",
+        "10"
+      ],
+      "seconds": 7.042218251153827
+    },
+    {
+      "name": "W4-after",
+      "status": 0
+    },
+    {
+      "name": "ref-check",
+      "command": [
+        "./ref-check"
+      ],
+      "cwd": "repository root",
+      "status": 0,
+      "llp_documents": 564,
+      "references": 11696,
+      "errors": 0,
+      "unchecked": 0
+    }
+  ],
+  "postgres": {
+    "status": 0,
+    "seconds": 1001.6622871570289,
+    "command": "PATH=\"$HOME/tools/pg16/usr/lib/postgresql/16/bin:$PATH\" LD_LIBRARY_PATH=\"$HOME/tools/pg16/usr/lib/x86_64-linux-gnu\" TMPDIR=/tmp bash scripts/test-postgres.sh",
+    "clusters": [
+      {
+        "path": "/tmp/sb4-pg-eval.RhMiDk",
+        "status_exit": 3,
+        "pid_file": false,
+        "output": "pg_ctl: no server running\n"
+      }
+    ],
+    "default_build_status": 0
+  },
+  "committer_census": {
+    "production_files": 10,
+    "production_sites": 47,
+    "allowance_changes": 0
+  },
+  "default_parallel_cli": {
+    "name": "cli-stable",
+    "status": 101,
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4",
+      "--no-fail-fast",
+      "-j",
+      "10"
+    ],
+    "seconds": 1218.4006638918072
+  },
+  "isolated_cli_reruns": [
+    {
+      "name": "serve::tests::committer_tests::queued_http_mutations_keep_receipts_order_and_progress_with_reads_and_ephemeral",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "snapback4",
+        "--bin",
+        "snapback4",
+        "serve::tests::committer_tests::queued_http_mutations_keep_receipts_order_and_progress_with_reads_and_ephemeral",
+        "-j",
+        "10",
+        "--",
+        "--exact"
+      ],
+      "status": 0,
+      "seconds": 1.4094989486038685
+    },
+    {
+      "name": "serve::tests::release_lifecycle_tests::authentication_and_metadata_stamp_the_engine_after_intake_switch",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "snapback4",
+        "--bin",
+        "snapback4",
+        "serve::tests::release_lifecycle_tests::authentication_and_metadata_stamp_the_engine_after_intake_switch",
+        "-j",
+        "10",
+        "--",
+        "--exact"
+      ],
+      "status": 0,
+      "seconds": 1.0756460670381784
+    },
+    {
+      "name": "serve::tests::release_lifecycle_tests::following_reply_stamps_the_engine_selected_after_request_intake",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "snapback4",
+        "--bin",
+        "snapback4",
+        "serve::tests::release_lifecycle_tests::following_reply_stamps_the_engine_selected_after_request_intake",
+        "-j",
+        "10",
+        "--",
+        "--exact"
+      ],
+      "status": 0,
+      "seconds": 2.592180361971259
+    },
+    {
+      "name": "serve::tests::release_lifecycle_tests::action_reply_stamps_admission_after_switch_during_request_intake",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "snapback4",
+        "--bin",
+        "snapback4",
+        "serve::tests::release_lifecycle_tests::action_reply_stamps_admission_after_switch_during_request_intake",
+        "-j",
+        "10",
+        "--",
+        "--exact"
+      ],
+      "status": 0,
+      "seconds": 0.8211233820766211
+    }
+  ],
+  "discarded_run": "An earlier full CLI run mixed a development-profile executable into test-profile integration tests; it is not qualification evidence."
+}

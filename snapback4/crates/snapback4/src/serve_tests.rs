@@ -70,7 +70,7 @@ impl Host {
     fn with_store_on(dev: bool, store: impl Into<snapback4_core::store_port::AnyStore>, source: &str, bind: &str) -> Self {
         Self::with_evidence(dev, store, source, bind, None)
     }
-    fn request(&self, method: &str, path: &str, headers: &str, body: &str) -> String {
+    pub(super) fn request(&self, method: &str, path: &str, headers: &str, body: &str) -> String {
         let device = if path == "/sync" && !headers.to_ascii_lowercase().contains("x-snapback-device:") {
             format!("x-snapback-device: {}\r\n", serde_json::to_string(&snapback4_core::device_protocol::DeviceEngine::current()).unwrap())
         } else { String::new() };
@@ -104,7 +104,7 @@ const WAIT_TIMEOUT: Duration = Duration::from_secs(2);
 // @ref LLP 3000#publication-suite-under-contention — a parked client's guard
 // includes the driver's bounded waits/probes plus time to finish after release.
 // Only deliberately held exchanges use this; progress probes keep their guard.
-fn exchange_held(address: SocketAddr, hold_budget: Duration, wire: impl AsRef<[u8]>) -> String {
+pub(super) fn exchange_held(address: SocketAddr, hold_budget: Duration, wire: impl AsRef<[u8]>) -> String {
     let wire = device_wire(wire.as_ref());
     let timeout = hold_budget + Duration::from_secs(15);
     assert!(timeout <= Duration::from_secs(60), "held exchange budget exceeds one minute");
@@ -171,41 +171,6 @@ fn wait_until(mut predicate: impl FnMut() -> bool) {
     }
 }
 
-#[test]
-fn raced_mutation_id_refusal_keeps_its_terminal_http_status() {
-    // Exercise the post-preflight error classifier directly: a socket race
-    // may otherwise happen to be caught by the earlier replay check.
-    assert_eq!(mutation_error_status(&snapback4_core::store_port::id_reused().refusal()), 200);
-    let mut transient = Refusal::new("E_STORE", "store", "retry later");
-    transient.retryable = true;
-    assert_eq!(mutation_error_status(&transient), 503);
-    assert_eq!(mutation_error_status(&Refusal::new("E_STORE", "store", "failed")), 500);
-
-    let host = Host::with_store(true, snapback4_core::store_port::AnyStore::memory().unwrap(),
-        "use personas alice\nmutation answer(n: int):\n  return n\n");
-    let gate = Arc::new(std::sync::Barrier::new(13));
-    let threads: Vec<_> = (0..12).map(|n| {
-        let gate = gate.clone();
-        let address = host.address;
-        thread::spawn(move || {
-            let payload = json!({ "id": "raced-input", "args": { "n": n } }).to_string();
-            gate.wait();
-            exchange(address, &format!("POST /m/answer HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nx-snapback-persona: alice\r\nContent-Length: {}\r\n\r\n{payload}", payload.len()))
-        })
-    }).collect();
-    gate.wait();
-    let replies: Vec<_> = threads.into_iter().map(|thread| {
-        let response = thread.join().unwrap();
-        assert_eq!(status(&response), 200, "{response}");
-        body(&response)
-    }).collect();
-    assert_eq!(replies.iter().filter(|reply| reply["state"] == "sent").count(), 1);
-    for reply in replies.iter().filter(|reply| reply["state"] != "sent") {
-        assert_eq!(reply["state"], "failed");
-        assert_eq!(reply["why"]["code"], "E_ID_REUSED");
-        assert!(!reply["why"]["retryable"].as_bool().unwrap_or(false));
-    }
-}
 
 #[test]
 fn oidc_terminal_codes_survive_http_settlement_and_public_recollection() {
@@ -1278,9 +1243,9 @@ fn a_refusal_names_the_cut_its_evaluation_read() {
     assert_eq!(gate["seq"].as_u64(), Some(head + 1), "the refusal names its evaluation's cut, past the head taken before it: {gate}");
 }
 
-struct ReaderTestDirectory(std::path::PathBuf);
+pub(super) struct ReaderTestDirectory(pub(super) std::path::PathBuf);
 impl ReaderTestDirectory {
-    fn new() -> Self {
+    pub(super) fn new() -> Self {
         let unique = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
         static NEXT: AtomicUsize = AtomicUsize::new(0);
         let path = std::env::temp_dir().join(format!("sb4-reader-reuse-{}-{unique}-{}", std::process::id(), NEXT.fetch_add(1, Ordering::Relaxed)));
@@ -1495,23 +1460,6 @@ mod ops_tests;
 mod device_handshake_tests;
 
 #[path = "../tests/serve_catalog/mod.rs"] mod catalog_tests;
-#[test]
-fn kit3_memory_http_retries_publish_only_the_ordinary_prelude_and_encountered_rows() {
-    use snapback4_core::Value;
-    let host = Host::with_store(true, snapback4_core::store_port::AnyStore::memory().unwrap(),
-        "use personas alice\ntable a_unrelated:\n  opens: time\n  by opening: opens\n  not before .opens\n  public 'fixture'\n  online only\ntable needed:\n  opens: time\n  by opening: opens\n  not before .opens\n  public 'fixture'\n  online only\nquery list():\n  return needed first 10 by .id\n");
-    let now = host.shared.now();
-    let rows = [("a_unrelated", 5), ("needed", 3)].into_iter().flat_map(|(table, n)| (0..n).map(move |id| {
-        (table.to_owned(), snapback4_core::value::object([("id", Value::Id(format!("r{id}"))), ("opens", Value::Int(now+1000))]))
-    })).collect::<Vec<_>>();
-    lock(&host.shared.engine).seed_at(rows, now).unwrap();
-    lock(&host.shared.clock).freeze(now + 1000);
-    let reply = body(&host.request("POST", "/q/list", "x-snapback-persona: alice\r\n", r#"{"args":{}}"#));
-    assert_eq!(reply["complete"], true, "{reply}"); assert_eq!(reply["data"].as_array().unwrap().len(), 3);
-    let engine = lock(&host.shared.engine);
-    let pending: i64 = (engine.store()).test_support_conn().query_row("SELECT COUNT(*) FROM _time_openings WHERE t = 'a_unrelated'", [], |row|row.get(0)).unwrap();
-    assert_eq!(pending, 4, "only the one ordinary prelude may publish an unrelated row");
-}
 
 #[cfg(feature = "postgres")]
 #[path = "../tests/serve_postgres/mod.rs"]
@@ -1519,3 +1467,6 @@ mod postgres_tests;
 
 #[path = "../tests/round_trips/mod.rs"]
 pub(super) mod round_trip_tests;
+
+#[path = "../tests/serve_committer/mod.rs"]
+mod committer_tests;

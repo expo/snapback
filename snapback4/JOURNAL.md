@@ -102126,3 +102126,384 @@ target executable census is empty. PIDs left: none. Minimum observed disk was
 24 G; inactive completed incremental sessions in this target were removed
 under their session locks (5.34 GB recorded). No other worktree/target,
 PG17/55440, push, stash or Git configuration change was involved.
+## 2026-10-22 — K0-Q: owned commands and the serving committer
+
+The serving writer now belongs to one committer thread. Owned commands carry
+operation, arguments, principal and admission facts into a 128-command bounded
+FIFO; live authority is checked on execution, and existing engine continuations
+finish after durable COMMIT before acknowledgement. HTTP durable submissions
+refuse a full mailbox with the existing 503 E_RATE_LIMIT/limit refusal and
+Retry-After: 1. Fixed host control calls wait for space. Production no longer
+lends a FairMutex<Engine> to requests; detached reads and ephemeral hub execution
+retain their separate owners. Every member still commits alone, with the same
+SQL, savepoints, receipts and errors. There is no batching or automatic retry.
+
+The 48-submitter queue witness checks durable visibility, continuation order and
+one worker; concurrent HTTP writers check 64 receipts and 64 replays while reads
+and ephemeral writes progress. Queue-full, lost receiver and panic/rollback cases
+pass. All requested build, core/device/CLI, no-default, wasm, guide, codec, census
+and compiled-guard checks pass. Four HTTP unit tests timed out at default test
+concurrency, then each passed alone and the full CLI suite passed with four test
+cases at a time, without changing timeout bounds. The Postgres script passes;
+its private cluster is stopped and independently confirmed. Reference validation
+is recorded in the lane report.
+
+The reduced local W4 check remains near 96–97/s. The first pair's median rates
+are 96.96 → 95.14/s; an adjacent repeat gives 95.77 → 97.39/s, reversing the small
+throughput and latency differences. Every run has exactly 4,960 increments and
+stopped servers. These debug-path, cached-baseline measurements show no consistent
+regression or lift and do not qualify a capacity claim. The committer RFC §9 now
+records K0-Q; batching remains the next slice. The [lane report](./reports/20261022-k0q/REPORT.md)
+retains all four runs, toolchain, binary digests and check receipts. Commits remain
+local; protected Postgres and store ownership files are untouched.
+
+
+## 2026-10-22 — K0-Q: integrate S10d-2 ownership with the queue
+
+Rebased the same lane onto `8f909dc734` (including `49153622a9`). The journal
+conflict keeps both S10d-2 entries before K0-Q's entry. The worker conflict
+keeps `worker_ledger_path(None)` and runs it through the owned-command handle;
+the backend-neutral path and its Postgres state-location refusal survive.
+
+The queue can retain an acquired lease, with independent renewal and release
+after accepted work drains. The internal Postgres HTTP host acquires a positive
+token, opens the fenced engine and starts renewal before its listener. The
+fetched S10d-2 records explicitly leave public Postgres configuration and
+release/startup integration to S10d-3; this lane does not claim that public
+surface. No Postgres adapter or store_owner implementation file changes.
+
+Lease loss stops admission and immediately refuses all waiting replies with
+ownership loss, even behind a blocked COMMIT. Queued bodies drain without
+execution. Capacity-blocked callers observe the same loss. Running work keeps
+its actual outcome, including typed CommitOutcomeUnknown; physical COMMIT and
+the adapter's first-lock token fence remain unchanged. Three private-Postgres
+queue witnesses exercise queued loss, renewal during a full queue and blocked
+COMMIT, and COMMIT connection loss. The Postgres script includes them. The
+committer RFC §9 records the integration; the lane report retains qualification.
+
+
+K0-Q qualification follow-up: the lexical committer census mistook the new
+admission ticket's `begin()` for a database opener. Rename it `start_execution`;
+the transition and synchronization are unchanged. No census scope, matcher or
+allowance changes. The affected queue witnesses and guards are repeated.
+
+
+The full host run's only other failure was the store-port test census: the
+Postgres fault fixture imported its driver above the port. Its database-control
+and fault tests now live under `store/`, beside the adapter fixtures. Product
+commands still use the shared port; test paths/names and behavior are unchanged.
+The guard and its allowances remain unchanged. All product tests, including the
+three supplied baselines, passed in that full run; guards and queue tests repeat.
+
+
+K0-Q rebase qualification completes at `07d53b5258`: full core **1,072 / 0 failed /
+5 ignored**, full device **1,573 / 0 / 4**, no-default core, wasm web check,
+compiled handle guards, **127** guide and **27** codec cases pass. The full CLI
+run has **1,405 passes, two census failures and 15 ignored**; all product cases
+and all three supplied baselines pass. The admission-name and fault-fixture
+repairs pass all **16** guard/census cases, with **10 files / 47 durable-opener
+sites** and no allowance changes. No clean full CLI repeat is claimed.
+
+The first Postgres script reproduces the existing evaluator's `40001` retry
+exhaustion; all common-engine stages, **21** ownership cases and all **six**
+queue cases pass. The exact failing binary passes alone (65 increments per
+mode, 95 serializable retries). A single full script repeat with one outer
+case at a time passes **58 evaluator + 209 adapter + 21 ownership + 1 handle +
+38 doctest + 2 member + 6 queue + 1 HTTP + 19 corpus** cases; the unchanged
+four-writer case keeps 65 increments per mode with 69 serializable retries.
+The existing stress ticket gains these observations and remains open. Retry,
+backoff, timeout, workload and durability policies are unchanged.
+
+Fresh adjacent W4 samples give **98.44 → 97.08/s** (-1.38%), p50 **324.07 →
+328.67 ms**, p99 **350.17 → 347.50 ms**. The earlier rebuilt sample is 95.24/s.
+Each run has exactly **4,960** increments. This reduced debug-path comparison
+uses the retained cached baseline; it establishes no production capacity claim.
+All five owned clusters are stopped and independently confirmed, and all six
+benchmark server PIDs are absent. Only the lane's target and ten compiler jobs
+were used; all observed free-space readings stayed above 20 GiB. The
+[lane report](./reports/20261022-k0q/REPORT.md) retains raw samples, initial reds,
+passing repeats, source/binary identities and cleanup receipts. Final root
+reference validation follows. No push or stash.
+
+
+Final K0-Q root `./ref-check` passes **564 LLPs / 11,708 refs / 0 errors /
+0 unchecked**; whitespace checks pass. Five clusters remain independently
+confirmed stopped and all six benchmark PIDs are absent. The code and final
+qualification remain local on `sb4-pg/k0q`; no push or stash.
+
+
+### 2026-10-22 — K0-Q fix round 1: bounded serving refusals and continuation custody
+
+Fixed both blind reviews of `02292e5736` on `sb4-pg/k0q`, rebased by the lead
+onto S10d-3 (`eeb79ebc7c`). `Writer::call` returns a typed error; actions,
+effects, routes, memory sync and maintenance publish in their original command.
+Control admission waits at most 100 ms; all acknowledgements wait at most 30 s,
+then report a non-retryable unknown outcome without cancelling database work.
+Every JSON serving door uses overload 503 + Retry-After, ownership loss 409,
+and unknown outcome 500. View-once consumption commits before releasing bytes;
+a failed transport conservatively consumes the reservation. Bulk refusal is a
+logged `Result` rather than an idle boolean.
+
+Queue and public serving share conservative lease deadline arithmetic measured
+before renewal SQL, with a 50 ms (or quarter-lease) margin; admission, command
+start and an independent watchdog refuse after expiry even if renewal COMMIT is
+stuck. A startup release guard covers failed queue lease installation. The sole
+adapter ownership change exposes lease duration; release SQL is untouched for
+the parallel identity fix-forward.
+
+The new progress barrier initially failed: ephemeral authentication, receipt
+checks and checkout still joined the writer. Those reads now use detached
+connections, preserving the hub lock and generation fence. The focused serving
+suite passes all eight cases, including matching four-door refusal bodies,
+Writer-level ownership loss, committed-answer/wake preservation, view-once
+overload, and reader/ephemeral completion before writer release. New queue
+cases bound admission/acknowledgements and real-Postgres faults cover stalled
+renewal COMMIT and startup release. Complete fresh check results and local W4
+measurements are recorded in [the lane report](reports/20261022-k0q/REPORT.md).
+No push or stash; only this lane's target is used with ten Cargo jobs.
+
+
+K0-Q fix round 1 boundary follow-up: check the 100 ms admission deadline
+before every send probe as well as after Full, so an overslept caller cannot
+admit work after its deadline when space reappears. The stopped/timeout cause
+now says acknowledgement unavailable, covering both disconnection and expiry.
+The acknowledgement's typed unknown-outcome and retry policy are unchanged.
+
+
+The first full CLI pass reproduced a stale expectation in the authority-gap
+fixture: file-backed ephemeral admission no longer queues behind the writer.
+Keep that request parked at reader checkout while adopting and expiring/revoking
+its bearer, then release it. All original no-write, no-new-commit, and authority
+refusal assertions remain; durable and memory cases keep their queue barriers.
+The failure was rerun alone before adapting the fixture.
+
+
+K0-Q fix round 1 layout follow-up: keep both serving entry modules below
+1,500 lines. Auth config now lives with the existing auth handlers; the
+memory publication regression lives with the committer serving witnesses.
+The moves preserve behavior and keep the strengthened progress assertions
+(query data and successful ephemeral/durable outcomes) in the same scope.
+
+
+The shared lease deadline also bounds each watchdog sleep to its remaining
+window (at most 10 ms), so short test leases do not wait a full polling tick
+past their deadline. Renewal completion still cannot revive lost authority.
+
+
+The guide definition guard initially retained the narrower Postgres-only
+unknown-COMMIT sentence. Its unchanged isolated failure reproduced; the single
+expected defining fact now includes admitted serving acknowledgement loss and
+the 30-second deadline, matching the implemented cross-store error. The guard
+still checks the first paragraph of every registered code explanation.
+
+
+K0-Q fix round 1 deadline follow-up: a real 30-second held-writer regression
+reproduced a late clock command reinstalling its request's maintenance pause
+after the unknown-outcome response had released the request guard. The pause
+now starts before admission and stays owned by that guard; late admitted work
+still advances time, but cannot leave maintenance paused. Clock serialization
+also has the same 100 ms admission deadline and canonical overload response.
+The full CLI repeat's separate concurrent-adoption E_GENERATION/503 failure
+and successful exact isolated rerun remain visible in the qualification report;
+no assertion or retry policy was weakened to hide that race.
+
+
+K0-Q fix round 1 qualification: full core 1,074/0, device 1,573/0, guide
+127/0, wasm codec 27/0, and the complete Postgres script (including public
+S10d-3 serving) pass. The full CLI repeat is 1,412 passed / 1 failed / 17
+ignored: concurrent replay received E_GENERATION/503 during adoption. Its exact
+isolated rerun and the final full lifecycle target (29/0) pass; the race remains
+an open filesystem ticket, with no baseline attribution or clean-full-repeat
+claim. The unchanged five-second admission guard passed in that full repeat.
+Final clock-only checks at e888877fb5 pass 14 maintenance, 10 committer and
+16 guard/census cases, default build and Postgres-feature test typechecking.
+The real 30-second late-clock regression first failed, then passed with pause
+ownership moved to the request and clock admission bounded at 100 ms.
+
+Adjacent local W4 samples at eaa3a60098 measured 97.03 → 95.32 ops/s,
+328.11 → 334.72 ms p50 and 357.49 → 355.21 ms p99; both durable totals are
+4,960. The retained baseline is freshly sampled cached bytes, not a current-main
+rebuild. All three owned Postgres clusters are independently confirmed stopped,
+as are all 11 recorded serving/diagnostic/benchmark PIDs. The report retains
+source and binary identities, initial reds, scoped passing repeats and artifact
+cleanup receipts. Disk observations stayed above the 20 GiB floor; only this
+lane's completed test executables were removed. No push or stash.
+
+
+Final K0-Q fix-round root validation passes: 564 LLPs, 11,719 references,
+zero errors and zero unchecked. Whitespace checks pass. The qualification
+report retains the single full-CLI adoption race, passing exact/full-target
+repeats, and final clock follow-up content receipts; no push or stash.
+
+
+## 2026-10-22 — K0-Q fix round 2: checkpoint, stopped at RT0 attribution
+
+Rebased the fifteen lane commits from b78ab8f2b2 onto main-mirror 2281138019;
+the rebased prior tip is f7d33edb32. Maintenance conflicts retain DX6's staging
+clock/floor/session behavior inside owned commands. Both test modules and every
+Postgres script stage are retained. JOURNAL keeps both sides, with main an exact
+prefix; the committer RFC has one Revised line containing every entry and RT0's
+sibling link. S10d-3's holder-bound release/known rollback fix remains intact.
+
+The checkpoint removes the acknowledgement deadline, keeps admission/ownership
+bounds, and distinguishes worker death before execution (E_COMMITTER_STOPPED,
+not applied) from death after start (E_COMMIT_OUTCOME_UNKNOWN). It makes
+post-advance clock/report failures non-retryable, fences unknown child mints,
+keeps source watchers alive without replaying an unknown digest, and bounds
+/q/ generation handoff retry behind adoption. Added witnesses cover these
+paths, including COMMIT-before-reader-replacement and genuine foreign adoption.
+The SDK unknown-outcome issue is filed separately; no client source changed.
+The renewal-after-deadline availability tradeoff is documented unchanged.
+
+Twelve focused committer cases passed on an intermediate checkpoint, including
+unknown mint fencing, pre-execution disconnect and post-advance mailbox overload.
+Then the SQLite RT0 ratchet failed: keyed_first expected 87, measured 0; other
+durable mutation/replay classes also measured zero. Its thread-local request
+scope does not cross the committer thread. Detached reads retain their counts.
+This is lost attribution, not evidence of fewer SQL statements. Neither ratchet
+table changed. Under the user's explicit count-change stop rule, verification
+stopped here: the redundant full-scope ratchet invocation was interrupted and
+no later stage started. Final-source focused repeats, long-wait/adoption
+witnesses, full CLI/core/device suites, Postgres and reference checks remain
+unverified. The adoption ticket stays open until those witnesses pass.
+
+Only this lane's target was used, at six build jobs, with incremental off.
+Removed its unused incremental cache before the long suites; lowest recorded
+free disk was 43G, above the 20 GB stop threshold. No RT5 files or processes were
+touched. No cluster was started. Owned runner/test/server PIDs left: none.
+No push or stash. The lane report preserves the failure and rebased hash map.
+
+
+## 2026-10-22 — K0-Q fix round 2 continuation: transfer RT0 attribution
+
+The lead resolved the RT0 checkpoint by commissioning explicit attribution
+transfer: test-only scopes now own shared atomic counts, and command submission
+captures the current handle for a thread-bound guard around the body and its
+synchronous continuation. The guard refuses nesting and clears on unwind;
+background maintenance and the unchanged dedicated Postgres renewal connection
+remain uncounted. The ordinary build retains the existing instrumentation gate.
+
+SQLite and private-Postgres RT0 both pass every unchanged table row, with
+keyed-first counts 87 and 77 respectively. The new queue regression proves
+submission-time capture and isolation of subsequent unscoped commands, including
+unwind. The private RT0 cluster is independently confirmed stopped (status 3,
+no postmaster.pid). Full round-2 qualification continues in the lane report;
+this entry does not replace the earlier checkpoint's stop evidence.
+
+
+The final-source adoption witnesses each failed again in isolation before the
+full suites: a `TimedReader` created on the committer carried a thread-local
+latency span back to the request thread and underflowed its depth; the handoff
+fixture also waited for two queued commands although its counter excludes the
+running adoption. The handoff now transports only reader data and creates the
+span on its consuming request thread; the fixture waits for the one blocked
+query. The complete affected query selector passes (14 passed, one ignored),
+including exact COMMIT-gap data/generation and genuine foreign activation.
+The real 31-second clock witness also passes. Initial reds and isolated
+reproductions remain in the qualification receipt.
+
+
+The complete CLI pass at `aeb62378f7` ran every target: 1,422 passed, 11
+failed, 19 ignored. Every failed case was rerun alone. The 30-second clock
+socket timeout and security campaign fixture pass alone. Four residency/
+timeline cases reproduce source-reservation/schema disagreement (new ticket),
+the existing five-second run-admission guard reproduces (ticket appended),
+and the supplied web-witness baseline reproduces. The lane's three remaining
+failures are missing dedicated explanations/routing for its two new codes and
+the interrupted-clock fixture's former outer error code. Add the explanations
+and update that fixture to require the non-retryable incomplete-report envelope
+while preserving its original interruption cause, pause, clock and queued-work
+assertions. The subsequent affected repeat is recorded in the lane report.
+
+The full CLI lifecycle target passes all 29 cases in 40.75 seconds, including
+the original concurrent replay/backfill data assertions. Together with the
+passing deterministic handoff and foreign-activation controls, this closes
+`issues/closed/20261022-snapback4-concurrent-adoption-generation-refusal.md`.
+This does not claim a clean overall CLI suite.
+
+
+The repaired full CLI unit binary passes 535 tests with zero failures and
+nine existing ignores; the exact `why` integration also passes. This repairs
+all three lane-owned failures from the complete CLI pass. The two transient
+failures pass alone; six unrelated/provided-baseline cases remain reproducible
+and are retained explicitly in the report, with no clean-full-CLI claim.
+
+
+## 2026-10-23 — K0-Q fix round 2: final guide pins and full-device evidence
+
+The complete device pass ran all targets: 1,565 passed, eight failed, four
+ignored. All eight exact isolated reruns reproduce source-reservation/schema
+disagreement in direct-engine `readauth` fixtures. The existing new reservation
+fixture ticket now includes them; no validator or fixture source was weakened.
+The full committer/store-port/handle census passes 16 cases, the compiled-handle
+guard passes, and both release-feature refusals pass. Wasm codec census passes
+27 cases. The full-scope SQLite RT0 command again matches every unchanged row.
+
+The full guide target initially found its defining/recovery fact matrices lacked
+the two new runtime codes, and the failure reproduced alone. Add explicit facts
+for before-execution/not-applied recovery and non-retryable incomplete clock
+reporting, preserving every registry-equality and recovery assertion. The full
+guide repeat passes all 127 cases. Full Postgres qualification continues; its
+evaluator has so far exposed the existing raw 40001 concurrency signature.
+The lane report retains the original reds and final scoped repairs.
+
+
+The first full Postgres log audit found five core unit-test stages never
+compiled: the renewal-COMMIT-stall fixture retained `Reply::wait_timeout`,
+removed with the acknowledgement deadline. The initial main-store-pass claim
+was wrong; only its compiled-handle guard, 38 doctests, HTTP/RT0/corpus and
+public-serving stages ran. The fixture now waits through the real `Reply::wait`
+on a test thread and bounds observation with a separate receiver, retaining
+the original 50 ms ownership-loss requirement and pre-assertion unlock/cleanup.
+The full Postgres-feature test tree type-checks; complete-script qualification
+is repeated below in the lane report. No production timeout API was restored.
+
+
+Final K0-Q fix-round-2 qualification on 2026-10-23 runs every requested check.
+Both unchanged RT0 tables match all twelve warm rows exactly (keyed first
+87 SQLite / 77 Postgres). Default/no-default/wasm builds, 1,085 core passes,
+535 final CLI-unit passes, 29 lifecycle passes, 127 guide passes, 27 wasm codec
+cases, both compiled/release feature guards and the final 16-case census pass.
+The corrected full Postgres repeat runs all five formerly blocked core stages
+(218/25/2/1/12), plus handle/doc/HTTP/RT0/corpus/public-serving witnesses: 376
+Rust passes and the single evaluator 40001 failure, whose exact unchanged
+isolated rerun passes both modes. Initial compile gaps and reds remain visible.
+
+Full CLI/device qualification retains six and eight reproducible unrelated or
+provided-baseline cases after every exact isolated rerun; two other CLI failures
+pass alone. No clean full-CLI/device/Postgres-script claim is made. The adoption
+issue is closed by the exact COMMIT-gap/foreign-activation witnesses and full
+29-case lifecycle target. The SDK unknown-outcome issue stays open as commissioned.
+
+Fresh successful W4 samples measure 95.30 -> 95.55 ops/s,
+332.38 -> 332.69 ms p50, 438.69 -> 463.91 ms p99;
+both durable totals are 4,960. Two failed baseline HTTP-503 samples are retained;
+the third identical-workload baseline succeeds with diagnostic-only error logging.
+No tail-latency or promotion claim is inferred from these busy-host probes.
+All five owned clusters independently report stopped, all 97 recorded PIDs are
+absent, and the executable/runner census is empty. Lowest sampled free space
+23.31 GiB; only this lane's completed target executables were reclaimed.
+No RT5 touch, push or stash. Final records and post-record reference checks
+are in reports/20261022-k0q/REPORT.md and its fix2-final receipts.
+
+Final post-record reference check: 565 LLP documents, 11,757 references, zero errors and zero unchecked. Whitespace and the repeated independent 97-PID/five-cluster/table-digest audit pass. All work is committed locally; no push or stash.
+
+## 2026-10-23 — K0-Q landed (lead)
+
+K0-Q (owned engine commands, the bounded committer mailbox, the worker-owned
+committer thread) lands after three blind review rounds; round 3 at
+`d561ef88b3` was one APPROVE WITH NITS and one CHANGES REQUIRED with two P2s
+that are not current SQLite behavior changes. They and the round-3 lows go to
+a fix-forward lane: fence an inner `E_COMMIT_OUTCOME_UNKNOWN` from the
+dev-worker mint as the outer one is; refuse a synchronous submission from the
+committer thread to its own queue (it deadlocks); keep the incomplete-report
+envelope when the worker dies during a clock advance; re-decode arguments
+after an adoption handoff; answer 503 for `E_GENERATION` after the handoff
+cap; update the K0-Q note's stale "qualification stopped" sentence. The
+rebase onto `fc5b38f511` changed no code line (identical patch-id for
+`crates/`, `scripts/`, `packages/`); the SQLite RT0 ratchet passes on the
+rebased tree. The remaining full-suite reds reproduce without K0-Q (e.g.
+`readauth outcomes::bridge_publish_*` fails identically at `442ab2b06d`) and
+are ticketed. The lane's `/tmp/sb4-k0q{,-fix1,-rebase}` transcripts on
+expo-build-450a were deleted by the lead when that host's disk filled; the
+committed receipts remain.

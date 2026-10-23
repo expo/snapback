@@ -312,8 +312,8 @@ impl Engine {
         Ok(grant(once))
     }
 
-    /// Complete a view after the host has successfully sent the bytes.
-    /// Hosts serialize deliveries for the same asset and principal.
+    /// Consume a view before the host releases bytes. Hosts serialize deliveries
+    /// for the same asset and principal; failed transports consume the reservation.
     pub fn record_asset_view(&mut self, principal: &str, id: &str, now: i64) -> Result<(), RuntimeError> {
         let tx = self.store.transaction()?;
         if tx.asset_viewed(id, principal)? {

@@ -18,17 +18,16 @@ pub(in crate::serve) fn claim(request: Request, shared: &Shared, body: &str) {
     let lease = Duration::from_secs(payload.lease.clamp(1, 25));
     let deadline = Instant::now() + Duration::from_secs(payload.wait.min(25));
     loop {
-        let (worker, claimed) = {
-            let engine = lock(&shared.engine);
-            let worker = match service_of_locked(&request, shared, &engine) {
-                Ok(worker) => worker, Err(why) => { drop(engine); return respond(request, 401, json!({ "denied": why })); }
-            };
+        let facts = RequestFacts::capture(&request);
+        let routes = payload.routes.clone();
+        let result = shared.engine.attempt_and_notify(move |engine, shared| {
+            let worker = service_of_locked(&facts, shared, engine)?;
             let now = Instant::now();
             let now_ms = shared.now();
             let mut claimed = Vec::new();
             for (id, ticket) in lock(&shared.route_verification.tickets).iter_mut() {
                 if ticket.outcome.is_some() || ticket.deadline <= now || ticket.deadline_ms <= now_ms
-                    || ticket.lease.as_ref().is_some_and(|held| held.until > now) || !payload.routes.contains(&ticket.name) { continue; }
+                    || ticket.lease.as_ref().is_some_and(|held| held.until > now) || !routes.contains(&ticket.name) { continue; }
                 if !matches!(engine.route_service_generation(&ticket.name, &ticket.contract), Ok((_, generation)) if generation == ticket.generation) {
                     ticket.outcome = Some(Verified::Unavailable); continue;
                 }
@@ -40,9 +39,10 @@ pub(in crate::serve) fn claim(request: Request, shared: &Shared, body: &str) {
                 ticket.lease = Some(Lease { worker: worker.clone(), token, until });
                 if claimed.len() >= limit { break; }
             }
-            (worker, claimed)
-        };
-        shared.durable_committed(&lock(&shared.engine));
+            Ok::<_, Refusal>((worker, claimed))
+        }, |r| r.is_ok());
+        let (worker, claimed) = match result { Ok(value) => value, Err(why) => return respond(request, 401, json!({"denied":why})) };
+
         if !claimed.is_empty() || Instant::now() >= deadline || crate::lifecycle::stopping() {
             return respond(request, 200, json!({ "requests": claimed, "worker": worker }));
         }
@@ -64,11 +64,12 @@ pub(in crate::serve) fn settle(request: Request, shared: &Shared, path: &str, bo
     };
     let token = match single_header(&request, "x-snapback-route-lease") { Ok(Some(token)) => token, _ => return refuse(request, 400, "E_ROUTE_LEASE", "send exactly one verification claim fence") };
     let payload = match serde_json::from_str::<Settlement>(body) { Ok(payload) => payload, Err(_) => return refuse(request, 400, "E_ROUTE_INPUT", "verification settlement needs allow, deny or unavailable") };
-    let answer = {
-        let mut engine = lock(&shared.engine);
-        let worker = match service_of_locked(&request, shared, &engine) { Ok(worker) => worker, Err(why) => { drop(engine); return respond(request, 401, json!({ "denied": why })); } };
+    let (facts, id, token) = (RequestFacts::capture(&request), id.to_owned(), token.to_owned());
+    let checked = shared.engine.attempt_and_notify(move |engine, shared| {
+        let worker = service_of_locked(&facts, shared, engine)?;
+        let answer = {
         let mut tickets = lock(&shared.route_verification.tickets);
-        match tickets.get_mut(id) {
+        match tickets.get_mut(&id) {
             Some(ticket) if ticket.outcome.is_none() && ticket.deadline > Instant::now() && ticket.deadline_ms > shared.now()
                 && ticket.lease.as_ref().is_some_and(|lease| lease.worker == worker && lease.token == token && lease.until > Instant::now()) => {
                 ticket.outcome = Some(match payload.disposition {
@@ -83,8 +84,11 @@ pub(in crate::serve) fn settle(request: Request, shared: &Shared, path: &str, bo
             }
             _ => false,
         }
-    };
-    shared.durable_committed(&lock(&shared.engine));
+        };
+        Ok::<_, Refusal>(answer)
+    }, |r| r.is_ok());
+    let answer = match checked { Ok(value) => value, Err(why) => return respond(request, 401, json!({"denied":why})) };
+
     if answer { respond(request, 200, json!({ "ok": true })); }
     else { refuse(request, 409, "E_ROUTE_LEASE", "the verification ticket or claim fence is no longer live"); }
 }

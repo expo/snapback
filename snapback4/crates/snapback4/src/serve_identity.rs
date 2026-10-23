@@ -1,12 +1,20 @@
 use super::*;
 
 /// Who is asking: a bearer session, or (in `dev`, from loopback) a persona.
-pub(crate) fn principal_of(request: &Request, shared: &Shared) -> Result<snapback4_core::identity::Capability, Refusal> {
+pub(crate) fn principal_of(request: &impl RequestInfo, shared: &Shared) -> Result<snapback4_core::identity::Capability, Refusal> {
     principal_with_owner(request, shared, None)
 }
 
-fn principal_with_owner(request: &Request, shared: &Shared, owner: Option<&Engine>) -> Result<snapback4_core::identity::Capability, Refusal> {
-    // Declared public bearer routes keep their existing development admission.
+// @ref LLP 3000.009.001.000.000#3.6 — credentials are owned admission inputs; live authority and time are resolved on the executing writer.
+#[derive(Clone)]
+pub(crate) struct Admission {
+    persona: Option<String>,
+    bearer: Option<String>,
+    trusted_dev: bool,
+}
+impl Admission {
+    pub(crate) fn capture(request: &impl RequestInfo, shared: &Shared) -> Result<Self, Refusal> {
+        // Declared public bearer routes keep their existing development admission.
     if !(request.method() == &Method::Post && routes::declared(shared, request.url()).is_some()
         && !request.headers().iter().any(|h| h.field.equiv("x-snapback-persona"))) {
         dev_request(request, shared)?;
@@ -37,8 +45,22 @@ fn principal_with_owner(request: &Request, shared: &Shared, owner: Option<&Engin
     if persona.is_some() && bearer.is_some() {
         return Err(Refusal::new("E_AUTH", "auth", "send one credential: a development persona or a bearer token").guide("personas"));
     }
-    if let Some(persona) = persona {
-        if let Some(engine) = owner { shared.dev_authority(engine)?; }
+        Ok(Self { persona, bearer, trusted_dev: trusted_dev_request(request, shared) })
+    }
+    pub(crate) fn resolve(&self, shared: &Shared, engine: &Engine) -> Result<snapback4_core::identity::Capability, Refusal> {
+        self.resolve_at(shared, engine, None, false)
+    }
+    pub(crate) fn resolve_detached(&self, shared: &Shared, engine: &Engine) -> Result<snapback4_core::identity::Capability, Refusal> {
+        let identity = lock(&shared.wake).store_id.clone();
+        self.resolve_at(shared, engine, identity.as_deref(), true)
+    }
+    pub(crate) fn check_detached(&self, shared: &Shared, engine: &Engine, principal: &str) -> Result<(), Refusal> {
+        if self.resolve_detached(shared, engine)?.0 == principal { Ok(()) }
+        else { Err(Refusal::new("E_AUTH", "auth", "the request's session changed; sign in again").guide("personas")) }
+    }
+    fn resolve_at(&self, shared: &Shared, engine: &Engine, identity: Option<&str>, detached: bool) -> Result<snapback4_core::identity::Capability, Refusal> {
+    if let Some(persona) = self.persona.clone() {
+        shared.dev_authority(engine)?;
         if shared.dev_doors() {
             // `use personas` is the cast: a test expecting an outsider to be
             // refused must not see it signed in. No declaration admits none.
@@ -54,42 +76,50 @@ fn principal_with_owner(request: &Request, shared: &Shared, owner: Option<&Engin
         }
         return Err(Refusal::new("E_AUTH", "auth", "personas are a development door; a deployed server takes bearer tokens (snapback4/auth)").guide("personas"));
     }
-    if let Some(token) = bearer {
-        // Reads may authenticate against the committed generation during adoption.
-        // Keep write authentication behind the writer: time queued for adoption
-        // must not preserve a session that expired or was revoked in that wait.
-        let path = request.url().split('?').next().unwrap_or("");
-        let read = detached_request(request.method(), path);
-        let resolve = |engine: &Engine, identity: Option<&str>, detached: bool| {
-            let now = shared.now();
-            let sample = snapback4_core::identity::ServiceSample { now, supervisor_revision: shared.worker_revision.load(Ordering::Acquire) };
-            let result = if detached {
-                snapback4_core::identity::resolve_read_only_supervised(engine.store(), &token, sample, identity)
-            } else {
-                snapback4_core::identity::resolve_supervised(engine.store(), &token, sample)
-            };
-            let result=result.map_err(|error| error.refusal()).and_then(|value|value.ok_or_else(||
-                snapback4_core::identity::diagnostics::refused(engine.store(), &token, now, trusted_dev_request(request, shared))));
-            if result.is_err() {crate::release_requests::stamp(engine.generation());}
-            result
+    if let Some(token) = &self.bearer {
+        let now = shared.now();
+        let sample = snapback4_core::identity::ServiceSample { now, supervisor_revision: shared.worker_revision.load(Ordering::Acquire) };
+        let result = if detached {
+            snapback4_core::identity::resolve_read_only_supervised(engine.store(), token, sample, identity)
+        } else {
+            snapback4_core::identity::resolve_supervised(engine.store(), token, sample)
         };
-        return if let Some(engine) = owner { resolve(engine, None, false) }
-        else if read { match shared.reader() {
+        let result = result.map_err(|error| error.refusal()).and_then(|value| value.ok_or_else(||
+            snapback4_core::identity::diagnostics::refused(engine.store(), token, now, self.trusted_dev)));
+        if result.is_err() { crate::release_requests::stamp(engine.generation()); }
+        return result;
+    }
+    Err(Refusal::new("E_AUTH", "auth", "sign in: send a bearer token (snapback4/auth), or x-snapback-persona in development").guide("personas"))
+    }
+    pub(crate) fn check(&self, shared: &Shared, engine: &Engine, principal: &str) -> Result<(), Refusal> {
+        if self.resolve(shared, engine)?.0 == principal { Ok(()) }
+        else { Err(Refusal::new("E_AUTH", "auth", "the request's session changed; sign in again").guide("personas")) }
+    }
+}
+fn principal_with_owner(request: &impl RequestInfo, shared: &Shared, owner: Option<&Engine>) -> Result<snapback4_core::identity::Capability, Refusal> {
+    let admission = Admission::capture(request, shared)?;
+    if let Some(engine) = owner { return admission.resolve(shared, engine); }
+    let path = request.url().split('?').next().unwrap_or("");
+    let ephemeral = request.method() == &Method::Post && path.strip_prefix("/m/").is_some_and(|name|
+        lock(&shared.bound).schema.operations.get(name).is_some_and(|fact| fact.ephemeral));
+    if detached_request(request.method(), path) || ephemeral {
+        match shared.reader() {
             Ok((epoch, reader)) => {
                 let identity = lock(&shared.wake).store_id.clone();
-                let result = resolve(&reader, identity.as_deref(), true);
+                let result = admission.resolve_at(shared, &reader, identity.as_deref(), true);
                 lock(&shared.readers).put(&epoch, reader.into_inner());
                 result
             }
-            Err(_) if shared.memory_store() => resolve(&lock(&shared.engine), None, false),
+            Err(_) if shared.memory_store() => shared.engine.attempt(move |engine, shared| admission.resolve(shared, engine)),
             Err(error) => Err(error.refusal()),
-        } } else { resolve(&lock(&shared.engine), None, false) };
+        }
+    } else {
+        shared.engine.submit(move |engine, shared| admission.resolve(shared, engine))?
     }
-    Err(Refusal::new("E_AUTH", "auth", "sign in: send a bearer token (snapback4/auth), or x-snapback-persona in development").guide("personas"))
 }
 
 // @ref LLP 3000.000.000.001#4-development-doors — a persona cannot cross from authentication into a replacement password-only reader.
-pub(crate) fn persona_read_authority(request: &Request, shared: &Shared, engine: &Engine) -> Result<(), Refusal> {
+pub(crate) fn persona_read_authority(request: &impl RequestInfo, shared: &Shared, engine: &Engine) -> Result<(), Refusal> {
     let Some(persona) = request.headers().iter().find(|header| header.field.equiv("x-snapback-persona")) else { return Ok(()) };
     shared.dev_authority(engine)?;
     let bound = lock(&shared.bound);
@@ -104,7 +134,7 @@ pub(crate) fn persona_read_authority(request: &Request, shared: &Shared, engine:
 }
 
 // @ref LLP 3000.019#3.6 — adoption's writer queue cannot retain expired bearer authority.
-pub(crate) fn mutation_authority(request: &Request, shared: &Shared, engine: &Engine, principal: &str) -> Result<(), Refusal> {
+pub(crate) fn mutation_authority(request: &impl RequestInfo, shared: &Shared, engine: &Engine, principal: &str) -> Result<(), Refusal> {
     if principal_with_owner(request, shared, Some(engine))?.0 == principal { Ok(()) }
     else { Err(Refusal::new("E_AUTH", "auth", "the request's session changed; sign in again").guide("personas")) }
 }

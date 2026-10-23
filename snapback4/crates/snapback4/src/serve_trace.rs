@@ -29,12 +29,13 @@ pub(super) fn now() -> u64 {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize)]
 pub(super) struct Trace {
     id: u64, accepted: u64, dispatched: u64, started: u64,
     query_start: u64, query_end: u64, encode_start: u64, encode_end: u64,
     write_start: u64, write_end: u64, mutation_commit: u64,
     mutex_wait: u64, readers_wait: u64, engine_wait: u64,
+    writer_thread_id: u64, writer_cpu_ns: u64,
     thread_id: u64, cpu_start: i32, cpu_end: i32, query_cpu_start: i32, query_cpu_end: i32,
     cpu_ns_start: u64, cpu_ns_end: u64,
 }
@@ -47,6 +48,7 @@ impl Trace {
         Some(Self { id, accepted: dispatched.saturating_sub(request.accepted_at().elapsed().as_nanos() as u64),
             dispatched, started: 0, query_start: 0, query_end: 0, encode_start: 0, encode_end: 0,
             write_start: 0, write_end: 0, mutation_commit: 0, mutex_wait: 0, readers_wait: 0, engine_wait: 0,
+            writer_thread_id: 0, writer_cpu_ns: 0,
             thread_id: 0, cpu_start: -1, cpu_end: -1, query_cpu_start: -1, query_cpu_end: -1, cpu_ns_start: 0, cpu_ns_end: 0 })
     }
     pub(super) fn run(mut self, body: impl FnOnce()) {
@@ -102,4 +104,26 @@ fn thread_cpu_ns() -> u64 {
     let mut t = libc::timespec { tv_sec: 0, tv_nsec: 0 };
     if unsafe { libc::clock_gettime(libc::CLOCK_THREAD_CPUTIME_ID, &mut t) } != 0 { return 0; }
     t.tv_sec as u64 * 1_000_000_000 + t.tv_nsec as u64
+}
+
+pub(super) fn worker_sample() -> Option<(Trace, Instant)> {
+    CURRENT.with(|slot| slot.borrow().as_ref().cloned().map(|trace| (trace, Instant::now())))
+}
+pub(super) fn run_worker<T>(sample: Option<(Trace, Instant)>, run: impl FnOnce() -> T) -> (T, Option<Trace>) {
+    let Some((mut trace, queued)) = sample else { return (run(), None); };
+    trace.engine_wait += queued.elapsed().as_nanos() as u64;
+    trace.writer_thread_id = thread_id();
+    let cpu_start = thread_cpu_ns();
+    CURRENT.with(|slot| { assert!(slot.borrow().is_none()); *slot.borrow_mut() = Some(trace); });
+    struct Clear;
+    impl Drop for Clear { fn drop(&mut self) { CURRENT.with(|slot| { slot.take(); }); } }
+    let _clear = Clear;
+    let value = run();
+    let trace = CURRENT.with(|slot| slot.take()).map(|mut trace| {
+        trace.writer_cpu_ns += thread_cpu_ns().saturating_sub(cpu_start); trace
+    });
+    (value, trace)
+}
+pub(super) fn merge_worker(trace: Option<Trace>) {
+    if let Some(trace) = trace { CURRENT.with(|slot| *slot.borrow_mut() = Some(trace)); }
 }

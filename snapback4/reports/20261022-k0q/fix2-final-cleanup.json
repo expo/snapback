@@ -1,0 +1,74 @@
+{
+  "clusters": [
+    {
+      "runtime": "/tmp/k0q-fix2-rt0-pg.uZTKu9",
+      "data": "/tmp/k0q-fix2-rt0-pg.uZTKu9/data",
+      "status_exit": 3,
+      "pid_file": false,
+      "output": "pg_ctl: no server running\n"
+    },
+    {
+      "runtime": "/tmp/s10d3-serve-6ti08pwl",
+      "data": "/tmp/s10d3-serve-6ti08pwl/data",
+      "status_exit": 3,
+      "pid_file": false,
+      "output": "pg_ctl: no server running\n"
+    },
+    {
+      "runtime": "/tmp/s10d3-serve-edi744xv",
+      "data": "/tmp/s10d3-serve-edi744xv/data",
+      "status_exit": 3,
+      "pid_file": false,
+      "output": "pg_ctl: no server running\n"
+    },
+    {
+      "runtime": "/tmp/sb4-pg-eval.59pqQG",
+      "data": "/tmp/sb4-pg-eval.59pqQG/data",
+      "status_exit": 3,
+      "pid_file": false,
+      "output": "pg_ctl: no server running\n"
+    },
+    {
+      "runtime": "/tmp/sb4-pg-eval.AwWyEU",
+      "data": "/tmp/sb4-pg-eval.AwWyEU/data",
+      "status_exit": 3,
+      "pid_file": false,
+      "output": "pg_ctl: no server running\n"
+    }
+  ],
+  "recorded_pid_count": 97,
+  "recorded_live": [],
+  "recorded_zombies": [],
+  "live_executables_under_lane_target_or_baseline": [],
+  "live_task_runners": [],
+  "unchanged_rt0_tables": {
+    "sqlite": {
+      "sha256": "3f1514cc8ff016039408897f80c28db05068778af59c14dfb4f04aa762ccbf42",
+      "byte_identical_to_base": true,
+      "classes": 12
+    },
+    "postgres": {
+      "sha256": "93a02f1c99c6d938bd61a0371277c05af71d4338907b11d62dd1465bb726ef4e",
+      "byte_identical_to_base": true,
+      "classes": 12
+    }
+  },
+  "artifact_cleanups": [
+    {
+      "receipt": "/tmp/k0q-fix2-artifact-cleanup.json",
+      "removed_count": 124,
+      "apparent_bytes": 32636659520
+    },
+    {
+      "receipt": "/tmp/k0q-fix2-core-artifact-cleanup.json",
+      "removed_count": 45,
+      "apparent_bytes": 15184872104
+    },
+    {
+      "receipt": "/tmp/k0q-fix2-device-artifact-cleanup.json",
+      "removed_count": 73,
+      "apparent_bytes": 34886330312
+    }
+  ],
+  "minimum_observed_free_bytes": 25026174976
+}

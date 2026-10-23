@@ -1,0 +1,52 @@
+{
+  "status": "stopped under explicit RT0 count-change rule",
+  "base": "2281138019",
+  "rebased_prior_tip": "f7d33edb32",
+  "compiler_jobs": 6,
+  "target_dir": "/home/ccheever/projects/sb4-s10a/snapback4/target",
+  "disk_floor_gb": 20,
+  "minimum_observed_free_gb": 43,
+  "checks": [
+    {
+      "name": "focused committer, intermediate source",
+      "command": "cargo test -p snapback4 --bin snapback4 committer --no-fail-fast -j 6",
+      "exit": 0,
+      "passed": 12
+    },
+    {
+      "name": "SQLite RT0",
+      "command": "cargo test -p snapback4 --bin snapback4 round_trip -j 6",
+      "exit": 101,
+      "passed": 1,
+      "failed": 1,
+      "ignored": 1,
+      "failure": "sqlite keyed_first: table 87, measured 0"
+    },
+    {
+      "name": "redundant full-scope RT0 invocation",
+      "command": "cargo test -p snapback4 round_trip -j 6",
+      "exit": -2,
+      "reason": "interrupted at user stop condition; later checks never started"
+    }
+  ],
+  "unverified": [
+    "final-source focused repeat",
+    "31-second queue and clock witnesses",
+    "adoption handoff and foreign activation witnesses",
+    "source watcher retry witness",
+    "build and no-default/wasm checks",
+    "full core/CLI/device suites and lifecycle replay",
+    "ratchets/censuses/compiled guards",
+    "guide/codec census",
+    "Postgres script and RT0 Postgres",
+    "new W4 samples",
+    "ref-check"
+  ],
+  "clusters_started": [],
+  "owned_pids_left": [],
+  "unchanged_rt0_tables": {
+    "sqlite.json": "3f1514cc8ff016039408897f80c28db05068778af59c14dfb4f04aa762ccbf42",
+    "postgres.json": "93a02f1c99c6d938bd61a0371277c05af71d4338907b11d62dd1465bb726ef4e"
+  },
+  "checkpoint_commit": "96b7f976e8d217f652a4c8750f1889aeef2afeeb"
+}

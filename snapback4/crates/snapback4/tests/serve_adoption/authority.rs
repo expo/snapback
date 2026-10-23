@@ -33,8 +33,14 @@ fn bearer_is_checked_after_durable_and_ephemeral_mutation_lock_gaps() {
             // Take the writer in that exact gap, let the request queue, then
             // adopt and expire/revoke its previously authenticated bearer.
             let mut engine = lock(&host.shared.engine);
-            gate.release();
-            wait_until(|| host.shared.engine.waiting() == 1);
+            let detached_ephemeral = ephemeral && !memory;
+            if !detached_ephemeral {
+                gate.release();
+                wait_until(|| host.shared.engine.waiting() == 1);
+            }
+            // File-backed ephemeral admission now uses readers. Keep it parked
+            // before checkout while changing authority; it must recheck the
+            // bearer on that reader without joining the durable writer queue.
             let candidate = snapback4_lang::compile(&[("schema.q".into(),format!("{}{}",source,reads::VIEWS))]);
             let seq = engine.seq().unwrap();
             engine.adopt(candidate.schema, candidate.programs.into_iter().map(|p|p.program)).unwrap();
@@ -44,6 +50,7 @@ fn bearer_is_checked_after_durable_and_ephemeral_mutation_lock_gaps() {
             (engine.store()).test_support_conn().execute(if revoke {"DELETE FROM _sessions"} else {"UPDATE _sessions SET expires_at = 0"}, []).unwrap();
             let ephemeral_before = host.shared.ephemeral.snapshot().unwrap().version;
             drop(engine);
+            if detached_ephemeral { gate.release(); }
             let reply = request.join().unwrap();
             if ephemeral {
                 assert_eq!(body(&reply)["state"], "failed", "{reply}");

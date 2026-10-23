@@ -1,0 +1,20 @@
+{
+  "base_commit": "eaa3a600989cb65f7907f48be6338fad69445fdf",
+  "reproduction": {
+    "command": ["cargo", "test", "-p", "snapback4", "--bin", "snapback4", "-j", "10", "--", "serve::maintenance::tests::clock_timeout_releases_maintenance_when_admitted_advance_finishes_late", "--exact", "--nocapture"],
+    "status": 101,
+    "test_seconds": 30.01,
+    "expected_failure": true,
+    "note": "New regression on the preceding production source; test runtime excludes compilation. Source assertions and test body are retained in the qualified follow-up."
+  },
+  "source_files": {"crates/snapback4/src/serve_maintenance.rs": "53cf3565f986bbb7cc1ab62f678899564f81b96c2cbcec7c1ca7ac3d4274c742", "crates/snapback4/src/serve_committer.rs": "36296f997ff25acf8d9ac9870c524c2975b0034518bbf972c8500697a338ab96"},
+  "checks": [
+    {"name": "clock-final", "command": ["cargo", "test", "-p", "snapback4", "--bin", "snapback4", "-j", "10", "--", "serve::maintenance::tests", "--nocapture"], "status": 0, "seconds": 52.007829470559955},
+    {"name": "committer-final", "command": ["cargo", "test", "-p", "snapback4", "--bin", "snapback4", "committer", "-j", "10", "--", "--nocapture"], "status": 0, "seconds": 4.000992691144347},
+    {"name": "lifecycle-final", "command": ["cargo", "test", "-p", "snapback4", "--test", "lifecycle", "-j", "10"], "status": 0, "seconds": 86.00530447624624},
+    {"name": "clock-ratchets", "command": ["cargo", "test", "-p", "snapback4", "--test", "committer_ratchet", "--test", "store_port_ratchet", "--test", "store_handle_census", "-j", "10"], "status": 0, "seconds": 2.000656211748719},
+    {"name": "clock-build", "command": ["cargo", "build", "-p", "snapback4", "-j", "10"], "status": 0, "seconds": 10.00105132162571},
+    {"name": "clock-pg-check", "command": ["cargo", "check", "-p", "snapback4", "--features", "postgres", "--tests", "-j", "10"], "status": 0, "seconds": 24.001944169402122}
+  ],
+  "qualified_commit": "e888877fb5c1eb159c56c85621350c582a77159a"
+}

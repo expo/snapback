@@ -1,0 +1,46 @@
+{
+  "initial": {
+    "rust_passed": 118,
+    "rust_failed": 1,
+    "compile_error": "E0599: retired Reply::wait_timeout in store/command_postgres_tests.rs",
+    "blocked_core_stages": [
+      "engine::postgres::tests",
+      "engine::postgres::ownership::tests",
+      "engine::committer::postgres_tests",
+      "engine::committer::maintained_members",
+      "engine::command::tests"
+    ]
+  },
+  "fixture_fix_commit": "adeb2c1924",
+  "postgres_feature_test_tree_check": {
+    "exit": 0,
+    "log": "/tmp/sb4-k0q-fix2-final/pg-fixture-check.log"
+  },
+  "repeat": {
+    "exit": 1,
+    "rust_results": {
+      "passed": 376,
+      "failed": 1,
+      "ignored": 0
+    },
+    "core_stage_passes": [
+      218,
+      25,
+      2,
+      1,
+      12
+    ],
+    "all_core_stages_ran": true,
+    "public_serving": "PASS including P1-MC",
+    "rt0": "12 exact warm classes; tables unchanged"
+  },
+  "evaluator_concurrency_isolate": {
+    "exit": 0,
+    "passed": 1,
+    "serialized_increments": 65,
+    "serializable_increments": 65,
+    "serialized_total_retries": 0,
+    "serializable_total_retries": 89,
+    "log": "/tmp/sb4-k0q-fix2-final/postgres-concurrency-isolated.log"
+  }
+}

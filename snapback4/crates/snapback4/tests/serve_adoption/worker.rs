@@ -213,13 +213,12 @@ setInterval(() => { if (fs.existsSync('exit')) { Atomics.wait(new Int32Array(new
     let held = inspect.clone();
     let shared = host.shared.clone();
     let (observed, observation) = mpsc::channel();
-    let inspection = thread::spawn(move || {
-        let engine = lock(&shared.engine);
+    let inspection = thread::spawn(move || shared.engine.call(move |engine, _| {
         let remaining: i64 = (engine.store()).test_support_conn().query_row("SELECT count(*) FROM _sessions WHERE COALESCE(family, token_digest) = ?1", [&family], |row| row.get(0)).unwrap();
         let status: Json = serde_json::from_str(&(engine.store()).test_support_meta("worker:status").unwrap().unwrap()).unwrap();
         observed.send((remaining, status, engine.effects(None, 10).unwrap())).unwrap();
         held.park();
-    });
+    }));
     wait_setup_before("inspection queued", claim_deadline, || host.shared.engine.waiting() == 3);
     for path in ["/q/who", "/sync"] {
         let start = Instant::now();
@@ -252,7 +251,7 @@ setInterval(() => { if (fs.existsSync('exit')) { Atomics.wait(new Int32Array(new
     assert_eq!(status(&response), 401, "{response}");
     assert_eq!(body(&response)["denied"]["code"], "E_AUTH");
     inspect.release();
-    inspection.join().unwrap();
+    inspection.join().unwrap().unwrap();
     drop(release_inspection_on_panic);
     wait_setup("replacement worker running", || worker_status()["starts"].as_u64().unwrap_or(0) >= 2 && worker_status()["state"] == "running");
     assert_eq!(worker_status()["crashes"], 1);

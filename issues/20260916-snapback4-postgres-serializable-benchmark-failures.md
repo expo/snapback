@@ -190,3 +190,52 @@ durability input changed. This adds a repeated occurrence of the open stress
 failure, not a root-cause attribution or a claim of a green full script.
 All owned PG16 clusters are stopped, with status 3, no postmaster.pid and
 absent PIDs; all eight codec/flight tests pass on both C and en_US.utf8.
+
+## 2026-10-22 — K0-Q rebase qualification
+
+At `07d53b5258` on base `8f909dc734`, the first stock Postgres script's
+retained evaluator case
+`concurrent_read_modify_write_and_duplicate_ops_are_atomic_in_both_modes`
+exhausted the existing retry budget with SQLSTATE `40001` at
+`tests/conformance.rs:244` (`could not serialize access due to concurrent update`).
+The case exercises the retained `PostgresEngine` directly. This lane changes
+neither that evaluator nor `engine/postgres/` implementation files.
+All 209 common-engine adapter, 21 ownership and six queued-command cases passed;
+the same first script also passed its handle/docs/member/HTTP/corpus stages.
+
+The exact failing test binary (SHA-256
+`658114e6198ec1b11412f5421a012f2b08bdad489f8ffd4a116a1b7f59bbef7b`)
+passed the exact case alone, retaining 65 increments in each mode, zero
+serialized retries and 95 serializable retries. A single complete stock-script
+repeat with one outer test case at a time then passed all 58 evaluator cases
+and every common-engine stage; the concurrency case kept 65 increments per
+mode with zero serialized and 69 serializable retries. Its internal four
+writers, operations, 32-retry cap, backoff, timeouts and durability are unchanged.
+The ticket remains open; no root cause or contention-timing attribution follows
+from these passing repeats.
+
+Transcripts: `/tmp/sb4-k0q-rebase/postgres.log`, `postgres-isolated.log` and
+`postgres-repeat.log`. All three corresponding clusters are stopped and
+independently confirmed with status 3 and no postmaster.pid. The
+[K0-Q rebase report](../snapback4/reports/20261022-k0q/REPORT.md#fresh-rebase-qualification)
+retains source, binary, check and cleanup receipts.
+
+
+## 2026-10-23 — K0-Q fix round 2 conformance observation
+
+Both complete `scripts/test-postgres.sh` runs escape raw `40001` (concurrent
+update) in `concurrent_read_modify_write_and_duplicate_ops_are_atomic_in_both_modes`
+at `tests/conformance.rs:244`, followed by the join at :257. This is the
+standalone evaluator fixture, not a production serving claim; the mode at the
+full-run failure is not recorded. The first run also had a separate stale
+queue-fixture compile gap, repaired before the complete repeat. That repeat
+runs every core stage, with 376 Rust passes and this one evaluator failure;
+public serving and all exact RT0 rows pass.
+
+The exact unchanged conformance rerun on the restarted owned evaluation
+cluster passes both modes: 65 increments with no lost updates, 0 serialized
+and 89 serializable total transaction retries. No retry budget, workload,
+durability or timeout was changed. Full and isolated logs are
+`/tmp/sb4-k0q-fix2-final/postgres{,-repeat}.log` and
+`postgres-concurrency-isolated.log`; the lane report retains all results.
+The restarted cluster is independently confirmed stopped.
