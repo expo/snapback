@@ -18,6 +18,13 @@ struct Table {
     constraints: &'static [&'static str],
 }
 const TABLES: &[Table] = &[
+    Table { name: "_dormant_tables", columns: &[ ("table_name", "text", true, true, None, ""), ("definition", "text", true, false, None, "") ], constraints: &["PRIMARY KEY (table_name)"] },
+    Table { name: "_dormant_columns", columns: &[ ("table_name", "text", true, true, None, ""), ("column_name", "text", true, true, None, ""), ("definition", "text", true, false, None, "") ], constraints: &["PRIMARY KEY (table_name, column_name)"] },
+    Table { name: "_dormant_indexes", columns: &[ ("table_name", "text", true, true, None, ""), ("index_name", "text", true, true, None, ""), ("definition", "text", true, false, None, "") ], constraints: &["PRIMARY KEY (table_name, index_name)"] },
+    Table { name: "_dormant_rows", columns: &[ ("t", "text", true, true, None, ""), ("id", "text", true, true, None, ""), ("data", "text", true, false, None, "") ], constraints: &["PRIMARY KEY (t, id)"] },
+    Table { name: "_dormant_values", columns: &[ ("t", "text", true, true, None, ""), ("id", "text", true, true, None, ""), ("column_name", "text", true, true, None, ""), ("data", "text", true, false, None, "") ], constraints: &["PRIMARY KEY (t, id, column_name)"] },
+    Table { name: "_dormant_refs", columns: &[ ("t", "text", true, true, None, ""), ("id", "text", true, true, None, ""), ("column_name", "text", true, true, None, ""), ("parent_t", "text", true, true, None, ""), ("parent_id", "text", true, true, None, ""), ("invalid", "bigint", true, false, None, "") ], constraints: &["PRIMARY KEY (t, id, column_name, parent_t, parent_id)"] },
+
     Table {
         name: "_backend",
         columns: &[
@@ -429,6 +436,7 @@ const TABLES: &[Table] = &[
 ];
 
 const INDEXES: &[(&str, &str, &[&str])] = &[
+    ("_dormant_refs", "_dormant_parent", &["parent_t", "parent_id"]),
     ("_sessions", "_sessions_expiry", &["expires_at"]),
     (
         "_sessions",

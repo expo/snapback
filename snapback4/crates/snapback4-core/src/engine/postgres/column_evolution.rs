@@ -1,16 +1,12 @@
-//! The bounded physical part of ordinary maintained-column activation.
+//! Physical projection and indexes for maintained columns and EV-1 releases.
+// @ref LLP 3000.009.001.000#3.5 — defaults stay interpreted and restored indexes are validated before publication.
 // @ref LLP 3000.007.001#3.11 — project removals, rebuild private totals, then mirror before publishing the generation.
-use super::store::{Tx, decode};
+use super::store::Tx;
 use crate::{RuntimeError, Schema, Value, value::canonical_json};
 
-/// Only derivations and their readable columns/indexes may change. In particular,
-/// converting an ordinary column into an engine column is not this transition.
+/// Retain the maintained-column slice and admit only the closed ordinary slice.
 pub(super) fn admit(previous: &Schema, next: &Schema) -> Result<(), RuntimeError> {
-    use crate::engine::activation_facts::ordinary;
-    if ordinary(previous) != ordinary(next) {
-        return Err(RuntimeError::StoreUnsupported { family: "release-activation" });
-    }
-    Ok(())
+    super::evolution_admission::admit(previous, next)
 }
 
 /// Run after the common recount/mirror builder: physical keys include row ids,
@@ -20,7 +16,7 @@ pub(super) fn admit(previous: &Schema, next: &Schema) -> Result<(), RuntimeError
 pub(super) fn validate_groups(tx: &Tx<'_>, previous: &Schema, next: &Schema) -> Result<(), RuntimeError> {
     for (name, table) in &next.tables {
         let old = previous.table(name);
-        let projected = old.is_none_or(|old| old.columns != table.columns || old.maintained != table.maintained);
+        let projected = old != Some(table);
         let rebuilt = next.maintain_for(name).is_some_and(|m| crate::successor::maintain_rebuild_needed(previous, next, m));
         for (index_name, index) in table.indexes.iter().filter(|(index_name, index)| index.unique
             && (projected || rebuilt || old.and_then(|old| old.indexes.get(*index_name)) != Some(*index))) {
@@ -58,35 +54,30 @@ pub(super) fn project(tx: &Tx<'_>, previous: &Schema, next: &Schema) -> Result<(
         tx.execute("DELETE FROM r WHERE t=$1", &[&maintain.target])?;
     }
     for (name, table) in &next.tables {
-        let Some(old) = previous.table(name).filter(|old| *old != table) else { continue };
+        let old = previous.table(name);
+        if old == Some(table) { continue; }
         tx.rows_cache.borrow_mut().invalidate(name);
-        let indexes: std::collections::BTreeSet<_> = table.indexes.keys().chain(old.indexes.keys())
-            .filter(|index| old.indexes.get(*index) != table.indexes.get(*index)).cloned().collect();
+        let indexes: std::collections::BTreeSet<_> = table.indexes.keys().chain(old.into_iter().flat_map(|t| t.indexes.keys())).cloned().collect();
         for index in &indexes { tx.execute("DELETE FROM i WHERE t=$1 AND ix=$2", &[name, index])?; }
-        let mut after: Option<String> = None;
-        loop {
-            let rows = tx.query("SELECT id,data FROM r WHERE t=$1 AND ($2::text IS NULL OR id>$2) ORDER BY id LIMIT 256", &[name, &after])?;
-            if rows.is_empty() { break; }
-            for row in rows {
-                let id: String = row.get(0);
-                let mut image: Value = decode(row.get(1))?;
-                if let Value::Row(fields) | Value::Map(fields) = &mut image {
-                    let before = fields.len();
-                    fields.retain(|field, _| table.columns.contains_key(field));
-                    if fields.len() != before {
-                        tx.execute("UPDATE r SET data=$3 WHERE t=$1 AND id=$2", &[name, &id, &canonical_json(&image)])?;
-                    }
+        super::evolution::walk(tx, "r", name, |id, mut image| {
+            if let Value::Row(fields) | Value::Map(fields) = &mut image {
+                let before = fields.len();
+                fields.retain(|field, _| table.columns.contains_key(field));
+                if fields.len() != before {
+                    tx.execute("UPDATE r SET data=$3 WHERE t=$1 AND id=$2", &[name, &id, &canonical_json(&image)])?;
                 }
-                // index_write enforces the portable key bound and sparse-zero
-                // interpretation, just like an ordinary row write.
-                for write in crate::rows::index_write(name, table, &image, None, &id)? {
-                    if indexes.contains(write.name) {
-                        for key in write.after { tx.execute("INSERT INTO i(t,ix,k,id) VALUES ($1,$2,$3,$4)", &[name, &write.name, &key, &id])?; }
-                    }
-                }
-                after = Some(id);
             }
-        }
+            crate::schema::materialize_optional_fields(&mut image, table);
+            if next.maintain_for(name).is_none() { crate::engine::validate::validate_row(next, name, &image)?; }
+            // index_write enforces the portable key bound and sparse-zero
+            // interpretation, just like an ordinary row write.
+            for write in crate::rows::index_write(name, table, &image, None, id)? {
+                if indexes.contains(write.name) {
+                    for key in write.after { tx.execute("INSERT INTO i(t,ix,k,id) VALUES ($1,$2,$3,$4)", &[name, &write.name, &key, &id])?; }
+                }
+            }
+            Ok(())
+        })?;
     }
     Ok(())
 }

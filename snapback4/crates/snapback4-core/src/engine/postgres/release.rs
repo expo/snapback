@@ -38,10 +38,10 @@ impl ReleaseHistoryReader for Tx<'_> {
     }
     fn release_inventory(
         &self,
-        _after: Option<&str>,
-        _limit: usize,
+        after: Option<&str>,
+        limit: usize,
     ) -> Result<Vec<DormantItem>, RuntimeError> {
-        self.activation_inventory()
+        super::evolution_inventory::inventory(self, after, limit)
     }
     fn previous_active_release(&self) -> Result<Option<u64>, RuntimeError> {
         Ok(self.query("SELECT previous FROM _release_events WHERE release IS NOT NULL AND previous != release AND operation != 'prune' ORDER BY id DESC LIMIT 1", &[])?.first().and_then(|r| r.get::<_, Option<i64>>(0)).map(|n| n as u64))

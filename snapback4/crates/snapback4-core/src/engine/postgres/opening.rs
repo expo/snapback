@@ -129,6 +129,7 @@ impl Handle {
             crate::engine::activation_facts::check_operations(&previous, schema, &previous_programs, programs)?;
             let schema_changed = !fresh && previous.hash() != schema.hash();
             if schema_changed { super::column_evolution::admit(&previous, schema)?; }
+            if !fresh { super::evolution_admission::retained(&tx, &previous, schema)?; }
             initialize(&tx, schema)?;
             if let Some(fence) = &bootstrap_fence {
                 tx.set_meta("store_id", &fence.store_id)?;
@@ -140,6 +141,7 @@ impl Handle {
             let generation = if !fresh && changed { before.0.checked_add(1).ok_or_else(|| RuntimeError::Generation("generation overflow".into()))? } else { before.0 };
             let tx = AnyTx::from_postgres(tx);
             tx.with_postgres(|inner| check(&AnyPreparation::Postgres(Preparation(inner))))?;
+            if !fresh { tx.with_postgres(|inner| super::evolution::transition(inner, &previous, schema))?; }
             if schema_changed { tx.with_postgres(|inner| super::column_evolution::project(inner, &previous, schema))?; }
             build(&tx, changed, &mut report)?;
             if schema_changed { tx.with_postgres(|inner| super::column_evolution::validate_groups(inner, &previous, schema))?; }
@@ -183,6 +185,7 @@ pub(super) fn initialize(tx: &Tx<'_>, schema: &Schema) -> Result<(), RuntimeErro
     super::jobs::initialize(tx)?;
     super::assets_schema::initialize(tx)?;
     super::activation_schema::initialize(tx)?;
+    super::evolution_schema::initialize(tx)?;
     super::release_schema::initialize(tx)
 }
 

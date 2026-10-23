@@ -571,6 +571,10 @@ mod semantic;
 
 mod opening;
 mod column_evolution;
+mod evolution;
+mod evolution_admission;
+mod evolution_schema;
+mod evolution_inventory;
 mod profile;
 
 mod deployment;

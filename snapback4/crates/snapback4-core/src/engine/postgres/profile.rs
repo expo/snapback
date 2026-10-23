@@ -4,6 +4,8 @@ use crate::{Program, RuntimeError, Schema, ir::{ArgType, ProgramKind}};
 use std::collections::BTreeMap;
 pub(crate) fn admit(schema: &Schema, programs: &BTreeMap<String, Program>) -> Result<(), RuntimeError> {
     fn refuse(family: &'static str) -> Result<(), RuntimeError> { Err(RuntimeError::StoreUnsupported { family }) }
+    if !schema.backfills.is_empty() || !schema.downfills.is_empty() { return refuse("evolution-backfill"); }
+    if !schema.table_renames.is_empty() || !schema.asset_renames.is_empty() { return refuse("evolution-renames"); }
     if schema.tables.values().any(|t| t.sync.as_ref().is_some_and(crate::schema::Sync::is_union)) { return refuse("union-sync"); }
     if schema.tables.values().any(|t| t.not_before.is_some()) { return refuse("time-publication"); }
     fn asset(arg: &ArgType) -> bool {
