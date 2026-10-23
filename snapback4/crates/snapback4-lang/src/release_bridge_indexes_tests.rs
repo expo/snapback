@@ -69,3 +69,30 @@ fn declared_plain_column_identity_is_not_an_index_meaning_change() {
     let new_doc = crate::parser::parse_document("schema.q", &current).0;
     assert!(!crate::release_bridge_indexes::current_context_needed(&[old_doc], &[new_doc], &before.schema, &after.schema, &Default::default()));
 }
+
+#[test]
+fn new_plain_index_uses_declared_predecessor_column_identity() {
+    let old = "table notes:\n  n: int\n  owner: principal\n  memo: text <=20 ?\n  by byN: n, id\n  public\n  online only\ntable retired:\n  value: int\n  public\n  online only\nquery ordered():\n  return notes first 10 by byN\n";
+    let current = "table notes:\n  n: int ?\n  customer: principal renamed from owner\n  count: int default 7\n  by byCount: count, customer, id\n  public\n  online only\nquery ordered():\n  return notes where .count = 7 first 10 by byCount\n";
+    let bridge = crate::release_bridge::loosen(&source(old), &source(current));
+    assert!(bridge.diagnostics.is_empty(), "{:?}", bridge.diagnostics);
+    let bound = crate::compile(&bridge.sources);
+    assert_eq!(bound.schema.tables["notes"].indexes["byCount"].columns(), ["count", "owner", "id"]);
+}
+
+#[test]
+fn plain_index_transport_keeps_index_label_and_business_literals() {
+    let old = crate::parser::parse_document("schema.q", "table notes:\n  owner: principal\n  online only\n").0;
+    let raw = "  unique customer: customer else TAKEN 'customer stays customer'";
+    let text = format!("table notes:\n  customer: principal renamed from owner\n{raw}\n  online only\n");
+    let current = crate::parser::parse_document("schema.q", &text).0;
+    let next = &current.tables[0];
+    let result = crate::release_bridge_indexes::plain_declaration("schema.q", raw, &next.indexes[0], &old.tables[0], next);
+    assert_eq!(result, "  unique customer: owner else TAKEN 'customer stays customer'");
+}
+#[test]
+fn plain_column_transport_never_collapses_independent_current_fields() {
+    let old = crate::parser::parse_document("schema.q", "table notes:\n  owner: principal\n  online only\n").0;
+    let current = crate::parser::parse_document("schema.q", "table notes:\n  customer: principal renamed from owner\n  owner: principal\n  online only\n").0;
+    assert!(crate::release_bridge_indexes::column_names(&old.tables[0], &current.tables[0]).is_none());
+}

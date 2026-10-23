@@ -176,7 +176,8 @@ pub(super) fn carry(
                 || old.indexes.iter().any(|o|o.name==i.name&&o.unique&&!next.indexes.iter().any(|n|n.unique&&n.columns==o.columns))) {
                 if let Some((_,current_text,_))=docs.iter().find(|(_,_,d)|d.tables.iter().any(|t|t.name==next.name)) {
                     if let Some((a,b))=line_span(&index.site.file,current_text,&index.site){
-                        edits.push((at,at,format!("{}\n",&current_text[a..b])));
+                        let source=super::release_bridge_indexes::plain_declaration(&index.site.file,&current_text[a..b],index,old,next);
+                        edits.push((at,at,format!("{source}\n")));
                         changes.push(format!("{}: retained current named index {} for authored guards and endpoints",old.name,index.name));
                     }
                 }
