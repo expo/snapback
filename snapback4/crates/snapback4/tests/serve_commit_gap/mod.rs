@@ -153,6 +153,56 @@ fn round_trips_postgres_publication_committed_reply_survives_foreign_activation(
 }
 
 #[test]
+fn memory_query_store_id_failure_refuses_before_program_reads() {
+    // Memory stores have no detached readers; the query runs through the
+    // writer fallback, which must refuse on the same metadata failure.
+    for fail in [false, true] {
+        let host = Host::with_store(true, snapback4_core::Store::memory().unwrap(), SOURCE);
+        let (armed, failed, reads) = (
+            Arc::new(AtomicBool::new(false)),
+            Arc::new(AtomicBool::new(false)),
+            Arc::new(AtomicUsize::new(0)),
+        );
+        let (a, f, r) = (armed.clone(), failed.clone(), reads.clone());
+        host.shared
+            .engine
+            .call(move |engine, _| {
+                engine
+                    .store()
+                    .test_support_conn()
+                    .authorizer(Some(move |ctx: AuthContext<'_>| {
+                        if let AuthAction::Read { table_name, .. } = ctx.action {
+                            if table_name == "_commits" {
+                                a.store(true, Ordering::SeqCst);
+                            }
+                            if table_name == "r" {
+                                r.fetch_add(1, Ordering::SeqCst);
+                            }
+                            if fail && table_name == "_meta" && a.load(Ordering::SeqCst) {
+                                f.store(true, Ordering::SeqCst);
+                                return Authorization::Deny;
+                            }
+                        }
+                        Authorization::Allow
+                    }))
+                    .unwrap();
+            })
+            .unwrap();
+        let response = host.request("POST", "/q/read", ALICE, "{}");
+        assert!(armed.load(Ordering::SeqCst), "query snapshot reached next_seq");
+        assert_eq!(failed.load(Ordering::SeqCst), fail);
+        if fail {
+            assert_eq!(status(&response), 503, "{response}");
+            assert_eq!(body(&response)["denied"]["code"], "E_STORE", "{response}");
+            assert_eq!(reads.load(Ordering::SeqCst), 0, "program must not run after store_id failure");
+        } else {
+            assert_eq!(status(&response), 200, "{response}");
+            assert!(reads.load(Ordering::SeqCst) > 0, "healthy control executes the program");
+        }
+    }
+}
+
+#[test]
 fn query_store_id_failure_refuses_before_program_reads() {
     for fail in [false, true] {
         let directory = ReaderTestDirectory::new();

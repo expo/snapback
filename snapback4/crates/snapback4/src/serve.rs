@@ -1282,7 +1282,7 @@ fn handle(mut request: Request, shared: &Shared) {
                         let decoration_paths = engine.program(&op).filter(|_| engine.schema().operations.get(&op).is_some_and(|f| f.search_decoration)).map(snapback4_core::search_decoration::paths);
                         let scopes = read_scopes::dependencies(engine, &op, &context);
                         let mut metadata = None;
-                        let (outcome, cut, current) = engine.query_materialized_search_with_snapshot(&op, context, retained.as_deref(), manifest, |snapshot, head| { metadata = Some(head::borrowed_response_head(snapshot, head)); Ok(()) });
+                        let (outcome, cut, current) = engine.query_materialized_search_with_snapshot(&op, context, retained.as_deref(), manifest, |snapshot, head| { metadata = Some(head::borrowed_response_head(snapshot, head)); metadata.as_ref().unwrap().as_ref().map(|_| ()).map_err(Clone::clone) });
                         let metadata = head::query_response_head(engine, metadata, &outcome);
                         let scopes = read_scopes::complete(scopes, engine.schema(), outcome.as_ref().map_or(&[], |o| &o.tables));
                         Ok::<_, Refusal>((outcome, cut, metadata, reads_presence, query_generation, current, scopes, decoration_paths))

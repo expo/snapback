@@ -24,7 +24,8 @@ snapshot. An evaluated refusal's `head` equals its `seq`; order replies by
 
 A newly committed durable mutation answers HTTP 200 `state:"sent"` with the commit's
 `seq`, `head`, `generation` and `store_id` (incarnation). That metadata and the
-subscriber wake describe the commit even if the store's activation or ownership
+subscriber wake (none for a receipt-only delivery report that writes no rows)
+describe the commit even if the store's activation or ownership
 changes between COMMIT and the reply. The next request observes the change
 through the usual refusal or handoff. A confirmed write is never reported as
 a refusal merely because that later boundary changed; retrying such a refusal
