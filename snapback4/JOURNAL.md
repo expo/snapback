@@ -102694,3 +102694,19 @@ this entry, before the local commit.
 Post-entry root `./ref-check`: pass — 565 LLP documents, 11,765 references,
 zero errors and zero unchecked. Whitespace validation passes. The final PID
 and unchanged-table audit is repeated after recording this result.
+
+
+### DX8 review round5: shared fan-out memory and frontend keeper loss
+
+Muse marked a3f7c4b READY; fresh Codex found parent-page and accumulated-child
+reservations were split across independent job meters, and detached frontend
+keeper groups were absent from the group-drain registry. Forward/reverse walks
+now share the activation page meter with precharged child decoding and retained
+scratch, matching resumption. Serialized comparisons remain in SQLite instead
+of fetching unpriced retained lists. Frontend private groups join the same
+bounded cleanup evidence as wrapped commands; lost keepers with surviving
+members report an explicit cleanup failure. The complete amendment clarifies
+those existing custody laws and returns to both reviewers again. The R5 Linux
+qualifier was stopped during its native build when these semantic inputs changed;
+it grants no final qualification. R6 rebuilds SDK/native artifacts and repeats
+the affected proofs.

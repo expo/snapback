@@ -57,24 +57,17 @@ fn remember(
     id: &str,
     column: &str,
     v: &Value,
+    meter: &mut Meter,
 ) -> Result<(), RuntimeError> {
-    let retained: Option<String> = tx
-        .conn()
-        .query_row(
-            "SELECT data FROM _dormant_values WHERE t=?1 AND id=?2 AND column_name=?3",
-            params![pt, id, column],
-            |r| r.get(0),
-        )
-        .optional()?;
-    if let Some(retained) = retained {
-        let before:Option<String>=tx.conn().query_row("SELECT data FROM _extraction_cells WHERE definition=?1 AND parent_t=?2 AND parent_id=?3 AND column_name=?4",params![key,pt,id,column],|r|r.get(0)).optional()?;
-        if retained != canonical_json(v) && before.as_ref() != Some(&retained) {
+    meter.heap(v.retained_heap_bytes().saturating_mul(4).saturating_add(8192))?;
+    let encoded = canonical_json(v);
+    let conflicting:bool=tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM _dormant_values d WHERE d.t=?1 AND d.id=?2 AND d.column_name=?3 AND d.data!=?4 AND NOT EXISTS(SELECT 1 FROM _extraction_cells e WHERE e.definition=?5 AND e.parent_t=d.t AND e.parent_id=d.id AND e.column_name=d.column_name AND e.data=d.data))",params![pt,id,column,encoded,key],|r|r.get(0))?;
+    if conflicting {
             return Err(refuse(
                 "extract each has a conflicting retained source list; preserve both meanings in a bridge",
             ));
-        }
     }
-    tx.conn().execute("INSERT INTO _extraction_cells VALUES(?1,?2,?3,?4,?5) ON CONFLICT(definition,parent_t,parent_id,column_name) DO UPDATE SET data=excluded.data",params![key,pt,id,column,canonical_json(v)])?;
+    tx.conn().execute("INSERT INTO _extraction_cells VALUES(?1,?2,?3,?4,?5) ON CONFLICT(definition,parent_t,parent_id,column_name) DO UPDATE SET data=excluded.data",params![key,pt,id,column,encoded])?;
     tx.conn().execute(
         "DELETE FROM _dormant_values WHERE t=?1 AND id=?2 AND column_name=?3",
         params![pt, id, column],
@@ -98,25 +91,52 @@ fn save(
 // A migration-owned null can remain in narrowed storage across old views.
 // Reading it validates custody without restoring it into the active population.
 fn receipt_image(tx: &Tx<'_>, ct: i64, id: &str, meter:&mut Meter) -> Result<Option<Value>, RuntimeError> {
-    let item:Option<(i64,bool)>=tx.conn().query_row("SELECT octet_length(data),1 FROM r WHERE t=?1 AND id=?2 UNION ALL SELECT octet_length(data),0 FROM _dormant_narrow_rows WHERE t=?1 AND id=?2 LIMIT 1",params![ct,id],|r|Ok((r.get(0)?,r.get(1)?))).optional()?;
+    read_image(tx,ct,id,meter,true)
+}
+fn read_image(tx: &Tx<'_>, ct: i64, id: &str, meter:&mut Meter, dormant:bool) -> Result<Option<Value>, RuntimeError> {
+    let item:Option<(i64,bool)>=tx.conn().query_row("SELECT octet_length(data),1 FROM r WHERE t=?1 AND id=?2 UNION ALL SELECT octet_length(data),0 FROM _dormant_narrow_rows WHERE t=?1 AND id=?2 AND ?3 LIMIT 1",params![ct,id,dormant],|r|Ok((r.get(0)?,r.get(1)?))).optional()?;
     let Some((size,active))=item else { return Ok(None) };
+    let scratch=meter.mark();
     meter.heap((size.max(0) as u64).saturating_mul(64).saturating_add(8192))?;
     let sql=if active {"SELECT data FROM r WHERE t=?1 AND id=?2"} else {"SELECT data FROM _dormant_narrow_rows WHERE t=?1 AND id=?2"};
     let text:String=tx.conn().query_row(sql,params![ct,id],|r|r.get(0))?;
-    serde_json::from_str(&text).map(Some).map_err(|e|refuse(e.to_string()))
+    let image:Value=serde_json::from_str(&text).map_err(|e|refuse(e.to_string()))?;
+    drop(text);
+    meter.release_heap(scratch);
+    // Decoder scratch is gone; the decoded image and its write/projection
+    // scratch remain resident alongside the walker's page and prior children.
+    meter.heap(image.retained_heap_bytes().saturating_mul(4).saturating_add(8192))?;
+    Ok(Some(image))
+}
+fn read_value(tx:&Tx<'_>,t:i64,id:&str,row:&Value,column:&str,meter:&mut Meter)->Result<Option<Value>,RuntimeError>{
+    if let Ok(value)=row.field(column) {
+        // Includes the retained value, list bookkeeping and scalar-copy scratch.
+        meter.heap(value.retained_heap_bytes().saturating_mul(4).saturating_add(8192))?;
+        return Ok(Some(value.clone()));
+    }
+    let bytes:Option<i64>=tx.conn().query_row("SELECT octet_length(data) FROM _dormant_values WHERE t=?1 AND id=?2 AND column_name=?3",params![t,id,column],|r|r.get(0)).optional()?;
+    let Some(bytes)=bytes else{return Ok(None)};
+    let scratch=meter.mark();
+    meter.heap((bytes.max(0) as u64).saturating_mul(64).saturating_add(8192))?;
+    let text:String=tx.conn().query_row("SELECT data FROM _dormant_values WHERE t=?1 AND id=?2 AND column_name=?3",params![t,id,column],|r|r.get(0))?;
+    let value:Value=serde_json::from_str(&text).map_err(|e|refuse(e.to_string()))?;
+    drop(text);meter.release_heap(scratch);
+    meter.heap(value.retained_heap_bytes().saturating_mul(4).saturating_add(8192))?;
+    Ok(Some(value))
 }
 fn validate_receipts(tx:&Tx<'_>,key:&str,pt:i64,id:&str,ct:i64,meter:&mut Meter)->Result<(),RuntimeError>{
-    let mut q=tx.conn().prepare("SELECT child_id FROM _extraction_each_rows WHERE definition=?1 AND parent_t=?2 AND parent_id=?3 ORDER BY child_id")?;
+    let mut q=tx.conn().prepare("SELECT octet_length(child_id),child_id FROM _extraction_each_rows WHERE definition=?1 AND parent_t=?2 AND parent_id=?3 ORDER BY child_id")?;
     let mut receipts=q.query(params![key,pt,id])?;
     while let Some(record)=receipts.next()? {
         meter.charge(MeterKind::Examined,1)?;
         let scratch=meter.mark();
-        let child:String=record.get(0)?;
-        meter.heap((child.len() as u64).saturating_mul(8).saturating_add(128))?;
+        let size:i64=record.get(0)?;
+        meter.heap((size.max(0) as u64).saturating_mul(8).saturating_add(128))?;
+        let child:String=record.get(1)?;
         if receipt_image(tx,ct,&child,meter)?.is_none() || !anchored(tx,ct,&child,key,pt,id)? {
             return Err(refuse("returning extract each lacks its receipt-owned child or valid parent-lifetime evidence; never recreate pruned/deleted history"));
         }
-        meter.release_heap(scratch);
+        drop(child);meter.release_heap(scratch);
     }
     Ok(())
 }
@@ -127,12 +147,13 @@ pub(super) fn known(tx:&Tx<'_>,key:&str)->Result<bool,RuntimeError>{
     Ok(tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM _extraction_each_definitions WHERE definition=?1)",[key],|r|r.get(0))?)
 }
 fn validate_all_receipts(tx:&Tx<'_>,key:&str,pt:i64,ct:i64)->Result<(),RuntimeError>{
-    let mut q=tx.conn().prepare("SELECT DISTINCT parent_id FROM _extraction_each_rows WHERE definition=?1 AND parent_t=?2 AND child_t=?3 ORDER BY parent_id")?;
+    let mut q=tx.conn().prepare("SELECT DISTINCT octet_length(parent_id),parent_id FROM _extraction_each_rows WHERE definition=?1 AND parent_t=?2 AND child_t=?3 ORDER BY parent_id")?;
     let mut parents=q.query(params![key,pt,ct])?;
     while let Some(record)=parents.next()? {
-        let id:String=record.get(0)?;
         let mut meter=Meter::new(Ceilings::job(),Cut::Abort);
-        meter.heap((id.len() as u64).saturating_mul(8).saturating_add(128))?;
+        let size:i64=record.get(0)?;
+        meter.heap((size.max(0) as u64).saturating_mul(8).saturating_add(128))?;
+        let id:String=record.get(1)?;
         validate_receipts(tx,key,pt,&id,ct,&mut meter)?;
     }
     Ok(())
@@ -178,8 +199,8 @@ pub(super) fn forward(
     let (destination, source) = mapping(e, child);
     validate_all_receipts(tx,key,pt,ct)?;
     let mut count = 0u64;
-    super::super::activation::walk(tx, pt, |id, mut row| {
-        let Some(list) = value(tx, pt, id, &row, source)? else {
+    super::super::activation_walk::walk_metered(tx, pt, crate::rows::adoption::Work::DECODE, None, |id, mut row, meter| {
+        let Some(list) = read_value(tx, pt, id, &row, source, meter)? else {
             return Err(refuse(format!(
                 "extract each source {}.{source} is absent",
                 e.parent
@@ -197,15 +218,11 @@ pub(super) fn forward(
             }
             _ => return Err(refuse("extract each source must be a bounded asset list")),
         };
-        let mut meter = Meter::new(Ceilings::job(), Cut::Abort);
-        meter.heap(
-            list.retained_heap_bytes()
-                .saturating_mul(4)
-                .saturating_add(8192),
-        )?;
         let mut seen = BTreeSet::new();
         for (position, v) in values.iter().enumerate() {
             meter.charge(MeterKind::RowsWritten, 1)?;
+            meter.heap(1024)?; // retained seen-set node/IDs, before cloning them
+            let child_scratch=meter.mark();
             let asset_id = asset_id(v)?;
             if !seen.insert(asset_id.clone()) {
                 return Err(refuse(
@@ -216,7 +233,7 @@ pub(super) fn forward(
             let child_id = saved.clone().unwrap_or_else(|| {
                 crate::value::digest(&("extract-each-child", key, pt, id, &asset_id))
             });
-            let present = load(tx, ct, &child_id)?;
+            let present = read_image(tx, ct, &child_id, meter, false)?;
             if saved.is_some() {
                 if present.is_none() || !anchored(tx, ct, &child_id, key, pt, id)? {
                     return Err(refuse(
@@ -253,7 +270,7 @@ pub(super) fn forward(
                 if dest == destination {
                     continue;
                 }
-                let v = value(tx, pt, id, &row, src)?.ok_or_else(|| {
+                let v = read_value(tx, pt, id, &row, src, meter)?.ok_or_else(|| {
                     refuse(format!(
                         "extract each scalar source {}.{src} is absent",
                         e.parent
@@ -287,6 +304,8 @@ pub(super) fn forward(
                 &Value::Id(id.into()),
             )?;
             count += 1;
+            drop(image); drop(child_id); drop(saved); drop(asset_id);
+            meter.release_heap(child_scratch);
         }
         // Old-client removal has no asset to put back into that receipt's child.
         // Explicit null represents this migration-owned absence so ordinary
@@ -301,7 +320,7 @@ pub(super) fn forward(
                 continue;
             }
             let scratch=meter.mark();
-            let mut image = receipt_image(tx, ct, &child_id,&mut meter)?.ok_or_else(|| refuse("extract each lost a receipt-owned child; never recreate pruned/deleted history"))?;
+            let mut image = receipt_image(tx, ct, &child_id,meter)?.ok_or_else(|| refuse("extract each lost a receipt-owned child; never recreate pruned/deleted history"))?;
             if image.field(destination).is_ok_and(|v| v != &Value::Null) {
                 return Err(refuse(
                     "extract each would discard a child asset absent from the old list; preserve both meanings in a bridge",
@@ -309,14 +328,14 @@ pub(super) fn forward(
             }
             meter.charge(MeterKind::RowsWritten, 1)?;
             fields(&mut image)?.insert(destination.into(), Value::Null);
-            if load(tx,ct,&child_id)?.is_some() { write(tx, ct, &child_id, &image)?; }
+            if tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM r WHERE t=?1 AND id=?2)",params![ct,child_id],|r|r.get::<_,bool>(0))? { write(tx, ct, &child_id, &image)?; }
             else { tx.conn().execute("UPDATE _dormant_narrow_rows SET data=?3 WHERE t=?1 AND id=?2",params![ct,child_id,canonical_json(&image)])?; }
             drop(image);
             meter.release_heap(scratch);
         }
         drop(stale);
         drop(q);
-        remember(tx, key, pt, id, source, &list)?;
+        remember(tx, key, pt, id, source, &list, meter)?;
         fields(&mut row)?.remove(source);
         write(tx, pt, id, &row)?;
         Ok(())
@@ -360,10 +379,9 @@ pub(super) fn backward(
     // Index the assembled snapshot once on disk; never rescan all children
     // for each parent or keep the whole store in process memory.
     tx.conn().execute_batch("CREATE TEMP TABLE _extraction_each_children(parent_id TEXT NOT NULL,child_id TEXT NOT NULL,PRIMARY KEY(parent_id,child_id)) WITHOUT ROWID;")?;
-    super::super::activation::walk(tx, ct, |child_id, image| {
+    super::super::activation_walk::walk_metered(tx, ct, crate::rows::adoption::Work::DECODE, None, |child_id, image, meter| {
         if let Ok(Value::Id(parent_id)) = image.field(&e.reference) {
-            let mut admission = Meter::new(Ceilings::job(), Cut::Abort);
-            admission.heap(
+            meter.heap(
                 (child_id.len() as u64 + parent_id.len() as u64)
                     .saturating_mul(8)
                     .saturating_add(256),
@@ -376,15 +394,16 @@ pub(super) fn backward(
         Ok(())
     })?;
     let mut count = 0u64;
-    super::super::activation::walk(tx, pt, |id, mut row| {
-        let mut meter = Meter::new(Ceilings::job(), Cut::Abort);
+    super::super::activation_walk::walk_metered(tx, pt, crate::rows::adoption::Work::DECODE, None, |id, mut row, meter| {
         let mut children = Vec::new();
-        let mut membership=tx.conn().prepare("SELECT child_id FROM temp._extraction_each_children WHERE parent_id=?1 ORDER BY child_id")?;
+        let mut membership=tx.conn().prepare("SELECT octet_length(child_id),child_id FROM temp._extraction_each_children WHERE parent_id=?1 ORDER BY child_id")?;
         let mut members = membership.query([id])?;
         while let Some(member) = members.next()? {
             meter.charge(MeterKind::Examined, 1)?;
-            let child_id: String = member.get(0)?;
-            let image = load(tx, ct, &child_id)?.ok_or_else(|| {
+            let id_bytes:i64=member.get(0)?;
+            meter.heap((id_bytes.max(0) as u64).saturating_mul(8).saturating_add(512))?;
+            let child_id: String = member.get(1)?;
+            let image = read_image(tx, ct, &child_id, meter, false)?.ok_or_else(|| {
                 refuse("extract each child disappeared from its activation snapshot")
             })?;
             let child_id = child_id.as_str();
@@ -403,15 +422,11 @@ pub(super) fn backward(
                     ));
                 }
             }
-            let v = image.field(destination)?.clone();
+            let asset_value=image.field(destination)?;
+            meter.heap(asset_value.retained_heap_bytes().saturating_mul(4).saturating_add(512))?;
+            let v = asset_value.clone();
             let asset_id = asset_id(&v)?;
             let position:Option<i64>=tx.conn().query_row("SELECT position FROM _extraction_each_rows WHERE definition=?1 AND child_t=?2 AND child_id=?3",params![key,ct,child_id],|r|r.get(0)).optional()?;
-            meter.heap(
-                image
-                    .retained_heap_bytes()
-                    .saturating_mul(4)
-                    .saturating_add(child_id.len() as u64 * 8 + 256),
-            )?;
             children.push((
                 position.unwrap_or(i64::MAX),
                 child_id.to_owned(),
@@ -455,16 +470,16 @@ pub(super) fn backward(
             values.push(v);
             count += 1;
         }
-        let old:Option<String>=tx.conn().query_row("SELECT data FROM _extraction_cells WHERE definition=?1 AND parent_t=?2 AND parent_id=?3 AND column_name=?4",params![key,pt,id,source],|r|r.get(0)).optional()?;
+        let was_null:bool=tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM _extraction_cells WHERE definition=?1 AND parent_t=?2 AND parent_id=?3 AND column_name=?4 AND data=?5)",params![key,pt,id,source,canonical_json(&Value::Null)],|r|r.get(0))?;
         let list = if values.is_empty()
             && kind.is_optional()
-            && old.as_deref() == Some(canonical_json(&Value::Null).as_str())
+            && was_null
         {
             Value::Null
         } else {
             Value::Array(values)
         };
-        remember(tx, key, pt, id, source, &list)?;
+        remember(tx, key, pt, id, source, &list, meter)?;
         fields(&mut row)?.insert(source.into(), list);
         write(tx, pt, id, &row)?;
         Ok(())
