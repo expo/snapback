@@ -604,6 +604,7 @@ pub fn releases(options: &Options) -> i32 {
             // Read-only inspection needs no ownership handoff or source adoption.
             let mut store = snapback4_core::store_port::AnyStore::open_read_only(&dir.join("store.sqlite"))
                 .map_err(|e| e.to_string())?;
+            let retained = store.dormant_inventory(None, usize::MAX).map_err(|e| e.to_string())?;
             let mut result = store
                 .release_status(
                     after,
@@ -620,6 +621,7 @@ pub fn releases(options: &Options) -> i32 {
                 result["selected"]=serde_json::json!({"release":n,"current":result["release"].as_u64()==Some(n),"digest":crate::release_files::digest(&root)?});
             }
             println!("{}", serde_json::to_string_pretty(&result).unwrap());
+            super::sql::dormant_notice(super::sql::dormant_rows(&retained), "use `snapback4 sql 'SELECT …' --release <dir> --dormant` to inspect them");
             Ok(())
         })(),
     )

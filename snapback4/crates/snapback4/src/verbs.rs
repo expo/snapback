@@ -854,6 +854,7 @@ pub fn data(options: &Options) -> i32 {
             return 2;
         }
     };
+    let retained = store.dormant_inventory(None, usize::MAX).unwrap_or_default();
     let limit: usize = match options.flags.get("limit") {
         None => 50,
         Some(text) => match text.parse() {
@@ -894,6 +895,7 @@ pub fn data(options: &Options) -> i32 {
             if more {
                 eprintln!("… more rows (increase --limit)");
             }
+            sql::dormant_notice(sql::dormant_rows(&retained), "use `snapback4 sql 'SELECT …' --release <dir> --dormant` to inspect them");
             0
         }
         Err(error) => {
@@ -903,7 +905,12 @@ pub fn data(options: &Options) -> i32 {
                     .map(|engine| engine.schema().visible_tables().map(|(name,_)|name.clone()).collect::<Vec<_>>())
                     .unwrap_or_default();
                 let tables = if tables.is_empty() { "(none)".to_owned() } else { tables.join(", ") };
-                eprintln!("no table {table}; tables: {tables}");
+                let rows = sql::retained_table_rows(&retained, table);
+                if rows > 0 {
+                    eprintln!("no active table {table}; {rows} retained dormant {} exist; inspect them with `snapback4 sql 'SELECT * FROM {table}' --release <dir> --dormant`; tables: {tables}", if rows == 1 { "row" } else { "rows" });
+                } else {
+                    eprintln!("no table {table}; tables: {tables}");
+                }
             } else {
                 eprintln!("{error}");
             }
