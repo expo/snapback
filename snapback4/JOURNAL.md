@@ -104649,3 +104649,12 @@ PG W1/W2 improve 3/2→2/1; SQLite improves 6/6→5/5, with no other warm class
 increase. Five RT0/publication cases, 62 existing RT3b cases and two new
 both-store carried-hint witnesses pass. Failed discovery experiments remain
 in the report; no count allowance increased. Full qualification follows.
+
+## 2026-10-23 — G4a W3 baseline ratchet
+
+Added a distinct W3-shaped HTTP RT0 class before composing facts: 32
+memberships/room totals/unread counts with an excluded 33rd room. Exact
+warm baseline is PG 134 flights, SQLite 132 statements; first use 138/132.
+Both tables and all five round-trip/publication cases pass. Existing class
+allowances are unchanged. This records the real pre-collector baseline;
+it does not borrow M1's different harness counts.

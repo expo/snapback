@@ -67,3 +67,16 @@ changed kind at the intake/body boundary cannot reuse the hint, disclose
 metadata or preserve a full-scope manifest. The scope/kind retry succeeds
 only after another final check. The `rt4_` name filter matches zero binary
 tests; full binary/core qualification will cover RT4's actual snapshot tests.
+
+## 3. W3 RT0 baseline before composition
+
+A separate W3-shaped HTTP class reads 32 memberships, room totals and unread
+counts, with a 33rd excluded room. It executes the S1 expression/filter/order
+shape over stored scalar totals; the existing RT0 write bodies stay unchanged.
+The composed-path core/store oracle separately covers real maintained totals.
+Exact baseline after ingress refinement, before any fact-collector code:
+**Postgres 134 flights; SQLite 132 statements**, warm. Postgres first use 138;
+SQLite first use 132. W1/W2 remain 2/1 PG and 5/5 SQLite. Both ratchets and all
+five round-trip/publication cases pass. This is a new class, not an increased
+allowance for any existing class, and not the old M1 harness's 136-statement
+or PG2's 153-call measurement.

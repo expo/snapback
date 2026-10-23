@@ -88,9 +88,11 @@ fn run(pg: bool) {
     } else {
         snapback4_core::store_port::AnyStore::open(&directory.0.join("store.sqlite")).unwrap()
     };
-    // P1-MC isn't in this branch: retain RT-A's admitted S1 W1/W2 exactly.
-    let source = include_str!("../../../../reports/20261022-rt-a-round-trips/admitted-s1.q");
-    let host = Host::with_store(false, store, source);
+    // W3-shaped facts use stored totals so existing mutation workloads and
+    // ratchets stay identical; core parity also covers maintained totals.
+    let source = format!("{}\n{}", include_str!("../../../../reports/20261022-rt-a-round-trips/admitted-s1.q"), include_str!("w3.q"))
+        .replace("table rooms:\n", "table rooms:\n  total: int default 0\n");
+    let host = Host::with_store(false, store, &source);
     let now = host.shared.now();
     let (session, account, action, store_id) = {
         let mut engine = lock(&host.shared.engine);
@@ -126,11 +128,16 @@ fn run(pg: bool) {
         );
         assert_eq!(seeded.1["state"], "sent", "{}", seeded.1);
     }
+    for n in (2..=32).chain(std::iter::once(1024)) {
+        let seeded=request("/m/seedRoom",token,json!({"args":{"key":format!("r{n:04}"),"total":n*2,"last_read":n}}));
+        assert_eq!(seeded.1["state"],"sent","{}",seeded.1);
+    }
     let mut measured = BTreeMap::new();
     let mut cold = BTreeMap::new();
     let classes = [
         ("w1_point", "/q/W1", token, json!({"message":"m24"})),
         ("w2_newest20", "/q/W2", token, json!({"room":"r0001"})),
+        ("w3_membership_totals", "/q/W3", token, json!({})),
         (
             "unkeyed_increment",
             "/m/increment",
@@ -156,6 +163,12 @@ fn run(pg: bool) {
                 assert_eq!(reply["data"].as_array().unwrap().len(), 20, "{reply}");
                 assert_eq!(reply["data"][0]["id"], "m24");
                 assert_eq!(reply["data"][19]["id"], "m5");
+            } else if class == "w3_membership_totals" {
+                assert_eq!(reply["data"].as_array().unwrap().len(),32,"{reply}");
+                assert_eq!(reply["data"][0]["room"],"r0001");
+                assert_eq!(reply["data"][1]["total"],4);
+                assert_eq!(reply["data"][1]["unread"],2);
+                assert_eq!(reply["data"][31]["room"],"r0032");
             } else {
                 assert_eq!(reply["state"], "sent", "{reply}");
             }
