@@ -65,11 +65,17 @@ pub fn invariants(sources:&[(String,String)],bound:&Bound)->Vec<Invariant>{
                     (snapback4_core::schema::ColumnType::Time,Some(ast::Expr::Name{name,..})) if name=="now"=>RuleExpr::Eq(RuleTerm::Field(approval.name.clone()),RuleTerm::Literal(snapback4_core::Value::Null)),
                     _=>continue,
                 };
+                // A derived approve/edit contract concerns approval retained
+                // across the edit. Deliberate invalidation is not a bypass.
+                let paired=match &condition {
+                    RuleExpr::Eq(RuleTerm::Field(c),v)=>RuleExpr::Or(vec![RuleExpr::Eq(RuleTerm::OldField(c.clone()),v.clone()),RuleExpr::Eq(RuleTerm::NextField(c.clone()),v.clone())]),
+                    RuleExpr::Ne(RuleTerm::Field(c),v)=>RuleExpr::Or(vec![RuleExpr::Ne(RuleTerm::OldField(c.clone()),v.clone()),RuleExpr::Ne(RuleTerm::NextField(c.clone()),v.clone())]),_=>unreachable!("generated approval condition"),
+                };
                 for (column,_kind) in &definition.columns {
                     if !inspected.contains(column)||matches!(_kind.required(),snapback4_core::schema::ColumnType::Bool|snapback4_core::schema::ColumnType::Enum{..}|snapback4_core::schema::ColumnType::Principal|snapback4_core::schema::ColumnType::Ref{..}){continue;}
                     if fields.iter().any(|f|&f.name==column)||definition.immutable_fields().any(|c|c==column)||definition.frozen_columns.contains_key(column){continue;}
                     if !bound.programs.iter().any(|p|snapback4_core::ir::write_tables(&p.program).iter().any(|(t,e)|t==table&&matches!(*e,"update"|"upsert"))){continue;}
-                    if !write_advice::update_only(bound,table,column,&condition){add(&mut out,table,column,"update",condition.clone(),site);}
+                    if !write_advice::update_only(bound,table,column,&condition){add(&mut out,table,column,"update",paired.clone(),site);}
                 }
             }
         }

@@ -3,7 +3,7 @@
 use super::*;
 use snapback4_core::engine::fixture_trace::{Trace,Intent};
 pub(super) fn trace(bound:&Bound,p:&Program)->Trace {
-    Trace::new(bound.invariants.iter().filter(|inv|!matches!(inv.target.as_str(),"read"|"always")&&inv.operation.as_ref().is_none_or(|op|op==&p.name)).filter_map(|inv|Some(Intent{concrete:if inv.policy.is_none(){inv.syntax.clone().map(|syntax|{
+    Trace::new(bound.invariants.iter().filter(|inv|!matches!(inv.target.as_str(),"read"|"always")&&inv.operation.as_ref().is_none_or(|op|op==&p.name)).filter_map(|inv|Some(Intent{paired:super::super::derived::is_derived(inv)&&inv.policy.as_ref().is_some_and(|r|r.any_term(&|t|matches!(t,RuleTerm::OldField(_)|RuleTerm::NextField(_)))),concrete:if inv.policy.is_none(){inv.syntax.clone().map(|syntax|{
             let schema=bound.schema.clone();let table=inv.table.clone();
             snapback4_core::engine::fixture_trace::ConcretePredicate(std::sync::Arc::new(move |rows,row,viewer,now|super::super::concrete::evaluate(&syntax,row,rows,&schema,viewer,&table,now)))
         })}else{None},

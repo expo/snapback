@@ -50,3 +50,17 @@ const ASYMMETRY:&str="table records:\n  owner: principal\n  value: text ?\n  rea
  let s="table docs:\n  fee: text\n  stage: enum('new','done')\n  score: int ?\n  read <- allow\n  insert <- viewer = 'service:registrar'\n  update (old,next) <- (viewer = 'service:teacher' and old.fee = next.fee) or (viewer = 'service:registrar' and old.stage = next.stage and old.score = next.score)\n  online only\nmutation create(fee: text):\n  return insert docs {fee,stage:'new'}\n";
  assert!(!report(s).notes.iter().any(|n|n.code=="N_CREATE_EDIT_ASYMMETRY"));
 }
+
+#[test]fn inspected_payload_has_an_approve_then_edit_witness_without_spec_intent(){
+ let source="table docs:\n  value: text ?\n  approved: bool default false\n  read <- allow\n  insert <- allow\n  update <- allow\n  online only\nmutation add(value: text ?):\n  return insert docs {value}\nmutation approve(doc: docs):\n  row = docs[doc] ! else NOT_FOUND\n  require row.value != null else MISSING\n  update docs[doc] {approved:true}\nmutation edit(doc: docs,value: text ?):\n  update docs[doc] {value}\n";
+ let sources=vec![("schema.q".into(),source.into())];let b=security::derived::augmented(&sources,&bound(source));
+ assert!(b.invariants.iter().any(|i|security::derived::is_derived(i)&&i.column.as_deref()==Some("value")&&i.target=="update"));
+ let mut c=Campaign::default();challenges::generated_campaign(&b,&mut c,false);
+ assert!(c.violations.iter().any(|v|v.reachability.is_reachable()&&v.history.iter().any(|s|s.operation=="approve")&&v.history.last().is_some_and(|s|s.operation=="edit")),"{}",serde_json::to_string(&c).unwrap());
+}
+
+#[test]fn edits_that_invalidate_approval_do_not_refute_derived_retained_approval_intent(){
+ let source="table docs:\n  value: text ?\n  approved: bool default false\n  read <- allow\n  insert <- allow\n  update <- allow\n  online only\nmutation add(value: text ?):\n  return insert docs {value}\nmutation approve(doc: docs):\n  row = docs[doc] ! else NOT_FOUND\n  require row.value != null else MISSING\n  update docs[doc] {approved:true}\nmutation edit(doc: docs,value: text ?):\n  update docs[doc] {value,approved:false}\n";
+ let sources=vec![("schema.q".into(),source.into())];let b=security::derived::augmented(&sources,&bound(source));let mut c=Campaign::default();challenges::generated_campaign(&b,&mut c,false);
+ assert!(!c.violations.iter().any(|v|v.reachability.is_reachable()),"{}",serde_json::to_string(&c).unwrap());assert!(c.operations.get("edit").copied().unwrap_or(0)>0);
+}

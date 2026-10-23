@@ -10,6 +10,8 @@ pub struct ConcretePredicate(pub Arc<dyn Fn(&FixtureRows,&Value,&str,i64)->Optio
 impl std::fmt::Debug for ConcretePredicate {fn fmt(&self,f:&mut std::fmt::Formatter<'_>)->std::fmt::Result{f.write_str("concrete fixture predicate")}}
 #[derive(Clone, Debug)]
 pub struct Intent {
+    /// Private derived contracts may compare the actual old/next pair once.
+    pub paired: bool,
     pub concrete: Option<ConcretePredicate>,
     pub site: String,
     pub table: String,
@@ -63,6 +65,8 @@ impl Runner<'_> {
                     let b=next.map(|row|(predicate.0)(&after,row,&self.context.viewer,now));
                     match (a,b){(Some(Some(false)),_)|(_,Some(Some(false)))=>Some(false),(Some(None),_)|(_,Some(None))=>None,_=>Some(true)}
                 })
+            } else if intent.paired {
+                match (old,next){(Some(_),Some(next))=>judge(next),_=>None}
             } else { match (old, next) {
                 (Some(old), Some(next)) => match (judge(old), judge(next)) {
                     (Some(false), _) | (_, Some(false)) => Some(false),
