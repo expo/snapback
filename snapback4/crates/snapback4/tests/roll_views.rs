@@ -127,10 +127,19 @@ impl App {
     fn source(&self, s: &str) {
         fs::write(self.0.join("snapback/schema.q"), s).unwrap();
     }
-    // These fixtures intentionally loosen a field to represent pending data.
-    // State that specification decision explicitly; keep production gates on.
+    // These fixtures deliberately permit pending values. Record only that
+    // column's rule-bound decision; do not add independent workflow intent.
     fn source_with_presence(&self, s: &str, column: &str) {
-        self.source(&format!("{s}\ninvariant items always .{column} = null or .{column} != null\n"));
+        self.ok(&["check"]); // retain the successful predecessor baseline
+        self.source(s);
+        let out=self.run(&["check","--json"]);
+        let value:Value=serde_json::from_slice(&out.stdout).unwrap();
+        let notes=value["security"]["notes"].as_array().unwrap();
+        let sites=notes.iter().filter(|n|n["code"]=="N_PRESENCE_LOOSENING"&&n["message"].as_str().unwrap().starts_with(&format!("items.{column}:"))).map(|n|format!("{}:{}:{}",n["site"]["file"].as_str().unwrap(),n["site"]["line"],n["site"]["col"])).collect::<Vec<_>>();
+        let decisions=value["securityReviews"].as_array().unwrap();
+        let selected=decisions.iter().filter(|d|d["code"]=="N_PRESENCE_LOOSENING"&&sites.iter().any(|s|d["site"]==s.as_str())).collect::<Vec<_>>();
+        assert_eq!(selected.len(),1,"expected this deliberate presence review: {value}");
+        for d in selected {self.ok(&["check","--ack-security",d["id"].as_str().unwrap(),"--reason","This rollback fixture deliberately permits pending values in this column; current workflow guards remain enforced."]);}
     }
     fn run(&self, args: &[&str]) -> Output {
         Command::new(BIN)
