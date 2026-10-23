@@ -177,12 +177,15 @@ pub(super) struct State {
     paused: bool,
     // Separate clock callers (and a dev reset) may wait here; maintenance never takes this lock.
     pub(super) advance: Arc<std::sync::Mutex<()>>,
+    #[cfg(test)]
+    lose_advance_ack: bool,
 }
 impl Default for State {
     fn default() -> Self {
         let now = Instant::now();
         Self { next: BulkKind::Delivery, serviced: now, resume_at: now, empty_pause: Duration::ZERO,
-            advancing: false, paused: false, advance: Arc::new(std::sync::Mutex::new(())) }
+            advancing: false, paused: false, advance: Arc::new(std::sync::Mutex::new(())),
+            #[cfg(test)] lose_advance_ack: false }
     }
 }
 impl State {
@@ -408,6 +411,12 @@ fn incomplete_report(cause: &snapback4_core::Refusal) -> snapback4_core::Refusal
         format!("clock already advanced; report incomplete ({cause}); inspect clock or use clock drain (0ms); do not replay the advance"))
         .guide("clock")
 }
+fn advance_error(error: &snapback4_core::Refusal, published: Option<i64>, milliseconds: i64) -> (u16, serde_json::Value) {
+    match published {
+        Some(now) => (500, json!({"now":now,"advancedMs":milliseconds,"reportIncomplete":true,"denied":incomplete_report(error)})),
+        None => (refusal_status(error, 400), json!({"denied":refusal_json(error)})),
+    }
+}
 
 pub(super) fn advance(request: Request, shared: &Shared, body: &str) {
     let service = match clock_service(&request, shared) {
@@ -466,6 +475,9 @@ pub(super) fn advance(request: Request, shared: &Shared, body: &str) {
     lock(&shared.maintenance).advancing = true;
     // @ref LLP 3000.007#20.12 — simulated time makes retries due without stealing a live worker's claim or viewer session.
     let facts = super::RequestFacts::capture(&request);
+    // Retain publication facts independently of the worker's acknowledgement.
+    let published = Arc::new(std::sync::Mutex::new(None));
+    let publication = published.clone();
     let advanced = shared.engine.attempt(move |engine, shared| {
         let before = crate::dev_clock_store::saved_boundaries(engine);
         if let Some(principal) = &service {
@@ -495,6 +507,7 @@ pub(super) fn advance(request: Request, shared: &Shared, body: &str) {
         }
         lock(&shared.maintenance).paused = true;
         *clock = next;
+        *lock(&publication) = Some(now);
         let offset = clock.offset();
         let skew = now - snapback4_core::now_ms();
         let isolated = if crate::dev_clock_store::has_data(engine) {
@@ -503,9 +516,14 @@ pub(super) fn advance(request: Request, shared: &Shared, body: &str) {
         let message = format!("cumulative offset {offset:+}ms (requested process offset; now includes the authoritative floor); process offset lasts until restart{isolated}");
         Ok((now, clock.now(), offset, skew, message, before, boundaries))
     });
+    // Test the lost-ack branch after the real queued body publishes time.
+    #[cfg(test)]
+    let advanced = if std::mem::take(&mut lock(&shared.maintenance).lose_advance_ack) {
+        Err(super::committer::queue_error(snapback4_core::engine::command::SubmitError::OutcomeUnknown).refusal())
+    } else { advanced };
     let (now, raw_now, offset, skew, message, before, boundaries) = match advanced {
         Ok(result) => result,
-        Err(error) => return respond(request, refusal_status(&error, 400), json!({"denied":refusal_json(&error)})),
+        Err(error) => { let (status, reply) = advance_error(&error, *lock(&published), milliseconds); return respond(request, status, reply); }
     };
     #[cfg(test)] super::test_work(&shared.clock_advanced);
     // @ref LLP 3000#contended-read-serving — a developer is awaiting this
@@ -655,6 +673,28 @@ pub(super) fn clock_status(request: Request, shared: &Shared) {
 mod tests {
     use super::*;
     use super::super::tests::Host;
+
+    #[test]
+    fn clock_lost_ack_after_publication_returns_incomplete_report() {
+        let host = Host::with_store(true, snapback4_core::Store::memory().unwrap(), "use personas alice\nquery read():\n  return 1\n");
+        lock(&host.shared.clock).freeze(10_000);
+        lock(&host.shared.maintenance).lose_advance_ack = true;
+        let response = host.request("POST", "/dev/clock/advance", "", r#"{"duration":"1s"}"#);
+        assert_eq!(super::super::tests::status(&response), 500, "{response}");
+        let report = super::super::tests::body(&response);
+        assert_eq!(report["now"], 11_000);
+        assert_eq!(report["advancedMs"], 1_000);
+        assert_eq!(report["reportIncomplete"], true);
+        assert_eq!(report["denied"]["code"], "E_CLOCK_REPORT_INCOMPLETE");
+        assert_ne!(report["denied"]["retryable"], true);
+        assert!(!response.to_ascii_lowercase().contains("retry-after:"));
+        assert_eq!(lock(&host.shared.clock).now(), 11_000);
+        assert!(!lock(&host.shared.maintenance).advancing);
+        assert!(lock(&host.shared.maintenance).paused);
+        let drained = host.request("POST", "/dev/clock/advance", "", r#"{"duration":"0ms"}"#);
+        assert_eq!(super::super::tests::status(&drained), 200, "{drained}");
+        assert_eq!(lock(&host.shared.clock).now(), 11_000);
+    }
 
     #[test]
     fn dx6_current_window_drains_resume_queued_work_and_only_future_markers_refuse() {

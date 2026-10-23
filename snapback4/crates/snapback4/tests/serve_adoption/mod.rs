@@ -356,3 +356,55 @@ fn query_handoff_does_not_accept_a_genuine_foreign_activation() {
     assert_eq!(status(&response), 503, "{response}");
     assert_eq!(body(&response)["denied"]["code"], "E_GENERATION", "{response}");
 }
+
+fn adopt_during_query(shared: &Arc<Shared>, source: &'static str, repeat: bool) -> Arc<AtomicUsize> {
+    let attempts = Arc::new(AtomicUsize::new(0));
+    let observed = attempts.clone();
+    let host = Arc::downgrade(shared);
+    *lock(&shared.query_wait) = Some(Arc::new(move || {
+        let attempt = observed.fetch_add(1, Ordering::AcqRel);
+        if attempt > 0 && !repeat { return; }
+        let next = if repeat { source.replace("return 1", &format!("return {}", attempt + 2)) } else { source.into() };
+        let shared = host.upgrade().unwrap();
+        shared.engine.call(move |engine, shared| {
+            let bound = snapback4_lang::compile(&[("schema.q".into(), next)]);
+            assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+            let (generation, _) = adoption::adopt_candidate(shared, engine, &bound, || panic!("unexpected reopen")).unwrap();
+            lock(&shared.readers).replace(engine, &bound.refusal_sites);
+            *lock(&shared.bound) = bound;
+            *lock(&shared.generation) = generation;
+        }).unwrap();
+    }));
+    attempts
+}
+
+#[test]
+fn query_handoff_redecodes_arguments_after_signature_change() {
+    let directory = ReaderTestDirectory::new();
+    let host = Host::with_store(true, snapback4_core::Store::open(&directory.0.join("signature.sqlite")).unwrap(),
+        "use personas alice\nquery read(value: int):\n  return value\n");
+    let attempts = adopt_during_query(&host.shared, "use personas alice\nquery read(value: text <=20):\n  return value\n", false);
+    let response = host.request("POST", "/q/read", "x-snapback-persona: alice\r\n", r#"{"args":{"value":7}}"#);
+    *lock(&host.shared.query_wait) = None;
+    assert_eq!(attempts.load(Ordering::Acquire), 2, "must reach the retry's new program");
+    assert_eq!(status(&response), 400, "{response}");
+    assert_eq!(body(&response)["denied"]["code"], "E_INPUT", "{response}");
+    assert!(body(&response).get("data").is_none(), "{response}");
+    let valid = host.request("POST", "/q/read", "x-snapback-persona: alice\r\n", r#"{"args":{"value":"fresh"}}"#);
+    assert_eq!(body(&valid)["data"], "fresh", "{valid}");
+}
+
+#[test]
+fn query_outcome_generation_after_two_handoffs_returns_503() {
+    let directory = ReaderTestDirectory::new();
+    let source = "use personas alice\nquery read():\n  return 1\n";
+    let host = Host::with_store(true, snapback4_core::Store::open(&directory.0.join("cap.sqlite")).unwrap(), source);
+    let attempts = adopt_during_query(&host.shared, source, true);
+    let response = host.request("POST", "/q/read", "x-snapback-persona: alice\r\n", "{}");
+    *lock(&host.shared.query_wait) = None;
+    assert_eq!(attempts.load(Ordering::Acquire), 3, "one attempt and exactly two handoffs");
+    assert_eq!(status(&response), 503, "{response}");
+    assert_eq!(body(&response)["denied"]["code"], "E_GENERATION", "{response}");
+    assert_eq!(body(&response)["complete"], false, "query-outcome refusal, not metadata/open refusal");
+    assert_eq!(body(&host.request("POST", "/q/read", "x-snapback-persona: alice\r\n", "{}"))["data"], 4);
+}
