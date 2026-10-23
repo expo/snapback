@@ -185,7 +185,10 @@ fn check_change(
             eprintln!("{line}");
         }
         if target_release.is_some() {
-            for warning in snapback4_lang::client_contracts::compare(&old,bound,&format!("release {n}")) {eprintln!("WARNING {warning}");}
+            for warning in snapback4_lang::client_contracts::compare(&old,bound,&format!("release {n}")) {
+                if snapback4_lang::client_contracts::is_note(&warning) {eprintln!("NOTE {warning}");}
+                else {eprintln!("WARNING {warning}");}
+            }
         }
     }
     if options.flags.contains_key("allow-destructive") {
@@ -362,7 +365,7 @@ pub fn deploy(options: &Options) -> i32 {
             let project = super::proof_source::project(options, "schema")?;
             let sources = super::proof_source::sources(&project, options, "schema")?;
             let bound = compiled_or_exit(super::proof_source::compile(&sources, options, "schema"), options.json);
-            let mut saved_version = super::saved_version::SavedVersion::prepare(&project,&sources,options,&dir)?;
+            let mut saved_version = super::saved_version::SavedVersion::prepare(&project,&sources,&bound,options,&dir)?;
             if options.flags.contains_key("staging") {
                 staging::classify(&dir, _deployment.as_ref(), existed, checking)?;
             }

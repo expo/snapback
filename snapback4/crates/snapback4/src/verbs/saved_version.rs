@@ -1,14 +1,14 @@
-//! Capture the selected deployed bytes and their contemporary fixtures.
-// @ref LLP 3000.011.003.000.000#14-wave-15-saved-deployments-and-case-evidence-day5 — snapshots never replace prior application evidence.
+//! Capture the selected deployed bytes, generated client and contemporary fixtures.
+// @ref LLP 3000.011.003.000.000#14-wave-15-saved-deployments-and-case-evidence-day5 — source and fixture evidence is immutable; identical-source refresh may repair derived artifacts.
 use super::{Options, Project};
-use std::path::PathBuf;
+use std::{collections::BTreeMap, path::PathBuf};
 
-pub(super) struct SavedVersion { path: PathBuf, files: Vec<(PathBuf, Vec<u8>)>, complete: bool }
+pub(super) struct SavedVersion { path: PathBuf, files: Vec<(PathBuf, Vec<u8>)>, complete: bool, refresh: bool }
 impl Drop for SavedVersion {
-    fn drop(&mut self) { if !self.complete { let _ = std::fs::remove_dir_all(&self.path); } }
+    fn drop(&mut self) { if !self.complete && !self.refresh { let _ = std::fs::remove_dir_all(&self.path); } }
 }
 impl SavedVersion {
-    pub(super) fn prepare(project: &Project, sources: &[(String,String)], options: &Options, deployment: &std::path::Path) -> Result<Option<Self>,String> {
+    pub(super) fn prepare(project: &Project, sources: &[(String,String)], bound: &snapback4_lang::Bound, options: &Options, deployment: &std::path::Path) -> Result<Option<Self>,String> {
         let Some(name) = options.flags.get("save-version") else {return Ok(None);};
         if sources.is_empty() || sources.iter().all(|(_,text)|text.trim().is_empty()) {return Err("not saved yet: a saved version needs nonempty Quarry source".into());}
         if options.flags.contains_key("check") {return Err("--save-version captures a successful deployment; omit --check to save, or omit --save-version for a read-only preview".into());}
@@ -21,16 +21,28 @@ impl SavedVersion {
         if std::fs::symlink_metadata(&parent).is_ok_and(|m|m.file_type().is_symlink()) {return Err("--save-version refuses a symlinked versions directory".into());}
         std::fs::create_dir_all(&parent).map_err(|e|e.to_string())?;
         let path=project.root.join(name);
-        // create_dir is the no-replace reservation: existing evidence is immutable.
-        std::fs::create_dir(&path).map_err(|e|format!("cannot save {name}: {e}; choose a new versions/vN; existing snapshots are never overwritten"))?;
-        let mut saved=Self {path,files:sources.iter().map(|(name,text)|(PathBuf::from(name),text.as_bytes().to_vec())).collect(),complete:false};
+        let refresh = match std::fs::symlink_metadata(&path) {
+            Ok(meta) if meta.file_type().is_symlink() || !meta.is_dir() => return Err(format!("cannot refresh {name}: saved version must be a real directory")),
+            Ok(_) => {
+                let selected=sources.iter().cloned().collect::<BTreeMap<_,_>>();
+                let existing=crate::client_compatibility::sources(&path).map_err(|e|format!("cannot refresh {name}: {e}"))?.into_iter().collect::<BTreeMap<_,_>>();
+                if existing != selected {return Err(format!("cannot refresh {name}: selected source differs from the saved source; choose a new versions/vN"));}
+                true
+            }
+            Err(error) if error.kind()==std::io::ErrorKind::NotFound => {std::fs::create_dir(&path).map_err(|e|format!("cannot save {name}: {e}"))?;false}
+            Err(error) => return Err(format!("cannot inspect {name}: {error}")),
+        };
+        let mut files = if refresh {Vec::new()} else {sources.iter().map(|(name,text)|(PathBuf::from(name),text.as_bytes().to_vec())).collect()};
+        files.push((PathBuf::from("generated/api.ts"),snapback4_lang::emit::typescript(bound).into_bytes()));
+        files.push((PathBuf::from("generated/package.json"),crate::project::GENERATED_PACKAGE.as_bytes().to_vec()));
+        let mut saved=Self {path,files,complete:false,refresh};
         let fixture = match options.flags.get("schema").map(PathBuf::from) {
             None=>project.root.join("fixtures"),
             Some(source) if source.is_dir()=>source.join("fixtures"),
             Some(source) if source.file_name().is_some_and(|n|n=="schema.q")=>source.parent().unwrap().join("fixtures"),
             Some(source)=>source.with_file_name(format!("{}-fixtures",source.file_stem().unwrap_or_default().to_string_lossy())),
         };
-        if fixture.is_dir() {
+        if fixture.is_dir() && !refresh {
             let mut entries=std::fs::read_dir(&fixture).map_err(|e|e.to_string())?.collect::<Result<Vec<_>,_>>().map_err(|e|e.to_string())?;
             entries.sort_by_key(|e|e.file_name());
             for entry in entries {
@@ -40,7 +52,7 @@ impl SavedVersion {
                 }
             }
         }
-        saved.files.push((PathBuf::from("fixtures/.gitkeep"),Vec::new()));
+        if !refresh {saved.files.push((PathBuf::from("fixtures/.gitkeep"),Vec::new()));}
         Ok(Some(saved))
     }
     pub(super) fn finish(&mut self, release: u64, source_hash: &str) -> Result<(),String> {
@@ -48,12 +60,18 @@ impl SavedVersion {
         for (name,bytes) in &self.files {
             let path=self.path.join(name);
             std::fs::create_dir_all(path.parent().unwrap()).map_err(|e|e.to_string())?;
-            use std::io::Write;
-            let mut file=std::fs::OpenOptions::new().write(true).create_new(true).open(path).map_err(|e|e.to_string())?;
-            file.write_all(bytes).map_err(|e|e.to_string())?;
+            if self.refresh {
+                let temporary=path.with_extension(format!("refresh-{}",std::process::id()));
+                std::fs::write(&temporary,bytes).map_err(|e|e.to_string())?;
+                std::fs::rename(&temporary,&path).map_err(|e|e.to_string())?;
+            } else {
+                use std::io::Write;
+                let mut file=std::fs::OpenOptions::new().write(true).create_new(true).open(path).map_err(|e|e.to_string())?;
+                file.write_all(bytes).map_err(|e|e.to_string())?;
+            }
         }
         self.complete=true;
-        eprintln!("saved release {release} sources, contemporary fixtures and release.json at {}",self.path.display());
+        eprintln!("{} release {release} sources, generated client, contemporary fixtures and release.json at {}",if self.refresh {"refreshed"} else {"saved"},self.path.display());
         Ok(())
     }
 }
