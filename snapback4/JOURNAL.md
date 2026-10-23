@@ -105021,3 +105021,22 @@ and presence) and retains its complete durable-state census. All 19 codec and
 serving-flight witnesses pass on the freshly built final test executable.
 The script's original red and the successful affected-scope rerun are both
 retained in the completion report.
+
+## 2026-10-24 — G2/G3 SQLite fallback lock budget
+
+The final deadline audit found SQLite's IMMEDIATE opener could wait for the
+ordinary busy timeout before the fallback's progress guard was installed.
+The committer now opens deadline-bearing program attempts through a bounded
+adapter entry. A scoped busy callback shares the original monotonic deadline
+with body progress checks; normal host contention policy is restored before
+COMMIT and after every failed opener. The normal N=1 opener is unchanged.
+Both drivers check the remaining deadline again before selecting uncancellable
+COMMIT, because SQLite can defer a failed cache spill and return a successful
+statement after the cutoff.
+
+Two real lock barriers cover BEGIN and rollback-journal cache spill through
+the complete known-abort/retry driver. Their ordinary-wait negative controls
+prove the lock is held and the original 1234 ms busy policy is restored; a
+subsequent 10,000-step VM query proves progress cleanup. Both pass, as do all
+six outcome/deadline witnesses including the PG remaining-flight deadline.
+The final batch matrix and measurements are recorded in the completion entry.

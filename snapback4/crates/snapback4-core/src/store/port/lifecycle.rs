@@ -24,10 +24,17 @@ impl AnyStore {
     pub fn open_with_busy_timeout(path: &Path, timeout: Duration) -> Result<Self, RuntimeError> {
         sqlite::Store::open_with_busy_timeout(path, timeout).map(|inner| Self::Sqlite(SqliteStore(inner)))
     }
-    pub(crate) fn next_program_deadline(&mut self, deadline: std::time::Instant) {
-        #[cfg(feature="postgres")]
-        if let Self::Postgres(PostgresStore(handle))=self {handle.store.get_mut().next_program_deadline=Some(deadline);}
-        let _=deadline;
+    pub(crate) fn program_transaction_until(&mut self, digest: Option<&str>, principal: &str, id: Option<&str>, deadline: std::time::Instant) -> Result<AnyTx<'_>, RuntimeError> {
+        #[cfg(not(feature="postgres"))]
+        let _=(digest,principal,id);
+        match self {
+            Self::Sqlite(SqliteStore(store)) => store.program_transaction_until(deadline).map(|tx|AnyTx::Sqlite(SqliteTx(tx))),
+            #[cfg(feature="postgres")]
+            Self::Postgres(PostgresStore(handle)) => {
+                let store=handle.store.get_mut(); store.next_program_deadline=Some(deadline);
+                match digest { Some(digest)=>store.request_transaction(digest,principal,id), None=>store.transaction(Some(crate::engine::postgres::WriteMode::Serialized)) }.map(|tx|AnyTx::Postgres(PostgresTx(tx)))
+            }
+        }
     }
     pub fn transaction(&mut self) -> Result<AnyTx<'_>, RuntimeError> {
         match self { Self::Sqlite(SqliteStore(store)) => store.transaction().map(|inner| AnyTx::Sqlite(SqliteTx(inner))), #[cfg(feature = "postgres")] Self::Postgres(PostgresStore(handle)) => handle.store.get_mut().transaction(Some(crate::engine::postgres::WriteMode::Serialized)).map(|inner| AnyTx::Postgres(PostgresTx(inner))) }
@@ -212,8 +219,9 @@ impl<'store> AnyTx<'store> {
             .ok_or_else(||RuntimeError::Store("program invocation's remaining deadline elapsed".into()))?;
         match self {
             Self::Sqlite(SqliteTx(tx)) => {
+                let busy=sqlite::program_deadline::Budget::begin(tx.conn(),deadline)?;
                 tx.conn().progress_handler(1000, Some(move || std::time::Instant::now() >= deadline))?;
-                Ok(AttemptBudget(Some(Box::new(move || { let _ = tx.conn().progress_handler(0,None::<fn()->bool>); }))))
+                Ok(AttemptBudget(Some(Box::new(move || { let _ = tx.conn().progress_handler(0,None::<fn()->bool>); drop(busy); }))))
             }
             #[cfg(feature="postgres")]
             Self::Postgres(PostgresTx(tx)) => { tx.bound_program_attempt(deadline)?; Ok(AttemptBudget(None)) }

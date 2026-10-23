@@ -49,6 +49,7 @@ mod assets;
 mod partition;
 pub(crate) mod steps;
 mod requests;
+pub(crate) mod program_deadline;
 #[cfg(test)]
 pub(crate) mod test_race;
 mod outbox;

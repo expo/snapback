@@ -119,3 +119,152 @@ fn fallback_cancellable_flights_use_one_remaining_deadline() {
         1
     );
 }
+
+fn sqlite_deadline_fixture(bytes: usize) -> (AnyStore, std::path::PathBuf, std::path::PathBuf) {
+    let directory = std::env::temp_dir().join(format!("sb4-g23-lock-{:x}", crate::ids::seed()));
+    std::fs::create_dir(&directory).unwrap();
+    let path = directory.join("deadline.sqlite");
+    let store = AnyStore::open(&path).unwrap();
+    store
+        .test_support_conn()
+        .busy_timeout(Duration::from_millis(1234))
+        .unwrap();
+    store.test_support_conn().execute_batch(&format!("PRAGMA journal_mode=DELETE; PRAGMA cache_size=1; PRAGMA cache_spill=1; CREATE TABLE deadline_data(id INTEGER PRIMARY KEY,value BLOB); INSERT INTO deadline_data VALUES(1,zeroblob({bytes}))")).unwrap();
+    assert_eq!(
+        store
+            .test_support_conn()
+            .query_row("PRAGMA journal_mode", [], |row| row.get::<_, String>(0))
+            .unwrap(),
+        "delete"
+    );
+    (store, path, directory)
+}
+fn hold_sqlite_lock(connection: rusqlite::Connection) -> std::thread::JoinHandle<()> {
+    std::thread::spawn(move || {
+        std::thread::sleep(Duration::from_millis(500));
+        connection.execute_batch("ROLLBACK").unwrap();
+    })
+}
+#[test]
+fn sqlite_fallback_begin_obeys_deadline_and_restores_contention_policy() {
+    let (mut store, path, directory) = sqlite_deadline_fixture(16);
+    let blocker = rusqlite::Connection::open(&path).unwrap();
+    blocker.execute_batch("BEGIN IMMEDIATE").unwrap();
+    let holder = hold_sqlite_lock(blocker);
+    let started = Instant::now();
+    let bounded = Committer::open_program_before(
+        &mut store,
+        None,
+        "alice",
+        None,
+        Some(Instant::now() + Duration::from_millis(20)),
+    )
+    .is_err();
+    let elapsed = started.elapsed();
+    let restored = store
+        .test_support_conn()
+        .query_row("PRAGMA busy_timeout", [], |row| row.get::<_, i64>(0))
+        .unwrap();
+    let normal = Instant::now();
+    Committer::open_program(&mut store, None, "alice", None)
+        .unwrap()
+        .rollback()
+        .unwrap();
+    let ordinary_wait = normal.elapsed();
+    holder.join().unwrap();
+    assert!(
+        bounded,
+        "bounded BEGIN must not wait for the holder to exit"
+    );
+    assert!(
+        elapsed < Duration::from_millis(300),
+        "remaining deadline overrun: {elapsed:?}"
+    );
+    assert_eq!(restored, 1234);
+    assert!(
+        ordinary_wait > Duration::from_millis(100),
+        "negative control must encounter the held lock: {ordinary_wait:?}"
+    );
+    drop(store);
+    std::fs::remove_dir_all(directory).unwrap();
+}
+#[test]
+fn sqlite_fallback_page_spill_obeys_deadline_and_restores_contention_policy() {
+    let (mut store, path, directory) = sqlite_deadline_fixture(1048576);
+    store.test_support_conn().execute_batch("PRAGMA foreign_keys=ON; CREATE TABLE deadline_parent(id INTEGER PRIMARY KEY); CREATE TABLE deadline_child(id INTEGER REFERENCES deadline_parent(id) DEFERRABLE INITIALLY DEFERRED)").unwrap();
+    let attempts = Cell::new(0);
+    let mut holder = None;
+    let started = Instant::now();
+    let result = Committer::run_program_until(
+        &mut store,
+        None,
+        "alice",
+        None,
+        Instant::now() + Duration::from_millis(100),
+        |member| {
+            attempts.set(attempts.get() + 1);
+            if attempts.get() == 1 {
+                member
+                    .tx
+                    .test_support_conn()
+                    .execute("INSERT INTO deadline_child VALUES(1)", [])?;
+            } else {
+                let blocker = rusqlite::Connection::open(&path)?;
+                blocker.execute_batch("BEGIN")?;
+                blocker.query_row("SELECT value FROM deadline_data", [], |row| {
+                    row.get::<_, Vec<u8>>(0)
+                })?;
+                holder = Some(hold_sqlite_lock(blocker));
+                // SQLite may defer a failed cache spill and return success. The
+                // complete retry driver must still refuse a late COMMIT.
+                member
+                    .tx
+                    .test_support_conn()
+                    .execute("UPDATE deadline_data SET value=randomblob(1048576)", [])?;
+            }
+            member.complete(Pending::value(()))
+        },
+    );
+    let elapsed = started.elapsed();
+    let restored = store
+        .test_support_conn()
+        .query_row("PRAGMA busy_timeout", [], |row| row.get::<_, i64>(0))
+        .unwrap();
+    let normal = Instant::now();
+    store
+        .test_support_conn()
+        .execute_batch("BEGIN EXCLUSIVE; ROLLBACK")
+        .unwrap();
+    let ordinary_wait = normal.elapsed();
+    holder
+        .take()
+        .expect("the known abort must reach a fallback")
+        .join()
+        .unwrap();
+    assert!(result.is_err(), "late fallback must not commit");
+    assert_eq!(attempts.get(), 2);
+    assert!(
+        elapsed < Duration::from_millis(300),
+        "remaining deadline overrun: {elapsed:?}"
+    );
+    assert_eq!(restored, 1234);
+    assert!(
+        ordinary_wait > Duration::from_millis(100),
+        "negative control must encounter the held reader: {ordinary_wait:?}"
+    );
+    assert_eq!(
+        store
+            .test_support_conn()
+            .query_row(
+                "SELECT hex(substr(value,1,2)) FROM deadline_data",
+                [],
+                |row| row.get::<_, String>(0)
+            )
+            .unwrap(),
+        "0000"
+    );
+    let n=store.test_support_conn().query_row("WITH RECURSIVE n(v) AS (VALUES(1) UNION ALL SELECT v+1 FROM n WHERE v<10000) SELECT count(*) FROM n",[],|row|row.get::<_,i64>(0)).unwrap();
+    assert_eq!(n, 10000, "expired progress callback must be gone");
+    drop(store);
+    std::fs::remove_dir_all(directory).unwrap();
+}

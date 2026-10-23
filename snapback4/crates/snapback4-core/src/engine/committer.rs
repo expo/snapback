@@ -216,6 +216,18 @@ impl Committer {
             None => store.transaction(),
         }
     }
+    pub(super) fn open_program_before<'store>(
+        store: &'store mut AnyStore,
+        digest: Option<&str>,
+        principal: &str,
+        id: Option<&str>,
+        deadline: Option<std::time::Instant>,
+    ) -> Result<AnyTx<'store>, RuntimeError> {
+        match deadline {
+            Some(deadline) => store.program_transaction_until(digest, principal, id, deadline),
+            None => Self::open_program(store, digest, principal, id),
+        }
+    }
     pub(super) fn resolution<T, D>(disposition: Disposition<Pending<T, D>>) -> Resolution<T, D> {
         Resolution {
             committed: disposition.end == Frame::Complete,

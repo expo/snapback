@@ -68,10 +68,13 @@ impl Committer {
         mut body: impl FnMut(MemberTx<'_, '_>) -> MemberResult<Pending<T, D>>,
     ) -> Result<Resolution<T, D>, RuntimeError> {
         for attempt in 0..2 {
-            if attempt > 0 {
-                store.next_program_deadline(deadline);
-            }
-            let tx = Self::open_program(store, digest, principal, id)?;
+            let tx = Self::open_program_before(
+                store,
+                digest,
+                principal,
+                id,
+                (attempt > 0).then_some(deadline),
+            )?;
             let mut budget_error = None;
             let budget = if attempt > 0 {
                 match tx.bound_program_attempt(deadline) {
@@ -101,6 +104,14 @@ impl Committer {
                     committed,
                     pending: disposition.value,
                 });
+            }
+            if attempt > 0 && Instant::now() >= deadline {
+                return Err(Failure::rollback(
+                    tx,
+                    RuntimeError::Store("program invocation's remaining deadline elapsed".into()),
+                    None,
+                )
+                .error);
             }
             if let Err(error) = tx.prepare_program_commit() {
                 let failure = Failure::rollback(tx, error, None);

@@ -233,20 +233,19 @@ impl Engine {
             #[cfg(feature = "evaluation-support")]
             evaluation_precharge: *evaluation_precharge,
         };
-        if fallback {
-            store.next_program_deadline(indices.iter().map(|&i| batch[i].deadline).min().unwrap());
-        }
+        let deadline = fallback.then(|| indices.iter().map(|&i| batch[i].deadline).min().unwrap());
         let first = &batch[indices[0]];
         #[cfg(any(test, feature = "test-support"))]
         let _attribution = first
             .attribution
             .clone()
             .map(crate::round_trips::Handle::enter);
-        let physical = Committer::open_program(
+        let physical = Committer::open_program_before(
             store,
             first.authority.as_ref().map(|a| a.digest.as_str()),
             &first.context.viewer,
             first.id.as_deref(),
+            deadline,
         );
         let tx = physical.map_err(|error| {
             (
@@ -423,6 +422,16 @@ impl Engine {
         #[cfg(test)]
         if let Err(error) = fault::check(fault::Point::BeforeTail, usize::MAX) {
             return Err((Failure::rollback(tx, error, None), None));
+        }
+        if deadline.is_some_and(|deadline| Instant::now() >= deadline) {
+            return Err((
+                Failure::rollback(
+                    tx,
+                    RuntimeError::Store("program invocation's remaining deadline elapsed".into()),
+                    None,
+                ),
+                None,
+            ));
         }
         if let Err(error) = tx.prepare_program_commit() {
             return Err((Failure::rollback(tx, error, None), None));
