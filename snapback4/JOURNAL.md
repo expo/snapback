@@ -103795,3 +103795,49 @@ scope, failures and passing reruns; raw evidence stays outside Git under
 
 Final root `./ref-check` passes: 566 LLP documents, 11,806 refs, zero errors
 and zero unchecked references.
+
+## 2026-10-23 — P1-EV-2 fix round 2: dormant admission and diagnostic parity
+
+Lane `sb4-pg/p1-ev2-fix2`, based on `d970705fa3`, expo-build-1000. The two
+blind re-reviews identified a dormant data reservation, successor-step order,
+dev null-cap samples and the maintain-target public backstop. All four have
+dual-store failing-before witnesses against unchanged production source from
+that commit: three failures and two passing controls in the final five-case
+evolution subset, plus the separate failing public maintain-target fixture.
+
+Ordinary narrowed restoration now decodes and skips incompatible images with
+SQLite's admission behavior. Dev uniqueness/cap checks follow the earliest
+applicable successor step, including dependent indexes at changed columns.
+Dev cap evidence includes exempt null groups after detecting a real violation;
+release evidence excludes them. Maintain-target collisions retain physical
+`E_CONSTRAINT`, including activation with programs. SQLite production, runtime
+ceilings, request paths and both RT0 JSON tables are unchanged.
+
+A 3 MiB default survives narrowing and the next unrelated bounded release on
+both stores. Full widening also establishes an existing common limit: both
+active-row walkers refuse 22,033,728 / 16,777,216 heap bytes and roll back.
+The witness preserves that SQLite verdict, then restores a partial row with the
+exact payload retained as a dormant cell. A 1 MiB control restores the complete
+original row bytes. No successful full 3 MiB restoration is claimed. The
+[EV-2 note](../llp/3000.009.001.000-the-postgres-store-port.rfc.md#3.5) and
+[report](reports/20261023-p1-ev2.md) record the distinction and qualification.
+
+The lane uses eight Cargo jobs, `line-tables-only` dev/test debug and only its
+owned `snapback4/target`. Raw evidence and process custody stay outside Git in
+`/tmp/claude-1000/-home-ccheever-projects-snapback/3d04fc0c-0698-42a7-917c-2880afdea35c/scratchpad/p1ev2f2/`.
+No Hetzner host, push, stash or Git configuration change.
+
+Fix-round-2 qualification passes: build; full core (1,157 passed, zero failed,
+297 ignored, with private PG families enabled separately); 60 evolution cases;
+10 maintained-column-scope tests; 21 both-store release contracts; 13 binary
+release lifecycle tests; both unchanged RT0 ratchets and their five-test scope;
+no-default core; and the full stock `test-postgres.sh` runner (1,094.58 s).
+The stock runner passes 226 adapter contracts, the five-executor 295-card corpus,
+difftest and the complete public deploy/serve/ownership/recovery/S1 harness.
+Retained stress passes both 65-increment modes with no lost updates and
+84 Serializable retries. Public EV-2 still compares 1,538,672 identical wire
+bytes and meters. Root `./ref-check` passes with 566 LLPs, 11,808 refs and zero
+errors/unchecked references. Both owned private PG16 clusters are stopped
+(status 3, no pidfiles); an independent audit of 335 recorded identities finds
+no live process, zombie or lane-target executable. Other clusters were untouched;
+53 GB remains free. PIDs left: none.

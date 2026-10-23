@@ -771,3 +771,6 @@ dual!(
     release_zero_cap_refuses_before_store_dispatch,
     release_group_refusal(true, true)
 );
+
+#[path = "ev2_fix2.rs"]
+mod fix2;

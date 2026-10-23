@@ -39,7 +39,15 @@ fn validate_groups_inner(
     adoption: bool,
 ) -> Result<(), RuntimeError> {
     let population = tx.meta("activation_population")?.as_deref() == Some("true");
+    let steps = if adoption && tx.meta("dormant_enabled")?.as_deref() != Some("1") {
+        crate::successor::classify(previous, next)
+    } else {
+        Vec::new()
+    };
+    // Only schema-sized descriptors are retained, never row populations.
+    let mut checks = Vec::new();
     for (name, table) in &next.tables {
+        let adoption = adoption && next.maintain_for(name).is_none();
         let old = previous.table(name);
         let projected = population || old != Some(table);
         let rebuilt = next
@@ -51,19 +59,16 @@ fn validate_groups_inner(
                     || rebuilt
                     || old.and_then(|old| old.indexes.get(*index_name)) != Some(*index))
         }) {
-            groups(
-                tx,
-                previous,
-                next,
+            checks.push((
                 name,
                 table,
-                index_name,
+                index_name.as_str(),
                 index.components.len(),
                 1,
                 true,
                 None,
                 adoption,
-            )?;
+            ));
         }
         if projected || rebuilt {
             for constraint in &table.constraints {
@@ -75,28 +80,74 @@ fn validate_groups_inner(
                         .ok_or_else(|| {
                             RuntimeError::Schema(format!("{name} cap has no matching index"))
                         })?;
-                    groups(
-                        tx,
-                        previous,
-                        next,
+                    checks.push((
                         name,
                         table,
-                        index_name,
+                        index_name.as_str(),
                         by.len(),
                         u64::from(*max),
                         table.cap_exempts_null(by),
-                        Some(by),
+                        Some(by.as_slice()),
                         adoption,
-                    )?;
+                    ));
                 }
             }
         }
     }
+    // @ref LLP 3000.009.001.000#3.5 — dev assessment visits a column's dependent unique indexes before later index steps.
+    let selected =
+        |name: &str, table: &crate::schema::Table, index: &str, cap_by: Option<&[String]>| {
+            steps
+                .iter()
+                .position(|step| step_selects(step, previous, name, table, index, cap_by))
+        };
+    checks.sort_by_key(|(name, table, index, _, _, _, cap_by, _)| {
+        selected(name, table, index, *cap_by).unwrap_or(usize::MAX)
+    });
+    for (name, table, index, prefix, max, nulls, cap_by, adoption) in checks {
+        let step = selected(name, table, index, cap_by).map(|n| &steps[n]);
+        groups(
+            tx, next, name, table, index, prefix, max, nulls, cap_by, adoption, step,
+        )?;
+    }
     Ok(())
+}
+
+fn step_selects(
+    step: &crate::successor::Step,
+    previous: &Schema,
+    name: &str,
+    table: &crate::schema::Table,
+    index: &str,
+    cap_by: Option<&[String]>,
+) -> bool {
+    use crate::successor::Change;
+    let path: Vec<_> = step.path.split('.').collect();
+    match path.as_slice() {
+        ["tables", t, "columns", c]
+            if *t == name
+                && (step.change == Change::Narrowing
+                    || (step.change == Change::Additive
+                        && previous
+                            .table(name)
+                            .is_some_and(|old| old.columns.contains_key(*c)))) =>
+        {
+            match cap_by {
+                Some(by) => by.iter().any(|field| field == c),
+                None => table.indexes[index].uses_column(c),
+            }
+        }
+        ["tables", t, "indexes", i] => {
+            *t == name && cap_by.is_none() && *i == index && step.change == Change::Narrowing
+        }
+        ["tables", t, "constraints"] => {
+            *t == name && cap_by.is_some() && step.change == Change::Narrowing
+        }
+        _ => false,
+    }
 }
 fn groups(
     tx: &Tx<'_>,
-    previous_schema: &Schema,
     schema: &Schema,
     name: &str,
     table: &crate::schema::Table,
@@ -106,6 +157,7 @@ fn groups(
     nulls_distinct: bool,
     cap_by: Option<&[String]>,
     adoption: bool,
+    step: Option<&crate::successor::Step>,
 ) -> Result<(), RuntimeError> {
     let mut after: Option<Vec<u8>> = None;
     let mut previous = None;
@@ -140,7 +192,6 @@ fn groups(
                     }
                     return Err(group_refusal(
                         tx,
-                        previous_schema,
                         schema,
                         name,
                         table,
@@ -148,6 +199,7 @@ fn groups(
                         max,
                         nulls_distinct,
                         cap_by,
+                        step,
                     )?);
                 }
             }
@@ -160,7 +212,6 @@ fn groups(
 // @ref LLP 3000.009.001.000#3.5 — refusal evidence and bridge guidance match SQLite; spill populations, bound samples.
 fn group_refusal(
     tx: &Tx<'_>,
-    previous: &Schema,
     schema: &Schema,
     name: &str,
     table: &crate::schema::Table,
@@ -168,9 +219,14 @@ fn group_refusal(
     max: u64,
     nulls: bool,
     cap_by: Option<&[String]>,
+    step: Option<&crate::successor::Step>,
 ) -> Result<RuntimeError, RuntimeError> {
     use crate::store::adopt_refusals::{Samples, bounded, group_refusal, value_sample};
     let retained = tx.meta("dormant_enabled")?.as_deref() == Some("1");
+    // SQLite dev detail includes exempt null groups in its samples, after
+    // assessment establishes a non-exempt cap violation. Release diagnostics
+    // exclude those groups throughout.
+    let nulls = nulls && (retained || cap_by.is_none());
     let key = |row: &Value| match cap_by {
         Some(by) => by
             .iter()
@@ -230,37 +286,12 @@ fn group_refusal(
         None => format!("{name}.{index}"),
     };
     let error = group_refusal(name, &label, max, &bad, &origin);
-    if !retained {
-        // SQLite's dev successor assessment prefixes the group evidence with
-        // the failed schema step and appends that step's specific rewrite.
-        let step = crate::successor::classify(previous, schema)
-            .into_iter()
-            .find(|step| {
-                let path: Vec<_> = step.path.split('.').collect();
-                match path.as_slice() {
-                    ["tables", t, "columns", c]
-                        if *t == name
-                            && (step.change == crate::successor::Change::Narrowing
-                                || previous
-                                    .table(name)
-                                    .is_some_and(|old| old.columns.contains_key(*c))) =>
-                    {
-                        match cap_by {
-                            Some(by) => by.iter().any(|field| field == c),
-                            None => table.indexes[index].uses_column(c),
-                        }
-                    }
-                    ["tables", t, "indexes", i] => *t == name && cap_by.is_none() && *i == index,
-                    ["tables", t, "constraints"] => *t == name && cap_by.is_some(),
-                    _ => false,
-                }
-            });
-        if let Some(mut step) = step {
-            if let RuntimeError::Structural { message, .. } = &error {
-                step.message.push_str(&format!("; {message}"));
-            }
-            return Ok(step.refusal(schema));
+    if let Some(step) = step {
+        let mut step = step.clone();
+        if let RuntimeError::Structural { message, .. } = &error {
+            step.message.push_str(&format!("; {message}"));
         }
+        return Ok(step.refusal(schema));
     }
     Ok(error)
 }

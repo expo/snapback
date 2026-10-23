@@ -10,6 +10,65 @@ pub(in crate::engine) fn bound(source: &str) -> (Schema, Vec<Program>) {
      b.programs.into_iter().map(|p| serde_json::from_str(&serde_json::to_string(&p.program).unwrap()).unwrap()).collect())
 }
 fn connection() -> String { std::env::var("SNAPBACK4_EVAL_POSTGRES").expect("private scripts/test-postgres.sh database") }
+
+#[test]
+#[ignore = "requires private Postgres; scripts/test-postgres.sh"]
+fn maintained_target_public_backstop_matches_physical_constraint() {
+    // The real recount cannot emit duplicate group keys. Inject a faulty
+    // builder through public activation, with programs present on both stores.
+    let before = "table entries:\n  bucket: int 0..10\n  public\n  online only\nview totals: count entries by .bucket\n  public\n";
+    let (schema, programs) = bound(before);
+    let mut sqlite = Engine::new_at(
+        AnyStore::memory().unwrap(),
+        schema.clone(),
+        programs.clone(),
+        1000,
+    )
+    .unwrap();
+    let mut postgres = pg(schema, programs);
+    let (mut candidate, programs) = bound(&before.replace("int 0..10", "int"));
+    crate::engine::activation_facts::prepare(&mut candidate).unwrap();
+    let programs = programs.into_iter().map(|p| (p.name.clone(), p)).collect();
+    let mut errors = Vec::new();
+    for engine in [&mut sqlite, &mut postgres] {
+        let generation = engine.store().generation_value().unwrap();
+        let error = engine
+            .store_mut()
+            .activate_at_with_launch(
+                &candidate,
+                Some(&programs),
+                false,
+                1000,
+                false,
+                |_| Ok(()),
+                |tx, _, _| {
+                    for key in ["a", "b"] {
+                        tx.put(
+                            "totals",
+                            &candidate.tables["totals"],
+                            &crate::value::object([
+                                ("id", id(key)),
+                                ("bucket", Value::Int(1)),
+                                ("value", Value::Int(1)),
+                            ]),
+                            None,
+                        )?;
+                    }
+                    Ok(())
+                },
+                |_| Ok(()),
+            )
+            .err()
+            .expect("duplicate target key must refuse");
+        assert_eq!(engine.store().generation_value().unwrap(), generation);
+        assert!(engine.store().rows("totals").unwrap().is_empty());
+        errors.push(error);
+    }
+    println!("SQLite {:?}; PG {:?}", errors[0], errors[1]);
+    assert_eq!(errors[0].code(), "E_CONSTRAINT");
+    assert_eq!(errors[0].to_string(), errors[1].to_string());
+}
+
 fn namespace() -> String { format!("sb4_eval_mc_{:x}", crate::ids::seed()) }
 pub(in crate::engine) fn pg(schema: Schema, programs: Vec<Program>) -> Engine {
     Engine::new_at(AnyStore::create_postgres(&connection(), &namespace()).unwrap(), schema, programs, 1000).unwrap()

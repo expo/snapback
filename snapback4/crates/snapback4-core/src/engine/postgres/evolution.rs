@@ -86,38 +86,47 @@ pub(super) fn walk(
         let Some(length) = lengths.first() else {
             return Ok(());
         };
-        // Like SQLite ordinary restoration, admit row bytes only; retained
-        // definitions are not live-activation provenance charges.
-        // Reserve driver/text coexistence before fetching the payload, then
-        // use the same decoder admission as the SQLite activation walker.
+        // @ref LLP 3000.009.001.000#3.5 — ordinary narrowed restoration decodes before checking compatibility, without live-activation admission.
+        // SQLite skips incompatible historical images before they enter its
+        // metered active-row walker. EV-4 live provenance is not admitted here.
+        let admit = relation != "_dormant_narrow_rows";
         let mut meter = Meter::new(Ceilings::job(), Cut::Abort);
         meter.at("adopt stored rows");
-        meter.heap(
-            8192 + after.as_deref().map_or(0, heap::text)
-                + 3 * (heap::allocation(length.get::<_, i32>(0) as usize)
-                    + heap::allocation(length.get::<_, i32>(1) as usize))
-                + 64
-                + heap::slots::<(String, String)>(1),
-        )?;
+        if admit {
+            meter.heap(
+                8192 + after.as_deref().map_or(0, heap::text)
+                    + 3 * (heap::allocation(length.get::<_, i32>(0) as usize)
+                        + heap::allocation(length.get::<_, i32>(1) as usize))
+                    + 64
+                    + heap::slots::<(String, String)>(1),
+            )?;
+        }
         let rows = tx.query(sql, &[&name, &after])?;
         let Some(row) = rows.first() else {
             return Ok(());
         };
         let id: String = row.get(0);
         let data: &str = row.get(1);
-        adoption::page_fits(
-            std::iter::once(data),
-            &mut meter,
-            adoption::Work::DECODE,
-            None,
-        )?;
-        adoption::charge(&mut meter, adoption::decode_bytes(data))?;
+        if admit {
+            adoption::page_fits(
+                std::iter::once(data),
+                &mut meter,
+                adoption::Work::DECODE,
+                None,
+            )?;
+            adoption::charge(&mut meter, adoption::decode_bytes(data))?;
+        }
         let image = decode(data)?;
         visit(&id, image)?;
         after = Some(id);
     }
 }
-pub(super) fn definition(tx: &Tx<'_>, name: &str, table: &Table, column: &str) -> Result<(), RuntimeError> {
+pub(super) fn definition(
+    tx: &Tx<'_>,
+    name: &str,
+    table: &Table,
+    column: &str,
+) -> Result<(), RuntimeError> {
     let definition = canonical_json(&Column::retained(table, column));
     tx.execute("INSERT INTO _dormant_columns(table_name,column_name,definition) VALUES($1,$2,$3) ON CONFLICT(table_name,column_name) DO UPDATE SET definition=excluded.definition", &[&name,&column,&definition])?;
     Ok(())
@@ -385,7 +394,7 @@ pub(super) fn transition(
     }
     for (name, table) in &next.tables {
         for column in table.columns.keys() {
-            tx.set_meta(&format!("activation_column_restored:{name}.{column}"),"0")?;
+            tx.set_meta(&format!("activation_column_restored:{name}.{column}"), "0")?;
             tx.execute("INSERT INTO _evolution_restored(kind,t,col,id) SELECT 'column',t,column_name,id FROM _dormant_values v WHERE t=$1 AND column_name=$2 AND EXISTS(SELECT 1 FROM r WHERE r.t=v.t AND r.id=v.id) AND NOT EXISTS(SELECT 1 FROM _dormant_narrow_rows n WHERE n.t=v.t AND n.id=v.id) ON CONFLICT DO NOTHING",&[name,column])?;
             tx.execute(
                 "DELETE FROM _dormant_values v WHERE t=$1 AND column_name=$2 AND NOT EXISTS(SELECT 1 FROM _dormant_narrow_rows n WHERE n.t=v.t AND n.id=v.id)",
