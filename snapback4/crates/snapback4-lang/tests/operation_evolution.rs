@@ -205,3 +205,23 @@ fn consolidating_two_independent_arguments_into_one_alias_is_an_input_break(){
  let old=checked("query q(a: int, b: int):\n  return 1\n");let next=checked("query q(b: int alias a):\n  return 1\n");
  assert!(compare(&old,&next,"release 1").iter().any(|s|s.contains("independent arguments")&&s.contains("get E_INPUT")));
 }
+
+#[test]
+fn declared_table_renames_preserve_reference_input_identity(){
+ let old=checked("table commissions:\n  label: text <=20\n  public\nquery q(item: commissions):\n  return item\n");
+ let new=checked("table sculptureOrders renamed from commissions:\n  label: text <=20\n  public\nquery q(item: sculptureOrders):\n  return item\n");
+ let report=compare(&old,&new,"release 1");
+ assert!(!report.iter().any(|line|line.contains("INPUT BREAK")),"{report:?}");
+}
+
+#[test]
+fn additive_result_fields_are_notes_while_changed_fields_still_require_review(){
+ let source="table items:\n  label: text <=20\n  public\nquery q(id: items):\n  return items[id]\n";
+ let old=checked(source);
+ let added=checked(&source.replace("  public\n","  detail: text <=40 ?\n  public\n"));
+ let report=compare(&old,&added,"release 1");
+ assert!(report.iter().any(|line|line.contains("RESULT NOTE")&&snapback4_lang::client_contracts::is_note(line)),"{report:?}");
+ assert!(!report.iter().any(|line|line.contains("RESULT REVIEW")),"{report:?}");
+ let changed=checked(&source.replace("text <=20","text <=10"));
+ assert!(compare(&old,&changed,"release 1").iter().any(|line|line.contains("RESULT REVIEW")));
+}

@@ -5,11 +5,17 @@ use std::collections::BTreeMap;
 
 /// Conservative input-domain inclusion: every value accepted by old is accepted by new.
 pub fn accepts(old: &A, new: &A) -> bool {
+    accepts_in(old,new,None,None)
+}
+
+fn accepts_in(old: &A, new: &A, old_bound: Option<&Bound>, new_bound: Option<&Bound>) -> bool {
     if old==new {return true;}
     match (old,new) {
-        (A::Optional(a),A::Optional(b))=>accepts(a,b),
+        (A::Optional(a),A::Optional(b))=>accepts_in(a,b,old_bound,new_bound),
         (A::Optional(_),_)=>false,
-        (a,A::Optional(b))=>accepts(a,b),
+        (a,A::Optional(b))=>accepts_in(a,b,old_bound,new_bound),
+        (A::Ref{table:old},A::Ref{table:new})=>new_bound.is_some_and(|bound|bound.schema.table_renames.get(new)==Some(old))
+            && old_bound.is_some_and(|bound|bound.schema.table(old).is_some()),
         (A::Text{min:a,max:b,format:af},A::Text{min:c,max:d,format:bf})=>c<=a && d>=b && (bf.is_none() || af==bf),
         (A::IntRange{..},A::Int)=>true,
         (A::IntRange{min:a,max:b},A::IntRange{min:c,max:d})=>c<=a && d>=b,
@@ -21,11 +27,56 @@ pub fn accepts(old: &A, new: &A) -> bool {
         (A::List{..}|A::ListRange{..},A::List{..}|A::ListRange{..})=> {
             let parts=|t:&A|match t {A::List{of,max}=>(0,*max,of.clone()),A::ListRange{of,min,max}=>(*min,*max,of.clone()),_=>unreachable!()};
             let (a,b,at)=parts(old);let(c,d,bt)=parts(new);
-            c<=a && d>=b && match(at,bt){(_,None)=>true,(Some(a),Some(b))=>accepts(&a,&b),_=>false}
+            c<=a && d>=b && match(at,bt){(_,None)=>true,(Some(a),Some(b))=>accepts_in(&a,&b,old_bound,new_bound),_=>false}
         }
         _=>false,
     }
 }
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum ResultChange { Same, Additive, Changed }
+
+fn combine(fields: impl IntoIterator<Item=ResultChange>, extra: bool) -> ResultChange {
+    let mut additive=extra;
+    for field in fields {
+        match field {ResultChange::Changed=>return ResultChange::Changed,ResultChange::Additive=>additive=true,ResultChange::Same=>{}}
+    }
+    if additive {ResultChange::Additive} else {ResultChange::Same}
+}
+
+fn table_fields(name: &str, bound: &Bound) -> Option<BTreeMap<String,String>> {
+    let schema=bound.schema.public_projection();
+    let table=schema.tables.get(name)?;
+    Some(table.columns.iter().filter(|(n,_)|!table.engine_field(n)).map(|(n,t)|(n.clone(),format!("{t:?};private={};constraints={:?}",table.read_optional(n),table.constraints.iter().filter(|c|matches!(c,snapback4_core::schema::Constraint::Text{field,..} if field==n)).collect::<Vec<_>>()))).collect())
+}
+
+fn map_change<T>(old: &BTreeMap<String,T>, new: &BTreeMap<String,T>, compare: impl Fn(&T,&T)->ResultChange) -> ResultChange {
+    combine(old.iter().map(|(name,old)|new.get(name).map(|new|compare(old,new)).unwrap_or(ResultChange::Changed)),new.len()>old.len())
+}
+
+fn result_change(old: &Ty, new: &Ty, old_bound: &Bound, new_bound: &Bound) -> ResultChange {
+    if result(old,old_bound)==result(new,new_bound) {return ResultChange::Same;}
+    match (old,new) {
+        (Ty::Optional(a),Ty::Optional(b))|(Ty::Omittable(a),Ty::Omittable(b))
+        |(Ty::List(a,_),Ty::List(b,_))|(Ty::Collection(a,_),Ty::Collection(b,_))=>result_change(a,b,old_bound,new_bound),
+        (Ty::Object(a)|Ty::RowShape(a)|Ty::RowObject(a),Ty::Object(b)|Ty::RowShape(b)|Ty::RowObject(b))=>map_change(a,b,|a,b|result_change(a,b,old_bound,new_bound)),
+        (Ty::Row(a)|Ty::WriteRow(a)|Ty::Page(a,_),Ty::Row(b)|Ty::WriteRow(b)|Ty::Page(b,_)) if a==b=>{
+            let (Some(a),Some(b))=(table_fields(a,old_bound),table_fields(b,new_bound)) else{return ResultChange::Changed;};
+            combine(a.iter().map(|(name,kind)|if b.get(name)==Some(kind){ResultChange::Same}else{ResultChange::Changed}),b.len()>a.len())
+        }
+        _=>ResultChange::Changed,
+    }
+}
+
+fn action_result_change(old: Option<&BTreeMap<String,A>>, new: Option<&BTreeMap<String,A>>) -> ResultChange {
+    match (old,new) {
+        (None,None)=>ResultChange::Same,
+        (Some(old),Some(new))=>combine(old.iter().map(|(name,kind)|if new.get(name)==Some(kind){ResultChange::Same}else{ResultChange::Changed}),new.len()>old.len()),
+        _=>ResultChange::Changed,
+    }
+}
+
+pub fn is_note(line: &str) -> bool { line.contains(": RESULT NOTE:") }
 
 fn result(ty: &Ty, bound: &Bound) -> String {
     match ty {
@@ -70,12 +121,12 @@ pub fn compare(old: &Bound, new: &Bound, label: &str) -> Vec<String> {
         };
         if before.program.kind!=after.program.kind {lines.push(format!("{prefix}: INPUT BREAK: operation kind changed; retain the old endpoint kind"));continue;}
         let compatible_rename = |new_name: &str, new_kind: &A| before.program.args.iter().find(|(old_name, old_kind)|
-            !after.program.args.contains_key(*old_name) && accepts(old_kind,new_kind) &&
+            !after.program.args.contains_key(*old_name) && accepts_in(old_kind,new_kind,Some(old),Some(new)) &&
             after.program.arg_aliases.get(*old_name).is_none_or(|canonical|canonical==new_name));
         for (arg,kind) in &after.program.args {
             if before.program.args.contains_key(arg) { continue; }
-            if let Some((old,old_kind))=before.program.args.iter().find(|(old,_)|after.program.arg_aliases.get(*old)==Some(arg)) {
-                if !accepts(old_kind,kind) {lines.push(format!("{prefix}: INPUT BREAK: aliased argument {old} → {arg} narrows the old input domain ({old_kind:?} → {kind:?}); retain the old input domain or a compatible wrapper"));}
+            if let Some((old_arg,old_kind))=before.program.args.iter().find(|(old,_)|after.program.arg_aliases.get(*old)==Some(arg)) {
+                if !accepts_in(old_kind,kind,Some(old),Some(new)) {lines.push(format!("{prefix}: INPUT BREAK: aliased argument {old_arg} → {arg} narrows the old input domain ({old_kind:?} → {kind:?}); retain the old input domain or a compatible wrapper"));}
             } else if !matches!(kind,A::Optional(_)) {
                 if let Some((old,_))=compatible_rename(arg,kind) {
                     lines.push(format!("{prefix}: INPUT BREAK: required argument {old} appears renamed to {arg}; old calls get E_INPUT; declare `{arg}: <new type> alias {old}` if it is the same value, or retain a compatible wrapper"));
@@ -88,11 +139,11 @@ pub fn compare(old: &Bound, new: &Bound, label: &str) -> Vec<String> {
             match after.program.args.get(arg) {
                 None if after.program.arg_aliases.contains_key(arg)=>{
                     let next=&after.program.args[&after.program.arg_aliases[arg]];
-                    if !accepts(kind,next){lines.push(format!("{prefix}: INPUT BREAK: aliased argument {arg} retyped or narrowed ({kind:?} → {next:?}); retain its old input domain"));}
+                    if !accepts_in(kind,next,Some(old),Some(new)){lines.push(format!("{prefix}: INPUT BREAK: aliased argument {arg} retyped or narrowed ({kind:?} → {next:?}); retain its old input domain"));}
                 },
                 None if after.program.args.iter().any(|(new,next)|compatible_rename(new,next).is_some_and(|(old,_)|old==arg))=>{},
                 None=>lines.push(format!("{prefix}: INPUT BREAK: removed argument {arg}; old calls sending it get E_INPUT; retain `{arg}: <old type> deprecated` on a query/mutation")),
-                Some(next) if !accepts(kind,next)=>lines.push(format!("{prefix}: INPUT BREAK: argument {arg} retyped or narrowed ({kind:?} → {next:?}); old values may get E_INPUT; retain the old input domain or a compatible wrapper")),
+                Some(next) if !accepts_in(kind,next,Some(old),Some(new))=>lines.push(format!("{prefix}: INPUT BREAK: argument {arg} retyped or narrowed ({kind:?} → {next:?}); old values may get E_INPUT; retain the old input domain or a compatible wrapper")),
                 _=>{}
             }
         }
@@ -101,7 +152,7 @@ pub fn compare(old: &Bound, new: &Bound, label: &str) -> Vec<String> {
             let next=after.program.args.get(alias).or_else(||after.program.arg_aliases.get(alias).and_then(|name|after.program.args.get(name)));
             match next {
                 None=>lines.push(format!("{prefix}: INPUT BREAK: removed argument alias {alias}; old calls sending it get E_INPUT; retain its alias or a compatible wrapper")),
-                Some(kind) if !accepts(old_kind,kind)=>lines.push(format!("{prefix}: INPUT BREAK: argument alias {alias} retyped or narrowed ({old_kind:?} → {kind:?}); retain its old input domain")),
+                Some(kind) if !accepts_in(old_kind,kind,Some(old),Some(new))=>lines.push(format!("{prefix}: INPUT BREAK: argument alias {alias} retyped or narrowed ({old_kind:?} → {kind:?}); retain its old input domain")),
                 _=>{}
             }
         }
@@ -124,11 +175,19 @@ pub fn compare(old: &Bound, new: &Bound, label: &str) -> Vec<String> {
                 lines.push(format!("{prefix}: RESULT REVIEW: {table}.{field} is now audience-optional; handle an omitted row property or a null explicit scalar before adopting the new column read rule"));
             }
         }
-        let action_result_changed=old.schema.action_specs.get(name).map(|s|&s.returns)!=new.schema.action_specs.get(name).map(|s|&s.returns);
-        if action_result_changed || result(&before.result,old)!=result(&after.result,new) {lines.push(format!("{prefix}: RESULT REVIEW: result shape/value domain changed; preserve the old projection/domain or introduce a new operation before retiring old clients"));}
+        let action_change=action_result_change(old.schema.action_specs.get(name).and_then(|s|s.returns.as_ref()),new.schema.action_specs.get(name).and_then(|s|s.returns.as_ref()));
+        let typed_change=result_change(&before.result,&after.result,old,new);
+        let change=combine([action_change,typed_change],false);
+        match change {
+            ResultChange::Additive=>lines.push(format!("{prefix}: RESULT NOTE: result shape added fields while preserving prior fields and domains; old clients may ignore the additions")),
+            ResultChange::Changed=>lines.push(format!("{prefix}: RESULT REVIEW: result shape/value domain changed; preserve the old projection/domain or introduce a new operation before retiring old clients")),
+            ResultChange::Same=>{},
+        }
         let old_domains=crate::result_domains::signature(before,old);
         let new_domains=crate::result_domains::signature(after,new);
-        let changed:Vec<_>=old_domains.keys().chain(new_domains.keys()).collect::<std::collections::BTreeSet<_>>().into_iter().filter(|key|old_domains.get(*key)!=new_domains.get(*key)).cloned().collect();
+        // A domain introduced only for a newly returned field is covered by
+        // the additive result note. Existing or removed domains still need review.
+        let changed:Vec<_>=old_domains.keys().collect::<std::collections::BTreeSet<_>>().into_iter().filter(|key|old_domains.get(*key)!=new_domains.get(*key)).cloned().collect();
         if !changed.is_empty() {lines.push(format!("{prefix}: RESULT REVIEW: declared source domains consumed by this operation changed: {}; results or refusals may change even when the TypeScript type stays number/string; preserve the old domains or verify old-client handling",changed.join(", ")));}
         if refusals(before)!=refusals(after) {lines.push(format!("{prefix}: BEHAVIOR REVIEW: refusal codes/messages changed ({:?} → {:?}); verify intended denials separately from input breaks",refusals(before),refusals(after)));}
     }

@@ -194,7 +194,8 @@ pub(super) fn preview(
             }
         }
     }
-    hazards.extend(client_compatibility.iter().cloned());
+    hazards.extend(client_compatibility.iter().filter(|line|!snapback4_lang::client_contracts::is_note(line)).cloned());
+    notes.extend(client_compatibility.iter().filter(|line|snapback4_lang::client_contracts::is_note(line)).cloned());
     if options.flags.contains_key("validation-only") {
         if !options.flags.contains_key("deploy-direction") {
             for line in visibility.lines(held["release"].as_u64().unwrap_or(0),release) {eprintln!("{line}");}
