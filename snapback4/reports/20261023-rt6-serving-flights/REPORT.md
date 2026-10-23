@@ -84,7 +84,10 @@ The encoder admits at most 32 MiB of aggregate encoded command text inside
 the existing 256 MiB physical adapter envelope. Binary input length, array
 Datum allocation, encoded value bounds, per-command construction and aggregate
 flight size are checked. A refusal poisons the transaction. This changes no
-public interpreter ceiling. SQL PREPARE names are unique across Store wrappers
+public interpreter ceiling. Cold setup statements are prepared before BEGIN so Parse/PREPARE relation
+locks cannot precede the head lock. The adoption witness checks this with an
+ACCESS EXCLUSIVE NOWAIT session-table lock while the contender waits.
+SQL PREPARE names are unique across Store wrappers
 on one physical Client, including wrappers discarded during attach/evaluation.
 
 The RT5 native-Bind differential oracle now also decodes through serving's
@@ -98,8 +101,9 @@ semantics were changed: receipts still omit result/current payloads.
 
 ## Witness results
 
-The combined RT5 + RT6 group passed 17/17 before the final added scratch
-refusal case; the full qualification repeats the expanded group.
+The expanded RT5 + RT6 group passes **18/18**, including scratch refusal and
+cold preparation lock order. Targeted rewrap/shape/tail regressions also pass.
+The full qualification repeats this group.
 
 - Owner first: the contender is observed blocked on `_owner`; the holder can
   still acquire `_head NOWAIT`. Changing the token refuses the keyed request

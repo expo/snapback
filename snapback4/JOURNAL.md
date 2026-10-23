@@ -104442,3 +104442,14 @@ are committed, and no push, stash or persistent Git configuration change occurs.
 RT6 scope review: the credential planning hint is stored only with the Postgres
 feature; SQLite-only and device Context layouts retain their original fields.
 The host helper is a no-op without that feature. No SQL or meter behavior changes.
+
+RT6 lock-order review: cold setup Parse/SQL PREPARE can retain relation locks.
+The head/generation/authority/receipt/placement statements are now prepared
+before BEGIN, keeping those cold locks out of the writer's owner/head order.
+Warm counts do not change. The observed-adoption witness also requires an
+ACCESS EXCLUSIVE NOWAIT lock on _sessions while the serving contender waits
+for the head, proving cold authority preparation retained no earlier lock.
+
+The expanded codec/serving group passes 18/18 with the cold relation-lock and
+scratch-refusal checks. The previously failing asset rewrap, incompatible-shape
+attach and tail-flight assertions pass independently with the corrected code.

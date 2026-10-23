@@ -125,7 +125,11 @@ fn rt6_generation_refreshes_after_observed_head_wait() {
     });
     ready_rx.recv_timeout(Duration::from_secs(10)).unwrap();
     let task=thread::spawn(move||mutate(&mut waiter,&digest,Some("old-generation")));
-    wait_for(&mut c,waiter_pid,holder_pid);release_tx.send(()).unwrap();
+    wait_for(&mut c,waiter_pid,holder_pid);
+    // Cold setup preparation must not retain session relation locks ahead of
+    // the head. A physical upgrade remains possible while the waiter waits.
+    c.batch_execute("BEGIN; LOCK TABLE _sessions IN ACCESS EXCLUSIVE MODE NOWAIT; ROLLBACK").unwrap();
+    release_tx.send(()).unwrap();
     assert_eq!(adoption.join().unwrap().unwrap(),2);
     assert_eq!(task.join().unwrap().unwrap_err().code,"E_GENERATION");
     assert_eq!(c.query_one("SELECT data FROM r WHERE t='counters' AND id='c0000'",&[]).unwrap().get::<_,String>(0),before);

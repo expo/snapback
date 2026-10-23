@@ -226,8 +226,29 @@ impl Store {
         self.begin(None, false)
     }
 
+    // Parse/SQL PREPARE can retain relation locks until transaction end. Warm
+    // the folded setup outside BEGIN so those locks cannot precede the head
+    // and deadlock an adoption doing physical upgrades while holding it.
+    fn prewarm_flight(&mut self, sql: &'static str) -> Result<(),RuntimeError> {
+        let bind = if let Some(bind) = self.cache.get(sql) {bind.clone()} else {
+            self.calls.set(self.calls.get()+1);
+            let bind = self.client.prepare(sql)?;
+            self.cache.insert(sql,bind.clone()); bind
+        };
+        if !self.literal_cache.contains_key(sql) {
+            self.calls.set(self.calls.get()+1);
+            let prepared = super::literal::Prepared::from_bind(&mut self.client,&super::literal::serving_name(),sql,bind)?;
+            self.literal_cache.insert(sql,prepared);
+        }
+        Ok(())
+    }
+
     // @ref LLP 3000.009.001.000.001#35-each-command-keeps-its-own-place — head, generation, authority and receipt remain distinct commands after the owner flight.
     pub(crate) fn request_transaction(&mut self, digest: &str, principal: &str, id: Option<&str>) -> Result<Tx<'_>,RuntimeError> {
+        if self.read_only { return Err(RuntimeError::Store("Postgres reader is read-only".into())); }
+        let auth = super::authority::session_facts_sql(self.read_sessions.get());
+        for sql in ["SELECT seq FROM _head WHERE singleton FOR UPDATE", "SELECT generation FROM _backend WHERE singleton", auth] { self.prewarm_flight(sql)?; }
+        if id.is_some() { self.prewarm_flight(super::receipts::LOOKUP)?; self.prewarm_flight(super::assets::PLACEMENT)?; }
         let expected = self.generation;
         let tx = self.begin(Some(WriteMode::Serialized),false)?;
         let auth = super::authority::session_facts_sql(tx.read_sessions.get());
