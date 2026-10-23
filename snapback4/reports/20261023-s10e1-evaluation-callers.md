@@ -5,15 +5,16 @@ Branch: `sb4-pg/s10e1`
 Base: `addf5750eba0264125da405fb1f246e52ddf19fd`
 Fix round 1 starts at `e8fe7857e1645a453b1589d53c21afe91861c43e`.
 
-The fix-round-1 results below supersede the initial red dispositions and cleanup
-locations. Initial comparison evidence is retained as the migration record.
+Fix round 2 below supersedes the earlier comparison-gate claims and cleanup
+locations. Earlier runs remain historical migration evidence; serialized traces
+did not include the two serde-hidden flags, and mismatches did not fail the gate.
 
 Ordinary corpus, difftest setup/preludes/replay, Postgres experiment and
 commit-path/scale callers now execute common `Engine` policy over Postgres
 `AnyStore`. `PostgresEngine` remains compiled and callable as the explicit
 comparison oracle. **No executor deletion or complete-parity claim.**
 
-The governing context is LLP 3000 (the Snapback 4 fence, in foundation), LLP
+The governing context is LLP 3000 (the Snapback 4 root and fence), LLP
 2000.000 (one interpreter and runtime metering), and the current
 [store-port RFC §3.4/§9.1](../../llp/3000.009.001.000-the-postgres-store-port.rfc.md#34-one-engine-over-both-stores):
 shared semantic policy, exact overlap, named unsupported capabilities, terminal
@@ -23,9 +24,10 @@ changes. The RFC contains the implementation note and deletion checklist.
 
 ## Corpus overlap
 
-All 295 serialized cases were visited by every executor. The supported
-intersection has identical recorded full query/mutation outcomes, refusals,
-continuations and logical meters; there were **zero trace disagreements**.
+The initial run visited all 295 cases with every executor and reported zero
+serialized-trace differences. Its print-only mismatch path and serde-hidden
+fields did not establish full typed parity. Fix round 2 replaces that gate;
+its results below govern the current comparison claim.
 
 | Executor | Corpus cases | Passed | Unsupported | Skipped | Failed |
 |---|---:|---:|---:|---:|---:|
@@ -408,3 +410,173 @@ no cache repair was attempted, and automatic cache cleanup was disabled for
 subsequent commands. The temporary Cargo cache setting was removed. No Git
 configuration change, stash, push, baseline update or unrelated deletion.
 Disk guards never reached 40 GiB free; final sampled free space is 162 GiB.
+
+
+## Fix round 2 — 2026-10-23
+
+Starts at `9766d2ffe136f9584e2fef903f16fd81949bbf3f`. Both blind reviews
+(`/tmp/s10e1-review-sol.md`, `/tmp/s10e1-review-grok.md`) required changes.
+This round changes comparison and evaluation harnesses, preserves the shared
+engine's meter and leaves both RT0 tables byte-for-byte unchanged.
+
+### Failing-on-old witnesses
+
+Fault probes temporarily instrumented the existing targets without replacing
+their assertions, compiled them once per source revision, and ran the resulting
+Rust test binaries. Corpus probes restricted input to
+`edge-i53-add-boundary.json` and `named-delete-message.json` (one supported
+query and mutation), with all five executors enabled. Each probe altered only
+the common Postgres observation. All temporary instrumentation was removed
+before qualification. Raw logs and probe drivers stay outside Git under
+`/tmp/s10e1-r2/`.
+
+| Item | Witness | Unfixed `9766d2ffe1` | Fixed |
+|---|---|---|---|
+| 1 | Increment query `heap_bytes` by one | Rust exits 0 despite `DISAGREEMENT`; failure-detection witness fails | Rust exits 101, overlap assertion |
+| 1 | Set query `pending_opening` to a sentinel | Rust exits 0; no serialized difference | Rust exits 101, typed overlap assertion |
+| 1 | Toggle mutation `receipt_only` | Rust exits 0; no serialized difference | Rust exits 101, typed overlap assertion |
+| 2 | Force create `StoreUnsupported { family: "release-activation" }` | Rust exits 0, unsupported bucket | Rust exits 101, conformance failure |
+| 2 | Force create structural `E_VIEW_KEY` | Rust exits 0, unsupported bucket | Rust exits 101, conformance failure |
+| 3 | Change only replay sequence, heap meter, or receipt-only flag | All three Rust runs exit 0 | All three exit 101 at full outcome equality |
+| 3 | Append one query `tables` entry | Rust exits 0 | Rust exits 101 at full query equality |
+| 4 | Substitute 12 for warm inbox prefetch-on calls | Runner's old skip selects zero tests and exits 0 | Enabled query fixture exits 101 at the original `<10` bound |
+| 5 | Drop a snapshotted `r` table before reused setup | Regression test fails its ten-second receive bound | Passes in 0.72 s, returning `SQLSTATE=42P01` and statement context |
+| 6 | Require actual package clean at each manifest handoff | Shell contract witness exits 1: only `touch` is called | Exits 0: exact scoped clean commands for both manifests |
+
+Unmodified control cases pass before and after the corpus fault probes. These
+are negative controls: exit 0 on injected differences is the **failed witness**,
+not evidence of parity. Corpus now compares typed query/mutation/refusal
+observations (including `receipt_only`/`pending_opening`), records overlap
+failures separately, and asserts none. The stock runner explicitly sets
+`SNAPBACK4_CORPUS_OVERLAP=1`. Conformance totals remain separate from overlap.
+
+The named corpus unsupported-family/count allowlist is empty: this corpus has
+zero expected unsupported families on every executor. Only an exact typed
+family entry could authorize a future exclusion, and the complete observed map
+must equal the declared counts. Other codes/families are failures. Unit
+controls also cover time-publication, unknown families, all three formerly
+blanketed structural codes, and transport errors.
+
+The explicit oracle uses full `MutationOutcome` equality for first writes,
+refusals and identified replays, and full `QueryOutcome` equality for reads.
+Receipt checks retain complete stored bytes/bindings, project `receiptOnly`
+explicitly, and compare deterministic `at=1000` on all three stores. A small
+unit-test-only snapshot accessor keeps raw receipt inspection in the existing
+fixture boundary. There is no production receipt API change.
+
+The 32-room query/hidden-row portion has its own cluster-enabled fixture,
+separate from the ticketed exact heap mutation reproduction. Both original C1
+bounds remain unchanged: prefetch-on `<10`, prefetch-off exactly `68`.
+Diagnostic drop now cancels a pending accept, wakes the listener and closes a
+saved downstream socket if startup is incomplete; shutdown also retains the
+existing upstream cancellation. The forced setup error must return its SQLSTATE
+and statement context within ten seconds. Package cleaning replaces source
+mtime changes at both workspace handoffs, limited to core/lang/device dev
+artifacts in this lane's target directory. A pre-clean handoff actually produced
+duplicate `serde_json`/`QueryOutcome` type identities in difftest compilation;
+it was a build-artifact error, not a product comparison failure.
+
+
+### Qualification and remaining reds versus base
+
+The full core command passes (665 library tests, unchanged three library
+ignores, all integration targets and 27 doctests). The complete default difftest
+command passes. Postgres difftest passes all seven library tests and all three
+store integration tests, including exact unsupported accounting. Both RT0
+ratchets pass all twelve warm rows exactly; their JSON files are unchanged.
+
+The private sweep re-enables the original retained-evaluator Serializable
+stress, and it reproduced `40001` at the unchanged `conformance.rs:294` unwrap
+(two concurrent writers), followed by its parent join failure. This is the
+existing [Serializable ticket](../../issues/20260916-snapback4-postgres-serializable-benchmark-failures.md)
+and the same inherited intermittent red recorded earlier in this report. The
+stress source is byte-for-byte unchanged from `9766d2ffe1`; it remains a failing test with its original retry budget and inclusion
+policy. Common serial concurrency and
+receipt races pass. Final sweep totals and cleanup follow below.
+
+
+The restored 32-room C1 fixture passes at **8/68** calls (on/off), with the
+original `<10` and `68` bounds unchanged. Exhaustive query/cut comparison passes
+7,418 precharge positions; the write loop passes 19,265 positions with complete
+`MutationOutcome` equality. Conformance totals are 20 passed, one inherited
+Serializable failure and the same three ticket exclusions. Device (1), key-limit
+(2), retained read-through (7) and retained review (30) targets pass.
+
+
+The full **typed five-way corpus passes**: all 295 cards per executor;
+SQLite 210 passed/85 skipped, and each common/oracle Postgres prefetch arm
+207 passed/88 skipped. Every arm has zero unsupported and zero conformance
+failures, and there are **zero overlap disagreements**. The complete corpus
+Rust target passes 22 tests in 714.20 seconds. Thus the strengthened comparison
+exposes no additional natural outcome/meter/refusal difference. The unsupported
+allowlist remains empty, and no comparison exception or normalization was added.
+All 218 Postgres adapter/oracle tests and the additional family/CLI stages pass,
+including full replay/query outcomes, receipt-only and deterministic timestamps.
+The migrated read-through (7) and review (30) targets also pass.
+
+An additional minimal cancellation probe verifies that setup has reached
+`SQLSTATE=42P01` **before** its cleanup timer starts. It compiles the exact old
+`pg_diagnostics.rs` (byte-checked against `9766d2ffe1`) and the fixed module in
+one local witness. The old observer then hangs in drop until its five-second
+watchdog kills recorded PID 331566; the fixed observer returns the SQL error in
+0.006 seconds and PID 331741 exits normally. Both PIDs are confirmed absent.
+This separates the cleanup hang from fixture setup latency. The permanent
+reused-snapshot regression independently passes its ten-second failure bound
+(the standalone full test took 0.72 seconds). Probe source, binaries and logs
+are local artifacts only, outside the commit.
+
+### Final sweep and cleanup
+
+| Check | Fix-round-2 result |
+|---|---|
+| Full core, `--no-fail-fast` | Pass: 665 library tests, all 44 integration targets, 27 doctests; 1,663.02 s including rebuild |
+| Complete default difftest | Pass: 99 tests; 295.48 s |
+| Postgres difftest library/stores | Pass: 7/3 tests both standalone and in the stock runner; exact unsupported maps and refusal guard retained |
+| Experiment targets | 97 passed, one inherited Serializable stress failure; same three ticket exclusions |
+| Adapter/oracle family | Pass: 218/218, including full replay/read/receipt/timestamp comparisons |
+| Other Postgres stages | Pass: evidence 12, literal 8, ownership 25, handle 1, docs 38, committer 2, maintained members 1, commands 13 and four selected CLI witnesses |
+| Five-way typed corpus | Pass: 22 Rust tests, 295 cards per executor, zero unsupported/failures/overlap disagreements; 714.20 s |
+| Both RT0 ratchets | Pass: every one of the 12 warm rows exact on each store; JSON bytes unchanged |
+| Public deploy/serve/scale | Pass with unchanged 45-second command guard; release, identity, ownership, recovery, restart and P1-MC recount witnesses complete |
+| Stock `bash scripts/test-postgres.sh` | Exit 1 solely for the unchanged retained-evaluator `40001` stress; every later stage completed; 2,485.89 s |
+| Root reference validation | Pass: 565 LLP documents, 11,774 refs, zero errors/unchecked; local `ref-check.log` |
+
+There are **no newly exposed natural overlap disagreements**, no new ticketed
+ignore and no new product-test red relative to base's documented intermittent
+stress. The same explicit sweep exclusions remain:
+
+- `prefetch_complete_fixture_queries_mutations_and_hidden_rows` (now the
+  mutation-only original reproduction) and
+  `unified_add_spare_capacity_meter_overlap_regression`, both on the
+  [existing heap ticket](../../issues/20261023-snapback4-unified-postgres-prefetch-add-heap-meter.md).
+- `evaluator_racing_refused_operations_replay_one_receipt_without_advancing_head`,
+  on the existing Serializable ticket. The original increment stress still runs
+  and fails this sweep, rather than being newly excluded.
+
+The default core's three library measurement ignores (two native follow-scale
+measurements and the paired word-projection allocation sample) and two
+integration scale measurements (`m7_to_m8`, `measure_history`) are unchanged.
+The new query/C1 fixture has the ordinary private-cluster annotation and executes
+in the runner, outside the ticket skip list. Corpus semantic skips remain the
+same 85/88. Existing allocation-sensitive heap, release-activation support and
+physical 24/19 warm-call differences retain their earlier tickets/dispositions;
+none is hidden by a new comparison projection.
+
+Independent cleanup confirms all **three** owned Postgres clusters stopped:
+postmasters 4033244, 127514 and 345676 each have `pg_ctl status=3`, no
+`postmaster.pid`, and no remaining postmaster process. None of 2,156 recorded
+process identities remains alive; all 251 public witness PID records and both
+minimal cleanup-probe PIDs are absent. PostgreSQL 17/55440 was untouched. The
+private data directories are retained only as local inspection artifacts:
+`/tmp/s10e1-r2/pg`, `/tmp/sb4-pg-eval.BqlfQG` and
+`/tmp/s10d3-serve-fruqjug2`. All disk-audit samples remained above the 40 GiB
+stop threshold on `/home`; the local audit JSON records its sampled free space.
+
+Evidence is local under `/tmp/s10e1-r2/`: qualification logs/JSON, old/fixed
+fault-probe logs and drivers, `cleanup-probe.json`, cluster PID snapshots,
+`final-pid-audit.json` and `ref-check.log`. No raw log is committed. Every Cargo
+invocation exports the lane's absolute target and line-table-only dev/test
+profiles; direct test commands use `-j 4`, and the stock runner inherits
+`CARGO_BUILD_JOBS=4`. Scoped package cleans stay inside this target. No stash,
+push, Git configuration change, executor deletion, meter change or RT0 baseline
+change occurred.

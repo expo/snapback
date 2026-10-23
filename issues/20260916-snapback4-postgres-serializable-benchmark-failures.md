@@ -270,3 +270,18 @@ excluded from the private runner's `--include-ignored` sweep. The original
 stress remains enabled there; its red is never turned into a qualification.
 The exact race body, common serial witness, mismatching-receipt oracle,
 four-writer stress workload and existing retry budget are preserved.
+
+## 2026-10-23 — S10e-1 fix round 2 private sweep
+
+The stock private runner again reproduced `40001` in
+`evaluator_concurrent_read_modify_write_and_duplicate_ops_are_atomic_in_both_modes`:
+two Serializable writers failed the unchanged increment unwrap at
+`experiments/postgres/tests/conformance.rs:294`, then the parent join failed.
+That source is unchanged from `9766d2ffe1`. Conformance finished 20 passed /
+1 failed / 3 existing ticket exclusions; the added 32-room query witness passes
+at 8/68 calls and both exhaustive precharge sweeps pass. Common serial
+concurrency and receipt races pass. The runner continues after this red; no
+retry, timeout, skip or comparison change was made. See the
+[S10e-1 report](../snapback4/reports/20261023-s10e1-evaluation-callers.md#fix-round-2--2026-10-23)
+for the complete sweep and cleanup disposition. This is the same experimental
+failure class, not a new production retry claim.

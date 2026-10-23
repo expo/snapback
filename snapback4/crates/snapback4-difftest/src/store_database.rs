@@ -286,6 +286,41 @@ impl Drop for Database {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn failed_reused_snapshot_reports_sql_error_without_hanging_cleanup() {
+        let (send, receive) = std::sync::mpsc::channel();
+        let (ready, setup) = std::sync::mpsc::channel();
+        std::thread::spawn(move || {
+            let mut database = Database::connect().unwrap();
+            let case = crate::generate::generate(0);
+            let source = case.program.source();
+            let world = database.create(&case, &source).unwrap();
+            database.remove(world).unwrap();
+            let name = database.name.clone().unwrap();
+            database.admin.batch_execute(&format!("DROP TABLE {name}.r CASCADE")).unwrap();
+            ready.send(()).unwrap();
+            eprintln!("forcing missing-table snapshot restore in {name}");
+            let error = match database.create(&case, &source) {
+                Ok(_) => panic!("a missing snapshotted table must fail setup"),
+                Err(error) => error,
+            };
+            database.close().unwrap();
+            send.send(error).unwrap();
+        });
+        setup.recv_timeout(std::time::Duration::from_secs(60))
+            .expect("private fixture setup must finish before the failure probe");
+        let error = receive.recv_timeout(std::time::Duration::from_secs(10))
+            .expect("setup failure and observer cleanup must finish within ten seconds");
+        assert!(error.contains("SQLSTATE=42P01"), "{error}");
+        assert!(error.contains("snapshot restore DELETE/INSERT"), "{error}");
+        eprintln!("bounded setup failure: {error}");
+    }
+}
+
 /// Snapshot all SQLite rows once; preserve engine schema/catalog caches.
 pub(crate) struct SqliteSnapshot(snapback4_core::store::evaluation::Snapshot);
 impl SqliteSnapshot {

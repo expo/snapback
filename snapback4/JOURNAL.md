@@ -103213,3 +103213,39 @@ local; no push, stash or Git configuration change. No executor deletion.
 
 Root reference validation passes: 565 LLP docs, 11,773 refs, zero errors and
 zero unchecked references. Both RT0 table digests match their original bytes.
+
+
+## 2026-10-23 — S10e-1 fix round 2: comparisons fail closed
+
+The [lane report](reports/20261023-s10e1-evaluation-callers.md#fix-round-2--2026-10-23)
+records failing-on-old witnesses for all six review items. Corpus observations
+now retain typed outcomes, including serde-hidden receipt/opening facts; overlap
+failures have their own failing assertion. The stock runner requires all five
+executors, with an asserted empty unsupported-family/count allowlist. Oracle
+fixtures compare full writes, replays and reads, complete receipt bytes plus
+receipt-only and deterministic timestamps. The 32-room query fixture runs
+separately from the ticketed heap mutation reproductions and passes at 8/68
+calls with its original bounds. Scoped package cleaning replaces source touching.
+
+Diagnostic cleanup cancels both pending accept and incomplete startup. The
+reused-snapshot regression returns SQLSTATE 42P01 within its ten-second bound;
+a minimal exact-old-module probe first observes that SQL error, then hangs
+through five seconds, while fixed cleanup returns it in 6 ms. Probe PIDs are
+reaped. Full core, default and Postgres difftest, 218 adapter/oracle tests, both
+unchanged RT0 ratchets and public deploy/serve/scale witnesses pass. The typed
+295-card five-way corpus has no unsupported case, conformance failure or overlap
+disagreement; its 22-test target passes. No comparison exception was needed.
+
+The stock runner remains red solely on the original retained-evaluator
+Serializable increment stress's documented 40001. Its source/retry budget and
+inclusion remain unchanged; the existing ticket gains this occurrence. The
+same three heap/race exclusions remain, while every later stage completes.
+No new ticketed ignore, product red, meter change or executor deletion. The
+independent final audit confirms all three owned clusters stopped and no live
+identity among 2,156 recorded processes, no public PID among 251 records, and
+no cleanup-probe PID. PG17/55440 was untouched. Cargo uses four jobs, the owned
+lane target and line-table-only dev/test debug. Work is committed locally on
+sb4-pg/s10e1; no push, stash, Git configuration change or raw log in the commit.
+
+Root reference validation passes: 565 LLP documents, 11,774 references, zero
+errors and zero unchecked. Both RT0 JSON digests match the starting commit.

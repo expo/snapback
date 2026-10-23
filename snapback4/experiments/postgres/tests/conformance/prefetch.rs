@@ -48,8 +48,8 @@ fn mutate(on: &mut Engine, off: &mut Engine, name: &str, ctx: Context) -> Mutati
 }
 
 #[test]
-#[ignore = "issues/20261023-snapback4-unified-postgres-prefetch-add-heap-meter.md"]
-fn prefetch_complete_fixture_queries_mutations_and_hidden_rows() {
+#[ignore = "requires isolated local Postgres; scripts/test-postgres.sh"]
+fn prefetch_complete_fixture_queries_and_hidden_rows() {
     let (mut on, mut off) = twins(None, fixture(32, 3));
     for viewer in ["alice", "bob", "stranger"] {
         for (name, args) in [
@@ -67,6 +67,12 @@ fn prefetch_complete_fixture_queries_mutations_and_hidden_rows() {
     assert!(calls.0 < 10, "inbox calls: {calls:?}");
     assert_eq!(calls.1, 68);
     println!("PREFETCH inbox warmed calls on/off: {calls:?}");
+}
+
+#[test]
+#[ignore = "issues/20261023-snapback4-unified-postgres-prefetch-add-heap-meter.md"]
+fn prefetch_complete_fixture_queries_mutations_and_hidden_rows() {
+    let (mut on, mut off) = twins(None, fixture(32, 3));
     for viewer in ["alice", "stranger"] {
         for fail in [false, true] {
             mutate(&mut on, &mut off, "add", context(viewer, &[("room", id("r000")), ("title", string(format!("{viewer}-{fail}"))), ("amount", Value::Int(2)), ("fail", Value::Bool(fail))]).with_ids([format!("new-{viewer}-{fail}")]));

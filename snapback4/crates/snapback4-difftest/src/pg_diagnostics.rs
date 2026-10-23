@@ -14,7 +14,7 @@ use std::{
     path::PathBuf,
     sync::{
         Arc, Mutex,
-        atomic::{AtomicU64, Ordering},
+        atomic::{AtomicBool, AtomicU64, Ordering},
     },
     thread::JoinHandle,
 };
@@ -30,6 +30,8 @@ pub(crate) struct Diagnostics {
     directory: PathBuf,
     join: Option<JoinHandle<()>>,
     shutdown: Socket,
+    cancelled: Arc<AtomicBool>,
+    local_shutdown: Arc<Mutex<Option<UnixStream>>>,
 }
 enum Socket {
     Tcp(TcpStream),
@@ -165,9 +167,18 @@ impl Diagnostics {
             .map_err(|e| error_chain("bind diagnostic socket", &e))?;
         let state = Arc::new(Mutex::new(State::default()));
         let shared = state.clone();
+        let cancelled = Arc::new(AtomicBool::new(false));
+        let accepting = cancelled.clone();
+        let local_shutdown = Arc::new(Mutex::new(None::<UnixStream>));
+        let accepted = local_shutdown.clone();
         let join = std::thread::spawn(move || {
             let task = || -> io::Result<()> {
                 let (mut local, _) = listener.accept()?;
+                {
+                    let mut slot = accepted.lock().unwrap();
+                    if accepting.load(Ordering::Acquire) { return Ok(()); }
+                    *slot = Some(local.try_clone()?);
+                }
                 let mut remote = remote;
                 let mut length = [0; 4];
                 local.read_exact(&mut length)?;
@@ -251,6 +262,8 @@ impl Diagnostics {
             directory,
             join: Some(join),
             shutdown,
+            cancelled,
+            local_shutdown,
         };
         Ok((local, diagnostics))
     }
@@ -271,6 +284,15 @@ impl Drop for Diagnostics {
         // Error paths may drop diagnostics before a still-owned Client. Close
         // our connection first so joining the relay can never wait on that drop.
         self.shutdown.shutdown();
+        self.cancelled.store(true, Ordering::Release);
+        if let Some(local) = self.local_shutdown.lock().unwrap().as_ref() {
+            let _ = local.shutdown(Shutdown::Both);
+        }
+        // Wake accept even when setup failed before a client used the config.
+        // The flag also covers accept racing this cancellation; the saved local
+        // socket covers a client that connected but never sent its startup frame.
+        let _ = UnixStream::connect(self.directory.join(".s.PGSQL.5432"))
+            .and_then(|local| local.shutdown(Shutdown::Both));
         if let Some(join) = self.join.take() {
             let _ = join.join();
         }

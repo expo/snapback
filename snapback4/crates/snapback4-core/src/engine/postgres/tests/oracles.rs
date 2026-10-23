@@ -25,21 +25,21 @@ fn sqlite_unified_and_evaluator_overlap_prefetch_on_and_off() {
             let a = sqlite.mutate("put", Some(&id), context.clone()).unwrap();
             let b = unified.mutate("put", Some(&id), context.clone()).unwrap();
             let c = evaluator.mutate("put", Some(&id), context.clone()).unwrap();
-            assert_eq!(a.reply(Some(&id)), b.reply(Some(&id))); assert_eq!(a.reply(Some(&id)), c.reply(Some(&id)));
-            assert_eq!(a.metered, b.metered); assert_eq!(a.metered, c.metered);
-            for engine in [&mut sqlite, &mut unified] { assert!(engine.mutate("put", Some(&id), context.clone()).unwrap().replayed); }
-            assert!(evaluator.mutate("put", Some(&id), context.clone()).unwrap().replayed);
+            assert_eq!(a, b); assert_eq!(a, c);
+            let replay_a = sqlite.mutate("put", Some(&id), context.clone()).unwrap();
+            let replay_b = unified.mutate("put", Some(&id), context.clone()).unwrap();
+            let replay_c = evaluator.mutate("put", Some(&id), context.clone()).unwrap();
+            assert!(replay_a.replayed && replay_b.replayed && replay_c.replayed);
+            assert_eq!(replay_a, replay_b); assert_eq!(replay_a, replay_c);
             for op in ["peek", "page"] {
                 let mut read = context.clone(); read.args.remove("n"); if op == "page" { read.args.clear(); }
                 let a = sqlite.query(op, read.clone()).unwrap(); let b = unified.query(op, read.clone()).unwrap(); let c = evaluator.query(op, read).unwrap();
-                assert_eq!((&a.data, a.seq, a.metered, a.complete, &a.next), (&b.data, b.seq, b.metered, b.complete, &b.next));
-                assert_eq!((&a.data, a.seq, a.metered, a.complete, &a.next), (&c.data, c.seq, c.metered, c.complete, &c.next));
+                assert_eq!(a, b); assert_eq!(a, c);
             }
             if i % 4 == 0 {
                 let mut context = context; context.args.remove("n"); let id = format!("fail{i}");
                 let a = sqlite.mutate("fail", Some(&id), context.clone()).unwrap(); let b = unified.mutate("fail", Some(&id), context.clone()).unwrap(); let c = evaluator.mutate("fail", Some(&id), context).unwrap();
-                assert_eq!(a.reply(Some(&id)), b.reply(Some(&id))); assert_eq!(a.reply(Some(&id)), c.reply(Some(&id)));
-                assert_eq!(a.metered, b.metered); assert_eq!(a.metered, c.metered);
+                assert_eq!(a, b); assert_eq!(a, c);
             }
         }
         assert_eq!(sqlite.store().rows("notes").unwrap(), unified.store().rows("notes").unwrap());
@@ -54,9 +54,18 @@ fn sqlite_unified_and_evaluator_overlap_prefetch_on_and_off() {
         assert_eq!(oracle_rows, sqlite_rows);
         for i in 0..24 {
             for id in [Some(format!("op{i}")), (i % 4 == 0).then(|| format!("fail{i}"))].into_iter().flatten() {
-                let receipt = |r: Option<crate::receipts::ReceiptRecord>| r.map(|r| (r.outcome, r.name, r.args_digest));
+                // Preserve the complete stored bytes, including receiptOnly.
+                let receipt = |r: Option<crate::receipts::ReceiptRecord>| r.map(|r| {
+                    let body: serde_json::Value = serde_json::from_str(&r.outcome).unwrap();
+                    (r.outcome, r.name, r.args_digest, body.get("receiptOnly").cloned())
+                });
                 assert_eq!(receipt(a.receipt("alice", &id).unwrap()), receipt(b.receipt("alice", &id).unwrap()));
                 assert_eq!(receipt(a.receipt("alice", &id).unwrap()), receipt(c.receipt("alice", &id).unwrap()));
+                // All three calls use Context::at(1000), including refusals.
+                let at: i64 = a.test_support_conn().query_row("SELECT at FROM _ops WHERE principal='alice' AND id=?1", [&id], |row| row.get(0)).unwrap();
+                assert_eq!(at, 1000);
+                assert_eq!(at, b.test_postgres_tx().query("SELECT at FROM _ops WHERE principal='alice' AND id=$1", &[&id]).unwrap()[0].get::<_, i64>(0));
+                assert_eq!(at, c.query("SELECT at FROM _ops WHERE principal='alice' AND id=$1", &[&id]).unwrap()[0].get::<_, i64>(0));
             }
         }
         a.rollback().unwrap(); b.rollback().unwrap(); c.rollback().unwrap();
