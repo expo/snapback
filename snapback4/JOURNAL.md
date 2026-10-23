@@ -103365,3 +103365,45 @@ The complete Postgres script passes all public serving/restart/takeover,
 release-adoption, P1-CE and P1-MC stages. Final measurements match the continuation
 report: only SQLite unknown_token changes from pre-rebase 1 to 2. The public
 witness cluster is stopped and confirmed; the owned evaluator stays up for RT4.
+
+
+## 2026-10-23 — RT4: one request query snapshot
+
+Predicted before implementation: SQLite W1/W2 11→6 and action W1 26→21;
+Postgres W1/W2 7→6 and action W1 20→19; the nine other classes unchanged on
+each adapter. Request queries now open through the authority-facts transaction,
+validate generation there, and borrow its bounded facts for final authority,
+identity and head. Ordinary snapshot-opening APIs remain for fresh boundaries.
+No facts survive rollback or reader return; authority clocks stay fresh.
+The store-port RFC §3.1 records the port change.
+
+The shared query witness now uses this request entry, holds generation,
+identity/head and rows across a concurrent write and a committed adoption,
+then requires the stale reader to refuse and the new reader to answer. It also
+asserts raw-NUL absence before SQL. Metadata-failure authorizers now target the
+combined opener's metadata projection, retaining the no-program-row-read check
+for detached and memory-fallback queries. Predictions, measurements and final
+qualification are in the [continuation report](./reports/20261023-rt3br-rt4.md).
+
+
+RT4 measurement matches every prediction, three equal warm samples per cell.
+SQLite W1/W2=6, action W1=21; Postgres W1/W2=6, action W1=19. The other nine
+classes on each store remain unchanged. The old tables correctly requested
+lowering on the first measurement; both now record measured counts. SQLite
+loses four marker reads plus its head read, Postgres one generation/head wait.
+The first same-snapshot/adoption witnesses pass on both stores.
+
+
+RT4 final qualification passes: default build; full binary 550/18 named ignores;
+full core 1,102 Rust tests + 38 doctests; identity 84/zero ignored; both ratchets;
+the complete Postgres script, including public P1-CE parity, restart/takeover,
+release persistence/adoption and P1-MC; no-default and ref-check. All 24 measured
+cells match prediction and none increases. The full core also validates the
+inherited RT3b-R query-envelope corrections.
+
+The evaluator (3688618) and public clusters (3999575, 132164) are stopped and
+independently confirmed, status 3/no postmaster.pid. None of 530 recorded
+workload PIDs remains. Disk stayed above the floor; a birth-time/size manifest
+allowed removal only of files this lane created in its preserved handoff,
+retaining inherited artifacts. Raw evidence stays in `/tmp/sb4-rt3br/`.
+Separate local RT4 commit; no push, stash or git configuration change.

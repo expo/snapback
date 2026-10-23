@@ -1,5 +1,5 @@
 {
-  "action_session_w1": 26,
+  "action_session_w1": 21,
   "keyed_first": 30,
   "narrowed_argument": 4,
   "one_membership": 23,
@@ -9,6 +9,6 @@
   "unkeyed_increment": 22,
   "unknown_operation": 4,
   "unknown_token": 2,
-  "w1_point": 11,
-  "w2_newest20": 11
+  "w1_point": 6,
+  "w2_newest20": 6
 }

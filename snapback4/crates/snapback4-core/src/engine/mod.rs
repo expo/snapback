@@ -743,7 +743,7 @@ impl Engine {
     /// carries, so a client can order it against answers (LLP 3000.018 §3.2).
     pub fn query_at(&mut self, name: &str, context: Context) -> (Result<QueryOutcome, Refusal>, Option<u64>) {
         let mut cut = None;
-        let result = self.query_reading(name, context, &mut cut, None, &mut None, DeliveryManifest::Build, true, None);
+        let result = self.query_reading(name, context, &mut cut, None, &mut None, DeliveryManifest::Build, true, None, None);
         (result, cut)
     }
 
@@ -759,7 +759,7 @@ impl Engine {
     pub fn query_search_with_delivery_at(&mut self, name: &str, context: Context, retained: Option<&[String]>, manifest: DeliveryManifest) -> (Result<QueryOutcome, Refusal>, Option<u64>, Option<Vec<String>>,
     ) {
         let (mut cut, mut current) = (None, None);
-        let result = self.query_reading(name, context, &mut cut, retained, &mut current, manifest, true, None);
+        let result = self.query_reading(name, context, &mut cut, retained, &mut current, manifest, true, None, None);
         (result, cut, current)
     }
 
@@ -770,7 +770,7 @@ impl Engine {
     pub fn query_materialized_search_with_delivery_at(&mut self, name: &str, context: Context, retained: Option<&[String]>, manifest: DeliveryManifest)
         -> (Result<QueryOutcome, Refusal>, Option<u64>, Option<Vec<String>>) {
         let (mut cut, mut current) = (None, None);
-        let result = self.query_reading(name, context, &mut cut, retained, &mut current, manifest, false, None);
+        let result = self.query_reading(name, context, &mut cut, retained, &mut current, manifest, false, None, None);
         (result, cut, current)
     }
 
@@ -782,11 +782,24 @@ impl Engine {
         mut snapshot: impl FnMut(&crate::store_port::ReadSnapshot<'_>, u64) -> Result<(), Refusal>,
     ) -> (Result<QueryOutcome, Refusal>, Option<u64>, Option<Vec<String>>) {
         let (mut cut, mut current) = (None, None);
-        let result = self.query_reading(name, context, &mut cut, retained, &mut current, manifest, false, Some(&mut snapshot));
+        let result = self.query_reading(name, context, &mut cut, retained, &mut current, manifest, false, Some(&mut snapshot), None);
         (result, cut, current)
     }
 
-    fn query_reading(&mut self, name: &str, mut context: Context, cut: &mut Option<u64>, _retained: Option<&[String]>, _current: &mut Option<Vec<String>>, manifest: DeliveryManifest, advance_opening: bool, snapshot: Option<&mut dyn FnMut(&crate::store_port::ReadSnapshot<'_>, u64) -> Result<(), Refusal>>) -> Result<QueryOutcome, Refusal> {
+    /// The request's authority facts open and validate its query snapshot.
+    /// The callback borrows that same snapshot; no opener is called again.
+    // @ref LLP 3000.009.001.000.001#33-borrow-the-snapshot-never-open-another — snapshot-local facts serve authority, generation, head and response identity.
+    #[cfg(feature = "server-search")]
+    pub fn query_materialized_search_with_request(
+        &mut self, name: &str, context: Context, retained: Option<&[String]>, manifest: DeliveryManifest,
+        digest: &str, mut snapshot: impl FnMut(&crate::store_port::ReadSnapshot<'_>, u64) -> Result<(), Refusal>,
+    ) -> (Result<QueryOutcome, Refusal>, Option<u64>, Option<Vec<String>>) {
+        let (mut cut, mut current) = (None, None);
+        let result = self.query_reading(name, context, &mut cut, retained, &mut current, manifest, false, Some(&mut snapshot), Some(digest));
+        (result, cut, current)
+    }
+
+    fn query_reading(&mut self, name: &str, mut context: Context, cut: &mut Option<u64>, _retained: Option<&[String]>, _current: &mut Option<Vec<String>>, manifest: DeliveryManifest, advance_opening: bool, snapshot: Option<&mut dyn FnMut(&crate::store_port::ReadSnapshot<'_>, u64) -> Result<(), Refusal>>, digest: Option<&str>) -> Result<QueryOutcome, Refusal> {
         context.generation = self.generation;
         let requested = context.now.unwrap_or_else(crate::now_ms);
         context.now = Some(if advance_opening { self.advance_time_audience(requested)? } else { requested });
@@ -804,7 +817,10 @@ impl Engine {
         if context.presence.is_none() {
             context.presence = self.presence.clone();
         }
-        let tx = self.store.read_transaction()?;
+        let tx = match digest {
+            Some(digest) => self.store.request_read_transaction(digest)?.ok_or_else(|| RuntimeError::Auth("absent session digest".into()))?,
+            None => self.store.read_transaction()?,
+        };
         context.now = Some(time_audience::observe_reader_time(
             &self.schema,
             &tx,

@@ -1192,7 +1192,7 @@ fn handle(mut request: Request, shared: &Shared) {
                         let scopes = read_scopes::dependencies(&reader, &op, &context);
                         trace::mark("query_start");
                         let mut metadata = None;
-                        let (outcome, cut, current) = reader.query_materialized_search_with_snapshot(&op, context, retained.as_deref(), manifest, |snapshot, head| {
+                        let (outcome, cut, current) = reader.query_materialized_search_with_request(&op, context, retained.as_deref(), manifest, &admission.digest(), |snapshot, head| {
                             let authority = snapshot.request_authority(&admission.digest(), admission.sample(shared)).map_err(|e| e.refusal()).and_then(|facts| {
                                 persona.clone().and_then(|persona| admission.check_facts(&expected, &facts, persona))?;
                                 Ok((facts.store_id, head))
@@ -1237,7 +1237,7 @@ fn handle(mut request: Request, shared: &Shared) {
                         let decoration_paths = engine.program(&op).filter(|_| engine.schema().operations.get(&op).is_some_and(|f| f.search_decoration)).map(snapback4_core::search_decoration::paths);
                         let scopes = read_scopes::dependencies(engine, &op, &context);
                         let mut metadata = None;
-                        let (outcome, cut, current) = engine.query_materialized_search_with_snapshot(&op, context, retained.as_deref(), manifest, |snapshot, head| {
+                        let (outcome, cut, current) = engine.query_materialized_search_with_request(&op, context, retained.as_deref(), manifest, &admission.digest(), |snapshot, head| {
                             let authority = snapshot.request_authority(&admission.digest(), admission.sample(shared)).map_err(|e| e.refusal()).and_then(|facts| {
                                 persona.clone().and_then(|persona| admission.check_facts(&expected, &facts, persona))?;
                                 Ok((facts.store_id, head))

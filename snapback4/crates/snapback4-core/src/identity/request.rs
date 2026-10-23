@@ -18,7 +18,10 @@ pub struct RequestAuthority {
 }
 
 pub(crate) fn request_authority(tx: &AnyTx<'_>, digest: &str, sample: ServiceSample) -> Result<RequestAuthority, RuntimeError> {
-    let facts = tx.session_authority_facts(digest)?;
+    authority_from_facts(tx, tx.session_authority_facts(digest)?, sample)
+}
+
+pub(crate) fn authority_from_facts(tx: &AnyTx<'_>, facts: facts::SessionFacts, sample: ServiceSample) -> Result<RequestAuthority, RuntimeError> {
     let store_id = facts.store_id.clone().ok_or_else(|| RuntimeError::Store("missing store identity".into()))?;
     let head = facts.head;
     let capability = facts::resolve(tx, facts, sample.now, Some(sample.supervisor_revision))?

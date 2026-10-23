@@ -329,6 +329,9 @@ impl AnyStore {
 }
 impl crate::store_port::ReadSnapshot<'_> {
     pub fn request_authority(&self, digest: &str, sample: crate::identity::ServiceSample) -> Result<crate::identity::RequestAuthority, RuntimeError> {
+        if let Some((key, facts)) = &self.authority && key == digest {
+            return crate::identity::request::authority_from_facts(&self.tx, facts.clone(), sample);
+        }
         crate::identity::request::request_authority(&self.tx, digest, sample)
     }
 }

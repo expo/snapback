@@ -2,7 +2,7 @@
 // @ref LLP 3000.009.001.000.001#32-one-statement-fetches-a-guest-sessions-authority-facts — SQL projects facts; shared Rust policy resolves ordinary kinds and the complete fallback.
 use crate::{RuntimeError, authority::{self, AuthorityTransaction, SessionRecord}, metadata::MetadataReader};
 
-#[derive(Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct SessionFacts {
     // At most one row per session table. Preserve the strict duplicate refusal.
     pub head: u64,
