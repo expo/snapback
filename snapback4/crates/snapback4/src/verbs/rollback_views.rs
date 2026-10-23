@@ -206,6 +206,8 @@ pub(super) fn prepare(
                     || table.columns.keys().any(|c| {
                         !policies.optional_rule(table.column_reads.get(c),next.column_reads.get(c))
                             || table.written_by.get(c) != next.written_by.get(c)
+                            || !policies.optional_rule(table.column_writes.get(c),next.column_writes.get(c))
+                            || !policies.optional_rule(table.frozen_columns.get(c),next.frozen_columns.get(c))
                     })
                 {
                     return Err(format!(

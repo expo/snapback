@@ -569,3 +569,24 @@ fn changed_computed_unique_key_registers_before_rows_and_rolls_back_visibly() {
     app.ok(&["rollback","deployment","--to","1"]);assert_eq!(app.count(),2);
     app.ok(&["rollback","deployment","--to","latest"]);assert_eq!(app.count(),2);
 }
+
+#[test]
+fn default_view_keeps_new_column_write_and_freeze_authority() {
+    let app=App::new();
+    let old="table items:\n  owner: principal\n  approved: bool default false\n  body: text <=40 ?\n  read <- allow\n  insert <- .owner = viewer\n  update <- allow\n  online only\nmutation create(body: text <=40 ?):\n  return insert items {owner:viewer,body}\n";
+    app.source(old);app.ok(&["deploy","deployment"]);
+    app.seed(old,vec![json!({"id":"kept","owner":"alice","approved":true,"body":"original"})]);
+    let next=old.replace("body: text <=40 ?", "body: text <=80 ? write <- .owner = viewer")
+        .replace("  online only", "  immutable body when .approved = true\n  online only");
+    app.source(&next);app.ok(&["deploy","deployment"]);
+    app.ok(&["rollback","deployment","--to","1"]);
+    assert_eq!(app.count(),1);
+    let status=app.json(&["releases","deployment"]);
+    let active=status["current"].as_u64().unwrap();assert!(active>2,"{status}");
+    let source=fs::read_to_string(app.0.join(format!("deployment/releases/{active}/snapback/schema.q"))).unwrap();
+    let actual=snapback4_lang::compile(&[("schema.q".into(),source)]);
+    let expected=snapback4_lang::compile(&[("schema.q".into(),next)]);
+    assert_eq!(actual.schema.tables["items"].column_writes,expected.schema.tables["items"].column_writes);
+    assert_eq!(actual.schema.tables["items"].frozen_columns,expected.schema.tables["items"].frozen_columns);
+    app.ok(&["rollback","deployment","--to","latest"]);assert_eq!(app.count(),1);
+}
