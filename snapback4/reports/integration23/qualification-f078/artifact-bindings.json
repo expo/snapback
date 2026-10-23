@@ -1,0 +1,11 @@
+{
+  "qualificationSource": "f07884e368cbf5ea04d2a4df5cdaa19f3fbc2bd9",
+  "binarySha256": "94d3bec462d9d97d2a067c3e7d6165553f81b17a7337a978fdb257c341c7c6b4",
+  "clientSha256": "0db7dfee7482d0d62be8ed1f6f84af3b8126c3304411b10eb65c9034c0fda96f",
+  "sameProductionBytesAsStoresExactAcceptance": true,
+  "shippingLeavesIdentical": 312,
+  "runtimeProofSource": "02cb35b7a8",
+  "followingDelta": "f07884e368 changes only test census and journal; final native and client bytes are identical",
+  "consumerQualificationMode": "consumer-only",
+  "publicationQualified": false
+}

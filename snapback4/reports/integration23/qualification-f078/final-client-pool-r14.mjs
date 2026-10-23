@@ -1,0 +1,8 @@
+import fs from 'node:fs';import os from 'node:os';import {spawnSync} from 'node:child_process';
+const dir='/tmp/integ23/client-r14';const all=fs.readdirSync('packages/snapback4/test').filter(x=>x.endsWith('.test.mjs')).sort().map(x=>'packages/snapback4/test/'+x);
+const models=all.filter(x=>/\/(app-session-model|online-client-model)\.test\.mjs$/.test(x));
+const ordinary=all.filter(x=>!models.includes(x));const concurrency=Math.min(8,Math.max(1,Math.floor(os.availableParallelism()/3)));
+const results={source:spawnSync('timeout',['15s','git','rev-parse','HEAD'],{encoding:'utf8'}).stdout.trim(),files:all.length,concurrency,started:new Date().toISOString(),groups:[]};
+fs.writeFileSync(dir+'/client-pool-final-files.json',JSON.stringify(all,null,2));
+for(const [kind,files,slots] of [['files',ordinary,concurrency],['models',models,1]]) {console.log('-- Integration23 final group',kind,files.length,'concurrency',slots);const t=Date.now();const r=spawnSync('timeout',['14400s','node','scripts/run-client-tests.mjs',String(slots),kind,...files],{stdio:'inherit',timeout:14410000});results.groups.push({kind,files:files.length,slots,exit:r.status,signal:r.signal,durationMs:Date.now()-t});}
+results.finished=new Date().toISOString();results.statusAfter=spawnSync('timeout',['15s','git','status','--porcelain'],{encoding:'utf8'}).stdout;fs.writeFileSync(dir+'/client-pool-final-status.txt',results.statusAfter);fs.writeFileSync(dir+'/client-pool-final.json',JSON.stringify(results,null,2));console.log(JSON.stringify(results));process.exit(results.groups.every(r=>r.exit===0)&&['','M WORKSTREAM-REPORT.md'].includes(results.statusAfter.trim())?0:1);

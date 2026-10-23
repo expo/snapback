@@ -1,0 +1,67 @@
+{
+  "scope": "Qualified rollback integration snapshot before late RT3 authority merge; release not yet pushed",
+  "source": "f07884e368cbf5ea04d2a4df5cdaa19f3fbc2bd9",
+  "rust": {
+    "source": "f07884e368cbf5ea04d2a4df5cdaa19f3fbc2bd9",
+    "exit": 0,
+    "reportedResultScopes": 453,
+    "reportedPasses": 7472,
+    "reportedFailures": 0,
+    "reportedIgnores": 295,
+    "counting": "Includes explicitly reported nested subprocess result scopes; not a deduplicated test-name census."
+  },
+  "clients": {
+    "files": 430,
+    "passed": 7923,
+    "skipped": 56,
+    "failed": 0,
+    "statusAfter": ""
+  },
+  "packed": {
+    "mode": "consumer-only",
+    "publicationQualified": false,
+    "allCases": "passed",
+    "route": "proot",
+    "binarySha256": "94d3bec462d9d97d2a067c3e7d6165553f81b17a7337a978fdb257c341c7c6b4",
+    "clientSha256": "0db7dfee7482d0d62be8ed1f6f84af3b8126c3304411b10eb65c9034c0fda96f"
+  },
+  "wave25": {
+    "beforeRefusals": 15,
+    "beforeFalse": 10,
+    "afterReal": 2,
+    "afterFalse": 0,
+    "rollCases": 6,
+    "hiddenV1Rows": 0,
+    "copiedStoresDeleted": true
+  },
+  "upgrade": {
+    "histories": 50,
+    "unchanged": 48,
+    "authoredReverseAdaptations": 2,
+    "hiddenV1Rows": 0
+  },
+  "survey": {
+    "projects": 450,
+    "records": 900,
+    "calls": 1800,
+    "falseRefusals": 0,
+    "gatedProjects": 15,
+    "distinctAcknowledgedFindings": 36
+  },
+  "acceptance": {
+    "unchangedScripts": 50,
+    "passed": 50
+  },
+  "Exact": {
+    "originMain": "14c091f205f62c32ed9d585ae75148cffc12dfa2",
+    "syncedPassed": 2,
+    "onlinePassed": 1
+  },
+  "wasm": {
+    "raw": 2407070,
+    "gzip": 735469,
+    "brotli": 553849,
+    "budget": 735969
+  },
+  "remaining": "Late RT3 integration and final root checks/landing recorded by the final integration report."
+}
