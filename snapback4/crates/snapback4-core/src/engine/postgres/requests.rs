@@ -52,7 +52,7 @@ pub(super) fn initialize(tx: &Tx<'_>) -> Result<(), RuntimeError> {
     Ok(())
 }
 
-fn read(row: &postgres::Row) -> Result<ActionRequest, RuntimeError> {
+fn read(row: &super::store::Row) -> Result<ActionRequest, RuntimeError> {
     let authority = match (
         row.try_get::<_, Option<String>>("family")?,
         row.try_get::<_, Option<i64>>("principal_generation")?,

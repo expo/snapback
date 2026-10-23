@@ -15,7 +15,7 @@ pub(super) fn absent_key(key: Option<&str>) -> bool {
     key.is_some_and(|key| key.contains('\0'))
 }
 
-pub(super) fn read_run(row: postgres::Row) -> Result<EffectRun, RuntimeError> {
+pub(super) fn read_run(row: super::store::Row) -> Result<EffectRun, RuntimeError> {
     let payload: &str = row.get(2);
     let result: Option<&str> = row.get(10);
     let work: Option<&str> = row.get(12);

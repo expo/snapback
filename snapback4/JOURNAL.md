@@ -104396,3 +104396,19 @@ disqualifications and the raw archive location/SHA-256. The requested directory
 date is 20261024; actual measurement/cleanup spans 2026-10-23 16:58–21:23 UTC.
 These short-window results qualify this comparison, not a production capacity
 or publication claim. Only this result directory and this journal entry land.
+## 2026-10-23 — RT6 read transport checkpoint (qualification in progress)
+
+Lane sb4-pg/rt6, base a025d67cd3. Predictions are recorded before code in
+reports/20261023-rt6-serving-flights/CONTEXT.md. Ordered SimpleQuery EXECUTEs
+use the RT5 codec in serving, with connection settings verified and physical
+encoder scratch guarded. A transaction-owned exact read plan folds framing
+and fixed-address reads; the Rust executor still authorizes and meters them.
+Unsupported forms retain ordinary access. The mutation setup/tail folds follow
+this checkpoint. The existing eight NUL tests pass; final HTTP counts and
+full qualification are pending. Private PG16 postmaster 3342451 is owned by
+this run on socket port 55493; final shutdown evidence will be in the report.
+
+The focused W1/W2 snapshot witness now passes, including the ordinary resolver
+and interpreter. Initial runs caught the distinct String/Id key encodings and
+primary-key access via lookup versus get; both are corrected. Failed outputs
+remain outside Git in /tmp/rt6-evidence. No HTTP budget claim is made yet.

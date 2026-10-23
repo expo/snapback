@@ -42,7 +42,7 @@ pub(super) fn initialize(tx: &Tx<'_>) -> Result<(), RuntimeError> {
     Ok(())
 }
 
-fn read_head(row: &postgres::Row) -> Result<Head, RuntimeError> {
+fn read_head(row: &super::store::Row) -> Result<Head, RuntimeError> {
     // SQLite retains the legacy fallback for malformed args/state. Domain
     // corruption, unlike args, is an error on both adapters.
     let args = serde_json::from_str::<Value>(row.try_get("args")?).unwrap_or(Value::Null);

@@ -116,6 +116,9 @@ pub(super) fn connect(mut config: Config) -> Result<(Client, Arc<AtomicBool>), R
     #[cfg(any(test, feature = "test-support"))]
     crate::round_trips::postgres(1); // startup through ReadyForQuery
     let mut client = config.connect(NoTls)?;
+    super::literal::configure(&mut client)?;
+    #[cfg(any(test, feature = "test-support"))]
+    crate::round_trips::postgres(3); // settings batch + verify prepare/execute
     // @ref LLP 3000.009.001.000#8 — every serving/lease/reader connection needs session affinity.
     #[cfg(any(test, feature = "test-support"))]
     crate::round_trips::postgres(2); // implicit prepare + execute
@@ -134,7 +137,14 @@ pub(super) fn connect(mut config: Config) -> Result<(Client, Arc<AtomicBool>), R
 pub(super) fn commit(mut tx: Transaction<'_>, warning: &AtomicBool) -> Result<(), RuntimeError> {
     tx.batch_execute("SET LOCAL statement_timeout = 0; SET LOCAL lock_timeout = 0")?;
     warning.store(false, Ordering::SeqCst);
-    let result = tx.commit();
+    commit_result(tx.commit(), warning)
+}
+pub(super) fn commit_client(client: &mut Client, warning: &AtomicBool) -> Result<(), RuntimeError> {
+    client.batch_execute("SET LOCAL statement_timeout = 0; SET LOCAL lock_timeout = 0")?;
+    warning.store(false, Ordering::SeqCst);
+    commit_result(client.batch_execute("COMMIT"), warning)
+}
+fn commit_result(result: Result<(), postgres::Error>, warning: &AtomicBool) -> Result<(), RuntimeError> {
     if warning.swap(false, Ordering::SeqCst) {
         return Err(RuntimeError::CommitOutcomeUnknown(
             "COMMIT returned a cancellation warning".into(),

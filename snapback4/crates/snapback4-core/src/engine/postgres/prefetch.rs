@@ -35,7 +35,7 @@ impl Cache {
 impl Tx<'_> {
     // Count every returned payload before cardinality checks or decoding, so
     // the transfer witness cannot hide bytes discarded by a rejected fill.
-    fn prefetch_query(&self, sql: &'static str, params: &[&(dyn postgres::types::ToSql + Sync)]) -> Result<Vec<postgres::Row>, RuntimeError> {
+    fn prefetch_query(&self, sql: &'static str, params: &[&(dyn postgres::types::ToSql + Sync)]) -> Result<Vec<super::store::Row>, RuntimeError> {
         let rows = self.query(sql, params)?;
         for row in &rows {
             if let Some(text) = row.get::<_, Option<&str>>(1) {

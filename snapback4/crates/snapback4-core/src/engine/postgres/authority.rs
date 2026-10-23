@@ -53,7 +53,7 @@ impl Tx<'_> {
 }
 
 pub(super) fn session_facts_sql(read: bool) -> &'static str { if read { READ_FACTS } else { FULL_FACTS } }
-pub(super) fn session_facts_rows(rows: Vec<postgres::Row>) -> crate::identity::facts::SessionFacts {
+pub(super) fn session_facts_rows(rows: Vec<super::store::Row>) -> crate::identity::facts::SessionFacts {
         let row = &rows[0]; // The anchor also returns metadata for an absent token.
         crate::identity::facts::SessionFacts {
             head: row.get::<_, i64>(18) as u64,
@@ -67,7 +67,7 @@ pub(super) fn session_facts_rows(rows: Vec<postgres::Row>) -> crate::identity::f
 const WORK_BY_ID: &str = "SELECT principal, state, claimed_by, session_digest, lease_until, deadline, family, principal_generation, admitted_expires_at, service_generation FROM _requests WHERE id = $1";
 const WORK_BY_SESSION: &str = "SELECT principal, state, claimed_by, session_digest, lease_until, deadline, family, principal_generation, admitted_expires_at, service_generation FROM _requests WHERE session_digest = $1 ORDER BY id LIMIT 1";
 
-fn read_session(row: &postgres::Row) -> SessionRecord {
+fn read_session(row: &super::store::Row) -> SessionRecord {
     SessionRecord {
         principal: row.get(0),
         family: row.get(1),
@@ -79,7 +79,7 @@ fn read_session(row: &postgres::Row) -> SessionRecord {
     }
 }
 
-fn read_work(row: &postgres::Row) -> WorkRecord {
+fn read_work(row: &super::store::Row) -> WorkRecord {
     WorkRecord {
         principal: row.get(0),
         state: row.get(1),

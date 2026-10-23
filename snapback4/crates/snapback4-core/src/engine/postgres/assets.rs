@@ -19,7 +19,7 @@ fn missing() -> RuntimeError {
     RuntimeError::Sql(rusqlite::Error::QueryReturnedNoRows)
 }
 
-fn read(row: &postgres::Row) -> Result<Asset, RuntimeError> {
+fn read(row: &super::store::Row) -> Result<Asset, RuntimeError> {
     let home: (Option<String>, Option<String>, Option<String>) = (
         row.try_get("home_table")?,
         row.try_get("home_id")?,

@@ -30,6 +30,17 @@ impl AnyStore {
     pub fn read_transaction(&mut self) -> Result<ReadSnapshot<'_>, RuntimeError> {
         match self { Self::Sqlite(SqliteStore(store)) => store.read_transaction().map(|tx| ReadSnapshot { tx: AnyTx::Sqlite(SqliteTx(tx)), authority: None }), #[cfg(feature = "postgres")] Self::Postgres(PostgresStore(handle)) => handle.store.get_mut().transaction(None).map(|tx| ReadSnapshot { tx: AnyTx::Postgres(PostgresTx(tx)), authority: None }) }
     }
+    pub(crate) fn planned_request_read_transaction(&mut self, digest: &str, schema: &Schema, program: Option<&Program>, context: &crate::engine::Context) -> Result<Option<ReadSnapshot<'_>>, RuntimeError> {
+        #[cfg(feature = "postgres")]
+        if let Self::Postgres(PostgresStore(handle)) = self {
+            if digest.contains('\0') { return Ok(None); }
+            let plan = program.and_then(|p| crate::engine::postgres::read_plan::Plan::new(schema,p,context));
+            let (tx,facts) = handle.store.get_mut().planned_authority_transaction(digest,plan)?;
+            return Ok(Some(ReadSnapshot { tx: AnyTx::Postgres(PostgresTx(tx)), authority:Some((digest.into(),facts)) }));
+        }
+        let _ = (schema,program,context);
+        self.request_read_transaction(digest)
+    }
     // @ref LLP 3000.009.001.000.001#33-borrow-the-snapshot-never-open-another — the facts SELECT pins and validates the query's generation, identity and head.
     pub(crate) fn request_read_transaction(&mut self, digest: &str) -> Result<Option<ReadSnapshot<'_>>, RuntimeError> {
         if digest.contains('\0') { return Ok(None); }

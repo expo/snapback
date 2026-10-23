@@ -818,7 +818,7 @@ impl Engine {
             context.presence = self.presence.clone();
         }
         let tx = match digest {
-            Some(digest) => self.store.request_read_transaction(digest)?.ok_or_else(|| RuntimeError::Auth("absent session digest".into()))?,
+            Some(digest) => self.store.planned_request_read_transaction(digest, &self.schema, program.as_ref().ok(), &context)?.ok_or_else(|| RuntimeError::Auth("absent session digest".into()))?,
             None => self.store.read_transaction()?,
         };
         context.now = Some(time_audience::observe_reader_time(

@@ -55,7 +55,7 @@ pub(super) fn install(tx: &Tx<'_>, schema: &mut Schema) -> Result<u64, RuntimeEr
 }
 
 // @ref LLP 3000.007#20.9.3 — adoption reserves fetched images separately from per-row contribution scratch.
-pub(super) fn source_page(tx: &super::store::Tx<'_>, table: &str, schema: &Table, after: Option<&str>, meter: &mut Meter, work: adoption::Work) -> Result<Vec<postgres::Row>, RuntimeError> {
+pub(super) fn source_page(tx: &super::store::Tx<'_>, table: &str, schema: &Table, after: Option<&str>, meter: &mut Meter, work: adoption::Work) -> Result<Vec<super::store::Row>, RuntimeError> {
     let sizes=if after.is_some() {
         "SELECT COALESCE(SUM(octet_length(id) + octet_length(data)),0)::bigint, COUNT(*) FROM (SELECT id,data FROM r WHERE t=$1 AND id>$2 ORDER BY id LIMIT $3) AS picked"
     } else {
