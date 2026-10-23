@@ -126,6 +126,7 @@ impl Store {
             let before = identity(&sql)?;
             if before != store.identity { return Err(RuntimeError::Generation("another engine activated this store; reopen it before activating source".into())); }
             check(&super::release::ReleaseCheck(&sql))?;
+            super::rollback_visibility::capture(&sql)?;
             // @ref LLP 3000.033#1.3 — physical upgrades roll back with adoption.
             // Rollback restores schema/rows and freelist count. It may leave
             // changed free-page contents or journal/WAL residue, not committed data.
@@ -201,7 +202,7 @@ impl Store {
                     }
                 }
             }
-            let renamed_columns=if programs.is_some(){super::asset_renames::prepare(&sql,schema,&catalog)?}else{Default::default()};
+            let renamed_columns=if programs.is_some(){super::asset_renames::prepare(&sql,schema,&catalog,&renamed_tables)?}else{Default::default()};
             let activation_scan = programs.map(|_| Default::default());
             #[cfg(test)]
             let activation_scan = if store.full_adoption { None } else { activation_scan };
@@ -462,6 +463,7 @@ impl Store {
                     }
                 }
             }
+            if let Some(programs)=programs{super::rollback_visibility::validate(sqlite_tx,schema,programs)?;}
             report.phase("validation", &mut phase);
             if rebuilding {
                 // A removed asset home is retired in the same transaction as its

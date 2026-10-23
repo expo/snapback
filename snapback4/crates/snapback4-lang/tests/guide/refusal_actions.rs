@@ -329,6 +329,7 @@ pub(super) const ACTIONS: &[(&str, &[&str])] = &[
     ("E_STEP_UNKNOWN", &["Use `await ctx.step('mail', input, send)`", "Keep settlement under the same invocation and name"]),
     ("E_STORE_MEMORY", &["It is not a meter cut and it is not retryable", "Read a smaller page or shorter rows"]),
     ("E_TIME_AUDIENCE_PENDING", &["HTTP queries wait for encountered live publication dependencies", "rolls back without retaining its operation id", "retryable"]),
+    ("E_RELEASE_RUNTIME", &["Stop it and restart serve using the current CLI/runtime", "The old host refuses the control feature before admission."]),
     ("E_STORE_BUSY", &["mint over loopback with its private store proof", "restore access to the named server and proof, or stop it, mint offline, then restart", "After a lost mint reply, an unused session may remain until expiry", "Other offline writers admit no work", "stop the named host (the message includes its address), run the command once, then restart it"]),
     ("E_STORE", &["release an unintended competing writer or repair disk access, then retry the same request", "Keep an uncertain mutation's original ID"]),
     ("E_STORE_REPLACED", &["Close it and create a new client, reconciling old intents before submitting new writes", "after retiring its pending intents"]),

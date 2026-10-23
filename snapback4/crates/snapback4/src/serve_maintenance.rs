@@ -397,7 +397,7 @@ pub(super) fn staging(shared: &Shared) -> Result<bool, snapback4_core::Refusal> 
     shared.engine.call(|engine, _| engine.store().deployment_environment().ok().flatten().as_deref() == Some("staging"))
 }
 fn clock_service(request: &Request, shared: &Shared) -> Result<Option<String>, snapback4_core::Refusal> {
-    // @ref LLP 3000.000.000.002#9-wave-25-day-two-friction-dx8 — real-user dev clock authority is independent of fixture doors.
+    // @ref LLP 3000.000.000.002#10-wave-25-day-two-friction-dx8 — real-user dev clock authority is independent of fixture doors.
     if shared.personas {
         match super::session_identity::principal_of(request,shared) {
             Ok((principal,kind,snapback4_core::identity::SessionScope::Full)) if kind == "service" && principal == "service:operator" => return Ok(Some(principal)),

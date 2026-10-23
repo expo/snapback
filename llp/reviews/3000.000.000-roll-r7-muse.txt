@@ -1,0 +1,5 @@
+muse: workspace root: /home/ccheever/projects/sb4-b23-roll (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY — no MATERIAL correctness, security, or atomicity issue.
+
+Reuse of authored current same-name/kind endpoints for added-field guards uses only compatible inputs, retains the added field with authored backfill custody, never invents defaults or first-row choice, and keeps deterministic ordering with id tie-break. Current authority equality, fail-closed refuses, CAS/lock activation, and id-reservation laws remain. Nullable/wider results are disclosed RESULT changes per commission, not contract retention. Conservative refuses are intentional.

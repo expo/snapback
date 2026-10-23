@@ -1,0 +1,67 @@
+muse: workspace root: /home/ccheever/projects/sb4-b23-roll (cwd default)
+muse: workspace trust: trusted source=run-flag
+## Verdict: NOT READY
+
+Reviewed the supplied §20 text against [LLP 3000.000.000 §16 and §19](./llp/3000.000.000-retained-storage-and-hot-release.rfc.md) and [LLP 3000.000.000.002 §8](./llp/3000.000.000.002-declarative-backfills.rfc.md). The intentional default change — automatic loosened bridges replacing opt-in `--bridge` — is understood. The design is not yet implementable as written. No files edited. No tests, builds, credentials, or network used.
+
+### 1. Automatic bridge trigger and compatible set are undefined
+
+§20 says "if current-source values widen a predecessor column" then compile a bridge, refusing on "incompatible type." Prior law distinguishes static domain comparison from exact data preview, and §8 lists the closed compatible-join set (optionality union, int bounds, text bounds, enum union, asset byte-limit, list recursion; all else stays target-domain).
+
+Fix: state the trigger is static domain comparison per §16/§8, inherit the §8 compatible-join list verbatim, and require everything else to stay refused or need authored scalar `down`. Define precedence: authored `down` wins over auto-bridge; overlapping `down` outputs still refuse per §19.1.
+
+### 2. Atomic registry selection across deploy/rollback/forward/interruption
+
+Manifest idea is right, but lifecycle is missing:
+
+- Partial failure: if one predecessor bridge fails compilation, the whole deploy must refuse atomically. State it.
+- Ambiguous commit: "failed deployments remove their prepared views" contradicts §16 history-authoritative recovery. Distinguish definitive refusal (remove numeric candidate/stage) from committed-or-ambiguous (preserve source for recovery). Uncommitted parents must never authorize selection, but ambiguous ones must not be GC'd.
+- Supersession: "later deploys recompute" vs "rollback does not discard newest registration" leaves two live manifests. State which manifest `rollback --to N` resolves (latest committed deployment's entry for N), that bridge ids never become the `latest/current` pointer, that `releases` labels bridge vs ordinary identities, and that restart/cold/hot attach the database-selected actual bridge id with original N as provenance.
+- CAS inputs: state expected-current plus activation-revision check and digest verification over bridge source/native/worker per §5.
+
+### 3. Guard preservation and SEC7 split
+
+"The bridge keeps the predecessor's operations and incorporates current authored requirements" is contradictory and unsafe. Prior rule kept target rule text byte-identical.
+
+Fix: keep predecessor rule/intent text byte-identical; retain current rules only for newer-only tables; any current guard dependency absent from the predecessor refuses registration. Retain the §19.2 broader-exposure preview warning — §20 currently drops it, creating a confidentiality-broadening hole. State SEC7 refusal (strict reachable refutation) blocks admission, not just presentation.
+
+### 4. Conflict/native/preimage custody for edited transformed outputs
+
+"Uses an applicable `down` ... otherwise a bridge that admits its exact current value" needs:
+
+- Applicability defined per §19.1 (same-table output present, disjoint outputs, one writer, asserted-missing refuses).
+- Exact-preimage vs synthesized-receipt precedence retained, including Round 21 baselines: distinguish physical absent vs null vs default; absent originals never excuse overwriting an edit; recompute migrated rows from current inputs with fresh P receipt; prior synthesized images never suppress recomputation.
+- Define "admits exact current value" as a compiled domain extension with the same refusal fences (no invented null/default/zero), and define "deterministic agreement" as exact recomputation equality per §8, else atomic conflict refusal printing all competing values.
+- State where "reads stale until forward" is surfaced (receipt + selection output + inspection).
+
+### 5. Explicit hiding scope is unenforced
+
+The `rollback N hides TABLE where COLUMN = null because 'REASON'` form needs:
+
+- Grammar anchor: where the declaration lives (candidate source), that N is the original target release id, and immutability/digest binding of reason plus predicate.
+- Both-ends pinning: nullable column in current source, nonnullable column in original N, including interaction with renames.
+- Enforcement of "outside the predicate must not be hidden": re-run the narrowed-population closure at selection and refuse if any hidden row/cell falls outside the declared predicate, rather than hiding it. Preview must give exact hidden population with bounded privileged counts/ids, never per-user results.
+- Clarify the generated view still bridges all other widened domains and still refuses uncovered hazards.
+
+### 6. Asset home/lifetime authority
+
+Extraction leaves split-brain and custody gaps:
+
+- State 1:1 enforcement (unique reference from child to parent), dual-home refusal (parent must remove source asset columns), and full-type identity definition.
+- Define "immutable scalar" with a closed list; mutable/captured/nominal-reference copies already refuse, but divergent copies after extraction need a single-truth rule.
+- Define "independent history" (active plus dormant same-id rows) and duplicate-destination refusal.
+- State newer-row reverse rule scope (which children searched, deleted/pruned children excluded), that extra v2 children become dormant retained facts rather than deleted, read auth from the currently selected home, identical-transaction preview with scratch cleanup, atomic ledger-home move, receipt lifetime binding with delete/reuse invalidation, and format-9/older-runtime `E_STORE` fencing with capability names.
+
+### 7. Reference rename deletion/reuse
+
+"Compatible" weakens §19.1's "identical full structural type" without definition.
+
+Fix: either restore identical-type rule for reference renames or define each allowed loosening (nullability, bounds, on-delete, capture shape, nominal target). State the rename stays same-table/row-lifetime, cross-table `renamed from` still refuses, both-aliases-at-once refuses, unequal destination cells (present vs retained, null vs absent) refuse, invalidated dormant edges and missing parents refuse even after the move, and the invalid flag travels with the binding.
+
+### 8. Presentation and fencing details
+
+- Test status source: what tests, run by whom, with what timeout/meter. Truncation needs a "+N more in JSON" marker so the five-advisory cap is never mistaken for completeness.
+- Advice grouping must cover added/removed tables, renames, and extractions, not just changed columns.
+- "Restores dormant names implicitly" must mean implicit intent with full validation, not bypass of `--restore-dormant` checks.
+- Name the store-9 marker, read/upgrade rule (reads 8, upgrades only on successful adoption, older refuses 9), and capability strings for extraction and reference renames.
+

@@ -1,0 +1,26 @@
+{
+  "date": "2026-10-22T11:26:16.233940+00:00",
+  "revision": 17,
+  "design": "3000.000.000-roll-r17-design.md",
+  "sha256": "fc13a8b37b2df8e4495ec868ef5cd6590d8a91ba9518a5aea63a70a2b9b2a80f",
+  "reviews": [
+    {
+      "family": "muse",
+      "model": "muse-spark-1.3-contributor",
+      "reasoning_effort": "high",
+      "artifact": "3000.000.000-roll-r17-muse.txt",
+      "method": "fresh external process; exact stdout/stderr retained",
+      "verdict": "READY",
+      "sha256": "841682e4167170cda8c221a8dbd8fd85038d359ec29d9e695305aa9ebb2937ae"
+    },
+    {
+      "family": "codex",
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "high",
+      "artifact": "3000.000.000-roll-r17-codex.txt",
+      "method": "fresh external process; exact stdout/stderr retained",
+      "verdict": "READY",
+      "sha256": "6dc20b5705eb0b90074627ca85d7bbb37cd28d429c0da4426672aeef05090cc0"
+    }
+  ]
+}

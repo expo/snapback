@@ -32,8 +32,9 @@ fn trailing_new_column_guard_tightens_and_rollback_leads_with_its_code() {
     app.ok(&["deploy","deployment"]);
     let text=app.ok(&["rollback","deployment","--to","1","--check","--bridge","bridge"]);
     let first=text.lines().find(|line|line.contains("WARNING")).unwrap();assert!(first.contains("book.require") && first.contains("UNAVAILABLE"),"{text}");
-    assert_eq!(app.read("bridge/schema.q"),v1,"loosened bridges preserve target operations; safety restoration is explicit");
-    assert!(app.read("bridge/ROLLBACK-CHECKLIST.md").contains("restore any current safety guards absent from the target"));
+    let bridge=app.read("bridge/schema.q");
+    assert!(bridge.contains("mutation book(plan: plans)")&&bridge.contains("NOT_OWNER")&&bridge.contains("UNAVAILABLE")&&bridge.contains("available: bool default true"),"generated source must compile with the carried current guard: {bridge}");
+    assert!(app.read("bridge/ROLLBACK-CHECKLIST.md").contains("carried current safety guards"));
     assert!(app.read("bridge/ROLLBACK-CHECKLIST.md").contains("UNAVAILABLE"));
     app.ok(&["deploy","deployment","--schema","bridge","--check"]);
     let out=app.run(&["rollback","deployment","--to","1","--check","--bridge","bridge"]);assert!(!out.status.success());
@@ -82,7 +83,7 @@ fn grouped_rollback_keeps_all_quotas_and_confidentiality_loss() {
     let v2=v1.replace("cap 10 by owner","cap 12 by owner").replace("cap 20 by team","cap 24 by team").replace("  public","  read <- .owner = viewer");
     app.write("snapback/schema.q",v1);app.ok(&["deploy","deployment"]);
     app.write("snapback/schema.q",&v2);app.ok(&["deploy","deployment"]);
-    let text=app.ok(&["rollback","deployment","--to","1","--check"]);
+    let text=app.ok(&["rollback","deployment","--to","1","--exact","--check"]);
     for fact in ["cap 12 by owner; cap 24 by team", "cap 10 by owner; cap 20 by team", "confidentiality"] {assert!(text.contains(fact),"{fact}: {text}");}
 }
 

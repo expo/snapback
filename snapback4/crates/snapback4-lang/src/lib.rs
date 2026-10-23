@@ -63,9 +63,12 @@ pub fn compile(sources: &[(String, String)]) -> Bound {
     bind::audience_diagnostics::parser_context(&documents, &mut diagnostics);
     repair::verify(&documents, &mut diagnostics);
     if !diagnostics.is_empty() {
-        return Bound { invariants: Vec::new(), receipt_members: Default::default(), refusal_sites: Default::default(), view_types: Default::default(), server: documents.iter().any(|doc| doc.server), schema: Default::default(), programs: Vec::new(), personas: Vec::new(), diagnostics, notes: Vec::new() };
+        return Bound { rollback_hides:Vec::new(), invariants: Vec::new(), receipt_members: Default::default(), refusal_sites: Default::default(), view_types: Default::default(), server: documents.iter().any(|doc| doc.server), schema: Default::default(), programs: Vec::new(), personas: Vec::new(), diagnostics, notes: Vec::new() };
     }
     bind(documents)
 }
 
 pub mod release_bridge;
+
+mod release_bridge_guards;
+mod release_bridge_rules;

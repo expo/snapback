@@ -1,6 +1,6 @@
 // A private process-group leader for proof commands. Its keeper observes
 // parent EOF and kills the complete group, including npm-created descendants.
-// @ref LLP 3000.000.000.002#9-wave-25-day-two-friction-dx8 — proof cleanup owns wrapper-created descendants and caller death.
+// @ref LLP 3000.000.000.002#10-wave-25-day-two-friction-dx8 — proof cleanup owns wrapper-created descendants and caller death.
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 

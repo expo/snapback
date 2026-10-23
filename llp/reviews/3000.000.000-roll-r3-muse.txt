@@ -1,0 +1,18 @@
+muse: workspace root: /home/ccheever/projects/sb4-b23-roll (cwd default)
+muse: workspace trust: trusted source=run-flag
+NOT READY.
+
+Material gaps in the exact supplied revision:
+
+1. Removed defaulted columns: §20 allows `authored truthful cross-table down OR explicit acknowledged absence`, §20.1 says `no acknowledgment form in this initial grammar`. Repair: delete the OR-branch for this scope. State initial grammar refuses unless a truthful `down` is present; acknowledged absence is deferred, not admitted.
+
+2. Reference-rename compatibility: `nominal target, nullability, bounds, on-delete and capture shape must remain compatible` is undefined, weaker than the closed exact-equality scope. Repair: require exact equality after identity alignment — post-rename target identity, nullability, bounds, on-delete, capture shape — otherwise refuse. Cite §8 join; no widening.
+
+3. `--exact` vs refusal: §20.1 allows `--exact` with §19.2 reporting, but also says `SEC7 strict reachable refutation blocks admission`. Repair: state `--exact` still refuses on SEC7 strict refutation. Only non-refuting authority/confidentiality deltas become reports. Default rollback keeps zero-unacknowledged-hiding under the writer.
+
+4. Extraction race: preview `runs the identical transaction on a private snapshot`, but no activation-time recheck is stated, unlike the hiding-acknowledgment writer check. Repair: require activation re-validates destination emptiness including dormant overlays, byte presence, parent binding, anchor validity, and one-child ambiguity under the release-command lock and CAS bind. Preview counts are advisory only.
+
+5. Byte-limit join: `identical-policy image/file/video byte limits` does not define identical. Repair: define as exact equality of nullability, cardinalities, size/MIME/once policy, nominal kind. Join is then bound union only; otherwise refuse. Align with the asset full-type identity sentence.
+
+6. Bootstrap exception: `creates an ordinary registration-bearing parent release before exposing any view` does not state CAS/adoption. Repair: state it uses the same CAS activation commit and complete adoption validation, no view selectable until commit, failed bootstrap removes stage.
+

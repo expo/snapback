@@ -1,0 +1,13 @@
+muse: workspace root: /home/ccheever/projects/sb4-b23-roll (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY — no MATERIAL correctness, security, or atomicity issues in the supplied design.
+
+Visible rollback is deploy-time presentation only. Prepared views require successful preparation or deploy refuses. Compatible joins are closed and narrow. No conversion, fallback, default, or row choice is inferred.
+
+Authority is current-authority preserving. Bound IR equality plus §20.2 population checks cover hiding. Undefined fields, helper changes, and incompatible workflows refuse.
+
+Intentional hiding is a single closed form. Null-row plus reference-closure allowance is atomic under the writer. Taint refusals cover requirements, control flow, keys and persisted write values, with bindings and expanded helpers followed. Point discharge is abort-first, so surviving values are unchanged.
+
+Edited outputs never widen per row or invent values. Extraction preserves id reservation, ledger homes, and lifetime anchors. Activation revalidates under lock and CAS, and rolls back together.
+
+Nullable and wider results are commissioned and disclosed as RESULT changes, not claimed as nonnull retention.

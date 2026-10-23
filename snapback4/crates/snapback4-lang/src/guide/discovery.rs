@@ -147,6 +147,37 @@ For a truthful scalar old view, declare `down table name(typedInputs): {oldField
 Full lifecycle, concurrency, failure and recovery semantics:
 [SERVER.md — Release lifecycle](SERVER.md#release-lifecycle).
 
+### Move media into a child table
+
+Save the previous source before removing `orders.scan`. The new child retains
+private reads through the same parent. `customer renamed from buyer` carries
+reference lifetime evidence; it does not convert the reference type.
+
+```quarry
+table people:
+  read <- deny
+  online only
+table orders:
+  customer: people renamed from buyer
+  owner: principal
+  immutable owner
+  read <- .owner = viewer
+  online only
+table scans:
+  order: orders on delete restrict
+  scan: file <=100000
+  immutable order
+  read through .order
+  online only
+extract scans from orders via order: {scan:scan}
+```
+
+Preview the whole migration with deploy --check. Initial child ids equal parent
+ids; independent destinations refuse. Bytes move without reuploading. Reverse
+selection needs a valid parent lifetime and one unambiguous child. Missing bytes,
+changed types or broader read audiences refuse atomically. Image and bounded
+asset-list columns use the same extraction form with identical full types.
+
 This is `guide evolution`; client development commands are in CLIENT-AND-OPERATIONS.md §5."##;
 
 /// A card's `##`/`###` headings outside code fences: (level, heading, first line, end line).

@@ -17,9 +17,22 @@ fn candidate(
         expected_revision: revision,
         digest: crate::release_files::digest(&root).unwrap(),
         rollback: false,
+        visible_rollback: false,
+        registry_custody: true,
         restore_dormant: true,
         allow_feed_adoption: false,
     }
+}
+
+#[test]
+fn hot_release_refuses_missing_format_nine_custody_before_admission() {
+    let directory=ReaderTestDirectory::new();let host=directory.host();
+    let mut command=candidate(&directory.0,2,&READER_SCHEMA.replace("return 1","return 2"),None,0);
+    if let Command::Activate{registry_custody,..}=&mut command {*registry_custody=false;}
+    let refused=release::apply(&host.shared,&directory.0,command).unwrap_err();
+    assert!(refused.contains("release custody"),"{refused}");
+    let mut engine=lock(&host.shared.engine);assert_eq!(engine.generation(),1);
+    assert_eq!(engine.query("version",Context::new("alice",Default::default())).unwrap().data,snapback4_core::Value::Int(1));
 }
 
 #[test]

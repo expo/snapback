@@ -587,7 +587,7 @@ fn partially_hidden_transformed_fields_resume_their_version_and_undo_on_plain_re
   let mut e=engine(old);seed(&mut e,"items",json!({"id":"a","n":3,"score":7,"other":8}));adopt(&mut e,&next,2).unwrap();if edited {write(&mut e,"edit");}
   adopt(&mut e,&hidden,3).unwrap();assert_eq!(field(&mut e,"items","a","other"),Value::Int(8));adopt(&mut e,&next,2).unwrap();assert_eq!(field(&mut e,"items","a","score"),Value::Int(if edited {11}else{6}));assert_eq!(field(&mut e,"items","a","other"),Value::Int(9));
   adopt(&mut e,&hidden,3).unwrap();
-  if edited {let error=adopt(&mut e,old,1).unwrap_err().to_string();assert!(error.contains("changed after backfill"),"{error}");}
+  if edited {adopt(&mut e,old,1).unwrap();assert_eq!(field(&mut e,"items","a","score"),Value::Int(11));}
   else {adopt(&mut e,old,1).unwrap();assert_eq!(field(&mut e,"items","a","score"),Value::Int(7));}
  }
 }
@@ -778,9 +778,8 @@ fn column_rename_refuses_different_declared_types_even_when_present_values_fit_b
 }
 
 #[test]
-fn column_rename_rejects_protected_reference_asset_and_collection_types_before_adoption() {
+fn column_rename_rejects_nonasset_collection_types_before_adoption() {
  for declaration in [
-  "table parents:\n  name: text <=40\n  public 'fixture'\n  online only\ntable items:\n  owner: parents renamed from legacyOwner\n  public 'fixture'\n  online only\n",
   "table items:\n  tags: [text <=20] <=5 renamed from legacyTags\n  public 'fixture'\n  online only\n",
  ] {
   let bound=snapback4_lang::compile(&[("schema.q".into(),declaration.into())]);
@@ -1202,4 +1201,100 @@ fn dx8_prune_announces_a_blinded_down_without_mutating_the_store(){
  let generation=e.generation();let preview=e.store_mut().prune_dormant(false,None).unwrap();
  assert!(preview["warnings"].as_array().unwrap().iter().any(|w|w.as_str().unwrap().contains("blinds down items legacy")),"{preview}");
  assert_eq!(e.generation(),generation);adopt(&mut e,&current,2).unwrap();assert_eq!(field(&mut e,"items","a","n"),Value::Int(5));
+}
+
+#[test]
+fn edited_in_place_output_uses_declared_down_and_restores_current_native_value() {
+    let next=cues()+"down cues oldStatus(status: enum('standby','complete','skipped')): {status:'done' if status != 'standby' else 'standby'}\n";
+    let mut e=engine(CUE);seed(&mut e,"cues",json!({"id":"a","status":"done"}));
+    adopt(&mut e,&next,2).unwrap();write(&mut e,"skip");
+    for _ in 0..2 {
+        adopt(&mut e,CUE,1).unwrap();
+        assert_eq!(field(&mut e,"cues","a","status"),Value::String("done".into()));
+        adopt(&mut e,&next,2).unwrap();
+        assert_eq!(field(&mut e,"cues","a","status"),Value::String("skipped".into()));
+    }
+}
+#[test]
+fn edited_in_place_output_survives_a_bridge_that_admits_its_value() {
+    let bridge=CUE.replace("enum('standby','done')","enum('standby','done','complete','skipped')");
+    let mut e=engine(CUE);seed(&mut e,"cues",json!({"id":"a","status":"done"}));
+    adopt(&mut e,&cues(),2).unwrap();write(&mut e,"skip");
+    adopt(&mut e,&bridge,3).unwrap();
+    assert_eq!(field(&mut e,"cues","a","status"),Value::String("skipped".into()));
+    adopt(&mut e,&cues(),2).unwrap();
+    assert_eq!(field(&mut e,"cues","a","status"),Value::String("skipped".into()));
+}
+
+#[test]
+fn reference_rename_preserves_live_cells_and_old_release_writes() {
+    let old="table parents:\n  public 'fixture'\n  online only\ntable items:\n  parent: parents on delete restrict\n  public 'fixture'\n  online only\n";
+    let next=old.replace("parent: parents on delete restrict","guardian: parents renamed from parent on delete restrict");
+    let mut e=engine(old);seed(&mut e,"parents",json!({"id":"p"}));seed(&mut e,"items",json!({"id":"a","parent":"p"}));
+    for _ in 0..2 {
+        adopt(&mut e,&next,2).unwrap();assert_eq!(field(&mut e,"items","a","guardian"),Value::Id("p".into()));
+        adopt(&mut e,old,1).unwrap();assert_eq!(field(&mut e,"items","a","parent"),Value::Id("p".into()));
+    }
+}
+
+#[test]
+fn rollback_view_enforces_null_acknowledgment_and_reference_closure_under_the_writer() {
+    let old="table bookings:\n  amount: int 0..100\n  public 'fixture'\n  online only\ntable fees:\n  booking: bookings\n  public 'fixture'\n  online only\n";
+    let next=old.replace("amount: int 0..100","amount: int 0..1000 ?");
+    for acknowledge in [false,true] {
+        let mut e=engine(&next);seed(&mut e,"bookings",json!({"id":"b","amount":null}));seed(&mut e,"fees",json!({"id":"f","booking":"b"}));
+        let(s,p)=compile(old);let mut activation=ReleaseActivation::new(3,Some(1));
+        activation.visibility=Some(crate::engine::release::VisibilityPolicy{hides:if acknowledge {vec![crate::engine::release::HiddenNull{table:"bookings".into(),column:"amount".into(),reason:"unquoted must not read as free".into()}]}else{vec![]}});
+        let before=e.generation();let result=e.adopt_release(s,p,&activation,false);
+        if acknowledge {result.unwrap();assert_eq!(e.store().count("bookings").unwrap(),0);assert_eq!(e.store().count("fees").unwrap(),0);}
+        else {assert!(result.unwrap_err().to_string().contains("unacknowledged hiding"));assert_eq!(e.generation(),before);assert_eq!(e.store().count("bookings").unwrap(),1);}
+    }
+    let mut e=engine(&next);seed(&mut e,"bookings",json!({"id":"b","amount":200}));
+    let(s,p)=compile(old);let mut activation=ReleaseActivation::new(3,Some(1));activation.visibility=Some(crate::engine::release::VisibilityPolicy{hides:vec![crate::engine::release::HiddenNull{table:"bookings".into(),column:"amount".into(),reason:"only unquoted rows".into()}]});
+    assert!(e.adopt_release(s,p,&activation,false).unwrap_err().to_string().contains("unacknowledged hiding"));assert_eq!(field(&mut e,"bookings","b","amount"),Value::Int(200));
+}
+
+#[test]
+fn edited_output_still_checks_changed_point_dependencies_with_equal_arguments() {
+    let old="table factors:\n  n: int\n  public 'fixture'\n  update <- allow\n  online only\ntable items:\n  n: int\n  score: int\n  public 'fixture'\n  update <- allow\n  online only\nmutation changeFactor():\n  update factors['factor'] {n:3}\n";
+    let next=old.to_owned()+"backfill items computed(n: int): {score:n * (factors['factor'] ! else NO_FACTOR).n}\nmutation editOutput():\n  update items['a'] {score:42}\n";
+    let mut e=engine(old);seed(&mut e,"factors",json!({"id":"factor","n":2}));seed(&mut e,"items",json!({"id":"a","n":5,"score":0}));
+    adopt(&mut e,&next,2).unwrap();write(&mut e,"editOutput");adopt(&mut e,old,1).unwrap();write(&mut e,"changeFactor");
+    let error=adopt(&mut e,&next,2).unwrap_err().to_string();assert!(error.contains("authored output")&&error.contains("42")&&error.contains("15"),"{error}");assert_eq!(field(&mut e,"items","a","score"),Value::Int(42));
+}
+
+#[test]
+fn reference_rename_transports_dormant_invalidation_across_parent_id_reuse() {
+    let old="table parents:\n  public 'fixture'\n  delete <- allow\n  online only\ntable items:\n  parent: parents\n  public 'fixture'\n  online only\nmutation remove():\n  delete parents['p']\n";
+    let next=old.replace("parent: parents\n","guardian: parents renamed from parent\n");
+    let hidden=next.replace("  guardian: parents renamed from parent\n","");
+    let mut e=engine(old);seed(&mut e,"parents",json!({"id":"p"}));seed(&mut e,"items",json!({"id":"a","parent":"p"}));
+    adopt(&mut e,&next,2).unwrap();adopt(&mut e,&hidden,3).unwrap();write(&mut e,"remove");seed(&mut e,"parents",json!({"id":"p"}));
+    let before=e.generation();assert!(adopt(&mut e,old,1).is_err());assert_eq!(e.generation(),before);
+}
+
+#[test]
+fn intentional_hiding_cannot_weaken_negative_policy_or_procedural_guards() {
+    use crate::engine::release::{ReleaseActivation,VisibilityPolicy,HiddenNull};
+    for policy in 0..5 {
+        let guard=if policy==3 {"table access:\n  read <- exists blocks['b']\n  online only\ntable notes:\n  insert <- allow\n  online only\nmutation act():\n  require not exists access['a'] else BLOCKED\n  return insert notes {}\n"}else if policy==4 {"table docs:\n  permit: int ? read <- exists blocks['b']\n  public 'fixture'\n  online only\ntable notes:\n  insert <- allow\n  online only\nmutation act():\n  row = docs['d'] ! else MISSING\n  require row.permit = null else BLOCKED\n  return insert notes {}\n"}else if policy==0 {"table notes:\n  read <- not exists blocks['b']\n  insert <- allow\n  online only\n"}else if policy==2 {"table notes:\n  open: bool\n  read <- .open = true\n  insert <- allow\n  online only\nmutation act():\n  return insert notes {open:count(blocks where true) = 0}\n"}else{"table notes:\n  read <- deny\n  insert <- allow\n  online only\nmutation act():\n  require not exists blocks['b'] else BLOCKED\n  return insert notes {}\n"};
+        let new=format!("table blocks:\n  value: int ?\n  public 'fixture'\n  online only\n{guard}");let old=new.replace("value: int ?","value: int");
+        let mut e=engine(&new);seed(&mut e,"blocks",json!({"id":"b","value":null}));let before=e.generation();let(s,p)=compile(&old);
+        let mut activation=ReleaseActivation::new(2,Some(1));activation.visibility=Some(VisibilityPolicy{hides:vec![HiddenNull{table:"blocks".into(),column:"value".into(),reason:"unconfirmed".into()}]});
+        let error=e.adopt_release(s,p,&activation,false).unwrap_err().to_string();assert!(error.contains("lookup population"),"{error}");assert_eq!(e.generation(),before);assert_eq!(e.store().count("blocks").unwrap(),1);
+    }
+}
+
+#[test]
+fn hiding_keeps_positive_point_assertions_as_denials_without_inventing_values() {
+    use crate::engine::release::{ReleaseActivation,VisibilityPolicy,HiddenNull};
+    let new="table blocks:\n  value: int ?\n  public 'fixture'\n  update <- allow\n  online only\nmutation act(id: blocks):\n  row = blocks[id] ! else MISSING\n  require row.value != null else UNCONFIRMED\n  update blocks[id] {value:1}\n";let old=new.replace("value: int ?","value: int");
+    let mut e=engine(new);seed(&mut e,"blocks",json!({"id":"b","value":null}));let(s,p)=compile(&old);let mut activation=ReleaseActivation::new(2,Some(1));activation.visibility=Some(VisibilityPolicy{hides:vec![HiddenNull{table:"blocks".into(),column:"value".into(),reason:"unconfirmed".into()}]});e.adopt_release(s,p,&activation,false).unwrap();assert_eq!(e.store().count("blocks").unwrap(),0);
+}
+
+#[test]
+fn release_registry_format_fence_upgrades_atomically_and_never_downgrades(){
+    let mut e=engine(BASE);seed(&mut e,"bookings",json!({"id":"a","weight":1,"length":1}));e.store().test_support_set_meta("version","snapback4-release-store-8").unwrap();
+    let bad=BASE.replace("  weight: int","  required: int\n  weight: int");assert!(adopt(&mut e,&bad,2).is_err());assert_eq!(e.store().test_support_meta("version").unwrap().as_deref(),Some("snapback4-release-store-8"));
+    adopt(&mut e,BASE,2).unwrap();assert_eq!(e.store().test_support_meta("version").unwrap().as_deref(),Some("snapback4-release-store-9"));adopt(&mut e,BASE,1).unwrap();assert_eq!(e.store().test_support_meta("version").unwrap().as_deref(),Some("snapback4-release-store-9"));
 }

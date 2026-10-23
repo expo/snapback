@@ -2,7 +2,7 @@
 // @ref LLP 3000.000.000.002#8-wave-21-release-evolution — renames are identity moves, never row copies or merges.
 use super::*;
 use std::collections::BTreeMap;
-pub(super) const VERSION:&str="snapback4-release-store-8";
+pub(super) const VERSION:&str="snapback4-release-store-9";
 fn refuse(s:impl Into<String>)->RuntimeError {RuntimeError::Structural{code:"E_ADOPT",message:s.into()}}
 
 // Only structural table identifiers change. Literal values, column names,
@@ -28,9 +28,16 @@ pub(crate) fn schema(mut schema:Schema,map:&BTreeMap<String,String>)->Result<Sch
     for m in &mut schema.maintains {*m=remap(m,map)?;m.source=mapped(&m.source,map);m.target=mapped(&m.target,map);}
     for f in &mut schema.backfills {fill(f,map,false)?;}
     for f in &mut schema.downfills {fill(f,map,true)?;}
+    for e in &mut schema.extractions {e.child=mapped(&e.child,map);}
     // Remaining table-bearing structural metadata is normalized through the
     // same typed codec; maintains' source/target are handled explicitly above.
+    // These maps contain column identifiers, including arbitrary keys such as
+    // "parent". Normalize their typed table slots, never their column strings.
+    let mut extractions=std::mem::take(&mut schema.extractions);
+    for e in &mut extractions {e.parent=mapped(&e.parent,map);}
+    let columns=std::mem::take(&mut schema.asset_renames).into_iter().map(|(name,columns)|(mapped(&name,map),columns)).collect();
     schema.table_renames.clear();schema=remap(&schema,map)?;
+    schema.extractions=extractions;schema.asset_renames=columns;
     Ok(schema)
 }
 fn fill(f:&mut crate::schema::backfill::Backfill,map:&BTreeMap<String,String>,down:bool)->Result<(),RuntimeError> {
@@ -80,6 +87,7 @@ fn history(conn:&Connection,map:&BTreeMap<String,String>)->Result<(),RuntimeErro
             conn.execute(&format!("INSERT OR IGNORE INTO {table} VALUES(?1,?2)"),params![new,canonical_json(&f)])?;
             for ledger in ["_backfill_evidence","_backfill_pruned","_backfill_absence"] {conn.execute(&format!("UPDATE {ledger} SET definition=?1 WHERE definition=?2"),params![new,old])?;}
             conn.execute("UPDATE _backfill_absence SET definition=?1 WHERE definition=?2",params![format!("$native:{new}"),format!("$native:{old}")])?;
+            conn.execute("UPDATE _backfill_absence SET definition=?1 WHERE definition=?2",params![format!("$authored:{new}"),format!("$authored:{old}")])?;
             for c in f.inputs.keys() {conn.execute("UPDATE _dormant_refs SET column_name=?1 WHERE column_name=?2",params![format!("$backfill:{new}:{c}"),format!("$backfill:{old}:{c}")])?;}
             conn.execute(&format!("DELETE FROM {table} WHERE digest=?1"),[old])?;
         }

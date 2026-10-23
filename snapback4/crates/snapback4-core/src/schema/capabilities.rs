@@ -9,6 +9,9 @@ use std::collections::BTreeSet;
 #[derive(Serialize, Deserialize)]
 #[serde(remote = "Schema")]
 struct Wire {
+    #[cfg(feature="sqlite")]
+    #[serde(default,skip_serializing_if="Vec::is_empty")]
+    extractions:Vec<Extraction>,
     #[cfg(feature = "sqlite")]
     #[serde(default,skip_serializing_if="BTreeMap::is_empty")]
     table_renames: BTreeMap<String,String>,
@@ -65,6 +68,10 @@ struct Wire {
 // Add a capability and its schema predicate here in one line. This is both
 // the derivation and the decoder's allowlist; authors never declare it.
 const CAPABILITIES: &[(&str, fn(&Schema) -> bool)] = &[
+    #[cfg(feature="sqlite")]
+    ("release-child-extraction-v1",|s|!s.extractions.is_empty()),
+    #[cfg(feature="sqlite")]
+    ("release-reference-renames-v1",|s|s.asset_renames.iter().any(|(name,cols)|cols.keys().any(|c|s.table(name).and_then(|t|t.columns.get(c)).is_some_and(reference_rename)))),
     #[cfg(feature = "sqlite")]
     ("release-table-renames-v1",|s|!s.table_renames.is_empty() || !s.asset_renames.is_empty()),
     ("column-read-v1", |s| s.tables.values().any(|t| !t.column_reads.is_empty())),
@@ -270,3 +277,6 @@ impl<'de> Deserialize<'de> for Schema {
         Ok(schema)
     }
 }
+
+#[cfg(feature="sqlite")]
+fn reference_rename(k:&ColumnType)->bool{match k{ColumnType::Optional(k)=>reference_rename(k),ColumnType::Ref{..}=>true,_=>false}}

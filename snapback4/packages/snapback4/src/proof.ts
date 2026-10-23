@@ -368,7 +368,7 @@ type ProofPage<Row> =
  * receives null first. Refusals, loading, malformed/repeated cursors and a
  * capped or incomplete page fail instead of returning a partial snapshot. */
 /** @throws E_PROOF_PAGE for a refused, loading, malformed, repeated, incomplete or over-limit traversal; callback errors propagate. */
-// @ref LLP 3000.000.000.002#9-wave-25-day-two-friction-dx8 — proof traversal must never promote capped or partial reads to complete evidence.
+// @ref LLP 3000.000.000.002#10-wave-25-day-two-friction-dx8 — proof traversal must never promote capped or partial reads to complete evidence.
 export async function exhaustPages<Row>(readPage: (cursor: Cursor | null) => Promise<ProofPage<Row>>, options: ExhaustPagesOptions = {}): Promise<Row[]> {
   const maxPages = options.maxPages ?? 1_000, label = options.label ?? "paged read";
   if (!Number.isSafeInteger(maxPages) || maxPages < 1) throw new Error(`E_PROOF_PAGE: ${label}: maxPages must be a positive safe integer`);

@@ -8,6 +8,15 @@
 - Protected columns compose with `immutable`: inserts set them, while updates and existing upserts retain them without comparing supplied guesses. Pure expression audience helpers work in table and column rules. Hidden program probes name their hiding read rule; `guide rule-recipes --section "Private immutable payloads and audience helpers"` has an executable recipe.
 - Security questionnaire, intent, invariant testing and lifecycle-note changes are owned by SEC8.
 
+## 0.4.39
+
+### Guide changes
+
+- Default rollback selects an immutable compiled view registered by the active deployment, preserving widened values and current guards. Explicit `--exact` selects original source. Null hiding needs a source declaration with a reason; removed defaulted fields need a truthful reverse projection. Generated checklists focus on decisions and name `--restore-dormant`. Structural text, key and quota changes prepare views too; carried quotas and read-through guards retain current enforcement. Equivalent saved source reuses its id only when its own view set is current, otherwise output names the new registration parent.
+- Edited transformed values survive ordinary release cycles through a declared down or a fitting rollback view; genuine forward conflicts print competing values.
+- Reference-column `renamed from` preserves parent lifetime evidence. Declarative `extract child from parent via reference: {destination:source}` moves existing image/file homes into a child table and reverses unambiguous mappings, preserving read authority and bytes.
+- Deploy leads with a verdict, groups result advice and prints changed-scope security review last, with a trailing verdict for tail readers. `--json.security` contains `notice`, `verdict` and the full `report`; JSON retains all evidence. SEC7 owns ordinary check ranking and gates.
+
 ## 0.4.38
 
 - Security questions lead default `check` and `audit`; result-exposure advice groups by table and creation advice ignores defaults and literal-only assignments. New questions cover evidence, money, approval bypasses, stale eligibility, inconsistent windows, role-wide writes, private create/edit asymmetry and evidence removal.

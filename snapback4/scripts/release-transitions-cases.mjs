@@ -82,7 +82,8 @@ mutation add():
     g.source(prior);await g.run(['deploy',g.deployment]);g.source(next);
     const foresight=JSON.parse((await g.run(['deploy',g.deployment,'--check','--json'])).stdout);
     assert.ok(foresight.hazards.some(s=>s.includes('gauges.minPressure')&&s.includes('new rows')&&s.includes('--to 1 --check --bridge')));
-    assert.match((await g.run(['deploy',g.deployment])).stderr,/rollback foresight.*gauges.minPressure/);
+    const adopted=JSON.parse((await g.run(['deploy',g.deployment,'--json'])).stdout);
+    assert.ok(adopted.preview.hazards.some(s=>s.includes('gauges.minPressure')),'JSON retains full reverse-adoption risk');
     const h=await g.serve();assert.equal((await h.post('/m/add',{},'rel5-new-gauge')).state,'sent');
     const rollback=await g.invoke(['rollback',g.deployment,'--to','1','--check']);assert.equal(rollback.code,1);assert.match(rollback.stderr,/minPressure/);
     await h.host.stop();active.delete(h.host);
@@ -108,11 +109,11 @@ mutation add():
     writeFileSync(join(c.cwd,'snapback/client-compatibility.json'),JSON.stringify({baseline:'versions/v1',since_release:2}));
     const baseline=await c.run(['check']);assert.match(baseline.stderr,/old-client compatibility \(baseline .*new required argument suffix/);
     const generated=readFileSync(join(c.cwd,'snapback/generated/api.ts'),'utf8');assert.match(generated,/suffix: string/);assert.doesNotMatch(generated,/suffix\?:/);
-    const coldRollback=await c.run(['rollback',c.deployment,'--to','1']);
+    const coldRollback=await c.run(['rollback',c.deployment,'--to','1','--verbose']);
     assert.match(coldRollback.stderr,/old-client compatibility.*release 2.*greeting.*removed operation/);
     const hotRollback=await c.serve();
     await c.run(['rollback',c.deployment,'--to','2']);
-    const hotWarning=await c.run(['rollback',c.deployment,'--to','1']);
+    const hotWarning=await c.run(['rollback',c.deployment,'--to','1','--verbose']);
     assert.match(hotWarning.stderr,/old-client compatibility.*release 2.*greeting.*removed operation/);
     await hotRollback.host.stop();active.delete(hotRollback.host);
     const d=fixture('projected-domains');
@@ -261,13 +262,15 @@ query capturedRows():
     const beforeRefPreview=await p.status();
     const checked=await p.run(['rollback',p.deployment,'--to','1','--check','--json']);
     assert.equal(JSON.parse(checked.stdout).plan.release,1);assert.deepEqual(await p.status(),beforeRefPreview);
-    p.source(refs);await p.run(['deploy',p.deployment,'--restore-dormant']);
-    assert.equal((await p.status()).release,1);
+    p.source(refs);const restored=JSON.parse((await p.run(['deploy',p.deployment,'--restore-dormant','--json'])).stdout);
+    assert.equal(restored.sourceRelease,1);assert.equal((await p.status()).release,restored.release);
+    assert.equal(readFileSync(join(p.deployment,'releases',String(restored.release),'snapback/schema.q'),'utf8'),refs,'registration parent preserves exact retained source');
     assert.equal((await refHost.post('/q/liveRows')).data[0].body,'live');
     assert.equal((await refHost.post('/q/capturedRows')).data[0].body,'captured');
     const activeAndRetained=JSON.parse((await p.run(['sql','SELECT body, _snapback_state, _snapback_source, _snapback_columns FROM liveChildren','--release',p.deployment,'--all-releases','--json-objects'])).stdout);
     assert.equal(activeAndRetained.rows.length,1);assert.equal(activeAndRetained.rows[0].body,'live');assert.equal(activeAndRetained.rows[0]._snapback_state,'active');assert.equal(activeAndRetained.rows[0]._snapback_source,null);
-    assert.deepEqual(p.releases(),['1','2']);
+    assert.ok(p.releases().every(name=>/^\d+$/.test(name)),'no stage survives source requalification');
+    assert.ok(JSON.parse(readFileSync(join(p.deployment,'releases',String(restored.release),'rollback-views.json'),'utf8')).some(view=>view.target===2),'reactivated wider source guards rollback to the narrower predecessor');
     // A predicate-only change preserves captured parent/lifetime evidence;
     // selecting the retained broader rule must not require recapture.
     const predicate=refs.replaceAll(".access != 'closed'",".access = 'open'");

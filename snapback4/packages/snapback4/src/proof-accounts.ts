@@ -85,7 +85,7 @@ export function seedAccounts(host: Pick<ServeHost, "url" | "operatorToken">, opt
 
 /** Create real production password accounts and provision each one through the
  * same ordinary service-authorized mutation contract as seedAccounts. */
-// @ref LLP 3000.000.000.002#9-wave-25-day-two-friction-dx8 — production setup shares the plan without acquiring fixture authority.
+// @ref LLP 3000.000.000.002#10-wave-25-day-two-friction-dx8 — production setup shares the plan without acquiring fixture authority.
 export function provisionAccounts(host: Pick<ServeHost, "url" | "operatorToken">, options: SeedAccountsOptions): Promise<ProvisionedSessions> {
   return accounts(host, options, "production");
 }

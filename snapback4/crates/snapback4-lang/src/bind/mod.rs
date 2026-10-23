@@ -79,6 +79,7 @@ pub use aggregate_copies::truth as rule_truth;
 use snapback4_core::schema::Schema;
 
 pub struct Bound {
+    pub rollback_hides:Vec<crate::ast::RollbackHide>,
     pub invariants: Vec<security::Invariant>,
     /// Receipt member operation names, needed only by TypeScript emission.
     pub receipt_members: std::collections::BTreeMap<String, String>,
@@ -165,6 +166,9 @@ pub(crate) fn bind_unverified(mut documents: Vec<Document>) -> Bound {
     receipts::bind(&catalog, &mut schema, &mut diagnostics);
     schema.prepare_receipt_dependencies();
     reference_actions::bind(&catalog, &mut schema, &mut diagnostics);
+    for d in catalog.documents.iter().flat_map(|d|&d.extractions){
+        if let Some(e)=schema.extractions.iter().find(|e|e.child==d.child){if let Err(why)=e.admit(&schema){diagnostics.push(crate::diag::type_error(&d.site,why,"declare an authoritative child with a required cascade/restrict parent reference and mapped asset field").guide("deploy"));}}
+    }
     // @ref LLP 3000.015#1 — timeline mappings exist only after lowering both spellings.
     for issue in snapback4_core::schema::field_authority::validate(&schema) {
         if !diagnostics.iter().any(|d| d.code == "E_FIELD_AUTHORITY" && d.message == issue.message) {
@@ -414,7 +418,13 @@ pub(crate) fn bind_unverified(mut documents: Vec<Document>) -> Bound {
     let mut refusal_sites = refusals::sites(&catalog);
     refusal_sites.extend(refusals::lookup_sites(&programs));
     let invariants = security::bind(&catalog, &mut diagnostics);
-    Bound { invariants, receipt_members, refusal_sites, view_types, server, schema, programs, personas, diagnostics, notes }
+    let rollback_hides=catalog.documents.iter().flat_map(|d|d.rollback_hides.iter()).cloned().collect::<Vec<_>>();
+    for hide in &rollback_hides {
+        if !schema.table(&hide.table).and_then(|t|t.columns.get(&hide.column)).is_some_and(|k|k.is_optional()) {
+            diagnostics.push(crate::diag::type_error(&hide.site,"rollback hides requires a declared nullable column","name the nullable column whose null records must stay hidden").guide("deploy"));
+        }
+    }
+    Bound { rollback_hides, invariants, receipt_members, refusal_sites, view_types, server, schema, programs, personas, diagnostics, notes }
 }
 
 /// A read-through child binds its parent's rule over hidden captures

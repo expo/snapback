@@ -1,3 +1,4 @@
+// Frozen-source hazard coverage uses --exact; roll_views and dormant-visibility cover the registered default.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
@@ -69,12 +70,12 @@ test('probe and deploy guide agree on exact compatibility, schedule, dormancy an
   const ids = [];
   for (const body of ['A', 'B', 'C']) { const write = await host.post('/m/add', { body }); assert.equal(write.state, 'sent'); ids.push(write.result.id); }
   writeFileSync(schema, v2);
-  const widening = run('deploy', deployment);
-  assert.equal(widening.stderr.trim().split('\n')[0], "note: notes.status admits 'archived'; rollback to release 1 must represent those writes through declared projections or a loosened bridge; run the exact rollback preview after writes");
-  assert.match(widening.stderr, /WARNING rollback foresight:.*notes.status/);
-  assert.match(widening.stderr, /WARNING old-client compatibility.*RESULT REVIEW/);
+  const widening = run('deploy', deployment, '--json');
+  const wideningFacts=JSON.parse(widening.stdout).preview;
+  assert.ok(wideningFacts.hazards.some(line=>line.includes('notes.status')));
+  assert.ok(wideningFacts.clientCompatibility.some(line=>line.includes('RESULT REVIEW')));
   assert.doesNotMatch(widening.stderr, /existing rows/);
-  const zero = run('rollback', deployment, '--to', '1', '--check').stdout;
+  const zero = run('rollback', deployment, '--exact', '--verbose', '--to', '1', '--check').stdout;
   assert.match(zero, /note: notes: notes.status: no stored values are incompatible with release 1; no value repair is needed for this switch/);
   writeFileSync(schema, v3);
   const preview = run('deploy', deployment, '--check');
@@ -89,12 +90,12 @@ test('probe and deploy guide agree on exact compatibility, schedule, dormancy an
   assert.equal(existsSync(join(deployment, 'serve.lock')), false, host.log());
   const warning = "WARNING notes.status: 1 row holds 'archived', outside release 1's raw column domain; exact preview reports which rows remain incompatible; generate a loosened bridge to preserve their actual values";
   const samples = `samples: cells notes.color [${ids.slice(1).sort().join(', ')}]; rows notes [${ids[0]}]`;
-  const plan = run('rollback', deployment, '--to', '1', '--check');
+  const plan = run('rollback', deployment, '--exact', '--verbose', '--to', '1', '--check');
   assert.ok(plan.stdout.split('\n').some(line => line.startsWith('  WARNING notes:') && line.includes(warning.slice('WARNING '.length))), plan.stdout);
   assert.ok(plan.stdout.includes(`1 row, 2 cells, 0 index entries dormant; ${samples}`), plan.stdout);
   assert.match(plan.stdout, /notes.color: column notes.color is removed; its cells become dormant \(2 cells; restored on forward\)/);
   assert.match(plan.stdout, /release 1 lacks operation archive/);
-  const rolled = run('rollback', deployment, '--to', '1');
+  const rolled = run('rollback', deployment, '--exact', '--verbose', '--to', '1');
   assert.equal(rolled.stderr.trim().split('\n')[0], warning);
   assert.match(rolled.stderr, /WARNING old-client compatibility.*archive.*removed operation/);
   assert.ok(rolled.stdout.includes(`1 row, 2 cells, 0 index entries dormant; ${samples}`), rolled.stdout);
@@ -102,7 +103,7 @@ test('probe and deploy guide agree on exact compatibility, schedule, dormancy an
   assert.equal((await old.post('/q/readNote', { note: ids[0] })).data, null);
   assert.equal((await old.post('/q/guardedNote', { note: ids[0] })).denied.code, 'MISSING_NOTE');
   assert.equal('color' in (await old.post('/q/readNote', { note: ids[1] })).data, false);
-  const forward = run('rollback', deployment, '--to', 'latest');
+  const forward = run('rollback', deployment, '--exact', '--verbose', '--to', 'latest');
   assert.doesNotMatch(forward.stdout, /WARNING|later use|incompatible/);
   assert.ok(forward.stderr.split('\n').filter(line=>line.startsWith('WARNING')).every(line=>line.startsWith('WARNING old-client compatibility')),forward.stderr);
   assert.match(forward.stdout, /0 rows, 0 cells, 0 index entries dormant/);
@@ -118,11 +119,11 @@ test('rollback preview distinguishes missing schedules, edited source and curren
   const { schema, deployment, run } = fixture(t);
   writeFileSync(schema, v1); run('deploy', deployment);
   writeFileSync(schema, v1.replace('body: n.body', "body: 'edited'").replace('  update <- allow', "  update <- viewer = 'service:ops'")); run('deploy', deployment);
-  const changed = run('rollback', deployment, '--to', '1', '--check').stdout;
+  const changed = run('rollback', deployment, '--exact', '--verbose', '--to', '1', '--check').stdout;
   assert.match(changed, /WARNING release behavior: job remind source changes in release 1; schedule remindDaily remains/);
   assert.match(changed, /WARNING notes: release 1 loosens notes.update; old: viewer = 'service:ops' \| new: allow/);
   writeFileSync(schema, v1.replace('schedule remindDaily every 1d: remind', 'schedule otherDaily every 2d: remind')); run('deploy', deployment);
-  assert.match(run('rollback', deployment, '--to', '1', '--check').stdout, /release 1 lacks schedule otherDaily \(job remind\)/);
+  assert.match(run('rollback', deployment, '--exact', '--verbose', '--to', '1', '--check').stdout, /release 1 lacks schedule otherDaily \(job remind\)/);
 });
 
 test('required-column removal and default-only edits never invent compatibility risk', t => {
@@ -152,7 +153,7 @@ test('stored sample text cannot suppress an incompatible-value warning', { timeo
   writeFileSync(schema, v1); run('deploy', deployment);
   const host = await serve(t, deployment);
   assert.equal((await host.post('/m/add', { body: 'rows that later use' })).state, 'sent'); await host.stop();
-  const result = run('rollback', deployment, '--to', '1');
+  const result = run('rollback', deployment, '--exact', '--verbose', '--to', '1');
   assert.match(result.stderr, /WARNING notes.body: 1 row holds 'rows that later use'/);
 });
 

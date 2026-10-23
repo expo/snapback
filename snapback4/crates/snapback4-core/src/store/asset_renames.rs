@@ -1,4 +1,4 @@
-//! An asset column rename moves its one home, including dormant images.
+//! Asset/reference renames transport cells, homes and lifetime evidence.
 // @ref LLP 3000.000.000.002#8-wave-21-release-evolution — asset identity is preserved; no upload, re-claim or generated placeholder.
 use super::*;
 use std::collections::BTreeMap;
@@ -9,15 +9,37 @@ fn table(table:&mut Table,map:&BTreeMap<String,String>){
     table.columns=replace_keys(std::mem::take(&mut table.columns),map);
     table.defaults=replace_keys(std::mem::take(&mut table.defaults),map);
     table.column_reads=replace_keys(std::mem::take(&mut table.column_reads),map);
+    table.on_delete=replace_keys(std::mem::take(&mut table.on_delete),map);
     table.written_by=replace_keys(std::mem::take(&mut table.written_by),map);
-    fn term(t:&mut crate::schema::RuleTerm,map:&BTreeMap<String,String>){use crate::schema::RuleTerm::*;if let Field(c)|OldField(c)|NextField(c)=t {if let Some(new)=map.get(c){*c=new.clone();}}}
+    fn term(t:&mut crate::schema::RuleTerm,map:&BTreeMap<String,String>){use crate::schema::RuleTerm::*;if let Field(c)|OldField(c)|NextField(c)|Reference{column:c,..}|ReferenceChain{column:c,..}=t {if let Some(new)=map.get(c){*c=new.clone();}}}
     fn rule(r:&mut crate::schema::RuleExpr,map:&BTreeMap<String,String>){use crate::schema::RuleExpr::*;match r {Eq(a,b)|Ne(a,b)|Compare(_,a,b)=>{term(a,map);term(b,map)},And(xs)|Or(xs)=>for x in xs{rule(x,map)},Not(r)=>rule(r,map),Exists{key,equalities,..}|Created{key,equalities,..}=>{for t in key{term(t,map)}for(_,t)in equalities{term(t,map)}},_=>()}}
     for r in [&mut table.rules.read,&mut table.rules.insert,&mut table.rules.update,&mut table.rules.delete]{rule(r,map)}
     for r in table.column_reads.values_mut(){rule(r,map)}
-    for c in &mut table.constraints {if let crate::schema::Constraint::Immutable{fields}=c {for f in fields{if let Some(new)=map.get(f){*f=new.clone();}}}}
+    for index in table.indexes.values_mut(){for component in &mut index.components {if let crate::schema::IndexComponent::Column(c)=component {if let Some(new)=map.get(c){*c=new.clone();}}}}
+    if let Some(sync)=&mut table.sync {
+        for audience in std::iter::once(&mut sync.audience).chain(sync.also.iter_mut().map(|a|&mut a.audience)) {
+            match audience {crate::schema::Audience::Column(c)=>{if let Some(new)=map.get(c){*c=new.clone();}},crate::schema::Audience::Target{prefix,..}=>for c in prefix {if let Some(new)=map.get(c){*c=new.clone();}},_=>()}
+        }
+    }
+    for c in &mut table.constraints {match c{
+        crate::schema::Constraint::Immutable{fields}|crate::schema::Constraint::Cap{by:fields,..}=>for f in fields{if let Some(new)=map.get(f){*f=new.clone();}},
+        crate::schema::Constraint::FinalExistsOnInsert{key,..}=>for t in key{term(t,map)},
+        _=>(),
+    }}
 }
-pub(super) fn schema(mut schema:Schema,maps:&Maps)->Schema {for(name,map)in maps {if let Some(t)=schema.tables.get_mut(name){table(t,map);}}schema}
-pub(super) fn prepare(conn:&Connection,next:&Schema,catalog:&BTreeMap<String,i64>)->Result<Maps,RuntimeError>{
+// @ref LLP 3000.000.000#20-visible-rollback-views-roll — comparison uses the same typed identity codec as activation.
+impl Schema {
+    /// Compare schema authority using declared physical column identities.
+    pub fn with_column_names(&self,maps:&BTreeMap<String,BTreeMap<String,String>>)->Self{schema(self.clone(),maps)}
+}
+pub(super) fn schema(mut schema:Schema,maps:&Maps)->Schema {
+    for(name,map)in maps {if let Some(t)=schema.tables.get_mut(name){table(t,map);}}
+    for e in &mut schema.extractions {
+        if let Some(map)=maps.get(&e.child){e.reference=map.get(&e.reference).cloned().unwrap_or_else(||e.reference.clone());e.fields=std::mem::take(&mut e.fields).into_iter().map(|(dest,source)|(map.get(&dest).cloned().unwrap_or(dest),source)).collect();}
+        if let Some(map)=maps.get(&e.parent){for source in e.fields.values_mut(){if let Some(new)=map.get(source){*source=new.clone();}}}
+    }schema
+}
+pub(super) fn prepare(conn:&Connection,next:&Schema,catalog:&BTreeMap<String,i64>,renamed_tables:&BTreeMap<String,String>)->Result<Maps,RuntimeError>{
     let exists:bool=conn.query_row("SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE name='_asset_column_renames')",[],|r|r.get(0))?;
     if !exists && next.asset_renames.is_empty(){return Ok(Maps::new())}
     conn.execute_batch("CREATE TABLE IF NOT EXISTS _asset_column_renames(t INTEGER NOT NULL,name TEXT NOT NULL,origin TEXT NOT NULL,PRIMARY KEY(t,name)) WITHOUT ROWID;")?;
@@ -34,6 +56,17 @@ pub(super) fn prepare(conn:&Connection,next:&Schema,catalog:&BTreeMap<String,i64
         let mut selected=BTreeMap::new();for c in current.columns.keys(){if let Some(root)=aliases.get(c){if selected.insert(root.clone(),c.clone()).is_some(){return Err(refusal("two names for the same asset column cannot be active together"))}}}
         let map:BTreeMap<_,_>=aliases.into_iter().filter_map(|(old,root)|selected.get(&root).filter(|new|**new!=old).map(|new|(old,new.clone()))).collect();
         for(old,new)in &map {
+            let prior:Option<String>=conn.query_row("SELECT schema FROM _generations WHERE generation=(SELECT value FROM _meta WHERE key='generation')",[],|r|r.get(0)).optional()?;
+            if let Some(prior)=prior {
+                let prior:Schema=serde_json::from_str(&prior).map_err(|e|refusal(e.to_string()))?;
+                let prior=prior.with_table_names(renamed_tables)?;
+                if let Some(before)=prior.table(name).filter(|t|t.columns.contains_key(old)){
+                    let source=&before.columns[old];let destination=&current.columns[new];
+                    if reference(source)||reference(destination){
+                        if source!=destination||before.on_delete.get(old)!=current.on_delete.get(new)||before.through.as_ref().is_some_and(|t|t.reference==*old)||current.through.as_ref().is_some_and(|t|t.reference==*new){return Err(refusal("reference rename requires identical nominal type, deletion policy and uncaptured ownership in both directions"))}
+                    }
+                }
+            }
             for rows in ["r","_dormant_rows","_dormant_narrow_rows"] {
                 if !exists_table(conn,rows)?{continue;}
                 let a=format!("$.Row.{}",serde_json::to_string(old).unwrap());let b=format!("$.Row.{}",serde_json::to_string(new).unwrap());
@@ -42,6 +75,7 @@ pub(super) fn prepare(conn:&Connection,next:&Schema,catalog:&BTreeMap<String,i64
                 conn.execute(&format!("UPDATE {rows} SET data=json_remove(json_set(data,?3,json_extract(data,?2)),?2) WHERE t=?1 AND json_type(data,?2) IS NOT NULL"),params![t,a,b])?;
             }
             conn.execute("UPDATE _assets SET home_column=?3 WHERE home_table=?1 AND home_column=?2",params![name,old,new])?;
+            if exists_table(conn,"_dormant_refs")? {conn.execute("UPDATE _dormant_refs SET column_name=?3 WHERE t=?1 AND column_name=?2",params![t,old,new])?;}
             if exists_table(conn,"_dormant_values")? {conn.execute("UPDATE _dormant_values SET column_name=?3 WHERE t=?1 AND column_name=?2",params![t,old,new])?;}
             if exists_table(conn,"_dormant_columns")? {conn.execute("UPDATE _dormant_columns SET column_name=?3 WHERE table_name=?1 AND column_name=?2",params![name,old,new])?;}
         }
@@ -60,4 +94,6 @@ pub(super) fn prepare(conn:&Connection,next:&Schema,catalog:&BTreeMap<String,i64
     Ok(maps)
 }
 fn exists_table(conn:&Connection,name:&str)->Result<bool,RuntimeError>{Ok(conn.query_row("SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE name=?1)",[name],|r|r.get(0))?)}
-fn asset(kind:&crate::schema::ColumnType)->bool {use crate::schema::ColumnType::*;match kind{Optional(k)|List{of:k,..}|ListRange{of:k,..}=>asset(k),File{..}|Image{..}|Video{..}=>true,_=>false}}
+fn asset(kind:&crate::schema::ColumnType)->bool {use crate::schema::ColumnType::*;match kind{Optional(k)|List{of:k,..}|ListRange{of:k,..}=>asset(k),File{..}|Image{..}|Video{..}|Ref{..}=>true,_=>false}}
+
+fn reference(kind:&crate::schema::ColumnType)->bool{use crate::schema::ColumnType::*;match kind{Optional(k)|List{of:k,..}|ListRange{of:k,..}=>reference(k),Ref{..}=>true,_=>false}}

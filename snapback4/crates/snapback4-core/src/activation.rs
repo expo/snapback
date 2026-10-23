@@ -56,6 +56,7 @@ pub(crate) trait ActivationPreparation: crate::engine::release::ReleaseTransacti
         &self,
         native_digest: &str,
         restore: bool,
+        visibility:Option<&crate::engine::release::VisibilityPolicy>,
     ) -> Result<(), RuntimeError>;
 }
 

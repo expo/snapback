@@ -562,8 +562,14 @@ pub struct BackfillDecl {
     pub site: Site,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ExtractionDecl {pub child:String,pub parent:String,pub reference:String,pub fields:Vec<(String,String)>,pub site:Site}
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
+pub struct RollbackHide {pub release:u64,pub table:String,pub column:String,pub reason:String,pub site:Site}
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Document {
+    pub rollback_hides:Vec<RollbackHide>,
+    pub extractions:Vec<ExtractionDecl>,
     pub aliases: Vec<(String, String, Site)>,
     pub backfills: Vec<BackfillDecl>,
     pub downfills: Vec<BackfillDecl>,

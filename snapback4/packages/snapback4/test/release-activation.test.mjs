@@ -456,7 +456,7 @@ schedule checkpointDaily every 1d: checkpoint
   writeFileSync(schema, recoverySource.replaceAll("text <=100", "text <=4"));
   run("deploy", restored);
   assert.equal(state(join(restored,"store.sqlite")).rows.length,0);
-  run("rollback", restored,"--to","1");
+  run("rollback", restored, "--exact","--to","1");
   assert.equal(state(join(restored, "store.sqlite")).metadata.release, "1");
   assert.equal(state(join(restored, "store.sqlite")).metadata.generation, "4");
   await serve(restored, async (url) => {
@@ -729,12 +729,12 @@ query extras():
       await client.sync(); let local = await client.query({ kind: 'query', name: 'all' }, {}); assert.equal(local.data.find(row => row.id === id).extra, 42);
       const oldGeneration = JSON.parse(run('releases', deployment)).generation;
       await releasePost(url, headers, '/m/newStatus', { item: id }, 'v2-new-status');
-      run('rollback', deployment); await client.sync();
+      run('rollback', deployment, '--exact'); await client.sync();
       assert.ok((await client.query({kind:'query',name:'all'},{})).data.every(row=>row.id!==id));
-      run('rollback',deployment,'--to','2'); await client.sync();
+      run('rollback',deployment, '--exact','--to','2'); await client.sync();
       assert.equal((await client.query({kind:'query',name:'all'},{})).data.find(row=>row.id===id).status,'new');
       await releasePost(url, headers, '/m/repairStatus', { item: id }, 'v2-repair');
-      run('rollback', deployment);
+      run('rollback', deployment, '--exact');
       const current = JSON.parse(run('releases', deployment)); assert.equal(current.release, 1); assert.equal(current.generation, oldGeneration + 3);
       const stale = await (await fetch(url + '/sync', { method: 'POST', headers: {...headers,'x-snapback-device':JSON.stringify(await processDevice({binary,dir:process.cwd()}).engineInfo())}, body: JSON.stringify({ generation: oldGeneration, from: 0, limit: 100, after: null, stream: false, pending: [] }) })).json(); assert.equal(stale.denied.code, 'E_SYNC_GENERATION');
       await client.sync(); local = await client.query({ kind: 'query', name: 'all' }, {}); assert.ok(local.data.every(row => !Object.hasOwn(row, 'extra')));
@@ -753,10 +753,10 @@ query extras():
       const before = JSON.parse(run('releases', deployment)); const failed = await invokeAsync(app, 'deploy', deployment); assert.equal(failed.status, 1); assert.match(failed.stderr, /E_ADOPT/);
       const after = JSON.parse(run('releases', deployment)); assert.equal(after.release, before.release); assert.equal(after.generation, before.generation); assert.equal(after.revision, before.revision);
       assert.equal((await releasePost(url, headers, '/q/all')).data.find(row => row.id === id).extra, 42);
-      run('rollback', deployment, '--to', '1');
+      run('rollback', deployment, '--exact', '--to', '1');
       const preview = run('prune', deployment); assert.match(preview, /extraRows/); assert.match(preview, /preview only/);
       const pruned = run('prune', deployment, '--allow-destructive'); assert.match(pruned, /"pruned": true/);
-      run('rollback', deployment, '--to', '2'); await client.sync();
+      run('rollback', deployment, '--exact', '--to', '2'); await client.sync();
       assert.equal((await client.query({ kind: 'query', name: 'all' }, {})).data.find(row => row.id === id).extra, 7);
       assert.deepEqual((await releasePost(url, headers, '/q/extras')).data, []);
     }, () => closeReleaseClient(client, children));
@@ -867,7 +867,7 @@ test('REL identical source is a no-op; latest and exact previews never activate'
   const {deployment,schema,run}=fixture(t);
   assert.match(run('rollback','--help'),/dormant per row/);
   const first=run('deploy',deployment);assert.match(first,/release 1 is current as generation 1/);
-  assert.equal(first.trim().split('\n').length,1);
+  assert.match(first.trim().split('\n')[0],/^deploy verdict: READY/);
   const before=JSON.parse(run('releases',deployment));
   assert.match(run('deploy',deployment),/unchanged; release 1 stays current/);
   assert.deepEqual(JSON.parse(run('releases',deployment)),before);
@@ -955,13 +955,13 @@ query input(n: int):
     const inspect=failure.stderr.match(/inspect: snapback4 sql "([^"]+)"/);assert.ok(inspect,failure.stderr);
     run('sql',inspect[1],'--release',deployment,'--json');
     const saved=state(join(deployment,'store.sqlite'));
-    const plan=run('rollback',deployment,'--to','1','--check');
+    const plan=run('rollback',deployment, '--exact','--to','1','--check');
     // The enum-incompatible row owns all its cells: count it once.
     assert.match(plan,/1 row, 0 cells, 0 index entries dormant/);assert.match(plan,/samples: rows values \[/);
     assert.doesNotMatch(plan,/its cells become dormant \(0 cells/);
     for(let n=0;n<20;n++) assert.ok(plan.includes(`values.spare${n}: column values.spare${n} is removed; no standalone cells become dormant`),plan);
     for(const flags of [[],['--verbose']]) {
-      const structured=JSON.parse(run('rollback',deployment,'--to','1','--check','--json',...flags));
+      const structured=JSON.parse(run('rollback',deployment, '--exact','--to','1','--check','--json',...flags));
       assert.equal(structured.preview,true);assert.ok(structured.steps.length>0);
       assert.equal(structured.plan.generation,3);
       assert.ok(structured.plan.items.some(item=>item.key==='rows:values' && item.rows===1));
@@ -978,10 +978,10 @@ query input(n: int):
     // A second row fits release 1, so only its removed-column cells count.
     const live=await releasePost(url,headers,'/m/add',{},'large-plan-live');assert.equal(live.state,'sent');
     const mixedSaved=state(join(deployment,'store.sqlite'));
-    const mixed=run('rollback',deployment,'--to','1','--check');
+    const mixed=run('rollback',deployment, '--exact','--to','1','--check');
     assert.match(mixed,/1 row, 20 cells, 0 index entries dormant/);
     for(let n=0;n<20;n++) assert.ok(mixed.includes(`values.spare${n}: column values.spare${n} is removed; its cells become dormant (1 cells; restored on forward)`),mixed);
-    const mixedJson=JSON.parse(run('rollback',deployment,'--to','1','--check','--json'));
+    const mixedJson=JSON.parse(run('rollback',deployment, '--exact','--to','1','--check','--json'));
     const dormantRow=mixedJson.plan.items.find(item=>item.key==='rows:values');
     assert.equal(dormantRow.rows,1);assert.deepEqual(dormantRow.sample_ids,[added.result.id]);
     for(let n=0;n<20;n++) {
@@ -989,13 +989,13 @@ query input(n: int):
       assert.equal(cells.rows,1);assert.deepEqual(cells.sample_ids,[live.result.id]);
     }
     assert.deepEqual(state(join(deployment,'store.sqlite')),mixedSaved);
-    run('rollback',deployment,'--to','1');
+    run('rollback',deployment, '--exact','--to','1');
     assert.deepEqual(state(join(deployment,'store.sqlite')).rows.map(row=>row.id),[live.result.id]);
     for(const args of [{v:'new'},{v:7},{v:'old',extra:true}]) {
       const response=await fetch(url+'/m/echo',{method:'POST',headers:{...headers,'content-type':'application/json'},body:JSON.stringify({id:'decode-'+JSON.stringify(args),args})});
       const reply=await response.json();assert.equal(response.status,200);assert.equal(reply.state,'failed');assert.equal(reply.why.code,'E_INPUT');assert.equal(reply.denied,undefined);assert.equal(reply.generation,3);
     }
-    run('rollback',deployment,'--to','2');
+    run('rollback',deployment, '--exact','--to','2');
     const restored=state(join(deployment,'store.sqlite')).rows;
     assert.equal(restored.length,2);
     for(const row of restored) {
@@ -1164,12 +1164,12 @@ mutation makeNew(item: items):
   await serve(deployment,async(url,headers)=>{
     const item=(await releasePost(url,headers,'/m/add',{},'rel2-proof-add')).result.id;
     await releasePost(url,headers,'/m/makeNew',{item},'rel2-proof-new');
-    const receipt=run('rollback',deployment,'--to','1');assert.ok(receipt.includes(item),receipt);
+    const receipt=run('rollback',deployment, '--exact','--to','1');assert.ok(receipt.includes(item),receipt);
     const absent=await fetch(url+'/q/newOnly',{method:'POST',headers,body:'{"args":{}}'});assert.equal(absent.status,404);assert.equal((await absent.json()).denied.code,'E_OP');
     const edit=await(await fetch(url+'/m/editItem',{method:'POST',headers,body:JSON.stringify({id:'rel2-proof-edit',args:{item}})})).json();
     assert.equal(edit.why.code,'NOT_FOUND');
     assert.equal((await releasePost(url,headers,'/q/readItem',{item})).data,null);
-    run('rollback',deployment,'--to','latest');
+    run('rollback',deployment, '--exact','--to','latest');
     const original=(await releasePost(url,headers,'/q/readItem',{item})).data;
     assert.equal(original.status,'new');assert.equal(original.body,'kept');
   });
@@ -1189,7 +1189,9 @@ test('NARR populated widening describes future risk without miscounting compatib
   await serve(deployment,async(url,headers)=>{
     await releasePost(url,headers,'/m/add',{},'rel2-warning-row');
     writeFileSync(schema,source);
-    const r=invoke('deploy',deployment);assert.equal(r.status,0,r.stderr);assert.doesNotMatch(r.stderr,/WARNING rollback compatibility|existing rows/);assert.match(r.stderr,/WARNING rollback foresight/);assert.match(r.stderr,/note: items.body admits values outside release 1's column declaration/);
+    const planned=JSON.parse(run('deploy',deployment,'--check','--json'));assert.ok(planned.rollbackViews.some(v=>v.target===1));
+    const r=invoke('deploy',deployment);assert.equal(r.status,0,r.stderr);assert.match(r.stdout.split('\n')[0],/^deploy verdict: READY/);
+    const rollback=JSON.parse(run('rollback',deployment,'--to','1','--check','--json'));assert.equal(rollback.visibility.hiddenRows,0);assert.equal(rollback.rollbackView.target,1);
   });
 });
 
@@ -1207,7 +1209,7 @@ test('REL2 successful preview reports a rebuilt maintain instead of its speculat
     await releasePost(url,headers,'/m/add',{},'rel2-maintain-two');
     await releasePost(url,headers,'/m/markNew',{item:first},'rel2-maintain-mark');
     for(const flags of [[],['--json']]) {
-      const preview=run('rollback',deployment,'--to','1','--check',...flags);
+      const preview=run('rollback',deployment, '--exact','--to','1','--check',...flags);
       assert.match(preview,/maintain noteCounts: rebuilt from 1 source rows/);
       assert.doesNotMatch(preview,/cannot adopt|rows are lost|values are lost|keep the prior maintain definition/);
     }
@@ -1310,7 +1312,7 @@ query one(id: grounding):
   writeFileSync(usage, `import {api, type Rows} from './snapback/generated/api';\nimport type {ArgsOf} from 'snapback4/contract';\ndeclare const row: Rows['grounding'];\nconst color: string | undefined = row.color;\n// @ts-expect-error spanning fields need their baseline fallback\nconst required: string = row.color;\nconst args: ArgsOf<typeof api.one> = {id:'x'};\napi.newOnly.available({loading:true});\n`);
   const program=ts.createProgram([usage],{strict:true,noEmit:true,skipLibCheck:true,target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext,moduleResolution:ts.ModuleResolutionKind.Bundler});
   assert.deepEqual(ts.getPreEmitDiagnostics(program).map(d=>ts.flattenDiagnosticMessageText(d.messageText,'\n')),[]);
-  const emptyPreview=JSON.parse(run('rollback',deployment,'--to','1','--check','--json'));
+  const emptyPreview=JSON.parse(run('rollback',deployment, '--exact','--to','1','--check','--json'));
   assert.ok(!emptyPreview.hazards.some(h=>h.includes('cannot see')));
   const { createClient } = await import('../dist/client.js');
   const { operationAvailable } = await import('../dist/contract.js');
@@ -1330,24 +1332,25 @@ query one(id: grounding):
       const created=await post('/m/ground'); assert.equal(created.state,'sent');
       assert.equal((await post('/m/book')).why.code,'GROUNDED');
       const before=state(join(deployment,'store.sqlite'));
-      const preview=JSON.parse(run('rollback',deployment,'--to','1','--check','--json'));
+      const visible=JSON.parse(run('rollback',deployment,'--to','1','--check','--json'));assert.equal(visible.visibility.hiddenRows,0);assert.equal(visible.rollbackView.target,1);
+      const preview=JSON.parse(run('rollback',deployment, '--exact','--to','1','--check','--json'));
       assert.deepEqual(state(join(deployment,'store.sqlite')),before);
       assert.ok(preview.hazards.some(h=>h.includes("release 1's safety dependencies on grounding: `book` cannot see 1 dormant grounding row")),JSON.stringify(preview));
       assert.ok(!preview.hazards.some(h=>h.includes("`newOnly` cannot see")));
-      run('rollback',deployment,'--to','1'); await waitGeneration(3);
+      run('rollback',deployment, '--exact','--to','1'); await waitGeneration(3);
       assert.equal(operationAvailable(client.release.getSnapshot(),'newOnly','query',{}),false);
       assert.equal(client.release.getSnapshot().tables.grounding.fields.color,undefined);
       assert.equal((await post('/m/book')).state,'sent');
       assert.deepEqual((await post('/q/rows')).data,[]);
-      run('rollback',deployment,'--to','latest'); await waitGeneration(4);
+      run('rollback',deployment, '--exact','--to','latest'); await waitGeneration(4);
       assert.equal((await post('/q/rows')).data[0].state,'inspection');
       assert.equal((await post('/q/rows')).data[0].color,'none');
       assert.equal((await post('/m/book')).why.code,'GROUNDED');
       // A bridge keeps the new value domain and the gate while dropping new-only UI.
-      writeFileSync(schema,v1.replace("enum('clear', 'hold')","enum('clear', 'hold', 'inspection')"));
+      writeFileSync(schema,v1.replace("enum('clear', 'hold')","enum('clear', 'hold', 'inspection')").replace("  state:","  color: text <=20 default 'none'\n  state:"));
       run('deploy',deployment); await waitGeneration(5);
       assert.equal((await post('/m/book')).why.code,'GROUNDED');
-      const bridgePreview=JSON.parse(run('rollback',deployment,'--to','latest','--check','--json'));
+      const bridgePreview=JSON.parse(run('rollback',deployment, '--exact','--to','latest','--check','--json'));
       assert.ok(!bridgePreview.hazards.some(h=>h.includes('cannot see') && h.includes('grounding')));
     } finally { stopLocal(); stop(); await client.close(); await closeReleaseClient(local,children); }
   });

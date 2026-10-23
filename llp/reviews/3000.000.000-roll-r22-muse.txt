@@ -1,0 +1,24 @@
+muse: workspace root: /home/ccheever/projects/sb4-b23-roll (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=b021cb17-463e-481b-9fa3-1b73302e6425]: Subscription quota exhausted. Your usage window resets at 2026-10-26T00:00:00Z. (rate_limit_error)
+[muse-exec] plan quota exhausted; retrying with the Meta API key
+muse: workspace root: /home/ccheever/projects/sb4-b23-roll (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY.
+
+§20.1 structural admission is closed: full source domains including text minima/formats, nominal aliases, unique keys/caps. No advice-string parsing for need decision.
+
+Current hard constraints, lifecycle guards, expiry/opening, reference-deletion/lifetime shape, and sync audience are carried on generated source and verified on compiled view. Preparation refuses otherwise. Quotas cannot weaken behind unchanged rule IR. Text follows explicit domain join.
+
+No invented defaults: required added fields need authored default/backfill via compatible authored endpoint. No per-row widening, coercion, truncation, null-fill, zero-money fallback, or first-row invention. Removed defaulted columns need truthful authored down.
+
+Authority preserved: bound IR equals current authority after identity alignment. Release is view over current rows, no resurrection/replay. Intentional hiding needs §20.2 writer check beyond IR equality.
+
+Atomicity holds: immutable prepared source, manifest digests, CAS-bound activation under command lock, private-copy preview, full rollback on failure. Format 9 fences old runtimes; feature field mandatory. `--exact` bypasses only default selection.
+
+§20.2 hiding is closed syntactic form with writer revalidation, hidden-closure limits, and taint refusals. Transaction law explicitly unweakened.
+
+§20.3/§20.4 keep exact evidence separation, no native-birth invention, exact rename equality, receipt-owned extraction with dormant/ambiguity refusals, audience preservation, and full activation revalidation.
+
+No test/publication claim. Unconditional custody/alias laws stated unchanged.
+

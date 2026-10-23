@@ -104,3 +104,84 @@ fn wave21_file_text_missing_bytes_and_invalid_utf8_refuse_atomically() {
         let generation=e.generation();let error=adopt(&mut e,&new,2).unwrap_err().to_string();assert!(error.contains("fileText"),"{error}");assert_eq!(generation,e.generation());assert!(row(&mut e,"orders",&id).field("quantity").is_err());
     }
 }
+
+#[test]
+fn child_extraction_moves_file_home_and_round_trips_without_uploading() {
+    let old=FILES;
+    let next="table orders:\n  public 'fixture'\n  online only\ntable documents:\n  order: orders on delete cascade\n  names: file <=1000\n  public 'fixture'\n  online only\nextract documents from orders via order: {names:names}\n";
+    let mut e=engine(old);let id=upload_and_add(&mut e,b"Ada\n");
+    let asset=crate::assets::asset_id(Some(&field(&mut e,"orders",&id,"names"))).unwrap().to_owned();
+    for _ in 0..2 {
+        adopt(&mut e,next,2).unwrap();
+        assert_eq!(e.store().asset(&asset).unwrap().unwrap().home,Some(("documents".into(),id.clone(),"names".into())));
+        assert_eq!(crate::assets::asset_id(Some(&field(&mut e,"documents",&id,"names"))),Some(asset.as_str()));
+        adopt(&mut e,old,1).unwrap();
+        assert_eq!(e.store().asset(&asset).unwrap().unwrap().home,Some(("orders".into(),id.clone(),"names".into())));
+        assert_eq!(crate::assets::asset_id(Some(&field(&mut e,"orders",&id,"names"))),Some(asset.as_str()));
+    }
+}
+
+#[test]
+fn native_extraction_child_cannot_attach_to_a_parent_born_after_its_write() {
+    let source="table orders:\n  public 'fixture'\n  insert <- allow\n  online only\ntable documents:\n  order: orders on delete cascade\n  names: file <=1000\n  public 'fixture'\n  insert <- allow\n  online only\nextract documents from orders via order: {names:names}\nmutation attach(order: orders, names: file <=1000):\n  return insert documents {order,names}\n";
+    let mut e=engine(source);
+    let asset=e.store_file("alice",b"Ada",Some("text/plain"),"names.txt",100).unwrap();let asset_id=asset.id.clone();
+    let handle=Value::Map(std::collections::BTreeMap::from([("id".into(),Value::Id(asset.id))]).into());
+    let result=e.mutate("attach",None,Context::new("alice",std::collections::BTreeMap::from([("order".into(),Value::Id("p".into())),("names".into(),handle)])).at(101)).unwrap();assert!(matches!(result.state,WriteState::Sent{..}),"{result:?}");
+    seed(&mut e,"orders",json!({"id":"p"}));let before=e.generation();
+    let error=adopt(&mut e,FILES,2).unwrap_err().to_string();assert!(error.contains("parent-lifetime evidence"),"{error}");assert_eq!(e.generation(),before);assert_eq!(e.store().asset(&asset_id).unwrap().unwrap().home.unwrap().0,"documents");
+}
+
+#[test]
+fn extraction_refuses_public_child_for_private_parent_and_missing_bytes_atomically() {
+    let old=FILES.replace("  public 'fixture'", "  owner: principal\n  immutable owner\n  read <- .owner = viewer").replace("{names}","{names,owner:viewer}");
+    let child="table orders:\n  owner: principal\n  immutable owner\n  read <- .owner = viewer\n  online only\ntable documents:\n  order: orders on delete cascade\n  names: file <=1000\n  read <- allow\n  online only\nextract documents from orders via order: {names:names}\n";
+    let mut e=engine(&old);let id=upload_and_add(&mut e,b"private");let generation=e.generation();
+    assert!(adopt(&mut e,child,2).unwrap_err().to_string().contains("read through"));assert_eq!(e.generation(),generation);
+    let through=child.replace("  read <- allow","  immutable order\n  read through .order");
+    adopt(&mut e,&through,2).unwrap();adopt(&mut e,&old,1).unwrap();
+    let asset=crate::assets::asset_id(Some(&field(&mut e,"orders",&id,"names"))).unwrap().to_owned();
+    std::fs::remove_file(e.store().asset_location().unwrap().path(&asset)).unwrap();let generation=e.generation();
+    assert!(adopt(&mut e,&through,2).unwrap_err().to_string().contains("bytes are unavailable"));assert_eq!(e.generation(),generation);assert_eq!(e.store().asset(&asset).unwrap().unwrap().home.unwrap().0,"orders");
+}
+
+#[test]
+fn extraction_does_not_overwrite_independent_destination_or_choose_ambiguous_native_children() {
+    let old=FILES.replace("names: file <=1000\n", "names: file <=1000 ?\n")+"table documents:\n  order: orders on delete cascade\n  names: file <=1000 ?\n  public 'fixture'\n  online only\n";
+    let next=old.replace("  names: file <=1000 ?\n", "").replace("  order: orders on delete cascade\n", "  order: orders on delete cascade\n  names: file <=1000 ?\n").replace("mutation add(names: file <=1000):\n  return insert orders {names}\n", "")+"extract documents from orders via order: {names:names}\n";
+    let mut e=engine(&old);let id=upload_and_add(&mut e,b"source");seed(&mut e,"documents",json!({"id":id,"order":id,"names":null}));
+    let generation=e.generation();let error=adopt(&mut e,&next,2).unwrap_err().to_string();assert!(error.contains("independent history"),"{error}");assert_eq!(generation,e.generation());
+    let mut e=engine(&next);seed(&mut e,"orders",json!({"id":"p"}));
+    for id in ["x","y"]{seed(&mut e,"documents",json!({"id":id,"order":"p","names":null}));}
+    let generation=e.generation();assert!(adopt(&mut e,&old,1).unwrap_err().to_string().contains("several child rows compete"));assert_eq!(generation,e.generation());
+}
+
+const EXTRACT_FILES:&str="table orders:\n  public 'fixture'\n  online only\ntable documents:\n  order: orders on delete cascade\n  names: file <=1000\n  public 'fixture'\n  online only\nextract documents from orders via order: {names:names}\n";
+#[test]
+fn extraction_receipts_survive_table_asset_and_reference_renames(){
+    let mut e=engine(FILES);let id=upload_and_add(&mut e,b"retained bytes");let asset=crate::assets::asset_id(Some(&field(&mut e,"orders",&id,"names"))).unwrap().to_owned();
+    let renamed=EXTRACT_FILES.replace("table orders:","table shipments renamed from orders:").replace("table documents:","table records renamed from documents:").replace("order: orders on delete cascade","booking: shipments renamed from order on delete cascade").replace("names: file <=1000","roster: file <=1000 renamed from names").replace("extract documents from orders via order: {names:names}","extract records from shipments via booking: {roster:names}");
+    for _ in 0..2 {
+        adopt(&mut e,EXTRACT_FILES,2).unwrap();adopt(&mut e,&renamed,3).unwrap();assert_eq!(e.store().asset(&asset).unwrap().unwrap().home,Some(("records".into(),id.clone(),"roster".into())));
+        assert_eq!(field(&mut e,"records",&id,"booking"),Value::Id(id.clone()));
+        adopt(&mut e,FILES,1).unwrap();assert_eq!(e.store().asset(&asset).unwrap().unwrap().home,Some(("orders".into(),id.clone(),"names".into())));
+    }
+}
+#[test]
+fn extraction_does_not_overwrite_a_narrowed_independent_child_destination(){
+    let old=FILES.to_owned()+"table documents:\n  order: orders on delete cascade\n  names: file <=1000 ?\n  public 'fixture'\n  online only\n";
+    let mut e=engine(&old);let id=upload_and_add(&mut e,b"parent");seed(&mut e,"documents",json!({"id":id,"order":id,"names":null}));
+    adopt(&mut e,&old.replace("names: file <=1000 ?","names: file <=1000"),2).unwrap();assert_eq!(e.store().count("documents").unwrap(),0);
+    let generation=e.generation();let error=adopt(&mut e,EXTRACT_FILES,3).unwrap_err().to_string();assert!(error.contains("independent history"),"{error}");assert_eq!(generation,e.generation());assert!(field(&mut e,"orders",&id,"names").field("id").is_ok());
+}
+#[test]
+fn pruned_extraction_children_are_not_recreated_from_receipt_metadata(){
+    let mut e=engine(FILES);let id=upload_and_add(&mut e,b"retained");adopt(&mut e,EXTRACT_FILES,2).unwrap();adopt(&mut e,FILES,1).unwrap();e.store_mut().prune_dormant(true,None).unwrap();
+    let generation=e.generation();let error=adopt(&mut e,EXTRACT_FILES,2).unwrap_err().to_string();assert!(error.contains("pruned/deleted history"),"{error}");assert_eq!(generation,e.generation());assert!(field(&mut e,"orders",&id,"names").field("id").is_ok());
+}
+
+#[test]
+fn table_rename_normalizes_extraction_table_slots_without_rewriting_column_names(){
+    let source="table orders:\n  public 'fixture'\n  online only\ntable documents:\n  link: orders on delete cascade\n  parent: file <=1000 renamed from orders\n  public 'fixture'\n  online only\nextract documents from orders via link: {parent:orders}\n";
+    let(s,_)=compile(source);let mapped=s.with_table_names(&std::collections::BTreeMap::from([("orders".into(),"shipments".into())])).unwrap();assert_eq!(mapped.extractions[0].parent,"shipments");assert_eq!(mapped.extractions[0].fields["parent"],"orders");assert_eq!(mapped.asset_renames["documents"]["parent"],"orders");
+}
