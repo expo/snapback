@@ -93,3 +93,28 @@ both-store P1-CE, ownership/recovery and S1 recounts pass. The optional timing
 observer is unchanged. Its private PG16 cluster is stopped and independently
 confirmed; all recorded children are gone. The original timeout remains red
 and unexplained, with no causal load claim.
+## 2026-10-23 — RT3c, SQLite dormant restoration in the public runner
+
+On expo-build-450b above `d20fbe09b2`, the unchanged stock Postgres script
+passed the three-version Postgres release-evolution witness, then timed out at
+45 seconds in the SQLite half's `deploy --restore-dormant` (version 3).
+The wrapper killed and waited for that command and completed cluster cleanup.
+An independent audit found all 93 recorded PIDs absent, `pg_ctl status` 3 and
+no `postmaster.pid`. Raw evidence remains outside Git in `/tmp/sb4-rt3c/`
+and `/tmp/s10d3-serve-4y38fmlv/`.
+
+The lane's full default core suite was also active, and other host Cargo
+processes were observed. This run did not enable the optional phase timings;
+concurrency alone does not establish the cause. The RT3c production delta
+only extends the request authority kind allowlist; it does not change deploy,
+security preflight or dormant restoration. The 45-second guard is unchanged.
+
+The subsequent unchanged standalone public stage passes in full, with the
+optional timing observations enabled and no other build/test from this lane
+running. All 442 timed commands finish inside the original guard; the maximum
+is 17.575 seconds. Both PostgreSQL and SQLite three-version evolution and wire
+comparison pass, followed by bootstrap refusal/recovery, change evidence/SDK
+sync, ownership restart/takeover and the maintained-total recount. The retry's
+465 recorded PIDs are independently absent; its PG16 master has status 3 and
+no pid file. Timings remain in `/tmp/sb4-rt3c/public-rerun-timings.jsonl`.
+This passing retry does not explain or erase the original SQLite timeout.

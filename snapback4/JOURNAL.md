@@ -103841,3 +103841,77 @@ errors/unchecked references. Both owned private PG16 clusters are stopped
 (status 3, no pidfiles); an independent audit of 335 recorded identities finds
 no live process, zombie or lane-target executable. Other clusters were untouched;
 53 GB remains free. PIDs left: none.
+
+## 2026-10-23 — RT3c: account sessions use the one-statement authority path
+
+S1-PG3's native `account` bearer exposed a kind-allowlist gap in RT3a:
+account W1 took 13 exchanges rather than the ordinary six. Inventorying the
+actual issuers found three additional fixed-shape first-party kinds:
+`account` (worker mint default and native S1), `oidc` (first-party identity
+helper default), and `service` (manual and supervised worker seats).
+Password signup/login emits `user`; guest starters emit `guest`; the service
+guide's application-authenticated example uses `member`. All three were
+already covered. Persona credentials are development-only and have no session
+row; system execution is not a bearer kind. Arbitrary custom kinds remain an
+open namespace. The complete inventory and exact resolver facts are in
+[the round-trip RFC, §6](../llp/3000.009.001.000.001-the-request-round-trip-budget.rfc.md#6-increments).
+
+The only production change admits account/OIDC/service to the named projected
+resolver. The existing bounded SELECT already includes the session, read cap,
+principal generation, global worker revision and per-family revision, plus
+store generation/incarnation and head. The shared Rust liveness and supervisor
+policy still decides. No SQL, snapshot boundary or cache changed. Account
+therefore loses both its five-flight ingress fallback and the two final-query
+supervisor reads. Action sessions still read claims and walk admission/delegation
+families inside the complete resolver; unknown custom kinds conservatively
+retain that path. Specialized service-only endpoints keep their existing
+scope/kind/principal checks.
+
+Predictions were written to the RFC before implementation. Both RT0 account
+classes ran against the old code first and failed their new target tables:
+SQLite W1/increment 13/29, Postgres 13/23. After the change they match the
+predictions exactly: SQLite **6/22**, Postgres **6/16**. The account bearer
+shares the seeded principal to exercise exactly the existing row permissions
+and program reads, including a successful increment. All twelve previous
+warm classes on each adapter are unchanged, including action W1 at 21/19.
+First-use account measurements also equal the warm targets in this fixture;
+other cold prepares remain separately reported.
+
+The independent old-vs-new facts matrix now passes **8,477 states on each
+adapter**, with account/OIDC added and service covered on its new path. It
+covers deleted/revoked and expired rows, full/read scope and read caps,
+principal and store generations, incarnation, global/per-worker families,
+current/stale/missing supervisor revisions, absent generations, duplicate
+session rows, legacy null families and live action claims. Each new kind
+asserts zero SQL during resolution after facts were fetched. The baselines
+retain separate session, generation and supervisor reads; Postgres retains
+catalog discovery independently of the projection flags. Authority policy
+remains the original shared Rust resolver in both arms.
+
+Qualification: build passes. The full default core passes 681 library tests
+(three existing ignores), all 45 integration targets and 27 doctests. The full
+binary passes 577 tests (45 existing ignores). Identity conformance on both
+adapters and both account/ordinary RT0 tables pass; the broader Postgres family
+target passes 231 cases, and Postgres difftest passes 11 library/four store cases.
+No existing RT0 allowance, test retry, timeout, workload or durability setting
+was raised or skipped by this change.
+
+The stock `bash scripts/test-postgres.sh` finishes red on the retained evaluator
+Serializable stress (`40001`, conformance.rs:294 and its join at :307) and a
+45-second public-witness SQLite `deploy --restore-dormant` guard. The
+[existing guard ticket](../issues/20261023-snapback4-public-postgres-deploy-45-second-guard.md)
+records this new phase without claiming that concurrent work caused it. Every
+other Rust stage passes. The unchanged standalone public stage then passes
+completely with timing observations enabled: 442 commands, maximum 17.575
+seconds, original 45-second guard intact. Both-store release evolution and wire
+comparison, change evidence/SDK sync, bootstrap recovery/refusals, ownership
+restart/takeover and maintained-total recount pass. The initial timeout remains
+a failed attempt; the retry does not establish its cause.
+
+Cleanup independently confirms all 574 recorded owned PIDs absent. Primary
+PG16 master 2548461 and public-witness masters 2853216 and 3015122 all stop
+with `pg_ctl status` 3 and absent `postmaster.pid`. Raw logs, timings and PID
+records stay outside Git under `/tmp/sb4-rt3c/` and the two owned public fixture
+directories. Final free space is about 57 GiB, above the 25 GiB stop threshold.
+The previous `sb4-pg/s1-pg3` branch remains at 09ea38dbb3. No push, stash or Git
+configuration change.

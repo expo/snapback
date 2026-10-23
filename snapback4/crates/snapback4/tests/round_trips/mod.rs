@@ -59,13 +59,16 @@ fn run(pg: bool) {
     let source = include_str!("../../../../reports/20261022-rt-a-round-trips/admitted-s1.q");
     let host = Host::with_store(false, store, source);
     let now = host.shared.now();
-    let (session, action, store_id) = {
+    let (session, account, action, store_id) = {
         let mut engine = lock(&host.shared.engine);
         let session = identity::open_session(engine.store(), "guest:rt0", "guest", now).unwrap();
+        // Isolate the credential kind: both bearers face the same seeded rows
+        // and rules. Native S1 also issues its account bearer with open_session.
+        let account = identity::open_session(engine.store(), &session.principal, "account", now).unwrap();
         let action =
             snapback4_core::round_trips::action_claim(engine.store_mut(), &session, now).unwrap();
         let store_id = engine.store().store_identity().unwrap().unwrap();
-        (session, action, store_id)
+        (session, account, action, store_id)
     };
     let (tx, rx) = mpsc::channel();
     *lock(&host.shared.round_trips) = Some(tx);
@@ -93,24 +96,28 @@ fn run(pg: bool) {
     let mut measured = BTreeMap::new();
     let mut cold = BTreeMap::new();
     let classes = [
-        ("w1_point", "/q/W1", json!({"message":"m24"})),
-        ("w2_newest20", "/q/W2", json!({"room":"r0001"})),
+        ("w1_point", "/q/W1", token, json!({"message":"m24"})),
+        ("w2_newest20", "/q/W2", token, json!({"room":"r0001"})),
         (
             "unkeyed_increment",
             "/m/increment",
+            token,
             json!({"counter":"c0000"}),
         ),
         (
             "one_membership",
             "/m/checked",
+            token,
             json!({"counter":"c0000","room":"r0001"}),
         ),
+        ("account_w1", "/q/W1", Some(account.token.as_str()), json!({"message":"m24"})),
+        ("account_unkeyed_increment", "/m/increment", Some(account.token.as_str()), json!({"counter":"c0000"})),
     ];
-    for (class, path, args) in classes {
+    for (class, path, credential, args) in classes {
         for repetition in 0..4 {
-            let (status, reply, counts) = request(path, token, json!({"args":args}));
+            let (status, reply, counts) = request(path, credential, json!({"args":args}));
             assert_eq!(status, 200, "{class}: {reply}");
-            if class == "w1_point" {
+            if matches!(class, "w1_point" | "account_w1") {
                 assert_eq!(reply["data"]["id"], "m24", "{reply}");
             } else if class == "w2_newest20" {
                 assert_eq!(reply["data"].as_array().unwrap().len(), 20, "{reply}");

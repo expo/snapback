@@ -20,7 +20,10 @@ pub(crate) struct SessionFacts {
 }
 
 pub(crate) fn ordinary(facts: &SessionFacts) -> bool {
-    facts.sessions.iter().all(|session| matches!(session.kind.as_str(), "guest" | "user" | "member"))
+    // @ref LLP 3000.009.001.000.001#6 — RT3c: account/OIDC users and service
+    // seats use the same fixed facts, including supervised worker revisions.
+    // Action claims and unnamed kinds retain the complete snapshot resolver.
+    facts.sessions.iter().all(|session| matches!(session.kind.as_str(), "guest" | "user" | "member" | "account" | "oidc" | "service"))
 }
 
 /// One statement is a complete authority snapshot for these ordinary kinds.

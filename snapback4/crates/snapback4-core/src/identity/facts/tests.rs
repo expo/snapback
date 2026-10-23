@@ -21,8 +21,8 @@ pub(crate) fn cases(read_storage: bool) -> Vec<Case> {
     for read in [false, true] {
         if read && !read_storage { continue; }
         for state in 0..3 { for cap_live in [false, true] { for generation_bumped in [false, true] {
-            for worker in 0..5 { for store_generation_changed in [false, true] { for incarnation_changed in [false, true] {
-                for kind in ["guest", "user", "member", "service", "action", "custom"] {
+            for worker in 0..7 { for store_generation_changed in [false, true] { for incarnation_changed in [false, true] {
+                for kind in ["guest", "user", "member", "account", "oidc", "service", "action", "custom"] {
                     cases.push(Case { read_storage, read, state, cap_live, generation_bumped, worker,
                         store_generation_changed, incarnation_changed, kind, edge: 0 });
                 }
@@ -57,6 +57,8 @@ impl Case {
             2 => sql.push_str("INSERT INTO _meta VALUES ('worker:session-family','family'),('worker:session-revision','8');"),
             3 => sql.push_str("INSERT INTO _meta VALUES ('worker:session-family','other'),('worker:session-revision','7'),('worker:family:family','8');"),
             4 => sql.push_str("INSERT INTO _meta VALUES ('worker:session-family','family'),('worker:session-revision','7'),('worker:family:family','8');"),
+            5 => sql.push_str("INSERT INTO _meta VALUES ('worker:session-family','family');"),
+            6 => sql.push_str("INSERT INTO _meta VALUES ('worker:family:family','7');"),
             _ => unreachable!(),
         }
         if self.state != 2 {
@@ -132,7 +134,19 @@ pub(crate) fn compare(
                 }
                 Ok(Some(s))
             };
-            assert_eq!(resolve(tx, fetch(digest).unwrap(), 1_000, revision).unwrap(), old().unwrap(), "{case:?}, {digest}, {revision:?}");
+            let facts = fetch(digest).unwrap();
+            // The independent baseline above still performs separate session,
+            // generation and metadata reads. Newly admitted first-party kinds
+            // must consume only the fetched facts, even for read credentials
+            // and supervised worker families. This also catches a silent
+            // return to the full resolver when the results remain equivalent.
+            let scope = crate::round_trips::Scope::begin();
+            let new = resolve(tx, facts, 1_000, revision).unwrap();
+            if matches!(case.kind, "account" | "oidc" | "service") {
+                assert_eq!(scope.counts(), crate::round_trips::Counts::default(), "resolution re-read facts: {case:?}, {digest}, {revision:?}");
+            }
+            drop(scope);
+            assert_eq!(new, old().unwrap(), "{case:?}, {digest}, {revision:?}");
             // Identity comparison retains precedence over session resolution.
             for expected in ["store", "new-store", "wrong"] {
                 let facts = fetch(digest).unwrap();
