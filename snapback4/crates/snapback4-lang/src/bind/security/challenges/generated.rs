@@ -249,7 +249,7 @@ use super::*;
  let b=crate::compile(&[("schema.q".into(),format!("{}\ninvariant payments.markMissed only .dueAt < now\n",include_str!("../../../../tests/security/wave24/015.q")))]);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
  let mut out=Campaign::bounded(15000);out.work_remaining=Some(8192);let mut e=fixture(&b,&mut out).unwrap();let rows=readback(&e).unwrap();
  assert!(!rows["payments"].is_empty(),"{:?}",out.unsupported);
- let row=&rows["payments"][0];assert!(matches!(row.field("dueAt"),Ok(Value::Int(n)) if *n>=NOW),"{row:?}");
+ let row=rows["payments"].iter().find(|r|matches!(r.field("dueAt"),Ok(Value::Int(n)) if *n>=NOW)).expect("one generated payment is due in the future");
  let actor=rows["roles"].iter().find(|r|r.field("role").ok()==Some(&Value::String("desk".into()))).unwrap().field("principal").unwrap().as_str().unwrap();
  let p=&b.programs.iter().find(|bp|bp.program.name=="markMissed").unwrap().program;let trace=super::executed::trace(&b,p);
  let result=e.mutate("markMissed",None,Context::new(actor,BTreeMap::from([("payment".into(),row.field("id").unwrap().clone())])).at(NOW).with_fixture_trace(trace.clone())).unwrap();
