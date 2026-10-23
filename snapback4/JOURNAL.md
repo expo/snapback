@@ -102883,3 +102883,16 @@ admission. The witness now also requires those uncertified fields to be absent.
 The original status, refusal, bounded handoffs and next successful read remain
 asserted. Integration 23's final report records isolated, complete and packed
 qualification; the earlier interrupted full runs are not completion evidence.
+
+
+### 2026-10-23 — Integration 23: refresh the JSON-codec census after RT1 extraction
+
+RT1 moved mutation receipt serialization into the SQLite-gated mutation module.
+Its old engine/mod.rs function exception was consequently unconsumed. Remove
+that unreachable exception rather than exempting a web-reachable serializer.
+A new mutant lifts the actual module gate, requires the mutation source to
+re-enter the web census, and requires its direct JSON serializer to be refused.
+All exact-line, single-consumption and decoder-bypass checks remain intact.
+This changes test classification only; shipping Rust, SDK and wasm inputs are
+unchanged. The final complete Rust and client qualification starts after this
+fix; earlier full-pool failures and interrupted runs remain diagnostic evidence.

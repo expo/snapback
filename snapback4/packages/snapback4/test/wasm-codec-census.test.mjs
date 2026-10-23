@@ -1,6 +1,7 @@
 // @ref LLP 3000.002#proposed-device-representation-and-codec-redesign — suite-speed wiring proof; artifact families remain a separate measurement.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { census, webSources as sources, selectWebSources, mask, items, allow, refusalAllow, streamingAllow, core, device } from './wasm-codec-census.mjs';
 
 test('web-reachable typed JSON calls all use the codec funnel', () => {
@@ -326,4 +327,21 @@ test('streaming exceptions bind exact owner, line and single consumption', () =>
       assert.ok(census(mutant).some(error => error.includes('consumed')), entry.item);
     }
   }
+});
+
+// RT1 extracted this server-only codec from engine/mod.rs. A stale exception
+// must disappear; removing the actual module gate must expose the codec again.
+test('mutation receipt codec stays excluded only behind its SQLite module gate', () => {
+  const file = core + 'engine/mutation.rs', parent = core + 'engine/mod.rs';
+  const all = sources();
+  all.set(file, readFileSync(new URL('../../../' + file, import.meta.url), 'utf8'));
+  assert.equal(selectWebSources(all).has(file), false);
+  const gate = '#[cfg(feature = "sqlite")]\nmod mutation;';
+  assert.ok(all.get(parent).includes(gate));
+  all.set(parent, all.get(parent).replace(gate, 'mod mutation;'));
+  const exposed = selectWebSources(all);
+  assert.equal(exposed.has(file), true);
+  const errors = census(exposed);
+  assert.equal(errors.length, 1, errors.join('\n'));
+  assert.ok(errors[0].startsWith(file + ':') && errors[0].includes('serde_json::to_string(&outcome.receipt(Some(op)))'), errors.join('\n'));
 });
