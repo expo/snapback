@@ -52,6 +52,7 @@ impl Engine {
         digest: &str, sample: impl FnOnce() -> crate::identity::ServiceSample,
         authorize: impl FnOnce(crate::identity::RequestAuthority) -> Result<(), Refusal>,
     ) -> Result<MutationAcknowledgement, Refusal> {
+        crate::identity::request::require_digest(digest).map_err(|e| e.refusal())?;
         let mut refusal = None;
         let mut check = Some((sample, authorize));
         let result = self.mutate_inner(name, op, context, true, Some(&mut |tx| {

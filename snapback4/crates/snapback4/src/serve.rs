@@ -672,8 +672,20 @@ pub(crate) fn respond_with_headers(request: Request, shared: &Shared, status: u1
 }
 
 fn respond_full(request: Request, status: u16, body: impl latency::Reply, allow_origin: bool, sync_overflow: Option<Json>, shared: Option<&Shared>, extra: Vec<Header>) {
+    // @ref LLP 3000.009.001.000.001#31-authority-boundaries — generation loss never revokes credentials or authenticates response metadata.
+    if body.refusal_code() == Some("E_GENERATION") {
+        let body = serde_json::to_value(&body).expect("a generation refusal is JSON");
+        let body = operation_request::generation_reply(body);
+        return respond_full_normalized(request, 503, latency::Unobserved(body), allow_origin, None, shared,
+            extra.into_iter().filter(|h| !h.field.equiv("X-Snapback-Generation") && !h.field.equiv("Retry-After")).chain([Header::from_bytes("Retry-After", "1").unwrap(), Header::from_bytes("Access-Control-Expose-Headers", "Retry-After").unwrap()]).collect());
+    }
+    respond_full_normalized(request, status, body, allow_origin, sync_overflow, shared, extra)
+}
+
+fn respond_full_normalized(request: Request, status: u16, body: impl latency::Reply, allow_origin: bool, sync_overflow: Option<Json>, shared: Option<&Shared>, extra: Vec<Header>) {
     // Resolve queue status before generation stamping, so every door emits
     // the same refusal envelope as well as the same status and retry policy.
+    let generation_refusal = body.refusal_code() == Some("E_GENERATION");
     let queue_status = body.refusal_code()
         .filter(|code| *code != "E_RATE_LIMIT" || body.refusal_family() == Some("limit"))
         .and_then(committer::refusal_status);
@@ -712,7 +724,7 @@ fn respond_full(request: Request, status: u16, body: impl latency::Reply, allow_
     let overload = overload && status == 503;
     let capacity = bytes.0.len() + 512;
     let mut response = Response::from_data(bytes.0).with_status_code(status);
-    if let Some(shared) = shared && let Some(identity) = lock(&shared.dev_reset_store).as_ref() {
+    if !generation_refusal && let Some(shared) = shared && let Some(identity) = lock(&shared.dev_reset_store).as_ref() {
         response.add_header(Header::from_bytes("X-Snapback-Dev-Reset", identity.as_str()).unwrap());
     }
     if let Some(shared) = shared {

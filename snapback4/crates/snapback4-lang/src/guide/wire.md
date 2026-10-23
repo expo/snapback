@@ -316,6 +316,7 @@ Dev only, same machine; `serve` refuses each one.
 | 429 | Identity rate limit or per-principal wait capacity; retry as directed |
 | 500 | Internal store/response-metadata failure, `denied` |
 | 503 | Retryable refusal, store/infrastructure failure or host capacity; retry as directed |
+| 503 E_GENERATION | Generation mismatch at ingress, query, mutation or argument handoff; never 401 and no store metadata. Retryable adoption races (or unknown provenance) send `retryable:true` and `Retry-After: 1`; a known foreign activation requiring reopen sends `retryable:false` |
 
 Authentication refuses before an operation executes. Identity helpers in the
 JS client preserve the `denied` body on 401/403; do not replace it with a proxy
@@ -332,14 +333,22 @@ a number for `text`), or an argument the operation does not take is **400**
 persona) is **401** E_AUTH; an unknown operation or route is **404** E_OP, and
 a declared one at the wrong door (a job or query at `/m/`, a mutation at
 `/q/`) is **400** E_OP naming the right one; a body past its ceiling (1 MiB of JSON, 16 MiB for `/seed` and `/dev/reset`) is **413**. Once
-decoded, the operation runs, and everything it refuses is **200**: a query
+decoded, the operation runs, and an application refusal is **200**: a query
 answers `{denied}`, a mutation `{state:"failed", why}`. That includes value
 checks made while it runs — a missing required argument, text outside its
 bounds, `''` for a `text 1..500` argument too (`why.code` E_INPUT) — rules (E_RULE), constraints
 (E_CONSTRAINT), a delete that rows still reference (E_REFERENCED, naming the
 referencing column), `NOT_FOUND`, the program's own `require … else CODE` (with
 `why.site` and `why.rule`), and a reused write id (E_ID_REUSED). A retryable
-refusal is 503 instead. So branch on the body, not only the status; for an
+refusal is 503 instead. E_GENERATION is always 503, including after the
+server exhausts its two query handoffs; it omits store id, head, sequence,
+generation and the generation header. Preserve the session. Safe SDK reads
+retry a retryable generation 503 at most three times after the first attempt,
+respecting Retry-After, jitter and a ten-second cumulative wait limit, just
+like E_RATE_LIMIT. A known foreign activation is non-retryable: reopen the
+serving engine on the activated backend. When adoption provenance is unknown,
+the server permits bounded retry; a persistent foreign activation keeps refusing.
+So branch on the body, not only the status; for an
 `add(body: text <=200)` mutation:
 
 ```sh

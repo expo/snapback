@@ -56,7 +56,10 @@ export async function readWithAdmissionRetry(send: () => Promise<Response>, curr
   let waited = 0;
   for (let attempt = 0; ; attempt++) {
     const response = await send(), json = await readResponse(response, decode);
-    if (!overloaded(refusal(json.denied ?? json.why)) || attempt === 3 || !current()) return { response, json };
+    const why = refusal(json.denied ?? json.why);
+    // @ref LLP 3000.009.001.000.001#31-authority-boundaries — generation handoff exhaustion preserves credentials and permits bounded safe-read retries.
+    const generation = response.status === 503 && why?.code === 'E_GENERATION' && why.retryable === true;
+    if (!(overloaded(why) || generation) || attempt === 3 || !current()) return { response, json };
     const delay = jitter(Math.max(250 * 2 ** attempt, retryAfter(response.headers.get('retry-after'))));
     if (waited + delay > 10_000) return { response, json };
     await pause(delay, signal);

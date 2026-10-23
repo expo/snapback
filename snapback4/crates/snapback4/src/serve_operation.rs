@@ -133,3 +133,11 @@ pub(super) fn query_argument_refusal(request: Request, shared: &Shared, name: St
     }).unwrap_or_else(denied);
     respond_timed(request, shared, reply.status, reply.body)
 }
+
+// The wire envelope carries no reliable adoption provenance: stale readers and
+// foreign activation share E_GENERATION. Use the lead's bounded-retry fallback.
+pub(super) fn generation_reply(body: Json) -> Json {
+    let mut why = body.get("denied").or_else(|| body.get("why")).expect("generation refusal").clone();
+    why["retryable"] = json!(true);
+    json!({"denied":why,"complete":false})
+}

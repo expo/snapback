@@ -103450,3 +103450,45 @@ Disk stayed above the user floor; a birth-time/size/inode manifest allowed
 removal only of 1,568 handoff files created by this fix round, retaining 7,279
 inherited files. Final free space is 35 GiB. Raw evidence stays in
 `/tmp/sb4-rt3b-fix1/`; one new local commit, no push, stash or Git config change.
+
+
+## 2026-10-23 — RT3b fix round 2: generation refusals and request NUL
+
+Every HTTP E_GENERATION now returns 503 with no store metadata or generation
+header, including bearer/persona ingress, keyed/unkeyed mutations, argument
+handoff and query handoff exhaustion. Cached dev-reset identity is suppressed
+too. The response envelope cannot reliably distinguish this process's stale
+readers from a foreign activation; the lead's ambiguous-cause rule applies:
+retryable:true with Retry-After: 1. Persistent foreign activation keeps refusing
+until the serving engine reopens. Safe SDK reads share overload's four-attempt,
+ten-second cumulative wait bound and jitter; mutation delivery keeps its owner.
+The wire and refusal cards record that contract and the known-foreign false
+policy when provenance can be established.
+
+Required request snapshots, borrowed authority and authorized mutations reject
+NUL as non-retryable E_AUTH before SQL. Optional ingress remains absent with
+zero SQL. Before the fixes, all 18 new both-store generation HTTP witnesses fail;
+six required-boundary NUL cases fail while two optional controls pass; and the
+SDK's exact-parent build fails four cases while four controls pass. Afterwards
+all 18 HTTP, eight NUL and eight SDK witnesses pass. The argument witness forces
+int → text → int at the actual refusal reader checkout. NUL snapshots previously
+made two counted calls and returned E_GENERATION; mutation calls made nine and
+returned retryable missing-identity E_STORE; borrowed authority returned E_STORE
+with no extra SQL. Required boundaries now return E_AUTH with zero SQL.
+
+Final qualification passes: shipped build; complete binary 567 passed/35 named
+ignores with eight test threads; both-store RT3b authority 42/42; identity 92/92,
+including both 4,545-state matrices; both RT0 ratchets with byte-identical tables
+and unchanged hashes; SDK package build/typecheck and 171 tests; guide 127; the
+complete Postgres script and public serving/P1-CE/restart/takeover/release/P1-MC;
+and ref-check. The checkout has no commit-unknown-named package file; the 24
+transport-outcomes cases exercise real COMMIT followed by lost fetch/body
+replies, and pass alongside delivery-refusal. Details and hashes are in the
+[continuation report](./reports/20261023-rt3br-rt4.md).
+
+Evaluator 643510 and public master 824938 are stopped and independently
+confirmed (status 3, no postmaster.pid). None of 2,080 recorded PIDs remains.
+Disk stayed above the floor: recorded minimum 29.4 GiB, final 70.9 GiB. Cargo
+handoffs preserve inherited artifacts and remove only manifest-proven round-2
+outputs. Raw evidence stays in `/tmp/sb4-rt3b-fix2/`. One additive local commit;
+no push, stash, history rewrite or Git configuration change.

@@ -281,7 +281,14 @@ app. Keep the JS client and its device module from the same build.
 E_GENERATION means the caller's assumed backend differs from the store's
 active backend. For example, a queued write can carry the old generation
 after a schema adoption; let the client adopt the current backend and
-resend under that generation with the same intent ID. If the message names
+resend under that generation with the same intent ID. On HTTP, every door
+returns 503, never 401, without store metadata or a generation header.
+An adoption race in this process sends retryable:true and Retry-After: 1;
+safe SDK reads make at most four attempts with a ten-second total wait limit.
+Known foreign activation requiring an engine reopen is retryable:false.
+If the response boundary cannot distinguish adoption provenance it permits
+bounded retry; a foreign activation continues refusing until the host reopens.
+Preserve the session. If the message names
 a release mismatch, serve the activated release; a deployment-owned store
 cannot be opened as an unrelated dev project. Use `snapback4 doctor` to
 compare the live and stored generations before restarting the right host.
