@@ -3,6 +3,7 @@ use crate::{RuntimeError, store_port::{AnyTx, AnyStore}};
 use std::cell::Cell;
 
 mod member_store;
+pub(crate) mod outcome;
 
 // @ref LLP 3000.009.001.000.000#3.2 — kinds describe durable units, including writes that publish no sequence.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -245,7 +246,7 @@ impl Committer {
         Self::continue_pending(host, resolution.pending, continuation).map(Committed)
     }
 
-    fn finish<H, T, D>(
+    pub(super) fn finish<H, T, D>(
         host: &mut H,
         resolution: Resolution<T, D>,
         continuation: impl FnOnce(&mut H, D, T) -> Result<T, RuntimeError>,
@@ -267,7 +268,7 @@ impl Committer {
             .map_err(|source| RuntimeError::Continuation(Box::new(source)))
     }
 
-    fn execute<T>(
+    pub(super) fn execute<T>(
         tx: &AnyTx<'_>,
         member: Member<impl FnOnce(MemberTx<'_, '_>) -> MemberResult<T>>,
     ) -> MemberResult<T> {

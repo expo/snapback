@@ -104935,3 +104935,25 @@ headroom is 46.42 GiB, above the 40 GiB stop; only fourteen newly created,
 unlocked incremental-cache sessions were removed. No q24 files or processes
 were touched. Reports hold summarized evidence only; raw logs/data remain
 outside Git under /tmp/sb4-pipe.
+
+## 2026-10-23 — G2 program invocation outcome protocol (N=1)
+
+Lane `sb4-pg/g23`, based on RT6 `2fdab64882`, on expo-build-450a. The common
+program attempt is independent of physical transaction custody. Only an
+acknowledged original rollback or explicit COMMIT abort permits one bounded
+fallback; failed rollback and ambiguous COMMIT never rerun. Post-durability
+publication/entropy stays ordered. Owned program invocations carry private
+in-memory identities, with terminal duplicate delivery suppression; new
+unkeyed invocations remain distinct and add neither public ids nor durable
+internal receipts. The committer §3.4 amendment points to the accepted controls
+RFC's program-only exception. G3 group-tail/queue work follows separately.
+
+Private PG16 uses loopback 55473; postmaster 4027594 is recorded under
+`/tmp/sb4-g23/`, outside git. PG17/55440 is untouched. Tests and final cleanup
+are recorded in the G2/G3 completion entry; no raw logs are committed.
+
+G2 checkpoint validation: the private-invocation witness and all three outcome
+witnesses pass; the existing committer scope passes (18, with four private-PG
+fixtures deferred to the final suite). All 25 Postgres ownership witnesses pass,
+including lost COMMIT acknowledgement, engine propagation, fenced takeover and
+new-owner receipt replay. The final G3 entry records the complete battery.

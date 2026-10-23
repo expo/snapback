@@ -671,6 +671,24 @@ impl<'a> Tx<'a> {
         Ok(())
     }
 
+    pub(crate) fn commit_program(self) -> Result<(), crate::engine::committer::outcome::Failure> {
+        use crate::engine::committer::outcome::Failure;
+        // SQLite's local COMMIT error leaves the transaction open (notably a
+        // deferred constraint). Prove it ended before authorizing a fallback.
+        if let Err(error) = self.conn().execute_batch("COMMIT") {
+            let error = error.into();
+            return Err(match self.tx.rollback() {
+                Ok(()) => Failure { error, aborted: true, member: None },
+                Err(rollback) => Failure { error: RuntimeError::CommitOutcomeUnknown(format!("rollback was not acknowledged: {rollback}; original: {error}")), aborted: false, member: None },
+            });
+        }
+        if self.read_sessions_installed.get() {
+            if let Some(guard) = self.read_sessions_installation.borrow_mut().as_mut() { **guard = true; }
+            else { self.read_sessions.publish(true); }
+        }
+        Ok(())
+    }
+
     pub fn rollback(self) -> Result<(), RuntimeError> {
         self.tx.rollback()?;
         Ok(())

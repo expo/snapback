@@ -11,7 +11,7 @@ pub struct DurablePublication {
     pub preserved: Option<Vec<String>>,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct MutationAcknowledgement {
     pub outcome: MutationOutcome,
     pub publication: Option<DurablePublication>,
@@ -49,14 +49,12 @@ impl Engine {
     /// authority check and serial receipt check belong to this Program member.
     // @ref LLP 3000.009.001.000.001#31-authority-boundaries — a carried credential is not proof of current authority.
     pub fn mutate_authorized(&mut self, name: &str, op: Option<&str>, context: Context,
-        digest: &str, sample: impl FnOnce() -> crate::identity::ServiceSample,
-        authorize: impl FnOnce(crate::identity::RequestAuthority) -> Result<(), Refusal>,
+        digest: &str, mut sample: impl FnMut() -> crate::identity::ServiceSample,
+        mut authorize: impl FnMut(crate::identity::RequestAuthority) -> Result<(), Refusal>,
     ) -> Result<MutationAcknowledgement, Refusal> {
         crate::identity::request::require_digest(digest).map_err(|e| e.refusal())?;
         let mut refusal = None;
-        let mut check = Some((sample, authorize));
         let result = self.mutate_inner(name, op, context, true, Some(&mut |tx| {
-            let (sample, authorize) = check.take().expect("one authority boundary per in-place member");
             let facts = tx.request_authority(digest, sample())?;
             authorize(facts).map_err(|why| {
                 // The RuntimeError unwinds the member frame. Preserve the exact
@@ -100,12 +98,52 @@ impl Engine {
                 Err(error) => Err(error),
             }.map(MutationAcknowledgement::unpublished);
         }
-        Committer::run_with(self, |engine| {
-            let physical = match digest {
-                Some(digest) => engine.store.request_write_transaction(digest,&context.viewer,op)?,
-                None => engine.store.transaction()?,
-            };
-            Committer::run_transaction(physical, Member::new(Kind::Program, |tx| {
+        let Engine { store, schema, programs, entropy, minter, presence, ceilings, store_id, generation, dev_effects,
+            #[cfg(feature = "evaluation-support")] evaluation_precharge, .. } = self;
+        let host = ProgramHost { schema, programs, entropy: *entropy, minter, presence: presence.clone(), ceilings: *ceilings,
+            store_id, generation: *generation, dev_effects: *dev_effects,
+            #[cfg(feature = "evaluation-support")] evaluation_precharge: *evaluation_precharge };
+        let mut minted = Vec::new();
+        let original = context;
+        let resolution = Committer::run_program(store, digest, &original.viewer, op, |tx| {
+            let mut context = original.clone();
+            context.new_ids = minted.iter().cloned().chain(original.new_ids.iter().skip(minted.len()).cloned()).collect();
+            program_attempt(&host, tx, name, op, context, publication_requested, &wire_args, &mut authority, &mut minted)
+                .map(|d| d.map(|(outcome, data)| Pending::new(outcome, data)))
+        })?;
+        Committer::finish(self, resolution, |engine, data, mut ack| {
+            if let Some((entropy, publication)) = data { engine.entropy = entropy; ack.publication = publication; }
+            Ok(ack)
+        })
+
+    }
+
+}
+
+#[cfg(test)]
+#[path = "../store/publication_tests.rs"]
+pub(crate) mod tests;
+
+pub(super) struct ProgramHost<'a> {
+    pub schema: &'a Schema,
+    pub programs: &'a BTreeMap<String, Program>,
+    pub entropy: u64,
+    pub minter: &'a crate::ids::Mint,
+    pub presence: Option<std::sync::Arc<dyn Presence>>,
+    pub ceilings: Ceilings,
+    pub store_id: &'a str,
+    pub generation: u64,
+    pub dev_effects: bool,
+    #[cfg(feature = "evaluation-support")]
+    pub evaluation_precharge: Metered,
+}
+pub(super) type ProgramPending = Pending<MutationAcknowledgement, Option<(u64, Option<DurablePublication>)>>;
+type AuthorityCheck<'a> = Option<&'a mut dyn FnMut(&super::committer::MemberTx<'_, '_>) -> Result<(), RuntimeError>>;
+
+pub(super) fn program_attempt<'m, 's>(host: &ProgramHost<'_>, tx: super::committer::MemberTx<'m, 's>,
+    name: &str, op: Option<&str>, mut context: Context, publication_requested: bool,
+    wire_args: &serde_json::Value, authority: &mut AuthorityCheck<'_>, minted: &mut Vec<String>,
+) -> Result<super::committer::Disposition<(MutationAcknowledgement, Option<(u64, Option<DurablePublication>)>)>, RuntimeError> {
             if let Some(check) = authority.as_mut() { check(&tx)?; validate::write_identity(&context.viewer, op)?; }
             // @ref LLP 3000.009.001.000.001#35-each-command-keeps-its-own-place — a later command observes a receipt committed during the head-lock wait.
             if let Some(op) = op
@@ -116,9 +154,9 @@ impl Engine {
                 return tx.rollback((MutationAcknowledgement::unpublished(outcome), None));
             }
             if let Some(op)=op{tx.require_placement(&context.viewer,op,name,&wire_args)?;}
-            context.now = Some(tx.pin_writer_time(&engine.schema, context.now.unwrap_or(0))?);
-            engine.schema.check_delivery(name, context.delivery_fingerprint.as_deref())?;
-            let program = engine.programs.get(name).ok_or_else(|| RuntimeError::UnknownOp(name.to_owned()))?.clone();
+            context.now = Some(tx.pin_writer_time(host.schema, context.now.unwrap_or(0))?);
+            host.schema.check_delivery(name, context.delivery_fingerprint.as_deref())?;
+            let program = host.programs.get(name).ok_or_else(|| RuntimeError::UnknownOp(name.to_owned()))?.clone();
             if program.kind == ProgramKind::Query {
                 return Err(RuntimeError::UnknownOp(format!("{name} is a query, not a mutation")));
             }
@@ -128,15 +166,15 @@ impl Engine {
             if program.kind == ProgramKind::Job {
                 return Err(RuntimeError::UnknownOp(format!("{name} is a job: a schedule fires it, or `snapback4 run {name}` does; no caller can")));
             }
-            if let Err(error) = validate::validate_inputs(&engine.schema, &program, &mut context.args) {
+            if let Err(error) = validate::validate_inputs(host.schema, &program, &mut context.args) {
                 return tx.abort((MutationAcknowledgement::unpublished(MutationOutcome { receipt_only: false, state: WriteState::Failed { why: error.refusal(), current: None }, metered: Metered::default(), tables: Vec::new(), events: 0, replayed: false }), None));
             }
             if context.presence.is_none() {
-                context.presence = engine.presence.clone();
+                context.presence = host.presence.clone();
             }
-            context.entropy = engine.entropy;
-            context.minter = engine.minter.clone();
-            let ceilings = engine.ceilings;
+            context.entropy = host.entropy;
+            context.minter = host.minter.clone();
+            let ceilings = host.ceilings;
             let viewer = context.viewer.clone();
             let now = context.now.unwrap_or(0);
             // An `image`/`video` argument names an upload by id; the program
@@ -166,9 +204,9 @@ impl Engine {
                 }
             }
             tx.savepoint("program")?;
-            let mut runner = Runner::new(&tx, &engine.schema, context, Meter::new(ceilings, Cut::Abort), tx.next_seq()?);
+            let mut runner = Runner::new(&tx, host.schema, context, Meter::new(ceilings, Cut::Abort), tx.next_seq()?);
             #[cfg(feature = "evaluation-support")]
-            { runner.meter.used = engine.evaluation_precharge; }
+            { runner.meter.used = host.evaluation_precharge; }
             let ran = runner.run(&program).and_then(|value| {
                 runner.charge_output(&value)?;
                 Ok(value)
@@ -186,6 +224,7 @@ impl Engine {
             let rows_written = runner.rows_written;
             let mut read_tables = runner.read_tables.clone();
             let entropy = runner.context.entropy;
+            *minted = runner.context.minted_ids.clone();
             drop(runner);
             let outcome = match ran {
                 Ok(result) => {
@@ -193,15 +232,15 @@ impl Engine {
                     // @ref LLP 3000.019#4 — P7 reports keep at-most-once custody.
                     // @ref LLP 3000.022#6 — a covered report keeps only a receipt at the committed head.
                     let receipt_only = rows_written == 0 && outbox.is_empty()
-                        && engine.schema.delivery.iter().any(|binding| binding.mutation == name);
+                        && host.schema.delivery.iter().any(|binding| binding.mutation == name);
                     let seq = tx.next_seq()? - u64::from(receipt_only);
                     read_tables.extend(tables.iter().cloned());
                     if !receipt_only {
                         tx.record_commit(seq, now, (name, &viewer, program.kind.word()), &tables, rows_written)?;
                         tx.append(seq, &events)?;
-                        tx.record_effects(&outbox, seq, now, engine.dev_effects, &engine.schema)?;
+                        tx.record_effects(&outbox, seq, now, host.dev_effects, host.schema)?;
                     }
-                    MutationOutcome { receipt_only, state: WriteState::Sent { seq, result }, metered, tables, events: partition::disclosed_event_count(&engine.schema, &events, &action_tables), replayed: false }
+                    MutationOutcome { receipt_only, state: WriteState::Sent { seq, result }, metered, tables, events: partition::disclosed_event_count(host.schema, &events, &action_tables), replayed: false }
                 }
                 Err(error @ RuntimeError::StoreUnsupported { .. }) => {
                     tx.rollback(())?;
@@ -211,13 +250,13 @@ impl Engine {
                     tx.rollback_to("program")?;
                     let current = match &error {
                         RuntimeError::Conflict { current } => {
-                            let mut probe = Runner::new(&tx, &engine.schema, Context::new(viewer.clone(), BTreeMap::new()).at(now), Meter::new(Ceilings::default(), Cut::Cap), 0);
+                            let mut probe = Runner::new(&tx, host.schema, Context::new(viewer.clone(), BTreeMap::new()).at(now), Meter::new(Ceilings::default(), Cut::Cap), 0);
                             let value = probe.get(current).ok();
                             value
                         }
                         _ => None,
                     };
-                    let why=seat_refusal(&engine.schema,&error,&viewer);
+                    let why=seat_refusal(host.schema,&error,&viewer);
                     MutationOutcome { receipt_only: false, state: WriteState::Failed { why, current }, metered, tables: Vec::new(), events: 0, replayed: false }
                 }
                 Err(error) => {
@@ -235,23 +274,12 @@ impl Engine {
             }
             let publication = match outcome.state {
                 WriteState::Sent { seq, .. } if publication_requested => Some(DurablePublication {
-                    store_id: engine.store_id.clone(), head: seq, generation: engine.generation,
+                    store_id: host.store_id.to_owned(), head: seq, generation: host.generation,
                     preserved: if outcome.receipt_only {
-                        Some(crate::revocation::Footprint::default().preserved(&engine.schema))
-                    } else { committed_preservation(tx.change_footprint(), &engine.schema) },
+                        Some(crate::revocation::Footprint::default().preserved(host.schema))
+                    } else { committed_preservation(tx.change_footprint(), host.schema) },
                 }),
                 _ => None,
             };
             tx.complete((MutationAcknowledgement::unpublished(outcome), Some((entropy, publication))))
-        }).pending(|(outcome, entropy)| Pending::new(outcome, entropy))) }, |engine, data, mut ack| {
-            // @ref LLP 3000.009.001.000.000#3.7 — entropy advances only in the durable member's continuation.
-            if let Some((entropy, publication)) = data { engine.entropy = entropy; ack.publication = publication; }
-            Ok(ack)
-        })
-    }
-
 }
-
-#[cfg(test)]
-#[path = "../store/publication_tests.rs"]
-pub(crate) mod tests;

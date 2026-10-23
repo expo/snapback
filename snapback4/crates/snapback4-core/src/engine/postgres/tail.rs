@@ -49,7 +49,7 @@ pub(super) struct Commit {
 }
 
 impl Tx<'_> {
-    pub(super) fn flush_tail(&self) -> Result<(), RuntimeError> {
+    pub(crate) fn flush_tail(&self) -> Result<(), RuntimeError> {
         self.flush_tail_end("")
     }
     pub(super) fn flush_tail_end(&self, end: &str) -> Result<(), RuntimeError> {

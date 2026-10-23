@@ -202,6 +202,21 @@ impl AnyTx<'_> {
 }
 
 impl<'store> AnyTx<'store> {
+    pub(crate) fn prepare_program_commit(&self) -> Result<(), RuntimeError> {
+        match self {
+            Self::Sqlite(_) => Ok(()),
+            #[cfg(feature = "postgres")]
+            Self::Postgres(PostgresTx(tx)) => tx.flush_tail(),
+        }
+    }
+    pub(crate) fn commit_program(self) -> Result<(), crate::engine::committer::outcome::Failure> {
+        use crate::engine::committer::outcome::Failure;
+        match self {
+            Self::Sqlite(SqliteTx(tx)) => tx.commit_program(),
+            #[cfg(feature = "postgres")]
+            Self::Postgres(PostgresTx(tx)) => tx.commit().map_err(Failure::commit),
+        }
+    }
     pub(crate) fn from_sqlite(tx: sqlite::Tx<'store>) -> Self { Self::Sqlite(SqliteTx(tx)) }
     // Adapter-only activation callbacks keep backend borrows scoped to the port.
     pub(crate) fn with_sqlite<T>(&self, run: impl FnOnce(&sqlite::Tx<'store>) -> T) -> T {
