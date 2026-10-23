@@ -1,0 +1,16 @@
+muse: workspace root: /home/ccheever/projects/snapback-sb4loop (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=c9690d52-80d4-43f3-8285-6854f4a3bccf]: Subscription quota exhausted. Your usage window resets at 2026-10-26T00:00:00Z. (rate_limit_error)
+[muse-exec] plan quota exhausted; retrying with the Meta API key
+muse: workspace root: /home/ccheever/projects/snapback-sb4loop (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY.
+
+I independently reviewed the §20.1 amendment and the complete implementation at `177b225b88`, read-only, no builds or test runs. No material counterexample found. What I checked against the code:
+
+- **Amendment–code match**: the new §20.1 paragraph (omit unused duplicate plain unique declarations with exactly identical ordered columns; keep a current declaration when none referenced; preserve every explicitly referenced name; keep at least one enforcing key; never consolidate different ordered keys or nonplain components; both source sets must compile first) matches `prune_unused_equivalent_keys` exactly: group key is the ordered `columns` vec, filtered by `unique && is_plain()`; keep-rule is used-names-win, else current-name-preferred, else one survivor; the both-compile gate is at [release_bridge.rs:177](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/src/release_bridge.rs:177).
+- **No ordinary-evolution false refusal**: prune only deletes declarations and emits no diagnostics; a bad deletion would surface as a compile diagnostic and fall back to the complete/guarded current bridge, never as silent wrong behavior.
+- **Dependency custody**: the used-set covers `read.index` on all `Read`/`Exists`/`Created` (parse-level, so pre-binding names intact), `merge.index` plus nested lane reads via the shared walker, sync horizons, and every expression-holding field (`document()` covers programs/functions/shapes/backfills; the manual walk covers table rules, column reads/defaults, maintained filters, final-exists, index computed values, invariants, maintains, timelines, views, feed views, actions, arg defaults). `Walk` carries no index; `order_keys` are columns, not names; effects/routes/schedules/extractions hold no expressions; word/token/calendar/contribution indexes are excluded from grouping.
+- **Identity/strategy items**: injective `column_names` shared with CLI admission ([rollback_views.rs:192](/home/ccheever/projects/snapback-sb4loop/snapback4/src/verbs/rollback_views.rs:192)); same-set replacement on strengthening; line-span removal consistent with single-line declaration style; the default rollback path goes through `loosen`, and prune runs only in the selective `loosen_guarded` path where duplicates can be generated.
+
+Nits (non-material): refusal code/message variance within identical ordered keys is not compared, so an unreferenced old custom message can be dropped with the duplicate (constraint itself is preserved); line-granular removal assumes single-line index declarations; maintain-level `indexes` duplicates are outside prune's table-level scope.
