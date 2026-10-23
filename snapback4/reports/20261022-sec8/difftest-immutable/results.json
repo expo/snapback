@@ -1,0 +1,41 @@
+[
+  {
+    "mode": "run",
+    "cases": 20000,
+    "seed": 0,
+    "workers": 6,
+    "exit": 0,
+    "binarySha256": "22b01a389fcd8a7f90b7f27e7263ca337d6aa8e8d0861ad3d08a95ef20445744",
+    "disagreeing": 0,
+    "signatures": {},
+    "newSignatures": []
+  },
+  {
+    "mode": "run-devices",
+    "cases": 1000,
+    "seed": 0,
+    "workers": 6,
+    "exit": 0,
+    "binarySha256": "22b01a389fcd8a7f90b7f27e7263ca337d6aa8e8d0861ad3d08a95ef20445744",
+    "disagreeing": 0,
+    "signatures": {},
+    "newSignatures": []
+  },
+  {
+    "mode": "run-lean",
+    "cases": 100000,
+    "seed": 0,
+    "workers": 8,
+    "exit": 1,
+    "binarySha256": "22b01a389fcd8a7f90b7f27e7263ca337d6aa8e8d0861ad3d08a95ef20445744",
+    "disagreeing": 761,
+    "signatures": {
+      "lean--code--E_RULE~NOT_FOUND": 33,
+      "lean--continuation-next--next~no-next": 180,
+      "lean--next--next~no-next": 439,
+      "lean--next--no-next~next": 1,
+      "lean--prelude-code--E_RULE~NOT_FOUND": 108
+    },
+    "newSignatures": []
+  }
+]

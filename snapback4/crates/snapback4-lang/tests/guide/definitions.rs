@@ -137,6 +137,18 @@ fn w11_every_registered_code_quotes_its_definition() {
 // independent of the paragraph selector: do not regenerate them to bless a new
 // first mention. Whitespace may change; the reason for the code must survive.
 const DEFINITIONS: &[(&str, &str)] = &[
+    ("E_COLUMN_WRITE", "a column write/freeze rule names an invalid or duplicate payload column"),
+    ("N_DERIVED_WRITE_AUTHORITY", "an inferred candidate from authored change guards or approval data"),
+    ("N_PRESENCE_LOOSENING", "a required-to-optional column change"),
+    ("N_TABLE_QUESTIONNAIRE", "Role-wide access and restating invariants share one table questionnaire."),
+    ("N_APPROVAL_NOT_ENFORCED", "An approval flag is written but not inspected by a lifecycle transition."),
+    ("N_EDIT_AFTER_APPROVAL", "A checked value or media artifact can change without a positive creation-state restriction."),
+    ("N_CHILD_EVIDENCE_PRESENCE", "A separately created media child is not required by a parent transition."),
+    ("N_TIME_TRANSITION", "A missed, overdue or expired state is written without a server-clock comparison."),
+    ("N_GUARD_NOT_CONSUMED", "A transition checks a related state or Boolean without consuming it."),
+    ("N_CALENDAR_DURATION", "A 365-day multiple may differ from a calendar anniversary."),
+    ("N_DEPENDENT_WINDOW", "A written deadline is bounded against now without consulting a dependent stored deadline."),
+
     ("N_CREATE_EDIT_ASYMMETRY", "An argument-supplied column has a specific change guard on edit that creation does not imply."),
     ("N_PRIVATE_CREATE_EDIT_ASYMMETRY", "A caller can initialize a private column without its change guard and outside its column read audience."),
     ("N_EVIDENCE_REMOVAL", "Delete, detachment or explicit clearing can remove parent-linked media evidence."),
@@ -146,7 +158,7 @@ const DEFINITIONS: &[(&str, &str)] = &[
     ("N_CREATION_MONEY", "Creating a row accepts omitted money."),
     ("N_CONSTANT_APPROVAL", "Creation stores a constant true approval/payment flag."),
     ("N_TRANSITION_BYPASS", "A generic enum setter reaches a state also reached by a stricter decision mutation."),
-    ("N_STALE_CREATION_CHECK", "A creator checks a mutable eligibility column that an approval-like transition does not recheck."),
+    ("N_STALE_CREATION_CHECK", "A creator checks a mutable eligibility column that a later literal-state transition does not recheck."),
     ("N_DURATION_BOUNDS", "Operations apply different server-relative duration bounds to one column."),
     ("N_ROLE_WIDE_WRITE", "A global role plus viewer attribution does not identify the owner of this resource."),
     ("E_SECURITY_NOTES", "the individual disposition file is malformed, cannot be written, or sources changed while recording a review."),

@@ -77,6 +77,7 @@ pub use program::BoundProgram;
 pub use aggregate_copies::truth as rule_truth;
 use snapback4_core::schema::Schema;
 
+#[derive(Clone)]
 pub struct Bound {
     pub rollback_hides:Vec<crate::ast::RollbackHide>,
     pub invariants: Vec<security::Invariant>,

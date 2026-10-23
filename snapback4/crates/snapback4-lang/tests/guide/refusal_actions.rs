@@ -2,10 +2,22 @@
 //! These facts supplement the definition pins. A code label alone cannot tell
 //! a caller whether to retry, replace intent, change a declaration, or show no data.
 pub(super) const ACTIONS: &[(&str, &[&str])] = &[
+    ("E_COLUMN_WRITE", &["Name an ordinary column once", "use current-row rule syntax"]),
+    ("N_DERIVED_WRITE_AUTHORITY", &["Enforce the candidate", "record its individual specification decision"]),
+    ("N_PRESENCE_LOOSENING", &["Declare presence intent", "production compares the selected release independently"]),
+    ("N_TABLE_QUESTIONNAIRE", &["Answer from the specification", "JSON retains every underlying note and individual decision ID.", "The grouped line is advisory and has no separate ID."]),
+    ("N_APPROVAL_NOT_ENFORCED", &["Decide which transitions require approval", "declare independent intent", "test both gating boolean values."]),
+    ("N_EDIT_AFTER_APPROVAL", &["Decide whether approval must be renewed after edits or replacements", "declare column update intent."]),
+    ("N_CHILD_EVIDENCE_PRESENCE", &["Required child fields do not require a child row.", "Declare parent integrity intent with the specification's draft-state exceptions."]),
+    ("N_TIME_TRANSITION", &["Confirm the relevant deadline against the specification", "test both sides of its boundary."]),
+    ("N_GUARD_NOT_CONSUMED", &["Decide whether the guard represents one-use authorization", "test repeat transitions."]),
+    ("N_CALENDAR_DURATION", &["Decide fixed elapsed days versus a calendar date", "test leap-year boundaries."]),
+    ("N_DEPENDENT_WINDOW", &["Confirm the window base", "enforce the actual resource deadline when required."]),
+
     ("N_CREATE_EDIT_ASYMMETRY", &["Confirm creation authority against the specification", "test independent column write intent with non-null input."]),
     ("N_PRIVATE_CREATE_EDIT_ASYMMETRY", &["Confirm who may supply this field at creation", "test independent column write intent with a non-null value."]),
     ("N_EVIDENCE_REMOVAL", &["confirm last-child retention against the specification.", "Guard deletion or detachment transactionally", "declare independent parent integrity intent and run test."]),
-    ("N_RETAINED_ROLE_GRANT", &["Recheck current role or revoke derived grants.", "Intentional retained authority needs an individual source-bound disposition."]),
+    ("N_RETAINED_ROLE_GRANT", &["Recheck current role or revoke derived grants.", "Intentional retained authority needs an individual dependency-bound disposition."]),
     ("N_OPTIONAL_UPLOAD_CREATE", &["When independent intent requires a child, either require the upload before parent creation or always create the child with deliberately optional media; skipping the child on a null upload violates that presence intent.", "Optional media columns and guarded optional attachments do not require acknowledgment; a required child column alone does not require a child row."]),
     ("N_CREATION_REASON", &["Compare the justification requirement with the spec", "use text 1..N when required.", "This name-based question is advisory."]),
     ("N_CREATION_MONEY", &["Model and require the amount when the spec requires a fee or payment", "confirm intentional optional amounts against the spec.", "This name-based question is advisory."]),

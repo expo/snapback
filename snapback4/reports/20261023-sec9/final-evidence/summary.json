@@ -1,0 +1,27 @@
+{
+  "corpus": {
+    "projects": 450,
+    "gatedProjects": 32,
+    "gateSites": 58,
+    "productionRefusals": 36,
+    "latencyMs": {
+      "min": 103,
+      "median": 2782.0,
+      "p95": 10135,
+      "max": 10201
+    }
+  },
+  "wave25": {
+    "projects": 50,
+    "gatedProjects": 3,
+    "gateSites": 3,
+    "productionRefusals": 5,
+    "latencyMs": {
+      "min": 124,
+      "median": 5337.5,
+      "p95": 10140,
+      "max": 10160
+    }
+  },
+  "latencyMeasurement": "CLI security deploy campaign elapsed time: analysis, bounded replay, source revalidation and dispositions; not entire deploy invocation"
+}

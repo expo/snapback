@@ -9,7 +9,7 @@ import {join,basename} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {spawnSync} from 'node:child_process';
 const root=fileURLToPath(new URL('../../../',import.meta.url));
-test('packed security card and starter run as written; broad reads refute', {timeout:360000}, async t=>{
+test('packed security card and starter run as written; broad reads refute', {timeout:900000}, async t=>{
  const dir=mkdtempSync(join(tmpdir(),'sb4-security-packed-'));t.after(()=>rmSync(dir,{recursive:true,force:true}));
  const run=(cmd,args,cwd=dir,expected=0)=>{const r=spawnSync(cmd,args,{cwd,encoding:'utf8',timeout:120000,env:{...process.env,SNAPBACK4_BIN:''}});assert.equal(r.status,expected,`${cmd} ${args.join(' ')}\n${r.stdout}\n${r.stderr}`);return r.stdout;};
  const pack=source=>join(dir,JSON.parse(run('npm',['pack','--ignore-scripts','--json','--pack-destination',dir],source))[0].filename);
@@ -42,18 +42,57 @@ test('packed security card and starter run as written; broad reads refute', {tim
   assert.ok(excerpt.includes('### '+code),`installed why selects its dedicated definition: ${code}`);
   assert.ok(excerpt.includes(fact),`installed defining fact: ${code}`);
  }
+ // SEC8 presence intent is copied verbatim from the installed guide. Both
+ // forms must compile and gate an optional creator through the actual pack.
+ const uploads=run(process.execPath,[cli,'guide','uploads','--full'],project);
+ const presence=uploads.match(/`invariant documents[^`]+`/g);
+ assert.equal(presence.length,2);
+ const presenceDir=join(dir,'presence-intent');mkdirSync(join(presenceDir,'snapback'),{recursive:true});
+ const schema=[...uploads.matchAll(/```quarry\n([\s\S]*?)\n```/g)].map(m=>m[1]).find(s=>s.includes('table documents:')&&s.includes('mutation place('));
+ assert.ok(schema,'the installed upload recipe supplies the complete context');
+ for(const candidate of presence){
+  writeFileSync(join(presenceDir,'snapback/schema.q'),schema+'\n'+candidate.slice(1,-1)+'\n');
+  assert.equal(JSON.parse(run(process.execPath,[cli,'check','--json'],presenceDir)).ok,true,'guide source and candidate run verbatim');
+  const optional=schema.replace("  scan: file <=10000 ('application/pdf')","  scan: file <=10000 ('application/pdf') ?").replace("mutation place(scan: file <=10000 ('application/pdf')):","mutation place(scan: file <=10000 ('application/pdf') ?):");
+  writeFileSync(join(presenceDir,'snapback/schema.q'),optional+'\n'+candidate.slice(1,-1)+'\n');
+  const result=JSON.parse(run(process.execPath,[cli,'check','--json'],presenceDir,1));
+  assert.ok(result.securityReviews.some(r=>r.code==='N_OPTIONAL_UPLOAD_CREATE'&&r.gated));
+ }
+ // SEC9's complete recipe is extracted verbatim from the installed tarball.
+ const rules=run(process.execPath,[cli,'guide','rule-recipes','--full'],project);
+ const evidenceSource=[...rules.matchAll(/```quarry\n([\s\S]*?)\n```/g)].map(m=>m[1]).find(s=>s.includes('table evidence:')&&s.includes('mutation openEvidence('));
+ assert.ok(evidenceSource,'installed column write/freeze/save-while-missing recipe');
+ const evidenceDir=join(dir,'column-authority');mkdirSync(join(evidenceDir,'snapback'),{recursive:true});
+ writeFileSync(join(evidenceDir,'snapback/schema.q'),evidenceSource+'\n');
+ assert.equal(JSON.parse(run(process.execPath,[cli,'check','--json'],evidenceDir)).ok,true);
+ const call=(name,args,actor,exit=0)=>JSON.parse(run(process.execPath,[cli,'run',name,JSON.stringify(args),'--as',actor,'--json'],evidenceDir,exit));
+ const created=call('openEvidence',{desk:'dev:desk',photo:null},'dev:manager');
+ const item=created.result.id;
+ assert.ok(item,'recipe creates a real row through the installed CLI');
+ assert.equal(call('saveEvidence',{item,photo:null},'dev:manager',1).state,'failed','missing evidence gates the entire save');
+ assert.equal(call('saveEvidence',{item,photo:null},'dev:desk').state,'sent');
+ assert.equal(call('approveEvidence',{item},'dev:desk').state,'sent');
+ const securityCard=run(process.execPath,[cli,'guide','security','--full'],project);
+ const optionalLine=securityCard.match(/`invariant evidence always [^`]+`/)[0].slice(1,-1);
+ writeFileSync(join(evidenceDir,'snapback/schema.q'),evidenceSource+'\n'+optionalLine+'\n');
+ assert.equal(JSON.parse(run(process.execPath,[cli,'check','--json'],evidenceDir)).ok,true,'installed intentional-optional line runs unchanged');
  // The installed wrapper must expose the focused day-two advice and allow
  // intentional optionality without shipping a pre-acknowledged source file.
  for(const lane of ['003','040','030','042','028']){
   const cwd=join(dir,'day-two-'+lane);mkdirSync(join(cwd,'snapback'),{recursive:true});
   writeFileSync(join(cwd,'snapback/schema.q'),readFileSync(new URL('../../../crates/snapback4-lang/tests/security/wave23/'+lane+'.q',import.meta.url)));
-  const checked=JSON.parse(run(process.execPath,[cli,'check','--json'],cwd));
-  assert.equal(checked.ok,true,`installed day-two check ${lane}`);
+  const checked=JSON.parse(run(process.execPath,[cli,'check','--json'],cwd,lane==='042'?1:0));
+  assert.equal(checked.ok,lane!=='042',`installed day-two check ${lane}`);
   assert.ok(!checked.securityReviews.some(r=>r.code==='N_OPTIONAL_UPLOAD_CREATE'));
-  if(lane==='030')assert.equal(checked.security.notes.filter(n=>n.code==='N_STALE_CREATION_CHECK').length,1);
+  if(lane==='030'){
+   const stale=checked.security.notes.filter(n=>n.code==='N_STALE_CREATION_CHECK');
+   assert.equal(stale.length,2,'independent applications and permits eligibility questions stay separate');
+   assert.ok(stale.some(n=>n.message.startsWith('applications:')&&n.message.includes('operatorFlags.suspended')));
+   assert.ok(stale.some(n=>n.message.startsWith('permits:')&&n.message.includes('applications.lastPassed,status')));
+  }
   if(lane==='028')assert.equal(checked.security.notes.filter(n=>n.code==='N_EVIDENCE_REMOVAL').length,1);
   if(lane==='042'){
-   const text=run(process.execPath,[cli,'check'],cwd);
+   const text=run(process.execPath,[cli,'check'],cwd,1);
    assert.match(text,/N_PRIVATE_CREATE_EDIT_ASYMMETRY/);
    const inventory=text.indexOf('N_INSERT_WRITE_INTENT');
    assert.ok(inventory<0||text.indexOf('N_PRIVATE_CREATE_EDIT_ASYMMETRY')<inventory);
@@ -74,7 +113,8 @@ test('check keeps invariant details behind verbose and preserves complete JSON',
  const invoke=(...args)=>{const r=spawnSync(binary,args,{cwd:dir,encoding:'utf8',timeout:30000});assert.equal(r.status,0,r.stdout+r.stderr);return r;};
  const compact=invoke('check'),text=compact.stdout+compact.stderr;
  assert.match(text,/security: \d+ proved, \d+ refuted, \d+ unproved/);
- assert.equal((text.match(/— N_INVARIANT_RESTATES_RULE:/g)||[]).length,8,'the selected ordinary code class keeps each site');
+ assert.equal((text.match(/— N_INVARIANT_RESTATES_RULE:/g)||[]).length,1,'restating sites share one table questionnaire');
+ assert.match(text,/8 underlying questions/);
  assert.match(text,/snapback4 test/);assert.match(text,/snapback4 audit/);
  assert.doesNotMatch(text,/security Unproved:|counterexample \{/);
  const full=invoke('check','--verbose');assert.match(full.stdout+full.stderr,/whole-protocol noninterference/);

@@ -1,7 +1,7 @@
 //! Compiled examples first; diagnostic details are under `why`.
 pub const LANGUAGE: &str = r##"# Quarry — the language card
 
-**Start here:** Declare tables, rules, queries and mutations; indexes are inferred. Default-starter pattern; `guide from-sql` translates familiar idioms.
+**Start here:** Tables, rules, queries, mutations; inferred indexes. `guide from-sql`.
 
 ```quarry
 table todos:
@@ -35,6 +35,7 @@ mutation addNote(body: text):
 `not before .opensAt` sets a stored lower read lifetime; null is unbounded. With `expire at`, rows live in `[opensAt, expiresAt)`. See `guide timed disclosure`.
 
 `receipts chat by .conversation, .ordinal from .sender to members:` with field mappings generates reporting (`guide receipts`; expert recipe: `guide manual-receipts`).
+`write <-` and `immutable c when P`: `guide rule-recipes`.
 
 ## Limits
 

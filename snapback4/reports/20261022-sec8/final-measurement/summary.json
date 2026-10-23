@@ -1,0 +1,179 @@
+{
+  "source": "7d86b4af03",
+  "matrixVariants": 39,
+  "findings": [
+    {
+      "finding": "007-specF2",
+      "relevantQuestion": "N_OPTIONAL_EVIDENCE",
+      "noneVisible": true,
+      "ownVisible": true,
+      "ownTestExit": 0,
+      "specCheckExit": 1,
+      "specTestExit": 1,
+      "specGates": 1,
+      "specInvariantSite": "schema.q:150:1",
+      "exactSpecWitnesses": 128
+    },
+    {
+      "finding": "008-specF1",
+      "relevantQuestion": "N_CHILD_EVIDENCE_PRESENCE",
+      "noneVisible": true,
+      "ownVisible": true,
+      "ownTestExit": 0,
+      "specCheckExit": 0,
+      "specTestExit": 1,
+      "specGates": 0,
+      "specInvariantSite": "schema.q:236:1",
+      "exactSpecWitnesses": 112
+    },
+    {
+      "finding": "011-specF1",
+      "relevantQuestion": "N_APPROVAL_NOT_ENFORCED",
+      "noneVisible": true,
+      "ownVisible": true,
+      "ownTestExit": 0,
+      "specCheckExit": 0,
+      "specTestExit": 1,
+      "specGates": 0,
+      "specInvariantSite": "schema.q:140:1",
+      "exactSpecWitnesses": 12
+    },
+    {
+      "finding": "013-specF1",
+      "relevantQuestion": "N_STALE_CREATION_CHECK",
+      "noneVisible": true,
+      "ownVisible": true,
+      "ownTestExit": 0,
+      "specCheckExit": 0,
+      "specTestExit": 0,
+      "specGates": 0,
+      "specInvariantSite": "schema.q:196:1",
+      "exactSpecWitnesses": 0
+    },
+    {
+      "finding": "015-specF1",
+      "relevantQuestion": "N_TIME_TRANSITION",
+      "noneVisible": true,
+      "ownVisible": true,
+      "ownTestExit": 0,
+      "specCheckExit": 0,
+      "specTestExit": 0,
+      "specGates": 0,
+      "specInvariantSite": "schema.q:218:1",
+      "exactSpecWitnesses": 0
+    },
+    {
+      "finding": "015-specF2",
+      "relevantQuestion": "N_GUARD_NOT_CONSUMED",
+      "noneVisible": true,
+      "ownVisible": true,
+      "ownTestExit": 0,
+      "specCheckExit": 0,
+      "specTestExit": 1,
+      "specGates": 0,
+      "specInvariantSite": "schema.q:218:1",
+      "exactSpecWitnesses": 8
+    },
+    {
+      "finding": "016-specF1",
+      "relevantQuestion": null,
+      "noneVisible": false,
+      "ownVisible": false,
+      "ownTestExit": 0,
+      "specCheckExit": 0,
+      "specTestExit": 1,
+      "specGates": 0,
+      "specInvariantSite": "schema.q:193:1",
+      "exactSpecWitnesses": 18
+    },
+    {
+      "finding": "029-specF1",
+      "relevantQuestion": "N_EDIT_AFTER_APPROVAL",
+      "noneVisible": true,
+      "ownVisible": true,
+      "ownTestExit": 0,
+      "specCheckExit": 0,
+      "specTestExit": 1,
+      "specGates": 0,
+      "specInvariantSite": "schema.q:183:1",
+      "exactSpecWitnesses": 6
+    },
+    {
+      "finding": "031-specF1",
+      "relevantQuestion": "N_DEPENDENT_WINDOW",
+      "noneVisible": true,
+      "ownVisible": true,
+      "ownTestExit": 0,
+      "specCheckExit": 0,
+      "specTestExit": 0,
+      "specGates": 0,
+      "specInvariantSite": "schema.q:209:1",
+      "exactSpecWitnesses": 0
+    },
+    {
+      "finding": "033-specF1",
+      "relevantQuestion": "N_CHILD_EVIDENCE_PRESENCE",
+      "noneVisible": true,
+      "ownVisible": true,
+      "ownTestExit": 1,
+      "specCheckExit": 0,
+      "specTestExit": 1,
+      "specGates": 0,
+      "specInvariantSite": "schema.q:196:1",
+      "exactSpecWitnesses": 0
+    },
+    {
+      "finding": "036-specF1",
+      "relevantQuestion": "N_OPTIONAL_EVIDENCE",
+      "noneVisible": true,
+      "ownVisible": true,
+      "ownTestExit": 0,
+      "specCheckExit": 1,
+      "specTestExit": 1,
+      "specGates": 1,
+      "specInvariantSite": "schema.q:220:1",
+      "exactSpecWitnesses": 32
+    },
+    {
+      "finding": "036-specF2",
+      "relevantQuestion": "N_EDIT_AFTER_APPROVAL",
+      "noneVisible": true,
+      "ownVisible": true,
+      "ownTestExit": 0,
+      "specCheckExit": 0,
+      "specTestExit": 1,
+      "specGates": 0,
+      "specInvariantSite": "schema.q:220:1",
+      "exactSpecWitnesses": 1
+    },
+    {
+      "finding": "048-specF1",
+      "relevantQuestion": "N_CALENDAR_DURATION",
+      "noneVisible": true,
+      "ownVisible": true,
+      "ownTestExit": 0,
+      "specCheckExit": 0,
+      "specTestExit": 1,
+      "specGates": 0,
+      "specInvariantSite": "schema.q:147:1",
+      "exactSpecWitnesses": 25
+    }
+  ],
+  "corpus": {
+    "projects": 450,
+    "gatedProjects": 15,
+    "gates": 36,
+    "gateCodes": {
+      "N_RETAINED_ROLE_GRANT": 36
+    },
+    "newGates": [],
+    "removedGates": [],
+    "changedRetainedGrantMessages": [],
+    "comparison": "SEC7 day2 final-corpus own rows; no recertification of all product specifications"
+  },
+  "noneRelevantQuestions": 12,
+  "ownRelevantQuestions": 12,
+  "exactSpecCatches": 9,
+  "specGates": 2,
+  "binarySha256": "fd62f32d5894624e80e508e564a859863caa50c623cad78586b6c48b1cab9a2b"
+}

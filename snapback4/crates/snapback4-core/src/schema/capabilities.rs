@@ -74,6 +74,7 @@ const CAPABILITIES: &[(&str, fn(&Schema) -> bool)] = &[
     ("release-reference-renames-v1",|s|s.asset_renames.iter().any(|(name,cols)|cols.keys().any(|c|s.table(name).and_then(|t|t.columns.get(c)).is_some_and(reference_rename)))),
     #[cfg(feature = "sqlite")]
     ("release-table-renames-v1",|s|!s.table_renames.is_empty() || !s.asset_renames.is_empty()),
+    ("column-write-v1", |s| s.tables.values().any(|t| !t.column_writes.is_empty() || !t.frozen_columns.is_empty())),
     ("column-read-v1", |s| s.tables.values().any(|t| !t.column_reads.is_empty())),
 
     // Table-bearing backend schemas carry this in the ordinary schema fence.

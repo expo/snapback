@@ -102075,6 +102075,51 @@ that edit compiled columns/indexes but retain the former derived reservation
 facts. Recompute the fixture-owned receipt/reservation cache after each raw edit;
 retain every `E_BOUND`, atomicity and visibility assertion. The complete
 `live_parent` target passes: 48 tests. Production admission remains strict.
+
+## 2026-10-22 — SEC8: evidence intent and useful security histories
+
+Wave-24's thirteen non-judgment findings drive LLP 3000.036.004 §17. Presence
+questions distinguish permanent integrity from insert-only requirements and keep
+optional evidence advisory without independent intent. Lifecycle questions name
+child evidence, stale eligibility without approval synonyms, approval edits and
+window bases. Check groups repeated audience/restatement questions by table.
+
+Test names static and visited-image evaluation gaps, preserves creator boolean
+alternatives, and retains parent-only roots and nullable approval times. The
+actual 036 replay required source-derived future boundary arguments to reach its
+14-day approval gate. Eleven SEC8 regressions now pass, including exact appended
+invariant witnesses for 008 and 036 F2; bounded exploration remains unproved.
+Two fresh model families marked the final amendment READY, with verbatim records.
+
+The initial 450-project sweep adds no gates: the same 36 retained-role review
+questions remain on fifteen projects. Final packed measurement/qualification is
+recorded in the workstream report. DX7 owns clock, proof viewport, upgrade/gate
+messages and schema ergonomics. No version bump or push is authorized here.
+
+### 2026-10-23 — SEC8 full-suite history refinement and qualification boundary
+
+The existing wrong-reference deadline regression exposed a search-order regression
+from source-derived future Time samples. Preserve Time alternatives in the directed
+argument groups and past-Time controls in the breadth candidate plan, under the
+same reviewed finite caps. Both independent families marked r9 READY. R8's proposed
+witness replacement was rejected for interacting with generated-origin relabeling
+and was fully withdrawn; final witness storage and provenance remain append-only.
+See LLP 3000.036.004 §§17.7–17.8 and the verbatim review records.
+
+Mac Studio `~/sb4-ws-sec8` ran the final source: SEC7 controls 37, SEC8 regressions
+12, the strictly-past wrong-reference history 1, and security-review unit tests 9,
+all passed. Its build output was removed. Immutable differential replay passed
+20,000 ordinary cases and device seeds 0–999; Lean 100,000 retains 761 disagreements
+in five already classified signatures, zero new signatures (exit 1 retained).
+The fresh Linux consumer qualification passes its initial compatibility, DX,
+Expo/export, release-transition and dormant proofs, then stops on the inherited
+source-reservation E_SCHEMA in the installed residency recipe. The core follow-up
+is `issues/20261022-snapback4-source-reservation-full-suite-failures.md`.
+No qualification receipt, full-suite pass or security-proof claim is made from
+that partial run. Final affected runs, packed security/guide examples and the
+repeated finding/corpus measurements are recorded in WORKSTREAM-REPORT.md and
+`reports/20261022-sec8/` as they complete. No version bump or push.
+
 ## 2026-10-22 — RT5: qualify the flight mechanism, serving unchanged
 
 Added the round-trip RFC's two B2 candidates as test/experiment code only.
@@ -102223,6 +102268,30 @@ query skipped all unchanged programs was disproved by the actual passing control
 the final control makes a valid query-body edit. All actual reviews are retained
 verbatim with provenance, including that material verdict and its disposition.
 
+### 2026-10-23 — SEC8 final child dependencies, client pool and integration
+
+R11 recognizes explicit concrete-assertion table reads as well as bound-policy
+dependencies when choosing the single pre-child fixture observation. Both fresh
+reviewers READY; legacy suspension and wave24 child/approval histories all pass
+at exact invariant sites. Final security+guide374 passed (2 ignored), workspace-
+feature affected228 passed, Mac SEC7/SEC8 sets29 passed. All39 finding variants
+and450 corpus projects completed:12/13 relevant questions,9 exact spec catches,
+2 upload gates;36 inherited corpus gates on15 projects, zero added gates.
+
+Full Cargo:7443 passed,27 initial failures/275 ignored;6 repaired expectations
+pass the final rerun,21 unchanged metadata fixtures remain in the core ticket.
+The428-file client pool:7831 passed,2 failures/56 skipped. Its internal ownership
+sentence was removed from packaged release notes and the docs rerun passes2/2;
+the other failure is the same residency E_SCHEMA. Full model suites pass89 tests
+at5000/3000 counts. Post-pool git status was clean. No suite/publication receipt
+is claimed while metadata validation remains red.
+
+Merged main's RT5 commits through fc5b38f511; preserved both complete append-only
+journal additions in the sole conflict. SEC8 reviewed input hashes are unchanged;
+the incoming Postgres-only offline codec test passes. Version remains0.4.38;
+0.4.40 guide changes are recorded without an internal ownership label. Safe
+measurements, reviews and validation are under reports/20261022-sec8 and
+llp/reviews; WORKSTREAM-REPORT.md is the complete handoff. No push or version bump.
 ## 2026-10-22 — K0-Q: owned commands and the serving committer
 
 The serving writer now belongs to one committer thread. Owned commands carry
@@ -102625,6 +102694,27 @@ Main's K0-Q committer is integrated as 121107c574, preserving both journal
 histories, the combined refusal vocabulary and ROLL's Bound field in the new
 committer test fixture. Full qualification is being repeated on this merge.
 Integration 23 after the K0-Q main merge (121107c574): measured 2,407,070 B raw / 735,469 B gzip / 553,849 B Brotli on locked Linux. Budget 735,969 B is exactly measurement + 500 B. The merged shared core/error vocabulary changes whole-device layout (+544 B gzip versus the earlier Integration 23 candidate); this is a whole-artifact allowance, not independent feature-cost attribution or a runtime authority ceiling change.
+## 2026-10-23 — SEC9 structural write authority and byte cost
+
+Column write audiences cover effective non-null creation/defaults, changed updates,
+and both upsert arms. Conditional immutability checks the old image, including
+system/seed/import replacement, with trusted persistence restore explicit. The
+new capability fences older engines. Guarded device writes queue before target
+lookup; all hosts retain raw policy validation. LLP 3000.036.004.000 records the
+semantics, review rounds and bounded-evidence limits. S2 gates table/column edit
+asymmetry; matching update-only intent states deliberate creation differences.
+Production admission runs derived replay and individual rule-bound decisions;
+authored refutations require repair. Presence loosening compares successful local
+checks and independently compares the selected release. DX8 owns migration/process/
+dev-clock/sql/account/rename follow-ups; integration owns rollback-view behavior.
+
+Wasm on locked Linux after main integration: 2,414,852 B raw / 737,825 B gzip;
+budget becomes 738,325 B, measurement plus exactly 500 B. Whole-artifact growth
+versus inherited SEC8 setup is 8,361 raw / 2,962 gzip bytes, including main and
+new schema/admission semantics; no isolated feature attribution or runtime meter
+ceiling increase. Attempts to omit device validation/evaluation were withdrawn.
+Mac execution is reserved for integration, as instructed. No publication or
+universal arbitrary-application security claim follows from finite campaigns.
 
 ## 2026-10-23 — K0-Q fix-forward: remaining third-review findings
 

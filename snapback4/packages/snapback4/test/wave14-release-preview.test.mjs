@@ -183,7 +183,7 @@ mutation fallback(a: gates, b: gates):
   assert.equal((await host.post('/m/optionalGuard', {id:'gate'})).state, 'sent');
   assert.equal((await host.post('/m/fallback', {a:'gate', b:'missing'})).why.code, 'BLOCKED');
   await host.stop();
-  const target = guarded.replace('flag: bool default true', 'flag: bool ? default true').replace('blocked: bool default true', 'blocked: bool default false');
+  const target = guarded.replace('flag: bool default true', 'flag: bool ? default true').replace('blocked: bool default true', 'blocked: bool default false') + '\ninvariant gates always .flag = null or .flag != null\n';
   writeFileSync(schema, target);
   assert.match(run('deploy', deployment, '--check').stdout, /gates changed: 2 guards unproved across fallback, optionalGuard/);
   run('deploy', deployment);

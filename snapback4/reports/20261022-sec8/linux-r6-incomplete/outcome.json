@@ -1,0 +1,10 @@
+{
+  "status": "failed",
+  "source": "3d7984cb96",
+  "mode": "consumer-only",
+  "stage": "day5 installed fixture-only residency recipe",
+  "code": "E_SCHEMA",
+  "reason": "source reservations differ from the schema derivation",
+  "qualificationReceipt": false,
+  "note": "R6 packed native; subsequent R9 search ordering qualified separately. Source suite was intentionally omitted because user forbids scripts/test.sh."
+}

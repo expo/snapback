@@ -1,0 +1,6 @@
+{
+  "llp/3000.036.004-security-invariants-and-exposure.rfc.md": "2c84ac088df541e5fb230585c0b0830a4d32581ac80814dd73c6f7300ce438b7",
+  "snapback4/crates/snapback4-lang/src/bind/security/challenges/histories.rs": "ced2c61ac0f509ed99aa154966bb54fd1528da84744f98ad06c4936b8992a144",
+  "snapback4/crates/snapback4-lang/tests/security_histories.rs": "ff61c6bfdd11faccd9b414f77eb7f30716a2a50b475e4f16c1062fbce761337f",
+  "snapback4/crates/snapback4-lang/tests/security_sec8.rs": "2b161a9661113cea0bc86f6d8c0f82bd498ccb97099796be998bcf8e773b2f3b"
+}

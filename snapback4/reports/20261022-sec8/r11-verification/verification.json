@@ -1,0 +1,41 @@
+{
+  "source": "7d86b4af03",
+  "fullWorkspace": {
+    "exitCode": 101,
+    "targets": 468,
+    "passed": 7443,
+    "failed": 27,
+    "ignored": 275,
+    "unchangedMetadataFixtureFailures": 21,
+    "initialExpectationsSubsequentlyRepaired": 6
+  },
+  "fullLanguageInitial": {
+    "exitCode": 101,
+    "passed": 2486,
+    "failed": 11,
+    "ignored": 16
+  },
+  "finalSecurityAndGuide": {
+    "exitCode": 0,
+    "targets": 16,
+    "passed": 374,
+    "ignored": 2
+  },
+  "finalWorkspaceAffected": {
+    "exitCode": 0,
+    "targets": 7,
+    "passed": 228
+  },
+  "finalMac": {
+    "passed": 29,
+    "source": "7d86b4af03",
+    "workspace": "~/sb4-ws-sec8",
+    "buildOutputRemoved": true
+  },
+  "packedSecurity": {
+    "exitCode": 0,
+    "tests": 3
+  },
+  "linuxQualification": "consumer-only stops at inherited residency E_SCHEMA; independent R9 Ubuntu/Alpine proot passed; no publication receipt",
+  "clientPool": "pending"
+}

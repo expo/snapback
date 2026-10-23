@@ -1,0 +1,27 @@
+[
+  {
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4",
+      "--bin",
+      "snapback4",
+      "verbs::security_reviews::"
+    ],
+    "exitCode": 0,
+    "seconds": 54
+  },
+  {
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4",
+      "--test",
+      "security_reviews"
+    ],
+    "exitCode": 0,
+    "seconds": 34
+  }
+]

@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.4.41
+
+- Column `write <-` policies cover insert, update and both upsert arms; `immutable c when P` freezes approved evidence using the old image. See `guide rule-recipes`.
+- Check gates column-specific creation/edit asymmetry and newly loosened presence intent. Write authority stays ahead of lookup hygiene in default output.
+- Production deploy replays bounded derived security candidates and refuses reachable FIX; deliberate derived policies accept individual rule-bound specification decisions. Test evaluates clock arithmetic, cross-row comparisons and logical read-through populations, and explores stored schedule boundaries.
+
+## 0.4.40
+
+- Security questions group restatements and role-wide access per table. Individual advisories accept recorded specification decisions; unrelated queries, comments and independent declarations preserve reviews, while changed rule/column dependencies invalidate them.
+- Optional-upload questions and the security draft offer permanent or creation-only presence intent. Lifecycle questions cover child photos, approval bypass/replacement, stale eligibility regardless of status spelling, reusable guards and deadline bases.
+- `test` names invariant evaluation gaps and their source sites, preserves both creator boolean choices, and explores deeper finite histories with explicit limits. A zero-violation run does not claim unsupported assertions were evaluated.
 ## 0.4.39
 
 ### Guide changes

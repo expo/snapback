@@ -136,27 +136,69 @@ pub fn fixture(bound:&Bound,out:&mut Campaign)->Result<Engine,String>{
     creator_actors.sort_by_key(|actor|!roster_principals.contains(actor));
     // Authored insertion bodies preserve requires, immutable copies, defaults,
     // role checks on principal arguments and multi-table creation invariants.
-    let mut attempts=0usize;let mut root_observed=false;
+    // @ref LLP 3000.036.004#1710-concrete-intent-child-dependencies — syntax reads order exploration without claiming evaluator support.
+    let mut dependent_children=BTreeMap::<String,BTreeSet<String>>::new();
+    for inv in &bound.invariants{
+        let children=dependent_children.entry(inv.table.clone()).or_default();
+        if let Some(policy)=&inv.policy{children.extend(kernel::dependencies(policy));}
+        if let Some(mut syntax)=inv.syntax.clone(){crate::bind::intent_walk::expression(&mut syntax,&mut |expr|match expr{
+            ast::Expr::Read(read)|ast::Expr::Exists{read,..}|ast::Expr::Created{read,..}=>{children.insert(read.table.clone());},_=>{}
+        });}
+    }
+    let mutable_authority=bound.invariants.iter().flat_map(|i|i.policy.iter().flat_map(kernel::dependencies)).filter(|t|super::super::privilege::role_columns(bound,t).is_empty()).collect::<BTreeSet<_>>();
+    let mut attempts=0usize;let mut root_observed=false;let mut stricter_observed=false;let mut creator_decisions=BTreeMap::<String,BTreeSet<String>>::new();let mut postponed=BTreeSet::new();
     for _ in 0..=bound.schema.tables.len().min(12){
         let before=readback(&engine)?;
         for bp in &creators{
             let p=&bp.program;let writes=ir::write_tables(p);
+            // Give pending child creators one pass over an admitted parent
+            // before another creator consumes that parent's lifecycle state.
+            let current=readback(&engine)?;
+            let consumes_pending_parent=writes.iter().any(|(parent,kind)|matches!(*kind,"update"|"upsert"|"delete")&&current.get(parent).is_some_and(|rs|!rs.is_empty())&&creators.iter().any(|other|other.program.name!=p.name&&other.program.args.values().any(|k|matches!(k,ir::ArgType::Ref{table} if table==parent))&&ir::write_tables(&other.program).iter().any(|(child,kind)|child!=parent&&matches!(*kind,"insert"|"upsert")&&current.get(child).is_none_or(|rs|rs.is_empty()))));
+            if consumes_pending_parent&&postponed.insert(p.name.clone()){continue;}
+
             // Preserve a pre-transition root population. Later derived creators
             // can otherwise consume every pending lifecycle row during setup.
-            if !root_observed&&writes.iter().any(|(_,kind)|matches!(*kind,"update"|"upsert"|"delete")){
+            // @ref LLP 3000.036.004#179-preserve-the-pre-transition-root-when-observing-dependent-children — unrelated reference arguments must not spend the one root observation.
+            let related_creator=p.args.values().any(|kind|matches!(kind,ir::ArgType::Ref{table} if created.contains(table)&&engine.store().rows(table).is_ok_and(|rows|!rows.is_empty())&&dependent_children.get(table).is_some_and(|children|writes.iter().any(|(child,kind)|matches!(*kind,"insert"|"upsert")&&children.contains(child)))));
+            if !root_observed&&(related_creator||writes.iter().any(|(_,kind)|matches!(*kind,"update"|"upsert"|"delete"))){
                 root_observed=true;
                 if out.generated_fixture&&out.work_remaining.is_none()&&validate_fixture(bound,&mut engine).is_ok(){
-                    let first=out.violations.len();histories::lifecycle_observers(bound,&engine,out);
-                    for witness in &mut out.violations[first..]{if witness.reachability==Reachability::AuthoredFixtureTrace{witness.reachability=Reachability::GeneratedFixtureTrace;witness.scope="actual authored observation from a validated generated root fixture before derived creator transitions; initialization is not claimed application-reachable".into();}}
+                    let first=out.violations.len();histories::lifecycle_observers_to(bound,&engine,out,1024);
+                    for witness in &mut out.violations[first..]{if witness.reachability==Reachability::AuthoredFixtureTrace{witness.reachability=Reachability::GeneratedFixtureTrace;witness.scope="actual authored observation from a validated generated early setup checkpoint; initialization is not claimed application-reachable".into();}}
                 }
             }
+            let watched_transition=related_creator||writes.iter().any(|(t,kind)|matches!(*kind,"update"|"upsert"|"delete")&&mutable_authority.contains(t));
             let implicit=stability::implicit(bound,p);
             if writes.iter().all(|(t,_)|rosters.contains(t)){continue;}
             let current=readback(&engine)?;
             let targets=writes.iter().filter(|(_,kind)|matches!(*kind,"insert"|"upsert")).map(|(t,_)|t).collect::<Vec<_>>();
-            if targets.iter().all(|t|current.get(*t).map_or(0,Vec::len)>=2){continue;}
-            let cases=histories::fixture_cases(bound,p,&current,&creator_actors,out);
-            'cases:for args in cases.into_iter().take(16){for actor in &creator_actors{
+            if targets.iter().all(|t|current.get(*t).map_or(0,Vec::len)>=2){
+                if p.args.values().any(|kind|matches!(kind,ir::ArgType::Bool)){out.unsupported.insert(format!("{}: two-row target population cap skips creator boolean alternatives; combinations remain uncovered",p.name));}
+                continue;
+            }
+            let mut cases=histories::fixture_cases(bound,p,&current,&creator_actors,out);
+            // Do not let two actors on the first tuple consume both root
+            // slots before the opposite gating boolean is tried.
+            if let Some(first)=cases.first().cloned(){
+                if let Some(index)=cases.iter().position(|case|p.args.iter().any(|(name,kind)|matches!(kind,ir::ArgType::Bool)&&case.get(name)!=first.get(name))){
+                    let alternate=cases.remove(index);cases.insert(1,alternate);
+                    if p.args.values().filter(|kind|matches!(kind,ir::ArgType::Bool)).count()>1{out.unsupported.insert(format!("{}: generated roots keep two boolean tuples; additional correlated boolean combinations remain uncovered",p.name));}
+                }
+            }
+            let boolean_names=p.args.iter().filter(|(_,kind)|matches!(kind,ir::ArgType::Bool)).map(|(name,_)|name.clone()).collect::<Vec<_>>();
+            let projection=|args:&BTreeMap<String,Value>|boolean_names.iter().filter_map(|name|args.get(name).map(|value|(name.clone(),value.clone()))).collect::<BTreeMap<_,_>>();
+            let possible=cases.iter().map(|args|serde_json::to_string(&projection(args)).unwrap()).collect::<BTreeSet<_>>();
+            let mut attempted_booleans=BTreeSet::new();let admitted_booleans=creator_decisions.entry(p.name.clone()).or_default();
+            let mut pending_cases=cases;let mut tuple_attempts=0;
+            // An opposite Boolean on an already-consumed parent can refuse.
+            // Try that decision on other parents before filling the second
+            // root slot with an already admitted decision.
+            'cases:while !pending_cases.is_empty()&&tuple_attempts<16 {
+                pending_cases.sort_by_key(|args|admitted_booleans.contains(&serde_json::to_string(&projection(args)).unwrap()));
+                let args=pending_cases.remove(0);tuple_attempts+=1;
+                for actor in &creator_actors{
+                attempted_booleans.insert(serde_json::to_string(&projection(&args)).unwrap());
                 if attempts>=2048||!out.reserve(1){out.unsupported.insert("generated authored initialization capped at 2048 calls; remaining creators uncovered".into());validate_fixture(bound,&mut engine)?;return Ok(engine);}
                 attempts+=1;
                 if targets.len()==1{
@@ -167,14 +209,34 @@ pub fn fixture(bound:&Bound,out:&mut Campaign)->Result<Engine,String>{
                 }
                 let mut candidate=engine.fork_fixture().map_err(|e|e.to_string())?;
                 let args=match materialize_arguments(&mut candidate,&p.args,&args,actor){Ok(a)=>a,Err(_)=>continue};
-                let result=candidate.mutate(&p.name,None,Context::new(actor,args).at(NOW));
+                let result=candidate.mutate(&p.name,None,Context::new(actor,args.clone()).at(NOW));
                 if matches!(result,Ok(r) if matches!(r.state,snapback4_core::WriteState::Sent{..})) {
                     let after=readback(&candidate)?;
-                    if targets.iter().any(|t|after.get(*t).map_or(0,Vec::len)>current.get(*t).map_or(0,Vec::len)) {engine=candidate;}
+                    let loosens=if !stricter_observed&&watched_transition&&out.generated_fixture&&out.work_remaining.is_none(){
+                        let before=readback(&engine)?;
+                        bound.invariants.iter().any(|inv|before.get(&inv.table).into_iter().flatten().any(|row|{
+                            let Some(next)=after.get(&inv.table).into_iter().flatten().find(|next|next.field("id").ok()==row.field("id").ok())else{return false;};
+                            creator_actors.iter().any(|viewer|policy_at(bound,inv,&before,viewer,None,row,NOW)==Ok(false)&&policy_at(bound,inv,&after,viewer,None,next,NOW)==Ok(true))
+                        }))
+                    }else{false};
+                    if !stricter_observed&&loosens {
+                        stricter_observed=true;
+                        if validate_fixture(bound,&mut engine).is_ok(){
+                            let first=out.violations.len();let limit=out.directed_attempts.saturating_add(1024).min(2048);histories::lifecycle_observers_to(bound,&engine,out,limit);
+                            for witness in &mut out.violations[first..]{if witness.reachability==Reachability::AuthoredFixtureTrace{witness.reachability=Reachability::GeneratedFixtureTrace;witness.scope="actual authored observation from a validated generated root before an admitted dependency-changing creator; initialization is not claimed application-reachable".into();}}
+                        }
+                    }
+                    if targets.iter().any(|table|after.get(*table).map_or(0,Vec::len)>2){
+                        out.unsupported.insert(format!("{}: creator result exceeds two-row per-target population cap; this admitted candidate and its alternatives remain uncovered",p.name));
+                        continue;
+                    }
+                    if targets.iter().any(|t|after.get(*t).map_or(0,Vec::len)>current.get(*t).map_or(0,Vec::len)) {admitted_booleans.insert(serde_json::to_string(&projection(&args)).unwrap());engine=candidate;}
                     let after=readback(&engine)?;
                     if targets.iter().all(|t|after.get(*t).map_or(0,Vec::len)>=2){break 'cases;}
+                    if targets.iter().any(|t|after.get(*t).map_or(0,Vec::len)>current.get(*t).map_or(0,Vec::len)){continue 'cases;}
                 }
             }}
+            if !boolean_names.is_empty()&&possible.difference(&attempted_booleans).next().is_some(){out.unsupported.insert(format!("{}: creator tuple/population cap omits {} generated boolean projections; remaining combinations uncovered",p.name,possible.difference(&attempted_booleans).count()));}
         }
         if readback(&engine)?==before{break;}
     }
@@ -184,4 +246,52 @@ pub fn fixture(bound:&Bound,out:&mut Campaign)->Result<Engine,String>{
 fn clean_row(bound:&Bound,table:&str,row:&Value)->Value{
     let t=&bound.schema.tables[table];
     match row{Value::Row(fields)=>Value::Row(fields.iter().filter(|(c,_)|!t.engine_field(c)&&!t.recorded.contains_key(*c)&&!t.maintained.contains_key(*c)).map(|(c,v)|(c.clone(),v.clone())).collect()),_=>row.clone()}
+}
+
+#[cfg(test)]mod tests{
+use super::*;
+#[test]fn a_multi_insert_creator_cannot_exceed_the_per_target_population_cap(){
+ let bound=crate::compile(&[("schema.q".into(),"table docs:\n  n:int\n  read <- allow\n  insert <- allow\n  online only\nmutation add():\n  insert docs {n:1}\n  insert docs {n:2}\n  return insert docs {n:3}\n".into())]);assert!(bound.diagnostics.is_empty(),"{:?}",bound.diagnostics);
+ let mut out=Campaign::default();let e=fixture(&bound,&mut out).unwrap();assert!(e.store().rows("docs").unwrap().len()<=2);assert!(out.unsupported.iter().any(|s|s.contains("two-row per-target")),"{:?}",out.unsupported);
+}
+}
+
+#[cfg(test)]mod sec9_reach_tests {use super::*;
+#[test]fn wave25_role_checked_creator_has_a_resource_root(){
+ let sources=vec![("schema.q".into(),format!("{}\ninvariant inspections.status update only .authorization != null or exists roles[viewer, role = 'scheduler']\n",include_str!("../../../../tests/security/wave25/043.q")))];
+ let b=super::super::derived::augmented(&sources,&crate::compile(&sources));
+ assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);let mut out=Campaign::bounded(15000);out.work_remaining=Some(8192);
+ let proposed=proposals(&b,&mut out).unwrap();let rows=readback(&proposed).unwrap();let actors=histories::actors(&b,&rows);let p=&b.programs.iter().find(|bp|bp.program.name=="book").unwrap().program;
+ let cases=histories::fixture_cases(&b,p,&rows,&actors,&mut out);let prefs=histories::principal_preferences(&b,p,&rows);
+ assert!(cases.iter().take(16).any(|a|["client","inspector"].iter().all(|n|prefs.get(*n).is_some_and(|vs|vs.contains(&a[*n])))),"preferences {prefs:?}; first {:?}",cases.iter().take(16).collect::<Vec<_>>());
+ let mut e=fixture(&b,&mut out).unwrap();let inspections=e.store().rows("inspections").unwrap();assert!(!inspections.is_empty(),"{:?}",out.unsupported);
+ let row=inspections.iter().find(|r|r.field("authorization").map_or(true,|v|*v==Value::Null)).expect("generated roots retain missing evidence");
+ let actor=row.field("inspector").unwrap().as_str().unwrap();let clock=match row.field("scheduledAt").unwrap(){Value::Int(n)=>(*n).max(NOW),_=>panic!("typed time")};
+ let p=&b.programs.iter().find(|p|p.program.name=="markInspected").unwrap().program;let trace=super::executed::trace(&b,p);
+ let result=e.mutate("markInspected",None,Context::new(actor,BTreeMap::from([("inspection".into(),row.field("id").unwrap().clone())])).at(clock).with_fixture_trace(trace.clone())).unwrap();
+ assert!(matches!(result.state,snapback4_core::WriteState::Sent{..}),"{result:?}");assert!(trace.take().iter().any(|o|o.allowed==Some(false)));
+
+}
+}
+
+#[cfg(test)]mod sec9_clock_reach_tests {use super::*;
+#[test]fn future_payment_can_be_replayed_against_clock_intent(){
+ let b=crate::compile(&[("schema.q".into(),format!("{}\ninvariant payments.markMissed only .dueAt < now\n",include_str!("../../../../tests/security/wave24/015.q")))]);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
+ let mut out=Campaign::bounded(15000);out.work_remaining=Some(8192);let mut e=fixture(&b,&mut out).unwrap();let rows=readback(&e).unwrap();
+ assert!(!rows["payments"].is_empty(),"{:?}",out.unsupported);
+ let row=rows["payments"].iter().find(|r|matches!(r.field("dueAt"),Ok(Value::Int(n)) if *n>=NOW)).expect("one generated payment is due in the future");
+ let actor=rows["roles"].iter().find(|r|r.field("role").ok()==Some(&Value::String("desk".into()))).unwrap().field("principal").unwrap().as_str().unwrap();
+ let p=&b.programs.iter().find(|bp|bp.program.name=="markMissed").unwrap().program;let trace=super::executed::trace(&b,p);
+ let result=e.mutate("markMissed",None,Context::new(actor,BTreeMap::from([("payment".into(),row.field("id").unwrap().clone())])).at(NOW).with_fixture_trace(trace.clone())).unwrap();
+ assert!(matches!(result.state,snapback4_core::WriteState::Sent{..}),"{result:?}");assert!(trace.take().iter().any(|o|o.allowed==Some(false)));
+}
+}
+
+#[cfg(test)]mod sec9_boolean_roots {use super::*;
+#[test]fn opposite_admitted_decisions_use_fresh_parent_rows(){
+ let source="table parents:\n  done: bool default false\n  read <- allow\n  insert <- allow\n  update <- allow\n  online only\ntable decisions:\n  parent: parents\n  passed: bool\n  unique parent\n  read <- allow\n  insert <- allow\n  online only\nmutation open():\n  return insert parents {}\nmutation inspect(parent: parents,passed: bool):\n  row = parents[parent] ! else MISSING\n  require not row.done else DONE\n  update parents[parent] {done:true}\n  return insert decisions {parent,passed}\n";
+ let b=crate::compile(&[("schema.q".into(),source.into())]);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);let mut c=Campaign::bounded(15000);c.work_remaining=Some(8192);let e=fixture(&b,&mut c).unwrap();
+ let decisions=e.store().rows("decisions").unwrap();assert_eq!(decisions.len(),2,"{:?}",c.unsupported);
+ for passed in [false,true]{assert!(decisions.iter().any(|r|r.field("passed").ok()==Some(&Value::Bool(passed))),"{decisions:?}");}
+}
 }

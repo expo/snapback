@@ -140,6 +140,7 @@ fn coupled(bound:&Bound,inv:&Invariant)->bool{
     found&&unsafe_writer
 }
 fn run_pair_variant(bound:&Bound,inv:&Invariant,rows:&BTreeMap<String,Vec<Value>>,row:&Value,fixture:Option<&Engine>,trace:Option<(&BTreeMap<String,Vec<Value>>,&[histories::Step])>,presence:bool,direct:bool,out:&mut Campaign){
+    let now=trace.map(|(_,steps)|histories::history_clock(steps)).unwrap_or(NOW);
     if discharged(bound,inv){return;}
     if coupled(bound,inv){out.unsupported.insert(format!("{}: alternate value may break authored creator/guard coupling; only actual typed payloads and committed histories count",inv.target_label()));return;}
     if !reserve(out,1){return;}
@@ -180,8 +181,8 @@ fn run_pair_variant(bound:&Bound,inv:&Invariant,rows:&BTreeMap<String,Vec<Value>
             let Ok(mut judge)=judge else{out.unsupported.insert(format!("{}: primary column intent world unavailable",inv.target_label()));continue;};
             let actual=match readback(&judge){Ok(rows)=>rows,Err(why)=>{out.unsupported.insert(why);continue;}};
             let Some(primary)=actual.get(&inv.table).into_iter().flatten().find(|r|r.field("id").ok()==row.field("id").ok())else{continue;};
-            if direct&&!matches!(judge.fixture_policy(&super::super::columns::admission(&bound.schema.tables[&inv.table],inv.column.as_deref()),viewer,None,primary,NOW),Ok(rules::Verdict::Readable)){continue;}
-            if policy_in(bound,inv,&actual,viewer,None,primary,&mut judge)!=Ok(false){continue;}
+            if direct&&!matches!(judge.fixture_policy(&super::super::columns::admission(&bound.schema.tables[&inv.table],inv.column.as_deref()),viewer,None,primary,now),Ok(rules::Verdict::Readable)){continue;}
+            if judged(inv,policy_in_at(bound,inv,&actual,viewer,None,primary,&mut judge,now),out)!=Ok(false){continue;}
         }
         for bp in &bound.programs{
             if !reserve(out,1){return;}
@@ -205,7 +206,7 @@ fn run_pair_variant(bound:&Bound,inv:&Invariant,rows:&BTreeMap<String,Vec<Value>
             let args_list=histories::fixture_cases(bound,p,rows,&actors,out);
             for args in args_list{
                 if !reserve(out,12){return;}
-                let execute=|alternate:bool|->Result<(serde_json::Value,BTreeMap<String,Vec<Value>>,BTreeMap<String,Value>),String>{
+                let execute=|alternate:bool,out:&mut Campaign|->Result<(serde_json::Value,BTreeMap<String,Vec<Value>>,BTreeMap<String,Value>),String>{
                     let seeds=if alternate{&other}else{rows};
                     let mut e=if let Some(fixture)=fixture{
                         let mut e=fork(bound,fixture,Vec::new())?;
@@ -213,7 +214,7 @@ fn run_pair_variant(bound:&Bound,inv:&Invariant,rows:&BTreeMap<String,Vec<Value>
                             let t=&bound.schema.tables[&inv.table];
                             let Value::Row(fields)=altrow else{return Err("not a row".into());};
                             let clean=Value::Row(fields.iter().filter(|(c,_)|!t.engine_field(c)&&!t.recorded.contains_key(*c)&&!t.maintained.contains_key(*c)).map(|(c,v)|(c.clone(),v.clone())).collect());
-                            if let Err(why)=e.seed_at([(inv.table.clone(),clean.clone())],NOW){
+                            if let Err(why)=e.seed_at([(inv.table.clone(),clean.clone())],now){
                                 let immutable=t.constraints.iter().any(|c|matches!(c,Constraint::Immutable{fields} if inv.column.as_ref().is_some_and(|c|fields.contains(c)))||matches!(c,Constraint::AppendOnly))||matches!(t.columns[column].required(),C::Image{once:true,..});
                                 if !immutable{return Err(why.to_string());}
                                 if fixture.ephemeral_hub().snapshot().map_err(|e|e.to_string())?.version.epoch!=0{return Err("immutable column alternate would drop existing ephemeral state; reduction uncovered".into());}
@@ -224,12 +225,12 @@ fn run_pair_variant(bound:&Bound,inv:&Invariant,rows:&BTreeMap<String,Vec<Value>
                     validate_fixture(bound,&mut e)?;
                     let actual=readback(&e)?;
                     let current=actual.get(&inv.table).into_iter().flatten().find(|r|r.field("id").ok()==row.field("id").ok()).ok_or("column target is absent after validation")?;
-                    if policy_in(bound,inv,&actual,viewer,None,current,&mut e)!=Ok(false){return Err("validated column-world policy is not false".into());}
+                    if judged(inv,policy_in_at(bound,inv,&actual,viewer,None,current,&mut e,now),out)!=Ok(false){return Err("validated column-world policy is not false".into());}
                     let actual_args=materialize_arguments(&mut e,&p.args,&args,viewer)?;
-                    let observed=paired::observe(&mut e,p,viewer,actual_args.clone())?;
+                    let observed=paired::observe_at(&mut e,p,viewer,actual_args.clone(),now)?;
                     Ok((observed,actual,actual_args))
                 };
-                let (a,primary_rows,primary_args,b,alternate_rows,alternate_args)=match (execute(false),execute(true)){
+                let (a,primary_rows,primary_args,b,alternate_rows,alternate_args)=match (execute(false,out),execute(true,out)){
                     (Ok((a,primary,aa)),Ok((b,alternate,ba)))=>(a,primary,aa,b,alternate,ba),
                     (Err(why),_)|(_,Err(why))=>{out.unsupported.insert(format!("{}.{} / {}: declined column world: {why}",inv.table,inv.column.as_deref().unwrap_or(""),p.name));continue;}
                 };
@@ -248,7 +249,7 @@ fn run_pair_variant(bound:&Bound,inv:&Invariant,rows:&BTreeMap<String,Vec<Value>
                     out.unsupported.insert(format!("{}.{}: committed worlds change non-protected base fields/captures or populations ({}); reduction unavailable",inv.table,inv.column.as_deref().unwrap(),changes.into_iter().collect::<Vec<_>>().join(", ")));continue;
                 }
                 if a==b{continue;}
-                if !matches!((execute(false),execute(true)),(Ok((aa,pa,aa_args)),Ok((bb,pb,bb_args))) if aa==a&&bb==b&&pa==primary_rows&&pb==alternate_rows&&aa_args==primary_args&&bb_args==alternate_args){out.unsupported.insert(format!("{} / {}: repeated column inputs/worlds/output are unstable or unavailable",p.name,inv.target_label()));continue;}
+                if !matches!((execute(false,out),execute(true,out)),(Ok((aa,pa,aa_args)),Ok((bb,pb,bb_args))) if aa==a&&bb==b&&pa==primary_rows&&pb==alternate_rows&&aa_args==primary_args&&bb_args==alternate_args){out.unsupported.insert(format!("{} / {}: repeated column inputs/worlds/output are unstable or unavailable",p.name,inv.target_label()));continue;}
                 let actual_row=primary_rows[&inv.table].iter().find(|r|r.field("id").ok()==Some(key)).unwrap();
                 let actual_alternate=alternate_rows[&inv.table].iter().find(|r|r.field("id").ok()==Some(key)).unwrap();
                 out.violations.push(Counterexample{reachability:if fixture.is_some(){Reachability::AuthoredFixtureTrace}else{Reachability::SyntheticOperation},invariant_site:inv.site.to_string(),args:primary_args,viewer:viewer.clone(),operation:p.name.clone(),effect:"column read observation".into(),row:actual_row.clone(),old:Some(actual_alternate.clone()),supporting_rows:trace.map(|(initial,_)|initial.clone()).unwrap_or_else(||primary_rows.clone()),history:trace.map(|(_,steps)|steps.to_vec()).unwrap_or_default(),rule_path:format!("authored observer depends on {}.{} while policy is false in both typed worlds",inv.table,inv.column.as_deref().unwrap()),scope:if fixture.is_some(){"primary observation executes on trusted fixture; alternate column is a dependency test, not an authored alternate-history claim"}else{"schema-valid synthetic worlds; authored observer, no application reachability claim"}.into(),observations:Some(paired::Observations{present:a,absent:b,absent_rows:alternate_rows})});

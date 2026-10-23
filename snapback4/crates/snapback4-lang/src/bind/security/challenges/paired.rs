@@ -10,8 +10,11 @@ pub struct Observations {
 }
 
 pub(super) fn observe(engine:&mut Engine,p:&Program,viewer:&str,args:BTreeMap<String,Value>)->Result<serde_json::Value,String>{
+    observe_at(engine,p,viewer,args,NOW)
+}
+pub(super) fn observe_at(engine:&mut Engine,p:&Program,viewer:&str,args:BTreeMap<String,Value>,now:i64)->Result<serde_json::Value,String>{
     if p.kind==ProgramKind::Mutation&&engine.schema().operations.get(&p.name).is_some_and(|f|f.ephemeral){return Err("ephemeral mutation observer is outside the durable campaign".into());}
-    let context=Context::new(viewer,args).at(NOW);
+    let context=Context::new(viewer,args).at(now);
     if p.kind==ProgramKind::Query {
         match engine.query(&p.name,context) {
             Ok(q) if q.unavailable || !q.complete => Err("incomplete/metered query is outside logical payload comparison".into()),
@@ -108,7 +111,7 @@ pub(super) fn run(bound:&Bound,out:&mut Campaign,sites:Option<&BTreeSet<String>>
                     if !out.reserve(12){return;}
                         if out.paired_observer_calls+4>8192{out.unsupported.insert("paired observers capped at 8192 call reservations; remaining worlds not covered".into());return;}
                     out.paired_observer_calls+=4;
-                    let execute=|seeds:&BTreeMap<String,Vec<Value>>|->Result<(serde_json::Value,BTreeMap<String,Vec<Value>>),String>{
+                    let execute=|seeds:&BTreeMap<String,Vec<Value>>,out:&mut Campaign|->Result<(serde_json::Value,BTreeMap<String,Vec<Value>>),String>{
                         let (prepared,_)=prepared.as_ref().map_err(Clone::clone)?;
                         let slot=usize::from(std::ptr::eq(seeds,&absent));
                         if let Some(why)=&invalid.borrow()[slot]{return Err(why.clone());}
@@ -122,10 +125,10 @@ pub(super) fn run(bound:&Bound,out:&mut Campaign,sites:Option<&BTreeSet<String>>
                         // Judge the hypothetical protected row in each complete
                         // committed world, before any operation can change roles.
                         let focal=actual.get(&inv.table).into_iter().flatten().find(|r|r.field("id").ok()==row.field("id").ok()).cloned().unwrap_or_else(||row.clone());
-                        if policy_in(bound,inv,&actual,viewer,None,&focal,&mut e)!=Ok(false){return Err("paired policy is not definitely false in both worlds".into());}
+                        if judged(inv,policy_in(bound,inv,&actual,viewer,None,&focal,&mut e),out)!=Ok(false){return Err("paired policy is not definitely false in both worlds".into());}
                         observe(&mut e,p,viewer,args.clone()).map(|value|(value,actual))
                     };
-                    let ((a,rows),(b,absent_rows))=match (execute(present),execute(&absent)) {
+                    let ((a,rows),(b,absent_rows))=match (execute(present,out),execute(&absent,out)) {
                         (Ok(a),Ok(b))=>(a,b),
                         (Err(e),_)|(_,Err(e))=>{
                             if !e.starts_with("paired policy is not definitely false") {out.unsupported.insert(format!("{}: {e}",p.name));}
@@ -136,7 +139,7 @@ pub(super) fn run(bound:&Bound,out:&mut Campaign,sites:Option<&BTreeSet<String>>
                     if a==b {continue;}
                     // The query order is engine-defined. Recreate both worlds
                     // to decline store-scoped cursors or unstable outputs.
-                    if !matches!((execute(present),execute(&absent)),(Ok((aa,_)),Ok((bb,_))) if aa==a&&bb==b){
+                    if !matches!((execute(present,out),execute(&absent,out)),(Ok((aa,_)),Ok((bb,_))) if aa==a&&bb==b){
                         out.unsupported.insert(format!("{}: paired observation is not repeatable",p.name));continue;
                     }
                     out.violations.push(Counterexample {reachability:Reachability::SyntheticOperation,history:Vec::new(),invariant_site:inv.site.to_string(),args:args.clone(),viewer:viewer.into(),

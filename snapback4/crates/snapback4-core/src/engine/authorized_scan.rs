@@ -528,3 +528,16 @@ impl Runner<'_> {
         })
     }
 }
+
+#[cfg(feature="sqlite")]
+impl Runner<'_> {
+    pub(super) fn fixture_snapshot(&self)->Result<super::fixture_trace::FixtureRows,RuntimeError>{
+        let mut remaining=1001usize;
+        self.schema.tables.keys().map(|name|{
+            let rows=self.tx.raw.scan(name,"byId",&[],&crate::rows::Bounds::default(),crate::rows::Dir::Asc,remaining)?;
+            if rows.len()>=remaining{return Err(RuntimeError::Schema("concrete fixture snapshot exceeds 1000 rows".into()));}
+            remaining-=rows.len();
+            Ok((name.clone(),rows.into_iter().map(|(row,_)|row).collect::<Vec<_>>()))
+        }).collect()
+    }
+}

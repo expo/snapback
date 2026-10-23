@@ -989,3 +989,32 @@ Alice creates a wall, artist applies, and only Alice signs. Bob owning a differe
 wall confers no authority over Alice's application. If walls can transfer owners,
 choose and model whether signoff follows current ownership or the captured owner;
 this recipe deliberately makes ownership immutable.
+
+## Column write audience and approval
+
+For "only X may add, replace or remove Y", use a column write rule. Defaults
+count; null creation and equal-value updates need no column grant. For "only X
+may save while Y is missing", guard the whole update. Freeze approved evidence
+on the old image, including a patch that clears approval.
+
+```quarry
+table evidence:
+  owner: principal
+  desk: principal
+  photo: image <=5MB ? write <- .desk = viewer
+  approved: bool default false
+  immutable owner, desk
+  immutable photo when .approved = true
+  read <- .owner = viewer or .desk = viewer
+  insert <- .owner = viewer or .desk = viewer
+  update (old, next) <- (old.owner = viewer or old.desk = viewer) and (old.photo != null or old.desk = viewer)
+  online only
+mutation openEvidence(desk: principal, photo: image <=5MB ?):
+  return insert evidence { owner: viewer, desk, photo }
+mutation saveEvidence(item: evidence, photo: image <=5MB ?):
+  return update evidence[item] { photo }
+mutation approveEvidence(item: evidence):
+  return update evidence[item] { approved: true }
+```
+
+Matching update-only intent states deliberate creation asymmetry. Deploy refuses replayed FIX; acknowledge deliberate derived policies with `check --ack-security ID --reason 'spec rationale'`. Authored refutations require repair.

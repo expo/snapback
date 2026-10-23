@@ -98,3 +98,23 @@ pub(super) fn notes(schema: &snapback4_core::schema::Schema) -> Vec<Diagnostic> 
     }
     notes
 }
+
+// @ref LLP 3000.036.004.000#2-column-write-authority — the same rule grammar, a separate conjunctive grant.
+pub(super) fn write_rules(catalog: &Catalog, info: &TableInfo, diagnostics: &mut Vec<Diagnostic>, frozen: bool) -> BTreeMap<String, RuleExpr> {
+    let declarations: Vec<_> = if frozen { info.decl.immutable_when.clone() } else {
+        info.decl.columns.iter().filter_map(|c| c.write.as_ref().map(|e|(vec![c.name.clone()],e.clone(),c.site.clone()))).collect()
+    };
+    let mut out = BTreeMap::new();
+    for (fields, value, site) in declarations {
+        let decl = RuleDecl { effect: if frozen { Effect::Insert } else { Effect::Read }, bindings: Vec::new(), value, site: site.clone() };
+        match bind_rule(catalog, info, &decl) {
+            Ok(rule) => for field in fields {
+                if !info.columns.contains_key(&field) || field == "id" || out.insert(field.clone(), rule.clone()).is_some() {
+                    diagnostics.push(Diagnostic::new(&site,"E_COLUMN_WRITE",format!("invalid or duplicate guarded column {}.{field}",info.decl.name),"name an ordinary column once").guide("rules"));
+                }
+            },
+            Err(e) => diagnostics.push(e),
+        }
+    }
+    out
+}

@@ -1,0 +1,47 @@
+{
+  "qualifiedCode": "7d86b4af03",
+  "mergeCommit": "d3bed65fbe",
+  "originMain": "fc5b38f511",
+  "ordinary": {
+    "files": 428,
+    "tests": 7889,
+    "passed": 7831,
+    "failed": 2,
+    "skipped": 56,
+    "originalExitCode": 1,
+    "repairedFailure": "packaged-docs ownership sentence removed; isolated rerun2 passed",
+    "remainingFailure": "residency.test.mjs:251 E_SCHEMA source reservations differ from schema derivation"
+  },
+  "models": {
+    "files": 2,
+    "tests": 89,
+    "passed": 89,
+    "sessionSequencesPerTier": 5000,
+    "onlineClientSequences": 3000,
+    "exitCode": 0
+  },
+  "fixtureWrapperTests": 9,
+  "postPoolGitStatusClean": true,
+  "reviewedInputsUnchangedByMerge": {
+    "llp/3000.036.004-security-invariants-and-exposure.rfc.md": true,
+    "snapback4/crates/snapback4-lang/src/bind/security/challenges/generated.rs": true,
+    "snapback4/crates/snapback4-lang/src/bind/intent_walk.rs": true,
+    "snapback4/crates/snapback4-lang/tests/security_sec7.rs": true,
+    "snapback4/crates/snapback4-lang/tests/security_sec8.rs": true
+  },
+  "postMergeCodecUnit": {
+    "passed": 1,
+    "features": [
+      "postgres"
+    ],
+    "ignoredDatabaseCasesNotRun": true
+  },
+  "redactions": {
+    "client-files": 0,
+    "client-models": 0,
+    "fixture-pool": 0,
+    "packaged-docs-final": 0,
+    "postmerge-pg-codec-final": 0,
+    "ref-postmerge": 0
+  }
+}

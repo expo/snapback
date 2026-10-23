@@ -31,7 +31,7 @@ pub(super) fn run(bound:&Bound,out:&mut Campaign,sites:Option<&BTreeSet<String>>
                     // field is proof-private and never enters the store.
                     let mut image=row.clone();
                     if let Value::Row(fields)=&mut image {fields.insert("$security:server-clock".into(),Value::Int(now));}
-                    if matches!(rules::evaluate(policy,viewer,None,&image,false,&mut Snapshot{schema:&bound.schema,rows:&actual}),Ok(false)) {
+                    if matches!(rules::evaluate(policy,viewer,None,&image,false,&mut Snapshot{schema:&bound.schema,rows:&actual,now}),Ok(false)) {
                         out.admitted+=1;
                         out.violations.push(Counterexample {reachability:Reachability::SyntheticOperation,history:Vec::new(),observations:None,invariant_site:inv.site.to_string(),args:BTreeMap::new(),viewer:viewer.into(),operation:name.into(),
                             effect:"read".into(),row:row.clone(),old:None,supporting_rows:actual.clone(),rule_path:format!("server read at {now}, before any physical sweep; clock policy false"),

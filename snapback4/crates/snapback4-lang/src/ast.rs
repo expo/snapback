@@ -292,6 +292,7 @@ pub struct RuleDecl {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ColumnDecl {
+    pub write: Option<Expr>,
     pub read: Option<Expr>,
 
     /// `renamed from old`: an identical-type reversible authoritative move.
@@ -412,6 +413,7 @@ pub struct ReceiptsDecl {
 pub struct TableDecl {
     pub renamed_from: Option<String>,
     pub column_reads: Vec<(Vec<String>, RuleDecl)>,
+    pub immutable_when: Vec<(Vec<String>, Expr, Site)>,
     pub receipts: Option<ReceiptsDecl>,
     pub ephemeral: Option<EphemeralDecl>,
     pub search: Vec<String>,
@@ -644,6 +646,6 @@ pub struct InvariantDecl {
 
 impl TableDecl {
     pub fn column_read_values_mut(&mut self) -> impl Iterator<Item = &mut Expr> {
-        self.columns.iter_mut().filter_map(|c| c.read.as_mut()).chain(self.column_reads.iter_mut().map(|(_,r)| &mut r.value))
+        self.columns.iter_mut().flat_map(|c| c.read.iter_mut().chain(c.write.iter_mut())).chain(self.column_reads.iter_mut().map(|(_,r)| &mut r.value)).chain(self.immutable_when.iter_mut().map(|(_,e,_)|e))
     }
 }

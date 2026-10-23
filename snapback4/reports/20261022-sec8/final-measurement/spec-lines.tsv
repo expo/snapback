@@ -1,0 +1,13 @@
+007-specF2	invariant orders always .photo != null
+008-specF1	invariant jobs always .status = 'estimate' or .status = 'lapsed' or exists jobPhotos[job = .id]
+011-specF1	invariant jobs always not .needsFinishedRoom or .finishedRoomApproved or .status = 'quoted' or .status = 'accepted' or .status = 'survey' or .status = 'closed'
+013-specF1	invariant fills.completeFill only .tank.visualAt > now - 365d
+015-specF1	invariant payments.markMissed only .dueAt < now
+015-specF2	invariant instruments always .status != 'returned' or not exists rentals[instrument = .id, state = 'active']
+016-specF1	invariant figures always (.status != 'ready' and .status != 'storage_due') or .stage = 'finished'
+029-specF1	invariant bookings.weight update only .tour.status = 'booked'
+031-specF1	invariant services.insert only .restaurant.nextDueAt = null or .dueAt <= .restaurant.nextDueAt
+033-specF1	invariant jobs always .status = 'quoted' or .status = 'lapsed' or exists surfaces[job = .id]
+036-specF1	invariant commissions always .sketch != null
+036-specF2	invariant commissions.sketch update only exists roles[viewer, role = 'owner'] or .stage = 'blocks'
+048-specF1	invariant orders always .warrantyUntil = null or .installedAt = null or .warrantyUntil >= .installedAt + 1826d

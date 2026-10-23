@@ -95,6 +95,15 @@ impl<'r> Runner<'r> {
             self.refusing_clause(table, &format!("field authority {field}"));
             return Err(if readable { RuntimeError::Structural { code: "E_FIELD_AUTHORITY", message: format!("{table}.{field}: this transition needs the private value written by .{}; write as that owner or declare readable by audience (guide rules)", authority.owner) } } else { self.no_write_target() });
         }
+        // @ref LLP 3000.036.004.000#2-column-write-authority — hidden payload equality is not a grant oracle.
+        if !self.context.is_system() {
+            let definition=&self.schema.tables[table];
+            for field in definition.column_writes.keys().chain(definition.frozen_columns.keys()) {
+                if patch.as_object()?.contains_key(field) && (!readable || !self.column_readable(definition,field,old)?) {
+                    return Err(self.no_write_target());
+                }
+            }
+        }
         let transition = self.schema.tables[table].update_transition;
         if (!owned_only || transition) && !self.check_rule(table, Effect::Update, Some(old), next)? {
             return Err(if readable { RuntimeError::Rule { table: table.into(), effect: Effect::Update } } else { self.no_write_target() });

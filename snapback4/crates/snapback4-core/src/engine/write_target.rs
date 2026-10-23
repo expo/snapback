@@ -13,6 +13,9 @@ pub(crate) struct TargetInput(());
 impl Runner<'_> {
     // @ref LLP 3000.007#17 — absent and hidden-refused targets restore every logical meter field.
     pub(in crate::engine) fn target_attempt<T>(&mut self, table: &str, attempt: impl FnOnce(&mut Self) -> Result<T, RuntimeError>) -> Result<T, RuntimeError> {
+        if self.device&&self.schema.tables.get(table).is_some_and(|t|!t.column_writes.is_empty()||!t.frozen_columns.is_empty()){
+            return Err(RuntimeError::Prediction("column guards need the server".into()));
+        }
         let mark = self.meter.mark();
         let capture_prepaid = std::mem::replace(&mut self.capture_prepaid, false);
         let live_prepaid=std::mem::replace(&mut self.live_prepaid,false);
@@ -42,7 +45,7 @@ impl Runner<'_> {
 
     // @ref LLP 3000.013#11.1 — reserve authorization before target existence or expiry can select a different outcome.
     pub(super) fn reserve_write_rules(&self, table: &Table, effects: &[Effect]) -> Result<(), RuntimeError> {
-        let probes = effects.iter().map(|effect| rule_probes(table.rules.for_effect(*effect))).fold(0_u64, u64::saturating_add);
+        let probes = effects.iter().map(|effect| rule_probes(&table.guarded_rule(*effect))).fold(0_u64, u64::saturating_add);
         if !self.meter.room(MeterKind::RuleProbes, probes) {
             return Err(RuntimeError::Bound { kind: MeterKind::RuleProbes, actual: self.meter.used.rule_probes.saturating_add(probes), ceiling: self.meter.ceilings.rule_probes, site: self.meter.site().into() });
         }
@@ -52,13 +55,16 @@ impl Runner<'_> {
     // @ref LLP 3000.007#17 — reserve resolution's static worst case before the target lookup; no ceiling is changed.
     pub(in crate::engine) fn reserve_target_resolution(&mut self, table_name: &str, table: &Table, patch: &crate::value::Supplied, upsert: bool) -> Result<(), RuntimeError> {
         if upsert { self.reserve_capture(table)?; }
-        let probes = rule_probes(&table.rules.read).saturating_mul(2).saturating_add(rule_probes(&table.rules.update).saturating_mul(1 + u64::from(table.judges_old_image())))
-            .saturating_add(if upsert || table.ephemeral.is_some() { rule_probes(&table.rules.insert).saturating_mul(2) } else { 0 });
+        let hidden_probes=table.column_writes.keys().chain(table.frozen_columns.keys()).filter_map(|c|table.column_reads.get(c)).map(rule_probes).fold(0u64,u64::saturating_add);
+        let frozen_probes=table.frozen_columns.values().map(rule_probes).fold(hidden_probes,u64::saturating_add);
+        let frozen_heap=table.frozen_columns.values().chain(table.column_writes.keys().chain(table.frozen_columns.keys()).filter_map(|c|table.column_reads.get(c))).map(|rule|self.rule_scratch(rule)).max().unwrap_or(0);
+        let probes = frozen_probes.saturating_add(rule_probes(&table.rules.read).saturating_mul(2)).saturating_add(rule_probes(&table.guarded_rule(Effect::Update)))
+            .saturating_add(if upsert || table.ephemeral.is_some() { rule_probes(&table.guarded_rule(Effect::Insert)).saturating_mul(2) } else { 0 });
         // Covers the largest cloned row allowed by the schema, the caller's patch
         // (including ill-typed fields), and the miss arm's image/default materialization.
         // Retained maps/assets share their Arc; the merge charges only memory it copies.
-        let witness = self.rule_scratch(&table.rules.read).max(self.rule_scratch(&table.rules.update))
-            .max(if upsert || table.ephemeral.is_some() { self.rule_scratch(&table.rules.insert) } else { 0 });
+        let witness = frozen_heap.max(self.rule_scratch(&table.rules.read)).max(self.rule_scratch(&table.guarded_rule(Effect::Update)))
+            .max(if upsert || table.ephemeral.is_some() { self.rule_scratch(&table.guarded_rule(Effect::Insert)) } else { 0 });
         let copy = if crate::rows::disclosed::actual_size(table) { 0 } else { row_copy_ceiling(table).saturating_mul(2) };
         let heap = copy.saturating_add(patch.heap_bytes().saturating_mul(2))
             .max(crate::rows::disclosed::admission(table)).saturating_add(witness);

@@ -1,0 +1,6 @@
+{
+  "binarySha256": "5288664ea8eba9e3165646297fe6810aa765304204eaba44eadf45b3142e400d",
+  "originalBinary": "/home/ccheever/projects/sb4-b24-sec8/snapback4/target/x86_64-unknown-linux-musl/production/snapback4",
+  "projects": 39,
+  "mode": "finding-matrix"
+}
