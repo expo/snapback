@@ -114,7 +114,6 @@ fn groups(
 /// relations already exist and passed the normal attach shape validation.
 /// Canonical values stay in Rust: jsonb would reject otherwise valid escaped NUL.
 pub(super) fn project(tx: &Tx<'_>, previous: &Schema, next: &Schema) -> Result<(), RuntimeError> {
-    let release = tx.meta("dormant_enabled")?.as_deref() == Some("1");
     for maintain in previous
         .maintains
         .iter()
@@ -153,13 +152,11 @@ pub(super) fn project(tx: &Tx<'_>, previous: &Schema, next: &Schema) -> Result<(
             crate::schema::materialize_optional_fields(&mut image, table);
             if next.maintain_for(name).is_none() {
                 crate::engine::validate::validate_row(next, name, &image).map_err(|error| {
-                    if release {
-                        RuntimeError::Structural {
-                            code: "E_ADOPT",
-                            message: format!("cannot activate {name}: {error}"),
-                        }
-                    } else {
-                        error
+                    // An incompatible stored value is an adoption failure on
+                    // SQLite too, including before retain-by-default is enabled.
+                    RuntimeError::Structural {
+                        code: "E_ADOPT",
+                        message: format!("cannot activate {name}: {error}"),
                     }
                 })?;
             }

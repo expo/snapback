@@ -103689,3 +103689,12 @@ summaries, restoration items and parent-lifetime evidence, and snapshots the
 history on failure. The public configured witness is added to the existing
 Postgres serve harness, with an old-binary failure at the intended narrowing
 refusal as its negative control.
+
+## 2026-10-23 — P1-EV-2: dev-adoption refusal parity
+
+A new unversioned-adoption probe observed SQLite `E_ADOPT` versus Postgres
+`E_INPUT` for an incompatible stored integer. Postgres now wraps stored-image
+validation as adoption failure before retain-by-default is enabled too. The
+shared regression covers type narrowing and a missing required column, asserting
+SQLite's verdict and unchanged rows/generation on both stores. Application write
+validation and the retained evaluator's profile are unchanged.

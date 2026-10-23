@@ -534,3 +534,48 @@ dual!(default_change_rebuilds_unique_groups_atomically, {
     p.count("notes", 2);
     p.transition(&wide, false).unwrap();
 });
+
+dual!(unversioned_adoption_refuses_incompatible_values, {
+    let (schema, programs) = bound(&source("int"));
+    let url = std::env::var("SNAPBACK4_EVAL_POSTGRES").unwrap();
+    let namespace = format!("sb4_ev2_dev_{:x}", snapback4_core::ids::seed());
+    let mut sqlite = Engine::new_at(
+        AnyStore::memory().unwrap(),
+        schema.clone(),
+        programs.clone(),
+        1000,
+    )
+    .unwrap();
+    let mut pg = Engine::new_at(
+        AnyStore::create_postgres(&url, &namespace).unwrap(),
+        schema,
+        programs,
+        1000,
+    )
+    .unwrap();
+    for e in [&mut sqlite, &mut pg] {
+        let table = e.schema().tables["notes"].clone();
+        let tx = e.store_mut().transaction().unwrap();
+        tx.put("notes", &table, &row("r", Value::Int(10)), None)
+            .unwrap();
+        tx.commit().unwrap();
+    }
+    let generation = pg.generation();
+    for candidate in [
+        source("int 0..5"),
+        source("int").replace("  item: int\n", "  item: int\n  required: int\n"),
+    ] {
+        let (schema, programs) = bound(&candidate);
+        let a = sqlite
+            .adopt_at(schema.clone(), programs.clone(), 1000)
+            .unwrap_err();
+        let b = pg.adopt_at(schema, programs, 1000).unwrap_err();
+        assert_eq!(a.code(), "E_ADOPT");
+        assert_eq!(a.code(), b.code(), "SQLite {a:?}; PG {b:?}");
+        assert_eq!(pg.generation(), generation);
+        assert_eq!(
+            sqlite.store().rows("notes").unwrap(),
+            pg.store().rows("notes").unwrap()
+        );
+    }
+});
