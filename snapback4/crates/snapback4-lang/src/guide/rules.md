@@ -366,3 +366,17 @@ field on its existing row with `read <- policy` when it only narrows payload
 visibility; keep separate entities, lifecycles and write authority in separate
 tables. This advisory never proves equivalence or rewrites stored data. See `guide rule-recipes --section "Private immutable payloads and audience helpers"` for the runnable recipe.
 N_UNIQUE_HIDDEN names a private unique declaration whose else code applies only to readable conflicts. A hidden conflict keeps generic E_RULE (or an undisclosed target miss). Source advice may quote the declared clause; public refusals never confirm a hidden row. Prefer a minimal readable key projection or operator-mediated claim when availability is public; do not widen private payloads for a diagnostic.
+
+## Column write and freeze capabilities
+
+| Requirement | Enforced form | Paths |
+| --- | --- | --- |
+| Only a column audience may add, replace or remove payload | `photo: image <=5MB ? write <- .desk = viewer` | Non-null effective insert/default, changed update, both upsert arms |
+| Approved evidence cannot change | `immutable photo when .approved = true` | Old-image constraint on every update, including trusted system updates |
+| Only the desk may save while a photo is missing | `update (old, next) <- old.photo != null or old.desk = viewer` | Every update, including patches to other columns |
+
+The complete runnable context is `guide rule-recipes --section "Column write audience and approval"`. Guarded updates require readable current payload; blind inserts remain allowed. Guarded tables queue device writes for server settlement. Older engines/devices refuse `column-write-v1`. Guarded/frozen columns cannot use owner-field bypasses or `on delete set null`.
+
+### E_COLUMN_WRITE
+
+E_COLUMN_WRITE means a column write/freeze rule names an invalid or duplicate payload column. Name an ordinary column once; use current-row rule syntax.
