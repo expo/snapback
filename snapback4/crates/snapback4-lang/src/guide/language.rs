@@ -1,7 +1,7 @@
 //! Compiled examples first; diagnostic details are under `why`.
 pub const LANGUAGE: &str = r##"# Quarry — the language card
 
-Tables, rules, queries, mutations; inferred indexes. `guide from-sql`.
+**Start here:** Tables, rules, queries, mutations; inferred indexes. `guide from-sql`.
 
 ```quarry
 table todos:
