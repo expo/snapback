@@ -833,3 +833,17 @@ fn current_column_write_and_freeze_survive_default_bridge_without_invariants() {
     assert_eq!(got.schema.tables["docs"].frozen_columns,expected.schema.tables["docs"].frozen_columns);
     assert_eq!(got.programs[0].program,expected.programs[0].program);
 }
+
+#[test]
+fn declared_column_identity_transports_write_and_freeze_terms() {
+    let source="table docs:\n  owner: principal\n  approved: bool\n  body: text <=40 ? write <- .owner = viewer\n  immutable body when .approved = true\n  public\n  online only\n";
+    let before=compile(&[("schema.q".into(),source.into())]);
+    assert!(before.diagnostics.is_empty(),"{:?}",before.diagnostics);
+    let renamed=source.replace("owner","author").replace("approved","accepted").replace("body","payload");
+    let after=compile(&[("schema.q".into(),renamed)]);
+    assert!(after.diagnostics.is_empty(),"{:?}",after.diagnostics);
+    let map=std::collections::BTreeMap::from([("docs".into(),std::collections::BTreeMap::from([("author".into(),"owner".into()),("accepted".into(),"approved".into()),("payload".into(),"body".into())]))]);
+    let aligned=after.schema.with_column_names(&map);
+    assert_eq!(aligned.tables["docs"].column_writes,before.schema.tables["docs"].column_writes);
+    assert_eq!(aligned.tables["docs"].frozen_columns,before.schema.tables["docs"].frozen_columns);
+}

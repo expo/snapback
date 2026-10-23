@@ -9,12 +9,14 @@ fn table(table:&mut Table,map:&BTreeMap<String,String>){
     table.columns=replace_keys(std::mem::take(&mut table.columns),map);
     table.defaults=replace_keys(std::mem::take(&mut table.defaults),map);
     table.column_reads=replace_keys(std::mem::take(&mut table.column_reads),map);
+    table.column_writes=replace_keys(std::mem::take(&mut table.column_writes),map);
+    table.frozen_columns=replace_keys(std::mem::take(&mut table.frozen_columns),map);
     table.on_delete=replace_keys(std::mem::take(&mut table.on_delete),map);
     table.written_by=replace_keys(std::mem::take(&mut table.written_by),map);
     fn term(t:&mut crate::schema::RuleTerm,map:&BTreeMap<String,String>){use crate::schema::RuleTerm::*;if let Field(c)|OldField(c)|NextField(c)|Reference{column:c,..}|ReferenceChain{column:c,..}=t {if let Some(new)=map.get(c){*c=new.clone();}}}
     fn rule(r:&mut crate::schema::RuleExpr,map:&BTreeMap<String,String>){use crate::schema::RuleExpr::*;match r {Eq(a,b)|Ne(a,b)|Compare(_,a,b)=>{term(a,map);term(b,map)},And(xs)|Or(xs)=>for x in xs{rule(x,map)},Not(r)=>rule(r,map),Exists{key,equalities,..}|Created{key,equalities,..}=>{for t in key{term(t,map)}for(_,t)in equalities{term(t,map)}},_=>()}}
     for r in [&mut table.rules.read,&mut table.rules.insert,&mut table.rules.update,&mut table.rules.delete]{rule(r,map)}
-    for r in table.column_reads.values_mut(){rule(r,map)}
+    for r in table.column_reads.values_mut().chain(table.column_writes.values_mut()).chain(table.frozen_columns.values_mut()){rule(r,map)}
     for index in table.indexes.values_mut(){for component in &mut index.components {if let crate::schema::IndexComponent::Column(c)=component {if let Some(new)=map.get(c){*c=new.clone();}}}}
     if let Some(sync)=&mut table.sync {
         for audience in std::iter::once(&mut sync.audience).chain(sync.also.iter_mut().map(|a|&mut a.audience)) {
