@@ -812,6 +812,7 @@ mutation react(message: messages, emoji: text <=32) predicts:
 
 This inherits `read through .message`; `guide sync` covers lifetime, three-hop immutable references and E_READ_THROUGH/E_SYNC repairs; `guide prediction` covers coverage/rollback.
 ```quarry
+use identity password
 table parcels renamed from shipments:
   manifest: file <=100000 ? renamed from legacyManifest
   quantity: int

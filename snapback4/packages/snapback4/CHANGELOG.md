@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.4.41
+
+### Guide changes
+
+- Migration history refusals name old/new digests. Deploy has an edit/rollback decision tree and explains pre-patch inputs; prune previews name down projections losing evidence. Identical-type scalar renames carry the current edited value into the old spelling.
+- `extract CHILD from PARENT via REF each: {photo:photos}` moves one existing image/file per list element into a stable child, preserving homes and reversible current values. Empty lists, native children, old-client reorder/append, retained history and audience checks are explicit.
+- `stop DIR` gracefully releases an owned serve. Proof tools clean up whole npm process groups; startup and cleanup failures have bounded deadlines. JSON-line npm scripts use `npm run --silent`.
+- Password development has an operator-authenticated clock with fixture doors closed. `startDev` now/advance/drain preserve live sessions by default; explicit expiry tests remain available. Production clock control stays refused.
+- `provisionAccounts` creates real production accounts through ordinary service-authorized mutations, with the same plan/result contract as staging seedAccounts. Minted seat warnings distinguish service identity from application authority.
+- SQL object output decodes direct media cells and announces truncation. SQL/data/releases announce dormant rows; missing-table errors name retained rows and the inspection command. Positional JSON remains compatible.
+- An identical saved-source deploy refreshes matching saved artifacts and emits that source's importable generated client; differing saved source refuses.
+- Day-two proofs compare by id and common fields, exclude frozen-client writes and allow v2-native rows to disappear only in an exact old view. Board starters list newest first. `exhaustPages` follows opaque cursors and rejects absent completeness, partial/capped pages and non-progress.
+- renderedText accepts null options and reachable full-line React Native text. Write hints name the mutation/table gates; the parent card distinguishes captured history from live authority. Additive result fields are notes; declared table renames preserve reference-input compatibility.
+- SEC9 owns column-write rules, create/edit gates, security-note ranking, conditional immutability and production adversarial-test reach. Integration 23 owns rollback-view triggers and release-bridge policy.
+
 ## 0.4.40
 
 - Staging time and an unfinished maintenance drain persist with the store. Repeated `startServe`/`advance` runs continue from saved time; `drain()` resumes paused work without replaying a jump. Production still refuses clock controls.

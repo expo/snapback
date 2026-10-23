@@ -178,6 +178,37 @@ selection needs a valid parent lifetime and one unambiguous child. Missing bytes
 changed types or broader read audiences refuse atomically. Image and bounded
 asset-list columns use the same extraction form with identical full types.
 
+### One record per photo in a list
+
+For a historical `albums.photos: [image <=10000] <=8`, declare the complete
+new source below. The `each` modifier moves one element into each child;
+plain `extract` moves a whole list into one child. Element types must match.
+
+```quarry
+use identity password
+table albums:
+  owner: principal
+  immutable owner
+  read <- .owner = viewer
+  online only
+table albumPhotos:
+  album: albums on delete cascade
+  photo: image <=10000
+  immutable album
+  read through .album
+  online only
+extract albumPhotos from albums via album each: {photo:photos}
+```
+
+Child IDs stay stable across rollback/forward and old-client reordering.
+Reverse selection collects current child photos, including native v2 children,
+in receipt order with native children appended by ID. It moves their homes
+back into the old list; it never truncates an old list to its declared bound.
+An unrepresentable population becomes dormant under the ordinary old-domain
+rules. Empty lists create no children. Repeated asset IDs refuse because one
+asset cannot have two homes. Missing bytes, independent destination history,
+pruned children, invalid parent lifetimes and broader audiences refuse atomically.
+
 This is `guide evolution`; client development commands are in CLIENT-AND-OPERATIONS.md §5."##;
 
 /// A card's `##`/`###` headings outside code fences: (level, heading, first line, end line).

@@ -37,10 +37,10 @@ impl Store {
 
     // @ref LLP 3000.000.000.001#11-wave-22-loop-repairs-dx6 — later known-family formats require an explicit upgrade repair.
     pub(super) fn validate_version(version: &str) -> Result<(), RuntimeError> {
-        if [STORE_VERSION, super::dormant::VERSION, "snapback4-release-store-2", "snapback4-release-store-6", "snapback4-release-store-8", super::table_renames::VERSION, super::backfills::VERSION].contains(&version) {
+        if [STORE_VERSION, super::dormant::VERSION, "snapback4-release-store-2", "snapback4-release-store-6", "snapback4-release-store-8", "snapback4-release-store-9", super::table_renames::VERSION, super::backfills::VERSION].contains(&version) {
             return Ok(());
         }
-        let newer = version.strip_prefix("snapback4-release-store-").and_then(|number| number.parse::<u64>().ok()).is_some_and(|number| number > 9)
+        let newer = version.strip_prefix("snapback4-release-store-").and_then(|number| number.parse::<u64>().ok()).is_some_and(|number| number > 10)
             || version.strip_prefix("snapback4-store-").and_then(|number| number.parse::<u64>().ok()).is_some_and(|number| number > 1);
         let owner = if newer { format!("a newer Snapback ({version}); upgrade Snapback before opening this data directory") }
             else { format!("another Snapback ({version}); expected a supported {STORE_VERSION} format") };

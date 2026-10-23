@@ -102530,3 +102530,34 @@ rebased tree. The remaining full-suite reds reproduce without K0-Q (e.g.
 are ticketed. The lane's `/tmp/sb4-k0q{,-fix1,-rebase}` transcripts on
 expo-build-450a were deleted by the lead when that host's disk filled; the
 committed receipts remain.
+
+
+## 2026-10-23 — DX8 / wave-25 day-two friction
+
+The coordinator commissioned all thirteen residual DX clusters on top of DX7,
+with no version bump or push. The governing amendment is LLP 3000.000.000.002
+§10; ROLL had already allocated §9. Early origin/main merge brought K0-Q's
+writer mailbox, and DX7's durable clock drain now checkpoints through that
+mailbox. The completed ROLL branch was merged locally to supply the extraction
+dependency while Integration 23 was still pending; final origin/main integration
+remains required. No forbidden rollback-view/bridge/visibility implementation
+was edited by DX8.
+
+Identical-type scalar rename rollback now presents current edits. Changed
+historical meaning names both digests; prune previews warn about down evidence.
+The guide names pre-patch inputs and offers an edit/rollback decision tree.
+The each extraction modifier splits a bounded asset list into receipt-owned
+children, keeps current edits/native children over cycles, and follows asset IDs
+for stable child identity when old clients reorder/append. Home/lifetime/audience
+checks and job meters remain atomic. Format 10 fences the new extraction law and
+never downgrades after selecting older source; formats 8/9 remain readable.
+
+Operator stop, authenticated development clock, production provisioning,
+inspection/saved-client improvements, newest-first starters and proof/paging
+repairs are recorded under guide changes 0.4.41. SEC9 retains security policy;
+Integration 23 retains rollback-view triggers. Common Muse/fresh Codex reviews
+are saved verbatim under llp/reviews/dx8. Round1 Muse was READY; Codex found
+missing affirmative paging evidence and two bounded process-cleanup defects.
+These are repaired before the final full amendment review. Mac is skipped by
+commission; integration owns it. Complete verification and copied-lane results
+will be recorded in the DX8 workstream report, with inherited failures separate.

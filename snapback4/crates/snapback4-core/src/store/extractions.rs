@@ -1,6 +1,8 @@
 //! One-child historical extraction moves the existing asset home atomically.
 // @ref LLP 3000.000.000#20-visible-rollback-views-roll — deterministic identities, no upload or second home.
 use super::*;
+#[path = "extraction_each.rs"]
+mod each;
 use crate::{
     meter::{Ceilings, Cut, Meter},
     schema::{ColumnType, Extraction},
@@ -35,7 +37,8 @@ fn key(tx:&Tx<'_>,e:&Extraction)->Result<String,RuntimeError>{
         Ok(tx.conn().query_row("SELECT origin FROM _asset_column_renames WHERE t=?1 AND name=?2",params![t,c],|r|r.get(0)).optional()?.unwrap_or_else(||c.into()))
     };
     let fields=e.fields.iter().map(|(dest,source)|Ok((origin(child,dest)?,origin(parent,source)?))).collect::<Result<BTreeMap<_,_>,RuntimeError>>()?;
-    Ok(crate::value::digest(&(parent,child,origin(child,&e.reference)?,fields)))
+    let base=(parent,child,origin(child,&e.reference)?,fields);
+    Ok(if e.each {crate::value::digest(&("each-v1",base))}else{crate::value::digest(&base)})
 }
 fn exists(tx: &Tx<'_>) -> Result<bool, RuntimeError> {
     Ok(tx.conn().query_row(
@@ -196,6 +199,7 @@ pub(super) fn transition(
                 ));
             }
         }
+        if e.each { each::backward(tx,e,parent,current_parent,child,&key,report)?; continue; }
         super::activation::walk(tx, pt, |id, mut row| {
             let saved:Option<String>=tx.conn().query_row("SELECT child_id FROM _extraction_rows WHERE definition=?1 AND parent_t=?2 AND parent_id=?3",params![key,pt,id],|r|r.get(0)).optional()?;
             let child_id = if let Some(id) = saved {
@@ -341,7 +345,8 @@ pub(super) fn transition(
             let kind = parent.columns.get(source).ok_or_else(|| {
                 refuse(format!("extraction source {}.{source} is absent", e.parent))
             })?;
-            if kind != &child.columns[dest]
+            let same = if e.each && asset(&child.columns[dest]) {each::item_type(kind)==Some(&child.columns[dest])} else {kind == &child.columns[dest]};
+            if !same
                 || parent.engine_field(source)
                 || parent.maintained.contains_key(source)
                 || parent.written_by.contains_key(source)
@@ -357,6 +362,7 @@ pub(super) fn transition(
             }
             if !asset(kind)&&(!parent.constraints.iter().any(|c|matches!(c,crate::schema::Constraint::Immutable{fields} if fields.contains(source)))||matches!(kind,ColumnType::Ref{..}|ColumnType::Optional(_))){return Err(refuse("extraction scalar copies require immutable source fields without reference/captured authority"))}
         }
+        if e.each { each::forward(tx,e,parent,child,&key,report)?; continue; }
         super::activation::walk(tx, pt, |id, mut row| {
             let saved:Option<String>=tx.conn().query_row("SELECT child_id FROM _extraction_rows WHERE definition=?1 AND parent_t=?2 AND parent_id=?3",params![key,pt,id],|r|r.get(0)).optional()?;
             let child_id = saved.clone().unwrap_or_else(|| id.to_owned());
@@ -446,6 +452,7 @@ pub(super) fn transition(
 }
 pub(super) fn delete(tx: &Tx<'_>, t: i64, id: &str) -> Result<(), RuntimeError> {
     if exists(tx)? {
+        each::delete(tx,t,id)?;
         tx.conn().execute(
             "DELETE FROM _extraction_cells WHERE parent_t=?1 AND parent_id=?2",
             params![t, id],

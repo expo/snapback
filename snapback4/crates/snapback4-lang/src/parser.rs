@@ -94,10 +94,10 @@ impl Parser {
         let token = self.peek().clone();
         match token.value.as_str() {
             "extract" => {
-                let site=self.take("extract")?.site;let child=self.word()?.value;self.take("from")?;let parent=self.word()?.value;self.take("via")?;let reference=self.word()?.value;self.take(":")?;
+                let site=self.take("extract")?.site;let child=self.word()?.value;self.take("from")?;let parent=self.word()?.value;self.take("via")?;let reference=self.word()?.value;let each=if self.at("each"){self.take("each")?;true}else{false};self.take(":")?;
                 self.take("{")?;let mut fields=Vec::new();
                 loop {let target=self.word()?.value;self.take(":")?;let source=self.word()?.value;fields.push((target,source));if !self.at(","){break}self.take(",")?;}
-                self.take("}")?;self.newline()?;self.document.extractions.push(ExtractionDecl{child,parent,reference,fields,site});Ok(())
+                self.take("}")?;self.newline()?;self.document.extractions.push(ExtractionDecl{each,child,parent,reference,fields,site});Ok(())
             }
             "rollback" => {
                 let site=self.take("rollback")?.site;

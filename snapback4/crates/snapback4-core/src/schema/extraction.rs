@@ -3,6 +3,8 @@
 use super::*;
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Extraction {
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub each: bool,
     pub child: String,
     pub parent: String,
     pub reference: String,
@@ -10,6 +12,9 @@ pub struct Extraction {
 }
 impl Extraction {
     pub fn admit(&self, schema: &Schema) -> Result<(), String> {
+        if schema.extractions.iter().filter(|e|e.child==self.child).count()>1 {
+            return Err("one extraction declaration owns each child table; native children cannot be assigned to competing sources".into());
+        }
         let child = schema
             .table(&self.child)
             .ok_or("extraction child is not declared")?;
@@ -45,6 +50,12 @@ impl Extraction {
             })
         {
             return Err("extraction fields must be distinct authoritative child columns".into());
+        }
+        if self.each {
+            let assets:Vec<_>=self.fields.keys().filter(|c|asset(&child.columns[*c])).collect();
+            if assets.len()!=1 || !matches!(child.columns[assets[0]],ColumnType::Image{..}|ColumnType::File{..}|ColumnType::Video{..}) {
+                return Err("extract each requires exactly one required scalar image/file/video destination; map its historical bounded list".into());
+            }
         }
         if !self.fields.keys().any(|c| asset(&child.columns[c])) {
             return Err("extraction needs at least one mapped image/file column".into());

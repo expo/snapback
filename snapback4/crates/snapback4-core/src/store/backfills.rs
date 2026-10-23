@@ -294,6 +294,8 @@ fn stage_downfills(tx:&Tx<'_>,next:&Schema,previous:&Schema,sources:&BTreeMap<St
         let target_outputs:BTreeSet<_>=fill.outputs.iter().filter(|c|target.columns.contains_key(*c)).cloned().collect();
         if target_outputs.is_empty(){continue}
         if fill.name.starts_with("$rename:down:") {
+                if fill.inputs.len()!=1 || fill.outputs.len()!=1 {return Err(refusal("generated column rename must have exactly one input and output"))}
+
             let source_kind=fill.inputs.values().next();let target_kind=target_outputs.iter().next().and_then(|c|target.columns.get(c));
             if source_kind!=target_kind {return Err(refusal(format!("column rename on {} must use identical old and new cell types",fill.table)))}
         }
@@ -434,6 +436,8 @@ pub(super) fn transition(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,source
     for fill in &next.backfills {
         fill.admit(next).map_err(refusal)?;
         if fill.name.starts_with("$rename:up:") {
+                if fill.inputs.len()!=1 || fill.outputs.len()!=1 {return Err(refusal("generated column rename must have exactly one input and output"))}
+
             let source_kind=fill.inputs.keys().next().and_then(|c|sources.get(&fill.table).and_then(|t|t.columns.get(c)));
             let target_kind=fill.outputs.iter().next().and_then(|c|next.tables[&fill.table].columns.get(c));
             if source_kind.is_some() && source_kind!=target_kind {return Err(refusal(format!("column rename on {} must use identical old and new cell types",fill.table)))}
