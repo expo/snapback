@@ -435,6 +435,8 @@ test('starter toolchain evidence requires the full frontend matrix and adapted H
 test('listener trace covers short-lived TCP listeners and refuses unresolved, unfinished and out-of-range calls', async t=>{
  const {auditListenerTrace}=await import('../../../scripts/proof-listener-audit.mjs');
  assert.equal(auditListenerTrace('10 listen(4<TCP:[127.0.0.1:30001]>, 511) = 0\n',30000,30020).listeners[0].port,30001);
+ assert.equal(auditListenerTrace('9 ???(10 listen(4<TCP:[127.0.0.1:30001]>, 511) = 0\n10 listen(4<TCP:[127.0.0.1:30001]>, 511) = 0\n',30000,30020).listeners.length,1);
+ assert.throws(()=>auditListenerTrace('9 ???(10 listen(4<TCP:[127.0.0.1:30001]>, 511) = 0\n',30000,30020),/uncorroborated nested listen/);
  assert.throws(()=>auditListenerTrace(`${process.pid} ???( <unfinished ...>\n`,30000,30020),/undecoded live process/);
  assert.throws(()=>auditListenerTrace('10 ???() = 0\n',30000,30020),/unrecognized/);
  assert.equal(auditListenerTrace('99999999 ???( <detached ...>\n10 listen(4<TCP:[127.0.0.1:30001]>, 511) = 0\n',30000,30020).nonReturned[0].state,'absent');
