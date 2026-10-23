@@ -1,5 +1,5 @@
 //! Physical-layout measurement; only scripts/test-postgres.sh supplies a database.
-use snapback4_core::{Value, key, engine::postgres::PostgresEngine};
+use snapback4_core::{Value, key};
 use snapback4_postgres_evaluation::*;
 
 #[test]
@@ -7,7 +7,7 @@ use snapback4_postgres_evaluation::*;
 fn measure_incompressible_encoded_index_key_limit() {
     let (schema, programs) = compiled();
     let name = namespace("key_limit");
-    let _engine = PostgresEngine::create(connect(), &name, schema, programs).unwrap();
+    let _engine = create(&name, schema, programs).unwrap();
     let mut client = connect();
     client.batch_execute(&format!("SET search_path TO {name}; BEGIN")).unwrap();
     let mut fits = |size: usize| {
@@ -67,7 +67,7 @@ fn portable_bound_accepts_exactly_the_limit_and_refuses_the_next_byte_on_both_st
     let mut bound = snapback4_lang::compile(&[("schema.q".into(), "table items:\n  text: text <=100\n  unique byText: text\n  public 'test'\n  insert <- allow\n  online only\n".into())]);
     assert!(bound.diagnostics.is_empty());
     bound.schema.tables.get_mut("items").unwrap().columns.insert("text".into(), ColumnType::Text { max: 3000 });
-    let mut pg = PostgresEngine::create(connect(), &namespace("portable_key"), bound.schema.clone(), []).unwrap();
+    let mut pg = create(&namespace("portable_key"), bound.schema.clone(), []).unwrap();
     let mut sqlite = Engine::memory(bound.schema.clone(), []).unwrap();
     for extra in [0, 1] {
         let identity = format!("r{extra}");

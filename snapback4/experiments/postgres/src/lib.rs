@@ -68,3 +68,15 @@ pub fn sent(outcome: &snapback4_core::engine::MutationOutcome) -> u64 {
     let snapback4_core::WriteState::Sent { seq, .. } = outcome.state else { panic!("expected sent: {outcome:?}") };
     seq
 }
+
+/// All ordinary evaluation callers use shared Engine policy over AnyStore.
+// @ref LLP 3000.009.001.000#3.4 — S10e-1 migrates callers while retaining the oracle.
+pub fn configuration() -> postgres::Config {
+    std::env::var("SNAPBACK4_EVAL_POSTGRES").expect("set SNAPBACK4_EVAL_POSTGRES to a private cluster").parse().unwrap()
+}
+pub fn create(name: &str, schema: Schema, programs: impl IntoIterator<Item = Program>) -> Result<snapback4_core::Engine, snapback4_core::RuntimeError> {
+    snapback4_core::Engine::create_postgres_evaluation(configuration(), name, schema, programs)
+}
+pub fn open(name: &str) -> Result<snapback4_core::Engine, snapback4_core::RuntimeError> {
+    snapback4_core::Engine::open_postgres_evaluation(configuration(), name)
+}

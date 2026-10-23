@@ -31,6 +31,11 @@ pub(crate) fn error_chain(kind: &str, error: &(dyn Error + 'static)) -> String {
     }
     parts.join("; caused by: ")
 }
+fn setup_error(diagnostics: &crate::pg_diagnostics::Diagnostics, error: snapback4_core::RuntimeError) -> String {
+    let reason = crate::stores::setup_error(error);
+    // A capability refusal is a stable classifier, not a failed SQL exchange.
+    if reason.starts_with("postgres-unsupported:") { reason } else { diagnostics.describe(&reason) }
+}
 fn quote(s: &str) -> String {
     format!("'{}'", s.replace('\'', "''"))
 }
@@ -156,7 +161,7 @@ impl Database {
             })();
             install.map_err(|e| error_chain("install compiled empty fixture", &e))?;
             let engine = Engine::open_postgres_evaluation(config, &name)
-                .map_err(|e| diagnostics.describe(&crate::stores::setup_error(e)))?;
+                .map_err(|e| setup_error(&diagnostics, e))?;
             (name, engine)
         } else {
             let stamp = std::time::SystemTime::now()
@@ -169,7 +174,7 @@ impl Database {
                 NEXT.fetch_add(1, Ordering::Relaxed)
             );
             let engine = Engine::create_postgres_evaluation(config, &name, b.schema, programs.into_values())
-                .map_err(|e| diagnostics.describe(&crate::stores::setup_error(e)))?;
+                .map_err(|e| setup_error(&diagnostics, e))?;
             self.name = Some(name.clone());
             self.tables = self
                 .admin
@@ -253,7 +258,7 @@ impl Database {
             self.batch(&self.seeded.clone())?;
             let (config, diagnostics) = crate::pg_diagnostics::Diagnostics::connect(&self.url)?;
             let engine = Engine::open_postgres_evaluation(config, &world.name)
-                .map_err(|e| diagnostics.describe(&crate::stores::setup_error(e)))?;
+                .map_err(|e| setup_error(&diagnostics, e))?;
             world.engine = engine;
             world.diagnostics = diagnostics;
         }

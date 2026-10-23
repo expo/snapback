@@ -1,4 +1,4 @@
-use snapback4_core::{Value, engine::postgres::PostgresEngine, wire};
+use snapback4_core::{Value, Engine, wire};
 use snapback4_device::{
     device::{Backend, Device, StreamPage},
     memory::MemoryStore,
@@ -10,7 +10,7 @@ use snapback4_postgres_evaluation::*;
 fn postgres_snapshot_offline_queue_reopen_retry_stream_and_revocation_on_existing_device() {
     let (schema, programs) = compiled();
     let name = namespace("device");
-    let mut pg = PostgresEngine::create(connect(), &name, schema.clone(), programs.clone()).unwrap();
+    let mut pg = create(&name, schema.clone(), programs.clone()).unwrap();
     pg.seed_at(fixture(1, 25), 10).unwrap();
     let backend = Backend { schema, programs, generation: pg.generation() };
     let mut device = Device::open_store(MemoryStore::new(), Some(backend.clone())).unwrap();
@@ -18,7 +18,7 @@ fn postgres_snapshot_offline_queue_reopen_retry_stream_and_revocation_on_existin
     let mut first = true;
     loop {
         let after = cursor.as_ref().map(|c: &snapback4_core::partition::SnapshotCursor| c.encode());
-        let page = pg.snapshot_page("bob", cursor, 7, 1_000).unwrap();
+        let page = pg.snapshot_acquisition_page_at("bob", after.as_deref(), 7, 1_000).unwrap();
         let wire: StreamPage = serde_json::from_value(serde_json::json!({
             "snapshot": true, "held": page.held, "watermark": page.watermark, "acquisitions": page.acquisitions,
             "after": after, "more": page.next.is_some(), "next": page.next.as_ref().map(|c| c.encode()), "generation": 1,
@@ -59,13 +59,13 @@ fn postgres_snapshot_offline_queue_reopen_retry_stream_and_revocation_on_existin
     let result = pg.mutate("increment", Some("offline-op"), context("bob", &[("slot", id("c0"))])).unwrap();
     let seq = sent(&result);
     drop(pg); // response loss and a new server connection
-    let mut pg = PostgresEngine::open(connect(), &name).unwrap();
+    let mut pg = open(&name).unwrap();
     let replay = pg.mutate("increment", Some("offline-op"), context("bob", &[("slot", id("c0"))])).unwrap();
     assert!(replay.replayed);
     assert_eq!(sent(&replay), seq);
     device.settle("offline-op", Some(seq)).unwrap();
-    let apply = |device: &mut Device<MemoryStore>, pg: &mut PostgresEngine| {
-        let page = pg.stream("bob", device.state().unwrap().0, 1_000, 1_000).unwrap();
+    let apply = |device: &mut Device<MemoryStore>, pg: &mut Engine| {
+        let page = pg.stream_at("bob", device.state().unwrap().0, 1_000, 1_000).unwrap();
         let wire: StreamPage = serde_json::from_value(serde_json::json!({
             "snapshot":false,"watermark":page.watermark,"more":page.more,"joined":page.joined,"generation":1,
             "acquisitions":page.acquisitions,"images_at":page.images_at,

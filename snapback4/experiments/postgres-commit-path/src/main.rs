@@ -21,7 +21,7 @@ mod sqlite_optimistic;
 
 use common::*;
 use serde_json::{Value as Json, json};
-use snapback4_core::{Value, engine::postgres::{PostgresEngine, WriteMode}};
+use snapback4_core::{Value, Engine};
 use snapback4_postgres_evaluation::{compiled, context, fixture, id, namespace, sent};
 use std::time::Instant;
 
@@ -55,10 +55,10 @@ pub fn rows() -> Vec<(String, Value)> {
 }
 
 /// Create a fresh engine namespace over the Unix socket (setup, unmeasured).
-pub fn create_engine(label: &str) -> (String, PostgresEngine) {
+pub fn create_engine(label: &str) -> (String, Engine) {
     let (schema, programs) = compiled();
     let name = namespace(label);
-    let mut pg = PostgresEngine::create(admin(), &name, schema, programs).expect("create engine namespace");
+    let mut pg = Engine::create_postgres_evaluation(admin_url().parse().unwrap(), &name, schema, programs).expect("create engine namespace");
     pg.seed_at(rows(), 10).expect("seed");
     let mut a = admin();
     a.batch_execute(&format!("SET search_path={name},pg_catalog; ANALYZE r; ANALYZE i; ANALYZE _log; ANALYZE _ops; ANALYZE _commits;")).unwrap();
@@ -98,14 +98,12 @@ fn capture(_args: &Args) -> Json {
     let log = std::path::Path::new(&env("PGDATA_DIR")).parent().unwrap().join("server.log");
     let before = std::fs::metadata(&log).map(|m| m.len()).unwrap_or(0);
     let url = format!("{} options='-c log_statement=all -c log_min_duration_statement=0'", env("PG_UNIX_URL"));
-    let client = postgres::Client::connect(&url, postgres::NoTls).unwrap();
-    let mut pg = PostgresEngine::open(client, &name).unwrap();
-    pg.set_write_mode(WriteMode::Serialized);
+    let mut pg = Engine::open_postgres_evaluation(url.parse().unwrap(), &name).unwrap();
     let mut calls = Vec::new();
     for i in 0..3 {
-        let before = pg.stats().database_calls;
+        let before = pg.evaluation_stats().unwrap().database_calls;
         sent(&pg.mutate("increment", Some(&format!("capture-{i}")), context("alice", &[("slot", id("c1"))])).unwrap());
-        calls.push(pg.stats().database_calls - before);
+        calls.push(pg.evaluation_stats().unwrap().database_calls - before);
     }
     drop(pg);
     std::thread::sleep(std::time::Duration::from_millis(300));
@@ -114,7 +112,7 @@ fn capture(_args: &Args) -> Json {
     json!({"cell": "capture", "schema": name, "engine_calls_per_increment": calls, "log": new.lines().collect::<Vec<_>>()})
 }
 
-/// Cell 1: the real PostgresEngine, WriteMode::Serialized, through `--net`.
+/// Cell 1: the common Engine with its serial committer, through `--net`.
 fn engine(args: &Args) -> Json {
     let net = std::sync::Arc::new(Net::parse(args.req("--net")));
     let writers = args.num("--writers", 4);
@@ -127,23 +125,23 @@ fn engine(args: &Args) -> Json {
     let mut total = 0i64;
     for run in 0..args.runs() {
         let (n1, n2, tag) = (name.clone(), net.clone(), tag.clone());
-        let result = closed_loop(
+        let result = closed_loop_tagged(
             writers,
             &timing,
             Some(true),
+            Some(format!("sb:{}:0000:0", pg.store().store_id().unwrap())),
             move |_| {
-                let mut pg = PostgresEngine::open(n2.connect(), &n1).unwrap();
-                pg.set_write_mode(WriteMode::Serialized);
-                pg.set_prefetch(prefetch);
+                let mut pg = Engine::open_postgres_evaluation(n2.url().parse().unwrap(), &n1).unwrap();
+                pg.set_evaluation_prefetch(prefetch);
                 pg
             },
             move |pg, w, i| {
-                let before = pg.stats().database_calls;
+                let before = pg.evaluation_stats().unwrap().database_calls;
                 let out = pg
                     .mutate("increment", Some(&format!("{tag}-{run}-{w}-{i}")), context("alice", &[("slot", id(slot(disjoint, w)))]))
                     .map_err(|e| format!("{e:?}"))?;
                 sent(&out);
-                Ok(pg.stats().database_calls - before)
+                Ok(pg.evaluation_stats().unwrap().database_calls - before)
             },
         );
         total += result["total_ops"].as_i64().unwrap();
@@ -155,7 +153,7 @@ fn engine(args: &Args) -> Json {
         let v = pg.query("counter", context("alice", &[("slot", id(format!("c{c}")))])).unwrap().data;
         sum += match v.field("value").unwrap() { Value::Int(n) => *n, other => panic!("{other:?}") };
     }
-    json!({"cell": "engine", "committer": "reference (WriteMode::Serialized)", "net": net.describe(), "writers": writers,
+    json!({"cell": "engine", "committer": "common Engine serial committer", "net": net.describe(), "writers": writers,
         "counters": if disjoint {"disjoint"} else {"same"}, "prefetch": prefetch, "schema": name,
         "counter_check": {"acknowledged": total, "counter_sum": sum, "ok": total == sum},
         "summary": aggregate(&runs), "runs": runs})

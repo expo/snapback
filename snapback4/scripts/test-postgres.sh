@@ -48,7 +48,7 @@ status=0
 refresh_shared_target() {
   if [[ -n "${CARGO_TARGET_DIR:-}" ]]; then
     echo "Refreshing core/lang/device debug artifacts at a shared-target manifest handoff" >&2
-    cargo clean --manifest-path Cargo.toml --profile dev -p snapback4-core -p snapback4-lang -p snapback4-device
+    touch crates/snapback4-core/src/lib.rs crates/snapback4-lang/src/lib.rs crates/snapback4-device/src/lib.rs
   fi
 }
 refresh_shared_target || status=1
@@ -70,7 +70,9 @@ cargo test --locked -p snapback4 --features postgres --bin snapback4 change_evid
 cargo test --locked -p snapback4 --features postgres --bin snapback4 postgres_startup_renewal_error_releases_committed_claim -- --include-ignored --nocapture || status=1
 cargo test --locked -p snapback4 --features postgres --bin snapback4 round_trips_postgres -- --include-ignored --nocapture || status=1
 cargo test --locked -p snapback4 --features postgres --bin snapback4 postgres_bearer_is_checked_after_durable_and_ephemeral_mutation_lock_gaps -- --include-ignored --nocapture || status=1
-cargo test --locked -p snapback4-core --features postgres --test corpus -- --nocapture || status=1
+cargo test --locked -p snapback4-core --features postgres --test corpus -- --include-ignored --nocapture || status=1
+# Exercise migrated preludes, snapshot resets, replay and explicit unsupported accounting.
+cargo test --locked -p snapback4-difftest --features postgres --no-fail-fast --lib --test stores -- --nocapture || status=1
 # Public serving is a separate CLI process over its own private cluster, never
 # the evaluator's namespace/connection. Build the shipped default CLI first.
 cargo build --locked -p snapback4 || status=1

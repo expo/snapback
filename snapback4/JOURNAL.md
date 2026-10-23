@@ -103117,3 +103117,35 @@ in the reduced case. The old evaluator's per-attempt context clone hides it.
 The original and reduced assertions remain exact and red; the open ticket now
 records that cause. Full core tests pass: 665 library tests, 44 integration
 targets and 27 doctests, with the existing named ignores. No executor is deleted.
+
+
+## 2026-10-23 — S10e-1 experiment callers and retained oracle fixtures
+
+The ordinary Postgres experiment, its conformance/device/read-through/key-limit
+fixtures, and the commit-path capture/engine cells now use common Engine.
+Original read-through evolution fixtures are retained explicitly as oracle
+sources: all seven and all thirty review scenarios pass there; the common
+profile's release-activation refusals stay visible in the migrated tests.
+Serializable contention and receipt races also remain explicit oracle fixtures;
+the old 40001 stress red still reproduces, including its refused-receipt race.
+Common serial concurrency and receipt races pass. Evaluation mode migration
+therefore remains the RFC's bounded follow-up, not production retry policy.
+
+The scale sampler follows the exact common engine owner tag and excludes
+pre-existing setup sessions. It no longer silently samples only the old sb4cp
+label. Short debug smoke cells finish with no lost increments: 70/70 and 66/66
+acknowledged/retained, prefetch on/off. These are correctness/call-count smoke
+runs, not throughput claims. Capture sees 33 cold then 24/24 warmed calls;
+the paired fixture sees 30/24 cold (common/oracle), then 24/19 warm. The warmed
+five-call delta is the common owner's fence, member save/release, placement
+lookup and separate insert/bind receipt work. The buffered tail remains one
+CTE exchange. Query overlap calls match: 20/20 off and 23/23 on for the derived
+page, with eight marked reads; the 32-room inbox remains 8 on versus 68 off.
+
+The 32-case migrated store campaign has no setup error and no store signature.
+Its refusal expectation guard stays red on matching SQLite/Postgres E_INPUT
+and E_DIV_ZERO outcomes; an issues ticket records deterministic seeds rather
+than broadening the allowed errors. Exact E_STORE_UNSUPPORTED exclusions remain
+outside passed. The first private-runner invocation also hit a 45-second public
+CLI deploy guard. All owned clusters in those runs stopped and were independently
+confirmed; final qualification and PID audit follow in the lane report.

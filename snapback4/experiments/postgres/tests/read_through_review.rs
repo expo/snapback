@@ -3,16 +3,16 @@ mod cases;
 use cases::{Backend, Outcome};
 use snapback4_core::{
     Context,
-    engine::{WriteState, postgres::PostgresEngine},
+    engine::WriteState, Engine,
     meter::Ceilings,
 };
-use snapback4_postgres_evaluation::{connect, namespace};
+use snapback4_postgres_evaluation::{create, namespace};
 
-struct Pg(PostgresEngine);
+struct Pg(Engine);
 impl Backend for Pg {
     fn run(&mut self, op: &str, context: Context, ceilings: Ceilings) -> Outcome {
         self.0.set_ceilings(ceilings);
-        if self.0.programs()[op].kind == snapback4_core::ir::ProgramKind::Query {
+        if self.0.programs().find(|p| p.name == op).unwrap().kind == snapback4_core::ir::ProgramKind::Query {
             let o = self.0.query(op, context).unwrap();
             assert!(o.complete && !o.unavailable, "{op}: {o:?}");
             (Ok(o.data), o.metered)
@@ -49,8 +49,7 @@ impl Backend for Pg {
 }
 fn factory(source: &str) -> Box<dyn Backend> {
     let b = cases::bound(source);
-    Box::new(Pg(PostgresEngine::create(
-        connect(),
+    Box::new(Pg(create(
         &namespace("through_review"),
         b.schema,
         b.programs.into_iter().map(|p| p.program),
