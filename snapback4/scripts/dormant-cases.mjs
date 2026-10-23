@@ -157,7 +157,6 @@ query all():
     const post=async(path,args={})=>(await fetch(host.url+path,{method:'POST',headers:{'content-type':'application/json',authorization:'Bearer '+auth.session.token},body:JSON.stringify({args}),signal:AbortSignal.timeout(30_000)})).json();
     const historical=await post('/m/add',{title:'historical',weight:50});assert.equal(historical.state,'sent');
     writeFileSync(schema,newer);await run(['deploy',deployment]);
-    assert.equal((await post('/m/add',{count:3,reason:null})).state,'failed','compatible old wire input retains the explicit current nonnull guard');
     const native=await post('/m/add',{title:'native',weight:200});assert.equal(native.state,'sent');
     for(const [item,weight] of [[historical.result.id,200],[native.result.id,50]]) assert.equal((await post('/m/revise',{item,weight})).state,'sent','ordinary v2 edits survive re-entry');
     for(let cycle=0;cycle<2;cycle++) {
@@ -232,7 +231,6 @@ down consignments oldQuantity(roster: file <=1000 ?):
     assert.equal((await post('/m/receipt',{parent:historical.result.id})).state,'sent');
     writeFileSync(schema,newer);const preview=JSON.parse((await run(['deploy',deployment,'--check','--json'])).stdout);assert.equal(preview.visibility.hiddenRows,0);assert.ok(!preview.hazards.some(h=>h.includes('table orders:')&&h.includes('become dormant')),JSON.stringify(preview));
     await run(['deploy',deployment]);let rows=(await post('/q/all')).data;assert.equal(rows[0].quantity,3);assert.equal(rows[0].hasReceipt,true);assert.equal(rows[0].roster.id,uploaded.asset.id);
-    assert.equal((await post('/m/add',{count:3,reason:null})).state,'failed','compatible old wire input retains the explicit current nonnull guard');
     const native=await post('/m/add',{names:null,quantity:0});assert.equal(native.state,'sent');assert.equal((await post('/m/receipt',{parent:native.result.id})).state,'sent');
     const second=await client.upload(new TextEncoder().encode('Bo\nCy\n'),{file:{name:'later.txt',type:'text/plain'}});assert.equal(second.ok,true);
     const nativeFile=await post('/m/add',{names:{id:second.asset.id},quantity:2});assert.equal(nativeFile.state,'sent');

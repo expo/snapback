@@ -190,8 +190,14 @@ fn loosen_guarded(target:&[(String,String)],current:&[(String,String)])->Bridge 
 
     for previous in &crate::compile(target).programs {
         if let Some(current)=current_bound.programs.iter().find(|p|p.program.name==previous.program.name) {
-            if !super::release_bridge_current::endpoint_contract(&previous.program,&current.program) {
-                diagnostics.push(crate::diag::type_error(&crate::Site::default(),format!("rollback export {} cannot retain current input domains and distinct wire positions",previous.program.name),"author a compatible current guarded endpoint with the old accepted wire contract").guide("deploy"));
+            let mut positions=std::collections::BTreeSet::new();
+            let collapsed=previous.program.args.iter().any(|(name,_)| {
+                let spellings=std::iter::once(name.as_str()).chain(previous.program.arg_aliases.iter().filter(|(_,owner)|*owner==name).map(|(alias,_)|alias.as_str()));
+                let resolved=spellings.filter_map(|name|current.program.argument(name).map(|(canonical,_)|canonical)).collect::<std::collections::BTreeSet<_>>();
+                resolved.len()>1||resolved.iter().any(|position|!positions.insert(*position))
+            });
+            if collapsed {
+                diagnostics.push(crate::diag::type_error(&crate::Site::default(),format!("rollback export {} cannot merge or rebind old wire input positions behind current guards",previous.program.name),"author a compatible current guarded endpoint with distinct old argument positions").guide("deploy"));
             }
         }
     }

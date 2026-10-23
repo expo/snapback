@@ -3,9 +3,10 @@
 use crate::{ast::Stmt, parser, print};
 use std::collections::BTreeSet;
 
-// A guard's reads depend on statement order and the data schema, not merely
-// the last textual binding for each variable. Use current execution whenever
-// a guarded retained export cannot be transported as that complete context.
+// Guard meaning depends on statement order and named definitions, not merely
+// the last textual binding. Compare declared row identities, then select
+// current execution when that guarded context cannot be transported intact.
+// Field/table authority is validated separately before choosing a strategy.
 pub(super) fn current_context_needed(
     sources:&[(String,String)],current:&[(String,String)],
     view_schema:&snapback4_core::Schema,current_schema:&snapback4_core::Schema,
@@ -33,9 +34,23 @@ pub(super) fn current_context_needed(
         }out
     };
     let shapes_changed=shapes(sources)!=shapes(current);
-    let view=exports(sources);let next=exports(current);
-    let mut view_data=view_schema.clone();let mut current_data=current_schema.clone();
-    view_data.operations.clear();current_data.operations.clear();
+    let view=exports(sources);let mut next=exports(current);
+    // Compare declared row identities, never raw business strings or an
+    // unrelated schema/domain addition. The selective view has its own
+    // compatible old wire workflow; current authority is checked separately.
+    let mut names=current_schema.table_renames.iter().filter(|(_,old)|view_schema.tables.contains_key(*old)).map(|(new,old)|(new.clone(),old.clone())).collect::<std::collections::BTreeMap<_,_>>();
+    for(name,prior)in &view_schema.table_renames {
+        if current_schema.tables.contains_key(prior)&&!current_schema.tables.contains_key(name){names.insert(prior.clone(),name.clone());}
+    }
+    for p in next.values_mut() {
+        let mut doc=crate::ast::Document::default();doc.programs.push(p.clone());
+        crate::bind::intent_walk::document(&mut doc,&mut |expr|match expr {
+            crate::ast::Expr::Read(r)|crate::ast::Expr::Exists{read:r,..}|crate::ast::Expr::Created{read:r,..}=>{if let Some(old)=names.get(&r.table){r.table=old.clone();}},
+            crate::ast::Expr::Write{table,..}=>{if let Some(old)=names.get(table){*table=old.clone();}},
+            _=>(),
+        });
+        *p=doc.programs.pop().unwrap();
+    }
     for(name,p)in next {
         let Some(old)=view.get(&name)else{continue};
         let mut sensitive=p.prelude.iter().chain(&p.body).any(|s|matches!(s,Stmt::Require{..}|Stmt::If{..}|Stmt::For{..}|Stmt::As{..}));
@@ -44,7 +59,7 @@ pub(super) fn current_context_needed(
             sensitive|=matches!(expr,crate::ast::Expr::Read(_)|crate::ast::Expr::Exists{..}|crate::ast::Expr::Created{..}|crate::ast::Expr::Walk{..}|crate::ast::Expr::Merge(_)|crate::ast::Expr::If{..}|crate::ast::Expr::Assert{..}|crate::ast::Expr::Call{..}|crate::ast::Expr::Write{condition:Some(_),..});
         });
         let body=|p:&crate::ast::ProgramDecl|p.prelude.iter().chain(&p.body).map(normalized_statement).collect::<Vec<_>>();
-        if sensitive&&(body(old)!=body(&p)||view_data!=current_data||shapes_changed){return true;}
+        if sensitive&&(body(old)!=body(&p)||shapes_changed){return true;}
     }
     false
 }
