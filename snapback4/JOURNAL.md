@@ -102750,6 +102750,25 @@ negative checks for wrapped unresolved/out-of-range records. LLP
 3000.011.003.000.000 §8 and the complete DX8 amendment record the precise
 acceptance rule and return to both fresh reviewers. This changes qualification
 decoding only; the final R7 SDK/native tarballs remain byte-identical.
+
+R8 marked the listener amendment READY in both families, but fresh Codex found
+an empty-parent extraction re-entry could skip resumption validation and later
+manufacture missing lifetime evidence during an asset-only edit. Known
+consumed-source definitions now resume regardless of active parent count.
+Unknown consumed-source definitions allow only genuinely empty initialization,
+with no active or retained child history. Birth or a real reference change
+captures a lifetime; unchanged-reference writes never repair missing anchors.
+Restoration ordering was checked independently: all eligible restored child
+images enter r before resumption; ordinary incompatible narrowed history stays
+retained and requires its existing bridge.
+
+Five regressions cover empty known initialization/resumption, independent
+child-only history, retained-only unknown history, missing-anchor asset edits,
+and invalid missing-target bindings across later parent creation. They snapshot
+generation, format, rows and complete asset records/homes on refusal. Focused
+element-extraction tests pass 20/20 and the complete backfill module passes
+163/163. The complete amendment returns to both fresh reviewers, and native
+artifacts are rebuilt; R7 results retain their original source binding.
 ## 2026-10-23 — P1-CE: Postgres change evidence and certified changes/sync
 
 The Postgres buffered tail now writes the shared net-image footprint and prunes

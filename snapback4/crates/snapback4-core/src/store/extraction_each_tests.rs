@@ -440,6 +440,343 @@ fn dx8_each_resume_refuses_retrospective_native_capture_and_unknown_sources() {
     let mut e=engine(NEW_EACH);
     adopt(&mut e,&only_parent,3).unwrap();adopt(&mut e,NEW_EACH,2).unwrap();
 }
+
+#[test]
+fn dx8_each_empty_known_definition_refuses_independent_child_on_resume_atomically() {
+    let without_each = NEW_EACH
+        .lines()
+        .filter(|line| !line.starts_with("extract "))
+        .collect::<Vec<_>>()
+        .join("\n")
+        + "\n";
+    let mut e = engine(&without_each);
+    assert_eq!(e.store().count("orders").unwrap(), 0);
+    assert_eq!(e.store().count("documents").unwrap(), 0);
+    adopt(&mut e, NEW_EACH, 2).unwrap();
+    assert_eq!(
+        e.store()
+            .test_support_conn()
+            .query_row(
+                "SELECT COUNT(*) FROM _extraction_each_definitions",
+                [],
+                |row| row.get::<_, i64>(0),
+            )
+            .unwrap(),
+        1,
+        "an initially empty extraction still records durable definition custody"
+    );
+
+    adopt(&mut e, &without_each, 3).unwrap();
+    adopt(&mut e, NEW_EACH, 2).unwrap();
+    assert_eq!(e.store().count("orders").unwrap(), 0);
+    assert_eq!(e.store().count("documents").unwrap(), 0);
+    adopt(&mut e, &without_each, 3).unwrap();
+    assert!(e.schema().tables.contains_key("orders"));
+    assert!(e.schema().tables.contains_key("documents"));
+    let asset = handle(&mut e, b"born outside extraction custody");
+    let asset_id = crate::assets::asset_id(Some(&asset)).unwrap().to_owned();
+    let child = mutate(
+        &mut e,
+        "attach",
+        [
+            ("order", Value::Id("missing-parent".into())),
+            ("names", asset),
+        ],
+    )
+    .field("id")
+    .unwrap()
+    .as_str()
+    .unwrap()
+    .to_owned();
+
+    let generation = e.generation();
+    let format = e.store().test_support_meta("version").unwrap();
+    let child_before = row(&mut e, "documents", &child);
+    let asset_before = e.store().asset(&asset_id).unwrap().unwrap();
+    let error = adopt(&mut e, NEW_EACH, 2).unwrap_err().to_string();
+    assert!(
+        error.contains("retrospectively capture")
+            || error.contains("captured parent-lifetime evidence"),
+        "{error}"
+    );
+    assert_eq!(e.generation(), generation);
+    assert_eq!(e.store().test_support_meta("version").unwrap(), format);
+    assert_eq!(e.store().count("orders").unwrap(), 0);
+    assert_eq!(e.store().count("documents").unwrap(), 1);
+    assert_eq!(row(&mut e, "documents", &child), child_before);
+    assert_eq!(e.store().asset(&asset_id).unwrap().unwrap(), asset_before);
+}
+
+#[test]
+fn dx8_each_unknown_consumed_source_refuses_child_only_history_atomically() {
+    let without_each = NEW_EACH
+        .lines()
+        .filter(|line| !line.starts_with("extract "))
+        .collect::<Vec<_>>()
+        .join("\n")
+        + "\n";
+    let mut e = engine(&without_each);
+    let asset = handle(&mut e, b"unknown-definition child");
+    let asset_id = crate::assets::asset_id(Some(&asset)).unwrap().to_owned();
+    let child = mutate(
+        &mut e,
+        "attach",
+        [
+            ("order", Value::Id("missing-parent".into())),
+            ("names", asset),
+        ],
+    )
+    .field("id")
+    .unwrap()
+    .as_str()
+    .unwrap()
+    .to_owned();
+    let generation = e.generation();
+    let format = e.store().test_support_meta("version").unwrap();
+    let child_before = row(&mut e, "documents", &child);
+    let asset_before = e.store().asset(&asset_id).unwrap().unwrap();
+
+    let error = adopt(&mut e, NEW_EACH, 2).unwrap_err().to_string();
+    assert!(
+        error.contains("no successfully applied extraction")
+            && error.contains("independent child history"),
+        "{error}"
+    );
+    assert_eq!(e.generation(), generation);
+    assert_eq!(e.store().test_support_meta("version").unwrap(), format);
+    assert_eq!(e.store().count("orders").unwrap(), 0);
+    assert_eq!(e.store().count("documents").unwrap(), 1);
+    assert_eq!(row(&mut e, "documents", &child), child_before);
+    assert_eq!(e.store().asset(&asset_id).unwrap().unwrap(), asset_before);
+}
+
+#[test]
+fn dx8_each_unknown_consumed_source_refuses_retained_child_history_atomically() {
+    let without_each = NEW_EACH
+        .lines()
+        .filter(|line| !line.starts_with("extract "))
+        .collect::<Vec<_>>()
+        .join("\n")
+        + "\n";
+    let parent_only = NEW_EACH
+        .split("\ntable documents:")
+        .next()
+        .unwrap()
+        .to_owned()
+        + "\nmutation add():\n  return insert orders {}\n";
+    let mut e = engine(&without_each);
+    let asset = handle(&mut e, b"unknown retained child");
+    let asset_id = crate::assets::asset_id(Some(&asset)).unwrap().to_owned();
+    let child = mutate(
+        &mut e,
+        "attach",
+        [
+            ("order", Value::Id("missing-parent".into())),
+            ("names", asset),
+        ],
+    )
+    .field("id")
+    .unwrap()
+    .as_str()
+    .unwrap()
+    .to_owned();
+    adopt(&mut e, &parent_only, 2).unwrap();
+    assert!(!e.schema().tables.contains_key("documents"));
+    let dormant_before = e
+        .store()
+        .test_support_conn()
+        .query_row(
+            "SELECT data FROM _dormant_rows WHERE t=(SELECT num FROM _catalog WHERE name='documents') AND id=?1",
+            [&child],
+            |row| row.get::<_, String>(0),
+        )
+        .unwrap();
+    let generation = e.generation();
+    let format = e.store().test_support_meta("version").unwrap();
+    let asset_before = e.store().asset(&asset_id).unwrap().unwrap();
+
+    let error = adopt(&mut e, NEW_EACH, 3).unwrap_err().to_string();
+    assert!(
+        error.contains("no successfully applied extraction")
+            && error.contains("independent child history"),
+        "{error}"
+    );
+    assert_eq!(e.generation(), generation);
+    assert_eq!(e.store().test_support_meta("version").unwrap(), format);
+    assert!(!e.schema().tables.contains_key("documents"));
+    assert_eq!(
+        e.store()
+            .test_support_conn()
+            .query_row(
+                "SELECT data FROM _dormant_rows WHERE t=(SELECT num FROM _catalog WHERE name='documents') AND id=?1",
+                [&child],
+                |row| row.get::<_, String>(0),
+            )
+            .unwrap(),
+        dormant_before
+    );
+    assert_eq!(e.store().asset(&asset_id).unwrap().unwrap(), asset_before);
+}
+
+#[test]
+fn dx8_each_unchanged_parent_update_cannot_manufacture_extraction_provenance() {
+    let mut e = engine(NEW_EACH);
+    seed(&mut e, "orders", json!({"id":"p"}));
+    let original = handle(&mut e, b"original child asset");
+    let original_id = crate::assets::asset_id(Some(&original)).unwrap().to_owned();
+    let child = mutate(
+        &mut e,
+        "attach",
+        [
+            ("order", Value::Id("p".into())),
+            ("names", original),
+        ],
+    )
+    .field("id")
+    .unwrap()
+    .as_str()
+    .unwrap()
+    .to_owned();
+
+    let captured = e
+        .store()
+        .test_support_conn()
+        .query_row(
+            "SELECT COUNT(*), MIN(invalid) FROM _dormant_refs WHERE t=(SELECT num FROM _catalog WHERE name='documents') AND id=?1 AND column_name LIKE '$extract:%'",
+            [&child],
+            |row| Ok((row.get::<_, i64>(0)?, row.get::<_, Option<i64>>(1)?)),
+        )
+        .unwrap();
+    assert_eq!(captured, (1, Some(0)), "an active-born child captures its valid parent lifetime");
+
+    let removed = e
+        .store()
+        .test_support_conn()
+        .execute(
+            "DELETE FROM _dormant_refs WHERE t=(SELECT num FROM _catalog WHERE name='documents') AND id=?1 AND column_name LIKE '$extract:%'",
+            [&child],
+        )
+        .unwrap();
+    assert_eq!(removed, 1, "fixture must remove exactly the private extraction anchor");
+
+    let replacement = handle(&mut e, b"replacement child asset");
+    let replacement_id = crate::assets::asset_id(Some(&replacement))
+        .unwrap()
+        .to_owned();
+    mutate(
+        &mut e,
+        "edit",
+        [
+            ("id", Value::Id(child.clone())),
+            ("names", replacement),
+        ],
+    );
+    let anchor_count = e
+        .store()
+        .test_support_conn()
+        .query_row(
+            "SELECT COUNT(*) FROM _dormant_refs WHERE t=(SELECT num FROM _catalog WHERE name='documents') AND id=?1 AND column_name LIKE '$extract:%'",
+            [&child],
+            |row| row.get::<_, i64>(0),
+        )
+        .unwrap();
+    assert_eq!(
+        anchor_count, 0,
+        "changing another field with an unchanged parent reference cannot mint extraction custody"
+    );
+
+    let generation = e.generation();
+    let format = e.store().test_support_meta("version").unwrap();
+    let parent_before = row(&mut e, "orders", "p");
+    let child_before = row(&mut e, "documents", &child);
+    let original_before = e.store().asset(&original_id).unwrap().unwrap();
+    let replacement_before = e.store().asset(&replacement_id).unwrap().unwrap();
+    let error = adopt(&mut e, OLD_EACH, 1).unwrap_err().to_string();
+    assert!(error.contains("parent-lifetime evidence"), "{error}");
+    assert_eq!(e.generation(), generation);
+    assert_eq!(e.store().test_support_meta("version").unwrap(), format);
+    assert_eq!(e.store().count("orders").unwrap(), 1);
+    assert_eq!(e.store().count("documents").unwrap(), 1);
+    assert_eq!(row(&mut e, "orders", "p"), parent_before);
+    assert_eq!(row(&mut e, "documents", &child), child_before);
+    assert_eq!(e.store().asset(&original_id).unwrap().unwrap(), original_before);
+    assert_eq!(
+        e.store().asset(&replacement_id).unwrap().unwrap(),
+        replacement_before
+    );
+}
+
+#[test]
+fn dx8_each_changed_parent_capture_keeps_missing_target_lifetime_invalid() {
+    let movable = format!(
+        "{NEW_EACH}mutation reparent(id: documents, order: orders):\n  return update documents[id] {{order}}\n"
+    );
+    let mut e = engine(&movable);
+    seed(&mut e, "orders", json!({"id":"first"}));
+    let asset = handle(&mut e, b"changed-reference child");
+    let asset_id = crate::assets::asset_id(Some(&asset)).unwrap().to_owned();
+    let child = mutate(
+        &mut e,
+        "attach",
+        [
+            ("order", Value::Id("first".into())),
+            ("names", asset),
+        ],
+    )
+    .field("id")
+    .unwrap()
+    .as_str()
+    .unwrap()
+    .to_owned();
+    mutate(
+        &mut e,
+        "reparent",
+        [
+            ("id", Value::Id(child.clone())),
+            ("order", Value::Id("later".into())),
+        ],
+    );
+    let binding = e
+        .store()
+        .test_support_conn()
+        .query_row(
+            "SELECT parent_id, invalid FROM _dormant_refs WHERE t=(SELECT num FROM _catalog WHERE name='documents') AND id=?1 AND column_name LIKE '$extract:%'",
+            [&child],
+            |row| Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?)),
+        )
+        .unwrap();
+    assert_eq!(binding, ("later".into(), 2));
+
+    seed(&mut e, "orders", json!({"id":"later"}));
+    assert_eq!(
+        e.store()
+            .test_support_conn()
+            .query_row(
+                "SELECT invalid FROM _dormant_refs WHERE t=(SELECT num FROM _catalog WHERE name='documents') AND id=?1 AND column_name LIKE '$extract:%' AND parent_id='later'",
+                [&child],
+                |row| row.get::<_, i64>(0),
+            )
+            .unwrap(),
+        2,
+        "creating the formerly missing target must not heal captured lifetime evidence"
+    );
+    let generation = e.generation();
+    let format = e.store().test_support_meta("version").unwrap();
+    let first_before = row(&mut e, "orders", "first");
+    let later_before = row(&mut e, "orders", "later");
+    let child_before = row(&mut e, "documents", &child);
+    let asset_before = e.store().asset(&asset_id).unwrap().unwrap();
+    let error = adopt(&mut e, OLD_EACH, 1).unwrap_err().to_string();
+    assert!(error.contains("parent-lifetime evidence"), "{error}");
+    assert_eq!(e.generation(), generation);
+    assert_eq!(e.store().test_support_meta("version").unwrap(), format);
+    assert_eq!(e.store().count("orders").unwrap(), 2);
+    assert_eq!(e.store().count("documents").unwrap(), 1);
+    assert_eq!(row(&mut e, "orders", "first"), first_before);
+    assert_eq!(row(&mut e, "orders", "later"), later_before);
+    assert_eq!(row(&mut e, "documents", &child), child_before);
+    assert_eq!(e.store().asset(&asset_id).unwrap().unwrap(), asset_before);
+}
 #[test]
 fn dx8_each_reverse_shares_parent_page_and_accumulated_child_heap_atomically() {
     let old = "table orders:\n  names: [file <=1000] <=64\n  padding: text <=4096\n  public 'fixture'\n  insert <- allow\n  online only\n";

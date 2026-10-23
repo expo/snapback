@@ -343,8 +343,13 @@ pub(super) fn transition(
                 .query_row("SELECT EXISTS(SELECT 1 FROM r WHERE t=?1)", [pt], |r| {
                     r.get(0)
                 })?;
-        let resume_each=e.each && populated && !parent.columns.contains_key(each::source(e,child));
-        if resume_each && !each::known(tx,&key)? {return Err(refuse("extract each source list is absent and no successfully applied extraction owns this suspended definition"));}
+        let consumed_each=e.each && !parent.columns.contains_key(each::source(e,child));
+        // @ref LLP 3000.000.000.002#10-wave-25-day-two-friction-dx8 — definition custody survives an empty parent population; every resumed child still needs its original anchor.
+        let resume_each=consumed_each && each::known(tx,&key)?;
+        if consumed_each && !resume_each {
+            let child_history:bool=tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM r WHERE t=?1) OR EXISTS(SELECT 1 FROM _dormant_rows WHERE t=?1) OR EXISTS(SELECT 1 FROM _dormant_narrow_rows WHERE t=?1) OR EXISTS(SELECT 1 FROM _dormant_values WHERE t=?1)",[ct],|r|r.get(0))?;
+            if populated || child_history {return Err(refuse("extract each source list is absent and no successfully applied extraction owns this suspended definition; preserve independent child history in an authored bridge"));}
+        }
         for (dest, source) in e.fields.iter().filter(|_| populated) {
             if resume_each && asset(&child.columns[dest]) {continue;}
             let kind = parent.columns.get(source).ok_or_else(|| {
@@ -480,12 +485,8 @@ pub(super) fn observe_write(
     let active:Vec<(String,String,String)>=tx.conn().prepare("SELECT definition,parent_name,reference_column FROM _extraction_active WHERE child_t=?1")?.query_map([t],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?)))?.collect::<Result<_,_>>()?;
     for (key, parent, column) in active {
         let binding = format!("$extract:{key}");
-        let existing: bool = tx.conn().query_row(
-            "SELECT EXISTS(SELECT 1 FROM _dormant_refs WHERE t=?1 AND id=?2 AND column_name=?3)",
-            params![t, id, binding],
-            |r| r.get(0),
-        )?;
-        if existing && old.is_some_and(|old| old.field(&column).ok() == row.field(&column).ok()) {
+        // @ref LLP 3000.000.000.002#10-wave-25-day-two-friction-dx8 — only birth or a real reference change can capture a parent lifetime; an asset edit cannot repair missing provenance.
+        if old.is_some_and(|old| old.field(&column).ok() == row.field(&column).ok()) {
             continue;
         }
         if let Ok(value) = row.field(&column) {
