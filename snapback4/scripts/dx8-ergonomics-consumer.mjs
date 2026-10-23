@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { cli, exhaustPages, renderedText, waitForFresh, withBrowser } from "snapback4/proof";
+import { cleanup, cli, exhaustPages, renderedText, startDev, waitForFresh, withBrowser } from "snapback4/proof";
 
 const guide = async name => {
   const result = await cli(["guide", name, "--full"]);
@@ -22,6 +22,19 @@ assert.match(rulesGuide, /`read through live \.parent`/); assert.match(recipesGu
 assert.match(testingGuide, /compareById/); assert.match(testingGuide, /v1ClientWrites/); assert.match(testingGuide, /v2Native/);
 assert.match(cheatsheetGuide, /return items .* last 50 by \.id after c/);
 assert.match(productionGuide, /return profiles last 20 by \.id after c \{ principal, displayName \}/);
+
+const quarryBlocks = markdown => [...markdown.matchAll(/```quarry\n([\s\S]*?)\n```/g)].map(match => match[1]);
+async function checkGuideBlock(name, source) {
+  assert.ok(source, `${name} Quarry block is shipped`);
+  const cwd = join(process.cwd(), `guide-${name}`); mkdirSync(join(cwd, "snapback"), { recursive: true });
+  writeFileSync(join(cwd, "snapback/schema.q"), source);
+  const checked = await cli(["check", "--json"], { cwd });
+  assert.equal(checked.code, 0, checked.stderr + checked.stdout);
+}
+const cheatsheetBlocks = quarryBlocks(cheatsheetGuide);
+await checkGuideBlock("cheatsheet-board", cheatsheetBlocks.find(block => block.includes("query itemsOf")));
+await checkGuideBlock("cheatsheet-division", cheatsheetBlocks.find(block => block.includes("query divisionTeams")));
+await checkGuideBlock("production-lists", quarryBlocks(productionGuide).find(block => block.includes("query directory(c: cursor ?)")));
 
 const cursors = [];
 const rows = await exhaustPages(async cursor => {
@@ -55,6 +68,26 @@ for (const [name, args] of [["local", []], ["online", ["--online"]], ["web", ["-
 }
 const social = await initialized("social", ["--template", "social"]);
 assert.match(social, /return members .* last 50 by \.conversation after c/, "social inbox lists newest first");
+
+const localCwd = join(process.cwd(), "local");
+let dev;
+try {
+  dev = await startDev({ cwd: localCwd, args: ["--memory"] });
+  const seeded = Array.from({ length: 101 }, (_, index) => ({ table: "todos", row: {
+    id: `todo-${String(index).padStart(3, "0")}`, title: `Todo ${index}`, done: false, ownerId: "dev:alice",
+  } }));
+  const seedResponse = await fetch(`${dev.url}/seed`, { method: "POST", headers: { "content-type": "application/json", "x-snapback-persona": "alice" }, body: JSON.stringify(seeded) });
+  assert.equal(seedResponse.status, 200); assert.equal((await seedResponse.json()).seeded, 101);
+  const readPage = async c => {
+    const response = await fetch(`${dev.url}/q/list`, { method: "POST", headers: { "content-type": "application/json", "x-snapback-persona": "alice" }, body: JSON.stringify({ args: { c } }) });
+    assert.equal(response.status, 200); return response.json();
+  };
+  const first = await readPage(null);
+  assert.equal(first.data.length, 100); assert.ok(first.next, "101 rows cross the starter's page boundary");
+  assert.deepEqual(first.data.map(row => row.id), seeded.slice(1).map(item => item.row.id).reverse(), "page one is newest first");
+  const all = await exhaustPages(readPage, { label: "packed starter list" });
+  assert.deepEqual(all.map(row => row.id), seeded.map(item => item.row.id).reverse(), "opaque continuation exhausts all rows in newest-first order");
+} finally { await cleanup(() => dev?.stop()); }
 
 const proofModule = fileURLToPath(import.meta.resolve("snapback4/proof"));
 const packageRoot = dirname(dirname(proofModule));
