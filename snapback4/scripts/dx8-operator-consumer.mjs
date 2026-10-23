@@ -26,7 +26,7 @@ assert.equal((await cli(["check"])).code,0);
 // Password development keeps fixture doors closed while an operator clock is
 // available. Both full and read session families reconcile after the jump.
 let dev=await startDev({args:["--no-watch"]});
-let full,read;
+let full,read,expiringFull,expiringRead;
 let jumped;
 try{
  const signed=await signup(dev.url,"dx8@example.test","dx8-password");assert.equal(signed.ok,true);
@@ -42,7 +42,15 @@ try{
  assert.equal((await full.query({kind:"query",name:"myRole"},{})).data.role,"member");
  assert.equal((await read.query({kind:"query",name:"myRole"},{})).data.role,"member");
  assert.ok(full.session().expiresAt>signed.session.expiresAt);assert.ok(read.session().expiresAt>narrowed.session.expiresAt);
-}finally{await cleanup(()=>full?.close(),()=>read?.close(),()=>dev.stop());}
+ const expiring=await signup(dev.url,"dx8-expire@example.test","dx8-password");assert.equal(expiring.ok,true);
+ const expiringNarrow=await narrowSession(dev.url,expiring.session);assert.equal(expiringNarrow.ok,true);
+ expiringFull=createClient({url:dev.url,session:expiring.session});expiringRead=createClient({url:dev.url,session:expiringNarrow.session,readOnly:true,waitSeconds:1});
+ assert.equal((await expiringFull.query({kind:"query",name:"myRole"},{})).denied,undefined);
+ assert.equal((await expiringRead.query({kind:"query",name:"myRole"},{})).denied,undefined);
+ await dev.advance("8d",{sessions:"expire"});
+ assert.equal((await expiringFull.query({kind:"query",name:"myRole"},{})).denied?.code,"E_AUTH");
+ assert.equal((await expiringRead.query({kind:"query",name:"myRole"},{})).denied?.code,"E_AUTH");
+}finally{await cleanup(()=>full?.close(),()=>read?.close(),()=>expiringFull?.close(),()=>expiringRead?.close(),()=>dev.stop());}
 dev=await startDev({args:["--no-watch"]});
 try{assert.ok(await dev.now()<jumped.now-7*86400000,"development clock returns to wall time on restart");}
 finally{await dev.stop();}

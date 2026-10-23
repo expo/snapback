@@ -1,5 +1,5 @@
 export { loadFixtures, type FixtureRow, type LoadFixturesOptions } from "./proof-fixtures.ts";
-import { provisionAccounts, seedAccounts, type SeedAccountsOptions, type StagingSessions } from "./proof-accounts.ts";
+import { provisionAccounts, seedAccounts, type ProvisionedSessions, type SeedAccountsOptions, type StagingSessions } from "./proof-accounts.ts";
 export { provisionAccounts, seedAccounts, type SeedAccountsOptions, type StagingAccount, type StagingSessions, type ProvisionedAccount, type ProvisionedSessions } from "./proof-accounts.ts";
 // @ref LLP 3000.011.003.000.000#1 — the packaged proof kit owns hosts; builders own assertions.
 import { mkdirSync, openSync, closeSync, writeSync } from "node:fs";
@@ -28,7 +28,7 @@ async function nativeHost(verb: "dev" | "serve", prefix: string[], options: Proo
   if (!args.includes("--port")) args.push("--port", ports);
   const run = logged(resolveBinary(env), [verb, ...prefix, ...args], { ...options, processGroup: true, env: { ...env, SNAPBACK4_PROOF_ID: id, SNAPBACK4_SUPERVISOR_PID: String(process.pid) } });
   try {
-    await run.started;
+    await bounded(run.started, timeout, "proof process-group handshake");
     const url = await ready(run, line => {
       const match = line.match(/^SNAPBACK4_READY verb=(dev|serve) generation=\d+ url=(http:\/\/[^ ]+) pid=(\d+)(?: |$)/);
       if (!match) return;
@@ -120,7 +120,7 @@ export interface ServeHost extends ProofHost {
   drain(options?: Pick<AdvanceOptions, "eachBoundary" | "allowHeld">): Promise<ClockAdvance>;
   operatorToken(service?: string, days?: number): Promise<string>;
   seedAccounts(options: SeedAccountsOptions): Promise<StagingSessions>;
-  provisionAccounts(options: SeedAccountsOptions): Promise<StagingSessions>;
+  provisionAccounts(options: SeedAccountsOptions): Promise<ProvisionedSessions>;
   sessions?: StagingSessions;
 }
 export interface ServeOptions extends ProofOptions { seedUsers?: SeedAccountsOptions; provisionUsers?: SeedAccountsOptions; clockOffset?: string }

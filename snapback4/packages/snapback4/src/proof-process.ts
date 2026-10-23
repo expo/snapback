@@ -9,6 +9,7 @@ import { stripVTControlCharacters } from "node:util";
 
 const children = new Set<ChildProcess>();
 const privateGroups = new WeakMap<ChildProcess, number>();
+const groupClosures = new WeakMap<ChildProcess, Promise<void>>();
 process.once("exit", () => { for (const child of children) child.kill("SIGKILL"); });
 export function register(child: ChildProcess): void {
   children.add(child);
@@ -90,13 +91,20 @@ export async function stopChild(child: ChildProcess | Pick<ProofHost, "url" | "s
 async function groupGone(child: ChildProcess): Promise<void> {
   const pid = privateGroups.get(child);
   if (!pid || process.platform === "win32") return;
-  await bounded((async () => {
+  const existing = groupClosures.get(child);
+  if (existing) return existing;
+  const cleanup = (async () => {
+    const expires = performance.now() + 5000;
     for (;;) {
       try { process.kill(-pid, 0); }
       catch (error) { if ((error as NodeJS.ErrnoException).code === "ESRCH") return; throw error; }
-      await sleep(10);
+      const remaining = expires - performance.now();
+      if (remaining <= 0) throw Error("proof process-group cleanup timed out after 5000 ms");
+      await sleep(Math.min(10, remaining));
     }
-  })(), 5000, "proof process-group cleanup");
+  })();
+  groupClosures.set(child, cleanup);
+  return cleanup;
 }
 /** @throws partial, invalid or reversed PORT_LO/PORT_HI pair. */
 export function portRange(env: NodeJS.ProcessEnv = process.env): string {
@@ -136,16 +144,22 @@ export function logged(command: string, args: readonly string[], options: ProofO
   let actualPid = child.pid;
   let actualCode: number | null = null;
   let actualSignal: NodeJS.Signals | null = null;
-  let startedResolve!: () => void;
-  const started = new Promise<void>(resolve => { startedResolve = resolve; });
-  if (!grouped) startedResolve();
+  let startedResolve!: () => void, startedReject!: (error: Error) => void, startedSettled = false;
+  const started = new Promise<void>((resolve, reject) => { startedResolve = resolve; startedReject = reject; });
+  void started.catch(() => {}); // command() observes close/error instead; host startup awaits this promise.
+  const didStart = () => { if (!startedSettled) { startedSettled = true; startedResolve(); } };
+  const failedStart = (value: unknown) => { if (!startedSettled) { startedSettled = true; startedReject(value instanceof Error ? value : Error(String(value))); } };
+  if (!grouped) didStart();
   child.on("message", message => {
     const event = message as {type?:string;pid?:number;code?:number|null;signal?:NodeJS.Signals|null;error?:string};
-    if (event.type === "started" && typeof event.pid === "number") { actualPid = event.pid; startedResolve(); }
+    if (event.type === "started" && typeof event.pid === "number") { actualPid = event.pid; didStart(); }
     if (event.type === "result") { actualCode = event.code ?? null; actualSignal = event.signal ?? null; if (event.error) error = Error(event.error); }
   });
-  child.on("error", value => { error = value; });
-  const closed = new Promise<void>((resolve, reject) => child.once("close", () => groupGone(child).then(resolve,reject)));
+  child.on("error", value => { error = value; failedStart(value); });
+  const closed = new Promise<void>((resolve, reject) => child.once("close", () => {
+    failedStart(error ?? Error("proof command exited before its process-group handshake"));
+    groupGone(child).then(resolve,reject);
+  }));
   return { child, logs, id, closed, started, pid: () => actualPid, code: () => grouped ? actualCode : child.exitCode, signal: () => grouped ? actualSignal : child.signalCode, stdout: () => options.secret ? stdout : logText(logs.stdout), error: () => error };
 }
 export const logText = (path: string): string => readFileSync(path, "utf8");
