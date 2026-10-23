@@ -18,6 +18,21 @@ pub(super) fn current_context_needed(
             for(name,target,_)in &doc.aliases{if let Some(p)=doc.programs.iter().find(|p|p.name==*target){out.insert(super::release_bridge::operation_name(file,name),p.clone());}}
         }out
     };
+    let shapes=|sources:&[(String,String)]| {
+        let mut out=std::collections::BTreeMap::new();
+        for(file,text)in sources {
+            for shape in parser::parse_document(file,text).0.shapes {
+                let fields=shape.fields.iter().map(|field|match field {
+                    crate::ast::ShapeField::Spread{..}=>"...".into(),
+                    crate::ast::ShapeField::NamedSpread{name,..}=>format!("...{name}"),
+                    crate::ast::ShapeField::Bare{name,..}=>name.clone(),
+                    crate::ast::ShapeField::Field{name,value,..}=>format!("{name}:{}",print::expression(value)),
+                }).collect::<Vec<_>>();
+                out.insert(shape.name,fields);
+            }
+        }out
+    };
+    let shapes_changed=shapes(sources)!=shapes(current);
     let view=exports(sources);let next=exports(current);
     let mut view_data=view_schema.clone();let mut current_data=current_schema.clone();
     view_data.operations.clear();current_data.operations.clear();
@@ -29,7 +44,7 @@ pub(super) fn current_context_needed(
             sensitive|=matches!(expr,crate::ast::Expr::Read(_)|crate::ast::Expr::Exists{..}|crate::ast::Expr::Created{..}|crate::ast::Expr::Walk{..}|crate::ast::Expr::Merge(_)|crate::ast::Expr::If{..}|crate::ast::Expr::Assert{..}|crate::ast::Expr::Call{..}|crate::ast::Expr::Write{condition:Some(_),..});
         });
         let body=|p:&crate::ast::ProgramDecl|p.prelude.iter().chain(&p.body).map(normalized_statement).collect::<Vec<_>>();
-        if sensitive&&(body(old)!=body(&p)||view_data!=current_data){return true;}
+        if sensitive&&(body(old)!=body(&p)||view_data!=current_data||shapes_changed){return true;}
     }
     false
 }

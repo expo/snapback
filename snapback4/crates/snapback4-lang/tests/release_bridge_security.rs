@@ -697,3 +697,30 @@ fn non_intent_guard_bindings_keep_the_current_statement_order() {
     assert!(bridge.diagnostics.is_empty(),"{:?}",bridge.diagnostics);
     assert_eq!(bridge.sources,sources,"identical last textual bindings cannot authorize restoring an earlier read before a guarded write");
 }
+
+#[test]
+fn a_named_shape_repair_cannot_restore_a_constant_true_guard() {
+    let old="table docs:\n  owner: principal\n  amount: int\n  read <- allow\n  insert <- allow\n  update <- allow\n  online only\nshape access = { allowed: true }\nmutation create():\n  return insert docs {owner:viewer,amount:0}\nmutation change(id: docs):\n  row = docs[id] ! else MISSING\n  gate = row access\n  require gate.allowed else FORBIDDEN\n  update docs[id] {amount:1}\n";
+    let current=old.replace("amount: int","amount: int ?").replace("allowed: true","allowed: .owner = viewer");
+    let bridge=release_bridge::loosen(&[("schema.q".into(),old.into())],&[("schema.q".into(),current)]);
+    assert!(bridge.diagnostics.is_empty(),"{:?}",bridge.diagnostics);
+    let bound=compile(&bridge.sources);let mut engine=snapback4_core::Engine::memory(bound.schema,bound.programs.into_iter().map(|p|p.program)).unwrap();
+    let created=engine.mutate("create",None,snapback4_core::Context::new("alice",Default::default())).unwrap();
+    let snapback4_core::WriteState::Sent{result,..}=created.state else{panic!("{created:?}")};
+    let args=std::collections::BTreeMap::from([("id".into(),result.field("id").unwrap().clone())]);
+    for(who,refused)in [("bob",true),("alice",false)] {
+        let out=engine.mutate("change",None,snapback4_core::Context::new(who,args.clone())).unwrap();
+        assert_eq!(matches!(out.state,snapback4_core::WriteState::Failed{..}),refused,"{who}: {out:?}");
+    }
+}
+
+#[test]
+fn changed_existing_column_authority_selects_the_guarded_current_fallback() {
+    let old="table docs:\n  owner: principal\n  amount: int\n  legacy: int ?\n  secret: text <=40 read <- .owner = viewer\n  read <- allow\n  insert <- allow\n  online only\nmutation create():\n  return insert docs {owner:viewer,amount:1,secret:'private'}\n";
+    let current=old.replace("amount: int","amount: int ?").replace("  legacy: int ?\n","").replace("read <- .owner = viewer","read <- deny");
+    let sources=vec![("schema.q".into(),current)];
+    assert!(compile(&sources).diagnostics.is_empty());
+    let bridge=release_bridge::loosen(&[("schema.q".into(),old.into())],&sources);
+    assert!(bridge.diagnostics.is_empty(),"{:?}",bridge.diagnostics);
+    assert_eq!(bridge.sources,sources,"a valid current guarded view must be selected before late CLI authority admission");
+}

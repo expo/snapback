@@ -1,0 +1,28 @@
+muse: workspace root: /home/ccheever/projects/snapback-sb4loop (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=ab03450e-7c90-47c4-bb61-989abf1c3a31]: Subscription quota exhausted. Your usage window resets at 2026-10-26T00:00:00Z. (rate_limit_error)
+READY
+
+The bounded contract in [§20.1](llp/3000.000.000-retained-storage-and-hot-release.rfc.md:1367) is implemented as stated. No material safety, trigger, or atomicity flaw found.
+
+Trigger distinguishes evolution from repair:
+
+- Widening/relaxation via structural domains, not advice prose, in [`requires_view`](snapback4/crates/snapback4-lang/src/release_bridge.rs:9). Direction `accepts(candidate,old)` is correct: wider candidate triggers; narrowing/tightening does not. Rename/split normalization and down-cover are present.
+- Repair protection is narrow: `same_data_and_intent` plus non-empty invariants plus `modules()!=` in same function, plus worker/native-only `closure_changed` via executable digest in [`rollback_views.rs`](snapback4/crates/snapback4/src/verbs/rollback_views.rs:89). Ordinary renames, splits, required-with-default additions change data/intent signatures, so they do not trigger. This matches the 10/50 false-refusal correction.
+
+Generation restores no unsafe authority:
+
+- Complete closure preferred, guarded current fallback when unavailable, in [`loosen`](snapback4/crates/snapback4-lang/src/release_bridge.rs:81). Both retain all current schema, defaults, helpers, jobs, shapes, authority. No old bodies or legacy columns are copied. Nullable default-free gaps may be absent with disclosure; required/defaulted fields and all tables remain mandatory via `table_contracts`.
+- Removed writes pause with named `E_OP`; queries remain required. Required renames use compiler-validated `renamed_column` only.
+
+Prior concerns remain defended:
+
+- Qualified helpers resolved to validated global identity with transitive closure in [`release_bridge_guards.rs`](snapback4/crates/snapback4-lang/src/release_bridge_guards.rs:184).
+- Rebound aliases stay current-authored; missing old aliases forward only to authored compatible endpoints in [`release_bridge_current.rs`](snapback4/crates/snapback4-lang/src/release_bridge_current.rs:78). Distinct wire positions enforced by `positions` set in `endpoint_contract`, blocking two-old-into-one-current collapse. Mixed-domain text shortcut is gone; both paths use compiled qualified contracts.
+- Context fallback via `current_context_needed` forces complete current execution when body order or schema context differs, preserving filters and read-before/write-after authorization.
+
+Legacy handling is actionable and atomic: default rollback without registration refuses with both `rollback --to N --exact` and `redeploy with 0.4.39`, retains active population, covered by `pre_view_release_refusal` test. Equal-source redeploy with stale/missing views registers instead of `UNCHANGED`.
+
+Regressions execute stored rows, qualified-helper repair, rebound-alias with old wire aliases, mixed-domain alias plus query-module move refusal, paused removed write, required-rename retention, and order-sensitivity. These are genuine stored-data exercises, correctly presented as regression evidence, not equivalence proof, per §20.5.
+
+Nits (non-material): `same_data_and_intent` body-stripping and `modules()` raw-text comparison could over-trigger registration on comment-only changes, but that yields a successful complete-closure view, not a refusal.

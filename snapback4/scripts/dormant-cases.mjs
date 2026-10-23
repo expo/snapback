@@ -46,7 +46,8 @@ table explanations:
   insert <- .owner = viewer
   update <- .owner = viewer
   online only
-mutation add(count: int 0..1000, reason: text <=100):
+mutation add(count: int 0..1000, reason: text <=100 ?):
+  require reason != null else MISSING_REASON
   row = insert entries {owner:viewer, count}
   insert explanations {owner:viewer, entry:row.id, text:reason}
   return row
@@ -67,11 +68,16 @@ down entries legacyReason(id: id):
     };
     const historical=await post('/m/add',{count:2,reason:'original v1 reason'});assert.equal(historical.state,'sent',JSON.stringify(historical));
     writeFileSync(schema,newer);await run(['deploy',deployment]);
+    assert.equal((await post('/m/add',{count:3,reason:null})).state,'failed','compatible old wire input retains the explicit current nonnull guard');
     const native=await post('/m/add',{count:3,reason:'exact v2 text'});assert.equal(native.state,'sent',JSON.stringify(native));
     const zero=await post('/m/add',{count:0,reason:'zero is not one'});assert.equal(zero.state,'sent',JSON.stringify(zero));
     const visible=JSON.parse((await run(['rollback',deployment,'--to','1','--check','--json'])).stdout);
     assert.equal(visible.visibility.hiddenRows,0,'default registered view keeps widened old-table rows visible');
     assert.equal(visible.rollbackView.target,1);
+    await run(['rollback',deployment,'--to','1']);
+    assert.equal((await post('/q/all')).data.length,3,'registered current workflow exposes every old-table row');
+    assert.equal((await post('/m/add',{count:3,reason:null})).state,'failed','the registered view retains the current explicit nonnull guard');
+    await run(['rollback',deployment,'--to','latest']);
     const preview=JSON.parse((await run(['rollback',deployment,'--to','1','--exact','--check','--json'])).stdout);
     assert.equal(preview.visibility.hiddenRows,1,JSON.stringify(preview));
     assert.equal(preview.visibility.emptyCells,0,'declared reverse keeps reason text');
@@ -80,7 +86,8 @@ down entries legacyReason(id: id):
     const bridge=join(cwd,'bridge');
     await run(['rollback',deployment,'--to','1','--exact','--check','--bridge',bridge]);
     const loosened=JSON.parse((await run(['deploy',deployment,'--schema',bridge,'--restore-dormant','--check','--json'])).stdout);
-    assert.equal(loosened.visibility.hiddenRows,0,'generated bridge represents zero without inventing one');
+    if(loosened.unchanged) assert.equal(loosened.unchanged,true,'a complete-current bridge may already be the active authored source');
+    else assert.equal(loosened.visibility.hiddenRows,0,'generated bridge represents zero without inventing one');
     await run(['deploy',deployment,'--schema',bridge,'--restore-dormant']);
     assert.equal((await post('/q/all')).data.length,3,'target operations read all representable rows under the generated bridge');
     await run(['deploy',deployment]);
@@ -150,6 +157,7 @@ query all():
     const post=async(path,args={})=>(await fetch(host.url+path,{method:'POST',headers:{'content-type':'application/json',authorization:'Bearer '+auth.session.token},body:JSON.stringify({args}),signal:AbortSignal.timeout(30_000)})).json();
     const historical=await post('/m/add',{title:'historical',weight:50});assert.equal(historical.state,'sent');
     writeFileSync(schema,newer);await run(['deploy',deployment]);
+    assert.equal((await post('/m/add',{count:3,reason:null})).state,'failed','compatible old wire input retains the explicit current nonnull guard');
     const native=await post('/m/add',{title:'native',weight:200});assert.equal(native.state,'sent');
     for(const [item,weight] of [[historical.result.id,200],[native.result.id,50]]) assert.equal((await post('/m/revise',{item,weight})).state,'sent','ordinary v2 edits survive re-entry');
     for(let cycle=0;cycle<2;cycle++) {
@@ -224,6 +232,7 @@ down consignments oldQuantity(roster: file <=1000 ?):
     assert.equal((await post('/m/receipt',{parent:historical.result.id})).state,'sent');
     writeFileSync(schema,newer);const preview=JSON.parse((await run(['deploy',deployment,'--check','--json'])).stdout);assert.equal(preview.visibility.hiddenRows,0);assert.ok(!preview.hazards.some(h=>h.includes('table orders:')&&h.includes('become dormant')),JSON.stringify(preview));
     await run(['deploy',deployment]);let rows=(await post('/q/all')).data;assert.equal(rows[0].quantity,3);assert.equal(rows[0].hasReceipt,true);assert.equal(rows[0].roster.id,uploaded.asset.id);
+    assert.equal((await post('/m/add',{count:3,reason:null})).state,'failed','compatible old wire input retains the explicit current nonnull guard');
     const native=await post('/m/add',{names:null,quantity:0});assert.equal(native.state,'sent');assert.equal((await post('/m/receipt',{parent:native.result.id})).state,'sent');
     const second=await client.upload(new TextEncoder().encode('Bo\nCy\n'),{file:{name:'later.txt',type:'text/plain'}});assert.equal(second.ok,true);
     const nativeFile=await post('/m/add',{names:{id:second.asset.id},quantity:2});assert.equal(nativeFile.state,'sent');

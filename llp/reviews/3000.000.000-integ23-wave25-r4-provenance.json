@@ -1,0 +1,56 @@
+{
+  "source": "dbf2e5600f1a1d9bbe31cca22c9dbd774c54e62c",
+  "files": {
+    "llp/3000.000.000-retained-storage-and-hot-release.rfc.md": "075f3fa77deb76f9517c4b2667ce8c4a87e0e68b43c603283df8b0ff402d215d",
+    "snapback4/crates/snapback4-lang/src/release_bridge.rs": "098d83d86408084c7d19c191affcc1eaec3ab9cb8cfa3751b9389fd4df027881",
+    "snapback4/crates/snapback4-lang/src/release_bridge_current.rs": "893bccd202835d252abe8ff265bee9c0b3430fef6017dfa742f256310cc382c5",
+    "snapback4/crates/snapback4-lang/src/release_bridge_guards.rs": "bd77180f0b00c71d07c8ebdf1f233bdb49f0ee4a3de49ca8b4e540196d5c1543",
+    "snapback4/crates/snapback4-lang/src/release_bridge_rules.rs": "d9f327aa5cc1d43308e39b668d4b1071c2748ee8c58d4c8d07fa18afa5a60d8b",
+    "snapback4/crates/snapback4/src/verbs/rollback_foresight.rs": "a43f4ed2f0eeeba72eb686de1a7d18060903b7696b14941377fc47d5edfa2758",
+    "snapback4/crates/snapback4/src/verbs/rollback_views.rs": "42472e5315aac911f6092de63bb073c025cf318f4feba08b0072ff3128737813",
+    "snapback4/crates/snapback4/src/verbs/releases.rs": "c83990b4fb7f3da88951e8bfbbdf8f7b8e6c2ff37a798985519a2f60ba1ff0b6",
+    "snapback4/crates/snapback4/tests/roll_views.rs": "233f28d7ef2c007de8580d8cc9afd1bf6417e3f0f826e0145f3626e182f5e91e",
+    "snapback4/crates/snapback4-lang/tests/release_bridge_security.rs": "c685090d1d468611368104ed632bcc79fdc72681fb39da643f1ea1e36d5b3848",
+    "snapback4/scripts/publication-roll.mjs": "fece2422ebe99dfc61b2ef8816b5f30db0b9088df7a3e4454a1691e5adc98e36"
+  },
+  "briefSha256": "e62be8de2f4d1551ed074610b9e6c30991897123b8d09ee9f2645107a717f1c4",
+  "recordedAt": "2026-10-23T02:42:28.666755+00:00",
+  "reviews": {
+    "muse": {
+      "argv": [
+        "/home/ccheever/sb4-loop/muse-exec.sh",
+        "--yolo",
+        "--model",
+        "muse-spark-1.3-contributor",
+        "--reasoning-effort",
+        "high",
+        "--prompt-file",
+        "/tmp/integ23/w25-review-r4-brief.md"
+      ],
+      "timeoutSeconds": 2300,
+      "stdinBrief": false,
+      "exit": 0,
+      "output": "3000.000.000-integ23-wave25-r4-muse.txt",
+      "sha256": "b193c8d561d4b16371835a45e2ff92dd09a48c1ef69ca522ec9f1751f40c39ca",
+      "observedFallback": "Plan quota 429 followed by the helper Meta API fallback and an actual READY review, retained verbatim; no key was read or printed."
+    },
+    "codex": {
+      "argv": [
+        "codex",
+        "exec",
+        "-m",
+        "gpt-6.1-sol",
+        "-c",
+        "model_reasoning_effort=high",
+        "--skip-git-repo-check",
+        "--dangerously-bypass-approvals-and-sandbox",
+        "-"
+      ],
+      "timeoutSeconds": 2300,
+      "stdinBrief": true,
+      "exit": 0,
+      "output": "3000.000.000-integ23-wave25-r4-codex.txt",
+      "sha256": "d2b2e0bb7670608cf9cf49a095a0c624a8e3c9d2b89bae9e67316ab44084243c"
+    }
+  }
+}

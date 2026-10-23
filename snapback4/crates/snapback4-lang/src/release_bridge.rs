@@ -198,6 +198,9 @@ fn loosen_guarded(target:&[(String,String)],current:&[(String,String)])->Bridge 
     for(name,table)in &bound.schema.tables {
         let Some((_,_,next))=new.get(name)else{continue};
         let Some(current_table)=current_bound.schema.table(&next.name)else{continue};
+        if name==&next.name&&(table.column_reads!=current_table.column_reads||table.written_by!=current_table.written_by) {
+            diagnostics.push(crate::diag::type_error(&next.site,format!("rollback view needs current field authority on {name}"),"retain the complete current guarded workflow and its column read/write authority").guide("deploy"));
+        }
         for column in &next.columns {
             let old_name=column.renamed_from.as_ref().filter(|name|table.columns.contains_key(*name)).unwrap_or(&column.name);
             if table.columns.contains_key(old_name)&&table.defaults.get(old_name)!=current_table.defaults.get(&column.name) {

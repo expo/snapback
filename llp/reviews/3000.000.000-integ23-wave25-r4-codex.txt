@@ -1,0 +1,42 @@
+**MATERIAL** — two source-traced issues remain at `dbf2e5600f`.
+
+1. **A changed named shape can bypass a current `require`.**  
+   [release_bridge_guards.rs:31](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/src/release_bridge_guards.rs:31) compares statement text and schema, while its binding dependency walk does not resolve named shapes. Shapes are absent from the compared compiled schema.
+
+   Concrete predecessor, without independent invariants:
+
+   ```quarry
+   table docs:
+     owner: principal
+     amount: int
+     read <- allow
+     update <- allow
+     online only
+   shape access = { allowed: true }
+   mutation change(id: docs):
+     row = docs[id] ! else MISSING
+     gate = row access
+     require gate.allowed else FORBIDDEN
+     update docs[id] {amount:1}
+   ```
+
+   In current source, change `amount` to `int ?` and the shape to:
+
+   ```quarry
+   shape access = { allowed: .owner = viewer }
+   ```
+
+   Widening requires a view. The selective bridge retains the predecessor shape: binding text remains `row access`, statement order matches, and the joined schema matches current. Consequently, for a stored Alice-owned row, Bob’s write fails under current source but passes the generated view’s unchanged textual `require`.
+
+   This violates the bounded guard-transport contract. Resolve transitive shape meanings or select the current workflow when they differ. The dependency comparison at [release_bridge_guards.rs:162](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/src/release_bridge_guards.rs:162) also needs that closure.
+
+2. **A compatible guarded-current fallback can be skipped, falsely refusing deployment.**  
+   [release_bridge_rules.rs:234](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/src/release_bridge_rules.rs:234) carries a field read guard only when the predecessor lacks one; it leaves an existing changed guard untouched.
+
+   Counterexample without invariants: predecessor `docs` has `amount: int`, `legacy: int ?`, and `secret: text <=40 read <- .owner = viewer`. Current source widens `amount` to optional, removes `legacy`, and changes the secret guard to `deny`. Retain only an unchanged direct-insert mutation, without reads or control flow.
+
+   The selective bridge compiles successfully, so [release_bridge.rs:93](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/src/release_bridge.rs:93) skips both current-source alternatives. The CLI subsequently refuses the stale field authority at [rollback_views.rs:219](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4/src/verbs/rollback_views.rs:219). Yet the new guarded-current fallback satisfies the stated contract: retain current authority and omit the nullable, default-free legacy result with disclosure. Authority-validation failures must participate in fallback selection.
+
+The trigger now scopes executable repairs to unchanged data/intent/signatures. The reviewed current-source fallback preserves executable closure, wire aliases and distinct positions; legacy visibility refusals name both recovery steps. Regression fixtures include genuine stored data and assets, but miss these two cases.
+
+Static review only; no builds, tests, edits, or report files. Optional nits: none.
