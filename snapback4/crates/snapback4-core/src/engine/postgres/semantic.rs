@@ -3,12 +3,21 @@
 use super::store::{Tx, signed, decode, absent_text_key};
 use crate::{RuntimeError, Value, ledger::LedgerReader, partition::PartitionRows, receipts::ReceiptTransaction};
 impl Tx<'_> {
-    pub(crate) fn begin_member_evidence(&self) { *self.changes.borrow_mut() = Default::default(); }
+    pub(crate) fn begin_member_evidence(&self) {
+        *self.changes.borrow_mut() = Default::default();
+        if self.group_head.get().is_some() {
+            *self.receipt_cache.borrow_mut() = None;
+            *self.authority_cache.borrow_mut() = None;
+            *self.placement_cache.borrow_mut() = None;
+            *self.read_cache.borrow_mut() = Default::default();
+            self.rows_cache.borrow_mut().clear();
+        }
+    }
     pub(crate) fn abandon(&self) -> Result<(), RuntimeError> { self.ensure_active() }
     pub(crate) fn savepoint(&self, name: &str) -> Result<(), RuntimeError> {
         validate_name(name)?;
         self.defer_control(&format!("SAVEPOINT {name}"))?;
-        self.savepoints.borrow_mut().push((name.into(), Checkpoint { head: self.head.get(), tail: self.tail.borrow().clone(), changes: self.changes.borrow().clone() }));
+        self.savepoints.borrow_mut().push((name.into(), Checkpoint { head: self.head.get(), tail: self.tail.borrow().clone(), group_len: self.group_tails.borrow().len(), changes: self.changes.borrow().clone() }));
         Ok(())
     }
     pub(crate) fn release(&self, name: &str) -> Result<(), RuntimeError> {
@@ -16,7 +25,10 @@ impl Tx<'_> {
         let index = self.savepoints.borrow().iter().rposition(|(n, _)| n == name)
             .ok_or_else(|| RuntimeError::Store("unknown savepoint".into()))?;
         // Flush while this frame can still roll back all of its bookkeeping.
-        if name == "member" {
+        if name == "member" && self.group_head.get().is_some() {
+            self.group_member_complete();
+            self.defer_control("RELEASE SAVEPOINT member")?;
+        } else if name == "member" {
             self.flush_tail_end("RELEASE SAVEPOINT member; SET LOCAL statement_timeout = 0; SET LOCAL lock_timeout = 0")?;
             self.commit_settings.set(true);
         } else { self.defer_control(&format!("RELEASE SAVEPOINT {name}"))?; }
@@ -32,6 +44,7 @@ impl Tx<'_> {
         let checkpoint = frames[index].1.clone();
         frames.truncate(index);
         self.head.set(checkpoint.head);
+        self.group_tails.borrow_mut().truncate(checkpoint.group_len);
         *self.tail.borrow_mut() = checkpoint.tail;
         *self.changes.borrow_mut() = checkpoint.changes;
         // Match SQLite's conservative treatment of a recovered savepoint:
@@ -67,10 +80,22 @@ impl LedgerReader for Tx<'_> {
 impl ReceiptTransaction for Tx<'_> {
     fn record_applied(&self, principal: &str, id: &str, seq: u64, outcome: &str) -> Result<(), RuntimeError> {
         *self.receipt_cache.borrow_mut() = None;
+        if self.group_head.get().is_some() {
+            self.tail.borrow_mut().receipts.push(super::group_tail::Receipt { principal: principal.into(), id: id.into(), seq,
+                outcome: outcome.into(), name: None, args_digest: None, at: 0 });
+            return Ok(());
+        }
         self.defer_one("INSERT INTO _ops(principal,id,seq,outcome,at) VALUES ($1,$2,$3,$4,0)", &[&principal, &id, &signed(seq)?, &outcome])
     }
     fn bind_applied(&self, principal: &str, id: &str, name: &str, args: &serde_json::Value, at: i64) -> Result<(), RuntimeError> {
         *self.receipt_cache.borrow_mut() = None;
+        if self.group_head.get().is_some() {
+            let mut tail = self.tail.borrow_mut();
+            let receipt = tail.receipts.iter_mut().rev().find(|r| r.principal == principal && r.id == id)
+                .ok_or_else(||RuntimeError::Store("group receipt binding without its insert".into()))?;
+            receipt.name = Some(name.into()); receipt.args_digest = Some(crate::receipts::payload_digest(args)); receipt.at = at;
+            return Ok(());
+        }
         self.defer_one("UPDATE _ops SET name=$3,args_digest=$4,at=$5 WHERE principal=$1 AND id=$2", &[&principal, &id, &name, &crate::receipts::payload_digest(args), &at])
     }
 }
@@ -79,6 +104,7 @@ impl ReceiptTransaction for Tx<'_> {
 pub(super) struct Checkpoint {
     head: Option<u64>,
     tail: super::tail::Tail,
+    group_len: usize,
     changes: crate::revocation::Recorder,
 }
 fn validate_name(name: &str) -> Result<(), RuntimeError> {

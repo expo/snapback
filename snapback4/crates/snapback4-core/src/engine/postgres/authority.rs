@@ -40,11 +40,12 @@ impl Tx<'_> {
         if absent_text_key(&[digest]) { return Ok(Default::default()); }
         let cached = self.authority_cache.borrow_mut().take().filter(|(key,_)|key == digest);
         let read = self.read_sessions.get() || self.read_sessions_installed.get();
-        let facts = match cached { Some((_,facts))=>facts, None=>self.fetch_session_authority_facts(digest,read)? };
+        let mut facts = match cached { Some((_,facts))=>facts, None=>self.fetch_session_authority_facts(digest,read)? };
         if !read && facts.sessions.is_empty() && super::identity::read_sessions_present(self)? {
             self.read_sessions_installed.set(true);
-            return self.fetch_session_authority_facts(digest, true);
+            facts = self.fetch_session_authority_facts(digest, true)?;
         }
+        if self.group_head.get().is_some() { facts.head = self.head.get().unwrap_or(facts.head); }
         Ok(facts)
     }
 

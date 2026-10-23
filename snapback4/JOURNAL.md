@@ -104957,3 +104957,21 @@ witnesses pass; the existing committer scope passes (18, with four private-PG
 fixtures deferred to the final suite). All 25 Postgres ownership witnesses pass,
 including lost COMMIT acknowledgement, engine propagation, fenced takeover and
 new-owner receipt replay. The final G3 entry records the complete battery.
+
+## 2026-10-23 — G3 vector-tail adapter checkpoint
+
+Postgres can retain completed program tails until one verified vector flight:
+commit/log/evidence/effects/presence/receipts, one head update, then a separate
+COMMIT. Buffered receipts and the logical head are visible at each successor's
+serial position. Savepoint rollback restores both buffered state and caches.
+The existing N=1 tail now verifies every inserted family count without adding
+a flight. SQLite retains its serial recorder inside the shared transaction.
+
+The initial serial-history oracle passes on both stores at N=4/16/32, including
+outcomes/meters, maintained rows, allocations, receipts, effects, logs and
+change evidence; all initial member/savepoint/tail boundary witnesses pass.
+The real backend-kill/takeover and no-early-continuation batch witnesses pass.
+Both RT0 ratchets pass with every existing N=1 class unchanged. Controlled
+core batches add Postgres 20/132 total flights at N=4/32 and SQLite 66/486
+statements, excluding HTTP ingress. Final complete qualification and the local
+32-writer diagnostic are recorded in the completion entry, not claimed here.

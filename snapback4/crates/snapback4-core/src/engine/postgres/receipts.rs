@@ -48,12 +48,21 @@ pub(super) const LOOKUP: &str = "SELECT outcome,name,args_digest FROM _ops WHERE
 pub(super) fn record(rows: &[super::store::Row]) -> Option<ReceiptRecord> {
     rows.first().map(|r|ReceiptRecord { outcome:r.get(0),name:r.get(1),args_digest:r.get(2) })
 }
+impl Tx<'_> {
+    fn group_receipt(&self,principal:&str,id:&str)->Option<super::group_tail::Receipt> {
+        if self.group_head.get().is_none(){return None;}
+        let tails=self.group_tails.borrow();let tail=self.tail.borrow();
+        tail.receipts.iter().rev().chain(tails.iter().rev().flat_map(|t|t.receipts.iter().rev()))
+            .find(|r|r.principal==principal&&r.id==id).cloned()
+    }
+}
 impl ReceiptReader for Tx<'_> {
     /// A NUL principal or operation id is absent without querying.
     fn receipt(&self, principal: &str, id: &str) -> Result<Option<ReceiptRecord>, RuntimeError> {
         if absent_text_key(&[principal, id]) {
             return Ok(None);
         }
+        if let Some(r)=self.group_receipt(principal,id) {return Ok(Some(ReceiptRecord{outcome:r.outcome,name:r.name,args_digest:r.args_digest}));}
         if let Some((key,value)) = self.receipt_cache.borrow().as_ref() {
             if key.0 == principal && key.1 == id { return Ok(value.as_ref().map(|r| ReceiptRecord {outcome:r.outcome.clone(),name:r.name.clone(),args_digest:r.args_digest.clone()})); }
         }
@@ -64,6 +73,7 @@ impl ReceiptReader for Tx<'_> {
         if absent_text_key(&[principal, id]) {
             return Ok(false);
         }
+        if self.group_receipt(principal,id).is_some(){return Ok(true);}
         Ok(self.query(
             "SELECT EXISTS(SELECT 1 FROM _ops WHERE principal=$1 AND id=$2)",
             &[&principal, &id],
@@ -79,6 +89,9 @@ impl ReceiptReader for Tx<'_> {
     ) -> Result<Option<i64>, RuntimeError> {
         if absent_text_key(&[principal, id]) {
             return Ok(None);
+        }
+        if let Some(r)=self.group_receipt(principal,id) {
+            return if r.seq as i64<=through {sent_state(r.seq as i64,&r.outcome)}else{Ok(None)};
         }
         self.query(
             "SELECT seq,outcome FROM _ops WHERE principal=$1 AND id=$2 AND seq<=$3",

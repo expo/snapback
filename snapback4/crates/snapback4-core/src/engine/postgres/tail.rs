@@ -9,20 +9,20 @@ pub(super) const SQL: &str = "WITH head AS (
         ), committed AS (
             INSERT INTO _commits(seq,at,program,principal,kind,touched,writes) SELECT seq,$2,$3,$4,$5,$6,$7 FROM head RETURNING seq
         ), evidence AS (
-            INSERT INTO _change_evidence(seq,footprint) SELECT seq,$26 FROM committed
+            INSERT INTO _change_evidence(seq,footprint) SELECT seq,$26 FROM committed RETURNING seq
         ), pruned AS (
             DELETE FROM _change_evidence WHERE seq <= $27 AND EXISTS (SELECT 1 FROM committed)
         ), logged AS (
             INSERT INTO _log(partition,seq,ord,t,kind,id,data) SELECT l.partition,c.seq,l.ord,l.t,l.kind,l.id,l.data FROM committed c
-            CROSS JOIN unnest($8::pg_catalog.text[],$9::pg_catalog.int8[],$10::pg_catalog.text[],$11::pg_catalog.text[],$12::pg_catalog.text[],$13::pg_catalog.text[]) AS l(partition,ord,t,kind,id,data)
+            CROSS JOIN unnest($8::pg_catalog.text[],$9::pg_catalog.int8[],$10::pg_catalog.text[],$11::pg_catalog.text[],$12::pg_catalog.text[],$13::pg_catalog.text[]) AS l(partition,ord,t,kind,id,data) RETURNING seq
         ), effects AS (
             INSERT INTO _outbox(id,seq,effect,payload,state,attempts,at,next_at,work_spec,deadline,contract,release)
             SELECT e.id,c.seq,e.effect,e.payload,'queued',0,$2,e.next_at,e.work,e.deadline,e.contract,CASE WHEN e.explicit_release THEN e.release ELSE (SELECT value FROM _meta WHERE key = 'release') END FROM committed c
-            CROSS JOIN unnest($14::pg_catalog.text[],$15::pg_catalog.text[],$16::pg_catalog.text[],$17::pg_catalog.int8[],$18::pg_catalog.text[],$19::pg_catalog.int8[],$20::pg_catalog.text[],$24::pg_catalog.bool[],$25::pg_catalog.text[]) AS e(id,effect,payload,next_at,work,deadline,contract,explicit_release,release)
+            CROSS JOIN unnest($14::pg_catalog.text[],$15::pg_catalog.text[],$16::pg_catalog.text[],$17::pg_catalog.int8[],$18::pg_catalog.text[],$19::pg_catalog.int8[],$20::pg_catalog.text[],$24::pg_catalog.bool[],$25::pg_catalog.text[]) AS e(id,effect,payload,next_at,work,deadline,contract,explicit_release,release) RETURNING id
         ), presence AS (
             INSERT INTO _effect_presence(principal,id,deadline) SELECT p.principal,p.id,p.deadline FROM committed c
-            CROSS JOIN unnest($21::pg_catalog.text[],$22::pg_catalog.text[],$23::pg_catalog.int8[]) AS p(principal,id,deadline)
-        ) SELECT count(*) FROM committed";
+            CROSS JOIN unnest($21::pg_catalog.text[],$22::pg_catalog.text[],$23::pg_catalog.int8[]) AS p(principal,id,deadline) RETURNING id
+        ) SELECT (SELECT count(*) FROM committed),(SELECT count(*) FROM evidence),(SELECT count(*) FROM logged),(SELECT count(*) FROM effects),(SELECT count(*) FROM presence)";
 
 #[derive(Clone, Default)]
 pub(super) struct Tail {
@@ -34,6 +34,7 @@ pub(super) struct Tail {
     pub ids: Vec<String>,
     pub data: Vec<Option<String>>,
     pub effects: Vec<Effect>,
+    pub receipts: Vec<super::group_tail::Receipt>,
 }
 #[derive(Clone)]
 pub(super) struct Effect {
@@ -42,7 +43,7 @@ pub(super) struct Effect {
     pub presence: Vec<(String, i64)>,
     pub release: Option<Option<String>>,
 }
-#[derive(Clone)]
+#[derive(Clone, serde::Serialize)]
 pub(super) struct Commit {
     pub seq: u64, pub at: i64, pub program: String, pub principal: String,
     pub kind: String, pub touched: String, pub writes: u64, pub footprint: String,
@@ -50,7 +51,7 @@ pub(super) struct Commit {
 
 impl Tx<'_> {
     pub(crate) fn flush_tail(&self) -> Result<(), RuntimeError> {
-        self.flush_tail_end("")
+        if self.group_head.get().is_some() { self.flush_group_tail() } else { self.flush_tail_end("") }
     }
     pub(super) fn flush_tail_end(&self, end: &str) -> Result<(), RuntimeError> {
         self.ensure_active()?;
@@ -92,6 +93,9 @@ impl Tx<'_> {
         let rows = &results[0].rows;
         if rows[0].get::<_, i64>(0) != 1 {
             return Err(RuntimeError::Store("Postgres commit head changed without a serialization failure".into()));
+        }
+        for (column,expected) in [(1,1),(2,tail.partitions.len()),(3,tail.effects.len()),(4,presence_ids.len())] {
+            if rows[0].get::<_,i64>(column) != expected as i64 {return Err(RuntimeError::Store(format!("Postgres tail count mismatch at {column}")));}
         }
         let seq = commit.seq;
         drop(tail);
