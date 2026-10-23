@@ -129,7 +129,7 @@ fn terms(rule:&RuleExpr,change:&mut impl FnMut(&mut RuleTerm))->RuleExpr{
     }
     walk(&mut rule,change);
     fn reflexive(rule:RuleExpr)->RuleExpr{match rule{
-        RuleExpr::Eq(a,b) if a==b=>RuleExpr::Allow,RuleExpr::Ne(a,b) if a==b=>RuleExpr::Deny,
+        RuleExpr::Eq(a,b) if a==b&&matches!(a,RuleTerm::Field(_)|RuleTerm::Viewer|RuleTerm::Literal(_))=>RuleExpr::Allow,RuleExpr::Ne(a,b) if a==b&&matches!(a,RuleTerm::Field(_)|RuleTerm::Viewer|RuleTerm::Literal(_))=>RuleExpr::Deny,
         RuleExpr::And(xs)=>RuleExpr::And(xs.into_iter().map(reflexive).collect()),RuleExpr::Or(xs)=>RuleExpr::Or(xs.into_iter().map(reflexive).collect()),RuleExpr::Not(x)=>RuleExpr::Not(Box::new(reflexive(*x))),_=>rule,
     }}
     reflexive(rule)
@@ -157,4 +157,12 @@ fn creation_values(table:&snapback4_core::schema::Table,fields:&[ast::ObjectFiel
         };
         if let Some(value)=value{values.insert(field.name.clone(),value);}
     }values
+}
+
+#[cfg(test)]mod sec9_unknown_tests{use super::*;
+#[test]fn live_reference_identity_does_not_become_an_always_true_audience(){
+ let term=RuleTerm::Reference{table:"parents".into(),column:"parent".into(),field:"owner".into(),old:false};
+ let rule=RuleExpr::Or(vec![RuleExpr::Eq(RuleTerm::OldField("payload".into()),RuleTerm::NextField("payload".into())),RuleExpr::Eq(term.clone(),term)]);
+ assert!(table_guards(&rule).is_empty());
+}
 }
