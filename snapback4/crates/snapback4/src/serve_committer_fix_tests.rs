@@ -354,7 +354,7 @@ fn unknown_mint_fences_orphaned_credentials_before_replacement() {
         "query who():\n  return viewer\n");
     let revision = host.shared.worker_revision.load(std::sync::atomic::Ordering::Acquire);
     let orphan = host.shared.engine.attempt(move |engine, shared| snapback4_core::identity::mint_supervised_child(engine.store(), None, shared.now(), revision)).unwrap();
-    for code in ["E_RATE_LIMIT", "E_COMMITTER_STOPPED", "E_STORE_OWNERSHIP"] {
+    for code in ["E_RATE_LIMIT", "E_COMMITTER_STOPPED", "E_STORE_OWNERSHIP", "E_COMMITTER_REENTRANT"] {
         assert!(!crate::dev_worker::mint_refusal(&host.shared, revision, &snapback4_core::Refusal::new(code, "store", "not applied")));
         assert_eq!(host.shared.worker_revision.load(std::sync::atomic::Ordering::Acquire), revision);
     }

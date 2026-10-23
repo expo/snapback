@@ -1238,6 +1238,7 @@ fn handle(mut request: Request, shared: &Shared) {
                         }
                         // Take identity from the same reader that evaluates the query,
                         // never from an engine that may have replaced it meanwhile.
+                        let context = match query_readers::query_context(&reader, shared, &op, &args_json, context.clone()) { Ok(context) => context, Err(why) => return argument_refusal(request, shared, None, why) };
                         let reads_presence = presence_of(&reader, &op);
                         let context = dev_refusals::response::context(context.clone(), reader.refusal_sites.clone(), &reader);
                         let query_generation = reader.generation();
@@ -1260,12 +1261,13 @@ fn handle(mut request: Request, shared: &Shared) {
                     }
                     Err(_) => {
                         let admission = session_identity::Admission::capture(&request, shared);
-                        let (op, context, retained) = (op.clone(), context.clone(), retained.clone());
+                        let (op, context, retained, args_json) = (op.clone(), context.clone(), retained.clone(), args_json.clone());
                         let result = shared.engine.attempt(move |engine, shared| {
                             admission?.check(shared, engine, &context.viewer)?;
                         let metadata = response_head(engine);
                         let reads_presence = presence_of(engine, &op);
                         let mut context = context.clone();
+                        context = query_readers::query_context(engine, shared, &op, &args_json, context)?;
                         if shared.personas { context = dev_refusals::response::context(context, Arc::new(lock(&shared.bound).refusal_sites.clone()), engine); }
                         let query_generation = engine.generation();
                         let decoration_paths = engine.program(&op).filter(|_| engine.schema().operations.get(&op).is_some_and(|f| f.search_decoration)).map(snapback4_core::search_decoration::paths);
@@ -1274,7 +1276,7 @@ fn handle(mut request: Request, shared: &Shared) {
                         let scopes = read_scopes::complete(scopes, engine.schema(), outcome.as_ref().map_or(&[], |o| &o.tables));
                         Ok::<_, Refusal>((outcome, cut, metadata, reads_presence, query_generation, current, scopes, decoration_paths))
                         });
-                        match result { Ok(value) => value, Err(why) => return respond_timed(request, shared, 401, json!({"denied":why})) }
+                        match result { Ok(value) => value, Err(why) if matches!(why.code.as_str(), "E_INPUT" | "E_OP") => return argument_refusal(request, shared, None, why), Err(why) => return respond_timed(request, shared, 401, json!({"denied":why})) }
 
                     },
                 };
@@ -1373,7 +1375,7 @@ fn handle(mut request: Request, shared: &Shared) {
                         if let Some(cut) = cut { reply["seq"] = json!(cut); }
                         // A refusal can depend on presence too: its watch keeps refreshing (LLP 3000.018 §3.2).
                         if reads_presence && !refusal.retryable { reply["refresh"] = json!(PRESENCE_REFRESH.as_millis() as u64); }
-                        respond_timed(request, shared, if refusal.retryable { 503 } else if refusal.code=="E_INPUT" && refusal.family=="input" {400} else {200}, reply);
+                        respond_timed(request, shared, if refusal.retryable || refusal.code == "E_GENERATION" { 503 } else if refusal.code=="E_INPUT" && refusal.family=="input" {400} else {200}, reply);
                     }
                 }
             } else {

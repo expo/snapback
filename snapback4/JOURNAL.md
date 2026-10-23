@@ -102601,3 +102601,96 @@ The resumption traversal shares child-page and parent-image job accounting.
 The added regression set covers repeated retirement/restoration, current edits,
 native children, new empty parents, unknown source and unanchored resumption.
 Both independent families review the expanded full amendment again.
+
+### DX8 review round 4 and final main integration
+
+Fresh Codex identified a removed optional argument spelling hidden by rename
+heuristics and a nested row-to-page result hidden by additive-field comparison.
+Commit b3c1734de2 preserves actual wire aliases and container distinctions; all
+19 operation-evolution tests pass, including the old spelling receiving E_INPUT.
+Muse was READY; the complete unchanged amendment returns to both fresh reviewers.
+The removed-list regression also verifies no live asset home survives repeated
+rollback/forward cycles and the asset remains eligible for ordinary cleanup.
+
+Final origin/main 46c6cdd056 is merged here. Its runtime changes merged without
+semantic conflict resolution; this journal retains both concurrent entries.
+The full client pool completed before corrections on a clean checkout: 429
+ordinary files, 9 fixture tests and 89 model tests; original reds and affected
+reruns remain separately recorded in WORKSTREAM-REPORT.md. Final Linux packed
+qualification and integrated affected runtime checks follow this merge.
+
+## 2026-10-23 — K0-Q fix-forward: remaining third-review findings
+
+At `901a362705`, on `sb4-pg/k0q-ff`, repair the two P2s and four lows in
+`/tmp/k0q-review3.md`. Governing context: the committer RFC's K0-Q note
+(LLP 3000.009.001.000.000 §9) and supervised retirement (LLP 3000.009 §5.3).
+The member driver, physical transactions, mailbox bounds and RT0 tables stay fixed.
+No new LLP, gate, push, stash or git configuration change.
+
+An inner `E_COMMIT_OUTCOME_UNKNOWN` from minting now takes the same revision
+fence and snapshot disposal as an outer queue unknown. The real `DevWorker`
+tick/queue witness injects unknown after mint COMMIT for both named and
+conventional children: the orphan refuses authentication before replacement.
+The first running witness also exposed conventional credentials reviving when
+replacement overwrote their single family marker. Retain uncertain retirement
+custody, suspend replacement while its deletion fails, and retire before reminting.
+The extended witness blocks retirement with an external writer, then starts a
+real replacement child and requires the orphan still to return 401. Named
+families retain their independent revision markers. Initial fixture compilation
+errors were corrected before the passing final run.
+
+`Queue::call` and `submit` return typed `SubmitError::Reentrant` before creating
+an admission ticket when called by their own worker. Private command construction
+also debug-asserts this invariant. Serving preserves it as non-retryable HTTP 500
+`E_COMMITTER_REENTRANT`, with guide/why facts. The bounded real-queue witness
+covers both doors, zero waiting tickets, subsequent progress and a different-queue
+control. Source inspection of production command bodies and their shared helpers
+found no existing same-queue submission; continuations use the inline driver.
+
+Clock advancement retains published effective time independently of the reply.
+The HTTP witness replaces the acknowledgement after the real queued advance with
+unknown, and requires 500 `E_CLOCK_REPORT_INCOMPLETE`, `now`, `advancedMs`,
+`reportIncomplete`, no retry header, and a zero-time drain without a second advance.
+This is injected acknowledgement loss, not a killed-worker campaign.
+
+Every query attempt re-decodes original JSON against its executing program,
+including the memory fallback. A deterministic signature-changing adoption
+requires the handoff to refuse the old integer argument against the new text
+signature. A separate witness adopts after metadata on all three attempts and
+requires a query-body `E_GENERATION` after two handoffs to return 503 and
+`complete:false`. A fresh query then succeeds. The committer RFC now records
+completed round-2 qualification and these repairs; its Revised line starts
+with `K0-Q fix-forward`.
+
+Final checks, eight Cargo jobs and only this worktree's `snapback4/target`:
+
+- `cargo build -p snapback4`: pass, including the script's final ordinary build.
+- `cargo check -p snapback4-core --no-default-features`: pass.
+- `cargo test -p snapback4-core --no-fail-fast`: 1,086 passed, five existing
+  ignores, across 46 targets including all 27 doctests.
+- Affected binary filters `serve dev_worker maintenance adoption round_trip`,
+  four test threads: 305 passed, eight existing ignores; every new witness passes.
+- `cargo test -p snapback4-lang --test guide`: 127 passed.
+- Both RT0 stores pass all twelve warm rows, with keyed-first 87 SQLite / 77
+  Postgres. Both JSON tables are byte-identical to `901a362705` (SHA-256 receipts
+  in the local transcript directory).
+- `bash scripts/test-postgres.sh`: exit 0; 386 Rust passes, including real queue,
+  ownership/renewal, HTTP and corpus stages, plus public deploy/serve, restart,
+  takeover, replay and P1-MC. The evaluator Serializable stress passed this run.
+  No provided baseline red was chased. This is the requested scope, not a
+  complete CLI/device qualification.
+
+All launch trees were recorded under `/tmp/sb4-k0q-ff.ycXNT1`. Independent
+`pg_ctl status` checks confirm the owned clusters `/tmp/sb4-pg-eval.6s4Em9`
+(PID 1810098) and `/tmp/s10d3-serve-3zxo9zpf` (PID 1899313) stopped: status 3,
+no `postmaster.pid`, and both PIDs absent. The post-suite audit finds all 39,515
+recorded process/thread IDs absent. PostgreSQL 17 on port 55440 was untouched.
+The one-second disk guard never hit 40 GiB; final sampled free space is 193 GB.
+Before the requested script's package cleans, preserve original target entries at
+`/tmp/sb4-k0q-ff.ycXNT1/preserved-target` and recreate active entries as owned
+hardlinks; no original entry is deleted. Reference validation is repeated after
+this entry, before the local commit.
+
+Post-entry root `./ref-check`: pass — 565 LLP documents, 11,765 references,
+zero errors and zero unchecked. Whitespace validation passes. The final PID
+and unchanged-table audit is repeated after recording this result.

@@ -153,6 +153,7 @@ const DEFINITIONS: &[(&str, &str)] = &[
     ("E_STORE_OWNERSHIP", "E_STORE_OWNERSHIP means the owner token, logical store binding or bounded takeover is no longer valid."),
     ("E_COMMIT_OUTCOME_UNKNOWN", "E_COMMIT_OUTCOME_UNKNOWN means COMMIT lost its acknowledgement, a synchronous replication wait was cancelled, or the committer worker disconnected after execution started."),
     ("E_COMMITTER_STOPPED", "E_COMMITTER_STOPPED means the committer disconnected before this command started execution. The command was not applied."),
+    ("E_COMMITTER_REENTRANT", "E_COMMITTER_REENTRANT means a committer command tried to submit to its own queue."),
     ("E_CLOCK_REPORT_INCOMPLETE", "E_CLOCK_REPORT_INCOMPLETE means time already advanced but maintenance or reporting failed."),
     ("E_WORKER_STORE_ID", "E_WORKER_STORE_ID means the completion ledger has no nonempty logical store identity."),
     ("E_STORE_CONFIG", "E_STORE_CONFIG means store selectors conflict or the deployment binding is missing or invalid."),
