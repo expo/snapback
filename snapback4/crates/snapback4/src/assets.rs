@@ -133,6 +133,7 @@ pub fn serve(request: Request, id: &str, shared: &Shared) {
         return respond(request, 404, json!({ "denied": refusal_json(&Refusal::new("E_ASSET_UNKNOWN", "asset", "no asset is served under that id to this viewer").guide("assets")) }));
     }
     let _transfer = shared.asset_transfers.enter(id, &principal);
+    if request.is_aborted() { return request.abort(); }
     let range_requested = request.headers().iter().any(|h| h.field.equiv("range"));
     let (facts, owned_principal, owned_id) = (RequestFacts::capture(&request), principal.clone(), id.to_owned());
     let granted = shared.engine.attempt(move |engine, shared| {
@@ -216,13 +217,17 @@ pub fn serve(request: Request, id: &str, shared: &Shared) {
     if status == 206 {
         response = response.with_status_code(206);
     }
-    // @ref LLP 3000.009.001.000.000#3.7 — consume the one-view grant before
-    // releasing bytes: a refused/unknown bookkeeping command never delivers.
-    // Failed transports conservatively consume a confirmed view reservation.
+    // @ref LLP 3000#7 — a full, non-range read consumes its view when it starts;
+    // known pre-admission aborts and range probes never consume a view.
+    // @ref LLP 3000.009.001.000.000#3.7 — commit before releasing any bytes:
+    // refused/unknown bookkeeping never delivers; later transport loss consumes.
     if grant.once {
+        if request.is_aborted() { return request.abort(); }
         let (owned_principal, owned_id) = (principal.clone(), id.to_owned());
         if let Err(error) = shared.engine.attempt(move |engine, shared| engine.record_asset_view(&owned_principal, &owned_id, shared.now())) {
-            return respond(request, 500, json!({"denied":error.refusal()}));
+            let refusal = error.refusal();
+            let status = if refusal.code == "E_ASSET_VIEWED" { 410 } else if refusal.retryable { 503 } else { 500 };
+            return respond(request, status, json!({"denied":refusal}));
         }
     }
     #[cfg(test)] crate::serve::test_work(&shared.asset_delivery);

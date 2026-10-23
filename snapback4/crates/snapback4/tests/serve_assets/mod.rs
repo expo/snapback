@@ -94,3 +94,4 @@ fn image_list_http_once_is_per_element_and_survives_reorder() {
 }
 
 mod files;
+mod once;

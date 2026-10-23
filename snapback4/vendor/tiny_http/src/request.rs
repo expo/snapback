@@ -366,6 +366,13 @@ impl Request {
         self.cleanup_guard = Some(Box::new(guard));
     }
 
+    /// Whether the server has already aborted this connection's response chain.
+    /// This does not infer cancellation from a peer's TCP read-half closure:
+    /// that peer may still be waiting to receive its response.
+    pub fn is_aborted(&self) -> bool {
+        self.abort_writers.as_ref().is_some_and(SequentialWriterAbort::is_aborted)
+    }
+
     /// Close a bounded-host request immediately, without draining its body.
     /// Used for admission refusal when no response worker is available.
     pub fn abort(mut self) {

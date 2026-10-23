@@ -1,6 +1,6 @@
 # View-once assets: K0-Q records the view before bytes; http-bounds expects finalize-after-complete
 
-Status: Open
+Status: Resolved
 Date: 2026-10-23
 Scope: Snapback 4 serving assets (`serve` asset door, `assets.rs`); `packages/snapback4/test/http-bounds.test.mjs`
 Severity: P2 (red package test on main since K0-Q)
@@ -40,3 +40,36 @@ the view. Update the asset LLP and the K0 note to this contract, and change
 view, a later GET answers 410 `E_ASSET_VIEWED`, and a range probe before the
 full GET does not consume the view. First confirm which request in the
 current test consumes the view.
+
+## Resolution (2026-10-23, VIEW-ONCE)
+
+The full GET that deliberately destroys its socket after receiving 200 headers
+consumed the view. The range probe returned 416 `E_ASSET_RANGE` without
+consumption. The following truncated-file pipelined GET therefore received
+410 `E_ASSET_VIEWED`; the baseline reproduced that failure at the pipelined
+response assertion, before the test reached its final complete GET.
+
+The shared door retains K0-Q's commit-before-response ordering and now rejects
+requests on a response chain the server already aborted, before admitting a
+view. Refused or unknown view commits still return before any asset bytes can
+be sent. A confirmed view remains consumed after transport loss or truncation.
+The HTTP test uses independent fresh assets for complete delivery, abort after
+headers and truncated pipelined delivery. It asserts range refusal, a complete
+200 body and a subsequent 410 exactly under the author's start-time contract.
+
+Rust HTTP witnesses run against both SQLite file and memory storage. They
+prove range probes and known pre-admission cancellation leave the view
+available, then hold delivery after COMMIT, observe the durable consumed view
+while the socket has no response bytes, release the complete body and verify
+410. The Postgres witness calls the same engine view-commit method, opens a
+new connection and verifies durable duplicate refusal and per-principal state.
+
+Postgres HTTP assets remain outside the existing public profile: LLP
+3000.009.001.000 §3.4 explicitly leaves asset-schema admission, blob locations
+and upload/serve wiring to P1b. The attempted HTTP witness reached that exact
+`StoreUnsupported { family: "assets" }` fence. The PG witness is ledger coverage,
+not a claim of public Postgres asset delivery.
+
+The asset RFC (LLP 1006's Snapback 4 timing overlay), LLP 3000 §7, the
+committer RFC's K0-Q note and the assets guide now state the same contract.
+Qualification results and process cleanup are recorded in `snapback4/JOURNAL.md`.

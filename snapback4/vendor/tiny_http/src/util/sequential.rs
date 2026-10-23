@@ -53,6 +53,10 @@ where
 pub(crate) struct SequentialWriterAbort(Arc<AtomicBool>);
 
 impl SequentialWriterAbort {
+    pub(crate) fn is_aborted(&self) -> bool {
+        self.0.load(Ordering::Acquire)
+    }
+
     pub(crate) fn abort(&self) {
         self.0.store(true, Ordering::Release);
     }

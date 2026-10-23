@@ -104200,3 +104200,61 @@ records stay outside Git under `/tmp/sb4-rt3c/` and the two owned public fixture
 directories. Final free space is about 57 GiB, above the 25 GiB stop threshold.
 The previous `sb4-pg/s1-pg3` branch remains at 09ea38dbb3. No push, stash or Git
 configuration change.
+
+
+## 2026-10-23 — VIEW-ONCE: a full read consumes its view at start
+
+The author's ruling resolves the stale finalize-after-complete expectation in
+`http-bounds.test.mjs`. The consuming request was the full GET whose socket the
+test destroys after reading 200 headers. K0-Q had already committed that view;
+the following truncated-file pipelined GET therefore returned 410, at the
+baseline's failing assertion. The range probe returned 416 without consumption.
+
+The asset door keeps commit-before-response ordering. It now observes the
+transport's shared response-chain abort flag after acquiring transfer custody
+and again immediately before view admission, so a known earlier abort cannot
+burn a view. This flag does not confuse a TCP half-close with cancellation.
+Refused or unknown view commits return before asset delivery; successful
+consumption survives later response loss or truncation. Commit refusals use
+410 for an already consumed view and 503 for a retryable admission refusal.
+
+The HTTP regression uses separate fresh assets for complete delivery, abort
+after headers and truncated pipelining. Range refusal, exact full-body 200,
+subsequent 410 and closure of pipelined responses all remain explicit. New
+Rust witnesses on SQLite file and memory stores hold the door after COMMIT,
+observe durable consumption while the peer has received no response bytes,
+then release the complete body and verify the next GET refuses. They also
+prove range probes and a known pre-admission pipeline abort consume nothing.
+
+The first attempted Postgres HTTP fixture failed at the pre-existing
+`StoreUnsupported { family: "assets" }` admission fence. LLP
+3000.009.001.000 §3.4/P1-AS leaves public asset schemas, blob locations and
+upload/serve wiring to P1b. No fake filesystem path or admission bypass was
+added. The Postgres witness instead calls the shared engine view-commit
+method, independently reopens the namespace and proves durable duplicate
+refusal and separate per-principal consumption. This is ledger evidence,
+not Postgres HTTP asset qualification. LLP 1006's scoped Snapback 4 overlay,
+LLP 3000 §7, the committer K0-Q note and the assets guide state the ruling;
+the original timing ticket is resolved under `issues/closed/`.
+
+Qualification: the final binary build and package build pass. The affected
+binary asset filter passes 21 tests, including the explicit private-PG ledger
+witness; the view-once filter passes all four tests, including K0-Q's mailbox
+regression. All 127 guide tests and `./ref-check` pass. Ten package files pass:
+`http-bounds`, all eight `asset-*` files and `expo-save-asset`. The initial
+package attempt exposed an unnecessary Content-Length assumption for ordinary
+chunked GETs and missing Chromium shared libraries; the three affected files
+pass after checking the full body and supplying this host's existing
+`~/.local/chrome-libs/usr/lib/x86_64-linux-gnu` through LD_LIBRARY_PATH.
+The guide's initial wording/excerpt-boundary failure was repaired without
+relaxing its independent definition pins. Seven unaffected package files
+passed in the first run; three rechecks passed 33 tests. The client-file
+runner confirmed cleanup of every owned process group.
+
+Private PG16 master 3500519 and its five recorded children are stopped and
+independently absent; `pg_ctl status` is 3 and `postmaster.pid` is absent.
+No owned PIDs remain. Free space stayed above 40 GB (about 135 GB at cleanup).
+Logs, fixture data and PID records remain outside Git under `/tmp/`.
+The independent read-only review found no material defect. Local commit only:
+no push, publish, stash or Git configuration changes; `sb4-pg/sdk-unknown`
+remains at 8c4e07d280ca02cebde78a147e8f1f8cd70ce731.

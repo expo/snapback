@@ -12,7 +12,7 @@ decode helper executable, §14a), `packages/compiler` (the column types),
 revisions (f)–(j) by Claude Fable 5.1 at the author's rulings, in session,
 2026-09-03
 **Date:** 2026-08-31
-**Revised:** 2026-09-12 (u — bounded chunked uploads, failure custody, linear metadata lookup and blob accounting; implementer GPT-6 Astra); 2026-09-10 (t — transactional discard of validated unused staged arguments at commit, LLP 1021 §6; implementer GPT-6 Astra, traps lane); 2026-09-06 (s — pending object slots exclude successful releases; original-byte admission unchanged; Astra, asset-pending lane); (r — upload recovery and definitive-refusal cleanup);
+**Revised:** 2026-10-23 (Snapback 4 scoped view-once timing ruling, §2a.1); 2026-09-12 (u — bounded chunked uploads, failure custody, linear metadata lookup and blob accounting; implementer GPT-6 Astra); 2026-09-10 (t — transactional discard of validated unused staged arguments at commit, LLP 1021 §6; implementer GPT-6 Astra, traps lane); 2026-09-06 (s — pending object slots exclude successful releases; original-byte admission unchanged; Astra, asset-pending lane); (r — upload recovery and definitive-refusal cleanup);
 2026-09-05 (q — image once, server one-use delivery, lane L11);
 2026-09-04 (p/o — two-phase typed upload and descriptor fence; n — device
 byte cache; m/l — finalized-byte reservation, reclamation, helper safety);
@@ -299,6 +299,15 @@ offline, their media reads `null`. Adding `once` to an existing image column
 is an admitted successor; prior views are unrecorded. Removing `once` is
 destructive and refuses (`E_SUCCESSOR_DESTRUCTIVE`): a delivered-once image
 cannot become re-deliverable by a schema change.
+
+**Snapback 4 timing (author ruling, 2026-10-23; LLP 3000 §7):** its inherited
+`once` column consumes the view when a full, non-range read starts. It commits
+the view before any response bytes; refused or unknown commits send no asset
+bytes. Range probes refuse without consumption, as do requests the server knows
+were aborted before admission. Later transport loss or truncation still consumes
+the view. The first full GET returns 200; later full GETs return 410 `E_ASSET_VIEWED`.
+This paragraph scopes the Snapback 4 implementation; the Snapback 2 delivery
+primitive above is unchanged.
 
 ### 2b. The session carrier (author ruling, 2026-09-03)
 
