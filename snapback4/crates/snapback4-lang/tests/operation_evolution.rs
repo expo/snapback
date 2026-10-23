@@ -111,6 +111,29 @@ fn aliases_validate_the_canonical_type_and_contract_comparison_recognizes_rename
 }
 
 #[test]
+fn optional_argument_replacement_warns_without_a_wire_alias() {
+    let old=checked("query q(prior: int ?):\n  return prior\n");
+    let replaced=checked("query q(current: int ?):\n  return current\n");
+    let report=compare(&old,&replaced,"release 1");
+    assert!(report.iter().any(|line|line.contains("INPUT BREAK")&&line.contains("removed argument prior")),"{report:?}");
+    let error=snapback4_core::wire::arguments_from_json(&replaced.programs[0].program,&serde_json::json!({"prior":7})).unwrap_err();
+    assert_eq!(error.refusal().code,"E_INPUT");
+
+    let aliased=checked("query q(current: int ? alias prior):\n  return current\n");
+    assert!(!compare(&old,&aliased,"release 1").iter().any(|line|line.contains("INPUT BREAK")));
+}
+
+#[test]
+fn row_page_transitions_require_review_even_beside_additive_fields() {
+    let table="table items:\n  label: text <=20\n  public\n";
+    let old=checked(&format!("{table}query q(id: items):\n  item = items[id] ! else NOT_FOUND\n  return {{item}}\n"));
+    let new=checked(&format!("{table}query q():\n  return {{item: items first 1 by .id, added: true}}\n"));
+    let report=compare(&old,&new,"release 1");
+    assert!(report.iter().any(|line|line.contains("RESULT REVIEW")),"{report:?}");
+    assert!(!report.iter().any(|line|line.contains("RESULT NOTE")),"{report:?}");
+}
+
+#[test]
 fn projected_results_keep_declared_integer_and_text_domains() {
     let source="table items:\n  n: int 0..10\n  label: text 1..20\n  unused: int 0..10\n  public\nquery q(id: items):\n  row = items[id]! else NOT_FOUND\n  return {n: row.n, label: row.label}\n";
     let old=checked(source);

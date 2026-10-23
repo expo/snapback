@@ -2,7 +2,7 @@
 // @ref LLP 3000.000.000.002#10-wave-25-day-two-friction-dx8 — declared table renames preserve Ref inputs; additive result fields are notes.
 use crate::{Bound, BoundProgram, types::Ty};
 use snapback4_core::ir::{ArgType as A, ProgramKind};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 /// Conservative input-domain inclusion: every value accepted by old is accepted by new.
 pub fn accepts(old: &A, new: &A) -> bool {
@@ -61,7 +61,7 @@ fn result_change(old: &Ty, new: &Ty, old_bound: &Bound, new_bound: &Bound) -> Re
         (Ty::Optional(a),Ty::Optional(b))|(Ty::Omittable(a),Ty::Omittable(b))
         |(Ty::List(a,_),Ty::List(b,_))|(Ty::Collection(a,_),Ty::Collection(b,_))=>result_change(a,b,old_bound,new_bound),
         (Ty::Object(a)|Ty::RowShape(a)|Ty::RowObject(a),Ty::Object(b)|Ty::RowShape(b)|Ty::RowObject(b))=>map_change(a,b,|a,b|result_change(a,b,old_bound,new_bound)),
-        (Ty::Row(a)|Ty::WriteRow(a)|Ty::Page(a,_),Ty::Row(b)|Ty::WriteRow(b)|Ty::Page(b,_)) if a==b=>{
+        (Ty::Row(a),Ty::Row(b)) | (Ty::WriteRow(a),Ty::WriteRow(b)) | (Ty::Page(a,_),Ty::Page(b,_)) if a==b=>{
             let (Some(a),Some(b))=(table_fields(a,old_bound),table_fields(b,new_bound)) else{return ResultChange::Changed;};
             combine(a.iter().map(|(name,kind)|if b.get(name)==Some(kind){ResultChange::Same}else{ResultChange::Changed}),b.len()>a.len())
         }
@@ -85,7 +85,8 @@ fn result(ty: &Ty, bound: &Bound) -> String {
             let schema=bound.schema.public_projection();
             if let Some(table)=schema.tables.get(name) {
                 let fields: BTreeMap<_,_>=table.columns.iter().filter(|(n,_)|!table.engine_field(n)).map(|(n,t)|(n,format!("{t:?};private={};constraints={:?}",table.read_optional(n),table.constraints.iter().filter(|c|matches!(c,snapback4_core::schema::Constraint::Text{field,..} if field==n)).collect::<Vec<_>>()))).collect();
-                format!("{}:{name}:{fields:?}",if matches!(ty,Ty::Page(..)){"page"}else{"row"})
+                let kind=match ty {Ty::Row(..)=>"row",Ty::WriteRow(..)=>"write-row",Ty::Page(..)=>"page",_=>unreachable!()};
+                format!("{kind}:{name}:{fields:?}")
             } else {format!("{ty:?}")}
         }
         Ty::Optional(t)=>format!("optional {}",result(t,bound)),
@@ -121,16 +122,18 @@ pub fn compare(old: &Bound, new: &Bound, label: &str) -> Vec<String> {
             lines.push(format!("{prefix}: INPUT BREAK: removed operation; old calls get E_OP; keep `alias {name} = replacement` for a same-module query/mutation, or retain a wrapper"));continue;
         };
         if before.program.kind!=after.program.kind {lines.push(format!("{prefix}: INPUT BREAK: operation kind changed; retain the old endpoint kind"));continue;}
-        let compatible_rename = |new_name: &str, new_kind: &A| before.program.args.iter().find(|(old_name, old_kind)|
-            !after.program.args.contains_key(*old_name) && accepts_in(old_kind,new_kind,Some(old),Some(new)) &&
-            after.program.arg_aliases.get(*old_name).is_none_or(|canonical|canonical==new_name));
+        let rename_candidate = |new_kind: &A| before.program.args.iter().find(|(old_name, old_kind)|
+            !after.program.args.contains_key(*old_name) && !after.program.arg_aliases.contains_key(*old_name)
+                && accepts_in(old_kind,new_kind,Some(old),Some(new)));
+        let mut warned_renames=BTreeSet::new();
         for (arg,kind) in &after.program.args {
             if before.program.args.contains_key(arg) { continue; }
             if let Some((old_arg,old_kind))=before.program.args.iter().find(|(old,_)|after.program.arg_aliases.get(*old)==Some(arg)) {
                 if !accepts_in(old_kind,kind,Some(old),Some(new)) {lines.push(format!("{prefix}: INPUT BREAK: aliased argument {old_arg} → {arg} narrows the old input domain ({old_kind:?} → {kind:?}); retain the old input domain or a compatible wrapper"));}
             } else if !matches!(kind,A::Optional(_)) {
-                if let Some((old,_))=compatible_rename(arg,kind) {
+                if let Some((old,_))=rename_candidate(kind) {
                     lines.push(format!("{prefix}: INPUT BREAK: required argument {old} appears renamed to {arg}; old calls get E_INPUT; declare `{arg}: <new type> alias {old}` if it is the same value, or retain a compatible wrapper"));
+                    warned_renames.insert(old.clone());
                 } else {
                     lines.push(format!("{prefix}: INPUT BREAK: clients calling without new required argument {arg} get E_INPUT; give {arg} a fitting `default <literal>` or retain a compatible wrapper"));
                 }
@@ -142,7 +145,7 @@ pub fn compare(old: &Bound, new: &Bound, label: &str) -> Vec<String> {
                     let next=&after.program.args[&after.program.arg_aliases[arg]];
                     if !accepts_in(kind,next,Some(old),Some(new)){lines.push(format!("{prefix}: INPUT BREAK: aliased argument {arg} retyped or narrowed ({kind:?} → {next:?}); retain its old input domain"));}
                 },
-                None if after.program.args.iter().any(|(new,next)|compatible_rename(new,next).is_some_and(|(old,_)|old==arg))=>{},
+                None if warned_renames.contains(arg)=>{},
                 None=>lines.push(format!("{prefix}: INPUT BREAK: removed argument {arg}; old calls sending it get E_INPUT; retain `{arg}: <old type> deprecated` on a query/mutation")),
                 Some(next) if !accepts_in(kind,next,Some(old),Some(new))=>lines.push(format!("{prefix}: INPUT BREAK: argument {arg} retyped or narrowed ({kind:?} → {next:?}); old values may get E_INPUT; retain the old input domain or a compatible wrapper")),
                 _=>{}
