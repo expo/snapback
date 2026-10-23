@@ -440,3 +440,73 @@ fn dx8_each_resume_refuses_retrospective_native_capture_and_unknown_sources() {
     let mut e=engine(NEW_EACH);
     adopt(&mut e,&only_parent,3).unwrap();adopt(&mut e,NEW_EACH,2).unwrap();
 }
+#[test]
+fn dx8_each_reverse_shares_parent_page_and_accumulated_child_heap_atomically() {
+    let old = "table orders:\n  names: [file <=1000] <=64\n  padding: text <=4096\n  public 'fixture'\n  insert <- allow\n  online only\n";
+    let new = "table orders:\n  padding: text <=4096\n  public 'fixture'\n  insert <- allow\n  online only\ntable documents:\n  order: orders on delete cascade\n  names: file <=1000\n  payload: text <=65536 ?\n  public 'fixture'\n  insert <- allow\n  online only\nextract documents from orders via order each: {names:names}\nmutation attach(order: orders, names: file <=1000, payload: text <=65536):\n  return insert documents {order,names,payload}\n";
+    let mut e = engine(old);
+    let padding = "p".repeat(4096);
+    for n in 0..256 {
+        seed(
+            &mut e,
+            "orders",
+            json!({"id":format!("p{n:03}"),"names":[],"padding":padding}),
+        );
+    }
+    adopt(&mut e, new, 2).unwrap();
+    let payload = "x".repeat(65536);
+    let mut children = Vec::new();
+    let mut assets = Vec::new();
+    for n in 0..60 {
+        let asset = handle(&mut e, format!("asset {n}").as_bytes());
+        assets.push(crate::assets::asset_id(Some(&asset)).unwrap().to_owned());
+        children.push(
+            mutate(
+                &mut e,
+                "attach",
+                [
+                    ("order", Value::Id("p000".into())),
+                    ("names", asset),
+                    ("payload", Value::String(payload.clone())),
+                ],
+            )
+            .field("id")
+            .unwrap()
+            .as_str()
+            .unwrap()
+            .to_owned(),
+        );
+    }
+    let generation = e.generation();
+    let error = adopt(&mut e, old, 1).unwrap_err();
+    assert!(
+        matches!(
+            error,
+            RuntimeError::Bound {
+                kind: crate::error::MeterKind::HeapBytes,
+                ..
+            }
+        ),
+        "{error:?}"
+    );
+    assert_eq!(
+        e.generation(),
+        generation,
+        "a heap cut cannot select the old release"
+    );
+    assert_eq!(e.store().count("orders").unwrap(), 256);
+    assert_eq!(e.store().count("documents").unwrap(), 60);
+    assert!(row(&mut e, "orders", "p000").field("names").is_err());
+    for (child, asset) in children.iter().zip(&assets) {
+        let image = row(&mut e, "documents", child);
+        assert_eq!(
+            image.field("payload").unwrap().as_str().unwrap().len(),
+            65536
+        );
+        assert!(image.field("names").is_ok());
+        assert_eq!(
+            e.store().asset(asset).unwrap().unwrap().home.unwrap().0,
+            "documents"
+        );
+    }
+}
