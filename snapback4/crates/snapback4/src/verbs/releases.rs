@@ -606,9 +606,14 @@ pub fn rollback(options: &Options) -> i32 {
             // @ref LLP 3000.000.000#14-wave-14-rollback-narration — resolve bare/latest selection visibly before any preview or live activation.
             let target_line=format!("resolved rollback target: release {previous} (current release {active})");
             if options.json {eprintln!("{target_line}");} else {println!("{target_line}");}
-            check_change(&dir, Some(active), &bound, options, Some(previous))?;
+            let legacy_refusal=|error:String| {
+                if view.is_none() && !options.flags.contains_key("exact") {
+                    format!("{error}; redeploy with 0.4.39 to register a view, or explicitly select the historical workflow with `snapback4 rollback {} --to {logical} --exact` (preview its hiding with --check first)",dir.display())
+                }else{error}
+            };
+            check_change(&dir, Some(active), &bound, options, Some(previous)).map_err(&legacy_refusal)?;
             if options.flags.contains_key("check") {
-                return super::release_preview::preview(&dir.join("store.sqlite"),dir.join("releases").join(previous.to_string()),previous,options,_deployment.as_ref());
+                return super::release_preview::preview(&dir.join("store.sqlite"),dir.join("releases").join(previous.to_string()),previous,options,_deployment.as_ref()).map_err(&legacy_refusal);
             }
             activate(
                 &dir,
@@ -622,7 +627,7 @@ pub fn rollback(options: &Options) -> i32 {
                 options.flags.contains_key("allow-feed-adoption"),
                 options,
                 None,
-            )?;
+            ).map_err(&legacy_refusal)?;
 
             Ok(())
         })(),

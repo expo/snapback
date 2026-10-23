@@ -16,16 +16,22 @@ pub(super) fn missing_defaults(candidate:&Schema,old:&Schema)->Result<Vec<String
 }
 
 pub(super) fn risks(candidate: &Schema, old: &Schema, release: u64, dir: &Path) -> Vec<String> {
+    risks_for(candidate,old,release,dir,true)
+}
+pub(super) fn old_row_risks(candidate:&Schema,old:&Schema,release:u64,dir:&Path)->Vec<String>{
+    risks_for(candidate,old,release,dir,false)
+}
+fn risks_for(candidate:&Schema,old:&Schema,release:u64,dir:&Path,include_new_tables:bool)->Vec<String>{
     let names:std::collections::BTreeMap<_,_>=candidate.table_renames.iter().filter(|(new,prior)|old.table(prior).is_some() && old.table(new).is_none()).map(|(new,prior)|(prior.clone(),new.clone())).collect();
-    if names.is_empty(){return risks_aligned(candidate,old,release,dir)}
+    if names.is_empty(){return risks_aligned(candidate,old,release,dir,include_new_tables)}
     let aligned=match old.with_table_names(&names){Ok(schema)=>schema,Err(error)=>return vec![format!("rollback foresight cannot compare renamed identities: {error}; run exact rollback --check")]};
-    risks_aligned(candidate,&aligned,release,dir).into_iter().map(|line|{
+    risks_aligned(candidate,&aligned,release,dir,include_new_tables).into_iter().map(|line|{
         let (mut facts,command)=line.split_once("; run `").map_or((line.clone(),String::new()),|(facts,command)|(facts.to_owned(),format!("; run `{command}")));
         for (prior,new) in &names {facts=facts.replace(&format!(", {new}."),&format!(", {prior} (current {new}).")).replace(&format!("table {new}:"),&format!("table {prior} (current {new}):")).replace(&format!("unique index {new}."),&format!("unique index {prior} (current {new})."));}
         facts+&command
     }).collect()
 }
-fn risks_aligned(candidate:&Schema,old:&Schema,release:u64,dir:&Path)->Vec<String>{
+fn risks_aligned(candidate:&Schema,old:&Schema,release:u64,dir:&Path,include_new_tables:bool)->Vec<String>{
     let mut risks:Vec<_>=successor::classify(candidate,old).into_iter().filter_map(|step| {
         let path=step.path.strip_prefix("tables.")?;
         let (table,column)=path.split_once(".columns.")?;
@@ -47,7 +53,7 @@ fn risks_aligned(candidate:&Schema,old:&Schema,release:u64,dir:&Path)->Vec<Strin
     }).collect();
     // @ref LLP 3000.000.000#19-dormant-visibility-and-migration-dorm — warn before new writes, including harmless newer-only facts and empty legacy cells.
     for (name, _) in candidate.visible_tables().filter(|(name,t)|t.ephemeral.is_none() && candidate.maintain_for(name).is_none()) {
-        if old.table(name).is_none() && !candidate.table_renames.get(name).is_some_and(|source|old.table(source).is_some()) {
+        if include_new_tables && old.table(name).is_none() && !candidate.table_renames.get(name).is_some_and(|source|old.table(source).is_some()) {
             risks.push(format!("rollback foresight: rows written to new table {name} will be hidden while release {release} is live; release {release} has no such table, so these are newer-only facts, not lost old-table records; a same-table `down` cannot create this missing table; keep it in a loosened bridge or declare a table rename; run `snapback4 rollback {} --to {release} --check --bridge <new-dir>` after writes",dir.display()));
         }
     }
@@ -65,7 +71,14 @@ fn risks_aligned(candidate:&Schema,old:&Schema,release:u64,dir:&Path)->Vec<Strin
                 risks.push(format!("rollback foresight: release {release}, unique index {name}.{index}: future writes may introduce duplicate keys and refuse restoration; keep the old uniqueness in a bridge; run `snapback4 rollback {} --to {release} --check --bridge <new-dir>` after writes",dir.display()));
             }
         }
-        if target.constraints.iter().any(|c|!from.constraints.contains(c) && matches!(c,snapback4_core::schema::Constraint::Text{..}|snapback4_core::schema::Constraint::Cap{..}|snapback4_core::schema::Constraint::FinalExistsOnInsert{..})) {
+        if target.constraints.iter().any(|constraint| {
+            if from.constraints.contains(constraint){return false;}
+            match constraint {
+                snapback4_core::schema::Constraint::Text{field,..}=>!target.columns.get(field).is_some_and(|kind|projected(candidate,name,field,kind)),
+                snapback4_core::schema::Constraint::Cap{..}|snapback4_core::schema::Constraint::FinalExistsOnInsert{..}=>true,
+                _=>false,
+            }
+        }) {
             risks.push(format!("rollback foresight: release {release}, table {name}: changed constraints may let future writes refuse rollback; preserve old bounds/quotas in a bridge; run `snapback4 rollback {} --to {release} --check --bridge <new-dir>` after writes",dir.display()));
         }
     }

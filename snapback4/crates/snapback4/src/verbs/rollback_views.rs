@@ -87,9 +87,11 @@ pub(super) fn prepare(
         // unchanged intent declarations. Metadata-only registration is excluded
         // by the shared executable digest, keeping equal-source no-ops finite.
         let closure_changed = !bound.invariants.is_empty()
+            && snapback4_lang::release_bridge::same_data_and_intent(&original,&current)
             && crate::release_files::executable_digest(&old_root)?
                 != crate::release_files::executable_digest(stage)?;
-        if !widening && !closure_changed {
+        let visibility_risks=super::rollback_foresight::old_row_risks(&bound.schema,&old.schema,target,dir);
+        if !widening && !closure_changed && visibility_risks.is_empty() {
             continue;
         }
         if crate::dev_worker::source(&Project {root:stage.into()}).is_some()

@@ -7,12 +7,12 @@ pub struct Bridge {pub sources:Vec<(String,String)>,pub changes:Vec<String>,pub 
 /// Source-domain inclusion includes text minima/formats, which live outside
 /// ColumnType in the compiled schema. Never infer admission from advice prose.
 pub fn requires_view(target:&[(String,String)],current:&[(String,String)])->bool {
-    // Policy repairs need a current-closure view even when no value domain
-    // widened. Byte-identical source needs no adapter (and equal-source
-    // registration must not create an endless chain of equivalent parents).
-    let modules=|sources:&[(String,String)]| {let mut out=sources.iter().map(|(file,text)|(std::path::Path::new(file).file_stem().unwrap_or(std::ffi::OsStr::new("schema")).to_string_lossy().into_owned(),text.clone())).collect::<Vec<_>>();out.sort();out};
-    let old_text=modules(target);let next_text=modules(current);
-    if old_text!=next_text && !crate::compile(current).invariants.is_empty(){return true;}
+    // An executable repair behind unchanged data and intent must not restore
+    // the old implementation. Ordinary schema/intent evolution is governed by
+    // visibility facts below, rather than the mere presence of an invariant.
+    if same_data_and_intent(target,current)
+        && !crate::compile(current).invariants.is_empty()
+        && modules(target)!=modules(current) {return true;}
     let docs=current.iter().map(|(f,t)|parser::parse_document(f,t).0).collect::<Vec<_>>();
     let tables=docs.iter().flat_map(|d|&d.tables).collect::<Vec<_>>();
     let mut aliases=tables.iter().filter_map(|t|t.renamed_from.as_ref().map(|old|(t.name.clone(),old.clone()))).collect::<BTreeMap<_,_>>();
@@ -38,10 +38,61 @@ pub fn requires_view(target:&[(String,String)],current:&[(String,String)])->bool
     }false
 }
 
+fn modules(sources:&[(String,String)])->Vec<(String,String)> {
+    let mut out=sources.iter().map(|(file,text)|(std::path::Path::new(file).file_stem().unwrap_or(std::ffi::OsStr::new("schema")).to_string_lossy().into_owned(),text.clone())).collect::<Vec<_>>();out.sort();out
+}
+
+/// Compare authored data/intent declarations and executable signatures, while
+/// excluding executable bodies. Module identity and wire signatures still count.
+pub fn same_data_and_intent(target:&[(String,String)],current:&[(String,String)])->bool {
+    fn signature(sources:&[(String,String)])->Vec<(String,Vec<(lexer::Kind,String)>)> {
+        modules(sources).into_iter().map(|(module,text)| {
+            let doc=parser::parse_document(&module,&text).0;
+            let mut edits=Vec::new();
+            for site in doc.programs.iter().map(|p|&p.site).chain(doc.functions.iter().map(|p|&p.site)) {
+                let start=offset(&text,site.line,1);
+                let declaration=declaration(&text,site.line);
+                let (tokens,_)=lexer::lex(&module,&declaration);
+                let mut depth=0;
+                if let Some(colon)=tokens.iter().find(|token| {
+                    match token.value.as_str(){"("|"["|"{"=>depth+=1,")"|"]"|"}"=>depth-=1,_=>()}
+                    token.value==":"&&depth==0
+                }) {
+                    let end=start+declaration.len();
+                    let body=start+offset(&declaration,colon.site.line,colon.site.col)+1;
+                    edits.push((body,end));
+                }
+            }
+            let mut text=text;
+            edits.sort_by_key(|e|std::cmp::Reverse(e.0));
+            for (start,end) in edits {text.replace_range(start..end,"\n");}
+            let (tokens,_)=lexer::lex(&module,&text);
+            (module,tokens.into_iter().map(|t|(t.kind,t.value)).collect())
+        }).collect()
+    }
+    signature(target)==signature(current)
+}
+
 pub fn loosen(target:&[(String,String)],current:&[(String,String)])->Bridge {
     if !crate::compile(current).invariants.is_empty() {
-        return super::release_bridge_current::prepare(target,current);
+        let mut allow_guarded=false;
+        let complete=super::release_bridge_current::prepare(target,current,&mut allow_guarded);
+        if complete.diagnostics.is_empty() || !allow_guarded{return complete;}
+        // A complete current closure is preferred, but a selective guarded
+        // predecessor is also truthful when its retained contracts compile.
+        let guarded=loosen_guarded(target,current);
+        if guarded.diagnostics.is_empty(){return guarded;}
+        return Bridge{diagnostics:complete.diagnostics.into_iter().chain(guarded.diagnostics).collect(),..guarded};
     }
+    let guarded=loosen_guarded(target,current);
+    if !guarded.diagnostics.is_empty(){
+        let complete=super::release_bridge_current::prepare(target,current,&mut false);
+        if complete.diagnostics.is_empty(){return complete;}
+    }
+    guarded
+}
+
+fn loosen_guarded(target:&[(String,String)],current:&[(String,String)])->Bridge {
     let new: BTreeMap<_,_>=current.iter().flat_map(|(file,text)|parser::parse_document(file,text).0.tables.into_iter().map(move|t|(t.name.clone(),(file,text,t)))).collect();
     let mut new=new;
     for (_,(_,_,table)) in new.clone() {if let Some(old)=&table.renamed_from {if let Some(value)=new.get(&table.name).cloned(){new.insert(old.clone(),value);}}}
@@ -120,12 +171,50 @@ pub fn loosen(target:&[(String,String)],current:&[(String,String)])->Bridge {
         changes.push(format!("new table {name}: retained with its current rules; old operations may not expose it"));
     }
     if !additions.is_empty() {let mut name="rollback-retained.q".to_owned();while sources.iter().any(|(f,_)|f==&name){name.insert_str(0,"retained-");}sources.push((name,additions));}
-    let transported=super::release_bridge_rules::carry(&mut sources,current,&mut changes,&std::collections::BTreeSet::new());
+    let has_intent=!crate::compile(current).invariants.is_empty();
+    let forced=if has_intent {
+        target.iter().flat_map(|(f,t)|parser::parse_document(f,t).0.programs.into_iter().map(|p|p.name)).collect()
+    }else{std::collections::BTreeSet::new()};
+    let transported=super::release_bridge_rules::carry(&mut sources,current,&mut changes,&forced);
     affected.extend(transported);
     let (mut diagnostics,fallback)=super::release_bridge_guards::carry(&mut sources,current,&affected,&mut changes);
     if !fallback.is_empty(){
         super::release_bridge_rules::carry(&mut sources,current,&mut changes,&fallback);
         (diagnostics,_)=super::release_bridge_guards::carry(&mut sources,current,&affected,&mut changes);
+    }
+    if has_intent {
+        // Reuse each current compatible endpoint, not an old straight-line write
+        // whose effect may contradict intent without a changed `require`.
+        for name in &forced {
+            if !changes.iter().any(|change|change==&format!("operation {name}: current authored compatibility endpoint preserves its argument contract and guards")) {
+                diagnostics.push(crate::diag::type_error(&crate::Site::default(),format!("rollback view cannot preserve current independent intent for predecessor operation {name}"),"author a guarded compatibility endpoint with the predecessor wire arguments before deploying").guide("deploy"));
+            }
+        }
+        let mut intent=String::new();
+        for(file,text)in current {
+            for mut inv in parser::parse_document(file,text).0.invariants {
+                if let Some(prior)=aliases.get(&inv.table){inv.table=prior.clone();}
+                crate::bind::intent_walk::expression(&mut inv.value,&mut |expr| {
+                    if let ast::Expr::Read(read)|ast::Expr::Exists{read,..}|ast::Expr::Created{read,..}=expr {
+                        if let Some(prior)=aliases.get(&read.table){read.table=prior.clone();}
+                    }
+                });
+                let target=if let Some(column)=inv.column {format!("{}.{} {} only",inv.table,column,inv.target)}else if inv.target=="always"{format!("{} always",inv.table)}else{format!("{}.{} only",inv.table,inv.target)};
+                intent.push_str(&format!("invariant {target} {}\n",print::expression(&inv.value)));
+            }
+        }
+        // Replace historical declarations rather than silently conjoining stale
+        // business intent. The transported executable must satisfy current intent.
+        for(file,text)in &mut sources {
+            let doc=parser::parse_document(file,text).0;
+            let mut edits=doc.invariants.iter().map(|inv| {
+                let start=offset(text,inv.site.line,1);let end=start+declaration(text,inv.site.line).len();(start,end)
+            }).collect::<Vec<_>>();
+            edits.sort_by_key(|e|std::cmp::Reverse(e.0));
+            for(start,end)in edits{text.replace_range(start..end,"");}
+        }
+        let mut name="rollback-intent.q".to_owned();while sources.iter().any(|(f,_)|f==&name){name.insert_str(0,"current-");}
+        sources.push((name,intent));
     }
     let bound=crate::compile(&sources);diagnostics.extend(bound.diagnostics);diagnostics.extend(domain_diagnostics);
     Bridge {sources,changes,diagnostics}

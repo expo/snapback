@@ -115,7 +115,7 @@ mutation create(owner: principal, secret: text <=40):
 query doc(id: docs):
   return docs[id]
 `;
-  const intentNext=intentOld.replace('mutation create(owner: principal,','mutation create(actor: principal alias owner,').replace('{owner,secret}','{owner:viewer,secret}')+'invariant docs.secret write only .owner = viewer\n';
+  const intentNext=intentOld.replace('  secret: text <=40 read','  secret: text <=80 ? read').replace('mutation create(owner: principal,','mutation create(actor: principal alias owner,').replace('{owner,secret}','{owner:viewer,secret}')+'invariant docs.secret write only .owner = viewer\n';
   const intentDir=join(cwd,'roll-current-intent');
   await cli('deploy',intentDir,'--schema',source('intent-v1',intentOld));
   host=await startServe(intentDir,hostOptions);
@@ -133,6 +133,41 @@ query doc(id: docs):
     assert.equal(restarted.state,'sent');assert.equal(restarted.result.owner,alice.principal);
     await cli('rollback',intentDir,'--to','latest');
   } finally {await host.stop();}
+  const ordinary=`use identity guests
+table items:
+  owner: principal
+  label: text 1..100
+  read <- .owner = viewer
+  insert <- .owner = viewer
+  online only
+mutation add(label: text 1..100):
+  return insert items {owner:viewer,label}
+query item(id: items):
+  return items[id]
+invariant items.read only .owner = viewer
+`;
+  const renamed=ordinary.replace('  label: text 1..100','  title: text 1..100 renamed from label')
+    .replace('add(label: text 1..100)','add(title: text 1..100 alias label)').replace('{owner:viewer,label}','{owner:viewer,title}');
+  const split=ordinary.replace('  label: text 1..100','  invitation: text 1..100\n  envelope: text 1..100')
+    .replace('add(label: text 1..100)','add(invitation: text 1..100, envelope: text 1..100)')
+    .replace('{owner:viewer,label}','{owner:viewer,invitation,envelope}')+
+    'backfill items invitationFromLabel(label: text 1..100): {invitation:label}\nbackfill items envelopeFromLabel(label: text 1..100): {envelope:label}\ndown items oldLabel(invitation: text 1..100): {label:invitation}\n';
+  const required=ordinary.replace('  label: text 1..100','  label: text 1..100\n  priority: int 1..9 default 3');
+  for(const [name,candidate,args]of [['rename',renamed,{title:'v2'}],['split',split,{invitation:'v2',envelope:'separate'}],['required',required,{label:'v2'}]]) {
+    const deployment=join(cwd,'roll-invariant-'+name);
+    await cli('deploy',deployment,'--schema',source('ordinary-'+name+'-v1',ordinary));
+    host=await startServe(deployment,hostOptions);
+    try {
+      const [alice,bob]=await users(host);const original=await post(host,alice,'add',{label:'v1'});assert.equal(original.state,'sent');
+      const path=source('ordinary-'+name+'-v2',candidate);
+      const plan=await json('deploy',deployment,'--schema',path,'--check');assert.equal(plan.rollbackViews.length,0);
+      await cli('deploy',deployment,'--schema',path);const added=await post(host,alice,'add',args);assert.equal(added.state,'sent');
+      await cli('rollback',deployment,'--to','1');
+      for(const [id,label]of [[original.result.id,'v1'],[added.result.id,'v2']])assert.equal((await post(host,alice,'item',{id},'q')).data.label,label);
+      assert.equal((await post(host,bob,'item',{id:original.result.id},'q')).data,null);
+      await cli('rollback',deployment,'--to','latest');
+    }finally{await host.stop();}
+  }
   const workerRoot=join(cwd,'intent-worker-project');mkdirSync(join(workerRoot,'snapback'),{recursive:true});
   writeFileSync(join(workerRoot,'snapback/schema.q'),intentNext);
   const worker=join(workerRoot,'snapback/worker.mjs');writeFileSync(worker,'export {}; // original\n');
@@ -144,5 +179,5 @@ query doc(id: docs):
   writeFileSync(worker,'export {}; // changed executable, identical Quarry\n');
   const refused=await workerCall(['deploy',workerDir,'--check']);
   assert.equal(refused.code,1);assert.match(refused.stderr+refused.stdout,/authored worker bundle/);
-  return {status:'passed',visibleRollback:true,currentGuards:true,currentIntentWorkflow:true,executableOnlyRefusal:true,editedOutputs:true,referenceRename:true,privateFileExtraction:true,cycles:2};
+  return {status:'passed',visibleRollback:true,currentGuards:true,currentIntentWorkflow:true,invariantRenameSplitRequired:true,executableOnlyRefusal:true,editedOutputs:true,referenceRename:true,privateFileExtraction:true,cycles:2};
 }

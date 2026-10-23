@@ -482,7 +482,8 @@ fn complete_current_contract_includes_expanded_operation_aliases() {
         &target,
         &[("schema.q".into(), next.replace("alias oldRead = one\n", ""))],
     );
-    assert!(!dropped.diagnostics.is_empty());
+    assert!(dropped.diagnostics.is_empty(),"a guarded bridge may retain the old alias to the compatible current endpoint: {:?}",dropped.diagnostics);
+    assert!(compile(&dropped.sources).programs.iter().any(|p|p.program.name=="oldRead"));
 }
 
 #[test]

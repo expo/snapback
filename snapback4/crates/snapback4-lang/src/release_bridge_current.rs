@@ -11,7 +11,8 @@ use std::collections::{BTreeMap, BTreeSet};
 
 type Source = (String, String);
 
-pub(super) fn prepare(target: &[Source], current: &[Source]) -> Bridge {
+pub(super) fn prepare(target: &[Source], current: &[Source], guarded_fallback: &mut bool) -> Bridge {
+    *guarded_fallback=false;
     let old = crate::compile(target);
     let next = crate::compile(current);
     if !old.diagnostics.is_empty() {
@@ -45,9 +46,10 @@ pub(super) fn prepare(target: &[Source], current: &[Source]) -> Bridge {
                 return retained(sources, true);
             }
         }
-        Err(reason) => return refused(current, &reason),
+        Err(error) => {*guarded_fallback=error.unsupported;return refused(current, &error.reason)},
         Ok(None) => {}
     }
+    *guarded_fallback=true;
     refused(current,"the complete current workflow does not retain every predecessor table, field, operation and accepted input")
 }
 fn retained(sources: Vec<Source>, alpha: bool) -> Bridge {
@@ -193,7 +195,14 @@ fn remap_type(kind: &mut ast::ScalarType, names: &BTreeMap<String, String>) {
 }
 // Closed, capture-avoiding alpha conversion of a single source module. Complex
 // declaration families require an explicitly authored compatible source.
-fn alpha(target: &[Source], current: &[Source]) -> Result<Option<Vec<Source>>, String> {
+struct MappingError {reason:String,unsupported:bool}
+impl From<String> for MappingError {
+    fn from(reason:String)->Self{Self{reason,unsupported:false}}
+}
+impl From<&str> for MappingError {
+    fn from(reason:&str)->Self{reason.to_owned().into()}
+}
+fn alpha(target: &[Source], current: &[Source]) -> Result<Option<Vec<Source>>, MappingError> {
     if target.len() != 1 || current.len() != 1 {
         return Ok(None);
     }
@@ -242,23 +251,6 @@ fn alpha(target: &[Source], current: &[Source]) -> Result<Option<Vec<Source>>, S
         return Err(
             "the declared table mapping is ambiguous or captures a current table name".into(),
         );
-    }
-    if !doc.actions.is_empty()
-        || !doc.effects.is_empty()
-        || !doc.maintains.is_empty()
-        || !doc.timelines.is_empty()
-        || !doc.views.is_empty()
-        || !doc.feed_views.is_empty()
-        || !doc.backfills.is_empty()
-        || !doc.downfills.is_empty()
-        || !doc.extractions.is_empty()
-        || doc.programs.iter().any(|p| p.delivery.is_some())
-        || doc
-            .tables
-            .iter()
-            .any(|t| t.receipts.is_some() || t.columns.iter().any(|c| c.maintained.is_some()))
-    {
-        return Err("this table identity mapping includes a derived, receipt or migration declaration outside the closed current-source adapter".into());
     }
     let reserved = names
         .keys()
@@ -343,6 +335,23 @@ fn alpha(target: &[Source], current: &[Source]) -> Result<Option<Vec<Source>>, S
     if capture {
         return Err("a table identity mapping captures a local, argument or shape name".into());
     }
+    if !doc.actions.is_empty()
+        || !doc.effects.is_empty()
+        || !doc.maintains.is_empty()
+        || !doc.timelines.is_empty()
+        || !doc.views.is_empty()
+        || !doc.feed_views.is_empty()
+        || !doc.backfills.is_empty()
+        || !doc.downfills.is_empty()
+        || !doc.extractions.is_empty()
+        || doc.programs.iter().any(|p| p.delivery.is_some())
+        || doc
+            .tables
+            .iter()
+            .any(|t| t.receipts.is_some() || t.columns.iter().any(|c| c.maintained.is_some()))
+    {
+        return Err(MappingError{reason:"this table identity mapping includes a derived, receipt or migration declaration outside the closed current-source adapter".into(),unsupported:true});
+    }
     let (tokens, _) = lexer::lex(file, text);
     let mut edits = Vec::<(usize, usize, String)>::new();
     for table in &doc.tables {
@@ -422,7 +431,7 @@ fn alpha(target: &[Source], current: &[Source]) -> Result<Option<Vec<Source>>, S
         }
     });
     if let Some(error) = reference_error {
-        return Err(error);
+        return Err(error.into());
     }
     for arg in doc
         .programs

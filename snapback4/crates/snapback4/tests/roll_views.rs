@@ -11,9 +11,9 @@ const BIN: &str = env!("CARGO_BIN_EXE_snapback4");
 #[test]
 fn current_first_worker_dependency_cannot_disappear_from_an_intent_view() {
     let app=App::new();
-    let old="table docs:\n  owner: principal\n  public\n  online only\nmutation create():\n  return insert docs {owner:viewer}\n";
+    let old="table docs:\n  owner: principal\n  amount: int 0..10\n  public\n  online only\nmutation create():\n  return insert docs {owner:viewer,amount:1}\n";
     app.source(old);app.ok(&["deploy","deployment"]);
-    app.source(&format!("{old}invariant docs.read only true\n"));
+    app.source(&format!("{}invariant docs.read only true\n",old.replace("amount: int 0..10","amount: int 0..20")));
     fs::write(app.0.join("snapback/worker.mjs"),"export {};\n").unwrap();
     for check in [true,false] {
         let args=if check {vec!["deploy","deployment","--check"]}else{vec!["deploy","deployment"]};
@@ -88,12 +88,18 @@ impl App {
             Some(n),
         )
         .unwrap();
-        e.seed(rows.into_iter().map(|row| {
+        let rows=rows.into_iter().map(|mut row| {
+            if row.get("photos")==Some(&json!("fixture-image")) {
+                let png=b"\x89PNG\r\n\x1a\n\x00\x00\x00\x0dIHDR\x00\x00\x00\x01\x00\x00\x00\x01";
+                let asset=e.store_asset("alice",png,1000).unwrap();
+                row["photos"]=json!([snapback4_core::wire::to_json(&asset.column_value())]);
+            }
             (
                 "items".into(),
                 snapback4_core::wire::row_from_json(&schema.tables["items"], &row).unwrap(),
             )
-        }))
+        }).collect::<Vec<_>>();
+        e.seed(rows)
         .unwrap();
     }
     fn count(&self) -> u64 {
@@ -295,7 +301,7 @@ fn deploy_verdict_leads_scoped_security_is_last_and_json_keeps_all_notes() {
 fn failed_guard_transport_does_not_register_or_leave_prepared_views(){
     let app=App::new();let old=OLD.replace("mutation pay", "fn permitted():\n  return viewer = 'alice'\nmutation pay").replace("  a = items[id]", "  require permitted() else FORBIDDEN\n  a = items[id]");
     app.source(&old);app.ok(&["deploy","deployment","--json"]);
-    let next=old.replace("amount: int 100..50000", "amount: int 100..50000 ?").replace("viewer = 'alice'", "viewer = 'bob'").replace("  return insert payments", "  require a.amount != null else NO_AMOUNT\n  return insert payments");app.source(&next);
+    let next=old.replace("amount: int 100..50000", "amount: int 100..50000 ?").replace("viewer = 'alice'", "viewer = 'bob'").replace("  return insert payments", "  require a.amount != null else NO_AMOUNT\n  return insert payments");let next=next.replace("pay(id: items)","pay(item: items)").replace("  a = items[id]","  a = items[item]");app.source(&next);
     for check in [true,false]{let args=if check{vec!["deploy","deployment","--check","--json"]}else{vec!["deploy","deployment","--json"]};let out=app.run(&args);assert!(!out.status.success(),"{}",text(&out));assert!(text(&out).contains("guard dependency"));assert_eq!(fs::read_dir(app.0.join("deployment/releases")).unwrap().count(),1);assert_eq!(app.json(&["releases","deployment"])["current"],1);}
 }
 
@@ -334,4 +340,98 @@ fn rollback_uses_active_source_context_after_a_later_branch_changed_privacy() {
     let mut e=snapback4_core::Engine::new_release(store,b.schema,b.programs.into_iter().map(|p|p.program),release,Some(release)).unwrap();
     let outcome=e.query("read",snapback4_core::Context::new("bob",std::collections::BTreeMap::from([("id".into(),snapback4_core::Value::Id("pending".into()))]))).unwrap();
     assert_eq!(snapback4_core::wire::to_json(&outcome.data),json!(null));
+}
+
+
+#[test]
+fn invariant_apps_keep_ordinary_rename_split_and_required_field_upgrades() {
+    // Small independent shapes from wave-25 002/004/020/024/036/044.
+    // Real row images, an uploaded image and default rollback exercise storage,
+    // rather than relying on a successful check of empty source alone.
+    let base="table items:\n  owner: principal\n  immutable owner\n  label: text 1..100\n  read <- .owner = viewer\n  insert <- .owner = viewer\n  online only\nquery all():\n  return items first 10 by .id\nmutation create(label: text 1..100):\n  return insert items {owner:viewer,label}\ninvariant items.read only .owner = viewer\n";
+    let rename=base.replace("  label: text 1..100","  title: text 1..100 renamed from label read <- .owner = viewer")
+        .replace("create(label: text 1..100)","create(title: text 1..100 alias label)")
+        .replace("{owner:viewer,label}","{owner:viewer,title}")
+        +"invariant items.title read only .owner = viewer\n";
+    let split=base.replace("  label: text 1..100","  invitation: text 1..100\n  envelope: text 1..100")
+        .replace("create(label: text 1..100)","create(invitation: text 1..100, envelope: text 1..100)")
+        .replace("{owner:viewer,label}","{owner:viewer,invitation,envelope}")
+        +"backfill items invitationFromLabel(label: text 1..100): {invitation:label}\nbackfill items envelopeFromLabel(label: text 1..100): {envelope:label}\ndown items oldLabel(invitation: text 1..100): {label:invitation}\ninvariant items.invitation read only .owner = viewer\n";
+    let reference=base.replace("table items:","table records renamed from items:")
+        .replace("return items","return records").replace("insert items","insert records")
+        .replace("invariant items.","invariant records.")
+        +"table attachments:\n  parent: records\n  immutable parent\n  read through .parent\n  online only\n";
+    let asset_old=base.replace("  label: text 1..100","  label: text 1..100\n  photos: [image <=1000] 1..4")
+        .replace("mutation create(label: text 1..100):\n  return insert items {owner:viewer,label}\n","");
+    let asset_split=asset_old.replace("  photos: [image <=1000] 1..4\n","")
+        +"table surveys:\n  parent: items\n  photos: [image <=1000] 1..4\n  immutable parent\n  read through .parent\n  online only\nextract surveys from items via parent: {photos:photos}\n";
+    let alias=reference.replace("mutation create(label:","mutation openRecord(title:")
+        .replace("text 1..100):\n  return insert records {owner:viewer,label}","text 1..100 alias label):\n  return insert records {owner:viewer,label:title}")
+        +"alias create = openRecord\n";
+    let required=base.replace("  label: text 1..100","  label: text 1..100\n  priority: int 1..9 default 3");
+    for(name,old,next,row)in [
+        ("column rename",base.to_owned(),rename,json!({"id":"kept","owner":"alice","label":"original"})),
+        ("split with truthful down",base.to_owned(),split,json!({"id":"kept","owner":"alice","label":"original"})),
+        ("nominal rename and child reference",base.to_owned(),reference,json!({"id":"kept","owner":"alice","label":"original"})),
+        ("required image to child",asset_old,asset_split,json!({"id":"kept","owner":"alice","label":"original","photos":"fixture-image"})),
+        ("table operation and parameter aliases",base.to_owned(),alias,json!({"id":"kept","owner":"alice","label":"original"})),
+        ("add required with authored default",base.to_owned(),required,json!({"id":"kept","owner":"alice","label":"original"})),
+    ] {
+        let app=App::new();app.source(&old);app.ok(&["deploy","deployment"]);app.seed(&old,vec![row]);
+        app.source(&next);
+        let deployed=app.run(&["deploy","deployment","--json"]);
+        assert!(deployed.status.success(),"{name}: {}",text(&deployed));
+        let preview=app.json(&["rollback","deployment","--to","1","--check","--json"]);
+        assert_eq!(preview["visibility"]["hiddenRows"],0,"{name}: {preview}");
+        let rollback=app.run(&["rollback","deployment","--to","1"]);
+        assert!(rollback.status.success(),"{name}: {}",text(&rollback));
+        assert_eq!(app.count(),1,"{name}");
+        let rows=app.json(&["sql","SELECT label FROM items","--release","deployment","--json"]);
+        assert_eq!(rows["rows"][0][0],"original","{name}: {rows}");
+        app.ok(&["rollback","deployment","--to","latest"]);
+    }
+}
+
+#[test]
+fn pre_view_release_refusal_names_exact_selection_and_registration_upgrade() {
+    let app=App::new();app.source(OLD);app.ok(&["deploy","deployment"]);
+    let next=newer();app.source(&next);app.ok(&["deploy","deployment"]);
+    app.seed(&next,vec![json!({"id":"pending","amount":null})]);
+    // A pre-0.4.39 parent has no registration manifest. Its immutable original
+    // source and SQLite history are otherwise the same release contract.
+    fs::remove_file(app.0.join("deployment/releases/2/rollback-views.json")).unwrap();
+    for check in [true,false] {
+        let args=if check{vec!["rollback","deployment","--to","1","--check"]}else{vec!["rollback","deployment","--to","1"]};
+        let refused=app.run(&args);assert!(!refused.status.success(),"{}",text(&refused));
+        assert!(text(&refused).contains("--to 1 --exact"),"{}",text(&refused));
+        assert!(text(&refused).contains("redeploy with 0.4.39 to register a view"),"{}",text(&refused));
+        assert_eq!(app.count(),1,"refusal must retain the active population");
+    }
+    app.ok(&["deploy","deployment"]);
+    app.ok(&["rollback","deployment","--to","1"]);assert_eq!(app.count(),1);
+}
+
+#[test]
+fn incomplete_current_shape_uses_a_guarded_bridge_with_current_intent() {
+    let app=App::new();
+    let old=OLD.replace("  amount: int 100..50000","  legacy: text <=20 ?\n  amount: int 100..50000")+"invariant items.read only true\n";
+    app.source(&old);app.ok(&["deploy","deployment"]);
+    let next=old.replace("  legacy: text <=20 ?\n","").replace("amount: int 100..50000","amount: int 100..50000 ?")
+        .replace("  return insert payments","  require a.amount != null else NO_AMOUNT\n  return insert payments");
+    app.source(&next);let preview=app.json(&["deploy","deployment","--check","--json"]);
+    assert_eq!(preview["rollbackViews"].as_array().unwrap().len(),1);
+    app.ok(&["deploy","deployment"]);
+    app.seed(&next,vec![json!({"id":"pending","amount":null})]);
+    let selected=app.json(&["rollback","deployment","--to","1","--json"])["release"].as_u64().unwrap();
+    assert_eq!(app.count(),1);
+    let root=app.0.join(format!("deployment/releases/{selected}/snapback"));
+    let sources=fs::read_dir(root).unwrap().map(|entry|{let p=entry.unwrap().path();(p.file_name().unwrap().to_str().unwrap().to_owned(),fs::read_to_string(p).unwrap())}).collect::<Vec<_>>();
+    let compiled=snapback4_lang::compile(&sources);assert!(compiled.diagnostics.is_empty(),"{:?}",compiled.diagnostics);
+    assert_eq!(compiled.invariants.len(),1);
+    assert!(sources.iter().any(|(_,s)|s.contains("NO_AMOUNT")));
+    let store=snapback4_core::store_port::AnyStore::open(&app.0.join("deployment/store.sqlite")).unwrap();
+    let mut engine=snapback4_core::Engine::new_release(store,compiled.schema,compiled.programs.into_iter().map(|p|p.program),selected,Some(selected)).unwrap();
+    let out=engine.mutate("pay",None,snapback4_core::Context::new("alice",std::collections::BTreeMap::from([("id".into(),snapback4_core::Value::Id("pending".into()))]))).unwrap();
+    assert!(matches!(out.state,snapback4_core::WriteState::Failed{..}),"{out:?}");
+    assert_eq!(engine.store().count("payments").unwrap(),0);
 }
