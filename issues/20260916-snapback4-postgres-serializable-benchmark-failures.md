@@ -285,3 +285,21 @@ retry, timeout, skip or comparison change was made. See the
 [S10e-1 report](../snapback4/reports/20261023-s10e1-evaluation-callers.md#fix-round-2--2026-10-23)
 for the complete sweep and cleanup disposition. This is the same experimental
 failure class, not a new production retry claim.
+
+## 2026-10-23 — S10e-2a comparison closure sweep
+
+The stock private PG16 script again escapes SQLSTATE `40001` (concurrent
+update) in the retained
+`evaluator_concurrent_read_modify_write_and_duplicate_ops_are_atomic_in_both_modes`:
+the writer unwrap at `experiments/postgres/tests/conformance.rs:294` fails,
+then the parent join at :307 fails. The common serial concurrency witness and
+both mismatching-receipt witnesses pass. S10e-2a changes the old-version
+opening-family assertion in this file; the stress body, retry implementation,
+workload, timing bounds and runner inclusion are unchanged.
+
+This records the existing experimental failure class, not an executor
+difference exposed by a tightened comparison or a green full-script result.
+All later script stages pass, including the supported five-executor overlap,
+public serving and owned-cluster shutdown. Evidence remains outside
+Git in `/tmp/sb4-s10e2a/test-postgres.log`; the S10e-2a JOURNAL entry records
+the final check and owned-process cleanup results. No exclusion is added.

@@ -352,7 +352,7 @@ pub fn page_limit(seed: u64) -> usize {
 }
 
 fn server_record(o: &QueryOutcome) -> Json {
-    serde_json::to_value(o).unwrap()
+    execute::query_record(o)
 }
 
 /// The device's answer, its record, and the reason it is or is not compared.

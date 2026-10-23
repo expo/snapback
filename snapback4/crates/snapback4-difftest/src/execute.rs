@@ -181,7 +181,7 @@ pub fn execute_as(engine: &mut impl Executor, case: &Case, name: &str, args: &Js
         match engine.query(name, context) {
             Ok(v) => Outcome {
                 kind: "query".into(),
-                value: serde_json::to_value(v).unwrap(),
+                value: query_record(&v),
             },
             Err(e) => Outcome {
                 kind: "query".into(),
@@ -204,5 +204,28 @@ pub fn execute_as(engine: &mut impl Executor, case: &Case, name: &str, args: &Js
                 value: json!({"refusal":Refusal::from(e)}),
             },
         }
+    }
+}
+
+pub(crate) fn query_record(outcome: &snapback4_core::QueryOutcome) -> Json {
+    // Wire serde omits this host publication dependency; store parity includes it.
+    let pending_opening = outcome.pending_opening.clone();
+    let mut value = serde_json::to_value(outcome).unwrap();
+    value["pending_opening"] = json!(pending_opening);
+    value
+}
+#[cfg(test)]
+mod comparison_controls {
+    use super::*;
+    #[test]
+    fn comparison_control_pending_opening() {
+        let bound = compile("query run():\n  return 1\n").unwrap();
+        let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
+        let original = engine.query("run", Context::new("alice", BTreeMap::new()).at(1000)).unwrap();
+        let mut changed = original.clone();
+        changed.pending_opening = Some(("principal".into(), "partition".into()));
+        let left = Outcome { kind: "query".into(), value: query_record(&original) };
+        let right = Outcome { kind: "query".into(), value: query_record(&changed) };
+        assert_eq!(crate::oracle::field(&left, &right, false).as_deref(), Some("pending_opening"));
     }
 }

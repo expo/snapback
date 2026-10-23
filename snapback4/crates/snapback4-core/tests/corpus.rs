@@ -696,13 +696,17 @@ fn compare(expected: &Expected, expected_state: LocalState, actual: Actual) -> V
 
 #[test]
 fn corpus() {
-    let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../corpus");
-    let mut passed = 0;
     // Routine corpus callers use shared policy. The retained executor is an
     // explicit overlap oracle, never the default Postgres execution path.
     let backends = if std::env::var("SNAPBACK4_CORPUS_OVERLAP").as_deref() == Ok("1") {
         vec![Backend::Sqlite, Backend::Unified(true), Backend::Unified(false), Backend::Oracle(true), Backend::Oracle(false)]
     } else { vec![Backend::Sqlite, Backend::Unified(true)] };
+    run_corpus(backends, |_, _| {});
+}
+
+fn run_corpus(backends: Vec<Backend>, mut inject: impl FnMut(usize, &mut Vec<Observation>)) {
+    let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../corpus");
+    let mut passed = 0;
     let mut counts = vec![[0_usize; 4]; backends.len()]; // pass / unsupported / skip / fail
     let mut skip_reasons = vec![BTreeMap::<String, usize>::new(); backends.len()];
     let mut unsupported_reasons = vec![BTreeMap::<String, usize>::new(); backends.len()];
@@ -727,10 +731,11 @@ fn corpus() {
         let mut baseline = None;
         for (i, backend) in backends.iter().copied().enumerate() {
             OBSERVATIONS.with_borrow_mut(Vec::clear);
-            let verdict = if i > 0 && (!cfg!(feature = "postgres") || std::env::var_os("SNAPBACK4_EVAL_POSTGRES").is_none()) {
+            let verdict = if !matches!(backend, Backend::Sqlite) && (!cfg!(feature = "postgres") || std::env::var_os("SNAPBACK4_EVAL_POSTGRES").is_none()) {
                 Verdict::Skip("postgres-not-configured: enable postgres and set SNAPBACK4_EVAL_POSTGRES".into())
             } else { run_store(&case, backend) };
-            let trace = OBSERVATIONS.with_borrow(Clone::clone);
+            let mut trace = OBSERVATIONS.with_borrow(Clone::clone);
+            if matches!(verdict, Verdict::Pass) { inject(i, &mut trace); }
             if matches!(verdict, Verdict::Pass) {
                 if i == 0 { baseline = Some(trace.clone()); }
                 else if let Some(expected) = &baseline { if expected != &trace {
@@ -809,23 +814,30 @@ mod adapter {
     }
 
     #[test]
-    fn overlap_preserves_host_only_query_and_mutation_fields() {
+    fn comparison_control_real_overlap_failure_accounting() {
         for mutation in [false, true] {
-            let mut value = fixture();
-            if mutation {
-                value["program"]["kind"] = json!("Mutation");
-                value["expected"]["localState"] = json!("predicted");
-            }
-            OBSERVATIONS.with_borrow_mut(Vec::clear);
-            assert!(matches!(run_store(&serde_json::from_value(value).unwrap(), Backend::Sqlite), Verdict::Pass));
-            let original = OBSERVATIONS.with_borrow(Clone::clone);
-            let mut changed = original.clone();
-            match changed.last_mut().unwrap() {
-                Observation::Query(Ok(outcome)) => outcome.pending_opening = Some(("principal".into(), "partition".into())),
-                Observation::Mutation(Ok(outcome)) => outcome.receipt_only = !outcome.receipt_only,
-                other => panic!("expected an outcome: {other:?}"),
-            }
-            assert_ne!(original, changed, "host-only facts must affect overlap equality");
+            let mut planted = false;
+            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                run_corpus(vec![Backend::Sqlite, Backend::Sqlite], |i, trace| {
+                    if i != 1 || planted { return; }
+                    for observation in trace {
+                        match observation {
+                            Observation::Query(Ok(outcome)) if !mutation => {
+                                outcome.pending_opening = Some(("principal".into(), "partition".into()));
+                                planted = true; break;
+                            }
+                            Observation::Mutation(Ok(outcome)) if mutation => {
+                                outcome.receipt_only = !outcome.receipt_only;
+                                planted = true; break;
+                            }
+                            _ => {}
+                        }
+                    }
+                });
+            }));
+            let panic = result.expect_err("a planted host-only mismatch must fail the real corpus");
+            assert!(panic.downcast_ref::<String>().is_some_and(|message| message.starts_with("1 overlap disagreements:")), "must fail through overlap_failed accounting");
+            assert!(planted, "must exercise a real corpus outcome");
         }
     }
 

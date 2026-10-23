@@ -31,8 +31,8 @@ pub(crate) fn error_chain(kind: &str, error: &(dyn Error + 'static)) -> String {
     }
     parts.join("; caused by: ")
 }
-fn setup_error(diagnostics: &crate::pg_diagnostics::Diagnostics, error: snapback4_core::RuntimeError) -> String {
-    let reason = crate::stores::setup_error(error);
+fn setup_error(allowlist: &mut crate::stores::UnsupportedAllowlist, diagnostics: &crate::pg_diagnostics::Diagnostics, error: snapback4_core::RuntimeError) -> String {
+    let reason = allowlist.classify(error);
     // A capability refusal is a stable classifier, not a failed SQL exchange.
     if reason.starts_with("postgres-unsupported:") { reason } else { diagnostics.describe(&reason) }
 }
@@ -44,6 +44,7 @@ fn ident(s: &str) -> String {
 }
 static NEXT: AtomicU64 = AtomicU64::new(0);
 pub struct Database {
+    unsupported: crate::stores::UnsupportedAllowlist,
     admin: Client,
     url: String,
     fresh: bool,
@@ -81,6 +82,13 @@ impl Database {
     pub fn connect() -> Result<Self, String> {
         Self::connect_mode(false)
     }
+    /// Exact exclusions for one campaign; `close` asserts every declared count.
+    /// Each tuple is (code/family, count, repository ticket path).
+    pub fn connect_with_unsupported(entries: &[(&str, u64, &str)]) -> Result<Self, String> {
+        let mut database = Self::connect()?;
+        database.unsupported = crate::stores::UnsupportedAllowlist::new(entries);
+        Ok(database)
+    }
     /// Fresh schemas are deliberately opt-in, for reset equivalence tests.
     pub fn connect_fresh() -> Result<Self, String> {
         Self::connect_mode(true)
@@ -94,6 +102,7 @@ impl Database {
             .batch_execute("SET statement_timeout='10s'; SET lock_timeout='5s'")
             .map_err(|e| error_chain("SET admin timeouts", &e))?;
         Ok(Self {
+            unsupported: crate::stores::UnsupportedAllowlist::default(),
             admin,
             url,
             fresh,
@@ -161,7 +170,7 @@ impl Database {
             })();
             install.map_err(|e| error_chain("install compiled empty fixture", &e))?;
             let engine = Engine::open_postgres_evaluation(config, &name)
-                .map_err(|e| setup_error(&diagnostics, e))?;
+                .map_err(|e| setup_error(&mut self.unsupported, &diagnostics, e))?;
             (name, engine)
         } else {
             let stamp = std::time::SystemTime::now()
@@ -174,7 +183,7 @@ impl Database {
                 NEXT.fetch_add(1, Ordering::Relaxed)
             );
             let engine = Engine::create_postgres_evaluation(config, &name, b.schema, programs.into_values())
-                .map_err(|e| setup_error(&diagnostics, e))?;
+                .map_err(|e| setup_error(&mut self.unsupported, &diagnostics, e))?;
             self.name = Some(name.clone());
             self.tables = self
                 .admin
@@ -252,13 +261,13 @@ impl Database {
         source: &str,
     ) -> Result<(), String> {
         if self.fresh {
-            self.close()?;
+            self.drop_schema()?;
             *world = self.create(case, source)?;
         } else {
             self.batch(&self.seeded.clone())?;
             let (config, diagnostics) = crate::pg_diagnostics::Diagnostics::connect(&self.url)?;
             let engine = Engine::open_postgres_evaluation(config, &world.name)
-                .map_err(|e| setup_error(&diagnostics, e))?;
+                .map_err(|e| setup_error(&mut self.unsupported, &diagnostics, e))?;
             world.engine = engine;
             world.diagnostics = diagnostics;
         }
@@ -267,11 +276,15 @@ impl Database {
     pub(crate) fn remove(&mut self, world: World) -> Result<(), String> {
         drop(world);
         if self.fresh {
-            self.close()?;
+            self.drop_schema()?;
         }
         Ok(())
     }
     pub fn close(&mut self) -> Result<(), String> {
+        self.drop_schema()?;
+        self.unsupported.verify()
+    }
+    fn drop_schema(&mut self) -> Result<(), String> {
         if let Some(name) = self.name.take() {
             self.batch(&format!("DROP SCHEMA {name} CASCADE"))?;
         }
@@ -280,8 +293,11 @@ impl Database {
 }
 impl Drop for Database {
     fn drop(&mut self) {
-        if let Err(e) = self.close() {
+        if let Err(e) = self.drop_schema() {
             eprintln!("store cleanup failed: {e}");
+        }
+        if let Err(error) = self.unsupported.verify() {
+            if std::thread::panicking() { eprintln!("{error}"); } else { panic!("{error}"); }
         }
     }
 }
@@ -290,35 +306,105 @@ impl Drop for Database {
 mod tests {
     use super::*;
 
+    struct Worker {
+        child: std::process::Child,
+        directory: std::path::PathBuf,
+    }
+    impl Worker {
+        fn spawn(hang: bool) -> Self {
+            let directory = std::env::temp_dir().join(format!("sb4-snapshot-worker-{}-{}", std::process::id(), NEXT.fetch_add(1, Ordering::Relaxed)));
+            std::fs::create_dir(&directory).unwrap();
+            let output = std::fs::File::create(directory.join("output")).unwrap();
+            let child = std::process::Command::new(std::env::current_exe().unwrap())
+                .args(["--exact", "store_database::tests::snapshot_failure_worker", "--nocapture"])
+                .env("SB4_SNAPSHOT_WORKER", &directory)
+                .env("SB4_SNAPSHOT_WORKER_HANG", if hang { "1" } else { "0" })
+                .stdout(output.try_clone().unwrap()).stderr(output).spawn().unwrap();
+            eprintln!("snapshot worker started PID {}", child.id());
+            Self { child, directory }
+        }
+        fn ready(&mut self) {
+            let until = std::time::Instant::now() + std::time::Duration::from_secs(60);
+            while !self.directory.join("ready").exists() {
+                assert!(self.child.try_wait().unwrap().is_none(), "worker exited before ready: {}", self.output());
+                assert!(std::time::Instant::now() < until, "worker setup deadline: {}", self.output());
+                std::thread::sleep(std::time::Duration::from_millis(10));
+            }
+        }
+        fn output(&self) -> String {
+            std::fs::read_to_string(self.directory.join("output")).unwrap_or_default()
+        }
+        fn wait(&mut self, bound: std::time::Duration) -> Result<std::process::ExitStatus, String> {
+            let until = std::time::Instant::now() + bound;
+            loop {
+                if let Some(status) = self.child.try_wait().map_err(|e| e.to_string())? { return Ok(status); }
+                if std::time::Instant::now() >= until {
+                    self.child.kill().map_err(|e| e.to_string())?;
+                    self.child.wait().map_err(|e| e.to_string())?;
+                    return Err(format!("snapshot worker {} exceeded deadline (terminated and reaped)", self.child.id()));
+                }
+                std::thread::sleep(std::time::Duration::from_millis(10));
+            }
+        }
+    }
+    impl Drop for Worker {
+        fn drop(&mut self) {
+            if self.child.try_wait().unwrap().is_none() { self.child.kill().unwrap(); }
+            let status = self.child.wait().unwrap();
+            eprintln!("snapshot worker reaped PID {}: {status}", self.child.id());
+            // A killed worker cannot run Database::drop. Only its recorded,
+            // PID-bound fixture namespace belongs to this parent.
+            if let Ok(name) = std::fs::read_to_string(self.directory.join("namespace")) {
+                let prefix = format!("sb4_eval_dt_{:x}_", self.child.id());
+                assert!(name.starts_with(&prefix) && name.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_'));
+                let mut admin = Client::connect(&std::env::var("SNAPBACK4_EVAL_POSTGRES").unwrap(), NoTls).unwrap();
+                admin.batch_execute(&format!("SET lock_timeout='5s'; SET statement_timeout='10s'; DROP SCHEMA IF EXISTS {name} CASCADE")).unwrap();
+            }
+            std::fs::remove_dir_all(&self.directory).unwrap();
+        }
+    }
     #[test]
-    fn failed_reused_snapshot_reports_sql_error_without_hanging_cleanup() {
-        let (send, receive) = std::sync::mpsc::channel();
-        let (ready, setup) = std::sync::mpsc::channel();
-        std::thread::spawn(move || {
-            let mut database = Database::connect().unwrap();
-            let case = crate::generate::generate(0);
-            let source = case.program.source();
-            let world = database.create(&case, &source).unwrap();
-            database.remove(world).unwrap();
-            let name = database.name.clone().unwrap();
-            database.admin.batch_execute(&format!("DROP TABLE {name}.r CASCADE")).unwrap();
-            ready.send(()).unwrap();
-            eprintln!("forcing missing-table snapshot restore in {name}");
-            let error = match database.create(&case, &source) {
-                Ok(_) => panic!("a missing snapshotted table must fail setup"),
-                Err(error) => error,
-            };
-            database.close().unwrap();
-            send.send(error).unwrap();
-        });
-        setup.recv_timeout(std::time::Duration::from_secs(60))
-            .expect("private fixture setup must finish before the failure probe");
-        let error = receive.recv_timeout(std::time::Duration::from_secs(10))
-            .expect("setup failure and observer cleanup must finish within ten seconds");
+    fn snapshot_failure_worker() {
+        let Some(directory) = std::env::var_os("SB4_SNAPSHOT_WORKER").map(std::path::PathBuf::from) else { return; };
+        if std::env::var("SB4_SNAPSHOT_WORKER_HANG").as_deref() == Ok("1") {
+            std::fs::write(directory.join("ready"), "ready").unwrap();
+            loop { std::thread::park(); }
+        }
+        let mut database = Database::connect().unwrap();
+        let case = crate::generate::generate(0);
+        let source = case.program.source();
+        let world = database.create(&case, &source).unwrap();
+        database.remove(world).unwrap();
+        let name = database.name.clone().unwrap();
+        std::fs::write(directory.join("namespace"), &name).unwrap();
+        database.admin.batch_execute(&format!("DROP TABLE {name}.r CASCADE")).unwrap();
+        std::fs::write(directory.join("ready"), "ready").unwrap();
+        let error = match database.create(&case, &source) {
+            Ok(_) => panic!("a missing snapshotted table must fail setup"),
+            Err(error) => error,
+        };
+        database.close().unwrap();
         assert!(error.contains("SQLSTATE=42P01"), "{error}");
         assert!(error.contains("snapshot restore DELETE/INSERT"), "{error}");
         eprintln!("bounded setup failure: {error}");
     }
+    #[test]
+    fn failed_reused_snapshot_reports_sql_error_without_hanging_cleanup() {
+        let mut worker = Worker::spawn(false);
+        worker.ready();
+        let status = worker.wait(std::time::Duration::from_secs(10));
+        assert!(status.as_ref().is_ok_and(|s| s.success()), "{status:?}: {}", worker.output());
+        assert!(worker.output().contains("SQLSTATE=42P01"), "{}", worker.output());
+    }
+    #[test]
+    fn comparison_control_timeout_reaps_worker() {
+        let mut worker = Worker::spawn(true);
+        worker.ready();
+        let error = worker.wait(std::time::Duration::from_millis(50)).unwrap_err();
+        assert!(error.contains("exceeded deadline"));
+        assert!(worker.child.try_wait().unwrap().is_some(), "timed-out worker must already be terminated and reaped");
+    }
+
 }
 
 /// Snapshot all SQLite rows once; preserve engine schema/catalog caches.
