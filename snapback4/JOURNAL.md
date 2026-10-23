@@ -102769,6 +102769,20 @@ generation, format, rows and complete asset records/homes on refusal. Focused
 element-extraction tests pass 20/20 and the complete backfill module passes
 163/163. The complete amendment returns to both fresh reviewers, and native
 artifacts are rebuilt; R7 results retain their original source binding.
+
+R9 fresh Codex gpt-6.1-sol/high and Muse spark-1.3-contributor/high both returned
+READY on both complete amendments at 23b0d2f42daed3ab0b68cb008d4c11b5810931a9.
+Primary amendment SHA-256 is d2444f2d68e868cf0bc058e2531df555d3fa1a65f76cef4b73ab3ea65cf6c5f1;
+proof-kit §8 SHA-256 is 3b281399cd8e9ebaa75caa2b4e27ee010def61d1a3780985f282bbbd16147563.
+Verbatim reviews and provenance are in llp/reviews/dx8/r9-*. The full core
+library passes 734 tests, with zero failures and 242 private-environment ignores.
+Reference validation passes 12411 refs with zero errors. Exact copied lanes020
+and040 pass again on the corrected debug CLI, retaining all 468/261 records,
+v1/v2 calls, rollback/forward assertions and asset homes. The fresh optimized
+musl binary and native package are sealed from clean source23b; unchanged
+SDK/Expo bytes are reused by content. Neither review readiness nor these
+affected results turn the inherited day-five qualification failure into a
+publication receipt. Mac qualification remains assigned to integration.
 ## 2026-10-23 — P1-CE: Postgres change evidence and certified changes/sync
 
 The Postgres buffered tail now writes the shared net-image footprint and prunes

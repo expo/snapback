@@ -1,0 +1,39 @@
+{
+  "round": 9,
+  "sourceCommit": "23b0d2f42daed3ab0b68cb008d4c11b5810931a9",
+  "amendmentSha256": "d2444f2d68e868cf0bc058e2531df555d3fa1a65f76cef4b73ab3ea65cf6c5f1",
+  "proofKitSection8Sha256": "3b281399cd8e9ebaa75caa2b4e27ee010def61d1a3780985f282bbbd16147563",
+  "createdAt": "2026-10-23T04:32:10.094258+00:00",
+  "reviewers": [
+    {
+      "family": "OpenAI",
+      "model": "gpt-6.1-sol",
+      "reasoning": "high",
+      "session": "fresh codex exec"
+    },
+    {
+      "family": "Meta",
+      "model": "muse-spark-1.3-contributor",
+      "reasoning": "high",
+      "session": "muse-exec configured plan/fallback"
+    }
+  ],
+  "verdicts": {
+    "codex": "READY",
+    "muse": "READY"
+  },
+  "proofKitSection8Verdicts": {
+    "codex": "READY",
+    "muse": "READY"
+  },
+  "exitCodes": {
+    "codex": 0,
+    "muse": 0
+  },
+  "artifacts": {
+    "r9-codex-stderr.txt": "37be8b7c4bb81e4a405f6995740eb27fbb4dd7bc6b57429e0faf2d5dab0c6fa5",
+    "r9-codex.txt": "3f42c4942aeece8646e36bdcf0581b8a5ac75824fd35c9813c0213f7b98650a8",
+    "r9-muse.txt": "b40b716d68490ba8da41831c6df7a854f2b9a2fb4b997079597237ca9af32eeb",
+    "r9-muse-stderr.txt": "eaeaf6d3154af97648ff1bbb3c0b178f0324143662c7aebae462f0092b113b2a"
+  }
+}

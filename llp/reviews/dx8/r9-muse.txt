@@ -1,0 +1,17 @@
+muse: workspace root: /home/ccheever/projects/sb4-b25-dx8 (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=27e7c224-33d4-46e5-a86d-3f0854ad3fbf]: Subscription quota exhausted. Your usage window resets at 2026-10-26T00:00:00Z. (rate_limit_error)
+READY
+
+Both the complete canonical DX8 amendment and the amended governing proof-kit §8 are semantically READY at frozen commit `23b0d2f42daed3ab0b68cb008d4c11b5810931a9` (read only via `git show`, every shell use with `timeout`).
+
+No material counterexample found:
+
+* Empty-parent custody gap is closed: `consumed_each` no longer requires `populated`; `resume_each=consumed && known` forces `each::resume` even with zero active parents, which first runs `validate_all_receipts` then walks every current child checking `anchored` before active-parent/authority/scalar/home checks. Unknown source-absent with `populated || child r/dormant_rows/dormant_narrow/dormant_values` refuses. New `extraction_each_tests` cover known-empty resume, known-empty plus independent child refusal, unknown active-only and retained-only refusals, with generation/format/rows/asset snapshots preserved.
+* `observe_write` now skips on unchanged reference regardless of anchor existence, so an asset-only edit cannot mint/repair `$extract:key` custody; birth (`old=None`) and real reference changes still capture; missing-target `invalid=2` stays invalid after later parent creation. Matches the clarified lifetime law and the two new regression tests.
+* Dormant ordering preserved: `dormant::transition` restores plus `narrowed::restore_images` run before `extractions::transition`, so resume sees restored `r`; genuinely incompatible narrowed rows still hit the existing bridge path.
+* Trace-decoder `outer ???(inner listen(...)=0` case in `proof-listener-audit.mjs` ignores only the wrapper when the next nonempty record is byte-identical, and the child record still receives every PID/result/TCP/range check. Missing corroboration, unknown returned forms, unresolved/out-of-range listens, and empty listener sets still refuse. No listener is omitted and no port range is widened; application socket authority unchanged.
+* Prior fences intact in frozen source: `walk_metered` shared meter, `activation_protocol=snapback4-activation-10` strict reject-before-adoption, format-10 fencing, reverse narrowed-home refusal.
+
+Nonblocking: none material. Pending native/SDK rebuild qualification remains separately owned and is not a semantic objection.
+
