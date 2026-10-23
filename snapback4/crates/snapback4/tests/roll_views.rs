@@ -25,6 +25,21 @@ fn current_first_worker_dependency_cannot_disappear_from_an_intent_view() {
 struct App(PathBuf);
 
 #[test]
+fn equivalent_unique_index_rename_keeps_default_rollback_visible() {
+    let app=App::new();
+    let old="table items:\n  n: int\n  code: text <=20\n  unique byCode: code\n  public\n  online only\ntable retired:\n  value: int\n  public\n  online only\nquery lookup(code: text <=20):\n  return items[code]\n";
+    app.source(old);app.ok(&["deploy","deployment"]);
+    app.seed(old,vec![json!({"id":"kept","n":1,"code":"a"})]);
+    let current=old.replace("n: int", "n: int ?").replace("unique byCode:","unique byCurrentCode:")
+        .replace("table retired:\n  value: int\n  public\n  online only\n", "");
+    app.source(&current);app.ok(&["deploy","deployment","--check"]);app.ok(&["deploy","deployment"]);
+    let preview=app.json(&["rollback","deployment","--to","1","--check","--json"]);
+    assert_eq!(preview["visibility"]["hiddenRows"],0);
+    app.ok(&["rollback","deployment","--to","1"]);assert_eq!(app.count(),1);
+    app.ok(&["rollback","deployment","--to","latest"]);assert_eq!(app.count(),1);
+}
+
+#[test]
 fn scalar_renamed_unique_keys_keep_their_identity_in_default_rollback() {
     for (kind, value) in [("text <=20", json!("alice")), ("int", json!(7))] {
         for strengthen in [false,true] {

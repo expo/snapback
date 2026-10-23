@@ -108,3 +108,45 @@ fn current_unique_index_replaces_same_named_predecessor_nonunique_index() {
     assert!(index.unique);
     assert_eq!(index.columns(), ["code"]);
 }
+
+#[test]
+fn unused_equivalent_unique_names_do_not_make_implicit_old_lookups_ambiguous() {
+    let old="table notes:\n  n: int\n  code: text <=20\n  unique byCode: code\n  public\n  online only\ntable retired:\n  value: int\n  public\n  online only\nquery lookup(code: text <=20):\n  return notes[code]\n";
+    let current=old.replace("n: int", "n: int ?").replace("unique byCode:","unique byCurrentCode:")
+        .replace("table retired:\n  value: int\n  public\n  online only\n", "");
+    let bridge=crate::release_bridge::loosen(&source(old),&source(&current));
+    assert!(bridge.diagnostics.is_empty(),"{:?}",bridge.diagnostics);
+    let bound=crate::compile(&bridge.sources);
+    let mut engine=Engine::memory(bound.schema,bound.programs.into_iter().map(|p|p.program)).unwrap();
+    engine.seed([("notes".into(),Value::Row([("id".into(),Value::Id("kept".into())),("n".into(),Value::Int(1)),("code".into(),Value::String("a".into()))].into_iter().collect()))]).unwrap();
+    let answer=engine.query("lookup",Context::new("alice",[("code".into(),Value::String("a".into()))].into_iter().collect())).unwrap();
+    assert_eq!(answer.data.field("id").unwrap(),&Value::Id("kept".into()));
+}
+
+#[test]
+fn explicitly_used_equivalent_unique_names_keep_both_workflows() {
+    let text="table notes:\n  code: text <=20\n  unique byA: code\n  unique byB: code\n  public\n  online only\nquery a(code: text <=20):\n  return notes[code] by byA\nquery b(code: text <=20):\n  return notes[code] by byB\n";
+    let mut view=source(text);
+    crate::release_bridge_indexes::prune_unused_equivalent_keys(&mut view,&source(text),&mut Vec::new());
+    let bound=crate::compile(&view);assert!(bound.diagnostics.is_empty(),"{:?}",bound.diagnostics);
+    assert!(bound.schema.tables["notes"].indexes.contains_key("byA"));
+    assert!(bound.schema.tables["notes"].indexes.contains_key("byB"));
+    let mut engine=Engine::memory(bound.schema,bound.programs.into_iter().map(|p|p.program)).unwrap();
+    engine.seed([("notes".into(),Value::Row([("id".into(),Value::Id("kept".into())),("code".into(),Value::String("a".into()))].into_iter().collect()))]).unwrap();
+    for op in ["a","b"] {
+        let answer=engine.query(op,Context::new("alice",[("code".into(),Value::String("a".into()))].into_iter().collect())).unwrap();
+        assert_eq!(answer.data.field("id").unwrap(),&Value::Id("kept".into()));
+    }
+}
+
+#[test]
+fn unused_keys_with_different_ordered_meanings_remain_ambiguous() {
+    for key in ["a", "b, a"] {
+        let pair=key.contains(',');
+        let text=format!("table notes:\n  a: text <=20\n  b: text <=20\n  unique byA: {}\n  unique byB: {key}\n  public\n  online only\nquery lookup(a: text <=20, b: text <=20):\n  return notes[{}]\n",if pair {"a, b"}else{"b"},if pair {"a, b"}else{"a"});
+        let mut view=source(&text);
+        crate::release_bridge_indexes::prune_unused_equivalent_keys(&mut view,&source(&text),&mut Vec::new());
+        assert!(crate::compile(&view).diagnostics.iter().any(|d|d.code=="E_QUARRY_POSITIONAL_SCAN"));
+        assert_eq!(view,source(&text));
+    }
+}

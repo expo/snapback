@@ -173,8 +173,11 @@ fn loosen_guarded(target:&[(String,String)],current:&[(String,String)])->Bridge 
         super::release_bridge_rules::carry(&mut sources,current,&mut changes,&fallback);
         (diagnostics,_)=super::release_bridge_guards::carry(&mut sources,current,&affected,&mut changes);
     }
-    let bound=crate::compile(&sources);
     let current_bound=crate::compile(current);
+    if current_bound.diagnostics.is_empty()&&crate::compile(target).diagnostics.is_empty() {
+        super::release_bridge_indexes::prune_unused_equivalent_keys(&mut sources,current,&mut changes);
+    }
+    let bound=crate::compile(&sources);
     if bound.schema.auth!=current_bound.schema.auth
         || super::release_bridge_guards::current_context_needed(&sources,current,&bound.schema,&current_bound.schema) {
         diagnostics.push(crate::diag::type_error(&crate::Site::default(),"rollback guards need the current ordered execution and schema context","retain the complete current guarded workflow, including authentication and guard-dependent reads").guide("deploy"));

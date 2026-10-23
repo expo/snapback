@@ -103741,3 +103741,30 @@ workload identities or either master remains. Monitored minimum free space
 47.4 GiB; final about 59 GiB. The three requested previous temporary directories
 are removed. Raw evidence stays in /tmp/sb4-rt3b-fix3/; one additive local
 commit, no push, stash or Git configuration change.
+
+
+## 2026-10-23 — Integration 23: current index contracts in guarded rollback views
+
+The late-main public PG/SQLite evolution witness exposed a rollback view that
+carried a current query without its named byCount index. Current named read
+dependencies now travel with guarded endpoints. Complete compiled component
+meaning controls whether an older same-named index can remain; changed meanings
+require the current closed context, including word/token/calendar contracts.
+Declared injective scalar/reference identities govern plain key source transport
+and the CLI's hard-constraint admission. Only typed key tokens change spelling;
+index labels, refusal codes and business literals remain authored.
+
+Fresh independent index reviews found and drove corrections for scalar key
+transport, scalar unique-key admission, same-name uniqueness strengthening and
+unused equivalent-key declarations making old positional lookups ambiguous.
+Transport replaces declarations from the same set it inserts. Final generated
+views omit only unused duplicate plain unique declarations with identical
+ordered columns, retaining every named dependency and an enforcing key. General
+positional-key admission and authored programs/operands remain unchanged.
+
+The latest focused Linux targets pass: 58 language unit cases, 38 rollback
+security cases and 16 CLI cases, including text/integer rename/strengthening
+cycles and the new implicit lookup/default rollback case. Full qualification
+is repeated after the last correction; superseded interrupted runs are never
+counted green. Verbatim independent reviews and provenance are in llp/reviews.
+The final integration report binds runtime/store/packed/Exact and Mac evidence.

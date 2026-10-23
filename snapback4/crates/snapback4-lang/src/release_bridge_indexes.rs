@@ -83,3 +83,77 @@ pub(super) fn plain_declaration(file: &str, raw: &str, index: &ast::IndexDecl, p
     for (start, end, value) in edits { source.replace_range(start..end, &value); }
     source
 }
+
+/// Retain every named dependency, without introducing an unused duplicate
+/// unique key that changes an otherwise unambiguous positional point lookup.
+pub(super) fn prune_unused_equivalent_keys(sources: &mut [(String, String)], current: &[(String, String)], changes: &mut Vec<String>) {
+    let mut docs=sources.iter().map(|(f,t)|crate::parser::parse_document(f,t).0).collect::<Vec<_>>();
+    let current=current.iter().map(|(f,t)|crate::parser::parse_document(f,t).0).collect::<Vec<_>>();
+    let mut used=BTreeSet::new();
+    let mut visit=|value:&mut ast::Expr|match value {
+        ast::Expr::Read(read)|ast::Expr::Exists{read,..}|ast::Expr::Created{read,..}=>{
+            if let Some(index)=&read.index {used.insert((read.table.clone(),index.clone()));}
+        }
+        ast::Expr::Merge(merge)=>{used.insert((merge.table.clone(),merge.index.clone()));}
+        _=>{}
+    };
+    for doc in &mut docs {
+        crate::bind::intent_walk::document(doc,&mut visit);
+        for table in &mut doc.tables {
+            for rule in &mut table.rules {crate::bind::intent_walk::expression(&mut rule.value,&mut visit);}
+            for value in table.column_read_values_mut() {crate::bind::intent_walk::expression(value,&mut visit);}
+            for column in &mut table.columns {
+                if let Some(value)=&mut column.default {crate::bind::intent_walk::expression(value,&mut visit);}
+                if let Some(value)=column.maintained.as_mut().and_then(|m|m.filter.as_mut()) {crate::bind::intent_walk::expression(value,&mut visit);}
+            }
+            for(value,_)in &mut table.final_exists {crate::bind::intent_walk::expression(value,&mut visit);}
+            for index in &mut table.indexes {for value in index.computed.values_mut(){crate::bind::intent_walk::expression(value,&mut visit);}}
+        }
+        for invariant in &mut doc.invariants {crate::bind::intent_walk::expression(&mut invariant.value,&mut visit);}
+        for maintain in &mut doc.maintains {
+            for value in &mut maintain.keys {crate::bind::intent_walk::expression(value,&mut visit);}
+            if let Some(value)=&mut maintain.filter {crate::bind::intent_walk::expression(value,&mut visit);}
+            if let Some(rule)=&mut maintain.read {crate::bind::intent_walk::expression(&mut rule.value,&mut visit);}
+        }
+        for timeline in &mut doc.timelines {if let Some(value)=&mut timeline.filter {crate::bind::intent_walk::expression(value,&mut visit);}}
+        for view in &mut doc.views {for branch in &mut view.branches {
+            if let Some(value)=&mut branch.predicate {crate::bind::intent_walk::expression(value,&mut visit);}
+            for field in &mut branch.fields {if let ast::ShapeField::Field{value,..}=field{crate::bind::intent_walk::expression(value,&mut visit);}}
+        }}
+        for view in &mut doc.feed_views {crate::bind::intent_walk::expression(&mut view.predicate,&mut visit);}
+        for action in &mut doc.actions {crate::bind::intent_walk::expression(&mut action.rule,&mut visit);}
+        for arg in doc.programs.iter_mut().flat_map(|p|&mut p.args)
+            .chain(doc.functions.iter_mut().flat_map(|f|&mut f.args))
+            .chain(doc.actions.iter_mut().flat_map(|a|&mut a.args)) {
+            if let Some(value)=&mut arg.default {crate::bind::intent_walk::expression(value,&mut visit);}
+        }
+    }
+    for doc in &docs {for table in &doc.tables {
+        if let Some((_,ast::SyncOrder::Index(index)))=table.sync.as_ref().and_then(|s|s.horizon.as_ref()) {
+            used.insert((table.name.clone(),index.clone()));
+        }
+    }}
+    for ((_,text),doc) in sources.iter_mut().zip(&docs) {
+        let mut edits=Vec::new();
+        for table in &doc.tables {
+            let mut groups=BTreeMap::<Vec<String>,Vec<&ast::IndexDecl>>::new();
+            for index in table.indexes.iter().filter(|i|i.unique&&i.is_plain()) {groups.entry(index.columns.clone()).or_default().push(index);}
+            for group in groups.values().filter(|g|g.len()>1) {
+                let named=group.iter().filter(|i|used.contains(&(table.name.clone(),i.name.clone()))).collect::<Vec<_>>();
+                let preferred=current.iter().flat_map(|d|&d.tables)
+                    .filter(|t|t.name==table.name||t.renamed_from.as_ref()==Some(&table.name)||table.renamed_from.as_ref()==Some(&t.name))
+                    .flat_map(|t|&t.indexes).find_map(|i|group.iter().find(|old|old.name==i.name));
+                let keep=preferred.unwrap_or(&group[0]);
+                for index in group {
+                    if used.contains(&(table.name.clone(),index.name.clone())) || (named.is_empty()&&index.name==keep.name) {continue}
+                    let start=text.split_inclusive('\n').take(index.site.line.saturating_sub(1)as usize).map(str::len).sum::<usize>();
+                    let end=text[start..].find('\n').map_or(text.len(),|n|start+n+1);
+                    edits.push((start,end));
+                    changes.push(format!("{}: omitted unused equivalent unique index {}; the identical ordered key remains enforced",table.name,index.name));
+                }
+            }
+        }
+        edits.sort_by_key(|edit|std::cmp::Reverse(edit.0));
+        for(start,end)in edits {text.replace_range(start..end,"");}
+    }
+}
