@@ -316,7 +316,7 @@ Dev only, same machine; `serve` refuses each one.
 | 429 | Identity rate limit or per-principal wait capacity; retry as directed |
 | 500 | Internal store/response-metadata failure, `denied` |
 | 503 | Retryable refusal, store/infrastructure failure or host capacity; retry as directed |
-| 503 E_GENERATION | Generation mismatch at ingress, query, mutation or argument handoff; never 401 and no store metadata. Retryable adoption races (or unknown provenance) send `retryable:true` and `Retry-After: 1`; a known foreign activation requiring reopen sends `retryable:false` |
+| 503 E_GENERATION | Generation mismatch at ingress, query, mutation or argument handoff; never 401 and no store metadata. Always `retryable:true` with `Retry-After: 1`: at this boundary the server cannot tell an in-process adoption race from a foreign activation |
 
 Authentication refuses before an operation executes. Identity helpers in the
 JS client preserve the `denied` body on 401/403; do not replace it with a proxy
@@ -358,9 +358,10 @@ Following success/page/restart replies retain their existing pinned protocol.
 Preserve the session. Safe SDK reads, including online/local Following,
 retry a retryable generation 503 at most three times after the first attempt,
 respecting Retry-After, jitter and a ten-second cumulative wait limit, just
-like E_RATE_LIMIT. A known foreign activation is non-retryable: reopen the
-serving engine on the activated backend. When adoption provenance is unknown,
-the server permits bounded retry; a persistent foreign activation keeps refusing.
+like E_RATE_LIMIT. The server cannot tell an adoption race from a foreign
+activation here, so every generation 503 is retryable. A persistent foreign
+activation keeps refusing until the client's bound is spent; the operator
+must then reopen the serving engine on the activated backend.
 So branch on the body, not only the status; for an
 `add(body: text <=200)` mutation:
 
