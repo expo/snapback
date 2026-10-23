@@ -1,0 +1,59 @@
+{
+  "qualificationSource": "4e3b52f1b3bf3c78055834d3d00decc732fc3f5c",
+  "mainMerge": "0d17e223d3",
+  "originIntegrated": "a025d67cd3",
+  "binarySha256": "ef2f106306a07a5b5b3d9ac12ac4fb249b2fec86d4a6539a06eca93e3b9e314e",
+  "clientSha256": "1a082e7ba810831999c2401f63ec1d780fbe8fb9999cdd7cfb22b1b9fd77a103",
+  "same312ShippingSDKLeavesAsBaseline": true,
+  "allCurrentStoreExactProofsUseQualifiedNative": true,
+  "mode": "consumer-only",
+  "publicationQualified": false,
+  "completeBaselineQualification": "../qualification-0.4.39/",
+  "baselineFullFiveSource": "a34a9192bcd241bb98e45c3f222e0f30074e97f9",
+  "unchangedRollbackSourceFiles": [
+    {
+      "path": "snapback4/crates/snapback4-core/src/store/rollback_visibility.rs",
+      "sha256": "57ce932b2bc6697c6ccc0b179ff9951590db12122b50067bfef0d90b2a761c9f"
+    },
+    {
+      "path": "snapback4/crates/snapback4-lang/src/release_bridge.rs",
+      "sha256": "5f00871414fb9f675127a4f67e9309306acb3273d55fe7d912c6d49d56bb85e2"
+    },
+    {
+      "path": "snapback4/crates/snapback4-lang/src/release_bridge_constraints.rs",
+      "sha256": "b7bd0b9aad4cd3a2a973c0d2dcaae947a72a3bdd277254bb6b00f3ec1c2003c8"
+    },
+    {
+      "path": "snapback4/crates/snapback4-lang/src/release_bridge_current.rs",
+      "sha256": "b67db8c70986306eabe0824b7c0de6d3663c16ab2efb46ce628fc0de9303c55f"
+    },
+    {
+      "path": "snapback4/crates/snapback4-lang/src/release_bridge_guards.rs",
+      "sha256": "f12091df4eb0224237dd4177f13554a42228d325ae9f49ef769cf40afcfa126b"
+    },
+    {
+      "path": "snapback4/crates/snapback4-lang/src/release_bridge_indexes.rs",
+      "sha256": "7d16cbd5de3a63a2696304b2e360b0c55347143dab08d4779b021c1b2e18ddbe"
+    },
+    {
+      "path": "snapback4/crates/snapback4-lang/src/release_bridge_indexes_tests.rs",
+      "sha256": "2cd1ddc5967d37c4c802254d5b7cbd285a51607231bd19099467ca3b1eb5803e"
+    },
+    {
+      "path": "snapback4/crates/snapback4-lang/src/release_bridge_policy.rs",
+      "sha256": "6e425262d29c4fdc4beff067e3839482a4782f3a43b719252784dfab325268ae"
+    },
+    {
+      "path": "snapback4/crates/snapback4-lang/src/release_bridge_rules.rs",
+      "sha256": "13f065ad70a1fd7d4666a2ab63f41505a984a3cfdd5cd129da28cf5f6076d7f3"
+    },
+    {
+      "path": "snapback4/crates/snapback4/src/verbs/rollback_foresight.rs",
+      "sha256": "4f72f7f444782ee67adce175644a8db3d22c0a3e4b860bd64c2862c2d3b5ed7a"
+    },
+    {
+      "path": "snapback4/crates/snapback4/src/verbs/rollback_views.rs",
+      "sha256": "39857c2d2df9525d5981f60c6ebc3fda6718ce5f71ec2417749e3d0422cf024c"
+    }
+  ]
+}

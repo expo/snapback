@@ -1,6 +1,6 @@
 # Integration 23 — snapback4 0.4.39
 
-Qualified rollback snapshot; latest main integration and landing are pending.
+0.4.39 qualification complete; final nonforce landing is recorded in git.
 Worktree: `/home/ccheever/projects/snapback-sb4loop`, branch `sb4-loop`.
 
 ## Changes and commits
