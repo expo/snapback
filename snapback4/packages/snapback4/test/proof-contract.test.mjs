@@ -49,7 +49,9 @@ test('DX8 exhaustPages follows opaque cursors and refuses incomplete traversal',
   assert.deepEqual(rows,[{id:'newest'},{id:'older'}]);
   await assert.rejects(kit.exhaustPages(async()=>({denied:{code:'PRIVATE',message:'no'}})),/E_PROOF_PAGE.*PRIVATE/);
   await assert.rejects(kit.exhaustPages(async()=>({loading:true})),/E_PROOF_PAGE.*loading/);
+  await assert.rejects(kit.exhaustPages(async()=>({data:[],next:null,cut:null})),/E_PROOF_PAGE.*complete must be true/);
   await assert.rejects(kit.exhaustPages(async()=>({data:[],next:'would-continue',complete:false,cut:'meter'})),/E_PROOF_PAGE.*incomplete.*meter/);
+  await assert.rejects(kit.exhaustPages(async()=>({data:[],next:null,complete:true,cut:null,existence:'partial'})),/E_PROOF_PAGE.*partial existence/);
   await assert.rejects(kit.exhaustPages(async()=>({data:[],next:'same',complete:true,cut:null}),{maxPages:2,label:'board'}),/E_PROOF_PAGE.*board.*repeated cursor/);
 });
 test('DX6 composed RN text and wrapping labels preserve scope, exactness and ambiguity', {timeout:30000}, async t => browser(t, async page => {

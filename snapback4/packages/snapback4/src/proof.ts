@@ -9,7 +9,7 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 import type { BrowserContext, BrowserType, LaunchOptions, Locator, Page } from "playwright-core";
-import type { Cursor, Refusal } from "./contract.ts";
+import type { Cursor, ReadCut, Refusal } from "./contract.ts";
 import { renderedSelector, registerRenderedSelector, registeredLocator, visibleText } from "./proof-text.ts";
 import { webWitnessObserverScript } from "./witness-web.ts";
 import { resolveBinary } from "./bin-path.ts";
@@ -361,7 +361,7 @@ export interface ExhaustPagesOptions {
   label?: string;
 }
 type ProofPage<Row> =
-  | { readonly data: readonly Row[]; readonly next?: Cursor | null; readonly complete?: boolean; readonly cut?: string | null }
+  | { readonly data: readonly Row[]; readonly next?: Cursor | null; readonly complete: boolean; readonly cut: ReadCut; readonly existence?: "present" | "absent" | "partial" }
   | { readonly denied: Refusal }
   | { readonly loading: true };
 /** Read every page by passing each opaque `next` back unchanged. The callback
@@ -380,8 +380,9 @@ export async function exhaustPages<Row>(readPage: (cursor: Cursor | null) => Pro
     if ("denied" in page) throw new Error(`E_PROOF_PAGE: ${label}: page ${pageNumber} refused ${page.denied.code}: ${page.denied.message}`);
     if ("loading" in page) throw new Error(`E_PROOF_PAGE: ${label}: page ${pageNumber} is still loading`);
     if (!Array.isArray(page.data)) throw new Error(`E_PROOF_PAGE: ${label}: page ${pageNumber} data is not an array`);
-    const cut = page.cut ?? null;
-    if (page.complete === false || cut !== null) throw new Error(`E_PROOF_PAGE: ${label}: page ${pageNumber} is incomplete${cut === null ? "" : ` (${cut} cut)`}`);
+    if (page.cut !== null) throw new Error(`E_PROOF_PAGE: ${label}: page ${pageNumber} is incomplete (${page.cut === undefined ? "missing" : page.cut} cut)`);
+    if (page.complete !== true) throw new Error(`E_PROOF_PAGE: ${label}: page ${pageNumber} is incomplete (complete must be true)`);
+    if (page.existence === "partial") throw new Error(`E_PROOF_PAGE: ${label}: page ${pageNumber} has partial existence`);
     rows.push(...page.data);
     const next = page.next ?? null;
     if (next === null) return rows;

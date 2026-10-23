@@ -45,7 +45,9 @@ const rows = await exhaustPages(async cursor => {
 }, { label: "packed board" });
 assert.deepEqual(cursors, [null, "opaque:not-a-row-id"]);
 assert.deepEqual(rows.map(row => row.id), ["newest", "older"]);
+await assert.rejects(exhaustPages(async () => ({ data: [], next: null, cut: null })), /E_PROOF_PAGE.*complete must be true/);
 await assert.rejects(exhaustPages(async () => ({ data: [], next: "would-continue", complete: false, cut: "meter" })), /E_PROOF_PAGE.*incomplete/);
+await assert.rejects(exhaustPages(async () => ({ data: [], next: null, complete: true, cut: null, existence: "partial" })), /E_PROOF_PAGE.*partial existence/);
 
 await withBrowser({ logsDir: "browser-logs", executablePath: process.env.CHROME }, async context => {
   const page = await context.newPage(); await page.setViewportSize({ width: 700, height: 400 });

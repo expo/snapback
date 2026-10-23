@@ -32,7 +32,8 @@ decode it, build one from a row id, or use a projected `id` as the cursor.
 Projection changes row fields only; it does not change page order, cursor
 meaning, or completeness. `exhaustPages` refuses denied, loading, malformed,
 repeated, over-limit, capped, or incomplete pages instead of returning a
-partial snapshot.
+partial snapshot. Every accepted page must explicitly say `complete: true` and
+`cut: null`; an SDK `existence: "partial"` page is still partial evidence.
 
 ## Reference
 
