@@ -40,6 +40,7 @@ test('H1/H4/H5 help agrees and ignored flags refuse before filesystem work', t =
 });
 test('token quiet/JSON and empty/nonempty data JSON have machine-readable output; releases preserve provenance', t => {
   const cwd = fixture(t); mkdirSync(join(cwd,'snapback')); writeFileSync(join(cwd,'snapback/schema.q'),schema);
+  const seatWarning=/WARNING minted service:worker.*no explicit positive authorization mention.*rules still decide/;
   const began = Date.now(); okay(invoke(cwd,['deploy','deploy','--json']));
   const provenance = JSON.parse(readFileSync(join(cwd,'deploy/releases/1/provenance.json'),'utf8'));
   assert.match(provenance.sourceHash,/^[0-9a-f]{64}$/); assert.match(provenance.cliVersion,/^0\.4\./);
@@ -47,10 +48,10 @@ test('token quiet/JSON and empty/nonempty data JSON have machine-readable output
   const unchanged = invoke(cwd,['deploy','deploy','--json']); okay(unchanged); assert.equal(JSON.parse(unchanged.stdout).unchanged,true);
   let data = invoke(cwd,['data','notes','--release','deploy','--json']); okay(data); assert.deepEqual(JSON.parse(data.stdout),{rows:[],more:false,limit:50});
   const quiet = invoke(cwd,['token','--service','worker','--release','deploy','--quiet']); okay(quiet);
-  assert.equal(quiet.stderr,''); assert.equal(quiet.stdout.trim().split('\n').length,1); assert.ok(quiet.stdout.trim());
+  assert.match(quiet.stderr,seatWarning); assert.equal(quiet.stdout.trim().split('\n').length,1); assert.ok(quiet.stdout.trim());
   const json = invoke(cwd,['token','--service','worker','--release','deploy','--json']); okay(json);
-  assert.equal(json.stderr,''); const session=JSON.parse(json.stdout); assert.ok(session.token); assert.equal(session.principal,'service:worker'); assert.ok(session.expiresAt>Date.now());
-  const normal=invoke(cwd,['token','--service','worker','--release','deploy']); okay(normal); assert.doesNotMatch(normal.stderr,/—/);
+  assert.match(json.stderr,seatWarning); const session=JSON.parse(json.stdout); assert.ok(session.token); assert.equal(session.principal,'service:worker'); assert.ok(session.expiresAt>Date.now());
+  const normal=invoke(cwd,['token','--service','worker','--release','deploy']); okay(normal); assert.match(normal.stderr,seatWarning); assert.doesNotMatch(normal.stderr,/—/);
   const add = invoke(cwd,['run','add','{"title":"one"}','--as','alice','--json']); okay(add);
   data=invoke(cwd,['data','notes','--json']); okay(data); assert.equal(JSON.parse(data.stdout).rows[0].title,'one');
   writeFileSync(join(cwd,'snapback/schema.q'),schema+'\nquery two():\n  return 2\n');

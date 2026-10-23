@@ -71,6 +71,18 @@ test("proof provisionAccounts gives production-safe partial setup advice",async 
   error=>error.message.includes("inspect partial production accounts/grants")&&!error.message.includes("discard")
  );
 });
+test("an active production signup deadline never recommends discarding production",async t=>{
+ let calls=0;t.mock.method(globalThis,"fetch",async(url,init)=>{
+  if(url.endsWith("/auth/config"))return response({environment:"production",development:false,password:true});
+  if(url.endsWith("/schema"))return response({service_identities:["service:setup"]});
+  calls++;return new Promise((_,reject)=>{const abort=()=>reject(init.signal.reason);init.signal.addEventListener("abort",abort,{once:true});if(init.signal.aborted)abort();});
+ });
+ await assert.rejects(
+  provisionAccounts({url:"http://example",operatorToken:async()=>"operator"},{roles:{member:1},provision:{name:"provision"},service:"setup",timeoutMs:10}),
+  error=>error.message.includes("E_STAGING_TIMEOUT")&&error.message.includes("inspect partial production accounts/grants")&&!error.message.includes("discard")
+ );
+ assert.equal(calls,1);
+});
 test("proof seeding respects the remaining setup budget and never retries lost signup replies",async t=>{
  for(const failure of ["delay","network"]){let signups=0,provisions=0;
   const mock=t.mock.method(globalThis,"fetch",async(url)=>{

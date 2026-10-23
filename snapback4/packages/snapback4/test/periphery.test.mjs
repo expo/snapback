@@ -39,6 +39,7 @@ function fixture(t) {
 
 for (const mode of ["dev", "serve"]) test(`${mode}: offline and live piped token stdout is one usable bearer, and server stdout carries its URL and optional dev token`, { timeout: hangBudget(10) }, async (t) => {
   const { dir, run, invoke } = fixture(t);
+  const seatWarning = /token: WARNING minted service:worker.*no explicit positive authorization mention.*rules still decide/;
   run("init", "--online");
   const schema = join(dir, "snapback/schema.q");
   writeFileSync(schema, read(schema) + "\nquery who():\n  return viewer\n");
@@ -92,17 +93,17 @@ for (const mode of ["dev", "serve"]) test(`${mode}: offline and live piped token
       if (flags.includes("--json")) {
         const record=JSON.parse(minted.stdout);token=record.token;
         assert.equal(record.principal,"service:worker");assert.equal(record.store,store);assert.ok(record.expiresAt>Date.now());
-        assert.equal(minted.stderr,"");
+        assert.match(minted.stderr,seatWarning);
       } else {
         const match = minted.stdout.match(/^([A-Za-z0-9_-]{43})\n$/);
         assert.ok(match, "stdout must contain only the base64url token and one newline");
         token=match[1];
-        if (flags.includes("--quiet")) assert.equal(minted.stderr,"");
+        if (flags.includes("--quiet")) assert.match(minted.stderr,seatWarning);
         else {
-          const [status, ownership, end] = minted.stderr.split("\n");
+          const [status, ownership, warning, end] = minted.stderr.split("\n");
           assert.match(status, /^token: a session for service:worker until \d+; printed once; keep it where the worker keeps secrets$/);
           assert.equal(ownership, `store: ${realpathSync(store)}; this token belongs only to this store; each isolated store needs its own`);
-          assert.equal(end, ""); assert.equal(minted.stderr.split("\n").length, 3);
+          assert.match(warning,seatWarning); assert.equal(end, ""); assert.equal(minted.stderr.split("\n").length, 4);
         }
       }
       assert.ok(!minted.stderr.includes(token), "the token is printed only once");

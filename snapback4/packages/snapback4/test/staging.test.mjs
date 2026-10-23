@@ -102,7 +102,7 @@ test("password dev closes fixture and persona doors; explicit opt-in, declared c
       const response = await fetch(host.url + path, { method: path.endsWith("status") || path.endsWith("catalog") ? "GET" : "POST", body: path.endsWith("status") || path.endsWith("catalog") ? undefined : "[]" });
       assert.equal(response.status, 403, path);
     }
-    await assert.rejects(host.now(), /unsafe-dev-doors/);
+    assert.ok(Math.abs((await host.now()) - Date.now()) < 5000, "operator-authenticated clock reads work while fixture doors stay closed");
     const account = await signup(host.url, "persistent@example.test", "persistent-password"); assert.equal(account.ok, true);
   } finally { await host.stop(); }
   host = await startDev({ cwd, args: ["--unsafe-dev-doors", "--no-watch"] });
@@ -136,6 +136,7 @@ test("adopting password-only identity closes existing dev doors and declared per
 
 test("MIG staging clock is operator-only and production never accepts an offset", { timeout: 90000 }, async t => {
   const cwd = fixture(t);
+  let persistedSkew = 0;
   await deploy("production", "snapback", { cwd });
   await assert.rejects(startServe("production", { cwd, clockOffset: "+4h" }), /E_CLOCK_DEV_ONLY/);
   let host = await startServe("production", { cwd });
@@ -158,9 +159,10 @@ test("MIG staging clock is operator-only and production never accepts an offset"
     assert.equal(result.code, 0, result.stderr); assert.ok((await host.now()) - advanced.now >= 3600000);
     const token = await host.operatorToken();
     for (const path of ["/seed", "/dev/reset", "/dev/jobs/foo"]) assert.equal((await fetch(host.url + path, { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: "[]" })).status, 403, path);
+    persistedSkew = (await host.now()) - Date.now();
   } finally { await host.stop(); }
   host = await startServe("staging", { cwd });
-  try { assert.ok(Math.abs((await host.now()) - Date.now()) < 5000, "restart drops process offset"); } finally { await host.stop(); }
+  try { assert.ok(Math.abs((await host.now()) - Date.now() - persistedSkew) < 5000, "restart retains the durable staging offset"); } finally { await host.stop(); }
 });
 
 

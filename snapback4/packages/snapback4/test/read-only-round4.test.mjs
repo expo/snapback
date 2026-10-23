@@ -120,9 +120,10 @@ for (const readOnly of [true, false]) test(`bearer spelling and whitespace guard
       for (const [path, body] of [['/dev/clock/advance', '{"duration":"+1m"}'], ['/auth/guest', '{}']]) {
         const response = await fetch(f.url + path, { method: 'POST', headers: { authorization }, body });
         const result = await response.json();
-        assert.equal(response.status, readOnly ? 403 : 200, `${path}: ${JSON.stringify(authorization)}`);
-        if (readOnly) {
-          assert.equal(result.denied.code, 'E_READ_ONLY');
+        const denied = readOnly || path === '/dev/clock/advance';
+        assert.equal(response.status, denied ? 403 : 200, `${path}: ${JSON.stringify(authorization)}`);
+        if (denied) {
+          assert.equal(result.denied.code, readOnly ? 'E_READ_ONLY' : 'E_AUTH');
           assert.equal(result.head, undefined); assert.equal(result.store_id, undefined);
         }
       }
