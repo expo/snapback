@@ -1,0 +1,22 @@
+muse: workspace root: /home/ccheever/projects/sb4-b25-dx8 (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=4c3aa50e-5cee-43fc-a666-c9046503738c]: Subscription quota exhausted. Your usage window resets at 2026-10-26T00:00:00Z. (rate_limit_error)
+READY
+
+No material semantic objection. I reviewed the frozen tip `f4c139c81f704f95f8d1c8431edfa4c7e78b5131` (plus the full `a2249ef8a6..f4c139c81f` DX8 range for context) entirely through `git show`/`git grep` with timeouts, without modifying files or touching credentials. The LLP §10 text at the frozen commit matches the circulated amendment.
+
+Fan-out state transitions verified in `store/extraction_each.rs` + `store/extractions.rs`:
+
+- Initial application: deterministic per-element child IDs, duplicate-asset refusal, independent-history refusal, empty list yields zero children, definition custody recorded even for empty populations.
+- Carried declaration: forward re-entry follows the element-to-child map (reorder preserves identity, append mints one child); current child-asset edits keep their child ID.
+- Reversal: gathers all extant children in receipt order plus native children in ID order, requires identical element types, restores null-vs-empty from retained evidence, records the current map.
+- Old-client edits: removed elements become internal nulls narrowed out of the active population; conflicting retained lists refuse via a bridge; reverse refuses atomically when populated narrowed child homes remain, naming the bridge repair.
+- Repeated null removal and pruning: all receipts (including removed/dormant-null) are validated before forward and reverse; missing/pruned children or invalid parent lifetimes refuse without recreating history, with generation unchanged.
+- Suspension/restoration: the durable known-definition marker (including empty first adoption) separates suspension from fresh migration; resume requires known definition, validates every receipt, and per child requires live captured parent-lifetime evidence, an active parent, captured-authority agreement, scalar-copy agreement, and exact ledger home plus byte length (via the same-table transfer check). It refuses retrospective capture of independent children and unknown missing-source definitions, synthesizes nothing, and runs inside the shared adoption transaction on the metered child-page walk.
+
+Homes/bytes, identity, authority, accounting, transactionality, fences: transfers validate exact ledger homes and file bytes and never copy; one extraction owns each child table; read/column gates are enforced in both directions with no new endpoint or audience; per-page job metering is shared with parent-image validation; format 10 is set only on successful adoption with 8/9 still readable and no downgrade path; `release-child-extraction-each-v1` fences older decoders. The rename rule stages current values only for identical-type generated renames, keeps authored-down precedence, and stays inside `backfills.rs`.
+
+Nonblocking suggestions:
+
+- Consider a follow-up ticket confirming orphan asset-home accounting after old-client removal (the removed asset's ledger home still names the consumed parent source cell). Retain-by-default makes this harmless, but an explicit invariant or test would close it.
+- I could not reconstruct the canonical `0496…` digest bytes from my seat (the `r1`/`r2` amendment files hash differently), so the coordinator should verify that anchor before recording joint readiness. Test/qualification claims are taken as reported per the brief, since full verification is separately owned.
