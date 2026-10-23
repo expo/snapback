@@ -134,7 +134,10 @@ test("HTTP admission, encoding, slow readers and idle changes polls", { timeout:
       assert.notEqual(upload.status, 413, "uploads keep the 64 MiB ceiling");
       assert.match((await upload.json()).denied?.code ?? "", /^E_ASSET/);
     });
-    await t.test("one-view assets finalize only after a complete non-range response", async () => {
+    // @ref LLP 3000.009.001.000.000#3.7 — the host records a confirmed
+    // one-view reservation before sending bytes, so an interrupted transport
+    // consumes it; range refusal still does not.
+    await t.test("one-view reservations survive range refusal and consume before an interrupted body", async () => {
       const png = new Uint8Array(8 * MiB);
       png.set([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13, 0x49, 0x48, 0x44, 0x52, 0, 0, 0, 2, 0, 0, 0, 3, 8, 6]);
       const uploaded = await (await post("/assets", png)).json();
@@ -147,6 +150,7 @@ test("HTTP admission, encoding, slow readers and idle changes polls", { timeout:
       assert.equal(ranged.status, 416);
       assert.equal((await ranged.json()).denied?.code, "E_ASSET_RANGE");
 
+      let interruptedBodyBytes;
       await new Promise((resolve, reject) => {
         const socket = connect({ host: "127.0.0.1", port: Number(new URL(url).port) });
         sockets.add(socket);
@@ -157,16 +161,27 @@ test("HTTP admission, encoding, slow readers and idle changes polls", { timeout:
           answer += chunk.toString("latin1");
           if (answer.includes("\r\n\r\n")) {
             assert.match(answer, /^HTTP\/1.1 200/m);
+            const headerEnd = answer.indexOf("\r\n\r\n") + 4;
+            interruptedBodyBytes = Buffer.byteLength(answer.slice(headerEnd), "latin1");
+            assert.ok(interruptedBodyBytes < png.length, "the peer closes before receiving the declared body");
             socket.destroy();
           }
         });
         socket.on("close", () => { sockets.delete(socket); resolve(); });
       });
+      assert.ok(Number.isInteger(interruptedBodyBytes));
 
-      const assetPath = join(directory, ".snapback4", "assets", id);
+      const viewed = await fetch(`${url}/assets/${id}`, { headers, signal: AbortSignal.timeout(hangBudget()) });
+      assert.equal(viewed.status, 410);
+      assert.equal((await viewed.json()).denied?.code, "E_ASSET_VIEWED");
+
+      const ordinary = await (await post("/assets", png)).json();
+      assert.ok(ordinary.asset?.id, JSON.stringify(ordinary));
+      const ordinaryId = ordinary.asset.id;
+      const assetPath = join(directory, ".snapback4", "assets", ordinaryId);
       writeFileSync(assetPath, png.subarray(0, 2 * MiB));
       const pipelined = await rawBytes(
-        `GET /assets/${id} HTTP/1.1\r\nHost: localhost\r\nTE: identity\r\nx-snapback-persona: alice\r\n\r\n`
+        `GET /assets/${ordinaryId} HTTP/1.1\r\nHost: localhost\r\nTE: identity\r\nx-snapback-persona: alice\r\n\r\n`
         + "POST /q/ping HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nContent-Length: 2\r\nx-snapback-persona: alice\r\n\r\n{}",
       );
       const headerEnd = pipelined.indexOf(Buffer.from("\r\n\r\n")) + 4;
@@ -177,12 +192,9 @@ test("HTTP admission, encoding, slow readers and idle changes polls", { timeout:
       assert.equal(pipelined.indexOf(Buffer.from("HTTP/1.1"), 1), -1, "a queued response cannot append bytes after the truncated body");
       writeFileSync(assetPath, png);
 
-      const complete = await fetch(`${url}/assets/${id}`, { headers, signal: AbortSignal.timeout(hangBudget()) });
+      const complete = await fetch(`${url}/assets/${ordinaryId}`, { headers, signal: AbortSignal.timeout(hangBudget()) });
       assert.equal(complete.status, 200);
       assert.equal((await complete.arrayBuffer()).byteLength, png.length);
-      const viewed = await fetch(`${url}/assets/${id}`, { headers, signal: AbortSignal.timeout(hangBudget()) });
-      assert.equal(viewed.status, 410);
-      assert.equal((await viewed.json()).denied?.code, "E_ASSET_VIEWED");
     });
     await t.test("eight idle polls leave health/schema/query work free and commits wake subscribers", async () => {
       const controllers = Array.from({ length: 8 }, () => new AbortController());
