@@ -1,0 +1,7 @@
+{
+  "time": 1792767089.176658,
+  "deployment_environment": "",
+  "query": "SELECT value FROM bench._meta WHERE key='deployment_environment'",
+  "observer_role": "sb4scale",
+  "note": "read-only provenance observation, excluded by application-role statistics filter"
+}

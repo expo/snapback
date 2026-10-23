@@ -378,7 +378,7 @@ fn version_one_and_two_evaluation_stores_are_refused_instead_of_being_adopted() 
             Ok(_) => panic!("old evaluation store {version} opened"),
             Err(error) => error,
         };
-        assert_eq!(error.code(), "E_STORE_UNSUPPORTED");
+        assert_old_version_opening(error);
     }
 }
 
@@ -607,5 +607,16 @@ fn unified_and_evaluator_increment_tail_calls_are_recorded_separately() {
             counts.push((common.evaluation_stats().unwrap().database_calls - before.0, oracle.stats().database_calls - before.1));
         }
         println!("S10e-1 C1 increment prefetch={prefetch} (common, oracle), cold then warm: {counts:?}");
+    }
+}
+
+fn assert_old_version_opening(error: snapback4_core::RuntimeError) {
+    assert!(matches!(error, snapback4_core::RuntimeError::StoreUnsupported { family: "opening" }), "{error:?}");
+}
+#[test]
+fn comparison_control_old_version_requires_opening_family() {
+    for family in ["assets", "time-publication", "unknown"] {
+        assert!(std::panic::catch_unwind(|| assert_old_version_opening(
+            snapback4_core::RuntimeError::StoreUnsupported { family })).is_err(), "{family}");
     }
 }

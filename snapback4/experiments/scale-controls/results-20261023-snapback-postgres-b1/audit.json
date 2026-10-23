@@ -1,0 +1,8 @@
+{
+  "cells": 1,
+  "trials": 9,
+  "scheduled_arrivals": 132420,
+  "cells_with_passing_rate": 1,
+  "unknown_write_outcome_trials": 0,
+  "checks": "arrival accounting, every repetition, histogram counts and lossless archive, SLO/counter qualification, brackets"
+}

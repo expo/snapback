@@ -1,0 +1,12 @@
+PostgreSQL 17.9 (Ubuntu 17.9-1.pgdg24.04+1) on x86_64-pc-linux-gnu, compiled by gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0, 64-bit
+fsync|on|
+full_page_writes|on|
+jit|off|
+max_connections|320|
+port|55440|
+shared_buffers|1048576|8kB
+shared_preload_libraries|pg_stat_statements|
+synchronous_commit|on|
+track_io_timing|on|
+track_wal_io_timing|on|
+wal_sync_method|fdatasync|

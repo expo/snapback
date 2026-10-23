@@ -1,0 +1,40 @@
+{
+  "extracted_archive_sha256": "d71dae85f64c4314c3fc3db4685372fda703b720499676d3b60627d20b841dee",
+  "scratch_location": "/tmp/s1pg3-offline-m0rumbmq",
+  "checks": {
+    "ledger.json": true,
+    "curves.json": true,
+    "rtt.json": true,
+    "rtt-all-captures.json": true,
+    "budget-comparison.json": true,
+    "contention-audit.json": true,
+    "statements-per-op.json": true,
+    "qualification.json": true,
+    "whole-write-audit.json": true,
+    "disqualified-trials.json": true,
+    "curves.svg": true,
+    "rtt-tail.svg": true,
+    "host-load.svg": true
+  },
+  "command_results": [
+    {
+      "script": "summarize.py",
+      "exit_status": 0,
+      "stdout": "{\"complete\": 1, \"qualified\": 0, \"probes\": 1, \"failed_trials\": 1}\n",
+      "stderr": ""
+    },
+    {
+      "script": "finish-report.py",
+      "exit_status": 0,
+      "stdout": "Bound contention intervals and account-session budget interpretation\n",
+      "stderr": ""
+    },
+    {
+      "script": "plot-results.py",
+      "exit_status": 0,
+      "stdout": "Wrote curves, RTT tail and host-load plots\n",
+      "stderr": ""
+    }
+  ],
+  "all_match": true
+}

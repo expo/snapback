@@ -1,0 +1,97 @@
+{
+  "host": "expo-build-450a",
+  "pid": 2454975,
+  "cwd": "/home/ccheever/q24/wt/recovery-leftovers",
+  "recorded_start_ticks": "1532537516",
+  "clock_ticks_per_second": 100,
+  "kernel_btime": 1777441578,
+  "approx_started_at": 1792766953.16,
+  "approx_started_utc": "2026-10-23T14:49:13.160000+00:00",
+  "observed_alive_at": 1792767042.7804904,
+  "observed_alive_utc": "2026-10-23T14:50:42.780490+00:00",
+  "uncertainty_s": 1,
+  "trials": [
+    {
+      "trial": "rate-1000-r0",
+      "capture_start": 1792766751.7025738,
+      "capture_end": 1792766782.7025323,
+      "approx_measurement_start": 1792766761.7025738,
+      "approx_measurement_end": 1792766781.7025738,
+      "build_overlaps_capture": false,
+      "build_overlaps_measurement": false
+    },
+    {
+      "trial": "rate-1000-r1",
+      "capture_start": 1792766782.8156013,
+      "capture_end": 1792766813.7812543,
+      "approx_measurement_start": 1792766792.8156013,
+      "approx_measurement_end": 1792766812.8156013,
+      "build_overlaps_capture": false,
+      "build_overlaps_measurement": false
+    },
+    {
+      "trial": "rate-1000-r2",
+      "capture_start": 1792766813.8965268,
+      "capture_end": 1792766844.8669438,
+      "approx_measurement_start": 1792766823.8965268,
+      "approx_measurement_end": 1792766843.8965268,
+      "build_overlaps_capture": false,
+      "build_overlaps_measurement": false
+    },
+    {
+      "trial": "rate-500-r0",
+      "capture_start": 1792766844.9732072,
+      "capture_end": 1792766875.9286761,
+      "approx_measurement_start": 1792766854.9732072,
+      "approx_measurement_end": 1792766874.9732072,
+      "build_overlaps_capture": false,
+      "build_overlaps_measurement": false
+    },
+    {
+      "trial": "rate-500-r1",
+      "capture_start": 1792766876.0525272,
+      "capture_end": 1792766907.422289,
+      "approx_measurement_start": 1792766886.0525272,
+      "approx_measurement_end": 1792766906.0525272,
+      "build_overlaps_capture": false,
+      "build_overlaps_measurement": false
+    },
+    {
+      "trial": "rate-500-r2",
+      "capture_start": 1792766907.5963905,
+      "capture_end": 1792766938.6306863,
+      "approx_measurement_start": 1792766917.5963905,
+      "approx_measurement_end": 1792766937.5963905,
+      "build_overlaps_capture": false,
+      "build_overlaps_measurement": false
+    },
+    {
+      "trial": "rate-707-r0",
+      "capture_start": 1792766938.768099,
+      "capture_end": 1792766969.743231,
+      "approx_measurement_start": 1792766948.768099,
+      "approx_measurement_end": 1792766968.768099,
+      "build_overlaps_capture": true,
+      "build_overlaps_measurement": true
+    },
+    {
+      "trial": "rate-707-r1",
+      "capture_start": 1792766969.8717701,
+      "capture_end": 1792767000.8874931,
+      "approx_measurement_start": 1792766979.8717701,
+      "approx_measurement_end": 1792766999.8717701,
+      "build_overlaps_capture": true,
+      "build_overlaps_measurement": true
+    },
+    {
+      "trial": "rate-707-r2",
+      "capture_start": 1792767000.9816914,
+      "capture_end": 1792767031.9266725,
+      "approx_measurement_start": 1792767010.9816914,
+      "approx_measurement_end": 1792767030.9816914,
+      "build_overlaps_capture": true,
+      "build_overlaps_measurement": true
+    }
+  ],
+  "conclusion": "All three provisional 707/s measurement windows overlap the unrelated Cargo lane. W1 is disqualified; the lane was never signalled."
+}

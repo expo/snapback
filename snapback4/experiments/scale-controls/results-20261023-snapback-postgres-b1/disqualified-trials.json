@@ -1,0 +1,166 @@
+{
+  "completed_failed_trials": [
+    {
+      "cell": {
+        "workload": "W1",
+        "keys": "disjoint",
+        "delay_us": 0
+      },
+      "rate": 1000,
+      "repeat": 2,
+      "slo_pass": false,
+      "p50_ms": 15.695871,
+      "p99_ms": 31.358975,
+      "p999_ms": 41.484287,
+      "scheduled": 20000,
+      "errors": 38,
+      "error_classes": {
+        "http_503": 38
+      },
+      "acknowledged_including_warmup": 29854,
+      "counter_check": null
+    }
+  ],
+  "incomplete_trials": [],
+  "environment_disqualified_cells": [
+    {
+      "cell": {
+        "workload": "W1",
+        "keys": "disjoint",
+        "delay_us": 0
+      },
+      "reason": "User RTT stop rule: recurrent ~41ms p99 before and after W1 natural, including confirmations. Also another 450a Cargo lane resumed during cell; provisional SLO result is disqualified."
+    }
+  ],
+  "environment_disqualified_trials": [
+    {
+      "cell": {
+        "workload": "W1",
+        "keys": "disjoint",
+        "delay_us": 0
+      },
+      "rate": 1000,
+      "repeat": 0,
+      "original_slo_pass": true,
+      "environment_qualified": false,
+      "reasons": [
+        "recurrent RTT p99 near41ms across cell boundaries"
+      ]
+    },
+    {
+      "cell": {
+        "workload": "W1",
+        "keys": "disjoint",
+        "delay_us": 0
+      },
+      "rate": 1000,
+      "repeat": 1,
+      "original_slo_pass": true,
+      "environment_qualified": false,
+      "reasons": [
+        "recurrent RTT p99 near41ms across cell boundaries"
+      ]
+    },
+    {
+      "cell": {
+        "workload": "W1",
+        "keys": "disjoint",
+        "delay_us": 0
+      },
+      "rate": 1000,
+      "repeat": 2,
+      "original_slo_pass": false,
+      "environment_qualified": false,
+      "reasons": [
+        "recurrent RTT p99 near41ms across cell boundaries"
+      ]
+    },
+    {
+      "cell": {
+        "workload": "W1",
+        "keys": "disjoint",
+        "delay_us": 0
+      },
+      "rate": 500,
+      "repeat": 0,
+      "original_slo_pass": true,
+      "environment_qualified": false,
+      "reasons": [
+        "recurrent RTT p99 near41ms across cell boundaries"
+      ]
+    },
+    {
+      "cell": {
+        "workload": "W1",
+        "keys": "disjoint",
+        "delay_us": 0
+      },
+      "rate": 500,
+      "repeat": 1,
+      "original_slo_pass": true,
+      "environment_qualified": false,
+      "reasons": [
+        "recurrent RTT p99 near41ms across cell boundaries"
+      ]
+    },
+    {
+      "cell": {
+        "workload": "W1",
+        "keys": "disjoint",
+        "delay_us": 0
+      },
+      "rate": 500,
+      "repeat": 2,
+      "original_slo_pass": true,
+      "environment_qualified": false,
+      "reasons": [
+        "recurrent RTT p99 near41ms across cell boundaries"
+      ]
+    },
+    {
+      "cell": {
+        "workload": "W1",
+        "keys": "disjoint",
+        "delay_us": 0
+      },
+      "rate": 707,
+      "repeat": 0,
+      "original_slo_pass": true,
+      "environment_qualified": false,
+      "reasons": [
+        "recurrent RTT p99 near41ms across cell boundaries",
+        "unrelated 450a Cargo lane overlaps measurement"
+      ]
+    },
+    {
+      "cell": {
+        "workload": "W1",
+        "keys": "disjoint",
+        "delay_us": 0
+      },
+      "rate": 707,
+      "repeat": 1,
+      "original_slo_pass": true,
+      "environment_qualified": false,
+      "reasons": [
+        "recurrent RTT p99 near41ms across cell boundaries",
+        "unrelated 450a Cargo lane overlaps measurement"
+      ]
+    },
+    {
+      "cell": {
+        "workload": "W1",
+        "keys": "disjoint",
+        "delay_us": 0
+      },
+      "rate": 707,
+      "repeat": 2,
+      "original_slo_pass": true,
+      "environment_qualified": false,
+      "reasons": [
+        "recurrent RTT p99 near41ms across cell boundaries",
+        "unrelated 450a Cargo lane overlaps measurement"
+      ]
+    }
+  ]
+}

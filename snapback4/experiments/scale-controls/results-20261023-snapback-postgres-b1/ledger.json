@@ -1,0 +1,195 @@
+[
+  {
+    "cell": {
+      "workload": "W1",
+      "keys": "disjoint",
+      "delay_us": 0
+    },
+    "baseline_highest_passing_offered_per_s": 1000,
+    "status": "disqualified: recurrent RTT tail and concurrent lane",
+    "highest_passing_offered_per_s": null,
+    "p50_ms": [
+      15.458303,
+      15.253503,
+      16.138239
+    ],
+    "p99_ms": [
+      27.738111,
+      23.543807,
+      28.278783
+    ],
+    "exchanges_per_op": 13.0,
+    "summary": {
+      "highest_passing_offered_per_s": 707,
+      "lowest_failing_offered_per_s": 1000,
+      "bracketed": true,
+      "rates": [
+        500,
+        707,
+        1000
+      ],
+      "repeats": 3
+    },
+    "errors": [
+      0,
+      0,
+      0
+    ],
+    "quiet_host_check": {
+      "time": 1792766735.3326325,
+      "label": "cell-('W1', 1000000, 0, 128, 'disjoint')",
+      "quiet": true,
+      "loads": {
+        "local": "1.75 7.59 8.11 1/1023 2266628",
+        "remote": "0.63 2.00 3.79 1/601 2424154"
+      }
+    },
+    "network_floor_ms_at_cell_rtt": 8.2485,
+    "raw_slo_candidate_per_s": 707,
+    "latencies_are_provisional_slo_candidate": true,
+    "disqualification": "User RTT stop rule: recurrent ~41ms p99 before and after W1 natural, including confirmations. Also another 450a Cargo lane resumed during cell; provisional SLO result is disqualified."
+  },
+  {
+    "cell": {
+      "workload": "W1",
+      "keys": "disjoint",
+      "delay_us": 500
+    },
+    "baseline_highest_passing_offered_per_s": 707,
+    "status": "not run",
+    "highest_passing_offered_per_s": null,
+    "p50_ms": [],
+    "p99_ms": [],
+    "exchanges_per_op": null
+  },
+  {
+    "cell": {
+      "workload": "W2",
+      "keys": "disjoint",
+      "delay_us": 0
+    },
+    "baseline_highest_passing_offered_per_s": 500,
+    "status": "not run",
+    "highest_passing_offered_per_s": null,
+    "p50_ms": [],
+    "p99_ms": [],
+    "exchanges_per_op": null
+  },
+  {
+    "cell": {
+      "workload": "W2",
+      "keys": "disjoint",
+      "delay_us": 500
+    },
+    "baseline_highest_passing_offered_per_s": null,
+    "status": "not run",
+    "highest_passing_offered_per_s": null,
+    "p50_ms": [],
+    "p99_ms": [],
+    "exchanges_per_op": null
+  },
+  {
+    "cell": {
+      "workload": "W4",
+      "keys": "disjoint",
+      "delay_us": 0
+    },
+    "baseline_highest_passing_offered_per_s": null,
+    "status": "not run",
+    "highest_passing_offered_per_s": null,
+    "p50_ms": [],
+    "p99_ms": [],
+    "exchanges_per_op": null
+  },
+  {
+    "cell": {
+      "workload": "W4",
+      "keys": "disjoint",
+      "delay_us": 500
+    },
+    "baseline_highest_passing_offered_per_s": null,
+    "status": "not run",
+    "highest_passing_offered_per_s": null,
+    "p50_ms": [],
+    "p99_ms": [],
+    "exchanges_per_op": null
+  },
+  {
+    "cell": {
+      "workload": "W3",
+      "keys": "disjoint",
+      "delay_us": 0
+    },
+    "baseline_highest_passing_offered_per_s": null,
+    "status": "not run",
+    "highest_passing_offered_per_s": null,
+    "p50_ms": [],
+    "p99_ms": [],
+    "exchanges_per_op": null
+  },
+  {
+    "cell": {
+      "workload": "W3",
+      "keys": "disjoint",
+      "delay_us": 500
+    },
+    "baseline_highest_passing_offered_per_s": null,
+    "status": "not run",
+    "highest_passing_offered_per_s": null,
+    "p50_ms": [],
+    "p99_ms": [],
+    "exchanges_per_op": null
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "keys": "same",
+      "delay_us": 0
+    },
+    "baseline_highest_passing_offered_per_s": null,
+    "status": "not run",
+    "highest_passing_offered_per_s": null,
+    "p50_ms": [],
+    "p99_ms": [],
+    "exchanges_per_op": null
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "keys": "same",
+      "delay_us": 500
+    },
+    "baseline_highest_passing_offered_per_s": null,
+    "status": "not run",
+    "highest_passing_offered_per_s": null,
+    "p50_ms": [],
+    "p99_ms": [],
+    "exchanges_per_op": null
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "keys": "hot1",
+      "delay_us": 0
+    },
+    "baseline_highest_passing_offered_per_s": null,
+    "status": "not run",
+    "highest_passing_offered_per_s": null,
+    "p50_ms": [],
+    "p99_ms": [],
+    "exchanges_per_op": null
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "keys": "hot1",
+      "delay_us": 500
+    },
+    "baseline_highest_passing_offered_per_s": null,
+    "status": "not run",
+    "highest_passing_offered_per_s": null,
+    "p50_ms": [],
+    "p99_ms": [],
+    "exchanges_per_op": null
+  }
+]

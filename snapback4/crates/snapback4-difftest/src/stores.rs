@@ -58,27 +58,54 @@ fn expected_generated_refusal(case: &Case, code: &str, message: Option<&str>) ->
     }
 }
 
-// Only explicit adapter refusals are unsupported. SQL and binder errors are not.
-pub(crate) fn setup_error(error: snapback4_core::RuntimeError) -> String {
-    use snapback4_core::RuntimeError;
-    match &error {
-        RuntimeError::StoreUnsupported { family } => format!("postgres-unsupported:E_STORE_UNSUPPORTED:{family}"),
-        RuntimeError::Structural { code, .. }
-            if matches!(
-                *code,
-                "E_QUARRY_EPHEMERAL" | "E_VIEW_KEY" | "E_POSTGRES_MAINTAINED_COLUMN"
-            ) =>
-        {
-            format!("postgres-unsupported:{code}")
+// Empty by default. An exclusion belongs to one explicitly counted campaign,
+// never to an error variant for every future generated input.
+// @ref LLP 3000.009.001.000#3.4 — unsupported stays outside passed and requires exact campaign dispositions.
+#[derive(Default)]
+pub(crate) struct UnsupportedAllowlist {
+    expected: std::collections::BTreeMap<String, u64>,
+    observed: std::collections::BTreeMap<String, u64>,
+    tickets: std::collections::BTreeMap<String, String>,
+}
+impl UnsupportedAllowlist {
+    pub(crate) fn new(entries: &[(&str, u64, &str)]) -> Self {
+        let mut list = Self::default();
+        for &(reason, count, ticket) in entries {
+            assert!(count > 0 && ticket.starts_with("issues/") && ticket.ends_with(".md"), "an exclusion needs a positive exact count and ticket path");
+            assert!(list.expected.insert(reason.into(), count).is_none(), "duplicate exclusion: {reason}");
+            list.tickets.insert(reason.into(), ticket.into());
         }
-        RuntimeError::Schema(message)
-            if message
-                == "Postgres evaluation supports data queries/mutations and transactional emit records only; assets, native modules, jobs, actions, routes and schedules are not implemented" =>
-        {
-            "postgres-unsupported:assets-native-jobs-actions-routes-schedules".into()
-        }
-        _ => crate::store_database::error_chain("engine setup", &error),
+        list
     }
+    pub(crate) fn classify(&mut self, error: snapback4_core::RuntimeError) -> String {
+        use snapback4_core::RuntimeError;
+        let reason = match &error {
+            RuntimeError::StoreUnsupported { family } => Some(format!("E_STORE_UNSUPPORTED:{family}")),
+            RuntimeError::Structural { code, .. } if matches!(*code,
+                "E_QUARRY_EPHEMERAL" | "E_VIEW_KEY" | "E_POSTGRES_MAINTAINED_COLUMN") => Some((*code).into()),
+            _ => None,
+        };
+        if let Some(reason) = reason {
+            if let Some(&count) = self.expected.get(&reason) {
+                let observed = self.observed.entry(reason.clone()).or_default();
+                *observed += 1;
+                if *observed <= count {
+                    eprintln!("expected unsupported {reason}: {observed}/{count}; {}", self.tickets[&reason]);
+                    return format!("postgres-unsupported:{reason}");
+                }
+                return format!("unexpected extra unsupported {reason}: {observed} > {count}; {}", self.tickets[&reason]);
+            }
+        }
+        crate::store_database::error_chain("engine setup", &error)
+    }
+    pub(crate) fn verify(&self) -> Result<(), String> {
+        if self.observed == self.expected { Ok(()) } else {
+            Err(format!("unsupported campaign counts differ: expected={:?}, observed={:?}, tickets={:?}", self.expected, self.observed, self.tickets))
+        }
+    }
+}
+pub(crate) fn setup_error(error: snapback4_core::RuntimeError) -> String {
+    UnsupportedAllowlist::default().classify(error)
 }
 
 pub use crate::store_database::Database;
@@ -613,6 +640,17 @@ mod tests {
     use serde_json::json;
 
     #[test]
+    fn comparison_control_default_unsupported_is_failure() {
+        use snapback4_core::RuntimeError;
+        for family in ["time-publication", "assets", "unknown"] {
+            assert!(!setup_error(RuntimeError::StoreUnsupported { family }).starts_with("postgres-unsupported:"), "{family}");
+        }
+        for code in ["E_QUARRY_EPHEMERAL", "E_VIEW_KEY", "E_POSTGRES_MAINTAINED_COLUMN"] {
+            assert!(!setup_error(RuntimeError::Structural { code, message: "planted refusal".into() }).starts_with("postgres-unsupported:"), "{code}");
+        }
+    }
+
+    #[test]
     fn generated_invalid_inputs_are_classified_without_allowing_arbitrary_input_refusals() {
         let mut bounded = generate(4);
         assert!(expected_generated_refusal(&bounded, "E_INPUT",
@@ -706,7 +744,7 @@ mod tests {
                 "word_cut_at":null, "next":"opaque", "metered":{
                     "examined":1,"index_entries":2,"rule_probes":3,"steps":4,
                     "heap_bytes":5,"output_bytes":6,"rows_written":7},
-                "tables":["items"],"next_expiry":100,"seq":1,"delivery":null,
+                "tables":["items"],"pending_opening":null,"next_expiry":100,"seq":1,"delivery":null,
                 "refusal":{"code":"E_BOUND","site":"run:1"}
             }),
         };
@@ -746,28 +784,29 @@ mod tests {
     }
 
     #[test]
-    fn unsupported_is_limited_to_explicit_adapter_reasons() {
+    fn unsupported_requires_exact_campaign_reason_count_and_ticket() {
         use snapback4_core::RuntimeError;
-        let reason = setup_error(RuntimeError::StoreUnsupported { family: "assets" });
-        assert_eq!(reason, "postgres-unsupported:E_STORE_UNSUPPORTED:assets");
-        let mut counts = crate::oracle::Counts::default();
-        counts.record(&Verdict::Unsupported(reason.clone()));
-        assert_eq!((counts.attempted, counts.passed, counts.disagreeing), (1, 0, 0));
-        assert_eq!(counts.unsupported[&reason], 1);
-        assert_eq!(
-            setup_error(RuntimeError::Structural {
-                code: "E_QUARRY_EPHEMERAL",
-                message: "not supported".into()
-            }),
-            "postgres-unsupported:E_QUARRY_EPHEMERAL"
-        );
-        assert!(
-            !setup_error(RuntimeError::Store("connection lost".into()))
-                .starts_with("postgres-unsupported:")
-        );
-        assert!(
-            !setup_error(RuntimeError::Schema("invalid generated schema".into()))
-                .starts_with("postgres-unsupported:")
-        );
+        let ticket = "issues/20261023-snapback4-s10e2-time-publication-profile.md";
+        for reason in ["E_STORE_UNSUPPORTED:time-publication", "E_QUARRY_EPHEMERAL", "E_VIEW_KEY", "E_POSTGRES_MAINTAINED_COLUMN"] {
+            let refusal = || if reason.starts_with("E_STORE_UNSUPPORTED:") {
+                RuntimeError::StoreUnsupported { family: "time-publication" }
+            } else { RuntimeError::Structural { code: reason, message: "planted refusal".into() } };
+            let mut list = UnsupportedAllowlist::new(&[(reason, 1, ticket)]);
+            assert!(list.verify().is_err(), "missing exclusion must fail: {reason}");
+            let classified = list.classify(refusal());
+            assert_eq!(classified, format!("postgres-unsupported:{reason}"));
+            assert!(list.verify().is_ok());
+            assert!(!list.classify(RuntimeError::StoreUnsupported { family: "unknown" }).starts_with("postgres-unsupported:"));
+            assert!(!list.classify(refusal()).starts_with("postgres-unsupported:"), "extra exclusion must fail: {reason}");
+            assert!(list.verify().is_err());
+            let mut counts = crate::oracle::Counts::default();
+            counts.record(&Verdict::Unsupported(classified.clone()));
+            assert_eq!((counts.attempted, counts.passed, counts.disagreeing), (1, 0, 0));
+            assert_eq!(counts.unsupported[&classified], 1);
+        }
+        for error in [RuntimeError::Store("connection lost".into()), RuntimeError::Schema("invalid schema".into())] {
+            assert!(!setup_error(error).starts_with("postgres-unsupported:"));
+        }
     }
+
 }

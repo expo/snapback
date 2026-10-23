@@ -1,0 +1,92 @@
+[
+  {
+    "cell": {
+      "workload": "W1",
+      "keys": "disjoint",
+      "delay_us": 0
+    },
+    "file": "rtt-after-confirm1.json",
+    "count": 1000,
+    "p50_ms": 0.679,
+    "p99_ms": 4.027,
+    "port": 55440,
+    "query": "prepared SELECT 1",
+    "socket_dir": "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/b1p3/s",
+    "warmup_queries": 100
+  },
+  {
+    "cell": {
+      "workload": "W1",
+      "keys": "disjoint",
+      "delay_us": 0
+    },
+    "file": "rtt-after-confirm2.json",
+    "count": 1000,
+    "p50_ms": 0.62,
+    "p99_ms": 41.215,
+    "port": 55440,
+    "query": "prepared SELECT 1",
+    "socket_dir": "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/b1p3/s",
+    "warmup_queries": 100
+  },
+  {
+    "cell": {
+      "workload": "W1",
+      "keys": "disjoint",
+      "delay_us": 0
+    },
+    "file": "rtt-after.json",
+    "count": 1000,
+    "p50_ms": 0.644,
+    "p99_ms": 41.151,
+    "port": 55440,
+    "query": "prepared SELECT 1",
+    "socket_dir": "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/b1p3/s",
+    "warmup_queries": 100
+  },
+  {
+    "cell": {
+      "workload": "W1",
+      "keys": "disjoint",
+      "delay_us": 0
+    },
+    "file": "rtt-before-confirm1.json",
+    "count": 1000,
+    "p50_ms": 0.632,
+    "p99_ms": 41.119,
+    "port": 55440,
+    "query": "prepared SELECT 1",
+    "socket_dir": "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/b1p3/s",
+    "warmup_queries": 100
+  },
+  {
+    "cell": {
+      "workload": "W1",
+      "keys": "disjoint",
+      "delay_us": 0
+    },
+    "file": "rtt-before-confirm2.json",
+    "count": 1000,
+    "p50_ms": 0.612,
+    "p99_ms": 3.337,
+    "port": 55440,
+    "query": "prepared SELECT 1",
+    "socket_dir": "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/b1p3/s",
+    "warmup_queries": 100
+  },
+  {
+    "cell": {
+      "workload": "W1",
+      "keys": "disjoint",
+      "delay_us": 0
+    },
+    "file": "rtt-before.json",
+    "count": 1000,
+    "p50_ms": 0.625,
+    "p99_ms": 41.279,
+    "port": 55440,
+    "query": "prepared SELECT 1",
+    "socket_dir": "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/b1p3/s",
+    "warmup_queries": 100
+  }
+]

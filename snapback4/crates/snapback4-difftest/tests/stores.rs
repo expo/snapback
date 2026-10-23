@@ -7,8 +7,27 @@ use snapback4_difftest::{
 };
 
 #[test]
+fn unlisted_setup_refusal_fails_the_actual_campaign() {
+    let seed = (0..32).find(|seed| generate(*seed).program.tables.iter()
+        .any(|table| table.not_before.is_some())).expect("fixed seeds include lower lifetimes");
+    let output = std::env::temp_dir().join(format!("sb4-unlisted-campaign-{}", std::process::id()));
+    let result = stores::run(seed, 1, &output);
+    let report: Report = serde_json::from_slice(&std::fs::read(output.join("report.json")).unwrap()).unwrap();
+    let source = std::fs::read_to_string(output.join(format!("setup-{seed}/case.q")));
+    std::fs::remove_dir_all(output).unwrap();
+    assert!(result.as_ref().is_err_and(|error| error.contains("time-publication")), "{result:?}");
+    assert!(!report.generator_errors.is_empty(), "{report:#?}");
+    assert!(report.by_oracle.values().all(|counts| counts.passed == 0 && counts.unsupported.is_empty()));
+    assert!(source.unwrap().contains("not before"));
+    eprintln!("default campaign refuses time-publication seed={seed}");
+}
+
+#[test]
 fn both_stores_all_public_boundaries_and_write_observations() {
-    let mut database = stores::Database::connect()
+    let mut database = stores::Database::connect_with_unsupported(&[(
+        "E_STORE_UNSUPPORTED:time-publication", 2,
+        "issues/20261023-snapback4-s10e2-time-publication-profile.md",
+    )])
         .expect("private Postgres cluster required: export SNAPBACK4_EVAL_POSTGRES");
     let mut report = Report::default();
     for seed in 0..32 {
@@ -29,6 +48,7 @@ fn both_stores_all_public_boundaries_and_write_observations() {
     insert.program.tables[0].rule = snapback4_difftest::ast::Rule::Allow;
     insert.args["key"] = serde_json::json!("fresh-id");
     stores::check(&insert, &mut report, &mut database, |_| {}).unwrap();
+    database.close().expect("exact campaign exclusion counts");
     assert!(report.generator_errors.is_empty(), "{report:#?}");
     // Heap is charged identically on both stores (the closed heap-accounting
     // ticket): the fixed corpus has no store signature. A new one needs diagnosis.
@@ -101,6 +121,7 @@ fn widened_reads_fill_and_consume_the_prefetch_cache() {
     for case in &cases {
         stores::check(case, &mut report, &mut database, |f| panic!("seed {}: {}", case.seed, f.signature)).unwrap();
     }
+    database.close().unwrap();
     let stat = |k: &str| report.store_stats.get(k).copied().unwrap_or(0);
     assert!(stat("store-postgres-on-prefetch_marked_reads") > 0, "{report:#?}");
     assert!(stat("store-postgres-on-prefetch_rows_transferred") > 0, "{report:#?}");

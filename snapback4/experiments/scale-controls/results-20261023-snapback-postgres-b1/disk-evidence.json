@@ -1,0 +1,9 @@
+{
+  "observed_minimum_local_free_bytes": 50881650688,
+  "observed_minimum_remote_free_bytes": 141991206912,
+  "required_floor_bytes": 30000000000,
+  "all_observed_checks_above_floor": true,
+  "local_samples": 277,
+  "remote_samples": 277,
+  "scope": "periodic setup/cell-boundary and during-run checks; not a continuous filesystem reservation"
+}

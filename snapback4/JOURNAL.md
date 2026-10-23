@@ -103839,3 +103839,98 @@ old day(at), then defaults rollback/forward with both rows visible. One initial
 preflight named the nonexistent rollback_bridge_security target; its unit
 phase passed and the corrected actual release_bridge_security target passed.
 Full release qualification follows independent review of this correction.
+
+
+## 2026-10-23 — S10e-2a: close the evaluator comparison gaps
+
+All nine items in the [comparison ticket](../issues/closed/20261023-snapback4-s10e2-comparison-gaps.md)
+are closed. Stored receipts require presence and compare physical sequence,
+exact outcome bytes, binding and timestamp. C1 reads and fixture first writes
+and replays use full typed equality. Difftest query records retain the host-only
+opening dependency; device diagnostic records use the same serializer.
+Unsupported setup refusals fail by default. The fixed campaign alone declares
+two time-publication exclusions, with exact completion counts and a
+[profile ticket](../issues/20261023-snapback4-s10e2-time-publication-profile.md);
+unknown families, structural codes and extra or missing counts fail.
+
+Before controls fail on the old receipt/query/write/replay projections,
+missing-both receipt acceptance, hidden query dependency and old-version family
+guard. The real corpus control now reaches its actual overlap failure: the old
+control stays green when accounting is removed, while the new one fails when
+either the append or final assertion is removed. Restoring blanket unsupported
+classification makes the actual one-case campaign regression red. A real
+seed-8 CLI campaign exits 2 and retains its setup reproduction. The cleanup
+regression owns a subprocess, kills and waits before timeout returns, and
+cleans its recorded PID-bound namespace. Restoring the original accept hang
+fails within ten seconds and reaps its worker; the separate 50 ms hang control
+checks reaping before return. All injected faults are restored.
+
+Both five-executor corpus passes keep the same 295 cards: SQLite 210 passes /
+85 named skips; each Postgres arm 207 / 88, zero unsupported, conformance
+failures or overlap disagreements. All 229 Postgres family/oracle cases and
+all seven explicit oracle tests pass. C1 derived queries remain 20 calls off /
+23 on on both engines; the existing 32-room fixture remains 8/68. The exhaustive
+experiment sweeps preserve exact outcomes at 7,418 read and 19,265 write-loop
+precharge positions. No new executor discrepancy, meter change, raised
+allowance, RT0-table edit, fixture-input change or executor deletion.
+
+The stock PostgreSQL script finishes red solely on the original retained
+Serializable stress's raw 40001 at conformance.rs:294 and its parent join at
+:307. Its workload, retry budget and inclusion are unchanged; the
+[existing issue](../issues/20260916-snapback4-postgres-serializable-benchmark-failures.md)
+records this occurrence. All later stages pass, including the public serving,
+release-evolution, change-evidence, fencing and maintained-total witnesses.
+That witness's private PG16 cluster stops and is independently confirmed.
+The broader RFC deletion checklist still needs the evaluation-only Serializable
+driver, remaining family migration and explicit dispositions of the known
+meter/evolution/profile and physical-call differences. Evidence stays outside
+Git in `/tmp/sb4-s10e2a/`.
+
+Final qualification is green for the full default core (675 library passes,
+three existing library ignores, 45 integration targets, 27 doctests), Postgres
+difftest (11 library / four store tests), default difftest (one library /
+29 smoke tests), the no-default core check, and all seven oracle tests with
+the original receipt JSON validity checks retained. The restored real corpus
+control passes after the fault probes. Both RT0 tests pass and both table
+SHA-256 digests match their starting bytes. Reference validation reports zero
+errors and zero unchecked references. The stock script's sole red remains the
+retained evaluator's documented 40001; no new skip or retry change.
+
+The primary PG16 master, PID 955062, is stopped: pg_ctl stop exits 0, independent
+status exits 3, and postmaster.pid is absent. The public witness's cluster is
+also stopped and confirmed. Two inspections find no living PID among 478
+recorded launch, worker, public-witness and cluster processes, including the
+old-accept timeout worker. Final checks use the owned lane target, eight Cargo
+jobs, line-tables-only dev/test debug and disabled incremental compilation to
+limit disk use. Work stays local: no push, stash, Git configuration change or
+raw log committed. The nine comparison items are closed; no executor deletion.
+## 2026-10-23 — S1-PG3: B1 attempt stopped on RTT tails and concurrent work
+
+The [B1 repeat](./experiments/scale-controls/results-20261023-snapback-postgres-b1/README.md)
+builds unchanged product `69ab3076b9` in the owned release target and reuses the
+S1-PG2 app, native 1M seed, account sessions and trial/search code. Every source
+image and maintained recount is exact after seed and at cleanup. Setup was
+contended; its 867.192 s seed time is not a performance comparison.
+
+W1 natural starts at one-minute loads 1.75 /0.63, with no active build/test lane
+detected. Nine trials /132,420 measured arrivals pass the independent raw audit.
+The native SLO-only candidate is 707/s (median p50/p99 15.458/27.738 ms); it is
+**disqualified**, not a B1 ceiling. Four of six before/after prepared RTT captures
+have p99 around 41 ms. The initial all-three-high guard was too permissive about
+intermittent clears; the operator stopped after recurrence across the cell.
+An unrelated 450a Cargo job also overlaps every 707/s measurement window.
+Eleven cells remain unrun; no product or transport fix was attempted.
+
+Clean W1 probes count 13 warm inferred exchanges/request, against the ordinary
+B1 budget 6 and PG2's measured 23. The inherited helper mints `account` sessions;
+the ordinary fast path admits guest/user/member. Complete ingress fallback and
+additional supervisor metadata reads explain the extra 7. The session kind was
+preserved, and no six-flight end-to-end claim follows for this account class.
+
+Database `sb4_snapback_s1pg3` and role `s1pg3_app` are dropped; 912 local and 347
+remote recorded PIDs are independently audited with no live owned process.
+Private session/config files are removed after a zero-match secret scan. Shared
+postmaster 2735539 and durable settings are unchanged. Final reporting helpers
+receive an additional exit audit. Raw data and source snapshots remain outside
+Git with location/SHA-256 in the report. Only results and this journal change;
+no push, stash, Git configuration change, product edit or sub-agent.

@@ -1,0 +1,195 @@
+[
+  {
+    "cell": {
+      "workload": "W1",
+      "keys": "disjoint",
+      "delay_us": 0
+    },
+    "measured_clean_inferred_exchanges": 13.0,
+    "published_B1_budget": 6,
+    "derived_program_budget": null,
+    "PG2_published_B1_network_floor_ms": 3.825,
+    "current_network_floor_ms": 8.2485,
+    "note": "Warm source inference from measured SQL; cold prepares add exchanges. W3 and shared-guard additions are program-dependent; network floors exclude execution, durability and queueing.",
+    "provisional_candidate_p50_ms": [
+      15.458303,
+      15.253503,
+      16.138239
+    ],
+    "environment_qualified": false,
+    "actual_session_kind": "account",
+    "ordinary_fast_kinds": [
+      "guest",
+      "user",
+      "member"
+    ],
+    "source_interpretation": "Native account kind falls back to a complete ingress snapshot (+5 flights) and two additional supervisor metadata reads in the query (+2), explaining 13 versus ordinary6.",
+    "actual_network_floor_ms_at_cell_RTT": 8.2485,
+    "ordinary_B1_network_floor_ms_at_cell_RTT": 3.807
+  },
+  {
+    "cell": {
+      "workload": "W1",
+      "keys": "disjoint",
+      "delay_us": 500
+    },
+    "measured_clean_inferred_exchanges": null,
+    "published_B1_budget": 6,
+    "derived_program_budget": null,
+    "PG2_published_B1_network_floor_ms": 7.986,
+    "current_network_floor_ms": null,
+    "note": "Warm source inference from measured SQL; cold prepares add exchanges. W3 and shared-guard additions are program-dependent; network floors exclude execution, durability and queueing.",
+    "provisional_candidate_p50_ms": [],
+    "environment_qualified": false
+  },
+  {
+    "cell": {
+      "workload": "W2",
+      "keys": "disjoint",
+      "delay_us": 0
+    },
+    "measured_clean_inferred_exchanges": null,
+    "published_B1_budget": 6,
+    "derived_program_budget": null,
+    "PG2_published_B1_network_floor_ms": 3.8249999999999997,
+    "current_network_floor_ms": null,
+    "note": "Warm source inference from measured SQL; cold prepares add exchanges. W3 and shared-guard additions are program-dependent; network floors exclude execution, durability and queueing.",
+    "provisional_candidate_p50_ms": [],
+    "environment_qualified": false
+  },
+  {
+    "cell": {
+      "workload": "W2",
+      "keys": "disjoint",
+      "delay_us": 500
+    },
+    "measured_clean_inferred_exchanges": null,
+    "published_B1_budget": 6,
+    "derived_program_budget": null,
+    "PG2_published_B1_network_floor_ms": 7.986,
+    "current_network_floor_ms": null,
+    "note": "Warm source inference from measured SQL; cold prepares add exchanges. W3 and shared-guard additions are program-dependent; network floors exclude execution, durability and queueing.",
+    "provisional_candidate_p50_ms": [],
+    "environment_qualified": false
+  },
+  {
+    "cell": {
+      "workload": "W4",
+      "keys": "disjoint",
+      "delay_us": 0
+    },
+    "measured_clean_inferred_exchanges": null,
+    "published_B1_budget": 16,
+    "derived_program_budget": null,
+    "PG2_published_B1_network_floor_ms": 10.2,
+    "current_network_floor_ms": null,
+    "note": "Warm source inference from measured SQL; cold prepares add exchanges. W3 and shared-guard additions are program-dependent; network floors exclude execution, durability and queueing.",
+    "provisional_candidate_p50_ms": [],
+    "environment_qualified": false
+  },
+  {
+    "cell": {
+      "workload": "W4",
+      "keys": "disjoint",
+      "delay_us": 500
+    },
+    "measured_clean_inferred_exchanges": null,
+    "published_B1_budget": 16,
+    "derived_program_budget": null,
+    "PG2_published_B1_network_floor_ms": 21.296,
+    "current_network_floor_ms": null,
+    "note": "Warm source inference from measured SQL; cold prepares add exchanges. W3 and shared-guard additions are program-dependent; network floors exclude execution, durability and queueing.",
+    "provisional_candidate_p50_ms": [],
+    "environment_qualified": false
+  },
+  {
+    "cell": {
+      "workload": "W3",
+      "keys": "disjoint",
+      "delay_us": 0
+    },
+    "measured_clean_inferred_exchanges": null,
+    "published_B1_budget": null,
+    "derived_program_budget": null,
+    "PG2_published_B1_network_floor_ms": null,
+    "current_network_floor_ms": null,
+    "note": "Warm source inference from measured SQL; cold prepares add exchanges. W3 and shared-guard additions are program-dependent; network floors exclude execution, durability and queueing.",
+    "provisional_candidate_p50_ms": [],
+    "environment_qualified": false
+  },
+  {
+    "cell": {
+      "workload": "W3",
+      "keys": "disjoint",
+      "delay_us": 500
+    },
+    "measured_clean_inferred_exchanges": null,
+    "published_B1_budget": null,
+    "derived_program_budget": null,
+    "PG2_published_B1_network_floor_ms": null,
+    "current_network_floor_ms": null,
+    "note": "Warm source inference from measured SQL; cold prepares add exchanges. W3 and shared-guard additions are program-dependent; network floors exclude execution, durability and queueing.",
+    "provisional_candidate_p50_ms": [],
+    "environment_qualified": false
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "keys": "same",
+      "delay_us": 0
+    },
+    "measured_clean_inferred_exchanges": null,
+    "published_B1_budget": null,
+    "derived_program_budget": 19,
+    "PG2_published_B1_network_floor_ms": null,
+    "current_network_floor_ms": null,
+    "note": "Warm source inference from measured SQL; cold prepares add exchanges. W3 and shared-guard additions are program-dependent; network floors exclude execution, durability and queueing.",
+    "provisional_candidate_p50_ms": [],
+    "environment_qualified": false
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "keys": "same",
+      "delay_us": 500
+    },
+    "measured_clean_inferred_exchanges": null,
+    "published_B1_budget": null,
+    "derived_program_budget": 19,
+    "PG2_published_B1_network_floor_ms": null,
+    "current_network_floor_ms": null,
+    "note": "Warm source inference from measured SQL; cold prepares add exchanges. W3 and shared-guard additions are program-dependent; network floors exclude execution, durability and queueing.",
+    "provisional_candidate_p50_ms": [],
+    "environment_qualified": false
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "keys": "hot1",
+      "delay_us": 0
+    },
+    "measured_clean_inferred_exchanges": null,
+    "published_B1_budget": null,
+    "derived_program_budget": 16.03,
+    "PG2_published_B1_network_floor_ms": null,
+    "current_network_floor_ms": null,
+    "note": "Warm source inference from measured SQL; cold prepares add exchanges. W3 and shared-guard additions are program-dependent; network floors exclude execution, durability and queueing.",
+    "provisional_candidate_p50_ms": [],
+    "environment_qualified": false
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "keys": "hot1",
+      "delay_us": 500
+    },
+    "measured_clean_inferred_exchanges": null,
+    "published_B1_budget": null,
+    "derived_program_budget": 16.03,
+    "PG2_published_B1_network_floor_ms": null,
+    "current_network_floor_ms": null,
+    "note": "Warm source inference from measured SQL; cold prepares add exchanges. W3 and shared-guard additions are program-dependent; network floors exclude execution, durability and queueing.",
+    "provisional_candidate_p50_ms": [],
+    "environment_qualified": false
+  }
+]

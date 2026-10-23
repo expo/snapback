@@ -1,0 +1,50 @@
+{
+  "release_builds": "passed; original locked seed attempt refused stale version only; unchanged copied source built offline",
+  "unchanged_harness_binary_sha256": "7618879a6762d49092c34aa2de9ec1ef784f0d569ac1906459b4a35ed693bb45",
+  "ref_check": {
+    "exit_status": 0,
+    "documents": 566,
+    "refs": 11820,
+    "errors": 0,
+    "unchecked": 0
+  },
+  "independent_trial_audit": {
+    "cells": 1,
+    "trials": 9,
+    "scheduled_arrivals": 132420,
+    "cells_with_passing_rate": 1,
+    "unknown_write_outcome_trials": 0,
+    "checks": "arrival accounting, every repetition, histogram counts and lossless archive, SLO/counter qualification, brackets"
+  },
+  "environment_qualification": {
+    "qualified_cells": 0,
+    "disqualified_cells": 1,
+    "not_run_cells": 11,
+    "why": "recurrent RTT tails; concurrent unrelated Cargo lane overlaps all provisional best-rate repetitions"
+  },
+  "seed_and_final_images": "exact 1M images and all maintained recounts; final counter sum0; no timed write cell ran",
+  "cleanup": "database/role independently absent; 912 local and 347 remote recorded PIDs audited, no live owned process",
+  "known_secret_scan": "zero matches before private session/config deletion",
+  "product_tests": "not rerun; results-only lane, product source unchanged",
+  "offline_reproduction": {
+    "aggregate_json_files": 10,
+    "svg_plots": 3,
+    "byte_for_byte": true,
+    "from_fresh_archive_extraction": true
+  },
+  "disk_floor": {
+    "observed_minimum_local_free_bytes": 50881650688,
+    "observed_minimum_remote_free_bytes": 141991206912,
+    "required_floor_bytes": 30000000000,
+    "all_observed_checks_above_floor": true,
+    "local_samples": 277,
+    "remote_samples": 277,
+    "scope": "periodic setup/cell-boundary and during-run checks; not a continuous filesystem reservation"
+  },
+  "post_analysis_process_audit": {
+    "local_pids_checked": 924,
+    "local_live_owned": [],
+    "remote_live_owned": [],
+    "collector_exit_status": 0
+  }
+}

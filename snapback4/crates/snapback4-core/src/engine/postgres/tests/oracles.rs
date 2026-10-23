@@ -1,9 +1,84 @@
 //! Three-store overlap: the common engine on SQLite and Postgres, and the
 //! retained evaluator on Postgres. Prefetch changes physical access only.
-// @ref LLP 3000.009.001.000#3.4 — keep the evaluator as the on/off comparison oracle through S10d.
+// @ref LLP 3000.009.001.000#3.4 — retain the evaluator until S10e replacement evidence permits deletion.
 use super::super::*;
 use crate::{Engine, store_port::AnyStore, ledger::LedgerReader};
 const SOURCE: &str = "table notes:\n  n: int\n  by byN: n\n  public\n  insert <- allow\n  update <- allow\n  sync public\nmutation put(key: id, n: int):\n  upsert notes[key] { n }\n  return n\nmutation fail(key: id):\n  update notes[key] { n: -1 }\n  require false else NO\nquery peek(key: id):\n  return notes[key]\nquery page():\n  return notes where .n >= 0 by .n first 5\n";
+
+// Complete physical receipt facts, independent of the sequence inside outcome.
+type StoredReceipt = (i64, String, Option<String>, Option<String>, i64);
+fn assert_receipts(left: Option<StoredReceipt>, right: Option<StoredReceipt>) {
+    let left = left.expect("expected stored receipt on left");
+    let right = right.expect("expected stored receipt on right");
+    serde_json::from_str::<serde_json::Value>(&left.1).expect("left receipt contains valid outcome JSON");
+    serde_json::from_str::<serde_json::Value>(&right.1).expect("right receipt contains valid outcome JSON");
+    assert_eq!(left, right);
+}
+fn assert_queries(left: &crate::QueryOutcome, right: &crate::QueryOutcome) {
+    assert_eq!(left, right);
+}
+fn assert_mutations(left: &crate::MutationOutcome, right: &crate::MutationOutcome) {
+    assert_eq!(left, right);
+}
+fn comparison_fixture() -> Engine {
+    let bound = snapback4_lang::compile(&[("schema.q".into(), SOURCE.into())]);
+    assert!(bound.diagnostics.is_empty());
+    let schema: Schema = serde_json::from_value(serde_json::to_value(bound.schema).unwrap()).unwrap();
+    let programs: Vec<Program> = serde_json::from_value(serde_json::to_value(bound.programs.into_iter().map(|p| p.program).collect::<Vec<_>>()).unwrap()).unwrap();
+    Engine::memory(schema, programs).unwrap()
+}
+#[test]
+fn comparison_control_stored_sequence() {
+    let record = (11, r#"{"state":"sent","seq":11}"#.into(), Some("put".into()), Some("digest".into()), 1000);
+    let mut changed = record.clone(); changed.0 = 0;
+    assert!(std::panic::catch_unwind(|| assert_receipts(Some(record), Some(changed))).is_err());
+}
+#[test]
+fn comparison_control_missing_both_receipts() {
+    assert!(std::panic::catch_unwind(|| assert_receipts(None, None)).is_err());
+}
+#[test]
+fn comparison_control_query_fields() {
+    let mut engine = comparison_fixture();
+    let original = engine.query("page", Context::new("alice", BTreeMap::new()).at(1000)).unwrap();
+    for field in ["next", "tables", "cut", "pending_opening"] {
+        let mut changed = original.clone();
+        match field {
+            "next" => changed.next = Some("planted-cursor".into()),
+            "tables" => changed.tables.push("planted-table".into()),
+            "cut" => changed.cut = Some(crate::engine::ReadCut::Meter),
+            _ => changed.pending_opening = Some(("principal".into(), "partition".into())),
+        }
+        assert!(std::panic::catch_unwind(|| assert_queries(&original, &changed)).is_err(), "{field}");
+    }
+}
+#[test]
+fn comparison_control_mutation_and_replay_fields() {
+    let mut engine = comparison_fixture();
+    let context = Context::new("alice", [("key".into(), Value::Id("n0".into())), ("n".into(), Value::Int(71))].into()).at(1000);
+    for replayed in [false, true] {
+        let original = engine.mutate("put", Some("comparison"), context.clone()).unwrap();
+        assert_eq!(original.replayed, replayed);
+        for field in ["result", "examined", "index_entries", "rule_probes", "steps", "heap_bytes", "output_bytes", "rows_written", "tables", "events", "receipt_only"] {
+            let mut changed = original.clone();
+            match field {
+                "result" => if let crate::WriteState::Sent { result, .. } = &mut changed.state { *result = if *result == Value::Null { Value::Int(71) } else { Value::Null }; },
+                "examined" => changed.metered.examined += 1,
+                "index_entries" => changed.metered.index_entries += 1,
+                "rule_probes" => changed.metered.rule_probes += 1,
+                "steps" => changed.metered.steps += 1,
+                "heap_bytes" => changed.metered.heap_bytes += 1,
+                "output_bytes" => changed.metered.output_bytes += 1,
+                "rows_written" => changed.metered.rows_written += 1,
+                "tables" => changed.tables.push("planted-table".into()),
+                "events" => changed.events += 1,
+                _ => changed.receipt_only = !changed.receipt_only,
+            }
+            assert_ne!(original, changed, "control must plant a real difference: {field}");
+            assert!(std::panic::catch_unwind(|| assert_mutations(&original, &changed)).is_err(), "replayed={replayed} {field}");
+        }
+    }
+}
 #[test]
 #[ignore = "requires private Postgres; scripts/test-postgres.sh"]
 fn sqlite_unified_and_evaluator_overlap_prefetch_on_and_off() {
@@ -54,18 +129,19 @@ fn sqlite_unified_and_evaluator_overlap_prefetch_on_and_off() {
         assert_eq!(oracle_rows, sqlite_rows);
         for i in 0..24 {
             for id in [Some(format!("op{i}")), (i % 4 == 0).then(|| format!("fail{i}"))].into_iter().flatten() {
-                // Preserve the complete stored bytes, including receiptOnly.
-                let receipt = |r: Option<crate::receipts::ReceiptRecord>| r.map(|r| {
-                    let body: serde_json::Value = serde_json::from_str(&r.outcome).unwrap();
-                    (r.outcome, r.name, r.args_digest, body.get("receiptOnly").cloned())
-                });
-                assert_eq!(receipt(a.receipt("alice", &id).unwrap()), receipt(b.receipt("alice", &id).unwrap()));
-                assert_eq!(receipt(a.receipt("alice", &id).unwrap()), receipt(c.receipt("alice", &id).unwrap()));
-                // All three calls use Context::at(1000), including refusals.
-                let at: i64 = a.test_support_conn().query_row("SELECT at FROM _ops WHERE principal='alice' AND id=?1", [&id], |row| row.get(0)).unwrap();
-                assert_eq!(at, 1000);
-                assert_eq!(at, b.test_postgres_tx().query("SELECT at FROM _ops WHERE principal='alice' AND id=$1", &[&id]).unwrap()[0].get::<_, i64>(0));
-                assert_eq!(at, c.query("SELECT at FROM _ops WHERE principal='alice' AND id=$1", &[&id]).unwrap()[0].get::<_, i64>(0));
+                // Read _ops.seq independently of the sequence encoded in outcome.
+                use rusqlite::OptionalExtension;
+                let left = a.test_support_conn().query_row(
+                    "SELECT seq,outcome,name,args_digest,at FROM _ops WHERE principal='alice' AND id=?1", [&id],
+                    |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?)),
+                ).optional().unwrap();
+                let receipt = |rows: Vec<postgres::Row>| rows.first().map(|r| (r.get(0), r.get(1), r.get(2), r.get(3), r.get(4)));
+                let common = receipt(b.test_postgres_tx().query("SELECT seq,outcome,name,args_digest,at FROM _ops WHERE principal='alice' AND id=$1", &[&id]).unwrap());
+                let oracle = receipt(c.query("SELECT seq,outcome,name,args_digest,at FROM _ops WHERE principal='alice' AND id=$1", &[&id]).unwrap());
+                assert_receipts(left.clone(), common);
+                assert_receipts(left.clone(), oracle);
+                assert_eq!(left.unwrap().4, 1000);
+
             }
         }
         a.rollback().unwrap(); b.rollback().unwrap(); c.rollback().unwrap();
@@ -102,7 +178,7 @@ fn common_engine_c1_prefetch_forwards_marked_reads_and_bounds_calls() {
         let before_e = evaluator.stats().database_calls;
         let actual = engine.query("derived", ctx.clone()).unwrap(); let oracle = evaluator.query("derived", ctx.clone()).unwrap();
         assert_eq!(actual, expected);
-        assert_eq!((&actual.data, actual.seq, actual.metered, actual.complete), (&oracle.data, oracle.seq, oracle.metered, oracle.complete));
+        assert_queries(&actual, &oracle);
         let (calls_u, marked) = { let s = engine.store().test_postgres_handle().borrow().unwrap(); (s.calls.get() - before, s.page_reads.get()) };
         let calls_e = evaluator.stats().database_calls - before_e;
         if enabled { assert_eq!(marked, 8); }
@@ -177,11 +253,10 @@ fn existing_evaluator_fixture_matches_common_engine_in_both_prefetch_modes() {
             let calls_u = common.store().test_postgres_handle().borrow().unwrap().calls.get() - before_u;
             let calls_e = evaluator.stats().database_calls - before_e;
             eprintln!("S10e-1 C1 fixture tail prefetch={enabled} op={name}/{i}: common={calls_u} evaluator={calls_e}");
-            assert_eq!(actual.reply(Some(&op)), expected.reply(Some(&op))); assert_eq!(oracle.reply(Some(&op)), expected.reply(Some(&op)));
-            assert_eq!(actual.metered, expected.metered); assert_eq!(oracle.metered, expected.metered);
+            assert_mutations(&actual, &expected); assert_mutations(&oracle, &expected);
             let expected = sqlite.mutate(name, Some(&op), ctx.clone()).unwrap();
-            assert_eq!(common.mutate(name, Some(&op), ctx.clone()).unwrap().reply(Some(&op)), expected.reply(Some(&op)));
-            assert_eq!(evaluator.mutate(name, Some(&op), ctx).unwrap().reply(Some(&op)), expected.reply(Some(&op)));
+            assert_mutations(&common.mutate(name, Some(&op), ctx.clone()).unwrap(), &expected);
+            assert_mutations(&evaluator.mutate(name, Some(&op), ctx).unwrap(), &expected);
             let expected = sqlite.query("inbox", context("alice", vec![])).unwrap();
             assert_eq!(common.query("inbox", context("alice", vec![])).unwrap(), expected);
             assert_eq!(evaluator.query("inbox", context("alice", vec![])).unwrap(), expected);
