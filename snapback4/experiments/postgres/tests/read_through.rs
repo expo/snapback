@@ -247,15 +247,15 @@ fn expected_unsupported_release_activation_read_through_evolution() {
         let actual = pg.adopt_at(b.schema.clone(), programs.clone(), 100);
         let expected = sqlite.adopt_at(b.schema, programs, 100);
         assert!(matches!(actual, Err(snapback4_core::RuntimeError::StoreUnsupported {
-            family: "release-activation"
-        })), "expected-unsupported:release-activation; admission needs the original oracle fixture: {actual:?}");
+            family: "evolution-authority"
+        })), "expected-unsupported:evolution-authority; admission needs the original oracle fixture: {actual:?}");
         assert_eq!(expected.is_ok(), owner == "alice", "{expected:?}");
         assert_eq!(pg.generation(), generation);
         assert_eq!(stored(&name), before);
         let context = scenarios::context("alice", 100, &[("id", id("c"))]);
         assert_eq!(stale.query("childRow", context.clone()), pg.query("childRow", context));
     }
-    println!("expected-unsupported:release-activation:read-through-evolution=2; admitted evolution scenarios=0");
+    println!("expected-unsupported:evolution-authority:read-through-evolution=2; admitted evolution scenarios=0");
 }
 
 #[test]

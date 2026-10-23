@@ -84,8 +84,8 @@ fn expected_unsupported_release_activation_expiry_default() {
             let b = cases::bound(&source);
             let result = engine.adopt_at(b.schema, b.programs.into_iter().map(|p| p.program), now);
             assert!(matches!(result, Err(snapback4_core::RuntimeError::StoreUnsupported {
-                family: "release-activation"
-            })), "expected-unsupported:release-activation; admission needs oracle expiry_default: {result:?}");
+                family: "evolution-authority"
+            })), "expected-unsupported:evolution-authority; admission needs oracle expiry_default: {result:?}");
             assert_eq!(engine.generation(), generation);
             for op in ["parent", "middle", "child"] {
                 assert_ne!(engine.query(op, cases::ctx("alice", 400, &[])).unwrap().data,
@@ -93,7 +93,7 @@ fn expected_unsupported_release_activation_expiry_default() {
             }
         }
     }
-    println!("expected-unsupported:release-activation:expiry-default=4; admitted expiry evolution scenarios=0");
+    println!("expected-unsupported:evolution-authority:expiry-default=4; admitted expiry evolution scenarios=0");
 }
 scenario!(reuse_refusal);
 scenario!(delete_refusal);
