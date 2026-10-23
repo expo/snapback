@@ -6,9 +6,22 @@ import {join} from 'node:path';
 import {fileURLToPath,pathToFileURL} from 'node:url';
 import {spawnSync} from 'node:child_process';
 import {testSource} from '../dist/proof.js';
+import {guideTypeScriptExport} from '../../../scripts/publication-starters.mjs';
 const root=fileURLToPath(new URL('../../../',import.meta.url));
 const binary=process.env.SNAPBACK4_BIN??join(root,'target/debug/snapback4');
 const version=JSON.parse(readFileSync(new URL('../package.json',import.meta.url))).version;
+
+test('starter qualification selects the named application-host guide fence',()=>{
+  const reference=readFileSync(new URL('../CLIENT-AND-OPERATIONS.md',import.meta.url),'utf8');
+  const section=reference.split('### Application proofs in Node')[1];
+  assert.ok(section.indexOf('export async function readEveryRow')<section.indexOf('export async function developmentHosts'));
+  const block=guideTypeScriptExport(reference,'### Application proofs in Node','developmentHosts');
+  assert.match(block,/export async function developmentHosts/);
+  assert.doesNotMatch(block,/export async function readEveryRow/);
+  assert.throws(()=>guideTypeScriptExport('### Application proofs in Node\n','### Application proofs in Node','developmentHosts'),/found 0/);
+  const duplicate=`### Application proofs in Node\n\n\`\`\`ts\n${block}\n\`\`\`\n\n\`\`\`ts\n${block}\n\`\`\`\n`;
+  assert.throws(()=>guideTypeScriptExport(duplicate,'### Application proofs in Node','developmentHosts'),/found 2/);
+});
 
 test('quiet upgrade retains project actions and exposes package-manager failures',t=>{
   const cwd=mkdtempSync(join(tmpdir(),'sb4-day5-upgrade-'));t.after(()=>rmSync(cwd,{recursive:true,force:true}));
