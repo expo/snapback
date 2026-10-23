@@ -1,0 +1,14 @@
+muse: workspace root: /home/ccheever/projects/sb4-b25-dx8 (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=8b876149-3c3a-4c5c-9897-81bcc895e3e3]: Subscription quota exhausted. Your usage window resets at 2026-10-26T00:00:00Z. (rate_limit_error)
+READY
+
+No material semantic, migration/release-safety, authority-boundary, or ambiguity blocker found at frozen `a3f7c4b`. All DX8 laws are enforced on the paths I sampled through `git show` only:
+
+- Current-value `$rename:down` override is narrow: identical declared old/new scalar types checked, staged on the newer snapshot, receipt evidence preserved, different-type renames still refuse, authored-down precedence untouched. User forgery is not realizable: Quarry `Word` tokens cannot contain `$`, so `$rename:*` names are generator-only.
+- `extract each` fan-out validates every receipt-owned child plus parent-lifetime before forward and reverse, refuses duplicates/missing/pruned/invalid lifetimes atomically, refuses populated narrowed homes with a loosened-bridge repair, null whole-list stays null, removed elements become internal nulls without resurrecting assets or deleting rows, suspension/resumption validates custody without replaying consumed lists, job meters and the shared writer transaction cover traversal/allocation/writes, `each` requires `release-child-extraction-each-v1` and format 10 with 8/9 readable.
+- Old-client advice only suppresses a removed spelling on a real accepting alias or an emitted required-rename warning; pure object additions are RESULT NOTE, changed/removed stay REVIEW; row-to-page results preserve container kinds.
+- Dev clock requires exact full `service:operator` with fixture/persona doors closed, staging keeps full-service-seat rule, production refuses; jumps preserve live families atomically with no replay; `provisionAccounts` enforces production password identity with real signup/provision and no seed bypass; `service_identities` warning is explicitly diagnostic only.
+- Inspection, saved-version exact-source refresh, paging `exhaustPages`, and process/stop custody match the stated guarantees.
+
+Nonblocking suggestions: consider an explicit admission guard rejecting user-authored `$rename:` names even via raw JSON import, and consider bumping to format 10 only when an `each` extraction is present so legacy one-child stores do not lose older-engine readability on a no-op touch.

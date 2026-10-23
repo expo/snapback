@@ -1,0 +1,15 @@
+NOT READY
+
+1. **Fan-out forward/reverse processing splits one live allocation across independent job allowances.** [extraction_each.rs:379](/home/ccheever/projects/sb4-b25-dx8/snapback4/crates/snapback4-core/src/store/extraction_each.rs:379) walks parents with `activation::walk`, then creates a fresh meter while the fetched parent page remains resident. Child `load` also uses an independent meter. Forward processing follows the same pattern.
+
+   Concrete counterexample: 256 parents with 4 KiB unrelated text retain roughly 3 MiB of serialized page reservations. One parent has 60 native children, each containing an additional 64 KiB text field. Reverse processing reserves at least 15 MiB for those accumulated child images. Both meters individually admit their work, although their simultaneously live reservations exceed the 16 MiB job ceiling.
+
+   **Required correction:** share the walker's meter with fan-out traversal, child decoding and retained scratch; precharge allocations before loading them. Forward and reverse need the same accounting discipline already used by resume.
+
+2. **Frontend cleanup can report success while a serving descendant survives.** [proof.ts:190](/home/ccheever/projects/sb4-b25-dx8/snapback4/packages/snapback4/src/proof.ts:190) starts frontends with `detached:true` and a liveness pipe, but [proof-process.ts:136](/home/ccheever/projects/sb4-b25-dx8/snapback4/packages/snapback4/src/proof-process.ts:136) registers groups only for `processGroup:true`. Consequently, `groupGone` immediately succeeds for these frontend handles.
+
+   Concrete counterexample: a Vite plugin starts a serving subprocess in the inherited group. Its keeper exits unexpectedly; `proof-host` then exits, but the subprocess remains. Calling `stop()` observes the exited host and resolves successfully without checking the surviving group. The descendant never left custody.
+
+   **Required correction:** register frontend keeper-backed groups and await bounded group-cleanup evidence on stop and startup failure. Unexpected keeper loss with surviving members must produce an explicit cleanup failure.
+
+Reviewed frozen commit `a3f7c4becfff2214b3968db2c0185de73c1d3258`; amendment SHA-256 matches the supplied value. These are implementation-contract concerns, independent of pending qualification.
