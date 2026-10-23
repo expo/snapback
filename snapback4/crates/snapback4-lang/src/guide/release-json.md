@@ -86,8 +86,10 @@ or complete P1 parity qualification.
 
 Queries, identified mutations with receipt replay, guest/password bearer sessions,
 logout, process-local ephemeral hubs and ordinary maintained count/sum columns
-with their private maintains are available. Missing change evidence
-is `preserved: null` on `/changes`; certified changes/sync are excluded. Deploy
+with their private maintains, certified `/changes` and ordinary sync are available.
+Change evidence retains the last 1,000 sequences and certifies complete intervals
+of at most 500 commits. Missing, pruned or incomplete evidence remains
+`preserved: null` on `/changes` and sync. Deploy
 refuses `E_STORE_UNSUPPORTED` for assets beyond placement, jobs, actions, routes,
 schedules, native programs, union sync, timed publication and row-keyed recounts. These runners and worker handlers
 stay off. General schema evolution, rollback, previews, prune, staging, saved versions,

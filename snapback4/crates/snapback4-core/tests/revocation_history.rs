@@ -113,7 +113,7 @@ fn pruning_is_atomic_and_old_or_missing_intervals_widen() {
     assert_eq!(store.preserved_between(&schema,1,2),Some(vec!["docs".into()]));
     write(&mut store,&schema,1002,true);
     assert!(store.preserved_between(&schema,1,2).is_none());
-    // A backend without summaries (including Postgres) cannot certify a commit.
+    // Missing summaries cannot certify a commit on either backend.
     store.test_support_conn().execute("DROP TABLE _change_evidence",[]).unwrap();
     assert!(store.preserved_between(&schema,1001,1002).is_none());
 }

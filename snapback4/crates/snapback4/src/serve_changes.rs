@@ -212,6 +212,8 @@ fn check(engine: &mut snapback4_core::engine::Engine, since: u64) -> Result<Chec
     let schema = engine.schema().clone();
     let tx = engine.store_mut().read_transaction()?;
     let head = tx.next_seq()? - 1;
+    #[cfg(test)]
+    snapshot_tests::interleave();
     let store_id = tx.optional_store_id()?;
     let changes = tx.commits_after(since, 500)?;
     // Advancing to the actual head must not skip invalidation beyond the
@@ -224,6 +226,57 @@ fn check(engine: &mut snapback4_core::engine::Engine, since: u64) -> Result<Chec
     let changes = settlement_changes(tx.footprint_between(since, head), &schema, since, head);
     tx.rollback()?;
     Ok((head, store_id, tables, preserved, changes))
+}
+
+#[cfg(test)]
+mod snapshot_tests {
+    use std::cell::RefCell;
+    thread_local! { static BETWEEN: RefCell<Option<Box<dyn FnOnce()>>> = RefCell::new(None); }
+    pub(super) fn interleave() {
+        BETWEEN.with(|hook| { if let Some(commit) = hook.borrow_mut().take() { commit(); } });
+    }
+
+    #[cfg(feature = "postgres")]
+    #[test]
+    #[ignore = "requires private Postgres; scripts/test-postgres.sh"]
+    fn change_evidence_changes_snapshot_interleaving_postgres() {
+        use snapback4_core::{Engine, Value, engine::Context, store_port::AnyStore};
+        use std::{collections::BTreeMap, sync::mpsc, time::Duration};
+        let connection = std::env::var("SNAPBACK4_EVAL_POSTGRES").unwrap();
+        let schema_name = format!("sb4_changes_{:x}", snapback4_core::ids::seed());
+        let store = AnyStore::create_postgres(&connection, &schema_name).unwrap();
+        let source = "table notes:\n  owner: principal\n  read <- .owner = viewer\n  insert <- allow\n  update <- allow\n  sync to .owner\nmutation put(key: id):\n  upsert notes[key] {owner: viewer}\n";
+        let bound = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
+        assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+        let mut writer = Engine::new(store, bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
+        let mut reader = writer.reader().unwrap();
+        let put = |writer: &mut Engine, viewer| writer.mutate("put", None,
+            Context::new(viewer, BTreeMap::from([("key".into(), Value::Id("note".into()))])).at(100)).unwrap();
+        put(&mut writer, "alice");
+        let (go, ready) = mpsc::channel();
+        let (done, committed) = mpsc::channel();
+        let worker = std::thread::spawn(move || {
+            ready.recv_timeout(Duration::from_secs(10)).unwrap();
+            put(&mut writer, "bob");
+            done.send(()).unwrap();
+            writer
+        });
+        // Hold the actual /changes snapshot across a completed concurrent
+        // ownership transfer, after reading its head and before its evidence.
+        BETWEEN.with(|hook| *hook.borrow_mut() = Some(Box::new(move || {
+            go.send(()).unwrap();
+            committed.recv_timeout(Duration::from_secs(10)).unwrap();
+        })));
+        let (head, _, tables, preserved, changes) = super::check(&mut reader, 0).unwrap();
+        assert_eq!(head, 1);
+        assert_eq!(tables, ["notes"]);
+        assert_eq!(preserved, Some(vec!["notes".into()]));
+        assert_eq!(changes["through"], 1);
+        assert_eq!(worker.join().unwrap().seq().unwrap(), 2);
+        let (head, _, _, preserved, _) = super::check(&mut reader, 0).unwrap();
+        assert_eq!(head, 2);
+        assert_eq!(preserved, Some(vec![]));
+    }
 }
 
 struct PollResponse<'a> {

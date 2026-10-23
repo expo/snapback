@@ -39,6 +39,8 @@ fn postgres_member_two_rollback_preserves_member_one_and_contiguous_heads() {
         })).map_or_else(|e| assert!(!rollback && e.to_string().contains("injected")), |_| assert!(rollback));
         assert_eq!(tx.next_seq().unwrap(), 2);
         assert!(tx.receipt("alice", "second").unwrap().is_none());
+        assert!(crate::revocation::footprint_between(&tx, 0, 1).is_some());
+        assert!(crate::revocation::footprint_between(&tx, 1, 2).is_none(), "refused/rolled-back member publishes no evidence");
         tx.commit().unwrap();
         assert_eq!(store.seq().unwrap(), 1);
         assert_eq!(store.schedule_boundary("marker").unwrap(), Some(10));
@@ -67,6 +69,8 @@ fn postgres_flush_failure_is_still_inside_member_and_slot_cannot_be_overwritten(
     }));
     assert!(result.is_err());
     assert_eq!(tx.next_seq().unwrap(), 2);
+    assert!(crate::revocation::footprint_between(&tx, 0, 1).is_some());
+    assert!(crate::revocation::footprint_between(&tx, 1, 2).is_none(), "failed tail rolls back its evidence and head");
     tx.commit().unwrap();
     assert_eq!(store.seq().unwrap(), 1);
     assert_eq!(store.rows("notes").unwrap().len(), 0);

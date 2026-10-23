@@ -102727,3 +102727,61 @@ guide snippets. The canonical proof file passed 29 tests with clean process
 and checkout boundaries. Fresh optimized packed security passed its broad-read
 refutation, guest/password campaigns and all seven starter campaigns. Those
 artifacts retain their frozen source binding; they are not a publication claim.
+## 2026-10-23 — P1-CE: Postgres change evidence and certified changes/sync
+
+The Postgres buffered tail now writes the shared net-image footprint and prunes
+to the last 1,000 sequences in its existing CTE flight. Member reset and
+savepoint recovery follow SQLite, including conservative widening after a
+rollback. There is no extra exchange per mutation and no hot-path evidence
+DDL. No new design decision was needed. `/changes` retains its single snapshot;
+the SDK stream now reads images/head, pending receipts and certification in one
+snapshot on both stores. Missing/pruned/incomplete evidence stays explicit
+unknown. Doctor and the release guide admit certified changes and ordinary
+sync for the existing Postgres profile; every other named refusal remains.
+
+Real private-cluster forced interleavings pass for the actual `/changes` check
+and SDK stream, plus evidence-first/head-second reads. Shared writer cases pin
+insert/update/owner-change/delete footprints, escaped NUL data, admission,
+rollback and refusal. The prune boundary retains sequence 1 at exactly 1,000
+and removes it at 1,001. All 12 change-evidence cases pass on the `en_US.utf8`
+cluster, with the existing missing/bounded/shape contract. Member and terminal
+bind cases retain their atomicity witnesses.
+
+The public configured deploy/serve witness passes on both stores: identified
+writes, program-only release, preserved and revoked `/changes`, the SDK's stream
+and pending ids, and pruned unknown. Both stores retain sequences 5–1,004 after
+1,004 commits. All 11 captured wire responses match byte-for-byte after removing
+only `store_id` and `now`; both 107,855-byte transcripts have SHA-256
+`396ad3f0e9d90a4188d7edb4185542027341850805520eaa16adee4c36a73148`.
+The harness was corrected to observe database-clock lease expiry before a
+Postgres redeploy and to use SQLite's default deployment store. The complete
+corrected public harness also passes the existing bootstrap, takeover, restart,
+release and P1-MC witnesses.
+
+Build and no-default-features core check pass. The full core test command passes
+(library, 44 integration targets and doctests); the affected binary run has
+297 passes and nine named ignores, with private-cluster HTTP and changes
+interleaving cases separately run and passing. Both RT0 stores pass all twelve
+warm rows, unchanged: keyed-first 87 SQLite / 77 Postgres, unkeyed increment
+79 / 57. Both ratchet files and cold observations are unchanged. The new SQL
+clauses sit inside the existing tail exchange; no table edit is required.
+
+`bash scripts/test-postgres.sh` reports the known evaluator Serializable stress
+red (`40001` in `conformance.rs:244`); all subsequent Rust stages pass, including
+the corpus. Its initial public-stage lease fixture failure is corrected and
+the entire public stage rerun passes. Two earlier broad public attempts hit
+45-second CLI guards; those are recorded as failures in the
+[report](reports/20261023-p1-ce.md), alongside exact commands and RT0 rows.
+Root reference validation is repeated after this entry.
+
+Only the authorized warm target and eight build jobs were used. Workspace
+handoff invalidated source timestamps instead of deleting pre-existing target
+entries; no preserved target copy was made. The disk guard never reached
+40 GiB; final sampled free space is 131.86 GiB. The independent audit confirms
+all seven private clusters stopped (status 3, no pidfile, absent postmasters)
+and no remaining process among 2,562 recorded PIDs. PostgreSQL 17 on port 55440
+was untouched. Logs and cleanup receipt remain under `/tmp/sb4-p1-ce/`; successful
+wire transcripts remain under `/tmp/s10d3-serve-nmlfm_xp/`. Local commits only.
+
+Post-entry root `./ref-check` passes: 565 LLP documents, 11,768 references,
+zero errors and zero unchecked. Whitespace validation also passes.

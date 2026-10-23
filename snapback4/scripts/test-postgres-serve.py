@@ -14,11 +14,24 @@ children = []
 cluster_started = False
 
 def disk():
-    assert shutil.disk_usage('/').free >= 30 * 1024**3, 'disk below 30 GiB; stop'
+    assert shutil.disk_usage(pathlib.Path.home()).free >= 40 * 1024**3, 'disk below 40 GiB; stop'
 
-def run(args, **kwargs):
-    disk()
-    return subprocess.run([str(x) for x in args], text=True, capture_output=True, timeout=45, **kwargs)
+def record_pid(label, pid):
+    with (WORK/'pids.jsonl').open('a') as record:
+        record.write(json.dumps({'name':label,'pid':pid})+'\n')
+
+def run(args, cleanup=False, timeout=45, **kwargs):
+    if not cleanup: disk()
+    args = [str(x) for x in args]
+    child = subprocess.Popen(args, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, **kwargs)
+    record_pid(pathlib.Path(args[0]).name, child.pid)
+    try:
+        stdout, stderr = child.communicate(timeout=timeout)
+    except BaseException:
+        child.kill()
+        child.wait()
+        raise
+    return subprocess.CompletedProcess(args,child.returncode,stdout,stderr)
 
 def cli(args, success=True, env=None, url=None):
     environment = dict(ENV if env is None else env)
@@ -32,12 +45,14 @@ def cli(args, success=True, env=None, url=None):
 
 def start(label, url, ready=True, deployment=None):
     out, err = WORK / (label+'.out'), WORK / (label+'.err')
+    environment = dict(ENV)
+    if url is not None: environment['SNAPBACK4_STORE_URL'] = url
     with out.open('w') as stdout, err.open('w') as stderr:
         child = subprocess.Popen([str(BIN), 'serve', str(deployment or WORK/'deployment'),
             '--worker-state-dir', str(WORK/'worker-state'), '--port', '0'], cwd=WORK/'app',
-            env={**ENV, 'SNAPBACK4_STORE_URL':url}, stdout=stdout, stderr=stderr, start_new_session=True)
+            env=environment, stdout=stdout, stderr=stderr, start_new_session=True)
     children.append(child)
-    with (WORK/'pids.jsonl').open('a') as record: record.write(json.dumps({'name':label, 'pid':child.pid})+'\n')
+    record_pid(label, child.pid)
     until = time.monotonic()+20
     while time.monotonic() < until:
         if child.poll() is not None:
@@ -54,9 +69,10 @@ def stop(child, sig=signal.SIGTERM):
     child.wait(timeout=15)
     print('server stopped and confirmed: pid', child.pid, 'status', child.returncode, flush=True)
 
-def http(base, method, path, payload=None, token=None, expected=200):
+def http(base, method, path, payload=None, token=None, expected=200, device=None):
     headers={'Content-Type':'application/json'}
     if token: headers['Authorization']='Bearer '+token
+    if device: headers['x-snapback-device']=json.dumps(device)
     request=urllib.request.Request(base+path, method=method, headers=headers, data=None if payload is None else json.dumps(payload).encode())
     try: response=urllib.request.urlopen(request, timeout=15)
     except urllib.error.HTTPError as error: response=error
@@ -78,6 +94,91 @@ mutation put(key: id, n: int):
 query peek(key: id):
   return notes[key]
 '''
+
+def change_evidence_witness(pg_url):
+    """Public configured serve, then compare the store-independent wire bytes.
+
+    /sync uses local.ts::syncRound's body and engine handshake, including
+    pending ids, generation and store identity. No internal engine seeding.
+    """
+    evidence_source = source.replace('  update <- allow', '  update <- allow\n  delete <- allow') + '''mutation remove(key: id):
+  delete notes[key]
+'''
+    transcripts = {}
+    for backend, target in [('postgres', pg_url), ('sqlite', None)]:
+        deployment = WORK/('p1ce-'+backend)
+        (WORK/'app/snapback/schema.q').write_text(evidence_source)
+        cli(['deploy',str(deployment)],url=target)
+        child, base = start('p1ce-'+backend+'-r1', target, deployment=deployment)
+        guest = http(base,'POST','/auth/guest',{})['session']
+        token = guest['token']
+        records = []
+        def capture(label, value):
+            # Incarnation and wall clock are intentionally store-specific.
+            independent = {k:v for k,v in value.items() if k not in ('store_id','now')}
+            records.append((label,json.dumps(independent,sort_keys=True,separators=(',',':'))))
+            return value
+        def schema_state():
+            state = http(base,'GET','/schema',token=token)
+            compatibility = state['device_compatibility']
+            return state, {'format':1,'version':compatibility['server_version'],'capabilities':compatibility['capabilities']}
+        state, device = schema_state()
+        def mutate(name, identity, args):
+            return http(base,'POST','/m/'+name,{'id':identity,'args':args,'store_id':state['store_id']},token)
+        def changes(since):
+            return http(base,'GET',f'/changes?since={since}&wait=0',token=token)
+        def sync(since, pending):
+            return http(base,'POST','/sync',{'generation':state['generation'],'from':since,'limit':10000,
+                'after':None,'stream':True,'pending':pending,'store_id':state['store_id']},token,device=device)
+        seeded = capture('r1 identified',mutate('put','p1ce-first',{'key':'note','n':1}))
+        assert seeded['state']=='sent' and seeded['seq']==1, seeded
+        kept = capture('r1 changes',changes(0)); assert kept['preserved']==['notes'],kept
+        streamed = capture('r1 sync',sync(0,['p1ce-first']))
+        assert streamed['preserved']==['notes'] and streamed['acknowledged']=={'p1ce-first':1},streamed
+        stop(child)
+        if backend=='postgres':
+            # Serve leaves its lease to expire after shutdown. Observe the
+            # database-clock expiry before the next configured deploy claims it.
+            deadline=time.monotonic()+10
+            while True:
+                doctor=json.loads(cli(['doctor','--release',str(deployment),'--json'],url=target).stdout)
+                if doctor['store']['expired']: break
+                assert time.monotonic()<deadline,doctor
+                time.sleep(.1)
+        (WORK/'app/snapback/schema.q').write_text(evidence_source.replace('  return n\n','  return n + 1\n'))
+        cli(['deploy',str(deployment)],url=target)
+        child, base = start('p1ce-'+backend+'-r2',target,deployment=deployment)
+        state, device = schema_state()
+        assert state['generation']==2,state
+        updated = capture('r2 identified',mutate('put','p1ce-second',{'key':'note','n':2}))
+        assert updated['state']=='sent' and updated['seq']==2,updated
+        kept = capture('across release changes',changes(0)); assert kept['preserved']==['notes'],kept
+        streamed = capture('across release sync',sync(1,['p1ce-first','p1ce-second']))
+        assert streamed['preserved']==['notes'] and streamed['acknowledged']['p1ce-second']==2,streamed
+        removed = capture('revoking identified',mutate('remove','p1ce-third',{'key':'note'}))
+        assert removed['state']=='sent' and removed['seq']==3,removed
+        revoked = capture('revoked changes',changes(2)); assert revoked['preserved']==[],revoked
+        streamed = capture('revoked sync',sync(2,['p1ce-third']))
+        assert streamed['preserved']==[] and streamed['acknowledged']=={'p1ce-third':3},streamed
+        for i in range(1001):
+            sent = mutate('put','p1ce-fill-'+str(i),{'key':'note','n':i})
+            assert sent['state']=='sent' and sent['seq']==i+4,sent
+        if backend=='postgres':
+            result=run(['psql',connection,'-Atc','SELECT min(seq),max(seq),count(*) FROM p1ce._change_evidence'])
+            assert result.returncode==0 and result.stdout.strip()=='5|1004|1000',result
+        else:
+            import sqlite3
+            with sqlite3.connect(deployment/'store.sqlite') as db:
+                assert db.execute('SELECT min(seq),max(seq),count(*) FROM _change_evidence').fetchone()==(5,1004,1000)
+        unknown = capture('pruned changes',changes(0)); assert unknown['preserved'] is None,unknown
+        streamed = capture('pruned sync',sync(0,[])); assert streamed['preserved'] is None,streamed
+        stop(child)
+        transcripts[backend]=records
+        (WORK/('p1ce-'+backend+'-wire.json')).write_text(json.dumps(records,indent=2)+'\n')
+        print('P1-CE',backend,'PASS: release, preserved/revoked changes and SDK sync, 1000 retained / pruned unknown',flush=True)
+    assert transcripts['postgres']==transcripts['sqlite'], 'P1-CE store-independent wire bytes differ; inspect transcripts'
+    (WORK/'app/snapback/schema.q').write_text(source)
+    print('P1-CE PASS: both stores match byte-for-byte after removing only store_id and now; artifacts',WORK,flush=True)
 try:
     disk()
     (WORK/'app/snapback').mkdir(parents=True)
@@ -110,6 +211,7 @@ try:
     result=run(['pg_ctl','-D',DATA,'-l',WORK/'postgres.log','-o',f'-k {WORK} -c listen_addresses= -p 55483','-w','start'])
     assert result.returncode==0,result.stderr
     cluster_started=True
+    record_pid('private-postgres',int((DATA/'postmaster.pid').read_text().splitlines()[0]))
     print('cluster pid', (DATA/'postmaster.pid').read_text().splitlines()[0], 'directory', WORK, flush=True)
     # URL credentials never appear in immutable records. Local trust still parses a secret.
     url=f'postgres://s10d3:private-password@/postgres?host={urllib.parse.quote(str(WORK),safe="")}&port=55483&schema=serving&ha=none'
@@ -124,6 +226,7 @@ try:
     ]:
         refused=cli(['doctor','--store-url',invalid],False)
         assert code in refused.stderr and 'private-password' not in refused.stderr,refused.stderr
+    change_evidence_witness(url.replace('schema=serving','schema=p1ce'))
     cli(['check'])
     for verb in ['deploy', 'serve']:
         help_text = cli([verb, '--help']).stdout
@@ -357,7 +460,7 @@ try:
     print('HTTP: server exception detail redacted; store failure code retained',flush=True)
     payload={'id':'first','args':{'key':'n1','n':7},'store_id':identity}
     sent=http(base,'POST','/m/put',payload,token)
-    assert sent['state']=='sent' and sent['seq']==1 and sent['preserved'] is None,sent
+    assert sent['state']=='sent' and sent['seq']==1 and sent['preserved']==['notes'],sent
     replay=http(base,'POST','/m/put',payload,token)
     assert replay['replayed'] is True and replay['seq']==1,replay
     reused=http(base,'POST','/m/put',{**payload,'args':{'key':'n1','n':8}},token)
@@ -365,12 +468,13 @@ try:
     page=http(base,'POST','/q/peek',{'args':{'key':'n1'}},token)
     assert page['data']['n']==7,page
     changes=http(base,'GET','/changes?after=0&wait=0',token=token)
-    assert changes['preserved'] is None,changes
+    assert changes['preserved']==['notes'],changes
     doctor_result=cli(['doctor','--release',str(WORK/'deployment'),'--json'],url=url)
     assert 'private-password' not in doctor_result.stdout+doctor_result.stderr
     doctor=json.loads(doctor_result.stdout)
     assert doctor['store']['token']>0 and not doctor['store']['expired'],doctor
-    print('HTTP: guest/session, query, identified mutation, receipt replay, changes preserved=null; doctor positive owner/lease',flush=True)
+    assert doctor['certifiedChanges'] is True,doctor
+    print('HTTP: guest/session, query, identified mutation, receipt replay, changes preserved=[notes]; doctor positive owner/lease',flush=True)
     other,message=start('contender',url,False)
     assert 'E_STORE_OWNERSHIP' in message,message
     assert http(base,'POST','/q/peek',{'args':{'key':'n1'}},token)['data']['n']==7
@@ -483,7 +587,7 @@ finally:
     for child in children:
         if child.poll() is None: stop(child,signal.SIGKILL)
     if cluster_started:
-        result=subprocess.run(['pg_ctl','-D',str(DATA),'-m','fast','-w','stop'],capture_output=True,text=True,timeout=45)
-        status=subprocess.run(['pg_ctl','-D',str(DATA),'status'],capture_output=True,text=True,timeout=10)
+        result=run(['pg_ctl','-D',str(DATA),'-m','fast','-t','180','-w','stop'],cleanup=True,timeout=190)
+        status=run(['pg_ctl','-D',str(DATA),'status'],cleanup=True,timeout=10)
         assert result.returncode==0 and status.returncode==3 and not (DATA/'postmaster.pid').exists(), 'cluster stop not confirmed'
         print('owned cluster stopped and confirmed: status=3, no postmaster.pid; retained',WORK,flush=True)

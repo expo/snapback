@@ -293,7 +293,7 @@ pub(super) fn doctor(options: &Options, config: StoreConfig) -> Result<(), Strin
     }
     println!(
         "{}",
-        serde_json::json!({"backend":"postgres", "store":state, "binding":config.binding, "profile":"initial-http", "ha":"none", "certifiedChanges":false})
+        serde_json::json!({"backend":"postgres", "store":state, "binding":config.binding, "profile":"initial-http", "ha":"none", "certifiedChanges":true})
     );
     Ok(())
 }
