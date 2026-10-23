@@ -1,0 +1,378 @@
+{
+  "version": 1,
+  "case": {
+    "seed": 66937,
+    "program": {
+      "tables": [
+        {
+          "name": "items",
+          "columns": [
+            {
+              "name": "owner",
+              "ty": "Principal"
+            },
+            {
+              "name": "bucket",
+              "ty": "Int"
+            },
+            {
+              "name": "score",
+              "ty": "Int"
+            },
+            {
+              "name": "label",
+              "ty": "Text"
+            },
+            {
+              "name": "tag",
+              "ty": {
+                "Reference": "tags"
+              }
+            }
+          ],
+          "keys": [],
+          "rule": "Owner",
+          "residency": "Owner"
+        },
+        {
+          "name": "tags",
+          "columns": [
+            {
+              "name": "rank",
+              "ty": "Int"
+            }
+          ],
+          "keys": [],
+          "rule": "Allow",
+          "residency": "Public"
+        }
+      ],
+      "body": {
+        "Read": {
+          "kind": "Page",
+          "take": 1,
+          "descending": false,
+          "filter": false,
+          "owner": true
+        }
+      },
+      "lets": [],
+      "bind_return": false,
+      "reverse": false,
+      "helper": false,
+      "residual": ".tag.rank = 1",
+      "kids": {
+        "action": "cascade",
+        "nullable": false,
+        "owner_read": true,
+        "synced": true,
+        "notes": false
+      }
+    },
+    "rows": [
+      [
+        "items",
+        {
+          "bucket": 1,
+          "id": "r12",
+          "label": "a",
+          "owner": "alice",
+          "score": 1,
+          "tag": "tag12"
+        }
+      ],
+      [
+        "items",
+        {
+          "bucket": 1,
+          "id": "r13",
+          "label": "é",
+          "owner": "alice",
+          "score": -9007199254740990,
+          "tag": "tag13"
+        }
+      ],
+      [
+        "tags",
+        {
+          "id": "tag12",
+          "rank": 1
+        }
+      ],
+      [
+        "tags",
+        {
+          "id": "tag13",
+          "rank": 1
+        }
+      ]
+    ],
+    "principal": "alice",
+    "args": {
+      "a": 0,
+      "b": 0,
+      "bucket": 1,
+      "c": null,
+      "key": "r0",
+      "n": null
+    },
+    "clock": 27998,
+    "budget": {
+      "examined": 8192,
+      "index_entries": 16384,
+      "rule_probes": 8192,
+      "steps": 19423,
+      "heap_bytes": 16777216,
+      "output_bytes": 1048576,
+      "rows_written": 1024
+    }
+  },
+  "finding": {
+    "signature": "lean--continuation-next--next~no-next",
+    "oracle": "Lean",
+    "field": "continuation-next",
+    "left": {
+      "kind": "query",
+      "value": {
+        "complete": true,
+        "cut": null,
+        "data": {
+          "Array": [
+            {
+              "Row": {
+                "bucket": {
+                  "Int": 1
+                },
+                "id": {
+                  "Id": "r13"
+                },
+                "label": {
+                  "String": "é"
+                },
+                "owner": {
+                  "Id": "alice"
+                },
+                "score": {
+                  "Int": -9007199254740990
+                },
+                "tag": {
+                  "Id": "tag13"
+                }
+              }
+            }
+          ]
+        },
+        "metered": {
+          "examined": 2,
+          "heap_bytes": 1708,
+          "index_entries": 0,
+          "output_bytes": 161,
+          "rows_written": 0,
+          "rule_probes": 1,
+          "steps": 14
+        },
+        "next": "WzIsIml0ZW1zIiwiJGludGVudDpieUJ1Y2tldE93bmVyTGFiZWxTY29yZTo4ZmEwNjEwZTUxNTU3MWY4IiwiQXNjIixbeyJuYW1lIjoibGFiZWwiLCJraW5kIjp7IlRleHQiOnsibWF4Ijo2NH19fSx7Im5hbWUiOiJzY29yZSIsImtpbmQiOiJJbnQifSx7Im5hbWUiOiJpZCIsImtpbmQiOiJJZCJ9XSxbeyJTdHJpbmciOiJlzIEifSx7IkludCI6LTkwMDcxOTkyNTQ3NDA5OTB9LHsiSWQiOiJyMTMifV0seyJnZW5lcmF0aW9uIjoxLCJwcmVmaXgiOlt7IkludCI6MX0seyJJZCI6ImFsaWNlIn1dfV0",
+        "seq": 1,
+        "tables": [
+          "items",
+          "tags"
+        ]
+      }
+    },
+    "right": {
+      "kind": "lean",
+      "value": {
+        "complete": true,
+        "data": {
+          "arr": [
+            {
+              "row": [
+                [
+                  "id",
+                  {
+                    "id": "r13"
+                  }
+                ],
+                [
+                  "owner",
+                  {
+                    "id": "alice"
+                  }
+                ],
+                [
+                  "bucket",
+                  {
+                    "int": "1"
+                  }
+                ],
+                [
+                  "score",
+                  {
+                    "int": "-9007199254740990"
+                  }
+                ],
+                [
+                  "label",
+                  {
+                    "text": "é"
+                  }
+                ],
+                [
+                  "tag",
+                  {
+                    "id": "tag13"
+                  }
+                ]
+              ]
+            }
+          ]
+        },
+        "kind": "answer",
+        "next": {
+          "null": null
+        }
+      }
+    },
+    "continuation": [
+      {
+        "kind": "canonical",
+        "value": {
+          "engine": {
+            "code": null,
+            "complete": true,
+            "data": {
+              "arr": [
+                {
+                  "row": {
+                    "bucket": {
+                      "int": "1"
+                    },
+                    "id": {
+                      "id": "r12"
+                    },
+                    "label": {
+                      "text": "a"
+                    },
+                    "owner": {
+                      "id": "alice"
+                    },
+                    "score": {
+                      "int": "1"
+                    },
+                    "tag": {
+                      "id": "tag12"
+                    }
+                  }
+                }
+              ]
+            },
+            "kind": "answer",
+            "next": true
+          },
+          "model": {
+            "code": null,
+            "complete": true,
+            "data": {
+              "arr": [
+                {
+                  "row": {
+                    "bucket": {
+                      "int": "1"
+                    },
+                    "id": {
+                      "id": "r12"
+                    },
+                    "label": {
+                      "text": "a"
+                    },
+                    "owner": {
+                      "id": "alice"
+                    },
+                    "score": {
+                      "int": "1"
+                    },
+                    "tag": {
+                      "id": "tag12"
+                    }
+                  }
+                }
+              ]
+            },
+            "kind": "answer",
+            "next": true
+          }
+        }
+      },
+      {
+        "kind": "canonical",
+        "value": {
+          "engine": {
+            "code": null,
+            "complete": true,
+            "data": {
+              "arr": [
+                {
+                  "row": {
+                    "bucket": {
+                      "int": "1"
+                    },
+                    "id": {
+                      "id": "r13"
+                    },
+                    "label": {
+                      "text": "é"
+                    },
+                    "owner": {
+                      "id": "alice"
+                    },
+                    "score": {
+                      "int": "-9007199254740990"
+                    },
+                    "tag": {
+                      "id": "tag13"
+                    }
+                  }
+                }
+              ]
+            },
+            "kind": "answer",
+            "next": true
+          },
+          "model": {
+            "code": null,
+            "complete": true,
+            "data": {
+              "arr": [
+                {
+                  "row": {
+                    "bucket": {
+                      "int": "1"
+                    },
+                    "id": {
+                      "id": "r13"
+                    },
+                    "label": {
+                      "text": "é"
+                    },
+                    "owner": {
+                      "id": "alice"
+                    },
+                    "score": {
+                      "int": "-9007199254740990"
+                    },
+                    "tag": {
+                      "id": "tag13"
+                    }
+                  }
+                }
+              ]
+            },
+            "kind": "answer",
+            "next": false
+          }
+        }
+      }
+    ]
+  },
+  "shrink_attempts": 504
+}
