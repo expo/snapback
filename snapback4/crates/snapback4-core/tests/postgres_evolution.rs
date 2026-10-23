@@ -143,7 +143,7 @@ fn contract(store: AnyStore) {
     let before = e.store().rows("notes").unwrap();
     let inventory = e.store_mut().dormant_inventory(None, usize::MAX).unwrap();
     let status = e.store_mut().release_status(0, None, None).unwrap();
-    assert!(release(&mut e, V1, 5, true).is_err());
+    assert_eq!(release(&mut e, V1, 5, true).unwrap_err().code(), "E_ADOPT");
     assert_eq!(e.store_mut().release_status(0, None, None).unwrap(), status);
     assert_eq!(e.generation(), 4);
     assert_eq!(e.store().rows("notes").unwrap(), before);
@@ -353,4 +353,115 @@ fn ev1_sqlite_generation_fence() {
         false,
     );
     std::fs::remove_dir_all(path).unwrap();
+}
+
+fn inventory_contract(store: AnyStore) {
+    let (schema, programs) = bound(V1);
+    let mut e = Engine::new_release(store, schema.clone(), programs, 1, None).unwrap();
+    let tx = e.store_mut().transaction().unwrap();
+    // Unicode identities keep the same byte order on both adapters.
+    for n in 0..8 {
+        let key = format!("{}{:02}", "雪".repeat(20), n);
+        let row = object([
+            ("id", id(&key)),
+            ("n", Value::Int(n)),
+            ("memo", Value::Null),
+        ]);
+        tx.put("notes", &schema.tables["notes"], &row, None)
+            .unwrap();
+    }
+    tx.commit().unwrap();
+    release(&mut e, &v2(), 2, false).unwrap();
+    let all = e.store_mut().dormant_inventory(None, usize::MAX).unwrap();
+    let column = all.iter().find(|i| i.key == "column:notes.memo").unwrap();
+    assert_eq!(column.rows, 8);
+    assert_eq!(column.sample_ids.len(), 5);
+    assert!(column.sample_ids.windows(2).all(|w| w[0] < w[1]));
+    assert_eq!(
+        all.iter()
+            .find(|i| i.key == "index:notes.byN")
+            .unwrap()
+            .sample_ids,
+        column.sample_ids
+    );
+    assert!(e.store_mut().dormant_inventory(None, 0).unwrap().is_empty());
+    let mut actual = Vec::new();
+    let mut after = None;
+    loop {
+        let page = e
+            .store_mut()
+            .dormant_inventory(after.as_deref(), 1)
+            .unwrap();
+        if page.is_empty() {
+            break;
+        }
+        after = Some(page[0].key.clone());
+        actual.push(page[0].key.clone());
+    }
+    assert_eq!(
+        actual,
+        all.iter().map(|i| i.key.clone()).collect::<Vec<_>>()
+    );
+}
+#[test]
+fn ev1_sqlite_inventory_contract() {
+    inventory_contract(AnyStore::memory().unwrap());
+}
+#[cfg(feature = "postgres")]
+#[test]
+#[ignore = "requires private Postgres; scripts/test-postgres.sh"]
+fn ev1_postgres_inventory_contract() {
+    let c = std::env::var("SNAPBACK4_EVAL_POSTGRES").unwrap();
+    inventory_contract(
+        AnyStore::create_postgres(
+            &c,
+            &format!("sb4_ev1_inventory_{:x}", snapback4_core::ids::seed()),
+        )
+        .unwrap(),
+    );
+}
+
+#[cfg(feature = "postgres")]
+#[test]
+#[ignore = "requires private Postgres; scripts/test-postgres.sh"]
+fn ev1_postgres_authoritative_column_cannot_become_maintained() {
+    let source = include_str!("../../snapback4-lang/tests/fixtures/maintained-columns.q");
+    let ordinary = source.replace(
+        "likeCount: count likes by postId",
+        "likeCount: int default 0",
+    );
+    let (s, p) = bound(&ordinary);
+    let c = std::env::var("SNAPBACK4_EVAL_POSTGRES").unwrap();
+    let mut e = Engine::new_release(
+        AnyStore::create_postgres(
+            &c,
+            &format!("sb4_ev1_owner_{:x}", snapback4_core::ids::seed()),
+        )
+        .unwrap(),
+        s,
+        p,
+        1,
+        None,
+    )
+    .unwrap();
+    e.mutate(
+        "post",
+        None,
+        Context::new(
+            "alice",
+            [("id".into(), id("p")), ("at".into(), Value::Int(1))].into(),
+        )
+        .at(1000),
+    )
+    .unwrap();
+    let before = e.store().rows("posts").unwrap();
+    let error = release(&mut e, source, 2, true).unwrap_err();
+    assert!(matches!(
+        error,
+        RuntimeError::StoreUnsupported {
+            family: "evolution-authority"
+        }
+    ));
+    assert_eq!(e.generation(), 1);
+    assert_eq!(e.store().rows("posts").unwrap(), before);
 }

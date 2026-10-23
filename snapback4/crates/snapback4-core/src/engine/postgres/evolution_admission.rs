@@ -85,6 +85,23 @@ pub(super) fn admit(previous: &Schema, next: &Schema) -> Result<(), RuntimeError
         return Err(refuse("evolution-renames"));
     }
     for (name, table) in &previous.tables {
+        if let Some(candidate) = next.table(name) {
+            if previous.maintain_for(name).is_some() != next.maintain_for(name).is_some() {
+                return Err(refuse("evolution-authority"));
+            }
+            for column in table
+                .columns
+                .keys()
+                .filter(|c| candidate.columns.contains_key(*c))
+            {
+                let before = table.maintained.contains_key(column) || table.engine_field(column);
+                let after =
+                    candidate.maintained.contains_key(column) || candidate.engine_field(column);
+                if before != after {
+                    return Err(refuse("evolution-authority"));
+                }
+            }
+        }
         if !next.tables.contains_key(name) && !table.maintained.is_empty() {
             return Err(refuse("evolution-authority"));
         }

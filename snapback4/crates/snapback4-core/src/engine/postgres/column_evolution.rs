@@ -31,7 +31,10 @@ pub(super) fn validate_groups(tx: &Tx<'_>, previous: &Schema, next: &Schema) -> 
                     group.truncate(index.components.len());
                     if !group.contains(&Value::Null) {
                         if previous_group.as_ref() == Some(&group) {
-                            return Err(RuntimeError::Constraint(format!("cannot activate {name}.{index_name}: existing group exceeds a unique key")));
+                            let message = format!("cannot activate {name}.{index_name}: existing group exceeds a unique key");
+                            return Err(if tx.meta("dormant_enabled")?.as_deref() == Some("1") {
+                                RuntimeError::Structural { code: "E_ADOPT", message }
+                            } else { RuntimeError::Constraint(message) });
                         }
                         previous_group = Some(group);
                     }

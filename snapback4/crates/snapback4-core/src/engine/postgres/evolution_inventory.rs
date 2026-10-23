@@ -25,6 +25,7 @@ pub(super) fn inventory(
         let mut count = stats.first().map_or(0, |r| r.get::<_, i64>(0) as u64);
         let mut bytes = stats.first().map_or(0, |r| r.get::<_, i64>(1) as u64);
         let mut samples = BTreeSet::new();
+        let mut sample_ids = Vec::new();
         let definition_only;
         if kind == "index" {
             let text: String = tx.query(
@@ -45,8 +46,11 @@ pub(super) fn inventory(
                     }
                     let entries = crate::rows::index_keys(&index, &image, id).len() as u64;
                     count += entries;
-                    if entries > 0 && samples.len() < 5 {
+                    if entries > 0 {
                         samples.insert(bounded(id));
+                        if samples.len() > 5 {
+                            samples.pop_last();
+                        }
                     }
                     Ok(())
                 })?;
@@ -59,7 +63,7 @@ pub(super) fn inventory(
                 "SELECT id FROM _dormant_values v WHERE t=$1 AND column_name=$2 AND EXISTS(SELECT 1 FROM r WHERE r.t=v.t AND r.id=v.id) ORDER BY id LIMIT 5"
             };
             for row in tx.query(query, &[&name, &column])? {
-                samples.insert(bounded(row.get(0)));
+                sample_ids.push(bounded(row.get(0)));
             }
             definition_only = if kind == "column" {
                 !tx.query(
@@ -74,6 +78,9 @@ pub(super) fn inventory(
                 bytes += tx.query("SELECT COALESCE(SUM(octet_length(id)+octet_length(data)),0)::bigint FROM _dormant_values v WHERE t=$1 AND EXISTS(SELECT 1 FROM _dormant_rows d WHERE d.t=v.t AND d.id=v.id)",&[&name])?[0].get::<_,i64>(0) as u64;
             }
         }
+        if kind == "index" {
+            sample_ids = samples.into_iter().collect();
+        }
         out.push(DormantItem {
             key: format!("{kind}:{path}"),
             path,
@@ -83,7 +90,7 @@ pub(super) fn inventory(
             bytes,
             asset_bytes: 0,
             definition_only,
-            sample_ids: samples.into_iter().collect(),
+            sample_ids,
             before_rows: None,
             after_rows: None,
             restored_rows: None,
