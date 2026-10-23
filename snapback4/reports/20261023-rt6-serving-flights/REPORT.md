@@ -74,7 +74,9 @@ credential hint is separate from the interpreter's principal kind.
 
 Every physical ownership/lease/reader connection and every raw evaluation
 Store before its first BEGIN pins and verifies `client_encoding=UTF8`,
-`extra_float_digits=3`, `bytea_output=hex`. Ordinary ingress remains a single
+`extra_float_digits=3`, `bytea_output=hex`. Both writer isolation levels also
+explicitly request READ WRITE, preserving the previous transaction builder's
+behavior on connections whose default is read-only. Ordinary ingress remains a single
 Bind statement. Flight values, optional scalars and arrays all use the same
 RT5 encoder, including the current tail's 27 arguments (eighteen arrays plus
 change-evidence fields). Parent §9.1 rule 5 now explicitly permits both Bind
@@ -98,11 +100,16 @@ head/generation, row, membership/page, receipt, placement, UPDATE and full
 current tail statements. The tail compares durable native-Bind and literal
 images after separate savepoint executions. No historical-result replay
 semantics were changed: receipts still omit result/current payloads.
+The actual statements also run with RT5's hostile shadow schema: authority
+NULLs and tail array types are catalog-qualified. The original multi-array
+unnest FROM syntax remains intact. Native execute retains Bind fallback for
+unsupported ignored output payloads, witnessed by a numeric result.
 
 ## Witness results
 
-The expanded RT5 + RT6 group passes **18/18**, including scratch refusal and
-cold preparation lock order. Targeted rewrap/shape/tail regressions also pass.
+The expanded RT5 + RT6 group has **19 cases**, including scratch refusal,
+cold preparation lock order and local-argument shadowing fallback. Targeted
+rewrap/shape/tail regressions also pass.
 The full qualification repeats this group.
 
 - Owner first: the contender is observed blocked on `_owner`; the holder can

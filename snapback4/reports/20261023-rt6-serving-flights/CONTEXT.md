@@ -7,7 +7,8 @@ Governing LLPs: LLP 3000 (candidate fence); LLP 3000.009 §4.1–4.4
 LLP 3000.009.001.000 §3.4, §5.1–5.4, §8, §9.1 (opaque port,
 owner-first ordering, unknown COMMIT, session affinity and parity);
 LLP 3000.009.001.000.001 §3.5–3.6, §4–6 (ordered flights and ratchet).
-The latter two are in the current working set. The RT5 report supplies the
+The store port is linked in the current working set; the budget child is
+read at its numbered corpus path (it has no current/foundation link). The RT5 report supplies the
 qualified encoder and the real-path mechanism choice. Orientation used the
 pinned llp-orient skill, read from upstream because vendor/llp is empty;
 no submodule registration or Git configuration change was made.

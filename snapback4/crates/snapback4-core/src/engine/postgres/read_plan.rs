@@ -78,7 +78,13 @@ impl Plan {
     fn block(&mut self, body: &[Stmt], context: &Context) -> Option<()> {
         for stmt in body {
             match stmt {
-                Stmt::Let { value,.. } | Stmt::Const { value,.. } | Stmt::Require { condition:value,.. } | Stmt::Return(value) => self.expr(value,context)?,
+                Stmt::Let { name,value } | Stmt::Const { name,value } => {
+                    // A local declaration can shadow an argument. Its later
+                    // value is no longer a fixed address from request inputs.
+                    if context.args.contains_key(name) { return None; }
+                    self.expr(value,context)?;
+                }
+                Stmt::Require { condition:value,.. } | Stmt::Return(value) => self.expr(value,context)?,
                 _ => return None,
             }
         }

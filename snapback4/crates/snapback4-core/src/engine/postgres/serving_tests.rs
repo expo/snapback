@@ -50,11 +50,11 @@ fn mutate(e:&mut Engine,d:&str,id:Option<&str>) -> Result<crate::engine::Mutatio
     e.mutate_authorized("increment",id,context(),d,sample,|a| {assert_eq!(a.capability.unwrap().0,"alice");Ok(())})
 }
 fn census(c:&mut Client) -> Vec<Vec<String>> {
-    ["SELECT seq::text FROM _head ORDER BY singleton", "SELECT json_build_array(t,id,data)::text FROM r ORDER BY t,id",
-    "SELECT json_build_array(principal,id,seq,outcome,name,args_digest,at)::text FROM _ops ORDER BY principal,id",
-    "SELECT json_build_array(seq,at,program,principal,kind,touched,writes)::text FROM _commits ORDER BY seq",
-    "SELECT json_build_array(partition,seq,ord,t,kind,id,data)::text FROM _log ORDER BY partition,seq,ord",
-    "SELECT json_build_array(seq,footprint)::text FROM _change_evidence ORDER BY seq"]
+    ["SELECT seq::pg_catalog.text FROM _head ORDER BY singleton", "SELECT json_build_array(t,id,data)::pg_catalog.text FROM r ORDER BY t,id",
+    "SELECT json_build_array(principal,id,seq,outcome,name,args_digest,at)::pg_catalog.text FROM _ops ORDER BY principal,id",
+    "SELECT json_build_array(seq,at,program,principal,kind,touched,writes)::pg_catalog.text FROM _commits ORDER BY seq",
+    "SELECT json_build_array(partition,seq,ord,t,kind,id,data)::pg_catalog.text FROM _log ORDER BY partition,seq,ord",
+    "SELECT json_build_array(seq,footprint)::pg_catalog.text FROM _change_evidence ORDER BY seq"]
     .iter().map(|sql|c.query(*sql,&[]).unwrap().iter().map(|r|r.get(0)).collect()).collect()
 }
 fn no_later(c:&mut Client) {assert!(!c.query_one("SELECT is_called FROM _rt6_after_failure",&[]).unwrap().get::<_,bool>(0));}
@@ -175,7 +175,7 @@ fn rt6_connection_settings_are_pinned_on_every_connection_path() {
     let (_e,_c,name,_digest)=fixture();
     for owned in [false,true] {
         let mut config: postgres::Config=url().parse().unwrap();
-        config.options("-c client_encoding=SQL_ASCII -c extra_float_digits=0 -c bytea_output=escape");
+        config.options("-c client_encoding=SQL_ASCII -c extra_float_digits=0 -c bytea_output=escape -c default_transaction_read_only=on");
         let mut client=if owned {super::super::ownership::connect(config).unwrap().0} else {config.connect(NoTls).unwrap()};
         client.batch_execute(&format!("SET search_path={name},pg_catalog")).unwrap();
         let mut store=super::super::store::Store::new(client);
@@ -183,17 +183,26 @@ fn rt6_connection_settings_are_pinned_on_every_connection_path() {
         let r=tx.query("SELECT pg_catalog.current_setting('client_encoding'),pg_catalog.current_setting('extra_float_digits'),pg_catalog.current_setting('bytea_output')",&[]).unwrap();
         assert_eq!((r[0].get::<_,&str>(0),r[0].get::<_,&str>(1),r[0].get::<_,&str>(2)),("UTF8","3","hex"));
         tx.rollback().unwrap();
+        for mode in [super::super::store::WriteMode::Serialized,super::super::store::WriteMode::Serializable] {
+            let tx=store.transaction(Some(mode)).unwrap();
+            let r=tx.query("SELECT pg_catalog.current_setting('transaction_read_only')",&[]).unwrap();
+            assert_eq!(r[0].get::<_,&str>(0),"off");
+            assert_eq!(tx.execute("UPDATE _head SET seq=seq WHERE singleton",&[]).unwrap(),1);
+            tx.rollback().unwrap();
+        }
     }
 }
 #[test]
 #[ignore="private PG16; scripts/test-postgres.sh"]
 fn rt6_encoder_bind_difftest_uses_serving_statements_and_full_tail() {
     use super::super::{literal::{self,Prepared,Datum},read_plan,receipts,assets,authority,tail};
-    let (e,mut c,_,digest)=fixture();
+    let (mut e,mut c,namespace,digest)=fixture();
     // The qualified session must repair these hostile settings before decoding.
     c.batch_execute("SET client_encoding='SQL_ASCII'; SET extra_float_digits=0; SET bytea_output='escape'; SET standard_conforming_strings=off").unwrap();
     literal::configure(&mut c).unwrap();
     c.batch_execute(super::super::store::READ_SESSIONS_DDL).unwrap();
+    let shadow=super::shadows(&mut c);
+    c.batch_execute(&format!("SET search_path={shadow},{namespace},pg_catalog")).unwrap();
     c.batch_execute("BEGIN").unwrap();
     for (n,sql) in [authority::session_facts_sql(false),authority::session_facts_sql(true)].into_iter().enumerate() {
         let p=Prepared::new(&mut c,&format!("rt6_authority_{n}"),sql).unwrap();super::check(&mut c,&p,&[&digest]);
@@ -230,6 +239,11 @@ fn rt6_encoder_bind_difftest_uses_serving_statements_and_full_tail() {
     let messages=c.simple_query(&p.command(args).unwrap()).unwrap();assert_eq!(p.rows(&messages).unwrap(),vec![vec![Datum::Int(1)]]);
     assert_eq!(census(&mut c),expected,"head, rows, receipts, commits, logs and change evidence");
     c.batch_execute("ROLLBACK").unwrap();
+    // Native execute ignores result payloads, including excluded output types.
+    // Keep that behavior through Bind instead of trying the text decoder.
+    let tx=e.store_mut().read_transaction().unwrap();
+    assert_eq!(tx.test_postgres_tx().execute("SELECT 1::pg_catalog.numeric",&[]).unwrap(),1);
+    tx.rollback().unwrap();
 }
 #[test]
 #[ignore="private PG16; scripts/test-postgres.sh"]
@@ -291,4 +305,20 @@ fn rt6_encoder_scratch_refusal_poison_rolls_back_prior_writes() {
     tx.execute("UPDATE r SET data=data WHERE t='counters'",&[]).unwrap();
     let error=tx.flight(&[(super::super::authority::session_facts_sql(false),&[&text])],"").err().unwrap();
     assert_eq!(error.code(),"E_INPUT");assert_eq!(owner.commit().unwrap_err().code(),"E_INPUT");assert_eq!(census(&mut c),before);
+}
+
+
+#[test]
+fn rt6_planner_rejects_arguments_shadowed_by_local_bindings() {
+    use crate::ir::{Stmt,Expr};
+    let b=snapback4_lang::compile(&[("schema.q".into(),include_str!("../../../../../reports/20261022-rt-a-round-trips/admitted-s1.q").into())]);
+    let schema=serde_json::from_value(serde_json::to_value(b.schema).unwrap()).unwrap();
+    let programs:Vec<crate::Program>=b.programs.into_iter().map(|p|serde_json::from_value(serde_json::to_value(p.program).unwrap()).unwrap()).collect();
+    for (name,arg,value) in [("W1","message","m24"),("W2","room","r0001")] {
+        let context=Context::new("alice",[(arg.into(),Value::Id(value.into()))].into()).with_request_credential("guest");
+        let mut program=programs.iter().find(|p|p.name.ends_with(name)).unwrap().clone();
+        assert!(super::super::read_plan::Plan::new(&schema,&program,&context).is_some(),"{name} fits the unchanged physical prefetch bound");
+        program.body.insert(0,Stmt::Let{name:arg.into(),value:Expr::Literal(Value::Id("different".into()))});
+        assert!(super::super::read_plan::Plan::new(&schema,&program,&context).is_none(),"{name}: use the ordinary interpreter/store path after shadowing");
+    }
 }

@@ -5,7 +5,7 @@ use super::store::{Tx, signed};
 use crate::RuntimeError;
 
 pub(super) const SQL: &str = "WITH head AS (
-            UPDATE _head SET seq = $1::bigint WHERE singleton AND seq = $1::bigint - 1 RETURNING seq
+            UPDATE _head SET seq = $1::pg_catalog.int8 WHERE singleton AND seq = $1::pg_catalog.int8 - 1 RETURNING seq
         ), committed AS (
             INSERT INTO _commits(seq,at,program,principal,kind,touched,writes) SELECT seq,$2,$3,$4,$5,$6,$7 FROM head RETURNING seq
         ), evidence AS (
@@ -14,14 +14,14 @@ pub(super) const SQL: &str = "WITH head AS (
             DELETE FROM _change_evidence WHERE seq <= $27 AND EXISTS (SELECT 1 FROM committed)
         ), logged AS (
             INSERT INTO _log(partition,seq,ord,t,kind,id,data) SELECT l.partition,c.seq,l.ord,l.t,l.kind,l.id,l.data FROM committed c
-            CROSS JOIN unnest($8::text[],$9::bigint[],$10::text[],$11::text[],$12::text[],$13::text[]) AS l(partition,ord,t,kind,id,data)
+            CROSS JOIN unnest($8::pg_catalog.text[],$9::pg_catalog.int8[],$10::pg_catalog.text[],$11::pg_catalog.text[],$12::pg_catalog.text[],$13::pg_catalog.text[]) AS l(partition,ord,t,kind,id,data)
         ), effects AS (
             INSERT INTO _outbox(id,seq,effect,payload,state,attempts,at,next_at,work_spec,deadline,contract,release)
             SELECT e.id,c.seq,e.effect,e.payload,'queued',0,$2,e.next_at,e.work,e.deadline,e.contract,CASE WHEN e.explicit_release THEN e.release ELSE (SELECT value FROM _meta WHERE key = 'release') END FROM committed c
-            CROSS JOIN unnest($14::text[],$15::text[],$16::text[],$17::bigint[],$18::text[],$19::bigint[],$20::text[],$24::boolean[],$25::text[]) AS e(id,effect,payload,next_at,work,deadline,contract,explicit_release,release)
+            CROSS JOIN unnest($14::pg_catalog.text[],$15::pg_catalog.text[],$16::pg_catalog.text[],$17::pg_catalog.int8[],$18::pg_catalog.text[],$19::pg_catalog.int8[],$20::pg_catalog.text[],$24::pg_catalog.bool[],$25::pg_catalog.text[]) AS e(id,effect,payload,next_at,work,deadline,contract,explicit_release,release)
         ), presence AS (
             INSERT INTO _effect_presence(principal,id,deadline) SELECT p.principal,p.id,p.deadline FROM committed c
-            CROSS JOIN unnest($21::text[],$22::text[],$23::bigint[]) AS p(principal,id,deadline)
+            CROSS JOIN unnest($21::pg_catalog.text[],$22::pg_catalog.text[],$23::pg_catalog.int8[]) AS p(principal,id,deadline)
         ) SELECT count(*) FROM committed";
 
 #[derive(Clone, Default)]

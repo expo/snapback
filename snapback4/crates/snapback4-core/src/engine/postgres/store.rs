@@ -111,8 +111,8 @@ impl Store {
         self.page_reads.set(0);
         let begin = match mode {
             None => "BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY;",
-            Some(WriteMode::Serialized) => "BEGIN ISOLATION LEVEL READ COMMITTED;",
-            Some(WriteMode::Serializable) => "BEGIN ISOLATION LEVEL SERIALIZABLE;",
+            Some(WriteMode::Serialized) => "BEGIN ISOLATION LEVEL READ COMMITTED READ WRITE;",
+            Some(WriteMode::Serializable) => "BEGIN ISOLATION LEVEL SERIALIZABLE READ WRITE;",
         };
         let inner = super::flight::Session { client: &mut self.client, pending: begin.into(), started: false, done: false, checks: Vec::new() };
         let tx = Tx { read_sessions: &self.read_sessions, read_sessions_installed: Cell::new(false), unified: self.unified, commit_warning: &self.commit_warning, inner: RefCell::new(inner),
@@ -548,7 +548,8 @@ impl Tx<'_> {
 
     pub(crate) fn execute(&self, sql: &'static str, params: &[&(dyn ToSql + Sync)]) -> Result<u64, RuntimeError> {
         let statement = self.prepared(sql)?;
-        if statement.params().iter().all(|t| super::literal::name(t).is_ok()) {
+        if statement.params().iter().all(|t| super::literal::name(t).is_ok())
+            && statement.columns().iter().all(|c| super::flight::text_type(c.type_())) {
             return Ok(self.flight(&[(sql, params)], "")?.remove(0).count);
         }
         self.guard_params(&statement, params)?;

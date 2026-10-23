@@ -104453,3 +104453,23 @@ for the head, proving cold authority preparation retained no earlier lock.
 The expanded codec/serving group passes 18/18 with the cold relation-lock and
 scratch-refusal checks. The previously failing asset rewrap, incompatible-shape
 attach and tail-flight assertions pass independently with the corrected code.
+
+RT6 planner review: local declarations that shadow request arguments now take
+the ordinary path. The new pure witness checks that ordinary W1/W2 fit the
+unchanged prefetch bound, and that shadowed arguments never become assumed
+fixed addresses. No rule, expression or address computation moves into SQL.
+
+RT6 serving-statement codec qualification now uses RT5's hostile shadow schema,
+not only hostile output settings. Authority NULL casts and the tail's typed
+array casts are catalog-qualified so the actual statements retain their
+primitive port OIDs under shadowed text/numeric/bytea names and functions.
+Ordinary namespaces retain identical results and flight structure.
+
+RT6 transaction/decoder review: explicit READ WRITE on both writer isolation
+levels preserves the old builder's behavior even when a physical connection
+defaults to read-only. The hostile-connection witness checks both modes by
+writing and rolling back. Native execute's ignored unsupported output payloads
+retain their Bind fallback, with a numeric-result witness. The combined group
+now has 19 cases. Final qualification uses frozen source; a temporary invalid
+qualification of multi-array unnest was reverted before that run. The tail
+retains PostgreSQL's existing multi-array FROM syntax with qualified types.
