@@ -102569,3 +102569,19 @@ is a +706 B raw / +711 B gzip whole-artifact change from qualified 0.4.38
 (2,406,491 B raw / 734,888 B gzip) across DX7, K0-Q, ROLL and DX8. It is not an
 independent feature-cost attribution and changes no runtime ceiling; fan-out
 extraction remains cfg(SQLite) and does not ship in the web device.
+
+### DX8 review round 2: fan-out retained custody
+
+Fresh Codex found two material counterexamples in the full fan-out amendment:
+remove an old-list element, prune its retained child, then return; and reverse
+a populated child hidden by narrowing another field. The return path now
+preflights every element receipt, including removed elements, against extant
+child and parent-lifetime evidence. Migration-owned null rows can stay in
+narrowed storage without being reactivated. Reverse selection refuses explicitly
+when retained narrowed child asset homes would otherwise be omitted; an authored
+loosened child-domain bridge restores those rows before reversing. This preserves
+ordinary narrowed-row provenance and authority rather than treating a hidden row
+as active under a different definition. New tests cover atomic prune/removal
+refusal, repeated removed-element cycles, and bridge recovery of native children.
+Muse round 2 was READY; Codex was NOT READY. Both will review the corrected
+frozen full revision; neither earlier review is reported as joint readiness.

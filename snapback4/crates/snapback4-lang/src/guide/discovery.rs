@@ -208,6 +208,9 @@ An unrepresentable population becomes dormant under the ordinary old-domain
 rules. Empty lists create no children. Repeated asset IDs refuse because one
 asset cannot have two homes. Missing bytes, independent destination history,
 pruned children, invalid parent lifetimes and broader audiences refuse atomically.
+If populated children are dormant under a narrowed child domain, reverse
+selection refuses rather than omitting their photos. Restore those rows with
+a loosened child-domain bridge first; migration-owned null removals stay dormant.
 
 This is `guide evolution`; client development commands are in CLIENT-AND-OPERATIONS.md §5."##;
 

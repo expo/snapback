@@ -338,3 +338,44 @@ fn dx8_each_requires_immutable_captured_parent_audience_before_activation() {
         bound.diagnostics
     );
 }
+
+#[test]
+fn dx8_each_removal_then_pruning_refuses_missing_receipt_child_atomically() {
+    let mut e=engine(OLD_EACH);
+    let a=handle(&mut e,b"pruned element");
+    let parent=mutate(&mut e,"add",[("names",Value::Array(vec![a]))]).field("id").unwrap().as_str().unwrap().to_owned();
+    adopt(&mut e,NEW_EACH,2).unwrap();
+    adopt(&mut e,OLD_EACH,1).unwrap();
+    mutate(&mut e,"edit",[("id",Value::Id(parent.clone())),("names",Value::Array(vec![]))]);
+    e.store_mut().prune_dormant(true,None).unwrap();
+    let generation=e.generation();
+    let error=adopt(&mut e,NEW_EACH,2).unwrap_err().to_string();
+    assert!(error.contains("pruned/deleted"),"{error}");
+    assert_eq!(e.generation(),generation);
+    assert!(ids(&mut e,&parent).is_empty());
+}
+#[test]
+fn dx8_each_reverse_refuses_populated_narrowed_children_until_loosened_bridge() {
+    let wide=NEW_EACH.replace("  names: file <=1000","  names: file <=1000\n  note: text <=100 ?")
+        .replace("insert documents {order,names}","insert documents {order,names,note:'a native note'}");
+    let narrow=wide.replace("note: text <=100 ?","note: text <=1 ?").replace("note:'a native note'","note:'x'");
+    let mut e=engine(OLD_EACH);
+    let a=handle(&mut e,b"historical");
+    let parent=mutate(&mut e,"add",[("names",Value::Array(vec![a]))]).field("id").unwrap().as_str().unwrap().to_owned();
+    adopt(&mut e,&wide,2).unwrap();
+    let b=handle(&mut e,b"native narrowed");
+    let bid=crate::assets::asset_id(Some(&b)).unwrap().to_owned();
+    mutate(&mut e,"attach",[("order",Value::Id(parent.clone())),("names",b)]);
+    adopt(&mut e,&narrow,3).unwrap();
+    assert_eq!(e.store().count("documents").unwrap(),1);
+    let generation=e.generation();
+    let error=adopt(&mut e,OLD_EACH,1).unwrap_err().to_string();
+    assert!(error.contains("retained narrowed child asset homes")&&error.contains("loosened child bridge"),"{error}");
+    assert_eq!(e.generation(),generation);
+    assert_eq!(e.store().asset(&bid).unwrap().unwrap().home.unwrap().0,"documents");
+    adopt(&mut e,&wide,2).unwrap();
+    adopt(&mut e,OLD_EACH,1).unwrap();
+    let current=ids(&mut e,&parent);
+    assert_eq!(current.len(),2);
+    assert!(current.contains(&bid));
+}

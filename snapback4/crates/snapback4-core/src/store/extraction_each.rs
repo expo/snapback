@@ -95,6 +95,32 @@ fn save(
     Ok(())
 }
 
+// A migration-owned null can remain in narrowed storage across old views.
+// Reading it validates custody without restoring it into the active population.
+fn receipt_image(tx: &Tx<'_>, ct: i64, id: &str, meter:&mut Meter) -> Result<Option<Value>, RuntimeError> {
+    let item:Option<(i64,bool)>=tx.conn().query_row("SELECT octet_length(data),1 FROM r WHERE t=?1 AND id=?2 UNION ALL SELECT octet_length(data),0 FROM _dormant_narrow_rows WHERE t=?1 AND id=?2 LIMIT 1",params![ct,id],|r|Ok((r.get(0)?,r.get(1)?))).optional()?;
+    let Some((size,active))=item else { return Ok(None) };
+    meter.heap((size.max(0) as u64).saturating_mul(64).saturating_add(8192))?;
+    let sql=if active {"SELECT data FROM r WHERE t=?1 AND id=?2"} else {"SELECT data FROM _dormant_narrow_rows WHERE t=?1 AND id=?2"};
+    let text:String=tx.conn().query_row(sql,params![ct,id],|r|r.get(0))?;
+    serde_json::from_str(&text).map(Some).map_err(|e|refuse(e.to_string()))
+}
+fn validate_receipts(tx:&Tx<'_>,key:&str,pt:i64,id:&str,ct:i64,meter:&mut Meter)->Result<(),RuntimeError>{
+    let mut q=tx.conn().prepare("SELECT child_id FROM _extraction_each_rows WHERE definition=?1 AND parent_t=?2 AND parent_id=?3 ORDER BY child_id")?;
+    let mut receipts=q.query(params![key,pt,id])?;
+    while let Some(record)=receipts.next()? {
+        meter.charge(MeterKind::Examined,1)?;
+        let scratch=meter.mark();
+        let child:String=record.get(0)?;
+        meter.heap((child.len() as u64).saturating_mul(8).saturating_add(128))?;
+        if receipt_image(tx,ct,&child,meter)?.is_none() || !anchored(tx,ct,&child,key,pt,id)? {
+            return Err(refuse("returning extract each lacks its receipt-owned child or valid parent-lifetime evidence; never recreate pruned/deleted history"));
+        }
+        meter.release_heap(scratch);
+    }
+    Ok(())
+}
+
 pub(super) fn forward(
     tx: &Tx<'_>,
     e: &Extraction,
@@ -133,6 +159,7 @@ pub(super) fn forward(
                 .saturating_mul(4)
                 .saturating_add(8192),
         )?;
+        validate_receipts(tx,key,pt,id,ct,&mut meter)?;
         let mut seen = BTreeSet::new();
         for (position, v) in values.iter().enumerate() {
             meter.charge(MeterKind::RowsWritten, 1)?;
@@ -230,9 +257,8 @@ pub(super) fn forward(
             if seen.contains(&asset_id) {
                 continue;
             }
-            let Some(mut image) = load(tx, ct, &child_id)? else {
-                continue;
-            };
+            let scratch=meter.mark();
+            let mut image = receipt_image(tx, ct, &child_id,&mut meter)?.ok_or_else(|| refuse("extract each lost a receipt-owned child; never recreate pruned/deleted history"))?;
             if image.field(destination).is_ok_and(|v| v != &Value::Null) {
                 return Err(refuse(
                     "extract each would discard a child asset absent from the old list; preserve both meanings in a bridge",
@@ -240,7 +266,10 @@ pub(super) fn forward(
             }
             meter.charge(MeterKind::RowsWritten, 1)?;
             fields(&mut image)?.insert(destination.into(), Value::Null);
-            write(tx, ct, &child_id, &image)?;
+            if load(tx,ct,&child_id)?.is_some() { write(tx, ct, &child_id, &image)?; }
+            else { tx.conn().execute("UPDATE _dormant_narrow_rows SET data=?3 WHERE t=?1 AND id=?2",params![ct,child_id,canonical_json(&image)])?; }
+            drop(image);
+            meter.release_heap(scratch);
         }
         drop(stale);
         drop(q);
@@ -277,6 +306,12 @@ pub(super) fn backward(
             "reverse extract each requires identical asset element types in the old bounded list",
         ));
     }
+    // Retained populated children are not in the active snapshot. Their homes
+    // must never disappear from a reconstructed list. Restore their domain in
+    // an explicit loosened child bridge first; migration-owned nulls have no
+    // live child asset home and remain safely dormant.
+    let hidden:i64=tx.conn().query_row("SELECT COUNT(*) FROM _assets a WHERE a.home_table=?1 AND a.home_column=?2 AND a.released_at IS NULL AND EXISTS(SELECT 1 FROM _dormant_narrow_rows n WHERE n.t=?3 AND n.id=a.home_id) AND NOT EXISTS(SELECT 1 FROM r WHERE r.t=?3 AND r.id=a.home_id)",params![e.child,destination,ct],|r|r.get(0))?;
+    if hidden>0 { return Err(refuse(format!("reverse extract each cannot omit {hidden} retained narrowed child asset homes in {}; deploy a loosened child bridge that restores these rows before selecting old source",e.child))); }
     // Index the assembled snapshot once on disk; never rescan all children
     // for each parent or keep the whole store in process memory.
     tx.conn().execute_batch("CREATE TEMP TABLE _extraction_each_children(parent_id TEXT NOT NULL,child_id TEXT NOT NULL,PRIMARY KEY(parent_id,child_id)) WITHOUT ROWID;")?;
