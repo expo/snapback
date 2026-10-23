@@ -1,0 +1,8 @@
+dry-run-1: stopped publication-dry-run
+dry-run-2: stopped publication-dry-run
+dry-run-3: done
+finish-1: done
+lean-2: done
+native-2: done
+prepare-2: done
+warm-2: done

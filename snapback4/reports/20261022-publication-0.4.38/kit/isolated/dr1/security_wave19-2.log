@@ -1,0 +1,43 @@
+
+running 25 tests
+test column_only_privilege_assignment_warns_and_audit_follows_every_column_edge ... ok
+test operation_intent_probes_do_not_execute_uncovered_ephemeral_mutations ... ok
+test generated_rows_cannot_bypass_an_impossible_insert_gate ... ok
+test optional_role_columns_still_get_two_active_principals_per_role ... ok
+test retained_assignment_advice_survives_absent_independent_role_intent ... ok
+test authored_seed_read_and_integrity_refutations_fail_without_an_initialization_history ... ok
+test principal_keyed_kind_authority_still_gets_two_actors_per_seat ... ok
+test an_ephemeral_declaration_cannot_disable_the_durable_security_campaign ... ok
+test bootstrap_admission_includes_owned_field_authority ... ok
+test immutable_column_alternates_cannot_drop_unrelated_live_ephemeral_state ... ok
+test negative_existence_column_intent_only_refutes_the_excluded_role ... ok
+test ephemeral_mutations_are_uncovered_in_every_column_observer_phase ... ok
+test a_committed_role_change_retains_the_assignment_and_fails_the_current_role_intent has been running for over 60 seconds
+test a_copied_related_value_cannot_make_public_ids_disclose_a_protected_column has been running for over 60 seconds
+test a_post_insert_guard_through_the_returned_row_preserves_owner_coupling has been running for over 60 seconds
+test a_related_row_id_copy_preserves_independent_payload_observation has been running for over 60 seconds
+test an_alternate_copied_immutable_owner_cannot_invent_a_disclosure has been running for over 60 seconds
+test column_only_role_gates_generate_the_real_roster_and_preserve_private_payloads has been running for over 60 seconds
+test generated_assignments_obey_authored_recipient_role_guards has been running for over 60 seconds
+test generated_payloads_preserve_creator_copies_and_cold_approval_requirements has been running for over 60 seconds
+test implicit_insert_and_lowered_upsert_values_cannot_invent_column_alternates has been running for over 60 seconds
+test payload_role_columns_preserve_authored_creators_and_integrity has been running for over 60 seconds
+test text_role_guard_literals_exercise_register_staff_itself has been running for over 60 seconds
+test the_social_starter_executes_durable_challenges_with_its_ephemeral_declaration has been running for over 60 seconds
+test update_only_column_intent_ignores_an_unchanged_optional_column has been running for over 60 seconds
+test an_alternate_copied_immutable_owner_cannot_invent_a_disclosure ... ok
+test column_only_role_gates_generate_the_real_roster_and_preserve_private_payloads ... ok
+test generated_payloads_preserve_creator_copies_and_cold_approval_requirements ... ok
+test a_copied_related_value_cannot_make_public_ids_disclose_a_protected_column ... ok
+test update_only_column_intent_ignores_an_unchanged_optional_column ... ok
+test text_role_guard_literals_exercise_register_staff_itself ... ok
+test a_post_insert_guard_through_the_returned_row_preserves_owner_coupling ... ok
+test a_committed_role_change_retains_the_assignment_and_fails_the_current_role_intent ... ok
+test a_related_row_id_copy_preserves_independent_payload_observation ... ok
+test generated_assignments_obey_authored_recipient_role_guards ... ok
+test implicit_insert_and_lowered_upsert_values_cannot_invent_column_alternates ... ok
+test payload_role_columns_preserve_authored_creators_and_integrity ... ok
+test the_social_starter_executes_durable_challenges_with_its_ephemeral_declaration ... ok
+
+test result: ok. 25 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 189.92s
+
