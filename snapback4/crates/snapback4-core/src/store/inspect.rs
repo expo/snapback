@@ -606,13 +606,13 @@ mod tests {
                     crate::inspection::check_output_names(columns, true)
                 },
                 |_| {
-                    events.borrow_mut().push("booleans");
-                    Ok(vec![true])
+                    events.borrow_mut().push("kinds");
+                    Ok(vec![InspectionColumnKind::Bool])
                 },
             )
             .unwrap();
         assert_eq!(rows.rows, [vec![json!(true)]]);
-        assert_eq!(*events.borrow(), ["columns", "columns", "booleans"]);
+        assert_eq!(*events.borrow(), ["columns", "columns", "kinds"]);
         let error = inspection
             .query(
                 "SELECT 1 AS same, 2 AS SAME",
@@ -620,7 +620,7 @@ mod tests {
                 true,
                 |_| panic!("no query error expected"),
                 |columns| crate::inspection::check_output_names(columns, true),
-                |_| panic!("duplicate output names must refuse before boolean inference"),
+                |_| panic!("duplicate output names must refuse before type inference"),
             )
             .err()
             .unwrap();
