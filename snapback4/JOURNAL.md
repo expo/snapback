@@ -104258,3 +104258,82 @@ Logs, fixture data and PID records remain outside Git under `/tmp/`.
 The independent read-only review found no material defect. Local commit only:
 no push, publish, stash or Git configuration changes; `sb4-pg/sdk-unknown`
 remains at 8c4e07d280ca02cebde78a147e8f1f8cd70ce731.
+
+
+## 2026-10-23 — PH: remove the managed Postgres log's redundant foreign key
+
+Lane `sb4-pg/plan-hygiene` implements the first plan-hygiene remedy in
+[the accepted performance RFC, §3.4](../llp/3000.009.001.000.002-beating-the-postgres-controls.rfc.md#3.4).
+Fresh Postgres bootstrap omits `_log.seq → _commits(seq)`. Common-engine and
+retained-evaluator attach validate and remove only the recognized immediate,
+validated, simple-match NO ACTION legacy constraint under the head fence.
+Read-only pending-bootstrap recovery accepts both complete shapes without
+upgrading. Reopen takes no log ALTER lock once upgraded. Incompatible shapes
+and later attach refusals roll back every schema/data change. Existing
+concurrent-attacher refusal tests now include a real legacy log FK.
+
+The managed tail already accepts only the matching pending commit and derives
+all log sequences from `committed`. No production code deletes or prunes
+`_commits` or `_log`; bounded evidence pruning retains both. The 1,001-tail
+witness checks successful commits, mismatched-sequence refusal, rollback,
+evidence pruning and populated legacy conversion. The difftest reset restores
+both ledgers atomically, and a new anti-join oracle checks before/after resets
+and at world removal. A planted orphan proves it detects corruption hidden by
+ordinary log readers' inner join. Existing outcome/meter comparisons remain
+unchanged. Store-port §7.3 records the audit and future retention obligation.
+SQLite is unchanged: the existing full-core opener contract actually queries
+`PRAGMA foreign_keys` and verifies writer=0, readers/inspection=1; its log has
+no commit FK.
+
+The matched five-rows/member durable-tail model starts from one analyzed seed
+and reuses each backend across 1 s warm-up and 2 s measurement, N=1/4/16/32/64.
+The final serial-run OLS slope is **384.60 µs/member with the legacy FK,
+8.82 fresh and 8.33 upgraded**. At N=32 the legacy commit table adds 6,592 seq
+scans / 21,737,120 tuples during warm-up and 5,216 / 47,995,024 during the
+window. Both fixed shapes add **zero seq scans/tuples on both ledgers in both
+intervals at every N**; the legacy log itself also adds zero. The RFC retains
+all batch timings and independent repetitions. The fixture owns a separate
+database and uses the same compatible maintenance lock in all arms to hold
+its deliberately tiny statistics and catalog lifetime. This is mechanism
+isolation, not an operating ritual or a whole-cycle/throughput qualification.
+Durability, runtime limits, retries, statement/lock timeouts and RT0 allowances
+are unchanged.
+
+Passing qualification: build; full Postgres-feature core (715 library tests,
+all 45 integration targets, 38 doctests); full binary serial run (579 passed,
+46 existing ignores); all 236 private PG adapter contracts; 60 evolution
+cases; five-executor corpus; difftest (12 library / four store tests);
+both unchanged RT0 tables; and two complete public CLI serving/ownership/
+recovery/evolution/SDK-sync witnesses. The final post-link recheck passes
+71 binary cases, including both RT0 ratchets. Root `./ref-check` passes.
+
+**The full `test-postgres.sh` command remains red; no clean whole-run receipt
+is claimed.** Attempt one exposed a negative-control plan replacement and
+then the public harness's original 40 GiB guard. The revised isolated control
+passes standalone and inside both later runs. Attempt two had one generic
+identity-shape refusal: PG reported a missing function cache entry during
+DDL; [the open ticket](../issues/20261023-snapback4-postgres-adapter-ddl-cache-lookup-race.md)
+keeps that failure and the unproven event-trigger-race hypothesis. With serial
+outer tests, all adapter cases pass; that complete attempt instead hit binary
+test linker errors (`undefined hidden symbol`) after task-owned cache
+reclamation. A nonincremental rebuild succeeds and all six blocked binary
+filters pass afterwards. No source, workload or assertion changed for this
+recheck. The earlier parallel full-binary run's adoption timeout and two CPU
+assertions also remain retained; isolated rechecks and the subsequent complete
+serial binary run pass their original bounds. Failed attempts are preserved,
+not relabelled as successful qualifications.
+
+The lane uses its assigned warm target, eight Cargo jobs and line-tables-only
+dev/test debug. A temporary Cargo launcher isolates the standalone experiment
+under the assigned target, preserving pre-existing warm artifacts. Only
+birth-time-proven task-created incremental cache paths were reclaimed; raw
+logs, settings, receipts, PID identities and the cleanup audit stay outside Git
+under `/tmp/claude-1000/-home-ccheever-projects-snapback/3d04fc0c-0698-42a7-917c-2880afdea35c/scratchpad/ph/`.
+No push, stash or Git configuration change.
+
+Primary PG16 masters **1706085** and **2274638**, and public masters
+**1994863** and **2149783**, are stopped. Independent status is 3 for all
+three data directories, with no postmaster pidfiles. The audit finds no live
+recorded process or lane-target executable (3766 recorded identities,
+1112 public PID records). PIDs left: **none**. Final free space is about
+70 GiB; the 25 GiB stop threshold was never crossed.

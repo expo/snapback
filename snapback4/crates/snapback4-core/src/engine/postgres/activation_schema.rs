@@ -45,7 +45,7 @@ pub(super) fn initialize(tx: &Tx<'_>) -> Result<(), RuntimeError> {
 /// Other durable families validate their relations in their attach installers.
 pub(super) fn verify_core(tx: &Tx<'_>) -> Result<(), RuntimeError> {
     // Preserve the foundation family's refusal when its commit ledger and the
-    // referencing log are both unsafe: a logged log cannot reference unlogged commits.
+    // log are both unsafe; both managed ledgers must remain durable.
     super::ledger_schema::verify_relation(tx, "_commits", |table, detail| {
         RuntimeError::Store(format!("SNAPBACK_FOUNDATION_SCHEMA: {table}: {detail}"))
     })?;

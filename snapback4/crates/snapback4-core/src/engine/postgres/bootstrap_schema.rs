@@ -101,7 +101,6 @@ const TABLES: &[Table] = &[
             ("data", "text", false, false, None, ""),
         ],
         constraints: &[
-            "FOREIGN KEY (seq) REFERENCES _commits(seq)",
             "PRIMARY KEY (partition, seq, ord)",
         ],
     },
@@ -512,8 +511,14 @@ fn verify_table(tx: &Tx<'_>, table: &Table) -> Result<(), RuntimeError> {
     }
     // Names do not affect constraint semantics. Deparsing is stable on the
     // admitted server majors (16 and 17); validation/immediacy are mandatory.
+    // Read-only recovery also admits a complete pre-upgrade bootstrap.
+    let legacy = if table.name == "_log" { super::log_schema::legacy_keys(tx)? } else { Vec::new() };
+    if legacy.len() > 1 || legacy.iter().any(|r| !r.get::<_, bool>(1)) {
+        return Err(incompatible(table.name, "unexpected legacy foreign key"));
+    }
     let constraints = tx.query("SELECT pg_get_constraintdef(oid),convalidated AND NOT condeferrable AND NOT condeferred FROM pg_constraint WHERE conrelid=to_regclass($1) AND contype<>'n'", &[&table.name])?;
     let mut definitions: Vec<&str> = constraints.iter().map(|r| r.get(0)).collect();
+    if !legacy.is_empty() { definitions.retain(|d| *d != "FOREIGN KEY (seq) REFERENCES _commits(seq)"); }
     definitions.sort_unstable();
     let mut expected = table.constraints.to_vec();
     expected.sort_unstable();
