@@ -221,9 +221,17 @@ pub(crate) fn live_session(
     digest: &str,
     now: i64,
 ) -> Result<Option<SessionRecord>, RuntimeError> {
-    let Some(session) = tx.session_by_digest(digest)? else {
-        return Ok(None);
-    };
+    live_session_record(tx, tx.session_by_digest(digest)?, now, |principal| tx.principal_generation(principal))
+}
+
+/// The same policy over either separately fetched or single-statement facts.
+pub(crate) fn live_session_record(
+    tx: &impl AuthorityTransaction,
+    session: Option<SessionRecord>,
+    now: i64,
+    generation: impl FnOnce(&str) -> Result<i64, RuntimeError>,
+) -> Result<Option<SessionRecord>, RuntimeError> {
+    let Some(session) = session else { return Ok(None); };
     if !session.identity_is_valid() || session.expires_at <= now {
         return Ok(None);
     }
@@ -231,10 +239,10 @@ pub(crate) fn live_session(
     if session.scope == SessionScope::Read
         && (session.cap_expires_at.is_none_or(|cap| cap <= now)
             || session.principal_generation.is_none()
-            || session.principal_generation.unwrap() < tx.principal_generation(&session.principal)?) {
+            || session.principal_generation.unwrap() < generation(&session.principal)?) {
         return Ok(None);
     }
-    if session.kind == "action" && !live_claim_authority(tx, digest, now)? {
+    if session.kind == "action" && !live_claim_authority(tx, &session.digest, now)? {
         return Ok(None);
     }
     Ok(Some(session))

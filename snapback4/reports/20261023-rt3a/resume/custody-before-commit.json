@@ -1,0 +1,16 @@
+{
+  "recorded_process_identities": 3728,
+  "remaining": [],
+  "pids_reused_by_other_processes": [],
+  "clusters_removed": [
+    "/tmp/sb4-rt3a-pg.owPlDk",
+    "/tmp/sb4-rt3a-resume-9ajnunzd",
+    "/tmp/s10d3-serve-i_7_s4ik"
+  ],
+  "scratch_helpers_removed": [
+    "/tmp/rt3a-resume-run.py",
+    "/tmp/rt3a-resume-final.py",
+    "/tmp/rt3a-final-check.py",
+    "/tmp/rt3a-finalize-docs.py"
+  ]
+}

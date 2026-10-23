@@ -36,6 +36,26 @@ impl AnyStore {
     pub(crate) fn finish_open(tx: AnyTx<'_>) -> Result<OpeningMetadata, RuntimeError> {
         match tx { AnyTx::Sqlite(SqliteTx(tx)) => sqlite::Store::finish_open(tx), #[cfg(feature = "postgres")] AnyTx::Postgres(PostgresTx(tx)) => tx.finish_open() }
     }
+    pub(crate) fn with_session_authority_snapshot<T>(&self, digest: &str, run: impl FnOnce(&AnyTx<'_>, crate::identity::facts::SessionFacts) -> Result<T, RuntimeError>) -> Result<T, RuntimeError> {
+        match self {
+            Self::Sqlite(SqliteStore(store)) => {
+                let (tx, facts) = store.session_authority_transaction(digest, true)?;
+                let tx = AnyTx::Sqlite(SqliteTx(tx));
+                let result = run(&tx, facts)?;
+                tx.rollback()?;
+                Ok(result)
+            }
+            #[cfg(feature = "postgres")]
+            Self::Postgres(PostgresStore(handle)) => {
+                let mut store = handle.borrow()?;
+                let (tx, facts) = store.session_authority_transaction(digest)?;
+                let tx = AnyTx::Postgres(PostgresTx(tx));
+                let result = run(&tx, facts)?;
+                tx.rollback()?;
+                Ok(result)
+            }
+        }
+    }
     pub(crate) fn with_authority_snapshot<T>(&self, run: impl FnOnce(&AnyTx<'_>) -> Result<T, RuntimeError>) -> Result<T, RuntimeError> {
         match self { Self::Sqlite(SqliteStore(store)) => {
             let tx = AnyTx::Sqlite(SqliteTx(store.authority_transaction()?));

@@ -227,6 +227,10 @@ impl Store {
             ));
         }
         Ok(Tx {
+            read_sessions: &self.read_sessions,
+            read_sessions_installed: Default::default(),
+            read_sessions_at_start: self.read_sessions.present(),
+            read_sessions_installation: Default::default(),
             activation_scan: None,
             changes: Default::default(),
             sequence_table: Default::default(),

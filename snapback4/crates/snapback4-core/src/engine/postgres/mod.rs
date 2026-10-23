@@ -175,7 +175,7 @@ impl PostgresEngine {
         metadata::initialize(&tx)?;
         receipts::initialize(&tx)?;
         change_evidence::initialize(&tx)?;
-        tx.batch(store::READ_SESSIONS_DDL)?;
+        tx.install_read_sessions()?;
         tx.batch(identity::DDL)?;
         requests::initialize(&tx)?;
         outbox_schema::install(&tx)?;
@@ -201,6 +201,7 @@ impl PostgresEngine {
         tx.batch("SET statement_timeout = '5s'; SET lock_timeout = '5s';")?;
         tx.commit()?;
         store.generation = generation;
+        store.read_sessions.set(true);
         schema.prepare_delivery_lookup();
         Ok(Self { minter: crate::ids::Mint::default(), store, schema, programs, ceilings: Ceilings::default(), mode: WriteMode::Serialized, retries: 0, precharge: Metered::default(), expiry_after: BTreeMap::new() })
     }

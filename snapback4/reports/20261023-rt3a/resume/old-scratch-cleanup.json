@@ -1,0 +1,19 @@
+{
+  "cluster_status": 3,
+  "postmaster_pid_absent": true,
+  "removed": [
+    "/tmp/sb4-rt3a-pg.owPlDk",
+    "/tmp/rt3a-adapters.py",
+    "/tmp/rt3a-edit.py",
+    "/tmp/rt3a-generation.py",
+    "/tmp/rt3a-snapshot-flag.py",
+    "/tmp/rt3a-run.py",
+    "/tmp/rt3a-postgres.sh",
+    "/tmp/rt3a-postmaster-pid",
+    "/tmp/rt3a-pg-root",
+    "/tmp/rt3a-check.log",
+    "/tmp/rt3a-check2.log",
+    "/tmp/rt3a-compile-tests.log",
+    "/tmp/rt3a-matrix-sqlite.log"
+  ]
+}

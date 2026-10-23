@@ -499,3 +499,35 @@ fn bound_read_only_family_lost_delivery_recovers() {
     test_cases::assert_bound_recovery(&tx, true);
     tx.commit().unwrap();
 }
+
+#[test]
+#[ignore = "requires SNAPBACK4_EVAL_POSTGRES (private PostgreSQL; scripts/test-postgres.sh)"]
+fn authority_facts_equivalence_postgres_generated_matrix() {
+    use crate::identity::facts::tests;
+    let mut total = 0;
+    for read_storage in [false, true] {
+        let mut engine = authority_engine();
+        if !read_storage {
+            let tx = engine.store.transaction(Some(WriteMode::Serialized)).unwrap();
+            tx.batch("DROP TABLE _read_sessions").unwrap();
+            tx.commit().unwrap();
+            // Model the read-only attach flag for a legacy store; writable
+            // Postgres attach itself installs this table before accepting open.
+            engine.store.read_sessions.set(false);
+        }
+        for case in tests::cases(read_storage) {
+            let tx = engine.store.transaction(Some(WriteMode::Serialized)).unwrap();
+            tx.batch(&case.seed()).unwrap();
+            tx.execute("UPDATE _backend SET generation=$1 WHERE singleton", &[&(if case.store_generation_changed { 2_i64 } else { 1_i64 })]).unwrap();
+            tests::compare(&tx, |digest| tx.session_authority_facts(digest), &case);
+            tx.session_authority_facts("digest").unwrap(); // prepare before measuring
+            let scope = crate::round_trips::Scope::begin();
+            tx.session_authority_facts("digest").unwrap();
+            assert_eq!(scope.counts().postgres, 1);
+            drop(scope);
+            tx.rollback().unwrap();
+            total += 1;
+        }
+    }
+    println!("Postgres authority facts: {total} generated states; one SELECT each");
+}

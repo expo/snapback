@@ -184,7 +184,7 @@ impl Store {
             // Repeat source-count admission under the writer lock, before any candidate writes.
             let preflight_catalog = catalog.clone();
             let (launches, sql) = {
-                let preflight = Tx { activation_scan: None, changes: Default::default(), sequence_table: Default::default(), tx: sql, page_size: store.page_size,
+                let preflight = Tx { read_sessions: &store.read_sessions, read_sessions_installed: Default::default(), read_sessions_at_start: store.read_sessions.present(), read_sessions_installation: Default::default(), activation_scan: None, changes: Default::default(), sequence_table: Default::default(), tx: sql, page_size: store.page_size,
                     server: store.server,
                     catalog: &preflight_catalog };
                 let launches = if programs.is_some() { super::timeline_launch::preflight(&preflight, schema, now, allow_launch)? } else { Vec::new() };
@@ -205,7 +205,7 @@ impl Store {
             let activation_scan = programs.map(|_| Default::default());
             #[cfg(test)]
             let activation_scan = if store.full_adoption { None } else { activation_scan };
-            let tx = crate::store_port::AnyTx::from_sqlite(Tx { activation_scan, changes: Default::default(), sequence_table: Default::default(), tx: sql, page_size: store.page_size,
+            let tx = crate::store_port::AnyTx::from_sqlite(Tx { read_sessions: &store.read_sessions, read_sessions_installed: Default::default(), read_sessions_at_start: store.read_sessions.present(), read_sessions_installation: Default::default(), activation_scan, changes: Default::default(), sequence_table: Default::default(), tx: sql, page_size: store.page_size,
                 server: store.server,
                 catalog: &catalog });
             let (generation, result, after, ephemeral_tables) = tx.with_sqlite(|sqlite_tx| {

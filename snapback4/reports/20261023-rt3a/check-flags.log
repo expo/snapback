@@ -1,0 +1,21 @@
+    Checking snapback4-core v0.4.38 (/home/ccheever/projects/sb4-s1sk/snapback4/crates/snapback4-core)
+warning: variable does not need to be mutable
+   --> crates/snapback4-core/src/store/identity.rs:238:13
+    |
+238 |         let mut storage = if session.scope == SessionScope::Read { Some(self.read_sessions.install()?) } else { None };
+    |             ----^^^^^^^
+    |             |
+    |             help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `storage`
+   --> crates/snapback4-core/src/store/identity.rs:238:13
+    |
+238 |         let mut storage = if session.scope == SessionScope::Read { Some(self.read_sessions.install()?) } else { None };
+    |             ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_storage`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-core` (lib) generated 2 warnings (run `cargo fix --lib -p snapback4-core` to apply 2 suggestions)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 12.38s

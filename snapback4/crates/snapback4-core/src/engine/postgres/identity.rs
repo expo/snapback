@@ -430,3 +430,11 @@ impl IdentityStore for RefCell<&mut Store> {
         })
     }
 }
+
+impl Tx<'_> {
+    pub(super) fn install_read_sessions(&self) -> Result<(), RuntimeError> {
+        self.batch(super::store::READ_SESSIONS_DDL)?;
+        self.read_sessions_installed.set(true);
+        Ok(())
+    }
+}

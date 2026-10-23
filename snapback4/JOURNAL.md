@@ -102735,3 +102735,54 @@ clusters are independently confirmed stopped; all 26 recorded launch PIDs and
 all executables under this lane's target are absent. PIDs left: none. Lowest
 observed /home free space 58 GB; only the authorized target, four build jobs,
 no preserved target copies, no push, stash or git config edit.
+
+## 2026-10-23 — RT3a checkpoint; stopped at the disk floor
+
+Lane `sb4-pg/rt3a`, based on `bfdf051278`. Both adapters fetch a session's
+authority facts in one bounded parameterized SELECT. Existing Rust generation,
+live-session, cap and worker checks keep their policy and request boundaries;
+action/service/unknown kinds retain the complete resolver. Optional storage is
+attached once, with SQLite lazy installation published to readers after COMMIT
+and an older snapshot retaining its schema view. The typed member seam exposes
+resolution without SQL. No RT3b boundary move or RT5 flight change.
+
+The refined RT0 predictions match all twelve measured classes, three warm
+samples each: SQLite unkeyed 60→32, keyed 68→40, W1/W2 24→16; Postgres
+38→26, 58→46 and 20→12. Both tables are lowered; no class increases. The
+RFC retains initial/refined predictions and explains every removed statement.
+Interim matrices pass 3,456 generated states per adapter, including lazy/absent
+storage and old-snapshot rollback witnesses. The generation-integrated matrix
+and final green ratchet repeat remain pending. Production Postgres-feature
+check and no-default check pass; an earlier normal build passes. The original
+SQLite queued authority witness passes; the added Postgres fixture's unsupported
+generic adoption call was removed, and its queue checks still need a rerun.
+
+Qualification stopped when `/home` fell to 25 GB free, below the user's 30 GB
+floor; after cleanup it is 21 GB. Full core/CLI/Postgres compilation was
+interrupted, identity conformance and reference checking are incomplete. This
+is a recoverable, unqualified checkpoint, not a finished landing. No preexisting
+artifact was deleted, no push/stash/config change. The sole owned cluster is
+independently stopped and all 551 recorded PIDs are absent. Exact SQL, counts,
+logs, pending checks and custody are in `reports/20261023-rt3a/REPORT.md`.
+
+
+## 2026-10-23 — RT3a continuation: completed qualification
+
+Resumed the disk-stop checkpoint `9cffa36407` after the lead removed this lane's
+target. Cold builds use eight jobs and `line-tables-only` dev/test debug profiles.
+The 20 GB continuation floor was never crossed. Production authority code is
+unchanged: this remains §3.2, with shared Rust policy and existing boundaries.
+The malformed-read-storage fixture now persists its corruption before reattach,
+matching optional storage's attach-time discovery; both error assertions pass.
+
+The generation-integrated matrix passes 3,456 states per adapter and one SELECT
+per fetch, with lazy-install/rollback coverage. Both queued revocation/expiry
+witnesses and all 79 identity tests pass. Both RT0 ratchets pass against the
+committed measured tables, with every refined prediction matched and no increase.
+The complete final core repeat passes 1,091 tests (five ignored), the full binary
+537 (11 ignored), and the Postgres script 390 Rust cases plus public serving,
+restart/takeover, release adoption and P1-MC. Build, no-default and reference
+checks pass. Both private clusters and obsolete owned scratch files are removed;
+all owned workload PIDs are absent. No push/stash/configuration change. Exact
+statements, counts, the first fixture failure, final results and process custody
+are retained in `reports/20261023-rt3a/REPORT.md` and its `resume/` records.

@@ -6,6 +6,47 @@ use crate::{
     authority::{AdmissionRecord, AuthorityTransaction, SessionRecord, WorkRecord},
 };
 
+
+// @ref LLP 3000.009.001.000.001#32-one-statement-fetches-a-guest-sessions-authority-facts — PK lookups bound the union to two rows; no authority decisions in SQL.
+const FULL_FACTS: &str = "WITH sessions AS (SELECT principal, COALESCE(family, token_digest) AS family, kind, token_digest, expires_at, 0 AS scope, NULL::BIGINT AS cap_expires_at, NULL::BIGINT AS principal_generation FROM _sessions WHERE token_digest = $1)
+SELECT s.principal, s.family, s.kind, s.token_digest, s.expires_at, s.scope,
+       s.cap_expires_at, s.principal_generation, COALESCE(g.generation, 0),
+       (SELECT value FROM _meta WHERE key = 'worker:session-family'),
+       (SELECT value FROM _meta WHERE key = 'worker:session-revision'),
+       (SELECT value FROM _meta WHERE key = 'worker:family:' || s.family),
+       (SELECT value FROM _meta WHERE key = 'generation'),
+       (SELECT value FROM _meta WHERE key = 'store_id'),
+       (SELECT generation FROM _backend WHERE singleton),
+       NULL::TEXT, NULL::TEXT, NULL::TEXT
+FROM (SELECT 1) AS anchor LEFT JOIN sessions s ON true
+LEFT JOIN _principal_generations g ON g.principal = s.principal";
+const READ_FACTS: &str = "WITH sessions AS (SELECT principal, COALESCE(family, token_digest) AS family, kind, token_digest, expires_at, 0 AS scope, NULL::BIGINT AS cap_expires_at, NULL::BIGINT AS principal_generation FROM _sessions WHERE token_digest = $1 UNION ALL SELECT principal, family, kind, token_digest, expires_at, 1, cap_expires_at, principal_generation FROM _read_sessions WHERE token_digest = $1)
+SELECT s.principal, s.family, s.kind, s.token_digest, s.expires_at, s.scope,
+       s.cap_expires_at, s.principal_generation, COALESCE(g.generation, 0),
+       (SELECT value FROM _meta WHERE key = 'worker:session-family'),
+       (SELECT value FROM _meta WHERE key = 'worker:session-revision'),
+       (SELECT value FROM _meta WHERE key = 'worker:family:' || s.family),
+       (SELECT value FROM _meta WHERE key = 'generation'),
+       (SELECT value FROM _meta WHERE key = 'store_id'),
+       (SELECT generation FROM _backend WHERE singleton),
+       NULL::TEXT, NULL::TEXT, NULL::TEXT
+FROM (SELECT 1) AS anchor LEFT JOIN sessions s ON true
+LEFT JOIN _principal_generations g ON g.principal = s.principal";
+
+impl Tx<'_> {
+    pub(crate) fn session_authority_facts(&self, digest: &str) -> Result<crate::identity::facts::SessionFacts, RuntimeError> {
+        crate::authority::refuse_nul(&[(digest, "a session digest cannot contain U+0000")])?;
+        let rows = self.query(if self.read_sessions.get() || self.read_sessions_installed.get() { READ_FACTS } else { FULL_FACTS }, &[&digest])?;
+        let row = &rows[0]; // The anchor also returns metadata for an absent token.
+        Ok(crate::identity::facts::SessionFacts {
+            sessions: rows.iter().filter(|r| r.get::<_, Option<String>>(0).is_some()).map(read_session).collect(),
+            current_generation: row.get(8), worker_family: row.get(9), worker_revision: row.get(10),
+            family_revision: row.get(11), store_generation: row.get(12), store_id: row.get(13),
+            backend_generation: row.get(14), schema_hash: row.get(15), activation_hash: row.get(16), device_generation: row.get(17),
+        })
+    }
+}
+
 const WORK_BY_ID: &str = "SELECT principal, state, claimed_by, session_digest, lease_until, deadline, family, principal_generation, admitted_expires_at, service_generation FROM _requests WHERE id = $1";
 const WORK_BY_SESSION: &str = "SELECT principal, state, claimed_by, session_digest, lease_until, deadline, family, principal_generation, admitted_expires_at, service_generation FROM _requests WHERE session_digest = $1 ORDER BY id LIMIT 1";
 
@@ -53,7 +94,11 @@ impl AuthorityTransaction for Tx<'_> {
     fn session_by_digest(&self, digest: &str) -> Result<Option<SessionRecord>, RuntimeError> {
         if absent_text_key(&[digest]) { return Ok(None); }
         let rows = self.query(
-                "SELECT principal, COALESCE(family, token_digest), kind, token_digest, expires_at, 0, NULL::BIGINT, NULL::BIGINT FROM _sessions WHERE token_digest = $1 UNION ALL SELECT principal, family, kind, token_digest, expires_at, 1, cap_expires_at, principal_generation FROM _read_sessions WHERE token_digest = $1",
+                if self.read_sessions.get() || self.read_sessions_installed.get() {
+                    "SELECT principal, COALESCE(family, token_digest), kind, token_digest, expires_at, 0, NULL::BIGINT, NULL::BIGINT FROM _sessions WHERE token_digest = $1 UNION ALL SELECT principal, family, kind, token_digest, expires_at, 1, cap_expires_at, principal_generation FROM _read_sessions WHERE token_digest = $1"
+                } else {
+                    "SELECT principal, COALESCE(family, token_digest), kind, token_digest, expires_at, 0, NULL::BIGINT, NULL::BIGINT FROM _sessions WHERE token_digest = $1"
+                },
                 &[&digest],
             )?;
         if rows.len() > 1 {
@@ -75,7 +120,11 @@ impl AuthorityTransaction for Tx<'_> {
         if absent_text_key(&[principal, family]) { return Ok(None); }
         Ok(self
             .query(
-                "SELECT principal, COALESCE(family, token_digest), kind, token_digest, expires_at, 0, NULL::BIGINT, NULL::BIGINT FROM _sessions WHERE principal = $1 AND COALESCE(family, token_digest) = $2 AND expires_at > $3 UNION ALL SELECT principal, family, kind, token_digest, expires_at, 1, cap_expires_at, principal_generation FROM _read_sessions WHERE principal = $1 AND family = $2 AND expires_at > $3 ORDER BY expires_at DESC, token_digest ASC, 6 ASC LIMIT 1",
+                if self.read_sessions.get() || self.read_sessions_installed.get() {
+                    "SELECT principal, COALESCE(family, token_digest), kind, token_digest, expires_at, 0, NULL::BIGINT, NULL::BIGINT FROM _sessions WHERE principal = $1 AND COALESCE(family, token_digest) = $2 AND expires_at > $3 UNION ALL SELECT principal, family, kind, token_digest, expires_at, 1, cap_expires_at, principal_generation FROM _read_sessions WHERE principal = $1 AND family = $2 AND expires_at > $3 ORDER BY expires_at DESC, token_digest ASC, 6 ASC LIMIT 1"
+                } else {
+                    "SELECT principal, COALESCE(family, token_digest), kind, token_digest, expires_at, 0, NULL::BIGINT, NULL::BIGINT FROM _sessions WHERE principal = $1 AND COALESCE(family, token_digest) = $2 AND expires_at > $3 ORDER BY expires_at DESC, token_digest ASC, 6 ASC LIMIT 1"
+                },
                 &[&principal, &family, &now],
             )?
             .first()

@@ -2,12 +2,32 @@ use super::*;
 
 #[test]
 fn bearer_is_checked_after_durable_and_ephemeral_mutation_lock_gaps() {
+    queued_authority(false);
+}
+
+#[cfg(feature = "postgres")]
+#[test]
+#[ignore = "requires private Postgres; scripts/test-postgres.sh"]
+fn postgres_bearer_is_checked_after_durable_and_ephemeral_mutation_lock_gaps() {
+    queued_authority(true);
+}
+
+fn queued_authority(pg: bool) {
     for revoke in [false, true] {
         for (replay, has_id, lock_number, ephemeral, memory) in [(true, true, 1, false, false), (false, false, 1, false, false), (false, true, 2, false, false), (false, false, 1, true, false), (false, false, 2, true, true)] {
             let dir = ReaderTestDirectory::new();
             let source = format!("{}table typing:\n  owner: principal\n  unique owner\n  read <- allow\n  insert <- .owner = viewer\n  update <- .owner = viewer\n  ephemeral 4s\nmutation typeNow(id: id):\n  upsert typing[owner = viewer] {{}}\n", reads::SOURCE);
-            let store = if memory { snapback4_core::Store::memory().unwrap() }
-                else { snapback4_core::Store::open(&dir.0.join("auth.db")).unwrap() };
+            if pg && memory { continue; }
+            let store = if pg {
+                #[cfg(feature = "postgres")]
+                { snapback4_core::store_port::AnyStore::create_postgres(
+                    &std::env::var("SNAPBACK4_EVAL_POSTGRES").expect("private Postgres cluster"),
+                    &format!("sb4_rt3a_queue_{:x}", snapback4_core::ids::seed()),
+                ).unwrap() }
+                #[cfg(not(feature = "postgres"))]
+                { unreachable!() }
+            } else if memory { snapback4_core::store_port::AnyStore::memory().unwrap() }
+                else { snapback4_core::store_port::AnyStore::open(&dir.0.join("auth.db")).unwrap() };
             let host = Host::with_store(false, store, &source);
             let session = body(&host.request("POST", "/auth/guest", "", "{}"));
             let headers = format!("Authorization: Bearer {}\r\n", session["session"]["token"].as_str().unwrap());
@@ -41,13 +61,25 @@ fn bearer_is_checked_after_durable_and_ephemeral_mutation_lock_gaps() {
             // File-backed ephemeral admission now uses readers. Keep it parked
             // before checkout while changing authority; it must recheck the
             // bearer on that reader without joining the durable writer queue.
-            let candidate = snapback4_lang::compile(&[("schema.q".into(),format!("{}{}",source,reads::VIEWS))]);
             let seq = engine.seq().unwrap();
-            engine.adopt(candidate.schema, candidate.programs.into_iter().map(|p|p.program)).unwrap();
-            lock(&host.shared.readers).replace(&engine, &candidate.refusal_sites);
+            if !pg {
+                let candidate = snapback4_lang::compile(&[("schema.q".into(),format!("{}{}",source,reads::VIEWS))]);
+                engine.adopt(candidate.schema, candidate.programs.into_iter().map(|p|p.program)).unwrap();
+                lock(&host.shared.readers).replace(&engine, &candidate.refusal_sites);
+            }
             let after_adoption = engine.seq().unwrap();
             assert!(after_adoption >= seq);
-            (engine.store()).test_support_conn().execute(if revoke {"DELETE FROM _sessions"} else {"UPDATE _sessions SET expires_at = 0"}, []).unwrap();
+            if pg {
+                if revoke {
+                    snapback4_core::identity::close_session(engine.store(), session["session"]["token"].as_str().unwrap()).unwrap();
+                } else {
+                    let mut clock = crate::dev_clock::Clock::new(true, 0).unwrap();
+                    clock.freeze(session["session"]["expiresAt"].as_i64().unwrap());
+                    *lock(&host.shared.clock) = clock;
+                }
+            } else {
+                (engine.store()).test_support_conn().execute(if revoke {"DELETE FROM _sessions"} else {"UPDATE _sessions SET expires_at = 0"}, []).unwrap();
+            }
             let ephemeral_before = host.shared.ephemeral.snapshot().unwrap().version;
             drop(engine);
             if detached_ephemeral { gate.release(); }

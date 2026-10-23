@@ -1,0 +1,4 @@
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on build directory
+    Checking snapback4-core v0.4.38 (/home/ccheever/projects/sb4-s1sk/snapback4/crates/snapback4-core)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 3m 01s

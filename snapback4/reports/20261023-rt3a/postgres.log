@@ -1,0 +1,212 @@
+Refreshing core/lang/device debug artifacts at a shared-target manifest handoff
+RT3a: retaining warm artifacts; invalidating core/lang/device sources at the manifest handoff.
+    Blocking waiting for file lock on build directory
+   Compiling tinyvec v1.13.3
+   Compiling smallvec v1.16.1
+   Compiling libsqlite3-sys v0.38.2
+   Compiling hashbrown v0.17.1
+   Compiling thiserror v2.0.20
+   Compiling serde v1.0.229
+   Compiling snapback4-lang v0.4.38 (/home/ccheever/projects/sb4-s1sk/snapback4/crates/snapback4-lang)
+   Compiling parking_lot_core v0.9.12
+warning: function `interval` is never used
+  --> /home/ccheever/projects/sb4-s1sk/snapback4/crates/snapback4-lang/src/release_changes.rs:57:8
+   |
+57 | pub fn interval(previous: &str, installed: &str) -> String {
+   |        ^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+   Compiling parking_lot v0.12.5
+   Compiling unicode-normalization v0.1.25
+   Compiling hashlink v0.12.2
+warning: `snapback4-lang` (build script) generated 1 warning
+   Compiling stringprep v0.1.5
+   Compiling postgres-protocol v0.6.12
+   Compiling postgres-types v0.2.14
+   Compiling tokio-postgres v0.7.18
+   Compiling postgres v0.19.14
+   Compiling rusqlite v0.40.2
+   Compiling snapback4-core v0.4.38 (/home/ccheever/projects/sb4-s1sk/snapback4/crates/snapback4-core)
+warning: unused variable: `fields`
+   --> /home/ccheever/projects/sb4-s1sk/snapback4/crates/snapback4-core/src/engine/following_history/projection.rs:296:13
+    |
+296 |         let fields: Vec<String> = fields.into_iter().collect();
+    |             ^^^^^^ help: if this is intentional, prefix it with an underscore: `_fields`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `digest` is never read
+  --> /home/ccheever/projects/sb4-s1sk/snapback4/crates/snapback4-core/src/engine/native.rs:45:5
+   |
+42 | pub struct Module {
+   |            ------ field in this struct
+...
+45 |     digest: String,
+   |     ^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: struct `Logs` is never constructed
+  --> /home/ccheever/projects/sb4-s1sk/snapback4/crates/snapback4-core/src/engine/native.rs:54:19
+   |
+54 | pub(crate) struct Logs {
+   |                   ^^^^
+
+warning: methods `extend` and `take` are never used
+  --> /home/ccheever/projects/sb4-s1sk/snapback4/crates/snapback4-core/src/engine/native.rs:60:19
+   |
+59 | impl Logs {
+   | --------- methods in this implementation
+60 |     pub(crate) fn extend(&mut self, job: &str, lines: Vec<String>) {
+   |                   ^^^^^^
+...
+76 |     pub(crate) fn take(&mut self) -> Vec<String> {
+   |                   ^^^^
+
+warning: struct `ChunkOutcome` is never constructed
+  --> /home/ccheever/projects/sb4-s1sk/snapback4/crates/snapback4-core/src/engine/native.rs:94:19
+   |
+94 | pub(crate) struct ChunkOutcome {
+   |                   ^^^^^^^^^^^^
+
+warning: function `native_output_ceiling` is never used
+   --> /home/ccheever/projects/sb4-s1sk/snapback4/crates/snapback4-core/src/engine/native.rs:168:4
+    |
+168 | fn native_output_ceiling() -> usize {
+    |    ^^^^^^^^^^^^^^^^^^^^^
+
+warning: method `digest` is never used
+   --> /home/ccheever/projects/sb4-s1sk/snapback4/crates/snapback4-core/src/engine/native.rs:272:19
+    |
+242 | impl Module {
+    | ----------- method in this implementation
+...
+272 |     pub(crate) fn digest(&self) -> &str {
+    |                   ^^^^^^
+
+warning: function `run_chunk` is never used
+   --> /home/ccheever/projects/sb4-s1sk/snapback4/crates/snapback4-core/src/engine/native.rs:390:15
+    |
+390 | pub(crate) fn run_chunk(module: &Module, runner: Runner<'_>, job: &str, args: &BTreeMap<String, Value>, state: Option<Json>, now: i...
+    |               ^^^^^^^^^
+
+warning: function `missing` is never used
+   --> /home/ccheever/projects/sb4-s1sk/snapback4/crates/snapback4-core/src/engine/native.rs:504:15
+    |
+504 | pub(crate) fn missing(runner: Runner<'_>, job: &str) -> ChunkOutcome {
+    |               ^^^^^^^
+
+warning: variant `Lifetime` is never constructed
+   --> /home/ccheever/projects/sb4-s1sk/snapback4/crates/snapback4-core/src/store/port/handles.rs:156:5
+    |
+151 | pub(crate) enum AnyPreparation<'tx, 'store> {
+    |                 -------------- variant in this enum
+...
+156 |     Lifetime(std::convert::Infallible, std::marker::PhantomData<&'store ()>),
+    |     ^^^^^^^^
+
+warning: `snapback4-core` (lib) generated 10 warnings (run `cargo fix --lib -p snapback4-core` to apply 1 suggestion)
+   Compiling snapback4-device v0.4.38 (/home/ccheever/projects/sb4-s1sk/snapback4/crates/snapback4-device)
+warning: variable does not need to be mutable
+   --> /home/ccheever/projects/sb4-s1sk/snapback4/crates/snapback4-device/src/device.rs:464:51
+    |
+464 |     #[allow(unreachable_code)] fn open_store_mode(mut store: S, backend: Option<Backend>, initial: bool) -> Result<Self, RuntimeErr...
+    |                                                   ----^^^^^
+    |                                                   |
+    |                                                   help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-device` (lib) generated 1 warning (run `cargo fix --lib -p snapback4-device` to apply 1 suggestion)
+   Compiling snapback4-postgres-evaluation v0.1.0 (/home/ccheever/projects/sb4-s1sk/snapback4/experiments/postgres)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3m 20s
+     Running unittests src/lib.rs (target/debug/deps/snapback4_postgres_evaluation-6a8b315e96930e0d)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (target/debug/deps/snapback4_postgres_evaluation-11a5416d528c90c0)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/conformance.rs (target/debug/deps/conformance-01e7b4538ebdf789)
+
+running 18 tests
+test fixture_compiles ... ok
+test existing_or_unsafe_namespace_is_never_overwritten_and_unsupported_backends_refuse ... ok
+test concurrent_mismatching_receipts_admit_one_binding_and_replay_only_its_arguments ... ok
+test racing_refused_operations_replay_one_receipt_without_advancing_head ... ok
+test real_quarry_queries_mutations_cursors_rules_defaults_maintains_and_receipts_match_sqlite ... ok
+Serialized: 65 increments, no lost updates, 0 transaction retries
+test readers_observe_matching_rows_and_watermarks_while_a_writer_commits ... ok
+
+thread 'wide_index_key_has_the_same_portable_refusal_on_both_stores' (1569020) panicked at tests/conformance.rs:427:99:
+called `Result::unwrap()` on an `Err` value: Postgres(Error { kind: Closed, cause: None })
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test wide_index_key_has_the_same_portable_refusal_on_both_stores ... FAILED
+
+thread 'snapshot_stream_membership_revoke_rejoin_and_whole_commit_paging_match_sqlite' (1568941) panicked at tests/conformance.rs:17:93:
+called `Result::unwrap()` on an `Err` value: Postgres(Error { kind: Db, cause: Some(DbError { severity: "FATAL", parsed_severity: Some(Fatal), code: SqlState(E57P01), message: "terminating connection due to administrator command", detail: None, hint: None, position: None, where_: None, schema: None, table: None, column: None, datatype: None, constraint: None, file: Some("postgres.c"), line: Some(3328), routine: Some("ProcessInterrupts") }) })
+test snapshot_stream_membership_revoke_rejoin_and_whole_commit_paging_match_sqlite ... FAILED
+
+thread 'prefetch::aliases_derived_pages_mutation_invalidation_and_conflict_reread' (1568775) panicked at tests/conformance/prefetch.rs:11:99:
+called `Result::unwrap()` on an `Err` value: Postgres(Error { kind: Db, cause: Some(DbError { severity: "FATAL", parsed_severity: Some(Fatal), code: SqlState(E57P01), message: "terminating connection due to administrator command", detail: None, hint: None, position: None, where_: None, schema: None, table: None, column: None, datatype: None, constraint: None, file: Some("postgres.c"), line: Some(3328), routine: Some("ProcessInterrupts") }) })
+test prefetch::aliases_derived_pages_mutation_invalidation_and_conflict_reread ... FAILED
+
+thread 'prefetch::word_entries_and_truncated_query_terms_match_sqlite' (1568780) panicked at tests/conformance/prefetch.rs:11:99:
+called `Result::unwrap()` on an `Err` value: Postgres(Error { kind: Db, cause: Some(DbError { severity: "FATAL", parsed_severity: Some(Fatal), code: SqlState(E57P01), message: "terminating connection due to administrator command", detail: None, hint: None, position: None, where_: None, schema: None, table: None, column: None, datatype: None, constraint: None, file: Some("postgres.c"), line: Some(3328), routine: Some("ProcessInterrupts") }) })
+
+thread 'concurrent_read_modify_write_and_duplicate_ops_are_atomic_in_both_modes' (1568772) panicked at tests/conformance.rs:17:93:
+called `Result::unwrap()` on an `Err` value: Postgres(Error { kind: Db, cause: Some(DbError { severity: "FATAL", parsed_severity: Some(Fatal), code: SqlState(E57P01), message: "terminating connection due to administrator command", detail: None, hint: None, position: None, where_: None, schema: None, table: None, column: None, datatype: None, constraint: None, file: Some("postgres.c"), line: Some(3328), routine: Some("ProcessInterrupts") }) })
+test concurrent_read_modify_write_and_duplicate_ops_are_atomic_in_both_modes ... FAILED
+test prefetch::word_entries_and_truncated_query_terms_match_sqlite ... FAILED
+
+thread 'prefetch::prefetch_complete_fixture_queries_mutations_and_hidden_rows' (1568777) panicked at tests/conformance/prefetch.rs:11:99:
+called `Result::unwrap()` on an `Err` value: Postgres(Error { kind: Db, cause: Some(DbError { severity: "FATAL", parsed_severity: Some(Fatal), code: SqlState(E57P01), message: "terminating connection due to administrator command", detail: None, hint: None, position: None, where_: None, schema: None, table: None, column: None, datatype: None, constraint: None, file: Some("postgres.c"), line: Some(3328), routine: Some("ProcessInterrupts") }) })
+test prefetch::prefetch_complete_fixture_queries_mutations_and_hidden_rows ... FAILED
+
+thread 'receipt_bindings_match_sqlite_before_lookup_and_validation' (1568910) panicked at tests/conformance.rs:17:93:
+called `Result::unwrap()` on an `Err` value: Postgres(Error { kind: Db, cause: Some(DbError { severity: "FATAL", parsed_severity: Some(Fatal), code: SqlState(E57P01), message: "terminating connection due to administrator command", detail: None, hint: None, position: None, where_: None, schema: None, table: None, column: None, datatype: None, constraint: None, file: Some("postgres.c"), line: Some(3328), routine: Some("ProcessInterrupts") }) })
+test receipt_bindings_match_sqlite_before_lookup_and_validation ... FAILED
+
+thread 'prefetch::prefetch_every_charge_position_and_early_cut_matches_complete_outcomes' (1568778) panicked at tests/conformance/prefetch.rs:11:99:
+called `Result::unwrap()` on an `Err` value: Postgres(Error { kind: Db, cause: Some(DbError { severity: "FATAL", parsed_severity: Some(Fatal), code: SqlState(E57P01), message: "terminating connection due to administrator command", detail: None, hint: None, position: None, where_: None, schema: None, table: None, column: None, datatype: None, constraint: None, file: Some("postgres.c"), line: Some(3328), routine: Some("ProcessInterrupts") }) })
+test prefetch::prefetch_every_charge_position_and_early_cut_matches_complete_outcomes ... FAILED
+
+thread 'version_one_and_two_evaluation_stores_are_refused_instead_of_being_adopted' (1568947) panicked at tests/conformance.rs:323:69:
+called `Result::unwrap()` on an `Err` value: Postgres(Error { kind: Db, cause: Some(DbError { severity: "FATAL", parsed_severity: Some(Fatal), code: SqlState(E57P01), message: "terminating connection due to administrator command", detail: None, hint: None, position: None, where_: None, schema: None, table: None, column: None, datatype: None, constraint: None, file: Some("postgres.c"), line: Some(3328), routine: Some("ProcessInterrupts") }) })
+
+thread 'rollback_covers_rows_indexes_maintains_log_head_outbox_and_receipt' (1568925) panicked at tests/conformance.rs:17:93:
+called `Result::unwrap()` on an `Err` value: Postgres(Error { kind: Db, cause: Some(DbError { severity: "FATAL", parsed_severity: Some(Fatal), code: SqlState(E57P01), message: "terminating connection due to administrator command", detail: None, hint: None, position: None, where_: None, schema: None, table: None, column: None, datatype: None, constraint: None, file: Some("postgres.c"), line: Some(3328), routine: Some("ProcessInterrupts") }) })
+test version_one_and_two_evaluation_stores_are_refused_instead_of_being_adopted ... FAILED
+test rollback_covers_rows_indexes_maintains_log_head_outbox_and_receipt ... FAILED
+
+thread 'prefetch::expiring_maintains_are_unmarked_and_keep_next_expiry_and_live_values' (1568776) panicked at tests/conformance/prefetch.rs:11:99:
+called `Result::unwrap()` on an `Err` value: Postgres(Error { kind: Db, cause: Some(DbError { severity: "FATAL", parsed_severity: Some(Fatal), code: SqlState(E57P01), message: "terminating connection due to administrator command", detail: None, hint: None, position: None, where_: None, schema: None, table: None, column: None, datatype: None, constraint: None, file: Some("postgres.c"), line: Some(3328), routine: Some("ProcessInterrupts") }) })
+test prefetch::expiring_maintains_are_unmarked_and_keep_next_expiry_and_live_values ... FAILED
+
+thread 'prefetch::rows_beyond_prefetch_byte_budget_have_identical_results' (1568779) panicked at tests/conformance/prefetch.rs:11:99:
+called `Result::unwrap()` on an `Err` value: Postgres(Error { kind: Db, cause: Some(DbError { severity: "FATAL", parsed_severity: Some(Fatal), code: SqlState(E57P01), message: "terminating connection due to administrator command", detail: None, hint: None, position: None, where_: None, schema: None, table: None, column: None, datatype: None, constraint: None, file: Some("postgres.c"), line: Some(3328), routine: Some("ProcessInterrupts") }) })
+test prefetch::rows_beyond_prefetch_byte_budget_have_identical_results ... FAILED
+
+failures:
+
+failures:
+    concurrent_read_modify_write_and_duplicate_ops_are_atomic_in_both_modes
+    prefetch::aliases_derived_pages_mutation_invalidation_and_conflict_reread
+    prefetch::expiring_maintains_are_unmarked_and_keep_next_expiry_and_live_values
+    prefetch::prefetch_complete_fixture_queries_mutations_and_hidden_rows
+    prefetch::prefetch_every_charge_position_and_early_cut_matches_complete_outcomes
+    prefetch::rows_beyond_prefetch_byte_budget_have_identical_results
+    prefetch::word_entries_and_truncated_query_terms_match_sqlite
+    receipt_bindings_match_sqlite_before_lookup_and_validation
+    rollback_covers_rows_indexes_maintains_log_head_outbox_and_receipt
+    snapshot_stream_membership_revoke_rejoin_and_whole_commit_paging_match_sqlite
+    version_one_and_two_evaluation_stores_are_refused_instead_of_being_adopted
+    wide_index_key_has_the_same_portable_refusal_on_both_stores
+
+test result: FAILED. 6 passed; 12 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.58s
