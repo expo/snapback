@@ -6,6 +6,7 @@ V1 = '''use identity
 table notes:
   n: int
   memo: json <=100 ?
+  site: text <=200 format url ?
   by byN: n, id
   public
   insert <- allow
@@ -16,8 +17,8 @@ table retired:
   public
   insert <- allow
   online only
-mutation put(key: id, n: int, memo: json <=100 ?):
-  upsert notes[key] {n, memo}
+mutation put(key: id, n: int, memo: json <=100 ?, site: text <=200 format url ?):
+  upsert notes[key] {n, memo, site}
   return n
 mutation archive(key: id, text: text <=100):
   insert retired {id: key, text}
@@ -58,13 +59,16 @@ query ordered():
   return notes where .count = 7 first 10 by byCount
 '''
 
+V3 = V1.replace('  memo: json <=100 ?\n', '  memo: json <=100 ?\n  extra: text <=100 ?\n  count: int default 7\n')
+
 def witness(h, pg_url):
     work, cli, start, stop, http = (h[k] for k in ('WORK','cli','start','stop','http'))
     transcripts = {}
     for backend, target in [('postgres', pg_url), ('sqlite', None)]:
         deployment = work / ('ev1-' + backend)
         records = []
-        for version, source in [(1,V1),(2,V2),(3,V1)]:
+        assert V3 != V1 and 'format url ?' in V3
+        for version, source in [(1,V1),(2,V2),(3,V3)]:
             (work/'app/snapback/schema.q').write_text(source)
             args = ['deploy', str(deployment)]
             if version == 3: args += ['--restore-dormant']
@@ -87,8 +91,8 @@ def witness(h, pg_url):
             def query(name, args):
                 return capture(f'v{version} q {name}',http(base,'POST','/q/'+name,{'args':args},token))
             if version == 1:
-                assert mutate('put','ev1-a',{'key':'a','n':2,'memo':'雪\0exact'})['state']=='sent'
-                assert mutate('put','ev1-b',{'key':'b','n':1,'memo':None})['state']=='sent'
+                assert mutate('put','ev1-a',{'key':'a','n':2,'memo':'雪\0exact','site':'https://example.com'})['state']=='sent'
+                assert mutate('put','ev1-b',{'key':'b','n':1,'memo':None,'site':None})['state']=='sent'
                 assert mutate('archive','ev1-z',{'key':'z','text':'retained row'})['state']=='sent'
                 first = query('peek',{'key':'a'})['data']
                 archived = query('archived',{'key':'z'})['data']
@@ -100,7 +104,7 @@ def witness(h, pg_url):
                 assert mutate('add','ev1-new',{'key':'new','n':9})['state']=='sent'
                 assert query('addedRow',{'key':'new'})['data']['n']==9
             else:
-                assert query('peek',{'key':'a'})['data']==first
+                assert query('peek',{'key':'a'})['data']==dict(first,extra=None,count=7)
                 assert query('archived',{'key':'z'})['data']==archived
                 assert [r['n'] for r in query('ordered',{})['data']]==[1,2]
             stop(child)

@@ -1,59 +1,168 @@
 # P1-EV-1 — ordinary Postgres release evolution
 
-## Fix round 1 — 2026-10-23 (stopped)
+## Fix round 1 — 2026-10-23 (lead ruling applied)
 
-Base under test: `1875a9e77ff380cf6f51a4b724bb42e4b22445a8` on
-`sb4-pg/p1-ev1`. **SQLite admits a case the brief requires to refuse.**
-The author's instruction was: “if SQLite itself admits one of the refused
-cases, stop and report that rather than diverging.” Implementation stopped
-on that condition; this round does not claim the review findings are fixed.
+Continuation base: `2e2bfe600b`; production baseline: `1875a9e77f`.
+Local commit only; no push, stash or git configuration change. The prior
+stopped attempt is superseded by the lead ruling: Postgres restore
+admission is bounded by the equivalent in-place edit on its retained
+predecessor and requires an identical retained column definition. SQLite's
+broader admission is not a semantic divergence when it also admits the edit
+in place. This round changes no SQLite production code.
 
-The focused in-process SQLite witness compiles these three releases and seeds
-parent `p` plus child `c` before retiring the column:
+### 1. Complete retained definitions and admission
 
-```quarry
--- v1: children.item
-item: parents ? on delete restrict
--- v2: children.item omitted
--- v3: children.item, with restore_dormant = true
-item: parents ? on delete keep
-```
+The Postgres ledger now retains kind, default, authoritative ownership,
+optional engine capture source (all fields of SQLite's dormant record),
+deletion policy and per-column text constraints. Restoration compares those
+fields before initialization or release preparation. Type/default/constraint
+changes refuse `evolution-narrowing`; deletion-policy/ownership changes refuse
+`evolution-authority`. An identical optional formatted-text definition restores.
+Logical unique constraints remain index definitions, with group validation.
 
-`Engine::adopt_release_at` returns `Ok(3)` for v3. Generation becomes 3 and
-the raw restored child contains `{id: Id("c"), item: Id("p")}`. The witness
-asserting refusal therefore fails on the old tip (one failed test, exit 101).
-No production source file was changed. The exact temporary test source is
-`/tmp/sb4-p1ev1-fix1/ev1_fix1_probe.rs`; it was copied into the existing core
-test directory solely for compilation and removed after the run. Its command:
+The same nine cases run independently in place and across retirement on both
+stores. Invalid text is included so row validation cannot mask a missing static
+refusal. Refused attempts preserve generation, raw rows and dormant inventory;
+a subsequent identical restoration still succeeds. A separate Postgres witness
+uses a nontransactional sequence and schema-scoped DDL event trigger on the
+preparation initializer, plus a
+positive identical-restore control to observe attempted writes even if they
+would roll back.
 
-```sh
-cargo test --locked -j 4 -p snapback4-core --test ev1_fix1_probe -- --nocapture
-```
+| Column definition | SQLite in-place | SQLite retire/restore | Postgres in-place / restore |
+| --- | --- | --- | --- |
+| `parents ? on delete restrict` → `parents ? on delete keep` | Admit, generation 2 | Admit, generation 3; parent id preserved | Both `evolution-authority` |
+| `parents ? on delete cascade` → `parents ?` (implicit restrict) | Admit | Admit; parent id preserved | Both `evolution-authority` |
+| `text <=100` → `text <=100 format email`, conforming value | Admit | Admit; value preserved | Both `evolution-narrowing` |
+| Same format change, value `x` | Admit; row hidden | Admit; row hidden | Both statically `evolution-narrowing`, never row-validation `E_ADOPT` |
+| `text <=100` → `text 8..100`, conforming value | Admit | Admit; value preserved | Both `evolution-narrowing` |
+| Same minimum change, value `x` | Admit; row hidden | Admit; row hidden | Both statically `evolution-narrowing` |
+| Identical `text <=200 format url ?` | Admit without generation change | Admit; exact value restored | Admit / admit |
+| `int default 7` → `int default 8` | Admit | Admit | Both `evolution-narrowing` |
+| `int ?` → `int`, historical non-null value | Admit | Admit | Both `evolution-narrowing` |
 
-Both Cargo attempts used only this worktree's target, four jobs and exported
-`CARGO_PROFILE_DEV_DEBUG=line-tables-only` /
-`CARGO_PROFILE_TEST_DEBUG=line-tables-only`. The initial multi-case probe
-already demonstrated this admission, then hit a cascade fixture's missing
-product-bound diagnostic; that attempt establishes no cascade verdict. The
-focused rerun contains only the valid restrict-to-keep case and fails at its
-expected-refusal assertion. Source, logs and process receipts are retained
-under `/tmp/sb4-p1ev1-fix1/`, outside Git.
+No case has SQLite refusing in place while admitting restore, so no SQLite
+admission-loophole ticket is needed under the ruling. Text minimum syntax is
+`text 8..100`; the brief's `min 8` denotes the same constraint but is not Quarry
+syntax. Parent deletion is not an authored entry point in the cascade fixture,
+so the test does not invent an unrelated product cap.
 
-| Requested item | This round's result |
+### 2. Stored bytes after restore
+
+The shared raw-row witness implements `{id,n,memo}` → retire memo and add
+`extra?`/`count default 7` → restore memo while retaining those additions.
+SQLite physically adds `extra = null` and `count = 7` on the final restore;
+Postgres keeps both absent and restores the exact memo, including Unicode/NUL.
+The two interpreted query rows are identical, including both siblings. This
+round keeps Postgres's sparse bytes because §3.5 explicitly requires new
+optionals/defaults to remain physically absent. `row_image` supplies those
+values for reads and index construction, making the distinction unobservable
+in application wire rows (raw owner inspection can see it).
+
+The [SQLite follow-up](../../../issues/20261023-snapback4-sqlite-restore-materializes-sibling-defaults.md)
+records the reproduction and required preservation of physical absence. SQLite
+is unchanged. The differential witness pins the current raw difference and
+identical interpreted results rather than silently asserting raw parity.
+
+### 3. Witness gaps and baseline failures
+
+Default-only and optional→required cases now run both in place and after a
+column drop. Deletion policies and text format/minimum changes have dedicated
+cases. The public v3 keeps v2's `extra`/`count` declarations while restoring
+memo, the retired table and an identical optional URL field; v3 differs from
+v1. It compares full normalized response bytes and checks exact restored data.
+The first complete public run passes: 13 responses, 2,819 bytes per store,
+SHA-256 `b24af6ef8cb10d1a329319647c2ed133109853e5f83092952802daac4690cfa1`.
+Only store id, wall time and the independently checked minted guest viewer
+are excluded; generation, sequences, data, scopes and cursors remain compared.
+
+On unchanged `1875a9e77f` production code, the complete expanded Rust target
+has 28 passes and three failures: restrict→keep restoration wrongly returns
+`Ok(3)`, cascade-column retirement refuses `release-activation` before it can
+reach the restore probe, and identical URL restoration returns
+`evolution-narrowing`. Cascade retirement now excludes schema-derived
+action-event prices from residual declaration comparison; input derivation and
+executable facts remain independently checked. This permits its identical
+restore and the changed-policy static refusal to be exercised. The
+expanded public witness independently fails v3 deploy with that same URL
+refusal. The old raw-row comparison demonstrates unequal stored rows, while
+the interpreted rows match. Default/requiredness and static changed-text
+refusals already pass on the baseline; they close coverage gaps rather than
+claiming new product fixes. The initial minimum probe used invalid syntax and
+was corrected before collecting the complete verdict table. An initial
+preparation probe used the retained evaluator (whose `evolution` refusal is
+intentional); it is not qualification of the common Engine.
+
+### Checks and custody
+
+Qualification is complete. The broad binary failures below remain explicitly
+unresolved; every affected evolution/release check passes.
+Every Cargo command uses this worktree's target, four jobs, and exported
+line-tables-only dev/test profiles. Evidence, logs and PID traces remain under
+`/tmp/sb4-p1ev1-fix1/`; public harness scratch is also under `/tmp/`.
+The seven old committed JSONL traces were already removed by `2e2bfe600b`;
+none remain tracked under this report directory. No raw evidence is added.
+
+| Check | Fix-round result |
 | --- | --- |
-| Complete retained definitions/static refusal | Stopped: SQLite admits restrict → retire → keep. Its dormant `Column` contains kind, default, ownership and optional capture source, but no deletion policy or text constraints. No Postgres divergence introduced. |
-| Other SQLite restore verdicts | Cascade → omitted, text → email/minimum and identical optional URL round trip were not evaluated after the stop condition. |
-| Raw stored-row comparison/decision | Deferred; no change to either store and no new stored-byte qualification or SQLite ticket. |
-| Default/requiredness and expanded public witness | Deferred with implementation. |
-| Build, no-default check, full core, evolution/maintained/release targets, affected binary tests, RT0 and Postgres script | Not run for this stopped round. Prior results below are historical, not new qualification. Both RT0 tables remain unchanged. |
+| `cargo build --locked -j 4 -p snapback4` | Pass; the Postgres script also rebuilds the final CLI |
+| Core no-default-features check | Pass |
+| Full default core, `--no-fail-fast` | Pass: 1,102 passes, five existing ignores; 1,909.71 seconds |
+| Dual-store evolution target | Pass: 31/31, zero ignores |
+| Nontransactional preparation witness | Pass: all four refused changes leave the marker untouched; identical restores advance it |
+| Maintained-column scope | Pass: 9/9 (the eight prior oracles plus the committer member test) |
+| Core release contract | Pass: 21/21 |
+| Affected binary release lifecycle | Pass: 12 passes, one existing ignore |
+| Both RT0 ratchets | Pass: every one of the 24 warm cells equals the original-round table below; no table, budget or allowance changes |
+| Guide target | Pass: 127/127, including the clarified Postgres restore guidance |
+| Complete public harness | Pass: 422.04 seconds, including expanded EV-1 on both stores, recovery, ownership, P1-CE and P1-MC |
+| Broad binary sweep | 1,424 passes, 13 failures, 20 ignores; classification below |
+| `bash scripts/test-postgres.sh` | Pass: 431 Rust passes, zero failures/ignores, plus the complete public harness; 1,708.44 seconds |
+| Root `./ref-check` | Pass: 565 LLPs, 11,779 refs, zero errors/unchecked; repeated after final report/journal |
 
-No Postgres cluster or server was started, and PG17/55440 was untouched.
-All recorded probe processes exited and were confirmed absent. Disk samples
-remained above 40 GB. The seven previously committed `*.jsonl` process traces
-were copied to `/tmp/sb4-p1ev1-fix1/prior-jsonl/` and removed from Git as
-requested. Only documentation and those deletions are committed; no push,
-stash or git config change. Reference/whitespace validation for this report
-is recorded in the journal entry.
+The broad binary command completes with **1,424 passes, 13 failures and 20
+ignores**. Counts use the final summary for each Cargo target, excluding
+nested child-test summaries already represented by their parent target.
+The failures are:
+
+- Two clock cases already recorded in the original round: expiry-drain
+  `WouldBlock` and the large-report size assertion.
+- Four supplied reservation fixtures: two init residency cases and two
+  timeline adoption cases report `source reservations differ from the schema
+  derivation`.
+- The inherited `dev_worker_tests.rs` census mismatch (four sites versus
+  listed zero), already fixed on main as `a044e8d606`; no allowance or fixture
+  is changed in this lane.
+- The supplied web witness missing-`E_INPUT` assertion.
+- HTTP committer and live-dev ownership timing failures. Both pass in
+  isolation without source changes (one test each).
+- Three security-wave19 cases. A serial rerun passes ten of eleven tests,
+  including the missing-record and private-serve-preparation cases that
+  failed in the broad run. `check_refutes_excluded_contact_roles_before_any_full_test`
+  still fails: check returns success with zero refuted/two unproved invariants
+  instead of the expected generated counterexample. This source and the
+  security implementation are unchanged; it remains an unresolved result
+  outside the Postgres evolution scope, not a claimed pass.
+  The [qualification follow-up](../../../issues/20261023-snapback4-security-wave19-contact-refutation-qualification.md)
+  records the reproduction without claiming an application disclosure.
+
+
+Final script qualification rebuilds the shipped CLI and repeats the complete
+public harness. Its final EV-1 transcripts are again exactly 2,819 bytes and
+have the same SHA-256 recorded above. The evaluator stress passes both modes:
+65 increments each, no lost updates, 110 Serializable retries. No ignored
+stress test is counted as qualification. The complete script is green.
+
+All **four owned private PG16 clusters** are independently stopped: `pg_ctl
+status = 3`, no `postmaster.pid`, and no recorded postmaster present. The final
+audit checks **2,716 unique recorded PIDs**, all absent, and finds
+no executable remaining from this worktree's target. Public harness logs,
+wire transcripts and process evidence are copied under
+`/tmp/sb4-p1ev1-fix1/public-evidence/`; the custody receipt is
+`/tmp/sb4-p1ev1-fix1/final-custody.json`. Final sampled free space is
+231.60 GiB; no disk guard crossed 40 GiB. PostgreSQL 17 on
+55440 and other sessions' clusters were untouched. No push, stash or Git
+configuration change. Whitespace and final reference validation pass.
 
 ## Original round qualification
 

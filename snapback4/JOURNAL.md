@@ -102956,3 +102956,67 @@ debug profiles and four jobs. No Postgres cluster/server was started; all
 recorded probe/compiler processes are confirmed absent. Disk samples stayed
 above 40 GB. PG17/55440 and other sessions' clusters were untouched. Local
 commit only; no push, stash or git config change.
+
+## 2026-10-23 — P1-EV-1 fix round 1 continuation: retained definitions and lead ruling
+
+Applied the lead ruling after the stop at `2e2bfe600b`: Postgres restoration
+stays within its equivalent in-place admission and requires an identical
+retained column definition. The ledger now includes ownership/capture source,
+deletion policy and text constraints alongside type/default. Changed policies
+refuse `evolution-authority`; changed type/default/requiredness/text constraints
+refuse `evolution-narrowing`, before initialization/preparation writes. Identical
+optional URL text restores. Cascade retirement also excludes schema-derived
+event prices from residual declarations while retaining input derivation and
+executable-fact checks.
+
+SQLite admits all nine tested edits both in place and across retirement;
+nonconforming text is hidden in either form. The report has every verdict.
+No admission loophole was found and SQLite production is unchanged. Its restore
+walk physically materializes optional/defaulted siblings; Postgres preserves
+their absence under RFC §3.5. The raw-row witness records that difference and
+identical interpreted queries; the public v3 keeps those sibling additions.
+The SQLite follow-up is
+`issues/20261023-snapback4-sqlite-restore-materializes-sibling-defaults.md`.
+
+On unchanged `1875a9e77f` production, the expanded target has three failures:
+restrict→keep restore wrongly admits, cascade retirement refuses before the
+restore probe, and identical URL restore wrongly refuses. The expanded public
+v3 independently fails on the old URL refusal. Baseline raw rows also differ
+across stores while interpreted rows match. Default-only, optional→required
+and valid/invalid text cases close the remaining witness gaps. A
+nontransactional DDL-event sequence witness confirms all four changed-definition
+refusals precede preparation; identical restores are its positive controls.
+
+Build and no-default check pass. Full core passes 1,102 tests with five
+existing ignores; evolution passes 31, the preparation witness one,
+maintained-column scope nine, core release contract 21, binary release
+lifecycle 12 (one existing ignore), and guide 127. Both RT0 ratchets reproduce
+all 24 original warm cells with unchanged tables/allowances. The complete
+public harness passes; its 13 EV-1 responses match across stores, 2,819 bytes,
+SHA-256 `b24af6ef8cb10d1a329319647c2ed133109853e5f83092952802daac4690cfa1`.
+
+The broad binary sweep has 1,424 passes, 13 failures and 20 ignores. Known
+clock, reservation, web and census failures remain; the census fix on main
+is not pulled into this lane. HTTP committer and ownership timing failures
+pass alone. Security-wave19 passes ten of eleven tests serially; its contact
+refutation expectation remains unresolved in a separate qualification ticket.
+No unrelated implementation or allowance is changed. The
+[report](reports/20261023-p1-ev1-schema-evolution/REPORT.md) records exact scopes
+and diagnostics, including corrected development probes.
+
+The required Postgres script passes completely: 431 Rust passes with zero
+failures/ignores, plus its complete public harness, in 1,708.44 seconds. Its
+stress has 65 increments per mode with no lost updates and 110 Serializable
+retries. Final EV-1 wire bytes retain the same length/hash above. Root
+`./ref-check` passes after this entry: 565 LLPs, 11,779 refs, zero errors and
+unchecked; whitespace validation passes.
+
+All Cargo commands use only the authorized target, four jobs and exported
+line-tables-only dev/test profiles. The seven JSONL traces were removed in
+the stopped-attempt commit; no raw logs or PID traces are added. Evidence
+and copied public harness artifacts remain under `/tmp/sb4-p1ev1-fix1/`.
+All four owned private PG16 clusters are independently stopped (status 3, no
+pidfile, absent postmasters); all 2,716 recorded PIDs are absent,
+and no target executable remains. Final sampled free space is
+231.60 GiB; no guard crossed 40 GiB. PG17/55440 and other
+sessions' clusters were untouched. Local commit only; no push, stash or git configuration change.

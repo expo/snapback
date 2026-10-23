@@ -76,6 +76,93 @@ impl Drop for Harness {
             .unwrap();
     }
 }
+
+#[test]
+fn retained_column_refusals_precede_preparation_writes() {
+    let Ok(url) = std::env::var("SNAPBACK4_EVAL_POSTGRES") else {
+        return;
+    };
+    let compile = |declaration: Option<&str>| -> (Schema, Vec<Program>) {
+        let source = format!(
+            "table parents:\n  n: int\n  public\n  online only\ntable children:\n{}  public\n  online only\n",
+            declaration.map_or(String::new(), |d| format!("  item: {d}\n"))
+        );
+        let b = snapback4_lang::compile(&[("schema.q".into(), source)]);
+        assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+        (
+            serde_json::from_value(serde_json::to_value(b.schema).unwrap()).unwrap(),
+            b.programs
+                .into_iter()
+                .map(|p| serde_json::from_value(serde_json::to_value(p.program).unwrap()).unwrap())
+                .collect(),
+        )
+    };
+    for (before, after, family) in [
+        (
+            "parents ? on delete restrict",
+            "parents ? on delete keep",
+            "evolution-authority",
+        ),
+        (
+            "parents ? on delete cascade",
+            "parents ?",
+            "evolution-authority",
+        ),
+        (
+            "text <=100",
+            "text <=100 format email",
+            "evolution-narrowing",
+        ),
+        ("text <=100", "text 8..100", "evolution-narrowing"),
+    ] {
+        let name = format!("sb4_ev1_preparation_{:x}", crate::ids::seed());
+        let store = crate::store_port::AnyStore::create_postgres(&url, &name).unwrap();
+        let (s, p) = compile(Some(before));
+        let mut e = crate::Engine::new_release(store, s, p, 1, None).unwrap();
+        let (s, p) = compile(None);
+        e.adopt_release_at(s, p, &ReleaseActivation::new(2, Some(1)), false, 1000)
+            .unwrap();
+        let mut client = Client::connect(&url, postgres::NoTls).unwrap();
+        client
+            .batch_execute(&format!("SET search_path = \"{name}\", pg_catalog"))
+            .unwrap();
+        // Sequence advancement survives rollback. This observes attempted writes,
+        // unlike a post-error comparison of transactional state alone. The cap
+        // initializer issues DDL before release preparation. Use a schema-scoped
+        // database event trigger: relation triggers correctly fail shape checks.
+        client.batch_execute(&format!("CREATE SEQUENCE preparation_writes; CREATE FUNCTION mark_preparation() RETURNS event_trigger LANGUAGE plpgsql AS $$ BEGIN IF current_schema() = '{name}' THEN PERFORM nextval('{name}.preparation_writes'); END IF; END $$; CREATE EVENT TRIGGER {name} ON ddl_command_start EXECUTE FUNCTION mark_preparation();")).unwrap();
+        let (s, p) = compile(Some(after));
+        let mut options = ReleaseActivation::new(3, Some(2));
+        options.restore_dormant = true;
+        let result = e.adopt_release_at(s, p, &options, false, 1000);
+        assert!(
+            !client
+                .query_one("SELECT is_called FROM preparation_writes", &[])
+                .unwrap()
+                .get::<_, bool>(0),
+            "preparation wrote before {result:?}"
+        );
+        assert!(
+            matches!(result,Err(RuntimeError::StoreUnsupported {family: f}) if f==family),
+            "{before} -> {after}: {result:?}"
+        );
+        assert_eq!(e.generation(), 2);
+        // Positive control: an identical restoration reaches preparation and
+        // advances the same nontransactional marker.
+        let (s, p) = compile(Some(before));
+        e.adopt_release_at(s, p, &options, false, 1000).unwrap();
+        assert!(
+            client
+                .query_one("SELECT is_called FROM preparation_writes", &[])
+                .unwrap()
+                .get::<_, bool>(0)
+        );
+        drop(e);
+        client
+            .batch_execute(&format!("DROP SCHEMA \"{name}\" CASCADE"))
+            .unwrap();
+    }
+}
 impl Lifecycle for Harness {
     fn executed_version(&mut self) -> crate::Value {
         self.engine

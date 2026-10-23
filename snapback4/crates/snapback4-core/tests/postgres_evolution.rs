@@ -67,6 +67,233 @@ fn release(e: &mut Engine, source: &str, n: u64, restore: bool) -> Result<u64, R
     options.restore_dormant = restore;
     e.adopt_release_at(s, p, &options, false, 1000)
 }
+
+// @ref LLP 3000.009.001.000#3.5 — retirement cannot widen Postgres admission beyond the equivalent in-place edit.
+fn restore_definition_case(store: AnyStore, case: &str, postgres: bool, restore: bool) {
+    let (before, after, value, family) = match case {
+        "restrict_keep" => (
+            "parents ? on delete restrict",
+            "parents ? on delete keep",
+            id("p"),
+            Some("evolution-authority"),
+        ),
+        "cascade_omitted" => (
+            "parents ? on delete cascade",
+            "parents ?",
+            id("p"),
+            Some("evolution-authority"),
+        ),
+        "email_valid" => (
+            "text <=100",
+            "text <=100 format email",
+            Value::String("long@example.com".into()),
+            Some("evolution-narrowing"),
+        ),
+        "email_invalid" => (
+            "text <=100",
+            "text <=100 format email",
+            Value::String("x".into()),
+            Some("evolution-narrowing"),
+        ),
+        "min_valid" => (
+            "text <=100",
+            "text 8..100",
+            Value::String("long enough".into()),
+            Some("evolution-narrowing"),
+        ),
+        "min_invalid" => (
+            "text <=100",
+            "text 8..100",
+            Value::String("x".into()),
+            Some("evolution-narrowing"),
+        ),
+        "identical_url" => (
+            "text <=200 format url ?",
+            "text <=200 format url ?",
+            Value::String("https://example.com".into()),
+            None,
+        ),
+        "default_only" => (
+            "int default 7",
+            "int default 8",
+            Value::Int(7),
+            Some("evolution-narrowing"),
+        ),
+        "optional_required" => ("int ?", "int", Value::Int(7), Some("evolution-narrowing")),
+        _ => unreachable!(),
+    };
+    // No authored parent delete entry point: cascade needs no unrelated product cap.
+    let source = |decl: Option<&str>| {
+        format!(
+            "table parents:\n  n: int\n  public\n  insert <- allow\n  online only\ntable children:\n{}  public\n  insert <- allow\n  online only\n",
+            decl.map_or(String::new(), |d| format!("  item: {d}\n"))
+        )
+    };
+    let (schema, programs) = bound(&source(Some(before)));
+    let mut e = Engine::new_release(store, schema.clone(), programs, 1, None).unwrap();
+    let tx = e.store_mut().transaction().unwrap();
+    tx.put(
+        "parents",
+        &schema.tables["parents"],
+        &object([("id", id("p")), ("n", Value::Int(1))]),
+        None,
+    )
+    .unwrap();
+    tx.put(
+        "children",
+        &schema.tables["children"],
+        &object([("id", id("c")), ("item", value.clone())]),
+        None,
+    )
+    .unwrap();
+    tx.commit().unwrap();
+    if restore {
+        release(&mut e, &source(None), 2, false).unwrap();
+    }
+    let generation = e.generation();
+    let rows = e.store().rows("children").unwrap();
+    let inventory =
+        serde_json::to_value(e.store_mut().dormant_inventory(None, usize::MAX).unwrap()).unwrap();
+    let result = release(
+        &mut e,
+        &source(Some(after)),
+        if restore { 3 } else { 2 },
+        restore,
+    );
+    println!(
+        "{} {case} {}: {result:?}",
+        if postgres { "Postgres" } else { "SQLite" },
+        if restore { "restore" } else { "in-place" }
+    );
+    if postgres && family.is_some() {
+        assert!(
+            matches!(result, Err(RuntimeError::StoreUnsupported {family: f}) if Some(f)==family),
+            "{case}: {result:?}"
+        );
+        assert_eq!(e.generation(), generation);
+        assert_eq!(e.store().rows("children").unwrap(), rows);
+        assert_eq!(
+            serde_json::to_value(e.store_mut().dormant_inventory(None, usize::MAX).unwrap())
+                .unwrap(),
+            inventory
+        );
+        // The identical declaration remains restorable after a rejected attempt.
+        if restore {
+            release(&mut e, &source(Some(before)), 3, true).unwrap();
+        }
+    } else if case.ends_with("invalid") {
+        // SQLite activates both forms and hides nonconforming rows.
+        result.unwrap();
+        println!(
+            "SQLite {case} active rows: {:?}",
+            e.store().rows("children").unwrap()
+        );
+        assert!(e.store().rows("children").unwrap().is_empty());
+        return;
+    } else {
+        result.unwrap();
+    }
+    if restore {
+        assert_eq!(
+            e.store().rows("children").unwrap()[0]
+                .field("item")
+                .unwrap(),
+            &value
+        );
+    }
+}
+
+macro_rules! definition_cases {
+    ($($case:ident),* $(,)?) => { $(
+        mod $case {
+            use super::*;
+            #[test]
+            fn sqlite_in_place_and_restore() {
+                for restore in [false, true] {
+                    restore_definition_case(AnyStore::memory().unwrap(), stringify!($case), false, restore);
+                }
+            }
+            #[cfg(feature="postgres")]
+            #[test]
+            #[ignore = "requires private Postgres; scripts/test-postgres.sh"]
+            fn postgres_in_place_and_restore() {
+                let c = std::env::var("SNAPBACK4_EVAL_POSTGRES").unwrap();
+                for restore in [false, true] {
+                    let store = AnyStore::create_postgres(&c, &format!("sb4_ev1_def_{:x}", snapback4_core::ids::seed())).unwrap();
+                    restore_definition_case(store, stringify!($case), true, restore);
+                }
+            }
+        }
+    )* };
+}
+definition_cases!(
+    restrict_keep,
+    cascade_omitted,
+    email_valid,
+    email_invalid,
+    min_valid,
+    min_invalid,
+    identical_url,
+    default_only,
+    optional_required
+);
+
+fn restored_sibling_bytes(store: AnyStore, postgres: bool) -> (Value, Value) {
+    let (s, p) = bound(V1);
+    let mut e = Engine::new_release(store, s, p, 1, None).unwrap();
+    seed(&mut e);
+    release(&mut e, &v2(), 2, false).unwrap();
+    for row in e.store().rows("notes").unwrap() {
+        assert!(row.field("extra").is_err());
+        assert!(row.field("count").is_err());
+        assert!(row.field("memo").is_err());
+    }
+    let v3 = V1.replace(
+        "  memo: json <=100 ?\n",
+        "  memo: json <=100 ?\n  extra: text <=100 ?\n  count: int default 7\n",
+    );
+    release(&mut e, &v3, 3, true).unwrap();
+    let raw = e.store().rows("notes").unwrap().remove(0);
+    assert_eq!(
+        raw.field("memo").unwrap(),
+        &Value::String("雪\0exact".into())
+    );
+    let mut expected = raw.clone();
+    snapback4_core::schema::materialize_optional_fields(&mut expected, &e.schema().tables["notes"]);
+    assert_eq!(raw.field("extra").is_err(), postgres);
+    assert_eq!(raw.field("count").is_err(), postgres);
+    let interpreted = e
+        .query(
+            "peek",
+            Context::new("alice", [("key".into(), id("a"))].into()).at(1000),
+        )
+        .unwrap()
+        .data;
+    assert_eq!(interpreted, expected);
+    (raw, interpreted)
+}
+#[test]
+fn ev1_sqlite_restored_sibling_bytes() {
+    restored_sibling_bytes(AnyStore::memory().unwrap(), false);
+}
+#[cfg(feature = "postgres")]
+#[test]
+#[ignore = "requires private Postgres; scripts/test-postgres.sh"]
+fn ev1_dual_store_restored_sibling_bytes() {
+    let c = std::env::var("SNAPBACK4_EVAL_POSTGRES").unwrap();
+    let pg = AnyStore::create_postgres(
+        &c,
+        &format!("sb4_ev1_bytes_{:x}", snapback4_core::ids::seed()),
+    )
+    .unwrap();
+    let (sqlite_raw, sqlite_wire) = restored_sibling_bytes(AnyStore::memory().unwrap(), false);
+    let (pg_raw, pg_wire) = restored_sibling_bytes(pg, true);
+    assert_ne!(sqlite_raw, pg_raw);
+    assert_eq!(sqlite_wire, pg_wire);
+    println!(
+        "SQLite stored: {sqlite_raw:?}; Postgres stored: {pg_raw:?}; interpreted: {pg_wire:?}"
+    );
+}
 fn contract(store: AnyStore) {
     let (s, p) = bound(V1);
     let mut e = Engine::new_release(store, s, p, 1, None).unwrap();

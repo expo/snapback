@@ -3,16 +3,37 @@
 use super::store::{Tx, decode};
 use crate::{
     RuntimeError, Schema, Value,
-    schema::{ColumnDefault, ColumnType, Table, materialize_optional_fields},
+    schema::{ColumnDefault, ColumnType, Constraint, Table, materialize_optional_fields, references::OnDelete},
     value::canonical_json,
 };
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize)]
+#[derive(PartialEq, Serialize, Deserialize)]
 pub(super) struct Column {
     pub kind: ColumnType,
     pub default: Option<ColumnDefault>,
     authoritative: bool,
+    capture_source: Option<Table>,
+    pub on_delete: Option<OnDelete>,
+    pub constraints: Vec<Constraint>,
+}
+impl Column {
+    // @ref LLP 3000.009.001.000#3.5 — a retired column retains interpretation and lifetime, not only its value type.
+    pub(super) fn retained(table: &Table, column: &str) -> Self {
+        Self {
+            kind: table.columns[column].clone(),
+            default: table.defaults.get(column).cloned(),
+            authoritative: !table.maintained.contains_key(column) && !table.engine_field(column),
+            capture_source: table.engine_field(column).then(|| table.clone()),
+            on_delete: table.on_delete.get(column).copied(),
+            constraints: table
+                .constraints
+                .iter()
+                .filter(|c| matches!(c, Constraint::Text {field, ..} if field==column))
+                .cloned()
+                .collect(),
+        }
+    }
 }
 fn refusal(message: impl Into<String>) -> RuntimeError {
     RuntimeError::Structural {
@@ -86,11 +107,7 @@ pub(super) fn walk(
     }
 }
 fn definition(tx: &Tx<'_>, name: &str, table: &Table, column: &str) -> Result<(), RuntimeError> {
-    let definition = canonical_json(&Column {
-        kind: table.columns[column].clone(),
-        default: table.defaults.get(column).cloned(),
-        authoritative: true,
-    });
+    let definition = canonical_json(&Column::retained(table, column));
     tx.execute("INSERT INTO _dormant_columns(table_name,column_name,definition) VALUES($1,$2,$3) ON CONFLICT(table_name,column_name) DO UPDATE SET definition=excluded.definition", &[&name,&column,&definition])?;
     Ok(())
 }

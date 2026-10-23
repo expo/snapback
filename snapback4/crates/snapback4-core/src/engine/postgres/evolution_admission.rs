@@ -125,6 +125,12 @@ pub(super) fn admit(previous: &Schema, next: &Schema) -> Result<(), RuntimeError
     }
     old.tables.clear();
     new.tables.clear();
+    // Cascading reference columns carry derived action-event prices even when
+    // no delete operation is authored. Retiring one changes those prices along
+    // with its table definition. Input derivation and executable facts are
+    // checked separately; table-relative prices are not residual declarations.
+    old.source_reservations.clear();
+    new.source_reservations.clear();
     if old != new {
         return Err(refuse("release-activation"));
     }
@@ -142,10 +148,34 @@ pub(super) fn admit(previous: &Schema, next: &Schema) -> Result<(), RuntimeError
 /// Dormant definitions also constrain the transition: restored types cannot
 /// acquire narrowing or a new storage owner through a temporarily absent name.
 pub(super) fn retained(tx: &Tx<'_>, previous: &Schema, next: &Schema) -> Result<(), RuntimeError> {
+    let installed =
+        tx.query("SELECT to_regclass('_dormant_tables') IS NOT NULL", &[])?[0].get::<_, bool>(0);
+    let mut columns = std::collections::BTreeMap::new();
+    if installed {
+        super::evolution_schema::verify(tx)?;
+        for row in tx.query("SELECT table_name,column_name,definition FROM _dormant_columns ORDER BY table_name,column_name", &[])? {
+            let name: String = row.get(0);
+            let column: String = row.get(1);
+            let old: super::evolution::Column = decode(row.get(2))?;
+            if let Some(table) = next.table(&name).filter(|t| t.columns.contains_key(&column)) {
+                if table.maintained.contains_key(&column) || table.engine_field(&column) {
+                    return Err(refuse("evolution-authority"));
+                }
+                let restored = super::evolution::Column::retained(table, &column);
+                if old.kind != restored.kind || old.default != restored.default || old.constraints != restored.constraints {
+                    return Err(refuse("evolution-narrowing"));
+                }
+                if old != restored {
+                    return Err(refuse("evolution-authority"));
+                }
+            }
+            columns.insert((name,column),old);
+        }
+    }
     for (name, table) in &next.tables {
         if let Some(old) = previous.table(name) {
             if table.constraints.iter().any(
-                |c| matches!(c, Constraint::Text {field,..} if !old.columns.contains_key(field)),
+                |c| matches!(c, Constraint::Text {field,..} if !old.columns.contains_key(field) && !columns.contains_key(&(name.clone(),field.clone()))),
             ) {
                 return Err(refuse("evolution-narrowing"));
             }
@@ -155,10 +185,7 @@ pub(super) fn retained(tx: &Tx<'_>, previous: &Schema, next: &Schema) -> Result<
                     && !table.maintained.contains_key(column)
                     && !matches!(table.defaults.get(column), Some(ColumnDefault::Literal(_)))
                 {
-                    let exists: bool = tx
-                        .query("SELECT to_regclass('_dormant_columns') IS NOT NULL", &[])?[0]
-                        .get(0);
-                    if !exists || !tx.query("SELECT EXISTS(SELECT 1 FROM _dormant_columns WHERE table_name=$1 AND column_name=$2)", &[name,column])?[0].get::<_,bool>(0) {
+                    if !columns.contains_key(&(name.clone(), column.clone())) {
                         return Err(refuse("evolution-required-column"));
                     }
                 }
@@ -166,10 +193,9 @@ pub(super) fn retained(tx: &Tx<'_>, previous: &Schema, next: &Schema) -> Result<
         }
     }
     // Older attaches have not installed the ledgers yet; there is no hidden data.
-    if !tx.query("SELECT to_regclass('_dormant_tables') IS NOT NULL", &[])?[0].get::<_, bool>(0) {
+    if !installed {
         return Ok(());
     }
-    super::evolution_schema::verify(tx)?;
     for row in tx.query(
         "SELECT table_name,definition FROM _dormant_tables ORDER BY table_name",
         &[],
@@ -189,16 +215,6 @@ pub(super) fn retained(tx: &Tx<'_>, previous: &Schema, next: &Schema) -> Result<
                     return Err(refuse("evolution-required-column"));
                 }
             }
-        }
-    }
-    for row in tx.query("SELECT table_name,column_name,definition FROM _dormant_columns ORDER BY table_name,column_name", &[])? {
-        let name: String = row.get(0); let column: String = row.get(1);
-        if let Some(table) = next.table(&name).filter(|t| t.columns.contains_key(&column)) {
-            let old: super::evolution::Column = decode(row.get(2))?;
-            if table.columns[&column] != old.kind || table.defaults.get(&column) != old.default.as_ref() {
-                return Err(refuse("evolution-narrowing"));
-            }
-            if table.maintained.contains_key(&column) || table.engine_field(&column) { return Err(refuse("evolution-authority")); }
         }
     }
     Ok(())
