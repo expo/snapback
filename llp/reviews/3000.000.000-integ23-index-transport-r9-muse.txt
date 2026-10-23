@@ -1,0 +1,17 @@
+muse: workspace root: /home/ccheever/projects/snapback-sb4loop (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=ecef4265-fc7b-4c06-ae35-c5e33c06557a]: Subscription quota exhausted. Your usage window resets at 2026-10-26T00:00:00Z. (rate_limit_error)
+[muse-exec] plan quota exhausted; retrying with the Meta API key
+muse: workspace root: /home/ccheever/projects/snapback-sb4loop (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY
+
+The delta at `f6922d049f` (`8c9386eec9..f6922d049f`, read-only) fixes the missed computed-key trigger with no guard weakening or new ordinary-evolution refusal:
+
+- `release_bridge_indexes.rs:43-59` — new shared `same_key` compares complete compiled `Index` (`components` + `unique`, per `schema.rs:727-731`), normalizing only `IndexComponent::Column` through the injective declared map. Calendar/word/contribution contracts compare intact, so `day(at)` vs `day(other)` now differs where the old AST-`columns` check (empty for computed keys) wrongly matched.
+- `release_bridge.rs:22-32,51-52` — registration aligns actual predecessor table identities via `with_table_names` (same construction as `rollback_views.rs:172-179` preparation path), then uses `same_key`. Plain renamed keys still match through the injective map, so ordinary rename/split/defaulted-addition behavior is unchanged; the stricter computed-key case only adds a view, not a refusal.
+- `release_bridge_rules.rs:95-99,100-107` — preparation uses the same `same_key` for carry/removal, including same-name nonunique→unique strengthening. Injectivity failure (`column_names` → `None`) yields `false` → conservative view/carry, never collapse.
+- Column alignment (`asset_renames.rs:18`) rewrites only plain `Column` components, matching `same_key`'s scope; complex renames consistently require current context in both gates (`current_context_needed`, `indexes.rs:27`).
+- `§20.1` text addition (calendar-name paragraph) matches the code; legacy `--exact` + redeploy-with-0.4.39 refusal language is untouched.
+
+Nit (non-material): the changed-meaning same-name key sets the `relaxed` flag, so its change line reads as a relaxation ("permits multiple rows") when it is actually a changed enforcing key. Behavior (remove old, carry current, carry compatible endpoint) is correct; only the message wording is imprecise.
