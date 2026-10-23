@@ -463,3 +463,20 @@ fn a_required_column_rename_does_not_block_an_unrelated_widening_view() {
     app.ok(&["rollback","deployment","--to","1"]);assert_eq!(app.count(),1);
     let data=app.json(&["sql","SELECT quotedAmount FROM items","--release","deployment","--json"]);assert_eq!(data["rows"][0][0],123);
 }
+
+#[test]
+fn ordinary_constraint_rename_with_unchanged_worker_does_not_require_a_view() {
+    let app=App::new();
+    let old="table codes:\n  code: text <=20\n  unique code\n  public\n  online only\ntable records:\n  value: text <=20\n  public\n  after insert <- exists codes[code = .value]\n  online only\ninvariant records.read only true\n";
+    app.source(old);fs::write(app.0.join("snapback/worker.mjs"),"export {};\n").unwrap();
+    app.ok(&["deploy","deployment"]);
+    let next=old.replace("table codes:","table catalog renamed from codes:")
+        .replace("exists codes[","exists catalog[");
+    app.source(&next);
+    let plan=app.json(&["deploy","deployment","--check","--json"]);
+    assert_eq!(plan["rollbackViews"].as_array().unwrap().len(),0);
+    app.ok(&["deploy","deployment"]);
+    let plan=app.json(&["rollback","deployment","--to","1","--check","--json"]);
+    assert_eq!(plan["visibility"]["hiddenRows"],0);
+    app.ok(&["rollback","deployment","--to","1"]);
+}

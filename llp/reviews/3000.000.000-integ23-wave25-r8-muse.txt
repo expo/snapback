@@ -1,0 +1,18 @@
+muse: workspace root: /home/ccheever/projects/snapback-sb4loop (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=7a26ed14-7d3b-4f70-b582-9519c85a54d5]: Subscription quota exhausted. Your usage window resets at 2026-10-26T00:00:00Z. (rate_limit_error)
+READY
+
+Scope reviewed: [llp/3000.000.000-retained-storage-and-hot-release.rfc.md](/home/ccheever/projects/snapback-sb4loop/llp/3000.000.000-retained-storage-and-hot-release.rfc.md) §20 (incl. Integration 23 text), revision `f64ece5896` diff, [release_bridge.rs](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/src/release_bridge.rs), [release_bridge_current.rs](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/src/release_bridge_current.rs) (alpha + guarded), [rollback_foresight.rs](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4/src/verbs/rollback_foresight.rs), `table_renames::schema`, `timeline::is_slot`, guard/rule closure checks, and the legacy refusal wording in `releases.rs`.
+
+Both deltas close real holes without opening a bypass I can construct:
+
+- Authority via `Schema::with_table_names` compares the selective view against current authority in the declared predecessor identity space, fixing the old `name == next.name` skip for renamed tables. Direction is correct (current→old map), failure refuses, and the remap carries authority fields.
+- Guarded-current reuses the same closed, capture-checked alpha adapter before the nullable-gap check; any alpha error refuses, and the existing capture/primitive/unsupported defenses are unchanged.
+- `$timeline:` exclusion uses the shared `is_slot` classifier already treated as compiler-owned across emit/engine/admission, applied only to slot fields; the in-file unit test shows an authored `posts.note` field in the same table still triggers risk.
+
+Legacy refusal names both `rollback --to N --exact` and redeploy with 0.4.39; paused writes name `E_OP` plus a compatibility-endpoint next step.
+
+No material safety or ordinary-evolution flaw found in this bounded contract. No equivalence is claimed; finite tests are regression evidence only.
+
+Nits (non-material, separately): the `is_some_and → false → skip` shape silently skips authority comparison when the aligned table is absent rather than refusing; worth an explicit diagnostic if that state is reachable.

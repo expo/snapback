@@ -18,6 +18,7 @@ pub fn requires_view(target:&[(String,String)],current:&[(String,String)])->bool
     let mut aliases=tables.iter().filter_map(|t|t.renamed_from.as_ref().map(|old|(t.name.clone(),old.clone()))).collect::<BTreeMap<_,_>>();
     for(file,text)in target{for t in parser::parse_document(file,text).0.tables{if let Some(prior)=t.renamed_from{aliases.insert(t.name,prior);}}}
     fn normalize(t:&mut ast::ScalarType,aliases:&BTreeMap<String,String>){match &mut t.kind{TypeKind::Ref{table}=>{let mut seen=std::collections::BTreeSet::new();while let Some(old)=aliases.get(table){if !seen.insert(table.clone()){*table=seen.into_iter().min().unwrap();break}*table=old.clone();}},TypeKind::List{item,..}=>normalize(item,aliases),_=>()}}
+    if super::release_bridge_constraints::relaxed(target,current) {return true;}
     for(file,text)in target {
         for old in parser::parse_document(file,text).0.tables {
             let Some(next)=tables.iter().find(|t|t.name==old.name||t.renamed_from.as_ref()==Some(&old.name)||old.renamed_from.as_ref()==Some(&t.name))else{continue};
@@ -33,7 +34,6 @@ pub fn requires_view(target:&[(String,String)],current:&[(String,String)])->bool
             let normalize_columns=|fields:&[String]|fields.iter().map(|c|columns.get(c).unwrap_or(c).clone()).collect::<Vec<_>>();
             if old.indexes.iter().any(|i|i.unique&&!next.indexes.iter().any(|n|n.unique&&normalize_columns(&n.columns)==i.columns)){return true}
             if old.caps.iter().any(|c|!next.caps.iter().any(|n|normalize_columns(&n.by)==c.by&&n.max<=c.max)){return true}
-            if old.final_exists.iter().any(|(expr,_)|!next.final_exists.iter().any(|(n,_)|print::expression(expr)==print::expression(n))){return true}
         }
     }false
 }

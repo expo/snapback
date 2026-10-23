@@ -1,0 +1,36 @@
+**MATERIAL — ordinary table renames can still cause false refusals.**
+
+At [release_bridge.rs:36](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/src/release_bridge.rs:36), final-existence constraints are compared using printed expressions without aligning declared table identities.
+
+Small counterexample: deploy this source with an unchanged `snapback/worker.mjs` containing `export {};`:
+
+```quarry
+table codes:
+  code: text <=20
+  unique code
+  read <- allow
+  insert <- allow
+  online only
+table records:
+  value: text <=20
+  read <- allow
+  insert <- allow
+  after insert <- exists codes[code = .value]
+  online only
+invariant records.read only true
+```
+
+Then make only these changes:
+
+```diff
+-table codes:
++table catalog renamed from codes:
+-  after insert <- exists codes[code = .value]
++  after insert <- exists catalog[code = .value]
+```
+
+The unchanged constraint prints differently, so `requires_view` returns true. The unchanged worker then causes an unconditional `E_ADOPT` refusal at [rollback_views.rs:97](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4/src/verbs/rollback_views.rs:97), despite no widening, hiding, misrepresentation, or executable repair.
+
+Compare these constraints under validated declared identities before triggering registration.
+
+This finding follows directly from the source path; I ran no builds/tests and made no edits.

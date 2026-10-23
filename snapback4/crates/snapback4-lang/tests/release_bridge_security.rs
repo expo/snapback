@@ -779,3 +779,38 @@ fn renamed_field_authority_selects_current_even_with_a_nullable_legacy_gap() {
         }
     }
 }
+
+#[test]
+fn final_existence_uses_declared_table_column_and_index_identities() {
+    let old="table codes:\n  code: text <=20\n  unique code\n  public\n  online only\ntable records:\n  value: text <=20\n  public\n  after insert <- exists codes[code = .value]\n  online only\ninvariant records.read only true\n";
+    let renamed=old.replace("table codes:","table catalog renamed from codes:")
+        .replace("code: text <=20", "slug: text <=20 renamed from code")
+        .replace("unique code","unique slug").replace("value: text <=20","payload: text <=20 renamed from value")
+        .replace("codes[code = .value]","catalog[slug = .payload]");
+    let source=|s:&str|vec![("schema.q".into(),s.to_owned())];
+    for s in [old,renamed.as_str()] {let b=compile(&source(s));assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);}
+    assert!(!release_bridge::requires_view(&source(old),&source(&renamed)));
+    assert!(!release_bridge::requires_view(&source(&renamed),&source(old)));
+    for changed in [renamed.replace("  after insert <- exists catalog[slug = .payload]\n",""),
+        renamed.replace("catalog[slug = .payload]","catalog[slug = 'different']")] {
+        let b=compile(&source(&changed));assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
+        assert!(release_bridge::requires_view(&source(old),&source(&changed)));
+    }
+}
+
+#[test]
+fn final_existence_reference_keys_keep_identity_and_literal_meaning() {
+    let old="table codes:\n  code: text <=20\n  index code\n  public\n  online only\ntable labels:\n  label: text <=20\n  public\n  online only\ntable records:\n  owner: labels\n  public\n  after insert <- exists codes[code = .owner.label]\n  online only\ninvariant records.read only true\n";
+    let next=old.replace("table codes:","table catalog renamed from codes:")
+        .replace("code: text <=20","slug: text <=20 renamed from code").replace("index code","unique slug")
+        .replace("table labels:","table tags renamed from labels:")
+        .replace("label: text <=20","name: text <=20 renamed from label")
+        .replace("owner: labels","tag: tags renamed from owner")
+        .replace("codes[code = .owner.label]","catalog[slug = .tag.name]");
+    let source=|s:&str|vec![("schema.q".into(),s.to_owned())];
+    for s in [old,next.as_str()] {let b=compile(&source(s));assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);}
+    assert!(!release_bridge::requires_view(&source(old),&source(&next)));
+    // Existing final-existence has the same meaning when its access index becomes unique.
+    let changed=next.replace("catalog[slug = .tag.name]","catalog[slug = 'name']");
+    assert!(release_bridge::requires_view(&source(old),&source(&changed)));
+}
