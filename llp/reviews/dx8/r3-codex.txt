@@ -1,0 +1,19 @@
+NOT READY
+
+Two material concerns remain in frozen commit `4787bb7f9bb777cfcc08d546b2cba6a13f4d76a5`.
+
+1. **Reverse selection still skips pruned receipt-owned null children.**  
+   In [extraction_each.rs](/home/ccheever/projects/sb4-b25-dx8/snapback4/crates/snapback4-core/src/store/extraction_each.rs:334), backward processing visits active children without calling `validate_receipts`.
+
+   Counterexample: extract `[A]`; select old source; remove `A`; return forward, retaining its child as a migration-owned null; prune dormant storage; select old source again. Pruning deletes that child and its anchor while retaining the element receipt. The reverse path sees neither an active child nor a live narrowed asset home, and publishes an empty list successfully. Subsequent forward selection refuses the missing receipt-owned child.
+
+   This contradicts the amendment’s missing/pruned-child refusal contract. **Required correction:** validate receipt-owned children and lifetime evidence before reverse processing too, while continuing to permit intact dormant nulls. Add this prune-after-forward-removal regression and assert atomic refusal.
+
+2. **Temporarily retiring the child table prevents unchanged extraction restoration.**  
+   [extractions.rs](/home/ccheever/projects/sb4-b25-dx8/snapback4/crates/snapback4-core/src/store/extractions.rs:344) requires the historical source column whenever an extraction enters and its parent table is populated.
+
+   Counterexample using the existing fixtures: adopt `OLD_EACH` with one populated order; adopt `NEW_EACH`; adopt a third schema retaining the unchanged v2 `orders` table but retiring `documents`, its operations, and the extraction; then reselect `NEW_EACH`, without intervening writes or pruning. Leaving the extraction performs no reverse transfer because the third schema lacks `orders.names`. Re-entry restores the retained child, then refuses with `extraction source orders.names is absent`, although its asset home, identity, and lifetime evidence remain intact.
+
+   **Required correction:** distinguish suspended extraction restoration from initial historical extraction, preserving validated current child homes without demanding an already-consumed source list. Define that transition explicitly and add a retire/restore round-trip regression.
+
+These are source-traced semantic findings, not objections to pending qualification evidence. No files were modified or verification suites run.
