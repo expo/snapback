@@ -134,7 +134,7 @@ test("HTTP admission, encoding, slow readers and idle changes polls", { timeout:
       assert.notEqual(upload.status, 413, "uploads keep the 64 MiB ceiling");
       assert.match((await upload.json()).denied?.code ?? "", /^E_ASSET/);
     });
-    await t.test("one-view assets finalize only after a complete non-range response", async () => {
+    async function uploadOnceAsset() {
       const png = new Uint8Array(8 * MiB);
       png.set([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13, 0x49, 0x48, 0x44, 0x52, 0, 0, 0, 2, 0, 0, 0, 3, 8, 6]);
       const uploaded = await (await post("/assets", png)).json();
@@ -142,11 +142,25 @@ test("HTTP admission, encoding, slow readers and idle changes polls", { timeout:
       const id = uploaded.asset.id;
       const attached = await (await post("/m/attach", JSON.stringify({ args: { photo: { id } } }))).json();
       assert.equal(attached.state, "sent", JSON.stringify(attached));
+      return { id, png };
+    }
 
+    await t.test("one-view assets consume the first full GET after refusing range probes", async () => {
+      const { id, png } = await uploadOnceAsset();
       const ranged = await fetch(`${url}/assets/${id}`, { headers: { ...headers, range: "bytes=0-0" }, signal: AbortSignal.timeout(hangBudget()) });
       assert.equal(ranged.status, 416);
       assert.equal((await ranged.json()).denied?.code, "E_ASSET_RANGE");
 
+      const complete = await fetch(`${url}/assets/${id}`, { headers, signal: AbortSignal.timeout(hangBudget()) });
+      assert.equal(complete.status, 200);
+      assert.deepEqual(new Uint8Array(await complete.arrayBuffer()), png);
+      const viewed = await fetch(`${url}/assets/${id}`, { headers, signal: AbortSignal.timeout(hangBudget()) });
+      assert.equal(viewed.status, 410);
+      assert.equal((await viewed.json()).denied?.code, "E_ASSET_VIEWED");
+    });
+
+    await t.test("aborting a one-view response after its headers still consumes the view", async () => {
+      const { id } = await uploadOnceAsset();
       await new Promise((resolve, reject) => {
         const socket = connect({ host: "127.0.0.1", port: Number(new URL(url).port) });
         sockets.add(socket);
@@ -156,13 +170,19 @@ test("HTTP admission, encoding, slow readers and idle changes polls", { timeout:
         socket.on("data", (chunk) => {
           answer += chunk.toString("latin1");
           if (answer.includes("\r\n\r\n")) {
-            assert.match(answer, /^HTTP\/1.1 200/m);
+            try { assert.match(answer, /^HTTP\/1.1 200/m); } catch (error) { reject(error); }
             socket.destroy();
           }
         });
         socket.on("close", () => { sockets.delete(socket); resolve(); });
       });
+      const viewed = await fetch(`${url}/assets/${id}`, { headers, signal: AbortSignal.timeout(hangBudget()) });
+      assert.equal(viewed.status, 410);
+      assert.equal((await viewed.json()).denied?.code, "E_ASSET_VIEWED");
+    });
 
+    await t.test("a truncated one-view response consumes its view and closes pipelined responses", async () => {
+      const { id, png } = await uploadOnceAsset();
       const assetPath = join(directory, ".snapback4", "assets", id);
       writeFileSync(assetPath, png.subarray(0, 2 * MiB));
       const pipelined = await rawBytes(
@@ -177,9 +197,6 @@ test("HTTP admission, encoding, slow readers and idle changes polls", { timeout:
       assert.equal(pipelined.indexOf(Buffer.from("HTTP/1.1"), 1), -1, "a queued response cannot append bytes after the truncated body");
       writeFileSync(assetPath, png);
 
-      const complete = await fetch(`${url}/assets/${id}`, { headers, signal: AbortSignal.timeout(hangBudget()) });
-      assert.equal(complete.status, 200);
-      assert.equal((await complete.arrayBuffer()).byteLength, png.length);
       const viewed = await fetch(`${url}/assets/${id}`, { headers, signal: AbortSignal.timeout(hangBudget()) });
       assert.equal(viewed.status, 410);
       assert.equal((await viewed.json()).denied?.code, "E_ASSET_VIEWED");

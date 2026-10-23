@@ -239,8 +239,8 @@ impl Engine {
     /// Whether `principal` may have the bytes of `id` now: the uploader
     /// before placement; after placement, the home must still name it and
     /// be unexpired. Every viewer follows its read rule. This grants a
-    /// delivery without consuming a `once` view; the host records success.
-    /// A previously completed view is refused. Hidden,
+    /// delivery without consuming a `once` view; the host commits consumption
+    /// before starting a full, non-range response. A previously started view is refused. Hidden,
     /// released and absent are one word.
     pub fn asset_access(&mut self, principal: &str, id: &str, now: i64,
     ) -> Result<AssetGrant, RuntimeError> {

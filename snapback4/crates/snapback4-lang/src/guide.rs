@@ -751,6 +751,13 @@ E_ASSET_UNKNOWN never discloses another uploader or a hidden home. Unplaced
 uploads expire after one hour, including clock jumps: upload after time travel.
 a readable home row does not grant upload ownership.
 
+A full, non-range GET consumes the view when the read starts: the host commits
+the view before sending any response bytes. The first full GET returns 200 with
+the full body; later full GETs return 410 E_ASSET_VIEWED. A failed or truncated
+transport after that commit still consumes the view. Range probes refuse without
+consumption (416 E_ASSET_RANGE). A request the server knows was aborted before
+admission also consumes nothing.
+
 `once` is a bytes-once contract. The handle and metadata (id, type, dimensions,
 byte size) may remain after viewing. A visible handle is never permission to
 show content. When `useAsset` or a fetch refuses with E_ASSET_VIEWED, render
