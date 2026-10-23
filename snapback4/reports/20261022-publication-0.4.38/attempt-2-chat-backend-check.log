@@ -1,0 +1,23 @@
+check: ok — 5 tables, 1 view (5 synced), 12 operations, compiled, 17 notes, 7524.1 ms
+1 more actionable notes in check --verbose/JSON
+16 things to review (advisory; check --verbose explains each, snapback4 why <CODE> one):
+review — can cost correctness or completeness:
+note: schema.q:1:1 — N_BROAD_READ: review: confirm each admitted audience and row state. messageCounts.read: branch `exists memberships[.conversationId, viewer]` lets every memberships member read every row, regardless of ownership — snapback4 why N_BROAD_READ
+note: schema.q:16:1 — N_BROAD_READ: review: confirm each admitted audience and row state. profiles.read: branch `public` lets every signed-in user read every row — snapback4 why N_BROAD_READ
+note: schema.q:33:3 — N_BROAD_READ: review: confirm each admitted audience and row state. conversations.read: branch `exists memberships[.id, viewer]` lets every memberships member read every row, regardless of ownership — snapback4 why N_BROAD_READ
+note: schema.q:50:3 — N_BROAD_READ: review: confirm each admitted audience and row state. memberships.read: branch `exists memberships[.conversationId, viewer]` lets every memberships member read every row, regardless of ownership — snapback4 why N_BROAD_READ
+note: schema.q:59:3 — N_OPTIONAL_EVIDENCE: review. messages.photo permits omitted or empty media evidence — snapback4 why N_OPTIONAL_EVIDENCE
+note: schema.q:64:3 — N_BROAD_READ: review: confirm each admitted audience and row state. messages.read: branch `exists memberships[.conversationId, viewer]` lets every memberships member read every row, regardless of ownership — snapback4 why N_BROAD_READ
+note: schema.q:16:1 — N_NO_PRODUCTION_WRITER: fix: add a production bootstrap writer. profiles: no production writer can bootstrap this root; fixtures and /seed are dev-only — snapback4 why N_NO_PRODUCTION_WRITER
+note: N_NO_PRODUCTION_WRITER (as above) also for conversations: no production writer can bootstrap this root (schema.q:30:1); memberships: no production writer can bootstrap this root (schema.q:40:1) — snapback4 why N_NO_PRODUCTION_WRITER
+note: schema.q:85:10 — N_REFERENCE_UNCHECKED: review: this reference argument has no mandatory target lookup. mutation addMember stores argument conversationId directly in memberships.conversationId, without a mandatory lookup of conversations[conversationId] on every committing path: a reference accepts any well-formed id even when the row is absent — snapback4 why N_REFERENCE_UNCHECKED
+note: N_REFERENCE_UNCHECKED (as above) also for mutation send (schema.q:94:9); mutation sendPhoto (schema.q:99:9) — snapback4 why N_REFERENCE_UNCHECKED
+note: schema.q:103:9 — N_LOOKUP_FILTERED: review: confirm lookup authority and the hidden-row outcome. mutation edit: lookup of messages uses `read <- exists memberships[.conversationId, viewer]` (schema.q:64:3); its key and preceding guards do not prove read authority. A hidden, expired or missing row returns null; `! else CODE` refuses with that authored code for all three. A later field/default or require may report a different business condition — snapback4 why N_LOOKUP_FILTERED
+note: N_LOOKUP_FILTERED (as above) also for mutation unsend (schema.q:109:9) — snapback4 why N_LOOKUP_FILTERED
+note: schema.q:83:1 — N_COLUMN_RESULT_EXPOSURE: review: confirm every result/refusal audience. memberships: grouped result/refusal observers; review operation audiences and private columns (check --verbose/JSON lists every operation, column and site) — snapback4 why N_COLUMN_RESULT_EXPOSURE
+note: schema.q:1:1 — N_SECURITY_INTENT: review: write independent intent from the spec. 5 tables have access rules and no security invariants: conversations, memberships, messageCounts, profiles, readMarkers; declare the spec's privacy rules as invariants (`guide security`) — snapback4 why N_SECURITY_INTENT
+1 mutation is server-run (online app: no action): markRead (writes online-only table readMarkers); 1 mutations have insert arms that may queue; 2 eligible mutations may queue past a horizon — snapback4 why <op>
+check --verbose for explanations, rewrites and execution details; why <op> for one operation
+security: 0 proved, 0 refuted, 1 unproved (0 failing)
+  next: snapback4 test; 8 coverage gaps (check --verbose/JSON keeps every reason)
+  review audiences and 16 uncovered exposures: snapback4 audit

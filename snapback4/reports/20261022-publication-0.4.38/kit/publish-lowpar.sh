@@ -1,0 +1,20 @@
+#!/bin/bash
+# dry-run | resume (0.4.16 kit). env: ATTEMPT
+# LOW-PARALLELISM variant (coordinator, 0.4.38 attempt 7+): Rust test binaries limited by SNAPBACK4_RUST_TEST_PROCESSES; client files stay serial (SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1); nothing skipped; TMPDIR untouched.
+: "${ATTEMPT:?}"
+export VERSION=0.4.38 PUBDATE=20261022
+export ROOT=/Users/ccheever/projects/snapback-pub-0428/snapback4 H=/Users/ccheever/sb4-pub-0438/helpers-0.4.38
+export REP=$ROOT/reports/$PUBDATE-publication-$VERSION
+S=/Users/ccheever/sb4-pub-0438/pubstep.sh
+P=/Users/ccheever/sb4-03-lanes/codesign-relay:/Users/ccheever/.elan/bin:/Users/ccheever/.volta/tools/image/node/24.18.0/bin:/Users/ccheever/.bun/bin:/Users/ccheever/.cargo/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
+ulimit -n 65536
+mode=$1
+step() { "$S" "$@" || { echo "STOPPED at $1"; echo "stopped $1" > /Users/ccheever/sb4-pub-0438/$mode-$ATTEMPT.exit; exit 1; }; }
+case $mode in
+ prepare) step publication-prepare-client . env -u SNAPBACK4_BIN PATH=$P CARGO_INCREMENTAL=0 node scripts/publish.mjs --prepare-client ;;
+ lean) step lean-setup lean env PATH=$P lake build quarry-oracle ;;
+ warm) step test-warm . env -u SNAPBACK4_BIN PATH=$P CARGO_INCREMENTAL=0 LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT cargo test --workspace --no-run ;;
+ dry-run) step publication-dry-run . env -u SNAPBACK4_BIN SNAPBACK4_RUST_TEST_PROCESSES=${RUSTPROCS:-6} SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1 SNAPBACK4_REQUIRE_LEAN=1 PATH=$P CARGO_INCREMENTAL=0 SNAPBACK4_FENCE_PUBLISHED=/Users/ccheever/sb4-03-lanes/published-0.2.33 node scripts/publish.mjs --dry-run --linux-receipt target/incoming/linux-0.4.38/receipt.json --linux-tarball target/incoming/linux-0.4.38/snapback4-linux-x64-0.4.38.tgz ;;
+ dry-run-evidence) step publication-dry-run-evidence . env -u SNAPBACK4_RUST_TEST_PROCESSES -u SNAPBACK4_BIN SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1 SNAPBACK4_REQUIRE_LEAN=1 PATH=$P CARGO_INCREMENTAL=0 SNAPBACK4_FENCE_PUBLISHED=/Users/ccheever/sb4-03-lanes/published-0.2.33 node scripts/publish.mjs --dry-run ;;
+esac
+echo "$mode DONE"; echo done > /Users/ccheever/sb4-pub-0438/$mode-$ATTEMPT.exit

@@ -1,0 +1,6 @@
+cadb7c55be
+thread 'equivalence_after_deletion_reuse_and_unswept_expiry' (141358024) panicked at crates/snapback4-sim/tests/maintains_recorded.rs:30:66:
+called `Result::unwrap()` on an `Err` value: Schema("source reservations differ from the schema derivation")
+thread 'activation_dangling_expired_reused_and_removed_paths' (141358022) panicked at crates/snapback4-sim/tests/maintains_recorded.rs:30:66:
+called `Result::unwrap()` on an `Err` value: Schema("source reservations differ from the schema derivation")
+test result: FAILED. 17 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.48s

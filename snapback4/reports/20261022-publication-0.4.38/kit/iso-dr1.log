@@ -1,0 +1,13 @@
+security_wave19 /Users/ccheever/projects/snapback-pub-0428/snapback4/target/debug/deps/security_wave19-c8897cc8c7a30996 /Users/ccheever/projects/snapback-pub-0428/snapback4/crates/snapback4/Cargo.toml
+run_admission /Users/ccheever/projects/snapback-pub-0428/snapback4/target/debug/deps/run_admission-292a488467687ac2 /Users/ccheever/projects/snapback-pub-0428/snapback4/crates/snapback4/Cargo.toml
+security_wave19 /Users/ccheever/projects/snapback-pub-0428/snapback4/target/debug/deps/security_wave19-2f1a6384c509986d /Users/ccheever/projects/snapback-pub-0428/snapback4/crates/snapback4-lang/Cargo.toml
+security_wave19 run 1 rc=0 73 s load={ 12.36 16.10 64.61 } test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 72.95s
+security_wave19 run 2 rc=0 72 s load={ 12.14 15.23 60.44 } test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 71.48s
+security_wave19 run 3 rc=0 69 s load={ 14.55 15.34 56.91 } test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 69.47s
+run_admission run 1 rc=0 2 s load={ 14.58 15.33 56.67 } test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 27 filtered out; finished in 2.50s
+run_admission run 2 rc=0 3 s load={ 14.58 15.33 56.67 } test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 27 filtered out; finished in 2.50s
+run_admission run 3 rc=0 2 s load={ 14.62 15.33 56.42 } test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 27 filtered out; finished in 2.51s
+security_wave19 run 1 rc=0 195 s load={ 22.05 20.32 50.28 } test result: ok. 25 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 194.91s
+security_wave19 run 2 rc=0 190 s load={ 19.85 23.44 45.95 } test result: ok. 25 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 189.92s
+security_wave19 run 3 rc=0 199 s load={ 18.57 25.95 42.92 } test result: ok. 25 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 198.76s
+iso-done
