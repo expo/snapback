@@ -1,0 +1,3251 @@
+[
+  {
+    "revision": "pre",
+    "segment": "pre",
+    "counter_domain": "pre-original",
+    "workload": "W1",
+    "keys": "disjoint",
+    "link": "B",
+    "operations": 60,
+    "warmups": 10,
+    "before_time": 1792776169.8801038,
+    "after_time": 1792776172.707895,
+    "counter_before": 22942,
+    "counter_after": 22942,
+    "statements_per_request": 23.0,
+    "inferred_warm_exchanges_per_request": 23.0,
+    "renewals_excluded": 5,
+    "durable_commits_per_request": 0.0,
+    "latency_ms": {
+      "median": 26.285077445209026,
+      "min": 24.895407259464264,
+      "max": 29.65507283806801
+    },
+    "sql_exec_ms_per_request_including_renewal": 0.22874805000055431,
+    "statement_deltas": [
+      {
+        "calls": 5,
+        "total_exec_time": 0.0019440000000017221,
+        "wal_bytes": 0,
+        "query_prefix": "COMMIT",
+        "query_sha256": "79663c1d3b43ceaf9ee728e501c64b57ae2e4d6cb36ff5c65eddcda1de27342f"
+      },
+      {
+        "calls": 120,
+        "total_exec_time": 3.143699000000197,
+        "wal_bytes": 0,
+        "query_prefix": "SELECT r.data, i.k FROM i JOIN r ON r.t = i.t AND r.id = i.id WHERE i.t = $1 AND i.ix = $2 AND i.k >= $3 AND i.k < $4 ORDER BY i.k ASC LIMIT $5",
+        "query_sha256": "b51ea22c0ebc2e3e46cd98e2bdd28ad4f72f786fb34e24d47cac6a3ceee96980"
+      },
+      {
+        "calls": 240,
+        "total_exec_time": 1.0442670000065846,
+        "wal_bytes": 0,
+        "query_prefix": "START TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY",
+        "query_sha256": "5622ef03741f9617ed31f225dad5e2e202a506f3b02620958dece09cde6a36cf"
+      },
+      {
+        "calls": 5,
+        "total_exec_time": 0.0040079999999997895,
+        "wal_bytes": 0,
+        "query_prefix": "START TRANSACTION",
+        "query_sha256": "c694dd4d8f76a81fe0ca5c11301c3b1d7c0ebeb4e5a7f996714ecbd1f282ab9a"
+      },
+      {
+        "calls": 5,
+        "total_exec_time": 0.003796999999998718,
+        "wal_bytes": 0,
+        "query_prefix": "SET LOCAL lock_timeout = 0",
+        "query_sha256": "a90032ef553cc437ed6894ebdfa82d60cb6a08f03c8e96a0eac47f1d05b95d0d"
+      },
+      {
+        "calls": 240,
+        "total_exec_time": 0.10245399999962501,
+        "wal_bytes": 0,
+        "query_prefix": "ROLLBACK",
+        "query_sha256": "587fa628a9fe4642ac0e22825a97e81d388af674f7251a9fb699f96901dcb710"
+      },
+      {
+        "calls": 420,
+        "total_exec_time": 1.7388260000334412,
+        "wal_bytes": 0,
+        "query_prefix": "SELECT value FROM _meta WHERE key=$1",
+        "query_sha256": "aa22a455969a56d2db1327359076646e9ed4b2434a29d4f2b19b90bb14e5f767"
+      },
+      {
+        "calls": 120,
+        "total_exec_time": 1.6735259999986738,
+        "wal_bytes": 0,
+        "query_prefix": "SELECT principal, COALESCE(family, token_digest), kind, token_digest, expires_at, $2, $3::BIGINT, $4::BIGINT FROM _sessions WHERE token_digest = $1 UNION ALL SELECT principal, fami",
+        "query_sha256": "23b627ef61631eaab1ad57cac53141470d3207ebb5b862054bdc28f905f6b28a"
+      },
+      {
+        "calls": 5,
+        "total_exec_time": 0.02195199999999886,
+        "wal_bytes": 0,
+        "query_prefix": "SET LOCAL statement_timeout = 0",
+        "query_sha256": "e06f3c7d027e0dbbbf87e8ee03ee9fd9cfa2633dfb6814e24bbe872c783ef37b"
+      },
+      {
+        "calls": 240,
+        "total_exec_time": 5.823853999994753,
+        "wal_bytes": 0,
+        "query_prefix": "SELECT generation, (SELECT seq FROM _head WHERE singleton) FROM _backend WHERE singleton",
+        "query_sha256": "679592014039a4998a0bcc2fac81314e4014f6c7c2c6bf7ae03de826f5867d65"
+      },
+      {
+        "calls": 5,
+        "total_exec_time": 0.16655599999998572,
+        "wal_bytes": 365,
+        "query_prefix": "UPDATE _owner SET lease_until=clock_timestamp()+make_interval(secs=>$1) WHERE singleton AND store_id=$2 AND token=$3",
+        "query_sha256": "c9cec6994abfe577a335975a5119d8c9622efc9f33ef764c992c1512b6322a0f"
+      }
+    ]
+  },
+  {
+    "revision": "pre",
+    "segment": "pre",
+    "counter_domain": "pre-original",
+    "workload": "W1",
+    "keys": "disjoint",
+    "link": "A",
+    "operations": 60,
+    "warmups": 10,
+    "before_time": 1792774715.4438732,
+    "after_time": 1792774717.5159097,
+    "counter_before": 0,
+    "counter_after": 0,
+    "statements_per_request": 23.0,
+    "inferred_warm_exchanges_per_request": 23.0,
+    "renewals_excluded": 4,
+    "durable_commits_per_request": 0.0,
+    "latency_ms": {
+      "median": 13.83547019213438,
+      "min": 13.097237795591354,
+      "max": 15.82157239317894
+    },
+    "sql_exec_ms_per_request_including_renewal": 0.1173163833333339,
+    "statement_deltas": [
+      {
+        "calls": 4,
+        "total_exec_time": 0.001562999999999981,
+        "wal_bytes": 0,
+        "query_prefix": "COMMIT",
+        "query_sha256": "79663c1d3b43ceaf9ee728e501c64b57ae2e4d6cb36ff5c65eddcda1de27342f"
+      },
+      {
+        "calls": 120,
+        "total_exec_time": 2.082086000000025,
+        "wal_bytes": 0,
+        "query_prefix": "SELECT r.data, i.k FROM i JOIN r ON r.t = i.t AND r.id = i.id WHERE i.t = $1 AND i.ix = $2 AND i.k >= $3 AND i.k < $4 ORDER BY i.k ASC LIMIT $5",
+        "query_sha256": "b51ea22c0ebc2e3e46cd98e2bdd28ad4f72f786fb34e24d47cac6a3ceee96980"
+      },
+      {
+        "calls": 240,
+        "total_exec_time": 0.7297699999999998,
+        "wal_bytes": 0,
+        "query_prefix": "START TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY",
+        "query_sha256": "5622ef03741f9617ed31f225dad5e2e202a506f3b02620958dece09cde6a36cf"
+      },
+      {
+        "calls": 4,
+        "total_exec_time": 0.002835000000000143,
+        "wal_bytes": 0,
+        "query_prefix": "START TRANSACTION",
+        "query_sha256": "c694dd4d8f76a81fe0ca5c11301c3b1d7c0ebeb4e5a7f996714ecbd1f282ab9a"
+      },
+      {
+        "calls": 4,
+        "total_exec_time": 0.003928000000000154,
+        "wal_bytes": 0,
+        "query_prefix": "SET LOCAL lock_timeout = 0",
+        "query_sha256": "a90032ef553cc437ed6894ebdfa82d60cb6a08f03c8e96a0eac47f1d05b95d0d"
+      },
+      {
+        "calls": 240,
+        "total_exec_time": 0.07926700000000003,
+        "wal_bytes": 0,
+        "query_prefix": "ROLLBACK",
+        "query_sha256": "587fa628a9fe4642ac0e22825a97e81d388af674f7251a9fb699f96901dcb710"
+      },
+      {
+        "calls": 420,
+        "total_exec_time": 1.400133000000002,
+        "wal_bytes": 0,
+        "query_prefix": "SELECT value FROM _meta WHERE key=$1",
+        "query_sha256": "aa22a455969a56d2db1327359076646e9ed4b2434a29d4f2b19b90bb14e5f767"
+      },
+      {
+        "calls": 120,
+        "total_exec_time": 1.1248660000000008,
+        "wal_bytes": 0,
+        "query_prefix": "SELECT principal, COALESCE(family, token_digest), kind, token_digest, expires_at, $2, $3::BIGINT, $4::BIGINT FROM _sessions WHERE token_digest = $1 UNION ALL SELECT principal, fami",
+        "query_sha256": "23b627ef61631eaab1ad57cac53141470d3207ebb5b862054bdc28f905f6b28a"
+      },
+      {
+        "calls": 4,
+        "total_exec_time": 0.04178800000000127,
+        "wal_bytes": 0,
+        "query_prefix": "SET LOCAL statement_timeout = 0",
+        "query_sha256": "e06f3c7d027e0dbbbf87e8ee03ee9fd9cfa2633dfb6814e24bbe872c783ef37b"
+      },
+      {
+        "calls": 240,
+        "total_exec_time": 1.452330000000001,
+        "wal_bytes": 0,
+        "query_prefix": "SELECT generation, (SELECT seq FROM _head WHERE singleton) FROM _backend WHERE singleton",
+        "query_sha256": "679592014039a4998a0bcc2fac81314e4014f6c7c2c6bf7ae03de826f5867d65"
+      },
+      {
+        "calls": 4,
+        "total_exec_time": 0.12041700000000333,
+        "wal_bytes": 292,
+        "query_prefix": "UPDATE _owner SET lease_until=clock_timestamp()+make_interval(secs=>$1) WHERE singleton AND store_id=$2 AND token=$3",
+        "query_sha256": "c9cec6994abfe577a335975a5119d8c9622efc9f33ef764c992c1512b6322a0f"
+      }
+    ]
+  },
+  {
+    "revision": "pre",
+    "segment": "pre",
+    "counter_domain": "pre-original",
+    "workload": "W2",
+    "keys": "disjoint",
+    "link": "B",
+    "operations": 60,
+    "warmups": 10,
+    "before_time": 1792776457.9064848,
+    "after_time": 1792776460.7150006,
+    "counter_before": 22942,
+    "counter_after": 22942,
+    "statements_per_request": 23.0,
+    "inferred_warm_exchanges_per_request": 23.0,
+    "renewals_excluded": 5,
+    "durable_commits_per_request": 0.0,
+    "latency_ms": {
+      "median": 26.15684363991022,
+      "min": 25.295691564679146,
+      "max": 27.87909097969532
+    },
+    "sql_exec_ms_per_request_including_renewal": 0.259763966667311,
+    "statement_deltas": [
+      {
+        "calls": 5,
+        "total_exec_time": 0.002213999999998606,
+        "wal_bytes": 0,
+        "query_prefix": "COMMIT",
+        "query_sha256": "79663c1d3b43ceaf9ee728e501c64b57ae2e4d6cb36ff5c65eddcda1de27342f"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 1.4162900000083027,
+        "wal_bytes": 0,
+        "query_prefix": "SELECT r.data, i.k FROM i JOIN r ON r.t = i.t AND r.id = i.id WHERE i.t = $1 AND i.ix = $2 AND i.k >= $3 AND i.k < $4 ORDER BY i.k ASC LIMIT $5",
+        "query_sha256": "b51ea22c0ebc2e3e46cd98e2bdd28ad4f72f786fb34e24d47cac6a3ceee96980"
+      },
+      {
+        "calls": 240,
+        "total_exec_time": 0.9256170000080601,
+        "wal_bytes": 0,
+        "query_prefix": "START TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY",
+        "query_sha256": "5622ef03741f9617ed31f225dad5e2e202a506f3b02620958dece09cde6a36cf"
+      },
+      {
+        "calls": 5,
+        "total_exec_time": 0.0043479999999997965,
+        "wal_bytes": 0,
+        "query_prefix": "START TRANSACTION",
+        "query_sha256": "c694dd4d8f76a81fe0ca5c11301c3b1d7c0ebeb4e5a7f996714ecbd1f282ab9a"
+      },
+      {
+        "calls": 5,
+        "total_exec_time": 0.00458799999999826,
+        "wal_bytes": 0,
+        "query_prefix": "SET LOCAL lock_timeout = 0",
+        "query_sha256": "a90032ef553cc437ed6894ebdfa82d60cb6a08f03c8e96a0eac47f1d05b95d0d"
+      },
+      {
+        "calls": 240,
+        "total_exec_time": 0.09248700000216559,
+        "wal_bytes": 0,
+        "query_prefix": "ROLLBACK",
+        "query_sha256": "587fa628a9fe4642ac0e22825a97e81d388af674f7251a9fb699f96901dcb710"
+      },
+      {
+        "calls": 420,
+        "total_exec_time": 1.6490240000312042,
+        "wal_bytes": 0,
+        "query_prefix": "SELECT value FROM _meta WHERE key=$1",
+        "query_sha256": "aa22a455969a56d2db1327359076646e9ed4b2434a29d4f2b19b90bb14e5f767"
+      },
+      {
+        "calls": 120,
+        "total_exec_time": 1.4758429999965301,
+        "wal_bytes": 0,
+        "query_prefix": "SELECT principal, COALESCE(family, token_digest), kind, token_digest, expires_at, $2, $3::BIGINT, $4::BIGINT FROM _sessions WHERE token_digest = $1 UNION ALL SELECT principal, fami",
+        "query_sha256": "23b627ef61631eaab1ad57cac53141470d3207ebb5b862054bdc28f905f6b28a"
+      },
+      {
+        "calls": 5,
+        "total_exec_time": 0.02329399999999282,
+        "wal_bytes": 0,
+        "query_prefix": "SET LOCAL statement_timeout = 0",
+        "query_sha256": "e06f3c7d027e0dbbbf87e8ee03ee9fd9cfa2633dfb6814e24bbe872c783ef37b"
+      },
+      {
+        "calls": 240,
+        "total_exec_time": 1.690279999987979,
+        "wal_bytes": 0,
+        "query_prefix": "SELECT generation, (SELECT seq FROM _head WHERE singleton) FROM _backend WHERE singleton",
+        "query_sha256": "679592014039a4998a0bcc2fac81314e4014f6c7c2c6bf7ae03de826f5867d65"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 8.11121500000445,
+        "wal_bytes": 0,
+        "query_prefix": "SELECT r.data, i.k FROM i JOIN r ON r.t = i.t AND r.id = i.id WHERE i.t = $1 AND i.ix = $2 AND i.k >= $3 AND i.k < $4 ORDER BY i.k DESC LIMIT $5",
+        "query_sha256": "7474eb19f3bbaa6eb9bc9067b2f61868603426fd1a8dd38cff68dc9e03f6c04f"
+      },
+      {
+        "calls": 5,
+        "total_exec_time": 0.19063799999997855,
+        "wal_bytes": 366,
+        "query_prefix": "UPDATE _owner SET lease_until=clock_timestamp()+make_interval(secs=>$1) WHERE singleton AND store_id=$2 AND token=$3",
+        "query_sha256": "c9cec6994abfe577a335975a5119d8c9622efc9f33ef764c992c1512b6322a0f"
+      }
+    ]
+  },
+  {
+    "revision": "pre",
+    "segment": "pre",
+    "counter_domain": "pre-original",
+    "workload": "W2",
+    "keys": "disjoint",
+    "link": "A",
+    "operations": 60,
+    "warmups": 10,
+    "before_time": 1792775001.491716,
+    "after_time": 1792775003.5916772,
+    "counter_before": 0,
+    "counter_after": 0,
+    "statements_per_request": 23.0,
+    "inferred_warm_exchanges_per_request": 23.0,
+    "renewals_excluded": 4,
+    "durable_commits_per_request": 0.0,
+    "latency_ms": {
+      "median": 14.033808372914791,
+      "min": 13.372071087360382,
+      "max": 17.959455028176308
+    },
+    "sql_exec_ms_per_request_including_renewal": 0.26267188333310293,
+    "statement_deltas": [
+      {
+        "calls": 4,
+        "total_exec_time": 0.0013230000000000741,
+        "wal_bytes": 0,
+        "query_prefix": "COMMIT",
+        "query_sha256": "79663c1d3b43ceaf9ee728e501c64b57ae2e4d6cb36ff5c65eddcda1de27342f"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 2.8209009999991395,
+        "wal_bytes": 0,
+        "query_prefix": "SELECT r.data, i.k FROM i JOIN r ON r.t = i.t AND r.id = i.id WHERE i.t = $1 AND i.ix = $2 AND i.k >= $3 AND i.k < $4 ORDER BY i.k ASC LIMIT $5",
+        "query_sha256": "b51ea22c0ebc2e3e46cd98e2bdd28ad4f72f786fb34e24d47cac6a3ceee96980"
+      },
+      {
+        "calls": 240,
+        "total_exec_time": 0.8402280000041173,
+        "wal_bytes": 0,
+        "query_prefix": "START TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY",
+        "query_sha256": "5622ef03741f9617ed31f225dad5e2e202a506f3b02620958dece09cde6a36cf"
+      },
+      {
+        "calls": 4,
+        "total_exec_time": 0.004126999999999992,
+        "wal_bytes": 0,
+        "query_prefix": "START TRANSACTION",
+        "query_sha256": "c694dd4d8f76a81fe0ca5c11301c3b1d7c0ebeb4e5a7f996714ecbd1f282ab9a"
+      },
+      {
+        "calls": 4,
+        "total_exec_time": 0.0033960000000001767,
+        "wal_bytes": 0,
+        "query_prefix": "SET LOCAL lock_timeout = 0",
+        "query_sha256": "a90032ef553cc437ed6894ebdfa82d60cb6a08f03c8e96a0eac47f1d05b95d0d"
+      },
+      {
+        "calls": 240,
+        "total_exec_time": 0.08578099999954247,
+        "wal_bytes": 0,
+        "query_prefix": "ROLLBACK",
+        "query_sha256": "587fa628a9fe4642ac0e22825a97e81d388af674f7251a9fb699f96901dcb710"
+      },
+      {
+        "calls": 420,
+        "total_exec_time": 1.5641779999896244,
+        "wal_bytes": 0,
+        "query_prefix": "SELECT value FROM _meta WHERE key=$1",
+        "query_sha256": "aa22a455969a56d2db1327359076646e9ed4b2434a29d4f2b19b90bb14e5f767"
+      },
+      {
+        "calls": 120,
+        "total_exec_time": 1.2503799999922194,
+        "wal_bytes": 0,
+        "query_prefix": "SELECT principal, COALESCE(family, token_digest), kind, token_digest, expires_at, $2, $3::BIGINT, $4::BIGINT FROM _sessions WHERE token_digest = $1 UNION ALL SELECT principal, fami",
+        "query_sha256": "23b627ef61631eaab1ad57cac53141470d3207ebb5b862054bdc28f905f6b28a"
+      },
+      {
+        "calls": 4,
+        "total_exec_time": 0.018463999999999814,
+        "wal_bytes": 0,
+        "query_prefix": "SET LOCAL statement_timeout = 0",
+        "query_sha256": "e06f3c7d027e0dbbbf87e8ee03ee9fd9cfa2633dfb6814e24bbe872c783ef37b"
+      },
+      {
+        "calls": 240,
+        "total_exec_time": 1.5717060000015408,
+        "wal_bytes": 0,
+        "query_prefix": "SELECT generation, (SELECT seq FROM _head WHERE singleton) FROM _backend WHERE singleton",
+        "query_sha256": "679592014039a4998a0bcc2fac81314e4014f6c7c2c6bf7ae03de826f5867d65"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 7.465948999999999,
+        "wal_bytes": 0,
+        "query_prefix": "SELECT r.data, i.k FROM i JOIN r ON r.t = i.t AND r.id = i.id WHERE i.t = $1 AND i.ix = $2 AND i.k >= $3 AND i.k < $4 ORDER BY i.k DESC LIMIT $5",
+        "query_sha256": "7474eb19f3bbaa6eb9bc9067b2f61868603426fd1a8dd38cff68dc9e03f6c04f"
+      },
+      {
+        "calls": 4,
+        "total_exec_time": 0.13387999999999067,
+        "wal_bytes": 292,
+        "query_prefix": "UPDATE _owner SET lease_until=clock_timestamp()+make_interval(secs=>$1) WHERE singleton AND store_id=$2 AND token=$3",
+        "query_sha256": "c9cec6994abfe577a335975a5119d8c9622efc9f33ef764c992c1512b6322a0f"
+      }
+    ]
+  },
+  {
+    "revision": "pre",
+    "segment": "pre",
+    "counter_domain": "pre-original",
+    "workload": "W4",
+    "keys": "disjoint",
+    "link": "B",
+    "operations": 60,
+    "warmups": 10,
+    "before_time": 1792776746.3608599,
+    "after_time": 1792776751.5787723,
+    "counter_before": 22952,
+    "counter_after": 23012,
+    "statements_per_request": 58.0,
+    "inferred_warm_exchanges_per_request": 57.0,
+    "renewals_excluded": 10,
+    "durable_commits_per_request": 1.0,
+    "latency_ms": {
+      "median": 65.95772784203291,
+      "min": 63.69674764573574,
+      "max": 80.44443279504776
+    },
+    "sql_exec_ms_per_request_including_renewal": 0.5347418333334323,
+    "statement_deltas": [
+      {
+        "calls": 70,
+        "total_exec_time": 0.0238330000000051,
+        "wal_bytes": 0,
+        "query_prefix": "COMMIT",
+        "query_sha256": "79663c1d3b43ceaf9ee728e501c64b57ae2e4d6cb36ff5c65eddcda1de27342f"
+      },
+      {
+        "calls": 120,
+        "total_exec_time": 3.0045379999864963,
+        "wal_bytes": 3599,
+        "query_prefix": "SELECT r.data, i.k FROM i JOIN r ON r.t = i.t AND r.id = i.id WHERE i.t = $1 AND i.ix = $2 AND i.k >= $3 AND i.k < $4 ORDER BY i.k ASC LIMIT $5",
+        "query_sha256": "b51ea22c0ebc2e3e46cd98e2bdd28ad4f72f786fb34e24d47cac6a3ceee96980"
+      },
+      {
+        "calls": 540,
+        "total_exec_time": 2.090682999994897,
+        "wal_bytes": 0,
+        "query_prefix": "START TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY",
+        "query_sha256": "5622ef03741f9617ed31f225dad5e2e202a506f3b02620958dece09cde6a36cf"
+      },
+      {
+        "calls": 10,
+        "total_exec_time": 0.007073999999999359,
+        "wal_bytes": 0,
+        "query_prefix": "START TRANSACTION",
+        "query_sha256": "c694dd4d8f76a81fe0ca5c11301c3b1d7c0ebeb4e5a7f996714ecbd1f282ab9a"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 1.2567370000178926,
+        "wal_bytes": 4266,
+        "query_prefix": "UPDATE r SET data = $3 WHERE t = $1 AND id = $2",
+        "query_sha256": "d50062589cfd56092a580943c39da04f19cf8d4704463f4d9c258ff8ab65980b"
+      },
+      {
+        "calls": 70,
+        "total_exec_time": 0.06380800000000164,
+        "wal_bytes": 0,
+        "query_prefix": "SET LOCAL lock_timeout = 0",
+        "query_sha256": "a90032ef553cc437ed6894ebdfa82d60cb6a08f03c8e96a0eac47f1d05b95d0d"
+      },
+      {
+        "calls": 540,
+        "total_exec_time": 0.19992900000420377,
+        "wal_bytes": 0,
+        "query_prefix": "ROLLBACK",
+        "query_sha256": "587fa628a9fe4642ac0e22825a97e81d388af674f7251a9fb699f96901dcb710"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 0.01587200000000344,
+        "wal_bytes": 0,
+        "query_prefix": "SAVEPOINT program",
+        "query_sha256": "4223ede3307cc3215e4fd969411336ab996799cc846bdb83b12636093af3f1fb"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 3.8475700000000046,
+        "wal_bytes": 18480,
+        "query_prefix": "WITH head AS (\n            UPDATE _head SET seq = $1::bigint WHERE singleton AND seq = $1::bigint - $26 RETURNING seq\n        ), committed AS (\n            INSERT INTO _commits(seq",
+        "query_sha256": "cf1e5bfa540387dae63f43770fda3e70831c0ee2078ca06daa06e3aa0b5bbb2f"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 0.02975600000000611,
+        "wal_bytes": 0,
+        "query_prefix": "RELEASE SAVEPOINT program",
+        "query_sha256": "c9068183d8feec064b6aa84147bc97207acaa0ae6f2de6cc1ad25cf7d7087981"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 0.2139880000000005,
+        "wal_bytes": 0,
+        "query_prefix": "SELECT generation FROM _backend WHERE singleton",
+        "query_sha256": "58bceaa240fea1604a08df2c8afdea7e050bdcd42aa78dba9e2242ea72dcc0ea"
+      },
+      {
+        "calls": 660,
+        "total_exec_time": 2.6823399999775575,
+        "wal_bytes": 0,
+        "query_prefix": "SELECT value FROM _meta WHERE key=$1",
+        "query_sha256": "aa22a455969a56d2db1327359076646e9ed4b2434a29d4f2b19b90bb14e5f767"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 0.03612500000000374,
+        "wal_bytes": 0,
+        "query_prefix": "SAVEPOINT member",
+        "query_sha256": "23755542a9c19e6dd9c9042b8e8cb396af1f9b995506c8f7aca91916ccd21945"
+      },
+      {
+        "calls": 240,
+        "total_exec_time": 3.2541590000037104,
+        "wal_bytes": 0,
+        "query_prefix": "SELECT principal, COALESCE(family, token_digest), kind, token_digest, expires_at, $2, $3::BIGINT, $4::BIGINT FROM _sessions WHERE token_digest = $1 UNION ALL SELECT principal, fami",
+        "query_sha256": "23b627ef61631eaab1ad57cac53141470d3207ebb5b862054bdc28f905f6b28a"
+      },
+      {
+        "calls": 70,
+        "total_exec_time": 0.31016400000000033,
+        "wal_bytes": 0,
+        "query_prefix": "SET LOCAL statement_timeout = 0",
+        "query_sha256": "e06f3c7d027e0dbbbf87e8ee03ee9fd9cfa2633dfb6814e24bbe872c783ef37b"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 0.22698200000000668,
+        "wal_bytes": 0,
+        "query_prefix": "START TRANSACTION ISOLATION LEVEL READ COMMITTED, READ WRITE",
+        "query_sha256": "57e7ab882ef27d26ce7a6ec70e8a77d5664edc8e175c3c11223b5d0e508da186"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 1.0277809999996634,
+        "wal_bytes": 3348,
+        "query_prefix": "SELECT store_id,token FROM _owner WHERE singleton FOR KEY SHARE",
+        "query_sha256": "cd1d65e5e8a40437d5df1255729054c31e596adfae669e4eebfdc78f4e70307e"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 1.2423580000000811,
+        "wal_bytes": 0,
+        "query_prefix": "SELECT c.seq,e.footprint FROM _commits c LEFT JOIN _change_evidence e ON e.seq=c.seq WHERE c.seq>$1 AND c.seq<=$2 ORDER BY c.seq LIMIT $3",
+        "query_sha256": "317f0d4651362bb519f533732601a30668a0ed78358924c0235a7093fcc8fa4b"
+      },
+      {
+        "calls": 540,
+        "total_exec_time": 11.166330000021844,
+        "wal_bytes": 0,
+        "query_prefix": "SELECT generation, (SELECT seq FROM _head WHERE singleton) FROM _backend WHERE singleton",
+        "query_sha256": "679592014039a4998a0bcc2fac81314e4014f6c7c2c6bf7ae03de826f5867d65"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 1.054288999999585,
+        "wal_bytes": 3240,
+        "query_prefix": "SELECT seq FROM _head WHERE singleton FOR UPDATE",
+        "query_sha256": "88a041dbaf91096769a53de41afc636eb071163b579f565b7fe41bfb5bebe29b"
+      },
+      {
+        "calls": 10,
+        "total_exec_time": 0.309065999999973,
+        "wal_bytes": 838,
+        "query_prefix": "UPDATE _owner SET lease_until=clock_timestamp()+make_interval(secs=>$1) WHERE singleton AND store_id=$2 AND token=$3",
+        "query_sha256": "c9cec6994abfe577a335975a5119d8c9622efc9f33ef764c992c1512b6322a0f"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 0.021127999999999147,
+        "wal_bytes": 0,
+        "query_prefix": "RELEASE SAVEPOINT member",
+        "query_sha256": "5f2ba9a7b7434dc8e20b07c0bb9660b55317327b633742aaa1da307efb0fa9c5"
+      }
+    ]
+  },
+  {
+    "revision": "pre",
+    "segment": "pre",
+    "counter_domain": "pre-original",
+    "workload": "W4",
+    "keys": "disjoint",
+    "link": "A",
+    "operations": 60,
+    "warmups": 10,
+    "before_time": 1792775288.326,
+    "after_time": 1792775291.7874417,
+    "counter_before": 10,
+    "counter_after": 70,
+    "statements_per_request": 58.0,
+    "inferred_warm_exchanges_per_request": 57.0,
+    "renewals_excluded": 6,
+    "durable_commits_per_request": 1.0,
+    "latency_ms": {
+      "median": 36.83785069733858,
+      "min": 35.11780500411987,
+      "max": 40.85046239197254
+    },
+    "sql_exec_ms_per_request_including_renewal": 0.45130989999944426,
+    "statement_deltas": [
+      {
+        "calls": 66,
+        "total_exec_time": 0.01804699999999937,
+        "wal_bytes": 0,
+        "query_prefix": "COMMIT",
+        "query_sha256": "79663c1d3b43ceaf9ee728e501c64b57ae2e4d6cb36ff5c65eddcda1de27342f"
+      },
+      {
+        "calls": 120,
+        "total_exec_time": 2.755784000008134,
+        "wal_bytes": 3599,
+        "query_prefix": "SELECT r.data, i.k FROM i JOIN r ON r.t = i.t AND r.id = i.id WHERE i.t = $1 AND i.ix = $2 AND i.k >= $3 AND i.k < $4 ORDER BY i.k ASC LIMIT $5",
+        "query_sha256": "b51ea22c0ebc2e3e46cd98e2bdd28ad4f72f786fb34e24d47cac6a3ceee96980"
+      },
+      {
+        "calls": 540,
+        "total_exec_time": 1.6709139999884428,
+        "wal_bytes": 0,
+        "query_prefix": "START TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY",
+        "query_sha256": "5622ef03741f9617ed31f225dad5e2e202a506f3b02620958dece09cde6a36cf"
+      },
+      {
+        "calls": 6,
+        "total_exec_time": 0.0061109999999999776,
+        "wal_bytes": 0,
+        "query_prefix": "START TRANSACTION",
+        "query_sha256": "c694dd4d8f76a81fe0ca5c11301c3b1d7c0ebeb4e5a7f996714ecbd1f282ab9a"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 1.1249289999905159,
+        "wal_bytes": 4266,
+        "query_prefix": "UPDATE r SET data = $3 WHERE t = $1 AND id = $2",
+        "query_sha256": "d50062589cfd56092a580943c39da04f19cf8d4704463f4d9c258ff8ab65980b"
+      },
+      {
+        "calls": 66,
+        "total_exec_time": 0.05557600000000118,
+        "wal_bytes": 0,
+        "query_prefix": "SET LOCAL lock_timeout = 0",
+        "query_sha256": "a90032ef553cc437ed6894ebdfa82d60cb6a08f03c8e96a0eac47f1d05b95d0d"
+      },
+      {
+        "calls": 540,
+        "total_exec_time": 0.16457799999955114,
+        "wal_bytes": 0,
+        "query_prefix": "ROLLBACK",
+        "query_sha256": "587fa628a9fe4642ac0e22825a97e81d388af674f7251a9fb699f96901dcb710"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 0.014047000000000002,
+        "wal_bytes": 0,
+        "query_prefix": "SAVEPOINT program",
+        "query_sha256": "4223ede3307cc3215e4fd969411336ab996799cc846bdb83b12636093af3f1fb"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 3.532631999999996,
+        "wal_bytes": 18480,
+        "query_prefix": "WITH head AS (\n            UPDATE _head SET seq = $1::bigint WHERE singleton AND seq = $1::bigint - $26 RETURNING seq\n        ), committed AS (\n            INSERT INTO _commits(seq",
+        "query_sha256": "cf1e5bfa540387dae63f43770fda3e70831c0ee2078ca06daa06e3aa0b5bbb2f"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 0.028376999999999993,
+        "wal_bytes": 0,
+        "query_prefix": "RELEASE SAVEPOINT program",
+        "query_sha256": "c9068183d8feec064b6aa84147bc97207acaa0ae6f2de6cc1ad25cf7d7087981"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 0.17467500000000058,
+        "wal_bytes": 0,
+        "query_prefix": "SELECT generation FROM _backend WHERE singleton",
+        "query_sha256": "58bceaa240fea1604a08df2c8afdea7e050bdcd42aa78dba9e2242ea72dcc0ea"
+      },
+      {
+        "calls": 660,
+        "total_exec_time": 2.27296299997397,
+        "wal_bytes": 0,
+        "query_prefix": "SELECT value FROM _meta WHERE key=$1",
+        "query_sha256": "aa22a455969a56d2db1327359076646e9ed4b2434a29d4f2b19b90bb14e5f767"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 0.030502000000000085,
+        "wal_bytes": 0,
+        "query_prefix": "SAVEPOINT member",
+        "query_sha256": "23755542a9c19e6dd9c9042b8e8cb396af1f9b995506c8f7aca91916ccd21945"
+      },
+      {
+        "calls": 240,
+        "total_exec_time": 2.428384000004371,
+        "wal_bytes": 0,
+        "query_prefix": "SELECT principal, COALESCE(family, token_digest), kind, token_digest, expires_at, $2, $3::BIGINT, $4::BIGINT FROM _sessions WHERE token_digest = $1 UNION ALL SELECT principal, fami",
+        "query_sha256": "23b627ef61631eaab1ad57cac53141470d3207ebb5b862054bdc28f905f6b28a"
+      },
+      {
+        "calls": 66,
+        "total_exec_time": 0.22457299999999947,
+        "wal_bytes": 0,
+        "query_prefix": "SET LOCAL statement_timeout = 0",
+        "query_sha256": "e06f3c7d027e0dbbbf87e8ee03ee9fd9cfa2633dfb6814e24bbe872c783ef37b"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 0.1887730000000012,
+        "wal_bytes": 0,
+        "query_prefix": "START TRANSACTION ISOLATION LEVEL READ COMMITTED, READ WRITE",
+        "query_sha256": "57e7ab882ef27d26ce7a6ec70e8a77d5664edc8e175c3c11223b5d0e508da186"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 0.8528890000000011,
+        "wal_bytes": 3240,
+        "query_prefix": "SELECT store_id,token FROM _owner WHERE singleton FOR KEY SHARE",
+        "query_sha256": "cd1d65e5e8a40437d5df1255729054c31e596adfae669e4eebfdc78f4e70307e"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 0.7183579999999999,
+        "wal_bytes": 0,
+        "query_prefix": "SELECT c.seq,e.footprint FROM _commits c LEFT JOIN _change_evidence e ON e.seq=c.seq WHERE c.seq>$1 AND c.seq<=$2 ORDER BY c.seq LIMIT $3",
+        "query_sha256": "317f0d4651362bb519f533732601a30668a0ed78358924c0235a7093fcc8fa4b"
+      },
+      {
+        "calls": 540,
+        "total_exec_time": 9.698724000001675,
+        "wal_bytes": 0,
+        "query_prefix": "SELECT generation, (SELECT seq FROM _head WHERE singleton) FROM _backend WHERE singleton",
+        "query_sha256": "679592014039a4998a0bcc2fac81314e4014f6c7c2c6bf7ae03de826f5867d65"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 0.9062180000000017,
+        "wal_bytes": 3240,
+        "query_prefix": "SELECT seq FROM _head WHERE singleton FOR UPDATE",
+        "query_sha256": "88a041dbaf91096769a53de41afc636eb071163b579f565b7fe41bfb5bebe29b"
+      },
+      {
+        "calls": 6,
+        "total_exec_time": 0.19168999999999414,
+        "wal_bytes": 492,
+        "query_prefix": "UPDATE _owner SET lease_until=clock_timestamp()+make_interval(secs=>$1) WHERE singleton AND store_id=$2 AND token=$3",
+        "query_sha256": "c9cec6994abfe577a335975a5119d8c9622efc9f33ef764c992c1512b6322a0f"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 0.019849999999999923,
+        "wal_bytes": 0,
+        "query_prefix": "RELEASE SAVEPOINT member",
+        "query_sha256": "5f2ba9a7b7434dc8e20b07c0bb9660b55317327b633742aaa1da307efb0fa9c5"
+      }
+    ]
+  },
+  {
+    "revision": "b1",
+    "segment": "b1",
+    "counter_domain": "b1-fresh",
+    "workload": "W1",
+    "keys": "disjoint",
+    "link": "B",
+    "operations": 60,
+    "warmups": 10,
+    "before_time": 1792780092.9299307,
+    "after_time": 1792780094.6188166,
+    "counter_before": 56023,
+    "counter_after": 56023,
+    "statements_per_request": 6.0,
+    "inferred_warm_exchanges_per_request": 6.0,
+    "renewals_excluded": 3,
+    "durable_commits_per_request": 0.0,
+    "latency_ms": {
+      "median": 7.459484040737152,
+      "min": 7.059520110487938,
+      "max": 8.40781070291996
+    },
+    "sql_exec_ms_per_request_including_renewal": 0.1804328333341719,
+    "statement_deltas": [
+      {
+        "calls": 3,
+        "total_exec_time": 0.001402999999999821,
+        "wal_bytes": 0,
+        "query_prefix": "COMMIT",
+        "query_sha256": "79663c1d3b43ceaf9ee728e501c64b57ae2e4d6cb36ff5c65eddcda1de27342f"
+      },
+      {
+        "calls": 120,
+        "total_exec_time": 2.1150670000133687,
+        "wal_bytes": 0,
+        "query_prefix": "SELECT r.data, i.k FROM i JOIN r ON r.t = i.t AND r.id = i.id WHERE i.t = $1 AND i.ix = $2 AND i.k >= $3 AND i.k < $4 ORDER BY i.k ASC LIMIT $5",
+        "query_sha256": "b51ea22c0ebc2e3e46cd98e2bdd28ad4f72f786fb34e24d47cac6a3ceee96980"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 0.23617600000216044,
+        "wal_bytes": 0,
+        "query_prefix": "START TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY",
+        "query_sha256": "5622ef03741f9617ed31f225dad5e2e202a506f3b02620958dece09cde6a36cf"
+      },
+      {
+        "calls": 3,
+        "total_exec_time": 0.0032440000000004687,
+        "wal_bytes": 0,
+        "query_prefix": "START TRANSACTION",
+        "query_sha256": "c694dd4d8f76a81fe0ca5c11301c3b1d7c0ebeb4e5a7f996714ecbd1f282ab9a"
+      },
+      {
+        "calls": 3,
+        "total_exec_time": 0.002944999999996867,
+        "wal_bytes": 0,
+        "query_prefix": "SET LOCAL lock_timeout = 0",
+        "query_sha256": "a90032ef553cc437ed6894ebdfa82d60cb6a08f03c8e96a0eac47f1d05b95d0d"
+      },
+      {
+        "calls": 120,
+        "total_exec_time": 8.238712000034866,
+        "wal_bytes": 0,
+        "query_prefix": "WITH sessions AS (SELECT principal, COALESCE(family, token_digest) AS family, kind, token_digest, expires_at, $2 AS scope, $3::BIGINT AS cap_expires_at, $4::BIGINT AS principal_gen",
+        "query_sha256": "3b710f7dd72903662b480dd633974ed5eadb191d406714cc741e56a488d9a481"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 0.023263999999926455,
+        "wal_bytes": 0,
+        "query_prefix": "ROLLBACK",
+        "query_sha256": "587fa628a9fe4642ac0e22825a97e81d388af674f7251a9fb699f96901dcb710"
+      },
+      {
+        "calls": 3,
+        "total_exec_time": 0.1877449999999925,
+        "wal_bytes": 219,
+        "query_prefix": "UPDATE _owner SET lease_until=clock_timestamp()+make_interval(secs=>$1) WHERE singleton AND store_id=$2 AND token=$3 AND holder=$4",
+        "query_sha256": "be8f7b656abcd0fb2ae964adb192129ce996d69e9c75f712fc3a254e43003859"
+      },
+      {
+        "calls": 3,
+        "total_exec_time": 0.01741400000000226,
+        "wal_bytes": 0,
+        "query_prefix": "SET LOCAL statement_timeout = 0",
+        "query_sha256": "e06f3c7d027e0dbbbf87e8ee03ee9fd9cfa2633dfb6814e24bbe872c783ef37b"
+      }
+    ]
+  },
+  {
+    "revision": "b1",
+    "segment": "b1",
+    "counter_domain": "b1-fresh",
+    "workload": "W1",
+    "keys": "disjoint",
+    "link": "A",
+    "operations": 60,
+    "warmups": 10,
+    "before_time": 1792778658.935688,
+    "after_time": 1792778660.4408875,
+    "counter_before": 0,
+    "counter_after": 0,
+    "statements_per_request": 6.0,
+    "inferred_warm_exchanges_per_request": 6.0,
+    "renewals_excluded": 3,
+    "durable_commits_per_request": 0.0,
+    "latency_ms": {
+      "median": 4.22998983412981,
+      "min": 3.9190519601106644,
+      "max": 5.301464349031448
+    },
+    "sql_exec_ms_per_request_including_renewal": 0.08873546666666646,
+    "statement_deltas": [
+      {
+        "calls": 3,
+        "total_exec_time": 0.0010830000000000006,
+        "wal_bytes": 0,
+        "query_prefix": "COMMIT",
+        "query_sha256": "79663c1d3b43ceaf9ee728e501c64b57ae2e4d6cb36ff5c65eddcda1de27342f"
+      },
+      {
+        "calls": 120,
+        "total_exec_time": 1.7735309999999878,
+        "wal_bytes": 0,
+        "query_prefix": "SELECT r.data, i.k FROM i JOIN r ON r.t = i.t AND r.id = i.id WHERE i.t = $1 AND i.ix = $2 AND i.k >= $3 AND i.k < $4 ORDER BY i.k ASC LIMIT $5",
+        "query_sha256": "b51ea22c0ebc2e3e46cd98e2bdd28ad4f72f786fb34e24d47cac6a3ceee96980"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 0.22179499999999985,
+        "wal_bytes": 0,
+        "query_prefix": "START TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY",
+        "query_sha256": "5622ef03741f9617ed31f225dad5e2e202a506f3b02620958dece09cde6a36cf"
+      },
+      {
+        "calls": 3,
+        "total_exec_time": 0.0036770000000000413,
+        "wal_bytes": 0,
+        "query_prefix": "START TRANSACTION",
+        "query_sha256": "c694dd4d8f76a81fe0ca5c11301c3b1d7c0ebeb4e5a7f996714ecbd1f282ab9a"
+      },
+      {
+        "calls": 3,
+        "total_exec_time": 0.002955000000000041,
+        "wal_bytes": 0,
+        "query_prefix": "SET LOCAL lock_timeout = 0",
+        "query_sha256": "a90032ef553cc437ed6894ebdfa82d60cb6a08f03c8e96a0eac47f1d05b95d0d"
+      },
+      {
+        "calls": 120,
+        "total_exec_time": 3.1712280000000015,
+        "wal_bytes": 0,
+        "query_prefix": "WITH sessions AS (SELECT principal, COALESCE(family, token_digest) AS family, kind, token_digest, expires_at, $2 AS scope, $3::BIGINT AS cap_expires_at, $4::BIGINT AS principal_gen",
+        "query_sha256": "3b710f7dd72903662b480dd633974ed5eadb191d406714cc741e56a488d9a481"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 0.02247800000000002,
+        "wal_bytes": 0,
+        "query_prefix": "ROLLBACK",
+        "query_sha256": "587fa628a9fe4642ac0e22825a97e81d388af674f7251a9fb699f96901dcb710"
+      },
+      {
+        "calls": 3,
+        "total_exec_time": 0.11195099999999769,
+        "wal_bytes": 219,
+        "query_prefix": "UPDATE _owner SET lease_until=clock_timestamp()+make_interval(secs=>$1) WHERE singleton AND store_id=$2 AND token=$3 AND holder=$4",
+        "query_sha256": "be8f7b656abcd0fb2ae964adb192129ce996d69e9c75f712fc3a254e43003859"
+      },
+      {
+        "calls": 3,
+        "total_exec_time": 0.015430000000000277,
+        "wal_bytes": 0,
+        "query_prefix": "SET LOCAL statement_timeout = 0",
+        "query_sha256": "e06f3c7d027e0dbbbf87e8ee03ee9fd9cfa2633dfb6814e24bbe872c783ef37b"
+      }
+    ]
+  },
+  {
+    "revision": "b1",
+    "segment": "b1",
+    "counter_domain": "b1-fresh",
+    "workload": "W2",
+    "keys": "disjoint",
+    "link": "B",
+    "operations": 60,
+    "warmups": 10,
+    "before_time": 1792780472.5194871,
+    "after_time": 1792780474.2270527,
+    "counter_before": 56023,
+    "counter_after": 56023,
+    "statements_per_request": 6.0,
+    "inferred_warm_exchanges_per_request": 6.0,
+    "renewals_excluded": 3,
+    "durable_commits_per_request": 0.0,
+    "latency_ms": {
+      "median": 7.756568491458893,
+      "min": 7.2810593992471695,
+      "max": 8.454447612166405
+    },
+    "sql_exec_ms_per_request_including_renewal": 0.19214736666398158,
+    "statement_deltas": [
+      {
+        "calls": 3,
+        "total_exec_time": 0.0013819999999995503,
+        "wal_bytes": 0,
+        "query_prefix": "COMMIT",
+        "query_sha256": "79663c1d3b43ceaf9ee728e501c64b57ae2e4d6cb36ff5c65eddcda1de27342f"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 1.0348619999713264,
+        "wal_bytes": 0,
+        "query_prefix": "SELECT r.data, i.k FROM i JOIN r ON r.t = i.t AND r.id = i.id WHERE i.t = $1 AND i.ix = $2 AND i.k >= $3 AND i.k < $4 ORDER BY i.k ASC LIMIT $5",
+        "query_sha256": "b51ea22c0ebc2e3e46cd98e2bdd28ad4f72f786fb34e24d47cac6a3ceee96980"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 0.2661499999976513,
+        "wal_bytes": 0,
+        "query_prefix": "START TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY",
+        "query_sha256": "5622ef03741f9617ed31f225dad5e2e202a506f3b02620958dece09cde6a36cf"
+      },
+      {
+        "calls": 3,
+        "total_exec_time": 0.0030360000000002607,
+        "wal_bytes": 0,
+        "query_prefix": "START TRANSACTION",
+        "query_sha256": "c694dd4d8f76a81fe0ca5c11301c3b1d7c0ebeb4e5a7f996714ecbd1f282ab9a"
+      },
+      {
+        "calls": 3,
+        "total_exec_time": 0.0028849999999991383,
+        "wal_bytes": 0,
+        "query_prefix": "SET LOCAL lock_timeout = 0",
+        "query_sha256": "a90032ef553cc437ed6894ebdfa82d60cb6a08f03c8e96a0eac47f1d05b95d0d"
+      },
+      {
+        "calls": 120,
+        "total_exec_time": 3.6683819998870604,
+        "wal_bytes": 0,
+        "query_prefix": "WITH sessions AS (SELECT principal, COALESCE(family, token_digest) AS family, kind, token_digest, expires_at, $2 AS scope, $3::BIGINT AS cap_expires_at, $4::BIGINT AS principal_gen",
+        "query_sha256": "3b710f7dd72903662b480dd633974ed5eadb191d406714cc741e56a488d9a481"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 0.02648099999976239,
+        "wal_bytes": 0,
+        "query_prefix": "ROLLBACK",
+        "query_sha256": "587fa628a9fe4642ac0e22825a97e81d388af674f7251a9fb699f96901dcb710"
+      },
+      {
+        "calls": 3,
+        "total_exec_time": 0.11191199999998958,
+        "wal_bytes": 219,
+        "query_prefix": "UPDATE _owner SET lease_until=clock_timestamp()+make_interval(secs=>$1) WHERE singleton AND store_id=$2 AND token=$3 AND holder=$4",
+        "query_sha256": "be8f7b656abcd0fb2ae964adb192129ce996d69e9c75f712fc3a254e43003859"
+      },
+      {
+        "calls": 3,
+        "total_exec_time": 0.014408000000003085,
+        "wal_bytes": 0,
+        "query_prefix": "SET LOCAL statement_timeout = 0",
+        "query_sha256": "e06f3c7d027e0dbbbf87e8ee03ee9fd9cfa2633dfb6814e24bbe872c783ef37b"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 6.3993439999831025,
+        "wal_bytes": 0,
+        "query_prefix": "SELECT r.data, i.k FROM i JOIN r ON r.t = i.t AND r.id = i.id WHERE i.t = $1 AND i.ix = $2 AND i.k >= $3 AND i.k < $4 ORDER BY i.k DESC LIMIT $5",
+        "query_sha256": "7474eb19f3bbaa6eb9bc9067b2f61868603426fd1a8dd38cff68dc9e03f6c04f"
+      }
+    ]
+  },
+  {
+    "revision": "b1",
+    "segment": "b1",
+    "counter_domain": "b1-fresh",
+    "workload": "W2",
+    "keys": "disjoint",
+    "link": "A",
+    "operations": 60,
+    "warmups": 10,
+    "before_time": 1792779036.7533114,
+    "after_time": 1792779038.25608,
+    "counter_before": 0,
+    "counter_after": 0,
+    "statements_per_request": 6.0,
+    "inferred_warm_exchanges_per_request": 6.0,
+    "renewals_excluded": 3,
+    "durable_commits_per_request": 0.0,
+    "latency_ms": {
+      "median": 4.4172946363687515,
+      "min": 4.112347960472107,
+      "max": 4.9695707857608795
+    },
+    "sql_exec_ms_per_request_including_renewal": 0.16557296666727114,
+    "statement_deltas": [
+      {
+        "calls": 3,
+        "total_exec_time": 0.0010829999999999451,
+        "wal_bytes": 0,
+        "query_prefix": "COMMIT",
+        "query_sha256": "79663c1d3b43ceaf9ee728e501c64b57ae2e4d6cb36ff5c65eddcda1de27342f"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 0.8646800000278745,
+        "wal_bytes": 0,
+        "query_prefix": "SELECT r.data, i.k FROM i JOIN r ON r.t = i.t AND r.id = i.id WHERE i.t = $1 AND i.ix = $2 AND i.k >= $3 AND i.k < $4 ORDER BY i.k ASC LIMIT $5",
+        "query_sha256": "b51ea22c0ebc2e3e46cd98e2bdd28ad4f72f786fb34e24d47cac6a3ceee96980"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 0.2029819999997926,
+        "wal_bytes": 0,
+        "query_prefix": "START TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY",
+        "query_sha256": "5622ef03741f9617ed31f225dad5e2e202a506f3b02620958dece09cde6a36cf"
+      },
+      {
+        "calls": 3,
+        "total_exec_time": 0.003026000000000084,
+        "wal_bytes": 0,
+        "query_prefix": "START TRANSACTION",
+        "query_sha256": "c694dd4d8f76a81fe0ca5c11301c3b1d7c0ebeb4e5a7f996714ecbd1f282ab9a"
+      },
+      {
+        "calls": 3,
+        "total_exec_time": 0.003006000000000064,
+        "wal_bytes": 0,
+        "query_prefix": "SET LOCAL lock_timeout = 0",
+        "query_sha256": "a90032ef553cc437ed6894ebdfa82d60cb6a08f03c8e96a0eac47f1d05b95d0d"
+      },
+      {
+        "calls": 120,
+        "total_exec_time": 3.099299000008614,
+        "wal_bytes": 0,
+        "query_prefix": "WITH sessions AS (SELECT principal, COALESCE(family, token_digest) AS family, kind, token_digest, expires_at, $2 AS scope, $3::BIGINT AS cap_expires_at, $4::BIGINT AS principal_gen",
+        "query_sha256": "3b710f7dd72903662b480dd633974ed5eadb191d406714cc741e56a488d9a481"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 0.02141599999998789,
+        "wal_bytes": 0,
+        "query_prefix": "ROLLBACK",
+        "query_sha256": "587fa628a9fe4642ac0e22825a97e81d388af674f7251a9fb699f96901dcb710"
+      },
+      {
+        "calls": 3,
+        "total_exec_time": 0.10630100000000198,
+        "wal_bytes": 219,
+        "query_prefix": "UPDATE _owner SET lease_until=clock_timestamp()+make_interval(secs=>$1) WHERE singleton AND store_id=$2 AND token=$3 AND holder=$4",
+        "query_sha256": "be8f7b656abcd0fb2ae964adb192129ce996d69e9c75f712fc3a254e43003859"
+      },
+      {
+        "calls": 3,
+        "total_exec_time": 0.01665199999999878,
+        "wal_bytes": 0,
+        "query_prefix": "SET LOCAL statement_timeout = 0",
+        "query_sha256": "e06f3c7d027e0dbbbf87e8ee03ee9fd9cfa2633dfb6814e24bbe872c783ef37b"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 5.615932999999998,
+        "wal_bytes": 0,
+        "query_prefix": "SELECT r.data, i.k FROM i JOIN r ON r.t = i.t AND r.id = i.id WHERE i.t = $1 AND i.ix = $2 AND i.k >= $3 AND i.k < $4 ORDER BY i.k DESC LIMIT $5",
+        "query_sha256": "7474eb19f3bbaa6eb9bc9067b2f61868603426fd1a8dd38cff68dc9e03f6c04f"
+      }
+    ]
+  },
+  {
+    "revision": "b1",
+    "segment": "b1",
+    "counter_domain": "b1-fresh",
+    "workload": "W4",
+    "keys": "disjoint",
+    "link": "B",
+    "operations": 60,
+    "warmups": 10,
+    "before_time": 1792780759.60981,
+    "after_time": 1792780762.2132359,
+    "counter_before": 56033,
+    "counter_after": 56093,
+    "statements_per_request": 17.0,
+    "inferred_warm_exchanges_per_request": 16.0,
+    "renewals_excluded": 5,
+    "durable_commits_per_request": 1.0,
+    "latency_ms": {
+      "median": 22.123060189187527,
+      "min": 20.900314673781395,
+      "max": 37.51666098833084
+    },
+    "sql_exec_ms_per_request_including_renewal": 0.4440091833310243,
+    "statement_deltas": [
+      {
+        "calls": 65,
+        "total_exec_time": 0.026626000000007366,
+        "wal_bytes": 0,
+        "query_prefix": "COMMIT",
+        "query_sha256": "79663c1d3b43ceaf9ee728e501c64b57ae2e4d6cb36ff5c65eddcda1de27342f"
+      },
+      {
+        "calls": 120,
+        "total_exec_time": 3.1184299999440555,
+        "wal_bytes": 3599,
+        "query_prefix": "SELECT r.data, i.k FROM i JOIN r ON r.t = i.t AND r.id = i.id WHERE i.t = $1 AND i.ix = $2 AND i.k >= $3 AND i.k < $4 ORDER BY i.k ASC LIMIT $5",
+        "query_sha256": "b51ea22c0ebc2e3e46cd98e2bdd28ad4f72f786fb34e24d47cac6a3ceee96980"
+      },
+      {
+        "calls": 5,
+        "total_exec_time": 0.00463900000000006,
+        "wal_bytes": 0,
+        "query_prefix": "START TRANSACTION",
+        "query_sha256": "c694dd4d8f76a81fe0ca5c11301c3b1d7c0ebeb4e5a7f996714ecbd1f282ab9a"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 1.3048520000011194,
+        "wal_bytes": 4266,
+        "query_prefix": "UPDATE r SET data = $3 WHERE t = $1 AND id = $2",
+        "query_sha256": "d50062589cfd56092a580943c39da04f19cf8d4704463f4d9c258ff8ab65980b"
+      },
+      {
+        "calls": 65,
+        "total_exec_time": 0.05804799999997101,
+        "wal_bytes": 0,
+        "query_prefix": "SET LOCAL lock_timeout = 0",
+        "query_sha256": "a90032ef553cc437ed6894ebdfa82d60cb6a08f03c8e96a0eac47f1d05b95d0d"
+      },
+      {
+        "calls": 120,
+        "total_exec_time": 6.807099999918137,
+        "wal_bytes": 0,
+        "query_prefix": "WITH sessions AS (SELECT principal, COALESCE(family, token_digest) AS family, kind, token_digest, expires_at, $2 AS scope, $3::BIGINT AS cap_expires_at, $4::BIGINT AS principal_gen",
+        "query_sha256": "3b710f7dd72903662b480dd633974ed5eadb191d406714cc741e56a488d9a481"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 0.027920999999999196,
+        "wal_bytes": 0,
+        "query_prefix": "SAVEPOINT program",
+        "query_sha256": "4223ede3307cc3215e4fd969411336ab996799cc846bdb83b12636093af3f1fb"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 0.037319999999994025,
+        "wal_bytes": 0,
+        "query_prefix": "RELEASE SAVEPOINT program",
+        "query_sha256": "c9068183d8feec064b6aa84147bc97207acaa0ae6f2de6cc1ad25cf7d7087981"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 11.720932999999832,
+        "wal_bytes": 43344,
+        "query_prefix": "WITH head AS (\n            UPDATE _head SET seq = $1::bigint WHERE singleton AND seq = $1::bigint - $28 RETURNING seq\n        ), committed AS (\n            INSERT INTO _commits(seq",
+        "query_sha256": "55543a0394c0a913340fa8bea6a053fcb4e7c2f642cd9fcbc44f4ba1512f013a"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 0.25885699999992084,
+        "wal_bytes": 0,
+        "query_prefix": "SELECT generation FROM _backend WHERE singleton",
+        "query_sha256": "58bceaa240fea1604a08df2c8afdea7e050bdcd42aa78dba9e2242ea72dcc0ea"
+      },
+      {
+        "calls": 5,
+        "total_exec_time": 0.18354499999998097,
+        "wal_bytes": 473,
+        "query_prefix": "UPDATE _owner SET lease_until=clock_timestamp()+make_interval(secs=>$1) WHERE singleton AND store_id=$2 AND token=$3 AND holder=$4",
+        "query_sha256": "be8f7b656abcd0fb2ae964adb192129ce996d69e9c75f712fc3a254e43003859"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 0.04500999999996935,
+        "wal_bytes": 0,
+        "query_prefix": "SAVEPOINT member",
+        "query_sha256": "23755542a9c19e6dd9c9042b8e8cb396af1f9b995506c8f7aca91916ccd21945"
+      },
+      {
+        "calls": 65,
+        "total_exec_time": 0.3171159999999986,
+        "wal_bytes": 0,
+        "query_prefix": "SET LOCAL statement_timeout = 0",
+        "query_sha256": "e06f3c7d027e0dbbbf87e8ee03ee9fd9cfa2633dfb6814e24bbe872c783ef37b"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 0.41372400000022935,
+        "wal_bytes": 0,
+        "query_prefix": "START TRANSACTION ISOLATION LEVEL READ COMMITTED, READ WRITE",
+        "query_sha256": "57e7ab882ef27d26ce7a6ec70e8a77d5664edc8e175c3c11223b5d0e508da186"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 1.1425979999996798,
+        "wal_bytes": 3456,
+        "query_prefix": "SELECT store_id,token FROM _owner WHERE singleton FOR KEY SHARE",
+        "query_sha256": "cd1d65e5e8a40437d5df1255729054c31e596adfae669e4eebfdc78f4e70307e"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 1.1352489999985664,
+        "wal_bytes": 3240,
+        "query_prefix": "SELECT seq FROM _head WHERE singleton FOR UPDATE",
+        "query_sha256": "88a041dbaf91096769a53de41afc636eb071163b579f565b7fe41bfb5bebe29b"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 0.03858299999999559,
+        "wal_bytes": 0,
+        "query_prefix": "RELEASE SAVEPOINT member",
+        "query_sha256": "5f2ba9a7b7434dc8e20b07c0bb9660b55317327b633742aaa1da307efb0fa9c5"
+      }
+    ]
+  },
+  {
+    "revision": "b1",
+    "segment": "b1",
+    "counter_domain": "b1-fresh",
+    "workload": "W4",
+    "keys": "disjoint",
+    "link": "A",
+    "operations": 60,
+    "warmups": 10,
+    "before_time": 1792779322.0820959,
+    "after_time": 1792779324.1376472,
+    "counter_before": 10,
+    "counter_after": 70,
+    "statements_per_request": 17.0,
+    "inferred_warm_exchanges_per_request": 16.0,
+    "renewals_excluded": 4,
+    "durable_commits_per_request": 1.0,
+    "latency_ms": {
+      "median": 13.425861485302448,
+      "min": 12.566553428769112,
+      "max": 16.265837475657463
+    },
+    "sql_exec_ms_per_request_including_renewal": 0.3315509666655032,
+    "statement_deltas": [
+      {
+        "calls": 64,
+        "total_exec_time": 0.025998999999999772,
+        "wal_bytes": 0,
+        "query_prefix": "COMMIT",
+        "query_sha256": "79663c1d3b43ceaf9ee728e501c64b57ae2e4d6cb36ff5c65eddcda1de27342f"
+      },
+      {
+        "calls": 120,
+        "total_exec_time": 2.889008999969519,
+        "wal_bytes": 3599,
+        "query_prefix": "SELECT r.data, i.k FROM i JOIN r ON r.t = i.t AND r.id = i.id WHERE i.t = $1 AND i.ix = $2 AND i.k >= $3 AND i.k < $4 ORDER BY i.k ASC LIMIT $5",
+        "query_sha256": "b51ea22c0ebc2e3e46cd98e2bdd28ad4f72f786fb34e24d47cac6a3ceee96980"
+      },
+      {
+        "calls": 4,
+        "total_exec_time": 0.004278000000000004,
+        "wal_bytes": 0,
+        "query_prefix": "START TRANSACTION",
+        "query_sha256": "c694dd4d8f76a81fe0ca5c11301c3b1d7c0ebeb4e5a7f996714ecbd1f282ab9a"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 1.2435960000002524,
+        "wal_bytes": 4266,
+        "query_prefix": "UPDATE r SET data = $3 WHERE t = $1 AND id = $2",
+        "query_sha256": "d50062589cfd56092a580943c39da04f19cf8d4704463f4d9c258ff8ab65980b"
+      },
+      {
+        "calls": 64,
+        "total_exec_time": 0.05923199999999973,
+        "wal_bytes": 0,
+        "query_prefix": "SET LOCAL lock_timeout = 0",
+        "query_sha256": "a90032ef553cc437ed6894ebdfa82d60cb6a08f03c8e96a0eac47f1d05b95d0d"
+      },
+      {
+        "calls": 120,
+        "total_exec_time": 6.245734999960405,
+        "wal_bytes": 0,
+        "query_prefix": "WITH sessions AS (SELECT principal, COALESCE(family, token_digest) AS family, kind, token_digest, expires_at, $2 AS scope, $3::BIGINT AS cap_expires_at, $4::BIGINT AS principal_gen",
+        "query_sha256": "3b710f7dd72903662b480dd633974ed5eadb191d406714cc741e56a488d9a481"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 0.024479,
+        "wal_bytes": 0,
+        "query_prefix": "SAVEPOINT program",
+        "query_sha256": "4223ede3307cc3215e4fd969411336ab996799cc846bdb83b12636093af3f1fb"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 0.03273499999999999,
+        "wal_bytes": 0,
+        "query_prefix": "RELEASE SAVEPOINT program",
+        "query_sha256": "c9068183d8feec064b6aa84147bc97207acaa0ae6f2de6cc1ad25cf7d7087981"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 6.183681000000002,
+        "wal_bytes": 31680,
+        "query_prefix": "WITH head AS (\n            UPDATE _head SET seq = $1::bigint WHERE singleton AND seq = $1::bigint - $28 RETURNING seq\n        ), committed AS (\n            INSERT INTO _commits(seq",
+        "query_sha256": "55543a0394c0a913340fa8bea6a053fcb4e7c2f642cd9fcbc44f4ba1512f013a"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 0.2362650000000066,
+        "wal_bytes": 0,
+        "query_prefix": "SELECT generation FROM _backend WHERE singleton",
+        "query_sha256": "58bceaa240fea1604a08df2c8afdea7e050bdcd42aa78dba9e2242ea72dcc0ea"
+      },
+      {
+        "calls": 4,
+        "total_exec_time": 0.18008900000000239,
+        "wal_bytes": 400,
+        "query_prefix": "UPDATE _owner SET lease_until=clock_timestamp()+make_interval(secs=>$1) WHERE singleton AND store_id=$2 AND token=$3 AND holder=$4",
+        "query_sha256": "be8f7b656abcd0fb2ae964adb192129ce996d69e9c75f712fc3a254e43003859"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 0.03631099999999993,
+        "wal_bytes": 0,
+        "query_prefix": "SAVEPOINT member",
+        "query_sha256": "23755542a9c19e6dd9c9042b8e8cb396af1f9b995506c8f7aca91916ccd21945"
+      },
+      {
+        "calls": 64,
+        "total_exec_time": 0.3076840000000036,
+        "wal_bytes": 0,
+        "query_prefix": "SET LOCAL statement_timeout = 0",
+        "query_sha256": "e06f3c7d027e0dbbbf87e8ee03ee9fd9cfa2633dfb6814e24bbe872c783ef37b"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 0.3663260000000008,
+        "wal_bytes": 0,
+        "query_prefix": "START TRANSACTION ISOLATION LEVEL READ COMMITTED, READ WRITE",
+        "query_sha256": "57e7ab882ef27d26ce7a6ec70e8a77d5664edc8e175c3c11223b5d0e508da186"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 1.034746000000002,
+        "wal_bytes": 3348,
+        "query_prefix": "SELECT store_id,token FROM _owner WHERE singleton FOR KEY SHARE",
+        "query_sha256": "cd1d65e5e8a40437d5df1255729054c31e596adfae669e4eebfdc78f4e70307e"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 0.9979029999999982,
+        "wal_bytes": 3240,
+        "query_prefix": "SELECT seq FROM _head WHERE singleton FOR UPDATE",
+        "query_sha256": "88a041dbaf91096769a53de41afc636eb071163b579f565b7fe41bfb5bebe29b"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 0.0249899999999999,
+        "wal_bytes": 0,
+        "query_prefix": "RELEASE SAVEPOINT member",
+        "query_sha256": "5f2ba9a7b7434dc8e20b07c0bb9660b55317327b633742aaa1da307efb0fa9c5"
+      }
+    ]
+  },
+  {
+    "revision": "pre",
+    "segment": "pre-optional",
+    "counter_domain": "b1-fresh",
+    "workload": "W3",
+    "keys": "disjoint",
+    "link": "B",
+    "operations": 60,
+    "warmups": 10,
+    "before_time": 1792783952.3700163,
+    "after_time": 1792783964.961846,
+    "counter_before": 126637,
+    "counter_after": 126637,
+    "statements_per_request": 153.0,
+    "inferred_warm_exchanges_per_request": 153.0,
+    "renewals_excluded": 25,
+    "durable_commits_per_request": 0.0,
+    "latency_ms": {
+      "median": 187.98731733113527,
+      "min": 182.0975076407194,
+      "max": 208.0004457384348
+    },
+    "sql_exec_ms_per_request_including_renewal": 2.689387033325422,
+    "statement_deltas": [
+      {
+        "calls": 25,
+        "total_exec_time": 0.010040000000010707,
+        "wal_bytes": 0,
+        "query_prefix": "COMMIT",
+        "query_sha256": "79663c1d3b43ceaf9ee728e501c64b57ae2e4d6cb36ff5c65eddcda1de27342f"
+      },
+      {
+        "calls": 3900,
+        "total_exec_time": 67.9260809996922,
+        "wal_bytes": 0,
+        "query_prefix": "SELECT r.data, i.k FROM i JOIN r ON r.t = i.t AND r.id = i.id WHERE i.t = $1 AND i.ix = $2 AND i.k >= $3 AND i.k < $4 ORDER BY i.k ASC LIMIT $5",
+        "query_sha256": "b51ea22c0ebc2e3e46cd98e2bdd28ad4f72f786fb34e24d47cac6a3ceee96980"
+      },
+      {
+        "calls": 240,
+        "total_exec_time": 1.3926079999982903,
+        "wal_bytes": 0,
+        "query_prefix": "START TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY",
+        "query_sha256": "5622ef03741f9617ed31f225dad5e2e202a506f3b02620958dece09cde6a36cf"
+      },
+      {
+        "calls": 25,
+        "total_exec_time": 0.022754000000001717,
+        "wal_bytes": 0,
+        "query_prefix": "START TRANSACTION",
+        "query_sha256": "c694dd4d8f76a81fe0ca5c11301c3b1d7c0ebeb4e5a7f996714ecbd1f282ab9a"
+      },
+      {
+        "calls": 25,
+        "total_exec_time": 0.02372599999998215,
+        "wal_bytes": 0,
+        "query_prefix": "SET LOCAL lock_timeout = 0",
+        "query_sha256": "a90032ef553cc437ed6894ebdfa82d60cb6a08f03c8e96a0eac47f1d05b95d0d"
+      },
+      {
+        "calls": 240,
+        "total_exec_time": 0.14902000000142834,
+        "wal_bytes": 0,
+        "query_prefix": "ROLLBACK",
+        "query_sha256": "587fa628a9fe4642ac0e22825a97e81d388af674f7251a9fb699f96901dcb710"
+      },
+      {
+        "calls": 3840,
+        "total_exec_time": 62.49885199984419,
+        "wal_bytes": 0,
+        "query_prefix": "SELECT octet_length(r.data)::bigint, octet_length(i.k)::bigint FROM i JOIN r ON r.t = i.t AND r.id = i.id WHERE i.t = $1 AND i.ix = $2 AND i.k >= $3 AND i.k < $4 ORDER BY i.k ASC L",
+        "query_sha256": "cb92ca5a6e1277c66b7b43c61a8a1fc74aa59069989afd9e62b092cf7bdd4ae8"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 0.033230999999986466,
+        "wal_bytes": 0,
+        "query_prefix": "RELEASE SAVEPOINT prefetch",
+        "query_sha256": "625c866183b7ea3ab5a7dff38d379f99582c3ee1768a35a749a832a11ffaaa5f"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 19.611234999996668,
+        "wal_bytes": 0,
+        "query_prefix": "WITH hits AS MATERIALIZED (SELECT q.ord, hit.data FROM unnest($3::bytea[], $4::bytea[]) WITH ORDINALITY AS q(lo,hi,ord) LEFT JOIN LATERAL (SELECT r.data FROM i JOIN r ON r.t = i.t ",
+        "query_sha256": "55c999c2048b7f06d9dcf99c3cefa6c5b17748ea92d9c75c806d1720838f32bc"
+      },
+      {
+        "calls": 420,
+        "total_exec_time": 1.8756389999957719,
+        "wal_bytes": 0,
+        "query_prefix": "SELECT value FROM _meta WHERE key=$1",
+        "query_sha256": "aa22a455969a56d2db1327359076646e9ed4b2434a29d4f2b19b90bb14e5f767"
+      },
+      {
+        "calls": 120,
+        "total_exec_time": 1.953472999998212,
+        "wal_bytes": 0,
+        "query_prefix": "SELECT principal, COALESCE(family, token_digest), kind, token_digest, expires_at, $2, $3::BIGINT, $4::BIGINT FROM _sessions WHERE token_digest = $1 UNION ALL SELECT principal, fami",
+        "query_sha256": "23b627ef61631eaab1ad57cac53141470d3207ebb5b862054bdc28f905f6b28a"
+      },
+      {
+        "calls": 25,
+        "total_exec_time": 0.1512839999999187,
+        "wal_bytes": 0,
+        "query_prefix": "SET LOCAL statement_timeout = 0",
+        "query_sha256": "e06f3c7d027e0dbbbf87e8ee03ee9fd9cfa2633dfb6814e24bbe872c783ef37b"
+      },
+      {
+        "calls": 240,
+        "total_exec_time": 4.830280999998649,
+        "wal_bytes": 0,
+        "query_prefix": "SELECT generation, (SELECT seq FROM _head WHERE singleton) FROM _backend WHERE singleton",
+        "query_sha256": "679592014039a4998a0bcc2fac81314e4014f6c7c2c6bf7ae03de826f5867d65"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 0.04255500000001433,
+        "wal_bytes": 0,
+        "query_prefix": "SAVEPOINT prefetch",
+        "query_sha256": "ccdd964f06ab7eadbf3c56172d0b26f41f96ad88e379dcf1dc1e73f43b1ca01f"
+      },
+      {
+        "calls": 25,
+        "total_exec_time": 0.8424429999999745,
+        "wal_bytes": 1826,
+        "query_prefix": "UPDATE _owner SET lease_until=clock_timestamp()+make_interval(secs=>$1) WHERE singleton AND store_id=$2 AND token=$3",
+        "query_sha256": "c9cec6994abfe577a335975a5119d8c9622efc9f33ef764c992c1512b6322a0f"
+      }
+    ]
+  },
+  {
+    "revision": "pre",
+    "segment": "pre-optional",
+    "counter_domain": "b1-fresh",
+    "workload": "W3",
+    "keys": "disjoint",
+    "link": "A",
+    "operations": 60,
+    "warmups": 10,
+    "before_time": 1792781647.6209407,
+    "after_time": 1792781655.3628676,
+    "counter_before": 94020,
+    "counter_after": 94020,
+    "statements_per_request": 153.0,
+    "inferred_warm_exchanges_per_request": 153.0,
+    "renewals_excluded": 15,
+    "durable_commits_per_request": 0.0,
+    "latency_ms": {
+      "median": 108.5391566157341,
+      "min": 98.67087006568909,
+      "max": 116.90736003220081
+    },
+    "sql_exec_ms_per_request_including_renewal": 2.5120714666631745,
+    "statement_deltas": [
+      {
+        "calls": 15,
+        "total_exec_time": 0.0060750000000098225,
+        "wal_bytes": 0,
+        "query_prefix": "COMMIT",
+        "query_sha256": "79663c1d3b43ceaf9ee728e501c64b57ae2e4d6cb36ff5c65eddcda1de27342f"
+      },
+      {
+        "calls": 3900,
+        "total_exec_time": 64.97992499978864,
+        "wal_bytes": 0,
+        "query_prefix": "SELECT r.data, i.k FROM i JOIN r ON r.t = i.t AND r.id = i.id WHERE i.t = $1 AND i.ix = $2 AND i.k >= $3 AND i.k < $4 ORDER BY i.k ASC LIMIT $5",
+        "query_sha256": "b51ea22c0ebc2e3e46cd98e2bdd28ad4f72f786fb34e24d47cac6a3ceee96980"
+      },
+      {
+        "calls": 240,
+        "total_exec_time": 1.1451900000029127,
+        "wal_bytes": 0,
+        "query_prefix": "START TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY",
+        "query_sha256": "5622ef03741f9617ed31f225dad5e2e202a506f3b02620958dece09cde6a36cf"
+      },
+      {
+        "calls": 15,
+        "total_exec_time": 0.01172000000000084,
+        "wal_bytes": 0,
+        "query_prefix": "START TRANSACTION",
+        "query_sha256": "c694dd4d8f76a81fe0ca5c11301c3b1d7c0ebeb4e5a7f996714ecbd1f282ab9a"
+      },
+      {
+        "calls": 15,
+        "total_exec_time": 0.015408999999991124,
+        "wal_bytes": 0,
+        "query_prefix": "SET LOCAL lock_timeout = 0",
+        "query_sha256": "a90032ef553cc437ed6894ebdfa82d60cb6a08f03c8e96a0eac47f1d05b95d0d"
+      },
+      {
+        "calls": 240,
+        "total_exec_time": 0.12286099999914768,
+        "wal_bytes": 0,
+        "query_prefix": "ROLLBACK",
+        "query_sha256": "587fa628a9fe4642ac0e22825a97e81d388af674f7251a9fb699f96901dcb710"
+      },
+      {
+        "calls": 3840,
+        "total_exec_time": 58.87650599999976,
+        "wal_bytes": 0,
+        "query_prefix": "SELECT octet_length(r.data)::bigint, octet_length(i.k)::bigint FROM i JOIN r ON r.t = i.t AND r.id = i.id WHERE i.t = $1 AND i.ix = $2 AND i.k >= $3 AND i.k < $4 ORDER BY i.k ASC L",
+        "query_sha256": "cb92ca5a6e1277c66b7b43c61a8a1fc74aa59069989afd9e62b092cf7bdd4ae8"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 0.025670000000000005,
+        "wal_bytes": 0,
+        "query_prefix": "RELEASE SAVEPOINT prefetch",
+        "query_sha256": "625c866183b7ea3ab5a7dff38d379f99582c3ee1768a35a749a832a11ffaaa5f"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 19.366837000000004,
+        "wal_bytes": 0,
+        "query_prefix": "WITH hits AS MATERIALIZED (SELECT q.ord, hit.data FROM unnest($3::bytea[], $4::bytea[]) WITH ORDINALITY AS q(lo,hi,ord) LEFT JOIN LATERAL (SELECT r.data FROM i JOIN r ON r.t = i.t ",
+        "query_sha256": "55c999c2048b7f06d9dcf99c3cefa6c5b17748ea92d9c75c806d1720838f32bc"
+      },
+      {
+        "calls": 420,
+        "total_exec_time": 1.7936850000000124,
+        "wal_bytes": 0,
+        "query_prefix": "SELECT value FROM _meta WHERE key=$1",
+        "query_sha256": "aa22a455969a56d2db1327359076646e9ed4b2434a29d4f2b19b90bb14e5f767"
+      },
+      {
+        "calls": 120,
+        "total_exec_time": 1.7269070000000006,
+        "wal_bytes": 0,
+        "query_prefix": "SELECT principal, COALESCE(family, token_digest), kind, token_digest, expires_at, $2, $3::BIGINT, $4::BIGINT FROM _sessions WHERE token_digest = $1 UNION ALL SELECT principal, fami",
+        "query_sha256": "23b627ef61631eaab1ad57cac53141470d3207ebb5b862054bdc28f905f6b28a"
+      },
+      {
+        "calls": 15,
+        "total_exec_time": 0.07802899999995816,
+        "wal_bytes": 0,
+        "query_prefix": "SET LOCAL statement_timeout = 0",
+        "query_sha256": "e06f3c7d027e0dbbbf87e8ee03ee9fd9cfa2633dfb6814e24bbe872c783ef37b"
+      },
+      {
+        "calls": 240,
+        "total_exec_time": 1.9719750000000325,
+        "wal_bytes": 0,
+        "query_prefix": "SELECT generation, (SELECT seq FROM _head WHERE singleton) FROM _backend WHERE singleton",
+        "query_sha256": "679592014039a4998a0bcc2fac81314e4014f6c7c2c6bf7ae03de826f5867d65"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 0.038992,
+        "wal_bytes": 0,
+        "query_prefix": "SAVEPOINT prefetch",
+        "query_sha256": "ccdd964f06ab7eadbf3c56172d0b26f41f96ad88e379dcf1dc1e73f43b1ca01f"
+      },
+      {
+        "calls": 15,
+        "total_exec_time": 0.5645069999999999,
+        "wal_bytes": 1095,
+        "query_prefix": "UPDATE _owner SET lease_until=clock_timestamp()+make_interval(secs=>$1) WHERE singleton AND store_id=$2 AND token=$3",
+        "query_sha256": "c9cec6994abfe577a335975a5119d8c9622efc9f33ef764c992c1512b6322a0f"
+      }
+    ]
+  },
+  {
+    "revision": "pre",
+    "segment": "pre-optional",
+    "counter_domain": "b1-fresh",
+    "workload": "W5",
+    "keys": "hot1",
+    "link": "B",
+    "operations": 100,
+    "warmups": 10,
+    "before_time": 1792785399.052321,
+    "after_time": 1792785407.0237608,
+    "counter_before": 133281,
+    "counter_after": 133381,
+    "statements_per_request": 58.03,
+    "inferred_warm_exchanges_per_request": 57.03,
+    "renewals_excluded": 15,
+    "durable_commits_per_request": 1.0,
+    "latency_ms": {
+      "median": 66.71483162790537,
+      "min": 64.1742404550314,
+      "max": 84.19329486787319
+    },
+    "sql_exec_ms_per_request_including_renewal": 0.7211152299978978,
+    "statement_deltas": [
+      {
+        "calls": 115,
+        "total_exec_time": 0.04711499999999802,
+        "wal_bytes": 0,
+        "query_prefix": "COMMIT",
+        "query_sha256": "79663c1d3b43ceaf9ee728e501c64b57ae2e4d6cb36ff5c65eddcda1de27342f"
+      },
+      {
+        "calls": 203,
+        "total_exec_time": 5.624190999864368,
+        "wal_bytes": 5978,
+        "query_prefix": "SELECT r.data, i.k FROM i JOIN r ON r.t = i.t AND r.id = i.id WHERE i.t = $1 AND i.ix = $2 AND i.k >= $3 AND i.k < $4 ORDER BY i.k ASC LIMIT $5",
+        "query_sha256": "b51ea22c0ebc2e3e46cd98e2bdd28ad4f72f786fb34e24d47cac6a3ceee96980"
+      },
+      {
+        "calls": 900,
+        "total_exec_time": 4.155586000002586,
+        "wal_bytes": 0,
+        "query_prefix": "START TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY",
+        "query_sha256": "5622ef03741f9617ed31f225dad5e2e202a506f3b02620958dece09cde6a36cf"
+      },
+      {
+        "calls": 15,
+        "total_exec_time": 0.011862999999999957,
+        "wal_bytes": 0,
+        "query_prefix": "START TRANSACTION",
+        "query_sha256": "c694dd4d8f76a81fe0ca5c11301c3b1d7c0ebeb4e5a7f996714ecbd1f282ab9a"
+      },
+      {
+        "calls": 100,
+        "total_exec_time": 2.367664999990666,
+        "wal_bytes": 7112,
+        "query_prefix": "UPDATE r SET data = $3 WHERE t = $1 AND id = $2",
+        "query_sha256": "d50062589cfd56092a580943c39da04f19cf8d4704463f4d9c258ff8ab65980b"
+      },
+      {
+        "calls": 115,
+        "total_exec_time": 0.11291099999996845,
+        "wal_bytes": 0,
+        "query_prefix": "SET LOCAL lock_timeout = 0",
+        "query_sha256": "a90032ef553cc437ed6894ebdfa82d60cb6a08f03c8e96a0eac47f1d05b95d0d"
+      },
+      {
+        "calls": 900,
+        "total_exec_time": 0.42839700000149605,
+        "wal_bytes": 0,
+        "query_prefix": "ROLLBACK",
+        "query_sha256": "587fa628a9fe4642ac0e22825a97e81d388af674f7251a9fb699f96901dcb710"
+      },
+      {
+        "calls": 100,
+        "total_exec_time": 0.02942399999999168,
+        "wal_bytes": 0,
+        "query_prefix": "SAVEPOINT program",
+        "query_sha256": "4223ede3307cc3215e4fd969411336ab996799cc846bdb83b12636093af3f1fb"
+      },
+      {
+        "calls": 100,
+        "total_exec_time": 8.937230000000014,
+        "wal_bytes": 31561,
+        "query_prefix": "WITH head AS (\n            UPDATE _head SET seq = $1::bigint WHERE singleton AND seq = $1::bigint - $26 RETURNING seq\n        ), committed AS (\n            INSERT INTO _commits(seq",
+        "query_sha256": "cf1e5bfa540387dae63f43770fda3e70831c0ee2078ca06daa06e3aa0b5bbb2f"
+      },
+      {
+        "calls": 100,
+        "total_exec_time": 0.06163899999995692,
+        "wal_bytes": 0,
+        "query_prefix": "RELEASE SAVEPOINT program",
+        "query_sha256": "c9068183d8feec064b6aa84147bc97207acaa0ae6f2de6cc1ad25cf7d7087981"
+      },
+      {
+        "calls": 100,
+        "total_exec_time": 0.3801790000002825,
+        "wal_bytes": 0,
+        "query_prefix": "SELECT generation FROM _backend WHERE singleton",
+        "query_sha256": "58bceaa240fea1604a08df2c8afdea7e050bdcd42aa78dba9e2242ea72dcc0ea"
+      },
+      {
+        "calls": 1100,
+        "total_exec_time": 4.910686000001988,
+        "wal_bytes": 0,
+        "query_prefix": "SELECT value FROM _meta WHERE key=$1",
+        "query_sha256": "aa22a455969a56d2db1327359076646e9ed4b2434a29d4f2b19b90bb14e5f767"
+      },
+      {
+        "calls": 100,
+        "total_exec_time": 0.0724180000000132,
+        "wal_bytes": 0,
+        "query_prefix": "SAVEPOINT member",
+        "query_sha256": "23755542a9c19e6dd9c9042b8e8cb396af1f9b995506c8f7aca91916ccd21945"
+      },
+      {
+        "calls": 400,
+        "total_exec_time": 6.1346869999933915,
+        "wal_bytes": 0,
+        "query_prefix": "SELECT principal, COALESCE(family, token_digest), kind, token_digest, expires_at, $2, $3::BIGINT, $4::BIGINT FROM _sessions WHERE token_digest = $1 UNION ALL SELECT principal, fami",
+        "query_sha256": "23b627ef61631eaab1ad57cac53141470d3207ebb5b862054bdc28f905f6b28a"
+      },
+      {
+        "calls": 115,
+        "total_exec_time": 0.5433809999999539,
+        "wal_bytes": 0,
+        "query_prefix": "SET LOCAL statement_timeout = 0",
+        "query_sha256": "e06f3c7d027e0dbbbf87e8ee03ee9fd9cfa2633dfb6814e24bbe872c783ef37b"
+      },
+      {
+        "calls": 100,
+        "total_exec_time": 0.4521709999997938,
+        "wal_bytes": 0,
+        "query_prefix": "START TRANSACTION ISOLATION LEVEL READ COMMITTED, READ WRITE",
+        "query_sha256": "57e7ab882ef27d26ce7a6ec70e8a77d5664edc8e175c3c11223b5d0e508da186"
+      },
+      {
+        "calls": 100,
+        "total_exec_time": 1.9582299999992756,
+        "wal_bytes": 5616,
+        "query_prefix": "SELECT store_id,token FROM _owner WHERE singleton FOR KEY SHARE",
+        "query_sha256": "cd1d65e5e8a40437d5df1255729054c31e596adfae669e4eebfdc78f4e70307e"
+      },
+      {
+        "calls": 100,
+        "total_exec_time": 1.0353830000000244,
+        "wal_bytes": 0,
+        "query_prefix": "SELECT c.seq,e.footprint FROM _commits c LEFT JOIN _change_evidence e ON e.seq=c.seq WHERE c.seq>$1 AND c.seq<=$2 ORDER BY c.seq LIMIT $3",
+        "query_sha256": "317f0d4651362bb519f533732601a30668a0ed78358924c0235a7093fcc8fa4b"
+      },
+      {
+        "calls": 900,
+        "total_exec_time": 31.0686249999344,
+        "wal_bytes": 391,
+        "query_prefix": "SELECT generation, (SELECT seq FROM _head WHERE singleton) FROM _backend WHERE singleton",
+        "query_sha256": "679592014039a4998a0bcc2fac81314e4014f6c7c2c6bf7ae03de826f5867d65"
+      },
+      {
+        "calls": 100,
+        "total_exec_time": 3.200540000001638,
+        "wal_bytes": 5400,
+        "query_prefix": "SELECT seq FROM _head WHERE singleton FOR UPDATE",
+        "query_sha256": "88a041dbaf91096769a53de41afc636eb071163b579f565b7fe41bfb5bebe29b"
+      },
+      {
+        "calls": 15,
+        "total_exec_time": 0.5317900000000009,
+        "wal_bytes": 1204,
+        "query_prefix": "UPDATE _owner SET lease_until=clock_timestamp()+make_interval(secs=>$1) WHERE singleton AND store_id=$2 AND token=$3",
+        "query_sha256": "c9cec6994abfe577a335975a5119d8c9622efc9f33ef764c992c1512b6322a0f"
+      },
+      {
+        "calls": 100,
+        "total_exec_time": 0.047411999999980026,
+        "wal_bytes": 0,
+        "query_prefix": "RELEASE SAVEPOINT member",
+        "query_sha256": "5f2ba9a7b7434dc8e20b07c0bb9660b55317327b633742aaa1da307efb0fa9c5"
+      }
+    ]
+  },
+  {
+    "revision": "pre",
+    "segment": "pre-optional",
+    "counter_domain": "b1-fresh",
+    "workload": "W5",
+    "keys": "same",
+    "link": "B",
+    "operations": 60,
+    "warmups": 10,
+    "before_time": 1792784900.8661861,
+    "after_time": 1792784906.3217282,
+    "counter_before": 126647,
+    "counter_after": 126707,
+    "statements_per_request": 61.0,
+    "inferred_warm_exchanges_per_request": 60.0,
+    "renewals_excluded": 10,
+    "durable_commits_per_request": 1.0,
+    "latency_ms": {
+      "median": 70.0246887281537,
+      "min": 67.45071709156036,
+      "max": 76.77588239312172
+    },
+    "sql_exec_ms_per_request_including_renewal": 0.710206683333476,
+    "statement_deltas": [
+      {
+        "calls": 70,
+        "total_exec_time": 0.02371100000000581,
+        "wal_bytes": 0,
+        "query_prefix": "COMMIT",
+        "query_sha256": "79663c1d3b43ceaf9ee728e501c64b57ae2e4d6cb36ff5c65eddcda1de27342f"
+      },
+      {
+        "calls": 300,
+        "total_exec_time": 6.588473000010708,
+        "wal_bytes": 3599,
+        "query_prefix": "SELECT r.data, i.k FROM i JOIN r ON r.t = i.t AND r.id = i.id WHERE i.t = $1 AND i.ix = $2 AND i.k >= $3 AND i.k < $4 ORDER BY i.k ASC LIMIT $5",
+        "query_sha256": "b51ea22c0ebc2e3e46cd98e2bdd28ad4f72f786fb34e24d47cac6a3ceee96980"
+      },
+      {
+        "calls": 540,
+        "total_exec_time": 2.1727199999913864,
+        "wal_bytes": 0,
+        "query_prefix": "START TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY",
+        "query_sha256": "5622ef03741f9617ed31f225dad5e2e202a506f3b02620958dece09cde6a36cf"
+      },
+      {
+        "calls": 10,
+        "total_exec_time": 0.007774999999998755,
+        "wal_bytes": 0,
+        "query_prefix": "START TRANSACTION",
+        "query_sha256": "c694dd4d8f76a81fe0ca5c11301c3b1d7c0ebeb4e5a7f996714ecbd1f282ab9a"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 1.3688660000116215,
+        "wal_bytes": 4266,
+        "query_prefix": "UPDATE r SET data = $3 WHERE t = $1 AND id = $2",
+        "query_sha256": "d50062589cfd56092a580943c39da04f19cf8d4704463f4d9c258ff8ab65980b"
+      },
+      {
+        "calls": 70,
+        "total_exec_time": 0.06436500000002354,
+        "wal_bytes": 0,
+        "query_prefix": "SET LOCAL lock_timeout = 0",
+        "query_sha256": "a90032ef553cc437ed6894ebdfa82d60cb6a08f03c8e96a0eac47f1d05b95d0d"
+      },
+      {
+        "calls": 540,
+        "total_exec_time": 0.22986800000444418,
+        "wal_bytes": 0,
+        "query_prefix": "ROLLBACK",
+        "query_sha256": "587fa628a9fe4642ac0e22825a97e81d388af674f7251a9fb699f96901dcb710"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 0.015712000000000614,
+        "wal_bytes": 0,
+        "query_prefix": "SAVEPOINT program",
+        "query_sha256": "4223ede3307cc3215e4fd969411336ab996799cc846bdb83b12636093af3f1fb"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 4.836252999999999,
+        "wal_bytes": 18480,
+        "query_prefix": "WITH head AS (\n            UPDATE _head SET seq = $1::bigint WHERE singleton AND seq = $1::bigint - $26 RETURNING seq\n        ), committed AS (\n            INSERT INTO _commits(seq",
+        "query_sha256": "cf1e5bfa540387dae63f43770fda3e70831c0ee2078ca06daa06e3aa0b5bbb2f"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 0.04225100000003579,
+        "wal_bytes": 0,
+        "query_prefix": "RELEASE SAVEPOINT program",
+        "query_sha256": "c9068183d8feec064b6aa84147bc97207acaa0ae6f2de6cc1ad25cf7d7087981"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 0.2170859999998811,
+        "wal_bytes": 0,
+        "query_prefix": "SELECT generation FROM _backend WHERE singleton",
+        "query_sha256": "58bceaa240fea1604a08df2c8afdea7e050bdcd42aa78dba9e2242ea72dcc0ea"
+      },
+      {
+        "calls": 660,
+        "total_exec_time": 2.7275160000044707,
+        "wal_bytes": 0,
+        "query_prefix": "SELECT value FROM _meta WHERE key=$1",
+        "query_sha256": "aa22a455969a56d2db1327359076646e9ed4b2434a29d4f2b19b90bb14e5f767"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 0.04117099999996299,
+        "wal_bytes": 0,
+        "query_prefix": "SAVEPOINT member",
+        "query_sha256": "23755542a9c19e6dd9c9042b8e8cb396af1f9b995506c8f7aca91916ccd21945"
+      },
+      {
+        "calls": 240,
+        "total_exec_time": 3.4599109999971915,
+        "wal_bytes": 0,
+        "query_prefix": "SELECT principal, COALESCE(family, token_digest), kind, token_digest, expires_at, $2, $3::BIGINT, $4::BIGINT FROM _sessions WHERE token_digest = $1 UNION ALL SELECT principal, fami",
+        "query_sha256": "23b627ef61631eaab1ad57cac53141470d3207ebb5b862054bdc28f905f6b28a"
+      },
+      {
+        "calls": 70,
+        "total_exec_time": 0.3278789999998253,
+        "wal_bytes": 0,
+        "query_prefix": "SET LOCAL statement_timeout = 0",
+        "query_sha256": "e06f3c7d027e0dbbbf87e8ee03ee9fd9cfa2633dfb6814e24bbe872c783ef37b"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 0.2600190000001703,
+        "wal_bytes": 0,
+        "query_prefix": "START TRANSACTION ISOLATION LEVEL READ COMMITTED, READ WRITE",
+        "query_sha256": "57e7ab882ef27d26ce7a6ec70e8a77d5664edc8e175c3c11223b5d0e508da186"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 1.1805620000009185,
+        "wal_bytes": 3240,
+        "query_prefix": "SELECT store_id,token FROM _owner WHERE singleton FOR KEY SHARE",
+        "query_sha256": "cd1d65e5e8a40437d5df1255729054c31e596adfae669e4eebfdc78f4e70307e"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 0.6147999999999456,
+        "wal_bytes": 0,
+        "query_prefix": "SELECT c.seq,e.footprint FROM _commits c LEFT JOIN _change_evidence e ON e.seq=c.seq WHERE c.seq>$1 AND c.seq<=$2 ORDER BY c.seq LIMIT $3",
+        "query_sha256": "317f0d4651362bb519f533732601a30668a0ed78358924c0235a7093fcc8fa4b"
+      },
+      {
+        "calls": 540,
+        "total_exec_time": 16.46232999998756,
+        "wal_bytes": 0,
+        "query_prefix": "SELECT generation, (SELECT seq FROM _head WHERE singleton) FROM _backend WHERE singleton",
+        "query_sha256": "679592014039a4998a0bcc2fac81314e4014f6c7c2c6bf7ae03de826f5867d65"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 1.640027000000373,
+        "wal_bytes": 3240,
+        "query_prefix": "SELECT seq FROM _head WHERE singleton FOR UPDATE",
+        "query_sha256": "88a041dbaf91096769a53de41afc636eb071163b579f565b7fe41bfb5bebe29b"
+      },
+      {
+        "calls": 10,
+        "total_exec_time": 0.30511400000003164,
+        "wal_bytes": 946,
+        "query_prefix": "UPDATE _owner SET lease_until=clock_timestamp()+make_interval(secs=>$1) WHERE singleton AND store_id=$2 AND token=$3",
+        "query_sha256": "c9cec6994abfe577a335975a5119d8c9622efc9f33ef764c992c1512b6322a0f"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 0.025992000000002236,
+        "wal_bytes": 0,
+        "query_prefix": "RELEASE SAVEPOINT member",
+        "query_sha256": "5f2ba9a7b7434dc8e20b07c0bb9660b55317327b633742aaa1da307efb0fa9c5"
+      }
+    ]
+  },
+  {
+    "revision": "pre",
+    "segment": "pre-optional",
+    "counter_domain": "b1-fresh",
+    "workload": "W5",
+    "keys": "hot1",
+    "link": "A",
+    "operations": 100,
+    "warmups": 10,
+    "before_time": 1792783067.0783367,
+    "after_time": 1792783072.050103,
+    "counter_before": 103811,
+    "counter_after": 103911,
+    "statements_per_request": 58.03,
+    "inferred_warm_exchanges_per_request": 57.03,
+    "renewals_excluded": 9,
+    "durable_commits_per_request": 1.0,
+    "latency_ms": {
+      "median": 37.088523618876934,
+      "min": 35.51773354411125,
+      "max": 45.18088325858116
+    },
+    "sql_exec_ms_per_request_including_renewal": 0.543913530000032,
+    "statement_deltas": [
+      {
+        "calls": 109,
+        "total_exec_time": 0.04096099999997449,
+        "wal_bytes": 0,
+        "query_prefix": "COMMIT",
+        "query_sha256": "79663c1d3b43ceaf9ee728e501c64b57ae2e4d6cb36ff5c65eddcda1de27342f"
+      },
+      {
+        "calls": 203,
+        "total_exec_time": 4.826472999993712,
+        "wal_bytes": 5978,
+        "query_prefix": "SELECT r.data, i.k FROM i JOIN r ON r.t = i.t AND r.id = i.id WHERE i.t = $1 AND i.ix = $2 AND i.k >= $3 AND i.k < $4 ORDER BY i.k ASC LIMIT $5",
+        "query_sha256": "b51ea22c0ebc2e3e46cd98e2bdd28ad4f72f786fb34e24d47cac6a3ceee96980"
+      },
+      {
+        "calls": 900,
+        "total_exec_time": 3.1945190000151342,
+        "wal_bytes": 0,
+        "query_prefix": "START TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY",
+        "query_sha256": "5622ef03741f9617ed31f225dad5e2e202a506f3b02620958dece09cde6a36cf"
+      },
+      {
+        "calls": 9,
+        "total_exec_time": 0.00692199999999854,
+        "wal_bytes": 0,
+        "query_prefix": "START TRANSACTION",
+        "query_sha256": "c694dd4d8f76a81fe0ca5c11301c3b1d7c0ebeb4e5a7f996714ecbd1f282ab9a"
+      },
+      {
+        "calls": 100,
+        "total_exec_time": 1.975799999985611,
+        "wal_bytes": 7111,
+        "query_prefix": "UPDATE r SET data = $3 WHERE t = $1 AND id = $2",
+        "query_sha256": "d50062589cfd56092a580943c39da04f19cf8d4704463f4d9c258ff8ab65980b"
+      },
+      {
+        "calls": 109,
+        "total_exec_time": 0.10007800000002476,
+        "wal_bytes": 0,
+        "query_prefix": "SET LOCAL lock_timeout = 0",
+        "query_sha256": "a90032ef553cc437ed6894ebdfa82d60cb6a08f03c8e96a0eac47f1d05b95d0d"
+      },
+      {
+        "calls": 900,
+        "total_exec_time": 0.3471290000072713,
+        "wal_bytes": 0,
+        "query_prefix": "ROLLBACK",
+        "query_sha256": "587fa628a9fe4642ac0e22825a97e81d388af674f7251a9fb699f96901dcb710"
+      },
+      {
+        "calls": 100,
+        "total_exec_time": 0.022675000000049295,
+        "wal_bytes": 0,
+        "query_prefix": "SAVEPOINT program",
+        "query_sha256": "4223ede3307cc3215e4fd969411336ab996799cc846bdb83b12636093af3f1fb"
+      },
+      {
+        "calls": 100,
+        "total_exec_time": 6.936194000000004,
+        "wal_bytes": 30800,
+        "query_prefix": "WITH head AS (\n            UPDATE _head SET seq = $1::bigint WHERE singleton AND seq = $1::bigint - $26 RETURNING seq\n        ), committed AS (\n            INSERT INTO _commits(seq",
+        "query_sha256": "cf1e5bfa540387dae63f43770fda3e70831c0ee2078ca06daa06e3aa0b5bbb2f"
+      },
+      {
+        "calls": 100,
+        "total_exec_time": 0.0507069999999743,
+        "wal_bytes": 0,
+        "query_prefix": "RELEASE SAVEPOINT program",
+        "query_sha256": "c9068183d8feec064b6aa84147bc97207acaa0ae6f2de6cc1ad25cf7d7087981"
+      },
+      {
+        "calls": 100,
+        "total_exec_time": 0.31235099999969407,
+        "wal_bytes": 0,
+        "query_prefix": "SELECT generation FROM _backend WHERE singleton",
+        "query_sha256": "58bceaa240fea1604a08df2c8afdea7e050bdcd42aa78dba9e2242ea72dcc0ea"
+      },
+      {
+        "calls": 1100,
+        "total_exec_time": 4.094696000000113,
+        "wal_bytes": 0,
+        "query_prefix": "SELECT value FROM _meta WHERE key=$1",
+        "query_sha256": "aa22a455969a56d2db1327359076646e9ed4b2434a29d4f2b19b90bb14e5f767"
+      },
+      {
+        "calls": 100,
+        "total_exec_time": 0.05788899999998165,
+        "wal_bytes": 0,
+        "query_prefix": "SAVEPOINT member",
+        "query_sha256": "23755542a9c19e6dd9c9042b8e8cb396af1f9b995506c8f7aca91916ccd21945"
+      },
+      {
+        "calls": 400,
+        "total_exec_time": 4.701797000001534,
+        "wal_bytes": 0,
+        "query_prefix": "SELECT principal, COALESCE(family, token_digest), kind, token_digest, expires_at, $2, $3::BIGINT, $4::BIGINT FROM _sessions WHERE token_digest = $1 UNION ALL SELECT principal, fami",
+        "query_sha256": "23b627ef61631eaab1ad57cac53141470d3207ebb5b862054bdc28f905f6b28a"
+      },
+      {
+        "calls": 109,
+        "total_exec_time": 0.43099200000011706,
+        "wal_bytes": 0,
+        "query_prefix": "SET LOCAL statement_timeout = 0",
+        "query_sha256": "e06f3c7d027e0dbbbf87e8ee03ee9fd9cfa2633dfb6814e24bbe872c783ef37b"
+      },
+      {
+        "calls": 100,
+        "total_exec_time": 0.35339600000088467,
+        "wal_bytes": 0,
+        "query_prefix": "START TRANSACTION ISOLATION LEVEL READ COMMITTED, READ WRITE",
+        "query_sha256": "57e7ab882ef27d26ce7a6ec70e8a77d5664edc8e175c3c11223b5d0e508da186"
+      },
+      {
+        "calls": 100,
+        "total_exec_time": 1.458732000002783,
+        "wal_bytes": 5508,
+        "query_prefix": "SELECT store_id,token FROM _owner WHERE singleton FOR KEY SHARE",
+        "query_sha256": "cd1d65e5e8a40437d5df1255729054c31e596adfae669e4eebfdc78f4e70307e"
+      },
+      {
+        "calls": 100,
+        "total_exec_time": 0.9860450000000043,
+        "wal_bytes": 0,
+        "query_prefix": "SELECT c.seq,e.footprint FROM _commits c LEFT JOIN _change_evidence e ON e.seq=c.seq WHERE c.seq>$1 AND c.seq<=$2 ORDER BY c.seq LIMIT $3",
+        "query_sha256": "317f0d4651362bb519f533732601a30668a0ed78358924c0235a7093fcc8fa4b"
+      },
+      {
+        "calls": 900,
+        "total_exec_time": 22.043158999998013,
+        "wal_bytes": 0,
+        "query_prefix": "SELECT generation, (SELECT seq FROM _head WHERE singleton) FROM _backend WHERE singleton",
+        "query_sha256": "679592014039a4998a0bcc2fac81314e4014f6c7c2c6bf7ae03de826f5867d65"
+      },
+      {
+        "calls": 100,
+        "total_exec_time": 2.089678999998341,
+        "wal_bytes": 5400,
+        "query_prefix": "SELECT seq FROM _head WHERE singleton FOR UPDATE",
+        "query_sha256": "88a041dbaf91096769a53de41afc636eb071163b579f565b7fe41bfb5bebe29b"
+      },
+      {
+        "calls": 9,
+        "total_exec_time": 0.3176289999999966,
+        "wal_bytes": 711,
+        "query_prefix": "UPDATE _owner SET lease_until=clock_timestamp()+make_interval(secs=>$1) WHERE singleton AND store_id=$2 AND token=$3",
+        "query_sha256": "c9cec6994abfe577a335975a5119d8c9622efc9f33ef764c992c1512b6322a0f"
+      },
+      {
+        "calls": 100,
+        "total_exec_time": 0.04352999999998275,
+        "wal_bytes": 0,
+        "query_prefix": "RELEASE SAVEPOINT member",
+        "query_sha256": "5f2ba9a7b7434dc8e20b07c0bb9660b55317327b633742aaa1da307efb0fa9c5"
+      }
+    ]
+  },
+  {
+    "revision": "pre",
+    "segment": "pre-optional",
+    "counter_domain": "b1-fresh",
+    "workload": "W5",
+    "keys": "same",
+    "link": "A",
+    "operations": 60,
+    "warmups": 10,
+    "before_time": 1792782585.5206919,
+    "after_time": 1792782589.1415288,
+    "counter_before": 94030,
+    "counter_after": 94090,
+    "statements_per_request": 61.0,
+    "inferred_warm_exchanges_per_request": 60.0,
+    "renewals_excluded": 7,
+    "durable_commits_per_request": 1.0,
+    "latency_ms": {
+      "median": 39.14270643144846,
+      "min": 36.80720925331116,
+      "max": 51.25498026609421
+    },
+    "sql_exec_ms_per_request_including_renewal": 0.5508671500035534,
+    "statement_deltas": [
+      {
+        "calls": 67,
+        "total_exec_time": 0.021763000000021293,
+        "wal_bytes": 0,
+        "query_prefix": "COMMIT",
+        "query_sha256": "79663c1d3b43ceaf9ee728e501c64b57ae2e4d6cb36ff5c65eddcda1de27342f"
+      },
+      {
+        "calls": 300,
+        "total_exec_time": 5.875205000193091,
+        "wal_bytes": 3512,
+        "query_prefix": "SELECT r.data, i.k FROM i JOIN r ON r.t = i.t AND r.id = i.id WHERE i.t = $1 AND i.ix = $2 AND i.k >= $3 AND i.k < $4 ORDER BY i.k ASC LIMIT $5",
+        "query_sha256": "b51ea22c0ebc2e3e46cd98e2bdd28ad4f72f786fb34e24d47cac6a3ceee96980"
+      },
+      {
+        "calls": 540,
+        "total_exec_time": 1.8947839999946154,
+        "wal_bytes": 0,
+        "query_prefix": "START TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY",
+        "query_sha256": "5622ef03741f9617ed31f225dad5e2e202a506f3b02620958dece09cde6a36cf"
+      },
+      {
+        "calls": 7,
+        "total_exec_time": 0.007484999999999964,
+        "wal_bytes": 0,
+        "query_prefix": "START TRANSACTION",
+        "query_sha256": "c694dd4d8f76a81fe0ca5c11301c3b1d7c0ebeb4e5a7f996714ecbd1f282ab9a"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 1.3278140000184067,
+        "wal_bytes": 66306,
+        "query_prefix": "UPDATE r SET data = $3 WHERE t = $1 AND id = $2",
+        "query_sha256": "d50062589cfd56092a580943c39da04f19cf8d4704463f4d9c258ff8ab65980b"
+      },
+      {
+        "calls": 67,
+        "total_exec_time": 0.06360899999999958,
+        "wal_bytes": 0,
+        "query_prefix": "SET LOCAL lock_timeout = 0",
+        "query_sha256": "a90032ef553cc437ed6894ebdfa82d60cb6a08f03c8e96a0eac47f1d05b95d0d"
+      },
+      {
+        "calls": 540,
+        "total_exec_time": 0.19829400000503483,
+        "wal_bytes": 0,
+        "query_prefix": "ROLLBACK",
+        "query_sha256": "587fa628a9fe4642ac0e22825a97e81d388af674f7251a9fb699f96901dcb710"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 0.01265800000002315,
+        "wal_bytes": 0,
+        "query_prefix": "SAVEPOINT program",
+        "query_sha256": "4223ede3307cc3215e4fd969411336ab996799cc846bdb83b12636093af3f1fb"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 3.933803000000001,
+        "wal_bytes": 18480,
+        "query_prefix": "WITH head AS (\n            UPDATE _head SET seq = $1::bigint WHERE singleton AND seq = $1::bigint - $26 RETURNING seq\n        ), committed AS (\n            INSERT INTO _commits(seq",
+        "query_sha256": "cf1e5bfa540387dae63f43770fda3e70831c0ee2078ca06daa06e3aa0b5bbb2f"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 0.030617999999982715,
+        "wal_bytes": 0,
+        "query_prefix": "RELEASE SAVEPOINT program",
+        "query_sha256": "c9068183d8feec064b6aa84147bc97207acaa0ae6f2de6cc1ad25cf7d7087981"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 0.173829000000012,
+        "wal_bytes": 0,
+        "query_prefix": "SELECT generation FROM _backend WHERE singleton",
+        "query_sha256": "58bceaa240fea1604a08df2c8afdea7e050bdcd42aa78dba9e2242ea72dcc0ea"
+      },
+      {
+        "calls": 660,
+        "total_exec_time": 2.5366640000024745,
+        "wal_bytes": 0,
+        "query_prefix": "SELECT value FROM _meta WHERE key=$1",
+        "query_sha256": "aa22a455969a56d2db1327359076646e9ed4b2434a29d4f2b19b90bb14e5f767"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 0.035009999999999764,
+        "wal_bytes": 0,
+        "query_prefix": "SAVEPOINT member",
+        "query_sha256": "23755542a9c19e6dd9c9042b8e8cb396af1f9b995506c8f7aca91916ccd21945"
+      },
+      {
+        "calls": 240,
+        "total_exec_time": 2.7725230000010015,
+        "wal_bytes": 0,
+        "query_prefix": "SELECT principal, COALESCE(family, token_digest), kind, token_digest, expires_at, $2, $3::BIGINT, $4::BIGINT FROM _sessions WHERE token_digest = $1 UNION ALL SELECT principal, fami",
+        "query_sha256": "23b627ef61631eaab1ad57cac53141470d3207ebb5b862054bdc28f905f6b28a"
+      },
+      {
+        "calls": 67,
+        "total_exec_time": 0.26908500000007507,
+        "wal_bytes": 0,
+        "query_prefix": "SET LOCAL statement_timeout = 0",
+        "query_sha256": "e06f3c7d027e0dbbbf87e8ee03ee9fd9cfa2633dfb6814e24bbe872c783ef37b"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 0.21011600000002773,
+        "wal_bytes": 0,
+        "query_prefix": "START TRANSACTION ISOLATION LEVEL READ COMMITTED, READ WRITE",
+        "query_sha256": "57e7ab882ef27d26ce7a6ec70e8a77d5664edc8e175c3c11223b5d0e508da186"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 0.8601979999975811,
+        "wal_bytes": 3240,
+        "query_prefix": "SELECT store_id,token FROM _owner WHERE singleton FOR KEY SHARE",
+        "query_sha256": "cd1d65e5e8a40437d5df1255729054c31e596adfae669e4eebfdc78f4e70307e"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 0.5805950000000001,
+        "wal_bytes": 0,
+        "query_prefix": "SELECT c.seq,e.footprint FROM _commits c LEFT JOIN _change_evidence e ON e.seq=c.seq WHERE c.seq>$1 AND c.seq<=$2 ORDER BY c.seq LIMIT $3",
+        "query_sha256": "317f0d4651362bb519f533732601a30668a0ed78358924c0235a7093fcc8fa4b"
+      },
+      {
+        "calls": 540,
+        "total_exec_time": 10.942723999999998,
+        "wal_bytes": 0,
+        "query_prefix": "SELECT generation, (SELECT seq FROM _head WHERE singleton) FROM _backend WHERE singleton",
+        "query_sha256": "679592014039a4998a0bcc2fac81314e4014f6c7c2c6bf7ae03de826f5867d65"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 1.0335320000008323,
+        "wal_bytes": 3240,
+        "query_prefix": "SELECT seq FROM _head WHERE singleton FOR UPDATE",
+        "query_sha256": "88a041dbaf91096769a53de41afc636eb071163b579f565b7fe41bfb5bebe29b"
+      },
+      {
+        "calls": 7,
+        "total_exec_time": 0.24737400000000775,
+        "wal_bytes": 565,
+        "query_prefix": "UPDATE _owner SET lease_until=clock_timestamp()+make_interval(secs=>$1) WHERE singleton AND store_id=$2 AND token=$3",
+        "query_sha256": "c9cec6994abfe577a335975a5119d8c9622efc9f33ef764c992c1512b6322a0f"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 0.024346000000015522,
+        "wal_bytes": 0,
+        "query_prefix": "RELEASE SAVEPOINT member",
+        "query_sha256": "5f2ba9a7b7434dc8e20b07c0bb9660b55317327b633742aaa1da307efb0fa9c5"
+      }
+    ]
+  },
+  {
+    "revision": "b1",
+    "segment": "b1-optional",
+    "counter_domain": "b1-fresh",
+    "workload": "W3",
+    "keys": "disjoint",
+    "link": "B",
+    "operations": 60,
+    "warmups": 10,
+    "before_time": 1792788411.0791857,
+    "after_time": 1792788422.4950676,
+    "counter_before": 220475,
+    "counter_after": 220475,
+    "statements_per_request": 136.0,
+    "inferred_warm_exchanges_per_request": 136.0,
+    "renewals_excluded": 22,
+    "durable_commits_per_request": 0.0,
+    "latency_ms": {
+      "median": 169.44548953324556,
+      "min": 165.2274802327156,
+      "max": 180.9747200459242
+    },
+    "sql_exec_ms_per_request_including_renewal": 2.7098568666018465,
+    "statement_deltas": [
+      {
+        "calls": 22,
+        "total_exec_time": 0.008144999999998959,
+        "wal_bytes": 0,
+        "query_prefix": "COMMIT",
+        "query_sha256": "79663c1d3b43ceaf9ee728e501c64b57ae2e4d6cb36ff5c65eddcda1de27342f"
+      },
+      {
+        "calls": 3900,
+        "total_exec_time": 68.40324299625354,
+        "wal_bytes": 0,
+        "query_prefix": "SELECT r.data, i.k FROM i JOIN r ON r.t = i.t AND r.id = i.id WHERE i.t = $1 AND i.ix = $2 AND i.k >= $3 AND i.k < $4 ORDER BY i.k ASC LIMIT $5",
+        "query_sha256": "b51ea22c0ebc2e3e46cd98e2bdd28ad4f72f786fb34e24d47cac6a3ceee96980"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 0.5044219999927009,
+        "wal_bytes": 0,
+        "query_prefix": "START TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY",
+        "query_sha256": "5622ef03741f9617ed31f225dad5e2e202a506f3b02620958dece09cde6a36cf"
+      },
+      {
+        "calls": 22,
+        "total_exec_time": 0.01997099999999996,
+        "wal_bytes": 0,
+        "query_prefix": "START TRANSACTION",
+        "query_sha256": "c694dd4d8f76a81fe0ca5c11301c3b1d7c0ebeb4e5a7f996714ecbd1f282ab9a"
+      },
+      {
+        "calls": 22,
+        "total_exec_time": 0.034558000000004085,
+        "wal_bytes": 0,
+        "query_prefix": "SET LOCAL lock_timeout = 0",
+        "query_sha256": "a90032ef553cc437ed6894ebdfa82d60cb6a08f03c8e96a0eac47f1d05b95d0d"
+      },
+      {
+        "calls": 120,
+        "total_exec_time": 9.49001399995177,
+        "wal_bytes": 0,
+        "query_prefix": "WITH sessions AS (SELECT principal, COALESCE(family, token_digest) AS family, kind, token_digest, expires_at, $2 AS scope, $3::BIGINT AS cap_expires_at, $4::BIGINT AS principal_gen",
+        "query_sha256": "3b710f7dd72903662b480dd633974ed5eadb191d406714cc741e56a488d9a481"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 0.0596419999999398,
+        "wal_bytes": 0,
+        "query_prefix": "ROLLBACK",
+        "query_sha256": "587fa628a9fe4642ac0e22825a97e81d388af674f7251a9fb699f96901dcb710"
+      },
+      {
+        "calls": 3840,
+        "total_exec_time": 62.121469999925466,
+        "wal_bytes": 0,
+        "query_prefix": "SELECT octet_length(r.data)::bigint, octet_length(i.k)::bigint FROM i JOIN r ON r.t = i.t AND r.id = i.id WHERE i.t = $1 AND i.ix = $2 AND i.k >= $3 AND i.k < $4 ORDER BY i.k ASC L",
+        "query_sha256": "cb92ca5a6e1277c66b7b43c61a8a1fc74aa59069989afd9e62b092cf7bdd4ae8"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 0.03242100000001358,
+        "wal_bytes": 0,
+        "query_prefix": "RELEASE SAVEPOINT prefetch",
+        "query_sha256": "625c866183b7ea3ab5a7dff38d379f99582c3ee1768a35a749a832a11ffaaa5f"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 20.986422999987553,
+        "wal_bytes": 0,
+        "query_prefix": "WITH hits AS MATERIALIZED (SELECT q.ord, hit.data FROM unnest($3::bytea[], $4::bytea[]) WITH ORDINALITY AS q(lo,hi,ord) LEFT JOIN LATERAL (SELECT r.data FROM i JOIN r ON r.t = i.t ",
+        "query_sha256": "55c999c2048b7f06d9dcf99c3cefa6c5b17748ea92d9c75c806d1720838f32bc"
+      },
+      {
+        "calls": 22,
+        "total_exec_time": 0.7627749999998628,
+        "wal_bytes": 1607,
+        "query_prefix": "UPDATE _owner SET lease_until=clock_timestamp()+make_interval(secs=>$1) WHERE singleton AND store_id=$2 AND token=$3 AND holder=$4",
+        "query_sha256": "be8f7b656abcd0fb2ae964adb192129ce996d69e9c75f712fc3a254e43003859"
+      },
+      {
+        "calls": 22,
+        "total_exec_time": 0.12301099999990583,
+        "wal_bytes": 0,
+        "query_prefix": "SET LOCAL statement_timeout = 0",
+        "query_sha256": "e06f3c7d027e0dbbbf87e8ee03ee9fd9cfa2633dfb6814e24bbe872c783ef37b"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 0.0453170000000398,
+        "wal_bytes": 0,
+        "query_prefix": "SAVEPOINT prefetch",
+        "query_sha256": "ccdd964f06ab7eadbf3c56172d0b26f41f96ad88e379dcf1dc1e73f43b1ca01f"
+      }
+    ]
+  },
+  {
+    "revision": "b1",
+    "segment": "b1-optional",
+    "counter_domain": "b1-fresh",
+    "workload": "W3",
+    "keys": "disjoint",
+    "link": "A",
+    "operations": 60,
+    "warmups": 10,
+    "before_time": 1792786407.001018,
+    "after_time": 1792786414.1891737,
+    "counter_before": 147538,
+    "counter_after": 147538,
+    "statements_per_request": 136.0,
+    "inferred_warm_exchanges_per_request": 136.0,
+    "renewals_excluded": 14,
+    "durable_commits_per_request": 0.0,
+    "latency_ms": {
+      "median": 99.85179454088211,
+      "min": 87.33365125954151,
+      "max": 106.60572163760662
+    },
+    "sql_exec_ms_per_request_including_renewal": 2.3690353332961065,
+    "statement_deltas": [
+      {
+        "calls": 14,
+        "total_exec_time": 0.006553000000003806,
+        "wal_bytes": 0,
+        "query_prefix": "COMMIT",
+        "query_sha256": "79663c1d3b43ceaf9ee728e501c64b57ae2e4d6cb36ff5c65eddcda1de27342f"
+      },
+      {
+        "calls": 3900,
+        "total_exec_time": 61.87769299803767,
+        "wal_bytes": 0,
+        "query_prefix": "SELECT r.data, i.k FROM i JOIN r ON r.t = i.t AND r.id = i.id WHERE i.t = $1 AND i.ix = $2 AND i.k >= $3 AND i.k < $4 ORDER BY i.k ASC LIMIT $5",
+        "query_sha256": "b51ea22c0ebc2e3e46cd98e2bdd28ad4f72f786fb34e24d47cac6a3ceee96980"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 0.41933399999834364,
+        "wal_bytes": 0,
+        "query_prefix": "START TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY",
+        "query_sha256": "5622ef03741f9617ed31f225dad5e2e202a506f3b02620958dece09cde6a36cf"
+      },
+      {
+        "calls": 14,
+        "total_exec_time": 0.01353499999999741,
+        "wal_bytes": 0,
+        "query_prefix": "START TRANSACTION",
+        "query_sha256": "c694dd4d8f76a81fe0ca5c11301c3b1d7c0ebeb4e5a7f996714ecbd1f282ab9a"
+      },
+      {
+        "calls": 14,
+        "total_exec_time": 0.01282399999999484,
+        "wal_bytes": 0,
+        "query_prefix": "SET LOCAL lock_timeout = 0",
+        "query_sha256": "a90032ef553cc437ed6894ebdfa82d60cb6a08f03c8e96a0eac47f1d05b95d0d"
+      },
+      {
+        "calls": 120,
+        "total_exec_time": 4.34630900004413,
+        "wal_bytes": 0,
+        "query_prefix": "WITH sessions AS (SELECT principal, COALESCE(family, token_digest) AS family, kind, token_digest, expires_at, $2 AS scope, $3::BIGINT AS cap_expires_at, $4::BIGINT AS principal_gen",
+        "query_sha256": "3b710f7dd72903662b480dd633974ed5eadb191d406714cc741e56a488d9a481"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 0.049050000000534055,
+        "wal_bytes": 0,
+        "query_prefix": "ROLLBACK",
+        "query_sha256": "587fa628a9fe4642ac0e22825a97e81d388af674f7251a9fb699f96901dcb710"
+      },
+      {
+        "calls": 3840,
+        "total_exec_time": 56.54451799968956,
+        "wal_bytes": 0,
+        "query_prefix": "SELECT octet_length(r.data)::bigint, octet_length(i.k)::bigint FROM i JOIN r ON r.t = i.t AND r.id = i.id WHERE i.t = $1 AND i.ix = $2 AND i.k >= $3 AND i.k < $4 ORDER BY i.k ASC L",
+        "query_sha256": "cb92ca5a6e1277c66b7b43c61a8a1fc74aa59069989afd9e62b092cf7bdd4ae8"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 0.028169999999974493,
+        "wal_bytes": 0,
+        "query_prefix": "RELEASE SAVEPOINT prefetch",
+        "query_sha256": "625c866183b7ea3ab5a7dff38d379f99582c3ee1768a35a749a832a11ffaaa5f"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 18.256156999996165,
+        "wal_bytes": 0,
+        "query_prefix": "WITH hits AS MATERIALIZED (SELECT q.ord, hit.data FROM unnest($3::bytea[], $4::bytea[]) WITH ORDINALITY AS q(lo,hi,ord) LEFT JOIN LATERAL (SELECT r.data FROM i JOIN r ON r.t = i.t ",
+        "query_sha256": "55c999c2048b7f06d9dcf99c3cefa6c5b17748ea92d9c75c806d1720838f32bc"
+      },
+      {
+        "calls": 14,
+        "total_exec_time": 0.46784099999999285,
+        "wal_bytes": 1022,
+        "query_prefix": "UPDATE _owner SET lease_until=clock_timestamp()+make_interval(secs=>$1) WHERE singleton AND store_id=$2 AND token=$3 AND holder=$4",
+        "query_sha256": "be8f7b656abcd0fb2ae964adb192129ce996d69e9c75f712fc3a254e43003859"
+      },
+      {
+        "calls": 14,
+        "total_exec_time": 0.07433000000003176,
+        "wal_bytes": 0,
+        "query_prefix": "SET LOCAL statement_timeout = 0",
+        "query_sha256": "e06f3c7d027e0dbbbf87e8ee03ee9fd9cfa2633dfb6814e24bbe872c783ef37b"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 0.0458059999999989,
+        "wal_bytes": 0,
+        "query_prefix": "SAVEPOINT prefetch",
+        "query_sha256": "ccdd964f06ab7eadbf3c56172d0b26f41f96ad88e379dcf1dc1e73f43b1ca01f"
+      }
+    ]
+  },
+  {
+    "revision": "b1",
+    "segment": "b1-optional",
+    "counter_domain": "b1-fresh",
+    "workload": "W5",
+    "keys": "hot1",
+    "link": "B",
+    "operations": 100,
+    "warmups": 10,
+    "before_time": 1792789745.4285095,
+    "after_time": 1792789748.8655975,
+    "counter_before": 233841,
+    "counter_after": 233941,
+    "statements_per_request": 17.03,
+    "inferred_warm_exchanges_per_request": 16.03,
+    "renewals_excluded": 7,
+    "durable_commits_per_request": 1.0,
+    "latency_ms": {
+      "median": 21.825081668794155,
+      "min": 21.096691489219666,
+      "max": 25.08404478430748
+    },
+    "sql_exec_ms_per_request_including_renewal": 0.44214081999654886,
+    "statement_deltas": [
+      {
+        "calls": 107,
+        "total_exec_time": 0.037255000000030236,
+        "wal_bytes": 0,
+        "query_prefix": "COMMIT",
+        "query_sha256": "79663c1d3b43ceaf9ee728e501c64b57ae2e4d6cb36ff5c65eddcda1de27342f"
+      },
+      {
+        "calls": 203,
+        "total_exec_time": 4.467390999838244,
+        "wal_bytes": 5978,
+        "query_prefix": "SELECT r.data, i.k FROM i JOIN r ON r.t = i.t AND r.id = i.id WHERE i.t = $1 AND i.ix = $2 AND i.k >= $3 AND i.k < $4 ORDER BY i.k ASC LIMIT $5",
+        "query_sha256": "b51ea22c0ebc2e3e46cd98e2bdd28ad4f72f786fb34e24d47cac6a3ceee96980"
+      },
+      {
+        "calls": 7,
+        "total_exec_time": 0.005670000000002062,
+        "wal_bytes": 0,
+        "query_prefix": "START TRANSACTION",
+        "query_sha256": "c694dd4d8f76a81fe0ca5c11301c3b1d7c0ebeb4e5a7f996714ecbd1f282ab9a"
+      },
+      {
+        "calls": 100,
+        "total_exec_time": 1.9464669999942998,
+        "wal_bytes": 7111,
+        "query_prefix": "UPDATE r SET data = $3 WHERE t = $1 AND id = $2",
+        "query_sha256": "d50062589cfd56092a580943c39da04f19cf8d4704463f4d9c258ff8ab65980b"
+      },
+      {
+        "calls": 107,
+        "total_exec_time": 0.08953399999992939,
+        "wal_bytes": 0,
+        "query_prefix": "SET LOCAL lock_timeout = 0",
+        "query_sha256": "a90032ef553cc437ed6894ebdfa82d60cb6a08f03c8e96a0eac47f1d05b95d0d"
+      },
+      {
+        "calls": 200,
+        "total_exec_time": 11.762904999835882,
+        "wal_bytes": 0,
+        "query_prefix": "WITH sessions AS (SELECT principal, COALESCE(family, token_digest) AS family, kind, token_digest, expires_at, $2 AS scope, $3::BIGINT AS cap_expires_at, $4::BIGINT AS principal_gen",
+        "query_sha256": "3b710f7dd72903662b480dd633974ed5eadb191d406714cc741e56a488d9a481"
+      },
+      {
+        "calls": 100,
+        "total_exec_time": 0.042300999999994815,
+        "wal_bytes": 0,
+        "query_prefix": "SAVEPOINT program",
+        "query_sha256": "4223ede3307cc3215e4fd969411336ab996799cc846bdb83b12636093af3f1fb"
+      },
+      {
+        "calls": 100,
+        "total_exec_time": 0.05310700000006818,
+        "wal_bytes": 0,
+        "query_prefix": "RELEASE SAVEPOINT program",
+        "query_sha256": "c9068183d8feec064b6aa84147bc97207acaa0ae6f2de6cc1ad25cf7d7087981"
+      },
+      {
+        "calls": 100,
+        "total_exec_time": 18.869330999999192,
+        "wal_bytes": 66653,
+        "query_prefix": "WITH head AS (\n            UPDATE _head SET seq = $1::bigint WHERE singleton AND seq = $1::bigint - $28 RETURNING seq\n        ), committed AS (\n            INSERT INTO _commits(seq",
+        "query_sha256": "55543a0394c0a913340fa8bea6a053fcb4e7c2f642cd9fcbc44f4ba1512f013a"
+      },
+      {
+        "calls": 100,
+        "total_exec_time": 0.37158300000021427,
+        "wal_bytes": 0,
+        "query_prefix": "SELECT generation FROM _backend WHERE singleton",
+        "query_sha256": "58bceaa240fea1604a08df2c8afdea7e050bdcd42aa78dba9e2242ea72dcc0ea"
+      },
+      {
+        "calls": 7,
+        "total_exec_time": 0.3073190000000636,
+        "wal_bytes": 728,
+        "query_prefix": "UPDATE _owner SET lease_until=clock_timestamp()+make_interval(secs=>$1) WHERE singleton AND store_id=$2 AND token=$3 AND holder=$4",
+        "query_sha256": "be8f7b656abcd0fb2ae964adb192129ce996d69e9c75f712fc3a254e43003859"
+      },
+      {
+        "calls": 100,
+        "total_exec_time": 0.06037900000001173,
+        "wal_bytes": 0,
+        "query_prefix": "SAVEPOINT member",
+        "query_sha256": "23755542a9c19e6dd9c9042b8e8cb396af1f9b995506c8f7aca91916ccd21945"
+      },
+      {
+        "calls": 107,
+        "total_exec_time": 0.4266719999984616,
+        "wal_bytes": 0,
+        "query_prefix": "SET LOCAL statement_timeout = 0",
+        "query_sha256": "e06f3c7d027e0dbbbf87e8ee03ee9fd9cfa2633dfb6814e24bbe872c783ef37b"
+      },
+      {
+        "calls": 100,
+        "total_exec_time": 0.5478049999990162,
+        "wal_bytes": 0,
+        "query_prefix": "START TRANSACTION ISOLATION LEVEL READ COMMITTED, READ WRITE",
+        "query_sha256": "57e7ab882ef27d26ce7a6ec70e8a77d5664edc8e175c3c11223b5d0e508da186"
+      },
+      {
+        "calls": 100,
+        "total_exec_time": 2.370320000002721,
+        "wal_bytes": 5508,
+        "query_prefix": "SELECT store_id,token FROM _owner WHERE singleton FOR KEY SHARE",
+        "query_sha256": "cd1d65e5e8a40437d5df1255729054c31e596adfae669e4eebfdc78f4e70307e"
+      },
+      {
+        "calls": 100,
+        "total_exec_time": 2.809596999986752,
+        "wal_bytes": 5400,
+        "query_prefix": "SELECT seq FROM _head WHERE singleton FOR UPDATE",
+        "query_sha256": "88a041dbaf91096769a53de41afc636eb071163b579f565b7fe41bfb5bebe29b"
+      },
+      {
+        "calls": 100,
+        "total_exec_time": 0.046446000000003096,
+        "wal_bytes": 0,
+        "query_prefix": "RELEASE SAVEPOINT member",
+        "query_sha256": "5f2ba9a7b7434dc8e20b07c0bb9660b55317327b633742aaa1da307efb0fa9c5"
+      }
+    ]
+  },
+  {
+    "revision": "b1",
+    "segment": "b1-optional",
+    "counter_domain": "b1-fresh",
+    "workload": "W5",
+    "keys": "same",
+    "link": "B",
+    "operations": 60,
+    "warmups": 10,
+    "before_time": 1792789356.8079157,
+    "after_time": 1792789359.597702,
+    "counter_before": 220485,
+    "counter_after": 220545,
+    "statements_per_request": 20.0,
+    "inferred_warm_exchanges_per_request": 19.0,
+    "renewals_excluded": 6,
+    "durable_commits_per_request": 1.0,
+    "latency_ms": {
+      "median": 25.49051307141781,
+      "min": 24.564245715737343,
+      "max": 29.487228021025658
+    },
+    "sql_exec_ms_per_request_including_renewal": 0.4852881166654431,
+    "statement_deltas": [
+      {
+        "calls": 66,
+        "total_exec_time": 0.024535000000014406,
+        "wal_bytes": 0,
+        "query_prefix": "COMMIT",
+        "query_sha256": "79663c1d3b43ceaf9ee728e501c64b57ae2e4d6cb36ff5c65eddcda1de27342f"
+      },
+      {
+        "calls": 300,
+        "total_exec_time": 6.006286999792792,
+        "wal_bytes": 3599,
+        "query_prefix": "SELECT r.data, i.k FROM i JOIN r ON r.t = i.t AND r.id = i.id WHERE i.t = $1 AND i.ix = $2 AND i.k >= $3 AND i.k < $4 ORDER BY i.k ASC LIMIT $5",
+        "query_sha256": "b51ea22c0ebc2e3e46cd98e2bdd28ad4f72f786fb34e24d47cac6a3ceee96980"
+      },
+      {
+        "calls": 6,
+        "total_exec_time": 0.005130999999998664,
+        "wal_bytes": 0,
+        "query_prefix": "START TRANSACTION",
+        "query_sha256": "c694dd4d8f76a81fe0ca5c11301c3b1d7c0ebeb4e5a7f996714ecbd1f282ab9a"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 1.2079300000041258,
+        "wal_bytes": 4266,
+        "query_prefix": "UPDATE r SET data = $3 WHERE t = $1 AND id = $2",
+        "query_sha256": "d50062589cfd56092a580943c39da04f19cf8d4704463f4d9c258ff8ab65980b"
+      },
+      {
+        "calls": 66,
+        "total_exec_time": 0.07108399999987114,
+        "wal_bytes": 0,
+        "query_prefix": "SET LOCAL lock_timeout = 0",
+        "query_sha256": "a90032ef553cc437ed6894ebdfa82d60cb6a08f03c8e96a0eac47f1d05b95d0d"
+      },
+      {
+        "calls": 120,
+        "total_exec_time": 6.500886000139872,
+        "wal_bytes": 0,
+        "query_prefix": "WITH sessions AS (SELECT principal, COALESCE(family, token_digest) AS family, kind, token_digest, expires_at, $2 AS scope, $3::BIGINT AS cap_expires_at, $4::BIGINT AS principal_gen",
+        "query_sha256": "3b710f7dd72903662b480dd633974ed5eadb191d406714cc741e56a488d9a481"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 0.02672599999993963,
+        "wal_bytes": 0,
+        "query_prefix": "SAVEPOINT program",
+        "query_sha256": "4223ede3307cc3215e4fd969411336ab996799cc846bdb83b12636093af3f1fb"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 0.037394000000006145,
+        "wal_bytes": 0,
+        "query_prefix": "RELEASE SAVEPOINT program",
+        "query_sha256": "c9068183d8feec064b6aa84147bc97207acaa0ae6f2de6cc1ad25cf7d7087981"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 11.950377999999318,
+        "wal_bytes": 43343,
+        "query_prefix": "WITH head AS (\n            UPDATE _head SET seq = $1::bigint WHERE singleton AND seq = $1::bigint - $28 RETURNING seq\n        ), committed AS (\n            INSERT INTO _commits(seq",
+        "query_sha256": "55543a0394c0a913340fa8bea6a053fcb4e7c2f642cd9fcbc44f4ba1512f013a"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 0.21904500000027838,
+        "wal_bytes": 0,
+        "query_prefix": "SELECT generation FROM _backend WHERE singleton",
+        "query_sha256": "58bceaa240fea1604a08df2c8afdea7e050bdcd42aa78dba9e2242ea72dcc0ea"
+      },
+      {
+        "calls": 6,
+        "total_exec_time": 0.2080989999999474,
+        "wal_bytes": 546,
+        "query_prefix": "UPDATE _owner SET lease_until=clock_timestamp()+make_interval(secs=>$1) WHERE singleton AND store_id=$2 AND token=$3 AND holder=$4",
+        "query_sha256": "be8f7b656abcd0fb2ae964adb192129ce996d69e9c75f712fc3a254e43003859"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 0.03586600000002704,
+        "wal_bytes": 0,
+        "query_prefix": "SAVEPOINT member",
+        "query_sha256": "23755542a9c19e6dd9c9042b8e8cb396af1f9b995506c8f7aca91916ccd21945"
+      },
+      {
+        "calls": 66,
+        "total_exec_time": 0.2867599999990489,
+        "wal_bytes": 0,
+        "query_prefix": "SET LOCAL statement_timeout = 0",
+        "query_sha256": "e06f3c7d027e0dbbbf87e8ee03ee9fd9cfa2633dfb6814e24bbe872c783ef37b"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 0.31432100000029095,
+        "wal_bytes": 0,
+        "query_prefix": "START TRANSACTION ISOLATION LEVEL READ COMMITTED, READ WRITE",
+        "query_sha256": "57e7ab882ef27d26ce7a6ec70e8a77d5664edc8e175c3c11223b5d0e508da186"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 0.9842869999974937,
+        "wal_bytes": 3348,
+        "query_prefix": "SELECT store_id,token FROM _owner WHERE singleton FOR KEY SHARE",
+        "query_sha256": "cd1d65e5e8a40437d5df1255729054c31e596adfae669e4eebfdc78f4e70307e"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 1.2077859999935754,
+        "wal_bytes": 3240,
+        "query_prefix": "SELECT seq FROM _head WHERE singleton FOR UPDATE",
+        "query_sha256": "88a041dbaf91096769a53de41afc636eb071163b579f565b7fe41bfb5bebe29b"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 0.0307719999999847,
+        "wal_bytes": 0,
+        "query_prefix": "RELEASE SAVEPOINT member",
+        "query_sha256": "5f2ba9a7b7434dc8e20b07c0bb9660b55317327b633742aaa1da307efb0fa9c5"
+      }
+    ]
+  },
+  {
+    "revision": "b1",
+    "segment": "b1-optional",
+    "counter_domain": "b1-fresh",
+    "workload": "W5",
+    "keys": "hot1",
+    "link": "A",
+    "operations": 100,
+    "warmups": 10,
+    "before_time": 1792787637.643656,
+    "after_time": 1792787640.2930136,
+    "counter_before": 164756,
+    "counter_after": 164856,
+    "statements_per_request": 17.03,
+    "inferred_warm_exchanges_per_request": 16.03,
+    "renewals_excluded": 5,
+    "durable_commits_per_request": 1.0,
+    "latency_ms": {
+      "median": 13.72426189482212,
+      "min": 12.507561594247818,
+      "max": 19.290516152977943
+    },
+    "sql_exec_ms_per_request_including_renewal": 0.5283095299961482,
+    "statement_deltas": [
+      {
+        "calls": 105,
+        "total_exec_time": 0.03438800000000697,
+        "wal_bytes": 0,
+        "query_prefix": "COMMIT",
+        "query_sha256": "79663c1d3b43ceaf9ee728e501c64b57ae2e4d6cb36ff5c65eddcda1de27342f"
+      },
+      {
+        "calls": 203,
+        "total_exec_time": 4.460081999597605,
+        "wal_bytes": 5917,
+        "query_prefix": "SELECT r.data, i.k FROM i JOIN r ON r.t = i.t AND r.id = i.id WHERE i.t = $1 AND i.ix = $2 AND i.k >= $3 AND i.k < $4 ORDER BY i.k ASC LIMIT $5",
+        "query_sha256": "b51ea22c0ebc2e3e46cd98e2bdd28ad4f72f786fb34e24d47cac6a3ceee96980"
+      },
+      {
+        "calls": 5,
+        "total_exec_time": 0.004346999999999213,
+        "wal_bytes": 0,
+        "query_prefix": "START TRANSACTION",
+        "query_sha256": "c694dd4d8f76a81fe0ca5c11301c3b1d7c0ebeb4e5a7f996714ecbd1f282ab9a"
+      },
+      {
+        "calls": 100,
+        "total_exec_time": 1.9190200000157347,
+        "wal_bytes": 19383,
+        "query_prefix": "UPDATE r SET data = $3 WHERE t = $1 AND id = $2",
+        "query_sha256": "d50062589cfd56092a580943c39da04f19cf8d4704463f4d9c258ff8ab65980b"
+      },
+      {
+        "calls": 105,
+        "total_exec_time": 0.0833769999998708,
+        "wal_bytes": 0,
+        "query_prefix": "SET LOCAL lock_timeout = 0",
+        "query_sha256": "a90032ef553cc437ed6894ebdfa82d60cb6a08f03c8e96a0eac47f1d05b95d0d"
+      },
+      {
+        "calls": 200,
+        "total_exec_time": 12.046468999993522,
+        "wal_bytes": 391,
+        "query_prefix": "WITH sessions AS (SELECT principal, COALESCE(family, token_digest) AS family, kind, token_digest, expires_at, $2 AS scope, $3::BIGINT AS cap_expires_at, $4::BIGINT AS principal_gen",
+        "query_sha256": "3b710f7dd72903662b480dd633974ed5eadb191d406714cc741e56a488d9a481"
+      },
+      {
+        "calls": 100,
+        "total_exec_time": 0.03709100000003218,
+        "wal_bytes": 0,
+        "query_prefix": "SAVEPOINT program",
+        "query_sha256": "4223ede3307cc3215e4fd969411336ab996799cc846bdb83b12636093af3f1fb"
+      },
+      {
+        "calls": 100,
+        "total_exec_time": 0.050789000000008855,
+        "wal_bytes": 0,
+        "query_prefix": "RELEASE SAVEPOINT program",
+        "query_sha256": "c9068183d8feec064b6aa84147bc97207acaa0ae6f2de6cc1ad25cf7d7087981"
+      },
+      {
+        "calls": 98,
+        "total_exec_time": 26.017690000001267,
+        "wal_bytes": 58573,
+        "query_prefix": "WITH head AS (\n            UPDATE _head SET seq = $1::bigint WHERE singleton AND seq = $1::bigint - $28 RETURNING seq\n        ), committed AS (\n            INSERT INTO _commits(seq",
+        "query_sha256": "55543a0394c0a913340fa8bea6a053fcb4e7c2f642cd9fcbc44f4ba1512f013a"
+      },
+      {
+        "calls": 100,
+        "total_exec_time": 0.3411029999998618,
+        "wal_bytes": 0,
+        "query_prefix": "SELECT generation FROM _backend WHERE singleton",
+        "query_sha256": "58bceaa240fea1604a08df2c8afdea7e050bdcd42aa78dba9e2242ea72dcc0ea"
+      },
+      {
+        "calls": 2,
+        "total_exec_time": 0.4433920000010403,
+        "wal_bytes": 1221,
+        "query_prefix": "WITH head AS (\n            UPDATE _head SET seq = $1::bigint WHERE singleton AND seq = $1::bigint - $28 RETURNING seq\n        ), committed AS (\n            INSERT INTO _commits(seq",
+        "query_sha256": "55543a0394c0a913340fa8bea6a053fcb4e7c2f642cd9fcbc44f4ba1512f013a"
+      },
+      {
+        "calls": 5,
+        "total_exec_time": 0.20035500000000184,
+        "wal_bytes": 472,
+        "query_prefix": "UPDATE _owner SET lease_until=clock_timestamp()+make_interval(secs=>$1) WHERE singleton AND store_id=$2 AND token=$3 AND holder=$4",
+        "query_sha256": "be8f7b656abcd0fb2ae964adb192129ce996d69e9c75f712fc3a254e43003859"
+      },
+      {
+        "calls": 100,
+        "total_exec_time": 0.053567999999984295,
+        "wal_bytes": 0,
+        "query_prefix": "SAVEPOINT member",
+        "query_sha256": "23755542a9c19e6dd9c9042b8e8cb396af1f9b995506c8f7aca91916ccd21945"
+      },
+      {
+        "calls": 105,
+        "total_exec_time": 0.409802000000127,
+        "wal_bytes": 0,
+        "query_prefix": "SET LOCAL statement_timeout = 0",
+        "query_sha256": "e06f3c7d027e0dbbbf87e8ee03ee9fd9cfa2633dfb6814e24bbe872c783ef37b"
+      },
+      {
+        "calls": 100,
+        "total_exec_time": 0.5274080000001504,
+        "wal_bytes": 0,
+        "query_prefix": "START TRANSACTION ISOLATION LEVEL READ COMMITTED, READ WRITE",
+        "query_sha256": "57e7ab882ef27d26ce7a6ec70e8a77d5664edc8e175c3c11223b5d0e508da186"
+      },
+      {
+        "calls": 100,
+        "total_exec_time": 3.101270000003751,
+        "wal_bytes": 5508,
+        "query_prefix": "SELECT store_id,token FROM _owner WHERE singleton FOR KEY SHARE",
+        "query_sha256": "cd1d65e5e8a40437d5df1255729054c31e596adfae669e4eebfdc78f4e70307e"
+      },
+      {
+        "calls": 100,
+        "total_exec_time": 3.0597600000019156,
+        "wal_bytes": 5400,
+        "query_prefix": "SELECT seq FROM _head WHERE singleton FOR UPDATE",
+        "query_sha256": "88a041dbaf91096769a53de41afc636eb071163b579f565b7fe41bfb5bebe29b"
+      },
+      {
+        "calls": 100,
+        "total_exec_time": 0.04104199999994762,
+        "wal_bytes": 0,
+        "query_prefix": "RELEASE SAVEPOINT member",
+        "query_sha256": "5f2ba9a7b7434dc8e20b07c0bb9660b55317327b633742aaa1da307efb0fa9c5"
+      }
+    ]
+  },
+  {
+    "revision": "b1",
+    "segment": "b1-optional",
+    "counter_domain": "b1-fresh",
+    "workload": "W5",
+    "keys": "same",
+    "link": "A",
+    "operations": 60,
+    "warmups": 10,
+    "before_time": 1792787344.369776,
+    "after_time": 1792787346.6373048,
+    "counter_before": 147548,
+    "counter_after": 147608,
+    "statements_per_request": 20.0,
+    "inferred_warm_exchanges_per_request": 19.0,
+    "renewals_excluded": 5,
+    "durable_commits_per_request": 1.0,
+    "latency_ms": {
+      "median": 16.05879981070757,
+      "min": 14.718573540449142,
+      "max": 28.94844301044941
+    },
+    "sql_exec_ms_per_request_including_renewal": 0.4292326000024567,
+    "statement_deltas": [
+      {
+        "calls": 65,
+        "total_exec_time": 0.027225000000015598,
+        "wal_bytes": 0,
+        "query_prefix": "COMMIT",
+        "query_sha256": "79663c1d3b43ceaf9ee728e501c64b57ae2e4d6cb36ff5c65eddcda1de27342f"
+      },
+      {
+        "calls": 300,
+        "total_exec_time": 6.198128999967594,
+        "wal_bytes": 3599,
+        "query_prefix": "SELECT r.data, i.k FROM i JOIN r ON r.t = i.t AND r.id = i.id WHERE i.t = $1 AND i.ix = $2 AND i.k >= $3 AND i.k < $4 ORDER BY i.k ASC LIMIT $5",
+        "query_sha256": "b51ea22c0ebc2e3e46cd98e2bdd28ad4f72f786fb34e24d47cac6a3ceee96980"
+      },
+      {
+        "calls": 5,
+        "total_exec_time": 0.005542000000000158,
+        "wal_bytes": 0,
+        "query_prefix": "START TRANSACTION",
+        "query_sha256": "c694dd4d8f76a81fe0ca5c11301c3b1d7c0ebeb4e5a7f996714ecbd1f282ab9a"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 1.4052090000113822,
+        "wal_bytes": 4266,
+        "query_prefix": "UPDATE r SET data = $3 WHERE t = $1 AND id = $2",
+        "query_sha256": "d50062589cfd56092a580943c39da04f19cf8d4704463f4d9c258ff8ab65980b"
+      },
+      {
+        "calls": 65,
+        "total_exec_time": 0.05817700000002901,
+        "wal_bytes": 0,
+        "query_prefix": "SET LOCAL lock_timeout = 0",
+        "query_sha256": "a90032ef553cc437ed6894ebdfa82d60cb6a08f03c8e96a0eac47f1d05b95d0d"
+      },
+      {
+        "calls": 120,
+        "total_exec_time": 7.281142000167165,
+        "wal_bytes": 0,
+        "query_prefix": "WITH sessions AS (SELECT principal, COALESCE(family, token_digest) AS family, kind, token_digest, expires_at, $2 AS scope, $3::BIGINT AS cap_expires_at, $4::BIGINT AS principal_gen",
+        "query_sha256": "3b710f7dd72903662b480dd633974ed5eadb191d406714cc741e56a488d9a481"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 0.029566000000002646,
+        "wal_bytes": 0,
+        "query_prefix": "SAVEPOINT program",
+        "query_sha256": "4223ede3307cc3215e4fd969411336ab996799cc846bdb83b12636093af3f1fb"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 0.047582000000005564,
+        "wal_bytes": 0,
+        "query_prefix": "RELEASE SAVEPOINT program",
+        "query_sha256": "c9068183d8feec064b6aa84147bc97207acaa0ae6f2de6cc1ad25cf7d7087981"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 6.907515999999532,
+        "wal_bytes": 31680,
+        "query_prefix": "WITH head AS (\n            UPDATE _head SET seq = $1::bigint WHERE singleton AND seq = $1::bigint - $28 RETURNING seq\n        ), committed AS (\n            INSERT INTO _commits(seq",
+        "query_sha256": "55543a0394c0a913340fa8bea6a053fcb4e7c2f642cd9fcbc44f4ba1512f013a"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 0.26001800000017283,
+        "wal_bytes": 0,
+        "query_prefix": "SELECT generation FROM _backend WHERE singleton",
+        "query_sha256": "58bceaa240fea1604a08df2c8afdea7e050bdcd42aa78dba9e2242ea72dcc0ea"
+      },
+      {
+        "calls": 5,
+        "total_exec_time": 0.19632900000004838,
+        "wal_bytes": 419,
+        "query_prefix": "UPDATE _owner SET lease_until=clock_timestamp()+make_interval(secs=>$1) WHERE singleton AND store_id=$2 AND token=$3 AND holder=$4",
+        "query_sha256": "be8f7b656abcd0fb2ae964adb192129ce996d69e9c75f712fc3a254e43003859"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 0.05084599999999284,
+        "wal_bytes": 0,
+        "query_prefix": "SAVEPOINT member",
+        "query_sha256": "23755542a9c19e6dd9c9042b8e8cb396af1f9b995506c8f7aca91916ccd21945"
+      },
+      {
+        "calls": 65,
+        "total_exec_time": 0.3816749999998592,
+        "wal_bytes": 0,
+        "query_prefix": "SET LOCAL statement_timeout = 0",
+        "query_sha256": "e06f3c7d027e0dbbbf87e8ee03ee9fd9cfa2633dfb6814e24bbe872c783ef37b"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 0.514950999999769,
+        "wal_bytes": 0,
+        "query_prefix": "START TRANSACTION ISOLATION LEVEL READ COMMITTED, READ WRITE",
+        "query_sha256": "57e7ab882ef27d26ce7a6ec70e8a77d5664edc8e175c3c11223b5d0e508da186"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 1.3011349999987942,
+        "wal_bytes": 3348,
+        "query_prefix": "SELECT store_id,token FROM _owner WHERE singleton FOR KEY SHARE",
+        "query_sha256": "cd1d65e5e8a40437d5df1255729054c31e596adfae669e4eebfdc78f4e70307e"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 1.0580600000030245,
+        "wal_bytes": 3240,
+        "query_prefix": "SELECT seq FROM _head WHERE singleton FOR UPDATE",
+        "query_sha256": "88a041dbaf91096769a53de41afc636eb071163b579f565b7fe41bfb5bebe29b"
+      },
+      {
+        "calls": 60,
+        "total_exec_time": 0.030854000000019255,
+        "wal_bytes": 0,
+        "query_prefix": "RELEASE SAVEPOINT member",
+        "query_sha256": "5f2ba9a7b7434dc8e20b07c0bb9660b55317327b633742aaa1da307efb0fa9c5"
+      }
+    ]
+  }
+]

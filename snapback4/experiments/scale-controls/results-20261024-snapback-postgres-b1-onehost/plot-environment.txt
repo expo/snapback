@@ -1,0 +1,4 @@
+3.12.3 (main, Aug 31 2026, 10:18:26) [GCC 13.3.0]
+Matplotlib 3.11.2
+Agg; DejaVu Sans; SVG fonttype none; hashsalt s1pg4; date omitted
+Presentation export normalized to remove trailing line whitespace; SVG elements and attributes verified equivalent.

@@ -1,0 +1,27 @@
+{
+  "native_b1_account_query_passed": true,
+  "application_row_digest_equal": true,
+  "stored_backend_equal": true,
+  "existing_columns_unchanged": true,
+  "added_tables": [
+    "_dormant_columns",
+    "_dormant_indexes",
+    "_dormant_refs",
+    "_dormant_rows",
+    "_dormant_tables",
+    "_dormant_values"
+  ],
+  "added_column_count": 21,
+  "added_indexes": [
+    "_dormant_columns_pkey",
+    "_dormant_indexes_pkey",
+    "_dormant_parent",
+    "_dormant_refs_pkey",
+    "_dormant_rows_pkey",
+    "_dormant_tables_pkey",
+    "_dormant_values_pkey"
+  ],
+  "existing_indexes_unchanged": true,
+  "strict_original_guard": false,
+  "decision": "Retain all baseline cells; fresh identical cluster and native seed for B1 after automatic cleanup."
+}

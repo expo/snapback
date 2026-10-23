@@ -1,0 +1,8 @@
+{
+  "cluster_data_and_socket_directory_absent": true,
+  "removed_session_files": [
+    "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/s1sk/p4-pre/tokens.json",
+    "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/target/s1sk/p4-b1/tokens.json"
+  ],
+  "remaining_session_files": []
+}

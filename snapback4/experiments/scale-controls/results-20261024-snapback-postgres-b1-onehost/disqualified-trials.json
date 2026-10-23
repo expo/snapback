@@ -1,0 +1,5064 @@
+{
+  "failed_trials": [
+    {
+      "revision": "pre",
+      "segment": "pre",
+      "counter_domain": "pre-original",
+      "workload": "W1",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 1000,
+      "repeat": 0,
+      "reasons": [
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre",
+      "counter_domain": "pre-original",
+      "workload": "W1",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 1000,
+      "repeat": 1,
+      "reasons": [
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre",
+      "counter_domain": "pre-original",
+      "workload": "W1",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 1000,
+      "repeat": 2,
+      "reasons": [
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre",
+      "counter_domain": "pre-original",
+      "workload": "W1",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 1414,
+      "repeat": 0,
+      "reasons": [
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre",
+      "counter_domain": "pre-original",
+      "workload": "W1",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 1414,
+      "repeat": 1,
+      "reasons": [
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre",
+      "counter_domain": "pre-original",
+      "workload": "W1",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 1414,
+      "repeat": 2,
+      "reasons": [
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre",
+      "counter_domain": "pre-original",
+      "workload": "W1",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 2000,
+      "repeat": 0,
+      "reasons": [
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre",
+      "counter_domain": "pre-original",
+      "workload": "W1",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 2000,
+      "repeat": 1,
+      "reasons": [
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre",
+      "counter_domain": "pre-original",
+      "workload": "W1",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 2000,
+      "repeat": 2,
+      "reasons": [
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre",
+      "counter_domain": "pre-original",
+      "workload": "W2",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 1000,
+      "repeat": 0,
+      "reasons": [
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre",
+      "counter_domain": "pre-original",
+      "workload": "W2",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 1000,
+      "repeat": 1,
+      "reasons": [
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre",
+      "counter_domain": "pre-original",
+      "workload": "W2",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 1000,
+      "repeat": 2,
+      "reasons": [
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre",
+      "counter_domain": "pre-original",
+      "workload": "W2",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 1414,
+      "repeat": 0,
+      "reasons": [
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre",
+      "counter_domain": "pre-original",
+      "workload": "W2",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 1414,
+      "repeat": 1,
+      "reasons": [
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre",
+      "counter_domain": "pre-original",
+      "workload": "W2",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 1414,
+      "repeat": 2,
+      "reasons": [
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre",
+      "counter_domain": "pre-original",
+      "workload": "W2",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 2000,
+      "repeat": 0,
+      "reasons": [
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre",
+      "counter_domain": "pre-original",
+      "workload": "W2",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 2000,
+      "repeat": 1,
+      "reasons": [
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre",
+      "counter_domain": "pre-original",
+      "workload": "W2",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 2000,
+      "repeat": 2,
+      "reasons": [
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre",
+      "counter_domain": "pre-original",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 17,
+      "repeat": 0,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre",
+      "counter_domain": "pre-original",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 17,
+      "repeat": 1,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre",
+      "counter_domain": "pre-original",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 17,
+      "repeat": 2,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre",
+      "counter_domain": "pre-original",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 25,
+      "repeat": 0,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre",
+      "counter_domain": "pre-original",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 25,
+      "repeat": 1,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre",
+      "counter_domain": "pre-original",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 25,
+      "repeat": 2,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre",
+      "counter_domain": "pre-original",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 50,
+      "repeat": 0,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre",
+      "counter_domain": "pre-original",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 50,
+      "repeat": 1,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre",
+      "counter_domain": "pre-original",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 50,
+      "repeat": 2,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre",
+      "counter_domain": "pre-original",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 100,
+      "repeat": 0,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre",
+      "counter_domain": "pre-original",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 100,
+      "repeat": 1,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre",
+      "counter_domain": "pre-original",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 100,
+      "repeat": 2,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre",
+      "counter_domain": "pre-original",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 200,
+      "repeat": 0,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre",
+      "counter_domain": "pre-original",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 200,
+      "repeat": 1,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre",
+      "counter_domain": "pre-original",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 200,
+      "repeat": 2,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre",
+      "counter_domain": "pre-original",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 400,
+      "repeat": 0,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre",
+      "counter_domain": "pre-original",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 400,
+      "repeat": 1,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre",
+      "counter_domain": "pre-original",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 400,
+      "repeat": 2,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre",
+      "counter_domain": "pre-original",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 800,
+      "repeat": 0,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre",
+      "counter_domain": "pre-original",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 800,
+      "repeat": 1,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre",
+      "counter_domain": "pre-original",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 800,
+      "repeat": 2,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre",
+      "counter_domain": "pre-original",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 1600,
+      "repeat": 0,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre",
+      "counter_domain": "pre-original",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 1600,
+      "repeat": 1,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre",
+      "counter_domain": "pre-original",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 1600,
+      "repeat": 2,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre",
+      "counter_domain": "pre-original",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 3200,
+      "repeat": 0,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre",
+      "counter_domain": "pre-original",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 3200,
+      "repeat": 1,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre",
+      "counter_domain": "pre-original",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 3200,
+      "repeat": 2,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre",
+      "counter_domain": "pre-original",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 35,
+      "repeat": 0,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre",
+      "counter_domain": "pre-original",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 35,
+      "repeat": 1,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre",
+      "counter_domain": "pre-original",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 35,
+      "repeat": 2,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre",
+      "counter_domain": "pre-original",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 50,
+      "repeat": 0,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre",
+      "counter_domain": "pre-original",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 50,
+      "repeat": 1,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre",
+      "counter_domain": "pre-original",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 50,
+      "repeat": 2,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre",
+      "counter_domain": "pre-original",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 100,
+      "repeat": 0,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre",
+      "counter_domain": "pre-original",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 100,
+      "repeat": 1,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre",
+      "counter_domain": "pre-original",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 100,
+      "repeat": 2,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre",
+      "counter_domain": "pre-original",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 200,
+      "repeat": 0,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre",
+      "counter_domain": "pre-original",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 200,
+      "repeat": 1,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre",
+      "counter_domain": "pre-original",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 200,
+      "repeat": 2,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre",
+      "counter_domain": "pre-original",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 400,
+      "repeat": 0,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre",
+      "counter_domain": "pre-original",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 400,
+      "repeat": 1,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre",
+      "counter_domain": "pre-original",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 400,
+      "repeat": 2,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre",
+      "counter_domain": "pre-original",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 800,
+      "repeat": 0,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre",
+      "counter_domain": "pre-original",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 800,
+      "repeat": 1,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre",
+      "counter_domain": "pre-original",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 800,
+      "repeat": 2,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre",
+      "counter_domain": "pre-original",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 1600,
+      "repeat": 0,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre",
+      "counter_domain": "pre-original",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 1600,
+      "repeat": 1,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre",
+      "counter_domain": "pre-original",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 1600,
+      "repeat": 2,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre",
+      "counter_domain": "pre-original",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 3200,
+      "repeat": 0,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre",
+      "counter_domain": "pre-original",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 3200,
+      "repeat": 1,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre",
+      "counter_domain": "pre-original",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 3200,
+      "repeat": 2,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1",
+      "counter_domain": "b1-fresh",
+      "workload": "W1",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 2828,
+      "repeat": 0,
+      "reasons": [
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1",
+      "counter_domain": "b1-fresh",
+      "workload": "W1",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 2828,
+      "repeat": 1,
+      "reasons": [
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1",
+      "counter_domain": "b1-fresh",
+      "workload": "W1",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 2828,
+      "repeat": 2,
+      "reasons": [
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1",
+      "counter_domain": "b1-fresh",
+      "workload": "W1",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 4000,
+      "repeat": 0,
+      "reasons": [
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1",
+      "counter_domain": "b1-fresh",
+      "workload": "W1",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 4000,
+      "repeat": 1,
+      "reasons": [
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1",
+      "counter_domain": "b1-fresh",
+      "workload": "W1",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 4000,
+      "repeat": 2,
+      "reasons": [
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1",
+      "counter_domain": "b1-fresh",
+      "workload": "W1",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 4000,
+      "repeat": 0,
+      "reasons": [
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1",
+      "counter_domain": "b1-fresh",
+      "workload": "W1",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 4000,
+      "repeat": 1,
+      "reasons": [
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1",
+      "counter_domain": "b1-fresh",
+      "workload": "W1",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 4000,
+      "repeat": 2,
+      "reasons": [
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1",
+      "counter_domain": "b1-fresh",
+      "workload": "W2",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 2000,
+      "repeat": 0,
+      "reasons": [
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1",
+      "counter_domain": "b1-fresh",
+      "workload": "W2",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 2000,
+      "repeat": 0,
+      "reasons": [
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1",
+      "counter_domain": "b1-fresh",
+      "workload": "W2",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 2000,
+      "repeat": 1,
+      "reasons": [
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1",
+      "counter_domain": "b1-fresh",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 50,
+      "repeat": 0,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1",
+      "counter_domain": "b1-fresh",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 50,
+      "repeat": 1,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1",
+      "counter_domain": "b1-fresh",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 50,
+      "repeat": 2,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1",
+      "counter_domain": "b1-fresh",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 100,
+      "repeat": 0,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1",
+      "counter_domain": "b1-fresh",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 100,
+      "repeat": 1,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1",
+      "counter_domain": "b1-fresh",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 100,
+      "repeat": 2,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1",
+      "counter_domain": "b1-fresh",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 200,
+      "repeat": 0,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1",
+      "counter_domain": "b1-fresh",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 200,
+      "repeat": 1,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1",
+      "counter_domain": "b1-fresh",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 200,
+      "repeat": 2,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1",
+      "counter_domain": "b1-fresh",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 400,
+      "repeat": 0,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1",
+      "counter_domain": "b1-fresh",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 400,
+      "repeat": 1,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1",
+      "counter_domain": "b1-fresh",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 400,
+      "repeat": 2,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1",
+      "counter_domain": "b1-fresh",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 800,
+      "repeat": 0,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1",
+      "counter_domain": "b1-fresh",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 800,
+      "repeat": 1,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1",
+      "counter_domain": "b1-fresh",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 800,
+      "repeat": 2,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1",
+      "counter_domain": "b1-fresh",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 1600,
+      "repeat": 0,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1",
+      "counter_domain": "b1-fresh",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 1600,
+      "repeat": 1,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1",
+      "counter_domain": "b1-fresh",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 1600,
+      "repeat": 2,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1",
+      "counter_domain": "b1-fresh",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 3200,
+      "repeat": 0,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1",
+      "counter_domain": "b1-fresh",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 3200,
+      "repeat": 1,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1",
+      "counter_domain": "b1-fresh",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 3200,
+      "repeat": 2,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1",
+      "counter_domain": "b1-fresh",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 100,
+      "repeat": 0,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1",
+      "counter_domain": "b1-fresh",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 100,
+      "repeat": 1,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1",
+      "counter_domain": "b1-fresh",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 100,
+      "repeat": 2,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1",
+      "counter_domain": "b1-fresh",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 200,
+      "repeat": 0,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1",
+      "counter_domain": "b1-fresh",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 200,
+      "repeat": 1,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1",
+      "counter_domain": "b1-fresh",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 200,
+      "repeat": 2,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1",
+      "counter_domain": "b1-fresh",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 400,
+      "repeat": 0,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1",
+      "counter_domain": "b1-fresh",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 400,
+      "repeat": 1,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1",
+      "counter_domain": "b1-fresh",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 400,
+      "repeat": 2,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1",
+      "counter_domain": "b1-fresh",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 800,
+      "repeat": 0,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1",
+      "counter_domain": "b1-fresh",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 800,
+      "repeat": 1,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1",
+      "counter_domain": "b1-fresh",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 800,
+      "repeat": 2,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1",
+      "counter_domain": "b1-fresh",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 1600,
+      "repeat": 0,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1",
+      "counter_domain": "b1-fresh",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 1600,
+      "repeat": 1,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1",
+      "counter_domain": "b1-fresh",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 1600,
+      "repeat": 2,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1",
+      "counter_domain": "b1-fresh",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 3200,
+      "repeat": 0,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1",
+      "counter_domain": "b1-fresh",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 3200,
+      "repeat": 1,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1",
+      "counter_domain": "b1-fresh",
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 3200,
+      "repeat": 2,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 1,
+      "repeat": 0,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 1,
+      "repeat": 1,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 1,
+      "repeat": 2,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 3,
+      "repeat": 0,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 3,
+      "repeat": 1,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 3,
+      "repeat": 2,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 7,
+      "repeat": 0,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 7,
+      "repeat": 1,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 7,
+      "repeat": 2,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 15,
+      "repeat": 0,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 15,
+      "repeat": 1,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 15,
+      "repeat": 2,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 31,
+      "repeat": 0,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 31,
+      "repeat": 1,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 31,
+      "repeat": 2,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 62,
+      "repeat": 0,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 62,
+      "repeat": 1,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 62,
+      "repeat": 2,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 125,
+      "repeat": 0,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 125,
+      "repeat": 1,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 125,
+      "repeat": 2,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 250,
+      "repeat": 0,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 250,
+      "repeat": 1,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 250,
+      "repeat": 2,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 500,
+      "repeat": 0,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 500,
+      "repeat": 1,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 500,
+      "repeat": 2,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 1000,
+      "repeat": 0,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 1000,
+      "repeat": 1,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 1000,
+      "repeat": 2,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 1,
+      "repeat": 0,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 1,
+      "repeat": 1,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 1,
+      "repeat": 2,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 3,
+      "repeat": 0,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 3,
+      "repeat": 1,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 3,
+      "repeat": 2,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 7,
+      "repeat": 0,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 7,
+      "repeat": 1,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 7,
+      "repeat": 2,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 15,
+      "repeat": 0,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 15,
+      "repeat": 1,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 15,
+      "repeat": 2,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 31,
+      "repeat": 0,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 31,
+      "repeat": 1,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 31,
+      "repeat": 2,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 62,
+      "repeat": 0,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 62,
+      "repeat": 1,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 62,
+      "repeat": 2,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 125,
+      "repeat": 0,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 125,
+      "repeat": 1,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 125,
+      "repeat": 2,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 250,
+      "repeat": 0,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 250,
+      "repeat": 1,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 250,
+      "repeat": 2,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 500,
+      "repeat": 0,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 500,
+      "repeat": 1,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 500,
+      "repeat": 2,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 1000,
+      "repeat": 0,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 1000,
+      "repeat": 1,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 1000,
+      "repeat": 2,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "B",
+      "offered_per_s": 17,
+      "repeat": 0,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "B",
+      "offered_per_s": 17,
+      "repeat": 1,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "B",
+      "offered_per_s": 17,
+      "repeat": 2,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "B",
+      "offered_per_s": 25,
+      "repeat": 0,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "B",
+      "offered_per_s": 25,
+      "repeat": 1,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "B",
+      "offered_per_s": 25,
+      "repeat": 2,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "B",
+      "offered_per_s": 50,
+      "repeat": 0,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "B",
+      "offered_per_s": 50,
+      "repeat": 1,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "B",
+      "offered_per_s": 50,
+      "repeat": 2,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "B",
+      "offered_per_s": 100,
+      "repeat": 0,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "B",
+      "offered_per_s": 100,
+      "repeat": 1,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "B",
+      "offered_per_s": 100,
+      "repeat": 2,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "B",
+      "offered_per_s": 200,
+      "repeat": 0,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "B",
+      "offered_per_s": 200,
+      "repeat": 1,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "B",
+      "offered_per_s": 200,
+      "repeat": 2,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "B",
+      "offered_per_s": 400,
+      "repeat": 0,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "B",
+      "offered_per_s": 400,
+      "repeat": 1,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "B",
+      "offered_per_s": 400,
+      "repeat": 2,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "B",
+      "offered_per_s": 800,
+      "repeat": 0,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "B",
+      "offered_per_s": 800,
+      "repeat": 1,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "B",
+      "offered_per_s": 800,
+      "repeat": 2,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "B",
+      "offered_per_s": 1600,
+      "repeat": 0,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "B",
+      "offered_per_s": 1600,
+      "repeat": 1,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "B",
+      "offered_per_s": 1600,
+      "repeat": 2,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "B",
+      "offered_per_s": 3200,
+      "repeat": 0,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "B",
+      "offered_per_s": 3200,
+      "repeat": 1,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "B",
+      "offered_per_s": 3200,
+      "repeat": 2,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "same",
+      "link": "B",
+      "offered_per_s": 17,
+      "repeat": 0,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "same",
+      "link": "B",
+      "offered_per_s": 17,
+      "repeat": 1,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "same",
+      "link": "B",
+      "offered_per_s": 17,
+      "repeat": 2,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "same",
+      "link": "B",
+      "offered_per_s": 25,
+      "repeat": 0,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "same",
+      "link": "B",
+      "offered_per_s": 25,
+      "repeat": 1,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "same",
+      "link": "B",
+      "offered_per_s": 25,
+      "repeat": 2,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "same",
+      "link": "B",
+      "offered_per_s": 50,
+      "repeat": 0,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "same",
+      "link": "B",
+      "offered_per_s": 50,
+      "repeat": 1,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "same",
+      "link": "B",
+      "offered_per_s": 50,
+      "repeat": 2,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "same",
+      "link": "B",
+      "offered_per_s": 100,
+      "repeat": 0,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "same",
+      "link": "B",
+      "offered_per_s": 100,
+      "repeat": 1,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "same",
+      "link": "B",
+      "offered_per_s": 100,
+      "repeat": 2,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "A",
+      "offered_per_s": 35,
+      "repeat": 0,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "A",
+      "offered_per_s": 35,
+      "repeat": 1,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "A",
+      "offered_per_s": 35,
+      "repeat": 2,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "A",
+      "offered_per_s": 50,
+      "repeat": 0,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "A",
+      "offered_per_s": 50,
+      "repeat": 1,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "A",
+      "offered_per_s": 50,
+      "repeat": 2,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "A",
+      "offered_per_s": 100,
+      "repeat": 0,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "A",
+      "offered_per_s": 100,
+      "repeat": 1,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "A",
+      "offered_per_s": 100,
+      "repeat": 2,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "A",
+      "offered_per_s": 200,
+      "repeat": 0,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "A",
+      "offered_per_s": 200,
+      "repeat": 1,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "A",
+      "offered_per_s": 200,
+      "repeat": 2,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "A",
+      "offered_per_s": 400,
+      "repeat": 0,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "A",
+      "offered_per_s": 400,
+      "repeat": 1,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "A",
+      "offered_per_s": 400,
+      "repeat": 2,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "A",
+      "offered_per_s": 800,
+      "repeat": 0,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "A",
+      "offered_per_s": 800,
+      "repeat": 1,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "A",
+      "offered_per_s": 800,
+      "repeat": 2,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "A",
+      "offered_per_s": 1600,
+      "repeat": 0,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "A",
+      "offered_per_s": 1600,
+      "repeat": 1,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "A",
+      "offered_per_s": 1600,
+      "repeat": 2,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "A",
+      "offered_per_s": 3200,
+      "repeat": 0,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "A",
+      "offered_per_s": 3200,
+      "repeat": 1,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "A",
+      "offered_per_s": 3200,
+      "repeat": 2,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "same",
+      "link": "A",
+      "offered_per_s": 25,
+      "repeat": 1,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "same",
+      "link": "A",
+      "offered_per_s": 50,
+      "repeat": 0,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "same",
+      "link": "A",
+      "offered_per_s": 50,
+      "repeat": 1,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "same",
+      "link": "A",
+      "offered_per_s": 50,
+      "repeat": 2,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "same",
+      "link": "A",
+      "offered_per_s": 100,
+      "repeat": 0,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "same",
+      "link": "A",
+      "offered_per_s": 100,
+      "repeat": 1,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "pre",
+      "segment": "pre-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "same",
+      "link": "A",
+      "offered_per_s": 100,
+      "repeat": 2,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 1,
+      "repeat": 0,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 1,
+      "repeat": 1,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 1,
+      "repeat": 2,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 3,
+      "repeat": 0,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 3,
+      "repeat": 1,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 3,
+      "repeat": 2,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 7,
+      "repeat": 0,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 7,
+      "repeat": 1,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 7,
+      "repeat": 2,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 15,
+      "repeat": 0,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 15,
+      "repeat": 1,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 15,
+      "repeat": 2,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 31,
+      "repeat": 0,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 31,
+      "repeat": 1,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 31,
+      "repeat": 2,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 62,
+      "repeat": 0,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 62,
+      "repeat": 1,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 62,
+      "repeat": 2,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 125,
+      "repeat": 0,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 125,
+      "repeat": 1,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 125,
+      "repeat": 2,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 250,
+      "repeat": 0,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 250,
+      "repeat": 1,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 250,
+      "repeat": 2,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 500,
+      "repeat": 0,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 500,
+      "repeat": 1,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 500,
+      "repeat": 2,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 1000,
+      "repeat": 0,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 1000,
+      "repeat": 1,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "B",
+      "offered_per_s": 1000,
+      "repeat": 2,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 1,
+      "repeat": 0,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 1,
+      "repeat": 1,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 1,
+      "repeat": 2,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 3,
+      "repeat": 0,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 3,
+      "repeat": 1,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 3,
+      "repeat": 2,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 7,
+      "repeat": 0,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 7,
+      "repeat": 1,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 7,
+      "repeat": 2,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 15,
+      "repeat": 0,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 15,
+      "repeat": 1,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 15,
+      "repeat": 2,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 31,
+      "repeat": 0,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 31,
+      "repeat": 1,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 31,
+      "repeat": 2,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 62,
+      "repeat": 0,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 62,
+      "repeat": 1,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 62,
+      "repeat": 2,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 125,
+      "repeat": 0,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 125,
+      "repeat": 1,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 125,
+      "repeat": 2,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 250,
+      "repeat": 0,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 250,
+      "repeat": 1,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 250,
+      "repeat": 2,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 500,
+      "repeat": 0,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 500,
+      "repeat": 1,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 500,
+      "repeat": 2,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 1000,
+      "repeat": 0,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 1000,
+      "repeat": 1,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W3",
+      "keys": "disjoint",
+      "link": "A",
+      "offered_per_s": 1000,
+      "repeat": 2,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "B",
+      "offered_per_s": 50,
+      "repeat": 0,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "B",
+      "offered_per_s": 50,
+      "repeat": 1,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "B",
+      "offered_per_s": 50,
+      "repeat": 2,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "B",
+      "offered_per_s": 100,
+      "repeat": 0,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "B",
+      "offered_per_s": 100,
+      "repeat": 1,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "B",
+      "offered_per_s": 100,
+      "repeat": 2,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "B",
+      "offered_per_s": 200,
+      "repeat": 0,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "B",
+      "offered_per_s": 200,
+      "repeat": 1,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "B",
+      "offered_per_s": 200,
+      "repeat": 2,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "B",
+      "offered_per_s": 400,
+      "repeat": 0,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "B",
+      "offered_per_s": 400,
+      "repeat": 1,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "B",
+      "offered_per_s": 400,
+      "repeat": 2,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "B",
+      "offered_per_s": 800,
+      "repeat": 0,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "B",
+      "offered_per_s": 800,
+      "repeat": 1,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "B",
+      "offered_per_s": 800,
+      "repeat": 2,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "B",
+      "offered_per_s": 1600,
+      "repeat": 0,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "B",
+      "offered_per_s": 1600,
+      "repeat": 1,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "B",
+      "offered_per_s": 1600,
+      "repeat": 2,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "B",
+      "offered_per_s": 3200,
+      "repeat": 0,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "B",
+      "offered_per_s": 3200,
+      "repeat": 1,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "B",
+      "offered_per_s": 3200,
+      "repeat": 2,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "same",
+      "link": "B",
+      "offered_per_s": 50,
+      "repeat": 0,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "same",
+      "link": "B",
+      "offered_per_s": 50,
+      "repeat": 1,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "same",
+      "link": "B",
+      "offered_per_s": 50,
+      "repeat": 2,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "same",
+      "link": "B",
+      "offered_per_s": 100,
+      "repeat": 0,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "same",
+      "link": "B",
+      "offered_per_s": 100,
+      "repeat": 1,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "same",
+      "link": "B",
+      "offered_per_s": 100,
+      "repeat": 2,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "A",
+      "offered_per_s": 100,
+      "repeat": 0,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "A",
+      "offered_per_s": 100,
+      "repeat": 1,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "A",
+      "offered_per_s": 100,
+      "repeat": 2,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "A",
+      "offered_per_s": 200,
+      "repeat": 0,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "A",
+      "offered_per_s": 200,
+      "repeat": 1,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "A",
+      "offered_per_s": 200,
+      "repeat": 2,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "A",
+      "offered_per_s": 400,
+      "repeat": 0,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "A",
+      "offered_per_s": 400,
+      "repeat": 1,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "A",
+      "offered_per_s": 400,
+      "repeat": 2,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "A",
+      "offered_per_s": 800,
+      "repeat": 0,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "A",
+      "offered_per_s": 800,
+      "repeat": 1,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "A",
+      "offered_per_s": 800,
+      "repeat": 2,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "A",
+      "offered_per_s": 1600,
+      "repeat": 0,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "A",
+      "offered_per_s": 1600,
+      "repeat": 1,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "A",
+      "offered_per_s": 1600,
+      "repeat": 2,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "A",
+      "offered_per_s": 3200,
+      "repeat": 0,
+      "reasons": [
+        "counter increase differs from acknowledgements including warm-up",
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "A",
+      "offered_per_s": 3200,
+      "repeat": 1,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "A",
+      "offered_per_s": 3200,
+      "repeat": 2,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "same",
+      "link": "A",
+      "offered_per_s": 70,
+      "repeat": 0,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "same",
+      "link": "A",
+      "offered_per_s": 70,
+      "repeat": 1,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "same",
+      "link": "A",
+      "offered_per_s": 70,
+      "repeat": 2,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "same",
+      "link": "A",
+      "offered_per_s": 100,
+      "repeat": 0,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "same",
+      "link": "A",
+      "offered_per_s": 100,
+      "repeat": 1,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    },
+    {
+      "revision": "b1",
+      "segment": "b1-optional",
+      "counter_domain": "b1-fresh",
+      "workload": "W5",
+      "keys": "same",
+      "link": "A",
+      "offered_per_s": 100,
+      "repeat": 2,
+      "reasons": [
+        "intended-arrival p99 exceeds SLO",
+        "errors exceed 0.1%"
+      ]
+    }
+  ],
+  "partial_cells": []
+}

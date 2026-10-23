@@ -104337,3 +104337,62 @@ three data directories, with no postmaster pidfiles. The audit finds no live
 recorded process or lane-target executable (3766 recorded identities,
 1112 public PID records). PIDs left: **none**. Final free space is about
 70 GiB; the 25 GiB stop threshold was never crossed.
+## 2026-10-23 — S1-PG4: pre-RT versus B1(+RT3c) on one quiet host
+
+Results-only lane on 450b, branch `sb4-pg/s1-pg4`, pinned to
+`e76a77549ee63c2b9ddff01aaad99bcac1665f71`. Separate release builds measure
+`45416b150c8900594ed1e65ed557d7178b2dcb07` and that B1 tip in root
+`target-pre` / `target-b1`. The existing Rust harness is byte-identical to
+S1-PG2, as is the app schema. No product, engine, app, harness semantics,
+resource ceiling or durability change. No push, stash or Git configuration change.
+
+| Cell | Link A pre → B1 offered/s (ratio) | Link B pre → B1 offered/s (ratio) | Warm exchanges pre → B1 |
+|---|---:|---:|---:|
+| W1 message | 1,000 → 2,828 (2.83×) | 707 → 2,000 (2.83×) | 23 → 6 |
+| W2 newest 20 | 1,000 → 1,414 (1.41×) | 707 → 1,414 (2.00×) | 23 → 6 |
+| W4 disjoint counters | 25 → 70 (2.80×) | 12 → 35 (2.92×) | 57 → 16 |
+| W3 inbox | no pass → no pass | no pass → no pass | 153 → 136 |
+| W5 shared counter | 17 → 50 (2.94×) | 12 → 35 (2.92×) | 60 → 19 |
+| W5 nominal 1% mixture | 25 → 70 (2.80×) | 12 → 35 (2.92×) | 57.03 → 16.03 |
+
+All three repetitions must pass; the four W3 searches reach 1/s without meeting
+the 50 ms read SLO. Counts are the PG2 warm SQL/driver inference, with lease
+renewals and paired commit SETs accounted for. W1/W2/W4 meet the RFC and pinned
+RT0 budgets 6/6/16 using the original native account-session protocol. Shared
+W5 adds three membership checks; its mixture has their 1% weighted cost. W3
+still performs 65 data/index scans and 64 length checks per request, plus
+prefetch and metadata. No constant two-program-read budget applies to that fanout.
+
+Two successive private PG16.15 clusters use byte-identical recorded settings:
+fsync, synchronous_commit and full_page_writes on, fdatasync, 8 GiB shared
+buffers and 320 connections. Existing proxy code adds 250 / 500 microseconds
+per direction for A / B, without SSH. PostgreSQL uses physical cores 0–2,
+app/proxy 3–4, generator 5, including both SMT siblings in each set; a live
+thread-affinity witness passes. All 24 start checks have no unrelated process
+above one core. All 48 prepared-query RTT captures pass the 3 ms rule; maximum
+p99 is 2.417 ms. Full load averages and every boundary capture are retained.
+
+Each revision gets one native 1M seed, 541.412 / 513.778 seconds, with original
+account sessions and exact image/maintained-total recounts. An initial B1 reuse
+query passed and preserved all application rows/backend metadata, but B1's six
+additive dormant-evolution tables tripped an overly strict full-schema guard.
+That controller cleaned up before B1 timed load. Baseline cells remain retained;
+B1 was seeded afresh with identical settings. Optional cells then reuse the B1
+fixture after an exact backward schema/row-digest and native baseline-query
+witness. Setup failures and original receipts remain in provenance.
+
+The unchanged PG2 auditor and the independent aggregate audit pass 465 trials,
+6,109,680 measured arrivals, histogram/arrival/SLO/counter checks and all 24
+cells. 361 trials fail qualification, including 125 with unknown write outcomes.
+Final sums 37,191 + 271,667 = 308,858 reconcile every increment: 234,743
+acknowledged probe/load increments and 74,115 unknown outcomes within failed
+cohorts; zero unassigned increments or boundary gaps. Both private clusters and
+session files are removed; the independent process/secret audits find no live
+owned process or known-token leak. Minimum free space is 49.79 GiB.
+
+The [report](./experiments/scale-controls/results-20261024-snapback-postgres-b1-onehost/README.md)
+contains per-rate latency medians/ranges, exchanges, RTT/load evidence,
+disqualifications and the raw archive location/SHA-256. The requested directory
+date is 20261024; actual measurement/cleanup spans 2026-10-23 16:58–21:23 UTC.
+These short-window results qualify this comparison, not a production capacity
+or publication claim. Only this result directory and this journal entry land.

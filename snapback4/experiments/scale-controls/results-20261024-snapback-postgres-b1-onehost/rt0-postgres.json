@@ -1,0 +1,16 @@
+{
+  "account_unkeyed_increment": 16,
+  "account_w1": 6,
+  "action_session_w1": 19,
+  "keyed_first": 24,
+  "narrowed_argument": 4,
+  "one_membership": 17,
+  "rate_limited": 0,
+  "replay_hit": 5,
+  "unauthenticated": 0,
+  "unkeyed_increment": 16,
+  "unknown_operation": 4,
+  "unknown_token": 1,
+  "w1_point": 6,
+  "w2_newest20": 6
+}

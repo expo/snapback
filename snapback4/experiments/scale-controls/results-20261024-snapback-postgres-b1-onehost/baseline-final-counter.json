@@ -1,0 +1,11 @@
+{
+  "shutdown_observed": true,
+  "exit_status": 0,
+  "observations": [
+    {
+      "time": 1792777749.816925,
+      "counter_sum": 37191
+    }
+  ],
+  "role": "separate observer owner; no product traffic or counter write"
+}

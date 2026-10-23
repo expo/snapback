@@ -1,0 +1,15 @@
+{
+  "harness_binary_sha256": "7618879a6762d49092c34aa2de9ec1ef784f0d569ac1906459b4a35ed693bb45",
+  "prior_harness_binary_sha256": "7618879a6762d49092c34aa2de9ec1ef784f0d569ac1906459b4a35ed693bb45",
+  "pre_revision": "45416b150c8900594ed1e65ed557d7178b2dcb07",
+  "b1_revision": "e76a77549ee63c2b9ddff01aaad99bcac1665f71",
+  "app_sha256": "d81afc50e1ead9ba3c8fd245fc2fd84f2ed1b179e03d3382fccf18b2bef9c65f",
+  "controller_at_launch_sha256": "435ac3d7f5821e6963d31e2cffd0b7f49e675c1f2f5cc43c95a76b661b3b0ed8",
+  "modules": {
+    "run.py": "454d794f7c3ba87bf16f48a561933a287bde6cfdfb421fa879d7ecf093c0e58b",
+    "snapback.py": "fea8a4f55c27624a3917c19a1f4145bd7e82b2d6ee21f54b73a8dcb1b48ff0c1",
+    "postgres_2.py": "3f57990f69b1c5e202bd97da37d17cbc60871e6f0a11b9c351dd60a90111966a",
+    "audit.py": "9f021b0be02ebf60272e6081469c21c828f426c6490cd431c3ee4b892482bb13"
+  },
+  "harness_matches_pg2": true
+}

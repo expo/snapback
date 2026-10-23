@@ -1,0 +1,7 @@
+{
+  "observations": 35922,
+  "minimum_free_bytes": 53463666688,
+  "final_free_bytes": 91826835456,
+  "stop_threshold_bytes": 32212254720,
+  "threshold_crossed": false
+}

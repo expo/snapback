@@ -1,0 +1,106 @@
+{
+  "time": 1792779478.7305064,
+  "processes": [
+    {
+      "role": "postgres",
+      "pid": 456071,
+      "thread_count": 1,
+      "expected": [
+        0,
+        1,
+        2,
+        6,
+        7,
+        8
+      ],
+      "actual": [
+        [
+          0,
+          1,
+          2,
+          6,
+          7,
+          8
+        ]
+      ],
+      "ok": true
+    },
+    {
+      "role": "proxy-a",
+      "pid": 456125,
+      "thread_count": 141,
+      "expected": [
+        3,
+        4,
+        9,
+        10
+      ],
+      "actual": [
+        [
+          3,
+          4,
+          9,
+          10
+        ]
+      ],
+      "ok": true
+    },
+    {
+      "role": "proxy-b",
+      "pid": 456141,
+      "thread_count": 5,
+      "expected": [
+        3,
+        4,
+        9,
+        10
+      ],
+      "actual": [
+        [
+          3,
+          4,
+          9,
+          10
+        ]
+      ],
+      "ok": true
+    },
+    {
+      "role": "app",
+      "pid": 615680,
+      "thread_count": 72,
+      "expected": [
+        3,
+        4,
+        9,
+        10
+      ],
+      "actual": [
+        [
+          3,
+          4,
+          9,
+          10
+        ]
+      ],
+      "ok": true
+    },
+    {
+      "role": "generator",
+      "pid": 628515,
+      "thread_count": 6,
+      "expected": [
+        5,
+        11
+      ],
+      "actual": [
+        [
+          5,
+          11
+        ]
+      ],
+      "ok": true
+    }
+  ],
+  "all_pinned_as_declared": true
+}
