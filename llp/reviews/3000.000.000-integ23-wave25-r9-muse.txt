@@ -1,0 +1,21 @@
+muse: workspace root: /home/ccheever/projects/snapback-sb4loop (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=6bd1d65e-cfa5-4adf-85f8-0059daacb125]: Subscription quota exhausted. Your usage window resets at 2026-10-26T00:00:00Z. (rate_limit_error)
+READY.
+
+Focused read-only review of [§20](/home/ccheever/projects/snapback-sb4loop/llp/3000.000.000-retained-storage-and-hot-release.rfc.md) at 5e6a5f9fcca77f464b152159d8903ce17657e53e and the Round-8/9 deltas found no MATERIAL safety or ordinary-evolution flaw in the bounded contract.
+
+What was inspected (no builds/tests run, no review artifacts read, per task):
+
+- Round-9 trigger: [release_bridge_constraints.rs](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/src/release_bridge_constraints.rs) compares compiled `FinalExistsOnInsert` obligations under injective declared table/column identities, including `Reference`/`ReferenceChain` key terms with `Viewer`/`Literal` untouched. Referenced index resolved via `schema.table(table)?.index(index)?` to ordered `index.columns()`; `is_plain()` in [schema.rs](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-core/src/schema.rs:745) is uniqueness-independent, so the `index code` → `unique slug` test preserving meaning is consistent, with uniqueness still checked separately in [release_bridge.rs](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/src/release_bridge.rs:35). Removed obligations and changed literals/keys return `true` (require view); pure table/column/index-label renames match. Old display-printer equality was removed at [release_bridge.rs](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/src/release_bridge.rs:21).
+- Round-8 authority: selective-path field authority now compared through `Schema::with_table_names` in [release_bridge.rs](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/src/release_bridge.rs:204), whose remap in [table_renames.rs](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-core/src/store/table_renames.rs:25) carries typed table slots while leaving column strings alone; column-rename mismatch therefore falls through to the guarded-current fallback rather than a late refusal, as specified.
+- Guarded-current reuse of the same closed capture-checked alpha adapter before the nullable-gap check in [release_bridge_current.rs](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/src/release_bridge_current.rs:66); any alpha error refuses, and capture/primitive/unsupported-declaration defenses are unchanged.
+- Timeline retirement exclusion uses the shared `schema::timeline::is_slot` (`$timeline:` prefix) in [rollback_foresight.rs](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4/src/verbs/rollback_foresight.rs:13), narrowly scoped to compiler-owned slots, not a table/field blanket exclusion.
+- Selective/guarded/current route separation, `E_OP` pause for genuinely removed writes with queries retained, alias-to-authored-endpoint only, distinct-position/rebinding checks, and complete-AST (not print) comparison retained in the read code.
+
+Finite-test claims (15 replays, six widening lanes, 542/13/7/15/46/36 counts, wasm headroom) were not re-executed here; no general equivalence is inferred, per the task boundary.
+
+Optional nits (not MATERIAL, no counterexample):
+
+- `relaxed()` enforces current-side table injectivity but has no symmetric old-side double-claim check; two old tables claiming one current name would overwrite `identities.tables`. Likely uncompilable/pathological, but an explicit old-side injectivity refusal would close the symmetry.
+- Deleted predecessor tables are skipped in both `relaxed()` pairs and the widening loop; correct under retain/restore handling, but worth one sentence in §20 that deletion alone is not a final-existence trigger.

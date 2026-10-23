@@ -1,0 +1,63 @@
+{
+  "source": "5e6a5f9fcca77f464b152159d8903ce17657e53e",
+  "files": {
+    "llp/3000.000.000-retained-storage-and-hot-release.rfc.md": "99e977f6af7b5c7dbb543797b32914381599842f845e77fc9040bbe3ed6adb00",
+    "snapback4/crates/snapback4-lang/src/release_bridge.rs": "691e2d120c375f6cedf57235aed812b6f1c8d54ca6aba21dcd7b096aafef4e19",
+    "snapback4/crates/snapback4-lang/src/release_bridge_current.rs": "b67db8c70986306eabe0824b7c0de6d3663c16ab2efb46ce628fc0de9303c55f",
+    "snapback4/crates/snapback4-lang/src/release_bridge_guards.rs": "b9e5c1773c609586910bf5111542b681afb6caf9dae55ff09b14856fc6f2a209",
+    "snapback4/crates/snapback4-lang/src/release_bridge_rules.rs": "d9f327aa5cc1d43308e39b668d4b1071c2748ee8c58d4c8d07fa18afa5a60d8b",
+    "snapback4/crates/snapback4/src/verbs/rollback_foresight.rs": "4f72f7f444782ee67adce175644a8db3d22c0a3e4b860bd64c2862c2d3b5ed7a",
+    "snapback4/crates/snapback4/src/verbs/rollback_views.rs": "42472e5315aac911f6092de63bb073c025cf318f4feba08b0072ff3128737813",
+    "snapback4/crates/snapback4/src/verbs/releases.rs": "c83990b4fb7f3da88951e8bfbbdf8f7b8e6c2ff37a798985519a2f60ba1ff0b6",
+    "snapback4/crates/snapback4/tests/roll_views.rs": "f0fd295e7a5a5e86b1447621d445b4ddc75bac904964d7f293a4f4fc7ad7912f",
+    "snapback4/crates/snapback4-lang/tests/release_bridge_security.rs": "ce76e1a96536ffc83524e3f1336ab8d9736aea607994ab5289d14633e9d7ef05",
+    "snapback4/scripts/publication-roll.mjs": "fece2422ebe99dfc61b2ef8816b5f30db0b9088df7a3e4454a1691e5adc98e36",
+    "snapback4/scripts/dormant-cases.mjs": "9e7295cacd2a79fe0181a421eacdee226723d6de075121f43ef8ec5033fc4646",
+    "snapback4/crates/snapback4-lang/src/guide/deploy.md": "fb56bde6e65420fe6d760cf9d598d8bcd8951e6ea2f244e08c478bf72d072f48",
+    "snapback4/packages/snapback4/test/http-bounds.test.mjs": "5ae25034f4ae75f2378acde447ce55f253f87f3a096005e6e09f57407b87b0bd",
+    "snapback4/scripts/release-transitions-cases.mjs": "65f67e788c14fee114a1650bf7a1b6d70139519ef24bdab4cee0d65b51334fd8",
+    "snapback4/packages/snapback4/CHANGELOG.md": "5dfcd203857ab25e9b8df19d66dbb6027994de57327cb4782c0377f412053ba9",
+    "snapback4/crates/snapback4-lang/src/release_bridge_constraints.rs": "b7bd0b9aad4cd3a2a973c0d2dcaae947a72a3bdd277254bb6b00f3ec1c2003c8",
+    "snapback4/crates/snapback4-lang/src/lib.rs": "9d3c66a07cd3b098cdc630548adb1333aa68222453ae52283c7ea0a7c6e34ff5"
+  },
+  "briefSha256": "fbfefdb4722c51472bad250afde747b5272862cd5f45a463c8bf0156660579a6",
+  "recordedAt": "2026-10-23T04:15:16.355651+00:00",
+  "reviews": {
+    "muse": {
+      "argv": [
+        "/home/ccheever/sb4-loop/muse-exec.sh",
+        "--yolo",
+        "--model",
+        "muse-spark-1.3-contributor",
+        "--reasoning-effort",
+        "high",
+        "--prompt-file",
+        "/tmp/integ23/w25-review-r9-brief.md"
+      ],
+      "timeoutSeconds": 2300,
+      "stdinBrief": false,
+      "exit": 0,
+      "output": "3000.000.000-integ23-wave25-r9-muse.txt",
+      "sha256": "3d91b28e9d3fb6fc6b3235352ead28283e488c11b3c9be6d54d0892fd27063ef",
+      "observedFallback": "Plan quota 429 followed by the helper Meta API fallback and an actual READY review, retained verbatim; no key was read or printed."
+    },
+    "codex": {
+      "argv": [
+        "codex",
+        "exec",
+        "-m",
+        "gpt-6.1-sol",
+        "-c",
+        "model_reasoning_effort=high",
+        "--skip-git-repo-check",
+        "--dangerously-bypass-approvals-and-sandbox",
+        "-"
+      ],
+      "timeoutSeconds": 2300,
+      "stdinBrief": true,
+      "exit": 0,
+      "output": "3000.000.000-integ23-wave25-r9-codex.txt",
+      "sha256": "c42bf2154b999b88881ae754394c75a3c9f8c2840a8f359e2be62917c74e272e"
+    }
+  }
+}
