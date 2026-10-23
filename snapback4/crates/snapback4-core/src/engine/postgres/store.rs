@@ -154,6 +154,8 @@ impl Store {
         let expected = self.generation;
         let tx = self.begin(None, false)?;
         let facts = tx.session_authority_facts(digest)?;
+        // A dedicated authority snapshot cannot have installed uncommitted DDL.
+        if tx.read_sessions_installed.get() { tx.read_sessions.set(true); }
         if facts.backend_generation.map(|generation| generation as u64) != Some(expected) {
             return Err(RuntimeError::Generation("another engine activated this store; reopen before reading or writing".into()));
         }
@@ -381,6 +383,9 @@ impl Tx<'_> {
         self.rows_cache.borrow_mut().clear();
         self.calls.set(self.calls.get() + 1);
         self.inner.borrow_mut().batch_execute(&format!("ROLLBACK TO SAVEPOINT {name}; RELEASE SAVEPOINT {name}"))?;
+        if self.read_sessions_installed.get() {
+            self.read_sessions_installed.set(super::identity::read_sessions_present(self)?);
+        }
         Ok(())
     }
 

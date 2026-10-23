@@ -2,7 +2,7 @@
 // @ref LLP 3000.009.001.000.001#32-one-statement-fetches-a-guest-sessions-authority-facts — no policy in SQL and no authority boundary changes.
 use crate::{RuntimeError, authority::{self, AuthorityTransaction, SessionRecord}, metadata::MetadataReader};
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Default, PartialEq, Eq)]
 pub(crate) struct SessionFacts {
     // At most one row per session table. Preserve the strict duplicate refusal.
     pub sessions: Vec<SessionRecord>,

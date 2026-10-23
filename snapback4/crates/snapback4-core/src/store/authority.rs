@@ -39,8 +39,20 @@ LEFT JOIN _principal_generations g ON g.principal = s.principal";
 
 impl Tx<'_> {
     pub(crate) fn session_authority_facts(&self, digest: &str) -> Result<crate::identity::facts::SessionFacts, RuntimeError> {
-        crate::authority::refuse_nul(&[(digest, "a session digest cannot contain U+0000")])?;
+        // A raw digest is an optional lookup key, never an admitted identity.
+        if digest.contains('\0') { return Ok(Default::default()); }
         let read = self.read_sessions_installed.get() || self.read_sessions_at_start;
+        let facts = self.fetch_session_authority_facts(digest, read)?;
+        // A miss on an independently attached handle can follow another
+        // handle's first lazy install. Probe only on that miss, in this snapshot.
+        if !read && facts.sessions.is_empty() && read_sessions::present(self.conn())? {
+            self.read_sessions_installed.set(true);
+            return self.fetch_session_authority_facts(digest, true);
+        }
+        Ok(facts)
+    }
+
+    fn fetch_session_authority_facts(&self, digest: &str, read: bool) -> Result<crate::identity::facts::SessionFacts, RuntimeError> {
         let mut statement = self.conn().prepare_cached(if read { READ_FACTS } else { FULL_FACTS })?;
         let mut rows = statement.query([digest])?;
         let mut facts = None;
@@ -198,6 +210,10 @@ impl Store {
         let read_storage = self.read_sessions.snapshot()?;
         let tx = Tx { read_sessions: &self.read_sessions, read_sessions_installed: Default::default(), read_sessions_at_start: *read_storage, read_sessions_installation: Default::default(), activation_scan: None, changes: Default::default(), sequence_table: Default::default(), tx: sql, page_size: self.page_size, server: self.server, catalog: &self.catalog };
         let facts = tx.session_authority_facts(digest)?;
+        drop(read_storage);
+        // This dedicated snapshot has no writes: discovery observes committed
+        // storage, so later snapshots can use the one-statement hit path.
+        if tx.read_sessions_installed.get() { self.read_sessions.publish(true); }
         if validate_generation && (facts.schema_hash.clone(), facts.activation_hash.clone(), facts.store_generation.clone(), facts.device_generation.clone()) != self.identity {
             return Err(RuntimeError::Generation("the store adopted another backend; reopen this engine".into()));
         }
@@ -293,16 +309,16 @@ mod facts_tests {
             for case in identity::facts::tests::cases(read_storage) {
                 let tx = store.transaction().unwrap();
                 tx.conn().execute_batch(&case.seed()).unwrap();
-                identity::facts::tests::compare(&tx, |digest| tx.session_authority_facts(digest), &case);
+                identity::facts::tests::compare(&tx, &tx, |digest| tx.session_authority_facts(digest), &case);
                 let scope = Scope::begin();
                 tx.session_authority_facts("digest").unwrap();
-                assert_eq!(scope.counts().sqlite, 1);
+                assert_eq!(scope.counts().sqlite, if !read_storage && case.state == 2 { 2 } else { 1 });
                 drop(scope);
                 tx.rollback().unwrap();
                 total += 1;
             }
         }
-        println!("SQLite authority facts: {total} generated states; one SELECT each");
+        println!("SQLite authority facts: {total} generated states; hits use one SELECT");
     }
 
     #[test]
@@ -334,4 +350,67 @@ mod facts_tests {
         drop(reader); drop(store);
         std::fs::remove_dir_all(root).unwrap();
     }
+    #[test]
+    fn authority_facts_forks_retain_live_read_sessions() {
+        let mut store = Store::memory().unwrap();
+        let session = Session { principal: "member:fork".into(), kind: "member".into(), token: "ro.fork".into(), expires_at: 10000, cap_expires_at: Some(10000), scope: SessionScope::Read };
+        let tx = store.transaction().unwrap();
+        tx.insert_read_session(&session, 0, None).unwrap();
+        tx.commit().unwrap();
+        let fork = store.fork_memory().unwrap();
+        assert!(fork.read_sessions.present());
+        let (tx, facts) = fork.session_authority_transaction(&identity::digest(&session.token), true).unwrap();
+        assert!(identity::facts::resolve(&tx, facts, 1000, None).unwrap().is_some());
+        tx.rollback().unwrap();
+        let engine = crate::Engine::memory(crate::Schema::default(), []).unwrap();
+        use crate::identity::IdentityStore;
+        engine.store().insert_identity_session_atomic(&session, 0).unwrap();
+        let fork = engine.fork_fixture().unwrap();
+        assert!(identity::resolve(fork.store(), &session.token, 1000).unwrap().is_some());
+    }
+
+    #[test]
+    fn authority_facts_independent_sqlite_handles_discover_lazy_storage() {
+        let root = std::env::temp_dir().join(format!("rt3a-independent-{}", crate::ids::seed()));
+        std::fs::create_dir(&root).unwrap();
+        let path = root.join("store.sqlite");
+        let mut writer = Store::open(&path).unwrap();
+        let reader = Store::open_read_only(&path).unwrap();
+        let attached = Store::open(&path).unwrap(); // prepare() has an independent flag too.
+        assert!(!reader.read_sessions.present());
+        assert!(!attached.read_sessions.present());
+        let session = Session { principal: "member:independent".into(), kind: "member".into(), token: "ro.independent".into(), expires_at: 10000, cap_expires_at: Some(10000), scope: SessionScope::Read };
+        let held = reader.authority_transaction().unwrap();
+        let tx = writer.transaction().unwrap();
+        tx.insert_read_session(&session, 0, None).unwrap();
+        tx.commit().unwrap();
+        assert!(held.session_authority_facts(&identity::digest(&session.token)).unwrap().sessions.is_empty());
+        held.rollback().unwrap();
+        for reader in [&reader, &attached] {
+            let store_id = writer.store_id().unwrap();
+            assert!(reader.resolve_session_snapshot(&identity::digest(&session.token), 1000, Some(&store_id), None).unwrap().is_some());
+            assert!(reader.read_sessions.present());
+            let tx = reader.authority_transaction().unwrap();
+            let scope = Scope::begin();
+            assert_eq!(tx.session_authority_facts(&identity::digest(&session.token)).unwrap().sessions.len(), 1);
+            assert_eq!(scope.counts().sqlite, 1);
+            drop(scope);
+            tx.rollback().unwrap();
+        }
+        drop(reader); drop(attached); drop(writer);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn authority_facts_raw_nul_digest_is_absent_without_querying_sqlite() {
+        let store = Store::memory().unwrap();
+        let tx = crate::store_port::AnyTx::from_sqlite(store.authority_transaction().unwrap());
+        let scope = Scope::begin();
+        assert!(identity::resolve_session_tx(&tx, "raw\0digest", 1000, None).unwrap().is_none());
+        assert!(tx.session_authority_facts("raw\0digest").unwrap().sessions.is_empty());
+        assert_eq!(scope.counts().sqlite, 0);
+        drop(scope);
+        tx.rollback().unwrap();
+    }
+
 }

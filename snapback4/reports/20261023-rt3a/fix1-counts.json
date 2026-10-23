@@ -1,0 +1,71 @@
+{
+  "sqlite": {
+    "warm": {
+      "action_session_w1": 28,
+      "keyed_first": 40,
+      "narrowed_argument": 17,
+      "one_membership": 33,
+      "rate_limited": 0,
+      "replay_hit": 19,
+      "unauthenticated": 0,
+      "unkeyed_increment": 32,
+      "unknown_operation": 17,
+      "unknown_token": 4,
+      "w1_point": 16,
+      "w2_newest20": 16
+    },
+    "cold/first-use": {
+      "action_session_w1": 28,
+      "keyed_first": 40,
+      "narrowed_argument": 17,
+      "one_membership": 33,
+      "rate_limited": 0,
+      "replay_hit": 19,
+      "unauthenticated": 0,
+      "unkeyed_increment": 32,
+      "unknown_operation": 17,
+      "unknown_token": 4,
+      "w1_point": 18,
+      "w2_newest20": 16
+    },
+    "changed_cells": {
+      "unknown_token": [
+        3,
+        4
+      ]
+    },
+    "sha256": "fd7cef5e61d5ac3be8cd9736b0544435a92be683c08b2630b63ea5c27aab918b"
+  },
+  "postgres": {
+    "warm": {
+      "action_session_w1": 22,
+      "keyed_first": 46,
+      "narrowed_argument": 13,
+      "one_membership": 27,
+      "rate_limited": 0,
+      "replay_hit": 21,
+      "unauthenticated": 0,
+      "unkeyed_increment": 26,
+      "unknown_operation": 13,
+      "unknown_token": 3,
+      "w1_point": 12,
+      "w2_newest20": 12
+    },
+    "cold/first-use": {
+      "action_session_w1": 25,
+      "keyed_first": 50,
+      "narrowed_argument": 13,
+      "one_membership": 27,
+      "rate_limited": 0,
+      "replay_hit": 21,
+      "unauthenticated": 0,
+      "unkeyed_increment": 27,
+      "unknown_operation": 13,
+      "unknown_token": 3,
+      "w1_point": 47,
+      "w2_newest20": 13
+    },
+    "changed_cells": {},
+    "sha256": "39090c802e74edc0311bc06f062c17df638c123afa69e1bc8b2a53b18eecb35b"
+  }
+}

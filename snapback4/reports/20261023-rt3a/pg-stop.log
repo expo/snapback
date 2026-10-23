@@ -1,5 +1,0 @@
-cleanup shell PID 1569008
-waiting for server to shut down..... done
-server stopped
-pg_ctl: no server running
-pg_ctl status exit 3

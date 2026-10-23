@@ -1,9 +1,0 @@
-{
-  "cluster_pid": 1969494,
-  "directory": "/tmp/s10d3-serve-i_7_s4ik",
-  "status": 3,
-  "status_output": "pg_ctl: no server running\n",
-  "postmaster_pid_absent": true,
-  "pid_absent": true,
-  "removed": true
-}

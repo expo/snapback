@@ -1,5 +1,5 @@
 //! Only storage availability is shared with readers, never authority facts.
-// @ref LLP 3000.009.001.000.001#32-one-statement-fetches-a-guest-sessions-authority-facts — optional storage is attached once and lazy installation is published after commit.
+// @ref LLP 3000.009.001.000.001#32-one-statement-fetches-a-guest-sessions-authority-facts — storage availability is discovered within a snapshot; local installation is published after commit.
 use std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use crate::RuntimeError;
 

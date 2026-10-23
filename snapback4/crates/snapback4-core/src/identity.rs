@@ -226,6 +226,7 @@ fn supervisor_current_with(
 }
 
 pub(crate) fn resolve_session_tx(tx: &AnyTx<'_>, token_digest: &str, now: i64, revision: Option<usize>) -> Result<Option<Capability>, RuntimeError> {
+    if token_digest.contains('\0') { return Ok(None); }
     Ok(facts::resolve(tx, tx.session_authority_facts(token_digest)?, now, revision)?
         .map(|session| (session.principal, session.kind, session.scope)))
 }

@@ -663,6 +663,7 @@ impl<'a> Tx<'a> {
         // excludes new snapshots until physical COMMIT has published the DDL.
         if self.read_sessions_installed.get() {
             if let Some(guard) = self.read_sessions_installation.borrow_mut().as_mut() { **guard = true; }
+            else { self.read_sessions.publish(true); } // Catalog discovery, without a local installer.
         }
         Ok(())
     }

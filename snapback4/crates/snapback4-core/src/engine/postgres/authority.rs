@@ -35,8 +35,18 @@ LEFT JOIN _principal_generations g ON g.principal = s.principal";
 
 impl Tx<'_> {
     pub(crate) fn session_authority_facts(&self, digest: &str) -> Result<crate::identity::facts::SessionFacts, RuntimeError> {
-        crate::authority::refuse_nul(&[(digest, "a session digest cannot contain U+0000")])?;
-        let rows = self.query(if self.read_sessions.get() || self.read_sessions_installed.get() { READ_FACTS } else { FULL_FACTS }, &[&digest])?;
+        if absent_text_key(&[digest]) { return Ok(Default::default()); }
+        let read = self.read_sessions.get() || self.read_sessions_installed.get();
+        let facts = self.fetch_session_authority_facts(digest, read)?;
+        if !read && facts.sessions.is_empty() && super::identity::read_sessions_present(self)? {
+            self.read_sessions_installed.set(true);
+            return self.fetch_session_authority_facts(digest, true);
+        }
+        Ok(facts)
+    }
+
+    fn fetch_session_authority_facts(&self, digest: &str, read: bool) -> Result<crate::identity::facts::SessionFacts, RuntimeError> {
+        let rows = self.query(if read { READ_FACTS } else { FULL_FACTS }, &[&digest])?;
         let row = &rows[0]; // The anchor also returns metadata for an absent token.
         Ok(crate::identity::facts::SessionFacts {
             sessions: rows.iter().filter(|r| r.get::<_, Option<String>>(0).is_some()).map(read_session).collect(),
@@ -175,4 +185,59 @@ impl Tx<'_> {
         }
         Ok(())
     }
+}
+
+// The matrix baseline deliberately probes the catalog and retains separate
+// session/generation/worker reads. It never consults either fast-path flag.
+#[cfg(test)]
+pub(super) struct Baseline<'a, 'b>(pub &'a Tx<'b>);
+#[cfg(test)]
+impl AuthorityTransaction for Baseline<'_, '_> {
+    /// A NUL lookup key is absent without querying.
+    fn session_by_digest(&self, digest: &str) -> Result<Option<SessionRecord>, RuntimeError> {
+        if absent_text_key(&[digest]) { return Ok(None); }
+        let rows = self.0.query(
+                if super::identity::read_sessions_present(self.0)? {
+                    "SELECT principal, COALESCE(family, token_digest), kind, token_digest, expires_at, 0, NULL::BIGINT, NULL::BIGINT FROM _sessions WHERE token_digest = $1 UNION ALL SELECT principal, family, kind, token_digest, expires_at, 1, cap_expires_at, principal_generation FROM _read_sessions WHERE token_digest = $1"
+                } else {
+                    "SELECT principal, COALESCE(family, token_digest), kind, token_digest, expires_at, 0, NULL::BIGINT, NULL::BIGINT FROM _sessions WHERE token_digest = $1"
+                },
+                &[&digest],
+            )?;
+        if rows.len() > 1 {
+            // Match SQLite's strict single-row lookup, including RuntimeError
+            // shape, instead of silently granting the full-session branch.
+            return Err(RuntimeError::Sql(rusqlite::Error::QueryReturnedMoreThanOneRow));
+        }
+        Ok(rows.first().map(read_session))
+    }
+
+    // @ref LLP 3000.009.001.000#91-adapter-parity-rules — digest and scope break expiry ties across both tables.
+    /// A NUL lookup key is absent without querying.
+    fn latest_live_family_member(
+        &self,
+        principal: &str,
+        family: &str,
+        now: i64,
+    ) -> Result<Option<SessionRecord>, RuntimeError> {
+        if absent_text_key(&[principal, family]) { return Ok(None); }
+        Ok(self.0
+            .query(
+                if super::identity::read_sessions_present(self.0)? {
+                    "SELECT principal, COALESCE(family, token_digest), kind, token_digest, expires_at, 0, NULL::BIGINT, NULL::BIGINT FROM _sessions WHERE principal = $1 AND COALESCE(family, token_digest) = $2 AND expires_at > $3 UNION ALL SELECT principal, family, kind, token_digest, expires_at, 1, cap_expires_at, principal_generation FROM _read_sessions WHERE principal = $1 AND family = $2 AND expires_at > $3 ORDER BY expires_at DESC, token_digest ASC, 6 ASC LIMIT 1"
+                } else {
+                    "SELECT principal, COALESCE(family, token_digest), kind, token_digest, expires_at, 0, NULL::BIGINT, NULL::BIGINT FROM _sessions WHERE principal = $1 AND COALESCE(family, token_digest) = $2 AND expires_at > $3 ORDER BY expires_at DESC, token_digest ASC, 6 ASC LIMIT 1"
+                },
+                &[&principal, &family, &now],
+            )?
+            .first()
+            .map(read_session))
+    }
+
+
+    fn principal_generation(&self, principal: &str) -> Result<i64, RuntimeError> { self.0.principal_generation(principal) }
+    fn work_by_id(&self, id: &str) -> Result<Option<WorkRecord>, RuntimeError> { self.0.work_by_id(id) }
+    fn work_by_claimed_session_digest(&self, digest: &str) -> Result<Option<WorkRecord>, RuntimeError> { self.0.work_by_claimed_session_digest(digest) }
+    fn invalidate_session(&self, _: &str) -> Result<(), RuntimeError> { unreachable!("read-only baseline") }
+    fn invalidate_family(&self, _: &str, _: &str) -> Result<(), RuntimeError> { unreachable!("read-only baseline") }
 }
