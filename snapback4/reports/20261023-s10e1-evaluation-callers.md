@@ -3,6 +3,10 @@
 Date: 2026-10-23
 Branch: `sb4-pg/s10e1`
 Base: `addf5750eba0264125da405fb1f246e52ddf19fd`
+Fix round 1 starts at `e8fe7857e1645a453b1589d53c21afe91861c43e`.
+
+The fix-round-1 results below supersede the initial red dispositions and cleanup
+locations. Initial comparison evidence is retained as the migration record.
 
 Ordinary corpus, difftest setup/preludes/replay, Postgres experiment and
 commit-path/scale callers now execute common `Engine` policy over Postgres
@@ -102,7 +106,7 @@ rollback, replay and cursor behavior. All 218 adapter/oracle family tests pass.
    agree, with no store signatures, but the existing guard labels six E_INPUT
    and one E_DIV_ZERO unexpected. Deterministic examples are seed 4's argument
    outside `int 1..1` and seed 15's division by zero. The guard remains exact;
-   [a follow-up ticket](../../issues/20261023-snapback4-store-oracle-fixed-seed-refusal-expectations.md)
+   [a follow-up ticket](../../issues/closed/20261023-snapback4-store-oracle-fixed-seed-refusal-expectations.md)
    records the inputs. Broadening all allowed E_INPUT errors would conceal
    future regressions and was not done. The new unsupported-accounting assertions
    execute before that guard and pass.
@@ -183,7 +187,7 @@ replacement corpus/replay/C1/SQLite/device/absence evidence. Keep the physical
 adapter, ownership, prefetch, tail, codecs, family SQL and regression inputs.
 **The evidence does not yet authorize deleting the second executor.**
 
-## Checks and cleanup
+## Initial checks and cleanup (before fix round 1)
 
 | Check | Result |
 |---|---|
@@ -221,3 +225,186 @@ The independent `cleanup.json` audit checks 4,237 recorded process identities:
 **none living**. All **17 owned clusters** return pg_ctl status 3, with no
 postmaster.pid; their data is retained. Later reference/check commands start no
 servers. Final PID audit is repeated before handoff.
+
+
+## Fix round 1 — 2026-10-23
+
+The lead's no-new-red rule governs this round. The cold rebuild uses only this
+lane's target, `-j 6` / `CARGO_BUILD_JOBS=6`, with
+`CARGO_PROFILE_DEV_DEBUG=line-tables-only` and
+`CARGO_PROFILE_TEST_DEBUG=line-tables-only` on every Cargo invocation. The base
+probe alone uses a separate scratch target; no object files or target links are
+shared. No allowance, retry budget, durability setting or timeout is raised.
+
+### 1. Heap charge: authorized ticket-ignore fallback
+
+`Value::retained_heap` charges `String` and `Id` by `capacity()`, including
+nested row images; `Runner::expression_heap` forwards that shared price on
+SQLite and both Postgres executors. A change there is not a local prefetch
+repair. Existing SQLite pricing tests explicitly pin 256-byte retained
+Strings/Ids of length 0/3/100 and a nested String's 128-byte allocation. Both
+pins pass in the full core run. This round preserves that meter contract and
+uses the lead's allowed fallback: the original and reduced fixtures carry
+`#[ignore = "issues/20261023-snapback4-unified-postgres-prefetch-add-heap-meter.md"]`.
+Their exact assertions and inputs remain intact; the issue remains open.
+
+The private runner's `--include-ignored` cluster sweep explicitly excludes just
+these two ticketed names. Running the issue's reproduction with
+`--include-ignored` still executes the original failing assertion. No outcome
+normalization, cloning workaround, meter baseline update or wider allowance.
+Both RT0 JSON tables are byte-for-byte unchanged.
+
+### 2. Release evolution: named expected-unsupported
+
+The migrated read-through adoption fixture is now
+`expected_unsupported_release_activation_read_through_evolution`; the review
+fixture is `expected_unsupported_release_activation_expiry_default`. Both assert
+`RuntimeError::StoreUnsupported { family: "release-activation" }` exactly.
+They verify generation/rows or reads remain unchanged after refusal. The former
+also preserves the SQLite positive/negative evolution control and verifies an
+old connection still reads the unchanged generation. The latter uses the same
+source helper as the original review scenario and tries both default deadlines
+and adoption clocks.
+
+These are refusal-contract witnesses: **zero supported evolution passes**,
+with two and four named expected-unsupported attempts respectively. Admission of
+this family makes them fail loudly. The original `oracle_read_through` and
+`oracle_read_through_review` scenarios remain; they are the future conformance
+expectations when the family is admitted.
+
+### 3. Fixed-seed guard: base compile blocker, precise classification
+
+An actual detached worktree at `addf5750eb`, with a separate cold target and
+private socket cluster, attempted the exact
+`both_stores_all_public_boundaries_and_write_observations` test. It could not
+execute: E0308 at `store_database.rs:267` and `:270` passes `&AnyStore` to the
+old snapshot API expecting `&Store`. The probe therefore supplies **no runtime
+proof that this guard was red at base**. Its compile log is retained, and its
+cluster, worktree and target were removed immediately afterward.
+
+Although the generator and refusal list are unchanged at base, migration's
+snapshot adaptation makes the guard reachable. This round takes responsibility
+for the newly reachable red. It classifies only (a) a supplied integer `a`
+outside its declared `arg_bound`, with the exact matching `a must be int ...`
+diagnostic, and (b) a generated scalar rounded division whose literal/supplied
+integer divisor is zero, with the exact division-by-zero diagnostic. There is
+no general E_INPUT allowance and no new unsupported exclusion. Negative unit
+controls reject a different input diagnostic, an in-range value, an unbounded
+argument, and a nonzero divisor. Refusal counters and exact outcome comparisons
+remain intact.
+
+### 4. Additional Serializable race
+
+The retained `evaluator_racing_refused_operations_replay_one_receipt_without_advancing_head`
+fixture uses the same ignore reason as the original evaluator stress case:
+`issues/20260916-snapback4-postgres-serializable-benchmark-failures.md`.
+The cluster sweep excludes this additional oracle red, preserving the common
+serial receipt race and the existing oracle mismatching-receipt race. The
+original evaluator increment/duplicate-operation stress remains enabled, with
+its original internal writers and retry budget. No retry implementation changes.
+
+
+### 5. Public 45-second guard: three standalone runs
+
+All three complete standalone public stages pass, with the existing 45-second
+command timeout unchanged. This lane runs no competing build/test during them;
+other lanes compile concurrently on this 12-CPU host. First-run snapshots name
+`sb4-p0-s8` and `sb4-rt12f2`. Sampled 1-minute load ranges are 7.46–11.47,
+6.58–8.39 and 2.45–7.07 across the three stages.
+
+The following are cumulative seconds after spawning each initial P1-CE Postgres
+deploy. Filesystem checkpoints are sampled every 20 ms and at exit, so they are
+upper-bound observations rather than internal function timers.
+
+| Run | Intent | Binding | Candidate source | Current pointer | Exit | Program-only redeploy |
+|---|---:|---:|---:|---:|---:|---:|
+| 1 | 16.561 | 17.518 | 17.558 | 17.702 | 17.735 | 0.204 |
+| 2 | 16.554 | 17.798 | 17.859 | 18.005 | 18.026 | 0.213 |
+| 3 | 16.249 | 17.019 | 17.059 | 17.202 | 17.220 | 0.225 |
+
+Each complete stage executes 241/242/243 recorded subprocess commands, in
+addition to HTTP requests. Maximum command times are 17.768/18.026/17.220
+seconds. P1-CE's two-store byte comparison, bootstrap recovery/refusals,
+ownership takeover/restart, program release and P1-MC recount all pass.
+Postmasters 2849950, 2861387 and 2873935 are stopped and confirmed gone, as are
+all recorded command and serving PIDs. Each owned scratch tree is removed.
+
+**Finding:** a real, reproducible preflight costs 16.2–16.6 seconds before
+bootstrap; load alone does not explain it. Inference from call order: configured
+deploy runs `security::release_loop`, whose report uses a 1,500-work campaign,
+before creating bootstrap intent. The same cost precedes candidate staging on
+recovery and SQLite's initial deploy, while program-only redeploy is fast.
+This identifies the preflight for profiling, not a proved internal bottleneck.
+The historical 45-second timeout did not reproduce; the old run has no load
+snapshot, so its cause remains unresolved. The
+[open evidence ticket](../../issues/20261023-snapback4-public-postgres-deploy-45-second-guard.md)
+retains both earlier lane reports, phase/load evidence and the profiling scope.
+No timeout, security campaign or product command behavior changes.
+
+
+### Final checks and red-test disposition
+
+| Check | Fix-round-1 result |
+|---|---|
+| `cargo test -p snapback4-core --no-fail-fast` | Pass: 665 library tests, all 44 integration targets, 27 doctests; existing ignores retained |
+| Complete Postgres experiment | Pass: 97 Rust tests; conformance 20 pass/3 ticketed exclusions; device 1, key-limit 2, retained oracles 7/30, migrated targets 7/30 |
+| Supported migrated evolution denominator | 6 + 29 supported scenarios; two separate expected-unsupported witnesses, six refusal attempts, zero supported evolution passes |
+| Exhaustive C1 cut sweeps | Pass: 7,418 ordinary and 19,265 write-loop positions; no allowance change |
+| Postgres adapter/oracle family target | Pass: 218 tests |
+| Other stock Postgres stages | Pass: evidence 12, literal 8, ownership 25, handle 1, docs 38, committer 2, maintained members 1, commands 13, four selected HTTP/startup/RT0 targets |
+| Standard corpus | Pass: 20 Rust tests; all 295 cases visited per arm, SQLite 210 pass/85 skip, common PG 207 pass/88 skip; no failure or new exclusion |
+| Postgres difftest library / stores | Pass: 6 / 3; exact fixed-seed guard, zero signatures and named unsupported accounting pass |
+| Focused classifier positive/negative controls | Pass: 1 test |
+| `bash scripts/test-postgres.sh` | **Pass, exit 0**, including the final public stage; its known base Serializable stress also passes |
+| RT0 Postgres / SQLite | Pass: all 12 warm rows exact on each store; both JSON SHA-256 values match the original table bytes |
+| SQLite/memory read-through review fixtures | Pass: 35 tests, including the shared original expiry-default scenario |
+| Difftest smoke | Pass: 29 tests |
+| Three standalone public stages | Pass: 3/3, unchanged 45-second guard, phase/load evidence above |
+| Root `./ref-check` | Pass: 565 LLP docs, 11,773 refs; zero errors/unchecked |
+| `git diff --check` | Pass |
+
+**Complete executed red-test list: none.** The sole permitted base stress red,
+now named `evaluator_concurrent_read_modify_write_and_duplicate_ops_are_atomic_in_both_modes`,
+passes this run with 65 increments in each mode, no lost updates, zero Serialized
+retries and 113 Serializable retries. Its 40001 is documented at base under the
+old unprefixed name; the issue stays open and a recurrence still fails the runner.
+No retry cap, backoff, durability, workload or assertion changed.
+
+The deliberately excluded reproductions remain outside passed:
+
+| Test | Final disposition | Base relationship |
+|---|---|---|
+| `prefetch::prefetch_complete_fixture_queries_mutations_and_hidden_rows` | Exact assertion preserved; ticket-ignore | Newly exposed by common-engine migration; the old evaluator's context clone masks spare capacity |
+| `prefetch::unified_add_spare_capacity_meter_overlap_regression` | Exact reduced assertion preserved; same ticket-ignore | New regression, absent at base |
+| `evaluator_racing_refused_operations_replay_one_receipt_without_advancing_head` | Same Serializable issue ignore as stress; excluded from cluster sweep | Newly named retained copy beside common serial replacement; the original body exists at base, but its base 40001 was not separately established |
+
+The fixed-seed guard is **enabled and passing**, not excluded. The actual base
+probe failed compilation, so this report makes no claim that it was a proven
+base runtime red. Its precise classification resolution is recorded in the
+[closed ticket](../../issues/closed/20261023-snapback4-store-oracle-fixed-seed-refusal-expectations.md).
+Release evolution is explicitly unsupported, not a supported conformance pass.
+The second executor remains; this round grants no deletion or full parity claim.
+
+### Final cleanup and evidence custody
+
+The final independent audit covers **6,838 recorded PID identities**, including
+the earlier lane's 4,237. No recorded PID (including zombies) and no program
+executing from this target remains. All **23 owned clusters** (17 previous + six
+this round) were stopped and confirmed before removal. Fix-round postmasters
+2814097, 2849950, 2861387, 2873935, 2891688 and 3061940 are gone. All corresponding
+data/fixture directories, the base worktree/target and old `/tmp/s10e1` scratch
+are removed. PostgreSQL 17 on 55440 and all other lanes' clusters are untouched.
+
+Evidence now lives under `snapback4/target/s10e1-fix1/`: `core.log`,
+`base-guard.log`, `refusal-classifier.log`, `postgres-all.log`,
+`sqlite-rt0-and-fixtures.log`, `public-{1,2,3}.{log,timings.jsonl,host.json,cleanup.json}`,
+`public-summary.json`, `postgres-all.public-cleanup.json` and
+`final-pid-audit.json`. The previous `/tmp/s10e1` evidence is archived as
+`previous-evidence.tgz`; no cluster data is retained there. These are local
+review artifacts, not publication evidence.
+
+Cargo emitted shared-registry permission warnings during the cold builds;
+no cache repair was attempted, and automatic cache cleanup was disabled for
+subsequent commands. The temporary Cargo cache setting was removed. No Git
+configuration change, stash, push, baseline update or unrelated deletion.
+Disk guards never reached 40 GiB free; final sampled free space is 162 GiB.

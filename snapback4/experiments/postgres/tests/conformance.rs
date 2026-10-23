@@ -272,7 +272,7 @@ fn unified_concurrent_read_modify_write_and_duplicate_ops_are_atomic() {
 }
 
 #[test]
-#[ignore = "retained Serializable comparison oracle; requires private Postgres"]
+#[ignore = "issues/20260916-snapback4-postgres-serializable-benchmark-failures.md"]
 fn evaluator_concurrent_read_modify_write_and_duplicate_ops_are_atomic_in_both_modes() {
     for mode in [WriteMode::Serialized, WriteMode::Serializable] {
         let (schema, programs) = compiled();
@@ -549,7 +549,7 @@ fn evaluator_concurrent_mismatching_receipts_admit_one_binding_and_replay_only_i
 }
 
 #[test]
-#[ignore = "retained Serializable comparison oracle; requires private Postgres"]
+#[ignore = "issues/20260916-snapback4-postgres-serializable-benchmark-failures.md"]
 fn evaluator_racing_refused_operations_replay_one_receipt_without_advancing_head() {
     let (name, _, _) = oracle_pair("refusal_race", 1, 1);
     let before = counts(&name);

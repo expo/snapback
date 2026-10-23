@@ -39,8 +39,25 @@ capacity equal to its length, does not reproduce this. The old evaluator clones
 the context for `mutate_once`, which hides this asymmetry; common Engine moves
 the context into its member. This is not a prefetch result or call-count bug.
 
-S10e-1 leaves the original fixture and the reduced exact assertion red. It does
-not clone both inputs, strip the meter or expand a bound to manufacture parity.
+S10e-1 initially left the original fixture and the reduced exact assertion red.
+Fix round 1 uses the lead's explicit fallback: both fixtures carry
+`#[ignore = "issues/20261023-snapback4-unified-postgres-prefetch-add-heap-meter.md"]`.
+The private runner excludes those two names from its `--include-ignored`
+cluster sweep; the reproduction command above still runs the exact assertion.
+It does not clone both inputs, strip the meter or expand a bound to manufacture parity.
 Close only when logical metering has an explicit allocation-independent contract
 for equal public inputs and the original/reduced probes agree, including cuts
 on either side of the changed charge. S10e-2 deletion remains gated on disposition.
+
+The charge is `Value::retained_heap` in `snapback4-core/src/value.rs`: both
+String and Id use `capacity()`. `Runner::expression_heap` forwards that price
+into retained row/environment charging on SQLite, common Postgres and the old
+evaluator. It also recursively prices map keys and retained containers.
+Replacing the shared String charge with `len()` is not a local C1 repair:
+SQLite's `spare_capacity_strings_price_tight_copies_and_full_retention` pins
+256 bytes for a String/Id of length 0, 3 or 100, and
+`owned_nested_lists_price_recursive_copies_and_retained_capacity` pins a
+128-byte String allocation. The changed charge would alter those existing
+SQLite assertions and potentially cut positions across the interpreter.
+The fix round preserves all meter code and baselines, pending a scoped meter
+decision under LLP 3000.007 §20.24.5. Both RT0 tables remain unchanged.

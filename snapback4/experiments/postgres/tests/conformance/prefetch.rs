@@ -48,7 +48,7 @@ fn mutate(on: &mut Engine, off: &mut Engine, name: &str, ctx: Context) -> Mutati
 }
 
 #[test]
-#[ignore = "requires isolated local Postgres; scripts/test-postgres.sh"]
+#[ignore = "issues/20261023-snapback4-unified-postgres-prefetch-add-heap-meter.md"]
 fn prefetch_complete_fixture_queries_mutations_and_hidden_rows() {
     let (mut on, mut off) = twins(None, fixture(32, 3));
     for viewer in ["alice", "bob", "stranger"] {
@@ -218,7 +218,7 @@ fn aliases_derived_pages_mutation_invalidation_and_conflict_reread() {
 
 // @ref LLP 3000.009.001.000#3.4 — leave unified-engine disagreements visible before deletion.
 #[test]
-#[ignore = "requires private Postgres; S10e-1 metering regression"]
+#[ignore = "issues/20261023-snapback4-unified-postgres-prefetch-add-heap-meter.md"]
 fn unified_add_spare_capacity_meter_overlap_regression() {
     let (mut on, mut off) = twins(None, fixture(1, 1));
     // Use the same physical setting: this isolates input allocation from prefetch.

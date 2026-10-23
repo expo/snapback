@@ -103169,3 +103169,47 @@ references; zero errors or unchecked). The independent cleanup audit confirms
 17 owned clusters stopped and no living process among 4,237 recorded PID
 identities. PostgreSQL 17/55440 was untouched. Work remains local on sb4-pg/s10e1;
 no push, stash, configuration change, target cleaning or target copy.
+
+
+## 2026-10-23 — S10e-1 fix round 1: no new test reds
+
+The lead's allowed fallback preserves the shared retained-image meter: String
+and Id capacity is charged in `Value::retained_heap`, and existing SQLite
+pricing tests pin that contract. The original and reduced exact heap fixtures
+are ticket-ignored; the assertions remain intact. No meter code, ceiling,
+SQLite meter baseline or RT0 table changes. The extra retained Serializable
+refused-receipt race carries the same issue ignore as the known stress case;
+the private runner excludes just these three reproductions from its
+`--include-ignored` sweep. The original stress stays enabled and passes this
+run: 65 increments per mode, no lost updates, 113 Serializable retries.
+
+Migrated read-through/review evolution now asserts exact release-activation
+refusal as named expected-unsupported, outside supported passes. Original
+oracle targets pass 7/7 and 30/30. A real detached base probe of the fixed-seed
+guard fails compilation at the old Store/AnyStore snapshot seam, so it does not
+prove a base runtime red. The now-reachable guard is repaired narrowly: only
+an out-of-interval `a` with its matching diagnostic or scalar rounded division
+by a literal/supplied zero is expected. Arbitrary E_INPUT stays unexpected;
+negative controls pass, as do all six Postgres difftest library tests and all
+three store tests. The refusal ticket is resolved and moved to issues/closed.
+
+Three standalone public stages pass with the unchanged 45-second guard.
+Initial Postgres deploys take 17.735/18.026/17.220 seconds; 16.2–16.6 seconds
+precede bootstrap intent. Source call order implicates the bounded security
+preflight for profiling; differing host load alone does not explain it. The
+historical timeout remains unresolved in a new evidence ticket. The complete
+private runner's public stage also passes. No timeout or security review changes.
+
+All requested tests are green: full core (665 library, 44 integration targets,
+27 doctests), 97 experiment tests with the three explicit exclusions, 218
+Postgres family tests, unchanged 295-case corpus outcomes, exact two-store RT0,
+35 SQLite/memory review fixtures and 29 difftest smoke tests. The
+[updated report](reports/20261023-s10e1-evaluation-callers.md) records references,
+base/red dispositions and cleanup. The independent audit finds no remaining
+PID among 6,838 identities; all 23 owned clusters (17 previous, six this round)
+and all owned scratch worktrees/data are removed. PG17/55440 was untouched.
+Cold builds use line-tables-only dev/test debug and six Cargo jobs. Work stays
+local; no push, stash or Git configuration change. No executor deletion.
+
+Root reference validation passes: 565 LLP docs, 11,773 refs, zero errors and
+zero unchecked references. Both RT0 table digests match their original bytes.

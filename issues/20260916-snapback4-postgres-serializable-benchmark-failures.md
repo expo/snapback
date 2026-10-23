@@ -257,3 +257,16 @@ not a root-cause attribution or a green full-script claim. Final stage
 results and owned-PG16 cleanup are in the
 [P1-EV-1 round-2 report](../snapback4/reports/20261023-p1-ev1-schema-evolution/REPORT.md#fix-round-2--2026-10-23-restore-byte-parity).
 Raw logs and process traces remain outside Git under `/tmp/sb4-p1ev1-fix2/`.
+## 2026-10-23 — S10e-1 fix round 1 retained race disposition
+
+S10e-1 keeps the original increment/duplicate-operation stress as
+`evaluator_concurrent_read_modify_write_and_duplicate_ops_are_atomic_in_both_modes`.
+The migration also retains the original Serializable refused-receipt race as
+`evaluator_racing_refused_operations_replay_one_receipt_without_advancing_head`,
+beside its common-engine serial replacement. Both oracle fixtures reproduced
+40001 in the initial lane evidence. Per the lead's fix-round instruction, the
+additional oracle race is ticket-ignored with this same reason and explicitly
+excluded from the private runner's `--include-ignored` sweep. The original
+stress remains enabled there; its red is never turned into a qualification.
+The exact race body, common serial witness, mismatching-receipt oracle,
+four-writer stress workload and existing retry budget are preserved.

@@ -221,7 +221,7 @@ fn lifetime_restore_reuse_and_import_match_sqlite() {
 
 #[test]
 #[ignore = "requires isolated local Postgres; scripts/test-postgres.sh"]
-fn activation_is_atomic_and_old_connections_cannot_write_the_new_generation() {
+fn expected_unsupported_release_activation_read_through_evolution() {
     let old = MODEL
         .replace(
             "read through .parent",
@@ -246,39 +246,16 @@ fn activation_is_atomic_and_old_connections_cannot_write_the_new_generation() {
         let programs: Vec<_> = b.programs.into_iter().map(|p| p.program).collect();
         let actual = pg.adopt_at(b.schema.clone(), programs.clone(), 100);
         let expected = sqlite.adopt_at(b.schema, programs, 100);
-        assert_eq!(
-            actual.is_ok(),
-            expected.is_ok(),
-            "{actual:?} vs {expected:?}"
-        );
-        if owner == "bob" {
-            assert_eq!(pg.generation(), generation);
-            assert_eq!(stored(&name), before);
-        } else {
-            assert_eq!(
-                pg.read_through_shortened().unwrap(),
-                sqlite.read_through_shortened().unwrap()
-            );
-            assert!(
-                stale
-                    .query(
-                        "childRow",
-                        scenarios::context("alice", 100, &[("id", id("c"))])
-                    )
-                    .is_err()
-            );
-            assert_eq!(
-                pg.query(
-                    "childRow",
-                    scenarios::context("alice", 100, &[("id", id("c"))])
-                ),
-                sqlite.query(
-                    "childRow",
-                    scenarios::context("alice", 100, &[("id", id("c"))])
-                )
-            );
-        }
+        assert!(matches!(actual, Err(snapback4_core::RuntimeError::StoreUnsupported {
+            family: "release-activation"
+        })), "expected-unsupported:release-activation; admission needs the original oracle fixture: {actual:?}");
+        assert_eq!(expected.is_ok(), owner == "alice", "{expected:?}");
+        assert_eq!(pg.generation(), generation);
+        assert_eq!(stored(&name), before);
+        let context = scenarios::context("alice", 100, &[("id", id("c"))]);
+        assert_eq!(stale.query("childRow", context.clone()), pg.query("childRow", context));
     }
+    println!("expected-unsupported:release-activation:read-through-evolution=2; admitted evolution scenarios=0");
 }
 
 #[test]

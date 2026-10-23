@@ -205,8 +205,11 @@ pub fn aggregate_existence(mut factory: impl FnMut(&str) -> Box<dyn Backend>) {
     }
 }
 
+pub fn expiry_default_source() -> &'static str {
+    "table parents:\n  owner: principal\n  immutable owner\n  read <- .owner = viewer\n  insert <- allow\ntable middle:\n  parent: parents\n  immutable parent\n  read through .parent\n  insert <- allow\ntable children:\n  parent: middle\n  immutable parent\n  read through .parent\n  insert <- allow\nmutation setup():\n  insert parents { id: 'p', owner: viewer }\n  insert middle { id: 'm', parent: 'p' }\n  insert children { id: 'c', parent: 'm' }\nquery parent():\n  return parents['p']\nquery middle():\n  return middle['m']\nquery child():\n  return children['c']\n"
+}
 pub fn expiry_default(mut factory: impl FnMut(&str) -> Box<dyn Backend>) {
-    let original = "table parents:\n  owner: principal\n  immutable owner\n  read <- .owner = viewer\n  insert <- allow\ntable middle:\n  parent: parents\n  immutable parent\n  read through .parent\n  insert <- allow\ntable children:\n  parent: middle\n  immutable parent\n  read through .parent\n  insert <- allow\nmutation setup():\n  insert parents { id: 'p', owner: viewer }\n  insert middle { id: 'm', parent: 'p' }\n  insert children { id: 'c', parent: 'm' }\nquery parent():\n  return parents['p']\nquery middle():\n  return middle['m']\nquery child():\n  return children['c']\n";
+    let original = expiry_default_source();
     for adoption_time in [100, 200] {
         let mut e = factory(original);
         run(&mut *e, "setup", "alice", 50, &[]).0.unwrap();

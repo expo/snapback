@@ -67,7 +67,34 @@ macro_rules! scenario {
 }
 scenario!(aggregate_actual_row);
 scenario!(aggregate_existence);
-scenario!(expiry_default);
+#[test]
+#[ignore = "requires isolated local Postgres; scripts/test-postgres.sh"]
+fn expected_unsupported_release_activation_expiry_default() {
+    let original = cases::expiry_default_source();
+    let b = cases::bound(original);
+    let mut engine = create(&namespace("expiry_default_unsupported"), b.schema,
+        b.programs.into_iter().map(|p| p.program)).unwrap();
+    let context = cases::ctx("alice", 50, &[]);
+    assert!(matches!(engine.mutate("setup", None, context).unwrap().state, WriteState::Sent { .. }));
+    let generation = engine.generation();
+    for now in [100, 200] {
+        for deadline in [300, 150] {
+            let source = original.replace("immutable owner", &format!(
+                "immutable owner, until\n  until: time default {deadline}\n  expire at .until"));
+            let b = cases::bound(&source);
+            let result = engine.adopt_at(b.schema, b.programs.into_iter().map(|p| p.program), now);
+            assert!(matches!(result, Err(snapback4_core::RuntimeError::StoreUnsupported {
+                family: "release-activation"
+            })), "expected-unsupported:release-activation; admission needs oracle expiry_default: {result:?}");
+            assert_eq!(engine.generation(), generation);
+            for op in ["parent", "middle", "child"] {
+                assert_ne!(engine.query(op, cases::ctx("alice", 400, &[])).unwrap().data,
+                    snapback4_core::Value::Null, "refused activation changed {op}");
+            }
+        }
+    }
+    println!("expected-unsupported:release-activation:expiry-default=4; admitted expiry evolution scenarios=0");
+}
 scenario!(reuse_refusal);
 scenario!(delete_refusal);
 scenario!(probe_meter_equivalence);

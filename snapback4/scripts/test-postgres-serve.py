@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Public deploy/serve witness; owns a private socket cluster and recorded children."""
 # @ref LLP 3000.009.001.000#3.4 — public CLI, persisted releases and real lease custody.
-import json, os, pathlib, shutil, signal, socket, subprocess, tempfile, time, urllib.request, urllib.error, urllib.parse
+import json, os, pathlib, shutil, signal, socket, subprocess, tempfile, threading, time, urllib.request, urllib.error, urllib.parse
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 TARGET = pathlib.Path(os.environ.get('CARGO_TARGET_DIR', 'target'))
@@ -12,6 +12,27 @@ WORK = pathlib.Path(tempfile.mkdtemp(prefix='s10d3-serve-', dir='/tmp'))
 DATA = WORK / 'data'
 children = []
 cluster_started = False
+TIMINGS = os.environ.get('SNAPBACK4_POSTGRES_WITNESS_TIMINGS')
+
+def loadavg():
+    path = pathlib.Path('/proc/loadavg')
+    return path.read_text().strip() if path.exists() else None
+
+def deploy_files(directory):
+    # Observable phase boundaries, not instrumentation in the shipped binary.
+    # Polling can miss a short-lived intent; timestamps are upper bounds at 20ms.
+    paths = [(name, directory/file) for name,file in [
+        ('bootstrap-intent','store-pending.json'), ('store-binding','store-binding.json'),
+        ('activation-pointer','current')]]
+    paths += [('candidate-source', path) for path in directory.glob('releases/*/snapback/*.q')]
+    result = {}
+    for phase,path in paths:
+        try:
+            stat = path.stat()
+            result[str(path)] = (phase,stat.st_mtime_ns,stat.st_size)
+        except FileNotFoundError:
+            pass
+    return result
 
 def disk():
     assert shutil.disk_usage(pathlib.Path.home()).free >= 40 * 1024**3, 'disk below 40 GiB; stop'
@@ -23,14 +44,52 @@ def record_pid(label, pid):
 def run(args, cleanup=False, timeout=45, **kwargs):
     if not cleanup: disk()
     args = [str(x) for x in args]
+    began = time.monotonic()
+    timing = {'command':pathlib.Path(args[0]).name, 'load_start':loadavg(), 'phases':[], 'load_samples':[]}
+    deployment = None
+    if pathlib.Path(args[0]) == BIN and len(args)>1:
+        timing['verb'] = args[1]
+        if args[1]=='deploy' and len(args)>2 and not args[2].startswith('-'):
+            deployment = pathlib.Path(args[2])
+            if not deployment.is_absolute(): deployment = pathlib.Path(kwargs.get('cwd',ROOT))/deployment
+    previous = deploy_files(deployment) if deployment is not None else {}
+    done = threading.Event()
+    def observe():
+        nonlocal previous
+        last_load = -1
+        while not done.is_set():
+            elapsed = time.monotonic()-began
+            if int(elapsed)>last_load:
+                timing['load_samples'].append([round(elapsed,3),loadavg()])
+                last_load = int(elapsed)
+            if deployment is not None:
+                current = deploy_files(deployment)
+                for path,signature in current.items():
+                    if previous.get(path)!=signature:
+                        timing['phases'].append([signature[0],round(elapsed,3)])
+                previous = current
+            done.wait(.02)
     child = subprocess.Popen(args, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, **kwargs)
     record_pid(pathlib.Path(args[0]).name, child.pid)
+    observer = threading.Thread(target=observe) if TIMINGS else None
+    if observer: observer.start()
     try:
         stdout, stderr = child.communicate(timeout=timeout)
     except BaseException:
         child.kill()
         child.wait()
         raise
+    finally:
+        done.set()
+        if observer: observer.join()
+        if TIMINGS and deployment is not None:
+            for path,signature in deploy_files(deployment).items():
+                if previous.get(path)!=signature:
+                    timing['phases'].append([signature[0],round(time.monotonic()-began,3)])
+        timing.update(seconds=round(time.monotonic()-began,3),returncode=child.returncode,load_end=loadavg())
+        if TIMINGS:
+            with open(TIMINGS,'a') as output: output.write(json.dumps(timing)+'\n')
+            if timing.get('verb')=='deploy': print('deploy timing',json.dumps(timing),flush=True)
     return subprocess.CompletedProcess(args,child.returncode,stdout,stderr)
 
 def cli(args, success=True, env=None, url=None):
