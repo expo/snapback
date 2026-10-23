@@ -106,6 +106,7 @@ card/ephemeral/1:markViewing | never
 card/ephemeral/1:setTyping | never
 card/ephemeral/1:stopTyping | never
 card/ephemeral/1:stopViewing | never
+card/evolution/3:removeAlbum | never
 card/expire/1:postStory | eligible
 card/expire/1:postStory | stories/insert | {"Eq":[{"Field":"authorId"},"Viewer"]} | read rule
 card/expire/2:bid | never
@@ -586,6 +587,11 @@ card/rule-recipes/46:addPolicyCheck | never
 card/rule-recipes/46:signPolicyProposal | never
 card/rule-recipes/47:newVersionedTask | never
 card/rule-recipes/47:transitionTask | never
+card/rule-recipes/48:dxCustomerGuard | never
+card/rule-recipes/48:dxEdit | never
+card/rule-recipes/48:dxOpen | never
+card/rule-recipes/48:dxRole | never
+card/rule-recipes/48:dxStaffEdit | never
 card/rule-recipes/4:addLetter | never
 card/rule-recipes/5:addFile | eligible
 card/rule-recipes/5:addFile | files/insert | {"Eq":[{"Field":"owner"},"Viewer"]} | read rule
