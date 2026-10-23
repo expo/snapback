@@ -450,6 +450,9 @@ fn every_ephemeral_refusal_uses_failed_http_200() {
         assert_eq!(reply["state"], "failed");
         assert_eq!(reply["why"]["code"], code, "{reply}");
         assert!(reply.get("seq").is_none());
+        if code == "E_AUTH" {
+            for field in ["store_id", "head", "generation"] { assert!(reply.get(field).is_none(), "{reply}"); }
+        }
     }
     drop(h);
     std::fs::remove_dir_all(dir.unwrap()).unwrap();

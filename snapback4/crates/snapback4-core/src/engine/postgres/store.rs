@@ -148,6 +148,31 @@ impl Store {
         Ok(tx)
     }
 
+    // @ref LLP 3000.009.001.000.001#31-authority-boundaries — one ordinary ingress SELECT is its own read snapshot, with no writer lock.
+    pub(crate) fn ingress_session_authority_facts(&mut self, digest: &str) -> Result<crate::identity::facts::SessionFacts, RuntimeError> {
+        if absent_text_key(&[digest]) { return Ok(Default::default()); }
+        let sql = super::authority::session_facts_sql(self.read_sessions.get());
+        let statement = if let Some(statement) = self.cache.get(sql) { statement.clone() } else {
+            self.calls.set(self.calls.get() + 1);
+            let statement = self.client.prepare(sql)?;
+            self.cache.insert(sql, statement.clone()); statement
+        };
+        guard_text_params(&statement, &[&digest])?;
+        self.calls.set(self.calls.get() + 1);
+        let facts = super::authority::session_facts_rows(self.client.query(&statement, &[&digest])?);
+        // The autocommit probe is discarded on a miss with unknown storage.
+        // All discovery and any read-arm retry then share a dedicated snapshot.
+        if !self.read_sessions.get() && facts.sessions.is_empty() {
+            let (tx, facts) = self.session_authority_transaction(digest)?;
+            tx.rollback()?;
+            return Ok(facts);
+        }
+        if facts.backend_generation.map(|generation| generation as u64) != Some(self.generation) {
+            return Err(RuntimeError::Generation("another engine activated this store; reopen before reading or writing".into()));
+        }
+        Ok(facts)
+    }
+
     // A dedicated authority boundary keeps its existing generation comparison,
     // using the one fact statement. Program/writer openers keep their own command.
     pub(crate) fn session_authority_transaction(&mut self, digest: &str) -> Result<(Tx<'_>, crate::identity::facts::SessionFacts), RuntimeError> {

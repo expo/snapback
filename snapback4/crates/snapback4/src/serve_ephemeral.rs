@@ -101,7 +101,13 @@ impl Shared {
     }
 }
 
+/// Early refusals have no authenticated store cut to disclose.
+pub(super) fn failed_unobserved(request: Request, shared: &Shared, id: Option<&str>, why: Refusal) {
+    respond_timed(request, shared, 200, latency::Unobserved(super::mutation_reply(json!({"state":"failed","id":id,"why":refusal_json(&why)}))));
+}
+
 pub(super) fn failed(request: Request, shared: &Shared, id: Option<&str>, why: Refusal) {
+    if why.code == "E_AUTH" && why.family == "auth" { return failed_unobserved(request, shared, id, why); }
     let wake = lock(&shared.wake);
     let (store_id, head) = (wake.store_id.clone(), wake.seq);
     drop(wake);

@@ -103267,3 +103267,101 @@ cut. Build, both ratchets, four authority witnesses and all 206 normal serving
 regressions pass. Predictions match all cells: Postgres unkeyed 23, keyed first
 39, replay 10, metadata refusals 9; SQLite 29/39/10/9 respectively. Route and
 execution checks still remain. [Evidence](./reports/20261023-rt3b/REPORT.md).
+
+## 2026-10-23 — RT3b: final authority inside execution
+
+Ordinary ingress is one reader SELECT; action and other non-ordinary credentials
+reopen the complete resolver snapshot after discarding the initial probe.
+Keyed preflight combines current authority, store facts and bound receipt.
+Unkeyed metadata refusals re-judge against their snapshot's program if checkout
+crossed adoption. The route and first-queue checks are removed.
+
+Queries authenticate in their own snapshot. Durable mutations authenticate after
+owner fence/head lock, repeat store binding from the returned facts and re-check
+the bound receipt as a separate command; a hit aborts the member. A scope change
+refuses as stale. Keyed ownership loss after a preflight miss is retryable (503),
+never a recorded failure; the parent retry row is updated. Trusted engine callers
+retain their existing independent replay path, and COMMIT framing is unchanged.
+
+The final measured Postgres counts are unkeyed 16, keyed first 24, replay 5,
+W1/W2 7; SQLite 22/30/5/11. All refined predictions match and no class increases
+from the previous commit. The keyed gap to the RFC's 21 is the placement read
+and two receipt writes, whose waits RT6 will fold. Both-store witnesses include
+upload/queue authority changes, replacement store/family, id reuse, historical
+replay, ownership loss, concurrent copies, scope staleness and refusal/adoption
+consistency. [Full measurements and qualification](./reports/20261023-rt3b/REPORT.md).
+
+## 2026-10-23 — RT3b: completed qualification
+
+Cold Postgres readers now open unfenced and physically read-only; historical
+replay survives real owner-token loss without a warm pooled reader. Preflight
+outcomes explicitly carry their snapshot's generation across adoption. Failed
+authority reads cannot acquire metadata from a separate head read or cached
+generation; both-store duplicate-session witnesses exercise query, keyed
+first/replay and unkeyed refusal paths. Bound-hit member witnesses preserve
+adjacent members. Early ephemeral auth keeps HTTP 200 without store facts;
+queue failures and unknown COMMITs keep their classification without metadata.
+
+Every final RT0 prediction matches measurement, with no class increase.
+Production build, no-default, both ratchets and reference/port checks pass.
+The full core checkpoint passes 1,091 cases; later affected core checks pass.
+The full CLI completes with 1,436 passes and only four supplied reservation
+fixture reds; final serving 210, dual-store HTTP eight, retained authority four,
+committer 11 and port seven all pass. The complete Postgres script records
+398 passes and two broad-run reds (Serializable 40001 and a short lease);
+both pass alone, and public serving/restart/takeover, release adoption and P1-MC
+pass. Earlier clock/run-admission and stalled-resolver timing reds pass alone;
+the complete CLI repeat also passes them. All four owned clusters are stopped
+and independently confirmed, and no recorded workload PID remains. Local
+commits only. [Qualified scope and exceptions](./reports/20261023-rt3b/REPORT.md).
+
+## 2026-10-23 — RT3b: closing authority audit
+
+The closing repeat passes 210 serving cases, all eight dual-store HTTP groups,
+four retained authority cases, three member/cold-reader cases, both RT0 ratchets,
+the five authority matrix cases and all 12 committer cases. Mutation scope
+changes are now witnessed directly after queued keyed/unkeyed misses and a
+concurrent stored copy on both stores: retryable stale refusal, no store facts.
+Production build, no-default, port and reference checks pass. The final tables
+remain unchanged. All five lane-owned clusters, including the closing witness
+cluster, are stopped and independently confirmed. The earlier full-run
+exceptions remain recorded in the [report](./reports/20261023-rt3b/REPORT.md).
+
+
+## 2026-10-23 — RT3b-R: preserve both fix streams during rebase
+
+Rebased final execution authority onto `ca9a23d5e7`, retaining RT3a storage
+discovery, fork flags, savepoint re-probes and zero-query raw-NUL absence, and
+RT1/RT2 committed publication, query handoff decoding and fail-fast metadata.
+SQLite ingress holds the anchor cursor through miss-only catalog discovery;
+Postgres's unknown-storage ingress miss repeats through its dedicated snapshot.
+Final in-transaction authority uses the same discovery helper. The sole semantic
+side choice is RT3a's absent NUL digest in place of RT3b's bind refusal; no public
+boundary needs the refusal because bearer lookup uses a hash.
+
+Measured SQLite unknown_token is 2 instead of the original final-boundary 1:
+the additional statement probes optional read-session storage on the miss.
+All other cells are expected unchanged and are qualified by both RT0 ratchets.
+Direct ingress-discovery witnesses exercise independent handles on both stores.
+Evidence remains under `/tmp/sb4-rt3br/`; the
+[continuation report](./reports/20261023-rt3br-rt4.md) records results and tables.
+
+
+RT3b-R qualification clarification: the combined RT1/RT2 regressions exposed
+an early-refusal evaluation cut and a missing `complete: false` on exhausted
+query handoffs. Pure query validation errors now wait for final authority but
+do not create an evaluation `seq`; stale read failures keep `complete: false`
+without an automatic generation stamp. One further semantic side choice keeps
+RT3b's HTTP 503 for foreign activation at the query snapshot boundary, replacing
+RT1's old HTTP 401 from the removed separate authority walk. Confirmed writes
+still return 200 and wake subscribers, and the following query still refuses
+`E_GENERATION`; the regression now also asserts no unauthenticated generation.
+
+
+RT3b-R final qualification passes: full core checkpoint (1,102 Rust tests plus
+38 doctests), final full binary 550/18 named ignores, identity 84, both final
+ratchets, both-store query snapshot repeat, no-default and reference checks.
+The complete Postgres script passes all public serving/restart/takeover,
+release-adoption, P1-CE and P1-MC stages. Final measurements match the continuation
+report: only SQLite unknown_token changes from pre-rebase 1 to 2. The public
+witness cluster is stopped and confirmed; the owned evaluator stays up for RT4.

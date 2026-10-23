@@ -571,6 +571,33 @@ fn authority_facts_independent_postgres_connection_discovers_storage() {
 
 #[test]
 #[ignore = "requires private SNAPBACK4_EVAL_POSTGRES"]
+fn ingress_discovers_storage_on_an_independent_postgres_handle() {
+    let mut writer = authority_engine();
+    let name: String = writer.store.client.query_one("SELECT current_schema()::text", &[]).unwrap().get(0);
+    let tx = writer.store.transaction(Some(WriteMode::Serialized)).unwrap();
+    tx.batch("DROP TABLE _read_sessions").unwrap();
+    tx.commit().unwrap();
+    let mut client = postgres::Client::connect(&std::env::var("SNAPBACK4_EVAL_POSTGRES").unwrap(), postgres::NoTls).unwrap();
+    client.batch_execute(&format!("SET search_path = {}, pg_catalog", super::super::store::namespace(&name).unwrap())).unwrap();
+    let mut reader = Store::new(client);
+    reader.generation = writer.store.generation;
+    assert!(!reader.read_sessions.get());
+    let session = Session { principal: "member:ingress".into(), kind: "member".into(), token: "ro.ingress".into(), expires_at: 10000, cap_expires_at: Some(10000), scope: SessionScope::Read };
+    let tx = writer.store.transaction(Some(WriteMode::Serialized)).unwrap();
+    tx.install_read_sessions().unwrap();
+    tx.insert_read_session(&session, 0, None).unwrap();
+    tx.commit().unwrap();
+    assert_eq!(reader.ingress_session_authority_facts(&digest(&session.token)).unwrap().sessions.len(), 1);
+    assert!(reader.read_sessions.get());
+    reader.ingress_session_authority_facts(&digest(&session.token)).unwrap(); // prepare read arm
+    let scope = crate::round_trips::Scope::begin();
+    assert_eq!(reader.ingress_session_authority_facts(&digest(&session.token)).unwrap().sessions.len(), 1);
+    assert!(reader.ingress_session_authority_facts("raw\0digest").unwrap().sessions.is_empty());
+    assert_eq!(scope.counts().postgres, 1);
+}
+
+#[test]
+#[ignore = "requires private SNAPBACK4_EVAL_POSTGRES"]
 fn authority_facts_postgres_installing_savepoint_rollback_reprobes_storage() {
     let mut engine = authority_engine();
     let tx = engine.store.transaction(Some(WriteMode::Serialized)).unwrap();
@@ -607,4 +634,32 @@ fn authority_facts_raw_nul_digest_is_absent_without_querying_postgres() {
     assert_eq!(scope.counts().postgres, 0);
     drop(scope);
     tx.rollback().unwrap();
+}
+
+#[test]
+#[ignore = "requires private Postgres; scripts/test-postgres.sh"]
+fn rt3b_cold_ingress_reader_is_physically_read_only_after_owner_loss() {
+    let connection=std::env::var("SNAPBACK4_EVAL_POSTGRES").expect("private cluster");
+    let namespace=format!("sb4_rt3b_ro_{:x}",crate::ids::seed());
+    let store=crate::store_port::AnyStore::create_postgres(&connection,&namespace).unwrap();
+    let mut engine=crate::Engine::new(store,crate::Schema::default(),[]).unwrap();
+    let session=crate::identity::open_session(engine.store(),"guest:readonly","guest",1000).unwrap();
+    let store_id=engine.store().store_id().unwrap();
+    engine.store_mut().test_request_owner_loss().unwrap();
+    // Construction itself must stay unfenced; no warm pooled connection exists.
+    let reader=engine.reader().unwrap();
+    {
+        let mut store=reader.store().test_postgres_handle().borrow().unwrap();
+        assert!(store.read_only);
+        assert_eq!(store.client.query_one("SHOW default_transaction_read_only",&[]).unwrap().get::<_,String>(0),"on");
+        let error=store.client.execute("UPDATE _meta SET value=value WHERE false",&[]).unwrap_err();
+        assert_eq!(error.code().unwrap().code(),"25006");
+    }
+    let sample=crate::identity::ServiceSample {now:1001,supervisor_revision:0};
+    let digest=crate::identity::session_digest(&session.token);
+    let resolve=||crate::identity::resolve_ingress_supervised(reader.store(),&digest,sample,Some(&store_id)).unwrap();
+    assert_eq!(resolve().unwrap().0,session.principal);
+    let scope=crate::round_trips::Scope::begin();
+    assert_eq!(resolve().unwrap().0,session.principal);
+    assert_eq!(scope.counts().postgres,1,"one warm read-only statement, with no owner fence");
 }

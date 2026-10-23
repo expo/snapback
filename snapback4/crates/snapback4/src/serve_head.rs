@@ -80,6 +80,11 @@ pub(crate) fn mutation_reply(mut body: Json) -> Json {
 // @ref LLP 3000.009.001.000.001#3.4 — committed facts cross the worker continuation into the response.
 pub(super) fn mutation_acknowledgement(shared: &Shared, engine: &mut Engine, acknowledgement: Result<snapback4_core::engine::MutationAcknowledgement, Refusal>)
     -> (Result<snapback4_core::MutationOutcome, Refusal>, Result<(String, u64), Refusal>, Option<Vec<String>>, u64) {
+    mutation_acknowledgement_at(shared, engine, acknowledgement, None)
+}
+
+pub(super) fn mutation_acknowledgement_at(shared: &Shared, engine: &mut Engine, acknowledgement: Result<snapback4_core::engine::MutationAcknowledgement, Refusal>, boundary: Option<(String, u64)>)
+    -> (Result<snapback4_core::MutationOutcome, Refusal>, Result<(String, u64), Refusal>, Option<Vec<String>>, u64) {
     match acknowledgement {
         Ok(ack) if ack.publication.is_some() => {
             let publication = ack.publication.unwrap();
@@ -99,7 +104,7 @@ pub(super) fn mutation_acknowledgement(shared: &Shared, engine: &mut Engine, ack
                 shared.durable_committed(engine);
             }
             let preserved = changes::ack_preserved(engine, outcome.as_ref().ok());
-            (outcome, response_head(engine), preserved, engine.generation())
+            (outcome, boundary.map_or_else(|| response_head(engine), Ok), preserved, engine.generation())
         }
     }
 }
@@ -109,10 +114,10 @@ pub(super) fn borrowed_response_head(snapshot: &snapback4_core::store_port::Read
     Ok((snapshot.store_id()?, head))
 }
 
-// A failed generation boundary already supplied the refusal; opening another
-// snapshot would repeat it during every adoption handoff.
+// A query that failed before its authority cut cannot authenticate metadata by
+// opening an unrelated head snapshot, including during an adoption handoff.
 pub(super) fn query_response_head(engine: &mut Engine, metadata: Option<Result<(String, u64), Refusal>>, outcome: &Result<snapback4_core::QueryOutcome, Refusal>) -> Result<(String, u64), Refusal> {
     if let Some(metadata) = metadata { return metadata; }
-    if let Err(why) = outcome && why.code == "E_GENERATION" { return Err(why.clone()); }
+    if let Err(why) = outcome { return Err(why.clone()); }
     response_head(engine)
 }

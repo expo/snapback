@@ -48,16 +48,20 @@ impl Tx<'_> {
     }
 
     fn fetch_session_authority_facts(&self, digest: &str, read: bool) -> Result<crate::identity::facts::SessionFacts, RuntimeError> {
-        let rows = self.query(if read { READ_FACTS } else { FULL_FACTS }, &[&digest])?;
+        Ok(session_facts_rows(self.query(session_facts_sql(read), &[&digest])?))
+    }
+}
+
+pub(super) fn session_facts_sql(read: bool) -> &'static str { if read { READ_FACTS } else { FULL_FACTS } }
+pub(super) fn session_facts_rows(rows: Vec<postgres::Row>) -> crate::identity::facts::SessionFacts {
         let row = &rows[0]; // The anchor also returns metadata for an absent token.
-        Ok(crate::identity::facts::SessionFacts {
+        crate::identity::facts::SessionFacts {
             head: row.get::<_, i64>(18) as u64,
             sessions: rows.iter().filter(|r| r.get::<_, Option<String>>(0).is_some()).map(read_session).collect(),
             current_generation: row.get(8), worker_family: row.get(9), worker_revision: row.get(10),
             family_revision: row.get(11), store_generation: row.get(12), store_id: row.get(13),
             backend_generation: row.get(14), schema_hash: row.get(15), activation_hash: row.get(16), device_generation: row.get(17),
-        })
-    }
+        }
 }
 
 const WORK_BY_ID: &str = "SELECT principal, state, claimed_by, session_digest, lease_until, deadline, family, principal_generation, admitted_expires_at, service_generation FROM _requests WHERE id = $1";

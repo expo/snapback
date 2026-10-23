@@ -286,8 +286,22 @@ pub(crate) trait Reply: Serialize {
     fn generation(&self) -> Option<u64> { None }
     fn refusal_code(&self) -> Option<&str> { None }
     fn refusal_family(&self) -> Option<&str> { None }
+    fn refusal_retryable(&self) -> bool { false }
+    fn stamp_generation(&self) -> bool { true }
+}
+/// A refusal before an authenticated store cut cannot acquire cached metadata.
+#[derive(Serialize)]
+#[serde(transparent)]
+pub(crate) struct Unobserved(pub Value);
+impl Reply for Unobserved {
+    fn refused(&self) -> bool { self.0.refused() }
+    fn refusal_code(&self) -> Option<&str> { self.0.refusal_code() }
+    fn refusal_family(&self) -> Option<&str> { self.0.refusal_family() }
+    fn refusal_retryable(&self) -> bool { self.0.refusal_retryable() }
+    fn stamp_generation(&self) -> bool { false }
 }
 impl Reply for Value {
+    fn refusal_retryable(&self) -> bool { self.get("denied").or_else(|| self.get("why")).is_some_and(|why| why["retryable"] == true) }
     fn refusal_code(&self) -> Option<&str> {
         self.get("denied").or_else(|| self.get("why"))?.get("code")?.as_str()
     }

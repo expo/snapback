@@ -790,12 +790,17 @@ impl Engine {
         context.generation = self.generation;
         let requested = context.now.unwrap_or_else(crate::now_ms);
         context.now = Some(if advance_opening { self.advance_time_audience(requested)? } else { requested });
-        let program = self.programs.get(name).ok_or_else(|| RuntimeError::UnknownOp(name.to_owned()))?.clone();
-        if program.kind != ProgramKind::Query {
-            return Err(RuntimeError::UnknownOp(format!("{name} is a {}, not a query", program.kind.word())).into());
-        }
-        server_query_allowed(&self.schema, name)?;
-        validate::validate_inputs(&self.schema, &program, &mut context.args)?;
+        // Pure ingress judgment does not create an evaluation cut. Defer its
+        // error until the final authority callback authenticates the response.
+        let program = (|| {
+            let program = self.programs.get(name).ok_or_else(|| RuntimeError::UnknownOp(name.to_owned()))?.clone();
+            if program.kind != ProgramKind::Query {
+                return Err(RuntimeError::UnknownOp(format!("{name} is a {}, not a query", program.kind.word())).into());
+            }
+            server_query_allowed(&self.schema, name)?;
+            validate::validate_inputs(&self.schema, &program, &mut context.args)?;
+            Ok::<_, Refusal>(program)
+        })();
         if context.presence.is_none() {
             context.presence = self.presence.clone();
         }
@@ -806,8 +811,9 @@ impl Engine {
             context.now.unwrap_or(0),
         )?);
         let seq = tx.next_seq()? - 1;
-        *cut = Some(seq);
         if let Some(snapshot) = snapshot { snapshot(&tx, seq)?; }
+        let program = program?;
+        *cut = Some(seq);
         let touches = self.schema.operations.get(name).is_some_and(|f| !f.ephemeral_reads.is_empty());
         let mut hub = if touches { Some(self.ephemeral.lock()?) } else { None };
         if let Some(hub) = &mut hub {

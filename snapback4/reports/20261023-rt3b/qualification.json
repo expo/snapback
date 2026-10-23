@@ -1,0 +1,180 @@
+{
+  "base": "f9d714d4a2",
+  "warm_samples_per_class": 3,
+  "all_final_predictions_equal_measurements": true,
+  "checks": {
+    "core_full": {
+      "exit": 0,
+      "passed": 1091,
+      "failed": 0,
+      "ignored": 5,
+      "targets": 46,
+      "scope_note": "Full run preceded the later Postgres cold-reader change and two member tests; those later changes have passing affected coverage."
+    },
+    "cli_full": {
+      "exit": 101,
+      "passed": 1436,
+      "failed": 4,
+      "ignored": 26,
+      "targets": 59,
+      "scope_note": "Full run preceded final response-framing guards; subsequent affected serving/committer/authority/ratchet repeats pass.",
+      "known_failures": [
+        "init::w7a_residency_measures_the_wired_500_follow_reader",
+        "init::w8b_residency_measures_the_wired_calibration_shape",
+        "timeline_adoption::retirement_resets_dependent_aggregates_even_when_all_names_survive",
+        "timeline_adoption::check_and_adoption_agree_across_expiry_through_changes_and_following_presence"
+      ]
+    },
+    "postgres_script": {
+      "exit": 1,
+      "passed": 398,
+      "failed": 2,
+      "ignored": 0,
+      "targets": 22,
+      "broad_run_failures": [
+        "concurrent_read_modify_write_and_duplicate_ops_are_atomic_in_both_modes (40001)",
+        "engine::postgres::ownership::tests::two_owners_stale_token_refuses_without_a_receipt (short lease expired)"
+      ],
+      "public_serving_restart_takeover_release_and_p1_mc": "pass"
+    },
+    "final_committer": {
+      "exit": 0,
+      "passed": 12,
+      "failed": 0,
+      "ignored": 0,
+      "targets": 1
+    },
+    "final_serving": {
+      "exit": 0,
+      "passed": 210,
+      "failed": 0,
+      "ignored": 13,
+      "targets": 1
+    },
+    "final_http_authority": {
+      "exit": 0,
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0,
+      "targets": 1
+    },
+    "retained_authority": {
+      "exit": 0,
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "targets": 1
+    },
+    "rt0_filter": {
+      "exit": 0,
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "targets": 1
+    },
+    "store_port_ratchet": {
+      "exit": 0,
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0,
+      "targets": 1
+    },
+    "serializable_isolated": {
+      "exit": 0,
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "targets": 1
+    },
+    "owner_lease_isolated": {
+      "exit": 0,
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "targets": 1
+    },
+    "core_member_and_cold_reader": {
+      "exit": 0,
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "targets": 1
+    },
+    "production_build": {
+      "exit": 0
+    },
+    "no_default_features": {
+      "exit": 0
+    },
+    "closing_serving": {
+      "exit": 0,
+      "passed": 210,
+      "failed": 0,
+      "ignored": 13,
+      "targets": 1
+    },
+    "closing_http_authority": {
+      "exit": 0,
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0,
+      "targets": 1
+    },
+    "closing_retained_authority": {
+      "exit": 0,
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "targets": 1
+    },
+    "closing_member_reader": {
+      "exit": 0,
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "targets": 1
+    },
+    "closing_authority_matrix": {
+      "exit": 0,
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "targets": 1
+    },
+    "closing_committer": {
+      "exit": 0,
+      "passed": 12,
+      "failed": 0,
+      "ignored": 0,
+      "targets": 1
+    },
+    "closing_rt0": {
+      "exit": 0,
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "targets": 1
+    },
+    "closing_port": {
+      "exit": 0,
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0,
+      "targets": 1
+    },
+    "closing_build": {
+      "exit": 0
+    },
+    "closing_no_default": {
+      "exit": 0
+    },
+    "closing_ref_check": {
+      "exit": 0
+    }
+  },
+  "closing_scope_witness_modes_per_store": [
+    "keyed miss",
+    "unkeyed first",
+    "concurrent stored copy after preflight miss"
+  ]
+}

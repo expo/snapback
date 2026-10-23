@@ -12,6 +12,40 @@ impl MemberTx<'_, '_> {
 }
 
 #[test]
+fn rt3b_bound_receipt_hit_aborts_only_its_member_sqlite() {
+    bound_replay_keeps_other_members(AnyStore::memory().unwrap());
+}
+
+// @ref LLP 3000.009.001.000.001#7-correctness-constraints — serial replay aborts only its member, preserving earlier and later members until COMMIT.
+pub(super) fn bound_replay_keeps_other_members(mut store: AnyStore) {
+    let tx = store.transaction().unwrap();
+    let args = serde_json::json!({"n": 1});
+    Committer::execute(&tx, Member::new(Kind::Program, |member| {
+        member.set_schedule_boundary("rt3b", 10)?;
+        member.record_commit(1, 100, ("change", "alice", "mutation"), &[], 0)?;
+        member.record_applied("alice", "same-id", 1, "stored outcome")?;
+        member.bind_applied("alice", "same-id", "change", &args, 100)?;
+        member.complete(())
+    })).unwrap();
+    let replay = Committer::execute(&tx, Member::new(Kind::Program, |member| {
+        member.set_schedule_boundary("rt3b", 20)?;
+        let stored = member.replay_bound("alice", "same-id", "change", &args)?.expect("earlier member owns the id");
+        member.rollback(stored)
+    })).unwrap();
+    assert_eq!(replay.end, Frame::Abort);
+    assert_eq!(replay.value, "stored outcome");
+    assert_eq!(tx.next_seq().unwrap(), 2);
+    Committer::execute(&tx, Member::new(Kind::Program, |member| {
+        member.record_commit(2, 200, ("later", "alice", "mutation"), &[], 0)?;
+        member.complete(())
+    })).unwrap();
+    tx.commit().unwrap();
+    assert_eq!(store.seq().unwrap(), 2);
+    assert_eq!(store.schedule_boundary("rt3b").unwrap(), Some(10));
+    assert_eq!(store.applied_outcome("alice", "same-id").unwrap().as_deref(), Some("stored outcome"));
+}
+
+#[test]
 fn two_members_keep_the_first_on_second_rollback_drop_or_error() {
     for mode in ["rollback", "drop", "error"] {
         let mut store = AnyStore::memory().unwrap();

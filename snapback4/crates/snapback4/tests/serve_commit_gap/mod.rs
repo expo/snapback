@@ -135,7 +135,10 @@ fn commit_gap(pg: bool) {
         "the removed fresh read really would refuse"
     );
     let next = host.request("POST", "/q/read", ALICE, "{}");
-    assert_eq!(status(&next), if pg { 401 } else { 503 }, "{next}");
+    // RT3b moves the persona's generation check into the query snapshot.
+    // A foreign generation is now a stale read (503), not an auth denial (401).
+    assert_eq!(status(&next), 503, "{next}");
+    assert!(body(&next).get("generation").is_none(), "no authenticated metadata: {next}");
     assert_eq!(body(&next)["denied"]["code"], expected, "{next}");
 }
 

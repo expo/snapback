@@ -8,6 +8,24 @@ pub struct RequestSnapshot<'a, 'store> {
     pub store_id: String,
     pub head: u64,
 }
+
+/// An owned observation at one boundary. Carrying it never grants authority at
+/// another boundary; that boundary must resolve again with a fresh clock.
+pub struct RequestAuthority {
+    pub capability: Option<Capability>,
+    pub store_id: String,
+    pub head: u64,
+}
+
+pub(crate) fn request_authority(tx: &AnyTx<'_>, digest: &str, sample: ServiceSample) -> Result<RequestAuthority, RuntimeError> {
+    let facts = tx.session_authority_facts(digest)?;
+    let store_id = facts.store_id.clone().ok_or_else(|| RuntimeError::Store("missing store identity".into()))?;
+    let head = facts.head;
+    let capability = facts::resolve(tx, facts, sample.now, Some(sample.supervisor_revision))?
+        .map(|s| (s.principal, s.kind, s.scope));
+    Ok(RequestAuthority { capability, store_id, head })
+}
+
 impl RequestSnapshot<'_, '_> {
     pub fn replay_bound(&self, principal: &str, id: &str, name: &str, args: &serde_json::Value) -> Result<Option<crate::MutationOutcome>, RuntimeError> {
         self.tx.replay_bound(principal, id, name, args)?
@@ -28,4 +46,14 @@ pub fn with_request_snapshot<T>(store: &AnyStore, digest: &str, sample: ServiceS
             .map(|session| (session.principal, session.kind, session.scope));
         Ok(run(RequestSnapshot { tx, capability, store_id, head }))
     })
+}
+
+/// Early refusal only. Ordinary credentials need one statement; discovering a
+/// different kind discards those facts and starts its complete borrowed snapshot.
+pub fn resolve_ingress_supervised(store: &AnyStore, digest: &str, sample: ServiceSample, expected_store: Option<&str>) -> Result<Option<Capability>, RuntimeError> {
+    let facts = store.ingress_session_authority_facts(digest)?;
+    if expected_store.is_none() || facts.store_id.as_deref() != expected_store { return Ok(None); }
+    let session = if facts::ordinary(&facts) { facts::projected(facts, sample.now, Some(sample.supervisor_revision))? }
+        else { return store.resolve_session_snapshot(digest, sample.now, expected_store, Some(sample.supervisor_revision)); };
+    Ok(session.map(|s| (s.principal, s.kind, s.scope)))
 }

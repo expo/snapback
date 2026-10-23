@@ -281,6 +281,8 @@ pub fn serve(
         mutation_wait: Mutex::new(None),
         #[cfg(test)]
         mutation_committed: Mutex::new(None),
+        #[cfg(test)]
+        operation_ingress: Mutex::new(None),
     });
     shared.install_ephemeral_wake();
     if dev {
