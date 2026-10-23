@@ -137,10 +137,12 @@ fn transfer(
             "extraction asset {id} byte length disagrees with its ledger"
         )));
     }
+    if from != to {
     tx.conn().execute(
         "UPDATE _assets SET home_table=?2,home_id=?3,home_column=?4 WHERE id=?1",
         params![id, to.0, to.1, to.2],
     )?;
+    }
     Ok(())
 }
 pub(super) fn transition(
@@ -341,7 +343,10 @@ pub(super) fn transition(
                 .query_row("SELECT EXISTS(SELECT 1 FROM r WHERE t=?1)", [pt], |r| {
                     r.get(0)
                 })?;
+        let resume_each=e.each && populated && !parent.columns.contains_key(each::source(e,child));
+        if resume_each && !each::known(tx,&key)? {return Err(refuse("extract each source list is absent and no successfully applied extraction owns this suspended definition"));}
         for (dest, source) in e.fields.iter().filter(|_| populated) {
+            if resume_each && asset(&child.columns[dest]) {continue;}
             let kind = parent.columns.get(source).ok_or_else(|| {
                 refuse(format!("extraction source {}.{source} is absent", e.parent))
             })?;
@@ -362,7 +367,7 @@ pub(super) fn transition(
             }
             if !asset(kind)&&(!parent.constraints.iter().any(|c|matches!(c,crate::schema::Constraint::Immutable{fields} if fields.contains(source)))||matches!(kind,ColumnType::Ref{..}|ColumnType::Optional(_))){return Err(refuse("extraction scalar copies require immutable source fields without reference/captured authority"))}
         }
-        if e.each { each::forward(tx,e,parent,child,&key,report)?; continue; }
+        if e.each { if resume_each {each::resume(tx,e,parent,child,&key,report)?;}else{each::forward(tx,e,parent,child,&key,report)?;} continue; }
         super::activation::walk(tx, pt, |id, mut row| {
             let saved:Option<String>=tx.conn().query_row("SELECT child_id FROM _extraction_rows WHERE definition=?1 AND parent_t=?2 AND parent_id=?3",params![key,pt,id],|r|r.get(0)).optional()?;
             let child_id = saved.clone().unwrap_or_else(|| id.to_owned());

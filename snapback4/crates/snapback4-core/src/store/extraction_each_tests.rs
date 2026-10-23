@@ -379,3 +379,60 @@ fn dx8_each_reverse_refuses_populated_narrowed_children_until_loosened_bridge() 
     assert_eq!(current.len(),2);
     assert!(current.contains(&bid));
 }
+
+#[test]
+fn dx8_each_reverse_refuses_pruned_migration_owned_null_child_atomically() {
+    let mut e=engine(OLD_EACH);
+    let a=handle(&mut e,b"removed then pruned");
+    let parent=mutate(&mut e,"add",[("names",Value::Array(vec![a]))]).field("id").unwrap().as_str().unwrap().to_owned();
+    adopt(&mut e,NEW_EACH,2).unwrap();adopt(&mut e,OLD_EACH,1).unwrap();
+    mutate(&mut e,"edit",[("id",Value::Id(parent.clone())),("names",Value::Array(vec![]))]);
+    adopt(&mut e,NEW_EACH,2).unwrap();
+    e.store_mut().prune_dormant(true,None).unwrap();
+    let generation=e.generation();
+    let error=adopt(&mut e,OLD_EACH,1).unwrap_err().to_string();
+    assert!(error.contains("pruned/deleted"),"{error}");assert_eq!(e.generation(),generation);
+    assert_eq!(e.store().count("documents").unwrap(),0);
+}
+#[test]
+fn dx8_each_restores_suspended_children_without_replaying_consumed_lists() {
+    let suspended=NEW_EACH.split("\ntable documents:").next().unwrap().to_owned()+"\nmutation add():\n  return insert orders {}\n";
+    let mut e=engine(OLD_EACH);
+    let a=handle(&mut e,b"original");
+    let parent=mutate(&mut e,"add",[("names",Value::Array(vec![a]))]).field("id").unwrap().as_str().unwrap().to_owned();
+    adopt(&mut e,NEW_EACH,2).unwrap();
+    let image=handle(&mut e,b"edited current");let aid=crate::assets::asset_id(Some(&image)).unwrap().to_owned();
+    let child=e.store().test_support_conn().query_row("SELECT id FROM r WHERE t=(SELECT num FROM _catalog WHERE name='documents')",[],|r|r.get::<_,String>(0)).unwrap();
+    mutate(&mut e,"edit",[("id",Value::Id(child.clone())),("names",image)]);
+    let native=handle(&mut e,b"native current");let bid=crate::assets::asset_id(Some(&native)).unwrap().to_owned();
+    let native=mutate(&mut e,"attach",[("order",Value::Id(parent.clone())),("names",native)]).field("id").unwrap().as_str().unwrap().to_owned();
+    for cycle in 0..3 {
+        adopt(&mut e,&suspended,3).unwrap();
+        if cycle==0 {mutate(&mut e,"add",[]);}
+        adopt(&mut e,NEW_EACH,2).unwrap();
+        assert_eq!(e.store().count("documents").unwrap(),2);
+        assert_eq!(child_for(&e,&aid),child);assert_eq!(child_for(&e,&bid),native);
+        assert!(e.store().adoption_report().backfills.iter().any(|x|x.contains("without replaying consumed")));
+    }
+    adopt(&mut e,OLD_EACH,1).unwrap();assert_eq!(ids(&mut e,&parent),vec![aid,bid]);
+    adopt(&mut e,NEW_EACH,2).unwrap();assert_eq!(e.store().count("documents").unwrap(),2);
+}
+#[test]
+fn dx8_each_resume_refuses_retrospective_native_capture_and_unknown_sources() {
+    let mut e=engine(OLD_EACH);let a=handle(&mut e,b"known");
+    let parent=mutate(&mut e,"add",[("names",Value::Array(vec![a]))]).field("id").unwrap().as_str().unwrap().to_owned();
+    adopt(&mut e,NEW_EACH,2).unwrap();
+    let without=NEW_EACH.lines().filter(|s|!s.starts_with("extract ")).collect::<Vec<_>>().join("\n")+"\n";
+    adopt(&mut e,&without,3).unwrap();
+    let b=handle(&mut e,b"independent");mutate(&mut e,"attach",[("order",Value::Id(parent)),("names",b)]);
+    let generation=e.generation();let error=adopt(&mut e,NEW_EACH,2).unwrap_err().to_string();
+    assert!(error.contains("retrospectively capture"),"{error}");assert_eq!(e.generation(),generation);
+    let only_parent=NEW_EACH.split("\ntable documents:").next().unwrap().to_owned()+"\nmutation add():\n  return insert orders {}\n";
+    let mut e=engine(&only_parent);mutate(&mut e,"add",[]);
+    let generation=e.generation();let error=adopt(&mut e,NEW_EACH,2).unwrap_err().to_string();
+    assert!(error.contains("no successfully applied extraction"),"{error}");assert_eq!(e.generation(),generation);
+    // An initially empty new-shape backend can own the declaration, then
+    // suspend and resume native rows under the same captured lifetime law.
+    let mut e=engine(NEW_EACH);
+    adopt(&mut e,&only_parent,3).unwrap();adopt(&mut e,NEW_EACH,2).unwrap();
+}

@@ -12,7 +12,7 @@ pub(super) fn item_type(kind: &ColumnType) -> Option<&ColumnType> {
     }
 }
 fn setup(tx: &Tx<'_>) -> Result<(), RuntimeError> {
-    tx.conn().execute_batch("CREATE TABLE IF NOT EXISTS _extraction_each_rows(definition TEXT NOT NULL,parent_t INTEGER NOT NULL,parent_id TEXT NOT NULL,child_t INTEGER NOT NULL,child_id TEXT NOT NULL,asset_id TEXT NOT NULL,position INTEGER NOT NULL,PRIMARY KEY(definition,child_t,child_id),UNIQUE(definition,parent_t,parent_id,asset_id)) WITHOUT ROWID;")?;
+    tx.conn().execute_batch("CREATE TABLE IF NOT EXISTS _extraction_each_rows(definition TEXT NOT NULL,parent_t INTEGER NOT NULL,parent_id TEXT NOT NULL,child_t INTEGER NOT NULL,child_id TEXT NOT NULL,asset_id TEXT NOT NULL,position INTEGER NOT NULL,PRIMARY KEY(definition,child_t,child_id),UNIQUE(definition,parent_t,parent_id,asset_id)) WITHOUT ROWID; CREATE TABLE IF NOT EXISTS _extraction_each_definitions(definition TEXT PRIMARY KEY) WITHOUT ROWID;")?;
     Ok(())
 }
 fn exists(tx: &Tx<'_>) -> Result<bool, RuntimeError> {
@@ -121,6 +121,49 @@ fn validate_receipts(tx:&Tx<'_>,key:&str,pt:i64,id:&str,ct:i64,meter:&mut Meter)
     Ok(())
 }
 
+pub(super) fn source<'a>(e:&'a Extraction,child:&Table)->&'a str { mapping(e,child).1 }
+pub(super) fn known(tx:&Tx<'_>,key:&str)->Result<bool,RuntimeError>{
+    setup(tx)?;
+    Ok(tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM _extraction_each_definitions WHERE definition=?1)",[key],|r|r.get(0))?)
+}
+fn validate_all_receipts(tx:&Tx<'_>,key:&str,pt:i64,ct:i64)->Result<(),RuntimeError>{
+    let mut q=tx.conn().prepare("SELECT DISTINCT parent_id FROM _extraction_each_rows WHERE definition=?1 AND parent_t=?2 AND child_t=?3 ORDER BY parent_id")?;
+    let mut parents=q.query(params![key,pt,ct])?;
+    while let Some(record)=parents.next()? {
+        let id:String=record.get(0)?;
+        let mut meter=Meter::new(Ceilings::job(),Cut::Abort);
+        meter.heap((id.len() as u64).saturating_mul(8).saturating_add(128))?;
+        validate_receipts(tx,key,pt,&id,ct,&mut meter)?;
+    }
+    Ok(())
+}
+// A suspended declaration has already consumed its historical list. Resume
+// validates current child custody; it never replays stale list preimages.
+pub(super) fn resume(tx:&Tx<'_>,e:&Extraction,parent:&Table,child:&Table,key:&str,report:&mut super::super::adoption_report::AdoptionReport)->Result<(),RuntimeError>{
+    if !known(tx,key)? { return Err(refuse("extract each source list is absent and no successfully applied extraction owns this suspended definition")); }
+    let pt=tx.num(&e.parent)?;let ct=tx.num(&e.child)?;
+    validate_all_receipts(tx,key,pt,ct)?;
+    let (destination,_)=mapping(e,child);let mut count=0u64;
+    super::super::activation_walk::walk_metered(tx,ct,crate::rows::adoption::Work::DECODE,None,|id,image,meter|{
+        let parent_id=image.field(&e.reference)?.as_str()?;
+        if !anchored(tx,ct,id,key,pt,parent_id)? { return Err(refuse("resuming extract each lacks valid captured parent-lifetime evidence; never retrospectively capture an independent child")); }
+        let active:bool=tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM r WHERE t=?1 AND id=?2)",params![pt,parent_id],|r|r.get(0))?;
+        if !active {return Err(refuse("resuming extract each requires its existing current parent; preserve narrowed parent authority in a bridge"));}
+        let current=receipt_image(tx,pt,parent_id,meter)?.ok_or_else(||refuse("resuming extract each lost its current parent"))?;
+        if let Some(through)=&child.through {
+            let current=crate::schema::row_image(&current,parent);
+            if through.fields.iter().any(|(capture,field)|image.field(capture).ok()!=current.field(field).ok()) { return Err(refuse("resuming extract each would change captured parent authority; use an authored bridge")); }
+        }
+        for(dest,src)in &e.fields {
+            if dest!=destination && image.field(dest).ok()!=current.field(src).ok() { return Err(refuse("resuming extract each immutable scalar copies disagree with the current parent")); }
+        }
+        transfer(tx,image.field(destination)?,(&e.child,id,destination),(&e.child,id,destination))?;
+        count+=1;Ok(())
+    })?;
+    report.backfills.push(format!("extract {} each: resumed {count} current child rows without replaying consumed source lists",e.child));
+    Ok(())
+}
+
 pub(super) fn forward(
     tx: &Tx<'_>,
     e: &Extraction,
@@ -133,6 +176,7 @@ pub(super) fn forward(
     let pt = tx.num(&e.parent)?;
     let ct = tx.num(&e.child)?;
     let (destination, source) = mapping(e, child);
+    validate_all_receipts(tx,key,pt,ct)?;
     let mut count = 0u64;
     super::super::activation::walk(tx, pt, |id, mut row| {
         let Some(list) = value(tx, pt, id, &row, source)? else {
@@ -159,7 +203,6 @@ pub(super) fn forward(
                 .saturating_mul(4)
                 .saturating_add(8192),
         )?;
-        validate_receipts(tx,key,pt,id,ct,&mut meter)?;
         let mut seen = BTreeSet::new();
         for (position, v) in values.iter().enumerate() {
             meter.charge(MeterKind::RowsWritten, 1)?;
@@ -278,6 +321,7 @@ pub(super) fn forward(
         write(tx, pt, id, &row)?;
         Ok(())
     })?;
+    tx.conn().execute("INSERT OR IGNORE INTO _extraction_each_definitions VALUES(?1)",[key])?;
     report.backfills.push(format!(
         "extract {} each: prepared {count} child rows and moved existing asset homes",
         e.child
@@ -298,6 +342,7 @@ pub(super) fn backward(
     let pt = tx.num(&e.parent)?;
     let ct = tx.num(&e.child)?;
     let (destination, source) = mapping(e, child);
+    validate_all_receipts(tx,key,pt,ct)?;
     let Some(kind) = parent.columns.get(source) else {
         return Ok(());
     };

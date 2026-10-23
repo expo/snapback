@@ -102585,3 +102585,19 @@ as active under a different definition. New tests cover atomic prune/removal
 refusal, repeated removed-element cycles, and bridge recovery of native children.
 Muse round 2 was READY; Codex was NOT READY. Both will review the corrected
 frozen full revision; neither earlier review is reported as joint readiness.
+
+### DX8 review round 3: reverse custody and suspended extraction
+
+Muse marked revision 4787bb7 READY; fresh Codex found reverse needed the same
+receipt/lifetime preflight as forward after an internal null child was pruned.
+It also found that retiring and restoring the child table demanded a source
+list already consumed by the original extraction. Both directions now validate
+all receipt-owned lifetimes. A durable applied-definition marker distinguishes
+suspension from initial historical migration, including empty first adoption.
+Resume validates current homes/bytes and existing parent capture, preserving
+edited and native child identities without replaying preimages. Independent
+children created without extraction custody refuse retrospective capture.
+The resumption traversal shares child-page and parent-image job accounting.
+The added regression set covers repeated retirement/restoration, current edits,
+native children, new empty parents, unknown source and unanchored resumption.
+Both independent families review the expanded full amendment again.
