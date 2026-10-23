@@ -114,5 +114,6 @@ fn strict_rule_change_refuses_preview_and_activation_with_prominent_review(){
   let out=app.run(args);let body=text(&out);assert_eq!(out.status.code(),Some(1),"{body}");
   for expected in ["SECURITY REVIEW — rules changed","FIX","last test:","FAILED","age ","E_SECURITY_REVIEW"]{assert!(body.contains(expected),"missing {expected}: {body}");}
  }
- let preview=app.run(&["deploy","deployment","--check"]);let body=text(&preview);assert!(preview.status.success(),"{body}");assert!(body.contains("release 2 would be current"),"strict attempts did not activate: {body}");
+ let preview=app.run(&["deploy","deployment","--check"]);let body=text(&preview);assert_eq!(preview.status.code(),Some(1),"{body}");assert!(body.contains("production deploy refuses reachable FIX"),"ordinary production preview also refuses: {body}");
+ let staged=app.run(&["deploy","staging-deployment","--check","--staging"]);let body=text(&staged);assert!(staged.status.success(),"{body}");assert!(body.contains("release 1 would be current"),"fresh staging preview remains advisory: {body}");
 }

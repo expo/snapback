@@ -39,3 +39,9 @@ const ASYMMETRY:&str="table records:\n  owner: principal\n  value: text ?\n  rea
   assert!(!challenges::evaluation_gaps(&b).iter().any(|s|s.contains(&site)),"{:?}",challenges::evaluation_gaps(&b));
  }
 }
+
+#[test]fn default_only_and_unconditionally_immutable_values_are_not_derived_creation_authority(){
+ for s in [ASYMMETRY.replace("  owner: principal", "  immutable value\n  owner: principal"),ASYMMETRY.replace("value: text ?", "value: text ? default 'initial'").replace("insert records { owner, value }","insert records { owner }")] {
+  let sources=vec![("schema.q".into(),s.clone())];assert!(security::derived::invariants(&sources,&bound(&s)).is_empty());
+ }
+}

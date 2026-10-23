@@ -4,12 +4,6 @@ use super::*;
 impl Table {
     pub fn guarded_rule(&self, effect: Effect) -> std::borrow::Cow<'_, RuleExpr> {
         let base = if effect == Effect::Update { self.update_rule_judged() } else { std::borrow::Cow::Borrowed(self.rules.for_effect(effect)) };
-        // Device-only builds queue these writes before looking up a target;
-        // no policy evaluator or grant is inferred from incomplete replicas.
-        #[cfg(not(feature="sqlite"))]
-        return base;
-        #[cfg(feature="sqlite")]
-        {
         if self.column_writes.is_empty() || !matches!(effect,Effect::Insert|Effect::Update) { return base; }
         let mut rules=vec![base.into_owned()];
         for (column,policy) in &self.column_writes {
@@ -18,10 +12,8 @@ impl Table {
             rules.push(RuleExpr::Or(vec![same,if effect==Effect::Insert {policy.clone()} else {policy.old_and_next()}]));
         }
         std::borrow::Cow::Owned(RuleExpr::And(rules))
-        }
     }
 }
-#[cfg(feature="sqlite")]
 pub fn validate(schema:&Schema)->Vec<SchemaIssue>{
     let mut issues=Vec::new();
     for (name,t) in &schema.tables {
@@ -38,9 +30,3 @@ pub fn validate(schema:&Schema)->Vec<SchemaIssue>{
     }
     issues
 }
-
-// Client-only engines never evaluate these grants and refuse every guarded write.
-// Server validation owns their authoring grammar; the capability carrier is still
-// checked by the streaming schema decoder on every client ingress.
-#[cfg(not(feature="sqlite"))]
-pub fn validate(_schema:&Schema)->Vec<SchemaIssue>{Vec::new()}

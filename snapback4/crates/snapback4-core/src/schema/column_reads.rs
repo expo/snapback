@@ -212,7 +212,6 @@ pub fn validate(schema: &Schema) -> Vec<SchemaIssue> {
         ] {
             walk.rule(name, rule, &path);
         }
-        #[cfg(feature="sqlite")]
         for rule in table.column_writes.values().chain(table.frozen_columns.values()){walk.rule(name,rule,&path);}
         for index in table.indexes.values() {
             for field in table.column_reads.keys().filter(|f| index.uses_column(f)) {

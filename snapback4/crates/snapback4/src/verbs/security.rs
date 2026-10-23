@@ -97,14 +97,15 @@ pub(super) fn release_loop(project:&Project,bound:&Bound,sources:&[(String,Strin
     if !changed{return Ok(None);}
     // @ref LLP 3000.036.004#153-rule-changing-deployment-review — review is prominent, strictness is explicit and failure-origin aware.
     let started=std::time::Instant::now();
-    let mut preflight=options.clone();preflight.flags.insert("security-deploy".into(),String::new());
+    let mut preflight=options.clone();if !options.flags.contains_key("staging")||options.flags.contains_key("strict"){preflight.flags.insert("security-deploy".into(),String::new());}
     let mut report=report(project,bound,sources,&preflight);
     report.notes.extend(presence::notes(project,bound,prior,sources)?);
     if super::proof_source::sources(project,options,"schema")?!=sources{return Err("selected Quarry sources changed during deployment security preflight".into());}
     let dispositions=super::security_reviews::review_snapshot(project,sources,&report.notes)?;
     let derived=security::derived::notes(sources,bound);
     let acknowledged=derived.iter().filter(|n|report.notes.iter().zip(&dispositions).any(|(r,d)|r.site==n.site&&r.code==n.code&&r.message==n.message&&d.acknowledged)).map(|n|n.site.to_string()).collect::<std::collections::BTreeSet<_>>();
-    let failing=super::security_reviews::pending(&dispositions)||report.invariants.iter().any(|v|v.status==security::Status::Refuted&&v.counterexample.as_ref().is_some_and(|c|c.reachability.is_reachable())&&(!security::derived::is_derived(&v.invariant)||!acknowledged.contains(&v.invariant.site.to_string())));
+    let pending=super::security_reviews::pending(&dispositions);
+    let fixes=report.invariants.iter().any(|v|v.status==security::Status::Refuted&&v.counterexample.as_ref().is_some_and(|c|c.reachability.is_reachable())&&(!security::derived::is_derived(&v.invariant)||!acknowledged.contains(&v.invariant.site.to_string())));
     eprintln!("security deploy campaign: {} ms; bounded replay, remaining paths retain coverage gaps",started.elapsed().as_millis());
     let mut notice=String::from("SECURITY REVIEW — rules changed\n");
     for v in report.invariants.iter().filter(|v|v.status==security::Status::Refuted&&v.counterexample.as_ref().is_some_and(|c|c.reachability.is_reachable())){
@@ -121,7 +122,8 @@ pub(super) fn release_loop(project:&Project,bound:&Bound,sources:&[(String,Strin
     notice.push_str(&format!("  {}\n",release_notice(project,bound,sources,options)));
     notice.push_str(&format!("  {} independent invariants; {} coverage gaps; finite campaigns are not proof",bound.invariants.len(),report.campaign_coverage.len()));
     exposure(&report);eprintln!("{notice}");
-    if failing&&(!options.flags.contains_key("staging")||options.flags.contains_key("strict")){return Err("E_SECURITY_REVIEW: production deploy refuses reachable FIX; repair the named rule and rerun test; for a derived candidate only, record its rule-bound deliberate design with check --ack-security ID --reason <spec rationale>".into());}
+    if pending&&!fixes&&(!options.flags.contains_key("staging")||options.flags.contains_key("strict")){return Err("E_SECURITY_REVIEW: production deploy requires individual security review; run check for each rule ID and record the specification decision".into());}
+    if fixes&&(!options.flags.contains_key("staging")||options.flags.contains_key("strict")){return Err("E_SECURITY_REVIEW: production deploy refuses reachable FIX; repair the named rule and rerun test; for a derived candidate only, record its rule-bound deliberate design with check --ack-security ID --reason <spec rationale>".into());}
     Ok(Some(notice))
 }
 fn age(timestamp:Option<i64>,now:i64)->String{

@@ -26,6 +26,7 @@ export async function proveSecurity(clientTarball, platformTarball, directory) {
   const native = join(cwd, "node_modules", `snapback4-${process.platform}-${process.arch}`, "snapback4");
   const binarySha256 = sha256(native), commands = [];
   function command(args, project = cwd, expected = 0) {
+    if (process.env.SNAPBACK4_SECURITY_PROGRESS) process.stdout.write(`security proof: ${project.slice(cwd.length) || "."} ${args[0]}\n`);
     const result = spawnSync(process.execPath, [cli, ...args], {
       cwd: project, env, encoding: "utf8", timeout: 120_000, maxBuffer: 32 * 1024 * 1024,
     });

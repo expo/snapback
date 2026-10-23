@@ -41,7 +41,7 @@ pub(super) fn notes(sources:&[(String,String)],bound:&Bound)->Vec<Diagnostic>{
         if !matches!(op,ast::WriteOp::Insert|ast::WriteOp::Upsert){continue;}
         for (column,guard) in table_guards(&bound.schema.tables[table].rules.update) {
             let t=&bound.schema.tables[table];
-            if t.column_writes.contains_key(&column) || update_only(bound,table,&column,&guard) || !fields.iter().any(|f|f.name==column&&supplied(f,creator)){continue;}
+            if t.immutable_fields().any(|c|c==&column) || t.column_writes.contains_key(&column) || update_only(bound,table,&column,&guard) || !fields.iter().any(|f|f.name==column&&supplied(f,creator)){continue;}
             let known=creation_values(&bound.schema.tables[table],fields);
             let admission=terms(admission,&mut |t|if let RuleTerm::Field(c)|RuleTerm::NextField(c)=t {if let Some(value)=known.get(c){*t=value.clone();}});
             let creation_guard=terms(&guard,&mut |t|if let RuleTerm::Field(c)=t {if let Some(value)=known.get(c){*t=value.clone();}});
@@ -88,7 +88,7 @@ pub(super) fn notes(sources:&[(String,String)],bound:&Bound)->Vec<Diagnostic>{
     }out
 }
 
-fn supplied(field:&ast::ObjectField,program:&ast::ProgramDecl)->bool{
+pub(super) fn supplied(field:&ast::ObjectField,program:&ast::ProgramDecl)->bool{
     let Some(value)=&field.value else{return true;};let mut value=value.clone();let mut supplied=false;
     super::super::intent_walk::expression(&mut value,&mut |e|if let ast::Expr::Name{name,..}=e{supplied|=program.args.iter().any(|a|a.name==*name);});
     supplied

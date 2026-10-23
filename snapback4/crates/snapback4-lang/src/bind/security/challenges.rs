@@ -376,7 +376,7 @@ fn arguments(args:&BTreeMap<String,ir::ArgType>,variant:usize)->Option<BTreeMap<
     use ir::ArgType as A;
     fn one(k:&A,v:usize)->Option<Value>{Some(match k{
         A::Ref{table}=>id(table),A::Principal=>Value::Id(if v&1==0{OTHER}else{VIEWER}.into()),A::Id=>Value::Id("security-argument".into()),A::Cursor=>Value::Null,A::Optional(inner)=>if v&4==0{Value::Null}else{one(inner,v)?},
-        A::Text{min,max,..}=>Value::String("z".repeat((*min).max(1).min(*max) as usize)),A::Enum{variants}=>Value::String(variants.get(v%variants.len())?.clone()),A::Int|A::Decimal{..}|A::Money{..}=>Value::Int(1),A::IntRange{min,max}=>Value::Int(1i64.clamp(*min,*max)),A::Time=>Value::Int(NOW+86_400_000),A::Bool=>Value::Bool(v&2==0),A::List{of:Some(inner),..}=>Value::Array(vec![one(inner,v)?]),A::ListRange{of:Some(inner),min,..}=>Value::Array((0..*min).map(|_|one(inner,v)).collect::<Option<_>>()?),A::List{..}=>Value::Array(Vec::new()),A::Json{..}=>Value::Null,A::Bytes{..}=>Value::Bytes(Vec::new()),A::Image{..}=>Value::String("$security:image".into()),A::File{..}=>Value::String("$security:file".into()),_=>return None,
+        A::Text{min,max,..}=>Value::String("z".repeat((*min).max(1).min(*max) as usize)),A::Enum{variants}=>Value::String(variants.get(v%variants.len())?.clone()),A::Int|A::Decimal{..}|A::Money{..}=>Value::Int(1),A::IntRange{min,max}=>Value::Int(1i64.clamp(*min,*max)),A::Time=>Value::Int(NOW+86_400_000),A::Bool=>Value::Bool(v&2==0),A::List{of:Some(inner),..}=>Value::Array(vec![one(inner,v)?]),A::ListRange{of:Some(inner),min,..}=>Value::Array((0..*min).map(|_|one(inner,v)).collect::<Option<_>>()?),A::List{..}=>Value::Array(Vec::new()),A::Json{..}=>Value::Null,A::Bytes{..}=>Value::Bytes(Vec::new()),A::Image{..}=>Value::String(if v&4==0{"$security:image"}else{"$security:image:alternate"}.into()),A::File{..}=>Value::String("$security:file".into()),_=>return None,
     })}
     args.iter().map(|(n,k)|one(k,variant).map(|v|(n.clone(),v))).collect()
 }
@@ -385,7 +385,7 @@ fn materialize_arguments(engine:&mut Engine,args:&BTreeMap<String,ir::ArgType>,v
     fn one(e:&mut Engine,k:&ir::ArgType,v:&Value,viewer:&str)->Result<Value,String>{Ok(match (k,v){
         (ir::ArgType::Optional(inner),v) if *v!=Value::Null=>one(e,inner,v,viewer)?,
         (ir::ArgType::List{of:Some(inner),..}|ir::ArgType::ListRange{of:Some(inner),..},Value::Array(xs))=>Value::Array(xs.iter().map(|v|one(e,inner,v,viewer)).collect::<Result<_,_>>()?),
-        (ir::ArgType::Image{..},Value::String(marker)) if marker=="$security:image"=>e.store_asset(viewer,&PNG,NOW).map_err(|e|e.to_string())?.column_value(),
+        (ir::ArgType::Image{..},Value::String(marker)) if matches!(marker.as_str(),"$security:image"|"$security:image:alternate")=>{let mut bytes=PNG;if marker.ends_with(":alternate"){bytes[19]=2;}e.store_asset(viewer,&bytes,NOW).map_err(|e|e.to_string())?.column_value()},
         (ir::ArgType::File{types,..},Value::String(marker)) if marker=="$security:file"=>assets::file(e,viewer,types)?,
         _=>v.clone(),
     })}

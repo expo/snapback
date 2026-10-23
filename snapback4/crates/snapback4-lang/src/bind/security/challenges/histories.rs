@@ -51,6 +51,7 @@ fn time_samples(bound:&Bound,out:&mut Campaign)->Vec<Value>{
 pub(super) fn fixture_cases(bound:&Bound,p:&Program,rows:&BTreeMap<String,Vec<Value>>,actors:&[String],out:&mut Campaign)->Vec<BTreeMap<String,Value>>{
     let args=&p.args;
     let times=time_samples(bound,out);
+    let preferences=principal_preferences(bound,p,rows);
     let mut literals=BTreeMap::<String,Vec<Value>>::new();
     fn collect(value:&serde_json::Value,out:&mut BTreeMap<String,Vec<Value>>){
         if let Some(binary)=value.get("Binary") {for (a,b) in [("left","right"),("right","left")] {
@@ -69,6 +70,7 @@ pub(super) fn fixture_cases(bound:&Bound,p:&Program,rows:&BTreeMap<String,Vec<Va
             ir::ArgType::IntRange{min,max}=>{let mut xs=vec![*min,1i64.clamp(*min,*max),*max];xs.sort();xs.dedup();xs.into_iter().map(Value::Int).collect()},
             ir::ArgType::Bool=>vec![Value::Bool(false),Value::Bool(true)],
             ir::ArgType::Time=>times.to_vec(),
+            ir::ArgType::Image{..}=>vec![Value::String("$security:image".into()),Value::String("$security:image:alternate".into())],
             ir::ArgType::Principal=>actors.iter().map(|s|Value::Id(s.clone())).collect(),
             ir::ArgType::Ref{table} if rows.get(table).is_some_and(|rs|!rs.is_empty())=>rows[table].iter().filter_map(|r|r.field("id").ok().cloned()).collect(),
             ir::ArgType::Optional(inner)=>{let mut v=vec![Value::Null];v.extend(values(name,inner,rows,actors,times)?);v},
@@ -78,6 +80,7 @@ pub(super) fn fixture_cases(bound:&Bound,p:&Program,rows:&BTreeMap<String,Vec<Va
     let mut cases=vec![BTreeMap::new()];
     for (name,k) in args{
         let Some(mut vals)=values(name,k,rows,actors,&times)else{out.unsupported.insert(format!("{name}: history needs a typed asset argument"));return Vec::new();};
+        if let Some(preferred)=preferences.get(name){vals.sort_by_key(|v|!preferred.contains(v));}
         for literal in literals.get(name).into_iter().flatten() {
             let valid=match (k,literal){
                 (ir::ArgType::Text{min,max,..},Value::String(s))=>s.chars().filter(|c|!c.is_whitespace()).count()>=*min as usize&&s.chars().count()<=*max as usize,
@@ -93,6 +96,13 @@ pub(super) fn fixture_cases(bound:&Bound,p:&Program,rows:&BTreeMap<String,Vec<Va
             if !next.contains(&case){next.push(case);}if next.len()==LIMIT{out.unsupported.insert("history arguments capped at 512 combinations".into());break 'product;}
         }}
         cases=next;
+    }
+    if !preferences.is_empty(){
+        let ordinary=cases;let mut preferred=Vec::new();let mut keys=BTreeSet::new();
+        for case in &ordinary{let mut candidate=case.clone();for (name,values) in &preferences{if let Some(value)=values.first(){candidate.insert(name.clone(),value.clone());}}if keys.insert(serde_json::to_string(&candidate).unwrap()){preferred.push(candidate);}}
+        for case in ordinary{if keys.insert(serde_json::to_string(&case).unwrap()){preferred.push(case);}}
+        if preferred.len()>LIMIT{out.unsupported.insert(format!("{}: role-conditioned principal tuple priority displaces remaining argument combinations beyond 512",p.name));preferred.truncate(LIMIT);}
+        cases=preferred;
     }
     let focused=super::executed::write_arguments(bound,p).into_iter().filter(|a|matches!(p.args.get(a),Some(ir::ArgType::Optional(inner)) if !matches!(inner.as_ref(),ir::ArgType::Ref{..}|ir::ArgType::Principal))).collect::<Vec<_>>();
     if focused.is_empty(){return cases;}
@@ -341,6 +351,9 @@ pub(super) fn initial_observers(bound:&Bound,fixture:&Engine,out:&mut Campaign){
 // Prefer real lifecycle successors before the general diagonal history matrix.
 // @ref LLP 3000.036.004#163-directed-finite-histories — pruning orders finite replay, never proves safety.
 pub(super) fn lifecycle_observers(bound:&Bound,fixture:&Engine,out:&mut Campaign){
+    lifecycle_observers_to(bound,fixture,out,4096)
+}
+pub(super) fn lifecycle_observers_to(bound:&Bound,fixture:&Engine,out:&mut Campaign,limit:usize){
     if bound.invariants.is_empty()||out.exhausted()||bound.invariants.iter().all(|i|out.violations.iter().any(|v|v.invariant_site==i.site.to_string()&&v.reachability.is_reachable())){return;}
     let interesting=bound.invariants.iter().filter(|i|{
         if out.violations.iter().any(|v|v.invariant_site==i.site.to_string()&&v.reachability.is_reachable()){return false;}
@@ -349,13 +362,15 @@ pub(super) fn lifecycle_observers(bound:&Bound,fixture:&Engine,out:&mut Campaign
     }).collect::<Vec<_>>();
     if interesting.is_empty(){return;}
     let selected_sites=interesting.iter().map(|i|i.site.to_string()).collect::<BTreeSet<_>>();
-    let mut relevant=interesting.into_iter().flat_map(|i|std::iter::once(i.table.clone()).chain(i.policy.iter().flat_map(kernel::dependencies))).collect::<BTreeSet<_>>();
+    let mut relevant=interesting.iter().flat_map(|i|std::iter::once(i.table.clone()).chain(i.policy.iter().flat_map(kernel::dependencies))).collect::<BTreeSet<_>>();
     for _ in 0..bound.schema.tables.len(){let old=relevant.clone();for name in &old{for kind in bound.schema.tables[name].columns.values(){if let C::Ref{table}=kind.required(){relevant.insert(table.clone());}}}if old==relevant{break;}}
     let has_lifecycle=relevant.iter().any(|name|bound.schema.tables[name].columns.values().any(|k|matches!(k.required(),C::Enum{..}|C::Bool|C::Principal|C::Ref{..})));
     if !has_lifecycle{return;}
-    let transitions=bound.programs.iter().filter(|bp|bp.program.kind==ProgramKind::Mutation&&!bp.program.native&&!bound.schema.operations.get(&bp.program.name).is_some_and(|f|f.ephemeral)).filter(|bp|{
+    let mut transitions=bound.programs.iter().filter(|bp|bp.program.kind==ProgramKind::Mutation&&!bp.program.native&&!bound.schema.operations.get(&bp.program.name).is_some_and(|f|f.ephemeral)).filter(|bp|{
         ir::write_tables(&bp.program).iter().any(|(name,kind)|relevant.contains(name)&&(*kind!="insert"||bound.invariants.iter().any(|i|&i.table==name)))
     }).collect::<Vec<_>>();
+    let focused=interesting.iter().filter(|i|i.policy.as_ref().is_none_or(|policy|kernel::implies(&RuleExpr::And(i.requirements.clone()),policy)!=Ok(true))).filter_map(|i|i.operation.as_ref()).collect::<BTreeSet<_>>();
+    transitions.sort_by_key(|bp|(!focused.contains(&bp.program.name),ir::write_tables(&bp.program).iter().all(|(t,_)|!super::super::privilege::role_columns(bound,t).is_empty())));
     if transitions.is_empty(){return;}
     let Ok(initial)=readback(fixture)else{return;};
     if !relevant.iter().any(|name|super::super::privilege::role_columns(bound,name).is_empty()&&initial.get(name).is_some_and(|rs|!rs.is_empty())){
@@ -405,8 +420,8 @@ pub(super) fn lifecycle_observers(bound:&Bound,fixture:&Engine,out:&mut Campaign
                     if ordered.len()<actor_count{out.unsupported.insert(format!("{}: directed role-class deduplication omits actors with matching role/target projections; actor-specific histories uncovered",p.name));}
                     if ordered.len()>2{out.unsupported.insert(format!("{}: directed actor ordering keeps two candidates per argument tuple; other actors remain in breadth campaign",p.name));}
                     for (viewer,_,_) in ordered.into_iter().take(2){
-                    for clock in clock_candidates(bound,&before,&steps){
-                    if out.directed_attempts>=4096||!out.reserve(1){out.unsupported.insert("directed lifecycle successors capped at 4096 attempts/shared campaign budget; remaining histories uncovered".into());return;}out.directed_attempts+=1;
+                    for clock in clock_candidates(bound,&before,&steps,out){
+                    if out.directed_attempts>=limit||!out.reserve(1){out.unsupported.insert("directed lifecycle successors reached their shared attempt limit; remaining histories uncovered".into());return;}out.directed_attempts+=1;
                     let Ok(mut engine)=base.fork_fixture()else{continue;};
                     let Ok(args)=materialize_arguments(&mut engine,&p.args,&args,viewer)else{continue;};
                     let mut prior=None;
@@ -594,12 +609,62 @@ pub(super) fn run(bound:&Bound,fixture:&Engine,out:&mut Campaign){
 }}
 
 pub(super) fn history_clock(steps:&[Step])->i64{steps.iter().rev().find_map(|s|s.clock).unwrap_or(NOW)}
-fn clock_candidates(bound:&Bound,rows:&BTreeMap<String,Vec<Value>>,steps:&[Step])->Vec<i64>{
-    let current=history_clock(steps);let mut times=BTreeSet::new();
+fn clock_candidates(bound:&Bound,rows:&BTreeMap<String,Vec<Value>>,steps:&[Step],out:&mut Campaign)->Vec<i64>{
+    let current=history_clock(steps);let mut times=BTreeSet::new();let mut bases=Vec::new();
     for (table,rs) in rows {for row in rs {for (c,k) in &bound.schema.tables[table].columns {
-        if matches!(k.required(),C::Time)&&let Ok(Value::Int(n))=row.field(c)&&*n>=current {
-            times.insert(*n);if let Some(next)=n.checked_add(1){times.insert(next);}
+        if matches!(k.required(),C::Time)&&let Ok(Value::Int(n))=row.field(c) {
+            bases.push(*n);if *n>=current {times.insert(*n);if let Some(next)=n.checked_add(1){times.insert(next);}}
         }
     }}}
-    std::iter::once(current).chain(times.into_iter().filter(|n|*n>current).take(3)).collect()
+    let offsets=time_samples(bound,out).into_iter().filter_map(|v|if let Value::Int(n)=v{n.checked_sub(NOW).and_then(i64::checked_abs)}else{None}).filter(|n|*n>=86_400_000).collect::<BTreeSet<_>>();
+    let far=bases.iter().flat_map(|base|offsets.iter().filter_map(move |d|base.checked_add(*d).and_then(|n|n.checked_add(1)))).filter(|n|*n>current).max();
+    let mut clocks=vec![current];
+    if let Some(far)=far{clocks.push(far);}
+    for time in times.into_iter().filter(|n|*n>current){if !clocks.contains(&time){clocks.push(time);}if clocks.len()==4{break;}}
+    clocks
+}
+
+// Typed equality reads propose role/relationship-compatible principal arguments.
+// Ordinary guards still decide admission; disjunctions/negation only influence
+// ordering and cannot establish a policy fact or exclude the remaining values.
+pub(super) fn principal_preferences(bound:&Bound,p:&Program,rows:&BTreeMap<String,Vec<Value>>)->BTreeMap<String,Vec<Value>>{
+    fn walk(json:&serde_json::Value,f:&mut impl FnMut(&serde_json::Value)){
+        f(json);match json{serde_json::Value::Array(xs)=>for x in xs{walk(x,f)},serde_json::Value::Object(xs)=>for x in xs.values(){walk(x,f)},_=>{}}
+    }
+    let json=serde_json::to_value(p).unwrap();
+    let mut probes=BTreeMap::new();
+    walk(&json,&mut |value|{if let Some(binding)=value.get("Let")&&let (Some(name),Some(site))=(binding.get("name").and_then(|v|v.as_str()),binding.pointer("/value/Get/site").and_then(|v|v.as_str())){probes.insert(name.to_owned(),site.to_owned());}});
+    let mut filters=BTreeMap::<String,Vec<(String,Value)>>::new();
+    walk(&json,&mut |value|{if let Some(eq)=value.get("Binary")&&eq.get("op").and_then(|v|v.as_str())==Some("Eq") {for (a,b) in [("left","right"),("right","left")] {
+        if let (Some(field),Some(literal))=(eq.get(a).and_then(|v|v.get("Field")),eq.get(b).and_then(|v|v.get("Literal")))&&let (Some(probe),Some(column),Ok(literal))=(field.pointer("/base/Variable").and_then(|v|v.as_str()),field.get("name").and_then(|v|v.as_str()),serde_json::from_value::<Value>(literal.clone()))&&let Some(site)=probes.get(probe){filters.entry(site.clone()).or_default().push((column.into(),literal));}
+    }}});
+    let mut out=BTreeMap::<String,Vec<Value>>::new();
+    walk(&json,&mut |value|{for tag in ["Exists","Get","Scan"] {
+        let Some(read)=value.get(tag)else{continue;};
+        let (Some(table),Some(index))=(read.get("table").and_then(|v|v.as_str()),read.get("index").and_then(|v|v.as_str()))else{continue;};
+        let Some(definition)=bound.schema.table(table).and_then(|t|t.index(index))else{continue;};
+        let Some(keys)=read.get("key").or_else(||read.get("prefix")).and_then(|v|v.as_array())else{continue;};
+        let columns=definition.columns();let pairs=columns.iter().zip(keys).map(|(c,k)|(c,k.get("Scalar").unwrap_or(k))).collect::<Vec<_>>();
+        let mut pins=pairs.iter().filter_map(|(c,k)|k.get("Literal").and_then(|v|serde_json::from_value::<Value>(v.clone()).ok()).map(|v|((*c).clone(),v))).collect::<Vec<_>>();
+        if let Some(site)=read.get("site").and_then(|v|v.as_str())&&let Some(extra)=filters.get(site){pins.extend(extra.clone());}
+        if pins.is_empty(){continue;}
+        for (column,key) in &pairs {
+            let Some(arg)=key.get("Variable").and_then(|v|v.as_str())else{continue;};
+            if !matches!(p.args.get(arg),Some(ir::ArgType::Principal)){continue;}
+            for row in rows.get(table).into_iter().flatten().filter(|r|pins.iter().all(|(c,v)|r.field(c).ok()==Some(v))){
+                if let Ok(value@Value::Id(_))=row.field(column){let values=out.entry(arg.into()).or_default();if !values.contains(value){values.push(value.clone());}}
+            }
+        }
+    }});out
+}
+
+#[cfg(test)] mod sec9_role_order_tests { use super::*;
+#[test] fn role_conditioned_principal_arguments_reach_the_first_creator_tuple(){
+ let source="table roles:\n  principal: principal\n  role: enum('client','inspector')\n  unique principal\n  read <- allow\n  insert <- allow\n  online only\nmutation book(client: principal, inspector: principal):\n  require exists roles[principal = client, role = 'client'] else BAD_CLIENT\n  require exists roles[principal = inspector, role = 'inspector'] else BAD_INSPECTOR\n  return null\n";
+ let b=crate::compile(&[("schema.q".into(),source.into())]);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
+ let rows=BTreeMap::from([("roles".into(),vec![Value::Row(BTreeMap::from([("id".into(),Value::Id("a".into())),("principal".into(),Value::Id("account:client".into())),("role".into(),Value::String("client".into()))]).into()),Value::Row(BTreeMap::from([("id".into(),Value::Id("b".into())),("principal".into(),Value::Id("account:inspector".into())),("role".into(),Value::String("inspector".into()))]).into())])]);
+ let prefs=principal_preferences(&b,&b.programs[0].program,&rows);
+ assert_eq!(prefs.get("client"),Some(&vec![Value::Id("account:client".into())]),"{}",serde_json::to_string(&b.programs[0].program).unwrap());
+ assert_eq!(prefs.get("inspector"),Some(&vec![Value::Id("account:inspector".into())]));
+}
 }

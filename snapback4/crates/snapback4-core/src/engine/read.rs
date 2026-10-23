@@ -484,8 +484,6 @@ impl<'r> Runner<'r> {
         if self.context.is_system() {
             return Ok(true);
         }
-        #[cfg(not(feature="sqlite"))]
-        if matches!(effect,Effect::Insert|Effect::Update)&&!self.schema.tables[table_name].column_writes.is_empty(){return Err(RuntimeError::Prediction("column guards need the server".into()));}
         if effect == Effect::Read && self.is_provisional(table_name, next)? { return self.provisional_readable(table_name, next); }
         let table = self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?;
         // A device holds a synced table's rows because the server delivered

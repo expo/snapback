@@ -18,10 +18,14 @@ pub fn invariants(sources:&[(String,String)],bound:&Bound)->Vec<Invariant>{
     let docs=sources.iter().map(|(f,s)|crate::parse_document(f,s).0).collect::<Vec<_>>();
     let catalog=Catalog::build(docs.clone(),&mut Vec::new());
     let mut out=Vec::new();
+    let mut controlled=BTreeSet::new();
+    for p in docs.iter().flat_map(|d|&d.programs).filter(|p|p.kind==ast::ProgramKind::Mutation){for (write,_) in authority_walk::writes(&catalog,p){
+        if let ast::Expr::Write{op:ast::WriteOp::Insert|ast::WriteOp::Upsert,table,fields,..}=write{for f in fields{if write_advice::supplied(&f,p){controlled.insert((table.clone(),f.name));}}}
+    }}
     for t in docs.iter().flat_map(|d|&d.tables){
         let Some(table)=bound.schema.table(&t.name)else{continue;};
         for (column,guard) in write_advice::table_guards(&table.rules.update){
-            if !table.column_writes.contains_key(&column)&&!write_advice::update_only(bound,&t.name,&column,&guard){add(&mut out,&t.name,&column,"write",guard,&t.site);}
+            if controlled.contains(&(t.name.clone(),column.clone()))&&!table.immutable_fields().any(|c|c==&column)&&!table.column_writes.contains_key(&column)&&!write_advice::update_only(bound,&t.name,&column,&guard){add(&mut out,&t.name,&column,"write",guard,&t.site);}
         }
     }
     for p in docs.iter().flat_map(|d|&d.programs).filter(|p|p.kind==ast::ProgramKind::Mutation){
@@ -32,7 +36,7 @@ pub fn invariants(sources:&[(String,String)],bound:&Bound)->Vec<Invariant>{
             let definition=&bound.schema.tables[table];
             // Guarded edits: only the additional, column-specific condition.
             for field in fields {
-                if definition.column_writes.contains_key(&field.name){continue;}
+                if definition.column_writes.contains_key(&field.name)||definition.immutable_fields().any(|c|c==&field.name){continue;}
                 let specialized=authority_walk::column_writes(&catalog,p,&field.name);
                 let mut policies=Vec::new();let mut conditional=false;
                 for ((candidate,specific),(_,base)) in specialized.iter().zip(&plain){
@@ -42,7 +46,7 @@ pub fn invariants(sources:&[(String,String)],bound:&Bound)->Vec<Invariant>{
                     policies.push(RuleExpr::And(guards.into_iter().filter(operation::safe).collect()));
                 }
                 let guard=RuleExpr::Or(policies);
-                if conditional&&!write_advice::update_only(bound,table,&field.name,&guard){add(&mut out,table,&field.name,"write",guard,site);}
+                if conditional&&!write_advice::update_only(bound,table,&field.name,&guard){add(&mut out,table,&field.name,if controlled.contains(&(table.clone(),field.name.clone())){"write"}else{"update"},guard,site);}
             }
             // Approval candidates keep their inferred origin explicit. Only
             // values inspected by this approval (or media governed by its
@@ -76,5 +80,13 @@ pub fn notes(sources:&[(String,String)],bound:&Bound)->Vec<Diagnostic>{
     invariants(sources,bound).into_iter().map(|i|Diagnostic::new(&i.site,"N_DERIVED_WRITE_AUTHORITY",format!("{}: derived candidate {} only {}; a replayed violation needs a specification decision",i.target_label(),i.target,i.predicate),"enforce column write/freeze authority, declare matching update-only creation intent, or record this individual rule's deliberate design with check --ack-security ID --reason '<spec rationale>'").guide("security")).collect()
 }
 pub fn augmented(sources:&[(String,String)],bound:&Bound)->Bound{
-    let mut out=bound.clone();out.invariants.extend(invariants(sources,bound));out
+    let mut out=bound.clone();out.invariants.extend(invariants(sources,bound));
+    // Declared write audiences are runtime contracts, not inferred spec intent.
+    // Their replay failures cannot be acknowledged as deliberate asymmetry.
+    let mut contracts=Vec::new();
+    for (table,t) in bound.schema.visible_tables(){for (column,policy) in &t.column_writes{
+        add(&mut contracts,table,column,"write",policy.clone(),&Site::new("column-write-contract",1,1));
+    }}
+    for contract in &mut contracts{contract.site.file=contract.site.file.replacen("$derived/","$enforced/",1);}
+    out.invariants.extend(contracts);out
 }

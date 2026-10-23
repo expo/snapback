@@ -111,12 +111,13 @@ fn unreadable_guarded_payloads_do_not_offer_a_guessing_oracle(){
 fn sequence_assignment_cannot_invalidate_an_early_column_grant(){
     use snapback4_core::value::object;
     let source="table groups:\n  read <- allow\n  insert <- allow\n  online only\ntable entries:\n  parent: groups\n  ordinal: sequence by parent\n  payload: text write <- .ordinal != 1\n  immutable parent\n  read <- allow\n  insert <- allow\n  online only\nmutation add(parent: groups):\n  return insert entries {parent,payload:'value'}\nmutation absent(parent: groups):\n  return insert entries {parent,payload:'value'} if absent\nmutation put(id: entries,parent: groups):\n  return upsert entries[id] {parent,payload:'value'}\n";
-    for op in ["add","absent","put"]{
-        let mut e=engine(source);e.seed([("groups".into(),object([("id",Value::Id("g".into()))]))]).unwrap();
+    for inherited in [false,true]{for op in ["add","absent","put"]{
+        let source=if inherited{source.replace("  immutable parent\n  read <- allow","  immutable parent\n  read through .parent")}else{source.to_owned()};
+        let mut e=engine(&source);e.seed([("groups".into(),object([("id",Value::Id("g".into()))]))]).unwrap();
         let mut args=BTreeMap::from([("parent".into(),Value::Id("g".into()))]);if op=="put"{args.insert("id".into(),Value::Id("new".into()));}
         assert!(!e.mutate(op,None,Context::new("alice",args).at(1_800_000_000_000)).is_ok_and(|r|matches!(r.state,WriteState::Sent{..})),"{op} assigned ordinal 1 despite its column grant");
         assert!(e.store().rows("entries").unwrap().is_empty());
-    }
+    }}
 }
 #[test]
 fn omitted_optional_null_is_equal_during_frozen_import(){
@@ -124,4 +125,27 @@ fn omitted_optional_null_is_equal_during_frozen_import(){
     let mut e=engine(SOURCE);
     e.seed([("docs".into(),object([("id",Value::Id("doc".into())),("owner",Value::Id("alice".into())),("cell",Value::Null),("approved",Value::Bool(true))]))]).unwrap();
     e.load([("docs".into(),object([("id",Value::Id("doc".into())),("owner",Value::Id("alice".into())),("approved",Value::Bool(true))]))]).unwrap();
+}
+
+#[test]
+fn declared_audiences_get_generated_adversarial_contracts_without_spec_intent(){
+    let sources=vec![("schema.q".into(),SOURCE.into())];let b=snapback4_lang::compile(&sources);
+    let b=snapback4_lang::security::derived::augmented(&sources,&b);
+    assert_eq!(b.invariants.iter().filter(|i|i.site.file.starts_with("$enforced/")).count(),2);
+    let mut campaign=snapback4_lang::security::challenges::Campaign::default();
+    snapback4_lang::security::challenges::generated_campaign(&b,&mut campaign,true);
+    assert!(!campaign.violations.iter().any(|v|v.reachability.is_reachable()),"{}",serde_json::to_string(&campaign).unwrap());
+    for op in ["add","absent","put","edit"]{assert!(campaign.operations.get(op).copied().unwrap_or(0)>0,"generated arm {op} was not exercised");}
+    assert!(campaign.refused>0);
+}
+
+#[test]
+fn live_parent_approval_freezes_the_inspected_child_value(){
+ use snapback4_core::value::object;
+ let source="table tours:\n  status: enum('booked','on_trail')\n  read <- allow\n  insert <- allow\n  update <- allow\n  online only\ntable bookings:\n  tour: tours\n  weight: int\n  immutable tour\n  immutable weight when .tour.status != 'booked'\n  read <- allow\n  insert <- allow\n  update <- allow\n  online only\nmutation depart(tour: tours):\n  update tours[tour] {status:'on_trail'}\nmutation edit(booking: bookings,weight: int):\n  update bookings[booking] {weight}\n";
+ let mut e=engine(source);e.seed([("tours".into(),object([("id",Value::Id("t".into())),("status",Value::String("booked".into()))])),("bookings".into(),object([("id",Value::Id("b".into())),("tour",Value::Id("t".into())),("weight",Value::Int(50))]))]).unwrap();
+ let edit=|weight|Context::new("alice",BTreeMap::from([("booking".into(),Value::Id("b".into())),("weight".into(),Value::Int(weight))])).at(1_800_000_000_000);
+ assert!(matches!(e.mutate("edit",None,edit(60)).unwrap().state,WriteState::Sent{..}));
+ e.mutate("depart",None,Context::new("alice",BTreeMap::from([("tour".into(),Value::Id("t".into()))])).at(1_800_000_000_000)).unwrap();
+ assert!(!matches!(e.mutate("edit",None,edit(80)).unwrap().state,WriteState::Sent{..}));
 }

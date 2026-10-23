@@ -102560,3 +102560,26 @@ rebased tree. The remaining full-suite reds reproduce without K0-Q (e.g.
 are ticketed. The lane's `/tmp/sb4-k0q{,-fix1,-rebase}` transcripts on
 expo-build-450a were deleted by the lead when that host's disk filled; the
 committed receipts remain.
+
+
+## 2026-10-23 — SEC9 structural write authority and byte cost
+
+Column write audiences cover effective non-null creation/defaults, changed updates,
+and both upsert arms. Conditional immutability checks the old image, including
+system/seed/import replacement, with trusted persistence restore explicit. The
+new capability fences older engines. Guarded device writes queue before target
+lookup; all hosts retain raw policy validation. LLP 3000.036.004.000 records the
+semantics, review rounds and bounded-evidence limits. S2 gates table/column edit
+asymmetry; matching update-only intent states deliberate creation differences.
+Production admission runs derived replay and individual rule-bound decisions;
+authored refutations require repair. Presence loosening compares successful local
+checks and independently compares the selected release. DX8 owns migration/process/
+dev-clock/sql/account/rename follow-ups; integration owns rollback-view behavior.
+
+Wasm on locked Linux after main integration: 2,414,852 B raw / 737,825 B gzip;
+budget becomes 738,325 B, measurement plus exactly 500 B. Whole-artifact growth
+versus inherited SEC8 setup is 8,361 raw / 2,962 gzip bytes, including main and
+new schema/admission semantics; no isolated feature attribution or runtime meter
+ceiling increase. Attempts to omit device validation/evaluation were withdrawn.
+Mac execution is reserved for integration, as instructed. No publication or
+universal arbitrary-application security claim follows from finite campaigns.

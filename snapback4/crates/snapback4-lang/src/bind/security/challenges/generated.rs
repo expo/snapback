@@ -145,11 +145,17 @@ pub fn fixture(bound:&Bound,out:&mut Campaign)->Result<Engine,String>{
             ast::Expr::Read(read)|ast::Expr::Exists{read,..}|ast::Expr::Created{read,..}=>{children.insert(read.table.clone());},_=>{}
         });}
     }
-    let mut attempts=0usize;let mut root_observed=false;
+    let mut attempts=0usize;let mut root_observed=false;let mut postponed=BTreeSet::new();
     for _ in 0..=bound.schema.tables.len().min(12){
         let before=readback(&engine)?;
         for bp in &creators{
             let p=&bp.program;let writes=ir::write_tables(p);
+            // Give pending child creators one pass over an admitted parent
+            // before another creator consumes that parent's lifecycle state.
+            let current=readback(&engine)?;
+            let consumes_pending_parent=writes.iter().any(|(parent,kind)|matches!(*kind,"update"|"upsert"|"delete")&&current.get(parent).is_some_and(|rs|!rs.is_empty())&&creators.iter().any(|other|other.program.name!=p.name&&other.program.args.values().any(|k|matches!(k,ir::ArgType::Ref{table} if table==parent))&&ir::write_tables(&other.program).iter().any(|(child,kind)|child!=parent&&matches!(*kind,"insert"|"upsert")&&current.get(child).is_none_or(|rs|rs.is_empty()))));
+            if consumes_pending_parent&&postponed.insert(p.name.clone()){continue;}
+
             // Preserve a pre-transition root population. Later derived creators
             // can otherwise consume every pending lifecycle row during setup.
             // @ref LLP 3000.036.004#179-preserve-the-pre-transition-root-when-observing-dependent-children — unrelated reference arguments must not spend the one root observation.
@@ -157,7 +163,7 @@ pub fn fixture(bound:&Bound,out:&mut Campaign)->Result<Engine,String>{
             if !root_observed&&(related_creator||writes.iter().any(|(_,kind)|matches!(*kind,"update"|"upsert"|"delete"))){
                 root_observed=true;
                 if out.generated_fixture&&out.work_remaining.is_none()&&validate_fixture(bound,&mut engine).is_ok(){
-                    let first=out.violations.len();histories::lifecycle_observers(bound,&engine,out);
+                    let first=out.violations.len();histories::lifecycle_observers_to(bound,&engine,out,1024);
                     for witness in &mut out.violations[first..]{if witness.reachability==Reachability::AuthoredFixtureTrace{witness.reachability=Reachability::GeneratedFixtureTrace;witness.scope="actual authored observation from a validated generated root fixture before derived creator transitions; initialization is not claimed application-reachable".into();}}
                 }
             }
@@ -224,5 +230,29 @@ use super::*;
 #[test]fn a_multi_insert_creator_cannot_exceed_the_per_target_population_cap(){
  let bound=crate::compile(&[("schema.q".into(),"table docs:\n  n:int\n  read <- allow\n  insert <- allow\n  online only\nmutation add():\n  insert docs {n:1}\n  insert docs {n:2}\n  return insert docs {n:3}\n".into())]);assert!(bound.diagnostics.is_empty(),"{:?}",bound.diagnostics);
  let mut out=Campaign::default();let e=fixture(&bound,&mut out).unwrap();assert!(e.store().rows("docs").unwrap().len()<=2);assert!(out.unsupported.iter().any(|s|s.contains("two-row per-target")),"{:?}",out.unsupported);
+}
+}
+
+#[cfg(test)]mod sec9_reach_tests {use super::*;
+#[test]fn wave25_role_checked_creator_has_a_resource_root(){
+ let b=crate::compile(&[("schema.q".into(),include_str!("../../../../tests/security/wave25/043.q").into())]);
+ assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);let mut out=Campaign::bounded(15000);out.work_remaining=Some(8192);
+ let proposed=proposals(&b,&mut out).unwrap();let rows=readback(&proposed).unwrap();let actors=histories::actors(&b,&rows);let p=&b.programs.iter().find(|bp|bp.program.name=="book").unwrap().program;
+ let cases=histories::fixture_cases(&b,p,&rows,&actors,&mut out);let prefs=histories::principal_preferences(&b,p,&rows);
+ assert!(cases.iter().take(16).any(|a|["client","inspector"].iter().all(|n|prefs.get(*n).is_some_and(|vs|vs.contains(&a[*n])))),"preferences {prefs:?}; first {:?}",cases.iter().take(16).collect::<Vec<_>>());
+ let e=fixture(&b,&mut out).unwrap();assert!(!e.store().rows("inspections").unwrap().is_empty(),"{:?}",out.unsupported);
+}
+}
+
+#[cfg(test)]mod sec9_clock_reach_tests {use super::*;
+#[test]fn future_payment_can_be_replayed_against_clock_intent(){
+ let b=crate::compile(&[("schema.q".into(),format!("{}\ninvariant payments.markMissed only .dueAt < now\n",include_str!("../../../../tests/security/wave24/015.q")))]);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
+ let mut out=Campaign::bounded(15000);out.work_remaining=Some(8192);let mut e=fixture(&b,&mut out).unwrap();let rows=readback(&e).unwrap();
+ assert!(!rows["payments"].is_empty(),"{:?}",out.unsupported);
+ let row=&rows["payments"][0];assert!(matches!(row.field("dueAt"),Ok(Value::Int(n)) if *n>=NOW),"{row:?}");
+ let actor=rows["roles"].iter().find(|r|r.field("role").ok()==Some(&Value::String("desk".into()))).unwrap().field("principal").unwrap().as_str().unwrap();
+ let p=&b.programs.iter().find(|bp|bp.program.name=="markMissed").unwrap().program;let trace=super::executed::trace(&b,p);
+ let result=e.mutate("markMissed",None,Context::new(actor,BTreeMap::from([("payment".into(),row.field("id").unwrap().clone())])).at(NOW).with_fixture_trace(trace.clone())).unwrap();
+ assert!(matches!(result.state,snapback4_core::WriteState::Sent{..}),"{result:?}");assert!(trace.take().iter().any(|o|o.allowed==Some(false)));
 }
 }

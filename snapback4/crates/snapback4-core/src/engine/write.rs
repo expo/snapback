@@ -77,8 +77,8 @@ impl Runner<'_> {
         self.reserve_capture(&self.schema.tables[table_name])?;
         let row = self.capture_insert(table_name, row)?;
         let table = &self.schema.tables[table_name];
-        let independent = !table.sequences.is_empty() && !super::rules::deciding_fields(table_name, table, &table.guarded_rule(Effect::Insert))
-            .iter().any(|field| table.sequences.contains_key(field));
+        let independent = !table.sequences.is_empty() && !table.guarded_rule(Effect::Insert).any_term(&|term|
+            matches!(term,crate::schema::RuleTerm::Field(field)|crate::schema::RuleTerm::OldField(field)|crate::schema::RuleTerm::NextField(field) if table.sequences.contains_key(field)));
         // An independent denial must never consult a hidden read witness.
         let authorized = independent && self.check_rule(table_name, Effect::Insert, None, &row)?;
         if independent && !authorized {

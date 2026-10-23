@@ -69,7 +69,6 @@ pub fn validate(schema: &Schema) -> Vec<SchemaIssue> {
         for (effect, rule) in [("read", &table.rules.read), ("insert", &table.rules.insert), ("update", &table.rules.update), ("delete", &table.rules.delete)] {
             private_rule(schema, name, rule, effect == "update" && table.update_transition, &mut issue);
         }
-        #[cfg(feature="sqlite")]
         for rule in table.column_writes.values().chain(table.frozen_columns.values()){private_rule(schema,name,rule,false,&mut issue);}
     }
     issues
