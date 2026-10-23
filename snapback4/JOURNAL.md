@@ -102469,3 +102469,23 @@ No RT5 touch, push or stash. Final records and post-record reference checks
 are in reports/20261022-k0q/REPORT.md and its fix2-final receipts.
 
 Final post-record reference check: 565 LLP documents, 11,757 references, zero errors and zero unchecked. Whitespace and the repeated independent 97-PID/five-cluster/table-digest audit pass. All work is committed locally; no push or stash.
+
+## 2026-10-23 — K0-Q landed (lead)
+
+K0-Q (owned engine commands, the bounded committer mailbox, the worker-owned
+committer thread) lands after three blind review rounds; round 3 at
+`d561ef88b3` was one APPROVE WITH NITS and one CHANGES REQUIRED with two P2s
+that are not current SQLite behavior changes. They and the round-3 lows go to
+a fix-forward lane: fence an inner `E_COMMIT_OUTCOME_UNKNOWN` from the
+dev-worker mint as the outer one is; refuse a synchronous submission from the
+committer thread to its own queue (it deadlocks); keep the incomplete-report
+envelope when the worker dies during a clock advance; re-decode arguments
+after an adoption handoff; answer 503 for `E_GENERATION` after the handoff
+cap; update the K0-Q note's stale "qualification stopped" sentence. The
+rebase onto `fc5b38f511` changed no code line (identical patch-id for
+`crates/`, `scripts/`, `packages/`); the SQLite RT0 ratchet passes on the
+rebased tree. The remaining full-suite reds reproduce without K0-Q (e.g.
+`readauth outcomes::bridge_publish_*` fails identically at `442ab2b06d`) and
+are ticketed. The lane's `/tmp/sb4-k0q{,-fix1,-rebase}` transcripts on
+expo-build-450a were deleted by the lead when that host's disk filled; the
+committed receipts remain.
