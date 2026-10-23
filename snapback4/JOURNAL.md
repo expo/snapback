@@ -104550,3 +104550,32 @@ Logs, fixture data and PID records remain outside Git under `/tmp/`.
 The independent read-only review found no material defect. Local commit only:
 no push, publish, stash or Git configuration changes; `sb4-pg/sdk-unknown`
 remains at 8c4e07d280ca02cebde78a147e8f1f8cd70ce731.
+
+
+## 2026-10-23 — Integration 24, SEC8/SEC9 and DX7/DX8 (0.4.40)
+
+Merged the structural-security and day-two lanes onto the qualified 0.4.39
+rollback correction. Production security refusal is enforced from the same
+structured report used by verdict-first human deploy output and full JSON.
+Pending gates and derived candidates name their individual acknowledgment
+commands; authored/enforced FIX still requires enforcement repair.
+
+Column write/freeze authority is independent of authored invariant declarations.
+A default rollback view must retain its current workflow; declared column
+identity transport remaps both rule keys and row terms. Registration checks the
+aligned write/freeze policies alongside existing read/owner authority. New
+language and CLI regressions cover this boundary. Rollback fixtures explicitly
+record only their deliberate optionality decisions, without inventing a second
+workflow invariant or disabling production review.
+
+Clean Linux wasm at bfef9d0902: 2,415,003 raw / 737,990 gzip / 555,572 Brotli B.
+Budget 738,490 B is exactly measured gzip + 500 B. This is the merged artifact's
+layout and version stamp, not per-feature attribution or a runtime ceiling
+increase. The incomplete missing-Brotli attempt remains diagnostic log evidence
+only, outside metrics. Both strict family and absent-symbol audits pass.
+
+Integration evidence is retained under reports/integration24. Original app
+stores are file-copied before SQLite opens; deploy copies exclude owner/token
+credentials. The day-two replay verifies all original SQLite/WAL/SHM hashes
+unchanged. The root WORKSTREAM-REPORT.md belongs to this integration and will
+record final suites, schema survey, real artifact refusals, Exact and Mac scope.
