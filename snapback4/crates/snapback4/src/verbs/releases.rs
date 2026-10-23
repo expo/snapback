@@ -111,6 +111,11 @@ fn inspect_current(dir: &Path) -> Result<u64, String> {
     release.trim().parse::<u64>().ok().filter(|n|*n>0).ok_or_else(missing)
 }
 
+pub(super) fn bound_current(dir: &Path) -> Result<snapback4_lang::Bound, String> {
+    let release = inspect_current(dir)?;
+    bound_at(dir.join("releases").join(release.to_string()))
+}
+
 fn pointer_current(dir: &Path, database: &Path) -> Result<u64, String> {
     let missing = || format!("no current release in {}; deploy first", dir.display());
     let pointer = std::fs::read_to_string(dir.join("current")).map_err(|_| missing())?;
@@ -185,7 +190,10 @@ fn check_change(
             eprintln!("{line}");
         }
         if target_release.is_some() {
-            for warning in snapback4_lang::client_contracts::compact(&snapback4_lang::client_contracts::compare(&old,bound,&format!("release {n}"))) {eprintln!("WARNING {warning}");}
+            for warning in snapback4_lang::client_contracts::compact(&snapback4_lang::client_contracts::compare(&old,bound,&format!("release {n}"))) {
+                if snapback4_lang::client_contracts::is_note(&warning) {eprintln!("NOTE {warning}");}
+                else {eprintln!("WARNING {warning}");}
+            }
         }
     }
     if options.flags.contains_key("allow-destructive") {
@@ -313,6 +321,7 @@ fn activate(
         let mut result = crate::release_control::request_observed(
             dir,
             crate::release_control::Command::Activate {
+                activation_protocol:crate::release_control::ACTIVATION_PROTOCOL.into(),
                 release,
                 expected_release: previous,
                 expected_revision: revision,
@@ -324,7 +333,7 @@ fn activate(
                 allow_feed_adoption,
             },
             |pending| { if let Some(candidate)=candidate.as_deref_mut() {candidate.pending=pending;} },
-        ).map_err(|e|if e.contains("unknown field")&&(e.contains("registry_custody")||e.contains("visible_rollback")){format!("E_RELEASE_RUNTIME: serving runtime predates release custody; restart serve with this CLI before switching; {e}")}else{e})?;
+        ).map_err(|e|if e.contains("unknown field")&&(e.contains("activation_protocol")||e.contains("registry_custody")||e.contains("visible_rollback")){format!("E_RELEASE_RUNTIME: serving runtime predates release custody; restart serve with this CLI before switching; {e}")}else{e})?;
         if let Some(summary)=options.flags.get("security-summary"){result["security"]=serde_json::from_str(summary).unwrap_or_default();}
         if let Some(view)=options.flags.get("rollback-view"){result["rollbackView"]=serde_json::from_str(view).unwrap_or_default();}
         if let Some(preview)=options.flags.get("release-preview"){result["preview"]=serde_json::from_str(preview).unwrap_or_default();}
@@ -377,7 +386,7 @@ pub fn deploy(options: &Options) -> i32 {
                 if !options.json{eprintln!("deploy verdict: REFUSED; compilation");super::report_diagnostics(&bound,false,false,true);}
                 return Err("selected source does not compile".into())
             }
-            let mut saved_version = super::saved_version::SavedVersion::prepare(&project,&sources,options,&dir)?;
+            let mut saved_version = super::saved_version::SavedVersion::prepare(&project,&sources,&bound,options,&dir)?;
             if options.flags.contains_key("staging") {
                 staging::classify(&dir, _deployment.as_ref(), existed, checking)?;
             }
@@ -653,6 +662,7 @@ pub fn releases(options: &Options) -> i32 {
             // Read-only inspection needs no ownership handoff or source adoption.
             let mut store = snapback4_core::store_port::AnyStore::open_read_only(&dir.join("store.sqlite"))
                 .map_err(|e| e.to_string())?;
+            let retained = store.dormant_inventory(None, usize::MAX).map_err(|e| e.to_string())?;
             let mut result = store
                 .release_status(
                     after,
@@ -671,6 +681,7 @@ pub fn releases(options: &Options) -> i32 {
                 result["selected"]=serde_json::json!({"release":n,"current":result["release"].as_u64()==Some(n),"digest":crate::release_files::digest(&root)?});
             }
             println!("{}", serde_json::to_string_pretty(&result).unwrap());
+            super::sql::dormant_notice(super::sql::dormant_rows(&retained), "use `snapback4 sql 'SELECT …' --release <dir> --dormant` to inspect them");
             Ok(())
         })(),
     )
@@ -778,6 +789,35 @@ pub fn serve_release(options: &Options) -> Result<(), String> {
         listener,
         capacity,
     )
+}
+
+/// Ask the current retained owner to stop through its private same-owner
+/// control socket, then wait until the store lock proves cleanup completed.
+pub fn stop_release(options: &Options) -> i32 {
+    let result = (|| {
+        if crate::store_config::StoreConfig::resolve(options)?.is_some() {
+            return Err("E_STORE_UNSUPPORTED: stop is outside the admitted store profile".into());
+        }
+        let dir = existing_deployment(&directory(options)?)?;
+        match crate::release_control::request(&dir, crate::release_control::Command::Stop) {
+            Ok(_) => {
+                crate::store_owner::wait_released(&dir.join("store.sqlite"), std::time::Duration::from_secs(10))?;
+                println!("store stopped: {}", dir.display());
+                Ok(())
+            }
+            Err(control) => match crate::store_owner::wait_released(&dir.join("store.sqlite"), std::time::Duration::ZERO) {
+                Ok(()) => {
+                    println!("store already stopped: {}", dir.display());
+                    Ok(())
+                }
+                Err(_) => Err(control),
+            },
+        }
+    })();
+    match result {
+        Ok(()) => 0,
+        Err(error) => { eprintln!("stop: {error}"); 1 }
+    }
 }
 
 pub(crate) fn release_bind(options: &Options) -> Result<std::net::IpAddr, String> {

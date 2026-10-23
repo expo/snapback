@@ -46,21 +46,13 @@ try {
 host = await startServe("staging");
 try {
   assert.equal((await post("/m/add")).state, "sent");
-  await assert.rejects(host.advance("49h"), /E_CLOCK_HELD/);
-  const report = await host.advance("49h", {allowHeld:true});
-  assert.equal(report.fired.length, 0);
-  assert.equal(report.held.length, 1);
-  assert.equal(report.held[0].holdCode, "saved-boundary");
-  assert.match(report.held[0].reason, /already processed.*One fire per boundary/);
-  assert.match(report.held[0].reason, /fresh staging/);
-  assert.equal((await post("/q/mine")).data.filter(r => r.status === "pending").length, 1);
-  const held = await cli(["clock", "advance", "1ms", "--release", "staging", "--allow-held"]);
-  assert.equal(held.code, 0, held.stderr);
-  assert.match(held.stderr, /schedule releaseHourly:.*already processed/);
-  const body = JSON.parse(held.stdout);
-  assert.equal(body.held.length, 1); assert.equal(body.fired.length, 0);
-  assert.doesNotMatch(body.sessionNotice, /unsafe-dev-doors/);
-  const resumed = await host.advance("3h"); assert.equal(resumed.fired.length, 1);
+  const report = await host.advance("49h");
+  assert.equal(report.fired.length, 1, "reused staging continues from its own offset");
   assert.ok((await post("/q/mine")).data.every(r => r.status === "released"));
-  console.log("DX5 staging: fired, persisted future boundary held, CLI notice and recovery passed");
+  const next = await cli(["clock", "advance", "1ms", "--release", "staging"]);
+  assert.equal(next.code, 0, next.stderr);
+  const body = JSON.parse(next.stdout);
+  assert.equal(body.held[0].holdCode, "not-due");
+  assert.match(body.message, /persists with this staging store/);
+  console.log("DX5 staging: fired, persisted clock, CLI report and repeated store passed");
 } finally { await host.stop(); }

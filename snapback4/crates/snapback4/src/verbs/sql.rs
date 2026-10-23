@@ -54,6 +54,7 @@ fn inspect(options: &Options) -> Result<()> {
     // Catalog, compiled columns and rows all belong to the same WAL snapshot.
     let (generation, active_schema) = catalog::active_schema(&conn)?;
     let schema = if dormant || all_releases { conn.retained_schema(active_schema)? } else { active_schema };
+    let retained = conn.dormant_inventory()?;
     let mode = if dormant { "dormant retained records" } else if all_releases { "active and retained records" } else { "active records" };
     let header = format!("sql: developer's own store {} — {mode}; read-only, not rule-filtered", path.display());
     if let Some(command) = command {
@@ -64,14 +65,15 @@ fn inspect(options: &Options) -> Result<()> {
             eprintln!("{header}");
             catalog::print(&result, generation);
         }
+        if !dormant && !all_releases { dormant_notice(dormant_rows(&retained), "rerun SQL with --dormant and an explicit --release to inspect them"); }
         return Ok(());
     }
     conn.build_retained_views(&schema, dormant, all_releases, |name| eprintln!("sql: skipping {name}: ephemeral rows live only in the serving process's memory"))?;
     let object_rows = options.flags.contains_key("json-objects");
     let snapback4_core::store_port::InspectionRows { columns, rows, more } = conn.query(&body, limit, object_rows,
-        |message| snapback4_core::inspection::query_error(&schema, message),
+        |message| query_error(&schema, &retained, message),
         |columns| snapback4_core::inspection::check_output_names(columns, object_rows),
-        |columns| objects::booleans(&body, &schema, columns, dormant || all_releases).map_err(|e| ("E_INPUT", e)))?;
+        |columns| objects::kinds(&body, &schema, columns, dormant || all_releases).map_err(|e| ("E_INPUT", e)))?;
     if options.json {
         let rows = if object_rows {
             Value::Array(rows.into_iter().map(|values| Value::Object(columns.iter().cloned().zip(values).collect())).collect())
@@ -87,7 +89,34 @@ fn inspect(options: &Options) -> Result<()> {
         for row in &cells { println!("{}", line(row)); }
         eprintln!("{} row(s){}", rows.len(), if more { " — more rows exist; increase --limit or refine the SELECT" } else { "" });
     }
+    if options.json && more { eprintln!("sql: result truncated at {limit} rows; increase --limit or refine the SELECT"); }
+    if !dormant && !all_releases { dormant_notice(dormant_rows(&retained), "rerun SQL with --dormant and an explicit --release to inspect them"); }
     Ok(())
+}
+
+pub(super) fn dormant_rows(items: &[snapback4_core::release_history::DormantItem]) -> u64 {
+    items.iter().filter(|item| matches!(item.kind.as_str(), "table" | "rows")).map(|item| item.rows).sum()
+}
+
+pub(super) fn dormant_notice(rows: u64, advice: &str) {
+    if rows > 0 {
+        eprintln!("{rows} dormant {} retained; {advice}", if rows == 1 { "row" } else { "rows" });
+    }
+}
+
+pub(super) fn retained_table_rows(items: &[snapback4_core::release_history::DormantItem], table: &str) -> u64 {
+    items.iter().filter(|item| matches!(item.kind.as_str(), "table" | "rows") && item.path.eq_ignore_ascii_case(table)).map(|item| item.rows).sum()
+}
+
+fn query_error(schema: &Schema, retained: &[snapback4_core::release_history::DormantItem], message: String) -> (&'static str, String) {
+    let missing = message.strip_prefix("no such table: ").map(str::trim);
+    if let Some(table) = missing {
+        let rows = retained_table_rows(retained, table.trim_matches(['`', '"', '\'']));
+        if rows > 0 {
+            return ("E_INPUT", format!("SQL: {message}; {rows} retained dormant {} exist for {table}; inspect them with `snapback4 sql 'SELECT * FROM {table}' --release <dir> --dormant`", if rows == 1 { "row" } else { "rows" }));
+        }
+    }
+    snapback4_core::inspection::query_error(schema, message)
 }
 
 

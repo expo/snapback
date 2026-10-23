@@ -492,20 +492,36 @@ impl Engine {
     }
     // @ref LLP 3000.001.000#workers — keep live supervised bearers valid until their orderly clock-revision replacement.
     pub fn advance_worker_leases_at(&mut self, milliseconds: i64, before: i64) -> Result<(), RuntimeError> {
-        self.advance_clock_leases_at(milliseconds, before, false)
+        self.advance_clock_leases_at(milliseconds, before, false, None)
     }
 
     /// Staging preserves credential lifetime by default; explicit expiry proofs
     /// pass false. Application deadlines and retry backoffs continue to advance.
     pub fn advance_staging_clock_at(&mut self, milliseconds: i64, before: i64, preserve_sessions: bool) -> Result<(), RuntimeError> {
-        self.advance_clock_leases_at(milliseconds, before, preserve_sessions)
+        self.advance_clock_leases_at(milliseconds, before, preserve_sessions, None)
+    }
+
+    /// Persist business time before publishing it; preserve credentials only once.
+    // @ref LLP 3000.000.000.001#12-wave-24-loop-repairs-dx7 — the checkpoint and lease/session shifts have one commit.
+    pub fn checkpoint_staging_clock_at(&mut self, milliseconds: i64, before: i64, preserve_sessions: bool, clock: &crate::metadata::StagingClock) -> Result<(), RuntimeError> {
+        clock.validate()?;
+        if milliseconds < 0 { return Err(RuntimeError::Input("staging clock cannot move backwards".into())); }
+        self.advance_clock_leases_at(milliseconds, before, preserve_sessions, Some(clock))
     }
 
     // @ref LLP 3000.009.001.000.000#k0a-implementation-note — staging extends the existing clock/worker transaction seam rather than adding a durable opener.
-    fn advance_clock_leases_at(&mut self, milliseconds: i64, before: i64, preserve_sessions: bool) -> Result<(), RuntimeError> {
+    fn advance_clock_leases_at(&mut self, milliseconds: i64, before: i64, preserve_sessions: bool, checkpoint: Option<&crate::metadata::StagingClock>) -> Result<(), RuntimeError> {
         let tx = self.store.transaction()?;
-        if preserve_sessions { super::session_clock::preserve(&tx, milliseconds, before)?; }
-        tx.shift_worker_leases(milliseconds, before)?;
+        if checkpoint.is_some() && tx.deployment_environment()?.as_deref() != Some("staging") {
+            return Err(RuntimeError::Input("clock checkpoint requires a staging store".into()));
+        }
+        if milliseconds > 0 {
+            if preserve_sessions { super::session_clock::preserve(&tx, milliseconds, before)?; }
+            tx.shift_worker_leases(milliseconds, before)?;
+        }
+        if let Some(clock) = checkpoint {
+            tx.set_dev_value(crate::metadata::DevMetadata::StagingClock, &serde_json::to_string(clock).map_err(|e| RuntimeError::Input(e.to_string()))?)?;
+        }
         tx.commit()?;
         Ok(())
     }

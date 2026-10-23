@@ -468,3 +468,12 @@ export function awaitBoundary() {
 // sample awaits enter the explicit matrix as required receipt and optional
 // follow boundaries. All earlier recipes retain their semantic sites. Proof/text
 // waits own browser/operator work only. The census is regenerated from source.
+
+// DX8: proof-accounts waits for auth configuration, operator minting, schema
+// diagnostics, signup and provisioning before an application client owns a
+// write. proof-command/proof-process waits only bound the private process-group
+// handshake, host shutdown and descendant cleanup. proof.ts adds those process
+// bounds, authenticated operator clock/account orchestration and read-only proof
+// paging/render waits. These Node proof paths never enter app/local/online
+// delivery custody; identity-rate, proof process/contract and packed operator
+// cases exercise their failures. Delivery sites and recipes remain unchanged.

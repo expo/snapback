@@ -1,0 +1,18 @@
+muse: workspace root: /home/ccheever/projects/sb4-b25-dx8 (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=83905c78-cfd8-4b6a-a2af-8e1c62acd819]: Subscription quota exhausted. Your usage window resets at 2026-10-26T00:00:00Z. (rate_limit_error)
+READY
+
+No material semantic, migration/release-safety, authority-boundary, or ambiguity defect found in the frozen DX8 amendment at `db8f1ba64fc742a5b39f0c99b919c999e4c49ca7`. Review was source-only via `git show <commit>:<path>`.
+
+What was checked:
+- Rename/down: identical-type `$rename:down` current-value precedence, different-type refusal, authored-down precedence, continuous/gapped digest refusals, prune warnings read-only — matches `store/backfills.rs`.
+- Each fan-out: one asset per child, empty/null handling, duplicate/unsupported refusal, receipt-owned stable IDs, old-client reorder/append, removal as internal null under narrowing, narrowed-home reverse refusal with loosened-bridge repair, suspension/resumption without replay, captured authority and scalar-copy checks — matches `store/extraction_each.rs` and `schema/extraction.rs`.
+- Accounting/atomicity: parent walks and child-index traversal share `activation_walk::walk_metered`, serialized-size precharge through same meter, decoded image retained with only dropped scratch released, forward per-element release, reverse per-parent accumulation, historical comparisons in SQLite, atomic whole-activation cut — matches `store/activation_walk.rs` and `store/extraction_each.rs` reverse/forward metering tests.
+- Format fence: every successful release adoption bumps to `snapback4-release-store-10` via release-metadata preparation before dormant work, preserving 10 across `prepare_inputs`; `8/9` remain readable, failed adoption rolls back, no downgrade on success; `each` requires `release-child-extraction-each-v1`.
+- Operator/auth/clock: same-owner control custody, bounded group drain including detached frontend private groups with explicit keeper-loss failure, dev clock closed fixture doors with exact `service:operator` bearer, staging/dev distinctions, session/lease preservation rules, `provisionAccounts` production-only real-account path, `service_identities` positive-fact collection excluding result/enum literals with stderr-only diagnostic warning.
+- Inspection/saved/paging/contracts: privileged read-only snapshot, stderr notices preserving JSON stdout, exact-bytes saved-source refresh from saved Bound, newest-first starters with unchanged ordering default, opaque cursors, stable-id comparisons, additive results as NOTE — matches `service_identities.rs`, `proof-process.ts`, `client_contracts.rs`, `verbs/saved_version.rs`.
+
+Nonblocking suggestions:
+- Document that `validate_all_receipts` uses per-parent fresh meters for pre-validation while traversal uses the shared job meter; single-huge-child still cuts, cumulative pre-validation stays sequential.
+- Keep the corrected verb paths in the supporting-source list; frozen tree places stop/identities logic under `release_control.rs`/`lifecycle.rs`/`serve*.rs`/`service_identities.rs`, not the listed `verbs/stop.rs` path.

@@ -4,14 +4,13 @@ use snapback4_core::{Store, Value, value::object};
 const PUSH: &str = "use personas alice, bob\neffect notify\nmutation push():\n  if not exists connected['dev:bob']:\n    emit notify {recipient: 'dev:bob'}\n";
 
 fn advance_six_seconds(host: &Host) {
-    // Invoke the CLI's own implementation against this host, including its
-    // duration parser and POST /dev/clock/advance, without a second server.
-    let options = crate::verbs::Options {
-        positionals: vec!["advance".into(), "6s".into()],
-        flags: [("port".into(), host.address.port().to_string())].into(),
-        json: false,
-    };
-    assert_eq!(crate::dev_clock::command(&options), 0);
+    let operator = host.shared.engine.attempt(|engine, shared| {
+        snapback4_core::identity::service_session(engine.store(), "operator", shared.now(), 1)
+    }).unwrap();
+    let headers = format!("Authorization: Bearer {}\r\n", operator.token);
+    let response = host.request("POST", "/dev/clock/advance", &headers, r#"{"duration":"6s"}"#);
+    assert_eq!(status(&response), 200, "{response}");
+    assert_eq!(body(&response)["advancedMs"], 6_000);
 }
 
 #[test]

@@ -2,11 +2,14 @@
 import { spawn, type ChildProcess } from "node:child_process";
 import { closeSync, mkdirSync, openSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { randomUUID } from "node:crypto";
 import { setTimeout as sleep } from "node:timers/promises";
 import { stripVTControlCharacters } from "node:util";
 
 const children = new Set<ChildProcess>();
+const privateGroups = new WeakMap<ChildProcess, number>();
+const groupClosures = new WeakMap<ChildProcess, Promise<void>>();
 process.once("exit", () => { for (const child of children) child.kill("SIGKILL"); });
 export function register(child: ChildProcess): void {
   children.add(child);
@@ -26,6 +29,8 @@ export interface ProofOptions {
   detached?: boolean;
   /** Internal: the frontend observes parent death through stdin EOF. */
   livenessPipe?: boolean;
+  /** Internal: a keeper-backed group owns npm and other descendant trees. */
+  processGroup?: boolean;
 }
 export interface ProofHost {
   url: string;
@@ -68,7 +73,7 @@ export async function stopChild(child: ChildProcess | Pick<ProofHost, "url" | "s
       || !(child.signalCode === null || typeof child.signalCode === "string")) {
     throw new TypeError("stopChild needs a ChildProcess or { url, stop }");
   }
-  if (child.exitCode !== null || child.signalCode !== null) return;
+  if (child.exitCode !== null || child.signalCode !== null) { await groupGone(child); return; }
   let done!: () => void;
   const exited = new Promise<void>(resolve => { done = resolve; });
   child.once("exit", done);
@@ -81,6 +86,25 @@ export async function stopChild(child: ChildProcess | Pick<ProofHost, "url" | "s
       await bounded(exited, 5000, "SIGKILL reap");
     }
   } finally { child.removeListener("exit", done); child.removeListener("error", done); }
+  await groupGone(child);
+}
+async function groupGone(child: ChildProcess): Promise<void> {
+  const pid = privateGroups.get(child);
+  if (!pid || process.platform === "win32") return;
+  const existing = groupClosures.get(child);
+  if (existing) return existing;
+  const cleanup = (async () => {
+    const expires = performance.now() + 5000;
+    for (;;) {
+      try { process.kill(-pid, 0); }
+      catch (error) { if ((error as NodeJS.ErrnoException).code === "ESRCH") return; throw error; }
+      const remaining = expires - performance.now();
+      if (remaining <= 0) throw Error("proof process-group cleanup timed out after 5000 ms");
+      await sleep(Math.min(10, remaining));
+    }
+  })();
+  groupClosures.set(child, cleanup);
+  return cleanup;
 }
 /** @throws partial, invalid or reversed PORT_LO/PORT_HI pair. */
 export function portRange(env: NodeJS.ProcessEnv = process.env): string {
@@ -103,9 +127,17 @@ export function logged(command: string, args: readonly string[], options: ProofO
   const logs = { stdout: join(directory, `${id}.stdout.log`), stderr: join(directory, `${id}.stderr.log`) };
   if (options.secret) writeFileSync(logs.stdout, "stdout withheld: secret command (returned only to caller)\n", { flag: "wx", mode: 0o600 });
   const out = options.secret ? undefined : openSync(logs.stdout, "wx", 0o600), err = openSync(logs.stderr, "wx", 0o600);
+  const grouped = options.processGroup === true && process.platform !== "win32";
+  // Frontends are already detached group leaders with an in-group keeper.
+  // Record their group too, so stop/startup cleanup cannot report success
+  // before Vite plugins and other inherited descendants have left custody.
+  const privateGroup = process.platform !== "win32" && (grouped || options.detached === true);
+  const executable = grouped ? process.execPath : command;
+  const executableArgs = grouped ? [resolve(fileURLToPath(new URL("./proof-command.js", import.meta.url))), command, ...args] : [...args];
   let child: ChildProcess;
-  try { child = spawn(command, [...args], { cwd, detached: options.detached ?? false, env: { ...(options.env ?? process.env), SNAPBACK4_PROOF_LAUNCH: id }, stdio: [options.livenessPipe ? "pipe" : "ignore", options.secret ? "pipe" : out!, err] }); }
+  try { child = spawn(executable, executableArgs, { cwd, detached: grouped || (options.detached ?? false), env: { ...(options.env ?? process.env), SNAPBACK4_PROOF_LAUNCH: id }, stdio: [grouped || options.livenessPipe ? "pipe" : "ignore", options.secret ? "pipe" : out!, err, ...(grouped ? ["ipc" as const] : [])] }); }
   finally { if (out !== undefined) closeSync(out); closeSync(err); }
+  if (privateGroup && child.pid) privateGroups.set(child, child.pid);
   // Secret stdout never reaches a file, even briefly. Callers still receive it.
   let stdout = "";
   child.stdout?.setEncoding("utf8");
@@ -113,9 +145,30 @@ export function logged(command: string, args: readonly string[], options: ProofO
   register(child);
   child.stdin?.on("error", () => {});
   let error: Error | undefined;
-  child.on("error", value => { error = value; });
-  const closed = new Promise<void>(resolve => child.once("close", () => resolve()));
-  return { child, logs, id, closed, stdout: () => options.secret ? stdout : logText(logs.stdout), error: () => error };
+  let actualPid = child.pid;
+  let actualCode: number | null = null;
+  let actualSignal: NodeJS.Signals | null = null;
+  let startedResolve!: () => void, startedReject!: (error: Error) => void, startedSettled = false;
+  const started = new Promise<void>((resolve, reject) => { startedResolve = resolve; startedReject = reject; });
+  void started.catch(() => {}); // command() observes close/error instead; host startup awaits this promise.
+  const didStart = () => { if (!startedSettled) { startedSettled = true; startedResolve(); } };
+  const failedStart = (value: unknown) => { if (!startedSettled) { startedSettled = true; startedReject(value instanceof Error ? value : Error(String(value))); } };
+  if (!grouped) didStart();
+  child.on("message", message => {
+    const event = message as {type?:string;pid?:number;code?:number|null;signal?:NodeJS.Signals|null;error?:string};
+    if (event.type === "started" && typeof event.pid === "number") { actualPid = event.pid; didStart(); }
+    if (event.type === "result") { actualCode = event.code ?? null; actualSignal = event.signal ?? null; if (event.error) error = Error(event.error); }
+  });
+  child.on("error", value => { error = value; failedStart(value); });
+  const closed = new Promise<void>((resolve, reject) => child.once("close", () => {
+    failedStart(error ?? Error("proof command exited before its process-group handshake"));
+    groupGone(child).then(resolve,reject);
+  }));
+  // Hosts use stopChild() as their cleanup join; commands await closed directly.
+  // Observe the promise here as well so an early frontend close cannot create
+  // an unhandled rejection before its startup catch reaches stopChild().
+  void closed.catch(() => {});
+  return { child, logs, id, closed, started, pid: () => actualPid, code: () => grouped ? actualCode : child.exitCode, signal: () => grouped ? actualSignal : child.signalCode, stdout: () => options.secret ? stdout : logText(logs.stdout), error: () => error };
 }
 export const logText = (path: string): string => readFileSync(path, "utf8");
 export async function ready(run: ReturnType<typeof logged>, parse: (line: string) => string | undefined, timeoutMs: number): Promise<string> {

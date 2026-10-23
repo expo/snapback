@@ -45,6 +45,16 @@ impl<const N: usize> Write for Line<N> {
 
 pub(crate) fn generation(next: u64) { GENERATION.store(next, Ordering::Release); }
 pub(crate) fn stopping() -> bool { SIGNAL.load(Ordering::Acquire) != 0 }
+/// Request the same managed shutdown path as SIGTERM after a private owner
+/// control command has been authenticated and acknowledged.
+// @ref LLP 3000.000.000.002#10-wave-25-day-two-friction-dx8 — retained shutdown stays under the existing same-owner control custody.
+pub(crate) fn request_stop() { SIGNAL.store(libc::SIGTERM, Ordering::Release); }
+/// An uncertain durable clock commit cannot serve from the old process clock.
+#[cfg(feature = "postgres")]
+pub(crate) fn uncertain_clock_commit() -> ! {
+    eprintln!("E_COMMIT_OUTCOME_UNKNOWN: staging clock checkpoint acknowledgment unavailable; stopping host before more clock or maintenance work. Restart to inspect durable state; never replay the advance.");
+    std::process::exit(1)
+}
 pub(crate) fn managed_cleanup() { MANAGED_CLEANUP.store(true, Ordering::Release); }
 
 fn signal_name(signal: i32) -> &'static str {

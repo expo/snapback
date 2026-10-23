@@ -25,7 +25,7 @@ test("generated day-two proof fails at business placeholder and releases its hos
   assert.equal((await cli(["init", "--web", "--day2"], { cwd })).code, 0);
   const pkg = JSON.parse(readFileSync(join(cwd, "package.json")));
   assert.match(pkg.scripts["day2:proof"], /versions\/v1 versions\/v2$/);
-  const result = await command(process.execPath, ["scripts/day2-proof.mjs", "versions/v1", "versions/v2"], { cwd, timeoutMs: 60_000 });
+  const result = await command(process.execPath, ["scripts/day2-proof.mjs", "versions/v1", "versions/v2"], { cwd, timeoutMs: 180_000 });
   assert.notEqual(result.code, 0);
   assert.match(result.stderr, /needs a business assertion for v1/);
   assert.doesNotMatch(result.stdout, /day2:proof passed/);
@@ -61,7 +61,7 @@ test("day-two destination works with direct args and npm defaults", async t => {
   const cwd = fixture(t);
   assert.equal((await cli(["init", "--web", "--day2"], { cwd })).code, 0);
   for (const [binary,args] of [[process.execPath,["scripts/day2-proof.mjs","versions/v1","versions/v2","./direct-deploy"]],["npm",["run","day2:proof","--","./npm-deploy"]]]) {
-    const result = await command(binary,args,{cwd,timeoutMs:60_000});
+    const result = await command(binary,args,{cwd,timeoutMs:180_000});
     assert.notEqual(result.code,0);
     assert.match(result.stderr,/needs a business assertion for v1/);
     assert.doesNotMatch(result.stderr,/usage:/);

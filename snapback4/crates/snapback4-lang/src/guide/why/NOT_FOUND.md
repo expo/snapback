@@ -28,8 +28,9 @@ write another principal's row. Success discloses the admitted row's existence
 and the update rule predicates. It grants no extra stream or snapshot row.
 A condition belongs on `update`; an upsert inserts or patches. A condition
 needs a row you can read; a blind patch needs none. On a row you cannot read,
-immutable columns in a patch are ignored. A readable immutable mismatch still
-names the column. Before target lookup, the engine reserves room for the rule
+immutable columns in a patch are ignored. Protected immutable payloads are also
+ignored on readable rows, for every viewer; other readable immutable mismatches
+still name the column. Before target lookup, the engine reserves room for the rule
 probes and the largest merged image allowed by the schema and supplied patch;
 if it cannot fit, `E_BOUND` refuses equally for a hidden or absent target.
 Delete targets and insert/if-absent collision lookups also reserve authorization

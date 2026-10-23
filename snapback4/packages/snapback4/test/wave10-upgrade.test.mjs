@@ -58,7 +58,7 @@ mutation copy(owner: principal):
 `);
   const apiBefore = readFileSync(join(dir, 'snapback/generated/api.ts'), 'utf8');
   const refused = invoke(['check', '--json'], dir); assert.equal(refused.status, 1);
-  assert.match(refused.stderr, /schema also changed/); assert.match(refused.stderr, /new refusals: E_QUARRY_TYPE \+1/);
+  assert.match(refused.stderr, /schema also changed/); assert.match(refused.stderr, /new compiler refusals: E_QUARRY_TYPE \+1/);
   assert.match(JSON.parse(refused.stdout).problems[0].rewrite, /qtySum\[owner\] \?\? 0/);
   assert.equal(readFileSync(path, 'utf8'), JSON.stringify(old)); assert.equal(readFileSync(join(dir, 'snapback/generated/api.ts'), 'utf8'), apiBefore);
   writeFileSync(schema, readFileSync(schema, 'utf8').replace('total: qtySum[owner]', 'total: qtySum[owner] ?? 0'));

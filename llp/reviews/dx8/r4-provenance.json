@@ -1,0 +1,31 @@
+{
+  "round": 4,
+  "sourceCommit": "f4c139c81f704f95f8d1c8431edfa4c7e78b5131",
+  "amendmentSha256": "04964598099805a37937d10c9614fb1a81824a91fbe8794a39e95031f077ef7c",
+  "createdAt": "2026-10-23T01:51:36.660680+00:00",
+  "reviewers": [
+    {
+      "family": "OpenAI",
+      "model": "gpt-6.1-sol",
+      "reasoning": "high",
+      "session": "fresh codex exec"
+    },
+    {
+      "family": "Meta",
+      "model": "muse-spark-1.3-contributor",
+      "reasoning": "high",
+      "session": "muse-exec configured plan/fallback"
+    }
+  ],
+  "verdicts": {
+    "codex": "NOT READY",
+    "muse": "READY"
+  },
+  "artifacts": {
+    "r4-codex.txt": "3eb5eb735c001f24e763197a8257387fea7962db8ba697fbd7a3e035d1b9e73a",
+    "r4-codex-stderr.txt": "52bb71bfcd7b967a722442b24474d1db88d616d40e0283b8e27ce90e2f9e1478",
+    "r4-muse.txt": "67898fd5327fbeb29bade350f83028d58765b8154f5dcdb98bee4a1deb0aebec",
+    "r4-muse-stderr.txt": "eaeaf6d3154af97648ff1bbb3c0b178f0324143662c7aebae462f0092b113b2a"
+  },
+  "canonicalSectionVerifiedEqual": true
+}

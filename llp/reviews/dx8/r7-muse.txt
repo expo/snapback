@@ -1,0 +1,14 @@
+muse: workspace root: /home/ccheever/projects/sb4-b25-dx8 (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=75ebc542-8b61-4bf8-a8c6-d2b0cb141f3f]: Subscription quota exhausted. Your usage window resets at 2026-10-26T00:00:00Z. (rate_limit_error)
+READY
+
+No material semantic, migration/release-safety, authority-boundary, or ambiguity defect found in the frozen `8be54b526934966a071537bfd4289fb7d80a8a96` sources read only via `git show` against the full DX8 amendment. Prior round findings are closed in-code:
+
+- Fan-out accounting: parent walks and child-index traversal both use `activation_walk::walk_metered`; row/child reads precharge serialized-size decode scratch through that same meter and retain the decoded image, releasing only dropped scratch. Forward releases per-element scratch after dropping images; reverse retains accumulated children beside the live serialized parent page. New regressions `dx8_each_reverse_shares_parent_page_and_accumulated_child_heap_atomically` and `dx8_each_forward_shares_parent_page_and_retained_child_decode_atomically` assert `HeapBytes` cut with generation, populations, fields/payload and asset homes unchanged. Historical comparisons stay in SQLite; resume shares the meter.
+- Mixed-version fence: `release_control::ACTIVATION_PROTOCOL = "snapback4-activation-10"` is a structurally required `String` on every `Activate` (including `rollback --exact`), under `deny_unknown_fields` in both directions; `serve_release::apply` rejects wrong tokens before source-directory/compile/adoption work, with sender mapping of old-runtime unknown-field failure to restart guidance. Format-10 marker upgrades via `table_renames::prepare` on the adoption path only (rolls back on refusal); `opening.rs` keeps 8/9 readable and refuses newer-than-10.
+- Suspension/resumption, pruning, null-removal, duplicate-home, invalid-lifetime, narrowed-retention, captured-authority, scalar-copy, and one-extraction-per-child-table rules match the amendment text in `extraction_each.rs` / `extractions.rs` / `schema/extraction.rs` / `schema/capabilities.rs` (`release-child-extraction-each-v1`). Rename, operator-stop/keeper, clock, `provisionAccounts`/seat, inspection, saved-version, paging-cursor, and contract-advice paths sampled show no realizable counterexample.
+
+Nonblocking suggestions (not readiness blockers):
+- Clarify in a future amendment that forward accumulation is per-element plus the resident page/current decode, while reverse accumulates across children; the current "accumulated children consume one allowance" sentence reads as both accumulating identically.
+- Consider sharing one job meter (or an explicit examined budget) across the `validate_all_receipts` pre-pass; it currently uses a fresh per-parent meter, so its pre-check work is job-bounded per parent but not cumulatively charged before the metered traversal that later cuts.

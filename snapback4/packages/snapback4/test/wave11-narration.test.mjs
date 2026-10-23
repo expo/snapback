@@ -10,6 +10,12 @@ import { fileURLToPath } from 'node:url';
 import { captureStdout } from './helpers/server-output.mjs';
 import { waitFor, hangBudget } from './helpers/wait.mjs';
 
+// Synchronous previews can outlive keepalive while Node cannot drain a FIN.
+const fetch = (url, options = {}) => {
+  const headers = new Headers(options.headers); headers.set('connection', 'close');
+  return globalThis.fetch(url, { ...options, headers });
+};
+
 const root = fileURLToPath(new URL('../../../', import.meta.url));
 const binary = process.env.SNAPBACK4_BIN ?? join(root, 'target/debug/snapback4');
 function fixture(t) {

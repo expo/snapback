@@ -27,7 +27,7 @@ table members:
   sync
 
 query myTeams(c: cursor ?):
-  return members where .principal = viewer after c first 100 by .id
+  return members where .principal = viewer after c last 100 by .id
 
 query myRole(teamId: teams):
   require exists members[teamId = teamId, principal = viewer] else NOT_MEMBER
@@ -35,7 +35,7 @@ query myRole(teamId: teams):
 
 query roster(teamId: teams, c: cursor ?):
   require exists members[teamId = teamId, principal = viewer] else NOT_MEMBER
-  return members where .teamId = teamId after c first 100 by .id
+  return members where .teamId = teamId after c last 100 by .id
 
 mutation createTeam(title: text 1..80):
   team = insert teams { title, creator: viewer }

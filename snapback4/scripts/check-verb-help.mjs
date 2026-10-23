@@ -9,21 +9,33 @@ export function changelogFlags(changelog) {
   // an option is supported; explicit retirement prose must not announce it.
   const flags = new Map();
   for (const line of changelog.split('\n')) {
-    let verb;
+    let verb, packageManagerCommand = false;
     const retired = [...line.matchAll(/\b(?:drops?|dropped|removes?|removed|retires?|retired)\s+(?:(?:the|unsupported)\s+)*[A-Za-z-]+\s+--[a-z][a-z-]*/gi)];
     // Every flag must follow a named owner; preserve owner through adjacent flags.
     // Exact's rebuild command is an external tool, explicitly outside binary help.
     for (const match of line.matchAll(/\b(?:exact\.mjs|[A-Za-z]+)\b|--[a-z][a-z0-9-]*/g)) {
       const token = match[0];
-      if (['npm', 'bun', 'pnpm'].includes(token)) verb = 'package-manager';
+      if (['npm', 'bun', 'pnpm'].includes(token)) {
+        verb = 'package-manager';
+        packageManagerCommand = true;
+      }
       else if (token === 'exact.mjs') verb = 'exact';
-      else if (verbs.has(token.toLowerCase())) verb = token.toLowerCase();
+      else if (verbs.has(token.toLowerCase())) {
+        // `run` immediately after npm/bun/pnpm names the package-manager
+        // subcommand. A later explicit Snapback verb still starts a new owner.
+        if (packageManagerCommand && token.toLowerCase() === 'run') packageManagerCommand = false;
+        else {
+          verb = token.toLowerCase();
+          packageManagerCommand = false;
+        }
+      }
       else if (token.startsWith('--')) {
         if (verb === 'package-manager' || verb === 'exact' && token === '--rebuild') continue;
         if (!verb || verb === 'exact') throw new Error(`changelog flag ${token} needs an explicit Snapback verb: ${line}`);
         const key = `${verb} ${token}`;
         if (!flags.has(key)) flags.set(key, retired.some(span => match.index >= span.index && match.index < span.index + span[0].length) ? null : [verb, token]);
       }
+      else packageManagerCommand = false;
     }
   }
   return [...flags.values()].filter(Boolean);

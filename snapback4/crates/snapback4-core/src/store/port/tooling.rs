@@ -3,7 +3,7 @@
 use super::handles::SqliteStore;
 use crate::{RuntimeError, Schema};
 use crate::store_port::{AnyStore, AnyInspection};
-use crate::inspection::{InspectionResult, InspectionRows, HandlerFailure, CommitClockRecord, WorkRecordKind};
+use crate::inspection::{InspectionColumnKind, InspectionResult, InspectionRows, HandlerFailure, CommitClockRecord, WorkRecordKind};
 use std::path::Path;
 use serde_json::Value as Json;
 impl AnyStore {
@@ -75,8 +75,8 @@ impl AnyInspection {
         object_rows: bool,
         classify_error: impl Fn(String) -> (&'static str, String),
         check_columns: impl Fn(&[String]) -> InspectionResult<()>,
-        booleans: impl FnOnce(usize) -> InspectionResult<Vec<bool>>,
-    ) -> InspectionResult<InspectionRows> { match self { Self::Sqlite(inner) => inner.query(body, limit, object_rows, classify_error, check_columns, booleans), #[cfg(feature = "postgres")] Self::Postgres => Err(("E_STORE_UNSUPPORTED", RuntimeError::StoreUnsupported { family: "inspection" }.to_string())) } }
+        kinds: impl FnOnce(usize) -> InspectionResult<Vec<InspectionColumnKind>>,
+    ) -> InspectionResult<InspectionRows> { match self { Self::Sqlite(inner) => inner.query(body, limit, object_rows, classify_error, check_columns, kinds), #[cfg(feature = "postgres")] Self::Postgres => Err(("E_STORE_UNSUPPORTED", RuntimeError::StoreUnsupported { family: "inspection" }.to_string())) } }
     pub fn optional_release(&self) -> InspectionResult<Option<String>> { match self { Self::Sqlite(inner) => inner.optional_release(), #[cfg(feature = "postgres")] Self::Postgres => Err(("E_STORE_UNSUPPORTED", RuntimeError::StoreUnsupported { family: "inspection" }.to_string())) } }
     pub fn required_release(&self) -> InspectionResult<String> { match self { Self::Sqlite(inner) => inner.required_release(), #[cfg(feature = "postgres")] Self::Postgres => Err(("E_STORE_UNSUPPORTED", RuntimeError::StoreUnsupported { family: "inspection" }.to_string())) } }
     pub fn witness_generation(&self) -> InspectionResult<(i64, String, String, String)> { match self { Self::Sqlite(inner) => inner.witness_generation(), #[cfg(feature = "postgres")] Self::Postgres => Err(("E_STORE_UNSUPPORTED", RuntimeError::StoreUnsupported { family: "inspection" }.to_string())) } }
@@ -90,6 +90,7 @@ impl AnyInspection {
         id: &str,
     ) -> std::result::Result<Vec<Json>, String> { match self { Self::Sqlite(inner) => inner.work_records(kind, id), #[cfg(feature = "postgres")] Self::Postgres => Err(RuntimeError::StoreUnsupported { family: "inspection" }.to_string()) } }
     pub fn retained_schema(&self, schema: Schema) -> InspectionResult<Schema> { match self { Self::Sqlite(inner) => inner.retained_schema(schema), #[cfg(feature = "postgres")] Self::Postgres => Err(("E_STORE_UNSUPPORTED", RuntimeError::StoreUnsupported { family: "inspection" }.to_string())) } }
+    pub fn dormant_inventory(&self) -> InspectionResult<Vec<crate::release_history::DormantItem>> { match self { Self::Sqlite(inner) => inner.dormant_inventory(), #[cfg(feature = "postgres")] Self::Postgres => Err(("E_STORE_UNSUPPORTED", RuntimeError::StoreUnsupported { family: "inspection" }.to_string())) } }
 }
 
 impl AnyStore {

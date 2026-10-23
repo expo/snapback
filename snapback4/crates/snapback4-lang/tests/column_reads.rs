@@ -192,7 +192,6 @@ table roles:
 #[test]
 fn raw_and_inferred_structural_uses_refuse_before_installation() {
     for clause in [
-        "immutable secret",
         "unique secret",
         "by bySecret: secret, id",
         "read (id) <- allow",
@@ -713,4 +712,44 @@ fn protected_spread_omission_uses_a_required_destination_default_but_present_nul
  for viewer in ["alice","bob"] {let mut c=context(viewer);c.args.insert("id".into(),Value::Id("original".into()));let out=e.mutate("copy",None,c).unwrap();let WriteState::Sent{result,..}=out.state else{panic!("{out:?}")};assert_eq!(result.field("secret").unwrap(),&Value::String(if viewer=="alice"{"private"}else{"fallback"}.into()));}
  let nullable=source.replace("secret: text <=80 read", "secret: text <=80 ? read");
  let b=snapback4_lang::compile(&[("schema.q".into(),nullable)]);assert!(b.diagnostics.iter().any(|d|d.code=="E_QUARRY_TYPE"),"{:?}",b.diagnostics);
+}
+
+
+#[test]
+fn protected_immutable_patches_never_test_guesses_and_keep_the_stored_cell() {
+    let source = format!("{}\nmutation guess(id: records, secret: text <=500):\n  return update records[id] {{ secret }}\nmutation put(id: records, secret: text <=500):\n  return upsert records[id] {{ owner: 'alice', title: 'shared', secret }}\n", SOURCE.replace("  online only", "  immutable secret\n  online only"));
+    for op in ["guess", "put"] {
+        for viewer in ["alice", "bob"] {
+            let mut observations = vec![];
+            for hidden in ["guess", "different stored payload"] {
+                let mut e = world(&source, hidden);
+                let mut c = arg(viewer); c.args.insert("secret".into(), Value::String("guess".into()));
+                let result = e.mutate(op,None,c).unwrap();
+                assert!(matches!(result.state,WriteState::Sent {..}),"{result:?}");
+                assert_eq!(e.query("one",arg("alice")).unwrap().data.field("secret").unwrap(),&Value::String(hidden.into()));
+                if viewer == "bob" { observations.push(serde_json::to_value(result).unwrap()); }
+            }
+            if viewer == "bob" { assert_eq!(observations[0],observations[1],"{op}"); }
+        }
+    }
+}
+
+
+#[test]
+fn protected_immutable_asset_guesses_never_change_placement_or_test_ownership() {
+    let source="table docs:\n  owner: principal\n  document: file <=1000 ('application/pdf') read <- .owner = viewer\n  immutable document\n  read <- allow\n  insert <- allow\n  update <- allow\n  online only\nmutation add(document: file <=1000 ('application/pdf')):\n  return insert docs {owner:viewer,document}\nmutation patch(id: docs, document: file <=1000 ('application/pdf')):\n  return update docs[id] {document}\n";
+    let bound=clean(source);let mut e=Engine::memory(bound.schema,bound.programs.into_iter().map(|p|p.program)).unwrap();
+    let mut upload=|owner|e.store_file(owner,b"%PDF-1.7\n%%EOF\n",Some("application/pdf"),"fixture.pdf",1_800_000_000_000).unwrap();
+    let original=upload("alice");let foreign=upload("alice");
+    let mut c=context("alice");c.args.insert("document".into(),original.column_value());
+    let WriteState::Sent {result,..}=e.mutate("add",None,c).unwrap().state else {panic!("insert failed")};let id=result.field("id").unwrap().clone();
+    let mut outcomes=vec![];
+    for asset in [&original,&foreign] {
+        let mut c=context("bob");c.args.insert("id".into(),id.clone());c.args.insert("document".into(),asset.column_value());
+        let outcome=e.mutate("patch",None,c).unwrap();assert!(matches!(outcome.state,WriteState::Sent {..}));
+        let mut record=serde_json::to_value(outcome).unwrap();record.as_object_mut().unwrap().remove("seq");outcomes.push(record);
+        assert!(e.asset_access("alice",&original.id,1_800_000_000_000).is_ok());
+        assert_eq!(e.asset_access("bob",&original.id,1_800_000_000_000).unwrap_err().code(),"E_ASSET_UNKNOWN");
+    }
+    assert_eq!(outcomes[0],outcomes[1]);
 }

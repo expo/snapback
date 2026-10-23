@@ -103,8 +103,13 @@ hot deploys, rollbacks and restarts; copying production into a directory named
 staging does not change it. `deploy --check --staging` does not mark a store.
 There is no promotion flag: deploy real production into its own fresh directory
 and provision only intended users. `seedAccounts` and startServe's seedUsers
-refuse production or dev before minting a token or creating any account. A
-normal production startServe still supports operatorToken for explicit grants.
+refuse production or dev before minting a token or creating any account.
+`host.provisionAccounts(plan)` (or startServe's `provisionUsers`) accepts the
+same roles/provision/args/service plan in production, creates real password
+accounts, and performs the ordinary service-authorized mutation for each one.
+It warns when the served schema reports no explicit positive authorization
+mention for the minted service seat; rules still decide every operation and the
+token gains no implicit grant. Partial failure can leave real accounts/grants.
 
 ### E_STAGING
 

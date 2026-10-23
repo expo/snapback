@@ -30,6 +30,10 @@ pub(super) fn apply(
     command: Command,
 ) -> Result<Json, String> {
     match command {
+        Command::Stop => {
+            crate::lifecycle::request_stop();
+            Ok(json!({"stopping":true}))
+        }
         Command::Status {
             after,
             items_after,
@@ -58,6 +62,7 @@ pub(super) fn apply(
             Ok(result)
         }
         Command::Activate {
+            activation_protocol,
             release,
             expected_release,
             expected_revision,
@@ -68,6 +73,9 @@ pub(super) fn apply(
             restore_dormant,
             allow_feed_adoption,
         } => {
+            if activation_protocol != crate::release_control::ACTIVATION_PROTOCOL {
+                return Err("release activation protocol differs; restart serve with this CLI before switching releases".into());
+            }
             if release == 0 {
                 return Err("release id must be positive".into());
             }

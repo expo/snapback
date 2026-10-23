@@ -69,7 +69,6 @@ fn rule_operators_name_what_rules_evaluate_and_move_the_check_into_the_mutation(
         // An unnamed update rule holds before and after: its named form keeps both (LLP 3000.036 §13.6).
         ("update <- .bid >= 3", "an ordered comparison", "`update (old, next) <- old.bid >= 3 and next.bid >= 3`"),
         ("update (old, next) <- next.bid >= old.bid + old.step", "arithmetic", "`require bid >= row.bid + row.step else INVALID_BID`"),
-        ("insert <- .bid > 0 and isOpen(.bid)", "a helper or function call", "`require isOpen(bid) else INVALID_BID`"),
     ] {
         let source = table(rule, "x: int") + "fn isOpen(n: int): n > 0\n";
         let d = one(&source, "E_QUARRY_RULE_OPERATOR");
@@ -77,6 +76,12 @@ fn rule_operators_name_what_rules_evaluate_and_move_the_check_into_the_mutation(
         assert!(d.rewrite.contains(rewrite), "{rule}: {d}");
         assert_eq!(d.guide, "rules");
     }
+    // @ref LLP 3000.000.000.001#12-wave-24-loop-repairs-dx7 — helpers expand into the existing rule grammar.
+    let helper = clean(&(table("insert <- .bid > 0 and isOpen(.bid)", "x: int") + "fn isOpen(n: int): n > 0\n"));
+    let inline = clean(&table("insert <- .bid > 0 and .bid > 0", "x: int"));
+    assert_eq!(helper.schema.tables["shifts"].rules.insert, inline.schema.tables["shifts"].rules.insert);
+    let helper_read = one(&(table("insert <- .owner = viewer", "x: int").replace("read <- .owner = viewer", "read <- isOpen(.bid)") + "fn isOpen(n: int): n > 0\n"), "E_QUARRY_RULE_OPERATOR");
+    assert!(helper_read.message.contains("an ordered comparison"), "{helper_read}");
     let read = one(&table("insert <- .owner = viewer", "x: int").replace("read <- .owner = viewer", "read <- .bid >= 1"), "E_QUARRY_RULE_OPERATOR");
     assert!(read.rewrite.contains("shifts where .bid >= 1"), "{read}");
     let optional = bound(&table("insert <- .stars >= 1", "x: int"));

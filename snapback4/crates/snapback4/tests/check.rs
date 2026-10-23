@@ -1471,6 +1471,28 @@ fn maintained_column_inspection_is_public_and_missing_storage_reads_zero() {
 }
 
 #[test]
+fn object_sql_decodes_direct_media_and_reports_json_truncation() {
+    use snapback4_core::{assets::{Asset,AssetKind}, engine::LoadMode, value::{ObjectFields,Value as V,object}};
+    let p=Project::new();
+    let source="table photos:\n  photo: image <=100\n  public\n  online only\nquery all():\n  return photos first 10 by .id\n";
+    p.source(source);fs::create_dir_all(p.0.join(".snapback4")).unwrap();
+    let b=snapback4_lang::compile(&[("schema.q".into(),source.into())]);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
+    let mut e=Engine::new(Store::open(&p.store()).unwrap(),b.schema,b.programs.into_iter().map(|p|p.program)).unwrap();
+    let media=V::Map(ObjectFields::from_iter([
+        ("id".into(),V::Id("asset".into())),("type".into(),V::String("image/png".into())),
+        ("bytes".into(),V::Int(1)),("width".into(),V::Int(1)),("height".into(),V::Int(1)),
+        ("duration".into(),V::Null),("name".into(),V::Null),
+    ]));
+    e.store().record_asset(&Asset{id:"asset".into(),owner:"dev:alice".into(),kind:AssetKind::Image,content_type:"image/png".into(),bytes:1,width:Some(1),height:Some(1),duration:None,created_at:0,home:None,released_at:None,name:None}).unwrap();
+    e.load_mode((0..2).map(|n|("photos".into(),object([("id",V::Id(format!("p{n}"))),("photo",media.clone())]))),LoadMode::Restore).unwrap();drop(e);
+    let positional=p.run(&["sql","SELECT photo FROM photos ORDER BY id","--json","--limit","1"]);assert!(positional.status.success(),"{positional:?}");
+    assert!(parsed(&positional)["rows"][0][0].as_str().unwrap().contains("Map"),"positional compatibility stays tagged");
+    let objects=p.run(&["sql","SELECT photo AS image FROM photos ORDER BY id","--json-objects","--limit","1"]);assert!(objects.status.success(),"{objects:?}");
+    let answer=parsed(&objects);assert_eq!(answer["rows"][0]["image"]["id"],"asset");assert_eq!(answer["more"],true);
+    assert!(String::from_utf8_lossy(&objects.stderr).contains("result truncated at 1 rows"),"{objects:?}");
+}
+
+#[test]
 fn row_view_check_matches_engine_chunk_size_and_commit_count() {
     use snapback4_core::{Context, value::{Value as V, object}, engine::row_views::{RECOUNT_CHUNK,WRITER_RECOUNT}};
     let p=Project::new();

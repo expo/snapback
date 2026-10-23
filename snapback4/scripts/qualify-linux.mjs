@@ -10,6 +10,8 @@ import { artifact, cleanSource, clientManifest, digest, json, linuxRustFlags, li
 import { checkElf } from "./check-elf.mjs";
 import { proveStarters } from "./publication-starters.mjs";
 import { proveExpoUpgrades } from "./publication-regressions.mjs";
+import { proveDX7 } from "./publication-dx7.mjs";
+import { proveDX8 } from "./publication-dx8.mjs";
 import { proveDay2 } from "./publication-day2.mjs";
 import { proveDay4 } from "./publication-day4.mjs";
 import { proveReleaseTransitions } from "./publication-release-transitions.mjs";
@@ -112,6 +114,9 @@ export async function qualify(args = process.argv.slice(2)) {
     save(join(out, "day2-proof.json"), day2Proof);
     save(join(out, "dx4-proof.json"), await proveDX4(day2Proof.directory));
     save(join(out, "dx6-proof.json"), await proveDX6(day2Proof.directory));
+    save(join(out, "dx7-proof.json"), await proveDX7(day2Proof.directory, client, tarball));
+    const dx8Proof = await proveDX8(day2Proof.directory, client, tarball);
+    save(join(out, "dx8-proof.json"), dx8Proof);
     const dx5Proof = await proveDX5(day2Proof.directory, client, tarball, expo);
     save(join(out, "dx5-proof.json"), dx5Proof);
     const regressions = await proveExpoUpgrades(client, tarball, expo, out);
@@ -154,7 +159,7 @@ export async function qualify(args = process.argv.slice(2)) {
         throw new Error("release source or client changed during consumer qualification");
       copyFileSync(tarball, join(out, packed.filename));
       const evidence = { format: 1, mode: "consumer-only", source, version, route: runtime,
-        clientIntegrity, expoIntegrity, platform, binarySha256, elf, regressions, day2Proof, dx5Proof, day4Proof, day5Proof, productionProofs, proofKit, clientRecipes, ruleRecipes, frontendProofs, starterProofs, stagingProof, migrationProof, securityProof, proofs,
+        clientIntegrity, expoIntegrity, platform, binarySha256, elf, regressions, day2Proof, dx8Proof, dx5Proof, day4Proof, day5Proof, productionProofs, proofKit, clientRecipes, ruleRecipes, frontendProofs, starterProofs, stagingProof, migrationProof, securityProof, proofs,
         suite: { status: "not-run" }, publicationQualified: false };
       save(join(out, "consumer.json"), evidence);
       console.log(JSON.stringify(evidence, null, 2));
@@ -162,7 +167,7 @@ export async function qualify(args = process.argv.slice(2)) {
     }
     if (!suitePassed) throw new Error(`Linux source suite failed: ${summary ?? result.error?.message ?? result.status}; see ${log}; consumer evidence in proofs.json (no qualification receipt)`);
     const cc = process.env.SNAPBACK4_MUSL_CC ?? join(process.env.HOME, ".local/share/snapback4-musl-1.2.5/bin/musl-gcc");
-    const receipt = { format: 1, route: runtime, source, target: linuxTarget, toolchain: { rustc: run("rustc", ["-Vv"]).trim(), cargo: run("cargo", ["-V"]).trim(), cc: run(cc, ["--version"]).trim(), linker: cc }, flags: { LIBSQLITE3_FLAGS: sqliteBuildFlags, RUSTFLAGS: linuxRustFlags }, suite: { status: "passed", exitCode: result.status, summary }, proofs, regressions, day2Proof, dx5Proof, day4Proof, day5Proof, productionProofs, proofKit, clientRecipes, ruleRecipes, frontendProofs, starterProofs, stagingProof, migrationProof, securityProof, elf, platform, binarySha256, clientIntegrity, expo: artifact(expo, "snapback4-expo", version) };
+    const receipt = { format: 1, route: runtime, source, target: linuxTarget, toolchain: { rustc: run("rustc", ["-Vv"]).trim(), cargo: run("cargo", ["-V"]).trim(), cc: run(cc, ["--version"]).trim(), linker: cc }, flags: { LIBSQLITE3_FLAGS: sqliteBuildFlags, RUSTFLAGS: linuxRustFlags }, suite: { status: "passed", exitCode: result.status, summary }, proofs, regressions, day2Proof, dx8Proof, dx5Proof, day4Proof, day5Proof, productionProofs, proofKit, clientRecipes, ruleRecipes, frontendProofs, starterProofs, stagingProof, migrationProof, securityProof, elf, platform, binarySha256, clientIntegrity, expo: artifact(expo, "snapback4-expo", version) };
     if (cleanSource(root) !== source || sri(client) !== clientIntegrity || sri(expo) !== expoIntegrity) throw new Error("release source or client changed during Linux qualification");
     validateLinux(receipt, tarball, { version, integrity: clientIntegrity }, source);
     copyFileSync(tarball, join(out, packed.filename));

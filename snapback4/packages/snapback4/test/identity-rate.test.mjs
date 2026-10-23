@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {setTimeout as sleep} from "node:timers/promises";
 import {guest, login, signup} from "../dist/auth.js";
-import {seedAccounts} from "../dist/proof.js";
+import {provisionAccounts,seedAccounts} from "../dist/proof.js";
 const limited=(retryAfterMs=40)=>({denied:{code:"E_RATE_LIMIT",family:"auth",message:"wait",retryable:true,retryAfterMs}});
 const session=()=>({session:{principal:"user:one",kind:"user",token:"bearer",expiresAt:Date.now()+86400000}});
 const response=(json,status=200,headers={})=>Response.json(json,{status,headers});
@@ -44,6 +44,44 @@ test("proof seedAccounts shares identity delay and retries the same account only
  });
  const accounts=await seedAccounts({url:"http://example",operatorToken:async()=>"operator"},{roles:{member:1},provision:{name:"provision"},timeoutMs:1000});
  assert.equal(accounts.member.length,1);assert.equal(signups,2);assert.equal(provisions,1);assert.equal(bodies[0],bodies[1]);assert.ok(times[1]-times[0]>=35);
+});
+test("proof provisionAccounts authenticates schema inspection and warns for an unused service seat",async t=>{
+ let warning="",schemaAuthorization,provision;
+ t.mock.method(process.stderr,"write",value=>{warning+=value;return true;});
+ t.mock.method(globalThis,"fetch",async(url,init={})=>{
+  if(url.endsWith("/auth/config"))return response({environment:"production",development:false,password:true});
+  if(url.endsWith("/schema")){schemaAuthorization=init.headers.authorization;return response({programs:[]});}
+  if(url.endsWith("/auth/signup"))return response(session());
+  provision=JSON.parse(init.body);return response({state:"sent"});
+ });
+ const accounts=await provisionAccounts({url:"http://example",operatorToken:async service=>{assert.equal(service,"unused");return "operator";}},{roles:{member:1},provision:{name:"provision"},service:"unused",timeoutMs:1000});
+ assert.equal(schemaAuthorization,"Bearer operator");
+ assert.match(warning,/service:unused.*no explicit positive authorization.*rules still decide/);
+ assert.match(accounts.member[0].email,/^production-member-/);
+ assert.deepEqual(provision.args,{principal:"user:one",role:"member"});
+});
+test("proof provisionAccounts gives production-safe partial setup advice",async t=>{
+ t.mock.method(globalThis,"fetch",async url=>{
+  if(url.endsWith("/auth/config"))return response({environment:"production",development:false,password:true});
+  if(url.endsWith("/schema"))return response({service_identities:["service:setup"]});
+  return response({denied:{code:"E_AUTH",family:"auth",message:"signup refused",retryable:false}},401);
+ });
+ await assert.rejects(
+  provisionAccounts({url:"http://example",operatorToken:async()=>"operator"},{roles:{member:1},provision:{name:"provision"},service:"setup",timeoutMs:1000}),
+  error=>error.message.includes("inspect partial production accounts/grants")&&!error.message.includes("discard")
+ );
+});
+test("an active production signup deadline never recommends discarding production",async t=>{
+ let calls=0;t.mock.method(globalThis,"fetch",async(url,init)=>{
+  if(url.endsWith("/auth/config"))return response({environment:"production",development:false,password:true});
+  if(url.endsWith("/schema"))return response({service_identities:["service:setup"]});
+  calls++;return new Promise((_,reject)=>{const abort=()=>reject(init.signal.reason);init.signal.addEventListener("abort",abort,{once:true});if(init.signal.aborted)abort();});
+ });
+ await assert.rejects(
+  provisionAccounts({url:"http://example",operatorToken:async()=>"operator"},{roles:{member:1},provision:{name:"provision"},service:"setup",timeoutMs:10}),
+  error=>error.message.includes("E_STAGING_TIMEOUT")&&error.message.includes("inspect partial production accounts/grants")&&!error.message.includes("discard")
+ );
+ assert.equal(calls,1);
 });
 test("proof seeding respects the remaining setup budget and never retries lost signup replies",async t=>{
  for(const failure of ["delay","network"]){let signups=0,provisions=0;

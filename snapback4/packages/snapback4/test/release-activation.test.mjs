@@ -16,6 +16,13 @@ import { fileURLToPath } from "node:url";
 import { createLocalClient } from "../dist/local.js";
 import { processDevice } from "../dist/native.js";
 
+// Synchronous CLI checks block Node beyond HTTP keepalive deadlines. Give each
+// fixture request its own connection so an undrained FIN cannot poison a write.
+const fetch = (url, options = {}) => {
+  const headers = new Headers(options.headers); headers.set('connection', 'close');
+  return globalThis.fetch(url, { ...options, headers });
+};
+
 const root = join(dirname(fileURLToPath(import.meta.url)), "../../..");
 const binary = process.env.SNAPBACK4_BIN ?? join(root, "target/debug/snapback4");
 const source = `use identity guests

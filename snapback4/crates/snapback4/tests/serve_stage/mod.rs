@@ -12,6 +12,49 @@ fn close_doors(shared: &Shared, engine: &mut Engine) {
 }
 
 #[test]
+fn dx8_password_dev_clock_requires_operator_and_preserves_sessions_through_drain() {
+    let source = "use identity password\nquery who():\n  return viewer\n";
+    let host = Host::with_capacity_recent_writer(
+        true,
+        snapback4_core::store_port::AnyStore::memory().unwrap(),
+        source,
+        "127.0.0.1",
+        None,
+        crate::host_limits::Capacity::default(),
+        None,
+        false,
+        |engine| committer::Writer::new(engine).unwrap(),
+    );
+    let (operator, peer) = host.shared.engine.attempt(|engine, shared| Ok::<_, snapback4_core::RuntimeError>((
+        snapback4_core::identity::service_session(engine.store(), "operator", shared.now(), 1)?,
+        snapback4_core::identity::service_session(engine.store(), "peer", shared.now(), 1)?,
+    ))).unwrap();
+    let operator = format!("Authorization: Bearer {}\r\n", operator.token);
+    let peer = format!("Authorization: Bearer {}\r\n", peer.token);
+    for headers in ["", peer.as_str()] {
+        let response = host.request("POST", "/dev/clock/advance", headers, r#"{"duration":"2d"}"#);
+        assert_eq!(status(&response), 403, "{response}");
+        assert_eq!(body(&response)["denied"]["code"], "E_AUTH");
+    }
+    assert_eq!(status(&host.request("POST", "/seed", "", "[]")), 403, "fixture authority stays closed");
+    let advanced = body(&host.request("POST", "/dev/clock/advance", &operator, r#"{"duration":"2d","drain":false}"#));
+    assert_eq!(advanced["sessionsPreserved"], true);
+    assert_eq!(advanced["maintenancePaused"], true);
+    let query = host.request("POST", "/q/who", &peer, r#"{"args":{}}"#);
+    assert_eq!(status(&query), 200, "preserved service family remains live: {query}");
+    let drained = body(&host.request("POST", "/dev/clock/advance", &operator, r#"{"duration":"0ms","drain":true}"#));
+    assert_eq!(drained["advancedMs"], 0);
+    assert_eq!(drained["maintenancePaused"], false, "mailbox drain resumes without replaying time");
+    let expiring = host.shared.engine.attempt(|engine, shared| {
+        snapback4_core::identity::service_session(engine.store(), "victim", shared.now(), 1)
+    }).unwrap();
+    let expired_header = format!("Authorization: Bearer {}\r\n", expiring.token);
+    let expired = body(&host.request("POST", "/dev/clock/advance", &operator, r#"{"duration":"2d","sessions":"expire"}"#));
+    assert_eq!(expired["sessionsPreserved"], false);
+    assert_eq!(status(&host.request("POST", "/q/who", &expired_header, r#"{"args":{}}"#)), 401);
+}
+
+#[test]
 fn stage_slow_dev_bodies_cannot_retain_authority_after_password_adoption() {
     for (path, payload) in [("/seed", "[]"), ("/dev/reset", "{}"), ("/dev/clock/advance", r#"{"duration":"+1h"}"#), ("/dev/jobs/mark", "{}")] {
         let host = Host::with_default_doors(SOURCE);

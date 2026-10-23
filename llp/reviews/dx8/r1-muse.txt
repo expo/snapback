@@ -1,0 +1,23 @@
+muse: workspace root: /home/ccheever/projects/sb4-b25-dx8 (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=cbe71c20-c3dc-4f90-99e1-1185eb94a50b]: Subscription quota exhausted. Your usage window resets at 2026-10-26T00:00:00Z. (rate_limit_error)
+READY
+
+No blocking concern confirmed. Every load-bearing DX8 claim I checked has supporting code at `78c08eaa47`, and the authority lanes the amendment disclaims are untouched by DX8's own commits (the `rollback_views.rs` / `release_bridge_rules.rs` growth in the frozen tree comes from the merged `sb4-b23-roll` second parent, not DX8's first-parent commits).
+
+Verified at the frozen commit (all via `git show 78c08eaa47:<path>`):
+
+- Rename precedence: generated `$rename` fills are single-input/single-output by construction ([bind/backfills.rs](/snapback4/crates/snapback4-lang/src/bind/backfills.rs)), and the down-stage bypass (`if !retained || fill.name.starts_with("$rename:down:")`) sits after the identical-type refusal gate, the authored-receipt `forward_outputs` precedence skip, and the protected/lifetime-output refusal in [backfills.rs](/snapback4/crates/snapback4-core/src/store/backfills.rs). Both continuous-lineage and historical-gap digest refusals print old and new digests, and prune only warns without resetting names/digests.
+- Stop custody: `stop_release` uses the same-owner 0600 socket + peer-credential/identity checks in [release_control.rs](/snapback4/crates/snapback4/src/release_control.rs), then awaits the kernel lock-release barrier; already-stopped is success, and a live foreign owner propagates the control error with no unlink/kill of guessed PIDs. Proof process groups (including npm wrappers) have bounded keeper/pipe cleanup in [proof-process.ts](/snapback4/packages/snapback4/src/proof-process.ts).
+- Dev clock: on a password-authenticated host (`dev_doors()` false) `clock_service` demands an exact full `service:operator` session; unauthenticated/other-seat/read-scoped requests are refused, and the unauthenticated `Ok(None)` path survives only where doors are already open (unsafe/guest schemas) and advances worker leases only, never session families. Authenticated jumps default to preserving live session families/worker leases in the same engine attempt, with explicit `sessions: 'expire'` for expiry testing.
+- Provisioning: `accounts()` in [proof-accounts.ts](/snapback4/packages/snapback4/src/proof-accounts.ts) requires production + non-development + password identity, refuses staging/dev before creating users, provisions through real signup plus the ordinary service-authorized mutation, and warns when the minted seat matches no schema-authorized identity.
+- Inspection: media decoding is restricted to schema-proven direct columns (computed expressions fall back to `Plain`) in [sql_objects.rs](/snapback4/crates/snapback4/src/verbs/sql_objects.rs); truncation and dormancy notices go to stderr, preserving JSON stdout, and missing-table errors name the retained table, row count, and dormant command.
+- Saved versions: refresh compares the complete saved vs selected `.q` source maps for exact-byte equality and refuses on any difference; refresh writes only generated artifacts + `release.json`, leaving sources/fixtures intact.
+- Paging: `exhaustPages` in [proof.ts](/snapback4/packages/snapback4/src/proof.ts) starts at null, follows opaque `next` unchanged, and refuses denied/loading/malformed/repeated/incomplete/capped/over-limit pages rather than returning partial evidence. `renderedText(..., null)` coalesces to the same default as omitted options.
+
+Suggestions (non-blocking):
+
+- Harden the identical-type rename gates to compare the full input/output type maps rather than only the first pair, and/or reserve `$`-prefixed declaration names to generated renames. Today a hypothetical multi-column `$rename:*` fill would pass the gate on its first pair while the current-wins bypass applies to every output. Generated renames are single-column so this is unreachable now, but the gate should state the invariant it enforces.
+- Clarify the guest-schema dev-clock sentence: guest/non-password dev hosts also get the open-doors legacy path, not only "explicit unsafe development." Either scope the amendment sentence to password-authenticated hosts (which it mostly does) or name guest schemas explicitly.
+- Provenance unconfirmed: no canonical amendment byte layout was supplied, so I could not recompute SHA256 `020369…f566`; code review only. Fan-out, full verification, and Mac coverage remain explicitly out of scope per the commission.
+

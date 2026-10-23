@@ -45,6 +45,19 @@ export async function runToolchainCommand(command, args, { cwd, env, timeout }) 
   if (status !== 0) throw Error(`${command}: toolchain command exited ${status}`);
 }
 
+export function guideTypeScriptExport(markdown, heading, exportName) {
+  const headingAt = markdown.indexOf(heading);
+  if (headingAt < 0) throw Error(`packed guide is missing ${heading}`);
+  const afterHeading = markdown.slice(headingAt + heading.length);
+  const nextHeading = afterHeading.search(/^### /m);
+  const section = nextHeading < 0 ? afterHeading : afterHeading.slice(0, nextHeading);
+  const blocks = [...section.matchAll(/^```ts\s*\n([\s\S]*?)^```\s*$/gm)].map(match => match[1].trim());
+  const declaration = new RegExp(`export\\s+(?:async\\s+)?function\\s+${exportName}\\s*\\(`);
+  const matches = blocks.filter(block => declaration.test(block));
+  if (matches.length !== 1) throw Error(`packed guide ${heading} must contain exactly one TypeScript fence exporting ${exportName}; found ${matches.length}`);
+  return matches[0];
+}
+
 // Every supported frontend/template pair; schema-only init has no frontend proof.
 export const starterCases = [
   { id: "web", kind: "web", flags: ["--web"] },
@@ -151,6 +164,7 @@ export async function proveStarters(client, platform, expo, directory, browserPr
   import {createHash} from 'node:crypto';
   import {startDev,loadFixtures,cleanup} from 'snapback4/proof';
   import {pathToFileURL} from 'node:url';
+  const guideTypeScriptExport=${guideTypeScriptExport.toString()};
   const cli=${JSON.stringify(cli)}, testPersistent=${JSON.stringify(id === "web")};
   const guide=execFileSync(cli,['guide','testing','--section','Loading fixture rows'],{encoding:'utf8',timeout:10000});
   const fence=String.fromCharCode(96).repeat(3), snippet=guide.split(fence+'js')[1].split(fence)[0].trim();
@@ -186,7 +200,7 @@ export async function proveStarters(client, platform, expo, directory, browserPr
   if(testPersistent){
     assert.equal(hash(),durableHash,'verbatim fixture guide preserved developer store');
     const reference=readFileSync('node_modules/snapback4/CLIENT-AND-OPERATIONS.md','utf8');
-    const block=reference.split('### Application proofs in Node')[1].split(fence+'ts')[1].split(fence)[0];
+    const block=guideTypeScriptExport(reference,'### Application proofs in Node','developmentHosts');
     writeFileSync('guide-development-hosts.ts',block);
     const {developmentHosts}=await import(pathToFileURL(process.cwd()+'/guide-development-hosts.ts').href);
     await developmentHosts(process.cwd());

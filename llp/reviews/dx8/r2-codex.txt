@@ -1,0 +1,16 @@
+NOT READY
+
+**Fan-out can accept missing receipt-owned children after removal and pruning.** At frozen commit `e7e6a7fb370ea9888477139598e7780637a3bd43`, [extraction_each.rs:233](/home/ccheever/projects/sb4-b25-dx8/snapback4/crates/snapback4-core/src/store/extraction_each.rs:233) silently continues when a removed element’s child is missing.
+
+Concrete counterexample:
+
+1. Extract v1 list `[A]` into v2 child C.
+2. Return to v1; remove A through an authorized old-client edit.
+3. Prune dormant history, deleting retained C while leaving its extraction receipt.
+4. Return to v2. The populated-element loop checks nothing, and the stale-receipt loop skips missing C. Adoption succeeds.
+
+This contradicts the amendment’s explicit missing/pruned-child refusal and retained-child custody. **Required correction:** validate every receipt-owned child and its parent-lifetime evidence before processing either present or removed elements. A valid retained child may receive the internal null; missing/pruned history must abort atomically. Add this combined removal → prune → return regression.
+
+**Reverse fan-out also omits populated narrowed children.** Its membership index includes only active `r` rows ([extraction_each.rs:282](/home/ccheever/projects/sb4-b25-dx8/snapback4/crates/snapback4-core/src/store/extraction_each.rs:282)). Narrow a child through an unrelated optional text field while leaving its asset type unchanged, then select v1: that child’s asset is omitted from the reconstructed list. **Required correction:** reconcile retained populated children as well, distinguishing them from migration-owned null removals; gather the full population or refuse explicitly.
+
+The capability/store fences and the three stated round-one repairs are present. These concerns arise from source inspection, independently of pending verification.

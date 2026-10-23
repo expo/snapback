@@ -30,7 +30,7 @@ fn bind_one(
 
 pub(super) fn bind(catalog: &Catalog, schema: &mut Schema, diagnostics: &mut Vec<Diagnostic>) {
     for d in catalog.documents.iter().flat_map(|d|&d.extractions) {
-        let extraction=snapback4_core::schema::Extraction{child:d.child.clone(),parent:d.parent.clone(),reference:d.reference.clone(),fields:d.fields.iter().cloned().collect()};
+        let extraction=snapback4_core::schema::Extraction{each:d.each,child:d.child.clone(),parent:d.parent.clone(),reference:d.reference.clone(),fields:d.fields.iter().cloned().collect()};
         schema.extractions.push(extraction);
     }
     let mut forward_names=BTreeSet::new();let mut forward_outputs=BTreeSet::new();

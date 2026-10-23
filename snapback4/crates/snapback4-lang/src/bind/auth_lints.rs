@@ -787,7 +787,7 @@ fn unreadable_guards(catalog: &Catalog, schema: &Schema, programs: &[&ProgramDec
                 Some(format!(" Backing unique index: {}({}); it enforces uniqueness across hidden rows too, but does not make this probe see them.", read.table, key.columns.join(", ")))
             }).unwrap_or_default();
             notes.push(Diagnostic::new(&read.site, "N_UNREADABLE_PROBE",
-                format!("{program}: this probe reads {} under its read rule `{}`{rule_site}; rows hidden from the caller do not satisfy a program exists, so using this value as a negative guard cannot enforce absence across those rows (table-rule probes see all rows).{path}{unique}", read.table, table.rules.read.quarry()),
+                format!("{program}: this probe reads {} under its read rule `{}`{rule_site}; rows hidden from the caller do not satisfy a program exists: a positive require can fail its authored business code even when the row exists, and a negative guard cannot enforce global absence (table-rule probes evaluate policy without borrowing the target read rule).{path}{unique}", read.table, table.rules.read.quarry()),
                 "use a unique/cap/after insert constraint for an invariant across hidden rows, or authorize this caller to read the rows the guard must observe; keep this probe only when caller-visible existence is intended").guide("rules"));
         }
     }

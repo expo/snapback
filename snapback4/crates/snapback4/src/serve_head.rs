@@ -39,7 +39,7 @@ pub(super) fn intent_store_id(payload: &Json, current: Option<&str>) -> Result<(
 
 // @ref LLP 3000.000.000.001#11-wave-22-loop-repairs-dx6 — reconcile the exact bearer before the SDK observes advanced business time.
 pub(super) fn session_clock_headers(request: &Request, shared: &Shared) -> Vec<Header> {
-    if !shared.staging { return clock_headers(shared).into(); }
+    if !shared.staging && !shared.personas { return clock_headers(shared).into(); }
     let Ok(token) = crate::auth::bearer_token(request) else { return clock_headers(shared).into(); };
     // Detached readers never fall back to the writer: callers may still hold it.
     // Keep the process clock fixed across the committed authority snapshot, so

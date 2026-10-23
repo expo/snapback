@@ -1,7 +1,7 @@
 import type { Session } from "./auth.ts";
 import { isReadToken } from "./read-token.ts";
 
-/** Only classified staging returns this exact bearer's current live lifetime.
+/** Authenticated development and staging return this exact bearer's current live lifetime.
  * Matching the dispatch bearer is the caller's responsibility. Same-bearer
  * preservation is monotonic, so a delayed old reply cannot undo a jump. */
 export function reconciledTiming(session: Session, response: Response): Session {
@@ -23,7 +23,7 @@ export function requestMatchesSession(request: { url: string; authorization: str
   return (request.url === base || request.url.startsWith(base + "/")) && request.authorization === `Bearer ${session.token}`;
 }
 
-/** Expired local metadata may be superseded by a preserving staging jump.
+/** Expired local metadata may be superseded by a preserving development or staging jump.
  * Read-only probing creates no session and never widens or refreshes one. */
 export async function restoreStagingTiming(base: string, session: Session, fetcher: typeof fetch): Promise<Session | null> {
   const aborter = new AbortController();

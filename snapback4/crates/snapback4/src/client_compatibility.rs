@@ -9,7 +9,12 @@ use std::io;
 struct Configuration { baseline: String, since_release: u64 }
 
 pub(crate) fn typescript(project:&Project,bound:&Bound)->io::Result<String>{
-    let(text,warnings)=report(project,bound)?;for warning in warnings{eprintln!("WARNING {warning}");}Ok(text)
+    let(text,warnings)=report(project,bound)?;
+    for warning in warnings {
+        if snapback4_lang::client_contracts::is_note(&warning) {eprintln!("NOTE {warning}");}
+        else {eprintln!("WARNING {warning}");}
+    }
+    Ok(text)
 }
 pub(crate) fn report(project: &Project, bound: &Bound) -> io::Result<(String,Vec<String>)> {
     let path = project.root.join("snapback/client-compatibility.json");

@@ -42,12 +42,23 @@ export function requireListenerTracer() {
 export function auditListenerTrace(trace, low, high) {
   if (!(Number.isInteger(low) && Number.isInteger(high) && low >= 1 && high <= 65535 && low <= high)) throw Error('invalid listener audit range');
   const unfinished = new Map(), listeners = [], nonReturned = [];
+  const records = trace.split('\n').filter(Boolean);
   let samples = 0;
-  for (let line of trace.split('\n').filter(Boolean)) {
+  for (let index = 0; index < records.length; index++) {
+    let line = records[index];
     const prefix = line.match(/^(\d+)\s+(.*)$/);
     if (!prefix) throw Error(`E_PROOF_LISTENER: unrecognized trace line: ${line}`);
     const [, pid, body] = prefix;
     if (Number(pid) < 1) throw Error('E_PROOF_LISTENER: invalid trace pid');
+    // strace -f can interleave a decoder artifact immediately before the
+    // complete child record. Ignore only the byte-identical duplicate; the
+    // following ordinary record still receives every listener/range check.
+    const nested = body.match(/^\?\?\?\((\d+) (listen\(.*)$/);
+    if (nested) {
+      if (records[index + 1] !== `${nested[1]} ${nested[2]}`)
+        throw Error(`E_PROOF_LISTENER: uncorroborated nested listen: ${body}`);
+      continue;
+    }
     // strace can leave an undecoded, non-returning fragment when a keeper is
     // SIGKILLed. Accept only these exact shapes and corroborate process exit.
     if (/^\?\?\?\((?: <(?:unfinished|detached) \.\.\.>|\d+ \+\+\+ (?:exited with \d+|killed by SIG[A-Z0-9]+(?: \(core dumped\))?) \+\+\+)$/.test(body)) {

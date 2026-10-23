@@ -120,7 +120,7 @@ pub(super) fn release_loop(project:&Project,bound:&Bound,sources:&[(String,Strin
     notes.sort_by_key(|n|crate::note_rank::summary_order(&n.code));
     let count=notes.len();
     // Never suppress a gate or write-authority question behind the display cap.
-    for (i,n) in notes.into_iter().enumerate(){if i<5||super::security_reviews::gated(&n.code)||crate::note_rank::summary_order(&n.code)<=3{notice.push_str(&format!("  REVIEW {} {}: {}\n    {}\n",n.site,n.code,n.message,n.rewrite));}}
+    for (i,n) in notes.into_iter().enumerate(){if i<5||super::security_reviews::gated(&n.code)||security::note_priority(&n.code)<=3{notice.push_str(&format!("  REVIEW {} {}: {}\n    {}\n",n.site,n.code,n.message,n.rewrite));}}
     if count>5 {notice.push_str(&format!("  {count} changed-scope notes in deploy --check --json\n"));}
     for d in dispositions.iter().filter(|d|d.gated&&!d.acknowledged){notice.push_str(&format!("  NEXT {} {}: snapback4 check --ack-security {} --reason '<specification decision>'\n",d.site,d.code,d.id));}
     let test=release_notice(project,bound,sources,options);

@@ -1,6 +1,30 @@
 //! Service-seat minting selects a project host, then proves local store authority.
 use super::*;
 
+/// Mint a service token for the exact registered dev address selected by an
+/// operator command. The registry supplies the private store proof path; the
+/// host or a stopped store remains the only minting authority.
+pub(crate) fn mint_for_dev(address: std::net::SocketAddr, name: &str, days: i64) -> Result<String, String> {
+    let cwd = std::env::current_dir().map_err(|e| e.to_string())?;
+    let project = Project::locate(&cwd).ok_or("cannot mint a development operator token outside a Snapback project")?;
+    let hosts = crate::dev_hosts::live(&project.root.canonicalize().unwrap_or(project.root.clone()))?;
+    let host = hosts.into_iter().find(|host| host.address == address)
+        .ok_or_else(|| format!("no registered dev host for this project at {address}; restart dev with this CLI"))?;
+    let path = host.store_path.ok_or("this older dev host does not publish its store proof path; restart it with this CLI")?;
+    let owner = match crate::store_owner::command(&path) {
+        Ok(owner) => Some(owner),
+        Err(error) if error.starts_with("E_STORE_BUSY ") => None,
+        Err(error) => return Err(error),
+    };
+    let session = if let Some(owner) = owner {
+        let store = owner.open_store(std::time::Duration::from_secs(5)).map_err(|e| format!("cannot open the store: {e}"))?;
+        snapback4_core::identity::service_session(&store, name, snapback4_core::now_ms(), days).map_err(|e| e.to_string())?
+    } else {
+        crate::serve::token::mint_live(&path, name, days).map_err(|(_, error)| error)?
+    };
+    Ok(session.token)
+}
+
 /// `token --service <name> [--days N] [--release <dir>]`: a bearer session
 /// for a service principal, printed once. A service is a worker's seat: it
 /// claims effects, mints sessions for the accounts the application
@@ -12,13 +36,20 @@ pub fn token(options: &Options) -> i32 {
     };
     let days: i64 = options.flags.get("days").and_then(|d| d.parse().ok()).unwrap_or(365);
     // @ref LLP 3000.000.000.001#8-wave-18-developer-loop-amendment-dx4 — project registry selects; private mutual proof authorizes.
+    let seat_facts;
     let path = match options.flags.get("release") {
         Some(dir) => match releases::existing_deployment(Path::new(dir)) {
-            Ok(dir) => dir.join("store.sqlite"),
+            Ok(dir) => {
+                seat_facts = releases::bound_current(&dir).map(|bound| crate::service_identities::collect(&bound));
+                dir.join("store.sqlite")
+            },
             Err(error) => { eprintln!("token: {error}"); return 2; }
         },
         None => {
             let project = project_or_exit();
+            seat_facts = project.compile().map_err(|error| error.to_string()).and_then(|bound| if bound.diagnostics.is_empty() {
+                Ok(crate::service_identities::collect(&bound))
+            } else { Err("the working schema has compiler diagnostics".into()) });
             let hosts = match crate::dev_hosts::live(&project.root.canonicalize().unwrap_or(project.root.clone())) {
                 Ok(hosts) => hosts,
                 Err(error) => { eprintln!("token: {error}"); return 2; }
@@ -69,6 +100,15 @@ pub fn token(options: &Options) -> i32 {
                     eprintln!("token: a session for {} until {}; printed once; keep it where the worker keeps secrets", session.principal, session.expires_at);
                     eprintln!("store: {}; this token belongs only to this store; each isolated store needs its own", store_path.display());
                 }
+            }
+            let principal = format!("service:{name}");
+            match &seat_facts {
+                Ok(seats) if !seats.contains(&principal) => {
+                    let known = if seats.is_empty() { "none".into() } else { seats.iter().cloned().collect::<Vec<_>>().join(", ") };
+                    eprintln!("token: WARNING minted {principal}, but the compiled schema reports no explicit positive authorization mention for that service identity; rules still decide every operation (explicit service identities: {known})");
+                }
+                Err(reason) => eprintln!("token: WARNING minted {principal}, but {reason}; verify an explicit positive authorization mention for this service identity because rules still decide every operation"),
+                _ => {}
             }
             0
         }

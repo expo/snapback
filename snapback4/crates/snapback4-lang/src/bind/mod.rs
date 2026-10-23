@@ -70,6 +70,7 @@ mod delivery;
 mod receipts;
 mod generated;
 
+mod rule_helpers;
 use crate::ast::Document;
 use crate::diag::Diagnostic;
 use catalog::Catalog;
@@ -131,6 +132,7 @@ pub(crate) fn bind_unverified(mut documents: Vec<Document>) -> Bound {
     receipts::expand(&mut documents, &mut diagnostics);
     ephemeral::declarations(&documents, &mut diagnostics);
     helper_names::normalize(&mut documents, &mut diagnostics);
+    rule_helpers::expand(&mut documents, &mut diagnostics);
     let server = documents.iter().any(|doc| doc.server);
     server::admit(&mut documents, &mut diagnostics);
     let feeds = feed_view::expand(&mut documents, &mut diagnostics);

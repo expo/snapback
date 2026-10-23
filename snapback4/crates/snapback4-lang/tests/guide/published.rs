@@ -34,7 +34,7 @@ const APP_FILES: &[&str] = &[
     // The testing card's fixture cases file and acceptance script.
     "test.cases.jsonl", "scripts/acceptance.mjs", "scripts/wire-proof.mjs", "scripts/day2-accounts.mjs",
     "scripts/frontend-proof.mjs", "scripts/day2-proof.mjs", "scripts/launch.mjs",
-    "versions/v1.q", "versions/v2.q", "versions/v1/schema.q", "versions/v2/schema.q", "versions/bridge/schema.q", "file.q",
+    "versions/v1.q", "versions/v2.q", "versions/v1/schema.q", "versions/v1/generated/api.ts", "versions/v1/generated/package.json", "versions/v2/schema.q", "versions/bridge/schema.q", "file.q",
     // The builder's own Expo inputs and generated native-proof outputs.
     "package-lock.json", "app.json", "build.json", "proof.json", "acquire.json", "preparation-deadline.json",
     "artifacts/native-smoke/build.json",

@@ -186,7 +186,8 @@ mutation add(title: text <=80):
 - `/q/<op>` with `{"args":{..}}` answers `{data, complete, cut, next, seq, tables, viewer}`
   or `{denied}`. `data` is what the query returns, as is: a list, a row, a shape,
   or a scalar (a keyed view read `totals[owner]` answers the number itself).
-  Page by passing `next` back as the query's cursor argument.
+  Page by passing the opaque continuation `next` back unchanged as the query's
+  cursor argument. A projected `id` is data, not a continuation.
 - `/m/<op>` with `{"id"?, "args":{..}}` answers `{state:"sent", id, seq, result}` or
   `{state:"failed", id, why, current?}`, both HTTP 200 (see Refusals for the
   status codes). `result` is what the mutation returns (an inserted row's id is

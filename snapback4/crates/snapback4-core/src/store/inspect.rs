@@ -24,7 +24,7 @@ pub struct Inspection {
     conn: Connection,
     denied: Arc<AtomicU8>,
 }
-pub use crate::inspection::InspectionRows;
+pub use crate::inspection::{InspectionColumnKind, InspectionRows};
 impl Inspection {
     pub fn open(path: &Path) -> Result<Self> {
         let conn = Connection::open_with_flags(path, OpenFlags::SQLITE_OPEN_READ_ONLY)
@@ -256,7 +256,7 @@ impl Inspection {
         object_rows: bool,
         classify_error: impl Fn(String) -> (&'static str, String),
         check_columns: impl Fn(&[String]) -> Result<()>,
-        booleans: impl FnOnce(usize) -> Result<Vec<bool>>,
+        kinds: impl FnOnce(usize) -> Result<Vec<InspectionColumnKind>>,
     ) -> Result<InspectionRows> {
         let conn = &self.conn;
         let denied = &self.denied;
@@ -292,11 +292,11 @@ impl Inspection {
             .into_iter()
             .map(str::to_owned)
             .collect::<Vec<_>>();
-        let booleans = if object_rows {
+        let kinds = if object_rows {
             check_columns(&columns)?;
-            booleans(columns.len())?
+            kinds(columns.len())?
         } else {
-            vec![false; columns.len()]
+            vec![InspectionColumnKind::Plain; columns.len()]
         };
         let mut cursor = query.query([]).map_err(query_error)?;
         let mut rows = Vec::new();
@@ -305,9 +305,14 @@ impl Inspection {
             for (i, _) in columns.iter().enumerate() {
                 values.push(match row.get_ref(i).map_err(query_error)? {
                     ValueRef::Null => Value::Null,
-                    ValueRef::Integer(value) if booleans[i] => json!(value != 0),
+                    ValueRef::Integer(value) if kinds[i] == InspectionColumnKind::Bool => json!(value != 0),
                     ValueRef::Integer(value) => json!(value),
                     ValueRef::Real(value) => json!(value),
+                    ValueRef::Text(value) if kinds[i] == InspectionColumnKind::Media => {
+                        let value: crate::Value = serde_json::from_slice(value)
+                            .map_err(|error| ("E_STORE", format!("stored media value in {} is invalid: {error}", columns[i])))?;
+                        crate::wire::to_json(&value)
+                    }
                     ValueRef::Text(value) => json!(String::from_utf8_lossy(value)),
                     ValueRef::Blob(value) => {
                         json!(value.iter().map(|b| format!("{b:02x}")).collect::<String>())
@@ -325,6 +330,11 @@ impl Inspection {
             rows,
             more,
         })
+    }
+
+    pub fn dormant_inventory(&self) -> Result<Vec<crate::release_history::DormantItem>> {
+        super::release_history::inventory(&self.conn, None, usize::MAX)
+            .map_err(|error| ("E_STORE", error.to_string()))
     }
 }
 fn store_error(error: rusqlite::Error) -> (&'static str, String) {
@@ -596,13 +606,13 @@ mod tests {
                     crate::inspection::check_output_names(columns, true)
                 },
                 |_| {
-                    events.borrow_mut().push("booleans");
-                    Ok(vec![true])
+                    events.borrow_mut().push("kinds");
+                    Ok(vec![InspectionColumnKind::Bool])
                 },
             )
             .unwrap();
         assert_eq!(rows.rows, [vec![json!(true)]]);
-        assert_eq!(*events.borrow(), ["columns", "columns", "booleans"]);
+        assert_eq!(*events.borrow(), ["columns", "columns", "kinds"]);
         let error = inspection
             .query(
                 "SELECT 1 AS same, 2 AS SAME",
@@ -610,7 +620,7 @@ mod tests {
                 true,
                 |_| panic!("no query error expected"),
                 |columns| crate::inspection::check_output_names(columns, true),
-                |_| panic!("duplicate output names must refuse before boolean inference"),
+                |_| panic!("duplicate output names must refuse before type inference"),
             )
             .err()
             .unwrap();

@@ -19,6 +19,7 @@ async function browser(t, run) {
 test('H9 renderedText opts into substring matching for a row with more than the needle', {timeout:30000}, async t => browser(t, async page => {
   await page.setContent('<section aria-label="Rows"><p>Proof needle — more row text</p><input value="Proof needle"></section>');
   const within = page.getByRole('region', {name:'Rows'});
+  assert.equal(await kit.renderedText(page, 'Proof needle — more row text', null).count(), 1, 'null options mean the defaults');
   assert.equal(await kit.renderedText(page, 'Proof needle', {within}).count(), 0, 'exact by default');
   await assert.rejects(kit.waitForFresh(kit.renderedText(page, 'Proof needle', {within}), null, 50), /a substring match exists; pass a RegExp or `exact: false`/);
   const row = kit.renderedText(page, 'Proof needle', {within, exact:false});
@@ -28,6 +29,31 @@ test('H9 renderedText opts into substring matching for a row with more than the 
   await assert.rejects(kit.waitForFresh(row, 'Proof needle — more row text', {timeoutMs:1000}), /locator.*last count=1.*Proof needle.*present but unchanged/);
   await assert.rejects(kit.waitForFresh(kit.renderedText(page,'missing'), null, {timeoutMs:1000}), /last count=0.*text=null.*absent/);
 }));
+test('DX8 renderedText finds a full status line anywhere in a scrollable RN-style root', {timeout:30000}, async t => browser(t, async page => {
+  await page.setViewportSize({width:700,height:400});
+  await page.setContent(`<main style="height:90px;overflow-y:auto"><div style="height:600px"></div><div><span>Pump </span><span>logged.</span></div></main>`);
+  const root=page.locator('main');
+  assert.equal(await kit.renderedText(page,'Pump logged.',{within:root,exact:false}).count(),1);
+  assert.equal(await kit.waitForFresh(kit.renderedText(page,'Pump logged.',{within:root,exact:false}),null,500),'Pump logged.');
+  assert.equal(await root.evaluate(element=>element.scrollTop),0,'proof observation does not scroll the app');
+}));
+
+test('DX8 exhaustPages follows opaque cursors and refuses incomplete traversal', async () => {
+  const cursors=[];
+  const rows=await kit.exhaustPages(async cursor=>{
+    cursors.push(cursor);
+    if(cursor===null)return {data:[{id:'newest'}],next:'opaque:page-2',complete:true,cut:null};
+    return {data:[{id:'older'}],next:null,complete:true,cut:null};
+  });
+  assert.deepEqual(cursors,[null,'opaque:page-2']);
+  assert.deepEqual(rows,[{id:'newest'},{id:'older'}]);
+  await assert.rejects(kit.exhaustPages(async()=>({denied:{code:'PRIVATE',message:'no'}})),/E_PROOF_PAGE.*PRIVATE/);
+  await assert.rejects(kit.exhaustPages(async()=>({loading:true})),/E_PROOF_PAGE.*loading/);
+  await assert.rejects(kit.exhaustPages(async()=>({data:[],next:null,cut:null})),/E_PROOF_PAGE.*complete must be true/);
+  await assert.rejects(kit.exhaustPages(async()=>({data:[],next:'would-continue',complete:false,cut:'meter'})),/E_PROOF_PAGE.*incomplete.*meter/);
+  await assert.rejects(kit.exhaustPages(async()=>({data:[],next:null,complete:true,cut:null,existence:'partial'})),/E_PROOF_PAGE.*partial existence/);
+  await assert.rejects(kit.exhaustPages(async()=>({data:[],next:'same',complete:true,cut:null}),{maxPages:2,label:'board'}),/E_PROOF_PAGE.*board.*repeated cursor/);
+});
 test('DX6 composed RN text and wrapping labels preserve scope, exactness and ambiguity', {timeout:30000}, async t => browser(t, async page => {
   await page.setContent(`<section aria-label="Rows"><div><span>Order </span><span>42</span><span> saved</span></div>
     <label><span>Due </span><strong>tomorrow</strong><input value="secret value"></label>

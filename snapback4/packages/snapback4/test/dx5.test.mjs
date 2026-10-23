@@ -18,7 +18,7 @@ test("DX5 reused staging schedules report every fired or held window", {timeout:
   writeFileSync(join(cwd,"clock.mjs"), readFileSync(join(root,"scripts/dx5-clock-consumer.mjs")));
   const result = await command(process.execPath, ["clock.mjs"], {cwd,timeoutMs:110000});
   assert.equal(result.code, 0, result.stdout + result.stderr);
-  assert.match(result.stderr, /schedule releaseHourly:.*already processed/);
+  assert.match(result.stdout, /DX5 staging: fired, persisted clock, CLI report and repeated store passed/);
 });
 test("DX5 real users receive privacy-preserving lookup and unique diagnostics", {timeout:60000}, async t => {
   const cwd=fixture(t);mkdirSync(join(cwd,"node_modules"));symlinkSync(resolve(import.meta.dirname,".."),join(cwd,"node_modules/snapback4"));

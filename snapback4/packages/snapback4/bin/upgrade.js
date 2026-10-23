@@ -189,7 +189,7 @@ try {
       catch { if (checked.stdout && (checked.error || checked.status !== 0)) process.stderr.write(checked.stdout); }
     }
     else if (checked.stdout && (!quiet || checked.status !== 0)) process.stdout.write(checked.stdout);
-    if (checked.error || checked.status !== 0) { const error = Error(`E_UPGRADE: packages pinned to ${version}; post-upgrade check refused. Repair the reported schema/device issues and run check again.`); error.check = checkedFacts; throw error; }
+    if (checked.error || checked.status !== 0) { const error = Error(`E_UPGRADE: packages pinned to ${version}; post-upgrade check refused. Repair the reported schema/device issues and run check again. For a security review gate, repair it or run check --ack-security <ID> --reason '<spec rationale>'; acknowledgments cannot override a refuted invariant.`); error.check = checkedFacts; throw error; }
   }
   if (json) console.log(JSON.stringify({ ok: true, version, targets, packageManager: pm, warnings, check: checkedFacts }));
   if (!quiet) log(`upgrade: ${targets.join(', ')} pinned to ${version} with ${pm}; commit the lockfile, run check and acceptance tests${targets.includes('snapback4-expo') ? ', and rebuild the native app' : ''}`);

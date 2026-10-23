@@ -813,6 +813,7 @@ mutation react(message: messages, emoji: text <=32) predicts:
 
 This inherits `read through .message`; `guide sync` covers lifetime, three-hop immutable references and E_READ_THROUGH/E_SYNC repairs; `guide prediction` covers coverage/rollback.
 ```quarry
+use identity password
 table parcels renamed from shipments:
   manifest: file <=100000 ? renamed from legacyManifest
   quantity: int
@@ -821,7 +822,7 @@ table parcels renamed from shipments:
   read <- deny
   online only
 backfill parcels sizes(weight: int): {sizeClass: 'large' if weight > 3500 else 'small'}
-backfill parcels quantities(manifest: file <=100000 ?): {quantity: nonemptyLines(fileText(manifest)) if manifest != null else 0}
+backfill parcels quantities(legacyManifest: file <=100000 ?): {quantity: nonemptyLines(fileText(legacyManifest)) if legacyManifest != null else 0}
 ```
-**Historical data:** `backfill` patches history atomically; retain declarations. Rollback restores untouched preimages; conflicts refuse. `before`/`after` split first, `beforeLast`/`afterLast` last (absent: whole-before/empty-after; empty: refusal). `startsWith` matches prefixes; `allDigits` requires nonempty ASCII digits. Renames preserve identities/file homes. Migration-only `fileText` reads UTF-8; `nonemptyLines` counts nonempty lines. Child extraction: `guide evolution`; lifecycle: `guide deploy`.
+**Historical data:** Backfills read pre-patch inputs/lookups before simultaneous patches/renames; name historical (`legacyManifest`). Commit atomically; retain declarations. Rollback restores preimages; conflicts refuse. `before`/`after` split first; `beforeLast`/`afterLast` last. `startsWith` is exact; `allDigits` requires nonempty ASCII. Renames preserve identity/file homes. `fileText` reads UTF-8; `nonemptyLines` counts nonempty lines. Extraction: `guide evolution`; lifecycle: `guide deploy`.
 "##;

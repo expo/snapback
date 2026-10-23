@@ -1,0 +1,44 @@
+muse: workspace root: /home/ccheever/projects/sb4-b24-dx7 (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=ee005e65-cc2f-4e3a-8463-10bca65da0d2]: Subscription quota exhausted. Your usage window resets at 2026-10-26T00:00:00Z. (rate_limit_error)
+[muse-exec] plan quota exhausted; retrying with the Meta API key
+muse: workspace root: /home/ccheever/projects/sb4-b24-dx7 (cwd default)
+muse: workspace trust: trusted source=run-flag
+muse: retrying meta model stream in 60000ms (attempt 2/10)
+NOT READY — durable pause retention, downgrade enforcement, delete/re-insert bypass, ack atomicity, and hidden-existence diagnostics need concrete fixes.
+
+Prior gaps are mostly repaired: uncertain-COMMIT fencing plus shutdown plus restart-reads-checkpoint is sound, stale-checkpoint now floors on commit stamp and schedule boundary, scroll composition from inner to outer per-axis is the right shape. Remaining issues below block acceptance.
+
+## Durable staging time
+
+* Startup pause retention unspecified. Advance checkpoints `paused=true` in-transaction, but startup writes a zero-delta checkpoint and never preserves credentials. State explicitly that startup checkpoint retains the existing durable pause value and never clears it. Otherwise a restart after `drain:false` or failed/interrupted drain can clear the pause.
+* Downgrade loses enforcement. Downgrades ignore the additive record and retain historical process-local behavior. That means a downgraded binary preserves but does not enforce the pause, so maintenance can run while paused. Required: downgraded runs must preserve the record without clearing it, and the proposal must state downgrade does not enforce pause, or fence maintenance when unknown metadata is present.
+* Restore overclaim. Unknown metadata preserved by ordinary adoption, but older binary or manual restore may remove it. Proposal claims time recovers from retained floors with no claim on pause. If the whole additive record plus commit stamp and schedule boundary are removed, time also rewinds to wall. State that explicitly, or place commit stamp and schedule boundary outside the removable record.
+* Max composition ambiguous. Startup resumes at maximum of wall plus saved offset, checkpointed time, disclosure floor, plus maximum retained commit stamp and schedule boundary. Rewrite as maximum of all five named values. Fresh store with no evidence starts at wall remains.
+* No rewind path stated. Explicit offsets are absolute from wall, clamped to the resumed floor, never double-applied or rewound. State the intended reset path explicitly: store recreation, or an explicit privileged reset. Otherwise staging time is permanently forward-only with no operator recourse.
+
+## Rendered and scrollable text
+
+* `overflow-x/y` interaction missing. CSS computes `visible` to `auto` when the other axis is `hidden`, `clip`, or `scroll`. Require computed-value handling per axis, otherwise independent per-axis clipping is wrong.
+* `position:fixed` and `sticky` unaddressed. Fixed text inside a scrollport does not scroll with it; sticky has bounded scroll coupling. Composing scroll shifts for every descendant overcounts fixed and mishandles sticky. Require fixed to skip ancestor scroll shifts, and define sticky behavior or explicitly exclude it.
+
+## Upgrade and gate presentation
+
+* Ack atomicity unspecified. A refuted invariant cannot be acknowledged, records untouched, `--ack-security was not applied` reported, JSON `acknowledgmentNotApplied` carries the explanation. Specify all-or-nothing versus per-ID when one ID in a multi-ID ack is refuted, and that exit status still fails. Otherwise partial writes confuse repair.
+* Old-CLI bypass unclear. An already published old CLI may print its old `E_UPGRADE` line while the new check child carries the actionable explanation. State that old-CLI upgrade cannot ack or bypass new gates and must route through the new check, or old-CLI upgrades remain a bypass lane.
+* Numeric-advance scan soundness. Requiring an actual advance call in the same local expression or assignment as numeric consumption removes `new Date` and assert noise, but misses `const t = advance(); use(t)` split across statements. State the scan is heuristic and never a security gate, or define the dataflow it covers.
+
+## Protected immutable payloads
+
+* Delete plus re-insert bypass. Ignoring supplied protected immutable fields on update and existing-upsert without comparing stored data is correct for noninterference, and succeeding when only those fields differ avoids an oracle. But delete then insert, or delete then absent-upsert, can install a new value. State whether delete is separately authorized for these rows, or close the lane. Without this, immutability is advisory.
+* Orphaned upload handling missing. No ownership or placement check runs for the ignored field because no asset is adopted. State orphan cleanup and accounting so ignored uploads do not accumulate or get adopted elsewhere.
+* Validate-then-ignore failure semantics should be explicit. Validating types and bounds before ignoring means an ill-typed ignored field still fails. Confirm that is intended, and that failure messages use schema and site facts only with no stored-value comparison.
+
+## Helpers and hidden probes
+
+* Existence oracle risk in diagnostics. `N_UNREADABLE_PROBE` and `N_LOOKUP_FILTERED` naming the exact hiding read, read-through rule, and source site, including `exists` directly in a require, is safe only as static policy advice. Require that neither note fires based on whether a hidden row physically exists at runtime, and that no runtime refusal distinguishes hidden-present from absent. Current no-confirmation sentence is right but needs that static-only binding.
+
+Required changes: clarify the five-way max, startup pause retention, downgrade non-enforcement, restore time-loss disclaimer, reset path, overflow computed values, fixed and sticky handling, ack atomicity, old-CLI gate authority, scan heuristic scope, delete and re-insert rule, orphan-asset disposition, validate-then-ignore contract, and static-only hidden-probe diagnostics.
+
+End state: NOT READY.
+

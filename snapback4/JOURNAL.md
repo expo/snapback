@@ -101562,6 +101562,7 @@ Brotli, with a 735,388 B budget: measurement plus exactly 500 B. This is a
 whole-artifact allowance, not independent feature attribution or a runtime
 ceiling change. Linux/ Mac complete repeats and final packed evidence are
 recorded in the integration report; no push or publication is authorized here.
+
 ## 2026-10-22 — ROLL / wave-23 day-two
 
 Release selection now registers compiled immutable predecessor views with the
@@ -102119,6 +102120,22 @@ No qualification receipt, full-suite pass or security-proof claim is made from
 that partial run. Final affected runs, packed security/guide examples and the
 repeated finding/corpus measurements are recorded in WORKSTREAM-REPORT.md and
 `reports/20261022-sec8/` as they complete. No version bump or push.
+
+## 2026-10-22 — DX7, wave-24 loop repairs for 0.4.40
+
+Staging stores retain the cumulative clock offset, checkpointed time and pending
+maintenance pause. Clock/session/lease edits share the existing transaction seam;
+startup recovers the maximum retained evidence without shifting credentials.
+Protected immutable payloads ignore patches without comparing stored guesses;
+pure audience helpers expand before planning. Hidden-probe diagnostics explain
+positive requires as well as negative guards. Upgrade deltas expose pending
+security review gates and refuted acknowledgments; source advice couples numeric
+advance use to its result. Proof text counts mounted scroll-reachable characters
+while retaining real clips and hidden-text controls. LLP 3000.000.000.001 §12
+records the contract and fresh Muse/Codex READY reviews. SEC8 owns security
+questionnaires, lifecycle advice, presence intent and invariant test semantics.
+The source version is unchanged. Per-item tests and qualification are recorded
+in WORKSTREAM-REPORT.md; no publication or push is performed by this lane.
 
 ## 2026-10-22 — RT5: qualify the flight mechanism, serving unchanged
 
@@ -102715,6 +102732,92 @@ new schema/admission semantics; no isolated feature attribution or runtime meter
 ceiling increase. Attempts to omit device validation/evaluation were withdrawn.
 Mac execution is reserved for integration, as instructed. No publication or
 universal arbitrary-application security claim follows from finite campaigns.
+## 2026-10-23 — DX8 / wave-25 day-two friction
+
+The coordinator commissioned all thirteen residual DX clusters on top of DX7,
+with no version bump or push. The governing amendment is LLP 3000.000.000.002
+§10; ROLL had already allocated §9. Early origin/main merge brought K0-Q's
+writer mailbox, and DX7's durable clock drain now checkpoints through that
+mailbox. The completed ROLL branch was merged locally to supply the extraction
+dependency while Integration 23 was still pending; final origin/main integration
+remains required. No forbidden rollback-view/bridge/visibility implementation
+was edited by DX8.
+
+Identical-type scalar rename rollback now presents current edits. Changed
+historical meaning names both digests; prune previews warn about down evidence.
+The guide names pre-patch inputs and offers an edit/rollback decision tree.
+The each extraction modifier splits a bounded asset list into receipt-owned
+children, keeps current edits/native children over cycles, and follows asset IDs
+for stable child identity when old clients reorder/append. Home/lifetime/audience
+checks and job meters remain atomic. Format 10 fences the new extraction law and
+never downgrades after selecting older source; formats 8/9 remain readable.
+
+Operator stop, authenticated development clock, production provisioning,
+inspection/saved-client improvements, newest-first starters and proof/paging
+repairs are recorded under guide changes 0.4.41. SEC9 retains security policy;
+Integration 23 retains rollback-view triggers. Common Muse/fresh Codex reviews
+are saved verbatim under llp/reviews/dx8. Round1 Muse was READY; Codex found
+missing affirmative paging evidence and two bounded process-cleanup defects.
+These are repaired before the final full amendment review. Mac is skipped by
+commission; integration owns it. Complete verification and copied-lane results
+will be recorded in the DX8 workstream report, with inherited failures separate.
+
+The final integrated Linux wasm build measured 2,407,197 B raw / 735,599 B
+gzip. It exceeded the inherited 735,388 B budget by 211 B, so the budget was
+measured-ratcheted to 736,099 B: exactly the artifact plus 500 B headroom. That
+is a +706 B raw / +711 B gzip whole-artifact change from qualified 0.4.38
+(2,406,491 B raw / 734,888 B gzip) across DX7, K0-Q, ROLL and DX8. It is not an
+independent feature-cost attribution and changes no runtime ceiling; fan-out
+extraction remains cfg(SQLite) and does not ship in the web device.
+
+### DX8 review round 2: fan-out retained custody
+
+Fresh Codex found two material counterexamples in the full fan-out amendment:
+remove an old-list element, prune its retained child, then return; and reverse
+a populated child hidden by narrowing another field. The return path now
+preflights every element receipt, including removed elements, against extant
+child and parent-lifetime evidence. Migration-owned null rows can stay in
+narrowed storage without being reactivated. Reverse selection refuses explicitly
+when retained narrowed child asset homes would otherwise be omitted; an authored
+loosened child-domain bridge restores those rows before reversing. This preserves
+ordinary narrowed-row provenance and authority rather than treating a hidden row
+as active under a different definition. New tests cover atomic prune/removal
+refusal, repeated removed-element cycles, and bridge recovery of native children.
+Muse round 2 was READY; Codex was NOT READY. Both will review the corrected
+frozen full revision; neither earlier review is reported as joint readiness.
+
+### DX8 review round 3: reverse custody and suspended extraction
+
+Muse marked revision 4787bb7 READY; fresh Codex found reverse needed the same
+receipt/lifetime preflight as forward after an internal null child was pruned.
+It also found that retiring and restoring the child table demanded a source
+list already consumed by the original extraction. Both directions now validate
+all receipt-owned lifetimes. A durable applied-definition marker distinguishes
+suspension from initial historical migration, including empty first adoption.
+Resume validates current homes/bytes and existing parent capture, preserving
+edited and native child identities without replaying preimages. Independent
+children created without extraction custody refuse retrospective capture.
+The resumption traversal shares child-page and parent-image job accounting.
+The added regression set covers repeated retirement/restoration, current edits,
+native children, new empty parents, unknown source and unanchored resumption.
+Both independent families review the expanded full amendment again.
+
+### DX8 review round 4 and final main integration
+
+Fresh Codex identified a removed optional argument spelling hidden by rename
+heuristics and a nested row-to-page result hidden by additive-field comparison.
+Commit b3c1734de2 preserves actual wire aliases and container distinctions; all
+19 operation-evolution tests pass, including the old spelling receiving E_INPUT.
+Muse was READY; the complete unchanged amendment returns to both fresh reviewers.
+The removed-list regression also verifies no live asset home survives repeated
+rollback/forward cycles and the asset remains eligible for ordinary cleanup.
+
+Final origin/main 46c6cdd056 is merged here. Its runtime changes merged without
+semantic conflict resolution; this journal retains both concurrent entries.
+The full client pool completed before corrections on a clean checkout: 429
+ordinary files, 9 fixture tests and 89 model tests; original reds and affected
+reruns remain separately recorded in WORKSTREAM-REPORT.md. Final Linux packed
+qualification and integrated affected runtime checks follow this merge.
 
 ## 2026-10-23 — K0-Q fix-forward: remaining third-review findings
 
@@ -102792,6 +102895,105 @@ Post-entry root `./ref-check`: pass — 565 LLP documents, 11,765 references,
 zero errors and zero unchecked. Whitespace validation passes. The final PID
 and unchanged-table audit is repeated after recording this result.
 
+
+### DX8 review round5: shared fan-out memory and frontend keeper loss
+
+Muse marked a3f7c4b READY; fresh Codex found parent-page and accumulated-child
+reservations were split across independent job meters, and detached frontend
+keeper groups were absent from the group-drain registry. Forward/reverse walks
+now share the activation page meter with precharged child decoding and retained
+scratch, matching resumption. Serialized comparisons remain in SQLite instead
+of fetching unpriced retained lists. Frontend private groups join the same
+bounded cleanup evidence as wrapped commands; lost keepers with surviving
+members report an explicit cleanup failure. The complete amendment clarifies
+those existing custody laws and returns to both reviewers again. The R5 Linux
+qualifier was stopped during its native build when these semantic inputs changed;
+it grants no final qualification. R6 rebuilds SDK/native artifacts and repeats
+the affected proofs.
+
+### DX8 review round6: mixed-version hot activation
+
+Muse marked db8f1ba64f READY; fresh Codex found that the format-10 store marker
+could not protect a format-9 store still served by an older engine. A new CLI's
+current-value scalar-rename preview could otherwise reach that host through
+the old activation command and commit stale-preimage semantics. Every hot
+activation now requires an explicit activation-10 transport token, including
+original-source selection. Historical strict decoders reject the new field;
+updated hosts reject missing or wrong tokens before adoption. There is no
+legacy fallback. The complete amendment returns to both families again.
+
+R6 packed consumers passed operator, inspection, ergonomics and exact migration
+guide snippets. The canonical proof file passed 29 tests with clean process
+and checkout boundaries. Fresh optimized packed security passed its broad-read
+refutation, guest/password campaigns and all seven starter campaigns. Those
+artifacts retain their frozen source binding; they are not a publication claim.
+
+R7 fresh Codex gpt-6.1-sol/high and Muse spark-1.3-contributor/high both returned
+READY for the complete canonical amendment at 8be54b526934966a071537bfd4289fb7d80a8a96
+(amendment SHA-256 772bbf0d6ae6c392f5e360f6364b60a5960b83ba8ea64539d7d2e0e5b8a48bcc).
+Exact prompts, frozen amendment, verdicts and raw stdout/stderr with provenance
+are retained in llp/reviews/dx8/r7-*. This records semantic readiness, not author
+acceptance. Main's P1-CE changes merged with only append-only journal conflict
+resolution. Fresh merged wasm remains 735599 gzip / 2407197 raw, within the
+736099 budget. The Linux consumer-only run still records its inherited day-five
+source-reservation failure; its passed prefix and subsequent consumer results
+remain separate evidence without a publication receipt.
+
+The remaining generated-frontend qualification reproduced a strace duplicate
+decoder form on both R6 and final R7 packs: an outer `???(inner listen(...)`
+record immediately followed by the byte-identical ordinary child record.
+The listener parser now recognizes only that corroborated duplicate; the
+ordinary record still receives every result/address/range check. Missing
+corroboration, unresolved and out-of-range positive listens continue to refuse.
+The full qualification unit file passes 61 tests, with additional direct
+negative checks for wrapped unresolved/out-of-range records. LLP
+3000.011.003.000.000 §8 and the complete DX8 amendment record the precise
+acceptance rule and return to both fresh reviewers. This changes qualification
+decoding only; the final R7 SDK/native tarballs remain byte-identical.
+
+R8 marked the listener amendment READY in both families, but fresh Codex found
+an empty-parent extraction re-entry could skip resumption validation and later
+manufacture missing lifetime evidence during an asset-only edit. Known
+consumed-source definitions now resume regardless of active parent count.
+Unknown consumed-source definitions allow only genuinely empty initialization,
+with no active or retained child history. Birth or a real reference change
+captures a lifetime; unchanged-reference writes never repair missing anchors.
+Restoration ordering was checked independently: all eligible restored child
+images enter r before resumption; ordinary incompatible narrowed history stays
+retained and requires its existing bridge.
+
+Five regressions cover empty known initialization/resumption, independent
+child-only history, retained-only unknown history, missing-anchor asset edits,
+and invalid missing-target bindings across later parent creation. They snapshot
+generation, format, rows and complete asset records/homes on refusal. Focused
+element-extraction tests pass 20/20 and the complete backfill module passes
+163/163. The complete amendment returns to both fresh reviewers, and native
+artifacts are rebuilt; R7 results retain their original source binding.
+
+R9 fresh Codex gpt-6.1-sol/high and Muse spark-1.3-contributor/high both returned
+READY on both complete amendments at 23b0d2f42daed3ab0b68cb008d4c11b5810931a9.
+Primary amendment SHA-256 is d2444f2d68e868cf0bc058e2531df555d3fa1a65f76cef4b73ab3ea65cf6c5f1;
+proof-kit §8 SHA-256 is 3b281399cd8e9ebaa75caa2b4e27ee010def61d1a3780985f282bbbd16147563.
+Verbatim reviews and provenance are in llp/reviews/dx8/r9-*. The full core
+library passes 734 tests, with zero failures and 242 private-environment ignores.
+Reference validation passes 12411 refs with zero errors. Exact copied lanes020
+and040 pass again on the corrected debug CLI, retaining all 468/261 records,
+v1/v2 calls, rollback/forward assertions and asset homes. The fresh optimized
+musl binary and native package are sealed from clean source23b; unchanged
+SDK/Expo bytes are reused by content. Neither review readiness nor these
+affected results turn the inherited day-five qualification failure into a
+publication receipt. Mac qualification remains assigned to integration.
+
+Final R9 installed all-four DX8 qualification passes in 23.332 seconds on the
+sealed corrected production tarball, including the verbatim installed migration
+and historical-input recipes. The replay ledger keeps R4/R6/R7 history and R9
+fan-out/packed phases separately. All owned proof/serve processes and replay
+scratch are absent; completed build outputs and obsolete consumer/cache scratch
+were removed, retaining final binaries, tarballs, logs and JSON evidence outside
+the checkout. WORKSTREAM-REPORT.md replaces the inherited DX7 report with per-item
+changes, review/source/artifact bindings, complete raw test outcomes and scoped
+reruns, known baseline/ROLL follow-ups and the requested Mac skip. Nothing was
+pushed or published and no package version was bumped.
 ## 2026-10-23 — P1-CE: Postgres change evidence and certified changes/sync
 
 The Postgres buffered tail now writes the shared net-image footprint and prunes

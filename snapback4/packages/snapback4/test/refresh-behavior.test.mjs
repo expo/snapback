@@ -46,7 +46,14 @@ for (const door of ['app-online', 'app-web', 'local']) for (const renewal of ['e
   t.mock.method(globalThis, 'clearTimeout', id => { timers.delete(id); clear(id); });
   const fetcher = async (input, init) => {
     if (new URL(input).pathname === '/auth/refresh' && ++attempts === 1) throw Object.assign(Error('not connected'), { cause: { code: 'ECONNREFUSED' } });
-    return defaultFetch(input, init);
+    const response = await defaultFetch(input, init);
+    // These transport-retry cases deliberately give a real credential a short
+    // client-side lifetime. Model production replies: authenticated development
+    // timing would correctly restore its real, longer lifetime during startup.
+    // Preserving development jumps have their own clock reconciliation tests.
+    const headers = new Headers(response.headers);
+    for (const name of ['x-snapback-session-timing', 'x-snapback-session-expires', 'x-snapback-session-cap']) headers.delete(name);
+    return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
   };
   const opened = await open(door, f, fetcher); t.after(() => opened.close());
   await until(() => attempts === 1 && timers.size > 0, 'proven nondispatch re-arms automatic renewal');

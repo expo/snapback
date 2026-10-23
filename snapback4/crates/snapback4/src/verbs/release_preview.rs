@@ -217,7 +217,8 @@ pub(super) fn plan(
             }
         }
     }
-    hazards.extend(client_compatibility.iter().cloned());
+    hazards.extend(client_compatibility.iter().filter(|line|!snapback4_lang::client_contracts::is_note(line)).cloned());
+    notes.extend(client_compatibility.iter().filter(|line|snapback4_lang::client_contracts::is_note(line)).cloned());
     let checklist = super::release_bridge::checklist(held["release"].as_u64().unwrap_or(0),release,&hazards);
     let payload=serde_json::json!({"sourceRelease":options.flags.get("source-release").and_then(|s|s.parse::<u64>().ok()),"preview":true,"security":options.flags.get("security-summary").and_then(|s|serde_json::from_str::<serde_json::Value>(s).ok()),"visibility":visibility,"rollbackVisibility":rollback_visibility,"rollbackViews":rollback_views,"rollbackViewEffects":view_effects,"rollbackView":options.flags.get("rollback-view").and_then(|s|serde_json::from_str::<serde_json::Value>(s).ok()),"clientCompatibility":client_compatibility,"checklist":checklist,"hazards":hazards,"notes":notes,"current":held,"plan":planned,"steps":steps,"estimate":estimate,"phases":engine.store().adoption_report().summary(),"backfills":engine.store().adoption_report().backfills});
     if !options.json&&options.flags.contains_key("deploy-direction") {

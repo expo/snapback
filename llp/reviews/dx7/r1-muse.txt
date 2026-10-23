@@ -1,0 +1,70 @@
+muse: workspace root: /home/ccheever/projects/sb4-b24-dx7 (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=7af3de38-7385-401d-9e9c-14b00a62e46d]: Subscription quota exhausted. Your usage window resets at 2026-10-26T00:00:00Z. (rate_limit_error)
+[muse-exec] plan quota exhausted; retrying with the Meta API key
+muse: workspace root: /home/ccheever/projects/sb4-b24-dx7 (cwd default)
+muse: workspace trust: trusted source=run-flag
+muse: retrying meta model stream in 60000ms (attempt 2/10)
+muse: retrying meta model stream in 60000ms (attempt 2/10)
+muse: retrying meta model stream in 60000ms (attempt 2/10)
+## Design review: DX7 amendment (§12)
+
+NOT READY. The shape is sound, but several clauses are under-specified where server and device, or old and new binaries, must agree exactly.
+
+### Durable staging time
+
+The core design (cumulative offset plus checkpointed time plus pause, one transaction, max-of-floors resume) is coherent and preserves §11 semantics. Gaps:
+
+- Downgrade interleaving is undefined. Old binaries "ignore this additive record," but nothing requires them to preserve it. If an old binary rewrites metadata and drops the unknown typed record, a re-upgrade loses checkpoint and pause, and downgrade-era advances (process-local only) are silently lost. State the preservation rule: old binaries must retain unknown metadata records byte-for-byte, or state the re-upgrade recovery (legacy floor, pause retained) and add it to evidence. See the new record in [metadata.rs](/home/ccheever/projects/sb4-b24-dx7/snapback4/crates/snapback4-core/src/metadata.rs:248), which uses `deny_unknown_fields` — forward-compat needs an explicit statement.
+- Startup inputs are unnamed. "Explicit startup offsets are absolute offsets from wall time" — from where (CLI flag, `startServe` option)? Name the surface. "Maximum of wall plus saved offset, checkpointed time, and the existing disclosure floor" inherits the floor from [LLP 3000.000.000.002 §4](/home/ccheever/projects/sb4-b24-dx7/llp/3000.000.000.002-declarative-backfills.rfc.md:290); cite which persisted floor. "Latest retained commit/schedule boundary" when no checkpoint exists: state max-of-both and the fresh-store case.
+- The no-double-shift mechanism is missing. Startup persists the effective offset, and advance preserves sessions in the same transaction — but what durably distinguishes "offset persisted, sessions not yet preserved" from "preserved"? Name the marker or derivation (e.g. credential timestamps compared at restart), or a crash between startup-persist and first advance will double-shift.
+- Order the held check explicitly. "Each accepted staging advance checkpoints" implies refused (E_CLOCK_HELD) advances checkpoint nothing, consistent with §11's "before clock, session or lease effects." Say it: the held check precedes the checkpoint write, and the checkpoint is part of the rolled-back effects on storage failure.
+- Postgres fencing needs one sentence. "Existing metadata transaction and fencing, including Postgres" is a claim; state the Postgres transaction scope that makes offset/time/pause/sessions/leases atomic, and name a Postgres pause/checkpoint test in evidence.
+
+### Rendered and scrollable text
+
+Direction is right (scrollable counts, hidden/clip clips, no scrolling, prefix-only geometry). Gaps, against [proof-text.ts](/home/ccheever/projects/sb4-b24-dx7/snapback4/packages/snapback4/src/proof-text.ts:1):
+
+- State the per-axis rule. The implementation already splits `overflowX`/`overflowY`; the spec lumps "auto/scroll" vs "hidden/clip." Say each axis is judged independently (e.g. `overflow-x:hidden` with `overflow-y:auto` clips x only).
+- State inheritance overrides. `visibility:hidden` with a `visibility:visible` descendant is visible per CSS; `opacity:0` and `display:none` ancestors have no visible descendants. The spec's flat exclusion list invites the wrong implementation.
+- Fix "prefix." Per-character geometry (as implemented) can exclude middle characters of wrapped text, not strictly a prefix. Generalize to "only geometry-confirmed characters count," and state the zero-sized-scrollport rule the code already uses (scrollable requires size > 0).
+- Say what `content-visibility:auto` does (presumably counts, like scrollable offscreen text), since only `hidden` is excluded.
+
+### Upgrade and gate presentation
+
+- Mixed failures are undefined. Gate-only failures name the ack command; other failures name schema/device remediation. State what a snapshot with both shows (both remediations, and order).
+- State the fail condition. "Count security notes alongside compiler notes and report pending review gates separately" leaves open whether advisory notes fail upgrade. Say notes never gate; only review gates (and schema/device failures) do — SEC8 owns that distinction.
+- Pin "refuted" to the SEC8 predicate (reachable refuted invariant, cf. [security.rs](/home/ccheever/projects/sb4-b24-dx7/snapback4/crates/snapback4-lang/src/bind/security.rs:105)) and name the JSON field carrying the explanation. "Leaves review records untouched" should also name the ack write path (check writes dispositions; reporting never writes) so the implementer cannot invert it.
+
+### Protected immutable payloads
+
+Highest-risk change, and the noninterference argument is almost complete (ignore-without-compare is input- and stored-value-independent for denied viewers). Required completions:
+
+- Resolve the §22.9 conflict explicitly. [§22.9](/home/ccheever/projects/sb4-b24-dx7/llp/3000.036-what-the-app-farm-asks-of-the-rule-language.rfc.md:3041) demands a placement check for explicitly supplied asset fields with unreadable old cells even when equal. For protected immutable fields no placement occurs, so that check must be skipped — say so, with the safety reason (nothing is adopted; success reveals nothing about the stored payload). Otherwise the implementer must choose between "ignored" and "§22.9 refuses."
+- Rule on update-time validation of the ignored field (validate-then-ignore vs skip validation) and on explicit null for optional fields. Either preserves the oracle; pick one.
+- State device prediction: predicted images retain the old protected-immutable value, never the supplied one. "Same interpreter" is not a prediction rule.
+- Confirm jobs/system can never mutate these fields post-insert and name the backfill path (schema evolution, not ordinary update).
+- Require the compiler advice to be static (schema/site only, never stored values), and state the existing-upsert outcome when only the protected immutable field differs (succeed silently, ignored).
+
+### Audience helpers and hidden probes
+
+Macro-expansion-before-every-consumer is the right architecture. Missing numbers:
+
+- Name the expanded-node budget (counting rule and limit) and the exceed refusal. "Bounded" without a value means server and device can diverge on admission. Eight levels alone does not bound fanout.
+- Define the focal dot rule precisely: recommend refusing unbound `.` inside helpers so all row access flows through explicit arguments, with the repair text.
+- Say whether `exists` probes may appear inside helpers. "Exactly the existing rule grammar" suggests yes; "ordinary reads refuse" suggests only non-`exists` reads refuse. State it, plus post-expansion probe charging and inversion.
+- State hygiene mechanically (simultaneous substitution plus no shadowing of `viewer`/constants, or alpha-rename), and that cycle detection covers indirect cycles at bind time.
+- For the probe advice, require that notes name rules and sites only, never row data — this is what keeps the "no runtime refusal confirms existence" promise intact through helper expansion.
+
+### Required changes (concrete)
+
+1. Preservation rule for unknown metadata records across downgrades, plus re-upgrade recovery and a downgrade-interleaving test.
+2. Name startup-offset source, floor citation, no-checkpoint boundary selection, and fresh-store behavior.
+3. Name the no-double-shift durable mechanism.
+4. State held-check-before-checkpoint ordering and Postgres atomic scope plus a Postgres pause test.
+5. Per-axis overflow, visibility/opacity/display inheritance, zero-sized scrollports, `content-visibility:auto`, and replace "prefix" with geometry-confirmed characters.
+6. Mixed-failure presentation, notes-don't-gate rule, refuted predicate citation, JSON field name, ack write-vs-report paths.
+7. §22.9 skip rule for protected immutable assets, update-validation rule, explicit-null rule, device-prediction retain-old rule, jobs/backfill statement, static-advice requirement, existing-upsert-only-diff outcome.
+8. Node-budget value and counting, focal-dot refusal, `exists`-in-helper ruling with charging, hygiene and indirect-cycle detection, advice-names-rules-only.
+
+Verdict: NOT READY. No objection to the overall direction; each item above is a short spec sentence plus its named test, and implementation in progress should not be counted against readiness.

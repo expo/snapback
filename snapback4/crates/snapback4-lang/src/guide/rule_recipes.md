@@ -551,6 +551,14 @@ mutation ticket(body: text 1..200):
 
 ## Audience follows a mutable parent
 
+Choose the relationship before writing the child rule:
+
+| Existing children should… | Use |
+| --- | --- |
+| Keep the audience and lifetime captured when each child was inserted | `read through .parent` |
+| Follow the bounded parent's current audience after transfers or roster changes | `read through live .parent` |
+| Keep a deliberately stricter child-only audience | An explicit child `read <- ...` rule |
+
 Copy-at-insert plus immutable copies keeps the creation-time audience, so a
 transfer leaves existing children with the old owner. `read through` captures
 a parent's immutable audience inputs and lifetime; it refuses mutable inputs

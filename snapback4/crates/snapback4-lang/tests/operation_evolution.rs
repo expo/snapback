@@ -59,10 +59,12 @@ fn reports_old_input_breaks_results_and_refusals_and_keeps_required_types() {
     assert!(compare(&old,&safe,"release 1").is_empty(),"{:?}",compare(&old,&safe,"release 1"));
 }
 #[test]
-fn same_named_nominal_rows_still_report_changed_result_fields() {
+fn same_named_nominal_rows_report_additive_result_fields_as_notes() {
     let old=checked("table items:\n  n: int\n  public\nquery q(id: items):\n  return items[id]\n");
     let new=checked("table items:\n  n: int\n  label: text <=20 default ''\n  public\nquery q(id: items):\n  return items[id]\n");
-    assert!(compare(&old,&new,"release 1").iter().any(|s|s.contains("RESULT REVIEW")));
+    let report=compare(&old,&new,"release 1");
+    assert!(report.iter().any(|s|s.contains("RESULT NOTE")),"{report:?}");
+    assert!(!report.iter().any(|s|s.contains("RESULT REVIEW")),"{report:?}");
 }
 
 #[test]
@@ -106,6 +108,29 @@ fn aliases_validate_the_canonical_type_and_contract_comparison_recognizes_rename
     let report=compare(&old,&missing,"release 1").join("\n");
     assert!(report.contains("explanation: <new type> alias reason"),"{report}");
     assert!(!report.contains("reason: <old type> deprecated"),"{report}");
+}
+
+#[test]
+fn optional_argument_replacement_warns_without_a_wire_alias() {
+    let old=checked("query q(prior: int ?):\n  return prior\n");
+    let replaced=checked("query q(current: int ?):\n  return current\n");
+    let report=compare(&old,&replaced,"release 1");
+    assert!(report.iter().any(|line|line.contains("INPUT BREAK")&&line.contains("removed argument prior")),"{report:?}");
+    let error=snapback4_core::wire::arguments_from_json(&replaced.programs[0].program,&serde_json::json!({"prior":7})).unwrap_err();
+    assert_eq!(error.refusal().code,"E_INPUT");
+
+    let aliased=checked("query q(current: int ? alias prior):\n  return current\n");
+    assert!(!compare(&old,&aliased,"release 1").iter().any(|line|line.contains("INPUT BREAK")));
+}
+
+#[test]
+fn row_page_transitions_require_review_even_beside_additive_fields() {
+    let table="table items:\n  label: text <=20\n  public\n";
+    let old=checked(&format!("{table}query q(id: items):\n  item = items[id] ! else NOT_FOUND\n  return {{item}}\n"));
+    let new=checked(&format!("{table}query q():\n  return {{item: items first 1 by .id, added: true}}\n"));
+    let report=compare(&old,&new,"release 1");
+    assert!(report.iter().any(|line|line.contains("RESULT REVIEW")),"{report:?}");
+    assert!(!report.iter().any(|line|line.contains("RESULT NOTE")),"{report:?}");
 }
 
 #[test]
@@ -204,4 +229,24 @@ fn removing_or_narrowing_a_previous_argument_alias_warns_old_callers(){
 fn consolidating_two_independent_arguments_into_one_alias_is_an_input_break(){
  let old=checked("query q(a: int, b: int):\n  return 1\n");let next=checked("query q(b: int alias a):\n  return 1\n");
  assert!(compare(&old,&next,"release 1").iter().any(|s|s.contains("independent arguments")&&s.contains("get E_INPUT")));
+}
+
+#[test]
+fn declared_table_renames_preserve_reference_input_identity(){
+ let old=checked("table commissions:\n  label: text <=20\n  public\nquery q(item: commissions):\n  return item\n");
+ let new=checked("table sculptureOrders renamed from commissions:\n  label: text <=20\n  public\nquery q(item: sculptureOrders):\n  return item\n");
+ let report=compare(&old,&new,"release 1");
+ assert!(!report.iter().any(|line|line.contains("INPUT BREAK")),"{report:?}");
+}
+
+#[test]
+fn additive_result_fields_are_notes_while_changed_fields_still_require_review(){
+ let source="table items:\n  label: text <=20\n  public\nquery q(id: items):\n  return items[id]\n";
+ let old=checked(source);
+ let added=checked(&source.replace("  public\n","  detail: text <=40 ?\n  public\n"));
+ let report=compare(&old,&added,"release 1");
+ assert!(report.iter().any(|line|line.contains("RESULT NOTE")&&snapback4_lang::client_contracts::is_note(line)),"{report:?}");
+ assert!(!report.iter().any(|line|line.contains("RESULT REVIEW")),"{report:?}");
+ let changed=checked(&source.replace("text <=20","text <=10"));
+ assert!(compare(&old,&changed,"release 1").iter().any(|line|line.contains("RESULT REVIEW")));
 }

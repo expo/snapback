@@ -1,6 +1,8 @@
 //! One-child historical extraction moves the existing asset home atomically.
 // @ref LLP 3000.000.000#20-visible-rollback-views-roll — deterministic identities, no upload or second home.
 use super::*;
+#[path = "extraction_each.rs"]
+mod each;
 use crate::{
     meter::{Ceilings, Cut, Meter},
     schema::{ColumnType, Extraction},
@@ -35,7 +37,8 @@ fn key(tx:&Tx<'_>,e:&Extraction)->Result<String,RuntimeError>{
         Ok(tx.conn().query_row("SELECT origin FROM _asset_column_renames WHERE t=?1 AND name=?2",params![t,c],|r|r.get(0)).optional()?.unwrap_or_else(||c.into()))
     };
     let fields=e.fields.iter().map(|(dest,source)|Ok((origin(child,dest)?,origin(parent,source)?))).collect::<Result<BTreeMap<_,_>,RuntimeError>>()?;
-    Ok(crate::value::digest(&(parent,child,origin(child,&e.reference)?,fields)))
+    let base=(parent,child,origin(child,&e.reference)?,fields);
+    Ok(if e.each {crate::value::digest(&("each-v1",base))}else{crate::value::digest(&base)})
 }
 fn exists(tx: &Tx<'_>) -> Result<bool, RuntimeError> {
     Ok(tx.conn().query_row(
@@ -134,10 +137,12 @@ fn transfer(
             "extraction asset {id} byte length disagrees with its ledger"
         )));
     }
+    if from != to {
     tx.conn().execute(
         "UPDATE _assets SET home_table=?2,home_id=?3,home_column=?4 WHERE id=?1",
         params![id, to.0, to.1, to.2],
     )?;
+    }
     Ok(())
 }
 pub(super) fn transition(
@@ -196,6 +201,7 @@ pub(super) fn transition(
                 ));
             }
         }
+        if e.each { each::backward(tx,e,parent,current_parent,child,&key,report)?; continue; }
         super::activation::walk(tx, pt, |id, mut row| {
             let saved:Option<String>=tx.conn().query_row("SELECT child_id FROM _extraction_rows WHERE definition=?1 AND parent_t=?2 AND parent_id=?3",params![key,pt,id],|r|r.get(0)).optional()?;
             let child_id = if let Some(id) = saved {
@@ -337,11 +343,20 @@ pub(super) fn transition(
                 .query_row("SELECT EXISTS(SELECT 1 FROM r WHERE t=?1)", [pt], |r| {
                     r.get(0)
                 })?;
+        let consumed_each=e.each && !parent.columns.contains_key(each::source(e,child));
+        // @ref LLP 3000.000.000.002#10-wave-25-day-two-friction-dx8 — definition custody survives an empty parent population; every resumed child still needs its original anchor.
+        let resume_each=consumed_each && each::known(tx,&key)?;
+        if consumed_each && !resume_each {
+            let child_history:bool=tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM r WHERE t=?1) OR EXISTS(SELECT 1 FROM _dormant_rows WHERE t=?1) OR EXISTS(SELECT 1 FROM _dormant_narrow_rows WHERE t=?1) OR EXISTS(SELECT 1 FROM _dormant_values WHERE t=?1)",[ct],|r|r.get(0))?;
+            if populated || child_history {return Err(refuse("extract each source list is absent and no successfully applied extraction owns this suspended definition; preserve independent child history in an authored bridge"));}
+        }
         for (dest, source) in e.fields.iter().filter(|_| populated) {
+            if resume_each && asset(&child.columns[dest]) {continue;}
             let kind = parent.columns.get(source).ok_or_else(|| {
                 refuse(format!("extraction source {}.{source} is absent", e.parent))
             })?;
-            if kind != &child.columns[dest]
+            let same = if e.each && asset(&child.columns[dest]) {each::item_type(kind)==Some(&child.columns[dest])} else {kind == &child.columns[dest]};
+            if !same
                 || parent.engine_field(source)
                 || parent.maintained.contains_key(source)
                 || parent.written_by.contains_key(source)
@@ -357,6 +372,7 @@ pub(super) fn transition(
             }
             if !asset(kind)&&(!parent.constraints.iter().any(|c|matches!(c,crate::schema::Constraint::Immutable{fields} if fields.contains(source)))||matches!(kind,ColumnType::Ref{..}|ColumnType::Optional(_))){return Err(refuse("extraction scalar copies require immutable source fields without reference/captured authority"))}
         }
+        if e.each { if resume_each {each::resume(tx,e,parent,child,&key,report)?;}else{each::forward(tx,e,parent,child,&key,report)?;} continue; }
         super::activation::walk(tx, pt, |id, mut row| {
             let saved:Option<String>=tx.conn().query_row("SELECT child_id FROM _extraction_rows WHERE definition=?1 AND parent_t=?2 AND parent_id=?3",params![key,pt,id],|r|r.get(0)).optional()?;
             let child_id = saved.clone().unwrap_or_else(|| id.to_owned());
@@ -446,6 +462,7 @@ pub(super) fn transition(
 }
 pub(super) fn delete(tx: &Tx<'_>, t: i64, id: &str) -> Result<(), RuntimeError> {
     if exists(tx)? {
+        each::delete(tx,t,id)?;
         tx.conn().execute(
             "DELETE FROM _extraction_cells WHERE parent_t=?1 AND parent_id=?2",
             params![t, id],
@@ -468,12 +485,8 @@ pub(super) fn observe_write(
     let active:Vec<(String,String,String)>=tx.conn().prepare("SELECT definition,parent_name,reference_column FROM _extraction_active WHERE child_t=?1")?.query_map([t],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?)))?.collect::<Result<_,_>>()?;
     for (key, parent, column) in active {
         let binding = format!("$extract:{key}");
-        let existing: bool = tx.conn().query_row(
-            "SELECT EXISTS(SELECT 1 FROM _dormant_refs WHERE t=?1 AND id=?2 AND column_name=?3)",
-            params![t, id, binding],
-            |r| r.get(0),
-        )?;
-        if existing && old.is_some_and(|old| old.field(&column).ok() == row.field(&column).ok()) {
+        // @ref LLP 3000.000.000.002#10-wave-25-day-two-friction-dx8 — only birth or a real reference change can capture a parent lifetime; an asset edit cannot repair missing provenance.
+        if old.is_some_and(|old| old.field(&column).ok() == row.field(&column).ok()) {
             continue;
         }
         if let Ok(value) = row.field(&column) {

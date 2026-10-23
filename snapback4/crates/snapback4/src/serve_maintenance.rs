@@ -189,6 +189,7 @@ impl Default for State {
     }
 }
 impl State {
+    pub(super) fn with_pause(paused: bool) -> Self { Self { paused, ..Self::default() } }
     fn aged(&self, now: Instant) -> bool { now.saturating_duration_since(self.serviced) >= BULK_AGE }
     fn eligible(&self, now: Instant, aged_only: bool) -> bool {
         !self.advancing && !self.paused && if aged_only { self.aged(now) } else { now >= self.resume_at }
@@ -399,12 +400,25 @@ pub(super) fn staging(shared: &Shared) -> Result<bool, snapback4_core::Refusal> 
     shared.engine.call(|engine, _| engine.store().deployment_environment().ok().flatten().as_deref() == Some("staging"))
 }
 fn clock_service(request: &Request, shared: &Shared) -> Result<Option<String>, snapback4_core::Refusal> {
-    if shared.personas { return Ok(None); }
+    // @ref LLP 3000.000.000.002#10-wave-25-day-two-friction-dx8 — real-user dev clock authority is independent of fixture doors.
+    if shared.personas {
+        match super::session_identity::principal_of(request,shared) {
+            Ok((principal,kind,snapback4_core::identity::SessionScope::Full)) if kind == "service" && principal == "service:operator" => return Ok(Some(principal)),
+            _ if shared.dev_doors() && crate::auth::bearer_token(request).is_err() => return Ok(None),
+            _ => return Err(snapback4_core::Refusal::new("E_AUTH", "auth", "development clock control requires a full service:operator token").guide("clock")),
+        }
+    }
     if !staging(shared)? { return Err(crate::dev_clock::release()); }
     match super::session_identity::principal_of(request,shared) {
         Ok((principal,kind,snapback4_core::identity::SessionScope::Full)) if kind == "service" && principal.starts_with("service:") => Ok(Some(principal)),
         _ => Err(snapback4_core::Refusal::new("E_AUTH", "auth", "staging clock control requires a full service token").guide("clock")),
     }
+}
+fn checkpoint_clock(engine: &mut snapback4_core::Engine, delta: i64, before: i64, preserve: bool, checkpoint: &snapback4_core::metadata::StagingClock) -> Result<(), RuntimeError> {
+    let result = engine.checkpoint_staging_clock_at(delta, before, preserve, checkpoint);
+    #[cfg(feature = "postgres")]
+    if matches!(result, Err(RuntimeError::CommitOutcomeUnknown(_))) { crate::lifecycle::uncertain_clock_commit(); }
+    result
 }
 fn incomplete_report(cause: &snapback4_core::Refusal) -> snapback4_core::Refusal {
     snapback4_core::Refusal::new("E_CLOCK_REPORT_INCOMPLETE", "clock",
@@ -444,10 +458,10 @@ pub(super) fn advance(request: Request, shared: &Shared, body: &str) {
     };
     if each_boundary && !drain { return respond(request, 400, json!({"denied":refusal_json(&crate::dev_clock::input("eachBoundary requires drain:true"))})); }
     let preserve_sessions = match payload.get("sessions").and_then(|s| s.as_str()) {
-        None if payload.get("sessions").is_none() => !shared.personas,
-        Some("preserve") if !shared.personas => true,
+        None if payload.get("sessions").is_none() => service.is_some(),
+        Some("preserve") if service.is_some() => true,
         Some("expire") => false,
-        _ => return respond(request, 400, json!({"denied":refusal_json(&crate::dev_clock::input("sessions must be preserve (staging only) or expire"))})),
+        _ => return respond(request, 400, json!({"denied":refusal_json(&crate::dev_clock::input("sessions must be preserve (authenticated development or staging only) or expire"))})),
     };
     let duration = payload.get("duration").and_then(|value| value.as_str());
     let milliseconds = match duration.ok_or_else(|| crate::dev_clock::input("clock advance takes {\"duration\":\"+2m\"}"))
@@ -481,7 +495,7 @@ pub(super) fn advance(request: Request, shared: &Shared, body: &str) {
     let advanced = shared.engine.attempt(move |engine, shared| {
         let before = crate::dev_clock_store::saved_boundaries(engine);
         if let Some(principal) = &service {
-            if engine.store().deployment_environment().map_err(|e|e.refusal())?.as_deref() != Some("staging") { return Err(crate::dev_clock::release()); }
+            if !shared.personas && engine.store().deployment_environment().map_err(|e|e.refusal())?.as_deref() != Some("staging") { return Err(crate::dev_clock::release()); }
             super::session_identity::mutation_authority(&facts,shared,engine,principal)?;
         } else { shared.dev_authority(engine)?; }
         let mut clock = lock(&shared.clock);
@@ -501,7 +515,12 @@ pub(super) fn advance(request: Request, shared: &Shared, body: &str) {
             // raw process time and revive an already expired family.
             let effective_delta = now.checked_sub(effective_before)
                 .ok_or_else(|| crate::dev_clock::input("effective clock advance overflow"))?;
-            if milliseconds > 0 && effective_delta > 0 { engine.advance_staging_clock_at(effective_delta, effective_before, preserve_sessions).map_err(|e|e.refusal())?; }
+            let checkpoint = snapback4_core::metadata::StagingClock { now, offset: next.offset(), paused: true };
+            checkpoint_clock(engine, effective_delta, effective_before, preserve_sessions, &checkpoint).map_err(|e|e.refusal())?;
+        } else if service.is_some() {
+            let effective_delta = now.checked_sub(effective_before)
+                .ok_or_else(|| crate::dev_clock::input("effective clock advance overflow"))?;
+            engine.advance_staging_clock_at(effective_delta, effective_before, preserve_sessions).map_err(|e|e.refusal())?;
         } else if milliseconds > 0 {
             engine.advance_worker_leases_at(milliseconds, clock.now()).map_err(|e|e.refusal())?;
         }
@@ -513,7 +532,8 @@ pub(super) fn advance(request: Request, shared: &Shared, body: &str) {
         let isolated = if crate::dev_clock_store::has_data(engine) {
             format!("; use {} for isolated time tests; clock advance --port N targets its printed port (guide jobs)", crate::dev_clock::isolated_command())
         } else { String::new() };
-        let message = format!("cumulative offset {offset:+}ms (requested process offset; now includes the authoritative floor); process offset lasts until restart{isolated}");
+        let lifetime = if shared.personas { "development offset lasts until restart" } else { "offset persists with this staging store across restarts" };
+        let message = format!("cumulative offset {offset:+}ms (now includes the authoritative floor); {lifetime}{isolated}");
         Ok((now, clock.now(), offset, skew, message, before, boundaries))
     });
     // Test the lost-ack branch after the real queued body publishes time.
@@ -539,6 +559,15 @@ pub(super) fn advance(request: Request, shared: &Shared, body: &str) {
         let mut work = work_at(shared, true, 0, Some(now))?;
         work.schedules += crossed.len();
         work.fired.extend(crossed);
+        // Clearing the durable pause is the last part of a completed drain.
+        // Failure leaves both the record and runtime paused; never replay time.
+        if !shared.personas && !crate::lifecycle::stopping() {
+            shared.engine.attempt(|engine, shared| {
+                let clock = lock(&shared.clock);
+                let checkpoint = snapback4_core::metadata::StagingClock { now: clock.now(), offset: clock.offset(), paused: false };
+                checkpoint_clock(engine, 0, checkpoint.now, false, &checkpoint)
+            })?;
+        }
         Ok::<_, RuntimeError>(work)
     })();
     match drained.map_err(|error| error.refusal()).and_then(|work| completed_drain(work, crate::lifecycle::stopping())) {

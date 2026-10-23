@@ -1,26 +1,27 @@
 //! SQLite erases booleans to integers. Recover direct column types from the
 //! adopted schema and SQL projection, never by guessing from names or 0/1.
 // @ref LLP 3000.007#20.26 — positional JSON stays compatible; boolean recovery is presentation on the operator's adopted snapshot.
-use snapback4_core::schema::{ColumnType, Schema};
+// @ref LLP 3000.000.000.002#10-wave-25-day-two-friction-dx8 — direct schema-proven media cells use their ordinary wire JSON in object rows.
+use snapback4_core::{inspection::InspectionColumnKind as Kind, schema::{ColumnType, Schema}};
 use sqlparser::{ast::{Expr, ObjectName, Query, SelectItem, SelectItemQualifiedWildcardKind, SetExpr, Statement, TableFactor}, dialect::SQLiteDialect, parser::Parser};
 use std::collections::{BTreeMap, BTreeSet};
 
-type Columns = Vec<(String, bool)>;
+type Columns = Vec<(String, Kind)>;
 type Tables = BTreeMap<String, Columns>;
 
-pub(super) fn booleans(sql: &str, schema: &Schema, count: usize, retained: bool) -> Result<Vec<bool>, String> {
+pub(super) fn kinds(sql: &str, schema: &Schema, count: usize, retained: bool) -> Result<Vec<Kind>, String> {
     let mut tables: Tables = schema.visible_tables().map(|(name, table)| {
-        let mut columns = vec![("id".into(), false)];
+        let mut columns = vec![("id".into(), Kind::Plain)];
         columns.extend(table.columns.iter().filter(|(name, _)| *name != "id")
-            .map(|(name, kind)| (name.to_ascii_lowercase(), matches!(kind.required(), ColumnType::Bool))));
-        if retained {columns.extend([("_snapback_state".into(),false),("_snapback_source".into(),false),("_snapback_columns".into(),false)]);}
+            .map(|(name, kind)| (name.to_ascii_lowercase(), if matches!(kind.required(), ColumnType::Bool) { Kind::Bool } else if kind.contains_asset() { Kind::Media } else { Kind::Plain })));
+        if retained {columns.extend([("_snapback_state".into(),Kind::Plain),("_snapback_source".into(),Kind::Plain),("_snapback_columns".into(),Kind::Plain)]);}
         (name.to_ascii_lowercase(), columns)
     }).collect();
     let statements = Parser::parse_sql(&SQLiteDialect {}, sql).map_err(|e| format!("--json-objects SQL projection: {e}; use --json for SQLite-specific syntax"))?;
     let [Statement::Query(query)] = statements.as_slice() else { return Err("--json-objects takes a SELECT".into()); };
     let columns = query_columns(query, &mut tables)?;
     if columns.len() != count { return Err("--json-objects cannot determine this projection's column types; select explicit columns or use --json".into()); }
-    Ok(columns.into_iter().map(|(_, boolean)| boolean).collect())
+    Ok(columns.into_iter().map(|(_, kind)| kind).collect())
 }
 
 fn name(name: &ObjectName) -> Option<String> {
@@ -64,7 +65,7 @@ fn set_columns(body: &SetExpr, tables: &mut Tables) -> Result<Columns, String> {
             let mut left = set_columns(left, tables)?;
             let right = set_columns(right, tables)?;
             if left.len() != right.len() { return Err("incompatible SQL projections".into()); }
-            for (l, r) in left.iter_mut().zip(right) { l.1 &= r.1; }
+            for (l, r) in left.iter_mut().zip(right) { if l.1 != r.1 { l.1 = Kind::Plain; } }
             Ok(left)
         }
         SetExpr::Select(select) => {
@@ -90,9 +91,9 @@ fn set_columns(body: &SetExpr, tables: &mut Tables) -> Result<Columns, String> {
                             Expr::CompoundIdentifier(ids) => ids.last().unwrap().value.clone(),
                             _ => expr.to_string(),
                         };
-                        output.push((label.to_ascii_lowercase(), is_bool(expr, &sources)));
+                        output.push((label.to_ascii_lowercase(), kind(expr, &sources)));
                     }
-                    SelectItem::ExprWithAlias { expr, alias } => output.push((alias.value.to_ascii_lowercase(), is_bool(expr, &sources))),
+                    SelectItem::ExprWithAlias { expr, alias } => output.push((alias.value.to_ascii_lowercase(), kind(expr, &sources))),
                     _ => return Err("unsupported object-row projection; use --json".into()),
                 }
             }
@@ -106,16 +107,16 @@ fn set_columns(body: &SetExpr, tables: &mut Tables) -> Result<Columns, String> {
     }
 }
 
-fn is_bool(expr: &Expr, sources: &[(String, Columns)]) -> bool {
+fn kind(expr: &Expr, sources: &[(String, Columns)]) -> Kind {
     let (table, column) = match expr {
-        Expr::Nested(expr) => return is_bool(expr, sources),
+        Expr::Nested(expr) => return kind(expr, sources),
         Expr::Identifier(id) => (None, &id.value),
         Expr::CompoundIdentifier(ids) if ids.len() == 2 => (Some(ids[0].value.to_ascii_lowercase()), &ids[1].value),
-        _ => return false, // Computed SQL expressions retain SQLite's own numeric types.
+        _ => return Kind::Plain, // Computed SQL expressions retain SQLite's own types.
     };
-    let found: Vec<bool> = sources.iter().filter(|(alias, _)| table.as_ref().is_none_or(|t| t == alias))
-        .flat_map(|(_, cols)| cols.iter().filter(|(name, _)| name.eq_ignore_ascii_case(column)).map(|(_, boolean)| *boolean)).collect();
+    let found: Vec<Kind> = sources.iter().filter(|(alias, _)| table.as_ref().is_none_or(|t| t == alias))
+        .flat_map(|(_, cols)| cols.iter().filter(|(name, _)| name.eq_ignore_ascii_case(column)).map(|(_, kind)| *kind)).collect();
     // An unqualified duplicate only reaches execution when SQLite resolved it
     // through USING/NATURAL. All contributors must agree before typing it bool.
-    !found.is_empty() && found.iter().all(|boolean| *boolean)
+    found.first().copied().filter(|first| found.iter().all(|kind| kind == first)).unwrap_or(Kind::Plain)
 }

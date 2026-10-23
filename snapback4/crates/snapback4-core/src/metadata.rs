@@ -42,6 +42,7 @@ pub enum DevMetadata {
     Replay,
     SuppressedEffects,
     HoldSchedules,
+    StagingClock,
 }
 
 pub(crate) trait MetadataWriter {
@@ -55,6 +56,7 @@ pub(crate) fn dev_key(key: DevMetadata) -> &'static str {
         DevMetadata::Replay => "dev:replay",
         DevMetadata::SuppressedEffects => "dev:suppressed-effects",
         DevMetadata::HoldSchedules => "dev:hold-schedules",
+        DevMetadata::StagingClock => "dev:staging-clock",
     }
 }
 
@@ -240,5 +242,23 @@ pub(crate) mod test_cases {
             Some("ready")
         );
         assert_eq!(handle.worker_status(Some("absent")).unwrap(), None);
+    }
+}
+
+/// Additive staging-only time checkpoint, shared by the host and store adapters.
+// @ref LLP 3000.000.000.001#12-wave-24-loop-repairs-dx7 — time, offset and unfinished drain survive together.
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct StagingClock {
+    pub offset: i64,
+    pub now: i64,
+    pub paused: bool,
+}
+impl StagingClock {
+    pub fn validate(&self) -> Result<(), RuntimeError> {
+        if !(0..=crate::value::I53_MAX).contains(&self.now) || !(-crate::value::I53_MAX..=crate::value::I53_MAX).contains(&self.offset) {
+            return Err(RuntimeError::Input("invalid persisted staging clock; time and offset must be safe integer milliseconds".into()));
+        }
+        Ok(())
     }
 }

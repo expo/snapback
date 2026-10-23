@@ -30,6 +30,10 @@ test("proof hosts select the binary from their explicit environment", async t =>
     await assert.rejects(start(), /selected proof environment binary/);
   }
 });
+test("proof host startup rejects an unspawnable binary before the readiness deadline", { skip: process.platform === "win32" }, async t => {
+  const cwd=fixture(t),binary=join(cwd,"not-executable");writeFileSync(binary,"#!/bin/sh\nexit 0\n",{mode:0o644});
+  await assert.rejects(bounded(startDev({cwd,env:{...process.env,SNAPBACK4_BIN:binary},timeoutMs:500}),2000,"unspawnable proof host"),/EACCES|permission denied/i);
+});
 test("native and static bind beyond an occupied port; identity and independent logs", async t => {
   const cwd = fixture(t); mkdirSync(join(cwd, "dist")); writeFileSync(join(cwd, "dist/index.html"), "<h1>owned</h1>");
   const held = createServer(); const port = await bind(held); t.after(() => held.close());
@@ -172,6 +176,36 @@ test("SIGKILLed driver closes frontend liveness and sweeps its whole private gro
   })(), 5000, "frontend group drain");
 });
 
+test("frontend stop waits for keeper-backed descendant cleanup", { skip: process.platform === "win32", timeout: 15000 }, async t => {
+  const cwd=fixture(t),pidFile=join(cwd,"descendant.pid");
+  writeFileSync(join(cwd,"descendant.cjs"),`const fs=require('node:fs');fs.writeFileSync(${JSON.stringify(pidFile)},String(process.pid));setInterval(()=>{},1000);`);
+  writeFileSync(join(cwd,"keeper.cjs"),`process.stdin.resume();process.stdin.once('end',()=>setTimeout(()=>process.kill(0,'SIGKILL'),250));`);
+  writeFileSync(join(cwd,"driver.cjs"),`const {spawn}=require('node:child_process');
+const guard=spawn(process.execPath,[${JSON.stringify(join(cwd,"keeper.cjs"))}],{stdio:['pipe','ignore','ignore']});
+spawn(process.execPath,[${JSON.stringify(join(cwd,"descendant.cjs"))}],{stdio:'ignore'});
+process.once('exit',()=>guard.stdin.destroy());process.once('SIGTERM',()=>process.exit(0));setInterval(()=>{},1000);`);
+  const run=logged(process.execPath,[join(cwd,"driver.cjs")],{cwd,detached:true,livenessPipe:true});
+  t.after(()=>{try{process.kill(-run.child.pid,"SIGKILL");}catch{}});
+  await bounded((async()=>{while(true){try{readFileSync(pidFile);return;}catch{}await new Promise(resolve=>setTimeout(resolve,10));}})(),5000,"descendant start");
+  const started=performance.now();await stopChild(run.child,1000);
+  assert.ok(performance.now()-started>=150,"stop waits for the keeper's delayed group sweep");
+  const rows=execFileSync("ps",["-eo","pgid=,stat="],{encoding:"utf8",timeout:2000});
+  assert.equal(rows.trim().split("\n").some(row=>{const [group,state]=row.trim().split(/\s+/);return Number(group)===run.child.pid&&!state.startsWith("Z");}),false);
+});
+
+test("frontend startup cleanup refuses when its keeper is lost with a live descendant", { skip: process.platform === "win32", timeout: 15000 }, async t => {
+  const cwd=fixture(t),pidFile=join(cwd,"orphan.pid");
+  writeFileSync(join(cwd,"orphan.cjs"),`const fs=require('node:fs');fs.writeFileSync(${JSON.stringify(pidFile)},String(process.pid));setInterval(()=>{},1000);`);
+  writeFileSync(join(cwd,"lost-keeper.cjs"),`const {spawn}=require('node:child_process');spawn(process.execPath,[${JSON.stringify(join(cwd,"orphan.cjs"))}],{stdio:'ignore'});setTimeout(()=>process.exit(1),25);`);
+  const run=logged(process.execPath,[join(cwd,"lost-keeper.cjs")],{cwd,detached:true,livenessPipe:true});
+  t.after(()=>{try{process.kill(-run.child.pid,"SIGKILL");}catch{}});
+  await bounded((async()=>{while(true){try{readFileSync(pidFile);return;}catch{}await new Promise(resolve=>setTimeout(resolve,10));}})(),5000,"orphan start");
+  await assert.rejects((async()=>{
+    try { await ready(run,()=>undefined,1000); }
+    catch (error) { await stopChild(run.child,250); throw error; }
+  })(),/proof process-group cleanup timed out after 5000 ms/);
+});
+
 test("saved schemas typecheck server companions against private candidate API without replacing working types", async t => {
   const cwd = fixture(t);
   symlinkSync(join(root, "node_modules"), join(cwd, "node_modules"), "dir");
@@ -286,33 +320,39 @@ test("proof witness injection survives HTTP redirect destinations", async t => {
 });
 
 
-test("secret capture releases its pipe when an exited tool leaves a descendant holding stdout", {
-  skip: process.platform === "win32" && "The pipe-holder exit witness uses portable Unix ps (Linux and Darwin)",
+test("proof command cleanup owns npm descendants and caller death", {
+  skip: process.platform === "win32" && "private process-group custody requires Unix",
+  timeout: 30000,
 }, async t => {
   const cwd=fixture(t),module=fileURLToPath(new URL('../dist/proof.js',import.meta.url));
-  const script=join(cwd,'driver.mjs'),marker=join(cwd,'desc-ready');
-  writeFileSync(script, `import {command} from ${JSON.stringify(module)};
-try {await command(process.execPath,['-e',\`const child=require('node:child_process').spawn(process.execPath,['-e','setTimeout(()=>{},6000)'],{stdio:['ignore',1,2]});require('node:fs').writeFileSync(${JSON.stringify(marker)},JSON.stringify({pid:child.pid}));process.exit(0)\`],{cwd:${JSON.stringify(cwd)},secret:true,timeoutMs:1000});process.exitCode=1;}
-catch(error){if(!/timed out/.test(error.message))throw error;}`);
-  const child=spawn(process.execPath,[script],{stdio:'ignore'});
-  let holder;
-  const closed=new Promise((resolve,reject)=>{child.once('error',reject);child.once('close',resolve)});
-  t.after(async()=>{
-    if(child.exitCode===null&&child.signalCode===null)child.kill('SIGKILL');
-    // The regression deliberately outlives the driver. Observe its own finite
-    // lifetime before ending the file; never signal a retained descendant PID.
-    if(holder) await bounded((async()=>{
-      while(true){
-        let state;
-        try {state=execFileSync('ps',['-p',String(holder),'-o','stat='],{encoding:'utf8',timeout:2000}).trim();}
-        catch(error){if(error.status===1 && !String(error.stdout).trim())return;throw error;}
-        if(state.startsWith('Z'))return;
-        await new Promise(resolve=>setTimeout(resolve,50));
-      }
-    })(),10000,'pipe holder exit');
-  });
-  await bounded((async()=>{while(!holder){try{holder=JSON.parse(readFileSync(marker,'utf8')).pid;}catch(error){if(error.code!=='ENOENT')throw error;}if(!holder)await new Promise(resolve=>setTimeout(resolve,20));}})(),5000,'pipe holder spawned');
-  assert.equal(await bounded(closed,5000,'secret driver exit'),0);
+  const helper=join(cwd,'hold.mjs');
+  writeFileSync(helper, `import{spawn}from'node:child_process';import{writeFileSync}from'node:fs';const child=spawn(process.execPath,['-e','setInterval(()=>{},1000)']);writeFileSync(process.argv[2],JSON.stringify([process.pid,child.pid]));setInterval(()=>{},1000);`);
+  writeFileSync(join(cwd,'package.json'),JSON.stringify({private:true,type:'module',scripts:{hold:'node hold.mjs npm-pids.json'}}));
+  const pidsGone=async marker=>bounded((async()=>{
+    let pids;
+    while(!pids){try{pids=JSON.parse(readFileSync(join(cwd,marker),'utf8'));}catch(error){if(error.code!=='ENOENT')throw error;}if(!pids)await new Promise(resolve=>setTimeout(resolve,10));}
+    for(;;){
+      const alive=pids.filter(pid=>{try{return !execFileSync('ps',['-p',String(pid),'-o','stat='],{encoding:'utf8',timeout:2000}).trim().startsWith('Z');}catch(error){if(error.status===1&&!String(error.stdout).trim())return false;throw error;}});
+      if(!alive.length)return;
+      await new Promise(resolve=>setTimeout(resolve,10));
+    }
+  })(),5000,`process tree ${marker} cleanup`);
+  await assert.rejects(command('npm',['run','--silent','hold'],{cwd,timeoutMs:200,stopTimeoutMs:200}),/timed out/);
+  await pidsGone('npm-pids.json');
+  const driver=join(cwd,'caller.mjs');
+  writeFileSync(driver,`import{command}from ${JSON.stringify(module)};command(process.execPath,['hold.mjs','caller-pids.json'],{cwd:${JSON.stringify(cwd)},timeoutMs:60000});setInterval(()=>{},1000);`);
+  const caller=spawn(process.execPath,[driver],{stdio:'ignore'});t.after(()=>{if(caller.exitCode===null&&caller.signalCode===null)caller.kill('SIGKILL');});
+  await bounded((async()=>{while(true){try{if(JSON.parse(readFileSync(join(cwd,'caller-pids.json'),'utf8')).length===2)return;}catch(error){if(error.code!=='ENOENT')throw error;}await new Promise(resolve=>setTimeout(resolve,10));}})(),5000,'caller descendants started');
+  caller.kill('SIGKILL');await new Promise(resolve=>caller.once('close',resolve));
+  await pidsGone('caller-pids.json');
+});
+
+test("process-group cleanup deadline stops polling after refusal", { skip: process.platform === "win32" }, async t => {
+  const cwd=fixture(t),nativeKill=process.kill.bind(process);let clock=0,probes=0;
+  t.mock.method(performance,"now",()=>clock+=6000);
+  t.mock.method(process,"kill",(pid,signal)=>{if(pid<0){probes++;return true;}return nativeKill(pid,signal);});
+  await assert.rejects(command(process.execPath,["-e",""],{cwd,timeoutMs:1000}),/process-group cleanup timed out/);
+  const settled=probes;await new Promise(resolve=>setTimeout(resolve,50));assert.equal(probes,settled,"deadline leaves no polling timer behind");
 });
 
 test('KIT4 missing static output names the app build script', async t => {

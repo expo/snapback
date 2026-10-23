@@ -160,16 +160,18 @@ schedule closer every 1m: closeDeparted
 
 ## The dev clock
 
-Clock replies include sessionNotice: large jumps expire ordinary seven-day
-password sessions and collect unplaced uploads after one hour. Sign in again
-and upload after the jump. Reset replaces accounts and sessions: discard cached
-credentials/localStorage, sign up and reprovision. Password-only dev requires
-`--unsafe-dev-doors`; shared real-user tests use the MIG staging clock above.
+Clock replies include sessionNotice. Operator-authenticated development and
+classified staging preserve live sessions unless `sessions:"expire"` is
+explicit; the unauthenticated fixture clock keeps its legacy expiry behavior.
+Unplaced uploads still age. Reset replaces accounts and sessions: discard cached
+credentials/localStorage, sign up and reprovision. Password-only dev keeps
+fixture/persona doors closed while its `service:operator` clock remains available.
 
 
 - CLI clock durations use one positive whole number and `ms`, `s`, `m`, `h`, `d` or `w`, optionally prefixed `+`: use `90m`, not `1h30m`. Quarry uses `7d` instead of `1w`.
-- Classified staging uses `serve <dir> --clock-offset +25h` and `clock advance 2h --release <dir>` with the same duration and drain semantics. `startServe(dir, {clockOffset: "+25h"})` exposes `now()` and `advance("2h")`; both use local operator authority. Production, legacy, account and read-only sessions refuse clock control. Offset is process-local; restart drops it, while persisted disclosure floors never retreat. Ordinary user sessions retain their normal expiry; sign in again after large advances. Staging clock control admits no persona, fixture, reset or dev-job authority.
+- Classified staging uses `serve <dir> --clock-offset +25h` and `clock advance 2h --release <dir>` with the same duration and drain semantics. `startServe(dir, {clockOffset: "+25h"})` exposes `now()` and `advance("2h")`; both use local operator authority. Production, legacy, account and read-only sessions refuse clock control. Staging persists its cumulative offset and business time with the store, including a pending maintenance pause. Restart resumes at saved time (or a later retained commit/schedule/disclosure floor); an explicit clockOffset never rewinds it. Live staging sessions preserve remaining lifetime across jumps by default; use `{sessions:"expire"}` to test expiry. Use `drain()` to finish paused work, including after a restart; never replay an ambiguous advance. Staging clock control admits no persona, fixture, reset or dev-job authority.
 - `snapback4 dev --clock-offset +25h` starts the dev server 25 hours ahead; mutations stamp `now` from it.
+- Development advances use a full `service:operator` token, including `startDev().advance()`, and preserve full/read session families by default. This authority does not open `/seed`, reset, personas or dev jobs. The dev offset is process-local: restart returns to wall time unless an explicit offset/resume option is supplied.
 - `snapback4 clock advance 2m [--port N]` moves a running dev forward, sweeps expiry and runs due
   schedules and jobs; over HTTP: `POST /dev/clock/advance` with `{"duration":"2m"}`. An advance across
   many boundaries runs each schedule once, and its reply lists firedWindows and
@@ -185,7 +187,7 @@ credentials/localStorage, sign up and reprovision. Password-only dev requires
   the advance blindly. E_CLOCK_INTERRUPTED means shutdown stopped the drain:
   time already moved; inspect queued jobs before restarting the test.
 - Clock and reset discover a unique live dev in the current project, including `dev --memory --port N`. Multiple hosts list their addresses and require `--port N`; no default port is guessed. Registrations live in `.snapback4/dev-hosts`, contain no secrets, and stale hosts are ignored.
-- The offset belongs to the process: restart with `dev --resume-clock` to continue from the store's
+- The dev offset belongs to the process (staging persists it): restart with `dev --resume-clock` to continue from the store's
   newest stamp. `GET /dev/status` reports `now`, `skewMs` and `clockOffsetMs`. `/dev/clock/status` and reset
   also carry now/skewMs; `await dev.now()` from snapback4/proof reads it afresh.
   now/skewMs include a persisted timed-disclosure floor, which may hold served time

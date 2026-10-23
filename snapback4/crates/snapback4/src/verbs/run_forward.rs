@@ -149,6 +149,9 @@ pub(crate) fn exchange_authorized(address:SocketAddr,method:&str,route:&str,pers
 pub(crate) fn exchange_dev(address:SocketAddr,route:&str,instance:Option<&str>,body:&str,wait:Duration)->std::io::Result<(u16,Json)> {
     exchange_inner(address,"POST",route,None,None,instance,body,wait)
 }
+pub(crate) fn exchange_dev_authorized(address:SocketAddr,route:&str,instance:Option<&str>,bearer:&str,body:&str,wait:Duration)->std::io::Result<(u16,Json)> {
+    exchange_inner(address,"POST",route,None,Some(bearer),instance,body,wait)
+}
 fn exchange_inner(address:SocketAddr,method:&str,route:&str,persona:Option<&str>,bearer:Option<&str>,instance:Option<&str>,body:&str,wait:Duration)->std::io::Result<(u16,Json)> {
     let mut stream = TcpStream::connect_timeout(&address, Duration::from_secs(2))?;
     stream.set_read_timeout(Some(wait))?;

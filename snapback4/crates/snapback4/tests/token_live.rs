@@ -18,10 +18,13 @@ const DAY: i64 = 86_400_000;
 struct Project { root: PathBuf, release: bool }
 impl Project {
     fn new(release: bool) -> Self {
+        Self::with_source(release, "use identity\nquery who():\n  require viewer = 'service:ranker' else NOT_RANKER\n  return viewer\n")
+    }
+    fn with_source(release: bool, source: &str) -> Self {
         static NEXT: AtomicUsize = AtomicUsize::new(0);
         let root = std::env::temp_dir().join(format!("snapback4-token-{}-{}", std::process::id(), NEXT.fetch_add(1, Ordering::Relaxed)));
         fs::create_dir_all(root.join("snapback")).unwrap();
-        fs::write(root.join("snapback/schema.q"), "use identity\nquery who():\n  return viewer\n").unwrap();
+        fs::write(root.join("snapback/schema.q"), source).unwrap();
         let p = Self { root: root.canonicalize().unwrap(), release };
         if release { success(p.run(&["deploy", "release"])); }
         p
@@ -161,6 +164,34 @@ fn mint_paths(release: bool) {
 
 #[test] fn dev_live_and_offline_share_validation_expiry_and_durable_sessions() { mint_paths(false); }
 #[test] fn serve_live_and_offline_share_validation_expiry_and_durable_sessions() { mint_paths(true); }
+
+#[test]
+fn live_and_stopped_token_warn_for_an_unmentioned_seat_without_counting_result_literals() {
+    let source = "use identity\ntable labels:\n  value: enum('service:operator')\n  public\n  online only\nquery literal():\n  return 'service:operator'\nquery admitted():\n  require viewer = 'service:ops' else NOT_OPS\n  return viewer\n";
+    for release in [false, true] {
+        let p = Project::with_source(release, source);
+        let host = Host::start(&p, "127.0.0.1");
+        let admitted = p.mint("ops", "2");
+        assert!(admitted.status.success(), "{}", String::from_utf8_lossy(&admitted.stderr));
+        assert!(admitted.stderr.is_empty(), "an exact authorization mention suppresses the warning");
+        let warned = || {
+            let warned = p.mint("operator", "2");
+            assert!(warned.status.success(), "{}", String::from_utf8_lossy(&warned.stderr));
+            let body: Value = serde_json::from_slice(&warned.stdout).unwrap();
+            let warning = String::from_utf8(warned.stderr).unwrap();
+            assert!(warning.contains("WARNING minted service:operator") && warning.contains("explicit service identities: service:ops") && warning.contains("rules still decide"), "{warning}");
+            assert!(!warning.contains(body["token"].as_str().unwrap()), "warning never copies the credential");
+        };
+        warned();
+        drop(host);
+        warned();
+        if release {
+            let quiet = p.run(&["token", "--service", "operator", "--quiet", "--release", "release"]);
+            assert!(quiet.status.success()); assert_eq!(quiet.stdout.len(), 44);
+            assert!(String::from_utf8_lossy(&quiet.stderr).contains("WARNING minted service:operator"));
+        }
+    }
+}
 
 #[test]
 fn public_listeners_refuse_remote_peers_and_missing_wrong_duplicate_or_browser_proofs() {

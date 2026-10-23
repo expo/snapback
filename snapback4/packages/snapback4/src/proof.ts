@@ -1,6 +1,6 @@
 export { loadFixtures, type FixtureRow, type LoadFixturesOptions } from "./proof-fixtures.ts";
-import { seedAccounts, type SeedAccountsOptions, type StagingSessions } from "./proof-accounts.ts";
-export { seedAccounts, type SeedAccountsOptions, type StagingAccount, type StagingSessions } from "./proof-accounts.ts";
+import { provisionAccounts, seedAccounts, type ProvisionedSessions, type SeedAccountsOptions, type StagingSessions } from "./proof-accounts.ts";
+export { provisionAccounts, seedAccounts, type SeedAccountsOptions, type StagingAccount, type StagingSessions, type ProvisionedAccount, type ProvisionedSessions } from "./proof-accounts.ts";
 // @ref LLP 3000.011.003.000.000#1 — the packaged proof kit owns hosts; builders own assertions.
 import { mkdirSync, openSync, closeSync, writeSync } from "node:fs";
 import { join } from "node:path";
@@ -9,6 +9,7 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 import type { BrowserContext, BrowserType, LaunchOptions, Locator, Page } from "playwright-core";
+import type { Cursor, ReadCut, Refusal } from "./contract.ts";
 import { renderedSelector, registerRenderedSelector, registeredLocator, visibleText } from "./proof-text.ts";
 import { webWitnessObserverScript } from "./witness-web.ts";
 import { resolveBinary } from "./bin-path.ts";
@@ -25,12 +26,13 @@ async function nativeHost(verb: "dev" | "serve", prefix: string[], options: Proo
   const ports = portRange(env), timeout = deadline(options.timeoutMs, 30_000);
   const args = [...(options.args ?? [])];
   if (!args.includes("--port")) args.push("--port", ports);
-  const run = logged(resolveBinary(env), [verb, ...prefix, ...args], { ...options, env: { ...env, SNAPBACK4_PROOF_ID: id, SNAPBACK4_SUPERVISOR_PID: String(process.pid) } });
+  const run = logged(resolveBinary(env), [verb, ...prefix, ...args], { ...options, processGroup: true, env: { ...env, SNAPBACK4_PROOF_ID: id, SNAPBACK4_SUPERVISOR_PID: String(process.pid) } });
   try {
+    await bounded(run.started, timeout, "proof process-group handshake");
     const url = await ready(run, line => {
       const match = line.match(/^SNAPBACK4_READY verb=(dev|serve) generation=\d+ url=(http:\/\/[^ ]+) pid=(\d+)(?: |$)/);
       if (!match) return;
-      if (match[1] !== verb || Number(match[3]) !== run.child.pid) throw Error("proof ready identity mismatch");
+      if (match[1] !== verb || Number(match[3]) !== run.pid()) throw Error("proof ready identity mismatch");
       return match[2];
     }, timeout);
     const { response, body } = await fetchIdentity(`${url}/auth/config`, timeout);
@@ -39,17 +41,20 @@ async function nativeHost(verb: "dev" | "serve", prefix: string[], options: Proo
     let personas: string[] = [];
     if (verb === "dev" && body.devDoors !== false) {
       const status = await fetchIdentity(`${url}/dev/status`, timeout);
-      if (status.body.pid !== run.child.pid) throw Error("proof dev PID mismatch");
+      if (status.body.pid !== run.pid()) throw Error("proof dev PID mismatch");
       if (!Array.isArray(status.body.personas) || !status.body.personas.every(name => typeof name === "string")) throw Error("proof dev personas missing");
       personas = status.body.personas;
     }
-    return { url, ...(verb === "dev" ? { personas } : {}), pid: run.child.pid!, logs: run.logs, stop: () => stopChild(run.child, deadline(options.stopTimeoutMs, 5000)) };
+    return { url, ...(verb === "dev" ? { personas } : {}), pid: run.pid()!, logs: run.logs, stop: () => stopChild(run.child, deadline(options.stopTimeoutMs, 5000)) };
   } catch (error) { await stopChild(run.child, deadline(options.stopTimeoutMs, 5000)); throw error; }
 }
 export interface DevHost extends ProofHost {
   personas: string[];
   /** Read the current authoritative development time, including all clock advances. */
   now(): Promise<number>;
+  advance(duration: string, options?: AdvanceOptions): Promise<ClockAdvance>;
+  drain(options?: Pick<AdvanceOptions, "eachBoundary" | "allowHeld">): Promise<ClockAdvance>;
+  operatorToken(service?: string, days?: number): Promise<string>;
 }
 /** The array form preserves the former startDev(args) recipe. */
 /** @throws invalid port range or conflicting memory flags; child exits, readiness deadline, PID/served identity mismatch, or unavailable dev clock. */
@@ -60,11 +65,31 @@ export function startDev(options: ProofOptions | readonly string[] = {}): Promis
   if (persistent && args.includes("--memory")) throw new TypeError("proof startDev: --memory conflicts with --store/--no-memory");
   // Native persistence is the default. --no-memory remains a consumed explicit alias.
   const host = nativeHost("dev", [], { ...opts, args: args.filter(arg => arg !== "--no-memory") });
-  return host.then(host => ({ ...host, personas: host.personas!, now: async () => {
-    const { response, body } = await fetchIdentity(`${host.url}/dev/status`, deadline(opts.timeoutMs, 10_000));
-    if (!response.ok || typeof body.now !== "number") throw Error("proof dev clock unavailable; password-only dev requires explicit --unsafe-dev-doors for clock/fixture tools; use serve staging for real users");
-    return body.now;
-  } }));
+  return host.then(host => {
+    const operatorToken = async (service = "operator", days = 1) => {
+      if (!/^[A-Za-z0-9_-]{1,64}$/.test(service) || !Number.isSafeInteger(days) || days < 1 || days > 3650) throw Error("proof operatorToken: invalid service or days (1..3650)");
+      const port = new URL(host.url).port;
+      const result = await cli(["token", "--service", service, "--days", String(days), "--port", port, "--quiet"], opts);
+      if (result.code !== 0) throw Error(`proof development operator token refused: ${result.stderr}`);
+      const token = result.stdout.trim();
+      if (!/^[A-Za-z0-9_-]{43}$/.test(token)) throw Error("proof development operator token malformed");
+      return token;
+    };
+    const clockCall = async (body?: object): Promise<ClockAdvance> => {
+      const response = await fetch(`${host.url}/dev/clock/${body ? "advance" : "status"}`, { method: body ? "POST" : "GET", headers: { authorization: `Bearer ${await operatorToken()}`, "content-type": "application/json" }, ...(body ? { body: JSON.stringify(body) } : {}), signal: AbortSignal.timeout(deadline(opts.timeoutMs, 60_000)) });
+      const result = await response.json() as Partial<ClockAdvance> & {denied?:{code?:string;message?:string}};
+      if (!response.ok || result.denied || !Number.isSafeInteger(result.now)) throw Object.assign(Error(`development clock refused or reply unavailable; inspect before retrying: ${result.denied?.code ?? response.status} ${result.denied?.message ?? ""}`), {report:result});
+      const now = result.now!;
+      return { now, fired: result.fired ?? [], held: result.held ?? [], maintenancePaused: result.maintenancePaused ?? false, valueOf() { return now; } };
+    };
+    return { ...host, personas: host.personas!, operatorToken, now: async () => (await clockCall()).now,
+      advance: (duration: string, advanceOptions: AdvanceOptions = {}) => {
+        if (typeof duration !== "string" || (!/^\+?\d+(ms|s|m|h|d|w)$/.test(duration) || BigInt(duration.replace(/\D/g, "")) === 0n)) throw new TypeError("E_PROOF_USAGE: advance requires a positive whole duration");
+        return clockCall({duration, ...advanceOptions});
+      },
+      drain: (advanceOptions: Pick<AdvanceOptions,"eachBoundary"|"allowHeld"> = {}) => clockCall({duration:"0ms",drain:true,...advanceOptions}),
+    };
+  });
 }
 export interface ScheduleOutcome {
   name: string;
@@ -95,9 +120,10 @@ export interface ServeHost extends ProofHost {
   drain(options?: Pick<AdvanceOptions, "eachBoundary" | "allowHeld">): Promise<ClockAdvance>;
   operatorToken(service?: string, days?: number): Promise<string>;
   seedAccounts(options: SeedAccountsOptions): Promise<StagingSessions>;
+  provisionAccounts(options: SeedAccountsOptions): Promise<ProvisionedSessions>;
   sessions?: StagingSessions;
 }
-export interface ServeOptions extends ProofOptions { seedUsers?: SeedAccountsOptions; clockOffset?: string }
+export interface ServeOptions extends ProofOptions { seedUsers?: SeedAccountsOptions; provisionUsers?: SeedAccountsOptions; clockOffset?: string }
 // @ref LLP 3000.000.000.001#2-real-staging-accounts — operator authority stays in the existing local store proof; bulk setup refuses production.
 /** Starts a release. stop() awaits native exit and kernel store release.
  * @throws E_PROOF_USAGE for missing deployment directory; child exit, readiness deadline or served identity mismatch. stop() rejects bounded cleanup failure. */
@@ -145,8 +171,14 @@ export async function startServe(deployDir: string, options: ServeOptions | read
       return token;
     },
     seedAccounts: accountOptions => seedAccounts(served, accountOptions),
+    provisionAccounts: accountOptions => provisionAccounts(served, accountOptions),
   };
-  try { if (opts.seedUsers) served.sessions = await served.seedAccounts(opts.seedUsers); return served; }
+  try {
+    if (opts.seedUsers && opts.provisionUsers) throw new TypeError("E_PROOF_USAGE: choose seedUsers for staging or provisionUsers for production");
+    if (opts.seedUsers) served.sessions = await served.seedAccounts(opts.seedUsers);
+    if (opts.provisionUsers) served.sessions = await served.provisionAccounts(opts.provisionUsers);
+    return served;
+  }
   catch (error) { await served.stop(); throw error; }
 }
 async function frontend(kind: "static" | "vite", dir: string, options: ProofOptions): Promise<ProofHost> {
@@ -184,11 +216,11 @@ export function cli(args: readonly string[], options: ProofOptions = {}): Promis
 /** A bounded directly spawned build/tool command, with the same file logs. */
 /** @throws spawn error or command deadline; nonzero exit is returned in code, not thrown. */
 export async function command(binary: string, args: readonly string[], options: ProofOptions = {}): Promise<CliResult> {
-  const run = logged(binary, args, { ...options, env: { ...process.env, ...options.env } });
+  const run = logged(binary, args, { ...options, processGroup: true, env: { ...process.env, ...options.env } });
   try {
     await bounded(run.closed, deadline(options.timeoutMs, 120_000), "proof cli close");
     if (run.error()) throw run.error();
-    return { code: run.child.exitCode, signal: run.child.signalCode, stdout: run.stdout(), stderr: logText(run.logs.stderr), logs: run.logs };
+    return { code: run.code(), signal: run.signal(), stdout: run.stdout(), stderr: logText(run.logs.stderr), logs: run.logs };
   } catch (error) { await stopChild(run.child, deadline(options.stopTimeoutMs, 5000)); throw error; }
   finally { run.child.stdout?.destroy(); } // Secret capture must not pin the driver after a deadline.
 }
@@ -309,16 +341,57 @@ const substringLocators = new WeakMap<Locator, { locator: Locator; scoped: boole
  * ambiguous, including repeated rows. */
 /** @throws None at construction; locator observation can refuse ambiguous or invalid selectors. */
 // @ref LLP 3000.000.000.001#11-wave-22-loop-repairs-dx6 — composed text preserves exactness and ambiguity.
-export function renderedText(page: Page, text: string | RegExp, options: { within?: Locator; exact?: boolean } = {}): Locator {
-  const root = options.within ?? page;
+export function renderedText(page: Page, text: string | RegExp, options: { within?: Locator; exact?: boolean } | null = {}): Locator {
+  const normalized = options ?? {};
+  const root = normalized.within ?? page;
   const match = (exact: boolean) => registeredLocator(root.locator(`${renderedSelector}=${JSON.stringify({
     source: typeof text === "string" ? text : text.source,
     flags: typeof text === "string" ? "" : text.flags,
     regex: typeof text !== "string", exact,
   })}`));
-  const locator = match(options.exact ?? true);
-  if (typeof text === "string" && options.exact !== false) substringLocators.set(locator, { locator: match(false), scoped: options.within !== undefined });
+  const locator = match(normalized.exact ?? true);
+  if (typeof text === "string" && normalized.exact !== false) substringLocators.set(locator, { locator: match(false), scoped: normalized.within !== undefined });
   return locator;
+}
+
+export interface ExhaustPagesOptions {
+  /** Refuse rather than loop forever when a backend returns bad continuations. */
+  maxPages?: number;
+  /** Names the read in a refusal without exposing its rows or cursor. */
+  label?: string;
+}
+type ProofPage<Row> =
+  | { readonly data: readonly Row[]; readonly next?: Cursor | null; readonly complete: boolean; readonly cut: ReadCut; readonly existence?: "present" | "absent" | "partial" }
+  | { readonly denied: Refusal }
+  | { readonly loading: true };
+/** Read every page by passing each opaque `next` back unchanged. The callback
+ * receives null first. Refusals, loading, malformed/repeated cursors and a
+ * capped or incomplete page fail instead of returning a partial snapshot. */
+/** @throws E_PROOF_PAGE for a refused, loading, malformed, repeated, incomplete or over-limit traversal; callback errors propagate. */
+// @ref LLP 3000.000.000.002#10-wave-25-day-two-friction-dx8 — proof traversal must never promote capped or partial reads to complete evidence.
+export async function exhaustPages<Row>(readPage: (cursor: Cursor | null) => Promise<ProofPage<Row>>, options: ExhaustPagesOptions = {}): Promise<Row[]> {
+  const maxPages = options.maxPages ?? 1_000, label = options.label ?? "paged read";
+  if (!Number.isSafeInteger(maxPages) || maxPages < 1) throw new Error(`E_PROOF_PAGE: ${label}: maxPages must be a positive safe integer`);
+  const rows: Row[] = [], seen = new Set<string>();
+  let cursor: Cursor | null = null;
+  for (let pageNumber = 1; pageNumber <= maxPages; pageNumber++) {
+    const page = await readPage(cursor);
+    if (!page || typeof page !== "object") throw new Error(`E_PROOF_PAGE: ${label}: page ${pageNumber} returned no read envelope`);
+    if ("denied" in page) throw new Error(`E_PROOF_PAGE: ${label}: page ${pageNumber} refused ${page.denied.code}: ${page.denied.message}`);
+    if ("loading" in page) throw new Error(`E_PROOF_PAGE: ${label}: page ${pageNumber} is still loading`);
+    if (!Array.isArray(page.data)) throw new Error(`E_PROOF_PAGE: ${label}: page ${pageNumber} data is not an array`);
+    if (page.cut !== null) throw new Error(`E_PROOF_PAGE: ${label}: page ${pageNumber} is incomplete (${page.cut === undefined ? "missing" : page.cut} cut)`);
+    if (page.complete !== true) throw new Error(`E_PROOF_PAGE: ${label}: page ${pageNumber} is incomplete (complete must be true)`);
+    if (page.existence === "partial") throw new Error(`E_PROOF_PAGE: ${label}: page ${pageNumber} has partial existence`);
+    rows.push(...page.data);
+    const next = page.next ?? null;
+    if (next === null) return rows;
+    if (typeof next !== "string" || next.length === 0) throw new Error(`E_PROOF_PAGE: ${label}: page ${pageNumber} returned a malformed cursor`);
+    if (seen.has(next)) throw new Error(`E_PROOF_PAGE: ${label}: page ${pageNumber} returned a repeated cursor`);
+    seen.add(next);
+    cursor = next as Cursor;
+  }
+  throw new Error(`E_PROOF_PAGE: ${label}: exceeded maxPages ${maxPages}`);
 }
 /** Activate before taking a screenshot, particularly on loaded shared hosts. */
 /** @throws page closed or browser activation failed. */

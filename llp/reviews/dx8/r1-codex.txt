@@ -1,0 +1,18 @@
+NOT READY
+
+The supplied amendment hash matches §10 at frozen commit `78c08eaa47e6cfa8ab25aedee30a9940c4188cd9`. Three material concerns remain:
+
+1. **Paging accepts absent completeness evidence.** [proof.ts:364](/home/ccheever/projects/sb4-b25-dx8/snapback4/packages/snapback4/src/proof.ts:364) makes `complete` and `cut` optional; the implementation rejects only explicit incompleteness. Counterexample: `exhaustPages(async () => ({data: firstPage, next: null}))` succeeds without any coverage evidence. An in-memory probe confirmed this. Require affirmative completeness metadata and reject missing or malformed evidence. Clarify that exhausting a declared paginated query does not prove an arbitrary capped query covers the entire population.
+
+2. **Process failure handling is not fully bounded.**
+
+   - [proof.ts:31](/home/ccheever/projects/sb4-b25-dx8/snapback4/packages/snapback4/src/proof.ts:31) awaits `run.started` before entering readiness timeout handling. An existing but non-executable `SNAPBACK4_BIN` passes binary resolution, then fails spawning without supplying a numeric started PID. Nothing settles `started`, so the requested timeout never applies.
+   - [proof-process.ts:93](/home/ccheever/projects/sb4-b25-dx8/snapback4/packages/snapback4/src/proof-process.ts:93) races infinite cleanup polling against five seconds without cancelling the poll. A group remaining visible—for example because of unreaped members—causes rejection while referenced timers continue indefinitely. A mocked persistent-group probe confirmed polling continues after timeout.
+
+   Reject startup on error/early close, include the startup handshake within the deadline, and make cleanup polling terminate when its deadline expires.
+
+3. **Provisioning contradicts the promised staging support.** [proof-accounts.ts:40](/home/ccheever/projects/sb4-b25-dx8/snapback4/packages/snapback4/src/proof-accounts.ts:40) requires one exact environment, and `provisionAccounts` selects production. Counterexample: a valid password-authenticated staging host receives `E_PRODUCTION_ACCOUNTS` before provisioning begins; an in-memory probe confirmed this. Accept both production and staging through ordinary signup and authorized mutations, while retaining development refusal, and align the guide and regression coverage.
+
+The generated-rename exception retains type/protected-cell checks and transactional receipt staging. Development clock authorization checks the exact operator seat and revalidates authority under the writer.
+
+These findings do not depend on pending fan-out extraction or full qualification. No files were modified.

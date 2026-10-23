@@ -62,7 +62,7 @@ fn cards_meet_word_targets_and_preserve_every_original_compiled_block() {
         // cards. MIG adds one independently compiled, packed-tested example;
         // bound that addition explicitly rather than weakening the 30% target.
         let historical = if name == "language" {
-            let (historical, added) = text.split_once("```quarry\ntable parcels").unwrap();
+            let (historical, added) = text.split_once("```quarry\nuse identity password\ntable parcels").unwrap();
             assert!(added.split_whitespace().count() <= 100, "backfill example budget");
             historical
         } else { text };

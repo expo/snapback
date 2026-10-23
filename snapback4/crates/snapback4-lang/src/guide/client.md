@@ -16,6 +16,10 @@ export function Inbox() { const page = usePage(api.inboxCards, {}), status = rea
 
 ## Reference
 
+Proofs/exports use `exhaustPages` from `snapback4/proof`; screens use `usePage`.
+- Treat the cursor as opaque: pass each reply's `next` back unchanged.
+- Projection changes row fields only, never page order, completeness or cursor meaning.
+- Every accepted page says `complete:true`, `cut:null` and nonpartial existence. The helper refuses denied, loading, malformed, repeated, capped, incomplete, partial or over-limit pages rather than returning a partial snapshot.
 `Write`: pending custody, fresh sent result, replay without result, or failed. Clear on sentResult; undefined is not success.
 ```tsx
 import { useState } from "react"; import { matchRead, sentResult, useAppReady, useMutation, useQuery } from "snapback4/react";
@@ -30,8 +34,7 @@ export function Composer({conversationId}:{conversationId:string}) {
     {send.last?.state==="failed"&&submitted&&<p role="alert">Not sent: {submitted} <button onClick={()=>setDraft(current=>current?current+" "+submitted:submitted)}>Edit</button> <button onClick={()=>setSubmitted("")}>Dismiss</button></p>}</>;
 }
 ```
-Membership: no horizon, the conversation's own group and messages' audience prove existence unless a pending prediction blocks absence. `loading` means acquisition or later withdrawal. `existence(member) === "absent"` blocks only when fresh and non-revalidating; denied blocks; loading/partial never disable. Never add `with own keys` to admin-written memberships.
-`waitSeconds:0` returns custody; retain its id, never auto-resend. Drafts/receipts: [reference](CLIENT-AND-OPERATIONS.md).
+Membership has no horizon: the conversation's own group and messages' audience prove existence unless a pending prediction blocks absence. `loading` means acquisition or later withdrawal. Fresh, non-revalidating `existence(member) === "absent"` blocks; denied blocks. Never add `with own keys` to admin-written memberships. `waitSeconds:0` returns custody; retain its id, never auto-resend. Drafts/receipts: [reference](CLIENT-AND-OPERATIONS.md).
 
 ## An online role form across releases
 Own createApp({url,writes:"online",sessionStore:localStorageSessionStore()}) outside render under AppProvider.
@@ -61,7 +64,7 @@ function StaffRows({team}: {team:string}) {
     otherwise: () => <p>Updating notes…</p>})}</>;
 }
 ```
-Mount `<StaffWorkspace key={team} team={team}/>`: drafts survive loading/releases; resources/accounts/backends reset them. Sticky role labels the shell; fresh/complete/non-revalidating role and availability gate reads/Save. Rules decide permission. Optional since-release fields need fallbacks: `row.priority ?? "normal"`.
+Mount `<StaffWorkspace key={team} team={team}/>` to preserve drafts. Gate reads/Save on settled role/operation availability; rules decide authority. Use fallbacks such as `row.priority ?? "normal"`.
 
 ## A public guest page
 
@@ -88,9 +91,8 @@ function PublicNotes() {
 
 ## React hooks and auth decisions
 
-Signed-out: show sign-in; otherwise Restoring…. AppProvider resets on app/viewer changes. `useAppReady()` follows successful app.ready; release switches/admission warnings preserve it. Restoration/sign-out/replacement reset it; sign-in repairs initial failure. Keep drafts above role/release gates. Readiness grants no permission/admission.
-`writes:"online"` with device/readOnly yields signed-out `useAuth().why` and failed app.ready. Recreate corrected. Missing browser storage still throws `E_ADMISSION`.
-`useAuth()`: `state`/`viewer`/`why`, `signup(email,password)`, `login(email,password)`, `guest()`, `logout()`, `logoutEverywhere()`. Client: `signOut()`. Expo: secureStoreSessionStore(SecureStore). Password form: [reference](CLIENT-AND-OPERATIONS.md#password-react-and-expo). Sessions validate/copy before effects; E_SESSION names missing/invalid fields. Online partials: token only; session() returns null; server supplies viewer; refresh explicitly. Automatic refresh/devices require complete login/signup Sessions. Custody: CLIENT-AND-OPERATIONS.md.
+Signed-out: show sign-in; restoring: keep shell. `useAppReady()` follows ready; sign-out/app replacement resets it. Keep drafts above role/release gates; readiness grants no authority. `writes:"online"` with device/readOnly yields signed-out `useAuth().why` and failed app.ready. Recreate corrected. Missing browser storage still throws `E_ADMISSION`.
+`useAuth()`: `state`/`viewer`/`why`, `signup`/`login`/`guest`/`logout`/`logoutEverywhere`; client `signOut()`; Expo secureStoreSessionStore(SecureStore). Password/custody: [reference](CLIENT-AND-OPERATIONS.md#password-react-and-expo). E_SESSION names invalid fields. Online tokens return no session and refresh explicitly; automatic refresh/devices need complete Sessions.
 
 | Helper | Input/result | Handlers/arguments |
 | --- | --- | --- |
@@ -106,9 +108,7 @@ export function listLabel(read: Read<readonly {id:string}[]>): string {
   if ('denied' in read) return "not available"; if ('data' in read) return read.existence === "absent" ? "No rows" : `${read.data.length} rows`; return "Loading…"; }
 export async function uploadPdf(client: Client, picked: File) { return client.upload(picked, {file: {type: "application/pdf", name: picked.name}}); }
 ```
-`loading`: keep shells; `denied`: show refusal; `present`: render; `absent`: proven empty; `partial`: uncertain. Offline absent is absence at the acquired watermark. Hidden/missing rows are indistinguishable. `readPresentation` notices never grant permission. Unknown counts never hide conversations.
-`predicts`: eligible/device/held facts may render `pending:true` before `useMutation().run()` settles; others queue without rows. Never/online data follows settlement/delivery. run() waits for sent/failed; `{waitSeconds:0}` returns custody. Proofs await fresh sent; predictions aren't settlement.
+`loading`: keep shells; `denied`: show refusal; `present`: render; `absent`: proven empty; `partial`: uncertain. Offline absent is absence at the acquired watermark. Hidden/missing rows are indistinguishable. `readPresentation` notices never grant permission. Unknown counts never hide conversations. `predicts`: eligible/device/held facts may render `pending:true` before `useMutation().run()` settles; others queue without rows. Never/online follows settlement/delivery. run() waits for sent/failed; `{waitSeconds:0}` returns custody. Proofs await fresh sent; predictions aren't settlement.
 `query(op,args)` settles ready/denied within 30 seconds. Unavailable offline reads give immediate `E_OFFLINE`. After four rounds, exhaustion refuses retryable `E_QUERY_RETRY`; permanently unavailable held reads refuse non-retryable `E_QUERY_HELD`. Retention, RowOf/ArgsOf/ResultOf and {skip}: [reference](CLIENT-AND-OPERATIONS.md). Share/paginate: eight active, eight queued observation attempts; direct queries and timed presence refreshes use separate paths.
-Browser createApp: no sync → journal; sync → webDevice(); online writes: writes:"online". Native: nativeDevice; Expo Go online. Expo setup/pins/upgrade: guide expo. Regenerate iOS/rebuild after native changes; every milestone: npm run export:ios; proof in the background: witness status --wait. Rebuild: npm run native:smoke. Acquisition/offline reopen/reconnect/write replay: guide witness.
-useOnline: server reads/ephemeral/actions; app.mutate: durable writes. SDK owns delivery reporting; screen owns visible `seen` reporting; useSeen retries (guide receipts). Read-only: guide read-only. Media: OFFLINE-UPLOADS.md. Proofs: await fresh sent/rendering; avoid networkidle (guide testing).
+Browser: no sync → journal; sync → webDevice(); online writes: writes:"online". Native: nativeDevice. Every milestone: npm run export:ios; check proof in the background with witness status --wait. Rebuild: npm run native:smoke. Reopen/reconnect/write replay: guide witness. useOnline: server reads/ephemeral/actions; app.mutate: durable writes. SDK owns delivery reporting; screen owns visible `seen` reporting; useSeen retries (guide receipts). Proofs: await fresh sent/rendering; avoid networkidle (guide testing).
 Keyed counts: hidden key → null; authorized missing count group → 0; public → number. Choose count ?? 0.

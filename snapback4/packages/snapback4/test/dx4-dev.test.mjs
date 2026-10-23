@@ -38,7 +38,9 @@ test("DX4 memory dev service token discovers the right host with closed doors", 
     assert.equal((await post(first,"/q/myRole",selected.stdout.trim())).denied,undefined);
     assert.ok((await post(second,"/q/myRole",selected.stdout.trim())).denied,"selected token cannot cross memory hosts");
     assert.equal((await fetch(first.url+"/dev/status")).status,403,"token discovery opens no fixture doors");
-    const clock=await cli(["clock","advance","8d","--port",new URL(first.url).port],{cwd});assert.match(clock.stderr,/unsafe-dev-doors|guide staging/);
+    const clock=await cli(["clock","advance","8d","--port",new URL(first.url).port],{cwd});assert.equal(clock.code,0,clock.stderr);
+    assert.equal(JSON.parse(clock.stdout).sessionsPreserved,true);assert.match(clock.stderr,/keep their remaining lifetime/);
+    assert.equal((await post(first,"/q/myRole",signed.session.token)).data.role,"admin","authenticated dev clock preserves the existing user session with fixture doors closed");
   } finally {await second?.stop();await first.stop();}
 });
 
@@ -47,7 +49,10 @@ test("DX4 clock/reset explain session recovery and freshly minted dev service to
   try {
     const signed=await signup(host.url,"clock@example.test","clock-password");assert.equal(signed.ok,true);
     const jump=await cli(["clock","advance","8d","--port",new URL(host.url).port],{cwd});assert.equal(jump.code,0,jump.stderr);
-    assert.match(jump.stderr,/Sign in again/);assert.match(JSON.parse(jump.stdout).sessionNotice,/session expiry/);
+    assert.match(jump.stderr,/keep their remaining lifetime/);assert.equal(JSON.parse(jump.stdout).sessionsPreserved,true);
+    assert.equal((await post(host,"/q/myRole",signed.session.token)).data,null,"the default jump preserves the signed-in session");
+    const expiry=await cli(["clock","advance","8d","--expire-sessions","--port",new URL(host.url).port],{cwd});assert.equal(expiry.code,0,expiry.stderr);
+    assert.match(expiry.stderr,/Sign in again/);assert.equal(JSON.parse(expiry.stdout).sessionsPreserved,false);
     assert.ok((await post(host,"/q/myRole",signed.session.token)).denied);
     const fresh=await login(host.url,"clock@example.test","clock-password");assert.equal(fresh.ok,true);
     const mint=await cli(["token","--service","operator","--quiet"],{cwd});assert.equal(mint.code,0,mint.stderr);

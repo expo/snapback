@@ -565,7 +565,7 @@ pub struct BackfillDecl {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ExtractionDecl {pub child:String,pub parent:String,pub reference:String,pub fields:Vec<(String,String)>,pub site:Site}
+pub struct ExtractionDecl {pub each:bool,pub child:String,pub parent:String,pub reference:String,pub fields:Vec<(String,String)>,pub site:Site}
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
 pub struct RollbackHide {pub release:u64,pub table:String,pub column:String,pub reason:String,pub site:Site}
 #[derive(Clone, Debug, Default, PartialEq, Eq)]

@@ -66,7 +66,10 @@ try {
 host=await startDev({args:["--memory","--unsafe-dev-doors","--no-watch"]});
 try {
  const signed=await signup(host.url,"clock@example.test","clock-example-password");assert.equal(signed.ok,true);
- const clock=await cli(["clock","advance","8d","--port",new URL(host.url).port]);assert.equal(clock.code,0,clock.stderr);assert.match(clock.stderr,/Sign in again/);
+ const clock=await cli(["clock","advance","8d","--port",new URL(host.url).port]);assert.equal(clock.code,0,clock.stderr);assert.equal(JSON.parse(clock.stdout).sessionsPreserved,true);assert.match(clock.stderr,/keep their remaining lifetime/);
+ const alive=await fetch(host.url+"/q/myRole",{method:"POST",headers:{authorization:"Bearer "+signed.session.token},body:'{"args":{}}'}).then(r=>r.json());assert.equal(alive.data,null);
+ const expiry=await cli(["clock","advance","8d","--expire-sessions","--port",new URL(host.url).port]);assert.equal(expiry.code,0,expiry.stderr);assert.equal(JSON.parse(expiry.stdout).sessionsPreserved,false);assert.match(expiry.stderr,/Sign in again/);
+ const expired=await fetch(host.url+"/q/myRole",{method:"POST",headers:{authorization:"Bearer "+signed.session.token},body:'{"args":{}}'}).then(r=>r.json());assert.equal(expired.denied.code,"E_AUTH");
  const token=await cli(["token","--service","ops","--quiet"]);assert.equal(token.code,0,token.stderr);
  const reset=await fetch(host.url+"/dev/reset",{method:"POST",body:"{}"}).then(r=>r.json());assert.match(reset.sessionNotice,/removed its accounts/);
 }finally{await host.stop();}

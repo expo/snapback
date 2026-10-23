@@ -17,16 +17,20 @@ use std::{
 
 const INPUT: usize = 4096;
 const OUTPUT: usize = 64 * 1024;
+// @ref LLP 3000.000.000.002#10 — every activation proves that both endpoints implement DX8 rollback semantics.
+pub(crate) const ACTIVATION_PROTOCOL: &str = "snapback4-activation-10";
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "command", rename_all = "kebab-case", deny_unknown_fields)]
 pub(crate) enum Command {
+    Stop,
     Status {
         after: u64,
         items_after: Option<String>,
         event: Option<u64>,
     },
     Activate {
+        activation_protocol: String,
         release: u64,
         expected_release: Option<u64>,
         expected_revision: u64,
@@ -474,7 +478,7 @@ mod tests {
             snapback4_core::Engine::new_release_prepared(snapback4_core::store_port::AnyStore::open(&database).unwrap(),second.schema,second.programs.into_iter().map(|p|p.program),&options,false).unwrap().generation()
         });
         let mut candidate=crate::release_files::Candidate::new(&dir.0,2);
-        let result=request_observed(&dir.0,Command::Activate{release:2,expected_release:Some(1),expected_revision:1,digest:"test".into(),rollback:false,visible_rollback:false,registry_custody:true,restore_dormant:false,allow_feed_adoption:false},|pending|candidate.pending=pending);
+        let result=request_observed(&dir.0,Command::Activate{activation_protocol:ACTIVATION_PROTOCOL.into(),release:2,expected_release:Some(1),expected_revision:1,digest:"test".into(),rollback:false,visible_rollback:false,registry_custody:true,restore_dormant:false,allow_feed_adoption:false},|pending|candidate.pending=pending);
         assert!(result.is_err());assert!(candidate.pending);
         let before=snapback4_core::store_port::AnyStore::open_read_only(&dir.0.join("store.sqlite")).unwrap();assert_eq!(before.release_value().unwrap().as_deref(),Some("1"));drop(before);
         drop(candidate);assert!(root.join("snapback/schema.q").is_file());
@@ -726,14 +730,25 @@ mod tests {
 
 #[cfg(test)]
 #[test]
-fn registry_feature_refuses_an_old_host_before_admission_but_plain_changes_keep_the_old_shape(){
+fn activation_protocol_is_mandatory_in_both_wire_directions(){
+    // Exact pre-fence wire shape from cfea2c2afe:release_control.rs. Format 9
+    // already knew the custody fields, so neither can stand in for this fence.
     #[allow(dead_code)]
     #[derive(Debug,Deserialize)]
     #[serde(tag="command",rename_all="kebab-case",deny_unknown_fields)]
-    enum Legacy{Activate{release:u64,expected_release:Option<u64>,expected_revision:u64,digest:String,rollback:bool,restore_dormant:bool,allow_feed_adoption:bool}}
-    for required in [false,true]{
-        let command=Command::Activate{release:2,expected_release:Some(1),expected_revision:1,digest:"qualified".into(),rollback:false,visible_rollback:false,registry_custody:required,restore_dormant:false,allow_feed_adoption:false};
-        let wire=serde_json::to_value(command).unwrap();let old=serde_json::from_value::<Legacy>(wire);
-        if required{assert!(old.unwrap_err().to_string().contains("unknown field `registry_custody`"));}else{assert!(old.is_ok());}
-    }
+    enum FormatNineHost{Activate{release:u64,expected_release:Option<u64>,expected_revision:u64,digest:String,rollback:bool,#[serde(default)]visible_rollback:bool,#[serde(default)]registry_custody:bool,restore_dormant:bool,allow_feed_adoption:bool}}
+    #[allow(dead_code)]
+    #[derive(Debug,Deserialize)]
+    #[serde(deny_unknown_fields)]
+    struct FormatNineEnvelope{identity:String,command:FormatNineHost}
+    let command=Command::Activate{activation_protocol:ACTIVATION_PROTOCOL.into(),release:2,expected_release:Some(1),expected_revision:1,digest:"qualified".into(),rollback:true,visible_rollback:false,registry_custody:true,restore_dormant:false,allow_feed_adoption:false};
+    let mut wire=serde_json::to_value(Envelope{identity:"same-store".into(),command}).unwrap();
+    let mut retained_release=2;
+    let old=serde_json::from_value::<FormatNineEnvelope>(wire.clone()).map(|_|retained_release=1).unwrap_err();
+    assert!(old.to_string().contains("unknown field `activation_protocol`"),"{old}");
+    assert_eq!(retained_release,2,"a format-nine host must reject the transport before admission");
+    wire["command"].as_object_mut().unwrap().remove("activation_protocol");
+    assert!(serde_json::from_value::<FormatNineEnvelope>(wire.clone()).is_ok(),"the historical request would have been admitted by a format-nine host");
+    let current=serde_json::from_value::<Envelope>(wire).err().unwrap();
+    assert!(current.to_string().contains("missing field `activation_protocol`"),"{current}");
 }

@@ -1,0 +1,395 @@
+You are one independent reviewer; no spawning, no clones, no remote commands. Review only; do not modify files. Every shell command must use timeout. Never read or print credentials.
+
+Review the COMPLETE DX8 semantic amendment for correctness, migration/release safety, authority boundaries and material ambiguity. Supporting implementation is frozen git commit 23b0d2f42daed3ab0b68cb008d4c11b5810931a9. Read source only through git show 23b0d2f42daed3ab0b68cb008d4c11b5810931a9:<path>, not mutable working-tree files. Governing parents: LLP3000.000.000 sections19/20; LLP3000.000.000.000 section11; LLP3000.000.000.001 sections11/12; LLP3000.000.000.002 sections2/3/8/9. This is semantic readiness, not author acceptance or publication qualification. Verification is separately owned; pending qualification alone is not a material semantic objection.
+
+Return first line READY or NOT READY. Report only material concerns with concrete realizable counterexamples and required correction; optional concise nonblocking suggestions. Review the WHOLE revision independently. Check fan-out initial/carried/reverse/old-client edits/null removal/pruning/suspension/restoration; homes/bytes, stable identities, parent lifetime/captured authority, cumulative job accounting, atomicity and older-engine fences; also input/result compatibility and operator/process/auth/clock semantics.
+
+Prior rounds fixed incomplete paging evidence, bounded process startup/cleanup, production partial-account semantics, receipt validation in both directions including pruned removed children, populated narrowed-home reverse refusal, suspended restoration without replaying consumed source, and optional-input rename / nested row-to-page compatibility errors (19 operation-evolution tests pass, including actual E_INPUT old-wire regression and safe alias).
+
+Round5 Muse READY; Codex found: (1) forward/reverse activation retained parent pages alongside child images under independent heap allowances, and (2) detached frontend keeper groups were not registered for cleanup evidence. Current7dbd7c515b uses activation_walk::walk_metered for both parent walks and child-index traversal; row/child reads precharge serialized-size decode scratch through that SAME meter and retain the decoded image allocation, releasing only dropped scratch. Forward child writes release their scratch after dropping images; reverse retains all accumulated children alongside the still-live serialized parent page. Historical source comparisons stay in SQLite rather than fetching unpriced payloads. Resume already shared the meter. New exact regressions each PASS1/1: reverse256 parents×4KiB plus60 native children×64KiB must cut HeapBytes atomically; forward256 parents×64KiB plus a returning200KiB child's decode must cut atomically. Both assert unchanged generation, populations, original fields/payload and asset homes. Full backfill module158/158 passes. Frontend fix672a87f3ee registers detached private groups for the same bounded group-drain checks as wrapped commands; keeper loss with a surviving member now reports explicit cleanup failure even when the host already exited. Existing SIGKILL, normal frontend delayed cleanup and startup-failure lost-keeper regressions pass3/3; SDK typecheck/build and delivery-await census pass.
+
+The full canonical amendment below clarifies these existing accounting/custody laws. Canonical SHA256 d2444f2d68e868cf0bc058e2531df555d3fa1a65f76cef4b73ab3ea65cf6c5f1, independently extracted from the frozen commit. Format10 on every successful adoption is deliberate: it fences the changed rename interpretation as well as each extraction, including later selection of old source;8/9 remain readable and failed adoption never upgrades. Do not infer a publication claim. Final fresh Linux native/SDK packs are being rebuilt. Earlier full five-crate/client/difftest runs retain original failures and content-bound affected reruns; no blanket green claim. Known source-reservation/predecessor fixture baseline and one ROLL RT0 query-count overrun are tracked separately, without changing budgets.
+
+Supporting source: snapback4/crates/snapback4-core/src/store/{backfills,extractions,extraction_each,extraction_each_tests,activation_walk}.rs and schema/{extraction,capabilities}.rs; snapback4/crates/snapback4/src/{release_control,serve_release,serve_dev_doors,serve_maintenance,service_identities,dev_clock}.rs and verbs/{releases,lifecycle,sql,saved_version}.rs; snapback4/crates/snapback4-lang/src/client_contracts.rs and tests/operation_evolution.rs; snapback4/packages/snapback4/src/proof*.ts and session-timing.ts. Locate exact paths with git ls-tree where needed. Read frozen source only.
+
+Round6 Muse READY; Codex found the new CLI could send the old hot activation wire to a pre-DX8 format-9 host, so scalar rename rollback could execute stale-preimage semantics despite its new preview. Current f773b041d8 adds a structurally required activation_protocol String with the exact token snapback4-activation-10 on EVERY Activate request, including rollback --exact selecting original saved source. Historical deny_unknown_fields decoder rejects the new field; new decoder rejects missing fields; serve_release::apply rejects wrong tokens BEFORE source-directory/compile/adoption work. No fallback. The sender maps old-runtime unknown-field failure to restart guidance. Two regressions PASS: historical strict-envelope wire decoder refusal in both directions (not an actual old-binary process), and a real format-9 store with an edited scalar rename: wrong token rejects even malformed candidate content and preserves state, then exact rollback under the current token preserves the edit. New guide text tells operators to restart old hosts before switching.
+
+Main06a9d2c47f was merged at this frozen commit, only append-only JOURNAL conflict resolution; its independently qualified change-evidence certification stays scoped to that lane. Full canonical amendment changed only to require the explicit protocol fence; please review the WHOLE revision, including prior fan-out/accounting/operator laws, independently. R6 fresh packed DX8 consumers and exact fan-out lanes020/040 pass, and packed security passes. Linux consumer-only qualifier passed through day4/release transitions/dormant then failed the tracked inherited day5 source-reservations fixture; no publication receipt or full-green claim. Remaining consumer groups and final artifacts are separate verification, not author acceptance.
+
+Round7 BOTH fresh Codex and Muse returned READY on the complete DX8 semantic amendment. No native/SDK product code changed since that joint READY; final exact copied lanes020/040 and all four installed DX8 helper consumers pass on the final tarballs. Remaining Linux suffix consumers (production/proofKit/clientRecipes/security/migrations/staging/rules) and clean Linux distribution pass, with original inherited day5 failure retained honestly.
+
+Round8 commission: final generated-frontend qualification twice hit a real strace decoder artifact: `outer ???(inner listen(...)=0` immediately followed by the byte-identical normal `inner listen(...)=0`. Current1f5cc1135a parser ignores ONLY that wrapper if the very next nonempty raw record is exactly the enclosed child record. The normal next record receives every existing PID/result/TCP/range check. Missing corroboration, unknown returned forms, unresolved successful listens and out-of-range TCP still refuse. Full61-test qualification file passes, plus wrapped unresolved/out-of-range negative regressions. This parser is repository qualification tooling, NOT imported or packed by snapback4/proof; native/SDK/tarball bytes are unchanged.
+
+Treat this as a strict check-acceptance amendment under the user's rule. Review the COMPLETE canonical DX8 amendment below, PLUS the complete amended governing proof-kit section8 attached after it. Supporting files: snapback4/scripts/proof-listener-audit.mjs and snapback4/packages/snapback4/test/qualify-linux.test.mjs. Judge whether this exact corroboration preserves proof-process ownership/range/complete-successful-listen evidence without letting an actual unauthorized/unresolved listener escape; no blanket acceptance of unknown strace output is intended. Exact governing proof-kit section8 SHA256: 3b281399cd8e9ebaa75caa2b4e27ee010def61d1a3780985f282bbbd16147563. Both reviewers must return READY on both full amendments; do not review only the last paragraph.
+
+Round8 results: both families marked amended proof-kit section8 READY. Muse marked the whole revision READY; Codex found an empty-parent each re-entry custody gap. Known source-consumed definitions were selecting forward instead of resume when active parent count was zero, skipping validation of an independent child born while the declaration was absent. A later asset-only update could manufacture its missing extraction anchor.
+
+Current23b0d2f42d fixes both causes. In extractions.rs, consumed source plus durable known definition selects each::resume REGARDLESS of parent population. Unknown source-absent definitions allow fresh initialization only if both populations are empty and no active/retained child row/value history exists; otherwise refuse. The existing resume validator checks every eligible current/restored child anchor BEFORE parent/authority/scalar/home validation. Independently inspected dormant ordering restores every eligible child into r before this phase; genuinely incompatible narrowed rows retain the existing bridge requirement. observe_write now skips unchanged-reference updates regardless of anchor existence; birth and actual reference changes still capture, and missing targets remain invalid=2 even after later parent creation. The amendment clarifies these intended lifetime laws. No rollback-view/release-bridge file was changed.
+
+Five new tests snapshot generation, format, rows and complete asset records/homes: known empty initialization/resume plus independent-child refusal; unknown active child-only refusal; unknown retained-only child history refusal; missing-anchor unchanged-ref asset edit cannot repair provenance; explicit ref changes and invalid missing-target capture remain correct across later parent creation. Focused each20/20 and complete backfill module163/163 pass; full core library is running. Native debug/production candidates are rebuilding; unchanged SDK/Expo and wasm bytes are retained. Earlier packed/replay successes stay bound to their original source and will be rerun for the changed native paths.
+
+Review the WHOLE current canonical amendment and complete governing proof-kit section8 independently, not only this fix. Both must be READY, or provide a concrete realizable material counterexample and required correction. Pure pending artifact qualification is separately owned and is not a semantic objection.
+
+Canonical amendment follows:
+
+## 10. Wave-25 day-two friction (DX8)
+
+Implementer: Codex / Charlie Cheever, 2026-10-23. Commission: wave-25 fix list
+8b #1–#13, building on DX7 and Integration 23/24. This amendment is a reviewed
+implementation commission, not author acceptance or a publication claim.
+The no-JavaScript migration, atomic activation, job-meter and row-lifetime
+custody laws above still apply. Integration 23 owns rollback-view selection and
+its trigger; SEC9 owns column-write authority, security gates and adversarial
+campaign reach. DX8 changes neither of those lanes' policy.
+
+### Migration interpretation and current-value renames
+
+Backfill arguments and lookups read the assembled pre-patch snapshot, before
+any simultaneous rename/backfill writes outputs. Historical argument names
+therefore name predecessor fields. A declaration's immutable meaning is its
+normalized typed-IR digest. Every changed-meaning refusal, both continuously
+carried and after a historical gap, prints old and new full digests. A new name
+is a new declaration; pruning does not reset names or immutable definitions.
+Prune previews name known down projections whose native/reverse or overlapping
+forward-preimages they discard. This warning is privileged operator output;
+prune remains explicit and destructive, and unavailable evidence still refuses
+subsequent reversal/re-entry. Preview never mutates live history.
+
+For the generated `$rename:down` with identical declared old/new scalar types,
+the current renamed cell outranks its non-null retained predecessor cell. This
+is an identity spelling change, not a historical computation: v1 must see the
+edited v2 quote, not the original quote. Stage it on the existing newer snapshot
+and preserve native/reverse evidence in the same transaction. Repeated
+rollback/forward cycles retain that current value. Different-type renames still
+refuse even when sample values happen to fit. Authored down projections retain
+their exact forward-preimage/non-null-native precedence; a generated rename
+does not grant another declaration permission to replace protected cells.
+Conflicting edits under an older view still require an explicit bridge where
+existing receipt custody cannot reconcile them. The change stays isolated in
+backfills.rs; it does not alter rollback views or release bridges.
+
+### One child per list element
+
+`extract CHILD from PARENT via REF each: {destination:sourceList}` extends the
+existing one-child extraction. Exactly one mapped destination is a required
+scalar image/file/video; its historical source is a bounded list with an
+identical element type (optionally a nullable whole list). Other mapped fields
+retain the existing immutable authoritative scalar-copy law. Empty lists create
+zero children. A null whole list remains null after an unchanged empty cycle;
+a populated child set becomes a real list. Duplicate asset elements refuse:
+one asset cannot acquire two child homes. Unsupported types refuse, never copy
+or reupload bytes. Default `extract` keeps its existing whole-cell behavior.
+
+Per-parent element receipts bind current asset IDs to stable child lifetimes
+and ordinal positions; new historical elements get deterministic child IDs,
+independent destination history refuses. Current child asset edits keep their
+child ID. Reverse selection gathers every extant child, including native v2
+children with valid captured parent-lifetime evidence, preserving receipt order
+and appending native children in ID order. It moves current homes back into the
+old list and records the current element-to-child map. Returning forward follows
+that map, so old-client reordering preserves child identity and appending a new
+asset creates one new child. Removed elements mark their receipt-owned child asset absent (an internal null),
+leaving the retained child outside the active population under ordinary narrowing; they do not
+silently regain an asset or get deleted. A target list that cannot represent
+the full current population follows ordinary narrowing, never truncates it.
+Every receipt-owned child and its parent-lifetime evidence is validated before
+either forward or reverse processing, including removed elements and intact
+dormant nulls. A missing/pruned receipt-owned child or invalid parent lifetime refuses rather
+than recreating history or recapturing a reused parent ID. Reverse selection
+refuses atomically if a populated child asset home remains in narrowed storage;
+it names the retained population and requires a loosened child-domain bridge
+that restores those rows before selecting old source. Migration-owned null
+removals have no live child asset home and stay dormant across repeated cycles.
+
+A successfully applied element extraction records durable definition custody,
+including an empty initial population. Temporarily retiring its child table or
+declaration suspends that law when the selected parent no longer declares the
+source list. Re-entry with the same definition resumes current child rows and
+homes rather than demanding or replaying the consumed list. It validates every
+receipt and every restored/current child's existing parent lifetime, captured
+authority, immutable scalar copies, ledger home and bytes; it never retroactively
+captures independent children born while the declaration was absent. Missing
+source plus unknown definition refuses unless this is a genuinely empty first
+initialization: both parent and child populations are empty and no retained
+child history exists. Known consumed-source definitions resume even with zero
+active parents; they still validate every current/restored child before adoption.
+Extraction lifetime evidence is captured only at child birth or an actual
+parent-reference change. An asset or other unchanged-reference update cannot
+manufacture or repair a missing/invalid extraction anchor; creating that parent
+later cannot retroactively authorize the child's prior lifetime.
+New parents created while the child
+table is retired can have zero children. Ordinary narrowed storage remains
+retained; no row or home is synthesized. Resuming, as every activation, is atomic
+and metered with the child page and parent image sharing its job allowance.
+
+Source/destination read authority and column gates retain the existing strict
+extraction checks in both directions, including captured parent-authority agreement. One extraction owns each child table, avoiding competing sources for native children. No user migration endpoint or broader
+asset audience is introduced. Forward, reverse and resumed traversal share the
+activation page's job meter with every child decode and retained scratch image.
+The still-resident serialized page and accumulated children consume one allowance;
+length preflight reserves before fetching/decoding, and only dropped scratch is
+released. Per-parent traversal/allocation/writes use job meters; a cut aborts the
+entire activation. Home transfers, row changes,
+receipts, ordinary reference/narrowing/uniqueness/cap validation and generation
+publication share the existing writer transaction. Successful adoption fences
+this law with release-store format 10, including after selecting old source;
+formats 8/9 remain readable and failed adoption does not upgrade their marker.
+No successful later adoption downgrades the marker. Serialized schemas carrying
+`each` also require `release-child-extraction-each-v1`, so older engines refuse
+the new interpretation before accepting a compiled schema.
+
+Hot adoption additionally requires the exact `activation_protocol` token
+`snapback4-activation-10` on every activation request, including selecting an
+original saved source with `rollback --exact`. There is no default or legacy
+fallback. Pre-DX8 hosts reject the unknown required field through their strict
+command decoder before admission; updated hosts reject missing tokens during
+decoding and wrong tokens before compiling or adopting a source. The transport
+fence applies even to a format-9 store and a schema without `each`: a new CLI's
+rename preview cannot be executed by an older host with stale-preimage rename
+semantics. The on-disk marker alone cannot fence a running older engine that
+would never write it. Refusal leaves release, generation, data and format intact;
+the operator must restart the host with the updated engine before retrying.
+
+### Operator processes, development clock and real accounts
+
+`snapback4 stop <deployment-dir>` uses the existing same-owner authenticated
+local release-control channel, then awaits the kernel lock-release barrier.
+Already stopped is success. An unverifiable/live foreign owner refuses: never
+unlink a lock or signal a guessed PID. Proof hosts/frontends/tool commands own
+an explicit process group, including npm wrappers and children. Stop, failure
+and parent exit release that entire owned group through live keeper/pipe
+custody; cleanup is bounded and cannot silently leave a serving descendant.
+Frontend keeper-backed groups are registered for group-drain checks too. If a
+keeper is lost while a member survives, stop/startup cleanup must report an
+explicit bounded cleanup failure, even when the host handle has already exited.
+Processes deliberately leaving custody are outside that promise. Scripts whose
+stdout is one JSON line use `npm run --silent`; logs remain separate.
+The Linux listener audit retains LLP 3000.011.003.000.000 §8's proof-tree and
+port-range policy. A duplicated strace `outer ???(inner listen(...)` artifact
+is accepted only with its immediately following byte-identical ordinary child
+record, which receives every normal listener check. Missing corroboration and
+all unresolved, out-of-range or other unknown returned calls refuse. This is
+qualification trace decoding; it changes no application socket authority.
+Changelog/help qualification treats `run` immediately following npm/bun/pnpm
+as that package manager’s subcommand; later explicit Snapback invocations
+on the same line still advertise flags and remain checked.
+
+A password-authenticated development host exposes clock status/advance with
+fixture/persona doors closed. It requires an exact full `service:operator`
+bearer token minted through the existing local store authority. Ordinary users,
+other seats, read-scoped sessions, unauthenticated requests and production
+hosts cannot use it. Staging keeps its existing full-service-seat authorization;
+explicit unsafe development and guest-schema development retain their existing local fixture behavior.
+Authenticated development jumps preserve live full/read session families and
+worker leases by default in the same store transaction as the jump's durable
+authority effects; expired/revoked families never revive. Explicit
+`sessions: 'expire'` requests expiry testing. Header/SDK reconciliation keeps
+current clients alive across the jump. The development offset is process-local
+and returns to wall time on restart; staging retains DX7's persistent checkpoint
+and paused-drain behavior. A failed/ambiguous jump is never automatically
+replayed. `startDev` exposes operator-backed now/advance/drain without opening
+fixture doors. Production uses wall time and refuses clock control.
+
+`provisionAccounts` shares seedAccounts plan validation, generated credentials,
+identity retry/deadline behavior, result shape, selected seat and provision
+mutation. It accepts production through real signup/login and
+ordinary authorized mutations; it refuses development and uses no seed/system
+bypass; staging continues to use seedAccounts. Custom per-user args retain seedAccounts' existing merge precedence.
+A minted service seat is only that exact principal, not a superuser. The served schema exposes `service_identities`, a list of explicit positive
+viewer/service equality facts and declared route/schedule seats, excluding result
+and enum literals. Both local CLI minting (live or stopped) and the production
+helper warn on stderr when a seat has no matching explicit authorization identity.
+This is conservative diagnostic evidence, never a proof of admission or denial;
+public rules and dynamic application roles still decide actual authority. The mutation's actual read and write rules decide.
+
+### Inspection and saved artifacts
+
+Default active sql/data/releases announce the retained dormant row count when
+nonzero. Missing active-table errors identify a retained table and its row count
+and name a concrete dormant inspection command. Inspection remains a privileged
+read-only consistent snapshot, outside application rules. Only direct,
+schema-proven media cells in `sql --json-objects` decode to their ordinary wire
+JSON values; positional `--json` remains compatible. Truncation and dormancy
+notices go to stderr, preserving JSON stdout; existing limit/more fields stay.
+
+An identical-source deploy with --save-version can refresh an existing saved
+version only if the complete Quarry source set and exact bytes match. Differing
+source refuses. Generated client artifacts are emitted from that saved source's
+Bound, independently of the working tree; fixtures/source evidence stay intact.
+Refresh follows successful adoption/no-op and records the correct retained
+release identity. Replaying an old source never silently emits the current API.
+
+### Paging, proof assertions and contract advice
+
+Board/roster starters and list recipes use newest-first `last N by .id`, while
+explicit oldest-first examples remain labelled. The language's ordering default
+does not change. Cursors are opaque evaluator-issued positions: send next back
+unchanged; a row id/projection is not a cursor. `exhaustPages(readPage)` begins
+with null, gathers array pages, follows next, and refuses denial/loading,
+malformed/repeated cursors or its explicit page bound. It never turns a capped
+or partial read into complete evidence. Projections change fields, not cursor
+meaning/order/completeness.
+
+Day-two recipes compare by stable id across stages and declared common fields,
+not list position or whole differently-shaped row images. IDs created by a
+frozen v1-client replay are recorded and excluded from preservation baselines.
+V2-native IDs may be absent from an exact v1 view; they must reappear unchanged
+on forward. Domain-specific synthesized old values need an authored projection
+assertion, not an equality claim for incompatible representations.
+
+renderedText(..., null) equals omitted options. Whitespace normalization,
+case-sensitive exact matching by default, explicit substring matching and DX7's
+legal scroll reachability remain unchanged. The lane-031 full-line regression
+must match mounted reachable `Pump logged.` text, without widening hidden clips.
+Write-authority hints explain that a mutation require and the caller's table
+rule are separate gates. The captured-vs-live-parent card describes existing
+lifetime/audience semantics; it grants no new authority.
+
+Old-client INPUT BREAK advice follows accepted wire identities, including
+references through declared table renames and lowered aliases/defaults. Real
+removed/required/narrowed inputs still warn. Pure object-result field additions
+are RESULT NOTE, not RESULT REVIEW or an adoption hazard; changed/removed fields
+and domains retain review. These remain conservative advice, not a proof of
+unchanged business behavior. No runtime input validation is weakened.
+
+### Required evidence
+
+Tests cover edited historical/native renames over repeated cycles, identical
+and incompatible types, authored-down precedence, continuous/gapped digest
+refusals and read-only prune warnings; authenticated dev clock with fixture
+doors closed, real SDK sessions and expiry mode; graceful/foreign/idempotent
+stop and npm descendant cleanup; production real-account provisioning and seat
+warnings; media/truncation/dormancy inspection; saved-source client refresh;
+additive results and renamed-reference input advice; list fan-out over edited/native children, old-client reorder/append, empty/null lists, invalid lifetimes, duplicate homes, pruning and atomic refusals; paging progress/failures,
+null/full-line rendering and newest-first starter execution. Every changed
+guide/starter snippet runs as written against fresh packed artifacts.
+
+Before completion, replay the relevant wave-25 commands on copied stores
+without owner/token files and delete scratch. Run the requested five-crate,
+client, difftest, packed Linux, wasm/docs/reference and root guide/inventory
+checks. Report original failures and scoped reruns independently. Mac is skipped
+per the coordinator; integration owns it. Both required independent families
+must review the same frozen amendment as READY, with verbatim provenance.
+
+
+Complete amended proof-kit governing section follows:
+
+## 8. Wave 12: honest and bounded proof kit (KIT)
+
+Author authorization: the wave-12 KIT workstream (2026-10-14), fix list 1 and 14,
+H4/H7/H8. This amendment supersedes conflicting helper/starter defaults in §§1,
+3 and 5; no language, planner, protocol, authorization, sync or expiry changes.
+
+The witness global installs on every registerWebWitness call in a browser.
+Claiming/mutate sample ?witness=web at registration and retain that arm across
+same-document routes; each new registration samples its URL again. Disabled calls throw E_WITNESS_DISABLED
+with the URL repair. beginForm(name, expected | null, button) admits the actual
+trusted click and the synchronous submit it causes, keyed to that submitter.
+A later task, another submitter, or script click cannot borrow provenance.
+The first unclaimable durable mutation resolves failed/E_WITNESS_UNCLAIMED with
+an event, operation or canonical-argument reason; it still executes normally.
+Expected arguments compare exact canonical JSON including explicit nulls; null
+skips comparison. Sent settlement still observes the SDK write id, outside UI
+lifetime. A form with no write remains subject to the caller's bounded deadline.
+Rearming cancels the old observer. The testing card carries the 15-line contract.
+
+withBrowser launches over Playwright's pipe, opening no TCP listener. Accept the
+caller's chromium BrowserType so its matchers receive its own objects. Use an
+optional playwright-core peer (>=1.55.1 <2), required for browser helpers, with a
+pinned development version. Playwright owns browser process/parent-exit cleanup;
+context and browser closes remain bounded. Static exports validate their index
+before starting a keeper, so missing-export diagnostics survive group cleanup.
+Native/frontend retained-child
+custody is unchanged. cli dispatches through the installed JS wrapper for every
+published verb. No npm/npx/shell runner is introduced.
+
+renderedText excludes inputs/textareas and accepts a container. waitForFresh
+accepts a container while retaining its existing locator/timeout signature.
+frontPage activates the page before screenshots. logsDir defaults to an OS
+scratch directory outside Exact app/; explicit artifact paths are honored.
+The guide adds container scope, disjoint status/row text, no input-value evidence,
+and persona-roster seeding with /dev/reset {seed}, plus frontPage guidance.
+
+Every generated frontend proof must observe a fresh terminal durable write and
+rendered output. A custom Home without a writer fails with exactly
+"no write scenario: replace the Home assertions"; adaptation prints that repair.
+Published templates get a concrete write scenario. day2:proof passes
+versions/v1 versions/v2; init stores complete current-schema copies outside
+snapback/. They are starting snapshots for the builder's real next release.
+
+Single-port inclusive ranges remain valid for schema-only init and individual
+proof hosts. UI init needs at least two runtime ports and refuses a single-port
+range before writing, because its backend and frontend run together.
+PORT_LO/PORT_HI at init are baked into defaults, after explicit port/range flags;
+at each launch/config load a current pair overrides those defaults. init reports
+exactly the URLs written, even when explicit flags override its environment. Vite and
+client environment fallback agree with launchers; --adapt --apply rewrites only
+recognized generated legacy literal scripts/configs. Explicit --port defaults
+remain available when no runtime range exists. Existing package name/version
+remain unchanged. Dependency installation stays explicit: init ends in one bold
+npm install line. Bare --adapt (and --dry-run) writes nothing, including proof
+files, README and package metadata, then ends with the exact shell-quoted
+--apply command. Only --apply mutates recognized files.
+
+Linux packed-starter qualification adds a custom-schema negative proof, a listener audit throughout
+every browser proof (proof-owned TCP listeners must stay in PORT_LO..PORT_HI),
+and a real form onSubmit write. Read-only listener inspection is scoped to the
+proof process tree, never other shared-host lanes. On Linux the audit uses
+`strace -f -q -z -yy -e trace=listen`: every successfully returned TCP listen observed by the proof-scoped tracer must resolve its
+local port inside the range, including resumed syscalls; unresolved or incomplete
+traces refuse. This avoids /proc/fd permission gaps in short-lived Chromium
+sandbox helpers without skipping processes or sampling away short listeners.
+strace 6.8+ is a qualification-host tool, never a client dependency. The host
+preflight refuses older/missing tools before builds; receipts record its version.
+Process exits remain visible (-q); the successful-only filter (-z) selects
+completed calls. A precisely matched `???(` fragment with no return can occur
+when the live keeper is killed. It is accepted only after read-only /proc
+corroboration that its process is absent or a zombie, and is retained in the
+receipt's nonReturned diagnostics. A live/uninspectable process, any unknown
+returned syscall, an unresolved successful listen or an incomplete named listen
+refuses. No process is signalled by this audit. This is observation of successful
+listens during the proof, with the decoder's non-returned exit records explicit.
+DX8 adds one corroborated trace-decoder case: an `outer ???(inner listen(...)`
+record may be ignored only when the immediately following nonempty record is
+the byte-identical ordinary `inner listen(...)` record. That ordinary record
+still undergoes every PID, syscall-result, TCP-address and port-range check.
+Missing corroboration, unresolved listeners, out-of-range listeners and other
+unknown returned forms still refuse. This recognizes a duplicated strace
+representation; it does not omit a listener or expand the admitted port range.
+Darwin consumer qualification
+still runs the same write/negative cases and explicitly records the listener
+audit as not-run; it cannot provide Linux listener evidence. The repository's
+`listenerSnapshot` also requires Linux explicitly; its browser assertion skips
+with a reason on Darwin while caller-Playwright and rendered-page assertions
+still execute. It is not imported or packed by `snapback4/proof`. Synthetic trace
+decoding remains portable: non-returned records use `/proc` to recognize Linux
+zombies, and a read-only signal-0 existence probe elsewhere; live or
+uninspectable PIDs refuse. Non-Linux zombies conservatively remain live.
+The client pool statically checks direct Linux APIs and static named/namespace `.mjs`
+helper calls for scoped gates (including `/proc`, `strace`, `ss` and affinity
+commands). This is a common-case guard, not arbitrary JavaScript analysis;
+dynamic/generated paths still need review and affected Mac execution. Retain baseline 0.4.28 reds
+and candidate greens separately; no complete publication or npm claim follows
+from consumer-only qualification. SURF owns general help generation; REL3 owns
+fixture/dev-door testing text; RULES2 owns hidden-row testing text.
+
+### Wave-12 implementation and verification (2026-10-15)
+
+Implemented in KIT commits 155bc71f0a through ac219032c3. The final product
+revision has independent [Codex round7](./reviews/3000.011.003.000.000-wave12-kit-r7.codex.md)
+and [Muse round6](./reviews/3000.011.003.000.000-wave12-kit-r6.muse.md) READY verdicts.
+The final custom-fixture correction has independent [Codex round8](./reviews/3000.011.003.000.000-wave12-kit-r8.codex.md)
+and [Muse round7](./reviews/3000.011.003.000.000-wave12-kit-r7.muse.md) READY verdicts.
+Earlier findings and responses remain verbatim with provenance.
+
+Fresh packed consumer qualification at ac219032c355d7c55ed8991fa85a409e955d6ceb
+passed 28 positive browser writes and two expected custom-schema no-write
+failures, with thirty passing listener audits; the custom web writer is actual
+form onSubmit. Ubuntu24.04 and Alpine installed round trips and all six starter
+toolchains pass. Baseline0.4.28 controls separately demonstrate all three H8
+failures. Affected Rust/client tests, ref-check, docs budget and both root gates
+pass. Exact source/bytes, commands, test results and preserved failed attempts
+are indexed by [qualification.json](../snapback4/reports/20261014-wave12-kit/qualification.json)
+and [the workstream report](../WORKSTREAM-REPORT.md). Consumer-only evidence
+records suite not-run/publicationQualified false; nothing was published or pushed.
+

@@ -1,4 +1,4 @@
-// @ref LLP 3000.000.000.001#11-wave-22-loop-repairs-dx6 — hidden descendants cannot manufacture rendered evidence.
+// @ref LLP 3000.000.000.001#12-wave-24-loop-repairs-dx7 — mounted scrollable text counts; hidden descendants never manufacture evidence.
 import { randomUUID } from "node:crypto";
 import { createRequire } from "node:module";
 import type { Locator, FrameLocator, Selectors } from "playwright-core";
@@ -25,35 +25,52 @@ function renderedTextEngine() {
   function textInView(node: Node): string {
     const text = node.textContent ?? "";
     if (!text) return "";
-    const clips: { box: DOMRect; x: boolean; y: boolean }[] = [];
+    const clips: { box: DOMRect; x: boolean; y: boolean; dx: [number, number]; dy: [number, number] }[] = [];
+    let scrollCoupled = true;
     for (let element = parent(node); element; element = parent(element)) {
       const style = getComputedStyle(element);
       if (style.display === "none" || style.opacity === "0" || style.contentVisibility === "hidden") return "";
+      if (style.position === "fixed" || style.position === "sticky") scrollCoupled = false;
       const clipsOverflow = style.display !== "contents" && style.display !== "inline";
       const x = clipsOverflow && style.overflowX !== "visible", y = clipsOverflow && style.overflowY !== "visible";
       if (x || y) {
         let box = element.getBoundingClientRect();
         const html = element as HTMLElement;
+        let scaleX = 1, scaleY = 1;
         if (typeof html.offsetWidth === "number") {
-          const scaleX = html.offsetWidth ? box.width / html.offsetWidth : 1;
-          const scaleY = html.offsetHeight ? box.height / html.offsetHeight : 1;
+          scaleX = html.offsetWidth ? box.width / html.offsetWidth : 1;
+          scaleY = html.offsetHeight ? box.height / html.offsetHeight : 1;
           box = new DOMRect(box.left + html.clientLeft * scaleX, box.top + html.clientTop * scaleY, html.clientWidth * scaleX, html.clientHeight * scaleY);
         }
-        clips.push({ box, x, y });
+        const scrollX = scrollCoupled && /^(auto|scroll)$/.test(style.overflowX) && html.clientWidth > 0;
+        const scrollY = scrollCoupled && /^(auto|scroll)$/.test(style.overflowY) && html.clientHeight > 0;
+        const maxX = Math.max(0, html.scrollWidth - html.clientWidth), maxY = Math.max(0, html.scrollHeight - html.clientHeight);
+        const rtl = style.direction === "rtl";
+        clips.push({ box, x, y,
+          dx: scrollX ? [(html.scrollLeft - (rtl ? 0 : maxX)) * scaleX, (html.scrollLeft + (rtl ? maxX : 0)) * scaleX] : [0, 0],
+          dy: scrollY ? [(html.scrollTop - maxY) * scaleY, html.scrollTop * scaleY] : [0, 0] });
       }
     }
+    if (!scrollCoupled) clips.push({ box: new DOMRect(0, 0, document.documentElement.clientWidth, document.documentElement.clientHeight), x: true, y: true, dx: [0, 0], dy: [0, 0] });
+    // Compose legal scroll movement and clips from the nearest ancestor out.
+    // This accepts an inner scrollport behind an outer real clip, but cannot
+    // manufacture text positioned before the scrollable origin.
     const visible = (rect: DOMRect) => {
       let left = rect.left, right = rect.right, top = rect.top, bottom = rect.bottom;
-      for (const {box,x,y} of clips) {
+      if (right <= left || bottom <= top) return false;
+      for (const {box,x,y,dx,dy} of clips) {
+        left += dx[0]; right += dx[1]; top += dy[0]; bottom += dy[1];
         if (x) { left = Math.max(left,box.left); right = Math.min(right,box.right); }
         if (y) { top = Math.max(top,box.top); bottom = Math.min(bottom,box.bottom); }
+        if (right <= left || bottom <= top) return false;
       }
-      return right > left && bottom > top;
+      return true;
     };
     const range = document.createRange(); range.selectNodeContents(node);
     const rects = [...range.getClientRects()];
     if (!rects.some(visible)) return "";
-    if (rects.every(rect => clips.every(({box,x,y}) => (!x || rect.left >= box.left && rect.right <= box.right) && (!y || rect.top >= box.top && rect.bottom <= box.bottom)))) return text;
+    if (rects.every(rect => visible(new DOMRect(rect.left, rect.top, Math.min(0.01, rect.width), Math.min(0.01, rect.height)))
+      && visible(new DOMRect(rect.right - Math.min(0.01, rect.width), rect.bottom - Math.min(0.01, rect.height), Math.min(0.01, rect.width), Math.min(0.01, rect.height))))) return text;
     // A clipped prefix must not claim the hidden suffix. Range geometry also
     // works through display:contents and wrappers with visible overflow.
     let result = "", offset = 0;
