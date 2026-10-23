@@ -27,8 +27,10 @@ struct App(PathBuf);
 #[test]
 fn scalar_renamed_unique_keys_keep_their_identity_in_default_rollback() {
     for (kind, value) in [("text <=20", json!("alice")), ("int", json!(7))] {
+        for strengthen in [false,true] {
         let app=App::new();
         let old=format!("table items:\n  n: int\n  code: {kind}\n  memo: text <=20 ?\n  by byN: n, id\n  public\n  online only\ntable retired:\n  value: int\n  public\n  online only\nquery ordered():\n  return items first 10 by byN\n");
+        let old=if strengthen {old.replace("  by byN: n, id", "  by byN: n, id\n  by byCustomer: code")} else {old};
         app.source(&old);app.ok(&["deploy","deployment"]);
         app.seed(&old,vec![json!({"id":"kept","n":1,"code":value,"memo":null})]);
         let next=format!("table items:\n  n: int ?\n  label: {kind} renamed from code\n  count: int default 7\n  by byCount: count, label, id\n  unique byCustomer: label\n  public\n  online only\nquery ordered():\n  return items where .count = 7 first 10 by byCount\n");
@@ -43,6 +45,7 @@ fn scalar_renamed_unique_keys_keep_their_identity_in_default_rollback() {
         app.ok(&["rollback","deployment","--to","latest"]);
         let forward=app.json(&["sql","SELECT label FROM items","--release","deployment","--json"]);
         assert_eq!(forward["rows"][0][0],value);
+        }
     }
 }
 

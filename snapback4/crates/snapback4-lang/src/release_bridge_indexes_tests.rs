@@ -96,3 +96,15 @@ fn plain_column_transport_never_collapses_independent_current_fields() {
     let current = crate::parser::parse_document("schema.q", "table notes:\n  customer: principal renamed from owner\n  owner: principal\n  online only\n").0;
     assert!(crate::release_bridge_indexes::column_names(&old.tables[0], &current.tables[0]).is_none());
 }
+
+#[test]
+fn current_unique_index_replaces_same_named_predecessor_nonunique_index() {
+    let old = "table notes:\n  n: int\n  code: text <=20\n  memo: text <=20 ?\n  by byN: n, id\n  by byCustomer: code\n  public\n  online only\ntable retired:\n  value: int\n  public\n  online only\nquery ordered():\n  return notes first 10 by byN\n";
+    let current = "table notes:\n  n: int ?\n  label: text <=20 renamed from code\n  count: int default 7\n  by byCount: count, label, id\n  unique byCustomer: label\n  public\n  online only\nquery ordered():\n  return notes where .count = 7 first 10 by byCount\n";
+    let bridge = crate::release_bridge::loosen(&source(old), &source(current));
+    assert!(bridge.diagnostics.is_empty(), "{:?}", bridge.diagnostics);
+    let bound = crate::compile(&bridge.sources);
+    let index = &bound.schema.tables["notes"].indexes["byCustomer"];
+    assert!(index.unique);
+    assert_eq!(index.columns(), ["code"]);
+}

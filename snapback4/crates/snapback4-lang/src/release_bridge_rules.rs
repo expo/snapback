@@ -87,17 +87,23 @@ pub(super) fn carry(
                 let(a,b)=line_span(&rule.site.file,current_text,&rule.site)?;let raw=&current_text[a..b];
                 raw.trim_start().starts_with("read through ").then(||raw.to_owned())
             };
-            for index in old.indexes.iter().filter(|i| {
-                i.unique
-                    && !next
-                        .indexes
-                        .iter()
-                        .any(|n| n.unique && n.columns == i.columns)
-            }) {
+            // Replacement and insertion must use the same set: strengthening
+            // a named ordering to unique cannot leave two declarations behind.
+            let carried_indexes=next.indexes.iter().filter(|i|
+                !old.indexes.iter().any(|o|o.name==i.name)
+                || old.indexes.iter().any(|o|o.name==i.name&&o.unique!=i.unique)
+                || (i.unique&&!old.indexes.iter().any(|o|o.unique&&o.columns==i.columns))
+                || old.indexes.iter().any(|o|o.name==i.name&&o.unique&&!next.indexes.iter().any(|n|n.unique&&n.columns==o.columns)))
+                .collect::<Vec<_>>();
+            for index in &old.indexes {
+                let loses_unique=index.unique&&!next.indexes.iter().any(|n|n.unique&&n.columns==index.columns);
+                if !loses_unique&&!carried_indexes.iter().any(|n|n.name==index.name){continue}
                 if let Some((start, end)) = line_span(file, text, &index.site) {
                     edits.push((start, end, String::new()));
-                    relaxed.insert(old.name.clone());
-                    changes.push(format!("{}: current source permits multiple rows for {}; current authored endpoint supplies the old-client selection",old.name,index.columns.join(", ")));
+                    if loses_unique {
+                        relaxed.insert(old.name.clone());
+                        changes.push(format!("{}: current source permits multiple rows for {}; current authored endpoint supplies the old-client selection",old.name,index.columns.join(", ")));
+                    }
                 }
             }
             for column in &next.columns {
@@ -170,10 +176,7 @@ pub(super) fn carry(
             if let Some((field,_))=&next.not_before {edits.push((at,at,format!("  not before .{field}\n")));}
             // An authored current endpoint or guard may name a new index. Keep
             // that index with the body; an equal-key old name is not an alias.
-            for index in next.indexes.iter().filter(|i|
-                !old.indexes.iter().any(|o|o.name==i.name)
-                || (i.unique&&!old.indexes.iter().any(|o|o.unique&&o.columns==i.columns))
-                || old.indexes.iter().any(|o|o.name==i.name&&o.unique&&!next.indexes.iter().any(|n|n.unique&&n.columns==o.columns))) {
+            for index in carried_indexes {
                 if let Some((_,current_text,_))=docs.iter().find(|(_,_,d)|d.tables.iter().any(|t|t.name==next.name)) {
                     if let Some((a,b))=line_span(&index.site.file,current_text,&index.site){
                         let source=super::release_bridge_indexes::plain_declaration(&index.site.file,&current_text[a..b],index,old,next);
