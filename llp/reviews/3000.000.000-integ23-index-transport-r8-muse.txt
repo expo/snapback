@@ -1,0 +1,21 @@
+muse: workspace root: /home/ccheever/projects/snapback-sb4loop (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=a8084538-5624-426b-b9ab-6a306552d5cb]: Subscription quota exhausted. Your usage window resets at 2026-10-26T00:00:00Z. (rate_limit_error)
+[muse-exec] plan quota exhausted; retrying with the Meta API key
+muse: workspace root: /home/ccheever/projects/snapback-sb4loop (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY
+
+Independent read-only review at `66f46374e7` found no MATERIAL issue in LLP 3000.000.000 §20.1 or the Round 8 final alignment.
+
+Verified against actual code:
+
+- Shared helper: [release_bridge_indexes.rs](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/src/release_bridge_indexes.rs) `align_current_schema` aligns declared tables first (`with_table_names`), then builds one injective current-to-view column map via `column_names` (authored renames both directions, distinctness check), re-checks collisions over all **compiled** current columns (`next.columns.keys()`), and returns a `with_column_names` comparison clone. No source/data/default/operand rewrite.
+- Both gates call it: compiler preparation in [release_bridge.rs](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/src/release_bridge.rs:212) (`loosen_guarded` field-authority check) and CLI admission in [rollback_views.rs](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4/src/verbs/rollback_views.rs:181). The Round 8 diff (`ff6e8303e2`) removed the duplicated table-only + inline column logic from the CLI path and routed it through the same helper. No divergent identity map remains.
+- Selective-case fix is real: the private-field `secret→detail` rename plus old renamed query (`a_declared_private_field_rename_keeps_the_guard_on_a_retained_old_export` in [release_bridge_indexes_tests.rs](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/src/release_bridge_indexes_tests.rs:192)) now aligns current authority (`detail→secret` via `with_column_names`, which renames index components, rule terms, constraints, sync audiences per [asset_renames.rs](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-core/src/store/asset_renames.rs:8)) instead of falsely refusing field authority. Owner sees `private`, non-owner redacted — executed in-test, not waived.
+- No guard weakening: `PolicyComparison` in [release_bridge_policy.rs](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/src/release_bridge_policy.rs) compares complete `Index` values (`components` + `unique`; labels are map keys, so renamed labels with identical aligned definitions pass, changed keys/uniqueness fail), exact key terms/provenance/equalities, Boolean order/structure, audiences and window limits. CLI hard-constraint admission compares unique components exactly after alignment — preservation, not relaxation.
+- No identity collapse: non-injective maps return `None`/error in both `column_names` and `align_current_schema`; `plain_declaration` rewrites only plain-key tokens, keeping labels, codes, literals.
+- No new ordinary-evolution refusal: `requires_view` scopes the executable-repair trigger to `same_data_and_intent` + non-empty invariants + module-byte change; renames/splits/defaulted additions change declarations and fall through to visibility/widening facts. Strengthening (nonunique→unique same name) removes exactly the predecessor declaration before inserting current (`release_bridge_rules.rs:94-124`); dedup prunes only unused plain unique keys with identical ordered columns, both source sets compiling first, keeping an enforcing key and every used name.
+- Legacy refusal names both remedies (`releases.rs:611`: redeploy with 0.4.39 and `--exact`); foresight's table-only alignment is advisory risk text, not an admission gate, so it is correctly out of the shared-helper contract.
+
+No nits material to the verdict.
