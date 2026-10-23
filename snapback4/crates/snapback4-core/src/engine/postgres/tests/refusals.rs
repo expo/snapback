@@ -6,7 +6,7 @@ fn connect() -> Client {
 }
 
 // Full rows plus the physical schema, including indexes, constraints and defaults.
-fn dump(client: &mut Client) -> Vec<(String, Vec<String>)> {
+pub(super) fn dump(client: &mut Client) -> Vec<(String, Vec<String>)> {
     let mut result = Vec::new();
     for (label, sql) in [
         ("columns", "SELECT row_to_json(c)::text FROM (SELECT table_name,column_name,ordinal_position,column_default,is_nullable,data_type,collation_name FROM information_schema.columns WHERE table_schema = current_schema() ORDER BY table_name,ordinal_position) c"),
@@ -27,7 +27,8 @@ fn dump(client: &mut Client) -> Vec<(String, Vec<String>)> {
 fn legacy(client: &mut Client) {
     client.batch_execute("DROP TABLE _read_sessions; DROP TABLE _sequences; DROP TABLE _cap_counts;
         ALTER TABLE _backend DROP COLUMN through_shortened;
-        CREATE INDEX _log_row_seq ON _log(seq);").unwrap();
+        CREATE INDEX _log_row_seq ON _log(seq);
+        ALTER TABLE _log ADD FOREIGN KEY(seq) REFERENCES _commits(seq);").unwrap();
 }
 
 #[test]

@@ -208,6 +208,8 @@ impl Database {
         engine.set_ceilings(case.budget);
         if case.program.mutation() {
             self.seeded = self.snapshot(&name)?;
+        } else {
+            self.check_log_integrity(&name)?;
         }
         Ok(World {
             name,
@@ -225,7 +227,15 @@ impl Database {
         probe.close()?;
         Ok(outcomes)
     }
+    // @ref LLP 3000.009.001.000.002#3.4 — the harness deletes/restores both managed ledgers atomically; assert their invariant independently of public reads' inner join.
+    fn check_log_integrity(&mut self, name: &str) -> Result<(), String> {
+        let orphan: bool = self.admin.query_one(&format!("SELECT EXISTS(SELECT 1 FROM {name}._log l LEFT JOIN {name}._commits c USING(seq) WHERE c.seq IS NULL)"), &[])
+            .map_err(|e| error_chain("log integrity oracle", &e))?.get(0);
+        if orphan { return Err("store-log-integrity: _log references a missing _commits row".into()); }
+        Ok(())
+    }
     fn snapshot(&mut self, name: &str) -> Result<String, String> {
+        self.check_log_integrity(name)?;
         let mut sql = format!("BEGIN; SET LOCAL search_path={name},pg_catalog;");
         // DELETE preserves relfilenodes, avoiding TRUNCATE's file churn.
         for t in self.tables.iter().rev() {
@@ -260,11 +270,13 @@ impl Database {
         case: &Case,
         source: &str,
     ) -> Result<(), String> {
+        self.check_log_integrity(&world.name)?;
         if self.fresh {
             self.drop_schema()?;
             *world = self.create(case, source)?;
         } else {
             self.batch(&self.seeded.clone())?;
+            self.check_log_integrity(&world.name)?;
             let (config, diagnostics) = crate::pg_diagnostics::Diagnostics::connect(&self.url)?;
             let engine = Engine::open_postgres_evaluation(config, &world.name)
                 .map_err(|e| setup_error(&mut self.unsupported, &diagnostics, e))?;
@@ -274,6 +286,7 @@ impl Database {
         Ok(())
     }
     pub(crate) fn remove(&mut self, world: World) -> Result<(), String> {
+        self.check_log_integrity(&world.name)?;
         drop(world);
         if self.fresh {
             self.drop_schema()?;
@@ -363,6 +376,21 @@ mod tests {
             std::fs::remove_dir_all(&self.directory).unwrap();
         }
     }
+    #[test]
+    fn log_integrity_oracle_detects_an_orphan_hidden_by_log_read_join() {
+        let mut database = Database::connect().unwrap();
+        let case = crate::generate::generate(0);
+        let source = case.program.source();
+        let world = database.create(&case, &source).unwrap();
+        let name = world.name.clone();
+        database.admin.execute(&format!("INSERT INTO {name}._log(partition,seq,ord,t,kind,id,data) VALUES ('public',9223372036854775807,0,'test','del','planted',NULL)"), &[]).unwrap();
+        let error = database.snapshot(&name).unwrap_err();
+        assert_eq!(error, "store-log-integrity: _log references a missing _commits row");
+        database.admin.execute(&format!("DELETE FROM {name}._log WHERE seq=9223372036854775807"), &[]).unwrap();
+        database.remove(world).unwrap();
+        database.close().unwrap();
+    }
+
     #[test]
     fn snapshot_failure_worker() {
         let Some(directory) = std::env::var_os("SB4_SNAPSHOT_WORKER").map(std::path::PathBuf::from) else { return; };

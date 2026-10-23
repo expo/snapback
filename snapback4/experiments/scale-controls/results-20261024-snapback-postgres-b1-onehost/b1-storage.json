@@ -1,0 +1,227 @@
+{
+  "tables": [
+    {
+      "name": "_dormant_indexes",
+      "rows": 0,
+      "heap_bytes": 8192,
+      "indexes_bytes": 8192
+    },
+    {
+      "name": "_principal_generations",
+      "rows": 0,
+      "heap_bytes": 8192,
+      "indexes_bytes": 8192
+    },
+    {
+      "name": "_jobs",
+      "rows": 0,
+      "heap_bytes": 8192,
+      "indexes_bytes": 8192
+    },
+    {
+      "name": "_dormant_values",
+      "rows": 0,
+      "heap_bytes": 8192,
+      "indexes_bytes": 8192
+    },
+    {
+      "name": "_requests",
+      "rows": 0,
+      "heap_bytes": 8192,
+      "indexes_bytes": 24576
+    },
+    {
+      "name": "_ops",
+      "rows": 0,
+      "heap_bytes": 8192,
+      "indexes_bytes": 8192
+    },
+    {
+      "name": "_sequences",
+      "rows": 0,
+      "heap_bytes": 8192,
+      "indexes_bytes": 8192
+    },
+    {
+      "name": "i",
+      "rows": 3030352,
+      "heap_bytes": 331726848,
+      "indexes_bytes": 504889344
+    },
+    {
+      "name": "_catalog",
+      "rows": 22,
+      "heap_bytes": 49152,
+      "indexes_bytes": 32768
+    },
+    {
+      "name": "_sessions",
+      "rows": 257,
+      "heap_bytes": 98304,
+      "indexes_bytes": 139264
+    },
+    {
+      "name": "_change_evidence",
+      "rows": 258,
+      "heap_bytes": 65536,
+      "indexes_bytes": 16384
+    },
+    {
+      "name": "_principals",
+      "rows": 257,
+      "heap_bytes": 57344,
+      "indexes_bytes": 16384
+    },
+    {
+      "name": "_generations",
+      "rows": 1,
+      "heap_bytes": 98304,
+      "indexes_bytes": 16384
+    },
+    {
+      "name": "_dormant_refs",
+      "rows": 0,
+      "heap_bytes": 8192,
+      "indexes_bytes": 16384
+    },
+    {
+      "name": "_head",
+      "rows": 1,
+      "heap_bytes": 40960,
+      "indexes_bytes": 16384
+    },
+    {
+      "name": "_session_mint_bindings",
+      "rows": 0,
+      "heap_bytes": 8192,
+      "indexes_bytes": 8192
+    },
+    {
+      "name": "_dormant_columns",
+      "rows": 0,
+      "heap_bytes": 8192,
+      "indexes_bytes": 8192
+    },
+    {
+      "name": "_backend",
+      "rows": 1,
+      "heap_bytes": 106496,
+      "indexes_bytes": 16384
+    },
+    {
+      "name": "_effect_presence",
+      "rows": 0,
+      "heap_bytes": 8192,
+      "indexes_bytes": 16384
+    },
+    {
+      "name": "_release_event_items",
+      "rows": 0,
+      "heap_bytes": 8192,
+      "indexes_bytes": 8192
+    },
+    {
+      "name": "_outbox",
+      "rows": 0,
+      "heap_bytes": 8192,
+      "indexes_bytes": 16384
+    },
+    {
+      "name": "_meta",
+      "rows": 11,
+      "heap_bytes": 49152,
+      "indexes_bytes": 16384
+    },
+    {
+      "name": "_owner",
+      "rows": 1,
+      "heap_bytes": 49152,
+      "indexes_bytes": 16384
+    },
+    {
+      "name": "_cap_counts",
+      "rows": 0,
+      "heap_bytes": 8192,
+      "indexes_bytes": 8192
+    },
+    {
+      "name": "_asset_gc",
+      "rows": 0,
+      "heap_bytes": 8192,
+      "indexes_bytes": 8192
+    },
+    {
+      "name": "_commits",
+      "rows": 258,
+      "heap_bytes": 73728,
+      "indexes_bytes": 16384
+    },
+    {
+      "name": "_assets",
+      "rows": 0,
+      "heap_bytes": 8192,
+      "indexes_bytes": 8192
+    },
+    {
+      "name": "_asset_views",
+      "rows": 0,
+      "heap_bytes": 8192,
+      "indexes_bytes": 8192
+    },
+    {
+      "name": "_dormant_tables",
+      "rows": 0,
+      "heap_bytes": 8192,
+      "indexes_bytes": 8192
+    },
+    {
+      "name": "_dormant_rows",
+      "rows": 0,
+      "heap_bytes": 8192,
+      "indexes_bytes": 8192
+    },
+    {
+      "name": "r",
+      "rows": 1012708,
+      "heap_bytes": 443146240,
+      "indexes_bytes": 74653696
+    },
+    {
+      "name": "_credentials",
+      "rows": 0,
+      "heap_bytes": 8192,
+      "indexes_bytes": 16384
+    },
+    {
+      "name": "_log",
+      "rows": 0,
+      "heap_bytes": 8192,
+      "indexes_bytes": 8192
+    },
+    {
+      "name": "_read_sessions",
+      "rows": 0,
+      "heap_bytes": 8192,
+      "indexes_bytes": 16384
+    },
+    {
+      "name": "_effect_keys",
+      "rows": 0,
+      "heap_bytes": 8192,
+      "indexes_bytes": 8192
+    },
+    {
+      "name": "_asset_intents",
+      "rows": 0,
+      "heap_bytes": 8192,
+      "indexes_bytes": 8192
+    },
+    {
+      "name": "_release_events",
+      "rows": 1,
+      "heap_bytes": 49152,
+      "indexes_bytes": 16384
+    }
+  ],
+  "database_bytes": 1364384791
+}

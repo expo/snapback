@@ -14,6 +14,7 @@ mod requests;
 mod nul;
 mod assets;
 mod foundation;
+mod plan_hygiene;
 mod release;
 
 #[test]

@@ -55,6 +55,7 @@ impl Tx<'_> {
                 presence_deadlines.push(*deadline);
             }
         }
+        // @ref LLP 3000.009.001.000.002#3.4 — logged rows derive their seq from committed; no RI trigger is needed.
         // Synchronous postgres cannot pipeline independently prepared calls.
         // One data-modifying CTE sends head, commit, all events and effects in
         // one execution. Shared policy inserts and binds receipts before member

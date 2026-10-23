@@ -1,0 +1,7 @@
+NAME        MODEL                      ROTA   SIZE MOUNTPOINTS
+nvme0n1     SAMSUNG MZVL2512HCJQ-00B00    0 476.9G
+├─nvme0n1p1                               0    32G [SWAP]
+├─nvme0n1p2                               0     1G /boot
+└─nvme0n1p3                               0 443.9G /
+nvme1n1     SAMSUNG MZVL2512HCJQ-00B00    0 476.9G
+└─nvme1n1p1                               0 476.9G /var/cache/expose-build

@@ -1,0 +1,5018 @@
+[
+  {
+    "time": 1792774712.3762016,
+    "label": "pre-('W1', 1000000, 500, 128, 'disjoint')",
+    "loadavg": "1.76 2.68 3.60 1/872 3164986",
+    "sample_seconds": 1.0177722163498402,
+    "top": [
+      {
+        "pid": 1253329,
+        "cpu_pct": 7.860304959680831,
+        "ppid": 1,
+        "ticks": 12284399,
+        "start": 1379299391,
+        "comm": "fleet"
+      },
+      {
+        "pid": 3123089,
+        "cpu_pct": 4.912690599800519,
+        "ppid": 1,
+        "ticks": 1754,
+        "start": 1533375438,
+        "comm": "python3"
+      },
+      {
+        "pid": 1598743,
+        "cpu_pct": 2.9476143598803115,
+        "ppid": 1,
+        "ticks": 4416873,
+        "start": 871887838,
+        "comm": "tailscaled"
+      },
+      {
+        "pid": 556413,
+        "cpu_pct": 1.9650762399202077,
+        "ppid": 1,
+        "ticks": 856324,
+        "start": 1349187911,
+        "comm": "tmux: server"
+      },
+      {
+        "pid": 1743184,
+        "cpu_pct": 0.9825381199601039,
+        "ppid": 1743153,
+        "ticks": 126823,
+        "start": 1511514469,
+        "comm": "codex"
+      },
+      {
+        "pid": 1929452,
+        "cpu_pct": 0.9825381199601039,
+        "ppid": 1929365,
+        "ticks": 30380,
+        "start": 1511900109,
+        "comm": "sshd"
+      },
+      {
+        "pid": 1,
+        "cpu_pct": 0.0,
+        "ppid": 0,
+        "ticks": 47427,
+        "start": 47,
+        "comm": "systemd"
+      },
+      {
+        "pid": 2,
+        "cpu_pct": 0.0,
+        "ppid": 0,
+        "ticks": 394,
+        "start": 47,
+        "comm": "kthreadd"
+      },
+      {
+        "pid": 3,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "pool_workqueue_release"
+      },
+      {
+        "pid": 4,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-rcu_g"
+      },
+      {
+        "pid": 5,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-rcu_p"
+      },
+      {
+        "pid": 6,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-slub_"
+      },
+      {
+        "pid": 7,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-netns"
+      },
+      {
+        "pid": 10,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/0:0H-events_highpri"
+      },
+      {
+        "pid": 12,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-mm_pe"
+      },
+      {
+        "pid": 13,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "rcu_tasks_kthread"
+      },
+      {
+        "pid": 14,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "rcu_tasks_rude_kthread"
+      },
+      {
+        "pid": 15,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "rcu_tasks_trace_kthread"
+      },
+      {
+        "pid": 16,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 9351,
+        "start": 58,
+        "comm": "ksoftirqd/0"
+      },
+      {
+        "pid": 17,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 168840,
+        "start": 58,
+        "comm": "rcu_preempt"
+      },
+      {
+        "pid": 18,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 3696,
+        "start": 58,
+        "comm": "migration/0"
+      },
+      {
+        "pid": 19,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 58,
+        "comm": "idle_inject/0"
+      },
+      {
+        "pid": 20,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 58,
+        "comm": "cpuhp/0"
+      },
+      {
+        "pid": 21,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 58,
+        "comm": "cpuhp/1"
+      },
+      {
+        "pid": 22,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 58,
+        "comm": "idle_inject/1"
+      }
+    ],
+    "foreign_over_one_core": []
+  },
+  {
+    "time": 1792774998.4465287,
+    "label": "pre-('W2', 1000000, 500, 128, 'disjoint')",
+    "loadavg": "32.85 19.95 10.48 1/884 3255102",
+    "sample_seconds": 1.0143261216580868,
+    "top": [
+      {
+        "pid": 1253329,
+        "cpu_pct": 6.901133521590987,
+        "ppid": 1,
+        "ticks": 12287855,
+        "start": 1379299391,
+        "comm": "fleet"
+      },
+      {
+        "pid": 3123089,
+        "cpu_pct": 3.943504869480564,
+        "ppid": 1,
+        "ticks": 3149,
+        "start": 1533375438,
+        "comm": "python3"
+      },
+      {
+        "pid": 556413,
+        "cpu_pct": 1.971752434740282,
+        "ppid": 1,
+        "ticks": 856976,
+        "start": 1349187911,
+        "comm": "tmux: server"
+      },
+      {
+        "pid": 2845772,
+        "cpu_pct": 1.971752434740282,
+        "ppid": 2845686,
+        "ticks": 125018,
+        "start": 1513552275,
+        "comm": "codex"
+      },
+      {
+        "pid": 1598743,
+        "cpu_pct": 0.985876217370141,
+        "ppid": 1,
+        "ticks": 4417264,
+        "start": 871887838,
+        "comm": "tailscaled"
+      },
+      {
+        "pid": 1743153,
+        "cpu_pct": 0.985876217370141,
+        "ppid": 556413,
+        "ticks": 3436,
+        "start": 1511514387,
+        "comm": "fleet"
+      },
+      {
+        "pid": 2327009,
+        "cpu_pct": 0.985876217370141,
+        "ppid": 556413,
+        "ticks": 78671,
+        "start": 1512667691,
+        "comm": "fleet"
+      },
+      {
+        "pid": 2327070,
+        "cpu_pct": 0.985876217370141,
+        "ppid": 2327009,
+        "ticks": 42191,
+        "start": 1512667824,
+        "comm": "fleet"
+      },
+      {
+        "pid": 3123235,
+        "cpu_pct": 0.985876217370141,
+        "ppid": 3123218,
+        "ticks": 263,
+        "start": 1533375567,
+        "comm": "postgres"
+      },
+      {
+        "pid": 1,
+        "cpu_pct": 0.0,
+        "ppid": 0,
+        "ticks": 47433,
+        "start": 47,
+        "comm": "systemd"
+      },
+      {
+        "pid": 2,
+        "cpu_pct": 0.0,
+        "ppid": 0,
+        "ticks": 394,
+        "start": 47,
+        "comm": "kthreadd"
+      },
+      {
+        "pid": 3,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "pool_workqueue_release"
+      },
+      {
+        "pid": 4,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-rcu_g"
+      },
+      {
+        "pid": 5,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-rcu_p"
+      },
+      {
+        "pid": 6,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-slub_"
+      },
+      {
+        "pid": 7,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-netns"
+      },
+      {
+        "pid": 10,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/0:0H-events_highpri"
+      },
+      {
+        "pid": 12,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-mm_pe"
+      },
+      {
+        "pid": 13,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "rcu_tasks_kthread"
+      },
+      {
+        "pid": 14,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "rcu_tasks_rude_kthread"
+      },
+      {
+        "pid": 15,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "rcu_tasks_trace_kthread"
+      },
+      {
+        "pid": 16,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 9357,
+        "start": 58,
+        "comm": "ksoftirqd/0"
+      },
+      {
+        "pid": 17,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 168887,
+        "start": 58,
+        "comm": "rcu_preempt"
+      },
+      {
+        "pid": 18,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 3697,
+        "start": 58,
+        "comm": "migration/0"
+      },
+      {
+        "pid": 19,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 58,
+        "comm": "idle_inject/0"
+      }
+    ],
+    "foreign_over_one_core": []
+  },
+  {
+    "time": 1792775285.0678394,
+    "label": "pre-('W4', 1000000, 500, 32, 'disjoint')",
+    "loadavg": "35.38 27.54 15.95 2/863 3354253",
+    "sample_seconds": 1.0175132807344198,
+    "top": [
+      {
+        "pid": 1253329,
+        "cpu_pct": 7.862305241093037,
+        "ppid": 1,
+        "ticks": 12291269,
+        "start": 1379299391,
+        "comm": "fleet"
+      },
+      {
+        "pid": 3123089,
+        "cpu_pct": 4.913940775683148,
+        "ppid": 1,
+        "ticks": 4552,
+        "start": 1533375438,
+        "comm": "python3"
+      },
+      {
+        "pid": 556413,
+        "cpu_pct": 1.9655763102732593,
+        "ppid": 1,
+        "ticks": 857631,
+        "start": 1349187911,
+        "comm": "tmux: server"
+      },
+      {
+        "pid": 1598743,
+        "cpu_pct": 0.9827881551366296,
+        "ppid": 1,
+        "ticks": 4417656,
+        "start": 871887838,
+        "comm": "tailscaled"
+      },
+      {
+        "pid": 2846353,
+        "cpu_pct": 0.9827881551366296,
+        "ppid": 2846270,
+        "ticks": 126194,
+        "start": 1513552801,
+        "comm": "codex"
+      },
+      {
+        "pid": 3850759,
+        "cpu_pct": 0.9827881551366296,
+        "ppid": 3850643,
+        "ticks": 4747,
+        "start": 1530473746,
+        "comm": "sshd"
+      },
+      {
+        "pid": 1,
+        "cpu_pct": 0.0,
+        "ppid": 0,
+        "ticks": 47438,
+        "start": 47,
+        "comm": "systemd"
+      },
+      {
+        "pid": 2,
+        "cpu_pct": 0.0,
+        "ppid": 0,
+        "ticks": 394,
+        "start": 47,
+        "comm": "kthreadd"
+      },
+      {
+        "pid": 3,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "pool_workqueue_release"
+      },
+      {
+        "pid": 4,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-rcu_g"
+      },
+      {
+        "pid": 5,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-rcu_p"
+      },
+      {
+        "pid": 6,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-slub_"
+      },
+      {
+        "pid": 7,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-netns"
+      },
+      {
+        "pid": 10,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/0:0H-events_highpri"
+      },
+      {
+        "pid": 12,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-mm_pe"
+      },
+      {
+        "pid": 13,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "rcu_tasks_kthread"
+      },
+      {
+        "pid": 14,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "rcu_tasks_rude_kthread"
+      },
+      {
+        "pid": 15,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "rcu_tasks_trace_kthread"
+      },
+      {
+        "pid": 16,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 9363,
+        "start": 58,
+        "comm": "ksoftirqd/0"
+      },
+      {
+        "pid": 17,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 168936,
+        "start": 58,
+        "comm": "rcu_preempt"
+      },
+      {
+        "pid": 18,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 3697,
+        "start": 58,
+        "comm": "migration/0"
+      },
+      {
+        "pid": 19,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 58,
+        "comm": "idle_inject/0"
+      },
+      {
+        "pid": 20,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 58,
+        "comm": "cpuhp/0"
+      },
+      {
+        "pid": 21,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 58,
+        "comm": "cpuhp/1"
+      },
+      {
+        "pid": 22,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 58,
+        "comm": "idle_inject/1"
+      }
+    ],
+    "foreign_over_one_core": []
+  },
+  {
+    "time": 1792776165.8322704,
+    "label": "pre-('W1', 1000000, 1000, 128, 'disjoint')",
+    "loadavg": "2.19 3.60 7.66 1/881 3882837",
+    "sample_seconds": 1.0160934254527092,
+    "top": [
+      {
+        "pid": 3123089,
+        "cpu_pct": 4.920807353686306,
+        "ppid": 1,
+        "ticks": 8845,
+        "start": 1533375438,
+        "comm": "python3"
+      },
+      {
+        "pid": 556413,
+        "cpu_pct": 3.936645882949045,
+        "ppid": 1,
+        "ticks": 859801,
+        "start": 1349187911,
+        "comm": "tmux: server"
+      },
+      {
+        "pid": 556421,
+        "cpu_pct": 0.9841614707372612,
+        "ppid": 556414,
+        "ticks": 98176,
+        "start": 1349187913,
+        "comm": "claude"
+      },
+      {
+        "pid": 815010,
+        "cpu_pct": 0.9841614707372612,
+        "ppid": 814951,
+        "ticks": 128735,
+        "start": 1510103883,
+        "comm": "codex"
+      },
+      {
+        "pid": 1598743,
+        "cpu_pct": 0.9841614707372612,
+        "ppid": 1,
+        "ticks": 4418815,
+        "start": 871887838,
+        "comm": "tailscaled"
+      },
+      {
+        "pid": 1929452,
+        "cpu_pct": 0.9841614707372612,
+        "ppid": 1929365,
+        "ticks": 30752,
+        "start": 1511900109,
+        "comm": "sshd"
+      },
+      {
+        "pid": 2327009,
+        "cpu_pct": 0.9841614707372612,
+        "ppid": 556413,
+        "ticks": 79081,
+        "start": 1512667691,
+        "comm": "fleet"
+      },
+      {
+        "pid": 2504937,
+        "cpu_pct": 0.9841614707372612,
+        "ppid": 556413,
+        "ticks": 77969,
+        "start": 1513042351,
+        "comm": "fleet"
+      },
+      {
+        "pid": 2845772,
+        "cpu_pct": 0.9841614707372612,
+        "ppid": 2845686,
+        "ticks": 125914,
+        "start": 1513552275,
+        "comm": "codex"
+      },
+      {
+        "pid": 3077019,
+        "cpu_pct": 0.9841614707372612,
+        "ppid": 3077018,
+        "ticks": 1485,
+        "start": 1533324307,
+        "comm": "codex"
+      },
+      {
+        "pid": 3123274,
+        "cpu_pct": 0.9841614707372612,
+        "ppid": 3123218,
+        "ticks": 741,
+        "start": 1533375595,
+        "comm": "postgres"
+      },
+      {
+        "pid": 1,
+        "cpu_pct": 0.0,
+        "ppid": 0,
+        "ticks": 47461,
+        "start": 47,
+        "comm": "systemd"
+      },
+      {
+        "pid": 2,
+        "cpu_pct": 0.0,
+        "ppid": 0,
+        "ticks": 394,
+        "start": 47,
+        "comm": "kthreadd"
+      },
+      {
+        "pid": 3,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "pool_workqueue_release"
+      },
+      {
+        "pid": 4,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-rcu_g"
+      },
+      {
+        "pid": 5,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-rcu_p"
+      },
+      {
+        "pid": 6,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-slub_"
+      },
+      {
+        "pid": 7,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-netns"
+      },
+      {
+        "pid": 10,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/0:0H-events_highpri"
+      },
+      {
+        "pid": 12,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-mm_pe"
+      },
+      {
+        "pid": 13,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "rcu_tasks_kthread"
+      },
+      {
+        "pid": 14,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "rcu_tasks_rude_kthread"
+      },
+      {
+        "pid": 15,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "rcu_tasks_trace_kthread"
+      },
+      {
+        "pid": 16,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 9376,
+        "start": 58,
+        "comm": "ksoftirqd/0"
+      },
+      {
+        "pid": 17,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 169088,
+        "start": 58,
+        "comm": "rcu_preempt"
+      }
+    ],
+    "foreign_over_one_core": []
+  },
+  {
+    "time": 1792776453.8594458,
+    "label": "pre-('W2', 1000000, 1000, 128, 'disjoint')",
+    "loadavg": "9.68 8.37 8.78 2/920 3918549",
+    "sample_seconds": 1.0197970196604729,
+    "top": [
+      {
+        "pid": 3123089,
+        "cpu_pct": 4.902936470303355,
+        "ppid": 1,
+        "ticks": 10357,
+        "start": 1533375438,
+        "comm": "python3"
+      },
+      {
+        "pid": 556413,
+        "cpu_pct": 2.941761882182013,
+        "ppid": 1,
+        "ticks": 860518,
+        "start": 1349187911,
+        "comm": "tmux: server"
+      },
+      {
+        "pid": 815010,
+        "cpu_pct": 1.961174588121342,
+        "ppid": 814951,
+        "ticks": 128963,
+        "start": 1510103883,
+        "comm": "codex"
+      },
+      {
+        "pid": 721723,
+        "cpu_pct": 0.980587294060671,
+        "ppid": 721722,
+        "ticks": 15320,
+        "start": 1412516043,
+        "comm": "fleet"
+      },
+      {
+        "pid": 815560,
+        "cpu_pct": 0.980587294060671,
+        "ppid": 815506,
+        "ticks": 133390,
+        "start": 1510104419,
+        "comm": "codex"
+      },
+      {
+        "pid": 1598743,
+        "cpu_pct": 0.980587294060671,
+        "ppid": 1,
+        "ticks": 4419151,
+        "start": 871887838,
+        "comm": "tailscaled"
+      },
+      {
+        "pid": 2327545,
+        "cpu_pct": 0.980587294060671,
+        "ppid": 556413,
+        "ticks": 79255,
+        "start": 1512668939,
+        "comm": "fleet"
+      },
+      {
+        "pid": 3123272,
+        "cpu_pct": 0.980587294060671,
+        "ppid": 3123089,
+        "ticks": 101,
+        "start": 1533375594,
+        "comm": "psql"
+      },
+      {
+        "pid": 3723902,
+        "cpu_pct": 0.980587294060671,
+        "ppid": 1,
+        "ticks": 8,
+        "start": 1533513272,
+        "comm": "mosh-server"
+      },
+      {
+        "pid": 1,
+        "cpu_pct": 0.0,
+        "ppid": 0,
+        "ticks": 47466,
+        "start": 47,
+        "comm": "systemd"
+      },
+      {
+        "pid": 2,
+        "cpu_pct": 0.0,
+        "ppid": 0,
+        "ticks": 394,
+        "start": 47,
+        "comm": "kthreadd"
+      },
+      {
+        "pid": 3,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "pool_workqueue_release"
+      },
+      {
+        "pid": 4,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-rcu_g"
+      },
+      {
+        "pid": 5,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-rcu_p"
+      },
+      {
+        "pid": 6,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-slub_"
+      },
+      {
+        "pid": 7,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-netns"
+      },
+      {
+        "pid": 10,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/0:0H-events_highpri"
+      },
+      {
+        "pid": 12,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-mm_pe"
+      },
+      {
+        "pid": 13,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "rcu_tasks_kthread"
+      },
+      {
+        "pid": 14,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "rcu_tasks_rude_kthread"
+      },
+      {
+        "pid": 15,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "rcu_tasks_trace_kthread"
+      },
+      {
+        "pid": 16,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 9382,
+        "start": 58,
+        "comm": "ksoftirqd/0"
+      },
+      {
+        "pid": 17,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 169129,
+        "start": 58,
+        "comm": "rcu_preempt"
+      },
+      {
+        "pid": 18,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 3700,
+        "start": 58,
+        "comm": "migration/0"
+      },
+      {
+        "pid": 19,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 58,
+        "comm": "idle_inject/0"
+      }
+    ],
+    "foreign_over_one_core": []
+  },
+  {
+    "time": 1792776741.9320722,
+    "label": "pre-('W4', 1000000, 1000, 32, 'disjoint')",
+    "loadavg": "10.51 11.04 9.98 1/873 3955994",
+    "sample_seconds": 1.0190308764576912,
+    "top": [
+      {
+        "pid": 3123089,
+        "cpu_pct": 5.88794720416807,
+        "ppid": 1,
+        "ticks": 11790,
+        "start": 1533375438,
+        "comm": "python3"
+      },
+      {
+        "pid": 556413,
+        "cpu_pct": 3.9252981361120463,
+        "ppid": 1,
+        "ticks": 861233,
+        "start": 1349187911,
+        "comm": "tmux: server"
+      },
+      {
+        "pid": 2845772,
+        "cpu_pct": 1.9626490680560231,
+        "ppid": 2845686,
+        "ticks": 126393,
+        "start": 1513552275,
+        "comm": "codex"
+      },
+      {
+        "pid": 815010,
+        "cpu_pct": 0.9813245340280116,
+        "ppid": 814951,
+        "ticks": 129194,
+        "start": 1510103883,
+        "comm": "codex"
+      },
+      {
+        "pid": 815560,
+        "cpu_pct": 0.9813245340280116,
+        "ppid": 815506,
+        "ticks": 133623,
+        "start": 1510104419,
+        "comm": "codex"
+      },
+      {
+        "pid": 2327070,
+        "cpu_pct": 0.9813245340280116,
+        "ppid": 2327009,
+        "ticks": 42535,
+        "start": 1512667824,
+        "comm": "fleet"
+      },
+      {
+        "pid": 1,
+        "cpu_pct": 0.0,
+        "ppid": 0,
+        "ticks": 47472,
+        "start": 47,
+        "comm": "systemd"
+      },
+      {
+        "pid": 2,
+        "cpu_pct": 0.0,
+        "ppid": 0,
+        "ticks": 394,
+        "start": 47,
+        "comm": "kthreadd"
+      },
+      {
+        "pid": 3,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "pool_workqueue_release"
+      },
+      {
+        "pid": 4,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-rcu_g"
+      },
+      {
+        "pid": 5,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-rcu_p"
+      },
+      {
+        "pid": 6,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-slub_"
+      },
+      {
+        "pid": 7,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-netns"
+      },
+      {
+        "pid": 10,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/0:0H-events_highpri"
+      },
+      {
+        "pid": 12,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-mm_pe"
+      },
+      {
+        "pid": 13,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "rcu_tasks_kthread"
+      },
+      {
+        "pid": 14,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "rcu_tasks_rude_kthread"
+      },
+      {
+        "pid": 15,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "rcu_tasks_trace_kthread"
+      },
+      {
+        "pid": 16,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 9388,
+        "start": 58,
+        "comm": "ksoftirqd/0"
+      },
+      {
+        "pid": 17,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 169173,
+        "start": 58,
+        "comm": "rcu_preempt"
+      },
+      {
+        "pid": 18,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 3700,
+        "start": 58,
+        "comm": "migration/0"
+      },
+      {
+        "pid": 19,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 58,
+        "comm": "idle_inject/0"
+      },
+      {
+        "pid": 20,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 58,
+        "comm": "cpuhp/0"
+      },
+      {
+        "pid": 21,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 58,
+        "comm": "cpuhp/1"
+      },
+      {
+        "pid": 22,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 58,
+        "comm": "idle_inject/1"
+      }
+    ],
+    "foreign_over_one_core": []
+  },
+  {
+    "time": 1792778655.9458656,
+    "label": "b1-('W1', 1000000, 500, 128, 'disjoint')",
+    "loadavg": "2.46 2.91 3.66 2/855 529806",
+    "sample_seconds": 1.01336226798594,
+    "top": [
+      {
+        "pid": 456000,
+        "cpu_pct": 4.93406963921946,
+        "ppid": 1,
+        "ticks": 1986,
+        "start": 1533761036,
+        "comm": "python3"
+      },
+      {
+        "pid": 556413,
+        "cpu_pct": 3.9472557113755675,
+        "ppid": 1,
+        "ticks": 865855,
+        "start": 1349187911,
+        "comm": "tmux: server"
+      },
+      {
+        "pid": 1743184,
+        "cpu_pct": 1.9736278556877838,
+        "ppid": 1743153,
+        "ticks": 129444,
+        "start": 1511514469,
+        "comm": "codex"
+      },
+      {
+        "pid": 47,
+        "cpu_pct": 0.9868139278438919,
+        "ppid": 2,
+        "ticks": 3703,
+        "start": 58,
+        "comm": "migration/5"
+      },
+      {
+        "pid": 815010,
+        "cpu_pct": 0.9868139278438919,
+        "ppid": 814951,
+        "ticks": 130283,
+        "start": 1510103883,
+        "comm": "codex"
+      },
+      {
+        "pid": 1929452,
+        "cpu_pct": 0.9868139278438919,
+        "ppid": 1929365,
+        "ticks": 31761,
+        "start": 1511900109,
+        "comm": "sshd"
+      },
+      {
+        "pid": 2327009,
+        "cpu_pct": 0.9868139278438919,
+        "ppid": 556413,
+        "ticks": 79964,
+        "start": 1512667691,
+        "comm": "fleet"
+      },
+      {
+        "pid": 2504937,
+        "cpu_pct": 0.9868139278438919,
+        "ppid": 556413,
+        "ticks": 78860,
+        "start": 1513042351,
+        "comm": "fleet"
+      },
+      {
+        "pid": 2846353,
+        "cpu_pct": 0.9868139278438919,
+        "ppid": 2846270,
+        "ticks": 128495,
+        "start": 1513552801,
+        "comm": "codex"
+      },
+      {
+        "pid": 3788261,
+        "cpu_pct": 0.9868139278438919,
+        "ppid": 2,
+        "ticks": 42,
+        "start": 1533524375,
+        "comm": "kworker/0:2-events"
+      },
+      {
+        "pid": 1,
+        "cpu_pct": 0.0,
+        "ppid": 0,
+        "ticks": 47482,
+        "start": 47,
+        "comm": "systemd"
+      },
+      {
+        "pid": 2,
+        "cpu_pct": 0.0,
+        "ppid": 0,
+        "ticks": 394,
+        "start": 47,
+        "comm": "kthreadd"
+      },
+      {
+        "pid": 3,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "pool_workqueue_release"
+      },
+      {
+        "pid": 4,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-rcu_g"
+      },
+      {
+        "pid": 5,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-rcu_p"
+      },
+      {
+        "pid": 6,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-slub_"
+      },
+      {
+        "pid": 7,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-netns"
+      },
+      {
+        "pid": 10,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/0:0H-events_highpri"
+      },
+      {
+        "pid": 12,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-mm_pe"
+      },
+      {
+        "pid": 13,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "rcu_tasks_kthread"
+      },
+      {
+        "pid": 14,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "rcu_tasks_rude_kthread"
+      },
+      {
+        "pid": 15,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "rcu_tasks_trace_kthread"
+      },
+      {
+        "pid": 16,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 9410,
+        "start": 58,
+        "comm": "ksoftirqd/0"
+      },
+      {
+        "pid": 17,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 169470,
+        "start": 58,
+        "comm": "rcu_preempt"
+      },
+      {
+        "pid": 18,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 3704,
+        "start": 58,
+        "comm": "migration/0"
+      }
+    ],
+    "foreign_over_one_core": []
+  },
+  {
+    "time": 1792779033.7746456,
+    "label": "b1-('W2', 1000000, 500, 128, 'disjoint')",
+    "loadavg": "17.34 13.36 7.88 2/873 586088",
+    "sample_seconds": 1.020316831767559,
+    "top": [
+      {
+        "pid": 456000,
+        "cpu_pct": 6.860614058354265,
+        "ppid": 1,
+        "ticks": 3856,
+        "start": 1533761036,
+        "comm": "python3"
+      },
+      {
+        "pid": 556413,
+        "cpu_pct": 1.960175445244076,
+        "ppid": 1,
+        "ticks": 866843,
+        "start": 1349187911,
+        "comm": "tmux: server"
+      },
+      {
+        "pid": 1598743,
+        "cpu_pct": 0.980087722622038,
+        "ppid": 1,
+        "ticks": 4421953,
+        "start": 871887838,
+        "comm": "tailscaled"
+      },
+      {
+        "pid": 1743184,
+        "cpu_pct": 0.980087722622038,
+        "ppid": 1743153,
+        "ticks": 129626,
+        "start": 1511514469,
+        "comm": "codex"
+      },
+      {
+        "pid": 2327009,
+        "cpu_pct": 0.980087722622038,
+        "ppid": 556413,
+        "ticks": 80099,
+        "start": 1512667691,
+        "comm": "fleet"
+      },
+      {
+        "pid": 2327545,
+        "cpu_pct": 0.980087722622038,
+        "ppid": 556413,
+        "ticks": 80162,
+        "start": 1512668939,
+        "comm": "fleet"
+      },
+      {
+        "pid": 2504937,
+        "cpu_pct": 0.980087722622038,
+        "ppid": 556413,
+        "ticks": 78996,
+        "start": 1513042351,
+        "comm": "fleet"
+      },
+      {
+        "pid": 2846270,
+        "cpu_pct": 0.980087722622038,
+        "ppid": 556413,
+        "ticks": 2999,
+        "start": 1513552717,
+        "comm": "fleet"
+      },
+      {
+        "pid": 3077019,
+        "cpu_pct": 0.980087722622038,
+        "ppid": 3077018,
+        "ticks": 2979,
+        "start": 1533324307,
+        "comm": "codex"
+      },
+      {
+        "pid": 1,
+        "cpu_pct": 0.0,
+        "ppid": 0,
+        "ticks": 47484,
+        "start": 47,
+        "comm": "systemd"
+      },
+      {
+        "pid": 2,
+        "cpu_pct": 0.0,
+        "ppid": 0,
+        "ticks": 394,
+        "start": 47,
+        "comm": "kthreadd"
+      },
+      {
+        "pid": 3,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "pool_workqueue_release"
+      },
+      {
+        "pid": 4,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-rcu_g"
+      },
+      {
+        "pid": 5,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-rcu_p"
+      },
+      {
+        "pid": 6,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-slub_"
+      },
+      {
+        "pid": 7,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-netns"
+      },
+      {
+        "pid": 10,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/0:0H-events_highpri"
+      },
+      {
+        "pid": 12,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-mm_pe"
+      },
+      {
+        "pid": 13,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "rcu_tasks_kthread"
+      },
+      {
+        "pid": 14,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "rcu_tasks_rude_kthread"
+      },
+      {
+        "pid": 15,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "rcu_tasks_trace_kthread"
+      },
+      {
+        "pid": 16,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 9418,
+        "start": 58,
+        "comm": "ksoftirqd/0"
+      },
+      {
+        "pid": 17,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 169521,
+        "start": 58,
+        "comm": "rcu_preempt"
+      },
+      {
+        "pid": 18,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 3705,
+        "start": 58,
+        "comm": "migration/0"
+      },
+      {
+        "pid": 19,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 58,
+        "comm": "idle_inject/0"
+      }
+    ],
+    "foreign_over_one_core": []
+  },
+  {
+    "time": 1792779318.902207,
+    "label": "b1-('W4', 1000000, 500, 32, 'disjoint')",
+    "loadavg": "6.40 9.77 7.79 1/887 615561",
+    "sample_seconds": 1.0186593160033226,
+    "top": [
+      {
+        "pid": 456000,
+        "cpu_pct": 4.908412382284335,
+        "ppid": 1,
+        "ticks": 5293,
+        "start": 1533761036,
+        "comm": "python3"
+      },
+      {
+        "pid": 1598743,
+        "cpu_pct": 2.945047429370601,
+        "ppid": 1,
+        "ticks": 4422272,
+        "start": 871887838,
+        "comm": "tailscaled"
+      },
+      {
+        "pid": 601631,
+        "cpu_pct": 0.981682476456867,
+        "ppid": 601480,
+        "ticks": 787,
+        "start": 1533875407,
+        "comm": "claude"
+      },
+      {
+        "pid": 601710,
+        "cpu_pct": 0.981682476456867,
+        "ppid": 601588,
+        "ticks": 842,
+        "start": 1533875453,
+        "comm": "claude"
+      },
+      {
+        "pid": 815010,
+        "cpu_pct": 0.981682476456867,
+        "ppid": 814951,
+        "ticks": 130573,
+        "start": 1510103883,
+        "comm": "codex"
+      },
+      {
+        "pid": 1075141,
+        "cpu_pct": 0.981682476456867,
+        "ppid": 1075134,
+        "ticks": 97740,
+        "start": 1352364460,
+        "comm": "claude"
+      },
+      {
+        "pid": 1235751,
+        "cpu_pct": 0.981682476456867,
+        "ppid": 1,
+        "ticks": 473193,
+        "start": 771861434,
+        "comm": "adb"
+      },
+      {
+        "pid": 1,
+        "cpu_pct": 0.0,
+        "ppid": 0,
+        "ticks": 47487,
+        "start": 47,
+        "comm": "systemd"
+      },
+      {
+        "pid": 2,
+        "cpu_pct": 0.0,
+        "ppid": 0,
+        "ticks": 394,
+        "start": 47,
+        "comm": "kthreadd"
+      },
+      {
+        "pid": 3,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "pool_workqueue_release"
+      },
+      {
+        "pid": 4,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-rcu_g"
+      },
+      {
+        "pid": 5,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-rcu_p"
+      },
+      {
+        "pid": 6,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-slub_"
+      },
+      {
+        "pid": 7,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-netns"
+      },
+      {
+        "pid": 10,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/0:0H-events_highpri"
+      },
+      {
+        "pid": 12,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-mm_pe"
+      },
+      {
+        "pid": 13,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "rcu_tasks_kthread"
+      },
+      {
+        "pid": 14,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "rcu_tasks_rude_kthread"
+      },
+      {
+        "pid": 15,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "rcu_tasks_trace_kthread"
+      },
+      {
+        "pid": 16,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 9421,
+        "start": 58,
+        "comm": "ksoftirqd/0"
+      },
+      {
+        "pid": 17,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 169557,
+        "start": 58,
+        "comm": "rcu_preempt"
+      },
+      {
+        "pid": 18,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 3706,
+        "start": 58,
+        "comm": "migration/0"
+      },
+      {
+        "pid": 19,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 58,
+        "comm": "idle_inject/0"
+      },
+      {
+        "pid": 20,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 58,
+        "comm": "cpuhp/0"
+      },
+      {
+        "pid": 21,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 58,
+        "comm": "cpuhp/1"
+      }
+    ],
+    "foreign_over_one_core": []
+  },
+  {
+    "time": 1792780088.9578183,
+    "label": "b1-('W1', 1000000, 1000, 128, 'disjoint')",
+    "loadavg": "2.74 2.87 4.68 5/948 682735",
+    "sample_seconds": 1.0218689441680908,
+    "top": [
+      {
+        "pid": 456000,
+        "cpu_pct": 5.871594429249079,
+        "ppid": 1,
+        "ticks": 9552,
+        "start": 1533761036,
+        "comm": "python3"
+      },
+      {
+        "pid": 195164,
+        "cpu_pct": 0.9785990715415132,
+        "ppid": 1,
+        "ticks": 3567,
+        "start": 1520195753,
+        "comm": "systemd-resolve"
+      },
+      {
+        "pid": 461199,
+        "cpu_pct": 0.9785990715415132,
+        "ppid": 1,
+        "ticks": 376,
+        "start": 1533764773,
+        "comm": "python3"
+      },
+      {
+        "pid": 556413,
+        "cpu_pct": 0.9785990715415132,
+        "ppid": 1,
+        "ticks": 868491,
+        "start": 1349187911,
+        "comm": "tmux: server"
+      },
+      {
+        "pid": 1598743,
+        "cpu_pct": 0.9785990715415132,
+        "ppid": 1,
+        "ticks": 4423155,
+        "start": 871887838,
+        "comm": "tailscaled"
+      },
+      {
+        "pid": 2845772,
+        "cpu_pct": 0.9785990715415132,
+        "ppid": 2845686,
+        "ticks": 128116,
+        "start": 1513552275,
+        "comm": "codex"
+      },
+      {
+        "pid": 3372817,
+        "cpu_pct": 0.9785990715415132,
+        "ppid": 2,
+        "ticks": 114,
+        "start": 1533489533,
+        "comm": "kworker/4:2-events"
+      },
+      {
+        "pid": 1,
+        "cpu_pct": 0.0,
+        "ppid": 0,
+        "ticks": 47490,
+        "start": 47,
+        "comm": "systemd"
+      },
+      {
+        "pid": 2,
+        "cpu_pct": 0.0,
+        "ppid": 0,
+        "ticks": 394,
+        "start": 47,
+        "comm": "kthreadd"
+      },
+      {
+        "pid": 3,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "pool_workqueue_release"
+      },
+      {
+        "pid": 4,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-rcu_g"
+      },
+      {
+        "pid": 5,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-rcu_p"
+      },
+      {
+        "pid": 6,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-slub_"
+      },
+      {
+        "pid": 7,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-netns"
+      },
+      {
+        "pid": 10,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/0:0H-events_highpri"
+      },
+      {
+        "pid": 12,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-mm_pe"
+      },
+      {
+        "pid": 13,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "rcu_tasks_kthread"
+      },
+      {
+        "pid": 14,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "rcu_tasks_rude_kthread"
+      },
+      {
+        "pid": 15,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "rcu_tasks_trace_kthread"
+      },
+      {
+        "pid": 16,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 9429,
+        "start": 58,
+        "comm": "ksoftirqd/0"
+      },
+      {
+        "pid": 17,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 169658,
+        "start": 58,
+        "comm": "rcu_preempt"
+      },
+      {
+        "pid": 18,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 3706,
+        "start": 58,
+        "comm": "migration/0"
+      },
+      {
+        "pid": 19,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 58,
+        "comm": "idle_inject/0"
+      },
+      {
+        "pid": 20,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 58,
+        "comm": "cpuhp/0"
+      },
+      {
+        "pid": 21,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 58,
+        "comm": "cpuhp/1"
+      }
+    ],
+    "foreign_over_one_core": []
+  },
+  {
+    "time": 1792780468.5294771,
+    "label": "b1-('W2', 1000000, 1000, 128, 'disjoint')",
+    "loadavg": "21.30 14.08 8.76 5/984 791981",
+    "sample_seconds": 1.0167905185371637,
+    "top": [
+      {
+        "pid": 456000,
+        "cpu_pct": 4.917433737672338,
+        "ppid": 1,
+        "ticks": 11526,
+        "start": 1533761036,
+        "comm": "python3"
+      },
+      {
+        "pid": 556413,
+        "cpu_pct": 2.950460242603403,
+        "ppid": 1,
+        "ticks": 869034,
+        "start": 1349187911,
+        "comm": "tmux: server"
+      },
+      {
+        "pid": 601653,
+        "cpu_pct": 1.9669734950689353,
+        "ppid": 601538,
+        "ticks": 1246,
+        "start": 1533875423,
+        "comm": "claude"
+      },
+      {
+        "pid": 601679,
+        "cpu_pct": 0.9834867475344676,
+        "ppid": 601561,
+        "ticks": 1299,
+        "start": 1533875437,
+        "comm": "claude"
+      },
+      {
+        "pid": 1235751,
+        "cpu_pct": 0.9834867475344676,
+        "ppid": 1,
+        "ticks": 473257,
+        "start": 771861434,
+        "comm": "adb"
+      },
+      {
+        "pid": 1260759,
+        "cpu_pct": 0.9834867475344676,
+        "ppid": 2,
+        "ticks": 9652,
+        "start": 1531758737,
+        "comm": "kworker/u64:0-ext4-rsv-conversion"
+      },
+      {
+        "pid": 1598743,
+        "cpu_pct": 0.9834867475344676,
+        "ppid": 1,
+        "ticks": 4423553,
+        "start": 871887838,
+        "comm": "tailscaled"
+      },
+      {
+        "pid": 1,
+        "cpu_pct": 0.0,
+        "ppid": 0,
+        "ticks": 47493,
+        "start": 47,
+        "comm": "systemd"
+      },
+      {
+        "pid": 2,
+        "cpu_pct": 0.0,
+        "ppid": 0,
+        "ticks": 394,
+        "start": 47,
+        "comm": "kthreadd"
+      },
+      {
+        "pid": 3,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "pool_workqueue_release"
+      },
+      {
+        "pid": 4,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-rcu_g"
+      },
+      {
+        "pid": 5,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-rcu_p"
+      },
+      {
+        "pid": 6,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-slub_"
+      },
+      {
+        "pid": 7,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-netns"
+      },
+      {
+        "pid": 10,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/0:0H-events_highpri"
+      },
+      {
+        "pid": 12,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-mm_pe"
+      },
+      {
+        "pid": 13,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "rcu_tasks_kthread"
+      },
+      {
+        "pid": 14,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "rcu_tasks_rude_kthread"
+      },
+      {
+        "pid": 15,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "rcu_tasks_trace_kthread"
+      },
+      {
+        "pid": 16,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 9432,
+        "start": 58,
+        "comm": "ksoftirqd/0"
+      },
+      {
+        "pid": 17,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 169714,
+        "start": 58,
+        "comm": "rcu_preempt"
+      },
+      {
+        "pid": 18,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 3707,
+        "start": 58,
+        "comm": "migration/0"
+      },
+      {
+        "pid": 19,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 58,
+        "comm": "idle_inject/0"
+      },
+      {
+        "pid": 20,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 58,
+        "comm": "cpuhp/0"
+      },
+      {
+        "pid": 21,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 58,
+        "comm": "cpuhp/1"
+      }
+    ],
+    "foreign_over_one_core": []
+  },
+  {
+    "time": 1792780755.486808,
+    "label": "b1-('W4', 1000000, 1000, 32, 'disjoint')",
+    "loadavg": "7.48 9.89 8.32 1/900 817177",
+    "sample_seconds": 1.017751658335328,
+    "top": [
+      {
+        "pid": 456000,
+        "cpu_pct": 5.895347800084964,
+        "ppid": 1,
+        "ticks": 13054,
+        "start": 1533761036,
+        "comm": "python3"
+      },
+      {
+        "pid": 556413,
+        "cpu_pct": 2.947673900042482,
+        "ppid": 1,
+        "ticks": 869426,
+        "start": 1349187911,
+        "comm": "tmux: server"
+      },
+      {
+        "pid": 1598743,
+        "cpu_pct": 1.9651159333616546,
+        "ppid": 1,
+        "ticks": 4423892,
+        "start": 871887838,
+        "comm": "tailscaled"
+      },
+      {
+        "pid": 17,
+        "cpu_pct": 0.9825579666808273,
+        "ppid": 2,
+        "ticks": 169749,
+        "start": 58,
+        "comm": "rcu_preempt"
+      },
+      {
+        "pid": 456132,
+        "cpu_pct": 0.9825579666808273,
+        "ppid": 456071,
+        "ticks": 1160,
+        "start": 1533761177,
+        "comm": "postgres"
+      },
+      {
+        "pid": 601653,
+        "cpu_pct": 0.9825579666808273,
+        "ppid": 601538,
+        "ticks": 1340,
+        "start": 1533875423,
+        "comm": "claude"
+      },
+      {
+        "pid": 601679,
+        "cpu_pct": 0.9825579666808273,
+        "ppid": 601561,
+        "ticks": 1403,
+        "start": 1533875437,
+        "comm": "claude"
+      },
+      {
+        "pid": 1235751,
+        "cpu_pct": 0.9825579666808273,
+        "ppid": 1,
+        "ticks": 473273,
+        "start": 771861434,
+        "comm": "adb"
+      },
+      {
+        "pid": 1743153,
+        "cpu_pct": 0.9825579666808273,
+        "ppid": 556413,
+        "ticks": 3519,
+        "start": 1511514387,
+        "comm": "fleet"
+      },
+      {
+        "pid": 1929452,
+        "cpu_pct": 0.9825579666808273,
+        "ppid": 1929365,
+        "ticks": 32682,
+        "start": 1511900109,
+        "comm": "sshd"
+      },
+      {
+        "pid": 1,
+        "cpu_pct": 0.0,
+        "ppid": 0,
+        "ticks": 47494,
+        "start": 47,
+        "comm": "systemd"
+      },
+      {
+        "pid": 2,
+        "cpu_pct": 0.0,
+        "ppid": 0,
+        "ticks": 395,
+        "start": 47,
+        "comm": "kthreadd"
+      },
+      {
+        "pid": 3,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "pool_workqueue_release"
+      },
+      {
+        "pid": 4,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-rcu_g"
+      },
+      {
+        "pid": 5,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-rcu_p"
+      },
+      {
+        "pid": 6,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-slub_"
+      },
+      {
+        "pid": 7,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-netns"
+      },
+      {
+        "pid": 10,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/0:0H-events_highpri"
+      },
+      {
+        "pid": 12,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-mm_pe"
+      },
+      {
+        "pid": 13,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "rcu_tasks_kthread"
+      },
+      {
+        "pid": 14,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "rcu_tasks_rude_kthread"
+      },
+      {
+        "pid": 15,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "rcu_tasks_trace_kthread"
+      },
+      {
+        "pid": 16,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 9434,
+        "start": 58,
+        "comm": "ksoftirqd/0"
+      },
+      {
+        "pid": 18,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 3707,
+        "start": 58,
+        "comm": "migration/0"
+      },
+      {
+        "pid": 19,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 58,
+        "comm": "idle_inject/0"
+      }
+    ],
+    "foreign_over_one_core": []
+  },
+  {
+    "time": 1792781643.5961692,
+    "label": "pre-('W3', 1000000, 500, 128, 'disjoint')",
+    "loadavg": "2.81 2.64 4.53 2/980 900130",
+    "sample_seconds": 1.0134019423276186,
+    "top": [
+      {
+        "pid": 456000,
+        "cpu_pct": 4.933876472069727,
+        "ppid": 1,
+        "ticks": 17872,
+        "start": 1533761036,
+        "comm": "python3"
+      },
+      {
+        "pid": 556413,
+        "cpu_pct": 2.960325883241836,
+        "ppid": 1,
+        "ticks": 870732,
+        "start": 1349187911,
+        "comm": "tmux: server"
+      },
+      {
+        "pid": 1598743,
+        "cpu_pct": 1.9735505888278908,
+        "ppid": 1,
+        "ticks": 4424949,
+        "start": 871887838,
+        "comm": "tailscaled"
+      },
+      {
+        "pid": 456132,
+        "cpu_pct": 0.9867752944139454,
+        "ppid": 456071,
+        "ticks": 1607,
+        "start": 1533761177,
+        "comm": "postgres"
+      },
+      {
+        "pid": 461199,
+        "cpu_pct": 0.9867752944139454,
+        "ppid": 1,
+        "ticks": 667,
+        "start": 1533764773,
+        "comm": "python3"
+      },
+      {
+        "pid": 2846353,
+        "cpu_pct": 0.9867752944139454,
+        "ppid": 2846270,
+        "ticks": 129609,
+        "start": 1513552801,
+        "comm": "codex"
+      },
+      {
+        "pid": 1,
+        "cpu_pct": 0.0,
+        "ppid": 0,
+        "ticks": 47499,
+        "start": 47,
+        "comm": "systemd"
+      },
+      {
+        "pid": 2,
+        "cpu_pct": 0.0,
+        "ppid": 0,
+        "ticks": 395,
+        "start": 47,
+        "comm": "kthreadd"
+      },
+      {
+        "pid": 3,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "pool_workqueue_release"
+      },
+      {
+        "pid": 4,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-rcu_g"
+      },
+      {
+        "pid": 5,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-rcu_p"
+      },
+      {
+        "pid": 6,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-slub_"
+      },
+      {
+        "pid": 7,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-netns"
+      },
+      {
+        "pid": 10,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/0:0H-events_highpri"
+      },
+      {
+        "pid": 12,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-mm_pe"
+      },
+      {
+        "pid": 13,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "rcu_tasks_kthread"
+      },
+      {
+        "pid": 14,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "rcu_tasks_rude_kthread"
+      },
+      {
+        "pid": 15,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "rcu_tasks_trace_kthread"
+      },
+      {
+        "pid": 16,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 9442,
+        "start": 58,
+        "comm": "ksoftirqd/0"
+      },
+      {
+        "pid": 17,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 169864,
+        "start": 58,
+        "comm": "rcu_preempt"
+      },
+      {
+        "pid": 18,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 3708,
+        "start": 58,
+        "comm": "migration/0"
+      },
+      {
+        "pid": 19,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 58,
+        "comm": "idle_inject/0"
+      },
+      {
+        "pid": 20,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 58,
+        "comm": "cpuhp/0"
+      },
+      {
+        "pid": 21,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 58,
+        "comm": "cpuhp/1"
+      },
+      {
+        "pid": 22,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 58,
+        "comm": "idle_inject/1"
+      }
+    ],
+    "foreign_over_one_core": []
+  },
+  {
+    "time": 1792782582.2295682,
+    "label": "pre-('W5', 1000000, 500, 32, 'same')",
+    "loadavg": "2.73 6.09 9.03 2/950 1088874",
+    "sample_seconds": 1.0203509107232094,
+    "top": [
+      {
+        "pid": 456000,
+        "cpu_pct": 4.9002749421334615,
+        "ppid": 1,
+        "ticks": 22688,
+        "start": 1533761036,
+        "comm": "python3"
+      },
+      {
+        "pid": 556413,
+        "cpu_pct": 1.9601099768533847,
+        "ppid": 1,
+        "ticks": 872091,
+        "start": 1349187911,
+        "comm": "tmux: server"
+      },
+      {
+        "pid": 815560,
+        "cpu_pct": 1.9601099768533847,
+        "ppid": 815506,
+        "ticks": 136052,
+        "start": 1510104419,
+        "comm": "codex"
+      },
+      {
+        "pid": 456132,
+        "cpu_pct": 0.9800549884266924,
+        "ppid": 456071,
+        "ticks": 2002,
+        "start": 1533761177,
+        "comm": "postgres"
+      },
+      {
+        "pid": 556421,
+        "cpu_pct": 0.9800549884266924,
+        "ppid": 556414,
+        "ticks": 99518,
+        "start": 1349187913,
+        "comm": "claude"
+      },
+      {
+        "pid": 601679,
+        "cpu_pct": 0.9800549884266924,
+        "ppid": 601561,
+        "ticks": 2022,
+        "start": 1533875437,
+        "comm": "claude"
+      },
+      {
+        "pid": 2846353,
+        "cpu_pct": 0.9800549884266924,
+        "ppid": 2846270,
+        "ticks": 129929,
+        "start": 1513552801,
+        "comm": "codex"
+      },
+      {
+        "pid": 3077019,
+        "cpu_pct": 0.9800549884266924,
+        "ppid": 3077018,
+        "ticks": 4380,
+        "start": 1533324307,
+        "comm": "codex"
+      },
+      {
+        "pid": 1,
+        "cpu_pct": 0.0,
+        "ppid": 0,
+        "ticks": 47502,
+        "start": 47,
+        "comm": "systemd"
+      },
+      {
+        "pid": 2,
+        "cpu_pct": 0.0,
+        "ppid": 0,
+        "ticks": 395,
+        "start": 47,
+        "comm": "kthreadd"
+      },
+      {
+        "pid": 3,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "pool_workqueue_release"
+      },
+      {
+        "pid": 4,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-rcu_g"
+      },
+      {
+        "pid": 5,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-rcu_p"
+      },
+      {
+        "pid": 6,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-slub_"
+      },
+      {
+        "pid": 7,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-netns"
+      },
+      {
+        "pid": 10,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/0:0H-events_highpri"
+      },
+      {
+        "pid": 12,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-mm_pe"
+      },
+      {
+        "pid": 13,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "rcu_tasks_kthread"
+      },
+      {
+        "pid": 14,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "rcu_tasks_rude_kthread"
+      },
+      {
+        "pid": 15,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "rcu_tasks_trace_kthread"
+      },
+      {
+        "pid": 16,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 9449,
+        "start": 58,
+        "comm": "ksoftirqd/0"
+      },
+      {
+        "pid": 17,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 170009,
+        "start": 58,
+        "comm": "rcu_preempt"
+      },
+      {
+        "pid": 18,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 3710,
+        "start": 58,
+        "comm": "migration/0"
+      },
+      {
+        "pid": 19,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 58,
+        "comm": "idle_inject/0"
+      },
+      {
+        "pid": 20,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 58,
+        "comm": "cpuhp/0"
+      }
+    ],
+    "foreign_over_one_core": []
+  },
+  {
+    "time": 1792783063.8019657,
+    "label": "pre-('W5', 1000000, 500, 32, 'hot1')",
+    "loadavg": "3.11 3.17 6.32 4/948 1141149",
+    "sample_seconds": 1.010899843648076,
+    "top": [
+      {
+        "pid": 456000,
+        "cpu_pct": 5.9353060915981075,
+        "ppid": 1,
+        "ticks": 25024,
+        "start": 1533761036,
+        "comm": "python3"
+      },
+      {
+        "pid": 17,
+        "cpu_pct": 0.9892176819330178,
+        "ppid": 2,
+        "ticks": 170078,
+        "start": 58,
+        "comm": "rcu_preempt"
+      },
+      {
+        "pid": 456124,
+        "cpu_pct": 0.9892176819330178,
+        "ppid": 456000,
+        "ticks": 235,
+        "start": 1533761177,
+        "comm": "psql"
+      },
+      {
+        "pid": 556413,
+        "cpu_pct": 0.9892176819330178,
+        "ppid": 1,
+        "ticks": 872781,
+        "start": 1349187911,
+        "comm": "tmux: server"
+      },
+      {
+        "pid": 601679,
+        "cpu_pct": 0.9892176819330178,
+        "ppid": 601561,
+        "ticks": 2180,
+        "start": 1533875437,
+        "comm": "claude"
+      },
+      {
+        "pid": 601710,
+        "cpu_pct": 0.9892176819330178,
+        "ppid": 601588,
+        "ticks": 2183,
+        "start": 1533875453,
+        "comm": "claude"
+      },
+      {
+        "pid": 815010,
+        "cpu_pct": 0.9892176819330178,
+        "ppid": 814951,
+        "ticks": 131847,
+        "start": 1510103883,
+        "comm": "codex"
+      },
+      {
+        "pid": 1260759,
+        "cpu_pct": 0.9892176819330178,
+        "ppid": 2,
+        "ticks": 10183,
+        "start": 1531758737,
+        "comm": "kworker/u64:0-ext4-rsv-conversion"
+      },
+      {
+        "pid": 1,
+        "cpu_pct": 0.0,
+        "ppid": 0,
+        "ticks": 47507,
+        "start": 47,
+        "comm": "systemd"
+      },
+      {
+        "pid": 2,
+        "cpu_pct": 0.0,
+        "ppid": 0,
+        "ticks": 395,
+        "start": 47,
+        "comm": "kthreadd"
+      },
+      {
+        "pid": 3,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "pool_workqueue_release"
+      },
+      {
+        "pid": 4,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-rcu_g"
+      },
+      {
+        "pid": 5,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-rcu_p"
+      },
+      {
+        "pid": 6,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-slub_"
+      },
+      {
+        "pid": 7,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-netns"
+      },
+      {
+        "pid": 10,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/0:0H-events_highpri"
+      },
+      {
+        "pid": 12,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-mm_pe"
+      },
+      {
+        "pid": 13,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "rcu_tasks_kthread"
+      },
+      {
+        "pid": 14,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "rcu_tasks_rude_kthread"
+      },
+      {
+        "pid": 15,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "rcu_tasks_trace_kthread"
+      },
+      {
+        "pid": 16,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 9454,
+        "start": 58,
+        "comm": "ksoftirqd/0"
+      },
+      {
+        "pid": 18,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 3710,
+        "start": 58,
+        "comm": "migration/0"
+      },
+      {
+        "pid": 19,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 58,
+        "comm": "idle_inject/0"
+      },
+      {
+        "pid": 20,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 58,
+        "comm": "cpuhp/0"
+      },
+      {
+        "pid": 21,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 58,
+        "comm": "cpuhp/1"
+      }
+    ],
+    "foreign_over_one_core": []
+  },
+  {
+    "time": 1792783946.6973515,
+    "label": "pre-('W3', 1000000, 1000, 128, 'disjoint')",
+    "loadavg": "2.49 2.32 3.86 2/994 1666939",
+    "sample_seconds": 1.0201308112591505,
+    "top": [
+      {
+        "pid": 456000,
+        "cpu_pct": 4.901332206433883,
+        "ppid": 1,
+        "ticks": 29578,
+        "start": 1533761036,
+        "comm": "python3"
+      },
+      {
+        "pid": 17,
+        "cpu_pct": 0.9802664412867768,
+        "ppid": 2,
+        "ticks": 170231,
+        "start": 58,
+        "comm": "rcu_preempt"
+      },
+      {
+        "pid": 456132,
+        "cpu_pct": 0.9802664412867768,
+        "ppid": 456071,
+        "ticks": 2534,
+        "start": 1533761177,
+        "comm": "postgres"
+      },
+      {
+        "pid": 556413,
+        "cpu_pct": 0.9802664412867768,
+        "ppid": 1,
+        "ticks": 874071,
+        "start": 1349187911,
+        "comm": "tmux: server"
+      },
+      {
+        "pid": 601631,
+        "cpu_pct": 0.9802664412867768,
+        "ppid": 601480,
+        "ticks": 2252,
+        "start": 1533875407,
+        "comm": "claude"
+      },
+      {
+        "pid": 601637,
+        "cpu_pct": 0.9802664412867768,
+        "ppid": 601508,
+        "ticks": 2293,
+        "start": 1533875414,
+        "comm": "claude"
+      },
+      {
+        "pid": 601710,
+        "cpu_pct": 0.9802664412867768,
+        "ppid": 601588,
+        "ticks": 2464,
+        "start": 1533875453,
+        "comm": "claude"
+      },
+      {
+        "pid": 815010,
+        "cpu_pct": 0.9802664412867768,
+        "ppid": 814951,
+        "ticks": 132153,
+        "start": 1510103883,
+        "comm": "codex"
+      },
+      {
+        "pid": 815560,
+        "cpu_pct": 0.9802664412867768,
+        "ppid": 815506,
+        "ticks": 136513,
+        "start": 1510104419,
+        "comm": "codex"
+      },
+      {
+        "pid": 1598743,
+        "cpu_pct": 0.9802664412867768,
+        "ppid": 1,
+        "ticks": 4427467,
+        "start": 871887838,
+        "comm": "tailscaled"
+      },
+      {
+        "pid": 1743184,
+        "cpu_pct": 0.9802664412867768,
+        "ppid": 1743153,
+        "ticks": 131332,
+        "start": 1511514469,
+        "comm": "codex"
+      },
+      {
+        "pid": 2001164,
+        "cpu_pct": 0.9802664412867768,
+        "ppid": 1,
+        "ticks": 2739,
+        "start": 1528849158,
+        "comm": "fail2ban-server"
+      },
+      {
+        "pid": 2327070,
+        "cpu_pct": 0.9802664412867768,
+        "ppid": 1,
+        "ticks": 43944,
+        "start": 1512667824,
+        "comm": "fleet"
+      },
+      {
+        "pid": 2845772,
+        "cpu_pct": 0.9802664412867768,
+        "ppid": 2845686,
+        "ticks": 129492,
+        "start": 1513552275,
+        "comm": "codex"
+      },
+      {
+        "pid": 1,
+        "cpu_pct": 0.0,
+        "ppid": 0,
+        "ticks": 47514,
+        "start": 47,
+        "comm": "systemd"
+      },
+      {
+        "pid": 2,
+        "cpu_pct": 0.0,
+        "ppid": 0,
+        "ticks": 395,
+        "start": 47,
+        "comm": "kthreadd"
+      },
+      {
+        "pid": 3,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "pool_workqueue_release"
+      },
+      {
+        "pid": 4,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-rcu_g"
+      },
+      {
+        "pid": 5,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-rcu_p"
+      },
+      {
+        "pid": 6,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-slub_"
+      },
+      {
+        "pid": 7,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-netns"
+      },
+      {
+        "pid": 10,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/0:0H-events_highpri"
+      },
+      {
+        "pid": 12,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-mm_pe"
+      },
+      {
+        "pid": 13,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "rcu_tasks_kthread"
+      },
+      {
+        "pid": 14,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "rcu_tasks_rude_kthread"
+      }
+    ],
+    "foreign_over_one_core": []
+  },
+  {
+    "time": 1792784896.3883805,
+    "label": "pre-('W5', 1000000, 1000, 32, 'same')",
+    "loadavg": "1.34 4.47 6.70 4/957 1867143",
+    "sample_seconds": 1.0156887415796518,
+    "top": [
+      {
+        "pid": 456000,
+        "cpu_pct": 4.922767965532177,
+        "ppid": 1,
+        "ticks": 34477,
+        "start": 1533761036,
+        "comm": "python3"
+      },
+      {
+        "pid": 1598743,
+        "cpu_pct": 1.9691071862128708,
+        "ppid": 1,
+        "ticks": 4428517,
+        "start": 871887838,
+        "comm": "tailscaled"
+      },
+      {
+        "pid": 1929452,
+        "cpu_pct": 1.9691071862128708,
+        "ppid": 1929365,
+        "ticks": 34544,
+        "start": 1511900109,
+        "comm": "sshd"
+      },
+      {
+        "pid": 17,
+        "cpu_pct": 0.9845535931064354,
+        "ppid": 2,
+        "ticks": 170380,
+        "start": 58,
+        "comm": "rcu_preempt"
+      },
+      {
+        "pid": 195164,
+        "cpu_pct": 0.9845535931064354,
+        "ppid": 1,
+        "ticks": 3861,
+        "start": 1520195753,
+        "comm": "systemd-resolve"
+      },
+      {
+        "pid": 556413,
+        "cpu_pct": 0.9845535931064354,
+        "ppid": 1,
+        "ticks": 875454,
+        "start": 1349187911,
+        "comm": "tmux: server"
+      },
+      {
+        "pid": 601637,
+        "cpu_pct": 0.9845535931064354,
+        "ppid": 601508,
+        "ticks": 2595,
+        "start": 1533875414,
+        "comm": "claude"
+      },
+      {
+        "pid": 1743184,
+        "cpu_pct": 0.9845535931064354,
+        "ppid": 1743153,
+        "ticks": 131654,
+        "start": 1511514469,
+        "comm": "codex"
+      },
+      {
+        "pid": 1857225,
+        "cpu_pct": 0.9845535931064354,
+        "ppid": 2,
+        "ticks": 2,
+        "start": 1534437675,
+        "comm": "kworker/5:0-events"
+      },
+      {
+        "pid": 1,
+        "cpu_pct": 0.0,
+        "ppid": 0,
+        "ticks": 47519,
+        "start": 47,
+        "comm": "systemd"
+      },
+      {
+        "pid": 2,
+        "cpu_pct": 0.0,
+        "ppid": 0,
+        "ticks": 395,
+        "start": 47,
+        "comm": "kthreadd"
+      },
+      {
+        "pid": 3,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "pool_workqueue_release"
+      },
+      {
+        "pid": 4,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-rcu_g"
+      },
+      {
+        "pid": 5,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-rcu_p"
+      },
+      {
+        "pid": 6,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-slub_"
+      },
+      {
+        "pid": 7,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-netns"
+      },
+      {
+        "pid": 10,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/0:0H-events_highpri"
+      },
+      {
+        "pid": 12,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-mm_pe"
+      },
+      {
+        "pid": 13,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "rcu_tasks_kthread"
+      },
+      {
+        "pid": 14,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "rcu_tasks_rude_kthread"
+      },
+      {
+        "pid": 15,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "rcu_tasks_trace_kthread"
+      },
+      {
+        "pid": 16,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 9472,
+        "start": 58,
+        "comm": "ksoftirqd/0"
+      },
+      {
+        "pid": 18,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 3712,
+        "start": 58,
+        "comm": "migration/0"
+      },
+      {
+        "pid": 19,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 58,
+        "comm": "idle_inject/0"
+      },
+      {
+        "pid": 20,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 58,
+        "comm": "cpuhp/0"
+      }
+    ],
+    "foreign_over_one_core": []
+  },
+  {
+    "time": 1792785394.5933232,
+    "label": "pre-('W5', 1000000, 1000, 32, 'hot1')",
+    "loadavg": "1.97 2.37 4.65 2/960 1927864",
+    "sample_seconds": 1.0169431455433369,
+    "top": [
+      {
+        "pid": 456000,
+        "cpu_pct": 5.900034850811934,
+        "ppid": 1,
+        "ticks": 37024,
+        "start": 1533761036,
+        "comm": "python3"
+      },
+      {
+        "pid": 556413,
+        "cpu_pct": 2.950017425405967,
+        "ppid": 1,
+        "ticks": 876185,
+        "start": 1349187911,
+        "comm": "tmux: server"
+      },
+      {
+        "pid": 1598743,
+        "cpu_pct": 1.9666782836039778,
+        "ppid": 1,
+        "ticks": 4429057,
+        "start": 871887838,
+        "comm": "tailscaled"
+      },
+      {
+        "pid": 2845772,
+        "cpu_pct": 1.9666782836039778,
+        "ppid": 2845686,
+        "ticks": 130004,
+        "start": 1513552275,
+        "comm": "codex"
+      },
+      {
+        "pid": 456132,
+        "cpu_pct": 0.9833391418019889,
+        "ppid": 456071,
+        "ticks": 3122,
+        "start": 1533761177,
+        "comm": "postgres"
+      },
+      {
+        "pid": 461199,
+        "cpu_pct": 0.9833391418019889,
+        "ppid": 1,
+        "ticks": 1358,
+        "start": 1533764773,
+        "comm": "python3"
+      },
+      {
+        "pid": 601710,
+        "cpu_pct": 0.9833391418019889,
+        "ppid": 601588,
+        "ticks": 2945,
+        "start": 1533875453,
+        "comm": "claude"
+      },
+      {
+        "pid": 815560,
+        "cpu_pct": 0.9833391418019889,
+        "ppid": 815506,
+        "ticks": 136985,
+        "start": 1510104419,
+        "comm": "codex"
+      },
+      {
+        "pid": 1075141,
+        "cpu_pct": 0.9833391418019889,
+        "ppid": 1075134,
+        "ticks": 99045,
+        "start": 1352364460,
+        "comm": "claude"
+      },
+      {
+        "pid": 1929452,
+        "cpu_pct": 0.9833391418019889,
+        "ppid": 1929365,
+        "ticks": 34763,
+        "start": 1511900109,
+        "comm": "sshd"
+      },
+      {
+        "pid": 2846353,
+        "cpu_pct": 0.9833391418019889,
+        "ppid": 2846270,
+        "ticks": 130919,
+        "start": 1513552801,
+        "comm": "codex"
+      },
+      {
+        "pid": 1,
+        "cpu_pct": 0.0,
+        "ppid": 0,
+        "ticks": 47521,
+        "start": 47,
+        "comm": "systemd"
+      },
+      {
+        "pid": 2,
+        "cpu_pct": 0.0,
+        "ppid": 0,
+        "ticks": 395,
+        "start": 47,
+        "comm": "kthreadd"
+      },
+      {
+        "pid": 3,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "pool_workqueue_release"
+      },
+      {
+        "pid": 4,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-rcu_g"
+      },
+      {
+        "pid": 5,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-rcu_p"
+      },
+      {
+        "pid": 6,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-slub_"
+      },
+      {
+        "pid": 7,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-netns"
+      },
+      {
+        "pid": 10,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/0:0H-events_highpri"
+      },
+      {
+        "pid": 12,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-mm_pe"
+      },
+      {
+        "pid": 13,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "rcu_tasks_kthread"
+      },
+      {
+        "pid": 14,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "rcu_tasks_rude_kthread"
+      },
+      {
+        "pid": 15,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "rcu_tasks_trace_kthread"
+      },
+      {
+        "pid": 16,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 9477,
+        "start": 58,
+        "comm": "ksoftirqd/0"
+      },
+      {
+        "pid": 17,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 170457,
+        "start": 58,
+        "comm": "rcu_preempt"
+      }
+    ],
+    "foreign_over_one_core": []
+  },
+  {
+    "time": 1792786403.0915005,
+    "label": "b1-('W3', 1000000, 500, 128, 'disjoint')",
+    "loadavg": "2.02 2.04 3.06 2/944 2568833",
+    "sample_seconds": 1.0129632633179426,
+    "top": [
+      {
+        "pid": 456000,
+        "cpu_pct": 4.936013161644769,
+        "ppid": 1,
+        "ticks": 42173,
+        "start": 1533761036,
+        "comm": "python3"
+      },
+      {
+        "pid": 556413,
+        "cpu_pct": 1.9744052646579073,
+        "ppid": 1,
+        "ticks": 877642,
+        "start": 1349187911,
+        "comm": "tmux: server"
+      },
+      {
+        "pid": 456124,
+        "cpu_pct": 0.9872026323289537,
+        "ppid": 456000,
+        "ticks": 392,
+        "start": 1533761177,
+        "comm": "psql"
+      },
+      {
+        "pid": 456132,
+        "cpu_pct": 0.9872026323289537,
+        "ppid": 456071,
+        "ticks": 3517,
+        "start": 1533761177,
+        "comm": "postgres"
+      },
+      {
+        "pid": 556421,
+        "cpu_pct": 0.9872026323289537,
+        "ppid": 556414,
+        "ticks": 100345,
+        "start": 1349187913,
+        "comm": "claude"
+      },
+      {
+        "pid": 601637,
+        "cpu_pct": 0.9872026323289537,
+        "ppid": 601508,
+        "ticks": 3042,
+        "start": 1533875414,
+        "comm": "claude"
+      },
+      {
+        "pid": 601653,
+        "cpu_pct": 0.9872026323289537,
+        "ppid": 601538,
+        "ticks": 3197,
+        "start": 1533875423,
+        "comm": "claude"
+      },
+      {
+        "pid": 2001164,
+        "cpu_pct": 0.9872026323289537,
+        "ppid": 1,
+        "ticks": 2841,
+        "start": 1528849158,
+        "comm": "fail2ban-server"
+      },
+      {
+        "pid": 2846353,
+        "cpu_pct": 0.9872026323289537,
+        "ppid": 2846270,
+        "ticks": 131274,
+        "start": 1513552801,
+        "comm": "codex"
+      },
+      {
+        "pid": 1,
+        "cpu_pct": 0.0,
+        "ppid": 0,
+        "ticks": 47526,
+        "start": 47,
+        "comm": "systemd"
+      },
+      {
+        "pid": 2,
+        "cpu_pct": 0.0,
+        "ppid": 0,
+        "ticks": 395,
+        "start": 47,
+        "comm": "kthreadd"
+      },
+      {
+        "pid": 3,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "pool_workqueue_release"
+      },
+      {
+        "pid": 4,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-rcu_g"
+      },
+      {
+        "pid": 5,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-rcu_p"
+      },
+      {
+        "pid": 6,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-slub_"
+      },
+      {
+        "pid": 7,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-netns"
+      },
+      {
+        "pid": 10,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/0:0H-events_highpri"
+      },
+      {
+        "pid": 12,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-mm_pe"
+      },
+      {
+        "pid": 13,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "rcu_tasks_kthread"
+      },
+      {
+        "pid": 14,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "rcu_tasks_rude_kthread"
+      },
+      {
+        "pid": 15,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "rcu_tasks_trace_kthread"
+      },
+      {
+        "pid": 16,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 9489,
+        "start": 58,
+        "comm": "ksoftirqd/0"
+      },
+      {
+        "pid": 17,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 170632,
+        "start": 58,
+        "comm": "rcu_preempt"
+      },
+      {
+        "pid": 18,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 3714,
+        "start": 58,
+        "comm": "migration/0"
+      },
+      {
+        "pid": 19,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 58,
+        "comm": "idle_inject/0"
+      }
+    ],
+    "foreign_over_one_core": []
+  },
+  {
+    "time": 1792787341.1947317,
+    "label": "b1-('W5', 1000000, 500, 32, 'same')",
+    "loadavg": "2.64 5.42 7.92 5/1025 2757396",
+    "sample_seconds": 1.0166537556797266,
+    "top": [
+      {
+        "pid": 456000,
+        "cpu_pct": 4.91809524340668,
+        "ppid": 1,
+        "ticks": 47052,
+        "start": 1533761036,
+        "comm": "python3"
+      },
+      {
+        "pid": 1598743,
+        "cpu_pct": 2.9508571460440076,
+        "ppid": 1,
+        "ticks": 4431184,
+        "start": 871887838,
+        "comm": "tailscaled"
+      },
+      {
+        "pid": 556413,
+        "cpu_pct": 1.9672380973626717,
+        "ppid": 1,
+        "ticks": 879070,
+        "start": 1349187911,
+        "comm": "tmux: server"
+      },
+      {
+        "pid": 601653,
+        "cpu_pct": 1.9672380973626717,
+        "ppid": 601538,
+        "ticks": 3507,
+        "start": 1533875423,
+        "comm": "claude"
+      },
+      {
+        "pid": 601710,
+        "cpu_pct": 1.9672380973626717,
+        "ppid": 601588,
+        "ticks": 3575,
+        "start": 1533875453,
+        "comm": "claude"
+      },
+      {
+        "pid": 195164,
+        "cpu_pct": 0.9836190486813359,
+        "ppid": 1,
+        "ticks": 4010,
+        "start": 1520195753,
+        "comm": "systemd-resolve"
+      },
+      {
+        "pid": 601631,
+        "cpu_pct": 0.9836190486813359,
+        "ppid": 601480,
+        "ticks": 3319,
+        "start": 1533875407,
+        "comm": "claude"
+      },
+      {
+        "pid": 1929452,
+        "cpu_pct": 0.9836190486813359,
+        "ppid": 1929365,
+        "ticks": 35611,
+        "start": 1511900109,
+        "comm": "sshd"
+      },
+      {
+        "pid": 2845772,
+        "cpu_pct": 0.9836190486813359,
+        "ppid": 2845686,
+        "ticks": 130702,
+        "start": 1513552275,
+        "comm": "codex"
+      },
+      {
+        "pid": 2846353,
+        "cpu_pct": 0.9836190486813359,
+        "ppid": 2846270,
+        "ticks": 131599,
+        "start": 1513552801,
+        "comm": "codex"
+      },
+      {
+        "pid": 3077019,
+        "cpu_pct": 0.9836190486813359,
+        "ppid": 3077018,
+        "ticks": 6357,
+        "start": 1533324307,
+        "comm": "codex"
+      },
+      {
+        "pid": 1,
+        "cpu_pct": 0.0,
+        "ppid": 0,
+        "ticks": 47534,
+        "start": 47,
+        "comm": "systemd"
+      },
+      {
+        "pid": 2,
+        "cpu_pct": 0.0,
+        "ppid": 0,
+        "ticks": 395,
+        "start": 47,
+        "comm": "kthreadd"
+      },
+      {
+        "pid": 3,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "pool_workqueue_release"
+      },
+      {
+        "pid": 4,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-rcu_g"
+      },
+      {
+        "pid": 5,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-rcu_p"
+      },
+      {
+        "pid": 6,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-slub_"
+      },
+      {
+        "pid": 7,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-netns"
+      },
+      {
+        "pid": 10,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/0:0H-events_highpri"
+      },
+      {
+        "pid": 12,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-mm_pe"
+      },
+      {
+        "pid": 13,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "rcu_tasks_kthread"
+      },
+      {
+        "pid": 14,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "rcu_tasks_rude_kthread"
+      },
+      {
+        "pid": 15,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "rcu_tasks_trace_kthread"
+      },
+      {
+        "pid": 16,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 9496,
+        "start": 58,
+        "comm": "ksoftirqd/0"
+      },
+      {
+        "pid": 17,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 170780,
+        "start": 58,
+        "comm": "rcu_preempt"
+      }
+    ],
+    "foreign_over_one_core": []
+  },
+  {
+    "time": 1792787634.5826852,
+    "label": "b1-('W5', 1000000, 500, 32, 'hot1')",
+    "loadavg": "3.08 3.53 6.37 9/987 2784055",
+    "sample_seconds": 1.0116453059017658,
+    "top": [
+      {
+        "pid": 456000,
+        "cpu_pct": 4.942443730851964,
+        "ppid": 1,
+        "ticks": 48546,
+        "start": 1533761036,
+        "comm": "python3"
+      },
+      {
+        "pid": 556413,
+        "cpu_pct": 1.9769774923407857,
+        "ppid": 1,
+        "ticks": 879491,
+        "start": 1349187911,
+        "comm": "tmux: server"
+      },
+      {
+        "pid": 84,
+        "cpu_pct": 0.9884887461703928,
+        "ppid": 2,
+        "ticks": 21269,
+        "start": 59,
+        "comm": "ksoftirqd/11"
+      },
+      {
+        "pid": 456132,
+        "cpu_pct": 0.9884887461703928,
+        "ppid": 456071,
+        "ticks": 4021,
+        "start": 1533761177,
+        "comm": "postgres"
+      },
+      {
+        "pid": 601637,
+        "cpu_pct": 0.9884887461703928,
+        "ppid": 601508,
+        "ticks": 3424,
+        "start": 1533875414,
+        "comm": "claude"
+      },
+      {
+        "pid": 601710,
+        "cpu_pct": 0.9884887461703928,
+        "ppid": 601588,
+        "ticks": 3679,
+        "start": 1533875453,
+        "comm": "claude"
+      },
+      {
+        "pid": 1260759,
+        "cpu_pct": 0.9884887461703928,
+        "ppid": 2,
+        "ticks": 11120,
+        "start": 1531758737,
+        "comm": "kworker/u64:0-ext4-rsv-conversion"
+      },
+      {
+        "pid": 1743184,
+        "cpu_pct": 0.9884887461703928,
+        "ppid": 1743153,
+        "ticks": 132601,
+        "start": 1511514469,
+        "comm": "codex"
+      },
+      {
+        "pid": 1929452,
+        "cpu_pct": 0.9884887461703928,
+        "ppid": 1929365,
+        "ticks": 35755,
+        "start": 1511900109,
+        "comm": "sshd"
+      },
+      {
+        "pid": 1,
+        "cpu_pct": 0.0,
+        "ppid": 0,
+        "ticks": 47534,
+        "start": 47,
+        "comm": "systemd"
+      },
+      {
+        "pid": 2,
+        "cpu_pct": 0.0,
+        "ppid": 0,
+        "ticks": 395,
+        "start": 47,
+        "comm": "kthreadd"
+      },
+      {
+        "pid": 3,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "pool_workqueue_release"
+      },
+      {
+        "pid": 4,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-rcu_g"
+      },
+      {
+        "pid": 5,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-rcu_p"
+      },
+      {
+        "pid": 6,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-slub_"
+      },
+      {
+        "pid": 7,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-netns"
+      },
+      {
+        "pid": 10,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/0:0H-events_highpri"
+      },
+      {
+        "pid": 12,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-mm_pe"
+      },
+      {
+        "pid": 13,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "rcu_tasks_kthread"
+      },
+      {
+        "pid": 14,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "rcu_tasks_rude_kthread"
+      },
+      {
+        "pid": 15,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "rcu_tasks_trace_kthread"
+      },
+      {
+        "pid": 16,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 9499,
+        "start": 58,
+        "comm": "ksoftirqd/0"
+      },
+      {
+        "pid": 17,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 170820,
+        "start": 58,
+        "comm": "rcu_preempt"
+      },
+      {
+        "pid": 18,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 3715,
+        "start": 58,
+        "comm": "migration/0"
+      },
+      {
+        "pid": 19,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 58,
+        "comm": "idle_inject/0"
+      }
+    ],
+    "foreign_over_one_core": []
+  },
+  {
+    "time": 1792788405.4958777,
+    "label": "b1-('W3', 1000000, 1000, 128, 'disjoint')",
+    "loadavg": "1.61 2.36 4.16 1/923 2849946",
+    "sample_seconds": 1.0204199608415365,
+    "top": [
+      {
+        "pid": 456000,
+        "cpu_pct": 4.899943348693923,
+        "ppid": 1,
+        "ticks": 52827,
+        "start": 1533761036,
+        "comm": "python3"
+      },
+      {
+        "pid": 556413,
+        "cpu_pct": 1.959977339477569,
+        "ppid": 1,
+        "ticks": 880536,
+        "start": 1349187911,
+        "comm": "tmux: server"
+      },
+      {
+        "pid": 601653,
+        "cpu_pct": 0.9799886697387845,
+        "ppid": 601538,
+        "ticks": 3862,
+        "start": 1533875423,
+        "comm": "claude"
+      },
+      {
+        "pid": 815560,
+        "cpu_pct": 0.9799886697387845,
+        "ppid": 815506,
+        "ticks": 137987,
+        "start": 1510104419,
+        "comm": "codex"
+      },
+      {
+        "pid": 1598743,
+        "cpu_pct": 0.9799886697387845,
+        "ppid": 1,
+        "ticks": 4432491,
+        "start": 871887838,
+        "comm": "tailscaled"
+      },
+      {
+        "pid": 1,
+        "cpu_pct": 0.0,
+        "ppid": 0,
+        "ticks": 47538,
+        "start": 47,
+        "comm": "systemd"
+      },
+      {
+        "pid": 2,
+        "cpu_pct": 0.0,
+        "ppid": 0,
+        "ticks": 395,
+        "start": 47,
+        "comm": "kthreadd"
+      },
+      {
+        "pid": 3,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "pool_workqueue_release"
+      },
+      {
+        "pid": 4,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-rcu_g"
+      },
+      {
+        "pid": 5,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-rcu_p"
+      },
+      {
+        "pid": 6,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-slub_"
+      },
+      {
+        "pid": 7,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-netns"
+      },
+      {
+        "pid": 10,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/0:0H-events_highpri"
+      },
+      {
+        "pid": 12,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-mm_pe"
+      },
+      {
+        "pid": 13,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "rcu_tasks_kthread"
+      },
+      {
+        "pid": 14,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "rcu_tasks_rude_kthread"
+      },
+      {
+        "pid": 15,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "rcu_tasks_trace_kthread"
+      },
+      {
+        "pid": 16,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 9506,
+        "start": 58,
+        "comm": "ksoftirqd/0"
+      },
+      {
+        "pid": 17,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 170919,
+        "start": 58,
+        "comm": "rcu_preempt"
+      },
+      {
+        "pid": 18,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 3716,
+        "start": 58,
+        "comm": "migration/0"
+      },
+      {
+        "pid": 19,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 58,
+        "comm": "idle_inject/0"
+      },
+      {
+        "pid": 20,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 58,
+        "comm": "cpuhp/0"
+      },
+      {
+        "pid": 21,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 58,
+        "comm": "cpuhp/1"
+      },
+      {
+        "pid": 22,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 58,
+        "comm": "idle_inject/1"
+      },
+      {
+        "pid": 23,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 3638,
+        "start": 58,
+        "comm": "migration/1"
+      }
+    ],
+    "foreign_over_one_core": []
+  },
+  {
+    "time": 1792789352.63768,
+    "label": "b1-('W5', 1000000, 1000, 32, 'same')",
+    "loadavg": "0.96 4.02 6.68 11/965 3021108",
+    "sample_seconds": 1.0213032811880112,
+    "top": [
+      {
+        "pid": 456000,
+        "cpu_pct": 6.853987575421658,
+        "ppid": 1,
+        "ticks": 57949,
+        "start": 1533761036,
+        "comm": "python3"
+      },
+      {
+        "pid": 1598743,
+        "cpu_pct": 0.9791410822030939,
+        "ppid": 1,
+        "ticks": 4433497,
+        "start": 871887838,
+        "comm": "tailscaled"
+      },
+      {
+        "pid": 2845772,
+        "cpu_pct": 0.9791410822030939,
+        "ppid": 2845686,
+        "ticks": 131319,
+        "start": 1513552275,
+        "comm": "codex"
+      },
+      {
+        "pid": 1,
+        "cpu_pct": 0.0,
+        "ppid": 0,
+        "ticks": 47542,
+        "start": 47,
+        "comm": "systemd"
+      },
+      {
+        "pid": 2,
+        "cpu_pct": 0.0,
+        "ppid": 0,
+        "ticks": 395,
+        "start": 47,
+        "comm": "kthreadd"
+      },
+      {
+        "pid": 3,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "pool_workqueue_release"
+      },
+      {
+        "pid": 4,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-rcu_g"
+      },
+      {
+        "pid": 5,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-rcu_p"
+      },
+      {
+        "pid": 6,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-slub_"
+      },
+      {
+        "pid": 7,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-netns"
+      },
+      {
+        "pid": 10,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/0:0H-events_highpri"
+      },
+      {
+        "pid": 12,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-mm_pe"
+      },
+      {
+        "pid": 13,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "rcu_tasks_kthread"
+      },
+      {
+        "pid": 14,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "rcu_tasks_rude_kthread"
+      },
+      {
+        "pid": 15,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "rcu_tasks_trace_kthread"
+      },
+      {
+        "pid": 16,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 9510,
+        "start": 58,
+        "comm": "ksoftirqd/0"
+      },
+      {
+        "pid": 17,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 171044,
+        "start": 58,
+        "comm": "rcu_preempt"
+      },
+      {
+        "pid": 18,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 3717,
+        "start": 58,
+        "comm": "migration/0"
+      },
+      {
+        "pid": 19,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 58,
+        "comm": "idle_inject/0"
+      },
+      {
+        "pid": 20,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 58,
+        "comm": "cpuhp/0"
+      },
+      {
+        "pid": 21,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 58,
+        "comm": "cpuhp/1"
+      },
+      {
+        "pid": 22,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 58,
+        "comm": "idle_inject/1"
+      },
+      {
+        "pid": 23,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 3639,
+        "start": 58,
+        "comm": "migration/1"
+      },
+      {
+        "pid": 24,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 9000,
+        "start": 58,
+        "comm": "ksoftirqd/1"
+      },
+      {
+        "pid": 26,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 58,
+        "comm": "kworker/1:0H-events_highpri"
+      }
+    ],
+    "foreign_over_one_core": []
+  },
+  {
+    "time": 1792789741.302867,
+    "label": "b1-('W5', 1000000, 1000, 32, 'hot1')",
+    "loadavg": "0.80 1.74 4.70 1/959 3034032",
+    "sample_seconds": 1.0185233503580093,
+    "top": [
+      {
+        "pid": 456000,
+        "cpu_pct": 4.909067620533695,
+        "ppid": 1,
+        "ticks": 60010,
+        "start": 1533761036,
+        "comm": "python3"
+      },
+      {
+        "pid": 456124,
+        "cpu_pct": 0.981813524106739,
+        "ppid": 456000,
+        "ticks": 550,
+        "start": 1533761177,
+        "comm": "psql"
+      },
+      {
+        "pid": 456132,
+        "cpu_pct": 0.981813524106739,
+        "ppid": 456071,
+        "ticks": 4950,
+        "start": 1533761177,
+        "comm": "postgres"
+      },
+      {
+        "pid": 601710,
+        "cpu_pct": 0.981813524106739,
+        "ppid": 601588,
+        "ticks": 4363,
+        "start": 1533875453,
+        "comm": "claude"
+      },
+      {
+        "pid": 1,
+        "cpu_pct": 0.0,
+        "ppid": 0,
+        "ticks": 47544,
+        "start": 47,
+        "comm": "systemd"
+      },
+      {
+        "pid": 2,
+        "cpu_pct": 0.0,
+        "ppid": 0,
+        "ticks": 395,
+        "start": 47,
+        "comm": "kthreadd"
+      },
+      {
+        "pid": 3,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "pool_workqueue_release"
+      },
+      {
+        "pid": 4,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-rcu_g"
+      },
+      {
+        "pid": 5,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-rcu_p"
+      },
+      {
+        "pid": 6,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-slub_"
+      },
+      {
+        "pid": 7,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-netns"
+      },
+      {
+        "pid": 10,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/0:0H-events_highpri"
+      },
+      {
+        "pid": 12,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "kworker/R-mm_pe"
+      },
+      {
+        "pid": 13,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "rcu_tasks_kthread"
+      },
+      {
+        "pid": 14,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "rcu_tasks_rude_kthread"
+      },
+      {
+        "pid": 15,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 57,
+        "comm": "rcu_tasks_trace_kthread"
+      },
+      {
+        "pid": 16,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 9512,
+        "start": 58,
+        "comm": "ksoftirqd/0"
+      },
+      {
+        "pid": 17,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 171071,
+        "start": 58,
+        "comm": "rcu_preempt"
+      },
+      {
+        "pid": 18,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 3717,
+        "start": 58,
+        "comm": "migration/0"
+      },
+      {
+        "pid": 19,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 58,
+        "comm": "idle_inject/0"
+      },
+      {
+        "pid": 20,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 58,
+        "comm": "cpuhp/0"
+      },
+      {
+        "pid": 21,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 58,
+        "comm": "cpuhp/1"
+      },
+      {
+        "pid": 22,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 0,
+        "start": 58,
+        "comm": "idle_inject/1"
+      },
+      {
+        "pid": 23,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 3639,
+        "start": 58,
+        "comm": "migration/1"
+      },
+      {
+        "pid": 24,
+        "cpu_pct": 0.0,
+        "ppid": 2,
+        "ticks": 9002,
+        "start": 58,
+        "comm": "ksoftirqd/1"
+      }
+    ],
+    "foreign_over_one_core": []
+  }
+]

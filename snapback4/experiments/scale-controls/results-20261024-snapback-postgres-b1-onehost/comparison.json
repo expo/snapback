@@ -1,0 +1,122 @@
+[
+  {
+    "workload": "W1",
+    "keys": "disjoint",
+    "link": "A",
+    "pre": 1000,
+    "b1": 2828,
+    "ratio": 2.828,
+    "pre_exchanges": 23.0,
+    "b1_exchanges": 6.0
+  },
+  {
+    "workload": "W1",
+    "keys": "disjoint",
+    "link": "B",
+    "pre": 707,
+    "b1": 2000,
+    "ratio": 2.828854314002829,
+    "pre_exchanges": 23.0,
+    "b1_exchanges": 6.0
+  },
+  {
+    "workload": "W2",
+    "keys": "disjoint",
+    "link": "A",
+    "pre": 1000,
+    "b1": 1414,
+    "ratio": 1.414,
+    "pre_exchanges": 23.0,
+    "b1_exchanges": 6.0
+  },
+  {
+    "workload": "W2",
+    "keys": "disjoint",
+    "link": "B",
+    "pre": 707,
+    "b1": 1414,
+    "ratio": 2.0,
+    "pre_exchanges": 23.0,
+    "b1_exchanges": 6.0
+  },
+  {
+    "workload": "W4",
+    "keys": "disjoint",
+    "link": "A",
+    "pre": 25,
+    "b1": 70,
+    "ratio": 2.8,
+    "pre_exchanges": 57.0,
+    "b1_exchanges": 16.0
+  },
+  {
+    "workload": "W4",
+    "keys": "disjoint",
+    "link": "B",
+    "pre": 12,
+    "b1": 35,
+    "ratio": 2.9166666666666665,
+    "pre_exchanges": 57.0,
+    "b1_exchanges": 16.0
+  },
+  {
+    "workload": "W3",
+    "keys": "disjoint",
+    "link": "A",
+    "pre": null,
+    "b1": null,
+    "ratio": null,
+    "pre_exchanges": 153.0,
+    "b1_exchanges": 136.0
+  },
+  {
+    "workload": "W3",
+    "keys": "disjoint",
+    "link": "B",
+    "pre": null,
+    "b1": null,
+    "ratio": null,
+    "pre_exchanges": 153.0,
+    "b1_exchanges": 136.0
+  },
+  {
+    "workload": "W5",
+    "keys": "same",
+    "link": "A",
+    "pre": 17,
+    "b1": 50,
+    "ratio": 2.9411764705882355,
+    "pre_exchanges": 60.0,
+    "b1_exchanges": 19.0
+  },
+  {
+    "workload": "W5",
+    "keys": "same",
+    "link": "B",
+    "pre": 12,
+    "b1": 35,
+    "ratio": 2.9166666666666665,
+    "pre_exchanges": 60.0,
+    "b1_exchanges": 19.0
+  },
+  {
+    "workload": "W5",
+    "keys": "hot1",
+    "link": "A",
+    "pre": 25,
+    "b1": 70,
+    "ratio": 2.8,
+    "pre_exchanges": 57.03,
+    "b1_exchanges": 16.03
+  },
+  {
+    "workload": "W5",
+    "keys": "hot1",
+    "link": "B",
+    "pre": 12,
+    "b1": 35,
+    "ratio": 2.9166666666666665,
+    "pre_exchanges": 57.03,
+    "b1_exchanges": 16.03
+  }
+]

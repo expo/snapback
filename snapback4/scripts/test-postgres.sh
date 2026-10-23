@@ -62,7 +62,9 @@ cargo test --locked --no-fail-fast --manifest-path experiments/postgres/Cargo.to
   --skip unified_add_spare_capacity_meter_overlap_regression \
   --skip evaluator_racing_refused_operations_replay_one_receipt_without_advancing_head || status=1
 refresh_shared_target Cargo.toml || status=1
-cargo test --locked -p snapback4-core --features postgres --lib engine::postgres::tests -- --include-ignored --nocapture || status=1
+cargo test --locked -p snapback4-core --features postgres --lib engine::postgres::tests -- --include-ignored --nocapture --skip plan_hygiene::log_plan_hygiene_cold_backend_tail_scan_witness || status=1
+# The cold-plan witness observes cluster-wide plan/statistics state; run it alone.
+cargo test --locked -p snapback4-core --features postgres --lib engine::postgres::tests::plan_hygiene::log_plan_hygiene_cold_backend_tail_scan_witness -- --include-ignored --nocapture --test-threads 1 || status=1
 cargo test --locked -p snapback4-core --features postgres --lib change_evidence -- --include-ignored --nocapture || status=1
 cargo test --locked -p snapback4-core --features postgres --lib engine::postgres::literal_tests -- --include-ignored --nocapture || status=1
 cargo test --locked -p snapback4-core --features postgres --lib engine::postgres::ownership::tests -- --include-ignored --nocapture || status=1

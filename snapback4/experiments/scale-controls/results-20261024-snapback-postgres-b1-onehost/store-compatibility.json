@@ -1,0 +1,3779 @@
+{
+  "before": {
+    "backend": [
+      {
+        "schema": "{\"source_reservations\":{\"$column:51f36fd4ff926ffe6b9711cfc3cd239785d464e9db9654f9db87a2c11d8906dc\":{\"prices\":[[0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0]],\"birth\":[0,0,0,0,0,0,0],\"server_only\":false},\"$column:fbc8f2b666315087dbf3bc74f9b396d9ede6857749557ea132aa424b989f2e0b\":{\"prices\":[[0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0]],\"birth\":[0,0,0,0,0,0,0],\"server_only\":false},\"counters\":{\"prices\":[[0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0]],\"birth\":[0,0,0,0,0,0,0],\"server_only\":false},\"memberships\":{\"prices\":[[0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0]],\"birth\":[0,0,0,0,0,0,0],\"server_only\":false},\"messages\":{\"prices\":[[20,28,8,8,116508,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0]],\"birth\":[0,0,0,0,0,0,0],\"server_only\":false},\"rooms\":{\"prices\":[[0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0]],\"birth\":[0,0,1,0,933,0,0],\"server_only\":false},\"users\":{\"prices\":[[0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0]],\"birth\":[0,0,1,0,1165,0,0],\"server_only\":false}},\"tables\":{\"$column:51f36fd4ff926ffe6b9711cfc3cd239785d464e9db9654f9db87a2c11d8906dc\":{\"residency\":{\"online_only\":true},\"columns\":{\"$parent\":{\"Ref\":{\"table\":\"users\"}},\"id\":\"Id\",\"value\":\"Int\"},\"indexes\":{\"byGroup\":{\"components\":[{\"Column\":\"$parent\"}],\"unique\":true},\"byId\":{\"components\":[{\"Column\":\"id\"}],\"unique\":true}},\"rules\":{\"read\":\"Deny\",\"insert\":\"Deny\",\"update\":\"Deny\",\"delete\":\"Deny\"},\"constraints\":[{\"Capabilities\":[\"branch-pages-v3\",\"maintained-column\",\"maintained-id-sha256-v1\",\"reference-actions\",\"rule-reference\",\"source-write-reservations-v1\",\"source-write-reservations-v2\"]}],\"leave\":\"until-revoked\"},\"$column:fbc8f2b666315087dbf3bc74f9b396d9ede6857749557ea132aa424b989f2e0b\":{\"residency\":{\"online_only\":true},\"columns\":{\"$parent\":{\"Ref\":{\"table\":\"rooms\"}},\"id\":\"Id\",\"value\":\"Int\"},\"indexes\":{\"byGroup\":{\"components\":[{\"Column\":\"$parent\"}],\"unique\":true},\"byId\":{\"components\":[{\"Column\":\"id\"}],\"unique\":true}},\"rules\":{\"read\":\"Deny\",\"insert\":\"Deny\",\"update\":\"Deny\",\"delete\":\"Deny\"},\"constraints\":[],\"leave\":\"until-revoked\"},\"counters\":{\"onDelete\":{\"room\":\"restrict\"},\"residency\":{\"online_only\":true},\"defaults\":{\"n\":{\"Literal\":{\"Int\":0}}},\"columns\":{\"id\":\"Id\",\"n\":\"Int\",\"owner\":{\"Optional\":\"Principal\"},\"room\":{\"Ref\":{\"table\":\"rooms\"}}},\"indexes\":{\"$reference:room\":{\"components\":[{\"Column\":\"room\"},{\"Column\":\"id\"}],\"unique\":false},\"byId\":{\"components\":[{\"Column\":\"id\"}],\"unique\":true}},\"rules\":{\"read\":{\"Or\":[{\"Eq\":[{\"Field\":\"owner\"},\"Viewer\"]},{\"And\":[{\"Eq\":[{\"Field\":\"owner\"},{\"Literal\":\"Null\"}]},{\"Exists\":{\"table\":\"memberships\",\"index\":\"$intent:byRoomPrincipal:97c7db2245b2c441\",\"key\":[{\"Field\":\"room\"},\"Viewer\"],\"provenance\":\"Shape\"}}]}]},\"insert\":\"Deny\",\"update\":{\"Or\":[{\"Eq\":[{\"Field\":\"owner\"},\"Viewer\"]},{\"And\":[{\"Eq\":[{\"Field\":\"owner\"},{\"Literal\":\"Null\"}]},{\"Exists\":{\"table\":\"memberships\",\"index\":\"$intent:byRoomPrincipal:97c7db2245b2c441\",\"key\":[{\"Field\":\"room\"},\"Viewer\"],\"provenance\":\"Shape\"}}]}]},\"delete\":\"Deny\"},\"constraints\":[{\"Immutable\":{\"fields\":[\"owner\",\"room\"]}}],\"leave\":\"until-revoked\"},\"memberships\":{\"onDelete\":{\"room\":\"restrict\"},\"residency\":{\"online_only\":true},\"defaults\":{\"last_read\":{\"Literal\":{\"Int\":0}}},\"columns\":{\"id\":\"Id\",\"last_read\":\"Int\",\"principal\":\"Principal\",\"room\":{\"Ref\":{\"table\":\"rooms\"}}},\"indexes\":{\"$intent:byPrincipalRoom:4cdf929dd56b24d2\":{\"components\":[{\"Column\":\"principal\"},{\"Column\":\"room\"},{\"Column\":\"id\"}],\"unique\":false},\"$intent:byRoomPrincipal:97c7db2245b2c441\":{\"components\":[{\"Column\":\"room\"},{\"Column\":\"principal\"}],\"unique\":true},\"byId\":{\"components\":[{\"Column\":\"id\"}],\"unique\":true}},\"rules\":{\"read\":{\"Eq\":[{\"Field\":\"principal\"},\"Viewer\"]},\"insert\":\"Deny\",\"update\":\"Deny\",\"delete\":\"Deny\"},\"constraints\":[{\"Unique\":{\"index\":\"$intent:byRoomPrincipal:97c7db2245b2c441\"}},{\"Immutable\":{\"fields\":[\"room\",\"principal\"]}}],\"leave\":\"until-revoked\"},\"messages\":{\"onDelete\":{\"room\":\"restrict\",\"sender\":\"restrict\"},\"residency\":{\"online_only\":true},\"columns\":{\"at\":\"Time\",\"body\":{\"Text\":{\"max\":4000}},\"id\":\"Id\",\"room\":{\"Ref\":{\"table\":\"rooms\"}},\"sender\":{\"Ref\":{\"table\":\"users\"}}},\"indexes\":{\"$intent:byRoomAt:cac276d27b82ccf0\":{\"components\":[{\"Column\":\"room\"},{\"Column\":\"at\"},{\"Column\":\"id\"}],\"unique\":false},\"$reference:sender\":{\"components\":[{\"Column\":\"sender\"},{\"Column\":\"id\"}],\"unique\":false},\"byId\":{\"components\":[{\"Column\":\"id\"}],\"unique\":true}},\"rules\":{\"read\":{\"Exists\":{\"table\":\"memberships\",\"index\":\"$intent:byRoomPrincipal:97c7db2245b2c441\",\"key\":[{\"Field\":\"room\"},\"Viewer\"],\"provenance\":\"Shape\"}},\"insert\":{\"And\":[{\"Eq\":[{\"Reference\":{\"table\":\"users\",\"column\":\"sender\",\"field\":\"principal\",\"old\":false}},\"Viewer\"]},{\"Exists\":{\"table\":\"memberships\",\"index\":\"$intent:byRoomPrincipal:97c7db2245b2c441\",\"key\":[{\"Field\":\"room\"},\"Viewer\"],\"provenance\":\"Shape\"}}]},\"update\":\"Deny\",\"delete\":\"Deny\"},\"constraints\":[{\"Immutable\":{\"fields\":[\"room\",\"sender\",\"at\"]}}],\"leave\":\"until-revoked\"},\"rooms\":{\"maintained\":{\"total\":\"d8c57db0dc34132fa6f68b503e580af1e34bdf07e7b6f71a5557e74738b632e1\"},\"residency\":{\"online_only\":true},\"columns\":{\"id\":\"Id\",\"total\":\"Int\"},\"indexes\":{\"byId\":{\"components\":[{\"Column\":\"id\"}],\"unique\":true}},\"rules\":{\"read\":\"Allow\",\"insert\":\"Deny\",\"update\":\"Deny\",\"delete\":\"Deny\"},\"constraints\":[],\"leave\":\"until-revoked\"},\"users\":{\"maintained\":{\"sent\":\"a450dddec0256b68f90fdb0fde7d74b0bc3d4d291d66e1f1ddab7eea8ad321ab\"},\"residency\":{\"online_only\":true},\"columns\":{\"id\":\"Id\",\"principal\":\"Principal\",\"sent\":\"Int\"},\"indexes\":{\"$intent:byPrincipal:8097d97fddadb304\":{\"components\":[{\"Column\":\"principal\"}],\"unique\":true},\"byId\":{\"components\":[{\"Column\":\"id\"}],\"unique\":true}},\"rules\":{\"read\":\"Allow\",\"insert\":\"Deny\",\"update\":\"Deny\",\"delete\":\"Deny\"},\"constraints\":[{\"Unique\":{\"index\":\"$intent:byPrincipal:8097d97fddadb304\"}},{\"Immutable\":{\"fields\":[\"principal\"]}}],\"leave\":\"until-revoked\"}},\"maintains\":[{\"parent_key\":null,\"private\":{\"table\":\"rooms\",\"column\":\"total\"},\"residency\":{\"online_only\":true},\"kind\":\"Count\",\"source\":\"messages\",\"by\":[\"room\"],\"target\":\"$column:fbc8f2b666315087dbf3bc74f9b396d9ede6857749557ea132aa424b989f2e0b\",\"readable\":null},{\"parent_key\":null,\"private\":{\"table\":\"users\",\"column\":\"sent\"},\"residency\":{\"online_only\":true},\"kind\":\"Count\",\"source\":\"messages\",\"by\":[\"sender\"],\"target\":\"$column:51f36fd4ff926ffe6b9711cfc3cd239785d464e9db9654f9db87a2c11d8906dc\",\"readable\":null}],\"operations\":{\"W1\":{\"branchPagesV3\":true,\"runs\":\"server\",\"sites\":[{\"site\":\"schema.q:44:10 (messages[message])\",\"table\":\"messages\",\"index\":\"byId\",\"kind\":\"point\",\"class\":\"server\",\"reason\":\"point messages by byId: online only; selected byId (id = message); result: row or null; only declared unique key of this arity\",\"rewrite\":\"sync messages to its read-rule audience, or read a compact synced projection\"}],\"requires\":[\"NOT_FOUND\"]},\"W2\":{\"runs\":\"server\",\"sites\":[{\"site\":\"schema.q:47:18 (memberships[room, viewer])\",\"table\":\"memberships\",\"index\":\"$intent:byRoomPrincipal:97c7db2245b2c441\",\"kind\":\"point\",\"class\":\"server\",\"reason\":\"point memberships by $intent:byRoomPrincipal:97c7db2245b2c441: online only; selected $intent:byRoomPrincipal:97c7db2245b2c441 (room = room, principal = viewer); result: exists; only declared unique key of this arity\",\"rewrite\":\"sync memberships to its read-rule audience, or read a compact synced projection\"},{\"site\":\"schema.q:48:10 (messages where .room = room last 20 by .at, .id)\",\"table\":\"messages\",\"index\":\"$intent:byRoomAt:cac276d27b82ccf0\",\"kind\":\"scan\",\"class\":\"server\",\"reason\":\"scan messages by $intent:byRoomAt:cac276d27b82ccf0: online only; selected $intent:byRoomAt:cac276d27b82ccf0 (room = room); result: page; synthesized; explicit by; read: messages where .room = room last 20 by .at, .id\",\"rewrite\":\"sync messages to its read-rule audience, or read a compact synced projection\"}],\"requires\":[\"NOT_ALLOWED\"]},\"W3\":{\"runs\":\"server\",\"sites\":[{\"site\":\"schema.q:51:10 (memberships where .principal = viewer and .room != 'r1024' first 32 by .room)\",\"table\":\"memberships\",\"index\":\"$intent:byPrincipalRoom:4cdf929dd56b24d2\",\"kind\":\"scan\",\"class\":\"server\",\"reason\":\"scan memberships by $intent:byPrincipalRoom:4cdf929dd56b24d2: online only; selected $intent:byPrincipalRoom:4cdf929dd56b24d2 (principal = viewer); result: page; synthesized; explicit by; read: memberships where .principal = viewer and .room != 'r1024' first 32 by .room\",\"rewrite\":\"sync memberships to its read-rule audience, or read a compact synced projection\"},{\"site\":\"schema.q:52:23 (rooms[$reference3])\",\"table\":\"rooms\",\"index\":\"byId\",\"kind\":\"point\",\"class\":\"server\",\"reason\":\"point rooms by byId: online only; selected byId (id = $reference3); result: row or null; only declared unique key of this arity\",\"rewrite\":\"sync rooms to its read-rule audience, or read a compact synced projection\"},{\"site\":\"schema.q:52:57 (rooms[$reference5])\",\"table\":\"rooms\",\"index\":\"byId\",\"kind\":\"point\",\"class\":\"server\",\"reason\":\"point rooms by byId: online only; selected byId (id = $reference5); result: row or null; only declared unique key of this arity\",\"rewrite\":\"sync rooms to its read-rule audience, or read a compact synced projection\"}],\"requires\":[]},\"increment\":{\"predicts\":\"never\",\"sites\":[{\"site\":\"schema.q:55:7 (counters[counter])\",\"table\":\"counters\",\"index\":\"byId\",\"kind\":\"point\",\"class\":\"server\",\"reason\":\"point counters by byId: online only; selected byId (id = counter); result: row or null; only declared unique key of this arity\",\"rewrite\":\"sync counters to its read-rule audience, or read a compact synced projection\"},{\"site\":\"schema.q:56:10\",\"table\":\"counters\",\"index\":\"byId\",\"kind\":\"write target\",\"class\":\"server\",\"reason\":\"write target counters by byId: online only\",\"rewrite\":\"sync counters to its read-rule audience, or read a compact synced projection\"},{\"site\":\"schema.q:56:10 (update counters)\",\"table\":\"counters\",\"index\":\"byId\",\"kind\":\"write\",\"class\":\"server\",\"reason\":\"write counters by byId: online only\",\"rewrite\":\"sync counters to its read-rule audience, or read a compact synced projection\"},{\"site\":\"schema.q:40:3 (counters update rule: memberships by $intent:byRoomPrincipal:97c7db2245b2c441)\",\"table\":\"memberships\",\"index\":\"$intent:byRoomPrincipal:97c7db2245b2c441\",\"kind\":\"rule\",\"class\":\"server\",\"reason\":\"rule memberships by $intent:byRoomPrincipal:97c7db2245b2c441: online only\",\"rewrite\":\"sync memberships to its read-rule audience, or read a compact synced projection\"}],\"requires\":[\"NOT_FOUND\"]},\"post\":{\"predicts\":\"never\",\"sites\":[{\"site\":\"schema.q:59:7 (users[principal = viewer])\",\"table\":\"users\",\"index\":\"$intent:byPrincipal:8097d97fddadb304\",\"kind\":\"point\",\"class\":\"server\",\"reason\":\"point users by $intent:byPrincipal:8097d97fddadb304: online only; selected $intent:byPrincipal:8097d97fddadb304 (principal = viewer); result: row or null; named equality columns\",\"rewrite\":\"sync users to its read-rule audience, or read a compact synced projection\"},{\"site\":\"schema.q:60:10 (insert messages)\",\"table\":\"messages\",\"index\":\"byId\",\"kind\":\"write\",\"class\":\"server\",\"reason\":\"write messages by byId: online only\",\"rewrite\":\"sync messages to its read-rule audience, or read a compact synced projection\"},{\"site\":\"schema.q:31:3 (messages insert rule: users by byId)\",\"table\":\"users\",\"index\":\"byId\",\"kind\":\"rule reference\",\"class\":\"server\",\"reason\":\"rule reference users by byId: online only\",\"rewrite\":\"sync users to its read-rule audience, or read a compact synced projection\"},{\"site\":\"schema.q:31:3 (messages insert rule: memberships by $intent:byRoomPrincipal:97c7db2245b2c441)\",\"table\":\"memberships\",\"index\":\"$intent:byRoomPrincipal:97c7db2245b2c441\",\"kind\":\"rule\",\"class\":\"server\",\"reason\":\"rule memberships by $intent:byRoomPrincipal:97c7db2245b2c441: online only\",\"rewrite\":\"sync memberships to its read-rule audience, or read a compact synced projection\"}],\"requires\":[\"NOT_FOUND\"]}}}",
+        "version": "snapback4-postgres-evaluation-3",
+        "programs": "{\"W1\":{\"name\":\"W1\",\"kind\":\"Query\",\"args\":{\"message\":{\"Ref\":{\"table\":\"messages\"}}},\"read_time_granularity_ms\":null,\"body\":[{\"Let\":{\"name\":\"$present1\",\"value\":{\"Builtin\":{\"builtin\":\"RequireUncapped\",\"args\":[{\"Get\":{\"site\":\"programs.W1.0\",\"table\":\"messages\",\"index\":\"byId\",\"key\":[{\"Variable\":\"message\"}],\"provenance\":\"Shape\"}}]}}}},{\"Require\":{\"condition\":{\"Binary\":{\"op\":\"Ne\",\"left\":{\"Variable\":\"$present1\"},\"right\":{\"Literal\":\"Null\"}}},\"code\":\"NOT_FOUND\",\"site\":\"schema.q:44:28\"}},{\"Return\":{\"Variable\":\"$present1\"}}]},\"W2\":{\"name\":\"W2\",\"kind\":\"Query\",\"args\":{\"room\":{\"Ref\":{\"table\":\"rooms\"}}},\"read_time_granularity_ms\":null,\"body\":[{\"Require\":{\"condition\":{\"Exists\":{\"site\":\"programs.W2.0\",\"table\":\"memberships\",\"index\":\"$intent:byRoomPrincipal:97c7db2245b2c441\",\"key\":[{\"Variable\":\"room\"},{\"Input\":\"Viewer\"}],\"provenance\":\"Shape\"}},\"code\":\"NOT_ALLOWED\",\"site\":\"schema.q:47:3\"}},{\"Return\":{\"Scan\":{\"site\":\"programs.W2.1\",\"table\":\"messages\",\"index\":\"$intent:byRoomAt:cac276d27b82ccf0\",\"prefix\":[{\"Scalar\":{\"Variable\":\"room\"}}],\"order\":\"Desc\",\"take\":{\"Literal\":20},\"after\":null,\"before\":null,\"range\":null,\"merge_site\":null,\"provenance\":\"Shape\"}}}]},\"W3\":{\"name\":\"W3\",\"kind\":\"Query\",\"args\":{},\"read_time_granularity_ms\":null,\"body\":[{\"Let\":{\"name\":\"$rows1\",\"value\":{\"Array\":[]}}},{\"For\":{\"binding\":\"$row2\",\"domain\":{\"Page\":{\"site\":\"programs.W3.0\",\"table\":\"memberships\",\"index\":\"$intent:byPrincipalRoom:4cdf929dd56b24d2\",\"prefix\":[{\"Scalar\":{\"Input\":\"Viewer\"}}],\"order\":\"Asc\",\"take\":{\"Literal\":32},\"after\":null,\"before\":null,\"range\":null,\"filter\":{\"Binary\":{\"op\":\"Ne\",\"left\":{\"Field\":{\"base\":{\"Variable\":\"$filter\"},\"name\":\"room\"}},\"right\":{\"Literal\":{\"Id\":\"r1024\"}}}},\"merge_site\":null,\"provenance\":\"Shape\"}},\"body\":[{\"Const\":{\"name\":\"$reference3\",\"value\":{\"Field\":{\"base\":{\"Variable\":\"$row2\"},\"name\":\"room\"}}}},{\"Let\":{\"name\":\"$or4\",\"value\":{\"Field\":{\"base\":{\"Get\":{\"site\":\"programs.W3.1\",\"table\":\"rooms\",\"index\":\"byId\",\"key\":[{\"Variable\":\"$reference3\"}],\"provenance\":\"Shape\"}},\"name\":\"total\"}}}},{\"If\":{\"condition\":{\"Binary\":{\"op\":\"Eq\",\"left\":{\"Variable\":\"$or4\"},\"right\":{\"Literal\":\"Null\"}}},\"then_body\":[{\"Assign\":{\"name\":\"$or4\",\"value\":{\"Literal\":{\"Int\":0}}}}],\"else_body\":[]}},{\"Const\":{\"name\":\"$reference5\",\"value\":{\"Field\":{\"base\":{\"Variable\":\"$row2\"},\"name\":\"room\"}}}},{\"Let\":{\"name\":\"$or6\",\"value\":{\"Field\":{\"base\":{\"Get\":{\"site\":\"programs.W3.2\",\"table\":\"rooms\",\"index\":\"byId\",\"key\":[{\"Variable\":\"$reference5\"}],\"provenance\":\"Shape\"}},\"name\":\"total\"}}}},{\"If\":{\"condition\":{\"Binary\":{\"op\":\"Eq\",\"left\":{\"Variable\":\"$or6\"},\"right\":{\"Literal\":\"Null\"}}},\"then_body\":[{\"Assign\":{\"name\":\"$or6\",\"value\":{\"Literal\":{\"Int\":0}}}}],\"else_body\":[]}},{\"Push\":{\"target\":\"$rows1\",\"value\":{\"Shape\":{\"base\":{\"Variable\":\"$row2\"},\"fields\":{\"room\":{\"Field\":{\"base\":{\"Variable\":\"$row2\"},\"name\":\"room\"}},\"total\":{\"Variable\":\"$or4\"},\"unread\":{\"Builtin\":{\"builtin\":\"Max\",\"args\":[{\"Literal\":{\"Int\":0}},{\"Binary\":{\"op\":\"Sub\",\"left\":{\"Variable\":\"$or6\"},\"right\":{\"Field\":{\"base\":{\"Variable\":\"$row2\"},\"name\":\"last_read\"}}}}]}}}}}}}]}},{\"Return\":{\"Variable\":\"$rows1\"}}],\"returned_shapes\":{\"W3:2\":\"programs.W3.0\"}},\"increment\":{\"name\":\"increment\",\"kind\":\"Mutation\",\"args\":{\"counter\":{\"Ref\":{\"table\":\"counters\"}}},\"read_time_granularity_ms\":null,\"body\":[{\"Let\":{\"name\":\"$present1\",\"value\":{\"Get\":{\"site\":\"programs.increment.0\",\"table\":\"counters\",\"index\":\"byId\",\"key\":[{\"Variable\":\"counter\"}],\"provenance\":\"Shape\"}}}},{\"Require\":{\"condition\":{\"Binary\":{\"op\":\"Ne\",\"left\":{\"Variable\":\"$present1\"},\"right\":{\"Literal\":\"Null\"}}},\"code\":\"NOT_FOUND\",\"site\":\"schema.q:55:25\"}},{\"Let\":{\"name\":\"$c2\",\"value\":{\"Variable\":\"$present1\"}}},{\"Let\":{\"name\":\"$key3\",\"value\":{\"Field\":{\"base\":{\"Variable\":\"$c2\"},\"name\":\"id\"}}}},{\"WriteTarget\":{\"target\":{\"site\":\"schema.q:56:10\",\"table\":\"counters\",\"index\":\"byId\",\"key\":[{\"Variable\":\"$key3\"}],\"provenance\":\"Shape\"},\"patch\":{\"Object\":{\"n\":{\"Binary\":{\"op\":\"Add\",\"left\":{\"Field\":{\"base\":{\"Variable\":\"$c2\"},\"name\":\"n\"}},\"right\":{\"Literal\":{\"Int\":1}}}}}},\"upsert\":false,\"condition\":null,\"result\":\"$written4\"}},{\"Return\":{\"Variable\":\"$written4\"}}]},\"post\":{\"name\":\"post\",\"kind\":\"Mutation\",\"args\":{\"body\":{\"Text\":{\"max\":4000}},\"room\":{\"Ref\":{\"table\":\"rooms\"}}},\"read_time_granularity_ms\":null,\"body\":[{\"Let\":{\"name\":\"$present1\",\"value\":{\"Get\":{\"site\":\"programs.post.0\",\"table\":\"users\",\"index\":\"$intent:byPrincipal:8097d97fddadb304\",\"key\":[{\"Input\":\"Viewer\"}],\"provenance\":\"Shape\"}}}},{\"Require\":{\"condition\":{\"Binary\":{\"op\":\"Ne\",\"left\":{\"Variable\":\"$present1\"},\"right\":{\"Literal\":\"Null\"}}},\"code\":\"NOT_FOUND\",\"site\":\"schema.q:59:33\"}},{\"Let\":{\"name\":\"$u2\",\"value\":{\"Variable\":\"$present1\"}}},{\"Let\":{\"name\":\"$value3\",\"value\":{\"Input\":\"NewId\"}}},{\"Const\":{\"name\":\"$inserted4\",\"value\":{\"Object\":{\"at\":{\"Input\":\"Now\"},\"body\":{\"Variable\":\"body\"},\"id\":{\"Variable\":\"$value3\"},\"room\":{\"Variable\":\"room\"},\"sender\":{\"Field\":{\"base\":{\"Variable\":\"$u2\"},\"name\":\"id\"}}}}}},{\"Insert\":{\"table\":\"messages\",\"row\":{\"Variable\":\"$inserted4\"}}},{\"Return\":{\"Variable\":\"$inserted4\"}}]}}",
+        "singleton": true,
+        "generation": 1,
+        "through_shortened": "{}",
+        "maintained_identity_version": null
+      }
+    ],
+    "columns": [
+      {
+        "data_type": "text",
+        "table_name": "_asset_gc",
+        "column_name": "asset",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 1
+      },
+      {
+        "data_type": "text",
+        "table_name": "_asset_intents",
+        "column_name": "owner",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 1
+      },
+      {
+        "data_type": "text",
+        "table_name": "_asset_intents",
+        "column_name": "intent",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 2
+      },
+      {
+        "data_type": "text",
+        "table_name": "_asset_intents",
+        "column_name": "fingerprint",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 3
+      },
+      {
+        "data_type": "text",
+        "table_name": "_asset_intents",
+        "column_name": "asset",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 4
+      },
+      {
+        "data_type": "text",
+        "table_name": "_asset_intents",
+        "column_name": "facts",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 5
+      },
+      {
+        "data_type": "text",
+        "table_name": "_asset_intents",
+        "column_name": "placement",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 6
+      },
+      {
+        "data_type": "text",
+        "table_name": "_asset_intents",
+        "column_name": "state",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 7
+      },
+      {
+        "data_type": "text",
+        "table_name": "_asset_views",
+        "column_name": "asset",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 1
+      },
+      {
+        "data_type": "text",
+        "table_name": "_asset_views",
+        "column_name": "principal",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 2
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_asset_views",
+        "column_name": "at",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 3
+      },
+      {
+        "data_type": "text",
+        "table_name": "_assets",
+        "column_name": "id",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 1
+      },
+      {
+        "data_type": "text",
+        "table_name": "_assets",
+        "column_name": "owner",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 2
+      },
+      {
+        "data_type": "text",
+        "table_name": "_assets",
+        "column_name": "kind",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 3
+      },
+      {
+        "data_type": "text",
+        "table_name": "_assets",
+        "column_name": "content_type",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 4
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_assets",
+        "column_name": "bytes",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 5
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_assets",
+        "column_name": "width",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 6
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_assets",
+        "column_name": "height",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 7
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_assets",
+        "column_name": "duration",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 8
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_assets",
+        "column_name": "created_at",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 9
+      },
+      {
+        "data_type": "text",
+        "table_name": "_assets",
+        "column_name": "home_table",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 10
+      },
+      {
+        "data_type": "text",
+        "table_name": "_assets",
+        "column_name": "home_id",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 11
+      },
+      {
+        "data_type": "text",
+        "table_name": "_assets",
+        "column_name": "home_column",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 12
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_assets",
+        "column_name": "released_at",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 13
+      },
+      {
+        "data_type": "text",
+        "table_name": "_assets",
+        "column_name": "name",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 14
+      },
+      {
+        "data_type": "boolean",
+        "table_name": "_backend",
+        "column_name": "singleton",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 1
+      },
+      {
+        "data_type": "text",
+        "table_name": "_backend",
+        "column_name": "version",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 2
+      },
+      {
+        "data_type": "text",
+        "table_name": "_backend",
+        "column_name": "schema",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 3
+      },
+      {
+        "data_type": "text",
+        "table_name": "_backend",
+        "column_name": "programs",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 4
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_backend",
+        "column_name": "generation",
+        "is_nullable": "NO",
+        "column_default": "1",
+        "ordinal_position": 5
+      },
+      {
+        "data_type": "text",
+        "table_name": "_backend",
+        "column_name": "through_shortened",
+        "is_nullable": "NO",
+        "column_default": "'{}'::text",
+        "ordinal_position": 6
+      },
+      {
+        "data_type": "text",
+        "table_name": "_backend",
+        "column_name": "maintained_identity_version",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 7
+      },
+      {
+        "data_type": "text",
+        "table_name": "_cap_counts",
+        "column_name": "t",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 1
+      },
+      {
+        "data_type": "bytea",
+        "table_name": "_cap_counts",
+        "column_name": "k",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 2
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_cap_counts",
+        "column_name": "n",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 3
+      },
+      {
+        "data_type": "text",
+        "table_name": "_catalog",
+        "column_name": "name",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 1
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_catalog",
+        "column_name": "num",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 2
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_change_evidence",
+        "column_name": "seq",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 1
+      },
+      {
+        "data_type": "text",
+        "table_name": "_change_evidence",
+        "column_name": "footprint",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 2
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_commits",
+        "column_name": "seq",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 1
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_commits",
+        "column_name": "at",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 2
+      },
+      {
+        "data_type": "text",
+        "table_name": "_commits",
+        "column_name": "program",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 3
+      },
+      {
+        "data_type": "text",
+        "table_name": "_commits",
+        "column_name": "principal",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 4
+      },
+      {
+        "data_type": "text",
+        "table_name": "_commits",
+        "column_name": "kind",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 5
+      },
+      {
+        "data_type": "text",
+        "table_name": "_commits",
+        "column_name": "touched",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 6
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_commits",
+        "column_name": "writes",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 7
+      },
+      {
+        "data_type": "text",
+        "table_name": "_credentials",
+        "column_name": "principal",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 1
+      },
+      {
+        "data_type": "text",
+        "table_name": "_credentials",
+        "column_name": "email",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 2
+      },
+      {
+        "data_type": "text",
+        "table_name": "_credentials",
+        "column_name": "hash",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 3
+      },
+      {
+        "data_type": "text",
+        "table_name": "_effect_keys",
+        "column_name": "effect",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 1
+      },
+      {
+        "data_type": "text",
+        "table_name": "_effect_keys",
+        "column_name": "key",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 2
+      },
+      {
+        "data_type": "text",
+        "table_name": "_effect_presence",
+        "column_name": "principal",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 1
+      },
+      {
+        "data_type": "text",
+        "table_name": "_effect_presence",
+        "column_name": "id",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 2
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_effect_presence",
+        "column_name": "deadline",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 3
+      },
+      {
+        "data_type": "boolean",
+        "table_name": "_effect_presence",
+        "column_name": "reconnected",
+        "is_nullable": "NO",
+        "column_default": "false",
+        "ordinal_position": 4
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_generations",
+        "column_name": "generation",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 1
+      },
+      {
+        "data_type": "text",
+        "table_name": "_generations",
+        "column_name": "schema",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 2
+      },
+      {
+        "data_type": "text",
+        "table_name": "_generations",
+        "column_name": "programs",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 3
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_generations",
+        "column_name": "at",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 4
+      },
+      {
+        "data_type": "boolean",
+        "table_name": "_head",
+        "column_name": "singleton",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 1
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_head",
+        "column_name": "seq",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 2
+      },
+      {
+        "data_type": "text",
+        "table_name": "_jobs",
+        "column_name": "id",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 1
+      },
+      {
+        "data_type": "text",
+        "table_name": "_jobs",
+        "column_name": "name",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 2
+      },
+      {
+        "data_type": "text",
+        "table_name": "_jobs",
+        "column_name": "args",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 3
+      },
+      {
+        "data_type": "text",
+        "table_name": "_jobs",
+        "column_name": "program_hash",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 4
+      },
+      {
+        "data_type": "text",
+        "table_name": "_jobs",
+        "column_name": "state",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 5
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_jobs",
+        "column_name": "sweep",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 6
+      },
+      {
+        "data_type": "bytea",
+        "table_name": "_jobs",
+        "column_name": "cursor",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 7
+      },
+      {
+        "data_type": "bytea",
+        "table_name": "_jobs",
+        "column_name": "upper",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 8
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_jobs",
+        "column_name": "chunks",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 9
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_jobs",
+        "column_name": "rows_written",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 10
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_jobs",
+        "column_name": "created_at",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 11
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_jobs",
+        "column_name": "updated_at",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 12
+      },
+      {
+        "data_type": "bytea",
+        "table_name": "_jobs",
+        "column_name": "error",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 13
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_jobs",
+        "column_name": "chunk_size",
+        "is_nullable": "NO",
+        "column_default": "0",
+        "ordinal_position": 14
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_jobs",
+        "column_name": "retries",
+        "is_nullable": "NO",
+        "column_default": "0",
+        "ordinal_position": 15
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_jobs",
+        "column_name": "heap_peak",
+        "is_nullable": "NO",
+        "column_default": "0",
+        "ordinal_position": 16
+      },
+      {
+        "data_type": "text",
+        "table_name": "_jobs",
+        "column_name": "domain",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 17
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_jobs",
+        "column_name": "insertion_order",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 18
+      },
+      {
+        "data_type": "text",
+        "table_name": "_log",
+        "column_name": "partition",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 1
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_log",
+        "column_name": "seq",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 2
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_log",
+        "column_name": "ord",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 3
+      },
+      {
+        "data_type": "text",
+        "table_name": "_log",
+        "column_name": "t",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 4
+      },
+      {
+        "data_type": "text",
+        "table_name": "_log",
+        "column_name": "kind",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 5
+      },
+      {
+        "data_type": "text",
+        "table_name": "_log",
+        "column_name": "id",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 6
+      },
+      {
+        "data_type": "text",
+        "table_name": "_log",
+        "column_name": "data",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 7
+      },
+      {
+        "data_type": "text",
+        "table_name": "_meta",
+        "column_name": "key",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 1
+      },
+      {
+        "data_type": "text",
+        "table_name": "_meta",
+        "column_name": "value",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 2
+      },
+      {
+        "data_type": "text",
+        "table_name": "_ops",
+        "column_name": "principal",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 1
+      },
+      {
+        "data_type": "text",
+        "table_name": "_ops",
+        "column_name": "id",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 2
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_ops",
+        "column_name": "seq",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 3
+      },
+      {
+        "data_type": "text",
+        "table_name": "_ops",
+        "column_name": "outcome",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 4
+      },
+      {
+        "data_type": "text",
+        "table_name": "_ops",
+        "column_name": "name",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 5
+      },
+      {
+        "data_type": "text",
+        "table_name": "_ops",
+        "column_name": "args_digest",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 6
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_ops",
+        "column_name": "at",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 7
+      },
+      {
+        "data_type": "text",
+        "table_name": "_outbox",
+        "column_name": "id",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 1
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_outbox",
+        "column_name": "seq",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 2
+      },
+      {
+        "data_type": "text",
+        "table_name": "_outbox",
+        "column_name": "effect",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 3
+      },
+      {
+        "data_type": "text",
+        "table_name": "_outbox",
+        "column_name": "payload",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 4
+      },
+      {
+        "data_type": "text",
+        "table_name": "_outbox",
+        "column_name": "state",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 5
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_outbox",
+        "column_name": "attempts",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 6
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_outbox",
+        "column_name": "at",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 7
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_outbox",
+        "column_name": "lease_until",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 8
+      },
+      {
+        "data_type": "text",
+        "table_name": "_outbox",
+        "column_name": "claimed_by",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 9
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_outbox",
+        "column_name": "next_at",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 10
+      },
+      {
+        "data_type": "text",
+        "table_name": "_outbox",
+        "column_name": "result",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 11
+      },
+      {
+        "data_type": "text",
+        "table_name": "_outbox",
+        "column_name": "error",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 12
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_outbox",
+        "column_name": "settled_at",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 13
+      },
+      {
+        "data_type": "text",
+        "table_name": "_outbox",
+        "column_name": "work_spec",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 14
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_outbox",
+        "column_name": "deadline",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 15
+      },
+      {
+        "data_type": "text",
+        "table_name": "_outbox",
+        "column_name": "release",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 16
+      },
+      {
+        "data_type": "text",
+        "table_name": "_outbox",
+        "column_name": "error_code",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 17
+      },
+      {
+        "data_type": "text",
+        "table_name": "_outbox",
+        "column_name": "lease_digest",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 18
+      },
+      {
+        "data_type": "boolean",
+        "table_name": "_outbox",
+        "column_name": "cancelled",
+        "is_nullable": "NO",
+        "column_default": "false",
+        "ordinal_position": 19
+      },
+      {
+        "data_type": "text",
+        "table_name": "_outbox",
+        "column_name": "contract",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 20
+      },
+      {
+        "data_type": "boolean",
+        "table_name": "_owner",
+        "column_name": "singleton",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 1
+      },
+      {
+        "data_type": "text",
+        "table_name": "_owner",
+        "column_name": "store_id",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 2
+      },
+      {
+        "data_type": "text",
+        "table_name": "_owner",
+        "column_name": "holder",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 3
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_owner",
+        "column_name": "token",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 4
+      },
+      {
+        "data_type": "timestamp with time zone",
+        "table_name": "_owner",
+        "column_name": "lease_until",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 5
+      },
+      {
+        "data_type": "text",
+        "table_name": "_principal_generations",
+        "column_name": "principal",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 1
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_principal_generations",
+        "column_name": "generation",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 2
+      },
+      {
+        "data_type": "text",
+        "table_name": "_principals",
+        "column_name": "id",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 1
+      },
+      {
+        "data_type": "text",
+        "table_name": "_principals",
+        "column_name": "kind",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 2
+      },
+      {
+        "data_type": "text",
+        "table_name": "_principals",
+        "column_name": "name",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 3
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_principals",
+        "column_name": "created_at",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 4
+      },
+      {
+        "data_type": "text",
+        "table_name": "_read_sessions",
+        "column_name": "token_digest",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 1
+      },
+      {
+        "data_type": "text",
+        "table_name": "_read_sessions",
+        "column_name": "principal",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 2
+      },
+      {
+        "data_type": "text",
+        "table_name": "_read_sessions",
+        "column_name": "kind",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 3
+      },
+      {
+        "data_type": "text",
+        "table_name": "_read_sessions",
+        "column_name": "family",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 4
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_read_sessions",
+        "column_name": "created_at",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 5
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_read_sessions",
+        "column_name": "expires_at",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 6
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_read_sessions",
+        "column_name": "cap_expires_at",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 7
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_read_sessions",
+        "column_name": "principal_generation",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 8
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_release_event_items",
+        "column_name": "event",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 1
+      },
+      {
+        "data_type": "text",
+        "table_name": "_release_event_items",
+        "column_name": "path",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 2
+      },
+      {
+        "data_type": "text",
+        "table_name": "_release_event_items",
+        "column_name": "detail",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 3
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_release_events",
+        "column_name": "id",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 1
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_release_events",
+        "column_name": "at",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 2
+      },
+      {
+        "data_type": "text",
+        "table_name": "_release_events",
+        "column_name": "operation",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 3
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_release_events",
+        "column_name": "release",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 4
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_release_events",
+        "column_name": "previous",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 5
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_release_events",
+        "column_name": "generation",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 6
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_release_events",
+        "column_name": "revision",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 7
+      },
+      {
+        "data_type": "text",
+        "table_name": "_release_events",
+        "column_name": "summary",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 8
+      },
+      {
+        "data_type": "text",
+        "table_name": "_requests",
+        "column_name": "id",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 1
+      },
+      {
+        "data_type": "text",
+        "table_name": "_requests",
+        "column_name": "name",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 2
+      },
+      {
+        "data_type": "text",
+        "table_name": "_requests",
+        "column_name": "args",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 3
+      },
+      {
+        "data_type": "text",
+        "table_name": "_requests",
+        "column_name": "principal",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 4
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_requests",
+        "column_name": "at",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 5
+      },
+      {
+        "data_type": "text",
+        "table_name": "_requests",
+        "column_name": "state",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 6
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_requests",
+        "column_name": "attempts",
+        "is_nullable": "NO",
+        "column_default": "0",
+        "ordinal_position": 7
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_requests",
+        "column_name": "next_at",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 8
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_requests",
+        "column_name": "lease_until",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 9
+      },
+      {
+        "data_type": "text",
+        "table_name": "_requests",
+        "column_name": "claimed_by",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 10
+      },
+      {
+        "data_type": "text",
+        "table_name": "_requests",
+        "column_name": "session_digest",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 11
+      },
+      {
+        "data_type": "text",
+        "table_name": "_requests",
+        "column_name": "result",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 12
+      },
+      {
+        "data_type": "text",
+        "table_name": "_requests",
+        "column_name": "error",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 13
+      },
+      {
+        "data_type": "text",
+        "table_name": "_requests",
+        "column_name": "family",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 14
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_requests",
+        "column_name": "principal_generation",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 15
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_requests",
+        "column_name": "admitted_expires_at",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 16
+      },
+      {
+        "data_type": "text",
+        "table_name": "_requests",
+        "column_name": "args_digest",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 17
+      },
+      {
+        "data_type": "text",
+        "table_name": "_requests",
+        "column_name": "error_code",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 18
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_requests",
+        "column_name": "settled_at",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 19
+      },
+      {
+        "data_type": "text",
+        "table_name": "_requests",
+        "column_name": "spec",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 20
+      },
+      {
+        "data_type": "text",
+        "table_name": "_requests",
+        "column_name": "contract",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 21
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_requests",
+        "column_name": "deadline",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 22
+      },
+      {
+        "data_type": "text",
+        "table_name": "_requests",
+        "column_name": "release",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 23
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_requests",
+        "column_name": "service_generation",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 24
+      },
+      {
+        "data_type": "boolean",
+        "table_name": "_requests",
+        "column_name": "cancelled",
+        "is_nullable": "NO",
+        "column_default": "false",
+        "ordinal_position": 25
+      },
+      {
+        "data_type": "text",
+        "table_name": "_sequences",
+        "column_name": "parent",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 1
+      },
+      {
+        "data_type": "text",
+        "table_name": "_sequences",
+        "column_name": "id",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 2
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_sequences",
+        "column_name": "value",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 3
+      },
+      {
+        "data_type": "text",
+        "table_name": "_session_mint_bindings",
+        "column_name": "invocation",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 1
+      },
+      {
+        "data_type": "text",
+        "table_name": "_session_mint_bindings",
+        "column_name": "intent",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 2
+      },
+      {
+        "data_type": "text",
+        "table_name": "_session_mint_bindings",
+        "column_name": "input_digest",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 3
+      },
+      {
+        "data_type": "text",
+        "table_name": "_session_mint_bindings",
+        "column_name": "principal",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 4
+      },
+      {
+        "data_type": "text",
+        "table_name": "_session_mint_bindings",
+        "column_name": "kind",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 5
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_session_mint_bindings",
+        "column_name": "days",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 6
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_session_mint_bindings",
+        "column_name": "expires_at",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 7
+      },
+      {
+        "data_type": "text",
+        "table_name": "_session_mint_bindings",
+        "column_name": "family",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 8
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_session_mint_bindings",
+        "column_name": "principal_generation",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 9
+      },
+      {
+        "data_type": "text",
+        "table_name": "_session_mint_bindings",
+        "column_name": "scope",
+        "is_nullable": "NO",
+        "column_default": "'full'::text",
+        "ordinal_position": 10
+      },
+      {
+        "data_type": "text",
+        "table_name": "_sessions",
+        "column_name": "token_digest",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 1
+      },
+      {
+        "data_type": "text",
+        "table_name": "_sessions",
+        "column_name": "principal",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 2
+      },
+      {
+        "data_type": "text",
+        "table_name": "_sessions",
+        "column_name": "kind",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 3
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_sessions",
+        "column_name": "created_at",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 4
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_sessions",
+        "column_name": "expires_at",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 5
+      },
+      {
+        "data_type": "text",
+        "table_name": "_sessions",
+        "column_name": "family",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 6
+      },
+      {
+        "data_type": "text",
+        "table_name": "i",
+        "column_name": "t",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 1
+      },
+      {
+        "data_type": "text",
+        "table_name": "i",
+        "column_name": "ix",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 2
+      },
+      {
+        "data_type": "bytea",
+        "table_name": "i",
+        "column_name": "k",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 3
+      },
+      {
+        "data_type": "text",
+        "table_name": "i",
+        "column_name": "id",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 4
+      },
+      {
+        "data_type": "text",
+        "table_name": "r",
+        "column_name": "t",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 1
+      },
+      {
+        "data_type": "text",
+        "table_name": "r",
+        "column_name": "id",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 2
+      },
+      {
+        "data_type": "text",
+        "table_name": "r",
+        "column_name": "data",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 3
+      }
+    ],
+    "indexes": [
+      {
+        "indexdef": "CREATE UNIQUE INDEX _asset_gc_pkey ON bench._asset_gc USING btree (asset)",
+        "indexname": "_asset_gc_pkey",
+        "tablename": "_asset_gc"
+      },
+      {
+        "indexdef": "CREATE UNIQUE INDEX _asset_intents_pkey ON bench._asset_intents USING btree (owner, intent)",
+        "indexname": "_asset_intents_pkey",
+        "tablename": "_asset_intents"
+      },
+      {
+        "indexdef": "CREATE UNIQUE INDEX _asset_views_pkey ON bench._asset_views USING btree (asset, principal)",
+        "indexname": "_asset_views_pkey",
+        "tablename": "_asset_views"
+      },
+      {
+        "indexdef": "CREATE UNIQUE INDEX _assets_pkey ON bench._assets USING btree (id)",
+        "indexname": "_assets_pkey",
+        "tablename": "_assets"
+      },
+      {
+        "indexdef": "CREATE UNIQUE INDEX _backend_pkey ON bench._backend USING btree (singleton)",
+        "indexname": "_backend_pkey",
+        "tablename": "_backend"
+      },
+      {
+        "indexdef": "CREATE UNIQUE INDEX _cap_counts_pkey ON bench._cap_counts USING btree (t, k)",
+        "indexname": "_cap_counts_pkey",
+        "tablename": "_cap_counts"
+      },
+      {
+        "indexdef": "CREATE UNIQUE INDEX _catalog_num_key ON bench._catalog USING btree (num)",
+        "indexname": "_catalog_num_key",
+        "tablename": "_catalog"
+      },
+      {
+        "indexdef": "CREATE UNIQUE INDEX _catalog_pkey ON bench._catalog USING btree (name)",
+        "indexname": "_catalog_pkey",
+        "tablename": "_catalog"
+      },
+      {
+        "indexdef": "CREATE UNIQUE INDEX _change_evidence_pkey ON bench._change_evidence USING btree (seq)",
+        "indexname": "_change_evidence_pkey",
+        "tablename": "_change_evidence"
+      },
+      {
+        "indexdef": "CREATE UNIQUE INDEX _commits_pkey ON bench._commits USING btree (seq)",
+        "indexname": "_commits_pkey",
+        "tablename": "_commits"
+      },
+      {
+        "indexdef": "CREATE UNIQUE INDEX _credentials_email_key ON bench._credentials USING btree (email)",
+        "indexname": "_credentials_email_key",
+        "tablename": "_credentials"
+      },
+      {
+        "indexdef": "CREATE UNIQUE INDEX _credentials_pkey ON bench._credentials USING btree (principal)",
+        "indexname": "_credentials_pkey",
+        "tablename": "_credentials"
+      },
+      {
+        "indexdef": "CREATE UNIQUE INDEX _effect_keys_pkey ON bench._effect_keys USING btree (effect, key)",
+        "indexname": "_effect_keys_pkey",
+        "tablename": "_effect_keys"
+      },
+      {
+        "indexdef": "CREATE INDEX _effect_presence_id ON bench._effect_presence USING btree (id)",
+        "indexname": "_effect_presence_id",
+        "tablename": "_effect_presence"
+      },
+      {
+        "indexdef": "CREATE UNIQUE INDEX _effect_presence_pkey ON bench._effect_presence USING btree (principal, id)",
+        "indexname": "_effect_presence_pkey",
+        "tablename": "_effect_presence"
+      },
+      {
+        "indexdef": "CREATE UNIQUE INDEX _generations_pkey ON bench._generations USING btree (generation)",
+        "indexname": "_generations_pkey",
+        "tablename": "_generations"
+      },
+      {
+        "indexdef": "CREATE UNIQUE INDEX _head_pkey ON bench._head USING btree (singleton)",
+        "indexname": "_head_pkey",
+        "tablename": "_head"
+      },
+      {
+        "indexdef": "CREATE UNIQUE INDEX _jobs_pkey ON bench._jobs USING btree (id)",
+        "indexname": "_jobs_pkey",
+        "tablename": "_jobs"
+      },
+      {
+        "indexdef": "CREATE UNIQUE INDEX _log_pkey ON bench._log USING btree (partition, seq, ord)",
+        "indexname": "_log_pkey",
+        "tablename": "_log"
+      },
+      {
+        "indexdef": "CREATE UNIQUE INDEX _meta_pkey ON bench._meta USING btree (key)",
+        "indexname": "_meta_pkey",
+        "tablename": "_meta"
+      },
+      {
+        "indexdef": "CREATE UNIQUE INDEX _ops_pkey ON bench._ops USING btree (principal, id)",
+        "indexname": "_ops_pkey",
+        "tablename": "_ops"
+      },
+      {
+        "indexdef": "CREATE INDEX _outbox_due ON bench._outbox USING btree (state, effect, seq)",
+        "indexname": "_outbox_due",
+        "tablename": "_outbox"
+      },
+      {
+        "indexdef": "CREATE UNIQUE INDEX _outbox_pkey ON bench._outbox USING btree (id)",
+        "indexname": "_outbox_pkey",
+        "tablename": "_outbox"
+      },
+      {
+        "indexdef": "CREATE UNIQUE INDEX _owner_pkey ON bench._owner USING btree (singleton)",
+        "indexname": "_owner_pkey",
+        "tablename": "_owner"
+      },
+      {
+        "indexdef": "CREATE UNIQUE INDEX _principal_generations_pkey ON bench._principal_generations USING btree (principal)",
+        "indexname": "_principal_generations_pkey",
+        "tablename": "_principal_generations"
+      },
+      {
+        "indexdef": "CREATE UNIQUE INDEX _principals_pkey ON bench._principals USING btree (id)",
+        "indexname": "_principals_pkey",
+        "tablename": "_principals"
+      },
+      {
+        "indexdef": "CREATE INDEX _read_sessions_family ON bench._read_sessions USING btree (principal, family, expires_at)",
+        "indexname": "_read_sessions_family",
+        "tablename": "_read_sessions"
+      },
+      {
+        "indexdef": "CREATE UNIQUE INDEX _read_sessions_pkey ON bench._read_sessions USING btree (token_digest)",
+        "indexname": "_read_sessions_pkey",
+        "tablename": "_read_sessions"
+      },
+      {
+        "indexdef": "CREATE UNIQUE INDEX _release_event_items_pkey ON bench._release_event_items USING btree (event, path)",
+        "indexname": "_release_event_items_pkey",
+        "tablename": "_release_event_items"
+      },
+      {
+        "indexdef": "CREATE UNIQUE INDEX _release_events_pkey ON bench._release_events USING btree (id)",
+        "indexname": "_release_events_pkey",
+        "tablename": "_release_events"
+      },
+      {
+        "indexdef": "CREATE INDEX _requests_due ON bench._requests USING btree (state, name, at, id)",
+        "indexname": "_requests_due",
+        "tablename": "_requests"
+      },
+      {
+        "indexdef": "CREATE UNIQUE INDEX _requests_pkey ON bench._requests USING btree (id)",
+        "indexname": "_requests_pkey",
+        "tablename": "_requests"
+      },
+      {
+        "indexdef": "CREATE INDEX _requests_session ON bench._requests USING btree (session_digest)",
+        "indexname": "_requests_session",
+        "tablename": "_requests"
+      },
+      {
+        "indexdef": "CREATE UNIQUE INDEX _sequences_pkey ON bench._sequences USING btree (parent, id)",
+        "indexname": "_sequences_pkey",
+        "tablename": "_sequences"
+      },
+      {
+        "indexdef": "CREATE UNIQUE INDEX _session_mint_bindings_pkey ON bench._session_mint_bindings USING btree (invocation, intent)",
+        "indexname": "_session_mint_bindings_pkey",
+        "tablename": "_session_mint_bindings"
+      },
+      {
+        "indexdef": "CREATE INDEX _sessions_expiry ON bench._sessions USING btree (expires_at)",
+        "indexname": "_sessions_expiry",
+        "tablename": "_sessions"
+      },
+      {
+        "indexdef": "CREATE INDEX _sessions_family ON bench._sessions USING btree (principal, family, expires_at)",
+        "indexname": "_sessions_family",
+        "tablename": "_sessions"
+      },
+      {
+        "indexdef": "CREATE UNIQUE INDEX _sessions_pkey ON bench._sessions USING btree (token_digest)",
+        "indexname": "_sessions_pkey",
+        "tablename": "_sessions"
+      },
+      {
+        "indexdef": "CREATE UNIQUE INDEX i_pkey ON bench.i USING btree (t, ix, k)",
+        "indexname": "i_pkey",
+        "tablename": "i"
+      },
+      {
+        "indexdef": "CREATE UNIQUE INDEX r_pkey ON bench.r USING btree (t, id)",
+        "indexname": "r_pkey",
+        "tablename": "r"
+      }
+    ],
+    "rows_md5": "39071379c29a7dd2a9df64156266ed6b"
+  },
+  "after": {
+    "backend": [
+      {
+        "schema": "{\"source_reservations\":{\"$column:51f36fd4ff926ffe6b9711cfc3cd239785d464e9db9654f9db87a2c11d8906dc\":{\"prices\":[[0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0]],\"birth\":[0,0,0,0,0,0,0],\"server_only\":false},\"$column:fbc8f2b666315087dbf3bc74f9b396d9ede6857749557ea132aa424b989f2e0b\":{\"prices\":[[0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0]],\"birth\":[0,0,0,0,0,0,0],\"server_only\":false},\"counters\":{\"prices\":[[0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0]],\"birth\":[0,0,0,0,0,0,0],\"server_only\":false},\"memberships\":{\"prices\":[[0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0]],\"birth\":[0,0,0,0,0,0,0],\"server_only\":false},\"messages\":{\"prices\":[[20,28,8,8,116508,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0]],\"birth\":[0,0,0,0,0,0,0],\"server_only\":false},\"rooms\":{\"prices\":[[0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0]],\"birth\":[0,0,1,0,933,0,0],\"server_only\":false},\"users\":{\"prices\":[[0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0]],\"birth\":[0,0,1,0,1165,0,0],\"server_only\":false}},\"tables\":{\"$column:51f36fd4ff926ffe6b9711cfc3cd239785d464e9db9654f9db87a2c11d8906dc\":{\"residency\":{\"online_only\":true},\"columns\":{\"$parent\":{\"Ref\":{\"table\":\"users\"}},\"id\":\"Id\",\"value\":\"Int\"},\"indexes\":{\"byGroup\":{\"components\":[{\"Column\":\"$parent\"}],\"unique\":true},\"byId\":{\"components\":[{\"Column\":\"id\"}],\"unique\":true}},\"rules\":{\"read\":\"Deny\",\"insert\":\"Deny\",\"update\":\"Deny\",\"delete\":\"Deny\"},\"constraints\":[{\"Capabilities\":[\"branch-pages-v3\",\"maintained-column\",\"maintained-id-sha256-v1\",\"reference-actions\",\"rule-reference\",\"source-write-reservations-v1\",\"source-write-reservations-v2\"]}],\"leave\":\"until-revoked\"},\"$column:fbc8f2b666315087dbf3bc74f9b396d9ede6857749557ea132aa424b989f2e0b\":{\"residency\":{\"online_only\":true},\"columns\":{\"$parent\":{\"Ref\":{\"table\":\"rooms\"}},\"id\":\"Id\",\"value\":\"Int\"},\"indexes\":{\"byGroup\":{\"components\":[{\"Column\":\"$parent\"}],\"unique\":true},\"byId\":{\"components\":[{\"Column\":\"id\"}],\"unique\":true}},\"rules\":{\"read\":\"Deny\",\"insert\":\"Deny\",\"update\":\"Deny\",\"delete\":\"Deny\"},\"constraints\":[],\"leave\":\"until-revoked\"},\"counters\":{\"onDelete\":{\"room\":\"restrict\"},\"residency\":{\"online_only\":true},\"defaults\":{\"n\":{\"Literal\":{\"Int\":0}}},\"columns\":{\"id\":\"Id\",\"n\":\"Int\",\"owner\":{\"Optional\":\"Principal\"},\"room\":{\"Ref\":{\"table\":\"rooms\"}}},\"indexes\":{\"$reference:room\":{\"components\":[{\"Column\":\"room\"},{\"Column\":\"id\"}],\"unique\":false},\"byId\":{\"components\":[{\"Column\":\"id\"}],\"unique\":true}},\"rules\":{\"read\":{\"Or\":[{\"Eq\":[{\"Field\":\"owner\"},\"Viewer\"]},{\"And\":[{\"Eq\":[{\"Field\":\"owner\"},{\"Literal\":\"Null\"}]},{\"Exists\":{\"table\":\"memberships\",\"index\":\"$intent:byRoomPrincipal:97c7db2245b2c441\",\"key\":[{\"Field\":\"room\"},\"Viewer\"],\"provenance\":\"Shape\"}}]}]},\"insert\":\"Deny\",\"update\":{\"Or\":[{\"Eq\":[{\"Field\":\"owner\"},\"Viewer\"]},{\"And\":[{\"Eq\":[{\"Field\":\"owner\"},{\"Literal\":\"Null\"}]},{\"Exists\":{\"table\":\"memberships\",\"index\":\"$intent:byRoomPrincipal:97c7db2245b2c441\",\"key\":[{\"Field\":\"room\"},\"Viewer\"],\"provenance\":\"Shape\"}}]}]},\"delete\":\"Deny\"},\"constraints\":[{\"Immutable\":{\"fields\":[\"owner\",\"room\"]}}],\"leave\":\"until-revoked\"},\"memberships\":{\"onDelete\":{\"room\":\"restrict\"},\"residency\":{\"online_only\":true},\"defaults\":{\"last_read\":{\"Literal\":{\"Int\":0}}},\"columns\":{\"id\":\"Id\",\"last_read\":\"Int\",\"principal\":\"Principal\",\"room\":{\"Ref\":{\"table\":\"rooms\"}}},\"indexes\":{\"$intent:byPrincipalRoom:4cdf929dd56b24d2\":{\"components\":[{\"Column\":\"principal\"},{\"Column\":\"room\"},{\"Column\":\"id\"}],\"unique\":false},\"$intent:byRoomPrincipal:97c7db2245b2c441\":{\"components\":[{\"Column\":\"room\"},{\"Column\":\"principal\"}],\"unique\":true},\"byId\":{\"components\":[{\"Column\":\"id\"}],\"unique\":true}},\"rules\":{\"read\":{\"Eq\":[{\"Field\":\"principal\"},\"Viewer\"]},\"insert\":\"Deny\",\"update\":\"Deny\",\"delete\":\"Deny\"},\"constraints\":[{\"Unique\":{\"index\":\"$intent:byRoomPrincipal:97c7db2245b2c441\"}},{\"Immutable\":{\"fields\":[\"room\",\"principal\"]}}],\"leave\":\"until-revoked\"},\"messages\":{\"onDelete\":{\"room\":\"restrict\",\"sender\":\"restrict\"},\"residency\":{\"online_only\":true},\"columns\":{\"at\":\"Time\",\"body\":{\"Text\":{\"max\":4000}},\"id\":\"Id\",\"room\":{\"Ref\":{\"table\":\"rooms\"}},\"sender\":{\"Ref\":{\"table\":\"users\"}}},\"indexes\":{\"$intent:byRoomAt:cac276d27b82ccf0\":{\"components\":[{\"Column\":\"room\"},{\"Column\":\"at\"},{\"Column\":\"id\"}],\"unique\":false},\"$reference:sender\":{\"components\":[{\"Column\":\"sender\"},{\"Column\":\"id\"}],\"unique\":false},\"byId\":{\"components\":[{\"Column\":\"id\"}],\"unique\":true}},\"rules\":{\"read\":{\"Exists\":{\"table\":\"memberships\",\"index\":\"$intent:byRoomPrincipal:97c7db2245b2c441\",\"key\":[{\"Field\":\"room\"},\"Viewer\"],\"provenance\":\"Shape\"}},\"insert\":{\"And\":[{\"Eq\":[{\"Reference\":{\"table\":\"users\",\"column\":\"sender\",\"field\":\"principal\",\"old\":false}},\"Viewer\"]},{\"Exists\":{\"table\":\"memberships\",\"index\":\"$intent:byRoomPrincipal:97c7db2245b2c441\",\"key\":[{\"Field\":\"room\"},\"Viewer\"],\"provenance\":\"Shape\"}}]},\"update\":\"Deny\",\"delete\":\"Deny\"},\"constraints\":[{\"Immutable\":{\"fields\":[\"room\",\"sender\",\"at\"]}}],\"leave\":\"until-revoked\"},\"rooms\":{\"maintained\":{\"total\":\"d8c57db0dc34132fa6f68b503e580af1e34bdf07e7b6f71a5557e74738b632e1\"},\"residency\":{\"online_only\":true},\"columns\":{\"id\":\"Id\",\"total\":\"Int\"},\"indexes\":{\"byId\":{\"components\":[{\"Column\":\"id\"}],\"unique\":true}},\"rules\":{\"read\":\"Allow\",\"insert\":\"Deny\",\"update\":\"Deny\",\"delete\":\"Deny\"},\"constraints\":[],\"leave\":\"until-revoked\"},\"users\":{\"maintained\":{\"sent\":\"a450dddec0256b68f90fdb0fde7d74b0bc3d4d291d66e1f1ddab7eea8ad321ab\"},\"residency\":{\"online_only\":true},\"columns\":{\"id\":\"Id\",\"principal\":\"Principal\",\"sent\":\"Int\"},\"indexes\":{\"$intent:byPrincipal:8097d97fddadb304\":{\"components\":[{\"Column\":\"principal\"}],\"unique\":true},\"byId\":{\"components\":[{\"Column\":\"id\"}],\"unique\":true}},\"rules\":{\"read\":\"Allow\",\"insert\":\"Deny\",\"update\":\"Deny\",\"delete\":\"Deny\"},\"constraints\":[{\"Unique\":{\"index\":\"$intent:byPrincipal:8097d97fddadb304\"}},{\"Immutable\":{\"fields\":[\"principal\"]}}],\"leave\":\"until-revoked\"}},\"maintains\":[{\"parent_key\":null,\"private\":{\"table\":\"rooms\",\"column\":\"total\"},\"residency\":{\"online_only\":true},\"kind\":\"Count\",\"source\":\"messages\",\"by\":[\"room\"],\"target\":\"$column:fbc8f2b666315087dbf3bc74f9b396d9ede6857749557ea132aa424b989f2e0b\",\"readable\":null},{\"parent_key\":null,\"private\":{\"table\":\"users\",\"column\":\"sent\"},\"residency\":{\"online_only\":true},\"kind\":\"Count\",\"source\":\"messages\",\"by\":[\"sender\"],\"target\":\"$column:51f36fd4ff926ffe6b9711cfc3cd239785d464e9db9654f9db87a2c11d8906dc\",\"readable\":null}],\"operations\":{\"W1\":{\"branchPagesV3\":true,\"runs\":\"server\",\"sites\":[{\"site\":\"schema.q:44:10 (messages[message])\",\"table\":\"messages\",\"index\":\"byId\",\"kind\":\"point\",\"class\":\"server\",\"reason\":\"point messages by byId: online only; selected byId (id = message); result: row or null; only declared unique key of this arity\",\"rewrite\":\"sync messages to its read-rule audience, or read a compact synced projection\"}],\"requires\":[\"NOT_FOUND\"]},\"W2\":{\"runs\":\"server\",\"sites\":[{\"site\":\"schema.q:47:18 (memberships[room, viewer])\",\"table\":\"memberships\",\"index\":\"$intent:byRoomPrincipal:97c7db2245b2c441\",\"kind\":\"point\",\"class\":\"server\",\"reason\":\"point memberships by $intent:byRoomPrincipal:97c7db2245b2c441: online only; selected $intent:byRoomPrincipal:97c7db2245b2c441 (room = room, principal = viewer); result: exists; only declared unique key of this arity\",\"rewrite\":\"sync memberships to its read-rule audience, or read a compact synced projection\"},{\"site\":\"schema.q:48:10 (messages where .room = room last 20 by .at, .id)\",\"table\":\"messages\",\"index\":\"$intent:byRoomAt:cac276d27b82ccf0\",\"kind\":\"scan\",\"class\":\"server\",\"reason\":\"scan messages by $intent:byRoomAt:cac276d27b82ccf0: online only; selected $intent:byRoomAt:cac276d27b82ccf0 (room = room); result: page; synthesized; explicit by; read: messages where .room = room last 20 by .at, .id\",\"rewrite\":\"sync messages to its read-rule audience, or read a compact synced projection\"}],\"requires\":[\"NOT_ALLOWED\"]},\"W3\":{\"runs\":\"server\",\"sites\":[{\"site\":\"schema.q:51:10 (memberships where .principal = viewer and .room != 'r1024' first 32 by .room)\",\"table\":\"memberships\",\"index\":\"$intent:byPrincipalRoom:4cdf929dd56b24d2\",\"kind\":\"scan\",\"class\":\"server\",\"reason\":\"scan memberships by $intent:byPrincipalRoom:4cdf929dd56b24d2: online only; selected $intent:byPrincipalRoom:4cdf929dd56b24d2 (principal = viewer); result: page; synthesized; explicit by; read: memberships where .principal = viewer and .room != 'r1024' first 32 by .room\",\"rewrite\":\"sync memberships to its read-rule audience, or read a compact synced projection\"},{\"site\":\"schema.q:52:23 (rooms[$reference3])\",\"table\":\"rooms\",\"index\":\"byId\",\"kind\":\"point\",\"class\":\"server\",\"reason\":\"point rooms by byId: online only; selected byId (id = $reference3); result: row or null; only declared unique key of this arity\",\"rewrite\":\"sync rooms to its read-rule audience, or read a compact synced projection\"},{\"site\":\"schema.q:52:57 (rooms[$reference5])\",\"table\":\"rooms\",\"index\":\"byId\",\"kind\":\"point\",\"class\":\"server\",\"reason\":\"point rooms by byId: online only; selected byId (id = $reference5); result: row or null; only declared unique key of this arity\",\"rewrite\":\"sync rooms to its read-rule audience, or read a compact synced projection\"}],\"requires\":[]},\"increment\":{\"predicts\":\"never\",\"sites\":[{\"site\":\"schema.q:55:7 (counters[counter])\",\"table\":\"counters\",\"index\":\"byId\",\"kind\":\"point\",\"class\":\"server\",\"reason\":\"point counters by byId: online only; selected byId (id = counter); result: row or null; only declared unique key of this arity\",\"rewrite\":\"sync counters to its read-rule audience, or read a compact synced projection\"},{\"site\":\"schema.q:56:10\",\"table\":\"counters\",\"index\":\"byId\",\"kind\":\"write target\",\"class\":\"server\",\"reason\":\"write target counters by byId: online only\",\"rewrite\":\"sync counters to its read-rule audience, or read a compact synced projection\"},{\"site\":\"schema.q:56:10 (update counters)\",\"table\":\"counters\",\"index\":\"byId\",\"kind\":\"write\",\"class\":\"server\",\"reason\":\"write counters by byId: online only\",\"rewrite\":\"sync counters to its read-rule audience, or read a compact synced projection\"},{\"site\":\"schema.q:40:3 (counters update rule: memberships by $intent:byRoomPrincipal:97c7db2245b2c441)\",\"table\":\"memberships\",\"index\":\"$intent:byRoomPrincipal:97c7db2245b2c441\",\"kind\":\"rule\",\"class\":\"server\",\"reason\":\"rule memberships by $intent:byRoomPrincipal:97c7db2245b2c441: online only\",\"rewrite\":\"sync memberships to its read-rule audience, or read a compact synced projection\"}],\"requires\":[\"NOT_FOUND\"]},\"post\":{\"predicts\":\"never\",\"sites\":[{\"site\":\"schema.q:59:7 (users[principal = viewer])\",\"table\":\"users\",\"index\":\"$intent:byPrincipal:8097d97fddadb304\",\"kind\":\"point\",\"class\":\"server\",\"reason\":\"point users by $intent:byPrincipal:8097d97fddadb304: online only; selected $intent:byPrincipal:8097d97fddadb304 (principal = viewer); result: row or null; named equality columns\",\"rewrite\":\"sync users to its read-rule audience, or read a compact synced projection\"},{\"site\":\"schema.q:60:10 (insert messages)\",\"table\":\"messages\",\"index\":\"byId\",\"kind\":\"write\",\"class\":\"server\",\"reason\":\"write messages by byId: online only\",\"rewrite\":\"sync messages to its read-rule audience, or read a compact synced projection\"},{\"site\":\"schema.q:31:3 (messages insert rule: users by byId)\",\"table\":\"users\",\"index\":\"byId\",\"kind\":\"rule reference\",\"class\":\"server\",\"reason\":\"rule reference users by byId: online only\",\"rewrite\":\"sync users to its read-rule audience, or read a compact synced projection\"},{\"site\":\"schema.q:31:3 (messages insert rule: memberships by $intent:byRoomPrincipal:97c7db2245b2c441)\",\"table\":\"memberships\",\"index\":\"$intent:byRoomPrincipal:97c7db2245b2c441\",\"kind\":\"rule\",\"class\":\"server\",\"reason\":\"rule memberships by $intent:byRoomPrincipal:97c7db2245b2c441: online only\",\"rewrite\":\"sync memberships to its read-rule audience, or read a compact synced projection\"}],\"requires\":[\"NOT_FOUND\"]}}}",
+        "version": "snapback4-postgres-evaluation-3",
+        "programs": "{\"W1\":{\"name\":\"W1\",\"kind\":\"Query\",\"args\":{\"message\":{\"Ref\":{\"table\":\"messages\"}}},\"read_time_granularity_ms\":null,\"body\":[{\"Let\":{\"name\":\"$present1\",\"value\":{\"Builtin\":{\"builtin\":\"RequireUncapped\",\"args\":[{\"Get\":{\"site\":\"programs.W1.0\",\"table\":\"messages\",\"index\":\"byId\",\"key\":[{\"Variable\":\"message\"}],\"provenance\":\"Shape\"}}]}}}},{\"Require\":{\"condition\":{\"Binary\":{\"op\":\"Ne\",\"left\":{\"Variable\":\"$present1\"},\"right\":{\"Literal\":\"Null\"}}},\"code\":\"NOT_FOUND\",\"site\":\"schema.q:44:28\"}},{\"Return\":{\"Variable\":\"$present1\"}}]},\"W2\":{\"name\":\"W2\",\"kind\":\"Query\",\"args\":{\"room\":{\"Ref\":{\"table\":\"rooms\"}}},\"read_time_granularity_ms\":null,\"body\":[{\"Require\":{\"condition\":{\"Exists\":{\"site\":\"programs.W2.0\",\"table\":\"memberships\",\"index\":\"$intent:byRoomPrincipal:97c7db2245b2c441\",\"key\":[{\"Variable\":\"room\"},{\"Input\":\"Viewer\"}],\"provenance\":\"Shape\"}},\"code\":\"NOT_ALLOWED\",\"site\":\"schema.q:47:3\"}},{\"Return\":{\"Scan\":{\"site\":\"programs.W2.1\",\"table\":\"messages\",\"index\":\"$intent:byRoomAt:cac276d27b82ccf0\",\"prefix\":[{\"Scalar\":{\"Variable\":\"room\"}}],\"order\":\"Desc\",\"take\":{\"Literal\":20},\"after\":null,\"before\":null,\"range\":null,\"merge_site\":null,\"provenance\":\"Shape\"}}}]},\"W3\":{\"name\":\"W3\",\"kind\":\"Query\",\"args\":{},\"read_time_granularity_ms\":null,\"body\":[{\"Let\":{\"name\":\"$rows1\",\"value\":{\"Array\":[]}}},{\"For\":{\"binding\":\"$row2\",\"domain\":{\"Page\":{\"site\":\"programs.W3.0\",\"table\":\"memberships\",\"index\":\"$intent:byPrincipalRoom:4cdf929dd56b24d2\",\"prefix\":[{\"Scalar\":{\"Input\":\"Viewer\"}}],\"order\":\"Asc\",\"take\":{\"Literal\":32},\"after\":null,\"before\":null,\"range\":null,\"filter\":{\"Binary\":{\"op\":\"Ne\",\"left\":{\"Field\":{\"base\":{\"Variable\":\"$filter\"},\"name\":\"room\"}},\"right\":{\"Literal\":{\"Id\":\"r1024\"}}}},\"merge_site\":null,\"provenance\":\"Shape\"}},\"body\":[{\"Const\":{\"name\":\"$reference3\",\"value\":{\"Field\":{\"base\":{\"Variable\":\"$row2\"},\"name\":\"room\"}}}},{\"Let\":{\"name\":\"$or4\",\"value\":{\"Field\":{\"base\":{\"Get\":{\"site\":\"programs.W3.1\",\"table\":\"rooms\",\"index\":\"byId\",\"key\":[{\"Variable\":\"$reference3\"}],\"provenance\":\"Shape\"}},\"name\":\"total\"}}}},{\"If\":{\"condition\":{\"Binary\":{\"op\":\"Eq\",\"left\":{\"Variable\":\"$or4\"},\"right\":{\"Literal\":\"Null\"}}},\"then_body\":[{\"Assign\":{\"name\":\"$or4\",\"value\":{\"Literal\":{\"Int\":0}}}}],\"else_body\":[]}},{\"Const\":{\"name\":\"$reference5\",\"value\":{\"Field\":{\"base\":{\"Variable\":\"$row2\"},\"name\":\"room\"}}}},{\"Let\":{\"name\":\"$or6\",\"value\":{\"Field\":{\"base\":{\"Get\":{\"site\":\"programs.W3.2\",\"table\":\"rooms\",\"index\":\"byId\",\"key\":[{\"Variable\":\"$reference5\"}],\"provenance\":\"Shape\"}},\"name\":\"total\"}}}},{\"If\":{\"condition\":{\"Binary\":{\"op\":\"Eq\",\"left\":{\"Variable\":\"$or6\"},\"right\":{\"Literal\":\"Null\"}}},\"then_body\":[{\"Assign\":{\"name\":\"$or6\",\"value\":{\"Literal\":{\"Int\":0}}}}],\"else_body\":[]}},{\"Push\":{\"target\":\"$rows1\",\"value\":{\"Shape\":{\"base\":{\"Variable\":\"$row2\"},\"fields\":{\"room\":{\"Field\":{\"base\":{\"Variable\":\"$row2\"},\"name\":\"room\"}},\"total\":{\"Variable\":\"$or4\"},\"unread\":{\"Builtin\":{\"builtin\":\"Max\",\"args\":[{\"Literal\":{\"Int\":0}},{\"Binary\":{\"op\":\"Sub\",\"left\":{\"Variable\":\"$or6\"},\"right\":{\"Field\":{\"base\":{\"Variable\":\"$row2\"},\"name\":\"last_read\"}}}}]}}}}}}}]}},{\"Return\":{\"Variable\":\"$rows1\"}}],\"returned_shapes\":{\"W3:2\":\"programs.W3.0\"}},\"increment\":{\"name\":\"increment\",\"kind\":\"Mutation\",\"args\":{\"counter\":{\"Ref\":{\"table\":\"counters\"}}},\"read_time_granularity_ms\":null,\"body\":[{\"Let\":{\"name\":\"$present1\",\"value\":{\"Get\":{\"site\":\"programs.increment.0\",\"table\":\"counters\",\"index\":\"byId\",\"key\":[{\"Variable\":\"counter\"}],\"provenance\":\"Shape\"}}}},{\"Require\":{\"condition\":{\"Binary\":{\"op\":\"Ne\",\"left\":{\"Variable\":\"$present1\"},\"right\":{\"Literal\":\"Null\"}}},\"code\":\"NOT_FOUND\",\"site\":\"schema.q:55:25\"}},{\"Let\":{\"name\":\"$c2\",\"value\":{\"Variable\":\"$present1\"}}},{\"Let\":{\"name\":\"$key3\",\"value\":{\"Field\":{\"base\":{\"Variable\":\"$c2\"},\"name\":\"id\"}}}},{\"WriteTarget\":{\"target\":{\"site\":\"schema.q:56:10\",\"table\":\"counters\",\"index\":\"byId\",\"key\":[{\"Variable\":\"$key3\"}],\"provenance\":\"Shape\"},\"patch\":{\"Object\":{\"n\":{\"Binary\":{\"op\":\"Add\",\"left\":{\"Field\":{\"base\":{\"Variable\":\"$c2\"},\"name\":\"n\"}},\"right\":{\"Literal\":{\"Int\":1}}}}}},\"upsert\":false,\"condition\":null,\"result\":\"$written4\"}},{\"Return\":{\"Variable\":\"$written4\"}}]},\"post\":{\"name\":\"post\",\"kind\":\"Mutation\",\"args\":{\"body\":{\"Text\":{\"max\":4000}},\"room\":{\"Ref\":{\"table\":\"rooms\"}}},\"read_time_granularity_ms\":null,\"body\":[{\"Let\":{\"name\":\"$present1\",\"value\":{\"Get\":{\"site\":\"programs.post.0\",\"table\":\"users\",\"index\":\"$intent:byPrincipal:8097d97fddadb304\",\"key\":[{\"Input\":\"Viewer\"}],\"provenance\":\"Shape\"}}}},{\"Require\":{\"condition\":{\"Binary\":{\"op\":\"Ne\",\"left\":{\"Variable\":\"$present1\"},\"right\":{\"Literal\":\"Null\"}}},\"code\":\"NOT_FOUND\",\"site\":\"schema.q:59:33\"}},{\"Let\":{\"name\":\"$u2\",\"value\":{\"Variable\":\"$present1\"}}},{\"Let\":{\"name\":\"$value3\",\"value\":{\"Input\":\"NewId\"}}},{\"Const\":{\"name\":\"$inserted4\",\"value\":{\"Object\":{\"at\":{\"Input\":\"Now\"},\"body\":{\"Variable\":\"body\"},\"id\":{\"Variable\":\"$value3\"},\"room\":{\"Variable\":\"room\"},\"sender\":{\"Field\":{\"base\":{\"Variable\":\"$u2\"},\"name\":\"id\"}}}}}},{\"Insert\":{\"table\":\"messages\",\"row\":{\"Variable\":\"$inserted4\"}}},{\"Return\":{\"Variable\":\"$inserted4\"}}]}}",
+        "singleton": true,
+        "generation": 1,
+        "through_shortened": "{}",
+        "maintained_identity_version": null
+      }
+    ],
+    "columns": [
+      {
+        "data_type": "text",
+        "table_name": "_asset_gc",
+        "column_name": "asset",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 1
+      },
+      {
+        "data_type": "text",
+        "table_name": "_asset_intents",
+        "column_name": "owner",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 1
+      },
+      {
+        "data_type": "text",
+        "table_name": "_asset_intents",
+        "column_name": "intent",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 2
+      },
+      {
+        "data_type": "text",
+        "table_name": "_asset_intents",
+        "column_name": "fingerprint",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 3
+      },
+      {
+        "data_type": "text",
+        "table_name": "_asset_intents",
+        "column_name": "asset",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 4
+      },
+      {
+        "data_type": "text",
+        "table_name": "_asset_intents",
+        "column_name": "facts",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 5
+      },
+      {
+        "data_type": "text",
+        "table_name": "_asset_intents",
+        "column_name": "placement",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 6
+      },
+      {
+        "data_type": "text",
+        "table_name": "_asset_intents",
+        "column_name": "state",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 7
+      },
+      {
+        "data_type": "text",
+        "table_name": "_asset_views",
+        "column_name": "asset",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 1
+      },
+      {
+        "data_type": "text",
+        "table_name": "_asset_views",
+        "column_name": "principal",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 2
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_asset_views",
+        "column_name": "at",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 3
+      },
+      {
+        "data_type": "text",
+        "table_name": "_assets",
+        "column_name": "id",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 1
+      },
+      {
+        "data_type": "text",
+        "table_name": "_assets",
+        "column_name": "owner",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 2
+      },
+      {
+        "data_type": "text",
+        "table_name": "_assets",
+        "column_name": "kind",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 3
+      },
+      {
+        "data_type": "text",
+        "table_name": "_assets",
+        "column_name": "content_type",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 4
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_assets",
+        "column_name": "bytes",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 5
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_assets",
+        "column_name": "width",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 6
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_assets",
+        "column_name": "height",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 7
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_assets",
+        "column_name": "duration",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 8
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_assets",
+        "column_name": "created_at",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 9
+      },
+      {
+        "data_type": "text",
+        "table_name": "_assets",
+        "column_name": "home_table",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 10
+      },
+      {
+        "data_type": "text",
+        "table_name": "_assets",
+        "column_name": "home_id",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 11
+      },
+      {
+        "data_type": "text",
+        "table_name": "_assets",
+        "column_name": "home_column",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 12
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_assets",
+        "column_name": "released_at",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 13
+      },
+      {
+        "data_type": "text",
+        "table_name": "_assets",
+        "column_name": "name",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 14
+      },
+      {
+        "data_type": "boolean",
+        "table_name": "_backend",
+        "column_name": "singleton",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 1
+      },
+      {
+        "data_type": "text",
+        "table_name": "_backend",
+        "column_name": "version",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 2
+      },
+      {
+        "data_type": "text",
+        "table_name": "_backend",
+        "column_name": "schema",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 3
+      },
+      {
+        "data_type": "text",
+        "table_name": "_backend",
+        "column_name": "programs",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 4
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_backend",
+        "column_name": "generation",
+        "is_nullable": "NO",
+        "column_default": "1",
+        "ordinal_position": 5
+      },
+      {
+        "data_type": "text",
+        "table_name": "_backend",
+        "column_name": "through_shortened",
+        "is_nullable": "NO",
+        "column_default": "'{}'::text",
+        "ordinal_position": 6
+      },
+      {
+        "data_type": "text",
+        "table_name": "_backend",
+        "column_name": "maintained_identity_version",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 7
+      },
+      {
+        "data_type": "text",
+        "table_name": "_cap_counts",
+        "column_name": "t",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 1
+      },
+      {
+        "data_type": "bytea",
+        "table_name": "_cap_counts",
+        "column_name": "k",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 2
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_cap_counts",
+        "column_name": "n",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 3
+      },
+      {
+        "data_type": "text",
+        "table_name": "_catalog",
+        "column_name": "name",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 1
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_catalog",
+        "column_name": "num",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 2
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_change_evidence",
+        "column_name": "seq",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 1
+      },
+      {
+        "data_type": "text",
+        "table_name": "_change_evidence",
+        "column_name": "footprint",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 2
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_commits",
+        "column_name": "seq",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 1
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_commits",
+        "column_name": "at",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 2
+      },
+      {
+        "data_type": "text",
+        "table_name": "_commits",
+        "column_name": "program",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 3
+      },
+      {
+        "data_type": "text",
+        "table_name": "_commits",
+        "column_name": "principal",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 4
+      },
+      {
+        "data_type": "text",
+        "table_name": "_commits",
+        "column_name": "kind",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 5
+      },
+      {
+        "data_type": "text",
+        "table_name": "_commits",
+        "column_name": "touched",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 6
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_commits",
+        "column_name": "writes",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 7
+      },
+      {
+        "data_type": "text",
+        "table_name": "_credentials",
+        "column_name": "principal",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 1
+      },
+      {
+        "data_type": "text",
+        "table_name": "_credentials",
+        "column_name": "email",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 2
+      },
+      {
+        "data_type": "text",
+        "table_name": "_credentials",
+        "column_name": "hash",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 3
+      },
+      {
+        "data_type": "text",
+        "table_name": "_dormant_columns",
+        "column_name": "table_name",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 1
+      },
+      {
+        "data_type": "text",
+        "table_name": "_dormant_columns",
+        "column_name": "column_name",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 2
+      },
+      {
+        "data_type": "text",
+        "table_name": "_dormant_columns",
+        "column_name": "definition",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 3
+      },
+      {
+        "data_type": "text",
+        "table_name": "_dormant_indexes",
+        "column_name": "table_name",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 1
+      },
+      {
+        "data_type": "text",
+        "table_name": "_dormant_indexes",
+        "column_name": "index_name",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 2
+      },
+      {
+        "data_type": "text",
+        "table_name": "_dormant_indexes",
+        "column_name": "definition",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 3
+      },
+      {
+        "data_type": "text",
+        "table_name": "_dormant_refs",
+        "column_name": "t",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 1
+      },
+      {
+        "data_type": "text",
+        "table_name": "_dormant_refs",
+        "column_name": "id",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 2
+      },
+      {
+        "data_type": "text",
+        "table_name": "_dormant_refs",
+        "column_name": "column_name",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 3
+      },
+      {
+        "data_type": "text",
+        "table_name": "_dormant_refs",
+        "column_name": "parent_t",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 4
+      },
+      {
+        "data_type": "text",
+        "table_name": "_dormant_refs",
+        "column_name": "parent_id",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 5
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_dormant_refs",
+        "column_name": "invalid",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 6
+      },
+      {
+        "data_type": "text",
+        "table_name": "_dormant_rows",
+        "column_name": "t",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 1
+      },
+      {
+        "data_type": "text",
+        "table_name": "_dormant_rows",
+        "column_name": "id",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 2
+      },
+      {
+        "data_type": "text",
+        "table_name": "_dormant_rows",
+        "column_name": "data",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 3
+      },
+      {
+        "data_type": "text",
+        "table_name": "_dormant_tables",
+        "column_name": "table_name",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 1
+      },
+      {
+        "data_type": "text",
+        "table_name": "_dormant_tables",
+        "column_name": "definition",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 2
+      },
+      {
+        "data_type": "text",
+        "table_name": "_dormant_values",
+        "column_name": "t",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 1
+      },
+      {
+        "data_type": "text",
+        "table_name": "_dormant_values",
+        "column_name": "id",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 2
+      },
+      {
+        "data_type": "text",
+        "table_name": "_dormant_values",
+        "column_name": "column_name",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 3
+      },
+      {
+        "data_type": "text",
+        "table_name": "_dormant_values",
+        "column_name": "data",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 4
+      },
+      {
+        "data_type": "text",
+        "table_name": "_effect_keys",
+        "column_name": "effect",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 1
+      },
+      {
+        "data_type": "text",
+        "table_name": "_effect_keys",
+        "column_name": "key",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 2
+      },
+      {
+        "data_type": "text",
+        "table_name": "_effect_presence",
+        "column_name": "principal",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 1
+      },
+      {
+        "data_type": "text",
+        "table_name": "_effect_presence",
+        "column_name": "id",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 2
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_effect_presence",
+        "column_name": "deadline",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 3
+      },
+      {
+        "data_type": "boolean",
+        "table_name": "_effect_presence",
+        "column_name": "reconnected",
+        "is_nullable": "NO",
+        "column_default": "false",
+        "ordinal_position": 4
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_generations",
+        "column_name": "generation",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 1
+      },
+      {
+        "data_type": "text",
+        "table_name": "_generations",
+        "column_name": "schema",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 2
+      },
+      {
+        "data_type": "text",
+        "table_name": "_generations",
+        "column_name": "programs",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 3
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_generations",
+        "column_name": "at",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 4
+      },
+      {
+        "data_type": "boolean",
+        "table_name": "_head",
+        "column_name": "singleton",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 1
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_head",
+        "column_name": "seq",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 2
+      },
+      {
+        "data_type": "text",
+        "table_name": "_jobs",
+        "column_name": "id",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 1
+      },
+      {
+        "data_type": "text",
+        "table_name": "_jobs",
+        "column_name": "name",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 2
+      },
+      {
+        "data_type": "text",
+        "table_name": "_jobs",
+        "column_name": "args",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 3
+      },
+      {
+        "data_type": "text",
+        "table_name": "_jobs",
+        "column_name": "program_hash",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 4
+      },
+      {
+        "data_type": "text",
+        "table_name": "_jobs",
+        "column_name": "state",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 5
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_jobs",
+        "column_name": "sweep",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 6
+      },
+      {
+        "data_type": "bytea",
+        "table_name": "_jobs",
+        "column_name": "cursor",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 7
+      },
+      {
+        "data_type": "bytea",
+        "table_name": "_jobs",
+        "column_name": "upper",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 8
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_jobs",
+        "column_name": "chunks",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 9
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_jobs",
+        "column_name": "rows_written",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 10
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_jobs",
+        "column_name": "created_at",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 11
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_jobs",
+        "column_name": "updated_at",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 12
+      },
+      {
+        "data_type": "bytea",
+        "table_name": "_jobs",
+        "column_name": "error",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 13
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_jobs",
+        "column_name": "chunk_size",
+        "is_nullable": "NO",
+        "column_default": "0",
+        "ordinal_position": 14
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_jobs",
+        "column_name": "retries",
+        "is_nullable": "NO",
+        "column_default": "0",
+        "ordinal_position": 15
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_jobs",
+        "column_name": "heap_peak",
+        "is_nullable": "NO",
+        "column_default": "0",
+        "ordinal_position": 16
+      },
+      {
+        "data_type": "text",
+        "table_name": "_jobs",
+        "column_name": "domain",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 17
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_jobs",
+        "column_name": "insertion_order",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 18
+      },
+      {
+        "data_type": "text",
+        "table_name": "_log",
+        "column_name": "partition",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 1
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_log",
+        "column_name": "seq",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 2
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_log",
+        "column_name": "ord",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 3
+      },
+      {
+        "data_type": "text",
+        "table_name": "_log",
+        "column_name": "t",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 4
+      },
+      {
+        "data_type": "text",
+        "table_name": "_log",
+        "column_name": "kind",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 5
+      },
+      {
+        "data_type": "text",
+        "table_name": "_log",
+        "column_name": "id",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 6
+      },
+      {
+        "data_type": "text",
+        "table_name": "_log",
+        "column_name": "data",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 7
+      },
+      {
+        "data_type": "text",
+        "table_name": "_meta",
+        "column_name": "key",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 1
+      },
+      {
+        "data_type": "text",
+        "table_name": "_meta",
+        "column_name": "value",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 2
+      },
+      {
+        "data_type": "text",
+        "table_name": "_ops",
+        "column_name": "principal",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 1
+      },
+      {
+        "data_type": "text",
+        "table_name": "_ops",
+        "column_name": "id",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 2
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_ops",
+        "column_name": "seq",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 3
+      },
+      {
+        "data_type": "text",
+        "table_name": "_ops",
+        "column_name": "outcome",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 4
+      },
+      {
+        "data_type": "text",
+        "table_name": "_ops",
+        "column_name": "name",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 5
+      },
+      {
+        "data_type": "text",
+        "table_name": "_ops",
+        "column_name": "args_digest",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 6
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_ops",
+        "column_name": "at",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 7
+      },
+      {
+        "data_type": "text",
+        "table_name": "_outbox",
+        "column_name": "id",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 1
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_outbox",
+        "column_name": "seq",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 2
+      },
+      {
+        "data_type": "text",
+        "table_name": "_outbox",
+        "column_name": "effect",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 3
+      },
+      {
+        "data_type": "text",
+        "table_name": "_outbox",
+        "column_name": "payload",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 4
+      },
+      {
+        "data_type": "text",
+        "table_name": "_outbox",
+        "column_name": "state",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 5
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_outbox",
+        "column_name": "attempts",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 6
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_outbox",
+        "column_name": "at",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 7
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_outbox",
+        "column_name": "lease_until",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 8
+      },
+      {
+        "data_type": "text",
+        "table_name": "_outbox",
+        "column_name": "claimed_by",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 9
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_outbox",
+        "column_name": "next_at",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 10
+      },
+      {
+        "data_type": "text",
+        "table_name": "_outbox",
+        "column_name": "result",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 11
+      },
+      {
+        "data_type": "text",
+        "table_name": "_outbox",
+        "column_name": "error",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 12
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_outbox",
+        "column_name": "settled_at",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 13
+      },
+      {
+        "data_type": "text",
+        "table_name": "_outbox",
+        "column_name": "work_spec",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 14
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_outbox",
+        "column_name": "deadline",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 15
+      },
+      {
+        "data_type": "text",
+        "table_name": "_outbox",
+        "column_name": "release",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 16
+      },
+      {
+        "data_type": "text",
+        "table_name": "_outbox",
+        "column_name": "error_code",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 17
+      },
+      {
+        "data_type": "text",
+        "table_name": "_outbox",
+        "column_name": "lease_digest",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 18
+      },
+      {
+        "data_type": "boolean",
+        "table_name": "_outbox",
+        "column_name": "cancelled",
+        "is_nullable": "NO",
+        "column_default": "false",
+        "ordinal_position": 19
+      },
+      {
+        "data_type": "text",
+        "table_name": "_outbox",
+        "column_name": "contract",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 20
+      },
+      {
+        "data_type": "boolean",
+        "table_name": "_owner",
+        "column_name": "singleton",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 1
+      },
+      {
+        "data_type": "text",
+        "table_name": "_owner",
+        "column_name": "store_id",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 2
+      },
+      {
+        "data_type": "text",
+        "table_name": "_owner",
+        "column_name": "holder",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 3
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_owner",
+        "column_name": "token",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 4
+      },
+      {
+        "data_type": "timestamp with time zone",
+        "table_name": "_owner",
+        "column_name": "lease_until",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 5
+      },
+      {
+        "data_type": "text",
+        "table_name": "_principal_generations",
+        "column_name": "principal",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 1
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_principal_generations",
+        "column_name": "generation",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 2
+      },
+      {
+        "data_type": "text",
+        "table_name": "_principals",
+        "column_name": "id",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 1
+      },
+      {
+        "data_type": "text",
+        "table_name": "_principals",
+        "column_name": "kind",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 2
+      },
+      {
+        "data_type": "text",
+        "table_name": "_principals",
+        "column_name": "name",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 3
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_principals",
+        "column_name": "created_at",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 4
+      },
+      {
+        "data_type": "text",
+        "table_name": "_read_sessions",
+        "column_name": "token_digest",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 1
+      },
+      {
+        "data_type": "text",
+        "table_name": "_read_sessions",
+        "column_name": "principal",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 2
+      },
+      {
+        "data_type": "text",
+        "table_name": "_read_sessions",
+        "column_name": "kind",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 3
+      },
+      {
+        "data_type": "text",
+        "table_name": "_read_sessions",
+        "column_name": "family",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 4
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_read_sessions",
+        "column_name": "created_at",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 5
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_read_sessions",
+        "column_name": "expires_at",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 6
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_read_sessions",
+        "column_name": "cap_expires_at",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 7
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_read_sessions",
+        "column_name": "principal_generation",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 8
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_release_event_items",
+        "column_name": "event",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 1
+      },
+      {
+        "data_type": "text",
+        "table_name": "_release_event_items",
+        "column_name": "path",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 2
+      },
+      {
+        "data_type": "text",
+        "table_name": "_release_event_items",
+        "column_name": "detail",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 3
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_release_events",
+        "column_name": "id",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 1
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_release_events",
+        "column_name": "at",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 2
+      },
+      {
+        "data_type": "text",
+        "table_name": "_release_events",
+        "column_name": "operation",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 3
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_release_events",
+        "column_name": "release",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 4
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_release_events",
+        "column_name": "previous",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 5
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_release_events",
+        "column_name": "generation",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 6
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_release_events",
+        "column_name": "revision",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 7
+      },
+      {
+        "data_type": "text",
+        "table_name": "_release_events",
+        "column_name": "summary",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 8
+      },
+      {
+        "data_type": "text",
+        "table_name": "_requests",
+        "column_name": "id",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 1
+      },
+      {
+        "data_type": "text",
+        "table_name": "_requests",
+        "column_name": "name",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 2
+      },
+      {
+        "data_type": "text",
+        "table_name": "_requests",
+        "column_name": "args",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 3
+      },
+      {
+        "data_type": "text",
+        "table_name": "_requests",
+        "column_name": "principal",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 4
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_requests",
+        "column_name": "at",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 5
+      },
+      {
+        "data_type": "text",
+        "table_name": "_requests",
+        "column_name": "state",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 6
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_requests",
+        "column_name": "attempts",
+        "is_nullable": "NO",
+        "column_default": "0",
+        "ordinal_position": 7
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_requests",
+        "column_name": "next_at",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 8
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_requests",
+        "column_name": "lease_until",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 9
+      },
+      {
+        "data_type": "text",
+        "table_name": "_requests",
+        "column_name": "claimed_by",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 10
+      },
+      {
+        "data_type": "text",
+        "table_name": "_requests",
+        "column_name": "session_digest",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 11
+      },
+      {
+        "data_type": "text",
+        "table_name": "_requests",
+        "column_name": "result",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 12
+      },
+      {
+        "data_type": "text",
+        "table_name": "_requests",
+        "column_name": "error",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 13
+      },
+      {
+        "data_type": "text",
+        "table_name": "_requests",
+        "column_name": "family",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 14
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_requests",
+        "column_name": "principal_generation",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 15
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_requests",
+        "column_name": "admitted_expires_at",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 16
+      },
+      {
+        "data_type": "text",
+        "table_name": "_requests",
+        "column_name": "args_digest",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 17
+      },
+      {
+        "data_type": "text",
+        "table_name": "_requests",
+        "column_name": "error_code",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 18
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_requests",
+        "column_name": "settled_at",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 19
+      },
+      {
+        "data_type": "text",
+        "table_name": "_requests",
+        "column_name": "spec",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 20
+      },
+      {
+        "data_type": "text",
+        "table_name": "_requests",
+        "column_name": "contract",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 21
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_requests",
+        "column_name": "deadline",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 22
+      },
+      {
+        "data_type": "text",
+        "table_name": "_requests",
+        "column_name": "release",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 23
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_requests",
+        "column_name": "service_generation",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 24
+      },
+      {
+        "data_type": "boolean",
+        "table_name": "_requests",
+        "column_name": "cancelled",
+        "is_nullable": "NO",
+        "column_default": "false",
+        "ordinal_position": 25
+      },
+      {
+        "data_type": "text",
+        "table_name": "_sequences",
+        "column_name": "parent",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 1
+      },
+      {
+        "data_type": "text",
+        "table_name": "_sequences",
+        "column_name": "id",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 2
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_sequences",
+        "column_name": "value",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 3
+      },
+      {
+        "data_type": "text",
+        "table_name": "_session_mint_bindings",
+        "column_name": "invocation",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 1
+      },
+      {
+        "data_type": "text",
+        "table_name": "_session_mint_bindings",
+        "column_name": "intent",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 2
+      },
+      {
+        "data_type": "text",
+        "table_name": "_session_mint_bindings",
+        "column_name": "input_digest",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 3
+      },
+      {
+        "data_type": "text",
+        "table_name": "_session_mint_bindings",
+        "column_name": "principal",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 4
+      },
+      {
+        "data_type": "text",
+        "table_name": "_session_mint_bindings",
+        "column_name": "kind",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 5
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_session_mint_bindings",
+        "column_name": "days",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 6
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_session_mint_bindings",
+        "column_name": "expires_at",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 7
+      },
+      {
+        "data_type": "text",
+        "table_name": "_session_mint_bindings",
+        "column_name": "family",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 8
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_session_mint_bindings",
+        "column_name": "principal_generation",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 9
+      },
+      {
+        "data_type": "text",
+        "table_name": "_session_mint_bindings",
+        "column_name": "scope",
+        "is_nullable": "NO",
+        "column_default": "'full'::text",
+        "ordinal_position": 10
+      },
+      {
+        "data_type": "text",
+        "table_name": "_sessions",
+        "column_name": "token_digest",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 1
+      },
+      {
+        "data_type": "text",
+        "table_name": "_sessions",
+        "column_name": "principal",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 2
+      },
+      {
+        "data_type": "text",
+        "table_name": "_sessions",
+        "column_name": "kind",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 3
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_sessions",
+        "column_name": "created_at",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 4
+      },
+      {
+        "data_type": "bigint",
+        "table_name": "_sessions",
+        "column_name": "expires_at",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 5
+      },
+      {
+        "data_type": "text",
+        "table_name": "_sessions",
+        "column_name": "family",
+        "is_nullable": "YES",
+        "column_default": null,
+        "ordinal_position": 6
+      },
+      {
+        "data_type": "text",
+        "table_name": "i",
+        "column_name": "t",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 1
+      },
+      {
+        "data_type": "text",
+        "table_name": "i",
+        "column_name": "ix",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 2
+      },
+      {
+        "data_type": "bytea",
+        "table_name": "i",
+        "column_name": "k",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 3
+      },
+      {
+        "data_type": "text",
+        "table_name": "i",
+        "column_name": "id",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 4
+      },
+      {
+        "data_type": "text",
+        "table_name": "r",
+        "column_name": "t",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 1
+      },
+      {
+        "data_type": "text",
+        "table_name": "r",
+        "column_name": "id",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 2
+      },
+      {
+        "data_type": "text",
+        "table_name": "r",
+        "column_name": "data",
+        "is_nullable": "NO",
+        "column_default": null,
+        "ordinal_position": 3
+      }
+    ],
+    "indexes": [
+      {
+        "indexdef": "CREATE UNIQUE INDEX _asset_gc_pkey ON bench._asset_gc USING btree (asset)",
+        "indexname": "_asset_gc_pkey",
+        "tablename": "_asset_gc"
+      },
+      {
+        "indexdef": "CREATE UNIQUE INDEX _asset_intents_pkey ON bench._asset_intents USING btree (owner, intent)",
+        "indexname": "_asset_intents_pkey",
+        "tablename": "_asset_intents"
+      },
+      {
+        "indexdef": "CREATE UNIQUE INDEX _asset_views_pkey ON bench._asset_views USING btree (asset, principal)",
+        "indexname": "_asset_views_pkey",
+        "tablename": "_asset_views"
+      },
+      {
+        "indexdef": "CREATE UNIQUE INDEX _assets_pkey ON bench._assets USING btree (id)",
+        "indexname": "_assets_pkey",
+        "tablename": "_assets"
+      },
+      {
+        "indexdef": "CREATE UNIQUE INDEX _backend_pkey ON bench._backend USING btree (singleton)",
+        "indexname": "_backend_pkey",
+        "tablename": "_backend"
+      },
+      {
+        "indexdef": "CREATE UNIQUE INDEX _cap_counts_pkey ON bench._cap_counts USING btree (t, k)",
+        "indexname": "_cap_counts_pkey",
+        "tablename": "_cap_counts"
+      },
+      {
+        "indexdef": "CREATE UNIQUE INDEX _catalog_num_key ON bench._catalog USING btree (num)",
+        "indexname": "_catalog_num_key",
+        "tablename": "_catalog"
+      },
+      {
+        "indexdef": "CREATE UNIQUE INDEX _catalog_pkey ON bench._catalog USING btree (name)",
+        "indexname": "_catalog_pkey",
+        "tablename": "_catalog"
+      },
+      {
+        "indexdef": "CREATE UNIQUE INDEX _change_evidence_pkey ON bench._change_evidence USING btree (seq)",
+        "indexname": "_change_evidence_pkey",
+        "tablename": "_change_evidence"
+      },
+      {
+        "indexdef": "CREATE UNIQUE INDEX _commits_pkey ON bench._commits USING btree (seq)",
+        "indexname": "_commits_pkey",
+        "tablename": "_commits"
+      },
+      {
+        "indexdef": "CREATE UNIQUE INDEX _credentials_email_key ON bench._credentials USING btree (email)",
+        "indexname": "_credentials_email_key",
+        "tablename": "_credentials"
+      },
+      {
+        "indexdef": "CREATE UNIQUE INDEX _credentials_pkey ON bench._credentials USING btree (principal)",
+        "indexname": "_credentials_pkey",
+        "tablename": "_credentials"
+      },
+      {
+        "indexdef": "CREATE UNIQUE INDEX _dormant_columns_pkey ON bench._dormant_columns USING btree (table_name, column_name)",
+        "indexname": "_dormant_columns_pkey",
+        "tablename": "_dormant_columns"
+      },
+      {
+        "indexdef": "CREATE UNIQUE INDEX _dormant_indexes_pkey ON bench._dormant_indexes USING btree (table_name, index_name)",
+        "indexname": "_dormant_indexes_pkey",
+        "tablename": "_dormant_indexes"
+      },
+      {
+        "indexdef": "CREATE INDEX _dormant_parent ON bench._dormant_refs USING btree (parent_t, parent_id)",
+        "indexname": "_dormant_parent",
+        "tablename": "_dormant_refs"
+      },
+      {
+        "indexdef": "CREATE UNIQUE INDEX _dormant_refs_pkey ON bench._dormant_refs USING btree (t, id, column_name, parent_t, parent_id)",
+        "indexname": "_dormant_refs_pkey",
+        "tablename": "_dormant_refs"
+      },
+      {
+        "indexdef": "CREATE UNIQUE INDEX _dormant_rows_pkey ON bench._dormant_rows USING btree (t, id)",
+        "indexname": "_dormant_rows_pkey",
+        "tablename": "_dormant_rows"
+      },
+      {
+        "indexdef": "CREATE UNIQUE INDEX _dormant_tables_pkey ON bench._dormant_tables USING btree (table_name)",
+        "indexname": "_dormant_tables_pkey",
+        "tablename": "_dormant_tables"
+      },
+      {
+        "indexdef": "CREATE UNIQUE INDEX _dormant_values_pkey ON bench._dormant_values USING btree (t, id, column_name)",
+        "indexname": "_dormant_values_pkey",
+        "tablename": "_dormant_values"
+      },
+      {
+        "indexdef": "CREATE UNIQUE INDEX _effect_keys_pkey ON bench._effect_keys USING btree (effect, key)",
+        "indexname": "_effect_keys_pkey",
+        "tablename": "_effect_keys"
+      },
+      {
+        "indexdef": "CREATE INDEX _effect_presence_id ON bench._effect_presence USING btree (id)",
+        "indexname": "_effect_presence_id",
+        "tablename": "_effect_presence"
+      },
+      {
+        "indexdef": "CREATE UNIQUE INDEX _effect_presence_pkey ON bench._effect_presence USING btree (principal, id)",
+        "indexname": "_effect_presence_pkey",
+        "tablename": "_effect_presence"
+      },
+      {
+        "indexdef": "CREATE UNIQUE INDEX _generations_pkey ON bench._generations USING btree (generation)",
+        "indexname": "_generations_pkey",
+        "tablename": "_generations"
+      },
+      {
+        "indexdef": "CREATE UNIQUE INDEX _head_pkey ON bench._head USING btree (singleton)",
+        "indexname": "_head_pkey",
+        "tablename": "_head"
+      },
+      {
+        "indexdef": "CREATE UNIQUE INDEX _jobs_pkey ON bench._jobs USING btree (id)",
+        "indexname": "_jobs_pkey",
+        "tablename": "_jobs"
+      },
+      {
+        "indexdef": "CREATE UNIQUE INDEX _log_pkey ON bench._log USING btree (partition, seq, ord)",
+        "indexname": "_log_pkey",
+        "tablename": "_log"
+      },
+      {
+        "indexdef": "CREATE UNIQUE INDEX _meta_pkey ON bench._meta USING btree (key)",
+        "indexname": "_meta_pkey",
+        "tablename": "_meta"
+      },
+      {
+        "indexdef": "CREATE UNIQUE INDEX _ops_pkey ON bench._ops USING btree (principal, id)",
+        "indexname": "_ops_pkey",
+        "tablename": "_ops"
+      },
+      {
+        "indexdef": "CREATE INDEX _outbox_due ON bench._outbox USING btree (state, effect, seq)",
+        "indexname": "_outbox_due",
+        "tablename": "_outbox"
+      },
+      {
+        "indexdef": "CREATE UNIQUE INDEX _outbox_pkey ON bench._outbox USING btree (id)",
+        "indexname": "_outbox_pkey",
+        "tablename": "_outbox"
+      },
+      {
+        "indexdef": "CREATE UNIQUE INDEX _owner_pkey ON bench._owner USING btree (singleton)",
+        "indexname": "_owner_pkey",
+        "tablename": "_owner"
+      },
+      {
+        "indexdef": "CREATE UNIQUE INDEX _principal_generations_pkey ON bench._principal_generations USING btree (principal)",
+        "indexname": "_principal_generations_pkey",
+        "tablename": "_principal_generations"
+      },
+      {
+        "indexdef": "CREATE UNIQUE INDEX _principals_pkey ON bench._principals USING btree (id)",
+        "indexname": "_principals_pkey",
+        "tablename": "_principals"
+      },
+      {
+        "indexdef": "CREATE INDEX _read_sessions_family ON bench._read_sessions USING btree (principal, family, expires_at)",
+        "indexname": "_read_sessions_family",
+        "tablename": "_read_sessions"
+      },
+      {
+        "indexdef": "CREATE UNIQUE INDEX _read_sessions_pkey ON bench._read_sessions USING btree (token_digest)",
+        "indexname": "_read_sessions_pkey",
+        "tablename": "_read_sessions"
+      },
+      {
+        "indexdef": "CREATE UNIQUE INDEX _release_event_items_pkey ON bench._release_event_items USING btree (event, path)",
+        "indexname": "_release_event_items_pkey",
+        "tablename": "_release_event_items"
+      },
+      {
+        "indexdef": "CREATE UNIQUE INDEX _release_events_pkey ON bench._release_events USING btree (id)",
+        "indexname": "_release_events_pkey",
+        "tablename": "_release_events"
+      },
+      {
+        "indexdef": "CREATE INDEX _requests_due ON bench._requests USING btree (state, name, at, id)",
+        "indexname": "_requests_due",
+        "tablename": "_requests"
+      },
+      {
+        "indexdef": "CREATE UNIQUE INDEX _requests_pkey ON bench._requests USING btree (id)",
+        "indexname": "_requests_pkey",
+        "tablename": "_requests"
+      },
+      {
+        "indexdef": "CREATE INDEX _requests_session ON bench._requests USING btree (session_digest)",
+        "indexname": "_requests_session",
+        "tablename": "_requests"
+      },
+      {
+        "indexdef": "CREATE UNIQUE INDEX _sequences_pkey ON bench._sequences USING btree (parent, id)",
+        "indexname": "_sequences_pkey",
+        "tablename": "_sequences"
+      },
+      {
+        "indexdef": "CREATE UNIQUE INDEX _session_mint_bindings_pkey ON bench._session_mint_bindings USING btree (invocation, intent)",
+        "indexname": "_session_mint_bindings_pkey",
+        "tablename": "_session_mint_bindings"
+      },
+      {
+        "indexdef": "CREATE INDEX _sessions_expiry ON bench._sessions USING btree (expires_at)",
+        "indexname": "_sessions_expiry",
+        "tablename": "_sessions"
+      },
+      {
+        "indexdef": "CREATE INDEX _sessions_family ON bench._sessions USING btree (principal, family, expires_at)",
+        "indexname": "_sessions_family",
+        "tablename": "_sessions"
+      },
+      {
+        "indexdef": "CREATE UNIQUE INDEX _sessions_pkey ON bench._sessions USING btree (token_digest)",
+        "indexname": "_sessions_pkey",
+        "tablename": "_sessions"
+      },
+      {
+        "indexdef": "CREATE UNIQUE INDEX i_pkey ON bench.i USING btree (t, ix, k)",
+        "indexname": "i_pkey",
+        "tablename": "i"
+      },
+      {
+        "indexdef": "CREATE UNIQUE INDEX r_pkey ON bench.r USING btree (t, id)",
+        "indexname": "r_pkey",
+        "tablename": "r"
+      }
+    ],
+    "rows_md5": "39071379c29a7dd2a9df64156266ed6b"
+  },
+  "exact": false,
+  "native_b1_account_query_passed": true
+}

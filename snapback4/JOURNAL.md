@@ -104581,3 +104581,140 @@ unchanged. The root WORKSTREAM-REPORT.md belongs to this integration and will
 record final suites, schema survey, real artifact refusals, Exact and Mac scope.
 
 Mac follow-up: a repeated private-command probe reproduced Darwin signal-0 EPERM with no remaining group rows. Cleanup now treats EPERM as presence and retries within the existing five-second bound; only ESRCH succeeds, so persistent permission failures still refuse. A deterministic transient-EPERM regression covers the race. The published capability test now checks DX8's monotonic release-store format 10.
+
+## 2026-10-23 — PH: remove the managed Postgres log's redundant foreign key
+
+Lane `sb4-pg/plan-hygiene` implements the first plan-hygiene remedy in
+[the accepted performance RFC, §3.4](../llp/3000.009.001.000.002-beating-the-postgres-controls.rfc.md#3.4).
+Fresh Postgres bootstrap omits `_log.seq → _commits(seq)`. Common-engine and
+retained-evaluator attach validate and remove only the recognized immediate,
+validated, simple-match NO ACTION legacy constraint under the head fence.
+Read-only pending-bootstrap recovery accepts both complete shapes without
+upgrading. Reopen takes no log ALTER lock once upgraded. Incompatible shapes
+and later attach refusals roll back every schema/data change. Existing
+concurrent-attacher refusal tests now include a real legacy log FK.
+
+The managed tail already accepts only the matching pending commit and derives
+all log sequences from `committed`. No production code deletes or prunes
+`_commits` or `_log`; bounded evidence pruning retains both. The 1,001-tail
+witness checks successful commits, mismatched-sequence refusal, rollback,
+evidence pruning and populated legacy conversion. The difftest reset restores
+both ledgers atomically, and a new anti-join oracle checks before/after resets
+and at world removal. A planted orphan proves it detects corruption hidden by
+ordinary log readers' inner join. Existing outcome/meter comparisons remain
+unchanged. Store-port §7.3 records the audit and future retention obligation.
+SQLite is unchanged: the existing full-core opener contract actually queries
+`PRAGMA foreign_keys` and verifies writer=0, readers/inspection=1; its log has
+no commit FK.
+
+The matched five-rows/member durable-tail model starts from one analyzed seed
+and reuses each backend across 1 s warm-up and 2 s measurement, N=1/4/16/32/64.
+The final serial-run OLS slope is **384.60 µs/member with the legacy FK,
+8.82 fresh and 8.33 upgraded**. At N=32 the legacy commit table adds 6,592 seq
+scans / 21,737,120 tuples during warm-up and 5,216 / 47,995,024 during the
+window. Both fixed shapes add **zero seq scans/tuples on both ledgers in both
+intervals at every N**; the legacy log itself also adds zero. The RFC retains
+all batch timings and independent repetitions. The fixture owns a separate
+database and uses the same compatible maintenance lock in all arms to hold
+its deliberately tiny statistics and catalog lifetime. This is mechanism
+isolation, not an operating ritual or a whole-cycle/throughput qualification.
+Durability, runtime limits, retries, statement/lock timeouts and RT0 allowances
+are unchanged.
+
+Passing qualification: build; full Postgres-feature core (715 library tests,
+all 45 integration targets, 38 doctests); full binary serial run (579 passed,
+46 existing ignores); all 236 private PG adapter contracts; 60 evolution
+cases; five-executor corpus; difftest (12 library / four store tests);
+both unchanged RT0 tables; and two complete public CLI serving/ownership/
+recovery/evolution/SDK-sync witnesses. The final post-link recheck passes
+71 binary cases, including both RT0 ratchets. Root `./ref-check` passes.
+
+**The full `test-postgres.sh` command remains red; no clean whole-run receipt
+is claimed.** Attempt one exposed a negative-control plan replacement and
+then the public harness's original 40 GiB guard. The revised isolated control
+passes standalone and inside both later runs. Attempt two had one generic
+identity-shape refusal: PG reported a missing function cache entry during
+DDL; [the open ticket](../issues/20261023-snapback4-postgres-adapter-ddl-cache-lookup-race.md)
+keeps that failure and the unproven event-trigger-race hypothesis. With serial
+outer tests, all adapter cases pass; that complete attempt instead hit binary
+test linker errors (`undefined hidden symbol`) after task-owned cache
+reclamation. A nonincremental rebuild succeeds and all six blocked binary
+filters pass afterwards. No source, workload or assertion changed for this
+recheck. The earlier parallel full-binary run's adoption timeout and two CPU
+assertions also remain retained; isolated rechecks and the subsequent complete
+serial binary run pass their original bounds. Failed attempts are preserved,
+not relabelled as successful qualifications.
+
+The lane uses its assigned warm target, eight Cargo jobs and line-tables-only
+dev/test debug. A temporary Cargo launcher isolates the standalone experiment
+under the assigned target, preserving pre-existing warm artifacts. Only
+birth-time-proven task-created incremental cache paths were reclaimed; raw
+logs, settings, receipts, PID identities and the cleanup audit stay outside Git
+under `/tmp/claude-1000/-home-ccheever-projects-snapback/3d04fc0c-0698-42a7-917c-2880afdea35c/scratchpad/ph/`.
+No push, stash or Git configuration change.
+
+Primary PG16 masters **1706085** and **2274638**, and public masters
+**1994863** and **2149783**, are stopped. Independent status is 3 for all
+three data directories, with no postmaster pidfiles. The audit finds no live
+recorded process or lane-target executable (3766 recorded identities,
+1112 public PID records). PIDs left: **none**. Final free space is about
+70 GiB; the 25 GiB stop threshold was never crossed.
+## 2026-10-23 — S1-PG4: pre-RT versus B1(+RT3c) on one quiet host
+
+Results-only lane on 450b, branch `sb4-pg/s1-pg4`, pinned to
+`e76a77549ee63c2b9ddff01aaad99bcac1665f71`. Separate release builds measure
+`45416b150c8900594ed1e65ed557d7178b2dcb07` and that B1 tip in root
+`target-pre` / `target-b1`. The existing Rust harness is byte-identical to
+S1-PG2, as is the app schema. No product, engine, app, harness semantics,
+resource ceiling or durability change. No push, stash or Git configuration change.
+
+| Cell | Link A pre → B1 offered/s (ratio) | Link B pre → B1 offered/s (ratio) | Warm exchanges pre → B1 |
+|---|---:|---:|---:|
+| W1 message | 1,000 → 2,828 (2.83×) | 707 → 2,000 (2.83×) | 23 → 6 |
+| W2 newest 20 | 1,000 → 1,414 (1.41×) | 707 → 1,414 (2.00×) | 23 → 6 |
+| W4 disjoint counters | 25 → 70 (2.80×) | 12 → 35 (2.92×) | 57 → 16 |
+| W3 inbox | no pass → no pass | no pass → no pass | 153 → 136 |
+| W5 shared counter | 17 → 50 (2.94×) | 12 → 35 (2.92×) | 60 → 19 |
+| W5 nominal 1% mixture | 25 → 70 (2.80×) | 12 → 35 (2.92×) | 57.03 → 16.03 |
+
+All three repetitions must pass; the four W3 searches reach 1/s without meeting
+the 50 ms read SLO. Counts are the PG2 warm SQL/driver inference, with lease
+renewals and paired commit SETs accounted for. W1/W2/W4 meet the RFC and pinned
+RT0 budgets 6/6/16 using the original native account-session protocol. Shared
+W5 adds three membership checks; its mixture has their 1% weighted cost. W3
+still performs 65 data/index scans and 64 length checks per request, plus
+prefetch and metadata. No constant two-program-read budget applies to that fanout.
+
+Two successive private PG16.15 clusters use byte-identical recorded settings:
+fsync, synchronous_commit and full_page_writes on, fdatasync, 8 GiB shared
+buffers and 320 connections. Existing proxy code adds 250 / 500 microseconds
+per direction for A / B, without SSH. PostgreSQL uses physical cores 0–2,
+app/proxy 3–4, generator 5, including both SMT siblings in each set; a live
+thread-affinity witness passes. All 24 start checks have no unrelated process
+above one core. All 48 prepared-query RTT captures pass the 3 ms rule; maximum
+p99 is 2.417 ms. Full load averages and every boundary capture are retained.
+
+Each revision gets one native 1M seed, 541.412 / 513.778 seconds, with original
+account sessions and exact image/maintained-total recounts. An initial B1 reuse
+query passed and preserved all application rows/backend metadata, but B1's six
+additive dormant-evolution tables tripped an overly strict full-schema guard.
+That controller cleaned up before B1 timed load. Baseline cells remain retained;
+B1 was seeded afresh with identical settings. Optional cells then reuse the B1
+fixture after an exact backward schema/row-digest and native baseline-query
+witness. Setup failures and original receipts remain in provenance.
+
+The unchanged PG2 auditor and the independent aggregate audit pass 465 trials,
+6,109,680 measured arrivals, histogram/arrival/SLO/counter checks and all 24
+cells. 361 trials fail qualification, including 125 with unknown write outcomes.
+Final sums 37,191 + 271,667 = 308,858 reconcile every increment: 234,743
+acknowledged probe/load increments and 74,115 unknown outcomes within failed
+cohorts; zero unassigned increments or boundary gaps. Both private clusters and
+session files are removed; the independent process/secret audits find no live
+owned process or known-token leak. Minimum free space is 49.79 GiB.
+
+The [report](./experiments/scale-controls/results-20261024-snapback-postgres-b1-onehost/README.md)
+contains per-rate latency medians/ranges, exchanges, RTT/load evidence,
+disqualifications and the raw archive location/SHA-256. The requested directory
+date is 20261024; actual measurement/cleanup spans 2026-10-23 16:58–21:23 UTC.
+These short-window results qualify this comparison, not a production capacity
+or publication claim. Only this result directory and this journal entry land.

@@ -1,0 +1,10 @@
+{
+  "target-pre": "8d4146ba9c3de355e7215c429a20513f4fdab1dd406ce250dc6d95f1703f70a3",
+  "target-b1": "e3940d13f2ec0caff39e3f58bba131aab966109c26594b9837cd8381e0580d33",
+  "source_diffs_at_tip": [],
+  "seed_binary_sha256": "c23e315a4c8a5c62bd2a6556288deb681b543b7707c08e8661af73cabdac0c0a",
+  "native_seed_source_sha256": "481fb7e09844d4f4d08b4799c73ee8f5d1de794965c45ccb508bf13ee1439c63",
+  "seed_source_matches_tip": true,
+  "b1_native_seed_binary_sha256": "7a1f5ae0ef40398da72931ebddb46739d3b6edb16fe1ab8bfe7c9e5714c722b3",
+  "product_binary_hashes_rechecked_after_helper_build": true
+}

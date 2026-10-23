@@ -1,0 +1,51 @@
+{
+  "shared_audits": {
+    "pre": {
+      "cells": 6,
+      "trials": 93,
+      "scheduled_arrivals": 1563360,
+      "cells_with_passing_rate": 6,
+      "unknown_write_outcome_trials": 51,
+      "checks": "arrival accounting, every repetition, histogram counts and lossless archive, SLO/counter qualification, brackets"
+    },
+    "b1": {
+      "cells": 6,
+      "trials": 93,
+      "scheduled_arrivals": 2478840,
+      "cells_with_passing_rate": 6,
+      "unknown_write_outcome_trials": 2,
+      "checks": "arrival accounting, every repetition, histogram counts and lossless archive, SLO/counter qualification, brackets"
+    },
+    "pre-optional": {
+      "cells": 6,
+      "trials": 147,
+      "scheduled_arrivals": 1032600,
+      "cells_with_passing_rate": 4,
+      "unknown_write_outcome_trials": 69,
+      "checks": "arrival accounting, every repetition, histogram counts and lossless archive, SLO/counter qualification, brackets"
+    },
+    "b1-optional": {
+      "cells": 6,
+      "trials": 132,
+      "scheduled_arrivals": 1034880,
+      "cells_with_passing_rate": 4,
+      "unknown_write_outcome_trials": 3,
+      "checks": "arrival accounting, every repetition, histogram counts and lossless archive, SLO/counter qualification, brackets"
+    }
+  },
+  "independent_audit": {
+    "cells": 24,
+    "trials": 465,
+    "scheduled_arrivals": 6109680,
+    "counter_mismatch_trials": 125
+  },
+  "full_matrix_verified": true,
+  "source_semantic_diff_empty": true,
+  "product_binary_hashes_unchanged": true,
+  "identical_postgres_settings": true,
+  "all_four_final_recounts_pass": true,
+  "counter_totals_reconcile": true,
+  "unassigned_increments": 0,
+  "product_tests_run": false,
+  "product_tests_reason": "Results-only lane; measured product sources are unchanged."
+}

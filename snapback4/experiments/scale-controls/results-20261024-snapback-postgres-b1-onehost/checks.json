@@ -1,0 +1,43 @@
+{
+  "status": "pass",
+  "data_audit": {
+    "cells": 24,
+    "trials": 465,
+    "scheduled_arrivals": 6109680,
+    "counter_mismatch_trials": 125
+  },
+  "full_matrix": "two revisions x two links x six workload/key shapes",
+  "timing": {
+    "warmup_ms": 10000,
+    "measurement_ms": 20000,
+    "repeats": 3
+  },
+  "read_clients": 128,
+  "write_concurrency": 32,
+  "read_slo_ms": 50,
+  "write_slo_ms": 100,
+  "maximum_error_fraction": 0.001,
+  "counter_sum": 308858,
+  "unknown_increments_inside_failed_cohorts": 74115,
+  "unassigned_increments": 0,
+  "rtt_captures": 48,
+  "maximum_rtt_p99_ms": 2.417,
+  "quiet_start_checks": 24,
+  "foreign_over_one_core_at_start": 0,
+  "minimum_free_GiB": 49.79,
+  "native_clusters_removed": true,
+  "live_owned_processes": 0,
+  "known_secret_matches": 0,
+  "shared_PG2_audits_pass": true,
+  "reference_check": 0,
+  "whitespace_check": 0,
+  "markdown_links_checked": 33,
+  "archive_hash_and_contents_verified": true,
+  "product_sources_unchanged": true,
+  "product_binary_hashes_unchanged": true,
+  "product_tests_run": false,
+  "product_tests_reason": "Results-only change; pinned release product sources unchanged.",
+  "staged_whitespace_check": 0,
+  "export_whitespace_normalized": true,
+  "svg_geometry_unchanged": true
+}

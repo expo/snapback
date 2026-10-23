@@ -1,0 +1,10 @@
+{
+  "host": "expo-build-450b",
+  "archive": "/home/ccheever/projects/sb4-s1sk/snapback4/target/s1pg4-raw-20261024.tar.gz",
+  "bytes": 57448876,
+  "sha256": "cff7934217eeaec9b13c2ceb62ca9948817893b307ce63fad62ec8bf334be6c4",
+  "excludes": [
+    "plot-libs"
+  ],
+  "raw_directory": "/home/ccheever/projects/sb4-s1sk/snapback4/target/s1pg4"
+}

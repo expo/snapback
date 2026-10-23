@@ -1,0 +1,8 @@
+{
+  "time": 1792790715.0833845,
+  "recorded_unique_pids": 5390,
+  "live": [],
+  "zombies": [],
+  "reused": [],
+  "policy": "Read-only audit; no signal sent. Cleanup signals were limited to recorded owned handles."
+}

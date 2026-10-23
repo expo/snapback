@@ -1,0 +1,19 @@
+{
+  "changes": [
+    {
+      "file": "curves.svg",
+      "trimmed_lines": 877,
+      "before_sha256": "ff96e60f59d8720243a1ea7acb1869d6910bbae102491d447e5bdff223353826",
+      "after_sha256": "6ac9e8400c3c3d59e843f537623aa78f6a2405d9860ba177868251536a3ca446"
+    },
+    {
+      "file": "disks.txt",
+      "trimmed_lines": 2,
+      "before_sha256": "e1a2b402b7fa6abb5dd913aec2a2395600fde59ab80cbfe328378cc5e74dd218",
+      "after_sha256": "70edb46fb3d96a040ee12d88adeb36f3d3c30f96b623cc13ee6ab80b299b62cf"
+    }
+  ],
+  "svg_geometry_verified_equivalent": true,
+  "raw_archive_unchanged": true,
+  "initial_diagnostic": "/tmp/s1pg4-staged-whitespace-initial.txt"
+}

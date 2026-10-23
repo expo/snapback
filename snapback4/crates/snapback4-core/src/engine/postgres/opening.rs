@@ -193,6 +193,7 @@ pub(super) fn initialize(tx: &Tx<'_>, schema: &Schema) -> Result<(), RuntimeErro
     tx.batch(super::identity::DDL)?;
     super::requests::initialize(tx)?;
     super::outbox_schema::install(tx)?;
+    super::log_schema::install(tx)?;
     super::caps::install(tx, schema)?;
     super::jobs::initialize(tx)?;
     super::assets_schema::initialize(tx)?;

@@ -1,0 +1,7 @@
+{
+  "assigned_maintained_columns": false,
+  "message_seed_s": 510.634997779,
+  "messages": 1000000,
+  "path": "Engine::seed_at; 4000-message transactions; owned store; periodic standard lease renewal",
+  "total_seed_s": 513.778368437
+}
