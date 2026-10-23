@@ -41,6 +41,8 @@ fn doors(host: &Host, code: &str, expected_status: u16, retryable: bool) {
         let response = host.request(method, path, "x-snapback-persona: alice\r\n", payload);
         assert_eq!(status(&response), expected_status, "{path}: {response}");
         let envelope = body(&response);
+        for field in ["store_id", "head", "generation"] { assert!(envelope.get(field).is_none(), "{path}: {response}"); }
+        assert!(!response.to_ascii_lowercase().contains("x-snapback-generation:"), "{path}: {response}");
         let why = &envelope["denied"];
         assert_eq!(why["code"], code, "{path}: {response}");
         assert_eq!(

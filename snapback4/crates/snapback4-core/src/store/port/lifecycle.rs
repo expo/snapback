@@ -28,7 +28,23 @@ impl AnyStore {
         match self { Self::Sqlite(SqliteStore(store)) => store.transaction().map(|inner| AnyTx::Sqlite(SqliteTx(inner))), #[cfg(feature = "postgres")] Self::Postgres(PostgresStore(handle)) => handle.store.get_mut().transaction(Some(crate::engine::postgres::WriteMode::Serialized)).map(|inner| AnyTx::Postgres(PostgresTx(inner))) }
     }
     pub fn read_transaction(&mut self) -> Result<ReadSnapshot<'_>, RuntimeError> {
-        match self { Self::Sqlite(SqliteStore(store)) => store.read_transaction().map(|tx| ReadSnapshot { tx: AnyTx::Sqlite(SqliteTx(tx)) }), #[cfg(feature = "postgres")] Self::Postgres(PostgresStore(handle)) => handle.store.get_mut().transaction(None).map(|tx| ReadSnapshot { tx: AnyTx::Postgres(PostgresTx(tx)) }) }
+        match self { Self::Sqlite(SqliteStore(store)) => store.read_transaction().map(|tx| ReadSnapshot { tx: AnyTx::Sqlite(SqliteTx(tx)), authority: None }), #[cfg(feature = "postgres")] Self::Postgres(PostgresStore(handle)) => handle.store.get_mut().transaction(None).map(|tx| ReadSnapshot { tx: AnyTx::Postgres(PostgresTx(tx)), authority: None }) }
+    }
+    // @ref LLP 3000.009.001.000.001#33-borrow-the-snapshot-never-open-another — the facts SELECT pins and validates the query's generation, identity and head.
+    pub(crate) fn request_read_transaction(&mut self, digest: &str) -> Result<Option<ReadSnapshot<'_>>, RuntimeError> {
+        if digest.contains('\0') { return Ok(None); }
+        let (tx, facts) = match self {
+            Self::Sqlite(SqliteStore(store)) => {
+                let (tx, facts) = store.session_authority_transaction(digest, true)?;
+                (AnyTx::Sqlite(SqliteTx(tx)), facts)
+            }
+            #[cfg(feature = "postgres")]
+            Self::Postgres(PostgresStore(handle)) => {
+                let (tx, facts) = handle.store.get_mut().session_authority_transaction(digest)?;
+                (AnyTx::Postgres(PostgresTx(tx)), facts)
+            }
+        };
+        Ok(Some(ReadSnapshot { tx, authority: Some((digest.into(), facts)) }))
     }
     pub(crate) fn opening_transaction(&mut self) -> Result<AnyTx<'_>, RuntimeError> {
         match self { Self::Sqlite(SqliteStore(store)) => store.opening_transaction().map(|inner| AnyTx::Sqlite(SqliteTx(inner))), #[cfg(feature = "postgres")] Self::Postgres(PostgresStore(handle)) => { let store = handle.store.get_mut(); let mode = if store.read_only { None } else { Some(crate::engine::postgres::WriteMode::Serialized) }; store.attach_transaction(mode).map(|inner| AnyTx::Postgres(PostgresTx(inner))) } }

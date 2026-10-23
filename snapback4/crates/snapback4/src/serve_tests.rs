@@ -1474,3 +1474,6 @@ pub(super) mod round_trip_tests;
 
 #[path = "../tests/serve_committer/mod.rs"]
 mod committer_tests;
+
+#[path = "../tests/serve_authority/mod.rs"]
+mod authority_boundary_tests;

@@ -52,12 +52,17 @@ export async function readResponse(response: Response, decode?: (response: Respo
 }
 /** Only safe reads use this helper. Same-ID mutations retain their outbox's
  * retry owner; effects and asset transfers must not replay ambiguous outcomes. */
-export async function readWithAdmissionRetry(send: () => Promise<Response>, current: () => boolean, signal?: AbortSignal, decode?: (response: Response) => Promise<Record<string, unknown>>) {
+export async function readWithAdmissionRetry(send: () => Promise<Response>, current: () => boolean, signal?: AbortSignal, decode?: (response: Response) => Promise<Record<string, unknown>>, changesStream = false) {
   let waited = 0;
   for (let attempt = 0; ; attempt++) {
     const response = await send(), json = await readResponse(response, decode);
-    if (!overloaded(refusal(json.denied ?? json.why)) || attempt === 3 || !current()) return { response, json };
-    const delay = jitter(Math.max(250 * 2 ** attempt, retryAfter(response.headers.get('retry-after'))));
+    const why = refusal(json.denied ?? json.why);
+    // @ref LLP 3000.009.001.000.001#31-authority-boundaries — generation handoff exhaustion preserves credentials and permits bounded safe-read retries.
+    const generation = (response.status === 503 || changesStream && response.status === 200) && why?.code === 'E_GENERATION' && why.retryable === true;
+    // Changes already paces overloads in its poll loop; generation admission
+    // alone uses this inner retry owner for that transport.
+    if (!(overloaded(why) && !changesStream || generation) || attempt === 3 || !current()) return { response, json };
+    const delay = jitter(Math.max(250 * 2 ** attempt, retryAfter(response.headers.get('retry-after')), changesStream ? why?.retryAfterMs ?? 0 : 0));
     if (waited + delay > 10_000) return { response, json };
     await pause(delay, signal);
     waited += delay;

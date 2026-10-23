@@ -11,6 +11,11 @@ fn store() -> AnyStore {
 }
 #[test]
 #[ignore = "requires private Postgres; scripts/test-postgres.sh"]
+fn rt3b_bound_receipt_hit_aborts_only_its_member_postgres() {
+    super::sqlite_tests::bound_replay_keeps_other_members(store());
+}
+#[test]
+#[ignore = "requires private Postgres; scripts/test-postgres.sh"]
 fn postgres_member_two_rollback_preserves_member_one_and_contiguous_heads() {
     for rollback in [true, false] {
         let mut store = store();

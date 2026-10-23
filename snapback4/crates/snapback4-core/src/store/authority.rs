@@ -19,7 +19,8 @@ SELECT s.principal, s.family, s.kind, s.token_digest, s.expires_at, s.scope,
        NULL,
        (SELECT value FROM _meta WHERE key = 'schema_hash'),
        (SELECT value FROM _meta WHERE key = 'activation_hash'),
-       (SELECT value FROM _meta WHERE key = 'device:generation')
+       (SELECT value FROM _meta WHERE key = 'device:generation'),
+       (SELECT COALESCE(MAX(seq), 0) FROM _commits)
 FROM (SELECT 1) AS anchor LEFT JOIN sessions s ON true
 LEFT JOIN _principal_generations g ON g.principal = s.principal";
 const READ_FACTS: &str = "WITH sessions AS (SELECT principal, COALESCE(family, token_digest) AS family, kind, token_digest, expires_at, 0 AS scope, NULL AS cap_expires_at, NULL AS principal_generation FROM _sessions WHERE token_digest = ?1 UNION ALL SELECT principal, family, kind, token_digest, expires_at, 1, cap_expires_at, principal_generation FROM _read_sessions WHERE token_digest = ?1)
@@ -33,35 +34,47 @@ SELECT s.principal, s.family, s.kind, s.token_digest, s.expires_at, s.scope,
        NULL,
        (SELECT value FROM _meta WHERE key = 'schema_hash'),
        (SELECT value FROM _meta WHERE key = 'activation_hash'),
-       (SELECT value FROM _meta WHERE key = 'device:generation')
+       (SELECT value FROM _meta WHERE key = 'device:generation'),
+       (SELECT COALESCE(MAX(seq), 0) FROM _commits)
 FROM (SELECT 1) AS anchor LEFT JOIN sessions s ON true
 LEFT JOIN _principal_generations g ON g.principal = s.principal";
 
 impl Tx<'_> {
     pub(crate) fn session_authority_facts(&self, digest: &str) -> Result<crate::identity::facts::SessionFacts, RuntimeError> {
+        fetch(self.conn(), digest, self.read_sessions_installed.get() || self.read_sessions_at_start, &self.read_sessions_installed)
+    }
+}
+impl Store {
+    pub(crate) fn ingress_session_authority_facts(&self, digest: &str) -> Result<crate::identity::facts::SessionFacts, RuntimeError> {
+        if digest.contains('\0') { return Ok(Default::default()); }
+        self.check_ownership()?;
+        let storage = self.read_sessions.snapshot()?;
+        let discovered = std::cell::Cell::new(false);
+        let facts = fetch(&self.conn, digest, *storage, &discovered);
+        drop(storage);
+        if discovered.get() { self.read_sessions.publish(true); }
+        facts
+    }
+}
+fn fetch(conn: &rusqlite::Connection, digest: &str, read: bool, discovered: &std::cell::Cell<bool>) -> Result<crate::identity::facts::SessionFacts, RuntimeError> {
         // A raw digest is an optional lookup key, never an admitted identity.
         if digest.contains('\0') { return Ok(Default::default()); }
-        let read = self.read_sessions_installed.get() || self.read_sessions_at_start;
-        let facts = self.fetch_session_authority_facts(digest, read)?;
-        // A miss on an independently attached handle can follow another
-        // handle's first lazy install. Probe only on that miss, in this snapshot.
-        if !read && facts.sessions.is_empty() && read_sessions::present(self.conn())? {
-            self.read_sessions_installed.set(true);
-            return self.fetch_session_authority_facts(digest, true);
-        }
-        Ok(facts)
-    }
-
-    fn fetch_session_authority_facts(&self, digest: &str, read: bool) -> Result<crate::identity::facts::SessionFacts, RuntimeError> {
-        let mut statement = self.conn().prepare_cached(if read { READ_FACTS } else { FULL_FACTS })?;
+        let mut statement = conn.prepare_cached(if read { READ_FACTS } else { FULL_FACTS })?;
         let mut rows = statement.query([digest])?;
         let mut facts = None;
         while let Some(row) = rows.next()? {
+            // Keep the anchor cursor alive: catalog discovery and the read-arm
+            // retry must borrow this snapshot even for autocommit ingress.
+            if !read && row.get::<_, Option<String>>(0)?.is_none() && read_sessions::present(conn)? {
+                discovered.set(true);
+                return fetch(conn, digest, true, discovered);
+            }
             let result = facts.get_or_insert_with(|| crate::identity::facts::SessionFacts {
-                sessions: Vec::new(), current_generation: 0, worker_family: None,
+                head: 0, sessions: Vec::new(), current_generation: 0, worker_family: None,
                 worker_revision: None, family_revision: None, store_generation: None, store_id: None,
                 backend_generation: None, schema_hash: None, activation_hash: None, device_generation: None,
             });
+            result.head = row.get::<_, i64>(18)? as u64;
             result.current_generation = row.get(8)?;
             result.worker_family = row.get(9)?; result.worker_revision = row.get(10)?;
             result.family_revision = row.get(11)?; result.store_generation = row.get(12)?; result.store_id = row.get(13)?;
@@ -76,7 +89,6 @@ impl Tx<'_> {
             }
         }
         Ok(facts.expect("anchor returns metadata even for an absent token"))
-    }
 }
 
 const WORK_COLUMNS: &str = "principal, state, claimed_by, session_digest, lease_until, deadline, family, principal_generation, admitted_expires_at, service_generation";
@@ -398,6 +410,30 @@ mod facts_tests {
             tx.rollback().unwrap();
         }
         drop(reader); drop(attached); drop(writer);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn ingress_discovers_storage_on_an_independent_sqlite_handle() {
+        let root = std::env::temp_dir().join(format!("rt3br-ingress-{}", crate::ids::seed()));
+        std::fs::create_dir(&root).unwrap();
+        let mut writer = Store::open(&root.join("store.sqlite")).unwrap();
+        let reader = Store::open_read_only(&root.join("store.sqlite")).unwrap();
+        let session = Session { principal: "member:ingress".into(), kind: "member".into(), token: "ro.ingress".into(), expires_at: 10000, cap_expires_at: Some(10000), scope: SessionScope::Read };
+        let tx = writer.transaction().unwrap();
+        tx.insert_read_session(&session, 0, None).unwrap();
+        tx.commit().unwrap();
+        let digest = identity::digest(&session.token);
+        let scope = Scope::begin();
+        assert_eq!(reader.ingress_session_authority_facts(&digest).unwrap().sessions.len(), 1);
+        assert_eq!(scope.counts().sqlite, 3, "miss, catalog, retry in the held anchor snapshot");
+        drop(scope);
+        let scope = Scope::begin();
+        assert_eq!(reader.ingress_session_authority_facts(&digest).unwrap().sessions.len(), 1);
+        assert!(reader.ingress_session_authority_facts("raw\0digest").unwrap().sessions.is_empty());
+        assert_eq!(scope.counts().sqlite, 1, "known-storage hit plus zero-query NUL absence");
+        drop(scope);
+        drop(reader); drop(writer);
         std::fs::remove_dir_all(root).unwrap();
     }
 

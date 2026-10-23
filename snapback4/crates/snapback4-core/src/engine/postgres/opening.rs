@@ -37,12 +37,15 @@ impl AnyTx<'_> {
 
 impl Handle {
     pub(crate) fn connect(config: postgres::Config, name: &str, fresh: bool) -> Result<Self, RuntimeError> {
-        Self::connect_inner(config, name, fresh, None)
+        Self::connect_inner(config, name, fresh, None, false)
     }
     pub(super) fn connect_owned(config: postgres::Config, name: &str, fence: Option<super::ownership::Fence>) -> Result<Self, RuntimeError> {
-        Self::connect_inner(config, name, false, fence)
+        Self::connect_inner(config, name, false, fence, false)
     }
-    fn connect_inner(config: postgres::Config, name: &str, fresh: bool, fence: Option<super::ownership::Fence>) -> Result<Self, RuntimeError> {
+    pub(super) fn connect_reader(config: postgres::Config, name: &str, fence: Option<super::ownership::Fence>) -> Result<Self, RuntimeError> {
+        Self::connect_inner(config, name, false, fence, true)
+    }
+    fn connect_inner(config: postgres::Config, name: &str, fresh: bool, fence: Option<super::ownership::Fence>, read_only: bool) -> Result<Self, RuntimeError> {
         let quoted = store::namespace(name)?;
         let (mut client, warning) = super::ownership::connect(config.clone())?;
         if fresh {
@@ -52,9 +55,11 @@ impl Handle {
         }
         #[cfg(any(test, feature = "test-support"))]
         crate::round_trips::postgres(1);
-        client.batch_execute(&format!("SET search_path = {quoted}, pg_catalog; SET statement_timeout = '5s'; SET lock_timeout = '5s'"))?;
+        let reader_setting = if read_only { "; SET default_transaction_read_only = on" } else { "" };
+        client.batch_execute(&format!("SET search_path = {quoted}, pg_catalog; SET statement_timeout = '5s'; SET lock_timeout = '5s'{reader_setting}"))?;
         let mut store = store::Store::new(client);
         store.unified = true;
+        store.read_only = read_only;
         store.commit_warning = warning;
         store.fence = fence;
         if !fresh {
@@ -68,7 +73,8 @@ impl Handle {
                 #[cfg(any(test, feature = "test-support"))]
                 crate::round_trips::postgres(2);
                 store.client.execute("SELECT set_config('application_name',$1,false)", &[&fence.tag()?])?; }
-            let tx = store.opening_transaction()?;
+            // @ref LLP 3000.009.001.000.001#31-authority-boundaries — a cold reader is unfenced too, so a lost owner can still answer a replay.
+            let tx = if read_only { store.bootstrap_read_transaction()? } else { store.opening_transaction()? };
             let row = tx.query("SELECT version,schema,programs,generation FROM _backend WHERE singleton", &[])?.remove(0);
             if row.get::<_, &str>(0) != store::VERSION { return Err(RuntimeError::StoreUnsupported { family: "opening" }); }
             let schema: Schema = store::decode(row.get(1))?;

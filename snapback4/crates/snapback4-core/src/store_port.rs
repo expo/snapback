@@ -56,7 +56,7 @@ pub struct DeploymentState {
 }
 #[path = "store/port/operations.rs"]
 mod operations;
-pub(crate) use operations::{FollowingHistoryReader, duplicate_session_error};
+pub(crate) use operations::{FollowingHistoryReader, single_session};
 #[path = "store/port/tooling.rs"]
 mod tooling;
 #[path = "store/port/families.rs"]

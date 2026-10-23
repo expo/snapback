@@ -56,6 +56,8 @@ impl Writer {
         self.queue.hold_lease(lease, cadence)?;
         Ok(self)
     }
+    #[cfg(test)]
+    pub(super) fn test_ownership_loss(&self) { self.queue.refuse_ownership(); }
     fn command<T: Send + 'static>(
         &self,
         run: impl FnOnce(&mut Engine, &Shared) -> T + Send + 'static,

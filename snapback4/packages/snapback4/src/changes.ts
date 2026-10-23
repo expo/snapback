@@ -3,7 +3,7 @@
 import { sampleChanges } from "./clock.ts";
 import type { EphemeralVersion } from "./ephemeral-reads.ts";
 import type { Refusal } from "./contract.ts";
-import { retryAfter } from "./http-response.ts";
+import { readWithAdmissionRetry, retryAfter } from "./http-response.ts";
 
 const SILENCE_MS = 4000;
 const HEARTBEAT_SECONDS = 2;
@@ -76,26 +76,37 @@ export function changeFeed(fetchNow: typeof fetch, base: string, lifetime: Abort
       if (lifetime.aborted || restart?.aborted) controller.abort();
       const parameters = ephemeral ? `&eph=${ephemeral.epoch}&ephi=${encodeURIComponent(ephemeral.incarnation)}&ephTables=${encodeURIComponent(ephemeral.tables.join(","))}` : "";
       const work = (async () => {
-        const response = await doFetch(`${base}/changes?since=${seq}&wait=${seconds}${streaming ? "&heartbeat=1" : ""}${storeIdentity === undefined ? "" : `&store_id=${encodeURIComponent(storeIdentity)}`}${parameters}`, { headers, signal: controller.signal });
-        if (controller.signal.aborted) throw controller.signal.reason;
-        arm();
-        let json: Change;
-        if (response.body?.getReader) {
-          reader = response.body.getReader();
-          const decoder = new TextDecoder();
-          let text = "";
-          for (;;) {
-            const { value, done } = await reader.read();
-            if (controller.signal.aborted) throw controller.signal.reason;
-            if (done) break;
-            if (value.length) arm();
-            text += decoder.decode(value, { stream: true });
-            if (!text.trim()) text = ""; // discard whitespace heartbeat frames
-            if (text.length > 16 * 1024 * 1024) throw new Error("changes: response exceeds 16 MiB");
-          }
-          json = JSON.parse(text + decoder.decode()) as Change;
-        } else json = await response.json() as Change;
-        await sampleChanges(response, json);
+        const send = () => {
+          if (!paced) arm();
+          return doFetch(`${base}/changes?since=${seq}&wait=${seconds}${streaming ? "&heartbeat=1" : ""}${storeIdentity === undefined ? "" : `&store_id=${encodeURIComponent(storeIdentity)}`}${parameters}`, { headers, signal: controller.signal });
+        };
+        const decode = async (response: Response): Promise<Record<string, unknown>> => {
+          if (controller.signal.aborted) throw controller.signal.reason;
+          arm();
+          let json: Change;
+          if (response.body?.getReader) {
+            reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let text = "";
+            for (;;) {
+              const { value, done } = await reader.read();
+              if (controller.signal.aborted) throw controller.signal.reason;
+              if (done) break;
+              if (value.length) arm();
+              text += decoder.decode(value, { stream: true });
+              if (!text.trim()) text = ""; // discard whitespace heartbeat frames
+              if (text.length > 16 * 1024 * 1024) throw new Error("changes: response exceeds 16 MiB");
+            }
+            json = JSON.parse(text + decoder.decode()) as Change;
+          } else json = await response.json() as Change;
+          await sampleChanges(response, json);
+          // A completed body cannot be silent during the admission retry pause.
+          clearTimeout(timer);
+          reader?.releaseLock(); reader = undefined;
+          return json as unknown as Record<string, unknown>;
+        };
+        const result = await readWithAdmissionRetry(send, () => !controller.signal.aborted, controller.signal, decode, true);
+        const { response } = result, json = result.json as unknown as Change;
         if (json.denied?.code === "E_STREAMS") {
           unheldUntil = Date.now() + UNHELD_MS;
           unheldEvery = Math.max(1000, retryAfter(response.headers.get("retry-after")));

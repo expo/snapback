@@ -103435,3 +103435,309 @@ precharge stays in the shared engine. The production driver census remains zero
 without a new exception (LLP 3000.009.001.000 §3.2). A fresh complete qualification
 will follow this last code fix. The one 0.4.39 changes entry includes admitted
 Postgres evolution, dormant restoration and retained byte parity.
+
+## 2026-10-23 — RT3b: mutation ingress uses a reader
+
+The first RT3b increment moves non-detached `/m` ingress off the committer.
+A held-writer witness on SQLite and Postgres receives its complete unknown-bearer
+401 without queueing. Build, both RT0 ratchets and all four authority witnesses
+pass; all twelve counts per store remain at RT3a as predicted. This increment
+retains the later checks; boundary consolidation follows. Evidence:
+[RT3b report](./reports/20261023-rt3b/REPORT.md).
+
+## 2026-10-23 — RT3b: conditional reader preflight
+
+Keyed mutations now resolve authority, identity/head/generation and their bound
+receipt in one unfenced reader snapshot, before current-program judgment.
+Successful unkeyed mutations skip preflight; metadata refusals authenticate their
+cut. Build, both ratchets, four authority witnesses and all 206 normal serving
+regressions pass. Predictions match all cells: Postgres unkeyed 23, keyed first
+39, replay 10, metadata refusals 9; SQLite 29/39/10/9 respectively. Route and
+execution checks still remain. [Evidence](./reports/20261023-rt3b/REPORT.md).
+
+## 2026-10-23 — RT3b: final authority inside execution
+
+Ordinary ingress is one reader SELECT; action and other non-ordinary credentials
+reopen the complete resolver snapshot after discarding the initial probe.
+Keyed preflight combines current authority, store facts and bound receipt.
+Unkeyed metadata refusals re-judge against their snapshot's program if checkout
+crossed adoption. The route and first-queue checks are removed.
+
+Queries authenticate in their own snapshot. Durable mutations authenticate after
+owner fence/head lock, repeat store binding from the returned facts and re-check
+the bound receipt as a separate command; a hit aborts the member. A scope change
+refuses as stale. Keyed ownership loss after a preflight miss is retryable (503),
+never a recorded failure; the parent retry row is updated. Trusted engine callers
+retain their existing independent replay path, and COMMIT framing is unchanged.
+
+The final measured Postgres counts are unkeyed 16, keyed first 24, replay 5,
+W1/W2 7; SQLite 22/30/5/11. All refined predictions match and no class increases
+from the previous commit. The keyed gap to the RFC's 21 is the placement read
+and two receipt writes, whose waits RT6 will fold. Both-store witnesses include
+upload/queue authority changes, replacement store/family, id reuse, historical
+replay, ownership loss, concurrent copies, scope staleness and refusal/adoption
+consistency. [Full measurements and qualification](./reports/20261023-rt3b/REPORT.md).
+
+## 2026-10-23 — RT3b: completed qualification
+
+Cold Postgres readers now open unfenced and physically read-only; historical
+replay survives real owner-token loss without a warm pooled reader. Preflight
+outcomes explicitly carry their snapshot's generation across adoption. Failed
+authority reads cannot acquire metadata from a separate head read or cached
+generation; both-store duplicate-session witnesses exercise query, keyed
+first/replay and unkeyed refusal paths. Bound-hit member witnesses preserve
+adjacent members. Early ephemeral auth keeps HTTP 200 without store facts;
+queue failures and unknown COMMITs keep their classification without metadata.
+
+Every final RT0 prediction matches measurement, with no class increase.
+Production build, no-default, both ratchets and reference/port checks pass.
+The full core checkpoint passes 1,091 cases; later affected core checks pass.
+The full CLI completes with 1,436 passes and only four supplied reservation
+fixture reds; final serving 210, dual-store HTTP eight, retained authority four,
+committer 11 and port seven all pass. The complete Postgres script records
+398 passes and two broad-run reds (Serializable 40001 and a short lease);
+both pass alone, and public serving/restart/takeover, release adoption and P1-MC
+pass. Earlier clock/run-admission and stalled-resolver timing reds pass alone;
+the complete CLI repeat also passes them. All four owned clusters are stopped
+and independently confirmed, and no recorded workload PID remains. Local
+commits only. [Qualified scope and exceptions](./reports/20261023-rt3b/REPORT.md).
+
+## 2026-10-23 — RT3b: closing authority audit
+
+The closing repeat passes 210 serving cases, all eight dual-store HTTP groups,
+four retained authority cases, three member/cold-reader cases, both RT0 ratchets,
+the five authority matrix cases and all 12 committer cases. Mutation scope
+changes are now witnessed directly after queued keyed/unkeyed misses and a
+concurrent stored copy on both stores: retryable stale refusal, no store facts.
+Production build, no-default, port and reference checks pass. The final tables
+remain unchanged. All five lane-owned clusters, including the closing witness
+cluster, are stopped and independently confirmed. The earlier full-run
+exceptions remain recorded in the [report](./reports/20261023-rt3b/REPORT.md).
+
+
+## 2026-10-23 — RT3b-R: preserve both fix streams during rebase
+
+Rebased final execution authority onto `ca9a23d5e7`, retaining RT3a storage
+discovery, fork flags, savepoint re-probes and zero-query raw-NUL absence, and
+RT1/RT2 committed publication, query handoff decoding and fail-fast metadata.
+SQLite ingress holds the anchor cursor through miss-only catalog discovery;
+Postgres's unknown-storage ingress miss repeats through its dedicated snapshot.
+Final in-transaction authority uses the same discovery helper. The sole semantic
+side choice is RT3a's absent NUL digest in place of RT3b's bind refusal; no public
+boundary needs the refusal because bearer lookup uses a hash.
+
+Measured SQLite unknown_token is 2 instead of the original final-boundary 1:
+the additional statement probes optional read-session storage on the miss.
+All other cells are expected unchanged and are qualified by both RT0 ratchets.
+Direct ingress-discovery witnesses exercise independent handles on both stores.
+Evidence remains under `/tmp/sb4-rt3br/`; the
+[continuation report](./reports/20261023-rt3br-rt4.md) records results and tables.
+
+
+RT3b-R qualification clarification: the combined RT1/RT2 regressions exposed
+an early-refusal evaluation cut and a missing `complete: false` on exhausted
+query handoffs. Pure query validation errors now wait for final authority but
+do not create an evaluation `seq`; stale read failures keep `complete: false`
+without an automatic generation stamp. One further semantic side choice keeps
+RT3b's HTTP 503 for foreign activation at the query snapshot boundary, replacing
+RT1's old HTTP 401 from the removed separate authority walk. Confirmed writes
+still return 200 and wake subscribers, and the following query still refuses
+`E_GENERATION`; the regression now also asserts no unauthenticated generation.
+
+
+RT3b-R final qualification passes: full core checkpoint (1,102 Rust tests plus
+38 doctests), final full binary 550/18 named ignores, identity 84, both final
+ratchets, both-store query snapshot repeat, no-default and reference checks.
+The complete Postgres script passes all public serving/restart/takeover,
+release-adoption, P1-CE and P1-MC stages. Final measurements match the continuation
+report: only SQLite unknown_token changes from pre-rebase 1 to 2. The public
+witness cluster is stopped and confirmed; the owned evaluator stays up for RT4.
+
+
+## 2026-10-23 — RT4: one request query snapshot
+
+Predicted before implementation: SQLite W1/W2 11→6 and action W1 26→21;
+Postgres W1/W2 7→6 and action W1 20→19; the nine other classes unchanged on
+each adapter. Request queries now open through the authority-facts transaction,
+validate generation there, and borrow its bounded facts for final authority,
+identity and head. Ordinary snapshot-opening APIs remain for fresh boundaries.
+No facts survive rollback or reader return; authority clocks stay fresh.
+The store-port RFC §3.1 records the port change.
+
+The shared query witness now uses this request entry, holds generation,
+identity/head and rows across a concurrent write and a committed adoption,
+then requires the stale reader to refuse and the new reader to answer. It also
+asserts raw-NUL absence before SQL. Metadata-failure authorizers now target the
+combined opener's metadata projection, retaining the no-program-row-read check
+for detached and memory-fallback queries. Predictions, measurements and final
+qualification are in the [continuation report](./reports/20261023-rt3br-rt4.md).
+
+
+RT4 measurement matches every prediction, three equal warm samples per cell.
+SQLite W1/W2=6, action W1=21; Postgres W1/W2=6, action W1=19. The other nine
+classes on each store remain unchanged. The old tables correctly requested
+lowering on the first measurement; both now record measured counts. SQLite
+loses four marker reads plus its head read, Postgres one generation/head wait.
+The first same-snapshot/adoption witnesses pass on both stores.
+
+
+RT4 final qualification passes: default build; full binary 550/18 named ignores;
+full core 1,102 Rust tests + 38 doctests; identity 84/zero ignored; both ratchets;
+the complete Postgres script, including public P1-CE parity, restart/takeover,
+release persistence/adoption and P1-MC; no-default and ref-check. All 24 measured
+cells match prediction and none increases. The full core also validates the
+inherited RT3b-R query-envelope corrections.
+
+The evaluator (3688618) and public clusters (3999575, 132164) are stopped and
+independently confirmed, status 3/no postmaster.pid. None of 530 recorded
+workload PIDs remains. Disk stayed above the floor; a birth-time/size manifest
+allowed removal only of files this lane created in its preserved handoff,
+retaining inherited artifacts. Raw evidence stays in `/tmp/sb4-rt3br/`.
+Separate local RT4 commit; no push, stash or git configuration change.
+
+
+## 2026-10-23 — RT3b fix round 1: ephemeral capability freshness
+
+Direct ephemeral dispatch and queued durable-to-ephemeral conversion now carry
+the prepared principal/kind/scope through detached preflight and final reader
+checkout, including the memory fallback. The shared freshness comparison also
+checks credential kind for durable and query execution. A same-principal kind
+or scope change refuses with retryable E_AUTH and no store metadata; ephemeral
+refusals keep their HTTP 200 envelope. Refresh preserves kind and mints a new
+token; narrowing and custom/supervised minting also mint new tokens. There is
+no documented same-token kind transition to preserve.
+
+Ingress uses its existing facts projection to distinguish store replacement
+from an absent session: E_STORE_REPLACED, HTTP 409 on query/durable ingress,
+with no store metadata or extra SQL. Missing identities still fail closed.
+The RT3b note in LLP 3000.009.001.000.001 records both choices.
+
+Before the product fix, both-store HTTP witnesses reproduce all findings:
+14 regression tests fail while two positive controls pass. Stale ephemeral
+writes publish epoch 1, changed-kind query/durable requests succeed, and the
+ingress mismatch says E_AUTH. After the fix all 16 pass, including direct and
+queued-conversion final-reader gaps and a scope change in the conversion's
+actual writer queue. Stale requests leave both hub and wake versions unchanged.
+Raw evidence is retained under `/tmp/sb4-rt3b-fix1/`, outside Git; final
+qualification and process custody are recorded in the continuation report.
+
+RT3b fix round 1 final qualification passes: shipped build; complete binary
+558 passed/26 named ignores with eight test threads; RT3b both-store authority
+24/24; identity conformance 84/84 including both 4,545-state matrices; both RT0
+ratchets, with byte-identical tables and unchanged SHA-256s; complete Postgres
+script including corpus and public P1-CE/restart/takeover/release/P1-MC; and
+ref-check (565 LLP docs, 11,796 refs, zero errors/unchecked). The initial broad
+binary run hit the existing committer fixture's three-second socket timeout;
+it passes alone and in the unchanged complete binary at eight test threads.
+No product assertion or guard changed.
+
+Evaluator 221217 and public cluster 606417 are stopped and independently
+confirmed (status 3, no postmaster.pid). None of 274 recorded PIDs remains.
+Disk stayed above the user floor; a birth-time/size/inode manifest allowed
+removal only of 1,568 handoff files created by this fix round, retaining 7,279
+inherited files. Final free space is 35 GiB. Raw evidence stays in
+`/tmp/sb4-rt3b-fix1/`; one new local commit, no push, stash or Git config change.
+
+
+## 2026-10-23 — RT3b fix round 2: generation refusals and request NUL
+
+Every HTTP E_GENERATION now returns 503 with no store metadata or generation
+header, including bearer/persona ingress, keyed/unkeyed mutations, argument
+handoff and query handoff exhaustion. Cached dev-reset identity is suppressed
+too. The response envelope cannot reliably distinguish this process's stale
+readers from a foreign activation; the lead's ambiguous-cause rule applies:
+retryable:true with Retry-After: 1. Persistent foreign activation keeps refusing
+until the serving engine reopens. Safe SDK reads share overload's four-attempt,
+ten-second cumulative wait bound and jitter; mutation delivery keeps its owner.
+The wire and refusal cards record that contract and the known-foreign false
+policy when provenance can be established.
+
+Required request snapshots, borrowed authority and authorized mutations reject
+NUL as non-retryable E_AUTH before SQL. Optional ingress remains absent with
+zero SQL. Before the fixes, all 18 new both-store generation HTTP witnesses fail;
+six required-boundary NUL cases fail while two optional controls pass; and the
+SDK's exact-parent build fails four cases while four controls pass. Afterwards
+all 18 HTTP, eight NUL and eight SDK witnesses pass. The argument witness forces
+int → text → int at the actual refusal reader checkout. NUL snapshots previously
+made two counted calls and returned E_GENERATION; mutation calls made nine and
+returned retryable missing-identity E_STORE; borrowed authority returned E_STORE
+with no extra SQL. Required boundaries now return E_AUTH with zero SQL.
+
+Final qualification passes: shipped build; complete binary 567 passed/35 named
+ignores with eight test threads; both-store RT3b authority 42/42; identity 92/92,
+including both 4,545-state matrices; both RT0 ratchets with byte-identical tables
+and unchanged hashes; SDK package build/typecheck and 171 tests; guide 127; the
+complete Postgres script and public serving/P1-CE/restart/takeover/release/P1-MC;
+and ref-check. The checkout has no commit-unknown-named package file; the 24
+transport-outcomes cases exercise real COMMIT followed by lost fetch/body
+replies, and pass alongside delivery-refusal. Details and hashes are in the
+[continuation report](./reports/20261023-rt3br-rt4.md).
+
+Evaluator 643510 and public master 824938 are stopped and independently
+confirmed (status 3, no postmaster.pid). None of 2,080 recorded PIDs remains.
+Disk stayed above the floor: recorded minimum 29.4 GiB, final 70.9 GiB. Cargo
+handoffs preserve inherited artifacts and remove only manifest-proven round-2
+outputs. Raw evidence stays in `/tmp/sb4-rt3b-fix2/`. One additive local commit;
+no push, stash, history rewrite or Git configuration change.
+
+
+## 2026-10-23 — RT3b fix round 3 (final): presence and raw transport doors
+
+Presence entry now carries principal, credential kind and scope into its actual
+writer queue. The full capability is checked before reconnect bookkeeping or
+presence publication. Following retains and checks that tuple too; stale scope
+or kind refuses retryable E_AUTH with HTTP 503 and no store metadata.
+
+A Following source-snapshot E_GENERATION leaves the pinned success path and
+uses the ordinary metadata-free 503 denied envelope, retryable with
+Retry-After: 1. Both SDK Following transports use the existing bounded read
+retry owner. Once a changes heartbeat has sent 200, its final denied carries
+the same code/retryability policy; E_GENERATION carries retryAfterMs:1000 and
+no store facts. The SDK changes reader applies the same four-attempt and
+ten-second cumulative wait bound, cursor/credential custody, cancellation and
+jitter to that chunk and a 503. Its byte-silence watchdog pauses only after a
+completed body, while waiting to retry. Later live polling keeps its owner.
+The wire guide and request-round-trip RFC document both transport decisions.
+
+Unobserved/pre-authentication replies suppress cached X-Snapback-Dev-Reset,
+including unknown-bearer ingress E_STORE_REPLACED. Exposure headers merge into
+one comma-separated list. Generation normalization has a graceful fallback
+for an absent/non-object denied or why value. The existing latency assertion
+now checks Server-Timing membership in that list instead of requiring a
+separate header beginning with that name.
+
+Against af4bf9c14e product behavior, the final dual-store witnesses fail in
+18 cases: four presence scope/kind, four Following scope/kind, two Following
+source-snapshot, two streamed generation, two ingress reset-header, two merged
+exposure and two normalizer fallback cases. Both streamed revoked-session
+controls pass. Only synchronization hooks and the test overlay differ from
+that parent product. All 20 cases pass with the fix. Exact-parent SDK sources
+fail six of 17 cases (changes 503/stream recovery and both retry bounds,
+online/local Following recovery); eleven controls pass. Fixed SDK sources
+pass all 17. Raw logs remain outside Git under /tmp/sb4-rt3b-fix3/.
+
+Final qualification: shipped build; complete binary 577 pass/45 named ignores;
+authority 70/70; RT3b 62/62, repeated in the complete Postgres script; identity
+92/92 and both 4,545-state matrices; both unchanged RT0 ratchets; guide 127/127;
+SDK build/typecheck and all 126 generation/overload cases; ref-check and diff
+whitespace check pass. The broader SDK run exposed an introduced overload
+pacing regression; it is corrected by retaining the existing poll-loop owner
+for overload while retrying generation admissions inside changes.
+
+Two inherited check failures remain outside this final-round scope. The
+view-once HTTP-bounds leaf and parent suite fail identically on the fixed CLI
+and a CLI rebuilt from parent product sources (410 where the test expects a
+second 200 after an interrupted download). The unchanged Postgres experiment
+conformance test returns 40001 in Serializable mode, also in isolation; its
+Serialized mode completes 65 increments correctly. The complete Postgres
+script exits 1 for that experiment; every later stage passes, including public
+P1-CE parity, restart/takeover, release persistence/adoption and P1-MC. The
+[continuation report](./reports/20261023-rt3br-rt4.md) records commands,
+before/after distinctions, door policy, unchanged hashes and check results.
+
+Evaluator 1081829 and public master 1310938 are stopped, independently
+confirmed with status 3 and absent postmaster.pid. None of 899 recorded
+workload identities or either master remains. Monitored minimum free space
+47.4 GiB; final about 59 GiB. The three requested previous temporary directories
+are removed. Raw evidence stays in /tmp/sb4-rt3b-fix3/; one additive local
+commit, no push, stash or Git configuration change.

@@ -1,0 +1,14 @@
+{
+  "action_session_w1": 19,
+  "keyed_first": 26,
+  "narrowed_argument": 6,
+  "one_membership": 19,
+  "rate_limited": 0,
+  "replay_hit": 7,
+  "unauthenticated": 0,
+  "unkeyed_increment": 18,
+  "unknown_operation": 6,
+  "unknown_token": 3,
+  "w1_point": 9,
+  "w2_newest20": 9
+}

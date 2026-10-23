@@ -146,6 +146,8 @@ pub enum AnyTx<'store> {
 /// DEFERRED or Postgres REPEATABLE READ, pinning head and generation together.
 pub struct ReadSnapshot<'store> {
     pub(super) tx: AnyTx<'store>,
+    // Only this transaction owns these facts; they never survive its rollback.
+    pub(super) authority: Option<(String, crate::identity::facts::SessionFacts)>,
 }
 
 pub(crate) enum AnyPreparation<'tx, 'store> {

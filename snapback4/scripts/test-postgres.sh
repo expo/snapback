@@ -77,6 +77,7 @@ cargo test --locked -p snapback4 --features postgres --bin snapback4 change_evid
 cargo test --locked -p snapback4 --features postgres --bin snapback4 postgres_startup_renewal_error_releases_committed_claim -- --include-ignored --nocapture || status=1
 cargo test --locked -p snapback4 --features postgres --bin snapback4 round_trips_postgres -- --include-ignored --nocapture || status=1
 cargo test --locked -p snapback4 --features postgres --bin snapback4 postgres_bearer_is_checked_after_durable_and_ephemeral_mutation_lock_gaps -- --include-ignored --nocapture || status=1
+cargo test --locked -p snapback4 --features postgres --bin snapback4 rt3b_ -- --include-ignored --nocapture || status=1
 SNAPBACK4_CORPUS_OVERLAP=1 cargo test --locked -p snapback4-core --features postgres --test corpus -- --include-ignored --nocapture || status=1
 # Exercise migrated preludes, snapshot resets, replay and explicit unsupported accounting.
 cargo test --locked -p snapback4-difftest --features postgres --no-fail-fast --lib --test stores -- --nocapture || status=1

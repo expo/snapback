@@ -232,20 +232,26 @@ pub(crate) fn live_session_record(
     generation: impl FnOnce(&str) -> Result<i64, RuntimeError>,
 ) -> Result<Option<SessionRecord>, RuntimeError> {
     let Some(session) = session else { return Ok(None); };
-    if !session.identity_is_valid() || session.expires_at <= now {
+    if !session_record_live(&session, now, generation)? { return Ok(None); }
+    if session.kind == "action" && !live_claim_authority(tx, &session.digest, now)? {
         return Ok(None);
+    }
+    Ok(Some(session))
+}
+
+/// Lifetime and read-cap policy shared by projected and transaction-backed resolution.
+pub(crate) fn session_record_live(session: &SessionRecord, now: i64, generation: impl FnOnce(&str) -> Result<i64, RuntimeError>) -> Result<bool, RuntimeError> {
+    if !session.identity_is_valid() || session.expires_at <= now {
+        return Ok(false);
     }
     // @ref LLP 3000.033#1.3 — revocation generations survive an older executable.
     if session.scope == SessionScope::Read
         && (session.cap_expires_at.is_none_or(|cap| cap <= now)
             || session.principal_generation.is_none()
             || session.principal_generation.unwrap() < generation(&session.principal)?) {
-        return Ok(None);
+        return Ok(false);
     }
-    if session.kind == "action" && !live_claim_authority(tx, &session.digest, now)? {
-        return Ok(None);
-    }
-    Ok(Some(session))
+    Ok(true)
 }
 
 pub(crate) fn live_service_session(

@@ -135,7 +135,10 @@ fn commit_gap(pg: bool) {
         "the removed fresh read really would refuse"
     );
     let next = host.request("POST", "/q/read", ALICE, "{}");
-    assert_eq!(status(&next), if pg { 401 } else { 503 }, "{next}");
+    // RT3b moves the persona's generation check into the query snapshot.
+    // A foreign generation is now a stale read (503), not an auth denial (401).
+    assert_eq!(status(&next), 503, "{next}");
+    assert!(body(&next).get("generation").is_none(), "no authenticated metadata: {next}");
     assert_eq!(body(&next)["denied"]["code"], expected, "{next}");
 }
 
@@ -172,7 +175,7 @@ fn memory_query_store_id_failure_refuses_before_program_reads() {
                     .test_support_conn()
                     .authorizer(Some(move |ctx: AuthContext<'_>| {
                         if let AuthAction::Read { table_name, .. } = ctx.action {
-                            if table_name == "_commits" {
+                            if matches!(table_name, "_meta" | "_commits") {
                                 a.store(true, Ordering::SeqCst);
                             }
                             if table_name == "r" {
@@ -189,7 +192,7 @@ fn memory_query_store_id_failure_refuses_before_program_reads() {
             })
             .unwrap();
         let response = host.request("POST", "/q/read", ALICE, "{}");
-        assert!(armed.load(Ordering::SeqCst), "query snapshot reached next_seq");
+        assert!(armed.load(Ordering::SeqCst), "query snapshot reached its live facts");
         assert_eq!(failed.load(Ordering::SeqCst), fail);
         if fail {
             assert_eq!(status(&response), 503, "{response}");
@@ -223,14 +226,14 @@ fn query_store_id_failure_refuses_before_program_reads() {
             .test_support_conn()
             .authorizer(Some(move |ctx: AuthContext<'_>| {
                 if let AuthAction::Read { table_name, .. } = ctx.action {
-                    if table_name == "_commits" {
+                    if matches!(table_name, "_meta" | "_commits") {
                         a.store(true, Ordering::SeqCst);
                     }
                     if table_name == "r" {
                         r.fetch_add(1, Ordering::SeqCst);
                     }
-                    // next_seq() follows the activation checks. Deny the next
-                    // metadata read: the response callback's live store_id().
+                    // RT4 reads live identity in the snapshot-opening facts
+                    // statement. Deny that metadata before any program row read.
                     if fail && table_name == "_meta" && a.load(Ordering::SeqCst) {
                         f.store(true, Ordering::SeqCst);
                         return Authorization::Deny;
@@ -243,7 +246,7 @@ fn query_store_id_failure_refuses_before_program_reads() {
         let response = host.request("POST", "/q/read", ALICE, "{}");
         assert!(
             armed.load(Ordering::SeqCst),
-            "query snapshot reached next_seq"
+            "query snapshot reached its live facts"
         );
         assert_eq!(failed.load(Ordering::SeqCst), fail);
         if fail {

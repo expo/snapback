@@ -44,6 +44,57 @@ impl<'store> super::handles::ReadSnapshot<'store> {
     }
 }
 
+// These typed corruptions exist only in test-support. No SQL or backend
+// handle crosses the port, including in the HTTP boundary witnesses.
+impl AnyStore {
+    pub fn test_request_store_id(&mut self, id: &str) -> Result<(), RuntimeError> {
+        let tx = self.transaction()?;
+        match &tx {
+            AnyTx::Sqlite(SqliteTx(inner)) => { inner.conn().execute("UPDATE _meta SET value=?1 WHERE key='store_id'", [id])?; }
+            #[cfg(feature = "postgres")]
+            AnyTx::Postgres(super::handles::PostgresTx(inner)) => { inner.execute("UPDATE _meta SET value=$1 WHERE key='store_id'", &[&id])?; }
+        }
+        tx.commit()
+    }
+
+    pub fn test_request_read_scope(&mut self, token: &str, duplicate: bool) -> Result<(), RuntimeError> {
+        use crate::{authority::AuthorityTransaction, identity::IdentityTransaction};
+        let digest = crate::identity::digest(token);
+        let tx = self.transaction()?;
+        let facts = tx.session_authority_facts(&digest)?;
+        let old = facts.sessions.first().expect("test credential");
+        let session = crate::identity::Session { principal: old.principal.clone(), kind: old.kind.clone(), token: token.into(), expires_at: old.expires_at, scope: crate::identity::SessionScope::Read, cap_expires_at: Some(old.expires_at) };
+        let generation = facts.current_generation;
+        if !duplicate { tx.invalidate_session(&digest)?; }
+        tx.insert_read_session(&session, 0, Some((&old.family, generation)))?;
+        tx.commit()
+    }
+
+    pub fn test_request_kind(&mut self, token: &str, kind: &str) -> Result<(), RuntimeError> {
+        let digest = crate::identity::digest(token);
+        let tx = self.transaction()?;
+        match &tx {
+            AnyTx::Sqlite(SqliteTx(inner)) => { inner.conn().execute("UPDATE _sessions SET kind=?1 WHERE token_digest=?2", [kind, &digest])?; }
+            #[cfg(feature = "postgres")]
+            AnyTx::Postgres(super::handles::PostgresTx(inner)) => { inner.execute("UPDATE _sessions SET kind=$1 WHERE token_digest=$2", &[&kind, &digest])?; }
+        }
+        tx.commit()
+    }
+
+    #[cfg(feature = "postgres")]
+    pub fn test_request_owner_loss(&mut self) -> Result<(), RuntimeError> {
+        let tx = self.transaction()?;
+        match &tx {
+            AnyTx::Postgres(super::handles::PostgresTx(inner)) => {
+                inner.query("SELECT token FROM _owner WHERE singleton FOR UPDATE", &[])?;
+                inner.execute("UPDATE _owner SET token=token+1 WHERE singleton", &[])?;
+            }
+            _ => return Err(RuntimeError::StoreUnsupported { family: "Postgres owner-token fixture" }),
+        }
+        tx.commit()
+    }
+}
+
 #[cfg(test)]
 impl AnyStore {
     pub(crate) fn test_with_sqlite<T>(&self, run: impl FnOnce(&crate::store::Store) -> T) -> T {

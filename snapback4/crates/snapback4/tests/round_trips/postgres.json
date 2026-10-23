@@ -1,14 +1,14 @@
 {
-  "action_session_w1": 22,
-  "keyed_first": 46,
-  "narrowed_argument": 13,
-  "one_membership": 27,
+  "action_session_w1": 19,
+  "keyed_first": 24,
+  "narrowed_argument": 4,
+  "one_membership": 17,
   "rate_limited": 0,
-  "replay_hit": 21,
+  "replay_hit": 5,
   "unauthenticated": 0,
-  "unkeyed_increment": 26,
-  "unknown_operation": 13,
-  "unknown_token": 3,
-  "w1_point": 12,
-  "w2_newest20": 12
+  "unkeyed_increment": 16,
+  "unknown_operation": 4,
+  "unknown_token": 1,
+  "w1_point": 6,
+  "w2_newest20": 6
 }

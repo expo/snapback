@@ -157,8 +157,12 @@ impl MemberTx<'_, '_> {
         fn reset_tables(&self) -> Result<(), RuntimeError>;
         fn reset_identity(&self) -> Result<(), RuntimeError>;
     }
+    // @ref LLP 3000.009.001.000.001#31-authority-boundaries — Program members resolve after the physical owner fence and head lock.
+    pub(crate) fn request_authority(&self, digest: &str, sample: crate::identity::ServiceSample) -> Result<crate::identity::RequestAuthority, RuntimeError> {
+        crate::identity::request::request_authority(self.tx, digest, sample)
+    }
     // @ref LLP 3000.009.001.000.001#32-one-statement-fetches-a-guest-sessions-authority-facts — typed Program/Direct member access; no raw transaction or SQL.
-    #[allow(dead_code)] // RT3b will place the execution boundary inside the member.
+    #[allow(dead_code)] // Retain the complete typed resolver for non-request member callers.
     pub(crate) fn resolve_identity_session(&self, digest: &str, now: i64, revision: Option<usize>) -> Result<Option<crate::identity::Capability>, RuntimeError> {
         crate::identity::resolve_session_tx(self.tx, digest, now, revision)
     }

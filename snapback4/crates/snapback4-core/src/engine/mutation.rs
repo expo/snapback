@@ -37,29 +37,60 @@ impl Engine {
     /// is never re-judged: its row is on the server, and the device that
     /// queued it must learn `sent`, not `failed`.
     pub fn mutate(&mut self, name: &str, op: Option<&str>, context: Context) -> Result<MutationOutcome, RuntimeError> {
-        self.mutate_inner(name, op, context, false).map(|ack| ack.outcome)
+        self.mutate_inner(name, op, context, false, None).map(|ack| ack.outcome)
     }
 
     /// Commit-local publication facts, exposed only after physical COMMIT.
     pub fn mutate_acknowledged(&mut self, name: &str, op: Option<&str>, context: Context) -> Result<MutationAcknowledgement, RuntimeError> {
-        self.mutate_inner(name, op, context, true)
+        self.mutate_inner(name, op, context, true, None)
     }
 
-    fn mutate_inner(&mut self, name: &str, op: Option<&str>, mut context: Context, publication_requested: bool) -> Result<MutationAcknowledgement, RuntimeError> {
-        validate::write_identity(&context.viewer, op)?;
+    /// Serving already performed unfenced replay-before-judgment. The final
+    /// authority check and serial receipt check belong to this Program member.
+    // @ref LLP 3000.009.001.000.001#31-authority-boundaries — a carried credential is not proof of current authority.
+    pub fn mutate_authorized(&mut self, name: &str, op: Option<&str>, context: Context,
+        digest: &str, sample: impl FnOnce() -> crate::identity::ServiceSample,
+        authorize: impl FnOnce(crate::identity::RequestAuthority) -> Result<(), Refusal>,
+    ) -> Result<MutationAcknowledgement, Refusal> {
+        crate::identity::request::require_digest(digest).map_err(|e| e.refusal())?;
+        let mut refusal = None;
+        let mut check = Some((sample, authorize));
+        let result = self.mutate_inner(name, op, context, true, Some(&mut |tx| {
+            let (sample, authorize) = check.take().expect("one authority boundary per in-place member");
+            let facts = tx.request_authority(digest, sample())?;
+            authorize(facts).map_err(|why| {
+                // The RuntimeError unwinds the member frame. Preserve the exact
+                // host refusal outside it, rather than converting its envelope.
+                let error = RuntimeError::Auth(why.message.clone());
+                refusal = Some(why);
+                error
+            })
+        }));
+        if let Some(why) = refusal { return Err(why); }
+        result.map_err(|error| {
+            let mut why = error.refusal();
+            // A preflight miss followed by fence loss is still unsent intent.
+            if op.is_some() && why.code == "E_STORE_OWNERSHIP" { why.retryable = true; }
+            why
+        })
+    }
+
+    fn mutate_inner(&mut self, name: &str, op: Option<&str>, mut context: Context, publication_requested: bool, mut authority: Option<&mut dyn FnMut(&super::committer::MemberTx<'_, '_>) -> Result<(), RuntimeError>>) -> Result<MutationAcknowledgement, RuntimeError> {
+        if authority.is_none() { validate::write_identity(&context.viewer, op)?; }
         context.generation = self.generation;
         let requested = context.now.unwrap_or_else(crate::now_ms);
         context.now = Some(self.advance_time_audience(requested)?);
         let wire_args = if op.is_some() { context.wire_args.take().unwrap_or_else(|| {
                 serde_json::Value::Object(crate::wire::map_to_json(&context.args))
             }) } else { serde_json::Value::Null };
-        if let Some(op) = op
+        if authority.is_none() && let Some(op) = op
             && let Some(outcome) = self.replay_mutation(&context.viewer, op, name, &wire_args)?
         {
             return Ok(MutationAcknowledgement::unpublished(outcome));
         }
         // An existing durable receipt owns its id even after conversion to ephemeral.
         if self.schema.operations.get(name).is_some_and(|f| f.ephemeral) {
+            if authority.is_some() { return Err(RuntimeError::Generation("the operation became ephemeral; retry through current admission".into())); }
             self.require_non_media_ephemeral(&context.viewer,op)?;
             self.schema.check_delivery(name, context.delivery_fingerprint.as_deref())?;
             let viewer=context.viewer.clone();
@@ -70,6 +101,8 @@ impl Engine {
             }.map(MutationAcknowledgement::unpublished);
         }
         Committer::run_with(self, |engine| Committer::run_pending(&mut engine.store, Member::new(Kind::Program, |tx| {
+            if let Some(check) = authority.as_mut() { check(&tx)?; validate::write_identity(&context.viewer, op)?; }
+            // @ref LLP 3000.009.001.000.001#35-each-command-keeps-its-own-place — a later command observes a receipt committed during the head-lock wait.
             if let Some(op) = op
                 && let Some(outcome) = tx.replay_bound(&context.viewer, op, name, &wire_args)?
             {

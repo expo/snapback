@@ -46,13 +46,16 @@ pub(super) fn serve(request: Request, shared: &Shared, url: &str) {
     let wants_ephemeral = ["eph", "ephi", "ephTables"].iter().any(|k|params.contains_key(*k));
     let admission = super::session_identity::Admission::capture(response.request.as_ref().unwrap(), shared);
     let principal = connected.clone();
+    let expected = capability.clone();
+    #[cfg(test)]
+    super::test_work(&shared.query_wait);
     let enter = shared.engine.attempt(move |engine, shared| {
-        admission?.check(shared, engine, &principal)?;
+        admission?.check_expected(shared, engine, &expected)?;
         if present { engine.presence_reconnected(&principal, shared.now()).map_err(|e| e.refusal())?; }
         if present { shared.presence.enter(&principal); }
         Ok::<_, snapback4_core::error::Refusal>(())
     });
-    if let Err(why) = enter { response.finish(if why.family == "auth" {401} else {500}, json!({"denied":why})); return; }
+    if let Err(why) = enter { response.finish(if why.retryable {503} else if why.family == "auth" {401} else {500}, json!({"denied":why})); return; }
     let result = (|| -> Result<_, snapback4_core::RuntimeError> {
         // Entry always reads the store: the client may already know a head
         // committed after the last publication (LLP 3000 finding 5).
@@ -293,7 +296,7 @@ impl PollResponse<'_> {
             frame.push_str("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nCache-Control: no-store, no-transform\r\nX-Accel-Buffering: no\r\nTransfer-Encoding: chunked\r\n");
             // Clock time belongs to the final body, after the hold. A buffering
             // transport must not mistake early headers for an end stamp.
-            for header in cors(request).into_iter().chain(request.connection_headers()).chain(super::ephemeral_headers(self.shared)).chain(super::latency::header()) { frame.push_str(&format!("{header}\r\n")); }
+            for header in super::merge_exposed_headers(cors(request).into_iter().chain(request.connection_headers()).chain(super::ephemeral_headers(self.shared)).chain(super::latency::header())) { frame.push_str(&format!("{header}\r\n")); }
             frame.push_str("\r\n");
             self.started = true;
         }
@@ -303,6 +306,13 @@ impl PollResponse<'_> {
 
     fn finish(mut self, status: u16, mut body: Json) {
         if !self.started { return respond_timed(self.request.take().unwrap(), self.shared, status, body); }
+        // @ref LLP 3000.009.001.000.001#6-increments — RT3b final streamed refusals preserve the ordinary admission retry policy.
+        // The 200 is already on the wire. Preserve the ordinary denial's code
+        // and retry policy in the final chunk, with its Retry-After in the body.
+        if super::latency::Reply::refusal_code(&body) == Some("E_GENERATION") {
+            body = super::operation_request::generation_reply(body);
+            body["denied"]["retryAfterMs"] = json!(1000);
+        }
         // Heartbeat headers preceded the hold. Reuse the exact ordinary
         // response authority/clock snapshot for the final body instead.
         // @ref LLP 3000.000.000.001#11-wave-22-loop-repairs-dx6 — every clock sample includes matching bearer timing, including streamed final frames.

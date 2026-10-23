@@ -190,6 +190,7 @@ impl Host {
             query_wait: Mutex::new(None), adoption_committed: Mutex::new(None), clock_advanced: Mutex::new(None), reader_open: Mutex::new(None), changes_refresh: Mutex::new(None),
             mutation_wait: Mutex::new(None),
             mutation_committed: Mutex::new(None),
+            operation_ingress: Mutex::new(None),
         });
         shared.install_ephemeral_wake();
         let server = Arc::new(

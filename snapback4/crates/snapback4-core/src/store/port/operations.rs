@@ -7,13 +7,6 @@ use crate::{RuntimeError, Value, Schema};
 use crate::store_port::{AnyStore, AnyTx};
 use crate::store_port::timeline_launch;
 use crate::store_port::Sizes;
-// @ref LLP 3000.009.001.000#32-the-rule — native driver details remain below the store port.
-// Shared authority policy decides cardinality; this preserves the historical
-// single-row lookup error on both adapters without exposing a driver above the port.
-pub(crate) fn duplicate_session_error() -> RuntimeError {
-    RuntimeError::Sql(rusqlite::Error::QueryReturnedMoreThanOneRow)
-}
-
 impl AnyTx<'_> {
     pub(crate) fn session_authority_facts(&self, digest: &str) -> Result<crate::identity::facts::SessionFacts, RuntimeError> {
         match self {
@@ -70,6 +63,13 @@ impl AnyStore {
     pub fn successor(&mut self, schema: &Schema) -> Result<Vec<crate::successor::Step>, RuntimeError> { match self { Self::Sqlite(SqliteStore(inner)) => inner.successor(schema), #[cfg(feature = "postgres")] Self::Postgres(_) => Err(RuntimeError::StoreUnsupported { family: "release-activation" }) } }
     pub fn check_timeline_activation(&mut self, schema: &Schema) -> Result<Vec<timeline_launch::Estimate>, RuntimeError> { match self { Self::Sqlite(SqliteStore(inner)) => inner.check_timeline_activation(schema), #[cfg(feature = "postgres")] Self::Postgres(_) => Err(RuntimeError::StoreUnsupported { family: "release-activation" }) } }
     pub fn check_timeline_activation_at(&mut self, schema: &Schema, now: i64, allow_launch: bool) -> Result<Vec<timeline_launch::Estimate>, RuntimeError> { match self { Self::Sqlite(SqliteStore(inner)) => inner.check_timeline_activation_at(schema, now, allow_launch), #[cfg(feature = "postgres")] Self::Postgres(_) => Err(RuntimeError::StoreUnsupported { family: "release-activation" }) } }
+    pub(crate) fn ingress_session_authority_facts(&self, digest: &str) -> Result<crate::identity::facts::SessionFacts, RuntimeError> {
+        match self {
+            Self::Sqlite(SqliteStore(inner)) => inner.ingress_session_authority_facts(digest),
+            #[cfg(feature = "postgres")]
+            Self::Postgres(PostgresStore(inner)) => inner.borrow()?.ingress_session_authority_facts(digest),
+        }
+    }
     pub(crate) fn resolve_session_snapshot(&self, digest: &str, now: i64, expected_store_id: Option<&str>, supervisor_revision: Option<usize>) -> Result<Option<crate::identity::Capability>, RuntimeError> { if digest.contains('\0') { return Ok(None); } match self { Self::Sqlite(SqliteStore(inner)) => inner.resolve_session_snapshot(digest, now, expected_store_id, supervisor_revision), #[cfg(feature = "postgres")] Self::Postgres(_) => self.with_session_authority_snapshot(digest, |tx, facts| {
             if expected_store_id.is_none() || facts.store_id.as_deref() != expected_store_id { return Ok(None); }
             Ok(crate::identity::facts::resolve(tx, facts, now, supervisor_revision)?.map(|s| (s.principal, s.kind, s.scope)))
@@ -326,4 +326,19 @@ impl AnyStore {
             Self::Postgres(_) => Err(RuntimeError::StoreUnsupported { family: "worker-execution" }),
         }
     }
+}
+impl crate::store_port::ReadSnapshot<'_> {
+    pub fn request_authority(&self, digest: &str, sample: crate::identity::ServiceSample) -> Result<crate::identity::RequestAuthority, RuntimeError> {
+        if let Some((key, facts)) = &self.authority && key == digest {
+            return crate::identity::request::authority_from_facts(&self.tx, facts.clone(), sample);
+        }
+        crate::identity::request::request_authority(&self.tx, digest, sample)
+    }
+}
+
+// A strict single-row lookup has one shared adapter error shape on both stores.
+// Keep its driver representation behind the port, not in authority policy.
+pub(crate) fn single_session(mut records: Vec<crate::authority::SessionRecord>) -> Result<Option<crate::authority::SessionRecord>, RuntimeError> {
+    if records.len() > 1 { return Err(RuntimeError::Sql(rusqlite::Error::QueryReturnedMoreThanOneRow)); }
+    Ok(records.pop())
 }

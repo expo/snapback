@@ -1,6 +1,20 @@
 //! Read-only durable metadata and request store binding.
 use super::*;
 
+pub(super) fn merge_exposed_headers(headers: impl IntoIterator<Item = Header>) -> Vec<Header> {
+    let mut output = Vec::new();
+    let mut names: Vec<String> = Vec::new();
+    for header in headers {
+        if header.field.equiv("Access-Control-Expose-Headers") {
+            for name in header.value.as_str().split(',').map(str::trim).filter(|s| !s.is_empty()) {
+                if !names.iter().any(|old| old.eq_ignore_ascii_case(name)) { names.push(name.to_owned()); }
+            }
+        } else { output.push(header); }
+    }
+    if !names.is_empty() { output.push(Header::from_bytes("Access-Control-Expose-Headers", names.join(", ")).unwrap()); }
+    output
+}
+
 pub(super) fn response_head(engine: &mut Engine) -> Result<(String, u64), Refusal> {
     let tx = engine.store_mut().read_transaction()?;
     let id: String = tx.store_id()?;
@@ -10,38 +24,18 @@ pub(super) fn response_head(engine: &mut Engine) -> Result<(String, u64), Refusa
 // @ref LLP 3000.013#6 — a replay belongs to its acknowledged store, even if
 // the endpoint changes between the client's probe and this transaction.
 pub(super) fn intent_store(engine: &Engine, payload: &Json) -> Result<(), Refusal> {
-    let Some(expected) = payload.get("store_id").filter(|id| !id.is_null()) else {
-        return Ok(());
-    };
+    if payload.get("store_id").is_none_or(Json::is_null) { return Ok(()); }
     let current = engine.store().store_identity()?;
-    if expected
-        .as_str()
-        .is_some_and(|id| Some(id) == current.as_deref())
-    {
-        return Ok(());
-    }
-    Err(Refusal::new(
-        "E_STORE_REPLACED",
-        "store",
-        "the intent belongs to another store; its original outcome is unknown",
-    )
-    .site("request.store_id")
-    .rewrite("reconcile this write with its original store before submitting new intent")
-    .guide("sync"))
+    intent_store_id(payload, current.as_deref())
 }
 
-// Typed mutation inputs have one terminal failure envelope, including wire decoding.
-pub(super) fn argument_refusal(request:Request,shared:&Shared,id:Option<&str>,why:Refusal){
-    if !request.url().starts_with("/m/") {return operation_refusal(request,shared,400,why);}
-    match shared.read_identity() {
-        Ok((store_id,head,generation))=>{
-            let mut reply=json!({"state":"failed","why":refusal_json(&why),"store_id":store_id,"head":head,"generation":generation});
-            if let Some(id)=id {reply["id"]=json!(id);}
-            respond_timed(request,shared,200,reply);
-        }
-        Err(error)=>respond_timed(request,shared,503,json!({"denied":refusal_json(&error)})),
-    }
+pub(super) fn intent_store_id(payload: &Json, current: Option<&str>) -> Result<(), Refusal> {
+    let Some(expected) = payload.get("store_id").filter(|id| !id.is_null()) else { return Ok(()); };
+    if expected.as_str().is_some_and(|id| Some(id) == current) { return Ok(()); }
+    Err(Refusal::new("E_STORE_REPLACED", "store", "the intent belongs to another store; its original outcome is unknown")
+        .site("request.store_id").rewrite("reconcile this write with its original store before submitting new intent").guide("sync"))
 }
+
 
 // @ref LLP 3000.000.000.001#11-wave-22-loop-repairs-dx6 — reconcile the exact bearer before the SDK observes advanced business time.
 pub(super) fn session_clock_headers(request: &Request, shared: &Shared) -> Vec<Header> {
@@ -100,6 +94,11 @@ pub(crate) fn mutation_reply(mut body: Json) -> Json {
 // @ref LLP 3000.009.001.000.001#3.4 — committed facts cross the worker continuation into the response.
 pub(super) fn mutation_acknowledgement(shared: &Shared, engine: &mut Engine, acknowledgement: Result<snapback4_core::engine::MutationAcknowledgement, Refusal>)
     -> (Result<snapback4_core::MutationOutcome, Refusal>, Result<(String, u64), Refusal>, Option<Vec<String>>, u64) {
+    mutation_acknowledgement_at(shared, engine, acknowledgement, None)
+}
+
+pub(super) fn mutation_acknowledgement_at(shared: &Shared, engine: &mut Engine, acknowledgement: Result<snapback4_core::engine::MutationAcknowledgement, Refusal>, boundary: Option<(String, u64)>)
+    -> (Result<snapback4_core::MutationOutcome, Refusal>, Result<(String, u64), Refusal>, Option<Vec<String>>, u64) {
     match acknowledgement {
         Ok(ack) if ack.publication.is_some() => {
             let publication = ack.publication.unwrap();
@@ -119,7 +118,7 @@ pub(super) fn mutation_acknowledgement(shared: &Shared, engine: &mut Engine, ack
                 shared.durable_committed(engine);
             }
             let preserved = changes::ack_preserved(engine, outcome.as_ref().ok());
-            (outcome, response_head(engine), preserved, engine.generation())
+            (outcome, boundary.map_or_else(|| response_head(engine), Ok), preserved, engine.generation())
         }
     }
 }
@@ -129,10 +128,10 @@ pub(super) fn borrowed_response_head(snapshot: &snapback4_core::store_port::Read
     Ok((snapshot.store_id()?, head))
 }
 
-// A failed generation boundary already supplied the refusal; opening another
-// snapshot would repeat it during every adoption handoff.
+// A query that failed before its authority cut cannot authenticate metadata by
+// opening an unrelated head snapshot, including during an adoption handoff.
 pub(super) fn query_response_head(engine: &mut Engine, metadata: Option<Result<(String, u64), Refusal>>, outcome: &Result<snapback4_core::QueryOutcome, Refusal>) -> Result<(String, u64), Refusal> {
     if let Some(metadata) = metadata { return metadata; }
-    if let Err(why) = outcome && why.code == "E_GENERATION" { return Err(why.clone()); }
+    if let Err(why) = outcome { return Err(why.clone()); }
     response_head(engine)
 }

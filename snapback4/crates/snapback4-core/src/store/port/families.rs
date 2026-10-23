@@ -123,7 +123,10 @@ mod partition {
         fn audience_epoch_time(&self, _table: &str) -> Result<Option<i64>, RuntimeError> { match self { Self::Sqlite(SqliteTx(inner)) => <sqlite::Tx<'_> as PartitionRows>::audience_epoch_time(inner, _table), #[cfg(feature = "postgres")] Self::Postgres(PostgresTx(inner)) => <pg::Tx<'_> as PartitionRows>::audience_epoch_time(inner, _table) } }
     }
     impl PartitionRows for ReadSnapshot<'_> {
-        fn next_seq(&self) -> Result<u64, RuntimeError> { <AnyTx<'_> as PartitionRows>::next_seq(&self.tx) }
+        fn next_seq(&self) -> Result<u64, RuntimeError> {
+            if let Some((_, facts)) = &self.authority { return Ok(facts.head + 1); }
+            <AnyTx<'_> as PartitionRows>::next_seq(&self.tx)
+        }
         fn append_log( &self, partition: &str, seq: u64, ord: u32, table: &str, kind: &str, id: &str, data: Option<&str>, ) -> Result<(), RuntimeError> { <AnyTx<'_> as PartitionRows>::append_log(&self.tx, partition, seq, ord, table, kind, id, data) }
         fn membership_transitions(&self, partition: &str, after: u64) -> Result<Vec<LogEvent>, RuntimeError> { <AnyTx<'_> as PartitionRows>::membership_transitions(&self.tx, partition, after) }
         fn memberships_before(&self, partition: &str, watermark: u64) -> Result<Vec<LogEvent>, RuntimeError> { <AnyTx<'_> as PartitionRows>::memberships_before(&self.tx, partition, watermark) }

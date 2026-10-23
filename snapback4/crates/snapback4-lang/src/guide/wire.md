@@ -316,13 +316,24 @@ Dev only, same machine; `serve` refuses each one.
 | 429 | Identity rate limit or per-principal wait capacity; retry as directed |
 | 500 | Internal store/response-metadata failure, `denied` |
 | 503 | Retryable refusal, store/infrastructure failure or host capacity; retry as directed |
+| 503 E_GENERATION | Generation mismatch at ingress, query, mutation or argument handoff; never 401 and no store metadata. Always `retryable:true` with `Retry-After: 1`: at this boundary the server cannot tell an in-process adoption race from a foreign activation |
 
 Authentication refuses before an operation executes. Identity helpers in the
 JS client preserve the `denied` body on 401/403; do not replace it with a proxy
 error page. Rule/constraint refusals after operation admission remain HTTP 200.
 Identity scope/value validation can also return 200 denied/E_INPUT; inspect the body.
-After a streaming heartbeat starts, HTTP stays 200; inspect the final JSON for
-`denied` if the session expires while waiting.
+After a `/changes` whitespace heartbeat starts, HTTP stays 200. Inspect the
+final JSON's `denied`: it carries the same code and retryability as an ordinary
+refusal. `E_GENERATION` carries `retryable:true` and `retryAfterMs:1000`
+instead of a late `Retry-After: 1` header, with no store id, head, sequence,
+generation, evaluation data or generation header. A revoked session still
+carries terminal `E_AUTH`. The SDK changes reader handles streamed generation
+refusals and ordinary 503s identically: four attempts per request, a ten-second
+cumulative retry-wait bound, jitter and the retry delay floor. Each attempt
+retains the cursor and credential; cancellation by the credential owner stops
+retries. The byte-silence watchdog runs during each transport attempt and pauses
+after a completed body while waiting to retry. Existing live-poll scheduling
+owns any later request after that bound.
 
 Two layers answer differently. The HTTP layer decodes the request against the
 operation's signature before anything runs: a body that is not JSON, an
@@ -332,14 +343,26 @@ a number for `text`), or an argument the operation does not take is **400**
 persona) is **401** E_AUTH; an unknown operation or route is **404** E_OP, and
 a declared one at the wrong door (a job or query at `/m/`, a mutation at
 `/q/`) is **400** E_OP naming the right one; a body past its ceiling (1 MiB of JSON, 16 MiB for `/seed` and `/dev/reset`) is **413**. Once
-decoded, the operation runs, and everything it refuses is **200**: a query
+decoded, the operation runs, and an application refusal is **200**: a query
 answers `{denied}`, a mutation `{state:"failed", why}`. That includes value
 checks made while it runs — a missing required argument, text outside its
 bounds, `''` for a `text 1..500` argument too (`why.code` E_INPUT) — rules (E_RULE), constraints
 (E_CONSTRAINT), a delete that rows still reference (E_REFERENCED, naming the
 referencing column), `NOT_FOUND`, the program's own `require … else CODE` (with
 `why.site` and `why.rule`), and a reused write id (E_ID_REUSED). A retryable
-refusal is 503 instead. So branch on the body, not only the status; for an
+refusal is 503 instead. Before streaming starts, E_GENERATION is always 503, including after the
+server exhausts its two query handoffs; it omits store id, head, sequence,
+generation and the generation header. Following source-snapshot failures use
+this 503 `denied` envelope too, rather than a pinned 200 `phase:"refused"`.
+Following success/page/restart replies retain their existing pinned protocol.
+Preserve the session. Safe SDK reads, including online/local Following,
+retry a retryable generation 503 at most three times after the first attempt,
+respecting Retry-After, jitter and a ten-second cumulative wait limit, just
+like E_RATE_LIMIT. The server cannot tell an adoption race from a foreign
+activation here, so every generation 503 is retryable. A persistent foreign
+activation keeps refusing until the client's bound is spent; the operator
+must then reopen the serving engine on the activated backend.
+So branch on the body, not only the status; for an
 `add(body: text <=200)` mutation:
 
 ```sh
