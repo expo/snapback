@@ -110,6 +110,7 @@ pub(super) fn fixture_cases(bound:&Bound,p:&Program,rows:&BTreeMap<String,Vec<Va
     for case in cases{
         for name in &focused{if let Some(value)=arguments(&BTreeMap::from([(name.clone(),p.args[name].clone())]),4).and_then(|mut a|a.remove(name))&&value!=Value::Null{
             let mut alternate=case.clone();alternate.insert(name.clone(),value);if !prioritized.contains(&alternate){prioritized.push(alternate);}
+            let mut missing=case.clone();missing.insert(name.clone(),Value::Null);if !prioritized.contains(&missing){prioritized.push(missing);}
         }}
         if !prioritized.contains(&case){prioritized.push(case.clone());}
         if prioritized.len()>=LIMIT{prioritized.truncate(LIMIT);out.unsupported.insert("column-write argument frontier capped at 512; remaining combinations uncovered".into());break;}

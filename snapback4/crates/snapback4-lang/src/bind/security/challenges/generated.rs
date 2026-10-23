@@ -235,12 +235,19 @@ use super::*;
 
 #[cfg(test)]mod sec9_reach_tests {use super::*;
 #[test]fn wave25_role_checked_creator_has_a_resource_root(){
- let b=crate::compile(&[("schema.q".into(),include_str!("../../../../tests/security/wave25/043.q").into())]);
+ let sources=vec![("schema.q".into(),format!("{}\ninvariant inspections.status update only .authorization != null or exists roles[viewer, role = 'scheduler']\n",include_str!("../../../../tests/security/wave25/043.q")))];
+ let b=super::super::derived::augmented(&sources,&crate::compile(&sources));
  assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);let mut out=Campaign::bounded(15000);out.work_remaining=Some(8192);
  let proposed=proposals(&b,&mut out).unwrap();let rows=readback(&proposed).unwrap();let actors=histories::actors(&b,&rows);let p=&b.programs.iter().find(|bp|bp.program.name=="book").unwrap().program;
  let cases=histories::fixture_cases(&b,p,&rows,&actors,&mut out);let prefs=histories::principal_preferences(&b,p,&rows);
  assert!(cases.iter().take(16).any(|a|["client","inspector"].iter().all(|n|prefs.get(*n).is_some_and(|vs|vs.contains(&a[*n])))),"preferences {prefs:?}; first {:?}",cases.iter().take(16).collect::<Vec<_>>());
- let e=fixture(&b,&mut out).unwrap();assert!(!e.store().rows("inspections").unwrap().is_empty(),"{:?}",out.unsupported);
+ let mut e=fixture(&b,&mut out).unwrap();let inspections=e.store().rows("inspections").unwrap();assert!(!inspections.is_empty(),"{:?}",out.unsupported);
+ let row=inspections.iter().find(|r|r.field("authorization").map_or(true,|v|*v==Value::Null)).expect("generated roots retain missing evidence");
+ let actor=row.field("inspector").unwrap().as_str().unwrap();let clock=match row.field("scheduledAt").unwrap(){Value::Int(n)=>(*n).max(NOW),_=>panic!("typed time")};
+ let p=&b.programs.iter().find(|p|p.program.name=="markInspected").unwrap().program;let trace=super::executed::trace(&b,p);
+ let result=e.mutate("markInspected",None,Context::new(actor,BTreeMap::from([("inspection".into(),row.field("id").unwrap().clone())])).at(clock).with_fixture_trace(trace.clone())).unwrap();
+ assert!(matches!(result.state,snapback4_core::WriteState::Sent{..}),"{result:?}");assert!(trace.take().iter().any(|o|o.allowed==Some(false)));
+
 }
 }
 
