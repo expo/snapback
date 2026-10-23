@@ -105011,3 +105011,13 @@ at N=4/32, excluding HTTP ingress: PG 20/132 flights (5/4.125 per member),
 SQLite 66/486 statements (16.5/15.1875 per member). The initial run passes both
 ratchets; the complete final repeat is recorded with the completion report.
 The Postgres script now includes the batch matrix and outcome/deadline scopes.
+
+## 2026-10-24 — G3 RT6 tail-codec fixture alignment
+
+The complete Postgres script exposed one affected RT6 fixture: it expected the
+legacy tail's one-column count row. The verified tail now returns five counts.
+The Bind/literal differential asserts all five (commit, evidence, log, effect
+and presence) and retains its complete durable-state census. All 19 codec and
+serving-flight witnesses pass on the freshly built final test executable.
+The script's original red and the successful affected-scope rerun are both
+retained in the completion report.
