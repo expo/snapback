@@ -13,6 +13,9 @@ pub(crate) struct TargetInput(());
 impl Runner<'_> {
     // @ref LLP 3000.007#17 — absent and hidden-refused targets restore every logical meter field.
     pub(in crate::engine) fn target_attempt<T>(&mut self, table: &str, attempt: impl FnOnce(&mut Self) -> Result<T, RuntimeError>) -> Result<T, RuntimeError> {
+        if self.device&&self.schema.tables.get(table).is_some_and(|t|!t.column_writes.is_empty()||!t.frozen_columns.is_empty()){
+            return Err(RuntimeError::Prediction("column guards need the server".into()));
+        }
         let mark = self.meter.mark();
         let capture_prepaid = std::mem::replace(&mut self.capture_prepaid, false);
         let live_prepaid=std::mem::replace(&mut self.live_prepaid,false);
@@ -51,6 +54,8 @@ impl Runner<'_> {
 
     // @ref LLP 3000.007#17 — reserve resolution's static worst case before the target lookup; no ceiling is changed.
     pub(in crate::engine) fn reserve_target_resolution(&mut self, table_name: &str, table: &Table, patch: &crate::value::Supplied, upsert: bool) -> Result<(), RuntimeError> {
+        #[cfg(not(feature="sqlite"))]
+        if !table.column_writes.is_empty()||!table.frozen_columns.is_empty(){return Err(RuntimeError::Prediction("column guards need the server".into()));}
         if upsert { self.reserve_capture(table)?; }
         let hidden_probes=table.column_writes.keys().chain(table.frozen_columns.keys()).filter_map(|c|table.column_reads.get(c)).map(rule_probes).fold(0u64,u64::saturating_add);
         let frozen_probes=table.frozen_columns.values().map(rule_probes).fold(hidden_probes,u64::saturating_add);

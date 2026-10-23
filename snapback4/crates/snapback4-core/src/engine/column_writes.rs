@@ -2,6 +2,7 @@
 // @ref LLP 3000.036.004.000#3-conditional-immutability — judge the preimage; unknown never permits a change.
 use super::runner::Runner;
 use crate::{schema::{Effect, RuleExpr, materialize_optional_fields}, error::{RuntimeError,MeterKind}, Value};
+#[cfg(feature="sqlite")]
 impl Runner<'_> {
     pub(super) fn check_frozen_columns(&mut self, name:&str, old:&Value, next:&Value)->Result<(),RuntimeError>{
         let table=&self.schema.tables[name];
@@ -15,5 +16,12 @@ impl Runner<'_> {
             if !permitted{return Err(RuntimeError::Constraint(format!("{name}.{field} is immutable while {} holds on the old row",condition.quarry())));}
         }
         Ok(())
+    }
+}
+
+#[cfg(not(feature="sqlite"))]
+impl Runner<'_> {
+    pub(super) fn check_frozen_columns(&mut self,name:&str,_old:&Value,_next:&Value)->Result<(),RuntimeError>{
+        if self.schema.tables[name].frozen_columns.is_empty(){Ok(())}else{Err(RuntimeError::Prediction("column guards need the server".into()))}
     }
 }

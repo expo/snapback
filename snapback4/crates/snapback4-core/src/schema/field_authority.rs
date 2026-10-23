@@ -66,9 +66,11 @@ pub fn validate(schema: &Schema) -> Vec<SchemaIssue> {
                 if capture.table == *name && table.private_field(&capture.column) { issue(other_name, &capture.column, "cannot record another row's private field".into()); }
             }
         }
-        for (effect, rule) in [("read", &table.rules.read), ("insert", &table.rules.insert), ("update", &table.rules.update), ("delete", &table.rules.delete)].into_iter().chain(table.column_writes.values().chain(table.frozen_columns.values()).map(|rule|("column",rule))) {
+        for (effect, rule) in [("read", &table.rules.read), ("insert", &table.rules.insert), ("update", &table.rules.update), ("delete", &table.rules.delete)] {
             private_rule(schema, name, rule, effect == "update" && table.update_transition, &mut issue);
         }
+        #[cfg(feature="sqlite")]
+        for rule in table.column_writes.values().chain(table.frozen_columns.values()){private_rule(schema,name,rule,false,&mut issue);}
     }
     issues
 }

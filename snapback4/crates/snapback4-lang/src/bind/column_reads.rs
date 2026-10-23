@@ -106,7 +106,7 @@ pub(super) fn write_rules(catalog: &Catalog, info: &TableInfo, diagnostics: &mut
     };
     let mut out = BTreeMap::new();
     for (fields, value, site) in declarations {
-        let decl = RuleDecl { effect: Effect::Read, bindings: Vec::new(), value, site: site.clone() };
+        let decl = RuleDecl { effect: if frozen { Effect::Insert } else { Effect::Read }, bindings: Vec::new(), value, site: site.clone() };
         match bind_rule(catalog, info, &decl) {
             Ok(rule) => for field in fields {
                 if !info.columns.contains_key(&field) || field == "id" || out.insert(field.clone(), rule.clone()).is_some() {
