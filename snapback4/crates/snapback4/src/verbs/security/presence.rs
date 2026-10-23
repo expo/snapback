@@ -37,3 +37,26 @@ pub(in crate::verbs) fn remember(project:&Project,bound:&Bound)->Result<(),Strin
     let result=std::fs::write(&temporary,serde_json::to_vec(&baseline(bound)).unwrap()).and_then(|_|std::fs::rename(&temporary,&path));
     if result.is_err(){let _=std::fs::remove_file(&temporary);}result.map_err(|e|e.to_string())
 }
+
+#[cfg(test)]mod tests{
+    use super::*;
+    struct Scratch(std::path::PathBuf);impl Drop for Scratch{fn drop(&mut self){let _=std::fs::remove_dir_all(&self.0);}}
+    #[test]fn only_authored_presence_answers_advance_the_first_check_gate(){
+        let dir=std::env::temp_dir().join(format!("sb4-sec9-presence-{}",std::process::id()));let _scratch=Scratch(dir.clone());
+        std::fs::create_dir_all(dir.join("snapback")).unwrap();let project=Project{root:dir};
+        let required="table rows:\n  value: text\n  read <- allow\n  online only\n";
+        let optional=required.replace("value: text","value: text ?");
+        let compile=|source:&str|{std::fs::write(project.schema_dir().join("schema.q"),source).unwrap();let b=snapback4_lang::compile(&[("schema.q".into(),source.into())]);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);b};
+        let old=compile(required);let current=compile(&optional);
+        assert!(notes(&project,&current,None).unwrap().is_empty());
+        remember(&project,&old).unwrap();
+        assert_eq!(notes(&project,&current,None).unwrap().len(),1);
+        assert_eq!(notes(&project,&current,None).unwrap().len(),1,"failed checks do not advance the baseline");
+        let permission=compile(&format!("{optional}\ninvariant rows.value write only viewer = 'service:desk'\n"));
+        assert_eq!(notes(&project,&permission,None).unwrap().len(),1,"write permission does not answer presence");
+        let deliberate=compile(&format!("{optional}\ninvariant rows always .value = null or .value != null\n"));
+        assert!(notes(&project,&deliberate,None).unwrap().is_empty());
+        std::fs::remove_file(path(&project)).unwrap();
+        assert_eq!(notes(&project,&current,Some(&old)).unwrap().len(),1,"release comparison survives deleted local state");
+    }
+}

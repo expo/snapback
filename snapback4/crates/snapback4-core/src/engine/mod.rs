@@ -1187,6 +1187,7 @@ impl Engine {
                         if crate::schema::row_image(old, table).field(&field.reference).ok() != crate::schema::row_image(&row, table).field(&field.reference).ok() { return Err(RuntimeError::Structural { code: "E_RECORDED_FIELD", message: format!("{name}.{} cannot change after attribution capture; import a new source id (guide maintains)", field.reference) }); }
                     }
                 }
+                if let Some(old)=&old {runner.check_frozen_columns(&name,old,&row)?;}
                 tx.put(&name, table, &row, old.as_ref())?;
                 imported.entry((name, row.field("id")?.as_str()?.to_owned())).or_insert(old);
                 count += 1;
@@ -1255,6 +1256,7 @@ impl Engine {
                 let table = self.schema.table(&table_name).expect("validated").clone();
                 let id = row.field("id")?.as_str()?.to_owned();
                 let old = tx.get(&table_name, &id)?;
+                if mode==LoadMode::Import && let Some(old)=&old {runner.check_frozen_columns(&table_name,old,&row)?;}
                 tx.put(&table_name, &table, &row, old.as_ref())?;
                 partition::row_changed(&mut runner, &table_name, old.as_ref(), Some(&row), crate::engine::write::Origin::Source)?;
                 if table.not_before.is_some() {

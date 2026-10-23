@@ -19,7 +19,7 @@ pub fn validate(schema:&Schema)->Vec<SchemaIssue>{
     for (name,t) in &schema.tables {
         for (column,rule) in t.column_writes.iter().chain(&t.frozen_columns) {
             let path=format!("tables.{name}.column_writes.{column}");
-            if column=="id" || !t.columns.contains_key(column) || t.engine_field(column) || t.maintained.contains_key(column) || t.sequences.contains_key(column) || schema.maintain_for(name).is_some() || schema.receipts.iter().any(|r|r.messages==*name||r.members==*name||r.runs==*name) || t.private_field(column) || t.on_delete.get(column)==Some(&references::OnDelete::SetNull) {
+            if column=="id" || !t.columns.contains_key(column) || t.engine_field(column) || t.maintained.contains_key(column) || t.sequences.contains_key(column) || schema.maintain_for(name).is_some() || schema.timelines.iter().any(|timeline|timeline.owns(name)||timeline.maps(name)) || schema.receipts.iter().any(|r|r.messages==*name||r.members==*name||r.runs==*name) || t.written_by.contains_key(column) || t.on_delete.get(column)==Some(&references::OnDelete::SetNull) {
                 issues.push(SchemaIssue{path:path.clone(),message:"column write/freeze needs an ordinary payload column without owner-field bypass or on delete set null".into()});
             }
             super::validate_rule(schema,t,rule,false,false,&path,&mut issues);

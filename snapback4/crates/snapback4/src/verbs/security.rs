@@ -27,7 +27,7 @@ pub(super) fn report(project:&Project,bound:&Bound,sources:&[(String,String)],op
     // An explicitly selected fixture remains the initial-state assumption.
     // Static generation runs only on the fixture-free path; both share this
     // one bounded campaign with all subsequent concrete exploration.
-    let mut report=if selection.flags.contains_key("fixture")||known_failure{
+    let mut report=if selection.flags.contains_key("fixture")||known_failure||options.flags.contains_key("security-deploy"){
         security::analyze_rules(bound)
     }else{security::analyze_with_campaign(bound,&mut campaign)};
     security::add_source_notes(&mut report,sources,bound);

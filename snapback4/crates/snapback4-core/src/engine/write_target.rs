@@ -52,8 +52,9 @@ impl Runner<'_> {
     // @ref LLP 3000.007#17 — reserve resolution's static worst case before the target lookup; no ceiling is changed.
     pub(in crate::engine) fn reserve_target_resolution(&mut self, table_name: &str, table: &Table, patch: &crate::value::Supplied, upsert: bool) -> Result<(), RuntimeError> {
         if upsert { self.reserve_capture(table)?; }
-        let frozen_probes=table.frozen_columns.values().map(rule_probes).fold(0u64,u64::saturating_add);
-        let frozen_heap=table.frozen_columns.values().map(|rule|self.rule_scratch(rule)).max().unwrap_or(0);
+        let hidden_probes=table.column_writes.keys().chain(table.frozen_columns.keys()).filter_map(|c|table.column_reads.get(c)).map(rule_probes).fold(0u64,u64::saturating_add);
+        let frozen_probes=table.frozen_columns.values().map(rule_probes).fold(hidden_probes,u64::saturating_add);
+        let frozen_heap=table.frozen_columns.values().chain(table.column_writes.keys().chain(table.frozen_columns.keys()).filter_map(|c|table.column_reads.get(c))).map(|rule|self.rule_scratch(rule)).max().unwrap_or(0);
         let probes = frozen_probes.saturating_add(rule_probes(&table.rules.read).saturating_mul(2)).saturating_add(rule_probes(&table.guarded_rule(Effect::Update)))
             .saturating_add(if upsert || table.ephemeral.is_some() { rule_probes(&table.guarded_rule(Effect::Insert)).saturating_mul(2) } else { 0 });
         // Covers the largest cloned row allowed by the schema, the caller's patch

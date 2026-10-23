@@ -24,24 +24,14 @@ table reactions:
 | `row = t[key] ! else CODE` | CODE; execution stops | row; execution continues |
 | `exists t[key]` in a program | false | true when its extra equalities match |
 
-Later requires cannot replace earlier refusals. Defaults can mask hidden reads.
-N_LOOKUP_FILTERED names mutation lookups lacking proved read authority, including asserted reads and tables later written; prefer minimal
-readable projections. N_LOOKUP_HIDDEN reviews required read/write gates.
-Blind writes need no lookup. Rule `exists` uses separate witnesses. See `guide refusals` and local `why recent`.
+Later requires cannot replace earlier refusals. Defaults can mask hidden reads. N_LOOKUP_FILTERED names mutation lookups lacking proved read authority, including asserted reads and tables later written; prefer minimal readable projections. N_LOOKUP_HIDDEN reviews required read/write gates. Blind writes need no lookup. Rule `exists` uses separate witnesses. See `guide refusals` and local `why recent`.
 
 ### Column read rules
 
-A column may append `read <- policy`; `read (a, b) <- policy` on the table shares a gate. Both narrow row authority, omit denied row properties and make
-explicit selections optional/null. The complete runnable example and sync, asset, aggregate and rollback boundaries are in `guide rule-recipes`,
-Column-level privacy. Row-local cells sync; probe-based cells stay online and ordinary queries fall back automatically. Protected payloads cannot supply
-stored keys, cursors/order/search, authority, lifetimes, immutable constraints or maintained derivation inputs (E_COLUMN_READ). Use an ordinary public key
-for structure, or a separate entity with its own lifecycle.
+A column may append `read <- policy`; `read (a, b) <- policy` on the table shares a gate. Both narrow row authority, omit denied row properties and make explicit selections optional/null. The complete runnable example and sync, asset, aggregate and rollback boundaries are in `guide rule-recipes`, Column-level privacy. Row-local cells sync; probe-based cells stay online and ordinary queries fall back automatically. Protected payloads cannot supply stored keys, cursors/order/search, authority, lifetimes, immutable constraints or maintained derivation inputs (E_COLUMN_READ). Use an ordinary public key for structure, or a separate entity with its own lifecycle.
 
 ### Hops, operators and read through
-Write rules and `after insert` keys allow three live hops: `.reaction.message.conversation`, including `exists members[.message.conversation, viewer]`. `messages[id = .message].conversation` is equivalent. Every target must be live and readable; absent, expired or hidden targets remain unknown under `not` and `= null`. Program lookups (`t[id] !`, `exists`) are reads too: a row the caller cannot read is null in an optional lookup (false for program `exists`) and the authored CODE in an asserted lookup, before any later `require` or the delete/update rule runs, so give a moderator read access to what they moderate, or delete by id without a lookup and let the delete rule decide (`guide refusals` has the recipe). `check` notes N_UNREADABLE_PROBE on guards without proved read authority; use unique/cap/after insert constraints for global absence across hidden rows.
-Each occurrence prepays one probe, including skipped branches. `check --cost`/`why` list them; prediction needs every read covered.
-Insert uses the new image; an unnamed `update <- R` must hold for both the row before and the row after the write (pair `update <- .owner = viewer` with `immutable owner`); a named `update (old, next)` judges exactly what it names; delete uses its pre-delete image; final obligations resolve at transaction end. Read-through capture/lifetimes stay unchanged. Null guards narrow only the same term and image.
-Beyond three hops, private/maintained fields and ephemeral targets refuse E_QUARRY_RULE_HOP with concrete mutation `require` checks. A rule says `=`/`!=` over `.col`, `viewer` and literals, `exists`/`created` probes and `and`/`or`/`not`; it orders (`<`, `>=`) only an insert row's own required int/time/decimal/money columns (`.stars >= 1`; an integer literal beside money is minor units) and `update (old, next)` images of the same types. The clock, arithmetic, helper calls and `else CODE` are E_QUARRY_RULE_OPERATOR: a `require … else CODE` in the mutation (`snapback4 why E_QUARRY_RULE_OPERATOR` prints the table of rule forms).
+Write rules and `after insert` keys allow three live hops: `.reaction.message.conversation`, including `exists members[.message.conversation, viewer]`. `messages[id = .message].conversation` is equivalent. Every target must be live and readable; absent, expired or hidden targets remain unknown under `not` and `= null`. Program lookups (`t[id] !`, `exists`) are reads too: a row the caller cannot read is null in an optional lookup (false for program `exists`) and the authored CODE in an asserted lookup, before any later `require` or the delete/update rule runs, so give a moderator read access to what they moderate, or delete by id without a lookup and let the delete rule decide (`guide refusals` has the recipe). `check` notes N_UNREADABLE_PROBE on guards without proved read authority; use unique/cap/after insert constraints for global absence across hidden rows. Each occurrence prepays one probe, including skipped branches. `check --cost`/`why` list them; prediction needs every read covered. Insert uses the new image; an unnamed `update <- R` must hold for both the row before and the row after the write (pair `update <- .owner = viewer` with `immutable owner`); a named `update (old, next)` judges exactly what it names; delete uses its pre-delete image; final obligations resolve at transaction end. Read-through capture/lifetimes stay unchanged. Null guards narrow only the same term and image. Beyond three hops, private/maintained fields and ephemeral targets refuse E_QUARRY_RULE_HOP with concrete mutation `require` checks. A rule says `=`/`!=` over `.col`, `viewer` and literals, `exists`/`created` probes and `and`/`or`/`not`; it orders (`<`, `>=`) only an insert row's own required int/time/decimal/money columns (`.stars >= 1`; an integer literal beside money is minor units) and `update (old, next)` images of the same types. The clock, arithmetic, helper calls and `else CODE` are E_QUARRY_RULE_OPERATOR: a `require … else CODE` in the mutation (`snapback4 why E_QUARRY_RULE_OPERATOR` prints the table of rule forms).
 
 ```quarry
 table orgs:
@@ -286,10 +276,7 @@ query ladderCounter(owner: principal):
 A query over hidden rows is complete and empty when its scope uniformly refuses the viewer. A nonuniform scan may be partial even with zero visible rows; an empty list alone proves neither access nor physical absence. See: `guide rule-recipes role-workflow` for independently enforced table and mutation authority, and `guide refusals` for write-internal ordering.
 
 ### Disclosure: aggregates, assets and maintained columns
-Omitted asset columns keep their placement. An explicit asset id on a row you
-cannot read must be your own upload, even if it equals the retained id. A rule
-probe costs one unit regardless of expired siblings; a uniform false page is
-decided from its pinned prefix and returns empty and complete at no charge.
+Omitted asset columns keep their placement. An explicit asset id on a row you cannot read must be your own upload, even if it equals the retained id. A rule probe costs one unit regardless of expired siblings; a uniform false page is decided from its pinned prefix and returns empty and complete at no charge.
 
 A filtered count can disclose whether a hidden row matched its predicate; computed groups disclose bucket membership and rank discloses relative values. The view's filter grants no source-row read. N_MAINTAIN_DELTA names the filter/key/value dependencies and the separately readable target, including insert/delete channels. Restrict its read audience to close the channel:
 
@@ -318,25 +305,7 @@ A maintained column such as `likeCount: count likes by postId` belongs to the en
 `readUpTo: int default 0 written by .principal` gives that field its own writer: the required `principal` column on the same row. An insert by anyone else omits it and receives the declared default. Supplying even the default explicitly requires ownership. On update and the patch arm of upsert, the old row's owner authorizes each touched owned field. Other touched fields still require the row's update rule. An owner can patch just their fields when the table has no update rule. A named `update (old, next)` rule also constrains owner writes; it can compare matching integers or times with `<`, `<=`, `>` and `>=`. Read rules keep their equality-only contract.
 
 ### Private owned fields
-The field is private to its owner unless declared `readable by audience`.
-Group/public log images omit private fields; the owner's principal partition
-carries their image, and every owner's device receives it while the row is
-readable. Queries, shapes, write results and snapshots apply the same
-projection. Selecting an omitted field returns null, including in `{ * }` and as a `group`
-or `sort` key; generated row types
-mark the field optional. Asset downloads apply the same field visibility.
-Field ownership does not grant read access to the row. Ownership changes
-redact the former owner's copy, or remove it if the row also becomes unreadable.
-A device queues a transition that needs another owner's omitted value or
-would acquire ownership of that value. An independent owned-field patch on a
-held row predicts when its own transition and resource limits permit it.
-Untouched self-equalities do not require the omitted value. Ordinary row grants do not add dependencies to such a patch.
-Unknown owner-delivery witnesses also do not prevent that prediction; the
-server decides which owners may receive the committed image.
-Private-field rule inputs require a named transition and ownership or audience
-visibility; ordinary writers cannot test another owner's private value.
-Accounting, nullable self-comparisons and expiring authority witnesses are
-specified in `snapback4 why E_FIELD_AUTHORITY`.
+The field is private to its owner unless declared `readable by audience`. Group/public log images omit private fields; the owner's principal partition carries their image, and every owner's device receives it while the row is readable. Queries, shapes, write results and snapshots apply the same projection. Selecting an omitted field returns null, including in `{ * }` and as a `group` or `sort` key; generated row types mark the field optional. Asset downloads apply the same field visibility. Field ownership does not grant read access to the row. Ownership changes redact the former owner's copy, or remove it if the row also becomes unreadable. A device queues a transition that needs another owner's omitted value or would acquire ownership of that value. An independent owned-field patch on a held row predicts when its own transition and resource limits permit it. Untouched self-equalities do not require the omitted value. Ordinary row grants do not add dependencies to such a patch. Unknown owner-delivery witnesses also do not prevent that prediction; the server decides which owners may receive the committed image. Private-field rule inputs require a named transition and ownership or audience visibility; ordinary writers cannot test another owner's private value. Accounting, nullable self-comparisons and expiring authority witnesses are specified in `snapback4 why E_FIELD_AUTHORITY`.
 
 Clique read marks use this recipe. Add `readable by audience` after `written by .principal` when other conversation members should see receipts. The monotonic rule is an application decision, enforced on the server and under prediction. `markRead` predicts on a held row, including offline.
 
@@ -367,11 +336,7 @@ Read-through repairs: `why E_READ_THROUGH`, `why E_READ_THROUGH_ADOPT`, `why E_P
 
 Membership paths spelling the whole parent rule lower to `read through`. Without sync, a one-hop read-rule equality (`.author = viewer or .goal.owner = viewer`) is the probe `exists goals[.goal, owner = viewer]`; other read reference expressions (two hops, `!=`, a synced table) remain unsupported. Write rules admit live chains as above. Parent-key aggregates inherit the read rule. A diagnostic never suggests dropping the parent hop. An aggregate read line proved identical to the parent's rule has a whole-line repair; additional conditions remain a modeling choice and are not removed by `--fix`.
 
-N_COLUMN_READ identifies a possible one-to-one privacy extension. Put a private
-field on its existing row with `read <- policy` when it only narrows payload
-visibility; keep separate entities, lifecycles and write authority in separate
-tables. This advisory never proves equivalence or rewrites stored data.
-N_UNIQUE_HIDDEN names a private unique declaration whose else code applies only to readable conflicts. A hidden conflict keeps generic E_RULE (or an undisclosed target miss). Source advice may quote the declared clause; public refusals never confirm a hidden row. Prefer a minimal readable key projection or operator-mediated claim when availability is public; do not widen private payloads for a diagnostic.
+N_COLUMN_READ identifies a possible one-to-one privacy extension. Put a private field on its existing row with `read <- policy` when it only narrows payload visibility; keep separate entities, lifecycles and write authority in separate tables. This advisory never proves equivalence or rewrites stored data. N_UNIQUE_HIDDEN names a private unique declaration whose else code applies only to readable conflicts. A hidden conflict keeps generic E_RULE (or an undisclosed target miss). Source advice may quote the declared clause; public refusals never confirm a hidden row. Prefer a minimal readable key projection or operator-mediated claim when availability is public; do not widen private payloads for a diagnostic.
 
 ## Column write and freeze capabilities
 
@@ -381,12 +346,8 @@ N_UNIQUE_HIDDEN names a private unique declaration whose else code applies only 
 | Approved evidence cannot change | `immutable photo when .approved = true` | Old-image constraint on every update, including trusted system updates |
 | Only the desk may save while a photo is missing | `update (old, next) <- old.photo != null or old.desk = viewer` | Every update, including patches to other columns |
 
-The complete runnable context is `guide rule-recipes --section "Column write audience and approval"`.
-Guarded tables queue device writes for server settlement. Older engines/devices
-refuse `column-write-v1`. Guarded/frozen columns cannot use owner-field bypasses
-or `on delete set null`.
+The complete runnable context is `guide rule-recipes --section "Column write audience and approval"`. Guarded updates require readable current payload; blind inserts remain allowed. Guarded tables queue device writes for server settlement. Older engines/devices refuse `column-write-v1`. Guarded/frozen columns cannot use owner-field bypasses or `on delete set null`.
 
 ### E_COLUMN_WRITE
 
-E_COLUMN_WRITE means a column write/freeze rule names an invalid or duplicate
-payload column. Name an ordinary column once; use current-row rule syntax.
+E_COLUMN_WRITE means a column write/freeze rule names an invalid or duplicate payload column. Name an ordinary column once; use current-row rule syntax.

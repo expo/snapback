@@ -27,7 +27,7 @@ mutation thaw(id: docs, cell: text ?):
   return update docs[id] { approved: false, cell }
 "#;
 fn engine(source:&str)->Engine{
-    let b=snapback4_lang::compile(&[("schema.q".into(),source.into())]);
+    let b=snapback4_lang::compile(&[("schema.q".into(),source.to_owned())]);
     assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
     Engine::memory(b.schema,b.programs.into_iter().map(|p|p.program)).unwrap()
 }
@@ -69,12 +69,41 @@ fn approval_freezes_replacement_and_removal_even_in_a_thawing_patch(){
 }
 #[test]
 fn defaults_are_writes_and_the_schema_carries_a_capability(){
-    let source=SOURCE.replace("cell: text ? write", "cell: text ? default 'initial' write");
-    let b=snapback4_lang::compile(&[("schema.q".into(),source)]);
+    let source=SOURCE.replace("cell: text ? write", "cell: text ? default 'initial' write")+"\nmutation defaults(owner: principal):\n  return insert docs {owner}\n";
+    let b=snapback4_lang::compile(&[("schema.q".into(),source.clone())]);
     assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
     assert!(b.schema.required_capabilities().contains("column-write-v1"));
+    let mut e=engine(&source);
+    for (viewer,expected) in [("bob",false),("alice",true)]{
+        let result=e.mutate("defaults",None,Context::new(viewer,BTreeMap::from([("owner".into(),Value::Id("alice".into()))])).at(1_800_000_000_000)).unwrap();
+        assert_eq!(matches!(result.state,WriteState::Sent{..}),expected,"default grant as {viewer}: {result:?}");
+    }
     let mut raw=serde_json::to_value(&b.schema).unwrap();
     raw["tables"]["docs"]["column_writes"]["cell"]=serde_json::json!("Deny");
     let schema: snapback4_core::schema::Schema=serde_json::from_value(raw).unwrap();
     assert!(snapback4_core::schema::validate(&schema).is_empty());
+}
+
+#[test]
+fn trusted_system_mutations_and_import_replacements_still_freeze(){
+    use snapback4_core::value::object;
+    let mut e=engine(SOURCE);
+    let row=|cell:&str|object([("id",Value::Id("doc".into())),("owner",Value::Id("alice".into())),("cell",Value::String(cell.into())),("approved",Value::Bool(true))]);
+    e.seed([("docs".into(),row("original"))]).unwrap();
+    assert!(e.seed([("docs".into(),row("replacement"))]).is_err());
+    assert!(e.load([("docs".into(),row("replacement"))]).is_err());
+    // Explicit persistence restoration is the existing trusted raw-image boundary.
+    e.load_trusted([("docs".into(),row("replacement"))]).unwrap();
+}
+#[test]
+fn unreadable_guarded_payloads_do_not_offer_a_guessing_oracle(){
+    let source=SOURCE.replace("public 'test records'","read <- .owner = viewer");
+    for guess in ["original","wrong"]{
+        let mut e=engine(&source);
+        assert!(sent(&mut e,"put",args("alice",Value::String("original".into()))));
+        let existing=e.mutate("edit",None,args("bob",Value::String(guess.into()))).unwrap();
+        let mut missing=args("bob",Value::String(guess.into()));missing.args.insert("id".into(),Value::Id("missing".into()));
+        let absent=e.mutate("edit",None,missing).unwrap();
+        assert_eq!(serde_json::to_value(existing.state).unwrap(),serde_json::to_value(absent.state).unwrap());
+    }
 }

@@ -24,9 +24,9 @@ fn notes(s:&str)->security::Report{let b=bound(s);let mut r=security::analyze_ru
  assert!(security::draft(&bound(s)).contains("invariant orders always .photo != null"));
  assert!(notes(&format!("{s}\ninvariant orders always .photo != null\n")).notes.iter().any(|n|n.code=="N_OPTIONAL_UPLOAD_CREATE"));
 }
-#[test]fn clock_and_cross_row_gaps_are_named_even_without_reachable_rows(){
+#[test]fn clock_and_cross_row_forms_are_evaluable_even_without_reachable_rows(){
  let s=include_str!("security/wave24/013.q").to_owned()+"\ninvariant fills.completeFill only .tank.visualAt > now - 365d\n";
- let b=bound(&s);let gaps=challenges::evaluation_gaps(&b);assert!(gaps.iter().any(|s|s.contains("completeFill")&&s.contains("schema.q:")&&s.contains("clock")),"{gaps:?}");
+ let b=bound(&s);let gaps=challenges::evaluation_gaps(&b);assert!(!gaps.iter().any(|s|s.contains("completeFill")),"{gaps:?}");
 }
 #[test]fn required_upload_creators_populate_generated_lifecycle_roots(){
  let s=include_str!("security/wave24/011.q").to_owned()+"\ninvariant jobs always not .needsFinishedRoom or .finishedRoomApproved or .status = 'quoted' or .status = 'accepted' or .status = 'survey' or .status = 'closed'\n";

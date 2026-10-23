@@ -62,7 +62,7 @@ pub fn invariants(sources:&[(String,String)],bound:&Bound)->Vec<Invariant>{
                     _=>continue,
                 };
                 for (column,_kind) in &definition.columns {
-                    if !inspected.contains(column){continue;}
+                    if !inspected.contains(column)||matches!(_kind.required(),snapback4_core::schema::ColumnType::Bool|snapback4_core::schema::ColumnType::Enum{..}|snapback4_core::schema::ColumnType::Principal|snapback4_core::schema::ColumnType::Ref{..}){continue;}
                     if fields.iter().any(|f|&f.name==column)||definition.immutable_fields().any(|c|c==column)||definition.frozen_columns.contains_key(column){continue;}
                     if !bound.programs.iter().any(|p|snapback4_core::ir::write_tables(&p.program).iter().any(|(t,e)|t==table&&matches!(*e,"update"|"upsert"))){continue;}
                     if !write_advice::update_only(bound,table,column,&condition){add(&mut out,table,column,"update",condition.clone(),site);}

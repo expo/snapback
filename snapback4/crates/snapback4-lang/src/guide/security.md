@@ -433,11 +433,9 @@ N_DEPENDENT_WINDOW: A written deadline is bounded against now without consulting
 
 ## Structural column protection
 
-See `guide rule-recipes` for column write/freeze protection. Production deploy
-runs bounded derived candidates and refuses reachable FIX. Authored refutations
-require repair; deliberate derived policies accept individual rule-bound decisions.
-Clock arithmetic, typed references and logical read-through existence retain
-unknown results and explicit coverage gaps.
+See `guide rule-recipes` for column protection and deploy refusals. Derived policies
+accept individual decisions; authored refutations require repair. Concrete tests
+retain unknown results and coverage gaps.
 
 ### N_DERIVED_WRITE_AUTHORITY
 
