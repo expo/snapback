@@ -35,9 +35,13 @@ fn fail<T>(flight: usize, at: usize, run: impl FnOnce()->T) -> T {
     result
 }
 fn url() -> String {std::env::var("SNAPBACK4_EVAL_POSTGRES").expect("private PG16")}
-fn fixture() -> (Engine,Client,String,String) {
+fn fixture() -> (Engine,Client,String,String) { fixture_for_reads(false) }
+fn fixture_for_reads(fallback:bool) -> (Engine,Client,String,String) {
     let name=format!("rt6_serving_{:x}",crate::ids::seed());
-    let b=snapback4_lang::compile(&[("schema.q".into(),include_str!("../../../../../reports/20261022-rt-a-round-trips/admitted-s1.q").into())]);
+    // An unrelated, empty lifetime table is a real conservative fallback,
+    // without changing the read program or bypassing either planner in tests.
+    let source=format!("{}{}",include_str!("../../../../../reports/20261022-rt-a-round-trips/admitted-s1.q"),if fallback {"\ntable unusedTimed:\n  at: time\n  expire at .at\n  public\n"}else{""});
+    let b=snapback4_lang::compile(&[("schema.q".into(),source)]);
     assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
     let schema=serde_json::from_value(serde_json::to_value(b.schema).unwrap()).unwrap();
     let programs:Vec<crate::Program>=b.programs.into_iter().map(|p|serde_json::from_value(serde_json::to_value(p.program).unwrap()).unwrap()).collect();
@@ -78,18 +82,29 @@ fn rt6_statement_failure_inside_every_serving_fold() {
             assert_eq!(census(&mut c),before,"flight {flight}, at {at}"); no_later(&mut c);
         }
     }
-    let reads: Vec<(&str,usize,usize,std::collections::BTreeMap<String,Value>)> = vec![
+    let check_reads=|e:&mut Engine,c:&mut Client,digest:&str,fallback:bool| {
+    let before=census(c);
+    let reads: Vec<(&str,usize,usize,std::collections::BTreeMap<String,Value>)> = if fallback {vec![
         ("W1",0,3,[("message".into(),Value::Id("m24".into()))].into()),
         ("W1",1,2,[("message".into(),Value::Id("m24".into()))].into()),
         ("W2",0,5,[("room".into(),Value::Id("r0001".into()))].into()),
-    ];
+    ]}else{vec![
+        ("W1",0,3,[("message".into(),Value::Id("m24".into()))].into()),
+        ("W2",0,3,[("room".into(),Value::Id("r0001".into()))].into()),
+    ]};
     for (op,flight,commands,args) in reads {
         for at in 0..=commands {
             let ctx=Context::new("alice",args.clone()).at(1000).with_request_credential("guest");
+            let plan=super::super::read_plan::Plan::new(e.schema(),e.program(op).unwrap(),&ctx).unwrap();
+            assert_eq!(matches!(plan,super::super::read_plan::Plan::Composed(_)),!fallback);
             let (out,_,_)=fail(flight,at,||e.query_materialized_search_with_request(op,ctx,None,DeliveryManifest::Skip,&digest,|snap,_|{snap.request_authority(&digest,sample())?;Ok(())}));
-            assert!(out.is_err(),"{op} flight {flight}, at {at}"); assert_eq!(census(&mut c),before);no_later(&mut c);
+            assert!(out.is_err(),"{op} fallback={fallback}, flight {flight}, at {at}"); assert_eq!(census(c),before);no_later(c);
         }
     }
+    };
+    check_reads(&mut e,&mut c,&digest,false);
+    let(mut fallback,mut fallback_c,_,fallback_digest)=fixture_for_reads(true);
+    check_reads(&mut fallback,&mut fallback_c,&fallback_digest,true);
     for at in 0..=4 {
         let result=fail(0,at,||identity::with_request_preflight(e.store(),&digest,sample(),true,Some(("alice","faulted")),|s|s.replay_bound("alice","faulted","increment",&serde_json::json!({"counter":"c0000"}))));
         assert!(result.is_err());assert_eq!(census(&mut c),before);no_later(&mut c);

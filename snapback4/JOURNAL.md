@@ -104688,3 +104688,15 @@ bounded admission and the saturated increment is lazy. No bounds increased.
 The final affected collector/HTTP checks follow the full suites. The stock
 Postgres sweep is still running and its retained evaluator 40001 is red;
 cleanup and the complete sweep disposition will be recorded separately.
+
+## 2026-10-24 — G4a composed and fallback statement faults
+
+The stock sweep found RT6's expected second W1 flight no longer exists.
+Updated the actual serving fault witness to exercise each composed read's
+BEGIN/facts/ROLLBACK command boundary and retained all old sequence-path
+boundaries through a genuine unused lifetime-table fallback. Both planner
+variants are asserted; every error preserves the full census and prevents
+the nontransactional later-command sentinel. All 19 literal/serving tests
+pass. Production code and the passing 1/1/1 warm PG ratchets are unchanged.
+The top-level full-core census is 1,168 passes across 47 targets; the earlier
+checkpoint's 1,169/48 included one successful nested child-test result twice.

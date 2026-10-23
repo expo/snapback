@@ -147,8 +147,10 @@ refusal differentials and one-flight assertions for W2/W3.
 
 ## 5. Qualification
 
-Full core: 1,169 passed across 48 targets, 318 existing ignored cases, no
+Full core: 1,168 passed across 47 top-level targets, 318 existing ignored cases, no
 failures. Full binary: 580 passed, 46 existing ignored cases, no failures.
+The earlier checkpoint census included one successful nested child test as
+another target; the top-level totals above exclude that duplicate.
 The first binary run exposed a stale latency fixture: it filled only the
 old active-worker count, then reset the counter while an admitted request
 was live. The fixture now fills the full bounded admission; the counter
@@ -161,3 +163,16 @@ checked during qualification and remains exactly the requested base.
 
 The remaining private Postgres sweep, final focused checks and confirmed
 PID shutdown are recorded below when complete.
+
+### 2026-10-24: statement-fault witness refinement
+
+The broad sweep exposed one G4a-stale RT6 expectation: `flight 1 was never
+sent` for composed W1. The witness now injects at every boundary of the
+three-command BEGIN/facts/ROLLBACK read flight. A real unrelated, empty
+lifetime table declines composition and proves the original sequence path
+still receives its original per-flight injections. Planner-variant assertions
+prove both paths execute. Complete census equality and the nontransactional
+later-command sentinel are retained for every injected error. All 19
+literal/serving cases pass in the full affected-suite rerun (8.99 seconds).
+This changes only the witness; production code and RT0 tables are unchanged.
+The original broad red remains visible in the sweep disposition.
