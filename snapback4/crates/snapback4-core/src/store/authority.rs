@@ -413,4 +413,13 @@ mod facts_tests {
         tx.rollback().unwrap();
     }
 
+    #[test]
+    fn snapshot_openers_treat_a_raw_nul_digest_as_absent_without_querying() {
+        let store: crate::store_port::AnyStore = Store::memory().unwrap().into();
+        let scope = Scope::begin();
+        assert!(identity::resolve_session_record_snapshot(&store, "raw\0digest", 1000, None, None).unwrap().is_none());
+        assert!(store.resolve_session_snapshot("raw\0digest", 1000, Some("store"), None).unwrap().is_none());
+        assert_eq!(scope.counts().sqlite, 0);
+    }
+
 }

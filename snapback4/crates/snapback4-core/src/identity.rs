@@ -233,6 +233,9 @@ pub(crate) fn resolve_session_tx(tx: &AnyTx<'_>, token_digest: &str, now: i64, r
 
 // @ref LLP 3000.009.001.000.000#k0a-implementation-note — capability and lifetime reads share one existing authority-snapshot seam.
 pub(crate) fn resolve_session_record_snapshot(store: &AnyStore, token_digest: &str, now: i64, revision: Option<usize>, expected_store: Option<&str>) -> Result<Option<authority::SessionRecord>, RuntimeError> {
+    // Absent before opening: the snapshot opener would otherwise validate
+    // the empty facts' generation and refuse with a false E_GENERATION.
+    if token_digest.contains('\0') { return Ok(None); }
     store.with_session_authority_snapshot(token_digest, |tx, facts| {
         if let Some(expected_store) = expected_store {
             if facts.store_id.as_deref() != Some(expected_store) {
