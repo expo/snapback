@@ -103022,3 +103022,13 @@ confirmed (status 3, no postmaster.pid). The final process-identity audit finds
 no living owned workload PID or zombie; PIDs left are none. Disk stayed above
 the 40 GiB floor. Raw evidence, retained warm package artifacts and final custody
 remain outside Git under `/tmp/sb4-rt3a-fix1/`.
+
+
+### 2026-10-23 — Integration 23 RT3 store-boundary repair
+
+The final main integration adds RT3's snapshot-local session authority facts.
+The shared resolver still decides that multiple session records are an error;
+constructing the historical native database error now lives below the store
+port, through `duplicate_session_error`. Both adapters return the identical
+error and no authority policy or statement count changes. The production
+store-port allowance remains zero (LLP 3000.009.001.000 §3.2).

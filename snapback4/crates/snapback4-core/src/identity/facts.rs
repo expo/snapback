@@ -23,7 +23,7 @@ pub(crate) fn resolve(
     mut facts: SessionFacts, now: i64, revision: Option<usize>,
 ) -> Result<Option<SessionRecord>, RuntimeError> {
     if facts.sessions.len() > 1 {
-        return Err(RuntimeError::Sql(rusqlite::Error::QueryReturnedMoreThanOneRow));
+        return Err(crate::store_port::duplicate_session_error());
     }
     let session = facts.sessions.pop();
     // These ordinary kinds need only the projected facts. Other kinds retain

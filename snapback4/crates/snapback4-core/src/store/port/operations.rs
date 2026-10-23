@@ -7,6 +7,13 @@ use crate::{RuntimeError, Value, Schema};
 use crate::store_port::{AnyStore, AnyTx};
 use crate::store_port::timeline_launch;
 use crate::store_port::Sizes;
+// @ref LLP 3000.009.001.000#32-the-rule — native driver details remain below the store port.
+// Shared authority policy decides cardinality; this preserves the historical
+// single-row lookup error on both adapters without exposing a driver above the port.
+pub(crate) fn duplicate_session_error() -> RuntimeError {
+    RuntimeError::Sql(rusqlite::Error::QueryReturnedMoreThanOneRow)
+}
+
 impl AnyTx<'_> {
     pub(crate) fn session_authority_facts(&self, digest: &str) -> Result<crate::identity::facts::SessionFacts, RuntimeError> {
         match self {
