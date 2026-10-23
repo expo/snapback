@@ -1,0 +1,117 @@
+{
+  "base": "06a9d2c47f",
+  "code_tip": "8c1cd5869f",
+  "branch": "sb4-pg/p1-ev1",
+  "env": {
+    "CARGO_TARGET_DIR": "/home/ccheever/projects/sb4-p0-s8/snapback4/target",
+    "CARGO_PROFILE_DEV_DEBUG": "line-tables-only",
+    "CARGO_PROFILE_TEST_DEBUG": "line-tables-only",
+    "CARGO_BUILD_JOBS": "5"
+  },
+  "broad": [
+    {
+      "name": "no-default",
+      "status": 0,
+      "seconds": 8.4
+    },
+    {
+      "name": "core",
+      "status": 0,
+      "seconds": 1846.6
+    },
+    {
+      "name": "cli",
+      "status": 101,
+      "seconds": 753.6
+    },
+    {
+      "name": "rt0",
+      "status": 0,
+      "seconds": 59.3
+    },
+    {
+      "name": "guide",
+      "status": 101,
+      "seconds": 129.1
+    },
+    {
+      "name": "postgres",
+      "status": 1,
+      "seconds": 2128.2
+    }
+  ],
+  "final": [
+    {
+      "name": "no-default-final",
+      "status": 0,
+      "seconds": 10.5
+    },
+    {
+      "name": "evolution-final",
+      "status": 0,
+      "seconds": 34.7
+    },
+    {
+      "name": "maintained-final",
+      "status": 0,
+      "seconds": 115.0
+    },
+    {
+      "name": "guide-final",
+      "status": 101,
+      "seconds": 260.7
+    },
+    {
+      "name": "censuses-final",
+      "status": 101,
+      "seconds": 73.3
+    },
+    {
+      "name": "release-isolated",
+      "status": 0,
+      "seconds": 52.3
+    },
+    {
+      "name": "clock-drain-isolated",
+      "status": 101,
+      "seconds": 45.6
+    },
+    {
+      "name": "clock-report-isolated",
+      "status": 101,
+      "seconds": 65.5
+    },
+    {
+      "name": "serializable-isolated",
+      "status": 0,
+      "seconds": 0.0
+    },
+    {
+      "name": "build-final",
+      "status": 0,
+      "seconds": 24.7
+    },
+    {
+      "name": "public-final",
+      "status": 0,
+      "seconds": 370.8
+    }
+  ],
+  "corrected_guide": {
+    "name": "guide-compact-final",
+    "status": 0,
+    "seconds": 60.1
+  },
+  "corrected_serializable": {
+    "name": "serializable-final",
+    "status": 0,
+    "seconds": 7.0
+  },
+  "notes": [
+    "serializable-isolated selected an ignored test without --include-ignored and is not qualification; corrected_serializable ran it",
+    "guide-final hit the existing 280-line card cap; final guide keeps the cap and passes all 127 tests",
+    "censuses-final reproduces inherited dev_worker_tests.rs count 4/listed 0; allowance unchanged",
+    "clock isolated failures remain unresolved; see repository ticket",
+    "full Postgres script exited 1; final affected public stage and stress test passed separately"
+  ]
+}

@@ -102859,3 +102859,66 @@ confirmed (status 3, no postmaster.pid). The final process-identity audit finds
 no living owned workload PID or zombie; PIDs left are none. Disk stayed above
 the 40 GiB floor. Raw evidence, retained warm package artifacts and final custody
 remain outside Git under `/tmp/sb4-rt3a-fix1/`.
+
+## 2026-10-23 — P1-EV-1: ordinary Postgres release evolution and dormant retention
+
+Committed the SQLite evolution inventory and six independently admitted slices
+before implementing EV-1. The common Postgres adapter now adds ordinary tables,
+optional/literal-defaulted columns and indexes, drops/redefines indexes, and
+retires/restores ordinary tables and columns with their dormant definitions,
+exact rows/cells and reference lifetime evidence. Six exact C-collated ledgers
+are installed and shape-checked. Configured deploy accepts `--restore-dormant`.
+Defaults and optionals stay sparse in stored rows and are interpreted when
+building keys. Unique/required restore failures retain `E_ADOPT` and roll back
+the entire activation. All writers retain the owner-first fence and generation
+check. Dormant parent invalidation and child cleanup share the existing row
+delete CTE; SQLite behavior and request-path budgets are unchanged.
+
+The lifecycle code forced one tightening of the inventory-first plan: SQLite's
+source-retirement pass visits unchanged temporal/read-through/recorded durable
+tables too. Ordinary Postgres schema changes beside any such table therefore
+wait for EV-4 (`evolution-authority`). P1-MC transitions with unchanged ordinary
+declarations retain their admission. Narrowing/required additions, backfills,
+renames and the other authority/operator slices retain their named refusals.
+An ordinary edit cannot bypass checked execution facts; only the binder's
+appended index-selection diagnostic is ignored during that comparison. The
+S10e-1 read-through conversion and expiry/default fixtures remain refused, now
+under `evolution-authority`; that branch was inspected read-only.
+
+All 11 shared/negative evolution tests, eight maintained-column tests and 127
+guide tests pass. The contract covers partial restoration, JSON NUL/Unicode/null,
+required values, sparse defaults, unique rollback, inventory pagination,
+generation/stale writers and deleted/reused parent/child identities. The public
+v1-write → v2-add/retire → v3-restore witness passes on both stores. Its 13
+normalized responses match byte-for-byte: 2,578 bytes, SHA-256
+`0653a99b12df679f5de688b66ac7dd9299927d5cc56538262582896faf87fe38`.
+Only store id, now and the independently checked minted guest viewer are
+excluded. The initial full harness caught a new bootstrap diagnostic ordering
+regression; the foundational order is restored and all six dormant-table
+missing-shape cases were added to recovery refusal coverage.
+
+Build and the no-default-features core check pass. The full core command has
+1,092 passes, zero failures and five existing ignores. Both RT0 ratchets pass
+all 24 warm cells unchanged (keyed-first 87 SQLite / 77 Postgres; unkeyed
+increment 79 / 57); no table, budget or allowance changed. The broad binary
+sweep has 1,440 passes and ten failures: the supplied reservation/web reds,
+two release intake-switch timeouts, two clock failures and an inherited census
+mismatch. All 12 active release lifecycle cases pass alone. The two SQLite
+clock cases still fail alone and have a follow-up ticket; the unchanged
+dev-worker census baseline has a separate ticket, with no allowance increase.
+The requested Postgres script has 408 Rust passes and the supplied evaluator
+Serializable stress red. Final full-public and corrected stress results,
+reference validation and process custody are recorded below and in the
+[report](reports/20261023-p1-ev1-schema-evolution/REPORT.md).
+
+Final full public harness: pass (370.8 seconds), including the six new missing
+dormant-ledger fixtures and all prior recovery/lease/restart/S1 witnesses. The
+corrected isolated Serializable stress test passes, zero ignores: 65 increments
+in both modes, no lost updates, 104 Serializable retries. Final `./ref-check`
+passes: 565 LLPs, 11,777 references, zero errors and unchecked; whitespace
+validation passes. All six owned private clusters are stopped (status 3, no
+pidfile, absent postmasters), all 844 unique recorded PIDs are absent, and no
+executable from this worktree’s target remains. Owned database and verification
+scratch is removed after preserving evidence. Final sampled free space is
+170.97 GiB; no observed disk guard crossed 40 GiB. PG17/55440 and other sessions’
+clusters were untouched. Local commits only; no push, stash or config change.
