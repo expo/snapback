@@ -594,7 +594,7 @@ mod tests {
             (0..).find(|s| { let c = generate(*s); !c.steps.is_empty() && c.program.mutation() }).unwrap(),
             (0..).find(|s| { let c = generate(*s); c.sweep && c.program.mutation() }).unwrap(),
         ];
-        for seed in [0, 3, 19, 23, 24, 26].into_iter().chain(widened) {
+        for seed in [0, 1, 3, 19, 23, 24, 26].into_iter().chain(widened) {
             let case = generate(seed);
             let source = case.program.source();
             let mut a = reuse.create(&case, &source).unwrap();

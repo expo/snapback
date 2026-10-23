@@ -2,7 +2,7 @@
 //! retained evaluator on Postgres. Prefetch changes physical access only.
 // @ref LLP 3000.009.001.000#3.4 — keep the evaluator as the on/off comparison oracle through S10d.
 use super::super::*;
-use crate::{Engine, store_port::AnyStore};
+use crate::{Engine, store_port::AnyStore, ledger::LedgerReader};
 const SOURCE: &str = "table notes:\n  n: int\n  by byN: n\n  public\n  insert <- allow\n  update <- allow\n  sync public\nmutation put(key: id, n: int):\n  upsert notes[key] { n }\n  return n\nmutation fail(key: id):\n  update notes[key] { n: -1 }\n  require false else NO\nquery peek(key: id):\n  return notes[key]\nquery page():\n  return notes where .n >= 0 by .n first 5\n";
 #[test]
 #[ignore = "requires private Postgres; scripts/test-postgres.sh"]
@@ -43,12 +43,24 @@ fn sqlite_unified_and_evaluator_overlap_prefetch_on_and_off() {
             }
         }
         assert_eq!(sqlite.store().rows("notes").unwrap(), unified.store().rows("notes").unwrap());
+        let sqlite_rows = sqlite.store().rows("notes").unwrap();
         let a = sqlite.store_mut().read_transaction().unwrap(); let b = unified.store_mut().read_transaction().unwrap(); let c = evaluator.store.transaction(None).unwrap();
         assert_eq!(a.read_log("public", 0, 1000).unwrap(), b.read_log("public", 0, 1000).unwrap());
         assert_eq!(a.read_log("public", 0, 1000).unwrap(), c.read_log("public", 0, 1000).unwrap());
         assert_eq!(a.commits_after(0, 100).unwrap(), b.commits_after(0, 100).unwrap());
+        assert_eq!(a.commits_after(0, 100).unwrap(), c.commits_after(0, 100).unwrap());
+        let oracle_rows: Vec<Value> = c.query("SELECT data FROM r WHERE t='notes' ORDER BY id", &[]).unwrap().iter().map(|r| store::decode(r.get(0)).unwrap()).collect();
+        // The notes fixture has primary-key order on every adapter.
+        assert_eq!(oracle_rows, sqlite_rows);
+        for i in 0..24 {
+            for id in [Some(format!("op{i}")), (i % 4 == 0).then(|| format!("fail{i}"))].into_iter().flatten() {
+                let receipt = |r: Option<crate::receipts::ReceiptRecord>| r.map(|r| (r.outcome, r.name, r.args_digest));
+                assert_eq!(receipt(a.receipt("alice", &id).unwrap()), receipt(b.receipt("alice", &id).unwrap()));
+                assert_eq!(receipt(a.receipt("alice", &id).unwrap()), receipt(c.receipt("alice", &id).unwrap()));
+            }
+        }
         a.rollback().unwrap(); b.rollback().unwrap(); c.rollback().unwrap();
-        eprintln!("S10c overlap prefetch={enabled}: 24 writes, 24 replays, 48 reads, 6 rolled-back refusals; rows, logs, ledger and meters equal");
+        eprintln!("S10e-1 overlap prefetch={enabled}: 24 writes, 24 replays, 48 reads, 6 rolled-back refusals; rows, logs, ledger and meters equal");
     }
 }
 #[test]
@@ -94,7 +106,7 @@ fn common_engine_c1_prefetch_forwards_marked_reads_and_bounds_calls() {
     // four control/prepare calls; this small derived page need not get cheaper.
     assert!(calls[1].0 <= calls[0].0 + calls[1].2 + 4, "common on/off physical calls: {calls:?}");
     assert!(calls[1].1 <= calls[0].1 + calls[1].2 + 4, "evaluator on/off physical calls: {calls:?}");
-    eprintln!("S10c C1 warmed query calls (common, evaluator, marked), off={:?}, on={:?}; outcomes and logical meters equal", calls[0], calls[1]);
+    eprintln!("S10e-1 C1 warmed query calls (common, evaluator, marked), off={:?}, on={:?}; outcomes and logical meters equal", calls[0], calls[1]);
 }
 
 #[test]
@@ -149,8 +161,13 @@ fn existing_evaluator_fixture_matches_common_engine_in_both_prefetch_modes() {
         ];
         for (i, (name, viewer, args)) in writes.into_iter().enumerate() {
             let op = format!("fixture-{i}"); let ctx = context(viewer, args).with_ids([format!("new-{i}")]);
+            let before_u = common.store().test_postgres_handle().borrow().unwrap().calls.get();
+            let before_e = evaluator.stats().database_calls;
             let expected = sqlite.mutate(name, Some(&op), ctx.clone()).unwrap();
             let actual = common.mutate(name, Some(&op), ctx.clone()).unwrap(); let oracle = evaluator.mutate(name, Some(&op), ctx.clone()).unwrap();
+            let calls_u = common.store().test_postgres_handle().borrow().unwrap().calls.get() - before_u;
+            let calls_e = evaluator.stats().database_calls - before_e;
+            eprintln!("S10e-1 C1 fixture tail prefetch={enabled} op={name}/{i}: common={calls_u} evaluator={calls_e}");
             assert_eq!(actual.reply(Some(&op)), expected.reply(Some(&op))); assert_eq!(oracle.reply(Some(&op)), expected.reply(Some(&op)));
             assert_eq!(actual.metered, expected.metered); assert_eq!(oracle.metered, expected.metered);
             let expected = sqlite.mutate(name, Some(&op), ctx.clone()).unwrap();
@@ -162,6 +179,6 @@ fn existing_evaluator_fixture_matches_common_engine_in_both_prefetch_modes() {
         }
         for table in ["items", "memberships", "totals"] { assert_eq!(common.store().rows(table).unwrap(), sqlite.store().rows(table).unwrap()); }
         assert_eq!(crate::engine::effects::OutboxStore::effect_counts(common.store()).unwrap(), crate::engine::effects::OutboxStore::effect_counts(sqlite.store()).unwrap());
-        eprintln!("S10c evaluator fixture prefetch={enabled}: rules/defaults/maintains, cursors, effects, rollback and replay agree on all three stores");
+        eprintln!("S10e-1 evaluator fixture prefetch={enabled}: rules/defaults/maintains, cursors, effects, rollback and replay agree on all three stores");
     }
 }

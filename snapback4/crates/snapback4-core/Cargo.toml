@@ -52,7 +52,7 @@ serde_json = { version = "1", features = ["unbounded_depth"] }
 libc = "0.2"
 
 [dev-dependencies]
-snapback4-core = { path = ".", default-features = false, features = ["test-support"] }
+snapback4-core = { path = ".", default-features = false, features = ["test-support", "evaluation-support"] }
 rusqlite = { version = "0.40.2", features = ["hooks"] }
 snapback4-lang = { path = "../snapback4-lang" }
 

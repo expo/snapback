@@ -137,15 +137,24 @@ impl Database {
         let (config, diagnostics) = crate::pg_diagnostics::Diagnostics::connect(&self.url)?;
         let (name, mut engine) = if let Some(name) = self.name.clone().filter(|_| !self.fresh) {
             self.batch(&self.empty.clone())?;
-            // r/i store logical table names, not generated SQL tables. Install
-            // the test fixture then run ordinary engine admission through open.
-            b.schema.prepare_contribution_indexes();
-            self.admin
-                .execute(
-                    &format!("UPDATE {name}._backend SET schema=$1, programs=$2 WHERE singleton"),
-                    &[&canonical_json(&b.schema), &canonical_json(&programs)],
-                )
-                .map_err(|e| error_chain("UPDATE compiled fixture", &e))?;
+            // Install an unrelated empty fixture, not a product migration.
+            // Engine::open reads the authoritative _generations catalog; the
+            // old evaluator read only _backend. Keep both coherent and force
+            // the ordinary common activation builder to refresh derived facts.
+            let checked = Engine::memory(b.schema, programs.values().cloned())
+                .map_err(crate::stores::setup_error)?;
+            b.schema = checked.schema().clone();
+            let schema = canonical_json(&b.schema);
+            let programs = canonical_json(&programs);
+            let install = (|| -> Result<(), postgres::Error> {
+                let mut tx = self.admin.transaction()?;
+                assert!(tx.query_one(&format!("SELECT NOT EXISTS(SELECT 1 FROM {name}.r) AND NOT EXISTS(SELECT 1 FROM {name}._ops)"), &[])?.get::<_, bool>(0), "fixture replacement requires the restored empty snapshot");
+                tx.execute(&format!("UPDATE {name}._backend SET schema=$1, programs=$2 WHERE singleton"), &[&schema, &programs])?;
+                tx.execute(&format!("UPDATE {name}._generations SET schema=$1, programs=$2 WHERE generation=(SELECT generation FROM {name}._backend WHERE singleton)"), &[&schema, &programs])?;
+                tx.execute(&format!("DELETE FROM {name}._meta WHERE key IN ('live_sum_candidates','cap_counts_schema')"), &[])?;
+                tx.commit()
+            })();
+            install.map_err(|e| error_chain("install compiled empty fixture", &e))?;
             let engine = Engine::open_postgres_evaluation(config, &name)
                 .map_err(|e| diagnostics.describe(&crate::stores::setup_error(e)))?;
             (name, engine)
@@ -276,9 +285,9 @@ impl Drop for Database {
 pub(crate) struct SqliteSnapshot(snapback4_core::store::evaluation::Snapshot);
 impl SqliteSnapshot {
     pub fn capture(engine: &Engine) -> Result<Self, String> {
-        snapback4_core::store::evaluation::Snapshot::capture(engine.store(), error_chain).map(Self)
+        engine.store().evaluation_snapshot(error_chain).map(Self)
     }
     pub fn restore(&self, engine: &Engine) -> Result<(), String> {
-        self.0.restore(engine.store(), error_chain)
+        engine.store().restore_evaluation_snapshot(&self.0, error_chain)
     }
 }

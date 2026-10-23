@@ -103091,3 +103091,29 @@ records it. Common read-through evolution also refuses release-activation where
 the retained oracle accepts. Both remain visible for disposition before
 executor deletion. Qualification results follow in a separate dated entry and
 the lane report; this checkpoint makes no complete-parity claim.
+
+
+## 2026-10-23 — S10e-1 corpus and reset comparison checkpoint
+
+The 295-case overlap completes: SQLite 210 passes / 85 named skips; common
+Postgres on and off, and retained PostgresEngine on and off, each 207 passes /
+88 skips; zero unsupported or failed cases. Full recorded outcome/meter traces
+agree in the supported intersection. The three extra Postgres skips are the
+existing asset-capability exclusions. Separate overlap tests compare stored
+receipts and their binding, rows, public log/commit order and all logical meters.
+
+Ordinary corpus runs now select the common engine; SNAPBACK4_CORPUS_OVERLAP=1
+opts into the five-executor table. Each case releases only its successfully
+created namespace. Shared seed snapshots forward through AnyStore. The migrated
+reuse harness must replace _generations as well as _backend: common opening
+reads the authoritative generation catalog. It restores an empty snapshot,
+installs both compiled catalogs atomically, then lets common activation refresh
+derived facts. Seed 1 now witnesses this in fresh-versus-restored coverage.
+
+The reduced heap discrepancy isolates supplied IDs, not physical prefetch: a
+formatted ID has length 15 and capacity 20, and moving it into common Engine
+charges 1,939 B where cloning charges 1,929 B. Both executors have prefetch on
+in the reduced case. The old evaluator's per-attempt context clone hides it.
+The original and reduced assertions remain exact and red; the open ticket now
+records that cause. Full core tests pass: 665 library tests, 44 integration
+targets and 27 doctests, with the existing named ignores. No executor is deleted.

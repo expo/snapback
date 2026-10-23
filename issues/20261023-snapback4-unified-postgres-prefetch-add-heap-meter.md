@@ -1,12 +1,13 @@
-# Unified Postgres prefetch changes the logical heap charge of `add`
+# Common Engine heap metering observes spare capacity in supplied IDs
 
 Status: Open
 Date: 2026-10-23
 Scope: Snapback 4, S10e-1 overlap
 Related: LLP 3000.009.001.000 §3.4
 
-The common `Engine` over Postgres charges different logical `heap_bytes` with
-prefetch enabled and disabled. The existing C1 regression must remain exact;
+The common `Engine` charges different logical `heap_bytes` for the same
+caller-supplied ID depending on its retained Rust String capacity. The
+prefetch-on/off harness first exposed this through its clone-versus-move pair. The existing C1 regression must remain exact;
 S10e-1 does not normalize the meters, change its bound or mark it unsupported.
 
 First observed by the migrated
@@ -18,18 +19,28 @@ The complete mutation outcomes match except logical heap: prefetch on 1,969 B,
 off 1,979 B. Both commit sequence 2, write two rows, disclose two events and
 charge examined=1, index_entries=3, rule_probes=3, steps=27, output_bytes=153.
 
-A reduced fixture is retained as `unified_add_prefetch_meter_overlap_regression`.
+A reduced fixture is retained as `unified_add_spare_capacity_meter_overlap_regression`.
 Run against an owned private cluster with:
 
 ```
 cargo test --manifest-path experiments/postgres/Cargo.toml \
-  --test conformance unified_add_prefetch_meter_overlap_regression \
+  --test conformance unified_add_spare_capacity_meter_overlap_regression \
   -- --include-ignored --nocapture
 ```
 
-The divergence is at the physical prefetch/materialization to logical Runner
-accounting boundary. The exact causal site is still under investigation; this
-record does not claim a root-cause fix. Preserve the original fixture and the
-reduced witness. Close only when complete outcomes and each meter agree on
-SQLite, unified Postgres and both prefetch settings, including cuts on either
-side of the changed charge. S10e-2 executor deletion remains gated on disposition.
+The reduced case uses `fixture(1, 1)`, title `new`, and a supplied ID built with
+`format!("new-{viewer}-{fail}")`, where viewer is alice and fail is false.
+Its ID is 15 bytes with capacity 20. The existing comparison helper clones the
+context for the first executor and moves it into the second; `String::clone`
+reduces that capacity to 15. Even with **prefetch enabled on both engines**,
+the outcomes match except heap: 1,929 versus 1,939 B. Supplied-ID allocation
+capacity reaches logical retained-image charging twice. A literal ID, with
+capacity equal to its length, does not reproduce this. The old evaluator clones
+the context for `mutate_once`, which hides this asymmetry; common Engine moves
+the context into its member. This is not a prefetch result or call-count bug.
+
+S10e-1 leaves the original fixture and the reduced exact assertion red. It does
+not clone both inputs, strip the meter or expand a bound to manufacture parity.
+Close only when logical metering has an explicit allocation-independent contract
+for equal public inputs and the original/reduced probes agree, including cuts
+on either side of the changed charge. S10e-2 deletion remains gated on disposition.

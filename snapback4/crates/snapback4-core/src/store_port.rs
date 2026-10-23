@@ -130,6 +130,6 @@ mod tests;
 #[path = "store_port/change_evidence_tests.rs"]
 pub(crate) mod change_evidence_tests;
 
-#[cfg(all(feature = "postgres", feature = "evaluation-support"))]
+#[cfg(feature = "evaluation-support")]
 #[path = "store/port/evaluation.rs"]
 mod evaluation;
