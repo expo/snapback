@@ -88,13 +88,9 @@ A device predicts a plain child insert only with a live parent covered by its cu
 ### A child follows a mutable parent audience
 
 `read through live .parent` maintains the whole current parent rule. Require `immutable parent` without a default and `cap N by parent`. Parent writes prepay maximum fanout, update children atomically and queue on devices. Bare `read through` stays captured.
-
-| Access needed for existing children | Form | Meaning |
-| --- | --- | --- |
-| Keep the audience and parent lifetime in effect when the child was inserted | `read through .parent` | Captures the parent's immutable audience inputs and lifetime; a later owner or roster change does not move the child. |
-| Follow the parent's current audience after an owner or roster change | `read through live .parent` | Recomputes existing children atomically from the bounded live parent. |
-| Keep a child-specific, stricter audience | An explicit child `read <- ...` rule | The child deliberately does not inherit later parent audience changes. |
-
+- `read through .parent`: keep the captured audience and lifetime.
+- `read through live .parent`: follow the bounded parent's current audience.
+- Explicit child `read <- ...`: keep a deliberately stricter child audience.
 Use ordinary nonexpiring endpoints/probes and bounded plain indexes. Chains, derived/private/receipt endpoints and writing reference actions refuse. Sync requires one exact all-current/until-revoked audience; other whole rules work online.
 
 `N_LIVE_PARENT_COST` means fixed fanout exceeds ordinary ceilings. Reduce caps or row/index bounds, or maintain manually. Parent writes queue on devices.
@@ -325,12 +321,10 @@ A maintained column such as `likeCount: count likes by postId` belongs to the en
 
 ### Private owned fields
 The field is private to its owner unless declared `readable by audience`.
-Group/public log images omit private fields; the owner's principal partition
-carries their image, and every owner's device receives it while the row is
+Group/public log images omit private fields; the owner's principal partition carries their image, and every owner's device receives it while the row is
 readable. Queries, shapes, write results and snapshots apply the same
 projection. Selecting an omitted field returns null, including in `{ * }` and as a `group`
-or `sort` key; generated row types
-mark the field optional. Asset downloads apply the same field visibility.
+or `sort` key; generated row types mark the field optional. Asset downloads apply the same field visibility.
 Field ownership does not grant read access to the row. Ownership changes
 redact the former owner's copy, or remove it if the row also becomes unreadable.
 A device queues a transition that needs another owner's omitted value or

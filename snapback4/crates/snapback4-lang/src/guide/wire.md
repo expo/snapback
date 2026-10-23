@@ -2,11 +2,6 @@
 
 Every call carries a principal; public visitors use guest sessions; `serve` accepts bearers only. Plain JSON over HTTP works with curl, scripts and non-JS clients.
 
-For a paged query, treat `next` as an opaque continuation and send it back
-unchanged in the query's cursor argument. Never derive a cursor from the last
-row or a projected `id`. A projection changes only each row's fields; ordering,
-`next`, `complete`, and `cut` still describe the underlying page traversal.
-
 ## First raw HTTP proof
 
 | Send | Inspect the JSON body |
@@ -179,8 +174,8 @@ mutation add(title: text <=80):
 - `/q/<op>` with `{"args":{..}}` answers `{data, complete, cut, next, seq, tables, viewer}`
   or `{denied}`. `data` is what the query returns, as is: a list, a row, a shape,
   or a scalar (a keyed view read `totals[owner]` answers the number itself).
-  Page by passing the opaque `next` back unchanged as the query's cursor
-  argument. A shaped row's `id` is data, not a continuation.
+  Page by passing the opaque continuation `next` back unchanged as the query's
+  cursor argument. A projected `id` is data, not a continuation.
 - `/m/<op>` with `{"id"?, "args":{..}}` answers `{state:"sent", id, seq, result}` or
   `{state:"failed", id, why, current?}`, both HTTP 200 (see Refusals for the
   status codes). `result` is what the mutation returns (an inserted row's id is

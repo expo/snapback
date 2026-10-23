@@ -190,14 +190,18 @@ table albums:
   owner: principal
   immutable owner
   read <- .owner = viewer
+  delete <- .owner = viewer
   online only
 table albumPhotos:
   album: albums on delete cascade
   photo: image <=10000
   immutable album
+  cap 8 by album
   read through .album
   online only
 extract albumPhotos from albums via album each: {photo:photos}
+mutation removeAlbum(album: albums):
+  delete albums[album]
 ```
 
 Child IDs stay stable across rollback/forward and old-client reordering.
