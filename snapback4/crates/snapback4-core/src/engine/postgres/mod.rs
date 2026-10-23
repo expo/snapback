@@ -569,7 +569,7 @@ mod profile;
 
 mod deployment;
 
-pub(super) fn evaluation_namespace(name: &str) -> Result<String, RuntimeError> {
+pub(crate) fn evaluation_namespace(name: &str) -> Result<String, RuntimeError> {
     if !name.starts_with("sb4_eval_") { return Err(RuntimeError::Input("evaluation schema must start with sb4_eval_".into())); }
     namespace(name)
 }

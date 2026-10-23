@@ -2,7 +2,7 @@
 // @ref LLP 3000.009.001.000#3.4 — evaluation switches never authorize production retries.
 use super::{AnyStore, handles::SqliteStore};
 #[cfg(feature = "postgres")]
-use crate::{RuntimeError, engine::postgres::{Handle, Stats}};
+use crate::{Program, Schema, RuntimeError, engine::postgres::{Handle, Stats}};
 #[cfg(feature = "postgres")]
 impl AnyStore {
     pub(crate) fn evaluation_postgres(config: postgres::Config, name: &str, fresh: bool) -> Result<Self, RuntimeError> {
@@ -41,4 +41,21 @@ impl AnyStore {
             Self::Postgres(_) => Err(crate::RuntimeError::StoreUnsupported { family: "evaluation-snapshot" }.to_string()),
         }
     }
+}
+
+// @ref LLP 3000.009.001.000#32-the-rule — native evaluation configuration and statistics stay below the store port.
+#[cfg(feature = "postgres")]
+impl crate::engine::Engine {
+    /// Only isolated evaluator namespaces are admitted by these convenience constructors.
+    pub fn create_postgres_evaluation(config: postgres::Config, name: &str, schema: Schema, programs: impl IntoIterator<Item = Program>) -> Result<Self, RuntimeError> {
+        crate::engine::postgres::evaluation_namespace(name)?;
+        Self::new(AnyStore::evaluation_postgres(config, name, true)?, schema, programs)
+    }
+    pub fn open_postgres_evaluation(config: postgres::Config, name: &str) -> Result<Self, RuntimeError> {
+        crate::engine::postgres::evaluation_namespace(name)?;
+        Self::open(AnyStore::evaluation_postgres(config, name, false)?)
+    }
+    pub fn set_evaluation_prefetch(&mut self, enabled: bool) { self.store_mut().evaluation_prefetch(enabled); }
+    /// Explicit driver calls (including cold prepares), never packets. No retries are performed.
+    pub fn evaluation_stats(&self) -> Result<crate::engine::postgres::Stats, RuntimeError> { self.store().evaluation_stats() }
 }

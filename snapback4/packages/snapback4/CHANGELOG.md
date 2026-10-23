@@ -9,8 +9,7 @@
 - Edited transformed values survive ordinary release cycles through a declared down or a fitting rollback view; genuine forward conflicts print competing values.
 - Reference-column `renamed from` preserves parent lifetime evidence. Declarative `extract child from parent via reference: {destination:source}` moves existing image/file homes into a child table and reverses unambiguous mappings, preserving read authority and bytes.
 - Deploy leads with a verdict, groups result advice and prints changed-scope security review last, with a trailing verdict for tail readers. `--json.security` contains `notice`, `verdict` and the full `report`; JSON retains all evidence. SEC7 owns ordinary check ranking and gates.
-
-- Existing admitted Postgres stores record bounded change evidence and certify `/changes` and ordinary SDK sync from one snapshot. Missing, pruned and unknown evidence remains unknown; other profile refusals stay in force.
+- Admitted Postgres stores support ordinary table, index and column evolution with dormant retention and `deploy --restore-dormant`; unsupported authority and special-evolution cases retain specific refusals. Restored column bytes match SQLite. Bounded change evidence certifies `/changes` and ordinary SDK sync from one snapshot; missing, pruned and unknown evidence stays unknown.
 
 ## 0.4.38
 

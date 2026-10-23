@@ -103422,3 +103422,16 @@ sb4-pg/s10e1; no push, stash, Git configuration change or raw log in the commit.
 
 Root reference validation passes: 565 LLP documents, 11,774 references, zero
 errors and zero unchecked. Both RT0 JSON digests match the starting commit.
+
+
+### 2026-10-23 — Integration 23 common-evaluation port boundary
+
+The final main merge adds P1-EV-1 Postgres evolution and S10e-1 common-engine
+evaluation. The evaluation-only Engine constructors, prefetch switch and physical
+statistics access now live in the store-port evaluation module. Their public
+signatures, namespace checks and behavior stay unchanged; existing typed store
+getters preserve access without exposing a raw connection. Logical meter
+precharge stays in the shared engine. The production driver census remains zero
+without a new exception (LLP 3000.009.001.000 §3.2). A fresh complete qualification
+will follow this last code fix. The one 0.4.39 changes entry includes admitted
+Postgres evolution, dormant restoration and retained byte parity.
