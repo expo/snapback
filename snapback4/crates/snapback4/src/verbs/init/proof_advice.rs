@@ -13,7 +13,7 @@ fn templates() -> &'static [Template] {
 pub(super) fn digest(text: &str) -> String { format!("{:x}", Sha256::digest(text.as_bytes())) }
 pub(super) fn known_day2(text: &str) -> bool {
     let hash = digest(text);
-    templates().iter().any(|t| t.file == "day2" && t.sha256 == hash)
+    text == include_str!("day2-proof.mjs") || templates().iter().any(|t| t.file == "day2" && t.sha256 == hash)
 }
 /// Exact shipped helper bytes identify its identity mode and starter revision.
 pub(super) fn native_template(text: &str) -> Option<(&'static str, bool)> {
@@ -139,9 +139,9 @@ mod tests {
             ("0.4.28",include_str!("previous/frontend-proof-0.4.28.mjs"),include_str!("previous/day2-proof-0.4.28.mjs")),
             ("0.4.29",include_str!("previous/frontend-proof-0.4.29.mjs"),include_str!("previous/day2-proof-0.4.29.mjs")),
             ("0.4.30",include_str!("previous/frontend-proof-0.4.30.mjs"),include_str!("previous/day2-proof-0.4.30.mjs")),
-            ("0.4.31",include_str!("previous/frontend-proof-0.4.31.mjs"),include_str!("day2-proof.mjs")),
+            ("0.4.31",include_str!("previous/frontend-proof-0.4.31.mjs"),include_str!("previous/day2-proof-0.4.40.mjs")),
             ("0.4.32",include_str!("previous/frontend-proof-0.4.32.mjs"),include_str!("previous/day2-proof-0.4.32.mjs")),
-            ("0.4.33",include_str!("frontend-proof.mjs"),include_str!("day2-proof.mjs")),
+            ("0.4.33",include_str!("frontend-proof.mjs"),include_str!("previous/day2-proof-0.4.40.mjs")),
         ] {
             for web in [false,true] { for template in [None,Some("chat"),Some("social")] {
                 expected.push(serde_json::json!({"file":"frontend","version":version,"web":web,"template":template,"sha256":digest(&super::super::proof::frontend_proof(frontend,template,web))}));
