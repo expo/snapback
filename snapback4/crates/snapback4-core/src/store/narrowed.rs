@@ -109,7 +109,15 @@ pub(super) fn transition(
             super::activation::walk(tx, t, |id, mut row| {
                 if let Some(source)=authority_sources.get(name) {
                     if crate::engine::through_activation::Retirement::retires_image(table,source,&row,now) {
-                        tx.delete(name,source,&row)?;
+                        if previous.and_then(|s|s.table(name)).is_none() {
+                            // Whole-table source images are restored before
+                            // their first index heap is installed.
+                            let affected=tx.conn().execute("DELETE FROM r WHERE t=?1 AND id=?2",params![t,id])?;
+                            crate::rows::require_one(affected as u64,"row delete",name,None)?;
+                            super::dormant::delete(tx,t,id,name)?;
+                        } else {
+                            tx.delete(name,source,&row)?;
+                        }
                         return Ok(());
                     }
                 }
@@ -336,7 +344,10 @@ pub(super) fn restore_images(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,no
         }
         // Retained source deadlines precede projection, including removal of read-through itself.
         if crate::engine::through_activation::Retirement::retires_image(table,&old,&row,now)  {
-            tx.delete(&name,&old,&row)?;
+            // This cursor explicitly excludes live r images. Retire retained
+            // provenance without pretending to delete a physical row/index.
+            // @ref LLP 3000.000.000#91-per-row-narrowed-value-dormancy — expired retained images retire before restoration/projection.
+            super::dormant::delete(tx,t,&id,&name)?;
             continue;
         }
         // Actual deletion/reuse never recaptures a different parent lifetime.

@@ -7,6 +7,10 @@ impl Engine {
         let store=self.store.fork_memory()?;
         let identity=store.store_identity()?.ok_or_else(||RuntimeError::Store("fixture store has no identity".into()))?;
         Ok(Self {
+            #[cfg(feature="postgres")]
+            revision_cache: Default::default(),
+            #[cfg(feature="postgres")]
+            code_native_digest: self.code_native_digest.clone(),
             #[cfg(feature = "evaluation-support")]
             evaluation_precharge: crate::meter::Metered::default(),
             timeline_schedule:timeline::Schedule::default(),

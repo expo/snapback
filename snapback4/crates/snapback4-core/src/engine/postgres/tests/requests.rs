@@ -511,6 +511,6 @@ fn request_attach_refuses_volatile_or_rewritten_ledgers() {
         e.store.client.batch_execute(&ddl).unwrap();
         drop(e);
         let error = PostgresEngine::open(client(), &name).err().expect("incompatible request ledger must refuse");
-        assert!(error.to_string().contains(&format!("SNAPBACK_REQUESTS_SCHEMA: {table}:")), "{error}");
+        assert!(error.to_string().contains(super::shape_code(&ddl,&format!("SNAPBACK_REQUESTS_SCHEMA: {table}:"))) && error.to_string().contains(table), "{error}");
     }
 }

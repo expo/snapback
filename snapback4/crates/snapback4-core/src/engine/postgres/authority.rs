@@ -17,8 +17,8 @@ SELECT s.principal, s.family, s.kind, s.token_digest, s.expires_at, s.scope,
        (SELECT value FROM _meta WHERE key = 'generation'),
        (SELECT value FROM _meta WHERE key = 'store_id'),
        (SELECT generation FROM _backend WHERE singleton),
-       NULL::pg_catalog.text, NULL::pg_catalog.text, NULL::pg_catalog.text,
-       (SELECT seq FROM _head WHERE singleton)
+       (SELECT value FROM _meta WHERE key='schema_hash'), (SELECT value FROM _meta WHERE key='activation_hash'), NULL::pg_catalog.text,
+       (SELECT seq FROM _head WHERE singleton), (SELECT revision FROM _head WHERE singleton)
 FROM (SELECT 1) AS anchor LEFT JOIN sessions s ON true
 LEFT JOIN _principal_generations g ON g.principal = s.principal";
 const READ_FACTS: &str = "WITH sessions AS (SELECT principal, COALESCE(family, token_digest) AS family, kind, token_digest, expires_at, 0 AS scope, NULL::pg_catalog.int8 AS cap_expires_at, NULL::pg_catalog.int8 AS principal_generation FROM _sessions WHERE token_digest = $1 UNION ALL SELECT principal, family, kind, token_digest, expires_at, 1, cap_expires_at, principal_generation FROM _read_sessions WHERE token_digest = $1)
@@ -30,8 +30,8 @@ SELECT s.principal, s.family, s.kind, s.token_digest, s.expires_at, s.scope,
        (SELECT value FROM _meta WHERE key = 'generation'),
        (SELECT value FROM _meta WHERE key = 'store_id'),
        (SELECT generation FROM _backend WHERE singleton),
-       NULL::pg_catalog.text, NULL::pg_catalog.text, NULL::pg_catalog.text,
-       (SELECT seq FROM _head WHERE singleton)
+       (SELECT value FROM _meta WHERE key='schema_hash'), (SELECT value FROM _meta WHERE key='activation_hash'), NULL::pg_catalog.text,
+       (SELECT seq FROM _head WHERE singleton), (SELECT revision FROM _head WHERE singleton)
 FROM (SELECT 1) AS anchor LEFT JOIN sessions s ON true
 LEFT JOIN _principal_generations g ON g.principal = s.principal";
 
@@ -58,6 +58,7 @@ pub(super) fn session_facts_sql(read: bool) -> &'static str { if read { READ_FAC
 pub(super) fn session_facts_rows(rows: Vec<super::store::Row>) -> crate::identity::facts::SessionFacts {
         let row = &rows[0]; // The anchor also returns metadata for an absent token.
         crate::identity::facts::SessionFacts {
+            revision: row.get(19),
             head: row.get::<_, i64>(18) as u64,
             sessions: rows.iter().filter(|r| r.get::<_, Option<String>>(0).is_some()).map(read_session).collect(),
             current_generation: row.get(8), worker_family: row.get(9), worker_revision: row.get(10),

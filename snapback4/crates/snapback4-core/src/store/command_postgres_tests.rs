@@ -229,6 +229,8 @@ fn ownership_loss_refuses_every_queued_command_and_new_admission() {
 fn renewal_bypasses_a_busy_queue_and_uncancellable_commit() {
     let mut fixture = Fixture::new();
     let (queue, _) = fixture.queue(1);
+    // Open the standby before fault injection; new opens must reject foreign triggers.
+    let mut standby = fixture.lease("a002");
     let key = fixture.barrier();
     let before: String = fixture
         .control
@@ -252,7 +254,6 @@ fn renewal_bypasses_a_busy_queue_and_uncancellable_commit() {
         fixture.control.query_one("SELECT clock_timestamp()>$1::text::timestamptz AND lease_until>clock_timestamp() FROM _owner", &[&before]).unwrap().get(0)
     });
     assert!(fixture.committing().is_some());
-    let mut standby = fixture.lease("a002");
     assert!(standby.acquire().unwrap().is_none());
     assert!(!queue.ownership_lost());
     fixture

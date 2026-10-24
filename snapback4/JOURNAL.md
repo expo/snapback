@@ -58066,7 +58066,7 @@ env -u FORCE_COLOR CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_T
 
 All 862 Rust executions pass, including core disclosure 30, device disclosure
 19, device written_by 17 and language written_by 9. Pricing compile-fail
-qualification passes all 14 cases. Client tests: 1,089 passed across all eight
+qualification passes all 15 cases. Client tests: 1,089 passed across all eight
 processes (1,055 main + 34 sharded), 0 failed, 10 skipped. Postgres feature
 qualification: 3 passed, 9 explicit live-service ignores; no live service used.
 The reference audit passes with 507 LLP docs, 9,248 refs, zero errors and zero
@@ -106695,3 +106695,489 @@ committed. Private PG16 masters 2332629 and 2988427 are confirmed stopped
 recorded free space is 42.28 GiB; the 40 GiB floor never triggers. Only owned
 obsolete build artifacts are reclaimed. All commits remain local, with no push
 or Git configuration change, and no q24 files or shared PG17 processes touched.
+
+
+### 2026-10-24 — G5: complete revisions and one-flight equality validation
+
+The RCPU work is rebased onto the requested October write/PIPE stack through
+115be62c28, using the relay's `sb4-pg/main-mirror` because its `main` still points
+to August. RCPU tip 3bce649288 becomes 605a0f1422. JOURNAL entries are unioned and
+RFC Revised entries merged. Before G5, build, full core (1,170 passed / 0 failed /
+5 ignored, 49 targets) and full binary (588 passed / 0 failed / 49 ignored) pass;
+no separate rebase repair is needed. Work remains on local branch `sb4-pg/g5`.
+
+Postgres `_head.revision` now records completed members in the committer's
+existing physical transaction and head order, including receipt-only and solo
+family writes. Groups count completed members; aborted frames restore the count.
+Ownership lease traffic is the explicit exception. Cache fills borrow the ordinary
+query snapshot; hits compare immutable revision/head/identity/code to one fresh
+statement, then use the existing Rust authority resolver with a fresh clock.
+There is no promotion, footprint, install gate, retained authority or read grant.
+SQLite remains on ordinary reads because it lacks a complete durable revision
+stream. Existing PG profile exclusions remain enforced.
+
+Two-touch admission, eviction, principal/fill/entry limits, 448 MiB charged
+per-store retention and 512 MiB process retention bound the cache. Reservations
+follow fill and hit responses after eviction. Actual source metadata is charged;
+hidden delivery backing bypasses. Time/lifetimes, presence/ephemeral state,
+native work, retained search and internal structured arguments stay ineligible.
+Opening metadata binds an explicit empty native digest correctly, and both local
+adoption paths retire the old code epoch. Key canonicalization uses a copy so
+ambiguous aliases keep their ordinary authorized refusal.
+
+The 15 cache witnesses cover all member kinds and concrete fenced family writes,
+actual session lifecycle, group atomicity, interleaved fills, fresh authority and
+clock-only expiry, maintain/expiry/activation, takeover, exclusions, bounded
+retention/eviction, NUL/encoding and key identity. Five temporary negative controls
+produce runtime failures (reuse disabled, revisions suppressed, encoding guard
+bypassed, mutating alias planning, and unbound native identity). A separate named
+validation pilot fails the unchanged RT0 warm-equality assertion: its cold PREPARE
+adds a second flight on the first hit. The final typed validation uses one flight
+including first use. Both RT0 ratchets pass unchanged: PG W1/W2/W3 1/1/1,
+SQLite 5/5/132. Additional assertions cover serialized outcomes and source masks
+against SQLite as well as fresh response store identity.
+
+Qualified release C128 W1/W2/W3 rates are 17,523/10,838/10,431 reads/s versus
+17,887/10,396/5,547 before. Server CPU/read is 285/267/279 µs versus 272/430/1,053;
+PG CPU/read is 260/656/662 µs versus 242/456/835. Hit rates are approximately
+0%/95.97%/98.06%. The 3/2/1 physical-core split gives W2/W3 9,344/8,787, versus
+10,487/3,820; PG validation CPU is now the limit. The faster prepared pilot reaches
+18,219/17,673 on that split but is explicitly disqualified by first-use RT0.
+G6 is needed on the currently qualified path for 16k/16k, or an alternative
+one-flight reusable-plan mechanism must qualify separately. No delayed-link or
+matched S1 campaign claim is made.
+
+All final windows have zero request errors and retain per-window one-minute loads,
+CPU/read and hit rates in `reports/20261024-g5/REPORT.md`. One window overlapped an
+owned core launch after the gate resumed; it is excluded and repeated on the same
+warm process under an explicit hold. The initial no-fill deployment pilot and the
+128 MiB capacity/eviction pilot are retained, not selected away. Raw logs/profiles
+remain outside the repository.
+
+Final core: 1,170 passed / 0 failed / 5 ignored across 49 targets. Final binary:
+588 passed / 0 failed / 49 ignored. Both unchanged RT0 ratchets pass 2/0 and the final cache suite passes 15/0.
+The full Postgres script reports 734 passed / 2 failed across 35 Rust targets:
+the inherited evaluator 40001 and a broad `_head` fault fixture that intercepted
+the new revision update before its intended public-tail fault. The fixture now
+allows unchanged-seq updates, retains all seven tail-count assertions and adds
+revision rollback assertions; its focused rerun passes 1/0. The new solo revision
+failure witness passes as well, proving the existing pre-COMMIT flush rolls back
+data when revision advancement is suppressed. No production-code repair is needed.
+The complete script is not rerun after the test-only repair; only 40001 remains
+unresolved. Public serving passes and confirms its private PG16 cluster stopped.
+Minimal Postgres feature check passes. Root ref-check passes 567 docs / 11,901
+refs with zero errors or unchecked references.
+Private PG16 masters 3263997 and 127396 are independently confirmed stopped
+(status=3, no postmaster.pid, no process); the owned PID/start-tick audit is empty.
+Automated free-space minimum is 41.85 GiB; an earlier manual observation is about
+41.6 GiB. The 40 GiB floor never triggers, and only owned inactive target artifacts
+are reclaimed. All commits remain local with the requested author/committer; no
+push or Git configuration change, q24 file access, or shared PG17 change.
+
+## 2026-10-24 — FF1: exact serial deltas and write-stack witnesses
+
+Lane `sb4-pg/ff1`, based on `115be62c28`, on expo-build-450b (the host's
+local hostname is expose-builder-pixel-a). The relay's local `main` was old;
+fetching its `refs/remotes/origin/main` supplied the requested base without
+changing Git configuration. No push or stash.
+
+### Exact serial writes
+
+SQLite and PostgreSQL now check every primary delete and each individual
+index insert/delete against exactly one affected row. Existing primary
+insert/update checks and PostgreSQL's zero-row insert Rule refusal stay as
+before. The new checks consume the driver's existing count, with no extra
+statement or flight. Mismatch returns E_STORE and the existing driver rolls
+back the physical transaction.
+
+Ten trigger witnesses cover both stores: primary delete, index deletion on
+update and delete, and index insertion on update and insert. Four keyed
+members per witness have 30-second deadlines. The first named failure
+removes that member; nonempty attempts for every later member prove live
+named recovery executes. All 40 attempts reject suppression, and complete
+before/after snapshots match, including physical index entries, rows, caps,
+receipts, head, complete commits, change evidence and log images. Removing
+the trigger permits a successful commit. With only the witnesses added to
+`115be62c28`, all ten fail (0 passed/10 failed): suppressed writes are
+acknowledged. With the checks they pass on both stores.
+
+Strict checks also exposed administrative phases that had relied on
+unchecked zero-row writes. A retained-only expired image has no live row or
+index: it now retires its dormant provenance directly. Whole-table source
+restoration retires an expired unindexed image with a checked primary
+delete. Read-through capture maintains the physical predecessor indexes;
+population restoration has only its identity scan until the existing
+candidate rebuild. Candidate-only indexes are not treated as predecessor
+entries. The eight initially failing dormant/lifetime unit cases are
+covered by the 63/0/5 final focused rerun (five PG witnesses intentionally ignored
+there); the final complete checks below qualify the integrated result. A later focused
+review added restoration of a narrowed row into an existing table with a newly earlier
+child deadline. It failed with a children.$children count mismatch before
+passing the existing population-changed signal into capture; that signal
+already guarantees a complete candidate-index rebuild. No lookup or query
+was added to select this physical layout.
+
+### Follow-up witnesses
+
+1. Real HTTP requests wait for 100 Continue, then delay body delivery.
+   Expired solo and three-member grouped requests get no retry after a
+   classified COMMIT abort; aged survivors get no retry after a named
+   member abort. Nontransactional sequences distinguish executed attempts
+   from durable rows. A 45 ms body delay leaves about 50 ms and successfully
+   retries/commits, and the next request proves queue progress. Removing
+   `.accepted_at(accepted)` causes all three witnesses to fail: solo
+   head/attempts become 1/2, group 3/6, named survivors 2/4, versus durable
+   head zero. The source is restored byte-for-byte afterward.
+2. Crossed reads use distinct write targets, cyclic/diamond/reverse read
+   dependencies, data-dependent branches and post-write refusals. Three
+   seeds at N=8/32, four rounds, compare complete outcomes/meters and durable
+   history against individual N=1 `invoke_program` calls on both stores.
+   Every target is distinct so these members are speculated, and the test
+   requires conflict reruns. Disabling recorded-row conflict validation
+   makes both new differentials fail; the other 12 focused witnesses pass.
+   The source is restored byte-for-byte afterward.
+3. `Wave::take` exhaustively destructures ReadSet and discards prepared
+   results with spans, authority, receipts or unsupported dependencies,
+   forcing execution after predecessors. New read kinds require an explicit
+   validation decision. The original code accepts all four planted kinds;
+   the witness fails before and passes after the guard.
+4. The pool boundary asserts at most 32 jobs, supplementing the existing
+   program-batch cap. The 33-job witness fails before that assertion and
+   passes after it. Join drains at most 32 independently metered private
+   attempts, with at most min(CPUs - 2, 8) workers. At default ceilings this
+   is at most 32 million interpreter steps across those attempts, not a
+   hard wall-clock or RSS bound. Only first attempts enter this wave;
+   their join is intentionally uncancelled, as is COMMIT. The existing
+   retry-only deadline contract is unchanged.
+
+### Qualification
+
+All commands use the owned target, `-j 10`, line-tables-only dev/test
+profiles and the task PATH. The final code passes:
+
+| Scope | Passed | Failed | Ignored |
+| --- | ---: | ---: | ---: |
+| Full core (780 unit + 413 integration + 38 doctests) | 1,231 | 0 | 387 |
+| Full snapback4 binary | 586 | 0 | 52 |
+| HTTP round-trip scope (including the three real-intake witnesses) | 8 | 0 | 0 |
+| Overlay RT0 on both stores | 2 | 0 | 0 |
+| Full PostgreSQL script, Rust summaries | 736 | 0 | 0 |
+
+The PostgreSQL script runs with `RUST_TEST_THREADS=1`; all within-test
+concurrency still executes. The inherited evaluator Serializable `40001`
+was not reproduced and is not claimed fixed. Its prefetch write loop checks
+19,265 budget positions; the five-backend corpus runs 295 serialized cases
+per backend with the existing named exclusions. The public CLI witness
+passes, including the S1 P1-MC recount, persisted release evolution,
+ownership loss/takeover and change-evidence parity, then independently
+confirms its own private cluster stopped. No extra skip was added.
+
+The source reference check passes: **567 LLP documents, 11,889 refs,
+0 errors, 0 unchecked**, including the final documentation reconciliation.
+
+Fixture preparation failures are not counted as regression evidence: the
+first serial-write fixture used an ambiguous positional text key, corrected
+to named `id`; the HTTP helper initially assumed header-free 100 Continue,
+then had a body length off by one, and its first named trigger looked at an
+untagged rather than stored Row/Int path. All were corrected before the
+retained negative controls and final qualification.
+
+Two broad-run attempts hit the conservative 25 GiB disk monitor while
+building against the inherited cache. The monitor stopped only recorded
+owned processes; the second stop also shut down the owned PG cluster, so
+its E57P03/connection errors are interrupted infrastructure runs, not
+product verdicts. Minimum recorded free space was 24.97 GiB. Clearing
+only this worktree's release and then debug caches restored 69 GiB; the
+required-package rebuild used the prescribed target, line-tables-only
+profiles and -j 10. No workspace/all-targets build. A superseded broad core
+run with the eight lifecycle reds was also stopped after its focused
+replacement passed, using only its recorded identities. The final complete
+runs above started from the cleared cache and final source.
+
+### Paired loopback measurement
+
+Use the existing G3b-par native core harness, 32 live-account writers,
+Fixed(N=32), one outstanding request per writer, 1 s warm-up and 3 s timed
+windows. Both release binaries use the same 139 product registry pins,
+opt-level 3, incremental release and line-tables-only debug information,
+without test-support instrumentation. The diagnostic Fixed constructor
+exposure is restored byte-for-byte before use/commit. Baseline SHA-256 is
+`09779984592bf1f6c3cc9e25ad6714937e499dd188f4d259f3fcc9ed18070667`;
+final is `1067d8c1630673538f8227d4fff50e4b4f1545b033b7c78d481ce70740fcb115`.
+
+The comparison uses a fresh database on owned PostgreSQL 16.15 at TCP
+127.0.0.1:55481, 1 GiB shared buffers, JIT off, fsync/synchronous_commit/
+full_page_writes on, and a preceding CHECKPOINT. Three predeclared ABBA
+blocks (before, after, after, before) retain all 12 processes/24 windows:
+six windows per build/workload. No window is removed. All checks/builds
+finish before sampling; measured one-minute load is 1.24–1.64 on 12 CPUs.
+An earlier setup run used the default N ladder while compilation was active;
+it is retained externally and is not part of this predeclared comparison.
+
+| Workload | Before median writes/s | After median writes/s | Median delta | Paired block mean | Descriptive 95% t interval |
+| --- | ---: | ---: | ---: | ---: | --- |
+| W4-disjoint | 3055.5 | 2976.6 | -2.58% | +0.48% | -7.09% to +8.05% |
+| W5-shared | 2375.2 | 2322.5 | -2.22% | +0.20% | -14.13% to +14.52% |
+
+The count checks add **0 SQL statements / 0 flights**. The paired estimates
+are **+0.48% W4 / +0.20% W5 throughput**, with both intervals spanning zero:
+this diagnostic detects no marginal cost. Pooled medians are **−2.58% /
+−2.22%**; the broad intervals do not establish equivalence for small changes.
+All **194,974 timed acknowledgements** reconcile with durable warm+timed
+counter sums and fill histograms, with **zero errors**. This is the native
+core queue over durable TCP loopback, excluding HTTP and the capacity seed;
+it is not an offered-load/SLO or matched-control qualification. Physical
+COMMIT/flight instrumentation is disabled in these release binaries; its
+zero fields are not cost measurements.
+
+### Cleanup
+
+Owned PG16 masters **2013603, 2125833 and 2563933** are stopped and
+independently absent. Both owned data directories report pg_ctl status **3**,
+with no postmaster pidfile. The qualification/measurement audit finds all
+**5,654 recorded process identities** and the public witness's
+**539 recorded PIDs** absent, including the observer. **PIDs left: none.**
+Final free space at this audit is **61.32 GiB**.
+Completed release/evaluator caches were also removed after their executables
+were copied outside target, preserving active debug artifacts and headroom.
+Raw output, samples, PID identities and restoration receipts stay outside Git
+under `/tmp/sb4-ff1/` and `/tmp/s10d3-serve-zmg74ofn/`; stopped cluster data is
+retained for inspection. Only source, tests, ticket resolutions, this journal
+and the brief RFC note are committed. No push, stash or Git configuration
+change.
+
+## 2026-10-24 — FF1 fix round 1: managed interception, legal lifecycle heaps and admitted probes
+
+Fixes on top of `420626a9c9`, following both CHANGES REQUIRED reviews and the
+orchestrator's structural ruling. The two closed FF1 tickets and the controls
+RFC (LLP 3000.009.001.000.002 §6) carry the resolution correction.
+
+### What changed
+
+A shared inventory enumerates all 59 durable relations from the SQLite,
+native-device and PostgreSQL schema installers, including optional dormant,
+narrowed, backfill, receipt, cap and sequence ledgers. Opening and every
+activation/evolution transaction refuse foreign interception with E_STORE /
+`SNAPBACK_MANAGED_RELATION_INTERCEPTION`. SQLite inspects main and temporary
+trigger catalogs and permits its two index-key guards only with their exact
+installed definitions. PostgreSQL refuses noninternal triggers, rewrite rules
+other than views' `_RETURN`, and enabled/forced row security. Internal
+constraint machinery remains allowed. Read-only store/deployment inspection
+makes doctor report the same finding. The evaluator also selects a fresh
+namespace before inspection, so the caller's former search_path cannot make
+another private store fail creation.
+
+Lifecycle transactions explicitly permit zero index deletes while restored
+images precede their index/cap population rebuild. Steady-state serial row and
+index checks remain strict. Cap increment upserts, cap decrement updates and
+sequence upserts now check the driver's existing affected-row count. The cap
+cleanup `DELETE ... n = 0` remains legally zero or one. No statement or flight
+is added to steady-state writes; catalog checks belong to open/activation and
+doctor.
+
+`Wave::take` accepts unique plain-index spans only when the selector fetched
+that exact base prefix. Qualified overlays exclude inserts, deletes and index
+key changes, so membership/absence stay fixed; observed returned images still
+conflict by row identity with accepted predecessors. Uncovered spans,
+authority, receipts and unsupported reads continue to rerun.
+
+### Witnesses and negative controls
+
+- Interception witnesses install suppressing triggers on every installed
+  managed relation (35 SQLite / 38 PostgreSQL), then require both a fresh open
+  and the running engine's next activation to refuse. PostgreSQL also tests
+  rewrite rules/RLS across eight row, index, tail and retained families.
+  Doctor's read-only paths refuse; replacing a SQLite guard under its familiar
+  name refuses too. Removing interception restores progress.
+- Two complete SQLite release histories reproduce dormant live-to-manual
+  owner reconciliation and retirement of an image restored without indexes.
+  The second keeps an older unexpired retained definition while a later
+  predecessor acquires expiry, then widens/removes it. Both legal activations
+  now succeed. PostgreSQL's public temporal/live/backfill evolution boundary
+  stays unchanged: native row-port witnesses execute matching unindexed
+  reconciliation and retirement phases inside actual adapter activation
+  transactions, without claiming those excluded public transitions.
+- Six serial suppression witnesses cover expiring-cap increment/decrement and
+  a new parent's sequence allocation on both stores. Each rejects four keyed
+  attempts, compares complete durable/index rollback and proves progress once
+  suppression is removed. Separate legal paths decrement occupancy 2→1→0
+  (both cleanup counts), and allocate ordinals 1 then 2 for a fresh parent.
+- Real `Closure::new` witnesses on both stores authorize 32 distinct counters
+  through membership `exists`, keep all attempts buffered without reruns,
+  preserve covered absence, and rerun a colliding predecessor read to the
+  serial value. The unsupported-kind planted witness remains.
+
+Temporary negative-control mutations produce **0 passed/5 failed** in the
+interception/lifecycle scope, **2 passed/6 failed** in the maintained-count
+scope (the two legal controls remain green), and **0 passed/2 failed** in the
+admitted-probe scope. Restoring the strict span guard reruns every admitted
+member. Restoring strict lifecycle deletes names missing owner/expiry index
+entries. Removing cap/sequence checks acknowledges unapplied bookkeeping.
+All seven temporarily mutated files were restored byte-for-byte; restoration
+hash receipts and raw output remain outside Git.
+
+### Qualification
+
+Counts below are passed / failed / ignored where shown; overlapping focused
+scopes are not added to the complete-suite totals.
+
+| Check | Result |
+| --- | --- |
+| Complete core, PostgreSQL feature | 1,239 / 0 / 394 |
+| Complete `snapback4` binary, PostgreSQL feature | 586 / 0 / 52 |
+| HTTP RT0 scope, including both unchanged tables and intake witnesses | 8 / 0 |
+| Overlay RT0, both stores | 2 / 0 |
+| Adapter shape / release / command contracts | 11 / 0; 13 / 0; 15 / 0 |
+| `bash scripts/test-postgres.sh`, serial test scheduling | 751 / 0 (35 Rust target/scoped invocations) |
+| Public CLI witness within that script | PASS; private cluster stopped and confirmed |
+| Root `./ref-check` | 0 errors / 0 unchecked |
+
+The known evaluator `40001` was not reproduced with serial test scheduling; it is not claimed fixed. No `--bench` or standalone
+throughput campaign ran. The required PostgreSQL script retained its existing
+plan-hygiene timing/integrity witness; its output supplies no throughput claim
+for this fix round. The RT0 JSON tables are unchanged.
+
+Earlier runs are retained externally: two older core tests expected managed
+triggers or family-specific refusal precedence; observation now uses SQL trace
+and shape tests assert the new interception error for that class. The first
+binary run lacked its required sibling CLI and had timing-sensitive failures;
+building the CLI and serial scheduling yield the complete green run above.
+The old intake fixture opened readers after fault injection; it now returns
+four preopened readers to the pool before installing its fault. A lease fixture
+similarly opens its standby before injection. Its obsolete failed run blocked
+while dropping a queue whose COMMIT still held the fixture barrier; only the
+recorded stale command-test child (PID 1200339) was terminated, allowing the
+no-fail-fast script to finish. The corrected command scope passes 15/0 and the
+complete PostgreSQL rerun is reported above.
+
+### Cleanup
+
+Private PG16 masters **872977**, **1488942** and **1807493** are stopped.
+The shared cluster's independent pg_ctl status is **3**; both public witnesses
+report status **3**; all three data directories have no postmaster pidfile.
+The final audit finds all **6,090 recorded identities** (including the
+public-witness PID registries) absent, with no live monitors and no reused PID
+identities. **Owned PIDs left: none.** Minimum monitored free space was
+**32.80 GiB**, above the commissioned 30 GiB floor; final free space is
+**38.71 GiB**.
+
+All builds used this worktree's target, line-tables-only dev/test debug settings
+and 24 Cargo build jobs. No workspace/all-targets build, stash, push or Git
+configuration change. Only this worktree's inactive incremental caches were
+reclaimed, under their Cargo build locks on the later cleanup. Raw evidence,
+PID records and stopped private-cluster data remain under
+`/tmp/sb4-ff1-fix1/`, `/tmp/ff1f1pg/` and the named public-witness directories.
+
+## 2026-10-24 — FF1 final fix round: exact trigger admission and lifecycle rechecks
+
+Fixes on top of `0b353789fb`, following both final-round CHANGES REQUIRED
+reviews. The controls RFC (LLP 3000.009.001.000.002 §6), deploy guide and both
+closed FF1 ticket resolutions carry the corrected fence and its exclusion.
+
+### Implementation and witnesses
+
+- SQLite admission shares exact definitions with the device-residency
+  installer and admits the correct durable or legacy TEMP counter mode.
+  `_device_residency` joins the managed relation set. Device installation,
+  quit, reopen, doctor's read-only probe and repeated activation succeed for
+  durable stores and unchanged legacy files. Each of the three familiar
+  residency names with a suppressing replacement body refuses. Exact TEMP
+  evaluator trackers share their installer definition and require the explicit
+  `evaluation-support` build feature. A binary consumer without that feature
+  refuses even the exact evaluator definition; altered tracker bodies refuse
+  in evaluation builds too.
+- PostgreSQL no longer trusts the `tgisinternal` flag alone. It examines
+  incoming and outgoing FK constraints and every managed trigger. The only
+  trigger-backed constraints admitted are the recognized legacy `_log` and
+  `_outbox` seq-to-commits no-action keys, with exact built-in RI functions,
+  generated trigger names, relations, event/timing, constraint linkage and
+  complete sets. The existing legacy log recovery/upgrade/reopen witness
+  passes. An external FK on `_dormant_rows(t,id)` with `ON DELETE CASCADE`
+  and an external deletion trigger that erases the restored live image now
+  refuses at open, doctor and activation. Dormant sources and generation are
+  unchanged; removing the FK restores progress.
+- Database event triggers remain legal. The full managed check repeats after
+  all activation installers, including release preparation, before population
+  movement; a final check runs after the transaction's last writes, before
+  COMMIT. Physical opening upgrades and the retained evaluator also recheck.
+  A `ddl_command_end` hook installing a suppressing row trigger during index
+  installation refuses and rolls back its DDL and all movement. Its
+  nontransactional sequence probe remains uncalled, proving refusal precedes
+  restoration rather than merely undoing it. A benign DDL audit event trigger
+  remains installed during a successful restore. Late activation DDL in the
+  finish callback also refuses and rolls back its inserted row.
+- Pooled connection replacement clears its old statement caches and repeats
+  interception admission alongside identity and generation. Failure remains
+  pending on later requests. The real composed-reader witness adds forced RLS,
+  records and terminates its backend, observes closure, then requires two
+  replacement requests to refuse. Removing RLS permits the same reader to
+  recover. No in-flight query is replayed.
+- Runtime DDL on managed relations while serving is explicitly outside the
+  fence model: owner/head locks do not prevent it. Doctor and the next open,
+  activation or reconnect detect it. There is no per-request catalog polling.
+  Steady-state counts, legal lifecycle zero-row paths and both RT0 tables are
+  unchanged. No throughput measurements were run.
+
+Before implementation, all five new focused fence witnesses fail against
+`0b353789fb`; the separate reader-replacement witness also fails (0/1).
+The first broad `fix2` filter additionally ran four unrelated RT6 tests, all
+passing; these are not counted as defect witnesses. After implementation,
+the focused final set passes 11/0 plus reconnect 1/0, including the stronger
+sequence probe and benign-event legal path. The ordinary binary's exact
+tracker refusal passes too. Raw evidence stays under `/tmp/sb4-ff1-fix2/`.
+
+### Qualification and disk-floor stop
+
+Counts are passed / failed / ignored where shown. Focused scopes overlap the
+complete runs and are not added to their totals.
+
+| Check | Result |
+| --- | --- |
+| Complete core, PostgreSQL feature (49 Rust targets) | 1,241 / 0 / 399 |
+| Complete binary, PostgreSQL feature, final implementation | 587 / 0 / 52 |
+| Focused final admission/lifecycle witnesses | 11 / 0 plus reconnect 1 / 0 |
+| Ordinary binary's exact evaluator-tracker refusal | PASS, included in binary total |
+| HTTP RT0 scope, including unchanged SQLite/PostgreSQL tables | 8 / 0 |
+| Overlay RT0, both stores | 2 / 0 |
+| PostgreSQL script's 35 Rust target/scoped invocations | 759 / 0 |
+| Full `bash scripts/test-postgres.sh` | **INTERRUPTED by disk guard**, exit 1; not a passing qualification |
+| Public CLI witness | EV-1, EV-2 and change-evidence comparisons passed on both stores; remaining serving/restart/lease/S1 cases not completed |
+| Root `./ref-check`, final preservation pass | 0 errors / 0 unchecked |
+
+The initial complete core run had 1,240 passed / 1 failed / 399 ignored:
+a deferrable primary-key fixture expected the narrower family error rather
+than the new earlier interception refusal. Its expectation was corrected,
+and the complete core rerun passes above. The pre-movement check was then
+placed after release preparation, which can itself install ledgers. The final
+PostgreSQL script re-exercised every affected adapter scope and all new
+witnesses after that placement; the full binary was rerun on it too. Both RT0
+tables remain byte-for-byte unchanged. The inherited evaluator `40001` was not
+reproduced with serial test scheduling; it is not claimed fixed.
+
+The PostgreSQL script's resource monitor recorded **29.996 GiB** free and
+stopped its recorded test processes, enforcing the author's 30 GiB stop rule.
+No builds or tests were restarted after that event. Completed caches in this
+worktree's own target were reclaimed under their Cargo locks: two inactive
+incremental passes (7.78 and 7.35 GiB), then completed evaluator artifacts
+(3.65 GiB). Nothing from another worktree was deleted. The final cache cleanup
+restored headroom but does not turn the interrupted public witness into a pass.
+No throughput campaign or standalone measurements ran. Only the mandatory
+script's existing plan-hygiene timing/integrity witness executed.
+
+### Cleanup and preservation
+
+Recorded private PG16 masters **2682117** (`/tmp/ff1f2pg/data`) and **3335451**
+(`/tmp/s10d3-serve-eyhclews/data`) were explicitly stopped. Independent
+`pg_ctl status` returns **3** for both, and neither has a postmaster pidfile.
+The final audit finds **4,582 recorded PID/start identities** and the public
+witness's **472 PID records** absent, with no live/reused identities.
+**Owned PIDs left: none.** Free space after cleanup was **34.30 GiB**.
+
+Raw output, the disk-guard receipt and PID/cleanup audits remain outside Git
+under `/tmp/sb4-ff1-fix2/`; the stopped cluster data and public artifacts remain
+in their named `/tmp` directories. All builds used this worktree's target,
+line-tables-only dev/test debug settings and 24 Cargo build jobs. No
+workspace/all-targets build, stash, push or Git configuration change. The fix
+and these accurate partial-qualification records are preserved in a new commit
+on the commissioned branch; the remaining public qualification requires a
+later run with disk headroom.

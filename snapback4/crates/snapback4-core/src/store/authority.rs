@@ -70,6 +70,7 @@ fn fetch(conn: &rusqlite::Connection, digest: &str, read: bool, discovered: &std
                 return fetch(conn, digest, true, discovered);
             }
             let result = facts.get_or_insert_with(|| crate::identity::facts::SessionFacts {
+                revision: None,
                 head: 0, sessions: Vec::new(), current_generation: 0, worker_family: None,
                 worker_revision: None, family_revision: None, store_generation: None, store_id: None,
                 backend_generation: None, schema_hash: None, activation_hash: None, device_generation: None,
@@ -220,7 +221,7 @@ impl Store {
         let sql = self.conn.unchecked_transaction()?;
         // Hold only until the SELECT pins the schema and authority snapshot.
         let read_storage = self.read_sessions.snapshot()?;
-        let tx = Tx { read_sessions: &self.read_sessions, read_sessions_installed: Default::default(), read_sessions_at_start: *read_storage, read_sessions_installation: Default::default(), activation_scan: None, changes: Default::default(), sequence_table: Default::default(), tx: sql, page_size: self.page_size, server: self.server, catalog: &self.catalog };
+        let tx = Tx { lifecycle: false, read_sessions: &self.read_sessions, read_sessions_installed: Default::default(), read_sessions_at_start: *read_storage, read_sessions_installation: Default::default(), activation_scan: None, changes: Default::default(), sequence_table: Default::default(), tx: sql, page_size: self.page_size, server: self.server, catalog: &self.catalog };
         let facts = tx.session_authority_facts(digest)?;
         drop(read_storage);
         // This dedicated snapshot has no writes: discovery observes committed

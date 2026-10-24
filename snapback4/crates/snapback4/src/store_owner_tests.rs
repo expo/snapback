@@ -239,3 +239,20 @@ fn release_command_waits_for_an_unannounced_owner_then_acquires_exclusively() {
     assert!(start.elapsed()>=Duration::from_millis(100));assert!(command(&path).is_err());
     release.join().unwrap();drop(next);fs::remove_dir_all(dir).unwrap();
 }
+
+
+// This binary links the ordinary core with no evaluation-support feature.
+// Keep a production consumer witness alongside the evaluator's legal path.
+#[test]
+fn production_store_refuses_even_exact_evaluation_tracker() {
+    let mut store=snapback4_core::Store::memory().unwrap();
+    let schema=snapback4_core::Schema::default();
+    store.install(&schema).unwrap();
+    store.test_support_conn().execute_batch(
+        "CREATE TEMP TABLE dt_dirty(t INTEGER PRIMARY KEY);
+         CREATE TEMP TRIGGER dt_track_0_INSERT AFTER INSERT ON \"r\" BEGIN INSERT OR IGNORE INTO dt_dirty VALUES (0); END;"
+    ).unwrap();
+    let error=store.install(&schema).unwrap_err();
+    assert_eq!(error.code(),"E_STORE");
+    assert!(error.to_string().contains("SNAPBACK_MANAGED_RELATION_INTERCEPTION"),"{error}");
+}

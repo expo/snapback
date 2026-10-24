@@ -123,6 +123,10 @@ impl Engine {
         )?.into_inner();
         store.exclude_ephemeral(&schema);
         Ok(Self {
+            #[cfg(feature="postgres")]
+            revision_cache: Default::default(),
+            #[cfg(feature="postgres")]
+            code_native_digest: metadata.native_digest,
             #[cfg(feature = "evaluation-support")]
             evaluation_precharge: crate::meter::Metered::default(),
             timeline_schedule: timeline::Schedule::default(),
@@ -181,6 +185,9 @@ impl Engine {
         }, |engine, (schema, programs), (generation, metadata)| {
             engine.store.exclude_ephemeral(&schema);
             engine.timeline_schedule = timeline::Schedule::default();
+            // @ref LLP 3000.009.001.000.002#4.3 — local activation retires the immutable code epoch before exposing new readers.
+            #[cfg(feature="postgres")]
+            {engine.code_native_digest=metadata.native_digest;engine.reset_revision_cache();}
             engine.schema = schema;
             engine.programs = programs;
             engine.generation = generation;
@@ -195,6 +202,8 @@ impl Engine {
     #[cfg(feature = "native")]
     pub fn set_prepared_native(&mut self, module: Option<std::sync::Arc<native::Module>>) {
         self.native = module;
+        #[cfg(feature="postgres")]
+        self.reset_revision_cache();
     }
 }
 

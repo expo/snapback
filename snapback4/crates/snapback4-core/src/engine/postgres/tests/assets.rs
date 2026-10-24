@@ -475,7 +475,7 @@ fn asset_attach_refuses_incompatible_shapes_by_name() {
             .err()
             .expect("incompatible storage must refuse");
         assert!(
-            error.to_string().contains("SNAPBACK_ASSET_SCHEMA"),
+            error.to_string().contains(super::shape_code(ddl,"SNAPBACK_ASSET_SCHEMA")),
             "{ddl}: {error}"
         );
         assert!(error.to_string().contains(table), "{error}");

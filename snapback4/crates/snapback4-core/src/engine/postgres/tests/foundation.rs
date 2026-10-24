@@ -203,7 +203,7 @@ fn shape_refusals(table: &str, alterations: &[&str]) {
             .err()
             .expect("incompatible shape must refuse");
         assert!(
-            (error.to_string().contains("SNAPBACK_FOUNDATION_SCHEMA")
+            (error.to_string().contains(super::shape_code(alteration,"SNAPBACK_FOUNDATION_SCHEMA"))
                 || (table == "_meta" && error.to_string().contains("SNAPBACK_IDENTITY_SCHEMA")))
                 && error.to_string().contains(table),
             "{alteration}: {error}"

@@ -37,6 +37,8 @@ pub mod metadata;
 pub mod release_history;
 #[cfg(feature = "sqlite")]
 pub(crate) mod activation;
+#[cfg(feature = "sqlite")]
+pub(crate) mod managed_relations;
 pub mod maintain;
 pub mod partition;
 #[cfg(any(test, feature = "test-support"))]

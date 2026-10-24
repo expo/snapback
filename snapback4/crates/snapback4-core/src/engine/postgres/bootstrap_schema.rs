@@ -50,11 +50,13 @@ const TABLES: &[Table] = &[
         columns: &[
             ("singleton", "boolean", true, false, None, ""),
             ("seq", "bigint", true, false, None, ""),
+            ("revision", "bigint", true, false, Some("0"), ""),
         ],
         constraints: &[
             "PRIMARY KEY (singleton)",
             "CHECK (singleton)",
             "CHECK ((seq >= 0))",
+            "CHECK ((revision >= 0))",
         ],
     },
     Table {

@@ -139,7 +139,7 @@ impl PostgresEngine {
         schema.prepare_delivery_lookup();
         let programs: BTreeMap<_, _> = programs.into_iter().map(|p| (p.name.clone(), p)).collect();
         super::supported(&schema, &programs)?;
-        let tx = self.store.transaction(Some(WriteMode::Serialized))?;
+        let tx = self.store.attach_transaction(Some(WriteMode::Serialized))?;
         super::activation_schema::verify_activation(&tx)?;
         let prep = Preparation(&tx);
         options.check(&prep)?;

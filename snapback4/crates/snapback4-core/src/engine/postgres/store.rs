@@ -33,7 +33,7 @@ CREATE INDEX IF NOT EXISTS _read_sessions_family ON _read_sessions(principal, fa
 pub(super) const VERSION: &str = "snapback4-postgres-evaluation-3";
 pub(super) const DDL: &str = "
 CREATE TABLE _backend (singleton BOOLEAN PRIMARY KEY CHECK(singleton), version TEXT NOT NULL, schema TEXT NOT NULL, programs TEXT NOT NULL);
-CREATE TABLE _head (singleton BOOLEAN PRIMARY KEY CHECK(singleton), seq BIGINT NOT NULL CHECK(seq >= 0));
+CREATE TABLE _head (singleton BOOLEAN PRIMARY KEY CHECK(singleton), seq BIGINT NOT NULL CHECK(seq >= 0), revision BIGINT NOT NULL DEFAULT 0 CHECK(revision >= 0));
 INSERT INTO _head VALUES (true, 0);
 CREATE TABLE r (t TEXT COLLATE \"C\" NOT NULL, id TEXT COLLATE \"C\" NOT NULL, data TEXT NOT NULL, PRIMARY KEY(t,id));
 CREATE TABLE i (t TEXT COLLATE \"C\" NOT NULL, ix TEXT COLLATE \"C\" NOT NULL, k BYTEA NOT NULL, id TEXT COLLATE \"C\" NOT NULL, PRIMARY KEY(t,ix,k));
@@ -121,6 +121,10 @@ impl Store {
             if u64::try_from(row.try_get::<_,i64>(1)?).ok() != Some(self.generation) {
                 return Err(RuntimeError::Generation("reader generation changed while reconnecting; reopen the engine".into()));
             }
+            self.calls.set(self.calls.get()+2);
+            if let Some(row) = self.client.query(super::managed_relations::SQL, &[&crate::managed_relations::TABLES])?.first() {
+                return Err(crate::managed_relations::refusal(row.get(0), row.get(1)));
+            }
             // Keep the validation pending after any mismatch or failed query.
             self.reader_binding = false;
         }
@@ -146,9 +150,10 @@ impl Store {
             Some(WriteMode::Serializable) => "BEGIN ISOLATION LEVEL SERIALIZABLE READ WRITE;",
         };
         let inner = super::flight::Session { client: &mut self.client, pending: begin.into(), started: false, done: false, settings_refused: false, checks: Vec::new() };
-        let tx = Tx { read_sessions: &self.read_sessions, read_sessions_installed: Cell::new(false), unified: self.unified, commit_warning: &self.commit_warning, inner: RefCell::new(inner),
+        let tx = Tx { durable_write: mode.is_some(), revisions: Cell::new(0), lifecycle: opening, read_sessions: &self.read_sessions, read_sessions_installed: Cell::new(false), unified: self.unified, commit_warning: &self.commit_warning, inner: RefCell::new(inner),
             bind_refused: Cell::new(false), program_deadline: Cell::new(deadline), read_cache: RefCell::new(super::read_plan::Answers::default()), pending_read: RefCell::new(None), receipt_cache: RefCell::new(None), placement_cache: RefCell::new(None), authority_cache: RefCell::new(None), commit_settings: Cell::new(false), literal_cache: RefCell::new(&mut self.literal_cache), cache: RefCell::new(&mut self.cache), calls: &self.calls, marked_reads: &self.marked_reads, page_reads: &self.page_reads, prefetch_rows: &self.prefetch_rows, prefetch_bytes: &self.prefetch_bytes,
             rows_cache: RefCell::new(super::prefetch::Cache::default()), prefetch_enabled: self.prefetch, head: Cell::new(None), serialized_head: Cell::new(false), tail: RefCell::new(super::tail::Tail::default()), group_head: Cell::new(None), group_tails: RefCell::new(Vec::new()), group_images: Default::default(), changes: Default::default(), savepoints: RefCell::new(Vec::new()) };
+        if opening { super::managed_relations::verify(&tx)?; }
         if self.unified && mode.is_some() {
             // Bootstrap is the sole exception: an absent owner relation is
             // installed in the successful opening transaction, never by readers.
@@ -264,7 +269,9 @@ impl Store {
     // Recovery checks the physical bootstrap before assuming any columns exist.
     // PostgreSQL enforces read-only access for this entire repeatable snapshot.
     pub(super) fn bootstrap_read_transaction(&mut self) -> Result<Tx<'_>, RuntimeError> {
-        self.begin(None, false)
+        let tx = self.begin(None, false)?;
+        super::managed_relations::verify(&tx)?;
+        Ok(tx)
     }
 
     // Parse/SQL PREPARE can retain relation locks until transaction end. Warm
@@ -387,6 +394,10 @@ impl Tx<'_> {
 }
 
 pub struct Tx<'a> {
+    durable_write: bool,
+    pub(super) revisions: Cell<u64>,
+    // @ref LLP 3000.009.001.000.002#6 — restored images can precede their index/cap population rebuild.
+    pub(super) lifecycle: bool,
     program_deadline: Cell<Option<std::time::Instant>>,
     pub(super) read_sessions: &'a Cell<bool>,
     pub(super) read_sessions_installed: Cell<bool>,
@@ -712,7 +723,17 @@ impl Tx<'_> {
         self.program_deadline.set(None);
         self.ensure_active()?;
         if self.inner.borrow().done { return Ok(()); }
+        // @ref LLP 3000.009.001.000.002#4.1 — solo administrative and legacy family writers join the same revision domain.
+        if self.unified && self.durable_write {
+            self.require_serialized_head_fence("commit durable revision")?;
+            if self.revisions.get() == 0 && self.group_head.get().is_none() {
+                self.defer_revision(1)?;
+            }
+        }
         self.flush_tail()?;
+        // Installer DDL (including event-trigger effects) and late activation
+        // callbacks share this transaction. Re-admit after its last writes.
+        if self.lifecycle { super::managed_relations::verify(&self)?; }
         let mut inner = self.inner.into_inner();
         if !self.commit_settings.get() {
             inner.pending.push_str("SET LOCAL statement_timeout = 0; SET LOCAL lock_timeout = 0;");
@@ -799,7 +820,8 @@ impl Rows for Tx<'_> {
         Ok(self.query("SELECT value FROM _sequences WHERE parent = $1 AND id = $2", &[&parent, &id])?.first().map_or(0, |r| r.get(0)))
     }
     fn set_sequence(&self, parent: &str, id: &str, value: i64) -> Result<(), RuntimeError> {
-        self.execute("INSERT INTO _sequences VALUES ($1, $2, $3) ON CONFLICT(parent, id) DO UPDATE SET value = EXCLUDED.value", &[&parent, &id, &value])?;
+        let affected = self.execute("INSERT INTO _sequences VALUES ($1, $2, $3) ON CONFLICT(parent, id) DO UPDATE SET value = EXCLUDED.value", &[&parent, &id, &value])?;
+        crate::rows::require_one(affected, "sequence upsert", parent, None)?;
         Ok(())
     }
     fn sequence_ids(&self, parent: &str) -> Result<Vec<String>, RuntimeError> {
@@ -1004,11 +1026,13 @@ impl Rows for Tx<'_> {
         let mut entries = 0;
         for crate::rows::IndexWrite { name, before, after } in keys {
             for key in before.iter().filter(|k| !after.contains(k)) {
-                self.execute("DELETE FROM i WHERE t = $1 AND ix = $2 AND k = $3", &[&table_name, &name, key])?;
+                let affected = self.execute("DELETE FROM i WHERE t = $1 AND ix = $2 AND k = $3", &[&table_name, &name, key])?;
+                if !self.lifecycle { crate::rows::require_one(affected, "index delete", table_name, Some(name))?; }
                 entries += 1;
             }
             for key in after.iter().filter(|k| !before.contains(k)) {
-                self.execute("INSERT INTO i VALUES ($1,$2,$3,$4)", &[&table_name, &name, key, &id])?;
+                let affected = self.execute("INSERT INTO i VALUES ($1,$2,$3,$4)", &[&table_name, &name, key, &id])?;
+                crate::rows::require_one(affected, "index insert", table_name, Some(name))?;
                 entries += 1;
             }
         }
@@ -1024,11 +1048,13 @@ impl Rows for Tx<'_> {
         let sql = if self.unified {
             "WITH refs AS (UPDATE _dormant_refs SET invalid=1 WHERE parent_t=$1 AND parent_id=$2 AND invalid=0 AND NOT(t=$1 AND id=$2)), cells AS (DELETE FROM _dormant_values WHERE t=$1 AND id=$2), images AS (DELETE FROM _dormant_rows WHERE t=$1 AND id=$2), narrowed AS (DELETE FROM _dormant_narrow_rows WHERE t=$1 AND id=$2), own_refs AS (DELETE FROM _dormant_refs WHERE t=$1 AND id=$2) DELETE FROM r WHERE t=$1 AND id=$2"
         } else { "DELETE FROM r WHERE t = $1 AND id = $2" };
-        self.execute(sql, &[&table_name, &id])?;
+        let affected = self.execute(sql, &[&table_name, &id])?;
+        crate::rows::require_one(affected, "row delete", table_name, None)?;
         let mut entries = 0;
         for (name, index) in &table.indexes {
             for key in stored_index_keys(table, index, old, id) {
-                self.execute("DELETE FROM i WHERE t = $1 AND ix = $2 AND k = $3", &[&table_name, name, &key])?;
+                let affected = self.execute("DELETE FROM i WHERE t = $1 AND ix = $2 AND k = $3", &[&table_name, name, &key])?;
+                if !self.lifecycle { crate::rows::require_one(affected, "index delete", table_name, Some(name))?; }
                 entries += 1;
             }
         }

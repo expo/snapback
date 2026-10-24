@@ -2,6 +2,9 @@
 use super::*;
 use crate::serve::tests::{Host, body, status};
 use std::sync::mpsc;
+#[cfg(feature = "postgres")]
+#[path = "serve_committer_intake_tests.rs"]
+mod intake_tests;
 
 const SOURCE: &str = "use personas alice\nuse identity\ntable rows:\n  n: int\n  read <- allow\n  insert <- allow\n  online only\nmutation add():\n  return insert rows { n: 1 }\nquery read():\n  return 1\ntable viewing:\n  principal: principal\n  unique principal\n  read <- allow\n  insert <- .principal = viewer\n  update <- .principal = viewer\n  ephemeral 30s\nmutation view():\n  upsert viewing[principal = viewer] { principal: viewer }\n";
 

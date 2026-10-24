@@ -25,7 +25,7 @@ SELECT s.principal,COALESCE(s.family,s.token_digest),s.kind,s.token_digest,s.exp
  (SELECT value FROM _meta WHERE key='worker:family:' || COALESCE(s.family,s.token_digest)),
  (SELECT value FROM _meta WHERE key='generation'),(SELECT value FROM _meta WHERE key='store_id'),
  (SELECT generation FROM _backend WHERE singleton),NULL::text,NULL::text,NULL::text,
- (SELECT seq FROM _head WHERE singleton),q.n
+ (SELECT seq FROM _head WHERE singleton),(SELECT revision FROM _head WHERE singleton),q.n
 FROM q LEFT JOIN sessions s ON s.token_digest=q.digest
 LEFT JOIN _principal_generations g ON g.principal=s.principal ORDER BY q.n"#) }; }
 const AUTH: &str = authority_sql!(
@@ -85,7 +85,7 @@ impl Tx<'_> {
         let mut grouped: Vec<Vec<super::store::Row>> =
             requests.iter().map(|_| Vec::new()).collect();
         for row in &sets[0].rows {
-            let n = row.get::<_, i64>(19) as usize;
+            let n = row.get::<_, i64>(20) as usize;
             if n >= requests.len() {
                 return Err(RuntimeError::Store(
                     "batch authority ordinal mismatch".into(),
@@ -94,7 +94,7 @@ impl Tx<'_> {
         }
         let mut sets = sets.into_iter();
         for row in sets.next().unwrap().rows {
-            grouped[row.get::<_, i64>(19) as usize].push(row);
+            grouped[row.get::<_, i64>(20) as usize].push(row);
         }
         let mut facts = Vec::new();
         for (n, rows) in grouped.into_iter().enumerate() {

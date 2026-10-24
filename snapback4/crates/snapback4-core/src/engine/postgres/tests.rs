@@ -17,6 +17,13 @@ mod foundation;
 mod plan_hygiene;
 mod release;
 
+// Interception is now refused before the narrower family shape validators.
+fn shape_code<'a>(ddl: &str, ordinary: &'a str) -> &'a str {
+    if ["CREATE TRIGGER", "CREATE CONSTRAINT TRIGGER", "CREATE RULE", "ENABLE ROW LEVEL SECURITY", "FORCE ROW LEVEL SECURITY", "FOREIGN KEY", "REFERENCES", "DEFERRABLE"].iter().any(|kind| ddl.contains(kind)) {
+        "SNAPBACK_MANAGED_RELATION_INTERCEPTION"
+    } else { ordinary }
+}
+
 #[test]
 fn maintained_columns_are_outside_postgres_evaluation() {
     let bound = snapback4_lang::compile(&[("schema.q".into(), include_str!("../../../../snapback4-lang/tests/fixtures/maintained-columns.q").into())]);
@@ -594,4 +601,4 @@ mod oracles;
 mod session_clock;
 pub(in crate::engine) mod maintained_columns;
 
-mod read_closure;
+pub(in crate::engine) mod read_closure;

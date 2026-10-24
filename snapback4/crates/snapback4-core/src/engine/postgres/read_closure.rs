@@ -580,10 +580,10 @@ impl Closure {
 }
 type Fact = (usize, String, Option<String>, Option<Vec<u8>>);
 fn array_payload(row: &super::store::Row) -> Result<Vec<Fact>, RuntimeError> {
-    let ids: Vec<i32> = row.try_get(19)?;
-    let keys: Vec<String> = row.try_get(20)?;
-    let images: Vec<Option<String>> = row.try_get(21)?;
-    let row_keys: Vec<Option<Vec<u8>>> = row.try_get(22)?;
+    let ids: Vec<i32> = row.try_get(20)?;
+    let keys: Vec<String> = row.try_get(21)?;
+    let images: Vec<Option<String>> = row.try_get(22)?;
+    let row_keys: Vec<Option<Vec<u8>>> = row.try_get(23)?;
     if ids.len() != keys.len() || ids.len() != images.len() || ids.len() != row_keys.len() {
         return Err(RuntimeError::Store("incomplete composed arrays".into()));
     }

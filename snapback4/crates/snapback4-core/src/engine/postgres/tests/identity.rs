@@ -410,7 +410,7 @@ fn identity_attach_refuses_incompatible_existing_tables() {
         );
         let error = match result { Ok(_) => panic!("attach admitted {drift}"), Err(error) => error };
         assert!(matches!(&error, crate::RuntimeError::Store(_)), "{error}");
-        assert!(error.to_string().contains(&format!("SNAPBACK_IDENTITY_SCHEMA: {table}:")), "{error}");
+        assert!(error.to_string().contains(super::shape_code(drift,&format!("SNAPBACK_IDENTITY_SCHEMA: {table}:"))) && error.to_string().contains(table), "{error}");
     }
 }
 

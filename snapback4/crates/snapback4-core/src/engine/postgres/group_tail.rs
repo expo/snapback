@@ -126,6 +126,8 @@ impl Tx<'_> {
         if tails.is_empty() {
             return Ok(());
         }
+        // @ref LLP 3000.009.001.000.002#4.1 — completed receipt-only members count too; aborted members have no tail slot.
+        self.defer_revision(tails.len())?;
         let mut commits = Vec::new();
         let mut log = Vec::new();
         let mut effects = Vec::new();

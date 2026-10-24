@@ -24,6 +24,8 @@ impl<'store> AssetLocation<'store> {
 }
 
 pub(crate) struct OpeningMetadata {
+    #[cfg(feature="postgres")]
+    pub native_digest: Option<String>,
     pub store_id: String,
     pub dev_effects: bool,
 }

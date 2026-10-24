@@ -127,7 +127,7 @@ impl PostgresEngine {
             .generation()
             .checked_add(1)
             .ok_or_else(|| RuntimeError::Generation("generation overflow".into()))?;
-        let tx = self.store.transaction(Some(WriteMode::Serialized))?;
+        let tx = self.store.attach_transaction(Some(WriteMode::Serialized))?;
         let shortened =
             super::super::through_activation::activate(&tx, &schema, Some(&self.schema), now)?;
         tx.execute("DELETE FROM i", &[])?;
