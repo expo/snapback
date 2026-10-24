@@ -1,3 +1,4 @@
+import { after as teardownAfter } from "./helpers/teardown.mjs";
 import { hangBudget } from './helpers/wait.mjs';
 // @ref LLP 3000.013.000#9 — real Chromium, a real dev server, createApp with no
 // device: a click survives page loss and executes at most once; no wasm is fetched.
@@ -28,7 +29,7 @@ mutation click():
 query total():
   return audit['audit'].total
 `);
-  t.after(() => rmSync(project, { recursive: true, force: true }));
+  teardownAfter(t, () => rmSync(project, { recursive: true, force: true }));
   const path = name => join(root, 'packages/snapback4/src', name);
   const witness = await launch({ sourceDir, watch: true, memory: true, unsafeDevDoors: true, seed: [{ table: 'audit', row: { id: 'audit', total: 0 } }], entrySource: `
 import { createApp } from '${path('app.ts')}';
@@ -75,7 +76,7 @@ window.refuseJournalCommits = () => {
   };
 };
 ` });
-  t.after(() => witness.close());
+  teardownAfter(t, () => witness.close());
   const { page, api: url } = witness, errors = [], wasm = [];
   page.on('pageerror', error => errors.push(error.message));
   page.on('request', request => { if (/\.wasm(\?|$)/.test(request.url())) wasm.push(request.url()); });

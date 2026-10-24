@@ -1,3 +1,4 @@
+import { after as teardownAfter } from "./helpers/teardown.mjs";
 import { captureStdout } from './helpers/server-output.mjs';
 import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
 // LLP 3000.018 §3.1: a composed local answer carries the server's refresh. Bob
@@ -53,7 +54,10 @@ for (const tier of ['wasm', 'process'])
     const exit = once(host, 'exit');
     let log = '', bob, alice;
     host.stdout.on('data', b => { log += b; }); host.stderr.on('data', b => { log += b; });
-    t.after(async () => { await alice?.close(); await bob?.close(); host.kill('SIGTERM'); await exit; rmSync(directory, { recursive: true, force: true }); });
+    teardownAfter(t, () => rmSync(directory, { recursive: true, force: true }));
+    teardownAfter(t, async () => { host.kill('SIGTERM'); await exit; });
+    teardownAfter(t, () => bob?.close());
+    teardownAfter(t, () => alice?.close());
     await until(() => { assert.equal(host.exitCode, null, log); return /http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/.test(readStdout()); }, 'server did not listen');
     const url = readStdout().match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)[0];
     const post = async (path, body, persona = 'alice') => (await fetch(url + path, { method: 'POST', headers: { 'x-snapback-persona': persona }, body: JSON.stringify(body) })).json();
@@ -72,14 +76,14 @@ for (const tier of ['wasm', 'process'])
     assert.equal((await bob.mutate({ kind: 'mutation', name: 'leave' }, { room: 'left' })).state, 'sent');
     await bob.sync();
     const watch = bob.observe({ kind: 'query', name: 'kept' }, { p: 'dev:alice' });
-    t.after(() => watch.close());
+    teardownAfter(t, () => watch.close());
     await until(() => watch.getSnapshot()?.data?.online === false, `the composed answer did not arrive: ${JSON.stringify(watch.getSnapshot())}`);
     assert.deepEqual(watch.getSnapshot().data.history.map(row => row.id).sort(), ['history-1', 'history-2'], 'the history is the retained copy');
     assert.ok(replies.length >= 1 && replies.every(reply => reply.refresh > 0), `the server answered its part with a refresh: ${JSON.stringify(replies.at(-1))}`);
     // Alice connects: the composed watch refreshes and turns.
     alice = createClient({ url, persona: 'alice', waitSeconds: 25 });
     const hers = alice.observe({ kind: 'query', name: 'kept' }, { p: 'dev:bob' });
-    t.after(() => hers.close());
+    teardownAfter(t, () => hers.close());
     await until(() => watch.getSnapshot()?.data?.online === true, `the composed mark stayed ${JSON.stringify(watch.getSnapshot())}`);
     assert.deepEqual(watch.getSnapshot().data.history.map(row => row.id).sort(), ['history-1', 'history-2'], 'the refresh kept the retained history');
   });

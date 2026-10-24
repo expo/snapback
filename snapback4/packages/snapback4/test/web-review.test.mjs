@@ -1,3 +1,4 @@
+import { after as teardownAfter } from "./helpers/teardown.mjs";
 import { hangBudget } from './helpers/wait.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -20,7 +21,7 @@ query rows():
 query all(c: cursor ?):
   return constructor first 100 after c
 `);
-  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  teardownAfter(t, () => rmSync(dir, { recursive: true, force: true }));
   const mutant = process.env.SNAPBACK4_WEB_REVIEW_MUTANT;
   const sourceOverrides = {};
   const path = name => join(root, 'packages/snapback4/src', name);
@@ -51,7 +52,7 @@ import { createLocalClient as rawClient } from '${path('local.ts')}';
 import { indexedDbStore as preAqStore } from '${join(root, 'packages/snapback4/test/fixtures/pre-aq-f9620c815/web-idb.ts')}';
 Object.assign(window, { acquisition, prepareClient, rawClient, preAqStore });
 ` });
-  t.after(() => witness.close());
+  teardownAfter(t, () => witness.close());
   const { page, api } = witness;
   const errors = []; page.on('pageerror', error => errors.push(error.message));
   await t.test('delivery guard aborts the actual IndexedDB transaction before stale debt commits', async () => {

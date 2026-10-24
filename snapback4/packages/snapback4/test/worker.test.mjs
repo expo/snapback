@@ -1,3 +1,4 @@
+import { after as teardownAfter } from "./helpers/teardown.mjs";
 import { captureStdout } from './helpers/server-output.mjs';
 import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
 // The worker's door on the real wire: a service token from the CLI, a
@@ -207,7 +208,7 @@ async function actionFixture(t, { worker, source = actionSource, flags = [] } = 
     await Promise.race([exited, sleep(4000)]);
     if (child.exitCode == null && child.signalCode == null) { child.kill("SIGKILL"); await exited; }
   };
-  t.after(async () => { stop.abort(); await Promise.all(workers.map(w => w.done)); for (const client of clients) await client.close(); await stopServer(); rmSync(directory, { recursive: true, force: true }); });
+  teardownAfter(t, async () => { stop.abort(); await Promise.all(workers.map(w => w.done)); for (const client of clients) await client.close(); await stopServer(); rmSync(directory, { recursive: true, force: true }); });
   await until(() => { if (child.exitCode != null) throw Error(safeLog()); return url; });
   const headers = credential => ({ "content-type": "application/json", ...(typeof credential === "string" ? { authorization: `Bearer ${credential}` } : { "x-snapback-persona": "alice" }) });
   const post = async (path, body, credential, lease) => {
@@ -239,7 +240,7 @@ for (const resolvable of [true, false]) test(`provider test double: killed accep
     }
   });
   provider.listen(0, "127.0.0.1"); await once(provider, "listening");
-  t.after(async () => { provider.closeAllConnections(); await new Promise(resolve => provider.close(resolve)); });
+  teardownAfter(t, async () => { provider.closeAllConnections(); await new Promise(resolve => provider.close(resolve)); });
   const providerUrl = `http://127.0.0.1:${provider.address().port}`;
   assert.equal((await f.post("/m/notify", { id: "provider-crash-fixture", args: {} })).state, "sent");
   const worker = spawn(process.execPath, ["--input-type=module", "-e", `
@@ -267,7 +268,7 @@ for (const resolvable of [true, false]) test(`provider test double: killed accep
   const exited = once(worker, "exit");
   // Never include the child environment or private claim token in diagnostics.
   let stderr = ""; worker.stderr.on("data", data => { stderr += data; });
-  t.after(async () => { if (worker.exitCode == null && worker.signalCode == null) worker.kill("SIGKILL"); await exited; });
+  teardownAfter(t, async () => { if (worker.exitCode == null && worker.signalCode == null) worker.kill("SIGKILL"); await exited; });
   const delivered = await Promise.race([
     once(worker, "message").then(([message]) => message),
     exited.then(() => { throw Error(`provider fixture worker exited before acceptance (${stderr.includes("refused") ? "refused" : "unexpected exit"})`); }),
@@ -634,7 +635,7 @@ test("effect settlement still reports a refusal other than lease loss", async ()
 
 for (const replay of [true, false]) test(`W7r1 runWorker and doctor observe ${replay ? "suppressed" : "deferred"} presence effects`, { timeout: hangBudget(13) }, async t => {
   const settlementReply = Promise.withResolvers();
-  t.after(() => settlementReply.resolve());
+  teardownAfter(t, () => settlementReply.resolve());
   const f = await actionFixture(t, { flags: replay ? ["--replay"] : [], source: `use personas alice
  effect notify
  table notes:
@@ -649,7 +650,7 @@ for (const replay of [true, false]) test(`W7r1 runWorker and doctor observe ${re
      emit notify {recipient: viewer}
  `.replace(/^ /gm, "") });
   const db = new DatabaseSync(join(f.directory, ".snapback4/store.sqlite"), { readOnly: true });
-  t.after(() => db.close());
+  teardownAfter(t, () => db.close());
   const dependencies = () => db.prepare("SELECT COUNT(*) AS n FROM _effect_presence").get().n;
   const effects = () => db.prepare("SELECT state, attempts FROM _outbox").all();
   await (await fetch(`${f.url}/changes?wait=0`, { headers: { "x-snapback-persona": "alice" } })).json();
@@ -740,7 +741,7 @@ await worker.done; writeFileSync(new URL('../stopped', import.meta.url), 'yes');
   const readStdout = captureStdout(child);
   const exited = once(child, "exit"); let log = "", url;
   for (const stream of [child.stdout, child.stderr]) stream.on("data", chunk => { log += chunk; url ??= readStdout().match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0]; });
-  t.after(async () => { if (child.exitCode == null && child.signalCode == null) { child.kill("SIGTERM"); await Promise.race([exited, sleep(4000)]); } if (child.exitCode == null && child.signalCode == null) { child.kill("SIGKILL"); await exited; } rmSync(directory, { recursive: true, force: true }); });
+  teardownAfter(t, async () => { if (child.exitCode == null && child.signalCode == null) { child.kill("SIGTERM"); await Promise.race([exited, sleep(4000)]); } if (child.exitCode == null && child.signalCode == null) { child.kill("SIGKILL"); await exited; } rmSync(directory, { recursive: true, force: true }); });
   await until(() => { if (child.exitCode != null) throw Error(log); return url; });
   const starts = () => { try { return readFileSync(join(directory, "starts.jsonl"), "utf8").trim().split("\n").map(JSON.parse); } catch { return []; } };
   await until(() => starts().length === 1);
@@ -750,7 +751,7 @@ await worker.done; writeFileSync(new URL('../stopped', import.meta.url), 'yes');
   if (process.platform === "darwin") allowed.add("__CF_USER_TEXT_ENCODING");
   assert.ok(starts()[0].keys.every(key => allowed.has(key)), JSON.stringify(starts()[0].keys));
   const client = createClient({ url, session: { principal: "service:caller", kind: "service", token: minted.stdout.trim(), expiresAt: Date.now() + 86400000 } });
-  t.after(() => client.close());
+  teardownAfter(t, () => client.close());
   assert.equal((await client.act(action("echo"), { message: "first" })).result.message, "first");
   process.kill(starts()[0].pid, "SIGKILL");
   await until(() => starts().length === 2);
@@ -829,7 +830,7 @@ test("real HTTP redelivery after a lost settlement acknowledgement replays the d
     }, onError() {},
   });
   f.workers.push(first);
-  t.after(() => firstStop.abort());
+  teardownAfter(t, () => firstStop.abort());
   await first.done;
   assert.equal(calls, 1);
   assert.equal((await listEffects(f.url, f.token, "running")).length, 1);

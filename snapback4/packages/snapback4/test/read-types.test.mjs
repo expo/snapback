@@ -655,8 +655,8 @@ type Row = { id: string; name: string };
 declare const api: { list: Query<{ c?: Cursor | null }, Row[]> };
 export function List({ more }: { more: UsePage<typeof api.list> }) {
   const page = usePage(api.list, {});
-  const names: string = matchRead(page, { ...otherwiseAll(() => ''), present: rows => rows.map(row => row.name).join(), partial: rows => rows[0]?.name ?? '' });
-  const count: number = matchRead(more, { loading: () => 0, denied: () => 0, absent: () => 0, partial: rows => rows.length, present: rows => rows.length });
+  const names: string = matchRead(page, { ...otherwiseAll(() => ''), denied: why => why.message, present: rows => rows.map(row => row.name).join(), partial: rows => rows[0]?.name ?? '' });
+  const count: number = matchRead(more, { loading: () => 0, denied: (why, read) => { const code: string = why.code; const message: string = read.denied.message; return code.length + message.length; }, absent: () => 0, partial: rows => rows.length, present: rows => rows.length });
   return <p>{names}{count}</p>;
 }
 `, undefined, 'tsx');

@@ -1,6 +1,6 @@
 # Snapback 4 acquisition/retained-history fixture cleanup can fail ENOTEMPTY and leave the suite waiting
 
-Status: Open. Scope: test fixture lifecycle, inherited at `4fd338de5`.
+Status: Resolved (DX9, 2026-10-24). Scope: test fixture lifecycle, inherited at `4fd338de5`.
 Found during lane BP round 0's required single `scripts/test.sh` run on Linux.
 
 The client test `process: a genuinely empty partition at sequence zero is
@@ -37,8 +37,8 @@ acquisition shards. Do not hide the race by increasing a timeout or swallowing
 arbitrary filesystem errors.
 
 Evidence and final suite/isolated-case outcomes:
-[BP failure accounting](../snapback4/reports/20260929-bp-foreground-first/FAILURES.md),
-[full report](../snapback4/reports/20260929-bp-foreground-first/REPORT.md).
+[BP failure accounting](../../snapback4/reports/20260929-bp-foreground-first/FAILURES.md),
+[full report](../../snapback4/reports/20260929-bp-foreground-first/REPORT.md).
 Process identities and intervention times are retained in the report's
 validation evidence. Fixing this inherited fixture is outside BP's explicit
 stop-after-non-reproduction scope.
@@ -79,8 +79,8 @@ fails, stop/reap writers before removing their fixture directory, and regress
 the leftover-handle/file-process exit behavior under contention. Preserve all
 retained-history assertions and case counts.
 
-Evidence: [WD report](../snapback4/reports/20261003-wd-witness-cleanup-deadline/REPORT.md),
-[intervention and diagnosis](../snapback4/reports/20261003-wd-witness-cleanup-deadline/retained-suite-stall.json).
+Evidence: [WD report](../../snapback4/reports/20261003-wd-witness-cleanup-deadline/REPORT.md),
+[intervention and diagnosis](../../snapback4/reports/20261003-wd-witness-cleanup-deadline/retained-suite-stall.json).
 The report's external evidence index retains the complete suite output,
 pre-intervention log, native stack samples and isolated controls.
 
@@ -112,3 +112,20 @@ removing its directory, and make cleanup continue after a failing step. `t.after
 registration order, so register removal last or combine both into one hook. Evidence:
 `snapback4/reports/20261023-publication-0.4.39/kit/isolated/dr2/`, `kit/iso-social.log`, and
 `attempt-2-publication-dry-run.log.gz`.
+
+## DX9 repair — 2026-10-24
+
+The social-starter and acquisition fixtures now register one teardown hook via
+`test/helpers/teardown.mjs`. It drains resource callbacks in reverse acquisition
+order, attempts every callback after failures, and reports an AggregateError.
+The server stop/reap therefore precedes scratch removal; removal cannot skip
+the kill. Acquisition also handles startup failure before a child exists.
+The retained-history fixture already has a combined client/kill/reap/remove
+hook. The DX9 workstream report records the client-wide hook-order audit and
+scoped verification, including an injected cleanup failure regression. Mac
+runs are skipped by the workstream brief.
+
+Resolution evidence: acquisition/social/teardown initial 65/65 pass; the seven
+additional audited files pass 163/163; injected close and removal failures
+still execute kill/reap. Subscription-pressure closes page drivers before
+browser teardown and passes 2/2. Final scoped evidence is in the DX9 report.

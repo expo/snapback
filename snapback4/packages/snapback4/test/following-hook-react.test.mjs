@@ -1,3 +1,4 @@
+import { after as teardownAfter } from "./helpers/teardown.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {mkdtempSync,mkdirSync,readFileSync,writeFileSync,rmSync} from 'node:fs';
@@ -12,7 +13,7 @@ import {hangBudget} from './helpers/wait.mjs';
 test('generated Following hook mounts independent consumers, preparing is not empty, and unmount releases only its consumer',{timeout:hangBudget(30)},async t=>{
   const dir=mkdtempSync(join(tmpdir(),'sb4-fh-react-'));mkdirSync(join(dir,'snapback'));
   writeFileSync(join(dir,'snapback/schema.q'),'use personas reader\n'+readFileSync(join(root,'crates/snapback4-lang/tests/fixtures/following-view.q'),'utf8'));
-  t.after(()=>rmSync(dir,{recursive:true,force:true}));
+  teardownAfter(t, ()=>rmSync(dir,{recursive:true,force:true}));
   const req=createRequire(join(root,'packages/snapback4/package.json'));
   const fixture=await launch({sourceDir:join(dir,'snapback'),seed:[],entrySource:`
 import {createElement as h,StrictMode,useState} from '${req.resolve('react')}';
@@ -26,7 +27,7 @@ window.boot=async(url)=>{
  function Feed({name}){const value=useFollowing(op,{c:null});window.states[name]=value;window.phases.push(value.phase);return h('div',{'data-feed':name},value.phase==='preparing'?'Preparing':value.items.map(i=>i.id).join(','));}
  function App(){const [first,setFirst]=useState(true);window.removeFirst=()=>setFirst(false);return h(SnapbackProvider,{client},first&&h(Feed,{name:'first'}),h(Feed,{name:'second'}));}
  const host=document.createElement('main');document.body.append(host);const root=createRoot(host);root.render(h(StrictMode,null,h(App)));window.finish=async()=>{root.unmount();await client.close();};
-};`});t.after(()=>fixture.close());
+};`});teardownAfter(t, ()=>fixture.close());
   const mutate=async(name,args)=>{const r=await fetch(fixture.api+'/m/'+name,{method:'POST',headers:{'x-snapback-persona':'reader','content-type':'application/json'},body:JSON.stringify({args})}).then(r=>r.json());assert.equal(r.state,'sent',JSON.stringify(r))};
   for(let n=0;n<25;n++)await mutate('post',{postId:`own-${n}`,parentId:null});
   const errors=[];fixture.page.on('pageerror',e=>errors.push(String(e)));
@@ -65,7 +66,7 @@ test('dropped loadMore units use bounded jittered backoff, including observation
     return{phase:'page',items:[{kind:'shaped',id,at:body.token?1:2,value:{id},authority:body.token?[]:[{table:'a',id:'a',fields:['id']},{table:'b',id:'b',fields:['id']}]}],next:body.token?null:'next'};
   });
   const history=new Following(client,{kind:'query',name:'cards',following:{declaration:'feed',pageSize:1}},{});
-  const stop=history.subscribe(()=>{});t.after(stop);
+  const stop=history.subscribe(()=>{});teardownAfter(t, stop);
   const tick=async ms=>{t.mock.timers.tick(ms);for(let n=0;n<30;n++)await Promise.resolve()};
   await tick(0);assert.equal(history.getSnapshot().items.length,1);
   fail=true;history.loadMore();await tick(0);
@@ -101,7 +102,7 @@ for(const padding of ['', 'x'.repeat(65000)])test(`changing live windows obey th
     })};
   });
   const history=new Following(client,{kind:'query',name:'cards',following:{declaration:'feed',pageSize:40}},{padding});
-  t.after(history.subscribe(()=>{}));
+  teardownAfter(t, history.subscribe(()=>{}));
   t.mock.timers.tick(0);for(let n=0;n<50;n++)await Promise.resolve();
   const state=history.getSnapshot();assert.equal(state.phase,'page');
   assert.equal(slices,padding?1:3);assert.equal(state.items.length,padding?40:100);

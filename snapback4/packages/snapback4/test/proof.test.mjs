@@ -410,3 +410,23 @@ test("process-group cleanup waits through a transient EPERM", async () => {
   try { await run.closed; assert.ok(probes >= 2); }
   finally { process.kill = originalKill; await stopChild(run.child); rmSync(cwd, { recursive: true, force: true }); }
 });
+
+test("DX9 serveUntilSignal keeps probe alive and reaps owned hosts on TERM", {timeout:20000}, async t => {
+  const cwd=mkdtempSync(join(tmpdir(),"sb4-probe-signal-"));
+  mkdirSync(join(cwd,"dist"));writeFileSync(join(cwd,"dist/index.html"),"probe");
+  const driver=join(cwd,"probe.mjs");
+  writeFileSync(driver,`import {startStatic,serveUntilSignal} from ${JSON.stringify(new URL('../dist/proof.js',import.meta.url).href)};
+const host=await startStatic('dist');
+const held=serveUntilSignal([host]);
+console.log(JSON.stringify({url:host.url,pid:host.pid}));
+await held;`);
+  const child=spawn(process.execPath,[driver],{cwd,stdio:['ignore','pipe','pipe']});
+  const closed=new Promise(resolve=>child.once('close',(code,signal)=>resolve({code,signal})));
+  t.after(async()=>{try {if(child.exitCode===null&&child.signalCode===null){child.kill('SIGKILL');await closed;}}finally{rmSync(cwd,{recursive:true,force:true});}});
+  let output='',errors='';child.stdout.on('data',bytes=>output+=bytes);child.stderr.on('data',bytes=>errors+=bytes);
+  const host=await waitForServer(()=>output.includes('\n')?JSON.parse(output.trim()):null,Boolean,{timeoutMs:10000,label:'probe JSON'});
+  await new Promise(resolve=>setTimeout(resolve,150));assert.equal(child.exitCode,null,errors);
+  assert.equal(await (await fetch(host.url)).text(),'probe');
+  child.kill('SIGTERM');assert.deepEqual(await bounded(closed,10000,'probe signal shutdown'),{code:0,signal:null},errors);
+  await assert.rejects(fetch(host.url));
+});

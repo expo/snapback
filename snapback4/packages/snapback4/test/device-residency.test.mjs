@@ -1,3 +1,4 @@
+import { after as teardownAfter } from "./helpers/teardown.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, mkdtempSync, rmSync } from "node:fs";
@@ -35,7 +36,7 @@ test("web residency reconciles committed UTF-8 bytes through prediction, rollbac
   const opener = webDevice({ wasm, persist });
   let core = await opener.open(t.name, backend);
   const { memory: heap } = await initWasm({ module_or_path: wasm });
-  t.after(() => core.close());
+  teardownAfter(t, () => core.close());
   async function verify() {
     const loaded = loads;
     const report = ok(await core.call({ op: "residency" }));
@@ -82,7 +83,7 @@ test("client residency works offline and fences a closed or retired client", asy
   const opener = webDevice({ wasm, persist: memoryPersistence() });
   const client = await createLocalClient({ url: "http://offline.invalid", persona: "alice", fetch: async () => { throw Error("offline"); },
     device: { open: () => opener.open(t.name, backend) } });
-  t.after(() => client.close());
+  teardownAfter(t, () => client.close());
   assert.equal((await client.residency()).tables.messages.rows, 0);
   const online = createClient({ url: "http://offline.invalid", persona: "alice", fetch: async () => { throw Error("offline"); } });
   assert.equal(await online.residency(), null); await online.close();
@@ -103,11 +104,12 @@ test("public client residency reads the native process store offline", async t =
   const opener = processDevice({ dir, binary: fileURLToPath(new URL("../../../target/debug/snapback4", import.meta.url)),
     spawn: (...args) => child = spawn(...args) });
   const core = await opener.open("native-residency", backend);
-  t.after(async () => { await core.close(); rmSync(dir, { recursive: true, force: true }); });
+  teardownAfter(t, () => rmSync(dir, { recursive: true, force: true }));
+  teardownAfter(t, () => core.close());
   ok(await core.call(snapshot(events)));
   const client = await createLocalClient({ url: "http://offline.invalid", persona: "alice", fetch: async () => { throw Error("offline"); },
     device: { open: async () => core } });
-  t.after(() => client.close());
+  teardownAfter(t, () => client.close());
   const report = await client.residency();
   assert.equal(report.tables.messages.rows, 1);
   assert.ok(report.tables.messages.bytes >= Buffer.byteLength("é🦀"));
@@ -119,7 +121,7 @@ test("public client residency reads the native process store offline", async t =
   assert.equal(report.wasmHeapBytes, undefined);
   const other = await processDevice({ dir, binary: fileURLToPath(new URL("../../../target/debug/snapback4", import.meta.url)) })
     .open("native-residency", backend);
-  t.after(() => other.close());
+  teardownAfter(t, () => other.close());
   const next = structuredClone(backend);
   next.generation += 1;
   next.schema.tables.widgets = next.schema.tables.messages;

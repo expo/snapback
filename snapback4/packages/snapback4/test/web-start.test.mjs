@@ -1,3 +1,4 @@
+import { after as teardownAfter } from "./helpers/teardown.mjs";
 import { hangBudget } from './helpers/wait.mjs';
 // Real Chromium navigation: admission is asserted in the click's own stack,
 // then a new document recovers the original ID through IndexedDB and /m.
@@ -44,7 +45,7 @@ test('web startup: immediate admin navigation, synchronous refusals and acquisit
   const project = mkdtempSync(join(tmpdir(), 'sb4-web-start-'));
   const sourceDir = join(project, 'snapback'); mkdirSync(sourceDir);
   writeFileSync(join(sourceDir, 'schema.q'), source);
-  t.after(() => rmSync(project, { recursive: true, force: true }));
+  teardownAfter(t, () => rmSync(project, { recursive: true, force: true }));
   const checked = spawnSync(binary(), ['check'], { cwd: project, encoding: 'utf8' });
   assert.equal(checked.status, 0, checked.stdout + checked.stderr);
   const sourceOverrides = process.env.SNAPBACK4_WEB_START_OLD_GUARD === '1'
@@ -86,7 +87,7 @@ window.mountProgress = (app) => {
   createRoot(target).render(h(AppProvider, { app }, h(Status)));
 };
 ` });
-  t.after(() => witness.close());
+  teardownAfter(t, () => witness.close());
   const { page, api } = witness;
   const errors = []; page.on('pageerror', error => errors.push(error.message));
   const signed = await fetch(api + '/auth/guest', { method: 'POST' }).then(r => r.json());

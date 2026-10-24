@@ -1,3 +1,4 @@
+import { after as teardownAfter } from "./helpers/teardown.mjs";
 import { waitFor as awaitState } from './helpers/wait.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -28,7 +29,7 @@ async function member(url, principal) {
 }
 
 test('wire stamps successes and refusals on sync, changes, query, mutation and session endpoints', async t => {
-  const f = await devServer({ seed: [], extraSource, clockOffset: '+25h' }); t.after(() => f.close());
+  const f = await devServer({ seed: [], extraSource, clockOffset: '+25h' }); teardownAfter(t, () => f.close());
   const began = Date.now();
   let revision;
   const stamped = response => {
@@ -64,12 +65,12 @@ test('wire stamps successes and refusals on sync, changes, query, mutation and s
 });
 
 for (const tier of ['web', 'native']) test(`${tier}: a legacy admission keeps its floor through upgrade, retirement and rollback`, async t => {
-  const dir = mkdtempSync(join(tmpdir(), 'sb4-legacy-clock-')); t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const dir = mkdtempSync(join(tmpdir(), 'sb4-legacy-clock-')); teardownAfter(t, () => rmSync(dir, { recursive: true, force: true }));
   const persist = memoryPersistence();
   const raw = tier === 'web' ? webDevice({ wasm, persist }) : processDevice({ dir, binary: binary() });
   const device = raw;
   let wall = 1_004_000, core = await device.open('legacy-clock', { initial_backend: modelBackend });
-  t.after(() => core.close());
+  teardownAfter(t, () => core.close());
   await core.close();
   // Build the old persisted shape directly: current enqueue must write a floor.
   const entry = { id: 'legacy', seq: 1, op: 'write', args: { hiddenHandle: false, refuse: false },
@@ -101,11 +102,11 @@ test('web orphan recovery after attachment preserves its admission floor through
   const later = { ...entry, id: 'orphan-later', seq: 2, now: 1_004_000 };
   await persist.save(orphan, [{ s: 'm', k: 'device:store_id', v: 'clock-store' },
     ...[entry, later].map(e => ({ s: 'o', k: e.id, v: JSON.stringify(e) }))]);
-  const held = await persist.claim(orphan, false); t.after(() => held.release());
+  const held = await persist.claim(orphan, false); teardownAfter(t, () => held.release());
   const device = webDevice({ wasm, persist: { ...persist, async save(store, changes) {
     batches.push({ store, changes }); await persist.save(store, changes);
   } } });
-  let wall = 1_000_000, core = await device.open(name, { initial_backend: modelBackend }); t.after(() => core.close());
+  let wall = 1_000_000, core = await device.open(name, { initial_backend: modelBackend }); teardownAfter(t, () => core.close());
   const observe = { op: 'observe_store', page: { snapshot: false, generation: 1, events: [], watermark: 0, more: false, store_id: 'clock-store', requested_watermark: 0 } };
   assert.equal((await core.call(observe)).denied, undefined);
   await core.call({ op: 'set_meta', key: 'server-clock-floor', value: '1002000' });
@@ -134,7 +135,7 @@ test('web orphan recovery after attachment preserves its admission floor through
 });
 
 test('a DeviceCore backfill refusal blocks startup without sending or retiring entries, then retries', async t => {
-  const f = await devServer({ seed: [], extraSource }); t.after(() => f.close());
+  const f = await devServer({ seed: [], extraSource }); teardownAfter(t, () => f.close());
   await member(f.api, 'dev:alice');
   const persist = memoryPersistence(), device = webDevice({ wasm, persist }), requests = [], retirements = [];
   const name = `snapback4-${encodeURIComponent(`${f.api}:dev:alice`)}`;
@@ -155,7 +156,7 @@ test('a DeviceCore backfill refusal blocks startup without sending or retiring e
     if (path === '/changes') return new Promise((_, reject) => init.signal.addEventListener('abort', () => reject(Error('closed')), { once: true }));
     return fetch(input, init);
   } };
-  t.after(async () => { await client?.close(); });
+  teardownAfter(t, async () => { await client?.close(); });
   client = await createLocalClient(options); await client.close(); client = undefined;
   const entry = { id: 'legacy-refusal', seq: 1, op: 'media.sendClock', args: { conversationId: 'room', body: 'recovered after refusal' },
     viewer: 'dev:alice', now: Date.now() + 4000, new_ids: [], predicted: [], predictable: false };
@@ -181,9 +182,9 @@ test('a DeviceCore backfill refusal blocks startup without sending or retiring e
 });
 
 test('native offline reopen restores legacy offset without issuedOffset or admissions and retains the session', async t => {
-  const f = await devServer({ seed: [], extraSource, clockOffset: '-31d' }); t.after(() => f.close());
+  const f = await devServer({ seed: [], extraSource, clockOffset: '-31d' }); teardownAfter(t, () => f.close());
   const signed = await guest(f.api); assert.equal(signed.ok, true);
-  const dir = mkdtempSync(join(tmpdir(), 'sb4-legacy-offset-')); t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const dir = mkdtempSync(join(tmpdir(), 'sb4-legacy-offset-')); teardownAfter(t, () => rmSync(dir, { recursive: true, force: true }));
   const device = processDevice({ dir, binary: binary() }), sessions = memorySessionStore();
   let offline = false, core, client, deletions = 0, onlineCalls = 0;
   const remove = sessions.delete;
@@ -196,7 +197,7 @@ test('native offline reopen restores legacy offset without issuedOffset or admis
       return fetch(input, init);
     },
   };
-  t.after(async () => { await client?.close(); });
+  teardownAfter(t, async () => { await client?.close(); });
   client = await createLocalClient({ ...options, session: signed.session });
   assert.deepEqual((await core.call({ op: 'queued' })).ok, []);
   assert.equal((await core.call({ op: 'meta', key: 'server-clock-floor' })).ok, null);
@@ -216,8 +217,8 @@ test('native offline reopen restores legacy offset without issuedOffset or admis
 });
 
 test('a real held heartbeat poll learns clock advance from its final body', async t => {
-  const f = await devServer({ seed: [], extraSource }); t.after(() => f.close());
-  const clock = new ServerClock(), aborter = new AbortController(); t.after(() => aborter.abort());
+  const f = await devServer({ seed: [], extraSource }); teardownAfter(t, () => f.close());
+  const clock = new ServerClock(), aborter = new AbortController(); teardownAfter(t, () => aborter.abort());
   const headers = { 'x-snapback-persona': 'alice' };
   const probe = await fetch(f.api + '/probe', { headers }).then(r => r.json());
   let headersReceived;
@@ -241,11 +242,11 @@ test('a real held heartbeat poll learns clock advance from its final body', asyn
 });
 
 for (const [clockOffset, staleLast] of [['+25h', false], ['-31d', false], ['-31d', true]]) test(`native JSON bridge shares device time and restores offline (${clockOffset}${clockOffset === '-31d' ? ', 1500ms startup responses' : ''}${staleLast ? ', non-admission last' : ''})`, async t => {
-  const f = await devServer({ seed: [], extraSource, clockOffset }); t.after(() => f.close());
+  const f = await devServer({ seed: [], extraSource, clockOffset }); teardownAfter(t, () => f.close());
   const signed = await guest(f.api); assert.equal(signed.ok, true, JSON.stringify(signed));
   await member(f.api, signed.session.principal);
   if (clockOffset === '-31d') assert.ok(signed.session.expiresAt < Date.now(), 'wall time alone would falsely expire this valid session');
-  const dir = mkdtempSync(join(tmpdir(), 'sb4-native-clock-')); t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const dir = mkdtempSync(join(tmpdir(), 'sb4-native-clock-')); teardownAfter(t, () => rmSync(dir, { recursive: true, force: true }));
   const sessions = memorySessionStore(), observed = [], slowPaths = [];
   let deletions = 0;
   const removeSession = sessions.delete;
@@ -283,7 +284,7 @@ for (const [clockOffset, staleLast] of [['+25h', false], ['-31d', false], ['-31d
       }, close: async () => { closedCores++; await core.close(); } };
     } },
   };
-  t.after(async () => { await client?.close(); });
+  teardownAfter(t, async () => { await client?.close(); });
   client = await createLocalClient(options);
   if (clockOffset === '-31d') assert.deepEqual(slowPaths, ['/auth/refresh', '/schema']);
   assert.equal(deletions, 0, 'valid thirty-day credentials survive slow negative-offset startup');

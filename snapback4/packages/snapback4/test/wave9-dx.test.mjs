@@ -1,3 +1,4 @@
+import { after as teardownAfter } from "./helpers/teardown.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, symlinkSync, rmSync, existsSync } from 'node:fs';
@@ -40,7 +41,7 @@ async function dev(cwd) {
 }
 for (const identity of ['use personas alice', 'use identity password']) test(`exported ${identity} starter witnesses sent twice, refuses failures, and compiles`, { timeout: 120000 }, async t => {
   const dir = mkdtempSync(join(root, 'target/dx-web-'));
-  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  teardownAfter(t, () => rmSync(dir, { recursive: true, force: true }));
   mkdirSync(join(dir, 'snapback')); writeFileSync(join(dir, 'snapback/schema.q'), source(identity));
   success(run(bin, ['init', '--web'], dir));
   symlinkSync(join(root, 'node_modules'), join(dir, 'node_modules'), 'dir');
@@ -56,7 +57,7 @@ for (const identity of ['use personas alice', 'use identity password']) test(`ex
   success(run(bin, ['check'], dir));
   success(run(join(root, 'node_modules/.bin/tsc'), ['--noEmit'], dir));
   success(run(join(root, 'node_modules/.bin/vite'), ['build'], dir));
-  const server = await dev(dir); t.after(server.close);
+  const server = await dev(dir); teardownAfter(t, server.close);
   const password = 'proof-only-password';
   const email = 'proof@example.test';
   if (identity.includes('password')) {
@@ -98,7 +99,7 @@ for (const identity of ['use personas alice', 'use identity password']) test(`ex
 });
 
 for (const pm of ['npm', 'bun', 'pnpm']) test(`upgrade ${pm}: one version, exact pins and preserved sections`, t => {
-  const dir = mkdtempSync(join(tmpdir(), 'dx-upgrade-')); t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const dir = mkdtempSync(join(tmpdir(), 'dx-upgrade-')); teardownAfter(t, () => rmSync(dir, { recursive: true, force: true }));
   mkdirSync(join(dir, 'tools'));
   writeFileSync(join(dir, 'package.json'), JSON.stringify({ packageManager: `${pm}@1.0.0`, dependencies: { snapback4: '0.4.24' }, devDependencies: { 'snapback4-expo': '0.4.24', unrelated: '1.0.0' } }));
   mkdirSync(join(dir, 'package'));
@@ -127,7 +128,7 @@ fs.writeFileSync('package.json', JSON.stringify(pkg));
 });
 
 test('witness and upgrade input refusals are early and actionable', t => {
-  const dir = mkdtempSync(join(tmpdir(), 'dx-refusal-')); t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const dir = mkdtempSync(join(tmpdir(), 'dx-refusal-')); teardownAfter(t, () => rmSync(dir, { recursive: true, force: true }));
   success(run(bin, ['witness', 'web', '--help'], dir));
   const missing = run(bin, ['witness', 'web'], dir, { SNAPBACK4_CHROMIUM: '/no-such-chromium' });
   assert.equal(missing.status, 1); assert.match(missing.stderr, /E_WITNESS_BROWSER.*SNAPBACK4_CHROMIUM/);
@@ -135,7 +136,7 @@ test('witness and upgrade input refusals are early and actionable', t => {
 });
 
 for (const identity of ['use identity password', 'use personas alice']) test(`Expo ${identity} emits a compiling online client for every platform`, t => {
-  const dir = mkdtempSync(join(root, 'target/dx-expo-')); t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const dir = mkdtempSync(join(root, 'target/dx-expo-')); teardownAfter(t, () => rmSync(dir, { recursive: true, force: true }));
   mkdirSync(join(dir, 'snapback')); writeFileSync(join(dir, 'snapback/schema.q'), source(identity));
   success(run(bin, ['init', '--expo'], dir));
   symlinkSync(join(root, 'node_modules'), join(dir, 'node_modules'), 'dir');
@@ -148,13 +149,13 @@ for (const identity of ['use identity password', 'use personas alice']) test(`Ex
 });
 
 test('witness stops its owned backend when interrupted before readiness', { timeout: 15000 }, async t => {
-  const dir = mkdtempSync(join(tmpdir(), 'dx-startup-')); t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const dir = mkdtempSync(join(tmpdir(), 'dx-startup-')); teardownAfter(t, () => rmSync(dir, { recursive: true, force: true }));
   mkdirSync(join(dir, 'dist')); writeFileSync(join(dir, 'dist/index.html'), '<html>proof</html>');
   const pidFile = join(dir, 'backend.pid'), fake = join(dir, 'backend');
   writeFileSync(fake, `#!${process.execPath}\nrequire('fs').writeFileSync(${JSON.stringify(pidFile)}, String(process.pid)); setInterval(() => {}, 1000);\n`, { mode: 0o755 });
   const child = spawn(process.execPath, [join(root, 'packages/snapback4/bin/witness-web.js')], { cwd: dir, env: { ...env, SNAPBACK4_BIN: fake, SNAPBACK4_CHROMIUM: process.execPath }, stdio: ['ignore', 'pipe', 'pipe'] });
   const closed = once(child, 'close');
-  t.after(async () => { if (child.exitCode === null && child.signalCode === null) { child.kill('SIGKILL'); await closed; } });
+  teardownAfter(t, async () => { if (child.exitCode === null && child.signalCode === null) { child.kill('SIGKILL'); await closed; } });
   for (let n = 0; n < 100 && !existsSync(pidFile); n++) await new Promise(yes => setTimeout(yes, 20));
   assert.ok(existsSync(pidFile), 'owned backend was spawned');
   const backendPid = Number(readFileSync(pidFile, 'utf8'));
@@ -163,7 +164,7 @@ test('witness stops its owned backend when interrupted before readiness', { time
 });
 
 test('password-entry failures never print credentials from Playwright call logs', { timeout: 10000 }, t => {
-  const dir = mkdtempSync(join(tmpdir(), 'dx-secret-')); t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const dir = mkdtempSync(join(tmpdir(), 'dx-secret-')); teardownAfter(t, () => rmSync(dir, { recursive: true, force: true }));
   mkdirSync(join(dir, 'dist')); writeFileSync(join(dir, 'dist/index.html'), '<label>Email<input></label><label>Password<input type="password" disabled></label>');
   const password = 'fake-proof-secret-with-quote"and-backslash\\';
   const result = run(bin, ['witness', 'web', 'dist', '--url', 'http://127.0.0.1:4400', '--email', 'proof@example.test', '--password-env', 'DX_SECRET', '--timeout', '1'], dir, { DX_SECRET: password });
@@ -177,7 +178,7 @@ test('browser proof selects a durable operation and refuses an ephemeral signal'
   const old = Object.getOwnPropertyDescriptor(globalThis, 'window');
   const window = { location: { search: '?witness=web' } };
   Object.defineProperty(globalThis, 'window', { configurable: true, value: window });
-  t.after(() => { if (old) Object.defineProperty(globalThis, 'window', old); else delete globalThis.window; });
+  teardownAfter(t, () => { if (old) Object.defineProperty(globalThis, 'window', old); else delete globalThis.window; });
   const app = { ready: Promise.resolve({ ok: true }), client: { viewer: () => 'user:proof', onWrite: () => () => {} }, mutate: async (op, args, { id }) => ({ state: 'sent', id, result: op.name }) };
   registerWebWitness(app, { signal: { kind: 'mutation', name: 'signal', ephemeral: true }, durable: { kind: 'mutation', name: 'durable' } });
   assert.equal((await window.__snapback4Witness.mutate(undefined, {}, 'proof')).result, 'durable');

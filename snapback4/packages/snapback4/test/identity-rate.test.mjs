@@ -119,3 +119,15 @@ test("early timer delivery preserves staging timeout classification with budget 
  await assert.rejects(seedAccounts({url:"http://example",operatorToken:async()=>"operator"},{roles:{member:1},provision:{name:"provision"},timeoutMs:1000}),/E_STAGING_TIMEOUT.*partial accounts/);
  assert.equal(early,1);assert.equal(calls,1);
 });
+
+test('DX9 provisioning refusal names only argument keys and never credential values', async t => {
+ const original=globalThis.fetch;t.after(()=>{globalThis.fetch=original;});
+ for(const envelope of [{state:'failed',why:{code:'E_INPUT',message:'private-password private-token private-value'}},{denied:{code:'E_RULE',message:'private-password private-token'}}]) {
+  globalThis.fetch=async url=>new Response(JSON.stringify(String(url).endsWith('/auth/config')?{environment:'staging',development:false,password:true}:String(url).endsWith('/auth/signup')?{session:{kind:'user',principal:'user:private-principal',token:'private-token',expiresAt:Date.now()+100000}}:envelope));
+  await assert.rejects(seedAccounts({url:'http://example',operatorToken:async()=>'operator'},{roles:{member:1},provision:{name:'provision'},args:()=>({label:'private-value'})}),error=>{
+   assert.match(error.message,/E_STAGING_PROVISION.*supplied arguments: label, principal, role/);
+   for(const secret of ['private-password','private-token','private-value','private-principal'])assert.equal(error.message.includes(secret),false);
+   return true;
+  });
+ }
+});
