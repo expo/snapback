@@ -578,7 +578,7 @@ fn overlay_owned_commit_loss_and_takeover() {
 fn intermediate_log(pg: bool) {
     let mut engine = fixture(pg);
     let mut reference = fixture(pg);
-    let initial_head=engine.seq().unwrap();
+    let initial_head = engine.seq().unwrap();
     let intent = |n| {
         Invocation::new(
             "publicStep",
@@ -769,4 +769,53 @@ fn overlay_late_unknown_falls_back_without_losing_a_member_sqlite() {
 #[ignore = "private PG16"]
 fn overlay_late_unknown_falls_back_without_losing_a_member_postgres() {
     late_unknown(true);
+}
+fn oversized_facts(pg: bool) {
+    for table in ["counters", "memberships"] {
+        let mut engine = fixture(pg);
+        let mut reference = fixture(pg);
+        for e in [&mut engine, &mut reference] {
+            // A valid optional declaration whose reservation exceeds the
+            // batch optimization budget; no physical payload is needed.
+            e.schema.tables.get_mut(table).unwrap().columns.insert(
+                "spare".into(),
+                crate::schema::ColumnType::Optional(Box::new(crate::schema::ColumnType::Text {
+                    max: 3_000_000,
+                })),
+            );
+        }
+        let intent = |n| {
+            let mut i = member(19, n);
+            i.context.viewer = "alice".into();
+            i.context
+                .args
+                .insert("counter".into(), Value::Id("shared".into()));
+            i
+        };
+        let expected = (0..8)
+            .map(|n| outcome(reference.invoke_program(&mut intent(n))))
+            .collect::<Vec<_>>();
+        let mut batch = (0..8).map(intent).collect::<Vec<_>>();
+        let actual = engine
+            .invoke_program_batch(&mut batch)
+            .into_iter()
+            .map(outcome)
+            .collect::<Vec<_>>();
+        assert_eq!(actual, expected, "{table}");
+        assert!(batch.iter().all(|i| !i.attempts.last().unwrap().buffered));
+        assert_eq!(
+            super::tests::snapshot(&mut engine),
+            super::tests::snapshot(&mut reference)
+        );
+    }
+}
+#[test]
+fn overlay_large_declared_facts_fall_back_before_decoding_sqlite() {
+    oversized_facts(false);
+}
+#[cfg(feature = "postgres")]
+#[test]
+#[ignore = "private PG16"]
+fn overlay_large_declared_facts_fall_back_before_decoding_postgres() {
+    oversized_facts(true);
 }
