@@ -64,17 +64,31 @@ fn conditional_guards(body:&[Stmt],env:&Env)->Option<Vec<Expr>> {
 // An early return commits previous writes while skipping later decisions.
 // Preserve the continuation path so a later stamp cannot exempt an earlier audit.
 fn fallthrough(body:&[Stmt],env:&Env,site:&Site)->Expr{
-    let literal=|value|Expr::Literal{value:ast::Literal::Bool(value),site:site.clone()};
-    let binary=|op:&str,left:Expr,right:Expr|Expr::Binary{op:op.into(),left:Box::new(left),right:Box::new(right),site:site.clone()};
-    let mut result=literal(true);
-    for stmt in body{match stmt{
-        Stmt::Return{..}|Stmt::Break{..}|Stmt::Continue{..}=>return literal(false),
-        Stmt::If{condition,then_body,else_body,..}=>{
-            let condition=resolve(condition,env);let no=Expr::Unary{op:"not".into(),value:Box::new(condition.clone()),site:site.clone()};
-            result=binary("and",result,binary("or",binary("and",condition,fallthrough(then_body,env,site)),binary("and",no,fallthrough(else_body,env,site))));
-        },Stmt::As{body,..}=>result=binary("and",result,fallthrough(body,env,site)),
-        Stmt::For{body,..} if contains_return(body)=>{return Expr::Name{name:format!("$advice_fallthrough:{site}"),site:site.clone()};},_=>{},
-    }}super::creation_advice::simplify_boolean(&result)
+    fn flow(body:&[Stmt],env:&mut Env,site:&Site)->Expr{
+        let literal=|value|Expr::Literal{value:ast::Literal::Bool(value),site:site.clone()};
+        let binary=|op:&str,left:Expr,right:Expr|Expr::Binary{op:op.into(),left:Box::new(left),right:Box::new(right),site:site.clone()};
+        let unknown=|name:&str|Expr::Name{name:format!("$advice_flow:{site}:{name}"),site:site.clone()};
+        let mut result=literal(true);
+        for stmt in body{match stmt{
+            Stmt::Bind{names,value,..}=>{let value=resolve(value,env);for name in names{env.insert(name.clone(),if names.len()==1{value.clone()}else{unknown(name)});}},
+            Stmt::Return{..}|Stmt::Break{..}|Stmt::Continue{..}=>return literal(false),
+            Stmt::If{condition,then_body,else_body,..}=>{
+                let condition=super::creation_advice::simplify_boolean(&resolve(condition,env));
+                let next=if let Expr::Literal{value:ast::Literal::Bool(value),..}=condition{flow(if value{then_body}else{else_body},env,site)}else{
+                    let mut yes=env.clone();let a=flow(then_body,&mut yes,site);let mut no=env.clone();let b=flow(else_body,&mut no,site);
+                    let stops=|e:&Expr|matches!(e,Expr::Literal{value:ast::Literal::Bool(false),..});
+                    if stops(&a){*env=no;}else if stops(&b){*env=yes;}else{for name in yes.keys().chain(no.keys()).cloned().collect::<BTreeSet<_>>(){let value=match (yes.get(&name),no.get(&name)){(Some(a),Some(b)) if crate::print::expression(a)==crate::print::expression(b)=>a.clone(),_=>unknown(&name)};env.insert(name,value);}}
+                    let not=Expr::Unary{op:"not".into(),value:Box::new(condition.clone()),site:site.clone()};binary("or",binary("and",condition,a),binary("and",not,b))
+                };result=super::creation_advice::simplify_boolean(&binary("and",result,next));
+            },
+            Stmt::As{body,..}=>result=binary("and",result,flow(body,&mut env.clone(),site)),
+            Stmt::For{domain,body,..}=>{
+                let empty=matches!(resolve(domain,env),Expr::Array{items,..} if items.is_empty());
+                if !empty&&contains_return(body){result=binary("and",result,unknown("loop-return"));}
+                if !empty{for name in branch_assignments(body){env.insert(name.clone(),unknown(&name));}}
+            },_=>{},
+        }}super::creation_advice::simplify_boolean(&result)
+    }flow(body,&mut env.clone(),site)
 }
 fn contains_return(body:&[Stmt])->bool{body.iter().any(|stmt|match stmt{Stmt::Return{..}=>true,Stmt::If{then_body,else_body,..}=>contains_return(then_body)||contains_return(else_body),Stmt::For{body,..}|Stmt::As{body,..}=>contains_return(body),_=>false})}
 // Break/continue leave this block, but transfers in a nested loop do not

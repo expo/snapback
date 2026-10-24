@@ -20,6 +20,7 @@ pub(super) fn value(e:&Expr,row:&Value,rows:&Rows,schema:&Schema,viewer:&str,tab
         parent.field(name).ok()?.clone()
     },
     Expr::Unary{op,value:x,..} if op=="not"=>Value::Bool(!boolean(value(x,row,rows,schema,viewer,table,now))?),
+    Expr::Unary{op,value:x,..} if op=="-"=>{let Value::Int(number)=value(x,row,rows,schema,viewer,table,now)?else{return None;};Value::int(-i128::from(number)).ok()?},
     Expr::Binary{op,left,right,..} if op=="and"||op=="or"=>{
         let a=boolean(value(left,row,rows,schema,viewer,table,now));let b=boolean(value(right,row,rows,schema,viewer,table,now));
         let and=op=="and";let decisive=!and;
