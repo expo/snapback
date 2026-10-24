@@ -336,7 +336,7 @@ fn lifecycle(writes:&[(&ast::ProgramDecl,Expr,ast::ProgramDecl)],bound:&Bound,ou
                         if reset{continue;}ambiguous=true;break;
                     }
                     if let Some(value)=&state.value{assigned.extend(literals(value));}
-                    from.extend(source_states(&requirements,bound,child,&child_state.name));
+                    from.extend(source_states(&requirements,bound,child,&child_state.name).into_iter().filter(|source|changes_from(p,w,bound,child,&child_state.name,source)));
                 }
                 if ambiguous{continue;}
                 if let Some(C::Enum{variants})=bound.schema.tables[child].columns.get(&child_state.name).map(C::required){assigned.retain(|value|variants.contains(value));from.retain(|value|variants.contains(value));}

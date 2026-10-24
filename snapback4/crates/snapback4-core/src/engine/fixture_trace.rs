@@ -18,6 +18,8 @@ impl std::fmt::Debug for BoundaryPredicate {fn fmt(&self,f:&mut std::fmt::Format
 pub struct SourceFilter {
     /// Reissuing an approval may touch an unchanged stamp at these exact sites.
     pub unchanged_at: Vec<String>,
+    /// Restrict update observations to these executed sources; inserts are independent.
+    pub updates_at: Option<Vec<String>>,
     /// A source-proven reapproval write is outside an invalidation-only probe.
     pub except_at: Vec<String>,
     /// Shared helper sites with unresolved recording provenance stay uncovered.
@@ -68,6 +70,7 @@ impl Runner<'_> {
         let Some(trace) = self.context.fixture_trace.as_ref() else { return; };
         let write_site=trace.write_sites.lock().expect("fixture write-site lock").last().cloned();
         for intent in trace.intents.iter().filter(|i| i.table == table && i.effects.contains(&effect)) {
+            if effect==Effect::Update&&intent.source.updates_at.as_ref().is_some_and(|sites|!write_site.as_ref().is_some_and(|site|sites.contains(site))){continue;}
             if write_site.as_ref().is_some_and(|site|intent.source.except_at.contains(site)){continue;}
             if effect == Effect::Update && !write_site.as_ref().is_some_and(|site|intent.source.unchanged_at.contains(site)) && intent.column.as_ref().is_some_and(|c|old.and_then(|r|r.field(c).ok()) == next.and_then(|r|r.field(c).ok())) { continue; }
             let judge = |image: &Value| self.fixture_judgment(&intent.policy, old, image).ok().and_then(|v| match v {

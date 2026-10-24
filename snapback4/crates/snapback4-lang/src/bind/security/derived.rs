@@ -12,10 +12,19 @@ fn plain_row(expression:&ast::Expr)->bool {match expression {
         &&read.keys.iter().all(|key|matches!(key.value,ast::Expr::Name{..}|ast::Expr::Literal{..})),
     _=>false,
 }}
-fn same_resource(base:&ast::Expr,table:&str,keys:&[ast::KeyPart],p:&ast::ProgramDecl)->bool{match base{
-    ast::Expr::Assert{value,..}=>same_resource(value,table,keys,p),
-    ast::Expr::Read(read)=>read.table==table&&read.keys.len()==keys.len()&&read.keys.iter().zip(keys).all(|(a,b)|{let typed=|key:&ast::KeyPart|key.column.clone().or_else(||if matches!(&key.value,ast::Expr::Name{name,..} if p.args.iter().any(|a|a.name==*name&&matches!(&a.type_.kind,ast::TypeKind::Ref{table:t} if t==table))){Some("id".into())}else{None});typed(a)==typed(b)&&crate::print::expression(&a.value)==crate::print::expression(&b.value)}),_=>false,
-}}
+fn same_resource(base:&ast::Expr,table:&str,keys:&[ast::KeyPart],p:&ast::ProgramDecl)->bool{
+    fn bare(mut expression:&ast::Expr)->&ast::Expr{while let ast::Expr::Assert{value,..}=expression{expression=value;}expression}
+    fn canonical<'a>(expression:&'a ast::Expr,table:&str,p:&ast::ProgramDecl)->&'a ast::Expr{
+        let expression=bare(expression);
+        if let ast::Expr::Member{base,name,..}=expression&&name=="id"&&let ast::Expr::Read(read)=bare(base)&&read.table==table&&read.keys.len()==1&&plain_row(&ast::Expr::Read(read.clone())){
+            let key=&read.keys[0];if key.column.as_deref()==Some("id")||key.column.is_none()&&matches!(&key.value,ast::Expr::Name{name,..} if p.args.iter().any(|arg|arg.name==*name&&matches!(&arg.type_.kind,ast::TypeKind::Ref{table:t} if t==table))){return canonical(&key.value,table,p);}
+        }expression
+    }
+    match bare(base){ast::Expr::Read(read)=>read.table==table&&read.keys.len()==keys.len()&&read.keys.iter().zip(keys).all(|(a,b)|{
+        let typed=|key:&ast::KeyPart|key.column.clone().or_else(||if matches!(canonical(&key.value,table,p),ast::Expr::Name{name,..} if p.args.iter().any(|arg|arg.name==*name&&matches!(&arg.type_.kind,ast::TypeKind::Ref{table:t} if t==table))){Some("id".into())}else{None});
+        typed(a)==typed(b)&&crate::print::expression(canonical(&a.value,table,p))==crate::print::expression(canonical(&b.value,table,p))
+    }),_=>false}
+}
 fn plain_field(expression:&ast::Expr)->bool {
     matches!(expression,ast::Expr::Name{..})||matches!(expression,ast::Expr::Member{base,..} if plain_row(base))
 }

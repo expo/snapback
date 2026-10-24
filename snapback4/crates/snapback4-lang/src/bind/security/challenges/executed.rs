@@ -20,12 +20,12 @@ fn prerequisite_image(old:&Value,next:&Value,schema:&Schema,table:&str,inputs:&A
 }
 // @ref LLP 3000.036.004.000#10-sec10-approvals-and-deterministic-exploration — reconstruct only actual valid consumed stamps; retain the original prerequisite.
 type ReceiptKey=(String,String,String);
-#[derive(Clone)]struct Receipt{stamp:Value,inputs:BTreeMap<String,Value>}
+#[derive(Clone)]struct Receipt{trusted:bool,stamp:Value,inputs:BTreeMap<String,Value>}
 type Receipts=BTreeMap<ReceiptKey,Receipt>;
 fn positive(value:&Value)->bool{matches!(value,Value::Bool(true)|Value::Int(_))}
 fn receipt(table:&str,row:&Value,stamp:&str,columns:&BTreeSet<String>)->Option<(ReceiptKey,Receipt)>{
     let Value::Id(id)=row.field("id").ok()? else{return None;};let value=cell(row,stamp);if !positive(&value){return None;}
-    Some(((table.into(),id.clone(),stamp.into()),Receipt{stamp:value,inputs:columns.iter().map(|column|(column.clone(),cell(row,column))).collect()}))
+    Some(((table.into(),id.clone(),stamp.into()),Receipt{trusted:true,stamp:value,inputs:columns.iter().map(|column|(column.clone(),cell(row,column))).collect()}))
 }
 fn consumed(predicate:&ast::Expr,row:&Value,effective:&Value,rows:&BTreeMap<String,Vec<Value>>,entry:&BTreeMap<String,Vec<Value>>,schema:&Schema,viewer:&str,table:&str,now:i64,receipts:&Receipts)->Option<bool>{
     let actual=|owner:&str,id:&str|{
@@ -46,11 +46,13 @@ fn consumed(predicate:&ast::Expr,row:&Value,effective:&Value,rows:&BTreeMap<Stri
     }
     let mut shadow=rows.clone();let mut image=row.clone();
     if let Some(current)=shadow.get_mut(table).into_iter().flatten().find(|r|r.field("id").ok()==image.field("id").ok()){*current=image.clone();}
+    let ambiguous=valid.iter().any(|key|!receipts[key].trusted);
     for key in valid{let (owner,id,stamp)=&key;let value=receipts[&key].stamp.clone();
         if let Some(current)=shadow.get_mut(owner).into_iter().flatten().find(|r|r.field("id").ok()==Some(&Value::Id(id.clone()))){put(current,stamp,value.clone());}
         if owner==table&&image.field("id").ok()==Some(&Value::Id(id.clone())){put(&mut image,stamp,value);}
     }
     let verdict=super::super::concrete::evaluate(predicate,&image,&shadow,schema,viewer,table,now);
+    if verdict==Some(true)&&ambiguous{return None;}
     if verdict==Some(false){
         // A deleted approval record has no current input image with which to
         // establish consumption. Keep that existing ambiguity explicit.
@@ -66,10 +68,15 @@ pub(super) fn trace(bound:&Bound,p:&Program,entry:&Engine)->Trace {
     let mut initial=Receipts::new();if let Some(entry)=&entry{for ((owner,stamp),columns) in inputs.iter(){for row in entry.get(owner).into_iter().flatten(){if let Some((key,value))=receipt(owner,row,stamp,columns){initial.insert(key,value);}}}}
     let receipts=std::sync::Arc::new(std::sync::Mutex::new(initial));
     let mut intents=Vec::new();
-    if entry.is_some(){for ((owner,stamp),columns) in inputs.iter(){let owner=owner.clone();let stamp=stamp.clone();let columns=columns.clone();let receipts=receipts.clone();let target=owner.clone();let column=stamp.clone();
-        let sites=bound.security_approval_reissues.get(&(p.name.clone(),owner.clone(),stamp.clone())).map(|s|s.iter().cloned().collect()).unwrap_or_default();
-        intents.push(Intent{source:snapback4_core::engine::fixture_trace::SourceFilter{unchanged_at:sites,..Default::default()},paired:false,concrete:None,site:"$security.approval-receipt".into(),table:target,effects:vec![Effect::Insert,Effect::Update],column:Some(column),policy:RuleExpr::Allow,
-            boundary:Some(snapback4_core::engine::fixture_trace::BoundaryPredicate(std::sync::Arc::new(move |_,_,next,_,_|{if let Some(next)=next&&let Some((key,value))=receipt(&owner,next,&stamp,&columns){receipts.lock().expect("approval receipt lock").insert(key,value);}Some(true)})))});
+    if entry.is_some(){for ((owner,stamp),columns) in inputs.iter(){
+        for trusted in [true,false]{
+            let key=(p.name.clone(),owner.clone(),stamp.clone());
+            let sites:Vec<String>=if trusted{bound.security_approval_reissues.get(&key)}else{bound.security_approval_uncertain_writes.get(&key)}.map(|sites|sites.iter().cloned().collect()).unwrap_or_default();
+            if !trusted&&sites.is_empty(){continue;}
+            let owner=owner.clone();let stamp=stamp.clone();let columns=columns.clone();let receipts=receipts.clone();let target=owner.clone();let column=stamp.clone();
+            intents.push(Intent{source:snapback4_core::engine::fixture_trace::SourceFilter{unchanged_at:sites.clone(),updates_at:Some(sites),..Default::default()},paired:false,concrete:None,site:"$security.approval-receipt".into(),table:target,effects:if trusted{vec![Effect::Insert,Effect::Update]}else{vec![Effect::Update]},column:Some(column),policy:RuleExpr::Allow,
+                boundary:Some(snapback4_core::engine::fixture_trace::BoundaryPredicate(std::sync::Arc::new(move |_,_,next,_,_|{if let Some(next)=next&&let Some((key,mut value))=receipt(&owner,next,&stamp,&columns){value.trusted=trusted;receipts.lock().expect("approval receipt lock").insert(key,value);}Some(true)})))});
+        }
     }}
     for inv in bound.invariants.iter().filter(|inv|!matches!(inv.target.as_str(),"read"|"always")&&inv.operation.as_ref().is_none_or(|op|op==&p.name)) {
         for word in super::super::effects(inv) {
@@ -454,6 +461,18 @@ fn lifecycle_observations(source:String,operation:&str,args:BTreeMap<String,Valu
         let mut engine=Engine::memory(b.schema.clone(),b.programs.iter().map(|p|p.program.clone())).unwrap();let row=snapback4_core::wire::row_from_json(&b.schema.tables["docs"],&serde_json::json!({"id":"d","consent":!(body.contains("consent:reapprove")&&!body.contains("if reapprove")),"approved":true})).unwrap();engine.seed_at([("docs".into(),row)],NOW).unwrap();
         let p=&b.programs.iter().find(|p|p.program.name=="edit").unwrap().program;let trace=trace(&b,p,&engine);let result=engine.mutate("edit",None,Context::new("dev:a",BTreeMap::from([("doc".into(),Value::Id("d".into())),("reapprove".into(),Value::Bool(!body.contains("if reapprove")))])).at(NOW).with_fixture_trace(trace.clone())).unwrap();assert!(matches!(result.state,snapback4_core::WriteState::Sent{..}));let observations=trace.take();assert_eq!(!observations.iter().any(|o|o.site.starts_with("$derived/")&&o.allowed==Some(false)),allowed,"{body}: {observations:?}");
     }
+}
+
+#[test]fn copied_positive_stamp_cannot_refresh_a_consumed_receipt(){
+    let source="table docs:\n  consent: bool\n  approved: bool default false\n  read <- allow\n  update <- allow\n  online only\ntable effects:\n  doc: docs\n  read <- allow\n  insert <- allow\n  online only\nmutation approve(doc: docs):\n  d = docs[doc] ! else MISSING\n  require d.consent else NO_CONSENT\n  update docs[d.id] {approved:true}\nmutation finish(doc: docs):\n  d = docs[doc] ! else MISSING\n  require d.approved else NO_APPROVAL\n  return insert effects {doc}\nmutation copyAndConsume(doc: docs):\n  saved = docs[doc] ! else MISSING\n  update docs[doc] {approved:false}\n  update docs[doc] {consent:false}\n  update docs[doc] {approved:saved.approved}\n  update docs[doc] {approved:false}\n  return insert effects {doc}\n";
+    let sources=vec![("schema.q".into(),source.into())];let b=super::super::super::derived::augmented(&sources,&crate::compile(&sources));assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);assert!(b.security_approval_inputs[&("docs".into(),"approved".into())].contains("consent"));
+    let mut engine=Engine::memory(b.schema.clone(),b.programs.iter().map(|p|p.program.clone())).unwrap();let row=snapback4_core::wire::row_from_json(&b.schema.tables["docs"],&serde_json::json!({"id":"d","consent":true,"approved":true})).unwrap();engine.seed_at([("docs".into(),row)],NOW).unwrap();
+    let p=&b.programs.iter().find(|p|p.program.name=="copyAndConsume").unwrap().program;let trace=trace(&b,p,&engine);let result=engine.mutate("copyAndConsume",None,Context::new("dev:a",BTreeMap::from([("doc".into(),Value::Id("d".into()))])).at(NOW).with_fixture_trace(trace.clone())).unwrap();assert!(matches!(result.state,snapback4_core::WriteState::Sent{..}));let observations=trace.take();assert!(observations.iter().any(|o|o.site.contains("sibling-approval")&&o.allowed==Some(false)),"{observations:?}");
+}
+#[test]fn a_child_terminal_self_loop_cannot_hide_unfinished_children(){
+    let mut source=lifecycle_source("  update jobs[job] {status:'finished'}","  update tasks[task] {stage:'done'}");
+    source.push_str("mutation noop(task: tasks):\n  t = tasks[task] ! else MISSING\n  require t.stage = 'done' else BAD_STAGE\n  update tasks[task] {stage:'done'}\n");
+    let observations=lifecycle_observations(source,"finish",BTreeMap::from([("job".into(),Value::Id("a".into())),("otherTask".into(),Value::Id("u".into())),("touch".into(),Value::Bool(false))]),"active","accepted");assert!(observations.iter().any(|(site,result)|site.contains("child-stage")&&*result==Some(false)),"{observations:?}");
 }
 
 }
