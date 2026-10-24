@@ -1,0 +1,150 @@
+[
+  {
+    "key": "initdb",
+    "argv": [
+      "initdb",
+      "-D",
+      "/home/ccheever/sb4-loop/integ24/pg-final40/data",
+      "-L",
+      "/home/ccheever/tools/pg16/usr/share/postgresql/16",
+      "-U",
+      "sb4_eval",
+      "--auth-local=trust",
+      "--auth-host=reject",
+      "--encoding=UTF8",
+      "--no-locale"
+    ],
+    "exit": 0
+  },
+  {
+    "key": "start",
+    "argv": [
+      "pg_ctl",
+      "-D",
+      "/home/ccheever/sb4-loop/integ24/pg-final40/data",
+      "-l",
+      "/home/ccheever/sb4-loop/integ24/pg-final40/server.log",
+      "-o",
+      "-k /home/ccheever/sb4-loop/integ24/pg-final40 -c listen_addresses= -c max_connections=80 -p 55444",
+      "-w",
+      "start"
+    ],
+    "exit": 0
+  },
+  {
+    "key": "core-postgres-lib",
+    "argv": [
+      "cargo",
+      "test",
+      "--locked",
+      "-p",
+      "snapback4-core",
+      "--features",
+      "postgres",
+      "--lib",
+      "--no-fail-fast"
+    ],
+    "exit": 0
+  },
+  {
+    "key": "literal-serving",
+    "argv": [
+      "cargo",
+      "test",
+      "--locked",
+      "-p",
+      "snapback4-core",
+      "--features",
+      "postgres",
+      "--lib",
+      "engine::postgres::literal_tests",
+      "--",
+      "--include-ignored",
+      "--test-threads",
+      "1"
+    ],
+    "exit": 0
+  },
+  {
+    "key": "composed-read-closure",
+    "argv": [
+      "cargo",
+      "test",
+      "--locked",
+      "-p",
+      "snapback4-core",
+      "--features",
+      "postgres",
+      "--lib",
+      "engine::postgres::tests::read_closure",
+      "--",
+      "--include-ignored",
+      "--test-threads",
+      "1"
+    ],
+    "exit": 0
+  },
+  {
+    "key": "round-trips",
+    "argv": [
+      "cargo",
+      "test",
+      "--locked",
+      "-p",
+      "snapback4",
+      "--features",
+      "postgres",
+      "--bin",
+      "snapback4",
+      "round_trips",
+      "--",
+      "--include-ignored",
+      "--test-threads",
+      "1"
+    ],
+    "exit": 0
+  },
+  {
+    "key": "difftest-stores",
+    "argv": [
+      "cargo",
+      "test",
+      "--locked",
+      "-p",
+      "snapback4-difftest",
+      "--features",
+      "postgres",
+      "--test",
+      "stores",
+      "--",
+      "--test-threads",
+      "1"
+    ],
+    "exit": 0
+  },
+  {
+    "key": "stop",
+    "argv": [
+      "pg_ctl",
+      "-D",
+      "/home/ccheever/sb4-loop/integ24/pg-final40/data",
+      "-m",
+      "fast",
+      "-t",
+      "180",
+      "-w",
+      "stop"
+    ],
+    "exit": 0
+  },
+  {
+    "key": "status",
+    "argv": [
+      "pg_ctl",
+      "-D",
+      "/home/ccheever/sb4-loop/integ24/pg-final40/data",
+      "status"
+    ],
+    "exit": 3
+  }
+]

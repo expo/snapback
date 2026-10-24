@@ -1,0 +1,53 @@
+[
+  {
+    "argv": [
+      "timeout",
+      "1800s",
+      "/home/ccheever/sb4-loop/integ24/bin/difftest-base39",
+      "run",
+      "--seed",
+      "0",
+      "--cases",
+      "20000",
+      "--workers",
+      "12",
+      "--out",
+      "/home/ccheever/sb4-loop/integ24/diff-wave26-final40-base-run"
+    ],
+    "exit": 0
+  },
+  {
+    "argv": [
+      "timeout",
+      "1800s",
+      "/home/ccheever/sb4-loop/integ24/bin/difftest-base39",
+      "run-devices",
+      "--seed",
+      "0",
+      "--cases",
+      "1000",
+      "--workers",
+      "12",
+      "--out",
+      "/home/ccheever/sb4-loop/integ24/diff-wave26-final40-base-run-devices"
+    ],
+    "exit": 0
+  },
+  {
+    "argv": [
+      "timeout",
+      "1800s",
+      "/home/ccheever/sb4-loop/integ24/bin/difftest-base39",
+      "run-lean",
+      "--seed",
+      "0",
+      "--cases",
+      "20000",
+      "--workers",
+      "12",
+      "--out",
+      "/home/ccheever/sb4-loop/integ24/diff-wave26-final40-base-run-lean"
+    ],
+    "exit": 1
+  }
+]

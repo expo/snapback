@@ -1,0 +1,161 @@
+{
+  "source": "4f8e498d2e61932925dd2fbf61b43048a12ea25c",
+  "clientFiles": 116,
+  "counts": {
+    "clients": {
+      "tests": 2490,
+      "pass": 2476,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 14,
+      "todo": 0
+    },
+    "models": {
+      "tests": 89,
+      "pass": 89,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  "sourceStatusEmpty": true,
+  "artifactsUnchanged": true,
+  "node": "v24.13.1",
+  "bun": "1.4.2",
+  "affectedCargoCommands": [
+    {
+      "key": "core",
+      "argv": [
+        "cargo",
+        "test",
+        "-p",
+        "snapback4-core",
+        "--no-fail-fast"
+      ],
+      "exit": 0
+    },
+    {
+      "key": "core-postgres",
+      "argv": [
+        "cargo",
+        "test",
+        "-p",
+        "snapback4-core",
+        "--features",
+        "postgres",
+        "--lib",
+        "--no-fail-fast"
+      ],
+      "exit": 0
+    },
+    {
+      "key": "lang",
+      "argv": [
+        "cargo",
+        "test",
+        "-p",
+        "snapback4-lang",
+        "--lib",
+        "--test",
+        "read_through",
+        "--test",
+        "read_through_review",
+        "--test",
+        "column_reads",
+        "--test",
+        "column_writes",
+        "--test",
+        "denied_writes",
+        "--test",
+        "dx7_rules",
+        "--test",
+        "guide",
+        "--test",
+        "operation_evolution",
+        "--test",
+        "release_bridge_security",
+        "--test",
+        "security",
+        "--test",
+        "security_histories",
+        "--test",
+        "security_observers",
+        "--test",
+        "security_sec5_output",
+        "--test",
+        "security_sec6",
+        "--test",
+        "security_sec7",
+        "--test",
+        "security_sec7_day2",
+        "--test",
+        "security_sec8",
+        "--test",
+        "security_sec9",
+        "--test",
+        "wave12_rule_recipes",
+        "--test",
+        "wave1_rule_language",
+        "--test",
+        "wave26_security",
+        "--no-fail-fast"
+      ],
+      "exit": 0
+    },
+    {
+      "key": "device",
+      "argv": [
+        "cargo",
+        "test",
+        "-p",
+        "snapback4-device",
+        "--test",
+        "column_reads",
+        "--test",
+        "readauth",
+        "--no-fail-fast"
+      ],
+      "exit": 0
+    },
+    {
+      "key": "cli",
+      "argv": [
+        "cargo",
+        "test",
+        "-p",
+        "snapback4",
+        "--bin",
+        "snapback4",
+        "--test",
+        "committer_ratchet",
+        "--test",
+        "overload",
+        "--test",
+        "day4",
+        "--test",
+        "check",
+        "--test",
+        "clock",
+        "--test",
+        "day5_evidence",
+        "--test",
+        "dx7_gates",
+        "--test",
+        "replay",
+        "--test",
+        "roll_views",
+        "--test",
+        "security_reviews",
+        "--test",
+        "security_wave19",
+        "--test",
+        "token_live",
+        "--test",
+        "wave26_security",
+        "--no-fail-fast"
+      ],
+      "exit": 0
+    }
+  ]
+}

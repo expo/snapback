@@ -1,0 +1,20 @@
+{
+  "source": "4f8e498d2e61932925dd2fbf61b43048a12ea25c",
+  "fileAndFixtureGroups": 431,
+  "pool": {
+    "tests": 7935,
+    "pass": 7879,
+    "fail": 0,
+    "skip": 56
+  },
+  "fullModels": {
+    "tests": 89,
+    "pass": 89,
+    "fail": 0,
+    "skip": 0
+  },
+  "totalPass": 7968,
+  "totalDeclaredSkips": 56,
+  "sourceStatusEmpty": true,
+  "nativeSdkWasmUnchanged": true
+}

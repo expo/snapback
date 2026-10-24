@@ -1,0 +1,44 @@
+{
+  "allPassed": true,
+  "commands": [
+    {
+      "key": "ref",
+      "argv": [
+        "./ref-check"
+      ],
+      "exit": 0
+    },
+    {
+      "key": "diagnostics",
+      "argv": [
+        "node",
+        "scripts/generate-diagnostics-registry.mjs"
+      ],
+      "exit": 0
+    },
+    {
+      "key": "manifest",
+      "argv": [
+        "node",
+        "scripts/generate-guide-manifest.mjs"
+      ],
+      "exit": 0
+    },
+    {
+      "key": "inventories",
+      "argv": [
+        "node",
+        "scripts/check-inventories.mjs"
+      ],
+      "exit": 0
+    },
+    {
+      "key": "guide",
+      "argv": [
+        "node",
+        "scripts/check-guide.mjs"
+      ],
+      "exit": 0
+    }
+  ]
+}

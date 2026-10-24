@@ -1,0 +1,5 @@
+{
+  "head": "da8ab8746173273da7e2b5f5e489de78b4198f5a",
+  "status": " M Cargo.lock\n M bun.lock\n M package.json\n M snapback4/Cargo.lock\n M snapback4/Cargo.toml\n",
+  "onlyLocalDependencyAndLockBindings": true
+}

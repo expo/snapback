@@ -1,0 +1,8 @@
+{
+  "source": "4f8e498d2e61932925dd2fbf61b43048a12ea25c",
+  "integrationFix": "3253de2a3e",
+  "mainMerge": "1c3d2daadb",
+  "originMain": "480f88e8b47e1e2cfe4319561000fcb518376665",
+  "supersededMainSnapshot": "1212ff7aa57fe973d324e6407942c59113d9a8a4",
+  "scope": "Complete five-crate command and every requested qualification after the last fix."
+}

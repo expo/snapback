@@ -105266,3 +105266,29 @@ passes, two failures and 56 declared skips; both full models passed 89/89 and
 source status was empty. Its incomplete packed run is explicitly superseded,
 not counted as passing. The complete five-crate and final consumer/platform
 qualification follow this fix; no capacity, deadline or allowlist is raised.
+
+
+### Integration 24: complete qualification after the final integration fix
+
+Implementation `4f8e498d2e61932925dd2fbf61b43048a12ea25c` passes the exact complete five-crate
+command after `3253de2a3e`: 461 scopes, 7,687 reported passes,
+422 declared ignores, zero failures. The full Linux client pool plus both
+complete models passes 7,968 tests/56 declared skips. Mac Studio passes affected
+Rust targets and 116 platform files plus both models: 2,565 passes/14 declared
+skips. Both pools leave source clean and their native/SDK/Wasm bindings fixed.
+Fresh packed Linux consumers (all lane helpers, Ubuntu/Alpine), actual docs
+budget, root checks, private PostgreSQL, fresh Exact apps and base/candidate
+difftest repeat. Real-Lean reproduces the same 130 inherited mismatches.
+
+All 600 copied day-one projects repeat at 35 gates/39 fresh/49 post-test
+refusals; individual audits find zero false gates/refusals. All 50 wave-26
+projects pass both deploy paths. Both 50-store replay modes retain two genuine
+v2 deploy and one default rollback refusal; all 47 completed cycles per mode
+conserve every tracked v1 row, with zero hidden rows/newly-empty cells in
+successful default rollback visibility reports. All 150 original SQLite/WAL/SHM
+byte hashes are unchanged. These are finite observations with explicit real
+compatibility exceptions, not a universal security or zero-total-refusal claim.
+
+Raw qualification and command evidence is in `reports/integration24/final/`.
+Incoming PostgreSQL reader pipelining receives separate changed-input checks
+after the final main merge. Wasm remains 737,990 bytes gzip; budget 738,490.

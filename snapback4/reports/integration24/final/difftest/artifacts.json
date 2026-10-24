@@ -1,0 +1,14 @@
+{
+  "base": {
+    "path": "/home/ccheever/sb4-loop/integ24/bin/difftest-base39",
+    "sha256": "408bcc0ef4aae1794ba2d2816f7d86aacc46329c6aeb579c9ccb8109d5e88b65"
+  },
+  "candidate": {
+    "path": "/home/ccheever/projects/snapback-sb4loop/snapback4/target/release/snapback4-difftest",
+    "sha256": "ad2fb1607b6005c3ef24c1de134566aebab53b624f5b6c9ae8a736f26eb1eeeb"
+  },
+  "oracle": {
+    "path": "/home/ccheever/projects/snapback-sb4loop/snapback4/lean/.lake/build/bin/quarry-oracle",
+    "sha256": "967687cbe8e61af61415b08a9135d53247489798c825468c103043681b9095d0"
+  }
+}
