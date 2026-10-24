@@ -2,7 +2,6 @@
 // @ref LLP 3000.009.001.000.002#3.2 — preserve every intermediate commit/image; advance the head once.
 use super::store::{Tx, signed};
 use crate::RuntimeError;
-use serde_json::json;
 
 pub(super) const SQL: &str = r#"WITH
 head AS (UPDATE _head SET seq=$3 WHERE singleton AND seq=$2 RETURNING seq),
@@ -55,6 +54,52 @@ pub(super) struct Receipt {
     pub args_digest: Option<String>,
     pub at: i64,
 }
+#[derive(serde::Serialize)]
+struct Log<'a> {
+    partition: &'a str,
+    seq: u64,
+    ord: i64,
+    t: &'a str,
+    kind: &'a str,
+    id: &'a str,
+    data: &'a Option<String>,
+}
+#[derive(serde::Serialize)]
+struct Effect<'a> {
+    seq: u64,
+    at: i64,
+    id: &'a str,
+    effect: &'a str,
+    payload: &'a str,
+    next_at: Option<i64>,
+    work: &'a str,
+    deadline: Option<i64>,
+    contract: &'a str,
+    explicit_release: bool,
+    release: Option<&'a str>,
+}
+#[derive(serde::Serialize)]
+struct Presence<'a> {
+    principal: &'a str,
+    id: &'a str,
+    deadline: i64,
+}
+#[derive(serde::Serialize)]
+struct Image<'a> {
+    t: &'a str,
+    id: &'a str,
+    data: String,
+}
+#[derive(serde::Serialize)]
+struct Payload<'a> {
+    commits: Vec<&'a super::tail::Commit>,
+    log: Vec<Log<'a>>,
+    effects: Vec<Effect<'a>>,
+    presence: Vec<Presence<'a>>,
+    receipts: Vec<&'a Receipt>,
+    images: Vec<Image<'a>>,
+}
+
 impl Tx<'_> {
     pub(crate) fn enable_group_tail(&self) -> Result<(), RuntimeError> {
         self.ensure_active()?;
@@ -93,22 +138,44 @@ impl Tx<'_> {
                     return Err(RuntimeError::Store("non-contiguous group tail".into()));
                 }
                 last = commit.seq;
-                commits.push(json!(commit));
+                commits.push(commit);
                 for n in 0..tail.partitions.len() {
-                    log.push(json!({"partition":tail.partitions[n],"seq":commit.seq,"ord":tail.ords[n],"t":tail.tables[n],"kind":tail.kinds[n],"id":tail.ids[n],"data":tail.data[n]}));
+                    log.push(Log {
+                        partition: &tail.partitions[n],
+                        seq: commit.seq,
+                        ord: tail.ords[n],
+                        t: &tail.tables[n],
+                        kind: &tail.kinds[n],
+                        id: &tail.ids[n],
+                        data: &tail.data[n],
+                    });
                 }
                 for effect in &tail.effects {
-                    effects.push(json!({"seq":commit.seq,"at":commit.at,"id":effect.id,"effect":effect.effect,"payload":effect.payload,"next_at":effect.next_at,"work":effect.work,"deadline":effect.deadline,"contract":effect.contract,"explicit_release":effect.release.is_some(),"release":effect.release.as_ref().and_then(|v|v.as_ref())}));
+                    effects.push(Effect {
+                        seq: commit.seq,
+                        at: commit.at,
+                        id: &effect.id,
+                        effect: &effect.effect,
+                        payload: &effect.payload,
+                        next_at: effect.next_at,
+                        work: &effect.work,
+                        deadline: effect.deadline,
+                        contract: &effect.contract,
+                        explicit_release: effect.release.is_some(),
+                        release: effect.release.as_ref().and_then(|v| v.as_deref()),
+                    });
                     for (principal, deadline) in &effect.presence {
-                        presence.push(
-                            json!({"principal":principal,"id":effect.id,"deadline":deadline}),
-                        );
+                        presence.push(Presence {
+                            principal,
+                            id: &effect.id,
+                            deadline: *deadline,
+                        });
                     }
                 }
             } else if !tail.partitions.is_empty() || !tail.effects.is_empty() {
                 return Err(RuntimeError::Store("tail records without a commit".into()));
             }
-            receipts.extend(tail.receipts.iter().map(|r| json!(r)));
+            receipts.extend(tail.receipts.iter());
         }
         let expected = [
             1,
@@ -120,8 +187,26 @@ impl Tx<'_> {
             receipts.len(),
             self.group_images.borrow().len(),
         ];
-        let images=self.group_images.borrow().iter().map(|image|json!({"t":image.table,"id":image.new.field("id").unwrap().as_str().unwrap(),"data":crate::value::canonical_json(&image.new)})).collect::<Vec<_>>();
-        let payload = json!({"commits":commits,"log":log,"effects":effects,"presence":presence,"receipts":receipts,"images":images}).to_string();
+        // Serialize borrowed records directly: no per-field JSON tree or
+        // duplicate strings between the per-member tails and the wire payload.
+        let images = self.group_images.borrow();
+        let images = images
+            .iter()
+            .map(|image| Image {
+                t: &image.table,
+                id: image.new.field("id").unwrap().as_str().unwrap(),
+                data: crate::value::canonical_json(&image.new),
+            })
+            .collect();
+        let payload = serde_json::to_string(&Payload {
+            commits,
+            log,
+            effects,
+            presence,
+            receipts,
+            images,
+        })
+        .unwrap();
         let sets = self.flight(
             &[(SQL, &[&payload, &signed(first)?, &signed(last)?])],
             "SET LOCAL statement_timeout=0; SET LOCAL lock_timeout=0",

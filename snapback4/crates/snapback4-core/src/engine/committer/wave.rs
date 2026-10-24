@@ -156,47 +156,51 @@ impl Wave {
             }
         }
         let empty = BTreeMap::new();
-        let mut prepared = Vec::new();
+        let first_seq = tx.next_seq()?;
+        let mut jobs = Vec::with_capacity(indices.len());
+        let mut prepared = (0..indices.len()).map(|_| None).collect::<Vec<_>>();
         for (n, &i) in indices.iter().enumerate() {
-            // Known hot colliders run once, serially in memory. Other members
-            // may read predecessors' targets and require recorded validation.
+            // Hot targets stay ordered; independent targets can still read
+            // predecessors and must pass recorded validation at merge.
             if plans[n].writes.iter().any(|k| counts[k] > 1) {
-                prepared.push(None);
                 continue;
             }
             let invocation = &batch[i];
+            let program = &host.programs[&invocation.name];
             let mut context = invocation.context.clone();
-            crate::engine::validate::validate_inputs(
-                host.schema,
-                &host.programs[&invocation.name],
-                &mut context.args,
-            )?;
+            crate::engine::validate::validate_inputs(host.schema, program, &mut context.args)?;
             context.now = Some(context.now.unwrap_or_else(crate::now_ms));
             context.generation = host.generation;
             context.entropy = host.entropy;
             context.minter = host.minter.clone();
+            jobs.push((n, program, context));
+        }
+        // The pool sees immutable facts/IR and owned contexts, never the
+        // transaction, invocations, authority callbacks or another overlay.
+        let attempts = super::parallel::map(jobs, |(n, program, context)| {
             let overlay = Overlay::new(&base, &empty);
-            let execution = execute_body(
-                host,
-                &overlay,
-                context,
-                &host.programs[&invocation.name],
-                tx.next_seq()? + n as u64,
-            );
-            if overlay.reads.borrow().unsupported
-                || execution
+            let execution = execute_body(host, &overlay, context, program, first_seq + n as u64);
+            (
+                n,
+                Prepared {
+                    execution,
+                    writes: overlay.writes.into_inner(),
+                    reads: overlay.reads.into_inner(),
+                    changes: overlay.changes.into_inner(),
+                },
+            )
+        });
+        for (n, attempt) in attempts {
+            if attempt.reads.unsupported
+                || attempt
+                    .execution
                     .ran
                     .as_ref()
                     .is_err_and(|error| !error.is_refusal())
             {
                 return Ok(None);
             }
-            prepared.push(Some(Prepared {
-                execution,
-                writes: overlay.writes.into_inner(),
-                reads: overlay.reads.into_inner(),
-                changes: overlay.changes.into_inner(),
-            }));
+            prepared[n] = Some(attempt);
         }
         Ok(Some(Self {
             base,

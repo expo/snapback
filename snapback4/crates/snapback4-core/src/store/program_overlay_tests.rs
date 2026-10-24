@@ -876,3 +876,41 @@ fn overlay_large_declared_facts_fall_back_before_decoding_sqlite() {
 fn overlay_large_declared_facts_fall_back_before_decoding_postgres() {
     oversized_facts(true);
 }
+
+// @ref LLP 3000.009.001.000.002#3.3 — compare complete ordered histories, including refused attempts and keyed receipts, against serial overlay execution.
+fn parallel_differential(pg: bool) {
+    for seed in [1, 19, 0xdecaf] {
+        for size in [8, 32] {
+            let mut serial = fixture(pg);
+            let mut parallel = fixture(pg);
+            for start in (0..192).step_by(size) {
+                let make = || (start..start + size).map(|n| member(seed, n)).collect::<Vec<_>>();
+                let mut a = make();
+                let expected = crate::engine::committer::parallel::serial(|| serial.invoke_program_batch(&mut a))
+                    .into_iter().map(outcome).collect::<Vec<_>>();
+                let mut b = make();
+                let actual = parallel.invoke_program_batch(&mut b).into_iter().map(outcome).collect::<Vec<_>>();
+                assert_eq!(actual, expected, "seed={seed},N={size},start={start},pg={pg}");
+                assert_eq!(super::tests::snapshot(&mut parallel), super::tests::snapshot(&mut serial));
+                assert_eq!(
+                    b.iter().map(|i|i.attempts.last().unwrap().conflict_rerun).collect::<Vec<_>>(),
+                    a.iter().map(|i|i.attempts.last().unwrap().conflict_rerun).collect::<Vec<_>>()
+                );
+            }
+        }
+    }
+    // Distinct targets with predecessor read dependencies force 15 reruns;
+    // comparing both executors with N=1 also covers the adversarial chain.
+    crate::engine::committer::parallel::serial(|| chains(pg));
+    chains(pg);
+    crate::engine::committer::parallel::serial(|| mixed_and_receipts(pg));
+    mixed_and_receipts(pg);
+    crate::engine::committer::parallel::serial(|| intermediate_log(pg));
+    intermediate_log(pg);
+}
+#[test]
+fn parallel_matches_serial_overlay_sqlite() { parallel_differential(false); }
+#[cfg(feature = "postgres")]
+#[test]
+#[ignore = "private PG16"]
+fn parallel_matches_serial_overlay_postgres() { parallel_differential(true); }

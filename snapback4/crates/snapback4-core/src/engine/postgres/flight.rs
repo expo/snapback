@@ -122,21 +122,21 @@ impl Row {
         let fields = statement.columns().iter().enumerate().map(|(n,c)| {
             if c.type_() == &Type::VOID && row.get(n).is_some() { return Ok(Some(Vec::new())); }
             let value = literal::text(c.type_(), row.get(n))?;
-            binary(c.type_(), &value)
+            binary(c.type_(), value)
         }).collect::<Result<_,_>>()?;
         Ok(Self::Text { statement: statement.clone(), fields })
     }
 }
-fn binary(ty: &Type, value: &literal::Datum) -> Result<Option<Vec<u8>>, RuntimeError> {
+fn binary(ty: &Type, value: literal::Datum) -> Result<Option<Vec<u8>>, RuntimeError> {
     use literal::Datum::*;
     Ok(Some(match value {
         Null => return Ok(None),
-        Bool(v) => vec![u8::from(*v)],
-        Int(v) => match *ty { Type::INT2 => (*v as i16).to_be_bytes().to_vec(), Type::INT4 => (*v as i32).to_be_bytes().to_vec(), _ => v.to_be_bytes().to_vec() },
+        Bool(v) => vec![u8::from(v)],
+        Int(v) => match *ty { Type::INT2 => (v as i16).to_be_bytes().to_vec(), Type::INT4 => (v as i32).to_be_bytes().to_vec(), _ => v.to_be_bytes().to_vec() },
         F32(v) => v.to_bits().to_be_bytes().to_vec(),
         F64(v) => v.to_bits().to_be_bytes().to_vec(),
-        Text(v) => v.as_bytes().to_vec(),
-        Bytes(v) => v.clone(),
+        Text(v) => v.into_bytes(),
+        Bytes(v) => v,
         Array(values) => {
             let postgres::types::Kind::Array(element) = ty.kind() else { return Err(RuntimeError::Store("array output type".into())); };
             let mut bytes = Vec::new();

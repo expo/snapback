@@ -105369,3 +105369,17 @@ the 733 unit passes / 279 unit ignores and 38 doctests already recorded.
 The earlier target count was a reporting error; all target results remain
 successful. The CPU report is corrected, with the census retained outside
 Git in `/tmp/sb4-cpu/core-integration-census.json`.
+
+## 2026-10-24 — G3b-par bounded parallel interpretation candidate
+
+Lane `sb4-pg/g3b-par` starts at `976fc81e92` and preserves CPU commits
+`e491040c39` / `d036159171` as `cb6411684c` / `edf12e5142`.
+The G3b fact closure and ordered acceptance remain intact. A process-wide
+pool of at most eight interpreters receives only immutable facts/IR and
+private contexts. Known hot targets and conflicting reruns stay ordered in
+memory; N=1 retains its existing path. Fact and vector-tail payloads serialize
+borrowed records directly, and driver text/byte buffers move into result rows.
+The new differential compares parallel and forced-serial overlay histories on
+both stores, complementing the existing N=1 oracle, collision chains, receipts
+and intermediate-image witnesses. Qualification and final measurements follow
+in a dated entry; this entry makes no passing-check or capacity claim.

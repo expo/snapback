@@ -5,7 +5,6 @@ use crate::{
     engine::committer::overlay::{Access, Base},
     store_port::batch::{Facts, Request},
 };
-use serde_json::json;
 
 const LEVEL: &str = r#"WITH q AS (
  SELECT * FROM jsonb_to_recordset($1::text::jsonb) AS q(n bigint,t text,ix text,id text,lo text,hi text)
@@ -149,11 +148,46 @@ impl Tx<'_> {
 }
 
 fn level_payload(accesses: &[Access]) -> String {
-    let payload=accesses.iter().enumerate().map(|(n,a)| {
-            let (lo,hi)=crate::rows::scan_range(&a.key,&Default::default(),crate::rows::Dir::Asc).unwrap();
-            let hex=|bytes:Vec<u8>|bytes.iter().map(|b|format!("{b:02x}")).collect::<String>();
-            json!({"n":n,"t":a.table,"ix":a.index,"id":if a.index=="byId" {a.key[0].as_str().unwrap_or("")} else {""},"lo":hex(lo),"hi":hex(hi)})
-        }).collect::<Vec<_>>();
+    #[derive(serde::Serialize)]
+    struct Point<'a> {
+        n: usize,
+        t: &'a str,
+        ix: &'a str,
+        id: &'a str,
+        lo: String,
+        hi: String,
+    }
+    let payload = accesses
+        .iter()
+        .enumerate()
+        .map(|(n, a)| {
+            let (id, lo, hi) = if a.index == "byId" {
+                // The byId arm never consults the encoded range.
+                (
+                    a.key[0].as_str().unwrap_or(""),
+                    String::new(),
+                    String::new(),
+                )
+            } else {
+                let (lo, hi) =
+                    crate::rows::scan_range(&a.key, &Default::default(), crate::rows::Dir::Asc)
+                        .unwrap();
+                (
+                    "",
+                    crate::value::encode_bytes_hex(&lo),
+                    crate::value::encode_bytes_hex(&hi),
+                )
+            };
+            Point {
+                n,
+                t: &a.table,
+                ix: &a.index,
+                id,
+                lo,
+                hi,
+            }
+        })
+        .collect::<Vec<_>>();
     serde_json::to_string(&payload).unwrap()
 }
 
