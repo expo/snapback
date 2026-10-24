@@ -7,8 +7,31 @@ export async function proveRollInstalled(cwd,binary,run){
   const {startServe,cli:proofCli}=await import(pathToFileURL(join(cwd,'node_modules/snapback4/dist/proof.js')));
   const {guest}=await import(pathToFileURL(join(cwd,'node_modules/snapback4/dist/auth.js')));
   const source=(name,text)=>{const path=join(cwd,name);mkdirSync(path,{recursive:true});writeFileSync(join(path,'schema.q'),text);return path;};
-  const cli=async(...args)=>{const r=await proofCli(args,{cwd,env:{SNAPBACK4_BIN:undefined,PORT_LO:'31000',PORT_HI:'31999'}});assert.equal(r.code,0,r.stderr+r.stdout);return r;};
+  const cliAt=async(at,...args)=>{const r=await proofCli(args,{cwd:at,env:{SNAPBACK4_BIN:undefined,PORT_LO:'31000',PORT_HI:'31999'}});assert.equal(r.code,0,r.stderr+r.stdout);return r;};
+  const cli=(...args)=>cliAt(cwd,...args);
   const json=async(...args)=>{const r=await cli(...args,'--json');return JSON.parse(r.stdout);};
+  // The rollback fixtures deliberately loosen one column to represent pending
+  // values. Record only that column's review; adding a presence invariant would
+  // also change the independent workflow intent being tested by these cycles.
+  async function optionalSource(name, before, after, table, column) {
+    const project=join(cwd,name);
+    const path=join(project,'snapback');mkdirSync(path,{recursive:true});
+    writeFileSync(join(path,'schema.q'),before);
+    const check=async(...args)=>proofCli(['check',...args],{cwd:project,env:{SNAPBACK4_BIN:undefined,PORT_LO:'31000',PORT_HI:'31999'}});
+    const baseline=await check();assert.equal(baseline.code,0,baseline.stderr+baseline.stdout);
+    writeFileSync(join(path,'schema.q'),after);
+    const inspected=await check('--json');
+    assert.ok(inspected.code===0||inspected.code===1,inspected.stderr+inspected.stdout);
+    const report=JSON.parse(inspected.stdout);
+    const sites=report.security.notes.filter(n=>n.code==='N_PRESENCE_LOOSENING'&&n.message.startsWith(`${table}.${column}:`))
+      .map(n=>`${n.site.file}:${n.site.line}:${n.site.col}`);
+    const decisions=report.securityReviews.filter(n=>n.code==='N_PRESENCE_LOOSENING'&&sites.includes(n.site));
+    assert.equal(decisions.length,1,JSON.stringify(report));
+    const acknowledged=await check('--ack-security',decisions[0].id,'--reason',
+      `This rollback fixture deliberately permits pending/null ${table}.${column} values; current workflow guards remain enforced.`);
+    assert.equal(acknowledged.code,0,acknowledged.stderr+acknowledged.stdout);
+    return {path,project};
+  }
   const hostOptions={cwd,env:{SNAPBACK4_BIN:undefined,PORT_LO:'31000',PORT_HI:'31999'},timeoutMs:30000};
   async function users(host){const a=await guest(host.url),b=await guest(host.url);assert.ok(a.ok&&b.ok);return [a.session,b.session];}
   async function post(host,session,name,args,kind='m'){
@@ -44,8 +67,8 @@ query item(id: items):
   const dir=join(cwd,'roll-money');await cli('deploy',dir,'--schema',source('roll-v1',old));let host=await startServe(dir,hostOptions);
   try{
     const [alice,bob]=await users(host);const first=await post(host,alice,'add',{amount:100});assert.equal(first.state,'sent');
-    const candidate=source('roll-v2',next);const plan=await json('deploy',dir,'--schema',candidate,'--check');assert.equal(plan.rollbackViews.length,1);
-    await cli('deploy',dir,'--schema',candidate);assert.equal((await post(host,alice,'edit',{id:first.result.id,metric:99})).state,'sent');
+    const candidate=await optionalSource('roll-v2',old,next,'items','amount');const plan=JSON.parse((await cliAt(candidate.project,'deploy',dir,'--schema',candidate.path,'--check','--json')).stdout);assert.equal(plan.rollbackViews.length,1);
+    await cliAt(candidate.project,'deploy',dir,'--schema',candidate.path);assert.equal((await post(host,alice,'edit',{id:first.result.id,metric:99})).state,'sent');
     const pending=await post(host,alice,'add',{amount:null});assert.equal(pending.state,'sent');
     for(let round=0;round<2;round++){
       const selected=await json('rollback',dir,'--to','1');assert.equal(selected.rollbackView.target,1);
@@ -121,7 +144,7 @@ query doc(id: docs):
   host=await startServe(intentDir,hostOptions);
   try {
     const [alice,bob]=await users(host);
-    const path=source('intent-v2',intentNext);await cli('deploy',intentDir,'--schema',path);
+    const candidate=await optionalSource('intent-v2',intentOld,intentNext,'docs','secret');await cliAt(candidate.project,'deploy',intentDir,'--schema',candidate.path);
     const selected=await json('rollback',intentDir,'--to','1');assert.equal(selected.rollbackView.target,1);
     const created=await post(host,alice,'create',{owner:bob.principal,secret:'current-intent'});
     assert.equal(created.state,'sent');assert.equal(created.result.owner,alice.principal);

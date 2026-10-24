@@ -30,8 +30,10 @@ fn generated_foreign_asset_and_non_image_challenges_use_real_ledgers(){
  let b=compile(&[("schema.q".into(),"table photos:\n  owner: principal\n  image: image <=5000\n  read <- .owner = viewer\n  insert <- .owner = viewer\n  online only\ntable documents:\n  owner: principal\n  attachment: file <=5000 ('application/pdf')\n  read <- .owner = viewer\n  insert <- .owner = viewer\n  online only\nmutation photo(image: image <=5000):\n  return insert photos { owner: viewer, image }\nmutation attach(attachment: file <=5000 ('application/pdf')):\n  return insert documents { owner: viewer, attachment }\n".into())]);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
  let fixture=Engine::memory(b.schema.clone(),b.programs.iter().map(|p|p.program.clone())).unwrap();
  let mut c=security::challenges::Campaign::default();security::challenges::operations(&b,&fixture,&mut c);
- assert!(c.boundary_failures.is_empty(),"{c:?}");assert!(c.attempted>=3);
- assert_eq!(c.operations["photo"],6,"four ordinary viewers plus foreign-image and non-image ledger challenges: {c:?}");
+ assert!(c.boundary_failures.is_empty(),"{c:?}");
+ assert_eq!(c.attempted,15,"all ordinary and hostile ledger cases run: {c:?}");
+ assert_eq!(c.refused,3,"foreign image/file and non-image placement must refuse: {c:?}");
+ assert_eq!(c.operations["photo"],10,"two verified image samples for each of four ordinary viewers, plus foreign-image and non-image ledger challenges: {c:?}");
  assert_eq!(c.operations["attach"],5,"four ordinary viewers plus the foreign-file ledger challenge: {c:?}");
 }
 

@@ -104720,3 +104720,12 @@ These short-window results qualify this comparison, not a production capacity
 or publication claim. Only this result directory and this journal entry land.
 
 The Mac published-0.2.33 control accepts DX8's descriptive service-seat hint at install/adopt/query/reopen. Its canonical-byte assertion now validates the empty hint explicitly and removes exactly that validated envelope alongside the existing handshake/store identity metadata; every schema/program byte remains pinned to the unchanged 3,100-byte fixture. No production serialization or authority changed.
+
+Integration 24 packed rollback qualification now records each deliberately
+loosened fixture column through its own successful predecessor check and
+rule-bound security review, then deploys from that reviewed project. This
+preserves the fixture's independent current workflow intent rather than adding
+a tautological invariant. The complete installed rollback witness passes.
+The media campaign regression now counts both verified image samples for each
+viewer (ten photo calls total) and explicitly requires all three foreign/non-image
+placements to refuse; its focused test passes. No runtime authority changed.
