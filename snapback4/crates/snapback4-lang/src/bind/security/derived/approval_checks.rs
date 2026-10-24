@@ -1,0 +1,56 @@
+//! Reissuing a stamp must check the replacement, not its old input image.
+// @ref LLP 3000.036.004.000#10-sec10-approvals-and-deterministic-exploration — source custody alone cannot validate changed evidence.
+use super::*;
+use snapback4_core::Value;
+#[derive(Clone)]pub(crate) struct ApprovalCheck{columns:BTreeSet<String>,predicate:Option<ast::Expr>}
+const ARG:&str="$approval-arg:";
+fn walk(e:&ast::Expr,mut visit:impl FnMut(&ast::Expr)){let mut e=e.clone();super::super::super::intent_walk::expression(&mut e,&mut |e|visit(e));}
+fn clauses(e:&ast::Expr)->Vec<&ast::Expr>{match e{ast::Expr::Binary{op,left,right,..} if op=="and"=>clauses(left).into_iter().chain(clauses(right)).collect(),_=>vec![e]}}
+pub(super) fn collect(sources:&[(String,String)],bound:&Bound)->BTreeMap<(String,String,String,String),Vec<ApprovalCheck>>{
+    let docs=sources.iter().map(|(file,text)|crate::parse_document(file,text).0).collect::<Vec<_>>();let catalog=Catalog::build(docs.clone(),&mut Vec::new());let mut out=BTreeMap::<_,Vec<_>>::new();
+    for doc in &docs{for p in doc.programs.iter().filter(|p|p.kind==ast::ProgramKind::Mutation){
+        let writes=authority_walk::writes(&catalog,p);
+        for (write,context) in &writes{let ast::Expr::Write{table,keys,fields,site,..}=write else{continue;};
+            let program=super::super::super::operation_name(std::path::Path::new(&doc.file).file_stem().and_then(|s|s.to_str()).unwrap_or(&doc.file),&p.name);
+            let focal=||ast::Expr::Focal{site:site.clone()};let member=|name:String|ast::Expr::Member{base:Box::new(focal()),name,site:site.clone()};
+            let arguments=p.args.iter().map(|arg|(arg.name.clone(),member(format!("{ARG}{}",arg.name)))).collect();
+            let mut checks=Vec::new();
+            for condition in context.body.iter().filter_map(|stmt|if let ast::Stmt::Require{condition,..}=stmt{Some(condition)}else{None}).flat_map(clauses){
+                let mut condition=condition.clone();omit_preconditions(&mut condition,false);let mut columns=BTreeSet::new();
+                walk(&condition,|e|match e{
+                    ast::Expr::Member{base,name,..} if same_resource(base,table,keys,p)=>{columns.insert(name.clone());},
+                    ast::Expr::Name{name,..}=>{for field in fields{if matches!(&field.value,Some(ast::Expr::Name{name:arg,..}) if arg==name){columns.insert(field.name.clone());}}},_=>{},
+                });
+                if columns.is_empty(){continue;}
+                // Resolve only the selected row. A different resource's checks
+                // remain a different resource, even with the same column name.
+                super::super::super::intent_walk::expression(&mut condition,&mut |e|if same_resource(e,table,keys,p){*e=focal();});
+                let mut predicate=workflow::normalize(&condition,&bound.schema,table,&arguments);
+                // A foreign row changed earlier in the operation may no longer
+                // be the row image on which its actual require was evaluated.
+                walk(&condition,|e|if let ast::Expr::Read(read)|ast::Expr::Exists{read,..}=e&&writes.iter().any(|(write,_)|matches!(write,ast::Expr::Write{table:target,..} if target==&read.table)){predicate=None;});
+                if let Some(normalized)=&predicate{let mut foreign=false;walk(normalized,|e|if let ast::Expr::Member{base,..}=e&&let Some(owner)=super::super::concrete::reference_table(base,&bound.schema,table)&&owner!=table&&writes.iter().any(|(write,_)|matches!(write,ast::Expr::Write{table:target,..} if target==owner)){foreign=true;});if foreign{predicate=None;}}
+                checks.push(ApprovalCheck{columns,predicate});
+            }
+            for stamp in bound.schema.tables[table].columns.keys().filter(|stamp|["approv","authoriz"].iter().any(|part|stamp.to_lowercase().contains(part))){
+                out.entry((program.clone(),table.clone(),stamp.clone(),site.to_string())).or_default().extend(checks.clone());
+            }
+        }
+    }}out
+}
+/// Validate each changed input against the complete relevant Boolean clause on
+/// its replacement image. Unsupported expressions remain unknown, never FIX.
+pub(crate) fn revalidated(bound:&Bound,program:&str,table:&str,stamp:&str,site:Option<&str>,old:&Value,next:&Value,columns:&BTreeSet<String>,rows:&BTreeMap<String,Vec<Value>>,viewer:&str,now:i64,args:&BTreeMap<String,Value>)->Option<bool>{
+    let cell=|row:&Value,column:&str|row.field(column).ok().cloned().unwrap_or(Value::Null);
+    let Some(checks)=site.and_then(|site|bound.security_approval_checks.get(&(program.into(),table.into(),stamp.into(),site.into())))else{return None;};
+    let mut image=next.clone();if let Value::Row(fields)|Value::Map(fields)=&mut image{for (name,value) in args{fields.insert(format!("{ARG}{name}"),value.clone());}}
+    let mut unknown=false;
+    for column in columns.iter().filter(|column|cell(old,column)!=cell(next,column)){
+        // Atomic consumption of another approval is not ordinary replacement
+        // data. Its receipt graph, rather than a negative new stamp, governs it.
+        if ["approv","authoriz"].iter().any(|part|column.to_lowercase().contains(part))&&matches!(cell(old,column),Value::Bool(true)|Value::Int(_))&&matches!(cell(next,column),Value::Bool(false)|Value::Null){unknown=true;continue;}
+        let relevant=checks.iter().filter(|check|check.columns.contains(column)).collect::<Vec<_>>();if relevant.is_empty(){return Some(false);}
+        for check in relevant{match check.predicate.as_ref().and_then(|predicate|super::super::concrete::evaluate(predicate,&image,rows,&bound.schema,viewer,table,now)){Some(false)=>return Some(false),None=>unknown=true,_=>{}}}
+    }
+    if unknown{None}else{Some(true)}
+}

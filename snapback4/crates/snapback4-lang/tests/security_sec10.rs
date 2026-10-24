@@ -306,3 +306,15 @@ fn campaign(s:&str)->Campaign{let b=security::derived::augmented(&sources(s),&bo
     let negative=source.replace("BODY","").replace("  update docs[doc] {status:'archived'}", "  require not exists approvals[doc = doc] else ALREADY\n  update docs[doc] {status:'archived'}");assert!(!notes(&negative).iter().any(|note|note.code=="N_APPROVAL_NOT_ENFORCED"));let unguarded=negative+"mutation unchecked(doc: docs):\n  update docs[doc] {status:'archived'}\n";assert!(notes(&unguarded).iter().any(|note|note.code=="N_APPROVAL_NOT_ENFORCED"));
     let created=source.replace("BODY","").replace("return insert approvals {doc}","fresh = insert docs {status:'done'}\n  return insert approvals {doc:fresh.id}");assert!(!notes(&created).iter().any(|note|note.code=="N_APPROVAL_NOT_ENFORCED"));let mixed=created+"mutation independent(doc: docs):\n  require exists roles[principal = viewer,role = 'manager'] else DENIED\n  return insert approvals {doc}\n";assert!(notes(&mixed).iter().any(|note|note.code=="N_APPROVAL_NOT_ENFORCED"));
 }
+
+#[test]fn read_audiences_and_other_rows_do_not_enforce_a_scalar_approval(){
+    let source="table docs:\n  approved: bool default false\n  status: enum('draft','done') default 'draft'\n  note: text ? read <- .approved = true\n  read <- allow\n  update <- allow\n  online only\nmutation approve(doc: docs):\n  update docs[doc] {approved:true}\nmutation finish(doc: docs,other: docs):\nGUARD  update docs[doc] {status:'done'}\n";
+    for (guard,expected) in [("",true),("  o = docs[other] ! else MISSING\n  require o.approved else NO_APPROVAL\n",true),("  d = docs[doc] ! else MISSING\n  require d.approved else NO_APPROVAL\n",false)]{
+        let ns=notes(&source.replace("GUARD",guard));assert_eq!(ns.iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"),expected,"{ns:?}");
+    }
+}
+
+#[test]fn one_negative_scalar_guard_does_not_discharge_an_unchecked_effect(){
+    let source="table docs:\n  approved: bool default false\n  status: enum('draft','done') default 'draft'\n  read <- allow\n  update <- allow\n  online only\nmutation approve(doc: docs):\n  update docs[doc] {approved:true}\nmutation finish(doc: docs):\n  d = docs[doc] ! else MISSING\n  require not d.approved else FROZEN\n  update docs[doc] {status:'done'}\nEXTRA";
+    for (extra,expected) in [("",false),("mutation bypass(doc: docs):\n  update docs[doc] {status:'done'}\n",true)]{assert_eq!(notes(&source.replace("EXTRA",extra)).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"),expected);}
+}

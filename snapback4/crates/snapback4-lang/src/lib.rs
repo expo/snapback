@@ -63,7 +63,7 @@ pub fn compile(sources: &[(String, String)]) -> Bound {
     bind::audience_diagnostics::parser_context(&documents, &mut diagnostics);
     repair::verify(&documents, &mut diagnostics);
     if !diagnostics.is_empty() {
-        return Bound { security_approval_reissues:Default::default(),security_approval_uncertain_writes:Default::default(),security_approval_inputs: Default::default(), rollback_hides:Vec::new(), invariants: Vec::new(), receipt_members: Default::default(), refusal_sites: Default::default(), view_types: Default::default(), server: documents.iter().any(|doc| doc.server), schema: Default::default(), programs: Vec::new(), personas: Vec::new(), diagnostics, notes: Vec::new() };
+        return Bound { security_approval_checks:Default::default(),security_approval_reissues:Default::default(),security_approval_uncertain_writes:Default::default(),security_approval_inputs: Default::default(), rollback_hides:Vec::new(), invariants: Vec::new(), receipt_members: Default::default(), refusal_sites: Default::default(), view_types: Default::default(), server: documents.iter().any(|doc| doc.server), schema: Default::default(), programs: Vec::new(), personas: Vec::new(), diagnostics, notes: Vec::new() };
     }
     bind(documents)
 }

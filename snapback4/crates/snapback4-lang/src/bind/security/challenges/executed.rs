@@ -96,17 +96,21 @@ pub(super) fn trace(bound:&Bound,p:&Program,entry:&Engine)->Trace {
             let key=(p.name.clone(),owner.clone(),stamp.clone());
             let sites:Vec<String>=if trusted{bound.security_approval_reissues.get(&key)}else{bound.security_approval_uncertain_writes.get(&key)}.map(|sites|sites.iter().cloned().collect()).unwrap_or_default();
             if !trusted&&sites.is_empty(){continue;}
-            let owner=owner.clone();let stamp=stamp.clone();let columns=columns.clone();let receipts=receipts.clone();let target=owner.clone();let column=stamp.clone();
+            let owner=owner.clone();let stamp=stamp.clone();let columns=columns.clone();let receipts=receipts.clone();let target=owner.clone();let column=stamp.clone();let bound=bound.clone();let program=p.name.clone();let entry=entry.clone();
             intents.push(Intent{source:snapback4_core::engine::fixture_trace::SourceFilter{unchanged_at:sites.clone(),updates_at:Some(sites),..Default::default()},paired:false,concrete:None,site:"$security.approval-receipt".into(),table:target,effects:if trusted{vec![Effect::Insert,Effect::Update]}else{vec![Effect::Update]},column:Some(column),policy:RuleExpr::Allow,
-                boundary:Some(snapback4_core::engine::fixture_trace::BoundaryPredicate(std::sync::Arc::new(move |_,_,next,_,_|{if let Some(next)=next&&let Some((key,mut value))=receipt(&owner,next,&stamp,&columns){value.trusted=trusted;receipts.lock().expect("approval receipt lock").insert(key,value);}Some(true)})))});
+                boundary:Some(snapback4_core::engine::fixture_trace::BoundaryPredicate(std::sync::Arc::new(move |rows,old,next,viewer,now,args,site|{if let Some(next)=next&&let Some((key,mut value))=receipt(&owner,next,&stamp,&columns){
+                    let baseline=entry.as_ref().and_then(|entry|entry.get(&owner)).into_iter().flatten().find(|row|row.field("id").ok()==next.field("id").ok()).or(old);
+                    let checked=if trusted{baseline.map(|old|super::super::derived::revalidated(&bound,&program,&owner,&stamp,site,old,next,&columns,rows,viewer,now,args)).unwrap_or(Some(true))}else{None};
+                    if checked!=Some(false){value.trusted=trusted&&checked==Some(true);receipts.lock().expect("approval receipt lock").insert(key,value);}
+                }Some(true)})))});
         }
     }}
     for inv in bound.invariants.iter().filter(|inv|!matches!(inv.target.as_str(),"read"|"always")&&inv.operation.as_ref().is_none_or(|op|op==&p.name)) {
         for word in super::super::effects(inv) {
             let transition=super::super::derived::transition(inv);
-            let boundary=transition.map(|(bypass,prerequisite)|{
+            let mut boundary=transition.map(|(bypass,prerequisite)|{
                 let bypass=bypass.clone();let prerequisite=prerequisite.clone();let schema=bound.schema.clone();let table=inv.table.clone();let entry=if inv.site.file.contains("/sibling-approval/"){entry.clone()}else{None};let inputs=inputs.clone();let receipts=receipts.clone();let sibling=inv.site.file.contains("/sibling-approval/");
-                snapback4_core::engine::fixture_trace::BoundaryPredicate(std::sync::Arc::new(move |rows,old,next,viewer,now|{
+                snapback4_core::engine::fixture_trace::BoundaryPredicate(std::sync::Arc::new(move |rows,old,next,viewer,now,_,_|{
                     let (Some(old),Some(next))=(old,next)else{return None;};
                     match super::super::concrete::evaluate(&bypass,next,rows,&schema,viewer,&table,now){
                         Some(true)=>Some(true),Some(false)=>{
@@ -119,20 +123,20 @@ pub(super) fn trace(bound:&Bound,p:&Program,entry:&Engine)->Trace {
                 }))
             }).or_else(||if inv.site.file.contains("/sibling-approval/")&&word=="insert"{
                 let predicate=inv.syntax.clone()?;let schema=bound.schema.clone();let table=inv.table.clone();let entry=entry.clone();let receipts=receipts.clone();
-                Some(snapback4_core::engine::fixture_trace::BoundaryPredicate(std::sync::Arc::new(move |rows,_old,next,viewer,now|{
-                    let row=next?;let current=super::super::concrete::evaluate(&predicate,row,rows,&schema,viewer,&table,now);
+                Some(snapback4_core::engine::fixture_trace::BoundaryPredicate(std::sync::Arc::new(move |rows,_old,next,viewer,now,_,_|{
+                    let row=next?;
                     let prior=entry.as_ref().map(|entry|consumed(&predicate,row,row,rows,entry,&schema,viewer,&table,now,&receipts.lock().expect("approval receipt lock")));
                     match prior{Some(result)=>result,None=>None}
                 })))
             }else if inv.site.file.contains("/parent-state/"){
                 let predicate=inv.syntax.clone()?;let schema=bound.schema.clone();let table=inv.table.clone();
                 let mut references=BTreeSet::new();let mut probe=predicate.clone();crate::bind::intent_walk::expression(&mut probe,&mut |e|if let ast::Expr::Member{base,name,..}=e&&matches!(base.as_ref(),ast::Expr::Focal{..})&&matches!(schema.tables[&table].columns.get(name).map(C::required),Some(C::Ref{..})){references.insert(name.clone());});
-                Some(snapback4_core::engine::fixture_trace::BoundaryPredicate(std::sync::Arc::new(move |rows,old,next,viewer,now|{
+                Some(snapback4_core::engine::fixture_trace::BoundaryPredicate(std::sync::Arc::new(move |rows,old,next,viewer,now,_,_|{
                     let old=old?;let row=if let Some(next)=next&&references.iter().any(|reference|next.field(reference).ok().is_some_and(|id|*id!=Value::Null&&old.field(reference).ok()!=Some(id))){next}else{old};
                     super::super::concrete::evaluate(&predicate,row,rows,&schema,viewer,&table,now)
                 })))
             }else{None});
-            let concrete=if boundary.is_none()&&inv.policy.is_none(){inv.syntax.clone().map(|syntax|{
+            let mut concrete=if boundary.is_none()&&inv.policy.is_none(){inv.syntax.clone().map(|syntax|{
                 let bound=bound.clone();let inv=inv.clone();let insert=word=="insert";
                 snapback4_core::engine::fixture_trace::ConcretePredicate(std::sync::Arc::new(move |rows,row,viewer,now|{
                     if insert&&super::super::write_intent::empty_creation(&bound,&inv,None,row){return Some(true);}
@@ -145,7 +149,17 @@ pub(super) fn trace(bound:&Bound,p:&Program,entry:&Engine)->Trace {
                 for ((table,stamp),_) in bound.security_approval_inputs.iter().filter(|((table,_),_)|table==&inv.table){
                     if policy.any_term(&|term|matches!(term,RuleTerm::OldField(column)|RuleTerm::NextField(column) if column==stamp)){stamps.insert((table.clone(),stamp.clone()));}
                 }
-                if stamps.len()==1{let (table,stamp)=stamps.into_iter().next().unwrap();let key=(p.name.clone(),table,stamp);source.except_at=bound.security_approval_reissues.get(&key).map(|s|s.iter().cloned().collect()).unwrap_or_default();source.unknown_at=bound.security_approval_uncertain_writes.get(&key).map(|s|s.iter().cloned().collect()).unwrap_or_default();}
+                if stamps.len()==1{
+                    let (table,stamp)=stamps.into_iter().next().unwrap();let key=(p.name.clone(),table.clone(),stamp.clone());
+                    let sites=bound.security_approval_reissues.get(&key).cloned().unwrap_or_default();
+                    source.unknown_at=bound.security_approval_uncertain_writes.get(&key).map(|s|s.iter().cloned().collect()).unwrap_or_default();
+                    let columns=inv.column.iter().cloned().collect();let bound=bound.clone();let program=p.name.clone();concrete=None;
+                    boundary=Some(snapback4_core::engine::fixture_trace::BoundaryPredicate(std::sync::Arc::new(move |rows,old,next,viewer,now,args,site|{
+                        let (Some(old),Some(next))=(old,next)else{return None;};
+                        if !positive(&cell(old,&stamp))||!positive(&cell(next,&stamp)){return Some(true);}
+                        if site.is_some_and(|site|sites.contains(site)){super::super::derived::revalidated(&bound,&program,&table,&stamp,site,old,next,&columns,rows,viewer,now,args)}else{Some(false)}
+                    })));
+                }
             }
             intents.push(Intent {
                 source,paired:super::super::derived::is_derived(inv)&&inv.policy.as_ref().is_some_and(|r|r.any_term(&|t|matches!(t,RuleTerm::OldField(_)|RuleTerm::NextField(_)))),
@@ -473,6 +487,8 @@ fn lifecycle_observations(source:String,operation:&str,args:BTreeMap<String,Valu
     let source="table docs:\n  consent: bool\n  approved: bool default true\n  read <- allow\n  insert <- allow\n  update <- allow\n  online only\nmutation create(consent: bool):\n  require consent else NO_CONSENT\n  return insert docs {consent}\nmutation edit(doc: docs,reapprove: bool):\n  d = docs[doc] ! else MISSING\nBODY";
     for (body,allowed) in [
         ("  update docs[doc] {consent:false}\n",false),
+        ("  require d.consent else NO_CONSENT\n  update docs[doc] {consent:false,approved:true}\n",false),
+        ("  saved = d.consent\n  require saved else NO_CONSENT\n  update docs[doc] {consent:false,approved:true}\n",false),
         ("  update docs[doc] {consent:false,approved:d.approved}\n",false),
         ("  update docs[doc] {consent:false,approved:false}\n",true),
         ("  require reapprove else NO_CONSENT\n  update docs[doc] {consent:reapprove,approved:true}\n",true),
@@ -521,6 +537,20 @@ fn lifecycle_observations(source:String,operation:&str,args:BTreeMap<String,Valu
 #[test]fn positive_approval_counts_govern_sibling_effects(){
     let source="table docs:\n  read <- allow\n  online only\ntable approvals:\n  doc: docs\n  cap 10\n  read <- allow\n  online only\ntable effects:\n  doc: docs\n  read <- allow\n  insert <- allow\n  online only\nmutation guarded(doc: docs):\n  require count(approvals[doc = doc]) > 0 else NO_APPROVAL\n  return insert effects {doc}\nmutation bypass(doc: docs):\n  return insert effects {doc}\n";
     let sources=vec![("schema.q".into(),source.into())];let b=super::super::super::derived::augmented(&sources,&crate::compile(&sources));assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);let mut engine=Engine::memory(b.schema.clone(),b.programs.iter().map(|p|p.program.clone())).unwrap();let row=snapback4_core::wire::row_from_json(&b.schema.tables["docs"],&serde_json::json!({"id":"d"})).unwrap();engine.seed_at([("docs".into(),row)],NOW).unwrap();let p=&b.programs.iter().find(|p|p.program.name=="bypass").unwrap().program;let trace=trace(&b,p,&engine);let result=engine.mutate("bypass",None,Context::new("dev:a",BTreeMap::from([("doc".into(),Value::Id("d".into()))])).at(NOW).with_fixture_trace(trace.clone())).unwrap();assert!(matches!(result.state,snapback4_core::WriteState::Sent{..}));assert!(trace.take().iter().any(|o|o.site.contains("sibling-approval")&&o.allowed==Some(false)));
+}
+
+#[test]fn unchecked_reapproval_does_not_refresh_the_effect_receipt(){
+    let source="table docs:\n  consent: bool\n  approved: bool default false\n  read <- allow\n  update <- allow\n  online only\ntable effects:\n  doc: docs\n  read <- allow\n  insert <- allow\n  online only\nmutation approve(doc: docs):\n  d = docs[doc] ! else MISSING\n  require d.consent else NO_CONSENT\n  update docs[doc] {approved:true}\nmutation finish(doc: docs):\n  d = docs[doc] ! else MISSING\n  require d.approved else NO_APPROVAL\n  return insert effects {doc}\nmutation bypass(doc: docs,replacement: bool):\n  d = docs[doc] ! else MISSING\nBODY  return insert effects {doc}\n";
+    for (body,expected) in [
+        ("  require d.consent else NO_CONSENT\n  update docs[doc] {consent:false,approved:true}\n",Some(false)),
+        ("  require replacement else NO_CONSENT\n  update docs[doc] {consent:replacement,approved:true}\n",Some(true)),
+        ("  require d.consent or replacement else NO_CONSENT\n  update docs[doc] {consent:false,approved:true}\n",Some(true)),
+        ("  require d.consent else NO_CONSENT\n  update docs[doc] {approved:false,consent:false}\n  update docs[doc] {approved:true}\n",Some(false)),
+    ]{
+        let sources=vec![("schema.q".into(),source.replace("BODY",body))];let b=super::super::super::derived::augmented(&sources,&crate::compile(&sources));assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
+        let mut engine=Engine::memory(b.schema.clone(),b.programs.iter().map(|p|p.program.clone())).unwrap();let row=snapback4_core::wire::row_from_json(&b.schema.tables["docs"],&serde_json::json!({"id":"d","consent":true,"approved":true})).unwrap();engine.seed_at([("docs".into(),row)],NOW).unwrap();
+        let p=&b.programs.iter().find(|p|p.program.name=="bypass").unwrap().program;let trace=trace(&b,p,&engine);let result=engine.mutate("bypass",None,Context::new("dev:a",BTreeMap::from([("doc".into(),Value::Id("d".into())),("replacement".into(),Value::Bool(true))])).at(NOW).with_fixture_trace(trace.clone())).unwrap();assert!(matches!(result.state,snapback4_core::WriteState::Sent{..}));let observations=trace.take();assert!(observations.iter().any(|o|o.site.contains("sibling-approval")&&o.allowed==expected),"{body}: {observations:?}");
+    }
 }
 
 }

@@ -74,7 +74,7 @@ fn ref_table<'a>(e:&Expr,schema:&'a Schema,root:&'a str)->Option<&'a str>{match 
 }}
 // Only id reads on a typed reference become a row expression. Secondary-key
 // lookups, arbitrary arguments and ambiguous references are not guessed.
-fn normalize(e:&Expr,schema:&Schema,root:&str,args:&BTreeMap<String,Expr>)->Option<Expr>{
+pub(super) fn normalize(e:&Expr,schema:&Schema,root:&str,args:&BTreeMap<String,Expr>)->Option<Expr>{
     let mut e=e.clone();if !mask_locals(&mut e,args){return None;}walk(&mut e,&mut |e|{
         if let Expr::Name{name,..}=e&&let Some(value)=args.get(name){*e=value.clone();}
         if let Expr::Read(read)=e&&read.keys.len()==1&&read.filter.is_none()&&read.range.is_none()&&read.seeks.is_empty()&&read.matching.is_none()&&read.computed.is_empty(){

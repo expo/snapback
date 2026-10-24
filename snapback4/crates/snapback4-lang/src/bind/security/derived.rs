@@ -2,6 +2,9 @@
 // @ref LLP 3000.036.004.000#5-derived-campaigns-and-production-deployment — inferred candidates require ordinary replay, never a proof claim.
 use super::*;
 mod workflow;
+mod approval_checks;
+pub(crate) use approval_checks::ApprovalCheck;
+pub(super) use approval_checks::revalidated;
 
 // A complex operand may inspect positive evidence before producing null.
 // Only a plain row-field access can establish a pure absence precondition.
@@ -187,7 +190,7 @@ pub fn notes(sources:&[(String,String)],bound:&Bound)->Vec<Diagnostic>{
     }).collect()
 }
 pub fn augmented(sources:&[(String,String)],bound:&Bound)->Bound{
-    let mut out=bound.clone();let mut inputs=BTreeMap::new();let mut reissues=BTreeMap::new();let mut uncertain=BTreeMap::new();out.invariants.extend(collect(sources,bound,&mut inputs,&mut reissues,&mut uncertain));out.security_approval_reissues.extend(reissues);out.security_approval_uncertain_writes.extend(uncertain);for (stamp,columns) in inputs{out.security_approval_inputs.entry(stamp).or_default().extend(columns);}
+    let mut out=bound.clone();let mut inputs=BTreeMap::new();let mut reissues=BTreeMap::new();let mut uncertain=BTreeMap::new();out.invariants.extend(collect(sources,bound,&mut inputs,&mut reissues,&mut uncertain));out.security_approval_checks=approval_checks::collect(sources,bound);out.security_approval_reissues.extend(reissues);out.security_approval_uncertain_writes.extend(uncertain);for (stamp,columns) in inputs{out.security_approval_inputs.entry(stamp).or_default().extend(columns);}
     // Declared write audiences are runtime contracts, not inferred spec intent.
     // Their replay failures cannot be acknowledged as deliberate asymmetry.
     let mut contracts=Vec::new();

@@ -12,7 +12,7 @@ impl std::fmt::Debug for ConcretePredicate {fn fmt(&self,f:&mut std::fmt::Format
 /// the actual old/next pair, so consuming approval is distinct from bypassing it.
 // @ref LLP 3000.036.004.000#10-sec10-approvals-and-deterministic-exploration — inferred transitions never change application admission.
 #[derive(Clone)]
-pub struct BoundaryPredicate(pub Arc<dyn Fn(&FixtureRows,Option<&Value>,Option<&Value>,&str,i64)->Option<bool> + Send + Sync>);
+pub struct BoundaryPredicate(pub Arc<dyn Fn(&FixtureRows,Option<&Value>,Option<&Value>,&str,i64,&std::collections::BTreeMap<String,Value>,Option<&str>)->Option<bool> + Send + Sync>);
 impl std::fmt::Debug for BoundaryPredicate {fn fmt(&self,f:&mut std::fmt::Formatter<'_>)->std::fmt::Result{f.write_str("effect prerequisite")}}
 #[derive(Clone,Debug,Default)]
 pub struct SourceFilter {
@@ -77,7 +77,7 @@ impl Runner<'_> {
                 rules::Verdict::Readable => Some(true), rules::Verdict::Denied => Some(false), rules::Verdict::Unknown => None,
             });
             let allowed = if write_site.as_ref().is_some_and(|site|intent.source.unknown_at.contains(site)){None}else if let Some(predicate)=&intent.boundary {
-                self.fixture_snapshot().ok().and_then(|before|(predicate.0)(&before,old,next,&self.context.viewer,self.context.now.unwrap_or(0)))
+                self.fixture_snapshot().ok().and_then(|before|(predicate.0)(&before,old,next,&self.context.viewer,self.context.now.unwrap_or(0),&self.context.args,write_site.as_deref()))
             } else if let Some(predicate)=&intent.concrete {
                 // Private fixture inspection, bounded and independent of the
                 // application's logical meter. Overlay the pending write:

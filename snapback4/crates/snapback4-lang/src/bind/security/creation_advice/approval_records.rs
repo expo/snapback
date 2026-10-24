@@ -45,7 +45,7 @@ fn created(value:&Expr,parent:&str)->bool{match value{
 }}
 // An attached ancestor is provenance for an audited child decision, not a
 // second independently approved resource. Keep the exact typed source row.
-fn origin(value:&Expr,p:&ast::ProgramDecl,bound:&Bound)->Option<(String,String,String)>{match value{
+pub(super) fn origin(value:&Expr,p:&ast::ProgramDecl,bound:&Bound)->Option<(String,String,String)>{match value{
     Expr::Assert{value,..}=>origin(value,p,bound),
     Expr::Name{name,..}=>p.args.iter().find_map(|argument|if argument.name==*name&&let TypeKind::Ref{table}=&argument.type_.kind{Some((table.clone(),table.clone(),name.clone()))}else{None}),
     Expr::Read(read) if read.keys.len()==1&&read.keys[0].column.as_deref().is_none_or(|column|column=="id")&&read.filter.is_none()&&read.range.is_none()&&read.seeks.is_empty()&&read.matching.is_none()&&read.computed.is_empty()=>arg(&read.keys[0].value,&read.table,p).map(|arg|(read.table.clone(),read.table.clone(),arg.into())),
