@@ -386,3 +386,15 @@ used to replace this broad-run red. Reader transport qualification and the
 remaining stock stages are recorded in the
 [PIPE report](../snapback4/reports/20261024-pipe/REPORT.md). Raw evidence is
 retained outside Git under `/tmp/sb4-pipe/postgres-final.log`.
+
+## 2026-10-24 — G3b private qualification
+
+The unchanged retained evaluator stress again returns SQLSTATE `40001`
+(`could not serialize access due to concurrent update`) at the increment
+unwrap in `experiments/postgres/tests/conformance.rs:294`, followed by its
+join at :307. Conformance finishes 21 passed / 1 failed / three existing
+exclusions. The runner continues through all later scopes and the public CLI
+witness. No retry, timeout, durability or exclusion policy changes. The
+[G3b report](../snapback4/reports/20261024-g3b-bounded-overlay/REPORT.md)
+records the final scope results and private-process cleanup; the full-script
+result remains red.

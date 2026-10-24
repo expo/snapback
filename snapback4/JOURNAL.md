@@ -105178,3 +105178,59 @@ stayed above 40 GB. Only this lane's generated incremental cache was cleared
 for headroom. Raw logs and PG data remain outside Git. No push, stash or
 Git configuration change occurs. Final `./ref-check` and diff whitespace
 checks pass with zero errors and zero unchecked references.
+## 2026-10-24 — G3b bounded S1 overlay and level-synchronous facts
+
+Lane `sb4-pg/g3b` starts at G2/G3 tip `b3c4aa2bba`. The existing fenced
+committer now selects generation-1 ordinary point updates with a complete
+finite counter/rule closure. Schema row-decode reservations limit root/probe
+collection to 32 MiB. Each dependency level is one composed PostgreSQL data
+statement across the members, with absence and hidden rule-probe images
+recorded. Rust retains rules, refusals, returned images and meters. Own writes,
+accepted predecessors and immutable base facts form the private overlay.
+Recorded read conflicts rerun in memory after predecessors; known hot-key
+colliders run once, serially in memory. No program image reaches storage
+before the one final-image/vector-tail apply flight and separate COMMIT.
+SQLite shares the Rust semantics through its own local access. The retained
+checked opener gives five warm full-batch flights for W4 and six for W5,
+not the separately qualified optional three-/two-flight opener.
+
+The randomized oracle compares three seeds × 192 members at N=8/32 with N=1
+on both stores, including outcomes/meters, receipts, rows, sequences, change
+evidence and intermediate logged/returned images. A 16-member chain forces
+15 in-memory reruns per store. Same-key collisions, read-after-write chains,
+rule failures, mid-batch refusals, duplicate receipts, late unknown families,
+declared fact-budget overflow, maintained/allocator/time/presence fallbacks,
+every facts/member/apply/COMMIT boundary, suppressed PG updates and a real
+owned writer terminated during COMMIT all pass. Unknown COMMIT makes every
+member unknown; keyed retry/replay under a new fenced owner is witnessed.
+
+Full core passes: 742 unit tests, 289 named unit ignores, every unignored
+integration target and 38 doc tests. Full binary passes 577 with 45 named
+ignores. Normal build and both RT0 ratchets pass. The 36-case private program
+batch scope passes. The complete Postgres script retains only the known
+evaluator Serializable `40001`; all later adapter/ownership/evolution,
+corpus/differential, HTTP and public CLI scopes pass. No retry, timeout,
+durability or exclusion policy changes. The existing ticket records the red.
+
+Private durable PG16 TCP loopback, 32 live-account writers, three
+counterbalanced trials per N (one-second warmup, three-second timed phase):
+median writes/s at N=1/8/32 are 173.6/904.8/1883.5 for W4 disjoint and
+162.2/891.2/1808.4 for W5 shared. Actual flights/batch are 7/5/5 and 10/6/6;
+median N=32 fills are 31.84/31.81. Controlled RT0 per-member PG counts at
+N=8 are 0.625/0.75 and at N=32 are 0.15625/0.1875. One-minute load spans
+4.52–5.47 on 12 available CPUs. These core-queue diagnostics exclude HTTP
+and the scale seed and make no matched-control or SLO claim. The
+[report](./reports/20261024-g3b-bounded-overlay/REPORT.md) retains ranges,
+latencies, fill distributions, implementation limits and qualification.
+
+Maintained rows, caps, allocations, time/presence programs, inserts/deletes,
+index-key changes, effects/assets, evolved generations, dynamic addresses,
+general scans and unknown families keep serial execution. Rust CPU work
+does not overlap collection or COMMIT. Postmasters 1173735 and 1443643 are
+stopped and independently confirmed with status 3, no pidfile/socket or
+owned listener; all 4,726 recorded processes and lane target executables
+are absent. PIDs left: none. Final observed /home free space is 78 G, above
+the 40 GB stop threshold throughout recorded checks. Raw logs/JSON/PG data
+remain outside Git. No push, stash, global Git configuration change or q24
+operation occurs. Final `./ref-check` passes with zero errors and unchecked
+references.
