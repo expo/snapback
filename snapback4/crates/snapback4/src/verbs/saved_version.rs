@@ -47,6 +47,7 @@ impl SavedVersion {
                 if kind.is_dir(){collect(root,&entry.path(),out)?;}else if kind.is_file(){out.push((PathBuf::from("generated").join(entry.path().strip_prefix(root).unwrap()),std::fs::read(entry.path()).map_err(|e|e.to_string())?));}
             }Ok(())
         }
+        if std::fs::symlink_metadata(&unit).is_ok_and(|m|m.file_type().is_symlink()){return Err("saved generated unit must be a real directory, never a symlink".into());}
         if unit.is_dir(){collect(&unit,&unit,&mut files)?;}
         let generated=[("generated/api.ts",snapback4_lang::emit::typescript(bound)),("generated/server.ts",snapback4_lang::emit::server_typescript(bound)),("generated/package.json",crate::project::GENERATED_PACKAGE.to_owned()),("generated/security-invariants.q.draft",snapback4_lang::security::draft(bound))];
         for(name,text)in generated {files.retain(|(path,_)|path!=std::path::Path::new(name));files.push((PathBuf::from(name),text.into_bytes()));}

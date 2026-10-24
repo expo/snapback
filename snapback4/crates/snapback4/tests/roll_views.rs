@@ -495,11 +495,12 @@ fn pre_view_release_refusal_names_exact_selection_and_registration_upgrade() {
     // A pre-0.4.39 parent has no registration manifest. Its immutable original
     // source and SQLite history are otherwise the same release contract.
     fs::remove_file(app.0.join("deployment/releases/2/rollback-views.json")).unwrap();
+    fs::write(app.0.join("deployment/releases/2/provenance.json"),serde_json::to_vec(&json!({"cliVersion":"0.4.38"})).unwrap()).unwrap();
     for check in [true,false] {
         let args=if check{vec!["rollback","deployment","--to","1","--check"]}else{vec!["rollback","deployment","--to","1"]};
         let refused=app.run(&args);assert!(!refused.status.success(),"{}",text(&refused));
         assert!(text(&refused).contains("--to 1 --exact"),"{}",text(&refused));
-        assert!(text(&refused).contains("redeploy with 0.4.39 to register a view"),"{}",text(&refused));
+        assert!(text(&refused).contains("this parent predates rollback views"),"{}",text(&refused));
         assert_eq!(app.count(),1,"refusal must retain the active population");
     }
     app.ok(&["deploy","deployment"]);
@@ -665,6 +666,10 @@ fn check_compiles_needed_views_and_names_the_incompatible_query_argument() {
     assert!(!checked.status.success(),"{}",text(&checked));
     assert!(text(&checked).contains("mode")&&text(&checked).contains("read"),"{}",text(&checked));
     assert!(!text(&checked).contains(":0:0"),"{}",text(&checked));
+    let refused=app.run(&["deploy","deployment"]);assert!(!refused.status.success());let message=text(&refused);
+    let failure=message.find("deploy: E_ADOPT:").expect("concrete refusal");
+    assert!(failure<message.find("REVIEW").unwrap_or(message.len()),"{message}");
+
     assert_eq!(app.json(&["releases","deployment"])["current"],1);
     assert_eq!(fs::read_dir(app.0.join("deployment/releases")).unwrap().count(),1);
 }
@@ -702,4 +707,21 @@ fn extraction_view_keeps_multiple_native_children_and_bridge_is_written_on_refus
     let refused=app.run(&["rollback","deployment","--to","1","--exact","--check","--bridge","repair"]);
     assert!(!refused.status.success());assert!(app.0.join("repair/schema.q").is_file());
     let checklist=fs::read_to_string(app.0.join("repair/ROLLBACK-CHECKLIST.md")).unwrap();assert!(checklist.contains("photos")&&checklist.contains("authorized mutation"),"{checklist}");
+}
+
+#[test]
+fn equal_historical_source_cannot_bypass_authority_by_registering_new_views() {
+    let app=App::new();
+    let old="table items:\n  amount: int ?\n  body: text <=40\n  public\n  insert <- allow\n  online only\nmutation add(body: text <=40):\n  return insert items {amount:1,body}\ninvariant items always .amount = null or .amount != null\n";
+    app.source(old);app.ok(&["deploy","deployment"]);
+    let current=old.replace("amount: int ?","amount: int").replace("body: text <=40\n","body: text <=40 write <- viewer = 'service:operator'\n");
+    app.source(&current);app.ok(&["deploy","deployment"]);
+    let active=app.json(&["releases","deployment"])["current"].clone();
+    app.source(old);
+    for check in [true,false] {
+        let args=if check{vec!["deploy","deployment","--check"]}else{vec!["deploy","deployment"]};let out=app.run(&args);
+        assert!(!out.status.success(),"{}",text(&out));
+        assert!(text(&out).contains("items.body")&&text(&out).contains("write <-"),"{}",text(&out));
+        assert_eq!(app.json(&["releases","deployment"])["current"],active);
+    }
 }

@@ -7,6 +7,14 @@ mod staging;
 struct Stage(PathBuf);
 impl Drop for Stage {fn drop(&mut self){let _=std::fs::remove_dir_all(&self.0);}}
 
+fn parent_predates_views(root:&Path)->bool {
+    if root.join("rollback-views.json").exists(){return false;}
+    std::fs::read(root.join("provenance.json")).ok().and_then(|bytes|serde_json::from_slice::<serde_json::Value>(&bytes).ok())
+        .and_then(|v|v["cliVersion"].as_str().map(str::to_owned))
+        .and_then(|v|v.split('.').map(str::parse::<u64>).collect::<Result<Vec<_>,_>>().ok())
+        .is_some_and(|v|v.len()==3&&(v[0],v[1],v[2])<(0,4,39))
+}
+
 fn directory(options: &Options) -> Result<PathBuf, String> {
     options
         .positionals
@@ -475,6 +483,7 @@ pub fn deploy(options: &Options) -> i32 {
             }
             let mut n=std::fs::read_dir(&releases).map_err(|e|e.to_string())?.filter_map(Result::ok).filter_map(|e|e.file_name().to_str()?.parse::<u64>().ok()).max().unwrap_or(0);
             let staged_bound=bound_at(stage.clone())?;
+            if let Some(origin)=matched {check_change(&dir,previous,&bound,options,Some(origin))?;}
             let parent=n.checked_add(1).ok_or("release identity exhausted")?;
             let views=super::rollback_views::prepare(&dir,&stage,&staged_bound,parent)?;
             let register_views=super::rollback_views::needs_registration(&dir,matched,&views)?;
@@ -488,7 +497,6 @@ pub fn deploy(options: &Options) -> i32 {
                 }
             }
             if let Some(n) = matched.filter(|_|!register_views) {
-                check_change(&dir,previous,&bound,options,Some(n))?;
                 let mut preview_options=options.clone();
                 if let Some(summary)=&security_summary {preview_options.flags.insert("security-summary".into(),summary.clone());}
                 preview_options.flags.insert("deploy-direction".into(),String::new());
@@ -629,8 +637,8 @@ pub fn rollback(options: &Options) -> i32 {
             let target_line=format!("resolved rollback target: release {previous} (current release {active})");
             if options.json {eprintln!("{target_line}");} else {println!("{target_line}");}
             let legacy_refusal=|error:String| {
-                if view.is_none() && !options.flags.contains_key("exact") && !dir.join("releases").join(active.to_string()).join("rollback-views.json").exists() {
-                    format!("{error}; redeploy with 0.4.39 to register a view, or explicitly select the historical workflow with `snapback4 rollback {} --to {logical} --exact` (preview its hiding with --check first)",dir.display())
+                if view.is_none() && !options.flags.contains_key("exact") && parent_predates_views(&dir.join("releases").join(active.to_string())) {
+                    format!("{error}; this parent predates rollback views; deploy the current source with this CLI to register needed views, or explicitly select the historical workflow with `snapback4 rollback {} --to {logical} --exact` (preview its hiding with --check first)",dir.display())
                 }else{error}
             };
             let mut bridge_options=options.clone();
@@ -1020,4 +1028,18 @@ fn live_identity(dir:&Path,release:u64)->Result<serde_json::Value,String>{
 fn print_live(live:&serde_json::Value){
     if live["exact"]==true {println!("live: release {} = exact source {}",live["release"],live["source"]);}
     else {println!("live: release {} = rollback view of release {} (registered by release {})",live["release"],live["target"],live["parent"]);}
+}
+
+#[cfg(test)]
+mod rel_version_tests {
+    #[test]
+    fn legacy_view_advice_uses_creator_version_instead_of_manifest_absence() {
+        let dir=std::env::temp_dir().join(format!("rel-view-version-{}-{}",std::process::id(),snapback4_core::now_ms()));
+        std::fs::create_dir(&dir).unwrap();
+        for (version,expected) in [("0.4.38",true),("0.4.39",false),("0.4.40",false),("0.5.0",false),("unknown",false)] {
+            std::fs::write(dir.join("provenance.json"),serde_json::to_vec(&serde_json::json!({"cliVersion":version})).unwrap()).unwrap();
+            assert_eq!(super::parent_predates_views(&dir),expected,"{version}");
+        }
+        std::fs::remove_dir_all(dir).unwrap();
+    }
 }

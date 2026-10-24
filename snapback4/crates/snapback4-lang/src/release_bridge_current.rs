@@ -58,10 +58,12 @@ fn retained(sources: Vec<Source>, alpha: bool) -> Bridge {
     Bridge {sources,diagnostics:vec![],changes:vec![format!("current independent intent: retained the complete current authored schema, defaults, programs, helpers, jobs and policy declarations{}; predecessor names and accepted inputs remain available; review current results in the old UI",if alpha {" under declared table identity renames"}else{""})]}
 }
 fn refused(current: &[Source], reason: &str) -> Bridge {
-    let site=current.iter().find_map(|(file,text)|{
-        let doc=parser::parse_document(file,text).0;
-        doc.programs.first().map(|p|p.site.clone()).or_else(||doc.tables.first().map(|t|t.site.clone()))
-    }).unwrap_or_else(||crate::Site::new("schema.q",1,1));
+    let docs=current.iter().map(|(file,text)|parser::parse_document(file,text).0).collect::<Vec<_>>();
+    let site=docs.iter().flat_map(|d|&d.tables).find_map(|t|t.columns.iter().find(|c|reason.contains(&format!("{}.{}",t.name,c.name))).map(|c|c.site.clone()))
+        .or_else(||docs.iter().flat_map(|d|&d.tables).find(|t|reason.contains(&format!("{}.",t.name))).map(|t|t.site.clone()))
+        .or_else(||docs.iter().flat_map(|d|&d.programs).find(|p|reason.contains(&p.name)).map(|p|p.site.clone()))
+        .or_else(||docs.iter().flat_map(|d|&d.tables).next().map(|t|t.site.clone()))
+        .unwrap_or_else(||crate::Site::new("schema.q",1,1));
     Bridge {sources:current.to_vec(),changes:vec![],diagnostics:vec![crate::diag::type_error(&site,format!("rollback view cannot preserve current independent intent: {reason}"),"author a compatible guarded source retaining the predecessor fields and inputs, truthful migrations and the current policy; an acknowledgment does not authorize restoring an unsafe workflow").guide("deploy")]}
 }
 

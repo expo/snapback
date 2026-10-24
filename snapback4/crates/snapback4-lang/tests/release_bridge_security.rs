@@ -901,3 +901,70 @@ fn enum_alias_reverse_projection_avoids_an_unneeded_rollback_view() {
     let before=vec![("schema.q".into(),old.into())];let after=vec![("schema.q".into(),current)];
     assert!(compile(&after).diagnostics.is_empty());assert!(!release_bridge::requires_view(&before,&after));
 }
+
+#[test]
+fn exact_source_stable_role_guard_survives_control_flow_and_boolean_audience() {
+    let old="table roles:\n  principal: principal\n  role: enum('planner','owner')\n  unique principal\n  public\n  online only\ntable docs:\n  body: text <=40\n  public\n  insert <- allow\n  online only\nmutation add(body: text <=40, again: bool):\n  require exists roles[principal = viewer, role = 'planner'] else NO\n  if again:\n    insert docs {body}\n  return insert docs {body}\n";
+    let current=old.replace("body: text <=40\n","body: text <=40 write <- exists roles[principal = viewer, role = 'owner'] or exists roles[principal = viewer, role = 'planner']\n");
+    let before=vec![("schema.q".into(),old.into())];let next=vec![("schema.q".into(),current)];
+    assert!(release_bridge::exact_write_authority(&before,&next).is_ok());
+    let unstable=old.replace("  if again:","  if again:\n    delete roles[viewer]");
+    assert!(release_bridge::exact_write_authority(&[("schema.q".into(),unstable)],&next).is_err());
+    let wrong=old.replace("= 'planner'] else NO","= 'owner'] else NO");
+    let planner=next[0].1.replace("exists roles[principal = viewer, role = 'owner'] or ","");
+    assert!(release_bridge::exact_write_authority(&[("schema.q".into(),wrong)],&[("schema.q".into(),planner)]).is_err());
+}
+
+#[test]
+fn exact_source_null_insert_does_not_grant_a_protected_value_write() {
+    let old="table docs:\n  body: text <=40 ?\n  public\n  insert <- allow\n  online only\nmutation add():\n  return insert docs {body:null}\n";
+    let current=old.replace("body: text <=40 ?\n","body: text <=40 ? write <- deny\n");
+    let before=vec![("schema.q".into(),old.into())]; let result=release_bridge::exact_write_authority(&before,&[("schema.q".into(),current)]);
+    assert!(result.is_ok(),"{:?}; {}",result,serde_json::to_string(&compile(&before).programs[0].program).unwrap());
+}
+
+#[test]
+fn exact_source_guard_keeps_named_probe_meaning_without_printing_current_policy() {
+    let old="table roles:\n  principal: principal\n  delegate: principal\n  unique byPrincipal: principal\n  unique byDelegate: delegate\n  public\n  online only\ntable docs:\n  body: text <=40\n  public\n  insert <- allow\n  online only\nmutation add(body: text <=40):\n  require exists roles[principal = viewer] else NO\n  return insert docs {body}\n";
+    let unrelated="table roots:\n  public\n  online only\ntable leaves:\n  root: roots on delete cascade\n  cap 3 by root\n  public\n  online only\n";
+    let before=old.to_owned()+unrelated;
+    let current=before.replace("body: text <=40\n","body: text <=40 write <- exists roles[principal = viewer] or exists admins[viewer]\n")+"table admins:\n  principal: principal\n  unique principal\n  public\n  online only\n";
+    assert!(compile(&[("schema.q".into(),current.clone())]).diagnostics.is_empty());
+    assert!(release_bridge::exact_write_authority(&[("schema.q".into(),before)],&[("schema.q".into(),current)]).is_ok());
+}
+
+#[test]
+fn exact_source_equal_policy_ir_cannot_hide_a_changed_index_key() {
+    let old="table roles:\n  principal: principal\n  delegate: principal\n  unique gate: principal\n  public\n  online only\ntable docs:\n  body: text <=40 write <- exists roles[principal = viewer]\n  public\n  insert <- allow\n  online only\nmutation add(body: text <=40):\n  return insert docs {body}\n";
+    let current=old.replace("unique gate: principal","unique gate: delegate").replace("exists roles[principal = viewer]","exists roles[delegate = viewer]");
+    assert!(release_bridge::exact_write_authority(&[("schema.q".into(),old.into())],&[("schema.q".into(),current)]).is_err());
+}
+
+#[test]
+fn exact_source_unrelated_patch_and_ir_named_object_field_keep_write_footprints() {
+    let old="table docs:\n  body: text <=40 ?\n  label: text <=40\n  public\n  insert <- allow\n  update <- allow\n  online only\nmutation relabel(id: docs, label: text <=40):\n  return update docs[id] {label}\n";
+    let current=old.replace("body: text <=40 ?\n","body: text <=40 ? write <- deny\n");
+    assert!(release_bridge::exact_write_authority(&[("schema.q".into(),old.into())],&[("schema.q".into(),current)]).is_ok());
+    let old=old.to_owned()+"mutation add(body: text <=40):\n  return {Literal: insert docs {label:'new',body}}\n";
+    let before=vec![("schema.q".into(),old.clone())];assert!(compile(&before).diagnostics.is_empty(),"{:?}",compile(&before).diagnostics);
+    let current=old.replace("body: text <=40 ?\n","body: text <=40 ? write <- deny\n");
+    assert!(release_bridge::exact_write_authority(&before,&[("schema.q".into(),current)]).is_err());
+}
+
+#[test]
+fn exact_source_transitive_set_null_cannot_clear_a_newly_frozen_reference() {
+    let old="table roots:\n  public\n  delete <- allow\n  online only\ntable parents:\n  root: roots on delete cascade\n  cap 3 by root\n  public\n  online only\ntable children:\n  parent: parents ? on delete set null\n  cap 3 by parent\n  public\n  online only\nmutation remove(id: roots):\n  delete roots[id]\n";
+    let current=old.replace("parent: parents ? on delete set null","parent: parents ? on delete restrict\n  immutable parent when true");
+    let before=vec![("schema.q".into(),old.into())];let next=vec![("schema.q".into(),current)];
+    assert!(compile(&before).diagnostics.is_empty());assert!(compile(&next).diagnostics.is_empty(),"{:?}",compile(&next).diagnostics);
+    let error=release_bridge::exact_write_authority(&before,&next).unwrap_err();
+    assert!(error.contains("children.parent")&&error.contains("remove")&&error.contains("immutable when")&&error.contains("set null"),"{error}");
+}
+
+#[test]
+fn exact_source_native_empty_ir_is_not_an_unwritten_column_proof() {
+    let old="table docs:\n  body: text <=40\n  public\n  insert <- allow\n  online only\njob background(): native\n";
+    let before=vec![("schema.q".into(),old.into())];assert!(compile(&before).diagnostics.is_empty(),"{:?}",compile(&before).diagnostics);
+    let current=old.replace("body: text <=40\n","body: text <=40 write <- deny\n");
+    assert!(release_bridge::exact_write_authority(&before,&[("schema.q".into(),current)]).unwrap_err().contains("native operation background"));
+}

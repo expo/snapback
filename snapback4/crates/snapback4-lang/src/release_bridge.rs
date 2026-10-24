@@ -123,7 +123,7 @@ fn loosen_inner(target:&[(String,String)],current:&[(String,String)])->Bridge {
         // predecessor is also truthful when its retained contracts compile.
         let guarded=super::release_bridge_current::guarded(target,current);
         if guarded.diagnostics.is_empty(){return guarded;}
-        return Bridge{diagnostics:complete.diagnostics.into_iter().chain(guarded.diagnostics).collect(),..guarded};
+        return guarded;
     }
     let guarded=loosen_guarded(target,current);
     if !guarded.diagnostics.is_empty(){
@@ -433,55 +433,134 @@ pub fn exact_write_authority(target:&[(String,String)],current:&[(String,String)
     let aliases=next.schema.table_renames.iter().filter(|(_,prior)|old.schema.tables.contains_key(*prior)).map(|(new,prior)|(new.clone(),prior.clone())).chain(old.schema.table_renames.iter().filter(|(new,prior)|!next.schema.tables.contains_key(*new)&&next.schema.tables.contains_key(*prior)).map(|(new,prior)|(prior.clone(),new.clone()))).collect();
     let aligned=align_current_schema(&old.schema,target,&next.schema,current,&aliases)?;
     fn implies(rule:&RuleExpr,policy:&RuleExpr,policies:&PolicyComparison<'_>)->bool{
-        policies.rule(rule,policy) || *rule==RuleExpr::Deny || *policy==RuleExpr::Allow || match rule {RuleExpr::And(xs)=>xs.iter().any(|r|implies(r,policy,policies)),_=>false}
+        policies.rule(rule,policy) || *rule==RuleExpr::Deny || *policy==RuleExpr::Allow
+            || matches!(rule,RuleExpr::And(xs) if xs.iter().any(|r|implies(r,policy,policies)))
+            || matches!(rule,RuleExpr::Or(xs) if xs.iter().all(|r|implies(r,policy,policies)))
+            || matches!(policy,RuleExpr::Or(xs) if xs.iter().any(|p|implies(rule,p,policies)))
+            || matches!(policy,RuleExpr::And(xs) if xs.iter().all(|p|implies(rule,p,policies)))
     }
-    fn writes_column(value:&serde_json::Value,table:&str,column:&str,effect:&str,defaulted:bool)->bool {
+    // Object/Shape field maps are user names, not IR variant tags.
+    fn ir_children(value:&serde_json::Value)->Vec<&serde_json::Value> {
         match value {
-            serde_json::Value::Object(fields)=>{
-                if fields.contains_key("Literal"){return false;}
-                for(kind,body)in fields {
-                    let write_effect=match kind.as_str(){"Insert"|"InsertIfAbsent"=>"insert","Update"=>"update","Upsert"=>"upsert","WriteTarget"=>if body["upsert"]==true{"upsert"}else{"update"},_=>""};
-                    let target=body["table"].as_str().or_else(||body["target"]["table"].as_str());
-                    if write_effect==effect&&target==Some(table){
-                        let patch=body.get("patch").or_else(||body.get("row"));
-                        let object=patch.and_then(|p|p.get("Object")).and_then(serde_json::Value::as_object);
-                        if object.is_none_or(|o|o.contains_key(column)) || effect!="update"&&defaulted {return true;}
-                    }
-                    if writes_column(body,table,column,effect,defaulted){return true;}
-                }false
-            },
-            serde_json::Value::Array(xs)=>xs.iter().any(|x|writes_column(x,table,column,effect,defaulted)),
-            _=>false,
+            serde_json::Value::Object(m) if m.len()==1&&m.contains_key("Literal")=>Vec::new(),
+            serde_json::Value::Object(m) if m.len()==1&&m.contains_key("Object")=>m["Object"].as_object().map(|fields|fields.values().collect()).unwrap_or_default(),
+            serde_json::Value::Object(m) if m.len()==1&&m.contains_key("Shape")=>std::iter::once(&m["Shape"]["base"]).chain(m["Shape"]["fields"].as_object().into_iter().flat_map(|fields|fields.values())).collect(),
+            serde_json::Value::Object(m)=>m.values().collect(),
+            serde_json::Value::Array(xs)=>xs.iter().collect(),_=>Vec::new(),
         }
+    }
+    fn constants(program:&serde_json::Value)->std::collections::BTreeMap<String,serde_json::Value> {
+        fn collect(v:&serde_json::Value,out:&mut std::collections::BTreeMap<String,Vec<Option<serde_json::Value>>>){
+            if let Some(m)=v.as_object(){for(kind,body)in m {
+                if matches!(kind.as_str(),"Const"|"Let"|"Assign"|"Push") {if let Some(name)=body["name"].as_str(){out.entry(name.into()).or_default().push((kind=="Const").then(||body["value"].clone()));}}
+            }}
+            for child in ir_children(v){collect(child,out);}
+        }
+        let mut bindings=std::collections::BTreeMap::new();collect(program,&mut bindings);
+        bindings.into_iter().filter_map(|(name,mut values)|if values.len()==1{values.pop().unwrap().map(|value|(name,value))}else{None}).collect()
+    }
+    fn fixed_object<'a>(value:&'a serde_json::Value,constants:&'a std::collections::BTreeMap<String,serde_json::Value>,fuel:usize)->Option<&'a serde_json::Map<String,serde_json::Value>> {
+        if fuel==0{return None;}
+        value.get("Object").and_then(serde_json::Value::as_object).or_else(||value.get("Variable").and_then(serde_json::Value::as_str).and_then(|name|constants.get(name)).and_then(|v|fixed_object(v,constants,fuel-1)))
+    }
+    fn writes_column(value:&serde_json::Value,table:&str,column:&str,effect:&str,defaulted:bool,constants:&std::collections::BTreeMap<String,serde_json::Value>)->bool {
+        if let Some(fields)=value.as_object(){for(kind,body)in fields {
+            let write_effect=match kind.as_str(){"Insert"|"InsertIfAbsent"=>"insert","Update"=>"update","Upsert"=>"upsert","WriteTarget"=>if body["upsert"]==true{"upsert"}else{"update"},_=>""};
+            let target=body["table"].as_str().or_else(||body["target"]["table"].as_str());
+            if write_effect==effect&&target==Some(table){
+                let patch=body.get("patch").or_else(||body.get("row"));
+                let object=patch.and_then(|p|fixed_object(p,constants,constants.len()+1));
+                // Null placement on insert is not a protected column write in the engine.
+                let null=effect=="insert"&&object.and_then(|o|o.get(column)).is_some_and(|v|v.get("Literal").is_some_and(|literal|literal=="Null"));
+                if !null&&(object.is_none_or(|o|o.contains_key(column))||effect!="update"&&defaulted){return true;}
+            }
+        }}
+        ir_children(value).iter().any(|child|writes_column(child,table,column,effect,defaulted,constants))
     }
     fn leading_guard(target:&[(String,String)],aligned:&snapback4_core::Schema,table:&str,operation:&str,policy:&RuleExpr)->bool {
         let mut sources=target.to_vec();
         let Some((_,source))=sources.first_mut()else{return false};
-        source.push_str(&format!("\ninvariant {table}.{operation} only {}\n",policy.quarry()));
+        source.push_str(&format!("\ninvariant {table}.{operation} only allow\n"));
         let proof=crate::compile(&sources);if !proof.diagnostics.is_empty(){return false;}
         let comparison=PolicyComparison::new(&proof.schema,aligned);
-        let report=crate::security::analyze_rules(&proof);
-        report.invariants.iter().any(|v|v.status==crate::security::Status::Proved&&v.invariant.table==table&&v.invariant.operation.as_deref()==Some(operation)
-            &&v.invariant.policy.as_ref().is_some_and(|compiled|comparison.rule(compiled,policy))
-            &&v.invariant.requirements.iter().any(|require|comparison.rule(require,policy)))
+        // @ref LLP 3000.000.000#21-wave-27-release-semantics-rel — finite control flow preserves a stable leading guard; scope changes do not.
+        fn stable(rule:&RuleExpr)->bool {
+            use snapback4_core::schema::RuleTerm;
+            match rule {
+                RuleExpr::Exists{key,equalities,..}=>key.iter().chain(equalities.iter().map(|(_,t)|t)).all(|t|matches!(t,RuleTerm::Viewer|RuleTerm::Literal(_))),
+                RuleExpr::And(xs)|RuleExpr::Or(xs)=>xs.iter().all(stable),
+                RuleExpr::Eq(a,b)|RuleExpr::Ne(a,b)=>[a,b].iter().all(|t|matches!(t,RuleTerm::Viewer|RuleTerm::Literal(_))),
+                RuleExpr::Allow|RuleExpr::Deny=>true,_=>false,
+            }
+        }
+        fn opaque(value:&serde_json::Value)->bool {
+            value.as_object().is_some_and(|m|m.keys().any(|k|matches!(k.as_str(),"JobAs"|"JobQuery"|"Emit")))
+                ||value.as_str().is_some_and(|s|matches!(s,"JobAs"|"JobQuery"))
+                ||ir_children(value).iter().any(|child|opaque(child))
+        }
+        let Some(program)=proof.programs.iter().find(|p|p.program.name==operation) else{return false};
+        if opaque(&serde_json::to_value(&program.program).unwrap()) {return false;}
+        let writes=snapback4_core::ir::write_tables(&program.program);
+        // Refuse unmodeled implicit effects reachable from this operation;
+        // an unrelated maintained table or cascading edge is not a write.
+        if writes.iter().any(|(name,effect)|proof.schema.table(name).is_none_or(|t|
+            !t.maintained.is_empty()||!t.sequences.is_empty()
+            ||proof.schema.maintains.iter().any(|m|m.source==*name||m.target==*name)
+            ||*effect=="delete"&&proof.schema.tables.values().any(|child|child.columns.iter().any(|(column,kind)|
+                matches!(kind.required(),snapback4_core::schema::ColumnType::Ref{table} if table==name)&&child.on_delete.get(column).is_some_and(|a|a.writes()))))) {return false;}
+        proof.invariants.iter().any(|inv|inv.table==table&&inv.operation.as_deref()==Some(operation)
+            &&inv.requirements.iter().any(|require|stable(require)&&implies(require,policy,&comparison)
+                &&crate::security::kernel::dependencies(require).iter().all(|dependency|proof.schema.table(dependency).is_some_and(|t|
+                    t.through.is_none()&&!t.is_expiring()&&t.recorded.is_empty())&&!writes.iter().any(|(t,_)|t==dependency))))
+    }
+    // Deletion can write a child column without a direct update statement.
+    let mut implicit_nulls=std::collections::BTreeMap::new();
+    for program in &old.programs {
+        let mut pending=snapback4_core::ir::write_tables(&program.program).into_iter().filter(|(_,effect)|*effect=="delete").map(|(t,_)|t).collect::<Vec<_>>();
+        let mut visited=std::collections::BTreeSet::new();
+        while let Some(parent)=pending.pop(){if !visited.insert(parent.clone()){continue;}
+            for(name,child)in &old.schema.tables {for(column,kind)in &child.columns {
+                if matches!(kind.required(),snapback4_core::schema::ColumnType::Ref{table} if table==&parent){
+                    match child.on_delete.get(column) {
+                        Some(snapback4_core::schema::references::OnDelete::Cascade)=>pending.push(name.clone()),
+                        Some(snapback4_core::schema::references::OnDelete::SetNull)=>{implicit_nulls.insert((name.clone(),column.clone()),program);},_=>{},
+                    }
+                }
+            }}
+        }
     }
     let policies=PolicyComparison::new(&old.schema,&aligned);
     for(name,current)in &aligned.tables {
         let Some(prior)=old.schema.table(name)else{continue};
         for (column,policy) in &current.column_writes {
             if !prior.columns.contains_key(column){continue;}
+            if *policy!=RuleExpr::Allow {if let Some(program)=implicit_nulls.get(&(name.clone(),column.clone())) {
+                return Err(format!("{}: exact source operation {} implicitly clears {name}.{column} through on delete set null without current rule `write <- {}`; retain the current deletion policy in a guarded bridge",program.site,program.program.name,policy.quarry()));
+            }}
+            if *policy!=RuleExpr::Allow&&(prior.engine_field(column)||prior.maintained.contains_key(column)||prior.sequences.contains_key(column)||old.schema.maintain_for(name).is_some()) {
+                return Err(format!("{name}.{column}: historical engine-owned writes are outside current `write <- {}`; retain an authored guarded bridge",policy.quarry()));
+            }
+            if *policy!=RuleExpr::Allow&&!prior.column_writes.get(column).is_some_and(|old|policies.rule(old,policy)) {
+                if let Some(program)=old.programs.iter().find(|p|p.program.native&&p.program.kind!=snapback4_core::ir::ProgramKind::Query){return Err(format!("{}: exact source native operation {} has an unmodeled write set for {name}.{column} under current `write <- {}`; retain an authored guarded bridge",program.site,program.program.name,policy.quarry()));}
+            }
             for program in &old.programs {
                 let writes=snapback4_core::ir::write_tables(&program.program);
                 for(_,effect)in writes.iter().filter(|(t,e)|t==name&&*e!="delete") {
                     let defaulted=prior.defaults.get(column).is_some_and(|d|!matches!(d,snapback4_core::schema::ColumnDefault::Literal(snapback4_core::Value::Null)));
-                    if !writes_column(&serde_json::to_value(&program.program).unwrap(),name,column,effect,defaulted){continue;}
-                    let safe=prior.column_writes.get(column)==Some(policy) || match *effect {"insert"=>implies(&prior.rules.insert,policy,&policies),"update"=>!prior.update_transition&&implies(&prior.rules.update,policy,&policies),"upsert"=>!prior.update_transition&&implies(&prior.rules.insert,policy,&policies)&&implies(&prior.rules.update,policy,&policies),_=>false};
+                    let ir=serde_json::to_value(&program.program).unwrap();
+                    if !writes_column(&ir,name,column,effect,defaulted,&constants(&ir)){continue;}
+                    let safe=prior.column_writes.get(column).is_some_and(|old|policies.rule(old,policy)) || match *effect {"insert"=>implies(&prior.rules.insert,policy,&policies),"update"=>!prior.update_transition&&implies(&prior.rules.update,policy,&policies),"upsert"=>!prior.update_transition&&implies(&prior.rules.insert,policy,&policies)&&implies(&prior.rules.update,policy,&policies),_=>false};
                     if !safe && !leading_guard(target,&aligned,name,&program.program.name,policy) {return Err(format!("{}: exact source operation {} can write {name}.{column} without current rule `write <- {}`; retain this audience in a guarded bridge before selecting the source",program.site,program.program.name,policy.quarry()));}
                 }
             }
         }
         for(column,condition)in &current.frozen_columns {
-            if prior.columns.contains_key(column)&&prior.frozen_columns.get(column)!=Some(condition)&&*condition!=RuleExpr::Deny&&!prior.constraints.iter().any(|c|matches!(c,snapback4_core::schema::Constraint::Immutable{fields}if fields.contains(column)))&&old.programs.iter().any(|p|snapback4_core::ir::write_tables(&p.program).iter().any(|(t,e)|t==name&&*e!="delete"&&writes_column(&serde_json::to_value(&p.program).unwrap(),name,column,e,false))) {
+            if prior.columns.contains_key(column)&&*condition!=RuleExpr::Deny {
+                if let Some(program)=implicit_nulls.get(&(name.clone(),column.clone())) {return Err(format!("{}: exact source operation {} implicitly clears {name}.{column} through on delete set null despite current `immutable when {}`; retain the current deletion policy in a guarded bridge",program.site,program.program.name,condition.quarry()));}
+                if prior.engine_field(column)||prior.maintained.contains_key(column)||prior.sequences.contains_key(column)||old.schema.maintain_for(name).is_some(){return Err(format!("{name}.{column}: historical engine-owned writes may violate current `immutable when {}`; retain an authored guarded bridge",condition.quarry()));}
+            }
+            if prior.columns.contains_key(column)&&!prior.frozen_columns.get(column).is_some_and(|old|policies.rule(old,condition))&&*condition!=RuleExpr::Deny&&!prior.constraints.iter().any(|c|matches!(c,snapback4_core::schema::Constraint::Immutable{fields}if fields.contains(column)))&&old.programs.iter().any(|p|p.program.native&&p.program.kind!=snapback4_core::ir::ProgramKind::Query){return Err(format!("{name}.{column}: historical native writes are unmodeled under current `immutable when {}`; retain an authored guarded bridge",condition.quarry()));}
+            if prior.columns.contains_key(column)&&!prior.frozen_columns.get(column).is_some_and(|old|policies.rule(old,condition))&&*condition!=RuleExpr::Deny&&!prior.constraints.iter().any(|c|matches!(c,snapback4_core::schema::Constraint::Immutable{fields}if fields.contains(column)))&&old.programs.iter().any(|p|snapback4_core::ir::write_tables(&p.program).iter().any(|(t,e)|t==name&&*e!="delete"&&{let ir=serde_json::to_value(&p.program).unwrap();writes_column(&ir,name,column,e,false,&constants(&ir))})) {
                 return Err(format!("{name}.{column}: exact source omits current rule `immutable when {}`; retain the freeze in an authored bridge before selecting source",condition.quarry()));
             }
         }

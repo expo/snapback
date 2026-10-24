@@ -482,13 +482,15 @@ mod tests {
         let b=loosen(&[("schema.q".into(),old.into())],&[("schema.q".into(),current)]);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);assert!(b.sources[0].1.contains("TOO_EARLY"));
     }
     #[test]
-    fn does_not_reuse_an_endpoint_that_requires_new_arguments() {
+    fn pauses_an_endpoint_that_requires_new_arguments() {
         let old = "table items:\n  n: int\n  insert <- allow\n  online only\nmutation add(n: int):\n  return insert items {n}\n";
         let current = "table items:\n  n: int\n  required: int\n  insert <- allow\n  online only\nmutation add(n: int, required: int):\n  return insert items {n,required}\n";
         let bridge = loosen(
             &[("schema.q".into(), old.into())],
             &[("schema.q".into(), current.into())],
         );
-        assert!(!bridge.diagnostics.is_empty());
+        assert!(bridge.diagnostics.is_empty(),"{:?}",bridge.diagnostics);
+        assert!(crate::compile(&bridge.sources).programs.iter().all(|p|p.program.name!="add"));
+        assert!(bridge.changes.iter().any(|c|c.contains("paused")));
     }
 }
