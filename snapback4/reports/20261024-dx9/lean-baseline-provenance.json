@@ -1,0 +1,14 @@
+{
+  "revision": "909e760ac516c480228ec3fcc85e19af2799ee68",
+  "filesCheckedAgainstGitBlobs": 2502,
+  "mismatchedFiles": [],
+  "snapshotSha256": "c43ae4514821c3a28951a28607c98411ddd850ee7837220e61fe0deb8fa4ece0",
+  "oracleSha256": "967687cbe8e61af61415b08a9135d53247489798c825468c103043681b9095d0",
+  "separateCargoTarget": "/tmp/dx9-baseline/snapback4/target",
+  "sample": {
+    "seed": 0,
+    "cases": 2000,
+    "workers": 2
+  },
+  "verdict": "same 18 disagreements and identical by_oracle records as DX9"
+}

@@ -4,8 +4,8 @@ Status: Open
 Scope: Snapback 4 pinned Expo development toolchain
 Found: DX9 wave-26 packed starter qualification, 2026-10-24
 
-All nine starter variants typecheck/build. All five web variants have a clean
-npm audit after pinning Vite 8.3.5 and SDK undici 8.12.2. The four Expo variants
+All twelve starter variants typecheck/build. All seven web variants have a clean
+npm audit after pinning Vite 8.3.5 and SDK undici 8.12.2. The five Expo variants
 still report one underlying high advisory, GHSA-86w9-cpqp-85rv, in node-forge
 (range `*` in the current npm audit). npm reports five affected packages through
 Expo's code-signing dependency chain. The current latest node-forge is 1.4.0;

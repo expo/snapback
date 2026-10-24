@@ -1469,3 +1469,16 @@ fn social_pins_the_sdk_supported_router_animation_peers() {
     assert_eq!(package["dependencies"]["react-native-reanimated"], "4.5.1");
     assert_eq!(package["dependencies"]["react-native-worklets"], "0.10.1");
 }
+
+#[test]
+fn every_expo_identity_head_matches_the_default_entry() {
+ for identity in ["use identity guests", "use identity password", "use personas alice, bob"] {
+  let dir=Dir::new();fs::create_dir_all(dir.0.join("snapback")).unwrap();
+  fs::write(dir.0.join("snapback/schema.q"),format!("{identity}\nquery answer():\n  return 42\n")).unwrap();
+  let output=dir.init(&["--expo"]);assert!(output.status.success(),"{output:?}");
+  let app=fs::read_to_string(dir.0.join("App.tsx")).unwrap();
+  let entry=fs::read_to_string(dir.0.join("index.js")).unwrap();
+  assert!(app.contains("export default function App"),"{identity}: {app}");
+  assert!(entry.contains("import App from"),"{entry}");
+ }
+}
