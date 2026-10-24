@@ -105453,3 +105453,1081 @@ later results are not relabelled as full reruns. Registry/manifest regeneration,
 ref-check and inventories pass. All 150 original store-file bytes are unchanged.
 Receipts are in `reports/integration24/post-main/`. The upstream on-wire overlap
 witness gap remains ticketed; no performance/capacity claim is added.
+
+
+## 2026-10-23 — G2 program invocation outcome protocol (N=1)
+
+Lane `sb4-pg/g23`, based on RT6 `2fdab64882`, on expo-build-450a. The common
+program attempt is independent of physical transaction custody. Only an
+acknowledged original rollback or explicit COMMIT abort permits one bounded
+fallback; failed rollback and ambiguous COMMIT never rerun. Post-durability
+publication/entropy stays ordered. Owned program invocations carry private
+in-memory identities, with terminal duplicate delivery suppression; new
+unkeyed invocations remain distinct and add neither public ids nor durable
+internal receipts. The committer §3.4 amendment points to the accepted controls
+RFC's program-only exception. G3 group-tail/queue work follows separately.
+
+Private PG16 uses loopback 55473; postmaster 4027594 is recorded under
+`/tmp/sb4-g23/`, outside git. PG17/55440 is untouched. Tests and final cleanup
+are recorded in the G2/G3 completion entry; no raw logs are committed.
+
+G2 checkpoint validation: the private-invocation witness and all three outcome
+witnesses pass; the existing committer scope passes (18, with four private-PG
+fixtures deferred to the final suite). All 25 Postgres ownership witnesses pass,
+including lost COMMIT acknowledgement, engine propagation, fenced takeover and
+new-owner receipt replay. The final G3 entry records the complete battery.
+
+## 2026-10-23 — G3 vector-tail adapter checkpoint
+
+Postgres can retain completed program tails until one verified vector flight:
+commit/log/evidence/effects/presence/receipts, one head update, then a separate
+COMMIT. Buffered receipts and the logical head are visible at each successor's
+serial position. Savepoint rollback restores both buffered state and caches.
+The existing N=1 tail now verifies every inserted family count without adding
+a flight. SQLite retains its serial recorder inside the shared transaction.
+
+The initial serial-history oracle passes on both stores at N=4/16/32, including
+outcomes/meters, maintained rows, allocations, receipts, effects, logs and
+change evidence; all initial member/savepoint/tail boundary witnesses pass.
+The real backend-kill/takeover and no-early-continuation batch witnesses pass.
+Both RT0 ratchets pass with every existing N=1 class unchanged. Controlled
+core batches add Postgres 20/132 total flights at N=4/32 and SQLite 66/486
+statements, excluding HTTP ingress. Final complete qualification and the local
+32-writer diagnostic are recorded in the completion entry, not claimed here.
+
+## 2026-10-24 — G3 serial group driver and FIFO program lane
+
+The owned committer now drains contiguous program commands into serial groups
+of at most 32, with no idle fill wait and a 1 ms collection cap. Rolling
+queue-through-COMMIT p99 adjusts N against the 100 ms write SLO. Other member
+kinds, native/long programs and timed-publication schemas stay solo. Each
+program retains its member/program savepoints, logical meter and ordinal.
+Application/authority refusals with acknowledged member rollback stay in their
+own frame; database errors roll back the physical batch. Explicitly named
+failures are removed before an ordered smaller-batch retry; unnamed known
+aborts get one solo attempt each. All fallbacks retain the original remaining
+admission deadline; fresh authority/time/presence and minted-id transcripts
+are observed on each attempt. Ambiguous COMMIT overrides every tentative
+result and never reruns. Durable per-member follow-up remains ordered.
+
+The strengthened randomized oracle compares N=1 with N=4/16/32 on both real
+stores, including raw receipt sequence/time fields, complete outcomes/meters,
+maintained rows, allocations, effects, intermediate log and change evidence.
+It passes on both stores. The final Postgres fault matrix, full qualification,
+serving handoff and recorded-load diagnostic follow in the completion entry.
+
+## 2026-10-24 — G3 serving admission and RT0 integration
+
+Durable `/m` now crosses the owned program lane, keeping live bearer/scope
+checks inside each serial member. Per-member timing, trace and refusal context
+survives the worker handoff. Post-COMMIT response/publication runs in submission
+order. Unknown outcomes return HTTP 500 without success/head metadata;
+unkeyed responses still omit `id`. Ephemeral diversion and solo command
+barriers retain their existing behavior.
+
+RT0 keeps every N=1 expectation and adds separate controlled core batch totals
+at N=4/32, excluding HTTP ingress: PG 20/132 flights (5/4.125 per member),
+SQLite 66/486 statements (16.5/15.1875 per member). The initial run passes both
+ratchets; the complete final repeat is recorded with the completion report.
+The Postgres script now includes the batch matrix and outcome/deadline scopes.
+
+## 2026-10-24 — G3 RT6 tail-codec fixture alignment
+
+The complete Postgres script exposed one affected RT6 fixture: it expected the
+legacy tail's one-column count row. The verified tail now returns five counts.
+The Bind/literal differential asserts all five (commit, evidence, log, effect
+and presence) and retains its complete durable-state census. All 19 codec and
+serving-flight witnesses pass on the freshly built final test executable.
+The script's original red and the successful affected-scope rerun are both
+retained in the completion report.
+
+## 2026-10-24 — G2/G3 SQLite fallback lock budget
+
+The final deadline audit found SQLite's IMMEDIATE opener could wait for the
+ordinary busy timeout before the fallback's progress guard was installed.
+The committer now opens deadline-bearing program attempts through a bounded
+adapter entry. A scoped busy callback shares the original monotonic deadline
+with body progress checks; normal host contention policy is restored before
+COMMIT and after every failed opener. The normal N=1 opener is unchanged.
+Both drivers check the remaining deadline again before selecting uncancellable
+COMMIT, because SQLite can defer a failed cache spill and return a successful
+statement after the cutoff.
+
+Two real lock barriers cover BEGIN and rollback-journal cache spill through
+the complete known-abort/retry driver. Their ordinary-wait negative controls
+prove the lock is held and the original 1234 ms busy policy is restored; a
+subsequent 10,000-step VM query proves progress cleanup. Both pass, as do all
+six outcome/deadline witnesses including the PG remaining-flight deadline.
+The final batch matrix and measurements are recorded in the completion entry.
+
+## 2026-10-24 — G2/G3 completion and private loopback diagnostic
+
+The final program/identity/transcript/batch scope passes 19/19 on both stores,
+including the three-seed N=1 versus N=4/16/32 serial oracle and all member,
+savepoint and tail boundaries. Six outcome/deadline witnesses pass after the
+SQLite lock-budget follow-up. The full core run passes all unignored targets
+(730 unit passes, 279 named ignores, 38 doc passes); the final full binary
+passes 577 with 45 named ignores. Both RT0 ratchets and the normal CLI build
+pass. The committer census passes. The store-port census retains only five
+unchanged evaluator-module references, now a filesystem ticket.
+
+The complete Postgres script runs every stage. It retains its known evaluator
+Serializable 40001 red and exposed the now-corrected five-column RT6 count
+fixture; the corrected 19-case codec scope passes. Other stages, including
+232 adapter, 25 ownership, 60 evolution, 15 command, 62 HTTP-boundary, 22
+corpus, 11 differential-library and four store-campaign cases, pass. The public
+CLI witness passes byte/meter restore parity, takeover/restart and unchanged
+S1 Quarry P1-MC. Broader CLI-package fixture/security baseline reds remain
+explicit in the report; no clean full-package or full-script result is claimed.
+
+A fresh private PG16.15 cluster measures the actual S1 increment with live
+account credentials, a fenced owned queue and 32 closed-loop writers.
+Three counterbalanced trials per N use 1 s warmup and 3 s timed work, with
+fsync/synchronous_commit/full_page_writes on. Median writes/s for N=1/4/16/32:
+233.4/527.6/884.3/979.6. Physical COMMIT microseconds/member:
+2763.3/694.4/173.3/86.4. Mean actual fills: 1.00/4.00/15.94/31.45;
+91.6% of N=32 batches fill completely. Host one-minute load spans 1.53–1.75
+with 12 available CPUs. This core-queue loopback test excludes HTTP and the
+1M-message scale seed and makes no scale claim. The aggregate
+[report](./reports/20261024-g23-program-group-commit/REPORT.md) includes ranges,
+latencies, the complete fill distribution and qualification limits.
+
+Qualification postmaster 4027594, public-witness postmaster 686738 and fresh
+measurement postmaster 955188 are stopped and independently confirmed. All
+581 recorded masters, public children, measured backends and measurement
+background workers are absent; no pidfile/socket/listener remains. PIDs left:
+none. Final /home free space is 80 G, always above the 40 GB stop threshold.
+Raw logs/JSON/PG data stay outside Git. No push, stash, Git configuration
+change, PG17/55440 operation or q24 work occurs. Final `./ref-check` passes: 567 LLP
+docs, 11,838 refs, zero errors and zero unchecked references.
+
+## 2026-10-24 — G2/G3 fix round 1
+
+The supplied Sol/Grok reviews exposed three protocol edges and an oracle
+boundary. Eight new defect witnesses fail against `b3c4aa2bba` with only
+tests and the post-tail scheduling hook overlaid: real backend termination
+during authority refusal returns E_AUTH on both initial and named fallback
+batches and N=1; a 500 ms peer budget incorrectly rejects a member with 5 s;
+both stores' batch and N=1 retry paths select COMMIT after successful tail
+verification crosses the deadline; a nested internal-tail reader remains
+eligible. The fixes preserve physical uncertainty over retained refusals,
+replace statement budgets per member, bound shared tail work by the earliest
+survivor, and check the retry deadline again before uncancellable COMMIT.
+
+Internal commit/log/evidence/outbox/presence/receipt readers and writers
+explicitly stay solo under the exhaustive IR effects walk. The vector tail
+continues to expose provisional rows, logical head and keyed receipts to
+successors through their existing paths. The serial oracle now exercises
+restrictive rules and caps, including a separate capped expiring table for
+physical occupancy, while retaining maintained columns on their admitted
+nonexpiring source. Its snapshots include complete commits, cap occupancy
+and effect-presence dependencies, with positive assertions that the new
+states and refusal paths were reached. All three seeds at N=1/4/16/32 pass
+on both stores. The seven-family trigger witness now includes presence and
+asserts the exact count-mismatch column and acknowledged rollback; it passes.
+All eight outcome/deadline tests pass, including the four post-tail cutoffs.
+
+The default CLI build passes after adding the explicit SQLite preparation
+result type required without the Postgres feature. The
+[fix-round evidence](./reports/20261024-g23-program-group-commit/REPORT.md)
+keeps raw logs outside Git and records the broader qualification below.
+
+Final qualification passes the full core (735 unit passes, 284 named ignores,
+all unignored integrations and 38 doc tests), full binary (577 passes, 45
+named ignores), both RT0 ratchets (five selected passes, unchanged N=1
+allowances), final 23-test program/batch matrix and eight outcome/deadline
+witnesses. The full core preceded the final test-only parent-counter rule
+and independent metadata-family checks; the final both-store matrix reruns
+those strengthened tests. Product source was unchanged. Adapter/evidence/
+codec/ownership/evolution scopes pass 232/13/19/25/60; command tests pass 15,
+HTTP authority scope 62, five-executor corpus 22, and differential library/
+store campaigns 11/4. The ordinary CLI rebuild and complete public witness
+pass, including restoration byte/meter parity, change evidence, bootstrap,
+restart/takeover and the unchanged S1 Quarry fixture.
+
+The complete Postgres script retains only its inherited evaluator Serializable
+40001 race and exits 1; every other stage passes. No clean full-script result
+is claimed. Primary postmaster 1268235 and public postmaster 1613023 are
+stopped and independently confirmed, with no pidfile/socket/lock. All 571
+recorded owned PIDs are absent. PIDs left: none. Final /home free space is
+74 G, with every sample above 40 GB. Raw logs and PG data remain outside Git;
+no push, stash or Git configuration change occurs.
+Final `./ref-check` passes: 567 LLP docs, 11,840 refs, zero errors and zero
+unchecked references; the diff whitespace check is clean.
+
+## 2026-10-24 — G2/G3 fix round 2
+
+The remaining P2 review finding reproduces against `366212fac0` with only
+the witnesses overlaid. Deferred PG16 constraint triggers capture actual
+session settings during COMMIT: the named single-survivor fallback records
+9986 ms for both SQL timeouts; unnamed solo fallbacks record 9981 ms and
+9971 ms. Both witnesses fail their zero-timeout assertion (0 passed, 2
+failed). They also check the fallback attempt counts, committed outcomes,
+durable member counts and cached delivery without another commit.
+
+Every installed Postgres retry budget now invalidates prepared COMMIT
+settings, so the physical commit path disables both timeouts after any queued
+budget commands. This covers a budget installed after solo member release
+already flushed and disabled timeouts, followed by empty-tail preparation.
+Both witnesses pass with the fix (2 passed, 0 failed), using actual COMMIT
+settings rather than timer-sensitive sleeps. The excluded internal-tail
+reader witness now includes `_ops`. The controls RFC's G2/G3 section records
+the invariant and the two fallback paths.
+
+The full core run passes 1,186 tests (735 unit, 413 integration, 38 doc),
+with zero failures and 335 named ignores. The full binary passes 577 with
+zero failures and 45 named ignores. The default CLI build and both RT0
+ratchets pass (five selected tests, no allowance changes). The complete
+Postgres script's Rust stages pass 644 and fail one: the inherited
+`evaluator_concurrent_read_modify_write_and_duplicate_ops_are_atomic_in_both_modes`
+Serializable `40001` race, also retained in the prior rounds. No clean
+full-script result is claimed. Adapter/evidence/codec/ownership/evolution
+scopes pass 232/13/19/25/60; program batches pass 25, outcome/deadline tests
+8, HTTP authority tests 62, five-executor corpus 22, and differential
+library/store campaigns 11/4. Both new COMMIT-setting witnesses pass again
+inside the full Postgres script.
+
+The default CLI rebuild and complete public witness pass, including
+restoration byte/meter parity, change evidence, bootstrap refusal/recovery,
+restart/takeover and the unchanged S1 Quarry P1-MC fixture. Postmasters
+800679 (primary) and 1187451 (public witness) are stopped and independently
+confirmed: status 3, no pidfile or socket. All 579 recorded owned PIDs are
+absent. PIDs left: none. Final /home free space is 52 G; all observed samples
+stayed above 40 GB. Only this lane's generated incremental cache was cleared
+for headroom. Raw logs and PG data remain outside Git. No push, stash or
+Git configuration change occurs. Final `./ref-check` and diff whitespace
+checks pass with zero errors and zero unchecked references.
+## 2026-10-24 — G3b bounded S1 overlay and level-synchronous facts
+
+Lane `sb4-pg/g3b` starts at G2/G3 tip `b3c4aa2bba`. The existing fenced
+committer now selects generation-1 ordinary point updates with a complete
+finite counter/rule closure. Schema row-decode reservations limit root/probe
+collection to 32 MiB. Each dependency level is one composed PostgreSQL data
+statement across the members, with absence and hidden rule-probe images
+recorded. Rust retains rules, refusals, returned images and meters. Own writes,
+accepted predecessors and immutable base facts form the private overlay.
+Recorded read conflicts rerun in memory after predecessors; known hot-key
+colliders run once, serially in memory. No program image reaches storage
+before the one final-image/vector-tail apply flight and separate COMMIT.
+SQLite shares the Rust semantics through its own local access. The retained
+checked opener gives five warm full-batch flights for W4 and six for W5,
+not the separately qualified optional three-/two-flight opener.
+
+The randomized oracle compares three seeds × 192 members at N=8/32 with N=1
+on both stores, including outcomes/meters, receipts, rows, sequences, change
+evidence and intermediate logged/returned images. A 16-member chain forces
+15 in-memory reruns per store. Same-key collisions, read-after-write chains,
+rule failures, mid-batch refusals, duplicate receipts, late unknown families,
+declared fact-budget overflow, maintained/allocator/time/presence fallbacks,
+every facts/member/apply/COMMIT boundary, suppressed PG updates and a real
+owned writer terminated during COMMIT all pass. Unknown COMMIT makes every
+member unknown; keyed retry/replay under a new fenced owner is witnessed.
+
+Full core passes: 742 unit tests, 289 named unit ignores, every unignored
+integration target and 38 doc tests. Full binary passes 577 with 45 named
+ignores. Normal build and both RT0 ratchets pass. The 36-case private program
+batch scope passes. The complete Postgres script retains only the known
+evaluator Serializable `40001`; all later adapter/ownership/evolution,
+corpus/differential, HTTP and public CLI scopes pass. No retry, timeout,
+durability or exclusion policy changes. The existing ticket records the red.
+
+Private durable PG16 TCP loopback, 32 live-account writers, three
+counterbalanced trials per N (one-second warmup, three-second timed phase):
+median writes/s at N=1/8/32 are 173.6/904.8/1883.5 for W4 disjoint and
+162.2/891.2/1808.4 for W5 shared. Actual flights/batch are 7/5/5 and 10/6/6;
+median N=32 fills are 31.84/31.81. Controlled RT0 per-member PG counts at
+N=8 are 0.625/0.75 and at N=32 are 0.15625/0.1875. One-minute load spans
+4.52–5.47 on 12 available CPUs. These core-queue diagnostics exclude HTTP
+and the scale seed and make no matched-control or SLO claim. The
+[report](./reports/20261024-g3b-bounded-overlay/REPORT.md) retains ranges,
+latencies, fill distributions, implementation limits and qualification.
+
+Maintained rows, caps, allocations, time/presence programs, inserts/deletes,
+index-key changes, effects/assets, evolved generations, dynamic addresses,
+general scans and unknown families keep serial execution. Rust CPU work
+does not overlap collection or COMMIT. Postmasters 1173735 and 1443643 are
+stopped and independently confirmed with status 3, no pidfile/socket or
+owned listener; all 4,726 recorded processes and lane target executables
+are absent. PIDs left: none. Final observed /home free space is 78 G, above
+the 40 GB stop threshold throughout recorded checks. Raw logs/JSON/PG data
+remain outside Git. No push, stash, global Git configuration change or q24
+operation occurs. Final `./ref-check` passes with zero errors and unchecked
+references.
+
+## 2026-10-24 — G3b fix round 1: suppressed writes and live retry deadlines
+
+Lane `sb4-pg/g3b-fix1` rebases the eight G3b commits from `976fc81e92`
+onto G2/G3 fix1 `366212fac0`. Conflicts were in `engine/program_batch.rs`,
+the controls RFC and this journal. The driver combines overlay apply with the
+shared retry-tail budget and retains the post-tail deadline check immediately
+before COMMIT selection. Each fallback member still uses its own deadline;
+physical uncertainty still overrides retained authority refusals. The RFC keeps
+both implementation notes, and both preceding journal entries are retained
+verbatim. The outcome driver, solo program driver and SQLite lifecycle remain
+byte-identical to G2/G3 fix1.
+
+Serial PostgreSQL and SQLite `put` now require exactly one affected row for
+updates and inserts. A suppressed update is a store error, so neither a
+buffered apply nor a solo retry can persist a receipt or history for it.
+PostgreSQL retains its existing zero-row insert-suppression Rule refusal.
+The checks inspect the existing execute result and add no SQL statement.
+
+The strengthened `overlay_apply_count_rejects_suppressed_image_and_rolls_back_history`
+and its new SQLite counterpart use eight keyed `increment`s on one synced
+counter with future 30-second deadlines. PostgreSQL's trigger returns NULL;
+SQLite's trigger uses `RAISE(IGNORE)`. With only these witnesses transplanted
+onto exact original tip `976fc81e92`, both fail: 0 passed / 2 failed. Each
+store returns eight successes, persists eight receipts and eight extra log
+images (36 to 44), and advances head 2 to 10 despite suppressing the row
+update. PostgreSQL records two attempts per member; SQLite accepts its first
+buffered attempt. On the fix, both pass: eight store errors per store, zero
+receipts, head 2, log 36 and the entire durable snapshot unchanged. Every
+member records a buffered attempt followed by a solo attempt, so deadline
+expiry cannot make the recovery witness vacuous.
+
+The G3b section of LLP 3000.009.001.000.002 now identifies the ownership/takeover
+and declared-fact-budget witnesses as regression locks only. They do not
+distinguish G3b from `b3c4aa2bba`; buffered histories, conflict reruns and flight
+ratchets carry that evidence. Qualification and owned-process cleanup follow
+below.
+
+Final qualification uses the requested line-tables-only dev/test profiles,
+this lane's target directory and four Cargo build jobs. Workspace build passes.
+Full core (Postgres compiled, ordinary local-store test environment) passes
+**1,197 / 0** across 49 top-level harnesses: 746 unit, 413 integration and
+38 doc tests, with 344 existing ignores. Full binary passes **577 / 0**,
+with 45 existing ignores. The final RT0 selection passes **5 / 0**, including
+both SQLite and PostgreSQL ratchets. Child-process self-test summaries are
+not double-counted in these totals. The private program-batch scope passes
+43 / 0 and the outcome/deadline scope 8 / 0.
+
+`bash scripts/test-postgres.sh` completes **662 passed / 1 failed**. Its only
+red is the inherited
+`evaluator_concurrent_read_modify_write_and_duplicate_ops_are_atomic_in_both_modes`
+Serializable SQLSTATE `40001`, covered by the existing
+`issues/20260916-snapback4-postgres-serializable-benchmark-failures.md` ticket.
+The three existing evaluator exclusions are unchanged. All subsequent adapter,
+ownership, evolution, batch/outcome, HTTP, five-executor corpus (22 / 0),
+differential-library (11 / 0), store-campaign (4 / 0) and public CLI scopes
+pass. Public deployment/serving confirms restoration parity, large change
+evidence, restart/takeover and the unchanged S1 Quarry journey.
+
+Private PG16 postmasters **1750066** and **1985944** are stopped and
+independently confirmed with status 3, no pidfile and no owned socket. All
+**728 recorded PIDs**, the disk guard and lane target executables are absent.
+PIDs left: **none**. Final observed /home free space is **55 G**; every
+observed/monitored sample remains above the 40 GB stop threshold. Raw logs,
+JSON and PG data stay outside Git. No push or stash occurs; q24 and the
+PG17 cluster on port 55440 are untouched. `./ref-check` passes: 567 LLP docs,
+11,848 references, zero errors and zero unchecked references.
+
+## 2026-10-24 — CPU lane: S1 increment allocation cuts and serving attribution
+
+On expo-build-450b, branch `sb4-pg/cpu` starts at G2/G3 tip `b3c4aa2bba`.
+Release profiles of the actual HTTP increment route use native account
+sessions, a private PG16.15 cluster and 32 closed-loop writers. Host perf
+events are denied, so GNU gprofng native call trees/flamegraphs and temporary
+nested thread CPU/wall clocks supply attribution. All instrumentation and
+the measurement-only Fixed(1)/Fixed(32) selector are removed from final code.
+
+SQL commands, casts and arrays now stream into a shared output buffer;
+TEXT/BYTEA borrow the checked binary parameter buffer before hex rendering.
+Mutation attempts borrow their immutable Program instead of cloning its IR.
+Literal bytes, checked encoding, refusal precedence, size/NUL guards,
+authority, logical meters, receipts, evidence and publication are preserved.
+Two codec regressions cover golden bytes and invalid-UTF8/oversize precedence.
+
+Three counterbalanced repetitions measure solo calling-thread CPU
+**597.16 → 514.43 µs/mutation** and grouped serial writer CPU
+**380.9 → 363.7 µs/member**. Literal encoding falls **28.3 → 19.1 µs**.
+The **100 µs serial CPU target remains unmet**: driver/protocol/syscall CPU
+alone is about 122 µs, interpreter/row/rule/meter self work about 114 µs.
+Median writes/s for N=1 are **225.9 → 220.2**; for N≤32,
+**880.2 → 897.7**, with overlapping ranges and no established throughput win.
+Mean drained group size is about 16. This is the unchanged S1 increment on
+a small disjoint-counter fixture, loopback HTTP and admitted database Unix
+socket; the solo arm uses database TCP. It is not the matched offered-load
+scale qualification. Every primary rate trial has zero errors and exact
+counter/head-to-ack reconciliation. The
+[CPU report](./experiments/postgres-commit-path/results-20261024-cpu/README.md)
+records per-stage CPU, waits, ranges, original pilots and artifact hashes;
+the controls RFC §3.4 incorporates the result without double-counting E.
+
+Builds, full core (733 unit passes, all 45 integration targets, 38 doctests),
+full binary (577 passes) and both RT0 ratchets pass. The full core precedes
+the final invalid-text refusal-order refinement; its final 21-case codec
+scope, final full binary and final five-case RT0 rerun pass afterward.
+`./ref-check` and whitespace validation pass. The complete Postgres script
+runs every stage and remains red: the existing evaluator Serializable 40001,
+two lane-invocation TCP/Unix setup errors, a snapshot-worker 60-second setup
+deadline and the existing public deploy 45-second guard. Corrected socket
+ownership (25), startup cleanup and isolated snapshot-worker tests pass.
+All four store campaigns and the 22-case supported corpus pass; public
+EV-1/EV-2 wire/meter parity and both-store P1-CE complete before the timeout.
+A standalone public rerun also reaches the original 45-second guard; both
+reds and phase observations remain in the existing deploy ticket. The new
+snapshot setup ticket preserves its broad-run failure. No bound, retry,
+workload, durability setting or exclusion is relaxed.
+
+Postmasters 114012, 441562 and 491988 are stopped and independently confirmed.
+All **4,270 recorded PIDs** are absent; no matching leftover process, pidfile,
+Unix socket or measurement listener remains. Both observers are stopped and
+reaped. **PIDs left: none.** Minimum observed `/home` free space is 42.43 GiB;
+the final audit reports 74.29 GiB, above the 30 GB stop condition. Raw logs,
+profiles, database files and the two relocated public fixture trees stay in
+`/tmp/sb4-cpu/`. Only the owned target directory is built/cleaned, using
+`-j 10`; pre-existing `target-b1/` and `target-pre/` remain untouched.
+No push, stash, Git configuration change or operation on another cluster occurs.
+
+### CPU lane verification census correction — 2026-10-24
+
+The core run above enumerates **46 integration targets**, not 45: **44**
+execute tests and two contain only existing ignored tests. Its integration
+totals are **413 passed, zero failed, 49 existing ignored**, in addition to
+the 733 unit passes / 279 unit ignores and 38 doctests already recorded.
+The earlier target count was a reporting error; all target results remain
+successful. The CPU report is corrected, with the census retained outside
+Git in `/tmp/sb4-cpu/core-integration-census.json`.
+
+## 2026-10-24 — G3b-par bounded parallel interpretation candidate
+
+Lane `sb4-pg/g3b-par` starts at `976fc81e92` and preserves CPU commits
+`e491040c39` / `d036159171` as `cb6411684c` / `edf12e5142`.
+The G3b fact closure and ordered acceptance remain intact. A process-wide
+pool of at most eight interpreters receives only immutable facts/IR and
+private contexts. Known hot targets and conflicting reruns stay ordered in
+memory; N=1 retains its existing path. Fact and vector-tail payloads serialize
+borrowed records directly, and driver text/byte buffers move into result rows.
+The new differential compares parallel and forced-serial overlay histories on
+both stores, complementing the existing N=1 oracle, collision chains, receipts
+and intermediate-image witnesses. Qualification and final measurements follow
+in a dated entry; this entry makes no passing-check or capacity claim.
+
+### G3b-par pre-qualification review corrections — 2026-10-24
+
+A fresh read-only review caught a borrowed image guard surviving through the
+vector-tail clear and an unconditional sequence sample on all-hot SQLite
+waves. Scope payload serialization before clearing, and sample the initial
+sequence only when speculative jobs exist. The reviewer confirms both source
+fixes and reports no further material finding. The first affected compilation
+started before these corrections; corrected qualification follows. Refresh
+all four experiment lockfiles for the server-only pool dependency, preserving
+existing dependency pins (and reconciling two inherited core-version entries).
+
+## 2026-10-24 — G3b-par final batch profile, rates and qualification
+
+On expo-build-450b (`expose-builder-pixel-a`), the release bounded-overlay
+baseline includes CPU replays `cb6411684c` / `edf12e5142`. The parallel
+implementation `d94d61f40c` and pre-qualification fixes `12d375a70c` use one
+process-wide pool bounded to eight workers on the 12-CPU affinity. Workers
+interpret private overlays over immutable complete facts; revision-ordered
+acceptance, fresh authority/receipts and in-memory conflict reruns remain on
+the committer. Known hot targets remain serial; N=1 does not initialize or
+enter the pool. Facts and COMMIT/flush do not overlap useful interpretation.
+Borrowed fact/tail serialization and moved result buffers cut allocations.
+
+The independently recalculated batch profile measures whole writer CPU W4
+**5.570 → 3.171 ms/batch**, **174.77 → 99.50 µs/member**, and W5 shared
+**6.386 → 5.929 ms/batch**, **200.53 → 186.93 µs/member**. W4 spends another
+**3.851 ms/batch on workers**; total writer+worker CPU rises about
+**5.57 → 7.02 ms/batch**. This shortens the serialized path, not aggregate
+work. The W4 median near 100 µs is a scoped diagnostic (94.94–103.93 across
+trials), not an HTTP or universal engine bound. Fact encoding falls W4
+111.8 → 10.2 µs/batch and W5 224.6 → 34.9; image/payload encoding falls
+195.7 → 50.8 and 116.7 → 28.3. Explicit thread clocks, external scheduler
+runtime counters and userspace gprofng samples supply the profile; no perf
+claim or permanent profiling code/selector is added.
+
+Three counterbalanced clean release windows per cell, 32 live-account native
+writers, durable TCP loopback PG16: W4 N=1/8/32 medians
+**228.9/1281.0/2582.8 → 229.8/1305.3/3422.8 writes/s**; W5 shared
+**197.1/1227.1/2371.8 → 204.2/1304.3/2536.1**. W4 N=32 after ranges
+3053.7–3593.3: every trial exceeds 2262, two exceed 3200. These are core-queue
+closed-loop diagnostics, excluding HTTP, delayed links and the million-message
+seed; no offered-load/SLO/control qualification is claimed. All **153,890**
+timed acknowledgements reconcile with durable counters and batch fills,
+with zero primary errors. Recorded load edges span 1.62–7.01 on 12 CPUs.
+The earlier 1883.5/s G3b test-profile result is a different host/profile arm.
+The [lane report](./reports/20261024-g3b-parallel-overlay/REPORT.md) records
+stage CPU per batch/member, off-CPU time, rates/latencies/ranges and retained
+failed pilots without relabeling them as successful measurements.
+
+The new parallel/forced-serial overlay differential passes 12 paired random
+histories across both stores, three seeds × 192 members at N=8/32, checking
+outcomes/meters and complete durable snapshots after each batch. Both modes
+also pass the 16-member chain with 15 reruns, duplicate receipts/mixed fallback
+and intermediate-image witnesses. The existing N=1 oracle remains intact.
+The corrected 38-case private program scope and bounded-worker test pass;
+a fresh read-only review reports no material source or measurement finding.
+The pre-fix borrow/RT0 failures remain in the raw record, alongside the fixes.
+
+Full core passes **746 unit tests**, **413 integration tests across 47 targets**
+(44 nonempty) and **38 doctests**, with 290 unit / 50 integration named ignores;
+filtered child-worker output is excluded from the primary census. Full binary
+passes **577 / 45 named ignores**. Both RT0 ratchets pass five cases, retaining
+PG N=4/8/32 warm totals 5/5/5 and SQLite 34/58/202. Normal/release builds,
+reference validation and whitespace checks pass. The complete Postgres script
+remains red only for the retained evaluator Serializable **40001**: 21 passes,
+one failure, three existing filters, recorded in the existing ticket. Every
+later scope passes, including 232 adapter, 25 ownership, 60 evolution,
+21 codecs, 13 evidence, 22 supported corpus, 11 differential-library and
+four store campaigns. Public EV-1/EV-2, change-evidence/SDK parity, restart,
+SIGKILL takeover, ownership loss, non-superuser role and unchanged S1 P1-MC
+all pass. No workload, retry, timeout, durability or exclusion is relaxed.
+
+Owned PG16 masters **626337** / **1033296** are stopped and independently
+confirmed (status 3, no pidfiles or sockets); both observers are stopped and
+reaped. All **3,972 recorded PIDs** are absent, with no owned executable,
+postmaster, helper or port-55477 listener. **PIDs left: none.** Minimum observed
+/home free space is **41.02 GiB**, final audit **51.28 GiB**; the 30 GB stop
+condition never fires. Cleanup touches only the commissioned target's caches;
+pre-existing target-b1/target-pre and other worktrees remain untouched. Raw
+logs/profiles/data stay outside Git in `/tmp/sb4-g3b-par/` and the stopped
+public witness `/tmp/s10d3-serve-n9ew0acj/`. No push, stash, Git configuration
+change or unrelated-cluster operation occurs. Final documentation repeats
+`./ref-check`; only summary evidence is committed.
+
+## 2026-10-24 — Write-land integration checkpoint: disk stop, unqualified
+
+On expo-build-450b, `sb4-pg/write-land` starts clean at the required
+`ce9ddd5e54`, the mechanical write-stack rebase onto `480f88e8b4`.
+The workspace build uses this worktree's own `snapback4/target`, ten jobs,
+Postgres features and the requested line-tables-only dev/test profiles.
+Both `cargo build --locked --workspace --all-targets --features postgres -j 10`
+attempts are interrupted by the 35 GiB disk guard; neither completes and
+neither reports a Rust compile error before interruption. The first stop is
+at 34.98 GiB. Deleting only this worktree's `target/debug/incremental` recovers
+2.4 GiB, but the resumed build with incremental compilation disabled reaches
+34.94 GiB. No other artifacts are deleted. Further builds and qualification
+stop pending additional space or an explicit change to the cleanup restriction.
+
+Source inspection finds one admission-clock gap: the durable HTTP route starts
+its private retry allowance at writer submission, after intake/body processing.
+The candidate passes the original `Request::accepted_at()` through `Writer`
+to `ProgramCommand`, retaining the existing first-attempt/uncancellable-COMMIT
+policy while shortening fallback eligibility by the request's actual age.
+A private-PG regression witness forces a known COMMIT abort after an already
+spent intake allowance, requires no retry/durable change, then verifies the
+next queued request commits once. **The candidate and witness have not compiled
+or run; this checkpoint is not a qualified fix.**
+
+Other interaction findings are source review only. Short requests retain their
+own 30-worker/98-waiter admission and original intake/body deadlines; mutations
+use their separate 32-worker class and the FIFO program mailbox. The RT6
+settings guard precedes data flights; installing a program budget invalidates
+prepared COMMIT settings, and tail/commit code orders both timeout resets after
+budget controls. G3b's immutable wave facts and private worker overlays are
+separate from G4a's transaction-local read answers; both pass values through
+the shared literal encoder. Log-plan hygiene removes only the recognized legacy
+FK, while vector tail and overlay apply independently check their returned
+counts. None of these source observations establishes a passing integration
+verdict. The existing queue, timeout-trigger, read-closure/NUL, parallel-history,
+plan-hygiene and count-suppression witnesses remain to be run together.
+
+Qualification is incomplete: zero completed workspace builds, no completed core
+or binary test run, no RT0 ratchet result, no Postgres-script result, no
+reference-check result and no W4/W5 release-loopback measurement. No pass/fail
+counts or rate claim are made. `git diff --check` passes for the candidate.
+Raw output, disk samples and PID identities stay outside Git under
+`/tmp/sb4-write-land/`.
+
+Private PG16 master **1263975** is stopped and independently confirmed by
+`pg_ctl status` (3), no postmaster pidfile and no owned Unix socket. All
+**479 recorded process identities** are absent after both interrupted builds
+and observer shutdown. **PIDs left: none.** The last exact disk audit reports
+34.86 GiB free; the disk stop remains active. No push, stash, Git configuration
+change, existing-commit rewrite or unrelated-cluster operation occurs.
+
+## 2026-10-24 — Write-land resume: all-target build reaches the new disk floor
+
+On expo-build-450b, the worktree starts clean on `sb4-pg/write-land` at the
+required **6d5b67d02a**, with `df -h /home` reporting **71G available**.
+The resumed `cargo build --locked --workspace --all-targets --features postgres
+-j 10` uses this worktree's `snapback4/target`, the requested line-tables-only
+dev/test profiles and disabled incremental compilation. It reaches many
+workspace integration targets without reporting a Rust compile error, but
+the continuous disk guard interrupts it at **24.9973 GiB available**, the
+new 25 GiB stop floor. **The workspace build does not complete.** The
+affected program-batch test command is still waiting for Cargo's build lock
+when its own guard stops it; it executes zero tests. The permitted
+`target/debug/incremental` directory contains only 4 KiB, so deleting its
+contents cannot restore useful build headroom. No other build artifacts are
+deleted, and no further builds or test campaigns start after the stop.
+
+All four semantic interaction verdicts remain **source-reviewed but
+unqualified**. Admission retains the distinct 30-worker/98-waiter short
+pool and 32-worker mutation class, a single FIFO program submission, the
+original short-request deadlines and the intake-age handoff introduced by
+6d5b67d02a. The retained queue-order, overload, expiry and intake-age witnesses
+still need execution. RT6's settings guard remains before data commands;
+`refresh_program_budget` invalidates prepared COMMIT settings, and tail/commit
+code orders both timeout resets after budget commands. The retained deferred
+COMMIT-trigger fallback witnesses still need execution. Wave preparation
+shares immutable facts with private worker overlays, whereas G4a read answers
+belong to their transaction; both use the common flight/literal boundary,
+with G4a's explicit NUL/JSON-source guards. Closure, literal, parallel-history
+and flight-count witnesses still need execution. Plan hygiene removes only
+the recognized legacy log FK; vector tails validate every returned count,
+and overlay apply validates its image count independently. Legacy-conversion,
+orphan-integrity and suppressed-write witnesses still need execution.
+An additional deferred-trigger coverage candidate for normal N=1, serial
+groups and parallel/forced-serial overlays is removed before this checkpoint:
+it never compiled or ran, and no new executable change is retained.
+
+Qualification census: **zero completed workspace builds; zero core, binary,
+RT0 or private-Postgres test cases executed; no release loopback trials**.
+Neither W1/W2/W3's one-flight ratchet nor G3b's five/six-flight ratchet has a
+new result. The full Postgres script does not start; the known inherited
+evaluator 40001 is neither reproduced nor cleared, and no other test red is
+observed because no tests run. W4/W5 throughput remains unmeasured.
+Root `./ref-check` passes; `git diff --check` passes. The intake-age fix at
+6d5b67d02a remains explicitly **unqualified**.
+
+Private PG16 master **1294001** is stopped by the disk observer and
+independently confirmed with `pg_ctl status` **3**, no postmaster pidfile
+and no owned Unix socket. Both guarded commands and the observer finish;
+all **1,333 recorded process identities** are absent. **PIDs left: none.**
+After interrupted-build temporary files are released, the cleanup audit
+reports **25.7869 GiB available**. Raw logs, PID identities and disk samples
+remain outside Git under `/tmp/sb4-write-land-resume/`. Only this journal
+checkpoint is committed. No push, stash, Git configuration change,
+existing-commit rewrite or unrelated-cluster operation occurs. Completion
+requires additional free space or an explicit expansion of the user's
+artifact-cleanup allowance; the empty incremental cache provides no remedy.
+
+## 2026-10-24 — Write-land qualification on the integrated main base
+
+Lane `sb4-pg/write-land` starts clean at the required **c8b9881186** on
+expo-build-450b. The runtime is the write stack mechanically rebased onto
+**480f88e8b4**, including intake-age fix **6d5b67d02a**. That fix is now
+qualified. No additional engine fix is needed; this landing adds integration
+witnesses and this record. The earlier unqualified disk-stop entries remain
+historical records, not the final disposition.
+
+Builds are scoped to the required core library/integration, CLI, differential
+library/store and external release-harness targets. No workspace/all-targets
+build runs. All Cargo output stays in this worktree's `snapback4/target`, with
+ten jobs and line-tables-only dev/test debug information. Incremental compilation
+is disabled for those checks. The ordinary CLI is explicitly built because
+binary tests launch its native worker/witness supervisor. The final release
+harness uses the original release optimization/line tables/incremental setting.
+The target ends near **18 GiB**, rather than the former 66 GB debug tree.
+
+### Interaction verdicts
+
+- **Admission and original intake age — PASS.** The G4a short reservation stays
+  at 30 executing workers plus 98 waiting slots; mutations retain their own
+  32-worker class and one FIFO program submission. The strengthened
+  `short_burst_queues_without_extra_workers_and_refuses_only_at_the_bound`
+  fills all 128 short slots, observes the one bounded overflow refusal, then
+  completes eight concurrent unkeyed HTTP mutations before releasing the short
+  queue. Their sequences and returned counter images are exactly 1–8, proving
+  progress and one application each. The original-body-deadline and contiguous
+  program/solo FIFO witnesses pass. The private-PG
+  `accepted_http_age_prevents_a_fresh_fallback_budget_and_keeps_queue_progress`
+  passes again in the complete program scope: an already-spent intake allowance
+  cannot gain a retry after conclusive COMMIT abort; the following request
+  commits exactly once. Source review confirms `Request::accepted_at()` reaches
+  the command's original retry deadline, preserving the first-attempt policy.
+- **RT6 settings/typed flights and uncancellable COMMIT — PASS.** Deferred
+  constraint triggers observe both `statement_timeout` and `lock_timeout` as
+  **0 inside COMMIT**. Five passing cases cover normal N=1 and serial groups,
+  unnamed solo fallback, named single-survivor and seven-survivor fallback,
+  and parallel/forced-serial buffered overlays with bulk apply. Budget refresh
+  invalidates the prepared-COMMIT-settings bit; tail resets follow budget
+  controls; COMMIT remains a separate flight after client count validation.
+  The settings-drift, empty-pending Bind, typed/OID fallback and savepoint
+  recovery cases pass in the 33-case codec/serving scope. Per-member statement
+  deadlines and both stores' post-tail expiry witnesses also pass.
+- **G3b facts versus G4a read closures — PASS.** Wave workers receive immutable
+  complete facts/IR and owned contexts, with private overlays/read sets. They
+  receive no transaction or connection cache. G4a answers belong to their
+  read transaction; member authority/receipt facts are cloned and replaced at
+  each boundary. Prepared statement/literal maps stay on the owning connection.
+  Both paths use the shared typed-flight/literal boundary. The nine-case
+  closure scope, 33 codec/serving cases, NUL text/JSON-source fallbacks,
+  planted-fact/meter oracles, parallel/serial histories, collision chains and
+  intermediate-image witnesses all pass. No shared mutable answer cache is
+  introduced across members or interpreters.
+- **Log hygiene versus vector tail/bulk apply — PASS.** Recognized legacy FK
+  conversion, foreign-shape refusal with rollback, fresh/reopened schemas,
+  commit/rollback/pruning integrity and the isolated cold-backend plan witness
+  pass. `legacy_keys` uses the common flight `Row` from 480f88e8b4. Vector tail
+  validates every returned count independently of FK removal; bulk apply checks
+  its image count, and serial fallback verifies each actual row write. Both-store
+  suppression witnesses reject missing images and preserve the complete durable
+  snapshot; the seven tail-family suppression cases also pass.
+
+### Check census and retained failed attempts
+
+| Check | Passed | Failed | Named ignores / scope |
+|---|---:|---:|---|
+| Full core library | 771 | 0 | 320 existing ignores in the initial inventory |
+| Full core integration | 413 | 0 | 50 ignores; 47 targets, 44 nonempty |
+| Full binary, corrected complete run | 586 | 0 | 48 ignores; four test threads |
+| HTTP RT0 | 5 | 0 | unchanged checked tables |
+| G3b RT0 | 2 | 0 | both stores, N=1/8/32 |
+| Complete private program scope | 51 | 0 | includes all three new private-PG cases |
+| Postgres script Rust scopes | 709 | 1 | 33 invocations; overlapping scopes counted as executions |
+| Core doctests, included above | 38 | 0 | no ignores |
+| Public serving scopes | pass | 0 remaining | original run plus exact final-block rerun below |
+| Root `./ref-check`; whitespace | pass | 0 | no unchecked references |
+
+Warm W1/W2/W3 retain **one PG read flight each**. HTTP PG program groups
+N=4/8/32 remain **5/5/5**; SQLite remains **34/58/202**. Direct G3b N=8/32
+remains **5 flights disjoint / 6 shared** (N=1 stays 7/10). Neither RT0
+fixture is updated.
+
+The Postgres script's one Rust red is the allowed inherited
+`evaluator_concurrent_read_modify_write_and_duplicate_ops_are_atomic_in_both_modes`,
+SQLSTATE **40001**, tracked in the existing Serializable evaluation ticket.
+It records 21 conformance passes and that failure, retaining its three existing
+filters. The 7,418-position query and 19,265-position write-loop differentials
+pass. Later scopes pass: 243 adapter, one isolated cold-plan, nine closure,
+13 evidence, 33 codecs/serving, 25 ownership, 60 evolution, 15 command,
+51 program, 64 HTTP authority, 22 corpus, 13 differential-library and four
+store campaigns, alongside the other small family/HTTP scopes in the census.
+No workload, retry, timeout, durability setting or exclusion is relaxed.
+
+The full shell script exits **1**. Besides the inherited Rust red, its first
+public run reaches the unchanged **45-second P1-MC deploy guard** during a
+host-load spike (load 16.65; bootstrap intent at 17.27 s, no binding). All prior
+public stages pass: EV-1/EV-2 on both stores, large restored parents,
+change-evidence/SDK parity, read-only bootstrap refusals, recovery binding,
+startup claim cleanup, receipt/restart persistence, SIGKILL takeover,
+ownership loss and the non-superuser role. The owned cluster stops cleanly.
+The exact P1-MC source block is then rerun in a fresh namespace/deployment
+with the same role, source, seed, queries, public mutation, SQL recounts and
+**unchanged 45-second guard**. Deployment takes **17.722 s** and the complete
+block passes: 24 seeded messages plus one public post, every room/user total
+matching recount. A normalized block hash equals the original source block.
+Thus the initial public timing red is retained but cleared, not relabeled as a
+successful whole-script attempt.
+
+Other corrected attempts remain in the external record. A private-cluster
+restart initially omitted its explicit socket/port, producing 30 program-scope
+connection failures and the core corpus connection failure; the endpoint is
+verified and corrected. The corpus rerun passes 21/0/1 and the later full
+five-backend script corpus passes 22/0/0. A new N=1 witness initially assumed
+`Invocation.attempts` contains the ordinary driver's local transcript; its
+assertion is corrected, and all five COMMIT-settings cases pass. The first
+binary run is 556/30/48: missing ordinary-CLI helpers plus three HTTP/timing
+failures. After building the CLI, the unchanged complete binary scope passes
+586/0/48. The first isolated P1-MC wrapper deploys in 17.697 s and passes its
+HTTP checks, but omits the original SQL recount helper; restoring that helper
+and using another fresh namespace yields the complete passing block above.
+External release preparation first encounters old local lock versions and
+then the gated Fixed(N) constructor; those failed builds produce no rate claim.
+
+For completeness, the 30 initial binary failures, all cleared by the complete
+rerun, are named here (these are summary identities, not committed raw logs):
+- `serve::committer::worker_mint_tests::inner_unknown_mint_through_queue_fences_the_orphan_before_replacement`
+- `serve::tests::adoption_tests::worker::production_accept_loop_reads_after_delayed_worker_exit`
+- `serve::tests::adoption_tests::worker::production_accept_loop_reads_while_exited_worker_waits_for_adoption`
+- `serve::tests::adoption_tests::worker::production_accept_loop_waits_for_complete_worker_readiness`
+- `serve::tests::adoption_tests::worker::serve_rotation_fences_a_valid_credential_while_retirement_is_locked`
+- `serve::tests::adoption_tests::worker::serve_rotation_waits_for_a_delayed_retirement_turn`
+- `serve::tests::authority_boundary_tests::generation::rt3b_generation_cap_persona_sqlite`
+- `serve::tests::device_handshake_tests::a_clock_jump_cannot_be_captured_as_the_revision_of_a_prejump_token`
+- `serve::tests::latency_tests::headers::changes_reopens_after_a_commit_and_times_each_open_as_wait`
+- `verbs::witness::background::tests::witness_passed_outcome_survives_post_driver_compression_failure`
+- `verbs::witness::preparation::cleanup_tests::direct_enumeration_resizes_and_keeps_births_in_the_selected_group`
+- `verbs::witness::preparation::cleanup_tests::shrinking_group_extends_cleanup_until_supervisor_exits`
+- `verbs::witness::preparation::cleanup_tests::stopped_supervisor_without_exits_requires_recovery_and_keeps_its_deadline`
+- `verbs::witness::preparation::tests::preparation_cleans_term_resistant_descendants_before_releasing_lease`
+- `verbs::witness::preparation::tests::recovery_direct_node_drains_final_empty_snapshot_joiner`
+- `verbs::witness::preparation::tests::recovery_direct_node_drains_late_group_member`
+- `verbs::witness::preparation::tests::recovery_keeps_group_custody_after_anchor_exit`
+- `verbs::witness::preparation::tests::recovery_shell_shim_drains_final_empty_snapshot_joiner`
+- `verbs::witness::preparation::tests::recovery_shell_shim_drains_late_group_member`
+- `verbs::witness::preparation::tests::recovery_volta_style_shim_drains_final_empty_snapshot_joiner`
+- `verbs::witness::preparation::tests::recovery_volta_style_shim_drains_late_group_member`
+- `verbs::witness::preparation::tests::stalled_resolver_sigint_is_bounded_journalled_and_drained`
+- `verbs::witness::preparation::tests::stalled_resolver_sigkill_triggers_watchdog_before_recovery`
+- `verbs::witness::preparation::tests::stalled_resolver_sigterm_is_bounded_journalled_and_drained`
+- `verbs::witness::preparation::tests::stalled_resolver_timeout_is_bounded_journalled_and_drained`
+- `verbs::witness::preparation_deadline::tests::live_output_passes_original_budget_and_stalled_child_is_drained`
+- `verbs::witness::publication::tests::witness_wait_follows_publication_through_exchange_and_verify_without_an_older_pass`
+- `verbs::witness::recovery::tests::abandoned_bulk_and_backend_wait_for_the_run_lease_and_reject_a_reused_pid`
+- `verbs::witness::recovery::tests::live_wrapper_lease_preserves_export_and_journal_after_driver_exit`
+- `verbs::witness::recovery::tests::recovery_drains_a_live_preparation_descendant_before_finishing_even_with_a_live_wrapper`
+
+### Release loopback diagnostic
+
+Use the existing G3b-par harness, 32 native live-account writers, Fixed(N=32),
+one outstanding invocation per writer, one-second warm-up and three-second
+windows. The original G3b-par report temporarily exposed the test-only Fixed(N)
+constructor; repeat only that diagnostic exposure, build without `test-support`,
+then restore `command.rs` **byte-for-byte** before running/committing. The
+restoration hashes match. All 139 registry pins match the product lock; only
+the two copied local-package versions move from 0.4.38 to 0.4.39. No clocks,
+profiling selector or constructor exposure remains in source.
+
+The measurement uses a fresh database on private PostgreSQL **16.15**, TCP
+127.0.0.1:55480, 1 GiB shared buffers, JIT off, and fsync/synchronous_commit/
+full_page_writes **on**. A checkpoint precedes measurement. The original
+retained clean G3b-par binary is also measured on this same host/database;
+its SHA-256 begins `c231935cfc4b`. Six windows per workload/build are retained:
+three initial windows, followed by the predefined process order current,
+baseline, baseline, current, current, baseline, each with one W4 and W5 window.
+No window is discarded.
+
+| Build/workload | All six rates, writes/s | Median | Range |
+|---|---|---:|---|
+| Integrated W4 | 2929.9, 2801.1, 3071.1, 3228.7, 3199.5, 2790.0 | **3000.5** | 2790.0–3228.7 |
+| Retained G3b-par W4, same host now | 3068.0, 3328.1, 3138.4, 2956.6, 3018.0, 3054.1 | **3061.0** | 2956.6–3328.1 |
+| Integrated W5 shared | 2392.8, 2337.7, 2373.9, 2465.3, 2381.8, 2360.4 | **2377.8** | 2337.7–2465.3 |
+| Retained G3b-par W5, same host now | 2480.5, 2444.3, 2461.0, 2452.2, 2440.4, 2640.9 | **2456.6** | 2440.4–2640.9 |
+
+Initial integrated medians are 2929.9/2373.9; the counterbalanced subset is
+3199.5/2381.8 versus baseline 3018.0/2452.2. Across every retained window the
+integrated medians differ from the same-host baseline by **−1.98% / −3.21%**,
+with overlapping ranges. This small diagnostic does not establish an
+integration throughput regression or statistical equivalence. Absolute rates
+are lower than the historical **3422.8/2536.1** report; that report's retained
+binary is itself slower today, so the historical absolute numbers are **not
+reproduced**. Do not promote this to an S1 offered-load/SLO/control claim.
+HTTP, delayed links and the million-message seed remain outside this harness.
+All **198,008 timed acknowledgements** across both builds reconcile with
+durable warm+timed counters and fill histograms, with **zero errors**; 97,285
+of those timed acknowledgements are from the integrated build.
+
+### Cleanup
+
+Private PG16 masters **1313162, 1322573, 1329026, 1588903, 1693369 and 1694092**
+are stopped and independently absent. Final `pg_ctl status` is **3** for both
+owned data directories, with no postmaster pidfiles or owned Unix sockets.
+All **4,690 recorded process identities** and the public witness's **558
+recorded PIDs** are absent; the observer is stopped and reaped. **PIDs left:
+none.** Minimum observed `/home` free space is **54.87 GiB**, final cleanup
+free space **54.88 GiB**; the 25 GiB stop floor never fires. No build-cache
+cleanup is needed. Raw output, timings, PID identities, stopped database data,
+source-restoration receipts and measurement JSON stay outside Git under
+`/tmp/sb4-write-land-qualify/` and `/tmp/s10d3-serve-0lm3krdw/`.
+Only tests and this journal entry are committed. No push, stash, Git
+configuration change or existing-commit rewrite occurs.
+
+## 2026-10-23 — G3b/G8 composed statements and durable tail costs (Codex)
+
+Added the experiment-only `g3b` module to `postgres-commit-path`, measuring
+one typed composed counter read and one image-write/RETURNING statement at
+N=1/4/8/16/32/64, and full/no-receipt/batch-metadata/update-only durable
+stages at N=1/4/16/32/64. Uses Engine-created storage and indexes, with
+S1a revision/footprint tables, direct loopback TCP and a private PG16.15
+cluster on expo-build-1000 (`expose-builder-pixel`). S1b durability and
+resource settings were matched: fsync/synchronous_commit/full_page_writes
+on, fdatasync, commit_delay=0, shared_buffers=8 GiB, max_connections=300;
+measured-session statement/lock timeouts remain 5 s. Release builds used
+the lane-owned target directory and `-j 8`. No product code changed.
+
+[Full results and method](./experiments/postgres-commit-path/results-20261024-g3b-gate-loopback/README.md)
+(requested directory label; actual measurements 2026-10-23 18:52:50–18:58:31
+UTC). N=32 composed read/write EXPLAIN execution costs are 3.07/5.00
+µs/member; plain statement loopback costs are 5.36/6.41 µs/member. Fitting
+batch time = fixed + marginal × N to medians of three complete repetitions
+including durable COMMIT gives fixed/marginal µs: full 375.81/15.22;
+no `_ops` 356.03/11.34; batch metadata plus no `_ops` 350.02/8.32;
+`r` only 268.77/2.15. N=32 WAL bytes/member are 1145.25/765.59/350.41/78.66,
+respectively. All median marginal fits lie below the RFC's 70–93.75 µs
+allowance on this host/path; this cannot replace the 450a/450b whole-cycle
+fit or qualify a throughput/SLO claim.
+
+The cold FK-plan effect is preserved: run-0 full/no-receipt marginal fits
+are 458.29/457.31 µs/member and miss the allowance, versus 49.21 for packed
+metadata and 2.09 for update-only. Scan counters corroborate the sequential
+`_commits` scans followed by index lookups on fresh run-1/run-2 backends.
+The preliminary diagnostic retained one backend across repetitions;
+it was interrupted, its cluster stopped, and the final matrix reran with
+S1b's fresh-backend-per-repetition lifecycle. No cold final run was removed.
+Batch metadata retains every ordered image and all footprint keys but
+changes sequence/history representation; it is a cost bound requiring
+reader/history/invalidation/retention qualification. Keyed receipts remain
+required; update-only is just a physical floor. No pipelined-command control,
+semantic executor, full cycle, or vacuum/read-cost campaign is claimed.
+
+Validation: release build, rustfmt/diff checks, the short smoke, then all
+32 cells × 3 repetitions passed. Per-apply row counts and final counter,
+head/revision/pin, log image/order, footprint and keyed-receipt witnesses
+passed. Host 1/5/15-minute load ranges were 7.26–16.83 / 11.10–15.94 /
+11.92–13.28; no run was rejected for load. Raw JSON, EXPLAIN plans, settings,
+build/runner logs, analysis scripts and PID records remain outside Git at
+`/tmp/claude-1000/-home-ccheever-projects-snapback/3d04fc0c-0698-42a7-917c-2880afdea35c/scratchpad/g3b/`.
+Governing RFC revision 3 was read in `sb4-land2` on `sb4-pg/perf-rfc`;
+its snapshot and digest are recorded with the results. Only derived
+aggregates and the report are committed.
+
+Private postmasters 1047869, 1055138 and 1086874 all stopped; independent
+`pg_ctl status` returns 3, no postmaster.pid remains, and all 226 recorded
+owned PIDs are absent. The 25 GiB `/home` guard held; final check was
+26.24 GiB free. Only build caches created by this lane were reclaimed.
+No push, stash or Git configuration change.
+
+## 2026-10-23 — M1: W1/W2/W3 composed read cost, generic versus typed shadow
+
+Lane M1 on `sb4-pg/g3b-gate`, base `e26d1ebc95`; requested result label
+`20261024`, measured 2026-10-23 20:01:46–20:03:16 UTC. Followed revision 5
+of LLP 3000.009.001.000.002 from `sb4-land2` at `306f3f041e`, digest
+`f50c6927356df8dd…`; retained its snapshot when that worktree advanced.
+No product, adapter, schema, lowerer, authority policy or publication change.
+Report, complete four-arm tables, curated aggregates and parameterized SQL:
+[results-20261024-m1-reads-loopback](./experiments/postgres-commit-path/results-20261024-m1-reads-loopback/README.md).
+
+The release experiment binary seeded the real S1 schema through
+`Engine::seed_at`: 131,072 messages, 256 users, 1,025 rooms, 8,448 memberships
+(32 read + the seed's r1024 write membership per user), 257 counters and
+256 account sessions. Typed native tables/indexes copied those generic
+images; DDL plus FK-checked copy took 2.37 s. The one-statement controls
+return complete raw account authority/identity/generation/head, membership
+and program-row facts, leaving authorization and arithmetic in Rust.
+Positive fact/result/order and negative absence witnesses passed. Current
+warm source/RT0 baseline is 6 / 6 / 136 statements, not historical
+23 / 23 / 153; W3 retains 64 room size probes and 64 room fetches after
+prefetch. Replay shares prepared SQL handles just as the adapter does.
+
+Analyzed/force-generic server / loopback wall µs, with server measured by
+`EXPLAIN (ANALYZE, TIMING OFF) EXECUTE` on those exact handles:
+
+| Shape | Generic composed | Typed composed | Today's SQL sequence |
+| --- | ---: | ---: | ---: |
+| W1 | 80.05 / 120.10 | 68.37 / 107.25 | 128.65 / 380.37 |
+| W2 | 123.58 / 173.28 | 77.57 / 131.44 | 166.93 / 438.14 |
+| W3 | 265.70 / 315.31 | 169.23 / 209.64 | 2025.95 / 6245.03 |
+
+Generic / typed / sequence binary payload bytes are W1 674 / 575 / 884,
+W2 6336 / 5173 / 7342, W3 5575 / 3687 / 12326; DataRow framing is recorded
+separately. Same-window plain pg_stat_statements server counters, timing-on
+EXPLAIN, planning, run spreads, p99 and all plan arms remain visible.
+Analyzed/auto generic W2 custom-plans every execution: 391.5 µs planning and
+564.3 µs wall; forced-generic is 5.6 / 173.3. W3 sequence analyzed/auto
+reaches 16.12 ms mean and 19.98 ms worst observed p99. No large generic
+r/i sequential scan appears; typed W3 scans the 1,025-room table.
+
+Composition is the first W3 gain; A has an additional measured read case,
+including 18.36% / 33.87% less W2/W3 payload, but still owes EV-1/EV-2 and
+recurring fenced live-table activation costs. Delayed W2's 95.85 µs
+beyond-R allowance remains tight: typed instrumented server 77.57 leaves
+18.28 µs before other work, and loopback wall is 131.44. This is not an
+RTT/pool/SLO prediction. Measure admission/plan hygiene first, then
+revision-equality G5 if the loaded residual requires it; neither need nor
+sufficiency of G5 is proved here. W3's one-statement closure is promising
+against the delayed 16,000/s 645 µs remainder; a two-flight fallback still
+misses even at zero server cost. Its delayed 22,627/s challenge remains at
+risk. No loaded capacity or product qualification follows.
+
+Canonical matrix: fresh actual load/copy versus ANALYZE, auto versus
+force_generic_plan, 36 cells × 3 repetitions; 50 warm-up + 300 measured
+plain requests and 60 exact-handle EXPLAINs per timing mode per repetition.
+No optimizer-statistics reset in that fixture. PostgreSQL 16.15, S1b's
+8 GiB/300-connection/durable settings, measured 5 s statement/lock limits,
+direct loopback only. Release builds used the owned target and `-j 8`.
+Canonical load ranges (1/5/15 min) were 9.75–16.14 / 8.91–10.53 / 6.42–7.11;
+no run was discarded. Fixture tables froze auto-analysis for the plan arms;
+cluster autovacuum stayed on. Preliminary output-packing/EXPLAIN-wrapper
+and reset-statistics diagnostics remain private, distinct from the final
+natural-load/exact-handle matrix. No raw logs or credentials committed.
+
+Validation: all cells, fact/oracle/order/absence checks, exact statement-call
+and stable-byte witnesses, release build, rustfmt, Python compile, diff
+check and ref-check (566 LLPs, 11,830 refs, zero errors). Raw custody is
+`/tmp/claude-1000/-home-ccheever-projects-snapback/3d04fc0c-0698-42a7-917c-2880afdea35c/scratchpad/m1/`.
+Postmaster 1540291 stopped; all 215 recorded owned PIDs absent;
+`pg_ctl status`=3, no postmaster.pid or socket directory. The 25 GiB guard
+held; post-stop free space was 48.97 GiB. No push, stash or Git config change.
+
+## 2026-10-24 — M-suite: matched write attribution, flight witnesses, fill and reader pipelines
+
+[Full results](./experiments/postgres-commit-path/results-20261024-msuite/README.md)
+record M0/M2/M3/M1b under Accepted LLP 3000.009.001.000.002 §§3.4, 5–6,
+10.1, 10.7 and 12. Measurements ran on expo-build-450b, with S1-PG4's private
+PG16.15/durable settings, direct TCP, physical core split and A/B delay
+proxies. Actual controller interval: 2026-10-23 21:44 through October 24
+00:21 UTC. No product change or loaded engine-capacity claim.
+
+M0 completes 260 cells/52 fit groups, three repetitions each, N=1/4/16/32/64,
+fresh tiny-ANALYZE/reused backend, mature warm/new backend and forced generic,
+one client versus max(4,2N) producers with durable per-member acknowledgements.
+Warm producer e_total medians, full/no_ops/batch_tail/r_only, are
+37.91/32.84/23.58/12.03 µs per member on A and
+39.33/31.43/26.69/17.12 on B. Corresponding full-tail server marginals are
+31.55/38.82 µs. All 160 warm/generic cells have zero ledger seq-scan/tuple
+deltas in both intervals; all 60 contaminated cells are fresh RI arms and
+remain labeled. Current main already removed the legacy FK, so these arms
+restore it for attribution; ten current no-FK controls stay clean. Warm full
+A's 125.02 ms worst transaction p99 and earlier 297/404 ms tails remain
+visible. Per-run slopes, EXPLAIN/transaction/window components, WAL and
+write/sync time are retained. Experimental packed history is only a cost bound.
+
+The separate existing S1 engine arm checks 1,650 increments and measures
+561.79 µs per mutation (median of run means) of calling-thread CPU around
+Engine::mutate. Ingress session resolution is outside that timer; caller-side
+driver/codec/meter work is inside, background I/O and SQL wait outside. It is
+a solo-path CPU proxy, not incremental overlay interpreter CPU, and never
+additional observations in the harness regression. Host captures enclose its
+three repetitions together rather than individual repetition boundaries.
+
+All 21 M2 witnesses pass: raising fence first, post-head-lock fresh generation
+and receipt snapshots, zero-row count refusal, folded-flight aborts, deferred
+COMMIT failure, loss/unknown and reconciliation. PG16.15 applies the timeout
+per statement; bounded apply failure skips COMMIT. Explicit SET LOCAL
+statement_timeout=0 permits the deliberately slow COMMIT; the no-reset
+control also survives on this build and is disclosed. Equal-encoding simple
+N32 cycles, three→two flights, are 8.639→7.653 ms on A and 9.868→8.889 ms
+on B. The separately measured bound-apply three-flight comparator is
+6.443/7.932 ms. Codec and cluster-epoch differences forbid a protocol-only
+causal comparison. Retain three flights; two-flight product adoption still
+owes the parent retry/round-trip amendments and wider unknown-outcome rule.
+
+M3's 80 closed-loop simulator cells retain intended arrivals, C=32,
+effective-N histograms, queue age and deadline failures. Saturation immediate
+dispatch alternates N≈1/N≈31 nearly 100% of the time, effective N≈16;
+250 µs collection reaches 27.44 and 1 ms reaches 32, removing alternation.
+With the measured solo CPU proxy, only B's 400/s rung passes all three model
+repetitions; A 2,262/3,200 and B 1,600 fail. Zero-incremental-CPU sensitivities
+remain separate. No policy is accepted for product 3,200/s from this model.
+
+M1b completes 16 cells × three repetitions of independent extended queries,
+one Sync/query, depth 1/4/8/16 and NODELAY on/off. Native W2 facts, result
+association, error isolation and independent snapshot witnesses pass. Split
+frames/NODELAY off reproduce ~41/42 ms p50 A/B; coalescing or NODELAY removes
+the stall locally. NODELAY-on depth-4 isolated reads imply optimistic
+30-reader ceilings of 148,487/90,869 reads/s, versus depth-1 31,340/20,087;
+this is not a loaded 30-reader/admission/SLO qualification. Depth 8/16 on all
+30 readers also exceeds 128 external clients. The fixture is M1's 131,072
+messages, not S1's 1M seed. 450a's loads 11.55 then 17.01 exclude the optional
+cross-host arm; its q24 workload remains untouched.
+
+RFC branches selected: current-layout G2/G3/bounded G3b and plan hygiene;
+fill/CPU/service attribution before any A/F write migration; bounded reader
+pipelining/admission before conditional G5/G6/D. Warm server work is below
+the ≥100 µs/member commissioning trigger. Permanent A/F cancellation still
+requires the composed product cycle and G3's real change-evidence insert/prune
+tail confirmation. No G9 win follows from harness or model headroom.
+
+The shared-host disk guard stopped epoch 1 at 29.993 GiB, with all owned PIDs
+confirmed gone; space later fell to 4.768 GiB after shutdown. Only owned
+private data/credentials/unused build cache were removed. After recovery
+above 126 GiB and a quiet boundary, a fresh byte-identically configured
+cluster completed epoch 2 (99/161 M0 cells per epoch). Thirty foreign-load
+attempts, 17 idle-boundary failures, 33 earlier SQL-timing cells and the
+closed first epoch remain in external custody. Final normal shutdown,
+independent identity/path/port audits and credential cleanup pass; no owned
+benchmark PID remains. The independent measurement audit and ref-check
+(567 LLPs, 11,862 refs, zero errors) pass. Sources/raw evidence are archived
+outside Git with hashes. No raw logs committed; no push, stash or Git config
+change.
+
+
+### Integration 24: final write-land upstream synchronization
+
+The final delivery fetch discovers upstream write-land through `a41c2a0d0f`.
+The journal preserves both histories. The mutation conflict retains the new
+ProgramHost / Committer::run_program_until path, whose driver already owns
+physical transaction selection; this preserves the previous ownership fix
+without restoring a direct Engine store transaction. The resolved mutation
+file is byte-identical to upstream. All other security, column authority,
+conditional immutability, rollback and day-two changes remain integrated.
+
+This changes shared native execution and durable HTTP program admission, so
+the earlier complete and reader-only qualification remains recorded at its
+actual snapshots. The integrated write-path delta receives a fresh complete
+required qualification before delivery; no earlier result is relabelled.

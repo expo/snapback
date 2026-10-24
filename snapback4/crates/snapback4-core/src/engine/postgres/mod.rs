@@ -18,6 +18,8 @@ mod log_schema;
 mod outbox_store;
 mod prefetch;
 mod tail;
+mod group_tail;
+mod batch;
 pub mod literal;
 mod flight;
 mod pipeline;

@@ -49,6 +49,7 @@ mod assets;
 mod partition;
 pub(crate) mod steps;
 mod requests;
+pub(crate) mod program_deadline;
 #[cfg(test)]
 pub(crate) mod test_race;
 mod outbox;
@@ -671,6 +672,24 @@ impl<'a> Tx<'a> {
         Ok(())
     }
 
+    pub(crate) fn commit_program(self) -> Result<(), crate::engine::committer::outcome::Failure> {
+        use crate::engine::committer::outcome::Failure;
+        // SQLite's local COMMIT error leaves the transaction open (notably a
+        // deferred constraint). Prove it ended before authorizing a fallback.
+        if let Err(error) = self.conn().execute_batch("COMMIT") {
+            let error = error.into();
+            return Err(match self.tx.rollback() {
+                Ok(()) => Failure { error, aborted: true, member: None },
+                Err(rollback) => Failure { error: RuntimeError::CommitOutcomeUnknown(format!("rollback was not acknowledged: {rollback}; original: {error}")), aborted: false, member: None },
+            });
+        }
+        if self.read_sessions_installed.get() {
+            if let Some(guard) = self.read_sessions_installation.borrow_mut().as_mut() { **guard = true; }
+            else { self.read_sessions.publish(true); }
+        }
+        Ok(())
+    }
+
     pub fn rollback(self) -> Result<(), RuntimeError> {
         self.tx.rollback()?;
         Ok(())
@@ -784,7 +803,11 @@ impl<'a> Tx<'a> {
         self.changes.borrow_mut().record(table_name, table, old, Some(row));
         let data = canonical_json(row);
         let sql = if old.is_some() { "UPDATE r SET data = ?3 WHERE t = ?1 AND id = ?2" } else { "INSERT INTO r(t, id, data) VALUES (?1, ?2, ?3)" };
-        self.tx.prepare_cached(sql)?.execute(params![t, id, data])?;
+        let affected = self.tx.prepare_cached(sql)?.execute(params![t, id, data])?;
+        // @ref LLP 3000.009.001.000.002#3.3 — solo recovery must reject unapplied images just like bulk apply.
+        if affected != 1 {
+            return Err(RuntimeError::Store(format!("row write count mismatch for {table_name}: expected 1, got {affected}")));
+        }
         let mut insert = self.tx.prepare_cached(insert_index)?;
         let mut entries = 0;
         for crate::rows::IndexWrite { name, before, after } in keys {

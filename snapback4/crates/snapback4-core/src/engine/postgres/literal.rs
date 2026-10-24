@@ -27,12 +27,6 @@ fn bad(message: impl Into<String>) -> RuntimeError {
 fn decode_error(message: impl Into<String>) -> RuntimeError {
     RuntimeError::Store(message.into())
 }
-fn hex(bytes: &[u8]) -> String {
-    const DIGITS: &[u8;16] = b"0123456789abcdef";
-    let mut out = String::with_capacity(bytes.len().saturating_mul(2));
-    for b in bytes { out.push(DIGITS[(b >> 4) as usize] as char); out.push(DIGITS[(b & 15) as usize] as char); }
-    out
-}
 fn unhex(text: &str) -> Result<Vec<u8>, RuntimeError> {
     if text.len() % 2 != 0 {
         return Err(decode_error("odd bytea hex length"));
@@ -70,43 +64,72 @@ pub(super) fn name(ty: &Type) -> Result<String, RuntimeError> {
 /// This avoids standard_conforming_strings, encoding, locale and quote rules.
 /// Counts/times are already saturated by shared policy; never clamp here.
 pub fn encode(value: &Datum, ty: &Type) -> Result<String, RuntimeError> {
+    let mut out = String::new();
+    encode_into(&mut out, value, ty)?;
+    Ok(out)
+}
+
+// @ref LLP 3000.009.001.000.002#3.4 — one output buffer avoids a string allocation per array element and cast.
+fn encode_into(out: &mut String, value: &Datum, ty: &Type) -> Result<(), RuntimeError> {
+    use std::fmt::Write;
     if encoded_bound(value) > super::flight::ENCODED_LIMIT {
         return Err(bad("Postgres literal scratch guard"));
     }
-    let cast = name(ty)?;
-    let body = match (value, ty) {
-        (Datum::Null, _) => "NULL".into(),
-        (Datum::Bool(v), &Type::BOOL) => if *v { "TRUE" } else { "FALSE" }.into(),
-        (Datum::Int(v), &Type::INT2) if i16::try_from(*v).is_ok() => v.to_string(),
-        (Datum::Int(v), &Type::INT4) if i32::try_from(*v).is_ok() => v.to_string(),
-        (Datum::Int(v), &Type::INT8) => format!("'{v}'"), // i64::MIN must not first become a positive bigint.
-        (Datum::F32(v), &Type::FLOAT4) => format!("'{}'", float(*v as f64)),
-        (Datum::F64(v), &Type::FLOAT8) => format!("'{}'", float(*v)),
-        (Datum::Text(v), &Type::TEXT) => {
-            if v.contains('\0') {
-                return Err(bad("Postgres text parameters cannot contain U+0000"));
+    // Validate the port type before the value, including NULL, as `name` does.
+    check_type(ty)?;
+    out.push('(');
+    match (value, ty) {
+        (Datum::Null, _) => out.push_str("NULL"),
+        (Datum::Bool(v), &Type::BOOL) => out.push_str(if *v { "TRUE" } else { "FALSE" }),
+        (Datum::Int(v), &Type::INT2) if i16::try_from(*v).is_ok() => write!(out, "{v}").unwrap(),
+        (Datum::Int(v), &Type::INT4) if i32::try_from(*v).is_ok() => write!(out, "{v}").unwrap(),
+        // i64::MIN must not first become a positive bigint.
+        (Datum::Int(v), &Type::INT8) => write!(out, "'{v}'").unwrap(),
+        (Datum::F32(v), &Type::FLOAT4) => write!(out, "'{}'", float(*v as f64)).unwrap(),
+        (Datum::F64(v), &Type::FLOAT8) => write!(out, "'{}'", float(*v)).unwrap(),
+        (Datum::Text(v), &Type::TEXT) => text_into(out, v)?,
+        (Datum::Bytes(v), &Type::BYTEA) => bytes_into(out, v),
+        (Datum::Array(values), _) => {
+            let Kind::Array(element) = ty.kind() else { return Err(bad("array type mismatch")); };
+            out.push_str("ARRAY[");
+            for (i, value) in values.iter().enumerate() {
+                if i != 0 { out.push(','); }
+                encode_into(out, value, element)?;
             }
-            format!(
-                "pg_catalog.convert_from(pg_catalog.decode('{}','hex'),'UTF8')",
-                hex(v.as_bytes())
-            )
-        }
-        (Datum::Bytes(v), &Type::BYTEA) => format!("pg_catalog.decode('{}','hex')", hex(v)),
-        (Datum::Array(v), _) => {
-            let Kind::Array(element) = ty.kind() else {
-                return Err(bad("array type mismatch"));
-            };
-            format!(
-                "ARRAY[{}]",
-                v.iter()
-                    .map(|v| encode(v, element))
-                    .collect::<Result<Vec<_>, _>>()?
-                    .join(",")
-            )
+            out.push(']');
         }
         _ => return Err(bad(format!("value does not fit {ty}"))),
-    };
-    Ok(format!("({body})::{cast}"))
+    }
+    out.push_str(")::");
+    type_into(out, ty);
+    Ok(())
+}
+fn check_type(ty: &Type) -> Result<(), RuntimeError> {
+    if let Kind::Array(element) = ty.kind() { return check_type(element); }
+    if matches!(*ty, Type::BOOL | Type::INT2 | Type::INT4 | Type::INT8 | Type::FLOAT4 | Type::FLOAT8 | Type::TEXT | Type::BYTEA) { Ok(()) }
+    else { Err(bad(format!("RT5 unsupported port type {ty}"))) }
+}
+fn type_into(out: &mut String, ty: &Type) {
+    if let Kind::Array(element) = ty.kind() { type_into(out, element); out.push_str("[]"); return; }
+    out.push_str("pg_catalog.");
+    out.push_str(match *ty {
+        Type::BOOL => "bool", Type::INT2 => "int2", Type::INT4 => "int4", Type::INT8 => "int8",
+        Type::FLOAT4 => "float4", Type::FLOAT8 => "float8", Type::TEXT => "text", Type::BYTEA => "bytea",
+        _ => unreachable!("checked port type"),
+    });
+}
+fn hex_into(out: &mut String, bytes: &[u8]) {
+    const DIGITS: &[u8; 16] = b"0123456789abcdef";
+    out.reserve(bytes.len().saturating_mul(2));
+    for b in bytes { out.push(DIGITS[(b >> 4) as usize] as char); out.push(DIGITS[(b & 15) as usize] as char); }
+}
+fn bytes_into(out: &mut String, bytes: &[u8]) {
+    out.push_str("pg_catalog.decode('"); hex_into(out, bytes); out.push_str("','hex')");
+}
+fn text_into(out: &mut String, text: &str) -> Result<(), RuntimeError> {
+    if text.contains('\0') { return Err(bad("Postgres text parameters cannot contain U+0000")); }
+    out.push_str("pg_catalog.convert_from("); bytes_into(out, text.as_bytes()); out.push_str(",'UTF8')");
+    Ok(())
 }
 fn encoded_bound(value: &Datum) -> usize {
     match value {
@@ -132,6 +155,11 @@ fn float(v: f64) -> String {
 /// tail Vec/Vec<Option<T>> enter the same chokepoint. Fail closed on text-format
 /// custom ToSql implementations rather than pretending they are binary.
 pub fn parameter(value: &(dyn ToSql + Sync), ty: &Type) -> Result<String, RuntimeError> {
+    let mut out = String::new();
+    parameter_into(&mut out, value, ty)?;
+    Ok(out)
+}
+fn parameter_into(out: &mut String, value: &(dyn ToSql + Sync), ty: &Type) -> Result<(), RuntimeError> {
     if !matches!(value.encode_format(ty), Format::Binary) {
         return Err(bad("RT5 requires binary ToSql parameters"));
     }
@@ -140,12 +168,26 @@ pub fn parameter(value: &(dyn ToSql + Sync), ty: &Type) -> Result<String, Runtim
         .to_sql_checked(ty, &mut bytes)
         .map_err(|e| bad(format!("invalid Postgres parameter: {e}")))?;
     if bytes.len() > super::flight::ENCODED_LIMIT { return Err(bad("Postgres parameter scratch guard")); }
-    let value = if matches!(null, IsNull::Yes) {
-        Datum::Null
-    } else {
-        binary(ty, bytes.as_ref())?
-    };
-    encode(&value, ty)
+    // Borrow common text/bytea parameters from the driver's checked binary
+    // buffer instead of copying them into Datum and then several format buffers.
+    if !matches!(null, IsNull::Yes) && matches!(*ty, Type::TEXT | Type::BYTEA) {
+        // Match binary()'s UTF-8 refusal before encode()'s size refusal, even
+        // for an adversarial custom ToSql implementation with both defects.
+        let text = if *ty == Type::TEXT {
+            Some(<&str>::from_sql(ty, &bytes).map_err(|e| bad(e.to_string()))?)
+        } else { None };
+        let bound = bytes.len().saturating_mul(2).saturating_add(if *ty == Type::TEXT {128} else {64});
+        if bound > super::flight::ENCODED_LIMIT { return Err(bad("Postgres literal scratch guard")); }
+        out.reserve(bound);
+        out.push('(');
+        if let Some(text) = text {
+            text_into(out, text)?;
+        } else { bytes_into(out, &bytes); }
+        out.push_str(")::"); type_into(out, ty);
+        return Ok(());
+    }
+    let value = if matches!(null, IsNull::Yes) { Datum::Null } else { binary(ty, bytes.as_ref())? };
+    encode_into(out, &value, ty)
 }
 
 pub fn binary(ty: &Type, bytes: &[u8]) -> Result<Datum, RuntimeError> {
@@ -378,20 +420,20 @@ impl Prepared {
         if params.len() != self.bind.params().len() {
             return Err(bad("parameter count mismatch"));
         }
-        let mut args = Vec::new();
+        let mut out = format!("EXECUTE {}", self.name);
         let mut size = 64usize;
-        for (p,t) in params.iter().zip(self.bind.params()) {
-            let value = parameter(*p,t)?;
-            size = size.saturating_add(value.len()).saturating_add(1);
+        if !params.is_empty() { out.push('('); }
+        for (i, (p, t)) in params.iter().zip(self.bind.params()).enumerate() {
+            if i != 0 { out.push(','); }
+            let before = out.len();
+            parameter_into(&mut out, *p, t)?;
+            size = size.saturating_add(out.len() - before).saturating_add(1);
             if size > super::flight::ENCODED_LIMIT { return Err(bad("Postgres command scratch guard")); }
-            args.push(value);
         }
-        Ok(if args.is_empty() {
-            format!("EXECUTE {}", self.name)
-        } else {
-            format!("EXECUTE {}({})", self.name, args.join(","))
-        })
+        if !params.is_empty() { out.push(')'); }
+        Ok(out)
     }
+
     pub fn rows(&self, messages: &[SimpleQueryMessage]) -> Result<Vec<Vec<Datum>>, RuntimeError> {
         messages
             .iter()

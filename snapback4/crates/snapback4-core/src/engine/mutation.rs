@@ -11,7 +11,7 @@ pub struct DurablePublication {
     pub preserved: Option<Vec<String>>,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct MutationAcknowledgement {
     pub outcome: MutationOutcome,
     pub publication: Option<DurablePublication>,
@@ -37,27 +37,35 @@ impl Engine {
     /// is never re-judged: its row is on the server, and the device that
     /// queued it must learn `sent`, not `failed`.
     pub fn mutate(&mut self, name: &str, op: Option<&str>, context: Context) -> Result<MutationOutcome, RuntimeError> {
-        self.mutate_inner(name, op, context, false, None, None).map(|ack| ack.outcome)
+        self.mutate_inner(name, op, context, false, None, None, std::time::Instant::now() + std::time::Duration::from_millis(100)).map(|ack| ack.outcome)
     }
 
     /// Commit-local publication facts, exposed only after physical COMMIT.
     pub fn mutate_acknowledged(&mut self, name: &str, op: Option<&str>, context: Context) -> Result<MutationAcknowledgement, RuntimeError> {
-        self.mutate_inner(name, op, context, true, None, None)
+        self.mutate_inner(name, op, context, true, None, None, std::time::Instant::now() + std::time::Duration::from_millis(100))
     }
 
     /// Serving already performed unfenced replay-before-judgment. The final
     /// authority check and serial receipt check belong to this Program member.
     // @ref LLP 3000.009.001.000.001#31-authority-boundaries — a carried credential is not proof of current authority.
     pub fn mutate_authorized(&mut self, name: &str, op: Option<&str>, context: Context,
-        digest: &str, sample: impl FnOnce() -> crate::identity::ServiceSample,
-        authorize: impl FnOnce(crate::identity::RequestAuthority) -> Result<(), Refusal>,
+        digest: &str, sample: impl FnMut() -> crate::identity::ServiceSample,
+        authorize: impl FnMut(crate::identity::RequestAuthority) -> Result<(), Refusal>,
     ) -> Result<MutationAcknowledgement, Refusal> {
+        self.mutate_authorized_until(name,op,context,digest,sample,authorize,std::time::Instant::now() + std::time::Duration::from_millis(100))
+    }
+    pub(super) fn mutate_authorized_until(&mut self,name:&str,op:Option<&str>,context:Context,digest:&str,
+        mut sample:impl FnMut()->crate::identity::ServiceSample,
+        mut authorize:impl FnMut(crate::identity::RequestAuthority)->Result<(),Refusal>,deadline:std::time::Instant,
+    )->Result<MutationAcknowledgement,Refusal> {
         crate::identity::request::require_digest(digest).map_err(|e| e.refusal())?;
         let mut refusal = None;
-        let mut check = Some((sample, authorize));
-        let result = self.mutate_inner(name, op, context, true, Some(&mut |tx| {
-            let (sample, authorize) = check.take().expect("one authority boundary per in-place member");
-            let facts = tx.request_authority(digest, sample())?;
+        let mut attempted=false;
+        let result = self.mutate_inner(name, op, context, true, Some(&mut |tx,context: &mut Context| {
+            let sampled=sample();
+            if attempted {context.now=Some(context.now.unwrap_or(sampled.now).max(sampled.now));}
+            attempted=true;
+            let facts = tx.request_authority(digest, sampled)?;
             authorize(facts).map_err(|why| {
                 // The RuntimeError unwinds the member frame. Preserve the exact
                 // host refusal outside it, rather than converting its envelope.
@@ -65,8 +73,9 @@ impl Engine {
                 refusal = Some(why);
                 error
             })
-        }), Some(digest));
-        if let Some(why) = refusal { return Err(why); }
+        }), Some(digest), deadline);
+        if !matches!(&result, Err(RuntimeError::CommitOutcomeUnknown(_)))
+            && let Some(why) = refusal { return Err(why); }
         result.map_err(|error| {
             let mut why = error.refusal();
             // A preflight miss followed by fence loss is still unsent intent.
@@ -75,9 +84,10 @@ impl Engine {
         })
     }
 
-    fn mutate_inner(&mut self, name: &str, op: Option<&str>, mut context: Context, publication_requested: bool, mut authority: Option<&mut dyn FnMut(&super::committer::MemberTx<'_, '_>) -> Result<(), RuntimeError>>, digest: Option<&str>) -> Result<MutationAcknowledgement, RuntimeError> {
+    pub(super) fn mutate_inner(&mut self, name: &str, op: Option<&str>, mut context: Context, publication_requested: bool, mut authority: Option<&mut dyn FnMut(&super::committer::MemberTx<'_, '_>, &mut Context) -> Result<(), RuntimeError>>, digest: Option<&str>, deadline: std::time::Instant) -> Result<MutationAcknowledgement, RuntimeError> {
         if authority.is_none() { validate::write_identity(&context.viewer, op)?; }
         context.generation = self.generation;
+        let dynamic_time=context.now.is_none();
         let requested = context.now.unwrap_or_else(crate::now_ms);
         context.now = Some(self.advance_time_audience(requested)?);
         let wire_args = if op.is_some() { context.wire_args.take().unwrap_or_else(|| {
@@ -100,24 +110,71 @@ impl Engine {
                 Err(error) => Err(error),
             }.map(MutationAcknowledgement::unpublished);
         }
-        let request = digest.map(|digest| (digest, context.viewer.clone(), op));
-        Committer::run_with(self, |engine| Committer::run_request_pending(
-            &mut engine.store,
-            request.as_ref().map(|(digest, viewer, op)| (*digest, viewer.as_str(), *op)),
-            Member::new(Kind::Program, |tx| {
-            if let Some(check) = authority.as_mut() { check(&tx)?; validate::write_identity(&context.viewer, op)?; }
+        let Engine { store, schema, programs, entropy, minter, presence, ceilings, store_id, generation, dev_effects,
+            #[cfg(feature = "evaluation-support")] evaluation_precharge, .. } = self;
+        let host = ProgramHost { schema, programs, entropy: *entropy, minter, presence: presence.clone(), ceilings: *ceilings,
+            store_id, generation: *generation, dev_effects: *dev_effects,
+            #[cfg(feature = "evaluation-support")] evaluation_precharge: *evaluation_precharge };
+        let mut minted = Vec::new();
+        let mut attempts = Vec::new();
+        let original = context;
+        let mut attempted=false;
+        let resolution = Committer::run_program_until(store, digest, &original.viewer, op, deadline, |tx| {
+            let mut context = original.clone();
+            if attempted && dynamic_time {context.now=Some(crate::now_ms().max(context.now.unwrap_or(0)));}
+            attempted=true;
+            context.new_ids = minted.iter().cloned().chain(original.new_ids.iter().skip(minted.len()).cloned()).collect();
+            let mut attempt=super::program_transcript::Attempt::default();
+            let result=program_attempt(&host, tx, name, op, context, publication_requested, &wire_args, &mut authority, None, &mut minted,&mut attempt)
+                .map(|d| d.map(|(outcome, data)| Pending::new(outcome, data)));
+            attempts.push(attempt);result
+        })?;
+        Committer::finish(self, resolution, |engine, data, mut ack| {
+            if let Some((entropy, publication)) = data { engine.entropy = entropy; ack.publication = publication; }
+            Ok(ack)
+        })
+
+    }
+
+}
+
+#[cfg(test)]
+#[path = "../store/publication_tests.rs"]
+pub(crate) mod tests;
+
+pub(super) struct ProgramHost<'a> {
+    pub schema: &'a Schema,
+    pub programs: &'a BTreeMap<String, Program>,
+    pub entropy: u64,
+    pub minter: &'a crate::ids::Mint,
+    pub presence: Option<std::sync::Arc<dyn Presence>>,
+    pub ceilings: Ceilings,
+    pub store_id: &'a str,
+    pub generation: u64,
+    pub dev_effects: bool,
+    #[cfg(feature = "evaluation-support")]
+    pub evaluation_precharge: Metered,
+}
+type AuthorityCheck<'a> = Option<&'a mut dyn FnMut(&super::committer::MemberTx<'_, '_>, &mut Context) -> Result<(), RuntimeError>>;
+
+pub(super) fn program_attempt<'m, 's>(host: &ProgramHost<'_>, tx: super::committer::MemberTx<'m, 's>,
+    name: &str, op: Option<&str>, mut context: Context, publication_requested: bool,
+    wire_args: &serde_json::Value, authority: &mut AuthorityCheck<'_>, prepared: Option<Execution>, minted: &mut Vec<String>, attempt:&mut super::program_transcript::Attempt,
+) -> Result<super::committer::Disposition<(MutationAcknowledgement, Option<(u64, Option<DurablePublication>)>)>, RuntimeError> {
+            if let Some(check) = authority.as_mut() { check(&tx,&mut context)?; validate::write_identity(&context.viewer, op)?; }
             // @ref LLP 3000.009.001.000.001#35-each-command-keeps-its-own-place — a later command observes a receipt committed during the head-lock wait.
             if let Some(op) = op
                 && let Some(outcome) = tx.replay_bound(&context.viewer, op, name, &wire_args)?
             {
                 // Applied between the check above and this transaction.
                 let outcome = MutationOutcome::from_receipt(&outcome)?;
+                attempt.reads = tx.read_set();
                 return tx.rollback((MutationAcknowledgement::unpublished(outcome), None));
             }
             if let Some(op)=op{tx.require_placement(&context.viewer,op,name,&wire_args)?;}
-            context.now = Some(tx.pin_writer_time(&engine.schema, context.now.unwrap_or(0))?);
-            engine.schema.check_delivery(name, context.delivery_fingerprint.as_deref())?;
-            let program = engine.programs.get(name).ok_or_else(|| RuntimeError::UnknownOp(name.to_owned()))?.clone();
+            context.now = Some(tx.pin_writer_time(host.schema, context.now.unwrap_or(0))?);
+            host.schema.check_delivery(name, context.delivery_fingerprint.as_deref())?;
+            let program = host.programs.get(name).ok_or_else(|| RuntimeError::UnknownOp(name.to_owned()))?;
             if program.kind == ProgramKind::Query {
                 return Err(RuntimeError::UnknownOp(format!("{name} is a query, not a mutation")));
             }
@@ -127,15 +184,15 @@ impl Engine {
             if program.kind == ProgramKind::Job {
                 return Err(RuntimeError::UnknownOp(format!("{name} is a job: a schedule fires it, or `snapback4 run {name}` does; no caller can")));
             }
-            if let Err(error) = validate::validate_inputs(&engine.schema, &program, &mut context.args) {
+            if let Err(error) = validate::validate_inputs(host.schema, program, &mut context.args) {
                 return tx.abort((MutationAcknowledgement::unpublished(MutationOutcome { receipt_only: false, state: WriteState::Failed { why: error.refusal(), current: None }, metered: Metered::default(), tables: Vec::new(), events: 0, replayed: false }), None));
             }
             if context.presence.is_none() {
-                context.presence = engine.presence.clone();
+                context.presence = host.presence.clone();
             }
-            context.entropy = engine.entropy;
-            context.minter = engine.minter.clone();
-            let ceilings = engine.ceilings;
+            attempt.observe(&mut context);
+            context.entropy = host.entropy;
+            context.minter = host.minter.clone();
             let viewer = context.viewer.clone();
             let now = context.now.unwrap_or(0);
             // An `image`/`video` argument names an upload by id; the program
@@ -165,42 +222,26 @@ impl Engine {
                 }
             }
             tx.savepoint("program")?;
-            let mut runner = Runner::new(&tx, &engine.schema, context, Meter::new(ceilings, Cut::Abort), tx.next_seq()?);
-            #[cfg(feature = "evaluation-support")]
-            { runner.meter.used = engine.evaluation_precharge; }
-            let ran = runner.run(&program).and_then(|value| {
-                runner.charge_output(&value)?;
-                Ok(value)
-            });
-            // Commit-end expiry can cascade or clear rows that an `after insert`
-            // witness names. Final obligations therefore inspect the actual
-            // provisional commit state, after every retirement action.
-            let ran = ran.and_then(|value| runner.retire_expired_births().map(|_| value))
-                .and_then(|value| runner.check_final_exists().map(|_| value));
-            let metered = runner.meter.used;
-            let tables: Vec<String> = runner.written_tables.iter().cloned().collect();
-            let events: Vec<Event> = runner.events.take();
-            let action_tables = std::mem::take(&mut runner.action_tables);
-            let outbox = std::mem::take(&mut runner.outbox);
-            let rows_written = runner.rows_written;
-            let mut read_tables = runner.read_tables.clone();
-            let entropy = runner.context.entropy;
-            drop(runner);
+            let program_seq = tx.next_seq()?;
+            let Execution { ran, metered, tables, events, action_tables, outbox, rows_written, mut read_tables, entropy, minted: observed_ids } =
+                prepared.unwrap_or_else(|| execute_body(host, &tx, context, program, program_seq));
+            *minted = observed_ids.clone();
+            attempt.minted = observed_ids;
             let outcome = match ran {
                 Ok(result) => {
                     tx.release("program")?;
                     // @ref LLP 3000.019#4 — P7 reports keep at-most-once custody.
                     // @ref LLP 3000.022#6 — a covered report keeps only a receipt at the committed head.
                     let receipt_only = rows_written == 0 && outbox.is_empty()
-                        && engine.schema.delivery.iter().any(|binding| binding.mutation == name);
+                        && host.schema.delivery.iter().any(|binding| binding.mutation == name);
                     let seq = tx.next_seq()? - u64::from(receipt_only);
                     read_tables.extend(tables.iter().cloned());
                     if !receipt_only {
                         tx.record_commit(seq, now, (name, &viewer, program.kind.word()), &tables, rows_written)?;
                         tx.append(seq, &events)?;
-                        tx.record_effects(&outbox, seq, now, engine.dev_effects, &engine.schema)?;
+                        tx.record_effects(&outbox, seq, now, host.dev_effects, host.schema)?;
                     }
-                    MutationOutcome { receipt_only, state: WriteState::Sent { seq, result }, metered, tables, events: partition::disclosed_event_count(&engine.schema, &events, &action_tables), replayed: false }
+                    MutationOutcome { receipt_only, state: WriteState::Sent { seq, result }, metered, tables, events: partition::disclosed_event_count(host.schema, &events, &action_tables), replayed: false }
                 }
                 Err(error @ RuntimeError::StoreUnsupported { .. }) => {
                     tx.rollback(())?;
@@ -210,13 +251,13 @@ impl Engine {
                     tx.rollback_to("program")?;
                     let current = match &error {
                         RuntimeError::Conflict { current } => {
-                            let mut probe = Runner::new(&tx, &engine.schema, Context::new(viewer.clone(), BTreeMap::new()).at(now), Meter::new(Ceilings::default(), Cut::Cap), 0);
+                            let mut probe = Runner::new(&tx, host.schema, Context::new(viewer.clone(), BTreeMap::new()).at(now), Meter::new(Ceilings::default(), Cut::Cap), 0);
                             let value = probe.get(current).ok();
                             value
                         }
                         _ => None,
                     };
-                    let why=seat_refusal(&engine.schema,&error,&viewer);
+                    let why=seat_refusal(host.schema,&error,&viewer);
                     MutationOutcome { receipt_only: false, state: WriteState::Failed { why, current }, metered, tables: Vec::new(), events: 0, replayed: false }
                 }
                 Err(error) => {
@@ -234,23 +275,42 @@ impl Engine {
             }
             let publication = match outcome.state {
                 WriteState::Sent { seq, .. } if publication_requested => Some(DurablePublication {
-                    store_id: engine.store_id.clone(), head: seq, generation: engine.generation,
+                    store_id: host.store_id.to_owned(), head: seq, generation: host.generation,
                     preserved: if outcome.receipt_only {
-                        Some(crate::revocation::Footprint::default().preserved(&engine.schema))
-                    } else { committed_preservation(tx.change_footprint(), &engine.schema) },
+                        Some(crate::revocation::Footprint::default().preserved(host.schema))
+                    } else { committed_preservation(tx.change_footprint(), host.schema) },
                 }),
                 _ => None,
             };
+            attempt.reads = tx.read_set();
             tx.complete((MutationAcknowledgement::unpublished(outcome), Some((entropy, publication))))
-        }).pending(|(outcome, entropy)| Pending::new(outcome, entropy))), |engine, data, mut ack| {
-            // @ref LLP 3000.009.001.000.000#3.7 — entropy advances only in the durable member's continuation.
-            if let Some((entropy, publication)) = data { engine.entropy = entropy; ack.publication = publication; }
-            Ok(ack)
-        })
-    }
-
 }
 
-#[cfg(test)]
-#[path = "../store/publication_tests.rs"]
-pub(crate) mod tests;
+pub(super) struct Execution {
+    pub ran: Result<Value, RuntimeError>,
+    pub metered: Metered,
+    pub tables: Vec<String>,
+    pub events: Vec<Event>,
+    pub action_tables: std::collections::BTreeSet<String>,
+    pub outbox: Vec<super::presence::Emission>,
+    pub rows_written: u64,
+    pub read_tables: std::collections::BTreeSet<String>,
+    pub entropy: u64,
+    pub minted: Vec<String>,
+}
+pub(super) fn execute_body(host: &ProgramHost<'_>, rows: &dyn crate::rows::Rows, context: Context, program: &Program, seq: u64) -> Execution {
+    let mut runner = Runner::new(rows, host.schema, context, Meter::new(host.ceilings, Cut::Abort), seq);
+    #[cfg(feature = "evaluation-support")]
+    { runner.meter.used = host.evaluation_precharge; }
+    let ran = runner.run(program).and_then(|value| { runner.charge_output(&value)?; Ok(value) })
+        .and_then(|value| runner.retire_expired_births().map(|_|value))
+        .and_then(|value| runner.check_final_exists().map(|_|value));
+    Execution {
+        ran, metered: runner.meter.used,
+        tables: runner.written_tables.iter().cloned().collect(),
+        events: runner.events.take(), action_tables: std::mem::take(&mut runner.action_tables),
+        outbox: std::mem::take(&mut runner.outbox), rows_written: runner.rows_written,
+        read_tables: runner.read_tables.clone(), entropy: runner.context.entropy,
+        minted: runner.context.minted_ids.clone(),
+    }
+}

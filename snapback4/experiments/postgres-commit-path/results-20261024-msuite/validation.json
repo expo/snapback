@@ -1,0 +1,12 @@
+{
+  "ok": true,
+  "errors": [],
+  "json_files": 14,
+  "local_links": 14,
+  "archive_sha256_verified": true,
+  "archived_source_hashes_verified": 66,
+  "database_and_token_files_absent": true,
+  "raw_command_fields_absent": true,
+  "secret_shaped_text_absent": true,
+  "scope": "Artifact shape/link/structured-secret checks plus archive/source checks; prior known-token scan separately retained"
+}

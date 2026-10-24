@@ -1,7 +1,8 @@
 //! Serving handle for the worker-owned writer. Readers and the ephemeral hub
 //! retain their independent owners; only owned work crosses this mailbox.
 use super::*;
-use snapback4_core::engine::command::{Command, Queue, SubmitError};
+use snapback4_core::engine::command::{Command, ProgramCommand, Queue, SubmitError};
+use snapback4_core::engine::{MutationAcknowledgement, program::Invocation};
 use std::sync::{OnceLock, Weak};
 
 const CAPACITY: usize = 128;
@@ -57,7 +58,9 @@ impl Writer {
         Ok(self)
     }
     #[cfg(test)]
-    pub(super) fn test_ownership_loss(&self) { self.queue.refuse_ownership(); }
+    pub(super) fn test_ownership_loss(&self) {
+        self.queue.refuse_ownership();
+    }
     fn command<T: Send + 'static>(
         &self,
         run: impl FnOnce(&mut Engine, &Shared) -> T + Send + 'static,
@@ -127,6 +130,68 @@ impl Writer {
                 queue_error(error).refusal()
             })
     }
+    pub(crate) fn program<T: Send + 'static>(
+        &self,
+        accepted: Instant,
+        prepare: impl FnOnce(&mut Engine, Arc<Shared>) -> Result<Invocation, Refusal> + Send + 'static,
+        finish: impl FnOnce(&mut Engine, &Shared, Result<MutationAcknowledgement, Refusal>) -> T
+        + Send
+        + 'static,
+    ) -> Result<T, Refusal> {
+        *lock(&self.last_request) = Some(Instant::now());
+        let host = self
+            .host
+            .get()
+            .expect("writer bound")
+            .upgrade()
+            .expect("live host");
+        let context = Arc::new(Mutex::new(ProgramContext {
+            sample: latency::worker_sample(),
+            timing: None,
+            tracing: trace::worker_sample(),
+            evidence: dev_refusals::response::worker_sample(),
+        }));
+        self.queued.fetch_add(1, Ordering::AcqRel);
+        struct Ticket(Arc<AtomicUsize>);
+        impl Drop for Ticket {
+            fn drop(&mut self) {
+                self.0.fetch_sub(1, Ordering::AcqRel);
+            }
+        }
+        let ticket = Ticket(self.queued.clone());
+        let (prepare_host, prepare_context) = (host.clone(), context.clone());
+        let command = ProgramCommand::prepare(
+            move |engine| {
+                let _scope = crate::release_requests::Scope::begin(engine.generation());
+                let invocation = lock(&prepare_context).run(|| prepare(engine, prepare_host))?;
+                Ok(invocation.instrument(move |run| {
+                    lock(&prepare_context).run(run);
+                }))
+            },
+            move |engine, outcome| {
+                let _ticket = ticket;
+                let _scope = crate::release_requests::Scope::begin(engine.generation());
+                let mut context = lock(&context);
+                let value = context.run(|| finish(engine, &host, outcome));
+                Execution {
+                    value,
+                    timing: context.timing.take(),
+                    tracing: context.tracing.take().map(|(trace, _)| trace),
+                    evidence: context.evidence.take(),
+                    generation: crate::release_requests::reply_generation()
+                        .unwrap_or(engine.generation()),
+                }
+            },
+        ).accepted_at(accepted);
+        self.queue
+            .submit_program(command)
+            .and_then(|reply| reply.wait())
+            .map(Execution::finish)
+            .map_err(|error| {
+                latency::merge_worker(None);
+                queue_error(error).refusal()
+            })
+    }
     pub(crate) fn attempt<T: QueueResult + Send + 'static>(
         &self,
         run: impl FnOnce(&mut Engine, &Shared) -> T + Send + 'static,
@@ -145,7 +210,9 @@ impl Writer {
     ) -> T {
         self.attempt(move |engine, shared| {
             let result = run(engine, shared);
-            if notify(&result) { shared.durable_committed(engine); }
+            if notify(&result) {
+                shared.durable_committed(engine);
+            }
             result
         })
     }
@@ -243,6 +310,28 @@ impl Writer {
         (observed, release)
     }
 }
+
+struct ProgramContext {
+    sample: Option<latency::WorkerSample>,
+    timing: Option<latency::WorkerTiming>,
+    tracing: Option<(trace::Trace, Instant)>,
+    evidence: Option<dev_refusals::response::WorkerEvidence>,
+}
+impl ProgramContext {
+    fn run<T>(&mut self, run: impl FnOnce() -> T) -> T {
+        let sample = self.sample.take();
+        let active = sample.is_some();
+        let (((value, timing), tracing), evidence) =
+            dev_refusals::response::run_worker(self.evidence.take(), || {
+                trace::run_worker(self.tracing.take(), || latency::run_worker(sample, run))
+            });
+        latency::append_worker(&mut self.timing, timing);
+        self.sample = latency::resume_worker(active);
+        self.tracing = tracing.map(|trace| (trace, Instant::now()));
+        self.evidence = evidence;
+        value
+    }
+}
 #[cfg(test)]
 impl Lockable for Writer {
     type Guard<'a> = engine_lock::FairGuard<'a, Engine>;
@@ -311,7 +400,10 @@ impl QueueError for (u16, Refusal) {
 }
 impl QueueError for (u16, Json) {
     fn refused(why: Refusal) -> Self {
-        (refusal_status(&why.code).unwrap_or(500), json!({"denied":why}))
+        (
+            refusal_status(&why.code).unwrap_or(500),
+            json!({"denied":why}),
+        )
     }
 }
 impl<T, E: QueueError> QueueResult for Result<T, E> {
@@ -340,7 +432,11 @@ impl<T> Execution<T> {
 
 impl QueueResult for (u16, String, bool) {
     fn refused(why: Refusal) -> Self {
-        (refusal_status(&why.code).unwrap_or(500), json!({"denied":why}).to_string(), false)
+        (
+            refusal_status(&why.code).unwrap_or(500),
+            json!({"denied":why}).to_string(),
+            false,
+        )
     }
 }
 
@@ -400,7 +496,8 @@ mod tests {
         assert_eq!(
             host.shared
                 .engine
-                .call(|engine, _| engine.store().count("rows").unwrap()).unwrap(),
+                .call(|engine, _| engine.store().count("rows").unwrap())
+                .unwrap(),
             0
         );
         assert_eq!(host.shared.engine.queued.load(Ordering::Acquire), 0);

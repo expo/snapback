@@ -1,0 +1,197 @@
+{
+  "scope": "One enclosing before/after capture for all three repetitions; individual run boundaries not captured",
+  "before": {
+    "utc": 1792792936.8558743,
+    "loadavg": "2.94 2.82 2.80 3/958 3322876",
+    "free_bytes": 84627701760,
+    "top": [
+      {
+        "pid": 3322828,
+        "ppid": 3322775,
+        "cpu_percent": 134.0,
+        "comm": "claude"
+      },
+      {
+        "pid": 3322877,
+        "ppid": 3322873,
+        "cpu_percent": 100.0,
+        "comm": "ps"
+      },
+      {
+        "pid": 3322873,
+        "ppid": 3212987,
+        "cpu_percent": 60.0,
+        "comm": "python3"
+      },
+      {
+        "pid": 3322793,
+        "ppid": 1929452,
+        "cpu_percent": 35.2,
+        "comm": "fleet"
+      },
+      {
+        "pid": 3253761,
+        "ppid": 3212987,
+        "cpu_percent": 13.3,
+        "comm": "python3"
+      },
+      {
+        "pid": 1253329,
+        "ppid": 1,
+        "cpu_percent": 7.8,
+        "comm": "fleet"
+      },
+      {
+        "pid": 3322775,
+        "ppid": 1929452,
+        "cpu_percent": 5.4,
+        "comm": "fleet"
+      },
+      {
+        "pid": 3247798,
+        "ppid": 3247786,
+        "cpu_percent": 4.6,
+        "comm": "msuite_proxy"
+      },
+      {
+        "pid": 3212987,
+        "ppid": 3212986,
+        "cpu_percent": 0.7,
+        "comm": "codex"
+      },
+      {
+        "pid": 1598743,
+        "ppid": 1,
+        "cpu_percent": 0.6,
+        "comm": "tailscaled"
+      },
+      {
+        "pid": 2846353,
+        "ppid": 2846270,
+        "cpu_percent": 0.6,
+        "comm": "codex"
+      },
+      {
+        "pid": 2845772,
+        "ppid": 2845686,
+        "cpu_percent": 0.6,
+        "comm": "codex"
+      },
+      {
+        "pid": 1743184,
+        "ppid": 1743153,
+        "cpu_percent": 0.5,
+        "comm": "codex"
+      },
+      {
+        "pid": 815560,
+        "ppid": 815506,
+        "cpu_percent": 0.5,
+        "comm": "codex"
+      },
+      {
+        "pid": 815010,
+        "ppid": 814951,
+        "cpu_percent": 0.5,
+        "comm": "codex"
+      }
+    ]
+  },
+  "after": {
+    "utc": 1792792944.729683,
+    "loadavg": "2.78 2.79 2.79 3/967 3323578",
+    "free_bytes": 84614598656,
+    "top": [
+      {
+        "pid": 3323557,
+        "ppid": 1929452,
+        "cpu_percent": 20.0,
+        "comm": "fleet"
+      },
+      {
+        "pid": 3253761,
+        "ppid": 3212987,
+        "cpu_percent": 13.3,
+        "comm": "python3"
+      },
+      {
+        "pid": 1253329,
+        "ppid": 1,
+        "cpu_percent": 7.8,
+        "comm": "fleet"
+      },
+      {
+        "pid": 3247798,
+        "ppid": 3247786,
+        "cpu_percent": 4.6,
+        "comm": "msuite_proxy"
+      },
+      {
+        "pid": 3212987,
+        "ppid": 3212986,
+        "cpu_percent": 0.7,
+        "comm": "codex"
+      },
+      {
+        "pid": 1598743,
+        "ppid": 1,
+        "cpu_percent": 0.6,
+        "comm": "tailscaled"
+      },
+      {
+        "pid": 2846353,
+        "ppid": 2846270,
+        "cpu_percent": 0.6,
+        "comm": "codex"
+      },
+      {
+        "pid": 2845772,
+        "ppid": 2845686,
+        "cpu_percent": 0.6,
+        "comm": "codex"
+      },
+      {
+        "pid": 1743184,
+        "ppid": 1743153,
+        "cpu_percent": 0.5,
+        "comm": "codex"
+      },
+      {
+        "pid": 815560,
+        "ppid": 815506,
+        "cpu_percent": 0.5,
+        "comm": "codex"
+      },
+      {
+        "pid": 815010,
+        "ppid": 814951,
+        "cpu_percent": 0.5,
+        "comm": "codex"
+      },
+      {
+        "pid": 556413,
+        "ppid": 1,
+        "cpu_percent": 0.4,
+        "comm": "tmux:"
+      },
+      {
+        "pid": 601679,
+        "ppid": 601561,
+        "cpu_percent": 0.4,
+        "comm": "claude"
+      },
+      {
+        "pid": 601710,
+        "ppid": 601588,
+        "cpu_percent": 0.3,
+        "comm": "claude"
+      },
+      {
+        "pid": 601653,
+        "ppid": 601538,
+        "cpu_percent": 0.3,
+        "comm": "claude"
+      }
+    ]
+  }
+}

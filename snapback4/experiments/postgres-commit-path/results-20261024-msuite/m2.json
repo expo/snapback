@@ -1,0 +1,3159 @@
+{
+  "host_before": {
+    "utc": 1792792851.9686992,
+    "loadavg": "2.55 2.75 2.78 1/932 3315247",
+    "free_bytes": 84615507968,
+    "top": [
+      {
+        "pid": 3315241,
+        "ppid": 3212987,
+        "cpu_percent": 50.0,
+        "comm": "python3"
+      },
+      {
+        "pid": 3253761,
+        "ppid": 3212987,
+        "cpu_percent": 12.9,
+        "comm": "python3"
+      },
+      {
+        "pid": 3315132,
+        "ppid": 1929452,
+        "cpu_percent": 11.3,
+        "comm": "fleet"
+      },
+      {
+        "pid": 1253329,
+        "ppid": 1,
+        "cpu_percent": 7.8,
+        "comm": "fleet"
+      },
+      {
+        "pid": 3247798,
+        "ppid": 3247786,
+        "cpu_percent": 5.0,
+        "comm": "msuite_proxy"
+      },
+      {
+        "pid": 3212987,
+        "ppid": 3212986,
+        "cpu_percent": 0.7,
+        "comm": "codex"
+      },
+      {
+        "pid": 1598743,
+        "ppid": 1,
+        "cpu_percent": 0.6,
+        "comm": "tailscaled"
+      },
+      {
+        "pid": 2846353,
+        "ppid": 2846270,
+        "cpu_percent": 0.6,
+        "comm": "codex"
+      },
+      {
+        "pid": 2845772,
+        "ppid": 2845686,
+        "cpu_percent": 0.6,
+        "comm": "codex"
+      },
+      {
+        "pid": 1743184,
+        "ppid": 1743153,
+        "cpu_percent": 0.5,
+        "comm": "codex"
+      },
+      {
+        "pid": 815560,
+        "ppid": 815506,
+        "cpu_percent": 0.5,
+        "comm": "codex"
+      },
+      {
+        "pid": 815010,
+        "ppid": 814951,
+        "cpu_percent": 0.5,
+        "comm": "codex"
+      },
+      {
+        "pid": 556413,
+        "ppid": 1,
+        "cpu_percent": 0.4,
+        "comm": "tmux:"
+      },
+      {
+        "pid": 601679,
+        "ppid": 601561,
+        "cpu_percent": 0.4,
+        "comm": "claude"
+      },
+      {
+        "pid": 601710,
+        "ppid": 601588,
+        "cpu_percent": 0.3,
+        "comm": "claude"
+      }
+    ]
+  },
+  "version": "16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)",
+  "witnesses": [
+    {
+      "name": "raising-fence-first",
+      "passed": true,
+      "ms": 1.3846643269062042,
+      "error": "P0001",
+      "rollback_status": "I"
+    },
+    {
+      "name": "post-head-lock-adoption-and-receipt",
+      "passed": true,
+      "rows": [
+        [
+          "1"
+        ],
+        [
+          "0"
+        ],
+        [
+          "2"
+        ],
+        [
+          "7"
+        ],
+        [
+          "0"
+        ]
+      ],
+      "fence_lock_held_before_head": true
+    },
+    {
+      "name": "3-flight-statement-failure-F1",
+      "passed": true,
+      "error": "22012",
+      "aborted_status": "E",
+      "ended_status": "I",
+      "atomic": true
+    },
+    {
+      "name": "3-flight-statement-failure-F2",
+      "passed": true,
+      "error": "22012",
+      "aborted_status": "E",
+      "ended_status": "I",
+      "atomic": true
+    },
+    {
+      "name": "2-flight-statement-failure-F1",
+      "passed": true,
+      "error": "22012",
+      "aborted_status": "E",
+      "ended_status": "I",
+      "atomic": true
+    },
+    {
+      "name": "2-flight-statement-failure-F2",
+      "passed": true,
+      "error": "22012",
+      "aborted_status": "E",
+      "ended_status": "I",
+      "atomic": true
+    },
+    {
+      "name": "zero-row-tail-raises-and-skips-COMMIT",
+      "passed": true,
+      "error": "P0001",
+      "atomic": true
+    },
+    {
+      "name": "stale-generation-refuses-before-apply",
+      "passed": true,
+      "error": "P0001"
+    },
+    {
+      "name": "savepoint-frame-disposition",
+      "passed": true,
+      "failed_member_restored": true
+    },
+    {
+      "name": "per-statement-timeout",
+      "passed": true,
+      "total_ms": 46.60138301551342,
+      "timeout_ms": 25,
+      "three_sleeps_ms": 15
+    },
+    {
+      "name": "bounded-apply-check-timeout",
+      "passed": true,
+      "code": "57014",
+      "COMMIT_skipped": true
+    },
+    {
+      "name": "timeout-disabled-before-slow-COMMIT",
+      "passed": true,
+      "ms": 64.17039968073368,
+      "timeout_ms": 20,
+      "committed": true
+    },
+    {
+      "name": "slow-COMMIT-without-reset-control",
+      "passed": true,
+      "ms": 64.05575573444366,
+      "errors": [],
+      "status": "I",
+      "observation": "COMMIT survived the configured timeout"
+    },
+    {
+      "name": "deferred-COMMIT-error-known-rollback",
+      "passed": true,
+      "status": "I"
+    },
+    {
+      "name": "lost-folded-flight-results-commit",
+      "passed": true,
+      "classification": "E_COMMIT_OUTCOME_UNKNOWN",
+      "actual_observer_delta": 1,
+      "automatic_retry": false
+    },
+    {
+      "name": "lost-folded-flight-results-abort",
+      "passed": true,
+      "classification": "E_COMMIT_OUTCOME_UNKNOWN",
+      "actual_observer_delta": 0,
+      "automatic_retry": false
+    },
+    {
+      "name": "keyed-receipt-reconcile",
+      "passed": true,
+      "same_receipt": true,
+      "applied_once": true
+    },
+    {
+      "name": "three-flight-loss-after-setup",
+      "passed": true,
+      "classification": "known abort only after original backend ended",
+      "retry_before_abort_proof": false,
+      "unchanged": true
+    },
+    {
+      "name": "three-flight-loss-after-apply",
+      "passed": true,
+      "classification": "known abort only after original backend ended",
+      "retry_before_abort_proof": false,
+      "unchanged": true
+    },
+    {
+      "name": "confirmed-COMMIT-followed-by-result-error",
+      "passed": true,
+      "classification": "confirmed durable; result failure separate",
+      "automatic_retry": false,
+      "sqlstate": "22012"
+    },
+    {
+      "name": "single-statement-lock-plus-reads-negative-control",
+      "passed": true,
+      "observed_generation": 0,
+      "adoption_generation": 2,
+      "receipt_visible": false,
+      "meaning": "one statement is not a fresh post-lock cut"
+    }
+  ],
+  "latency_model": {
+    "description": "one-row transactional schedule with owner/head/generation/receipt/data reads; full g3b N=32 schedule measured separately"
+  },
+  "latencies": [
+    {
+      "link": "A",
+      "flights": 3,
+      "runs": [
+        {
+          "run": 0,
+          "cycle_us": {
+            "n": 300,
+            "mean": 5438.5266949733095,
+            "p50": 5115.23149907589,
+            "p99": 13037.092983722687,
+            "max": 29385.602101683617,
+            "min": 4585.385322570801
+          },
+          "flight_us": [
+            {
+              "n": 300,
+              "mean": 934.2694592972597,
+              "p50": 869.9242025613785,
+              "p99": 3635.657951235771,
+              "max": 5991.218611598015,
+              "min": 699.928030371666
+            },
+            {
+              "n": 300,
+              "mean": 913.3639248708884,
+              "p50": 881.9699287414551,
+              "p99": 2835.512161254883,
+              "max": 4060.1156651973724,
+              "min": 711.0573351383209
+            },
+            {
+              "n": 300,
+              "mean": 3590.893310805162,
+              "p50": 3317.6299184560776,
+              "p99": 9331.25987648964,
+              "max": 27625.60173869133,
+              "min": 3135.0161880254745
+            }
+          ],
+          "host_before": {
+            "utc": 1792792852.476437,
+            "loadavg": "2.55 2.75 2.78 4/951 3315302",
+            "free_bytes": 84597714944,
+            "top": [
+              {
+                "pid": 3315298,
+                "ppid": 3315277,
+                "cpu_percent": 100.0,
+                "comm": "claude"
+              },
+              {
+                "pid": 3315303,
+                "ppid": 3315241,
+                "cpu_percent": 100.0,
+                "comm": "ps"
+              },
+              {
+                "pid": 3315132,
+                "ppid": 1929452,
+                "cpu_percent": 15.5,
+                "comm": "fleet"
+              },
+              {
+                "pid": 3315277,
+                "ppid": 1929452,
+                "cpu_percent": 14.8,
+                "comm": "fleet"
+              },
+              {
+                "pid": 3253761,
+                "ppid": 3212987,
+                "cpu_percent": 12.9,
+                "comm": "python3"
+              },
+              {
+                "pid": 3315241,
+                "ppid": 3212987,
+                "cpu_percent": 10.1,
+                "comm": "python3"
+              },
+              {
+                "pid": 1253329,
+                "ppid": 1,
+                "cpu_percent": 7.8,
+                "comm": "fleet"
+              },
+              {
+                "pid": 3315247,
+                "ppid": 3227331,
+                "cpu_percent": 5.7,
+                "comm": "postgres"
+              },
+              {
+                "pid": 3247798,
+                "ppid": 3247786,
+                "cpu_percent": 4.9,
+                "comm": "msuite_proxy"
+              },
+              {
+                "pid": 3212987,
+                "ppid": 3212986,
+                "cpu_percent": 0.7,
+                "comm": "codex"
+              },
+              {
+                "pid": 1598743,
+                "ppid": 1,
+                "cpu_percent": 0.6,
+                "comm": "tailscaled"
+              },
+              {
+                "pid": 2846353,
+                "ppid": 2846270,
+                "cpu_percent": 0.6,
+                "comm": "codex"
+              },
+              {
+                "pid": 2845772,
+                "ppid": 2845686,
+                "cpu_percent": 0.6,
+                "comm": "codex"
+              },
+              {
+                "pid": 1743184,
+                "ppid": 1743153,
+                "cpu_percent": 0.5,
+                "comm": "codex"
+              },
+              {
+                "pid": 815560,
+                "ppid": 815506,
+                "cpu_percent": 0.5,
+                "comm": "codex"
+              }
+            ]
+          },
+          "host_after": {
+            "utc": 1792792854.4066803,
+            "loadavg": "2.55 2.75 2.78 2/967 3315601",
+            "free_bytes": 84601520128,
+            "top": [
+              {
+                "pid": 3315602,
+                "ppid": 3315241,
+                "cpu_percent": 100.0,
+                "comm": "ps"
+              },
+              {
+                "pid": 3253761,
+                "ppid": 3212987,
+                "cpu_percent": 12.9,
+                "comm": "python3"
+              },
+              {
+                "pid": 1253329,
+                "ppid": 1,
+                "cpu_percent": 7.8,
+                "comm": "fleet"
+              },
+              {
+                "pid": 3315590,
+                "ppid": 1929452,
+                "cpu_percent": 7.1,
+                "comm": "fleet"
+              },
+              {
+                "pid": 3247798,
+                "ppid": 3247786,
+                "cpu_percent": 5.0,
+                "comm": "msuite_proxy"
+              },
+              {
+                "pid": 3315241,
+                "ppid": 3212987,
+                "cpu_percent": 4.3,
+                "comm": "python3"
+              },
+              {
+                "pid": 3315247,
+                "ppid": 3227331,
+                "cpu_percent": 1.2,
+                "comm": "postgres"
+              },
+              {
+                "pid": 3212987,
+                "ppid": 3212986,
+                "cpu_percent": 0.7,
+                "comm": "codex"
+              },
+              {
+                "pid": 1598743,
+                "ppid": 1,
+                "cpu_percent": 0.6,
+                "comm": "tailscaled"
+              },
+              {
+                "pid": 2846353,
+                "ppid": 2846270,
+                "cpu_percent": 0.6,
+                "comm": "codex"
+              },
+              {
+                "pid": 2845772,
+                "ppid": 2845686,
+                "cpu_percent": 0.6,
+                "comm": "codex"
+              },
+              {
+                "pid": 1743184,
+                "ppid": 1743153,
+                "cpu_percent": 0.5,
+                "comm": "codex"
+              },
+              {
+                "pid": 815560,
+                "ppid": 815506,
+                "cpu_percent": 0.5,
+                "comm": "codex"
+              },
+              {
+                "pid": 815010,
+                "ppid": 814951,
+                "cpu_percent": 0.5,
+                "comm": "codex"
+              },
+              {
+                "pid": 556413,
+                "ppid": 1,
+                "cpu_percent": 0.4,
+                "comm": "tmux:"
+              }
+            ]
+          }
+        },
+        {
+          "run": 1,
+          "cycle_us": {
+            "n": 300,
+            "mean": 5127.246944854657,
+            "p50": 5085.546523332596,
+            "p99": 7817.4639493227005,
+            "max": 13731.246814131737,
+            "min": 4536.34187579155
+          },
+          "flight_us": [
+            {
+              "n": 300,
+              "mean": 875.2805118759474,
+              "p50": 875.2848953008652,
+              "p99": 1065.405085682869,
+              "max": 1399.058848619461,
+              "min": 699.5648145675659
+            },
+            {
+              "n": 300,
+              "mean": 893.8618376851082,
+              "p50": 897.9588747024536,
+              "p99": 1033.3433747291565,
+              "max": 2469.196915626526,
+              "min": 708.2019001245499
+            },
+            {
+              "n": 300,
+              "mean": 3358.1045952936015,
+              "p50": 3298.7743616104126,
+              "p99": 6165.789440274239,
+              "max": 11961.478739976883,
+              "min": 3128.575161099434
+            }
+          ],
+          "host_before": {
+            "utc": 1792792854.4221265,
+            "loadavg": "2.55 2.75 2.78 2/964 3315603",
+            "free_bytes": 84601520128,
+            "top": [
+              {
+                "pid": 3253761,
+                "ppid": 3212987,
+                "cpu_percent": 12.9,
+                "comm": "python3"
+              },
+              {
+                "pid": 1253329,
+                "ppid": 1,
+                "cpu_percent": 7.8,
+                "comm": "fleet"
+              },
+              {
+                "pid": 3315590,
+                "ppid": 1929452,
+                "cpu_percent": 6.6,
+                "comm": "fleet"
+              },
+              {
+                "pid": 3247798,
+                "ppid": 3247786,
+                "cpu_percent": 5.0,
+                "comm": "msuite_proxy"
+              },
+              {
+                "pid": 3315241,
+                "ppid": 3212987,
+                "cpu_percent": 4.3,
+                "comm": "python3"
+              },
+              {
+                "pid": 3315247,
+                "ppid": 3227331,
+                "cpu_percent": 1.2,
+                "comm": "postgres"
+              },
+              {
+                "pid": 3212987,
+                "ppid": 3212986,
+                "cpu_percent": 0.7,
+                "comm": "codex"
+              },
+              {
+                "pid": 1598743,
+                "ppid": 1,
+                "cpu_percent": 0.6,
+                "comm": "tailscaled"
+              },
+              {
+                "pid": 2846353,
+                "ppid": 2846270,
+                "cpu_percent": 0.6,
+                "comm": "codex"
+              },
+              {
+                "pid": 2845772,
+                "ppid": 2845686,
+                "cpu_percent": 0.6,
+                "comm": "codex"
+              },
+              {
+                "pid": 1743184,
+                "ppid": 1743153,
+                "cpu_percent": 0.5,
+                "comm": "codex"
+              },
+              {
+                "pid": 815560,
+                "ppid": 815506,
+                "cpu_percent": 0.5,
+                "comm": "codex"
+              },
+              {
+                "pid": 815010,
+                "ppid": 814951,
+                "cpu_percent": 0.5,
+                "comm": "codex"
+              },
+              {
+                "pid": 556413,
+                "ppid": 1,
+                "cpu_percent": 0.4,
+                "comm": "tmux:"
+              },
+              {
+                "pid": 601679,
+                "ppid": 601561,
+                "cpu_percent": 0.4,
+                "comm": "claude"
+              }
+            ]
+          },
+          "host_after": {
+            "utc": 1792792856.2246716,
+            "loadavg": "2.51 2.74 2.78 3/998 3315774",
+            "free_bytes": 84582522880,
+            "top": [
+              {
+                "pid": 3315759,
+                "ppid": 3315732,
+                "cpu_percent": 123.0,
+                "comm": "claude"
+              },
+              {
+                "pid": 3315742,
+                "ppid": 1929452,
+                "cpu_percent": 25.9,
+                "comm": "fleet"
+              },
+              {
+                "pid": 3315732,
+                "ppid": 1929452,
+                "cpu_percent": 14.2,
+                "comm": "fleet"
+              },
+              {
+                "pid": 3253761,
+                "ppid": 3212987,
+                "cpu_percent": 12.9,
+                "comm": "python3"
+              },
+              {
+                "pid": 1253329,
+                "ppid": 1,
+                "cpu_percent": 7.8,
+                "comm": "fleet"
+              },
+              {
+                "pid": 3247798,
+                "ppid": 3247786,
+                "cpu_percent": 5.0,
+                "comm": "msuite_proxy"
+              },
+              {
+                "pid": 3315241,
+                "ppid": 3212987,
+                "cpu_percent": 4.1,
+                "comm": "python3"
+              },
+              {
+                "pid": 3315247,
+                "ppid": 3227331,
+                "cpu_percent": 0.7,
+                "comm": "postgres"
+              },
+              {
+                "pid": 3212987,
+                "ppid": 3212986,
+                "cpu_percent": 0.7,
+                "comm": "codex"
+              },
+              {
+                "pid": 1598743,
+                "ppid": 1,
+                "cpu_percent": 0.6,
+                "comm": "tailscaled"
+              },
+              {
+                "pid": 2846353,
+                "ppid": 2846270,
+                "cpu_percent": 0.6,
+                "comm": "codex"
+              },
+              {
+                "pid": 2845772,
+                "ppid": 2845686,
+                "cpu_percent": 0.6,
+                "comm": "codex"
+              },
+              {
+                "pid": 1743184,
+                "ppid": 1743153,
+                "cpu_percent": 0.5,
+                "comm": "codex"
+              },
+              {
+                "pid": 815560,
+                "ppid": 815506,
+                "cpu_percent": 0.5,
+                "comm": "codex"
+              },
+              {
+                "pid": 815010,
+                "ppid": 814951,
+                "cpu_percent": 0.5,
+                "comm": "codex"
+              }
+            ]
+          }
+        },
+        {
+          "run": 2,
+          "cycle_us": {
+            "n": 300,
+            "mean": 5241.329750667016,
+            "p50": 5076.337605714798,
+            "p99": 12869.786471128464,
+            "max": 13227.492570877075,
+            "min": 4552.152007818222
+          },
+          "flight_us": [
+            {
+              "n": 300,
+              "mean": 890.0961031516393,
+              "p50": 873.7333118915558,
+              "p99": 1775.8700996637344,
+              "max": 2348.3969271183014,
+              "min": 708.4030658006668
+            },
+            {
+              "n": 300,
+              "mean": 885.5356586476167,
+              "p50": 887.2412145137787,
+              "p99": 1119.1647499799728,
+              "max": 1484.9528670310974,
+              "min": 714.0543311834335
+            },
+            {
+              "n": 300,
+              "mean": 3465.6979888677597,
+              "p50": 3303.4440129995346,
+              "p99": 11059.753596782684,
+              "max": 11729.704216122627,
+              "min": 3117.3937022686005
+            }
+          ],
+          "host_before": {
+            "utc": 1792792856.2444346,
+            "loadavg": "2.51 2.74 2.78 3/993 3315776",
+            "free_bytes": 84582518784,
+            "top": [
+              {
+                "pid": 3315759,
+                "ppid": 3315732,
+                "cpu_percent": 115.0,
+                "comm": "claude"
+              },
+              {
+                "pid": 3315742,
+                "ppid": 1929452,
+                "cpu_percent": 25.0,
+                "comm": "fleet"
+              },
+              {
+                "pid": 3315732,
+                "ppid": 1929452,
+                "cpu_percent": 13.6,
+                "comm": "fleet"
+              },
+              {
+                "pid": 3253761,
+                "ppid": 3212987,
+                "cpu_percent": 12.9,
+                "comm": "python3"
+              },
+              {
+                "pid": 1253329,
+                "ppid": 1,
+                "cpu_percent": 7.8,
+                "comm": "fleet"
+              },
+              {
+                "pid": 3247798,
+                "ppid": 3247786,
+                "cpu_percent": 5.0,
+                "comm": "msuite_proxy"
+              },
+              {
+                "pid": 3315241,
+                "ppid": 3212987,
+                "cpu_percent": 4.1,
+                "comm": "python3"
+              },
+              {
+                "pid": 3212987,
+                "ppid": 3212986,
+                "cpu_percent": 0.7,
+                "comm": "codex"
+              },
+              {
+                "pid": 3315247,
+                "ppid": 3227331,
+                "cpu_percent": 0.7,
+                "comm": "postgres"
+              },
+              {
+                "pid": 1598743,
+                "ppid": 1,
+                "cpu_percent": 0.6,
+                "comm": "tailscaled"
+              },
+              {
+                "pid": 2846353,
+                "ppid": 2846270,
+                "cpu_percent": 0.6,
+                "comm": "codex"
+              },
+              {
+                "pid": 2845772,
+                "ppid": 2845686,
+                "cpu_percent": 0.6,
+                "comm": "codex"
+              },
+              {
+                "pid": 1743184,
+                "ppid": 1743153,
+                "cpu_percent": 0.5,
+                "comm": "codex"
+              },
+              {
+                "pid": 815560,
+                "ppid": 815506,
+                "cpu_percent": 0.5,
+                "comm": "codex"
+              },
+              {
+                "pid": 815010,
+                "ppid": 814951,
+                "cpu_percent": 0.5,
+                "comm": "codex"
+              }
+            ]
+          },
+          "host_after": {
+            "utc": 1792792858.0890887,
+            "loadavg": "2.51 2.74 2.78 3/985 3315922",
+            "free_bytes": 84629188608,
+            "top": [
+              {
+                "pid": 3315907,
+                "ppid": 1929452,
+                "cpu_percent": 25.7,
+                "comm": "fleet"
+              },
+              {
+                "pid": 3253761,
+                "ppid": 3212987,
+                "cpu_percent": 12.9,
+                "comm": "python3"
+              },
+              {
+                "pid": 1253329,
+                "ppid": 1,
+                "cpu_percent": 7.8,
+                "comm": "fleet"
+              },
+              {
+                "pid": 3247798,
+                "ppid": 3247786,
+                "cpu_percent": 5.0,
+                "comm": "msuite_proxy"
+              },
+              {
+                "pid": 3315241,
+                "ppid": 3212987,
+                "cpu_percent": 3.7,
+                "comm": "python3"
+              },
+              {
+                "pid": 3212987,
+                "ppid": 3212986,
+                "cpu_percent": 0.7,
+                "comm": "codex"
+              },
+              {
+                "pid": 1598743,
+                "ppid": 1,
+                "cpu_percent": 0.6,
+                "comm": "tailscaled"
+              },
+              {
+                "pid": 2846353,
+                "ppid": 2846270,
+                "cpu_percent": 0.6,
+                "comm": "codex"
+              },
+              {
+                "pid": 2845772,
+                "ppid": 2845686,
+                "cpu_percent": 0.6,
+                "comm": "codex"
+              },
+              {
+                "pid": 1743184,
+                "ppid": 1743153,
+                "cpu_percent": 0.5,
+                "comm": "codex"
+              },
+              {
+                "pid": 815560,
+                "ppid": 815506,
+                "cpu_percent": 0.5,
+                "comm": "codex"
+              },
+              {
+                "pid": 815010,
+                "ppid": 814951,
+                "cpu_percent": 0.5,
+                "comm": "codex"
+              },
+              {
+                "pid": 3315247,
+                "ppid": 3227331,
+                "cpu_percent": 0.4,
+                "comm": "postgres"
+              },
+              {
+                "pid": 556413,
+                "ppid": 1,
+                "cpu_percent": 0.4,
+                "comm": "tmux:"
+              },
+              {
+                "pid": 601679,
+                "ppid": 601561,
+                "cpu_percent": 0.4,
+                "comm": "claude"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "link": "A",
+      "flights": 2,
+      "runs": [
+        {
+          "run": 0,
+          "cycle_us": {
+            "n": 300,
+            "mean": 4492.1609200537205,
+            "p50": 4393.113777041435,
+            "p99": 8440.036326646805,
+            "max": 26408.953592181206,
+            "min": 3875.747323036194
+          },
+          "flight_us": [
+            {
+              "n": 300,
+              "mean": 856.684185564518,
+              "p50": 859.2549711465836,
+              "p99": 1235.98612844944,
+              "max": 2007.9463720321655,
+              "min": 711.3683968782425
+            },
+            {
+              "n": 300,
+              "mean": 3635.016046464443,
+              "p50": 3528.7775099277496,
+              "p99": 7530.272006988525,
+              "max": 25451.183319091797,
+              "min": 3159.2920422554016
+            },
+            {
+              "n": 300,
+              "mean": 0.4606880247592926,
+              "p50": 0.2812594175338745,
+              "p99": 1.6335397958755493,
+              "max": 19.256025552749634,
+              "min": 0.08754432201385498
+            }
+          ],
+          "host_before": {
+            "utc": 1792792858.1092055,
+            "loadavg": "2.51 2.74 2.78 2/982 3315923",
+            "free_bytes": 84629151744,
+            "top": [
+              {
+                "pid": 3315907,
+                "ppid": 1929452,
+                "cpu_percent": 29.7,
+                "comm": "fleet"
+              },
+              {
+                "pid": 3253761,
+                "ppid": 3212987,
+                "cpu_percent": 12.9,
+                "comm": "python3"
+              },
+              {
+                "pid": 1253329,
+                "ppid": 1,
+                "cpu_percent": 7.8,
+                "comm": "fleet"
+              },
+              {
+                "pid": 3247798,
+                "ppid": 3247786,
+                "cpu_percent": 5.0,
+                "comm": "msuite_proxy"
+              },
+              {
+                "pid": 3315241,
+                "ppid": 3212987,
+                "cpu_percent": 3.6,
+                "comm": "python3"
+              },
+              {
+                "pid": 3212987,
+                "ppid": 3212986,
+                "cpu_percent": 0.7,
+                "comm": "codex"
+              },
+              {
+                "pid": 1598743,
+                "ppid": 1,
+                "cpu_percent": 0.6,
+                "comm": "tailscaled"
+              },
+              {
+                "pid": 2846353,
+                "ppid": 2846270,
+                "cpu_percent": 0.6,
+                "comm": "codex"
+              },
+              {
+                "pid": 2845772,
+                "ppid": 2845686,
+                "cpu_percent": 0.6,
+                "comm": "codex"
+              },
+              {
+                "pid": 1743184,
+                "ppid": 1743153,
+                "cpu_percent": 0.5,
+                "comm": "codex"
+              },
+              {
+                "pid": 815560,
+                "ppid": 815506,
+                "cpu_percent": 0.5,
+                "comm": "codex"
+              },
+              {
+                "pid": 815010,
+                "ppid": 814951,
+                "cpu_percent": 0.5,
+                "comm": "codex"
+              },
+              {
+                "pid": 3315247,
+                "ppid": 3227331,
+                "cpu_percent": 0.4,
+                "comm": "postgres"
+              },
+              {
+                "pid": 556413,
+                "ppid": 1,
+                "cpu_percent": 0.4,
+                "comm": "tmux:"
+              },
+              {
+                "pid": 601679,
+                "ppid": 601561,
+                "cpu_percent": 0.4,
+                "comm": "claude"
+              }
+            ]
+          },
+          "host_after": {
+            "utc": 1792792859.7017872,
+            "loadavg": "2.51 2.74 2.78 2/980 3316066",
+            "free_bytes": 84596330496,
+            "top": [
+              {
+                "pid": 3316042,
+                "ppid": 1929452,
+                "cpu_percent": 16.1,
+                "comm": "fleet"
+              },
+              {
+                "pid": 3253761,
+                "ppid": 3212987,
+                "cpu_percent": 12.9,
+                "comm": "python3"
+              },
+              {
+                "pid": 1253329,
+                "ppid": 1,
+                "cpu_percent": 7.8,
+                "comm": "fleet"
+              },
+              {
+                "pid": 3247798,
+                "ppid": 3247786,
+                "cpu_percent": 5.0,
+                "comm": "msuite_proxy"
+              },
+              {
+                "pid": 3315241,
+                "ppid": 3212987,
+                "cpu_percent": 3.4,
+                "comm": "python3"
+              },
+              {
+                "pid": 3212987,
+                "ppid": 3212986,
+                "cpu_percent": 0.7,
+                "comm": "codex"
+              },
+              {
+                "pid": 1598743,
+                "ppid": 1,
+                "cpu_percent": 0.6,
+                "comm": "tailscaled"
+              },
+              {
+                "pid": 2846353,
+                "ppid": 2846270,
+                "cpu_percent": 0.6,
+                "comm": "codex"
+              },
+              {
+                "pid": 2845772,
+                "ppid": 2845686,
+                "cpu_percent": 0.6,
+                "comm": "codex"
+              },
+              {
+                "pid": 1743184,
+                "ppid": 1743153,
+                "cpu_percent": 0.5,
+                "comm": "codex"
+              },
+              {
+                "pid": 815560,
+                "ppid": 815506,
+                "cpu_percent": 0.5,
+                "comm": "codex"
+              },
+              {
+                "pid": 815010,
+                "ppid": 814951,
+                "cpu_percent": 0.5,
+                "comm": "codex"
+              },
+              {
+                "pid": 556413,
+                "ppid": 1,
+                "cpu_percent": 0.4,
+                "comm": "tmux:"
+              },
+              {
+                "pid": 601679,
+                "ppid": 601561,
+                "cpu_percent": 0.4,
+                "comm": "claude"
+              },
+              {
+                "pid": 601710,
+                "ppid": 601588,
+                "cpu_percent": 0.3,
+                "comm": "claude"
+              }
+            ]
+          }
+        },
+        {
+          "run": 1,
+          "cycle_us": {
+            "n": 300,
+            "mean": 4586.151633411646,
+            "p50": 4412.93977200985,
+            "p99": 10185.116901993752,
+            "max": 23664.73153233528,
+            "min": 3943.1769400835037
+          },
+          "flight_us": [
+            {
+              "n": 300,
+              "mean": 896.9279440740744,
+              "p50": 871.8911558389664,
+              "p99": 2363.80472779274,
+              "max": 2885.8482837677,
+              "min": 709.9360227584839
+            },
+            {
+              "n": 300,
+              "mean": 3688.7943310042224,
+              "p50": 3532.314673066139,
+              "p99": 8525.803685188293,
+              "max": 22748.088464140892,
+              "min": 3215.968608856201
+            },
+            {
+              "n": 300,
+              "mean": 0.4293583333492279,
+              "p50": 0.32223761081695557,
+              "p99": 1.5720725059509277,
+              "max": 1.8440186977386475,
+              "min": 0.10803341865539551
+            }
+          ],
+          "host_before": {
+            "utc": 1792792859.7183099,
+            "loadavg": "2.47 2.73 2.78 2/977 3316068",
+            "free_bytes": 84596330496,
+            "top": [
+              {
+                "pid": 3316068,
+                "ppid": 1929452,
+                "cpu_percent": 100.0,
+                "comm": "fleet"
+              },
+              {
+                "pid": 3316042,
+                "ppid": 1929452,
+                "cpu_percent": 15.1,
+                "comm": "fleet"
+              },
+              {
+                "pid": 3253761,
+                "ppid": 3212987,
+                "cpu_percent": 12.9,
+                "comm": "python3"
+              },
+              {
+                "pid": 1253329,
+                "ppid": 1,
+                "cpu_percent": 7.8,
+                "comm": "fleet"
+              },
+              {
+                "pid": 3247798,
+                "ppid": 3247786,
+                "cpu_percent": 5.0,
+                "comm": "msuite_proxy"
+              },
+              {
+                "pid": 3315241,
+                "ppid": 3212987,
+                "cpu_percent": 3.4,
+                "comm": "python3"
+              },
+              {
+                "pid": 3212987,
+                "ppid": 3212986,
+                "cpu_percent": 0.7,
+                "comm": "codex"
+              },
+              {
+                "pid": 1598743,
+                "ppid": 1,
+                "cpu_percent": 0.6,
+                "comm": "tailscaled"
+              },
+              {
+                "pid": 2846353,
+                "ppid": 2846270,
+                "cpu_percent": 0.6,
+                "comm": "codex"
+              },
+              {
+                "pid": 2845772,
+                "ppid": 2845686,
+                "cpu_percent": 0.6,
+                "comm": "codex"
+              },
+              {
+                "pid": 1743184,
+                "ppid": 1743153,
+                "cpu_percent": 0.5,
+                "comm": "codex"
+              },
+              {
+                "pid": 815560,
+                "ppid": 815506,
+                "cpu_percent": 0.5,
+                "comm": "codex"
+              },
+              {
+                "pid": 815010,
+                "ppid": 814951,
+                "cpu_percent": 0.5,
+                "comm": "codex"
+              },
+              {
+                "pid": 556413,
+                "ppid": 1,
+                "cpu_percent": 0.4,
+                "comm": "tmux:"
+              },
+              {
+                "pid": 601679,
+                "ppid": 601561,
+                "cpu_percent": 0.4,
+                "comm": "claude"
+              }
+            ]
+          },
+          "host_after": {
+            "utc": 1792792861.3341234,
+            "loadavg": "2.47 2.73 2.78 3/993 3316277",
+            "free_bytes": 84601319424,
+            "top": [
+              {
+                "pid": 3316251,
+                "ppid": 1929452,
+                "cpu_percent": 41.0,
+                "comm": "fleet"
+              },
+              {
+                "pid": 3253761,
+                "ppid": 3212987,
+                "cpu_percent": 12.9,
+                "comm": "python3"
+              },
+              {
+                "pid": 1253329,
+                "ppid": 1,
+                "cpu_percent": 7.8,
+                "comm": "fleet"
+              },
+              {
+                "pid": 3316264,
+                "ppid": 1929452,
+                "cpu_percent": 7.6,
+                "comm": "fleet"
+              },
+              {
+                "pid": 3247798,
+                "ppid": 3247786,
+                "cpu_percent": 5.1,
+                "comm": "msuite_proxy"
+              },
+              {
+                "pid": 3315241,
+                "ppid": 3212987,
+                "cpu_percent": 3.3,
+                "comm": "python3"
+              },
+              {
+                "pid": 3212987,
+                "ppid": 3212986,
+                "cpu_percent": 0.7,
+                "comm": "codex"
+              },
+              {
+                "pid": 1598743,
+                "ppid": 1,
+                "cpu_percent": 0.6,
+                "comm": "tailscaled"
+              },
+              {
+                "pid": 2846353,
+                "ppid": 2846270,
+                "cpu_percent": 0.6,
+                "comm": "codex"
+              },
+              {
+                "pid": 2845772,
+                "ppid": 2845686,
+                "cpu_percent": 0.6,
+                "comm": "codex"
+              },
+              {
+                "pid": 1743184,
+                "ppid": 1743153,
+                "cpu_percent": 0.5,
+                "comm": "codex"
+              },
+              {
+                "pid": 815560,
+                "ppid": 815506,
+                "cpu_percent": 0.5,
+                "comm": "codex"
+              },
+              {
+                "pid": 815010,
+                "ppid": 814951,
+                "cpu_percent": 0.5,
+                "comm": "codex"
+              },
+              {
+                "pid": 556413,
+                "ppid": 1,
+                "cpu_percent": 0.4,
+                "comm": "tmux:"
+              },
+              {
+                "pid": 601679,
+                "ppid": 601561,
+                "cpu_percent": 0.4,
+                "comm": "claude"
+              }
+            ]
+          }
+        },
+        {
+          "run": 2,
+          "cycle_us": {
+            "n": 300,
+            "mean": 4356.427981207768,
+            "p50": 4332.209005951881,
+            "p99": 6459.860131144524,
+            "max": 7086.809724569321,
+            "min": 3851.9147783517838
+          },
+          "flight_us": [
+            {
+              "n": 300,
+              "mean": 858.4716419378916,
+              "p50": 847.0937609672546,
+              "p99": 1100.512221455574,
+              "max": 3153.923898935318,
+              "min": 697.4320858716965
+            },
+            {
+              "n": 300,
+              "mean": 3497.670075545708,
+              "p50": 3490.084782242775,
+              "p99": 3939.710557460785,
+              "max": 5763.731896877289,
+              "min": 3154.352307319641
+            },
+            {
+              "n": 300,
+              "mean": 0.28626372416814166,
+              "p50": 0.2123415470123291,
+              "p99": 1.3634562492370605,
+              "max": 2.074986696243286,
+              "min": 0.08940696716308594
+            }
+          ],
+          "host_before": {
+            "utc": 1792792861.35073,
+            "loadavg": "2.47 2.73 2.78 3/989 3316278",
+            "free_bytes": 84601319424,
+            "top": [
+              {
+                "pid": 3253761,
+                "ppid": 3212987,
+                "cpu_percent": 12.9,
+                "comm": "python3"
+              },
+              {
+                "pid": 1253329,
+                "ppid": 1,
+                "cpu_percent": 7.8,
+                "comm": "fleet"
+              },
+              {
+                "pid": 3316264,
+                "ppid": 1929452,
+                "cpu_percent": 6.6,
+                "comm": "fleet"
+              },
+              {
+                "pid": 3247798,
+                "ppid": 3247786,
+                "cpu_percent": 5.1,
+                "comm": "msuite_proxy"
+              },
+              {
+                "pid": 3315241,
+                "ppid": 3212987,
+                "cpu_percent": 3.3,
+                "comm": "python3"
+              },
+              {
+                "pid": 3212987,
+                "ppid": 3212986,
+                "cpu_percent": 0.7,
+                "comm": "codex"
+              },
+              {
+                "pid": 1598743,
+                "ppid": 1,
+                "cpu_percent": 0.6,
+                "comm": "tailscaled"
+              },
+              {
+                "pid": 2846353,
+                "ppid": 2846270,
+                "cpu_percent": 0.6,
+                "comm": "codex"
+              },
+              {
+                "pid": 2845772,
+                "ppid": 2845686,
+                "cpu_percent": 0.6,
+                "comm": "codex"
+              },
+              {
+                "pid": 1743184,
+                "ppid": 1743153,
+                "cpu_percent": 0.5,
+                "comm": "codex"
+              },
+              {
+                "pid": 815560,
+                "ppid": 815506,
+                "cpu_percent": 0.5,
+                "comm": "codex"
+              },
+              {
+                "pid": 815010,
+                "ppid": 814951,
+                "cpu_percent": 0.5,
+                "comm": "codex"
+              },
+              {
+                "pid": 556413,
+                "ppid": 1,
+                "cpu_percent": 0.4,
+                "comm": "tmux:"
+              },
+              {
+                "pid": 601679,
+                "ppid": 601561,
+                "cpu_percent": 0.4,
+                "comm": "claude"
+              },
+              {
+                "pid": 601710,
+                "ppid": 601588,
+                "cpu_percent": 0.3,
+                "comm": "claude"
+              }
+            ]
+          },
+          "host_after": {
+            "utc": 1792792862.8905616,
+            "loadavg": "2.47 2.73 2.78 3/990 3316393",
+            "free_bytes": 84601274368,
+            "top": [
+              {
+                "pid": 3316371,
+                "ppid": 3316323,
+                "cpu_percent": 120.0,
+                "comm": "claude"
+              },
+              {
+                "pid": 3253761,
+                "ppid": 3212987,
+                "cpu_percent": 12.9,
+                "comm": "python3"
+              },
+              {
+                "pid": 3316377,
+                "ppid": 1929452,
+                "cpu_percent": 8.3,
+                "comm": "fleet"
+              },
+              {
+                "pid": 3316323,
+                "ppid": 1929452,
+                "cpu_percent": 8.0,
+                "comm": "fleet"
+              },
+              {
+                "pid": 1253329,
+                "ppid": 1,
+                "cpu_percent": 7.8,
+                "comm": "fleet"
+              },
+              {
+                "pid": 3247798,
+                "ppid": 3247786,
+                "cpu_percent": 5.1,
+                "comm": "msuite_proxy"
+              },
+              {
+                "pid": 3315241,
+                "ppid": 3212987,
+                "cpu_percent": 3.2,
+                "comm": "python3"
+              },
+              {
+                "pid": 3212987,
+                "ppid": 3212986,
+                "cpu_percent": 0.6,
+                "comm": "codex"
+              },
+              {
+                "pid": 1598743,
+                "ppid": 1,
+                "cpu_percent": 0.6,
+                "comm": "tailscaled"
+              },
+              {
+                "pid": 2846353,
+                "ppid": 2846270,
+                "cpu_percent": 0.6,
+                "comm": "codex"
+              },
+              {
+                "pid": 2845772,
+                "ppid": 2845686,
+                "cpu_percent": 0.6,
+                "comm": "codex"
+              },
+              {
+                "pid": 1743184,
+                "ppid": 1743153,
+                "cpu_percent": 0.5,
+                "comm": "codex"
+              },
+              {
+                "pid": 815560,
+                "ppid": 815506,
+                "cpu_percent": 0.5,
+                "comm": "codex"
+              },
+              {
+                "pid": 815010,
+                "ppid": 814951,
+                "cpu_percent": 0.5,
+                "comm": "codex"
+              },
+              {
+                "pid": 556413,
+                "ppid": 1,
+                "cpu_percent": 0.4,
+                "comm": "tmux:"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "link": "B",
+      "flights": 3,
+      "runs": [
+        {
+          "run": 0,
+          "cycle_us": {
+            "n": 300,
+            "mean": 6629.000672449668,
+            "p50": 6467.664614319801,
+            "p99": 11966.297402977943,
+            "max": 18930.327147245407,
+            "min": 6022.535264492035
+          },
+          "flight_us": [
+            {
+              "n": 300,
+              "mean": 1382.7046006917953,
+              "p50": 1374.2726296186447,
+              "p99": 1809.2114478349686,
+              "max": 2039.436250925064,
+              "min": 1208.6834758520126
+            },
+            {
+              "n": 300,
+              "mean": 1405.545361340046,
+              "p50": 1405.7159423828125,
+              "p99": 1651.8756747245789,
+              "max": 3409.61292386055,
+              "min": 1218.6206877231598
+            },
+            {
+              "n": 300,
+              "mean": 3840.750710417827,
+              "p50": 3693.2770162820816,
+              "p99": 9148.867800831795,
+              "max": 16089.385375380516,
+              "min": 3518.488258123398
+            }
+          ],
+          "host_before": {
+            "utc": 1792792862.9072492,
+            "loadavg": "2.47 2.73 2.78 4/986 3316394",
+            "free_bytes": 84601237504,
+            "top": [
+              {
+                "pid": 3316371,
+                "ppid": 3316323,
+                "cpu_percent": 118.0,
+                "comm": "claude"
+              },
+              {
+                "pid": 3316395,
+                "ppid": 3315241,
+                "cpu_percent": 100.0,
+                "comm": "ps"
+              },
+              {
+                "pid": 3253761,
+                "ppid": 3212987,
+                "cpu_percent": 12.9,
+                "comm": "python3"
+              },
+              {
+                "pid": 1253329,
+                "ppid": 1,
+                "cpu_percent": 7.8,
+                "comm": "fleet"
+              },
+              {
+                "pid": 3316323,
+                "ppid": 1929452,
+                "cpu_percent": 7.7,
+                "comm": "fleet"
+              },
+              {
+                "pid": 3316377,
+                "ppid": 1929452,
+                "cpu_percent": 7.1,
+                "comm": "fleet"
+              },
+              {
+                "pid": 3247798,
+                "ppid": 3247786,
+                "cpu_percent": 5.1,
+                "comm": "msuite_proxy"
+              },
+              {
+                "pid": 3315241,
+                "ppid": 3212987,
+                "cpu_percent": 3.2,
+                "comm": "python3"
+              },
+              {
+                "pid": 3212987,
+                "ppid": 3212986,
+                "cpu_percent": 0.6,
+                "comm": "codex"
+              },
+              {
+                "pid": 1598743,
+                "ppid": 1,
+                "cpu_percent": 0.6,
+                "comm": "tailscaled"
+              },
+              {
+                "pid": 2846353,
+                "ppid": 2846270,
+                "cpu_percent": 0.6,
+                "comm": "codex"
+              },
+              {
+                "pid": 2845772,
+                "ppid": 2845686,
+                "cpu_percent": 0.6,
+                "comm": "codex"
+              },
+              {
+                "pid": 1743184,
+                "ppid": 1743153,
+                "cpu_percent": 0.5,
+                "comm": "codex"
+              },
+              {
+                "pid": 815560,
+                "ppid": 815506,
+                "cpu_percent": 0.5,
+                "comm": "codex"
+              },
+              {
+                "pid": 815010,
+                "ppid": 814951,
+                "cpu_percent": 0.5,
+                "comm": "codex"
+              }
+            ]
+          },
+          "host_after": {
+            "utc": 1792792865.2487376,
+            "loadavg": "2.35 2.70 2.77 1/927 3316580",
+            "free_bytes": 84628955136,
+            "top": [
+              {
+                "pid": 3253761,
+                "ppid": 3212987,
+                "cpu_percent": 13.0,
+                "comm": "python3"
+              },
+              {
+                "pid": 1253329,
+                "ppid": 1,
+                "cpu_percent": 7.8,
+                "comm": "fleet"
+              },
+              {
+                "pid": 3247798,
+                "ppid": 3247786,
+                "cpu_percent": 5.1,
+                "comm": "msuite_proxy"
+              },
+              {
+                "pid": 3315241,
+                "ppid": 3212987,
+                "cpu_percent": 3.1,
+                "comm": "python3"
+              },
+              {
+                "pid": 3212987,
+                "ppid": 3212986,
+                "cpu_percent": 0.7,
+                "comm": "codex"
+              },
+              {
+                "pid": 1598743,
+                "ppid": 1,
+                "cpu_percent": 0.6,
+                "comm": "tailscaled"
+              },
+              {
+                "pid": 2846353,
+                "ppid": 2846270,
+                "cpu_percent": 0.6,
+                "comm": "codex"
+              },
+              {
+                "pid": 2845772,
+                "ppid": 2845686,
+                "cpu_percent": 0.6,
+                "comm": "codex"
+              },
+              {
+                "pid": 1743184,
+                "ppid": 1743153,
+                "cpu_percent": 0.5,
+                "comm": "codex"
+              },
+              {
+                "pid": 815560,
+                "ppid": 815506,
+                "cpu_percent": 0.5,
+                "comm": "codex"
+              },
+              {
+                "pid": 815010,
+                "ppid": 814951,
+                "cpu_percent": 0.5,
+                "comm": "codex"
+              },
+              {
+                "pid": 556413,
+                "ppid": 1,
+                "cpu_percent": 0.4,
+                "comm": "tmux:"
+              },
+              {
+                "pid": 601679,
+                "ppid": 601561,
+                "cpu_percent": 0.4,
+                "comm": "claude"
+              },
+              {
+                "pid": 601710,
+                "ppid": 601588,
+                "cpu_percent": 0.3,
+                "comm": "claude"
+              },
+              {
+                "pid": 601653,
+                "ppid": 601538,
+                "cpu_percent": 0.3,
+                "comm": "claude"
+              }
+            ]
+          }
+        },
+        {
+          "run": 1,
+          "cycle_us": {
+            "n": 300,
+            "mean": 6536.119182904561,
+            "p50": 6447.214633226395,
+            "p99": 9734.248742461205,
+            "max": 10409.187525510788,
+            "min": 5950.504913926125
+          },
+          "flight_us": [
+            {
+              "n": 300,
+              "mean": 1432.847399264574,
+              "p50": 1374.5855540037155,
+              "p99": 3422.6160496473312,
+              "max": 5111.183971166611,
+              "min": 1204.7365307807922
+            },
+            {
+              "n": 300,
+              "mean": 1398.750605682532,
+              "p50": 1398.9508152008057,
+              "p99": 1783.2834273576736,
+              "max": 3324.804827570915,
+              "min": 1215.8676981925964
+            },
+            {
+              "n": 300,
+              "mean": 3704.521177957455,
+              "p50": 3673.5888570547104,
+              "p99": 5396.351218223572,
+              "max": 5618.346855044365,
+              "min": 3504.2408853769302
+            }
+          ],
+          "host_before": {
+            "utc": 1792792865.265432,
+            "loadavg": "2.35 2.70 2.77 1/923 3316581",
+            "free_bytes": 84628955136,
+            "top": [
+              {
+                "pid": 3253761,
+                "ppid": 3212987,
+                "cpu_percent": 13.0,
+                "comm": "python3"
+              },
+              {
+                "pid": 1253329,
+                "ppid": 1,
+                "cpu_percent": 7.8,
+                "comm": "fleet"
+              },
+              {
+                "pid": 3247798,
+                "ppid": 3247786,
+                "cpu_percent": 5.1,
+                "comm": "msuite_proxy"
+              },
+              {
+                "pid": 3315241,
+                "ppid": 3212987,
+                "cpu_percent": 3.2,
+                "comm": "python3"
+              },
+              {
+                "pid": 3212987,
+                "ppid": 3212986,
+                "cpu_percent": 0.7,
+                "comm": "codex"
+              },
+              {
+                "pid": 1598743,
+                "ppid": 1,
+                "cpu_percent": 0.6,
+                "comm": "tailscaled"
+              },
+              {
+                "pid": 2846353,
+                "ppid": 2846270,
+                "cpu_percent": 0.6,
+                "comm": "codex"
+              },
+              {
+                "pid": 2845772,
+                "ppid": 2845686,
+                "cpu_percent": 0.6,
+                "comm": "codex"
+              },
+              {
+                "pid": 1743184,
+                "ppid": 1743153,
+                "cpu_percent": 0.5,
+                "comm": "codex"
+              },
+              {
+                "pid": 815560,
+                "ppid": 815506,
+                "cpu_percent": 0.5,
+                "comm": "codex"
+              },
+              {
+                "pid": 815010,
+                "ppid": 814951,
+                "cpu_percent": 0.5,
+                "comm": "codex"
+              },
+              {
+                "pid": 556413,
+                "ppid": 1,
+                "cpu_percent": 0.4,
+                "comm": "tmux:"
+              },
+              {
+                "pid": 601679,
+                "ppid": 601561,
+                "cpu_percent": 0.4,
+                "comm": "claude"
+              },
+              {
+                "pid": 601710,
+                "ppid": 601588,
+                "cpu_percent": 0.3,
+                "comm": "claude"
+              },
+              {
+                "pid": 601653,
+                "ppid": 601538,
+                "cpu_percent": 0.3,
+                "comm": "claude"
+              }
+            ]
+          },
+          "host_after": {
+            "utc": 1792792867.569818,
+            "loadavg": "2.35 2.70 2.77 2/938 3316815",
+            "free_bytes": 84628905984,
+            "top": [
+              {
+                "pid": 3253761,
+                "ppid": 3212987,
+                "cpu_percent": 13.0,
+                "comm": "python3"
+              },
+              {
+                "pid": 3316769,
+                "ppid": 1929452,
+                "cpu_percent": 10.0,
+                "comm": "fleet"
+              },
+              {
+                "pid": 1253329,
+                "ppid": 1,
+                "cpu_percent": 7.8,
+                "comm": "fleet"
+              },
+              {
+                "pid": 3316784,
+                "ppid": 1929452,
+                "cpu_percent": 5.5,
+                "comm": "fleet"
+              },
+              {
+                "pid": 3247798,
+                "ppid": 3247786,
+                "cpu_percent": 5.0,
+                "comm": "msuite_proxy"
+              },
+              {
+                "pid": 3315241,
+                "ppid": 3212987,
+                "cpu_percent": 3.0,
+                "comm": "python3"
+              },
+              {
+                "pid": 3212987,
+                "ppid": 3212986,
+                "cpu_percent": 0.6,
+                "comm": "codex"
+              },
+              {
+                "pid": 1598743,
+                "ppid": 1,
+                "cpu_percent": 0.6,
+                "comm": "tailscaled"
+              },
+              {
+                "pid": 2846353,
+                "ppid": 2846270,
+                "cpu_percent": 0.6,
+                "comm": "codex"
+              },
+              {
+                "pid": 2845772,
+                "ppid": 2845686,
+                "cpu_percent": 0.6,
+                "comm": "codex"
+              },
+              {
+                "pid": 1743184,
+                "ppid": 1743153,
+                "cpu_percent": 0.5,
+                "comm": "codex"
+              },
+              {
+                "pid": 815560,
+                "ppid": 815506,
+                "cpu_percent": 0.5,
+                "comm": "codex"
+              },
+              {
+                "pid": 815010,
+                "ppid": 814951,
+                "cpu_percent": 0.5,
+                "comm": "codex"
+              },
+              {
+                "pid": 556413,
+                "ppid": 1,
+                "cpu_percent": 0.4,
+                "comm": "tmux:"
+              },
+              {
+                "pid": 601679,
+                "ppid": 601561,
+                "cpu_percent": 0.4,
+                "comm": "claude"
+              }
+            ]
+          }
+        },
+        {
+          "run": 2,
+          "cycle_us": {
+            "n": 300,
+            "mean": 6583.103593438864,
+            "p50": 6483.31455886364,
+            "p99": 8187.109604477882,
+            "max": 28479.596599936485,
+            "min": 5960.611626505852
+          },
+          "flight_us": [
+            {
+              "n": 300,
+              "mean": 1387.011396388213,
+              "p50": 1381.67105615139,
+              "p99": 2462.47835457325,
+              "max": 3235.6232404708862,
+              "min": 1201.4005333185196
+            },
+            {
+              "n": 300,
+              "mean": 1391.1939909060795,
+              "p50": 1402.9871672391891,
+              "p99": 1689.5290464162827,
+              "max": 2238.8827055692673,
+              "min": 1214.5526707172394
+            },
+            {
+              "n": 300,
+              "mean": 3804.8982061445713,
+              "p50": 3692.0737475156784,
+              "p99": 5040.731281042099,
+              "max": 23670.803755521774,
+              "min": 3531.27159178257
+            }
+          ],
+          "host_before": {
+            "utc": 1792792867.5855854,
+            "loadavg": "2.35 2.70 2.77 3/933 3316817",
+            "free_bytes": 84628905984,
+            "top": [
+              {
+                "pid": 3316817,
+                "ppid": 3316769,
+                "cpu_percent": 100.0,
+                "comm": "claude"
+              },
+              {
+                "pid": 3253761,
+                "ppid": 3212987,
+                "cpu_percent": 13.0,
+                "comm": "python3"
+              },
+              {
+                "pid": 3316769,
+                "ppid": 1929452,
+                "cpu_percent": 9.8,
+                "comm": "fleet"
+              },
+              {
+                "pid": 1253329,
+                "ppid": 1,
+                "cpu_percent": 7.8,
+                "comm": "fleet"
+              },
+              {
+                "pid": 3316784,
+                "ppid": 1929452,
+                "cpu_percent": 5.4,
+                "comm": "fleet"
+              },
+              {
+                "pid": 3247798,
+                "ppid": 3247786,
+                "cpu_percent": 5.0,
+                "comm": "msuite_proxy"
+              },
+              {
+                "pid": 3315241,
+                "ppid": 3212987,
+                "cpu_percent": 3.0,
+                "comm": "python3"
+              },
+              {
+                "pid": 3212987,
+                "ppid": 3212986,
+                "cpu_percent": 0.6,
+                "comm": "codex"
+              },
+              {
+                "pid": 1598743,
+                "ppid": 1,
+                "cpu_percent": 0.6,
+                "comm": "tailscaled"
+              },
+              {
+                "pid": 2846353,
+                "ppid": 2846270,
+                "cpu_percent": 0.6,
+                "comm": "codex"
+              },
+              {
+                "pid": 2845772,
+                "ppid": 2845686,
+                "cpu_percent": 0.6,
+                "comm": "codex"
+              },
+              {
+                "pid": 1743184,
+                "ppid": 1743153,
+                "cpu_percent": 0.5,
+                "comm": "codex"
+              },
+              {
+                "pid": 815560,
+                "ppid": 815506,
+                "cpu_percent": 0.5,
+                "comm": "codex"
+              },
+              {
+                "pid": 815010,
+                "ppid": 814951,
+                "cpu_percent": 0.5,
+                "comm": "codex"
+              },
+              {
+                "pid": 556413,
+                "ppid": 1,
+                "cpu_percent": 0.4,
+                "comm": "tmux:"
+              }
+            ]
+          },
+          "host_after": {
+            "utc": 1792792869.907511,
+            "loadavg": "2.88 2.80 2.80 2/957 3317068",
+            "free_bytes": 84596097024,
+            "top": [
+              {
+                "pid": 3316989,
+                "ppid": 3316942,
+                "cpu_percent": 133.0,
+                "comm": "opencode"
+              },
+              {
+                "pid": 3316942,
+                "ppid": 1929452,
+                "cpu_percent": 58.2,
+                "comm": "fleet"
+              },
+              {
+                "pid": 3253761,
+                "ppid": 3212987,
+                "cpu_percent": 13.0,
+                "comm": "python3"
+              },
+              {
+                "pid": 1253329,
+                "ppid": 1,
+                "cpu_percent": 7.8,
+                "comm": "fleet"
+              },
+              {
+                "pid": 3247798,
+                "ppid": 3247786,
+                "cpu_percent": 5.0,
+                "comm": "msuite_proxy"
+              },
+              {
+                "pid": 3315241,
+                "ppid": 3212987,
+                "cpu_percent": 3.0,
+                "comm": "python3"
+              },
+              {
+                "pid": 3212987,
+                "ppid": 3212986,
+                "cpu_percent": 0.6,
+                "comm": "codex"
+              },
+              {
+                "pid": 1598743,
+                "ppid": 1,
+                "cpu_percent": 0.6,
+                "comm": "tailscaled"
+              },
+              {
+                "pid": 2846353,
+                "ppid": 2846270,
+                "cpu_percent": 0.6,
+                "comm": "codex"
+              },
+              {
+                "pid": 2845772,
+                "ppid": 2845686,
+                "cpu_percent": 0.6,
+                "comm": "codex"
+              },
+              {
+                "pid": 1743184,
+                "ppid": 1743153,
+                "cpu_percent": 0.5,
+                "comm": "codex"
+              },
+              {
+                "pid": 815560,
+                "ppid": 815506,
+                "cpu_percent": 0.5,
+                "comm": "codex"
+              },
+              {
+                "pid": 815010,
+                "ppid": 814951,
+                "cpu_percent": 0.5,
+                "comm": "codex"
+              },
+              {
+                "pid": 556413,
+                "ppid": 1,
+                "cpu_percent": 0.4,
+                "comm": "tmux:"
+              },
+              {
+                "pid": 601679,
+                "ppid": 601561,
+                "cpu_percent": 0.4,
+                "comm": "claude"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "link": "B",
+      "flights": 2,
+      "runs": [
+        {
+          "run": 0,
+          "cycle_us": {
+            "n": 300,
+            "mean": 5472.7283244331675,
+            "p50": 5341.827869415283,
+            "p99": 9749.56713616848,
+            "max": 13983.44337940216,
+            "min": 4864.318296313286
+          },
+          "flight_us": [
+            {
+              "n": 300,
+              "mean": 1406.476330012083,
+              "p50": 1376.008614897728,
+              "p99": 2913.6892408132553,
+              "max": 3432.9593181610107,
+              "min": 1213.9622122049332
+            },
+            {
+              "n": 300,
+              "mean": 4065.752432992061,
+              "p50": 3957.2250097990036,
+              "p99": 8502.39209830761,
+              "max": 12508.757412433624,
+              "min": 3648.01287651062
+            },
+            {
+              "n": 300,
+              "mean": 0.4995614290237427,
+              "p50": 0.37997961044311523,
+              "p99": 2.0246952772140503,
+              "max": 2.9653310775756836,
+              "min": 0.11920928955078125
+            }
+          ],
+          "host_before": {
+            "utc": 1792792869.9252264,
+            "loadavg": "2.88 2.80 2.80 2/953 3317069",
+            "free_bytes": 84596056064,
+            "top": [
+              {
+                "pid": 3316989,
+                "ppid": 3316942,
+                "cpu_percent": 136.0,
+                "comm": "opencode"
+              },
+              {
+                "pid": 3316942,
+                "ppid": 1929452,
+                "cpu_percent": 57.3,
+                "comm": "fleet"
+              },
+              {
+                "pid": 3253761,
+                "ppid": 3212987,
+                "cpu_percent": 13.0,
+                "comm": "python3"
+              },
+              {
+                "pid": 1253329,
+                "ppid": 1,
+                "cpu_percent": 7.8,
+                "comm": "fleet"
+              },
+              {
+                "pid": 3247798,
+                "ppid": 3247786,
+                "cpu_percent": 5.0,
+                "comm": "msuite_proxy"
+              },
+              {
+                "pid": 3315241,
+                "ppid": 3212987,
+                "cpu_percent": 3.0,
+                "comm": "python3"
+              },
+              {
+                "pid": 3212987,
+                "ppid": 3212986,
+                "cpu_percent": 0.6,
+                "comm": "codex"
+              },
+              {
+                "pid": 1598743,
+                "ppid": 1,
+                "cpu_percent": 0.6,
+                "comm": "tailscaled"
+              },
+              {
+                "pid": 2846353,
+                "ppid": 2846270,
+                "cpu_percent": 0.6,
+                "comm": "codex"
+              },
+              {
+                "pid": 2845772,
+                "ppid": 2845686,
+                "cpu_percent": 0.6,
+                "comm": "codex"
+              },
+              {
+                "pid": 1743184,
+                "ppid": 1743153,
+                "cpu_percent": 0.5,
+                "comm": "codex"
+              },
+              {
+                "pid": 815560,
+                "ppid": 815506,
+                "cpu_percent": 0.5,
+                "comm": "codex"
+              },
+              {
+                "pid": 815010,
+                "ppid": 814951,
+                "cpu_percent": 0.5,
+                "comm": "codex"
+              },
+              {
+                "pid": 556413,
+                "ppid": 1,
+                "cpu_percent": 0.4,
+                "comm": "tmux:"
+              },
+              {
+                "pid": 601679,
+                "ppid": 601561,
+                "cpu_percent": 0.4,
+                "comm": "claude"
+              }
+            ]
+          },
+          "host_after": {
+            "utc": 1792792871.8925424,
+            "loadavg": "2.88 2.80 2.80 2/919 3317293",
+            "free_bytes": 84601057280,
+            "top": [
+              {
+                "pid": 3253761,
+                "ppid": 3212987,
+                "cpu_percent": 13.0,
+                "comm": "python3"
+              },
+              {
+                "pid": 1253329,
+                "ppid": 1,
+                "cpu_percent": 7.8,
+                "comm": "fleet"
+              },
+              {
+                "pid": 3247798,
+                "ppid": 3247786,
+                "cpu_percent": 5.0,
+                "comm": "msuite_proxy"
+              },
+              {
+                "pid": 3315241,
+                "ppid": 3212987,
+                "cpu_percent": 3.0,
+                "comm": "python3"
+              },
+              {
+                "pid": 3212987,
+                "ppid": 3212986,
+                "cpu_percent": 0.6,
+                "comm": "codex"
+              },
+              {
+                "pid": 1598743,
+                "ppid": 1,
+                "cpu_percent": 0.6,
+                "comm": "tailscaled"
+              },
+              {
+                "pid": 2846353,
+                "ppid": 2846270,
+                "cpu_percent": 0.6,
+                "comm": "codex"
+              },
+              {
+                "pid": 2845772,
+                "ppid": 2845686,
+                "cpu_percent": 0.6,
+                "comm": "codex"
+              },
+              {
+                "pid": 1743184,
+                "ppid": 1743153,
+                "cpu_percent": 0.5,
+                "comm": "codex"
+              },
+              {
+                "pid": 815560,
+                "ppid": 815506,
+                "cpu_percent": 0.5,
+                "comm": "codex"
+              },
+              {
+                "pid": 815010,
+                "ppid": 814951,
+                "cpu_percent": 0.5,
+                "comm": "codex"
+              },
+              {
+                "pid": 556413,
+                "ppid": 1,
+                "cpu_percent": 0.4,
+                "comm": "tmux:"
+              },
+              {
+                "pid": 601679,
+                "ppid": 601561,
+                "cpu_percent": 0.4,
+                "comm": "claude"
+              },
+              {
+                "pid": 601710,
+                "ppid": 601588,
+                "cpu_percent": 0.3,
+                "comm": "claude"
+              },
+              {
+                "pid": 601653,
+                "ppid": 601538,
+                "cpu_percent": 0.3,
+                "comm": "claude"
+              }
+            ]
+          }
+        },
+        {
+          "run": 1,
+          "cycle_us": {
+            "n": 300,
+            "mean": 5351.668403794368,
+            "p50": 5351.9681096076965,
+            "p99": 6701.957434415817,
+            "max": 8136.7045640945435,
+            "min": 4875.460639595985
+          },
+          "flight_us": [
+            {
+              "n": 300,
+              "mean": 1374.640166759491,
+              "p50": 1362.161710858345,
+              "p99": 2575.032413005829,
+              "max": 3823.723644018173,
+              "min": 1199.0256607532501
+            },
+            {
+              "n": 300,
+              "mean": 3976.6447308162847,
+              "p50": 3990.7675236463547,
+              "p99": 4535.919055342674,
+              "max": 5244.875326752663,
+              "min": 3660.5261266231537
+            },
+            {
+              "n": 300,
+              "mean": 0.38350621859232586,
+              "p50": 0.3203749656677246,
+              "p99": 1.3317912817001343,
+              "max": 1.5106052160263062,
+              "min": 0.09872019290924072
+            }
+          ],
+          "host_before": {
+            "utc": 1792792871.9079547,
+            "loadavg": "2.88 2.80 2.80 2/913 3317294",
+            "free_bytes": 84601057280,
+            "top": [
+              {
+                "pid": 3253761,
+                "ppid": 3212987,
+                "cpu_percent": 13.0,
+                "comm": "python3"
+              },
+              {
+                "pid": 1253329,
+                "ppid": 1,
+                "cpu_percent": 7.8,
+                "comm": "fleet"
+              },
+              {
+                "pid": 3247798,
+                "ppid": 3247786,
+                "cpu_percent": 5.0,
+                "comm": "msuite_proxy"
+              },
+              {
+                "pid": 3315241,
+                "ppid": 3212987,
+                "cpu_percent": 2.9,
+                "comm": "python3"
+              },
+              {
+                "pid": 3212987,
+                "ppid": 3212986,
+                "cpu_percent": 0.6,
+                "comm": "codex"
+              },
+              {
+                "pid": 1598743,
+                "ppid": 1,
+                "cpu_percent": 0.6,
+                "comm": "tailscaled"
+              },
+              {
+                "pid": 2846353,
+                "ppid": 2846270,
+                "cpu_percent": 0.6,
+                "comm": "codex"
+              },
+              {
+                "pid": 2845772,
+                "ppid": 2845686,
+                "cpu_percent": 0.6,
+                "comm": "codex"
+              },
+              {
+                "pid": 1743184,
+                "ppid": 1743153,
+                "cpu_percent": 0.5,
+                "comm": "codex"
+              },
+              {
+                "pid": 815560,
+                "ppid": 815506,
+                "cpu_percent": 0.5,
+                "comm": "codex"
+              },
+              {
+                "pid": 815010,
+                "ppid": 814951,
+                "cpu_percent": 0.5,
+                "comm": "codex"
+              },
+              {
+                "pid": 556413,
+                "ppid": 1,
+                "cpu_percent": 0.4,
+                "comm": "tmux:"
+              },
+              {
+                "pid": 601679,
+                "ppid": 601561,
+                "cpu_percent": 0.4,
+                "comm": "claude"
+              },
+              {
+                "pid": 601710,
+                "ppid": 601588,
+                "cpu_percent": 0.3,
+                "comm": "claude"
+              },
+              {
+                "pid": 601653,
+                "ppid": 601538,
+                "cpu_percent": 0.3,
+                "comm": "claude"
+              }
+            ]
+          },
+          "host_after": {
+            "utc": 1792792873.8030024,
+            "loadavg": "2.88 2.80 2.80 4/952 3317462",
+            "free_bytes": 84601028608,
+            "top": [
+              {
+                "pid": 3317411,
+                "ppid": 1929452,
+                "cpu_percent": 86.3,
+                "comm": "fleet"
+              },
+              {
+                "pid": 3253761,
+                "ppid": 3212987,
+                "cpu_percent": 13.0,
+                "comm": "python3"
+              },
+              {
+                "pid": 1253329,
+                "ppid": 1,
+                "cpu_percent": 7.8,
+                "comm": "fleet"
+              },
+              {
+                "pid": 3247798,
+                "ppid": 3247786,
+                "cpu_percent": 5.0,
+                "comm": "msuite_proxy"
+              },
+              {
+                "pid": 3315241,
+                "ppid": 3212987,
+                "cpu_percent": 2.9,
+                "comm": "python3"
+              },
+              {
+                "pid": 3212987,
+                "ppid": 3212986,
+                "cpu_percent": 0.6,
+                "comm": "codex"
+              },
+              {
+                "pid": 1598743,
+                "ppid": 1,
+                "cpu_percent": 0.6,
+                "comm": "tailscaled"
+              },
+              {
+                "pid": 2846353,
+                "ppid": 2846270,
+                "cpu_percent": 0.6,
+                "comm": "codex"
+              },
+              {
+                "pid": 2845772,
+                "ppid": 2845686,
+                "cpu_percent": 0.6,
+                "comm": "codex"
+              },
+              {
+                "pid": 1743184,
+                "ppid": 1743153,
+                "cpu_percent": 0.5,
+                "comm": "codex"
+              },
+              {
+                "pid": 815560,
+                "ppid": 815506,
+                "cpu_percent": 0.5,
+                "comm": "codex"
+              },
+              {
+                "pid": 815010,
+                "ppid": 814951,
+                "cpu_percent": 0.5,
+                "comm": "codex"
+              },
+              {
+                "pid": 556413,
+                "ppid": 1,
+                "cpu_percent": 0.4,
+                "comm": "tmux:"
+              },
+              {
+                "pid": 601679,
+                "ppid": 601561,
+                "cpu_percent": 0.4,
+                "comm": "claude"
+              },
+              {
+                "pid": 601710,
+                "ppid": 601588,
+                "cpu_percent": 0.3,
+                "comm": "claude"
+              }
+            ]
+          }
+        },
+        {
+          "run": 2,
+          "cycle_us": {
+            "n": 300,
+            "mean": 5373.420268297195,
+            "p50": 5328.9830684661865,
+            "p99": 7745.148614048958,
+            "max": 8306.141942739487,
+            "min": 4900.215193629265
+          },
+          "flight_us": [
+            {
+              "n": 300,
+              "mean": 1375.1144769291084,
+              "p50": 1370.9776103496552,
+              "p99": 1658.2105308771133,
+              "max": 4403.593018651009,
+              "min": 1206.9903314113617
+            },
+            {
+              "n": 300,
+              "mean": 3997.9909795025983,
+              "p50": 3952.5553584098816,
+              "p99": 6264.042109251022,
+              "max": 6423.240527510643,
+              "min": 3685.552626848221
+            },
+            {
+              "n": 300,
+              "mean": 0.31481186548868817,
+              "p50": 0.24959444999694824,
+              "p99": 1.0635703802108765,
+              "max": 1.4826655387878418,
+              "min": 0.0912696123123169
+            }
+          ],
+          "host_before": {
+            "utc": 1792792873.8191626,
+            "loadavg": "2.88 2.80 2.80 2/935 3317464",
+            "free_bytes": 84601028608,
+            "top": [
+              {
+                "pid": 3317411,
+                "ppid": 1929452,
+                "cpu_percent": 85.2,
+                "comm": "fleet"
+              },
+              {
+                "pid": 3253761,
+                "ppid": 3212987,
+                "cpu_percent": 13.0,
+                "comm": "python3"
+              },
+              {
+                "pid": 1253329,
+                "ppid": 1,
+                "cpu_percent": 7.8,
+                "comm": "fleet"
+              },
+              {
+                "pid": 3247798,
+                "ppid": 3247786,
+                "cpu_percent": 5.0,
+                "comm": "msuite_proxy"
+              },
+              {
+                "pid": 3315241,
+                "ppid": 3212987,
+                "cpu_percent": 2.9,
+                "comm": "python3"
+              },
+              {
+                "pid": 3212987,
+                "ppid": 3212986,
+                "cpu_percent": 0.6,
+                "comm": "codex"
+              },
+              {
+                "pid": 1598743,
+                "ppid": 1,
+                "cpu_percent": 0.6,
+                "comm": "tailscaled"
+              },
+              {
+                "pid": 2846353,
+                "ppid": 2846270,
+                "cpu_percent": 0.6,
+                "comm": "codex"
+              },
+              {
+                "pid": 2845772,
+                "ppid": 2845686,
+                "cpu_percent": 0.6,
+                "comm": "codex"
+              },
+              {
+                "pid": 1743184,
+                "ppid": 1743153,
+                "cpu_percent": 0.5,
+                "comm": "codex"
+              },
+              {
+                "pid": 815560,
+                "ppid": 815506,
+                "cpu_percent": 0.5,
+                "comm": "codex"
+              },
+              {
+                "pid": 815010,
+                "ppid": 814951,
+                "cpu_percent": 0.5,
+                "comm": "codex"
+              },
+              {
+                "pid": 556413,
+                "ppid": 1,
+                "cpu_percent": 0.4,
+                "comm": "tmux:"
+              },
+              {
+                "pid": 601679,
+                "ppid": 601561,
+                "cpu_percent": 0.4,
+                "comm": "claude"
+              },
+              {
+                "pid": 601710,
+                "ppid": 601588,
+                "cpu_percent": 0.3,
+                "comm": "claude"
+              }
+            ]
+          },
+          "host_after": {
+            "utc": 1792792875.7288585,
+            "loadavg": "2.73 2.77 2.79 3/942 3317622",
+            "free_bytes": 84601102336,
+            "top": [
+              {
+                "pid": 3317589,
+                "ppid": 1929452,
+                "cpu_percent": 19.3,
+                "comm": "fleet"
+              },
+              {
+                "pid": 3253761,
+                "ppid": 3212987,
+                "cpu_percent": 13.0,
+                "comm": "python3"
+              },
+              {
+                "pid": 3317576,
+                "ppid": 1929452,
+                "cpu_percent": 11.3,
+                "comm": "fleet"
+              },
+              {
+                "pid": 1253329,
+                "ppid": 1,
+                "cpu_percent": 7.8,
+                "comm": "fleet"
+              },
+              {
+                "pid": 3247798,
+                "ppid": 3247786,
+                "cpu_percent": 5.0,
+                "comm": "msuite_proxy"
+              },
+              {
+                "pid": 3315241,
+                "ppid": 3212987,
+                "cpu_percent": 2.8,
+                "comm": "python3"
+              },
+              {
+                "pid": 3212987,
+                "ppid": 3212986,
+                "cpu_percent": 0.6,
+                "comm": "codex"
+              },
+              {
+                "pid": 1598743,
+                "ppid": 1,
+                "cpu_percent": 0.6,
+                "comm": "tailscaled"
+              },
+              {
+                "pid": 2846353,
+                "ppid": 2846270,
+                "cpu_percent": 0.6,
+                "comm": "codex"
+              },
+              {
+                "pid": 2845772,
+                "ppid": 2845686,
+                "cpu_percent": 0.6,
+                "comm": "codex"
+              },
+              {
+                "pid": 1743184,
+                "ppid": 1743153,
+                "cpu_percent": 0.5,
+                "comm": "codex"
+              },
+              {
+                "pid": 815560,
+                "ppid": 815506,
+                "cpu_percent": 0.5,
+                "comm": "codex"
+              },
+              {
+                "pid": 815010,
+                "ppid": 814951,
+                "cpu_percent": 0.5,
+                "comm": "codex"
+              },
+              {
+                "pid": 556413,
+                "ppid": 1,
+                "cpu_percent": 0.4,
+                "comm": "tmux:"
+              },
+              {
+                "pid": 601679,
+                "ppid": 601561,
+                "cpu_percent": 0.4,
+                "comm": "claude"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "host_after": {
+    "utc": 1792792875.7505434,
+    "loadavg": "2.73 2.77 2.79 3/939 3317626",
+    "free_bytes": 84601061376,
+    "top": [
+      {
+        "pid": 3317624,
+        "ppid": 3317576,
+        "cpu_percent": 150.0,
+        "comm": "claude"
+      },
+      {
+        "pid": 3317589,
+        "ppid": 1929452,
+        "cpu_percent": 24.2,
+        "comm": "fleet"
+      },
+      {
+        "pid": 3253761,
+        "ppid": 3212987,
+        "cpu_percent": 13.0,
+        "comm": "python3"
+      },
+      {
+        "pid": 3317576,
+        "ppid": 1929452,
+        "cpu_percent": 10.9,
+        "comm": "fleet"
+      },
+      {
+        "pid": 1253329,
+        "ppid": 1,
+        "cpu_percent": 7.8,
+        "comm": "fleet"
+      },
+      {
+        "pid": 3247798,
+        "ppid": 3247786,
+        "cpu_percent": 5.0,
+        "comm": "msuite_proxy"
+      },
+      {
+        "pid": 3315241,
+        "ppid": 3212987,
+        "cpu_percent": 2.8,
+        "comm": "python3"
+      },
+      {
+        "pid": 3212987,
+        "ppid": 3212986,
+        "cpu_percent": 0.6,
+        "comm": "codex"
+      },
+      {
+        "pid": 1598743,
+        "ppid": 1,
+        "cpu_percent": 0.6,
+        "comm": "tailscaled"
+      },
+      {
+        "pid": 2846353,
+        "ppid": 2846270,
+        "cpu_percent": 0.6,
+        "comm": "codex"
+      },
+      {
+        "pid": 2845772,
+        "ppid": 2845686,
+        "cpu_percent": 0.6,
+        "comm": "codex"
+      },
+      {
+        "pid": 1743184,
+        "ppid": 1743153,
+        "cpu_percent": 0.5,
+        "comm": "codex"
+      },
+      {
+        "pid": 815560,
+        "ppid": 815506,
+        "cpu_percent": 0.5,
+        "comm": "codex"
+      },
+      {
+        "pid": 815010,
+        "ppid": 814951,
+        "cpu_percent": 0.5,
+        "comm": "codex"
+      },
+      {
+        "pid": 556413,
+        "ppid": 1,
+        "cpu_percent": 0.4,
+        "comm": "tmux:"
+      }
+    ]
+  }
+}

@@ -11,6 +11,7 @@ mod flight;
 mod common;
 mod execution;
 mod execution_network;
+mod g3b;
 mod model;
 mod proxy;
 mod raw;
@@ -175,6 +176,7 @@ fn main() {
         "raw" => raw::run(&args),
         "pg-execution" => execution::run(&args),
         "pg-execution-network" => execution_network::run(&args),
+        "g3b" => g3b::run(&args),
         #[cfg(not(feature = "rt5"))]
         "sqlite-execution" => sqlite_optimistic::execution(&args),
         #[cfg(not(feature = "rt5"))]

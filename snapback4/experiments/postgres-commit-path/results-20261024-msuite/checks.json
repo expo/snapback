@@ -1,0 +1,13 @@
+{
+  "ok": true,
+  "complete": true,
+  "stop_reason": null,
+  "errors": [],
+  "M0_planned_cells": 260,
+  "M0_cells": 260,
+  "M0_fit_groups": 52,
+  "M2_witnesses": 21,
+  "M1b_cells": 16,
+  "M3_cells": 80,
+  "scope": "Independent recorded-count/arithmetic audit plus embedded exact-image/protocol witnesses; no product capacity qualification"
+}

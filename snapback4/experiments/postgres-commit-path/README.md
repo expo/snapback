@@ -1,5 +1,11 @@
 # S0: commit-path cells (Postgres and SQLite)
 
+G3b/G8 (2026-10-23): `g3b` measures composed point reads/image writes and
+four durable commit-stage tail shapes on direct loopback TCP. See
+[the server-cost record](./results-20261024-g3b-gate-loopback/README.md) for
+the statement timings, fixed/marginal fits, WAL, cold FK-plan effect and
+reproduction commands. These are experiment models, not an engine rate claim.
+
 S10e-1 (2026-10-23): new `capture` and `engine` runs use the common `Engine`
 over Postgres `AnyStore`, with evaluation-only prefetch and driver-call statistics.
 The tables and captured SQL below remain historical measurements of the named

@@ -30,6 +30,8 @@ pub(crate) struct OpeningMetadata {
 
 #[path = "store/port/lifecycle.rs"]
 mod lifecycle;
+#[path = "store/port/batch.rs"]
+pub(crate) mod batch;
 pub(crate) use lifecycle::IdentitySource;
 #[path = "store/port/identity_members.rs"]
 mod identity_members;

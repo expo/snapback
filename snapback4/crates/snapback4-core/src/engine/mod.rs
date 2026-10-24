@@ -125,6 +125,14 @@ mod aggregate_metadata_tests;
 #[cfg(feature = "postgres")]
 pub mod postgres;
 pub(crate) mod presence;
+#[cfg(feature = "sqlite")]
+pub mod program;
+#[cfg(feature = "sqlite")]
+mod program_batch;
+#[cfg(test)]
+pub(crate) use program_batch::fault::tail_prepared as program_tail_prepared;
+#[cfg(feature="sqlite")]
+mod program_transcript;
 mod receipt;
 pub mod refusal_trace;
 #[cfg(test)]

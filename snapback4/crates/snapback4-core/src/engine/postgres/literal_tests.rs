@@ -161,6 +161,45 @@ fn wrapped_datum(bind: &super::flight::Row, ty: &Type, i: usize) -> Datum {
 }
 
 #[test]
+fn cpu_streamed_literals_preserve_the_existing_sql_bytes() {
+    // Golden wire bytes cover both borrowed scalar buffers and recursive
+    // arrays, independent of PostgreSQL's interpretation of equivalent SQL.
+    assert_eq!(parameter(&r"a'\é", &Type::TEXT).unwrap(),
+        "(pg_catalog.convert_from(pg_catalog.decode('61275cc3a9','hex'),'UTF8'))::pg_catalog.text");
+    assert_eq!(parameter(&vec![0_u8, 39, 255], &Type::BYTEA).unwrap(),
+        "(pg_catalog.decode('0027ff','hex'))::pg_catalog.bytea");
+    assert_eq!(parameter(&i64::MIN, &Type::INT8).unwrap(),
+        "('-9223372036854775808')::pg_catalog.int8");
+    assert_eq!(parameter(&Vec::<i64>::new(), &Type::INT8_ARRAY).unwrap(),
+        "(ARRAY[])::pg_catalog.int8[]");
+    assert_eq!(parameter(&vec![Some("x"), None, Some("")], &Type::TEXT_ARRAY).unwrap(),
+        "(ARRAY[(pg_catalog.convert_from(pg_catalog.decode('78','hex'),'UTF8'))::pg_catalog.text,(NULL)::pg_catalog.text,(pg_catalog.convert_from(pg_catalog.decode('','hex'),'UTF8'))::pg_catalog.text])::pg_catalog.text[]");
+}
+
+#[test]
+fn cpu_borrowed_text_keeps_utf8_refusal_before_literal_size_refusal() {
+    use postgres::types::{FromSql, IsNull, private::BytesMut};
+    #[derive(Debug)]
+    struct InvalidText;
+    impl ToSql for InvalidText {
+        fn to_sql(&self, _: &Type, out: &mut BytesMut)
+            -> Result<IsNull, Box<dyn std::error::Error + Sync + Send>>
+        {
+            // The binary buffer fits; its hex literal would exceed the guard.
+            out.resize(super::flight::ENCODED_LIMIT / 2 + 1, 0xff);
+            Ok(IsNull::No)
+        }
+        fn accepts(ty: &Type) -> bool { *ty == Type::TEXT }
+        postgres::types::to_sql_checked!();
+    }
+    let expected = String::from_sql(&Type::TEXT, &[0xff]).unwrap_err().to_string();
+    let RuntimeError::Input(message) = parameter(&InvalidText, &Type::TEXT).unwrap_err() else {
+        panic!("invalid binary text must remain an input refusal");
+    };
+    assert_eq!(message, expected);
+}
+
+#[test]
 fn encoder_refuses_nul_and_unsupported_types_without_server() {
     assert!(matches!(
         encode(&Datum::Text("a\0b".into()), &Type::TEXT),

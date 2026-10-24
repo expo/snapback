@@ -1,0 +1,112 @@
+{
+  "utc": "2026-10-24T00:22:52.824812+00:00",
+  "hostname": "expose-builder-pixel-a",
+  "platform": "Linux-6.8.0-100-generic-x86_64-with-glibc2.39",
+  "cpu_model": "AMD Ryzen 5 3600 6-Core Processor",
+  "logical_cpus": 12,
+  "memory_kib": 131803268,
+  "binaries": {
+    "target-msuite/build/release/msuite": {
+      "sha256": "33d6c6b52dac4ca7e5b88c3d69fc30908a75960fdbb90a643f87e9dd85e823c9",
+      "bytes": 222344984
+    },
+    "target-msuite/build/release/snapback4-postgres-commit-path": {
+      "sha256": "2e50e640172a6dde2c4d41ab3e8e4cdba2531bd506cea038a8eb2675ae6aa508",
+      "bytes": 227849560
+    },
+    "target-msuite/build/release/msuite_proxy": {
+      "sha256": "766adda499c8a2395b64457e296eb5c3149bb2eae80524577a29dd45571c5a21",
+      "bytes": 4903096
+    },
+    "target-msuite/build/release/m1": {
+      "sha256": "2a097b0656f369d68a2e55312c3afa8523566f653029b623f8dea1cfc75bb9ce",
+      "bytes": 222912632
+    }
+  },
+  "worktree": "/home/ccheever/projects/sb4-msuite",
+  "branch": "sb4-pg/msuite",
+  "base": "c3f90a337d",
+  "harness_commits": [
+    "63ba136104",
+    "410272d23a"
+  ],
+  "settings": [
+    [
+      "fsync",
+      "on",
+      ""
+    ],
+    [
+      "full_page_writes",
+      "on",
+      ""
+    ],
+    [
+      "jit",
+      "off",
+      ""
+    ],
+    [
+      "max_connections",
+      "320",
+      ""
+    ],
+    [
+      "max_wal_size",
+      "4096",
+      "MB"
+    ],
+    [
+      "min_wal_size",
+      "1024",
+      "MB"
+    ],
+    [
+      "plan_cache_mode",
+      "auto",
+      ""
+    ],
+    [
+      "server_version",
+      "16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)",
+      ""
+    ],
+    [
+      "shared_buffers",
+      "1048576",
+      "8kB"
+    ],
+    [
+      "synchronous_commit",
+      "on",
+      ""
+    ],
+    [
+      "track_io_timing",
+      "on",
+      ""
+    ],
+    [
+      "track_wal_io_timing",
+      "on",
+      ""
+    ],
+    [
+      "wal_sync_method",
+      "fdatasync",
+      ""
+    ]
+  ],
+  "configuration_sha256": "835ac530653a432bd4f59312b1fb66450e85eda5ffaed7528c61adfbee56516c",
+  "tools": {
+    "rustc": "rustc 1.97.0 (2d8144b78 2026-07-07)\nbinary: rustc\ncommit-hash: 2d8144b7880597b6e6d3dfd63a9a9efae3f533d3\ncommit-date: 2026-07-07\nhost: x86_64-unknown-linux-gnu\nrelease: 1.97.0\nLLVM version: 22.1.6",
+    "cargo": "cargo 1.97.0 (c980f4866 2026-06-30)",
+    "postgres": "postgres (PostgreSQL) 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)"
+  },
+  "measurement_utc": {
+    "controller_start": "2026-10-23T21:44:30.776698+00:00",
+    "m0_first_cell": "2026-10-23T21:51:35.571822+00:00",
+    "m0_last_cell": "2026-10-24T00:20:05.822553+00:00",
+    "suite_complete": "2026-10-24T00:21:24.890627+00:00"
+  }
+}

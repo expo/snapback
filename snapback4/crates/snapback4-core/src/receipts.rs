@@ -1,6 +1,7 @@
 //! Store-neutral operation receipt facts and replay binding policy.
 use crate::RuntimeError;
 
+#[derive(Clone)]
 pub(crate) struct ReceiptRecord {
     pub outcome: String,
     pub name: Option<String>,

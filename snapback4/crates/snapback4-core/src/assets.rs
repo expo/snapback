@@ -683,6 +683,7 @@ mod tests {
 
 /// Durable facts used by upload replay and placement policy.
 #[cfg(feature = "sqlite")]
+#[derive(Clone)]
 pub(crate) struct IntentRecord {
     pub binding: Option<String>,
     pub facts: Option<String>,

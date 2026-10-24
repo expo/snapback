@@ -258,9 +258,11 @@ fn rt6_encoder_bind_difftest_uses_serving_statements_and_full_tail() {
     let principals=vec!["alice"];let presence=vec!["effect1"];let expires=vec![2000i64];let explicit=vec![true];let releases=vec![None::<&str>];
     let args:&[&(dyn postgres::types::ToSql+Sync)]=&[&seq,&1000i64,&text,&"alice",&"mutation",&"[]",&1i64,&partitions,&ords,&tables,&kinds,&ids,&images,&effects,&names,&payloads,&next,&work,&deadlines,&contracts,&principals,&presence,&expires,&explicit,&releases,&"{}",&0i64];
     c.batch_execute("SAVEPOINT native_tail").unwrap();
-    let native=c.query(&p.bind,args).unwrap();assert_eq!(native[0].get::<_,i64>(0),1);let expected=census(&mut c);
+    let native=c.query(&p.bind,args).unwrap();assert_eq!(native.len(),1);
+    let counts:Vec<_>=(0..5).map(|column|native[0].get::<_,i64>(column)).collect();
+    assert_eq!(counts,vec![1;5],"commit, evidence, log, effect and presence counts");let expected=census(&mut c);
     c.batch_execute("ROLLBACK TO native_tail; RELEASE native_tail; SAVEPOINT literal_tail").unwrap();
-    let messages=c.simple_query(&p.command(args).unwrap()).unwrap();assert_eq!(p.rows(&messages).unwrap(),vec![vec![Datum::Int(1)]]);
+    let messages=c.simple_query(&p.command(args).unwrap()).unwrap();assert_eq!(p.rows(&messages).unwrap(),vec![counts.into_iter().map(Datum::Int).collect::<Vec<_>>()]);
     assert_eq!(census(&mut c),expected,"head, rows, receipts, commits, logs and change evidence");
     c.batch_execute("ROLLBACK").unwrap();
     // Native execute ignores result payloads, including excluded output types.

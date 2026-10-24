@@ -22,7 +22,7 @@ native = ["sqlite", "wasm-host"]
 # The server: the SQLite store, identity, the asset ledger, jobs, the log.
 # Without it the crate is the interpreter over the `Rows` trait, for a
 # device that brings its own store (wasm on the web, or a host's SQLite).
-sqlite = ["dep:rusqlite", "dep:argon2"]
+sqlite = ["dep:rusqlite", "dep:argon2", "dep:rayon"]
 # Server adapter selected by the public CLI and retained evaluation oracle.
 # Device and no-default core builds do not link it.
 postgres = ["sqlite", "dep:postgres", "dep:tokio-postgres", "dep:tokio", "dep:futures-util"]
@@ -49,6 +49,7 @@ wasmi = { version = "2.0.0", default-features = false, features = ["stable", "st
 # Native Rust callers can pass prebuilt trees beyond the text parser's limit.
 # The web only receives text; keep this parser option out of its artifact.
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+rayon = { version = "1.11", optional = true }
 serde_json = { version = "1", features = ["unbounded_depth"] }
 
 [target.'cfg(unix)'.dependencies]

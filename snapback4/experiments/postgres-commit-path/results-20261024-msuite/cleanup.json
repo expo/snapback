@@ -1,0 +1,153 @@
+{
+  "ok": true,
+  "audits": [
+    {
+      "utc": "2026-10-24T00:23:44.365142+00:00",
+      "auditor_pid": 91503,
+      "auditor_is_transient_and_excluded": true,
+      "recorded_identity_pairs": 5020,
+      "ledger_live": [],
+      "independent_scope_live": [],
+      "ports": [
+        {
+          "port": 56544,
+          "connect_errno": 111
+        },
+        {
+          "port": 36603,
+          "connect_errno": 111
+        },
+        {
+          "port": 34753,
+          "connect_errno": 111
+        }
+      ],
+      "postmaster_pid_file_exists": false,
+      "socket_exists": false,
+      "private_pgdata_exists": false,
+      "tokens_exist": false,
+      "free_bytes": 115053518848,
+      "ok": true
+    },
+    {
+      "utc": "2026-10-24T00:24:21.795591+00:00",
+      "auditor_pid": 92132,
+      "auditor_is_transient_and_excluded": true,
+      "recorded_identity_pairs": 5021,
+      "ledger_live": [],
+      "independent_scope_live": [],
+      "ports": [
+        {
+          "port": 56544,
+          "connect_errno": 111
+        },
+        {
+          "port": 36603,
+          "connect_errno": 111
+        },
+        {
+          "port": 34753,
+          "connect_errno": 111
+        }
+      ],
+      "postmaster_pid_file_exists": false,
+      "socket_exists": false,
+      "private_pgdata_exists": false,
+      "tokens_exist": false,
+      "free_bytes": 115053404160,
+      "ok": true
+    },
+    {
+      "utc": "2026-10-24T00:30:02.455854+00:00",
+      "auditor_pid": 97862,
+      "auditor_is_transient_and_excluded": true,
+      "recorded_identity_pairs": 5028,
+      "ledger_live": [],
+      "independent_scope_live": [],
+      "ports": [
+        {
+          "port": 56544,
+          "connect_errno": 111
+        },
+        {
+          "port": 36603,
+          "connect_errno": 111
+        },
+        {
+          "port": 34753,
+          "connect_errno": 111
+        }
+      ],
+      "postmaster_pid_file_exists": false,
+      "socket_exists": false,
+      "private_pgdata_exists": false,
+      "tokens_exist": false,
+      "free_bytes": 115035336704,
+      "ok": true
+    }
+  ],
+  "owned_benchmark_pids_left": [],
+  "epoch1_owned_live_after_guard": [],
+  "private_removals": [
+    {
+      "post_stop_only": true,
+      "pgdata_removed": true,
+      "tokens_removed": true,
+      "unused_owned_build_cache_removed": [
+        "/home/ccheever/projects/sb4-msuite/target-msuite/build/release/deps",
+        "/home/ccheever/projects/sb4-msuite/target-msuite/build/release/build",
+        "/home/ccheever/projects/sb4-msuite/target-msuite/build/release/.fingerprint",
+        "/home/ccheever/projects/sb4-msuite/target-msuite/build/release/incremental"
+      ],
+      "executable_hashes_unchanged": true,
+      "free_before_bytes": 5119221760,
+      "free_after_bytes": 7838765056
+    },
+    {
+      "utc": "2026-10-24T00:23:01.277548+00:00",
+      "pgdata_removed": true,
+      "tokens_absent": true,
+      "free_before_bytes": 113947832320,
+      "free_after_bytes": 115054026752,
+      "owned_live": [],
+      "ports": [
+        {
+          "port": 56544,
+          "connect_errno": 111
+        },
+        {
+          "port": 36603,
+          "connect_errno": 111
+        },
+        {
+          "port": 34753,
+          "connect_errno": 111
+        }
+      ]
+    }
+  ],
+  "minimum_observed_free_bytes": 5119221760,
+  "final_free_bytes": 115051991040,
+  "guard_history": [
+    {
+      "utc": 1792795821.8951278,
+      "free_bytes": 32204251136,
+      "reason": "User stop threshold: /home <30 GiB"
+    }
+  ],
+  "known_token_audit": {
+    "known_token_count": 256,
+    "matching_files": [],
+    "ok": true
+  },
+  "scope": "Recorded owned identities plus independent /proc path scan; only transient auditor excluded; no foreign process was signalled",
+  "archive": {
+    "path": "/home/ccheever/projects/sb4-msuite/target-msuite/msuite-raw-20261024.tar.gz",
+    "sha256": "d60c9a6c3c590652a1983368fe742fafd6379071ca86b1520f6ae6b1e4351f69",
+    "bytes": 11758552,
+    "source_files": 66,
+    "source_manifest_sha256": "a2ea6e9393b87bfff9267f0c1b9b30d14c68a92f0e2f97609909517ec6598c99",
+    "database_files_included": false,
+    "credential_files_included": false
+  }
+}

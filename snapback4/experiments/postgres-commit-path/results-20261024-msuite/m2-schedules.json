@@ -1,0 +1,7154 @@
+[
+  {
+    "source": "m2full-A-2-1.json",
+    "link": "A",
+    "FK": "current no-FK engine-created shape",
+    "arm": "M2-full-g3b",
+    "batch": 1,
+    "codec": "RT5 Prepared::command, same source, typed arrays and UTF8 hex encoding",
+    "first_read": "N known counters, model authority/receipt lookups; not product authorization",
+    "flights": 2,
+    "runs": [
+      {
+        "apply_flight_us": {
+          "max": 25776.875,
+          "mean": 3959.884746666668,
+          "min": 3388.864,
+          "n": 300,
+          "p50": 3789.0969999999998,
+          "p99": 8309.31
+        },
+        "commit_flight_us": {
+          "max": 0.19999999999999998,
+          "mean": 0.07892666666666656,
+          "min": 0.03,
+          "n": 300,
+          "p50": 0.07,
+          "p99": 0.191
+        },
+        "cycle_us": {
+          "max": 26838.492,
+          "mean": 5004.511336666667,
+          "min": 4215.1089999999995,
+          "n": 300,
+          "p50": 4815.148,
+          "p99": 9425.197999999999
+        },
+        "host_after": {
+          "loadavg": "2.63 2.75 2.78 2/937 3325657\n",
+          "top": [
+            {
+              "comm": "fleet",
+              "cpu_cores": 1.3848262510433802,
+              "pid": 3325640
+            },
+            {
+              "comm": "systemd",
+              "cpu_cores": 0.0,
+              "pid": 1
+            },
+            {
+              "comm": "kthreadd",
+              "cpu_cores": 0.0,
+              "pid": 2
+            },
+            {
+              "comm": "pool_workqueue_release",
+              "cpu_cores": 0.0,
+              "pid": 3
+            },
+            {
+              "comm": "kworker/R-rcu_g",
+              "cpu_cores": 0.0,
+              "pid": 4
+            },
+            {
+              "comm": "kworker/R-rcu_p",
+              "cpu_cores": 0.0,
+              "pid": 5
+            },
+            {
+              "comm": "kworker/R-slub_",
+              "cpu_cores": 0.0,
+              "pid": 6
+            },
+            {
+              "comm": "kworker/R-netns",
+              "cpu_cores": 0.0,
+              "pid": 7
+            },
+            {
+              "comm": "kworker/0:0H-events_highpri",
+              "cpu_cores": 0.0,
+              "pid": 10
+            },
+            {
+              "comm": "kworker/R-mm_pe",
+              "cpu_cores": 0.0,
+              "pid": 12
+            },
+            {
+              "comm": "rcu_tasks_kthread",
+              "cpu_cores": 0.0,
+              "pid": 13
+            },
+            {
+              "comm": "rcu_tasks_rude_kthread",
+              "cpu_cores": 0.0,
+              "pid": 14
+            }
+          ]
+        },
+        "host_before": {
+          "loadavg": "2.69 2.77 2.79 2/945 3325452\n",
+          "top": [
+            {
+              "comm": "msuite",
+              "cpu_cores": 0.5719188529503978,
+              "pid": 3325319
+            },
+            {
+              "comm": "claude",
+              "cpu_cores": 0.5719188529503978,
+              "pid": 3325384
+            },
+            {
+              "comm": "systemd",
+              "cpu_cores": 0.0,
+              "pid": 1
+            },
+            {
+              "comm": "kthreadd",
+              "cpu_cores": 0.0,
+              "pid": 2
+            },
+            {
+              "comm": "pool_workqueue_release",
+              "cpu_cores": 0.0,
+              "pid": 3
+            },
+            {
+              "comm": "kworker/R-rcu_g",
+              "cpu_cores": 0.0,
+              "pid": 4
+            },
+            {
+              "comm": "kworker/R-rcu_p",
+              "cpu_cores": 0.0,
+              "pid": 5
+            },
+            {
+              "comm": "kworker/R-slub_",
+              "cpu_cores": 0.0,
+              "pid": 6
+            },
+            {
+              "comm": "kworker/R-netns",
+              "cpu_cores": 0.0,
+              "pid": 7
+            },
+            {
+              "comm": "kworker/0:0H-events_highpri",
+              "cpu_cores": 0.0,
+              "pid": 10
+            },
+            {
+              "comm": "kworker/R-mm_pe",
+              "cpu_cores": 0.0,
+              "pid": 12
+            },
+            {
+              "comm": "rcu_tasks_kthread",
+              "cpu_cores": 0.0,
+              "pid": 13
+            }
+          ]
+        },
+        "payload_codec_us": {
+          "max": 74.12899999999999,
+          "mean": 46.19084333333336,
+          "min": 25.517999999999997,
+          "n": 300,
+          "p50": 46.407,
+          "p99": 71.856
+        },
+        "run": 0,
+        "setup_flight_us": {
+          "max": 3055.8680000000004,
+          "mean": 998.3568200000003,
+          "min": 772.643,
+          "n": 300,
+          "p50": 972.58,
+          "p99": 2734.364
+        }
+      },
+      {
+        "apply_flight_us": {
+          "max": 5720.71,
+          "mean": 3722.4966133333332,
+          "min": 3318.612,
+          "n": 300,
+          "p50": 3745.114,
+          "p99": 4255.174
+        },
+        "commit_flight_us": {
+          "max": 0.7010000000000001,
+          "mean": 0.08860333333333326,
+          "min": 0.03,
+          "n": 300,
+          "p50": 0.08,
+          "p99": 0.19
+        },
+        "cycle_us": {
+          "max": 6633.728,
+          "mean": 4705.27331333333,
+          "min": 4141.199,
+          "n": 300,
+          "p50": 4768.439,
+          "p99": 5361.846
+        },
+        "host_after": {
+          "loadavg": "2.63 2.75 2.78 1/936 3325795\n",
+          "top": [
+            {
+              "comm": "python3",
+              "cpu_cores": 0.714391393183949,
+              "pid": 3253761
+            },
+            {
+              "comm": "fleet",
+              "cpu_cores": 0.714391393183949,
+              "pid": 3325787
+            },
+            {
+              "comm": "systemd",
+              "cpu_cores": 0.0,
+              "pid": 1
+            },
+            {
+              "comm": "kthreadd",
+              "cpu_cores": 0.0,
+              "pid": 2
+            },
+            {
+              "comm": "pool_workqueue_release",
+              "cpu_cores": 0.0,
+              "pid": 3
+            },
+            {
+              "comm": "kworker/R-rcu_g",
+              "cpu_cores": 0.0,
+              "pid": 4
+            },
+            {
+              "comm": "kworker/R-rcu_p",
+              "cpu_cores": 0.0,
+              "pid": 5
+            },
+            {
+              "comm": "kworker/R-slub_",
+              "cpu_cores": 0.0,
+              "pid": 6
+            },
+            {
+              "comm": "kworker/R-netns",
+              "cpu_cores": 0.0,
+              "pid": 7
+            },
+            {
+              "comm": "kworker/0:0H-events_highpri",
+              "cpu_cores": 0.0,
+              "pid": 10
+            },
+            {
+              "comm": "kworker/R-mm_pe",
+              "cpu_cores": 0.0,
+              "pid": 12
+            },
+            {
+              "comm": "rcu_tasks_kthread",
+              "cpu_cores": 0.0,
+              "pid": 13
+            }
+          ]
+        },
+        "host_before": {
+          "loadavg": "2.63 2.75 2.78 2/939 3325662\n",
+          "top": [
+            {
+              "comm": "fleet",
+              "cpu_cores": 1.4042439059325094,
+              "pid": 3325640
+            },
+            {
+              "comm": "systemd",
+              "cpu_cores": 0.0,
+              "pid": 1
+            },
+            {
+              "comm": "kthreadd",
+              "cpu_cores": 0.0,
+              "pid": 2
+            },
+            {
+              "comm": "pool_workqueue_release",
+              "cpu_cores": 0.0,
+              "pid": 3
+            },
+            {
+              "comm": "kworker/R-rcu_g",
+              "cpu_cores": 0.0,
+              "pid": 4
+            },
+            {
+              "comm": "kworker/R-rcu_p",
+              "cpu_cores": 0.0,
+              "pid": 5
+            },
+            {
+              "comm": "kworker/R-slub_",
+              "cpu_cores": 0.0,
+              "pid": 6
+            },
+            {
+              "comm": "kworker/R-netns",
+              "cpu_cores": 0.0,
+              "pid": 7
+            },
+            {
+              "comm": "kworker/0:0H-events_highpri",
+              "cpu_cores": 0.0,
+              "pid": 10
+            },
+            {
+              "comm": "kworker/R-mm_pe",
+              "cpu_cores": 0.0,
+              "pid": 12
+            },
+            {
+              "comm": "rcu_tasks_kthread",
+              "cpu_cores": 0.0,
+              "pid": 13
+            },
+            {
+              "comm": "rcu_tasks_rude_kthread",
+              "cpu_cores": 0.0,
+              "pid": 14
+            }
+          ]
+        },
+        "payload_codec_us": {
+          "max": 87.444,
+          "mean": 47.871763333333355,
+          "min": 23.033,
+          "n": 300,
+          "p50": 46.528,
+          "p99": 78.46799999999999
+        },
+        "run": 1,
+        "setup_flight_us": {
+          "max": 1297.049,
+          "mean": 934.816333333333,
+          "min": 764.899,
+          "n": 300,
+          "p50": 964.454,
+          "p99": 1158.93
+        }
+      },
+      {
+        "apply_flight_us": {
+          "max": 14813.734,
+          "mean": 3900.614903333333,
+          "min": 3387.482,
+          "n": 300,
+          "p50": 3786.9930000000004,
+          "p99": 8131.826
+        },
+        "commit_flight_us": {
+          "max": 0.24,
+          "mean": 0.09407333333333324,
+          "min": 0.03,
+          "n": 300,
+          "p50": 0.09,
+          "p99": 0.181
+        },
+        "cycle_us": {
+          "max": 15921.107,
+          "mean": 4906.985223333332,
+          "min": 4192.055,
+          "n": 300,
+          "p50": 4815.949,
+          "p99": 9188.202
+        },
+        "host_after": {
+          "loadavg": "2.63 2.75 2.78 1/936 3325902\n",
+          "top": [
+            {
+              "comm": "fleet",
+              "cpu_cores": 0.5341191008681786,
+              "pid": 721751
+            },
+            {
+              "comm": "msuite",
+              "cpu_cores": 0.5341191008681786,
+              "pid": 3325319
+            },
+            {
+              "comm": "systemd",
+              "cpu_cores": 0.0,
+              "pid": 1
+            },
+            {
+              "comm": "kthreadd",
+              "cpu_cores": 0.0,
+              "pid": 2
+            },
+            {
+              "comm": "pool_workqueue_release",
+              "cpu_cores": 0.0,
+              "pid": 3
+            },
+            {
+              "comm": "kworker/R-rcu_g",
+              "cpu_cores": 0.0,
+              "pid": 4
+            },
+            {
+              "comm": "kworker/R-rcu_p",
+              "cpu_cores": 0.0,
+              "pid": 5
+            },
+            {
+              "comm": "kworker/R-slub_",
+              "cpu_cores": 0.0,
+              "pid": 6
+            },
+            {
+              "comm": "kworker/R-netns",
+              "cpu_cores": 0.0,
+              "pid": 7
+            },
+            {
+              "comm": "kworker/0:0H-events_highpri",
+              "cpu_cores": 0.0,
+              "pid": 10
+            },
+            {
+              "comm": "kworker/R-mm_pe",
+              "cpu_cores": 0.0,
+              "pid": 12
+            },
+            {
+              "comm": "rcu_tasks_kthread",
+              "cpu_cores": 0.0,
+              "pid": 13
+            }
+          ]
+        },
+        "host_before": {
+          "loadavg": "2.63 2.75 2.78 1/936 3325795\n",
+          "top": [
+            {
+              "comm": "msuite",
+              "cpu_cores": 0.6441804736014842,
+              "pid": 3325319
+            },
+            {
+              "comm": "systemd",
+              "cpu_cores": 0.0,
+              "pid": 1
+            },
+            {
+              "comm": "kthreadd",
+              "cpu_cores": 0.0,
+              "pid": 2
+            },
+            {
+              "comm": "pool_workqueue_release",
+              "cpu_cores": 0.0,
+              "pid": 3
+            },
+            {
+              "comm": "kworker/R-rcu_g",
+              "cpu_cores": 0.0,
+              "pid": 4
+            },
+            {
+              "comm": "kworker/R-rcu_p",
+              "cpu_cores": 0.0,
+              "pid": 5
+            },
+            {
+              "comm": "kworker/R-slub_",
+              "cpu_cores": 0.0,
+              "pid": 6
+            },
+            {
+              "comm": "kworker/R-netns",
+              "cpu_cores": 0.0,
+              "pid": 7
+            },
+            {
+              "comm": "kworker/0:0H-events_highpri",
+              "cpu_cores": 0.0,
+              "pid": 10
+            },
+            {
+              "comm": "kworker/R-mm_pe",
+              "cpu_cores": 0.0,
+              "pid": 12
+            },
+            {
+              "comm": "rcu_tasks_kthread",
+              "cpu_cores": 0.0,
+              "pid": 13
+            },
+            {
+              "comm": "rcu_tasks_rude_kthread",
+              "cpu_cores": 0.0,
+              "pid": 14
+            }
+          ]
+        },
+        "payload_codec_us": {
+          "max": 96.762,
+          "mean": 49.728443333333345,
+          "min": 22.723,
+          "n": 300,
+          "p50": 49.202,
+          "p99": 87.685
+        },
+        "run": 2,
+        "setup_flight_us": {
+          "max": 1693.155,
+          "mean": 956.547803333333,
+          "min": 755.5609999999999,
+          "n": 300,
+          "p50": 974.814,
+          "p99": 1226.227
+        }
+      }
+    ]
+  },
+  {
+    "source": "m2full-A-2-32.json",
+    "link": "A",
+    "FK": "current no-FK engine-created shape",
+    "arm": "M2-full-g3b",
+    "batch": 32,
+    "codec": "RT5 Prepared::command, same source, typed arrays and UTF8 hex encoding",
+    "first_read": "N known counters, model authority/receipt lookups; not product authorization",
+    "flights": 2,
+    "runs": [
+      {
+        "apply_flight_us": {
+          "max": 21371.239,
+          "mean": 5705.733996666665,
+          "min": 4416.307000000001,
+          "n": 300,
+          "p50": 5858.129,
+          "p99": 8660.048999999999
+        },
+        "commit_flight_us": {
+          "max": 0.5910000000000001,
+          "mean": 0.09506333333333333,
+          "min": 0.03,
+          "n": 300,
+          "p50": 0.09999999999999999,
+          "p99": 0.23099999999999998
+        },
+        "cycle_us": {
+          "max": 23411.606,
+          "mean": 7683.084960000005,
+          "min": 5822.502,
+          "n": 300,
+          "p50": 7887.867,
+          "p99": 12823.14
+        },
+        "host_after": {
+          "loadavg": "2.98 2.83 2.81 3/954 3326181\n",
+          "top": [
+            {
+              "comm": "claude",
+              "cpu_cores": 1.8879145152307504,
+              "pid": 3326147
+            },
+            {
+              "comm": "msuite",
+              "cpu_cores": 0.6293048384102501,
+              "pid": 3325904
+            },
+            {
+              "comm": "systemd",
+              "cpu_cores": 0.0,
+              "pid": 1
+            },
+            {
+              "comm": "kthreadd",
+              "cpu_cores": 0.0,
+              "pid": 2
+            },
+            {
+              "comm": "pool_workqueue_release",
+              "cpu_cores": 0.0,
+              "pid": 3
+            },
+            {
+              "comm": "kworker/R-rcu_g",
+              "cpu_cores": 0.0,
+              "pid": 4
+            },
+            {
+              "comm": "kworker/R-rcu_p",
+              "cpu_cores": 0.0,
+              "pid": 5
+            },
+            {
+              "comm": "kworker/R-slub_",
+              "cpu_cores": 0.0,
+              "pid": 6
+            },
+            {
+              "comm": "kworker/R-netns",
+              "cpu_cores": 0.0,
+              "pid": 7
+            },
+            {
+              "comm": "kworker/0:0H-events_highpri",
+              "cpu_cores": 0.0,
+              "pid": 10
+            },
+            {
+              "comm": "kworker/R-mm_pe",
+              "cpu_cores": 0.0,
+              "pid": 12
+            },
+            {
+              "comm": "rcu_tasks_kthread",
+              "cpu_cores": 0.0,
+              "pid": 13
+            }
+          ]
+        },
+        "host_before": {
+          "loadavg": "2.98 2.83 2.81 2/961 3326003\n",
+          "top": [
+            {
+              "comm": "opencode",
+              "cpu_cores": 1.0989329196510251,
+              "pid": 3325944
+            },
+            {
+              "comm": "msuite",
+              "cpu_cores": 0.5494664598255126,
+              "pid": 3325904
+            },
+            {
+              "comm": "fleet",
+              "cpu_cores": 0.5494664598255126,
+              "pid": 3325906
+            },
+            {
+              "comm": "systemd",
+              "cpu_cores": 0.0,
+              "pid": 1
+            },
+            {
+              "comm": "kthreadd",
+              "cpu_cores": 0.0,
+              "pid": 2
+            },
+            {
+              "comm": "pool_workqueue_release",
+              "cpu_cores": 0.0,
+              "pid": 3
+            },
+            {
+              "comm": "kworker/R-rcu_g",
+              "cpu_cores": 0.0,
+              "pid": 4
+            },
+            {
+              "comm": "kworker/R-rcu_p",
+              "cpu_cores": 0.0,
+              "pid": 5
+            },
+            {
+              "comm": "kworker/R-slub_",
+              "cpu_cores": 0.0,
+              "pid": 6
+            },
+            {
+              "comm": "kworker/R-netns",
+              "cpu_cores": 0.0,
+              "pid": 7
+            },
+            {
+              "comm": "kworker/0:0H-events_highpri",
+              "cpu_cores": 0.0,
+              "pid": 10
+            },
+            {
+              "comm": "kworker/R-mm_pe",
+              "cpu_cores": 0.0,
+              "pid": 12
+            }
+          ]
+        },
+        "payload_codec_us": {
+          "max": 1246.224,
+          "mean": 695.0933866666666,
+          "min": 354.89799999999997,
+          "n": 300,
+          "p50": 739.0699999999999,
+          "p99": 1185.0890000000002
+        },
+        "run": 0,
+        "setup_flight_us": {
+          "max": 3513.048,
+          "mean": 1282.162513333333,
+          "min": 948.5640000000001,
+          "n": 300,
+          "p50": 1317.257,
+          "p99": 1647.1879999999999
+        }
+      },
+      {
+        "apply_flight_us": {
+          "max": 16013.962,
+          "mean": 5673.860190000003,
+          "min": 4392.102,
+          "n": 300,
+          "p50": 5654.637,
+          "p99": 10450.305999999999
+        },
+        "commit_flight_us": {
+          "max": 0.641,
+          "mean": 0.09553333333333332,
+          "min": 0.03,
+          "n": 300,
+          "p50": 0.09,
+          "p99": 0.5810000000000001
+        },
+        "cycle_us": {
+          "max": 18478.618,
+          "mean": 7653.32728333333,
+          "min": 5743.803,
+          "n": 300,
+          "p50": 7718.678,
+          "p99": 14410.766
+        },
+        "host_after": {
+          "loadavg": "2.99 2.83 2.81 4/977 3326482\n",
+          "top": [
+            {
+              "comm": "claude",
+              "cpu_cores": 1.1063081969969817,
+              "pid": 3326465
+            },
+            {
+              "comm": "python3",
+              "cpu_cores": 0.5531540984984908,
+              "pid": 3253761
+            },
+            {
+              "comm": "msuite",
+              "cpu_cores": 0.5531540984984908,
+              "pid": 3325904
+            },
+            {
+              "comm": "systemd",
+              "cpu_cores": 0.0,
+              "pid": 1
+            },
+            {
+              "comm": "kthreadd",
+              "cpu_cores": 0.0,
+              "pid": 2
+            },
+            {
+              "comm": "pool_workqueue_release",
+              "cpu_cores": 0.0,
+              "pid": 3
+            },
+            {
+              "comm": "kworker/R-rcu_g",
+              "cpu_cores": 0.0,
+              "pid": 4
+            },
+            {
+              "comm": "kworker/R-rcu_p",
+              "cpu_cores": 0.0,
+              "pid": 5
+            },
+            {
+              "comm": "kworker/R-slub_",
+              "cpu_cores": 0.0,
+              "pid": 6
+            },
+            {
+              "comm": "kworker/R-netns",
+              "cpu_cores": 0.0,
+              "pid": 7
+            },
+            {
+              "comm": "kworker/0:0H-events_highpri",
+              "cpu_cores": 0.0,
+              "pid": 10
+            },
+            {
+              "comm": "kworker/R-mm_pe",
+              "cpu_cores": 0.0,
+              "pid": 12
+            }
+          ]
+        },
+        "host_before": {
+          "loadavg": "2.98 2.83 2.81 4/954 3326181\n",
+          "top": [
+            {
+              "comm": "claude",
+              "cpu_cores": 1.718112293986882,
+              "pid": 3326147
+            },
+            {
+              "comm": "systemd",
+              "cpu_cores": 0.0,
+              "pid": 1
+            },
+            {
+              "comm": "kthreadd",
+              "cpu_cores": 0.0,
+              "pid": 2
+            },
+            {
+              "comm": "pool_workqueue_release",
+              "cpu_cores": 0.0,
+              "pid": 3
+            },
+            {
+              "comm": "kworker/R-rcu_g",
+              "cpu_cores": 0.0,
+              "pid": 4
+            },
+            {
+              "comm": "kworker/R-rcu_p",
+              "cpu_cores": 0.0,
+              "pid": 5
+            },
+            {
+              "comm": "kworker/R-slub_",
+              "cpu_cores": 0.0,
+              "pid": 6
+            },
+            {
+              "comm": "kworker/R-netns",
+              "cpu_cores": 0.0,
+              "pid": 7
+            },
+            {
+              "comm": "kworker/0:0H-events_highpri",
+              "cpu_cores": 0.0,
+              "pid": 10
+            },
+            {
+              "comm": "kworker/R-mm_pe",
+              "cpu_cores": 0.0,
+              "pid": 12
+            },
+            {
+              "comm": "rcu_tasks_kthread",
+              "cpu_cores": 0.0,
+              "pid": 13
+            },
+            {
+              "comm": "rcu_tasks_rude_kthread",
+              "cpu_cores": 0.0,
+              "pid": 14
+            }
+          ]
+        },
+        "payload_codec_us": {
+          "max": 1354.307,
+          "mean": 658.0407199999997,
+          "min": 369.32399999999996,
+          "n": 300,
+          "p50": 724.3720000000001,
+          "p99": 1131.578
+        },
+        "run": 1,
+        "setup_flight_us": {
+          "max": 6451.084,
+          "mean": 1321.3308399999999,
+          "min": 939.597,
+          "n": 300,
+          "p50": 1327.978,
+          "p99": 3332.529
+        }
+      },
+      {
+        "apply_flight_us": {
+          "max": 18950.595,
+          "mean": 5740.614306666665,
+          "min": 4415.185,
+          "n": 300,
+          "p50": 5814.1759999999995,
+          "p99": 10365.668
+        },
+        "commit_flight_us": {
+          "max": 0.19999999999999998,
+          "mean": 0.07934999999999998,
+          "min": 0.03,
+          "n": 300,
+          "p50": 0.07,
+          "p99": 0.16999999999999998
+        },
+        "cycle_us": {
+          "max": 20670.39,
+          "mean": 7614.04827,
+          "min": 5800.871,
+          "n": 300,
+          "p50": 7711.504999999999,
+          "p99": 11836.734999999999
+        },
+        "host_after": {
+          "loadavg": "2.99 2.83 2.81 1/962 3326665\n",
+          "top": [
+            {
+              "comm": "msuite",
+              "cpu_cores": 0.5757855240379516,
+              "pid": 3325904
+            },
+            {
+              "comm": "systemd",
+              "cpu_cores": 0.0,
+              "pid": 1
+            },
+            {
+              "comm": "kthreadd",
+              "cpu_cores": 0.0,
+              "pid": 2
+            },
+            {
+              "comm": "pool_workqueue_release",
+              "cpu_cores": 0.0,
+              "pid": 3
+            },
+            {
+              "comm": "kworker/R-rcu_g",
+              "cpu_cores": 0.0,
+              "pid": 4
+            },
+            {
+              "comm": "kworker/R-rcu_p",
+              "cpu_cores": 0.0,
+              "pid": 5
+            },
+            {
+              "comm": "kworker/R-slub_",
+              "cpu_cores": 0.0,
+              "pid": 6
+            },
+            {
+              "comm": "kworker/R-netns",
+              "cpu_cores": 0.0,
+              "pid": 7
+            },
+            {
+              "comm": "kworker/0:0H-events_highpri",
+              "cpu_cores": 0.0,
+              "pid": 10
+            },
+            {
+              "comm": "kworker/R-mm_pe",
+              "cpu_cores": 0.0,
+              "pid": 12
+            },
+            {
+              "comm": "rcu_tasks_kthread",
+              "cpu_cores": 0.0,
+              "pid": 13
+            },
+            {
+              "comm": "rcu_tasks_rude_kthread",
+              "cpu_cores": 0.0,
+              "pid": 14
+            }
+          ]
+        },
+        "host_before": {
+          "loadavg": "2.99 2.83 2.81 2/977 3326482\n",
+          "top": [
+            {
+              "comm": "claude",
+              "cpu_cores": 1.1019570316098577,
+              "pid": 3326465
+            },
+            {
+              "comm": "msuite",
+              "cpu_cores": 0.5509785158049288,
+              "pid": 3325904
+            },
+            {
+              "comm": "systemd",
+              "cpu_cores": 0.0,
+              "pid": 1
+            },
+            {
+              "comm": "kthreadd",
+              "cpu_cores": 0.0,
+              "pid": 2
+            },
+            {
+              "comm": "pool_workqueue_release",
+              "cpu_cores": 0.0,
+              "pid": 3
+            },
+            {
+              "comm": "kworker/R-rcu_g",
+              "cpu_cores": 0.0,
+              "pid": 4
+            },
+            {
+              "comm": "kworker/R-rcu_p",
+              "cpu_cores": 0.0,
+              "pid": 5
+            },
+            {
+              "comm": "kworker/R-slub_",
+              "cpu_cores": 0.0,
+              "pid": 6
+            },
+            {
+              "comm": "kworker/R-netns",
+              "cpu_cores": 0.0,
+              "pid": 7
+            },
+            {
+              "comm": "kworker/0:0H-events_highpri",
+              "cpu_cores": 0.0,
+              "pid": 10
+            },
+            {
+              "comm": "kworker/R-mm_pe",
+              "cpu_cores": 0.0,
+              "pid": 12
+            },
+            {
+              "comm": "rcu_tasks_kthread",
+              "cpu_cores": 0.0,
+              "pid": 13
+            }
+          ]
+        },
+        "payload_codec_us": {
+          "max": 1033.434,
+          "mean": 608.9760099999995,
+          "min": 372.781,
+          "n": 300,
+          "p50": 569.231,
+          "p99": 1013.747
+        },
+        "run": 2,
+        "setup_flight_us": {
+          "max": 1769.188,
+          "mean": 1264.378603333333,
+          "min": 931.2819999999999,
+          "n": 300,
+          "p50": 1313.9409999999998,
+          "p99": 1691.5520000000001
+        }
+      }
+    ]
+  },
+  {
+    "source": "m2full-A-3-1.json",
+    "link": "A",
+    "FK": "current no-FK engine-created shape",
+    "arm": "M2-full-g3b",
+    "batch": 1,
+    "codec": "RT5 Prepared::command, same source, typed arrays and UTF8 hex encoding",
+    "first_read": "N known counters, model authority/receipt lookups; not product authorization",
+    "flights": 3,
+    "runs": [
+      {
+        "apply_flight_us": {
+          "max": 2548.955,
+          "mean": 1144.8146033333337,
+          "min": 838.236,
+          "n": 300,
+          "p50": 1146.0159999999998,
+          "p99": 1587.586
+        },
+        "commit_flight_us": {
+          "max": 6489.937,
+          "mean": 3188.228246666665,
+          "min": 3004.482,
+          "n": 300,
+          "p50": 3157.8,
+          "p99": 4749.914
+        },
+        "cycle_us": {
+          "max": 8773.572,
+          "mean": 5369.108146666665,
+          "min": 4681.857,
+          "n": 300,
+          "p50": 5344.132,
+          "p99": 7901.813000000001
+        },
+        "host_after": {
+          "loadavg": "2.72 2.77 2.79 1/1000 3323881\n",
+          "top": [
+            {
+              "comm": "msuite",
+              "cpu_cores": 0.5585854783527738,
+              "pid": 3323580
+            },
+            {
+              "comm": "systemd",
+              "cpu_cores": 0.0,
+              "pid": 1
+            },
+            {
+              "comm": "kthreadd",
+              "cpu_cores": 0.0,
+              "pid": 2
+            },
+            {
+              "comm": "pool_workqueue_release",
+              "cpu_cores": 0.0,
+              "pid": 3
+            },
+            {
+              "comm": "kworker/R-rcu_g",
+              "cpu_cores": 0.0,
+              "pid": 4
+            },
+            {
+              "comm": "kworker/R-rcu_p",
+              "cpu_cores": 0.0,
+              "pid": 5
+            },
+            {
+              "comm": "kworker/R-slub_",
+              "cpu_cores": 0.0,
+              "pid": 6
+            },
+            {
+              "comm": "kworker/R-netns",
+              "cpu_cores": 0.0,
+              "pid": 7
+            },
+            {
+              "comm": "kworker/0:0H-events_highpri",
+              "cpu_cores": 0.0,
+              "pid": 10
+            },
+            {
+              "comm": "kworker/R-mm_pe",
+              "cpu_cores": 0.0,
+              "pid": 12
+            },
+            {
+              "comm": "rcu_tasks_kthread",
+              "cpu_cores": 0.0,
+              "pid": 13
+            },
+            {
+              "comm": "rcu_tasks_rude_kthread",
+              "cpu_cores": 0.0,
+              "pid": 14
+            }
+          ]
+        },
+        "host_before": {
+          "loadavg": "2.72 2.77 2.79 3/995 3323766\n",
+          "top": [
+            {
+              "comm": "fleet",
+              "cpu_cores": 1.9213427880477105,
+              "pid": 3323682
+            },
+            {
+              "comm": "opencode",
+              "cpu_cores": 0.6404475960159036,
+              "pid": 3323722
+            },
+            {
+              "comm": "systemd",
+              "cpu_cores": 0.0,
+              "pid": 1
+            },
+            {
+              "comm": "kthreadd",
+              "cpu_cores": 0.0,
+              "pid": 2
+            },
+            {
+              "comm": "pool_workqueue_release",
+              "cpu_cores": 0.0,
+              "pid": 3
+            },
+            {
+              "comm": "kworker/R-rcu_g",
+              "cpu_cores": 0.0,
+              "pid": 4
+            },
+            {
+              "comm": "kworker/R-rcu_p",
+              "cpu_cores": 0.0,
+              "pid": 5
+            },
+            {
+              "comm": "kworker/R-slub_",
+              "cpu_cores": 0.0,
+              "pid": 6
+            },
+            {
+              "comm": "kworker/R-netns",
+              "cpu_cores": 0.0,
+              "pid": 7
+            },
+            {
+              "comm": "kworker/0:0H-events_highpri",
+              "cpu_cores": 0.0,
+              "pid": 10
+            },
+            {
+              "comm": "kworker/R-mm_pe",
+              "cpu_cores": 0.0,
+              "pid": 12
+            },
+            {
+              "comm": "rcu_tasks_kthread",
+              "cpu_cores": 0.0,
+              "pid": 13
+            }
+          ]
+        },
+        "payload_codec_us": {
+          "max": 86.21199999999999,
+          "mean": 43.36682999999996,
+          "min": 22.723,
+          "n": 300,
+          "p50": 44.283,
+          "p99": 78.578
+        },
+        "run": 0,
+        "setup_flight_us": {
+          "max": 3432.636,
+          "mean": 992.6984666666668,
+          "min": 767.534,
+          "n": 300,
+          "p50": 987.9279999999999,
+          "p99": 1295.106
+        }
+      },
+      {
+        "apply_flight_us": {
+          "max": 2348.247,
+          "mean": 1112.5210599999998,
+          "min": 842.846,
+          "n": 300,
+          "p50": 1132.38,
+          "p99": 1852.865
+        },
+        "commit_flight_us": {
+          "max": 34168.269,
+          "mean": 3513.4505133333346,
+          "min": 3000.203,
+          "n": 300,
+          "p50": 3277.695,
+          "p99": 7304.98
+        },
+        "cycle_us": {
+          "max": 36286.763,
+          "mean": 5643.759099999999,
+          "min": 4706.051,
+          "n": 300,
+          "p50": 5467.334,
+          "p99": 9640.763
+        },
+        "host_after": {
+          "loadavg": "2.74 2.78 2.79 6/1017 3324135\n",
+          "top": [
+            {
+              "comm": "opencode",
+              "cpu_cores": 1.262526950215911,
+              "pid": 3324048
+            },
+            {
+              "comm": "msuite",
+              "cpu_cores": 0.6312634751079556,
+              "pid": 3323580
+            },
+            {
+              "comm": "fleet",
+              "cpu_cores": 0.6312634751079556,
+              "pid": 3324012
+            },
+            {
+              "comm": "fleet",
+              "cpu_cores": 0.6312634751079556,
+              "pid": 3324021
+            },
+            {
+              "comm": "opencode",
+              "cpu_cores": 0.6312634751079556,
+              "pid": 3324075
+            },
+            {
+              "comm": "systemd",
+              "cpu_cores": 0.0,
+              "pid": 1
+            },
+            {
+              "comm": "kthreadd",
+              "cpu_cores": 0.0,
+              "pid": 2
+            },
+            {
+              "comm": "pool_workqueue_release",
+              "cpu_cores": 0.0,
+              "pid": 3
+            },
+            {
+              "comm": "kworker/R-rcu_g",
+              "cpu_cores": 0.0,
+              "pid": 4
+            },
+            {
+              "comm": "kworker/R-rcu_p",
+              "cpu_cores": 0.0,
+              "pid": 5
+            },
+            {
+              "comm": "kworker/R-slub_",
+              "cpu_cores": 0.0,
+              "pid": 6
+            },
+            {
+              "comm": "kworker/R-netns",
+              "cpu_cores": 0.0,
+              "pid": 7
+            }
+          ]
+        },
+        "host_before": {
+          "loadavg": "2.72 2.77 2.79 2/989 3323881\n",
+          "top": [
+            {
+              "comm": "msuite",
+              "cpu_cores": 0.5481893524962789,
+              "pid": 3323580
+            },
+            {
+              "comm": "claude",
+              "cpu_cores": 0.5481893524962789,
+              "pid": 3323826
+            },
+            {
+              "comm": "systemd",
+              "cpu_cores": 0.0,
+              "pid": 1
+            },
+            {
+              "comm": "kthreadd",
+              "cpu_cores": 0.0,
+              "pid": 2
+            },
+            {
+              "comm": "pool_workqueue_release",
+              "cpu_cores": 0.0,
+              "pid": 3
+            },
+            {
+              "comm": "kworker/R-rcu_g",
+              "cpu_cores": 0.0,
+              "pid": 4
+            },
+            {
+              "comm": "kworker/R-rcu_p",
+              "cpu_cores": 0.0,
+              "pid": 5
+            },
+            {
+              "comm": "kworker/R-slub_",
+              "cpu_cores": 0.0,
+              "pid": 6
+            },
+            {
+              "comm": "kworker/R-netns",
+              "cpu_cores": 0.0,
+              "pid": 7
+            },
+            {
+              "comm": "kworker/0:0H-events_highpri",
+              "cpu_cores": 0.0,
+              "pid": 10
+            },
+            {
+              "comm": "kworker/R-mm_pe",
+              "cpu_cores": 0.0,
+              "pid": 12
+            },
+            {
+              "comm": "rcu_tasks_kthread",
+              "cpu_cores": 0.0,
+              "pid": 13
+            }
+          ]
+        },
+        "payload_codec_us": {
+          "max": 93.156,
+          "mean": 46.853213333333386,
+          "min": 23.383999999999997,
+          "n": 300,
+          "p50": 47.829,
+          "p99": 86.472
+        },
+        "run": 1,
+        "setup_flight_us": {
+          "max": 2899.7039999999997,
+          "mean": 970.9343133333335,
+          "min": 757.976,
+          "n": 300,
+          "p50": 976.617,
+          "p99": 1526.1000000000001
+        }
+      },
+      {
+        "apply_flight_us": {
+          "max": 2602.125,
+          "mean": 1124.5670499999999,
+          "min": 845.169,
+          "n": 300,
+          "p50": 1141.777,
+          "p99": 1462.712
+        },
+        "commit_flight_us": {
+          "max": 7224.108,
+          "mean": 3054.1565066666685,
+          "min": 2787.002,
+          "n": 300,
+          "p50": 2917.157,
+          "p99": 5079.084
+        },
+        "cycle_us": {
+          "max": 9118.903,
+          "mean": 5209.339343333335,
+          "min": 4477.982999999999,
+          "n": 300,
+          "p50": 5107.327,
+          "p99": 7854.413
+        },
+        "host_after": {
+          "loadavg": "2.74 2.78 2.79 4/994 3324302\n",
+          "top": [
+            {
+              "comm": "fleet",
+              "cpu_cores": 1.239619964748927,
+              "pid": 3324266
+            },
+            {
+              "comm": "claude",
+              "cpu_cores": 1.239619964748927,
+              "pid": 3324291
+            },
+            {
+              "comm": "msuite",
+              "cpu_cores": 0.6198099823744635,
+              "pid": 3323580
+            },
+            {
+              "comm": "systemd",
+              "cpu_cores": 0.0,
+              "pid": 1
+            },
+            {
+              "comm": "kthreadd",
+              "cpu_cores": 0.0,
+              "pid": 2
+            },
+            {
+              "comm": "pool_workqueue_release",
+              "cpu_cores": 0.0,
+              "pid": 3
+            },
+            {
+              "comm": "kworker/R-rcu_g",
+              "cpu_cores": 0.0,
+              "pid": 4
+            },
+            {
+              "comm": "kworker/R-rcu_p",
+              "cpu_cores": 0.0,
+              "pid": 5
+            },
+            {
+              "comm": "kworker/R-slub_",
+              "cpu_cores": 0.0,
+              "pid": 6
+            },
+            {
+              "comm": "kworker/R-netns",
+              "cpu_cores": 0.0,
+              "pid": 7
+            },
+            {
+              "comm": "kworker/0:0H-events_highpri",
+              "cpu_cores": 0.0,
+              "pid": 10
+            },
+            {
+              "comm": "kworker/R-mm_pe",
+              "cpu_cores": 0.0,
+              "pid": 12
+            }
+          ]
+        },
+        "host_before": {
+          "loadavg": "2.74 2.78 2.79 5/1017 3324135\n",
+          "top": [
+            {
+              "comm": "opencode",
+              "cpu_cores": 1.371020023130479,
+              "pid": 3324048
+            },
+            {
+              "comm": "fleet",
+              "cpu_cores": 0.6855100115652395,
+              "pid": 3324012
+            },
+            {
+              "comm": "fleet",
+              "cpu_cores": 0.6855100115652395,
+              "pid": 3324021
+            },
+            {
+              "comm": "opencode",
+              "cpu_cores": 0.6855100115652395,
+              "pid": 3324075
+            },
+            {
+              "comm": "systemd",
+              "cpu_cores": 0.0,
+              "pid": 1
+            },
+            {
+              "comm": "kthreadd",
+              "cpu_cores": 0.0,
+              "pid": 2
+            },
+            {
+              "comm": "pool_workqueue_release",
+              "cpu_cores": 0.0,
+              "pid": 3
+            },
+            {
+              "comm": "kworker/R-rcu_g",
+              "cpu_cores": 0.0,
+              "pid": 4
+            },
+            {
+              "comm": "kworker/R-rcu_p",
+              "cpu_cores": 0.0,
+              "pid": 5
+            },
+            {
+              "comm": "kworker/R-slub_",
+              "cpu_cores": 0.0,
+              "pid": 6
+            },
+            {
+              "comm": "kworker/R-netns",
+              "cpu_cores": 0.0,
+              "pid": 7
+            },
+            {
+              "comm": "kworker/0:0H-events_highpri",
+              "cpu_cores": 0.0,
+              "pid": 10
+            }
+          ]
+        },
+        "payload_codec_us": {
+          "max": 94.548,
+          "mean": 47.15685000000002,
+          "min": 24.105999999999998,
+          "n": 300,
+          "p50": 45.385,
+          "p99": 79.74000000000001
+        },
+        "run": 2,
+        "setup_flight_us": {
+          "max": 3944.72,
+          "mean": 983.4589366666668,
+          "min": 779.877,
+          "n": 300,
+          "p50": 975.925,
+          "p99": 1708.8139999999999
+        }
+      }
+    ]
+  },
+  {
+    "source": "m2full-A-3-32.json",
+    "link": "A",
+    "FK": "current no-FK engine-created shape",
+    "arm": "M2-full-g3b",
+    "batch": 32,
+    "codec": "RT5 Prepared::command, same source, typed arrays and UTF8 hex encoding",
+    "first_read": "N known counters, model authority/receipt lookups; not product authorization",
+    "flights": 3,
+    "runs": [
+      {
+        "apply_flight_us": {
+          "max": 6911.6,
+          "mean": 3024.6596033333335,
+          "min": 1931.7640000000001,
+          "n": 300,
+          "p50": 3046.66,
+          "p99": 5308.596
+        },
+        "commit_flight_us": {
+          "max": 7508.232999999999,
+          "mean": 4057.8898200000017,
+          "min": 3225.107,
+          "n": 300,
+          "p50": 3523.4469999999997,
+          "p99": 7281.557
+        },
+        "cycle_us": {
+          "max": 13900.867,
+          "mean": 9085.837396666662,
+          "min": 6640.01,
+          "n": 300,
+          "p50": 8835.028,
+          "p99": 12870.259
+        },
+        "host_after": {
+          "loadavg": "2.92 2.81 2.80 1/941 3324636\n",
+          "top": [
+            {
+              "comm": "msuite",
+              "cpu_cores": 0.5694309426040943,
+              "pid": 3324305
+            },
+            {
+              "comm": "systemd",
+              "cpu_cores": 0.0,
+              "pid": 1
+            },
+            {
+              "comm": "kthreadd",
+              "cpu_cores": 0.0,
+              "pid": 2
+            },
+            {
+              "comm": "pool_workqueue_release",
+              "cpu_cores": 0.0,
+              "pid": 3
+            },
+            {
+              "comm": "kworker/R-rcu_g",
+              "cpu_cores": 0.0,
+              "pid": 4
+            },
+            {
+              "comm": "kworker/R-rcu_p",
+              "cpu_cores": 0.0,
+              "pid": 5
+            },
+            {
+              "comm": "kworker/R-slub_",
+              "cpu_cores": 0.0,
+              "pid": 6
+            },
+            {
+              "comm": "kworker/R-netns",
+              "cpu_cores": 0.0,
+              "pid": 7
+            },
+            {
+              "comm": "kworker/0:0H-events_highpri",
+              "cpu_cores": 0.0,
+              "pid": 10
+            },
+            {
+              "comm": "kworker/R-mm_pe",
+              "cpu_cores": 0.0,
+              "pid": 12
+            },
+            {
+              "comm": "rcu_tasks_kthread",
+              "cpu_cores": 0.0,
+              "pid": 13
+            },
+            {
+              "comm": "rcu_tasks_rude_kthread",
+              "cpu_cores": 0.0,
+              "pid": 14
+            }
+          ]
+        },
+        "host_before": {
+          "loadavg": "2.74 2.78 2.79 3/975 3324432\n",
+          "top": [
+            {
+              "comm": "fleet",
+              "cpu_cores": 1.6694127579082727,
+              "pid": 3324379
+            },
+            {
+              "comm": "msuite",
+              "cpu_cores": 1.1129418386055152,
+              "pid": 3324305
+            },
+            {
+              "comm": "python3",
+              "cpu_cores": 0.5564709193027576,
+              "pid": 3253761
+            },
+            {
+              "comm": "systemd",
+              "cpu_cores": 0.0,
+              "pid": 1
+            },
+            {
+              "comm": "kthreadd",
+              "cpu_cores": 0.0,
+              "pid": 2
+            },
+            {
+              "comm": "pool_workqueue_release",
+              "cpu_cores": 0.0,
+              "pid": 3
+            },
+            {
+              "comm": "kworker/R-rcu_g",
+              "cpu_cores": 0.0,
+              "pid": 4
+            },
+            {
+              "comm": "kworker/R-rcu_p",
+              "cpu_cores": 0.0,
+              "pid": 5
+            },
+            {
+              "comm": "kworker/R-slub_",
+              "cpu_cores": 0.0,
+              "pid": 6
+            },
+            {
+              "comm": "kworker/R-netns",
+              "cpu_cores": 0.0,
+              "pid": 7
+            },
+            {
+              "comm": "kworker/0:0H-events_highpri",
+              "cpu_cores": 0.0,
+              "pid": 10
+            },
+            {
+              "comm": "kworker/R-mm_pe",
+              "cpu_cores": 0.0,
+              "pid": 12
+            }
+          ]
+        },
+        "payload_codec_us": {
+          "max": 1219.795,
+          "mean": 661.2487366666666,
+          "min": 358.254,
+          "n": 300,
+          "p50": 698.033,
+          "p99": 1116.8809999999999
+        },
+        "run": 0,
+        "setup_flight_us": {
+          "max": 2175.191,
+          "mean": 1342.0392366666658,
+          "min": 943.545,
+          "n": 300,
+          "p50": 1360.95,
+          "p99": 2026.091
+        }
+      },
+      {
+        "apply_flight_us": {
+          "max": 5271.346,
+          "mean": 2867.0817300000012,
+          "min": 1936.733,
+          "n": 300,
+          "p50": 2872.123,
+          "p99": 4734.765
+        },
+        "commit_flight_us": {
+          "max": 21375.625999999997,
+          "mean": 3586.2178599999984,
+          "min": 3082.919,
+          "n": 300,
+          "p50": 3293.465,
+          "p99": 8151.032000000001
+        },
+        "cycle_us": {
+          "max": 26282.606,
+          "mean": 8360.412099999996,
+          "min": 6445.272999999999,
+          "n": 300,
+          "p50": 8175.778,
+          "p99": 14951.604000000001
+        },
+        "host_after": {
+          "loadavg": "2.92 2.81 2.80 4/941 3325072\n",
+          "top": [
+            {
+              "comm": "systemd",
+              "cpu_cores": 0.0,
+              "pid": 1
+            },
+            {
+              "comm": "kthreadd",
+              "cpu_cores": 0.0,
+              "pid": 2
+            },
+            {
+              "comm": "pool_workqueue_release",
+              "cpu_cores": 0.0,
+              "pid": 3
+            },
+            {
+              "comm": "kworker/R-rcu_g",
+              "cpu_cores": 0.0,
+              "pid": 4
+            },
+            {
+              "comm": "kworker/R-rcu_p",
+              "cpu_cores": 0.0,
+              "pid": 5
+            },
+            {
+              "comm": "kworker/R-slub_",
+              "cpu_cores": 0.0,
+              "pid": 6
+            },
+            {
+              "comm": "kworker/R-netns",
+              "cpu_cores": 0.0,
+              "pid": 7
+            },
+            {
+              "comm": "kworker/0:0H-events_highpri",
+              "cpu_cores": 0.0,
+              "pid": 10
+            },
+            {
+              "comm": "kworker/R-mm_pe",
+              "cpu_cores": 0.0,
+              "pid": 12
+            },
+            {
+              "comm": "rcu_tasks_kthread",
+              "cpu_cores": 0.0,
+              "pid": 13
+            },
+            {
+              "comm": "rcu_tasks_rude_kthread",
+              "cpu_cores": 0.0,
+              "pid": 14
+            },
+            {
+              "comm": "rcu_tasks_trace_kthread",
+              "cpu_cores": 0.0,
+              "pid": 15
+            }
+          ]
+        },
+        "host_before": {
+          "loadavg": "2.92 2.81 2.80 1/941 3324636\n",
+          "top": [
+            {
+              "comm": "msuite",
+              "cpu_cores": 0.5700009957917397,
+              "pid": 3324305
+            },
+            {
+              "comm": "systemd",
+              "cpu_cores": 0.0,
+              "pid": 1
+            },
+            {
+              "comm": "kthreadd",
+              "cpu_cores": 0.0,
+              "pid": 2
+            },
+            {
+              "comm": "pool_workqueue_release",
+              "cpu_cores": 0.0,
+              "pid": 3
+            },
+            {
+              "comm": "kworker/R-rcu_g",
+              "cpu_cores": 0.0,
+              "pid": 4
+            },
+            {
+              "comm": "kworker/R-rcu_p",
+              "cpu_cores": 0.0,
+              "pid": 5
+            },
+            {
+              "comm": "kworker/R-slub_",
+              "cpu_cores": 0.0,
+              "pid": 6
+            },
+            {
+              "comm": "kworker/R-netns",
+              "cpu_cores": 0.0,
+              "pid": 7
+            },
+            {
+              "comm": "kworker/0:0H-events_highpri",
+              "cpu_cores": 0.0,
+              "pid": 10
+            },
+            {
+              "comm": "kworker/R-mm_pe",
+              "cpu_cores": 0.0,
+              "pid": 12
+            },
+            {
+              "comm": "rcu_tasks_kthread",
+              "cpu_cores": 0.0,
+              "pid": 13
+            },
+            {
+              "comm": "rcu_tasks_rude_kthread",
+              "cpu_cores": 0.0,
+              "pid": 14
+            }
+          ]
+        },
+        "payload_codec_us": {
+          "max": 1228.881,
+          "mean": 592.58268,
+          "min": 362.01099999999997,
+          "n": 300,
+          "p50": 564.121,
+          "p99": 1059.923
+        },
+        "run": 1,
+        "setup_flight_us": {
+          "max": 5066.639999999999,
+          "mean": 1314.5298299999997,
+          "min": 940.499,
+          "n": 300,
+          "p50": 1314.422,
+          "p99": 2834.922
+        }
+      },
+      {
+        "apply_flight_us": {
+          "max": 6158.093,
+          "mean": 3091.11183,
+          "min": 1909.181,
+          "n": 300,
+          "p50": 3259.862,
+          "p99": 5028.358
+        },
+        "commit_flight_us": {
+          "max": 15433.46,
+          "mean": 3563.3516533333327,
+          "min": 3199.8489999999997,
+          "n": 300,
+          "p50": 3360.501,
+          "p99": 12097.956
+        },
+        "cycle_us": {
+          "max": 20430.559,
+          "mean": 8638.779859999991,
+          "min": 6496.83,
+          "n": 300,
+          "p50": 8682.762,
+          "p99": 17575.539
+        },
+        "host_after": {
+          "loadavg": "2.69 2.77 2.79 1/920 3325317\n",
+          "top": [
+            {
+              "comm": "msuite",
+              "cpu_cores": 0.5723035090331813,
+              "pid": 3324305
+            },
+            {
+              "comm": "systemd",
+              "cpu_cores": 0.0,
+              "pid": 1
+            },
+            {
+              "comm": "kthreadd",
+              "cpu_cores": 0.0,
+              "pid": 2
+            },
+            {
+              "comm": "pool_workqueue_release",
+              "cpu_cores": 0.0,
+              "pid": 3
+            },
+            {
+              "comm": "kworker/R-rcu_g",
+              "cpu_cores": 0.0,
+              "pid": 4
+            },
+            {
+              "comm": "kworker/R-rcu_p",
+              "cpu_cores": 0.0,
+              "pid": 5
+            },
+            {
+              "comm": "kworker/R-slub_",
+              "cpu_cores": 0.0,
+              "pid": 6
+            },
+            {
+              "comm": "kworker/R-netns",
+              "cpu_cores": 0.0,
+              "pid": 7
+            },
+            {
+              "comm": "kworker/0:0H-events_highpri",
+              "cpu_cores": 0.0,
+              "pid": 10
+            },
+            {
+              "comm": "kworker/R-mm_pe",
+              "cpu_cores": 0.0,
+              "pid": 12
+            },
+            {
+              "comm": "rcu_tasks_kthread",
+              "cpu_cores": 0.0,
+              "pid": 13
+            },
+            {
+              "comm": "rcu_tasks_rude_kthread",
+              "cpu_cores": 0.0,
+              "pid": 14
+            }
+          ]
+        },
+        "host_before": {
+          "loadavg": "2.92 2.81 2.80 1/941 3325072\n",
+          "top": [
+            {
+              "comm": "msuite",
+              "cpu_cores": 1.349672194991461,
+              "pid": 3324305
+            },
+            {
+              "comm": "claude",
+              "cpu_cores": 0.6748360974957305,
+              "pid": 601637
+            },
+            {
+              "comm": "claude",
+              "cpu_cores": 0.6748360974957305,
+              "pid": 601653
+            },
+            {
+              "comm": "claude",
+              "cpu_cores": 0.6748360974957305,
+              "pid": 601710
+            },
+            {
+              "comm": "systemd",
+              "cpu_cores": 0.0,
+              "pid": 1
+            },
+            {
+              "comm": "kthreadd",
+              "cpu_cores": 0.0,
+              "pid": 2
+            },
+            {
+              "comm": "pool_workqueue_release",
+              "cpu_cores": 0.0,
+              "pid": 3
+            },
+            {
+              "comm": "kworker/R-rcu_g",
+              "cpu_cores": 0.0,
+              "pid": 4
+            },
+            {
+              "comm": "kworker/R-rcu_p",
+              "cpu_cores": 0.0,
+              "pid": 5
+            },
+            {
+              "comm": "kworker/R-slub_",
+              "cpu_cores": 0.0,
+              "pid": 6
+            },
+            {
+              "comm": "kworker/R-netns",
+              "cpu_cores": 0.0,
+              "pid": 7
+            },
+            {
+              "comm": "kworker/0:0H-events_highpri",
+              "cpu_cores": 0.0,
+              "pid": 10
+            }
+          ]
+        },
+        "payload_codec_us": {
+          "max": 1155.223,
+          "mean": 661.9932399999999,
+          "min": 365.848,
+          "n": 300,
+          "p50": 640.725,
+          "p99": 1140.405
+        },
+        "run": 2,
+        "setup_flight_us": {
+          "max": 3731.268,
+          "mean": 1322.3231366666673,
+          "min": 939.417,
+          "n": 300,
+          "p50": 1327.126,
+          "p99": 1912.146
+        }
+      }
+    ]
+  },
+  {
+    "source": "m2full-B-2-1.json",
+    "link": "B",
+    "FK": "current no-FK engine-created shape",
+    "arm": "M2-full-g3b",
+    "batch": 1,
+    "codec": "RT5 Prepared::command, same source, typed arrays and UTF8 hex encoding",
+    "first_read": "N known counters, model authority/receipt lookups; not product authorization",
+    "flights": 2,
+    "runs": [
+      {
+        "apply_flight_us": {
+          "max": 14313.122,
+          "mean": 4325.460219999997,
+          "min": 3846.966,
+          "n": 300,
+          "p50": 4291.271,
+          "p99": 6626.965
+        },
+        "commit_flight_us": {
+          "max": 0.391,
+          "mean": 0.07792999999999997,
+          "min": 0.03,
+          "n": 300,
+          "p50": 0.07,
+          "p99": 0.15
+        },
+        "cycle_us": {
+          "max": 15915.326000000001,
+          "mean": 5870.819266666665,
+          "min": 5196.925,
+          "n": 300,
+          "p50": 5842.5,
+          "p99": 8162.193
+        },
+        "host_after": {
+          "loadavg": "3.05 2.86 2.82 1/943 3328791\n",
+          "top": [
+            {
+              "comm": "systemd",
+              "cpu_cores": 0.0,
+              "pid": 1
+            },
+            {
+              "comm": "kthreadd",
+              "cpu_cores": 0.0,
+              "pid": 2
+            },
+            {
+              "comm": "pool_workqueue_release",
+              "cpu_cores": 0.0,
+              "pid": 3
+            },
+            {
+              "comm": "kworker/R-rcu_g",
+              "cpu_cores": 0.0,
+              "pid": 4
+            },
+            {
+              "comm": "kworker/R-rcu_p",
+              "cpu_cores": 0.0,
+              "pid": 5
+            },
+            {
+              "comm": "kworker/R-slub_",
+              "cpu_cores": 0.0,
+              "pid": 6
+            },
+            {
+              "comm": "kworker/R-netns",
+              "cpu_cores": 0.0,
+              "pid": 7
+            },
+            {
+              "comm": "kworker/0:0H-events_highpri",
+              "cpu_cores": 0.0,
+              "pid": 10
+            },
+            {
+              "comm": "kworker/R-mm_pe",
+              "cpu_cores": 0.0,
+              "pid": 12
+            },
+            {
+              "comm": "rcu_tasks_kthread",
+              "cpu_cores": 0.0,
+              "pid": 13
+            },
+            {
+              "comm": "rcu_tasks_rude_kthread",
+              "cpu_cores": 0.0,
+              "pid": 14
+            },
+            {
+              "comm": "rcu_tasks_trace_kthread",
+              "cpu_cores": 0.0,
+              "pid": 15
+            }
+          ]
+        },
+        "host_before": {
+          "loadavg": "3.05 2.86 2.82 4/947 3328599\n",
+          "top": [
+            {
+              "comm": "fleet",
+              "cpu_cores": 1.0820117281415238,
+              "pid": 3328515
+            },
+            {
+              "comm": "claude",
+              "cpu_cores": 1.0820117281415238,
+              "pid": 3328580
+            },
+            {
+              "comm": "rcu_preempt",
+              "cpu_cores": 0.5410058640707619,
+              "pid": 17
+            },
+            {
+              "comm": "python3",
+              "cpu_cores": 0.5410058640707619,
+              "pid": 3253761
+            },
+            {
+              "comm": "msuite",
+              "cpu_cores": 0.5410058640707619,
+              "pid": 3328506
+            },
+            {
+              "comm": "systemd",
+              "cpu_cores": 0.0,
+              "pid": 1
+            },
+            {
+              "comm": "kthreadd",
+              "cpu_cores": 0.0,
+              "pid": 2
+            },
+            {
+              "comm": "pool_workqueue_release",
+              "cpu_cores": 0.0,
+              "pid": 3
+            },
+            {
+              "comm": "kworker/R-rcu_g",
+              "cpu_cores": 0.0,
+              "pid": 4
+            },
+            {
+              "comm": "kworker/R-rcu_p",
+              "cpu_cores": 0.0,
+              "pid": 5
+            },
+            {
+              "comm": "kworker/R-slub_",
+              "cpu_cores": 0.0,
+              "pid": 6
+            },
+            {
+              "comm": "kworker/R-netns",
+              "cpu_cores": 0.0,
+              "pid": 7
+            }
+          ]
+        },
+        "payload_codec_us": {
+          "max": 109.145,
+          "mean": 43.78690666666664,
+          "min": 22.523,
+          "n": 300,
+          "p50": 44.092999999999996,
+          "p99": 83.366
+        },
+        "run": 0,
+        "setup_flight_us": {
+          "max": 3108.297,
+          "mean": 1501.494210000001,
+          "min": 1265.871,
+          "n": 300,
+          "p50": 1502.255,
+          "p99": 2021.7730000000001
+        }
+      },
+      {
+        "apply_flight_us": {
+          "max": 4634.287,
+          "mean": 4265.7004966666655,
+          "min": 3885.368,
+          "n": 300,
+          "p50": 4290.922,
+          "p99": 4559.035000000001
+        },
+        "commit_flight_us": {
+          "max": 0.5810000000000001,
+          "mean": 0.08816999999999992,
+          "min": 0.03,
+          "n": 300,
+          "p50": 0.09,
+          "p99": 0.27099999999999996
+        },
+        "cycle_us": {
+          "max": 7406.170999999999,
+          "mean": 5777.139143333331,
+          "min": 5181.245999999999,
+          "n": 300,
+          "p50": 5809.117,
+          "p99": 6195.824
+        },
+        "host_after": {
+          "loadavg": "2.97 2.84 2.81 2/995 3328917\n",
+          "top": [
+            {
+              "comm": "python3",
+              "cpu_cores": 1.2732417549956916,
+              "pid": 3253761
+            },
+            {
+              "comm": "fleet",
+              "cpu_cores": 1.2732417549956916,
+              "pid": 3328887
+            },
+            {
+              "comm": "claude",
+              "cpu_cores": 1.2732417549956916,
+              "pid": 3328897
+            },
+            {
+              "comm": "msuite",
+              "cpu_cores": 0.6366208774978458,
+              "pid": 3328506
+            },
+            {
+              "comm": "systemd",
+              "cpu_cores": 0.0,
+              "pid": 1
+            },
+            {
+              "comm": "kthreadd",
+              "cpu_cores": 0.0,
+              "pid": 2
+            },
+            {
+              "comm": "pool_workqueue_release",
+              "cpu_cores": 0.0,
+              "pid": 3
+            },
+            {
+              "comm": "kworker/R-rcu_g",
+              "cpu_cores": 0.0,
+              "pid": 4
+            },
+            {
+              "comm": "kworker/R-rcu_p",
+              "cpu_cores": 0.0,
+              "pid": 5
+            },
+            {
+              "comm": "kworker/R-slub_",
+              "cpu_cores": 0.0,
+              "pid": 6
+            },
+            {
+              "comm": "kworker/R-netns",
+              "cpu_cores": 0.0,
+              "pid": 7
+            },
+            {
+              "comm": "kworker/0:0H-events_highpri",
+              "cpu_cores": 0.0,
+              "pid": 10
+            }
+          ]
+        },
+        "host_before": {
+          "loadavg": "3.05 2.86 2.82 2/936 3328791\n",
+          "top": [
+            {
+              "comm": "msuite",
+              "cpu_cores": 0.5713988913375871,
+              "pid": 3328506
+            },
+            {
+              "comm": "systemd",
+              "cpu_cores": 0.0,
+              "pid": 1
+            },
+            {
+              "comm": "kthreadd",
+              "cpu_cores": 0.0,
+              "pid": 2
+            },
+            {
+              "comm": "pool_workqueue_release",
+              "cpu_cores": 0.0,
+              "pid": 3
+            },
+            {
+              "comm": "kworker/R-rcu_g",
+              "cpu_cores": 0.0,
+              "pid": 4
+            },
+            {
+              "comm": "kworker/R-rcu_p",
+              "cpu_cores": 0.0,
+              "pid": 5
+            },
+            {
+              "comm": "kworker/R-slub_",
+              "cpu_cores": 0.0,
+              "pid": 6
+            },
+            {
+              "comm": "kworker/R-netns",
+              "cpu_cores": 0.0,
+              "pid": 7
+            },
+            {
+              "comm": "kworker/0:0H-events_highpri",
+              "cpu_cores": 0.0,
+              "pid": 10
+            },
+            {
+              "comm": "kworker/R-mm_pe",
+              "cpu_cores": 0.0,
+              "pid": 12
+            },
+            {
+              "comm": "rcu_tasks_kthread",
+              "cpu_cores": 0.0,
+              "pid": 13
+            },
+            {
+              "comm": "rcu_tasks_rude_kthread",
+              "cpu_cores": 0.0,
+              "pid": 14
+            }
+          ]
+        },
+        "payload_codec_us": {
+          "max": 94.978,
+          "mean": 46.58346,
+          "min": 22.733,
+          "n": 300,
+          "p50": 45.336,
+          "p99": 82.475
+        },
+        "run": 1,
+        "setup_flight_us": {
+          "max": 3334.743,
+          "mean": 1464.767016666667,
+          "min": 1257.2749999999999,
+          "n": 300,
+          "p50": 1470.466,
+          "p99": 1642.129
+        }
+      },
+      {
+        "apply_flight_us": {
+          "max": 26124.158000000003,
+          "mean": 4491.443543333332,
+          "min": 3911.177,
+          "n": 300,
+          "p50": 4340.384,
+          "p99": 6583.3640000000005
+        },
+        "commit_flight_us": {
+          "max": 0.351,
+          "mean": 0.07913666666666659,
+          "min": 0.03,
+          "n": 300,
+          "p50": 0.07,
+          "p99": 0.18
+        },
+        "cycle_us": {
+          "max": 27657.443,
+          "mean": 6075.370096666669,
+          "min": 5195.522999999999,
+          "n": 300,
+          "p50": 5868.408,
+          "p99": 9396.654
+        },
+        "host_after": {
+          "loadavg": "2.97 2.84 2.81 2/992 3329136\n",
+          "top": [
+            {
+              "comm": "fleet",
+              "cpu_cores": 2.0482850426237875,
+              "pid": 3329113
+            },
+            {
+              "comm": "python3",
+              "cpu_cores": 0.6827616808745959,
+              "pid": 3253761
+            },
+            {
+              "comm": "systemd",
+              "cpu_cores": 0.0,
+              "pid": 1
+            },
+            {
+              "comm": "kthreadd",
+              "cpu_cores": 0.0,
+              "pid": 2
+            },
+            {
+              "comm": "pool_workqueue_release",
+              "cpu_cores": 0.0,
+              "pid": 3
+            },
+            {
+              "comm": "kworker/R-rcu_g",
+              "cpu_cores": 0.0,
+              "pid": 4
+            },
+            {
+              "comm": "kworker/R-rcu_p",
+              "cpu_cores": 0.0,
+              "pid": 5
+            },
+            {
+              "comm": "kworker/R-slub_",
+              "cpu_cores": 0.0,
+              "pid": 6
+            },
+            {
+              "comm": "kworker/R-netns",
+              "cpu_cores": 0.0,
+              "pid": 7
+            },
+            {
+              "comm": "kworker/0:0H-events_highpri",
+              "cpu_cores": 0.0,
+              "pid": 10
+            },
+            {
+              "comm": "kworker/R-mm_pe",
+              "cpu_cores": 0.0,
+              "pid": 12
+            },
+            {
+              "comm": "rcu_tasks_kthread",
+              "cpu_cores": 0.0,
+              "pid": 13
+            }
+          ]
+        },
+        "host_before": {
+          "loadavg": "2.97 2.84 2.81 2/995 3328917\n",
+          "top": [
+            {
+              "comm": "claude",
+              "cpu_cores": 0.709422420898336,
+              "pid": 3328897
+            },
+            {
+              "comm": "systemd",
+              "cpu_cores": 0.0,
+              "pid": 1
+            },
+            {
+              "comm": "kthreadd",
+              "cpu_cores": 0.0,
+              "pid": 2
+            },
+            {
+              "comm": "pool_workqueue_release",
+              "cpu_cores": 0.0,
+              "pid": 3
+            },
+            {
+              "comm": "kworker/R-rcu_g",
+              "cpu_cores": 0.0,
+              "pid": 4
+            },
+            {
+              "comm": "kworker/R-rcu_p",
+              "cpu_cores": 0.0,
+              "pid": 5
+            },
+            {
+              "comm": "kworker/R-slub_",
+              "cpu_cores": 0.0,
+              "pid": 6
+            },
+            {
+              "comm": "kworker/R-netns",
+              "cpu_cores": 0.0,
+              "pid": 7
+            },
+            {
+              "comm": "kworker/0:0H-events_highpri",
+              "cpu_cores": 0.0,
+              "pid": 10
+            },
+            {
+              "comm": "kworker/R-mm_pe",
+              "cpu_cores": 0.0,
+              "pid": 12
+            },
+            {
+              "comm": "rcu_tasks_kthread",
+              "cpu_cores": 0.0,
+              "pid": 13
+            },
+            {
+              "comm": "rcu_tasks_rude_kthread",
+              "cpu_cores": 0.0,
+              "pid": 14
+            }
+          ]
+        },
+        "payload_codec_us": {
+          "max": 3049.366,
+          "mean": 52.81417666666669,
+          "min": 22.662000000000003,
+          "n": 300,
+          "p50": 43.071,
+          "p99": 86.413
+        },
+        "run": 2,
+        "setup_flight_us": {
+          "max": 4779.941,
+          "mean": 1531.0332400000004,
+          "min": 1253.6879999999999,
+          "n": 300,
+          "p50": 1486.336,
+          "p99": 3802.623
+        }
+      }
+    ]
+  },
+  {
+    "source": "m2full-B-2-32.json",
+    "link": "B",
+    "FK": "current no-FK engine-created shape",
+    "arm": "M2-full-g3b",
+    "batch": 32,
+    "codec": "RT5 Prepared::command, same source, typed arrays and UTF8 hex encoding",
+    "first_read": "N known counters, model authority/receipt lookups; not product authorization",
+    "flights": 2,
+    "runs": [
+      {
+        "apply_flight_us": {
+          "max": 9266.651,
+          "mean": 6359.275363333339,
+          "min": 4980.909000000001,
+          "n": 300,
+          "p50": 6410.568,
+          "p99": 8948.462000000001
+        },
+        "commit_flight_us": {
+          "max": 0.31,
+          "mean": 0.06322666666666663,
+          "min": 0.02,
+          "n": 300,
+          "p50": 0.049999999999999996,
+          "p99": 0.151
+        },
+        "cycle_us": {
+          "max": 12196.851999999999,
+          "mean": 8889.353026666671,
+          "min": 6998.955,
+          "n": 300,
+          "p50": 8959.262,
+          "p99": 11803.071
+        },
+        "host_after": {
+          "loadavg": "2.89 2.83 2.81 2/997 3329475\n",
+          "top": [
+            {
+              "comm": "fleet",
+              "cpu_cores": 2.0211902937860726,
+              "pid": 3329445
+            },
+            {
+              "comm": "claude",
+              "cpu_cores": 1.3474601958573817,
+              "pid": 3329458
+            },
+            {
+              "comm": "msuite",
+              "cpu_cores": 0.6737300979286909,
+              "pid": 3329138
+            },
+            {
+              "comm": "systemd",
+              "cpu_cores": 0.0,
+              "pid": 1
+            },
+            {
+              "comm": "kthreadd",
+              "cpu_cores": 0.0,
+              "pid": 2
+            },
+            {
+              "comm": "pool_workqueue_release",
+              "cpu_cores": 0.0,
+              "pid": 3
+            },
+            {
+              "comm": "kworker/R-rcu_g",
+              "cpu_cores": 0.0,
+              "pid": 4
+            },
+            {
+              "comm": "kworker/R-rcu_p",
+              "cpu_cores": 0.0,
+              "pid": 5
+            },
+            {
+              "comm": "kworker/R-slub_",
+              "cpu_cores": 0.0,
+              "pid": 6
+            },
+            {
+              "comm": "kworker/R-netns",
+              "cpu_cores": 0.0,
+              "pid": 7
+            },
+            {
+              "comm": "kworker/0:0H-events_highpri",
+              "cpu_cores": 0.0,
+              "pid": 10
+            },
+            {
+              "comm": "kworker/R-mm_pe",
+              "cpu_cores": 0.0,
+              "pid": 12
+            }
+          ]
+        },
+        "host_before": {
+          "loadavg": "2.97 2.84 2.81 2/996 3329297\n",
+          "top": [
+            {
+              "comm": "msuite",
+              "cpu_cores": 0.5493388404918319,
+              "pid": 3329138
+            },
+            {
+              "comm": "fleet",
+              "cpu_cores": 0.5493388404918319,
+              "pid": 3329247
+            },
+            {
+              "comm": "systemd",
+              "cpu_cores": 0.0,
+              "pid": 1
+            },
+            {
+              "comm": "kthreadd",
+              "cpu_cores": 0.0,
+              "pid": 2
+            },
+            {
+              "comm": "pool_workqueue_release",
+              "cpu_cores": 0.0,
+              "pid": 3
+            },
+            {
+              "comm": "kworker/R-rcu_g",
+              "cpu_cores": 0.0,
+              "pid": 4
+            },
+            {
+              "comm": "kworker/R-rcu_p",
+              "cpu_cores": 0.0,
+              "pid": 5
+            },
+            {
+              "comm": "kworker/R-slub_",
+              "cpu_cores": 0.0,
+              "pid": 6
+            },
+            {
+              "comm": "kworker/R-netns",
+              "cpu_cores": 0.0,
+              "pid": 7
+            },
+            {
+              "comm": "kworker/0:0H-events_highpri",
+              "cpu_cores": 0.0,
+              "pid": 10
+            },
+            {
+              "comm": "kworker/R-mm_pe",
+              "cpu_cores": 0.0,
+              "pid": 12
+            },
+            {
+              "comm": "rcu_tasks_kthread",
+              "cpu_cores": 0.0,
+              "pid": 13
+            }
+          ]
+        },
+        "payload_codec_us": {
+          "max": 1227.208,
+          "mean": 696.2678033333333,
+          "min": 366.83,
+          "n": 300,
+          "p50": 722.899,
+          "p99": 1026.1999999999998
+        },
+        "run": 0,
+        "setup_flight_us": {
+          "max": 3865.8920000000003,
+          "mean": 1833.746633333332,
+          "min": 1436.893,
+          "n": 300,
+          "p50": 1827.979,
+          "p99": 2666.1150000000002
+        }
+      },
+      {
+        "apply_flight_us": {
+          "max": 9877.92,
+          "mean": 6256.208833333332,
+          "min": 5011.535999999999,
+          "n": 300,
+          "p50": 6410.107,
+          "p99": 8531.237000000001
+        },
+        "commit_flight_us": {
+          "max": 0.191,
+          "mean": 0.060673333333333294,
+          "min": 0.02,
+          "n": 300,
+          "p50": 0.049999999999999996,
+          "p99": 0.18
+        },
+        "cycle_us": {
+          "max": 12176.734,
+          "mean": 8660.681459999998,
+          "min": 6944.442,
+          "n": 300,
+          "p50": 8864.844000000001,
+          "p99": 11160.242
+        },
+        "host_after": {
+          "loadavg": "2.90 2.83 2.81 3/939 3329698\n",
+          "top": [
+            {
+              "comm": "python3",
+              "cpu_cores": 1.0647097018424216,
+              "pid": 3253761
+            },
+            {
+              "comm": "claude",
+              "cpu_cores": 0.5323548509212108,
+              "pid": 601631
+            },
+            {
+              "comm": "msuite",
+              "cpu_cores": 0.5323548509212108,
+              "pid": 3329138
+            },
+            {
+              "comm": "systemd",
+              "cpu_cores": 0.0,
+              "pid": 1
+            },
+            {
+              "comm": "kthreadd",
+              "cpu_cores": 0.0,
+              "pid": 2
+            },
+            {
+              "comm": "pool_workqueue_release",
+              "cpu_cores": 0.0,
+              "pid": 3
+            },
+            {
+              "comm": "kworker/R-rcu_g",
+              "cpu_cores": 0.0,
+              "pid": 4
+            },
+            {
+              "comm": "kworker/R-rcu_p",
+              "cpu_cores": 0.0,
+              "pid": 5
+            },
+            {
+              "comm": "kworker/R-slub_",
+              "cpu_cores": 0.0,
+              "pid": 6
+            },
+            {
+              "comm": "kworker/R-netns",
+              "cpu_cores": 0.0,
+              "pid": 7
+            },
+            {
+              "comm": "kworker/0:0H-events_highpri",
+              "cpu_cores": 0.0,
+              "pid": 10
+            },
+            {
+              "comm": "kworker/R-mm_pe",
+              "cpu_cores": 0.0,
+              "pid": 12
+            }
+          ]
+        },
+        "host_before": {
+          "loadavg": "2.89 2.83 2.81 2/998 3329476\n",
+          "top": [
+            {
+              "comm": "claude",
+              "cpu_cores": 1.7940143786664422,
+              "pid": 3329458
+            },
+            {
+              "comm": "msuite",
+              "cpu_cores": 0.5980047928888141,
+              "pid": 3329138
+            },
+            {
+              "comm": "systemd",
+              "cpu_cores": 0.0,
+              "pid": 1
+            },
+            {
+              "comm": "kthreadd",
+              "cpu_cores": 0.0,
+              "pid": 2
+            },
+            {
+              "comm": "pool_workqueue_release",
+              "cpu_cores": 0.0,
+              "pid": 3
+            },
+            {
+              "comm": "kworker/R-rcu_g",
+              "cpu_cores": 0.0,
+              "pid": 4
+            },
+            {
+              "comm": "kworker/R-rcu_p",
+              "cpu_cores": 0.0,
+              "pid": 5
+            },
+            {
+              "comm": "kworker/R-slub_",
+              "cpu_cores": 0.0,
+              "pid": 6
+            },
+            {
+              "comm": "kworker/R-netns",
+              "cpu_cores": 0.0,
+              "pid": 7
+            },
+            {
+              "comm": "kworker/0:0H-events_highpri",
+              "cpu_cores": 0.0,
+              "pid": 10
+            },
+            {
+              "comm": "kworker/R-mm_pe",
+              "cpu_cores": 0.0,
+              "pid": 12
+            },
+            {
+              "comm": "rcu_tasks_kthread",
+              "cpu_cores": 0.0,
+              "pid": 13
+            }
+          ]
+        },
+        "payload_codec_us": {
+          "max": 1014.9490000000001,
+          "mean": 612.0325066666669,
+          "min": 362.983,
+          "n": 300,
+          "p50": 595.1189999999999,
+          "p99": 960.446
+        },
+        "run": 1,
+        "setup_flight_us": {
+          "max": 2811.839,
+          "mean": 1792.3794466666673,
+          "min": 1440.4389999999999,
+          "n": 300,
+          "p50": 1822.297,
+          "p99": 2387.9320000000002
+        }
+      },
+      {
+        "apply_flight_us": {
+          "max": 20435.839,
+          "mean": 6421.938346666666,
+          "min": 4998.463,
+          "n": 300,
+          "p50": 6419.6849999999995,
+          "p99": 11065.925000000001
+        },
+        "commit_flight_us": {
+          "max": 9.558,
+          "mean": 0.10602666666666653,
+          "min": 0.02,
+          "n": 300,
+          "p50": 0.061000000000000006,
+          "p99": 0.19
+        },
+        "cycle_us": {
+          "max": 22623.885,
+          "mean": 8916.988980000002,
+          "min": 6896.021,
+          "n": 300,
+          "p50": 8954.935000000001,
+          "p99": 13443.176
+        },
+        "host_after": {
+          "loadavg": "2.90 2.83 2.81 3/952 3329967\n",
+          "top": [
+            {
+              "comm": "python3",
+              "cpu_cores": 1.0478868575602156,
+              "pid": 3253761
+            },
+            {
+              "comm": "msuite",
+              "cpu_cores": 0.5239434287801078,
+              "pid": 3329138
+            },
+            {
+              "comm": "systemd",
+              "cpu_cores": 0.0,
+              "pid": 1
+            },
+            {
+              "comm": "kthreadd",
+              "cpu_cores": 0.0,
+              "pid": 2
+            },
+            {
+              "comm": "pool_workqueue_release",
+              "cpu_cores": 0.0,
+              "pid": 3
+            },
+            {
+              "comm": "kworker/R-rcu_g",
+              "cpu_cores": 0.0,
+              "pid": 4
+            },
+            {
+              "comm": "kworker/R-rcu_p",
+              "cpu_cores": 0.0,
+              "pid": 5
+            },
+            {
+              "comm": "kworker/R-slub_",
+              "cpu_cores": 0.0,
+              "pid": 6
+            },
+            {
+              "comm": "kworker/R-netns",
+              "cpu_cores": 0.0,
+              "pid": 7
+            },
+            {
+              "comm": "kworker/0:0H-events_highpri",
+              "cpu_cores": 0.0,
+              "pid": 10
+            },
+            {
+              "comm": "kworker/R-mm_pe",
+              "cpu_cores": 0.0,
+              "pid": 12
+            },
+            {
+              "comm": "rcu_tasks_kthread",
+              "cpu_cores": 0.0,
+              "pid": 13
+            }
+          ]
+        },
+        "host_before": {
+          "loadavg": "2.90 2.83 2.81 1/939 3329698\n",
+          "top": [
+            {
+              "comm": "python3",
+              "cpu_cores": 0.5345704862458489,
+              "pid": 3253761
+            },
+            {
+              "comm": "msuite",
+              "cpu_cores": 0.5345704862458489,
+              "pid": 3329138
+            },
+            {
+              "comm": "systemd",
+              "cpu_cores": 0.0,
+              "pid": 1
+            },
+            {
+              "comm": "kthreadd",
+              "cpu_cores": 0.0,
+              "pid": 2
+            },
+            {
+              "comm": "pool_workqueue_release",
+              "cpu_cores": 0.0,
+              "pid": 3
+            },
+            {
+              "comm": "kworker/R-rcu_g",
+              "cpu_cores": 0.0,
+              "pid": 4
+            },
+            {
+              "comm": "kworker/R-rcu_p",
+              "cpu_cores": 0.0,
+              "pid": 5
+            },
+            {
+              "comm": "kworker/R-slub_",
+              "cpu_cores": 0.0,
+              "pid": 6
+            },
+            {
+              "comm": "kworker/R-netns",
+              "cpu_cores": 0.0,
+              "pid": 7
+            },
+            {
+              "comm": "kworker/0:0H-events_highpri",
+              "cpu_cores": 0.0,
+              "pid": 10
+            },
+            {
+              "comm": "kworker/R-mm_pe",
+              "cpu_cores": 0.0,
+              "pid": 12
+            },
+            {
+              "comm": "rcu_tasks_kthread",
+              "cpu_cores": 0.0,
+              "pid": 13
+            }
+          ]
+        },
+        "payload_codec_us": {
+          "max": 1250.001,
+          "mean": 676.5779466666665,
+          "min": 368.543,
+          "n": 300,
+          "p50": 730.644,
+          "p99": 1215.587
+        },
+        "run": 2,
+        "setup_flight_us": {
+          "max": 2527.1040000000003,
+          "mean": 1818.3666600000008,
+          "min": 1437.674,
+          "n": 300,
+          "p50": 1840.011,
+          "p99": 2474.715
+        }
+      }
+    ]
+  },
+  {
+    "source": "m2full-B-3-1.json",
+    "link": "B",
+    "FK": "current no-FK engine-created shape",
+    "arm": "M2-full-g3b",
+    "batch": 1,
+    "codec": "RT5 Prepared::command, same source, typed arrays and UTF8 hex encoding",
+    "first_read": "N known counters, model authority/receipt lookups; not product authorization",
+    "flights": 3,
+    "runs": [
+      {
+        "apply_flight_us": {
+          "max": 3658.221,
+          "mean": 1641.1881999999996,
+          "min": 1368.805,
+          "n": 300,
+          "p50": 1645.315,
+          "p99": 2197.0119999999997
+        },
+        "commit_flight_us": {
+          "max": 6250.527,
+          "mean": 3693.7353166666667,
+          "min": 3505.564,
+          "n": 300,
+          "p50": 3654.674,
+          "p99": 5243.643
+        },
+        "cycle_us": {
+          "max": 10345.6,
+          "mean": 6896.131010000004,
+          "min": 6256.588000000001,
+          "n": 300,
+          "p50": 6842.741,
+          "p99": 9056.053999999998
+        },
+        "host_after": {
+          "loadavg": "3.07 2.85 2.81 1/973 3326958\n",
+          "top": [
+            {
+              "comm": "systemd",
+              "cpu_cores": 0.0,
+              "pid": 1
+            },
+            {
+              "comm": "kthreadd",
+              "cpu_cores": 0.0,
+              "pid": 2
+            },
+            {
+              "comm": "pool_workqueue_release",
+              "cpu_cores": 0.0,
+              "pid": 3
+            },
+            {
+              "comm": "kworker/R-rcu_g",
+              "cpu_cores": 0.0,
+              "pid": 4
+            },
+            {
+              "comm": "kworker/R-rcu_p",
+              "cpu_cores": 0.0,
+              "pid": 5
+            },
+            {
+              "comm": "kworker/R-slub_",
+              "cpu_cores": 0.0,
+              "pid": 6
+            },
+            {
+              "comm": "kworker/R-netns",
+              "cpu_cores": 0.0,
+              "pid": 7
+            },
+            {
+              "comm": "kworker/0:0H-events_highpri",
+              "cpu_cores": 0.0,
+              "pid": 10
+            },
+            {
+              "comm": "kworker/R-mm_pe",
+              "cpu_cores": 0.0,
+              "pid": 12
+            },
+            {
+              "comm": "rcu_tasks_kthread",
+              "cpu_cores": 0.0,
+              "pid": 13
+            },
+            {
+              "comm": "rcu_tasks_rude_kthread",
+              "cpu_cores": 0.0,
+              "pid": 14
+            },
+            {
+              "comm": "rcu_tasks_trace_kthread",
+              "cpu_cores": 0.0,
+              "pid": 15
+            }
+          ]
+        },
+        "host_before": {
+          "loadavg": "3.07 2.85 2.81 2/976 3326726\n",
+          "top": [
+            {
+              "comm": "fleet",
+              "cpu_cores": 1.3551742245862484,
+              "pid": 3326698
+            },
+            {
+              "comm": "systemd",
+              "cpu_cores": 0.0,
+              "pid": 1
+            },
+            {
+              "comm": "kthreadd",
+              "cpu_cores": 0.0,
+              "pid": 2
+            },
+            {
+              "comm": "pool_workqueue_release",
+              "cpu_cores": 0.0,
+              "pid": 3
+            },
+            {
+              "comm": "kworker/R-rcu_g",
+              "cpu_cores": 0.0,
+              "pid": 4
+            },
+            {
+              "comm": "kworker/R-rcu_p",
+              "cpu_cores": 0.0,
+              "pid": 5
+            },
+            {
+              "comm": "kworker/R-slub_",
+              "cpu_cores": 0.0,
+              "pid": 6
+            },
+            {
+              "comm": "kworker/R-netns",
+              "cpu_cores": 0.0,
+              "pid": 7
+            },
+            {
+              "comm": "kworker/0:0H-events_highpri",
+              "cpu_cores": 0.0,
+              "pid": 10
+            },
+            {
+              "comm": "kworker/R-mm_pe",
+              "cpu_cores": 0.0,
+              "pid": 12
+            },
+            {
+              "comm": "rcu_tasks_kthread",
+              "cpu_cores": 0.0,
+              "pid": 13
+            },
+            {
+              "comm": "rcu_tasks_rude_kthread",
+              "cpu_cores": 0.0,
+              "pid": 14
+            }
+          ]
+        },
+        "payload_codec_us": {
+          "max": 97.393,
+          "mean": 44.40366000000001,
+          "min": 22.172,
+          "n": 300,
+          "p50": 45.005,
+          "p99": 76.885
+        },
+        "run": 0,
+        "setup_flight_us": {
+          "max": 3142.781,
+          "mean": 1516.8038333333343,
+          "min": 1284.055,
+          "n": 300,
+          "p50": 1501.474,
+          "p99": 2139.5440000000003
+        }
+      },
+      {
+        "apply_flight_us": {
+          "max": 2001.415,
+          "mean": 1617.9651533333326,
+          "min": 1355.5590000000002,
+          "n": 300,
+          "p50": 1646.387,
+          "p99": 1886.689
+        },
+        "commit_flight_us": {
+          "max": 7506.86,
+          "mean": 3704.8441766666683,
+          "min": 3545.799,
+          "n": 300,
+          "p50": 3686.554,
+          "p99": 4163.681
+        },
+        "cycle_us": {
+          "max": 10653.9,
+          "mean": 6832.168266666669,
+          "min": 6238.705,
+          "n": 300,
+          "p50": 6867.748,
+          "p99": 7576.19
+        },
+        "host_after": {
+          "loadavg": "2.98 2.83 2.81 1/931 3327076\n",
+          "top": [
+            {
+              "comm": "systemd",
+              "cpu_cores": 0.0,
+              "pid": 1
+            },
+            {
+              "comm": "kthreadd",
+              "cpu_cores": 0.0,
+              "pid": 2
+            },
+            {
+              "comm": "pool_workqueue_release",
+              "cpu_cores": 0.0,
+              "pid": 3
+            },
+            {
+              "comm": "kworker/R-rcu_g",
+              "cpu_cores": 0.0,
+              "pid": 4
+            },
+            {
+              "comm": "kworker/R-rcu_p",
+              "cpu_cores": 0.0,
+              "pid": 5
+            },
+            {
+              "comm": "kworker/R-slub_",
+              "cpu_cores": 0.0,
+              "pid": 6
+            },
+            {
+              "comm": "kworker/R-netns",
+              "cpu_cores": 0.0,
+              "pid": 7
+            },
+            {
+              "comm": "kworker/0:0H-events_highpri",
+              "cpu_cores": 0.0,
+              "pid": 10
+            },
+            {
+              "comm": "kworker/R-mm_pe",
+              "cpu_cores": 0.0,
+              "pid": 12
+            },
+            {
+              "comm": "rcu_tasks_kthread",
+              "cpu_cores": 0.0,
+              "pid": 13
+            },
+            {
+              "comm": "rcu_tasks_rude_kthread",
+              "cpu_cores": 0.0,
+              "pid": 14
+            },
+            {
+              "comm": "rcu_tasks_trace_kthread",
+              "cpu_cores": 0.0,
+              "pid": 15
+            }
+          ]
+        },
+        "host_before": {
+          "loadavg": "3.07 2.85 2.81 1/973 3326958\n",
+          "top": [
+            {
+              "comm": "msuite",
+              "cpu_cores": 0.5634598644439528,
+              "pid": 3326667
+            },
+            {
+              "comm": "systemd",
+              "cpu_cores": 0.0,
+              "pid": 1
+            },
+            {
+              "comm": "kthreadd",
+              "cpu_cores": 0.0,
+              "pid": 2
+            },
+            {
+              "comm": "pool_workqueue_release",
+              "cpu_cores": 0.0,
+              "pid": 3
+            },
+            {
+              "comm": "kworker/R-rcu_g",
+              "cpu_cores": 0.0,
+              "pid": 4
+            },
+            {
+              "comm": "kworker/R-rcu_p",
+              "cpu_cores": 0.0,
+              "pid": 5
+            },
+            {
+              "comm": "kworker/R-slub_",
+              "cpu_cores": 0.0,
+              "pid": 6
+            },
+            {
+              "comm": "kworker/R-netns",
+              "cpu_cores": 0.0,
+              "pid": 7
+            },
+            {
+              "comm": "kworker/0:0H-events_highpri",
+              "cpu_cores": 0.0,
+              "pid": 10
+            },
+            {
+              "comm": "kworker/R-mm_pe",
+              "cpu_cores": 0.0,
+              "pid": 12
+            },
+            {
+              "comm": "rcu_tasks_kthread",
+              "cpu_cores": 0.0,
+              "pid": 13
+            },
+            {
+              "comm": "rcu_tasks_rude_kthread",
+              "cpu_cores": 0.0,
+              "pid": 14
+            }
+          ]
+        },
+        "payload_codec_us": {
+          "max": 79.429,
+          "mean": 47.16809000000003,
+          "min": 23.544,
+          "n": 300,
+          "p50": 46.267,
+          "p99": 73.138
+        },
+        "run": 1,
+        "setup_flight_us": {
+          "max": 2024.788,
+          "mean": 1462.1908466666662,
+          "min": 1274.808,
+          "n": 300,
+          "p50": 1481.2359999999999,
+          "p99": 1736.757
+        }
+      },
+      {
+        "apply_flight_us": {
+          "max": 3597.837,
+          "mean": 1673.1699733333346,
+          "min": 1358.105,
+          "n": 300,
+          "p50": 1649.633,
+          "p99": 2671.275
+        },
+        "commit_flight_us": {
+          "max": 14322.53,
+          "mean": 3767.9630199999992,
+          "min": 3531.303,
+          "n": 300,
+          "p50": 3721.15,
+          "p99": 5436.786
+        },
+        "cycle_us": {
+          "max": 17202.657,
+          "mean": 7001.300046666671,
+          "min": 6229.498,
+          "n": 300,
+          "p50": 6914.947,
+          "p99": 8909.999
+        },
+        "host_after": {
+          "loadavg": "2.98 2.83 2.81 4/940 3327290\n",
+          "top": [
+            {
+              "comm": "python3",
+              "cpu_cores": 1.138811822962136,
+              "pid": 3253761
+            },
+            {
+              "comm": "claude",
+              "cpu_cores": 1.138811822962136,
+              "pid": 3327277
+            },
+            {
+              "comm": "msuite",
+              "cpu_cores": 0.569405911481068,
+              "pid": 3326667
+            },
+            {
+              "comm": "systemd",
+              "cpu_cores": 0.0,
+              "pid": 1
+            },
+            {
+              "comm": "kthreadd",
+              "cpu_cores": 0.0,
+              "pid": 2
+            },
+            {
+              "comm": "pool_workqueue_release",
+              "cpu_cores": 0.0,
+              "pid": 3
+            },
+            {
+              "comm": "kworker/R-rcu_g",
+              "cpu_cores": 0.0,
+              "pid": 4
+            },
+            {
+              "comm": "kworker/R-rcu_p",
+              "cpu_cores": 0.0,
+              "pid": 5
+            },
+            {
+              "comm": "kworker/R-slub_",
+              "cpu_cores": 0.0,
+              "pid": 6
+            },
+            {
+              "comm": "kworker/R-netns",
+              "cpu_cores": 0.0,
+              "pid": 7
+            },
+            {
+              "comm": "kworker/0:0H-events_highpri",
+              "cpu_cores": 0.0,
+              "pid": 10
+            },
+            {
+              "comm": "kworker/R-mm_pe",
+              "cpu_cores": 0.0,
+              "pid": 12
+            }
+          ]
+        },
+        "host_before": {
+          "loadavg": "2.98 2.83 2.81 1/931 3327076\n",
+          "top": [
+            {
+              "comm": "msuite",
+              "cpu_cores": 0.5686723950553481,
+              "pid": 3326667
+            },
+            {
+              "comm": "systemd",
+              "cpu_cores": 0.0,
+              "pid": 1
+            },
+            {
+              "comm": "kthreadd",
+              "cpu_cores": 0.0,
+              "pid": 2
+            },
+            {
+              "comm": "pool_workqueue_release",
+              "cpu_cores": 0.0,
+              "pid": 3
+            },
+            {
+              "comm": "kworker/R-rcu_g",
+              "cpu_cores": 0.0,
+              "pid": 4
+            },
+            {
+              "comm": "kworker/R-rcu_p",
+              "cpu_cores": 0.0,
+              "pid": 5
+            },
+            {
+              "comm": "kworker/R-slub_",
+              "cpu_cores": 0.0,
+              "pid": 6
+            },
+            {
+              "comm": "kworker/R-netns",
+              "cpu_cores": 0.0,
+              "pid": 7
+            },
+            {
+              "comm": "kworker/0:0H-events_highpri",
+              "cpu_cores": 0.0,
+              "pid": 10
+            },
+            {
+              "comm": "kworker/R-mm_pe",
+              "cpu_cores": 0.0,
+              "pid": 12
+            },
+            {
+              "comm": "rcu_tasks_kthread",
+              "cpu_cores": 0.0,
+              "pid": 13
+            },
+            {
+              "comm": "rcu_tasks_rude_kthread",
+              "cpu_cores": 0.0,
+              "pid": 14
+            }
+          ]
+        },
+        "payload_codec_us": {
+          "max": 94.267,
+          "mean": 49.22900666666665,
+          "min": 24.486,
+          "n": 300,
+          "p50": 46.528,
+          "p99": 86.11200000000001
+        },
+        "run": 2,
+        "setup_flight_us": {
+          "max": 2465.418,
+          "mean": 1510.9380466666664,
+          "min": 1283.123,
+          "n": 300,
+          "p50": 1484.372,
+          "p99": 2151.537
+        }
+      }
+    ]
+  },
+  {
+    "source": "m2full-B-3-32.json",
+    "link": "B",
+    "FK": "current no-FK engine-created shape",
+    "arm": "M2-full-g3b",
+    "batch": 32,
+    "codec": "RT5 Prepared::command, same source, typed arrays and UTF8 hex encoding",
+    "first_read": "N known counters, model authority/receipt lookups; not product authorization",
+    "flights": 3,
+    "runs": [
+      {
+        "apply_flight_us": {
+          "max": 7196.827,
+          "mean": 3455.6374466666675,
+          "min": 2440.2,
+          "n": 300,
+          "p50": 3465.829,
+          "p99": 6439.192
+        },
+        "commit_flight_us": {
+          "max": 17009.132999999998,
+          "mean": 4082.053373333328,
+          "min": 3383.3940000000002,
+          "n": 300,
+          "p50": 3898.1620000000003,
+          "p99": 11322.578
+        },
+        "cycle_us": {
+          "max": 21303.952,
+          "mean": 9956.078689999998,
+          "min": 7857.098999999999,
+          "n": 300,
+          "p50": 10038.863000000001,
+          "p99": 16890.301
+        },
+        "host_after": {
+          "loadavg": "3.06 2.85 2.82 6/949 3327839\n",
+          "top": [
+            {
+              "comm": "claude",
+              "cpu_cores": 1.1995231655512302,
+              "pid": 3327823
+            },
+            {
+              "comm": "python3",
+              "cpu_cores": 0.5997615827756151,
+              "pid": 3253761
+            },
+            {
+              "comm": "msuite",
+              "cpu_cores": 0.5997615827756151,
+              "pid": 3327298
+            },
+            {
+              "comm": "fleet",
+              "cpu_cores": 0.5997615827756151,
+              "pid": 3327794
+            },
+            {
+              "comm": "systemd",
+              "cpu_cores": 0.0,
+              "pid": 1
+            },
+            {
+              "comm": "kthreadd",
+              "cpu_cores": 0.0,
+              "pid": 2
+            },
+            {
+              "comm": "pool_workqueue_release",
+              "cpu_cores": 0.0,
+              "pid": 3
+            },
+            {
+              "comm": "kworker/R-rcu_g",
+              "cpu_cores": 0.0,
+              "pid": 4
+            },
+            {
+              "comm": "kworker/R-rcu_p",
+              "cpu_cores": 0.0,
+              "pid": 5
+            },
+            {
+              "comm": "kworker/R-slub_",
+              "cpu_cores": 0.0,
+              "pid": 6
+            },
+            {
+              "comm": "kworker/R-netns",
+              "cpu_cores": 0.0,
+              "pid": 7
+            },
+            {
+              "comm": "kworker/0:0H-events_highpri",
+              "cpu_cores": 0.0,
+              "pid": 10
+            }
+          ]
+        },
+        "host_before": {
+          "loadavg": "2.98 2.83 2.81 5/976 3327468\n",
+          "top": [
+            {
+              "comm": "agy",
+              "cpu_cores": 2.4413184853156826,
+              "pid": 3327423
+            },
+            {
+              "comm": "claude",
+              "cpu_cores": 1.2206592426578413,
+              "pid": 3327409
+            },
+            {
+              "comm": "opencode",
+              "cpu_cores": 1.2206592426578413,
+              "pid": 3327425
+            },
+            {
+              "comm": "fleet",
+              "cpu_cores": 0.6103296213289207,
+              "pid": 3327386
+            },
+            {
+              "comm": "systemd",
+              "cpu_cores": 0.0,
+              "pid": 1
+            },
+            {
+              "comm": "kthreadd",
+              "cpu_cores": 0.0,
+              "pid": 2
+            },
+            {
+              "comm": "pool_workqueue_release",
+              "cpu_cores": 0.0,
+              "pid": 3
+            },
+            {
+              "comm": "kworker/R-rcu_g",
+              "cpu_cores": 0.0,
+              "pid": 4
+            },
+            {
+              "comm": "kworker/R-rcu_p",
+              "cpu_cores": 0.0,
+              "pid": 5
+            },
+            {
+              "comm": "kworker/R-slub_",
+              "cpu_cores": 0.0,
+              "pid": 6
+            },
+            {
+              "comm": "kworker/R-netns",
+              "cpu_cores": 0.0,
+              "pid": 7
+            },
+            {
+              "comm": "kworker/0:0H-events_highpri",
+              "cpu_cores": 0.0,
+              "pid": 10
+            }
+          ]
+        },
+        "payload_codec_us": {
+          "max": 1101.712,
+          "mean": 604.4645800000002,
+          "min": 349.918,
+          "n": 300,
+          "p50": 578.819,
+          "p99": 1096.3419999999999
+        },
+        "run": 0,
+        "setup_flight_us": {
+          "max": 5165.776000000001,
+          "mean": 1813.9232900000015,
+          "min": 1448.304,
+          "n": 300,
+          "p50": 1813.3310000000001,
+          "p99": 4220.999
+        }
+      },
+      {
+        "apply_flight_us": {
+          "max": 4891.491,
+          "mean": 3419.9323033333335,
+          "min": 2419.16,
+          "n": 300,
+          "p50": 3458.124,
+          "p99": 4810.088
+        },
+        "commit_flight_us": {
+          "max": 28376.515000000003,
+          "mean": 3924.12955,
+          "min": 3307.241,
+          "n": 300,
+          "p50": 3772.496,
+          "p99": 8280.815
+        },
+        "cycle_us": {
+          "max": 35251.717000000004,
+          "mean": 9788.99048,
+          "min": 7660.138,
+          "n": 300,
+          "p50": 9681.922,
+          "p99": 14854.08
+        },
+        "host_after": {
+          "loadavg": "3.06 2.86 2.82 2/943 3328176\n",
+          "top": [
+            {
+              "comm": "claude",
+              "cpu_cores": 1.113632870878723,
+              "pid": 3328155
+            },
+            {
+              "comm": "msuite",
+              "cpu_cores": 0.5568164354393615,
+              "pid": 3327298
+            },
+            {
+              "comm": "systemd",
+              "cpu_cores": 0.0,
+              "pid": 1
+            },
+            {
+              "comm": "kthreadd",
+              "cpu_cores": 0.0,
+              "pid": 2
+            },
+            {
+              "comm": "pool_workqueue_release",
+              "cpu_cores": 0.0,
+              "pid": 3
+            },
+            {
+              "comm": "kworker/R-rcu_g",
+              "cpu_cores": 0.0,
+              "pid": 4
+            },
+            {
+              "comm": "kworker/R-rcu_p",
+              "cpu_cores": 0.0,
+              "pid": 5
+            },
+            {
+              "comm": "kworker/R-slub_",
+              "cpu_cores": 0.0,
+              "pid": 6
+            },
+            {
+              "comm": "kworker/R-netns",
+              "cpu_cores": 0.0,
+              "pid": 7
+            },
+            {
+              "comm": "kworker/0:0H-events_highpri",
+              "cpu_cores": 0.0,
+              "pid": 10
+            },
+            {
+              "comm": "kworker/R-mm_pe",
+              "cpu_cores": 0.0,
+              "pid": 12
+            },
+            {
+              "comm": "rcu_tasks_kthread",
+              "cpu_cores": 0.0,
+              "pid": 13
+            }
+          ]
+        },
+        "host_before": {
+          "loadavg": "3.06 2.85 2.82 4/949 3327842\n",
+          "top": [
+            {
+              "comm": "python3",
+              "cpu_cores": 1.240426466061591,
+              "pid": 3253761
+            },
+            {
+              "comm": "claude",
+              "cpu_cores": 1.240426466061591,
+              "pid": 3327823
+            },
+            {
+              "comm": "codex",
+              "cpu_cores": 0.6202132330307955,
+              "pid": 815560
+            },
+            {
+              "comm": "fleet",
+              "cpu_cores": 0.6202132330307955,
+              "pid": 3327794
+            },
+            {
+              "comm": "systemd",
+              "cpu_cores": 0.0,
+              "pid": 1
+            },
+            {
+              "comm": "kthreadd",
+              "cpu_cores": 0.0,
+              "pid": 2
+            },
+            {
+              "comm": "pool_workqueue_release",
+              "cpu_cores": 0.0,
+              "pid": 3
+            },
+            {
+              "comm": "kworker/R-rcu_g",
+              "cpu_cores": 0.0,
+              "pid": 4
+            },
+            {
+              "comm": "kworker/R-rcu_p",
+              "cpu_cores": 0.0,
+              "pid": 5
+            },
+            {
+              "comm": "kworker/R-slub_",
+              "cpu_cores": 0.0,
+              "pid": 6
+            },
+            {
+              "comm": "kworker/R-netns",
+              "cpu_cores": 0.0,
+              "pid": 7
+            },
+            {
+              "comm": "kworker/0:0H-events_highpri",
+              "cpu_cores": 0.0,
+              "pid": 10
+            }
+          ]
+        },
+        "payload_codec_us": {
+          "max": 1203.765,
+          "mean": 656.7263366666664,
+          "min": 355.038,
+          "n": 300,
+          "p50": 686.261,
+          "p99": 1129.585
+        },
+        "run": 1,
+        "setup_flight_us": {
+          "max": 3040.269,
+          "mean": 1788.2022899999993,
+          "min": 1433.235,
+          "n": 300,
+          "p50": 1833.709,
+          "p99": 2172.556
+        }
+      },
+      {
+        "apply_flight_us": {
+          "max": 6687.088,
+          "mean": 3500.224030000003,
+          "min": 2427.096,
+          "n": 300,
+          "p50": 3561.159,
+          "p99": 5946.535
+        },
+        "commit_flight_us": {
+          "max": 14091.005000000001,
+          "mean": 3904.363976666669,
+          "min": 3604.47,
+          "n": 300,
+          "p50": 3777.255,
+          "p99": 8340.158
+        },
+        "cycle_us": {
+          "max": 21271.531,
+          "mean": 9868.026813333337,
+          "min": 7948.311,
+          "n": 300,
+          "p50": 9918.657000000001,
+          "p99": 16231.2
+        },
+        "host_after": {
+          "loadavg": "3.05 2.86 2.82 3/926 3328501\n",
+          "top": [
+            {
+              "comm": "fleet",
+              "cpu_cores": 0.6427948514446461,
+              "pid": 3328460
+            },
+            {
+              "comm": "systemd",
+              "cpu_cores": 0.0,
+              "pid": 1
+            },
+            {
+              "comm": "kthreadd",
+              "cpu_cores": 0.0,
+              "pid": 2
+            },
+            {
+              "comm": "pool_workqueue_release",
+              "cpu_cores": 0.0,
+              "pid": 3
+            },
+            {
+              "comm": "kworker/R-rcu_g",
+              "cpu_cores": 0.0,
+              "pid": 4
+            },
+            {
+              "comm": "kworker/R-rcu_p",
+              "cpu_cores": 0.0,
+              "pid": 5
+            },
+            {
+              "comm": "kworker/R-slub_",
+              "cpu_cores": 0.0,
+              "pid": 6
+            },
+            {
+              "comm": "kworker/R-netns",
+              "cpu_cores": 0.0,
+              "pid": 7
+            },
+            {
+              "comm": "kworker/0:0H-events_highpri",
+              "cpu_cores": 0.0,
+              "pid": 10
+            },
+            {
+              "comm": "kworker/R-mm_pe",
+              "cpu_cores": 0.0,
+              "pid": 12
+            },
+            {
+              "comm": "rcu_tasks_kthread",
+              "cpu_cores": 0.0,
+              "pid": 13
+            },
+            {
+              "comm": "rcu_tasks_rude_kthread",
+              "cpu_cores": 0.0,
+              "pid": 14
+            }
+          ]
+        },
+        "host_before": {
+          "loadavg": "3.06 2.86 2.82 3/943 3328176\n",
+          "top": [
+            {
+              "comm": "claude",
+              "cpu_cores": 1.718515619531182,
+              "pid": 3328155
+            },
+            {
+              "comm": "systemd",
+              "cpu_cores": 0.0,
+              "pid": 1
+            },
+            {
+              "comm": "kthreadd",
+              "cpu_cores": 0.0,
+              "pid": 2
+            },
+            {
+              "comm": "pool_workqueue_release",
+              "cpu_cores": 0.0,
+              "pid": 3
+            },
+            {
+              "comm": "kworker/R-rcu_g",
+              "cpu_cores": 0.0,
+              "pid": 4
+            },
+            {
+              "comm": "kworker/R-rcu_p",
+              "cpu_cores": 0.0,
+              "pid": 5
+            },
+            {
+              "comm": "kworker/R-slub_",
+              "cpu_cores": 0.0,
+              "pid": 6
+            },
+            {
+              "comm": "kworker/R-netns",
+              "cpu_cores": 0.0,
+              "pid": 7
+            },
+            {
+              "comm": "kworker/0:0H-events_highpri",
+              "cpu_cores": 0.0,
+              "pid": 10
+            },
+            {
+              "comm": "kworker/R-mm_pe",
+              "cpu_cores": 0.0,
+              "pid": 12
+            },
+            {
+              "comm": "rcu_tasks_kthread",
+              "cpu_cores": 0.0,
+              "pid": 13
+            },
+            {
+              "comm": "rcu_tasks_rude_kthread",
+              "cpu_cores": 0.0,
+              "pid": 14
+            }
+          ]
+        },
+        "payload_codec_us": {
+          "max": 1136.798,
+          "mean": 646.3253466666665,
+          "min": 357.142,
+          "n": 300,
+          "p50": 691.8710000000001,
+          "p99": 1106.431
+        },
+        "run": 2,
+        "setup_flight_us": {
+          "max": 2422.698,
+          "mean": 1817.1134599999993,
+          "min": 1468.001,
+          "n": 300,
+          "p50": 1849.269,
+          "p99": 2357.404
+        }
+      }
+    ]
+  },
+  {
+    "source": "m2bind-A-1.json",
+    "link": "A",
+    "FK": "current no-FK engine-created shape",
+    "apply_protocol": "extended bind",
+    "arm": "M2-full-g3b",
+    "batch": 1,
+    "codec": "RT5 Prepared::command, same source, typed arrays and UTF8 hex encoding",
+    "first_read": "N known counters, model authority/receipt lookups; not product authorization",
+    "flights": 3,
+    "runs": [
+      {
+        "apply_flight_us": {
+          "max": 2653.323,
+          "mean": 1023.4097700000007,
+          "min": 783.1039999999999,
+          "n": 300,
+          "p50": 1014.159,
+          "p99": 1326.526
+        },
+        "commit_flight_us": {
+          "max": 9921.368999999999,
+          "mean": 3384.1048566666655,
+          "min": 3082.841,
+          "n": 300,
+          "p50": 3354.232,
+          "p99": 4434.255
+        },
+        "cycle_us": {
+          "max": 11765.76,
+          "mean": 5406.885296666667,
+          "min": 4770.537,
+          "n": 300,
+          "p50": 5355.588,
+          "p99": 8067.772000000001
+        },
+        "host_after": {
+          "loadavg": "1.38 2.69 4.97 4/1116 88400\n",
+          "top": [
+            {
+              "comm": "fleet",
+              "cpu_cores": 1.543727708250283,
+              "pid": 88377
+            },
+            {
+              "comm": "msuite",
+              "cpu_cores": 0.5145759027500943,
+              "pid": 88333
+            },
+            {
+              "comm": "systemd",
+              "cpu_cores": 0.0,
+              "pid": 1
+            },
+            {
+              "comm": "kthreadd",
+              "cpu_cores": 0.0,
+              "pid": 2
+            },
+            {
+              "comm": "pool_workqueue_release",
+              "cpu_cores": 0.0,
+              "pid": 3
+            },
+            {
+              "comm": "kworker/R-rcu_g",
+              "cpu_cores": 0.0,
+              "pid": 4
+            },
+            {
+              "comm": "kworker/R-rcu_p",
+              "cpu_cores": 0.0,
+              "pid": 5
+            },
+            {
+              "comm": "kworker/R-slub_",
+              "cpu_cores": 0.0,
+              "pid": 6
+            },
+            {
+              "comm": "kworker/R-netns",
+              "cpu_cores": 0.0,
+              "pid": 7
+            },
+            {
+              "comm": "kworker/0:0H-events_highpri",
+              "cpu_cores": 0.0,
+              "pid": 10
+            },
+            {
+              "comm": "kworker/R-mm_pe",
+              "cpu_cores": 0.0,
+              "pid": 12
+            },
+            {
+              "comm": "rcu_tasks_kthread",
+              "cpu_cores": 0.0,
+              "pid": 13
+            }
+          ]
+        },
+        "host_before": {
+          "loadavg": "1.38 2.69 4.97 2/1125 88367\n",
+          "top": [
+            {
+              "comm": "fleet",
+              "cpu_cores": 1.5703493749930968,
+              "pid": 88345
+            },
+            {
+              "comm": "msuite",
+              "cpu_cores": 0.5234497916643657,
+              "pid": 88333
+            },
+            {
+              "comm": "systemd",
+              "cpu_cores": 0.0,
+              "pid": 1
+            },
+            {
+              "comm": "kthreadd",
+              "cpu_cores": 0.0,
+              "pid": 2
+            },
+            {
+              "comm": "pool_workqueue_release",
+              "cpu_cores": 0.0,
+              "pid": 3
+            },
+            {
+              "comm": "kworker/R-rcu_g",
+              "cpu_cores": 0.0,
+              "pid": 4
+            },
+            {
+              "comm": "kworker/R-rcu_p",
+              "cpu_cores": 0.0,
+              "pid": 5
+            },
+            {
+              "comm": "kworker/R-slub_",
+              "cpu_cores": 0.0,
+              "pid": 6
+            },
+            {
+              "comm": "kworker/R-netns",
+              "cpu_cores": 0.0,
+              "pid": 7
+            },
+            {
+              "comm": "kworker/0:0H-events_highpri",
+              "cpu_cores": 0.0,
+              "pid": 10
+            },
+            {
+              "comm": "kworker/R-mm_pe",
+              "cpu_cores": 0.0,
+              "pid": 12
+            },
+            {
+              "comm": "rcu_tasks_kthread",
+              "cpu_cores": 0.0,
+              "pid": 13
+            }
+          ]
+        },
+        "payload_codec_us": {
+          "max": 7.915,
+          "mean": 1.9080233333333332,
+          "min": 1.012,
+          "n": 300,
+          "p50": 1.683,
+          "p99": 5.11
+        },
+        "run": 0,
+        "setup_flight_us": {
+          "max": 3348.622,
+          "mean": 997.4626466666672,
+          "min": 755.612,
+          "n": 300,
+          "p50": 984.212,
+          "p99": 1677.156
+        }
+      },
+      {
+        "apply_flight_us": {
+          "max": 1241.977,
+          "mean": 1010.5536333333329,
+          "min": 793.2230000000001,
+          "n": 300,
+          "p50": 1008.6680000000001,
+          "p99": 1229.193
+        },
+        "commit_flight_us": {
+          "max": 4227.806,
+          "mean": 3374.2131999999983,
+          "min": 3212.996,
+          "n": 300,
+          "p50": 3369.009,
+          "p99": 3523.33
+        },
+        "cycle_us": {
+          "max": 6329.351000000001,
+          "mean": 5352.023333333332,
+          "min": 4824.178,
+          "n": 300,
+          "p50": 5355.327,
+          "p99": 5778.063
+        },
+        "host_after": {
+          "loadavg": "1.59 2.71 4.96 2/1102 88408\n",
+          "top": [
+            {
+              "comm": "python3",
+              "cpu_cores": 1.0756459872649968,
+              "pid": 3848137
+            },
+            {
+              "comm": "msuite",
+              "cpu_cores": 0.5378229936324984,
+              "pid": 88333
+            },
+            {
+              "comm": "systemd",
+              "cpu_cores": 0.0,
+              "pid": 1
+            },
+            {
+              "comm": "kthreadd",
+              "cpu_cores": 0.0,
+              "pid": 2
+            },
+            {
+              "comm": "pool_workqueue_release",
+              "cpu_cores": 0.0,
+              "pid": 3
+            },
+            {
+              "comm": "kworker/R-rcu_g",
+              "cpu_cores": 0.0,
+              "pid": 4
+            },
+            {
+              "comm": "kworker/R-rcu_p",
+              "cpu_cores": 0.0,
+              "pid": 5
+            },
+            {
+              "comm": "kworker/R-slub_",
+              "cpu_cores": 0.0,
+              "pid": 6
+            },
+            {
+              "comm": "kworker/R-netns",
+              "cpu_cores": 0.0,
+              "pid": 7
+            },
+            {
+              "comm": "kworker/0:0H-events_highpri",
+              "cpu_cores": 0.0,
+              "pid": 10
+            },
+            {
+              "comm": "kworker/R-mm_pe",
+              "cpu_cores": 0.0,
+              "pid": 12
+            },
+            {
+              "comm": "rcu_tasks_kthread",
+              "cpu_cores": 0.0,
+              "pid": 13
+            }
+          ]
+        },
+        "host_before": {
+          "loadavg": "1.38 2.69 4.97 1/1102 88400\n",
+          "top": [
+            {
+              "comm": "msuite",
+              "cpu_cores": 0.5118807260577645,
+              "pid": 88333
+            },
+            {
+              "comm": "systemd",
+              "cpu_cores": 0.0,
+              "pid": 1
+            },
+            {
+              "comm": "kthreadd",
+              "cpu_cores": 0.0,
+              "pid": 2
+            },
+            {
+              "comm": "pool_workqueue_release",
+              "cpu_cores": 0.0,
+              "pid": 3
+            },
+            {
+              "comm": "kworker/R-rcu_g",
+              "cpu_cores": 0.0,
+              "pid": 4
+            },
+            {
+              "comm": "kworker/R-rcu_p",
+              "cpu_cores": 0.0,
+              "pid": 5
+            },
+            {
+              "comm": "kworker/R-slub_",
+              "cpu_cores": 0.0,
+              "pid": 6
+            },
+            {
+              "comm": "kworker/R-netns",
+              "cpu_cores": 0.0,
+              "pid": 7
+            },
+            {
+              "comm": "kworker/0:0H-events_highpri",
+              "cpu_cores": 0.0,
+              "pid": 10
+            },
+            {
+              "comm": "kworker/R-mm_pe",
+              "cpu_cores": 0.0,
+              "pid": 12
+            },
+            {
+              "comm": "rcu_tasks_kthread",
+              "cpu_cores": 0.0,
+              "pid": 13
+            },
+            {
+              "comm": "rcu_tasks_rude_kthread",
+              "cpu_cores": 0.0,
+              "pid": 14
+            }
+          ]
+        },
+        "payload_codec_us": {
+          "max": 10.4,
+          "mean": 1.7841499999999997,
+          "min": 1.062,
+          "n": 300,
+          "p50": 1.583,
+          "p99": 3.917
+        },
+        "run": 1,
+        "setup_flight_us": {
+          "max": 1192.945,
+          "mean": 965.4723500000002,
+          "min": 775.85,
+          "n": 300,
+          "p50": 965.7379999999999,
+          "p99": 1119.076
+        }
+      },
+      {
+        "apply_flight_us": {
+          "max": 1316.1360000000002,
+          "mean": 1022.0713699999999,
+          "min": 903.911,
+          "n": 300,
+          "p50": 1009.2790000000001,
+          "p99": 1151.2060000000001
+        },
+        "commit_flight_us": {
+          "max": 13396.037,
+          "mean": 3304.999960000001,
+          "min": 2807.1620000000003,
+          "n": 300,
+          "p50": 2951.244,
+          "p99": 10617.63
+        },
+        "cycle_us": {
+          "max": 15531.335000000001,
+          "mean": 5303.2470100000055,
+          "min": 4617.96,
+          "n": 300,
+          "p50": 4946.7080000000005,
+          "p99": 12655.685
+        },
+        "host_after": {
+          "loadavg": "1.59 2.71 4.96 2/1094 88416\n",
+          "top": [
+            {
+              "comm": "python3",
+              "cpu_cores": 1.0812940667880744,
+              "pid": 3848137
+            },
+            {
+              "comm": "msuite",
+              "cpu_cores": 0.5406470333940372,
+              "pid": 88333
+            },
+            {
+              "comm": "systemd",
+              "cpu_cores": 0.0,
+              "pid": 1
+            },
+            {
+              "comm": "kthreadd",
+              "cpu_cores": 0.0,
+              "pid": 2
+            },
+            {
+              "comm": "pool_workqueue_release",
+              "cpu_cores": 0.0,
+              "pid": 3
+            },
+            {
+              "comm": "kworker/R-rcu_g",
+              "cpu_cores": 0.0,
+              "pid": 4
+            },
+            {
+              "comm": "kworker/R-rcu_p",
+              "cpu_cores": 0.0,
+              "pid": 5
+            },
+            {
+              "comm": "kworker/R-slub_",
+              "cpu_cores": 0.0,
+              "pid": 6
+            },
+            {
+              "comm": "kworker/R-netns",
+              "cpu_cores": 0.0,
+              "pid": 7
+            },
+            {
+              "comm": "kworker/0:0H-events_highpri",
+              "cpu_cores": 0.0,
+              "pid": 10
+            },
+            {
+              "comm": "kworker/R-mm_pe",
+              "cpu_cores": 0.0,
+              "pid": 12
+            },
+            {
+              "comm": "rcu_tasks_kthread",
+              "cpu_cores": 0.0,
+              "pid": 13
+            }
+          ]
+        },
+        "host_before": {
+          "loadavg": "1.59 2.71 4.96 1/1102 88408\n",
+          "top": [
+            {
+              "comm": "msuite",
+              "cpu_cores": 0.5335045669591446,
+              "pid": 88333
+            },
+            {
+              "comm": "python3",
+              "cpu_cores": 0.5335045669591446,
+              "pid": 3848251
+            },
+            {
+              "comm": "systemd",
+              "cpu_cores": 0.0,
+              "pid": 1
+            },
+            {
+              "comm": "kthreadd",
+              "cpu_cores": 0.0,
+              "pid": 2
+            },
+            {
+              "comm": "pool_workqueue_release",
+              "cpu_cores": 0.0,
+              "pid": 3
+            },
+            {
+              "comm": "kworker/R-rcu_g",
+              "cpu_cores": 0.0,
+              "pid": 4
+            },
+            {
+              "comm": "kworker/R-rcu_p",
+              "cpu_cores": 0.0,
+              "pid": 5
+            },
+            {
+              "comm": "kworker/R-slub_",
+              "cpu_cores": 0.0,
+              "pid": 6
+            },
+            {
+              "comm": "kworker/R-netns",
+              "cpu_cores": 0.0,
+              "pid": 7
+            },
+            {
+              "comm": "kworker/0:0H-events_highpri",
+              "cpu_cores": 0.0,
+              "pid": 10
+            },
+            {
+              "comm": "kworker/R-mm_pe",
+              "cpu_cores": 0.0,
+              "pid": 12
+            },
+            {
+              "comm": "rcu_tasks_kthread",
+              "cpu_cores": 0.0,
+              "pid": 13
+            }
+          ]
+        },
+        "payload_codec_us": {
+          "max": 4.669,
+          "mean": 1.7201299999999995,
+          "min": 1.243,
+          "n": 300,
+          "p50": 1.583,
+          "p99": 3.4970000000000003
+        },
+        "run": 2,
+        "setup_flight_us": {
+          "max": 1201.601,
+          "mean": 974.4555500000005,
+          "min": 873.0930000000001,
+          "n": 300,
+          "p50": 966.298,
+          "p99": 1140.396
+        }
+      }
+    ],
+    "host_before": {
+      "utc": 1792801207.7008734,
+      "loadavg": "1.38 2.69 4.97 1/1104 88332",
+      "free_bytes": 113950851072,
+      "top": [
+        {
+          "pid": 3848137,
+          "ppid": 3212987,
+          "comm": "python3",
+          "cpu_percent": 102.2319121093063
+        },
+        {
+          "pid": 3870577,
+          "ppid": 3212987,
+          "comm": "python3",
+          "cpu_percent": 25.557978027326573
+        },
+        {
+          "pid": 1,
+          "ppid": 0,
+          "comm": "systemd",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 2,
+          "ppid": 0,
+          "comm": "kthreadd",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 3,
+          "ppid": 2,
+          "comm": "pool_workqueue_release",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 4,
+          "ppid": 2,
+          "comm": "kworker/R-rcu_g",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 5,
+          "ppid": 2,
+          "comm": "kworker/R-rcu_p",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 6,
+          "ppid": 2,
+          "comm": "kworker/R-slub_",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 7,
+          "ppid": 2,
+          "comm": "kworker/R-netns",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 10,
+          "ppid": 2,
+          "comm": "kworker/0:0H-events_highpri",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 12,
+          "ppid": 2,
+          "comm": "kworker/R-mm_pe",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 13,
+          "ppid": 2,
+          "comm": "rcu_tasks_kthread",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 14,
+          "ppid": 2,
+          "comm": "rcu_tasks_rude_kthread",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 15,
+          "ppid": 2,
+          "comm": "rcu_tasks_trace_kthread",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 16,
+          "ppid": 2,
+          "comm": "ksoftirqd/0",
+          "cpu_percent": 0.0
+        }
+      ]
+    },
+    "host_after": {
+      "utc": 1792801215.052562,
+      "loadavg": "1.59 2.71 4.96 2/1088 88417",
+      "free_bytes": 113950765056,
+      "top": [
+        {
+          "pid": 3848137,
+          "ppid": 3212987,
+          "comm": "python3",
+          "cpu_percent": 100.3353749109473
+        },
+        {
+          "pid": 3870577,
+          "ppid": 3212987,
+          "comm": "python3",
+          "cpu_percent": 33.44512497031577
+        },
+        {
+          "pid": 1,
+          "ppid": 0,
+          "comm": "systemd",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 2,
+          "ppid": 0,
+          "comm": "kthreadd",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 3,
+          "ppid": 2,
+          "comm": "pool_workqueue_release",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 4,
+          "ppid": 2,
+          "comm": "kworker/R-rcu_g",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 5,
+          "ppid": 2,
+          "comm": "kworker/R-rcu_p",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 6,
+          "ppid": 2,
+          "comm": "kworker/R-slub_",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 7,
+          "ppid": 2,
+          "comm": "kworker/R-netns",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 10,
+          "ppid": 2,
+          "comm": "kworker/0:0H-events_highpri",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 12,
+          "ppid": 2,
+          "comm": "kworker/R-mm_pe",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 13,
+          "ppid": 2,
+          "comm": "rcu_tasks_kthread",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 14,
+          "ppid": 2,
+          "comm": "rcu_tasks_rude_kthread",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 15,
+          "ppid": 2,
+          "comm": "rcu_tasks_trace_kthread",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 16,
+          "ppid": 2,
+          "comm": "ksoftirqd/0",
+          "cpu_percent": 0.0
+        }
+      ]
+    }
+  },
+  {
+    "source": "m2bind-A-32.json",
+    "link": "A",
+    "FK": "current no-FK engine-created shape",
+    "apply_protocol": "extended bind",
+    "arm": "M2-full-g3b",
+    "batch": 32,
+    "codec": "RT5 Prepared::command, same source, typed arrays and UTF8 hex encoding",
+    "first_read": "N known counters, model authority/receipt lookups; not product authorization",
+    "flights": 3,
+    "runs": [
+      {
+        "apply_flight_us": {
+          "max": 2746.7490000000003,
+          "mean": 1733.8979133333332,
+          "min": 1160.634,
+          "n": 300,
+          "p50": 1721.429,
+          "p99": 2428.179
+        },
+        "commit_flight_us": {
+          "max": 5962.079000000001,
+          "mean": 3377.1471533333333,
+          "min": 3190.353,
+          "n": 300,
+          "p50": 3349.062,
+          "p99": 4601.219
+        },
+        "cycle_us": {
+          "max": 9158.814,
+          "mean": 6443.1566233333315,
+          "min": 5358.273,
+          "n": 300,
+          "p50": 6423.177000000001,
+          "p99": 7985.637000000001
+        },
+        "host_after": {
+          "loadavg": "1.70 2.71 4.95 2/1107 88570\n",
+          "top": [
+            {
+              "comm": "fleet",
+              "cpu_cores": 1.2568567031907132,
+              "pid": 88552
+            },
+            {
+              "comm": "systemd",
+              "cpu_cores": 0.0,
+              "pid": 1
+            },
+            {
+              "comm": "kthreadd",
+              "cpu_cores": 0.0,
+              "pid": 2
+            },
+            {
+              "comm": "pool_workqueue_release",
+              "cpu_cores": 0.0,
+              "pid": 3
+            },
+            {
+              "comm": "kworker/R-rcu_g",
+              "cpu_cores": 0.0,
+              "pid": 4
+            },
+            {
+              "comm": "kworker/R-rcu_p",
+              "cpu_cores": 0.0,
+              "pid": 5
+            },
+            {
+              "comm": "kworker/R-slub_",
+              "cpu_cores": 0.0,
+              "pid": 6
+            },
+            {
+              "comm": "kworker/R-netns",
+              "cpu_cores": 0.0,
+              "pid": 7
+            },
+            {
+              "comm": "kworker/0:0H-events_highpri",
+              "cpu_cores": 0.0,
+              "pid": 10
+            },
+            {
+              "comm": "kworker/R-mm_pe",
+              "cpu_cores": 0.0,
+              "pid": 12
+            },
+            {
+              "comm": "rcu_tasks_kthread",
+              "cpu_cores": 0.0,
+              "pid": 13
+            },
+            {
+              "comm": "rcu_tasks_rude_kthread",
+              "cpu_cores": 0.0,
+              "pid": 14
+            }
+          ]
+        },
+        "host_before": {
+          "loadavg": "1.70 2.71 4.95 3/1102 88509\n",
+          "top": [
+            {
+              "comm": "fleet",
+              "cpu_cores": 1.0870687143200268,
+              "pid": 88430
+            },
+            {
+              "comm": "msuite",
+              "cpu_cores": 0.5435343571600134,
+              "pid": 88424
+            },
+            {
+              "comm": "python3",
+              "cpu_cores": 0.5435343571600134,
+              "pid": 3848137
+            },
+            {
+              "comm": "systemd",
+              "cpu_cores": 0.0,
+              "pid": 1
+            },
+            {
+              "comm": "kthreadd",
+              "cpu_cores": 0.0,
+              "pid": 2
+            },
+            {
+              "comm": "pool_workqueue_release",
+              "cpu_cores": 0.0,
+              "pid": 3
+            },
+            {
+              "comm": "kworker/R-rcu_g",
+              "cpu_cores": 0.0,
+              "pid": 4
+            },
+            {
+              "comm": "kworker/R-rcu_p",
+              "cpu_cores": 0.0,
+              "pid": 5
+            },
+            {
+              "comm": "kworker/R-slub_",
+              "cpu_cores": 0.0,
+              "pid": 6
+            },
+            {
+              "comm": "kworker/R-netns",
+              "cpu_cores": 0.0,
+              "pid": 7
+            },
+            {
+              "comm": "kworker/0:0H-events_highpri",
+              "cpu_cores": 0.0,
+              "pid": 10
+            },
+            {
+              "comm": "kworker/R-mm_pe",
+              "cpu_cores": 0.0,
+              "pid": 12
+            }
+          ]
+        },
+        "payload_codec_us": {
+          "max": 39.244,
+          "mean": 18.507633333333338,
+          "min": 9.768,
+          "n": 300,
+          "p50": 18.003999999999998,
+          "p99": 30.086
+        },
+        "run": 0,
+        "setup_flight_us": {
+          "max": 1881.861,
+          "mean": 1313.6039233333331,
+          "min": 949.227,
+          "n": 300,
+          "p50": 1314.824,
+          "p99": 1694.4379999999999
+        }
+      },
+      {
+        "apply_flight_us": {
+          "max": 2818.824,
+          "mean": 1756.1218666666673,
+          "min": 1140.1860000000001,
+          "n": 300,
+          "p50": 1733.9530000000002,
+          "p99": 2294.598
+        },
+        "commit_flight_us": {
+          "max": 15860.526,
+          "mean": 3393.515873333334,
+          "min": 3181.276,
+          "n": 300,
+          "p50": 3332.191,
+          "p99": 4603.393
+        },
+        "cycle_us": {
+          "max": 18953.696,
+          "mean": 6500.5614566666645,
+          "min": 5278.012000000001,
+          "n": 300,
+          "p50": 6409.04,
+          "p99": 8722.113
+        },
+        "host_after": {
+          "loadavg": "1.73 2.70 4.93 1/1116 88617\n",
+          "top": [
+            {
+              "comm": "msuite",
+              "cpu_cores": 0.5527949283939854,
+              "pid": 88424
+            },
+            {
+              "comm": "systemd",
+              "cpu_cores": 0.0,
+              "pid": 1
+            },
+            {
+              "comm": "kthreadd",
+              "cpu_cores": 0.0,
+              "pid": 2
+            },
+            {
+              "comm": "pool_workqueue_release",
+              "cpu_cores": 0.0,
+              "pid": 3
+            },
+            {
+              "comm": "kworker/R-rcu_g",
+              "cpu_cores": 0.0,
+              "pid": 4
+            },
+            {
+              "comm": "kworker/R-rcu_p",
+              "cpu_cores": 0.0,
+              "pid": 5
+            },
+            {
+              "comm": "kworker/R-slub_",
+              "cpu_cores": 0.0,
+              "pid": 6
+            },
+            {
+              "comm": "kworker/R-netns",
+              "cpu_cores": 0.0,
+              "pid": 7
+            },
+            {
+              "comm": "kworker/0:0H-events_highpri",
+              "cpu_cores": 0.0,
+              "pid": 10
+            },
+            {
+              "comm": "kworker/R-mm_pe",
+              "cpu_cores": 0.0,
+              "pid": 12
+            },
+            {
+              "comm": "rcu_tasks_kthread",
+              "cpu_cores": 0.0,
+              "pid": 13
+            },
+            {
+              "comm": "rcu_tasks_rude_kthread",
+              "cpu_cores": 0.0,
+              "pid": 14
+            }
+          ]
+        },
+        "host_before": {
+          "loadavg": "1.70 2.71 4.95 2/1107 88570\n",
+          "top": [
+            {
+              "comm": "fleet",
+              "cpu_cores": 1.5850803781050733,
+              "pid": 88552
+            },
+            {
+              "comm": "msuite",
+              "cpu_cores": 0.5283601260350245,
+              "pid": 88424
+            },
+            {
+              "comm": "claude",
+              "cpu_cores": 0.5283601260350245,
+              "pid": 601631
+            },
+            {
+              "comm": "systemd",
+              "cpu_cores": 0.0,
+              "pid": 1
+            },
+            {
+              "comm": "kthreadd",
+              "cpu_cores": 0.0,
+              "pid": 2
+            },
+            {
+              "comm": "pool_workqueue_release",
+              "cpu_cores": 0.0,
+              "pid": 3
+            },
+            {
+              "comm": "kworker/R-rcu_g",
+              "cpu_cores": 0.0,
+              "pid": 4
+            },
+            {
+              "comm": "kworker/R-rcu_p",
+              "cpu_cores": 0.0,
+              "pid": 5
+            },
+            {
+              "comm": "kworker/R-slub_",
+              "cpu_cores": 0.0,
+              "pid": 6
+            },
+            {
+              "comm": "kworker/R-netns",
+              "cpu_cores": 0.0,
+              "pid": 7
+            },
+            {
+              "comm": "kworker/0:0H-events_highpri",
+              "cpu_cores": 0.0,
+              "pid": 10
+            },
+            {
+              "comm": "kworker/R-mm_pe",
+              "cpu_cores": 0.0,
+              "pid": 12
+            }
+          ]
+        },
+        "payload_codec_us": {
+          "max": 35.277,
+          "mean": 18.60257333333333,
+          "min": 9.338,
+          "n": 300,
+          "p50": 18.675,
+          "p99": 31.368999999999996
+        },
+        "run": 1,
+        "setup_flight_us": {
+          "max": 2380.099,
+          "mean": 1332.3211433333329,
+          "min": 943.495,
+          "n": 300,
+          "p50": 1314.5330000000001,
+          "p99": 1658.681
+        }
+      },
+      {
+        "apply_flight_us": {
+          "max": 2135.7490000000003,
+          "mean": 1700.8783433333326,
+          "min": 1136.87,
+          "n": 300,
+          "p50": 1720.2269999999999,
+          "p99": 2116.292
+        },
+        "commit_flight_us": {
+          "max": 7932.747,
+          "mean": 3297.0782466666683,
+          "min": 3111.996,
+          "n": 300,
+          "p50": 3236.029,
+          "p99": 5766.951999999999
+        },
+        "cycle_us": {
+          "max": 11057.848,
+          "mean": 6305.719453333335,
+          "min": 5275.968,
+          "n": 300,
+          "p50": 6294.495,
+          "p99": 8878.056
+        },
+        "host_after": {
+          "loadavg": "1.73 2.70 4.93 1/1137 88661\n",
+          "top": [
+            {
+              "comm": "msuite",
+              "cpu_cores": 1.0714625329642145,
+              "pid": 88424
+            },
+            {
+              "comm": "systemd",
+              "cpu_cores": 0.0,
+              "pid": 1
+            },
+            {
+              "comm": "kthreadd",
+              "cpu_cores": 0.0,
+              "pid": 2
+            },
+            {
+              "comm": "pool_workqueue_release",
+              "cpu_cores": 0.0,
+              "pid": 3
+            },
+            {
+              "comm": "kworker/R-rcu_g",
+              "cpu_cores": 0.0,
+              "pid": 4
+            },
+            {
+              "comm": "kworker/R-rcu_p",
+              "cpu_cores": 0.0,
+              "pid": 5
+            },
+            {
+              "comm": "kworker/R-slub_",
+              "cpu_cores": 0.0,
+              "pid": 6
+            },
+            {
+              "comm": "kworker/R-netns",
+              "cpu_cores": 0.0,
+              "pid": 7
+            },
+            {
+              "comm": "kworker/0:0H-events_highpri",
+              "cpu_cores": 0.0,
+              "pid": 10
+            },
+            {
+              "comm": "kworker/R-mm_pe",
+              "cpu_cores": 0.0,
+              "pid": 12
+            },
+            {
+              "comm": "rcu_tasks_kthread",
+              "cpu_cores": 0.0,
+              "pid": 13
+            },
+            {
+              "comm": "rcu_tasks_rude_kthread",
+              "cpu_cores": 0.0,
+              "pid": 14
+            }
+          ]
+        },
+        "host_before": {
+          "loadavg": "1.73 2.70 4.93 2/1116 88618\n",
+          "top": [
+            {
+              "comm": "msuite",
+              "cpu_cores": 1.0199008146457758,
+              "pid": 88424
+            },
+            {
+              "comm": "claude",
+              "cpu_cores": 0.5099504073228879,
+              "pid": 601653
+            },
+            {
+              "comm": "systemd",
+              "cpu_cores": 0.0,
+              "pid": 1
+            },
+            {
+              "comm": "kthreadd",
+              "cpu_cores": 0.0,
+              "pid": 2
+            },
+            {
+              "comm": "pool_workqueue_release",
+              "cpu_cores": 0.0,
+              "pid": 3
+            },
+            {
+              "comm": "kworker/R-rcu_g",
+              "cpu_cores": 0.0,
+              "pid": 4
+            },
+            {
+              "comm": "kworker/R-rcu_p",
+              "cpu_cores": 0.0,
+              "pid": 5
+            },
+            {
+              "comm": "kworker/R-slub_",
+              "cpu_cores": 0.0,
+              "pid": 6
+            },
+            {
+              "comm": "kworker/R-netns",
+              "cpu_cores": 0.0,
+              "pid": 7
+            },
+            {
+              "comm": "kworker/0:0H-events_highpri",
+              "cpu_cores": 0.0,
+              "pid": 10
+            },
+            {
+              "comm": "kworker/R-mm_pe",
+              "cpu_cores": 0.0,
+              "pid": 12
+            },
+            {
+              "comm": "rcu_tasks_kthread",
+              "cpu_cores": 0.0,
+              "pid": 13
+            }
+          ]
+        },
+        "payload_codec_us": {
+          "max": 44.213,
+          "mean": 19.02441,
+          "min": 13.706000000000001,
+          "n": 300,
+          "p50": 18.865,
+          "p99": 35.707
+        },
+        "run": 2,
+        "setup_flight_us": {
+          "max": 1812.3200000000002,
+          "mean": 1288.7384533333336,
+          "min": 959.2850000000001,
+          "n": 300,
+          "p50": 1307.09,
+          "p99": 1518.167
+        }
+      }
+    ],
+    "host_before": {
+      "utc": 1792801215.7634506,
+      "loadavg": "1.59 2.71 4.96 1/1090 88423",
+      "free_bytes": 113950711808,
+      "top": [
+        {
+          "pid": 3870577,
+          "ppid": 3212987,
+          "comm": "python3",
+          "cpu_percent": 33.10837731731884
+        },
+        {
+          "pid": 1,
+          "ppid": 0,
+          "comm": "systemd",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 2,
+          "ppid": 0,
+          "comm": "kthreadd",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 3,
+          "ppid": 2,
+          "comm": "pool_workqueue_release",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 4,
+          "ppid": 2,
+          "comm": "kworker/R-rcu_g",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 5,
+          "ppid": 2,
+          "comm": "kworker/R-rcu_p",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 6,
+          "ppid": 2,
+          "comm": "kworker/R-slub_",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 7,
+          "ppid": 2,
+          "comm": "kworker/R-netns",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 10,
+          "ppid": 2,
+          "comm": "kworker/0:0H-events_highpri",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 12,
+          "ppid": 2,
+          "comm": "kworker/R-mm_pe",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 13,
+          "ppid": 2,
+          "comm": "rcu_tasks_kthread",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 14,
+          "ppid": 2,
+          "comm": "rcu_tasks_rude_kthread",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 15,
+          "ppid": 2,
+          "comm": "rcu_tasks_trace_kthread",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 16,
+          "ppid": 2,
+          "comm": "ksoftirqd/0",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 17,
+          "ppid": 2,
+          "comm": "rcu_preempt",
+          "cpu_percent": 0.0
+        }
+      ]
+    },
+    "host_after": {
+      "utc": 1792801224.2736626,
+      "loadavg": "1.73 2.70 4.93 1/1131 88662",
+      "free_bytes": 113950601216,
+      "top": [
+        {
+          "pid": 3870577,
+          "ppid": 3212987,
+          "comm": "python3",
+          "cpu_percent": 28.741949957602124
+        },
+        {
+          "pid": 1,
+          "ppid": 0,
+          "comm": "systemd",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 2,
+          "ppid": 0,
+          "comm": "kthreadd",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 3,
+          "ppid": 2,
+          "comm": "pool_workqueue_release",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 4,
+          "ppid": 2,
+          "comm": "kworker/R-rcu_g",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 5,
+          "ppid": 2,
+          "comm": "kworker/R-rcu_p",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 6,
+          "ppid": 2,
+          "comm": "kworker/R-slub_",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 7,
+          "ppid": 2,
+          "comm": "kworker/R-netns",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 10,
+          "ppid": 2,
+          "comm": "kworker/0:0H-events_highpri",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 12,
+          "ppid": 2,
+          "comm": "kworker/R-mm_pe",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 13,
+          "ppid": 2,
+          "comm": "rcu_tasks_kthread",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 14,
+          "ppid": 2,
+          "comm": "rcu_tasks_rude_kthread",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 15,
+          "ppid": 2,
+          "comm": "rcu_tasks_trace_kthread",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 16,
+          "ppid": 2,
+          "comm": "ksoftirqd/0",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 17,
+          "ppid": 2,
+          "comm": "rcu_preempt",
+          "cpu_percent": 0.0
+        }
+      ]
+    }
+  },
+  {
+    "source": "m2bind-B-1.json",
+    "link": "B",
+    "FK": "current no-FK engine-created shape",
+    "apply_protocol": "extended bind",
+    "arm": "M2-full-g3b",
+    "batch": 1,
+    "codec": "RT5 Prepared::command, same source, typed arrays and UTF8 hex encoding",
+    "first_read": "N known counters, model authority/receipt lookups; not product authorization",
+    "flights": 3,
+    "runs": [
+      {
+        "apply_flight_us": {
+          "max": 1738.0500000000002,
+          "mean": 1512.2154899999998,
+          "min": 1271.7930000000001,
+          "n": 300,
+          "p50": 1511.8239999999998,
+          "p99": 1675.703
+        },
+        "commit_flight_us": {
+          "max": 8737.712,
+          "mean": 3952.385966666666,
+          "min": 3651.611,
+          "n": 300,
+          "p50": 3785.123,
+          "p99": 6368.554
+        },
+        "cycle_us": {
+          "max": 11951.860999999999,
+          "mean": 6947.387779999999,
+          "min": 6236.836,
+          "n": 300,
+          "p50": 6788.164,
+          "p99": 9355.234
+        },
+        "host_after": {
+          "loadavg": "1.75 2.69 4.92 2/1138 88786\n",
+          "top": [
+            {
+              "comm": "python3",
+              "cpu_cores": 1.0811072614082764,
+              "pid": 3848137
+            },
+            {
+              "comm": "msuite",
+              "cpu_cores": 0.5405536307041382,
+              "pid": 88676
+            },
+            {
+              "comm": "systemd",
+              "cpu_cores": 0.0,
+              "pid": 1
+            },
+            {
+              "comm": "kthreadd",
+              "cpu_cores": 0.0,
+              "pid": 2
+            },
+            {
+              "comm": "pool_workqueue_release",
+              "cpu_cores": 0.0,
+              "pid": 3
+            },
+            {
+              "comm": "kworker/R-rcu_g",
+              "cpu_cores": 0.0,
+              "pid": 4
+            },
+            {
+              "comm": "kworker/R-rcu_p",
+              "cpu_cores": 0.0,
+              "pid": 5
+            },
+            {
+              "comm": "kworker/R-slub_",
+              "cpu_cores": 0.0,
+              "pid": 6
+            },
+            {
+              "comm": "kworker/R-netns",
+              "cpu_cores": 0.0,
+              "pid": 7
+            },
+            {
+              "comm": "kworker/0:0H-events_highpri",
+              "cpu_cores": 0.0,
+              "pid": 10
+            },
+            {
+              "comm": "kworker/R-mm_pe",
+              "cpu_cores": 0.0,
+              "pid": 12
+            },
+            {
+              "comm": "rcu_tasks_kthread",
+              "cpu_cores": 0.0,
+              "pid": 13
+            }
+          ]
+        },
+        "host_before": {
+          "loadavg": "1.75 2.69 4.92 1/1146 88710\n",
+          "top": [
+            {
+              "comm": "systemd",
+              "cpu_cores": 0.0,
+              "pid": 1
+            },
+            {
+              "comm": "kthreadd",
+              "cpu_cores": 0.0,
+              "pid": 2
+            },
+            {
+              "comm": "pool_workqueue_release",
+              "cpu_cores": 0.0,
+              "pid": 3
+            },
+            {
+              "comm": "kworker/R-rcu_g",
+              "cpu_cores": 0.0,
+              "pid": 4
+            },
+            {
+              "comm": "kworker/R-rcu_p",
+              "cpu_cores": 0.0,
+              "pid": 5
+            },
+            {
+              "comm": "kworker/R-slub_",
+              "cpu_cores": 0.0,
+              "pid": 6
+            },
+            {
+              "comm": "kworker/R-netns",
+              "cpu_cores": 0.0,
+              "pid": 7
+            },
+            {
+              "comm": "kworker/0:0H-events_highpri",
+              "cpu_cores": 0.0,
+              "pid": 10
+            },
+            {
+              "comm": "kworker/R-mm_pe",
+              "cpu_cores": 0.0,
+              "pid": 12
+            },
+            {
+              "comm": "rcu_tasks_kthread",
+              "cpu_cores": 0.0,
+              "pid": 13
+            },
+            {
+              "comm": "rcu_tasks_rude_kthread",
+              "cpu_cores": 0.0,
+              "pid": 14
+            },
+            {
+              "comm": "rcu_tasks_trace_kthread",
+              "cpu_cores": 0.0,
+              "pid": 15
+            }
+          ]
+        },
+        "payload_codec_us": {
+          "max": 10.81,
+          "mean": 1.8371800000000016,
+          "min": 0.9620000000000001,
+          "n": 300,
+          "p50": 1.613,
+          "p99": 3.917
+        },
+        "run": 0,
+        "setup_flight_us": {
+          "max": 1718.935,
+          "mean": 1480.949143333334,
+          "min": 1295.568,
+          "n": 300,
+          "p50": 1480.456,
+          "p99": 1670.634
+        }
+      },
+      {
+        "apply_flight_us": {
+          "max": 2395.157,
+          "mean": 1526.46657,
+          "min": 1320.565,
+          "n": 300,
+          "p50": 1507.998,
+          "p99": 2269.52
+        },
+        "commit_flight_us": {
+          "max": 7495.976,
+          "mean": 3958.03688666667,
+          "min": 3607.959,
+          "n": 300,
+          "p50": 3781.0449999999996,
+          "p99": 6499.08
+        },
+        "cycle_us": {
+          "max": 11322.035,
+          "mean": 6962.196299999992,
+          "min": 6342.234,
+          "n": 300,
+          "p50": 6774.889,
+          "p99": 9801.284
+        },
+        "host_after": {
+          "loadavg": "1.77 2.68 4.90 1/1091 88807\n",
+          "top": [
+            {
+              "comm": "msuite",
+              "cpu_cores": 1.0805490420959756,
+              "pid": 88676
+            },
+            {
+              "comm": "systemd",
+              "cpu_cores": 0.0,
+              "pid": 1
+            },
+            {
+              "comm": "kthreadd",
+              "cpu_cores": 0.0,
+              "pid": 2
+            },
+            {
+              "comm": "pool_workqueue_release",
+              "cpu_cores": 0.0,
+              "pid": 3
+            },
+            {
+              "comm": "kworker/R-rcu_g",
+              "cpu_cores": 0.0,
+              "pid": 4
+            },
+            {
+              "comm": "kworker/R-rcu_p",
+              "cpu_cores": 0.0,
+              "pid": 5
+            },
+            {
+              "comm": "kworker/R-slub_",
+              "cpu_cores": 0.0,
+              "pid": 6
+            },
+            {
+              "comm": "kworker/R-netns",
+              "cpu_cores": 0.0,
+              "pid": 7
+            },
+            {
+              "comm": "kworker/0:0H-events_highpri",
+              "cpu_cores": 0.0,
+              "pid": 10
+            },
+            {
+              "comm": "kworker/R-mm_pe",
+              "cpu_cores": 0.0,
+              "pid": 12
+            },
+            {
+              "comm": "rcu_tasks_kthread",
+              "cpu_cores": 0.0,
+              "pid": 13
+            },
+            {
+              "comm": "rcu_tasks_rude_kthread",
+              "cpu_cores": 0.0,
+              "pid": 14
+            }
+          ]
+        },
+        "host_before": {
+          "loadavg": "1.75 2.69 4.92 2/1138 88786\n",
+          "top": [
+            {
+              "comm": "msuite",
+              "cpu_cores": 0.5448716516683481,
+              "pid": 88676
+            },
+            {
+              "comm": "python3",
+              "cpu_cores": 0.5448716516683481,
+              "pid": 3848137
+            },
+            {
+              "comm": "systemd",
+              "cpu_cores": 0.0,
+              "pid": 1
+            },
+            {
+              "comm": "kthreadd",
+              "cpu_cores": 0.0,
+              "pid": 2
+            },
+            {
+              "comm": "pool_workqueue_release",
+              "cpu_cores": 0.0,
+              "pid": 3
+            },
+            {
+              "comm": "kworker/R-rcu_g",
+              "cpu_cores": 0.0,
+              "pid": 4
+            },
+            {
+              "comm": "kworker/R-rcu_p",
+              "cpu_cores": 0.0,
+              "pid": 5
+            },
+            {
+              "comm": "kworker/R-slub_",
+              "cpu_cores": 0.0,
+              "pid": 6
+            },
+            {
+              "comm": "kworker/R-netns",
+              "cpu_cores": 0.0,
+              "pid": 7
+            },
+            {
+              "comm": "kworker/0:0H-events_highpri",
+              "cpu_cores": 0.0,
+              "pid": 10
+            },
+            {
+              "comm": "kworker/R-mm_pe",
+              "cpu_cores": 0.0,
+              "pid": 12
+            },
+            {
+              "comm": "rcu_tasks_kthread",
+              "cpu_cores": 0.0,
+              "pid": 13
+            }
+          ]
+        },
+        "payload_codec_us": {
+          "max": 18.144000000000002,
+          "mean": 1.7969633333333335,
+          "min": 0.882,
+          "n": 300,
+          "p50": 1.5430000000000001,
+          "p99": 11.481
+        },
+        "run": 1,
+        "setup_flight_us": {
+          "max": 1708.135,
+          "mean": 1475.8958800000003,
+          "min": 1311.1570000000002,
+          "n": 300,
+          "p50": 1471.219,
+          "p99": 1609.409
+        }
+      },
+      {
+        "apply_flight_us": {
+          "max": 1886.981,
+          "mean": 1508.0797666666672,
+          "min": 1293.7450000000001,
+          "n": 300,
+          "p50": 1503.82,
+          "p99": 1624.787
+        },
+        "commit_flight_us": {
+          "max": 6533.785,
+          "mean": 3970.987133333332,
+          "min": 3616.385,
+          "n": 300,
+          "p50": 3776.026,
+          "p99": 6445.6089999999995
+        },
+        "cycle_us": {
+          "max": 9561.523000000001,
+          "mean": 6962.5737266666665,
+          "min": 6253.057,
+          "n": 300,
+          "p50": 6770.33,
+          "p99": 9432.710000000001
+        },
+        "host_after": {
+          "loadavg": "1.77 2.68 4.90 1/1064 88845\n",
+          "top": [
+            {
+              "comm": "msuite",
+              "cpu_cores": 0.5562611419106724,
+              "pid": 88676
+            },
+            {
+              "comm": "systemd",
+              "cpu_cores": 0.0,
+              "pid": 1
+            },
+            {
+              "comm": "kthreadd",
+              "cpu_cores": 0.0,
+              "pid": 2
+            },
+            {
+              "comm": "pool_workqueue_release",
+              "cpu_cores": 0.0,
+              "pid": 3
+            },
+            {
+              "comm": "kworker/R-rcu_g",
+              "cpu_cores": 0.0,
+              "pid": 4
+            },
+            {
+              "comm": "kworker/R-rcu_p",
+              "cpu_cores": 0.0,
+              "pid": 5
+            },
+            {
+              "comm": "kworker/R-slub_",
+              "cpu_cores": 0.0,
+              "pid": 6
+            },
+            {
+              "comm": "kworker/R-netns",
+              "cpu_cores": 0.0,
+              "pid": 7
+            },
+            {
+              "comm": "kworker/0:0H-events_highpri",
+              "cpu_cores": 0.0,
+              "pid": 10
+            },
+            {
+              "comm": "kworker/R-mm_pe",
+              "cpu_cores": 0.0,
+              "pid": 12
+            },
+            {
+              "comm": "rcu_tasks_kthread",
+              "cpu_cores": 0.0,
+              "pid": 13
+            },
+            {
+              "comm": "rcu_tasks_rude_kthread",
+              "cpu_cores": 0.0,
+              "pid": 14
+            }
+          ]
+        },
+        "host_before": {
+          "loadavg": "1.77 2.68 4.90 1/1091 88807\n",
+          "top": [
+            {
+              "comm": "msuite",
+              "cpu_cores": 0.5546713170309886,
+              "pid": 88676
+            },
+            {
+              "comm": "systemd",
+              "cpu_cores": 0.0,
+              "pid": 1
+            },
+            {
+              "comm": "kthreadd",
+              "cpu_cores": 0.0,
+              "pid": 2
+            },
+            {
+              "comm": "pool_workqueue_release",
+              "cpu_cores": 0.0,
+              "pid": 3
+            },
+            {
+              "comm": "kworker/R-rcu_g",
+              "cpu_cores": 0.0,
+              "pid": 4
+            },
+            {
+              "comm": "kworker/R-rcu_p",
+              "cpu_cores": 0.0,
+              "pid": 5
+            },
+            {
+              "comm": "kworker/R-slub_",
+              "cpu_cores": 0.0,
+              "pid": 6
+            },
+            {
+              "comm": "kworker/R-netns",
+              "cpu_cores": 0.0,
+              "pid": 7
+            },
+            {
+              "comm": "kworker/0:0H-events_highpri",
+              "cpu_cores": 0.0,
+              "pid": 10
+            },
+            {
+              "comm": "kworker/R-mm_pe",
+              "cpu_cores": 0.0,
+              "pid": 12
+            },
+            {
+              "comm": "rcu_tasks_kthread",
+              "cpu_cores": 0.0,
+              "pid": 13
+            },
+            {
+              "comm": "rcu_tasks_rude_kthread",
+              "cpu_cores": 0.0,
+              "pid": 14
+            }
+          ]
+        },
+        "payload_codec_us": {
+          "max": 13.906,
+          "mean": 1.83538,
+          "min": 0.7320000000000001,
+          "n": 300,
+          "p50": 1.603,
+          "p99": 4.909
+        },
+        "run": 2,
+        "setup_flight_us": {
+          "max": 3398.204,
+          "mean": 1481.6714466666665,
+          "min": 1269.4589999999998,
+          "n": 300,
+          "p50": 1466.299,
+          "p99": 2103.9700000000003
+        }
+      }
+    ],
+    "host_before": {
+      "utc": 1792801224.9614258,
+      "loadavg": "1.73 2.70 4.93 1/1140 88675",
+      "free_bytes": 113950547968,
+      "top": [
+        {
+          "pid": 3848251,
+          "ppid": 3212987,
+          "comm": "python3",
+          "cpu_percent": 33.206100010885805
+        },
+        {
+          "pid": 3870577,
+          "ppid": 3212987,
+          "comm": "python3",
+          "cpu_percent": 33.206100010885805
+        },
+        {
+          "pid": 1,
+          "ppid": 0,
+          "comm": "systemd",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 2,
+          "ppid": 0,
+          "comm": "kthreadd",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 3,
+          "ppid": 2,
+          "comm": "pool_workqueue_release",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 4,
+          "ppid": 2,
+          "comm": "kworker/R-rcu_g",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 5,
+          "ppid": 2,
+          "comm": "kworker/R-rcu_p",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 6,
+          "ppid": 2,
+          "comm": "kworker/R-slub_",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 7,
+          "ppid": 2,
+          "comm": "kworker/R-netns",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 10,
+          "ppid": 2,
+          "comm": "kworker/0:0H-events_highpri",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 12,
+          "ppid": 2,
+          "comm": "kworker/R-mm_pe",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 13,
+          "ppid": 2,
+          "comm": "rcu_tasks_kthread",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 14,
+          "ppid": 2,
+          "comm": "rcu_tasks_rude_kthread",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 15,
+          "ppid": 2,
+          "comm": "rcu_tasks_trace_kthread",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 16,
+          "ppid": 2,
+          "comm": "ksoftirqd/0",
+          "cpu_percent": 0.0
+        }
+      ]
+    },
+    "host_after": {
+      "utc": 1792801234.0946624,
+      "loadavg": "1.77 2.68 4.90 2/1058 88846",
+      "free_bytes": 113951535104,
+      "top": [
+        {
+          "pid": 3848137,
+          "ppid": 3212987,
+          "comm": "python3",
+          "cpu_percent": 105.45306482822559
+        },
+        {
+          "pid": 3870577,
+          "ppid": 3212987,
+          "comm": "python3",
+          "cpu_percent": 26.363266207056398
+        },
+        {
+          "pid": 1,
+          "ppid": 0,
+          "comm": "systemd",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 2,
+          "ppid": 0,
+          "comm": "kthreadd",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 3,
+          "ppid": 2,
+          "comm": "pool_workqueue_release",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 4,
+          "ppid": 2,
+          "comm": "kworker/R-rcu_g",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 5,
+          "ppid": 2,
+          "comm": "kworker/R-rcu_p",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 6,
+          "ppid": 2,
+          "comm": "kworker/R-slub_",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 7,
+          "ppid": 2,
+          "comm": "kworker/R-netns",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 10,
+          "ppid": 2,
+          "comm": "kworker/0:0H-events_highpri",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 12,
+          "ppid": 2,
+          "comm": "kworker/R-mm_pe",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 13,
+          "ppid": 2,
+          "comm": "rcu_tasks_kthread",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 14,
+          "ppid": 2,
+          "comm": "rcu_tasks_rude_kthread",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 15,
+          "ppid": 2,
+          "comm": "rcu_tasks_trace_kthread",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 16,
+          "ppid": 2,
+          "comm": "ksoftirqd/0",
+          "cpu_percent": 0.0
+        }
+      ]
+    }
+  },
+  {
+    "source": "m2bind-B-32.json",
+    "link": "B",
+    "FK": "current no-FK engine-created shape",
+    "apply_protocol": "extended bind",
+    "arm": "M2-full-g3b",
+    "batch": 32,
+    "codec": "RT5 Prepared::command, same source, typed arrays and UTF8 hex encoding",
+    "first_read": "N known counters, model authority/receipt lookups; not product authorization",
+    "flights": 3,
+    "runs": [
+      {
+        "apply_flight_us": {
+          "max": 2559.6870000000004,
+          "mean": 2213.643666666667,
+          "min": 1688.236,
+          "n": 300,
+          "p50": 2218.154,
+          "p99": 2446.864
+        },
+        "commit_flight_us": {
+          "max": 8552.364,
+          "mean": 3886.7793333333357,
+          "min": 3663.9950000000003,
+          "n": 300,
+          "p50": 3838.733,
+          "p99": 6225.936
+        },
+        "cycle_us": {
+          "max": 12556.809000000001,
+          "mean": 7920.859826666661,
+          "min": 6863.255,
+          "n": 300,
+          "p50": 7880.0380000000005,
+          "p99": 10473.619
+        },
+        "host_after": {
+          "loadavg": "1.71 2.65 4.88 2/1057 88920\n",
+          "top": [
+            {
+              "comm": "msuite",
+              "cpu_cores": 1.0817857621740519,
+              "pid": 88851
+            },
+            {
+              "comm": "python3",
+              "cpu_cores": 1.0817857621740519,
+              "pid": 3848137
+            },
+            {
+              "comm": "systemd",
+              "cpu_cores": 0.0,
+              "pid": 1
+            },
+            {
+              "comm": "kthreadd",
+              "cpu_cores": 0.0,
+              "pid": 2
+            },
+            {
+              "comm": "pool_workqueue_release",
+              "cpu_cores": 0.0,
+              "pid": 3
+            },
+            {
+              "comm": "kworker/R-rcu_g",
+              "cpu_cores": 0.0,
+              "pid": 4
+            },
+            {
+              "comm": "kworker/R-rcu_p",
+              "cpu_cores": 0.0,
+              "pid": 5
+            },
+            {
+              "comm": "kworker/R-slub_",
+              "cpu_cores": 0.0,
+              "pid": 6
+            },
+            {
+              "comm": "kworker/R-netns",
+              "cpu_cores": 0.0,
+              "pid": 7
+            },
+            {
+              "comm": "kworker/0:0H-events_highpri",
+              "cpu_cores": 0.0,
+              "pid": 10
+            },
+            {
+              "comm": "kworker/R-mm_pe",
+              "cpu_cores": 0.0,
+              "pid": 12
+            },
+            {
+              "comm": "rcu_tasks_kthread",
+              "cpu_cores": 0.0,
+              "pid": 13
+            }
+          ]
+        },
+        "host_before": {
+          "loadavg": "1.77 2.68 4.90 1/1058 88905\n",
+          "top": [
+            {
+              "comm": "msuite",
+              "cpu_cores": 0.5577481565168494,
+              "pid": 88851
+            },
+            {
+              "comm": "systemd",
+              "cpu_cores": 0.0,
+              "pid": 1
+            },
+            {
+              "comm": "kthreadd",
+              "cpu_cores": 0.0,
+              "pid": 2
+            },
+            {
+              "comm": "pool_workqueue_release",
+              "cpu_cores": 0.0,
+              "pid": 3
+            },
+            {
+              "comm": "kworker/R-rcu_g",
+              "cpu_cores": 0.0,
+              "pid": 4
+            },
+            {
+              "comm": "kworker/R-rcu_p",
+              "cpu_cores": 0.0,
+              "pid": 5
+            },
+            {
+              "comm": "kworker/R-slub_",
+              "cpu_cores": 0.0,
+              "pid": 6
+            },
+            {
+              "comm": "kworker/R-netns",
+              "cpu_cores": 0.0,
+              "pid": 7
+            },
+            {
+              "comm": "kworker/0:0H-events_highpri",
+              "cpu_cores": 0.0,
+              "pid": 10
+            },
+            {
+              "comm": "kworker/R-mm_pe",
+              "cpu_cores": 0.0,
+              "pid": 12
+            },
+            {
+              "comm": "rcu_tasks_kthread",
+              "cpu_cores": 0.0,
+              "pid": 13
+            },
+            {
+              "comm": "rcu_tasks_rude_kthread",
+              "cpu_cores": 0.0,
+              "pid": 14
+            }
+          ]
+        },
+        "payload_codec_us": {
+          "max": 34.034,
+          "mean": 17.97487,
+          "min": 13.485999999999999,
+          "n": 300,
+          "p50": 17.874,
+          "p99": 29.244999999999997
+        },
+        "run": 0,
+        "setup_flight_us": {
+          "max": 2095.123,
+          "mean": 1802.4619566666668,
+          "min": 1480.185,
+          "n": 300,
+          "p50": 1809.004,
+          "p99": 2014.651
+        }
+      },
+      {
+        "apply_flight_us": {
+          "max": 2925.836,
+          "mean": 2243.9513500000003,
+          "min": 1670.8039999999999,
+          "n": 300,
+          "p50": 2222.6929999999998,
+          "p99": 2705.03
+        },
+        "commit_flight_us": {
+          "max": 8961.583,
+          "mean": 3863.7832633333337,
+          "min": 3697.248,
+          "n": 300,
+          "p50": 3796.505,
+          "p99": 6352.774
+        },
+        "cycle_us": {
+          "max": 13103.648000000001,
+          "mean": 7950.622226666672,
+          "min": 6926.403,
+          "n": 300,
+          "p50": 7847.938,
+          "p99": 10286.026
+        },
+        "host_after": {
+          "loadavg": "1.73 2.64 4.86 1/1058 88943\n",
+          "top": [
+            {
+              "comm": "msuite",
+              "cpu_cores": 1.0833185731177748,
+              "pid": 88851
+            },
+            {
+              "comm": "systemd",
+              "cpu_cores": 0.0,
+              "pid": 1
+            },
+            {
+              "comm": "kthreadd",
+              "cpu_cores": 0.0,
+              "pid": 2
+            },
+            {
+              "comm": "pool_workqueue_release",
+              "cpu_cores": 0.0,
+              "pid": 3
+            },
+            {
+              "comm": "kworker/R-rcu_g",
+              "cpu_cores": 0.0,
+              "pid": 4
+            },
+            {
+              "comm": "kworker/R-rcu_p",
+              "cpu_cores": 0.0,
+              "pid": 5
+            },
+            {
+              "comm": "kworker/R-slub_",
+              "cpu_cores": 0.0,
+              "pid": 6
+            },
+            {
+              "comm": "kworker/R-netns",
+              "cpu_cores": 0.0,
+              "pid": 7
+            },
+            {
+              "comm": "kworker/0:0H-events_highpri",
+              "cpu_cores": 0.0,
+              "pid": 10
+            },
+            {
+              "comm": "kworker/R-mm_pe",
+              "cpu_cores": 0.0,
+              "pid": 12
+            },
+            {
+              "comm": "rcu_tasks_kthread",
+              "cpu_cores": 0.0,
+              "pid": 13
+            },
+            {
+              "comm": "rcu_tasks_rude_kthread",
+              "cpu_cores": 0.0,
+              "pid": 14
+            }
+          ]
+        },
+        "host_before": {
+          "loadavg": "1.71 2.65 4.88 2/1057 88920\n",
+          "top": [
+            {
+              "comm": "msuite",
+              "cpu_cores": 0.5455757327041172,
+              "pid": 88851
+            },
+            {
+              "comm": "python3",
+              "cpu_cores": 0.5455757327041172,
+              "pid": 3848137
+            },
+            {
+              "comm": "systemd",
+              "cpu_cores": 0.0,
+              "pid": 1
+            },
+            {
+              "comm": "kthreadd",
+              "cpu_cores": 0.0,
+              "pid": 2
+            },
+            {
+              "comm": "pool_workqueue_release",
+              "cpu_cores": 0.0,
+              "pid": 3
+            },
+            {
+              "comm": "kworker/R-rcu_g",
+              "cpu_cores": 0.0,
+              "pid": 4
+            },
+            {
+              "comm": "kworker/R-rcu_p",
+              "cpu_cores": 0.0,
+              "pid": 5
+            },
+            {
+              "comm": "kworker/R-slub_",
+              "cpu_cores": 0.0,
+              "pid": 6
+            },
+            {
+              "comm": "kworker/R-netns",
+              "cpu_cores": 0.0,
+              "pid": 7
+            },
+            {
+              "comm": "kworker/0:0H-events_highpri",
+              "cpu_cores": 0.0,
+              "pid": 10
+            },
+            {
+              "comm": "kworker/R-mm_pe",
+              "cpu_cores": 0.0,
+              "pid": 12
+            },
+            {
+              "comm": "rcu_tasks_kthread",
+              "cpu_cores": 0.0,
+              "pid": 13
+            }
+          ]
+        },
+        "payload_codec_us": {
+          "max": 37.22,
+          "mean": 19.121543333333328,
+          "min": 13.796,
+          "n": 300,
+          "p50": 18.895,
+          "p99": 30.167
+        },
+        "run": 1,
+        "setup_flight_us": {
+          "max": 2329.944,
+          "mean": 1823.7660699999997,
+          "min": 1471.479,
+          "n": 300,
+          "p50": 1811.078,
+          "p99": 2202.835
+        }
+      },
+      {
+        "apply_flight_us": {
+          "max": 2957.195,
+          "mean": 2248.673690000001,
+          "min": 1660.925,
+          "n": 300,
+          "p50": 2219.627,
+          "p99": 2733.7239999999997
+        },
+        "commit_flight_us": {
+          "max": 8548.787,
+          "mean": 3838.20993,
+          "min": 3714.37,
+          "n": 300,
+          "p50": 3808.808,
+          "p99": 5019.726000000001
+        },
+        "cycle_us": {
+          "max": 12891.098,
+          "mean": 7931.750773333328,
+          "min": 6964.155,
+          "n": 300,
+          "p50": 7869.719000000001,
+          "p99": 9296.885
+        },
+        "host_after": {
+          "loadavg": "1.73 2.64 4.86 2/1057 88955\n",
+          "top": [
+            {
+              "comm": "python3",
+              "cpu_cores": 1.6219578491000703,
+              "pid": 3848137
+            },
+            {
+              "comm": "msuite",
+              "cpu_cores": 0.5406526163666902,
+              "pid": 88851
+            },
+            {
+              "comm": "claude",
+              "cpu_cores": 0.5406526163666902,
+              "pid": 4129116
+            },
+            {
+              "comm": "systemd",
+              "cpu_cores": 0.0,
+              "pid": 1
+            },
+            {
+              "comm": "kthreadd",
+              "cpu_cores": 0.0,
+              "pid": 2
+            },
+            {
+              "comm": "pool_workqueue_release",
+              "cpu_cores": 0.0,
+              "pid": 3
+            },
+            {
+              "comm": "kworker/R-rcu_g",
+              "cpu_cores": 0.0,
+              "pid": 4
+            },
+            {
+              "comm": "kworker/R-rcu_p",
+              "cpu_cores": 0.0,
+              "pid": 5
+            },
+            {
+              "comm": "kworker/R-slub_",
+              "cpu_cores": 0.0,
+              "pid": 6
+            },
+            {
+              "comm": "kworker/R-netns",
+              "cpu_cores": 0.0,
+              "pid": 7
+            },
+            {
+              "comm": "kworker/0:0H-events_highpri",
+              "cpu_cores": 0.0,
+              "pid": 10
+            },
+            {
+              "comm": "kworker/R-mm_pe",
+              "cpu_cores": 0.0,
+              "pid": 12
+            }
+          ]
+        },
+        "host_before": {
+          "loadavg": "1.73 2.64 4.86 1/1058 88943\n",
+          "top": [
+            {
+              "comm": "msuite",
+              "cpu_cores": 0.5413610683435868,
+              "pid": 88851
+            },
+            {
+              "comm": "systemd",
+              "cpu_cores": 0.0,
+              "pid": 1
+            },
+            {
+              "comm": "kthreadd",
+              "cpu_cores": 0.0,
+              "pid": 2
+            },
+            {
+              "comm": "pool_workqueue_release",
+              "cpu_cores": 0.0,
+              "pid": 3
+            },
+            {
+              "comm": "kworker/R-rcu_g",
+              "cpu_cores": 0.0,
+              "pid": 4
+            },
+            {
+              "comm": "kworker/R-rcu_p",
+              "cpu_cores": 0.0,
+              "pid": 5
+            },
+            {
+              "comm": "kworker/R-slub_",
+              "cpu_cores": 0.0,
+              "pid": 6
+            },
+            {
+              "comm": "kworker/R-netns",
+              "cpu_cores": 0.0,
+              "pid": 7
+            },
+            {
+              "comm": "kworker/0:0H-events_highpri",
+              "cpu_cores": 0.0,
+              "pid": 10
+            },
+            {
+              "comm": "kworker/R-mm_pe",
+              "cpu_cores": 0.0,
+              "pid": 12
+            },
+            {
+              "comm": "rcu_tasks_kthread",
+              "cpu_cores": 0.0,
+              "pid": 13
+            },
+            {
+              "comm": "rcu_tasks_rude_kthread",
+              "cpu_cores": 0.0,
+              "pid": 14
+            }
+          ]
+        },
+        "payload_codec_us": {
+          "max": 33.352999999999994,
+          "mean": 18.961596666666672,
+          "min": 13.886000000000001,
+          "n": 300,
+          "p50": 18.805,
+          "p99": 31.009
+        },
+        "run": 2,
+        "setup_flight_us": {
+          "max": 2335.174,
+          "mean": 1825.9055566666664,
+          "min": 1482.24,
+          "n": 300,
+          "p50": 1809.0339999999999,
+          "p99": 2205.009
+        }
+      }
+    ],
+    "host_before": {
+      "utc": 1792801234.7817783,
+      "loadavg": "1.77 2.68 4.90 2/1051 88850",
+      "free_bytes": 113951481856,
+      "top": [
+        {
+          "pid": 3848137,
+          "ppid": 3212987,
+          "comm": "python3",
+          "cpu_percent": 100.12956785474626
+        },
+        {
+          "pid": 1,
+          "ppid": 0,
+          "comm": "systemd",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 2,
+          "ppid": 0,
+          "comm": "kthreadd",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 3,
+          "ppid": 2,
+          "comm": "pool_workqueue_release",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 4,
+          "ppid": 2,
+          "comm": "kworker/R-rcu_g",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 5,
+          "ppid": 2,
+          "comm": "kworker/R-rcu_p",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 6,
+          "ppid": 2,
+          "comm": "kworker/R-slub_",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 7,
+          "ppid": 2,
+          "comm": "kworker/R-netns",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 10,
+          "ppid": 2,
+          "comm": "kworker/0:0H-events_highpri",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 12,
+          "ppid": 2,
+          "comm": "kworker/R-mm_pe",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 13,
+          "ppid": 2,
+          "comm": "rcu_tasks_kthread",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 14,
+          "ppid": 2,
+          "comm": "rcu_tasks_rude_kthread",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 15,
+          "ppid": 2,
+          "comm": "rcu_tasks_trace_kthread",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 16,
+          "ppid": 2,
+          "comm": "ksoftirqd/0",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 17,
+          "ppid": 2,
+          "comm": "rcu_preempt",
+          "cpu_percent": 0.0
+        }
+      ]
+    },
+    "host_after": {
+      "utc": 1792801244.8249056,
+      "loadavg": "1.73 2.64 4.86 1/1051 88956",
+      "free_bytes": 113951219712,
+      "top": [
+        {
+          "pid": 3848137,
+          "ppid": 3212987,
+          "comm": "python3",
+          "cpu_percent": 52.4205939246034
+        },
+        {
+          "pid": 3870577,
+          "ppid": 3212987,
+          "comm": "python3",
+          "cpu_percent": 52.4205939246034
+        },
+        {
+          "pid": 1,
+          "ppid": 0,
+          "comm": "systemd",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 2,
+          "ppid": 0,
+          "comm": "kthreadd",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 3,
+          "ppid": 2,
+          "comm": "pool_workqueue_release",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 4,
+          "ppid": 2,
+          "comm": "kworker/R-rcu_g",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 5,
+          "ppid": 2,
+          "comm": "kworker/R-rcu_p",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 6,
+          "ppid": 2,
+          "comm": "kworker/R-slub_",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 7,
+          "ppid": 2,
+          "comm": "kworker/R-netns",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 10,
+          "ppid": 2,
+          "comm": "kworker/0:0H-events_highpri",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 12,
+          "ppid": 2,
+          "comm": "kworker/R-mm_pe",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 13,
+          "ppid": 2,
+          "comm": "rcu_tasks_kthread",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 14,
+          "ppid": 2,
+          "comm": "rcu_tasks_rude_kthread",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 15,
+          "ppid": 2,
+          "comm": "rcu_tasks_trace_kthread",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 16,
+          "ppid": 2,
+          "comm": "ksoftirqd/0",
+          "cpu_percent": 0.0
+        }
+      ]
+    }
+  }
+]

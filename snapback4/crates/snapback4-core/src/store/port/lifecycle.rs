@@ -24,6 +24,18 @@ impl AnyStore {
     pub fn open_with_busy_timeout(path: &Path, timeout: Duration) -> Result<Self, RuntimeError> {
         sqlite::Store::open_with_busy_timeout(path, timeout).map(|inner| Self::Sqlite(SqliteStore(inner)))
     }
+    pub(crate) fn program_transaction_until(&mut self, digest: Option<&str>, principal: &str, id: Option<&str>, deadline: std::time::Instant) -> Result<AnyTx<'_>, RuntimeError> {
+        #[cfg(not(feature="postgres"))]
+        let _=(digest,principal,id);
+        match self {
+            Self::Sqlite(SqliteStore(store)) => store.program_transaction_until(deadline).map(|tx|AnyTx::Sqlite(SqliteTx(tx))),
+            #[cfg(feature="postgres")]
+            Self::Postgres(PostgresStore(handle)) => {
+                let store=handle.store.get_mut(); store.next_program_deadline=Some(deadline);
+                match digest { Some(digest)=>store.request_transaction(digest,principal,id), None=>store.transaction(Some(crate::engine::postgres::WriteMode::Serialized)) }.map(|tx|AnyTx::Postgres(PostgresTx(tx)))
+            }
+        }
+    }
     pub fn transaction(&mut self) -> Result<AnyTx<'_>, RuntimeError> {
         match self { Self::Sqlite(SqliteStore(store)) => store.transaction().map(|inner| AnyTx::Sqlite(SqliteTx(inner))), #[cfg(feature = "postgres")] Self::Postgres(PostgresStore(handle)) => handle.store.get_mut().transaction(Some(crate::engine::postgres::WriteMode::Serialized)).map(|inner| AnyTx::Postgres(PostgresTx(inner))) }
     }
@@ -202,6 +214,44 @@ impl AnyTx<'_> {
 }
 
 impl<'store> AnyTx<'store> {
+    pub(crate) fn bound_program_attempt(&self, deadline: std::time::Instant) -> Result<AttemptBudget<'_>, RuntimeError> {
+        let _remaining = deadline.checked_duration_since(std::time::Instant::now()).filter(|r|!r.is_zero())
+            .ok_or_else(||RuntimeError::Store("program invocation's remaining deadline elapsed".into()))?;
+        match self {
+            Self::Sqlite(SqliteTx(tx)) => {
+                let busy=sqlite::program_deadline::Budget::begin(tx.conn(),deadline)?;
+                tx.conn().progress_handler(1000, Some(move || std::time::Instant::now() >= deadline))?;
+                Ok(AttemptBudget(Some(Box::new(move || { let _ = tx.conn().progress_handler(0,None::<fn()->bool>); drop(busy); }))))
+            }
+            #[cfg(feature="postgres")]
+            Self::Postgres(PostgresTx(tx)) => { tx.bound_program_attempt(deadline)?; Ok(AttemptBudget(None)) }
+        }
+    }
+    pub(crate) fn enable_group_tail(&self) -> Result<(), RuntimeError> {
+        match self { Self::Sqlite(_) => Ok(()), #[cfg(feature="postgres")] Self::Postgres(PostgresTx(tx)) => tx.enable_group_tail() }
+    }
+    pub(crate) fn prepare_program_commit(&self) -> Result<(), RuntimeError> {
+        match self {
+            Self::Sqlite(_) => Ok::<(), RuntimeError>(()),
+            #[cfg(feature = "postgres")]
+            Self::Postgres(PostgresTx(tx)) => tx.flush_tail(),
+        }?;
+        #[cfg(test)]
+        crate::engine::program_tail_prepared();
+        Ok(())
+    }
+    pub(crate) fn commit_program(self) -> Result<(), crate::engine::committer::outcome::Failure> {
+        #[cfg(any(test,feature="test-support"))]
+        let started=std::time::Instant::now();
+        let result=match self {
+            Self::Sqlite(SqliteTx(tx)) => tx.commit_program(),
+            #[cfg(feature = "postgres")]
+            Self::Postgres(PostgresTx(tx)) => tx.commit_program(),
+        };
+        #[cfg(any(test,feature="test-support"))]
+        crate::round_trips::committed_in(started.elapsed());
+        result
+    }
     pub(crate) fn from_sqlite(tx: sqlite::Tx<'store>) -> Self { Self::Sqlite(SqliteTx(tx)) }
     // Adapter-only activation callbacks keep backend borrows scoped to the port.
     pub(crate) fn with_sqlite<T>(&self, run: impl FnOnce(&sqlite::Tx<'store>) -> T) -> T {
@@ -213,6 +263,11 @@ impl<'store> AnyTx<'store> {
     pub(crate) fn with_postgres<T>(&self, run: impl FnOnce(&crate::engine::postgres::store::Tx<'store>) -> T) -> T {
         match self { Self::Postgres(PostgresTx(tx)) => run(tx), Self::Sqlite(_) => unreachable!("Postgres adapter transaction") }
     }
+}
+
+pub(crate) struct AttemptBudget<'a>(Option<Box<dyn FnOnce() + 'a>>);
+impl Drop for AttemptBudget<'_> {
+    fn drop(&mut self) { if let Some(clear) = self.0.take() { clear(); } }
 }
 #[cfg(feature = "postgres")]
 impl AnyStore {
