@@ -1,141 +1,601 @@
 {
-  "commit": "b5a0fb72bcc87c13dc3aed1a475c2726def0ffbc",
   "host": "expo-build-450a",
-  "cpu": "AMD Ryzen 5 3600, 6 cores/12 threads",
-  "affinity_cpus": 12,
+  "cpu": "AMD Ryzen 5 3600, 6 cores/12 threads, affinity 12",
   "postgres": "16.15",
-  "rust": "1.97.0",
-  "cargo_profile": "test, opt-level=1, line-tables-only debug",
-  "transport": "private TCP loopback, no delay proxy",
-  "reader_runtime_io_threads": 1,
-  "sample_seconds_per_operation": 5,
-  "fixture_messages_per_room": 3,
-  "fixture_memberships": 34,
-  "rows": [
+  "rust_cargo": "1.97.0",
+  "profile": "test opt-level=1, dev/test debug line-tables-only",
+  "transport": "private TCP loopback; no delay proxy",
+  "reader_io_threads": 1,
+  "sample_seconds": 5,
+  "clients": 128,
+  "physical_reader_cap": 30,
+  "http_active": 30,
+  "http_queued": 98,
+  "cohorts": [
     {
-      "clients": 128,
-      "depth": "1",
-      "max_connections": 30,
-      "op": "W2",
-      "p50_ms": 24.044177,
-      "p99_ms": 39.331608,
-      "reads": 26136,
-      "reads_per_second": 5197.824846333038,
-      "seconds": 5.02825716,
-      "load_before": [
-        2.9599609375,
-        3.58251953125,
-        3.6796875
-      ],
-      "load_after": [
-        7.47216796875,
-        4.51123046875,
-        3.97998046875
+      "name": "initial_core_light",
+      "fixture": "34 memberships, three messages per room, maintained totals",
+      "clock": "per-client start after barrier",
+      "samples": [
+        {
+          "clients": 128,
+          "depth": "1",
+          "max_connections": 30,
+          "op": "W2",
+          "p50_ms": 24.044177,
+          "p99_ms": 39.331608,
+          "reads": 26136,
+          "reads_per_second": 5197.824846333038,
+          "seconds": 5.02825716,
+          "load_before": [
+            2.9599609375,
+            3.58251953125,
+            3.6796875
+          ],
+          "load_after": [
+            7.47216796875,
+            4.51123046875,
+            3.97998046875
+          ],
+          "code_commit": "b5a0fb72bcc87c13dc3aed1a475c2726def0ffbc"
+        },
+        {
+          "clients": 128,
+          "depth": "1",
+          "max_connections": 30,
+          "op": "W3",
+          "p50_ms": 54.642503,
+          "p99_ms": 85.069946,
+          "reads": 11621,
+          "reads_per_second": 2299.025664831845,
+          "seconds": 5.054750009,
+          "load_before": [
+            2.9599609375,
+            3.58251953125,
+            3.6796875
+          ],
+          "load_after": [
+            7.47216796875,
+            4.51123046875,
+            3.97998046875
+          ],
+          "code_commit": "b5a0fb72bcc87c13dc3aed1a475c2726def0ffbc"
+        },
+        {
+          "clients": 128,
+          "depth": "4",
+          "max_connections": 30,
+          "op": "W2",
+          "p50_ms": 22.569828,
+          "p99_ms": 63.275306,
+          "reads": 26626,
+          "reads_per_second": 5295.183853189407,
+          "seconds": 5.028342875,
+          "load_before": [
+            7.47216796875,
+            4.51123046875,
+            3.97998046875
+          ],
+          "load_after": [
+            12.4189453125,
+            5.66455078125,
+            4.361328125
+          ],
+          "code_commit": "b5a0fb72bcc87c13dc3aed1a475c2726def0ffbc"
+        },
+        {
+          "clients": 128,
+          "depth": "4",
+          "max_connections": 30,
+          "op": "W3",
+          "p50_ms": 54.159009,
+          "p99_ms": 119.899919,
+          "reads": 11615,
+          "reads_per_second": 2289.391939696583,
+          "seconds": 5.073399534,
+          "load_before": [
+            7.47216796875,
+            4.51123046875,
+            3.97998046875
+          ],
+          "load_after": [
+            12.4189453125,
+            5.66455078125,
+            4.361328125
+          ],
+          "code_commit": "b5a0fb72bcc87c13dc3aed1a475c2726def0ffbc"
+        },
+        {
+          "clients": 128,
+          "depth": "8",
+          "max_connections": 30,
+          "op": "W2",
+          "p50_ms": 22.845299,
+          "p99_ms": 61.830021,
+          "reads": 26346,
+          "reads_per_second": 5243.339795694238,
+          "seconds": 5.02466005,
+          "load_before": [
+            12.4189453125,
+            5.66455078125,
+            4.361328125
+          ],
+          "load_after": [
+            17.5322265625,
+            7.0810546875,
+            4.84375
+          ],
+          "code_commit": "b5a0fb72bcc87c13dc3aed1a475c2726def0ffbc"
+        },
+        {
+          "clients": 128,
+          "depth": "8",
+          "max_connections": 30,
+          "op": "W3",
+          "p50_ms": 53.621673,
+          "p99_ms": 118.568732,
+          "reads": 11785,
+          "reads_per_second": 2315.7845530078926,
+          "seconds": 5.088988086,
+          "load_before": [
+            12.4189453125,
+            5.66455078125,
+            4.361328125
+          ],
+          "load_after": [
+            17.5322265625,
+            7.0810546875,
+            4.84375
+          ],
+          "code_commit": "b5a0fb72bcc87c13dc3aed1a475c2726def0ffbc"
+        }
       ]
     },
     {
-      "clients": 128,
-      "depth": "1",
-      "max_connections": 30,
-      "op": "W3",
-      "p50_ms": 54.642503,
-      "p99_ms": 85.069946,
-      "reads": 11621,
-      "reads_per_second": 2299.025664831845,
-      "seconds": 5.054750009,
-      "load_before": [
-        2.9599609375,
-        3.58251953125,
-        3.6796875
-      ],
-      "load_after": [
-        7.47216796875,
-        4.51123046875,
-        3.97998046875
+      "name": "core_20_before_lifecycle_fixes",
+      "fixture": "34 memberships, twenty messages per room, maintained totals",
+      "clock": "per-client start after barrier",
+      "samples": [
+        {
+          "clients": 128,
+          "depth": "1",
+          "max_connections": 30,
+          "op": "W2",
+          "p50_ms": 87.909198,
+          "p99_ms": 156.926107,
+          "reads": 7181,
+          "reads_per_second": 1403.9919509385845,
+          "seconds": 5.114701687,
+          "load_before": [
+            13.70703125,
+            15.7861328125,
+            11.703125
+          ],
+          "load_after": [
+            18.73291015625,
+            16.7646484375,
+            12.11083984375
+          ],
+          "code_commit": "fa81c4c1e04facfcf06870bcc3455b590b33bac8"
+        },
+        {
+          "clients": 128,
+          "depth": "1",
+          "max_connections": 30,
+          "op": "W3",
+          "p50_ms": 180.08626,
+          "p99_ms": 304.818537,
+          "reads": 3570,
+          "reads_per_second": 687.7504818319192,
+          "seconds": 5.190836058,
+          "load_before": [
+            13.70703125,
+            15.7861328125,
+            11.703125
+          ],
+          "load_after": [
+            18.73291015625,
+            16.7646484375,
+            12.11083984375
+          ],
+          "code_commit": "fa81c4c1e04facfcf06870bcc3455b590b33bac8"
+        },
+        {
+          "clients": 128,
+          "depth": "4",
+          "max_connections": 30,
+          "op": "W2",
+          "p50_ms": 83.999282,
+          "p99_ms": 232.857808,
+          "reads": 7193,
+          "reads_per_second": 1408.8386550634225,
+          "seconds": 5.105623681,
+          "load_before": [
+            18.73291015625,
+            16.7646484375,
+            12.11083984375
+          ],
+          "load_after": [
+            23.40673828125,
+            17.849609375,
+            12.5380859375
+          ],
+          "code_commit": "fa81c4c1e04facfcf06870bcc3455b590b33bac8"
+        },
+        {
+          "clients": 128,
+          "depth": "4",
+          "max_connections": 30,
+          "op": "W3",
+          "p50_ms": 125.53191,
+          "p99_ms": 343.168264,
+          "reads": 4870,
+          "reads_per_second": 947.9789068876871,
+          "seconds": 5.137245106,
+          "load_before": [
+            18.73291015625,
+            16.7646484375,
+            12.11083984375
+          ],
+          "load_after": [
+            23.40673828125,
+            17.849609375,
+            12.5380859375
+          ],
+          "code_commit": "fa81c4c1e04facfcf06870bcc3455b590b33bac8"
+        },
+        {
+          "clients": 128,
+          "depth": "8",
+          "max_connections": 30,
+          "op": "W2",
+          "p50_ms": 82.469939,
+          "p99_ms": 233.383934,
+          "reads": 7256,
+          "reads_per_second": 1416.5720016786643,
+          "seconds": 5.122224632,
+          "load_before": [
+            23.40673828125,
+            17.849609375,
+            12.5380859375
+          ],
+          "load_after": [
+            26.60986328125,
+            18.85302734375,
+            12.9775390625
+          ],
+          "code_commit": "fa81c4c1e04facfcf06870bcc3455b590b33bac8"
+        },
+        {
+          "clients": 128,
+          "depth": "8",
+          "max_connections": 30,
+          "op": "W3",
+          "p50_ms": 153.415137,
+          "p99_ms": 395.175077,
+          "reads": 4329,
+          "reads_per_second": 825.0809751651066,
+          "seconds": 5.246757749,
+          "load_before": [
+            23.40673828125,
+            17.849609375,
+            12.5380859375
+          ],
+          "load_after": [
+            26.60986328125,
+            18.85302734375,
+            12.9775390625
+          ],
+          "code_commit": "fa81c4c1e04facfcf06870bcc3455b590b33bac8"
+        }
       ]
     },
     {
-      "clients": 128,
-      "depth": "4",
-      "max_connections": 30,
-      "op": "W2",
-      "p50_ms": 22.569828,
-      "p99_ms": 63.275306,
-      "reads": 26626,
-      "reads_per_second": 5295.183853189407,
-      "seconds": 5.028342875,
-      "load_before": [
-        7.47216796875,
-        4.51123046875,
-        3.97998046875
-      ],
-      "load_after": [
-        12.4189453125,
-        5.66455078125,
-        4.361328125
+      "name": "final_core",
+      "fixture": "34 memberships, twenty messages per room, maintained totals",
+      "clock": "one common clock",
+      "samples": [
+        {
+          "clients": 128,
+          "depth": "1",
+          "max_connections": 30,
+          "op": "W2",
+          "p50_ms": 27.825806,
+          "p99_ms": 45.207013,
+          "reads": 22555,
+          "reads_per_second": 4480.238187299562,
+          "seconds": 5.034330555,
+          "load_before": [
+            4.82177734375,
+            3.6923828125,
+            6.12451171875
+          ],
+          "load_after": [
+            7.41552734375,
+            4.2802734375,
+            6.28955078125
+          ],
+          "code_commit": "4ca669e8946d9670514a3acb0e77283ab57b4c27"
+        },
+        {
+          "clients": 128,
+          "depth": "1",
+          "max_connections": 30,
+          "op": "W3",
+          "p50_ms": 55.040538,
+          "p99_ms": 87.752849,
+          "reads": 11479,
+          "reads_per_second": 2268.1417926903337,
+          "seconds": 5.060971072,
+          "load_before": [
+            4.82177734375,
+            3.6923828125,
+            6.12451171875
+          ],
+          "load_after": [
+            7.41552734375,
+            4.2802734375,
+            6.28955078125
+          ],
+          "code_commit": "4ca669e8946d9670514a3acb0e77283ab57b4c27"
+        },
+        {
+          "clients": 128,
+          "depth": "4",
+          "max_connections": 30,
+          "op": "W2",
+          "p50_ms": 26.563127,
+          "p99_ms": 67.579271,
+          "reads": 22905,
+          "reads_per_second": 4553.697951475706,
+          "seconds": 5.029977887,
+          "load_before": [
+            7.41552734375,
+            4.2802734375,
+            6.28955078125
+          ],
+          "load_after": [
+            12.75390625,
+            5.568359375,
+            6.67626953125
+          ],
+          "code_commit": "4ca669e8946d9670514a3acb0e77283ab57b4c27"
+        },
+        {
+          "clients": 128,
+          "depth": "4",
+          "max_connections": 30,
+          "op": "W3",
+          "p50_ms": 53.431503,
+          "p99_ms": 110.910234,
+          "reads": 11623,
+          "reads_per_second": 2299.4865358344705,
+          "seconds": 5.054606678,
+          "load_before": [
+            7.41552734375,
+            4.2802734375,
+            6.28955078125
+          ],
+          "load_after": [
+            12.75390625,
+            5.568359375,
+            6.67626953125
+          ],
+          "code_commit": "4ca669e8946d9670514a3acb0e77283ab57b4c27"
+        },
+        {
+          "clients": 128,
+          "depth": "8",
+          "max_connections": 30,
+          "op": "W2",
+          "p50_ms": 26.245066,
+          "p99_ms": 66.880629,
+          "reads": 23171,
+          "reads_per_second": 4609.624846267763,
+          "seconds": 5.026656349,
+          "load_before": [
+            12.75390625,
+            5.568359375,
+            6.67626953125
+          ],
+          "load_after": [
+            17.75830078125,
+            6.974609375,
+            7.11572265625
+          ],
+          "code_commit": "4ca669e8946d9670514a3acb0e77283ab57b4c27"
+        },
+        {
+          "clients": 128,
+          "depth": "8",
+          "max_connections": 30,
+          "op": "W3",
+          "p50_ms": 53.305936,
+          "p99_ms": 113.458044,
+          "reads": 11682,
+          "reads_per_second": 2312.2989125961485,
+          "seconds": 5.052114991,
+          "load_before": [
+            12.75390625,
+            5.568359375,
+            6.67626953125
+          ],
+          "load_after": [
+            17.75830078125,
+            6.974609375,
+            7.11572265625
+          ],
+          "code_commit": "4ca669e8946d9670514a3acb0e77283ab57b4c27"
+        }
       ]
     },
     {
-      "clients": 128,
-      "depth": "4",
-      "max_connections": 30,
-      "op": "W3",
-      "p50_ms": 54.159009,
-      "p99_ms": 119.899919,
-      "reads": 11615,
-      "reads_per_second": 2289.391939696583,
-      "seconds": 5.073399534,
-      "load_before": [
-        7.47216796875,
-        4.51123046875,
-        3.97998046875
-      ],
-      "load_after": [
-        12.4189453125,
-        5.66455078125,
-        4.361328125
-      ]
-    },
-    {
-      "clients": 128,
-      "depth": "8",
-      "max_connections": 30,
-      "op": "W2",
-      "p50_ms": 22.845299,
-      "p99_ms": 61.830021,
-      "reads": 26346,
-      "reads_per_second": 5243.339795694238,
-      "seconds": 5.02466005,
-      "load_before": [
-        12.4189453125,
-        5.66455078125,
-        4.361328125
-      ],
-      "load_after": [
-        17.5322265625,
-        7.0810546875,
-        4.84375
-      ]
-    },
-    {
-      "clients": 128,
-      "depth": "8",
-      "max_connections": 30,
-      "op": "W3",
-      "p50_ms": 53.621673,
-      "p99_ms": 118.568732,
-      "reads": 11785,
-      "reads_per_second": 2315.7845530078926,
-      "seconds": 5.088988086,
-      "load_before": [
-        12.4189453125,
-        5.66455078125,
-        4.361328125
-      ],
-      "load_after": [
-        17.5322265625,
-        7.0810546875,
-        4.84375
+      "name": "final_http",
+      "fixture": "RT0 W2: 25 messages/newest 20; W3: 32 scalar room totals",
+      "clock": "one common clock",
+      "samples": [
+        {
+          "clients": 128,
+          "connection": "close per request",
+          "depth": "1",
+          "fixture": "RT0 W2=25 messages/newest20; W3=32 scalar totals",
+          "http_queue": 98,
+          "http_workers": 30,
+          "max_connections": 30,
+          "op": "W2",
+          "p50_ms": 35.304247,
+          "p99_ms": 51.379791,
+          "reads": 17848,
+          "reads_per_second": 3548.031792896674,
+          "refused_503": 0,
+          "seconds": 5.030394608,
+          "load_before": [
+            17.75830078125,
+            6.974609375,
+            7.11572265625
+          ],
+          "load_after": [
+            23.73779296875,
+            8.83544921875,
+            7.72314453125
+          ],
+          "code_commit": "4ca669e8946d9670514a3acb0e77283ab57b4c27"
+        },
+        {
+          "clients": 128,
+          "connection": "close per request",
+          "depth": "1",
+          "fixture": "RT0 W2=25 messages/newest20; W3=32 scalar totals",
+          "http_queue": 98,
+          "http_workers": 30,
+          "max_connections": 30,
+          "op": "W3",
+          "p50_ms": 65.817568,
+          "p99_ms": 100.926044,
+          "reads": 9573,
+          "reads_per_second": 1892.4515715371244,
+          "refused_503": 2,
+          "seconds": 5.058517821,
+          "load_before": [
+            17.75830078125,
+            6.974609375,
+            7.11572265625
+          ],
+          "load_after": [
+            23.73779296875,
+            8.83544921875,
+            7.72314453125
+          ],
+          "code_commit": "4ca669e8946d9670514a3acb0e77283ab57b4c27"
+        },
+        {
+          "clients": 128,
+          "connection": "close per request",
+          "depth": "4",
+          "fixture": "RT0 W2=25 messages/newest20; W3=32 scalar totals",
+          "http_queue": 98,
+          "http_workers": 30,
+          "max_connections": 30,
+          "op": "W2",
+          "p50_ms": 35.33837,
+          "p99_ms": 52.301275,
+          "reads": 17825,
+          "reads_per_second": 3537.9709484853784,
+          "refused_503": 2,
+          "seconds": 5.038198521,
+          "load_before": [
+            23.73779296875,
+            8.83544921875,
+            7.72314453125
+          ],
+          "load_after": [
+            26.74169921875,
+            9.9755859375,
+            8.10693359375
+          ],
+          "code_commit": "4ca669e8946d9670514a3acb0e77283ab57b4c27"
+        },
+        {
+          "clients": 128,
+          "connection": "close per request",
+          "depth": "4",
+          "fixture": "RT0 W2=25 messages/newest20; W3=32 scalar totals",
+          "http_queue": 98,
+          "http_workers": 30,
+          "max_connections": 30,
+          "op": "W3",
+          "p50_ms": 66.433082,
+          "p99_ms": 95.890186,
+          "reads": 9504,
+          "reads_per_second": 1880.4291039178845,
+          "refused_503": 0,
+          "seconds": 5.054165552,
+          "load_before": [
+            23.73779296875,
+            8.83544921875,
+            7.72314453125
+          ],
+          "load_after": [
+            26.74169921875,
+            9.9755859375,
+            8.10693359375
+          ],
+          "code_commit": "4ca669e8946d9670514a3acb0e77283ab57b4c27"
+        },
+        {
+          "clients": 128,
+          "connection": "close per request",
+          "depth": "8",
+          "fixture": "RT0 W2=25 messages/newest20; W3=32 scalar totals",
+          "http_queue": 98,
+          "http_workers": 30,
+          "max_connections": 30,
+          "op": "W2",
+          "p50_ms": 34.481229,
+          "p99_ms": 49.14353,
+          "reads": 18378,
+          "reads_per_second": 3653.4772105128886,
+          "refused_503": 0,
+          "seconds": 5.030276348,
+          "load_before": [
+            26.74169921875,
+            9.9755859375,
+            8.10693359375
+          ],
+          "load_after": [
+            28.4326171875,
+            11.11669921875,
+            8.50732421875
+          ],
+          "code_commit": "4ca669e8946d9670514a3acb0e77283ab57b4c27"
+        },
+        {
+          "clients": 128,
+          "connection": "close per request",
+          "depth": "8",
+          "fixture": "RT0 W2=25 messages/newest20; W3=32 scalar totals",
+          "http_queue": 98,
+          "http_workers": 30,
+          "max_connections": 30,
+          "op": "W3",
+          "p50_ms": 64.01086,
+          "p99_ms": 83.20216,
+          "reads": 9976,
+          "reads_per_second": 1973.5258385241352,
+          "refused_503": 11,
+          "seconds": 5.054912282,
+          "load_before": [
+            26.74169921875,
+            9.9755859375,
+            8.10693359375
+          ],
+          "load_after": [
+            28.4326171875,
+            11.11669921875,
+            8.50732421875
+          ],
+          "code_commit": "4ca669e8946d9670514a3acb0e77283ab57b4c27"
+        }
       ]
     }
   ]

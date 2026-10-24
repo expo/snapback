@@ -1,91 +1,180 @@
 # PIPE: independent PostgreSQL reader statements
 
-Base: `bd50485b8c9ba1048ba7ed905b64444e219aeec6`, branch `sb4-pg/pipe`,
-expo-build-450a. Own `snapback4/target`, six Cargo jobs, line-tables-only
-dev/test profiles. Private PostgreSQL 16, no existing cluster or host workload
-modified. Raw evidence is retained externally under `/tmp/sb4-pipe`.
+Branch `sb4-pg/pipe`, expo-build-450a. Initial required base `bd50485b8c`;
+rebased onto updated landing base `480f88e8b4`. Qualified code is
+`4ca669e894`. The rebase retained upstream's
+`store::Row` spelling of the same `flight::Row` re-export; all other tree
+contents match the preserved pre-rebase checkpoint. No push or publication.
 
-The governing context is LLP 3000, the store-port §8, round-trip §3.6 and
-§13, and accepted controls RFC §12. The author's M1b evidence explains the
-S1b stall with Nagle and its removal with TCP_NODELAY. The M-suite branch
-was unavailable from this lane's origin; it is treated as supplied evidence.
+The governing context is LLP 3000, store-port §8, round-trip §3.6/§13 and
+accepted controls RFC §12. M1b's Nagle stall/removal evidence is supplied by
+the author; its named branch was unavailable from this lane's origin.
+No independent delayed-link claim is made here.
 
-Detached reader handles share at most 30 physical connections, opened lazily.
-Each has a depth semaphore (1–8, default 4). The one reader runtime I/O
-thread drives tokio-postgres 0.7.18; synchronous request threads await their
-own result. Parse/Bind/Execute/Sync sends one single statement per flight,
-with an independent implicit transaction and snapshot for each request.
-Statements return ordinary driver binary rows through the existing FromSql
-path. G4a calls the same bounded facts SQL, decoder, Rust resolver and meter.
-The typed literal encoder still checks all composed parameters, including
-NUL and byte admission. No result or authority decision is cached.
+## Design and bounds
 
-A multi-statement read acquires exclusive physical-connection custody before
-its first preparation/command and holds it through rollback. It keeps the
-existing repeatable-read transaction and ordered SimpleQuery flights. Pipeline
-reads cannot join that transaction. A speculative SQL failure can reopen the
-ordinary snapshot, as G4a requires; a connection failure returns a retryable
-error without adapter replay. Completed requests retain their results.
-Closed slots are replaced only for a later handle, never an in-flight request.
+Detached logical readers share at most 30 physical connections, with
+`SNAPBACK4_POSTGRES_PIPELINE_DEPTH=1..8`, default 4. A single reader I/O
+runtime thread drives pinned tokio-postgres 0.7.18. Independent G4a facts
+and ingress statements use Parse/Bind/Describe/Execute/Sync in one flight,
+with one Sync and implicit transaction/snapshot per query. No BEGIN groups
+independent reads. Binary rows use the existing FromSql decoder; the typed
+literal encoder still checks composed parameters, NUL and byte admission.
+SQL fetches facts; shared Rust retains authority, rules, execution and meters.
+No result or allow bit is cached across requests.
 
-The writer and lease keep their synchronous driver and commit ordering.
-Both drivers use tokio-postgres's TCP socket connector, which sets
-TCP_NODELAY before startup. Reader startup pins and verifies UTF8,
-extra_float_digits=3, bytea_output=hex, read-only mode and backend affinity.
-The shared settings guard remains on every fallback flight. Application SQL
-cannot mutate reader connection settings through the independent seam.
+Multi-statement fallbacks block under exclusive physical-connection custody
+through their ordinary repeatable-read rollback. Other pipeline requests
+cannot enter that transaction. Failed speculative SQL reopens ordinary
+facts in a fresh cut. Transport loss returns retryable errors without
+replaying an in-flight query. Future requests may replace an already-closed
+socket, discard its statement caches and verify expected store id/generation.
+A failed binding check stays pending. This also recovers the cached factory.
 
-HTTP retains its existing 30 executing short workers and 98 waiting sockets.
-The manual benchmark instead supplies 128 concurrent core-query clients to
-show the transport at depth 1/4/8. It includes authority, collection, Rust
-execution and result serialization; it is neither a raw SQL ceiling nor an
-HTTP S1 capacity/SLO qualification. The fixture has 34 memberships and three
-messages per room; W2 and W3 use the actual scale-controls program shapes.
-Measured loopback load and full qualification are recorded below when complete.
+Retiring a logical reader reclaims only its own SQL PREPARE names under
+exclusive custody. Cleanup is asynchronous protocol housekeeping, like
+driver statement close; it adds no request wait. This prevents surviving
+pooled sockets from retaining an unbounded history of retired caches.
+The synchronous writer/lease driver, ordered commands and commit cut remain.
+Both transports pin UTF8, extra_float_digits=3 and bytea_output=hex and verify
+session affinity. The pinned connector sets TCP_NODELAY before TCP startup.
 
-## Loopback measurements
+HTTP admission stays 30 active short workers plus 98 queued sockets. For a
+pure W2/W3 HTTP load, that bounds active database requests at 30 and leaves
+the larger pipeline depth underused. The core load independently supplies
+128 concurrent logical readers to exercise cross-request pipelining. No
+connection cap, logical meter, workload guard, retry or durability bound rose.
 
-Executed at `b5a0fb72bc` on Ryzen 5 3600 (6 cores/12 threads, affinity 12),
-PostgreSQL 16.15, Rust/Cargo 1.97.0, test profile opt-level=1, debug
-line-tables-only. Each operation/depth ran five seconds after a per-client
-warm-up, 128 clients, at most 30 physical readers, one reader I/O thread.
-This is a light populated shape (three messages per room), not S1's full
-20-row W2 dataset. There is no proxy delay. No other lane-owned benchmark
-or build ran during these samples.
+## Witnesses
+
+All five transport/lifecycle tests pass, covering independent snapshots and
+statement errors, exact connection-loss scope, exclusive fallback custody
+and bounded depth, TCP_NODELAY, and prepared-name retirement. TCP tracing
+confirms two successful TCP_NODELAY=1 calls covering reader and synchronous writer.
+The loss case preserves a completed result and a healthy neighbouring
+connection while all three outstanding requests on the terminated backend
+receive retryable errors. Startup verifies the pinned codec/read-only settings.
+
+All eleven real closure/fallback oracles pass on detached readers. They cover
+three-way PostgreSQL pipeline / ordinary PostgreSQL / SQLite outcome and
+logical-meter parity, every ceiling cut, maintained totals, planted faults,
+retained NUL/default/empty cases and the commit/revocation cut. A real failed
+pipelined session-facts view is repaired and authority revoked before fallback;
+the result is fresh E_AUTH. A terminated shared factory/request socket recovers
+for future reads; a substituted store id refuses twice with E_GENERATION.
+The additional manual measurement function is inactive in the oracle sweep
+and is not counted as an oracle.
+
+The prepared-state regression was run before its fix: both names survived
+one owner's retirement (2 versus expected 1). After the fix, sixteen paired
+retirement cycles return to baseline and the surviving neighbour still executes.
+
+## Measurements
+
+Private PG16.15 TCP loopback, Ryzen 5 3600 (6 cores/12 threads, affinity 12),
+Rust/Cargo 1.97.0, test opt-level=1, line-tables-only debug, Cargo -j6.
+Each depth/operation has one common five-second window after client warm-up;
+128 closed-loop clients, at most 30 physical readers, one I/O thread.
+Latency includes queueing and result parsing. No other lane-owned build or
+test runs concurrently with a measured window. No delay proxy is used.
+These short shared-host samples are not S1 capacity/SLO or control-rung results.
+
+HTTP uses the existing RT0 fixture: 25 messages/newest 20, 32 scalar room totals,
+and a new TCP HTTP connection per request. Successful reads:
 
 | Depth | W2 reads/s | W2 p50 / p99 ms | W3 reads/s | W3 p50 / p99 ms |
 | --- | ---: | ---: | ---: | ---: |
-| 1 | 5,198 | 24.04 / 39.33 | 2,299 | 54.64 / 85.07 |
-| 4 | 5,295 | 22.57 / 63.28 | 2,289 | 54.16 / 119.90 |
-| 8 | 5,243 | 22.85 / 61.83 | 2,316 | 53.62 / 118.57 |
+| 1 | 3,548 | 35.30 / 51.38 | 1,892 | 65.82 / 100.93 |
+| 4 | 3,538 | 35.34 / 52.30 | 1,880 | 66.43 / 95.89 |
+| 8 | 3,653 | 34.48 / 49.14 | 1,974 | 64.01 / 83.20 |
 
-The before/after one-minute host load averages were 2.96/7.47 at depth 1,
-7.47/12.42 at depth 4 and 12.42/17.53 at depth 8; each includes this lane's
-128-client load and the shared host. The longer averages and exact counts,
-durations and percentiles are in [measurements.json](./measurements.json).
-This loopback sample shows no material throughput gain with depth and worse
-p99 beyond depth 1. It establishes neither the delayed-link benefit M1b
-predicts nor a production throughput regression against the old synchronous
-transport: depth 1 uses the same new driver seam and is not that old-driver
-control. Delayed-link HTTP qualification and any admission change remain
-separate measured work.
+There are 15 admission 503s across the six HTTP samples: W2/W3 at depth 1
+= 0/2, depth 4 = 2/0, depth 8 = 0/11. Every such response is E_RATE_LIMIT;
+all successful responses have complete valid 20-row/32-row results. HTTP before/after one-minute
+loads are 17.76/23.74, 23.74/26.74 and 26.74/28.43 on this 12-thread host.
+Changing depth alone shows no large HTTP throughput lift under 30 active workers.
 
-## Qualification checkpoint before final rebase
+Core uses 34 memberships and twenty messages per room with real maintained totals:
 
-The initial full build passes. Full default core passes 1,138 top-level tests
-across 47 targets (including doctests), with five named ignores. The full
-binary passes 586 tests with 48 named ignores. Both unchanged RT0 tables
-pass, including warm PG W1/W2/W3 = 1/1/1 and SQLite = 5/5/132.
+| Depth | W2 reads/s | W2 p50 / p99 ms | W3 reads/s | W3 p50 / p99 ms |
+| --- | ---: | ---: | ---: | ---: |
+| 1 | 4,480 | 27.83 / 45.21 | 2,268 | 55.04 / 87.75 |
+| 4 | 4,554 | 26.56 / 67.58 | 2,299 | 53.43 / 110.91 |
+| 8 | 4,610 | 26.25 / 66.88 | 2,312 | 53.31 / 113.46 |
 
-The corrected full Postgres script completes in 3,774.09 seconds, exit 1.
-It retains the tracked evaluator `40001` stress failure (21 conformance
-passes / one failure / three existing filtered cases), and a public-startup
-fixture input mismatch: its public binding correctly rejects the ambient TCP
-evaluation URL with `connection-tls`. The unmodified startup fixture will be
-rerun through this same owned cluster's Unix socket. Public deploy/serve,
-P1-CE and P1-MC milestones pass; its separate cluster confirms status 3 and
-no postmaster.pid. No writer retry, exclusion or durability change.
+Core before/after one-minute loads are 4.82/7.42, 7.42/12.75 and 12.75/17.76.
+Its throughput changes little with depth and p99 worsens. There is no old-driver
+control in these samples: depth 1 uses the new reader seam too. Earlier lighter
+and pre-lifecycle-fix cohorts are retained with their exact load, code and clock
+method in [measurements.json](./measurements.json); no best-of selection is made.
 
-The landing base advanced to `480f88e8b4` with exactly the row-wrapper and
-obsolete-helper corrections already present here. Final rebase, lifecycle
-checks, current-revision measurements and owned-cluster cleanup follow.
+## Checks and disposition
+
+| Check | Result |
+| --- | --- |
+| Workspace build on rebased code | pass |
+| Full default core | 1,138 top-level passes across 47 targets, five named ignores |
+| Affected source census after PG-only lifecycle fixes | pass, 10 tests |
+| Full binary on rebased code | pass, 586 tests / 49 named ignores |
+| Both unchanged RT0 ratchets and publication cuts | pass, five tests |
+| Reader transport and closure oracles | pass, 5 + 11 real tests |
+| Unmodified lost-ack and public-startup fixtures via owned Unix socket | pass, one test each |
+| Full stock Postgres sweep | completes, exit 1; three original failures below |
+| ref-check on rebased code | pass, 567 LLPs, zero errors/unchecked |
+
+The full default-core run precedes the PG-only lifecycle refinements; its
+runtime module excludes that feature. Its affected source census and the
+full binary, RT0, transport, closure and startup checks run again on the
+rebased final code. RT0 warm PG W1/W2/W3 remains **1/1/1**, SQLite **5/5/132**;
+both tables are byte-identical to the requested base. Exact per-class counts,
+commands, durations and digests are in [qualification.json](./qualification.json).
+
+The completed stock sweep retains the existing evaluator Serializable stress
+failure, SQLSTATE 40001 at conformance.rs:294/join:307 (21 passes, one failure,
+three existing filtered cases, 705.26 seconds). Its body is unchanged from the base;
+no retry, backoff, workload, timeout, durability or exclusion is changed, and
+no isolated retry replaces that red. The existing
+[stress ticket](../../../issues/20260916-snapback4-postgres-serializable-benchmark-failures.md)
+records this occurrence. Two other original failures are fixture input
+mismatches: the lost-commit-acknowledgement fixture explicitly requires a
+private Unix socket; the public-startup fixture correctly rejects the TCP
+evaluation URL under its Unix-only public profile. Both unchanged fixtures
+pass on this same owned cluster through its socket. The product profile
+guard and writer lost-ack behavior are intact.
+
+Other stock stages pass, including 245 main adapter tests, codec/fault,
+evolution/authority groups, supported corpus and differential/store
+campaigns, and public deploy/serve/P1-CE/P1-MC milestones. An earlier script
+attempt was cancelled after compilation warm-up to remove an inherited
+undefined refresh helper; it supplies no qualification. The landing base
+independently contains the same correction. All three separate experiment
+lockfiles resolve with --locked without any package version changes.
+
+## Owned cleanup
+
+Primary PG16 master **1720724**: stop 0, independent status 3, no pid file and
+no /proc identity. Public-witness master **2122589**: independently status 3,
+no pid file and no /proc identity. The final socket recheck restarts only
+the same owned data directory as master **2304069**;
+its stop also returns 0, independent status is 3, and both PID-file and
+/proc checks confirm absence. Data and raw evidence stay outside Git.
+The audit finds all **508 recorded process identities**,
+**541 public PID records** and **6 traced child PIDs** absent.
+Exact target/data-directory scans find no survivors. **PIDs left: none.**
+
+The 40 GiB outer disk stop never triggers; minimum sampled free space is
+46.42 GiB. Only 14 newly created, unlocked incremental
+cache sessions were removed to retain headroom; no pre-existing caches,
+binaries or database data were deleted. Final free space is
+94.27 GiB. No q24 files or processes were touched.
+
+## Commits after the updated landing base
+
+- `b5ef5a69b5` Pipeline independent Postgres reader statements with isolated snapshots
+- `e7b0518559` Sync independent Postgres harness locks for reader transport
+- `d1efedd953` Witness fresh authority after a failed pipelined collector
+- `99f5373cd6` Remove obsolete shared-target refresh from Postgres sweep
+- `8d31e1e5c4` Reclaim retired reader preparations on pooled connections
+- `41090b215f` Recover closed reader sockets before future requests with binding checks
+- `e295340912` Measure 128-client HTTP reads with a common load window
+- `4ca669e894` Checkpoint PIPE measurements and retained sweep findings

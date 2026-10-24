@@ -1,0 +1,835 @@
+{
+  "initial_base": "bd50485b8c9ba1048ba7ed905b64444e219aeec6",
+  "rebased_base": "480f88e8b47e1e2cfe4319561000fcb518376665",
+  "qualified_source_commit": "4ca669e8946d9670514a3acb0e77283ab57b4c27",
+  "rebase_delta": "only equivalent Row re-export spelling: flight::Row -> store::Row",
+  "commits": [
+    "b5ef5a69b5c2020ed90f6a8cee5b1cca3aca828b Pipeline independent Postgres reader statements with isolated snapshots",
+    "e7b051855956188a3478a7d7117e5c78644939a9 Sync independent Postgres harness locks for reader transport",
+    "d1efedd953d4aa056ab59f4f23419014e5babd01 Witness fresh authority after a failed pipelined collector",
+    "99f5373cd68331309187eea0755d03f89dd2bad4 Remove obsolete shared-target refresh from Postgres sweep",
+    "8d31e1e5c44a9b535e579172d120eaf18fbdaf94 Reclaim retired reader preparations on pooled connections",
+    "41090b215f592c14d75006c6eda3a9ba8a01456e Recover closed reader sockets before future requests with binding checks",
+    "e29534091208d82bcb3ac05407c1ae5d27cc6cc8 Measure 128-client HTTP reads with a common load window",
+    "4ca669e8946d9670514a3acb0e77283ab57b4c27 Checkpoint PIPE measurements and retained sweep findings"
+  ],
+  "checks": [
+    {
+      "label": "build-latest",
+      "code": 0,
+      "seconds": 11.541913032531738,
+      "command": [
+        "cargo",
+        "build",
+        "--locked",
+        "-j",
+        "6"
+      ],
+      "pid": 2165097,
+      "commit": "4ca669e8946d9670514a3acb0e77283ab57b4c27",
+      "before": {
+        "free": 58044919808,
+        "load": [
+          0.3701171875,
+          2.53271484375,
+          6.45166015625
+        ]
+      },
+      "after": {
+        "free": 58391187456,
+        "load": [
+          0.58984375,
+          2.47412109375,
+          6.369140625
+        ]
+      }
+    },
+    {
+      "label": "core",
+      "code": 0,
+      "seconds": 1344.3408980369568,
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-j",
+        "6",
+        "-p",
+        "snapback4-core",
+        "--no-fail-fast"
+      ],
+      "pid": 1738774,
+      "commit": "e492016d90ec6581fe256d58e37b553af5870651",
+      "before": {
+        "free": 58657206272,
+        "load": [
+          9.1240234375,
+          6.4833984375,
+          4.76904296875
+        ]
+      },
+      "after": {
+        "free": 112030244864,
+        "load": [
+          18.130859375,
+          11.65771484375,
+          7.5439453125
+        ]
+      }
+    },
+    {
+      "label": "core-source-latest",
+      "code": 0,
+      "seconds": 1.9854059219360352,
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-j",
+        "6",
+        "-p",
+        "snapback4-core",
+        "--test",
+        "lane_source"
+      ],
+      "pid": 2166493,
+      "commit": "4ca669e8946d9670514a3acb0e77283ab57b4c27",
+      "before": {
+        "free": 58391179264,
+        "load": [
+          0.58984375,
+          2.47412109375,
+          6.369140625
+        ]
+      },
+      "after": {
+        "free": 58391166976,
+        "load": [
+          0.58984375,
+          2.47412109375,
+          6.369140625
+        ]
+      }
+    },
+    {
+      "label": "binary-latest",
+      "code": 0,
+      "seconds": 100.84719109535217,
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-j",
+        "6",
+        "-p",
+        "snapback4",
+        "--bin",
+        "snapback4",
+        "--no-fail-fast"
+      ],
+      "pid": 2166533,
+      "commit": "4ca669e8946d9670514a3acb0e77283ab57b4c27",
+      "before": {
+        "free": 58391166976,
+        "load": [
+          0.58984375,
+          2.47412109375,
+          6.369140625
+        ]
+      },
+      "after": {
+        "free": 58443952128,
+        "load": [
+          3.763671875,
+          3.12255859375,
+          6.20458984375
+        ]
+      }
+    },
+    {
+      "label": "rt0-latest",
+      "code": 0,
+      "seconds": 4.4232823848724365,
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-j",
+        "6",
+        "-p",
+        "snapback4",
+        "--bin",
+        "snapback4",
+        "round_trips",
+        "--",
+        "--include-ignored",
+        "--nocapture"
+      ],
+      "pid": 2179211,
+      "commit": "4ca669e8946d9670514a3acb0e77283ab57b4c27",
+      "before": {
+        "free": 58443952128,
+        "load": [
+          3.763671875,
+          3.12255859375,
+          6.20458984375
+        ]
+      },
+      "after": {
+        "free": 58440990720,
+        "load": [
+          3.86279296875,
+          3.15380859375,
+          6.19775390625
+        ]
+      }
+    },
+    {
+      "label": "startup-socket-latest",
+      "code": 0,
+      "seconds": 2.067432403564453,
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-j",
+        "6",
+        "-p",
+        "snapback4",
+        "--bin",
+        "snapback4",
+        "postgres_startup_renewal_error_releases_committed_claim",
+        "--",
+        "--include-ignored",
+        "--nocapture"
+      ],
+      "pid": 2179597,
+      "commit": "4ca669e8946d9670514a3acb0e77283ab57b4c27",
+      "before": {
+        "free": 58440990720,
+        "load": [
+          3.86279296875,
+          3.15380859375,
+          6.19775390625
+        ]
+      },
+      "after": {
+        "free": 58440163328,
+        "load": [
+          3.86279296875,
+          3.15380859375,
+          6.19775390625
+        ]
+      }
+    },
+    {
+      "label": "ownership-socket-latest",
+      "code": 0,
+      "seconds": 15.478640794754028,
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-j",
+        "6",
+        "-p",
+        "snapback4-core",
+        "--features",
+        "postgres",
+        "--lib",
+        "engine::postgres::ownership::tests::committed_receipt_survives_lost_commit_acknowledgement",
+        "--",
+        "--include-ignored",
+        "--nocapture"
+      ],
+      "pid": 2304076,
+      "commit": "4ca669e8946d9670514a3acb0e77283ab57b4c27",
+      "before": {
+        "free": 101324791808,
+        "load": [
+          0.1650390625,
+          1.54052734375,
+          4.2119140625
+        ]
+      },
+      "after": {
+        "free": 101244702720,
+        "load": [
+          0.36865234375,
+          1.5146484375,
+          4.15966796875
+        ]
+      }
+    },
+    {
+      "label": "pipeline-latest",
+      "code": 0,
+      "seconds": 75.50829195976257,
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-j",
+        "6",
+        "-p",
+        "snapback4-core",
+        "--features",
+        "postgres",
+        "--lib",
+        "engine::postgres::pipeline",
+        "--",
+        "--include-ignored",
+        "--nocapture"
+      ],
+      "pid": 2179658,
+      "commit": "4ca669e8946d9670514a3acb0e77283ab57b4c27",
+      "before": {
+        "free": 58440163328,
+        "load": [
+          3.86279296875,
+          3.15380859375,
+          6.19775390625
+        ]
+      },
+      "after": {
+        "free": 58475651072,
+        "load": [
+          5.42236328125,
+          3.767578125,
+          6.1748046875
+        ]
+      }
+    },
+    {
+      "label": "closure-latest",
+      "code": 0,
+      "seconds": 5.349577188491821,
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-j",
+        "6",
+        "-p",
+        "snapback4-core",
+        "--features",
+        "postgres",
+        "--lib",
+        "read_closure",
+        "--",
+        "--include-ignored",
+        "--nocapture"
+      ],
+      "pid": 2181888,
+      "commit": "4ca669e8946d9670514a3acb0e77283ab57b4c27",
+      "before": {
+        "free": 58475651072,
+        "load": [
+          5.42236328125,
+          3.767578125,
+          6.1748046875
+        ]
+      },
+      "after": {
+        "free": 58464833536,
+        "load": [
+          4.82177734375,
+          3.6923828125,
+          6.12451171875
+        ]
+      }
+    },
+    {
+      "label": "postgres-final",
+      "code": 1,
+      "seconds": 3774.085805416107,
+      "command": [
+        "bash",
+        "scripts/test-postgres.sh"
+      ],
+      "pid": 1902677,
+      "commit": "03d0681df858bd5e23d3368ae1260fe721ec3dc1",
+      "before": {
+        "free": 80639471616,
+        "load": [
+          26.4228515625,
+          19.0712890625,
+          13.1123046875
+        ]
+      },
+      "after": {
+        "free": 58123304960,
+        "load": [
+          2.841796875,
+          5.373046875,
+          8.8876953125
+        ]
+      }
+    },
+    {
+      "label": "refs-latest",
+      "code": 0,
+      "seconds": 5.940948486328125,
+      "command": [
+        "./ref-check"
+      ],
+      "pid": 2269514,
+      "commit": "4ca669e8946d9670514a3acb0e77283ab57b4c27",
+      "before": {
+        "free": 58453749760,
+        "load": [
+          28.4326171875,
+          11.11669921875,
+          8.50732421875
+        ]
+      },
+      "after": {
+        "free": 58453741568,
+        "load": [
+          26.23583984375,
+          10.94873046875,
+          8.466796875
+        ]
+      }
+    }
+  ],
+  "core_census": {
+    "targets": 47,
+    "totals": {
+      "passed": 1138,
+      "failed": 0,
+      "ignored": 5
+    },
+    "detail": [
+      {
+        "target": "unittests src/lib.rs (target/debug/deps/snapback4_core-b5c76d2054771636)",
+        "passed": 699,
+        "failed": 0,
+        "ignored": 3
+      },
+      {
+        "target": "tests/action_context.rs (target/debug/deps/action_context-52a8973512351fe5)",
+        "passed": 10,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "target": "tests/adoption_scale.rs (target/debug/deps/adoption_scale-78572e84786d88d7)",
+        "passed": 0,
+        "failed": 0,
+        "ignored": 1
+      },
+      {
+        "target": "tests/asset_lists.rs (target/debug/deps/asset_lists-264a9be5ca84f9a7)",
+        "passed": 28,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "target": "tests/born_perf.rs (target/debug/deps/born_perf-9ded0c826f39744d)",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "target": "tests/bound_session.rs (target/debug/deps/bound_session-f6ea0f3e12167f8e)",
+        "passed": 8,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "target": "tests/corpus.rs (target/debug/deps/corpus-8c81f24bd54917a7)",
+        "passed": 20,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "target": "tests/delivery_bounds.rs (target/debug/deps/delivery_bounds-29befb78c79c5b0e)",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "target": "tests/dev_reset.rs (target/debug/deps/dev_reset-d1bc7fbb19258081)",
+        "passed": 5,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "target": "tests/disclosure.rs (target/debug/deps/disclosure-4551f66a75eb6a75)",
+        "passed": 32,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "target": "tests/effect_policy.rs (target/debug/deps/effect_policy-3be8fd43d1d62dd9)",
+        "passed": 14,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "target": "tests/ephemeral.rs (target/debug/deps/ephemeral-cb1a5fa3ad48e2c6)",
+        "passed": 18,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "target": "tests/event_slot_snapshot.rs (target/debug/deps/event_slot_snapshot-817f99583f4f9e17)",
+        "passed": 6,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "target": "tests/expiring_adoption.rs (target/debug/deps/expiring_adoption-cac528b5b11b9d6a)",
+        "passed": 5,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "target": "tests/file_assets.rs (target/debug/deps/file_assets-b3802022a4e72aa0)",
+        "passed": 8,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "target": "tests/identity.rs (target/debug/deps/identity-e6f0dd015b2b77e4)",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "target": "tests/job_time_audiences.rs (target/debug/deps/job_time_audiences-6b9927492cb1e016)",
+        "passed": 5,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "target": "tests/lane_source.rs (target/debug/deps/lane_source-f2ac276246c5b4e3)",
+        "passed": 10,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "target": "tests/maintained_columns_review.rs (target/debug/deps/maintained_columns_review-5d332e2235b74e59)",
+        "passed": 4,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "target": "tests/membership_discovery_steps.rs (target/debug/deps/membership_discovery_steps-e77ed46e4bc409bd)",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "target": "tests/meter.rs (target/debug/deps/meter-6df8019cab6bf0b2)",
+        "passed": 9,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "target": "tests/nul_chokepoints.rs (target/debug/deps/nul_chokepoints-34de6cabd15a68f7)",
+        "passed": 9,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "target": "tests/pending_metadata_heap.rs (target/debug/deps/pending_metadata_heap-dec5b126121acba2)",
+        "passed": 4,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "target": "tests/postgres_evolution.rs (target/debug/deps/postgres_evolution-df1405d49b56c2f8)",
+        "passed": 15,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "target": "tests/read_sessions.rs (target/debug/deps/read_sessions-790a04ad26e8d272)",
+        "passed": 7,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "target": "tests/refused_open.rs (target/debug/deps/refused_open-f74ae8652be534de)",
+        "passed": 7,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "target": "tests/review_walk.rs (target/debug/deps/review_walk-5a4970903bd46862)",
+        "passed": 16,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "target": "tests/revocation_history.rs (target/debug/deps/revocation_history-bb333206e1008f01)",
+        "passed": 3,
+        "failed": 0,
+        "ignored": 1
+      },
+      {
+        "target": "tests/routes.rs (target/debug/deps/routes-03c22bcf7ddc19cd)",
+        "passed": 14,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "target": "tests/row_view_accounting.rs (target/debug/deps/row_view_accounting-7406b00436fc1fa3)",
+        "passed": 6,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "target": "tests/row_view_disclosure.rs (target/debug/deps/row_view_disclosure-4c5a2ffc72f809de)",
+        "passed": 18,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "target": "tests/row_view_legacy.rs (target/debug/deps/row_view_legacy-a22b761ea1b204e7)",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "target": "tests/row_view_witness.rs (target/debug/deps/row_view_witness-ae82a81917183a9b)",
+        "passed": 6,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "target": "tests/rows.rs (target/debug/deps/rows-e91bff320c65f33f)",
+        "passed": 10,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "target": "tests/schema_capabilities.rs (target/debug/deps/schema_capabilities-e7f64ef0d3781f65)",
+        "passed": 11,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "target": "tests/schema_capabilities_legacy.rs (target/debug/deps/schema_capabilities_legacy-aa09a6f51505d355)",
+        "passed": 3,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "target": "tests/sequence_by.rs (target/debug/deps/sequence_by-c58518fde00215aa)",
+        "passed": 17,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "target": "tests/sequence_disclosure.rs (target/debug/deps/sequence_disclosure-39fd15e552f385a6)",
+        "passed": 29,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "target": "tests/store_handle_traits.rs (target/debug/deps/store_handle_traits-fb4ac39849028a34)",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "target": "tests/stream_receipts.rs (target/debug/deps/stream_receipts-9521766b72e0f3a5)",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "target": "tests/sync_count_batch.rs (target/debug/deps/sync_count_batch-82581aba668d2478)",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "target": "tests/time_audiences.rs (target/debug/deps/time_audiences-74915e017125ae23)",
+        "passed": 22,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "target": "tests/unicode_fold.rs (target/debug/deps/unicode_fold-1d6d767b34c3faa7)",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "target": "tests/update_rule_images.rs (target/debug/deps/update_rule_images-08f52c59a2a20222)",
+        "passed": 6,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "target": "tests/upload_intents.rs (target/debug/deps/upload_intents-cce58051535187c2)",
+        "passed": 7,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "target": "tests/work_records.rs (target/debug/deps/work_records-39b205134bca5440)",
+        "passed": 6,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "target": "snapback4_core",
+        "passed": 27,
+        "failed": 0,
+        "ignored": 0
+      }
+    ]
+  },
+  "postgres_failures": [
+    "evaluator_concurrent_read_modify_write_and_duplicate_ops_are_atomic_in_both_modes",
+    "engine::postgres::ownership::tests::committed_receipt_survives_lost_commit_acknowledgement",
+    "store_config::tests::postgres_startup_renewal_error_releases_committed_claim"
+  ],
+  "postgres_socket_fixture_disposition": "both unchanged lost-ack and public-startup fixtures pass on same private cluster through Unix socket; original TCP-input failures retained; public TCP guard unchanged",
+  "first_sweep": "cancelled after evaluator compilation warm-up to remove inherited undefined helper; no qualification claimed",
+  "rt0": {
+    "postgres": {
+      "warm": {
+        "account_unkeyed_increment": 8,
+        "account_w1": 1,
+        "action_session_w1": 17,
+        "keyed_first": 9,
+        "narrowed_argument": 2,
+        "one_membership": 9,
+        "rate_limited": 0,
+        "replay_hit": 2,
+        "unauthenticated": 0,
+        "unkeyed_increment": 8,
+        "unknown_operation": 2,
+        "unknown_token": 1,
+        "w1_point": 1,
+        "w2_newest20": 1,
+        "w3_membership_totals": 1
+      },
+      "first_use": {
+        "account_unkeyed_increment": 8,
+        "account_w1": 2,
+        "action_session_w1": 25,
+        "keyed_first": 21,
+        "narrowed_argument": 2,
+        "one_membership": 9,
+        "rate_limited": 0,
+        "replay_hit": 2,
+        "unauthenticated": 0,
+        "unkeyed_increment": 10,
+        "unknown_operation": 2,
+        "unknown_token": 1,
+        "w1_point": 1,
+        "w2_newest20": 1,
+        "w3_membership_totals": 1
+      }
+    },
+    "sqlite": {
+      "warm": {
+        "account_unkeyed_increment": 22,
+        "account_w1": 5,
+        "action_session_w1": 21,
+        "keyed_first": 30,
+        "narrowed_argument": 4,
+        "one_membership": 23,
+        "rate_limited": 0,
+        "replay_hit": 5,
+        "unauthenticated": 0,
+        "unkeyed_increment": 22,
+        "unknown_operation": 4,
+        "unknown_token": 2,
+        "w1_point": 5,
+        "w2_newest20": 5,
+        "w3_membership_totals": 132
+      },
+      "first_use": {
+        "account_unkeyed_increment": 22,
+        "account_w1": 6,
+        "action_session_w1": 21,
+        "keyed_first": 30,
+        "narrowed_argument": 4,
+        "one_membership": 23,
+        "rate_limited": 0,
+        "replay_hit": 5,
+        "unauthenticated": 0,
+        "unkeyed_increment": 22,
+        "unknown_operation": 4,
+        "unknown_token": 2,
+        "w1_point": 5,
+        "w2_newest20": 5,
+        "w3_membership_totals": 132
+      }
+    },
+    "table_sha256": {
+      "postgres": "9c46072f7b51c8675bb6cb2f424dd2323933492ce3c8c2af1a471c7a3dff117c",
+      "sqlite": "2f24089d71ac8d1b1de2bcb7eb0d257290c6ad76d5b98f6ed671e23c1a2ca734"
+    }
+  },
+  "witnesses": {
+    "transport_tests": 5,
+    "real_closure_and_fallback_oracles": 11,
+    "manual_harness_inactive_in_closure_sweep": 1,
+    "nodelay_successful_reader_writer_socket_options": 2,
+    "prepared_lifetime_regression_before": "2 names retained after one owner retired; expected1",
+    "prepared_lifetime_after": "16 paired retirement cycles return to baseline; neighbour plan executes",
+    "recovery": "future request and cached factory recover; substituted store refuses twice; in-flight requests never replayed"
+  },
+  "resources": {
+    "floor_bytes": 42949672960,
+    "minimum_sampled_free_bytes": 49838145536,
+    "samples": 3031,
+    "disk_stop_triggered": false,
+    "incremental_cleanup": "14 lane-created, unlocked sessions only; 6663222648 apparent bytes; original artifacts and DB data retained"
+  },
+  "clusters": {
+    "primary": {
+      "pid": 1720724,
+      "stop_code": 0,
+      "status_code": 3,
+      "pid_file_exists": false,
+      "proc_exists": false,
+      "seconds": 9.71686921082437
+    },
+    "public": {
+      "pid": 2122589,
+      "status_code": 3,
+      "pid_file_exists": false,
+      "proc_exists": false
+    },
+    "free_bytes": 58437947392,
+    "socket_recheck": {
+      "pid": 2304069,
+      "start_identity": "1537752674",
+      "start_code": 0,
+      "witness_pass": true,
+      "stop_code": 0,
+      "status_code": 3,
+      "pid_file_exists": false,
+      "proc_exists": false
+    }
+  },
+  "process_audit": {
+    "recorded_process_identities": 508,
+    "public_pid_records": 541,
+    "nodelay_child_pids": 6,
+    "recorded_survivors": [],
+    "public_survivors": [],
+    "nodelay_survivors": [],
+    "target_or_data_directory_survivors": [],
+    "free_bytes": 101225504768
+  },
+  "final_document_check": {
+    "command": "./ref-check",
+    "exit_code": 0,
+    "llp_documents": 567,
+    "references": 11864,
+    "files": 43645,
+    "errors": 0,
+    "unchecked": 0
+  }
+}

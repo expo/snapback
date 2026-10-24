@@ -104895,3 +104895,43 @@ and admission 503s separately, and reject other errors. Both measurement
 harnesses use one common five-second clock after warm-up. HTTP remains at
 30 active workers and 98 queued requests; these tests do not claim a raised
 HTTP concurrency bound or delayed-link S1 capacity.
+
+## 2026-10-24 — PIPE final qualification, measurements and owned cleanup
+
+Rebased onto the updated landing base `480f88e8b4`; its two inherited fixes
+match this lane. The only rebase tree difference is the equivalent Row
+re-export spelling in legacy_keys. Qualified source is `4ca669e894`.
+Workspace build, full binary (586 passes, 49 named ignores), five RT0 tests,
+five transport/lifecycle witnesses and eleven real closure/fallback oracles
+pass on the rebased code. Full default core passed 1,138 tests across 47
+Cargo targets, with five named ignores; PG-only lifecycle refinements do not
+enter that default runtime, and its affected ten-test source census passes.
+Both RT0 tables are byte-identical to the initial `bd50485b8c` base: warm
+Postgres W1/W2/W3 remains 1/1/1 and SQLite 5/5/132. Ref-check passes.
+
+The full stock Postgres script completes in 3,774.09 seconds, exit 1. Its
+three original failures are retained: the existing evaluator SQLSTATE 40001
+concurrency stress finding (appended to its open ticket), plus two socket-only
+fixtures given the ambient TCP URL. Both unchanged fixtures — startup renewal
+cleanup and committed receipt after a lost commit acknowledgement — pass
+through this same private cluster's Unix socket. No evaluator retry, bound,
+workload, durability or exclusion changes; the original broad-run red remains.
+
+Final five-second loopback samples use 128 clients and record shared-host
+load. HTTP W2/W3 successful reads/s at depth 1/4/8 are 3,548/1,892,
+3,538/1,880 and 3,653/1,974, with 15 valid admission E_RATE_LIMIT responses
+across all six samples. The unchanged 30-active/98-queued HTTP admission
+leaves depth underused. Core W2/W3 reads/s are 4,480/2,268, 4,554/2,299 and
+4,610/2,312; p99 worsens above depth 1. The report records exact p50/p99,
+fixture shapes, clock, code revision, loads and earlier cohorts. These are
+short loopback observations, with no delayed-link or S1 capacity claim.
+
+Private PG16 masters 1720724 and 2304069 (same data directory, socket recheck)
+and public-witness master 2122589 are stopped: independent pg_ctl status 3,
+no postmaster.pid and no process identity. Final audit finds all 508 recorded
+identities, 541 public PID records and six traced child PIDs absent, with no
+owned target/data-directory survivors. PIDs left: none. Minimum sampled disk
+headroom is 46.42 GiB, above the 40 GiB stop; only fourteen newly created,
+unlocked incremental-cache sessions were removed. No q24 files or processes
+were touched. Reports hold summarized evidence only; raw logs/data remain
+outside Git under /tmp/sb4-pipe.
