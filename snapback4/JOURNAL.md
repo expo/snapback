@@ -105575,3 +105575,215 @@ checkpoint is committed. No push, stash, Git configuration change,
 existing-commit rewrite or unrelated-cluster operation occurs. Completion
 requires additional free space or an explicit expansion of the user's
 artifact-cleanup allowance; the empty incremental cache provides no remedy.
+
+## 2026-10-24 — Write-land qualification on the integrated main base
+
+Lane `sb4-pg/write-land` starts clean at the required **c8b9881186** on
+expo-build-450b. The runtime is the write stack mechanically rebased onto
+**480f88e8b4**, including intake-age fix **6d5b67d02a**. That fix is now
+qualified. No additional engine fix is needed; this landing adds integration
+witnesses and this record. The earlier unqualified disk-stop entries remain
+historical records, not the final disposition.
+
+Builds are scoped to the required core library/integration, CLI, differential
+library/store and external release-harness targets. No workspace/all-targets
+build runs. All Cargo output stays in this worktree's `snapback4/target`, with
+ten jobs and line-tables-only dev/test debug information. Incremental compilation
+is disabled for those checks. The ordinary CLI is explicitly built because
+binary tests launch its native worker/witness supervisor. The final release
+harness uses the original release optimization/line tables/incremental setting.
+The target ends near **18 GiB**, rather than the former 66 GB debug tree.
+
+### Interaction verdicts
+
+- **Admission and original intake age — PASS.** The G4a short reservation stays
+  at 30 executing workers plus 98 waiting slots; mutations retain their own
+  32-worker class and one FIFO program submission. The strengthened
+  `short_burst_queues_without_extra_workers_and_refuses_only_at_the_bound`
+  fills all 128 short slots, observes the one bounded overflow refusal, then
+  completes eight concurrent unkeyed HTTP mutations before releasing the short
+  queue. Their sequences and returned counter images are exactly 1–8, proving
+  progress and one application each. The original-body-deadline and contiguous
+  program/solo FIFO witnesses pass. The private-PG
+  `accepted_http_age_prevents_a_fresh_fallback_budget_and_keeps_queue_progress`
+  passes again in the complete program scope: an already-spent intake allowance
+  cannot gain a retry after conclusive COMMIT abort; the following request
+  commits exactly once. Source review confirms `Request::accepted_at()` reaches
+  the command's original retry deadline, preserving the first-attempt policy.
+- **RT6 settings/typed flights and uncancellable COMMIT — PASS.** Deferred
+  constraint triggers observe both `statement_timeout` and `lock_timeout` as
+  **0 inside COMMIT**. Five passing cases cover normal N=1 and serial groups,
+  unnamed solo fallback, named single-survivor and seven-survivor fallback,
+  and parallel/forced-serial buffered overlays with bulk apply. Budget refresh
+  invalidates the prepared-COMMIT-settings bit; tail resets follow budget
+  controls; COMMIT remains a separate flight after client count validation.
+  The settings-drift, empty-pending Bind, typed/OID fallback and savepoint
+  recovery cases pass in the 33-case codec/serving scope. Per-member statement
+  deadlines and both stores' post-tail expiry witnesses also pass.
+- **G3b facts versus G4a read closures — PASS.** Wave workers receive immutable
+  complete facts/IR and owned contexts, with private overlays/read sets. They
+  receive no transaction or connection cache. G4a answers belong to their
+  read transaction; member authority/receipt facts are cloned and replaced at
+  each boundary. Prepared statement/literal maps stay on the owning connection.
+  Both paths use the shared typed-flight/literal boundary. The nine-case
+  closure scope, 33 codec/serving cases, NUL text/JSON-source fallbacks,
+  planted-fact/meter oracles, parallel/serial histories, collision chains and
+  intermediate-image witnesses all pass. No shared mutable answer cache is
+  introduced across members or interpreters.
+- **Log hygiene versus vector tail/bulk apply — PASS.** Recognized legacy FK
+  conversion, foreign-shape refusal with rollback, fresh/reopened schemas,
+  commit/rollback/pruning integrity and the isolated cold-backend plan witness
+  pass. `legacy_keys` uses the common flight `Row` from 480f88e8b4. Vector tail
+  validates every returned count independently of FK removal; bulk apply checks
+  its image count, and serial fallback verifies each actual row write. Both-store
+  suppression witnesses reject missing images and preserve the complete durable
+  snapshot; the seven tail-family suppression cases also pass.
+
+### Check census and retained failed attempts
+
+| Check | Passed | Failed | Named ignores / scope |
+|---|---:|---:|---|
+| Full core library | 771 | 0 | 320 existing ignores in the initial inventory |
+| Full core integration | 413 | 0 | 50 ignores; 47 targets, 44 nonempty |
+| Full binary, corrected complete run | 586 | 0 | 48 ignores; four test threads |
+| HTTP RT0 | 5 | 0 | unchanged checked tables |
+| G3b RT0 | 2 | 0 | both stores, N=1/8/32 |
+| Complete private program scope | 51 | 0 | includes all three new private-PG cases |
+| Postgres script Rust scopes | 709 | 1 | 33 invocations; overlapping scopes counted as executions |
+| Core doctests, included above | 38 | 0 | no ignores |
+| Public serving scopes | pass | 0 remaining | original run plus exact final-block rerun below |
+| Root `./ref-check`; whitespace | pass | 0 | no unchecked references |
+
+Warm W1/W2/W3 retain **one PG read flight each**. HTTP PG program groups
+N=4/8/32 remain **5/5/5**; SQLite remains **34/58/202**. Direct G3b N=8/32
+remains **5 flights disjoint / 6 shared** (N=1 stays 7/10). Neither RT0
+fixture is updated.
+
+The Postgres script's one Rust red is the allowed inherited
+`evaluator_concurrent_read_modify_write_and_duplicate_ops_are_atomic_in_both_modes`,
+SQLSTATE **40001**, tracked in the existing Serializable evaluation ticket.
+It records 21 conformance passes and that failure, retaining its three existing
+filters. The 7,418-position query and 19,265-position write-loop differentials
+pass. Later scopes pass: 243 adapter, one isolated cold-plan, nine closure,
+13 evidence, 33 codecs/serving, 25 ownership, 60 evolution, 15 command,
+51 program, 64 HTTP authority, 22 corpus, 13 differential-library and four
+store campaigns, alongside the other small family/HTTP scopes in the census.
+No workload, retry, timeout, durability setting or exclusion is relaxed.
+
+The full shell script exits **1**. Besides the inherited Rust red, its first
+public run reaches the unchanged **45-second P1-MC deploy guard** during a
+host-load spike (load 16.65; bootstrap intent at 17.27 s, no binding). All prior
+public stages pass: EV-1/EV-2 on both stores, large restored parents,
+change-evidence/SDK parity, read-only bootstrap refusals, recovery binding,
+startup claim cleanup, receipt/restart persistence, SIGKILL takeover,
+ownership loss and the non-superuser role. The owned cluster stops cleanly.
+The exact P1-MC source block is then rerun in a fresh namespace/deployment
+with the same role, source, seed, queries, public mutation, SQL recounts and
+**unchanged 45-second guard**. Deployment takes **17.722 s** and the complete
+block passes: 24 seeded messages plus one public post, every room/user total
+matching recount. A normalized block hash equals the original source block.
+Thus the initial public timing red is retained but cleared, not relabeled as a
+successful whole-script attempt.
+
+Other corrected attempts remain in the external record. A private-cluster
+restart initially omitted its explicit socket/port, producing 30 program-scope
+connection failures and the core corpus connection failure; the endpoint is
+verified and corrected. The corpus rerun passes 21/0/1 and the later full
+five-backend script corpus passes 22/0/0. A new N=1 witness initially assumed
+`Invocation.attempts` contains the ordinary driver's local transcript; its
+assertion is corrected, and all five COMMIT-settings cases pass. The first
+binary run is 556/30/48: missing ordinary-CLI helpers plus three HTTP/timing
+failures. After building the CLI, the unchanged complete binary scope passes
+586/0/48. The first isolated P1-MC wrapper deploys in 17.697 s and passes its
+HTTP checks, but omits the original SQL recount helper; restoring that helper
+and using another fresh namespace yields the complete passing block above.
+External release preparation first encounters old local lock versions and
+then the gated Fixed(N) constructor; those failed builds produce no rate claim.
+
+For completeness, the 30 initial binary failures, all cleared by the complete
+rerun, are named here (these are summary identities, not committed raw logs):
+- `serve::committer::worker_mint_tests::inner_unknown_mint_through_queue_fences_the_orphan_before_replacement`
+- `serve::tests::adoption_tests::worker::production_accept_loop_reads_after_delayed_worker_exit`
+- `serve::tests::adoption_tests::worker::production_accept_loop_reads_while_exited_worker_waits_for_adoption`
+- `serve::tests::adoption_tests::worker::production_accept_loop_waits_for_complete_worker_readiness`
+- `serve::tests::adoption_tests::worker::serve_rotation_fences_a_valid_credential_while_retirement_is_locked`
+- `serve::tests::adoption_tests::worker::serve_rotation_waits_for_a_delayed_retirement_turn`
+- `serve::tests::authority_boundary_tests::generation::rt3b_generation_cap_persona_sqlite`
+- `serve::tests::device_handshake_tests::a_clock_jump_cannot_be_captured_as_the_revision_of_a_prejump_token`
+- `serve::tests::latency_tests::headers::changes_reopens_after_a_commit_and_times_each_open_as_wait`
+- `verbs::witness::background::tests::witness_passed_outcome_survives_post_driver_compression_failure`
+- `verbs::witness::preparation::cleanup_tests::direct_enumeration_resizes_and_keeps_births_in_the_selected_group`
+- `verbs::witness::preparation::cleanup_tests::shrinking_group_extends_cleanup_until_supervisor_exits`
+- `verbs::witness::preparation::cleanup_tests::stopped_supervisor_without_exits_requires_recovery_and_keeps_its_deadline`
+- `verbs::witness::preparation::tests::preparation_cleans_term_resistant_descendants_before_releasing_lease`
+- `verbs::witness::preparation::tests::recovery_direct_node_drains_final_empty_snapshot_joiner`
+- `verbs::witness::preparation::tests::recovery_direct_node_drains_late_group_member`
+- `verbs::witness::preparation::tests::recovery_keeps_group_custody_after_anchor_exit`
+- `verbs::witness::preparation::tests::recovery_shell_shim_drains_final_empty_snapshot_joiner`
+- `verbs::witness::preparation::tests::recovery_shell_shim_drains_late_group_member`
+- `verbs::witness::preparation::tests::recovery_volta_style_shim_drains_final_empty_snapshot_joiner`
+- `verbs::witness::preparation::tests::recovery_volta_style_shim_drains_late_group_member`
+- `verbs::witness::preparation::tests::stalled_resolver_sigint_is_bounded_journalled_and_drained`
+- `verbs::witness::preparation::tests::stalled_resolver_sigkill_triggers_watchdog_before_recovery`
+- `verbs::witness::preparation::tests::stalled_resolver_sigterm_is_bounded_journalled_and_drained`
+- `verbs::witness::preparation::tests::stalled_resolver_timeout_is_bounded_journalled_and_drained`
+- `verbs::witness::preparation_deadline::tests::live_output_passes_original_budget_and_stalled_child_is_drained`
+- `verbs::witness::publication::tests::witness_wait_follows_publication_through_exchange_and_verify_without_an_older_pass`
+- `verbs::witness::recovery::tests::abandoned_bulk_and_backend_wait_for_the_run_lease_and_reject_a_reused_pid`
+- `verbs::witness::recovery::tests::live_wrapper_lease_preserves_export_and_journal_after_driver_exit`
+- `verbs::witness::recovery::tests::recovery_drains_a_live_preparation_descendant_before_finishing_even_with_a_live_wrapper`
+
+### Release loopback diagnostic
+
+Use the existing G3b-par harness, 32 native live-account writers, Fixed(N=32),
+one outstanding invocation per writer, one-second warm-up and three-second
+windows. The original G3b-par report temporarily exposed the test-only Fixed(N)
+constructor; repeat only that diagnostic exposure, build without `test-support`,
+then restore `command.rs` **byte-for-byte** before running/committing. The
+restoration hashes match. All 139 registry pins match the product lock; only
+the two copied local-package versions move from 0.4.38 to 0.4.39. No clocks,
+profiling selector or constructor exposure remains in source.
+
+The measurement uses a fresh database on private PostgreSQL **16.15**, TCP
+127.0.0.1:55480, 1 GiB shared buffers, JIT off, and fsync/synchronous_commit/
+full_page_writes **on**. A checkpoint precedes measurement. The original
+retained clean G3b-par binary is also measured on this same host/database;
+its SHA-256 begins `c231935cfc4b`. Six windows per workload/build are retained:
+three initial windows, followed by the predefined process order current,
+baseline, baseline, current, current, baseline, each with one W4 and W5 window.
+No window is discarded.
+
+| Build/workload | All six rates, writes/s | Median | Range |
+|---|---|---:|---|
+| Integrated W4 | 2929.9, 2801.1, 3071.1, 3228.7, 3199.5, 2790.0 | **3000.5** | 2790.0–3228.7 |
+| Retained G3b-par W4, same host now | 3068.0, 3328.1, 3138.4, 2956.6, 3018.0, 3054.1 | **3061.0** | 2956.6–3328.1 |
+| Integrated W5 shared | 2392.8, 2337.7, 2373.9, 2465.3, 2381.8, 2360.4 | **2377.8** | 2337.7–2465.3 |
+| Retained G3b-par W5, same host now | 2480.5, 2444.3, 2461.0, 2452.2, 2440.4, 2640.9 | **2456.6** | 2440.4–2640.9 |
+
+Initial integrated medians are 2929.9/2373.9; the counterbalanced subset is
+3199.5/2381.8 versus baseline 3018.0/2452.2. Across every retained window the
+integrated medians differ from the same-host baseline by **−1.98% / −3.21%**,
+with overlapping ranges. This small diagnostic does not establish an
+integration throughput regression or statistical equivalence. Absolute rates
+are lower than the historical **3422.8/2536.1** report; that report's retained
+binary is itself slower today, so the historical absolute numbers are **not
+reproduced**. Do not promote this to an S1 offered-load/SLO/control claim.
+HTTP, delayed links and the million-message seed remain outside this harness.
+All **198,008 timed acknowledgements** across both builds reconcile with
+durable warm+timed counters and fill histograms, with **zero errors**; 97,285
+of those timed acknowledgements are from the integrated build.
+
+### Cleanup
+
+Private PG16 masters **1313162, 1322573, 1329026, 1588903, 1693369 and 1694092**
+are stopped and independently absent. Final `pg_ctl status` is **3** for both
+owned data directories, with no postmaster pidfiles or owned Unix sockets.
+All **4,690 recorded process identities** and the public witness's **558
+recorded PIDs** are absent; the observer is stopped and reaped. **PIDs left:
+none.** Minimum observed `/home` free space is **54.87 GiB**, final cleanup
+free space **54.88 GiB**; the 25 GiB stop floor never fires. No build-cache
+cleanup is needed. Raw output, timings, PID identities, stopped database data,
+source-restoration receipts and measurement JSON stay outside Git under
+`/tmp/sb4-write-land-qualify/` and `/tmp/s10d3-serve-0lm3krdw/`.
+Only tests and this journal entry are committed. No push, stash, Git
+configuration change or existing-commit rewrite occurs.

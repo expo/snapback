@@ -1019,7 +1019,7 @@ fn named_fallback_statements_use_each_members_own_deadline() {
 }
 
 #[cfg(feature = "postgres")]
-fn fallback_commit_timeouts(named: bool) {
+fn fallback_commit_timeouts(named: bool, size: usize) {
     use super::fault::{self, Point};
     let mut engine = fixture(true);
     let before = engine.seq().unwrap();
@@ -1036,7 +1036,7 @@ fn fallback_commit_timeouts(named: bool) {
          DEFERRABLE INITIALLY DEFERRED FOR EACH ROW WHEN (NEW.t='entries')
          EXECUTE FUNCTION g23_commit_settings()",
     );
-    let mut members: Vec<_> = (0..2)
+    let mut members: Vec<_> = (0..size)
         .map(|i| {
             let mut member = intent(19, i);
             member
@@ -1048,12 +1048,12 @@ fn fallback_commit_timeouts(named: bool) {
         })
         .collect();
     let (point, index) = if named {
-        (Point::BeforeMember, 1)
+        (Point::BeforeMember, size - 1)
     } else {
         (Point::BeforeTail, usize::MAX)
     };
     let results = fault::inject(point, index, || engine.invoke_program_batch(&mut members));
-    let committed = if named { 1 } else { 2 };
+    let committed = if named { size - 1 } else { size };
     for i in 0..committed {
         assert!(
             matches!(&results[i], Ok(ack) if matches!(ack.outcome.state, crate::WriteState::Sent { .. })),
@@ -1063,8 +1063,8 @@ fn fallback_commit_timeouts(named: bool) {
         assert_eq!(members[i].attempts.len(), 2, "must exercise fallback");
     }
     if named {
-        assert!(results[1].is_err());
-        assert_eq!(members[1].attempts.len(), 0, "fault precedes member body");
+        assert!(results[size - 1].is_err());
+        assert_eq!(members[size - 1].attempts.len(), 0, "fault precedes member body");
     }
     assert_eq!(engine.seq().unwrap(), before + committed as u64);
     assert_eq!(engine.store().count("entries").unwrap(), committed as u64);
@@ -1098,14 +1098,91 @@ fn fallback_commit_timeouts(named: bool) {
 #[test]
 #[ignore = "private PG16; scripts/test-postgres.sh"]
 fn unnamed_solo_fallback_commit_timeouts_are_disabled_postgres() {
-    fallback_commit_timeouts(false);
+    fallback_commit_timeouts(false, 2);
 }
 
 #[cfg(feature = "postgres")]
 #[test]
 #[ignore = "private PG16; scripts/test-postgres.sh"]
 fn named_single_survivor_fallback_commit_timeouts_are_disabled_postgres() {
-    fallback_commit_timeouts(true);
+    fallback_commit_timeouts(true, 2);
+}
+
+#[cfg(feature = "postgres")]
+#[test]
+#[ignore = "private PG16; scripts/test-postgres.sh"]
+fn named_group_fallback_commit_timeouts_are_disabled_postgres() {
+    fallback_commit_timeouts(true, 8);
+}
+
+#[cfg(feature = "postgres")]
+pub(super) fn record_commit_settings(engine: &mut Engine) {
+    // @ref LLP 3000.009.001.000.002#3.1 — observe settings inside COMMIT, after all flight and budget controls.
+    pg_sql(engine, "CREATE TABLE commit_settings(statement_timeout text, lock_timeout text);
+        CREATE FUNCTION record_commit_settings() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN
+          INSERT INTO commit_settings VALUES (current_setting('statement_timeout'), current_setting('lock_timeout'));
+          RETURN NEW;
+        END $$;
+        CREATE CONSTRAINT TRIGGER record_commit_settings AFTER INSERT OR UPDATE ON r
+        DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION record_commit_settings()");
+}
+
+#[cfg(feature = "postgres")]
+pub(super) fn assert_commit_settings(engine: &mut Engine) -> usize {
+    let settings = engine
+        .store_mut()
+        .test_postgres_handle_mut()
+        .store
+        .get_mut()
+        .client
+        .query(
+            "SELECT statement_timeout, lock_timeout FROM commit_settings",
+            &[],
+        )
+        .unwrap();
+    assert!(!settings.is_empty(), "must observe a durable row's COMMIT");
+    for row in &settings {
+        assert_eq!(
+            (row.get::<_, String>(0), row.get::<_, String>(1)),
+            ("0".into(), "0".into())
+        );
+    }
+    settings.len()
+}
+
+#[cfg(feature = "postgres")]
+#[test]
+#[ignore = "private PG16; scripts/test-postgres.sh"]
+fn n1_and_serial_group_commit_timeouts_are_disabled_postgres() {
+    for n in [1, 8] {
+        let mut engine = fixture(true);
+        record_commit_settings(&mut engine);
+        let before = engine.seq().unwrap();
+        let mut batch = (0..n)
+            .map(|i| {
+                let mut member = intent(19, i);
+                member
+                    .context
+                    .args
+                    .insert("reject".into(), Value::Bool(false));
+                member
+            })
+            .collect::<Vec<_>>();
+        let results = engine.invoke_program_batch(&mut batch);
+        assert!(
+            results.iter().all(
+                |r| matches!(r, Ok(a) if matches!(a.outcome.state, crate::WriteState::Sent { .. }))
+            ),
+            "{results:?}"
+        );
+        if n == 1 {
+            assert!(batch[0].attempts.is_empty(), "N=1 uses the ordinary driver");
+        } else {
+            assert!(batch.iter().all(|i| i.attempts.len() == 1 && !i.attempts[0].buffered));
+        }
+        assert_eq!(engine.seq().unwrap(), before + n as u64);
+        assert_commit_settings(&mut engine);
+    }
 }
 
 #[cfg(feature = "postgres")]

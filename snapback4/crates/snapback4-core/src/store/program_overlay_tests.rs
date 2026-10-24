@@ -789,6 +789,50 @@ fn overlay_rt0_sqlite() {
 fn overlay_rt0_postgres() {
     counts(true);
 }
+
+#[cfg(feature = "postgres")]
+#[test]
+#[ignore = "private PG16; scripts/test-postgres.sh"]
+fn parallel_and_serial_overlay_commit_timeouts_are_disabled_postgres() {
+    for serial in [false, true] {
+        let mut engine = fixture(true);
+        super::tests::record_commit_settings(&mut engine);
+        let before = engine.seq().unwrap();
+        let mut batch = (0..8)
+            .map(|n| {
+                Invocation::new(
+                    "increment",
+                    None,
+                    Context::new(
+                        "alice",
+                        [("counter".into(), Value::Id(format!("k{n}")))].into(),
+                    )
+                    .at(1000),
+                )
+            })
+            .collect::<Vec<_>>();
+        let mut run = || engine.invoke_program_batch(&mut batch);
+        let results = if serial {
+            crate::engine::committer::parallel::serial(run)
+        } else {
+            run()
+        };
+        assert!(
+            results.iter().all(
+                |r| matches!(r, Ok(a) if matches!(a.outcome.state, crate::WriteState::Sent { .. }))
+            ),
+            "{results:?}"
+        );
+        assert!(
+            batch
+                .iter()
+                .all(|i| i.attempts.len() == 1 && i.attempts[0].buffered)
+        );
+        assert_eq!(engine.seq().unwrap(), before + 8);
+        assert_eq!(super::tests::assert_commit_settings(&mut engine), 8);
+    }
+}
+
 fn late_unknown(pg: bool) {
     use super::fault::{self, Point};
     let mut engine = fixture(pg);

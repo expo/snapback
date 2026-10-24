@@ -127,10 +127,17 @@ fn failed_thread_spawn_refuses_unfinished_upload_and_releases_permit() {
 
 #[test]
 fn short_burst_queues_without_extra_workers_and_refuses_only_at_the_bound() {
-    let host = Host::new(true);
+    let host = Host::with_store(true, snapback4_core::Store::memory().unwrap(),
+        "use personas alice\ntable counters:\n  n: int default 0\n  public\n  update <- allow\n  online only\nmutation bump():\n  c = counters['counter'] ! else NOT_FOUND\n  return update counters[c.id] { n: c.n + 1 }\n");
+    assert_eq!(body(&host.request("POST", "/seed", "",
+        r#"[{"table":"counters","row":{"id":"counter"}}]"#))["seeded"], 1);
+    let before = lock(&host.shared.engine).seq().unwrap();
     let gate = Arc::new(WorkGate::default()); let _release = ReleaseGate(gate.clone());
     let hook = gate.clone();
-    *lock(&host.shared.request_work) = Some(Arc::new(move || hook.park()));
+    let entered = AtomicUsize::new(0);
+    *lock(&host.shared.request_work) = Some(Arc::new(move || {
+        if entered.fetch_add(1, Ordering::AcqRel) < REQUEST_WORKERS { hook.park(); }
+    }));
     let mut peers = Vec::new();
     for _ in 0..REQUEST_WORKERS + SHORT_REQUEST_QUEUE {
         let mut stream = TcpStream::connect(host.address).unwrap();
@@ -144,6 +151,27 @@ fn short_burst_queues_without_extra_workers_and_refuses_only_at_the_bound() {
     assert_eq!(status(&overflow), 503, "{overflow}");
     assert_eq!(body(&overflow)["denied"]["code"], "E_RATE_LIMIT");
     assert_eq!(gate.entered.load(Ordering::Acquire), REQUEST_WORKERS);
+    // A full G4a short reservation must leave durable program admission and
+    // the serial mailbox usable. Unkeyed HTTP calls each apply exactly once.
+    let mutation_gate = std::sync::Barrier::new(8);
+    let mut replies = std::thread::scope(|scope| {
+        let workers = (0..8).map(|_| {
+            let (host, gate) = (&host, &mutation_gate);
+            scope.spawn(move || {
+                gate.wait();
+                let response = host.request("POST", "/m/bump", "x-snapback-persona: alice\r\n", r#"{"args":{}}"#);
+                assert_eq!(status(&response), 200, "{response}");
+                let reply = body(&response);
+                assert_eq!(reply["state"], "sent", "{reply}");
+                (reply["seq"].as_u64().unwrap(), reply["result"]["n"].as_u64().unwrap())
+            })
+        }).collect::<Vec<_>>();
+        workers.into_iter().map(|w| w.join().unwrap()).collect::<Vec<_>>()
+    });
+    replies.sort_unstable();
+    assert_eq!(replies, (1..=8).map(|n| (before + n, n)).collect::<Vec<_>>());
+    assert_eq!(lock(&host.shared.engine).seq().unwrap(), before + 8);
+    assert_eq!(host.admission.short.load(Ordering::Acquire), REQUEST_WORKERS + SHORT_REQUEST_QUEUE);
     gate.release();
     for mut peer in peers {
         let mut reply = String::new(); peer.read_to_string(&mut reply).unwrap();
