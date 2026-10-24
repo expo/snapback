@@ -23,6 +23,55 @@ pub(in crate::engine) struct Prepared {
     pub reads: ReadSet,
     pub changes: crate::revocation::Recorder,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn take_rejects_every_non_row_read_kind() {
+        let mut kinds = vec![ReadSet::default(); 4];
+        kinds[0]
+            .spans
+            .insert(("t".into(), "ix".into(), vec![], vec![255]));
+        kinds[1].authority.insert("credential".into());
+        kinds[2].receipts.insert(("alice".into(), "op".into()));
+        kinds[3].unsupported = true;
+        let mut rejected = 0;
+        for reads in kinds {
+            let p = Prepared {
+                reads,
+                writes: Default::default(),
+                changes: Default::default(),
+                execution: Execution {
+                    ran: Ok(Value::Null),
+                    metered: Default::default(),
+                    tables: vec![],
+                    events: vec![],
+                    action_tables: Default::default(),
+                    outbox: vec![],
+                    rows_written: 0,
+                    read_tables: Default::default(),
+                    entropy: 0,
+                    minted: vec![],
+                },
+            };
+            let mut wave = Wave {
+                base: Default::default(),
+                accepted: Default::default(),
+                images: Default::default(),
+                facts: vec![],
+                prepared: vec![Some(p)],
+            };
+            let (prepared, rerun) = wave.take(0);
+            rejected += usize::from(prepared.is_none() && rerun);
+        }
+        assert_eq!(
+            rejected, 4,
+            "all non-row dependencies must rerun after predecessors"
+        );
+    }
+}
 pub(in crate::engine) struct Wave {
     pub base: Base,
     pub accepted: BTreeMap<RowKey, Value>,
@@ -212,6 +261,20 @@ impl Wave {
     }
     pub fn take(&mut self, n: usize) -> (Option<Prepared>, bool) {
         let prepared = self.prepared[n].take();
+        // @ref LLP 3000.009.001.000.002#3.3 — never accept a speculative result with dependencies this row-only validator cannot check. Re-execute after predecessors instead.
+        if prepared.as_ref().is_some_and(|p| {
+            // Exhaustive: adding a read kind requires deciding its validation.
+            let ReadSet {
+                rows: _,
+                spans,
+                authority,
+                receipts,
+                unsupported,
+            } = &p.reads;
+            *unsupported || !spans.is_empty() || !authority.is_empty() || !receipts.is_empty()
+        }) {
+            return (None, true);
+        }
         // Index keys and populations are fixed by the selector. Every probe's
         // returned image, even a hidden one, therefore conflicts by row identity.
         let conflict = prepared.as_ref().is_some_and(|p| {

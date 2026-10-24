@@ -814,11 +814,13 @@ impl<'a> Tx<'a> {
             if before == after { continue; }
             let ti = self.num(&format!("{table_name}.{name}"))?;
             for key in before.iter().filter(|key| !after.contains(key)) {
-                self.conn().prepare_cached("DELETE FROM i WHERE ti = ?1 AND k = ?2")?.execute(params![ti, key])?;
+                let affected = self.conn().prepare_cached("DELETE FROM i WHERE ti = ?1 AND k = ?2")?.execute(params![ti, key])?;
+                crate::rows::require_one(affected as u64, "index delete", table_name, Some(name))?;
                 entries += 1;
             }
             for key in after.iter().filter(|key| !before.contains(key)) {
-                insert.execute(params![ti, key, id])?;
+                let affected = insert.execute(params![ti, key, id])?;
+                crate::rows::require_one(affected as u64, "index insert", table_name, Some(name))?;
                 entries += 1;
             }
         }
@@ -833,12 +835,14 @@ impl<'a> Tx<'a> {
         self.changes.borrow_mut().record(table_name, table, Some(old), None);
         let id = old.field("id")?.as_str()?.to_owned();
         dormant::delete(self,t,&id,table_name)?;
-        self.conn().prepare_cached("DELETE FROM r WHERE t = ?1 AND id = ?2")?.execute(params![t, id])?;
+        let affected = self.conn().prepare_cached("DELETE FROM r WHERE t = ?1 AND id = ?2")?.execute(params![t, id])?;
+        crate::rows::require_one(affected as u64, "row delete", table_name, None)?;
         let mut entries = 0;
         for (index_name, index) in &table.indexes {
             let ti = self.num(&format!("{table_name}.{index_name}"))?;
             for key in stored_index_keys(table, index, old, &id) {
-                self.conn().prepare_cached("DELETE FROM i WHERE ti = ?1 AND k = ?2")?.execute(params![ti, key])?;
+                let affected = self.conn().prepare_cached("DELETE FROM i WHERE ti = ?1 AND k = ?2")?.execute(params![ti, key])?;
+                crate::rows::require_one(affected as u64, "index delete", table_name, Some(index_name))?;
                 entries += 1;
             }
         }

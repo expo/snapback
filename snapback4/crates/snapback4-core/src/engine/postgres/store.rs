@@ -1013,11 +1013,13 @@ impl Rows for Tx<'_> {
         let mut entries = 0;
         for crate::rows::IndexWrite { name, before, after } in keys {
             for key in before.iter().filter(|k| !after.contains(k)) {
-                self.execute("DELETE FROM i WHERE t = $1 AND ix = $2 AND k = $3", &[&table_name, &name, key])?;
+                let affected = self.execute("DELETE FROM i WHERE t = $1 AND ix = $2 AND k = $3", &[&table_name, &name, key])?;
+                crate::rows::require_one(affected, "index delete", table_name, Some(name))?;
                 entries += 1;
             }
             for key in after.iter().filter(|k| !before.contains(k)) {
-                self.execute("INSERT INTO i VALUES ($1,$2,$3,$4)", &[&table_name, &name, key, &id])?;
+                let affected = self.execute("INSERT INTO i VALUES ($1,$2,$3,$4)", &[&table_name, &name, key, &id])?;
+                crate::rows::require_one(affected, "index insert", table_name, Some(name))?;
                 entries += 1;
             }
         }
@@ -1033,11 +1035,13 @@ impl Rows for Tx<'_> {
         let sql = if self.unified {
             "WITH refs AS (UPDATE _dormant_refs SET invalid=1 WHERE parent_t=$1 AND parent_id=$2 AND invalid=0 AND NOT(t=$1 AND id=$2)), cells AS (DELETE FROM _dormant_values WHERE t=$1 AND id=$2), images AS (DELETE FROM _dormant_rows WHERE t=$1 AND id=$2), narrowed AS (DELETE FROM _dormant_narrow_rows WHERE t=$1 AND id=$2), own_refs AS (DELETE FROM _dormant_refs WHERE t=$1 AND id=$2) DELETE FROM r WHERE t=$1 AND id=$2"
         } else { "DELETE FROM r WHERE t = $1 AND id = $2" };
-        self.execute(sql, &[&table_name, &id])?;
+        let affected = self.execute(sql, &[&table_name, &id])?;
+        crate::rows::require_one(affected, "row delete", table_name, None)?;
         let mut entries = 0;
         for (name, index) in &table.indexes {
             for key in stored_index_keys(table, index, old, id) {
-                self.execute("DELETE FROM i WHERE t = $1 AND ix = $2 AND k = $3", &[&table_name, name, &key])?;
+                let affected = self.execute("DELETE FROM i WHERE t = $1 AND ix = $2 AND k = $3", &[&table_name, name, &key])?;
+                crate::rows::require_one(affected, "index delete", table_name, Some(name))?;
                 entries += 1;
             }
         }

@@ -15,6 +15,8 @@ use std::{
     sync::{Arc, Mutex, mpsc},
     time::Duration,
 };
+#[path = "serial_write_tests.rs"]
+mod serial_write_tests;
 const SOURCE: &str = r#"effect notify
 table counters:
   n: int

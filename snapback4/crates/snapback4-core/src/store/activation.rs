@@ -251,7 +251,7 @@ impl Store {
                         serde_json::from_str(&s).map_err(|e| RuntimeError::decode(e,RuntimeError::Store))
                     }).transpose()?;
                 let previous=previous.map(|s|super::table_renames::schema(s,&renamed_tables)).transpose()?.map(|s|super::asset_renames::schema(s,&renamed_columns));
-                let shortened = crate::engine::through_activation::activate_retained(&tx,schema,previous.as_ref(),now,&retained_through)?;
+                let shortened = crate::engine::through_activation::activate_retained(&tx,schema,previous.as_ref(),now,&retained_through,population_changed)?;
                 sqlite_tx.set_meta("read_through_shortened",&canonical_json(&shortened))?;
                 report.detail("read-through retirement", started);
             }

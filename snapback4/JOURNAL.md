@@ -106761,3 +106761,175 @@ Automated free-space minimum is 41.85 GiB; an earlier manual observation is abou
 41.6 GiB. The 40 GiB floor never triggers, and only owned inactive target artifacts
 are reclaimed. All commits remain local with the requested author/committer; no
 push or Git configuration change, q24 file access, or shared PG17 change.
+
+## 2026-10-24 — FF1: exact serial deltas and write-stack witnesses
+
+Lane `sb4-pg/ff1`, based on `115be62c28`, on expo-build-450b (the host's
+local hostname is expose-builder-pixel-a). The relay's local `main` was old;
+fetching its `refs/remotes/origin/main` supplied the requested base without
+changing Git configuration. No push or stash.
+
+### Exact serial writes
+
+SQLite and PostgreSQL now check every primary delete and each individual
+index insert/delete against exactly one affected row. Existing primary
+insert/update checks and PostgreSQL's zero-row insert Rule refusal stay as
+before. The new checks consume the driver's existing count, with no extra
+statement or flight. Mismatch returns E_STORE and the existing driver rolls
+back the physical transaction.
+
+Ten trigger witnesses cover both stores: primary delete, index deletion on
+update and delete, and index insertion on update and insert. Four keyed
+members per witness have 30-second deadlines. The first named failure
+removes that member; nonempty attempts for every later member prove live
+named recovery executes. All 40 attempts reject suppression, and complete
+before/after snapshots match, including physical index entries, rows, caps,
+receipts, head, complete commits, change evidence and log images. Removing
+the trigger permits a successful commit. With only the witnesses added to
+`115be62c28`, all ten fail (0 passed/10 failed): suppressed writes are
+acknowledged. With the checks they pass on both stores.
+
+Strict checks also exposed administrative phases that had relied on
+unchecked zero-row writes. A retained-only expired image has no live row or
+index: it now retires its dormant provenance directly. Whole-table source
+restoration retires an expired unindexed image with a checked primary
+delete. Read-through capture maintains the physical predecessor indexes;
+population restoration has only its identity scan until the existing
+candidate rebuild. Candidate-only indexes are not treated as predecessor
+entries. The eight initially failing dormant/lifetime unit cases are
+covered by the 63/0/5 final focused rerun (five PG witnesses intentionally ignored
+there); the final complete checks below qualify the integrated result. A later focused
+review added restoration of a narrowed row into an existing table with a newly earlier
+child deadline. It failed with a children.$children count mismatch before
+passing the existing population-changed signal into capture; that signal
+already guarantees a complete candidate-index rebuild. No lookup or query
+was added to select this physical layout.
+
+### Follow-up witnesses
+
+1. Real HTTP requests wait for 100 Continue, then delay body delivery.
+   Expired solo and three-member grouped requests get no retry after a
+   classified COMMIT abort; aged survivors get no retry after a named
+   member abort. Nontransactional sequences distinguish executed attempts
+   from durable rows. A 45 ms body delay leaves about 50 ms and successfully
+   retries/commits, and the next request proves queue progress. Removing
+   `.accepted_at(accepted)` causes all three witnesses to fail: solo
+   head/attempts become 1/2, group 3/6, named survivors 2/4, versus durable
+   head zero. The source is restored byte-for-byte afterward.
+2. Crossed reads use distinct write targets, cyclic/diamond/reverse read
+   dependencies, data-dependent branches and post-write refusals. Three
+   seeds at N=8/32, four rounds, compare complete outcomes/meters and durable
+   history against individual N=1 `invoke_program` calls on both stores.
+   Every target is distinct so these members are speculated, and the test
+   requires conflict reruns. Disabling recorded-row conflict validation
+   makes both new differentials fail; the other 12 focused witnesses pass.
+   The source is restored byte-for-byte afterward.
+3. `Wave::take` exhaustively destructures ReadSet and discards prepared
+   results with spans, authority, receipts or unsupported dependencies,
+   forcing execution after predecessors. New read kinds require an explicit
+   validation decision. The original code accepts all four planted kinds;
+   the witness fails before and passes after the guard.
+4. The pool boundary asserts at most 32 jobs, supplementing the existing
+   program-batch cap. The 33-job witness fails before that assertion and
+   passes after it. Join drains at most 32 independently metered private
+   attempts, with at most min(CPUs - 2, 8) workers. At default ceilings this
+   is at most 32 million interpreter steps across those attempts, not a
+   hard wall-clock or RSS bound. Only first attempts enter this wave;
+   their join is intentionally uncancelled, as is COMMIT. The existing
+   retry-only deadline contract is unchanged.
+
+### Qualification
+
+All commands use the owned target, `-j 10`, line-tables-only dev/test
+profiles and the task PATH. The final code passes:
+
+| Scope | Passed | Failed | Ignored |
+| --- | ---: | ---: | ---: |
+| Full core (780 unit + 413 integration + 38 doctests) | 1,231 | 0 | 387 |
+| Full snapback4 binary | 586 | 0 | 52 |
+| HTTP round-trip scope (including the three real-intake witnesses) | 8 | 0 | 0 |
+| Overlay RT0 on both stores | 2 | 0 | 0 |
+| Full PostgreSQL script, Rust summaries | 736 | 0 | 0 |
+
+The PostgreSQL script runs with `RUST_TEST_THREADS=1`; all within-test
+concurrency still executes. The inherited evaluator Serializable `40001`
+was not reproduced and is not claimed fixed. Its prefetch write loop checks
+19,265 budget positions; the five-backend corpus runs 295 serialized cases
+per backend with the existing named exclusions. The public CLI witness
+passes, including the S1 P1-MC recount, persisted release evolution,
+ownership loss/takeover and change-evidence parity, then independently
+confirms its own private cluster stopped. No extra skip was added.
+
+The source reference check passes: **567 LLP documents, 11,889 refs,
+0 errors, 0 unchecked**, including the final documentation reconciliation.
+
+Fixture preparation failures are not counted as regression evidence: the
+first serial-write fixture used an ambiguous positional text key, corrected
+to named `id`; the HTTP helper initially assumed header-free 100 Continue,
+then had a body length off by one, and its first named trigger looked at an
+untagged rather than stored Row/Int path. All were corrected before the
+retained negative controls and final qualification.
+
+Two broad-run attempts hit the conservative 25 GiB disk monitor while
+building against the inherited cache. The monitor stopped only recorded
+owned processes; the second stop also shut down the owned PG cluster, so
+its E57P03/connection errors are interrupted infrastructure runs, not
+product verdicts. Minimum recorded free space was 24.97 GiB. Clearing
+only this worktree's release and then debug caches restored 69 GiB; the
+required-package rebuild used the prescribed target, line-tables-only
+profiles and -j 10. No workspace/all-targets build. A superseded broad core
+run with the eight lifecycle reds was also stopped after its focused
+replacement passed, using only its recorded identities. The final complete
+runs above started from the cleared cache and final source.
+
+### Paired loopback measurement
+
+Use the existing G3b-par native core harness, 32 live-account writers,
+Fixed(N=32), one outstanding request per writer, 1 s warm-up and 3 s timed
+windows. Both release binaries use the same 139 product registry pins,
+opt-level 3, incremental release and line-tables-only debug information,
+without test-support instrumentation. The diagnostic Fixed constructor
+exposure is restored byte-for-byte before use/commit. Baseline SHA-256 is
+`09779984592bf1f6c3cc9e25ad6714937e499dd188f4d259f3fcc9ed18070667`;
+final is `1067d8c1630673538f8227d4fff50e4b4f1545b033b7c78d481ce70740fcb115`.
+
+The comparison uses a fresh database on owned PostgreSQL 16.15 at TCP
+127.0.0.1:55481, 1 GiB shared buffers, JIT off, fsync/synchronous_commit/
+full_page_writes on, and a preceding CHECKPOINT. Three predeclared ABBA
+blocks (before, after, after, before) retain all 12 processes/24 windows:
+six windows per build/workload. No window is removed. All checks/builds
+finish before sampling; measured one-minute load is 1.24–1.64 on 12 CPUs.
+An earlier setup run used the default N ladder while compilation was active;
+it is retained externally and is not part of this predeclared comparison.
+
+| Workload | Before median writes/s | After median writes/s | Median delta | Paired block mean | Descriptive 95% t interval |
+| --- | ---: | ---: | ---: | ---: | --- |
+| W4-disjoint | 3055.5 | 2976.6 | -2.58% | +0.48% | -7.09% to +8.05% |
+| W5-shared | 2375.2 | 2322.5 | -2.22% | +0.20% | -14.13% to +14.52% |
+
+The count checks add **0 SQL statements / 0 flights**. The paired estimates
+are **+0.48% W4 / +0.20% W5 throughput**, with both intervals spanning zero:
+this diagnostic detects no marginal cost. Pooled medians are **−2.58% /
+−2.22%**; the broad intervals do not establish equivalence for small changes.
+All **194,974 timed acknowledgements** reconcile with durable warm+timed
+counter sums and fill histograms, with **zero errors**. This is the native
+core queue over durable TCP loopback, excluding HTTP and the capacity seed;
+it is not an offered-load/SLO or matched-control qualification. Physical
+COMMIT/flight instrumentation is disabled in these release binaries; its
+zero fields are not cost measurements.
+
+### Cleanup
+
+Owned PG16 masters **2013603, 2125833 and 2563933** are stopped and
+independently absent. Both owned data directories report pg_ctl status **3**,
+with no postmaster pidfile. The qualification/measurement audit finds all
+**5,654 recorded process identities** and the public witness's
+**539 recorded PIDs** absent, including the observer. **PIDs left: none.**
+Final free space at this audit is **61.32 GiB**.
+Completed release/evaluator caches were also removed after their executables
+were copied outside target, preserving active debug artifacts and headroom.
+Raw output, samples, PID identities and restoration receipts stay outside Git
+under `/tmp/sb4-ff1/` and `/tmp/s10d3-serve-zmg74ofn/`; stopped cluster data is
+retained for inspection. Only source, tests, ticket resolutions, this journal
+and the brief RFC note are committed. No push, stash or Git configuration
+change.

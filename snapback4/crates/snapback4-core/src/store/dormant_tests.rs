@@ -603,6 +603,22 @@ fn restored_through_deadline_recomputes_before_queries_sync_and_asset_reads() {
 }
 
 #[test]
+fn restored_narrowed_capture_uses_only_its_installed_identity_index() {
+    let future = crate::now_ms() + 86_400_000;
+    let full = "table parents:\n  until: time\n  immutable until\n  public\n  expire at .until\ntable children:\n  parent: parents\n  status: enum('live','new')\n  immutable parent\n  read through .parent\n  sync public\nquery all():\n  return children[] first 20 by byId\n";
+    let mut e = engine(full);
+    seed(&mut e, "parents", serde_json::json!({"id":"p","until":future}));
+    seed(&mut e, "children", serde_json::json!({"id":"c","parent":"p","status":"new"}));
+    activate(&mut e, &full.replace("enum('live','new')", "enum('live')"), 2).unwrap();
+    assert_eq!(e.store().count("children").unwrap(), 0);
+    let expired = full.replace("  immutable parent", "  cutoff: time default 0\n  expire at .cutoff\n  immutable parent, cutoff");
+    activate(&mut e, &expired, 3).unwrap();
+    let row = e.store().rows("children").unwrap().remove(0);
+    assert_eq!(row.field(crate::schema::through::DEADLINE).unwrap(), &Value::Int(0));
+    assert!(e.query("all", Context::new("alice", Default::default()).at(1000)).unwrap().data.as_array().unwrap().is_empty());
+}
+
+#[test]
 fn restored_recorded_attribution_preserves_values_and_nulls_before_aggregate_rebuild() {
     let future = crate::now_ms() + 86_400_000;
     let parent = "table targets:\n  owner: principal\n  until: time\n  immutable owner, until\n  public\n  expire at .until\n";
