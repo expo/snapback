@@ -1,0 +1,12 @@
+{
+  "README.md": "816b68d30ef4f01484d52f9aeaf06ff87070999140b5aa476ca59d5517bde0e5",
+  "affected-receipt.json": "1f4dd179525daba7a305063a60db0d516e7c7a10e6ecbfb7a75b52dca6789f70",
+  "summary.json": "5e6d3bff07c05a2e0c866afae62d90cd187c33cb2450318ac3ce3577f0dede56",
+  "write40-main-affected.log.gz": "6d7fae6ab992ab0f98e12d1e39542397ca268b1d7ad92880b8b17115bb99ae2b",
+  "write40-main-guide-repeat.log.gz": "83730d6b7c7defec27d1511c0b93c0142dc9516b66d956d418fa71eea6004cb4",
+  "write40-main-guide.log.gz": "33de57640dcbc311f2eeeac1fe89539e4b91dc72dc7c050c8a2f21e4669af5f5",
+  "write40-main-product-unchanged.json": "8c68df70a344ca1ed2a8aa8b7c9d1581a4b7c68b1584931a849c94827ba47230",
+  "write40-main-root-hoist.log.gz": "3a02c40e62f86ece226e7f961fccef2607d119f3677e1f219234bf28ac264eb7",
+  "write40-main-root-install.log.gz": "28b83515aec8274bc9654c00e6094b1352400af679b0d4293c463ef55735b5c7",
+  "write40-main-selector-plan.json": "e96cc7a726bb19efd5e5f0f6f9d3b9b53623addc3bff345e69a101d33c6aedcf"
+}

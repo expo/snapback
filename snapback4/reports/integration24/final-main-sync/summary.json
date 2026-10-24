@@ -1,0 +1,16 @@
+{
+  "mergedSource": "eec5762f861b68366517464afc96be5b19834bf4",
+  "productQualifiedSource": "53da2f7b3de6344e2be82a90364815679b4e7533",
+  "identicalProductTrees": 17,
+  "affectedSelectorExit": 0,
+  "focusedTests": 83,
+  "focusedFailed": 0,
+  "focusedSkipped": 0,
+  "inventoriesExit": 0,
+  "refCheckExit": 0,
+  "initialGuideSetupExit": 1,
+  "guideRepeatExit": 0,
+  "guideRepeatPassed": 22,
+  "guideRepeatSkipped": 0,
+  "guideRepeatMissingPreconditions": 0
+}

@@ -1,0 +1,291 @@
+{
+  "schemaVersion": "snapback4.affected.v1",
+  "files": [
+    ".github/workflows/local-proof.yml",
+    "AGENTS.md",
+    "llp/0189-verification-cadence-and-claim-gating.decision.md",
+    "llp/reviews/0189-fast/dispositions.md",
+    "llp/reviews/0189-fast/r1-amendment-brief.txt",
+    "llp/reviews/0189-fast/r1-brief.txt",
+    "llp/reviews/0189-fast/r1-codex.txt",
+    "llp/reviews/0189-fast/r1-muse-amendment.txt",
+    "llp/reviews/0189-fast/r1-muse.txt",
+    "llp/reviews/0189-fast/r1-provenance.json",
+    "llp/reviews/0189-fast/r2-brief.txt",
+    "llp/reviews/0189-fast/r2-codex.txt",
+    "llp/reviews/0189-fast/r2-muse.txt",
+    "llp/reviews/0189-fast/r2-provenance.json",
+    "llp/reviews/0189-fast/r3-brief.txt",
+    "llp/reviews/0189-fast/r3-codex.txt",
+    "llp/reviews/0189-fast/r3-muse.txt",
+    "llp/reviews/0189-fast/r3-provenance.json",
+    "llp/reviews/0189-fast/r4-brief.txt",
+    "llp/reviews/0189-fast/r4-codex.txt",
+    "llp/reviews/0189-fast/r4-muse.txt",
+    "llp/reviews/0189-fast/r4-provenance.json",
+    "llp/reviews/0189-fast/r5-brief.txt",
+    "llp/reviews/0189-fast/r5-codex.txt",
+    "llp/reviews/0189-fast/r5-muse.txt",
+    "llp/reviews/0189-fast/r5-provenance.json",
+    "llp/reviews/0189-fast/r5.patch",
+    "scripts/local-proof-selection-policy.v1.json",
+    "scripts/select-local-proof.mjs",
+    "scripts/verify-local-proof",
+    "snapback4/AGENTS.md",
+    "snapback4/scripts/affected-replay.mjs",
+    "snapback4/scripts/affected.mjs",
+    "snapback4/scripts/affected.test.mjs"
+  ],
+  "broad": false,
+  "reasons": [
+    {
+      "path": ".github/workflows/local-proof.yml",
+      "reason": "root selector integration"
+    },
+    {
+      "path": "AGENTS.md",
+      "reason": "LLP/agent instructions"
+    },
+    {
+      "path": "llp/0189-verification-cadence-and-claim-gating.decision.md",
+      "reason": "LLP/agent instructions"
+    },
+    {
+      "path": "llp/reviews/0189-fast/dispositions.md",
+      "reason": "LLP/agent instructions"
+    },
+    {
+      "path": "llp/reviews/0189-fast/r1-amendment-brief.txt",
+      "reason": "LLP/agent instructions"
+    },
+    {
+      "path": "llp/reviews/0189-fast/r1-brief.txt",
+      "reason": "LLP/agent instructions"
+    },
+    {
+      "path": "llp/reviews/0189-fast/r1-codex.txt",
+      "reason": "LLP/agent instructions"
+    },
+    {
+      "path": "llp/reviews/0189-fast/r1-muse-amendment.txt",
+      "reason": "LLP/agent instructions"
+    },
+    {
+      "path": "llp/reviews/0189-fast/r1-muse.txt",
+      "reason": "LLP/agent instructions"
+    },
+    {
+      "path": "llp/reviews/0189-fast/r1-provenance.json",
+      "reason": "LLP/agent instructions"
+    },
+    {
+      "path": "llp/reviews/0189-fast/r2-brief.txt",
+      "reason": "LLP/agent instructions"
+    },
+    {
+      "path": "llp/reviews/0189-fast/r2-codex.txt",
+      "reason": "LLP/agent instructions"
+    },
+    {
+      "path": "llp/reviews/0189-fast/r2-muse.txt",
+      "reason": "LLP/agent instructions"
+    },
+    {
+      "path": "llp/reviews/0189-fast/r2-provenance.json",
+      "reason": "LLP/agent instructions"
+    },
+    {
+      "path": "llp/reviews/0189-fast/r3-brief.txt",
+      "reason": "LLP/agent instructions"
+    },
+    {
+      "path": "llp/reviews/0189-fast/r3-codex.txt",
+      "reason": "LLP/agent instructions"
+    },
+    {
+      "path": "llp/reviews/0189-fast/r3-muse.txt",
+      "reason": "LLP/agent instructions"
+    },
+    {
+      "path": "llp/reviews/0189-fast/r3-provenance.json",
+      "reason": "LLP/agent instructions"
+    },
+    {
+      "path": "llp/reviews/0189-fast/r4-brief.txt",
+      "reason": "LLP/agent instructions"
+    },
+    {
+      "path": "llp/reviews/0189-fast/r4-codex.txt",
+      "reason": "LLP/agent instructions"
+    },
+    {
+      "path": "llp/reviews/0189-fast/r4-muse.txt",
+      "reason": "LLP/agent instructions"
+    },
+    {
+      "path": "llp/reviews/0189-fast/r4-provenance.json",
+      "reason": "LLP/agent instructions"
+    },
+    {
+      "path": "llp/reviews/0189-fast/r5-brief.txt",
+      "reason": "LLP/agent instructions"
+    },
+    {
+      "path": "llp/reviews/0189-fast/r5-codex.txt",
+      "reason": "LLP/agent instructions"
+    },
+    {
+      "path": "llp/reviews/0189-fast/r5-muse.txt",
+      "reason": "LLP/agent instructions"
+    },
+    {
+      "path": "llp/reviews/0189-fast/r5-provenance.json",
+      "reason": "LLP/agent instructions"
+    },
+    {
+      "path": "llp/reviews/0189-fast/r5.patch",
+      "reason": "LLP/agent instructions"
+    },
+    {
+      "path": "scripts/local-proof-selection-policy.v1.json",
+      "reason": "root selector integration"
+    },
+    {
+      "path": "scripts/select-local-proof.mjs",
+      "reason": "root selector integration"
+    },
+    {
+      "path": "scripts/verify-local-proof",
+      "reason": "root selector integration"
+    },
+    {
+      "path": "snapback4/AGENTS.md",
+      "reason": "LLP/agent instructions"
+    },
+    {
+      "path": "snapback4/scripts/affected-replay.mjs",
+      "reason": "selector implementation/fixtures"
+    },
+    {
+      "path": "snapback4/scripts/affected.mjs",
+      "reason": "selector implementation/fixtures"
+    },
+    {
+      "path": "snapback4/scripts/affected.test.mjs",
+      "reason": "selector implementation/fixtures"
+    }
+  ],
+  "rustPackages": [],
+  "fixtureFiles": [],
+  "rustTargets": {},
+  "clientFiles": [],
+  "checks": [
+    "inventories",
+    "ref-check",
+    "selector-tests"
+  ],
+  "steps": [
+    {
+      "id": "inventories",
+      "cwd": ".",
+      "argv": [
+        "node",
+        "scripts/check-inventories.mjs"
+      ],
+      "reason": "affected input contract",
+      "timeoutSeconds": 900,
+      "requires": []
+    },
+    {
+      "id": "ref-check",
+      "cwd": ".",
+      "argv": [
+        "./ref-check"
+      ],
+      "reason": "affected input contract",
+      "timeoutSeconds": 300,
+      "requires": []
+    },
+    {
+      "id": "selector-tests",
+      "cwd": ".",
+      "argv": [
+        "node",
+        "--test",
+        "snapback4/scripts/affected.test.mjs",
+        "tests/local_proof_selection_v0.mjs",
+        "tests/local_proof_inventory_v0.mjs",
+        "tests/ci_workflows_v0.mjs"
+      ],
+      "reason": "affected input contract",
+      "timeoutSeconds": 300,
+      "requires": []
+    }
+  ],
+  "base": "0046280f81dc3190fa2063fb54dd59c076355361",
+  "mergeBase": "0046280f81dc3190fa2063fb54dd59c076355361",
+  "head": "eec5762f861b68366517464afc96be5b19834bf4",
+  "worktree": false,
+  "observedFiles": [
+    ".github/workflows/local-proof.yml",
+    "AGENTS.md",
+    "llp/0189-verification-cadence-and-claim-gating.decision.md",
+    "llp/reviews/0189-fast/dispositions.md",
+    "llp/reviews/0189-fast/r1-amendment-brief.txt",
+    "llp/reviews/0189-fast/r1-brief.txt",
+    "llp/reviews/0189-fast/r1-codex.txt",
+    "llp/reviews/0189-fast/r1-muse-amendment.txt",
+    "llp/reviews/0189-fast/r1-muse.txt",
+    "llp/reviews/0189-fast/r1-provenance.json",
+    "llp/reviews/0189-fast/r2-brief.txt",
+    "llp/reviews/0189-fast/r2-codex.txt",
+    "llp/reviews/0189-fast/r2-muse.txt",
+    "llp/reviews/0189-fast/r2-provenance.json",
+    "llp/reviews/0189-fast/r3-brief.txt",
+    "llp/reviews/0189-fast/r3-codex.txt",
+    "llp/reviews/0189-fast/r3-muse.txt",
+    "llp/reviews/0189-fast/r3-provenance.json",
+    "llp/reviews/0189-fast/r4-brief.txt",
+    "llp/reviews/0189-fast/r4-codex.txt",
+    "llp/reviews/0189-fast/r4-muse.txt",
+    "llp/reviews/0189-fast/r4-provenance.json",
+    "llp/reviews/0189-fast/r5-brief.txt",
+    "llp/reviews/0189-fast/r5-codex.txt",
+    "llp/reviews/0189-fast/r5-muse.txt",
+    "llp/reviews/0189-fast/r5-provenance.json",
+    "llp/reviews/0189-fast/r5.patch",
+    "scripts/local-proof-selection-policy.v1.json",
+    "scripts/select-local-proof.mjs",
+    "scripts/verify-local-proof",
+    "snapback4/AGENTS.md",
+    "snapback4/scripts/affected-replay.mjs",
+    "snapback4/scripts/affected.mjs",
+    "snapback4/scripts/affected.test.mjs"
+  ],
+  "inputDigest": "b7f91be42593e18968e71a5b48dade453a422d611701c0a0fe2b1033749e3a9a",
+  "started": "2026-10-24T12:26:25.357Z",
+  "results": [
+    {
+      "id": "inventories",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 196892
+    },
+    {
+      "id": "ref-check",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 5006
+    },
+    {
+      "id": "selector-tests",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 16599
+    }
+  ],
+  "complete": true,
+  "finished": "2026-10-24T12:30:03.858Z",
+  "unchanged": true,
+  "ok": true
+}
