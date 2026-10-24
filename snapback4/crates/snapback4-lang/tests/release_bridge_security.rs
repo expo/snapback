@@ -893,3 +893,11 @@ fn exact_source_accepts_a_proved_stable_dominating_column_audience_require() {
     let current=old.replace("body: text <=40\n","body: text <=40 write <- viewer = 'alice'\n");
     assert!(release_bridge::exact_write_authority(&[("schema.q".into(),old.into())],&[("schema.q".into(),current)]).is_ok());
 }
+
+#[test]
+fn enum_alias_reverse_projection_avoids_an_unneeded_rollback_view() {
+    let old="table tasks:\n  label: text <=40\n  state: enum('queued','done')\n  public\n  online only\n";
+    let current=old.replace("label: text <=40","title: text <=40 renamed from label").replace("'done'","'ready'")+"alias tasks.state 'done' = 'ready'\n";
+    let before=vec![("schema.q".into(),old.into())];let after=vec![("schema.q".into(),current)];
+    assert!(compile(&after).diagnostics.is_empty());assert!(!release_bridge::requires_view(&before,&after));
+}

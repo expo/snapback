@@ -47,7 +47,7 @@ pub fn requires_view(target:&[(String,String)],current:&[(String,String)])->bool
             for col in &old.columns {
                 let Some(candidate)=next.columns.iter().find(|c|c.name==col.name||c.renamed_from.as_ref()==Some(&col.name)||col.renamed_from.as_ref()==Some(&c.name))else{continue};
                 let scalar=!matches!(&col.type_.kind,TypeKind::Ref{..}|TypeKind::List{..}|TypeKind::Image{..}|TypeKind::File{..}|TypeKind::Video{..});
-                if scalar&&docs.iter().flat_map(|d|&d.downfills).any(|d|d.table==next.name&&matches!(&d.value,ast::Expr::Object{fields,..}if fields.iter().any(|f|f.name==col.name))){continue;}
+                if scalar&&after_schema.as_ref().is_some_and(|s|s.downfills.iter().any(|d|d.table==old.name&&d.outputs.contains(&col.name))){continue;}
                 let mut from=candidate.type_.clone();let mut to=col.type_.clone();normalize(&mut from,&aliases);normalize(&mut to,&aliases);
                 if !crate::client_contracts::accepts(&crate::types::scalar_to_arg(&from),&crate::types::scalar_to_arg(&to)){return true}
             }
