@@ -105518,3 +105518,60 @@ Private PG16 master **1263975** is stopped and independently confirmed by
 and observer shutdown. **PIDs left: none.** The last exact disk audit reports
 34.86 GiB free; the disk stop remains active. No push, stash, Git configuration
 change, existing-commit rewrite or unrelated-cluster operation occurs.
+
+## 2026-10-24 — Write-land resume: all-target build reaches the new disk floor
+
+On expo-build-450b, the worktree starts clean on `sb4-pg/write-land` at the
+required **6d5b67d02a**, with `df -h /home` reporting **71G available**.
+The resumed `cargo build --locked --workspace --all-targets --features postgres
+-j 10` uses this worktree's `snapback4/target`, the requested line-tables-only
+dev/test profiles and disabled incremental compilation. It reaches many
+workspace integration targets without reporting a Rust compile error, but
+the continuous disk guard interrupts it at **24.9973 GiB available**, the
+new 25 GiB stop floor. **The workspace build does not complete.** The
+affected program-batch test command is still waiting for Cargo's build lock
+when its own guard stops it; it executes zero tests. The permitted
+`target/debug/incremental` directory contains only 4 KiB, so deleting its
+contents cannot restore useful build headroom. No other build artifacts are
+deleted, and no further builds or test campaigns start after the stop.
+
+All four semantic interaction verdicts remain **source-reviewed but
+unqualified**. Admission retains the distinct 30-worker/98-waiter short
+pool and 32-worker mutation class, a single FIFO program submission, the
+original short-request deadlines and the intake-age handoff introduced by
+6d5b67d02a. The retained queue-order, overload, expiry and intake-age witnesses
+still need execution. RT6's settings guard remains before data commands;
+`refresh_program_budget` invalidates prepared COMMIT settings, and tail/commit
+code orders both timeout resets after budget commands. The retained deferred
+COMMIT-trigger fallback witnesses still need execution. Wave preparation
+shares immutable facts with private worker overlays, whereas G4a read answers
+belong to their transaction; both use the common flight/literal boundary,
+with G4a's explicit NUL/JSON-source guards. Closure, literal, parallel-history
+and flight-count witnesses still need execution. Plan hygiene removes only
+the recognized legacy log FK; vector tails validate every returned count,
+and overlay apply validates its image count independently. Legacy-conversion,
+orphan-integrity and suppressed-write witnesses still need execution.
+An additional deferred-trigger coverage candidate for normal N=1, serial
+groups and parallel/forced-serial overlays is removed before this checkpoint:
+it never compiled or ran, and no new executable change is retained.
+
+Qualification census: **zero completed workspace builds; zero core, binary,
+RT0 or private-Postgres test cases executed; no release loopback trials**.
+Neither W1/W2/W3's one-flight ratchet nor G3b's five/six-flight ratchet has a
+new result. The full Postgres script does not start; the known inherited
+evaluator 40001 is neither reproduced nor cleared, and no other test red is
+observed because no tests run. W4/W5 throughput remains unmeasured.
+Root `./ref-check` passes; `git diff --check` passes. The intake-age fix at
+6d5b67d02a remains explicitly **unqualified**.
+
+Private PG16 master **1294001** is stopped by the disk observer and
+independently confirmed with `pg_ctl status` **3**, no postmaster pidfile
+and no owned Unix socket. Both guarded commands and the observer finish;
+all **1,333 recorded process identities** are absent. **PIDs left: none.**
+After interrupted-build temporary files are released, the cleanup audit
+reports **25.7869 GiB available**. Raw logs, PID identities and disk samples
+remain outside Git under `/tmp/sb4-write-land-resume/`. Only this journal
+checkpoint is committed. No push, stash, Git configuration change,
+existing-commit rewrite or unrelated-cluster operation occurs. Completion
+requires additional free space or an explicit expansion of the user's
+artifact-cleanup allowance; the empty incremental cache provides no remedy.
