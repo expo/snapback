@@ -6,7 +6,7 @@ use snapback4_core::Value;
 type Rows=BTreeMap<String,Vec<Value>>;
 fn boolean(v:Option<Value>)->Option<bool>{match v{Some(Value::Bool(v))=>Some(v),_=>None}}
 pub(super) fn evaluate(expr:&Expr,row:&Value,rows:&Rows,schema:&Schema,viewer:&str,table:&str,now:i64)->Option<bool>{boolean(value(expr,row,rows,schema,viewer,table,now))}
-fn value(e:&Expr,row:&Value,rows:&Rows,schema:&Schema,viewer:&str,table:&str,now:i64)->Option<Value>{Some(match e{
+pub(super) fn value(e:&Expr,row:&Value,rows:&Rows,schema:&Schema,viewer:&str,table:&str,now:i64)->Option<Value>{Some(match e{
     Expr::Name{name,..} if name=="now"=>Value::Int(now),
     Expr::Name{name,..} if name=="viewer"=>Value::Id(viewer.into()),
     Expr::Literal{value,..}=>match value{Literal::Str(s)=>Value::String(s.clone()),Literal::Bool(v)=>Value::Bool(*v),Literal::Null=>Value::Null,Literal::Number(_)=>Value::Int(super::creation_advice::duration_number(e)?)},

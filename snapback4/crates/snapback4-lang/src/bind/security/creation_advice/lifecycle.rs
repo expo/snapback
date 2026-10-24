@@ -38,10 +38,14 @@ fn clock(w:&Write<'_>)->bool{
     })
 }
 fn media_name(name:&str)->bool{["photo","image","scan","sketch","url"].iter().any(|s|name.to_lowercase().contains(s))}
-fn recording(kind:&ColumnType,value:Option<&Expr>)->bool{match (kind.required(),value){
+pub(super) fn recording(kind:&ColumnType,value:Option<&Expr>)->bool{match (kind.required(),value){
     (ColumnType::Bool,Some(Expr::Literal{value:ast::Literal::Bool(true),..}))=>true,
     (ColumnType::Time,Some(e))=>!matches!(e,Expr::Literal{value:ast::Literal::Null,..}|Expr::Member{..}),_=>false,
 }}
+fn records(w:&Write<'_>,column:&str,kind:&ColumnType,t:&snapback4_core::schema::Table)->bool{
+    if let Some(field)=w.fields.iter().find(|f|f.name==column){return recording(kind,field_value(field));}
+    matches!(w.op,WriteOp::Insert|WriteOp::Upsert)&&t.defaults.get(column).is_some_and(|d|match (kind.required(),d.value(challenges::NOW,"$advisory")){(ColumnType::Bool,snapback4_core::Value::Bool(true))=>true,(ColumnType::Time,snapback4_core::Value::Int(_))=>true,_=>false})
+}
 fn decision_effect(t:&snapback4_core::schema::Table,column:&str,f:&ast::ObjectField)->bool{
     let name=f.name.to_lowercase();
     if f.name==column||["approv","authoriz","consent","reason","note"].iter().any(|part|name.contains(part)){return false;}
@@ -55,16 +59,17 @@ fn decision_effect(t:&snapback4_core::schema::Table,column:&str,f:&ast::ObjectFi
 pub(super) fn notes(bound:&Bound,writes:&[Write<'_>],out:&mut Vec<Diagnostic>){
     for (table,t) in bound.schema.visible_tables(){
         let transitions=writes.iter().filter(|w|w.table==*table&&state(w,bound)).collect::<Vec<_>>();
-        if transitions.is_empty(){continue;}
+        let approval_effects=transitions.iter().copied().chain(writes.iter().filter(|w|w.table!=*table&&matches!(w.op,WriteOp::Insert|WriteOp::Upsert)&&bound.schema.tables[&w.table].columns.values().any(|kind|matches!(kind.required(),ColumnType::Ref{table:parent} if parent==table)))).collect::<Vec<_>>();
+        if approval_effects.is_empty(){continue;}
         for (column,kind) in &t.columns {
             let approval=["approv","authoriz"].iter().any(|part|column.to_lowercase().contains(part));
-            let recorded=writes.iter().any(|w|w.table==*table&&w.op==WriteOp::Update&&w.fields.iter().any(|f|f.name==*column&&recording(kind,field_value(f))));
+            let recorded=writes.iter().any(|w|w.table==*table&&records(w,column,kind,t));
             let proxies=writes.iter().filter(|w|w.table==*table&&w.fields.iter().any(|f|f.name==*column)).flat_map(|w|w.fields.iter()).filter(|f|f.name!=*column&&matches!(t.columns.get(&f.name).map(ColumnType::required),Some(ColumnType::Enum{..}|ColumnType::Bool|ColumnType::Principal|ColumnType::Time))).filter(|f|!matches!(field_value(f),Some(Expr::Member{..}))).map(|f|f.name.clone()).collect::<BTreeSet<_>>();
-            let atomic=writes.iter().any(|w|w.table==*table&&w.fields.iter().any(|f|f.name==*column&&recording(kind,field_value(f)))&&w.fields.iter().any(|f|decision_effect(t,column,f)));
+            let atomic=writes.iter().any(|w|w.table==*table&&records(w,column,kind,t)&&w.fields.iter().any(|f|decision_effect(t,column,f)&&(!matches!(w.op,WriteOp::Insert|WriteOp::Upsert)||!t.defaults.get(&f.name).is_some_and(|d|matches!(field_value(f),Some(Expr::Literal{value:ast::Literal::Str(value),..}) if d.value(challenges::NOW,"$advisory")==snapback4_core::Value::String(value.clone()))))));
             let rule_use=super::super::columns::rules(t).any(|rule|rule.any_term(&|term|matches!(term,RuleTerm::Field(name) if name==column||proxies.contains(name))));
-            let consumed=atomic||rule_use||writes.iter().filter(|w|!(w.table==*table&&w.fields.iter().any(|f|f.name==*column&&recording(kind,field_value(f))))).any(|w|inspected(w,table,column)||proxies.iter().any(|proxy|inspected(w,table,proxy)));
+            let consumed=atomic||rule_use||writes.iter().filter(|w|!(w.table==*table&&records(w,column,kind,t))).any(|w|inspected(w,table,column)||proxies.iter().any(|proxy|inspected(w,table,proxy)));
             if approval&&recorded&&!consumed {
-                note(out,&transitions[0].site,"N_APPROVAL_NOT_ENFORCED",format!("{table}.{column}: approval is recorded but no lifecycle transition inspects it; is this an informational record or a required approval?"),"require this approval before its governed effect; or record `check --ack-security ID --reason 'informational approval record: <spec rationale>'` for this individual decision");
+                note(out,&approval_effects[0].site,"N_APPROVAL_NOT_ENFORCED",format!("{table}.{column}: approval is recorded but no lifecycle effect inspects it; is this an informational record or a required approval?"),"require this approval before its governed effect; or record `check --ack-security ID --reason 'informational approval record: <spec rationale>'` for this individual decision");
             }
         }
         // A separately attached child's required field cannot require the child.

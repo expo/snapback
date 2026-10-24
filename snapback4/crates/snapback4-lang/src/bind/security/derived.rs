@@ -106,7 +106,7 @@ pub fn invariants(sources:&[(String,String)],bound:&Bound)->Vec<Invariant>{
                 let Some(kind)=definition.columns.get(&approval.name)else{continue;};
                 let condition=match (kind.required(),approval.value.as_ref()) {
                     (snapback4_core::schema::ColumnType::Bool,Some(ast::Expr::Literal{value:ast::Literal::Bool(true),..}))=>RuleExpr::Ne(RuleTerm::Field(approval.name.clone()),RuleTerm::Literal(snapback4_core::Value::Bool(true))),
-                    (snapback4_core::schema::ColumnType::Time,Some(ast::Expr::Name{name,..})) if name=="now"=>RuleExpr::Eq(RuleTerm::Field(approval.name.clone()),RuleTerm::Literal(snapback4_core::Value::Null)),
+                    (snapback4_core::schema::ColumnType::Time,Some(value)) if super::creation_advice::approval_recording(kind,Some(value))=>RuleExpr::Eq(RuleTerm::Field(approval.name.clone()),RuleTerm::Literal(snapback4_core::Value::Null)),
                     _=>continue,
                 };
                 // A derived approve/edit contract concerns approval retained

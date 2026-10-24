@@ -131,6 +131,11 @@ fn campaign(s:&str)->Campaign{let b=security::derived::augmented(&sources(s),&bo
     let cs=security::derived::invariants(&sources(source),&bound(source));
     let terminals=cs.iter().filter(|i|i.site.file.contains("child-stage")).collect::<Vec<_>>();
     assert!(!terminals.is_empty(),"{cs:?}");assert!(terminals.iter().all(|i|i.predicate.contains("'finish'")&&!i.predicate.contains("'handoff'")),"{terminals:?}");
+    let multi=source.replace("inspect(item: tasks)","inspect(reference: tasks,item: tasks)").replace("  t = tasks[item] ! else MISSING","  r = tasks[reference] ! else MISSING\n  require r.stage = 'finish' else BAD_REFERENCE\n  t = tasks[item] ! else MISSING");
+    let cs=security::derived::invariants(&sources(&multi),&bound(&multi));
+    let terminals=cs.iter().filter(|i|i.site.file.contains("child-stage")).collect::<Vec<_>>();
+    assert!(!terminals.is_empty(),"{cs:?}");assert!(terminals.iter().all(|i|i.predicate.contains("'finish'")&&!i.predicate.contains("'handoff'")),"{terminals:?}");
+
 }
 #[test]fn child_creation_can_consume_the_same_resource_approval(){
     let source="table docs:\n  approved: bool default false\n  read <- allow\n  insert <- allow\n  update <- allow\n  online only\ntable effects:\n  doc: docs\n  read <- allow\n  insert <- allow\n  online only\nmutation create():\n  return insert docs {approved:true}\nmutation consume(doc: docs):\n  d = docs[doc] ! else NOT_FOUND\n  require d.approved else NO_APPROVAL\n  update docs[doc] {approved:false}\n  return insert effects {doc}\n";
@@ -155,4 +160,27 @@ fn campaign(s:&str)->Campaign{let b=security::derived::augmented(&sources(s),&bo
     }
     let source="table docs:\n  status: enum('draft','done') default 'draft'\n  read <- allow\n  insert <- allow\n  update <- allow\n  online only\ntable approvals:\n  doc: docs\n  read <- allow\n  insert <- viewer = 'service:manager'\n  online only\nmutation create():\n  require viewer = 'service:manager' else DENIED\n  d = insert docs {}\n  return insert approvals {doc:d.id}\nmutation finish(doc: docs):\n  update docs[doc] {status:'done'}\n";
     assert!(!notes(source).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
+}
+
+#[test]fn secondary_reference_updates_do_not_rebind_a_predecessor_approval(){
+    let source="table docs:\n  predecessor: docs ?\n  approved: bool default false\n  status: enum('draft','done') default 'draft'\n  unique predecessor\n  read <- allow\n  update <- allow\n  online only\nmutation finish(doc: docs):\n  d = docs[doc] ! else NOT_FOUND\n  require d.approved else NO_APPROVAL\n  update docs[predecessor = doc] {status:'done'}\n";
+    assert!(!security::derived::invariants(&sources(source),&bound(source)).iter().any(|i|i.site.file.contains("sibling-approval")));
+    let direct=source.replace("docs[predecessor = doc]","docs[doc]");
+    assert!(security::derived::invariants(&sources(&direct),&bound(&direct)).iter().any(|i|i.site.file.contains("sibling-approval")));
+}
+
+#[test]fn insertion_and_default_approvals_still_need_consumption(){
+    let source="table docs:\n  approvedAt: time ?\n  status: enum('draft','done') default 'draft'\n  read <- allow\n  insert <- allow\n  update <- allow\n  online only\nmutation create():\n  return insert docs {approvedAt:now,status:'draft'}\nmutation finish(doc: docs):\n  update docs[doc] {status:'done'}\n";
+    assert!(notes(source).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
+    let defaults=source.replace("approvedAt: time ?","approved: bool default true").replace("approvedAt:now,","");
+    assert!(notes(&defaults).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
+    let time_default=source.replace("approvedAt: time ?","approvedAt: time default now").replace("approvedAt:now,","");
+    assert!(notes(&time_default).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
+    let inspected=source.replace("  approvedAt: time ?","  value: text ?\n  approvedAt: time ?")+"mutation approve(doc: docs):\n  d = docs[doc] ! else MISSING\n  require d.value != null else NO_EVIDENCE\n  update docs[doc] {approvedAt:now + 0ms}\nmutation edit(doc: docs,value: text ?):\n  update docs[doc] {value}\n";
+    assert!(security::derived::invariants(&sources(&inspected),&bound(&inspected)).iter().any(|i|i.column.as_deref()==Some("value")&&i.target=="update"));
+}
+
+#[test]fn approval_questions_include_child_effects_without_a_parent_status_enum(){
+    let source="table docs:\n  approved: bool default false\n  read <- allow\n  update <- allow\n  online only\ntable effects:\n  doc: docs\n  read <- allow\n  insert <- allow\n  online only\nmutation approve(doc: docs):\n  update docs[doc] {approved:true}\nmutation create(doc: docs):\n  return insert effects {doc}\n";
+    assert!(notes(source).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
 }

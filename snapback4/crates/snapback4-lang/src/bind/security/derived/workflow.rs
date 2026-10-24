@@ -143,8 +143,13 @@ pub(super) fn invariants(docs:&[ast::Document],catalog:&Catalog,bound:&Bound,out
                 }else{None};
                 let mut roots=paths(&bound.schema,table,root);
                 // A target update must identify this exact resource argument.
-                if table==root&&*op==WriteOp::Update&&!keys.iter().any(|k|matches!(&k.value,Expr::Name{name,..} if name==&arg.name)){continue;}
+                if table==root&&*op==WriteOp::Update&&target_arg(p,write,root).is_none_or(|selected|selected.name!=arg.name){continue;}
                 if roots.len()!=1{continue;}let base=roots.remove(0);
+                if *op==WriteOp::Update&&table!=root{
+                    let Expr::Member{base:owner,name:reference,..}=&base else{continue;};
+                    if !matches!(owner.as_ref(),Expr::Focal{..})||keys.len()!=1||!matches!(&keys[0].value,Expr::Name{name,..} if name==&arg.name)||keys[0].column.as_deref().is_some_and(|c|c!=reference)||!bound.schema.tables[table].indexes.values().any(|index|index.unique&&index.columns()==vec![reference.clone()]){continue;}
+                }
+
                 if root!=table&&matches!(op,WriteOp::Insert|WriteOp::Upsert){
                     // The guarded resource must be the one actually placed
                     // on this effect, not another argument of the same type.
@@ -181,6 +186,19 @@ fn roles(context:&ast::ProgramDecl,bound:&Bound)->BTreeSet<String>{
     guards(context).filter(|c|{let mut c=(*c).clone();let mut found=false;walk(&mut c,&mut |e|if let Expr::Exists{read,..}=e&& !privilege::role_columns(bound,&read.table).is_empty(){found=true;});found}).map(crate::print::expression).collect()
 }
 fn literals(e:&Expr)->BTreeSet<String>{let mut e=e.clone();let mut out=BTreeSet::new();walk(&mut e,&mut |e|if let Expr::Literal{value:ast::Literal::Str(s),..}=e{out.insert(s.clone());});out}
+// A typed id argument binds only the actual selected row, never an arbitrary
+// argument of the same table or a named secondary reference key.
+fn target_arg<'a>(p:&'a ast::ProgramDecl,w:&Expr,table:&str)->Option<&'a ast::ArgDecl>{
+    let Expr::Write{op:WriteOp::Update,table:target,keys,..}=w else{return None;};
+    if target!=table||keys.len()!=1||keys[0].column.as_deref().is_some_and(|c|c!="id"){return None;}
+    let Expr::Name{name,..}=&keys[0].value else{return None;};
+    p.args.iter().find(|a|a.name==*name&&matches!(&a.type_.kind,TypeKind::Ref{table:t} if t==table))
+}
+fn state_requirements(p:&ast::ProgramDecl,w:&Expr,context:&ast::ProgramDecl,bound:&Bound,table:&str,state:&str)->Option<Vec<Expr>>{
+    fn conjuncts<'a>(e:&'a Expr,out:&mut Vec<&'a Expr>){if let Expr::Binary{op,left,right,..}=e&&op=="and"{conjuncts(left,out);conjuncts(right,out);}else{out.push(e);}}
+    let arg=target_arg(p,w,table)?;let args=BTreeMap::from([(arg.name.clone(),member(focal(),"id"))]);let mut parts=Vec::new();for guard in guards(context){conjuncts(guard,&mut parts);}
+    Some(parts.into_iter().filter_map(|c|normalize(c,&bound.schema,table,&args)).filter(|c|{let mut c=c.clone();let mut found=false;walk(&mut c,&mut |e|if matches!(e,Expr::Member{base,name,..} if name==state&&matches!(base.as_ref(),Expr::Focal{..})){found=true;});found}).collect())
+}
 fn lifecycle(writes:&[(&ast::ProgramDecl,Expr,ast::ProgramDecl)],bound:&Bound,out:&mut Vec<Invariant>){
     for (child_p,child_write,child_context) in writes {
         let Expr::Write{op:WriteOp::Update,table:child,fields:child_fields,site:child_site,..}=child_write else{continue;};
@@ -197,16 +215,16 @@ fn lifecycle(writes:&[(&ast::ProgramDecl,Expr,ast::ProgramDecl)],bound:&Bound,ou
                 let Expr::Write{op:WriteOp::Update,table,fields,site,..}=parent_write else{continue;};if table!=parent{continue;}
                 let Some(parent_state)=state_field(bound,parent,fields)else{continue;};
                 if roles(parent_context,bound)!=child_roles{continue;}
-                let Some(arg)=parent_p.args.iter().find(|a|matches!(&a.type_.kind,TypeKind::Ref{table} if table==parent))else{continue;};
-                let args=BTreeMap::from([(arg.name.clone(),member(focal(),"id"))]);
-                let requirements=guards(parent_context).filter_map(|c|normalize(c,&bound.schema,parent,&args)).filter(|c|{let mut c=c.clone();let mut found=false;walk(&mut c,&mut |e|if matches!(e,Expr::Member{base,name,..} if matches!(base.as_ref(),Expr::Focal{..})&&name==&parent_state.name){found=true;});found}).collect::<Vec<_>>();
+                let Some(requirements)=state_requirements(parent_p,parent_write,parent_context,bound,parent,&parent_state.name)else{continue;};
+                // Unresolved state-write targets cannot establish terminality.
+                if writes.iter().any(|(p,w,c)|matches!(w,Expr::Write{op:WriteOp::Update,table:t,fields,..} if t==parent&&state_field(bound,parent,fields).is_some())&&state_requirements(p,w,c,bound,parent,&parent_state.name).is_none()){continue;}
                 let Some(destination)=parent_state.value.as_ref()else{continue;};
                 let Expr::Literal{value:ast::Literal::Str(destination),..}=destination else{continue;};
                 let sources=requirements.iter().flat_map(literals).collect::<BTreeSet<_>>();
                 if sources.is_empty(){continue;}
                 // Work follows a prior parent transition by this same role.
                 // Admit both its explicit source and destination states.
-                let outgoing=writes.iter().any(|(p,w,c)|roles(c,bound)==child_roles&&matches!(w,Expr::Write{op:WriteOp::Update,table:t,..} if t==parent)&&p.args.iter().filter(|a|matches!(&a.type_.kind,TypeKind::Ref{table} if table==parent)).any(|a|guards(c).filter_map(|c|normalize(c,&bound.schema,parent,&BTreeMap::from([(a.name.clone(),member(focal(),"id"))]))).any(|c|literals(&c).contains(destination))));
+                let outgoing=writes.iter().any(|(p,w,c)|roles(c,bound)==child_roles&&state_requirements(p,w,c,bound,parent,&parent_state.name).is_some_and(|guards|guards.iter().any(|c|literals(c).contains(destination))));
                 if outgoing&&!atomic_parent&&!parent_gate {
                     // A role may work throughout its parent's intermediate
                     // phase. Adjacent edges form one window, not mutually
@@ -215,14 +233,13 @@ fn lifecycle(writes:&[(&ast::ProgramDecl,Expr,ast::ProgramDecl)],bound:&Bound,ou
                     for (producer,write,context) in writes{
                         let Expr::Write{op:WriteOp::Update,table,fields,..}=write else{continue;};
                         if table!=parent||roles(context,bound)!=child_roles{continue;}
-                        let Some(resource)=producer.args.iter().find(|a|matches!(&a.type_.kind,TypeKind::Ref{table} if table==parent))else{continue;};
-                        let args=BTreeMap::from([(resource.name.clone(),member(focal(),"id"))]);
+                        let Some(requirements)=state_requirements(producer,write,context,bound,parent,&parent_state.name)else{continue;};
                         let Some(state)=state_field(bound,parent,fields)else{continue;};if state.name!=parent_state.name{continue;}
                         let Some(Expr::Literal{value:ast::Literal::Str(to),..})=&state.value else{continue;};
-                        let next_edge=writes.iter().any(|(p,w,c)|roles(c,bound)==child_roles&&matches!(w,Expr::Write{op:WriteOp::Update,table:t,..} if t==parent)&&p.args.iter().filter(|a|matches!(&a.type_.kind,TypeKind::Ref{table} if table==parent)).any(|a|guards(c).filter_map(|c|normalize(c,&bound.schema,parent,&BTreeMap::from([(a.name.clone(),member(focal(),"id"))]))).any(|c|literals(&c).contains(to))));
+                        let next_edge=writes.iter().any(|(p,w,c)|roles(c,bound)==child_roles&&state_requirements(p,w,c,bound,parent,&parent_state.name).is_some_and(|guards|guards.iter().any(|c|literals(c).contains(to))));
                         if !next_edge{continue;}
                         allowed.insert(to.clone());
-                        allowed.extend(guards(context).filter_map(|c|normalize(c,&bound.schema,parent,&args)).filter(|c|crate::print::expression(c).contains(&format!(".{}",state.name))).flat_map(|c|literals(&c)));
+                        allowed.extend(requirements.iter().flat_map(literals));
                     }
                     let policy=allowed.into_iter().map(|v|binary("=",member(member(focal(),reference),&parent_state.name),string(&v))).reduce(|a,b|binary("or",a,b));
                     if let Some(policy)=policy{
@@ -232,17 +249,25 @@ fn lifecycle(writes:&[(&ast::ProgramDecl,Expr,ast::ProgramDecl)],bound:&Bound,ou
                 }
                 // A terminal parent destination has no same-role outgoing
                 // transition. Infer the child's terminal only from its graph.
-                let any_outgoing=writes.iter().any(|(p,w,c)|matches!(w,Expr::Write{op:WriteOp::Update,table:t,..} if t==parent)&&p.args.iter().filter(|a|matches!(&a.type_.kind,TypeKind::Ref{table} if table==parent)).any(|a|guards(c).filter_map(|c|normalize(c,&bound.schema,parent,&BTreeMap::from([(a.name.clone(),member(focal(),"id"))]))).any(|c|literals(&c).contains(destination))));
+                let any_outgoing=writes.iter().any(|(p,w,c)|state_requirements(p,w,c,bound,parent,&parent_state.name).is_some_and(|guards|guards.iter().any(|c|literals(c).contains(destination))));
                 let atomic_child=writes.iter().any(|(p,w,_)|std::ptr::eq(*p,*parent_p)&&matches!(w,Expr::Write{op:WriteOp::Update,table:t,..} if t==child));
                 if any_outgoing||atomic_child{continue;}
-                let mut assigned=BTreeSet::new();let mut from=BTreeSet::new();
+                let mut assigned=BTreeSet::new();let mut from=BTreeSet::new();let mut ambiguous=false;
                 for (p,w,c) in writes.iter().filter(|(_,w,_)|matches!(w,Expr::Write{op:WriteOp::Update,table:t,..} if t==child)){
-                    if let Expr::Write{fields,..}=w&&let Some(value)=fields.iter().find(|f|f.name==child_state.name).and_then(|f|f.value.as_ref()){assigned.extend(literals(value));}
-                    if let Some(arg)=p.args.iter().find(|a|matches!(&a.type_.kind,TypeKind::Ref{table} if table==child)){
-                        let args=BTreeMap::from([(arg.name.clone(),member(focal(),"id"))]);
-                        for condition in guards(c).filter_map(|c|normalize(c,&bound.schema,child,&args)) {if crate::print::expression(&condition).contains(&format!(".{}",child_state.name)){from.extend(literals(&condition));}}
+                    let Expr::Write{fields,..}=w else{continue;};let Some(state)=fields.iter().find(|f|f.name==child_state.name)else{continue;};
+                    let Some(requirements)=state_requirements(p,w,c,bound,child,&child_state.name)else{ambiguous=true;break;};
+                    if requirements.is_empty(){
+                        // A privileged unconditional reset to the declared
+                        // creation state is a restart, not a forward completion
+                        // edge. Other source-free destinations are ambiguous.
+                        let reset=matches!(&state.value,Some(Expr::Literal{value:ast::Literal::Str(value),..}) if bound.schema.tables[child].defaults.get(&child_state.name).is_some_and(|d|d.value(challenges::NOW,"$derived")==snapback4_core::Value::String(value.clone())));
+                        if reset{continue;}ambiguous=true;break;
                     }
+                    if let Some(value)=&state.value{assigned.extend(literals(value));}
+                    from.extend(requirements.iter().flat_map(literals));
                 }
+                if ambiguous{continue;}
+                if let Some(C::Enum{variants})=bound.schema.tables[child].columns.get(&child_state.name).map(C::required){assigned.retain(|value|variants.contains(value));from.retain(|value|variants.contains(value));}
                 let terminal=assigned.difference(&from).collect::<Vec<_>>();if terminal.len()!=1{continue;}
                 if let Some(mut population)=expr(&format!("{child}[{reference} = .id]")){
                     if let Expr::Read(read)=&mut population{read.filter=Some(Box::new(binary("!=",member(focal(),&child_state.name),string(terminal[0]))));}
