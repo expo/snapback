@@ -139,6 +139,21 @@ Hot deploy and rollback require the running `serve` host to support this CLI's a
 
 Keep old callable names with operation aliases and old argument spellings with argument aliases; supply literal defaults only for real default choices. Preserve data-bearing inputs with a compatibility endpoint that consumes them. Use `deprecated` only for deliberately discarded, non-data-bearing input; it forbids body references. Aliases stay within a module and cannot chain. See `guide evolution` for input contracts and `guide rename` for a packed, persistent two-cycle example.
 
+Here `obsolete` is already unused in v1 and carries no data. The second source preserves its callers while adding a real literal default:
+
+```quarry
+use identity guests
+query greet(name: text <=40, obsolete: text <=40):
+  return {message: name + '!'}
+```
+
+```quarry
+use identity guests
+query greeting(displayName: text <=40 alias name, suffix: text <=1 default '!', obsolete: text <=40 deprecated):
+  return {message: displayName + suffix}
+alias greet = greeting
+```
+
 Deploy registers a compiled visible view for widened domains and relaxed unique keys, or refuses unsupported adaptation. It also reports remaining reverse-projection risks: dropping a required old column or widening a value domain can strand newly written rows. The preflight separately attempts exact reverse adoption on its post-deploy snapshot, naming present-data failures. Keep old fields and compatible domains in an expand/contract bridge; after writes run the named `rollback <deployment> --to N --check --bridge <new-dir>` before selecting N. A green snapshot never freezes later writes.
 
 ## Persistent production: SQLite v1 → v2 → rollback → forward

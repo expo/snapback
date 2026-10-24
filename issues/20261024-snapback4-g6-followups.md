@@ -45,5 +45,13 @@ fixture setup/TCP-profile errors are excluded from that evidence; the qualified
 negative uses the production-supported Unix socket. The PG runner includes
 this test with the existing startup-cleanup witness.
 
-Items **2–5 remain open**, with their original scope and author decision pending
+Items **2–6 remain open**, with their original scope and author decision pending
 where noted. This ticket stays in `issues/` for those items.
+
+6. **Codec census (REL affected audit, 2026-10-25).** The
+   `wasm-codec-census.test.mjs` mutation-receipt exclusion test counts eighteen
+   serde sites in `engine/revision_cache_tests.rs` and
+   `engine/revision_cache_grant_tests.rs` as production, alongside the one
+   admitted site in `engine/mutation.rs`. These source files match the merged
+   main. Teach the census to prove the existing `cfg(test)` module exclusions;
+   retain the single-production-site assertion rather than increasing it to 19.

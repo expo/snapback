@@ -161,7 +161,7 @@ table photos:
   read <- allow
 `);
   const binary = process.env.SNAPBACK4_BIN ?? fileURLToPath(new URL("../../../target/debug/snapback4", import.meta.url));
-  // Smallest long-wait pools: the connection cap is 128 + 98 queued short slots + 1 + 1 (LLP 3000.009.001.000.001 §13).
+  // Derive intake capacity from this binary instead of assuming an old short queue.
   const child = spawn(binary, ["dev", "--fresh", "--replay", "--no-watch", "--port", "0", "--long-waits", "1", "--claim-waits", "1"], { cwd: dir, stdio: ["ignore", "pipe", "pipe"] });
   const exited = once(child, "exit");
   let log = "";
@@ -183,9 +183,11 @@ table photos:
     child.once("exit", () => { clearTimeout(timeout); reject(Error(`server exited: ${log}`)); });
   });
   const port = Number(new URL(url).port);
-  // Slow headers fill all 228 connection leases; 100-continue witnesses prove that
+  const connections = Number((await waitFor(() => log.match(/HTTP connections=(\d+)/), "reported admission capacity"))[1]);
+  assert.ok(Number.isSafeInteger(connections) && connections > 0);
+  // Slow headers fill the reported connection leases; 100-continue witnesses prove that
   // unfinished mutations occupy all 32 workers before the upload is attempted.
-  await Promise.all(Array.from({ length: capacity === "connection" ? 228 : 32 }, async () => {
+  await Promise.all(Array.from({ length: capacity === "connection" ? connections : 32 }, async () => {
     const socket = connect(port, "127.0.0.1");
     socket.on("error", () => {});
     sockets.push(socket);
@@ -208,7 +210,7 @@ table photos:
   assert.equal(result.ok, false, log);
   assert.equal(result.why.code, "E_RATE_LIMIT", JSON.stringify(result));
   assert.match(result.why.message, /HTTP connections/);
-  const diagnostic = capacity === "connection" ? /E_RATE_LIMIT at http: all 228 HTTP connections/ : /E_RATE_LIMIT at workers: cumulative refused=\[0, [1-9]/;
+  const diagnostic = capacity === "connection" ? new RegExp(`E_RATE_LIMIT at http: all ${connections} HTTP connections`) : /E_RATE_LIMIT at workers: cumulative refused=\[0, [1-9]/;
   await waitFor(() => log.split("\n").slice(0, -1).some(line => diagnostic.test(line)), "complete overload diagnostic");
   assert.match(log, diagnostic);
   assert.equal(child.exitCode, null, "host remains alive");

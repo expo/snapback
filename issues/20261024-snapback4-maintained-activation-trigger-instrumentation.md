@@ -14,3 +14,15 @@ Reproduce: from `snapback4`, `CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARG
 This is a test repair, not permission to weaken managed-store admission. Found in REL's full-crate run after merging origin/main; report logs are `/tmp/rel-lang-full.log` on the workstream host.
 
 The affected CLI `expiry_writes` target has the same inherited conflict in `stores::refused_legacy_counter_upgrade_preserves_bytes_and_accepted_upgrade_runs_once`: its `no_counter_rebuild` trigger on `_cap_counts` is rejected by the same managed-relation guard. Preserve this test's atomic failed-upgrade/one-successful-rebuild assertions with admitted instrumentation too.
+
+The REL final affected run also reaches the same inherited fixture issue in
+`snapback4-sim/tests/adoption.rs` (`forbid_rewrite`) and
+`snapback4-sim/tests/review_corrections.rs` (`no_rebuild_delete`). Both attach
+foreign triggers to `r` before activation. Move these instrumentation sites to
+an admitted test-support observer/fault hook together with the listed CLI and
+language sites; retain the managed-relation fence.
+
+SDK `maintained-column-adoption.test.mjs` exercises four server/device and
+SQLite/wasm watch combinations. Its `zero_untouched` trigger on `r` hits the same
+fence during hot activation, so each watch waits for a generation that correctly
+refused adoption. Include these four fixtures in the instrumentation repair.
