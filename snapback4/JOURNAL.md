@@ -104729,3 +104729,13 @@ a tautological invariant. The complete installed rollback witness passes.
 The media campaign regression now counts both verified image samples for each
 viewer (ten photo calls total) and explicitly requires all three foreign/non-image
 placements to refuse; its focused test passes. No runtime authority changed.
+
+Integration 24 is held for the coordinator's wave-26 findings. The three
+post-test false deploy-refusal shapes now have focused positive and negative
+regressions: empty approval initialization, the operator's exact executed
+provision result, and absence/stage preconditions outside approval evidence.
+Structural write audiences still count non-null defaults. Gate tiering shares
+one code registry, and clean password-only finite campaigns without cases no
+longer fail for missing cases; explicit principal cases work. All six focused
+language regressions and the CLI cases pass; full requalification and the
+600-project before/after survey follow, with no push authorized before completion.

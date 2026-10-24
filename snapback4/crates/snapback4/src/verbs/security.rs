@@ -115,6 +115,13 @@ pub(super) fn release_loop(project:&Project,bound:&Bound,sources:&[(String,Strin
             notice.push_str(&format!("  REVIEWED derived {}: individual specification decision retained\n",v.invariant.target_label()));continue;
         }
         notice.push_str(&format!("  FIX {} {}: refuted via {} as {} ({:?}); repair enforcement to match intent, then run snapback4 test\n",v.invariant.site,v.invariant.target_label(),c.operation,c.viewer,c.reachability));
+        if !security::derived::is_derived(&v.invariant) {
+            if v.invariant.target=="write"&&v.invariant.column.is_some()&&c.effect=="insert" {
+                notice.push_str(&format!("  INTENT {}: if broader creation is deliberate, replace this assertion with `invariant {}.{} update only {}`; then run snapback4 test. Authored contradictions cannot be cleared with --ack-security\n",v.invariant.site,v.invariant.table,v.invariant.column.as_ref().unwrap(),v.invariant.predicate));
+            }else {
+                notice.push_str(&format!("  INTENT {}: if this observed audience is deliberate, revise the authored assertion here to match that specification, then run snapback4 test; --ack-security applies only to derived questions, never an authored contradiction\n",v.invariant.site));
+            }
+        }
         let aggregates=bound.schema.maintains.iter().filter(|m|m.source==v.invariant.table).map(|m|m.target.as_str()).collect::<Vec<_>>();
         if c.observations.is_some()&&!aggregates.is_empty()&&v.invariant.target=="read"&&v.invariant.column.is_none() {
             notice.push_str(&format!("  DERIVED {}: a separately readable aggregate changes in the paired observation; tightening the source read rule alone cannot clear this disclosure\n",aggregates.join(", ")));

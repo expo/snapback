@@ -2,17 +2,41 @@
 // @ref LLP 3000.036.004#151-every-executed-write — no net-image inference for intermediate writes.
 use super::*;
 use snapback4_core::engine::fixture_trace::{Trace,Intent};
+fn provisioning(p:&Program)->bool {p.name.rsplit('.').next()==Some("provision")}
+const PROVISION_RESULT:&str="$security.provision-result/";
 pub(super) fn trace(bound:&Bound,p:&Program)->Trace {
-    Trace::new(bound.invariants.iter().filter(|inv|!matches!(inv.target.as_str(),"read"|"always")&&inv.operation.as_ref().is_none_or(|op|op==&p.name)).filter_map(|inv|Some(Intent{paired:super::super::derived::is_derived(inv)&&inv.policy.as_ref().is_some_and(|r|r.any_term(&|t|matches!(t,RuleTerm::OldField(_)|RuleTerm::NextField(_)))),concrete:if inv.policy.is_none(){inv.syntax.clone().map(|syntax|{
-            let schema=bound.schema.clone();let table=inv.table.clone();
-            snapback4_core::engine::fixture_trace::ConcretePredicate(std::sync::Arc::new(move |rows,row,viewer,now|super::super::concrete::evaluate(&syntax,row,rows,&schema,viewer,&table,now)))
-        })}else{None},
-        site:inv.site.to_string(),table:inv.table.clone(),column:inv.column.clone(),policy:inv.policy.clone().unwrap_or(RuleExpr::Allow),
-        effects:super::super::effects(inv).iter().map(|word|super::super::effect(word)).collect(),
-    })).collect())
+    let mut intents=Vec::new();
+    for inv in bound.invariants.iter().filter(|inv|!matches!(inv.target.as_str(),"read"|"always")&&inv.operation.as_ref().is_none_or(|op|op==&p.name)) {
+        for word in super::super::effects(inv) {
+            let concrete=if inv.policy.is_none(){inv.syntax.clone().map(|syntax|{
+                let bound=bound.clone();let inv=inv.clone();let insert=word=="insert";
+                snapback4_core::engine::fixture_trace::ConcretePredicate(std::sync::Arc::new(move |rows,row,viewer,now|{
+                    if insert&&super::super::write_intent::empty_creation(&bound,&inv,None,row){return Some(true);}
+                    super::super::concrete::evaluate(&syntax,row,rows,&bound.schema,viewer,&inv.table,now)
+                }))
+            })}else{None};
+            intents.push(Intent {
+                paired:super::super::derived::is_derived(inv)&&inv.policy.as_ref().is_some_and(|r|r.any_term(&|t|matches!(t,RuleTerm::OldField(_)|RuleTerm::NextField(_)))),
+                concrete,site:inv.site.to_string(),table:inv.table.clone(),column:inv.column.clone(),
+                policy:super::super::write_intent::policy(bound,inv,word).unwrap_or(RuleExpr::Allow),
+                effects:vec![super::super::effect(word)],
+            });
+        }
+    }
+    // A private executed-write witness exempts only the operator provisioner's
+    // own roster result. It never exempts an ordinary query or a different row.
+    if provisioning(p){for table in ir::write_tables(p).into_iter().map(|(table,_)|table).collect::<BTreeSet<_>>() {
+        if super::super::privilege::role_columns(bound,&table).is_empty(){continue;}
+        intents.push(Intent{paired:false,concrete:None,site:format!("{PROVISION_RESULT}{table}"),table,column:None,
+            policy:RuleExpr::Allow,effects:vec![Effect::Insert,Effect::Update]});
+    }}
+    Trace::new(intents)
 }
 pub(super) fn record(bound:&Bound,p:&Program,trace:&Trace,result:&snapback4_core::WriteState,after:&BTreeMap<String,Vec<Value>>,initial:&BTreeMap<String,Vec<Value>>,viewer:&str,steps:&[histories::Step],engine:&mut Engine,out:&mut Campaign){
-    for observation in trace.take(){
+    let observations=trace.take();
+    let provisioned=observations.iter().filter(|o|o.site.starts_with(PROVISION_RESULT)).filter_map(|o|
+        o.next.as_ref().map(|row|(o.table.as_str(),row))).collect::<Vec<_>>();
+    for observation in &observations{
         let Some(inv)=bound.invariants.iter().find(|inv|inv.site.to_string()==observation.site)else{continue;};
         match observation.allowed{
             Some(false)=>if let Some(row)=observation.next.as_ref().or(observation.old.as_ref()){
@@ -35,6 +59,10 @@ pub(super) fn record(bound:&Bound,p:&Program,trace:&Trace,result:&snapback4_core
         for row in after.get(&inv.table).into_iter().flatten(){
             let Ok(key)=row.field("id")else{continue;};
             if !histories::typed_disclosure(&bp.result,data,&inv.table,key,inv.column.as_deref(),row){continue;}
+            if viewer=="service:operator"&&provisioning(p)&&provisioned.iter().any(|(table,image)|*table==inv.table&&*image==row){
+                out.unsupported.insert(format!("{}: operator provisioning result excludes only its own executed roster write from authored read intent; later queries remain checked",p.name));
+                continue;
+            }
             if !histories::typed_disclosure_image(&bp.result,data,&inv.table,key,inv.column.as_deref(),row,Some(policy)){
                 out.unsupported.insert(format!("{} / {}: returned policy image differs from committed image; disclosure boundary uncovered",p.name,inv.target_label()));continue;
             }

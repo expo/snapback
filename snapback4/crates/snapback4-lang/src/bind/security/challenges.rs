@@ -113,6 +113,7 @@ fn live(t:&snapback4_core::schema::Table,row:&Value)->bool{
 fn policy(bound:&Bound,inv:&Invariant,rows:&BTreeMap<String,Vec<Value>>,viewer:&str,old:Option<&Value>,row:&Value)->Result<bool,String>{policy_at(bound,inv,rows,viewer,old,row,NOW)}
 fn policy_in(bound:&Bound,inv:&Invariant,rows:&BTreeMap<String,Vec<Value>>,viewer:&str,old:Option<&Value>,row:&Value,engine:&mut Engine)->Result<bool,String>{policy_in_at(bound,inv,rows,viewer,old,row,engine,NOW)}
 fn policy_at(bound:&Bound,inv:&Invariant,rows:&BTreeMap<String,Vec<Value>>,viewer:&str,old:Option<&Value>,row:&Value,now:i64)->Result<bool,String>{
+    if super::write_intent::empty_creation(bound,inv,old,row){return Ok(true);}
 
     if inv.policy.as_ref().is_some_and(|p|kernel::dependencies(p).iter().any(|d|bound.schema.tables.get(d).is_some_and(|t|t.through.is_some()))) {
         return inv.syntax.as_ref().and_then(|e|super::concrete::evaluate(e,row,rows,&bound.schema,viewer,&inv.table,now)).ok_or_else(||"logical read-through invariant judgment is unknown".into());
@@ -124,6 +125,7 @@ fn policy_at(bound:&Bound,inv:&Invariant,rows:&BTreeMap<String,Vec<Value>>,viewe
     rules::evaluate(p,viewer,old,&image,false,&mut Snapshot{schema:&bound.schema,rows,now}).map_err(|e|e.to_string())
 }
 fn policy_in_at(bound:&Bound,inv:&Invariant,rows:&BTreeMap<String,Vec<Value>>,viewer:&str,old:Option<&Value>,row:&Value,engine:&mut Engine,now:i64)->Result<bool,String>{
+    if super::write_intent::empty_creation(bound,inv,old,row){return Ok(true);}
     let Some(p)=&inv.policy else{return policy_at(bound,inv,rows,viewer,old,row,now);};
     if !p.has_reference(){return policy_at(bound,inv,rows,viewer,old,row,now);}
     let mut image=row.clone();if super::temporal::has_clock(p)&&let Value::Row(fields)=&mut image{fields.insert("$security:server-clock".into(),Value::Int(now));}

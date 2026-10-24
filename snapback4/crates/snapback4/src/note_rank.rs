@@ -16,7 +16,7 @@ pub(crate) enum Tier {
 }
 
 pub(crate) fn tier(code: &str) -> Tier {
-    if snapback4_lang::security::note_priority(code)<=2{return Tier::Review;}
+    if snapback4_lang::security::gated_note(code)||snapback4_lang::security::note_priority(code)<=2{return Tier::Review;}
     match code {
         "N_IMMUTABLE_PATCH" | "N_PERSONA_PRINCIPAL" | "N_UNREADABLE_PROBE" | "N_NO_PRODUCTION_WRITER" | "N_FIXTURE_ARGUMENT_DRIFT" | "N_REFERENCE_UNCHECKED" | "N_MAINTAIN_AUTHORIZATION" | "N_WRITE_DENIED" | "N_DELETE_RESTRICTED" | "N_DELETE_NEEDS_READ" | "N_PATCH_CLEARS" | "N_NEVER_COMPLETE" | "N_CONDITIONAL_COMPLETE" | "N_PROBE_ONLY_READ" | "N_VACUOUS_RULE" | "N_LOOKUP_HIDDEN" | "N_LOOKUP_FILTERED" | "N_UNIQUE_HIDDEN" | "N_LOOKUP_NEVER_VISIBLE" | "N_REQUIRE_HIDDEN" | "N_REQUIRE_REFUSED" | "N_QUERY_FILTERED" | "N_SHAPE_METER" | "N_HELD_UNKNOWN" | "N_SEQUENCE_READ"
         | "N_SWEEP_DEADLINE" | "N_CLOCK_STORE_AHEAD" | "N_PUBLIC_AGGREGATE_COPY" | "N_MAINTAINED_COLUMN_DISCLOSURE" | "N_MAINTAIN_DELTA"
@@ -390,4 +390,18 @@ fn hygiene(code:&str)->bool{matches!(code,"N_LOOKUP_FILTERED"|"N_QUERY_FILTERED"
    }
    assert!(summary_order("N_INSERT_WRITE_INTENT")<summary_order("N_LOOKUP_FILTERED"));
  }
+}
+
+#[cfg(test)] mod gated_note_tests {
+    use super::*;
+    #[test] fn every_security_gate_is_rendered_as_review_never_performance() {
+        for code in snapback4_lang::security::GATED_NOTE_CODES {
+            assert!(snapback4_lang::security::gated_note(code));
+            assert_eq!(tier(code), Tier::Review, "{code}");
+            assert_eq!(summary_order(code).0, Tier::Review, "{code}");
+            assert!(!verdict(code, "", false).contains("slow"), "{code}");
+            let text=render(vec![Note{site:"schema.q:1:1".into(),code:(*code).into(),summary:"individual decision required".into(),form:None,compact:None}]).join("\n");
+            assert!(!text.contains("performance"), "{code}: {text}");
+        }
+    }
 }

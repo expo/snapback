@@ -68,15 +68,14 @@ reason, without increasing the search. Declaring one effect does not cover the o
 `invariant table.read only P` protects read intent; insert, update and delete
 name authority. `invariant table.column write only P` covers writes to a
 column (insert, inserted insert-if-absent, update and both upsert arms).
-Creation is not exempt from write intent; tests judge each executed write in
-a committed mutation, including intermediate writes in a multi-write operation. `invariant table.column update only P` checks
+A null creation or the declared `false` approval default is initialization, not an approval write; non-null/non-default creation still requires P. Tests judge each executed write in a committed mutation, including intermediate writes. `invariant table.column update only P` checks
 only edits, retaining old-and-next-image semantics; use it when creation is permitted
 to a different role (for example counter staff creating a ticket price). `invariant table always P` states row integrity.
 An update policy over `.field` constrains **both old and next images**.
 A policy saying status must not be override therefore also restricts editing
 a row that was already override, even when changing it away from that status.
 For the role authority of one named mutation, use operation-specific intent
-(`invariant table.operation only P`) instead. General next-image-only and
+(`invariant table.operation only P`) instead. An operator `provision` result excludes only its own executed roster write from authored read intent; later queries and other results remain checked. General next-image-only and
 cross-operation transition assertions still need a separate reduction.
 Predicates use the existing rule vocabulary: `.field`, `viewer`, `exists`,
 comparisons, `and`, `or`, `not`. For a role write use the complete roster probe,

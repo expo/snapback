@@ -274,9 +274,9 @@ pub fn test(options: &Options) -> i32 {
     }
     // One line a script or an agent can read: derived refusals and unrun
     // queries are not failures, but they are not coverage either.
-    let generated_only=!populated_fixture&&!options.flags.contains_key("source")&&passed+failed_cases==0;
-    if generated_only {println!("test not covered: no authored business cases; generated-fixture only");}
-    let no_cases = passed + failed_cases == 0 && !options.flags.contains_key("fixture-only") && !generated_only;
+    let generated_only=passed+failed_cases==0 && skipped_business_cases==0;
+    if generated_only {println!("test not covered: no authored business cases; {} (finite, not proof)",if populated_fixture{"trusted-fixture campaign only"}else{"generated-fixture only"});}
+    let no_cases = passed + failed_cases == 0 && !options.flags.contains_key("fixture-only") && skipped_business_cases > 0;
     let security_failed = security_campaign.violations.iter().any(|c|c.reachability.is_reachable()) || !security_campaign.boundary_failures.is_empty() || !security_http_ok;
     let verdict = if failures > 0 || failed_cases > 0 || no_cases || security_failed { "FAIL" } else if !skipped.is_empty() || held_not_run > 0 || !evaluation_gaps.is_empty() || !security_campaign.evaluation_unknowns.is_empty() { "incomplete" } else { "pass" };
     // @ref LLP 3000.036.002#9 — derived probe refusals are expected exploration, not failed cases.

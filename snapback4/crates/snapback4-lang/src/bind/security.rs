@@ -8,7 +8,8 @@ use std::collections::{BTreeMap, BTreeSet};
 pub mod kernel;
 mod audit;
 mod presentation;
-pub use presentation::{note_priority,questionnaire_notes};
+pub use presentation::{note_priority,questionnaire_notes,gated_note,GATED_NOTE_CODES};
+mod write_intent;
 pub mod challenges;
 mod lints;
 mod write_advice;
@@ -172,7 +173,7 @@ pub fn analyze_rules(bound:&Bound)->Report {
         } else {
             for word in effects(inv) {
                 let admission=if word=="update" {table.update_rule_judged().into_owned()}else if word=="read" {columns::admission(table,inv.column.as_deref())}else{table.rules.for_effect(effect(word)).clone()};
-                let implication=if word=="update"{images::update(table,inv.policy.as_ref().unwrap())}else{kernel::implies(&admission,inv.policy.as_ref().unwrap())};
+                let implication=if word=="update"{images::update(table,inv.policy.as_ref().unwrap())}else{kernel::implies(&admission,&write_intent::policy(bound,inv,word).unwrap())};
                 match implication {
                     Ok(true)=>{},Ok(false)=>{direct=Status::Unproved;reasons.push(format!("{word} admission does not imply intent over independent predicates; a concrete replay is required for refutation"));},
                     Err(why)=>{direct=Status::Unproved;reasons.push(format!("{word}: {why}"));},

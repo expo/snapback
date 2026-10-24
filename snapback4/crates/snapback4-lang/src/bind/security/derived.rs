@@ -53,7 +53,19 @@ pub fn invariants(sources:&[(String,String)],bound:&Bound)->Vec<Invariant>{
             // stored approval timestamp) are proposed for freezing.
             let mut inspected=BTreeSet::new();
             for statement in &context.body {if let ast::Stmt::Require{condition,..}=statement {
-                let mut e=condition.clone();super::super::intent_walk::expression(&mut e,&mut |e|if let ast::Expr::Member{base,name,..}=e {
+                let mut e=condition.clone();
+                // Absence and stage checks admit the transition; they do not
+                // assert that the current value is evidence being approved.
+                super::super::intent_walk::expression(&mut e,&mut |part| {
+                    if let ast::Expr::Binary{op,left,right,site}=part {
+                        let null=|e:&ast::Expr|matches!(e,ast::Expr::Literal{value:ast::Literal::Null,..});
+                        let stage=|field:&ast::Expr,value:&ast::Expr|matches!(field,ast::Expr::Member{name,..} if matches!(name.as_str(),"stage"|"status"|"phase"|"state"))&&matches!(value,ast::Expr::Literal{value:ast::Literal::Str(_),..});
+                        if op=="="&&(null(left)||null(right)) || matches!(op.as_str(),"="|"!="|"<"|">"|"<="|">=")&&(stage(left,right)||stage(right,left)) {
+                            *part=ast::Expr::Literal{value:ast::Literal::Bool(true),site:site.clone()};
+                        }
+                    }
+                });
+                super::super::intent_walk::expression(&mut e,&mut |e|if let ast::Expr::Member{base,name,..}=e {
                     let mut b=*base.clone();let mut same=false;super::super::intent_walk::expression(&mut b,&mut |x|if matches!(x,ast::Expr::Read(r) if &r.table==table){same=true;});
                     if same {inspected.insert(name.clone());}
                 });

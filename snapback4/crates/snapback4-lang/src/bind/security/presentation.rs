@@ -23,10 +23,17 @@ pub fn questionnaire_notes(notes:&[crate::Diagnostic])->Vec<crate::Diagnostic>{
 }
 
 
+/// One registry for blocking individual reviews and their human presentation.
+pub const GATED_NOTE_CODES: &[&str] = &[
+    "N_RETAINED_ROLE_GRANT", "N_OPTIONAL_UPLOAD_CREATE", "N_CREATE_EDIT_ASYMMETRY",
+    "N_PRIVATE_CREATE_EDIT_ASYMMETRY", "N_PRESENCE_LOOSENING",
+];
+pub fn gated_note(code: &str) -> bool { GATED_NOTE_CODES.contains(&code) }
+
 /// One consequence ordering shared by check and audit. Lower means more urgent.
 pub fn note_priority(code: &str) -> u8 {
     match code {
-        "N_RETAINED_ROLE_GRANT" | "N_OPTIONAL_UPLOAD_CREATE" => 0,
+        "N_RETAINED_ROLE_GRANT" | "N_OPTIONAL_UPLOAD_CREATE" | "N_PRESENCE_LOOSENING" => 0,
         "N_PRIVILEGE_ESCALATION" | "N_SELF_CLAIMED_RELATIONSHIP" | "N_PRIVATE_CREATE_EDIT_ASYMMETRY" => 1,
         "N_GRANT_OUTLIVES_ROLE" | "N_OPTIONAL_EVIDENCE" | "N_ROLE_WIDE_READ" |
         "N_BROAD_READ" | "N_CALLER_TIME" | "N_SWEEP_ONLY_DEADLINE" |
@@ -40,6 +47,7 @@ pub fn note_priority(code: &str) -> u8 {
         "N_COLUMN_RESULT_EXPOSURE" => 5,
         "N_INVARIANT_RESTATES_RULE" => 6,
         "N_SECURITY_INTENT" => 7,
+        _ if gated_note(code) => 0,
         _ => 4,
     }
 }

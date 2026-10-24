@@ -47,7 +47,7 @@ Use `guide client` for client recipes and the proof helper contracts below.
 `test` names invariants it cannot fully evaluate, including unsupported clock,
 typed arithmetic, cross-row and read-through assertions. Runtime unknown judgments
 name the target and source site too. These gaps make the summary incomplete and
-stay non-failing; actual replayed violations fail. Zero violations does not mean
+stay non-failing; actual replayed violations fail. With no authored cases, a clean campaign exits successfully and names its finite coverage; skipped existing cases still refuse. Zero violations does not mean
 an unsupported assertion was tested. Generated fixtures use fresh actor-owned
 uploads and try opposite creator booleans before a second actor fills the row
 slots. Finite history, argument and population cuts remain explicit coverage gaps.
@@ -100,7 +100,7 @@ requires exactly those two recursive subsets, each matched to a different row.
 Duplicate counts matter. Nested arrays retain their order. All assertion forms may appear together. `count` asserts length. A mutation defaults to
 `sent`; `ok` also accepts a sent mutation and never a refusal; a query defaults to its check verdict (`complete`, or complete/capped when
 N_NEVER_COMPLETE). Set `expect` to `complete`, `capped`, `ok`, `denied`, or a
-refusal code. `as` must be a declared persona; outsiders need their own persona.
+refusal code. `as` accepts a principal (`user:…`, `service:operator`) in password-only fixtures; these are engine cases, not login proofs. Bare persona names must belong to the declared cast.
 
 After the cases, the sweep runs every query with that persona's case arguments when available,
 otherwise derives arguments from the store after the cases' writes (text uses
