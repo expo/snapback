@@ -135,6 +135,9 @@ export function selectAffected(changedFiles, model) {
     }
   }
   for (const path of files) {
+    if (/^issues\/(?:closed\/|shelved\/)?[^/]+\.md$/.test(path)) {
+      checks.add('ref-check'); why(path, 'filesystem issue record'); continue;
+    }
     if (path.startsWith('llp/') || /(?:^|\/)AGENTS\.md$|^CLAUDE\.md$/.test(path)) {
       checks.add('ref-check'); why(path, 'LLP/agent instructions'); continue;
     }
@@ -174,6 +177,14 @@ export function selectAffected(changedFiles, model) {
       continue;
     }
     const crate = model.crates.find(crate => path.startsWith(crate.dir + '/'));
+    // These are modules/fixtures of the compiled guide integration target,
+    // rather than cross-crate test support or runtime inputs.
+    if (crate?.name === 'snapback4-lang' && crate.targets.some(target => target.kind.includes('test') && target.name === 'guide')
+      && (/^crates\/snapback4-lang\/tests\/guide\/[^/]+\.rs$/.test(p)
+        || /^crates\/snapback4-lang\/tests\/fixtures\/guide-(?:fact-homes|before)\.json$/.test(p))) {
+      if (!narrowRust.has(crate.name)) narrowRust.set(crate.name, new Set());
+      narrowRust.get(crate.name).add('guide'); why(path, 'compiled guide integration module/fixture'); continue;
+    }
     if (crate) {
       if (crate.procMacro) { widen(path, 'proc-macro'); continue; }
       const test = crate.targets.find(target => target.kind.includes('test') && target.path === path);

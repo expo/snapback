@@ -263,3 +263,16 @@ for (const leaf of ['day2-proof.mjs', 'previous/day2-proof-0.4.40.mjs']) {
     assert(!plan.clientFiles.includes(model.packages[1].tests[0]));
   });
 }
+
+test('guide integration modules and named fixtures select their compiled consumer', () => {
+  const guideModel = { ...model, crates: model.crates.map(crate => crate.name === 'snapback4-lang' ? { ...crate, targets: [...crate.targets, { name:'guide', kind:['test'], path:`${crate.dir}/tests/guide.rs`, requiredFeatures:[] }] } : crate) };
+  for (const file of ['tests/guide/published.rs','tests/fixtures/guide-fact-homes.json','tests/fixtures/guide-before.json']) {
+    const plan = selectAffected([`snapback4/crates/snapback4-lang/${file}`],guideModel);
+    assert.equal(plan.broad,false);assert.deepEqual(plan.rustTargets,{'snapback4-lang':['guide']});assert.deepEqual(plan.rustPackages,[]);
+  }
+  assert.equal(selectAffected(['snapback4/crates/snapback4-lang/tests/fixtures/unowned.json'],guideModel).broad,true);
+});
+test('filesystem issue records require reference validation without widening product scope', () => {
+  const plan=select(['issues/20261024-maintained-activation.md']);
+  assert.equal(plan.broad,false);assert.deepEqual(plan.rustPackages,[]);assert.deepEqual(plan.clientFiles,[]);assert.deepEqual(plan.checks,['ref-check']);
+});
