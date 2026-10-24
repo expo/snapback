@@ -10,7 +10,7 @@ const directory=resolve(import.meta.dirname,"../../target/affected/dx10"); mkdir
 const reuseRoot=process.argv.includes('--reuse-root-checks');
 const root=resolve(import.meta.dirname,'../../..');
 const rootDigest=()=>{
- const files=execFileSync('git',['ls-files','-z'],{cwd:root,encoding:'utf8'}).split('\0').filter(Boolean)
+ const files=execFileSync('git',['ls-files','-z'],{cwd:root,encoding:'utf8',maxBuffer:64*1024*1024}).split('\0').filter(Boolean)
    .filter(f=>!f.startsWith('snapback4/reports/')&&!f.startsWith('llp/reviews/')&&!f.startsWith('issues/'));
  const hash=createHash('sha256');
  for(const file of files){const path=resolve(root,file),stat=lstatSync(path);if(stat.isDirectory())continue;hash.update(file+'\0');hash.update(stat.isSymbolicLink()?readlinkSync(path):readFileSync(path));}
