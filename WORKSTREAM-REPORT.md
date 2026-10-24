@@ -68,5 +68,18 @@ Fresh Exact2 origin/main clone at `da8ab8746173273da7e2b5f5e489de78b4198f5a`, un
 
 Final clean-source Wasm measurement at `3253de2a3e` is 2,415,003 B raw / 737,990 B gzip / 555,572 B Brotli; glue 16,053 / 3,695 / 3,260 B. The 738,490 B gzip budget is measurement plus exactly 500 B, with the reason retained (`4ee8dd80ec`, repeated measurements through `4f8e498d2e`). Device-family/server-only-absence checks pass. Mac artifacts have separate toolchain-bound hashes; no cross-host byte-identity claim is made.
 
-Final evidence is under `snapback4/reports/integration24/final/`. The required final fetch reveals incoming PostgreSQL reader pipelining/publication records through `6cbe3869da`; delivery remains pending its merge and affected-input qualification. Unchanged-surface full results stay bound to the tested implementation snapshot rather than being relabelled as a later HEAD.
+Complete qualification evidence is under `snapback4/reports/integration24/final/`; final main-delta evidence is under `snapback4/reports/integration24/post-main/`.
 No publication worktree, `target/publication/`, or other existing worktree is modified. No original wave store is opened in place. The source tree is held clean and artifacts fixed during each qualifying client/packed run. LLP 3000.037 §20.9 records structural-security and day-two consequences without invented comparative ratings.
+
+
+## Final upstream synchronization and delivery
+
+Main through `6cbe3869da` merges as `18fb954531`; metadata/measurement commit `6c638549fd` regenerates three independent evaluation lockfiles at 0.4.40 without changing registry versions. Both journal histories, the integration report and 0.4.40 versions survive. Authoring census regenerates unchanged (884 entries), as do the registry and guide manifest. Clean-source Wasm remains 737,990 bytes gzip with the 738,490-byte budget.
+
+Changed-input qualification at `6c638549fd` passes on Linux and Mac: full PostgreSQL core (1,212 reported passes each); CLI binary plus committer/overload/wave-26 targets (629 Linux / 621 Mac); four portable pipeline oracles; 246 private adapter tests; isolated cold-plan, codec, committer/maintained/command, 60 evolution tests, RT0, actual 128-client HTTP and four store oracles. Linux additionally passes the TCP_NODELAY/strace witness over actual TCP. All commands pass; both owned private clusters stop/status 3/no PID/no surviving original process, data is removed and source status is empty. No new flake occurs. These functional checks make no S1 capacity or on-wire-overlap claim; the upstream witness-gap issue stays open.
+
+The actual default public native binary is rebuilt (SHA-256 `33d84264253bcc891304fdf8fcc91824a8776a167e140e6d1ec8b73e4e877d79`). The unmodified public deploy/serve witness passes ownership, restart, redaction, P1-CE/P1-MC and evolution checks; all recorded child PIDs and its separate private cluster are independently absent, then owned data is removed. A fresh prepared client/Expo pack is byte-identical to the fully qualified artifacts (`45ef5fde…` / `0b431967…`), so the installed-consumer receipt applies to those exact bytes.
+
+Compiler, device, simulator, SDK and root-guide sources are unchanged. Full five-crate, client pools, survey, replay, difftest and Exact receipts retain their actual tested snapshot binding; they are not relabelled as reruns at a later HEAD. New ref-check and inventories pass. All 150 original store-file byte hashes are rechecked unchanged at the end. Detailed commands, counts, content bindings, logs and cleanup receipts are in `snapback4/reports/integration24/post-main/`.
+
+Delivery: qualified for final fetch and nonforce `sb4-loop:main` push. Full `scripts/test.sh` remains unrun as instructed; no npm publication is claimed. The real application survey/replay exceptions above remain explicit.

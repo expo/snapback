@@ -1,0 +1,13 @@
+{
+  "source": "6c638549fd297187a4c9e6804b7748f631a9bcc5",
+  "platform": "macOS-27.0.1-arm64-arm-64bit",
+  "environment": {
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_PROFILE_DEV_DEBUG": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0",
+    "CARGO_TARGET_DIR": "/Users/ccheever/projects/snapback-integ24/snapback4/target",
+    "CARGO_BUILD_JOBS": "4",
+    "RUST_TEST_THREADS": "4"
+  },
+  "scope": "Upstream optional PostgreSQL reader transport, default CLI feature linkage, RT0, real private-cluster authority/fault/lifecycle/codec/store oracles. Full unchanged five-crate, client, survey and replay receipts remain bound to 4f8e498d2e."
+}

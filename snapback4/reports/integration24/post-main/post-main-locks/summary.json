@@ -1,0 +1,156 @@
+{
+  "environment": {
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_PROFILE_DEV_DEBUG": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0"
+  },
+  "results": [
+    {
+      "manifest": "experiments/postgres/Cargo.toml",
+      "pathVersions": [
+        [
+          "snapback4-core",
+          "0.4.40"
+        ],
+        [
+          "snapback4-device",
+          "0.4.40"
+        ],
+        [
+          "snapback4-lang",
+          "0.4.40"
+        ]
+      ],
+      "registryPackageVersionsUnchanged": true
+    },
+    {
+      "manifest": "experiments/postgres-commit-path/Cargo.toml",
+      "pathVersions": [
+        [
+          "snapback4-core",
+          "0.4.40"
+        ],
+        [
+          "snapback4-device",
+          "0.4.40"
+        ],
+        [
+          "snapback4-lang",
+          "0.4.40"
+        ]
+      ],
+      "registryPackageVersionsUnchanged": true
+    },
+    {
+      "manifest": "experiments/scale-controls/postgres-seed/Cargo.toml",
+      "pathVersions": [
+        [
+          "snapback4-core",
+          "0.4.40"
+        ]
+      ],
+      "registryPackageVersionsUnchanged": true
+    }
+  ],
+  "commands": [
+    {
+      "name": "evaluation",
+      "phase": "regenerate",
+      "argv": [
+        "cargo",
+        "metadata",
+        "--offline",
+        "--format-version",
+        "1",
+        "--filter-platform",
+        "x86_64-unknown-linux-gnu",
+        "--manifest-path",
+        "/home/ccheever/projects/snapback-sb4loop/snapback4/experiments/postgres/Cargo.toml"
+      ],
+      "exit": 0
+    },
+    {
+      "name": "evaluation",
+      "phase": "verify-locked",
+      "argv": [
+        "cargo",
+        "metadata",
+        "--offline",
+        "--locked",
+        "--format-version",
+        "1",
+        "--filter-platform",
+        "x86_64-unknown-linux-gnu",
+        "--manifest-path",
+        "/home/ccheever/projects/snapback-sb4loop/snapback4/experiments/postgres/Cargo.toml"
+      ],
+      "exit": 0
+    },
+    {
+      "name": "commit-path",
+      "phase": "regenerate",
+      "argv": [
+        "cargo",
+        "metadata",
+        "--offline",
+        "--format-version",
+        "1",
+        "--filter-platform",
+        "x86_64-unknown-linux-gnu",
+        "--manifest-path",
+        "/home/ccheever/projects/snapback-sb4loop/snapback4/experiments/postgres-commit-path/Cargo.toml"
+      ],
+      "exit": 0
+    },
+    {
+      "name": "commit-path",
+      "phase": "verify-locked",
+      "argv": [
+        "cargo",
+        "metadata",
+        "--offline",
+        "--locked",
+        "--format-version",
+        "1",
+        "--filter-platform",
+        "x86_64-unknown-linux-gnu",
+        "--manifest-path",
+        "/home/ccheever/projects/snapback-sb4loop/snapback4/experiments/postgres-commit-path/Cargo.toml"
+      ],
+      "exit": 0
+    },
+    {
+      "name": "seed",
+      "phase": "regenerate",
+      "argv": [
+        "cargo",
+        "metadata",
+        "--offline",
+        "--format-version",
+        "1",
+        "--filter-platform",
+        "x86_64-unknown-linux-gnu",
+        "--manifest-path",
+        "/home/ccheever/projects/snapback-sb4loop/snapback4/experiments/scale-controls/postgres-seed/Cargo.toml"
+      ],
+      "exit": 0
+    },
+    {
+      "name": "seed",
+      "phase": "verify-locked",
+      "argv": [
+        "cargo",
+        "metadata",
+        "--offline",
+        "--locked",
+        "--format-version",
+        "1",
+        "--filter-platform",
+        "x86_64-unknown-linux-gnu",
+        "--manifest-path",
+        "/home/ccheever/projects/snapback-sb4loop/snapback4/experiments/scale-controls/postgres-seed/Cargo.toml"
+      ],
+      "exit": 0
+    }
+  ]
+}

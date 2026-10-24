@@ -1,0 +1,61 @@
+[
+  {
+    "argv": [
+      "git",
+      "bundle",
+      "create",
+      "/home/ccheever/sb4-loop/integ24/source-post-main.bundle",
+      "HEAD",
+      "^4f8e498d2e61932925dd2fbf61b43048a12ea25c"
+    ],
+    "exit": 0
+  },
+  {
+    "argv": [
+      "ssh",
+      "-o",
+      "BatchMode=yes",
+      "-o",
+      "ConnectTimeout=15",
+      "ccheever@macstudio-charlie-apt101-a",
+      "/opt/homebrew/bin/gtimeout 20 mkdir -p /Users/ccheever/projects/snapback-integ24/integration24-tools/pipe"
+    ],
+    "exit": 0
+  },
+  {
+    "argv": [
+      "scp",
+      "/home/ccheever/sb4-loop/integ24/source-post-main.bundle",
+      "ccheever@macstudio-charlie-apt101-a:/Users/ccheever/projects/snapback-integ24/integration24-tools/pipe/source.bundle"
+    ],
+    "exit": 0
+  },
+  {
+    "argv": [
+      "scp",
+      "/home/ccheever/sb4-loop/integ24/harness/qualify-post-main-pg.py",
+      "ccheever@macstudio-charlie-apt101-a:/Users/ccheever/projects/snapback-integ24/integration24-tools/pipe/run.py"
+    ],
+    "exit": 0
+  },
+  {
+    "argv": [
+      "ssh",
+      "-o",
+      "BatchMode=yes",
+      "-o",
+      "ConnectTimeout=15",
+      "ccheever@macstudio-charlie-apt101-a",
+      "cd /Users/ccheever/projects/snapback-integ24 && /opt/homebrew/bin/gtimeout 120 git fetch /Users/ccheever/projects/snapback-integ24/integration24-tools/pipe/source.bundle HEAD && /opt/homebrew/bin/gtimeout 120 git checkout --detach FETCH_HEAD && /opt/homebrew/bin/gtimeout 14000 python3 /Users/ccheever/projects/snapback-integ24/integration24-tools/pipe/run.py --root /Users/ccheever/projects/snapback-integ24 --out /Users/ccheever/projects/snapback-integ24/integration24-tools/pipe/evidence --pg-bin /Users/ccheever/projects/snapback-integ24/integration24-tools/private-pg16/install/bin --pg-share /Users/ccheever/projects/snapback-integ24/integration24-tools/private-pg16/install/share/postgresql --target /Users/ccheever/projects/snapback-integ24/snapback4/target --source 6c638549fd297187a4c9e6804b7748f631a9bcc5 --port 55445 && /opt/homebrew/bin/gtimeout 120 tar -czf /Users/ccheever/projects/snapback-integ24/integration24-tools/pipe/evidence.tar.gz -C /Users/ccheever/projects/snapback-integ24/integration24-tools/pipe evidence"
+    ],
+    "exit": 0
+  },
+  {
+    "argv": [
+      "scp",
+      "ccheever@macstudio-charlie-apt101-a:/Users/ccheever/projects/snapback-integ24/integration24-tools/pipe/evidence.tar.gz",
+      "/home/ccheever/sb4-loop/integ24/macstudio-post-main.tar.gz"
+    ],
+    "exit": 0
+  }
+]

@@ -1,0 +1,8 @@
+{
+  "source": "6c638549fd297187a4c9e6804b7748f631a9bcc5",
+  "merge": "18fb954531",
+  "upstream": "6cbe3869da23ed522124e2019a0d53de825a20f1",
+  "completeUnchangedQualification": "4f8e498d2e61932925dd2fbf61b43048a12ea25c",
+  "linuxTarget": "/home/ccheever/projects/snapback-sb4loop/snapback4/target",
+  "reason": "Final full-client/packed holds are complete. Reuse the owned Root target to preserve all compiled integration targets; all target outputs are ignored, no source mutation."
+}

@@ -1,0 +1,32 @@
+[
+  {
+    "key": "default-native-build",
+    "argv": [
+      "cargo",
+      "build",
+      "--locked",
+      "-p",
+      "snapback4"
+    ],
+    "exit": 0
+  },
+  {
+    "key": "prepare-client",
+    "argv": [
+      "node",
+      "scripts/publish.mjs",
+      "--prepare-client",
+      "--prepare-directory",
+      "/home/ccheever/sb4-loop/integ24/pack-post-main"
+    ],
+    "exit": 0
+  },
+  {
+    "key": "public-deploy-serve",
+    "argv": [
+      "python3",
+      "scripts/test-postgres-serve.py"
+    ],
+    "exit": 0
+  }
+]

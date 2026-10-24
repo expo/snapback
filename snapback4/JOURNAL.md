@@ -105435,3 +105435,21 @@ unchanged. The authoring census is regenerated from its actual test output:
 `18fb954531` remains 2,415,003 raw / 737,990 gzip / 555,572 Brotli bytes, with
 16,053 / 3,695 / 3,260-byte glue. The 738,490-byte budget remains measurement
 plus exactly 500 bytes; optional server transport adds no device bytes.
+
+
+### Integration 24: final reader transport qualification
+
+Snapshot `6c638549fd` passes changed-input checks on Linux and Mac: full
+PostgreSQL core (1,212 reported passes each), CLI binary and three targets
+(629/621), portable pipeline oracles, private adapter/codec/committer,
+evolution, RT0, actual HTTP and store campaigns. Linux TCP_NODELAY uses
+actual TCP and strace. Both owned clusters stop, are independently absent,
+and are removed; source remains clean. The rebuilt default public 0.4.40
+binary also passes the unmodified public deploy/serve witness and cleanup.
+
+A fresh SDK/Expo pack is byte-identical to the complete installed-consumer
+qualification. Unchanged surfaces retain full qualification at `4f8e498d2e`;
+later results are not relabelled as full reruns. Registry/manifest regeneration,
+ref-check and inventories pass. All 150 original store-file bytes are unchanged.
+Receipts are in `reports/integration24/post-main/`. The upstream on-wire overlap
+witness gap remains ticketed; no performance/capacity claim is added.

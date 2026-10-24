@@ -1,0 +1,7 @@
+{
+  "at": "2026-10-24T09:33:29.211792+00:00",
+  "removed": [
+    "/home/ccheever/sb4-loop/integ24/target-final40-postgres"
+  ],
+  "reason": "Completed final40 private-PG build target; later main delta reuses Root target. Preserve all logs, packs, frozen default binaries, baseline oracle and receipts."
+}

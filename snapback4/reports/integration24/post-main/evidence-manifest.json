@@ -1,0 +1,621 @@
+{
+  "files": 123,
+  "credentialPatternMatches": [],
+  "manifest": [
+    {
+      "path": "post-main-diagnostics.log.gz",
+      "bytes": 178,
+      "sha256": "82c1442a56cc1bc726c0b7a1565eabde5d9aa8c84bc61d4af6e0d64868cbe799"
+    },
+    {
+      "path": "README.md",
+      "bytes": 2608,
+      "sha256": "5b7860be50fe2de4ce79b665703644defe2c4d7ce7979cc878d9cc3fcc3cb2c9"
+    },
+    {
+      "path": "post-main-locks-wrapper.log.gz",
+      "bytes": 215,
+      "sha256": "7a1930caa89686cfdb6f38431410fcd0a225a3d6421d36b24f68bc03de235c34"
+    },
+    {
+      "path": "post-main-authoring-census.json",
+      "bytes": 247,
+      "sha256": "8dffffa7dc62d4fd22c679ced3e3f3f6b5be04af6daffdf97ac233806d41c306"
+    },
+    {
+      "path": "macstudio-post-main-dispatch-commands.json",
+      "bytes": 2476,
+      "sha256": "60fb4f3a3d7a3290c964ccd3b2c56b200fdfb3650b52008e16a2f92e2101d255"
+    },
+    {
+      "path": "original-store-bytes.json",
+      "bytes": 25742,
+      "sha256": "590cd66e2e8a82783ace66d1f85129d7095ad8f529097a0d592d8c727cfe68c3"
+    },
+    {
+      "path": "post-main-manifest.log.gz",
+      "bytes": 494,
+      "sha256": "3783058fe9c514590e1ff0361818805256348637cecbaec53b05d3f610e0c1f3"
+    },
+    {
+      "path": "post-main-wasm-missing-path.log.gz",
+      "bytes": 107,
+      "sha256": "f664829bdca6f7998b93e2fd7cf6ab99cf41abe63a6edb4778c42c9db5908470"
+    },
+    {
+      "path": "post-main-authoring-census.log.gz",
+      "bytes": 8532,
+      "sha256": "befcae6be2173fa6a6cc5d2263db6e27fa4f71fa7f40ce15eca3a23f356209a3"
+    },
+    {
+      "path": "post-main-source.json",
+      "bytes": 486,
+      "sha256": "b431ba8b749b84415ec5488bef8a8906f8665a2bf7bd688e2c657cf33c3ddde6"
+    },
+    {
+      "path": "mac-pg16-setup.log.gz",
+      "bytes": 91,
+      "sha256": "2417eb98fdf595b8fb71a0504c52a0c272d49dc223cfc4e00417a878fde542c3"
+    },
+    {
+      "path": "post-main-code-scope.json",
+      "bytes": 1358,
+      "sha256": "3a890d06de0d9b8abd88cee5ae1498c478546ff4aefa115731bdf065e353c68a"
+    },
+    {
+      "path": "post-main-ref.log.gz",
+      "bytes": 112,
+      "sha256": "2c2268b6a8115284630d78733d094cdd8eec4e4e7cfe7ec84cce8c99e2a78865"
+    },
+    {
+      "path": "post-main-wasm.log.gz",
+      "bytes": 10846,
+      "sha256": "395d6d00e75e0f2b4ac4fc6776bea2ba4a7fb74c7414efa6e7f055a33d9c7263"
+    },
+    {
+      "path": "post-main-inventories.log.gz",
+      "bytes": 945,
+      "sha256": "6e243c371a1840b83901d82abde440f18249e540a8214e2664c391a8fcc25571"
+    },
+    {
+      "path": "mac-pg16-setup-python39-attempt.log.gz",
+      "bytes": 282,
+      "sha256": "382e6324b1ffd5407a7d3e4bb7d71057f9cc073ea984a77aa094eeec1fb9b52a"
+    },
+    {
+      "path": "post-main-native/public-cleanup.json",
+      "bytes": 141,
+      "sha256": "f468732786209750b3f6475755531ac5f9ec1066e8388db289b8b91835b9ef2e"
+    },
+    {
+      "path": "post-main-native/default-native-build.log.gz",
+      "bytes": 2617,
+      "sha256": "6b9e5ce5ca3cab73784b648f7f5e096da76c3f8a39ed576d6cf730feb215a840"
+    },
+    {
+      "path": "post-main-native/commands.json",
+      "bytes": 520,
+      "sha256": "604178f7db3f639ca8e3234a6eadeef3d37f8dc206c403adf0aee160e6d43b9f"
+    },
+    {
+      "path": "post-main-native/complete.json",
+      "bytes": 155,
+      "sha256": "804dd11da22c13113bbbf2f2a064c417f8490e8c80e0bc1d1e93f02f0880cf1b"
+    },
+    {
+      "path": "post-main-native/public-timings.jsonl",
+      "bytes": 135608,
+      "sha256": "6ca85379a45288dd21b20f301089b4f9b67ff3b0e381dafc56dbc7c4dc5da42a"
+    },
+    {
+      "path": "post-main-native/public-pids.jsonl",
+      "bytes": 19521,
+      "sha256": "494968126ae136d46d74b7e9498dd1c8963dcc83d260542a3d99b7b6670f1a97"
+    },
+    {
+      "path": "post-main-native/prepare-client.log.gz",
+      "bytes": 3562,
+      "sha256": "16c1875ec930def226921f87c74ef2ec6a06bb2a935ed50f4dc374baca8fc2e9"
+    },
+    {
+      "path": "post-main-native/binding.json",
+      "bytes": 775,
+      "sha256": "b94222d7da445737323106b9f33211ae6ec680f7e9f254e1ff43f6743b909713"
+    },
+    {
+      "path": "post-main-native/public-deploy-serve.log.gz",
+      "bytes": 7287,
+      "sha256": "c72b28360f5739ec65d9f0dbc4293ced9926e864af4ab2ec1284d0e9051d9990"
+    },
+    {
+      "path": "post-main-native/source-status.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "post-main-locks/commit-path-verify-locked.json.gz",
+      "bytes": 46920,
+      "sha256": "deb8403fa42ac5a2e8ea765115724f996d487d453426bece007a4f68a746dbc3"
+    },
+    {
+      "path": "post-main-locks/evaluation-before.lock",
+      "bytes": 31157,
+      "sha256": "8385661363712b66386877432fdfb0e66361ef48d450a7bfc251b3515165720d"
+    },
+    {
+      "path": "post-main-locks/seed-verify-locked.stderr.gz",
+      "bytes": 46,
+      "sha256": "5dffac795f733e4c489daf4c01dc45f1adc9cbbcc1620f0ba5ea3046ad492197"
+    },
+    {
+      "path": "post-main-locks/commit-path-before.lock",
+      "bytes": 31645,
+      "sha256": "a7cef0322232cf894c870fa030c68100f10a82b2cc6db78a36a37cb8b1abdbe6"
+    },
+    {
+      "path": "post-main-locks/commit-path-regenerate.json.gz",
+      "bytes": 46917,
+      "sha256": "750a9555c2442f560a8ac1e9e4631b89fed80d80448511a474cd26c5d86c5d5b"
+    },
+    {
+      "path": "post-main-locks/commands.json",
+      "bytes": 2298,
+      "sha256": "e34085f50bbcc551ec2996af0fc9c2e3442633427b8fd079598d68406628e5cd"
+    },
+    {
+      "path": "post-main-locks/evaluation-verify-locked.json.gz",
+      "bytes": 46553,
+      "sha256": "b20c6faf1aaebe8a907e043acba23397802781ceae020b8e6e87f809577f56e5"
+    },
+    {
+      "path": "post-main-locks/seed-regenerate.stderr.gz",
+      "bytes": 179,
+      "sha256": "c1b3b2f35259a9fd69fe74ea5027df03b5bab55f57e205d2a84585e56827d46a"
+    },
+    {
+      "path": "post-main-locks/seed-after.lock",
+      "bytes": 30842,
+      "sha256": "6bffad09f44cc7101aab8ab8662988e1a24c6d9f63a7e63df36d524ac7cf0ec8"
+    },
+    {
+      "path": "post-main-locks/commit-path-regenerate.stderr.gz",
+      "bytes": 210,
+      "sha256": "390ba8e71ab20b8ef3d8e8de73b2e7d712d1cec0bf1308bdaa0ad392787bb3cc"
+    },
+    {
+      "path": "post-main-locks/seed-before.lock",
+      "bytes": 30842,
+      "sha256": "33f62cb3b6f8f3121293011c00bce32d0c7c52e9912bdd9b0bf85c0b942dce6d"
+    },
+    {
+      "path": "post-main-locks/commit-path-verify-locked.stderr.gz",
+      "bytes": 53,
+      "sha256": "84ff9533cb64720c0f9a4902562cf80f64bbd427f0d03396ff31bf6d16ebf1b6"
+    },
+    {
+      "path": "post-main-locks/summary.json",
+      "bytes": 3608,
+      "sha256": "daa05f7e43f78f9e311cde125d619b5e3517d74ed5132ec0106b5882e33171af"
+    },
+    {
+      "path": "post-main-locks/seed-regenerate.json.gz",
+      "bytes": 42087,
+      "sha256": "a21eb223db88e55ff73ca088ac2dc8527b19a3bea97f69639c6ecd391fe5447e"
+    },
+    {
+      "path": "post-main-locks/evaluation-regenerate.stderr.gz",
+      "bytes": 209,
+      "sha256": "1278c546402e467cc4c5618b26a4b647e146fc14ee096503c1c77d26296b63c2"
+    },
+    {
+      "path": "post-main-locks/evaluation-regenerate.json.gz",
+      "bytes": 46550,
+      "sha256": "8d4941a045be0dd8e5ab58b994fe3180e684d8454cf73be12a7166faab5c7324"
+    },
+    {
+      "path": "post-main-locks/seed-verify-locked.json.gz",
+      "bytes": 42090,
+      "sha256": "0ebf83b97d96d39babe4fb02610439aabf91b5d5032f1f8b5f7645af5f4428cf"
+    },
+    {
+      "path": "post-main-locks/commit-path-after.lock",
+      "bytes": 31661,
+      "sha256": "83780b2c145de1a7351e83e0d2ae4237b17a7a6b09ac6e3914840984d860472e"
+    },
+    {
+      "path": "post-main-locks/evaluation-verify-locked.stderr.gz",
+      "bytes": 52,
+      "sha256": "e7bdfa7a8522013d0e70c7b721f9f648a01d7f27214c9394bbe060876113d0de"
+    },
+    {
+      "path": "post-main-locks/evaluation-after.lock",
+      "bytes": 31173,
+      "sha256": "08154b5e98463a1422cd2ad339659c8c037c5f6d907abb73ab4b79039de1362c"
+    },
+    {
+      "path": "harness/qualify-post-main-pg.py",
+      "bytes": 6572,
+      "sha256": "4185440aa09bb92a491f382c8d7dfd044ebdab57713d96433a51479755cb1b77"
+    },
+    {
+      "path": "harness/macstudio-post-main-dispatch.py",
+      "bytes": 2053,
+      "sha256": "91a9d01ca3315dee2f38c3a9a1d799c58690ebb55f7fe63d029ea130a4385fdf"
+    },
+    {
+      "path": "harness/update-evaluation-locks.py",
+      "bytes": 2053,
+      "sha256": "9a9cb9dcb7edfd3df5587f906f1aa2b836c401ab03a6d8affdeff8061c84b866"
+    },
+    {
+      "path": "harness/mac-build-private-pg16.py",
+      "bytes": 1604,
+      "sha256": "0d958f649731578788f814c824e8b4639a8a1814e78550c08f6ccfafc1450860"
+    },
+    {
+      "path": "harness/post-main-native-and-pack.py",
+      "bytes": 4197,
+      "sha256": "75f457d322e51e6fe861ae18e7d533eec4a4ebee397099f00a755c3980c44137"
+    },
+    {
+      "path": "linux/command-private.log.gz",
+      "bytes": 1204,
+      "sha256": "a8d0bf2ffab9a82d6c34fc81dc6ccce03d92157d76b3c612ec1e8041b1ceb0df"
+    },
+    {
+      "path": "linux/committer-private.log.gz",
+      "bytes": 878,
+      "sha256": "ac15e3c550ab2debb7cd2e027f96f7c9e44178fdbf21996e19151bc15e2bc892"
+    },
+    {
+      "path": "linux/pipeline-tcp-nodelay.log.gz",
+      "bytes": 874,
+      "sha256": "eaaafb52386f793f44aa5e27ce8fc8ffc7ffa6ec189432a2bcf7da0f1226d30d"
+    },
+    {
+      "path": "linux/adapter-private.log.gz",
+      "bytes": 7008,
+      "sha256": "9f60713cd6794fce3494fa72aa4b54bd46072dc264fb6f85d5d2381c7a80a44c"
+    },
+    {
+      "path": "linux/commands.json",
+      "bytes": 8832,
+      "sha256": "9f9d280bfea2c3275763917cbbfe2742e4133af8779d41d7295f368f10de5a04"
+    },
+    {
+      "path": "linux/cleanup.json",
+      "bytes": 124,
+      "sha256": "e2e1519f7c3197f79ed1a35a5b650c30140c377d0f66b2971c021d457e6c599c"
+    },
+    {
+      "path": "linux/initdb.log.gz",
+      "bytes": 464,
+      "sha256": "a56dbc235ecfa788813af92e49db908808e1457d967e62cf4a2a78cbfde5b829"
+    },
+    {
+      "path": "linux/core-postgres-full.log.gz",
+      "bytes": 38153,
+      "sha256": "35ae0a0f6a626eff71b709ec91634d92894d965bf535ec942f551ae5c4843d30"
+    },
+    {
+      "path": "linux/status.log.gz",
+      "bytes": 57,
+      "sha256": "cbf422dbe07e869e1ad582c8ad8bb2a263d4f21bf8f547886c3797d2d6c1427c"
+    },
+    {
+      "path": "linux/difftest-stores.log.gz",
+      "bytes": 1813,
+      "sha256": "3bc4f6c46a4b33f4989a46f0c13aee9539c59fe291a71350f252600d1bece4ab"
+    },
+    {
+      "path": "linux/complete.json",
+      "bytes": 111,
+      "sha256": "3d3152a62599ada9d130755ed043066572359ef98fc8f7025d14c47fed6d2760"
+    },
+    {
+      "path": "linux/summary.json",
+      "bytes": 11121,
+      "sha256": "159b2960dc4188cbd63e96b6ee8e585a86d449bf7cf4704a29c17184034d863c"
+    },
+    {
+      "path": "linux/pipeline-http-private.log.gz",
+      "bytes": 2708,
+      "sha256": "c3505018215117d06693360285a21d9f981f625d2174f9b3ce1e4d685ee79c2b"
+    },
+    {
+      "path": "linux/cold-plan-private.log.gz",
+      "bytes": 1487,
+      "sha256": "5e30faa0b832d708c7d0e9754a4b3a60654f15525c9cb2373afa9280a87392d2"
+    },
+    {
+      "path": "linux/cli-full-bin.log.gz",
+      "bytes": 23765,
+      "sha256": "efe5cb31db9da86d532e023348e7fe22c2174f3623bc652c4ebec2cdcef69079"
+    },
+    {
+      "path": "linux/server.log.gz",
+      "bytes": 10013,
+      "sha256": "869697809419191932720cff334e5fc2f22731dce9082fe82bd32ba51b32b6bc"
+    },
+    {
+      "path": "linux/binding.json",
+      "bytes": 645,
+      "sha256": "964b7c370a2bdf624f7da0cab3fa111e36c5a3ebfbb049d0e9001099e32f7394"
+    },
+    {
+      "path": "linux/stop.log.gz",
+      "bytes": 77,
+      "sha256": "e6f8d69bb110247f4dd880d1319cf8643d1514c245af1351402ffe160dc84af4"
+    },
+    {
+      "path": "linux/source-status.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "linux/round-trips.log.gz",
+      "bytes": 2794,
+      "sha256": "b10bd23b2ae40b901d0cf545f4ce8d4b5e0628725499e0d577cd5be532876bb5"
+    },
+    {
+      "path": "linux/pipeline-unix.log.gz",
+      "bytes": 916,
+      "sha256": "49c7b1aaa099cb7a8a8ee3af3ed9836d61415251817fde066d84545be97259d5"
+    },
+    {
+      "path": "linux/literal-serving.log.gz",
+      "bytes": 1511,
+      "sha256": "10bd5683a9f7161bb653451a4f16ce96ffeb76ad693e19c8468f1e1007b933bd"
+    },
+    {
+      "path": "linux/postgres-evolution.log.gz",
+      "bytes": 1365,
+      "sha256": "4f3ee2cbabee09f0372dfc7b726ef38c47a0b531946e32405b469581411e38db"
+    },
+    {
+      "path": "linux/start.log.gz",
+      "bytes": 72,
+      "sha256": "47ea26537bc4549e18259a2ab16e7598005671ece1d444f262ab440c20c61202"
+    },
+    {
+      "path": "linux/maintained-members.log.gz",
+      "bytes": 788,
+      "sha256": "6b40876ae4bc8773149b6f05e4b098ae67bb1471fc8ee123f6eec8b8e0e78a2a"
+    },
+    {
+      "path": "mac/command-private.log.gz",
+      "bytes": 1205,
+      "sha256": "8f4663951754cdd2589ec0bd0b6ce4e6c4a802ada7b0b2894b37d4fe078f8a21"
+    },
+    {
+      "path": "mac/._stop.log.gz",
+      "bytes": 115,
+      "sha256": "4cb854a1e38864b187cc354b21116ac5382d8c9e78e738135cb1e98c9031cbef"
+    },
+    {
+      "path": "mac/._command-private.log.gz",
+      "bytes": 126,
+      "sha256": "1d07bad9c8a2b098cec01c8f13d70f9a31e8c685ca42fe9f85db392b07f1a3cd"
+    },
+    {
+      "path": "mac/._server.log.gz",
+      "bytes": 117,
+      "sha256": "3665b4ffb6758ab598f08fb5f8d0578396017e220014cc8687b923179429bd7b"
+    },
+    {
+      "path": "mac/._round-trips.log.gz",
+      "bytes": 122,
+      "sha256": "67e59e3b82d06d3d017595ba3f2b3a41cfb287f98e16bfe44c47b26da2e54714"
+    },
+    {
+      "path": "mac/._cold-plan-private.log.gz",
+      "bytes": 128,
+      "sha256": "0e305ba4d0b68bf41435b99c47e2ad02975c7df576d0e1b36756d7b8d124d783"
+    },
+    {
+      "path": "mac/committer-private.log.gz",
+      "bytes": 879,
+      "sha256": "a6943189616feec3524b2fecc11ac7eedb3070c046509f5f1b0b8ccc60085541"
+    },
+    {
+      "path": "mac/adapter-private.log.gz",
+      "bytes": 7016,
+      "sha256": "7541b9003f0ce7e716ed117566ddfa3c250ef05161569feca8c80461584ce989"
+    },
+    {
+      "path": "mac/commands.json",
+      "bytes": 9017,
+      "sha256": "6ba589368ad6ed58bbc42de84c7a929adcadd3db3845bf047c0e22a3a5fd3901"
+    },
+    {
+      "path": "mac/cleanup.json",
+      "bytes": 122,
+      "sha256": "060d4c2f79e3c5868d324822cde414f29c9f3e68794885cd58d1269810db647c"
+    },
+    {
+      "path": "mac/._maintained-members.log.gz",
+      "bytes": 129,
+      "sha256": "17ab8e6fbdebb2aff6f82e5c25acce8f819d825e418f85b15e3aa02d4107431e"
+    },
+    {
+      "path": "mac/._cleanup.json",
+      "bytes": 163,
+      "sha256": "fbfb1d14cab43ec52ff9e97b788e0e852eb2a9d5263dd31aa385bfefb05a2f49"
+    },
+    {
+      "path": "mac/._complete.json",
+      "bytes": 163,
+      "sha256": "fbfb1d14cab43ec52ff9e97b788e0e852eb2a9d5263dd31aa385bfefb05a2f49"
+    },
+    {
+      "path": "mac/initdb.log.gz",
+      "bytes": 489,
+      "sha256": "b1efe29c5006008fe06755816a8fe343304dc4d8d6c547575d8d64bb55095064"
+    },
+    {
+      "path": "mac/._start.log.gz",
+      "bytes": 116,
+      "sha256": "1c95e0fb0b55349d2c3e26e5a82bcd228fb529db088957690744036ecef924ae"
+    },
+    {
+      "path": "mac/core-postgres-full.log.gz",
+      "bytes": 37963,
+      "sha256": "12f7eb2fc69421724719e058294702c8209000bb4e0b663645b25a87bcb00a51"
+    },
+    {
+      "path": "mac/status.log.gz",
+      "bytes": 57,
+      "sha256": "45b4d6ede565219e205977e99f7d56d727f0fa815c3e2d357cc7f737f69a3965"
+    },
+    {
+      "path": "mac/._core-postgres-full.log.gz",
+      "bytes": 129,
+      "sha256": "ed9323f41f33a9003c9786601dff219ab2e23fe4a8350c89eaeab4451ca1b814"
+    },
+    {
+      "path": "mac/difftest-stores.log.gz",
+      "bytes": 1838,
+      "sha256": "2e11085f576fa912eb9ec7f54aa32dd1037aac4d04c5bf9f6c8740d498c12d54"
+    },
+    {
+      "path": "mac/complete.json",
+      "bytes": 111,
+      "sha256": "3d3152a62599ada9d130755ed043066572359ef98fc8f7025d14c47fed6d2760"
+    },
+    {
+      "path": "mac/._committer-private.log.gz",
+      "bytes": 128,
+      "sha256": "708f44d5c440894f3b91ecc875d23e9acbb78405cfe7dc944a4d1f58960a0d17"
+    },
+    {
+      "path": "mac/._adapter-private.log.gz",
+      "bytes": 126,
+      "sha256": "245e469a089960ca9c8abed3444ddbfc558925cbfc76682af60f636f24ac385b"
+    },
+    {
+      "path": "mac/summary.json",
+      "bytes": 11203,
+      "sha256": "67837760129ad0ad24e526ce8dadb538523c38903f3be931eb34c0f019c130a9"
+    },
+    {
+      "path": "mac/pipeline-http-private.log.gz",
+      "bytes": 3038,
+      "sha256": "df5bc6410e327299d29f5468d066904386776b40d6c89f0610f0f419c41a8679"
+    },
+    {
+      "path": "mac/._source-status.txt",
+      "bytes": 163,
+      "sha256": "fbfb1d14cab43ec52ff9e97b788e0e852eb2a9d5263dd31aa385bfefb05a2f49"
+    },
+    {
+      "path": "mac/._binding.json",
+      "bytes": 163,
+      "sha256": "fbfb1d14cab43ec52ff9e97b788e0e852eb2a9d5263dd31aa385bfefb05a2f49"
+    },
+    {
+      "path": "mac/._pipeline-http-private.log.gz",
+      "bytes": 132,
+      "sha256": "f90bcc2cae0caa9da8cf3c6117bd905a52dcccb873b936727f2c3a0e5b6339b0"
+    },
+    {
+      "path": "mac/cold-plan-private.log.gz",
+      "bytes": 1482,
+      "sha256": "fa3221365b93e3b4f1e0494f0ac630ebf7aca4dbd4211d537a3275db2a8c9da8"
+    },
+    {
+      "path": "mac/cli-full-bin.log.gz",
+      "bytes": 23992,
+      "sha256": "716aa368349e4861a25adf0fbf0e831a71183db71c9d148f09f2f29476c88e96"
+    },
+    {
+      "path": "mac/._pipeline-unix.log.gz",
+      "bytes": 124,
+      "sha256": "5de3316ca09ada0ddc3676db9efeaeef2f4a05ddaac577f91bd0012c7ca072f7"
+    },
+    {
+      "path": "mac/._postgres-evolution.log.gz",
+      "bytes": 129,
+      "sha256": "a02a56e96b4bc277c38c74bb6138e4bddeeea1fcbe1d680c6bdb3cea4d427369"
+    },
+    {
+      "path": "mac/server.log.gz",
+      "bytes": 9825,
+      "sha256": "67e0438a82afd15ab9b3b295ed9848fb9a15b0a4b331c23120226e9fab38fe8f"
+    },
+    {
+      "path": "mac/binding.json",
+      "bytes": 629,
+      "sha256": "5dda47dbb25ba767c8ab3d730a3f971da1be1b04845927891b630caf584d7a2c"
+    },
+    {
+      "path": "mac/stop.log.gz",
+      "bytes": 77,
+      "sha256": "eb0f88a628b351f6d111e028eb597ed5eeb0b66f9498389cf50b9b5c7490d260"
+    },
+    {
+      "path": "mac/._initdb.log.gz",
+      "bytes": 117,
+      "sha256": "cdb88656ba671dfeaf0802ecc1efdd660ca5c3f511e02be90f97d6747f6789c6"
+    },
+    {
+      "path": "mac/source-status.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "mac/._commands.json",
+      "bytes": 163,
+      "sha256": "fbfb1d14cab43ec52ff9e97b788e0e852eb2a9d5263dd31aa385bfefb05a2f49"
+    },
+    {
+      "path": "mac/round-trips.log.gz",
+      "bytes": 3126,
+      "sha256": "61743ba72ad76cccc18ef1d2f967efe13ba49c57fb6c4239ebaf720b2355915c"
+    },
+    {
+      "path": "mac/._status.log.gz",
+      "bytes": 117,
+      "sha256": "e52d5c8e8c673f12bbeb9241bfd72f310e59a59d2fe52351826e22ad2c57668e"
+    },
+    {
+      "path": "mac/pipeline-unix.log.gz",
+      "bytes": 916,
+      "sha256": "8b5812e08433612c54e2c09425b82f850fe18a03c24fb7270cb5403e0953cc18"
+    },
+    {
+      "path": "mac/literal-serving.log.gz",
+      "bytes": 1510,
+      "sha256": "5bbf64a3ee9e7e37b7f6010a51fece9ee1b0ea095df1766ab4953522fb798a20"
+    },
+    {
+      "path": "mac/._literal-serving.log.gz",
+      "bytes": 126,
+      "sha256": "19d2a2c45c8c55320796712b984a8bb452594a764cfcb5450c40a5eb0b525ce2"
+    },
+    {
+      "path": "mac/._difftest-stores.log.gz",
+      "bytes": 126,
+      "sha256": "e6fd336ec5a6e6b74500435482bb06d9ec89cf6ad41a84a31da6ad98a5b52bac"
+    },
+    {
+      "path": "mac/._cli-full-bin.log.gz",
+      "bytes": 123,
+      "sha256": "1d4c907b070d98637ac25ecdb6ebc888e4be8bae0283f2f1460a3104d0d2ef89"
+    },
+    {
+      "path": "mac/postgres-evolution.log.gz",
+      "bytes": 1364,
+      "sha256": "10222c54ac0e639649be065fcd9e187b8ebefdeeaf107f5fc18d1b0678fe2246"
+    },
+    {
+      "path": "mac/start.log.gz",
+      "bytes": 72,
+      "sha256": "2f4489d7ca269579d2c0a308702a6136e5faf1a8a27ede905f72150db02f074b"
+    },
+    {
+      "path": "mac/maintained-members.log.gz",
+      "bytes": 787,
+      "sha256": "e75a7cc9eedef9a2821b83c69dcdedb3a1019d800bd3d7f489c9f6ee231a4f86"
+    }
+  ]
+}
