@@ -84,8 +84,9 @@ pub struct Store {
     pub(super) commit_warning: std::sync::Arc<std::sync::atomic::AtomicBool>,
     pub generation: u64,
     pub(crate) read_only: bool,
-    pub(crate) client: Client,
+    pub(crate) client: super::pipeline::Connection,
     qualified: bool,
+    reader_binding: bool,
     literal_cache: BTreeMap<String, super::literal::Prepared>,
     cache: BTreeMap<String, Statement>,
     pub calls: CallCounter,
@@ -97,17 +98,45 @@ pub struct Store {
 }
 
 impl Store {
-    pub fn new(client: Client) -> Self {
-        Self { read_sessions: Cell::new(false), unified: false, fence: None, commit_warning: Default::default(), generation:1, read_only: false, client, qualified: false, literal_cache: BTreeMap::new(), cache: BTreeMap::new(), calls: CallCounter::new(0), prefetch: true, marked_reads: Cell::new(0), page_reads: Cell::new(0), prefetch_rows: Cell::new(0), prefetch_bytes: Cell::new(0) }
+    pub fn new(client: Client) -> Self { Self::with_connection(super::pipeline::Connection::Sync(client)) }
+    pub(super) fn with_connection(client: super::pipeline::Connection) -> Self {
+        Self { read_sessions: Cell::new(false), unified: false, fence: None, commit_warning: Default::default(), generation:1, read_only: false, client, qualified: false, reader_binding: false, literal_cache: BTreeMap::new(), cache: BTreeMap::new(), calls: CallCounter::new(0), prefetch: true, marked_reads: Cell::new(0), page_reads: Cell::new(0), prefetch_rows: Cell::new(0), prefetch_bytes: Cell::new(0) }
+    }
+
+    // @ref LLP 3000.009.001.000#8 — only future requests reconnect, with fresh binding checks.
+    // A future request may replace a driver already known closed. Cached
+    // statements belong to the old socket; no result or authority is reused.
+    fn refresh_reader_connection(&mut self) -> Result<(),RuntimeError> {
+        if self.client.refresh_closed()? {
+            self.literal_cache.clear(); self.cache.clear();
+            self.reader_binding = self.unified;
+        }
+        if self.reader_binding {
+            self.calls.set(self.calls.get()+2);
+            let row = self.client.query_one("SELECT (SELECT value FROM _meta WHERE key='store_id'),generation FROM _backend WHERE singleton", &[])?;
+            if row.try_get::<_,Option<&str>>(0)? != self.fence.as_ref().map(|f|f.store_id.as_str()) || self.fence.is_none() {
+                return Err(RuntimeError::Generation("reader store identity changed while reconnecting; reopen the engine".into()));
+            }
+            if u64::try_from(row.try_get::<_,i64>(1)?).ok() != Some(self.generation) {
+                return Err(RuntimeError::Generation("reader generation changed while reconnecting; reopen the engine".into()));
+            }
+            // Keep the validation pending after any mismatch or failed query.
+            self.reader_binding = false;
+        }
+        Ok(())
     }
 
     fn begin(&mut self, mode: Option<WriteMode>, opening: bool) -> Result<Tx<'_>, RuntimeError> {
         if self.read_only && mode.is_some() { return Err(RuntimeError::Store("Postgres reader is read-only".into())); }
+        self.refresh_reader_connection()?;
         if !self.qualified {
-            super::literal::configure(&mut self.client)?;
-            self.calls.set(self.calls.get() + 3);
+            if !self.client.is_reader() {
+                self.client.configure()?;
+                self.calls.set(self.calls.get() + 3);
+            }
             self.qualified = true;
         }
+        self.client.begin();
         self.page_reads.set(0);
         let begin = match mode {
             None => "BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY;",
@@ -157,7 +186,14 @@ impl Store {
     // @ref LLP 3000.009.001.000.001#31-authority-boundaries — one ordinary ingress SELECT is its own read snapshot, with no writer lock.
     pub(crate) fn ingress_session_authority_facts(&mut self, digest: &str) -> Result<crate::identity::facts::SessionFacts, RuntimeError> {
         if absent_text_key(&[digest]) { return Ok(Default::default()); }
+        self.refresh_reader_connection()?;
         let sql = super::authority::session_facts_sql(self.read_sessions.get());
+        if self.client.is_reader() && self.read_sessions.get() {
+            self.calls.set(self.calls.get() + 1);
+            let facts = super::authority::session_facts_rows(self.client.independent(sql, &[(&digest, postgres::types::Type::TEXT)])?);
+            if facts.backend_generation.map(|g|g as u64) != Some(self.generation) { return Err(RuntimeError::Generation("another engine activated this store; reopen".into())); }
+            return Ok(facts);
+        }
         let statement = if let Some(statement) = self.cache.get(sql) { statement.clone() } else {
             self.calls.set(self.calls.get() + 1);
             let statement = self.client.prepare(sql)?;
@@ -329,7 +365,7 @@ pub struct Tx<'a> {
     pub(super) read_sessions_installed: Cell<bool>,
     unified: bool,
     commit_warning: &'a std::sync::atomic::AtomicBool,
-    inner: RefCell<super::flight::Session<'a>>,
+    pub(super) inner: RefCell<super::flight::Session<'a>>,
     literal_cache: RefCell<&'a mut BTreeMap<String, super::literal::Prepared>>,
     bind_refused: Cell<bool>,
     pub(super) pending_read: RefCell<Option<super::read_plan::Plan>>,
@@ -430,7 +466,7 @@ impl Tx<'_> {
         let mut inner = self.inner.borrow_mut();
         if inner.done {
             inner.pending = "BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY;".into();
-            inner.done = false; inner.started = false;
+            inner.done = false; inner.started = false; inner.client.begin();
         }
         drop(inner);
         *self.read_cache.borrow_mut() = Default::default();
@@ -440,8 +476,11 @@ impl Tx<'_> {
     pub(super) fn restart_request_facts(&self, digest: &str) -> Result<crate::identity::facts::SessionFacts, RuntimeError> {
         let mut inner = self.inner.borrow_mut();
         inner.ensure_settings()?;
-        self.calls.set(self.calls.get() + 1);
-        inner.client.batch_execute("ROLLBACK")?;
+        if !inner.done {
+            self.calls.set(self.calls.get() + 1);
+            inner.client.batch_execute("ROLLBACK")?;
+        }
+        inner.client.finish();
         inner.pending.clear();
         inner.checks.clear();
         inner.done = true;
@@ -461,7 +500,7 @@ impl Tx<'_> {
         if let Some(plan) = plan { plan.finish(self)?; }
         Ok(())
     }
-    pub(super) fn finish_read_flight(&self) { self.inner.borrow_mut().done = true; }
+    pub(super) fn finish_read_flight(&self) { let mut inner = self.inner.borrow_mut(); inner.done = true; inner.client.finish(); }
 
     fn prepared(&self, sql: &str) -> Result<Statement, RuntimeError> {
         self.ensure_active()?;
@@ -557,18 +596,14 @@ impl Tx<'_> {
     }
 
     /// Fold a driver row stream without retaining an unbounded result vector.
-    pub(super) fn query_fold<T>(&self, sql: &'static str, params: &[&(dyn ToSql + Sync)], mut total: T, mut fold: impl FnMut(T, Row) -> Result<T, RuntimeError>) -> Result<T, RuntimeError> {
-        use postgres::fallible_iterator::FallibleIterator;
+    pub(super) fn query_fold<T>(&self, sql: &'static str, params: &[&(dyn ToSql + Sync)], total: T, fold: impl FnMut(T, Row) -> Result<T, RuntimeError>) -> Result<T, RuntimeError> {
+
         let statement = self.prepared(sql)?;
         self.guard_params(&statement,params)?;
         self.calls.set(self.calls.get() + 1);
         let mut inner = self.inner.borrow_mut();
         inner.before_bind(self.calls)?;
-        let mut rows = inner.client.query_raw(&statement, params.iter().copied())?;
-        while let Some(row) = rows.next()? {
-            total = fold(total, Row::Bind(row))?;
-        }
-        Ok(total)
+        inner.client.fold(&statement, params, total, fold)
     }
 
     pub(crate) fn execute(&self, sql: &'static str, params: &[&(dyn ToSql + Sync)]) -> Result<u64, RuntimeError> {
@@ -640,7 +675,7 @@ impl Tx<'_> {
         // validation intervenes; COMMIT stays alone and decodes no row payload.
         // Once COMMIT is sent, even transport loss must retain unknown-outcome classification.
         inner.done = true;
-        super::ownership::commit_prepared(inner.client,self.commit_warning)?;
+        inner.client.commit_prepared(self.commit_warning)?;
         if self.read_sessions_installed.get() { self.read_sessions.set(true); }
         Ok(())
     }
@@ -651,6 +686,7 @@ impl Tx<'_> {
         let mut inner = self.inner.into_inner();
         inner.flush(self.calls)?;
         inner.client.batch_execute("ROLLBACK")?;
+        inner.client.finish();
         inner.done = true;
         Ok(())
     }

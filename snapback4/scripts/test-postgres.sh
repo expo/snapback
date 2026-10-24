@@ -66,6 +66,7 @@ cargo test --locked -p snapback4-core --features postgres --lib engine::postgres
 cargo test --locked -p snapback4-core --features postgres --lib engine::postgres::tests::plan_hygiene::log_plan_hygiene_cold_backend_tail_scan_witness -- --include-ignored --nocapture --test-threads 1 || status=1
 # Keep closure execution, fault oracles and the commit/revocation cut explicit,
 # including the decoder's non-Postgres malformed-payload witnesses.
+cargo test --locked -p snapback4-core --features postgres --lib engine::postgres::pipeline -- --include-ignored --nocapture || status=1
 cargo test --locked -p snapback4-core --features postgres --lib read_closure -- --include-ignored --nocapture || status=1
 cargo test --locked -p snapback4-core --features postgres --lib change_evidence -- --include-ignored --nocapture || status=1
 cargo test --locked -p snapback4-core --features postgres --lib engine::postgres::literal_tests -- --include-ignored --nocapture || status=1

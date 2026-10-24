@@ -20,6 +20,7 @@ mod prefetch;
 mod tail;
 pub mod literal;
 mod flight;
+mod pipeline;
 pub(crate) mod read_plan;
 mod read_closure;
 #[cfg(test)]
@@ -113,7 +114,7 @@ impl PostgresEngine {
         let schema = decode(row.get(1))?;
         let programs = decode(row.get(2))?;
         tx.rollback()?;
-        let client = store.client;
+        let client = store.client.into_sync();
         Self::attach(client, schema, programs, None, None, expected_release)
     }
 

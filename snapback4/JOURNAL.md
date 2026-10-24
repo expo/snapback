@@ -105292,3 +105292,128 @@ compatibility exceptions, not a universal security or zero-total-refusal claim.
 Raw qualification and command evidence is in `reports/integration24/final/`.
 Incoming PostgreSQL reader pipelining receives separate changed-input checks
 after the final main merge. Wasm remains 737,990 bytes gzip; budget 738,490.
+
+
+## 2026-10-24 — PIPE reader transport
+
+Implemented the commissioned independent reader pipeline on RT6/G4a base
+`bd50485b8c`. Logical detached readers share at most 30 physical connections,
+with depth 1–8 (default 4) and one reader I/O runtime thread. Each composed
+facts or ordinary ingress statement has its own Parse/Bind/Execute/Sync and
+implicit transaction/snapshot. Rust retains authority, interpreter, meters
+and G4a decoding. Multi-statement fallbacks take exclusive custody through
+rollback; writer and lease ordering are unchanged. The pinned driver sets
+TCP_NODELAY for every TCP transport; a child-process syscall witness covers
+reader and synchronous writer. New sockets verify the existing codec settings.
+
+Existing G4a oracles now execute composed reads on detached readers, including
+retained-NUL and sparse fallback, planted faults and the revocation cut. New
+transport witnesses cover overlapping snapshots, a failed middle statement,
+bounded depth, fallback exclusion and exact connection-loss scope. The report
+under reports/20261024-pipe records qualification and 128-client loopback core
+loads at depths 1/4/8. HTTP admission remains 30 active plus 98 queued;
+measurement makes no delayed-link or HTTP S1 capacity claim. Raw logs stay
+outside Git. Qualification and owned private-PG shutdown follow separately.
+
+## 2026-10-24 — PIPE standalone harness dependency locks
+
+Updated only the core dependency lists in the three independent Postgres
+harness lockfiles (evaluator, commit-path and scale seed). No package version
+changes. All three pass `cargo metadata --locked`; the public stock sweep
+can retain `--locked` with the new direct reader dependencies.
+
+## 2026-10-24 — PIPE populated measurement and fallback fault witness
+
+The initial five-second samples use three messages per room, as the closure
+oracle does. The manual load fixture now separately seeds twenty per room
+for populated W2, keeping the correctness fixture unchanged. Added a real
+failed pipelined facts-statement witness: a temporary session view raises,
+then the existing post-failure hook restores storage and revokes the
+principal before ordinary fallback. The expected result is fresh `E_AUTH`.
+Production transport and interpreter bytes are unchanged.
+
+## 2026-10-24 — PIPE stock sweep target-isolation cleanup
+
+The stock script retained an undefined `refresh_shared_target` call after
+G4a moved the evaluator to its own target directory. Removed that obsolete
+call; the evaluator still uses its isolated subdirectory and no shared build
+artifact is cleaned. The in-progress first sweep is stopped after evaluator
+warm-up and the canonical script restarted, preserving its full check set.
+
+## 2026-10-24 — PIPE prepared-state lifetime
+
+A new regression against `fa81c4c1e0` proves a pooled socket retained both
+SQL PREPARE names after one logical reader retired (count 2, expected 1).
+Added a per-preparation cleanup token only for reader connections. Retirement
+queues DEALLOCATE under exclusive physical custody, like driver statement
+close, without adding a request wait. Writer preparation lifetime and SQL
+ordering are unchanged. Sixteen paired-reader retirement cycles now return
+the session census to its baseline, and the surviving reader's prepared plan
+continues to execute after its neighbour retires. The fixed witness passes;
+full affected verification follows on this revision.
+
+## 2026-10-24 — PIPE future-request and factory recovery
+
+Before a new reader transaction or ingress fact request, replace a socket
+already known closed and clear its bound statements. Verify the expected
+logical store id and generation; retain the pending validation after any
+error or mismatch. The writer never reconnects here, and an in-flight read
+still returns its original retryable transport failure without replay.
+Cold recovery adds startup and binding checks; warm flight counts remain.
+
+The real-engine witness shares a capped physical connection with the cached
+reader factory, terminates it, then gets the unchanged complete W3 result
+from a future request and a new factory loan. A second termination followed
+by a changed store id refuses twice with `E_GENERATION`; restoring the
+expected binding allows a freshly validated request. The witness passes.
+
+## 2026-10-24 — PIPE HTTP measurement harness
+
+Added a manual 128-client TCP HTTP load over the existing RT0 W2/W3 fixture,
+including 25 messages/newest 20 and 32 scalar room totals. The core oracle
+separately uses real maintained totals. Each HTTP request opens and closes
+its connection; latency includes response parsing. Report successful reads
+and admission 503s separately, and reject other errors. Both measurement
+harnesses use one common five-second clock after warm-up. HTTP remains at
+30 active workers and 98 queued requests; these tests do not claim a raised
+HTTP concurrency bound or delayed-link S1 capacity.
+
+## 2026-10-24 — PIPE final qualification, measurements and owned cleanup
+
+Rebased onto the updated landing base `480f88e8b4`; its two inherited fixes
+match this lane. The only rebase tree difference is the equivalent Row
+re-export spelling in legacy_keys. Qualified source is `4ca669e894`.
+Workspace build, full binary (586 passes, 49 named ignores), five RT0 tests,
+five transport/lifecycle witnesses and eleven real closure/fallback oracles
+pass on the rebased code. Full default core passed 1,138 tests across 47
+Cargo targets, with five named ignores; PG-only lifecycle refinements do not
+enter that default runtime, and its affected ten-test source census passes.
+Both RT0 tables are byte-identical to the initial `bd50485b8c` base: warm
+Postgres W1/W2/W3 remains 1/1/1 and SQLite 5/5/132. Ref-check passes.
+
+The full stock Postgres script completes in 3,774.09 seconds, exit 1. Its
+three original failures are retained: the existing evaluator SQLSTATE 40001
+concurrency stress finding (appended to its open ticket), plus two socket-only
+fixtures given the ambient TCP URL. Both unchanged fixtures — startup renewal
+cleanup and committed receipt after a lost commit acknowledgement — pass
+through this same private cluster's Unix socket. No evaluator retry, bound,
+workload, durability or exclusion changes; the original broad-run red remains.
+
+Final five-second loopback samples use 128 clients and record shared-host
+load. HTTP W2/W3 successful reads/s at depth 1/4/8 are 3,548/1,892,
+3,538/1,880 and 3,653/1,974, with 15 valid admission E_RATE_LIMIT responses
+across all six samples. The unchanged 30-active/98-queued HTTP admission
+leaves depth underused. Core W2/W3 reads/s are 4,480/2,268, 4,554/2,299 and
+4,610/2,312; p99 worsens above depth 1. The report records exact p50/p99,
+fixture shapes, clock, code revision, loads and earlier cohorts. These are
+short loopback observations, with no delayed-link or S1 capacity claim.
+
+Private PG16 masters 1720724 and 2304069 (same data directory, socket recheck)
+and public-witness master 2122589 are stopped: independent pg_ctl status 3,
+no postmaster.pid and no process identity. Final audit finds all 508 recorded
+identities, 541 public PID records and six traced child PIDs absent, with no
+owned target/data-directory survivors. PIDs left: none. Minimum sampled disk
+headroom is 46.42 GiB, above the 40 GiB stop; only fourteen newly created,
+unlocked incremental-cache sessions were removed. No q24 files or processes
+were touched. Reports hold summarized evidence only; raw logs/data remain
+outside Git under /tmp/sb4-pipe.

@@ -37,17 +37,22 @@ impl AnyTx<'_> {
 
 impl Handle {
     pub(crate) fn connect(config: postgres::Config, name: &str, fresh: bool) -> Result<Self, RuntimeError> {
-        Self::connect_inner(config, name, fresh, None, false)
+        Self::connect_inner(config, name, fresh, None, false, None)
     }
     pub(super) fn connect_owned(config: postgres::Config, name: &str, fence: Option<super::ownership::Fence>) -> Result<Self, RuntimeError> {
-        Self::connect_inner(config, name, false, fence, false)
+        Self::connect_inner(config, name, false, fence, false, None)
     }
-    pub(super) fn connect_reader(config: postgres::Config, name: &str, fence: Option<super::ownership::Fence>) -> Result<Self, RuntimeError> {
-        Self::connect_inner(config, name, false, fence, true)
+    pub(super) fn connect_reader(config: postgres::Config, name: &str, fence: Option<super::ownership::Fence>, pool: std::sync::Arc<super::pipeline::Pool>) -> Result<Self, RuntimeError> {
+        Self::connect_inner(config, name, false, fence, true, Some(pool))
     }
-    fn connect_inner(config: postgres::Config, name: &str, fresh: bool, fence: Option<super::ownership::Fence>, read_only: bool) -> Result<Self, RuntimeError> {
+    fn connect_inner(config: postgres::Config, name: &str, fresh: bool, fence: Option<super::ownership::Fence>, read_only: bool, pool: Option<std::sync::Arc<super::pipeline::Pool>>) -> Result<Self, RuntimeError> {
         let quoted = store::namespace(name)?;
-        let (mut client, warning) = super::ownership::connect(config.clone())?;
+        let (mut client, warning) = if let Some(pool) = &pool {
+            (super::pipeline::Connection::reader(pool.clone())?, Default::default())
+        } else {
+            let (client, warning) = super::ownership::connect(config.clone())?;
+            (super::pipeline::Connection::Sync(client), warning)
+        };
         if fresh {
             if client.query_one("SELECT to_regnamespace($1) IS NOT NULL", &[&name])?.get::<_, bool>(0) {
                 return Err(RuntimeError::Store("Postgres namespace already exists".into()));
@@ -57,7 +62,7 @@ impl Handle {
         crate::round_trips::postgres(1);
         let reader_setting = if read_only { "; SET default_transaction_read_only = on" } else { "" };
         client.batch_execute(&format!("SET search_path = {quoted}, pg_catalog; SET statement_timeout = '5s'; SET lock_timeout = '5s'{reader_setting}"))?;
-        let mut store = store::Store::new(client);
+        let mut store = store::Store::with_connection(client);
         store.unified = true;
         store.read_only = read_only;
         store.commit_warning = warning;
@@ -87,7 +92,7 @@ impl Handle {
             store.generation = generation;
 
         }
-        Ok(Self { store: RefCell::new(store), report: AdoptionReport::default(), connection: (config, name.into()), fresh, bootstrap_id: None })
+        Ok(Self { store: RefCell::new(store), report: AdoptionReport::default(), connection: (config, name.into()), fresh, readers: RefCell::new(pool), bootstrap_id: None })
     }
 
     pub(crate) fn activate<R>(&mut self, schema: &Schema, programs: Option<&BTreeMap<String, Program>>, reset: bool, now: i64,

@@ -1,0 +1,13 @@
+{
+  "step": "expo-proof-bytes",
+  "command": [
+    "python3",
+    "-c",
+    "import json,sys;s=json.load(open('reports/20261023-publication-0.4.39/expo-staged.json'));p=json.load(open('target/publication/client-0.4.39/prepare.json'));print(s['integrity'],p['expo']['integrity']);sys.exit(0 if s['integrity']==p['expo']['integrity'] else 1)"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-pub-0428/snapback4",
+  "start": 1792822300.395992,
+  "end": 1792822300.429309,
+  "seconds": 0.033,
+  "exit": 0
+}

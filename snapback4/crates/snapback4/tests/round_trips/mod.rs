@@ -340,3 +340,61 @@ fn record(
         assert_eq!(previous, n, "{class}: warm repetitions disagree");
     }
 }
+
+/// Manual HTTP load over the ratcheted fixture, with no round-trip collector.
+#[cfg(feature = "postgres")]
+#[test]
+#[ignore = "manual private PG16 HTTP measurement; SNAPBACK4_PIPELINE_HTTP_MEASURE=1"]
+fn pipeline_http_measure_128_clients() {
+    if std::env::var("SNAPBACK4_PIPELINE_HTTP_MEASURE").as_deref()!=Ok("1") { return; }
+    let store=snapback4_core::store_port::AnyStore::create_postgres(
+        &std::env::var("SNAPBACK4_EVAL_POSTGRES").unwrap(),
+        &format!("pipe_http_{:x}",snapback4_core::ids::seed()),
+    ).unwrap();
+    let source=format!("{}\n{}",include_str!("../../../../reports/20261022-rt-a-round-trips/admitted-s1.q"),include_str!("w3.q"))
+        .replace("table rooms:\n","table rooms:\n  total: int default 0\n");
+    let host=Host::with_store(false,store,&source);
+    let token={ let e=lock(&host.shared.engine);identity::open_session(e.store(),"guest:pipe-http","guest",host.shared.now()).unwrap().token };
+    let headers=format!("Authorization: Bearer {token}\r\n");
+    let seed=|name:&str,args:Json| {
+        let response=host.request("POST",&format!("/m/{name}"),&headers,&json!({"args":args}).to_string());
+        assert_eq!(status(&response),200,"{response}");
+        assert_eq!(body(&response)["state"],"sent","{response}");
+    };
+    seed("setup",json!({}));
+    for n in 0..25 {seed("seedMessage",json!({"key":format!("m{n}"),"at":n}));}
+    for n in (2..=32).chain(std::iter::once(1024)) {seed("seedRoom",json!({"key":format!("r{n:04}"),"total":n*2,"last_read":n}));}
+    for (name,args,rows) in [("W2",json!({"room":"r0001"}),20),("W3",json!({}),32)] {
+        let payload=json!({"args":args}).to_string();
+        let wire=format!("POST /q/{name} HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nContent-Length: {}\r\n{headers}\r\n{payload}",payload.len());
+        let address=host.address;
+        let barrier=Arc::new(std::sync::Barrier::new(129));
+        let clock=Arc::new(std::sync::OnceLock::<Instant>::new());
+        let mut clients=Vec::new();
+        for _ in 0..128 {
+            let wire=wire.clone();let barrier=barrier.clone();let clock=clock.clone();
+            clients.push(thread::spawn(move|| {
+                // Prime the bearer hint and reader pool before the common start.
+                let warm=std::panic::catch_unwind(||exchange(address,&wire));
+                barrier.wait();
+                while clock.get().is_none() { thread::yield_now(); }
+                assert!(warm.is_ok(),"HTTP warm-up failed");
+                let start=clock.get().unwrap();let mut times=Vec::new();let mut refused=0u64;
+                while start.elapsed()<Duration::from_secs(5) {
+                    let at=Instant::now();let response=exchange(address,&wire);
+                    let code=status(&response);let value=body(&response);
+                    if code==503 {assert_eq!(value["denied"]["code"],"E_RATE_LIMIT","unexpected serving error: {value}");refused+=1;continue;}
+                    assert_eq!(code,200,"{response}");
+                    assert_eq!(value["data"].as_array().map(Vec::len),Some(rows),"{value}");
+                    assert_eq!(value["complete"],true,"{value}");
+                    times.push(at.elapsed().as_nanos() as u64);
+                }
+                (times,refused,start.elapsed().as_secs_f64())
+            }));
+        }
+        barrier.wait();clock.set(Instant::now()).unwrap();let mut times=Vec::new();let mut refused=0u64;let mut seconds=0.0f64;
+        for client in clients {let(t,r,s)=client.join().unwrap();times.extend(t);refused+=r;seconds=seconds.max(s);}
+        times.sort_unstable();assert!(!times.is_empty());
+        println!("PIPELINE_HTTP_MEASUREMENT {}",json!({"op":name,"depth":std::env::var("SNAPBACK4_POSTGRES_PIPELINE_DEPTH").unwrap_or("4".into()),"clients":128,"max_connections":30,"http_workers":REQUEST_WORKERS,"http_queue":SHORT_REQUEST_QUEUE,"reads":times.len(),"refused_503":refused,"seconds":seconds,"reads_per_second":times.len() as f64/seconds,"p50_ms":times[times.len()/2] as f64/1e6,"p99_ms":times[times.len()*99/100] as f64/1e6,"connection":"close per request","fixture":"RT0 W2=25 messages/newest20; W3=32 scalar totals"}));
+    }
+}

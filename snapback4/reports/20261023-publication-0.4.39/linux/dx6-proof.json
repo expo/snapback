@@ -1,0 +1,10 @@
+{
+  "status": "passed",
+  "installedSDK": true,
+  "clock": "preserved session, deadline before sweep, pause/drain, explicit expiry, held refusal",
+  "sessions": "complete seeded account and legacy partial literal",
+  "numericAdvance": "valueOf/date/arithmetic",
+  "text": "composed RN, wrapping label, scoped exactness and strict ambiguity",
+  "outcomes": "live decoded body, irreversible cutoff, Wasm/native admission continuation, bearer-scoped auth refusals",
+  "futureStore": "nonzero sql refusal before inspection"
+}

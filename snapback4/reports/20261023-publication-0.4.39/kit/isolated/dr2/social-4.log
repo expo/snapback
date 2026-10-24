@@ -1,0 +1,116 @@
+-- client file start: packages/snapback4/test/social-starter.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: generated feed, chats, profile and search preserve read-state text and controls
+ok 1 - generated feed, chats, profile and search preserve read-state text and controls
+  ---
+  duration_ms: 1358.92875
+  type: 'test'
+  ...
+# Subtest: social seed script creates two password accounts, signs in and refuses cross-user writes
+ok 2 - social seed script creates two password accounts, signs in and refuses cross-user writes
+  ---
+  duration_ms: 1973.018958
+  type: 'test'
+  ...
+# Subtest: new requires an explicit template and names what init creates
+ok 3 - new requires an explicit template and names what init creates
+  ---
+  duration_ms: 5.178834
+  type: 'test'
+  ...
+# Subtest: social starter native: cold owner keys prove old likes and unqueried absence offline
+ok 4 - social starter native: cold owner keys prove old likes and unqueried absence offline
+  ---
+  duration_ms: 2526.925458
+  type: 'test'
+  ...
+# Subtest: social starter web: cold owner keys prove old likes and unqueried absence offline
+ok 5 - social starter web: cold owner keys prove old likes and unqueried absence offline
+  ---
+  duration_ms: 2680.010625
+  type: 'test'
+  ...
+# Subtest: published social starter and guide snippets typecheck against generated operations
+ok 6 - published social starter and guide snippets typecheck against generated operations
+  ---
+  duration_ms: 1870.214584
+  type: 'test'
+  ...
+# Subtest: bounded substitution in both installed and client documentation typechecks
+ok 7 - bounded substitution in both installed and client documentation typechecks
+  ---
+  duration_ms: 2160.759834
+  type: 'test'
+  ...
+# Subtest: installed bounded placeholder documentation makes neither existence claim
+ok 8 - installed bounded placeholder documentation makes neither existence claim
+  ---
+  duration_ms: 1298.749042
+  type: 'test'
+  ...
+# Subtest: social starter runs through the public client: feed, likes, receipts, typing, media and retained history
+ok 9 - social starter runs through the public client: feed, likes, receipts, typing, media and retained history
+  ---
+  duration_ms: 2378.621542
+  type: 'test'
+  ...
+# Subtest: social DM native: concurrent opens converge, held keys resolve offline and an offline race settles
+ok 10 - social DM native: concurrent opens converge, held keys resolve offline and an offline race settles
+  ---
+  duration_ms: 2951.769
+  type: 'test'
+  ...
+# Subtest: social DM web: concurrent opens converge, held keys resolve offline and an offline race settles
+ok 11 - social DM web: concurrent opens converge, held keys resolve offline and an offline race settles
+  ---
+  duration_ms: 2127.444375
+  type: 'test'
+  ...
+# Subtest: guide aliases send schedules, DMs and Expo readers to their owning cards
+ok 12 - guide aliases send schedules, DMs and Expo readers to their owning cards
+  ---
+  duration_ms: 67.880416
+  type: 'test'
+  ...
+# Subtest: social proposal associations are durable, account/backend scoped and preserve every send's arguments
+ok 13 - social proposal associations are durable, account/backend scoped and preserve every send's arguments
+  ---
+  duration_ms: 1352.164708
+  type: 'test'
+  ...
+# Subtest: social starter wasm: offline history predicts in compose order and settles once with receipts
+ok 14 - social starter wasm: offline history predicts in compose order and settles once with receipts
+  ---
+  duration_ms: 2145.550833
+  type: 'test'
+  ...
+# Subtest: social starter wasm: receipt-derived unread badges leave sends pending in history
+ok 15 - social starter wasm: receipt-derived unread badges leave sends pending in history
+  ---
+  duration_ms: 3073.761125
+  type: 'test'
+  ...
+# Subtest: social native: quote windows share ordinal/cursor bounds with receipts
+ok 16 - social native: quote windows share ordinal/cursor bounds with receipts
+  ---
+  duration_ms: 1589.012708
+  type: 'test'
+  ...
+# Subtest: social wasm: quote windows share ordinal/cursor bounds with receipts
+ok 17 - social wasm: quote windows share ordinal/cursor bounds with receipts
+  ---
+  duration_ms: 1805.377541
+  type: 'test'
+  ...
+1..17
+# tests 17
+# suites 0
+# pass 17
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 31807.840083
+-- process inspection: {"snapshots":3,"unrelatedRows":14315}
+-- client file ok: packages/snapback4/test/social-starter.test.mjs (32232 ms)
+-- client files: 1/1; failed 0; tests {"tests":17,"pass":17,"fail":0,"cancelled":0,"skipped":0,"todo":0}

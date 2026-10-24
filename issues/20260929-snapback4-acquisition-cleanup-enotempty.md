@@ -87,3 +87,28 @@ pre-intervention log, native stack samples and isolated controls.
 The complete WD command ended `== 1 failure(s) in 2724 s`: 6,039 ordinary
 client passes, one failure, five existing skips, zero cancellations; the final
 79 models passed. All 68 retained-history cases were attempted.
+
+## Recurrence in social-starter — 0.4.39 Mac publication dry run 2 (2026-10-24)
+
+The same fixture-lifecycle defect hit `packages/snapback4/test/social-starter.test.mjs`. It is the
+one red in the 0.4.39 Mac dry run 2 at `d4441c83b6`: 429/429 files, one failed file.
+
+- **What failed.** Test 9 ("social starter runs through the public client: feed, likes, receipts,
+  typing, media and retained history") reported `failureType: hookFailed`. The `rmSync(dir,
+  {recursive: true, force: true})` after-hook in `starter()` (line 29) failed with
+  `ENOTEMPTY ... .social-test-7EM1yk`.
+- **Cause.** The still-running `snapback4 dev` server's worker created
+  `.snapback4/worker-ledger-*.sqlite` during the rm walk, and the file was left behind.
+  `starter(t)` registers the removal before the test registers its server-kill after-hook.
+  node:test runs `t.after` hooks in registration order (FIFO) and skips the remaining hooks once
+  one throws; this was checked with Node 24. So the dev server was never stopped, and the file
+  took 931,910 ms on the Mac (about 48 s on Linux) before it ended.
+- **Not reproducible alone.** Run alone through the suite's runner on the same tree, the file
+  passed 6/6 (31–34 s, 17/17 tests each, no leftover dirs).
+- **Outcome.** Dry run 3 passed it, and 0.4.39 was published from dry run 3.
+
+The fix direction above applies unchanged to this fixture: stop and reap the server before
+removing its directory, and make cleanup continue after a failing step. `t.after` order is
+registration order, so register removal last or combine both into one hook. Evidence:
+`snapback4/reports/20261023-publication-0.4.39/kit/isolated/dr2/`, `kit/iso-social.log`, and
+`attempt-2-publication-dry-run.log.gz`.

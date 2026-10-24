@@ -1,0 +1,10 @@
+security_wave19 /Users/ccheever/projects/snapback-pub-0428/snapback4/target/debug/deps/security_wave19-6ba213e446d7d3fe /Users/ccheever/projects/snapback-pub-0428/snapback4/crates/snapback4/Cargo.toml
+test run 1 rc=0 4 s load={ 13.47 14.38 51.65 } test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 10 filtered out; finished in 4.07s
+test run 2 rc=0 3 s load={ 13.67 14.41 51.44 } test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 10 filtered out; finished in 3.26s
+test run 3 rc=0 3 s load={ 13.30 14.32 51.19 } test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 10 filtered out; finished in 3.25s
+test run 4 rc=0 3 s load={ 13.30 14.32 51.19 } test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 10 filtered out; finished in 3.17s
+test run 5 rc=0 4 s load={ 13.19 14.28 50.96 } test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 10 filtered out; finished in 3.16s
+target run 1 rc=0 64 s load={ 13.78 14.27 48.26 } test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 64.14s
+target run 2 rc=0 64 s load={ 17.74 15.37 46.18 } test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 64.05s
+target run 3 rc=0 62 s load={ 14.00 14.84 43.89 } test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 62.21s
+iso-done

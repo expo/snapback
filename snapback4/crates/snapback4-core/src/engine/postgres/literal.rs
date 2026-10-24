@@ -340,6 +340,7 @@ pub(super) fn serving_name() -> String {
 pub struct Prepared {
     pub bind: Statement,
     name: String,
+    _cleanup: Option<super::pipeline::PreparedName>,
 }
 impl Prepared {
     /// SQL text and names are trusted adapter constants; all values go through
@@ -355,7 +356,7 @@ impl Prepared {
         let bind = client.prepare(sql)?;
         Self::from_bind(client, name, sql, bind)
     }
-    pub(super) fn from_bind(client: &mut Client, name: &str, sql: &str, bind: Statement) -> Result<Self, RuntimeError> {
+    pub(super) fn from_bind(client: &mut impl Batch, name: &str, sql: &str, bind: Statement) -> Result<Self, RuntimeError> {
         let types = bind
             .params()
             .iter()
@@ -370,6 +371,7 @@ impl Prepared {
         Ok(Self {
             bind,
             name: name.into(),
+            _cleanup: client.prepared_cleanup(name),
         })
     }
     pub fn command(&self, params: &[&(dyn ToSql + Sync)]) -> Result<String, RuntimeError> {
@@ -416,4 +418,15 @@ impl Prepared {
 }
 fn name_of(ty: &Type) -> Result<String, RuntimeError> {
     name(ty)
+}
+
+// The synchronous writer and reader fallback share this exact PREPARE encoder.
+pub(super) trait Batch {
+    fn batch_execute(&mut self, sql: &str) -> Result<(), postgres::Error>;
+    fn prepared_cleanup(&self, _: &str) -> Option<super::pipeline::PreparedName> { None }
+}
+impl Batch for Client { fn batch_execute(&mut self, sql: &str) -> Result<(), postgres::Error> { Client::batch_execute(self,sql) } }
+impl Batch for super::pipeline::Connection {
+    fn batch_execute(&mut self, sql: &str) -> Result<(), postgres::Error> { self.batch_execute(sql) }
+    fn prepared_cleanup(&self, name: &str) -> Option<super::pipeline::PreparedName> { self.prepared_cleanup(name) }
 }

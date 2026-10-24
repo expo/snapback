@@ -115,6 +115,8 @@ pub(super) fn connect(mut config: Config) -> Result<(Client, Arc<AtomicBool>), R
     });
     #[cfg(any(test, feature = "test-support"))]
     crate::round_trips::postgres(1); // startup through ReadyForQuery
+    // The pinned tokio-postgres transport underneath synchronous postgres sets
+    // TCP_NODELAY before startup too; the pipeline TCP socket witness covers both.
     let mut client = config.connect(NoTls)?;
     super::literal::configure(&mut client)?;
     #[cfg(any(test, feature = "test-support"))]
@@ -279,7 +281,7 @@ impl StoreLease {
             ));
         }
         tx.rollback()?;
-        let client = checked.client;
+        let client = checked.client.into_sync();
         Ok(Self {
             client,
             config,

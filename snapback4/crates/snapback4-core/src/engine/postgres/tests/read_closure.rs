@@ -17,6 +17,9 @@ fn engine_with_json(pg: bool, payload: bool) -> (Engine, String, String) {
     engine_with_payload(pg, payload, false)
 }
 fn engine_with_payload(pg: bool, payload: bool, text_nul: bool) -> (Engine, String, String) {
+    engine_with_message_count(pg, payload, text_nul, 3)
+}
+fn engine_with_message_count(pg: bool, payload: bool, text_nul: bool, messages: usize) -> (Engine, String, String) {
     let source = if payload {
         source().replace(
             "  body: text <=4000",
@@ -57,7 +60,7 @@ fn engine_with_payload(pg: bool, payload: bool, text_nul: bool) -> (Engine, Stri
             "memberships",
             json!({"id":format!("g{n}"),"room":room,"principal":viewer,"last_read":n/2}),
         ));
-        for m in 0..3 {
+        for m in 0..messages {
             rows.push(("messages",json!({"id":format!("m{n:04}-{m}"),"room":room,"sender":"u","at":m,"body":"a\tb ' \\ 雪"})));
         }
     }
@@ -111,6 +114,11 @@ fn run(
     args: BTreeMap<String, Value>,
     composed: bool,
 ) -> Json {
+    let mut detached;
+    let e = if composed && matches!(e.store(), AnyStore::Postgres(_)) && !e.store_mut().test_postgres_handle_mut().store.get_mut().read_only {
+        detached = e.reader().unwrap();
+        &mut detached
+    } else { e };
     let context = Context::new(viewer, args)
         .at(1000)
         .with_request_credential(if composed { "account" } else { "reference" });
@@ -280,7 +288,8 @@ fn composed_read_closure_keeps_its_cut_across_commit_and_revocation() {
     let context = Context::new(&viewer, BTreeMap::new())
         .at(1000)
         .with_request_credential("account");
-    let (out, cut, current) = pg.query_materialized_search_with_request(
+    let mut detached = pg.reader().unwrap();
+    let (out, cut, current) = detached.query_materialized_search_with_request(
         "W3",
         context,
         None,
@@ -329,7 +338,7 @@ fn composed_read_closure_keeps_its_cut_across_commit_and_revocation() {
         },
     );
     assert_eq!(expected, json!({"out":out,"cut":cut,"current":current}));
-    let next = run(&mut pg, &digest, &viewer, "W3", BTreeMap::new(), true);
+    let next = run(&mut detached, &digest, &viewer, "W3", BTreeMap::new(), true);
     assert_eq!(next["out"]["Err"]["code"], "E_AUTH");
 }
 
@@ -503,4 +512,110 @@ fn g4a_fix1_nul_text_remains_legal_in_composed_reads() {
         assert_eq!(expected,run(&mut pg,&d,&viewer,name,args.clone(),false));
         assert_eq!(expected,run(&mut pg,&d,&viewer,name,args,true),"legal NUL text in {name}");
     }
+}
+
+/// Manual core serving-path load, not an HTTP capacity/SLO qualification.
+#[test]
+#[ignore = "manual private PG16 measurement; SNAPBACK4_PIPELINE_MEASURE=1"]
+fn pipeline_measure_w2_w3_128_clients() {
+    if std::env::var("SNAPBACK4_PIPELINE_MEASURE").as_deref()!=Ok("1") { return; }
+    use std::{sync::{Arc,Barrier},time::{Duration,Instant}};
+    let (pg,digest,viewer)=engine_with_message_count(true,false,false,20);
+    for name in ["W2","W3"] {
+        let barrier=Arc::new(Barrier::new(129));
+        let clock=Arc::new(std::sync::OnceLock::<Instant>::new());
+        let mut clients=Vec::new();
+        for _ in 0..128 {
+            let mut e=pg.reader().unwrap();
+            let digest=digest.clone(); let viewer=viewer.clone(); let barrier=barrier.clone(); let clock=clock.clone();
+            let args=if name=="W2" {[("room".into(),Value::Id("r'\\\né".into()))].into()} else {BTreeMap::new()};
+            clients.push(std::thread::spawn(move|| {
+                // Warm the interpreter and both driver paths before the common start.
+                let warm=std::panic::catch_unwind(std::panic::AssertUnwindSafe(||run(&mut e,&digest,&viewer,name,args.clone(),true)));
+                barrier.wait();
+                while clock.get().is_none() { std::thread::yield_now(); }
+                assert!(warm.is_ok_and(|out|out["out"]["Ok"].is_object()),"core warm-up failed");
+                let start=clock.get().unwrap(); let mut times=Vec::new();
+                while start.elapsed()<Duration::from_secs(5) {
+                    let at=Instant::now();
+                    let out=run(&mut e,&digest,&viewer,name,args.clone(),true);
+                    assert!(out["out"]["Ok"].is_object(),"{out}");
+                    times.push(at.elapsed().as_nanos() as u64);
+                }
+                (times,start.elapsed().as_secs_f64())
+            }));
+        }
+        barrier.wait(); clock.set(Instant::now()).unwrap(); let mut times=Vec::new(); let mut seconds=0.0f64;
+        for client in clients {let (t,s)=client.join().unwrap();times.extend(t);seconds=seconds.max(s);}
+        times.sort_unstable();
+        println!("PIPELINE_MEASUREMENT {}",json!({"op":name,"depth":std::env::var("SNAPBACK4_POSTGRES_PIPELINE_DEPTH").unwrap_or("4".into()),"clients":128,"max_connections":30,"reads":times.len(),"seconds":seconds,"reads_per_second":times.len() as f64/seconds,"p50_ms":times[times.len()/2] as f64/1e6,"p99_ms":times[times.len()*99/100] as f64/1e6}));
+    }
+}
+
+#[test]
+#[ignore = "private PG16; real failed pipeline facts statement and fresh fallback"]
+fn pipeline_read_closure_sql_failure_rechecks_revoked_authority() {
+    let (mut pg, digest, viewer) = engine(true);
+    let mut detached = pg.reader().unwrap();
+    // A view over the retained session row raises inside the real composed
+    // statement. The hook repairs the fixture and revokes authority only after
+    // that implicit transaction has failed, before ordinary fallback opens.
+    pg.store_mut().test_postgres_handle_mut().store.get_mut().client.batch_execute(
+        "ALTER TABLE _sessions RENAME TO _pipe_saved_sessions; CREATE VIEW _sessions AS SELECT * FROM _pipe_saved_sessions WHERE 1 / (pg_catalog.length(token_digest)-pg_catalog.length(token_digest)) = 1"
+    ).unwrap();
+    let revoked_viewer = viewer.clone();
+    super::super::read_closure::AFTER_FAILED_STATEMENT.with(|hook| *hook.borrow_mut() = Some(Box::new(move || {
+        pg.store_mut().test_postgres_handle_mut().store.get_mut().client.batch_execute(
+            "DROP VIEW _sessions; ALTER TABLE _pipe_saved_sessions RENAME TO _sessions"
+        ).unwrap();
+        identity::revoke_principal(pg.store(), &revoked_viewer).unwrap();
+    })));
+    let out = run(&mut detached, &digest, &viewer, "W3", BTreeMap::new(), true);
+    assert_eq!(out["out"]["Err"]["code"], "E_AUTH", "failed pipeline speculation must obtain fresh authority: {out}");
+    assert!(super::super::read_closure::AFTER_FAILED_STATEMENT.with(|hook| hook.borrow().is_none()), "the real SQL error must execute the fallback hook");
+}
+
+#[test]
+#[ignore = "private PG16; future readers and factory recovery, not in-flight replay"]
+fn pipeline_read_closure_future_requests_recover_and_recheck_store_binding() {
+    fn pid(e: &mut Engine) -> i32 {
+        e.store_mut().test_postgres_handle_mut().store.get_mut().client.query_one("SELECT pg_backend_pid()", &[]).unwrap().get(0)
+    }
+    fn wait_closed(e: &mut Engine) {
+        let until=std::time::Instant::now()+std::time::Duration::from_secs(5);
+        while !e.store_mut().test_postgres_handle_mut().store.get_mut().client.is_closed() {
+            assert!(std::time::Instant::now()<until,"reader did not observe its terminated backend");
+            std::thread::sleep(std::time::Duration::from_millis(2));
+        }
+    }
+    let (mut pg,digest,viewer)=engine(true);
+    let mut source=pg.reader().unwrap();
+    let source_pid=pid(&mut source);
+    // Keep the source and a request on the same capped physical connection.
+    let mut held=Vec::new(); let mut loan=None;
+    for _ in 0..60 {
+        let mut next=source.reader().unwrap();
+        if pid(&mut next)==source_pid {loan=Some(next);break;}
+        held.push(next);
+    }
+    let mut loan=loan.expect("the reader pool must reuse a connection");
+    let expected=run(&mut loan,&digest,&viewer,"W3",BTreeMap::new(),true);
+    assert!(expected["out"]["Ok"].is_object());
+    assert!(pg.store_mut().test_postgres_handle_mut().store.get_mut().client.query_one("SELECT pg_terminate_backend($1)",&[&source_pid]).unwrap().get::<_,bool>(0));
+    wait_closed(&mut loan);
+    assert_eq!(run(&mut loan,&digest,&viewer,"W3",BTreeMap::new(),true),expected,"a future request must replace a known-closed socket before starting");
+    let mut fresh=source.reader().expect("a lost source socket must not permanently wedge the reader factory");
+    assert_eq!(run(&mut fresh,&digest,&viewer,"W3",BTreeMap::new(),true),expected);
+
+    let original:String=pg.store_mut().test_postgres_handle_mut().store.get_mut().client.query_one("SELECT value FROM _meta WHERE key='store_id'",&[]).unwrap().get(0);
+    let victim=pid(&mut fresh);
+    pg.store_mut().test_postgres_handle_mut().store.get_mut().client.query_one("SELECT pg_terminate_backend($1)",&[&victim]).unwrap();
+    wait_closed(&mut fresh);
+    pg.store_mut().test_postgres_handle_mut().store.get_mut().client.execute("UPDATE _meta SET value='replaced-store' WHERE key='store_id'",&[]).unwrap();
+    for _ in 0..2 {
+        let refused=run(&mut fresh,&digest,&viewer,"W3",BTreeMap::new(),true);
+        assert_eq!(refused["out"]["Err"]["code"],"E_GENERATION","reconnection must keep refusing a different logical store: {refused}");
+    }
+    pg.store_mut().test_postgres_handle_mut().store.get_mut().client.execute("UPDATE _meta SET value=$1 WHERE key='store_id'",&[&original]).unwrap();
+    assert_eq!(run(&mut fresh,&digest,&viewer,"W3",BTreeMap::new(),true),expected,"a failed binding check must not be marked validated");
 }

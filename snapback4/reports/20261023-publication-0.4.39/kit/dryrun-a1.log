@@ -1,0 +1,2 @@
+./publish-lowpar.sh: line 12: 61367 Terminated: 15          "$S" "$@"
+STOPPED at publication-dry-run

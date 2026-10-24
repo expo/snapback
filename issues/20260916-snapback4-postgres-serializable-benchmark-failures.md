@@ -370,3 +370,19 @@ no retry, backoff, workload, skip, timeout or durability change was made.
 The broad red is retained; the [G4a report](../snapback4/reports/20261023-g4a-reads/REPORT.md)
 records the complete sweep and confirmed owned-process cleanup. Raw logs
 remain outside Git under `/tmp/sb4-g4a`.
+
+## 2026-10-24 — PIPE private sweep
+
+The complete stock-script attempt on expo-build-450a reproduces the retained
+`evaluator_concurrent_read_modify_write_and_duplicate_ops_are_atomic_in_both_modes`
+failure at `experiments/postgres/tests/conformance.rs:294`, then the join at
+:307. A worker returns SQLSTATE `40001` (`could not serialize access due to
+concurrent update`). Conformance reports 21 passed / 1 failed / three existing
+filtered cases in 705.26 seconds. The serialized control retains all 65
+increments with zero retries; the common-engine concurrency case passes.
+The stress body is unchanged from PIPE's `bd50485b8c` base. No retry, backoff,
+workload, timeout, durability or exclusion changes, and no isolated retry is
+used to replace this broad-run red. Reader transport qualification and the
+remaining stock stages are recorded in the
+[PIPE report](../snapback4/reports/20261024-pipe/REPORT.md). Raw evidence is
+retained outside Git under `/tmp/sb4-pipe/postgres-final.log`.
