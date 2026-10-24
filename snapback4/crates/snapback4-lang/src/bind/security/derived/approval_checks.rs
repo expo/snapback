@@ -2,7 +2,8 @@
 // @ref LLP 3000.036.004.000#10-sec10-approvals-and-deterministic-exploration — source custody alone cannot validate changed evidence.
 use super::*;
 use snapback4_core::Value;
-#[derive(Clone)]pub(crate) struct ApprovalCheck{columns:BTreeSet<String>,predicate:Option<ast::Expr>}
+#[derive(Clone)]struct Clause{columns:BTreeSet<String>,predicate:Option<ast::Expr>}
+#[derive(Clone)]pub(crate) struct ApprovalCheck{clauses:Vec<Clause>,bindings:BTreeMap<String,String>,selectors:Vec<Option<ast::Expr>>}
 const ARG:&str="$approval-arg:";
 fn walk(e:&ast::Expr,mut visit:impl FnMut(&ast::Expr)){let mut e=e.clone();super::super::super::intent_walk::expression(&mut e,&mut |e|visit(e));}
 fn clauses(e:&ast::Expr)->Vec<&ast::Expr>{match e{ast::Expr::Binary{op,left,right,..} if op=="and"=>clauses(left).into_iter().chain(clauses(right)).collect(),_=>vec![e]}}
@@ -30,10 +31,18 @@ pub(super) fn collect(sources:&[(String,String)],bound:&Bound)->BTreeMap<(String
                 // be the row image on which its actual require was evaluated.
                 walk(&condition,|e|if let ast::Expr::Read(read)|ast::Expr::Exists{read,..}=e&&writes.iter().any(|(write,_)|matches!(write,ast::Expr::Write{table:target,..} if target==&read.table)){predicate=None;});
                 if let Some(normalized)=&predicate{let mut foreign=false;walk(normalized,|e|if let ast::Expr::Member{base,..}=e&&let Some(owner)=super::super::concrete::reference_table(base,&bound.schema,table)&&owner!=table&&writes.iter().any(|(write,_)|matches!(write,ast::Expr::Write{table:target,..} if target==owner)){foreign=true;});if foreign{predicate=None;}}
-                checks.push(ApprovalCheck{columns,predicate});
+                checks.push(Clause{columns,predicate});
             }
+            let bindings=fields.iter().filter_map(|field|if let Some(ast::Expr::Name{name,..})=&field.value&&p.args.iter().any(|arg|arg.name==*name){Some((field.name.clone(),name.clone()))}else{None}).collect();
+            // Different expanded helper invocations can share a write site.
+            // Select their actual caller branch/bindings before judging data.
+            let selectors=context.body.iter().filter_map(|stmt|if let ast::Stmt::Require{condition,code,..}=stmt&&code=="$advice"{Some(condition)}else{None}).map(|condition|{
+                let mut stable=true;walk(condition,|e|if matches!(e,ast::Expr::Read(_)|ast::Expr::Member{..}|ast::Expr::Exists{..}){stable=false;});
+                if stable{workflow::normalize(condition,&bound.schema,table,&arguments)}else{None}
+            }).collect();
+            let invocation=ApprovalCheck{clauses:checks,bindings,selectors};
             for stamp in bound.schema.tables[table].columns.keys().filter(|stamp|["approv","authoriz"].iter().any(|part|stamp.to_lowercase().contains(part))){
-                out.entry((program.clone(),table.clone(),stamp.clone(),site.to_string())).or_default().extend(checks.clone());
+                out.entry((program.clone(),table.clone(),stamp.clone(),site.to_string())).or_default().push(invocation.clone());
             }
         }
     }}out
@@ -44,13 +53,23 @@ pub(crate) fn revalidated(bound:&Bound,program:&str,table:&str,stamp:&str,site:O
     let cell=|row:&Value,column:&str|row.field(column).ok().cloned().unwrap_or(Value::Null);
     let Some(checks)=site.and_then(|site|bound.security_approval_checks.get(&(program.into(),table.into(),stamp.into(),site.into())))else{return None;};
     let mut image=next.clone();if let Value::Row(fields)|Value::Map(fields)=&mut image{for (name,value) in args{fields.insert(format!("{ARG}{name}"),value.clone());}}
+    let mut verdicts=Vec::new();
+    for invocation in checks{
+        if invocation.bindings.iter().any(|(column,arg)|args.get(arg).is_some_and(|value|cell(next,column)!=*value)){continue;}
+        if checks.len()>1&&invocation.selectors.iter().any(|selector|selector.as_ref().and_then(|selector|super::super::concrete::evaluate(selector,&image,rows,&bound.schema,viewer,table,now))==Some(false)){continue;}
+        let verdict=(||{
     let mut unknown=false;
     for column in columns.iter().filter(|column|cell(old,column)!=cell(next,column)){
         // Atomic consumption of another approval is not ordinary replacement
         // data. Its receipt graph, rather than a negative new stamp, governs it.
         if ["approv","authoriz"].iter().any(|part|column.to_lowercase().contains(part))&&matches!(cell(old,column),Value::Bool(true)|Value::Int(_))&&matches!(cell(next,column),Value::Bool(false)|Value::Null){unknown=true;continue;}
-        let relevant=checks.iter().filter(|check|check.columns.contains(column)).collect::<Vec<_>>();if relevant.is_empty(){return Some(false);}
+        let relevant=invocation.clauses.iter().filter(|check|check.columns.contains(column)).collect::<Vec<_>>();if relevant.is_empty(){return Some(false);}
         for check in relevant{match check.predicate.as_ref().and_then(|predicate|super::super::concrete::evaluate(predicate,&image,rows,&bound.schema,viewer,table,now)){Some(false)=>return Some(false),None=>unknown=true,_=>{}}}
     }
     if unknown{None}else{Some(true)}
+        })();verdicts.push(verdict);
+    }
+    // Ambiguous executions may agree, but one unexecuted alternative's check
+    // must never refute a legitimate invocation or mint a trusted receipt.
+    if !verdicts.is_empty()&&verdicts.iter().all(|verdict|*verdict==Some(true)){Some(true)}else if !verdicts.is_empty()&&verdicts.iter().all(|verdict|*verdict==Some(false)){Some(false)}else{None}
 }

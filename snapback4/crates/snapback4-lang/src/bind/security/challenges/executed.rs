@@ -553,4 +553,10 @@ fn lifecycle_observations(source:String,operation:&str,args:BTreeMap<String,Valu
     }
 }
 
+#[test]fn shared_reapproval_helper_selects_the_executed_invocation(){
+    let source="table docs:\n  score: int\n  approved: bool default false\n  read <- allow\n  update <- allow\n  online only\nfn checked(doc: docs,score: int):\n  require score > 0 else BAD_SCORE\n  update docs[doc] {score,approved:true}\n  return null\nmutation edit(doc: docs,first: int,second: int,choice: bool):\n  if choice:\n    checked(doc,first)\n  else:\n    checked(doc,second)\n";
+    let sources=vec![("schema.q".into(),source.into())];let b=super::super::super::derived::augmented(&sources,&crate::compile(&sources));assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
+    for choice in [true,false]{let mut engine=Engine::memory(b.schema.clone(),b.programs.iter().map(|p|p.program.clone())).unwrap();let row=snapback4_core::wire::row_from_json(&b.schema.tables["docs"],&serde_json::json!({"id":"d","score":1,"approved":true})).unwrap();engine.seed_at([("docs".into(),row)],NOW).unwrap();let p=&b.programs.iter().find(|p|p.program.name=="edit").unwrap().program;let trace=trace(&b,p,&engine);let result=engine.mutate("edit",None,Context::new("dev:a",BTreeMap::from([("doc".into(),Value::Id("d".into())),("first".into(),Value::Int(if choice{2}else{-1})),("second".into(),Value::Int(if choice{-1}else{2})),("choice".into(),Value::Bool(choice))])).at(NOW).with_fixture_trace(trace.clone())).unwrap();assert!(matches!(result.state,snapback4_core::WriteState::Sent{..}));let observations=trace.take();assert!(observations.iter().any(|o|o.site.starts_with("$derived/")&&o.allowed==Some(true)),"{observations:?}");assert!(!observations.iter().any(|o|o.allowed==Some(false)),"{observations:?}");}
+}
+
 }

@@ -318,3 +318,14 @@ fn campaign(s:&str)->Campaign{let b=security::derived::augmented(&sources(s),&bo
     let source="table docs:\n  approved: bool default false\n  status: enum('draft','done') default 'draft'\n  read <- allow\n  update <- allow\n  online only\nmutation approve(doc: docs):\n  update docs[doc] {approved:true}\nmutation finish(doc: docs):\n  d = docs[doc] ! else MISSING\n  require not d.approved else FROZEN\n  update docs[doc] {status:'done'}\nEXTRA";
     for (extra,expected) in [("",false),("mutation bypass(doc: docs):\n  update docs[doc] {status:'done'}\n",true)]{assert_eq!(notes(&source.replace("EXTRA",extra)).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"),expected);}
 }
+
+#[test]fn enforced_corpus_approvals_and_exact_decision_audits_do_not_gate(){
+    for source in [include_str!("security/sec10-controls/w18-043.q"),include_str!("security/sec10-controls/w20-010.q"),include_str!("security/sec10-controls/w22-024.q"),include_str!("security/sec10-controls/w24-038.q"),include_str!("security/sec10-controls/w26-018.q"),include_str!("security/sec10-controls/w26-048.q")]{assert!(!notes(source).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"),"{:?}",notes(source));}
+}
+#[test]fn scalar_freezes_are_matched_to_each_affected_column(){
+    let source="table docs:\n  approved: bool default false\n  status: enum('draft','done') default 'draft'\n  phase: enum('open','closed') default 'open'\n  immutable status when .approved = true\n  read <- allow\n  update <- allow\n  online only\nmutation approve(doc: docs):\n  update docs[doc] {approved:true}\nmutation finish(doc: docs):\n  update docs[doc] {status:'done'}\nEXTRA";
+    assert!(!notes(&source.replace("EXTRA","")).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
+    assert!(notes(&source.replace("EXTRA","mutation bypass(doc: docs):\n  update docs[doc] {phase:'closed'}\n")).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
+    let dynamic=source.replace("EXTRA","").replace("mutation finish(doc: docs):\n  update docs[doc] {status:'done'}","mutation finish(doc: docs,next: enum('draft','done')):\n  update docs[doc] {status:next,approved:true}").replace("  immutable status when .approved = true\n","");
+    assert!(notes(&dynamic).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
+}
