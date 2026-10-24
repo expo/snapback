@@ -1,4 +1,4 @@
-//! Revision-equality reuse. No authority, dependency promotion or clock grant.
+//! Exact revision reuse: one fresh statement (G5), or a live read grant (G6).
 // @ref LLP 3000.009.001.000.002#4.1 — immutable snapshot results reuse only at exactly their fill revision.
 use super::{Context, DeliveryManifest, Engine, QueryOutcome};
 use crate::{Refusal, identity::facts::SessionFacts};
@@ -39,6 +39,11 @@ impl Default for Limits {
 #[derive(Clone, Copy, Debug, Default, serde::Serialize)]
 pub struct Stats {
     pub hits: u64,
+    pub g6_hits: u64,
+    pub g6_hit_stall_ns: u64,
+    pub g6_stalled_hits: u64,
+    pub g6_max_hit_stall_ns: u64,
+    pub gate: super::postgres::read_grant::GateStats,
     pub misses: u64,
     pub mismatches: u64,
     pub evictions: u64,
@@ -56,6 +61,7 @@ struct Budget {
 struct Reservation {
     budget: Arc<Budget>,
     bytes: usize,
+    encoded_data: Option<Box<serde_json::value::RawValue>>,
 }
 impl Drop for Reservation {
     fn drop(&mut self) {
@@ -82,12 +88,19 @@ impl Budget {
         Some(Reservation {
             budget: self.clone(),
             bytes,
+            encoded_data: None,
         })
     }
 }
 /// Host-only retention accounting; it is deliberately absent from wire/value equality.
 #[derive(Clone, Default)]
 pub struct Lifetime(Option<Arc<Reservation>>);
+impl Lifetime {
+    /// Same Plain wire representation, charged to the retained entry budget.
+    pub fn encoded_data(&self) -> Option<&serde_json::value::RawValue> {
+        self.0.as_ref()?.encoded_data.as_deref()
+    }
+}
 impl std::fmt::Debug for Lifetime {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str("CacheLifetime")
@@ -100,15 +113,7 @@ impl PartialEq for Lifetime {
 }
 impl Eq for Lifetime {}
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-struct Stamp {
-    revision: i64,
-    head: u64,
-    store: String,
-    generation: i64,
-    schema: String,
-    code: String,
-}
+type Stamp = super::postgres::read_grant::Published;
 impl Stamp {
     fn of(f: &SessionFacts) -> Option<Self> {
         let revision = f.revision.filter(|r| *r >= 0)?;
@@ -132,6 +137,8 @@ impl Stamp {
 struct Entry {
     stamp: Stamp,
     outcome: QueryOutcome,
+    facts: SessionFacts,
+    epoch: Option<String>,
     lifetime: Lifetime,
     owner: Key,
 }
@@ -179,6 +186,12 @@ pub(crate) struct Cache {
     bookkeeping: OnceLock<Option<Reservation>>,
     state: Mutex<State>,
     code: OnceLock<(String, String)>,
+    grant: OnceLock<Arc<super::postgres::read_grant::Grant>>,
+    retired_grant: std::sync::atomic::AtomicBool,
+    g6_hits: AtomicU64,
+    g6_hit_stall_ns: AtomicU64,
+    g6_stalled_hits: AtomicU64,
+    g6_max_hit_stall_ns: AtomicU64,
     hits: AtomicU64,
     misses: AtomicU64,
     mismatches: AtomicU64,
@@ -212,6 +225,12 @@ impl Cache {
             bookkeeping: OnceLock::new(),
             state: Default::default(),
             code: OnceLock::new(),
+            grant: OnceLock::new(),
+            retired_grant: std::sync::atomic::AtomicBool::new(false),
+            g6_hits: AtomicU64::new(0),
+            g6_hit_stall_ns: AtomicU64::new(0),
+            g6_stalled_hits: AtomicU64::new(0),
+            g6_max_hit_stall_ns: AtomicU64::new(0),
             hits: AtomicU64::new(0),
             misses: AtomicU64::new(0),
             mismatches: AtomicU64::new(0),
@@ -338,6 +357,11 @@ impl Cache {
     pub(crate) fn stats(&self) -> Stats {
         Stats {
             hits: self.hits.load(Ordering::Relaxed),
+            g6_hits: self.g6_hits.load(Ordering::Relaxed),
+            g6_hit_stall_ns: self.g6_hit_stall_ns.load(Ordering::Relaxed),
+            g6_stalled_hits: self.g6_stalled_hits.load(Ordering::Relaxed),
+            g6_max_hit_stall_ns: self.g6_max_hit_stall_ns.load(Ordering::Relaxed),
+            gate: self.grant.get().map_or(Default::default(), |g| g.stats()),
             misses: self.misses.load(Ordering::Relaxed),
             mismatches: self.mismatches.load(Ordering::Relaxed),
             evictions: self.evictions.load(Ordering::Relaxed),
@@ -358,7 +382,15 @@ impl Drop for Fill {
     }
 }
 impl Fill {
-    fn install(mut self, key: Key, owner: Key, stamp: Stamp, outcome: &QueryOutcome) -> Lifetime {
+    fn install(
+        mut self,
+        key: Key,
+        owner: Key,
+        stamp: Stamp,
+        outcome: &QueryOutcome,
+        facts: SessionFacts,
+        epoch: Option<String>,
+    ) -> Lifetime {
         if !outcome.complete
             || outcome.unavailable
             || outcome.pending_opening.is_some()
@@ -378,7 +410,34 @@ impl Fill {
         let Some(metadata_bytes) = outcome.data.cache_metadata_bytes() else {
             return Lifetime::default();
         };
-        let bytes = (outcome.data.retained_heap_bytes() as usize)
+        let fact_bytes = facts
+            .sessions
+            .iter()
+            .map(|s| {
+                s.principal.capacity()
+                    + s.family.capacity()
+                    + s.kind.capacity()
+                    + s.digest.capacity()
+                    + 256
+            })
+            .sum::<usize>()
+            + [
+                &facts.worker_family,
+                &facts.worker_revision,
+                &facts.family_revision,
+                &facts.store_generation,
+                &facts.store_id,
+                &facts.schema_hash,
+                &facts.activation_hash,
+                &facts.device_generation,
+            ]
+            .iter()
+            .map(|s| s.as_ref().map_or(0, |s| s.capacity() + 64))
+            .sum::<usize>()
+            + epoch.as_ref().map_or(0, |e| e.capacity() + 64)
+            + 1024;
+        let bytes = fact_bytes
+            .saturating_add(outcome.data.retained_heap_bytes() as usize)
             .saturating_mul(3)
             .saturating_add(metadata_bytes)
             .saturating_add(outcome.next.as_ref().map_or(0, String::capacity))
@@ -392,10 +451,17 @@ impl Fill {
             .saturating_add(
                 stamp.store.capacity() + stamp.schema.capacity() + stamp.code.capacity() + 2048,
             );
-        let reservation = self.reservation.as_mut().unwrap();
-        if bytes > reservation.bytes {
+        let reserved = self.reservation.as_ref().unwrap().bytes;
+        let Some(available) = reserved.checked_sub(bytes.saturating_add(128)) else {
             return Lifetime::default();
-        }
+        };
+        let Some(encoded) = encode_data(&outcome.data, available) else {
+            return Lifetime::default();
+        };
+        let bytes = bytes
+            .saturating_add(encoded.get().len())
+            .saturating_add(128);
+        let reservation = self.reservation.as_mut().unwrap();
         let Ok(mut s) = self.cache.state.try_lock() else {
             return Lifetime::default();
         };
@@ -410,12 +476,15 @@ impl Fill {
             }
             self.cache.evictions.fetch_add(1, Ordering::Relaxed);
         }
+        reservation.encoded_data = Some(encoded);
         let excess = reservation.bytes - bytes;
         reservation.bytes = bytes;
         reservation.budget.used.fetch_sub(excess, Ordering::AcqRel);
         PROCESS_USED.fetch_sub(excess, Ordering::AcqRel);
         let lifetime = Lifetime(Some(Arc::new(self.reservation.take().unwrap())));
         let entry = Arc::new(Entry {
+            facts,
+            epoch,
             stamp,
             outcome: outcome.clone(),
             lifetime: lifetime.clone(),
@@ -428,6 +497,41 @@ impl Fill {
         *s.owners.entry(owner).or_default() += 1;
         lifetime
     }
+}
+
+// JSON escaping can expand a small value. Bound the temporary encoding by
+// the already-held fill reservation, before allocating or retaining its bytes.
+fn encode_data(data: &crate::Value, limit: usize) -> Option<Box<serde_json::value::RawValue>> {
+    struct Limited {
+        data: Vec<u8>,
+        limit: usize,
+    }
+    impl std::io::Write for Limited {
+        fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+            let n = self
+                .data
+                .len()
+                .checked_add(bytes.len())
+                .filter(|n| *n <= self.limit)
+                .ok_or_else(|| std::io::Error::other("cache encoding exceeds fill reservation"))?;
+            if n > self.data.capacity() {
+                self.data
+                    .try_reserve_exact(n - self.data.len())
+                    .map_err(std::io::Error::other)?;
+            }
+            self.data.extend_from_slice(bytes);
+            Ok(bytes.len())
+        }
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+    let mut buffer = Limited {
+        data: Vec::with_capacity(limit.min(4096)),
+        limit,
+    };
+    serde_json::to_writer(&mut buffer, &crate::wire::Plain(data)).ok()?;
+    serde_json::value::RawValue::from_string(String::from_utf8(buffer.data).ok()?).ok()
 }
 
 struct Hasher(Sha256);
@@ -550,7 +654,7 @@ impl Engine {
         Some((key, hash(&c.viewer)?))
     }
 
-    // @ref LLP 3000.009.001.000.002#4.3 — a hit authenticates from its fresh statement; a fill borrows the ordinary query cut.
+    // @ref LLP 3000.009.001.000.002#4.3 — a hit authenticates at its validated revision; a fill borrows the ordinary query cut.
     pub(super) fn query_cached_request(
         &mut self,
         name: &str,
@@ -565,27 +669,100 @@ impl Engine {
         Option<Vec<String>>,
     ) {
         let cache = self.revision_cache.clone();
-        let key = self.cache_key(name, &context, retained, manifest, digest);
+        let grant = self.store.read_grant();
+        if let Some(g) = &grant {
+            let _ = cache.grant.set(g.clone());
+            if (g.revoked.load(Ordering::Acquire) || g.uncertain.load(Ordering::Acquire))
+                && !cache.retired_grant.swap(true, Ordering::AcqRel)
+            {
+                *cache.state.lock().unwrap_or_else(|p| p.into_inner()) = State::default();
+            }
+        }
+        let uncertain = grant
+            .as_ref()
+            .is_some_and(|g| g.uncertain.load(Ordering::Acquire));
+        let key = if uncertain {
+            None
+        } else {
+            self.cache_key(name, &context, retained, manifest, digest)
+        };
         let (candidate, admit) = key
             .map(|(key, _)| cache.lookup(key))
             .unwrap_or((None, false));
         if let Some(entry) = candidate {
-            let checked = (|| {
-                let Some(tx) = self.store.result_validation_snapshot(digest)? else {
-                    return Ok(None);
-                };
-                let current = tx.result_cache_facts().and_then(Stamp::of);
-                if current.as_ref() != Some(&entry.stamp) {
-                    tx.rollback()?;
-                    return Ok(None);
+            let mut locally_changed = false;
+            // @ref LLP 3000.009.001.000.002#4.3 — one gate read captures grant/epoch, fresh authority, revision and response identity.
+            if let Some(grant) = &grant
+                && let Some((state, stall)) = grant.read()
+            {
+                // Recheck the suspend-aware deadline synchronously at the actual
+                // read point, after lock waits and before resolving authority.
+                if let Some(epoch) = grant.live(&state)
+                    && entry.epoch.as_deref() == Some(epoch)
+                    && state.published.as_ref() == Some(&entry.stamp)
+                {
+                    let result = (|| {
+                        let tx = self
+                            .store
+                            .cached_authority_snapshot(digest, entry.facts.clone())?;
+                        snapshot(&tx, entry.stamp.head)?;
+                        tx.rollback()?;
+                        if grant.live(&state) != Some(epoch) {
+                            return Ok(None);
+                        }
+                        let mut outcome = entry.outcome.clone();
+                        outcome.cache_lifetime = entry.lifetime.clone();
+                        outcome.seq = entry.stamp.head;
+                        Ok::<_, Refusal>(Some(outcome))
+                    })();
+                    match result {
+                        Ok(Some(outcome)) => {
+                            let seq = outcome.seq;
+                            cache.hits.fetch_add(1, Ordering::Relaxed);
+                            cache.g6_hits.fetch_add(1, Ordering::Relaxed);
+                            if stall > 0 {
+                                cache.g6_stalled_hits.fetch_add(1, Ordering::Relaxed);
+                                cache.g6_hit_stall_ns.fetch_add(stall, Ordering::Relaxed);
+                                cache
+                                    .g6_max_hit_stall_ns
+                                    .fetch_max(stall, Ordering::Relaxed);
+                            }
+                            return (Ok(outcome), Some(seq), None);
+                        }
+                        Err(error) => return (Err(error), None, None),
+                        Ok(None) => (),
+                    }
                 }
-                snapshot(&tx, entry.stamp.head)?;
-                tx.rollback()?;
-                let mut outcome = entry.outcome.clone();
-                outcome.cache_lifetime = entry.lifetime.clone();
-                outcome.seq = entry.stamp.head;
-                Ok::<_, Refusal>(Some(outcome))
-            })();
+                // A local revision mismatch is already proof of a miss. Avoid a
+                // redundant G5 validation statement; ordinary miss flights stay intact.
+                if state.published.as_ref() != Some(&entry.stamp) {
+                    locally_changed = true;
+                }
+            }
+            let checked = if locally_changed
+                || grant
+                    .as_ref()
+                    .is_some_and(|g| g.uncertain.load(Ordering::Acquire))
+            {
+                Ok(None)
+            } else {
+                (|| {
+                    let Some(tx) = self.store.result_validation_snapshot(digest)? else {
+                        return Ok(None);
+                    };
+                    let current = tx.result_cache_facts().and_then(Stamp::of);
+                    if current.as_ref() != Some(&entry.stamp) {
+                        tx.rollback()?;
+                        return Ok(None);
+                    }
+                    snapshot(&tx, entry.stamp.head)?;
+                    tx.rollback()?;
+                    let mut outcome = entry.outcome.clone();
+                    outcome.cache_lifetime = entry.lifetime.clone();
+                    outcome.seq = entry.stamp.head;
+                    Ok::<_, Refusal>(Some(outcome))
+                })()
+            };
             match checked {
                 Ok(Some(outcome)) => {
                     cache.hits.fetch_add(1, Ordering::Relaxed);
@@ -618,10 +795,18 @@ impl Engine {
         } else {
             None
         };
+        let fill_epoch = grant.as_ref().and_then(|g| {
+            g.state
+                .try_read()
+                .ok()
+                .and_then(|s| g.live(&s).map(str::to_owned))
+        });
         let mut stamp = None;
+        let mut fill_facts = None;
         let mut borrow = |tx: &crate::store_port::ReadSnapshot<'_>, seq| {
             snapshot(tx, seq)?;
             stamp = tx.result_cache_facts().and_then(Stamp::of);
+            fill_facts = tx.result_cache_facts().cloned();
             Ok(())
         };
         let (mut cut, mut current) = (None, None);
@@ -653,7 +838,8 @@ impl Engine {
                     .as_ref()
                     .is_none_or(|c| crate::cursor::decode_cursor(&self.schema, c).is_ok());
                 if cursor {
-                    outcome.cache_lifetime = fill.install(key, owner, stamp, outcome);
+                    outcome.cache_lifetime =
+                        fill.install(key, owner, stamp, outcome, fill_facts.unwrap(), fill_epoch);
                 }
             }
         }

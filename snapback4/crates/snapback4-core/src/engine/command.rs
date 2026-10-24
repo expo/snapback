@@ -90,6 +90,8 @@ pub struct Queue {
 #[derive(Default)]
 struct Admission {
     lost: bool,
+    #[cfg(feature="postgres")]
+    grant: Option<Arc<super::postgres::read_grant::Grant>>,
     #[cfg(feature = "postgres")]
     deadline: Option<crate::store_port::LeaseDeadline>,
     next: u64,
@@ -101,11 +103,13 @@ struct Ticket {
     started: Arc<std::sync::atomic::AtomicBool>,
 }
 impl Ticket {
-    fn start_execution(&self) -> bool {
+    fn start_execution(&self, engine:&Engine) -> bool {
+        #[cfg(feature="postgres")] {self.admission.lock().unwrap().grant=engine.store.read_grant();}
+        #[cfg(not(feature="postgres"))] let _=engine;
         latch_expired(&self.admission);
         let mut state = self.admission.lock().unwrap();
-        state.waiting.remove(&self.id);
-        if state.lost { return false; }
+        let pending=state.waiting.remove(&self.id);
+        if state.lost || admission_uncertain(&state) {drop(state);if let Some(refuse)=pending {refuse();}return false;}
         self.started.store(true, std::sync::atomic::Ordering::Release);
         true
     }
@@ -117,7 +121,10 @@ impl Drop for Ticket {
 }
 impl Queue {
     pub fn start(mut engine: Engine, capacity: usize) -> std::io::Result<Self> {
-        Self::start_with(capacity, move |work| work(&mut engine))
+        #[cfg(feature="postgres")] let grant=engine.store.read_grant();
+        let queue=Self::start_with(capacity, move |work| work(&mut engine))?;
+        #[cfg(feature="postgres")] {queue.admission.lock().unwrap().grant=grant;}
+        Ok(queue)
     }
     /// Hosts with additional execution instrumentation may supply worker state.
     pub fn start_with(
@@ -180,7 +187,7 @@ impl Queue {
             // Command start and lease loss share one lock: running work keeps its real
             // outcome, while all waiting replies can be refused independently
             // of a blocked, uncancellable COMMIT on the writer thread.
-            if !ticket.start_execution() {
+            if !ticket.start_execution(engine) {
                 return;
             }
             let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
@@ -256,7 +263,7 @@ impl Queue {
         if self.on_worker() {
             return Err(SubmitError::Reentrant);
         }
-        if self.ownership_lost() {
+        if self.ownership_lost() || admission_uncertain(&self.admission.lock().unwrap()) {
             Err(SubmitError::OwnershipLost)
         } else {
             Ok(())
@@ -286,6 +293,7 @@ impl Queue {
     ) -> Result<(), crate::RuntimeError> {
         let mut guard = StartupLease(Some(lease));
         let lease = guard.0.as_mut().unwrap();
+        self.admission.lock().unwrap().grant=Some(lease.read_grant.clone());
         if self.lease.is_some() || cadence.is_zero() || lease.token().is_none() {
             return Err(crate::RuntimeError::StoreOwnership(
                 "queue needs one acquired lease and a positive renewal cadence".into(),
@@ -352,6 +360,10 @@ impl Queue {
         self.lease = Some(renewal);
         Ok(())
     }
+}
+fn admission_uncertain(state:&Admission)->bool {
+    #[cfg(feature="postgres")] {state.grant.as_ref().is_some_and(|g|g.uncertain.load(std::sync::atomic::Ordering::Acquire))}
+    #[cfg(not(feature="postgres"))] {let _=state;false}
 }
 fn latch_expired(admission: &Mutex<Admission>) {
     #[cfg(feature = "postgres")]

@@ -107181,3 +107181,79 @@ workspace/all-targets build, stash, push or Git configuration change. The fix
 and these accurate partial-qualification records are preserved in a new commit
 on the commissioned branch; the remaining public qualification requires a
 later run with disk headroom.
+
+### 2026-10-24 — G6: bounded read grants and zero-flight revision hits
+
+The author's G6 commission implements the residual read lever of Accepted
+LLP 3000.009.001.000.002 §4.1–§4.5, on local branch `sb4-pg/g6` at G5 base
+af342f8ef1. There is no cross-revision promotion. `_read_grant` is persisted
+ownership-lease traffic, tied to store/holder/token/epoch; every current foreign
+claim checks its expiry after the conflicting owner claim and before any
+termination. Renewal follows the same lock order, independently of publication;
+graceful release stops/drains cache reads before shortening the exact epoch.
+Startup refuses enabling a grant after an owned handle has opened.
+
+The explicit Linux deployment setting
+`SNAPBACK4_READ_GRANT_CLOCK_BOUNDS=rate_ppm,forward_jump_ms` declares the rate and
+cumulative forward-jump guarantee needed for a suspend-aware CLOCK_BOOTTIME
+deadline. It is an assumption, not inferred from empirical timing. Unset stays
+on G5; an invalid/unsupported explicit setting refuses startup. Arbitrary jumps,
+mixed old writer versions and unqualified failover require leaving it unset.
+The safe rustix clock dependency preserves the core's unsafe-code prohibition;
+the main, evaluator and seed lockfiles retain its qualified dependency pins.
+
+A G6 hit takes one gate read, checks live grant/epoch and exact published
+revision/code/store/generation, resolves retained ordinary authority facts with
+a fresh service clock, and rechecks the grant before returning at that head.
+The physical committer closes the gate before COMMIT and installs publication
+only on confirmation. Known rollback retains the old publication; uncertainty
+keeps reuse closed and pauses writer admission/execution until fenced
+reacquisition with a fresh process/epoch. Candidate waits are bounded to one
+second before G5 fallback; ordinary misses capture fill epochs without waiting.
+Every local commit invalidates equality. SQLite remains ordinary.
+
+Retained authority and pre-encoded Plain JSON data share the existing bounded
+cache retention budget. The temporary encoder is bounded by its fill reservation,
+including JSON escaping. HTTP reuses those data bytes while retaining ordinary
+worker permits, framing, limits, deadlines, envelope metadata and logical meters.
+Initial qualification passes core 1,170/0 with five ignored across 49 targets,
+binary 588/0 with 50 ignored, the three HTTP RT0 cases 3/0, the complete cache
+suite 31/0, and the clock-window unit 1/0. G6 W1/W2/W3 is 0/0/0 flights, including
+the first admitted hit; G5/miss and SQLite ratchets remain unchanged. The
+[report](reports/20261024-g6/REPORT.md) carries the final negative controls,
+complete Postgres qualification, release measurements and process custody.
+
+
+Final G6 qualification: the cache suite passes **32/0**, clock window **1/0**,
+and mixed-harness schedule/ratio tests **2/0**. The complete Postgres script
+runs every stage, with **753/2** across 35 Rust targets and a passing public
+serving milestone. Its reds are the inherited evaluator `40001` and a non-timing
+stale-token fixture whose unrenewed 300 ms lease expired during cold setup.
+That fixture now uses 30 seconds, preserving explicit release and all fencing/
+replay assertions; the complete affected ownership suite passes **25/0**. Only
+`40001` remains unresolved. The whole script is not relabeled as a clean rerun.
+Main, evaluator, seed and commit-path consumer locks retain the new dependency
+pins; locked checks/metadata pass. Root ref-check passes with zero errors or
+unchecked references. Seven restored runtime negative controls each fail 0/1,
+including a real deferred COMMIT gap and a parked old reader after successor
+revocation. An already-admitted writer also releases its fence when the uncertain
+gate refuses before physical COMMIT dispatch.
+
+Release measurements use the declared `1000,250` clock bounds. At C128 loopback,
+W2/W3 rise **10,786/10,672 → 27,347/27,757 reads/s**. The S1-shaped pinned split
+rises **9,330/8,764 → 18,887/20,797**, clearing both 16k bars. Pinned server
+CPU/read falls **244.4/211.1 → 187.1/178.5 µs**, PG **630.0/682.1 → 101.2/56.1**.
+All 25 windows have zero errors, valid process counters and at most 0.112 other
+CPU core during measurement; the longest quiet-gate wait is 149.45 seconds.
+The unchanged 448 MiB retention cap now causes evictions, reducing C128 W2's
+hit rate to 84.44%; W3 is 97.04%. One percent unrelated writes reduces W3 to
+**5,095 reads/s**, 92.32% misses, **16.744%** gate closure and **166.93 µs**
+candidate wait/read. Successful G6-hit stall is zero in all measured windows;
+one hit outside them waits 131.859 µs. No delayed-link or HA claim is made.
+
+The disk guard stops one build at 39.9827 GiB; owned descendants are confirmed
+gone before reclaiming this worktree's inactive targets and resuming with
+incremental compilation disabled. Both private PG16 masters (**312515** and
+**789152**) are stopped and independently confirmed (status 3, no pidfile or
+process). The recorded PID/start audit finds no active process or zombie.
+No PIDs remain; no push, stash, Git config, q24 or shared PG17 change occurs.

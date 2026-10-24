@@ -19,6 +19,18 @@ impl From<sqlite::Store> for AnyStore {
 
 impl AnyStore {
     #[cfg(feature="postgres")]
+    pub(crate) fn read_grant(&self)->Option<std::sync::Arc<crate::engine::postgres::read_grant::Grant>> {
+        if let Self::Postgres(PostgresStore(h))=self {return h.store.borrow().read_grant.clone();}None
+    }
+    #[cfg(feature="postgres")]
+    pub(crate) fn cached_authority_snapshot(&mut self,digest:&str,facts:crate::identity::facts::SessionFacts)->Result<ReadSnapshot<'_>,RuntimeError> {
+        if let Self::Postgres(PostgresStore(h))=self {
+            let tx=h.store.get_mut().cached_read()?;
+            return Ok(ReadSnapshot {tx:AnyTx::Postgres(PostgresTx(tx)),authority:Some((digest.into(),facts))});
+        }
+        Err(RuntimeError::StoreUnsupported {family:"read-grant"})
+    }
+    #[cfg(feature="postgres")]
     pub(crate) fn result_validation_snapshot(&mut self,digest:&str)->Result<Option<ReadSnapshot<'_>>,RuntimeError> {
         if digest.contains('\0') { return Ok(None); }
         if let Self::Postgres(PostgresStore(handle))=self {

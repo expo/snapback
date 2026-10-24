@@ -20,6 +20,9 @@ pub struct Options {
     /// One outstanding request per worker; a capacity diagnostic, not an S1 rung.
     #[arg(long, conflicts_with = "rate")]
     closed_loop: bool,
+    /// Closed-loop diagnostic: replace this percent of read arrivals with W4.
+    #[arg(long,default_value_t=0)]
+    write_percent:u8,
     /// Linux process CPU counters sampled at the common measured boundaries.
     #[arg(long, value_delimiter = ',')]
     cpu_pids: Vec<u32>,
@@ -71,6 +74,12 @@ struct Stats {
     total_success: u64,
     sent: u64,
     completed_in_window: u64,
+    completed_reads:u64,
+    completed_writes:u64,
+    read_success:u64,
+    write_success:u64,
+    read_latency:Histogram<u64>,
+    write_latency:Histogram<u64>,
 }
 impl Stats {
     fn new() -> Self {
@@ -85,6 +94,8 @@ impl Stats {
             total_success: 0,
             sent: 0,
             completed_in_window: 0,
+            completed_reads:0,completed_writes:0,read_success:0,write_success:0,
+            read_latency:Histogram::new(3).unwrap(),write_latency:Histogram::new(3).unwrap(),
         }
     }
     fn merge(&mut self, rhs: Self) {
@@ -105,6 +116,9 @@ impl Stats {
         self.total_success += rhs.total_success;
         self.sent += rhs.sent;
         self.completed_in_window += rhs.completed_in_window;
+        self.completed_reads+=rhs.completed_reads;self.completed_writes+=rhs.completed_writes;
+        self.read_success+=rhs.read_success;self.write_success+=rhs.write_success;
+        self.read_latency.add(rhs.read_latency).unwrap();self.write_latency.add(rhs.write_latency).unwrap();
     }
 }
 fn hist(h: &Histogram<u64>) -> Value {
@@ -114,7 +128,8 @@ fn hist(h: &Histogram<u64>) -> Value {
         "buckets_ns":h.iter_recorded().map(|v|json!([v.value_iterated_to(),v.count_at_value()])).collect::<Vec<_>>()})
 }
 fn operation(o: &Options, worker: usize, seq: u64) -> Operation {
-    let writing = o.workload == "W4" || o.workload == "W5";
+    let mixed_write=o.write_percent>0 && (seq/o.workers as u64+worker as u64*37)%100<o.write_percent as u64;
+    let writing = mixed_write || o.workload == "W4" || o.workload == "W5";
     let principal = if writing {
         worker as i64
     } else {
@@ -130,7 +145,7 @@ fn operation(o: &Options, worker: usize, seq: u64) -> Operation {
         worker as i64
     };
     Operation {
-        workload: o.workload.clone(),
+        workload: if mixed_write {"W4".into()}else{o.workload.clone()},
         principal,
         room,
         message: room + 1 + ((seq.wrapping_mul(7919) % (o.rows / 1024)) * 1024) as i64,
@@ -173,6 +188,7 @@ pub async fn run(options: Options) -> Result<()> {
         ["disjoint", "same", "hot1", "sharded"].contains(&options.keys.as_str()),
         "unknown key mix"
     );
+    anyhow::ensure!(options.write_percent==0 || (options.closed_loop && (1..=100).contains(&options.write_percent) && ["W1","W2","W3"].contains(&options.workload.as_str())),"write-percent requires a closed-loop read workload and a percentage in 1..=100");
     let options = Arc::new(options);
     let tokens = Arc::new(if options.target != "raw-pg-no-token" {
         crate::supabase::tokens()?
@@ -219,10 +235,10 @@ pub async fn run(options: Options) -> Result<()> {
                 };
                 let send = Instant::now();
                 let queue = send.saturating_duration_since(a.intended);
+                let op=operation(&o,worker,a.seq);let writing=matches!(op.workload.as_str(),"W4"|"W5");
                 let error = if queue >= Duration::from_millis(o.deadline_ms) {
                     Some("expired_before_send".to_string())
                 } else {
-                    let op = operation(&o, worker, a.seq);
                     if a.measured {
                         stats.sent += 1;
                     }
@@ -303,11 +319,13 @@ pub async fn run(options: Options) -> Result<()> {
                     } else {
                         stats.success += 1;
                         stats.successful_latency.record(latency_ns).unwrap();
+                        if writing {stats.write_success+=1;stats.write_latency.record(latency_ns).unwrap();}else{stats.read_success+=1;stats.read_latency.record(latency_ns).unwrap();}
                     }
                 }
                 // Includes warm-up arrivals that finish in the window; excludes drain.
                 if success && finished >= measured_start && finished < end {
                     stats.completed_in_window += 1;
+                    if writing {stats.completed_writes+=1;}else{stats.completed_reads+=1;}
                 }
             }
             stats
@@ -374,7 +392,7 @@ pub async fn run(options: Options) -> Result<()> {
         json!({"format":if options.closed_loop {"sb4-scale-closed-loop-v1"} else {"sb4-scale-open-loop-v1"},"options":&*options,"cpu_window":cpu_window,
         "scheduled":measured,"success":stats.success,"errors":stats.errors,"error_count":errors,
         "sent":stats.sent,"total_success_including_warmup":stats.total_success,
-        "achieved_per_s":stats.success as f64/seconds,
+        "achieved_per_s":stats.success as f64/seconds,"reads_per_s":stats.read_success as f64/seconds,"writes_per_s":stats.write_success as f64/seconds,"completed_reads":stats.completed_reads,"completed_writes":stats.completed_writes,"read_latency":hist(&stats.read_latency),"write_latency":hist(&stats.write_latency),
         "completed_in_window_per_s":stats.completed_in_window as f64/seconds,
         "elapsed_with_warmup_and_drain_s":elapsed,"slo_ms":slo,
         "slo_pass":p99<=slo && errors as f64/measured as f64<=0.001,
@@ -427,4 +445,20 @@ fn cpu_snapshot(pids: &[u32], tree_root: Option<u32>) -> Value {
     }
     #[cfg(not(target_os = "linux"))]
     { let _ = (pids,tree_root); Value::Null }
+}
+
+#[cfg(test)]
+mod mixed_tests {
+    use super::*;
+    #[test] fn one_percent_stream_preserves_the_remaining_read_schedule() {
+        let o=Options::parse_from(["load","--workload","W2","--closed-loop","--workers","128","--write-percent","1"]);
+        let mut ordinary=o.clone();ordinary.write_percent=0;
+        let mut writes=0;
+        for worker in 0..128 {for round in 0..100 {
+            let seq=worker as u64+round*128;let op=operation(&o,worker,seq);
+            if op.workload=="W4" {writes+=1;assert_eq!(op.principal,worker as i64);assert_eq!(op.counter,worker as i64);}
+            else {assert_eq!(serde_json::to_value(&op).unwrap(),serde_json::to_value(operation(&ordinary,worker,seq)).unwrap());}
+        }}
+        assert_eq!(writes,128);
+    }
 }

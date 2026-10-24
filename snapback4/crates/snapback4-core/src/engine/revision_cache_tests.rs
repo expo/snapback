@@ -597,7 +597,7 @@ fn g5_memory_bounds_eviction_one_shot_admission_and_retained_responses() {
     );
     let a = cache.fill([1; 32]).unwrap();
     assert!(cache.fill([2; 32]).is_none(), "in-flight fill cap");
-    let fill_response = a.install([1; 32], [1; 32], stamp(), &synthetic());
+    let fill_response = a.install([1; 32], [1; 32], stamp(), &synthetic(), Default::default(), None);
     assert!(cache.fill([1; 32]).is_none(), "per-principal admission cap");
     let held = cache.lookup([1; 32]).0.unwrap();
     let mut response = held.outcome.clone();
@@ -605,7 +605,7 @@ fn g5_memory_bounds_eviction_one_shot_admission_and_retained_responses() {
     cache
         .fill([2; 32])
         .unwrap()
-        .install([2; 32], [2; 32], stamp(), &synthetic());
+        .install([2; 32], [2; 32], stamp(), &synthetic(), Default::default(), None);
     for key in 3..20 {
         assert!(cache.lookup([key; 32]).0.is_none());
     }
@@ -617,7 +617,7 @@ fn g5_memory_bounds_eviction_one_shot_admission_and_retained_responses() {
     cache
         .fill([3; 32])
         .unwrap()
-        .install([3; 32], [3; 32], stamp(), &synthetic());
+        .install([3; 32], [3; 32], stamp(), &synthetic(), Default::default(), None);
     assert_eq!(cache.stats().entries, 2);
     assert_eq!(cache.stats().evictions, 1);
     assert!(!cache.state.lock().unwrap().entries.contains_key(&[1; 32]));
@@ -658,7 +658,7 @@ fn g5_oversize_and_process_budget_bypass_without_partial_entries() {
     cache
         .fill([1; 32])
         .unwrap()
-        .install([1; 32], [1; 32], stamp(), &out);
+        .install([1; 32], [1; 32], stamp(), &out, Default::default(), None);
     assert_eq!(cache.stats().entries, 0);
     assert_eq!(cache.stats().fills, 0);
     let mut small = synthetic();
@@ -668,7 +668,7 @@ fn g5_oversize_and_process_budget_bypass_without_partial_entries() {
     cache
         .fill([1; 32])
         .unwrap()
-        .install([2; 32], [1; 32], stamp(), &small);
+        .install([2; 32], [1; 32], stamp(), &small, Default::default(), None);
     assert_eq!(
         cache.stats().entries,
         0,
@@ -1394,3 +1394,6 @@ fn g5_failed_revision_update_cannot_commit_unversioned_solo_data() {
         "rollback leaves the earlier revision valid"
     );
 }
+
+#[path="revision_cache_grant_tests.rs"]
+mod grant;

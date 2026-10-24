@@ -79,7 +79,7 @@ impl<T: Send + 'static> ProgramTask<T> {
 }
 impl<T: Send + 'static> Task for ProgramTask<T> {
     fn build_intent(&mut self, engine: &mut Engine) -> Prepared {
-        if !self.ticket.start_execution() {
+        if !self.ticket.start_execution(engine) {
             return Prepared::Gone;
         }
         #[cfg(any(test, feature = "test-support"))]

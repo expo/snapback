@@ -248,3 +248,14 @@ mod tests {
         assert!(decoded[9][escaped][0].is_null());
     }
 }
+
+/// Reuse the exact, bounded Plain JSON encoding retained by a query entry.
+// @ref LLP 3000.009.001.000.002#4.3 — physical reuse preserves the ordinary wire representation and logical output meter.
+pub struct QueryData<'a>(pub &'a crate::QueryOutcome);
+impl serde::Serialize for QueryData<'_> {
+    fn serialize<S:serde::Serializer>(&self, serializer:S)->Result<S::Ok,S::Error> {
+        #[cfg(feature="postgres")]
+        if let Some(raw)=self.0.cache_lifetime.encoded_data(){return raw.serialize(serializer);}
+        Plain(&self.0.data).serialize(serializer)
+    }
+}

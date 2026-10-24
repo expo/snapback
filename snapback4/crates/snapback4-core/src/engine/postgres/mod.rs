@@ -19,6 +19,7 @@ mod outbox_store;
 mod prefetch;
 mod tail;
 mod revision;
+pub(crate) mod read_grant;
 mod group_tail;
 mod batch;
 pub mod literal;
