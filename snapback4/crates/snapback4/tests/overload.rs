@@ -9,8 +9,8 @@ fn admission_survives_closed_stderr() { check(false); }
 #[test]
 fn admission_survives_full_stderr() { check(true); }
 fn check(full: bool) {
-        // Both cases hold 228 sockets; overlapping them exceeds macOS's
-        // ordinary 256-descriptor test-process limit before exercising the server.
+        // Both cases hold the server's declared cap; serialize ownership of
+        // the test process's descriptor allowance and the saturated sockets.
         static SOCKETS: std::sync::Mutex<()> = std::sync::Mutex::new(());
         let _sockets = SOCKETS.lock().unwrap();
         let dir = std::env::temp_dir().join(format!("sb4-overload-{}-{full}", std::process::id()));
@@ -31,7 +31,17 @@ fn check(full: bool) {
         let address = url.trim().strip_prefix("http://").expect("server URL");
         // Drain only startup diagnostics, then explicitly fault the same pipe.
         unsafe { libc::fcntl(reader.as_raw_fd(), libc::F_SETFL, libc::O_NONBLOCK); }
-        let mut buffer = [0; 4096]; while reader.read(&mut buffer).is_ok_and(|n| n > 0) {}
+        let mut buffer = [0; 4096]; let mut startup=Vec::new();
+        while let Ok(n)=reader.read(&mut buffer){if n==0{break;}startup.extend_from_slice(&buffer[..n]);}
+        let startup=String::from_utf8(startup).unwrap();
+        let cap=startup.rsplit("HTTP connections=").next().filter(|_|startup.contains("HTTP connections=")).and_then(|tail|tail.split(|c:char|!c.is_ascii_digit()).next()).and_then(|n|n.parse::<usize>().ok()).expect("startup declares its exact connection cap");
+        // The child raises its own limit. This isolated test process also
+        // needs room to hold that many client sockets, including on macOS.
+        struct Descriptors(libc::rlimit);
+        impl Drop for Descriptors{fn drop(&mut self){unsafe{libc::setrlimit(libc::RLIMIT_NOFILE,&self.0);}}}
+        let mut inherited=unsafe{std::mem::zeroed::<libc::rlimit>()};assert_eq!(unsafe{libc::getrlimit(libc::RLIMIT_NOFILE,&mut inherited)},0);
+        let _descriptors=Descriptors(inherited);let mut allowance=inherited;allowance.rlim_cur=allowance.rlim_cur.max((cap+64) as libc::rlim_t).min(allowance.rlim_max);
+        assert!(allowance.rlim_cur>=(cap+64) as libc::rlim_t,"test descriptor hard limit must accommodate the declared cap");assert_eq!(unsafe{libc::setrlimit(libc::RLIMIT_NOFILE,&allowance)},0);
         if full {
             unsafe { libc::fcntl(writer.as_raw_fd(), libc::F_SETFL, libc::O_NONBLOCK); }
             while writer.write(&buffer).is_ok() {}
@@ -39,9 +49,9 @@ fn check(full: bool) {
             // this is the original full-pipe failure, not a nonblocking fake.
             unsafe { libc::fcntl(writer.as_raw_fd(), libc::F_SETFL, 0); }
         } else { drop(reader); }
-        // The connection cap reserves 128 intake slots, 98 queued short requests,
-        // and the long-wait pools (here 1 + 1): 228 total.
-        let held: Vec<_> = (0..228).map(|_| TcpStream::connect(address).unwrap()).collect();
+        // Saturate the configured limit, including both waiting pools. A stale
+        // hard-coded cap merely leaves an admitted socket waiting for headers.
+        let held: Vec<_> = (0..cap).map(|_| TcpStream::connect(address).unwrap()).collect();
         thread::sleep(Duration::from_millis(100));
         for i in 0..9 {
             if i == 8 { thread::sleep(Duration::from_millis(1250)); } // summary writer has attempted the faulty pipe
