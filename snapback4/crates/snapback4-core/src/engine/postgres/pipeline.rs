@@ -238,6 +238,24 @@ impl Connection {
             Self::Sync(_) => None,
         }
     }
+    #[cfg(test)]
+    pub(super) fn is_closed(&self) -> bool {
+        match self {
+            Self::Sync(c) => c.is_closed(),
+            Self::Reader { slot, .. } => slot.client.is_closed(),
+        }
+    }
+    // Only called before a new transaction/request. An in-flight query is
+    // never replayed; its original future still receives the transport error.
+    pub(super) fn refresh_closed(&mut self) -> Result<bool, RuntimeError> {
+        let pool = match self {
+            Self::Reader { slot, _pool, .. } if slot.client.is_closed() => _pool.clone(),
+            _ => return Ok(false),
+        };
+        let replacement = Self::reader(pool)?;
+        *self = replacement;
+        Ok(true)
+    }
     pub fn is_reader(&self) -> bool {
         matches!(self, Self::Reader { .. })
     }

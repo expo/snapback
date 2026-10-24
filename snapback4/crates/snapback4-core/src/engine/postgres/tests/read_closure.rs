@@ -570,3 +570,48 @@ fn pipeline_read_closure_sql_failure_rechecks_revoked_authority() {
     assert_eq!(out["out"]["Err"]["code"], "E_AUTH", "failed pipeline speculation must obtain fresh authority: {out}");
     assert!(super::super::read_closure::AFTER_FAILED_STATEMENT.with(|hook| hook.borrow().is_none()), "the real SQL error must execute the fallback hook");
 }
+
+#[test]
+#[ignore = "private PG16; future readers and factory recovery, not in-flight replay"]
+fn pipeline_read_closure_future_requests_recover_and_recheck_store_binding() {
+    fn pid(e: &mut Engine) -> i32 {
+        e.store_mut().test_postgres_handle_mut().store.get_mut().client.query_one("SELECT pg_backend_pid()", &[]).unwrap().get(0)
+    }
+    fn wait_closed(e: &mut Engine) {
+        let until=std::time::Instant::now()+std::time::Duration::from_secs(5);
+        while !e.store_mut().test_postgres_handle_mut().store.get_mut().client.is_closed() {
+            assert!(std::time::Instant::now()<until,"reader did not observe its terminated backend");
+            std::thread::sleep(std::time::Duration::from_millis(2));
+        }
+    }
+    let (mut pg,digest,viewer)=engine(true);
+    let mut source=pg.reader().unwrap();
+    let source_pid=pid(&mut source);
+    // Keep the source and a request on the same capped physical connection.
+    let mut held=Vec::new(); let mut loan=None;
+    for _ in 0..60 {
+        let mut next=source.reader().unwrap();
+        if pid(&mut next)==source_pid {loan=Some(next);break;}
+        held.push(next);
+    }
+    let mut loan=loan.expect("the reader pool must reuse a connection");
+    let expected=run(&mut loan,&digest,&viewer,"W3",BTreeMap::new(),true);
+    assert!(expected["out"]["Ok"].is_object());
+    assert!(pg.store_mut().test_postgres_handle_mut().store.get_mut().client.query_one("SELECT pg_terminate_backend($1)",&[&source_pid]).unwrap().get::<_,bool>(0));
+    wait_closed(&mut loan);
+    assert_eq!(run(&mut loan,&digest,&viewer,"W3",BTreeMap::new(),true),expected,"a future request must replace a known-closed socket before starting");
+    let mut fresh=source.reader().expect("a lost source socket must not permanently wedge the reader factory");
+    assert_eq!(run(&mut fresh,&digest,&viewer,"W3",BTreeMap::new(),true),expected);
+
+    let original:String=pg.store_mut().test_postgres_handle_mut().store.get_mut().client.query_one("SELECT value FROM _meta WHERE key='store_id'",&[]).unwrap().get(0);
+    let victim=pid(&mut fresh);
+    pg.store_mut().test_postgres_handle_mut().store.get_mut().client.query_one("SELECT pg_terminate_backend($1)",&[&victim]).unwrap();
+    wait_closed(&mut fresh);
+    pg.store_mut().test_postgres_handle_mut().store.get_mut().client.execute("UPDATE _meta SET value='replaced-store' WHERE key='store_id'",&[]).unwrap();
+    for _ in 0..2 {
+        let refused=run(&mut fresh,&digest,&viewer,"W3",BTreeMap::new(),true);
+        assert_eq!(refused["out"]["Err"]["code"],"E_GENERATION","reconnection must keep refusing a different logical store: {refused}");
+    }
+    pg.store_mut().test_postgres_handle_mut().store.get_mut().client.execute("UPDATE _meta SET value=$1 WHERE key='store_id'",&[&original]).unwrap();
+    assert_eq!(run(&mut fresh,&digest,&viewer,"W3",BTreeMap::new(),true),expected,"a failed binding check must not be marked validated");
+}

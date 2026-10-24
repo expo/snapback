@@ -104869,3 +104869,18 @@ ordering are unchanged. Sixteen paired-reader retirement cycles now return
 the session census to its baseline, and the surviving reader's prepared plan
 continues to execute after its neighbour retires. The fixed witness passes;
 full affected verification follows on this revision.
+
+## 2026-10-24 — PIPE future-request and factory recovery
+
+Before a new reader transaction or ingress fact request, replace a socket
+already known closed and clear its bound statements. Verify the expected
+logical store id and generation; retain the pending validation after any
+error or mismatch. The writer never reconnects here, and an in-flight read
+still returns its original retryable transport failure without replay.
+Cold recovery adds startup and binding checks; warm flight counts remain.
+
+The real-engine witness shares a capped physical connection with the cached
+reader factory, terminates it, then gets the unchanged complete W3 result
+from a future request and a new factory loan. A second termination followed
+by a changed store id refuses twice with `E_GENERATION`; restoring the
+expected binding allows a freshly validated request. The witness passes.

@@ -86,6 +86,7 @@ pub struct Store {
     pub(crate) read_only: bool,
     pub(crate) client: super::pipeline::Connection,
     qualified: bool,
+    reader_binding: bool,
     literal_cache: BTreeMap<String, super::literal::Prepared>,
     cache: BTreeMap<String, Statement>,
     pub calls: CallCounter,
@@ -99,11 +100,35 @@ pub struct Store {
 impl Store {
     pub fn new(client: Client) -> Self { Self::with_connection(super::pipeline::Connection::Sync(client)) }
     pub(super) fn with_connection(client: super::pipeline::Connection) -> Self {
-        Self { read_sessions: Cell::new(false), unified: false, fence: None, commit_warning: Default::default(), generation:1, read_only: false, client, qualified: false, literal_cache: BTreeMap::new(), cache: BTreeMap::new(), calls: CallCounter::new(0), prefetch: true, marked_reads: Cell::new(0), page_reads: Cell::new(0), prefetch_rows: Cell::new(0), prefetch_bytes: Cell::new(0) }
+        Self { read_sessions: Cell::new(false), unified: false, fence: None, commit_warning: Default::default(), generation:1, read_only: false, client, qualified: false, reader_binding: false, literal_cache: BTreeMap::new(), cache: BTreeMap::new(), calls: CallCounter::new(0), prefetch: true, marked_reads: Cell::new(0), page_reads: Cell::new(0), prefetch_rows: Cell::new(0), prefetch_bytes: Cell::new(0) }
+    }
+
+    // @ref LLP 3000.009.001.000#8 — only future requests reconnect, with fresh binding checks.
+    // A future request may replace a driver already known closed. Cached
+    // statements belong to the old socket; no result or authority is reused.
+    fn refresh_reader_connection(&mut self) -> Result<(),RuntimeError> {
+        if self.client.refresh_closed()? {
+            self.literal_cache.clear(); self.cache.clear();
+            self.reader_binding = self.unified;
+        }
+        if self.reader_binding {
+            self.calls.set(self.calls.get()+2);
+            let row = self.client.query_one("SELECT (SELECT value FROM _meta WHERE key='store_id'),generation FROM _backend WHERE singleton", &[])?;
+            if row.try_get::<_,Option<&str>>(0)? != self.fence.as_ref().map(|f|f.store_id.as_str()) || self.fence.is_none() {
+                return Err(RuntimeError::Generation("reader store identity changed while reconnecting; reopen the engine".into()));
+            }
+            if u64::try_from(row.try_get::<_,i64>(1)?).ok() != Some(self.generation) {
+                return Err(RuntimeError::Generation("reader generation changed while reconnecting; reopen the engine".into()));
+            }
+            // Keep the validation pending after any mismatch or failed query.
+            self.reader_binding = false;
+        }
+        Ok(())
     }
 
     fn begin(&mut self, mode: Option<WriteMode>, opening: bool) -> Result<Tx<'_>, RuntimeError> {
         if self.read_only && mode.is_some() { return Err(RuntimeError::Store("Postgres reader is read-only".into())); }
+        self.refresh_reader_connection()?;
         if !self.qualified {
             if !self.client.is_reader() {
                 self.client.configure()?;
@@ -161,6 +186,7 @@ impl Store {
     // @ref LLP 3000.009.001.000.001#31-authority-boundaries — one ordinary ingress SELECT is its own read snapshot, with no writer lock.
     pub(crate) fn ingress_session_authority_facts(&mut self, digest: &str) -> Result<crate::identity::facts::SessionFacts, RuntimeError> {
         if absent_text_key(&[digest]) { return Ok(Default::default()); }
+        self.refresh_reader_connection()?;
         let sql = super::authority::session_facts_sql(self.read_sessions.get());
         if self.client.is_reader() && self.read_sessions.get() {
             self.calls.set(self.calls.get() + 1);
