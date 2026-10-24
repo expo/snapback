@@ -9,7 +9,7 @@ pub(super) fn evaluate(expr:&Expr,row:&Value,rows:&Rows,schema:&Schema,viewer:&s
 pub(super) fn value(e:&Expr,row:&Value,rows:&Rows,schema:&Schema,viewer:&str,table:&str,now:i64)->Option<Value>{Some(match e{
     Expr::Name{name,..} if name=="now"=>Value::Int(now),
     Expr::Name{name,..} if name=="viewer"=>Value::Id(viewer.into()),
-    Expr::Literal{value,..}=>match value{Literal::Str(s)=>Value::String(s.clone()),Literal::Bool(v)=>Value::Bool(*v),Literal::Null=>Value::Null,Literal::Number(_)=>Value::Int(super::creation_advice::duration_number(e)?)},
+    Expr::Literal{value,..}=>match value{Literal::Str(s)=>Value::String(s.clone()),Literal::Bool(v)=>Value::Bool(*v),Literal::Null=>Value::Null,Literal::Number(_)=>Value::int(i128::from(super::creation_advice::duration_number(e)?)).ok()?},
     Expr::Focal{..}=>row.clone(),
     Expr::Member{base,name,..} if matches!(base.as_ref(),Expr::Focal{..})=>row.field(name).ok()?.clone(),
     Expr::Member{base,name,..}=>{
@@ -92,7 +92,7 @@ pub(super) fn limitations(expr:&Expr,schema:&Schema,table:&str)->BTreeSet<String
         Expr::Member{base,..} if matches!(base.as_ref(),Expr::Focal{..})=>{},
         Expr::Member{base,..} if reference_table(base,schema,table).is_some()=>{},
         Expr::Member{..}=>{out.insert("member is not a typed table reference".into());},
-        Expr::Unary{op,..} if op=="not"=>{},
+        Expr::Unary{op,..} if op=="not"||op=="-"=>{},
         Expr::Binary{left,right,..} if [(left.as_ref(),right.as_ref()),(right.as_ref(),left.as_ref())].iter().any(|(a,b)|matches!(b,Expr::Literal{value:Literal::Str(_),..})&&matches!(a,Expr::Member{base,name,..} if matches!(base.as_ref(),Expr::Focal{..})&&schema.tables.get(table).and_then(|t|t.columns.get(name)).is_some_and(|k|matches!(k.required(),snapback4_core::schema::ColumnType::Id|snapback4_core::schema::ColumnType::Principal|snapback4_core::schema::ColumnType::Ref{..}))))=>{out.insert("contextual principal/id string coercion is outside the concrete invariant evaluator".into());},
         Expr::Binary{op,..} if ["and","or","+","-","*","=","!=","<","<=",">",">="].contains(&op.as_str())=>{},
         Expr::Call{name,args,..} if ((name=="count"||name=="len")&&args.len()==1)||(name=="sum"&&args.len()==2)=>{},

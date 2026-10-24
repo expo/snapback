@@ -127,23 +127,25 @@ fn caller_approval(condition:&Expr,table:&str,column:&str,bound:&Bound)->bool{
     });}found
 }
 fn parent_loop_guard(effect:&Write<'_>,table:&str,column:&str,bound:&Bound)->bool{
-    fn scan(body:&[Stmt],binder:&str,column:&str)->(bool,bool){
+    fn scan(body:&[Stmt],binder:&str,column:&str,env:&mut BTreeMap<String,Expr>)->(bool,bool){
+        let resolve=super::super::authority_walk::resolve;
         for stmt in body{match stmt{
+            Stmt::Bind{names,value,..}=>{let value=resolve(value,env);for name in names{env.insert(name.clone(),if names.len()==1{value.clone()}else{Expr::Name{name:format!("$advice_loop_unknown:{name}"),site:value.site().clone()}});}},
             Stmt::Require{condition,..}=>{
-                let condition=simplify_boolean(condition);if matches!(condition,Expr::Literal{value:ast::Literal::Bool(false),..}){return (false,false);}
+                let condition=simplify_boolean(&resolve(condition,env));if matches!(condition,Expr::Literal{value:ast::Literal::Bool(false),..}){return (false,false);}
                 if super::super::derived::approval_receipts(&condition).iter().any(|positive|{let mut found=false;walk(positive,|e|if let Expr::Member{base,name,..}=e&&name==column&&matches!(base.as_ref(),Expr::Name{name,..} if name==binder){found=true;});found}){return (true,true);}
             },
             Stmt::Break{..}|Stmt::Continue{..}|Stmt::Return{..}=>return (false,false),
-            Stmt::If{condition,then_body,else_body,..}=>{
-                let condition=simplify_boolean(condition);let (found,continues)=match condition{
-                    Expr::Literal{value:ast::Literal::Bool(value),..}=>scan(if value{then_body}else{else_body},binder,column),
-                    _=>{let a=scan(then_body,binder,column);let b=scan(else_body,binder,column);(a.0||b.0,a.1||b.1)},
+            Stmt::If{condition,then_body,else_body,site}=>{
+                let condition=simplify_boolean(&resolve(condition,env));let (found,continues)=match condition{
+                    Expr::Literal{value:ast::Literal::Bool(value),..}=>scan(if value{then_body}else{else_body},binder,column,env),
+                    _=>{let mut yes=env.clone();let a=scan(then_body,binder,column,&mut yes);let mut no=env.clone();let b=scan(else_body,binder,column,&mut no);
+                        if !a.1{*env=no;}else if !b.1{*env=yes;}else{for name in yes.keys().chain(no.keys()).cloned().collect::<BTreeSet<_>>(){let value=match (yes.get(&name),no.get(&name)){(Some(a),Some(b)) if crate::print::expression(a)==crate::print::expression(b)=>a.clone(),_=>Expr::Name{name:format!("$advice_loop_unknown:{name}"),site:site.clone()}};env.insert(name,value);}}(a.0||b.0,a.1||b.1)},
                 };if found{return (true,continues);}if !continues{return (false,false);}
             },
-            Stmt::As{body,..}=>{let result=scan(body,binder,column);if result.0||!result.1{return result;}},_=>{},
+            Stmt::As{body,..}=>{let result=scan(body,binder,column,&mut env.clone());if result.0||!result.1{return result;}},_=>{},
         }}(false,true)
     }
-    fn required(body:&[Stmt],binder:&str,column:&str)->bool{scan(body,binder,column).0}
     fn contains(stmt:&Stmt,site:&Site)->bool{let mut found=false;let mut body=vec![stmt.clone()];super::super::super::intent_walk::statements(&mut body,&mut |e|if e.site()==site{found=true;});found}
     fn prefix<'a>(body:&'a[Stmt],site:&Site,before:&mut Vec<&'a Stmt>)->bool{
         for stmt in body{if contains(stmt,site){return match stmt{
@@ -156,7 +158,13 @@ fn parent_loop_guard(effect:&Write<'_>,table:&str,column:&str,bound:&Bound)->boo
         let owner=effect.context.body.iter().filter_map(|stmt|if let Stmt::Require{code,site,..}=stmt&&code=="$callsite"{Some(site)}else{None}).find_map(|site|{let mut candidate=Vec::new();prefix(&effect.p.body,site,&mut candidate).then_some(candidate)});
         let Some(owner)=owner else{return false;};before=owner;
     }
-    effect.table!=table&&bound.schema.tables[table].columns.values().any(|kind|matches!(kind.required(),ColumnType::Ref{table} if table==&effect.table))&&before.iter().any(|stmt|matches!(stmt,Stmt::For{domain,name,body,..} if matches!(domain,Expr::Read(read) if read.table==table)&&required(body,name,column)))
+    if effect.table==table||!bound.schema.tables[table].columns.values().any(|kind|matches!(kind.required(),ColumnType::Ref{table} if table==&effect.table)){return false;}
+    let mut env=BTreeMap::new();
+    for stmt in before{match stmt{
+        Stmt::Bind{names,value,..}=>{let value=super::super::authority_walk::resolve(value,&env);for name in names{env.insert(name.clone(),if names.len()==1{value.clone()}else{Expr::Name{name:format!("$advice_loop_unknown:{name}"),site:value.site().clone()}});}},
+        Stmt::For{domain,name,body,..}=>{if matches!(domain,Expr::Read(read) if read.table==table){let mut local=env.clone();local.remove(name);if scan(body,name,column,&mut local).0{return true;}}for name in super::super::authority_walk::branch_assignments(body){env.remove(&name);}},
+        Stmt::If{then_body,else_body,..}=>{for name in super::super::authority_walk::branch_assignments(then_body).into_iter().chain(super::super::authority_walk::branch_assignments(else_body)){env.remove(&name);}},_=>{},
+    }}false
 }
 fn locked_approval_input(record:&Write<'_>,column:&str,writes:&[Write<'_>],bound:&Bound)->bool{
     let table=&record.table;

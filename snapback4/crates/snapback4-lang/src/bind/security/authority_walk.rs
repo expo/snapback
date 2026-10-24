@@ -5,12 +5,15 @@ use ast::{Expr,Stmt,ProgramDecl,FunctionBody};
 type Env=BTreeMap<String,Expr>;
 mod changes;
 use changes::Change;
-fn resolve(expr:&Expr,env:&Env)->Expr{
+pub(super) fn resolve(expr:&Expr,env:&Env)->Expr{
     let mut expr=expr.clone();
     super::super::intent_walk::expression(&mut expr,&mut |e|{
         if let Expr::Object{fields,..}|Expr::Write{fields,..}=e{for f in fields{if f.value.is_none(){f.value=Some(env.get(&f.name).cloned().unwrap_or_else(||Expr::Name{name:f.name.clone(),site:f.site.clone()}));}}}
-        if let Expr::Name{name,..}=e&&let Some(value)=env.get(name){*e=value.clone();}
-    });expr
+        if let Expr::Name{name,site}=e&&!site.file.starts_with("$advice/value/")&&let Some(value)=env.get(name){*e=value.clone();}
+    });
+    // Values captured at a binding/call retain their original symbolic input.
+    // Reusing that expression after a reassignment must not evaluate it again.
+    super::super::intent_walk::expression(&mut expr,&mut |e|if let Expr::Name{site,..}=e&&!site.file.starts_with("$advice/value/"){site.file=format!("$advice/value/{}",site.file);});expr
 }
 fn expression(catalog:&Catalog,p:&ProgramDecl,expr:&Expr,env:&Env,guards:&[Stmt],changes:&[Change],column:Option<&str>,depth:usize,out:&mut Vec<(Expr,ProgramDecl)>){
     let mut expr=resolve(expr,env);
@@ -39,7 +42,7 @@ fn helper_guards(catalog:&Catalog,expr:&Expr,env:&Env,depth:usize)->Vec<Stmt>{
     let mut out=Vec::new();
     for s in body{match s{
         Stmt::Require{condition,code,message,site}=>out.push(Stmt::Require{condition:resolve(condition,&locals),code:code.clone(),message:message.clone(),site:site.clone()}),
-        Stmt::Bind{names,value,..}=>{out.extend(helper_guards(catalog,value,&locals,depth+1));if names.len()==1{locals.insert(names[0].clone(),resolve(value,&locals));}},
+        Stmt::Bind{names,value,..}=>{out.extend(helper_guards(catalog,value,&locals,depth+1));if names.len()==1{locals.insert(names[0].clone(),resolve(value,&locals));}else{for name in names{locals.insert(name.clone(),Expr::Name{name:format!("$advice_unknown_{name}"),site:value.site().clone()});}}},
         Stmt::Expr{value,..}=>out.extend(helper_guards(catalog,value,&locals,depth+1)),
         Stmt::Return{value,..}=>{out.extend(helper_guards(catalog,value,&locals,depth+1));break;},_=>break,
     }}out
@@ -106,7 +109,7 @@ fn statements(catalog:&Catalog,p:&ProgramDecl,body:&[Stmt],env:&mut Env,guards:&
     for s in body{
         let consuming=column.is_some()&&changes::effectful(s);
         match s{
-        Stmt::Bind{names,value,..}=>{expression(catalog,p,value,env,guards,changes,column,depth,out);guards.extend(helper_guards(catalog,value,env,0));if names.len()==1{env.insert(names[0].clone(),resolve(value,env));}},
+        Stmt::Bind{names,value,..}=>{expression(catalog,p,value,env,guards,changes,column,depth,out);guards.extend(helper_guards(catalog,value,env,0));if names.len()==1{env.insert(names[0].clone(),resolve(value,env));}else{for name in names{env.insert(name.clone(),Expr::Name{name:format!("$advice_unknown_{name}"),site:value.site().clone()});}}},
         Stmt::Require{condition,code,message,site}=>{
             expression(catalog,p,condition,env,guards,changes,column,depth,out);
             guards.push(Stmt::Require{condition:resolve(condition,env),code:code.clone(),message:message.clone(),site:site.clone()});
@@ -189,6 +192,6 @@ fn walk_writes(catalog:&Catalog,p:&ProgramDecl,column:Option<&str>)->Vec<(Expr,P
     }out
 }
 
-fn branch_assignments(body:&[Stmt])->BTreeSet<String>{
+pub(super) fn branch_assignments(body:&[Stmt])->BTreeSet<String>{
     let mut out=BTreeSet::new();for s in body{match s{Stmt::Bind{names,..}=>out.extend(names.clone()),Stmt::If{then_body,else_body,..}=>{out.extend(branch_assignments(then_body));out.extend(branch_assignments(else_body));},Stmt::For{body,..}|Stmt::As{body,..}=>out.extend(branch_assignments(body)),_=>{}}}out
 }
