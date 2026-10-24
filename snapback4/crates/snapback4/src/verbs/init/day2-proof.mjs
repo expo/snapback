@@ -78,7 +78,9 @@ async function snapshotAll() {
   const texts = await Promise.all(files.map(async file => [file, await readFile(join(source, file), "utf8")]));
   const declarations = texts.flatMap(([,text]) => [...text.matchAll(/^table (\w+)(?: renamed from (\w+))?:/gm)].map(match => [match[1], match[2]]));
   const tableIdentity = tableIdentities(status, declarations, JSON.stringify(texts));
-  const tables = declarations.map(([name]) => name);
+  const catalog = await checked(["sql", ".tables", "--release", directory, "--json"]);
+  const ephemeral = new Set(catalog.tables.filter(table => table.kind === "ephemeral table").map(table => table.name));
+  const tables = declarations.map(([name]) => name).filter(name => !ephemeral.has(name));
   const rows = new Map();
   for (const table of tables) {
     const count = await checked(["sql", `SELECT COUNT(*) FROM "${table}"`, "--release", directory, "--json"]);

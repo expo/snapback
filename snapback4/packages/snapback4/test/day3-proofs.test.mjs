@@ -196,3 +196,9 @@ test("day-two snapshots keep simultaneous renames distinct across release select
 test("v1-born rows stay required on the next rollback before its callback",async t=>{
   const result=await deletionScenario(t,"v1-born-rollback-loss");assert.notEqual(result.code,0);assert.match(result.stderr,/missing persisted row/);
 });
+
+test("social day-two proof excludes process-local typing from persisted storage",async t=>{
+  const cwd=fixture(t);assert.equal((await cli(["init","--template","social"],{cwd})).code,0);
+  const result=await command("npm",["run","day2:proof"],{cwd,timeoutMs:600_000});
+  assert.equal(result.code,0,result.stderr);assert.match(result.stdout,/day2:proof passed/);
+});
