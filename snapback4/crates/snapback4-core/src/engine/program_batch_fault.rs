@@ -4,6 +4,7 @@ use std::cell::{Cell, RefCell};
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(in crate::engine) enum Point {
     BeforeMember,
+    OverlayUnsupported,
     BeforeFacts,
     AfterFacts,
     BeforeLevel,

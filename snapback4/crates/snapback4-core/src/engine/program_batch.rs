@@ -376,6 +376,13 @@ impl Engine {
                                 invocation.id.as_deref(),
                             )?;
                         }
+                        #[cfg(test)]
+                        if let Some(overlay)=&overlay {
+                            if let Err(error)=fault::check(fault::Point::OverlayUnsupported,i) {
+                                overlay.reads.borrow_mut().unsupported=true;
+                                return Err(error);
+                            }
+                        }
                         program_attempt(
                             &host,
                             member,
@@ -412,6 +419,7 @@ impl Engine {
             drop(run);
             invocation.scope = scope;
             invocation.attempts.push(transcript);
+            let unsupported=overlay.as_ref().is_some_and(|o|o.reads.borrow().unsupported);
             let images=overlay.as_ref().map(|o|o.writes.borrow().values().cloned().collect::<Vec<_>>()).unwrap_or_default();
             drop(overlay);
             drop(budget);
@@ -431,7 +439,7 @@ impl Engine {
                 }
                 Err(error) => {
                     return Err((
-                        Failure::rollback(tx, error, Some(i)),
+                        Failure::rollback(tx, error, if unsupported {None}else{Some(i)}),
                         refused.borrow_mut().take(),
                     ));
                 }

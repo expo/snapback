@@ -11,6 +11,7 @@ use std::collections::BTreeMap;
 
 impl Rows for MemberTx<'_, '_> {
     fn walk_adoption(&self, table:&str, _decode:u64, scratch:u64, work:[u64;3], visit:&mut dyn FnMut(Value)->Result<(),RuntimeError>) -> Result<(),RuntimeError> {
+        if let Some(overlay)=self.overlay { overlay.reads.borrow_mut().unsupported=true; self.reads.borrow_mut().unsupported=true; return Err(RuntimeError::Store("family outside qualified batch overlay".into())); }
         self.reads.borrow_mut().unsupported = true;
         <AnyTx<'_> as Rows>::walk_adoption(self.tx, table, _decode, scratch, work, visit)
     }
@@ -23,21 +24,26 @@ impl Rows for MemberTx<'_, '_> {
         <AnyTx<'_> as Rows>::widen_change_evidence(self.tx)
     }
     fn sequence_value(&self, parent: &str, id: &str) -> Result<i64, RuntimeError> {
+        if let Some(overlay)=self.overlay { overlay.reads.borrow_mut().unsupported=true; self.reads.borrow_mut().unsupported=true; return Err(RuntimeError::Store("family outside qualified batch overlay".into())); }
         self.reads.borrow_mut().unsupported = true;
         <AnyTx<'_> as Rows>::sequence_value(self.tx, parent, id)
     }
     fn set_sequence(&self, parent: &str, id: &str, value: i64) -> Result<(), RuntimeError> {
+        if let Some(overlay)=self.overlay { overlay.reads.borrow_mut().unsupported=true; self.reads.borrow_mut().unsupported=true; return Err(RuntimeError::Store("family outside qualified batch overlay".into())); }
         <AnyTx<'_> as Rows>::set_sequence(self.tx, parent, id, value)
     }
     fn sequence_ids(&self, parent: &str) -> Result<Vec<String>, RuntimeError> {
+        if let Some(overlay)=self.overlay { overlay.reads.borrow_mut().unsupported=true; self.reads.borrow_mut().unsupported=true; return Err(RuntimeError::Store("family outside qualified batch overlay".into())); }
         self.reads.borrow_mut().unsupported = true;
         <AnyTx<'_> as Rows>::sequence_ids(self.tx, parent)
     }
     fn rewrite_sequence_ids(&self, ids: &BTreeMap<String, BTreeMap<String, String>>) -> Result<u64, RuntimeError> {
+        if let Some(overlay)=self.overlay { overlay.reads.borrow_mut().unsupported=true; self.reads.borrow_mut().unsupported=true; return Err(RuntimeError::Store("family outside qualified batch overlay".into())); }
         self.reads.borrow_mut().unsupported = true;
         <AnyTx<'_> as Rows>::rewrite_sequence_ids(self.tx, ids)
     }
     fn effect_once(&self, effect: &str, key: &str) -> Result<bool, RuntimeError> {
+        if let Some(overlay)=self.overlay { overlay.reads.borrow_mut().unsupported=true; self.reads.borrow_mut().unsupported=true; return Err(RuntimeError::Store("family outside qualified batch overlay".into())); }
         self.reads.borrow_mut().unsupported = true;
         <AnyTx<'_> as Rows>::effect_once(self.tx, effect, key)
     }
@@ -69,27 +75,33 @@ impl Rows for MemberTx<'_, '_> {
         Ok(row)
     }
     fn scan(&self, table: &str, index_name: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
+        if let Some(overlay)=self.overlay {return overlay.scan(table,index_name,prefix,bounds,dir,limit);}
         self.reads.borrow_mut().unsupported = true;
         <AnyTx<'_> as Rows>::scan(self.tx, table, index_name, prefix, bounds, dir, limit)
     }
     fn index_head(&self, table: &str, index: &str, prefix: &[Value], bounds: &Bounds, dir: Dir) -> Result<Option<Vec<Value>>, RuntimeError> {
+        if let Some(overlay)=self.overlay { overlay.reads.borrow_mut().unsupported=true; self.reads.borrow_mut().unsupported=true; return Err(RuntimeError::Store("family outside qualified batch overlay".into())); }
         self.reads.borrow_mut().unsupported = true;
         <AnyTx<'_> as Rows>::index_head(self.tx, table, index, prefix, bounds, dir)
     }
     #[cfg(feature = "server-search")]
     fn scan_selected(&self, table: &str, index: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, fields: &[String]) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
+        if let Some(overlay)=self.overlay {return overlay.scan_selected(table,index,prefix,bounds,dir,fields);}
         self.reads.borrow_mut().unsupported = true;
         <AnyTx<'_> as Rows>::scan_selected(self.tx, table, index, prefix, bounds, dir, fields)
     }
     fn scan_metered(&self, table: &str, index_name: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize, scope: &crate::engine::Authorization, meter: &mut crate::engine::InternalMeter<'_>) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
+        if let Some(overlay)=self.overlay {return overlay.scan_metered(table,index_name,prefix,bounds,dir,limit,scope,meter); }
         self.reads.borrow_mut().unsupported = true;
         <AnyTx<'_> as Rows>::scan_metered(self.tx, table, index_name, prefix, bounds, dir, limit, scope, meter)
     }
     fn cap_count(&self, table: &str, by: &[String], group: &[Value]) -> Result<u64, RuntimeError> {
+        if let Some(overlay)=self.overlay { overlay.reads.borrow_mut().unsupported=true; self.reads.borrow_mut().unsupported=true; return Err(RuntimeError::Store("family outside qualified batch overlay".into())); }
         self.reads.borrow_mut().unsupported = true;
         <AnyTx<'_> as Rows>::cap_count(self.tx, table, by, group)
     }
     fn count_prefix(&self, table: &str, index_name: &str, prefix: &[Value], limit: u64) -> Result<u64, RuntimeError> {
+        if let Some(overlay)=self.overlay { overlay.reads.borrow_mut().unsupported=true; self.reads.borrow_mut().unsupported=true; return Err(RuntimeError::Store("family outside qualified batch overlay".into())); }
         self.reads.borrow_mut().unsupported = true;
         <AnyTx<'_> as Rows>::count_prefix(self.tx, table, index_name, prefix, limit)
     }
@@ -98,6 +110,7 @@ impl Rows for MemberTx<'_, '_> {
         <AnyTx<'_> as Rows>::put(self.tx, table_name, table, row, old)
     }
     fn delete(&self, table_name: &str, table: &Table, old: &Value) -> Result<u64, RuntimeError> {
+        if let Some(overlay)=self.overlay { overlay.reads.borrow_mut().unsupported=true; self.reads.borrow_mut().unsupported=true; return Err(RuntimeError::Store("family outside qualified batch overlay".into())); }
         <AnyTx<'_> as Rows>::delete(self.tx, table_name, table, old)
     }
     fn track_time_audience(
@@ -109,28 +122,35 @@ impl Rows for MemberTx<'_, '_> {
         now: i64,
         published: bool,
     ) -> Result<(), RuntimeError> {
+        if let Some(overlay)=self.overlay { overlay.reads.borrow_mut().unsupported=true; self.reads.borrow_mut().unsupported=true; return Err(RuntimeError::Store("family outside qualified batch overlay".into())); }
         <AnyTx<'_> as Rows>::track_time_audience(self.tx, table_name, table, id, row, now, published)
     }
     fn time_audience_pending(&self, table_name: &str, id: &str) -> Result<bool, RuntimeError> {
+        if let Some(overlay)=self.overlay { overlay.reads.borrow_mut().unsupported=true; self.reads.borrow_mut().unsupported=true; return Err(RuntimeError::Store("family outside qualified batch overlay".into())); }
         self.reads.borrow_mut().unsupported = true;
         <AnyTx<'_> as Rows>::time_audience_pending(self.tx, table_name, id)
     }
     fn time_audience_published(&self, table_name: &str, id: &str) -> Result<bool, RuntimeError> {
+        if let Some(overlay)=self.overlay { overlay.reads.borrow_mut().unsupported=true; self.reads.borrow_mut().unsupported=true; return Err(RuntimeError::Store("family outside qualified batch overlay".into())); }
         self.reads.borrow_mut().unsupported = true;
         <AnyTx<'_> as Rows>::time_audience_published(self.tx, table_name, id)
     }
     fn holds_assets(&self) -> Result<bool, crate::RuntimeError> {
+        if let Some(overlay)=self.overlay { overlay.reads.borrow_mut().unsupported=true; self.reads.borrow_mut().unsupported=true; return Err(RuntimeError::Store("family outside qualified batch overlay".into())); }
         self.reads.borrow_mut().unsupported = true;
         <AnyTx<'_> as Rows>::holds_assets(self.tx)
     }
     fn asset(&self, id: &str) -> Result<Option<crate::assets::Asset>, RuntimeError> {
+        if let Some(overlay)=self.overlay { overlay.reads.borrow_mut().unsupported=true; self.reads.borrow_mut().unsupported=true; return Err(RuntimeError::Store("family outside qualified batch overlay".into())); }
         self.reads.borrow_mut().unsupported = true;
         <AnyTx<'_> as Rows>::asset(self.tx, id)
     }
     fn claim_asset(&self, id: &str, by: &str, table: &str, row_id: &str, column: &str) -> Result<crate::assets::Asset, RuntimeError> {
+        if let Some(overlay)=self.overlay { overlay.reads.borrow_mut().unsupported=true; self.reads.borrow_mut().unsupported=true; return Err(RuntimeError::Store("family outside qualified batch overlay".into())); }
         <AnyTx<'_> as Rows>::claim_asset(self.tx, id, by, table, row_id, column)
     }
     fn release_asset(&self, id: &str, table: &str, row_id: &str, column: &str, now: i64) -> Result<(), RuntimeError> {
+        if let Some(overlay)=self.overlay { overlay.reads.borrow_mut().unsupported=true; self.reads.borrow_mut().unsupported=true; return Err(RuntimeError::Store("family outside qualified batch overlay".into())); }
         <AnyTx<'_> as Rows>::release_asset(self.tx, id, table, row_id, column, now)
     }
 }
