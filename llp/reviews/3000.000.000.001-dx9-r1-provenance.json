@@ -1,0 +1,13 @@
+{
+  "sourceBase": "0cb3de79ee",
+  "models": {
+    "codex": "gpt-6.1-sol/high, fresh codex exec",
+    "muse": "muse-spark-1.3-contributor/high, muse-exec quota fallback"
+  },
+  "briefSha256": "3f892c96225709a1b95959c2bdde7e6cc01642af97e0cdac7597d089db9d898f",
+  "verdicts": {
+    "codex": "READY",
+    "muse": "NOT READY"
+  },
+  "revision": "initial four DX9 amendments, superseded by r2"
+}
