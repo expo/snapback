@@ -206,6 +206,8 @@ fn two_connections_advance_the_same_job_under_the_writer_fence() {
         .get(0);
     let mut second = PostgresEngine::open(client, &f.name).unwrap();
     let mut observer = connect();
+    let facts=f.engine.store.client.query_one("SELECT pg_backend_pid(), '_head'::regclass::oid",&[]).unwrap();
+    let holder:i32=facts.get(0);let head:u32=facts.get(1);
     let tx = f
         .engine
         .store
@@ -223,7 +225,7 @@ fn two_connections_advance_the_same_job_under_the_writer_fence() {
     });
     let start = Instant::now();
     let blocked = loop {
-        let blocked: bool = observer.query_one("SELECT EXISTS(SELECT 1 FROM pg_stat_activity WHERE pid=$1 AND wait_event_type='Lock' AND query LIKE 'SELECT seq FROM _head%FOR UPDATE' AND cardinality(pg_blocking_pids(pid)) > 0)", &[&pid]).unwrap().get(0);
+        let blocked: bool = observer.query_one("SELECT EXISTS(SELECT 1 FROM pg_stat_activity a WHERE pid=$1 AND wait_event_type='Lock' AND $2=ANY(pg_blocking_pids(pid)) AND EXISTS(SELECT 1 FROM pg_locks l WHERE l.pid=a.pid AND relation=$3 AND mode='RowShareLock' AND granted))", &[&pid,&holder,&head]).unwrap().get(0);
         if blocked || start.elapsed() >= Duration::from_secs(4) {
             break blocked;
         }

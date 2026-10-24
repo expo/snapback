@@ -1,18 +1,33 @@
 //! Persistent execution behind (never instead of) RequestAdmission.
-use std::{collections::VecDeque, sync::{Arc, Condvar, Mutex}, thread};
+use std::{collections::VecDeque, sync::{Arc, Condvar, Mutex}, thread, time::Instant};
 
 type Job = Box<dyn FnOnce() + Send + 'static>;
+struct Queued { job: Job, deadline: Option<Instant> }
 #[derive(Default)]
-struct State { jobs: VecDeque<Job>, threads: usize, idle: usize, stopping: bool }
+struct State { jobs: VecDeque<Queued>, threads: usize, idle: usize, stopping: bool, expiring: bool }
 #[derive(Default)]
-struct Inner { state: Mutex<State>, ready: Condvar }
+struct Inner { state: Mutex<State>, ready: Condvar, deadlines: Condvar }
 #[derive(Default)]
 pub(super) struct Workers(Arc<Inner>);
 
+pub(super) fn deadline(request: &super::Request, age: std::time::Duration) -> Instant {
+    let intake = request.accepted_at() + age;
+    request.body_deadline().map_or(intake, |body| body.min(intake))
+}
+
 impl Workers {
-    // @ref LLP 3000#contended-read-serving — separate class capacity; no extra admission queue.
+    // @ref LLP 3000.009.001.000.001#31-authority-boundaries — queued work retains its intake deadline and opens no snapshot before execution.
+    #[cfg(test)]
     pub(super) fn submit(&self, limit: usize, builder: thread::Builder, job: Job) -> std::io::Result<()> {
+        self.submit_until(limit, builder, None, job)
+    }
+    pub(super) fn submit_until(&self, limit: usize, builder: thread::Builder, deadline: Option<Instant>, job: Job) -> std::io::Result<()> {
         let mut state = self.0.state.lock().unwrap_or_else(|e| e.into_inner());
+        if deadline.is_some() && !state.expiring {
+            let inner = self.0.clone();
+            thread::Builder::new().name("request-deadlines".into()).spawn(move || expire(inner))?;
+            state.expiring = true;
+        }
         if state.jobs.len() >= state.idle && state.threads < limit {
             let inner = self.0.clone();
             // Spawn before enqueue: failure drops/refuses this request on the
@@ -26,13 +41,13 @@ impl Workers {
                         let mut state = self.inner.state.lock().unwrap_or_else(|e| e.into_inner());
                         state.threads -= 1;
                         if self.idle { state.idle -= 1; }
-                        // Remaining workers may all be blocked. Refuse queued
-                        // requests on *any* exit rather than strand them until
-                        // a running request finishes or another submit arrives.
-                        // PendingRequest's drop releases the original permit;
-                        // perform its response I/O outside the queue lock.
-                        let abandoned = std::mem::take(&mut state.jobs);
+                        // Healthy workers retain FIFO work after a peer exits.
+                        // The independent expiry thread still bounds requests
+                        // while every surviving worker is blocked. If none
+                        // survive, refuse immediately rather than strand work.
+                        let abandoned = if state.threads == 0 { std::mem::take(&mut state.jobs) } else { VecDeque::new() };
                         drop(state);
+                        self.inner.ready.notify_one();
                         drop(abandoned);
                     }
                 }
@@ -52,13 +67,15 @@ impl Workers {
                     };
                     // Debug/unwind builds retain the old per-request panic
                     // isolation. Production's panic=abort policy is unchanged.
-                    let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(job));
+                    if job.deadline.is_some_and(|at| Instant::now() >= at) { drop(job); continue; }
+                    let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(job.job));
                 }
             })?;
             state.threads += 1;
         }
-        state.jobs.push_back(job);
+        state.jobs.push_back(Queued { job, deadline });
         self.0.ready.notify_one();
+        self.0.deadlines.notify_one();
         Ok(())
     }
 }
@@ -66,6 +83,34 @@ impl Drop for Workers {
     fn drop(&mut self) {
         self.0.state.lock().unwrap_or_else(|e| e.into_inner()).stopping = true;
         self.0.ready.notify_all();
+        self.0.deadlines.notify_all();
+    }
+}
+
+// Queue expiry cannot depend on a request worker making progress. This one
+// timer per timed pool owns no DB connection and drops/refuses outside the
+// queue lock, preserving admission permits and the original body deadline.
+fn expire(inner: Arc<Inner>) {
+    let mut state = inner.state.lock().unwrap_or_else(|e| e.into_inner());
+    loop {
+        if state.stopping { return; }
+        let now = Instant::now();
+        let (expired, live): (VecDeque<_>, VecDeque<_>) = std::mem::take(&mut state.jobs)
+            .into_iter().partition(|job| job.deadline.is_some_and(|at| now >= at));
+        state.jobs = live;
+        if !expired.is_empty() {
+            drop(state);
+            drop(expired);
+            state = inner.state.lock().unwrap_or_else(|e| e.into_inner());
+            continue;
+        }
+        let next = state.jobs.iter().filter_map(|job| job.deadline).min();
+        state = if let Some(at) = next {
+            inner.deadlines.wait_timeout(state, at.saturating_duration_since(Instant::now()))
+                .unwrap_or_else(|e| e.into_inner()).0
+        } else {
+            inner.deadlines.wait(state).unwrap_or_else(|e| e.into_inner())
+        };
     }
 }
 
@@ -117,13 +162,18 @@ mod tests {
             assert_eq!((state.threads, state.idle, state.jobs.len()), (limit, 0, 1));
         }
         release_b.send(()).unwrap();
-        assert!(!outcome.recv_timeout(Duration::from_secs(5)).expect("queued request stranded"));
+        if partial {
+            assert!(outcome.recv_timeout(Duration::from_millis(100)).is_err(), "one worker exit discarded another worker's queue");
+            release_a.send(()).unwrap();
+            assert!(outcome.recv_timeout(Duration::from_secs(5)).expect("queued request stranded"));
+        } else {
+            assert!(!outcome.recv_timeout(Duration::from_secs(5)).expect("queued request stranded"));
+        }
         assert!(workers.0.state.lock().unwrap().jobs.is_empty());
-        // No release of A and no further submit was needed for the refusal.
         drop(release_a);
     }
     #[test]
-    fn partial_worker_exit_refuses_queued_requests_while_another_worker_is_blocked() {
+    fn g4a_fix1_partial_worker_exit_preserves_the_queue_for_healthy_workers() {
         queued_request_is_refused_on_exit(true);
     }
     #[test]

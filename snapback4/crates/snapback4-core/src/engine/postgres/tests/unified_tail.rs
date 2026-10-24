@@ -32,7 +32,7 @@ fn effects_batch_and_unrelated_execute_never_flushes_the_member() {
         assert_eq!(rows.len(), count); assert!(rows.iter().all(|r| r.get::<_,Option<&str>>(0) == Some("explicit")));
         owner.commit().unwrap();
     }
-    assert_eq!(flights, [3, 2, 2], "cold prepare + one CTE execution + release, then cached CTE + release");
+    assert_eq!(flights, [3, 1, 1], "cold Bind/SQL prepare + tail flight; cached tail folds release and settings");
 }
 #[test]
 #[ignore = "requires private Postgres; scripts/test-postgres.sh"]

@@ -36,6 +36,39 @@ fn round_trips_postgres() {
     run(true);
 }
 
+#[cfg(feature = "postgres")]
+#[test]
+#[ignore = "requires private Postgres"]
+fn rt6_fix1_nul_receipt_preserves_http_store_refusal() {
+    let directory = ReaderTestDirectory::new();
+    for pg in [false, true] {
+        let store = if pg {
+            snapback4_core::store_port::AnyStore::create_postgres(
+                &std::env::var("SNAPBACK4_EVAL_POSTGRES").unwrap(),
+                &format!("rt6_nul_receipt_{:x}", snapback4_core::ids::seed()),
+            ).unwrap()
+        } else {
+            snapback4_core::store_port::AnyStore::open(&directory.0.join("store.sqlite")).unwrap()
+        };
+        let host = Host::with_store(false, store, "use identity\nmutation noop():\n  return 1\n");
+        let (token, store_id, head) = {
+            let engine = lock(&host.shared.engine);
+            (identity::open_session(engine.store(), "alice", "guest", host.shared.now()).unwrap().token,
+             engine.store().store_identity().unwrap().unwrap(), engine.store().seq().unwrap())
+        };
+        let headers = format!("Authorization: Bearer {token}\r\n");
+        for id in ["valid-id", "bad\0id"] {
+            let response = host.request("POST", "/m/noop", &headers,
+                &json!({"id":id,"store_id":"foreign-store","args":{}}).to_string());
+            assert_eq!(status(&response), 200, "pg={pg}: {response}");
+            let reply = body(&response);
+            assert_eq!(reply["why"]["code"], "E_STORE_REPLACED", "pg={pg}: {reply}");
+            assert_eq!(reply["store_id"], store_id);
+        }
+        assert_eq!(lock(&host.shared.engine).store().seq().unwrap(), head);
+    }
+}
+
 fn run(pg: bool) {
     let directory = ReaderTestDirectory::new();
     let store = if pg {
@@ -55,9 +88,11 @@ fn run(pg: bool) {
     } else {
         snapback4_core::store_port::AnyStore::open(&directory.0.join("store.sqlite")).unwrap()
     };
-    // P1-MC isn't in this branch: retain RT-A's admitted S1 W1/W2 exactly.
-    let source = include_str!("../../../../reports/20261022-rt-a-round-trips/admitted-s1.q");
-    let host = Host::with_store(false, store, source);
+    // W3-shaped facts use stored totals so existing mutation workloads and
+    // ratchets stay identical; core parity also covers maintained totals.
+    let source = format!("{}\n{}", include_str!("../../../../reports/20261022-rt-a-round-trips/admitted-s1.q"), include_str!("w3.q"))
+        .replace("table rooms:\n", "table rooms:\n  total: int default 0\n");
+    let host = Host::with_store(false, store, &source);
     let now = host.shared.now();
     let (session, account, action, store_id) = {
         let mut engine = lock(&host.shared.engine);
@@ -93,11 +128,16 @@ fn run(pg: bool) {
         );
         assert_eq!(seeded.1["state"], "sent", "{}", seeded.1);
     }
+    for n in (2..=32).chain(std::iter::once(1024)) {
+        let seeded=request("/m/seedRoom",token,json!({"args":{"key":format!("r{n:04}"),"total":n*2,"last_read":n}}));
+        assert_eq!(seeded.1["state"],"sent","{}",seeded.1);
+    }
     let mut measured = BTreeMap::new();
     let mut cold = BTreeMap::new();
     let classes = [
         ("w1_point", "/q/W1", token, json!({"message":"m24"})),
         ("w2_newest20", "/q/W2", token, json!({"room":"r0001"})),
+        ("w3_membership_totals", "/q/W3", token, json!({})),
         (
             "unkeyed_increment",
             "/m/increment",
@@ -123,6 +163,12 @@ fn run(pg: bool) {
                 assert_eq!(reply["data"].as_array().unwrap().len(), 20, "{reply}");
                 assert_eq!(reply["data"][0]["id"], "m24");
                 assert_eq!(reply["data"][19]["id"], "m5");
+            } else if class == "w3_membership_totals" {
+                assert_eq!(reply["data"].as_array().unwrap().len(),32,"{reply}");
+                assert_eq!(reply["data"][0]["room"],"r0001");
+                assert_eq!(reply["data"][1]["total"],4);
+                assert_eq!(reply["data"][1]["unread"],2);
+                assert_eq!(reply["data"][31]["room"],"r0032");
             } else {
                 assert_eq!(reply["state"], "sent", "{reply}");
             }
@@ -211,6 +257,16 @@ fn run(pg: bool) {
             }
             record(&mut measured, &mut cold, class, repetition, counts, pg);
         }
+    }
+    // Even malformed bodies and unknown operation names cannot turn an
+    // unknown token into a second flight or an authenticated refusal.
+    for (path,payload) in [("/q/W1","{"),("/q/noSuchOperation",r#"{"args":{"message":42}}"#)] {
+        let reply=host.request("POST",path,"Authorization: Bearer rt0-unknown-malformed\r\n",payload);
+        let counts=rx.recv_timeout(Duration::from_secs(10)).unwrap();
+        assert_eq!(status(&reply),401,"{reply}");
+        assert_eq!(body(&reply)["denied"]["code"],"E_AUTH");
+        for field in ["store_id","head","generation","data"] {assert!(body(&reply).get(field).is_none(),"{reply}");}
+        assert_eq!(if pg {counts.postgres}else{counts.sqlite},if pg {1}else{2});
     }
     // Exhaust the actual production identity limiter, then measure repeated 429s.
     let limited = (0..31).any(|_| request("/auth/guest", None, json!({})).0 == 429);

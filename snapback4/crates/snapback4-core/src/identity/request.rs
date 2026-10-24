@@ -42,6 +42,19 @@ impl RequestSnapshot<'_, '_> {
     }
 }
 
+/// Serving preflight knows whether it needs a receipt before it opens the
+/// snapshot. Values are observations only; the shared resolver still decides.
+// @ref LLP 3000.009.001.000.001#31-authority-boundaries — unfenced replay before judgment and a live store binding.
+pub fn with_request_preflight<T>(store: &AnyStore, digest: &str, sample: ServiceSample, ordinary: bool, receipt: Option<(&str,&str)>, run: impl FnOnce(RequestSnapshot<'_, '_>)->T) -> Result<T,RuntimeError> {
+    require_digest(digest)?;
+    store.with_preflight_snapshot(digest,receipt,ordinary,|tx,facts| {
+        let store_id = facts.store_id.clone().ok_or_else(||RuntimeError::Store("missing store identity".into()))?;
+        let head = facts.head;
+        let capability = facts::resolve(tx,facts,sample.now,Some(sample.supervisor_revision))?.map(|s|(s.principal,s.kind,s.scope));
+        Ok(run(RequestSnapshot {tx,capability,store_id,head}))
+    })
+}
+
 /// Parse once at ingress; the digest is a credential input, never authority.
 pub fn session_digest(token: &str) -> String { super::digest(token) }
 

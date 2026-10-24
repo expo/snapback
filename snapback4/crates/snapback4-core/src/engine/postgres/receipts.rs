@@ -44,23 +44,20 @@ pub(super) fn initialize(tx: &Tx<'_>) -> Result<(), RuntimeError> {
     Ok(())
 }
 
+pub(super) const LOOKUP: &str = "SELECT outcome,name,args_digest FROM _ops WHERE principal=$1 AND id=$2";
+pub(super) fn record(rows: &[super::store::Row]) -> Option<ReceiptRecord> {
+    rows.first().map(|r|ReceiptRecord { outcome:r.get(0),name:r.get(1),args_digest:r.get(2) })
+}
 impl ReceiptReader for Tx<'_> {
     /// A NUL principal or operation id is absent without querying.
     fn receipt(&self, principal: &str, id: &str) -> Result<Option<ReceiptRecord>, RuntimeError> {
         if absent_text_key(&[principal, id]) {
             return Ok(None);
         }
-        Ok(self
-            .query(
-                "SELECT outcome,name,args_digest FROM _ops WHERE principal=$1 AND id=$2",
-                &[&principal, &id],
-            )?
-            .first()
-            .map(|r| ReceiptRecord {
-                outcome: r.get(0),
-                name: r.get(1),
-                args_digest: r.get(2),
-            }))
+        if let Some((key,value)) = self.receipt_cache.borrow().as_ref() {
+            if key.0 == principal && key.1 == id { return Ok(value.as_ref().map(|r| ReceiptRecord {outcome:r.outcome.clone(),name:r.name.clone(),args_digest:r.args_digest.clone()})); }
+        }
+        Ok(record(&self.query(LOOKUP,&[&principal,&id])?))
     }
     /// A NUL principal or operation id is absent without querying.
     fn receipt_exists(&self, principal: &str, id: &str) -> Result<bool, RuntimeError> {

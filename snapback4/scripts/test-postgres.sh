@@ -44,27 +44,29 @@ fi
 # Report every stage even when an earlier fixture fails. In particular, an
 # experiment failure must not silently leave the gated family contracts unrun.
 status=0
-# @ref LLP 3000.009.001.000#3.4 — a shared target must not carry path-crate identities between the two workspaces.
-refresh_shared_target() {
+# @ref LLP 3000.009.001.000#3.4 — isolate the evaluator workspace's path-crate identities without deleting another build's artifacts.
+evaluator_cargo() {
   if [[ -n "${CARGO_TARGET_DIR:-}" ]]; then
-    echo "Cleaning core/lang/device debug artifacts at a shared-target manifest handoff" >&2
-    cargo clean --manifest-path "$1" --profile dev -p snapback4-core -p snapback4-lang -p snapback4-device
+    CARGO_TARGET_DIR="$CARGO_TARGET_DIR/postgres-evaluator" cargo "$@"
+  else
+    cargo "$@"
   fi
 }
-refresh_shared_target experiments/postgres/Cargo.toml || status=1
 # Keep later evaluator integration targets running after a conformance red.
 # include-ignored enables private-cluster fixtures, but must not re-enable the
 # ticketed heap regressions or the additional retained Serializable race.
 # Keep the original evaluator stress case running: its inherited 40001 is
 # reported independently, never converted to a successful qualification.
-cargo test --locked --no-fail-fast --manifest-path experiments/postgres/Cargo.toml -- --include-ignored --nocapture \
+evaluator_cargo test --locked --no-fail-fast --manifest-path experiments/postgres/Cargo.toml -- --include-ignored --nocapture \
   --skip prefetch_complete_fixture_queries_mutations_and_hidden_rows \
   --skip unified_add_spare_capacity_meter_overlap_regression \
   --skip evaluator_racing_refused_operations_replay_one_receipt_without_advancing_head || status=1
-refresh_shared_target Cargo.toml || status=1
 cargo test --locked -p snapback4-core --features postgres --lib engine::postgres::tests -- --include-ignored --nocapture --skip plan_hygiene::log_plan_hygiene_cold_backend_tail_scan_witness || status=1
 # The cold-plan witness observes cluster-wide plan/statistics state; run it alone.
 cargo test --locked -p snapback4-core --features postgres --lib engine::postgres::tests::plan_hygiene::log_plan_hygiene_cold_backend_tail_scan_witness -- --include-ignored --nocapture --test-threads 1 || status=1
+# Keep closure execution, fault oracles and the commit/revocation cut explicit,
+# including the decoder's non-Postgres malformed-payload witnesses.
+cargo test --locked -p snapback4-core --features postgres --lib read_closure -- --include-ignored --nocapture || status=1
 cargo test --locked -p snapback4-core --features postgres --lib change_evidence -- --include-ignored --nocapture || status=1
 cargo test --locked -p snapback4-core --features postgres --lib engine::postgres::literal_tests -- --include-ignored --nocapture || status=1
 cargo test --locked -p snapback4-core --features postgres --lib engine::postgres::ownership::tests -- --include-ignored --nocapture || status=1
@@ -88,6 +90,6 @@ cargo test --locked -p snapback4-difftest --features postgres --no-fail-fast --l
 cargo build --locked -p snapback4 || status=1
 python3 scripts/test-postgres-serve.py || status=1
 if [[ "${1:-}" == "--bench" ]]; then
-  cargo run --locked --release --manifest-path experiments/postgres/Cargo.toml -- "${SNAPBACK4_EVAL_ITERATIONS:-200}" || status=1
+  evaluator_cargo run --locked --release --manifest-path experiments/postgres/Cargo.toml -- "${SNAPBACK4_EVAL_ITERATIONS:-200}" || status=1
 fi
 exit "$status"

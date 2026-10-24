@@ -126,6 +126,8 @@ impl Handle {
             }
             let head = tx.query("SELECT seq FROM _head WHERE singleton FOR UPDATE", &[])?[0].get::<_, i64>(0) as u64;
             tx.head.set(Some(head)); tx.serialized_head.set(true);
+            #[cfg(test)]
+            super::literal_tests::serving::after_head();
             let held = tx.query("SELECT generation,schema,programs FROM _backend WHERE singleton", &[])?.remove(0);
             let before = Backend(held.get(0), held.get(1), held.get(2));
             if !fresh && before.0 != expected_generation as i64 { return Err(RuntimeError::Generation("another engine activated this store".into())); }

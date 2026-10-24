@@ -61,11 +61,17 @@ fn judge(shared: &Shared, engine: Option<&Engine>, name: &str, payload: Json, ca
     Ok(Prepared { capability, payload, args_json, args, delivery_fingerprint, ephemeral })
 }
 
-fn denied(why: Refusal) -> Reply { Reply { status: if why.retryable {503} else {401}, body: json!({"denied":why}) } }
+fn denied(why: Refusal) -> Reply { Reply { status: if why.code == "E_STORE_REPLACED" {409} else if why.retryable {503} else {401}, body: json!({"denied":why}) } }
 
-pub(super) fn prepare(request: &Request, shared: &Shared, name: &str, body: &str, capability: snapback4_core::identity::Capability) -> Result<Prepared, Reply> {
+pub(super) fn prepare(request: &Request, shared: &Shared, name: &str, body: &str, capability: Option<snapback4_core::identity::Capability>) -> Result<Prepared, Reply> {
     let mutation = request.url().starts_with("/m/");
     let admission = session_identity::Admission::capture(request, shared).map_err(denied)?;
+    // Intake has already bounded/read the body. Discover a cold credential
+    // before parsing it, so even an unknown bearer with malformed JSON costs
+    // only the discovery flight and cannot reach metadata judgment.
+    let capability = match capability { Some(capability)=>capability, None=>session_identity::ingress_of(request,shared).map_err(denied)? };
+    let admission=admission.planned(&capability);
+    let admission=if mutation {admission} else {admission.query_expected(&capability)};
     let payload: Json = match serde_json::from_str(if body.is_empty() {"{}"} else {body}) {
         Ok(value) => value,
         Err(error) => {
@@ -78,7 +84,8 @@ pub(super) fn prepare(request: &Request, shared: &Shared, name: &str, body: &str
     let prepared = if mutation && payload.get("id").and_then(Json::as_str).is_some() {
         let name = name.to_owned();
         let principal = capability.0.clone();
-        let result = shared.request_snapshot(admission, move |shared, engine, capability, snapshot| {
+        let lookup = Some((principal.clone(), payload["id"].as_str().unwrap().to_owned()));
+        let result = shared.request_receipt_snapshot(admission, lookup, move |shared, engine, capability, snapshot| {
             if capability.0 != principal { return Err(Refusal::new("E_AUTH", "auth", "the request's session changed; sign in again")); }
             let metadata = (snapshot.store_id.clone(), snapshot.head, engine.generation());
             let id = payload["id"].as_str().unwrap();

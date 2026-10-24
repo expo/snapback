@@ -107,6 +107,11 @@ fn pause_at(point: Point, ready: mpsc::Sender<()>, resume: mpsc::Receiver<()>) {
     });
 }
 
+// Ordered EXECUTE hides source text; compare the actual advisory lock identity.
+fn bootstrap_waiting_on(observer: &mut Client, holder: i32) -> bool {
+    observer.query_one("SELECT EXISTS(SELECT 1 FROM pg_stat_activity a JOIN pg_locks w ON w.pid=a.pid JOIN pg_locks h ON h.pid=$1 AND h.granted AND h.locktype='advisory' AND (w.database,w.classid,w.objid,w.objsubid) IS NOT DISTINCT FROM (h.database,h.classid,h.objid,h.objsubid) WHERE a.wait_event='advisory' AND w.locktype='advisory' AND NOT w.granted AND w.mode='ExclusiveLock' AND $1=ANY(pg_blocking_pids(a.pid)))",&[&holder]).unwrap().get(0)
+}
+
 #[test]
 fn tags_retain_the_complete_token_and_bound_termination() {
     let id = "0123456789abcdef0123456789abcdef";
@@ -166,7 +171,7 @@ fn legacy_attach_bootstrap_is_atomic_and_serializes_racing_openers() {
     });
     ready.recv_timeout(Duration::from_secs(8)).unwrap();
     // The first opener owns the actual bootstrap lock, before owner DDL.
-    let holder: i32 = control.query_one("SELECT pid FROM pg_stat_activity WHERE application_name=$1 AND query LIKE 'SELECT pg_advisory_xact_lock%' AND state='idle in transaction'", &[&format!("sb:{id}:0000:0")]).unwrap().get(0);
+    let holder: i32 = control.query_one("SELECT pid FROM pg_stat_activity a WHERE application_name=$1 AND state='idle in transaction' AND EXISTS(SELECT 1 FROM pg_locks l WHERE l.pid=a.pid AND locktype='advisory' AND mode='ExclusiveLock' AND granted)", &[&format!("sb:{id}:0000:0")]).unwrap().get(0);
     let other_ns = ns.clone();
     let second = thread::spawn(move || {
         Engine::open_at(
@@ -176,7 +181,7 @@ fn legacy_attach_bootstrap_is_atomic_and_serializes_racing_openers() {
         .unwrap()
     });
     wait(|| {
-        control.query_one("SELECT EXISTS(SELECT 1 FROM pg_stat_activity WHERE wait_event='advisory' AND query LIKE 'SELECT pg_advisory_xact_lock%' AND $1::int=ANY(pg_blocking_pids(pid)))", &[&holder]).unwrap().get(0)
+        bootstrap_waiting_on(&mut control,holder)
     });
     resume.send(()).unwrap();
     let mut e = first.join().unwrap();
@@ -415,13 +420,15 @@ fn owner_fence_precedes_the_head_lock() {
     a.acquire().unwrap().unwrap();
     let mut e = open(&ns, &a);
     let mut control = client(&ns);
+    let facts=control.query_one("SELECT pg_backend_pid(), '_head'::regclass::oid",&[]).unwrap();
+    let holder:i32=facts.get(0);let head:u32=facts.get(1);
     let mut held = control.transaction().unwrap();
     held.query_one("SELECT seq FROM _head WHERE singleton FOR UPDATE", &[])
         .unwrap();
     let worker = thread::spawn(move || e.mutate("put", Some("blocked"), context(1)));
     let mut observer = client(&ns);
     wait(|| {
-        observer.query_one("SELECT EXISTS(SELECT 1 FROM pg_stat_activity WHERE application_name=$1 AND query LIKE 'SELECT seq FROM _head%' AND wait_event_type='Lock')",&[&a.fence.tag().unwrap()]).unwrap().get(0)
+        observer.query_one("SELECT EXISTS(SELECT 1 FROM pg_stat_activity a WHERE application_name=$1 AND wait_event_type='Lock' AND $2=ANY(pg_blocking_pids(pid)) AND EXISTS(SELECT 1 FROM pg_locks l WHERE l.pid=a.pid AND relation=$3 AND mode='RowShareLock' AND granted))",&[&a.fence.tag().unwrap(),&holder,&head]).unwrap().get(0)
     });
     let error = held
         .query_one(
@@ -652,7 +659,7 @@ fn evaluator_lifetime_guard_blocks_legacy_adoption() {
         .unwrap()
     });
     wait(|| {
-        observer.query_one("SELECT EXISTS(SELECT 1 FROM pg_stat_activity WHERE wait_event='advisory' AND query LIKE 'SELECT pg_advisory_xact_lock%' AND $1::int=ANY(pg_blocking_pids(pid)))", &[&ep]).unwrap().get(0)
+        bootstrap_waiting_on(&mut observer,ep)
     });
     assert!(
         !observer

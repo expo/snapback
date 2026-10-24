@@ -39,7 +39,7 @@ fn outbox_tail_matches_the_ordinary_recorder() {
     // Preparing the tail does no driver work; its flush remains one execution.
     let before = tx.calls.get();
     tx.flush_tail().unwrap();
-    assert!(tx.calls.get() - before <= 2, "one prepare and one execution");
+    assert_eq!(tx.calls.get() - before, 3, "cold Parse, SQL PREPARE and one tail flight");
     effects::record(&tx, &[("ordinary".into(), "mail".into(), emissions[0].2.clone(), presence)], 1, 100, false, &schema).unwrap();
     let mut batched = tx.required_effect_run("batched").unwrap();
     let ordinary = tx.required_effect_run("ordinary").unwrap();

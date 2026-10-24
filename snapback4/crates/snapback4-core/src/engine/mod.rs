@@ -197,6 +197,8 @@ pub struct Context {
     pub read_spent: Option<crate::meter::Metered>,
     pub viewer: String,
     pub kind: String,
+    #[cfg(feature = "postgres")]
+    pub(crate) request_credential_kind: Option<String>,
     pub args: BTreeMap<String, Value>,
     pub now: Option<i64>,
     pub read_time: Option<i64>,
@@ -220,8 +222,17 @@ pub struct Context {
 
 
 impl Context {
+    /// A transport planning hint. Live authority is still resolved in the
+    /// request snapshot; this never changes the interpreter's principal kind.
+    pub fn with_request_credential(self, kind: &str) -> Self {
+        #[cfg(feature = "postgres")]
+        { let mut context = self; context.request_credential_kind = Some(kind.into()); context }
+        #[cfg(not(feature = "postgres"))]
+        { let _ = kind; self }
+    }
+
     pub fn new(viewer: impl Into<String>, args: BTreeMap<String, Value>) -> Self {
-        Self { #[cfg(feature = "sqlite")] fixture_trace: None, #[cfg(feature="sqlite")] migration_assets: None, #[cfg(feature = "sqlite")] refusal_trace: None, #[cfg(feature = "server-search")] search_retained_order: None, #[cfg(feature = "server-search")] search_retained_candidates: Vec::new(), retained_search: false, read_spent: None, viewer: viewer.into(), kind: "user".into(), args, now: None, read_time: None, row_provenance: false, session_digest: None, wire_args: None, #[cfg(feature = "sqlite")] delivery_fingerprint: None, generation: 0, new_ids: VecDeque::new(), entropy: 0, minter: crate::ids::Mint::default(), minted_ids: Vec::new(), presence: None }
+        Self { #[cfg(feature = "sqlite")] fixture_trace: None, #[cfg(feature="sqlite")] migration_assets: None, #[cfg(feature = "sqlite")] refusal_trace: None, #[cfg(feature = "server-search")] search_retained_order: None, #[cfg(feature = "server-search")] search_retained_candidates: Vec::new(), retained_search: false, read_spent: None, viewer: viewer.into(), kind: "user".into(), #[cfg(feature = "postgres")] request_credential_kind: None, args, now: None, read_time: None, row_provenance: false, session_digest: None, wire_args: None, #[cfg(feature = "sqlite")] delivery_fingerprint: None, generation: 0, new_ids: VecDeque::new(), entropy: 0, minter: crate::ids::Mint::default(), minted_ids: Vec::new(), presence: None }
     }
 
     #[cfg(feature = "sqlite")]
@@ -819,7 +830,7 @@ impl Engine {
             context.presence = self.presence.clone();
         }
         let tx = match digest {
-            Some(digest) => self.store.request_read_transaction(digest)?.ok_or_else(|| RuntimeError::Auth("absent session digest".into()))?,
+            Some(digest) => self.store.planned_request_read_transaction(digest, &self.schema, program.as_ref().ok(), &context)?.ok_or_else(|| RuntimeError::Auth("absent session digest".into()))?,
             None => self.store.read_transaction()?,
         };
         context.now = Some(time_audience::observe_reader_time(
@@ -830,6 +841,7 @@ impl Engine {
         let seq = tx.next_seq()? - 1;
         if let Some(snapshot) = snapshot { snapshot(&tx, seq)?; }
         let program = program?;
+        tx.finish_planned_reads()?;
         *cut = Some(seq);
         let touches = self.schema.operations.get(name).is_some_and(|f| !f.ephemeral_reads.is_empty());
         let mut hub = if touches { Some(self.ephemeral.lock()?) } else { None };

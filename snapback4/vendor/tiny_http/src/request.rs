@@ -358,6 +358,11 @@ impl Request {
     /// When the parsed HTTP request was accepted, before body prebuffering.
     pub fn accepted_at(&self) -> std::time::Instant { self.accepted_at }
 
+    /// Original absolute body deadline, including time queued by the host.
+    pub fn body_deadline(&self) -> Option<std::time::Instant> {
+        self.limits.as_ref().map(|state| state.body_deadline())
+    }
+
     // @ref LLP 3000.019#3.7 — fallback completion precedes request cleanup even on unwind.
     /// Drop this guard before request cleanup, including an unanswered request's
     /// automatic 500 and reader drain. `into_writer` transfers it to the writer,

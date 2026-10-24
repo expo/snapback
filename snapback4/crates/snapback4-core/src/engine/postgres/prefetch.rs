@@ -35,7 +35,7 @@ impl Cache {
 impl Tx<'_> {
     // Count every returned payload before cardinality checks or decoding, so
     // the transfer witness cannot hide bytes discarded by a rejected fill.
-    fn prefetch_query(&self, sql: &'static str, params: &[&(dyn postgres::types::ToSql + Sync)]) -> Result<Vec<postgres::Row>, RuntimeError> {
+    fn prefetch_query(&self, sql: &'static str, params: &[&(dyn postgres::types::ToSql + Sync)]) -> Result<Vec<super::store::Row>, RuntimeError> {
         let rows = self.query(sql, params)?;
         for row in &rows {
             if let Some(text) = row.get::<_, Option<&str>>(1) {
@@ -54,6 +54,15 @@ impl Tx<'_> {
         let mut lookups: BTreeMap<(String, String), BTreeMap<Vec<u8>, Vec<u8>>> = BTreeMap::new();
         let mut calls = BTreeSet::new();
         for request in requests {
+            // A composed snapshot already owns these exact facts. Never open
+            // speculative savepoints or issue another flight for them.
+            let exact=self.read_cache.borrow();
+            let covered=match request {
+                PrefetchRequest::Get{table,id}=>exact.get(table,id).is_some(),
+                PrefetchRequest::Lookup{table,index,key}=>exact.lookup(table,index,key).is_some(),
+            };
+            drop(exact);
+            if covered {continue;}
             let call = match request {
                 PrefetchRequest::Get { table, id } => Call::Get(table.clone(), id.clone()),
                 PrefetchRequest::Lookup { table, index, key: values } => Call::Lookup(table.clone(), index.clone(), key::encode(values)),

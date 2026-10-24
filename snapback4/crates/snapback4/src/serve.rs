@@ -98,6 +98,7 @@ pub struct Shared {
     pub engine: committer::Writer,
     adoption: Mutex<adoption::Status>,
     readers: Mutex<QueryReaders>,
+    carried: Mutex<BTreeMap<String, (String, snapback4_core::identity::Capability)>>,
     read_cuts: Mutex<read_cost::ReadCuts>,
     pub bound: Mutex<Bound>,
     pub generation: Mutex<u64>,
@@ -349,7 +350,11 @@ mod start;
 pub use start::serve;
 use start::serve_requests;
 
-const REQUEST_WORKERS: usize = 32;
+// Thirty executing reads leave the matched 32-connection budget's writer and
+// lease reservations intact. Waiting requests own sockets, never DB readers.
+const REQUEST_WORKERS: usize = 30;
+const SHORT_REQUEST_QUEUE: usize = crate::host_limits::SHORT_REQUEST_QUEUE;
+const SHORT_REQUEST_DEADLINE: Duration = Duration::from_secs(30);
 // Writer-dependent requests have their own budget: queued behind adoption, they cannot take
 // the slots reads and discovery need, and neither class loses capacity.
 const MUTATION_WORKERS: usize = 32;
@@ -407,8 +412,8 @@ impl RequestAdmission {
     }
     fn limit(&self, class: RequestClass) -> usize { self.limits[class as usize] }
     fn acquire(self: &Arc<Self>, class: RequestClass) -> Option<RequestPermit> {
-        let limit = self.limit(class);
-        self.counter(class).fetch_update(Ordering::AcqRel, Ordering::Acquire, |n| (n < limit).then_some(n + 1)).ok()?;
+        let limit = self.limit(class) + if class == RequestClass::Short { SHORT_REQUEST_QUEUE } else { 0 };
+        self.counter(class).fetch_update(Ordering::AcqRel, Ordering::Acquire, |n| (n < limit).then(|| n + 1)).ok()?;
         Some(RequestPermit { admission: self.clone(), class })
     }
 }
@@ -450,11 +455,16 @@ fn dispatch_with_builder(request: Request, shared: Arc<Shared>, admission: Arc<R
         admission.refuse(request, class);
         return;
     };
+    let deadline = (class == RequestClass::Short).then(|| request_workers::deadline(&request, SHORT_REQUEST_DEADLINE));
     let pending = PendingRequest { request: Some(request), admission: admission.clone(), class };
-    if let Err(error) = admission.workers[class as usize].submit(admission.limit(class), builder, Box::new(move || { let _permit = permit;
+    let job: Box<dyn FnOnce() + Send> = Box::new(move || { let _permit = permit;
+        // Intake time survives the queue; neither execution nor body reading
+        // receives a renewed lease. Refuse without draining an expired body.
+        if class == RequestClass::Short && pending.request.as_ref().is_some_and(|r| r.accepted_at().elapsed() >= SHORT_REQUEST_DEADLINE || r.body_deadline().is_some_and(|at| Instant::now() >= at)) { return; }
         let request = pending.take();
         let run = || { if let Some(sample) = sample { sample.run(|| handle(request, &shared)); } else { handle(request, &shared); } };
-        if let Some(trace) = trace { trace.run(run); } else { run(); } })) {
+        if let Some(trace) = trace { trace.run(run); } else { run(); } });
+    if let Err(error) = admission.workers[class as usize].submit_until(admission.limit(class), builder, deadline, job) {
         snapback4_core::diagnostic!("snapback4: cannot start request thread: {error}");
     }
 }
@@ -941,16 +951,16 @@ fn handle(mut request: Request, shared: &Shared) {
         return respond_timed(request, shared, 403, json!({ "denied": refusal_json(&dev_doors::reset_release()) }));
     }
     let mut operation_capability = None;
-    // Check identity before upload admission or allocating any large body.
-    // Preflight or execution resolves again after reading, so expiry/revocation
-    // during a slow upload cannot retain the authority held at its start.
+    // Check credentials before upload admission; /q carries bounded hints.
+    // Fresh preflight/execution authority follows body and queue waits, so
+    // expiry/revocation cannot retain an earlier observation's authority.
     // Logout's body is only 4 KiB and its sole authentication happens inside
     // the SQLite writer transaction that closes the live session family.
     if method == Method::Post && (path == "/assets" || path.starts_with("/assets/intent/") || path == "/sync" || path.starts_with("/q/") || path.starts_with("/following/") || path.starts_with("/m/") || path.starts_with("/a/")
         || (path.starts_with("/actions/") && path.ends_with("/cancel"))
         || matches!(path.as_str(), "/auth/refresh" | "/auth/logout-all")) {
-        match session_identity::ingress_of(&request, shared) {
-            Ok(capability) => operation_capability = Some(capability),
+        match if path.starts_with("/q/") { session_identity::query_ingress(&request, shared) } else { session_identity::ingress_of(&request, shared).map(Some) } {
+            Ok(capability) => operation_capability = capability,
             Err(refusal) => {
             // No authenticated viewer: metadata cannot disclose a store head.
             let status = if refusal.code == "E_STORE_REPLACED" { 409 } else if refusal.retryable { 503 } else { 401 };
@@ -1143,7 +1153,7 @@ fn handle(mut request: Request, shared: &Shared) {
         (Method::Post, path) if path.starts_with("/following/") => following::serve(request,shared,&path[11..],&body),
         (Method::Post, path) if path.starts_with("/q/") || path.starts_with("/m/") => {
             let op = path[3..].to_owned();
-            let operation_request::Prepared { capability: (principal, credential_kind, scope), payload, args_json, args, delivery_fingerprint, ephemeral } = match operation_request::prepare(&request, shared, &op, &body, operation_capability.expect("operation ingress")) {
+            let operation_request::Prepared { capability: (principal, credential_kind, scope), payload, args_json, args, delivery_fingerprint, ephemeral } = match operation_request::prepare(&request, shared, &op, &body, operation_capability) {
                 Ok(prepared) => prepared,
                 Err(reply) => {
                     let id = serde_json::from_str::<Json>(&body).ok().and_then(|p| p.get("id").and_then(Json::as_str).map(str::to_owned));
@@ -1168,7 +1178,7 @@ fn handle(mut request: Request, shared: &Shared) {
             let manifest = if scope == snapback4_core::identity::SessionScope::Read { snapback4_core::engine::DeliveryManifest::Skip } else { snapback4_core::engine::DeliveryManifest::Build };
             let presence_of = |engine: &Engine, name: &str| engine.schema().operations.get(name).is_some_and(|fact| fact.sites.iter().any(|site| site.kind == "presence"));
             let viewer = principal.clone();
-            let mut context = Context::new(&principal, args).at(request_now.unwrap_or_else(|| shared.now()));
+            let mut context = Context::new(&principal, args).at(request_now.unwrap_or_else(|| shared.now())).with_request_credential(&credential_kind);
             if path.starts_with("/q/") {
                 let provenance = payload.get("provenance").and_then(Json::as_bool) == Some(true);
                 if provenance { context = context.with_row_provenance(); }
@@ -1210,7 +1220,7 @@ fn handle(mut request: Request, shared: &Shared) {
                         let mut metadata = None;
                         let (outcome, cut, current) = reader.query_materialized_search_with_request(&op, context, retained.as_deref(), manifest, &admission.digest(), |snapshot, head| {
                             let authority = snapshot.request_authority(&admission.digest(), admission.sample(shared)).map_err(|e| e.refusal()).and_then(|facts| {
-                                persona.clone().and_then(|persona| admission.check_facts(&expected, &facts, persona))?;
+                                persona.clone().and_then(|persona| admission.check_query_facts(shared, &expected, &facts, persona))?;
                                 Ok((facts.store_id, head))
                             });
                             let result = authority.as_ref().map(|_| ()).map_err(Clone::clone);
@@ -1257,7 +1267,7 @@ fn handle(mut request: Request, shared: &Shared) {
                         let mut metadata = None;
                         let (outcome, cut, current) = engine.query_materialized_search_with_request(&op, context, retained.as_deref(), manifest, &admission.digest(), |snapshot, head| {
                             let authority = snapshot.request_authority(&admission.digest(), admission.sample(shared)).map_err(|e| e.refusal()).and_then(|facts| {
-                                persona.clone().and_then(|persona| admission.check_facts(&expected, &facts, persona))?;
+                                persona.clone().and_then(|persona| admission.check_query_facts(shared, &expected, &facts, persona))?;
                                 Ok((facts.store_id, head))
                             });
                             let result = authority.as_ref().map(|_| ()).map_err(Clone::clone);

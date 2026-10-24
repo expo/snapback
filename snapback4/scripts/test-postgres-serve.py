@@ -35,7 +35,9 @@ def deploy_files(directory):
     return result
 
 def disk():
-    assert shutil.disk_usage(pathlib.Path.home()).free >= 40 * 1024**3, 'disk below 40 GiB; stop'
+    # Match the commissioned shared-host floor; the outer lane monitor also
+    # checks it while commands run, not only between subprocesses.
+    assert shutil.disk_usage(pathlib.Path.home()).free >= 22 * 1024**3, 'disk below 22 GiB; stop'
 
 def record_pid(label, pid):
     with (WORK/'pids.jsonl').open('a') as record:

@@ -104811,3 +104811,420 @@ All 150 original SQLite/WAL/SHM hashes are unchanged. Wasm is 2,415,003 raw /
 737,990 gzip / 555,572 Brotli bytes; gzip budget 738,490 is measurement plus 500.
 Full commands, per-project classifications, repairs, hashes, scope limits and
 raw evidence are retained under reports/integration24 and WORKSTREAM-REPORT.md.
+
+
+## 2026-10-23 — RT6 read transport checkpoint (qualification in progress)
+
+Lane sb4-pg/rt6, base a025d67cd3. Predictions are recorded before code in
+reports/20261023-rt6-serving-flights/CONTEXT.md. Ordered SimpleQuery EXECUTEs
+use the RT5 codec in serving, with connection settings verified and physical
+encoder scratch guarded. A transaction-owned exact read plan folds framing
+and fixed-address reads; the Rust executor still authorizes and meters them.
+Unsupported forms retain ordinary access. The mutation setup/tail folds follow
+this checkpoint. The existing eight NUL tests pass; final HTTP counts and
+full qualification are pending. Private PG16 postmaster 3342451 is owned by
+this run on socket port 55493; final shutdown evidence will be in the report.
+
+The focused W1/W2 snapshot witness now passes, including the ordinary resolver
+and interpreter. Initial runs caught the distinct String/Id key encodings and
+primary-key access via lookup versus get; both are corrected. Failed outputs
+remain outside Git in /tmp/rt6-evidence. No HTTP budget claim is made yet.
+
+
+## 2026-10-23 — RT6 mutation flights and serving measurements
+
+Ordered serving preflight, post-lock setup and the validated tail now meet the
+committed predictions: Postgres W1/W2/increment/keyed-first/replay 3/2/8/9/2.
+Account W1/increment are 3/8, membership mutation 9, full action W1 17,
+metadata refusals 2, unknown token 1, unauthenticated/rate-limited 0. No class
+increases; the SQLite table is unchanged. Report and first-use counts:
+reports/20261023-rt6-serving-flights/REPORT.md and counts.json.
+
+Savepoints retain their original semantic position and ride with the first
+program read. Receipt re-check and generation are distinct post-head-lock
+commands. Asset placement facts join setup; shared Rust policy still decides.
+Deferred receipt row counts, tail count and member disposition precede COMMIT,
+which has its own message and retains unknown-outcome classification.
+
+The 17-case combined codec/serving group passes, including real adoption and
+receipt contenders observed in pg_blocking_pids, every folded command boundary,
+zero-row tail, NUL poison, hostile connection settings, serving Bind difftests
+and SQLite/Postgres outcomes/meters/rows/receipts/evidence parity. An additional
+scratch-refusal case and the full requested checks run in final qualification.
+Read planning retains the existing 4 MiB prefetch allowance; encoder allocation
+and aggregate SQL are guarded within the existing 256 MiB physical envelope.
+Private PG16 lifetime 3342451 remains owned until final shutdown. No raw logs
+are committed, and no push, stash or persistent Git configuration change occurs.
+
+RT6 scope review: the credential planning hint is stored only with the Postgres
+feature; SQLite-only and device Context layouts retain their original fields.
+The host helper is a no-op without that feature. No SQL or meter behavior changes.
+
+RT6 lock-order review: cold setup Parse/SQL PREPARE can retain relation locks.
+The head/generation/authority/receipt/placement statements are now prepared
+before BEGIN, keeping those cold locks out of the writer's owner/head order.
+Warm counts do not change. The observed-adoption witness also requires an
+ACCESS EXCLUSIVE NOWAIT lock on _sessions while the serving contender waits
+for the head, proving cold authority preparation retained no earlier lock.
+
+The expanded codec/serving group passes 18/18 with the cold relation-lock and
+scratch-refusal checks. The previously failing asset rewrap, incompatible-shape
+attach and tail-flight assertions pass independently with the corrected code.
+
+RT6 planner review: local declarations that shadow request arguments now take
+the ordinary path. The new pure witness checks that ordinary W1/W2 fit the
+unchanged prefetch bound, and that shadowed arguments never become assumed
+fixed addresses. No rule, expression or address computation moves into SQL.
+
+RT6 serving-statement codec qualification now uses RT5's hostile shadow schema,
+not only hostile output settings. Authority NULL casts and the tail's typed
+array casts are catalog-qualified so the actual statements retain their
+primitive port OIDs under shadowed text/numeric/bytea names and functions.
+Ordinary namespaces retain identical results and flight structure.
+
+RT6 transaction/decoder review: explicit READ WRITE on both writer isolation
+levels preserves the old builder's behavior even when a physical connection
+defaults to read-only. The hostile-connection witness checks both modes by
+writing and rolling back. Native execute's ignored unsupported output payloads
+retain their Bind fallback, with a numeric-result witness. The combined group
+now has 19 cases. Final qualification uses frozen source; a temporary invalid
+qualification of multi-array unnest was reverted before that run. The tail
+retains PostgreSQL's existing multi-array FROM syntax with qualified types.
+
+RT6 full-script follow-up: the experiment's warmed prefetch-off inbox census
+is now 67 rather than 68 calls because BEGIN rides with the first read. Its
+exact assertion is lowered; outcome equality, the prefetch-on bound and every
+logical meter check remain intact. The running full script also reproduces
+the separately ticketed evaluator Serializable 40001 at conformance.rs:294;
+no retry policy, workload, timeout or durability setting changes.
+
+The NUL serving witness explicitly exercises every parameterized flight
+template (authority, receipt, placement, point, membership, page, update and
+the tail's text arrays); owner/head/generation/control commands contain no
+text inputs. Each residual NUL poisons the transaction and rolls back earlier
+writes despite attempted savepoint recovery/COMMIT. All use the same encoder.
+
+The broad core sweep also exposed lock witnesses that identified head waits
+from the old rendered SELECT text. Ordered EXECUTE now hides that text. The
+shared family race, jobs race, eight legacy attachers and owner/head ordering
+observers instead require a physical RowShareLock on the exact _head OID and
+the existing blocker observation (the specific holder where applicable).
+Race policy/outcome checks and timeout bounds remain unchanged. The affected
+core group is repeated with these transport-aware physical observations.
+The ordinary outbox-tail cold census is exactly three calls (native Parse,
+SQL PREPARE, tail flight); its former two-call Bind assertion is updated to
+that exact value. The existing warm tail witness still requires one flight.
+The two bootstrap advisory observers likewise compare granted/waiting advisory
+lock identities and the expected blocking PID, replacing their SELECT-text
+filters. The separate ownership group is repeated too; COMMIT-loss witnesses
+already pass with COMMIT observed as its own command.
+
+The corrected adapter group passes 232/232. The ownership repeat passes both
+bootstrap corrections and 23/25 overall, with two unchanged 300 ms live-lease
+assertions failing under grouped load. Both exact cases pass alone using the
+identical executable (2.59/2.21 s), without other database clients or changes
+to policy/bounds. The original stock-script run passed those two cases.
+The timing observations and prior occurrences are recorded in
+issues/20261023-snapback4-postgres-short-lease-fixture-timing.md; no root cause
+or green grouped run is claimed from the isolated passes.
+
+The identical complete ownership group then passes 25/25 with one test thread
+(82.00 s), preserving fixture bodies/internal concurrency and all bounds. The
+five-thread red remains recorded. The expanded codec group passes 19/19 in
+both C and en_US.utf8; the exact restored inbox comparison passes at 7/67 calls.
+The normal main CLI is rebuilt after the experiment/main cache handoffs.
+
+## 2026-10-23 — RT6 qualification and final cleanup
+
+RT6 is complete locally. Warm Postgres W1/W2/increment/keyed-first/replay are
+3/2/8/9/2, with all fourteen RT0 classes stable and no increases; SQLite's
+table is unchanged. The full default core passes 1,120 unfiltered tests plus
+one subprocess check (five ignores); the final full binary passes 577 (45
+named ignores). Both ratchets, no-default core, the 232-case corrected adapter
+group, 19-case codec/serving group in C and en_US.utf8, and ref-check pass.
+
+The complete Postgres script runs every stage and exits 1. Retained evaluator
+40001 passes alone with the exact saved binary, 65 increments/mode and 109
+Serializable retries. Initial stale observers/censuses are corrected and
+qualified separately; the later five-thread short-lease reds and isolated/
+one-thread passes remain recorded. No grouped run is relabelled green.
+All later stock stages pass, including evolution, authority boundaries,
+five-executor corpus overlap, differential campaigns and public serving/S1.
+Full detail: reports/20261023-rt6-serving-flights/REPORT.md.
+
+Owned PG16 postmasters 3342451 and 3890225 are stopped: independent status 3,
+no pid files, absent PIDs. The primary's initial 180 s fast-stop guard expires
+while an existing checkpoint syncs; ordinary fast shutdown finishes cleanly
+after 193.85 s, without a stronger signal or changed settings. The final
+census checks 588 PIDs, all absent, with no running lane executable or PG
+process in either owned data directory. PIDs left: none. Final /home free
+space is 151 G, always above the 40 GB stop rule. No raw logs, push, stash,
+PG17/55440 access, q24 work or persistent Git configuration changes occur.
+
+## 2026-10-23 — RT6 fix round 1
+
+Review base `2fdab64882`, lane `sb4-pg/rt6-fix1`. Primary-index point reads
+and ranges now carry distinct access identities through SQL selection,
+parameter binding, answer lookup and key decoding. Authorized SQLite/Postgres
+parity covers primary and secondary points, exists, mixed point/range reads,
+first/last pages, four after-cursor walks, empty/populated tables and
+allowed/denied viewers on an online-only table with a read rule.
+
+Folded receipt openers skip NUL principal/id keys before encoding, retaining
+the shared reader's absent-key behavior and the callback's store-binding
+precedence. BPCHAR and its arrays retain binary Bind fallback. Every data
+flight checks the three codec settings in the existing message before data;
+drift refuses subsequent work and COMMIT. BEGIN precedes the guard to set
+isolation; control-only savepoint recovery rolls back before its guard.
+Standalone COMMIT is unchanged. The W1 report/comment now accurately retain
+an open repeatable-read snapshot, reopening only an already closed cut.
+
+Writer UPDATE and post-update read flights join the failure loop: 43
+boundaries, each checking refusal, untouched later-command sentinels and
+unchanged durable images. Fault indices past the actual command count refuse
+instead of silently clamping. A separate coverage census rejects the base
+loop's missing flights 3/4.
+
+Five core regression witnesses fail against unchanged RT6 production files;
+the HTTP NUL/foreign-store witness separately reproduces 401 E_INPUT before
+its expected 200 E_STORE_REPLACED. The final targeted group passes 26/26,
+including reused-client drift and SQL-error/savepoint recovery. Both RT0
+ratchets pass with their tables unchanged; the full binary passes 577 with
+46 named ignores. Full evidence and qualification are recorded in
+`reports/20261023-rt6-serving-flights/REPORT.md`; raw logs remain outside Git
+under the commissioned `rt6f1` scratch directory.
+
+Final qualification: rebuilt CLI, full binary, both unchanged RT0 ratchets,
+26 codec/serving witnesses and the complete stock Postgres script pass. The
+stock script exits 0 in 1,430.62 s, including all 232 adapter, 25 ownership,
+60 evolution, 62 selected authority, 22 corpus, eleven differential-library
+and four store-campaign cases plus the public S1 milestone. Inherited stress
+and short-lease fixtures pass without changed bounds, retries or exclusions.
+
+The first full-core command passed 681 unit cases, then lost its next executable
+to an overlapping stock-script target cleanup. That sequencing error is retained
+in the report. The complete serialized repeat exits 0 in 921.21 s: 1,120
+unfiltered passes, five named ignores and one additional passing subprocess
+check, with every integration/doc target completed. Ref-check passes.
+
+PG16 postmasters 2249844 and 3233606 are absent; independent status checks return
+3 with no pid files. Evaluation shutdown is clean in 0.30 s; the failed initial
+socket-path startup PID 2227751 is absent. Recorded owned identities and lane
+executable/data-directory scans have no survivors. PIDs left: none. The 22 GiB
+shared-host stop floor is never reached. Data and evidence remain outside Git;
+no raw logs, push, stash or persistent Git configuration change.
+
+## 2026-10-24 — RT6 fix round 2: nullable probes and codec guards
+
+Commissioned follow-up to Sol's P1/P2 and Grok's nits on `0c1d00f75b`.
+Deferred null unique rule addresses are absent, matching `probe_witness`, so
+Alice receives the null-parent note and Bob receives null for hidden and
+absent ids. The entire authorized outcome agrees with SQLite. The settings
+guard qualifies all three comparison operators through `pg_catalog`; a
+hostile schema's always-false text `<>` cannot bypass it. Empty-buffer binary
+query, execute and fold paths check settings before Bind, and drift still
+prevents COMMIT. `NAME`/`VARCHAR`, their arrays and `BPCHAR` retain Bind.
+The shape oracle adds zero-length primary/secondary pages and actual `before`
+cursors through retained IR; Quarry intentionally rejects these spellings.
+
+Four new witnesses fail with unchanged baseline production: null probes return
+`E_STORE("incomplete physical read plan")`, an operator shadow permits the
+sentinel, empty-buffer Bind accepts drift, and `NAME` uses text decoding.
+The corrected writer operator fixture establishes the bypass (the initial
+read-only fixture refused `nextval` for an unrelated reason). All 30 affected
+codec/serving witnesses pass after the fixes, including the extended shape
+oracle and every existing writer-failure boundary. Build, full default core
+(1,120 tests plus one subprocess check; five named ignores), both unchanged
+RT0 ratchets and repository-root ref-check (566 LLPs) pass. Full core takes
+764.60 s. An initial ref-check from the wrong cwd falsely found no LLP corpus;
+the root invocation is clean.
+
+Evidence stays outside Git in the commissioned `rt6g4a` scratch directory;
+its `rt6-witnesses.md`, before/after logs, command receipts and PID records
+preserve both fixture corrections. PG16 PID 1459278, socket directory
+`/tmp/rt6g4a-hja_khbn`, remains owned for the immediately following G4a work;
+final shutdown/absence will be recorded there. The shared-host stop floor is
+not reached. No push, stash, persistent Git configuration change or raw logs.
+## 2026-10-23 — G4a short-request admission
+
+Lane `sb4-pg/g4a` starts at the required RT6 `2fdab64882`. Short handling
+now has 30 workers and 98 queue slots, with the original intake/body
+deadlines retained. Waiting consumes no DB reader. The 128-request held
+burst drains successfully, the 129th refuses, and an expired streaming
+request refuses without draining. Eight overload witnesses and both RT0
+tables pass; existing W1/W2 are still 3/2 PG and 6/6 SQLite. Report:
+reports/20261023-g4a-reads/REPORT.md. Private PG16 master 4057748 is owned
+until final shutdown; raw logs are outside Git. No connection cap increased.
+
+## 2026-10-23 — G4a non-authorizing query ingress
+
+`/q` now carries a bounded ordinary capability hint through intake; the
+query snapshot still runs the fresh shared Rust resolver, store binding and
+stale-kind/scope check. Cold discovery happens after bounded body intake;
+unknown tokens cost one PG flight and action/custom kinds stay uncached.
+PG W1/W2 improve 3/2→2/1; SQLite improves 6/6→5/5, with no other warm class
+increase. Five RT0/publication cases, 62 existing RT3b cases and two new
+both-store carried-hint witnesses pass. Failed discovery experiments remain
+in the report; no count allowance increased. Full qualification follows.
+
+## 2026-10-23 — G4a W3 baseline ratchet
+
+Added a distinct W3-shaped HTTP RT0 class before composing facts: 32
+memberships/room totals/unread counts with an excluded 33rd room. Exact
+warm baseline is PG 134 flights, SQLite 132 statements; first use 138/132.
+Both tables and all five round-trip/publication cases pass. Existing class
+allowances are unchanged. This records the real pre-collector baseline;
+it does not borrow M1's different harness counts.
+
+## 2026-10-23 — G4a bounded one-statement fact closure
+
+Warm HTTP PG W1/W2/W3 now measure 1/1/1 flights, from RT6's 3/2 and the
+new W3 baseline's 134. SQL fetches bounded facts; the shared Rust resolver,
+interpreter and meters still choose outcomes. SQLite stays 5/5/132 after
+ingress refinement. The obsolete PG table correctly requested lowering;
+final verification uses the lowered table. No existing warm class increases.
+
+Five focused core witnesses and the composed store-oracle pass, including
+real maintained totals, all logical meter dimensions, cursor/error parity,
+planted fact faults, commit/revocation after collection and valid JSON NUL
+fallback. PostgreSQL JSON path extraction rejects NUL even in an unrelated
+legal JSON payload; affected dependent-address shapes conservatively retain
+Rust decoding. Statement/decode/key bytes and prepared shapes are bounded
+inside existing physical allowances. The hint map uses a separate mutex;
+metadata refusals retain the carried scope check and the queue expiry witness
+now holds a real queued request. Reports/20261023-g4a-reads/REPORT.md records
+counts, fallback and first-use costs; full checks/cleanup are in progress.
+
+## 2026-10-23 — G4a collector checkpoint qualification
+
+The frozen collector passes all five private-PG witnesses and both lowered
+RT0 ratchets (five HTTP/publication tests). Full core has 1,169 passes across
+48 targets; full binary rerun has 580 passes. Its first run exposed an old
+latency fixture that filled only active workers; the fixture now fills the
+bounded admission and the saturated increment is lazy. No bounds increased.
+The final affected collector/HTTP checks follow the full suites. The stock
+Postgres sweep is still running and its retained evaluator 40001 is red;
+cleanup and the complete sweep disposition will be recorded separately.
+
+## 2026-10-24 — G4a composed and fallback statement faults
+
+The stock sweep found RT6's expected second W1 flight no longer exists.
+Updated the actual serving fault witness to exercise each composed read's
+BEGIN/facts/ROLLBACK command boundary and retained all old sequence-path
+boundaries through a genuine unused lifetime-table fallback. Both planner
+variants are asserted; every error preserves the full census and prevents
+the nontransactional later-command sentinel. All 19 literal/serving tests
+pass. Production code and the passing 1/1/1 warm PG ratchets are unchanged.
+The top-level full-core census is 1,168 passes across 47 targets; the earlier
+checkpoint's 1,169/48 included one successful nested child-test result twice.
+
+## 2026-10-24 — G4a final qualification and confirmed shutdown
+
+Completed the workspace build, full core (1,168 top-level passes), full binary
+(580 passes), both RT0 ratchets, five collector witnesses, composed store
+oracle, 19 literal/serving faults and reference check. Warm PG W1/W2/W3 is
+1/1/1; SQLite is 5/5/132. No other warm class increases; first-use costs remain
+disclosed in reports/20261023-g4a-reads/REPORT.md and its numeric evidence.
+
+The full stock Postgres sweep completes all stages, including 64 authority
+witnesses, 237 adapter / 25 ownership / 60 evolution tests, 22 five-backend
+corpus tests, 12+4 difftest tests and the complete public CLI/S1 recount.
+Its exit 1 retains the known evaluator 40001 and the initial stale second-W1-
+flight expectation; the latter is fixed and all 19 affected cases pass.
+No guard, retry, skip or allowance was raised. The existing race ticket records
+this occurrence; there is no new failing product witness from this lane.
+
+Primary private PG16.15 master 4057748 and public-witness master 481445 are
+stopped and independently confirmed: status 3, no PID file, no process. The
+monitor exits; all 826 recorded lane PIDs and the private-directory/target
+census show none left. Final free space is about 115 GiB, above the 40 GB
+stop threshold. Raw logs/data remain outside Git. Local lane commits keep
+the exact RT6 base 2fdab64882; final qualification details are in the report.
+
+## 2026-10-24 — G4a fix round 1 after RT6 round 2
+
+Rebased the six G4a commits from `9563a7ba10`/`2fdab64882` onto RT6 fix
+round 2 `8f3fad25d9`, on `sb4-pg/g4a-fix1`. Conflicts preserve the explicit
+point/range access identity, null-probe absence, codec settings guard and
+G4a's composed read closures. Both pre-existing journal streams are retained.
+No fetch, push, stash or persistent Git configuration change.
+
+New witnesses run first with unchanged `9563a7ba10` production. Empty `.id`
+pages panic at `keys[0]`; a sparse principal default produces
+`E_STORE("read outside completed physical plan")`; a retained NUL text
+image returns a speculative store error instead of the ordinary successful
+outcome. The queue's deadline witness times out after three seconds with all
+workers still blocked; the connection-reservation and partial-worker-exit
+witnesses fail too. Current typed text ingress already rejects U+0000, so
+the NUL witness installs a retained canonical image through the row port;
+it does not claim that a current `post` accepts that control character.
+The initial admission refusal is retained alongside the corrected witness.
+
+Composition now distinguishes points from ranges independently of prefix
+length. A unique primary point also records its exact ordered index prefix
+for the metered lookup, without allowing either fact to answer a wider page.
+All payload node/key/image/hex decoding is fallible. Dependent defaulted or
+optional fields decline composition before SQL, preserving the exact Rust
+sparse-row defaults/nulls. A conservative canonical-NUL spelling check runs
+before PostgreSQL's JSON extraction, declines the speculative payload, and
+leaves every stored byte intact. Fixed NUL keys decline composition too.
+A statement failure rolls back and drops the entire speculative snapshot,
+then resolves ordinary authority and rows in a fresh snapshot. A real SQL
+error followed by revocation between rollback and reopening returns `E_AUTH`.
+Read fault-boundary tests require the complete ordinary outcome after failed
+composition, while writer and sequence faults retain their refusal checks.
+
+One timer per timed request pool expires queued sockets independently of
+blocked workers. The earlier original body/intake deadline decides expiry;
+no DB reader is opened. Partial worker loss keeps queued work for surviving
+workers; loss of all workers refuses it. The HTTP reservation adds the 98
+queued sockets to the existing 128 non-wait connections (default total
+1,282), retaining mutation capacity even with a small long-wait budget.
+DB caps remain 30/32 and short execution/queue capacity remains 30/98.
+The Postgres script explicitly runs ignored closure oracles and the
+revocation cut, and isolates the evaluator target instead of cleaning any
+pre-existing shared artifacts.
+
+Focused qualification passes: five new core fix witnesses, all nine closure
+oracles, all 31 codec/serving cases, nine overload cases (including timely
+expiry before unblocking any worker), all worker-exit and capacity cases.
+Both RT0 tables are byte-identical to `9563a7ba10`; full qualification and
+owned-process shutdown are recorded separately below. Raw evidence stays in
+the commissioned external `rt6g4a` scratch directory. The shared-host disk
+floor has not been reached; the private PG16 PID remains 1459278.
+
+## 2026-10-24 — RT6/G4a final qualification and owned shutdown
+
+RT6 round 2 remains committed as `8f3fad25d9`. G4a round 1 passes the
+requested full checks after rebase: build; full default core (1,120 tests
+plus one subprocess check, five named ignores; 794.35 s); full binary
+(581 main tests, 47 named ignores, plus its passing subprocess checks);
+both unchanged RT0 ratchets; and repository-root ref-check (566 LLPs,
+zero errors/unchecked refs). The final CLI is rebuilt again by the public
+Postgres script after moving deadline calculation into the worker module
+and retaining `serve.rs` at 1,499 lines.
+
+`bash scripts/test-postgres.sh` exits 0 in 1,184.70 s. The isolated evaluator,
+240 main adapter tests, nine explicit closure oracles including the revoked
+cut, 31 codec/serving cases, all ownership/evolution/authority groups, corpus
+overlap, twelve differential-library cases, all four store campaigns and
+the public Postgres serving/P1-MC milestone pass. No inherited red, bound
+relaxation in a product assertion, retry, new exclusion or raw log is needed.
+The public witness's former 40 GiB resource guard now follows the author's
+explicit 22 GiB shared-host floor, matching the lane monitor; the floor is
+never reached. No existing Cargo artifacts were cleaned or host data deleted.
+
+The six original-tip G4a failures, four original-tip RT6 failures, corrected
+fixture development and final command receipts are preserved externally in
+`rt6g4a/regressions.md` and adjacent logs/JSON. Both RT0 JSON files remain
+byte-identical to their respective original lane tips. RFC notes cover both
+fix rounds and the current NUL-admission qualification.
+
+Private PG16 master 1459278 stops in 0.20 s with stop status 0, independent
+status 3, no pid file and no `/proc` identity. The public witness separately
+stops master 2056038 with status 3/no pid file. A final independent audit
+finds all 631 recorded process identities and all 550 public-witness PID
+records absent; executable/data-directory scans also find no survivors.
+PIDs left: none. Both data directories, short socket directories and raw
+evidence are retained outside Git. No push, stash or persistent Git
+configuration change.

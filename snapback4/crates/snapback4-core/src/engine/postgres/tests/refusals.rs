@@ -89,6 +89,7 @@ fn eight_waiting_attachers_recheck_version_before_any_upgrade() {
     legacy(&mut engine.store.client);
     engine.store.client.batch_execute("ALTER TABLE _backend DROP COLUMN generation;").unwrap();
     engine.store.client.batch_execute("BEGIN; SELECT seq FROM _head FOR UPDATE;").unwrap();
+    let head:u32=engine.store.client.query_one("SELECT '_head'::regclass::oid",&[]).unwrap().get(0);
     let mut pids = Vec::<i32>::new();
     let mut joins = Vec::new();
     for _ in 0..8 {
@@ -101,7 +102,7 @@ fn eight_waiting_attachers_recheck_version_before_any_upgrade() {
     loop {
         engine.store.client.batch_execute("SELECT pg_stat_clear_snapshot()").unwrap();
         let waiting: i64 = engine.store.client.query_one(
-            "SELECT count(*) FROM pg_stat_activity WHERE pid = ANY($1) AND wait_event_type = 'Lock' AND query LIKE 'SELECT seq FROM _head%FOR UPDATE'", &[&pids]).unwrap().get(0);
+            "SELECT count(*) FROM pg_stat_activity a WHERE pid = ANY($1) AND wait_event_type = 'Lock' AND cardinality(pg_blocking_pids(pid))>0 AND EXISTS(SELECT 1 FROM pg_locks l WHERE l.pid=a.pid AND relation=$2 AND mode='RowShareLock' AND granted)", &[&pids,&head]).unwrap().get(0);
         if waiting == 8 { break; }
         assert!(started.elapsed() < Duration::from_secs(4), "only {waiting}/8 attachers reached the head lock");
         std::thread::sleep(Duration::from_millis(5));

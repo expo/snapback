@@ -306,8 +306,9 @@ pub(crate) struct Capacity {
 pub(crate) const DEFAULT_LONG_WAITS: usize = 1024;
 pub(crate) const DEFAULT_PER_PRINCIPAL: usize = 16;
 pub(crate) const DEFAULT_CLAIM_WAITS: usize = 32;
-/// The bound before this change, kept for everything that is not a long wait.
-pub(crate) const OTHER_CONNECTIONS: usize = 128;
+/// Queued short reads own sockets as well as the existing execution pools.
+pub(crate) const SHORT_REQUEST_QUEUE: usize = 98;
+pub(crate) const OTHER_CONNECTIONS: usize = 128 + SHORT_REQUEST_QUEUE;
 /// Each held wait costs two OS threads; Darwin allows 16,384 per process.
 pub(crate) const MAX_LONG_WAITS: usize = 4096;
 pub(crate) const MAX_CLAIM_WAITS: usize = 1024;
@@ -359,7 +360,7 @@ impl Capacity {
         Ok(Self { long_waits: waits, per_principal: share, claim_waits: claims, ..capacity })
     }
 
-    /// Every long wait holds a connection; the rest keep today's 128.
+    /// Every held wait and queued short read has explicit connection room.
     pub(crate) fn connections(&self) -> usize { self.long_waits + self.claim_waits + OTHER_CONNECTIONS }
 
     pub(crate) fn descriptors(&self) -> u64 {
@@ -407,12 +408,12 @@ mod capacity_tests {
     fn defaults_flags_and_environment_size_the_pools() {
         let none = |_: &str| None;
         let capacity = Capacity::from_options(&flags(&[]), none).unwrap();
-        assert_eq!((capacity.long_waits, capacity.per_principal, capacity.claim_waits, capacity.connections()), (1024, 16, 32, 1184));
+        assert_eq!((capacity.long_waits, capacity.per_principal, capacity.claim_waits, capacity.connections()), (1024, 16, 32, 1282));
         let env = |name: &str| (name == "SNAPBACK4_LONG_WAITS").then(|| "2000".to_owned());
         assert_eq!(Capacity::from_options(&flags(&[]), env).unwrap().long_waits, 2000);
         assert_eq!(Capacity::from_options(&flags(&[("long-waits", "64")]), env).unwrap().long_waits, 64, "a flag wins over its variable");
         let small = Capacity::from_options(&flags(&[("long-waits", "4"), ("claim-waits", "1")]), none).unwrap();
-        assert_eq!((small.per_principal, small.connections()), (4, 133), "a defaulted share follows a smaller pool");
+        assert_eq!((small.per_principal, small.connections()), (4, 231), "a defaulted share follows a smaller pool");
         for bad in [("long-waits", "0"), ("long-waits", "4097"), ("claim-waits", "1025"), ("long-waits", "many")] {
             let error = Capacity::from_options(&flags(&[bad]), none).unwrap_err();
             assert!(error.starts_with("E_INPUT: --") && error.contains("Long-wait capacity"), "{error}");
@@ -423,7 +424,7 @@ mod capacity_tests {
     #[test]
     fn the_descriptor_bound_follows_connections() {
         let capacity = Capacity::default();
-        assert_eq!(capacity.descriptors(), 512 + 4 * 1184);
-        assert!(capacity.describe().contains("1024 viewer (≤16 change polls per principal), 32 worker claim; HTTP connections=1184"), "{}", capacity.describe());
+        assert_eq!(capacity.descriptors(), 512 + 4 * 1282);
+        assert!(capacity.describe().contains("1024 viewer (≤16 change polls per principal), 32 worker claim; HTTP connections=1282"), "{}", capacity.describe());
     }
 }

@@ -135,7 +135,7 @@ fn sqlite_unified_and_evaluator_overlap_prefetch_on_and_off() {
                     "SELECT seq,outcome,name,args_digest,at FROM _ops WHERE principal='alice' AND id=?1", [&id],
                     |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?)),
                 ).optional().unwrap();
-                let receipt = |rows: Vec<postgres::Row>| rows.first().map(|r| (r.get(0), r.get(1), r.get(2), r.get(3), r.get(4)));
+                let receipt = |rows: Vec<super::super::store::Row>| rows.first().map(|r| (r.get(0), r.get(1), r.get(2), r.get(3), r.get(4)));
                 let common = receipt(b.test_postgres_tx().query("SELECT seq,outcome,name,args_digest,at FROM _ops WHERE principal='alice' AND id=$1", &[&id]).unwrap());
                 let oracle = receipt(c.query("SELECT seq,outcome,name,args_digest,at FROM _ops WHERE principal='alice' AND id=$1", &[&id]).unwrap());
                 assert_receipts(left.clone(), common);

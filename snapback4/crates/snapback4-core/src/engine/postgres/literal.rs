@@ -1,4 +1,4 @@
-//! RT5 candidate (a), deliberately absent from serving builds.
+//! Typed literal codec for ordered serving flights, qualified by RT5.
 //! @ref LLP 3000.009.001.000.001#36-how-a-flight-is-sent-is-decided-by-measurement — typed EXECUTE and text decoding qualification.
 use crate::RuntimeError;
 use postgres::{
@@ -28,7 +28,10 @@ fn decode_error(message: impl Into<String>) -> RuntimeError {
     RuntimeError::Store(message.into())
 }
 fn hex(bytes: &[u8]) -> String {
-    bytes.iter().map(|b| format!("{b:02x}")).collect()
+    const DIGITS: &[u8;16] = b"0123456789abcdef";
+    let mut out = String::with_capacity(bytes.len().saturating_mul(2));
+    for b in bytes { out.push(DIGITS[(b >> 4) as usize] as char); out.push(DIGITS[(b & 15) as usize] as char); }
+    out
 }
 fn unhex(text: &str) -> Result<Vec<u8>, RuntimeError> {
     if text.len() % 2 != 0 {
@@ -45,7 +48,7 @@ fn unhex(text: &str) -> Result<Vec<u8>, RuntimeError> {
         })
         .collect()
 }
-fn name(ty: &Type) -> Result<String, RuntimeError> {
+pub(super) fn name(ty: &Type) -> Result<String, RuntimeError> {
     if let Kind::Array(element) = ty.kind() {
         return Ok(format!("{}[]", name(element)?));
     }
@@ -67,6 +70,9 @@ fn name(ty: &Type) -> Result<String, RuntimeError> {
 /// This avoids standard_conforming_strings, encoding, locale and quote rules.
 /// Counts/times are already saturated by shared policy; never clamp here.
 pub fn encode(value: &Datum, ty: &Type) -> Result<String, RuntimeError> {
+    if encoded_bound(value) > super::flight::ENCODED_LIMIT {
+        return Err(bad("Postgres literal scratch guard"));
+    }
     let cast = name(ty)?;
     let body = match (value, ty) {
         (Datum::Null, _) => "NULL".into(),
@@ -102,6 +108,14 @@ pub fn encode(value: &Datum, ty: &Type) -> Result<String, RuntimeError> {
     };
     Ok(format!("({body})::{cast}"))
 }
+fn encoded_bound(value: &Datum) -> usize {
+    match value {
+        Datum::Text(v) => v.len().saturating_mul(2).saturating_add(128),
+        Datum::Bytes(v) => v.len().saturating_mul(2).saturating_add(64),
+        Datum::Array(v) => v.iter().fold(64usize, |n,v| n.saturating_add(encoded_bound(v)).saturating_add(1)),
+        _ => 64,
+    }
+}
 fn float(v: f64) -> String {
     if v.is_nan() {
         "NaN".into()
@@ -125,6 +139,7 @@ pub fn parameter(value: &(dyn ToSql + Sync), ty: &Type) -> Result<String, Runtim
     let null = value
         .to_sql_checked(ty, &mut bytes)
         .map_err(|e| bad(format!("invalid Postgres parameter: {e}")))?;
+    if bytes.len() > super::flight::ENCODED_LIMIT { return Err(bad("Postgres parameter scratch guard")); }
     let value = if matches!(null, IsNull::Yes) {
         Datum::Null
     } else {
@@ -181,6 +196,7 @@ pub fn binary(ty: &Type, bytes: &[u8]) -> Result<Datum, RuntimeError> {
                 }
                 _ => return Err(bad("multidimensional arrays are not port types")),
             };
+            if count > super::flight::ENCODED_LIMIT / std::mem::size_of::<Datum>() { return Err(bad("Postgres array scratch guard")); }
             let mut values = Vec::new();
             for _ in 0..count {
                 let len = i32_at(&mut rest)?;
@@ -206,7 +222,7 @@ pub fn binary(ty: &Type, bytes: &[u8]) -> Result<Datum, RuntimeError> {
 /// output qualification resolves any name through the application search_path.
 /// Text float output canonicalizes every NaN to positive quiet NaN (f32
 /// 0x7fc00000, f64 0x7ff8000000000000); NaN payload/sign are not port facts.
-/// RT6 must apply this to each new physical connection if candidate (a) lands.
+/// Applied at every physical ownership connection and before a Store first begins.
 pub fn configure(client: &mut Client) -> Result<(), RuntimeError> {
     client.batch_execute(
         "SET client_encoding='UTF8'; SET extra_float_digits=3; SET bytea_output='hex'",
@@ -315,6 +331,12 @@ fn array(v: &str) -> Result<Vec<Option<String>>, RuntimeError> {
     Ok(values)
 }
 
+pub(super) fn serving_name() -> String {
+    // A physical Client may be moved through several Store wrappers during
+    // attach/evaluation. SQL PREPARE survives their Rust caches and rollback.
+    static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    format!("sb4_rt6_{:x}_{}", std::process::id(), NEXT.fetch_add(1,std::sync::atomic::Ordering::Relaxed))
+}
 pub struct Prepared {
     pub bind: Statement,
     name: String,
@@ -331,6 +353,9 @@ impl Prepared {
             return Err(bad("invalid prepared name"));
         }
         let bind = client.prepare(sql)?;
+        Self::from_bind(client, name, sql, bind)
+    }
+    pub(super) fn from_bind(client: &mut Client, name: &str, sql: &str, bind: Statement) -> Result<Self, RuntimeError> {
         let types = bind
             .params()
             .iter()
@@ -351,11 +376,14 @@ impl Prepared {
         if params.len() != self.bind.params().len() {
             return Err(bad("parameter count mismatch"));
         }
-        let args = params
-            .iter()
-            .zip(self.bind.params())
-            .map(|(p, t)| parameter(*p, t))
-            .collect::<Result<Vec<_>, _>>()?;
+        let mut args = Vec::new();
+        let mut size = 64usize;
+        for (p,t) in params.iter().zip(self.bind.params()) {
+            let value = parameter(*p,t)?;
+            size = size.saturating_add(value.len()).saturating_add(1);
+            if size > super::flight::ENCODED_LIMIT { return Err(bad("Postgres command scratch guard")); }
+            args.push(value);
+        }
         Ok(if args.is_empty() {
             format!("EXECUTE {}", self.name)
         } else {

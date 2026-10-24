@@ -27,8 +27,27 @@ impl AnyStore {
     pub fn transaction(&mut self) -> Result<AnyTx<'_>, RuntimeError> {
         match self { Self::Sqlite(SqliteStore(store)) => store.transaction().map(|inner| AnyTx::Sqlite(SqliteTx(inner))), #[cfg(feature = "postgres")] Self::Postgres(PostgresStore(handle)) => handle.store.get_mut().transaction(Some(crate::engine::postgres::WriteMode::Serialized)).map(|inner| AnyTx::Postgres(PostgresTx(inner))) }
     }
+    pub(crate) fn request_write_transaction(&mut self, digest: &str, principal: &str, id: Option<&str>) -> Result<AnyTx<'_>,RuntimeError> {
+        #[cfg(feature="postgres")]
+        if let Self::Postgres(PostgresStore(handle)) = self {
+            return handle.store.get_mut().request_transaction(digest,principal,id).map(|tx|AnyTx::Postgres(PostgresTx(tx)));
+        }
+        let _ = (digest,principal,id);
+        self.transaction()
+    }
     pub fn read_transaction(&mut self) -> Result<ReadSnapshot<'_>, RuntimeError> {
         match self { Self::Sqlite(SqliteStore(store)) => store.read_transaction().map(|tx| ReadSnapshot { tx: AnyTx::Sqlite(SqliteTx(tx)), authority: None }), #[cfg(feature = "postgres")] Self::Postgres(PostgresStore(handle)) => handle.store.get_mut().transaction(None).map(|tx| ReadSnapshot { tx: AnyTx::Postgres(PostgresTx(tx)), authority: None }) }
+    }
+    pub(crate) fn planned_request_read_transaction(&mut self, digest: &str, schema: &Schema, program: Option<&Program>, context: &crate::engine::Context) -> Result<Option<ReadSnapshot<'_>>, RuntimeError> {
+        #[cfg(feature = "postgres")]
+        if let Self::Postgres(PostgresStore(handle)) = self {
+            if digest.contains('\0') { return Ok(None); }
+            let plan = program.and_then(|p| crate::engine::postgres::read_plan::Plan::new(schema,p,context));
+            let (tx,facts) = handle.store.get_mut().planned_authority_transaction(digest,plan)?;
+            return Ok(Some(ReadSnapshot { tx: AnyTx::Postgres(PostgresTx(tx)), authority:Some((digest.into(),facts)) }));
+        }
+        let _ = (schema,program,context);
+        self.request_read_transaction(digest)
     }
     // @ref LLP 3000.009.001.000.001#33-borrow-the-snapshot-never-open-another — the facts SELECT pins and validates the query's generation, identity and head.
     pub(crate) fn request_read_transaction(&mut self, digest: &str) -> Result<Option<ReadSnapshot<'_>>, RuntimeError> {
@@ -72,6 +91,19 @@ impl AnyStore {
             }
         }
     }
+    pub(crate) fn with_preflight_snapshot<T>(&self, digest: &str, receipt: Option<(&str,&str)>, ordinary: bool, run: impl FnOnce(&AnyTx<'_>,crate::identity::facts::SessionFacts)->Result<T,RuntimeError>) -> Result<T,RuntimeError> {
+        #[cfg(feature="postgres")]
+        if ordinary && let Self::Postgres(PostgresStore(handle)) = self {
+            let mut store = handle.borrow()?;
+            let (tx,facts) = store.preflight_transaction(digest,receipt)?;
+            let tx = AnyTx::Postgres(PostgresTx(tx));
+            let result = run(&tx,facts)?;
+            tx.rollback()?;
+            return Ok(result);
+        }
+        let _ = (receipt,ordinary);
+        self.with_session_authority_snapshot(digest,run)
+    }
     pub(crate) fn with_authority_snapshot<T>(&self, run: impl FnOnce(&AnyTx<'_>) -> Result<T, RuntimeError>) -> Result<T, RuntimeError> {
         match self { Self::Sqlite(SqliteStore(store)) => {
             let tx = AnyTx::Sqlite(SqliteTx(store.authority_transaction()?));
@@ -99,6 +131,11 @@ impl AnyTx<'_> {
     pub(crate) fn begin_member_evidence(&self) { match self { Self::Sqlite(SqliteTx(tx)) => tx.begin_member_evidence(), #[cfg(feature = "postgres")] Self::Postgres(PostgresTx(tx)) => tx.begin_member_evidence() } }
 }
 impl ReadSnapshot<'_> {
+    pub(crate) fn finish_planned_reads(&self) -> Result<(),RuntimeError> {
+        #[cfg(feature="postgres")]
+        if let AnyTx::Postgres(PostgresTx(tx)) = &self.tx { tx.finish_planned_reads()?; }
+        Ok(())
+    }
     pub fn commit(self) -> Result<(), RuntimeError> { self.tx.commit() }
     pub fn rollback(self) -> Result<(), RuntimeError> { self.tx.rollback() }
 }

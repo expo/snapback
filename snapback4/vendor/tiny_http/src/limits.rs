@@ -162,6 +162,8 @@ impl ConnectionState {
         *self.read_until.lock().unwrap() = Instant::now() + self.limits.body_timeout;
     }
 
+    pub(crate) fn body_deadline(&self) -> Instant { *self.read_until.lock().unwrap() }
+
     pub(crate) fn before_read(&self) -> io::Result<()> {
         let until = *self.read_until.lock().unwrap();
         self.socket.set_read_timeout(Some(self.remaining(until)?.min(self.limits.idle_timeout)))
