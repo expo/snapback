@@ -212,9 +212,10 @@ pub(super) fn plan(dir: &std::path::Path, own: &super::OwnSchema, enable_day2: b
     }
     let referenced_after = |path: &str| package["scripts"].as_object().is_some_and(|scripts| scripts.values().any(|v|v.as_str().is_some_and(|s|s.contains(path))));
     let mut additions: Vec<_> = generated.into_iter().skip(1)
-        .filter(|(name, _)| {
+        .filter(|(name, text)| {
             if *name == "scripts/frontend-proof.mjs" { return inherited_frontend.is_some() || !dir.join(name).exists() && referenced_after(name); }
-            if *name == "scripts/day2-proof.mjs" { return day2 && (managed_day2 || !dir.join(name).exists() && (enable_day2 || referenced_day2)); }
+            if *name == "scripts/day2-proof.mjs" { return day2 && (managed_day2 || !dir.join(name).exists() && (enable_day2 || referenced_day2))
+                && std::fs::read_to_string(dir.join(name)).ok().as_deref()!=Some(text.as_str()); }
             if !dir.join(name).exists() {
                 return name.starts_with("versions/") || referenced_after(name);
             }

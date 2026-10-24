@@ -53,6 +53,7 @@ fn fallback_names_unknown_files_and_cases_but_never_drops_unknown_fields() {
 #[test]
 fn check_detects_inherited_day2_script_and_preview_shows_its_replacement() {
     let app = App::new(); ok(app.run(&["init", "--web", "--day2"]));
+    app.write("scripts/day2-proof.mjs",include_str!("../src/verbs/init/previous/day2-proof-0.4.40.mjs"));
     let mut package: serde_json::Value = serde_json::from_str(&app.text("package.json")).unwrap();
     package["scripts"]["day2:proof"] = "node scripts/day2-proof.mjs".into();
     app.write("package.json", &serde_json::to_string_pretty(&package).unwrap());
@@ -63,7 +64,8 @@ fn check_detects_inherited_day2_script_and_preview_shows_its_replacement() {
     ok(app.run(&["init", "--adapt", "--apply"]));
     assert!(app.text("package.json").contains("node scripts/day2-proof.mjs versions/v1 versions/v2"));
     assert!(app.0.join("versions/v1/fixtures").is_dir());
-    assert!(app.text("scripts/day2-proof.mjs").contains("assert.fail(`day2:proof needs a business assertion"));
+    assert!(app.text("scripts/day2-proof.mjs").contains("compareMoves"));
+    assert!(!app.text("scripts/day2-proof.mjs").contains("assert.fail"));
     assert!(app.text("scripts/frontend-proof.mjs").contains("command(\"npm\", [\"run\", \"build\"]"));
 }
 #[test]
@@ -196,6 +198,7 @@ fn actual_router_social_starter_repairs_inherited_proofs_without_touching_routes
         .replace("name: \"Add\"", "name: \"Save profile\"")
         .replace("beginForm(\"add\", { title }", "beginForm(\"saveProfile\", { name: title }");
     app.write("scripts/frontend-proof.mjs", &previous);
+    app.write("scripts/day2-proof.mjs",include_str!("../src/verbs/init/previous/day2-proof-0.4.40.mjs"));
     let mut package: serde_json::Value = serde_json::from_str(&app.text("package.json")).unwrap();
     package["scripts"]["day2:proof"] = "node scripts/day2-proof.mjs".into();
     app.write("package.json", &serde_json::to_string_pretty(&package).unwrap());
@@ -227,12 +230,12 @@ fn every_ui_template_uses_its_written_backend_and_launcher_in_the_quick_start() 
 }
 
 #[test]
-fn day4_new_apps_opt_in_and_deleted_day2_stays_deleted() {
+fn new_apps_include_day2_by_default_and_deleted_day2_stays_deleted() {
     for mode in ["--web", "--expo"] {
         let app=App::new(); ok(app.run(&["init",mode]));
-        assert!(!app.0.join("versions").exists());
-        assert!(!app.0.join("scripts/day2-proof.mjs").exists());
-        assert!(serde_json::from_str::<serde_json::Value>(&app.text("package.json")).unwrap()["scripts"].get("day2:proof").is_none());
+        assert!(app.0.join("versions/v1/schema.q").is_file());
+        assert!(app.0.join("scripts/day2-proof.mjs").is_file());
+        assert!(serde_json::from_str::<serde_json::Value>(&app.text("package.json")).unwrap()["scripts"]["day2:proof"] == "node scripts/day2-proof.mjs versions/v1 versions/v2");
         ok(app.run(&["init","--adapt","--day2","--apply"]));
         assert_eq!(app.text("versions/v1/schema.q"),app.text("snapback/schema.q"));
         fs::remove_file(app.0.join("scripts/day2-proof.mjs")).unwrap();
@@ -265,15 +268,18 @@ fn day4_custom_saved_arguments_and_business_proofs_are_owned() {
             assert!(!output.contains(misleading),"{output}");
         }
     }
+    let captured=app.text("versions/v1/schema.q");
     let proof=app.text("scripts/day2-proof.mjs"); ok(app.run(&["init","--adapt","--apply"]));
     assert_eq!(app.text("scripts/day2-proof.mjs"),proof);
-    assert!(!app.0.join("versions").exists());
+    assert_eq!(app.text("versions/v1/schema.q"),captured);
 }
 
 #[test]
 fn day4_old_templates_capture_current_sources_without_copying_stale_evidence() {
     for source in [include_str!("../src/verbs/init/previous/day2-proof-0.4.28.mjs"),include_str!("../src/verbs/init/previous/day2-proof-0.4.29.mjs")] {
         let app=App::new(); app.write("snapback/schema.q",V1); ok(app.run(&["init","--web"]));
+        // Emulate an older opt-in kit, before default captured directories.
+        fs::remove_dir_all(app.0.join("versions")).unwrap();
         let stale=include_str!("../src/verbs/init/starter/schema.q");
         app.write("versions/v1.q",stale); app.write("versions/v2.q",stale);
         app.write("scripts/day2-proof.mjs",source);
@@ -313,6 +319,7 @@ fn day4_frontend_proof_heuristics_are_explicit_and_shared_by_check_and_adapt() {
 fn day4_missing_referenced_day2_restores_a_runnable_command_and_sources() {
     for script in ["node scripts/day2-proof.mjs","node scripts/day2-proof.mjs versions/v1.q versions/v2.q"] {
         let app=App::new(); app.write("snapback/schema.q",V1);ok(app.run(&["init","--web"]));
+        fs::remove_file(app.0.join("scripts/day2-proof.mjs")).unwrap();
         let mut pkg:serde_json::Value=serde_json::from_str(&app.text("package.json")).unwrap();
         pkg["scripts"]["day2:proof"]=script.into();app.write("package.json",&pkg.to_string());
         let check=ok(app.run(&["check"]));assert!(check.contains("missing but package.json still references"),"{check}");
@@ -346,6 +353,12 @@ fn day4_adapt_repairs_launchers_referenced_by_the_resulting_commands() {
 #[test]
 fn day4_optin_preview_keeps_the_flag_and_snapshots_sweep_configuration() {
     let app=App::new();app.write("snapback/schema.q",V1);ok(app.run(&["init","--web"]));
+    // Explicitly opt out to exercise re-enabling the recipe in preview.
+    fs::remove_dir_all(app.0.join("versions")).unwrap();
+    fs::remove_file(app.0.join("scripts/day2-proof.mjs")).unwrap();
+    let mut pkg:serde_json::Value=serde_json::from_str(&app.text("package.json")).unwrap();
+    pkg["scripts"].as_object_mut().unwrap().remove("day2:proof");
+    pkg["snapback4"]["starter"]["day2"]=false.into();app.write("package.json",&pkg.to_string());
     app.write("fixtures/test.sweep.json","{\"list\":[\"alice\"]}");
     let preview=ok(app.run(&["init","--adapt","--day2"]));
     assert!(preview.contains("snapback4 init --adapt --day2 --apply"),"{preview}");

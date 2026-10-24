@@ -59,7 +59,12 @@ pub(super) fn legacy_differences(dir: &Path, plan: &[(&str, String)]) -> Vec<Str
 }
 pub(super) fn report(dir: &Path) -> Vec<String> {
     let mut advice = legacy_differences(dir, &[]);
-    if let Ok(entries) = std::fs::read_dir(dir.join("versions")) {
+    // A current or application-owned recipe can contain genuine historical
+    // todo source. Only a recognized old scaffold recipe supplies evidence of
+    // the old placeholder problem; never relabel new captures as stale.
+    let inherited_recipe=std::fs::read_to_string(dir.join("scripts/day2-proof.mjs")).ok()
+        .is_some_and(|text|{let hash=digest(&text);templates().iter().any(|t|t.file=="day2"&&t.sha256==hash)});
+    if let Ok(entries) = std::fs::read_dir(dir.join("versions")) && inherited_recipe {
         let mut paths = Vec::new();
         for entry in entries.flatten() {
             let path = entry.path();
@@ -72,7 +77,7 @@ pub(super) fn report(dir: &Path) -> Vec<String> {
             if let Ok(text) = std::fs::read_to_string(&path) {
                 let hash = digest(&text);
                 if let Some(t) = templates().iter().find(|t| t.file == "todo-schema" && t.sha256 == hash) {
-                    advice.push(format!("info: {} is the unmodified {} todo snapshot (sha256 {hash}); replace it with this app's saved schema and contemporary fixtures before day2:proof", path.strip_prefix(dir).unwrap_or(&path).display(), t.version));
+                    advice.push(format!("info: {} is the unmodified {} todo snapshot (sha256 {hash}); preserve genuine historical source and fixtures; if this was only a scaffold placeholder, replace it with the actual historical unit before day2:proof", path.strip_prefix(dir).unwrap_or(&path).display(), t.version));
                 }
             }
         }

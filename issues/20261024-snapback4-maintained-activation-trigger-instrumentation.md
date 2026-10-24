@@ -12,3 +12,5 @@ The tests install `no_parent_delete` / `no_expired_put` SQLite triggers on manag
 Reproduce: from `snapback4`, `CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 cargo test -p snapback4-lang --test maintained_columns activation::`.
 
 This is a test repair, not permission to weaken managed-store admission. Found in REL's full-crate run after merging origin/main; report logs are `/tmp/rel-lang-full.log` on the workstream host.
+
+The affected CLI `expiry_writes` target has the same inherited conflict in `stores::refused_legacy_counter_upgrade_preserves_bytes_and_accepted_upgrade_runs_once`: its `no_counter_rebuild` trigger on `_cap_counts` is rejected by the same managed-relation guard. Preserve this test's atomic failed-upgrade/one-successful-rebuild assertions with admitted instrumentation too.
