@@ -1,5 +1,6 @@
 //! Expand advisory write sites with lexical arguments and dominating guards.
 // @ref LLP 3000.036.004#128-runtime-intent-and-independent-worlds — helper placement cannot hide a grant writer.
+// @ref LLP 3000.036.004.000#10-sec10-approvals-and-deterministic-exploration — snapshots and continuation custody keep skipped audits from supplying approval use.
 use super::*;
 use ast::{Expr,Stmt,ProgramDecl,FunctionBody};
 type Env=BTreeMap<String,Expr>;
@@ -93,10 +94,10 @@ fn fallthrough(body:&[Stmt],env:&Env,site:&Site)->Expr{
         }}super::creation_advice::simplify_boolean(&result)
     }flow(body,&mut env.clone(),site)
 }
-fn contains_return(body:&[Stmt])->bool{body.iter().any(|stmt|match stmt{Stmt::Return{..}=>true,Stmt::If{then_body,else_body,..}=>contains_return(then_body)||contains_return(else_body),Stmt::For{body,..}|Stmt::As{body,..}=>contains_return(body),_=>false})}
+pub(super) fn contains_return(body:&[Stmt])->bool{body.iter().any(|stmt|match stmt{Stmt::Return{..}=>true,Stmt::If{then_body,else_body,..}=>contains_return(then_body)||contains_return(else_body),Stmt::For{body,..}|Stmt::As{body,..}=>contains_return(body),_=>false})}
 // Break/continue leave this block, but transfers in a nested loop do not
 // escape that loop. Only a return can escape a nested iteration.
-fn contains_exit(body:&[Stmt])->bool{body.iter().any(|stmt|match stmt{
+pub(super) fn contains_exit(body:&[Stmt])->bool{body.iter().any(|stmt|match stmt{
     Stmt::Return{..}|Stmt::Break{..}|Stmt::Continue{..}=>true,
     Stmt::If{then_body,else_body,..}=>contains_exit(then_body)||contains_exit(else_body),
     Stmt::As{body,..}=>contains_exit(body),Stmt::For{body,..}=>contains_return(body),_=>false,

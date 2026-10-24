@@ -369,6 +369,12 @@ fn campaign(s:&str)->Campaign{let b=security::derived::augmented(&sources(s),&bo
     for (body,gate) in [("  for b in bookings first 10 by .id:\n    require b.approved else APPROVAL\n",false),("  if false:\n    for b in bookings first 10 by .id:\n      require b.approved else APPROVAL\n",true),("  for b in bookings first 10 by .id:\n    if false:\n      require b.approved else APPROVAL\n",true)]{assert_eq!(notes(&source.replace("LOOP",body)).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"),gate);}
     let skipped="  for b in bookings first 10 by .id:\n    stop = true\n    if stop:\n      continue\n    require b.approved else APPROVAL\n";
     assert!(notes(&source.replace("LOOP",skipped)).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
+    let inner="  for b in bookings first 10 by .id:\n    stop = false\n    for n in [1]:\n      stop = true\n    if stop:\n      continue\n    require b.approved else APPROVAL\n";
+    assert!(notes(&source.replace("LOOP",inner)).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
+    let prefix="  stop = false\n  if true:\n    stop = true\n  for b in bookings first 10 by .id:\n    if stop:\n      continue\n    require b.approved else APPROVAL\n";
+    assert!(notes(&source.replace("LOOP",prefix)).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
+    let phantom="  for b in bookings first 10 by .id:\n    stop = true\n    for n in [1]:\n      stop = false\n    if stop:\n      require b.approved else APPROVAL\n";
+    assert!(notes(&source.replace("LOOP",phantom)).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
     let helper=source.replace("  update trips[trip] {status:'done'}","  setDone(trip)")+"fn setDone(trip: trips):\n  update trips[trip] {status:'done'}\n  return null\n";
     assert!(!notes(&helper.replace("LOOP","  for b in bookings first 10 by .id:\n    require b.approved else APPROVAL\n")).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
     for transfer in ["continue","break","return null"]{
