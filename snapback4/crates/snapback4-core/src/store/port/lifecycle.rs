@@ -232,10 +232,13 @@ impl<'store> AnyTx<'store> {
     }
     pub(crate) fn prepare_program_commit(&self) -> Result<(), RuntimeError> {
         match self {
-            Self::Sqlite(_) => Ok(()),
+            Self::Sqlite(_) => Ok::<(), RuntimeError>(()),
             #[cfg(feature = "postgres")]
             Self::Postgres(PostgresTx(tx)) => tx.flush_tail(),
-        }
+        }?;
+        #[cfg(test)]
+        crate::engine::program_tail_prepared();
+        Ok(())
     }
     pub(crate) fn commit_program(self) -> Result<(), crate::engine::committer::outcome::Failure> {
         #[cfg(any(test,feature="test-support"))]

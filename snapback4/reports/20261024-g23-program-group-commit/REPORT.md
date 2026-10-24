@@ -187,3 +187,96 @@ made. All disk checks stayed above the 40 GB stop rule; the final `df -h /home`
 shows 80 G free. Raw logs, raw measurement JSON and PG data remain outside Git.
 Only this aggregate report, the repeatable ignored measurement test and the
 repository-scoped census ticket are committed with final metrology.
+
+## G2/G3 fix round 1 — 2026-10-24
+
+This round starts from `b3c4aa2bbaca2015ffc0cbb8eb94a9c2b481b163`
+on `sb4-pg/g23-fix1` in `~/projects/sb4-s10a`. It addresses the supplied
+Sol CHANGES REQUIRED and Grok APPROVE WITH NITS reviews. It adds no
+performance measurement or scale claim. Cargo uses this worktree's own
+`snapback4/target`, four build jobs, and `line-tables-only` dev/test debug
+information. Database witnesses use private socket-only PG **16.15**.
+
+The failing-before runs used the base production paths with the new tests
+and a `cfg(test)` post-tail hook. The hook pauses only after successful
+adapter tail preparation; it models response delivery or worker scheduling
+crossing a deadline without making SQL itself time out. The eight defect
+witnesses below failed before the production fixes. Raw output remains in
+`/tmp/sb4-g23f1-before-batch.log` and
+`/tmp/sb4-g23f1-before-solo-direct.log`; no raw log is committed.
+
+| Finding | Failing-before observation | Correction and witness |
+| --- | --- | --- |
+| Physical uncertainty versus retained authority refusal | `authority_refusal_cannot_hide_unknown_physical_rollback` returns `[E_AUTH,E_AUTH]` both initially and after named removal. The N=1 authority witness also returns `E_AUTH`. Each kills its recorded backend through a separate connection while refusing authority. | A retained refusal is selected only with confirmed physical abort evidence; the N=1 wrapper also preserves unknown. A writes provisionally before B refuses and loses rollback acknowledgement. Both remaining members must receive and retain `E_COMMIT_OUTCOME_UNKNOWN`; attempts prove no rerun. |
+| Member deadlines | `named_fallback_statements_use_each_members_own_deadline` rejects B with `E_STORE` after inheriting A's 500 ms budget, although B has 5 s for its 700 ms statement. | The opener uses the first member's deadline, each member replaces the statement/lock deadline, and shared tail work uses the earliest survivor. Expired A refuses while B commits within its own budget. |
+| Tail-to-COMMIT gap | `batch_deadline_after_verified_tail_{sqlite,postgres}` commits A/B after the pause. `solo_deadline_after_verified_tail_{sqlite,postgres}` also succeeds after crossing the original deadline on its known-abort retry. | Both retry drivers recheck after verified tail preparation and before uncancellable COMMIT. Four witnesses require failure and unchanged durable state; N=1 includes an actual commit/evidence tail and a deferred-constraint first-attempt abort. |
+| Deferred predecessor metadata | `deferred_internal_tail_readers_are_ineligible` admits a mutation with a nested `_commits` read in an untaken branch. | Exhaustive IR effects exclude internal commit/log/evidence/outbox/presence/receipt readers and writers from grouping. The witness covers all five deferred families. Ordinary predecessor rows, logical head and buffered keyed receipts retain their existing visibility. |
+
+The oracle now has restrictive insert and named update rules, capped source
+rows and a separate capped, expiring `slots` table. Keeping expiry separate
+preserves the maintained-column source contract while exercising physical
+cap occupancy. The snapshot adds complete `_commits` fields, cap occupancy
+and `_effect_presence` (principal, id, deadline and reconnect flag). The
+oracle requires actual rule and cap refusals and nonempty occupancy/presence;
+it compares all three seeds at N=1 versus N=4/16/32 on each store. Both pass.
+
+The trigger witness includes `_effect_presence` and verifies the exact
+vector count-mismatch column and acknowledged physical rollback for all
+seven families, then exercises the fallback driver and checks unchanged
+state. This final seven-family scope passes. These coverage additions do
+not claim an additional base production bug. Early fixture-only reds
+(nonexpiring caps have no physical occupancy table; maintained columns
+cannot use an expiring source) were corrected before final qualification.
+
+Fix-round checks (same product delta, this worktree's target):
+
+| Check | Result |
+| --- | --- |
+| Default CLI build | Pass. The initial no-Postgres build exposed an ambiguous SQLite `Ok(())` in preparation; the explicit result type fixes it and the final ordinary build passes. |
+| Full core, `--features postgres --no-fail-fast` | Pass: 735 unit passes, 284 named ignores, every unignored integration target and all 38 doc tests. |
+| Full `snapback4` binary, `--features postgres --bin snapback4` | Pass: 577 passes, 45 named ignores. |
+| Both RT0 ratchets | Pass: five selected tests; N=1 expectations unchanged, warm PG batches 20/132 flights and SQLite 66/486 statements at N=4/32. No allowance edited. |
+| Final program/batch matrix | 23/23 pass in the stock Postgres script, including both stores' three-seed oracles, all boundaries, all seven tail triggers, initial/named/solo unknown-authority witnesses and independent deferred-family eligibility checks. |
+| Final outcome/deadline matrix | 8/8 pass, including four post-tail cutoffs and the original contention/budget controls. |
+| Product PG adapter / evidence / codec / ownership / evolution | 232/232, 13/13, 19/19, 25/25 and 60/60 pass. |
+| Committer / maintained member / command queue | 3/3, 1/1 and 15/15 pass. |
+| Selected HTTP authority boundary | 62/62 pass; other selected host and publication scopes also pass. |
+| Five-executor corpus overlap | 22/22 pass. |
+
+The full core run preceded two final **test-only** strengthenings: checking
+each metadata family from a fresh program copy and adding an insert rule
+that reads the changing parent counter (`.counter.n != -1`). The independent
+eligibility rerun passes, and the final 23-test matrix reruns both stores'
+complete strengthened histories and tail-count scope. Product source did
+not change after the full core/binary/RT0 qualification. The final schema
+also passes the ordinary CLI `check`.
+
+The differential library and store campaigns pass **11/11** and **4/4**.
+The ordinary CLI rebuild passes, and the complete public deploy/serve witness
+passes evolution/restore byte-and-meter parity on both stores, 1,000-entry
+change-evidence retention, bootstrap recovery, startup lease release, receipt
+replay, restart, SIGKILL takeover, logout/ownership loss and the unchanged S1
+Quarry maintained-total fixture.
+
+The complete `bash scripts/test-postgres.sh` runs every stage and exits **1**
+solely for the inherited
+`evaluator_concurrent_read_modify_write_and_duplicate_ops_are_atomic_in_both_modes`
+Serializable **40001** failure (`tests/conformance.rs:294`). This is the same
+failure recorded above and in the existing
+[ticket](../../../issues/20260916-snapback4-postgres-serializable-benchmark-failures.md).
+Every other stage passes; no stress exclusion, timeout or durability setting
+was changed. This round makes no clean full-script claim. The first default
+build's result-type error was corrected and its successful final rebuild is
+recorded above.
+
+Primary postmaster **1268235** and public-witness postmaster **1613023** are
+stopped. Both independent `pg_ctl status` calls return 3; neither cluster has
+a pidfile, socket or socket lock. The final audit finds **all 571 unique
+recorded owned PIDs absent**, including 546 public launch records, primary
+background workers, fault backends and snapshot workers. **PIDs left: none.**
+Final `/home` free space is **74 G**; every sampled reading stayed above the
+40 GB stop threshold. Raw logs, PID manifests and private PG data remain in
+`/tmp`, outside Git. No push, stash or Git configuration change occurs.
+
+Final `./ref-check` passes: **567 LLP docs, 11,840 refs, zero errors and zero
+unchecked references**. The final diff whitespace check is clean.

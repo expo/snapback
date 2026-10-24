@@ -69,3 +69,35 @@ pub(super) fn inject<T>(point: Point, index: usize, run: impl FnOnce() -> T) -> 
     );
     value
 }
+
+// Pause after the adapter has verified its tail, before the driver can choose
+// COMMIT. This models response delivery/scheduling without slowing SQL itself.
+thread_local! {
+    static TAIL_HOOK: RefCell<Option<Box<dyn FnMut()>>> = RefCell::new(None);
+}
+pub(crate) fn tail_prepared() {
+    TAIL_HOOK.with(|slot| {
+        if let Some(hook) = slot.borrow_mut().as_mut() {
+            hook();
+        }
+    });
+}
+pub(in crate::engine) fn with_tail_hook<T>(
+    hook: impl FnMut() + 'static,
+    run: impl FnOnce() -> T,
+) -> T {
+    struct Clear;
+    impl Drop for Clear {
+        fn drop(&mut self) {
+            TAIL_HOOK.with(|s| {
+                s.borrow_mut().take();
+            });
+        }
+    }
+    TAIL_HOOK.with(|slot| {
+        assert!(slot.borrow().is_none());
+        *slot.borrow_mut() = Some(Box::new(hook));
+    });
+    let _clear = Clear;
+    run()
+}

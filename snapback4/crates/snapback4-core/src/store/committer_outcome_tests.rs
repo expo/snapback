@@ -268,3 +268,106 @@ fn sqlite_fallback_page_spill_obeys_deadline_and_restores_contention_policy() {
     drop(store);
     std::fs::remove_dir_all(directory).unwrap();
 }
+
+fn solo_tail_deadline(pg: bool) {
+    use crate::engine::program_batch::fault;
+    let mut engine = crate::engine::program_batch::tests::fixture(pg);
+    if pg {
+        #[cfg(feature="postgres")]
+        engine.store_mut().test_postgres_handle_mut().store.get_mut().client.batch_execute("CREATE TABLE tail_parent(id int PRIMARY KEY); INSERT INTO tail_parent VALUES(1); CREATE TABLE tail_child(id int REFERENCES tail_parent(id) DEFERRABLE INITIALLY DEFERRED)").unwrap();
+    } else {
+        engine.store().test_support_conn().execute_batch("PRAGMA foreign_keys=ON; CREATE TABLE tail_parent(id int PRIMARY KEY); INSERT INTO tail_parent VALUES(1); CREATE TABLE tail_child(id int REFERENCES tail_parent(id) DEFERRABLE INITIALLY DEFERRED)").unwrap();
+    }
+    let before = engine.seq().unwrap();
+    let deadline = Instant::now() + Duration::from_millis(300);
+    let tails = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let seen = tails.clone();
+    let attempts = Cell::new(0);
+    let result = fault::with_tail_hook(
+        move || {
+            if seen.fetch_add(1, std::sync::atomic::Ordering::SeqCst) == 1 {
+                std::thread::sleep(
+                    (deadline + Duration::from_millis(10))
+                        .saturating_duration_since(Instant::now()),
+                );
+            }
+        },
+        || {
+            Committer::run_program_until(
+                engine.store_mut(),
+                None,
+                "alice",
+                None,
+                deadline,
+                |member| {
+                    attempts.set(attempts.get() + 1);
+                    let id = if attempts.get() == 1 { 2 } else { 1 };
+                    #[cfg(feature = "postgres")]
+                    if pg {
+                        member
+                            .tx
+                            .test_postgres_tx()
+                            .execute("INSERT INTO tail_child VALUES($1)", &[&id])?;
+                    }
+                    if !pg {
+                        member
+                            .tx
+                            .test_support_conn()
+                            .execute("INSERT INTO tail_child VALUES(?1)", [id])?;
+                    }
+                    member.record_commit(
+                        member.tx.next_seq()?,
+                        1000,
+                        ("tail", "alice", "mutation"),
+                        &[],
+                        1,
+                    )?;
+                    member.complete(Pending::value(()))
+                },
+            )
+        },
+    );
+    assert_eq!(attempts.get(), 2);
+    assert_eq!(tails.load(std::sync::atomic::Ordering::SeqCst), 2);
+    assert!(
+        result.is_err(),
+        "N=1 must not select COMMIT after tail delivery crosses the deadline"
+    );
+    assert_eq!(engine.seq().unwrap(), before);
+    #[cfg(feature = "postgres")]
+    if pg {
+        assert_eq!(
+            engine
+                .store_mut()
+                .test_postgres_handle_mut()
+                .store
+                .get_mut()
+                .client
+                .query_one("SELECT count(*) FROM tail_child", &[])
+                .unwrap()
+                .get::<_, i64>(0),
+            0
+        );
+    }
+    if !pg {
+        assert_eq!(
+            engine
+                .store()
+                .test_support_conn()
+                .query_row("SELECT count(*) FROM tail_child", [], |r| r
+                    .get::<_, i64>(0))
+                .unwrap(),
+            0
+        );
+    }
+}
+#[test]
+fn solo_deadline_after_verified_tail_sqlite() {
+    solo_tail_deadline(false);
+}
+#[cfg(feature = "postgres")]
+#[test]
+#[ignore = "private PG16; scripts/test-postgres.sh"]
+fn solo_deadline_after_verified_tail_postgres() {
+    solo_tail_deadline(true);
+}

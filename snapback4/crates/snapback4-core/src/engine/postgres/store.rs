@@ -366,7 +366,9 @@ impl Store {
 
 impl Tx<'_> {
     pub(crate) fn bound_program_attempt(&self, deadline: std::time::Instant) -> Result<(), RuntimeError> {
-        self.program_deadline.set(Some(self.program_deadline.get().map_or(deadline,|prior|prior.min(deadline))));
+        // Each serial member replaces its predecessor's statement budget. The
+        // driver separately bounds the shared tail by the earliest survivor.
+        self.program_deadline.set(Some(deadline));
         self.refresh_program_budget()
     }
     fn refresh_program_budget(&self) -> Result<(),RuntimeError> {

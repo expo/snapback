@@ -10,6 +10,15 @@ pub(crate) struct Failure {
     pub member: Option<usize>,
 }
 impl Failure {
+    // Tentative member refusals have authority only after a confirmed abort.
+    pub fn refusal(&self, retained: Option<crate::Refusal>) -> crate::Refusal {
+        if self.aborted {
+            retained.unwrap_or_else(|| self.error.refusal())
+        } else {
+            self.error.refusal()
+        }
+    }
+
     pub fn rollback(tx: AnyTx<'_>, error: RuntimeError, member: Option<usize>) -> Self {
         match tx.rollback() {
             Ok(()) => Self {
@@ -119,6 +128,14 @@ impl Committer {
                     continue;
                 }
                 return Err(failure.error);
+            }
+            if attempt > 0 && Instant::now() >= deadline {
+                return Err(Failure::rollback(
+                    tx,
+                    RuntimeError::Store("program invocation's remaining deadline elapsed".into()),
+                    None,
+                )
+                .error);
             }
             match tx.commit_program() {
                 Ok(()) => {

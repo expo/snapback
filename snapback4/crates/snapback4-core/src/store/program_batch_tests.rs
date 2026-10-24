@@ -42,8 +42,11 @@ mutation increment(key: counters, delta: int, reject: bool):
   require reject = false else NO
   return counters[key]
 "#;
-pub(super) fn fixture(pg: bool) -> Engine {
-    let bound = snapback4_lang::compile(&[("schema.q".into(), SOURCE.into())]);
+pub(in crate::engine) fn fixture(pg: bool) -> Engine {
+    fixture_source(pg, SOURCE)
+}
+fn fixture_source(pg: bool, source: &str) -> Engine {
+    let bound = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
     assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
     let schema: Schema =
         serde_json::from_value(serde_json::to_value(bound.schema).unwrap()).unwrap();
@@ -78,6 +81,27 @@ pub(super) fn fixture(pg: bool) -> Engine {
         .unwrap();
     engine
 }
+fn history_fixture(pg: bool) -> Engine {
+    #[derive(Debug)]
+    struct Grace;
+    impl crate::engine::Presence for Grace {
+        fn connections(&self, _: &str) -> u64 {
+            1
+        }
+        fn effect_presence(&self, _: &str) -> (u64, Option<i64>) {
+            (1, Some(40000))
+        }
+    }
+    let source = SOURCE.replace("mutation setup():", "table slots:\n  counter: counters\n  until: time\n  expire at .until\n  cap 12 by counter\n  public\n  insert <- allow\n  sync public\nmutation setup():")
+        .replace("  insert entries { counter: key, delta }", "  entry = insert entries { counter: key, delta }\n  insert slots { id: entry.id, counter: key, until: 100000 }")
+        .replace("  insert <- allow\n  sync public\nmutation setup", "  insert <- .until != 0\n  sync public\nmutation setup")
+        .replace("  insert <- allow\n  sync public\ntable slots", "  insert <- .delta >= -7 and .counter.n != -1\n  cap 12 by counter\n  sync public\ntable slots")
+        .replace("  update <- allow", "  update (old, next) <- old.n >= -100 and next.n >= -100")
+        .replace("  emit notify { key, delta }", "  if not exists connected[viewer]:\n    emit notify { key, delta }");
+    let mut engine = fixture_source(pg, &source);
+    engine.set_presence(Some(Arc::new(Grace)));
+    engine
+}
 fn intent(seed: u64, i: usize) -> Invocation {
     let x = seed
         .wrapping_mul(0x9e3779b97f4a7c15)
@@ -110,6 +134,7 @@ fn snapshot(engine: &mut Engine) -> serde_json::Value {
         .keys()
         .map(|name| (name.clone(), engine.store().rows(name).unwrap()))
         .collect();
+    let has_caps = crate::rows::caps::required(engine.schema());
     let tx = engine.store_mut().transaction().unwrap();
     let commits = tx.commits_after(0, 10000).unwrap();
     let log = tx.read_log("public", 0, 10000).unwrap();
@@ -126,6 +151,25 @@ fn snapshot(engine: &mut Engine) -> serde_json::Value {
             sqlite_receipts(&tx)
         }
     };
+    let presence = metadata_rows(
+        &tx,
+        "SELECT json_build_array(principal,id,deadline,reconnected)::text FROM _effect_presence ORDER BY principal,id",
+        "SELECT json_array(principal,id,deadline,json(CASE WHEN reconnected THEN 'true' ELSE 'false' END)) FROM _effect_presence ORDER BY principal,id",
+    );
+    let caps = if has_caps {
+        metadata_rows(
+            &tx,
+            "SELECT json_build_array(t,encode(k,'hex'),n)::text FROM _cap_counts ORDER BY t,k",
+            "SELECT json_array(t,lower(hex(k)),n) FROM _cap_counts ORDER BY t,k",
+        )
+    } else {
+        Vec::new()
+    };
+    let complete_commits = metadata_rows(
+        &tx,
+        "SELECT json_build_array(seq,at,program,principal,kind,touched,writes)::text FROM _commits ORDER BY seq",
+        "SELECT json_array(seq,at,program,principal,kind,touched,writes) FROM _commits ORDER BY seq",
+    );
     let sequences = [
         Rows::sequence_value(&tx, "counters", "a").unwrap(),
         Rows::sequence_value(&tx, "counters", "b").unwrap(),
@@ -145,7 +189,31 @@ fn snapshot(engine: &mut Engine) -> serde_json::Value {
         })
         .unwrap();
     let effects = engine.store().list_effects(None, 10000).unwrap();
-    serde_json::json!({"rows":rows,"head":head,"commits":commits,"receipts":receipts,"sequences":sequences,"evidence":evidence,"log":log,"effects":effects})
+    serde_json::json!({"rows":rows,"head":head,"commits":commits,"receipts":receipts,"sequences":sequences,"evidence":evidence,"log":log,"effects":effects,"presence":presence,"caps":caps,"complete_commits":complete_commits})
+}
+fn metadata_rows(
+    tx: &crate::store_port::AnyTx<'_>,
+    pg: &'static str,
+    sqlite: &str,
+) -> Vec<serde_json::Value> {
+    #[cfg(feature = "postgres")]
+    if matches!(tx, crate::store_port::AnyTx::Postgres(_)) {
+        return tx
+            .test_postgres_tx()
+            .query(pg, &[])
+            .unwrap()
+            .iter()
+            .map(|row| serde_json::from_str(row.get::<_, &str>(0)).unwrap())
+            .collect();
+    }
+    let _ = pg;
+    tx.test_support_conn()
+        .prepare(sqlite)
+        .unwrap()
+        .query_map([], |row| row.get::<_, String>(0))
+        .unwrap()
+        .map(|row| serde_json::from_str(&row.unwrap()).unwrap())
+        .collect()
 }
 fn sqlite_receipts(tx: &crate::store_port::AnyTx<'_>) -> Vec<serde_json::Value> {
     tx.test_support_conn().prepare("SELECT json_array(principal,id,seq,outcome,name,args_digest,at) FROM _ops ORDER BY principal,id").unwrap()
@@ -153,7 +221,7 @@ fn sqlite_receipts(tx: &crate::store_port::AnyTx<'_>) -> Vec<serde_json::Value> 
 }
 pub(super) fn oracle(pg: bool) {
     for seed in [1, 19, 0xdecaf] {
-        let mut reference = fixture(pg);
+        let mut reference = history_fixture(pg);
         let expected: Vec<_> = (0..192)
             .map(|i| {
                 reference
@@ -163,8 +231,19 @@ pub(super) fn oracle(pg: bool) {
             })
             .collect();
         let expected_snapshot = snapshot(&mut reference);
+        let outcomes = serde_json::to_string(&expected).unwrap();
+        assert!(
+            outcomes.contains("E_RULE"),
+            "history must exercise restrictive rules"
+        );
+        assert!(
+            outcomes.contains("E_CONSTRAINT"),
+            "history must reach a cap"
+        );
+        assert!(!expected_snapshot["presence"].as_array().unwrap().is_empty());
+        assert!(!expected_snapshot["caps"].as_array().unwrap().is_empty());
         for n in [4, 16, 32] {
-            let mut grouped = fixture(pg);
+            let mut grouped = history_fixture(pg);
             let mut actual = Vec::new();
             for start in (0..192).step_by(n) {
                 let mut members: Vec<_> = (start..(start + n).min(192))
@@ -584,8 +663,9 @@ fn every_vector_tail_count_is_verified_before_commit_and_solo_fallback() {
         "_log",
         "_ops",
         "_outbox",
+        "_effect_presence",
     ] {
-        let mut engine = fixture(true);
+        let mut engine = history_fixture(true);
         let before = snapshot(&mut engine);
         let event = if table == "_head" { "UPDATE" } else { "INSERT" };
         pg_sql(
@@ -598,11 +678,38 @@ fn every_vector_tail_count_is_verified_before_commit_and_solo_fallback() {
             .map(|i| {
                 let mut m = intent(19, i);
                 m.id = Some(format!("op-{i}"));
+                m.context.args.insert("delta".into(), Value::Int(1));
                 m.context.args.insert("reject".into(), Value::Bool(false));
                 m.deadline = std::time::Instant::now() + Duration::from_secs(10);
                 m
             })
             .collect();
+        let Err((failure, _)) = engine.program_group_attempt(&mut members, &[0, 1, 2, 3], false)
+        else {
+            panic!("{table}: missing count refusal")
+        };
+        let column = [
+            "_head",
+            "_commits",
+            "_change_evidence",
+            "_log",
+            "_outbox",
+            "_effect_presence",
+            "_ops",
+        ]
+        .iter()
+        .position(|t| *t == table)
+        .unwrap();
+        assert!(
+            failure.aborted,
+            "{table}: count mismatch must acknowledge rollback"
+        );
+        assert_eq!(
+            failure.error.refusal().message,
+            format!("group tail count mismatch at {column}"),
+            "{table}"
+        );
+        assert_eq!(snapshot(&mut engine), before, "{table}");
         let result = engine.invoke_program_batch(&mut members);
         assert!(result.iter().all(Result::is_err), "{table}: {result:?}");
         assert_eq!(snapshot(&mut engine), before, "{table}");
@@ -780,4 +887,262 @@ fn n1_known_commit_abort_rebuilds_the_program_attempt() {
     assert_eq!(engine.store().list_effects(None, 100).unwrap().len(), 1);
     assert!(engine.invoke_program(&mut member).is_ok());
     assert_eq!(engine.seq().unwrap(), before + 1);
+}
+
+#[cfg(feature = "postgres")]
+#[test]
+#[ignore = "private PG16; scripts/test-postgres.sh"]
+fn authority_refusal_cannot_hide_unknown_physical_rollback() {
+    use super::fault::{self, Point};
+    let mut observed = Vec::new();
+    for fallback in [false, true] {
+        let mut engine = fixture(true);
+        let client = &mut engine
+            .store_mut()
+            .test_postgres_handle_mut()
+            .store
+            .get_mut()
+            .client;
+        let pid: i32 = client
+            .query_one("SELECT pg_backend_pid()", &[])
+            .unwrap()
+            .get(0);
+        eprintln!("G23 fix1 owned rollback-fault backend PID {pid}");
+        let mut control = postgres::Client::connect(
+            &std::env::var("SNAPBACK4_EVAL_POSTGRES").unwrap(),
+            postgres::NoTls,
+        )
+        .unwrap();
+        let mut calls = 0;
+        let mut members: Vec<_> = (0..if fallback { 3 } else { 2 })
+            .map(|i| {
+                let mut m = intent(19, i);
+                m.context.args.insert("reject".into(), Value::Bool(false));
+                m.deadline = std::time::Instant::now() + Duration::from_secs(10);
+                m
+            })
+            .collect();
+        let b = members.remove(1).authorized(
+            "missing".into(),
+            || crate::identity::ServiceSample {
+                now: 1000,
+                supervisor_revision: 0,
+            },
+            move |_| {
+                calls += 1;
+                if !fallback || calls == 2 {
+                    assert!(
+                        control
+                            .query_one("SELECT pg_terminate_backend($1)", &[&pid])
+                            .unwrap()
+                            .get::<_, bool>(0)
+                    );
+                    Err(crate::Refusal::new(
+                        "E_AUTH",
+                        "auth",
+                        "authority refused before failed rollback",
+                    ))
+                } else {
+                    Ok(())
+                }
+            },
+        );
+        members.insert(1, b);
+        let result = if fallback {
+            fault::inject(Point::BeforeMember, 2, || {
+                engine.invoke_program_batch(&mut members)
+            })
+        } else {
+            engine.invoke_program_batch(&mut members)
+        };
+        observed.push((
+            fallback,
+            result[..2]
+                .iter()
+                .map(|r| r.as_ref().unwrap_err().code.clone())
+                .collect::<Vec<_>>(),
+        ));
+        assert_eq!(members[0].attempts.len(), if fallback { 2 } else { 1 });
+        let cached = engine.invoke_program_batch(&mut members);
+        assert_eq!(
+            cached[..2]
+                .iter()
+                .map(|r| &r.as_ref().unwrap_err().code)
+                .collect::<Vec<_>>(),
+            result[..2]
+                .iter()
+                .map(|r| &r.as_ref().unwrap_err().code)
+                .collect::<Vec<_>>()
+        );
+    }
+    assert!(
+        observed
+            .iter()
+            .all(|(_, codes)| codes.iter().all(|c| c == "E_COMMIT_OUTCOME_UNKNOWN")),
+        "unknown must beat retained authority refusal on initial and named fallback: {observed:?}"
+    );
+}
+
+#[cfg(feature = "postgres")]
+#[test]
+#[ignore = "private PG16; scripts/test-postgres.sh"]
+fn named_fallback_statements_use_each_members_own_deadline() {
+    use super::fault::{self, Point};
+    let mut engine = fixture(true);
+    pg_sql(
+        &mut engine,
+        "CREATE SEQUENCE g23_delay; CREATE FUNCTION g23_delay() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF nextval('g23_delay')>1 THEN PERFORM pg_sleep(0.7); END IF; RETURN NEW; END $$; CREATE TRIGGER g23_delay BEFORE INSERT ON r FOR EACH ROW WHEN (NEW.t='entries' AND NEW.id='row-1') EXECUTE FUNCTION g23_delay()",
+    );
+    let mut members: Vec<_> = (0..3)
+        .map(|i| {
+            let mut m = intent(19, i);
+            m.context.args.insert("reject".into(), Value::Bool(false));
+            m.deadline = std::time::Instant::now() + Duration::from_secs(5);
+            m
+        })
+        .collect();
+    members[0].deadline = std::time::Instant::now() + Duration::from_millis(500);
+    let results = fault::inject(Point::BeforeMember, 2, || {
+        engine.invoke_program_batch(&mut members)
+    });
+    assert!(
+        results[0].is_err(),
+        "earlier member expires while its peer runs"
+    );
+    assert!(
+        results[1].is_ok(),
+        "peer had its own budget: {:?}",
+        results[1]
+    );
+    assert!(results[2].is_err());
+    assert_eq!(engine.store().count("entries").unwrap(), 1);
+}
+
+fn tail_deadline(pg: bool) {
+    use super::fault::{self, Point};
+    let mut engine = fixture(pg);
+    let before = snapshot(&mut engine);
+    let deadline = std::time::Instant::now() + Duration::from_millis(300);
+    let mut members: Vec<_> = (0..3)
+        .map(|i| {
+            let mut m = intent(19, i);
+            m.context.args.insert("reject".into(), Value::Bool(false));
+            m.deadline = deadline;
+            m
+        })
+        .collect();
+    let calls = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let observed = calls.clone();
+    let result = fault::with_tail_hook(
+        move || {
+            observed.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            std::thread::sleep(
+                (deadline + Duration::from_millis(10))
+                    .saturating_duration_since(std::time::Instant::now()),
+            );
+        },
+        || {
+            fault::inject(Point::BeforeMember, 2, || {
+                engine.invoke_program_batch(&mut members)
+            })
+        },
+    );
+    assert_eq!(calls.load(std::sync::atomic::Ordering::SeqCst), 1);
+    assert!(
+        result.iter().all(Result::is_err),
+        "late verified tail must abort: {result:?}"
+    );
+    assert_eq!(snapshot(&mut engine), before);
+}
+#[test]
+fn batch_deadline_after_verified_tail_sqlite() {
+    tail_deadline(false);
+}
+#[cfg(feature = "postgres")]
+#[test]
+#[ignore = "private PG16; scripts/test-postgres.sh"]
+fn batch_deadline_after_verified_tail_postgres() {
+    tail_deadline(true);
+}
+
+#[test]
+fn deferred_internal_tail_readers_are_ineligible() {
+    let mut engine = fixture(false);
+    let original = engine.programs["increment"].clone();
+    for table in [
+        "_commits",
+        "_log",
+        "_change_evidence",
+        "_outbox",
+        "_effect_presence",
+    ] {
+        let mut program = original.clone();
+        // A nested expression is still a dependency, even on an untaken arm.
+        let read = crate::ir::Expr::Exists(crate::ir::Read {
+            table: table.into(),
+            index: "id".into(),
+            key: vec![crate::ir::Expr::Literal(Value::Id("x".into()))],
+            site: "tail-reader".into(),
+            provenance: crate::ir::KeyProvenance::Const,
+        });
+        program.body.insert(
+            0,
+            crate::ir::Stmt::If {
+                condition: crate::ir::Expr::Literal(Value::Bool(false)),
+                then_body: vec![crate::ir::Stmt::Return(read)],
+                else_body: vec![],
+            },
+        );
+        engine.programs.insert("increment".into(), program);
+        assert!(
+            !intent(19, 1).eligible(&engine),
+            "deferred tail reader {table} must be solo"
+        );
+    }
+}
+
+#[cfg(feature = "postgres")]
+#[test]
+#[ignore = "private PG16; scripts/test-postgres.sh"]
+fn solo_authority_refusal_cannot_hide_unknown_physical_rollback() {
+    let mut engine = fixture(true);
+    let pid: i32 = engine
+        .store_mut()
+        .test_postgres_handle_mut()
+        .store
+        .get_mut()
+        .client
+        .query_one("SELECT pg_backend_pid()", &[])
+        .unwrap()
+        .get(0);
+    eprintln!("G23 fix1 owned solo rollback-fault backend PID {pid}");
+    let mut control = postgres::Client::connect(
+        &std::env::var("SNAPBACK4_EVAL_POSTGRES").unwrap(),
+        postgres::NoTls,
+    )
+    .unwrap();
+    let mut member = intent(19, 1).authorized(
+        "missing".into(),
+        || crate::identity::ServiceSample {
+            now: 1000,
+            supervisor_revision: 0,
+        },
+        move |_| {
+            assert!(
+                control
+                    .query_one("SELECT pg_terminate_backend($1)", &[&pid])
+                    .unwrap()
+                    .get::<_, bool>(0)
+            );
+            Err(crate::Refusal::new(
+                "E_AUTH",
+                "auth",
+                "authority refused before failed rollback",
+            ))
+        },
+    );
+    assert_eq!(
+        engine.invoke_program(&mut member).unwrap_err().code,
+        "E_COMMIT_OUTCOME_UNKNOWN"
+    );
 }

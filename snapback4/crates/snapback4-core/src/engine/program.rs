@@ -127,7 +127,13 @@ impl Invocation {
             && engine
                 .programs
                 .get(&self.name)
-                .is_some_and(|p| p.kind == crate::ir::ProgramKind::Mutation && !p.native)
+                .is_some_and(|p| {
+                    if p.kind != crate::ir::ProgramKind::Mutation || p.native { return false; }
+                    // @ref LLP 3000.009.001.000.002#3.2 — Postgres defers these physical rows until the vector tail; readers must stay solo.
+                    let effects = crate::ir::effects::Effects::of(p, &engine.schema);
+                    !effects.reads.iter().chain(&effects.writes).any(|table| matches!(table.as_str(),
+                        "_commits" | "_log" | "_change_evidence" | "_outbox" | "_effect_presence" | "_ops"))
+                })
             && !engine
                 .schema
                 .operations

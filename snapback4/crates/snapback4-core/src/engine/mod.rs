@@ -128,6 +128,8 @@ pub(crate) mod presence;
 pub mod program;
 #[cfg(feature = "sqlite")]
 mod program_batch;
+#[cfg(test)]
+pub(crate) use program_batch::fault::tail_prepared as program_tail_prepared;
 #[cfg(feature="sqlite")]
 mod program_transcript;
 mod receipt;

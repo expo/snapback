@@ -74,7 +74,8 @@ impl Engine {
                 error
             })
         }), Some(digest), deadline);
-        if let Some(why) = refusal { return Err(why); }
+        if !matches!(&result, Err(RuntimeError::CommitOutcomeUnknown(_)))
+            && let Some(why) = refusal { return Err(why); }
         result.map_err(|error| {
             let mut why = error.refusal();
             // A preflight miss followed by fence loss is still unsent intent.

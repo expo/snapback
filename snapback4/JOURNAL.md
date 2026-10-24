@@ -105081,3 +105081,57 @@ none. Final /home free space is 80 G, always above the 40 GB stop threshold.
 Raw logs/JSON/PG data stay outside Git. No push, stash, Git configuration
 change, PG17/55440 operation or q24 work occurs. Final `./ref-check` passes: 567 LLP
 docs, 11,838 refs, zero errors and zero unchecked references.
+
+## 2026-10-24 — G2/G3 fix round 1
+
+The supplied Sol/Grok reviews exposed three protocol edges and an oracle
+boundary. Eight new defect witnesses fail against `b3c4aa2bba` with only
+tests and the post-tail scheduling hook overlaid: real backend termination
+during authority refusal returns E_AUTH on both initial and named fallback
+batches and N=1; a 500 ms peer budget incorrectly rejects a member with 5 s;
+both stores' batch and N=1 retry paths select COMMIT after successful tail
+verification crosses the deadline; a nested internal-tail reader remains
+eligible. The fixes preserve physical uncertainty over retained refusals,
+replace statement budgets per member, bound shared tail work by the earliest
+survivor, and check the retry deadline again before uncancellable COMMIT.
+
+Internal commit/log/evidence/outbox/presence/receipt readers and writers
+explicitly stay solo under the exhaustive IR effects walk. The vector tail
+continues to expose provisional rows, logical head and keyed receipts to
+successors through their existing paths. The serial oracle now exercises
+restrictive rules and caps, including a separate capped expiring table for
+physical occupancy, while retaining maintained columns on their admitted
+nonexpiring source. Its snapshots include complete commits, cap occupancy
+and effect-presence dependencies, with positive assertions that the new
+states and refusal paths were reached. All three seeds at N=1/4/16/32 pass
+on both stores. The seven-family trigger witness now includes presence and
+asserts the exact count-mismatch column and acknowledged rollback; it passes.
+All eight outcome/deadline tests pass, including the four post-tail cutoffs.
+
+The default CLI build passes after adding the explicit SQLite preparation
+result type required without the Postgres feature. The
+[fix-round evidence](./reports/20261024-g23-program-group-commit/REPORT.md)
+keeps raw logs outside Git and records the broader qualification below.
+
+Final qualification passes the full core (735 unit passes, 284 named ignores,
+all unignored integrations and 38 doc tests), full binary (577 passes, 45
+named ignores), both RT0 ratchets (five selected passes, unchanged N=1
+allowances), final 23-test program/batch matrix and eight outcome/deadline
+witnesses. The full core preceded the final test-only parent-counter rule
+and independent metadata-family checks; the final both-store matrix reruns
+those strengthened tests. Product source was unchanged. Adapter/evidence/
+codec/ownership/evolution scopes pass 232/13/19/25/60; command tests pass 15,
+HTTP authority scope 62, five-executor corpus 22, and differential library/
+store campaigns 11/4. The ordinary CLI rebuild and complete public witness
+pass, including restoration byte/meter parity, change evidence, bootstrap,
+restart/takeover and the unchanged S1 Quarry fixture.
+
+The complete Postgres script retains only its inherited evaluator Serializable
+40001 race and exits 1; every other stage passes. No clean full-script result
+is claimed. Primary postmaster 1268235 and public postmaster 1613023 are
+stopped and independently confirmed, with no pidfile/socket/lock. All 571
+recorded owned PIDs are absent. PIDs left: none. Final /home free space is
+74 G, with every sample above 40 GB. Raw logs and PG data remain outside Git;
+no push, stash or Git configuration change occurs.
+Final `./ref-check` passes: 567 LLP docs, 11,840 refs, zero errors and zero
+unchecked references; the diff whitespace check is clean.

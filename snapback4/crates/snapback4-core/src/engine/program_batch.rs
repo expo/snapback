@@ -98,7 +98,7 @@ impl Engine {
             Err(failure) => failure,
         };
         let (failure, named_refusal) = failure;
-        let why = named_refusal.unwrap_or_else(|| failure.error.refusal());
+        let why = failure.refusal(named_refusal);
         if !failure.aborted {
             for &i in indices {
                 results[i] = Some(batch[i].remember(Err(why.clone())));
@@ -155,7 +155,7 @@ impl Engine {
                     return;
                 }
                 Err((failure, named)) => {
-                    why = named.unwrap_or_else(|| failure.error.refusal());
+                    why = failure.refusal(named);
                     if !failure.aborted {
                         for i in remaining {
                             results[i] = Some(batch[i].remember(Err(why.clone())));
@@ -191,7 +191,7 @@ impl Engine {
         match self.program_group_attempt(batch, indices, true) {
             Ok(values) => self.finish_programs(batch, values, results),
             Err((failure, named)) => {
-                let why = named.unwrap_or_else(|| failure.error.refusal());
+                let why = failure.refusal(named);
                 for &i in indices {
                     results[i] = Some(batch[i].remember(Err(why.clone())));
                 }
@@ -245,7 +245,7 @@ impl Engine {
             first.authority.as_ref().map(|a| a.digest.as_str()),
             &first.context.viewer,
             first.id.as_deref(),
-            deadline,
+            fallback.then_some(first.deadline),
         );
         let tx = physical.map_err(|error| {
             (
@@ -292,7 +292,7 @@ impl Engine {
             };
             if let Some(error) = budget_error {
                 drop(budget);
-                return Err((Failure::rollback(tx, error, None), None));
+                return Err((Failure::rollback(tx, error, Some(i)), None));
             }
             let mut context = invocation.context.clone();
             context.generation = host.generation;
@@ -433,7 +433,13 @@ impl Engine {
                 None,
             ));
         }
-        if let Err(error) = tx.prepare_program_commit() {
+        let prepared: Result<(), RuntimeError> = (|| {
+            // Shared tail work uses the earliest survivor, after each member's
+            // statements have used that member's own original deadline.
+            let _budget = deadline.map(|d| tx.bound_program_attempt(d)).transpose()?;
+            tx.prepare_program_commit()
+        })();
+        if let Err(error) = prepared {
             return Err((Failure::rollback(tx, error, None), None));
         }
         #[cfg(test)]
@@ -441,6 +447,16 @@ impl Engine {
             if let Err(error) = fault::check(point, usize::MAX) {
                 return Err((Failure::rollback(tx, error, None), None));
             }
+        }
+        if deadline.is_some_and(|deadline| Instant::now() >= deadline) {
+            return Err((
+                Failure::rollback(
+                    tx,
+                    RuntimeError::Store("program invocation's remaining deadline elapsed".into()),
+                    None,
+                ),
+                None,
+            ));
         }
         tx.commit_program().map_err(|failure| (failure, None))?;
         #[cfg(test)]
@@ -453,4 +469,4 @@ impl Engine {
 
 #[cfg(test)]
 #[path = "../store/program_batch_tests.rs"]
-mod tests;
+pub(super) mod tests;
