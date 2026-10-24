@@ -15,8 +15,17 @@ pub struct Options {
     url: String,
     #[arg(long)]
     workload: String,
-    #[arg(long)]
+    #[arg(long, default_value_t = 0)]
     rate: u64,
+    /// One outstanding request per worker; a capacity diagnostic, not an S1 rung.
+    #[arg(long, conflicts_with = "rate")]
+    closed_loop: bool,
+    /// Linux process CPU counters sampled at the common measured boundaries.
+    #[arg(long, value_delimiter = ',')]
+    cpu_pids: Vec<u32>,
+    /// Include live and reaped descendants of this Linux process (private PG).
+    #[arg(long)]
+    cpu_tree_root: Option<u32>,
     #[arg(long, default_value_t = 128)]
     workers: usize,
     #[arg(long, default_value_t = 100_000)]
@@ -53,6 +62,7 @@ impl SliceStats {
 }
 struct Stats {
     latency: Histogram<u64>,
+    successful_latency: Histogram<u64>,
     service: Histogram<u64>,
     queue: Histogram<u64>,
     errors: BTreeMap<String, u64>,
@@ -66,6 +76,7 @@ impl Stats {
     fn new() -> Self {
         Self {
             latency: Histogram::new(3).unwrap(),
+            successful_latency: Histogram::new(3).unwrap(),
             service: Histogram::new(3).unwrap(),
             queue: Histogram::new(3).unwrap(),
             errors: BTreeMap::new(),
@@ -78,6 +89,7 @@ impl Stats {
     }
     fn merge(&mut self, rhs: Self) {
         self.latency.add(rhs.latency).unwrap();
+        self.successful_latency.add(rhs.successful_latency).unwrap();
         self.service.add(rhs.service).unwrap();
         self.queue.add(rhs.queue).unwrap();
         for (key, n) in rhs.errors {
@@ -144,10 +156,10 @@ fn valid(op: &Operation, value: &Value) -> bool {
     }
 }
 
-// @ref LLP 3000.009.001.002#6-method-and-metrics — measure from intended arrival; never wait for a completion to schedule
+// @ref LLP 3000.009.001.002#6-method-and-metrics — open-loop arrivals retain intended times; closed-loop capacity diagnostics are explicitly labelled.
 pub async fn run(options: Options) -> Result<()> {
     anyhow::ensure!(
-        options.rate > 0
+        (options.closed_loop || options.rate > 0)
             && options.duration_ms > 0
             && options.rows >= 32768
             && (1..=256).contains(&options.workers),
@@ -177,6 +189,14 @@ pub async fn run(options: Options) -> Result<()> {
     let start = Instant::now() + Duration::from_millis(100);
     let measured_start = start + Duration::from_millis(options.warmup_ms);
     let end = measured_start + Duration::from_millis(options.duration_ms);
+    let cpu_options = options.clone();
+    let cpu_window = tokio::spawn(async move {
+        tokio::time::sleep_until(measured_start.into()).await;
+        let before = cpu_snapshot(&cpu_options.cpu_pids, cpu_options.cpu_tree_root);
+        tokio::time::sleep_until(end.into()).await;
+        let after = cpu_snapshot(&cpu_options.cpu_pids, cpu_options.cpu_tree_root);
+        json!({"before":before,"after":after})
+    });
     let mut senders = Vec::new();
     let mut tasks = Vec::new();
     for worker in 0..options.workers {
@@ -185,7 +205,18 @@ pub async fn run(options: Options) -> Result<()> {
         let (o, client, tokens) = (options.clone(), client.clone(), tokens.clone());
         tasks.push(tokio::spawn(async move {
             let mut stats = Stats::new();
-            while let Some(a) = rx.recv().await {
+            let mut seq = worker as u64;
+            tokio::time::sleep_until(start.into()).await;
+            loop {
+                let a = if o.closed_loop {
+                    let intended = Instant::now();
+                    if intended >= end { break; }
+                    let a = Arrival { intended, measured: intended >= measured_start, seq };
+                    seq += o.workers as u64;
+                    a
+                } else {
+                    match rx.recv().await { Some(a) => a, None => break }
+                };
                 let send = Instant::now();
                 let queue = send.saturating_duration_since(a.intended);
                 let error = if queue >= Duration::from_millis(o.deadline_ms) {
@@ -271,6 +302,7 @@ pub async fn run(options: Options) -> Result<()> {
                         *stats.errors.entry(error).or_default() += 1;
                     } else {
                         stats.success += 1;
+                        stats.successful_latency.record(latency_ns).unwrap();
                     }
                 }
                 // Includes warm-up arrivals that finish in the window; excludes drain.
@@ -285,6 +317,7 @@ pub async fn run(options: Options) -> Result<()> {
         .div_ceil(1000) as u64;
     let schedule_options = options.clone();
     let scheduler = std::thread::spawn(move || {
+        if schedule_options.closed_loop { return 0; }
         let options = schedule_options;
         #[cfg(target_os = "linux")]
         unsafe {
@@ -320,7 +353,9 @@ pub async fn run(options: Options) -> Result<()> {
     for task in tasks {
         stats.merge(task.await?);
     }
-    let measured = scheduler.join().unwrap();
+    let scheduled_measured = scheduler.join().unwrap();
+    let measured = if options.closed_loop { stats.success + stats.errors.values().sum::<u64>() } else { scheduled_measured };
+    let cpu_window = cpu_window.await?;
     let elapsed = Instant::now().duration_since(start).as_secs_f64();
     let errors: u64 = stats.errors.values().sum();
     anyhow::ensure!(
@@ -336,17 +371,60 @@ pub async fn run(options: Options) -> Result<()> {
     let seconds = options.duration_ms as f64 / 1000.;
     println!(
         "{}",
-        json!({"format":"sb4-scale-open-loop-v1","options":&*options,
+        json!({"format":if options.closed_loop {"sb4-scale-closed-loop-v1"} else {"sb4-scale-open-loop-v1"},"options":&*options,"cpu_window":cpu_window,
         "scheduled":measured,"success":stats.success,"errors":stats.errors,"error_count":errors,
         "sent":stats.sent,"total_success_including_warmup":stats.total_success,
         "achieved_per_s":stats.success as f64/seconds,
         "completed_in_window_per_s":stats.completed_in_window as f64/seconds,
         "elapsed_with_warmup_and_drain_s":elapsed,"slo_ms":slo,
         "slo_pass":p99<=slo && errors as f64/measured as f64<=0.001,
-        "latency":hist(&stats.latency),"dispatch_lag":hist(&stats.queue),"http_service":hist(&stats.service),
+        "latency":hist(&stats.latency),"successful_latency":hist(&stats.successful_latency),"dispatch_lag":hist(&stats.queue),"http_service":hist(&stats.service),
         "slices":stats.slices.iter().map(|(t_s,s)| json!({"t_s":t_s,"n":s.n,"errors":s.errors,
             "p50_ms":s.latency.value_at_quantile(0.5) as f64/1e6,
             "p99_ms":s.latency.value_at_quantile(0.99) as f64/1e6})).collect::<Vec<_>>()})
     );
     Ok(())
+}
+
+// CPU ticks include user + system time for the whole process. Self is the
+// pooled reqwest client; supplied PIDs identify the server and private PG only.
+fn cpu_snapshot(pids: &[u32], tree_root: Option<u32>) -> Value {
+    #[cfg(target_os = "linux")]
+    {
+        // Children CPU includes reaped descendants. Adding it to each live
+        // member retains the CPU of private PG workers that exit mid-window.
+        // The stat tail starts at field 3 (state).
+        fn counters(pid: u32) -> Option<(u32, u64, u64, u64)> {
+            let stat = std::fs::read_to_string(format!("/proc/{pid}/stat")).ok()?;
+            let (_, tail) = stat.rsplit_once(") ")?;
+            let f: Vec<_> = tail.split_whitespace().collect();
+            let n = |i: usize| f.get(i)?.parse::<u64>().ok();
+            Some((n(1)? as u32, n(19)?, n(11)? + n(12)?, n(13)? + n(14)?))
+        }
+        let hz = unsafe { libc::sysconf(libc::_SC_CLK_TCK) } as f64;
+        let values: Vec<_> = pids.iter().copied().chain(std::iter::once(std::process::id())).map(|pid| {
+            let stat = counters(pid);
+            json!({"pid":pid,"start_ticks":stat.map(|s|s.1),"cpu_s":stat.map(|s|s.2 as f64/hz)})
+        }).collect();
+        let tree = tree_root.and_then(|root| {
+            let all: BTreeMap<_,_> = std::fs::read_dir("/proc").ok()?.filter_map(|e| {
+                let pid = e.ok()?.file_name().to_str()?.parse::<u32>().ok()?;
+                Some((pid,counters(pid)?))
+            }).collect();
+            if !all.contains_key(&root) { return None; }
+            let mut members = std::collections::BTreeSet::from([root]);
+            loop {
+                let old = members.len();
+                for (pid, (parent,_,_,_)) in &all {
+                    if members.contains(parent) { members.insert(*pid); }
+                }
+                if members.len() == old { break; }
+            }
+            let ticks: u64 = members.iter().map(|pid| all[pid].2 + all[pid].3).sum();
+            Some(json!({"root_pid":root,"root_start_ticks":all[&root].1,"cpu_s":ticks as f64/hz,"pids":members}))
+        });
+        json!({"elapsed_unix_s":std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs_f64(),"load1":std::fs::read_to_string("/proc/loadavg").ok().and_then(|s|s.split_whitespace().next()?.parse::<f64>().ok()),"processes":values,"tree":tree})
+    }
+    #[cfg(not(target_os = "linux"))]
+    { let _ = (pids,tree_root); Value::Null }
 }

@@ -106551,3 +106551,22 @@ regeneration adds no allowance; mutation stays at zero and the identity
 allowance falls from four to two. The six store-handle checks pass and the
 actual authoring-census output regenerates the same 884 canonical entries.
 Registry/guide-manifest regeneration also produces no changes.
+
+### 2026-10-24 — RCPU: pooled closed-loop read diagnostics
+
+The commissioned RCPU lane starts from PIPE `c7a0a597ee` on expo-build-450a.
+The S1 reqwest harness now has an explicitly labelled closed-loop capacity
+mode, one outstanding request per worker, retaining its pooled HTTP transport,
+fixture-key mix and response validation. Open-loop intended arrivals and SLO
+accounting remain. Successful-response latency is separate from all arrivals,
+so admission refusals cannot make read latency appear better. Optional Linux
+CPU snapshots retain process birth ticks and count a private PG process family,
+including reaped children, at the common measured boundaries.
+
+Four temporary HTTP correctness checks pass: closed-loop W1/W2/W3 and open-loop
+W2, with validated responses, exact histogram/arrival counts and zero errors.
+The CLI rejects combining rate and closed-loop options. These are harness
+checks, not product throughput measurements. The unchanged release server is
+built, the S1 Quarry app deployed on a private PG16, and the standard one-million
+message native seed is in progress; no read-path optimization or performance
+claim is made at this checkpoint. Raw evidence stays under `/tmp/sb4-rcpu`.
