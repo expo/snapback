@@ -285,3 +285,19 @@ fn campaign(s:&str)->Campaign{let b=security::derived::augmented(&sources(s),&bo
     let cs=security::derived::invariants(&sources(&source),&bound(&source));assert!(cs.iter().any(|i|i.site.file.contains("child-stage")),"{cs:?}");
     assert!(cs.iter().filter(|i|i.site.file.contains("parent-state")).all(|i|!i.predicate.contains("'finished'")),"{cs:?}");
 }
+
+#[test]fn approval_record_exemptions_belong_to_each_exact_creator(){
+    let source="table roles:\n  principal: principal\n  role: enum('manager','staff')\n  unique principal\n  read <- allow\n  online only\ntable docs:\n  status: enum('draft','done') default 'draft'\n  read <- allow\n  insert <- allow\n  update <- allow\n  online only\ntable approvals:\n  doc: docs\n  read <- allow\n  insert <- exists roles[principal = viewer, role = 'manager']\n  online only\nmutation finish(doc: docs):\n  update docs[doc] {status:'done'}\nmutation record(doc: docs,other: docs,touch: bool):\n  require exists roles[principal = viewer,role = 'manager'] else DENIED\n  d = docs[doc] ! else MISSING\nBODY  return insert approvals {doc}\n";
+    for (body,gated) in [
+        ("",true),
+        ("  if touch:\n    update docs[other] {status:'draft'}\n",true),
+        ("  o = docs[other] ! else MISSING\n  require o.status = 'draft' else BAD_STAGE\n  update docs[other] {status:'done'}\n",true),
+        ("  update docs[doc] {status:'done'}\n",true),
+        ("  require d.status = 'done' else BAD_STAGE\n  update docs[d.id] {status:'done'}\n",true),
+        ("  require d.status = 'draft' else BAD_STAGE\n  update docs[d.id] {status:'done'}\n",false),
+    ]{
+        let source=source.replace("BODY",body);assert_eq!(notes(&source).iter().any(|note|note.code=="N_APPROVAL_NOT_ENFORCED"),gated,"{body}");
+        if !gated{let mixed=source+"mutation independent(doc: docs):\n  require exists roles[principal = viewer,role = 'manager'] else DENIED\n  return insert approvals {doc}\n";assert!(notes(&mixed).iter().any(|note|note.code=="N_APPROVAL_NOT_ENFORCED"&&note.message.contains("approvals.doc")));}
+    }
+    let created=source.replace("BODY","").replace("return insert approvals {doc}","fresh = insert docs {status:'done'}\n  return insert approvals {doc:fresh.id}");assert!(!notes(&created).iter().any(|note|note.code=="N_APPROVAL_NOT_ENFORCED"));let mixed=created+"mutation independent(doc: docs):\n  require exists roles[principal = viewer,role = 'manager'] else DENIED\n  return insert approvals {doc}\n";assert!(notes(&mixed).iter().any(|note|note.code=="N_APPROVAL_NOT_ENFORCED"));
+}

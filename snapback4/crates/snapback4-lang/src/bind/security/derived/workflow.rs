@@ -222,8 +222,7 @@ fn literals(e:&Expr)->BTreeSet<String>{let mut e=e.clone();let mut out=BTreeSet:
 fn target_arg<'a>(p:&'a ast::ProgramDecl,w:&Expr,table:&str)->Option<&'a ast::ArgDecl>{
     let Expr::Write{op:WriteOp::Update,table:target,keys,..}=w else{return None;};
     if target!=table||keys.len()!=1||keys[0].column.as_deref().is_some_and(|c|c!="id"){return None;}
-    let Expr::Name{name,..}=&keys[0].value else{return None;};
-    p.args.iter().find(|a|a.name==*name&&matches!(&a.type_.kind,TypeKind::Ref{table:t} if t==table))
+    super::resource_argument(&keys[0].value,table,p)
 }
 fn state_requirements(p:&ast::ProgramDecl,w:&Expr,context:&ast::ProgramDecl,bound:&Bound,table:&str,state:&str)->Option<Vec<Expr>>{
     fn conjuncts<'a>(e:&'a Expr,out:&mut Vec<&'a Expr>){if let Expr::Binary{op,left,right,..}=e&&op=="and"{conjuncts(left,out);conjuncts(right,out);}else{out.push(e);}}

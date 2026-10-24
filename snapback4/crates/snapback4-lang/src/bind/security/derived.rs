@@ -12,7 +12,13 @@ fn plain_row(expression:&ast::Expr)->bool {match expression {
         &&read.keys.iter().all(|key|matches!(key.value,ast::Expr::Name{..}|ast::Expr::Literal{..})),
     _=>false,
 }}
-fn same_resource(base:&ast::Expr,table:&str,keys:&[ast::KeyPart],p:&ast::ProgramDecl)->bool{
+pub(super) fn resource_argument<'a>(expression:&ast::Expr,table:&str,p:&'a ast::ProgramDecl)->Option<&'a ast::ArgDecl>{match expression{
+    ast::Expr::Assert{value,..}=>resource_argument(value,table,p),
+    ast::Expr::Name{name,..}=>p.args.iter().find(|arg|arg.name==*name&&matches!(&arg.type_.kind,ast::TypeKind::Ref{table:target} if target==table)),
+    ast::Expr::Member{base,name,..} if name=="id"=>{let mut base=base.as_ref();while let ast::Expr::Assert{value,..}=base{base=value;}let ast::Expr::Read(read)=base else{return None;};if read.table!=table||read.keys.len()!=1||!plain_row(base)||read.keys[0].column.as_deref().is_some_and(|column|column!="id"){return None;}resource_argument(&read.keys[0].value,table,p)},_=>None,
+}}
+
+pub(super) fn same_resource(base:&ast::Expr,table:&str,keys:&[ast::KeyPart],p:&ast::ProgramDecl)->bool{
     fn bare(mut expression:&ast::Expr)->&ast::Expr{while let ast::Expr::Assert{value,..}=expression{expression=value;}expression}
     fn canonical<'a>(expression:&'a ast::Expr,table:&str,p:&ast::ProgramDecl)->&'a ast::Expr{
         let expression=bare(expression);
