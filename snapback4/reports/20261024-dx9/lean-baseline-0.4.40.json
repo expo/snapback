@@ -421,10 +421,10 @@
     "lean-supported-query": 1319,
     "lean-unsupported": 324
   },
-  "slowest_case_seconds": 2.635863107,
+  "slowest_case_seconds": 2.596640101,
   "slowest_case_seed": 1098,
   "time_limited_workers": 0,
-  "seconds": 18.206116907,
+  "seconds": 15.677111161,
   "seed": 0,
   "cases": 2000
 }

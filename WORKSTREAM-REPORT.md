@@ -2,7 +2,7 @@
 
 Branch: `sb4-b26-dx9`. Base: `0cb3de79ee` (0.4.40).
 No push or version bump. `git fetch origin` and `git merge origin/main` completed;
-main remained at the base. Mac runs deliberately skipped.
+the last merge incorporated origin/main `909e760ac5` (RCPU) into merge commit `5b312a89e8`. Mac runs deliberately skipped.
 
 ## Changes and commits
 
@@ -44,8 +44,8 @@ no key file was read or logged.
   The complete lowering differential passed 11/11, preserving all old digests.
 - Differential semantic samples: ordinary run 2,000 cases passes. Both initial
   and final run-lean samples report 18 disagreements in three signatures; an
-  earlier pass statement misread completed JSON as success. The clean 0.4.40
-  control reproduces the identical 18 disagreements/signature counts (existing
+  earlier pass statement misread completed JSON as success. Both the exact starting-commit 0cb3de79ee control and clean main-909e760ac5
+  control reproduce the identical 18 disagreements/signature counts (existing
   OPEN C2/W4 questions); the existing three issues now carry this evidence. The Lean model builds successfully; reports are retained.
 - Client cleanup/proof runs: initial focused cleanup 65/65; proof-contract 17/17;
   identity/proof/type consumers 63/63; additional audited files 163/163. A broader
@@ -122,4 +122,6 @@ covering guest/password/persona heads, plus the boundary-relative truncation
 fixture. All three packed persona toolchains/proofs passed; their audit evidence
 was merged into the 12-variant receipt. The final committed delta receives its
 own affected receipt without repeating the unchanged 698 client assertions.
-Final delta receipt and disk cleanup pending.
+Final delta receipt and disk cleanup pending. Exact baseline source control
+checks 2,502 extracted files against git blobs with zero differences; the
+newer-main control is retained separately.

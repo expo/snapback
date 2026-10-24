@@ -1,10 +1,10 @@
 {
-  "revision": "909e760ac516c480228ec3fcc85e19af2799ee68",
+  "revision": "0cb3de79eefbdf79e12fe375cd919be29e999c6b",
   "filesCheckedAgainstGitBlobs": 2502,
   "mismatchedFiles": [],
-  "snapshotSha256": "c43ae4514821c3a28951a28607c98411ddd850ee7837220e61fe0deb8fa4ece0",
+  "snapshotSha256": "a052ef756841471d5228266c9134dcb7379e0166d32ec4186c1f79f738bb9b2b",
   "oracleSha256": "967687cbe8e61af61415b08a9135d53247489798c825468c103043681b9095d0",
-  "separateCargoTarget": "/tmp/dx9-baseline/snapback4/target",
+  "separateCargoTarget": "/tmp/dx9-baseline040/snapback4/target",
   "sample": {
     "seed": 0,
     "cases": 2000,
