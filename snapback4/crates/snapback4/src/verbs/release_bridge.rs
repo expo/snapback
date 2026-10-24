@@ -15,6 +15,9 @@ pub(super) fn write(path: &Path, deployment: &Path, current: u64, target: u64, c
     let generated=snapback4_lang::release_bridge::loosen(&target_project.sources().map_err(|e|e.to_string())?,&current_project.sources().map_err(|e|e.to_string())?);
     let current_sources=current_project.sources().map_err(|e|e.to_string())?;
     let bound=snapback4_lang::compile(&current_sources);
+    let mut checklist=checklist.to_vec();
+    checklist.extend(bound.refusal_sites.iter().filter(|((kind,_),_)|kind=="$clause")
+        .map(|((_,site),clause)|format!("Review current guard at {site}: {clause}; prove its admission/refusal in the bridge with real accounts.")));
     // Extraction ambiguity cannot be represented by a single legacy cell.
     // Start from the complete current workflow so the repair is callable.
     let extraction_repair=!bound.schema.extractions.is_empty();
@@ -36,7 +39,7 @@ pub(super) fn write(path: &Path, deployment: &Path, current: u64, target: u64, c
         for (name,text) in sources {
             std::fs::write(path.join(name),text).map_err(|e|e.to_string())?;
         }
-        let body=format!("{repair}\n# Rollback bridge: release {current} → {target}\n\nThese are release {target}'s operations with value domains loosened to represent release {current}'s data. New tables retain current rules; old operations may not expose them. This source is a NEW release, never an edit of immutable release {target}. Review changed nullability in old UI code and confirm the carried current safety guards.\n\nGenerated changes:\n{changes}\n\nCompiler diagnostics (resolve before deploy):\n{diagnostics}\n\n{}\n\nAfter editing, run deploy with --schema pointing at this directory and --restore-dormant --check, then prove this checklist before activation.\n",checklist.iter().map(|line|format!("- [ ] {line}")).collect::<Vec<_>>().join("\n"));
+        let body=format!("{repair}\n# Rollback bridge: release {current} → {target}\n\nThis is a NEW bridge candidate for target release {target}, preserving release {current}'s data and guards; it never edits immutable release {target}. The generated changes below identify retained current workflows and paused legacy writes. New tables retain current rules; old operations may not expose them. Review changed nullability in old UI code and confirm the carried current safety guards.\n\nGenerated changes:\n{changes}\n\nCompiler diagnostics (resolve before deploy):\n{diagnostics}\n\n{}\n\nAfter editing, run deploy with --schema pointing at this directory and --restore-dormant --check, then prove this checklist before activation.\n",checklist.iter().map(|line|format!("- [ ] {line}")).collect::<Vec<_>>().join("\n"));
         std::fs::write(path.join("ROLLBACK-CHECKLIST.md"),body).map_err(|e|e.to_string())
     })();
     if result.is_err() {let _=std::fs::remove_dir_all(path);}

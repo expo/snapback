@@ -317,6 +317,7 @@ pub(super) fn check(project:&Project,sources:&[(String,String)],bound:&snapback4
             struct Stage(PathBuf);impl Stage {fn path(&self)->&Path{&self.0}}impl Drop for Stage {fn drop(&mut self){let _=fs::remove_dir_all(&self.0);}}
             let stage=Stage(std::env::temp_dir().join(format!("snapback4-check-views-{}",std::process::id())));
             fs::create_dir(&stage.0).map_err(|e|e.to_string())?;
+            snapback4_core::private_fs::directory(stage.path()).map_err(|e|e.to_string())?;
             fs::create_dir(stage.path().join("snapback")).map_err(|e|e.to_string())?;
             for(name,text)in sources {let path=stage.path().join("snapback").join(name);fs::create_dir_all(path.parent().unwrap()).map_err(|e|e.to_string())?;fs::write(path,text).map_err(|e|e.to_string())?;}
             let parent=fs::read_dir(dir.join("releases")).map_err(|e|e.to_string())?.filter_map(Result::ok).filter_map(|e|e.file_name().to_str()?.parse::<u64>().ok()).max().unwrap_or(0).checked_add(1).ok_or("release identity exhausted")?;
@@ -324,11 +325,15 @@ pub(super) fn check(project:&Project,sources:&[(String,String)],bound:&snapback4
             return Ok(Vec::new());
         }
     }
-    let config=project.root.join("snapback/client-compatibility.json");
-    if !config.is_file(){return Ok(Vec::new());}
-    let config:serde_json::Value=serde_json::from_slice(&fs::read(config).map_err(|e|e.to_string())?).map_err(|e|e.to_string())?;
+    let config_path=project.root.join("snapback/client-compatibility.json");
+    if !config_path.is_file(){return Ok(Vec::new());}
+    // Reuse the established validation and absolute-baseline diagnostics before
+    // preparing a compiler-only rollback view; this does not write an API.
+    crate::client_compatibility::report(project,bound).map_err(|e|e.to_string())?;
+    let contextual=|error:&dyn std::fmt::Display|format!("{}: {error}",config_path.display());
+    let config:serde_json::Value=serde_json::from_slice(&fs::read(&config_path).map_err(|e|contextual(&e))?).map_err(|e|contextual(&e))?;
     let Some(baseline)=config["baseline"].as_str()else{return Ok(Vec::new())};
-    let prior=crate::client_compatibility::sources(&project.root.join(baseline)).map_err(|e|e.to_string())?;
+    let prior=crate::client_compatibility::sources(&project.root.join(baseline)).map_err(|e|contextual(&e))?;
     if snapback4_lang::release_bridge::requires_view(&prior,sources) {return Ok(snapback4_lang::release_bridge::loosen(&prior,sources).diagnostics);}
     Ok(Vec::new())
 }
