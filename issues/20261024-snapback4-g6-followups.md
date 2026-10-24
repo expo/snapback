@@ -22,3 +22,12 @@ From the G6 blind review (Sol APPROVE WITH NITS, Grok APPROVE) and the G6 report
 4. **Write-mix false misses.** Revision equality misses every entry after
    any commit: a 1 % write stream gives 92.3 % misses and 5.1k reads/s.
    Cross-revision promotion with footprints (§4.1) is the designed remedy.
+
+5. **Store-port ratchet (REL affected audit, 2026-10-24).** The current
+   `store_port_ratchet` reports production accesses above the port in
+   `engine/command.rs` (1) and `engine/revision_cache.rs` (4), violating
+   LLP 3000.009.001.000 §3.2. These files match origin/main; REL does not
+   modify them. Move the driver access/typing behind the admitted port,
+   or review any lexical false positive explicitly; do not silently raise
+   the zero-production-access allowlist. Reproduce from `snapback4` with
+   `CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 cargo test -p snapback4 --test store_port_ratchet`.
