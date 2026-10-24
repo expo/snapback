@@ -10,7 +10,7 @@ const LEGACY_KEYS: &str = "SELECT c.conname::text,COALESCE((c.contype = 'f' AND 
     AND c.confkey = ARRAY[(SELECT attnum FROM pg_attribute WHERE attrelid=c.confrelid AND attname='seq' AND NOT attisdropped)]
     AND c.confupdtype = 'a' AND c.confdeltype = 'a' AND c.confmatchtype = 's'), false) FROM pg_constraint c WHERE c.conrelid=to_regclass('_log') AND c.contype='f'";
 
-pub(super) fn legacy_keys(tx: &Tx<'_>) -> Result<Vec<postgres::Row>, RuntimeError> {
+pub(super) fn legacy_keys(tx: &Tx<'_>) -> Result<Vec<super::store::Row>, RuntimeError> {
     tx.query(LEGACY_KEYS, &[])
 }
 
