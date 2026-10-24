@@ -469,3 +469,55 @@ Every call carries `Authorization: Bearer TOKEN` on serve or `x-snapback-persona
 | SDK mutation at custody (`waitSeconds: 0`) | SDK, not raw HTTP | `{state:"pending", id}` is custody, never success |
 
 Read response bodies even on HTTP errors. Raw queries have no SDK `existence`; mutation failures use `why`, not top-level denied. `guide wire` covers the full protocol.
+
+## Check an npm serve script
+
+Run `npx snapback4 serve-check --deployment production --script prod:serve`.
+It runs `npm run --silent prod:serve` in its own process group, requires exactly
+one JSON object line on stdout, keeps the script up for 30 seconds after that
+line, sends group SIGTERM, and checks children and the deployment lock before
+forced cleanup. Startup also has a 30-second deadline. `--up-ms` and
+`--timeout-ms` override these intervals for focused tests. The JSON report names
+no JSON line, extra output, early exit, a child left running, and a held lock
+separately. Script stdout may contain credentials and is never echoed or saved.
+Use a disposable copy of production: this runs the script's real startup work.
+Never tail a live serve pipeline or signal only npm; signal the owned group.
+
+The same check is available to a Node driver:
+
+```js
+import { serveCheck } from "snapback4/proof";
+const result = await serveCheck({ script: "prod:serve", deployment: "production" });
+console.log(JSON.stringify(result));
+if (!result.ok) process.exitCode = 1;
+```
+
+## Production moves in a stage script
+
+Save v1/v2 sources outside snapback/. The following complete stage script
+assumes an existing production deployment at release 1 and saved v2 source at
+versions/v2. With no live owner, deploy/rollback take the store themselves:
+
+```js
+import { deploy, rollback } from "snapback4/proof";
+await deploy("production", "versions/v2");
+await rollback("production", 1);
+```
+
+With a live owner, the same moves use its authenticated local control path.
+This variant owns that serve and waits for its lock release during cleanup:
+
+```js
+import { deploy, rollback, startServe } from "snapback4/proof";
+const host = await startServe("production");
+try {
+  await deploy("production", "versions/v2");
+  await rollback("production", 1);
+} finally { await host.stop(); }
+```
+
+If another script already owns serve, use the first variant and leave shutdown
+to that owner. Await each move; an ambiguous activation needs inspection of
+`releases production --json` before another attempt. To stop an intended local
+owner explicitly, run `snapback4 stop production`; `serve production
+--wait-stopped` is only the barrier after shutdown was requested.

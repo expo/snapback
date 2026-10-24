@@ -107169,3 +107169,15 @@ workspace/all-targets build, stash, push or Git configuration change. The fix
 and these accurate partial-qualification records are preserved in a new commit
 on the commissioned branch; the remaining public qualification requires a
 later run with disk headroom.
+
+### 2026-10-24 — DX10 wave-27 process drivers and production rosters
+
+Adds a packaged npm serve-script checker with private stdout, 30-second up
+interval, group SIGTERM, pre-cleanup child/lock observations and keeper custody.
+Production provisioning now resumes a named private deployment roster instead
+of creating another batch on every serve. Guide testing contains literal cold
+and live-owner stage recipes; cheatsheet explains oldest-first board pages.
+Create/edit wording leads with the explicit update-only answer. Gate semantic
+work is recorded for SEC10 in issues/20261024-snapback4-dx10-sec10-gate-semantics.md;
+wording does not claim to repair empty-list initialization, list minimum review
+or missing helper expansion. Execution and replay results are in the DX10 report.

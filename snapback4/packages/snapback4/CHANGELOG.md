@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.41
+
+### Guide changes
+
+- `serve-check --deployment DIR --script prod:serve` checks npm readiness, 30-second lifetime, group shutdown and store release without exposing credential output. Production account provisioning reuses a named deployment roster across serve starts. `guide testing` includes cold/live stage scripts; `guide cheatsheet` explains oldest-first board/roster pages. Create/edit review advice leads with the deliberate `update only` answer.
+
 ## 0.4.40
 
 ### Guide changes

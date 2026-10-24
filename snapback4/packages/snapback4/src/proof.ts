@@ -1,6 +1,6 @@
 export { loadFixtures, type FixtureRow, type LoadFixturesOptions } from "./proof-fixtures.ts";
-import { provisionAccounts, seedAccounts, type ProvisionedSessions, type SeedAccountsOptions, type StagingSessions } from "./proof-accounts.ts";
-export { provisionAccounts, seedAccounts, type SeedAccountsOptions, type StagingAccount, type StagingSessions, type ProvisionedAccount, type ProvisionedSessions } from "./proof-accounts.ts";
+import { provisionAccounts, seedAccounts, type ProvisionAccountsOptions, type ProvisionedSessions, type SeedAccountsOptions, type StagingSessions } from "./proof-accounts.ts";
+export { provisionAccounts, seedAccounts, type SeedAccountsOptions, type StagingAccount, type StagingSessions, type ProvisionAccountsOptions, type ProvisionedAccount, type ProvisionedSessions } from "./proof-accounts.ts";
 // @ref LLP 3000.011.003.000.000#1 — the packaged proof kit owns hosts; builders own assertions.
 import { mkdirSync, openSync, closeSync, writeSync } from "node:fs";
 import { join } from "node:path";
@@ -112,6 +112,7 @@ export interface ScheduleOutcome {
 export interface ClockAdvance { now: number; fired: ScheduleOutcome[]; held: ScheduleOutcome[]; maintenancePaused: boolean; valueOf(): number }
 export interface AdvanceOptions { eachBoundary?: boolean; drain?: boolean; allowHeld?: boolean; sessions?: "preserve" | "expire" }
 export interface ServeHost extends ProofHost {
+  readonly deploymentDir: string;
   /** Authoritative staging time; requires a staging store and local operator authority. */
   now(): Promise<number>;
   /** Advance staging time once and drain due work. A lost reply must not be retried. */
@@ -120,10 +121,10 @@ export interface ServeHost extends ProofHost {
   drain(options?: Pick<AdvanceOptions, "eachBoundary" | "allowHeld">): Promise<ClockAdvance>;
   operatorToken(service?: string, days?: number): Promise<string>;
   seedAccounts(options: SeedAccountsOptions): Promise<StagingSessions>;
-  provisionAccounts(options: SeedAccountsOptions): Promise<ProvisionedSessions>;
+  provisionAccounts(options: ProvisionAccountsOptions): Promise<ProvisionedSessions>;
   sessions?: StagingSessions;
 }
-export interface ServeOptions extends ProofOptions { seedUsers?: SeedAccountsOptions; provisionUsers?: SeedAccountsOptions; clockOffset?: string }
+export interface ServeOptions extends ProofOptions { seedUsers?: SeedAccountsOptions; provisionUsers?: ProvisionAccountsOptions; clockOffset?: string }
 // @ref LLP 3000.000.000.001#2-real-staging-accounts — operator authority stays in the existing local store proof; bulk setup refuses production.
 /** Starts a release. stop() awaits native exit and kernel store release.
  * @throws E_PROOF_USAGE for missing deployment directory; child exit, readiness deadline or served identity mismatch. stop() rejects bounded cleanup failure. */
@@ -155,7 +156,7 @@ export async function startServe(deployDir: string, options: ServeOptions | read
     const result = await cli(["serve", directory, "--wait-stopped"], {...opts, timeoutMs:6000});
     if (result.code !== 0) throw Error(`proof serve store release failed: ${result.stderr}`);
   })().catch(error => { stopping = undefined; throw error; });
-  const served: ServeHost = { ...host, stop,
+  const served: ServeHost = { ...host, stop, deploymentDir: directory,
     now: async () => (await clockCall()).now,
     advance: (duration, options = {}) => {
       if (typeof duration !== "string" || (!/^\+?\d+(ms|s|m|h|d|w)$/.test(duration) || BigInt(duration.replace(/\D/g, "")) === 0n)) throw new TypeError("E_PROOF_USAGE: advance requires a positive whole duration");
@@ -465,3 +466,5 @@ export async function fillRN(locator: Locator, text: string): Promise<void> {
 export function statusText(page: Page, text: string | RegExp = /^(?:Ready|pending|sent|failed)$/): Locator { return renderedText(page, text); }
 /** @throws locator ambiguity, unavailable option or Playwright deadline. */
 export async function selectByValue(locator: Locator, value: string): Promise<void> { await locator.selectOption({ value }); }
+
+export { serveCheck, type ServeCheckOptions, type ServeCheckReport } from "./proof-serve-check.ts";

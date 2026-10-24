@@ -23,6 +23,24 @@ if (process.argv[2] === "web-shell") {
   process.exit(0);
 }
 
+if (process.argv[2] === "serve-check") {
+  try {
+    const args = process.argv.slice(3), options = {};
+    if (args.includes("--help")) {
+      console.log("usage: snapback4 serve-check --deployment DIR [--script prod:serve] [--up-ms 30000] [--timeout-ms 30000]");
+      process.exit(0);
+    }
+    const keys = {"--deployment":"deployment", "--script":"script", "--up-ms":"upMs", "--timeout-ms":"timeoutMs"};
+    for (let i = 0; i < args.length; i += 2) {
+      const key = keys[args[i]];
+      if (!key || args[i + 1] === undefined) throw Error("unknown/missing serve-check option; see --help");
+      options[key] = key.endsWith("Ms") ? Number(args[i + 1]) : args[i + 1];
+    }
+    const {serveCheck} = await import("../dist/proof-serve-check.js");
+    const report = await serveCheck(options);
+    console.log(JSON.stringify(report)); process.exitCode = report.ok ? 0 : 1;
+  } catch (error) { console.error(`E_SERVE_CHECK: ${error.message}`); process.exitCode = 2; }
+} else {
 let binary;
 try { binary = resolveBinary(); }
 catch (error) { console.error(error.message); process.exit(2); }
@@ -59,3 +77,5 @@ child.on("exit", (code, signal) => {
   }
   process.exit(code ?? 1);
 });
+
+}

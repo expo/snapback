@@ -105,8 +105,21 @@ There is no promotion flag: deploy real production into its own fresh directory
 and provision only intended users. `seedAccounts` and startServe's seedUsers
 refuse production or dev before minting a token or creating any account.
 `host.provisionAccounts(plan)` (or startServe's `provisionUsers`) accepts the
-same roles/provision/args/service plan in production, creates real password
-accounts, and performs the ordinary service-authorized mutation for each one.
+same roles/provision/args/service plan in production. It reuses the named
+`roster` (default `default`) under `<deployment>/proof-accounts/`, logs in again
+for fresh sessions, and provisions only unfinished entries. Repeated serve
+starts do not add another roster. Files contain passwords, are private (0600),
+and must stay with the deployment and out of source control. Preserve them when
+copying/backing up a store; deleting them or choosing a new name requests new
+accounts. A standalone helper host must supply `rosterDir` explicitly.
+`args(account)` must return stable wire arguments (object key order may change).
+Changing a saved plan or provisioning arguments refuses; inspect the existing
+roster rather than silently reassigning roles. An interrupted call retains each
+email/password and mutation ID before sending, so retrying resumes that entry.
+A stale `.lock` refuses concurrent setup; after verifying the old driver is gone,
+inspect partial production accounts/grants and remove only that roster lock.
+Completed entries are not re-provisioned and existing grants are not repaired
+silently. Account/session revocation or password changes require operator review.
 It warns when the served schema reports no explicit positive authorization
 mention for the minted service seat; rules still decide every operation and the
 token gains no implicit grant. Partial failure can leave real accounts/grants.
