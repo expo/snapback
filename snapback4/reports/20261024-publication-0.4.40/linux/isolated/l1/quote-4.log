@@ -1,0 +1,303 @@
+-- client file start: packages/snapback4/test/social-quote-jump-browser.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: social quote jumps with real FlatList layout and history reads
+    # Subtest: online
+        # Subtest: 30 intervening messages: original enters viewport and draft keeps its owner
+        ok 1 - 30 intervening messages: original enters viewport and draft keeps its owner
+          ---
+          duration_ms: 4583.87305
+          type: 'test'
+          ...
+        # Subtest: already visible original highlights without moving the list; highlight clears
+        ok 2 - already visible original highlights without moving the list; highlight clears
+          ---
+          duration_ms: 4370.42987
+          type: 'test'
+          ...
+        # Subtest: absent original says unavailable and cannot move the list
+        ok 3 - absent original says unavailable and cannot move the list
+          ---
+          duration_ms: 234.944591
+          type: 'test'
+          ...
+        # Subtest: one anchored read reaches beyond the 500-row sync horizon
+        ok 4 - one anchored read reaches beyond the 500-row sync horizon
+          ---
+          duration_ms: 248.365567
+          type: 'test'
+          ...
+        # Subtest: reply affordance sends the original ID with the text
+        ok 5 - reply affordance sends the original ID with the text
+          ---
+          duration_ms: 192.494142
+          type: 'test'
+          ...
+        # Subtest: loaded offscreen original retries an unmeasured index and scrolls into view
+        ok 6 - loaded offscreen original retries an unmeasured index and scrolls into view
+          ---
+          duration_ms: 241.754673
+          type: 'test'
+          ...
+        # Subtest: failed scrolling stops at four seconds, keeps draft, and permits an explicit retry
+        ok 7 - failed scrolling stops at four seconds, keeps draft, and permits an explicit retry
+          ---
+          duration_ms: 4515.900627
+          type: 'test'
+          ...
+        # Subtest: late layout: late
+        ok 8 - late layout: late
+          ---
+          duration_ms: 445.580491
+          type: 'test'
+          ...
+        # Subtest: late layout: above
+        ok 9 - late layout: above
+          ---
+          duration_ms: 349.750484
+          type: 'test'
+          ...
+        # Subtest: late layout: gesture
+        ok 10 - late layout: gesture
+          ---
+          duration_ms: 979.691552
+          type: 'test'
+          ...
+        # Subtest: late layout: keyboard
+        ok 11 - late layout: keyboard
+          ---
+          duration_ms: 983.020505
+          type: 'test'
+          ...
+        # Subtest: late layout: native-drag
+        ok 12 - late layout: native-drag
+          ---
+          duration_ms: 966.306892
+          type: 'test'
+          ...
+        # Subtest: late layout: body-keyboard
+        ok 13 - late layout: body-keyboard
+          ---
+          duration_ms: 966.939191
+          type: 'test'
+          ...
+        # Subtest: editable keys keep layout protection: edit-PageUp
+        ok 14 - editable keys keep layout protection: edit-PageUp
+          ---
+          duration_ms: 517.565971
+          type: 'test'
+          ...
+        # Subtest: editable keys keep layout protection: edit-PageDown
+        ok 15 - editable keys keep layout protection: edit-PageDown
+          ---
+          duration_ms: 515.542407
+          type: 'test'
+          ...
+        # Subtest: editable keys keep layout protection: edit-ArrowUp
+        ok 16 - editable keys keep layout protection: edit-ArrowUp
+          ---
+          duration_ms: 515.918452
+          type: 'test'
+          ...
+        # Subtest: editable keys keep layout protection: edit-ArrowDown
+        ok 17 - editable keys keep layout protection: edit-ArrowDown
+          ---
+          duration_ms: 467.0112
+          type: 'test'
+          ...
+        # Subtest: editable keys keep layout protection: edit-Space
+        ok 18 - editable keys keep layout protection: edit-Space
+          ---
+          duration_ms: 467.349468
+          type: 'test'
+          ...
+        # Subtest: editable keys keep layout protection: edit-Home
+        ok 19 - editable keys keep layout protection: edit-Home
+          ---
+          duration_ms: 432.799978
+          type: 'test'
+          ...
+        # Subtest: editable keys keep layout protection: edit-End
+        ok 20 - editable keys keep layout protection: edit-End
+          ---
+          duration_ms: 435.330091
+          type: 'test'
+          ...
+        # Subtest: editable keys keep layout protection: edit-input
+        ok 21 - editable keys keep layout protection: edit-input
+          ---
+          duration_ms: 515.299805
+          type: 'test'
+          ...
+        # Subtest: editable keys keep layout protection: edit-select
+        ok 22 - editable keys keep layout protection: edit-select
+          ---
+          duration_ms: 482.646748
+          type: 'test'
+          ...
+        # Subtest: editable keys keep layout protection: edit-contenteditable
+        ok 23 - editable keys keep layout protection: edit-contenteditable
+          ---
+          duration_ms: 432.692958
+          type: 'test'
+          ...
+        # Subtest: editable keys keep layout protection: edit-textbox
+        ok 24 - editable keys keep layout protection: edit-textbox
+          ---
+          duration_ms: 432.684815
+          type: 'test'
+          ...
+        # Subtest: editable keys keep layout protection: edit-searchbox
+        ok 25 - editable keys keep layout protection: edit-searchbox
+          ---
+          duration_ms: 434.124715
+          type: 'test'
+          ...
+        # Subtest: editable keys keep layout protection: edit-combobox
+        ok 26 - editable keys keep layout protection: edit-combobox
+          ---
+          duration_ms: 499.109196
+          type: 'test'
+          ...
+        # Subtest: editable keys keep layout protection: edit-spinbutton
+        ok 27 - editable keys keep layout protection: edit-spinbutton
+          ---
+          duration_ms: 515.899917
+          type: 'test'
+          ...
+        # Subtest: editable keys keep layout protection: edit-slider
+        ok 28 - editable keys keep layout protection: edit-slider
+          ---
+          duration_ms: 432.990595
+          type: 'test'
+          ...
+        1..28
+    ok 1 - online
+      ---
+      duration_ms: 26855.866302
+      type: 'test'
+      ...
+    # {"tier":"online","name":"far","driverDelay":2300,"at":947.5999999046326,"elapsed":19.399999856948853,"top":208,"bottom":272,"viewportTop":208,"viewportBottom":752,"color":"rgb(255, 232, 154)"}
+    # {"tier":"online","highlight":{"duration":1710.6000001430511,"span":1804,"highlightUntil":2746.899999856949,"expiryOff":{"on":false,"at":2751.5999999046326},"restarts":[],"stillOn":false,"settled":true,"observedFor":4099.799999952316,"transitions":[{"on":true,"at":947.5999999046326},{"on":false,"at":954.5},{"on":true,"at":1047.8999998569489},{"on":false,"at":2751.5999999046326}]}}
+    # {"tier":"online","name":"visible","driverDelay":0,"at":5406.200000047684,"elapsed":16,"top":264,"bottom":328,"viewportTop":160,"viewportBottom":752,"color":"rgb(255, 232, 154)"}
+    # {"tier":"online","highlight":{"duration":1885.0999999046326,"span":1886.3999998569489,"highlightUntil":7204,"expiryOff":{"on":false,"at":7292.599999904633},"restarts":[],"stillOn":false,"settled":true,"observedFor":4086.5,"transitions":[{"on":true,"at":5406.200000047684},{"on":false,"at":5421.799999952316},{"on":true,"at":5423.099999904633},{"on":false,"at":7292.599999904633}]}}
+    # {"tier":"online","name":"beyond-horizon","driverDelay":0,"at":10012.5,"elapsed":22.90000009536743,"top":208,"bottom":272,"viewportTop":208,"viewportBottom":752,"color":"rgb(255, 232, 154)"}
+    # {"tier":"online","name":"far","driverDelay":0,"at":10440.299999952316,"elapsed":32.59999990463257,"top":688,"bottom":752,"viewportTop":160,"viewportBottom":752,"color":"rgb(255, 232, 154)"}
+    # {"tier":"online","failure":{"at":14853.099999904633,"elapsed":4067.7999999523163,"commands":93}}
+    # {"tier":"online","name":"far","driverDelay":0,"at":14964.200000047684,"elapsed":39.90000009536743,"top":688,"bottom":752,"viewportTop":160,"viewportBottom":752,"color":"rgb(255, 232, 154)"}
+    # {"tier":"online","name":"late","driverDelay":0,"at":15391.799999952316,"elapsed":17.5,"top":404,"bottom":508,"viewportTop":160,"viewportBottom":752,"color":"rgb(255, 232, 154)"}
+    # {"lateLayout":"late","commandsAtRelease":95,"expandedAt":15403.799999952316,"corrected":{"at":15419.799999952316,"top":432,"bottom":480,"viewportTop":160,"viewportBottom":752,"commands":96}}
+    # {"tier":"online","name":"above","driverDelay":0,"at":15741.399999856949,"elapsed":18.199999809265137,"top":424,"bottom":488,"viewportTop":160,"viewportBottom":752,"color":"rgb(255, 232, 154)"}
+    # {"lateLayout":"above","commandsAtRelease":97,"expandedAt":15753.899999856949,"corrected":{"at":15769.799999952316,"top":432,"bottom":480,"viewportTop":160,"viewportBottom":752,"commands":98}}
+    # {"tier":"online","name":"gesture","driverDelay":0,"at":16109.700000047684,"elapsed":18.40000009536743,"top":404,"bottom":508,"viewportTop":160,"viewportBottom":752,"color":"rgb(255, 232, 154)"}
+    # {"lateLayout":"gesture","commandsAtRelease":99,"expandedAt":16136.5,"checked":{"inside":false,"commands":99,"highlighted":false}}
+    # {"tier":"online","name":"keyboard","driverDelay":0,"at":17093,"elapsed":18.799999952316284,"top":404,"bottom":508,"viewportTop":160,"viewportBottom":752,"color":"rgb(255, 232, 154)"}
+    # {"lateLayout":"keyboard","commandsAtRelease":100,"expandedAt":17119.799999952316,"checked":{"inside":false,"commands":100,"highlighted":false}}
+    # {"tier":"online","name":"native-drag","driverDelay":0,"at":18075.799999952316,"elapsed":17.799999952316284,"top":404,"bottom":508,"viewportTop":160,"viewportBottom":752,"color":"rgb(255, 232, 154)"}
+    # {"lateLayout":"native-drag","commandsAtRelease":101,"expandedAt":18087.5,"checked":{"inside":false,"commands":101,"highlighted":false}}
+    # {"tier":"online","name":"body-keyboard","driverDelay":0,"at":19040.599999904633,"elapsed":16.899999856948853,"top":404,"bottom":508,"viewportTop":160,"viewportBottom":752,"color":"rgb(255, 232, 154)"}
+    # {"lateLayout":"body-keyboard","focus":"BODY","commandsAtRelease":102,"expandedAt":19053.200000047684,"checked":{"inside":false,"commands":102,"highlighted":false}}
+    # {"tier":"online","name":"edit-PageUp","driverDelay":0,"at":20089.299999952316,"elapsed":15.400000095367432,"top":404,"bottom":508,"viewportTop":160,"viewportBottom":752,"color":"rgb(255, 232, 154)"}
+    # {"editable":"edit-PageUp","before":{"scroll":2180,"commands":103},"after":{"scroll":2180,"highlighted":true,"owned":true,"commands":103},"corrected":{"ownTop":432,"ownBottom":480,"top":-152,"bottom":488,"viewportTop":160,"viewportBottom":752,"highlighted":false,"color":"rgba(0, 0, 0, 0)"}}
+    # {"tier":"online","name":"edit-PageDown","driverDelay":0,"at":20608.700000047684,"elapsed":18.200000047683716,"top":404,"bottom":508,"viewportTop":160,"viewportBottom":752,"color":"rgb(255, 232, 154)"}
+    # {"editable":"edit-PageDown","before":{"scroll":2180,"commands":105},"after":{"scroll":2180,"highlighted":true,"owned":true,"commands":105},"corrected":{"ownTop":432,"ownBottom":480,"top":-152,"bottom":488,"viewportTop":160,"viewportBottom":752,"highlighted":false,"color":"rgba(0, 0, 0, 0)"}}
+    # {"tier":"online","name":"edit-ArrowUp","driverDelay":0,"at":21125.5,"elapsed":18.700000047683716,"top":404,"bottom":508,"viewportTop":160,"viewportBottom":752,"color":"rgb(255, 232, 154)"}
+    # {"editable":"edit-ArrowUp","before":{"scroll":2180,"commands":107},"after":{"scroll":2180,"highlighted":true,"owned":true,"commands":107},"corrected":{"ownTop":432,"ownBottom":480,"top":-152,"bottom":488,"viewportTop":160,"viewportBottom":752,"highlighted":false,"color":"rgba(0, 0, 0, 0)"}}
+    # {"tier":"online","name":"edit-ArrowDown","driverDelay":0,"at":21593.299999952316,"elapsed":19.799999952316284,"top":404,"bottom":508,"viewportTop":160,"viewportBottom":752,"color":"rgb(255, 232, 154)"}
+    # {"editable":"edit-ArrowDown","before":{"scroll":2180,"commands":109},"after":{"scroll":2180,"highlighted":true,"owned":true,"commands":109},"corrected":{"ownTop":432,"ownBottom":480,"top":-152,"bottom":488,"viewportTop":160,"viewportBottom":752,"highlighted":false,"color":"rgba(0, 0, 0, 0)"}}
+    # {"tier":"online","name":"edit-Space","driverDelay":0,"at":22024.299999952316,"elapsed":17.5,"top":404,"bottom":508,"viewportTop":160,"viewportBottom":752,"color":"rgb(255, 232, 154)"}
+    # {"editable":"edit-Space","before":{"scroll":2180,"commands":111},"after":{"scroll":2180,"highlighted":true,"owned":true,"commands":111},"corrected":{"ownTop":432,"ownBottom":480,"top":-152,"bottom":488,"viewportTop":160,"viewportBottom":752,"highlighted":false,"color":"rgba(0, 0, 0, 0)"}}
+    # {"tier":"online","name":"edit-Home","driverDelay":0,"at":22491.299999952316,"elapsed":17.799999952316284,"top":404,"bottom":508,"viewportTop":160,"viewportBottom":752,"color":"rgb(255, 232, 154)"}
+    # {"editable":"edit-Home","before":{"scroll":2180,"commands":113},"after":{"scroll":2180,"highlighted":true,"owned":true,"commands":113},"corrected":{"ownTop":432,"ownBottom":480,"top":-152,"bottom":488,"viewportTop":160,"viewportBottom":752,"highlighted":false,"color":"rgba(0, 0, 0, 0)"}}
+    # {"tier":"online","name":"edit-End","driverDelay":0,"at":22924.299999952316,"elapsed":14.599999904632568,"top":404,"bottom":508,"viewportTop":160,"viewportBottom":752,"color":"rgb(255, 232, 154)"}
+    # {"editable":"edit-End","before":{"scroll":2180,"commands":115},"after":{"scroll":2180,"highlighted":true,"owned":true,"commands":115},"corrected":{"ownTop":432,"ownBottom":480,"top":-152,"bottom":488,"viewportTop":160,"viewportBottom":752,"highlighted":false,"color":"rgba(0, 0, 0, 0)"}}
+    # {"tier":"online","name":"edit-input","driverDelay":0,"at":23443.200000047684,"elapsed":18.700000047683716,"top":404,"bottom":508,"viewportTop":160,"viewportBottom":752,"color":"rgb(255, 232, 154)"}
+    # {"editable":"edit-input","before":{"scroll":2180,"commands":117},"after":{"scroll":2180,"highlighted":true,"owned":true,"commands":117},"corrected":{"ownTop":432,"ownBottom":480,"top":-152,"bottom":488,"viewportTop":160,"viewportBottom":752,"highlighted":false,"color":"rgba(0, 0, 0, 0)"}}
+    # {"tier":"online","name":"edit-select","driverDelay":0,"at":23925.799999952316,"elapsed":18.200000047683716,"top":396,"bottom":500,"viewportTop":160,"viewportBottom":752,"color":"rgb(255, 232, 154)"}
+    # {"editable":"edit-select","before":{"scroll":2188,"commands":119},"after":{"scroll":2188,"highlighted":true,"owned":true,"commands":119},"corrected":{"ownTop":432,"ownBottom":480,"top":-152,"bottom":488,"viewportTop":160,"viewportBottom":752,"highlighted":false,"color":"rgba(0, 0, 0, 0)"}}
+    # {"tier":"online","name":"edit-contenteditable","driverDelay":0,"at":24358.39999985695,"elapsed":17.799999952316284,"top":404,"bottom":508,"viewportTop":160,"viewportBottom":752,"color":"rgb(255, 232, 154)"}
+    # {"editable":"edit-contenteditable","before":{"scroll":2180,"commands":121},"after":{"scroll":2180,"highlighted":true,"owned":true,"commands":121},"corrected":{"ownTop":432,"ownBottom":480,"top":-152,"bottom":488,"viewportTop":160,"viewportBottom":752,"highlighted":false,"color":"rgba(0, 0, 0, 0)"}}
+    # {"tier":"online","name":"edit-textbox","driverDelay":0,"at":24792.799999952316,"elapsed":18.700000047683716,"top":396,"bottom":500,"viewportTop":160,"viewportBottom":752,"color":"rgb(255, 232, 154)"}
+    # {"editable":"edit-textbox","before":{"scroll":2188,"commands":123},"after":{"scroll":2188,"highlighted":true,"owned":true,"commands":123},"corrected":{"ownTop":432,"ownBottom":480,"top":-152,"bottom":488,"viewportTop":160,"viewportBottom":752,"highlighted":false,"color":"rgba(0, 0, 0, 0)"}}
+    # {"tier":"online","name":"edit-searchbox","driverDelay":0,"at":25224,"elapsed":17.299999952316284,"top":404,"bottom":508,"viewportTop":160,"viewportBottom":752,"color":"rgb(255, 232, 154)"}
+    # {"editable":"edit-searchbox","before":{"scroll":2180,"commands":125},"after":{"scroll":2180,"highlighted":true,"owned":true,"commands":125},"corrected":{"ownTop":432,"ownBottom":480,"top":-152,"bottom":488,"viewportTop":160,"viewportBottom":752,"highlighted":false,"color":"rgba(0, 0, 0, 0)"}}
+    # {"tier":"online","name":"edit-combobox","driverDelay":0,"at":25725,"elapsed":18.200000047683716,"top":404,"bottom":508,"viewportTop":160,"viewportBottom":752,"color":"rgb(255, 232, 154)"}
+    # {"editable":"edit-combobox","before":{"scroll":2180,"commands":127},"after":{"scroll":2180,"highlighted":true,"owned":true,"commands":127},"corrected":{"ownTop":432,"ownBottom":480,"top":-152,"bottom":488,"viewportTop":160,"viewportBottom":752,"highlighted":false,"color":"rgba(0, 0, 0, 0)"}}
+    # {"tier":"online","name":"edit-spinbutton","driverDelay":0,"at":26240.299999952316,"elapsed":16.799999952316284,"top":404,"bottom":508,"viewportTop":160,"viewportBottom":752,"color":"rgb(255, 232, 154)"}
+    # {"editable":"edit-spinbutton","before":{"scroll":2180,"commands":129},"after":{"scroll":2180,"highlighted":true,"owned":true,"commands":129},"corrected":{"ownTop":432,"ownBottom":480,"top":-152,"bottom":488,"viewportTop":160,"viewportBottom":752,"highlighted":false,"color":"rgba(0, 0, 0, 0)"}}
+    # {"tier":"online","name":"edit-slider","driverDelay":0,"at":26674.299999952316,"elapsed":17.59999990463257,"top":404,"bottom":508,"viewportTop":160,"viewportBottom":752,"color":"rgb(255, 232, 154)"}
+    # {"editable":"edit-slider","before":{"scroll":2180,"commands":131},"after":{"scroll":2180,"highlighted":true,"owned":true,"commands":131},"corrected":{"ownTop":432,"ownBottom":480,"top":-152,"bottom":488,"viewportTop":160,"viewportBottom":752,"highlighted":false,"color":"rgba(0, 0, 0, 0)"}}
+    # Subtest: replica
+        # Subtest: 30 intervening messages: original enters viewport and draft keeps its owner
+        ok 1 - 30 intervening messages: original enters viewport and draft keeps its owner
+          ---
+          duration_ms: 4469.083995
+          type: 'test'
+          ...
+        # Subtest: already visible original highlights without moving the list; highlight clears
+        ok 2 - already visible original highlights without moving the list; highlight clears
+          ---
+          duration_ms: 4286.618934
+          type: 'test'
+          ...
+        # Subtest: absent original says unavailable and cannot move the list
+        ok 3 - absent original says unavailable and cannot move the list
+          ---
+          duration_ms: 187.952135
+          type: 'test'
+          ...
+        # Subtest: one anchored read reaches beyond the 500-row sync horizon
+        ok 4 - one anchored read reaches beyond the 500-row sync horizon
+          ---
+          duration_ms: 195.212984
+          type: 'test'
+          ...
+        # Subtest: reply affordance sends the original ID with the text
+        ok 5 - reply affordance sends the original ID with the text
+          ---
+          duration_ms: 140.0686
+          type: 'test'
+          ...
+        # Subtest: loaded offscreen original retries an unmeasured index and scrolls into view
+        ok 6 - loaded offscreen original retries an unmeasured index and scrolls into view
+          ---
+          duration_ms: 299.285933
+          type: 'test'
+          ...
+        # Subtest: failed scrolling stops at four seconds, keeps draft, and permits an explicit retry
+        ok 7 - failed scrolling stops at four seconds, keeps draft, and permits an explicit retry
+          ---
+          duration_ms: 4345.681301
+          type: 'test'
+          ...
+        1..7
+    ok 2 - replica
+      ---
+      duration_ms: 15341.475609
+      type: 'test'
+      ...
+    # {"tier":"replica","name":"far","driverDelay":2300,"at":1617.5,"elapsed":17.899999856948853,"top":208,"bottom":272,"viewportTop":208,"viewportBottom":752,"color":"rgb(255, 232, 154)"}
+    # {"tier":"replica","highlight":{"duration":1714.2000000476837,"span":1804.1000001430511,"highlightUntil":3416.4000000953674,"expiryOff":{"on":false,"at":3421.600000143051},"restarts":[],"stillOn":false,"settled":true,"observedFor":4099.5,"transitions":[{"on":true,"at":1617.5},{"on":false,"at":1627},{"on":true,"at":1716.9000000953674},{"on":false,"at":3421.600000143051}]}}
+    # {"tier":"replica","name":"visible","driverDelay":0,"at":5945.700000047684,"elapsed":14.399999856948853,"top":368,"bottom":432,"viewportTop":160,"viewportBottom":752,"color":"rgb(255, 232, 154)"}
+    # {"tier":"replica","highlight":{"duration":1887.1000001430511,"span":1888.7000000476837,"highlightUntil":7742.900000095367,"expiryOff":{"on":false,"at":7834.400000095367},"restarts":[],"stillOn":false,"settled":true,"observedFor":4089.2000000476837,"transitions":[{"on":true,"at":5945.700000047684},{"on":false,"at":5961.100000143051},{"on":true,"at":5962.700000047684},{"on":false,"at":7834.400000095367}]}}
+    # {"tier":"replica","name":"beyond-horizon","driverDelay":0,"at":10447.900000095367,"elapsed":35.59999990463257,"top":192,"bottom":256,"viewportTop":192,"viewportBottom":752,"color":"rgb(255, 232, 154)"}
+    # {"tier":"replica","name":"far","driverDelay":0,"at":10880.600000143051,"elapsed":113.5,"top":688,"bottom":752,"viewportTop":160,"viewportBottom":752,"color":"rgb(255, 232, 154)"}
+    # {"tier":"replica","failure":{"at":15128.300000190735,"elapsed":4008.800000190735,"commands":49}}
+    # {"tier":"replica","name":"far","driverDelay":0,"at":15234.100000143051,"elapsed":38.90000009536743,"top":688,"bottom":752,"viewportTop":160,"viewportBottom":752,"color":"rgb(255, 232, 154)"}
+    1..2
+ok 1 - social quote jumps with real FlatList layout and history reads
+  ---
+  duration_ms: 45319.986859
+  type: 'test'
+  ...
+1..1
+# tests 38
+# suites 0
+# pass 38
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 45440.016094
+-- process inspection: {"snapshots":3,"unrelatedRows":3915}
+-- client file ok: packages/snapback4/test/social-quote-jump-browser.test.mjs (45745 ms)
+-- client files: 1/1; failed 0; tests {"tests":38,"pass":38,"fail":0,"cancelled":0,"skipped":0,"todo":0}

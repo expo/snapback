@@ -1,0 +1,7 @@
+run 1 rc=0 47 s load=55.15 52.02 46.12 -- client file ok: packages/snapback4/test/social-quote-jump-browser.test.mjs (46023 ms) -- client files: 1/1; failed 0; tests {"tests":38,"pass":38,"fail":0,"cancelled":0,"skipped":0,"todo":0} 
+run 2 rc=0 46 s load=55.29 52.47 46.55 -- client file ok: packages/snapback4/test/social-quote-jump-browser.test.mjs (46250 ms) -- client files: 1/1; failed 0; tests {"tests":38,"pass":38,"fail":0,"cancelled":0,"skipped":0,"todo":0} 
+run 3 rc=0 46 s load=54.04 52.68 46.94 -- client file ok: packages/snapback4/test/social-quote-jump-browser.test.mjs (46533 ms) -- client files: 1/1; failed 0; tests {"tests":38,"pass":38,"fail":0,"cancelled":0,"skipped":0,"todo":0} 
+run 4 rc=0 46 s load=55.25 53.19 47.39 -- client file ok: packages/snapback4/test/social-quote-jump-browser.test.mjs (45745 ms) -- client files: 1/1; failed 0; tests {"tests":38,"pass":38,"fail":0,"cancelled":0,"skipped":0,"todo":0} 
+run 5 rc=0 46 s load=54.03 53.23 47.68 -- client file ok: packages/snapback4/test/social-quote-jump-browser.test.mjs (45986 ms) -- client files: 1/1; failed 0; tests {"tests":38,"pass":38,"fail":0,"cancelled":0,"skipped":0,"todo":0} 
+run 6 rc=0 48 s load=68.71 56.93 49.21 -- client file ok: packages/snapback4/test/social-quote-jump-browser.test.mjs (47679 ms) -- client files: 1/1; failed 0; tests {"tests":38,"pass":38,"fail":0,"cancelled":0,"skipped":0,"todo":0} 
+iso-done
