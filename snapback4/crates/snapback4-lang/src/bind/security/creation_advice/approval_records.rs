@@ -16,13 +16,13 @@ fn pins(read:&ast::ReadExpr,p:&ast::ProgramDecl,bound:&Bound)->Vec<(String,Expr)
 }
 fn selected_read(effect:&Write<'_>)->ast::ReadExpr{ast::ReadExpr{cursor_prefix:None,computed:Default::default(),order_keys:Vec::new(),table:effect.table.clone(),keys:effect.keys.clone(),index:None,range:None,matching:None,filter:None,seeks:Vec::new(),site:effect.site.clone()}}
 fn stored_value(effect:&Write<'_>,column:&str,old:bool,bound:&Bound)->Expr{
-    if (!old||effect.op!=WriteOp::Update)&&let Some(value)=effect.fields.iter().find(|field|field.name==column).and_then(field_value){return value.clone();}
+    if (!old||!matches!(effect.op,WriteOp::Update|WriteOp::Upsert))&&let Some(value)=effect.fields.iter().find(|field|field.name==column).and_then(field_value){return value.clone();}
     let read=selected_read(effect);if let Some((_,value))=pins(&read,effect.p,bound).into_iter().find(|(name,_)|name==column){return value;}
     Expr::Member{base:Box::new(Expr::Read(read)),name:column.into(),site:effect.site.clone()}
 }
 pub(super) fn parent_values(effect:&Write<'_>,parent:&str,bound:&Bound)->Vec<Expr>{
-    let mut values=if effect.table==parent&&effect.op==WriteOp::Update{effect.keys.iter().filter(|key|key.column.as_deref().is_none_or(|column|column=="id")).map(|key|key.value.clone()).collect::<Vec<_>>()}else{Vec::new()};
-    values.extend(bound.schema.tables[&effect.table].columns.iter().filter(|(_,kind)|matches!(kind.required(),ColumnType::Ref{table} if table==parent)).filter(|(column,_)|effect.op==WriteOp::Update||effect.fields.iter().any(|field|&field.name==*column)).map(|(column,_)|stored_value(effect,column,false,bound)));values
+    let mut values=if effect.table==parent&&matches!(effect.op,WriteOp::Update|WriteOp::Upsert){effect.keys.iter().filter(|key|key.column.as_deref().is_none_or(|column|column=="id")).map(|key|key.value.clone()).collect::<Vec<_>>()}else{Vec::new()};
+    values.extend(bound.schema.tables[&effect.table].columns.iter().filter(|(_,kind)|matches!(kind.required(),ColumnType::Ref{table} if table==parent)).filter(|(column,_)|matches!(effect.op,WriteOp::Update|WriteOp::Upsert)||effect.fields.iter().any(|field|&field.name==*column)).map(|(column,_)|stored_value(effect,column,false,bound)));values
 }
 // Resolve policy reference hops through the same actual stored parent links as
 // source guards. A different same-typed path cannot discharge this parent.
@@ -61,19 +61,19 @@ fn schema_probe(rule:&RuleExpr,negated:bool,name:&str,reference:&str,parent:&str
     RuleExpr::Not(rule)=>schema_probe(rule,!negated,name,reference,parent,effect,bound),
     RuleExpr::And(rules)|RuleExpr::Or(rules)=>rules.iter().any(|rule|schema_probe(rule,negated,name,reference,parent,effect,bound)),
     RuleExpr::Exists{table,index,key,equalities,..}|RuleExpr::Created{table,index,key,equalities,..} if !negated&&table==name=>super::super::privilege::probe_pairs(bound,table,index,key,equalities).iter().any(|(column,value)|column==reference&&match value{
-        RuleTerm::Field(column)|RuleTerm::NextField(column)|RuleTerm::OldField(column)=>effect.table==parent&&effect.op==WriteOp::Update&&column=="id"||matches!(bound.schema.tables[&effect.table].columns.get(column).map(ColumnType::required),Some(ColumnType::Ref{table}) if table==parent),
+        RuleTerm::Field(column)|RuleTerm::NextField(column)|RuleTerm::OldField(column)=>effect.table==parent&&matches!(effect.op,WriteOp::Update|WriteOp::Upsert)&&column=="id"||matches!(bound.schema.tables[&effect.table].columns.get(column).map(ColumnType::required),Some(ColumnType::Ref{table}) if table==parent),
         RuleTerm::Reference{table,field,..}=>table==parent&&field=="id"||matches!(bound.schema.tables[table].columns.get(field).map(ColumnType::required),Some(ColumnType::Ref{table}) if table==parent),RuleTerm::ReferenceChain{hops,..}=>hops.last().is_some_and(|hop|hop.table==parent&&hop.field=="id"||matches!(bound.schema.tables[&hop.table].columns.get(&hop.field).map(ColumnType::required),Some(ColumnType::Ref{table}) if table==parent)),_=>false,
     }),_=>false,
 }}
 fn enforced(effect:&Write<'_>,name:&str,reference:&str,parent:&str,bound:&Bound,negative:bool)->bool{
     let conditions=effective_conditions(&effect.context);if conditions.iter().any(|condition|matches!(condition,Expr::Literal{value:ast::Literal::Bool(false),..})){return false;}
     if conditions.iter().any(|condition|source_probe(condition,negative,name,reference,parent,effect,bound)){return true;}
-    let table=&bound.schema.tables[&effect.table];let row=if effect.op==WriteOp::Update{&table.rules.update}else{&table.rules.insert};
+    let table=&bound.schema.tables[&effect.table];let row=if matches!(effect.op,WriteOp::Update|WriteOp::Upsert){&table.rules.update}else{&table.rules.insert};
     if schema_probe(&scoped_rule(row,effect,parent,bound),negative,name,reference,parent,effect,bound){return true;}
-    effect.fields.iter().any(|field|{
-        let needed=if effect.op==WriteOp::Update{matches!(field.name.as_str(),"stage"|"status"|"state"|"phase")&&matches!(table.columns.get(&field.name).map(ColumnType::required),Some(ColumnType::Enum{..}))}else{table.columns.get(&field.name).is_some_and(|kind|!kind.is_optional())};
-        needed&&table.column_writes.get(&field.name).is_some_and(|rule|schema_probe(&scoped_rule(rule,effect,parent,bound),negative,name,reference,parent,effect,bound))
-    })
+    let changing=matches!(effect.op,WriteOp::Update|WriteOp::Upsert);
+    let fields=effect.fields.iter().filter(|field|if changing{matches!(table.columns.get(&field.name).map(ColumnType::required),Some(ColumnType::Enum{..}))&&!matches!(field_value(field),Some(Expr::Member{base,name,..}) if name==&field.name&&super::super::derived::same_resource(base,&effect.table,&effect.keys,effect.p))}else{table.columns.get(&field.name).is_some_and(|kind|!kind.is_optional())}).collect::<Vec<_>>();
+    let covers=|field:&&ast::ObjectField|table.column_writes.get(&field.name).is_some_and(|rule|schema_probe(&scoped_rule(rule,effect,parent,bound),negative,name,reference,parent,effect,bound));
+    if negative{!fields.is_empty()&&fields.iter().all(covers)}else{fields.iter().any(covers)}
 }
 fn created(value:&Expr,parent:&str)->bool{match value{
     Expr::Assert{value,..}=>created(value,parent),Expr::Member{base,name,..} if name=="id"=>created(base,parent),
@@ -99,7 +99,7 @@ fn possible_destination(value:&Expr,column:&str,destination:&str,write:&Write<'_
 }}
 fn coupled(creator:&Write<'_>,reference:&str,parent:&str,writes:&[Write<'_>],bound:&Bound)->bool{
     let Some(value)=creator.fields.iter().find(|field|field.name==reference).and_then(field_value)else{return false;};
-    let Some((target,root,selected,_path))=origin(value,creator.p,bound)else{return false;};if target!=parent{return false;}
+    let Some((target,root,selected,path))=origin(value,creator.p,bound)else{return false;};if target!=parent{return false;}
     let mut preceding=BTreeSet::new();let mut located=false;
     for statement in creator.p.prelude.iter().chain(&creator.p.body){
         let mut contains=false;let mut body=vec![statement.clone()];super::super::super::intent_walk::statements(&mut body,&mut |e|if e.site()==&creator.site{contains=true;});if contains{located=true;break;}
@@ -110,7 +110,11 @@ fn coupled(creator:&Write<'_>,reference:&str,parent:&str,writes:&[Write<'_>],bou
     let writer=RuleExpr::And(vec![audience(&bound.schema.tables[&creator.table].rules.insert),audience(&creator.gate)]);
     writes.iter().filter(|write|std::ptr::eq(write.p,creator.p)&&write.table==root&&write.op==WriteOp::Update&&!write.conditional&&preceding.contains(&write.site.to_string())).any(|write|{
         if write.keys.len()!=1||write.keys[0].column.as_deref().is_some_and(|column|column!="id")||arg(&write.keys[0].value,&root,write.p)!=Some(&selected){return false;}
-        if root!=target&&write.fields.iter().any(|field|matches!(bound.schema.tables[&root].columns.get(&field.name).map(ColumnType::required),Some(ColumnType::Ref{..}))){return false;}
+        let mut owner=root.clone();
+        for reference in &path{
+            if writes.iter().any(|other|std::ptr::eq(other.p,creator.p)&&other.table==owner&&other.fields.iter().any(|field|field.name==*reference&&!matches!(field_value(field),Some(Expr::Member{base,name,..}) if name==reference&&super::super::derived::same_resource(base,&other.table,&other.keys,other.p)))){return false;}
+            let Some(ColumnType::Ref{table})=bound.schema.tables[&owner].columns.get(reference).map(ColumnType::required)else{return false;};owner=table.clone();
+        }
         write.fields.iter().any(|field|{
             if !matches!(bound.schema.tables[&root].columns.get(&field.name).map(ColumnType::required),Some(ColumnType::Enum{..})){return false;}
             let Some(Expr::Literal{value:ast::Literal::Str(destination),..})=field_value(field)else{return false;};

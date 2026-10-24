@@ -17,9 +17,10 @@ fn expression(catalog:&Catalog,p:&ProgramDecl,expr:&Expr,env:&Env,guards:&[Stmt]
     let changes=if column.is_some()&&changes::prior_effects(&expr){&[][..]}else{changes};
     super::super::intent_walk::expression(&mut expr,&mut |e|match e{
         Expr::Write{..}=>{let mut context=p.clone();context.prelude=Vec::new();context.body=guards.to_vec();if let Some(column)=column{for change in changes{if change.matches(e,column,p){context.body.extend(change.requirements.clone());}}}out.push((e.clone(),context));},
-        Expr::Call{name,args,..} if depth<32=>if let Some(f)=catalog.functions.get(name){
+        Expr::Call{name,args,site} if depth<32=>if let Some(f)=catalog.functions.get(name){
             let mut locals=f.args.iter().zip(args).map(|(arg,value)|(arg.name.clone(),value.clone())).collect();
             let mut inherited=guards.to_vec();
+            inherited.push(Stmt::Require{condition:Expr::Literal{value:ast::Literal::Bool(true),site:site.clone()},code:"$callsite".into(),message:None,site:site.clone()});
             match &f.body{
                 FunctionBody::Expression(value)=>expression(catalog,p,value,&locals,&inherited,changes,column,depth+1,out),
                 FunctionBody::Block(body)=>statements(catalog,p,body,&mut locals,&mut inherited,&mut changes.to_vec(),column,depth+1,out),

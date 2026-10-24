@@ -2,7 +2,7 @@
 // @ref LLP 3000.036.004#171-presence-and-lifecycle-questions — decisions require explicit product intent.
 use super::*;
 pub(super) fn state(w:&Write<'_>,bound:&Bound)->bool{
-    w.op==WriteOp::Update&&w.fields.iter().any(|f|matches!(bound.schema.tables[&w.table].columns.get(&f.name).map(ColumnType::required),Some(ColumnType::Enum{..})))
+    matches!(w.op,WriteOp::Update|WriteOp::Upsert)&&w.fields.iter().any(|f|matches!(bound.schema.tables[&w.table].columns.get(&f.name).map(ColumnType::required),Some(ColumnType::Enum{..}))&&!matches!(field_value(f),Some(Expr::Member{base,name,..}) if name==&f.name&&super::super::derived::same_resource(base,&w.table,&w.keys,w.p)))
 }
 fn inspected(w:&Write<'_>,table:&str,column:&str)->bool{
     conditions(&w.context).iter().any(|condition|{
@@ -52,6 +52,18 @@ fn records(w:&Write<'_>,column:&str,kind:&ColumnType,t:&snapback4_core::schema::
 fn certain_record(w:&Write<'_>,column:&str,kind:&ColumnType,t:&snapback4_core::schema::Table)->bool{
     if let Some(field)=w.fields.iter().find(|field|field.name==column){super::super::derived::fresh_recording(kind,field_value(field))}else{records(w,column,kind,t)}
 }
+fn derived_decision_fact(w:&Write<'_>,column:&str,kind:&ColumnType,t:&snapback4_core::schema::Table)->bool{
+    if !matches!(kind.required(),ColumnType::Bool){return false;}
+    fn stored(e:&Expr,p:&ast::ProgramDecl,locator:bool)->bool{match e{
+        Expr::Literal{..}=>true,Expr::Name{name,..}=>name=="now"||name=="viewer"||locator&&p.args.iter().any(|arg|arg.name==*name&&matches!(arg.type_.kind,TypeKind::Ref{..}|TypeKind::Principal)),
+        Expr::Assert{value,..}=>stored(value,p,locator),Expr::Member{base,..}=>stored(base,p,true),
+        Expr::Read(read)=>read.keys.iter().all(|key|stored(&key.value,p,true))&&read.filter.as_deref().is_none_or(|filter|stored(filter,p,false)),
+        Expr::Unary{value,..}=>stored(value,p,false),Expr::Binary{left,right,..}=>stored(left,p,false)&&stored(right,p,false),
+        Expr::If{condition,then,otherwise,..}=>stored(condition,p,false)&&stored(then,p,false)&&stored(otherwise,p,false),_=>false,
+    }}
+    let Some(value)=w.fields.iter().find(|field|field.name==column).and_then(field_value)else{return false;};
+    !matches!(value,Expr::Literal{..}|Expr::Name{..})&&stored(value,w.p,false)&&w.fields.iter().any(|field|field.name!=column&&["approv","authoriz"].iter().any(|part|field.name.to_lowercase().contains(part))&&t.columns.get(&field.name).is_some_and(|kind|super::super::derived::fresh_recording(kind,field_value(field))))
+}
 fn decision_effect(t:&snapback4_core::schema::Table,column:&str,f:&ast::ObjectField)->bool{
     let name=f.name.to_lowercase();
     if f.name==column||["approv","authoriz","consent","reason","note"].iter().any(|part|name.contains(part)){return false;}
@@ -60,6 +72,22 @@ fn decision_effect(t:&snapback4_core::schema::Table,column:&str,f:&ast::ObjectFi
         (Some(ColumnType::Text{..}|ColumnType::Enum{..}|ColumnType::Bool),Some(_))=>{let column=column.to_lowercase();["approv","authoriz"].iter().filter_map(|part|column.find(part)).any(|at|at>0&&name.starts_with(&column[..at]))},
         _=>false,
     }
+}
+fn guarded_boolean_decision(record:&Write<'_>,field:&ast::ObjectField,bound:&Bound)->bool{
+    if ["approv","authoriz"].iter().any(|part|field.name.to_lowercase().contains(part)){return false;}
+    if !matches!(bound.schema.tables[&record.table].columns.get(&field.name).map(ColumnType::required),Some(ColumnType::Bool)){return false;}
+    let Some(Expr::Literal{value:ast::Literal::Bool(after),..})=field_value(field)else{return false;};
+    fn project(e:&Expr,record:&Write<'_>,column:&str,value:bool)->Option<bool>{match e{
+        Expr::Literal{value:ast::Literal::Bool(value),..}=>Some(*value),
+        Expr::Member{base,name,..} if name==column&&super::super::derived::same_resource(base,&record.table,&record.keys,record.p)=>Some(value),
+        Expr::Unary{op,value:e,..} if op=="not"=>project(e,record,column,value).map(|value|!value),
+        Expr::Binary{op,left,right,..} if op=="and"||op=="or"=>{let a=project(left,record,column,value);let b=project(right,record,column,value);let decisive=op=="or";if a==Some(decisive)||b==Some(decisive){Some(decisive)}else if a.is_some()&&b.is_some(){Some(!decisive)}else{None}},
+        Expr::Binary{op,left,right,..} if op=="="||op=="!="=>Some((project(left,record,column,value)?==project(right,record,column,value)?)==(op=="=")),_=>None,
+    }}
+    effective_conditions(&record.context).iter().any(|condition|{
+        let mut uses=false;walk(condition,|e|if let Expr::Member{base,name,..}=e&&name==&field.name&&super::super::derived::same_resource(base,&record.table,&record.keys,record.p){uses=true;});
+        uses&&project(condition,record,&field.name,*after)==Some(false)
+    })
 }
 fn exclusive_decision(record:&Write<'_>,field:&ast::ObjectField,writes:&[Write<'_>],_bound:&Bound)->bool{
     if matches!(field_value(field),Some(Expr::Member{base,name,..}) if name==&field.name&&super::super::derived::same_resource(base,&record.table,&record.keys,record.p)){return false;}
@@ -85,7 +113,7 @@ fn scalar_rule(rule:&RuleExpr,table:&str,column:&str,root:&str,negative:bool,bou
     }
 }
 fn schema_scalar(effect:&Write<'_>,table:&str,column:&str,bound:&Bound,negative:bool)->bool{
-    let target=&bound.schema.tables[&effect.table];let row=if effect.op==WriteOp::Update{&target.rules.update}else{&target.rules.insert};
+    let target=&bound.schema.tables[&effect.table];let row=if matches!(effect.op,WriteOp::Update|WriteOp::Upsert){&target.rules.update}else{&target.rules.insert};
     if scalar_rule(&super::approval_records::scoped_rule(row,effect,table,bound),table,column,&effect.table,negative,bound){return true;}
     let fields=effect.fields.iter().filter(|field|matches!(target.columns.get(&field.name).map(ColumnType::required),Some(ColumnType::Enum{..}))&&!matches!(field_value(field),Some(Expr::Member{base,name,..}) if name==&field.name&&super::super::derived::same_resource(base,&effect.table,&effect.keys,effect.p))).collect::<Vec<_>>();
     let covers=|field:&&ast::ObjectField|target.column_writes.get(&field.name).is_some_and(|rule|scalar_rule(&super::approval_records::scoped_rule(rule,effect,table,bound),table,column,&effect.table,negative,bound))||negative&&target.frozen_columns.get(&field.name).is_some_and(|rule|scalar_rule(&super::approval_records::scoped_rule(rule,effect,table,bound),table,column,&effect.table,false,bound));
@@ -98,10 +126,23 @@ fn caller_approval(condition:&Expr,table:&str,column:&str,bound:&Bound)->bool{
     });}found
 }
 fn parent_loop_guard(effect:&Write<'_>,table:&str,column:&str,bound:&Bound)->bool{
-    fn required(body:&[Stmt],binder:&str,column:&str)->bool{body.iter().any(|stmt|match stmt{
-        Stmt::Require{condition,..}=>super::super::derived::approval_receipts(&simplify_boolean(condition)).iter().any(|positive|{let mut found=false;walk(positive,|e|if let Expr::Member{base,name,..}=e&&name==column&&matches!(base.as_ref(),Expr::Name{name,..} if name==binder){found=true;});found}),
-        Stmt::If{condition,then_body,else_body,..}=>match simplify_boolean(condition){Expr::Literal{value:ast::Literal::Bool(true),..}=>required(then_body,binder,column),Expr::Literal{value:ast::Literal::Bool(false),..}=>required(else_body,binder,column),_=>required(then_body,binder,column)||required(else_body,binder,column)},Stmt::As{body,..}=>required(body,binder,column),_=>false,
-    })}
+    fn scan(body:&[Stmt],binder:&str,column:&str)->(bool,bool){
+        for stmt in body{match stmt{
+            Stmt::Require{condition,..}=>{
+                let condition=simplify_boolean(condition);if matches!(condition,Expr::Literal{value:ast::Literal::Bool(false),..}){return (false,false);}
+                if super::super::derived::approval_receipts(&condition).iter().any(|positive|{let mut found=false;walk(positive,|e|if let Expr::Member{base,name,..}=e&&name==column&&matches!(base.as_ref(),Expr::Name{name,..} if name==binder){found=true;});found}){return (true,true);}
+            },
+            Stmt::Break{..}|Stmt::Continue{..}|Stmt::Return{..}=>return (false,false),
+            Stmt::If{condition,then_body,else_body,..}=>{
+                let condition=simplify_boolean(condition);let (found,continues)=match condition{
+                    Expr::Literal{value:ast::Literal::Bool(value),..}=>scan(if value{then_body}else{else_body},binder,column),
+                    _=>{let a=scan(then_body,binder,column);let b=scan(else_body,binder,column);(a.0||b.0,a.1||b.1)},
+                };if found{return (true,continues);}if !continues{return (false,false);}
+            },
+            Stmt::As{body,..}=>{let result=scan(body,binder,column);if result.0||!result.1{return result;}},_=>{},
+        }}(false,true)
+    }
+    fn required(body:&[Stmt],binder:&str,column:&str)->bool{scan(body,binder,column).0}
     fn contains(stmt:&Stmt,site:&Site)->bool{let mut found=false;let mut body=vec![stmt.clone()];super::super::super::intent_walk::statements(&mut body,&mut |e|if e.site()==site{found=true;});found}
     fn prefix<'a>(body:&'a[Stmt],site:&Site,before:&mut Vec<&'a Stmt>)->bool{
         for stmt in body{if contains(stmt,site){return match stmt{
@@ -109,7 +150,11 @@ fn parent_loop_guard(effect:&Write<'_>,table:&str,column:&str,bound:&Bound)->boo
             Stmt::For{body,..}|Stmt::As{body,..}=>prefix(body,site,before),_=>true,
         };}before.push(stmt);}false
     }
-    let mut before=Vec::new();if !prefix(&effect.p.body,&effect.site,&mut before){return false;}
+    let mut before=Vec::new();
+    if !prefix(&effect.p.body,&effect.site,&mut before){
+        let owner=effect.context.body.iter().filter_map(|stmt|if let Stmt::Require{code,site,..}=stmt&&code=="$callsite"{Some(site)}else{None}).find_map(|site|{let mut candidate=Vec::new();prefix(&effect.p.body,site,&mut candidate).then_some(candidate)});
+        let Some(owner)=owner else{return false;};before=owner;
+    }
     effect.table!=table&&bound.schema.tables[table].columns.values().any(|kind|matches!(kind.required(),ColumnType::Ref{table} if table==&effect.table))&&before.iter().any(|stmt|matches!(stmt,Stmt::For{domain,name,body,..} if matches!(domain,Expr::Read(read) if read.table==table)&&required(body,name,column)))
 }
 fn locked_approval_input(record:&Write<'_>,column:&str,writes:&[Write<'_>],bound:&Bound)->bool{
@@ -169,7 +214,7 @@ pub(super) fn notes(bound:&Bound,writes:&[Write<'_>],out:&mut Vec<Diagnostic>){
             let approval=["approv","authoriz"].iter().any(|part|column.to_lowercase().contains(part));
             let recorded=writes.iter().any(|w|w.table==*table&&records(w,column,kind,t));
             let proxies=writes.iter().filter(|w|w.table==*table&&w.fields.iter().any(|f|f.name==*column)).flat_map(|w|w.fields.iter()).filter(|f|f.name!=*column&&matches!(t.columns.get(&f.name).map(ColumnType::required),Some(ColumnType::Enum{..}|ColumnType::Bool|ColumnType::Principal|ColumnType::Time))).filter(|f|!matches!(field_value(f),Some(Expr::Member{..}))).map(|f|f.name.clone()).collect::<BTreeSet<_>>();
-            let atomic=writes.iter().any(|w|w.table==*table&&certain_record(w,column,kind,t)&&(matches!(w.op,WriteOp::Insert|WriteOp::Upsert)&&t.defaults.iter().any(|(name,d)|["status","stage","state","phase","decision","approval"].iter().any(|suffix|name.to_lowercase().ends_with(suffix))&&matches!(t.columns.get(name).map(ColumnType::required),Some(ColumnType::Enum{..}))&&matches!(d.value(challenges::NOW,"$advisory"),snapback4_core::Value::String(value) if ["approved","authorized","authorised"].contains(&value.to_lowercase().as_str())))||w.fields.iter().any(|f|decision_effect(t,column,f)&&exclusive_decision(w,f,writes,bound)&&(!matches!(w.op,WriteOp::Insert|WriteOp::Upsert)||!t.defaults.get(&f.name).is_some_and(|d|matches!(field_value(f),Some(Expr::Literal{value:ast::Literal::Str(value),..}) if d.value(challenges::NOW,"$advisory")==snapback4_core::Value::String(value.clone())))))));
+            let atomic=writes.iter().any(|w|w.table==*table&&(certain_record(w,column,kind,t)||derived_decision_fact(w,column,kind,t))&&(matches!(w.op,WriteOp::Insert|WriteOp::Upsert)&&t.defaults.iter().any(|(name,d)|["status","stage","state","phase","decision","approval"].iter().any(|suffix|name.to_lowercase().ends_with(suffix))&&matches!(t.columns.get(name).map(ColumnType::required),Some(ColumnType::Enum{..}))&&matches!(d.value(challenges::NOW,"$advisory"),snapback4_core::Value::String(value) if ["approved","authorized","authorised"].contains(&value.to_lowercase().as_str())))||w.fields.iter().any(|f|f.name!=*column&&(decision_effect(t,column,f)||guarded_boolean_decision(w,f,bound))&&exclusive_decision(w,f,writes,bound)&&(!matches!(w.op,WriteOp::Insert|WriteOp::Upsert)||!t.defaults.get(&f.name).is_some_and(|d|matches!(field_value(f),Some(Expr::Literal{value:ast::Literal::Str(value),..}) if d.value(challenges::NOW,"$advisory")==snapback4_core::Value::String(value.clone())))))));
             let others=approval_effects.iter().filter(|w|!(w.table==*table&&records(w,column,kind,t))).collect::<Vec<_>>();
             let frozen=!others.is_empty()&&others.iter().all(|w|scalar_enforced(w,table,column,bound,true)||schema_scalar(w,table,column,bound,true));
             let data_use=writes.iter().filter(|record|record.table==*table&&records(record,column,kind,t)).any(|record|locked_approval_input(record,column,writes,bound)||one_shot_decision(record,column,writes,bound)||linked_decision_stamp(record,column,writes,bound));
