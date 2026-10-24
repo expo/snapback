@@ -111,6 +111,11 @@ fn run(
     args: BTreeMap<String, Value>,
     composed: bool,
 ) -> Json {
+    let mut detached;
+    let e = if composed && matches!(e.store(), AnyStore::Postgres(_)) && !e.store_mut().test_postgres_handle_mut().store.get_mut().read_only {
+        detached = e.reader().unwrap();
+        &mut detached
+    } else { e };
     let context = Context::new(viewer, args)
         .at(1000)
         .with_request_credential(if composed { "account" } else { "reference" });
@@ -280,7 +285,8 @@ fn composed_read_closure_keeps_its_cut_across_commit_and_revocation() {
     let context = Context::new(&viewer, BTreeMap::new())
         .at(1000)
         .with_request_credential("account");
-    let (out, cut, current) = pg.query_materialized_search_with_request(
+    let mut detached = pg.reader().unwrap();
+    let (out, cut, current) = detached.query_materialized_search_with_request(
         "W3",
         context,
         None,
@@ -329,7 +335,7 @@ fn composed_read_closure_keeps_its_cut_across_commit_and_revocation() {
         },
     );
     assert_eq!(expected, json!({"out":out,"cut":cut,"current":current}));
-    let next = run(&mut pg, &digest, &viewer, "W3", BTreeMap::new(), true);
+    let next = run(&mut detached, &digest, &viewer, "W3", BTreeMap::new(), true);
     assert_eq!(next["out"]["Err"]["code"], "E_AUTH");
 }
 
@@ -502,5 +508,39 @@ fn g4a_fix1_nul_text_remains_legal_in_composed_reads() {
         assert!(expected["out"].get("Ok").is_some(),"{name}: {expected}");
         assert_eq!(expected,run(&mut pg,&d,&viewer,name,args.clone(),false));
         assert_eq!(expected,run(&mut pg,&d,&viewer,name,args,true),"legal NUL text in {name}");
+    }
+}
+
+/// Manual core serving-path load, not an HTTP capacity/SLO qualification.
+#[test]
+#[ignore = "manual private PG16 measurement; SNAPBACK4_PIPELINE_MEASURE=1"]
+fn pipeline_measure_w2_w3_128_clients() {
+    if std::env::var("SNAPBACK4_PIPELINE_MEASURE").as_deref()!=Ok("1") { return; }
+    use std::{sync::{Arc,Barrier},time::{Duration,Instant}};
+    let (pg,digest,viewer)=engine(true);
+    for name in ["W2","W3"] {
+        let barrier=Arc::new(Barrier::new(129));
+        let mut clients=Vec::new();
+        for _ in 0..128 {
+            let mut e=pg.reader().unwrap();
+            let digest=digest.clone(); let viewer=viewer.clone(); let barrier=barrier.clone();
+            let args=if name=="W2" {[("room".into(),Value::Id("r'\\\né".into()))].into()} else {BTreeMap::new()};
+            clients.push(std::thread::spawn(move|| {
+                // Warm the interpreter and both driver paths before the common start.
+                assert!(run(&mut e,&digest,&viewer,name,args.clone(),true)["out"]["Ok"].is_object());
+                barrier.wait(); let start=Instant::now(); let mut times=Vec::new();
+                while start.elapsed()<Duration::from_secs(5) {
+                    let at=Instant::now();
+                    let out=run(&mut e,&digest,&viewer,name,args.clone(),true);
+                    assert!(out["out"]["Ok"].is_object(),"{out}");
+                    times.push(at.elapsed().as_nanos() as u64);
+                }
+                (times,start.elapsed().as_secs_f64())
+            }));
+        }
+        barrier.wait(); let mut times=Vec::new(); let mut seconds=0.0f64;
+        for client in clients {let (t,s)=client.join().unwrap();times.extend(t);seconds=seconds.max(s);}
+        times.sort_unstable();
+        println!("PIPELINE_MEASUREMENT {}",json!({"op":name,"depth":std::env::var("SNAPBACK4_POSTGRES_PIPELINE_DEPTH").unwrap_or("4".into()),"clients":128,"max_connections":30,"reads":times.len(),"seconds":seconds,"reads_per_second":times.len() as f64/seconds,"p50_ms":times[times.len()/2] as f64/1e6,"p99_ms":times[times.len()*99/100] as f64/1e6}));
     }
 }

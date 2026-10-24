@@ -515,15 +515,38 @@ impl Closure {
             return tx.complete_request_facts(digest);
         }
         let params: Vec<_> = sql.params.iter().map(Param::as_sql).collect();
-        let mut results = match tx.flight(&[(&statement, &params)], "ROLLBACK") {
-            Ok(results) => results,
-            // A speculative SQL failure must not become a Quarry error. The
-            // failed transaction cannot serve ordinary reads; discard its cut.
-            Err(_) => return tx.restart_request_facts(digest),
+        let pipeline = {
+            let inner = tx.inner.borrow();
+            inner.client.is_reader() && !inner.started
         };
-        tx.finish_read_flight();
-        let Some(result) = results.pop() else { return tx.complete_request_facts(digest); };
-        let rows = result.rows;
+        let rows = if pipeline {
+            let typed: Vec<_> = sql.params.iter().map(|p| (p.as_sql(), p.ty())).collect();
+            // Reuse RT5's typed admission, including text NUL and the physical
+            // encoder bound, even though this flight uses binary Bind inputs.
+            let encoded = typed.iter().try_fold(0usize, |n,(p,t)| {
+                Ok::<_,RuntimeError>(n.saturating_add(super::literal::parameter(*p,t)?.len()))
+            })?;
+            if statement.len().saturating_add(encoded) > super::flight::ENCODED_LIMIT { return tx.complete_request_facts(digest); }
+            tx.calls.set(tx.calls.get()+1);
+            let result = tx.inner.borrow().client.independent(&statement,&typed);
+            tx.inner.borrow_mut().pending.clear();
+            tx.finish_read_flight();
+            match result {
+                Ok(rows) => rows,
+                // A connection loss is retryable for this request. Never hide
+                // it with a fresh connection or replay an in-flight statement.
+                Err(RuntimeError::Postgres(e)) if e.as_db_error().is_none() => return Err(e.into()),
+                Err(_) => return tx.restart_request_facts(digest),
+            }
+        } else {
+            let mut results = match tx.flight(&[(&statement, &params)], "ROLLBACK") {
+                Ok(results) => results,
+                Err(_) => return tx.restart_request_facts(digest),
+            };
+            tx.finish_read_flight();
+            let Some(result) = results.pop() else { return tx.complete_request_facts(digest); };
+            result.rows
+        };
         let payload = match rows.first().map(|row| row.try_get::<_, Option<String>>(19)) {
             Some(Ok(Some(payload))) => payload,
             _ => return tx.complete_request_facts(digest),
@@ -606,6 +629,7 @@ enum Param {
     Bytes(Vec<u8>),
 }
 impl Param {
+    fn ty(&self) -> postgres::types::Type { match self { Self::Text(_) => postgres::types::Type::TEXT, Self::Bytes(_) => postgres::types::Type::BYTEA } }
     fn as_sql(&self) -> &(dyn ToSql + Sync) {
         match self {
             Self::Text(v) => v,

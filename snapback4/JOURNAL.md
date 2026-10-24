@@ -104811,3 +104811,24 @@ records absent; executable/data-directory scans also find no survivors.
 PIDs left: none. Both data directories, short socket directories and raw
 evidence are retained outside Git. No push, stash or persistent Git
 configuration change.
+
+## 2026-10-24 — PIPE reader transport
+
+Implemented the commissioned independent reader pipeline on RT6/G4a base
+`bd50485b8c`. Logical detached readers share at most 30 physical connections,
+with depth 1–8 (default 4) and one reader I/O runtime thread. Each composed
+facts or ordinary ingress statement has its own Parse/Bind/Execute/Sync and
+implicit transaction/snapshot. Rust retains authority, interpreter, meters
+and G4a decoding. Multi-statement fallbacks take exclusive custody through
+rollback; writer and lease ordering are unchanged. The pinned driver sets
+TCP_NODELAY for every TCP transport; a child-process syscall witness covers
+reader and synchronous writer. New sockets verify the existing codec settings.
+
+Existing G4a oracles now execute composed reads on detached readers, including
+retained-NUL and sparse fallback, planted faults and the revocation cut. New
+transport witnesses cover overlapping snapshots, a failed middle statement,
+bounded depth, fallback exclusion and exact connection-loss scope. The report
+under reports/20261024-pipe records qualification and 128-client loopback core
+loads at depths 1/4/8. HTTP admission remains 30 active plus 98 queued;
+measurement makes no delayed-link or HTTP S1 capacity claim. Raw logs stay
+outside Git. Qualification and owned private-PG shutdown follow separately.

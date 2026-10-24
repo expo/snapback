@@ -10,6 +10,7 @@ pub struct Handle {
     pub(crate) report: AdoptionReport,
     pub(super) connection: (postgres::Config, String),
     pub(super) fresh: bool,
+    pub(super) readers: RefCell<Option<std::sync::Arc<super::pipeline::Pool>>>,
     pub(super) bootstrap_id: Option<String>,
 }
 impl Handle {
@@ -29,7 +30,12 @@ impl Handle {
     pub(crate) fn reader(&self) -> Result<Self, RuntimeError> {
         if self.fresh { return Err(RuntimeError::StoreUnsupported { family: "opening" }); }
         let before = self.read(|tx| Ok((crate::metadata::MetadataReader::store_identity(tx)?, crate::activation::ActivationReader::opening_backend(tx)?)))?;
-        let reader = Self::connect_reader(self.connection.0.clone(), &self.connection.1, self.borrow()?.fence.clone())?;
+        let existing = self.readers.borrow().clone();
+        let pool = if let Some(pool) = existing { pool } else {
+            let pool = super::pipeline::Pool::new(&self.connection.0, &self.connection.1, self.borrow()?.fence.as_ref().map(|f| f.tag()).transpose()?)?;
+            *self.readers.borrow_mut() = Some(pool.clone()); pool
+        };
+        let reader = Self::connect_reader(self.connection.0.clone(), &self.connection.1, self.borrow()?.fence.clone(), pool)?;
         let after = reader.read(|tx| Ok((crate::metadata::MetadataReader::store_identity(tx)?, crate::activation::ActivationReader::opening_backend(tx)?)))?;
         if before != after { return Err(RuntimeError::Generation("reader store identity or generation changed; reopen".into())); }
         Ok(reader)

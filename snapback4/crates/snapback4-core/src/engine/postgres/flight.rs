@@ -3,10 +3,10 @@
 // @ref LLP 3000.009.001.000.001#35-each-command-keeps-its-own-place — client validation always precedes the separate COMMIT flight.
 use super::{literal, store::CallCounter};
 use crate::RuntimeError;
-use postgres::{Client, SimpleQueryMessage, Statement, row::RowIndex, types::{FromSql, Type}};
+use postgres::{ SimpleQueryMessage, Statement, row::RowIndex, types::{FromSql, Type}};
 
 pub(super) struct Session<'a> {
-    pub client: &'a mut Client,
+    pub client: &'a mut super::pipeline::Connection,
     pub pending: String,
     pub started: bool,
     pub done: bool,
@@ -20,6 +20,7 @@ impl Drop for Session<'_> {
             crate::round_trips::postgres(1);
             let _ = self.client.batch_execute("ROLLBACK");
         }
+        self.client.finish();
     }
 }
 impl Session<'_> {

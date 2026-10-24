@@ -1,0 +1,399 @@
+//! Reader-only extended-protocol transport. Each query ends in its own Sync;
+//! the writer continues to use the synchronous driver and ordered flights.
+// @ref LLP 3000.009.001.000.002#12-panel-disposition-round-4 — bounded independent snapshots, errors and backpressure.
+use crate::RuntimeError;
+use futures_util::TryStreamExt;
+use postgres::{
+    Row, SimpleQueryMessage, Statement,
+    types::{ToSql, Type},
+};
+use std::sync::{
+    Arc, Mutex, OnceLock,
+    atomic::{AtomicUsize, Ordering},
+};
+use tokio::sync::{OwnedRwLockWriteGuard, RwLock, Semaphore};
+
+const CONNECTIONS: usize = 30;
+fn runtime() -> &'static tokio::runtime::Runtime {
+    static RUNTIME: OnceLock<tokio::runtime::Runtime> = OnceLock::new();
+    RUNTIME.get_or_init(|| {
+        tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(1)
+            .thread_name("sb4-pg-reader")
+            .enable_all()
+            .build()
+            .expect("Postgres reader runtime")
+    })
+}
+
+pub(crate) struct Pool {
+    config: tokio_postgres::Config,
+    setup: String,
+    slots: Mutex<Vec<Arc<Slot>>>,
+    next: AtomicUsize,
+    depth: usize,
+}
+pub(crate) struct Slot {
+    client: tokio_postgres::Client,
+    // Fallbacks own the connection from their first command through rollback.
+    // Independent statements borrow it concurrently, bounded by depth.
+    custody: Arc<RwLock<()>>,
+    permits: Semaphore,
+}
+impl Pool {
+    pub fn new(
+        config: &postgres::Config,
+        namespace: &str,
+        tag: Option<String>,
+    ) -> Result<Arc<Self>, RuntimeError> {
+        let depth = match std::env::var("SNAPBACK4_POSTGRES_PIPELINE_DEPTH") {
+            Ok(value) => value
+                .parse::<usize>()
+                .ok()
+                .filter(|n| (1..=8).contains(n))
+                .ok_or_else(|| {
+                    RuntimeError::Input("SNAPBACK4_POSTGRES_PIPELINE_DEPTH must be 1..8".into())
+                })?,
+            Err(std::env::VarError::NotPresent) => 4,
+            Err(_) => {
+                return Err(RuntimeError::Input(
+                    "invalid Postgres pipeline depth".into(),
+                ));
+            }
+        };
+        Self::with_depth(config, namespace, tag, depth)
+    }
+    fn with_depth(
+        config: &postgres::Config,
+        namespace: &str,
+        tag: Option<String>,
+        depth: usize,
+    ) -> Result<Arc<Self>, RuntimeError> {
+        let mut c = tokio_postgres::Config::new();
+        if let Some(v) = config.get_user() {
+            c.user(v);
+        }
+        if let Some(v) = config.get_password() {
+            c.password(v);
+        }
+        if let Some(v) = config.get_dbname() {
+            c.dbname(v);
+        }
+        if let Some(v) = config.get_options() {
+            c.options(v);
+        }
+        if let Some(v) = tag.as_deref().or(config.get_application_name()) {
+            c.application_name(v);
+        }
+        for host in config.get_hosts() {
+            match host {
+                postgres::config::Host::Tcp(v) => {
+                    c.host(v);
+                }
+                #[cfg(unix)]
+                postgres::config::Host::Unix(v) => {
+                    c.host_path(v);
+                }
+            }
+        }
+        for v in config.get_hostaddrs() {
+            c.hostaddr(*v);
+        }
+        for v in config.get_ports() {
+            c.port(*v);
+        }
+        c.ssl_mode(config.get_ssl_mode())
+            .ssl_negotiation(config.get_ssl_negotiation())
+            .channel_binding(config.get_channel_binding())
+            .target_session_attrs(config.get_target_session_attrs())
+            .load_balance_hosts(config.get_load_balance_hosts())
+            .keepalives(config.get_keepalives())
+            .keepalives_idle(config.get_keepalives_idle())
+            .connect_timeout(
+                config
+                    .get_connect_timeout()
+                    .copied()
+                    .unwrap_or(std::time::Duration::from_secs(5)),
+            );
+        if let Some(v) = config.get_tcp_user_timeout() {
+            c.tcp_user_timeout(*v);
+        }
+        if let Some(v) = config.get_keepalives_interval() {
+            c.keepalives_interval(v);
+        }
+        if let Some(v) = config.get_keepalives_retries() {
+            c.keepalives_retries(v);
+        }
+        let quoted = super::store::namespace(namespace)?;
+        Ok(Arc::new(Self {
+            config: c,
+            setup: format!(
+                "SET search_path={quoted},pg_catalog; SET statement_timeout='5s'; SET lock_timeout='5s'; SET default_transaction_read_only=on; SET client_encoding='UTF8'; SET extra_float_digits=3; SET bytea_output='hex'"
+            ),
+            slots: Mutex::new(Vec::new()),
+            next: AtomicUsize::new(0),
+            depth,
+        }))
+    }
+    fn slot(&self) -> Result<Arc<Slot>, RuntimeError> {
+        let mut slots = self.slots.lock().unwrap_or_else(|e| e.into_inner());
+        // Closed drivers are retired; never replay an in-flight request.
+        slots.retain(|s| !s.client.is_closed());
+        if slots.len() < CONNECTIONS {
+            let slot = runtime().block_on(async {
+                // tokio-postgres connect_socket sets TCP_NODELAY before startup,
+                // exactly as the synchronous postgres wrapper does for writers.
+                let (client, connection) = self.config.connect(tokio_postgres::NoTls).await?;
+                runtime().spawn(async move { let _ = connection.await; });
+                client.batch_execute(&self.setup).await?;
+                let a = client.query_one("SELECT pg_backend_pid(),current_setting('application_name'),current_setting('server_version_num')::int,current_setting('client_encoding'),current_setting('extra_float_digits'),current_setting('bytea_output')", &[]).await?;
+                let b = client.query_one("SELECT pg_backend_pid(),current_setting('application_name')", &[]).await?;
+                if a.get::<_,i32>(0) != b.get::<_,i32>(0) || a.get::<_,String>(1) != b.get::<_,String>(1) {
+                    return Err(RuntimeError::StoreUnsupported { family: "transaction-pooling" });
+                }
+                if !(160000..180000).contains(&a.get::<_,i32>(2)) { return Err(RuntimeError::StoreUnsupported { family: "postgres-version" }); }
+                if a.get::<_,&str>(3) != "UTF8" || a.get::<_,&str>(4) != "3" || a.get::<_,&str>(5) != "hex" {
+                    return Err(RuntimeError::Store("Postgres reader settings were not pinned".into()));
+                }
+                Ok(Arc::new(Slot { client, custody: Arc::new(RwLock::new(())), permits: Semaphore::new(self.depth) }))
+            })?;
+            slots.push(slot.clone());
+            #[cfg(any(test, feature = "test-support"))]
+            crate::round_trips::postgres(6);
+            return Ok(slot);
+        }
+        Ok(slots[self.next.fetch_add(1, Ordering::Relaxed) % slots.len()].clone())
+    }
+}
+
+/// Logical handles have separate statement/answer caches. Only transport and
+/// connection custody are shared. No authority or result survives a request.
+pub(crate) enum Connection {
+    Sync(postgres::Client),
+    Reader {
+        slot: Arc<Slot>,
+        _pool: Arc<Pool>,
+        session: bool,
+        lease: Option<OwnedRwLockWriteGuard<()>>,
+    },
+}
+impl std::ops::Deref for Connection {
+    type Target = postgres::Client;
+    fn deref(&self) -> &Self::Target {
+        match self {
+            Self::Sync(c) => c,
+            _ => panic!("synchronous-only Postgres operation on a reader"),
+        }
+    }
+}
+impl std::ops::DerefMut for Connection {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        match self {
+            Self::Sync(c) => c,
+            _ => panic!("synchronous-only Postgres operation on a reader"),
+        }
+    }
+}
+impl Connection {
+    pub fn reader(pool: Arc<Pool>) -> Result<Self, RuntimeError> {
+        Ok(Self::Reader {
+            slot: pool.slot()?,
+            _pool: pool,
+            session: false,
+            lease: None,
+        })
+    }
+    pub fn into_sync(self) -> postgres::Client {
+        match self {
+            Self::Sync(c) => c,
+            _ => panic!("writer expected"),
+        }
+    }
+    pub fn is_reader(&self) -> bool {
+        matches!(self, Self::Reader { .. })
+    }
+    pub fn begin(&mut self) {
+        if let Self::Reader { session, .. } = self {
+            *session = true;
+        }
+    }
+    pub fn finish(&mut self) {
+        if let Self::Reader { session, lease, .. } = self {
+            *session = false;
+            *lease = None;
+        }
+    }
+    fn lock(&mut self) -> Option<OwnedRwLockWriteGuard<()>> {
+        match self {
+            Self::Sync(_) => None,
+            Self::Reader {
+                slot,
+                session,
+                lease,
+                ..
+            } => {
+                if lease.is_some() {
+                    return None;
+                }
+                let guard = runtime().block_on(slot.custody.clone().write_owned());
+                if *session {
+                    *lease = Some(guard);
+                    None
+                } else {
+                    Some(guard)
+                }
+            }
+        }
+    }
+    pub fn prepare(&mut self, sql: &str) -> Result<Statement, postgres::Error> {
+        let _guard = self.lock();
+        match self {
+            Self::Sync(c) => c.prepare(sql),
+            Self::Reader { slot, .. } => runtime().block_on(slot.client.prepare(sql)),
+        }
+    }
+    pub fn query<T: ?Sized + tokio_postgres::ToStatement>(
+        &mut self,
+        sql: &T,
+        params: &[&(dyn ToSql + Sync)],
+    ) -> Result<Vec<Row>, postgres::Error> {
+        let _guard = self.lock();
+        match self {
+            Self::Sync(c) => c.query(sql, params),
+            Self::Reader { slot, .. } => runtime().block_on(slot.client.query(sql, params)),
+        }
+    }
+    pub fn query_one<T: ?Sized + tokio_postgres::ToStatement>(
+        &mut self,
+        sql: &T,
+        params: &[&(dyn ToSql + Sync)],
+    ) -> Result<Row, postgres::Error> {
+        let _guard = self.lock();
+        match self {
+            Self::Sync(c) => c.query_one(sql, params),
+            Self::Reader { slot, .. } => runtime().block_on(slot.client.query_one(sql, params)),
+        }
+    }
+    pub fn query_opt<T: ?Sized + tokio_postgres::ToStatement>(
+        &mut self,
+        sql: &T,
+        params: &[&(dyn ToSql + Sync)],
+    ) -> Result<Option<Row>, postgres::Error> {
+        let _guard = self.lock();
+        match self {
+            Self::Sync(c) => c.query_opt(sql, params),
+            Self::Reader { slot, .. } => runtime().block_on(slot.client.query_opt(sql, params)),
+        }
+    }
+    pub fn execute<T: ?Sized + tokio_postgres::ToStatement>(
+        &mut self,
+        sql: &T,
+        params: &[&(dyn ToSql + Sync)],
+    ) -> Result<u64, postgres::Error> {
+        let _guard = self.lock();
+        match self {
+            Self::Sync(c) => c.execute(sql, params),
+            Self::Reader { slot, .. } => runtime().block_on(slot.client.execute(sql, params)),
+        }
+    }
+    pub fn simple_query(&mut self, sql: &str) -> Result<Vec<SimpleQueryMessage>, postgres::Error> {
+        let _guard = self.lock();
+        match self {
+            Self::Sync(c) => c.simple_query(sql),
+            Self::Reader { slot, .. } => runtime().block_on(slot.client.simple_query(sql)),
+        }
+    }
+    pub fn batch_execute(&mut self, sql: &str) -> Result<(), postgres::Error> {
+        let _guard = self.lock();
+        match self {
+            Self::Sync(c) => c.batch_execute(sql),
+            Self::Reader { slot, .. } => runtime().block_on(slot.client.batch_execute(sql)),
+        }
+    }
+    pub fn commit_prepared(
+        &mut self,
+        warning: &std::sync::atomic::AtomicBool,
+    ) -> Result<(), RuntimeError> {
+        match self {
+            Self::Sync(c) => super::ownership::commit_prepared(c, warning),
+            Self::Reader { slot, .. } => {
+                runtime().block_on(slot.client.batch_execute("COMMIT"))?;
+                Ok(())
+            }
+        }
+    }
+    pub fn configure(&mut self) -> Result<(), RuntimeError> {
+        if let Self::Sync(c) = self {
+            super::literal::configure(c)?;
+        }
+        Ok(())
+    }
+    pub fn fold<T>(
+        &mut self,
+        statement: &Statement,
+        params: &[&(dyn ToSql + Sync)],
+        mut total: T,
+        mut fold: impl FnMut(T, super::flight::Row) -> Result<T, RuntimeError>,
+    ) -> Result<T, RuntimeError> {
+        let _guard = self.lock();
+        match self {
+            Self::Sync(c) => {
+                use postgres::fallible_iterator::FallibleIterator;
+                let mut rows = c.query_raw(statement, params.iter().copied())?;
+                while let Some(row) = rows.next()? {
+                    total = fold(total, super::flight::Row::Bind(row))?;
+                }
+                Ok(total)
+            }
+            Self::Reader { slot, .. } => runtime().block_on(async {
+                let rows = slot
+                    .client
+                    .query_raw(statement, params.iter().copied())
+                    .await?;
+                let mut rows = std::pin::pin!(rows);
+                while let Some(row) = rows.try_next().await? {
+                    total = fold(total, super::flight::Row::Bind(row))?;
+                }
+                Ok(total)
+            }),
+        }
+    }
+    /// Parse+Bind+Execute+Sync in one flight. There is no BEGIN and no grouping
+    /// transaction: PostgreSQL takes a new snapshot for each statement. Binary
+    /// Bind output uses the same FromSql path as the ordinary driver.
+    pub fn independent(
+        &self,
+        sql: &str,
+        params: &[(&(dyn ToSql + Sync), Type)],
+    ) -> Result<Vec<super::flight::Row>, RuntimeError> {
+        let Self::Reader { slot, lease, .. } = self else {
+            return Err(RuntimeError::Store("pipeline requires a reader".into()));
+        };
+        if lease.is_some() {
+            return Err(RuntimeError::Store(
+                "pipeline after snapshot started".into(),
+            ));
+        }
+        runtime().block_on(async {
+            let _permit = slot
+                .permits
+                .acquire()
+                .await
+                .map_err(|_| RuntimeError::Store("Postgres pipeline stopped".into()))?;
+            let _custody = slot.custody.read().await;
+            // New sockets are pinned, and applications cannot issue SET through
+            // this seam. Binary results do not depend on textual float/bytea GUCs.
+            Ok(slot
+                .client
+                .query_typed(sql, params)
+                .await?
+                .into_iter()
+                .map(super::flight::Row::Bind)
+                .collect())
+        })
+    }
+}
+
+#[cfg(test)]
+#[path = "pipeline_tests.rs"]
+mod tests;

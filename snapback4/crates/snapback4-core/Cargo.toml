@@ -25,7 +25,7 @@ native = ["sqlite", "wasm-host"]
 sqlite = ["dep:rusqlite", "dep:argon2"]
 # Server adapter selected by the public CLI and retained evaluation oracle.
 # Device and no-default core builds do not link it.
-postgres = ["sqlite", "dep:postgres"]
+postgres = ["sqlite", "dep:postgres", "dep:tokio-postgres", "dep:tokio", "dep:futures-util"]
 # The browser device mints additional prediction ids through Web Crypto.
 web = ["getrandom/wasm_js", "dep:js-sys"]
 # Exercise the web-only engine choices in native device differentials.
@@ -41,6 +41,9 @@ rusqlite = { version = "0.40.2", features = ["bundled", "backup", "hooks"], opti
 argon2 = { version = "0.5", optional = true }
 getrandom = "0.3"
 postgres = { version = "0.19.14", optional = true }
+tokio-postgres = { version = "=0.7.18", optional = true }
+tokio = { version = "1", features = ["rt-multi-thread", "sync", "net", "time"], optional = true }
+futures-util = { version = "0.3", default-features = false, features = ["std"], optional = true }
 wasmi = { version = "2.0.0", default-features = false, features = ["stable", "std", "validate", "auto-dispatch", "deterministic"], optional = true }
 
 # Native Rust callers can pass prebuilt trees beyond the text parser's limit.
