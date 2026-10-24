@@ -302,6 +302,7 @@ export function selectChangedPaths(changedFiles, context = loadSelectionContext(
       // @ref LLP 0175#d2--assign-every-test-to-an-explicit-cadence — the
       // docs-only core stays dependency-free; fast path-owned gates declare
       // the narrow workflow setup they need instead of widening the core.
+      snapback4: selectedSet.has('snapback4-affected'),
       javascriptDependencies: selectionClass !== 'FAST_ONLY'
         || selectedSet.has('generated-artifacts')
         || requires('javascriptDependencies'),
@@ -361,6 +362,7 @@ export function completeSelection(context = loadSelectionContext()) {
     notSelectedGates: [],
     requirements: {
       javascriptDependencies: true,
+      snapback4: selectedSet.has('snapback4-affected'),
       native: requires('native'),
       rustToolchain: requires('native') || requires('rustToolchain'),
       browser: requires('browser'),
@@ -813,6 +815,7 @@ function writeGitHubOutputs(path, receipt) {
     selected_gate_count: receipt.selectedGateCount,
     selected_gate_digest: receipt.selectedGateDigest,
     requires_javascript_dependencies: receipt.requirements.javascriptDependencies,
+    requires_snapback4: receipt.requirements.snapback4,
     requires_native: receipt.requirements.native,
     requires_rust_toolchain: receipt.requirements.rustToolchain,
     requires_browser: receipt.requirements.browser,

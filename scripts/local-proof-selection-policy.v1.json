@@ -50,6 +50,7 @@
       "guide-capability-link-real-backend"
     ],
     "browser": [
+      "snapback4-affected",
       "browser-availability"
     ],
     "cargoAudit": [

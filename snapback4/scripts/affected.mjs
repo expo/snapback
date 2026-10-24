@@ -3,7 +3,7 @@
 // the scheduled battery and publication qualification retain their own custody.
 import { execFileSync, spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readlinkSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 import { availableParallelism } from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -61,6 +61,7 @@ export function loadModel(root = ROOT) {
     seen.add(path);
     const source = text(path);
     const hits = [];
+    if (/\.md\b/.test(source)) hits.push(`${path}: docs consumer`);
     if (/\/dist\//.test(source)) hits.push(`${path}: client build consumer`);
     if (/child_process|snapback4(?:\.exe)?['"`]|SNAPBACK4_BIN|processDevice|bin-path/.test(source)) hits.push(`${path}: CLI/process consumer`);
     if (/wasm|webDevice/.test(source)) hits.push(`${path}: wasm consumer`);
@@ -76,8 +77,9 @@ export function loadModel(root = ROOT) {
         const key = specifier === workspace.name ? '.' : '.' + specifier.slice(workspace.name.length);
         let entry = workspace.exports?.[key] ?? (key === '.' ? workspace.main : undefined);
         while (entry && typeof entry === 'object') entry = entry.import ?? entry.default ?? entry.node;
-        if (typeof entry !== 'string') { hits.push(`${path}: unresolved workspace import ${specifier} (CLI + wasm)`); continue; }
+        if (typeof entry !== 'string') { hits.push(`${path}: unresolved workspace import ${specifier} (CLI + wasm)`); hits.push(`${path}: client build consumer via unresolved ${specifier}`); continue; }
         raw = slash(join(workspace.dir, entry));
+        if (entry.includes('/dist/')) hits.push(`${path}: client build consumer via ${specifier}`);
       }
       const candidates = [raw, raw.replace('/dist/', '/src/').replace(/\.js$/, '.ts'), raw + '.mjs', raw + '.js', raw + '.ts', raw + '/index.ts'];
       const found = candidates.find(candidate => fileSet.has(candidate));
@@ -117,19 +119,32 @@ export function selectAffected(changedFiles, model) {
   let semantics = false;
   const why = (path, reason) => reasons.push({ path, reason });
   function widen(path, reason) { broad = true; why(path, `fail broad: ${reason}`); }
-  function docs(path) { checks.add('guide'); checks.add('docs-budget'); checks.add('packaged-docs'); why(path, 'guide/docs contract'); }
+  function docs(path) {
+    checks.add('guide'); checks.add('docs-budget'); checks.add('packaged-docs'); why(path, 'guide/docs contract');
+    if (/^snapback4\/(?:packages\/|crates\/snapback4-lang\/src\/guide|guide\/|docs\/|README\.md$)/.test(path)) {
+      if (model.crates.find(crate => crate.name === 'snapback4-lang')?.targets.some(target => target.name === 'guide')) {
+        if (!narrowRust.has('snapback4-lang')) narrowRust.set('snapback4-lang', new Set());
+        narrowRust.get('snapback4-lang').add('guide');
+      }
+      for (const [file, evidence] of Object.entries(model.clientEvidence ?? {})) if (evidence.some(hit => hit.includes('docs consumer'))) {
+        clientFiles.add(file); why(file, `documentation consumer of ${path} (conservative doc pool)`);
+      }
+    }
+  }
   for (const path of files) {
     if (path.startsWith('llp/') || /(?:^|\/)AGENTS\.md$|^CLAUDE\.md$/.test(path)) {
       checks.add('ref-check'); why(path, 'LLP/agent instructions'); continue;
     }
     if (!path.startsWith(PREFIX)) {
-      if (['scripts/select-local-proof.mjs', 'scripts/local-proof-selection-policy.v1.json', 'scripts/verify-local-proof', 'tests/local_proof_selection_v0.mjs', 'tests/local_proof_inventory_v0.mjs'].includes(path)) { checks.add('selector-tests'); checks.add('inventories'); why(path, 'root selector integration'); }
+      if (['scripts/select-local-proof.mjs', 'scripts/local-proof-selection-policy.v1.json', 'scripts/verify-local-proof', 'tests/local_proof_selection_v0.mjs', 'tests/local_proof_inventory_v0.mjs', '.github/workflows/local-proof.yml'].includes(path)) { checks.add('selector-tests'); checks.add('inventories'); why(path, 'root selector integration'); }
       else if (path.startsWith('guide/')) docs(path);
       else widen(path, 'unowned path outside Snapback 4');
       continue;
     }
     const p = path.slice(PREFIX.length);
-    if (/(?:^|\/)(?:Cargo\.toml|Cargo\.lock|build\.rs|package\.json|bun\.lock|rust-toolchain(?:\.toml)?)$/.test(p) || p.startsWith('.cargo/')) {
+    if (/(?:generated|codegen|emit_types)/.test(p)) checks.add('generated');
+    if (/\/(?:test[_-]support|tests\/(?:common|support))(?:\/|\.)/.test(p)) { widen(path, 'shared test support'); continue; }
+    if (/(?:^|\/)(?:Cargo\.toml|Cargo\.lock|lean-toolchain|lake-manifest\.json|build\.rs|package\.json|bun\.lock|rust-toolchain(?:\.toml)?)$/.test(p) || p.startsWith('.cargo/')) {
       widen(path, 'manifest, lock, toolchain or build script'); continue;
     }
     // Changes to this selector and its direct tests have their own affected suite.
@@ -155,7 +170,7 @@ export function selectAffected(changedFiles, model) {
         why(path, `integration test target ${crate.name}::${test.name}`);
       } else if (path.startsWith(crate.dir + '/src/') && /\.(?:rs|q|json)$/.test(path)) {
         sourceCrates.add(crate.name); why(path, `${crate.name} sources and reverse dependents`);
-        if (['snapback4-lang', 'snapback4-core'].includes(crate.name)) semantics = true;
+        if (['snapback4-lang', 'snapback4-core', 'snapback4-difftest'].includes(crate.name)) semantics = true;
         // Site coordinates drift even when no new diagnostic code is introduced.
         checks.add('diagnostics'); checks.add('inventories');
         if (crate.name === 'snapback4-lang') checks.add('generated');
@@ -181,7 +196,7 @@ export function selectAffected(changedFiles, model) {
   if (broad) {
     for (const crate of model.crates) fullCrates.add(crate.name);
     for (const pkg of model.packages) fullPackages.add(pkg.name);
-    for (const check of ['guide', 'docs-budget', 'packaged-docs', 'diagnostics', 'inventories', 'generated', 'ref-check', 'selector-tests']) checks.add(check);
+    for (const check of ['guide', 'docs-budget', 'packaged-docs', 'diagnostics', 'inventories', 'generated', 'ref-check', 'selector-tests', 'fixture-tests', 'chat-check', 'chat-typecheck', 'expo-typecheck', 'release-guard']) checks.add(check);
     semantics = true;
   }
   for (const name of reverseClosure([...fullPackages], model.packages)) fullPackages.add(name);
@@ -212,8 +227,8 @@ export function selectAffected(changedFiles, model) {
   // Build every product used by selected tests, even for a test-only diff; never
   // trust ignored binaries/dist/wasm left over from another revision.
   const evidence = [...clientFiles].flatMap(test => model.clientEvidence?.[test] ?? []);
-  const needCli = evidence.some(hit => /CLI|process consumer/.test(hit));
-  const needClient = evidence.some(hit => /client build consumer/.test(hit));
+  const needCli = broad || evidence.some(hit => /CLI|process consumer/.test(hit));
+  const needClient = broad || evidence.some(hit => /client build consumer/.test(hit));
   const needWasm = needClient || evidence.some(hit => /wasm/.test(hit));
   if (needWasm || needClient || fullPackages.size) step('install-client', 'snapback4', ['bun', 'install', '--frozen-lockfile'], 'locked client/build dependencies');
   if (needCli) cargo('build-cli', ['build', '-p', 'snapback4'], 'selected clients spawn/import CLI');
@@ -239,6 +254,11 @@ export function selectAffected(changedFiles, model) {
   if (ordinaryFiles.length) step('client-tests', 'snapback4', ['node', 'scripts/run-client-tests.mjs', concurrency, 'files', ...ordinaryFiles.map(path => path.slice(PREFIX.length))], 'selected client files (one existing custody pool)');
   if (modelFiles.length) step('client-models', 'snapback4', ['node', 'scripts/run-client-tests.mjs', '1', 'models', ...sorted(modelFiles).map(path => path.slice(PREFIX.length))], 'models retain serial custody');
   const checkCommands = {
+    'fixture-tests': ['snapback4', ['node', 'scripts/run-client-tests.mjs', '1', 'files', 'fixtures/']],
+    'chat-check': ['snapback4/apps/chat', ['../../target/debug/snapback4', 'check']],
+    'chat-typecheck': ['snapback4', ['bun', 'run', '--cwd', 'apps/chat', 'typecheck']],
+    'expo-typecheck': ['snapback4', ['bun', 'run', '--cwd', 'apps/chat-expo', 'typecheck']],
+    'release-guard': ['snapback4', ['bash', 'scripts/check-release-guard.sh']],
     guide: ['.', ['node', 'scripts/check-guide.mjs']],
     'docs-budget': ['snapback4', ['node', 'scripts/docs-budget.mjs']],
     'packaged-docs': ['snapback4', ['node', '--input-type=module', '-e', "import { lintPackagedDocs } from './scripts/packaged-docs.mjs'; lintPackagedDocs(process.cwd());"]],
@@ -246,13 +266,25 @@ export function selectAffected(changedFiles, model) {
     inventories: ['.', ['node', 'scripts/check-inventories.mjs']],
     generated: ['.', ['bash', 'scripts/check-generated-artifacts']],
     'ref-check': ['.', ['./ref-check']],
-    'selector-tests': ['.', ['node', '--test', 'snapback4/scripts/affected.test.mjs', 'tests/local_proof_selection_v0.mjs', 'tests/local_proof_inventory_v0.mjs']],
+    'selector-tests': ['.', ['node', '--test', 'snapback4/scripts/affected.test.mjs', 'tests/local_proof_selection_v0.mjs', 'tests/local_proof_inventory_v0.mjs', 'tests/ci_workflows_v0.mjs']],
     'wasm-measurement': ['snapback4', ['bash', 'scripts/measure-wasm.sh']],
   };
   for (const check of sorted(checks)) step(check, ...checkCommands[check], 'affected input contract');
   if (semantics) {
     step('lean-build', 'snapback4/lean', ['lake', 'build'], 'semantic oracle prerequisite');
     for (const mode of ['run-lean', 'run']) cargo(`difftest:${mode}`, ['run', '--release', '-p', 'snapback4-difftest', '--', mode, '--seed', '0', '--cases', '2000', '--workers', '2', '--out', `target/affected/difftest-${mode}`], 'language, planner/store semantics or fail broad');
+  }
+  const stepIds = new Set(steps.map(step => step.id));
+  for (const step of steps) {
+    let required = [];
+    if (step.id === 'build-wasm' || step.id.startsWith('typecheck:') || step.id === 'expo-typecheck') required.push('install-client');
+    if (step.id === 'build-client') required.push('install-client', 'build-wasm');
+    if (step.id === 'client-tests' || step.id === 'client-models' || step.id === 'fixture-tests') required.push('build-cli', 'build-wasm', 'build-client');
+    if (step.id === 'chat-check') required.push('build-cli');
+    if (step.id === 'chat-typecheck') required.push('install-client', 'chat-check');
+    if (step.id === 'wasm-measurement') required.push('build-wasm');
+    if (step.id === 'difftest:run-lean') required.push('lean-build');
+    step.requires = required.filter(id => stepIds.has(id));
   }
   return { schemaVersion: 'snapback4.affected.v1', files, broad, reasons, rustPackages: sorted(fullCrates),
     rustTargets: Object.fromEntries([...narrowRust].filter(([name]) => !fullCrates.has(name)).map(([name, targets]) => [name, sorted(targets)])),
@@ -267,7 +299,13 @@ export function changedPaths(root, base, head, worktree = false) {
   ] : [])]);
 }
 function snapshotDigest(root, files) {
-  return hash(JSON.stringify(files.map(path => [path, existsSync(join(root, path)) ? hash(readFileSync(join(root, path))) : null])));
+  return hash(JSON.stringify(files.map(path => {
+    const absolute = join(root, path);
+    let stat; try { stat = lstatSync(absolute); } catch (error) { if (error.code === 'ENOENT') return [path, null]; throw error; }
+    if (stat.isSymbolicLink()) return [path, 'symlink', readlinkSync(absolute)];
+    if (stat.isDirectory()) return [path, 'submodule', git(absolute, 'rev-parse', 'HEAD'), hash(git(absolute, 'diff', 'HEAD')), git(absolute, 'status', '--porcelain', '--untracked-files=all')];
+    return [path, 'file', stat.mode, hash(readFileSync(absolute))];
+  })));
 }
 
 // Historical planning reads the selected revision's Cargo graph and test sources.
@@ -303,6 +341,12 @@ export function formatStep(step) {
 export async function runPlan(plan, { root = ROOT } = {}) {
   if (git(root, 'rev-parse', 'HEAD').trim() !== plan.head) throw new Error('--run requires the selected HEAD checked out');
   if (!plan.worktree && changedPaths(root, plan.head, plan.head, true).length) throw new Error('dirty worktree: use --worktree to bind uncommitted changes');
+  const earlier = new Set();
+  for (const step of plan.steps) {
+    if ((step.requires ?? []).some(id => !earlier.has(id))) throw new Error(`missing or later prerequisite for ${step.id}`);
+    if (earlier.has(step.id)) throw new Error(`duplicate step ID ${step.id}`);
+    earlier.add(step.id);
+  }
   const started = new Date().toISOString();
   const receiptDir = join(root, 'target/affected'); mkdirSync(receiptDir, { recursive: true });
   const receiptPath = join(receiptDir, `${plan.head.slice(0, 12)}-${Date.now()}.json`);
@@ -311,6 +355,8 @@ export async function runPlan(plan, { root = ROOT } = {}) {
   persist();
   for (const step of plan.steps) {
     console.error(`== ${step.id}\n${formatStep(step)}`);
+    const blockedBy = (step.requires ?? []).filter(id => !receipt.results.some(result => result.id === id && result.status === 0));
+    if (blockedBy.length) { receipt.results.push({ id: step.id, status: null, blockedBy, elapsedMs: 0 }); persist(); console.error(`BLOCKED: ${step.id} by ${blockedBy.join(', ')}`); continue; }
     const before = Date.now();
     const result = await new Promise(resolveResult => {
       const child = spawn('timeout', ['--kill-after=10s', `${step.timeoutSeconds}s`, ...step.argv], {
@@ -324,10 +370,17 @@ export async function runPlan(plan, { root = ROOT } = {}) {
   receipt.complete = true;
   receipt.finished = new Date().toISOString();
   receipt.unchanged = git(root, 'rev-parse', 'HEAD').trim() === plan.head && snapshotDigest(root, plan.observedFiles) === plan.inputDigest
-    && JSON.stringify(changedPaths(root, plan.base, plan.head, plan.worktree)) === JSON.stringify(plan.observedFiles);
+    && JSON.stringify(changedPaths(root, plan.base, plan.head, true)) === JSON.stringify(plan.observedFiles);
   receipt.ok = receipt.unchanged && receipt.results.every(result => result.status === 0);
   persist(); console.error(`Receipt: ${receiptPath}; ${receipt.ok ? 'PASS' : 'FAIL'}`);
   return { receiptPath, receipt };
+}
+export function proofReceiptOptions(receipt) {
+  return {
+    base: receipt.requestedBaseRevision ?? receipt.headRevision, head: receipt.headRevision, worktree: receipt.worktreeIncluded,
+    files: receipt.cadence === 'complete' || receipt.selectionClass === 'FAIL_CLOSED_FULL'
+      ? ['snapback4/Cargo.toml'] : receipt.changedFiles.filter(path => path.startsWith(PREFIX)),
+  };
 }
 async function main() {
   const args = process.argv.slice(2);
@@ -346,10 +399,7 @@ async function main() {
   if (options.worktree && options.head) throw new Error('--head and --worktree are mutually exclusive');
   if (proofReceipt) {
     const receipt = JSON.parse(readFileSync(proofReceipt, 'utf8'));
-    options.base = receipt.requestedBaseRevision ?? receipt.headRevision;
-    options.head = receipt.headRevision;
-    options.worktree = receipt.worktreeIncluded;
-    options.files = receipt.cadence === 'complete' ? ['snapback4/Cargo.toml'] : receipt.changedFiles.filter(path => path.startsWith(PREFIX));
+    Object.assign(options, proofReceiptOptions(receipt));
   }
   const plan = planAffected(options);
   if (json) console.log(JSON.stringify(plan, null, 2));

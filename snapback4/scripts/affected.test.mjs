@@ -7,7 +7,7 @@ import { gunzipSync } from 'node:zlib';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
-import { changedPaths, loadModel, modelAtRevision, reverseClosure, selectAffected, runPlan, ROOT } from './affected.mjs';
+import { changedPaths, loadModel, modelAtRevision, reverseClosure, selectAffected, runPlan, proofReceiptOptions, ROOT } from './affected.mjs';
 import { selectChangedPaths } from '../../scripts/select-local-proof.mjs';
 
 const crate = (name, dependencies = []) => ({ name, dependencies, dir: `snapback4/crates/${name}`, targets: [
@@ -133,10 +133,63 @@ test('execution keeps going after failures and persists the complete failing rec
     const plan = { ...selectAffected([], model), base: head, head, worktree: false, observedFiles: [], inputDigest: createHash('sha256').update('[]').digest('hex'), steps: [
       { id: 'fails', cwd: '.', argv: [process.execPath, '-e', 'process.exit(7)'], timeoutSeconds: 10 },
       { id: 'passes', cwd: '.', argv: [process.execPath, '-e', 'process.exit(0)'], timeoutSeconds: 10 },
+      { id: 'blocked', cwd: '.', argv: [process.execPath, '-e', 'process.exit(0)'], requires: ['fails'], timeoutSeconds: 10 },
     ] };
     const { receipt, receiptPath } = await runPlan(plan, { root: dir });
-    assert.deepEqual(receipt.results.map(result => result.status), [7, 0]);
+    assert.deepEqual(receipt.results.map(result => result.status), [7, 0, null]);
+    assert.deepEqual(receipt.results[2].blockedBy, ['fails']);
     assert.equal(receipt.complete, true); assert.equal(receipt.unchanged, true); assert.equal(receipt.ok, false);
     assert.deepEqual(JSON.parse(readFileSync(receiptPath, 'utf8')), receipt);
   } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('root fail-closed and complete receipts delegate a broad Snapback 4 set', () => {
+  for (const receipt of [
+    { cadence: 'affected', selectionClass: 'FAIL_CLOSED_FULL', changedFiles: ['unknown/input'], headRevision: 'HEAD' },
+    { cadence: 'complete', changedFiles: [], headRevision: 'HEAD' },
+  ]) {
+    const options = proofReceiptOptions(receipt);
+    assert.deepEqual(options.files, ['snapback4/Cargo.toml']);
+    assert(select(options.files).broad);
+  }
+});
+test('broad set includes every test.sh non-Rust/client obligation', () => {
+  const plan = select(['snapback4/fixtures/clique.mjs']);
+  for (const id of ['fixture-tests', 'chat-check', 'chat-typecheck', 'expo-typecheck', 'release-guard', 'build-cli', 'build-wasm', 'build-client']) assert(ids(plan).includes(id), id);
+});
+test('real bare workspace imports rebuild the client and docs select executable consumers', () => {
+  const actual = loadModel();
+  const bare = selectAffected(['snapback4/packages/snapback4/test/headless-registration.test.mjs'], actual);
+  assert(ids(bare).includes('build-client'));
+  for (const path of ['snapback4/packages/snapback4/SERVER.md', 'snapback4/crates/snapback4-lang/src/guide/client.md']) {
+    const plan = selectAffected([path], actual);
+    assert(plan.rustTargets['snapback4-lang']?.includes('guide'));
+    assert(plan.clientFiles.includes('snapback4/packages/snapback4/test/readme-examples.test.mjs'));
+  }
+});
+test('committed execution refuses success if an initially unchanged tracked input changes', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'sb4-affected-mutation-'));
+  const git = (...args) => execFileSync('timeout', ['20s', 'git', ...args], { cwd: dir, encoding: 'utf8' }).trim();
+  try {
+    git('init', '-q'); writeFileSync(join(dir, '.gitignore'), 'target/\n'); writeFileSync(join(dir, 'input'), 'before'); git('add', '.');
+    git('-c', 'user.name=Test', '-c', 'user.email=test@example.org', 'commit', '-qm', 'fixture');
+    const head = git('rev-parse', 'HEAD');
+    const plan = { ...selectAffected([], model), base: head, head, worktree: false, observedFiles: [], inputDigest: createHash('sha256').update('[]').digest('hex'), steps: [
+      { id: 'mutates-input', cwd: '.', argv: [process.execPath, '-e', "require('node:fs').writeFileSync('input', 'after')"], timeoutSeconds: 10 },
+    ] };
+    const { receipt } = await runPlan(plan, { root: dir });
+    assert.equal(receipt.results[0].status, 0); assert.equal(receipt.unchanged, false); assert.equal(receipt.ok, false);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('required target features, diagnostics movement and wasm measurement are selected', () => {
+  const featured = { ...model, crates: model.crates.map(crate => ({ ...crate, targets: crate.targets.map(target => ({ ...target, requiredFeatures: ['test-support'] })) })) };
+  const testOnly = selectAffected(['snapback4/crates/snapback4-lang/tests/focused.rs'], featured);
+  assert(testOnly.steps.find(step => step.id.startsWith('rust:')).argv.includes('test-support'));
+  const source = select(['snapback4/crates/snapback4-core/src/moved.rs']);
+  for (const check of ['diagnostics', 'inventories', 'wasm-measurement']) assert(source.checks.includes(check));
+});
+test('packages without owned tests widen to cover sibling consumers', () => {
+  const noTests = { ...model, packages: [...model.packages, { name: 'native-package', dir: 'snapback4/packages/native-package', dependencies: [], scripts: {}, tests: [] }] };
+  assert(selectAffected(['snapback4/packages/native-package/src/bridge.ts'], noTests).broad);
 });

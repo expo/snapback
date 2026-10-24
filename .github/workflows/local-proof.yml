@@ -162,6 +162,20 @@ jobs:
           rustup toolchain install
           rustup show active-toolchain
 
+      # Snapback 4 is independent of the legacy Ibex bootstrap. Its affected
+      # tests may consume the web device and the pinned Lean oracle.
+      - name: Prepare Snapback 4 verification tools
+        if: steps.selection.outputs.requires_snapback4 == 'true'
+        working-directory: snapback4
+        run: |
+          timeout 900s sudo apt-get update
+          timeout 900s sudo apt-get install -y elan brotli
+          timeout 600s rustup target add wasm32-unknown-unknown
+          bindgen_version=$(timeout 20s node --input-type=module -e 'import {readFileSync} from "node:fs"; const match = readFileSync("Cargo.lock", "utf8").match(/name = "wasm-bindgen"\nversion = "([^"]+)"/); if (!match) process.exit(1); console.log(match[1]);')
+          timeout 1800s env CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 cargo install wasm-bindgen-cli --version "$bindgen_version" --locked
+          timeout 1800s env CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 cargo install twiggy --version 0.8.0 --locked
+          timeout 900s bash -c 'cd lean && lake --version'
+
       # Cargo registry + target cache: without it every run cold-compiles the
       # full dependency tree (and the ibex-runtime C++ glue) — the dominant
       # per-run cost.
@@ -249,6 +263,7 @@ jobs:
         with:
           name: local-proof-gate-results-${{ github.run_id }}
           path: |
+            target/affected/*.json
             target/proof/local-proof-results.jsonl
             target/proof/local-proof-completion.json
             target/proof/template-registry-canary.json
