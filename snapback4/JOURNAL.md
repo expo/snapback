@@ -104758,3 +104758,11 @@ suggesting the parser's internal call or dropping parent custody. A copied
 fixture executes the printed assertion through test and production deploy.
 The older DAY4 empty-case expectation now matches the clean-campaign behavior
 and still checks honest zero-case accounting. Both affected CLI targets pass.
+
+The conditional corpus audit found another test-loop cost: its private HTTP
+host copied schemas without the application's individual security decisions,
+so acknowledged gates refused that host's preparation. The private copy now
+carries those decisions through normal production source/analyzer validation;
+stale decisions still refuse, with the preparation's actual next steps shown.
+The focused regression verifies both outcomes. All seven wave-26 CLI cases,
+four individual-review cases and six DAY4 cases pass.

@@ -123,7 +123,7 @@ pub fn test(options: &Options) -> i32 {
     let mut security_campaign=security_campaign;
     for gap in &security_campaign.evaluation_unknowns {println!("security invariant NOT EVALUATED on a visited image: {gap}");}
     println!("security runtime evaluation: {} unknown judgments (target and source site listed above)",security_campaign.evaluation_unknowns.len());
-    let security_http_ok=security::unauthenticated(&bound,&sources);
+    let security_http_ok=security::unauthenticated(&project,&bound,&sources);
     if !options.flags.contains_key("residency") {if let Err(why)=security::remember(&project,&evidence_options,&security_campaign,security_http_ok,&consumed){eprintln!("security: campaign record unavailable: {why}; check cannot reuse these refutations");}}
     if security_http_ok{security_campaign.unsupported.retain(|s|!s.starts_with("unauthenticated HTTP attempts require"));}
     println!("security directed histories: {} mutation attempts; peak {} retained frontier worlds; finite exploration",security_campaign.directed_attempts,security_campaign.directed_peak_worlds);

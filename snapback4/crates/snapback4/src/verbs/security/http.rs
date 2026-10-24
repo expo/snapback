@@ -169,7 +169,7 @@ fn revoked_sessions(bound:&Bound,address:SocketAddr)->Result<usize,String>{
     Ok(attempted)
 }
 
-pub(super) fn run(bound:&Bound,sources:&[(String,String)])->Result<usize,String>{
+pub(super) fn run(project:&super::Project,bound:&Bound,sources:&[(String,String)])->Result<usize,String>{
     // Auth admission is exercised on the actual schema. External worker/native
     // startup needs its app-owned artifacts; never pretend this schema-only
     // host qualifies those paths.
@@ -185,6 +185,14 @@ pub(super) fn run(bound:&Bound,sources:&[(String,String)])->Result<usize,String>
         let file=std::path::Path::new(name).file_name().ok_or("source needs a file name")?;
         fs::write(scratch.0.join("snapback").join(file),text).map_err(|e|e.to_string())?;
     }
+    // Carry only the individually recorded decisions. The private production
+    // deploy validates their source fingerprints and analyzer as usual; stale
+    // entries cannot clear gates, including for a selected saved schema.
+    match fs::read(project.schema_dir().join("security-reviews.json")) {
+        Ok(bytes)=>fs::write(scratch.0.join("snapback/security-reviews.json"),bytes).map_err(|e|e.to_string())?,
+        Err(e)if e.kind()==std::io::ErrorKind::NotFound=>{},
+        Err(e)=>return Err(format!("cannot snapshot security decisions: {e}")),
+    }
     let executable=scratch.0.join("security-host");
     image::snapshot(&executable)?;
     let output=fs::File::create(scratch.0.join("host.log")).map_err(|e|e.to_string())?;
@@ -194,7 +202,11 @@ pub(super) fn run(bound:&Bound,sources:&[(String,String)])->Result<usize,String>
             .stdout(output.try_clone().map_err(|e|e.to_string())?).stderr(output.try_clone().map_err(|e|e.to_string())?);Ok(c)
     };
     let mut deploy=Process(command("deploy")?.args(["deployment"]).spawn().map_err(|e|e.to_string())?);
-    wait(&mut deploy,Duration::from_secs(30))?;drop(deploy);
+    wait(&mut deploy,Duration::from_secs(30)).map_err(|why| {
+        let log=fs::read_to_string(scratch.0.join("host.log")).unwrap_or_default();
+        let tail=log.chars().rev().take(8192).collect::<String>().chars().rev().collect::<String>();
+        format!("{why}\n{tail}")
+    })?;drop(deploy);
     let listener=TcpListener::bind((std::net::Ipv4Addr::LOCALHOST,0)).map_err(|e|e.to_string())?;
     let address=listener.local_addr().map_err(|e|e.to_string())?;drop(listener);
     let mut host=Process(command("serve")?.args(["deployment","--bind","127.0.0.1","--port",&address.port().to_string()]).spawn().map_err(|e|e.to_string())?);

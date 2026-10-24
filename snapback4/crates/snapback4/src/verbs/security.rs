@@ -8,8 +8,8 @@ mod presence;
 #[cfg(test)] mod derived_tests;
 pub(super) use presence::remember as remember_presence;
 pub(super) use record::{remember,capture};
-pub(super) fn unauthenticated(bound:&Bound,sources:&[(String,String)])->bool {
-    match http::run(bound,sources){Ok(_)=>true,Err(why)=>{eprintln!("security HTTP failure: {why}");false}}
+pub(super) fn unauthenticated(project:&Project,bound:&Bound,sources:&[(String,String)])->bool {
+    match http::run(project,bound,sources){Ok(_)=>true,Err(why)=>{eprintln!("security HTTP failure: {why}");false}}
 }
 pub(super) fn report(project:&Project,bound:&Bound,sources:&[(String,String)],options:&Options)->Report{
     let augmented=if options.flags.contains_key("security-deploy"){security::derived::augmented(sources,bound)}else{bound.clone()};
