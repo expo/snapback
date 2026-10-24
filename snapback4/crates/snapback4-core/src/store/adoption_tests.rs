@@ -284,9 +284,29 @@ fn optimized_activation_equals_full_rows_indexes_log_images_and_sequence() {
 #[test]
 fn an_added_view_does_not_touch_an_unrelated_index() {
     let mut e = engine(false);
-    (&e.store()).test_support_conn().execute_batch("CREATE TEMP TRIGGER forbid_unrelated_delete BEFORE DELETE ON i WHEN OLD.ti = (SELECT num FROM _catalog WHERE name = 'unrelated.byId') BEGIN SELECT RAISE(ABORT, 'unrelated index was rewritten'); END; CREATE TEMP TRIGGER forbid_unrelated_insert BEFORE INSERT ON i WHEN NEW.ti = (SELECT num FROM _catalog WHERE name = 'unrelated.byId') BEGIN SELECT RAISE(ABORT, 'unrelated index was rewritten'); END;").unwrap();
+    // Observe the real statements without installing foreign interception on
+    // a managed relation (which opening/activation correctly refuses).
+    thread_local! { static SQL: std::cell::RefCell<Vec<String>> = const { std::cell::RefCell::new(Vec::new()) }; }
+    fn record(event: rusqlite::trace::TraceEvent<'_>) {
+        if let rusqlite::trace::TraceEvent::Stmt(stmt, _) = event {
+            if let Some(sql) = stmt.expanded_sql() { SQL.with(|seen|seen.borrow_mut().push(sql)); }
+        }
+    }
+    let ti: i64 = (&e.store()).test_support_conn().query_row("SELECT num FROM _catalog WHERE name='unrelated.byId'",[],|r|r.get(0)).unwrap();
+    (&e.store()).test_support_conn().trace_v2(rusqlite::trace::TraceEventCodes::SQLITE_TRACE_STMT,Some(record));
     let b = compile(&format!("{BASE}{VIEWS}"));
     e.adopt_at(b.schema, b.programs, 20).unwrap();
+    (&e.store()).test_support_conn().trace_v2(rusqlite::trace::TraceEventCodes::empty(),None);
+    SQL.with(|seen| {
+        let seen=seen.borrow();
+        assert!(seen.iter().any(|sql|sql.starts_with("INSERT INTO i")), "observe the candidate index installation");
+        for sql in seen.iter().filter(|sql|sql.starts_with("DELETE FROM i")) {
+            let prefix="DELETE FROM i WHERE ti=";
+            let spaced="DELETE FROM i WHERE ti = ";
+            let target=sql.strip_prefix(prefix).or_else(||sql.strip_prefix(spaced)).and_then(|s|s.trim_end_matches(';').parse::<i64>().ok());
+            assert!(target.is_some_and(|target|target!=ti), "unrelated or unqualified index delete: {sql}");
+        }
+    });
 }
 
 #[test]

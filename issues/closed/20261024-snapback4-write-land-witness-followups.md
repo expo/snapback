@@ -70,3 +70,18 @@ uncancellable. Reopen that as a design change, not as a defect.
 The temporary negative-control mutations were restored byte-for-byte.
 Full final qualification, the paired W4/W5 diagnostic and process cleanup
 are recorded in the FF1 JOURNAL entry and LLP 3000.009.001.000.002 §6.
+
+
+## Resolution correction — 2026-10-24, FF1 fix round 1
+
+The original read-kind guard rejected unique plain-index `Exists` spans that
+`Closure::new` admits. It now validates coverage against the fetched base and
+accepts those stable membership/absence spans. Overlays exclude population and
+index-key changes; returned images still conflict by identity with predecessor
+writes. Uncovered spans, authority, receipts and unsupported reads still rerun.
+The planted-kind test retains those unsupported cases. New real-selector
+witnesses on both stores require 32 distinct membership-authorized updates and
+covered absences to stay buffered without reruns, and require a colliding
+predecessor read to rerun and produce the serial value. The strict-span negative
+control fails these witnesses. Final checks and cleanup are recorded in the
+FF1 fix-round JOURNAL entry; no throughput measurements were run this round.

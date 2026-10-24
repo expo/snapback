@@ -232,6 +232,7 @@ impl Store {
             ));
         }
         Ok(Tx {
+            lifecycle: false,
             read_sessions: &self.read_sessions,
             read_sessions_installed: Default::default(),
             read_sessions_at_start: self.read_sessions.present(),

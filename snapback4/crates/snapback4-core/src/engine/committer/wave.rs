@@ -29,7 +29,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn take_rejects_every_non_row_read_kind() {
+    fn take_rejects_uncovered_spans_and_unsupported_read_kinds() {
         let mut kinds = vec![ReadSet::default(); 4];
         kinds[0]
             .spans
@@ -68,7 +68,7 @@ mod tests {
         }
         assert_eq!(
             rejected, 4,
-            "all non-row dependencies must rerun after predecessors"
+            "uncovered spans and unsupported dependencies must rerun after predecessors"
         );
     }
 }
@@ -261,7 +261,7 @@ impl Wave {
     }
     pub fn take(&mut self, n: usize) -> (Option<Prepared>, bool) {
         let prepared = self.prepared[n].take();
-        // @ref LLP 3000.009.001.000.002#3.3 — never accept a speculative result with dependencies this row-only validator cannot check. Re-execute after predecessors instead.
+        // @ref LLP 3000.009.001.000.002#3.3 — accept only selector-covered unique-index spans and row dependencies; unsupported dependencies re-execute after predecessors.
         if prepared.as_ref().is_some_and(|p| {
             // Exhaustive: adding a read kind requires deciding its validation.
             let ReadSet {
@@ -271,7 +271,8 @@ impl Wave {
                 receipts,
                 unsupported,
             } = &p.reads;
-            *unsupported || !spans.is_empty() || !authority.is_empty() || !receipts.is_empty()
+            *unsupported || spans.iter().any(|(table, index, lo, hi)| !self.base.covers_span(table, index, lo, hi))
+                || !authority.is_empty() || !receipts.is_empty()
         }) {
             return (None, true);
         }

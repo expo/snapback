@@ -53,6 +53,10 @@ fn intake(grouped: bool, named: bool, age: Duration) {
     )
     .unwrap();
     let host = Host::with_store(true, store, SOURCE);
+    // Fault injection is on already-running handles. Opening a new reader
+    // after installing these foreign triggers must now refuse structurally.
+    let readers=(0..4).map(|_|host.shared.reader().unwrap()).collect::<Vec<_>>();
+    for (epoch,reader) in readers { lock(&host.shared.readers).put(&epoch,reader.into_inner()); }
     {
         let abort = if named {
             "IF NEW.data::jsonb#>>'{Row,n,Int}'='-1' THEN RAISE EXCEPTION USING ERRCODE='23514',MESSAGE='named intake abort'; END IF;"

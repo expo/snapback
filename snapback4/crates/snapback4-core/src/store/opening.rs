@@ -51,6 +51,7 @@ impl Store {
 
     pub(crate) fn opening_transaction(&mut self) -> Result<Tx<'_>, RuntimeError> {
         let tx = if self.conn.is_readonly("main")? { self.read_transaction()? } else { self.transaction()? };
+        super::managed_relations::verify(tx.conn())?;
         Self::check_version(tx.conn())?;
         let catalog = tx.conn().prepare("SELECT name, num FROM _catalog")?.query_map([], |r| Ok((r.get(0)?, r.get(1)?)))?.collect::<Result<BTreeMap<String, i64>, _>>()?;
         if &catalog != tx.catalog {

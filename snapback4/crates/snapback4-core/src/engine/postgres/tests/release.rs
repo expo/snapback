@@ -323,7 +323,7 @@ fn release_contract_postgres_activation_rechecks_ledgers_after_open() {
             .unwrap();
         let error = h.activate(2, 2, 1, 1).unwrap_err();
         assert!(
-            error.to_string().contains("SNAPBACK_ACTIVATION_SCHEMA"),
+            error.to_string().contains("SNAPBACK_MANAGED_RELATION_INTERCEPTION"),
             "{table}: {error}"
         );
         assert!(error.to_string().contains(table), "{error}");
@@ -529,12 +529,23 @@ fn release_contract_postgres_attach_refuses_incompatible_shapes() {
         };
         h.engine.store.client.batch_execute(ddl).unwrap();
         let error = PostgresEngine::open(h.client(), &h.name).err().expect(ddl);
-        assert!(
-            error.to_string().contains("SNAPBACK_ACTIVATION_SCHEMA")
-                || error.to_string().contains("SNAPBACK_RELEASE_SCHEMA"),
-            "{ddl}: {error}"
-        );
+        if ["CREATE TRIGGER", "CREATE RULE", "ENABLE ROW LEVEL SECURITY"].iter().any(|kind|ddl.contains(kind)) {
+            assert!(error.to_string().contains("SNAPBACK_MANAGED_RELATION_INTERCEPTION"),"{ddl}: {error}");
+        } else {
+            assert!(error.to_string().contains("SNAPBACK_ACTIVATION_SCHEMA")
+                || error.to_string().contains("SNAPBACK_RELEASE_SCHEMA"), "{ddl}: {error}");
+        }
     }
+    // Creating another private namespace must inspect its target, regardless
+    // of interception in the caller's previously selected namespace.
+    let Some(h) = Harness::new() else { return; };
+    let mut client = h.client();
+    client.batch_execute(&format!("SET search_path={},pg_catalog; CREATE FUNCTION suppress_previous() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN NULL; END $$; CREATE TRIGGER suppress_previous BEFORE DELETE ON r FOR EACH ROW EXECUTE FUNCTION suppress_previous()",h.name)).unwrap();
+    let name=format!("sb4_eval_fresh_scope_{:x}",crate::ids::seed());
+    let (schema,programs)=test_cases::compile(1);
+    let mut created=PostgresEngine::create(client,&name,schema,programs).unwrap();
+    created.store.client.batch_execute(&format!("DROP SCHEMA {name} CASCADE")).unwrap();
+
 }
 
 #[test]

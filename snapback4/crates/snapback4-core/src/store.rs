@@ -65,6 +65,9 @@ mod jobs;
 pub mod inspect;
 mod tooling;
 mod caps;
+mod managed_relations;
+#[cfg(test)]
+mod ff1_fix_tests;
 pub(crate) mod dormant;
 #[cfg(test)]
 mod dormant_tests;
@@ -146,6 +149,8 @@ impl Drop for Store {
 
 /// One transaction over the store, with the catalog in reach.
 pub struct Tx<'a> {
+    // @ref LLP 3000.009.001.000.002#6 — restored images can precede their index/cap population rebuild.
+    lifecycle: bool,
     read_sessions: &'a std::sync::Arc<ReadSessionStorage>,
     read_sessions_installed: std::cell::Cell<bool>,
     read_sessions_at_start: bool,
@@ -181,6 +186,7 @@ impl Store {
         let file_identity = file_identity(&conn)?;
         conn.busy_timeout(std::time::Duration::from_secs(5))?;
         let tx = conn.transaction()?;
+        managed_relations::verify(&tx)?;
         let version: String = tx.query_row("SELECT value FROM _meta WHERE key = 'version'", [], |row| {
                 row.get(0)
             })?;
@@ -322,6 +328,7 @@ impl Store {
         // An activation between separate reads must never attach new IR to
         // the previous catalog, even when every number is monotone.
         let opened = conn.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
+        managed_relations::verify(&opened)?;
         // @ref LLP 3000.033#1.3 — inspect existing stores without upgrading
         // them. All upgrades join successful activation, never a refused open.
         let fresh: bool = opened.query_row("SELECT NOT EXISTS(SELECT 1 FROM sqlite_schema WHERE type = 'table')", [], |r| r.get(0))?;
@@ -439,7 +446,7 @@ impl Store {
         if activation::identity(&tx)? != self.identity {
             return Err(RuntimeError::Generation("the store adopted another backend; reopen this engine".into()));
         }
-        Ok(Tx { read_sessions: &self.read_sessions, read_sessions_installed: Default::default(), read_sessions_at_start: *read_storage, read_sessions_installation: Default::default(), activation_scan: None, changes: Default::default(), sequence_table: Default::default(), tx, page_size: self.page_size,
+        Ok(Tx { lifecycle: false, read_sessions: &self.read_sessions, read_sessions_installed: Default::default(), read_sessions_at_start: *read_storage, read_sessions_installation: Default::default(), activation_scan: None, changes: Default::default(), sequence_table: Default::default(), tx, page_size: self.page_size,
             server: self.server,
             catalog: &self.catalog })
     }
@@ -452,7 +459,7 @@ impl Store {
         if activation::identity(&tx)? != self.identity {
             return Err(RuntimeError::Generation("the store adopted another backend; reopen this engine".into()));
         }
-        Ok(Tx { read_sessions: &self.read_sessions, read_sessions_installed: Default::default(), read_sessions_at_start: *read_storage, read_sessions_installation: Default::default(), activation_scan: None, changes: Default::default(), sequence_table: Default::default(), tx, page_size: self.page_size,
+        Ok(Tx { lifecycle: false, read_sessions: &self.read_sessions, read_sessions_installed: Default::default(), read_sessions_at_start: *read_storage, read_sessions_installation: Default::default(), activation_scan: None, changes: Default::default(), sequence_table: Default::default(), tx, page_size: self.page_size,
             server: self.server,
             catalog: &self.catalog })
     }
@@ -466,7 +473,7 @@ impl Store {
         if activation::identity(&tx)? != self.identity {
             return Err(RuntimeError::Generation("the store adopted another backend; reopen this engine".into()));
         }
-        Ok(Tx { read_sessions: &self.read_sessions, read_sessions_installed: Default::default(), read_sessions_at_start: *read_storage, read_sessions_installation: Default::default(), activation_scan: None, changes: Default::default(), sequence_table: Default::default(), tx, page_size: self.page_size,
+        Ok(Tx { lifecycle: false, read_sessions: &self.read_sessions, read_sessions_installed: Default::default(), read_sessions_at_start: *read_storage, read_sessions_installation: Default::default(), activation_scan: None, changes: Default::default(), sequence_table: Default::default(), tx, page_size: self.page_size,
             server: self.server,
             catalog: &self.catalog })
     }
@@ -815,7 +822,7 @@ impl<'a> Tx<'a> {
             let ti = self.num(&format!("{table_name}.{name}"))?;
             for key in before.iter().filter(|key| !after.contains(key)) {
                 let affected = self.conn().prepare_cached("DELETE FROM i WHERE ti = ?1 AND k = ?2")?.execute(params![ti, key])?;
-                crate::rows::require_one(affected as u64, "index delete", table_name, Some(name))?;
+                if !self.lifecycle { crate::rows::require_one(affected as u64, "index delete", table_name, Some(name))?; }
                 entries += 1;
             }
             for key in after.iter().filter(|key| !before.contains(key)) {
@@ -842,7 +849,7 @@ impl<'a> Tx<'a> {
             let ti = self.num(&format!("{table_name}.{index_name}"))?;
             for key in stored_index_keys(table, index, old, &id) {
                 let affected = self.conn().prepare_cached("DELETE FROM i WHERE ti = ?1 AND k = ?2")?.execute(params![ti, key])?;
-                crate::rows::require_one(affected as u64, "index delete", table_name, Some(index_name))?;
+                if !self.lifecycle { crate::rows::require_one(affected as u64, "index delete", table_name, Some(index_name))?; }
                 entries += 1;
             }
         }
@@ -1223,7 +1230,8 @@ impl crate::rows::Rows for Tx<'_> {
     }
     fn set_sequence(&self, parent: &str, id: &str, value: i64) -> Result<(), RuntimeError> {
         self.ensure_sequence_table()?;
-        self.conn().execute("INSERT INTO _sequences VALUES (?1, ?2, ?3) ON CONFLICT(parent, id) DO UPDATE SET value = excluded.value", params![parent, id, value])?;
+        let affected = self.conn().execute("INSERT INTO _sequences VALUES (?1, ?2, ?3) ON CONFLICT(parent, id) DO UPDATE SET value = excluded.value", params![parent, id, value])?;
+        crate::rows::require_one(affected as u64, "sequence upsert", parent, None)?;
         Ok(())
     }
     fn sequence_ids(&self, parent: &str) -> Result<Vec<String>, RuntimeError> {

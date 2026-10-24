@@ -1045,3 +1045,49 @@ fn colliding_parallel_matches_n1_sqlite() {
 fn colliding_parallel_matches_n1_postgres() {
     colliding_parallel(true);
 }
+
+// Exercise the real selector, probe prefetch and read recording, including a
+// unique plain-index Exists span and a predecessor image conflict.
+fn admitted_membership_probes(pg: bool) {
+    use crate::Rows;
+    let mut engine = fixture(pg);
+    let table = engine.schema().tables["counters"].clone();
+    let tx = engine.store_mut().transaction().unwrap();
+    for id in ["a".to_string(), "b".to_string()].into_iter().chain((0..32).map(|n|format!("k{n}"))) {
+        let old = tx.get("counters", &id).unwrap().unwrap();
+        let mut row = old.clone();
+        if let Value::Row(fields) = &mut row { fields.insert("owner".into(), Value::Null); }
+        tx.put("counters", &table, &row, Some(&old)).unwrap();
+    }
+    tx.commit().unwrap();
+    let mut batch = (0..32).map(|n| {
+        let mut i = Invocation::new("guarded", Some(format!("member-{n}")),
+            Context::new("alice", [("counter".into(), Value::Id(format!("k{n}"))),
+                ("delta".into(), Value::Int(1)), ("reject".into(), Value::Bool(false))].into()).at(1000));
+        i.deadline = Instant::now()+Duration::from_secs(30); i
+    }).collect::<Vec<_>>();
+    let outcomes = engine.invoke_program_batch(&mut batch);
+    assert!(outcomes.iter().all(|r|matches!(&r.as_ref().unwrap().outcome.state, crate::WriteState::Sent {..})), "{outcomes:?}");
+    assert!(batch.iter().all(|i| i.attempts.len()==1 && i.attempts[0].buffered && !i.attempts[0].conflict_rerun), "{:?}", batch.iter().map(|i|(i.attempts.len(), i.attempts.last().map(|a|(a.buffered,a.conflict_rerun)))).collect::<Vec<_>>());
+    let mut missing = (0..4).map(|n| Invocation::new("guarded", Some(format!("absent-{n}")),
+        Context::new("bob", [("counter".into(),Value::Id(format!("k{n}"))),
+            ("delta".into(),Value::Int(1)),("reject".into(),Value::Bool(false))].into()).at(1000))).collect::<Vec<_>>();
+    assert!(engine.invoke_program_batch(&mut missing).iter().all(|r|matches!(r.as_ref().unwrap().outcome.state,crate::WriteState::Failed {..})));
+    assert!(missing.iter().all(|i|i.attempts[0].buffered && !i.attempts[0].conflict_rerun), "covered absence is a stable span too");
+    let mut collision = [("a", "b"), ("b", "a")].into_iter().enumerate().map(|(n,(source,target))| {
+        let mut i=Invocation::new("chain",Some(format!("collision-{n}")), Context::new("alice",
+            [("source".into(),Value::Id(source.into())),("target".into(),Value::Id(target.into()))].into()).at(1000));
+        i.deadline=Instant::now()+Duration::from_secs(30); i
+    }).collect::<Vec<_>>();
+    assert!(engine.invoke_program_batch(&mut collision).iter().all(Result::is_ok));
+    assert!(collision.iter().all(|i|i.attempts[0].buffered));
+    assert!(!collision[0].attempts[0].conflict_rerun);
+    assert!(collision[1].attempts[0].conflict_rerun);
+    assert_eq!(engine.store().rows("counters").unwrap().iter().find(|r|r.field("id").unwrap().as_str().unwrap()=="a").unwrap().field("n").unwrap(), &Value::Int(2));
+}
+#[test]
+fn admitted_membership_probes_speculate_and_validate_sqlite() { admitted_membership_probes(false); }
+#[cfg(feature="postgres")]
+#[test]
+#[ignore="private PG16; scripts/test-postgres.sh"]
+fn admitted_membership_probes_speculate_and_validate_postgres() { admitted_membership_probes(true); }

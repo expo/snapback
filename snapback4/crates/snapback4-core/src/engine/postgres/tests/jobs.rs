@@ -430,6 +430,6 @@ fn attach_refuses_volatile_or_rewritten_jobs() {
         let mut f = Pg::new();
         f.engine.store.client.batch_execute(ddl).unwrap();
         let error = PostgresEngine::open(connect(), &f.name).err().expect("incompatible jobs must refuse");
-        assert!(error.to_string().contains("SNAPBACK_JOBS_SCHEMA: _jobs:"), "{error}");
+        assert!(error.to_string().contains(super::shape_code(ddl,"SNAPBACK_JOBS_SCHEMA: _jobs:")), "{error}");
     }
 }

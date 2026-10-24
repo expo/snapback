@@ -221,7 +221,7 @@ impl Store {
         let sql = self.conn.unchecked_transaction()?;
         // Hold only until the SELECT pins the schema and authority snapshot.
         let read_storage = self.read_sessions.snapshot()?;
-        let tx = Tx { read_sessions: &self.read_sessions, read_sessions_installed: Default::default(), read_sessions_at_start: *read_storage, read_sessions_installation: Default::default(), activation_scan: None, changes: Default::default(), sequence_table: Default::default(), tx: sql, page_size: self.page_size, server: self.server, catalog: &self.catalog };
+        let tx = Tx { lifecycle: false, read_sessions: &self.read_sessions, read_sessions_installed: Default::default(), read_sessions_at_start: *read_storage, read_sessions_installation: Default::default(), activation_scan: None, changes: Default::default(), sequence_table: Default::default(), tx: sql, page_size: self.page_size, server: self.server, catalog: &self.catalog };
         let facts = tx.session_authority_facts(digest)?;
         drop(read_storage);
         // This dedicated snapshot has no writes: discovery observes committed

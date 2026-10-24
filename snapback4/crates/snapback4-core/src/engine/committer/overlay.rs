@@ -39,6 +39,13 @@ impl Base {
     pub fn contains(&self, access: &Access) -> bool {
         self.0.contains_key(&access.cache_key())
     }
+    /// The selector admitted only unique plain-index point probes. An exact
+    /// cached prefix is a stable membership dependency: overlays cannot insert,
+    /// delete or change index keys. Returned images also record their row id.
+    pub fn covers_span(&self, table: &str, index: &str, lo: &[u8], hi: &[u8]) -> bool {
+        hi == crate::key::upper_bound(lo)
+            && self.0.contains_key(&(table.into(), index.into(), lo.to_vec()))
+    }
     pub fn answer(&self, access: &Access) -> Result<Option<Value>, RuntimeError> {
         self.0
             .get(&access.cache_key())

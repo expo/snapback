@@ -63,3 +63,25 @@ claim.
 No extra query or flight is introduced by the count checks. See
 `snapback4/JOURNAL.md`, “FF1: exact serial deltas and write-stack witnesses”,
 and LLP 3000.009.001.000.002 §6 for the complete scope and qualification.
+
+
+## Resolution correction — 2026-10-24, FF1 fix round 1
+
+Review of `420626a9c9` found that lifecycle reconciliation/retirement can
+legally delete zero index entries, and that per-site checks alone leave
+restoration/narrowing/dormant writes exposed. Both stores now refuse foreign
+managed-table triggers at open and activation. PostgreSQL also refuses rewrite
+rules and row security across the enumerated managed schema. Doctor uses the
+same read-only refusal. SQLite's own guard triggers are allowlisted by exact
+installed definition. Serial count checks remain; lifecycle index deletes and
+cap bookkeeping permit incomplete pre-rebuild populations.
+
+Deterministic serial cap increment/decrement and sequence upserts now require
+one affected row. Cap cleanup still accepts zero or one. Expiring-cap and
+new-parent-sequence suppression tests compare complete rollback snapshots and
+prove recovery; legal tests cover both zero/nonzero cleanup and ordinals 1, 2.
+Full SQLite release witnesses reproduce manual dormant audience reconciliation
+and retirement of an unindexed narrowed image. PostgreSQL exercises matching
+physical phases in activation transactions; its public temporal/live/backfill
+evolution profile is unchanged. Exact negative-control/check totals and cleanup
+are in the FF1 fix-round JOURNAL entry and the controls RFC §6.

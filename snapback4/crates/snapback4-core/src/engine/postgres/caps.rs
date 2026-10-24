@@ -45,9 +45,11 @@ impl super::store::Tx<'_> {
         let changes = crate::rows::caps::deltas(table, old, new);
         for (key, delta) in &changes {
             if *delta > 0 {
-                self.execute("INSERT INTO _cap_counts(t,k,n) VALUES ($1,$2,1) ON CONFLICT(t,k) DO UPDATE SET n = _cap_counts.n + 1", &[&name, key])?;
+                let affected = self.execute("INSERT INTO _cap_counts(t,k,n) VALUES ($1,$2,1) ON CONFLICT(t,k) DO UPDATE SET n = _cap_counts.n + 1", &[&name, key])?;
+                if !self.lifecycle { crate::rows::require_one(affected as u64, "cap increment", name, None)?; }
             } else {
-                self.execute("UPDATE _cap_counts SET n = n - 1 WHERE t = $1 AND k = $2", &[&name, key])?;
+                let affected = self.execute("UPDATE _cap_counts SET n = n - 1 WHERE t = $1 AND k = $2", &[&name, key])?;
+                if !self.lifecycle { crate::rows::require_one(affected as u64, "cap decrement", name, None)?; }
                 self.execute("DELETE FROM _cap_counts WHERE t = $1 AND k = $2 AND n = 0", &[&name, key])?;
             }
         }

@@ -122,6 +122,7 @@ impl Store {
             })?;
             // Low-level preparation may precede a writer-lock wait. Recheck all
             // opening admission under the lock that owns the upgrades.
+            super::managed_relations::verify(&sql)?;
             Self::check_version(&sql)?;
             let before = identity(&sql)?;
             if before != store.identity { return Err(RuntimeError::Generation("another engine activated this store; reopen it before activating source".into())); }
@@ -185,7 +186,7 @@ impl Store {
             // Repeat source-count admission under the writer lock, before any candidate writes.
             let preflight_catalog = catalog.clone();
             let (launches, sql) = {
-                let preflight = Tx { read_sessions: &store.read_sessions, read_sessions_installed: Default::default(), read_sessions_at_start: store.read_sessions.present(), read_sessions_installation: Default::default(), activation_scan: None, changes: Default::default(), sequence_table: Default::default(), tx: sql, page_size: store.page_size,
+                let preflight = Tx { lifecycle: true, read_sessions: &store.read_sessions, read_sessions_installed: Default::default(), read_sessions_at_start: store.read_sessions.present(), read_sessions_installation: Default::default(), activation_scan: None, changes: Default::default(), sequence_table: Default::default(), tx: sql, page_size: store.page_size,
                     server: store.server,
                     catalog: &preflight_catalog };
                 let launches = if programs.is_some() { super::timeline_launch::preflight(&preflight, schema, now, allow_launch)? } else { Vec::new() };
@@ -206,7 +207,7 @@ impl Store {
             let activation_scan = programs.map(|_| Default::default());
             #[cfg(test)]
             let activation_scan = if store.full_adoption { None } else { activation_scan };
-            let tx = crate::store_port::AnyTx::from_sqlite(Tx { read_sessions: &store.read_sessions, read_sessions_installed: Default::default(), read_sessions_at_start: store.read_sessions.present(), read_sessions_installation: Default::default(), activation_scan, changes: Default::default(), sequence_table: Default::default(), tx: sql, page_size: store.page_size,
+            let tx = crate::store_port::AnyTx::from_sqlite(Tx { lifecycle: true, read_sessions: &store.read_sessions, read_sessions_installed: Default::default(), read_sessions_at_start: store.read_sessions.present(), read_sessions_installation: Default::default(), activation_scan, changes: Default::default(), sequence_table: Default::default(), tx: sql, page_size: store.page_size,
                 server: store.server,
                 catalog: &catalog });
             let (generation, result, after, ephemeral_tables) = tx.with_sqlite(|sqlite_tx| {
@@ -541,12 +542,9 @@ fn index_key_guards(conn: &Connection) -> Result<(), RuntimeError> {
         // A predecessor without both guards could have retained a proof across
         // physical edits. Install and revalidate in this activation transaction.
         conn.execute("DELETE FROM _meta WHERE key = 'index_keys_validated'", [])?;
-        conn.execute_batch(&format!(
-            "CREATE TRIGGER IF NOT EXISTS {insert} AFTER INSERT ON i WHEN length(NEW.k) > {limit}
-             BEGIN DELETE FROM _meta WHERE key = 'index_keys_validated'; END;
-             CREATE TRIGGER IF NOT EXISTS {update} AFTER UPDATE OF k ON i WHEN length(NEW.k) > {limit}
-             BEGIN DELETE FROM _meta WHERE key = 'index_keys_validated'; END;"
-        ))?;
+        for (_, sql) in super::managed_relations::index_guards() {
+            conn.execute_batch(&sql.replacen("CREATE TRIGGER ", "CREATE TRIGGER IF NOT EXISTS ", 1))?;
+        }
     }
     Ok(())
 }
