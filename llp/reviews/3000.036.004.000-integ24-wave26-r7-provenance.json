@@ -1,0 +1,26 @@
+{
+  "createdUTC": "2026-10-24T02:44:10.698966+00:00",
+  "base": "1458a7d5c3",
+  "head": "454ba8bd25 + AST captured-field and generated-index correction",
+  "deltaSha256": "781bfb67a4ae2d5294cc85a3a3123986411f8151c6b4246c6b8c4589428e3bed",
+  "briefSha256": "1c346e5ff137ae23a6fe6d03e76d6cc1c2bc78186948caf4d343888d9eb5af3b",
+  "reviewers": [
+    "Muse muse-spark-1.3-contributor high",
+    "fresh Codex gpt-6.1-sol high"
+  ],
+  "receivedUTC": "2026-10-24T02:58:43.831450+00:00",
+  "artifacts": {
+    "muse": {
+      "rawSha256": "6b5fc1e01ebfae5ab1b1e0dace9096f0b87ef0fa87b0cc5e7ec607a55c6fd3ee",
+      "gzipSha256": "3669945604d688b23708be9f0389074e28586d2af2b2a470a0a501c6f9523199",
+      "processExit": 0,
+      "verdict": "NOT READY"
+    },
+    "codex": {
+      "rawSha256": "4b2c184763c6a03535501f9d87490e1615ce3515c4c4bcea34c2a27dcb084ec1",
+      "gzipSha256": "8b2c524589f0029e2a7e77acf877f83aabae505340c74ee25dff43e3f24650a8",
+      "processExit": 0,
+      "verdict": "READY"
+    }
+  }
+}

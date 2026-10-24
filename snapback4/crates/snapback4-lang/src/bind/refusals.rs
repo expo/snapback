@@ -27,8 +27,22 @@ pub(super) fn sites(catalog: &Catalog) -> BTreeMap<(String, String), String> {
         // spelled as authorable paths rather than the parser's $readThrough call.
         if info.through.is_some()
             && let Some(rule) = info.decl.rules.iter().find(|r| r.effect == ast::Effect::Read) {
-            out.insert((name.clone(), "$read-rule".into()),
-                super::spell_internals(&crate::print::expression(&rule.value)));
+            let mut value=rule.value.clone();
+            super::intent_walk::expression(&mut value,&mut |expr| {
+                if let ast::Expr::Read(read)|ast::Expr::Exists {read,..}|ast::Expr::Created {read,..}=expr
+                    && read.index.as_ref().is_some_and(|name|name.starts_with('$')) {
+                    // These selectors are compiler plans, not authorable names.
+                    // Named keys remain intact so the replacement replans them.
+                    read.index=None;
+                }
+                if let ast::Expr::Member { name,.. }=expr
+                    && info.through.as_ref().is_some_and(|through|through.fields.contains_key(name)) {
+                    // Only parent-field captures have an authored path. The
+                    // lifetime metadata in `captures` is deliberately excluded.
+                    *name=name.split('.').map(|part|part.strip_prefix('$').unwrap_or(part)).collect::<Vec<_>>().join(".");
+                }
+            });
+            out.insert((name.clone(), "$read-rule".into()), crate::print::expression(&value));
         }
         out.insert((name.clone(), "table".into()), info.decl.site.to_string());
         for rule in &info.decl.rules {

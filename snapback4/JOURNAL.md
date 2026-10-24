@@ -104766,3 +104766,14 @@ carries those decisions through normal production source/analyzer validation;
 stale decisions still refuse, with the preparation's actual next steps shown.
 The focused regression verifies both outcomes. All seven wave-26 CLI cases,
 four individual-review cases and six DAY4 cases pass.
+
+Follow-up review found two actual authorability defects in diagnostic repairs:
+string-dollar conversion and a generated maintained-index selector. Repair text
+now transforms only captured parent identifiers in the AST, preserves literals
+and authored selectors, and omits generated selectors. Expiring parent/child
+custody stays identical after the exact printed assertion is applied. Saved v1
+uses its matching retained decision while changed working source rejects it.
+Eight wave-26 CLI cases, six DAY4 and four individual-review cases pass; a
+416-form syntax probe has 302 valid inputs and zero broken printed assertions.
+Round 8's two fresh families are READY; all received reviews and dispositions
+are preserved. Full source/platform/packed requalification follows this revision.

@@ -1,0 +1,26 @@
+{
+  "createdUTC": "2026-10-24T02:58:43.941973+00:00",
+  "base": "1458a7d5c3",
+  "head": "454ba8bd25 plus R8 parent-field AST correction and expiry/saved-source controls",
+  "deltaSha256": "84adaa6beabc333aa1148d4a38e6cf0f2b186bd118927abda4d8c287236cc0c2",
+  "briefSha256": "370934f599349cfbc6081b996a94d4260406602efd8c8d0603a2a1e02a37724a",
+  "reviewers": [
+    "Muse muse-spark-1.3-contributor high",
+    "fresh Codex gpt-6.1-sol high"
+  ],
+  "receivedUTC": "2026-10-24T03:03:08.051758+00:00",
+  "artifacts": {
+    "muse": {
+      "rawSha256": "8935276de6c14b62dc99e8c63b35e5db7352d07a41508cff6f5234661afdd6c7",
+      "gzipSha256": "48b10bc1da15373ac2166088af4cd99ea04068342ed971cd2cad2af9e518b394",
+      "processExit": 0,
+      "verdict": "READY"
+    },
+    "codex": {
+      "rawSha256": "d75aedd6247c77f0fca4567990668154bdbfaa0486a801a63bf627c4e1f902c0",
+      "gzipSha256": "155c85b2c6d921ef7f2abd3cb8cd9f8ed8257d1d716009818c019cfb6bc3399f",
+      "processExit": 0,
+      "verdict": "READY"
+    }
+  }
+}

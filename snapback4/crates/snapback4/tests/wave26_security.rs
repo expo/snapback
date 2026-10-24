@@ -41,13 +41,17 @@ const PASSWORD:&str="use identity password\ntable notes:\n  owner: principal\n  
 }
 
 #[test]fn inherited_read_intent_repair_is_authorable_and_preserves_parent_custody(){
- let source="use personas alice,bob\ntable boxes:\n  owner: principal\n  immutable owner\n  read <- .owner = viewer\n  insert <- .owner = viewer\n  online only\ntable notes:\n  box: boxes\n  body: text <=80\n  immutable box\n  read through .box\n  insert <- allow\n  online only\nquery note(id: notes):\n  return notes[id]\ninvariant notes.read only deny\n";
- let app=App::new(source);app.write("fixtures/boxes.jsonl","{\"id\":\"box-a\",\"owner\":\"dev:alice\"}\n");app.write("fixtures/notes.jsonl","{\"id\":\"note-a\",\"box\":\"box-a\",\"body\":\"private\"}\n");
+ let source="use personas alice,bob\ntable seats:\n  owner: principal\n  reader: principal\n  unique byOwnerReader: owner, reader\n  public 'routing fixture'\n  online only\ntable boxes:\n  owner: principal\n  label: text <=80\n  until: time ?\n  immutable owner, label, until\n  expire at .until\n  read <- .owner = viewer and .label = 'plan $tier' and exists seats[owner = .owner, reader = viewer] by byOwnerReader\n  insert <- .owner = viewer\n  online only\ntable notes:\n  box: boxes\n  body: text <=80\n  until: time ?\n  immutable box, until\n  expire at .until\n  read through .box\n  insert <- allow\n  online only\nquery note(id: notes):\n  return notes[id]\ninvariant notes.read only deny\n";
+ let app=App::new(source);app.write("fixtures/seats.jsonl","{\"id\":\"seat-a\",\"owner\":\"dev:alice\",\"reader\":\"dev:alice\"}\n");app.write("fixtures/boxes.jsonl","{\"id\":\"box-a\",\"owner\":\"dev:alice\",\"label\":\"plan $tier\",\"until\":1900000000000}\n");app.write("fixtures/notes.jsonl","{\"id\":\"note-a\",\"box\":\"box-a\",\"body\":\"private\",\"until\":1900000000000}\n");
  let refused=app.run(&["deploy","deployment"]);assert_eq!(refused.status.code(),Some(1),"{refused:?}");let text=format!("{}{}",String::from_utf8_lossy(&refused.stdout),String::from_utf8_lossy(&refused.stderr));
  assert!(!text.contains("$readThrough")&&!text.contains(".$box"),"{text}");
  assert!(text.contains("preserve `read through .box`")&&text.contains("parent lifetime/authority"),"{text}");
- let replacement="invariant notes.read only (.box.owner = viewer)";assert!(text.contains(replacement),"{text}");
- app.write("snapback/schema.q",&source.replace("invariant notes.read only deny",replacement));app.ok(&["test"]);app.ok(&["deploy","deployment"]);
+ let replacement=text.split("replace this assertion with `").nth(1).and_then(|s|s.split('`').next()).expect(&text);
+ assert!(replacement.starts_with("invariant notes.read only ")&&replacement.contains(".box.label = 'plan $tier'")&&replacement.contains("by byOwnerReader"),"{text}");
+ let changed=source.replace("invariant notes.read only deny",replacement);
+ let before=snapback4_lang::compile(&[("schema.q".into(),source.into())]);let after=snapback4_lang::compile(&[("schema.q".into(),changed.clone())]);assert!(after.diagnostics.is_empty(),"{:?}",after.diagnostics);
+ for table in ["boxes","notes"] {let a=&before.schema.tables[table];let b=&after.schema.tables[table];assert_eq!(a.through,b.through);assert_eq!(a.rules.read,b.rules.read);assert_eq!(a.expire,b.expire);assert!(b.is_expiring());}
+ app.write("snapback/schema.q",&changed);app.ok(&["test"]);app.ok(&["deploy","deployment"]);
 }
 
 #[test]fn private_http_test_retains_individual_decisions_and_rejects_stale_ones(){
@@ -56,5 +60,16 @@ const PASSWORD:&str="use identity password\ntable notes:\n  owner: principal\n  
  let checked:serde_json::Value=serde_json::from_slice(&out.stdout).unwrap();let ids=checked["securityReviews"].as_array().unwrap().iter().filter(|d|d["gated"]==true).map(|d|d["id"].as_str().unwrap().to_owned()).collect::<Vec<_>>();assert!(!ids.is_empty(),"{checked}");
  for id in ids {let out=app.run(&["check","--ack-security",&id,"--reason","The draft helper is unreachable because insert is denied; this individually reviewed question grants no write authority."]);assert!([Some(0),Some(1)].contains(&out.status.code()),"{out:?}");}
  let tested=app.ok(&["test"]);assert!(tested.contains("security unauthenticated serve HTTP")&&tested.contains("no authored business cases"),"{tested}");
- app.write("snapback/schema.q",&source.replace("10000","20000"));let stale=app.run(&["test"]);assert_eq!(stale.status.code(),Some(1),"{stale:?}");let error=String::from_utf8_lossy(&stale.stderr);assert!(error.contains("private serve preparation")&&error.contains("--ack-security"),"{error}");
+ app.write("versions/v1/schema.q",source);app.write("snapback/schema.q",&source.replace("10000","20000"));
+ app.ok(&["test","--source","versions/v1"]);
+ let stale=app.run(&["test"]);assert_eq!(stale.status.code(),Some(1),"{stale:?}");let error=String::from_utf8_lossy(&stale.stderr);assert!(error.contains("private serve preparation")&&error.contains("--ack-security"),"{error}");
+}
+
+#[test]fn inherited_read_repair_omits_a_generated_maintained_index(){
+ let source="use personas alice\ntable entries:\n  bucket: text <=20 ?\n  public 'count input'\n  online only\nview totals: count entries by .bucket\n  read <- allow\n  online only\ntable boxes:\n  bucket: text <=20 ?\n  immutable bucket\n  read <- exists totals[bucket = .bucket, value = 1]\n  insert <- allow\n  online only\ntable notes:\n  box: boxes\n  body: text <=80\n  immutable box\n  read through .box\n  insert <- allow\n  online only\nquery note(id: notes):\n  return notes[id]\ninvariant notes.read only deny\n";
+ let app=App::new(source);for(file,data)in[("entries","{\"id\":\"entry-a\",\"bucket\":null}\n"),("boxes","{\"id\":\"box-a\",\"bucket\":null}\n"),("notes","{\"id\":\"note-a\",\"box\":\"box-a\",\"body\":\"private\"}\n")]{app.write(&format!("fixtures/{file}.jsonl"),data);}
+ let refused=app.run(&["deploy","deployment"]);assert_eq!(refused.status.code(),Some(1),"{refused:?}");let text=format!("{}{}",String::from_utf8_lossy(&refused.stdout),String::from_utf8_lossy(&refused.stderr));
+ let replacement=text.split("replace this assertion with `").nth(1).and_then(|s|s.split('`').next()).expect(&text);
+ assert!(replacement.starts_with("invariant notes.read only "),"{text}");assert!(!replacement.contains("$intent:")&&!replacement.contains("by $"),"{text}");
+ app.write("snapback/schema.q",&source.replace("invariant notes.read only deny",replacement));app.ok(&["test"]);app.ok(&["deploy","deployment"]);
 }
