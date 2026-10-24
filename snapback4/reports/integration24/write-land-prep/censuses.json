@@ -1,0 +1,11 @@
+{
+  "authoringEntries": 884,
+  "authoringUnchanged": true,
+  "authoringSha256": "4a5f35499fe366bdd14e6e91422163d2eb963974327c0d4f308b8c11d7453b88",
+  "openerNewName": "program_transaction_until",
+  "newOpenerAddsNoAllowance": true,
+  "mutationAllowance": 0,
+  "identityAllowanceBefore": 4,
+  "identityAllowanceAfter": 2,
+  "method": "Actual test output and SNAPBACK4_RATCHET_UPDATE=1; no hand merge."
+}

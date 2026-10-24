@@ -106543,3 +106543,11 @@ Explicit sent/failed expectations and complete durable snapshots agree on
 SQLite; the private-PG counterpart joins qualification. Clean-source Wasm
 remains 737,990 gzip, budget 738,490 (exactly +500). Full merged qualification
 follows this test addition; earlier results keep their original bindings.
+
+
+The new deadline-aware physical opener `program_transaction_until` now joins
+the lexical committer guard and its adversarial matcher test. Actual ratchet
+regeneration adds no allowance; mutation stays at zero and the identity
+allowance falls from four to two. The six store-handle checks pass and the
+actual authoring-census output regenerates the same 884 canonical entries.
+Registry/guide-manifest regeneration also produces no changes.
