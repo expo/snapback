@@ -104849,3 +104849,11 @@ failed pipelined facts-statement witness: a temporary session view raises,
 then the existing post-failure hook restores storage and revokes the
 principal before ordinary fallback. The expected result is fresh `E_AUTH`.
 Production transport and interpreter bytes are unchanged.
+
+## 2026-10-24 — PIPE stock sweep target-isolation cleanup
+
+The stock script retained an undefined `refresh_shared_target` call after
+G4a moved the evaluator to its own target directory. Removed that obsolete
+call; the evaluator still uses its isolated subdirectory and no shared build
+artifact is cleaned. The in-progress first sweep is stopped after evaluator
+warm-up and the canonical script restarted, preserving its full check set.
