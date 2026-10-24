@@ -179,7 +179,11 @@ pub fn fixture(bound:&Bound,out:&mut Campaign)->Result<Engine,String>{
             }
             let mut cases=histories::fixture_cases(bound,p,&current,&creator_actors,out);
             let clock_intent=bound.invariants.iter().filter_map(|i|i.syntax.as_ref()).any(|e|{let mut e=e.clone();let mut now=false;crate::bind::intent_walk::expression(&mut e,&mut |e|if matches!(e,ast::Expr::Name{name,..} if name=="now"){now=true;});now});
-            if clock_intent {if let Some(index)=cases.iter().position(|args|p.args.iter().any(|(name,kind)|matches!(kind,ir::ArgType::Time)&&matches!(args.get(name),Some(Value::Int(n)) if *n<NOW-183*86_400_000))){let old=cases.remove(index);cases.insert(0,old);}}
+            if clock_intent {
+                let calendar=out.time_samples.as_ref().and_then(|samples|samples.first()).filter(|value|matches!(value,Value::Int(n) if *n<NOW));
+                let calendar_case=calendar.and_then(|date|cases.iter().position(|args|p.args.iter().any(|(name,kind)|matches!(kind,ir::ArgType::Time)&&args.get(name)==Some(date))));
+                if let Some(index)=calendar_case.or_else(||cases.iter().position(|args|p.args.iter().any(|(name,kind)|matches!(kind,ir::ArgType::Time)&&matches!(args.get(name),Some(Value::Int(n)) if *n<NOW-183*86_400_000)))){let old=cases.remove(index);cases.insert(0,old);}
+            }
             // Do not let two actors on the first tuple consume both root
             // slots before the opposite gating boolean is tried.
             if let Some(first)=cases.first().cloned(){
@@ -234,7 +238,7 @@ pub fn fixture(bound:&Bound,out:&mut Campaign)->Result<Engine,String>{
                     }
                     if targets.iter().any(|t|after.get(*t).map_or(0,Vec::len)>current.get(*t).map_or(0,Vec::len)) {admitted_booleans.insert(serde_json::to_string(&projection(&args)).unwrap());engine=candidate;}
                     let after=readback(&engine)?;
-                    if targets.iter().all(|t|after.get(*t).map_or(0,Vec::len)>=2){break 'cases;}
+                    if targets.iter().all(|t|after.get(*t).map_or(0,Vec::len)>=2){if p.args.values().any(|kind|matches!(kind,ir::ArgType::Time)){out.unsupported.insert(format!("{}: two-row creator population omits additional time tuples; remaining date combinations uncovered",p.name));}break 'cases;}
                     if targets.iter().any(|t|after.get(*t).map_or(0,Vec::len)>current.get(*t).map_or(0,Vec::len)){continue 'cases;}
                 }
             }}
@@ -295,5 +299,19 @@ use super::*;
  let b=crate::compile(&[("schema.q".into(),source.into())]);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);let mut c=Campaign::bounded(15000);c.work_remaining=Some(8192);let e=fixture(&b,&mut c).unwrap();
  let decisions=e.store().rows("decisions").unwrap();assert_eq!(decisions.len(),2,"{:?}",c.unsupported);
  for passed in [false,true]{assert!(decisions.iter().any(|r|r.field("passed").ok()==Some(&Value::Bool(passed))),"{decisions:?}");}
+}
+}
+
+#[cfg(test)]mod sec10_clock_reach_tests{use super::*;
+#[test]fn an_old_caller_date_reaches_the_named_order_transition(){
+    let source=format!("{}\ninvariant fittings.orderGarment only .prescriptionDate >= now - 182d\n",include_str!("../../../../tests/security/wave26/002.q"));let sources=vec![("schema.q".into(),source)];let b=super::super::super::derived::augmented(&sources,&crate::compile(&sources));assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
+    let mut out=Campaign::default();out.generated_fixture=true;let mut engine=fixture(&b,&mut out).unwrap();let rows=readback(&engine).unwrap();
+    let dates=rows.get("fittings").into_iter().flatten().map(|row|row.field("prescriptionDate").unwrap()).collect::<Vec<_>>();
+    let fitting=rows.get("fittings").into_iter().flatten().find(|row|matches!(row.field("prescriptionDate"),Ok(Value::Int(n)) if *n<NOW-183*86_400_000)).unwrap_or_else(||panic!("no old date: {dates:?}; {:?}",out.unsupported));
+    let actor=rows["roles"].iter().find(|row|row.field("role").ok()==Some(&Value::String("frontdesk".into()))).unwrap().field("principal").unwrap().as_str().unwrap();
+    let p=&b.programs.iter().find(|p|p.program.name=="orderGarment").unwrap().program;let trace=super::executed::trace(&b,p,&engine);
+    let result=engine.mutate("orderGarment",None,Context::new(actor,BTreeMap::from([("fitting".into(),fitting.field("id").unwrap().clone())])).at(NOW).with_fixture_trace(trace.clone())).unwrap();
+    assert!(matches!(result.state,snapback4_core::WriteState::Sent{..}),"{result:?}; dates={dates:?}");
+    assert!(trace.take().iter().any(|o|o.allowed==Some(false)),"the named operation must violate the independent clock intent");
 }
 }

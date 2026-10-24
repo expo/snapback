@@ -37,10 +37,22 @@ fn time_samples(bound:&Bound,out:&mut Campaign)->Vec<Value>{
         }
         match value{serde_json::Value::Object(xs)=>for v in xs.values(){offsets(v,found,cut)},serde_json::Value::Array(xs)=>for v in xs{offsets(v,found,cut)},_=>{}}
     }
+    fn month_windows(value:&serde_json::Value,out:&mut BTreeSet<i64>,cut:&mut bool){
+        fn month(value:&serde_json::Value)->bool{if value.get("Civil").and_then(|v|v.as_str())==Some("month"){return true;}match value{serde_json::Value::Object(xs)=>xs.values().any(month),serde_json::Value::Array(xs)=>xs.iter().any(month),_=>false}}
+        if let Some(binary)=value.get("Binary"){for (a,b) in [("left","right"),("right","left")]{
+            if binary.get(a).is_some_and(month)&&let Some(n)=binary.get(b).and_then(|v|v.get("Literal")).and_then(|v|v.get("Int")).and_then(|v|v.as_i64()).filter(|n|(1..=1200).contains(n)){if out.len()<16||out.contains(&n){out.insert(n);}else{*cut=true;}}
+        }}
+        match value{serde_json::Value::Object(xs)=>for x in xs.values(){month_windows(x,out,cut)},serde_json::Value::Array(xs)=>for x in xs{month_windows(x,out,cut)},_=>{}}
+    }
+    let mut months=BTreeSet::new();let mut calendar_cut=false;for p in &bound.programs{month_windows(&serde_json::to_value(&p.program).unwrap(),&mut months,&mut calendar_cut);}
     let mut durations=BTreeSet::from([DAY]);let mut cut=false;
     for bp in &bound.programs{offsets(&serde_json::to_value(&bp.program).unwrap(),&mut durations,&mut cut);}
     let mut samples=Vec::new();
     let mut add=|time:Option<i64>|if let Some(time)=time{let value=Value::Int(time);if !samples.contains(&value){samples.push(value);}};
+    // A month ordinal retains year but omits day precision. The start of
+    // an authored offset month exercises that exact older calendar edge.
+    for months in months{add(snapback4_core::calendar::month_of(NOW).checked_sub(months).and_then(|month|snapback4_core::calendar::month_start(month).ok()));}
+    if calendar_cut{out.unsupported.insert("calendar time proposals keep sixteen source month offsets; remaining calendar windows uncovered".into());}
     add(durations.last().and_then(|d|NOW.checked_add(*d)).and_then(|n|n.checked_add(1)));
     for time in [NOW-DAY,NOW+DAY,NOW,NOW-400*DAY,NOW-200*DAY]{add(Some(time));}
     for d in durations.iter().rev(){for sign in [1,-1]{for delta in [1,0,-1]{add(d.checked_mul(sign).and_then(|d|NOW.checked_add(d)).and_then(|n|n.checked_add(delta)));}}}

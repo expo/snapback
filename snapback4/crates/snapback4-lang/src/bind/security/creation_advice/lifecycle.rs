@@ -52,24 +52,46 @@ fn decision_effect(t:&snapback4_core::schema::Table,column:&str,f:&ast::ObjectFi
     match (t.columns.get(&f.name).map(ColumnType::required),field_value(f)){
         (Some(ColumnType::Enum{..}),Some(Expr::Literal{value:ast::Literal::Str(_),..}))=>true,
         (Some(ColumnType::Bool),Some(Expr::Literal{value:ast::Literal::Bool(_),..}))=>true,
-        (Some(ColumnType::Text{..}),Some(_))=>{let column=column.to_lowercase();["approv","authoriz"].iter().filter_map(|part|column.find(part)).any(|at|at>0&&name.starts_with(&column[..at]))},
+        (Some(ColumnType::Text{..}|ColumnType::Enum{..}|ColumnType::Bool),Some(_))=>{let column=column.to_lowercase();["approv","authoriz"].iter().filter_map(|part|column.find(part)).any(|at|at>0&&name.starts_with(&column[..at]))},
         _=>false,
     }
+}
+fn program_inspects(p:&ast::ProgramDecl,bound:&Bound,table:&str,column:&str)->bool{
+    fn row_table(e:&Expr,locals:&BTreeMap<String,String>,bound:&Bound)->Option<String>{match e{
+        Expr::Name{name,..}=>locals.get(name).cloned(),Expr::Read(read)=>Some(read.table.clone()),Expr::Assert{value,..}=>row_table(value,locals,bound),
+        Expr::Member{base,name,..}=>{let owner=row_table(base,locals,bound)?;match bound.schema.tables.get(&owner)?.columns.get(name)?.required(){ColumnType::Ref{table}=>Some(table.clone()),_=>None}},_=>None,
+    }}
+    fn statements(body:&[Stmt],locals:&mut BTreeMap<String,String>,bound:&Bound,table:&str,column:&str)->bool{
+        for statement in body{match statement{
+            Stmt::Require{condition,..}=>{let mut found=false;walk(condition,|e|if let Expr::Member{base,name,..}=e&&name==column&&row_table(base,locals,bound).as_deref()==Some(table){found=true;});if found{return true;}},
+            Stmt::Bind{names,value,..} if names.len()==1=>{if let Some(table)=row_table(value,locals,bound){locals.insert(names[0].clone(),table);}else{locals.remove(&names[0]);}},
+            Stmt::For{domain,name,body,..}=>{let mut inner=locals.clone();if let Some(table)=row_table(domain,locals,bound){inner.insert(name.clone(),table);}else{inner.remove(name);}if statements(body,&mut inner,bound,table,column){return true;}},
+            Stmt::If{then_body,else_body,..}=>{if statements(then_body,&mut locals.clone(),bound,table,column)||statements(else_body,&mut locals.clone(),bound,table,column){return true;}},
+            Stmt::As{body,..}=>if statements(body,&mut locals.clone(),bound,table,column){return true;},
+            Stmt::Return{..}=>break,_=>{},
+        }}false
+    }
+    let mut locals=p.args.iter().filter_map(|a|if let TypeKind::Ref{table}=&a.type_.kind{Some((a.name.clone(),table.clone()))}else{None}).collect();
+    statements(&p.prelude,&mut locals,bound,table,column)||statements(&p.body,&mut locals,bound,table,column)
+}
+fn fresh_parent_child(w:&Write<'_>,parent:&str,bound:&Bound)->bool{
+    w.fields.iter().filter(|f|matches!(bound.schema.tables[&w.table].columns.get(&f.name).map(ColumnType::required),Some(ColumnType::Ref{table}) if table==parent)).filter_map(field_value).any(|value|{let mut fresh=false;walk(value,|e|if matches!(e,Expr::Write{op:WriteOp::Insert,table,..} if table==parent){fresh=true;});fresh})
 }
 pub(super) fn notes(bound:&Bound,writes:&[Write<'_>],out:&mut Vec<Diagnostic>){
     for (table,t) in bound.schema.visible_tables(){
         let transitions=writes.iter().filter(|w|w.table==*table&&state(w,bound)).collect::<Vec<_>>();
-        let approval_effects=transitions.iter().copied().chain(writes.iter().filter(|w|w.table!=*table&&matches!(w.op,WriteOp::Insert|WriteOp::Upsert)&&bound.schema.tables[&w.table].columns.values().any(|kind|matches!(kind.required(),ColumnType::Ref{table:parent} if parent==table)))).collect::<Vec<_>>();
+        let approval_effects=transitions.iter().copied().chain(writes.iter().filter(|w|w.table!=*table&&matches!(w.op,WriteOp::Insert|WriteOp::Upsert)&&bound.schema.tables[&w.table].columns.values().any(|kind|matches!(kind.required(),ColumnType::Ref{table:parent} if parent==table))&&!fresh_parent_child(w,table,bound))).collect::<Vec<_>>();
         if approval_effects.is_empty(){continue;}
         for (column,kind) in &t.columns {
             let approval=["approv","authoriz"].iter().any(|part|column.to_lowercase().contains(part));
             let recorded=writes.iter().any(|w|w.table==*table&&records(w,column,kind,t));
             let proxies=writes.iter().filter(|w|w.table==*table&&w.fields.iter().any(|f|f.name==*column)).flat_map(|w|w.fields.iter()).filter(|f|f.name!=*column&&matches!(t.columns.get(&f.name).map(ColumnType::required),Some(ColumnType::Enum{..}|ColumnType::Bool|ColumnType::Principal|ColumnType::Time))).filter(|f|!matches!(field_value(f),Some(Expr::Member{..}))).map(|f|f.name.clone()).collect::<BTreeSet<_>>();
-            let atomic=writes.iter().any(|w|w.table==*table&&records(w,column,kind,t)&&w.fields.iter().any(|f|decision_effect(t,column,f)&&(!matches!(w.op,WriteOp::Insert|WriteOp::Upsert)||!t.defaults.get(&f.name).is_some_and(|d|matches!(field_value(f),Some(Expr::Literal{value:ast::Literal::Str(value),..}) if d.value(challenges::NOW,"$advisory")==snapback4_core::Value::String(value.clone()))))));
+            let atomic=writes.iter().any(|w|w.table==*table&&records(w,column,kind,t)&&(matches!(w.op,WriteOp::Insert|WriteOp::Upsert)&&t.defaults.iter().any(|(name,d)|["status","stage","state","phase","decision","approval"].iter().any(|suffix|name.to_lowercase().ends_with(suffix))&&matches!(t.columns.get(name).map(ColumnType::required),Some(ColumnType::Enum{..}))&&matches!(d.value(challenges::NOW,"$advisory"),snapback4_core::Value::String(value) if ["approved","authorized","authorised"].contains(&value.to_lowercase().as_str())))||w.fields.iter().any(|f|decision_effect(t,column,f)&&(!matches!(w.op,WriteOp::Insert|WriteOp::Upsert)||!t.defaults.get(&f.name).is_some_and(|d|matches!(field_value(f),Some(Expr::Literal{value:ast::Literal::Str(value),..}) if d.value(challenges::NOW,"$advisory")==snapback4_core::Value::String(value.clone())))))));
             let rule_use=super::super::columns::rules(t).any(|rule|rule.any_term(&|term|matches!(term,RuleTerm::Field(name) if name==column||proxies.contains(name))));
-            let consumed=atomic||rule_use||writes.iter().filter(|w|!(w.table==*table&&records(w,column,kind,t))).any(|w|inspected(w,table,column)||proxies.iter().any(|proxy|inspected(w,table,proxy)));
-            if approval&&recorded&&!consumed {
-                note(out,&approval_effects[0].site,"N_APPROVAL_NOT_ENFORCED",format!("{table}.{column}: approval is recorded but no lifecycle effect inspects it; is this an informational record or a required approval?"),"require this approval before its governed effect; or record `check --ack-security ID --reason 'informational approval record: <spec rationale>'` for this individual decision");
+            let consumed=atomic||rule_use||writes.iter().filter(|w|!(w.table==*table&&records(w,column,kind,t))).any(|w|inspected(w,table,column)||program_inspects(w.p,bound,table,column)||proxies.iter().any(|proxy|inspected(w,table,proxy)||program_inspects(w.p,bound,table,proxy)));
+            let downstream=approval_effects.iter().filter(|effect|effect.table==*table||!writes.iter().any(|writer|writer.table==*table&&records(writer,column,kind,t)&&conditions(&writer.context).iter().any(|condition|reads(condition).contains(&effect.table)))).collect::<Vec<_>>();
+            if approval&&recorded&&!consumed&&!downstream.is_empty() {
+                note(out,&downstream[0].site,"N_APPROVAL_NOT_ENFORCED",format!("{table}.{column}: approval is recorded but no lifecycle effect inspects it; is this an informational record or a required approval?"),"require this approval before its governed effect; or record `check --ack-security ID --reason 'informational approval record: <spec rationale>'` for this individual decision");
             }
         }
         // A separately attached child's required field cannot require the child.

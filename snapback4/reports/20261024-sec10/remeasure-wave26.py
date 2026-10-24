@@ -6,7 +6,10 @@ repro=pathlib.Path.home()/'sb4-loop/wave26-repro/sec'
 labels=['002-specF1','008-specF1','008-specF2','018-specF1','020-specF1','024-specF1','024-specF2','031-specF1','033-specF1','033-specF2','036-specF1','049-specF1']
 def measure(label):
  source=repro/label/'snapback';texts=[(f.name,f.read_text()) for f in sorted(source.glob('*.q'))]
- schema=dict(texts)['schema.q'];spec_line=max(i+1 for i,l in enumerate(schema.splitlines()) if l.startswith('invariant '));site=f'schema.q:{spec_line}:1'
+ schema=dict(texts)['schema.q'];
+ if label=='002-specF1':
+  schema=schema.replace('invariant fittings.status update only .prescriptionDate >= now - 182d','invariant fittings.orderGarment only .prescriptionDate >= now - 182d');texts=[(name,schema if name=='schema.q' else text) for name,text in texts]
+ spec_line=max(i+1 for i,l in enumerate(schema.splitlines()) if l.startswith('invariant '));site=f'schema.q:{spec_line}:1'
  with tempfile.TemporaryDirectory(prefix='sb4-sec10-finding-') as tmp:
   root=pathlib.Path(tmp);(root/'snapback').mkdir()
   for name,text in texts:(root/'snapback'/name).write_text(text)

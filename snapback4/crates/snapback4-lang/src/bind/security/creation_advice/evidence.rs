@@ -60,7 +60,7 @@ pub(super) fn notes(bound:&Bound,writes:&[Write<'_>],out:&mut Vec<Diagnostic>){
         }
         for condition in guards{walk(condition,|e|{
         if let Expr::Binary{op,left,right,..}=e&&["+","-","*","/","%"].contains(&op.as_str())&&[left.as_ref(),right.as_ref()].iter().any(|e|matches!(e,Expr::Call{name,..} if name=="month"))&&seen.insert((w.name.clone(),"month arithmetic".into())) {
-            note(out,&w.site,"N_CALENDAR_DURATION",format!("{}: arithmetic on month() values loses the year and day; is this an elapsed-age or calendar-anniversary window?",w.name),"compare full timestamps or an explicit calendar deadline, including year and day; declare window intent and test an old date across a year boundary");
+            note(out,&w.site,"N_CALENDAR_DURATION",format!("{}: month() arithmetic retains the year but drops day-of-month precision; is this a month bucket or an exact anniversary window?",w.name),"compare full timestamps or an explicit calendar anniversary deadline when day precision is required; declare window intent and test the beginning of the offset month");
         }
     });}
     }

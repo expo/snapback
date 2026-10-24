@@ -184,3 +184,36 @@ fn campaign(s:&str)->Campaign{let b=security::derived::augmented(&sources(s),&bo
     let source="table docs:\n  approved: bool default false\n  read <- allow\n  update <- allow\n  online only\ntable effects:\n  doc: docs\n  read <- allow\n  insert <- allow\n  online only\nmutation approve(doc: docs):\n  update docs[doc] {approved:true}\nmutation create(doc: docs):\n  return insert effects {doc}\n";
     assert!(notes(source).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
 }
+
+#[test]fn approval_records_of_an_already_guarded_effect_are_not_unused_gates(){
+    let source="table docs:\n  approvedAt: time\n  status: enum('approved','done') default 'approved'\n  read <- allow\n  insert <- allow\n  update <- allow\n  online only\nmutation create():\n  return insert docs {approvedAt:now}\nmutation finish(doc: docs):\n  d = docs[doc] ! else MISSING\n  require d.status = 'approved' else NO_APPROVAL\n  update docs[doc] {status:'done'}\n";
+    assert!(!notes(source).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
+    let source="table docs:\n  approved: bool default false\n  price: int default 1\n  status: enum('draft','done') default 'draft'\n  read <- allow\n  update <- allow\n  online only\nmutation approve(doc: docs,price: int):\n  update docs[doc] {price,approved:true}\nmutation finish(doc: docs):\n  update docs[doc] {status:'done'}\n";
+    // This unused flag is an informational record of the already applied
+    // price. S1 deliberately requires its individual informational disposition.
+    assert!(notes(source).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
+    let bypass=source.to_owned()+"mutation bypass(doc: docs,price: int):\n  update docs[doc] {price}\n";
+    assert!(notes(&bypass).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
+}
+#[test]fn approval_guards_inside_typed_loops_are_still_enforcement(){
+    let source="table trips:\n  status: enum('draft','done') default 'draft'\n  read <- allow\n  update <- allow\n  online only\ntable bookings:\n  trip: trips\n  approved: bool default false\n  read <- allow\n  update <- allow\n  online only\ntable waivers:\n  booking: bookings\n  read <- allow\n  insert <- allow\n  online only\nmutation approve(booking: bookings):\n  update bookings[booking] {approved:true}\nmutation waiver(booking: bookings):\n  return insert waivers {booking}\nmutation finish(trip: trips):\n  for b in bookings first 10 by .id:\n    require b.approved else NO_APPROVAL\n  update trips[trip] {status:'done'}\n";
+    assert!(!notes(source).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
+    let bad=source.replace("    require b.approved else NO_APPROVAL","    require b.trip != null else NO_TRIP");
+    assert!(notes(&bad).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
+}
+#[test]fn approval_input_children_are_not_mistaken_for_later_effects(){
+    let source="table docs:\n  approvedAt: time ?\n  read <- allow\n  insert <- allow\n  update <- allow\n  online only\ntable consents:\n  doc: docs\n  unique doc\n  read <- allow\n  insert <- allow\n  online only\nmutation create():\n  d = insert docs {}\n  return insert consents {doc:d.id}\nmutation approve(doc: docs):\n  require exists consents[doc = doc] else MISSING_CONSENT\n  update docs[doc] {approvedAt:now}\n";
+    assert!(!notes(source).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
+    let effect=source.to_owned()+"table effects:\n  doc: docs\n  read <- allow\n  insert <- allow\n  online only\nmutation work(doc: docs):\n  return insert effects {doc}\n";
+    assert!(notes(&effect).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
+}
+
+#[test]fn anchored_windows_and_owner_scoped_unique_keys_have_precise_controls(){
+    let source="table windows:\n  startsAt: time\n  read <- allow\n  online only\ntable events:\n  window: windows\n  at: time\n  read <- allow\n  insert <- allow\n  online only\nmutation create(window: windows,at: time):\n  w = windows[window] ! else MISSING\n  require at <= w.startsAt + 1d else TOO_LATE\n  return insert events {window,at}\n";
+    assert!(notes(source).iter().any(|n|n.code=="N_CALLER_TIME"&&n.message.contains("one side")));
+    let bounded=source.replace("  require at <=","  require at >= w.startsAt else TOO_EARLY\n  require at <=");
+    assert!(!notes(&bounded).iter().any(|n|n.code=="N_CALLER_TIME"&&n.message.contains("one side")));
+    let source="table handles:\n  owner: principal\n  name: text\n  unique name\n  read <- .owner = viewer\n  insert <- .owner = viewer\n  online only\n";
+    assert!(notes(source).iter().any(|n|n.code=="N_UNIQUE_HIDDEN"&&n.message.contains("global unique")));
+    assert!(!notes(&source.replace("unique name","unique owner,name")).iter().any(|n|n.code=="N_UNIQUE_HIDDEN"&&n.message.contains("global unique")));
+}
