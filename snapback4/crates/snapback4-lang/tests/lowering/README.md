@@ -169,3 +169,12 @@ before a nullable Row assertion. Historical digests reverse only that
 one-argument wrapper; original digest files stay unchanged. Complete current
 IR, ownership-mode admission, executions and all meters still compare byte
 for byte. Parent read cuts and real absence have independent PAGE4 regressions.
+
+DX9 (2026-10-24, LLP 3000.036 §29) admits three previously rejected
+historical programs: `327ab498…:repair` narrows a repeated nullable point
+field; `70d091f4…:choose` and `7ee7c547…:choose` spell an else-if branch
+`elif`. `dx9-admissions.sha256` pins their new IR separately. The records
+were generated from the three frozen census inputs through snapshot::baseline,
+clearing returned_shapes and stripping page4 assertion fences exactly as the
+comparison does. No historical digest is replaced; both ownership arms and
+execution observations remain compared by the existing shards.

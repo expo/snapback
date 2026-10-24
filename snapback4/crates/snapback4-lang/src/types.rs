@@ -430,7 +430,7 @@ impl JoinError {
 // An empty sequence supplies no arm to compare, including the initial []
 // of a collector. Unknown in a nonempty value never gets this exemption.
 fn join_items(a: &Ty, am: u32, b: &Ty, bm: u32) -> Result<Ty, JoinError> {
-    if am == 0 { Ok(b.clone()) } else if bm == 0 { Ok(a.clone()) } else { a.join_item(b).map_err(|error| error.at("[]")) }
+    if am == 0 && *a == Ty::Unknown { Ok(b.clone()) } else if bm == 0 && *b == Ty::Unknown { Ok(a.clone()) } else { a.join_item(b).map_err(|error| error.at("[]")) }
 }
 
 pub fn scalar_to_column(scalar: &ScalarType) -> ColumnType {

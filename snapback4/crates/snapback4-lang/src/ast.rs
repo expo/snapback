@@ -191,7 +191,7 @@ pub enum Expr {
     Name { name: String, site: Site },
     Focal { site: Site },
     Literal { value: Literal, site: Site },
-    Array { items: Vec<Expr>, site: Site },
+    Array { items: Vec<Expr>, item_type: Option<ScalarType>, site: Site },
     Object { fields: Vec<ObjectField>, site: Site },
     Unary { op: String, value: Box<Expr>, site: Site },
     Binary { op: String, left: Box<Expr>, right: Box<Expr>, site: Site },

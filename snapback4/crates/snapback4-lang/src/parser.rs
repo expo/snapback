@@ -1268,7 +1268,7 @@ impl Parser {
     }
 
     fn parse_if(&mut self) -> Fallible<Stmt> {
-        let site = self.take("if")?.site;
+        let site = if self.at("elif") { self.take("elif")?.site } else { self.take("if")?.site };
         let condition = self.expression(0, &[":"])?;
         self.take(":")?;
         self.newline()?;
@@ -1285,7 +1285,7 @@ impl Parser {
                 else_body = self.parse_block()?;
             }
         } else if self.at("elif") {
-            return Err(unsupported(&self.peek().site, "elif", "else if cond:"));
+            else_body.push(self.parse_if()?);
         }
         Ok(Stmt::If { condition, then_body, else_body, site })
     }

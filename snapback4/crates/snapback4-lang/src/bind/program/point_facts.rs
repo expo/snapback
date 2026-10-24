@@ -76,6 +76,41 @@ impl Binder<'_> {
         });
         found
     }
+    // @ref LLP 3000.036#29-wave-26-quarry-ergonomics-dx9 — a field fact uses the same key roots and write invalidation as presence.
+    fn point_field_key(&self, value: &A) -> Option<(Vec<String>, BTreeSet<String>)> {
+        fn path(value: &A, fields: &mut Vec<String>) -> Option<ReadExpr> {
+            match value {
+                A::Read(read) => Some(read.clone()),
+                A::Member { base, name, .. } => { let read = path(base, fields)?; fields.push(name.clone()); Some(read) },
+                _ => None,
+            }
+        }
+        let mut fields = Vec::new();
+        let read = path(value, &mut fields)?;
+        if fields.is_empty() { return None; }
+        let (mut key, roots) = self.point_key(&read)?;
+        key.push("$field".into()); key.extend(fields);
+        Some((key, roots))
+    }
+    pub(super) fn narrow_point_field(&mut self, value: &A, present: bool) {
+        let Some((key, roots)) = self.point_field_key(value) else { return; };
+        let Ok((_, ty)) = self.clone().expr(value, &mut setup::Body::default()) else { return; };
+        for root in roots {
+            let Some(mut binding) = self.binding(&root).cloned() else { return; };
+            binding.fields.insert(key.clone(), if present { ty.required() } else { Ty::Null });
+            self.scopes.last_mut().unwrap().insert(root, binding);
+        }
+    }
+    pub(super) fn point_field_refinement(&self, value: &A) -> Option<Ty> {
+        let (key, roots) = self.point_field_key(value)?;
+        let mut common = None;
+        for root in roots {
+            let ty = self.binding(&root)?.fields.get(&key)?.clone();
+            if common.as_ref().is_some_and(|known| *known != ty) { return None; }
+            common = Some(ty);
+        }
+        common
+    }
     pub(super) fn point_present(&self, read: &ReadExpr) -> bool {
         self.point_key(read).is_some_and(|(key, roots)| roots.iter().all(|root|
             self.binding(root).is_some_and(|binding| binding.fields.get(&key) == Some(&Ty::Bool))))
@@ -96,6 +131,11 @@ impl Binder<'_> {
             key[0] = LOOKUP_POINT.into();
             roots.iter().all(|root| self.binding(root).is_some_and(|binding| binding.fields.get(&key) == Some(&Ty::Bool)))
         })
+    }
+    pub(super) fn invalidate_point_fields(&mut self) {
+        for scope in &mut self.scopes {for binding in scope.values_mut() {
+            binding.fields.retain(|key,_|!key.iter().any(|part|part=="$field"));
+        }}
     }
     pub(super) fn invalidate_points(&mut self) {
         for scope in &mut self.scopes {
@@ -132,7 +172,7 @@ impl Binder<'_> {
             for binding in scope.values_mut() {
                 binding.fields.retain(|key, _| match key.first().map(String::as_str) {
                     Some(LOOKUP_POINT) => false,
-                    Some(POINT) => safe && key.get(1) == Some(table) && key.get(2)
+                    Some(POINT) => !key.iter().any(|part|part=="$field") && safe && key.get(1) == Some(table) && key.get(2)
                         .and_then(|index| definition.index(index)).is_some_and(|index|
                             !fields.iter().any(|field| index.columns().contains(&field.name)
                                 || key.iter().skip(3).any(|part| part.starts_with(&format!("Some({:?}):", field.name))))),
