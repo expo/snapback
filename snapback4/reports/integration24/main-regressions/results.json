@@ -1,0 +1,42 @@
+{
+  "base": "1212ff7aa57fe973d324e6407942c59113d9a8a4",
+  "completeChangedCoreCliExit": 101,
+  "failedTests": [
+    "committer_ratchet",
+    "admission_survives_closed_stderr",
+    "admission_survives_full_stderr"
+  ],
+  "completeClientPool": {
+    "groups": 431,
+    "tests": 7935,
+    "pass": 7877,
+    "fail": 2,
+    "skip": 56,
+    "failedFiles": [
+      "overload-browser.test.mjs",
+      "upload-retry.test.mjs"
+    ]
+  },
+  "completeModels": {
+    "pass": 89,
+    "fail": 0,
+    "skip": 0
+  },
+  "postPoolSourceClean": true,
+  "patchedPreviewRust": {
+    "pass": 5,
+    "fail": 0
+  },
+  "patchedBrowserUploadFiles": {
+    "pass": 36,
+    "fail": 0,
+    "skip": 0
+  },
+  "previewFirstClientAttempt": "Missing ignored Wasm artifact in archived source, not a pass; complete corrected attempt retained.",
+  "reviews": {
+    "muse": "READY",
+    "freshCodex": "READY"
+  },
+  "packedRun": "Superseded and deliberately stopped, never counted as a pass.",
+  "pending": "Complete five-crate and all required final qualification after this fix."
+}

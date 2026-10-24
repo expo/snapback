@@ -1,0 +1,25 @@
+{
+  "dateUTC": "2026-10-24T06:15:25.156406+00:00",
+  "family": "muse",
+  "requestedModel": "muse-spark-1.3-contributor",
+  "reasoningEffort": "high",
+  "baseSource": "1212ff7aa57fe973d324e6407942c59113d9a8a4",
+  "patchSha256": "81483a045c8e77dc24bd1ec532ac59c666cd1d799ae7dca78f4a4194cab78e94",
+  "briefSha256": "6435a16d0929d4c015ca4d0d74818adc953ad5f1ffc065029eb9d455f88a1b70",
+  "freshIndependentReview": true,
+  "exit": 0,
+  "verbatimOutput": "main-fix-review-muse.txt",
+  "fallback": "Wrapper reported Meta API fallback after plan429; no key file read by integration agent.",
+  "verbatimArtifact": "3000.009.001.000.000-integ24-main-regressions-muse.md",
+  "originalCapture": "/home/ccheever/sb4-loop/integ24/main-fix-review-muse.txt",
+  "command": [
+    "/home/ccheever/sb4-loop/muse-exec.sh",
+    "--yolo",
+    "--model",
+    "muse-spark-1.3-contributor",
+    "--reasoning-effort",
+    "high",
+    "--prompt-file",
+    "/home/ccheever/sb4-loop/integ24/main-fix-review-brief.txt"
+  ]
+}

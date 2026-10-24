@@ -1,0 +1,11 @@
+{
+  "source": "1212ff7aa57fe973d324e6407942c59113d9a8a4",
+  "unchanged": true,
+  "artifacts": {
+    "snapback4/target/integ24-wave26-main-bin/snapback4": "5710a284a039741c4365705c27cc92bac1889ae56bf1ebc09002fe7ac410ca8f",
+    "snapback4/target/debug/snapback4": "5710a284a039741c4365705c27cc92bac1889ae56bf1ebc09002fe7ac410ca8f",
+    "snapback4/packages/snapback4/src/wasm/snapback4_device_bg.wasm": "6da633219f10f17b3533d104750496d2e9815b5cc4b35b4432c9378b3dd6e4d4",
+    "snapback4/packages/snapback4/dist/proof.js": "98bf75afd6b61a08afe537ab9963394a48550c4efae48458ae88318d3abc34d3",
+    "snapback4/packages/snapback4/dist/proof-process.js": "83acfe7c055041de3a9268600cba7db761effa6e53f57e30052237cfbc00f038"
+  }
+}

@@ -105245,3 +105245,24 @@ The 738,490-byte budget remains measurement plus exactly 500 bytes. Device
 families and server-only absence checks pass. The main serving and PostgreSQL
 delta receives separate changed-input qualification before nonforce delivery;
 no passing result is inferred from the automatic merge.
+
+
+### Integration 24: preserve committer ownership and saturate current admission
+
+The final main merge exposed three Rust regressions and two client-file failures.
+Request-planned physical transaction selection now stays inside `Committer`;
+member admission, post-lock replay, frame disposition, durable COMMIT and
+continuations retain their previous order. The structural ratchet recognizes
+`request_write_transaction` and its allowlist is unchanged. Three saturation
+fixtures now fill the accepted 128+98+1+1 connection reservation (228), retaining
+stderr faults, four retries, CORS, recovery and original deadlines. The separate
+32-worker replay witness is unchanged.
+
+An isolated tracked-source copy passes all five affected Rust cases and both
+complete browser/upload files (36 passes, no skips). Muse and a fresh Codex
+review independently return READY. Both reviews are preserved verbatim with
+provenance under llp/reviews. The merged-main complete client pool had 7,877
+passes, two failures and 56 declared skips; both full models passed 89/89 and
+source status was empty. Its incomplete packed run is explicitly superseded,
+not counted as passing. The complete five-crate and final consumer/platform
+qualification follow this fix; no capacity, deadline or allowlist is raised.

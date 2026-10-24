@@ -195,6 +195,20 @@ impl Committer {
         Self::run_transaction(store.transaction()?, member)
     }
 
+    // @ref LLP 3000.009.001.000.000#3.7 — the driver owns BEGIN and COMMIT, including request-planned transactions.
+    pub(crate) fn run_request_pending<T, D>(
+        store: &mut AnyStore,
+        request: Option<(&str, &str, Option<&str>)>,
+        member: Member<impl FnOnce(MemberTx<'_, '_>) -> MemberResult<Pending<T, D>>>,
+    ) -> Result<Resolution<T, D>, RuntimeError> {
+        match request {
+            Some((digest, viewer, op)) => Self::run_transaction(
+                store.request_write_transaction(digest, viewer, op)?, member,
+            ),
+            None => Self::run_pending(store, member),
+        }
+    }
+
     pub(crate) fn run_transaction<T, D>(
         tx: AnyTx<'_>,
         member: Member<impl FnOnce(MemberTx<'_, '_>) -> MemberResult<Pending<T, D>>>,

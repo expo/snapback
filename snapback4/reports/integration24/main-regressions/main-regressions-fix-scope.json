@@ -1,0 +1,13 @@
+{
+  "base": "1212ff7aa57fe973d324e6407942c59113d9a8a4",
+  "patchSha256": "81483a045c8e77dc24bd1ec532ac59c666cd1d799ae7dca78f4a4194cab78e94",
+  "files": [
+    "snapback4/crates/snapback4-core/src/engine/committer.rs",
+    "snapback4/crates/snapback4-core/src/engine/mutation.rs",
+    "snapback4/crates/snapback4/tests/committer_ratchet.rs",
+    "snapback4/crates/snapback4/tests/overload.rs",
+    "snapback4/packages/snapback4/test/overload-browser.test.mjs",
+    "snapback4/packages/snapback4/test/upload-retry.test.mjs"
+  ],
+  "scope": "Committer ownership of planned request transaction selection and saturation fixtures matching the already-accepted 228 connection capacity. No allowlist, deadline or admission-cap increases."
+}

@@ -1,0 +1,15 @@
+{
+  "source": "1212ff7aa57fe973d324e6407942c59113d9a8a4",
+  "reason": "Superseded after complete Core/CLI run and client pool found structural committer and stale 130-versus-228 saturation fixture failures; reviewed isolated fixes pass. This partial packed run is not a pass.",
+  "rootPids": [
+    3009955
+  ],
+  "ownedDescendantsSignalled": [
+    3009955,
+    3498343,
+    3498344,
+    3509025,
+    3509032
+  ],
+  "liveSurvivors": []
+}

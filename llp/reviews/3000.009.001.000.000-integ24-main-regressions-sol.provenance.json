@@ -1,0 +1,26 @@
+{
+  "dateUTC": "2026-10-24T06:15:25.157273+00:00",
+  "family": "sol",
+  "requestedModel": "gpt-6.1-sol",
+  "reasoningEffort": "high",
+  "baseSource": "1212ff7aa57fe973d324e6407942c59113d9a8a4",
+  "patchSha256": "81483a045c8e77dc24bd1ec532ac59c666cd1d799ae7dca78f4a4194cab78e94",
+  "briefSha256": "6435a16d0929d4c015ca4d0d74818adc953ad5f1ffc065029eb9d455f88a1b70",
+  "freshIndependentReview": true,
+  "exit": 0,
+  "verbatimOutput": "main-fix-review-sol.txt",
+  "fallback": null,
+  "verbatimArtifact": "3000.009.001.000.000-integ24-main-regressions-sol.md",
+  "originalCapture": "/home/ccheever/sb4-loop/integ24/main-fix-review-sol.txt",
+  "command": [
+    "codex",
+    "exec",
+    "-m",
+    "gpt-6.1-sol",
+    "-c",
+    "model_reasoning_effort=high",
+    "--skip-git-repo-check",
+    "--dangerously-bypass-approvals-and-sandbox",
+    "-"
+  ]
+}

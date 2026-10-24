@@ -33,6 +33,7 @@ fn write_opener(tokens: &[Token<'_>]) -> bool {
             matches!(
                 t.text,
                 "transaction"
+                    | "request_write_transaction"
                     | "transaction_with_behavior"
                     | "unchecked_transaction"
                     | "authority_transaction"
@@ -197,6 +198,7 @@ fn committer_ratchet() {
 fn matcher_separates_writers_snapshots_literals_and_test_modules() {
     for call in [
         "transaction",
+        "request_write_transaction",
         "transaction_with_behavior",
         "unchecked_transaction",
         "authority_transaction",

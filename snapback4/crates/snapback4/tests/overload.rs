@@ -9,7 +9,7 @@ fn admission_survives_closed_stderr() { check(false); }
 #[test]
 fn admission_survives_full_stderr() { check(true); }
 fn check(full: bool) {
-        // Both cases hold 130 sockets; overlapping them exceeds macOS's
+        // Both cases hold 228 sockets; overlapping them exceeds macOS's
         // ordinary 256-descriptor test-process limit before exercising the server.
         static SOCKETS: std::sync::Mutex<()> = std::sync::Mutex::new(());
         let _sockets = SOCKETS.lock().unwrap();
@@ -39,8 +39,9 @@ fn check(full: bool) {
             // this is the original full-pipe failure, not a nonblocking fake.
             unsafe { libc::fcntl(writer.as_raw_fd(), libc::F_SETFL, 0); }
         } else { drop(reader); }
-        // The connection cap is 128 plus the long-wait pools (here 1 + 1).
-        let held: Vec<_> = (0..130).map(|_| TcpStream::connect(address).unwrap()).collect();
+        // The connection cap reserves 128 intake slots, 98 queued short requests,
+        // and the long-wait pools (here 1 + 1): 228 total.
+        let held: Vec<_> = (0..228).map(|_| TcpStream::connect(address).unwrap()).collect();
         thread::sleep(Duration::from_millis(100));
         for i in 0..9 {
             if i == 8 { thread::sleep(Duration::from_millis(1250)); } // summary writer has attempted the faulty pipe

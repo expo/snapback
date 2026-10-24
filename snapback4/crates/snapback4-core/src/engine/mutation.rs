@@ -100,12 +100,11 @@ impl Engine {
                 Err(error) => Err(error),
             }.map(MutationAcknowledgement::unpublished);
         }
-        Committer::run_with(self, |engine| {
-            let physical = match digest {
-                Some(digest) => engine.store.request_write_transaction(digest,&context.viewer,op)?,
-                None => engine.store.transaction()?,
-            };
-            Committer::run_transaction(physical, Member::new(Kind::Program, |tx| {
+        let request = digest.map(|digest| (digest, context.viewer.clone(), op));
+        Committer::run_with(self, |engine| Committer::run_request_pending(
+            &mut engine.store,
+            request.as_ref().map(|(digest, viewer, op)| (*digest, viewer.as_str(), *op)),
+            Member::new(Kind::Program, |tx| {
             if let Some(check) = authority.as_mut() { check(&tx)?; validate::write_identity(&context.viewer, op)?; }
             // @ref LLP 3000.009.001.000.001#35-each-command-keeps-its-own-place — a later command observes a receipt committed during the head-lock wait.
             if let Some(op) = op
@@ -243,7 +242,7 @@ impl Engine {
                 _ => None,
             };
             tx.complete((MutationAcknowledgement::unpublished(outcome), Some((entropy, publication))))
-        }).pending(|(outcome, entropy)| Pending::new(outcome, entropy))) }, |engine, data, mut ack| {
+        }).pending(|(outcome, entropy)| Pending::new(outcome, entropy))), |engine, data, mut ack| {
             // @ref LLP 3000.009.001.000.000#3.7 — entropy advances only in the durable member's continuation.
             if let Some((entropy, publication)) = data { engine.entropy = entropy; ack.publication = publication; }
             Ok(ack)
