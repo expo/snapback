@@ -213,7 +213,19 @@ fn campaign(s:&str)->Campaign{let b=security::derived::augmented(&sources(s),&bo
     assert!(notes(source).iter().any(|n|n.code=="N_CALLER_TIME"&&n.message.contains("one side")));
     let bounded=source.replace("  require at <=","  require at >= w.startsAt else TOO_EARLY\n  require at <=");
     assert!(!notes(&bounded).iter().any(|n|n.code=="N_CALLER_TIME"&&n.message.contains("one side")));
-    let source="table handles:\n  owner: principal\n  name: text\n  unique name\n  read <- .owner = viewer\n  insert <- .owner = viewer\n  online only\n";
+    let source="table handles:\n  owner: principal\n  name: text <=100\n  unique name\n  read <- .owner = viewer\n  insert <- .owner = viewer\n  online only\n";
     assert!(notes(source).iter().any(|n|n.code=="N_UNIQUE_HIDDEN"&&n.message.contains("global unique")));
     assert!(!notes(&source.replace("unique name","unique owner,name")).iter().any(|n|n.code=="N_UNIQUE_HIDDEN"&&n.message.contains("global unique")));
+}
+
+#[test]fn absence_and_unrelated_child_reads_do_not_consume_parent_approval(){
+    let source="table docs:\n  approvedAt: time ?\n  read <- allow\n  update <- allow\n  online only\ntable effects:\n  doc: docs\n  unique doc\n  read <- allow\n  insert <- allow\n  online only\nmutation approve(doc: docs):\n  require not exists effects[doc = doc] else ALREADY_DONE\n  update docs[doc] {approvedAt:now}\nmutation work(doc: docs):\n  return insert effects {doc}\n";
+    assert!(notes(source).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
+    let unrelated=source.replace("approve(doc: docs)","approve(doc: docs,other: docs)").replace("not exists effects[doc = doc]","exists effects[doc = other]");
+    assert!(notes(&unrelated).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
+}
+#[test]fn approval_input_dependencies_are_on_the_actual_guarded_row(){
+    let source="table parts:\n  value: text ?\n  read <- allow\n  online only\ntable docs:\n  part: parts\n  value: text ?\n  approved: bool default false\n  read <- allow\n  update <- allow\n  online only\nmutation approve(doc: docs):\n  d = docs[doc] ! else MISSING\n  p = parts[d.part] ! else MISSING\n  require p.value != null else EMPTY\n  update docs[id = doc] {approved:true}\nmutation edit(doc: docs,value: text ?):\n  update docs[doc] {value}\n";
+    let candidates=security::derived::invariants(&sources(source),&bound(source));
+    assert!(!candidates.iter().any(|i|i.table=="docs"&&i.column.as_deref()==Some("value")),"{candidates:?}");
 }

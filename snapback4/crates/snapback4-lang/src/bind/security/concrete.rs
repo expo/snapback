@@ -102,7 +102,7 @@ pub(super) fn limitations(expr:&Expr,schema:&Schema,table:&str)->BTreeSet<String
     });out
 }
 
-fn reference_table<'a>(expr:&Expr,schema:&'a Schema,table:&'a str)->Option<&'a str>{
+pub(super) fn reference_table<'a>(expr:&Expr,schema:&'a Schema,table:&'a str)->Option<&'a str>{
     match expr {
         Expr::Focal{..}=>Some(table),
         Expr::Member{base,name,..}=>{
