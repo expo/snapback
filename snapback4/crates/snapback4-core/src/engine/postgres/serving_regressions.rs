@@ -4,6 +4,108 @@ use std::collections::BTreeMap;
 
 #[test]
 #[ignore = "private PG16"]
+fn rt6_fix2_nullable_dependent_probe_is_absent() {
+    let source = r#"use identity
+table parents:
+  read <- viewer = 'alice'
+  online only
+table notes:
+  parent: parents ?
+  owner: principal
+  read <- .owner = viewer or (.parent != null and exists parents[id = .parent])
+  online only
+query note(key: id):
+  return notes[key]
+"#;
+    let b = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
+    assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+    let schema: crate::Schema = serde_json::from_value(serde_json::to_value(b.schema).unwrap()).unwrap();
+    let programs: Vec<crate::Program> = b.programs.into_iter().map(|p| serde_json::from_value(serde_json::to_value(p.program).unwrap()).unwrap()).collect();
+    let mut sqlite = Engine::new_at(AnyStore::memory().unwrap(), schema.clone(), programs.clone(), 1000).unwrap();
+    let mut pg = Engine::new_at(AnyStore::create_postgres(&url(), &format!("rt6_null_{:x}", crate::ids::seed())).unwrap(), schema, programs, 1000).unwrap();
+    for e in [&mut sqlite, &mut pg] {
+        e.seed([("notes".into(), crate::value::object([
+            ("id", Value::Id("n".into())), ("parent", Value::Null), ("owner", Value::Id("alice".into())),
+        ]))]).unwrap();
+    }
+    for viewer in ["alice", "bob"] {
+        let mut outcomes = Vec::new();
+        for e in [&mut sqlite, &mut pg] {
+            let token = identity::open_session(e.store(), viewer, "guest", 1000).unwrap().token;
+            let digest = identity::session_digest(&token);
+            let mut rows = Vec::new();
+            for key in ["n", "missing"] {
+                let out = e.query_materialized_search_with_request("note", Context::new(viewer, [("key".into(), Value::Id(key.into()))].into()).at(1000).with_request_credential("guest"), None, DeliveryManifest::Skip, &digest, |s, _| {
+                    assert!(s.request_authority(&digest, sample())?.capability.is_some());
+                    Ok(())
+                }).0.unwrap();
+                if viewer == "bob" || key == "missing" { assert_eq!(out.data, Value::Null); }
+                else { assert_eq!(out.data.field("id").unwrap(), &Value::Id("n".into())); }
+                rows.push(out);
+            }
+            outcomes.push(rows);
+        }
+        assert_eq!(outcomes[0], outcomes[1], "{viewer}: complete outcomes and meters");
+    }
+}
+
+#[test]
+#[ignore = "private PG16"]
+fn rt6_fix2_settings_operators_are_catalog_qualified() {
+    let (_, mut observer, name, _) = fixture();
+    let shadow = super::super::shadows(&mut observer);
+    observer.batch_execute(&format!("CREATE FUNCTION {shadow}.never_different(pg_catalog.text,pg_catalog.text) RETURNS pg_catalog.bool LANGUAGE sql AS 'SELECT false'; CREATE OPERATOR {shadow}.<> (LEFTARG=pg_catalog.text, RIGHTARG=pg_catalog.text, FUNCTION={shadow}.never_different)")).unwrap();
+    let mut client = Client::connect(&url(), NoTls).unwrap();
+    client.batch_execute(&format!("SET search_path={shadow},{name},pg_catalog")).unwrap();
+    let mut store = super::super::super::store::Store::new(client);
+    let owner = store.transaction(Some(super::super::super::store::WriteMode::Serialized)).unwrap();
+    let tx = &owner;
+    tx.batch("SET LOCAL extra_float_digits=0").unwrap();
+    let result = tx.query("SELECT nextval('_rt6_after_failure')", &[]);
+    assert!(result.is_err(), "shadow operator bypassed settings guard");
+    assert!(owner.commit().is_err());
+    no_later(&mut observer);
+}
+
+#[test]
+#[ignore = "private PG16"]
+fn rt6_fix2_empty_pending_bind_checks_settings() {
+    let (mut e, mut observer, _, _) = fixture();
+    for path in ["query", "execute", "fold"] {
+        let owner = e.store_mut().transaction().unwrap();
+        let tx = owner.test_postgres_tx();
+        tx.batch("SET LOCAL client_encoding='SQL_ASCII'").unwrap();
+        let sql = "SELECT nextval('_rt6_after_failure')::pg_catalog.numeric";
+        let refused = match path {
+            "query" => tx.query(sql, &[]).is_err(),
+            "execute" => tx.execute(sql, &[]).is_err(),
+            _ => tx.query_fold(sql, &[], (), |(), _| Ok(())).is_err(),
+        };
+        assert!(refused, "unguarded Bind {path} with empty pending buffer");
+        assert!(owner.commit().is_err());
+        no_later(&mut observer);
+    }
+}
+
+#[test]
+#[ignore = "private PG16"]
+fn rt6_fix2_name_and_varchar_use_bind() {
+    use postgres::types::Type;
+    for ty in [Type::NAME, Type::VARCHAR, Type::NAME_ARRAY, Type::VARCHAR_ARRAY] {
+        assert!(!super::super::super::flight::text_type(&ty), "{ty} must use Bind");
+    }
+    let (mut e, _, _, _) = fixture();
+    let owner = e.store_mut().read_transaction().unwrap();
+    for sql in ["SELECT 'a'::pg_catalog.name", "SELECT 'a'::pg_catalog.varchar(4)"] {
+        let rows = owner.test_postgres_tx().query(sql, &[]).unwrap();
+        assert!(matches!(rows[0], super::super::super::flight::Row::Bind(_)));
+        assert_eq!(rows[0].get::<_, String>(0), "a");
+    }
+    owner.rollback().unwrap();
+}
+
+#[test]
+#[ignore = "private PG16"]
 fn rt6_fix1_read_shapes_match_sqlite() {
     let source = r#"use identity
 table notes:
@@ -23,6 +125,14 @@ query existsLookup():
   return exists notes[label = 'c']
 query firstId():
   return notes first 2 by .id
+query zeroId():
+  return notes first 1 by .id
+query zeroAt():
+  return notes first 1 by .at, .id
+query beforeId(c: cursor ?):
+  return notes first 2 by .id after c
+query beforeAt(c: cursor ?):
+  return notes last 2 by .at, .id after c
 query lastId():
   return notes last 2 by .id
 query firstAt():
@@ -49,7 +159,20 @@ query pointAndRange():
     let programs: Vec<crate::Program> = b
         .programs
         .into_iter()
-        .map(|p| serde_json::from_value(serde_json::to_value(p.program).unwrap()).unwrap())
+        .map(|p| {
+            let mut program: crate::Program = serde_json::from_value(serde_json::to_value(p.program).unwrap()).unwrap();
+            // Quarry exposes nonzero after pages. Exercise the retained IR
+            // zero/before paths without adding an authoring surface.
+            if matches!(program.name.as_str(), "beforeId" | "beforeAt") {
+                let crate::ir::Stmt::Return(crate::ir::Expr::Scan(scan)) = &mut program.body[0] else { panic!("expected bare page") };
+                scan.before = scan.after.take();
+            }
+            if matches!(program.name.as_str(), "zeroId" | "zeroAt") {
+                let crate::ir::Stmt::Return(crate::ir::Expr::Scan(scan)) = &mut program.body[0] else { panic!("expected bare page") };
+                scan.take = crate::ir::Bound::Literal(0);
+            }
+            program
+        })
         .collect();
     let name = format!("rt6_shapes_{:x}", crate::ids::seed());
     let mut pg = Engine::new_at(
@@ -138,6 +261,10 @@ query pointAndRange():
                 ("lastId", BTreeMap::new(), true),
                 ("firstAt", BTreeMap::new(), true),
                 ("lastAt", BTreeMap::new(), true),
+                ("zeroId", BTreeMap::new(), true),
+                ("zeroAt", BTreeMap::new(), true),
+                ("beforeId", [("c".into(), Value::Null)].into(), false),
+                ("beforeAt", [("c".into(), Value::Null)].into(), false),
                 ("cursorId", [("c".into(), Value::Null)].into(), false),
                 ("cursorAt", [("c".into(), Value::Null)].into(), false),
                 ("cursorIdLast", [("c".into(), Value::Null)].into(), false),
@@ -212,6 +339,12 @@ query pointAndRange():
                     left.next.clone().map(Value::String).unwrap_or(Value::Null),
                     right.next.clone().map(Value::String).unwrap_or(Value::Null),
                 ];
+                if left.next.is_some() {
+                    let before = if op.contains("Id") { "beforeId" } else { "beforeAt" };
+                    let l = query(&mut sqlite, &digests[0][0], "alice", before, [("c".into(), cursors[0].clone())].into());
+                    let r = query(&mut pg, &digests[1][0], "alice", before, [("c".into(), cursors[1].clone())].into());
+                    assert_eq!(l, r, "{before} populated={populated} page={page}");
+                }
                 if left.next.is_none() && right.next.is_none() {
                     break;
                 }

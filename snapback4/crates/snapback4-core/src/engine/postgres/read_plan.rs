@@ -183,6 +183,8 @@ fn probes(s: &Schema,t: &str,fields: &BTreeMap<String,Value>, viewer: &str) -> O
                 // This slice plans one rule-probe level. Nested probes fall back.
                 if has_probe(&s.table(table)?.rules.read) { return None; }
                 let values = key.iter().map(|t| match t { RuleTerm::Field(n) => f.get(n).cloned(), RuleTerm::Viewer => Some(Value::Id(v.into())), RuleTerm::Literal(x)=>Some(x.clone()), _=>None }).collect::<Option<Vec<_>>>()?;
+                // @ref LLP 3000.013#2.2 — null unique probes are absent before any physical access, as in witness::probe_witness.
+                if values.contains(&Value::Null) && s.table(table)?.index(index)?.unique { return Some(()); }
                 out.push(Access::point(table,index,&values)?);
             },
             RuleExpr::Created {..} => return None,

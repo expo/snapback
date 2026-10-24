@@ -463,7 +463,7 @@ impl Tx<'_> {
         }
         self.guard_params(&statement, params)?;
         let mut inner = self.inner.borrow_mut();
-        inner.flush(self.calls)?;
+        inner.before_bind(self.calls)?;
         self.calls.set(self.calls.get() + 1);
         Ok(inner.client.query(&statement, params)?.into_iter().map(Row::Bind).collect())
     }
@@ -543,7 +543,7 @@ impl Tx<'_> {
         self.guard_params(&statement,params)?;
         self.calls.set(self.calls.get() + 1);
         let mut inner = self.inner.borrow_mut();
-        inner.flush(self.calls)?;
+        inner.before_bind(self.calls)?;
         let mut rows = inner.client.query_raw(&statement, params.iter().copied())?;
         while let Some(row) = rows.next()? {
             total = fold(total, Row::Bind(row))?;
@@ -559,7 +559,7 @@ impl Tx<'_> {
         }
         self.guard_params(&statement, params)?;
         let mut inner = self.inner.borrow_mut();
-        inner.flush(self.calls)?;
+        inner.before_bind(self.calls)?;
         self.calls.set(self.calls.get() + 1);
         Ok(inner.client.execute(&statement, params)?)
     }

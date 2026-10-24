@@ -33,7 +33,7 @@ impl Session<'_> {
     // application values enter this constant control command.
     fn guarded_query(&mut self, sql: &str) -> Result<Vec<SimpleQueryMessage>, RuntimeError> {
         self.ensure_settings()?;
-        const GUARD: &str = "DO $sb4_settings$ BEGIN IF pg_catalog.current_setting('client_encoding') <> 'UTF8' OR pg_catalog.current_setting('extra_float_digits') <> '3' OR pg_catalog.current_setting('bytea_output') <> 'hex' THEN RAISE EXCEPTION 'Postgres flight output settings drifted' USING ERRCODE = 'S4001'; END IF; END $sb4_settings$;";
+        const GUARD: &str = "DO $sb4_settings$ BEGIN IF pg_catalog.current_setting('client_encoding') OPERATOR(pg_catalog.<>) 'UTF8' OR pg_catalog.current_setting('extra_float_digits') OPERATOR(pg_catalog.<>) '3' OR pg_catalog.current_setting('bytea_output') OPERATOR(pg_catalog.<>) 'hex' THEN RAISE EXCEPTION 'Postgres flight output settings drifted' USING ERRCODE = 'S4001'; END IF; END $sb4_settings$;";
         let mut command = String::with_capacity(GUARD.len() + sql.len());
         // An aborted transaction accepts only rollback. These recovery flights
         // contain controls alone: restore the savepoint before checking settings,
@@ -65,6 +65,14 @@ impl Session<'_> {
         let command = std::mem::take(&mut self.pending);
         let messages = match self.guarded_query(&command) { Ok(m)=>m,Err(e)=>{self.checks.clear();return Err(e);} };
         self.validate(&messages)
+    }
+    /// Bind has its own output path, but client_encoding still applies. With
+    /// no deferred controls, send the guard explicitly before allowing Bind.
+    pub fn before_bind(&mut self, calls: &CallCounter) -> Result<(), RuntimeError> {
+        if !self.pending.is_empty() { return self.flush(calls); }
+        calls.set(calls.get() + 1);
+        self.guarded_query("")?;
+        Ok(())
     }
     pub fn validate(&mut self, messages: &[SimpleQueryMessage]) -> Result<(),RuntimeError> {
         let counts: Vec<_> = messages.iter().filter_map(|m| if let SimpleQueryMessage::CommandComplete(n) = m {Some(*n)} else {None}).collect();
@@ -156,7 +164,7 @@ fn binary(ty: &Type, value: &literal::Datum) -> Result<Option<Vec<u8>>, RuntimeE
 pub(super) const SCRATCH_LIMIT: usize = 256 << 20;
 pub(super) const ENCODED_LIMIT: usize = SCRATCH_LIMIT / 8;
 pub(super) fn text_type(t: &Type) -> bool {
-    matches!(*t, Type::VOID | Type::BOOL | Type::INT2 | Type::INT4 | Type::INT8 | Type::FLOAT4 | Type::FLOAT8 | Type::TEXT | Type::BYTEA | Type::NAME | Type::VARCHAR)
+    matches!(*t, Type::VOID | Type::BOOL | Type::INT2 | Type::INT4 | Type::INT8 | Type::FLOAT4 | Type::FLOAT8 | Type::TEXT | Type::BYTEA)
         || matches!(t.kind(), postgres::types::Kind::Array(element) if text_type(element))
 }
 pub(super) struct ResultSet { pub rows: Vec<Row>, pub count: u64 }

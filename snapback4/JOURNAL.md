@@ -104596,3 +104596,35 @@ socket-path startup PID 2227751 is absent. Recorded owned identities and lane
 executable/data-directory scans have no survivors. PIDs left: none. The 22 GiB
 shared-host stop floor is never reached. Data and evidence remain outside Git;
 no raw logs, push, stash or persistent Git configuration change.
+
+## 2026-10-24 — RT6 fix round 2: nullable probes and codec guards
+
+Commissioned follow-up to Sol's P1/P2 and Grok's nits on `0c1d00f75b`.
+Deferred null unique rule addresses are absent, matching `probe_witness`, so
+Alice receives the null-parent note and Bob receives null for hidden and
+absent ids. The entire authorized outcome agrees with SQLite. The settings
+guard qualifies all three comparison operators through `pg_catalog`; a
+hostile schema's always-false text `<>` cannot bypass it. Empty-buffer binary
+query, execute and fold paths check settings before Bind, and drift still
+prevents COMMIT. `NAME`/`VARCHAR`, their arrays and `BPCHAR` retain Bind.
+The shape oracle adds zero-length primary/secondary pages and actual `before`
+cursors through retained IR; Quarry intentionally rejects these spellings.
+
+Four new witnesses fail with unchanged baseline production: null probes return
+`E_STORE("incomplete physical read plan")`, an operator shadow permits the
+sentinel, empty-buffer Bind accepts drift, and `NAME` uses text decoding.
+The corrected writer operator fixture establishes the bypass (the initial
+read-only fixture refused `nextval` for an unrelated reason). All 30 affected
+codec/serving witnesses pass after the fixes, including the extended shape
+oracle and every existing writer-failure boundary. Build, full default core
+(1,120 tests plus one subprocess check; five named ignores), both unchanged
+RT0 ratchets and repository-root ref-check (566 LLPs) pass. Full core takes
+764.60 s. An initial ref-check from the wrong cwd falsely found no LLP corpus;
+the root invocation is clean.
+
+Evidence stays outside Git in the commissioned `rt6g4a` scratch directory;
+its `rt6-witnesses.md`, before/after logs, command receipts and PID records
+preserve both fixture corrections. PG16 PID 1459278, socket directory
+`/tmp/rt6g4a-hja_khbn`, remains owned for the immediately following G4a work;
+final shutdown/absence will be recorded there. The shared-host stop floor is
+not reached. No push, stash, persistent Git configuration change or raw logs.
