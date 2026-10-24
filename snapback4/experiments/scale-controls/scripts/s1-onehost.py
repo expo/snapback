@@ -205,9 +205,16 @@ def make_runner(base):
                 self.sqlpg(f'CREATE ROLE {role} {opts}')
             self.sqlpg("GRANT anon,authenticated,service_role TO authenticator; ALTER ROLE anon SET statement_timeout='3s'; ALTER ROLE authenticated SET statement_timeout='8s'; ALTER ROLE authenticator SET statement_timeout='8s'")
             (self.out/'postgres-settings.txt').write_text(self.sqlpg("SELECT version(); SELECT name,setting,unit FROM pg_settings WHERE name IN ('listen_addresses','port','fsync','synchronous_commit','full_page_writes','shared_buffers','max_connections','min_wal_size','max_wal_size','shared_preload_libraries','wal_sync_method','jit','track_io_timing','track_wal_io_timing','pg_stat_statements.track') ORDER BY name"))
+            binaries={}
+            if self.args.system=='snapback':binaries=dict(snapback=Path(self.args.snapback_bin),seed=Path(self.args.seed_bin))
+            elif self.args.system=='supabase':binaries=dict(postgrest=supabase.POSTGREST)
+            elif self.args.system=='convex':
+                import convex
+                binaries=dict(convex=convex.BACKEND)
             write(self.out/'ownership.json',dict(source_commit=sp.check_output(['git','rev-parse','HEAD'],text=True).strip(),system=self.args.system,
                 binary_sha256=hashlib.sha256(run.BIN.read_bytes()).hexdigest(),
-                source_sha256={str(p.relative_to(HERE)):hashlib.sha256(p.read_bytes()).hexdigest() for p in [*sorted((HERE/'scripts').glob('*.py')),*sorted((HERE/'src').glob('*.rs')),*sorted(HERE.glob('*.sql')),HERE/'supabase.conf',HERE/'postgresql.conf.delta']},
+                target_binary_sha256={name:hashlib.sha256(path.read_bytes()).hexdigest() for name,path in binaries.items()},
+                source_sha256={str(p.relative_to(HERE)):hashlib.sha256(p.read_bytes()).hexdigest() for p in [*sorted((HERE/'scripts').glob('*.py')),*sorted((HERE/'src').glob('*.rs')),*sorted(HERE.glob('*.sql')),HERE/'supabase.conf',HERE/'postgresql.conf.delta',HERE/'Cargo.toml',HERE/'Cargo.lock',HERE/'postgres-seed/Cargo.toml',HERE/'postgres-seed/Cargo.lock',HERE/'postgres-seed/src/main.rs',HERE/'snapback-app/snapback/schema.q']},
                 pg_cores=PG_CORES,app_cores=APP_CORES,load_cores=LOAD_CORES,method=dict(warmup_ms=self.args.warmup_ms,duration_ms=self.args.duration_ms,repeats=self.args.repeats,extra_read_rates=self.args.extra_read_rates),
                 command=sys.argv,postgres_pid=self.master[0].pid,host=socket.gethostname()))
             (self.out/'host.txt').write_text(sp.check_output(['bash','-c','hostname; uname -a; lscpu; free -m; df -h /home; uptime'],text=True))

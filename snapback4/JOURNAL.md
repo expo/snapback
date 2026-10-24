@@ -107338,3 +107338,11 @@ Read rungs 19,027 and 22,627 are registered in addition to the inherited search.
 The controls use private, socket-only clusters and retain raw data outside Git.
 This entry records the implementation and commission, not measured capacity;
 the complete result and cleanup evidence follow in a dated entry.
+
+### S1-C native adapter setup — 2026-10-24
+
+The seed helper lockfile still named core 0.4.37. An offline refresh changes
+only that local package version to 0.4.38, matching S1-PG4’s documented setup
+repair; every third-party pin remains unchanged. The shared runner also
+records native binary/helper digests and checks both pidfile and socket removal
+after private-cluster shutdown. No workload, tuning or timing change is made.
