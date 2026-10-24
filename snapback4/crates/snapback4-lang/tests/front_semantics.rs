@@ -41,12 +41,12 @@ fn security_and_completeness_advice_share_the_same_sweep_finding() {
 #[test]
 fn sweep_deadline_names_the_exact_row_and_does_not_invent_guard_direction() {
     let n = notes(SWEEP); assert_eq!(n.len(), 1, "{n:?}");
-    for text in ["mutation act", "job closeDue", "row.deadline", "row.closed", "not a proof"] { assert!(n[0].message.contains(text), "{n:?}"); }
+    for text in ["mutation act", "job closeDue", "tickets[id].deadline", "tickets[id].closed", "not a proof"] { assert!(n[0].message.contains(text), "{n:?}"); }
     assert!(n[0].rewrite.contains("opening/closing direction and equality"));
     assert!(!n[0].rewrite.contains("require row.deadline > now"));
     let open = SWEEP.replace("closed", "open").replace("<= now", ">= now").replace("require not row.open", "require row.open");
     assert_eq!(notes(&open).len(), 1, "an opening is not an expiry");
-    for comparison in ["row.deadline > now", "now < row.deadline", "row.deadline >= now", "now <= row.deadline"] {
+    for comparison in ["row.deadline > now", "now < row.deadline"] {
         let guarded = SWEEP.replace("  require not row.closed", &format!("  require {comparison} else EXPIRED\n  require not row.closed"));
         assert!(notes(&guarded).is_empty(), "{comparison}");
     }
@@ -77,7 +77,7 @@ fn a_confirmation_guard_cannot_replace_the_deadline_used_by_its_overdue_sweep() 
         .replace("require not row.closed", "require not row.confirmed")
         .replace("{ closed: false }", "{ confirmed: true }");
     let found = notes(&source); assert_eq!(found.len(), 1, "{found:?}");
-    assert!(found[0].message.contains("tests row.confirmed") && found[0].message.contains("writes column tickets.confirmed") && found[0].message.contains("also tests that column"), "{found:?}");
+    assert!(found[0].message.contains("tests tickets[id].confirmed") && found[0].message.contains("writes column tickets.confirmed") && found[0].message.contains("also tests that column"), "{found:?}");
     let guarded = source.replace("  require not row.confirmed", "  require row.deadline > now else EXPIRED\n  require not row.confirmed");
     assert!(notes(&guarded).is_empty());
     assert!(notes(&source.replace("require not row.confirmed", "require not row.unrelated").replace("{ confirmed: true }", "{ unrelated: true }")).is_empty());
@@ -86,7 +86,27 @@ fn a_confirmation_guard_cannot_replace_the_deadline_used_by_its_overdue_sweep() 
       update tickets[t.id] { closed: true }
     if not t.confirmed:
       continue");
-    let correlation = notes(&separate); assert_eq!(correlation.len(), 1, "{correlation:?}");
-    assert!(correlation[0].message.contains("not a proof of control flow, row identity or safety"), "{correlation:?}");
-    assert!(!correlation[0].message.contains("before its timed status update"));
+    assert!(notes(&separate).is_empty(), "a sibling status guard is not on the timed write path");
+}
+
+#[test]
+fn deadline_guards_must_exclude_the_actual_due_window() {
+ for comparison in ["row.deadline <= now","row.deadline < now","row.deadline >= now","now <= row.deadline"] {
+   let source=SWEEP.replace("  require not row.closed", &format!("  require {comparison} else EXPIRED\n  require not row.closed"));
+   assert_eq!(notes(&source).len(),1,"{comparison}");
+ }
+ let negated=SWEEP.replace("  update tickets[id] { closed: false }","  if not (row.deadline <= now):\n    update tickets[id] { closed: false }");
+ assert!(notes(&negated).is_empty());
+ let sibling=SWEEP.replace("  update tickets[id] { closed: false }","  if row.closed:\n    require row.deadline > now else EXPIRED\n  update tickets[id] { closed: false }");
+ assert_eq!(notes(&sibling).len(),1);
+ let status=SWEEP.replace("closed: bool","closed: enum('requested', 'quoted', 'booked')")
+   .replace("{ closed: true }", "{ closed: 'booked' }").replace("if t.deadline <= now:","if t.closed = 'requested' and t.deadline <= now:")
+   .replace("require not row.closed", "require row.closed = 'quoted'").replace("{ closed: false }","{ closed: 'booked' }");
+ assert!(notes(&status).is_empty());
+}
+#[test]
+fn contradictory_status_on_another_row_does_not_clear_the_deadline_question() {
+ let source=SWEEP.replace("mutation act(id: tickets):", "mutation act(id: tickets, other: tickets):")
+   .replace("  require not row.closed else CLOSED", "  require not row.closed else CLOSED\n  another = tickets[other] ! else MISSING\n  require another.closed else OTHER_OPEN");
+ assert_eq!(notes(&source).len(),1);
 }
