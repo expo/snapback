@@ -1108,6 +1108,32 @@ fn named_single_survivor_fallback_commit_timeouts_are_disabled_postgres() {
     fallback_commit_timeouts(true);
 }
 
+#[cfg(feature = "postgres")]
+#[test]
+#[ignore = "private PG16; scripts/test-postgres.sh"]
+fn accepted_http_age_prevents_a_fresh_fallback_budget_and_keeps_queue_progress() {
+    let mut engine = fixture(true);
+    let before = engine.seq().unwrap();
+    pg_sql(&mut engine, "CREATE SEQUENCE intake_abort; CREATE FUNCTION intake_abort() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF nextval('intake_abort')=1 THEN RAISE EXCEPTION USING ERRCODE='23514'; END IF; RETURN NEW; END $$; CREATE CONSTRAINT TRIGGER intake_abort AFTER INSERT ON r DEFERRABLE INITIALLY DEFERRED FOR EACH ROW WHEN (NEW.t='entries') EXECUTE FUNCTION intake_abort()");
+    let queue = Queue::start(engine, 8).unwrap();
+    let member = |n| {
+        let mut member = intent(19, n);
+        member.context.args.insert("reject".into(), Value::Bool(false));
+        member
+    };
+    // Intake/body time has already spent the fallback allowance. First execution
+    // still runs, but its conclusively aborted COMMIT must not gain a fresh retry.
+    let old = std::time::Instant::now() - Duration::from_secs(1);
+    let result = queue.submit_program(ProgramCommand::new(member(0), |_, out| out)
+        .accepted_at(old)).unwrap().wait().unwrap();
+    assert!(result.is_err(), "expired HTTP intake was retried: {result:?}");
+    assert_eq!(queue.call(Command::new(|e| (e.seq().unwrap(), e.store().count("entries").unwrap()))).unwrap(), (before, 0));
+    let result = queue.submit_program(ProgramCommand::new(member(1), |_, out| out))
+        .unwrap().wait().unwrap().unwrap();
+    assert!(matches!(result.outcome.state, crate::WriteState::Sent { .. }));
+    assert_eq!(queue.call(Command::new(|e| (e.seq().unwrap(), e.store().count("entries").unwrap()))).unwrap(), (before + 1, 1));
+}
+
 fn tail_deadline(pg: bool) {
     use super::fault::{self, Point};
     let mut engine = fixture(pg);

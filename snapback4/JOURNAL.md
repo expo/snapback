@@ -105467,3 +105467,54 @@ logs/profiles/data stay outside Git in `/tmp/sb4-g3b-par/` and the stopped
 public witness `/tmp/s10d3-serve-n9ew0acj/`. No push, stash, Git configuration
 change or unrelated-cluster operation occurs. Final documentation repeats
 `./ref-check`; only summary evidence is committed.
+
+## 2026-10-24 — Write-land integration checkpoint: disk stop, unqualified
+
+On expo-build-450b, `sb4-pg/write-land` starts clean at the required
+`ce9ddd5e54`, the mechanical write-stack rebase onto `480f88e8b4`.
+The workspace build uses this worktree's own `snapback4/target`, ten jobs,
+Postgres features and the requested line-tables-only dev/test profiles.
+Both `cargo build --locked --workspace --all-targets --features postgres -j 10`
+attempts are interrupted by the 35 GiB disk guard; neither completes and
+neither reports a Rust compile error before interruption. The first stop is
+at 34.98 GiB. Deleting only this worktree's `target/debug/incremental` recovers
+2.4 GiB, but the resumed build with incremental compilation disabled reaches
+34.94 GiB. No other artifacts are deleted. Further builds and qualification
+stop pending additional space or an explicit change to the cleanup restriction.
+
+Source inspection finds one admission-clock gap: the durable HTTP route starts
+its private retry allowance at writer submission, after intake/body processing.
+The candidate passes the original `Request::accepted_at()` through `Writer`
+to `ProgramCommand`, retaining the existing first-attempt/uncancellable-COMMIT
+policy while shortening fallback eligibility by the request's actual age.
+A private-PG regression witness forces a known COMMIT abort after an already
+spent intake allowance, requires no retry/durable change, then verifies the
+next queued request commits once. **The candidate and witness have not compiled
+or run; this checkpoint is not a qualified fix.**
+
+Other interaction findings are source review only. Short requests retain their
+own 30-worker/98-waiter admission and original intake/body deadlines; mutations
+use their separate 32-worker class and the FIFO program mailbox. The RT6
+settings guard precedes data flights; installing a program budget invalidates
+prepared COMMIT settings, and tail/commit code orders both timeout resets after
+budget controls. G3b's immutable wave facts and private worker overlays are
+separate from G4a's transaction-local read answers; both pass values through
+the shared literal encoder. Log-plan hygiene removes only the recognized legacy
+FK, while vector tail and overlay apply independently check their returned
+counts. None of these source observations establishes a passing integration
+verdict. The existing queue, timeout-trigger, read-closure/NUL, parallel-history,
+plan-hygiene and count-suppression witnesses remain to be run together.
+
+Qualification is incomplete: zero completed workspace builds, no completed core
+or binary test run, no RT0 ratchet result, no Postgres-script result, no
+reference-check result and no W4/W5 release-loopback measurement. No pass/fail
+counts or rate claim are made. `git diff --check` passes for the candidate.
+Raw output, disk samples and PID identities stay outside Git under
+`/tmp/sb4-write-land/`.
+
+Private PG16 master **1263975** is stopped and independently confirmed by
+`pg_ctl status` (3), no postmaster pidfile and no owned Unix socket. All
+**479 recorded process identities** are absent after both interrupted builds
+and observer shutdown. **PIDs left: none.** The last exact disk audit reports
+34.86 GiB free; the disk stop remains active. No push, stash, Git configuration
+change, existing-commit rewrite or unrelated-cluster operation occurs.

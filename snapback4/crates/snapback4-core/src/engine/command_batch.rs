@@ -19,6 +19,12 @@ pub struct ProgramCommand<T> {
     attribution: Option<crate::round_trips::Handle>,
 }
 impl<T> ProgramCommand<T> {
+    /// Preserve the host's original intake clock through body and worker waits.
+    // @ref LLP 3000.009.001.000.002#3.1 — fallback uses the remaining end-to-end deadline.
+    pub fn accepted_at(mut self, accepted: Instant) -> Self {
+        self.admitted = self.admitted.min(accepted);
+        self
+    }
     pub fn new(
         invocation: Invocation,
         finish: impl FnOnce(&mut Engine, Outcome) -> T + Send + 'static,

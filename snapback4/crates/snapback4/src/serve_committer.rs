@@ -132,6 +132,7 @@ impl Writer {
     }
     pub(crate) fn program<T: Send + 'static>(
         &self,
+        accepted: Instant,
         prepare: impl FnOnce(&mut Engine, Arc<Shared>) -> Result<Invocation, Refusal> + Send + 'static,
         finish: impl FnOnce(&mut Engine, &Shared, Result<MutationAcknowledgement, Refusal>) -> T
         + Send
@@ -181,7 +182,7 @@ impl Writer {
                         .unwrap_or(engine.generation()),
                 }
             },
-        );
+        ).accepted_at(accepted);
         self.queue
             .submit_program(command)
             .and_then(|reply| reply.wait())

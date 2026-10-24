@@ -1401,7 +1401,7 @@ fn handle(mut request: Request, shared: &Shared) {
                 let boundary_check=boundary.clone();
                 let diverted=Arc::new(AtomicBool::new(false));
                 let diverted_prepare=diverted.clone();
-                let result = shared.engine.program(move |engine, shared| {
+                let result = shared.engine.program(request.accepted_at(), move |engine, shared| {
                     if engine.schema().operations.get(&owned_op).is_some_and(|f| f.ephemeral) {
                         diverted_prepare.store(true,Ordering::Release);
                         return Err(Refusal::new("E_GENERATION","op","operation became ephemeral"));
