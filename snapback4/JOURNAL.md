@@ -104857,3 +104857,15 @@ G4a moved the evaluator to its own target directory. Removed that obsolete
 call; the evaluator still uses its isolated subdirectory and no shared build
 artifact is cleaned. The in-progress first sweep is stopped after evaluator
 warm-up and the canonical script restarted, preserving its full check set.
+
+## 2026-10-24 — PIPE prepared-state lifetime
+
+A new regression against `fa81c4c1e0` proves a pooled socket retained both
+SQL PREPARE names after one logical reader retired (count 2, expected 1).
+Added a per-preparation cleanup token only for reader connections. Retirement
+queues DEALLOCATE under exclusive physical custody, like driver statement
+close, without adding a request wait. Writer preparation lifetime and SQL
+ordering are unchanged. Sixteen paired-reader retirement cycles now return
+the session census to its baseline, and the surviving reader's prepared plan
+continues to execute after its neighbour retires. The fixed witness passes;
+full affected verification follows on this revision.

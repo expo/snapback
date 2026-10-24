@@ -225,3 +225,75 @@ fn pipeline_tcp_nodelay_on_reader_and_synchronous_writer() {
     eprintln!("TCP_NODELAY=1 witnessed on {enabled} reader/writer sockets; child exited");
     std::fs::remove_file(trace).unwrap();
 }
+
+#[test]
+#[ignore = "private PG16; pooled SQL PREPARE lifetime and neighbour isolation"]
+fn pipeline_retiring_logical_readers_reclaims_only_their_prepared_names() {
+    let (mut writer, pool, slot, name) = fixture(4);
+    let mut inspect = reader(&pool, &slot);
+    let mut count = || {
+        inspect
+            .query_one(
+                "SELECT count(*) FROM pg_prepared_statements WHERE name LIKE 'sb4_rt6_%'",
+                &[],
+            )
+            .unwrap()
+            .get::<_, i64>(0)
+    };
+    let baseline = count();
+    for _ in 0..16 {
+        let mut a = reader(&pool, &slot);
+        let mut b = reader(&pool, &slot);
+        let sql = "SELECT head FROM facts";
+        let bind = a.prepare(sql).unwrap();
+        let first = super::super::literal::Prepared::from_bind(
+            &mut a,
+            &super::super::literal::serving_name(),
+            sql,
+            bind,
+        )
+        .unwrap();
+        let bind = b.prepare(sql).unwrap();
+        let second = super::super::literal::Prepared::from_bind(
+            &mut b,
+            &super::super::literal::serving_name(),
+            sql,
+            bind,
+        )
+        .unwrap();
+        assert_eq!(count(), baseline + 2);
+        drop(first);
+        drop(a);
+        let until = Instant::now() + Duration::from_secs(5);
+        while count() != baseline + 1 {
+            assert!(
+                Instant::now() < until,
+                "retired reader's SQL PREPARE survived on its pooled connection; count={}",
+                count()
+            );
+            std::thread::sleep(Duration::from_millis(2));
+        }
+        let rows = second
+            .rows(&b.simple_query(&second.command(&[]).unwrap()).unwrap())
+            .unwrap();
+        assert_eq!(
+            rows[0][0],
+            super::super::literal::Datum::Int(1),
+            "another reader's prepared name was reclaimed"
+        );
+        drop(second);
+        drop(b);
+        let until = Instant::now() + Duration::from_secs(5);
+        while count() != baseline {
+            assert!(
+                Instant::now() < until,
+                "retired prepared names accumulated; count={}",
+                count()
+            );
+            std::thread::sleep(Duration::from_millis(2));
+        }
+    }
+    writer
+        .batch_execute(&format!("DROP SCHEMA {name} CASCADE"))
+        .unwrap();
+}

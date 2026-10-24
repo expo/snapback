@@ -40,6 +40,26 @@ pub(crate) struct Slot {
     custody: Arc<RwLock<()>>,
     permits: Semaphore,
 }
+// Like the driver's Statement::drop, release session state without adding a
+// request wait. Exclusive custody keeps cleanup outside every read snapshot.
+pub(super) struct PreparedName {
+    slot: Arc<Slot>,
+    name: String,
+}
+impl Drop for PreparedName {
+    fn drop(&mut self) {
+        if self.slot.client.is_closed() {
+            return;
+        }
+        let slot = self.slot.clone();
+        let command = format!("DEALLOCATE \"{}\"", self.name.replace('"', "\"\""));
+        runtime().spawn(async move {
+            let _custody = slot.custody.write().await;
+            // A failed/closed connection discards all its prepared state too.
+            let _ = slot.client.batch_execute(&command).await;
+        });
+    }
+}
 impl Pool {
     pub fn new(
         config: &postgres::Config,
@@ -207,6 +227,15 @@ impl Connection {
         match self {
             Self::Sync(c) => c,
             _ => panic!("writer expected"),
+        }
+    }
+    pub(super) fn prepared_cleanup(&self, name: &str) -> Option<PreparedName> {
+        match self {
+            Self::Reader { slot, .. } => Some(PreparedName {
+                slot: slot.clone(),
+                name: name.into(),
+            }),
+            Self::Sync(_) => None,
         }
     }
     pub fn is_reader(&self) -> bool {
