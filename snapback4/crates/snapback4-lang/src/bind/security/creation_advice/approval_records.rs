@@ -14,7 +14,7 @@ fn pins(read:&ast::ReadExpr,p:&ast::ProgramDecl,bound:&Bound)->Vec<(String,Expr)
     let mut pins=read.keys.iter().enumerate().filter_map(|(i,key)|key.column.clone().or_else(||positional.and_then(|columns|columns.get(i)).cloned()).map(|column|(column,key.value.clone()))).collect::<Vec<_>>();
     if let Some(filter)=&read.filter{for clause in conjunction(filter){if let Expr::Binary{op,left,right,..}=clause&&op=="="{for (field,value) in [(left.as_ref(),right.as_ref()),(right.as_ref(),left.as_ref())]{if let Expr::Member{base,name,..}=field&&matches!(base.as_ref(),Expr::Focal{..}){pins.push((name.clone(),value.clone()));}}}}}pins
 }
-fn parent_values<'a>(effect:&'a Write<'_>,parent:&str,bound:&Bound)->Vec<&'a Expr>{
+pub(super) fn parent_values<'a>(effect:&'a Write<'_>,parent:&str,bound:&Bound)->Vec<&'a Expr>{
     if effect.table==parent&&effect.op==WriteOp::Update{return effect.keys.iter().filter(|key|key.column.as_deref().is_none_or(|column|column=="id")).map(|key|&key.value).collect();}
     effect.fields.iter().filter(|field|matches!(bound.schema.tables[&effect.table].columns.get(&field.name).map(ColumnType::required),Some(ColumnType::Ref{table}) if table==parent)).filter_map(field_value).chain(effect.keys.iter().filter(|key|effect.op==WriteOp::Update&&arg(&key.value,parent,effect.p).is_some()&&bound.schema.tables[&effect.table].indexes.values().any(|index|index.unique&&index.columns().len()==1&&matches!(bound.schema.tables[&effect.table].columns.get(&index.columns()[0]).map(ColumnType::required),Some(ColumnType::Ref{table}) if table==parent)&&key.column.as_deref().is_none_or(|column|column==index.columns()[0]))).map(|key|&key.value)).collect()
 }
@@ -109,16 +109,21 @@ fn creation_audit(creator:&Write<'_>,reference:&str,parent:&str,bound:&Bound)->b
     let Some(value)=creator.fields.iter().find(|field|field.name==reference).and_then(field_value)else{return false;};
     creator.fields.iter().filter_map(field_value).filter_map(inserted).any(|(table,fields)|fields.iter().any(|field|matches!(bound.schema.tables[table].columns.get(&field.name).map(ColumnType::required),Some(ColumnType::Ref{table}) if table==parent)&&field_value(field).is_some_and(|linked|canonical(linked)==canonical(value))))
 }
+pub(super) fn coexec(guaranteed:&Write<'_>,observed:&Write<'_>)->bool{
+    if guaranteed.conditional||!std::ptr::eq(guaranteed.p,observed.p){return false;}
+    let branches=|write:&Write<'_>|write.context.body.iter().filter_map(|stmt|if let Stmt::Require{condition,code,..}=stmt&&(code=="$advice"||code.starts_with("$iteration:")){Some(format!("{code}:{}",canonical(condition)))}else{None}).collect::<BTreeSet<_>>();
+    branches(guaranteed).is_subset(&branches(observed))
+}
 // A manager's audit row may accompany a checked bool/time decision before OR
 // after it. Matching branch paths and the same selected row are mandatory.
 fn decision_mirror(creator:&Write<'_>,reference:&str,parent:&str,writes:&[Write<'_>],bound:&Bound)->bool{
     let Some(value)=creator.fields.iter().find(|field|field.name==reference).and_then(field_value)else{return false;};
-    let branches=|write:&Write<'_>|write.context.body.iter().filter_map(|stmt|if let Stmt::Require{condition,code,..}=stmt&&code=="$advice"{Some(canonical(condition))}else{None}).collect::<BTreeSet<_>>();
+    let branches=|write:&Write<'_>|write.context.body.iter().filter_map(|stmt|if let Stmt::Require{condition,code,..}=stmt&&(code=="$advice"||code.starts_with("$iteration:")){Some(format!("{code}:{}",canonical(condition)))}else{None}).collect::<BTreeSet<_>>();
     let path=branches(creator);let creator_role=audience(&creator.gate);
-    writes.iter().filter(|write|std::ptr::eq(write.p,creator.p)&&write.table==parent&&write.op==WriteOp::Update&&!write.conditional&&branches(write).is_subset(&path)&&write.keys.len()==1&&canonical(&write.keys[0].value)==canonical(value)).any(|write|write.fields.iter().any(|field|{
+    writes.iter().filter(|write|std::ptr::eq(write.p,creator.p)&&write.table==parent&&write.op==WriteOp::Update&&!write.conditional&&branches(write).is_subset(&path)&&coexec(write,creator)&&write.keys.len()==1&&canonical(&write.keys[0].value)==canonical(value)).any(|write|write.fields.iter().any(|field|{
         let Some(kind)=bound.schema.tables[parent].columns.get(&field.name)else{return false;};let Some(assigned)=field_value(field)else{return false;};
         let positive=matches!((kind.required(),assigned),(ColumnType::Bool,Expr::Literal{value:ast::Literal::Bool(true),..}))||matches!((kind.required(),assigned),(ColumnType::Time,Expr::Name{name,..}) if name=="now");
-        positive&&writes.iter().any(|effect|super::lifecycle::scalar_enforced(effect,parent,&field.name,bound,false))&&!writes.iter().any(|other|other.table==parent&&matches!(other.op,WriteOp::Update|WriteOp::Upsert|WriteOp::Insert)&&other.fields.iter().find(|candidate|candidate.name==field.name).and_then(field_value).is_some_and(|value|!matches!(value,Expr::Literal{value:ast::Literal::Bool(false)|ast::Literal::Null,..}))&&kernel::implies(&audience(&other.gate),&creator_role)!=Ok(true))
+        positive&&writes.iter().any(|effect|super::lifecycle::scalar_enforced(effect,parent,&field.name,bound,false))&&!writes.iter().any(|other|other.table==parent&&matches!(other.op,WriteOp::Update|WriteOp::Upsert|WriteOp::Insert)&&other.fields.iter().find(|candidate|candidate.name==field.name).and_then(field_value).map(|value|!matches!(value,Expr::Literal{value:ast::Literal::Bool(false)|ast::Literal::Null,..})&&!matches!(value,Expr::Member{base,name,..} if name==&field.name&&super::super::derived::same_resource(base,parent,&other.keys,other.p))).unwrap_or_else(||matches!(other.op,WriteOp::Insert|WriteOp::Upsert)&&bound.schema.tables[parent].defaults.get(&field.name).is_some_and(|value|matches!(value.value(challenges::NOW,"$audit"),snapback4_core::Value::Bool(true)|snapback4_core::Value::Int(_))))&&kernel::implies(&audience(&other.gate),&creator_role)!=Ok(true))
     }))
 }
 fn audience_grant(name:&str,reference:&str,parent:&str,bound:&Bound)->bool{

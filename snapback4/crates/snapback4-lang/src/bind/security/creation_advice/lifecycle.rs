@@ -56,11 +56,13 @@ fn decision_effect(t:&snapback4_core::schema::Table,column:&str,f:&ast::ObjectFi
         _=>false,
     }
 }
-fn scalar_rule(rule:&RuleExpr,table:&str,column:&str,root:&str,negative:bool)->bool{
+fn scalar_rule(rule:&RuleExpr,table:&str,column:&str,root:&str,negative:bool,bound:&Bound)->bool{
     let matches=|term:&RuleTerm|if root==table{matches!(term,RuleTerm::Field(name)|RuleTerm::OldField(name)|RuleTerm::NextField(name) if name==column)}else{term.references().last().is_some_and(|(owner,field)|owner==table&&field==column)};
     match rule{
-        RuleExpr::Not(rule)=>scalar_rule(rule,table,column,root,!negative),
-        RuleExpr::And(parts)|RuleExpr::Or(parts)=>parts.iter().any(|rule|scalar_rule(rule,table,column,root,negative)),
+        RuleExpr::Not(rule)=>scalar_rule(rule,table,column,root,!negative,bound),
+        RuleExpr::And(parts)|RuleExpr::Or(parts)=>parts.iter().any(|rule|scalar_rule(rule,table,column,root,negative,bound)),
+        RuleExpr::Exists{table:owner,index,key,equalities,..} if owner==table&&!negative=>{let pairs=super::super::privilege::probe_pairs(bound,owner,index,key,equalities);pairs.iter().any(|(name,value)|name==column&&*value==RuleTerm::Literal(snapback4_core::Value::Bool(true)))&&pairs.iter().any(|(name,value)|*value==RuleTerm::Viewer&&matches!(bound.schema.tables[table].columns.get(name).map(ColumnType::required),Some(ColumnType::Principal)))},
+        RuleExpr::Compare(_,left,right) if !negative&&matches!(bound.schema.tables[table].columns.get(column).map(ColumnType::required),Some(ColumnType::Time))=>matches(left)||matches(right),
         RuleExpr::Eq(left,right)|RuleExpr::Ne(left,right)=>[(left,right),(right,left)].iter().any(|(field,value)|{
             if !matches(field){return false;}let equal=matches!(rule,RuleExpr::Eq(..));match value{
                 RuleTerm::Literal(snapback4_core::Value::Bool(value))=>(equal==*value)!=negative,
@@ -71,9 +73,9 @@ fn scalar_rule(rule:&RuleExpr,table:&str,column:&str,root:&str,negative:bool)->b
 }
 fn schema_scalar(effect:&Write<'_>,table:&str,column:&str,bound:&Bound,negative:bool)->bool{
     let target=&bound.schema.tables[&effect.table];let row=if effect.op==WriteOp::Update{&target.rules.update}else{&target.rules.insert};
-    scalar_rule(row,table,column,&effect.table,negative)||effect.fields.iter().any(|field|{
+    scalar_rule(row,table,column,&effect.table,negative,bound)||effect.fields.iter().any(|field|{
         let lifecycle=matches!(target.columns.get(&field.name).map(ColumnType::required),Some(ColumnType::Enum{..}));
-        lifecycle&&(target.column_writes.get(&field.name).is_some_and(|rule|scalar_rule(rule,table,column,&effect.table,negative))||negative&&target.frozen_columns.get(&field.name).is_some_and(|rule|scalar_rule(rule,table,column,&effect.table,false)))
+        lifecycle&&(target.column_writes.get(&field.name).is_some_and(|rule|scalar_rule(rule,table,column,&effect.table,negative,bound))||negative&&target.frozen_columns.get(&field.name).is_some_and(|rule|scalar_rule(rule,table,column,&effect.table,false,bound)))
     })
 }
 fn caller_approval(condition:&Expr,table:&str,column:&str,bound:&Bound)->bool{
@@ -83,22 +85,56 @@ fn caller_approval(condition:&Expr,table:&str,column:&str,bound:&Bound)->bool{
     });}found
 }
 fn parent_loop_guard(p:&ast::ProgramDecl,table:&str,column:&str,parent:&str,bound:&Bound)->bool{
+    fn required(body:&[Stmt],binder:&str,column:&str)->bool{body.iter().any(|stmt|match stmt{
+        Stmt::Require{condition,..}=>super::super::derived::approval_receipts(condition).iter().any(|positive|{let mut found=false;walk(positive,|e|if let Expr::Member{base,name,..}=e&&name==column&&matches!(base.as_ref(),Expr::Name{name,..} if name==binder){found=true;});found}),
+        Stmt::If{then_body,else_body,..}=>required(then_body,binder,column)||required(else_body,binder,column),Stmt::As{body,..}=>required(body,binder,column),_=>false,
+    })}
     fn body(statements:&[Stmt],table:&str,column:&str)->bool{statements.iter().any(|stmt|match stmt{
-        Stmt::For{domain,name,body:inner,..} if matches!(domain,Expr::Read(read) if read.table==table)=>inner.iter().any(|stmt|if let Stmt::Require{condition,..}=stmt{super::super::derived::approval_receipts(condition).iter().any(|positive|{let mut found=false;walk(positive,|e|if let Expr::Member{base,name:field,..}=e&&field==column&&matches!(base.as_ref(),Expr::Name{name:var,..} if var==name){found=true;});found})}else{false}),
+        Stmt::For{domain,name,body:inner,..} if matches!(domain,Expr::Read(read) if read.table==table)=>required(inner,name,column),
         Stmt::If{then_body,else_body,..}=>body(then_body,table,column)||body(else_body,table,column),Stmt::As{body:inner,..}=>body(inner,table,column),_=>false,
     })}
     parent!=table&&bound.schema.tables[table].columns.values().any(|kind|matches!(kind.required(),ColumnType::Ref{table} if table==parent))&&body(&p.body,table,column)
 }
+fn locked_approval_input(record:&Write<'_>,column:&str,writes:&[Write<'_>],bound:&Bound)->bool{
+    let table=&record.table;
+    bound.schema.tables[table].columns.keys().filter(|input|*input!=column&&!["status","stage","state","phase"].contains(&input.as_str())).any(|input|{
+        if !scalar_enforced(record,table,input,bound,false){return false;}
+        let edits=writes.iter().filter(|write|write.table==*table&&matches!(write.op,WriteOp::Update|WriteOp::Upsert)&&!std::ptr::eq(write.p,record.p)&&write.fields.iter().any(|field|field.name==*input)).collect::<Vec<_>>();
+        !edits.is_empty()&&edits.iter().all(|write|scalar_enforced(write,table,column,bound,true)||schema_scalar(write,table,column,bound,true))
+    })
+}
+fn one_shot_decision(record:&Write<'_>,column:&str,writes:&[Write<'_>],bound:&Bound)->bool{
+    writes.iter().any(|effect|super::approval_records::coexec(record,effect)&&effect.table!=record.table&&matches!(effect.op,WriteOp::Insert|WriteOp::Upsert)&&scalar_enforced(effect,&record.table,column,bound,true))
+}
+fn row_type<'a>(value:&Expr,p:&ast::ProgramDecl,bound:&'a Bound)->Option<String>{match value{
+    Expr::Name{name,..}=>p.args.iter().find_map(|arg|if arg.name==*name&&let TypeKind::Ref{table}=&arg.type_.kind{Some(table.clone())}else{None}),
+    Expr::Read(read)=>Some(read.table.clone()),Expr::Assert{value,..}=>row_type(value,p,bound),
+    Expr::Member{base,name,..}=>{let table=row_type(base,p,bound)?;if name=="id"{Some(table)}else{match bound.schema.tables[&table].columns.get(name)?.required(){ColumnType::Ref{table}=>Some(table.clone()),_=>None}}},_=>None,
+}}
+fn resource_key(value:&Expr,p:&ast::ProgramDecl,bound:&Bound)->String{
+    let mut value=value.clone();super::super::super::intent_walk::expression(&mut value,&mut |e|{
+        if let Expr::Assert{value,..}=e{*e=*value.clone();}
+        if let Expr::Member{base,name,..}=e&&name=="id"&&let Expr::Read(read)=base.as_ref()&&read.keys.len()==1&&read.filter.is_none()&&read.range.is_none()&&read.computed.is_empty()&&read.seeks.is_empty()&&read.matching.is_none()&&(read.keys[0].column.as_deref()==Some("id")||read.keys[0].column.is_none()&&row_type(&read.keys[0].value,p,bound).as_deref()==Some(&read.table)){*e=read.keys[0].value.clone();}
+    });crate::print::expression(&value)
+}
+fn linked_decision_stamp(record:&Write<'_>,column:&str,writes:&[Write<'_>],bound:&Bound)->bool{
+    if record.keys.len()!=1{return false;}
+    let selected=resource_key(&record.keys[0].value,record.p,bound);
+    writes.iter().filter(|other|super::approval_records::coexec(other,record)&&other.table!=record.table&&other.op==WriteOp::Update&&other.keys.len()==1).any(|other|{
+        let read=Expr::Read(ast::ReadExpr{cursor_prefix:None,computed:Default::default(),order_keys:Vec::new(),table:other.table.clone(),keys:other.keys.clone(),index:None,range:None,matching:None,filter:None,seeks:Vec::new(),site:other.site.clone()});
+        let linked=bound.schema.tables[&other.table].columns.iter().any(|(reference,kind)|matches!(kind.required(),ColumnType::Ref{table} if table==&record.table)&&resource_key(&Expr::Member{base:Box::new(read.clone()),name:reference.clone(),site:other.site.clone()},other.p,bound)==selected);
+        linked&&other.fields.iter().any(|field|["approv","authoriz"].iter().any(|part|field.name.to_lowercase().contains(part))&&matches!(field_value(field),Some(Expr::Literal{value:ast::Literal::Bool(true),..}))&&writes.iter().any(|effect|scalar_enforced(effect,&other.table,&field.name,bound,false)))&&column.to_lowercase().contains("at")
+    })
+}
 // Only a guard on the resource whose lifecycle is affected can consume its
 // approval. Read audiences and another resource's validation are not enforcement.
 pub(super) fn scalar_enforced(effect:&Write<'_>,table:&str,column:&str,bound:&Bound,negative:bool)->bool{
-    let targets=if effect.table==table {effect.keys.iter().filter(|key|key.column.as_deref().is_none_or(|column|column=="id")).filter_map(|key|super::approval_records::origin(&key.value,effect.p,bound)).collect::<Vec<_>>()}else{
-        effect.fields.iter().filter(|field|matches!(bound.schema.tables[&effect.table].columns.get(&field.name).map(ColumnType::required),Some(ColumnType::Ref{table:parent}) if parent==table)).filter_map(field_value).filter_map(|value|super::approval_records::origin(value,effect.p,bound)).collect()
-    };
+    let targets=super::approval_records::parent_values(effect,table,bound).into_iter().filter_map(|value|super::approval_records::origin(value,effect.p,bound)).collect::<Vec<_>>();
     conditions(&effect.context).iter().any(|condition|{
         if !negative&&caller_approval(condition,table,column,bound){return true;}
         let condition=if negative{Expr::Unary{op:"not".into(),value:Box::new((*condition).clone()),site:condition.site().clone()}}else{(*condition).clone()};
-        let mut found=false;let approval=["approv","authoriz"].iter().any(|part|column.to_lowercase().contains(part));let probes=if approval{super::super::derived::approval_receipts(&condition)}else{vec![condition]};for probe in probes{walk(&probe,|e|if let Expr::Member{base,name,..}=e&&name==column{
+        let mut found=false;let approval=matches!(bound.schema.tables[table].columns.get(column).map(ColumnType::required),Some(ColumnType::Bool|ColumnType::Time))&&["approv","authoriz"].iter().any(|part|column.to_lowercase().contains(part));let mut probes=if approval{super::super::derived::approval_receipts(&condition)}else{vec![condition.clone()]};
+        if !negative&&matches!(bound.schema.tables[table].columns.get(column).map(ColumnType::required),Some(ColumnType::Time)){walk(&condition,|e|if matches!(e,Expr::Binary{op,..} if ["<","<=",">",">="].contains(&op.as_str())){probes.push(e.clone());});}for probe in probes{walk(&probe,|e|if let Expr::Member{base,name,..}=e&&name==column{
             found|=if effect.table==table{super::super::derived::same_resource(base,table,&effect.keys,effect.p)}else{super::approval_records::origin(base,effect.p,bound).is_some_and(|origin|targets.contains(&origin))};
         });}found
     })
@@ -109,7 +145,7 @@ fn fresh_parent_child(w:&Write<'_>,parent:&str,bound:&Bound)->bool{
 pub(super) fn notes(bound:&Bound,writes:&[Write<'_>],out:&mut Vec<Diagnostic>){
     for (table,t) in bound.schema.visible_tables(){
         let transitions=writes.iter().filter(|w|w.table==*table&&state(w,bound)).collect::<Vec<_>>();
-        let approval_effects=transitions.iter().copied().chain(writes.iter().filter(|w|w.table!=*table&&matches!(w.op,WriteOp::Insert|WriteOp::Upsert)&&bound.schema.tables[&w.table].columns.values().any(|kind|matches!(kind.required(),ColumnType::Ref{table:parent} if parent==table))&&!fresh_parent_child(w,table,bound))).collect::<Vec<_>>();
+        let approval_effects=transitions.iter().copied().chain(writes.iter().filter(|w|w.table!=*table&&(matches!(w.op,WriteOp::Insert|WriteOp::Upsert)||state(w,bound))&&bound.schema.tables[&w.table].columns.values().any(|kind|matches!(kind.required(),ColumnType::Ref{table:parent} if parent==table))&&!fresh_parent_child(w,table,bound))).collect::<Vec<_>>();
         if approval_effects.is_empty(){continue;}
         for (column,kind) in &t.columns {
             let approval=["approv","authoriz"].iter().any(|part|column.to_lowercase().contains(part));
@@ -118,7 +154,8 @@ pub(super) fn notes(bound:&Bound,writes:&[Write<'_>],out:&mut Vec<Diagnostic>){
             let atomic=writes.iter().any(|w|w.table==*table&&records(w,column,kind,t)&&(matches!(w.op,WriteOp::Insert|WriteOp::Upsert)&&t.defaults.iter().any(|(name,d)|["status","stage","state","phase","decision","approval"].iter().any(|suffix|name.to_lowercase().ends_with(suffix))&&matches!(t.columns.get(name).map(ColumnType::required),Some(ColumnType::Enum{..}))&&matches!(d.value(challenges::NOW,"$advisory"),snapback4_core::Value::String(value) if ["approved","authorized","authorised"].contains(&value.to_lowercase().as_str())))||w.fields.iter().any(|f|decision_effect(t,column,f)&&(!matches!(w.op,WriteOp::Insert|WriteOp::Upsert)||!t.defaults.get(&f.name).is_some_and(|d|matches!(field_value(f),Some(Expr::Literal{value:ast::Literal::Str(value),..}) if d.value(challenges::NOW,"$advisory")==snapback4_core::Value::String(value.clone())))))));
             let others=approval_effects.iter().filter(|w|!(w.table==*table&&records(w,column,kind,t))).collect::<Vec<_>>();
             let frozen=!others.is_empty()&&others.iter().all(|w|scalar_enforced(w,table,column,bound,true)||schema_scalar(w,table,column,bound,true));
-            let consumed=atomic||frozen||writes.iter().filter(|effect|state(effect,bound)).any(|effect|parent_loop_guard(effect.p,table,column,&effect.table,bound))||approval_effects.iter().filter(|w|!(w.table==*table&&records(w,column,kind,t))).any(|w|scalar_enforced(w,table,column,bound,false)||schema_scalar(w,table,column,bound,false)||proxies.iter().any(|proxy|scalar_enforced(w,table,proxy,bound,false)));
+            let data_use=writes.iter().filter(|record|record.table==*table&&records(record,column,kind,t)).any(|record|locked_approval_input(record,column,writes,bound)||one_shot_decision(record,column,writes,bound)||linked_decision_stamp(record,column,writes,bound));
+            let consumed=atomic||data_use||frozen||writes.iter().any(|effect|schema_scalar(effect,table,column,bound,false))||writes.iter().filter(|effect|state(effect,bound)).any(|effect|parent_loop_guard(effect.p,table,column,&effect.table,bound))||approval_effects.iter().filter(|w|!(w.table==*table&&records(w,column,kind,t))).any(|w|scalar_enforced(w,table,column,bound,false)||schema_scalar(w,table,column,bound,false)||proxies.iter().any(|proxy|scalar_enforced(w,table,proxy,bound,false)));
             let downstream=approval_effects.iter().filter(|effect|effect.table==*table||!writes.iter().any(|writer|writer.table==*table&&records(writer,column,kind,t)&&bound.schema.tables[&effect.table].columns.iter().any(|(reference,kind)|matches!(kind.required(),ColumnType::Ref{table:parent} if parent==table)&&requires_child(writer,&effect.table,reference)))).collect::<Vec<_>>();
             if approval&&recorded&&!consumed&&!downstream.is_empty() {
                 note(out,&downstream[0].site,"N_APPROVAL_NOT_ENFORCED",format!("{table}.{column}: approval is recorded but no lifecycle effect inspects it; is this an informational record or a required approval?"),"require this approval before its governed effect; or record `check --ack-security ID --reason 'informational approval record: <spec rationale>'` for this individual decision");

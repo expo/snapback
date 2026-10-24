@@ -320,7 +320,7 @@ fn campaign(s:&str)->Campaign{let b=security::derived::augmented(&sources(s),&bo
 }
 
 #[test]fn enforced_corpus_approvals_and_exact_decision_audits_do_not_gate(){
-    for source in [include_str!("security/sec10-controls/w18-043.q"),include_str!("security/sec10-controls/w20-010.q"),include_str!("security/sec10-controls/w22-024.q"),include_str!("security/sec10-controls/w24-038.q"),include_str!("security/sec10-controls/w26-018.q"),include_str!("security/sec10-controls/w26-048.q")]{assert!(!notes(source).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"),"{:?}",notes(source));}
+    for source in [include_str!("security/sec10-controls/w18-043.q"),include_str!("security/sec10-controls/w20-010.q"),include_str!("security/sec10-controls/w22-024.q"),include_str!("security/sec10-controls/w24-038.q"),include_str!("security/sec10-controls/w26-018.q"),include_str!("security/sec10-controls/w26-048.q"),include_str!("security/sec10-controls/w15-096.q"),include_str!("security/sec10-controls/w18-042.q"),include_str!("security/sec10-controls/w20-007.q"),include_str!("security/sec10-controls/w20-049.q"),include_str!("security/sec10-controls/w22-022.q"),include_str!("security/sec10-controls/w22-049.q"),include_str!("security/sec10-controls/w24-050.q"),include_str!("security/sec10-controls/w26-010.q"),include_str!("security/sec10-controls/w26-026.q"),include_str!("security/sec10-controls/w26-041.q")]{assert!(!notes(source).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"),"{:?}",notes(source));}
 }
 #[test]fn scalar_freezes_are_matched_to_each_affected_column(){
     let source="table docs:\n  approved: bool default false\n  status: enum('draft','done') default 'draft'\n  phase: enum('open','closed') default 'open'\n  immutable status when .approved = true\n  read <- allow\n  update <- allow\n  online only\nmutation approve(doc: docs):\n  update docs[doc] {approved:true}\nmutation finish(doc: docs):\n  update docs[doc] {status:'done'}\nEXTRA";
@@ -328,4 +328,13 @@ fn campaign(s:&str)->Campaign{let b=security::derived::augmented(&sources(s),&bo
     assert!(notes(&source.replace("EXTRA","mutation bypass(doc: docs):\n  update docs[doc] {phase:'closed'}\n")).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
     let dynamic=source.replace("EXTRA","").replace("mutation finish(doc: docs):\n  update docs[doc] {status:'done'}","mutation finish(doc: docs,next: enum('draft','done')):\n  update docs[doc] {status:next,approved:true}").replace("  immutable status when .approved = true\n","");
     assert!(notes(&dynamic).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
+}
+
+#[test]fn mirrored_decision_audits_respect_broader_defaults_and_preserved_stamps(){
+    let source="table roles:\n  principal: principal\n  role: enum('owner','crew')\n  unique principal\n  read <- allow\n  online only\ntable docs:\n  approvedAt: time ?\n  status: enum('draft','done') default 'draft'\n  read <- allow\n  insert <- allow\n  update <- allow\n  online only\ntable approvals:\n  doc: docs\n  read <- allow\n  insert <- exists roles[principal = viewer,role = 'owner']\n  online only\nmutation approve(doc: docs):\n  require exists roles[principal = viewer,role = 'owner'] else OWNER\n  update docs[doc] {approvedAt:now}\n  return insert approvals {doc}\nmutation finish(doc: docs):\n  d = docs[doc] ! else MISSING\n  require d.approvedAt != null else APPROVAL\n  update docs[doc] {status:'done'}\nmutation preserve(doc: docs):\n  d = docs[doc] ! else MISSING\n  update docs[doc] {approvedAt:d.approvedAt}\n";
+    assert!(!notes(source).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"),"{:?}",notes(source));
+    let conditional=source.replace("mutation approve(doc: docs):","mutation approve(doc: docs,items: [int] <=10):").replace("  update docs[doc] {approvedAt:now}","  for n in items:\n    update docs[doc] {approvedAt:now}");
+    assert!(notes(&conditional).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
+    let defaulted=source.replace("approvedAt: time ?","approvedAt: time ? default now")+"mutation create():\n  return insert docs {}\n";
+    assert!(notes(&defaulted).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
 }
