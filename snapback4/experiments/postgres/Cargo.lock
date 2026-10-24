@@ -796,7 +796,7 @@ checksum = "ba467056f1b547ed52077911161fc86985becbc60e8e1857c8a144dab0def891"
 
 [[package]]
 name = "snapback4-core"
-version = "0.4.39"
+version = "0.4.40"
 dependencies = [
  "argon2",
  "futures-util",
@@ -816,7 +816,7 @@ dependencies = [
 
 [[package]]
 name = "snapback4-device"
-version = "0.4.39"
+version = "0.4.40"
 dependencies = [
  "serde",
  "serde_json",
@@ -826,10 +826,11 @@ dependencies = [
 
 [[package]]
 name = "snapback4-lang"
-version = "0.4.39"
+version = "0.4.40"
 dependencies = [
  "serde",
  "serde_json",
+ "sha2 0.10.9",
  "snapback4-core",
 ]
 

@@ -105417,3 +105417,21 @@ headroom is 46.42 GiB, above the 40 GiB stop; only fourteen newly created,
 unlocked incremental-cache sessions were removed. No q24 files or processes
 were touched. Reports hold summarized evidence only; raw logs/data remain
 outside Git under /tmp/sb4-pipe.
+
+
+### Integration 24: final upstream reader transport and regenerated locks
+
+Main through `6cbe3869da` merges as `18fb954531`. The journal is the sole
+conflict and preserves both histories; the integration report and 0.4.40
+versions survive. The new semantic delta is PostgreSQL's optional reader
+transport, related oracles and HTTP measurement fixture; compiler, device,
+SDK and rollback source are unchanged. Its changed-input qualification follows
+the complete five-crate/client/platform qualification at `4f8e498d2e`.
+
+Cargo metadata regenerates the three independent evaluation lockfiles against
+0.4.40 and verifies them again with `--locked`; registry package versions stay
+unchanged. The authoring census is regenerated from its actual test output:
+884 canonical entries, unchanged. A clean-source Wasm measurement at
+`18fb954531` remains 2,415,003 raw / 737,990 gzip / 555,572 Brotli bytes, with
+16,053 / 3,695 / 3,260-byte glue. The 738,490-byte budget remains measurement
+plus exactly 500 bytes; optional server transport adds no device bytes.
