@@ -107325,3 +107325,16 @@ PID/start-tick audit and the worktree-target executable audit are both empty.
 No owned PIDs remain. Minimum recorded free space is **66.927 GiB**, above the
 40 GiB floor throughout; no target reclamation is needed. Work remains local,
 with no push, stash, Git configuration change, q24 access or shared PG17 change.
+
+## 2026-10-24 — S1-C shared one-host controls runner
+
+The author commissions the raw-PG token, Supabase advocate and Convex advocate
+controls on S1-PG4's one-host method, with the same runner reusable by native
+Snapback after its read cache lands. `s1-onehost.py` retains the existing
+intended-arrival scheduler, authorization/SQL, native caches, 10 s/20 s windows,
+three repetitions and counter-qualified SLO search. Every target uses the same
+Unix delay link, PG16.15 durable settings, physical CPU split and live witnesses.
+Read rungs 19,027 and 22,627 are registered in addition to the inherited search.
+The controls use private, socket-only clusters and retain raw data outside Git.
+This entry records the implementation and commission, not measured capacity;
+the complete result and cleanup evidence follow in a dated entry.
