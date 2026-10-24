@@ -6,6 +6,7 @@ use snapback4_core::schema::ColumnType;
 mod eligibility;
 mod lifecycle;
 mod evidence;
+mod approval_records;
 pub(super) fn approval_recording(kind:&ColumnType,value:Option<&Expr>)->bool{lifecycle::recording(kind,value)}
 fn note(out:&mut Vec<Diagnostic>,site:&Site,code:&str,message:String,repair:&str){out.push(Diagnostic::new(site,code,message,repair).guide("security"));}
 fn walk(e:&Expr,mut f:impl FnMut(&Expr)){let mut e=e.clone();super::super::intent_walk::expression(&mut e,&mut |e|f(e));}

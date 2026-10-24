@@ -41,10 +41,20 @@ fn approval(name:&str)->bool{["approv","authoriz"].iter().any(|s|name.to_lowerca
 // governed effect. Preserve conditional alternatives in the complete predicate.
 pub(super) fn approval_receipts(e:&Expr)->Vec<Expr>{
     fn named(e:&Expr)->bool{let mut e=e.clone();let mut found=false;walk(&mut e,&mut |e|match e{Expr::Member{name,..} if approval(name)=>found=true,Expr::Exists{read,..}|Expr::Read(read) if approval(&read.table)=>found=true,_=>{}});found}
+    fn count_contract(e:&Expr,negated:bool)->bool{
+        let Expr::Binary{op,left,right,..}=e else{return false;};
+        [(left.as_ref(),right.as_ref(),false),(right.as_ref(),left.as_ref(),true)].into_iter().any(|(count,number,reversed)|{
+            let Expr::Call{name,args,..}=count else{return false;};if name!="count"||args.len()!=1{return false;}let Expr::Read(read)=&args[0]else{return false;};
+            if approval_receipts(&Expr::Exists{read:read.clone(),site:e.site().clone()}).is_empty(){return false;}
+            let Some(number)=super::super::creation_advice::duration_number(number)else{return false;};let op=match (op.as_str(),reversed){("<",true)=>">",("<=",true)=>">=",(">",true)=>"<",(">=",true)=>"<=",(op,_)=>op};
+            let op=if negated{match op{"="=>"!=","!="=>"=","<"=>">=","<="=>">",">"=>"<=",">="=>"<",_=>return false}}else{op};match op{"="=>number>0,"!="=>number==0,">"=>number>=0,">="=>number>=1,_=>false}
+        })
+    }
     fn collect(e:&Expr,negated:bool,out:&mut Vec<Expr>){
         let positive=match e{
             Expr::Unary{op,value,..} if op=="not"=>{collect(value,!negated,out);return;},
             Expr::Binary{op,left,right,..} if matches!(op.as_str(),"and"|"or")=>{collect(left,negated,out);collect(right,negated,out);return;},
+            Expr::Binary{..} if count_contract(e,negated)=>true,
             Expr::Binary{op,left,right,..} if matches!(op.as_str(),"="|"!=")=>{
                 let literal=if named(left){Some(right.as_ref())}else if named(right){Some(left.as_ref())}else{None};
                 match literal{Some(Expr::Literal{value:ast::Literal::Null,..})=>(op=="!=")!=negated,Some(Expr::Literal{value:ast::Literal::Bool(value),..})=>((op=="=")==*value)!=negated,_=>false}
@@ -315,7 +325,7 @@ fn lifecycle(writes:&[(&ast::ProgramDecl,Expr,ast::ProgramDecl)],bound:&Bound,ou
                 // A single open/closed toggle does not establish a completion
                 // workflow across child stages. Require an authored predecessor
                 // transition into this completion's source phase.
-                let predecessor=writes.iter().any(|(p,w,c)|matches!(w,Expr::Write{op:WriteOp::Update,table:t,fields,..} if t==parent&&state_field(bound,parent,fields).and_then(|field|field.value.as_ref()).is_some_and(|value|matches!(value,Expr::Literal{value:ast::Literal::Str(to),..} if sources.contains(to))))&&state_requirements(p,w,c,bound,parent,&parent_state.name).is_some_and(|guards|!guards.is_empty()));
+                let predecessor=writes.iter().any(|(p,w,c)|matches!(w,Expr::Write{op:WriteOp::Update,table:t,fields,..} if t==parent&&state_field(bound,parent,fields).and_then(|field|field.value.as_ref()).is_some_and(|value|matches!(value,Expr::Literal{value:ast::Literal::Str(to),..} if sources.contains(to))))&&state_requirements(p,w,c,bound,parent,&parent_state.name).is_some_and(|guards|source_states(&guards,bound,parent,&parent_state.name).iter().any(|source|changes_from(p,w,bound,parent,&parent_state.name,source))));
                 if !predecessor{continue;}
                 let mut assigned=BTreeSet::new();let mut from=BTreeSet::new();let mut coupled=BTreeSet::new();let mut ambiguous=false;
                 for (p,w,c) in writes.iter().filter(|(_,w,_)|matches!(w,Expr::Write{op:WriteOp::Update,table:t,..} if t==child)){

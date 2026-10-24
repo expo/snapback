@@ -32,16 +32,16 @@ pub(super) fn same_resource(base:&ast::Expr,table:&str,keys:&[ast::KeyPart],p:&a
     }),_=>false}
 }
 #[derive(Clone,Copy,PartialEq,Eq)]enum StampSource{Fresh,Copied,Unknown}
-fn stamp_source(value:&ast::Expr)->StampSource{
-    match value{
-        ast::Expr::Assert{value,..}=>return stamp_source(value),
-        ast::Expr::Member{name,..} if ["approv","authoriz"].iter().any(|part|name.to_lowercase().contains(part))=>return StampSource::Copied,
-        ast::Expr::Binary{op,left,right,..} if matches!(op.as_str(),"+"|"-")&&matches!(right.as_ref(),ast::Expr::Literal{value:ast::Literal::Number(value),..} if value.trim_end_matches(char::is_alphabetic).parse::<i64>().ok()==Some(0))=>return stamp_source(left),
-        _=>{},
-    }
-    let mut prior=false;let mut expression=value.clone();super::super::intent_walk::expression(&mut expression,&mut |e|if matches!(e,ast::Expr::Member{name,..} if ["approv","authoriz"].iter().any(|part|name.to_lowercase().contains(part))){prior=true;});
-    if prior{StampSource::Unknown}else{StampSource::Fresh}
-}
+fn stamp_source(value:&ast::Expr)->StampSource{match value{
+    ast::Expr::Assert{value,..}=>stamp_source(value),
+    ast::Expr::Name{name,..} if name=="now"=>StampSource::Fresh,
+    ast::Expr::Literal{..}=>StampSource::Fresh,
+    ast::Expr::Member{name,..} if ["approv","authoriz"].iter().any(|part|name.to_lowercase().contains(part))=>StampSource::Copied,
+    ast::Expr::Binary{op,left,right,..} if matches!(op.as_str(),"+"|"-")&&matches!(right.as_ref(),ast::Expr::Literal{value:ast::Literal::Number(value),..} if value.trim_end_matches(char::is_alphabetic).parse::<i64>().ok()==Some(0))=>stamp_source(left),
+    ast::Expr::Binary{left,right,..} if stamp_source(left)==StampSource::Fresh&&stamp_source(right)==StampSource::Fresh=>StampSource::Fresh,
+    ast::Expr::If{then,otherwise,..} if stamp_source(then)==StampSource::Fresh&&stamp_source(otherwise)==StampSource::Fresh=>StampSource::Fresh,
+    _=>StampSource::Unknown,
+}}
 
 fn plain_field(expression:&ast::Expr)->bool {
     matches!(expression,ast::Expr::Name{..})||matches!(expression,ast::Expr::Member{base,..} if plain_row(base))

@@ -1,7 +1,7 @@
 //! Structural workflow review questions; each approval disposition is individual.
 // @ref LLP 3000.036.004#171-presence-and-lifecycle-questions — decisions require explicit product intent.
 use super::*;
-fn state(w:&Write<'_>,bound:&Bound)->bool{
+pub(super) fn state(w:&Write<'_>,bound:&Bound)->bool{
     w.op==WriteOp::Update&&w.fields.iter().any(|f|matches!(bound.schema.tables[&w.table].columns.get(&f.name).map(ColumnType::required),Some(ColumnType::Enum{..})))
 }
 fn inspected(w:&Write<'_>,table:&str,column:&str)->bool{
@@ -116,7 +116,7 @@ pub(super) fn notes(bound:&Bound,writes:&[Write<'_>],out:&mut Vec<Diagnostic>){
             note(out,&unchecked[0].site,"N_CHILD_EVIDENCE_PRESENCE",format!("{table}: transitions {} do not require attached {child}[{reference} = parent].{}; must a photo/file child exist before advancing? Text photo/URL fields are a name-based evidence question.",unchecked.iter().map(|w|w.name.clone()).collect::<BTreeSet<_>>().into_iter().collect::<Vec<_>>().join(", "),evidence.join(",")),&format!("if the spec requires evidence, declare independent parent integrity intent such as `invariant {table} always exists {child}[{reference} = .id]` (add the spec's draft-state exceptions); require the matching child at the governed boundary"));
         }}
     }
-    approval_tables(bound,writes,out);
+    super::approval_records::notes(bound,writes,out);
     for w in writes.iter().filter(|w|matches!(w.op,WriteOp::Insert|WriteOp::Update|WriteOp::Upsert)){
         let t=&bound.schema.tables[&w.table];
         for f in &w.fields{
@@ -165,55 +165,8 @@ pub(super) fn notes(bound:&Bound,writes:&[Write<'_>],out:&mut Vec<Diagnostic>){
     }}
 }
 
-fn audience(rule:&RuleExpr)->RuleExpr{match rule{
+pub(super) fn audience(rule:&RuleExpr)->RuleExpr{match rule{
     RuleExpr::And(parts)=>RuleExpr::And(parts.iter().map(audience).collect()),
     RuleExpr::Or(parts)=>RuleExpr::Or(parts.iter().map(audience).collect()),
     r if super::super::operation::safe(r)=>r.clone(),_=>RuleExpr::Allow,
 }}
-fn approval_tables(bound:&Bound,writes:&[Write<'_>],out:&mut Vec<Diagnostic>) {
-    for (name,t) in bound.schema.visible_tables().filter(|(n,_)|["approv","authoriz"].iter().any(|s|n.to_lowercase().contains(s))) {
-        let creators=writes.iter().filter(|w|w.table==*name&&matches!(w.op,WriteOp::Insert|WriteOp::Upsert)).collect::<Vec<_>>();
-        if creators.is_empty()||matches!(t.rules.insert,RuleExpr::Deny){continue;}
-        if bound.schema.tables.values().any(|other|super::super::columns::rules(other).any(|rule|kernel::dependencies(rule).contains(name))){continue;}
-        if writes.iter().filter(|w|w.table!=*name).any(|w|conditions(&w.context).iter().any(|c|reads(c).contains(name))){continue;}
-        for (reference,kind) in &t.columns {let ColumnType::Ref{table:parent}=kind.required()else{continue;};
-            let effects=writes.iter().filter(|w|w.table!=*name&&(w.table==*parent&&state(w,bound)||matches!(w.op,WriteOp::Insert|WriteOp::Upsert)&&bound.schema.tables[&w.table].columns.values().any(|k|matches!(k.required(),ColumnType::Ref{table} if table==parent)))).collect::<Vec<_>>();
-            for creator in &creators{
-                let writer=RuleExpr::And(vec![audience(&t.rules.insert),audience(&creator.gate)]);
-                if kernel::implies(&RuleExpr::Allow,&writer)==Ok(true){continue;}
-                if creator.fields.iter().find(|field|&field.name==reference).and_then(field_value).is_some_and(|value|created_parent(value,parent))||coupled_parent(creator,reference,parent,writes,bound){continue;}
-                if effects.iter().any(|effect|kernel::implies(&audience(&effect.gate),&writer)!=Ok(true)){
-                    note(out,&creator.site,"N_APPROVAL_NOT_ENFORCED",format!("{name}.{reference}: a separately authorized approval for {parent} is recorded but no effect requires it; is it informational?"),"require the matching approval row before the governed parent/child effect; or record `check --ack-security ID --reason 'informational approval record: <spec rationale>'`");
-                }
-            }
-        }
-    }
-}
-
-fn created_parent(value:&Expr,parent:&str)->bool{match value{
-    Expr::Assert{value,..}=>created_parent(value,parent),Expr::Member{base,name,..} if name=="id"=>created_parent(base,parent),
-    Expr::Write{op:WriteOp::Insert,table,if_absent:false,condition:None,..}=>table==parent,
-    Expr::If{then,otherwise,..}=>created_parent(then,parent)&&created_parent(otherwise,parent),_=>false,
-}}
-fn coupled_parent(creator:&Write<'_>,reference:&str,parent:&str,writes:&[Write<'_>],bound:&Bound)->bool{
-    let Some(value)=creator.fields.iter().find(|field|field.name==reference).and_then(field_value)else{return false;};
-    let Some(selected)=super::super::derived::resource_argument(value,parent,creator.p)else{return false;};
-    let mut preceding=BTreeSet::new();let mut located=false;
-    for statement in creator.p.prelude.iter().chain(&creator.p.body){
-        let mut contains=false;let mut body=vec![statement.clone()];super::super::super::intent_walk::statements(&mut body,&mut |e|if e.site()==&creator.site{contains=true;});
-        if contains{located=true;break;}
-        if let Stmt::Expr{value,..}|Stmt::Bind{value,..}=statement&&let Expr::Write{op:WriteOp::Update,site,if_absent:false,condition:None,..}=value{preceding.insert(site.to_string());}
-        if matches!(statement,Stmt::Return{..}){break;}
-    }
-    if !located{return false;}
-    writes.iter().filter(|write|std::ptr::eq(write.p,creator.p)&&write.table==parent&&write.op==WriteOp::Update&&!write.conditional&&preceding.contains(&write.site.to_string())).any(|write|{
-        if write.keys.len()!=1||write.keys[0].column.as_deref().is_some_and(|column|column!="id")||super::super::derived::resource_argument(&write.keys[0].value,parent,write.p).is_none_or(|arg|arg.name!=selected.name){return false;}
-        write.fields.iter().any(|field|{
-            if !matches!(bound.schema.tables[parent].columns.get(&field.name).map(ColumnType::required),Some(ColumnType::Enum{..})){return false;}
-            let Some(Expr::Literal{value:ast::Literal::Str(destination),..})=field_value(field)else{return false;};
-            conditions(&write.context).into_iter().flat_map(conjunction).any(|guard|if let Expr::Binary{op,left,right,..}=guard{
-                [(left.as_ref(),right.as_ref()),(right.as_ref(),left.as_ref())].iter().any(|(column,literal)|matches!(column,Expr::Member{base,name,..} if name==&field.name&&super::super::derived::same_resource(base,parent,&write.keys,write.p))&&matches!(literal,Expr::Literal{value:ast::Literal::Str(source),..} if op=="="&&source!=destination||op=="!="&&source==destination))
-            }else{false})
-        })
-    })
-}
