@@ -1,0 +1,5 @@
+{
+  "write_trials_checked": 267,
+  "mismatch_trials": 54,
+  "checks": "before/after durable sum delta, whole-cohort acknowledgements, equality verdict; every write trial"
+}

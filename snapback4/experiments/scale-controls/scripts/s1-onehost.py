@@ -333,7 +333,23 @@ def make_runner(base):
 
         def cell(self,*args):
             self.host_check(str(args))
-            Run.cell(self,*args)
+            try:Run.cell(self,*args)
+            finally:
+                w,rows,delay,clients,keys=args
+                path=self.out/f'{w.lower()}-n{rows}-d{delay}-c{clients}-{keys}'/'cell.json'
+                if path.exists():
+                    value=json.loads(path.read_text())
+                    value['rerun']=['python3',str(HERE/'scripts/s1-onehost.py'),'--system',self.args.system,
+                        '--mode','cell','--out',str(self.out.parent/('replay-'+path.parent.name+'-NEW')),
+                        '--workload',w,'--keys',keys,'--link','A' if delay==500 else 'B',
+                        '--warmup-ms',str(self.args.warmup_ms),'--duration-ms',str(self.args.duration_ms),
+                        '--repeats',str(self.args.repeats),'--max-rate',str(self.args.max_rate),
+                        '--harness',str(run.BIN),
+                        '--extra-read-rates',*map(str,self.args.extra_read_rates)]
+                    if self.args.system=='snapback':value['rerun']+=['--snapback-bin',self.args.snapback_bin,'--seed-bin',self.args.seed_bin]
+                    if self.args.rates:value['rerun']+=['--rates',*map(str,self.args.rates)]
+                    value['rate_policy']='double/halve, one geometric midpoint, plus registered extra read rungs; all repetitions must pass'
+                    path.write_text(json.dumps(value,indent=2)+'\n')
 
         def close(self):
             errors=[]
@@ -365,13 +381,14 @@ def make_runner(base):
             pidfile_absent=not (self.runtime/'pg/postmaster.pid').exists()
             if not socket_absent or not pidfile_absent:errors.append('postgres-shutdown-files')
             write(self.out/'cleanup.json',dict(still_running=alive,errors=errors,cluster_stopped=not self.master or self.master[0].poll() is not None,socket_absent=socket_absent,pidfile_absent=pidfile_absent,private_root=str(self.runtime),processes=[dict(pid=p.pid,status=p.poll()) for p in self.started]))
-            disk(self.out)
             sp.Popen=self.original_popen
             if alive or errors:raise RuntimeError('owned cleanup incomplete; retain state')
             data=self.runtime/'pg'
             if data.exists():
                 shutil.copyfile(data/'postgresql.conf',self.out/'postgresql.conf')
                 shutil.rmtree(data)
+            # A disk guard must never prevent owned shutdown/data cleanup.
+            disk(self.out)
             # Keep private material only until the separate known-secret audit.
 
     return OneHost

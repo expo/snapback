@@ -107355,3 +107355,56 @@ HTTP server stopped; no listener or live owned service remains. Match the
 actual HTTP listeners’ SO_REUSEADDR policy in the bind-only preflight, which
 still refuses an active listener. No timed matrix trial ran in that attempt,
 and no scheduler, native setting or qualification rule changes.
+
+## 2026-10-24 — S1-C control matrix and reusable runner completed
+
+The shared one-host runner completes all 36 control cells: 615 trials and
+70,457,880 measured arrivals. All three unchanged `audit.py` runs pass;
+267 write trials also pass an independent arithmetic check against durable
+before/after sums and whole-cohort acknowledgements. There are 54 retained
+counter-mismatch trials (11 raw, 7 Supabase, 36 Convex), and 328 trials fail
+at least one qualification rule. Thirty-five cells have a passing rate;
+Convex W4/A has none down to 1 offered write/s. Every rate requires all three
+10 s warm-up /20 s repetitions; no failed repetition is replaced.
+
+Raw token PG's A/B rates are W1 8000/8000, W2 5656/8000, W3 5656/4000,
+W4 400/141, exact W5 282/282, nominal 1% W5 3200/4525. Supabase advocate:
+2000/2000, 2000/2000, 2828/2828, 3200/1600, 8/70, 800/1600. Convex/PG:
+500/500, 707/707, 8000/5656, no pass/141, 25/25, 400/25. These are highest
+**tested passing offered rates**, not physical or production ceilings.
+In particular, Convex W2's first 1000/s failure sends the inherited search
+below untested intermediate rates despite later fast repetitions. The fixed
+19027/22627 trials fail too; the 707/s row cannot establish its warmed-cache
+ceiling. Native caches, warm-up and retry/OCC settings are unchanged.
+
+All 36 released boundaries have no unrelated process above one sampled CPU;
+23 preceding busy observations cause waits. All 72 RTT captures complete
+(maximum p99 4.471 ms). Live witnesses confirm PG physical cores 0–2,
+app/proxy 3–4 and generator 5, with both SMT siblings paired. The host is not
+reserved during load: large disk-usage changes, active unrelated work and
+non-monotonic repetitions remain explicit limitations. A later mixed-write
+row exceeding an earlier disjoint row does not prove that contention helps.
+Minimum recorded free space is 36.62 GiB; the 30 GiB guard never fires.
+
+All three controls and native Snapback pass W2/A smokes at 100/s, with
+three repetitions and independent audits. Native setup uses its ordinary
+Engine::seed_at, account sessions and full 1M recount. Snapback's post-cache
+capacity matrix is not run by this lane. All owned campaign services and PG
+clusters stop, with no socket, pidfile, listener or recorded owned PID left.
+Raw trials stay outside Git; the final result records archive SHA-256 and
+known-secret scan/credential cleanup receipts.
+
+The measured source is b5e34d8912 on preserved S1-PG4 base ac624fef08;
+the configured origin/main unexpectedly returned an August tree without SB4.
+No remote/configuration change, push or stash occurs. Report-tool fixes after
+load distinguish busy waits from released starts, audit counter arithmetic,
+publish correct one-host replay commands and ensure a low-disk guard cannot
+prevent owned cleanup. They do not change measured scheduling, SQL, knobs,
+binaries or qualification. Launch manifests/source remain frozen in the
+archive, including their inherited legacy replay fields.
+
+The [report](./experiments/scale-controls/results-20261024-s1-onehost-controls/README.md)
+contains the complete table, latency/range ledger, RTT/load/affinity evidence,
+disqualifications, historical two-host comparison and native replay recipe.
+No paid cloud, managed service, publication, durability relaxation or unowned
+signal is used. Only tooling, documentation and aggregate evidence are committed.
