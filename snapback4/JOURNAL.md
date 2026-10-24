@@ -106551,3 +106551,135 @@ regeneration adds no allowance; mutation stays at zero and the identity
 allowance falls from four to two. The six store-handle checks pass and the
 actual authoring-census output regenerates the same 884 canonical entries.
 Registry/guide-manifest regeneration also produces no changes.
+
+### 2026-10-24 — RCPU: pooled closed-loop read diagnostics
+
+The commissioned RCPU lane starts from PIPE `c7a0a597ee` on expo-build-450a.
+The S1 reqwest harness now has an explicitly labelled closed-loop capacity
+mode, one outstanding request per worker, retaining its pooled HTTP transport,
+fixture-key mix and response validation. Open-loop intended arrivals and SLO
+accounting remain. Successful-response latency is separate from all arrivals,
+so admission refusals cannot make read latency appear better. Optional Linux
+CPU snapshots retain process birth ticks and count a private PG process family,
+including reaped children, at the common measured boundaries.
+
+Four temporary HTTP correctness checks pass: closed-loop W1/W2/W3 and open-loop
+W2, with validated responses, exact histogram/arrival counts and zero errors.
+The CLI rejects combining rate and closed-loop options. These are harness
+checks, not product throughput measurements. The unchanged release server is
+built, the S1 Quarry app deployed on a private PG16, and the standard one-million
+message native seed is in progress; no read-path optimization or performance
+claim is made at this checkpoint. Raw evidence stays under `/tmp/sb4-rcpu`.
+
+### 2026-10-24 — RCPU: release baseline and bounded prepared reader code
+
+The standard one-million-message S1 fixture is seeded natively on private PG16;
+its census and VACUUM (ANALYZE) pass. Thirty held idle HTTP keep-alive sockets do
+not pin the short workers: a fresh authorized read completes beside them.
+Release pooled S1 at 128 clients gives W1/W2/W3 5,113/4,756/2,532 reads/s;
+PG CPU is 1.661/1.628/2.908 ms per read, server 0.455/0.616/1.362 ms. Loads,
+64/256-client cells, errors and attribution method are in the RCPU report.
+These are five-second loopback diagnostics, not offered-rate qualification.
+
+A bounded physical-reader cache now retains 32 typed statements (code only),
+with SQL/type identity and LRU retirement. Cold preparation is counted; every
+data statement retains its own Sync/snapshot and fresh Rust authority. Ingress,
+writer and exclusive fallback custody remain. Six transport/cache witnesses
+and five RT0/publication-cut tests pass. Warm PG W1/W2/W3 stays 1/1/1 and both
+ratchet files are unchanged. Cache-only release gives 6,320/5,513/2,923 reads/s
+at 128 clients, retaining its admission errors; PG CPU remains too high.
+Automatic prepared-plan selection is not the whole solution. Final binary,
+Postgres sweep, ref audit and cleanup are still pending at this checkpoint.
+Default core has passed 1,138 tests across 47 targets with zero failures and
+five named ignores; its feature excludes these PostgreSQL-only changes.
+
+### 2026-10-24 — RCPU: read CPU, typed facts and bounded HTTP queue
+
+Reader-only generic plans remove most W2 PG planning CPU after schema-address
+constants make its partial indexes visible: the 128-client release intermediate
+is W1 16,269/s, W2 9,952/s and W3 3,758/s. Guarded typed arrays and one dependent
+JSON decode raise the next W1/W2 cells to 17,341/s and 10,125/s. Competing work
+began before W3; that window was deferred, not reported as zero or selected away.
+All measured cells and their before/after one-minute loads remain in the report.
+
+Closure compilation borrows Schema; direct Value key decoding avoids a JSON DOM.
+Online-only scope metadata avoids its redundant IR serialization when the old
+bounded walk is provably complete. Reused meter/statement strings and existing
+environment keys reduce allocation while preserving charges and refusal sites.
+Environment binding lives with its presence bookkeeping to keep runner.rs within
+1,500 lines. Short admission retains 30 executing workers, now with 258 bounded
+waiting slots and matching descriptor room, original body/intake deadlines,
+independent expiry and the existing non-draining refusal. Idle keep-alive sockets
+do not occupy those workers. No result or authority is retained across requests.
+
+The real-PG closure harness reports 12/0 (11 active witnesses and its inactive
+manual timing helper), transport/cache 6/0, both RT0 ratchets plus cut witnesses
+5/0; warm W1/W2/W3 remains 1/1/1. Root ref-check passes 567 docs / 11,867 refs /
+43,652 files, zero errors. Full final qualification follows the remaining
+request-local accounting optimization and final uninstrumented release windows.
+
+### 2026-10-24 — RCPU: snapshot-owned prices and exact primary facts
+
+The final 128-client release capacity cells are W1 17,847/s (p50/p99
+7.01/11.92 ms; server/PG/client 275/246/69 µs/read), W2 10,872/s
+(11.54/18.20 ms; 436/451/114 µs), and W3 5,415/s (23.15/36.27 ms;
+1,055/844/110 µs). All nine final 64/128/256-client windows have zero errors.
+The report retains the complete PIPE baseline and all intermediate cells;
+W2/W3 still miss the campaign targets, and loopback is no S1 link/SLO claim.
+
+Metered reads of an already fetched immutable fact previously serialized its
+row on every logical access. Its exact canonical-image accounting now stays
+inside the request, lazily computed; each access still pays the original
+ordered preflight, guard and entry charges, including every cut. Intrinsic
+byId point facts fetch at the primary row address, retaining the exact portable
+[id,id] ordered key. byId ranges keep index access; the ordinary Rust interpreter
+still decides every rule/refusal/charge. Neither rows nor authority cross requests.
+
+Separate clock builds attribute W3 decode 307→230 µs/read and interpreter
+637→568 µs; alloc/free/realloc samples estimate 12,545→9,153 calls/read.
+Independent allocation timing was invalid (one estimate exceeds total CPU),
+so it is discarded; allocation remains in the stage/process totals. Temporary
+clock/allocator code and lint exceptions are removed before full qualification.
+
+The first full binary run finds two old hard-coded descriptor expectations;
+they are updated to explicit 1,442 connections / 6,280 descriptors (the other
+586 tests pass). The Postgres core fixtures pass 246/0; the evaluator reproduces
+the commissioned inherited 40001. Full qualification and the controlled
+30-versus-120-logical-worker comparison finish in the following record.
+
+### 2026-10-24 — RCPU: complete qualification and worker-population control
+
+Full default core: 1,138 passed / 0 failed / 5 ignored across 47 targets.
+Full binary rerun after the two explicit capacity expectations are repaired:
+588 passed / 0 failed / 49 ignored. The complete Postgres script reports
+658 passed / 1 failed across 32 Rust targets: only the inherited evaluator
+40001. Its public serving witness passes persistence, lease loss, revocation,
+evolution, SDK changes and maintained totals, then confirms its private PG16
+cluster stopped. Both RT0 ratchets plus boundary witnesses pass 5/0; warm PG
+W1/W2/W3 stays 1/1/1, SQLite 5/5/132, with unchanged ratchet files. The additional
+private TCP witness passes and traces TCP_NODELAY on reader and synchronous
+writer. Root ref-check passes 567 docs / 11,869 refs, zero errors/unchecked.
+
+A first worker pilot is confounded by renewed competing work (4–8 cores in
+adjacent censuses); completed cells are retained and its interrupted W3 window
+is excluded explicitly. The repeat requires 15 continuous quiet seconds before
+each window and checks interval-wide global user CPU less the owned trees,
+including reaped children. All six repeat windows stay below 0.5 other-user
+core. Actual thread samples show 30 versus 120 executing request threads, with
+the same PG family size and the same 30-reader physical cap / PIPE depth 4.
+W1/W2/W3 reads/s are 17,883/11,024/5,514 at 30 versus 17,915/10,807/5,573 at 120.
+Server CPU/read rises; W3 p99 goes 32.34→67.90 ms. Keep 30 executing workers.
+The temporary constant change is restored; no operator knob or SQLite reader
+budget change is introduced. The larger bounded queue independently removes
+128/256-client admission churn. W2/W3 still miss the campaign targets; their
+remaining useful throughput limit is CPU, not idle keep-alive worker pinning.
+
+The report contains all 49 completed capacity cells, profiled CPU attribution,
+allocation-call diagnostics (invalid independent allocation timing discarded),
+off-CPU waits, loads, checks and optimistic twelve-thread CPU ceilings. It makes
+no campaign-link/SLO, publication or promotion claim. No raw logs/profiles are
+committed. Private PG16 masters 2332629 and 2988427 are confirmed stopped
+(status=3, no postmaster.pid, no process). The owned PID audit is empty. Lowest
+recorded free space is 42.28 GiB; the 40 GiB floor never triggers. Only owned
+obsolete build artifacts are reclaimed. All commits remain local, with no push
+or Git configuration change, and no q24 files or shared PG17 processes touched.

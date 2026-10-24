@@ -13,6 +13,16 @@ pub(super) fn dependencies(engine: &Engine, name: &str, context: &Context) -> Op
     let program = engine.program(name)?;
     if program.native { return None; }
     let schema = engine.schema();
+    let sites = ir::read_sites(program);
+    // With no replicated table there is no audience to narrow. Initial read
+    // sites plus one unscoped rule/maintain visit per table bound the old walk;
+    // retain that walk when it could reach its conservative exhaustion cut.
+    if sites.len().saturating_add(schema.tables.len()) <= 128
+        && schema.tables.values().all(|table| table.sync.is_none())
+        && sites.iter().all(|site| schema.table(&site.table).is_some())
+    {
+        return Some(Json::Object(Map::new()));
+    }
     let mut shadowed = BTreeSet::new();
     // IR bindings (including merge/loop bindings) can shadow an input anywhere.
     // A conservative syntactic collection needs no second Quarry evaluator.
@@ -39,7 +49,7 @@ pub(super) fn dependencies(engine: &Engine, name: &str, context: &Context) -> Op
     };
     let scans = ir::scans(program);
     let mut pending = Vec::new();
-    for site in ir::read_sites(program) {
+    for site in sites {
         let mut columns = Columns::new();
         if site.kind == "scan" {
             if let Some(scan) = scans.iter().find(|scan| scan.site == site.site) {
@@ -111,4 +121,32 @@ pub(super) fn complete(mut scopes: Option<Json>, schema: &Schema, tables: &[Stri
     }
     scopes.filter(|value| value.as_object().is_some_and(|map| map.len() <= 128)
         && serde_json::to_vec(value).is_ok_and(|bytes| bytes.len() <= 16_384))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn engine(source: String) -> Engine {
+        let bound=snapback4_lang::compile(&[("schema.q".into(),source)]);
+        assert!(bound.diagnostics.is_empty(),"{:?}",bound.diagnostics);
+        let schema=serde_json::from_value(serde_json::to_value(bound.schema).unwrap()).unwrap();
+        let programs:Vec<snapback4_core::Program>=bound.programs.into_iter().map(|p|serde_json::from_value(serde_json::to_value(p.program).unwrap()).unwrap()).collect();
+        Engine::memory(schema,programs).unwrap()
+    }
+    #[test]
+    fn online_only_scopes_are_empty_and_replicated_scopes_remain_conservative() {
+        for (mode,expected) in [("online only",serde_json::json!({})),("sync public",serde_json::json!({"notes":[{}]}))] {
+            let engine=engine(format!("table notes:\n  room: text <=32\n  read <- allow\n  {mode}\nquery Q(note: notes):\n  return notes[note]\n"));
+            assert_eq!(dependencies(&engine,"Q",&Context::new("alice",Default::default())),Some(expected));
+        }
+    }
+    #[test]
+    fn online_only_metadata_keeps_the_existing_exhaustion_cut() {
+        let mut source="table notes:\n  room: text <=32\n  read <- allow\n  online only\nquery Q():\n".to_string();
+        for n in 0..130 {source.push_str(&format!("  p{n} = notes where .room = 'r{n}' first 1 by .id\n"));}
+        source.push_str("  return []\n");
+        let engine=engine(source);
+        assert_eq!(dependencies(&engine,"Q",&Context::new("alice",Default::default())),None);
+    }
 }

@@ -1,5 +1,30 @@
 # S1: scale controls and native Snapback serve
 
+## Closed-loop read CPU diagnostics
+
+`load --closed-loop --target snapback --workload W2 --workers 128 --rows 1000000`
+keeps one request outstanding per worker using the same pooled reqwest client,
+fixture-key mix and response validation as open-loop S1. Choose 64, 128 or 256
+workers for the RCPU comparison. Do not supply `--rate` with `--closed-loop`.
+The output format is `sb4-scale-closed-loop-v1`; these capacity diagnostics do
+not qualify an open-loop offered-rate rung or its SLO. The ordinary `--rate`
+mode retains its intended-arrival scheduler and open-loop format.
+`successful_latency` reports validated successful reads separately, so quick
+admission refusals cannot improve the displayed read latency; the existing
+all-arrival latency and SLO accounting are retained.
+
+On Linux, `--cpu-pids SERVER_PID` samples whole-process user+system CPU ticks
+at the common measured boundaries, including the load client itself.
+`--cpu-tree-root PRIVATE_PG_MASTER_PID` additionally samples the private PG
+process family, including CPU of reaped children. The JSON retains process
+birth ticks, actual boundary times, one-minute loads and live family PIDs.
+Divide the CPU delta by `completed_in_window_per_s * duration_ms / 1000`,
+which counts warm-up completions in the window and excludes drain. Missing
+counters, a changed process identity or incomplete process-family inspection
+must be reported rather than treated as zero. Other platforms emit null CPU
+samples; load generation and validation remain available.
+
+
 ## S1-PG2: admitted maintained columns, unchanged Postgres baseline
 
 [Matched W1–W5 report, comparison and archive](./results-20261022-snapback-postgres-2/README.md)
