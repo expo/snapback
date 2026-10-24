@@ -1,0 +1,16 @@
+muse: workspace root: /home/ccheever/projects/sb4-fast (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=7626a453-1d43-44f2-ab46-f45939c733ee]: Subscription quota exhausted. Your usage window resets at 2026-10-26T00:00:00Z. (rate_limit_error)
+[muse-exec] plan quota exhausted; retrying with the Meta API key
+muse: workspace root: /home/ccheever/projects/sb4-fast (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY — frozen commit `952e6f3f85` is consistent. No material implementation or amendment defect.
+
+The [affected selector](/home/ccheever/projects/sb4-fast/snapback4/scripts/affected.mjs) matches the D-2 amendment: triple-dot base-to-head diff, worktree endpoints plus untracked, historical manifest/test-source planning, checkout-bound execution, Cargo reverse closure with test-only narrowing and required features, client pools with CLI/wasm/dist rebuilds, docs/guide handling, diagnostics/inventories/generated/ref-check triggers, Lean plus seeded difftest, fail-broad with per-file reasons, finite timeouts, `--no-fail-fast` with `BLOCKED` dependents, and snapshot-bound receipts under transient `target/affected/`.
+
+The [selector tests](/home/ccheever/projects/sb4-fast/snapback4/scripts/affected.test.mjs) cover the prior findings: empty root delegation, broad fixtures/chat/typechecks/release guards plus builds, bare dist rebuilds, executable docs with guide target and readme consumers, committed-mode mutation, and feature/wasm/diagnostics/no-runner cases. The [dispositions](/home/ccheever/projects/sb4-fast/llp/reviews/0189-fast/dispositions.md) and amendment correctly scope receipts as transient with CI upload plus operator copy, and disclose the 21-vs-19 log count.
+
+The [local-proof workflow](/home/ccheever/projects/sb4-fast/.github/workflows/local-proof.yml) plus root selector/policy diff preserve unknown-path fail-broad, exclude the legacy baseline for Snapback 4–only diffs, keep mixed-fence union, and provision wasm/bindgen/twiggy/brotli/Lean plus browser without Ibex for Snapback 4 alone.
+
+Deferred, not defects: paired full-suite timing and historical execution remain unestablished by workstream rule; selection replay is not an execution proof. Selector-only narrow coverage is the already-authorized cadence choice. This binds the frozen bytes, not mutable HEAD.
+

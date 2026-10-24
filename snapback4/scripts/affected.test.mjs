@@ -193,3 +193,34 @@ test('packages without owned tests widen to cover sibling consumers', () => {
   const noTests = { ...model, packages: [...model.packages, { name: 'native-package', dir: 'snapback4/packages/native-package', dependencies: [], scripts: {}, tests: [] }] };
   assert(selectAffected(['snapback4/packages/native-package/src/bridge.ts'], noTests).broad);
 });
+
+test('client pool prerequisites are derived per file rather than unioned across the pool', () => {
+  const first = model.packages[0].tests[0], second = model.packages[1].tests[0];
+  const mixed = { ...model, clientEvidence: { [first]: ['first: CLI/process consumer'], [second]: ['second: wasm consumer'] } };
+  const plan = selectAffected(['snapback4/packages/snapback4/src/client.ts'], mixed);
+  const pool = plan.steps.find(step => step.id === 'client-tests');
+  assert.deepEqual(pool.requires, []);
+  assert.deepEqual(pool.fileRequires[first.slice('snapback4/'.length)], ['build-cli']);
+  assert.deepEqual(pool.fileRequires[second.slice('snapback4/'.length)], ['build-wasm']);
+});
+test('a failed wasm producer blocks only its consumers and independent pool files still run', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'sb4-affected-pool-'));
+  const git = (...args) => execFileSync('timeout', ['20s', 'git', ...args], { cwd: dir, encoding: 'utf8' }).trim();
+  try {
+    git('init', '-q'); writeFileSync(join(dir, '.gitignore'), 'target/\n'); git('add', '.');
+    git('-c', 'user.name=Test', '-c', 'user.email=test@example.org', 'commit', '-qm', 'fixture');
+    const head = git('rev-parse', 'HEAD');
+    const plan = { ...selectAffected([], model), base: head, head, worktree: false, observedFiles: [], inputDigest: createHash('sha256').update('[]').digest('hex'), steps: [
+      { id: 'build-cli', cwd: '.', argv: [process.execPath, '-e', 'process.exit(0)'], timeoutSeconds: 10 },
+      { id: 'build-wasm', cwd: '.', argv: [process.execPath, '-e', 'process.exit(9)'], timeoutSeconds: 10 },
+      { id: 'pool', cwd: '.', argv: [process.execPath, '-e', "require('node:fs').writeFileSync('target/runnable.json', JSON.stringify(process.argv.slice(1)))", '--', 'cli-only', 'wasm-only', 'product-free'], fileArgOffset: 4,
+        fileRequires: { 'cli-only': ['build-cli'], 'wasm-only': ['build-wasm'], 'product-free': [] }, timeoutSeconds: 10 },
+      { id: 'after', cwd: '.', argv: [process.execPath, '-e', 'process.exit(0)'], timeoutSeconds: 10 },
+    ] };
+    const { receipt } = await runPlan(plan, { root: dir });
+    assert.deepEqual(JSON.parse(readFileSync(join(dir, 'target/runnable.json'), 'utf8')), ['cli-only', 'product-free']);
+    assert.deepEqual(receipt.results[2].blockedFiles, [{ file: 'wasm-only', blockedBy: ['build-wasm'] }]);
+    assert.equal(receipt.results[2].executedStatus, 0); assert.equal(receipt.results[2].status, null);
+    assert.equal(receipt.results[3].status, 0); assert.equal(receipt.unchanged, true); assert.equal(receipt.ok, false);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});

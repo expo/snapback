@@ -18,3 +18,16 @@ claimed to bind the final cut. Both are preserved verbatim with provenance.
 - Known-red count: raw log has 21 failing Rust tests in six targets plus the client failure, despite inherited prose saying 19. Tests and FAST report cite the raw log and explicitly disclose the discrepancy; historical qualification records are preserved.
 - Generated check scope: the requested root generated-artifact checker does not own Snapback 4 outputs. Keep it as an explicitly named root check; selected product prerequisites rebuild CLI/wasm/client artifacts and guide tests exercise the emitter. No claim that the root checker owns Snapback 4 generation.
 - Historical execution/timing: unestablished, not represented by selection fixtures. Common workstream rules forbid the full runs required for the requested paired full-suite comparison. Final report records this scope conflict and the replay outcomes.
+
+
+Round 2 reviewed frozen commit 952e6f3f85. Muse returned READY. Fresh Codex
+returned NOT READY: a pool-wide producer edge could suppress independent
+client files when a wasm producer failed. Fixed by recording dependencies per
+file, filtering blocked consumers at execution, and running the runnable
+subset through the unchanged existing process-custody runner. A partially
+blocked pool can never claim PASS, even if its runnable files pass. Explicit
+mixed-pool fixtures verify CLI-only/product-free files run after wasm failure,
+while the wasm consumer is reported BLOCKED and later independent steps run.
+Fixture-wrapper files are now discovered and receive the same per-file
+custody; historical snapshots include their source directory. Client source
+movement also conservatively selects diagnostics/inventory checks.

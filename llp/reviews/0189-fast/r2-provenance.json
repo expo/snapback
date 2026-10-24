@@ -1,0 +1,18 @@
+{
+  "date": "2026-10-24T09:49:09.083280+00:00",
+  "reviewedCommit": "952e6f3f85f95cc5db865e2d5922dccd501e60ba",
+  "input": "Frozen bytes supplied inline; no mutable workspace review",
+  "models": {
+    "codex": "gpt-6.1-sol, high, fresh codex exec",
+    "muse": "muse-spark-1.3-contributor, high; quota fallback via muse-exec"
+  },
+  "verdicts": {
+    "codex": "NOT READY \u2014 pool-wide producer dependency suppresses independent files",
+    "muse": "READY"
+  },
+  "files": {
+    "r2-muse.txt": "12f695cf09212c083be177f23cfc258bd799228e86d4f0393844349e1be70cf6",
+    "r2-brief.txt": "19f21b5fd6872d9efce92f2ce9e8afc6e35fe85536f675981363c16010cd8795",
+    "r2-codex.txt": "516b03650f336285af87246b9b70e146b0127dd0eb81fadd581482f357184eef"
+  }
+}

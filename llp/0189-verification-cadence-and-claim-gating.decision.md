@@ -430,7 +430,9 @@ Selection ownership:
 Every execution command has a finite timeout and inherits
 `CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0`.
 Cargo disables target-level fail-fast; independent commands continue after
-failures, with dependent commands explicitly BLOCKED after a failed producer. A JSON receipt
+failures, with dependent commands explicitly BLOCKED after a failed producer; client
+pools track those dependencies per file so runnable files still execute
+through the existing pool even when another file is blocked. A JSON receipt
 under `target/affected/` records base/head, changed paths, selected commands,
 per-file reasons and per-command status/timing. It records incomplete execution
 before starting and refuses success if the observed Git/content snapshot changes, including a

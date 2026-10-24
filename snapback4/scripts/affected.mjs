@@ -90,7 +90,9 @@ export function loadModel(root = ROOT) {
     return sorted(hits);
   }
   for (const pkg of packages) for (const test of pkg.tests) evidenceCache.set(test, evidence(test));
-  return { crates, packages, files, text, clientEvidence: Object.fromEntries(evidenceCache) };
+  const fixtureFiles = files.filter(path => path.startsWith('snapback4/fixtures/') && path.endsWith('.test.mjs'));
+  const fixtureEvidence = Object.fromEntries(fixtureFiles.map(path => [path, evidence(path)]));
+  return { crates, packages, files, text, fixtureFiles, fixtureEvidence, clientEvidence: Object.fromEntries(evidenceCache) };
 }
 
 export function reverseClosure(seeds, nodes) {
@@ -114,6 +116,7 @@ export function selectAffected(changedFiles, model) {
   const narrowRust = new Map();
   const fullPackages = new Set();
   const clientFiles = new Set();
+  const fixtureFiles = new Set();
   const checks = new Set(files.length ? ['ref-check'] : []);
   let broad = false;
   let semantics = false;
@@ -181,7 +184,7 @@ export function selectAffected(changedFiles, model) {
     if (pkg) {
       if (pkg.tests.includes(path)) { clientFiles.add(path); why(path, 'client test file only'); }
       else if (path.startsWith(pkg.dir + '/test/') || path.startsWith(pkg.dir + '/tests/')) widen(path, 'shared client test support');
-      else { fullPackages.add(pkg.name); why(path, 'client package source and reverse dependents');
+      else { fullPackages.add(pkg.name); checks.add('diagnostics'); checks.add('inventories'); why(path, 'client package source and reverse dependents');
         if (!pkg.tests.length && !pkg.scripts.test) widen(path, 'package has no owned test runner; include cross-package consumers');
       }
       continue;
@@ -196,6 +199,7 @@ export function selectAffected(changedFiles, model) {
   if (broad) {
     for (const crate of model.crates) fullCrates.add(crate.name);
     for (const pkg of model.packages) fullPackages.add(pkg.name);
+    for (const file of model.fixtureFiles ?? []) fixtureFiles.add(file);
     for (const check of ['guide', 'docs-budget', 'packaged-docs', 'diagnostics', 'inventories', 'generated', 'ref-check', 'selector-tests', 'fixture-tests', 'chat-check', 'chat-typecheck', 'expo-typecheck', 'release-guard']) checks.add(check);
     semantics = true;
   }
@@ -213,6 +217,10 @@ export function selectAffected(changedFiles, model) {
       for (const hit of sorted([cli, wasm].filter(Boolean))) why(test, hit);
     }
   }
+  for (const [file, evidence] of Object.entries(model.fixtureEvidence ?? {})) {
+    const hit = evidence.find(hit => (cliChanged && /CLI|process consumer/.test(hit)) || (wasmChanged && /wasm/.test(hit)));
+    if (hit) { fixtureFiles.add(file); checks.add('fixture-tests'); why(file, hit); }
+  }
   if (wasmChanged) checks.add('wasm-measurement');
   const steps = [];
   const step = (id, cwd, argv, reason) => steps.push({ id, cwd, argv, reason, timeoutSeconds: /^(?:ref-check|selector-tests|packaged-docs)$/.test(id) ? 300 : /^(?:guide|inventories|diagnostics|install-client)$/.test(id) ? 900 : TIMEOUT });
@@ -226,7 +234,7 @@ export function selectAffected(changedFiles, model) {
   };
   // Build every product used by selected tests, even for a test-only diff; never
   // trust ignored binaries/dist/wasm left over from another revision.
-  const evidence = [...clientFiles].flatMap(test => model.clientEvidence?.[test] ?? []);
+  const evidence = [...clientFiles].flatMap(test => model.clientEvidence?.[test] ?? []).concat([...fixtureFiles].flatMap(test => model.fixtureEvidence?.[test] ?? []));
   const needCli = broad || evidence.some(hit => /CLI|process consumer/.test(hit));
   const needClient = broad || evidence.some(hit => /client build consumer/.test(hit));
   const needWasm = needClient || evidence.some(hit => /wasm/.test(hit));
@@ -251,8 +259,24 @@ export function selectAffected(changedFiles, model) {
   const modelFiles = [...clientFiles].filter(path => /\/(?:app-session-model|online-client-model)\.test\.mjs$/.test(path));
   const ordinaryFiles = sorted([...clientFiles].filter(path => !modelFiles.includes(path)));
   const concurrency = String(process.env.SNAPBACK4_TEST_SERIAL_CLIENT_FILES === '1' ? 1 : Math.min(24, Math.max(1, Math.floor(availableParallelism() / 3))));
-  if (ordinaryFiles.length) step('client-tests', 'snapback4', ['node', 'scripts/run-client-tests.mjs', concurrency, 'files', ...ordinaryFiles.map(path => path.slice(PREFIX.length))], 'selected client files (one existing custody pool)');
-  if (modelFiles.length) step('client-models', 'snapback4', ['node', 'scripts/run-client-tests.mjs', '1', 'models', ...sorted(modelFiles).map(path => path.slice(PREFIX.length))], 'models retain serial custody');
+  function testPool(id, files, concurrency, mode, evidenceByFile) {
+    step(id, 'snapback4', ['node', 'scripts/run-client-tests.mjs', concurrency, mode, ...files.map(path => path.slice(PREFIX.length))], 'selected files retain existing process custody');
+    steps.at(-1).fileArgOffset = 4;
+    steps.at(-1).fileRequires = Object.fromEntries(files.map(file => {
+      const evidence = evidenceByFile?.[file] ?? [];
+      const required = [];
+      if (evidence.some(hit => /CLI|process consumer/.test(hit))) required.push('build-cli');
+      if (evidence.some(hit => /wasm/.test(hit))) required.push('build-wasm');
+      if (evidence.some(hit => /client build consumer/.test(hit))) required.push('build-client');
+      // A directory fallback is only used for synthetic models lacking the
+      // discovered file inventory; real models always enumerate fixture files.
+      if (file.endsWith('/')) required.push('build-cli', 'build-wasm', 'build-client');
+      return [file.slice(PREFIX.length), sorted(required)];
+    }));
+  }
+  if (checks.has('fixture-tests')) testPool('fixture-tests', fixtureFiles.size ? sorted(fixtureFiles) : ['snapback4/fixtures/'], '1', 'files', model.fixtureEvidence);
+  if (ordinaryFiles.length) testPool('client-tests', ordinaryFiles, concurrency, 'files', model.clientEvidence);
+  if (modelFiles.length) testPool('client-models', sorted(modelFiles), '1', 'models', model.clientEvidence);
   const checkCommands = {
     'fixture-tests': ['snapback4', ['node', 'scripts/run-client-tests.mjs', '1', 'files', 'fixtures/']],
     'chat-check': ['snapback4/apps/chat', ['../../target/debug/snapback4', 'check']],
@@ -269,7 +293,7 @@ export function selectAffected(changedFiles, model) {
     'selector-tests': ['.', ['node', '--test', 'snapback4/scripts/affected.test.mjs', 'tests/local_proof_selection_v0.mjs', 'tests/local_proof_inventory_v0.mjs', 'tests/ci_workflows_v0.mjs']],
     'wasm-measurement': ['snapback4', ['bash', 'scripts/measure-wasm.sh']],
   };
-  for (const check of sorted(checks)) step(check, ...checkCommands[check], 'affected input contract');
+  for (const check of sorted(checks)) if (check !== 'fixture-tests') step(check, ...checkCommands[check], 'affected input contract');
   if (semantics) {
     step('lean-build', 'snapback4/lean', ['lake', 'build'], 'semantic oracle prerequisite');
     for (const mode of ['run-lean', 'run']) cargo(`difftest:${mode}`, ['run', '--release', '-p', 'snapback4-difftest', '--', mode, '--seed', '0', '--cases', '2000', '--workers', '2', '--out', `target/affected/difftest-${mode}`], 'language, planner/store semantics or fail broad');
@@ -279,7 +303,7 @@ export function selectAffected(changedFiles, model) {
     let required = [];
     if (step.id === 'build-wasm' || step.id.startsWith('typecheck:') || step.id === 'expo-typecheck') required.push('install-client');
     if (step.id === 'build-client') required.push('install-client', 'build-wasm');
-    if (step.id === 'client-tests' || step.id === 'client-models' || step.id === 'fixture-tests') required.push('build-cli', 'build-wasm', 'build-client');
+    if (step.fileRequires) for (const [file, dependencies] of Object.entries(step.fileRequires)) step.fileRequires[file] = dependencies.filter(id => stepIds.has(id));
     if (step.id === 'chat-check') required.push('build-cli');
     if (step.id === 'chat-typecheck') required.push('install-client', 'chat-check');
     if (step.id === 'wasm-measurement') required.push('build-wasm');
@@ -287,6 +311,7 @@ export function selectAffected(changedFiles, model) {
     step.requires = required.filter(id => stepIds.has(id));
   }
   return { schemaVersion: 'snapback4.affected.v1', files, broad, reasons, rustPackages: sorted(fullCrates),
+    fixtureFiles: sorted(fixtureFiles),
     rustTargets: Object.fromEntries([...narrowRust].filter(([name]) => !fullCrates.has(name)).map(([name, targets]) => [name, sorted(targets)])),
     clientFiles: sorted(clientFiles), checks: sorted(checks), steps };
 }
@@ -315,7 +340,7 @@ export function modelAtRevision(root, revision, fn) {
   const snapshot = mkdtempSync(join(parent, 'snapshot-'));
   try {
     const tree = git(root, 'ls-tree', '-r', '--name-only', revision, '--', 'snapback4').trim().split('\n');
-    const wanted = ['snapback4/Cargo.toml', 'snapback4/Cargo.lock', 'snapback4/package.json', 'snapback4/crates', 'snapback4/packages', 'snapback4/scripts'];
+    const wanted = ['snapback4/Cargo.toml', 'snapback4/Cargo.lock', 'snapback4/package.json', 'snapback4/crates', 'snapback4/packages', 'snapback4/scripts', 'snapback4/fixtures'];
     const present = wanted.filter(path => tree.some(file => file === path || file.startsWith(path + '/')));
     const archive = command(root, 'git', ['archive', revision, '--', ...present], { encoding: null });
     command(snapshot, 'tar', ['-xf', '-'], { input: archive });
@@ -343,7 +368,7 @@ export async function runPlan(plan, { root = ROOT } = {}) {
   if (!plan.worktree && changedPaths(root, plan.head, plan.head, true).length) throw new Error('dirty worktree: use --worktree to bind uncommitted changes');
   const earlier = new Set();
   for (const step of plan.steps) {
-    if ((step.requires ?? []).some(id => !earlier.has(id))) throw new Error(`missing or later prerequisite for ${step.id}`);
+    if ([...(step.requires ?? []), ...Object.values(step.fileRequires ?? {}).flat()].some(id => !earlier.has(id))) throw new Error(`missing or later prerequisite for ${step.id}`);
     if (earlier.has(step.id)) throw new Error(`duplicate step ID ${step.id}`);
     earlier.add(step.id);
   }
@@ -354,18 +379,31 @@ export async function runPlan(plan, { root = ROOT } = {}) {
   const persist = () => writeFileSync(receiptPath, JSON.stringify(receipt, null, 2) + '\n');
   persist();
   for (const step of plan.steps) {
-    console.error(`== ${step.id}\n${formatStep(step)}`);
+    let executionStep = step;
+    const blockedFiles = [];
+    const failedPrerequisites = dependencies => dependencies.filter(id => !receipt.results.some(result => result.id === id && result.status === 0));
+    if (step.fileRequires) {
+      const runnable = [];
+      for (const file of step.argv.slice(step.fileArgOffset)) {
+        const blockedBy = failedPrerequisites(step.fileRequires[file] ?? []);
+        if (blockedBy.length) blockedFiles.push({ file, blockedBy }); else runnable.push(file);
+      }
+      for (const entry of blockedFiles) console.error(`BLOCKED: ${entry.file} by ${entry.blockedBy.join(', ')}`);
+      if (!runnable.length) { receipt.results.push({ id: step.id, status: null, blockedFiles, elapsedMs: 0 }); persist(); continue; }
+      executionStep = { ...step, argv: [...step.argv.slice(0, step.fileArgOffset), ...runnable] };
+    }
+    console.error(`== ${step.id}\n${formatStep(executionStep)}`);
     const blockedBy = (step.requires ?? []).filter(id => !receipt.results.some(result => result.id === id && result.status === 0));
     if (blockedBy.length) { receipt.results.push({ id: step.id, status: null, blockedBy, elapsedMs: 0 }); persist(); console.error(`BLOCKED: ${step.id} by ${blockedBy.join(', ')}`); continue; }
     const before = Date.now();
     const result = await new Promise(resolveResult => {
-      const child = spawn('timeout', ['--kill-after=10s', `${step.timeoutSeconds}s`, ...step.argv], {
+      const child = spawn('timeout', ['--kill-after=10s', `${step.timeoutSeconds}s`, ...executionStep.argv], {
         cwd: resolve(root, step.cwd), env: { ...process.env, ...CARGO_ENV, RUST_MIN_STACK: '33554432' }, stdio: 'inherit',
       });
       child.on('error', error => resolveResult({ status: null, error: error.message }));
       child.on('close', (status, signal) => resolveResult({ status, signal }));
     });
-    receipt.results.push({ id: step.id, ...result, elapsedMs: Date.now() - before }); persist();
+    receipt.results.push({ id: step.id, ...result, ...(blockedFiles.length ? { executedStatus: result.status, status: result.status === 0 ? null : result.status, blockedFiles } : {}), elapsedMs: Date.now() - before }); persist();
   }
   receipt.complete = true;
   receipt.finished = new Date().toISOString();

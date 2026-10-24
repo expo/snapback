@@ -75,7 +75,7 @@ jobs:
 
       # The repository intentionally keeps the large Ibex runtime submodule
       # demand-loaded. Fast docs/guide selections do not pay its clone cost;
-      # every affected code or complete selection reaches native readiness
+      # every legacy affected-code or complete selection reaches native readiness
       # through the mandatory Contract/Exact boundary and initializes it.
       - name: Initialize native runtime submodules
         if: steps.selection.outputs.requires_native == 'true'
