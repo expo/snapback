@@ -1,0 +1,20 @@
+{
+  "removed": [
+    {
+      "path": "/home/ccheever/sb4-loop/integ24/target-write40-postgres",
+      "bytesRemoved": 2007254205,
+      "removed": true
+    },
+    {
+      "path": "/home/ccheever/sb4-loop/prewave24/exact2-integ24-write40/target",
+      "bytesRemoved": 1036400743,
+      "removed": true
+    },
+    {
+      "path": "/home/ccheever/sb4-loop/prewave24/exact2-integ24-write40/snapback4/target",
+      "bytesRemoved": 519387075,
+      "removed": true
+    }
+  ],
+  "retained": "All logs/receipts, pack files, native frozen binaries, difftest binaries/oracle and source copies; public witness uses separate root target."
+}

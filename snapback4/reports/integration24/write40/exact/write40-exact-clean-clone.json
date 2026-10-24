@@ -1,0 +1,18 @@
+{
+  "directory": "/home/ccheever/sb4-loop/prewave24/exact2-integ24-write40",
+  "originMainAtClone": "e54cb130952de59feec3d34d9d26db04f046d3aa",
+  "statusBeforeDependencyBinding": "",
+  "cloneCommand": [
+    "timeout",
+    "240s",
+    "git",
+    "clone",
+    "--depth",
+    "1",
+    "--branch",
+    "main",
+    "https://github.com/ccheever/exact2.git",
+    "/home/ccheever/sb4-loop/prewave24/exact2-integ24-write40"
+  ],
+  "scope": "Fresh current origin/main clone; only clone-local dependency declarations and generated lockfiles may change, no Exact product code."
+}

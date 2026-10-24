@@ -1,0 +1,17 @@
+{
+  "source": "53da2f7b3de6344e2be82a90364815679b4e7533",
+  "initialSetupExit": 1,
+  "rootAndNestedMetadataExit": 0,
+  "repeatExit": 0,
+  "tests": {
+    "synced": {
+      "passed": 2,
+      "failed": 0
+    },
+    "online": {
+      "passed": 1,
+      "failed": 0
+    }
+  },
+  "failedAttempt": "exact-wave26-write40-locked-setup-failed"
+}

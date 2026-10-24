@@ -1,0 +1,27 @@
+{
+  "source": "53da2f7b3de6344e2be82a90364815679b4e7533",
+  "clientFiles": 116,
+  "counts": {
+    "clients": {
+      "tests": 2490,
+      "pass": 2476,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 14,
+      "todo": 0
+    },
+    "models": {
+      "tests": 89,
+      "pass": 89,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  "totalPass": 2565,
+  "declaredSkips": 14,
+  "allAffectedCargoAndPrivatePgCommandsPassed": true,
+  "sourceStatusEmpty": true,
+  "artifactsUnchanged": true
+}

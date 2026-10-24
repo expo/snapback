@@ -1,0 +1,285 @@
+diff --git a/Cargo.lock b/Cargo.lock
+index d0c2e37..7f5dec6 100644
+--- a/Cargo.lock
++++ b/Cargo.lock
+@@ -888,6 +888,25 @@ dependencies = [
+  "cfg-if",
+ ]
+ 
++[[package]]
++name = "crossbeam-deque"
++version = "0.8.7"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "5181e0de7b61eb03a81e347d6dd8797bae9da5146707b51077e2d71a54ec0ceb"
++dependencies = [
++ "crossbeam-epoch",
++ "crossbeam-utils",
++]
++
++[[package]]
++name = "crossbeam-epoch"
++version = "0.9.20"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "2d6914041f254d6e9176c01941b21115dcfb7089e55135a35411081bd106ef3f"
++dependencies = [
++ "crossbeam-utils",
++]
++
+ [[package]]
+ name = "crossbeam-utils"
+ version = "0.8.23"
+@@ -1159,6 +1178,12 @@ dependencies = [
+  "subtle",
+ ]
+ 
++[[package]]
++name = "either"
++version = "1.18.0"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "252afb9ae5eaa683babdc6a068b3f5726eb19e05070c731f9b2a23a7c3e8ed34"
++
+ [[package]]
+ name = "elliptic-curve"
+ version = "0.13.8"
+@@ -4301,6 +4326,26 @@ dependencies = [
+  "objc2-quartz-core 0.3.2",
+ ]
+ 
++[[package]]
++name = "rayon"
++version = "1.12.0"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "fb39b166781f92d482534ef4b4b1b2568f42613b53e5b6c160e24cfbfa30926d"
++dependencies = [
++ "either",
++ "rayon-core",
++]
++
++[[package]]
++name = "rayon-core"
++version = "1.13.0"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "22e18b0f0062d30d4230b2e85ff77fdfe4326feb054b9783a3460d8435c8ab91"
++dependencies = [
++ "crossbeam-deque",
++ "crossbeam-utils",
++]
++
+ [[package]]
+ name = "read-fonts"
+ version = "0.41.0"
+@@ -4908,12 +4953,12 @@ dependencies = [
+ 
+ [[package]]
+ name = "snapback4-core"
+-version = "0.4.33"
+-source = "git+https://github.com/expo/snapback.git?rev=3653cae823145170df3e720f5e321bd1b5b4d79d#3653cae823145170df3e720f5e321bd1b5b4d79d"
++version = "0.4.40"
+ dependencies = [
+  "argon2",
+  "getrandom 0.3.4",
+  "libc",
++ "rayon",
+  "rusqlite",
+  "serde",
+  "serde_json",
+@@ -4925,10 +4970,8 @@ dependencies = [
+ 
+ [[package]]
+ name = "snapback4-device"
+-version = "0.4.33"
+-source = "git+https://github.com/expo/snapback.git?rev=3653cae823145170df3e720f5e321bd1b5b4d79d#3653cae823145170df3e720f5e321bd1b5b4d79d"
++version = "0.4.40"
+ dependencies = [
+- "rusqlite",
+  "serde",
+  "serde_json",
+  "sha2",
+diff --git a/bun.lock b/bun.lock
+index 7b76819..72aea3d 100644
+--- a/bun.lock
++++ b/bun.lock
+@@ -25,7 +25,7 @@
+         "fflate": "0.8.3",
+         "playwright-core": "1.64.1",
+         "rolldown": "1.2.9",
+-        "snapback4": "0.4.33",
++        "snapback4": "/home/ccheever/sb4-loop/integ24/pack-wave26-write40/snapback4-0.4.40.tgz",
+         "typescript": "7.0.2",
+       },
+     },
+@@ -221,11 +221,7 @@
+ 
+     "rolldown": ["rolldown@1.2.9", "", { "dependencies": { "@oxc-project/types": "=0.150.0", "@rolldown/pluginutils": "^1.0.0" }, "optionalDependencies": { "@rolldown/binding-android-arm-eabi": "1.2.9", "@rolldown/binding-android-arm64": "1.2.9", "@rolldown/binding-darwin-arm64": "1.2.9", "@rolldown/binding-darwin-x64": "1.2.9", "@rolldown/binding-freebsd-x64": "1.2.9", "@rolldown/binding-linux-arm-gnueabihf": "1.2.9", "@rolldown/binding-linux-arm64-gnu": "1.2.9", "@rolldown/binding-linux-arm64-musl": "1.2.9", "@rolldown/binding-linux-ppc64-gnu": "1.2.9", "@rolldown/binding-linux-s390x-gnu": "1.2.9", "@rolldown/binding-linux-x64-gnu": "1.2.9", "@rolldown/binding-linux-x64-musl": "1.2.9", "@rolldown/binding-openharmony-arm64": "1.2.9", "@rolldown/binding-win32-arm64-msvc": "1.2.9", "@rolldown/binding-win32-x64-msvc": "1.2.9" }, "bin": { "rolldown": "./bin/cli.mjs" } }, "sha512-hx/Pv0N1haXRb11qkfnK5MXB/iqr7i0yjWQqmO9uHqZpBgQSqzc8UsSnEpalsh+j1I8qQ2CkXAkJC8Br3dKSlg=="],
+ 
+-    "snapback4": ["snapback4@0.4.33", "", { "dependencies": { "openid-client": "6.8.8", "undici": "8.11.2" }, "optionalDependencies": { "snapback4-darwin-arm64": "0.4.33", "snapback4-linux-x64": "0.4.33" }, "peerDependencies": { "playwright-core": ">=1.55.1 <2", "react": "^19.0.0" }, "optionalPeers": ["playwright-core", "react"], "bin": { "snapback4": "bin/snapback4.js" } }, "sha512-KIsQ9PQYxbufDI9g721LnHoMQ/ZKx4HzFQIT5/kVu1JJXo+6lEWe4nd2fniXzW/f9ByjA8UIJxOVHdWFAwSSVA=="],
+-
+-    "snapback4-darwin-arm64": ["snapback4-darwin-arm64@0.4.33", "", { "os": "darwin", "cpu": "arm64" }, "sha512-hwy7cSYzj1DmpHr+EjPbCdztJQvQdg1n/+uwW8kFOn2ODexGohcURmxEP/ODAvojJFTIMGkocy+RHvfN2Jd+kg=="],
+-
+-    "snapback4-linux-x64": ["snapback4-linux-x64@0.4.33", "", { "os": "linux", "cpu": "x64" }, "sha512-yuyO94medY6S9gf3geiGY9oq6OV2z5oEBMQPgnvbReGMnT+lvMpEHOXBclj+dp8DFwb6ML/pR7bt98Yze5t1Lw=="],
++    "snapback4": ["snapback4@/home/ccheever/sb4-loop/integ24/pack-wave26-write40/snapback4-0.4.40.tgz", { "dependencies": { "openid-client": "6.8.8", "undici": "8.11.2" }, "optionalDependencies": { "snapback4-darwin-arm64": "0.4.40", "snapback4-linux-x64": "0.4.40" }, "peerDependencies": { "playwright-core": ">=1.55.1 <2", "react": "^19.0.0" }, "optionalPeers": ["playwright-core", "react"], "bin": { "snapback4": "bin/snapback4.js" } }, "sha512-1LsS60b8ml2XBzeW3/5bdokTm5zNDsHb0FecPwEUCdXxHxSy3uyyBOftVyuO4Z2LqR7Q6AzZdMZ9/+eMc6D36Q=="],
+ 
+     "typescript": ["typescript@7.0.2", "", { "optionalDependencies": { "@typescript/typescript-aix-ppc64": "7.0.2", "@typescript/typescript-darwin-arm64": "7.0.2", "@typescript/typescript-darwin-x64": "7.0.2", "@typescript/typescript-freebsd-arm64": "7.0.2", "@typescript/typescript-freebsd-x64": "7.0.2", "@typescript/typescript-linux-arm": "7.0.2", "@typescript/typescript-linux-arm64": "7.0.2", "@typescript/typescript-linux-loong64": "7.0.2", "@typescript/typescript-linux-mips64el": "7.0.2", "@typescript/typescript-linux-ppc64": "7.0.2", "@typescript/typescript-linux-riscv64": "7.0.2", "@typescript/typescript-linux-s390x": "7.0.2", "@typescript/typescript-linux-x64": "7.0.2", "@typescript/typescript-netbsd-arm64": "7.0.2", "@typescript/typescript-netbsd-x64": "7.0.2", "@typescript/typescript-openbsd-arm64": "7.0.2", "@typescript/typescript-openbsd-x64": "7.0.2", "@typescript/typescript-sunos-x64": "7.0.2", "@typescript/typescript-win32-arm64": "7.0.2", "@typescript/typescript-win32-x64": "7.0.2" }, "bin": { "tsc": "bin/tsc" } }, "sha512-8FYau96o3NKOhbjKi/qNvG/W5jhzxkbdm5sj9AbZ/5T5sWqn3hJgLfGx27sRKZWTvyzCP8dLRBTf5tBTSRVUNA=="],
+ 
+diff --git a/package.json b/package.json
+index c5a52e3..530082f 100644
+--- a/package.json
++++ b/package.json
+@@ -2,15 +2,19 @@
+   "name": "exact2",
+   "private": true,
+   "packageManager": "bun@1.4.2",
+-  "engines": { "bun": ">=1.4.2" },
++  "engines": {
++    "bun": ">=1.4.2"
++  },
+   "description": "The bake's TypeScript toolchain (LLP 1027 D5, ruled 2026-09-03): Rolldown bundles and strips an app's `app.ts` to one script for hermesc. SQLite WASM is shipped as a lazy browser storage artifact.",
+-  "workspaces": ["packages/*"],
++  "workspaces": [
++    "packages/*"
++  ],
+   "devDependencies": {
+     "@sqlite.org/sqlite-wasm": "3.53.4-build1",
+     "fflate": "0.8.3",
+     "playwright-core": "1.64.1",
+     "rolldown": "1.2.9",
+-    "snapback4": "0.4.33",
++    "snapback4": "/home/ccheever/sb4-loop/integ24/pack-wave26-write40/snapback4-0.4.40.tgz",
+     "typescript": "7.0.2"
+   },
+   "bin": {
+diff --git a/snapback4/Cargo.lock b/snapback4/Cargo.lock
+index 5a510ed..4e63fe6 100644
+--- a/snapback4/Cargo.lock
++++ b/snapback4/Cargo.lock
+@@ -121,6 +121,31 @@ dependencies = [
+  "libc",
+ ]
+ 
++[[package]]
++name = "crossbeam-deque"
++version = "0.8.7"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "5181e0de7b61eb03a81e347d6dd8797bae9da5146707b51077e2d71a54ec0ceb"
++dependencies = [
++ "crossbeam-epoch",
++ "crossbeam-utils",
++]
++
++[[package]]
++name = "crossbeam-epoch"
++version = "0.9.20"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "2d6914041f254d6e9176c01941b21115dcfb7089e55135a35411081bd106ef3f"
++dependencies = [
++ "crossbeam-utils",
++]
++
++[[package]]
++name = "crossbeam-utils"
++version = "0.8.23"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "a31eee39dddec8330830986fcd7625edb5a24ec90ea038215273bbc3adb08ac6"
++
+ [[package]]
+ name = "crypto-common"
+ version = "0.1.7"
+@@ -179,6 +204,12 @@ dependencies = [
+  "dtoa",
+ ]
+ 
++[[package]]
++name = "either"
++version = "1.18.0"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "252afb9ae5eaa683babdc6a068b3f5726eb19e05070c731f9b2a23a7c3e8ed34"
++
+ [[package]]
+ name = "equivalent"
+ version = "1.0.2"
+@@ -767,6 +798,26 @@ version = "0.6.4"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "ec0be4795e2f6a28069bec0b5ff3e2ac9bafc99e6a9a7dc3547996c5c816922c"
+ 
++[[package]]
++name = "rayon"
++version = "1.12.0"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "fb39b166781f92d482534ef4b4b1b2568f42613b53e5b6c160e24cfbfa30926d"
++dependencies = [
++ "either",
++ "rayon-core",
++]
++
++[[package]]
++name = "rayon-core"
++version = "1.13.0"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "22e18b0f0062d30d4230b2e85ff77fdfe4326feb054b9783a3460d8435c8ab91"
++dependencies = [
++ "crossbeam-deque",
++ "crossbeam-utils",
++]
++
+ [[package]]
+ name = "ring"
+ version = "0.17.14"
+@@ -993,13 +1044,13 @@ dependencies = [
+ 
+ [[package]]
+ name = "snapback4-core"
+-version = "0.4.33"
+-source = "git+https://github.com/expo/snapback.git?rev=3653cae823145170df3e720f5e321bd1b5b4d79d#3653cae823145170df3e720f5e321bd1b5b4d79d"
++version = "0.4.40"
+ dependencies = [
+  "argon2",
+  "getrandom 0.3.4",
+  "js-sys",
+  "libc",
++ "rayon",
+  "rusqlite",
+  "serde",
+  "serde_json",
+@@ -1011,10 +1062,8 @@ dependencies = [
+ 
+ [[package]]
+ name = "snapback4-device"
+-version = "0.4.33"
+-source = "git+https://github.com/expo/snapback.git?rev=3653cae823145170df3e720f5e321bd1b5b4d79d#3653cae823145170df3e720f5e321bd1b5b4d79d"
++version = "0.4.40"
+ dependencies = [
+- "rusqlite",
+  "serde",
+  "serde_json",
+  "sha2",
+@@ -1023,11 +1072,11 @@ dependencies = [
+ 
+ [[package]]
+ name = "snapback4-lang"
+-version = "0.4.33"
+-source = "git+https://github.com/expo/snapback.git?rev=3653cae823145170df3e720f5e321bd1b5b4d79d#3653cae823145170df3e720f5e321bd1b5b4d79d"
++version = "0.4.40"
+ dependencies = [
+  "serde",
+  "serde_json",
++ "sha2",
+  "snapback4-core",
+ ]
+ 
+diff --git a/snapback4/Cargo.toml b/snapback4/Cargo.toml
+index 4c0d0a2..48b4327 100644
+--- a/snapback4/Cargo.toml
++++ b/snapback4/Cargo.toml
+@@ -12,9 +12,9 @@ license = "MIT"
+ # Snapback4 0.4.33 release source: 3653cae823145170df3e720f5e321bd1b5b4d79d.
+ # Match the published CLI and browser device, without a mutable sibling checkout.
+ [workspace.dependencies]
+-snapback4-core = { git = "https://github.com/expo/snapback.git", rev = "3653cae823145170df3e720f5e321bd1b5b4d79d", version = "=0.4.33", default-features = false }
+-snapback4-device = { git = "https://github.com/expo/snapback.git", rev = "3653cae823145170df3e720f5e321bd1b5b4d79d", version = "=0.4.33", default-features = false }
+-snapback4-lang = { git = "https://github.com/expo/snapback.git", rev = "3653cae823145170df3e720f5e321bd1b5b4d79d", version = "=0.4.33" }
++snapback4-core = { path = "/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-core", default-features = false }
++snapback4-device = { path = "/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-device", default-features = false }
++snapback4-lang = { path = "/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang" }
+ 
+ [patch.crates-io]
+ taffy = { path = "../vendor/taffy" }

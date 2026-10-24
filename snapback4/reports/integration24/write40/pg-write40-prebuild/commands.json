@@ -1,0 +1,49 @@
+[
+  {
+    "key": "core",
+    "argv": [
+      "cargo",
+      "test",
+      "--locked",
+      "-p",
+      "snapback4-core",
+      "--features",
+      "postgres",
+      "--lib",
+      "--no-run"
+    ],
+    "exit": 0
+  },
+  {
+    "key": "cli",
+    "argv": [
+      "cargo",
+      "test",
+      "--locked",
+      "-p",
+      "snapback4",
+      "--features",
+      "postgres",
+      "--bin",
+      "snapback4",
+      "--no-run"
+    ],
+    "exit": 0
+  },
+  {
+    "key": "stores",
+    "argv": [
+      "cargo",
+      "test",
+      "--locked",
+      "-p",
+      "snapback4-difftest",
+      "--features",
+      "postgres",
+      "--test",
+      "stores",
+      "--no-run"
+    ],
+    "exit": 0
+  }
+]

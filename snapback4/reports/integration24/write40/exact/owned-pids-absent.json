@@ -1,0 +1,13 @@
+{
+  "recordedServers": [
+    {
+      "pid": 415983,
+      "absent": true
+    },
+    {
+      "pid": 431387,
+      "absent": true
+    }
+  ],
+  "recordedBackgroundCompiler415959Absent": true
+}

@@ -1,0 +1,11 @@
+{
+  "source": "53da2f7b3de6344e2be82a90364815679b4e7533",
+  "unchanged": true,
+  "artifacts": {
+    "snapback4/target/integ24-wave26-write40-bin/snapback4": "26d6fc31ba629466bb7ce99dc57dc3757c650d9ceab44952acce481d5f98880c",
+    "snapback4/target/debug/snapback4": "26d6fc31ba629466bb7ce99dc57dc3757c650d9ceab44952acce481d5f98880c",
+    "snapback4/packages/snapback4/src/wasm/snapback4_device_bg.wasm": "6da633219f10f17b3533d104750496d2e9815b5cc4b35b4432c9378b3dd6e4d4",
+    "snapback4/packages/snapback4/dist/proof.js": "98bf75afd6b61a08afe537ab9963394a48550c4efae48458ae88318d3abc34d3",
+    "snapback4/packages/snapback4/dist/proof-process.js": "83acfe7c055041de3a9268600cba7db761effa6e53f57e30052237cfbc00f038"
+  }
+}

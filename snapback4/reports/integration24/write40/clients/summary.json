@@ -1,0 +1,26 @@
+{
+  "source": "53da2f7b3de6344e2be82a90364815679b4e7533",
+  "fileAndFixtureGroups": 431,
+  "counts": {
+    "pool": {
+      "tests": 7935,
+      "pass": 7879,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 56,
+      "todo": 0
+    },
+    "models": {
+      "tests": 89,
+      "pass": 89,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  "totalPass": 7968,
+  "totalDeclaredSkips": 56,
+  "sourceStatusEmpty": true,
+  "artifactsUnchanged": true
+}

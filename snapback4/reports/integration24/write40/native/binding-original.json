@@ -1,0 +1,13 @@
+{
+  "source": "53da2f7b3de6344e2be82a90364815679b4e7533",
+  "binary": "/home/ccheever/sb4-loop/integ24/bin/snapback4-write40-default",
+  "binarySha256": "7319fc11401e241f3a348ab0ac3d17ecdf0149b39c5fa18135d8a381a47fd89d",
+  "version": "snapback4 0.4.40",
+  "freshPacksSha256": {
+    "snapback4-0.4.40.tgz": "45ef5fded9e88330086f10181dc4f35bf605c214ba0e0664a6dfe2714f556961",
+    "snapback4-expo-0.4.40.tgz": "0b431967a27670d63ccb94e537e4a9e596c3079f03480a72b7c2ce62b6c4da69"
+  },
+  "identicalToCompleteInstalledConsumerQualification": true,
+  "consumerReceipt": "../write40/packed/consumer.json",
+  "scope": "The installed consumer qualification applies to these identical artifact bytes; shared native write execution is separately qualified by the full workspace/client suites and private PostgreSQL campaigns."
+}

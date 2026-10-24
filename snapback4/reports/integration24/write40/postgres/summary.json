@@ -1,0 +1,56 @@
+{
+  "program-outcomes": {
+    "scopes": 1,
+    "passed": 8,
+    "failed": 0,
+    "declaredIgnored": 0
+  },
+  "program-invocations": {
+    "scopes": 1,
+    "passed": 1,
+    "failed": 0,
+    "declaredIgnored": 0
+  },
+  "literal-serving": {
+    "scopes": 1,
+    "passed": 33,
+    "failed": 0,
+    "declaredIgnored": 0
+  },
+  "difftest-stores": {
+    "scopes": 1,
+    "passed": 4,
+    "failed": 0,
+    "declaredIgnored": 0
+  },
+  "core-postgres-lib": {
+    "scopes": 2,
+    "passed": 796,
+    "failed": 0,
+    "declaredIgnored": 332
+  },
+  "round-trips": {
+    "scopes": 1,
+    "passed": 5,
+    "failed": 0,
+    "declaredIgnored": 0
+  },
+  "composed-read-closure": {
+    "scopes": 1,
+    "passed": 11,
+    "failed": 0,
+    "declaredIgnored": 0
+  },
+  "program-batches": {
+    "scopes": 1,
+    "passed": 53,
+    "failed": 0,
+    "declaredIgnored": 0
+  },
+  "cleanup": {
+    "dataRemoved": true,
+    "ownedPostmaster": 834984,
+    "ownedPostmasterAbsent": true,
+    "pgCtlStatusExit": 3
+  }
+}

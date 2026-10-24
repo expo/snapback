@@ -1,0 +1,9 @@
+{
+  "source": "53da2f7b3de6344e2be82a90364815679b4e7533",
+  "artifacts": {
+    "snapback4/target/integ24-wave26-write40-bin/snapback4": "67c27cfb1822c04a62a699b031310a6fd14413a4d28c53d17b8b89bd7e8f584f",
+    "snapback4/target/debug/snapback4": "67c27cfb1822c04a62a699b031310a6fd14413a4d28c53d17b8b89bd7e8f584f",
+    "snapback4/packages/snapback4/src/wasm/snapback4_device_bg.wasm": "7911b79236d443783753d221534633b9dd3ccafa57de709a25ae3c694149ef27",
+    "snapback4/packages/snapback4/dist/proof-process.js": "83acfe7c055041de3a9268600cba7db761effa6e53f57e30052237cfbc00f038"
+  }
+}

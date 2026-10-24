@@ -1,0 +1,9 @@
+{
+  "source": "53da2f7b3de6344e2be82a90364815679b4e7533",
+  "merge": "4dbc981bce",
+  "upstream": "a41c2a0d0f73d44e7887e3bb8f1401ecd64f4044",
+  "lastProductionChange": "Upstream shared native write-land merge; mutation resolution is byte-identical to upstream.",
+  "additionalRegression": "Grouped column audiences and conditional immutability, SQLite + private PostgreSQL.",
+  "priorCompleteQualification": "4f8e498d2e",
+  "priorReaderQualification": "6c638549fd"
+}

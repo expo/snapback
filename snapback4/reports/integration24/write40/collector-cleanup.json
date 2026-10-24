@@ -1,0 +1,30 @@
+{
+  "removedArchiveAppleDoubleMetadata": [
+    "mac/._group-codec.log.gz",
+    "mac/._program-outcomes.log.gz",
+    "mac/._lang.log.gz",
+    "mac/._wasm.log.gz",
+    "mac/._batch-round-trips.log.gz",
+    "mac/._binding-after.json",
+    "mac/._program-batches.log.gz",
+    "mac/._pg-start.log.gz",
+    "mac/._pg-stop.log.gz",
+    "mac/._pg-init.log.gz",
+    "mac/._core-postgres.log.gz",
+    "mac/._pg",
+    "mac/._pg-cleanup.json",
+    "mac/._status.json",
+    "mac/._binding-before.json",
+    "mac/._core.log.gz",
+    "mac/._cli.log.gz",
+    "mac/._pg-status.log.gz",
+    "mac/._commands.json",
+    "mac/._clients.log.gz",
+    "mac/._program-invocations.log.gz",
+    "mac/._device.log.gz",
+    "mac/._models.log.gz",
+    "mac/._client-build.log.gz",
+    "mac/pg/._server.log.gz"
+  ],
+  "originalMacArchivePreserved": true
+}

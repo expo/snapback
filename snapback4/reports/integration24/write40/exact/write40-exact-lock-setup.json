@@ -1,0 +1,8 @@
+{
+  "initialSetupExit": 1,
+  "cause": "Fresh clone pinned old git source; --locked refused local 0.4.40 dependency bindings.",
+  "rootAndNestedCargoMetadataOfflineExit": 0,
+  "failedAttemptPreserved": "/home/ccheever/sb4-loop/integ24/exact-wave26-write40-locked-setup-failed",
+  "partialOwnedAppRemoved": "/home/ccheever/sb4-loop/prewave24/synced-integ24-wave26-write40",
+  "noExactProductCodeChanged": true
+}

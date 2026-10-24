@@ -1,0 +1,257 @@
+{
+  "allEqual": true,
+  "representatives": [
+    {
+      "path": "lean--code--E_RULE~NOT_FOUND/case.json",
+      "equalCase": true,
+      "equalFinding": true,
+      "equalSource": true
+    },
+    {
+      "path": "lean--continuation-next--next~no-next/case.json",
+      "equalCase": true,
+      "equalFinding": true,
+      "equalSource": true
+    },
+    {
+      "path": "lean--next--next~no-next/case.json",
+      "equalCase": true,
+      "equalFinding": true,
+      "equalSource": true
+    },
+    {
+      "path": "lean--prelude-code--E_RULE~NOT_FOUND/case.json",
+      "equalCase": true,
+      "equalFinding": true,
+      "equalSource": true
+    },
+    {
+      "path": "worker-0/lean--continuation-next--next~no-next/case.json",
+      "equalCase": true,
+      "equalFinding": true,
+      "equalSource": true
+    },
+    {
+      "path": "worker-0/lean--next--next~no-next/case.json",
+      "equalCase": true,
+      "equalFinding": true,
+      "equalSource": true
+    },
+    {
+      "path": "worker-0/lean--prelude-code--E_RULE~NOT_FOUND/case.json",
+      "equalCase": true,
+      "equalFinding": true,
+      "equalSource": true
+    },
+    {
+      "path": "worker-1/lean--code--E_RULE~NOT_FOUND/case.json",
+      "equalCase": true,
+      "equalFinding": true,
+      "equalSource": true
+    },
+    {
+      "path": "worker-1/lean--continuation-next--next~no-next/case.json",
+      "equalCase": true,
+      "equalFinding": true,
+      "equalSource": true
+    },
+    {
+      "path": "worker-1/lean--next--next~no-next/case.json",
+      "equalCase": true,
+      "equalFinding": true,
+      "equalSource": true
+    },
+    {
+      "path": "worker-1/lean--prelude-code--E_RULE~NOT_FOUND/case.json",
+      "equalCase": true,
+      "equalFinding": true,
+      "equalSource": true
+    },
+    {
+      "path": "worker-10/lean--code--E_RULE~NOT_FOUND/case.json",
+      "equalCase": true,
+      "equalFinding": true,
+      "equalSource": true
+    },
+    {
+      "path": "worker-10/lean--continuation-next--next~no-next/case.json",
+      "equalCase": true,
+      "equalFinding": true,
+      "equalSource": true
+    },
+    {
+      "path": "worker-10/lean--next--next~no-next/case.json",
+      "equalCase": true,
+      "equalFinding": true,
+      "equalSource": true
+    },
+    {
+      "path": "worker-10/lean--prelude-code--E_RULE~NOT_FOUND/case.json",
+      "equalCase": true,
+      "equalFinding": true,
+      "equalSource": true
+    },
+    {
+      "path": "worker-11/lean--continuation-next--next~no-next/case.json",
+      "equalCase": true,
+      "equalFinding": true,
+      "equalSource": true
+    },
+    {
+      "path": "worker-11/lean--next--next~no-next/case.json",
+      "equalCase": true,
+      "equalFinding": true,
+      "equalSource": true
+    },
+    {
+      "path": "worker-11/lean--prelude-code--E_RULE~NOT_FOUND/case.json",
+      "equalCase": true,
+      "equalFinding": true,
+      "equalSource": true
+    },
+    {
+      "path": "worker-2/lean--continuation-next--next~no-next/case.json",
+      "equalCase": true,
+      "equalFinding": true,
+      "equalSource": true
+    },
+    {
+      "path": "worker-2/lean--next--next~no-next/case.json",
+      "equalCase": true,
+      "equalFinding": true,
+      "equalSource": true
+    },
+    {
+      "path": "worker-2/lean--prelude-code--E_RULE~NOT_FOUND/case.json",
+      "equalCase": true,
+      "equalFinding": true,
+      "equalSource": true
+    },
+    {
+      "path": "worker-3/lean--continuation-next--next~no-next/case.json",
+      "equalCase": true,
+      "equalFinding": true,
+      "equalSource": true
+    },
+    {
+      "path": "worker-3/lean--next--next~no-next/case.json",
+      "equalCase": true,
+      "equalFinding": true,
+      "equalSource": true
+    },
+    {
+      "path": "worker-3/lean--prelude-code--E_RULE~NOT_FOUND/case.json",
+      "equalCase": true,
+      "equalFinding": true,
+      "equalSource": true
+    },
+    {
+      "path": "worker-4/lean--continuation-next--next~no-next/case.json",
+      "equalCase": true,
+      "equalFinding": true,
+      "equalSource": true
+    },
+    {
+      "path": "worker-4/lean--next--next~no-next/case.json",
+      "equalCase": true,
+      "equalFinding": true,
+      "equalSource": true
+    },
+    {
+      "path": "worker-4/lean--prelude-code--E_RULE~NOT_FOUND/case.json",
+      "equalCase": true,
+      "equalFinding": true,
+      "equalSource": true
+    },
+    {
+      "path": "worker-5/lean--code--E_RULE~NOT_FOUND/case.json",
+      "equalCase": true,
+      "equalFinding": true,
+      "equalSource": true
+    },
+    {
+      "path": "worker-5/lean--continuation-next--next~no-next/case.json",
+      "equalCase": true,
+      "equalFinding": true,
+      "equalSource": true
+    },
+    {
+      "path": "worker-5/lean--next--next~no-next/case.json",
+      "equalCase": true,
+      "equalFinding": true,
+      "equalSource": true
+    },
+    {
+      "path": "worker-5/lean--prelude-code--E_RULE~NOT_FOUND/case.json",
+      "equalCase": true,
+      "equalFinding": true,
+      "equalSource": true
+    },
+    {
+      "path": "worker-6/lean--continuation-next--next~no-next/case.json",
+      "equalCase": true,
+      "equalFinding": true,
+      "equalSource": true
+    },
+    {
+      "path": "worker-6/lean--next--next~no-next/case.json",
+      "equalCase": true,
+      "equalFinding": true,
+      "equalSource": true
+    },
+    {
+      "path": "worker-7/lean--continuation-next--next~no-next/case.json",
+      "equalCase": true,
+      "equalFinding": true,
+      "equalSource": true
+    },
+    {
+      "path": "worker-7/lean--next--next~no-next/case.json",
+      "equalCase": true,
+      "equalFinding": true,
+      "equalSource": true
+    },
+    {
+      "path": "worker-7/lean--prelude-code--E_RULE~NOT_FOUND/case.json",
+      "equalCase": true,
+      "equalFinding": true,
+      "equalSource": true
+    },
+    {
+      "path": "worker-8/lean--continuation-next--next~no-next/case.json",
+      "equalCase": true,
+      "equalFinding": true,
+      "equalSource": true
+    },
+    {
+      "path": "worker-8/lean--next--next~no-next/case.json",
+      "equalCase": true,
+      "equalFinding": true,
+      "equalSource": true
+    },
+    {
+      "path": "worker-8/lean--prelude-code--E_RULE~NOT_FOUND/case.json",
+      "equalCase": true,
+      "equalFinding": true,
+      "equalSource": true
+    },
+    {
+      "path": "worker-9/lean--continuation-next--next~no-next/case.json",
+      "equalCase": true,
+      "equalFinding": true,
+      "equalSource": true
+    },
+    {
+      "path": "worker-9/lean--next--next~no-next/case.json",
+      "equalCase": true,
+      "equalFinding": true,
+      "equalSource": true
+    },
+    {
+      "path": "worker-9/lean--prelude-code--E_RULE~NOT_FOUND/case.json",
+      "equalCase": true,
+      "equalFinding": true,
+      "equalSource": true
+    }
+  ]
+}

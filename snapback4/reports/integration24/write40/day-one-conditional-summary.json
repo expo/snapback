@@ -1,0 +1,17 @@
+{
+  "projects": 49,
+  "classifications": {
+    "cleared by one-line intent": 32,
+    "real": 17
+  },
+  "unresolved": [],
+  "testFailures": [
+    "w25-029-snapback-dog-sled-tours",
+    "w19-025-snapback-wheelchair-repair-loaners",
+    "w19-045-snapback-honor-guard-details",
+    "w24-029-snapback-dog-sled-tours",
+    "w18-045-snapback-honor-guard-details",
+    "w18-025-snapback-wheelchair-repair-loaners"
+  ],
+  "scope": "Conditional copied-source repairs and individual decisions; original authors intent is not accepted or modified."
+}

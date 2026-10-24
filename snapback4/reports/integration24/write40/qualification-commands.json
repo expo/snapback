@@ -1,0 +1,146 @@
+{
+  "ref-wave26-write40": {
+    "argv": [
+      "./ref-check"
+    ],
+    "cwd": "/home/ccheever/projects/snapback-sb4loop",
+    "exit": 0
+  },
+  "device-wave26-write40": {
+    "argv": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4-device",
+      "--test",
+      "column_reads",
+      "--test",
+      "readauth",
+      "--no-fail-fast"
+    ],
+    "cwd": "/home/ccheever/projects/snapback-sb4loop/snapback4",
+    "exit": 0
+  },
+  "diff-wave26-write40-build": {
+    "argv": [
+      "cargo",
+      "build",
+      "--locked",
+      "--release",
+      "-p",
+      "snapback4-difftest"
+    ],
+    "cwd": "/home/ccheever/projects/snapback-sb4loop/snapback4",
+    "exit": 0
+  },
+  "diff-wave26-write40-wrapper": {
+    "argv": [
+      "python3",
+      "/home/ccheever/sb4-loop/integ24/harness/diff-wave26-write40-coordinator.py"
+    ],
+    "cwd": "/home/ccheever/projects/snapback-sb4loop/snapback4",
+    "exit": 0
+  },
+  "guide-wave26-write40": {
+    "argv": [
+      "node",
+      "scripts/check-guide.mjs"
+    ],
+    "cwd": "/home/ccheever/projects/snapback-sb4loop",
+    "exit": 0
+  },
+  "inventories-wave26-write40": {
+    "argv": [
+      "node",
+      "scripts/check-inventories.mjs"
+    ],
+    "cwd": "/home/ccheever/projects/snapback-sb4loop",
+    "exit": 0
+  },
+  "prepare-wave26-write40": {
+    "argv": [
+      "node",
+      "scripts/publish.mjs",
+      "--prepare-client",
+      "--prepare-directory",
+      "/home/ccheever/sb4-loop/integ24/pack-wave26-write40"
+    ],
+    "cwd": "/home/ccheever/projects/snapback-sb4loop/snapback4",
+    "exit": 0
+  },
+  "replays-wave26-write40-wrapper": {
+    "argv": [
+      "python3",
+      "/home/ccheever/sb4-loop/integ24/harness/wave26-write40-replays.py"
+    ],
+    "cwd": "/home/ccheever/projects/snapback-sb4loop/snapback4",
+    "exit": 0
+  },
+  "audit-wave26-write40-wrapper": {
+    "argv": [
+      "python3",
+      "/home/ccheever/sb4-loop/integ24/harness/audit-wave26-write40.py"
+    ],
+    "cwd": "/home/ccheever/projects/snapback-sb4loop/snapback4",
+    "exit": 0
+  },
+  "macstudio-wave26-write40-wrapper": {
+    "argv": [
+      "python3",
+      "/home/ccheever/sb4-loop/integ24/harness/macstudio-wave26-write40-dispatch.py"
+    ],
+    "cwd": "/home/ccheever/projects/snapback-sb4loop",
+    "exit": 0
+  },
+  "clients-wave26-write40-wrapper": {
+    "argv": [
+      "python3",
+      "/home/ccheever/sb4-loop/integ24/harness/clients-wave26-write40.py"
+    ],
+    "cwd": "/home/ccheever/projects/snapback-sb4loop/snapback4",
+    "exit": 0
+  },
+  "packed-wave26-write40-wrapper": {
+    "argv": [
+      "python3",
+      "/home/ccheever/sb4-loop/integ24/harness/pack-wave26-write40.py"
+    ],
+    "cwd": "/home/ccheever/projects/snapback-sb4loop/snapback4",
+    "exit": 0
+  },
+  "rust-wave26-write40": {
+    "argv": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4-core",
+      "-p",
+      "snapback4-lang",
+      "-p",
+      "snapback4-device",
+      "-p",
+      "snapback4-sim",
+      "-p",
+      "snapback4",
+      "--no-fail-fast"
+    ],
+    "cwd": "/home/ccheever/projects/snapback-sb4loop/snapback4",
+    "exit": 0
+  },
+  "budget-wave26-write40-wrapper": {
+    "argv": [
+      "python3",
+      "/home/ccheever/sb4-loop/integ24/harness/docs-budget-wave26-write40.py"
+    ],
+    "cwd": "/home/ccheever/projects/snapback-sb4loop/snapback4",
+    "exit": 0
+  },
+  "pg-wave26-write40-wrapper": {
+    "argv": [
+      "python3",
+      "/home/ccheever/sb4-loop/integ24/harness/pg-write40.py"
+    ],
+    "cwd": "/home/ccheever/projects/snapback-sb4loop/snapback4",
+    "exit": 0
+  }
+}
