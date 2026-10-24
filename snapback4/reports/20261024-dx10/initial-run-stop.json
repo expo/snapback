@@ -1,0 +1,11 @@
+{
+  "runnerPid": 762225,
+  "ownedPids": [
+    897377,
+    897379,
+    937392,
+    953818,
+    953926
+  ],
+  "reason": "199 client assertions and affected Rust targets complete; diagnostics/generated/guide/inventory all passed. Stop redundant remaining root repetitions, preserve the incomplete initial receipt, and rerun final scope with matching-input root evidence."
+}

@@ -1,0 +1,36 @@
+{
+  "ok": true,
+  "inputDigest": "9bdf11d438f6b651d6149464e26cda6f899cc9dd756b0b3cc574cdc4d4a5cdc2",
+  "exclusions": [
+    "snapback4/reports/",
+    "llp/reviews/",
+    "issues/"
+  ],
+  "reason": "Review/replay evidence has no root generated-input authority; ref-check repeats in the final run. All product, guide and generator inputs remain included.",
+  "results": [
+    {
+      "id": "diagnostics",
+      "ok": true,
+      "logSha256": "7d4158aa7945df498810a728d90dfc40f8111022e7fadc2bbaaf813e1374577d",
+      "evidence": "[diagnostics-registry] ok"
+    },
+    {
+      "id": "generated",
+      "ok": true,
+      "logSha256": "104998019252efd0f490ee97229a965cebe22fba4213e8677d9ef77019473cf5",
+      "evidence": "[check-generated-artifacts] ok"
+    },
+    {
+      "id": "guide",
+      "ok": true,
+      "logSha256": "ffd2e7f73864b5566cdaa84b86c9a827097996f0ae2b771d81e98f10474ec8b6",
+      "evidence": "[guide-check] ok \u2014 22 passed, 0 failed"
+    },
+    {
+      "id": "inventories",
+      "ok": true,
+      "logSha256": "2e5bdbb81fb0a90d0048b15c79190ef3773fdfa33b8646930fe455f717a57813",
+      "evidence": "[check-inventories] PASS:"
+    }
+  ]
+}
