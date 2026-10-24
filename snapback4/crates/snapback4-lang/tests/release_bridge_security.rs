@@ -968,3 +968,12 @@ fn exact_source_native_empty_ir_is_not_an_unwritten_column_proof() {
     let current=old.replace("body: text <=40\n","body: text <=40 write <- deny\n");
     assert!(release_bridge::exact_write_authority(&before,&[("schema.q".into(),current)]).unwrap_err().contains("native operation background"));
 }
+
+#[test]
+fn exact_source_insert_only_placement_cannot_violate_a_new_freeze() {
+    let old="table docs:\n  body: text <=40\n  public\n  insert <- allow\n  update <- allow\n  online only\nmutation add(body: text <=40):\n  return insert docs {body}\n";
+    let current=old.replace("  public\n","  immutable body when true\n  public\n");
+    assert!(release_bridge::exact_write_authority(&[("schema.q".into(),old.into())],&[("schema.q".into(),current.clone())]).is_ok());
+    let updating=old.to_owned()+"mutation edit(id: docs, body: text <=40):\n  return update docs[id] {body}\n";
+    assert!(release_bridge::exact_write_authority(&[("schema.q".into(),updating)],&[("schema.q".into(),current)]).is_err());
+}
