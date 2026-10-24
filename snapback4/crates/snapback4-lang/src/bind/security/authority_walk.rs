@@ -104,10 +104,42 @@ fn statements(catalog:&Catalog,p:&ProgramDecl,body:&[Stmt],env:&mut Env,guards:&
 }
 pub(super) fn writes(catalog:&Catalog,p:&ProgramDecl)->Vec<(Expr,ProgramDecl)>{walk_writes(catalog,p,None)}
 pub(super) fn column_writes(catalog:&Catalog,p:&ProgramDecl,column:&str)->Vec<(Expr,ProgramDecl)>{walk_writes(catalog,p,Some(column))}
+// Expand a helper's single guaranteed value for source analysis. Requirements
+// are already exported separately; branches, effects and unknown control flow
+// cannot supply a guessed return. This never executes or rewrites a program.
+fn returned(catalog:&Catalog,value:&Expr,depth:usize)->Expr{
+    if depth>=32{return value.clone();}
+    fn effectful(catalog:&Catalog,value:&Expr)->bool{let mut value=value.clone();let mut effect=false;super::super::intent_walk::expression(&mut value,&mut |e|match e{Expr::Write{..}=>effect=true,Expr::Call{name,..} if catalog.functions.contains_key(name)=>effect=true,_=>{}});effect}
+    let mut value=value.clone();
+    super::super::intent_walk::expression(&mut value,&mut |e|{
+        let Expr::Call{name,args,..}=e else{return;};
+        let Some(f)=catalog.functions.get(name)else{return;};
+        let mut locals=f.args.iter().zip(args.iter()).map(|(a,v)|(a.name.clone(),v.clone())).collect::<Env>();
+        let candidate=match &f.body{
+            FunctionBody::Expression(value)=>Some(resolve(value,&locals)),
+            FunctionBody::Block(body)=>{
+                let mut result=None;
+                for statement in body{match statement{
+                    Stmt::Require{condition,..}=>{if effectful(catalog,&returned(catalog,&resolve(condition,&locals),depth+1)){break;}},
+                    Stmt::Bind{names,value,..} if names.len()==1=>{let value=returned(catalog,&resolve(value,&locals),depth+1);if effectful(catalog,&value){break;}locals.insert(names[0].clone(),value);},
+                    Stmt::Return{value,..}=>{result=Some(resolve(value,&locals));break;},_=>break,
+                }}result
+            },
+        };
+        if let Some(candidate)=candidate{
+            let candidate=returned(catalog,&candidate,depth+1);
+            if !effectful(catalog,&candidate){*e=candidate;}
+        }
+    });value
+}
 fn walk_writes(catalog:&Catalog,p:&ProgramDecl,column:Option<&str>)->Vec<(Expr,ProgramDecl)>{
     let mut out=Vec::new();let mut env=Env::new();let mut guards=Vec::new();let mut changes=Vec::new();
     statements(catalog,p,&p.prelude,&mut env,&mut guards,&mut changes,column,0,&mut out);
-    statements(catalog,p,&p.body,&mut env,&mut guards,&mut changes,column,0,&mut out);out
+    statements(catalog,p,&p.body,&mut env,&mut guards,&mut changes,column,0,&mut out);
+    for (write,context) in &mut out{
+        *write=returned(catalog,write,0);
+        for statement in &mut context.body{if let Stmt::Require{condition,..}=statement{*condition=returned(catalog,condition,0);}}
+    }out
 }
 
 fn branch_assignments(body:&[Stmt])->BTreeSet<String>{

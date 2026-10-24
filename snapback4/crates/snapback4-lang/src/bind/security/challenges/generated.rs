@@ -164,7 +164,7 @@ pub fn fixture(bound:&Bound,out:&mut Campaign)->Result<Engine,String>{
             if !root_observed&&(related_creator||writes.iter().any(|(_,kind)|matches!(*kind,"update"|"upsert"|"delete"))){
                 root_observed=true;
                 if out.generated_fixture&&out.work_remaining.is_none_or(|work|work>=4096)&&validate_fixture(bound,&mut engine).is_ok(){
-                    let first=out.violations.len();histories::lifecycle_observers_to(bound,&engine,out,1024);
+                    let first=out.violations.len();histories::lifecycle_observers_to(bound,&engine,out,out.directed_base.saturating_add(1024));
                     for witness in &mut out.violations[first..]{if witness.reachability==Reachability::AuthoredFixtureTrace{witness.reachability=Reachability::GeneratedFixtureTrace;witness.scope="actual authored observation from a validated generated early setup checkpoint; initialization is not claimed application-reachable".into();}}
                 }
             }
@@ -224,7 +224,7 @@ pub fn fixture(bound:&Bound,out:&mut Campaign)->Result<Engine,String>{
                     if !stricter_observed&&loosens {
                         stricter_observed=true;
                         if validate_fixture(bound,&mut engine).is_ok(){
-                            let first=out.violations.len();let limit=out.directed_attempts.saturating_add(1024).min(2048);histories::lifecycle_observers_to(bound,&engine,out,limit);
+                            let first=out.violations.len();let limit=out.directed_attempts.saturating_add(1024).min(out.directed_base.saturating_add(2048));histories::lifecycle_observers_to(bound,&engine,out,limit);
                             for witness in &mut out.violations[first..]{if witness.reachability==Reachability::AuthoredFixtureTrace{witness.reachability=Reachability::GeneratedFixtureTrace;witness.scope="actual authored observation from a validated generated root before an admitted dependency-changing creator; initialization is not claimed application-reachable".into();}}
                         }
                     }
@@ -269,7 +269,7 @@ use super::*;
  let mut e=fixture(&b,&mut out).unwrap();let inspections=e.store().rows("inspections").unwrap();assert!(!inspections.is_empty(),"{:?}",out.unsupported);
  let row=inspections.iter().find(|r|r.field("authorization").map_or(true,|v|*v==Value::Null)).expect("generated roots retain missing evidence");
  let actor=row.field("inspector").unwrap().as_str().unwrap();let clock=match row.field("scheduledAt").unwrap(){Value::Int(n)=>(*n).max(NOW),_=>panic!("typed time")};
- let p=&b.programs.iter().find(|p|p.program.name=="markInspected").unwrap().program;let trace=super::executed::trace(&b,p);
+ let p=&b.programs.iter().find(|p|p.program.name=="markInspected").unwrap().program;let trace=super::executed::trace(&b,p,&e);
  let result=e.mutate("markInspected",None,Context::new(actor,BTreeMap::from([("inspection".into(),row.field("id").unwrap().clone())])).at(clock).with_fixture_trace(trace.clone())).unwrap();
  assert!(matches!(result.state,snapback4_core::WriteState::Sent{..}),"{result:?}");assert!(trace.take().iter().any(|o|o.allowed==Some(false)));
 
@@ -283,7 +283,7 @@ use super::*;
  assert!(!rows["payments"].is_empty(),"{:?}",out.unsupported);
  let row=rows["payments"].iter().find(|r|matches!(r.field("dueAt"),Ok(Value::Int(n)) if *n>=NOW)).expect("one generated payment is due in the future");
  let actor=rows["roles"].iter().find(|r|r.field("role").ok()==Some(&Value::String("desk".into()))).unwrap().field("principal").unwrap().as_str().unwrap();
- let p=&b.programs.iter().find(|bp|bp.program.name=="markMissed").unwrap().program;let trace=super::executed::trace(&b,p);
+ let p=&b.programs.iter().find(|bp|bp.program.name=="markMissed").unwrap().program;let trace=super::executed::trace(&b,p,&e);
  let result=e.mutate("markMissed",None,Context::new(actor,BTreeMap::from([("payment".into(),row.field("id").unwrap().clone())])).at(NOW).with_fixture_trace(trace.clone())).unwrap();
  assert!(matches!(result.state,snapback4_core::WriteState::Sent{..}),"{result:?}");assert!(trace.take().iter().any(|o|o.allowed==Some(false)));
 }

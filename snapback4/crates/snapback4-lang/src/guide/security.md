@@ -55,7 +55,8 @@ fixtures retain `authored-fixture-trace`. Both fail acceptance on actual observe
 violations; seed-only/synthetic table probes remain non-failing supplemental evidence.
 Fixture-free tests report that no authored business cases ran. Finite passing
 campaigns never prove security. Check bounds concrete exploration to 512 call/world
-reservations and 1500 ms; exhaustion stays unproved and points to the full test.
+reservations; its default verdict never depends on elapsed time. Work exhaustion
+stays unproved and points to the full test.
 `audit --json` retains all column audiences, grant writers, exclusions and uncovered
 role/row/effect exposures. Audit returns the permission map with bounded check
 evidence; run `test` for the full generated campaign. `audit --all` shows every
@@ -341,7 +342,7 @@ Role-wide write questions ask whether a global role may write every resource.
 Model the owner of this particular wall; see `guide rule-recipes --section "Wall ownership"`.
 
 Test explores directed status/eligibility histories up to twelve mutations with a
-separate finite successor bound. Check keeps its shared 512-work/1500ms limit.
+separate finite successor bound. Check keeps its shared deterministic 512-work limit.
 Frontier, argument, signature and attempt cuts remain coverage gaps. Synthetic
 observations are REVIEW, while actual admitted histories from validated generated
 fixtures retain their generated-fixture-trace origin and can fail acceptance.
@@ -481,7 +482,7 @@ check --ack-security ID --reason '<spec rationale>'.
 An approval required on one effect derives a candidate for sibling effects and
 reference-linked continuations. Approved Bool, Enum and Principal inputs are
 included in approve/edit replay. Parent/child stage and repeat-create candidates
-retain their inferred origin. Only an actual replayed violation refuses production;
+retain their inferred origin. Status prerequisites are checked immediately before entering the selected destination; the same update may consume its approval. Unrelated edits and same-status writes do not repeat that effect. Only an actual replayed violation refuses production;
 an intentional alternative path takes one individual candidate decision. Run
 `test`, repair the named effect or record its exact `check --ack-security` ID.
 

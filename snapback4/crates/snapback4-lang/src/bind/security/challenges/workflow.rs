@@ -8,11 +8,12 @@ fn closure(bound:&Bound,rows:&BTreeMap<String,Vec<Value>>,table:&str,id:&Value,o
         for (c,k) in &bound.schema.tables[table].columns{if let C::Ref{table}=k.required()&&let Ok(id)=row.field(c)&&*id!=Value::Null{closure(bound,rows,table,id,out,depth+1);}}
     }
 }
-fn actors_for(bound:&Bound,p:&Program,rows:&BTreeMap<String,Vec<Value>>,engine:&Engine)->Vec<String>{
+fn actors_for(bound:&Bound,p:&Program,rows:&BTreeMap<String,Vec<Value>>,engine:&Engine,campaign:&mut Campaign)->Vec<String>{
     let mut out=Vec::new();let mut classes=BTreeSet::new();
     let Ok(mut judge)=engine.fork_fixture()else{return out;};
     for actor in histories::actors(bound,rows){
         let eligible=ir::write_tables(p).iter().any(|(t,kind)|{
+            if !bound.schema.tables[t].written_by.is_empty(){return true;}
             let gate=if *kind=="insert"{&bound.schema.tables[t].rules.insert}else{&bound.schema.tables[t].rules.update};
             if !gate.any_term(&|term|!matches!(term,RuleTerm::Viewer|RuleTerm::Literal(_))){return !matches!(judge.fixture_policy(gate,&actor,None,&Value::Null,NOW),Ok(rules::Verdict::Denied));}
             true
@@ -22,15 +23,15 @@ fn actors_for(bound:&Bound,p:&Program,rows:&BTreeMap<String,Vec<Value>>,engine:&
             if !bound.schema.tables[table].columns.iter().any(|(c,k)|matches!(k.required(),C::Principal)&&row.field(c).ok()==Some(&Value::Id(actor.clone()))){continue;}
             for column in super::super::privilege::role_columns(bound,table){if let Ok(value)=row.field(&column){class.push(format!("{table}.{column}={value:?}"));}}
         }}
-        if classes.insert((class,actor.starts_with("service:"))){out.push(actor);}
-        if out.len()==8{break;}
+        if classes.insert((class,actor.starts_with("service:"))){out.push(actor);}else{campaign.unsupported.insert(format!("{}: focused workflow actor classes merge same-role candidates; actor-specific continuations remain uncovered",p.name));}
+        if out.len()==8{campaign.unsupported.insert(format!("{}: focused workflow actor candidates capped at eight; remaining actors uncovered",p.name));break;}
     }out
 }
 fn attempt(bound:&Bound,base:&Engine,p:&Program,args:&BTreeMap<String,Value>,viewer:&str,initial:&BTreeMap<String,Vec<Value>>,steps:&[histories::Step],out:&mut Campaign)->Option<(Engine,Vec<histories::Step>)>{
-    if out.workflow_attempts>=512||!out.reserve(1){return None;}out.workflow_attempts+=1;
+    if out.workflow_attempts>=512{out.unsupported.insert("focused workflow continuations capped at 512 calls; remaining repeated/dependency histories uncovered".into());return None;}if !out.reserve(1){return None;}out.workflow_attempts+=1;
     let mut engine=base.fork_fixture().ok()?;
     let args=materialize_arguments(&mut engine,&p.args,args,viewer).ok()?;
-    let trace=executed::trace(bound,p);out.attempted+=1;*out.operations.entry(p.name.clone()).or_default()+=1;
+    let trace=executed::trace(bound,p,&engine);out.attempted+=1;*out.operations.entry(p.name.clone()).or_default()+=1;
     let result=engine.mutate(&p.name,None,Context::new(viewer,args.clone()).at(histories::history_clock(steps)).with_fixture_trace(trace.clone())).ok()?;
     if !matches!(result.state,snapback4_core::WriteState::Sent{..}){out.refused+=1;return None;}
     let mut history=steps.to_vec();history.push(histories::Step{clock:Some(histories::history_clock(steps)),operation:p.name.clone(),viewer:viewer.into(),args,result:serde_json::to_value(&result.state).ok()?});
@@ -38,7 +39,7 @@ fn attempt(bound:&Bound,base:&Engine,p:&Program,args:&BTreeMap<String,Value>,vie
     Some((engine,history))
 }
 pub(super) fn run(bound:&Bound,base:&Engine,initial:&BTreeMap<String,Vec<Value>>,steps:&[histories::Step],changed:&BTreeSet<String>,out:&mut Campaign){
-    if out.workflow_attempts>=512||out.exhausted(){return;}
+    if out.workflow_attempts>=512{out.unsupported.insert("focused workflow continuations capped at 512 calls; remaining repeated/dependency histories uncovered".into());return;}if out.exhausted(){return;}
     let Ok(rows)=readback(base)else{return;};
     let goals=bound.invariants.iter().filter(|i|super::super::derived::is_derived(i)&&i.target=="insert"&&!out.violations.iter().any(|v|v.invariant_site==i.site.to_string()&&v.reachability.is_reachable())).map(|i|i.table.clone()).collect::<BTreeSet<_>>();
     let mut predicate_columns=BTreeSet::new();
@@ -46,10 +47,11 @@ pub(super) fn run(bound:&Bound,base:&Engine,initial:&BTreeMap<String,Vec<Value>>
     for p in bound.programs.iter().map(|b|&b.program).filter(|p|p.kind==ProgramKind::Mutation&&!p.native&&ir::write_tables(p).iter().any(|(t,k)|goals.contains(t)&&matches!(*k,"insert"|"upsert"))){
         let reads_approval=ir::read_sites(p).iter().any(|read|["approv","authoriz"].iter().any(|part|read.table.to_lowercase().contains(part)));
         let retry=ir::write_tables(p).iter().any(|(table,_)|bound.invariants.iter().any(|i|i.table==*table&&i.site.file.contains("repeat-create")));
-        if reads_approval&&!retry{continue;}
+        if reads_approval&&!retry{out.unsupported.insert(format!("{}: focused continuations defer approval-reading origins to the general campaign",p.name));continue;}
         if !p.args.values().any(|k|matches!(k,ir::ArgType::Ref{table} if changed.contains(table))){continue;}
-        let actors=actors_for(bound,p,&rows,base);
+        let actors=actors_for(bound,p,&rows,base,out);
         let cases=histories::fixture_cases(bound,p,&rows,&actors,out);
+        if cases.len()>8{out.unsupported.insert(format!("{}: focused creator tuples capped at eight; remaining combinations uncovered",p.name));}
         for args in cases.into_iter().take(8){
             let mut relatives=BTreeMap::new();for (name,k) in &p.args{if let ir::ArgType::Ref{table}=k&&let Some(id)=args.get(name){closure(bound,&rows,table,id,&mut relatives,0);}}
             if relatives.is_empty(){continue;}
@@ -63,12 +65,13 @@ pub(super) fn run(bound:&Bound,base:&Engine,initial:&BTreeMap<String,Vec<Value>>
             // A self-referencing retry needs the same admitted creator twice;
             // ordinary lifecycle exploration supplies its source stage. Do not
             // spend its pair budget preparing unrelated stages of that row.
-            if p.args.values().any(|kind|matches!(kind,ir::ArgType::Ref{table} if ir::write_tables(p).iter().any(|(target,effect)|target==table&&matches!(*effect,"insert"|"upsert")))){continue;}
+            if p.args.values().any(|kind|matches!(kind,ir::ArgType::Ref{table} if ir::write_tables(p).iter().any(|(target,effect)|target==table&&matches!(*effect,"insert"|"upsert")))){out.unsupported.insert(format!("{}: focused self-retries defer other dependency-change combinations to the general campaign",p.name));continue;}
             // The origin already reads the approval. Give sibling creators
             // without that prerequisite the dependency-change pair budget.
-            if ir::read_sites(p).iter().any(|read|["approv","authoriz"].iter().any(|part|read.table.to_lowercase().contains(part))){continue;}
+            if ir::read_sites(p).iter().any(|read|["approv","authoriz"].iter().any(|part|read.table.to_lowercase().contains(part))){out.unsupported.insert(format!("{}: focused dependency pairs defer approval-reading origins to the general campaign",p.name));continue;}
             for q in bound.programs.iter().map(|b|&b.program).filter(|q|q.kind==ProgramKind::Mutation&&!q.native&&ir::write_tables(q).iter().any(|(t,k)|relatives.contains_key(t)&&matches!(*k,"update"|"upsert"))&&predicate_columns.iter().any(|c|serde_json::to_string(q).unwrap().contains(&format!("\"{c}\":")))){
-                let candidates=actors_for(bound,q,&rows,base);let cases=histories::fixture_cases(bound,q,&rows,&candidates,out);
+                let candidates=actors_for(bound,q,&rows,base,out);let cases=histories::fixture_cases(bound,q,&rows,&candidates,out);
+                if cases.len()>4{out.unsupported.insert(format!("{}: focused dependency tuples capped at four; remaining combinations uncovered",q.name));}
                 for mut setup in cases.into_iter().take(4){
                     for (name,k) in &q.args{if let ir::ArgType::Ref{table}=k&&let Some(id)=relatives.get(table).and_then(|ids|ids.first()){setup.insert(name.clone(),id.clone());}}
                     for actor in &candidates{if let Some((prepared,history))=attempt(bound,base,q,&setup,actor,initial,steps,out){

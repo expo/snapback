@@ -8,10 +8,17 @@ pub type FixtureRows = std::collections::BTreeMap<String,Vec<Value>>;
 #[derive(Clone)]
 pub struct ConcretePredicate(pub Arc<dyn Fn(&FixtureRows,&Value,&str,i64)->Option<bool> + Send + Sync>);
 impl std::fmt::Debug for ConcretePredicate {fn fmt(&self,f:&mut std::fmt::Formatter<'_>)->std::fmt::Result{f.write_str("concrete fixture predicate")}}
+/// Private inferred effect prerequisites see the pre-effect transaction and
+/// the actual old/next pair, so consuming approval is distinct from bypassing it.
+// @ref LLP 3000.036.004.000#10-sec10-approvals-and-deterministic-exploration — inferred transitions never change application admission.
+#[derive(Clone)]
+pub struct BoundaryPredicate(pub Arc<dyn Fn(&FixtureRows,Option<&Value>,Option<&Value>,&str,i64)->Option<bool> + Send + Sync>);
+impl std::fmt::Debug for BoundaryPredicate {fn fmt(&self,f:&mut std::fmt::Formatter<'_>)->std::fmt::Result{f.write_str("effect prerequisite")}}
 #[derive(Clone, Debug)]
 pub struct Intent {
     /// Private derived contracts may compare the actual old/next pair once.
     pub paired: bool,
+    pub boundary: Option<BoundaryPredicate>,
     pub concrete: Option<ConcretePredicate>,
     pub site: String,
     pub table: String,
@@ -49,7 +56,9 @@ impl Runner<'_> {
             let judge = |image: &Value| self.fixture_judgment(&intent.policy, old, image).ok().and_then(|v| match v {
                 rules::Verdict::Readable => Some(true), rules::Verdict::Denied => Some(false), rules::Verdict::Unknown => None,
             });
-            let allowed = if let Some(predicate)=&intent.concrete {
+            let allowed = if let Some(predicate)=&intent.boundary {
+                self.fixture_snapshot().ok().and_then(|before|(predicate.0)(&before,old,next,&self.context.viewer,self.context.now.unwrap_or(0)))
+            } else if let Some(predicate)=&intent.concrete {
                 // Private fixture inspection, bounded and independent of the
                 // application's logical meter. Overlay the pending write:
                 // fixture_write runs immediately before the store put/remove.

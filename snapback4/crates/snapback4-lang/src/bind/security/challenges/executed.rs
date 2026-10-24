@@ -5,11 +5,44 @@ use snapback4_core::engine::fixture_trace::{Trace,Intent};
 fn provisioning(p:&Program)->bool {p.name.rsplit('.').next()==Some("provision")}
 // @ref LLP 3000.036.004.000#9-integration-24-wave-26-precision — exempt only an exact executed provision image, never a returned preimage.
 const PROVISION_RESULT:&str="$security.provision-result/";
-pub(super) fn trace(bound:&Bound,p:&Program)->Trace {
+fn consumed(predicate:&ast::Expr,row:&Value,rows:&BTreeMap<String,Vec<Value>>,prior:&Value,entry:&BTreeMap<String,Vec<Value>>,schema:&Schema,viewer:&str,table:&str,now:i64)->bool{
+    super::super::derived::approval_receipts(predicate).iter().any(|receipt|
+        super::super::concrete::evaluate(receipt,prior,entry,schema,viewer,table,now)==Some(true)&&super::super::concrete::evaluate(receipt,row,rows,schema,viewer,table,now)==Some(false))
+}
+pub(super) fn trace(bound:&Bound,p:&Program,entry:&Engine)->Trace {
+    let entry=if bound.invariants.iter().any(|i|i.site.file.contains("/sibling-approval/")){readback(entry).ok().map(std::sync::Arc::new)}else{None};
     let mut intents=Vec::new();
     for inv in bound.invariants.iter().filter(|inv|!matches!(inv.target.as_str(),"read"|"always")&&inv.operation.as_ref().is_none_or(|op|op==&p.name)) {
         for word in super::super::effects(inv) {
-            let concrete=if inv.policy.is_none(){inv.syntax.clone().map(|syntax|{
+            let transition=super::super::derived::transition(inv);
+            let boundary=transition.map(|(bypass,prerequisite)|{
+                let bypass=bypass.clone();let prerequisite=prerequisite.clone();let schema=bound.schema.clone();let table=inv.table.clone();let entry=if inv.site.file.contains("/sibling-approval/"){entry.clone()}else{None};
+                snapback4_core::engine::fixture_trace::BoundaryPredicate(std::sync::Arc::new(move |rows,old,next,viewer,now|{
+                    let (Some(old),Some(next))=(old,next)else{return None;};
+                    match super::super::concrete::evaluate(&bypass,next,rows,&schema,viewer,&table,now){
+                        Some(true)=>Some(true),Some(false)=>{
+                            let current=super::super::concrete::evaluate(&prerequisite,old,rows,&schema,viewer,&table,now);
+                            if current==Some(true){return current;}
+                            let prior=entry.as_ref().and_then(|entry|entry.get(&table).into_iter().flatten().find(|row|row.field("id").ok()==old.field("id").ok()).map(|row|super::super::concrete::evaluate(&prerequisite,row,entry,&schema,viewer,&table,now)==Some(true)&&consumed(&prerequisite,old,rows,row,entry,&schema,viewer,&table,now)));
+                            if prior==Some(true){Some(true)}else{current}
+                        },None=>None,
+                    }
+                }))
+            }).or_else(||if inv.site.file.contains("/sibling-approval/")&&word=="insert"{
+                let predicate=inv.syntax.clone()?;let schema=bound.schema.clone();let table=inv.table.clone();let entry=entry.clone();
+                Some(snapback4_core::engine::fixture_trace::BoundaryPredicate(std::sync::Arc::new(move |rows,_old,next,viewer,now|{
+                    let row=next?;let current=super::super::concrete::evaluate(&predicate,row,rows,&schema,viewer,&table,now);
+                    if current==Some(true){return current;}
+                    let prior=entry.as_ref().is_some_and(|entry|super::super::concrete::evaluate(&predicate,row,entry,&schema,viewer,&table,now)==Some(true)&&consumed(&predicate,row,rows,row,entry,&schema,viewer,&table,now));
+                    if prior{Some(true)}else{current}
+                })))
+            }else if inv.site.file.contains("/parent-state/"){
+                let predicate=inv.syntax.clone()?;let schema=bound.schema.clone();let table=inv.table.clone();
+                Some(snapback4_core::engine::fixture_trace::BoundaryPredicate(std::sync::Arc::new(move |rows,old,_next,viewer,now|{
+                    super::super::concrete::evaluate(&predicate,old?,rows,&schema,viewer,&table,now)
+                })))
+            }else{None});
+            let concrete=if boundary.is_none()&&inv.policy.is_none(){inv.syntax.clone().map(|syntax|{
                 let bound=bound.clone();let inv=inv.clone();let insert=word=="insert";
                 snapback4_core::engine::fixture_trace::ConcretePredicate(std::sync::Arc::new(move |rows,row,viewer,now|{
                     if insert&&super::super::write_intent::empty_creation(&bound,&inv,None,row){return Some(true);}
@@ -18,7 +51,7 @@ pub(super) fn trace(bound:&Bound,p:&Program)->Trace {
             })}else{None};
             intents.push(Intent {
                 paired:super::super::derived::is_derived(inv)&&inv.policy.as_ref().is_some_and(|r|r.any_term(&|t|matches!(t,RuleTerm::OldField(_)|RuleTerm::NextField(_)))),
-                concrete,site:inv.site.to_string(),table:inv.table.clone(),column:inv.column.clone(),
+                boundary,concrete,site:inv.site.to_string(),table:inv.table.clone(),column:inv.column.clone(),
                 policy:super::super::write_intent::policy(bound,inv,word).unwrap_or(RuleExpr::Allow),
                 effects:vec![super::super::effect(word)],
             });
@@ -28,7 +61,7 @@ pub(super) fn trace(bound:&Bound,p:&Program)->Trace {
     // own roster result. It never exempts an ordinary query or a different row.
     if provisioning(p){for table in ir::write_tables(p).into_iter().map(|(table,_)|table).collect::<BTreeSet<_>>() {
         if super::super::privilege::role_columns(bound,&table).is_empty(){continue;}
-        intents.push(Intent{paired:false,concrete:None,site:format!("{PROVISION_RESULT}{table}"),table,column:None,
+        intents.push(Intent{paired:false,boundary:None,concrete:None,site:format!("{PROVISION_RESULT}{table}"),table,column:None,
             policy:RuleExpr::Allow,effects:vec![Effect::Insert,Effect::Update]});
     }}
     Trace::new(intents)

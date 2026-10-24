@@ -41,10 +41,26 @@ fn campaign(s:&str)->Campaign{let b=security::derived::augmented(&sources(s),&bo
     assert!(notes(source).iter().any(|n|n.code=="N_BLANK_TEXT_GUARD"));
     assert!(!notes(&source.replace("(reason ?? trim(fallback)) != ''","trim(reason ?? fallback) != ''")).iter().any(|n|n.code=="N_BLANK_TEXT_GUARD"));
 }
+#[test]fn dominating_nonblank_validation_and_positive_empty_tests_do_not_gate(){
+    let template="table docs:\n  reason: text ?\n  read <- allow\n  update <- allow\n  online only\nmutation decide(doc: docs,reason: text <=30):\n  REQUIRE\n  update docs[doc] {reason}\n";
+    for guard in ["require reason != '' and trim(reason) != '' else EMPTY","require reason != '' else EMPTY\n  require trim(reason) != '' else BLANK","require reason = '' else EXPECT_EMPTY","require not (reason != '') else EXPECT_EMPTY","require reason != '' and count(trim(reason)) > 0 else EMPTY","require reason != '' and not (count(trim(reason)) = 0) else EMPTY"]{
+        assert!(!notes(&template.replace("REQUIRE",guard)).iter().any(|n|n.code=="N_BLANK_TEXT_GUARD"),"{guard}");
+    }
+    let row_enforced=template.replace("reason: text ?","reason: text 1..30 ?").replace("REQUIRE","require reason != '' else EMPTY");
+    assert!(!notes(&row_enforced).iter().any(|n|n.code=="N_BLANK_TEXT_GUARD"));
+    assert!(notes(&template.replace("REQUIRE","require not (reason = '') else EMPTY")).iter().any(|n|n.code=="N_BLANK_TEXT_GUARD"));
+}
 #[test]fn atomic_approval_audits_and_checked_stage_proxies_do_not_gate(){
     assert!(!notes(include_str!("security/wave26/008.q")).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
     let source="table docs:\n  approvedAt: time ?\n  status: enum('draft','approved','done') default 'draft'\n  read <- allow\n  update <- allow\n  online only\nmutation approve(doc: docs):\n  update docs[doc] {approvedAt:now,status:'approved'}\nmutation finish(doc: docs):\n  d = docs[doc] ! else NOT_FOUND\n  require d.status = 'approved' else NO_APPROVAL\n  update docs[doc] {status:'done'}\n";
     assert!(!notes(source).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
+    assert!(!notes(&source.replace("approvedAt:now","approvedAt:now + 0ms").replace("  require d.status = 'approved' else NO_APPROVAL\n","")).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
+}
+#[test]fn consuming_approval_and_later_edits_are_not_a_sibling_bypass(){
+    let source="table docs:\n  approved: bool default false\n  status: enum('draft','done') default 'draft'\n  note: text ?\n  read <- allow\n  insert <- allow\n  update <- allow\n  online only\nmutation create():\n  return insert docs {approved:true}\nmutation finish(doc: docs):\n  d = docs[doc] ! else NOT_FOUND\n  require d.approved else NO_APPROVAL\n  update docs[doc] {status:'done',approved:false}\nmutation edit(doc: docs):\n  d = docs[doc] ! else NOT_FOUND\n  require d.status = 'done' else BAD_STAGE\n  update docs[doc] {status:'done',note:'updated'}\n";
+    let c=campaign(source);assert!(!c.violations.iter().any(|v|v.invariant_site.contains("sibling-approval")),"{c:?}");
+    let bypass=format!("{}mutation bypass(doc: docs):\n  update docs[doc] {{status:'done'}}\n",source.replace("approved:true","approved:false"));
+    assert!(campaign(&bypass).violations.iter().any(|v|v.reachability.is_reachable()&&v.operation=="bypass"));
 }
 #[test]fn approval_id_operands_keep_id_lookup_in_derived_contracts(){
     let source="table jobs:\n  read <- allow\n  online only\ntable approvals:\n  job: jobs\n  unique job\n  read <- allow\n  online only\ntable effects:\n  approval: approvals\n  read <- allow\n  insert <- allow\n  online only\nmutation create(approval: approvals):\n  require exists approvals[approval] else NO_APPROVAL\n  return insert effects {approval}\n";
@@ -71,4 +87,72 @@ fn campaign(s:&str)->Campaign{let b=security::derived::augmented(&sources(s),&bo
     let source=include_str!("security/wave26/008.q").replace("'finish'","'fin\\'ish'").replace("'finished'","'fin\\'ished'");
     let b=bound(&source);let cs=security::derived::invariants(&sources(&source),&b);
     assert!(cs.iter().any(|i|i.site.file.contains("child-stage")&&i.predicate.contains("ish")),"{cs:?}");
+}
+
+#[test]fn approval_absence_and_atomic_lifecycle_records_do_not_create_prerequisites(){
+    let source="table docs:\n  approved: bool default false\n  status: enum('draft','done') default 'draft'\n  read <- allow\n  update <- allow\n  online only\ntable events:\n  doc: docs\n  read <- allow\n  insert <- allow\n  online only\nmutation approve(doc: docs):\n  d = docs[doc] ! else NOT_FOUND\n  require not d.approved else ALREADY_APPROVED\n  update docs[doc] {approved:true}\n  return insert events {doc}\n";
+    let cs=security::derived::invariants(&sources(source),&bound(source));
+    assert!(!cs.iter().any(|i|i.site.file.contains("sibling-approval")),"{cs:?}");
+    let positive=source.replace("not d.approved","d.approved");
+    assert!(security::derived::invariants(&sources(&positive),&bound(&positive)).iter().any(|i|i.site.file.contains("sibling-approval")));
+}
+#[test]fn aliased_loop_updates_do_not_panic_workflow_inference(){
+    let source="table docs:\n  stage: enum('draft','done') default 'draft'\n  read <- allow\n  update <- allow\n  online only\nmutation migrate():\n  for d in docs first 10 by .id:\n    update d {stage:'done'}\n";
+    let b=bound(source);let _=security::derived::invariants(&sources(source),&b);
+}
+
+#[test]fn enum_and_principal_approval_inputs_derive_invalidation_contracts(){
+    let source="table docs:\n  consent: enum('yes','no')\n  party: principal\n  approved: bool default false\n  read <- allow\n  update <- allow\n  online only\nmutation approve(doc: docs):\n  d = docs[doc] ! else NOT_FOUND\n  require d.consent = 'yes' else NO_CONSENT\n  require d.party = viewer else WRONG_PARTY\n  update docs[doc] {approved:true}\nmutation edit(doc: docs,consent: enum('yes','no'),party: principal):\n  update docs[doc] {consent,party}\n";
+    let cs=security::derived::invariants(&sources(source),&bound(source));
+    for column in ["consent","party"]{assert!(cs.iter().any(|i|i.column.as_deref()==Some(column)&&i.target=="update"),"{cs:?}");}
+}
+
+#[test]fn checked_helper_result_and_atomic_decision_tokens_consume_timestamp_approval(){
+    let source="table docs:\n  approvedBy: principal ?\n  approvedAt: time ?\n  status: enum('draft','done') default 'draft'\n  read <- allow\n  update <- allow\n  online only\nfn current(doc: docs):\n  return docs[doc] ! else NOT_FOUND\nmutation approve(doc: docs):\n  update docs[doc] {approvedBy:viewer,approvedAt:now}\nmutation finish(doc: docs):\n  d = current(doc)\n  require d.approvedBy != null else NO_APPROVAL\n  update docs[doc] {status:'done'}\n";
+    assert!(!notes(source).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
+    assert!(security::derived::invariants(&sources(source),&bound(source)).iter().any(|i|i.site.file.contains("sibling-approval")));
+}
+
+#[test]fn calendar_offsets_and_explicit_broad_media_audiences_still_ask_the_question(){
+    let source="table docs:\n  owner: principal\n  date: time\n  note: text read <- .owner = viewer\n  drawing: text\n  photo: image <=10000 ? read <- allow\n  status: enum('draft','done') default 'draft'\n  read <- allow\n  update <- allow\n  online only\nmutation finish(doc: docs):\n  d = docs[doc] ! else NOT_FOUND\n  require month(now) <= month(d.date) + 12 else EXPIRED\n  update docs[doc] {status:'done'}\n";
+    let ns=notes(source);for code in ["N_CALENDAR_DURATION","N_MEDIA_PRIVATE_FIELDS","N_TEXT_EVIDENCE"]{assert!(ns.iter().any(|n|n.code==code),"{code}: {ns:?}");}
+    let private=source.replace("photo: image <=10000 ? read <- allow","photo: image <=10000 ? read <- .owner = viewer");
+    assert!(!notes(&private).iter().any(|n|n.code=="N_MEDIA_PRIVATE_FIELDS"));
+}
+
+#[test]fn positive_audit_minimum_dominates_later_atomic_writes(){
+    let source="table docs:\n  status: enum('draft','done') default 'draft'\n  read <- allow\n  update <- allow\n  online only\ntable audits:\n  reason: text 1..30\n  read <- allow\n  insert <- allow\n  online only\nmutation finish(doc: docs,reason: text <=30):\n  require reason != '' else EMPTY\n  insert audits {reason}\n  update docs[doc] {status:'done'}\n";
+    assert!(!notes(source).iter().any(|n|n.code=="N_BLANK_TEXT_GUARD"));
+    let conditional=source.replace("  insert audits {reason}","  if reason = 'audit':\n    insert audits {reason}");
+    assert!(notes(&conditional).iter().any(|n|n.code=="N_BLANK_TEXT_GUARD"));
+}
+#[test]fn child_terminality_includes_handoffs_between_roles(){
+    let source="table roles:\n  principal: principal\n  role: enum('crew','owner')\n  unique principal\n  read <- allow\n  online only\ntable jobs:\n  stage: enum('open','active','done') default 'open'\n  read <- allow\n  update <- allow\n  online only\ntable tasks:\n  job: jobs\n  stage: enum('raw','handoff','finish') default 'raw'\n  read <- allow\n  update <- allow\n  online only\nmutation start(job: jobs):\n  require exists roles[viewer,role='crew'] else DENIED\n  j = jobs[job] ! else MISSING\n  require j.stage = 'open' else BAD_STAGE\n  update jobs[job] {stage:'active'}\nmutation handoff(task: tasks):\n  require exists roles[viewer,role='crew'] else DENIED\n  t = tasks[task] ! else MISSING\n  require t.stage = 'raw' else BAD_STAGE\n  update tasks[task] {stage:'handoff'}\nmutation inspect(item: tasks):\n  require exists roles[viewer,role='owner'] else DENIED\n  t = tasks[item] ! else MISSING\n  require t.stage = 'handoff' else BAD_STAGE\n  update tasks[item] {stage:'finish'}\nmutation finish(resource: jobs):\n  require exists roles[viewer,role='crew'] else DENIED\n  j = jobs[resource] ! else MISSING\n  require j.stage = 'active' else BAD_STAGE\n  update jobs[resource] {stage:'done'}\n";
+    let cs=security::derived::invariants(&sources(source),&bound(source));
+    let terminals=cs.iter().filter(|i|i.site.file.contains("child-stage")).collect::<Vec<_>>();
+    assert!(!terminals.is_empty(),"{cs:?}");assert!(terminals.iter().all(|i|i.predicate.contains("'finish'")&&!i.predicate.contains("'handoff'")),"{terminals:?}");
+}
+#[test]fn child_creation_can_consume_the_same_resource_approval(){
+    let source="table docs:\n  approved: bool default false\n  read <- allow\n  insert <- allow\n  update <- allow\n  online only\ntable effects:\n  doc: docs\n  read <- allow\n  insert <- allow\n  online only\nmutation create():\n  return insert docs {approved:true}\nmutation consume(doc: docs):\n  d = docs[doc] ! else NOT_FOUND\n  require d.approved else NO_APPROVAL\n  update docs[doc] {approved:false}\n  return insert effects {doc}\n";
+    let c=campaign(source);assert!(!c.violations.iter().any(|v|v.invariant_site.contains("sibling-approval")),"{c:?}");
+    let bad=source.replace("approved:true","approved:false")+"mutation bypass(doc: docs):\n  return insert effects {doc}\n";
+    assert!(campaign(&bad).violations.iter().any(|v|v.reachability.is_reachable()&&v.operation=="bypass"&&v.invariant_site.contains("sibling-approval")));
+}
+
+#[test]fn unrestricted_entry_is_not_a_consumed_approval_receipt(){
+    let source="table docs:\n  restricted: bool default false\n  approved: bool default false\n  read <- allow\n  insert <- allow\n  update <- allow\n  online only\ntable effects:\n  doc: docs\n  read <- allow\n  insert <- allow\n  online only\nmutation create():\n  return insert docs {}\nmutation guarded(doc: docs):\n  d = docs[doc] ! else NOT_FOUND\n  require not d.restricted or d.approved else NO_APPROVAL\n  return insert effects {doc}\nmutation bypass(doc: docs):\n  update docs[doc] {restricted:true}\n  return insert effects {doc}\n";
+    assert!(campaign(source).violations.iter().any(|v|v.reachability.is_reachable()&&v.operation=="bypass"&&v.invariant_site.contains("sibling-approval")));
+}
+#[test]fn a_guard_on_a_different_resource_does_not_define_an_effect_contract(){
+    let source="table docs:\n  approved: bool default false\n  read <- allow\n  online only\ntable effects:\n  doc: docs\n  read <- allow\n  insert <- allow\n  online only\nmutation create(guard: docs,subject: docs):\n  d = docs[guard] ! else NOT_FOUND\n  require d.approved else NO_APPROVAL\n  return insert effects {doc:subject}\n";
+    assert!(!security::derived::invariants(&sources(source),&bound(source)).iter().any(|i|i.site.file.contains("sibling-approval")));
+}
+
+#[test]fn timestamps_recording_the_atomic_decision_are_not_unused_approvals(){
+    for (field,kind,value,column) in [("depositKept","bool default false","true","approvedAt"),("quoteStatus","enum('pending','approved') default 'pending'","'approved'","approvedAt"),("wording","text <=30 ?","'new wording'","wordingApprovedAt"),("dyedColor","text <=30 ?","'blue'","dyeApprovedAt")]{
+        let source=format!("table docs:\n  {column}: time ?\n  {field}: {kind}\n  status: enum('draft','done') default 'draft'\n  read <- allow\n  update <- allow\n  online only\nmutation decide(doc: docs):\n  update docs[doc] {{{column}:now,{field}:{value}}}\nmutation finish(doc: docs):\n  update docs[doc] {{status:'done'}}\n");
+        assert!(!notes(&source).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"),"{source}");
+    }
+    let source="table docs:\n  status: enum('draft','done') default 'draft'\n  read <- allow\n  insert <- allow\n  update <- allow\n  online only\ntable approvals:\n  doc: docs\n  read <- allow\n  insert <- viewer = 'service:manager'\n  online only\nmutation create():\n  require viewer = 'service:manager' else DENIED\n  d = insert docs {}\n  return insert approvals {doc:d.id}\nmutation finish(doc: docs):\n  update docs[doc] {status:'done'}\n";
+    assert!(!notes(source).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
 }

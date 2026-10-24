@@ -98,7 +98,10 @@ test('packed security card and starter run as written; broad reads refute', {tim
    assert.ok(inventory<0||text.indexOf('N_PRIVATE_CREATE_EDIT_ASYMMETRY')<inventory);
   }
  }
- assert.ok(result.guideCases.every(c=>c.broadRead==='refuted'));
+ const disclosureCases=result.guideCases.filter(c=>c.broadRead);
+ assert.ok(disclosureCases.length>0);
+ assert.ok(disclosureCases.every(c=>c.broadRead==='refuted'));
+ assert.ok(result.guideCases.every(c=>c.broadRead==='refuted'||c.compile==='passed'));
  assert.equal(result.starters.length,7);
  if(process.env.SNAPBACK4_SECURITY_PACK_EVIDENCE)
   writeFileSync(join(process.env.SNAPBACK4_SECURITY_PACK_EVIDENCE,'security-evidence.json'),JSON.stringify(result,null,2)+'\n');

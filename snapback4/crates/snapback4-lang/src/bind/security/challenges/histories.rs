@@ -369,7 +369,7 @@ pub(super) fn initial_observers(bound:&Bound,fixture:&Engine,out:&mut Campaign){
 // Prefer real lifecycle successors before the general diagonal history matrix.
 // @ref LLP 3000.036.004#163-directed-finite-histories — pruning orders finite replay, never proves safety.
 pub(super) fn lifecycle_observers(bound:&Bound,fixture:&Engine,out:&mut Campaign){
-    lifecycle_observers_to(bound,fixture,out,4096)
+    lifecycle_observers_to(bound,fixture,out,out.directed_base.saturating_add(4096))
 }
 pub(super) fn lifecycle_observers_to(bound:&Bound,fixture:&Engine,out:&mut Campaign,limit:usize){
     if bound.invariants.is_empty()||out.exhausted()||bound.invariants.iter().all(|i|out.violations.iter().any(|v|v.invariant_site==i.site.to_string()&&v.reachability.is_reachable())){return;}
@@ -449,7 +449,7 @@ pub(super) fn lifecycle_observers_to(bound:&Bound,fixture:&Engine,out:&mut Campa
                     let mut prior=None;
                     if bound.invariants.iter().any(|i|i.target!="read"&&i.policy.as_ref().is_some_and(RuleExpr::has_reference)){if !out.reserve(1){return;}prior=base.fork_fixture().ok();}
                     out.attempted+=1;*out.operations.entry(p.name.clone()).or_default()+=1;
-                    let trace=super::executed::trace(bound,p);
+                    let trace=super::executed::trace(bound,p,&engine);
                     let Ok(result)=engine.mutate(&p.name,None,Context::new(viewer,args.clone()).at(clock).with_fixture_trace(trace.clone()))else{continue;};
                     if !matches!(result.state,snapback4_core::WriteState::Sent{..}){out.refused+=1;continue;}
                     let Ok(after)=readback(&engine)else{continue;};
@@ -602,7 +602,7 @@ pub(super) fn run(bound:&Bound,fixture:&Engine,out:&mut Campaign){
             let args=match materialize_arguments(&mut engine,&p.args,args,viewer){Ok(a)=>a,Err(why)=>{out.unsupported.insert(format!("{}: history asset arguments: {why}",p.name));break;}};
             let mut prior=if bound.invariants.iter().any(|i|i.target!="read"&&i.policy.as_ref().is_some_and(RuleExpr::has_reference)){if !out.reserve(1){break;}match fork(bound,&engine,Vec::new()){Ok(e)=>Some(e),Err(why)=>{out.unsupported.insert(why);None}}}else{None};
             out.attempted+=1;*out.operations.entry(p.name.clone()).or_default()+=1;
-            let trace=super::executed::trace(bound,p);
+            let trace=super::executed::trace(bound,p,&engine);
             match engine.mutate(&p.name,None,Context::new(viewer,args.clone()).at(NOW).with_fixture_trace(trace.clone())){
                 Ok(result)=>{
                     let sent=matches!(result.state,snapback4_core::WriteState::Sent{..});

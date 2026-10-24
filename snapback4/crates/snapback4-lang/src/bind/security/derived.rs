@@ -35,6 +35,13 @@ fn omit_preconditions(expression:&mut ast::Expr,negated:bool){
     }
 }
 
+/// A private effect candidate's left arm selects its destination on the next
+/// image; the right arm is a prerequisite in the pre-effect transaction.
+pub(super) fn transition(inv:&Invariant)->Option<(&ast::Expr,&ast::Expr)>{
+    if !is_derived(inv)||inv.target!="update"||inv.column.is_none()||!["/sibling-approval/","/child-stage/"].iter().any(|label|inv.site.file.contains(label)){return None;}
+    match inv.syntax.as_ref()?{ast::Expr::Binary{op,left,right,..} if op=="or"=>Some((left,right)),_=>None}
+}
+pub(super) fn approval_receipts(e:&ast::Expr)->Vec<ast::Expr>{workflow::approval_receipts(e)}
 pub fn is_derived(inv:&Invariant)->bool { inv.site.file.starts_with("$derived/") }
 fn add(out:&mut Vec<Invariant>,table:&str,column:&str,target:&str,policy:RuleExpr,site:&Site){
     if target=="write" {
@@ -121,7 +128,13 @@ pub fn invariants(sources:&[(String,String)],bound:&Bound)->Vec<Invariant>{
     out
 }
 pub fn notes(sources:&[(String,String)],bound:&Bound)->Vec<Diagnostic>{
-    invariants(sources,bound).into_iter().map(|i|Diagnostic::new(&i.site,"N_DERIVED_WRITE_AUTHORITY",format!("{}: derived candidate {} only {}; a replayed violation needs a specification decision",i.target_label(),i.target,i.predicate),"enforce column write/freeze authority, declare matching update-only creation intent, or record this individual rule's deliberate design with check --ack-security ID --reason '<spec rationale>'").guide("security")).collect()
+    invariants(sources,bound).into_iter().map(|i|{
+        let transition=transition(&i).is_some();
+        let workflow=["/sibling-approval/","/approval-history/","/repeat-create/","/parent-state/","/child-stage/"].iter().any(|label|i.site.file.contains(label));
+        let message=if transition{format!("{}: inferred effect prerequisite {}; judge before entering the selected destination, permitting atomic approval consumption; a replayed violation needs a specification decision",i.target_label(),i.predicate)}else{format!("{}: derived candidate {} only {}; a replayed violation needs a specification decision",i.target_label(),i.target,i.predicate)};
+        let repair=if workflow{"require the named approval/parent/child prerequisite before this governed effect, consume one-use guards atomically, or record this individual alternative path with check --ack-security ID --reason '<spec rationale>'"}else{"enforce column write/freeze authority, declare matching update-only creation intent, or record this individual rule's deliberate design with check --ack-security ID --reason '<spec rationale>'"};
+        Diagnostic::new(&i.site,"N_DERIVED_WRITE_AUTHORITY",message,repair).guide("security")
+    }).collect()
 }
 pub fn augmented(sources:&[(String,String)],bound:&Bound)->Bound{
     let mut out=bound.clone();out.invariants.extend(invariants(sources,bound));

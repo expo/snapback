@@ -1,4 +1,4 @@
-//! Structural workflow questions; no inferred specification and no new gates.
+//! Structural workflow review questions; each approval disposition is individual.
 // @ref LLP 3000.036.004#171-presence-and-lifecycle-questions — decisions require explicit product intent.
 use super::*;
 fn state(w:&Write<'_>,bound:&Bound)->bool{
@@ -38,20 +38,31 @@ fn clock(w:&Write<'_>)->bool{
     })
 }
 fn media_name(name:&str)->bool{["photo","image","scan","sketch","url"].iter().any(|s|name.to_lowercase().contains(s))}
+fn recording(kind:&ColumnType,value:Option<&Expr>)->bool{match (kind.required(),value){
+    (ColumnType::Bool,Some(Expr::Literal{value:ast::Literal::Bool(true),..}))=>true,
+    (ColumnType::Time,Some(e))=>!matches!(e,Expr::Literal{value:ast::Literal::Null,..}|Expr::Member{..}),_=>false,
+}}
+fn decision_effect(t:&snapback4_core::schema::Table,column:&str,f:&ast::ObjectField)->bool{
+    let name=f.name.to_lowercase();
+    if f.name==column||["approv","authoriz","consent","reason","note"].iter().any(|part|name.contains(part)){return false;}
+    match (t.columns.get(&f.name).map(ColumnType::required),field_value(f)){
+        (Some(ColumnType::Enum{..}),Some(Expr::Literal{value:ast::Literal::Str(_),..}))=>true,
+        (Some(ColumnType::Bool),Some(Expr::Literal{value:ast::Literal::Bool(_),..}))=>true,
+        (Some(ColumnType::Text{..}),Some(_))=>{let column=column.to_lowercase();["approv","authoriz"].iter().filter_map(|part|column.find(part)).any(|at|at>0&&name.starts_with(&column[..at]))},
+        _=>false,
+    }
+}
 pub(super) fn notes(bound:&Bound,writes:&[Write<'_>],out:&mut Vec<Diagnostic>){
     for (table,t) in bound.schema.visible_tables(){
         let transitions=writes.iter().filter(|w|w.table==*table&&state(w,bound)).collect::<Vec<_>>();
         if transitions.is_empty(){continue;}
         for (column,kind) in &t.columns {
             let approval=["approv","authoriz"].iter().any(|part|column.to_lowercase().contains(part));
-            let recorded=writes.iter().any(|w|w.table==*table&&w.op==WriteOp::Update&&w.fields.iter().any(|f|f.name==*column&&match (kind.required(),field_value(f)) {
-                (ColumnType::Bool,Some(Expr::Literal{value:ast::Literal::Bool(true),..}))=>true,
-                (ColumnType::Time,Some(e))=>!matches!(e,Expr::Literal{value:ast::Literal::Null,..}|Expr::Member{..}),_=>false,
-            }));
+            let recorded=writes.iter().any(|w|w.table==*table&&w.op==WriteOp::Update&&w.fields.iter().any(|f|f.name==*column&&recording(kind,field_value(f))));
             let proxies=writes.iter().filter(|w|w.table==*table&&w.fields.iter().any(|f|f.name==*column)).flat_map(|w|w.fields.iter()).filter(|f|f.name!=*column&&matches!(t.columns.get(&f.name).map(ColumnType::required),Some(ColumnType::Enum{..}|ColumnType::Bool|ColumnType::Principal|ColumnType::Time))).filter(|f|!matches!(field_value(f),Some(Expr::Member{..}))).map(|f|f.name.clone()).collect::<BTreeSet<_>>();
-            let atomic=writes.iter().any(|w|w.table==*table&&w.fields.iter().any(|f|f.name==*column&&matches!((kind.required(),field_value(f)),(ColumnType::Bool,Some(Expr::Literal{value:ast::Literal::Bool(true),..}))|(ColumnType::Time,Some(Expr::Name{..}))))&&w.fields.iter().any(|f|matches!(f.name.as_str(),"status"|"stage"|"phase"|"state"|"decision"|"approval")&&matches!(t.columns.get(&f.name).map(ColumnType::required),Some(ColumnType::Enum{..}))&&matches!(field_value(f),Some(Expr::Literal{value:ast::Literal::Str(_),..}))));
+            let atomic=writes.iter().any(|w|w.table==*table&&w.fields.iter().any(|f|f.name==*column&&recording(kind,field_value(f)))&&w.fields.iter().any(|f|decision_effect(t,column,f)));
             let rule_use=super::super::columns::rules(t).any(|rule|rule.any_term(&|term|matches!(term,RuleTerm::Field(name) if name==column||proxies.contains(name))));
-            let consumed=atomic||rule_use||writes.iter().filter(|w|!(w.table==*table&&w.fields.iter().any(|f|f.name==*column&&matches!((kind.required(),field_value(f)),(ColumnType::Bool,Some(Expr::Literal{value:ast::Literal::Bool(true),..}))|(ColumnType::Time,Some(Expr::Name{..})))))).any(|w|inspected(w,table,column)||proxies.iter().any(|proxy|inspected(w,table,proxy)));
+            let consumed=atomic||rule_use||writes.iter().filter(|w|!(w.table==*table&&w.fields.iter().any(|f|f.name==*column&&recording(kind,field_value(f))))).any(|w|inspected(w,table,column)||proxies.iter().any(|proxy|inspected(w,table,proxy)));
             if approval&&recorded&&!consumed {
                 note(out,&transitions[0].site,"N_APPROVAL_NOT_ENFORCED",format!("{table}.{column}: approval is recorded but no lifecycle transition inspects it; is this an informational record or a required approval?"),"require this approval before its governed effect; or record `check --ack-security ID --reason 'informational approval record: <spec rationale>'` for this individual decision");
             }
@@ -132,6 +143,10 @@ fn approval_tables(bound:&Bound,writes:&[Write<'_>],out:&mut Vec<Diagnostic>) {
         // is an audit record of that effect, not an unused prerequisite.
         if creators.iter().any(|c|writes.iter().any(|w|std::ptr::eq(w.p,c.p)&&w.op==WriteOp::Update&&!w.fields.is_empty()&&t.columns.values().any(|kind|matches!(kind.required(),ColumnType::Ref{table} if table==&w.table)))){continue;}
         for (reference,kind) in &t.columns {let ColumnType::Ref{table:parent}=kind.required()else{continue;};
+            // A typed approval child created from the newly inserted parent
+            // image is part of that creation, rather than an unused permission.
+            if creators.iter().any(|c|c.fields.iter().filter(|f|&f.name==reference).filter_map(field_value).any(|value|{let mut created=false;walk(value,|e|if matches!(e,Expr::Write{op:WriteOp::Insert,table,..} if table==parent){created=true;});created})){continue;}
+
             let effects=writes.iter().filter(|w|w.table!=*name&&(w.table==*parent&&state(w,bound)||matches!(w.op,WriteOp::Insert|WriteOp::Upsert)&&bound.schema.tables[&w.table].columns.values().any(|k|matches!(k.required(),ColumnType::Ref{table} if table==parent)))).collect::<Vec<_>>();
             if effects.iter().any(|w|kernel::implies(&audience(&w.gate),&writer)!=Ok(true)) {
                 note(out,&creators[0].site,"N_APPROVAL_NOT_ENFORCED",format!("{name}.{reference}: a separately authorized approval for {parent} is recorded but no effect requires it; is it informational?"),"require the matching approval row before the governed parent/child effect; or record `check --ack-security ID --reason 'informational approval record: <spec rationale>'`");break;

@@ -29,7 +29,7 @@ impl Reachability {
 #[derive(Clone,Debug,Serialize,serde::Deserialize)]
 pub struct Counterexample {pub reachability:Reachability,pub invariant_site:String,pub args:BTreeMap<String,Value>,pub viewer:String,pub operation:String,pub effect:String,pub row:Value,pub old:Option<Value>,pub supporting_rows:BTreeMap<String,Vec<Value>>,pub rule_path:String,pub scope:String, pub observations:Option<paired::Observations>,pub history:Vec<histories::Step>}
 #[derive(Clone,Debug,Default,Serialize)]
-pub struct Campaign {#[doc(hidden)] #[serde(skip)] pub time_samples:Option<Vec<Value>>,pub evaluation_unknowns:BTreeSet<String>,pub directed_attempts:usize,pub workflow_attempts:usize,pub directed_peak_worlds:usize,#[serde(skip)] pub history_limit:usize,#[serde(skip)] pub generated_fixture:bool,#[serde(skip)] pub work_remaining:Option<usize>,#[serde(skip)] pub deadline:Option<std::time::Instant>,pub paired_observer_calls:usize,pub history_observer_calls:usize,pub column_observer_calls:usize,pub operations:BTreeMap<String,usize>,pub sequences:usize,pub attempted:usize,pub admitted:usize,pub refused:usize,pub violations:Vec<Counterexample>,pub boundary_failures:Vec<String>,pub unsupported:BTreeSet<String>}
+pub struct Campaign {#[doc(hidden)] #[serde(skip)] pub directed_base:usize,#[doc(hidden)] #[serde(skip)] pub time_samples:Option<Vec<Value>>,pub evaluation_unknowns:BTreeSet<String>,pub directed_attempts:usize,pub workflow_attempts:usize,pub directed_peak_worlds:usize,#[serde(skip)] pub history_limit:usize,#[serde(skip)] pub generated_fixture:bool,#[serde(skip)] pub work_remaining:Option<usize>,#[serde(skip)] pub deadline:Option<std::time::Instant>,pub paired_observer_calls:usize,pub history_observer_calls:usize,pub column_observer_calls:usize,pub operations:BTreeMap<String,usize>,pub sequences:usize,pub attempted:usize,pub admitted:usize,pub refused:usize,pub violations:Vec<Counterexample>,pub boundary_failures:Vec<String>,pub unsupported:BTreeSet<String>}
 impl Campaign {
     /// Deterministic production/check exploration. Elapsed time is not a verdict input.
     pub fn work_bounded(work:usize)->Self {Self{work_remaining:Some(work),..Self::default()}}
@@ -308,7 +308,7 @@ pub fn run_selected_after(bound:&Bound,sites:Option<&BTreeSet<String>>,mut out:C
                     let mut attempt=match seeded.fork_fixture(){Ok(e)=>e,Err(why)=>{out.unsupported.insert(why.to_string());continue;}};
                     let args=match arguments(&p.program.args,variant){Some(a)=>a,None=>{out.unsupported.insert(format!("{operation}: typed arguments unavailable"));continue;}};
                     let args=match materialize_arguments(&mut attempt,&p.program.args,&args,viewer){Ok(a)=>a,Err(why)=>{out.unsupported.insert(format!("{operation}: argument ledger unavailable: {why}"));continue;}};
-                    let trace=executed::trace(bound,&p.program);
+                    let trace=executed::trace(bound,&p.program,&attempt);
                     out.attempted+=1;
                     match attempt.mutate(operation,None,Context::new(viewer,args.clone()).at(NOW).with_fixture_trace(trace.clone())) {
                         Ok(result) if matches!(result.state,snapback4_core::WriteState::Sent{..})=>{
@@ -408,6 +408,7 @@ pub fn generated_campaign(bound:&Bound,campaign:&mut Campaign,matrix:bool){
     generated_campaign_inner(bound,campaign,matrix);
 }
 fn generated_campaign_inner(bound:&Bound,campaign:&mut Campaign,matrix:bool){
+    campaign.directed_base=campaign.directed_attempts;
     for (name,_) in bound.schema.visible_tables().filter(|(_,t)|t.ephemeral.is_some()){campaign.unsupported.insert(format!("ephemeral {name}: generated memory populations and ephemeral mutation histories remain uncovered; durable campaigns use isolated hub copies"));}
     campaign.history_limit=64;campaign.generated_fixture=false;
     if !campaign.reserve(1){return;}
@@ -488,7 +489,7 @@ pub fn operations(bound:&Bound,fixture:&Engine,campaign:&mut Campaign){
                 if p.program.kind==ProgramKind::Query{
                     match engine.query(&p.program.name,Context::new(viewer,args.clone()).at(NOW)){Ok(_)=>{},Err(e) if e.code=="E_INPUT"=>{campaign.unsupported.insert(format!("{}: generated arguments rejected as E_INPUT",p.program.name));},Err(_)=>campaign.refused+=1,}
                 }else{
-                    let trace=executed::trace(bound,&p.program);
+                    let trace=executed::trace(bound,&p.program,&engine);
                     match engine.mutate(&p.program.name,None,Context::new(viewer,args.clone()).at(NOW).with_fixture_trace(trace.clone())){
                         Ok(result) if matches!(result.state,snapback4_core::WriteState::Sent{..})=>{
                             if let Ok(after)=readback(&engine){

@@ -2,6 +2,8 @@
 
 ## 0.4.41
 
+### Guide changes
+
 - Ignored approval flags, timestamps and separately authorized approval records require an individual specification decision. Enforce the approval before its effect, or record why it is informational with `check --ack-security ID --reason '<spec rationale>'`.
 - Derived security replay covers sibling approval paths, Boolean/enum/principal approval inputs, parent/child stages and repeatable creates. A production FIX names the exact candidate and its repair or individual alternative-path decision.
 - New questions identify text-typed photo evidence, media beside private fields, one-sided anchored date windows, month-number arithmetic and global unique keys over owner-scoped rows. Empty-string justification guards that accept whitespace require review; use `trim(value) != ''` or `text 1..N` on every supplied justification.
