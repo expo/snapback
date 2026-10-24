@@ -198,6 +198,13 @@ impl StoreConfig {
         if !lease.lock().unwrap_or_else(|p| p.into_inner()).renew().map_err(redact)? || deadline.expired() {
             return Err("E_STORE_OWNERSHIP: acquisition expired before startup".into());
         }
+        // Opt in only when the operator can guarantee these bounds across the
+        // configured database and every lossless failover. Unset stays on G5.
+        if let Ok(value)=std::env::var("SNAPBACK4_READ_GRANT_CLOCK_BOUNDS") {
+            let parsed=(|| {let (rate,jump)=value.split_once(',')?;Some(snapback4_core::store_port::ReadClockBounds {rate_ppm:rate.parse().ok()?,forward_jump:Duration::from_millis(jump.parse().ok()?)})})();
+            let bounds=parsed.ok_or_else(||input("SNAPBACK4_READ_GRANT_CLOCK_BOUNDS requires rate_ppm,forward_jump_ms"))?;
+            lease.lock().unwrap_or_else(|p|p.into_inner()).enable_read_grant(bounds).map_err(redact)?;
+        }
         let renew = lease.clone();
         let renewed = deadline.clone();
         let watchdog_finished = owner.finished.clone();

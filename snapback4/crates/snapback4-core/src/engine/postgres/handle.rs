@@ -36,6 +36,7 @@ impl Handle {
             *self.readers.borrow_mut() = Some(pool.clone()); pool
         };
         let reader = Self::connect_reader(self.connection.0.clone(), &self.connection.1, self.borrow()?.fence.clone(), pool)?;
+        reader.store.borrow_mut().read_grant=self.borrow()?.read_grant.clone();
         let after = reader.read(|tx| Ok((crate::metadata::MetadataReader::store_identity(tx)?, crate::activation::ActivationReader::opening_backend(tx)?)))?;
         if before != after { return Err(RuntimeError::Generation("reader store identity or generation changed; reopen".into())); }
         Ok(reader)

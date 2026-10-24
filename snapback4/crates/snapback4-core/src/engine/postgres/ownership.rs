@@ -93,6 +93,8 @@ pub struct StoreLease {
     // A failed renewal revokes write authority, but does not erase the token
     // needed for best-effort startup cleanup (including an unknown claim COMMIT).
     claimed: bool,
+    pub(crate) read_grant: Arc<super::read_grant::Grant>,
+    read_clock: Option<(super::read_grant::ReadClockBounds, String)>,
 }
 #[derive(Debug, PartialEq, Eq)]
 pub struct LeaseAcquisition {
@@ -246,7 +248,10 @@ impl Handle {
                 "lease is not held for this namespace".into(),
             ));
         }
-        Self::connect_owned(connection.parse()?, namespace, Some(lease.fence.clone()))
+        lease.read_grant.opened.store(true,Ordering::Release);
+        let handle=Self::connect_owned(connection.parse()?, namespace, Some(lease.fence.clone()))?;
+        handle.store.borrow_mut().read_grant=Some(lease.read_grant.clone());
+        Ok(handle)
     }
 }
 
@@ -274,6 +279,7 @@ impl StoreLease {
         let mut checked = store::Store::new(client);
         let tx = checked.opening_transaction()?;
         verify(&tx)?;
+        super::read_grant::verify(&tx)?;
         check_record(&tx, store_id)?;
         if tx.meta("store_id")?.as_deref() != Some(store_id) {
             return Err(RuntimeError::StoreOwnership(
@@ -291,6 +297,8 @@ impl StoreLease {
             warning,
             held: false,
             claimed: false,
+            read_grant: Default::default(),
+            read_clock: None,
         })
     }
     pub fn lease_duration(&self) -> Duration { self.policy.lease }
@@ -330,6 +338,9 @@ impl StoreLease {
             Err(e) if matches!(e.code(), Some(&SqlState::LOCK_NOT_AVAILABLE | &SqlState::QUERY_CANCELED)) => return Ok(None),
             Err(e) => return Err(e.into()),
         }
+        // @ref LLP 3000.009.001.000.002#4.2 — a short writer lease or old G5 owner cannot bypass an outstanding read epoch.
+        let grant_exists=tx.query_one("SELECT to_regclass('_read_grant') IS NOT NULL",&[])?.get::<_,bool>(0);
+        if grant_exists && tx.query_opt("SELECT epoch FROM _read_grant WHERE singleton AND valid_until >= clock_timestamp()",&[])?.is_some() { return Ok(None); }
         #[cfg(test)]
         test_hooks::run(test_hooks::Point::AfterClaim);
         // The watcher may now signal blockers. No statement timeout may cancel
@@ -401,28 +412,72 @@ impl StoreLease {
         )?);
         Ok(Some(LeaseAcquisition { token, terminated }))
     }
+    /// Startup only, before opening/exposing any engine. All later handles share
+    /// this gate. The deployment is responsible for the declared clock/HA bounds.
+    pub fn enable_read_grant(&mut self, bounds: super::read_grant::ReadClockBounds) -> Result<(),RuntimeError> {
+        use super::read_grant::{boottime, Published, PUBLICATION, CREATE};
+        if !self.held || self.read_grant.opened.load(Ordering::Acquire) || self.read_grant.configured.load(Ordering::Acquire) {return Err(RuntimeError::StoreOwnership("read grant needs a fresh acquired owner before engine admission".into()));}
+        let window=bounds.window(self.policy.lease)?;
+        let started=boottime().ok_or_else(||RuntimeError::StoreOwnership("read grant clock unavailable".into()))?;
+        let epoch=format!("{:016x}{:016x}",crate::ids::seed(),crate::ids::seed());
+        let mut tx=self.client.transaction()?;
+        let rows=tx.execute("UPDATE _owner SET lease_until=lease_until WHERE singleton AND store_id=$1 AND holder=$2 AND token=$3 AND lease_until>clock_timestamp()",&[&self.fence.store_id,&self.fence.holder,&self.fence.token])?;
+        if rows!=1 {return Err(RuntimeError::StoreOwnership("read grant owner expired".into()));}
+        tx.batch_execute(CREATE)?;
+        // An unexpired old epoch may never be shortened, including by accidental
+        // repeat installation with the same owner identity.
+        if tx.query_opt("SELECT epoch FROM _read_grant WHERE singleton AND valid_until>=clock_timestamp()",&[])?.is_some() {return Err(RuntimeError::StoreOwnership("outstanding read epoch must expire or drain".into()));}
+        tx.execute("INSERT INTO _read_grant VALUES(true,$1,$2,$3,$4,clock_timestamp()+make_interval(secs=>$5)) ON CONFLICT(singleton) DO UPDATE SET store_id=EXCLUDED.store_id,holder=EXCLUDED.holder,token=EXCLUDED.token,epoch=EXCLUDED.epoch,valid_until=EXCLUDED.valid_until",&[&self.fence.store_id,&self.fence.holder,&self.fence.token,&epoch,&self.policy.lease.as_secs_f64()])?;
+        let row=super::flight::Row::Bind(tx.query_one(PUBLICATION,&[])?);
+        let published=Published::row(&row)?;
+        commit(tx,&self.warning)?;
+        if boottime().is_none_or(|n|n>=started+window) {self.read_grant.revoke();return Err(RuntimeError::StoreOwnership("late grant installation cannot open an epoch".into()));}
+        let mut s=self.read_grant.state.write().unwrap_or_else(|p|p.into_inner());
+        s.epoch=Some(epoch.clone());self.read_grant.until.store((started+window).as_nanos() as u64,Ordering::Release);s.published=Some(published);
+        self.read_clock=Some((bounds,epoch));
+        self.read_grant.configured.store(true,Ordering::Release);
+        Ok(())
+    }
     pub fn renew(&mut self) -> Result<bool, RuntimeError> {
         if !self.held {
             return Ok(false);
         }
+        let started=super::read_grant::boottime();
+        let grant_deadline=self.read_grant.deadline().filter(|_|!self.read_grant.revoked.load(Ordering::Acquire) && !self.read_grant.uncertain.load(Ordering::Acquire));
+        let renewing=self.read_clock.clone().filter(|_|grant_deadline.is_some());
         let result = (|| {
             let mut tx = self.client.transaction()?;
             let rows = tx.execute("UPDATE _owner SET lease_until=clock_timestamp()+make_interval(secs=>$1) WHERE singleton AND store_id=$2 AND token=$3 AND holder=$4", &[&self.policy.lease.as_secs_f64(), &self.fence.store_id, &self.fence.token, &self.fence.holder])?;
+            if let Some((_,epoch))=&renewing {
+                let grants=tx.execute("UPDATE _read_grant SET valid_until=clock_timestamp()+make_interval(secs=>$1) WHERE singleton AND store_id=$2 AND token=$3 AND holder=$4 AND epoch=$5 AND valid_until>clock_timestamp()",&[&self.policy.lease.as_secs_f64(),&self.fence.store_id,&self.fence.token,&self.fence.holder,epoch])?;
+                if rows!=1 || grants!=1 {return Err(RuntimeError::StoreOwnership("read grant renewal lost its exact epoch".into()));}
+            }
             commit(tx, &self.warning)?;
             Ok::<_, RuntimeError>(rows)
         })();
         if !matches!(result, Ok(1)) {
             self.held = false;
         }
+        if let (Some((bounds,_)),Some(start),Some(old))=(renewing,started,grant_deadline) {
+            let window=bounds.window(self.policy.lease)?;
+            if matches!(result,Ok(1)) && !self.read_grant.revoked.load(Ordering::Acquire) && !self.read_grant.uncertain.load(Ordering::Acquire) && super::read_grant::boottime().is_some_and(|n|n<old && n<start+window) {
+                let _=self.read_grant.until.compare_exchange(old.as_nanos() as u64,(start+window).as_nanos() as u64,Ordering::AcqRel,Ordering::Acquire);
+            } else {self.read_grant.revoke();}
+        } else if self.read_clock.is_some() { self.read_grant.revoke(); }
         Ok(result? == 1)
     }
     pub fn release(&mut self) -> Result<bool, RuntimeError> {
         if !self.claimed {
             return Ok(false);
         }
+        // Acknowledged cache-stop/drain precedes shortening the persisted epoch.
+        self.read_grant.drain();
         self.held = false;
         let mut tx = self.client.transaction()?;
         let rows = tx.execute("UPDATE _owner SET lease_until='-infinity' WHERE singleton AND store_id=$1 AND token=$2 AND holder=$3", &[&self.fence.store_id,&self.fence.token,&self.fence.holder])?;
+        if let Some((_,epoch))=&self.read_clock {
+            tx.execute("UPDATE _read_grant SET valid_until='-infinity' WHERE singleton AND store_id=$1 AND token=$2 AND holder=$3 AND epoch=$4",&[&self.fence.store_id,&self.fence.token,&self.fence.holder,epoch])?;
+        }
         commit(tx, &self.warning)?;
         self.claimed = false;
         Ok(rows == 1)
@@ -536,10 +591,10 @@ mod tests;
 // Hooks are local to the invoking test thread; only BeforeWatch is explicitly
 // transferred to that claim's watcher. No timing switch reaches production.
 #[cfg(test)]
-pub(in crate::engine::postgres) mod test_hooks {
+pub(crate) mod test_hooks {
     use std::cell::RefCell;
     #[derive(Clone, Copy, PartialEq, Eq)]
-    pub(in crate::engine::postgres) enum Point {
+    pub(crate) enum Point {
         AfterPoll,
         AfterClaim,
         AfterFenceRollback,
@@ -548,7 +603,7 @@ pub(in crate::engine::postgres) mod test_hooks {
     }
     type Hook = Box<dyn FnOnce() + Send>;
     thread_local! { static HOOKS: RefCell<Vec<(Point, Hook)>> = RefCell::new(Vec::new()); }
-    pub(in crate::engine::postgres) fn set(point: Point, hook: impl FnOnce() + Send + 'static) {
+    pub(crate) fn set(point: Point, hook: impl FnOnce() + Send + 'static) {
         HOOKS.with(|hooks| hooks.borrow_mut().push((point, Box::new(hook))));
     }
     pub(in crate::engine::postgres) fn take(point: Point) -> Option<Hook> {

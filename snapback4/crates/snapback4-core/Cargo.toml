@@ -25,7 +25,7 @@ native = ["sqlite", "wasm-host"]
 sqlite = ["dep:rusqlite", "dep:argon2", "dep:rayon"]
 # Server adapter selected by the public CLI and retained evaluation oracle.
 # Device and no-default core builds do not link it.
-postgres = ["sqlite", "dep:postgres", "dep:tokio-postgres", "dep:tokio", "dep:futures-util"]
+postgres = ["sqlite", "dep:postgres", "dep:tokio-postgres", "dep:tokio", "dep:futures-util", "dep:rustix"]
 # The browser device mints additional prediction ids through Web Crypto.
 web = ["getrandom/wasm_js", "dep:js-sys"]
 # Exercise the web-only engine choices in native device differentials.
@@ -50,7 +50,7 @@ wasmi = { version = "2.0.0", default-features = false, features = ["stable", "st
 # The web only receives text; keep this parser option out of its artifact.
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 rayon = { version = "1.11", optional = true }
-serde_json = { version = "1", features = ["unbounded_depth"] }
+serde_json = { version = "1", features = ["unbounded_depth", "raw_value"] }
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
@@ -70,3 +70,6 @@ unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)'] }
 [[example]]
 name = "adoption_pause"
 required-features = ["test-support"]
+
+[target.'cfg(target_os = "linux")'.dependencies]
+rustix = { version = "1.1", features = ["time"], optional = true }

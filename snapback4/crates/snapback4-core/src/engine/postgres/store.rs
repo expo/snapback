@@ -81,6 +81,7 @@ pub struct Store {
     pub(super) read_sessions: Cell<bool>,
     pub(super) unified: bool,
     pub(super) fence: Option<super::ownership::Fence>,
+    pub(crate) read_grant: Option<std::sync::Arc<super::read_grant::Grant>>,
     pub(super) commit_warning: std::sync::Arc<std::sync::atomic::AtomicBool>,
     pub generation: u64,
     pub(crate) read_only: bool,
@@ -101,7 +102,7 @@ pub struct Store {
 impl Store {
     pub fn new(client: Client) -> Self { Self::with_connection(super::pipeline::Connection::Sync(client)) }
     pub(super) fn with_connection(client: super::pipeline::Connection) -> Self {
-        Self { read_sessions: Cell::new(false), unified: false, fence: None, commit_warning: Default::default(), generation:1, read_only: false, client, qualified: false, reader_binding: false, next_program_deadline: None, literal_cache: BTreeMap::new(), cache: BTreeMap::new(), calls: CallCounter::new(0), prefetch: true, marked_reads: Cell::new(0), page_reads: Cell::new(0), prefetch_rows: Cell::new(0), prefetch_bytes: Cell::new(0) }
+        Self { read_sessions: Cell::new(false), unified: false, fence: None, read_grant: None, commit_warning: Default::default(), generation:1, read_only: false, client, qualified: false, reader_binding: false, next_program_deadline: None, literal_cache: BTreeMap::new(), cache: BTreeMap::new(), calls: CallCounter::new(0), prefetch: true, marked_reads: Cell::new(0), page_reads: Cell::new(0), prefetch_rows: Cell::new(0), prefetch_bytes: Cell::new(0) }
     }
 
     // @ref LLP 3000.009.001.000#8 — only future requests reconnect, with fresh binding checks.
@@ -109,6 +110,7 @@ impl Store {
     // statements belong to the old socket; no result or authority is reused.
     fn refresh_reader_connection(&mut self) -> Result<(),RuntimeError> {
         if self.client.refresh_closed()? {
+            if let Some(grant)=&self.read_grant {grant.revoke();}
             self.literal_cache.clear(); self.cache.clear();
             self.reader_binding = self.unified;
         }
@@ -131,26 +133,29 @@ impl Store {
         Ok(())
     }
 
-    fn begin(&mut self, mode: Option<WriteMode>, opening: bool) -> Result<Tx<'_>, RuntimeError> {
+    pub(crate) fn cached_read(&mut self)->Result<Tx<'_>,RuntimeError> {self.begin_inner(None,false,true)}
+    fn begin(&mut self, mode: Option<WriteMode>, opening: bool) -> Result<Tx<'_>, RuntimeError> {self.begin_inner(mode,opening,false)}
+    fn begin_inner(&mut self, mode: Option<WriteMode>, opening: bool, cpu_only:bool) -> Result<Tx<'_>, RuntimeError> {
+        if mode.is_some() && self.read_grant.as_ref().is_some_and(|g|g.uncertain.load(std::sync::atomic::Ordering::Acquire)) {return Err(RuntimeError::StoreOwnership("unknown COMMIT pauses writer admission until fenced reconciliation".into()));}
         let deadline = self.next_program_deadline.take();
         if self.read_only && mode.is_some() { return Err(RuntimeError::Store("Postgres reader is read-only".into())); }
-        self.refresh_reader_connection()?;
-        if !self.qualified {
+        if !cpu_only { self.refresh_reader_connection()?; }
+        if !self.qualified && !cpu_only {
             if !self.client.is_reader() {
                 self.client.configure()?;
                 self.calls.set(self.calls.get() + 3);
             }
             self.qualified = true;
         }
-        self.client.begin();
+        if !cpu_only { self.client.begin(); }
         self.page_reads.set(0);
         let begin = match mode {
             None => "BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY;",
             Some(WriteMode::Serialized) => "BEGIN ISOLATION LEVEL READ COMMITTED READ WRITE;",
             Some(WriteMode::Serializable) => "BEGIN ISOLATION LEVEL SERIALIZABLE READ WRITE;",
         };
-        let inner = super::flight::Session { client: &mut self.client, pending: begin.into(), started: false, done: false, settings_refused: false, checks: Vec::new() };
-        let tx = Tx { durable_write: mode.is_some(), revisions: Cell::new(0), lifecycle: opening, read_sessions: &self.read_sessions, read_sessions_installed: Cell::new(false), unified: self.unified, commit_warning: &self.commit_warning, inner: RefCell::new(inner),
+        let inner = super::flight::Session { client: &mut self.client, pending: if cpu_only {String::new()} else {begin.into()}, started: false, done: cpu_only, settings_refused: false, checks: Vec::new() };
+        let tx = Tx { read_grant:self.read_grant.clone(), durable_write: mode.is_some(), revisions: Cell::new(0), lifecycle: opening, read_sessions: &self.read_sessions, read_sessions_installed: Cell::new(false), unified: self.unified, commit_warning: &self.commit_warning, inner: RefCell::new(inner),
             bind_refused: Cell::new(false), program_deadline: Cell::new(deadline), read_cache: RefCell::new(super::read_plan::Answers::default()), pending_read: RefCell::new(None), receipt_cache: RefCell::new(None), placement_cache: RefCell::new(None), authority_cache: RefCell::new(None), commit_settings: Cell::new(false), literal_cache: RefCell::new(&mut self.literal_cache), cache: RefCell::new(&mut self.cache), calls: &self.calls, marked_reads: &self.marked_reads, page_reads: &self.page_reads, prefetch_rows: &self.prefetch_rows, prefetch_bytes: &self.prefetch_bytes,
             rows_cache: RefCell::new(super::prefetch::Cache::default()), prefetch_enabled: self.prefetch, head: Cell::new(None), serialized_head: Cell::new(false), tail: RefCell::new(super::tail::Tail::default()), group_head: Cell::new(None), group_tails: RefCell::new(Vec::new()), group_images: Default::default(), changes: Default::default(), savepoints: RefCell::new(Vec::new()) };
         if opening { super::managed_relations::verify(&tx)?; }
@@ -394,6 +399,7 @@ impl Tx<'_> {
 }
 
 pub struct Tx<'a> {
+    read_grant: Option<std::sync::Arc<super::read_grant::Grant>>,
     durable_write: bool,
     pub(super) revisions: Cell<u64>,
     // @ref LLP 3000.009.001.000.002#6 — restored images can precede their index/cap population rebuild.
@@ -734,6 +740,8 @@ impl Tx<'_> {
         // Installer DDL (including event-trigger effects) and late activation
         // callbacks share this transaction. Re-admit after its last writes.
         if self.lifecycle { super::managed_relations::verify(&self)?; }
+        let grant=self.read_grant.as_ref().filter(|g|self.durable_write && g.configured.load(std::sync::atomic::Ordering::Acquire)).cloned();
+        let published=if grant.is_some() {Some(super::read_grant::Published::row(&self.query(super::read_grant::PUBLICATION,&[])?.remove(0))?)} else {None};
         let mut inner = self.inner.into_inner();
         if !self.commit_settings.get() {
             inner.pending.push_str("SET LOCAL statement_timeout = 0; SET LOCAL lock_timeout = 0;");
@@ -743,8 +751,9 @@ impl Tx<'_> {
         // The last data flight verified the codec settings. Only client-side
         // validation intervenes; COMMIT stays alone and decodes no row payload.
         // Once COMMIT is sent, even transport loss must retain unknown-outcome classification.
-        inner.done = true;
-        inner.client.commit_prepared(self.commit_warning)?;
+        if let (Some(grant),Some(published))=(grant,published) {
+            grant.commit(published,|| {inner.done=true;inner.client.commit_prepared(self.commit_warning)})?;
+        } else {inner.done=true;inner.client.commit_prepared(self.commit_warning)?;}
         if self.read_sessions_installed.get() { self.read_sessions.set(true); }
         Ok(())
     }

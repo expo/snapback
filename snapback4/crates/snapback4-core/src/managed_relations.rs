@@ -47,6 +47,7 @@ pub(crate) const TABLES: &[&str] = &[
     "_owner",
     "_principal_generations",
     "_principals",
+    "_read_grant",
     "_read_sessions",
     "_release_event_items",
     "_release_events",
