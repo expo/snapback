@@ -35,24 +35,47 @@ fn consumed(predicate:&ast::Expr,row:&Value,effective:&Value,rows:&BTreeMap<Stri
     // filter trees run unchanged on their actual pre-effect data. Dependencies
     // between consumed stamps are validated together; one invalidated receipt
     // removes every receipt that depended on it.
-    let mut valid=receipts.iter().filter(|((owner,id,stamp),_)|actual(owner,id).is_some_and(|r|matches!(cell(r,stamp),Value::Null|Value::Bool(false)))).map(|(key,_)|key.clone()).collect::<BTreeSet<_>>();
-    loop{
-        let invalid=valid.iter().filter(|(owner,id,stamp)|{
-            let current=actual(owner,id).unwrap();receipts[&(owner.clone(),id.clone(),stamp.clone())].inputs.iter().any(|(column,before)|{
-                let key=(owner.clone(),id.clone(),column.clone());let after=if valid.contains(&key){receipts[&key].stamp.clone()}else{cell(current,column)};*before!=after
-            })
-        }).cloned().collect::<Vec<_>>();
-        if invalid.is_empty(){break;}for key in invalid{valid.remove(&key);}
-    }
-    let mut shadow=rows.clone();let mut image=row.clone();
-    if let Some(current)=shadow.get_mut(table).into_iter().flatten().find(|r|r.field("id").ok()==image.field("id").ok()){*current=image.clone();}
-    let ambiguous=valid.iter().any(|key|!receipts[key].trusted);
-    for key in valid{let (owner,id,stamp)=&key;let value=receipts[&key].stamp.clone();
-        if let Some(current)=shadow.get_mut(owner).into_iter().flatten().find(|r|r.field("id").ok()==Some(&Value::Id(id.clone()))){put(current,stamp,value.clone());}
-        if owner==table&&image.field("id").ok()==Some(&Value::Id(id.clone())){put(&mut image,stamp,value);}
-    }
-    let verdict=super::super::concrete::evaluate(predicate,&image,&shadow,schema,viewer,table,now);
-    if verdict==Some(true)&&ambiguous{return None;}
+    let approval=|owner:&str,column:&str|schema.tables.get(owner).is_some_and(|table|table.columns.get(column).is_some_and(|kind|matches!(kind.required(),C::Bool|C::Time))&&["approv","authoriz"].iter().any(|part|column.to_lowercase().contains(part)));
+    let eligible=receipts.iter().filter(|((owner,id,stamp),receipt)|actual(owner,id).is_some_and(|row|{let value=cell(row,stamp);value==receipt.stamp||matches!(value,Value::Null|Value::Bool(false))})).map(|(key,_)|key.clone()).collect::<BTreeSet<_>>();
+    let validate=|trusted:bool|{
+        let mut valid=eligible.iter().filter(|key|!trusted||receipts[*key].trusted).cloned().collect::<BTreeSet<_>>();
+        loop{
+            let invalid=valid.iter().filter(|(owner,id,stamp)|{
+                let current=actual(owner,id).unwrap();receipts[&(owner.clone(),id.clone(),stamp.clone())].inputs.iter().any(|(column,before)|{
+                    let key=(owner.clone(),id.clone(),column.clone());
+                    if positive(before)&&approval(owner,column){return !valid.contains(&key)||receipts.get(&key).is_none_or(|receipt|receipt.stamp!=*before);}
+                    *before!=cell(current,column)
+                })
+            }).cloned().collect::<Vec<_>>();
+            if invalid.is_empty(){break;}for key in invalid{valid.remove(&key);}
+        }valid
+    };
+    let certain=validate(true);let possible=validate(false);
+    let evaluate=|valid:&BTreeSet<ReceiptKey>,restored:&BTreeSet<ReceiptKey>|{
+        let mut shadow=rows.clone();let mut image=row.clone();
+        if let Some(current)=shadow.get_mut(table).into_iter().flatten().find(|r|r.field("id").ok()==image.field("id").ok()){*current=image.clone();}
+        for (owner,rs) in shadow.iter_mut(){for target in rs{
+            let Some(Value::Id(id))=target.field("id").ok().cloned()else{continue;};
+            for (stamp,kind) in &schema.tables[owner].columns{if !approval(owner,stamp){continue;}
+                let key=(owner.clone(),id.clone(),stamp.clone());let value=if valid.contains(&key){Some(if restored.contains(&key)||actual(owner,&id).is_some_and(|current|positive(&cell(current,stamp))){receipts[&key].stamp.clone()}else{actual(owner,&id).map(|row|cell(row,stamp)).unwrap_or(Value::Null)})}else if actual(owner,&id).is_some_and(|current|positive(&cell(current,stamp))){Some(if matches!(kind.required(),C::Bool){Value::Bool(false)}else{Value::Null})}else{None};
+                if let Some(value)=value{put(target,stamp,value.clone());if owner==table&&image.field("id").ok()==Some(&Value::Id(id.clone())){put(&mut image,stamp,value);}}
+            }
+        }}
+        super::super::concrete::evaluate(predicate,&image,&shadow,schema,viewer,table,now)
+    };
+    let search=|valid:&BTreeSet<ReceiptKey>|{
+        let baseline=evaluate(valid,&BTreeSet::new());if baseline==Some(true){return baseline;}
+        let consumed=valid.iter().filter(|(owner,id,stamp)|actual(owner,id).is_some_and(|row|!positive(&cell(row,stamp)))).cloned().collect::<Vec<_>>();
+        // Each choice is shared by every occurrence of that typed stamp in
+        // the complete predicate. Negated and positive uses cannot disagree.
+        if consumed.len()>8{return None;}let mut unknown=baseline.is_none();
+        for mask in 1usize..(1usize<<consumed.len()){
+            let restored=consumed.iter().enumerate().filter(|(bit,_)|mask&(1<<bit)!=0).map(|(_,key)|key.clone()).collect();
+            match evaluate(valid,&restored){Some(true)=>return Some(true),None=>unknown=true,_=>{}}
+        }if unknown{None}else{Some(false)}
+    };
+    let verdict=search(&certain);
+    if verdict!=Some(true)&&certain!=possible&&search(&possible)!=Some(false){return None;}
     if verdict==Some(false){
         // A deleted approval record has no current input image with which to
         // establish consumption. Keep that existing ambiguity explicit.
@@ -89,9 +112,8 @@ pub(super) fn trace(bound:&Bound,p:&Program,entry:&Engine)->Trace {
                         Some(true)=>Some(true),Some(false)=>{
                             let image=if sibling{prerequisite_image(old,next,&schema,&table,&inputs)}else{old.clone()};
                             let current=super::super::concrete::evaluate(&prerequisite,&image,rows,&schema,viewer,&table,now);
-                            if current==Some(true){return current;}
                             let prior=entry.as_ref().map(|entry|consumed(&prerequisite,&image,next,rows,entry,&schema,viewer,&table,now,&receipts.lock().expect("approval receipt lock")));
-                            match prior{Some(Some(true))=>Some(true),Some(None)=>None,_=>current}
+                            match prior{Some(result)=>result,None=>current}
                         },None=>None,
                     }
                 }))
@@ -99,9 +121,8 @@ pub(super) fn trace(bound:&Bound,p:&Program,entry:&Engine)->Trace {
                 let predicate=inv.syntax.clone()?;let schema=bound.schema.clone();let table=inv.table.clone();let entry=entry.clone();let receipts=receipts.clone();
                 Some(snapback4_core::engine::fixture_trace::BoundaryPredicate(std::sync::Arc::new(move |rows,_old,next,viewer,now|{
                     let row=next?;let current=super::super::concrete::evaluate(&predicate,row,rows,&schema,viewer,&table,now);
-                    if current==Some(true){return current;}
                     let prior=entry.as_ref().map(|entry|consumed(&predicate,row,row,rows,entry,&schema,viewer,&table,now,&receipts.lock().expect("approval receipt lock")));
-                    match prior{Some(Some(true))=>Some(true),Some(None)=>None,_=>current}
+                    match prior{Some(result)=>result,None=>current}
                 })))
             }else if inv.site.file.contains("/parent-state/"){
                 let predicate=inv.syntax.clone()?;let schema=bound.schema.clone();let table=inv.table.clone();
@@ -165,7 +186,7 @@ fn lifecycle_judgment(bound:&Bound,inv:&super::super::Invariant,observation:&sna
     let id=row.field(reference).ok()?;
     // A named old-image rule is a matching explicit parent policy only if
     // this execution kept that association. Retargeting cannot borrow it.
-    if old.field(reference).ok()==Some(id){let child=&bound.schema.tables[&inv.table];if [&child.rules.update].into_iter().chain(child.column_writes.values()).any(|rule|rule.any_term(&|term|matches!(term,RuleTerm::Reference{table,column,field,old:true} if table==parent&&column==reference&&field==state))){return Some(true);}}
+    if old.field(reference).ok()==Some(id){let child=&bound.schema.tables[&inv.table];if [&child.rules.update].into_iter().chain(inv.column.as_ref().and_then(|column|child.column_writes.get(column))).any(|rule|rule.any_term(&|term|matches!(term,RuleTerm::Reference{table,column,field,old:true} if table==parent&&column==reference&&field==state))){return Some(true);}}
     for change in all.iter().filter(|change|change.site==format!("$security.lifecycle-change/{parent}/{state}")&&change.table==*parent){
         for image in change.old.iter().chain(change.next.iter()).filter(|image|image.field("id").ok()==Some(id)){
             let mut coupled=after.clone();let rows=coupled.entry(parent.clone()).or_default();rows.retain(|row|row.field("id").ok()!=Some(id));rows.push(image.clone());
@@ -250,7 +271,7 @@ pub(super) fn write_arguments(bound:&Bound,p:&Program)->BTreeSet<String>{
         let Some(payload)=w.get("row").or_else(||w.get("patch"))else{continue;};let payload=resolve(payload,&bindings,0);
         let Some(fields)=payload.get("Object").and_then(|v|v.as_object())else{continue;};
         for inv in bound.invariants.iter().filter(|i|Some(i.table.as_str())==table&&i.column.is_some()&&!matches!(i.target.as_str(),"read"|"always")&&i.operation.as_ref().is_none_or(|op|op==&p.name)){
-            if let Some(value)=fields.get(inv.column.as_ref().unwrap())&&let Some(arg)=resolve(value,&bindings,0).get("Variable").and_then(|v|v.as_str())&&p.args.contains_key(arg){out.insert(arg.into());}
+            if let Some(value)=fields.get(inv.column.as_ref().unwrap()){walk(resolve(value,&bindings,0),&mut |part|if let Some(arg)=part.get("Variable").and_then(|v|v.as_str())&&p.args.contains_key(arg){out.insert(arg.into());});}
         }
     });out
 }
@@ -315,7 +336,7 @@ pub(super) fn write_arguments(bound:&Bound,p:&Program)->BTreeSet<String>{
 }
 #[test]fn multiple_consumptions_preserve_conjunction_and_alternative_structure(){
     let source="table docs:\n  aConsent: bool\n  bConsent: bool\n  aApproved: bool default false\n  bApproved: bool default false\n  status: enum('draft','done') default 'draft'\n  read <- allow\n  update <- allow\n  online only\nmutation approveA(doc: docs):\n  d = docs[doc] ! else MISSING\n  require d.aConsent else NO_CONSENT\n  update docs[doc] {aApproved:true}\nmutation approveB(doc: docs):\n  d = docs[doc] ! else MISSING\n  require d.bConsent else NO_CONSENT\n  update docs[doc] {bApproved:true}\nmutation finish(doc: docs):\n  d = docs[doc] ! else MISSING\n  require d.aApproved and d.bApproved else NO_APPROVAL\n  update docs[doc] {status:'done'}\nmutation bypass(doc: docs):\n  update docs[doc] {aApproved:false,bApproved:false}\n  update docs[doc] {bConsent:false}\n  update docs[doc] {status:'done'}\n";
-    for (source,expected) in [(source.to_string(),false),(source.replace("d.aApproved and d.bApproved", "d.aApproved or d.bApproved"),true),(source.replace("  update docs[doc] {bConsent:false}\n", ""),true),(source.replace("require d.aConsent else", "require d.aConsent and d.bApproved else"),false),(source.replace("require d.aConsent else", "require d.aConsent and d.bApproved else").replace("  update docs[doc] {bConsent:false}\n", ""),true)]{
+    for (source,expected) in [(source.to_string(),false),(source.replace("d.aApproved and d.bApproved", "d.aApproved or d.bApproved"),true),(source.replace("  update docs[doc] {bConsent:false}\n", ""),true),(source.replace("require d.aConsent else", "require d.aConsent and d.bApproved else"),false),(source.replace("require d.aConsent else", "require d.aConsent and d.bApproved else").replace("  update docs[doc] {bConsent:false}\n", ""),true),(source.replace("d.aApproved and d.bApproved","not d.aApproved and d.bApproved").replace("  update docs[doc] {bConsent:false}\n", ""),true)]{
         let sources=vec![("schema.q".into(),source)];let b=super::super::super::derived::augmented(&sources,&crate::compile(&sources));assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
         let mut engine=Engine::memory(b.schema.clone(),b.programs.iter().map(|p|p.program.clone())).unwrap();let row=snapback4_core::wire::row_from_json(&b.schema.tables["docs"],&serde_json::json!({"id":"d","aConsent":true,"bConsent":true,"aApproved":true,"bApproved":true,"status":"draft"})).unwrap();engine.seed_at([("docs".into(),row)],NOW).unwrap();
         let p=&b.programs.iter().find(|p|p.program.name=="bypass").unwrap().program;let trace=trace(&b,p,&engine);
@@ -473,6 +494,24 @@ fn lifecycle_observations(source:String,operation:&str,args:BTreeMap<String,Valu
     let mut source=lifecycle_source("  update jobs[job] {status:'finished'}","  update tasks[task] {stage:'done'}");
     source.push_str("mutation noop(task: tasks):\n  t = tasks[task] ! else MISSING\n  require t.stage = 'done' else BAD_STAGE\n  update tasks[task] {stage:'done'}\n");
     let observations=lifecycle_observations(source,"finish",BTreeMap::from([("job".into(),Value::Id("a".into())),("otherTask".into(),Value::Id("u".into())),("touch".into(),Value::Bool(false))]),"active","accepted");assert!(observations.iter().any(|(site,result)|site.contains("child-stage")&&*result==Some(false)),"{observations:?}");
+}
+
+#[test]fn retained_positive_dependencies_cannot_hide_invalidated_upstream_inputs(){
+    let source="table docs:\n  consent: bool\n  aApproved: bool default false\n  bApproved: bool default false\n  read <- allow\n  update <- allow\n  online only\ntable effects:\n  doc: docs\n  read <- allow\n  insert <- allow\n  online only\nmutation approveA(doc: docs):\n  d = docs[doc] ! else MISSING\n  require d.consent else NO_CONSENT\n  update docs[doc] {aApproved:true}\nmutation approveB(doc: docs):\n  d = docs[doc] ! else MISSING\n  require d.aApproved else NO_APPROVAL\n  update docs[doc] {bApproved:true}\nmutation finish(doc: docs):\n  d = docs[doc] ! else MISSING\n  require d.bApproved else NO_APPROVAL\n  return insert effects {doc}\nmutation bypass(doc: docs):\n  saved = docs[doc] ! else MISSING\n  update docs[doc] {aApproved:false,bApproved:false}\nCHANGES  update docs[doc] {aApproved:saved.aApproved}\n  return insert effects {doc}\n";
+    for (changes,expected) in [("",true),("  update docs[doc] {consent:false}\n",false)]{
+        let sources=vec![("schema.q".into(),source.replace("CHANGES",changes))];let b=super::super::super::derived::augmented(&sources,&crate::compile(&sources));assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
+        let mut engine=Engine::memory(b.schema.clone(),b.programs.iter().map(|p|p.program.clone())).unwrap();let row=snapback4_core::wire::row_from_json(&b.schema.tables["docs"],&serde_json::json!({"id":"d","consent":true,"aApproved":true,"bApproved":true})).unwrap();engine.seed_at([("docs".into(),row)],NOW).unwrap();let p=&b.programs.iter().find(|p|p.program.name=="bypass").unwrap().program;let trace=trace(&b,p,&engine);let result=engine.mutate("bypass",None,Context::new("dev:a",BTreeMap::from([("doc".into(),Value::Id("d".into()))])).at(NOW).with_fixture_trace(trace.clone())).unwrap();assert!(matches!(result.state,snapback4_core::WriteState::Sent{..}));let observations=trace.take();assert!(observations.iter().any(|o|o.site.contains("sibling-approval")&&o.allowed==Some(expected)),"{observations:?}");
+    }
+}
+#[test]fn wrapped_old_timestamps_do_not_gain_recording_custody(){
+    let source="table docs:\n  consent: bool\n  approvedAt: time ?\n  read <- allow\n  update <- allow\n  online only\ntable effects:\n  doc: docs\n  read <- allow\n  insert <- allow\n  online only\nmutation approve(doc: docs):\n  d = docs[doc] ! else MISSING\n  require d.consent else NO_CONSENT\n  update docs[doc] {approvedAt:now + 0ms}\nmutation finish(doc: docs):\n  d = docs[doc] ! else MISSING\n  require d.approvedAt != null else NO_APPROVAL\n  return insert effects {doc}\nmutation bypass(doc: docs):\n  saved = docs[doc] ! else MISSING\n  update docs[doc] {approvedAt:null}\n  update docs[doc] {consent:false}\n  update docs[doc] {approvedAt:STAMP}\n  update docs[doc] {approvedAt:null}\n  return insert effects {doc}\n";
+    for (stamp,expected) in [("saved.approvedAt + 0ms",Some(false)),("(saved.approvedAt ?? now) + 0ms",None)]{
+        let sources=vec![("schema.q".into(),source.replace("STAMP",stamp).replace("saved = docs[doc] ! else MISSING\n", "saved = docs[doc] ! else MISSING\n  require saved.approvedAt != null else NO_APPROVAL\n"))];let b=super::super::super::derived::augmented(&sources,&crate::compile(&sources));assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);let mut engine=Engine::memory(b.schema.clone(),b.programs.iter().map(|p|p.program.clone())).unwrap();let row=snapback4_core::wire::row_from_json(&b.schema.tables["docs"],&serde_json::json!({"id":"d","consent":true,"approvedAt":NOW})).unwrap();engine.seed_at([("docs".into(),row)],NOW).unwrap();let p=&b.programs.iter().find(|p|p.program.name=="bypass").unwrap().program;let trace=trace(&b,p,&engine);let result=engine.mutate("bypass",None,Context::new("dev:a",BTreeMap::from([("doc".into(),Value::Id("d".into()))])).at(NOW).with_fixture_trace(trace.clone())).unwrap();assert!(matches!(result.state,snapback4_core::WriteState::Sent{..}));let observations=trace.take();assert!(observations.iter().any(|o|o.site.contains("sibling-approval")&&o.allowed==expected),"{stamp}: {observations:?}");
+    }
+}
+#[test]fn a_note_policy_does_not_authorize_unchecked_stage_work(){
+    let source=lifecycle_source("  update jobs[job] {status:'finished'}","  update tasks[task] {stage:'done'}").replace("  stage: enum('raw','done') default 'raw'","  stage: enum('raw','done') default 'raw'\n  note: text ? write <- exists jobs[.job, status = 'active']");
+    let observations=lifecycle_observations(source,"advance",BTreeMap::from([("task".into(),Value::Id("t1".into())),("otherJob".into(),Value::Id("b".into())),("touch".into(),Value::Bool(false))]),"estimate","active");assert!(observations.iter().any(|(site,result)|site.contains("parent-state")&&*result==Some(false)),"{observations:?}");
 }
 
 }

@@ -130,13 +130,13 @@ pub(super) fn fixture_cases(bound:&Bound,p:&Program,rows:&BTreeMap<String,Vec<Va
 }
 // Preserve status/decision alternatives on each resource tuple before the
 // small directed cap; text/noise arguments must not correlate bools with ids.
-fn directed_cases(p:&Program,cases:Vec<BTreeMap<String,Value>>,campaign:&mut Campaign)->Vec<BTreeMap<String,Value>>{
+fn directed_cases(bound:&Bound,p:&Program,cases:Vec<BTreeMap<String,Value>>,campaign:&mut Campaign)->Vec<BTreeMap<String,Value>>{
     let identities=p.args.iter().filter(|(_,k)|matches!(k,ir::ArgType::Ref{..}|ir::ArgType::Principal)).map(|(n,_)|n).collect::<Vec<_>>();
-    let original=cases.clone();
+    let original=cases.clone();let focused=super::executed::write_arguments(bound,p);
     let mut seen=BTreeSet::new();let mut groups=Vec::new();
     for base in cases{let key=serde_json::to_string(&identities.iter().map(|n|(*n,base.get(*n))).collect::<Vec<_>>()).unwrap();if !seen.insert(key){continue;}
         let mut group=vec![base.clone()];
-        for (name,kind) in &p.args{let values=match kind{ir::ArgType::Bool=>vec![Value::Bool(false),Value::Bool(true)],ir::ArgType::Enum{variants}=>variants.iter().cloned().map(Value::String).collect(),ir::ArgType::Time=>original.iter().filter_map(|case|case.get(name).cloned()).collect(),ir::ArgType::Optional(inner) if matches!(inner.as_ref(),ir::ArgType::Time)=>original.iter().filter_map(|case|case.get(name).cloned()).collect(),_=>Vec::new()};
+        for (name,kind) in &p.args{let values=match kind{ir::ArgType::Bool=>vec![Value::Bool(false),Value::Bool(true)],ir::ArgType::Enum{variants}=>variants.iter().cloned().map(Value::String).collect(),ir::ArgType::Int|ir::ArgType::IntRange{..} if focused.contains(name)=>original.iter().filter_map(|case|case.get(name).cloned()).collect(),ir::ArgType::Optional(inner) if focused.contains(name)&&matches!(inner.as_ref(),ir::ArgType::Int|ir::ArgType::IntRange{..})=>original.iter().filter_map(|case|case.get(name).cloned()).collect(),ir::ArgType::Time=>original.iter().filter_map(|case|case.get(name).cloned()).collect(),ir::ArgType::Optional(inner) if matches!(inner.as_ref(),ir::ArgType::Time)=>original.iter().filter_map(|case|case.get(name).cloned()).collect(),_=>Vec::new()};
             for value in values{let mut candidate=base.clone();candidate.insert(name.clone(),value);if !group.contains(&candidate){group.push(candidate);}}
         }groups.push(group);
     }
@@ -432,7 +432,7 @@ pub(super) fn lifecycle_observers_to(bound:&Bound,fixture:&Engine,out:&mut Campa
                 let ordinary=fixture_cases(bound,p,&before,&actors,out);
                 let mut cases=role_candidates(bound,p,&before,&actors,&ordinary,&base,out).into_iter().map(|(_,_,args)|args).collect::<Vec<_>>();
                 cases.extend(ordinary);let mut argument_keys=BTreeSet::new();cases.retain(|args|argument_keys.insert(serde_json::to_string(args).unwrap()));
-                let cases=directed_cases(p,cases,out);
+                let cases=directed_cases(bound,p,cases,out);
                 if cases.len()>8{out.unsupported.insert(format!("{}: directed lifecycle arguments capped at 8",p.name));}
                 let mut successors=Vec::<(Engine,Vec<Step>,usize,String)>::new();
                 let program_json=serde_json::to_string(p).unwrap();
@@ -651,7 +651,7 @@ pub(super) fn run(bound:&Bound,fixture:&Engine,out:&mut Campaign){
  let bound=crate::compile(&[("schema.q".into(),"table docs:\n  x: bool\n  read <- allow\n  insert <- allow\n  online only\nmutation add(a: bool,b: bool):\n  return insert docs {x:a and b}\n".into())]);
  assert!(bound.diagnostics.is_empty(),"{:?}",bound.diagnostics);let p=&bound.programs[0].program;
  let cases=[(false,false),(false,true),(true,false),(true,true)].into_iter().map(|(a,b)|BTreeMap::from([("a".into(),Value::Bool(a)),("b".into(),Value::Bool(b))])).collect();
- let mut out=Campaign::default();let selected=directed_cases(p,cases,&mut out);assert_eq!(selected.len(),3);assert!(out.unsupported.iter().any(|s|s.contains("argument grouping")));
+ let mut out=Campaign::default();let selected=directed_cases(&bound,p,cases,&mut out);assert_eq!(selected.len(),3);assert!(out.unsupported.iter().any(|s|s.contains("argument grouping")));
 }}
 
 pub(super) fn history_clock(steps:&[Step])->i64{steps.iter().rev().find_map(|s|s.clock).unwrap_or(NOW)}
@@ -746,5 +746,11 @@ pub(super) fn principal_preferences(bound:&Bound,p:&Program,rows:&BTreeMap<Strin
   assert_eq!(clocks.iter().any(|time|*time>NOW),guarded);
   assert_eq!(clocks[0],NOW);
  }
+}
+}
+
+#[cfg(test)]mod sec10_payload_tests{use super::*;
+#[test]fn lifecycle_replays_changed_optional_numeric_payloads(){
+    let sources=vec![("schema.q".into(),"table docs:\n  status: enum('draft','done') default 'draft'\n  weight: int 1..100\n  read <- allow\n  update <- allow\n  online only\nmutation edit(doc: docs,weight: int 1..100 ?):\n  d = docs[doc] ! else MISSING\n  update docs[doc] {weight:weight ?? d.weight}\ninvariant docs.weight update only .status = 'draft'\n".into())];let bound=crate::compile(&sources);assert!(bound.diagnostics.is_empty(),"{:?}",bound.diagnostics);let mut engine=Engine::memory(bound.schema.clone(),bound.programs.iter().map(|p|p.program.clone())).unwrap();let row=snapback4_core::wire::row_from_json(&bound.schema.tables["docs"],&serde_json::json!({"id":"d","status":"done","weight":1})).unwrap();engine.seed_at([("docs".into(),row)],NOW).unwrap();let mut campaign=Campaign::work_bounded(1024);lifecycle_observers(&bound,&engine,&mut campaign);assert!(campaign.violations.iter().any(|v|v.operation=="edit"&&v.reachability.is_reachable()),"{:?}",campaign.unsupported);
 }
 }

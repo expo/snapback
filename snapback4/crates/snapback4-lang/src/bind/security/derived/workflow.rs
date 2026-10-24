@@ -251,7 +251,7 @@ fn changes_from(p:&ast::ProgramDecl,write:&Expr,bound:&Bound,table:&str,state:&s
     let Some(arg)=target_arg(p,write,table)else{return true;};
     normalize(value,&bound.schema,table,&BTreeMap::from([(arg.name.clone(),member(focal(),"id"))])).is_none_or(|value|changes(&value,state,source))
 }
-fn parent_guard(p:&ast::ProgramDecl,write:&Expr,context:&ast::ProgramDecl,bound:&Bound,child:&str,reference:&str,parent:&str,state:&str)->bool{
+fn parent_guard(p:&ast::ProgramDecl,write:&Expr,context:&ast::ProgramDecl,bound:&Bound,child:&str,reference:&str,parent:&str,state:&str,child_state:&str)->bool{
     let definition=&bound.schema.tables[child];
     let mut previous_association=true;
     let mut args=BTreeMap::new();if let Some(arg)=target_arg(p,write,child){args.insert(arg.name.clone(),member(focal(),"id"));}
@@ -260,7 +260,7 @@ fn parent_guard(p:&ast::ProgramDecl,write:&Expr,context:&ast::ProgramDecl,bound:
         let unchanged=matches!(value,Expr::Literal{value:ast::Literal::Null,..})||normalize(value,&bound.schema,child,&args).is_some_and(|e|crate::print::expression(&e)==crate::print::expression(&member(focal(),reference)));
         if !unchanged{previous_association=false;args.clear();if let Expr::Name{name,..}=value&&p.args.iter().any(|arg|arg.name==*name&&matches!(&arg.type_.kind,TypeKind::Ref{table} if table==parent)){args.insert(name.clone(),member(focal(),reference));}}
     }else if args.is_empty()&&keys.len()==1&&keys[0].column.as_deref()==Some(reference)&&definition.indexes.values().any(|index|index.unique&&index.columns()==vec![reference.to_string()])&&let Expr::Name{name,..}=&keys[0].value&&p.args.iter().any(|arg|arg.name==*name&&matches!(&arg.type_.kind,TypeKind::Ref{table} if table==parent)){args.insert(name.clone(),member(focal(),reference));}
-    let schema_gate=[&definition.rules.update].into_iter().chain(definition.column_writes.values()).any(|rule|rule.any_term(&|term|matches!(term,RuleTerm::Reference{table,column,field,old} if table==parent&&column==reference&&field==state&&(!old||previous_association))));if schema_gate{return true;}
+    let schema_gate=[&definition.rules.update].into_iter().chain(definition.column_writes.get(child_state)).any(|rule|rule.any_term(&|term|matches!(term,RuleTerm::Reference{table,column,field,old} if table==parent&&column==reference&&field==state&&(!old||previous_association))));if schema_gate{return true;}
     guards(context).filter_map(|condition|normalize(condition,&bound.schema,child,&args)).any(|mut condition|{let mut found=false;walk(&mut condition,&mut |e|if let Expr::Member{base,name,..}=e&&name==state&&crate::print::expression(base)==crate::print::expression(&member(focal(),reference)){found=true;});found})
 }
 fn lifecycle(writes:&[(&ast::ProgramDecl,Expr,ast::ProgramDecl)],bound:&Bound,out:&mut Vec<Invariant>){
@@ -275,7 +275,7 @@ fn lifecycle(writes:&[(&ast::ProgramDecl,Expr,ast::ProgramDecl)],bound:&Bound,ou
             for (parent_p,parent_write,parent_context) in writes {
                 let Expr::Write{op:WriteOp::Update,table,fields,site,..}=parent_write else{continue;};if table!=parent{continue;}
                 let Some(parent_state)=state_field(bound,parent,fields)else{continue;};
-                let parent_gate=parent_guard(child_p,child_write,child_context,bound,child,reference,parent,&parent_state.name);
+                let parent_gate=parent_guard(child_p,child_write,child_context,bound,child,reference,parent,&parent_state.name,&child_state.name);
                 if roles(parent_context,bound)!=child_roles{continue;}
                 let Some(requirements)=state_requirements(parent_p,parent_write,parent_context,bound,parent,&parent_state.name)else{continue;};
                 // Unresolved state-write targets cannot establish terminality.

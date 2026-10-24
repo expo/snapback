@@ -25,6 +25,18 @@ fn same_resource(base:&ast::Expr,table:&str,keys:&[ast::KeyPart],p:&ast::Program
         typed(a)==typed(b)&&crate::print::expression(canonical(&a.value,table,p))==crate::print::expression(canonical(&b.value,table,p))
     }),_=>false}
 }
+#[derive(Clone,Copy,PartialEq,Eq)]enum StampSource{Fresh,Copied,Unknown}
+fn stamp_source(value:&ast::Expr)->StampSource{
+    match value{
+        ast::Expr::Assert{value,..}=>return stamp_source(value),
+        ast::Expr::Member{name,..} if ["approv","authoriz"].iter().any(|part|name.to_lowercase().contains(part))=>return StampSource::Copied,
+        ast::Expr::Binary{op,left,right,..} if matches!(op.as_str(),"+"|"-")&&matches!(right.as_ref(),ast::Expr::Literal{value:ast::Literal::Number(value),..} if value.trim_end_matches(char::is_alphabetic).parse::<i64>().ok()==Some(0))=>return stamp_source(left),
+        _=>{},
+    }
+    let mut prior=false;let mut expression=value.clone();super::super::intent_walk::expression(&mut expression,&mut |e|if matches!(e,ast::Expr::Member{name,..} if ["approv","authoriz"].iter().any(|part|name.to_lowercase().contains(part))){prior=true;});
+    if prior{StampSource::Unknown}else{StampSource::Fresh}
+}
+
 fn plain_field(expression:&ast::Expr)->bool {
     matches!(expression,ast::Expr::Name{..})||matches!(expression,ast::Expr::Member{base,..} if plain_row(base))
 }
@@ -72,7 +84,7 @@ fn collect(sources:&[(String,String)],bound:&Bound,inputs:&mut BTreeMap<(String,
     let docs=sources.iter().map(|(f,s)|crate::parse_document(f,s).0).collect::<Vec<_>>();
     let catalog=Catalog::build(docs.clone(),&mut Vec::new());
     let mut out=Vec::new();
-    let mut controlled=BTreeSet::new();let mut origins=BTreeMap::new();
+    let mut controlled=BTreeSet::new();let mut origins=BTreeMap::new();let mut ambiguous_recordings:BTreeMap<(String,String,String),BTreeSet<String>>=BTreeMap::new();
     for (file,p) in docs.iter().flat_map(|d|d.programs.iter().map(move |p|(&d.file,p))).filter(|(_,p)|p.kind==ast::ProgramKind::Mutation){for (write,context) in authority_walk::writes(&catalog,p){
         if let ast::Expr::Write{op,table,fields,site,..}=write{
             let Some(definition)=bound.schema.tables.get(&table)else{continue;};
@@ -82,7 +94,11 @@ fn collect(sources:&[(String,String)],bound:&Bound,inputs:&mut BTreeMap<(String,
                 let recorded=if let Some(field)=fields.iter().find(|field|field.name==*stamp){super::creation_advice::approval_recording(kind,field.value.as_ref())}else{matches!(op,ast::WriteOp::Insert|ast::WriteOp::Upsert)&&definition.defaults.get(stamp).is_some_and(|value|match (kind.required(),value.value(challenges::NOW,"$derived")){(snapback4_core::schema::ColumnType::Bool,snapback4_core::Value::Bool(true))|(snapback4_core::schema::ColumnType::Time,snapback4_core::Value::Int(_))=>true,_=>false})};
                 if recorded{inputs.entry((table.clone(),stamp.clone())).or_default().extend(payload.iter().filter(|column|*column!=stamp).cloned());origins.entry((table.clone(),stamp.clone())).or_insert_with(||site.clone());}
                 if let Some(field)=fields.iter().find(|field|field.name==*stamp){let key=(super::super::operation_name(std::path::Path::new(file).file_stem().and_then(|s|s.to_str()).unwrap_or(file),&p.name),table.clone(),stamp.clone());
-                    if super::creation_advice::approval_recording(kind,field.value.as_ref()){reissues.entry(key).or_default().insert(site.to_string());}
+                    if super::creation_advice::approval_recording(kind,field.value.as_ref()){
+                        let custody=if matches!(kind.required(),snapback4_core::schema::ColumnType::Time){field.value.as_ref().map(stamp_source).unwrap_or(StampSource::Unknown)}else{StampSource::Fresh};
+                        match custody{StampSource::Fresh=>{reissues.entry(key).or_default().insert(site.to_string());},StampSource::Copied=>{uncertain.entry(key).or_default().insert(site.to_string());},StampSource::Unknown=>{ambiguous_recordings.entry(key).or_default().insert(site.to_string());}}
+
+                    }
                     else if !matches!(field.value,Some(ast::Expr::Literal{value:ast::Literal::Bool(false)|ast::Literal::Null,..})){uncertain.entry(key).or_default().insert(site.to_string());}
                 }
             }
@@ -141,6 +157,7 @@ fn collect(sources:&[(String,String)],bound:&Bound,inputs:&mut BTreeMap<(String,
     }
     for (key,sites) in uncertain.iter_mut(){sites.retain(|site|reissues.get(key).is_some_and(|recorded|recorded.contains(site)));}
     for (key,sites) in reissues.iter_mut(){if let Some(ambiguous)=uncertain.get(key){sites.retain(|site|!ambiguous.contains(site));}}
+    for (key,sites) in ambiguous_recordings{uncertain.entry(key).or_default().extend(sites);}
     for ((table,stamp),columns) in inputs.iter(){
         let definition=&bound.schema.tables[table];let Some(site)=origins.get(&(table.clone(),stamp.clone()))else{continue;};
         let condition=if matches!(definition.columns[stamp].required(),snapback4_core::schema::ColumnType::Bool){RuleExpr::Ne(RuleTerm::Field(stamp.clone()),RuleTerm::Literal(snapback4_core::Value::Bool(true)))}else{RuleExpr::Eq(RuleTerm::Field(stamp.clone()),RuleTerm::Literal(snapback4_core::Value::Null))};

@@ -48,13 +48,26 @@ pub(super) fn run(bound:&Bound,base:&Engine,initial:&BTreeMap<String,Vec<Value>>
         let reads_approval=ir::read_sites(p).iter().any(|read|["approv","authoriz"].iter().any(|part|read.table.to_lowercase().contains(part)));
         let retry=ir::write_tables(p).iter().any(|(table,_)|bound.invariants.iter().any(|i|i.table==*table&&i.site.file.contains("repeat-create")));
         if reads_approval&&!retry{out.unsupported.insert(format!("{}: focused continuations defer approval-reading origins to the general campaign",p.name));continue;}
-        if !p.args.values().any(|k|matches!(k,ir::ArgType::Ref{table} if changed.contains(table))){continue;}
+        let principal_history=bound.invariants.iter().any(|inv|inv.site.file.contains("approval-history")&&goals.contains(&inv.table)&&changed.contains(&inv.table)&&p.args.iter().any(|(name,kind)|matches!(kind,ir::ArgType::Principal)&&matches!(bound.schema.tables[&inv.table].columns.get(name).map(C::required),Some(C::Principal))));
+        if !principal_history&&!p.args.values().any(|k|matches!(k,ir::ArgType::Ref{table} if changed.contains(table))){continue;}
         let actors=actors_for(bound,p,&rows,base,out);
-        let cases=histories::fixture_cases(bound,p,&rows,&actors,out);
+        let mut cases=histories::fixture_cases(bound,p,&rows,&actors,out);
+        if principal_history{let mut focused=Vec::new();for table in goals.iter().filter(|table|changed.contains(*table)){for row in rows.get(table).into_iter().flatten(){if let Some(base)=cases.first(){let mut args=base.clone();for (name,kind) in &p.args{if matches!(kind,ir::ArgType::Principal)&&matches!(bound.schema.tables[table].columns.get(name).map(C::required),Some(C::Principal))&&let Ok(value)=row.field(name){args.insert(name.clone(),value.clone());}}if !focused.contains(&args){focused.push(args);}}}}for args in cases{if !focused.contains(&args){focused.push(args);}}cases=focused;}
         if cases.len()>8{out.unsupported.insert(format!("{}: focused creator tuples capped at eight; remaining combinations uncovered",p.name));}
         for args in cases.into_iter().take(8){
             let mut relatives=BTreeMap::new();for (name,k) in &p.args{if let ir::ArgType::Ref{table}=k&&let Some(id)=args.get(name){closure(bound,&rows,table,id,&mut relatives,0);}}
+            if principal_history{for (name,kind) in &p.args{if !matches!(kind,ir::ArgType::Principal){continue;}for table in goals.iter().filter(|table|changed.contains(*table)){if !matches!(bound.schema.tables[table].columns.get(name).map(C::required),Some(C::Principal)){continue;}for row in rows.get(table).into_iter().flatten().filter(|row|row.field(name).ok()==args.get(name)){if let Ok(id)=row.field("id"){closure(bound,&rows,table,id,&mut relatives,0);}}}}}
             if relatives.is_empty(){continue;}
+            let remaining=bound.invariants.iter().filter(|i|i.target=="insert"&&super::super::derived::is_derived(i)&&goals.contains(&i.table)&&!out.violations.iter().any(|v|v.invariant_site==i.site.to_string()&&v.reachability.is_reachable())).collect::<Vec<_>>();
+            if remaining.is_empty(){return;}
+            if remaining.iter().all(|inv|inv.site.file.contains("approval-history")){
+                let prospective=remaining.iter().any(|inv|{
+                    let mut fields=BTreeMap::new();for (name,kind) in &p.args{if matches!(kind,ir::ArgType::Ref{table} if table==&inv.table)&&let Some(old)=rows.get(&inv.table).into_iter().flatten().find(|row|row.field("id").ok()==args.get(name)){for column in bound.schema.tables[&inv.table].columns.keys(){if let Ok(value)=old.field(column){fields.insert(column.clone(),value.clone());}}}}
+                    for (name,value) in &args{if bound.schema.tables[&inv.table].columns.contains_key(name){fields.insert(name.clone(),value.clone());}}
+                    inv.syntax.as_ref().is_some_and(|predicate|super::super::concrete::evaluate(predicate,&Value::Row(fields.into()),&rows,&bound.schema,"service:security",&inv.table,histories::history_clock(steps))==Some(false))
+                });
+                if !prospective{out.unsupported.insert(format!("{}: focused approval-history proposals defer unresolved or currently satisfied identity tuples to general histories",p.name));continue;}
+            }
             for viewer in &actors{
                 // Re-upload raw media markers on each actual create. Reusing
                 // a placed upload would test asset custody instead of consent.
@@ -104,7 +117,7 @@ fn row(b:&Bound,table:&str,json:serde_json::Value)->Value{snapback4_core::wire::
     let mut engine=Engine::memory(b.schema.clone(),b.programs.iter().map(|p|p.program.clone())).unwrap();
     let role=row(&b,"roles",serde_json::json!({"id":"role","principal":"service:registrar","role":"registrar"}));engine.seed_at([("roles".into(),role)],NOW).unwrap();
     for (id,number) in [("older",2),("prior",1)]{let photo=engine.store_asset("service:registrar",&PNG,NOW).unwrap().column_value();let mut exam=match row(&b,"exams",serde_json::json!({"id":id,"candidate":"account:student","status":"failed","feeCents":8000,"attemptNo":number,"createdAt":NOW,"failedAt":NOW})){Value::Map(m)=>Value::Row(m.into()),v=>v};if let Value::Row(fields)=&mut exam{fields.insert("photo".into(),photo.clone());}engine.seed_at([("exams".into(),exam)],NOW).unwrap();}
-    let initial=readback(&engine).unwrap();let p=&b.programs.iter().find(|p|p.program.name=="retest").unwrap().program;let args=BTreeMap::from([("priorExam".into(),Value::Id("prior".into())),("feeCents".into(),Value::Int(4000)),("photo".into(),Value::String("$security:image".into()))]);let mut campaign=Campaign::default();let _=attempt(&b,&engine,p,&args,"service:registrar",&initial,&[],&mut campaign).expect("authored retry committed");assert!(campaign.violations.iter().any(|v|v.invariant_site.contains("approval-history")),"{:?}",campaign.unsupported);
+    let initial=readback(&engine).unwrap();let p=&b.programs.iter().find(|p|p.program.name=="retest").unwrap().program;let args=BTreeMap::from([("priorExam".into(),Value::Id("prior".into())),("feeCents".into(),Value::Int(4000)),("photo".into(),Value::String("$security:image".into()))]);let mut campaign=Campaign::default();let _=attempt(&b,&engine,p,&args,"service:registrar",&initial,&[],&mut campaign).expect("authored retry committed");assert!(campaign.violations.iter().any(|v|v.invariant_site.contains("approval-history")),"{:?}",campaign.unsupported);let p=&b.programs.iter().find(|p|p.program.name=="logExam").unwrap().program;let args=BTreeMap::from([("candidate".into(),Value::Id("account:student".into())),("feeCents".into(),Value::Int(8000)),("photo".into(),Value::String("$security:image".into()))]);let mut campaign=Campaign::default();let _=attempt(&b,&engine,p,&args,"service:registrar",&initial,&[],&mut campaign).expect("authored fresh attempt committed");assert!(campaign.violations.iter().any(|v|v.operation=="logExam"&&v.invariant_site.contains("approval-history")),"{:?}",campaign.unsupported);
 }
 
 }
