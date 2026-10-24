@@ -412,3 +412,16 @@ continues through its other scopes. Raw evidence remains outside Git under
 `/tmp/sb4-cpu/`; the
 [CPU report](../snapback4/experiments/postgres-commit-path/results-20261024-cpu/README.md)
 records the complete result, including separate setup failures and cleanup.
+
+## 2026-10-24 — G3b-par private qualification
+
+Above G3b `976fc81e92`, with the CPU lane replayed and parallel-overlay
+implementation/corrections `d94d61f40c` / `12d375a70c`, the unchanged evaluator
+stress again returns SQLSTATE `40001` (`could not serialize access due to
+concurrent update`) at `experiments/postgres/tests/conformance.rs:294`,
+followed by the join at :307. Conformance completes **21 passed / one failed /
+three existing filters** in **594.00 seconds**. The full stock script continues
+through all remaining targets; no retry, timeout, durability or exclusion policy
+changes. The [G3b-par report](../snapback4/reports/20261024-g3b-parallel-overlay/REPORT.md)
+records final scope results and private-process custody. Raw logs remain outside
+Git in `/tmp/sb4-g3b-par/check-postgres.log`.

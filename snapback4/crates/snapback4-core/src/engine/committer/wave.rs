@@ -1,4 +1,4 @@
-//! Complete bounded fact collection followed by Rust execution in member order.
+//! Bounded facts, private parallel interpretation and revision-ordered merge.
 use super::{
     closure::Closure,
     overlay::{Access, Base, Image, Overlay, RowKey},

@@ -105394,3 +105394,76 @@ fixes and reports no further material finding. The first affected compilation
 started before these corrections; corrected qualification follows. Refresh
 all four experiment lockfiles for the server-only pool dependency, preserving
 existing dependency pins (and reconciling two inherited core-version entries).
+
+## 2026-10-24 — G3b-par final batch profile, rates and qualification
+
+On expo-build-450b (`expose-builder-pixel-a`), the release bounded-overlay
+baseline includes CPU replays `cb6411684c` / `edf12e5142`. The parallel
+implementation `d94d61f40c` and pre-qualification fixes `12d375a70c` use one
+process-wide pool bounded to eight workers on the 12-CPU affinity. Workers
+interpret private overlays over immutable complete facts; revision-ordered
+acceptance, fresh authority/receipts and in-memory conflict reruns remain on
+the committer. Known hot targets remain serial; N=1 does not initialize or
+enter the pool. Facts and COMMIT/flush do not overlap useful interpretation.
+Borrowed fact/tail serialization and moved result buffers cut allocations.
+
+The independently recalculated batch profile measures whole writer CPU W4
+**5.570 → 3.171 ms/batch**, **174.77 → 99.50 µs/member**, and W5 shared
+**6.386 → 5.929 ms/batch**, **200.53 → 186.93 µs/member**. W4 spends another
+**3.851 ms/batch on workers**; total writer+worker CPU rises about
+**5.57 → 7.02 ms/batch**. This shortens the serialized path, not aggregate
+work. The W4 median near 100 µs is a scoped diagnostic (94.94–103.93 across
+trials), not an HTTP or universal engine bound. Fact encoding falls W4
+111.8 → 10.2 µs/batch and W5 224.6 → 34.9; image/payload encoding falls
+195.7 → 50.8 and 116.7 → 28.3. Explicit thread clocks, external scheduler
+runtime counters and userspace gprofng samples supply the profile; no perf
+claim or permanent profiling code/selector is added.
+
+Three counterbalanced clean release windows per cell, 32 live-account native
+writers, durable TCP loopback PG16: W4 N=1/8/32 medians
+**228.9/1281.0/2582.8 → 229.8/1305.3/3422.8 writes/s**; W5 shared
+**197.1/1227.1/2371.8 → 204.2/1304.3/2536.1**. W4 N=32 after ranges
+3053.7–3593.3: every trial exceeds 2262, two exceed 3200. These are core-queue
+closed-loop diagnostics, excluding HTTP, delayed links and the million-message
+seed; no offered-load/SLO/control qualification is claimed. All **153,890**
+timed acknowledgements reconcile with durable counters and batch fills,
+with zero primary errors. Recorded load edges span 1.62–7.01 on 12 CPUs.
+The earlier 1883.5/s G3b test-profile result is a different host/profile arm.
+The [lane report](./reports/20261024-g3b-parallel-overlay/REPORT.md) records
+stage CPU per batch/member, off-CPU time, rates/latencies/ranges and retained
+failed pilots without relabeling them as successful measurements.
+
+The new parallel/forced-serial overlay differential passes 12 paired random
+histories across both stores, three seeds × 192 members at N=8/32, checking
+outcomes/meters and complete durable snapshots after each batch. Both modes
+also pass the 16-member chain with 15 reruns, duplicate receipts/mixed fallback
+and intermediate-image witnesses. The existing N=1 oracle remains intact.
+The corrected 38-case private program scope and bounded-worker test pass;
+a fresh read-only review reports no material source or measurement finding.
+The pre-fix borrow/RT0 failures remain in the raw record, alongside the fixes.
+
+Full core passes **746 unit tests**, **413 integration tests across 47 targets**
+(44 nonempty) and **38 doctests**, with 290 unit / 50 integration named ignores;
+filtered child-worker output is excluded from the primary census. Full binary
+passes **577 / 45 named ignores**. Both RT0 ratchets pass five cases, retaining
+PG N=4/8/32 warm totals 5/5/5 and SQLite 34/58/202. Normal/release builds,
+reference validation and whitespace checks pass. The complete Postgres script
+remains red only for the retained evaluator Serializable **40001**: 21 passes,
+one failure, three existing filters, recorded in the existing ticket. Every
+later scope passes, including 232 adapter, 25 ownership, 60 evolution,
+21 codecs, 13 evidence, 22 supported corpus, 11 differential-library and
+four store campaigns. Public EV-1/EV-2, change-evidence/SDK parity, restart,
+SIGKILL takeover, ownership loss, non-superuser role and unchanged S1 P1-MC
+all pass. No workload, retry, timeout, durability or exclusion is relaxed.
+
+Owned PG16 masters **626337** / **1033296** are stopped and independently
+confirmed (status 3, no pidfiles or sockets); both observers are stopped and
+reaped. All **3,972 recorded PIDs** are absent, with no owned executable,
+postmaster, helper or port-55477 listener. **PIDs left: none.** Minimum observed
+/home free space is **41.02 GiB**, final audit **51.28 GiB**; the 30 GB stop
+condition never fires. Cleanup touches only the commissioned target's caches;
+pre-existing target-b1/target-pre and other worktrees remain untouched. Raw
+logs/profiles/data stay outside Git in `/tmp/sb4-g3b-par/` and the stopped
+public witness `/tmp/s10d3-serve-n9ew0acj/`. No push, stash, Git configuration
+change or unrelated-cluster operation occurs. Final documentation repeats
+`./ref-check`; only summary evidence is committed.
