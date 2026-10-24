@@ -118,3 +118,30 @@ sync, ownership restart/takeover and the maintained-total recount. The retry's
 465 recorded PIDs are independently absent; its PG16 master has status 3 and
 no pid file. Timings remain in `/tmp/sb4-rt3c/public-rerun-timings.jsonl`.
 This passing retry does not explain or erase the original SQLite timeout.
+
+## 2026-10-24 — CPU lane, expo-build-450b
+
+The complete stock Postgres script above `b3c4aa2bba` passes both EV
+lifecycles/wire comparisons and both-store P1-CE, then times out in
+`deploy /tmp/s10d3-serve-g46dl8pq/deployment` at the unchanged 45-second
+guard. The harness kills/waits for the command and confirms its private
+PG16.15 cluster stopped (status 3, no pidfile). No phase timings were
+enabled in this first run; no causal load claim is made.
+
+A standalone rerun with the existing optional timing observer also fails
+at the original bound, in the first `ev1-postgres` deploy. Its earlier main
+deploy succeeded in **44.579 seconds**: bootstrap intent at **43.198**,
+binding at **44.259**, candidate source at **44.320**, activation pointer at
+**44.565** seconds. The timed-out EV-1 deploy runs **45.011 seconds**, exits
+by SIGKILL and has no observed bootstrap checkpoint. The checkpoints are
+sampled filesystem observations, not direct function timings. This lane
+runs no other test or build during that standalone public stage; other host
+work is visible in the load samples. The evidence identifies a long
+pre-bootstrap interval but does not prove a cause or turn either run green.
+
+No timeout, security work count, durability setting or workload is changed.
+The second cluster is also stopped and confirmed by the harness. Raw logs,
+timings and the two retained fixture trees are kept under `/tmp/sb4-cpu/`
+after independent PID and cluster checks. The
+[CPU report](../snapback4/experiments/postgres-commit-path/results-20261024-cpu/README.md)
+records final verification and custody.

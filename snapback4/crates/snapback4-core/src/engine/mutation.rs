@@ -174,7 +174,7 @@ pub(super) fn program_attempt<'m, 's>(host: &ProgramHost<'_>, tx: super::committ
             if let Some(op)=op{tx.require_placement(&context.viewer,op,name,&wire_args)?;}
             context.now = Some(tx.pin_writer_time(host.schema, context.now.unwrap_or(0))?);
             host.schema.check_delivery(name, context.delivery_fingerprint.as_deref())?;
-            let program = host.programs.get(name).ok_or_else(|| RuntimeError::UnknownOp(name.to_owned()))?.clone();
+            let program = host.programs.get(name).ok_or_else(|| RuntimeError::UnknownOp(name.to_owned()))?;
             if program.kind == ProgramKind::Query {
                 return Err(RuntimeError::UnknownOp(format!("{name} is a query, not a mutation")));
             }
@@ -184,7 +184,7 @@ pub(super) fn program_attempt<'m, 's>(host: &ProgramHost<'_>, tx: super::committ
             if program.kind == ProgramKind::Job {
                 return Err(RuntimeError::UnknownOp(format!("{name} is a job: a schedule fires it, or `snapback4 run {name}` does; no caller can")));
             }
-            if let Err(error) = validate::validate_inputs(host.schema, &program, &mut context.args) {
+            if let Err(error) = validate::validate_inputs(host.schema, program, &mut context.args) {
                 return tx.abort((MutationAcknowledgement::unpublished(MutationOutcome { receipt_only: false, state: WriteState::Failed { why: error.refusal(), current: None }, metered: Metered::default(), tables: Vec::new(), events: 0, replayed: false }), None));
             }
             if context.presence.is_none() {
@@ -224,7 +224,7 @@ pub(super) fn program_attempt<'m, 's>(host: &ProgramHost<'_>, tx: super::committ
             tx.savepoint("program")?;
             let program_seq = tx.next_seq()?;
             let Execution { ran, metered, tables, events, action_tables, outbox, rows_written, mut read_tables, entropy, minted: observed_ids } =
-                prepared.unwrap_or_else(|| execute_body(host, &tx, context, &program, program_seq));
+                prepared.unwrap_or_else(|| execute_body(host, &tx, context, program, program_seq));
             *minted = observed_ids.clone();
             attempt.minted = observed_ids;
             let outcome = match ran {

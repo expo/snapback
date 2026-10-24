@@ -105301,3 +105301,61 @@ observed/monitored sample remains above the 40 GB stop threshold. Raw logs,
 JSON and PG data stay outside Git. No push or stash occurs; q24 and the
 PG17 cluster on port 55440 are untouched. `./ref-check` passes: 567 LLP docs,
 11,848 references, zero errors and zero unchecked references.
+
+## 2026-10-24 — CPU lane: S1 increment allocation cuts and serving attribution
+
+On expo-build-450b, branch `sb4-pg/cpu` starts at G2/G3 tip `b3c4aa2bba`.
+Release profiles of the actual HTTP increment route use native account
+sessions, a private PG16.15 cluster and 32 closed-loop writers. Host perf
+events are denied, so GNU gprofng native call trees/flamegraphs and temporary
+nested thread CPU/wall clocks supply attribution. All instrumentation and
+the measurement-only Fixed(1)/Fixed(32) selector are removed from final code.
+
+SQL commands, casts and arrays now stream into a shared output buffer;
+TEXT/BYTEA borrow the checked binary parameter buffer before hex rendering.
+Mutation attempts borrow their immutable Program instead of cloning its IR.
+Literal bytes, checked encoding, refusal precedence, size/NUL guards,
+authority, logical meters, receipts, evidence and publication are preserved.
+Two codec regressions cover golden bytes and invalid-UTF8/oversize precedence.
+
+Three counterbalanced repetitions measure solo calling-thread CPU
+**597.16 → 514.43 µs/mutation** and grouped serial writer CPU
+**380.9 → 363.7 µs/member**. Literal encoding falls **28.3 → 19.1 µs**.
+The **100 µs serial CPU target remains unmet**: driver/protocol/syscall CPU
+alone is about 122 µs, interpreter/row/rule/meter self work about 114 µs.
+Median writes/s for N=1 are **225.9 → 220.2**; for N≤32,
+**880.2 → 897.7**, with overlapping ranges and no established throughput win.
+Mean drained group size is about 16. This is the unchanged S1 increment on
+a small disjoint-counter fixture, loopback HTTP and admitted database Unix
+socket; the solo arm uses database TCP. It is not the matched offered-load
+scale qualification. Every primary rate trial has zero errors and exact
+counter/head-to-ack reconciliation. The
+[CPU report](./experiments/postgres-commit-path/results-20261024-cpu/README.md)
+records per-stage CPU, waits, ranges, original pilots and artifact hashes;
+the controls RFC §3.4 incorporates the result without double-counting E.
+
+Builds, full core (733 unit passes, all 45 integration targets, 38 doctests),
+full binary (577 passes) and both RT0 ratchets pass. The full core precedes
+the final invalid-text refusal-order refinement; its final 21-case codec
+scope, final full binary and final five-case RT0 rerun pass afterward.
+`./ref-check` and whitespace validation pass. The complete Postgres script
+runs every stage and remains red: the existing evaluator Serializable 40001,
+two lane-invocation TCP/Unix setup errors, a snapshot-worker 60-second setup
+deadline and the existing public deploy 45-second guard. Corrected socket
+ownership (25), startup cleanup and isolated snapshot-worker tests pass.
+All four store campaigns and the 22-case supported corpus pass; public
+EV-1/EV-2 wire/meter parity and both-store P1-CE complete before the timeout.
+A standalone public rerun also reaches the original 45-second guard; both
+reds and phase observations remain in the existing deploy ticket. The new
+snapshot setup ticket preserves its broad-run failure. No bound, retry,
+workload, durability setting or exclusion is relaxed.
+
+Postmasters 114012, 441562 and 491988 are stopped and independently confirmed.
+All **4,270 recorded PIDs** are absent; no matching leftover process, pidfile,
+Unix socket or measurement listener remains. Both observers are stopped and
+reaped. **PIDs left: none.** Minimum observed `/home` free space is 42.43 GiB;
+the final audit reports 74.29 GiB, above the 30 GB stop condition. Raw logs,
+profiles, database files and the two relocated public fixture trees stay in
+`/tmp/sb4-cpu/`. Only the owned target directory is built/cleaned, using
+`-j 10`; pre-existing `target-b1/` and `target-pre/` remain untouched.
+No push, stash, Git configuration change or operation on another cluster occurs.

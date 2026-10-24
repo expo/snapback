@@ -398,3 +398,17 @@ witness. No retry, timeout, durability or exclusion policy changes. The
 [G3b report](../snapback4/reports/20261024-g3b-bounded-overlay/REPORT.md)
 records the final scope results and private-process cleanup; the full-script
 result remains red.
+
+## 2026-10-24 — CPU lane private sweep
+
+Above `b3c4aa2bba`, the complete stock Postgres script again reports
+`40001` at `experiments/postgres/tests/conformance.rs:294`, followed by the
+parent join at :307, in
+`evaluator_concurrent_read_modify_write_and_duplicate_ops_are_atomic_in_both_modes`.
+The evaluator target finishes 21 passed, one failed and three existing
+filters in 534.52 seconds. The evaluator source, retry budget and workload
+are unchanged; no new exclusion or timeout adjustment is added. The script
+continues through its other scopes. Raw evidence remains outside Git under
+`/tmp/sb4-cpu/`; the
+[CPU report](../snapback4/experiments/postgres-commit-path/results-20261024-cpu/README.md)
+records the complete result, including separate setup failures and cleanup.
