@@ -385,11 +385,19 @@ fn deploy_verdict_leads_scoped_security_is_last_and_json_keeps_all_notes() {
 }
 
 #[test]
-fn failed_guard_transport_does_not_register_or_leave_prepared_views(){
+fn incompatible_write_input_pauses_instead_of_restoring_an_unsafe_workflow(){
     let app=App::new();let old=OLD.replace("mutation pay", "fn permitted():\n  return viewer = 'alice'\nmutation pay").replace("  a = items[id]", "  require permitted() else FORBIDDEN\n  a = items[id]");
     app.source(&old);app.ok(&["deploy","deployment","--json"]);
     let next=old.replace("amount: int 100..50000", "amount: int 100..50000 ?").replace("viewer = 'alice'", "viewer = 'bob'").replace("  return insert payments", "  require a.amount != null else NO_AMOUNT\n  return insert payments");let next=next.replace("pay(id: items)","pay(item: items)").replace("  a = items[id]","  a = items[item]");app.source_with_presence(&next,"amount");
-    for check in [true,false]{let args=if check{vec!["deploy","deployment","--check","--json"]}else{vec!["deploy","deployment","--json"]};let out=app.run(&args);assert!(!out.status.success(),"{}",text(&out));assert!(text(&out).contains("guard dependency"));assert_eq!(fs::read_dir(app.0.join("deployment/releases")).unwrap().count(),1);assert_eq!(app.json(&["releases","deployment"])["current"],1);}
+    let preview=app.json(&["deploy","deployment","--check","--json"]);
+    assert_eq!(preview["rollbackViews"].as_array().unwrap().len(),1);
+    app.ok(&["deploy","deployment"]);
+    let selected=app.json(&["rollback","deployment","--to","1","--json"])["release"].as_u64().unwrap();
+    let source=fs::read_to_string(app.0.join(format!("deployment/releases/{selected}/snapback/schema.q"))).unwrap();
+    let bound=snapback4_lang::compile(&[("schema.q".into(),source)]);
+    assert!(bound.diagnostics.is_empty());
+    assert!(!bound.programs.iter().any(|p|p.program.name=="pay"));
+    assert!(bound.programs.iter().any(|p|p.program.name=="read"));
 }
 
 #[test]
@@ -603,4 +611,95 @@ fn default_view_keeps_new_column_write_and_freeze_authority() {
     assert_eq!(actual.schema.tables["items"].column_writes,expected.schema.tables["items"].column_writes);
     assert_eq!(actual.schema.tables["items"].frozen_columns,expected.schema.tables["items"].frozen_columns);
     app.ok(&["rollback","deployment","--to","latest"]);assert_eq!(app.count(),1);
+}
+
+#[test]
+fn forward_deploy_selects_ordinary_source_after_rollback_view() {
+    let app=App::new();app.source(OLD);app.ok(&["deploy","deployment"]);
+    let next=newer();app.source_with_presence(&next,"amount");
+    let parent=app.json(&["deploy","deployment","--json"])["release"].as_u64().unwrap();
+    app.seed(&next,vec![json!({"id":"pending","amount":null})]);
+    for _ in 0..2 {
+        let out=app.run(&["rollback","deployment","--to","1"]);assert!(out.status.success(),"{}",text(&out));
+        assert!(text(&out).contains("live: release") && text(&out).contains("rollback view of release 1"),"{}",text(&out));
+        let live=app.json(&["releases","deployment","--json"])["live"].clone();
+        assert_eq!(live["source"],1);assert_eq!(live["parent"],parent);assert_eq!(live["exact"],false);assert_eq!(live["target"],1);
+        let selected=app.json(&["deploy","deployment","--json"]);
+        assert_eq!(selected["release"],parent,"{selected}");
+        assert_eq!(selected["live"]["exact"],true);assert!(selected["live"]["view"].is_null());
+        assert_eq!(app.count(),1);
+    }
+}
+
+#[test]
+fn column_write_adoption_with_rename_split_and_removed_input_needs_no_view() {
+    let base="table items:\n  owner: principal\n  label: text <=80\n  read <- .owner = viewer\n  insert <- .owner = viewer\n  online only\nmutation create(label: text <=80):\n  return insert items {owner:viewer,label}\n";
+    for next in [
+        base.replace("table items:","table records renamed from items:").replace("insert items","insert records").replace("label: text <=80\n","label: text <=80 write <- .owner = viewer\n"),
+        base.replace("  label: text <=80","  title: text <=80 write <- .owner = viewer").replace("create(label: text <=80)","create(title: text <=80)").replace("{owner:viewer,label}","{owner:viewer,title}")+"backfill items titleFromLabel(label: text <=80): {title:label}\ndown items oldLabel(title: text <=80): {label:title}\n",
+        base.replace("  label: text <=80","  label: text <=80 write <- .owner = viewer").replace("create(label: text <=80)","create(title: text <=80)").replace("{owner:viewer,label}","{owner:viewer,label:title}"),
+    ] {
+        let app=App::new();app.source(base);app.ok(&["deploy","deployment"]);app.seed(base,vec![json!({"id":"kept","owner":"alice","label":"value"})]);
+        app.source(&next);let preview=app.json(&["deploy","deployment","--check","--json"]);
+        assert_eq!(preview["rollbackViews"],json!([]),"{preview}");app.ok(&["deploy","deployment"]);
+        let table=if next.contains("table records"){"records"}else{"items"};
+        assert_eq!(app.json(&["sql",&format!("SELECT COUNT(*) FROM {table}"),"--release","deployment","--json"])["rows"][0][0],1);
+    }
+}
+
+#[test]
+fn release_commands_refuse_extra_positionals_before_store_work() {
+    let app=App::new();
+    for args in [vec!["deploy","deployment","ignored"],vec!["rollback","deployment","ignored"],vec!["releases","deployment","latest","ignored"]] {
+        let out=app.run(&args);assert!(!out.status.success());assert!(text(&out).contains("extra positional"),"{}",text(&out));
+        assert!(!app.0.join("deployment").exists());
+    }
+}
+
+#[test]
+fn check_compiles_needed_views_and_names_the_incompatible_query_argument() {
+    let app=App::new();app.source(OLD);app.ok(&["deploy","deployment"]);
+    let next=newer().replace("query read(id: items)","query read(id: items, mode: text <=20)")+"invariant items.read only true\n";
+    app.source_with_presence(&next,"amount");
+    let checked=app.run(&["check","--store","deployment/store.sqlite","--json"]);
+    assert!(!checked.status.success(),"{}",text(&checked));
+    assert!(text(&checked).contains("mode")&&text(&checked).contains("read"),"{}",text(&checked));
+    assert!(!text(&checked).contains(":0:0"),"{}",text(&checked));
+    assert_eq!(app.json(&["releases","deployment"])["current"],1);
+    assert_eq!(fs::read_dir(app.0.join("deployment/releases")).unwrap().count(),1);
+}
+
+#[test]
+fn saved_versions_keep_generated_siblings_and_saved_deploy_leaves_working_codegen() {
+    let app=App::new();app.source(OLD);app.ok(&["check"]);
+    fs::write(app.0.join("snapback/generated/sibling.ts"),"export const saved = true;\n").unwrap();
+    app.ok(&["deploy","deployment","--save-version","versions/v1"]);
+    for file in ["api.ts","server.ts","package.json","sibling.ts"] {assert!(app.0.join("versions/v1/generated").join(file).is_file(),"{file}");}
+    app.source_with_presence(&newer(),"amount");app.ok(&["deploy","deployment"]);
+    let api=app.0.join("snapback/generated/api.ts");fs::write(&api,"// working client sentinel\n").unwrap();
+    app.ok(&["deploy","deployment","--schema","versions/v1"]);
+    assert_eq!(fs::read_to_string(api).unwrap(),"// working client sentinel\n");
+}
+
+#[test]
+fn extraction_view_keeps_multiple_native_children_and_bridge_is_written_on_refusal() {
+    let old="table items:\n  owner: principal\n  photos: [image <=1000] 1..4\n  label: text <=40\n  public 'fixture'\n  online only\n";
+    let current="table items:\n  owner: principal\n  label: text <=40\n  public 'fixture'\n  online only\ntable photos:\n  item: items on delete cascade\n  photos: [image <=1000] 1..4\n  public 'fixture'\n  online only\nextract photos from items via item: {photos:photos}\n";
+    let app=App::new();app.source(old);app.ok(&["deploy","deployment"]);
+    app.seed(old,vec![json!({"id":"kept","owner":"alice","label":"kept","photos":"fixture-image"})]);
+    app.source(current);let parent=app.json(&["deploy","deployment","--json"])["release"].as_u64().unwrap();
+    // A v2-born parent with two real independently homed children.
+    let b=snapback4_lang::compile(&[("schema.q".into(),current.into())]);
+    let store=snapback4_core::store_port::AnyStore::open(&app.0.join("deployment/store.sqlite")).unwrap();
+    let mut e=snapback4_core::Engine::new_release(store,b.schema.clone(),b.programs.into_iter().map(|p|p.program),parent,Some(parent)).unwrap();
+    let mut rows=vec![("items".into(),snapback4_core::wire::row_from_json(&b.schema.tables["items"],&json!({"id":"native","owner":"alice","label":"native"})).unwrap())];
+    for id in ["a","b"] {
+        let asset=e.store_asset("alice",b"\x89PNG\r\n\x1a\n\x00\x00\x00\x0dIHDR\x00\x00\x00\x01\x00\x00\x00\x01",1000).unwrap();
+        rows.push(("photos".into(),snapback4_core::wire::row_from_json(&b.schema.tables["photos"],&json!({"id":id,"item":"native","photos":[snapback4_core::wire::to_json(&asset.column_value())]})).unwrap()));
+    }
+    e.seed(rows).unwrap();drop(e);
+    for _ in 0..2 {app.ok(&["rollback","deployment","--to","1"]);assert_eq!(app.count(),2);app.ok(&["rollback","deployment","--to","latest"]);}
+    let refused=app.run(&["rollback","deployment","--to","1","--exact","--check","--bridge","repair"]);
+    assert!(!refused.status.success());assert!(app.0.join("repair/schema.q").is_file());
+    let checklist=fs::read_to_string(app.0.join("repair/ROLLBACK-CHECKLIST.md")).unwrap();assert!(checklist.contains("photos")&&checklist.contains("authorized mutation"),"{checklist}");
 }

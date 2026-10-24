@@ -264,19 +264,13 @@ fn independent_intent_refuses_required_field_gaps_and_narrowed_inputs() {
             &[("schema.q".into(), old.into())],
             &[("schema.q".into(), current)],
         );
-        assert!(
-            bridge
-                .diagnostics
-                .iter()
-                .any(|d| d.message.contains("current independent intent")),
-            "{:?}",
-            bridge.diagnostics
-        );
+        if bridge.diagnostics.is_empty(){assert!(!compile(&bridge.sources).programs.iter().any(|p|p.program.name=="create"));}
+        else {assert!(bridge.diagnostics.iter().any(|d|d.message.contains("current independent intent")),"{:?}",bridge.diagnostics);}
     }
 }
 
 #[test]
-fn intent_rename_does_not_rewrite_business_strings_and_refuses_name_capture() {
+fn intent_rename_edits_typed_slots_without_capturing_locals_or_business_strings() {
     let old="table docs:\n  owner: principal\n  secret: text <=40\n  public\n  online only\nmutation create(owner: principal, secret: text <=40):\n  return insert docs {owner,secret}\n";
     let current = format!(
         "{}invariant records.secret write only .owner = viewer\n",
@@ -303,14 +297,10 @@ fn intent_rename_does_not_rewrite_business_strings_and_refuses_name_capture() {
         &[("schema.q".into(), old.into())],
         &[("schema.q".into(), captured)],
     );
-    assert!(
-        bridge
-            .diagnostics
-            .iter()
-            .any(|d| d.message.contains("captures")),
-        "{:?}",
-        bridge.diagnostics
-    );
+    assert!(bridge.diagnostics.is_empty(),"{:?}",bridge.diagnostics);
+    assert!(bridge.sources[0].1.contains("docs = 'unused'"));
+    assert!(bridge.sources[0].1.contains("insert docs {owner:viewer"));
+
 }
 
 #[test]
@@ -338,7 +328,8 @@ fn current_closure_accepts_list_interval_inclusion_and_new_optional_arguments() 
             &[("schema.q".into(), old.into())],
             &[("schema.q".into(), narrowed)],
         );
-        assert!(!bridge.diagnostics.is_empty());
+        assert!(bridge.diagnostics.is_empty(),"{:?}",bridge.diagnostics);
+        assert!(!compile(&bridge.sources).programs.iter().any(|p|p.program.name=="create"));
     }
 }
 
@@ -486,7 +477,7 @@ fn complete_current_contract_includes_expanded_operation_aliases() {
 }
 
 #[test]
-fn job_bindings_participate_in_capture_checks_and_plain_text_is_bounded() {
+fn job_bindings_remain_unchanged_during_typed_table_rename_and_plain_text_is_bounded() {
     let old="table docs:\n  owner: principal\n  public\n  online only\njob probe():\n  for row in docs:\n    docs = 'unused'\n";
     let next = format!(
         "{}invariant records.read only true\n",
@@ -496,7 +487,8 @@ fn job_bindings_participate_in_capture_checks_and_plain_text_is_bounded() {
         &[("schema.q".into(), old.into())],
         &[("schema.q".into(), next)],
     );
-    assert!(bridge.diagnostics.iter().any(|d| d.message.contains("captures")),"{:?}",bridge.diagnostics);
+    assert!(bridge.diagnostics.is_empty(),"{:?}",bridge.diagnostics);
+    assert!(bridge.sources[0].1.contains("docs = 'unused'"));
     let b = compile(&[(
         "schema.q".into(),
         "query echo(value: text):\n  return value\n".into(),
@@ -575,7 +567,8 @@ fn selective_endpoint_retains_old_wire_aliases_and_rejects_alias_rebinding() {
     assert_eq!(endpoint.argument("legacySecret").map(|(name,_)|name),Some("secret"));
     let rebound=current.replace("secret: text <=40):","secret: text <=40, other: text <=40 ? alias legacySecret):");
     let refused=release_bridge::loosen(&[("schema.q".into(),old.into())],&[("schema.q".into(),rebound)]);
-    assert!(!refused.diagnostics.is_empty(),"old alias cannot move to another input position");
+    assert!(refused.diagnostics.is_empty(),"{:?}",refused.diagnostics);
+    assert!(!compile(&refused.sources).programs.iter().any(|p|p.program.name=="create"),"incompatible alias pauses the export");
 }
 
 #[test]
@@ -664,7 +657,8 @@ fn non_intent_guard_transport_cannot_merge_old_input_positions() {
         .replace("  return insert", "  require actor = 'service:ops' else OPS\n  return insert");
     assert!(compile(&[("schema.q".into(),current.clone())]).diagnostics.is_empty());
     let bridge=release_bridge::loosen(&[("schema.q".into(),old.into())],&[("schema.q".into(),current)]);
-    assert!(!bridge.diagnostics.is_empty(),"old owner and actor cannot collapse behind the copied current guard");
+    assert!(bridge.diagnostics.is_empty(),"{:?}",bridge.diagnostics);
+    assert!(!compile(&bridge.sources).programs.iter().any(|p|p.program.name=="create"),"merged inputs pause the write instead of reinterpreting owner/actor");
 }
 
 #[test]
@@ -846,4 +840,56 @@ fn declared_column_identity_transports_write_and_freeze_terms() {
     let aligned=after.schema.with_column_names(&map);
     assert_eq!(aligned.tables["docs"].column_writes,before.schema.tables["docs"].column_writes);
     assert_eq!(aligned.tables["docs"].frozen_columns,before.schema.tables["docs"].frozen_columns);
+}
+
+#[test]
+fn wave27_exact_source_proves_column_audiences_or_refuses_the_named_write() {
+    let old="table docs:\n  owner: principal\n  body: text <=40\n  public\n  insert <- allow\n  update <- allow\n  online only\nmutation add(owner: principal, body: text <=40):\n  return insert docs {owner,body}\n";
+    let next=old.replace("body: text <=40\n","body: text <=40 write <- .owner = viewer\n");
+    let before=vec![("schema.q".into(),old.into())];let current=vec![("schema.q".into(),next)];
+    assert!(!release_bridge::requires_view(&before,&current));
+    let error=release_bridge::exact_write_authority(&before,&current).unwrap_err();
+    assert!(error.contains("docs.body")&&error.contains("add")&&error.contains("write <-"),"{error}");
+    let guarded=old.replace("insert <- allow","insert <- .owner = viewer");
+    assert!(release_bridge::exact_write_authority(&[("schema.q".into(),guarded)],&current).is_ok());
+}
+
+#[test]
+fn wave27_needed_view_retains_column_policy_probes_through_captured_names() {
+    let old="table staff:\n  principal: principal\n  unique principal\n  public\n  online only\ntable docs:\n  owner: principal\n  amount: int\n  body: text <=40\n  public\n  online only\nquery read(docs: docs):\n  return docs[docs]\nmutation edit(docs: docs, body: text <=40):\n  update docs[docs] {body}\n";
+    let next=old.replace("table docs:","table records renamed from docs:")
+        .replace("docs: docs","docs: records").replace("return docs[docs]","return records[docs]")
+        .replace("update docs[docs]","update records[docs]").replace("amount: int","amount: int ?")
+        .replace("body: text <=40\n","body: text <=40 write <- exists staff[viewer] and exists records[.id]\n");
+    let bridge=release_bridge::loosen(&[("schema.q".into(),old.into())],&[("schema.q".into(),next)]);
+    assert!(bridge.diagnostics.is_empty(),"{:?}",bridge.diagnostics);
+    let b=compile(&bridge.sources);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
+    assert!(!b.schema.tables["docs"].column_writes.is_empty());
+    assert!(bridge.sources[0].1.contains("docs: docs"));
+}
+
+#[test]
+fn enum_aliases_refuse_merging_business_values_and_missing_variants() {
+    let source="table tasks:\n  state: enum('ready','done')\n  public\n  online only\n";
+    for aliases in ["alias tasks.state 'old' = 'missing'\n","alias tasks.state 'a' = 'done'\nalias tasks.state 'b' = 'done'\n","alias tasks.state 'ready' = 'done'\n"] {
+        let b=compile(&[("schema.q".into(),source.to_owned()+aliases)]);assert!(b.diagnostics.iter().any(|d|d.message.contains("injective")),"{:?}",b.diagnostics);
+    }
+}
+
+#[test]
+fn current_views_pause_old_deletes_that_newly_cascade_through_a_renamed_reference() {
+    let old="table parents:\n  public\n  delete <- allow\n  online only\ntable items:\n  parent: parents on delete restrict\n  n: int\n  cap 3 by parent\n  public\n  online only\nmutation remove(id: parents):\n  delete parents[id]\nquery rows():\n  return items first 10 by .id\n";
+    let next=old.replace("parent: parents on delete restrict","anchor: parents renamed from parent on delete cascade").replace("cap 3 by parent","cap 3 by anchor").replace("n: int","n: int ?");
+    let bridge=release_bridge::loosen(&[("schema.q".into(),old.into())],&[("schema.q".into(),next)]);
+    assert!(bridge.diagnostics.is_empty(),"{:?}",bridge.diagnostics);
+    let b=compile(&bridge.sources);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
+    assert!(!b.programs.iter().any(|p|p.program.name=="remove"));assert!(b.programs.iter().any(|p|p.program.name=="rows"));
+    assert!(bridge.changes.iter().any(|c|c.contains("cascade/set-null")&&c.contains("E_OP")));
+}
+
+#[test]
+fn exact_source_accepts_a_proved_stable_dominating_column_audience_require() {
+    let old="table docs:\n  body: text <=40\n  public\n  insert <- allow\n  online only\nmutation add(body: text <=40):\n  require viewer = 'alice' else FORBIDDEN\n  return insert docs {body}\n";
+    let current=old.replace("body: text <=40\n","body: text <=40 write <- viewer = 'alice'\n");
+    assert!(release_bridge::exact_write_authority(&[("schema.q".into(),old.into())],&[("schema.q".into(),current)]).is_ok());
 }

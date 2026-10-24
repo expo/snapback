@@ -339,6 +339,11 @@ pub fn check(options: &Options) -> i32 {
         if !options.json { print_prediction(&bound, options.flags.contains_key("verbose")); }
         return 1;
     }
+    match rollback_views::check(&project,&compiled_sources,&bound,options.flags.get("store")) {
+        Ok(diagnostics)=>bound.diagnostics.extend(diagnostics),
+        Err(error)=>{failed_check(&bound,options.json,"E_ADOPT",error);return 1;}
+    }
+    if !bound.diagnostics.is_empty(){report_diagnostics(&bound,options.json,true,options.flags.contains_key("verbose"));return 1;}
     let security = security::report(&project, &bound, &compiled_sources, options);
     // @ref LLP 3000.007#18.3 — check judges adoption against the dev store's active generation and rows, read-only
     match adoption::diagnostics(&project, &bound.schema, options.flags.get("store"), options.json || options.flags.contains_key("verbose")) {

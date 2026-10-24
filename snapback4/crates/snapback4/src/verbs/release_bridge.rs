@@ -13,7 +13,16 @@ pub(super) fn write(path: &Path, deployment: &Path, current: u64, target: u64, c
     let current_project=Project {root: deployment.join("releases").join(current.to_string())};
     let target_project=Project {root: deployment.join("releases").join(target.to_string())};
     let generated=snapback4_lang::release_bridge::loosen(&target_project.sources().map_err(|e|e.to_string())?,&current_project.sources().map_err(|e|e.to_string())?);
-    let sources=generated.sources;
+    let current_sources=current_project.sources().map_err(|e|e.to_string())?;
+    let bound=snapback4_lang::compile(&current_sources);
+    // Extraction ambiguity cannot be represented by a single legacy cell.
+    // Start from the complete current workflow so the repair is callable.
+    let extraction_repair=!bound.schema.extractions.is_empty();
+    let sources=if extraction_repair {current_sources}else{generated.sources};
+    let mut repair=String::new();
+    for e in &bound.schema.extractions {
+        repair.push_str(&format!("\n- Keep {} and its child population visible. For {} via {}, inspect candidates by parent id; choose a truthful old representation for [{}] through an authorized mutation (never first-row selection). Preview exact rollback only after resolving competition; preserve the other children in an authored bridge.\n",e.parent,e.child,e.reference,e.fields.iter().map(|(d,s)|format!("{d} → {s}")).collect::<Vec<_>>().join(", ")));
+    }
     let changes=generated.changes.join("\n");
     let diagnostics=generated.diagnostics.iter().map(|d|format!("{}: {} — {}",d.site,d.message,d.rewrite)).collect::<Vec<_>>().join("\n");
     let deployment=deployment.canonicalize().map_err(|e|e.to_string())?;
@@ -27,7 +36,7 @@ pub(super) fn write(path: &Path, deployment: &Path, current: u64, target: u64, c
         for (name,text) in sources {
             std::fs::write(path.join(name),text).map_err(|e|e.to_string())?;
         }
-        let body=format!("# Rollback bridge: release {current} → {target}\n\nThese are release {target}'s operations with value domains loosened to represent release {current}'s data. New tables retain current rules; old operations may not expose them. This source is a NEW release, never an edit of immutable release {target}. Review changed nullability in old UI code and confirm the carried current safety guards.\n\nGenerated changes:\n{changes}\n\nCompiler diagnostics (resolve before deploy):\n{diagnostics}\n\n{}\n\nAfter editing, run deploy with --schema pointing at this directory and --restore-dormant --check, then prove this checklist before activation.\n",checklist.iter().map(|line|format!("- [ ] {line}")).collect::<Vec<_>>().join("\n"));
+        let body=format!("{repair}\n# Rollback bridge: release {current} → {target}\n\nThese are release {target}'s operations with value domains loosened to represent release {current}'s data. New tables retain current rules; old operations may not expose them. This source is a NEW release, never an edit of immutable release {target}. Review changed nullability in old UI code and confirm the carried current safety guards.\n\nGenerated changes:\n{changes}\n\nCompiler diagnostics (resolve before deploy):\n{diagnostics}\n\n{}\n\nAfter editing, run deploy with --schema pointing at this directory and --restore-dormant --check, then prove this checklist before activation.\n",checklist.iter().map(|line|format!("- [ ] {line}")).collect::<Vec<_>>().join("\n"));
         std::fs::write(path.join("ROLLBACK-CHECKLIST.md"),body).map_err(|e|e.to_string())
     })();
     if result.is_err() {let _=std::fs::remove_dir_all(path);}

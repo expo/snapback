@@ -33,8 +33,23 @@ impl SavedVersion {
             Err(error) => return Err(format!("cannot inspect {name}: {error}")),
         };
         let mut files = if refresh {Vec::new()} else {sources.iter().map(|(name,text)|(PathBuf::from(name),text.as_bytes().to_vec())).collect()};
-        files.push((PathBuf::from("generated/api.ts"),snapback4_lang::emit::typescript(bound).into_bytes()));
-        files.push((PathBuf::from("generated/package.json"),crate::project::GENERATED_PACKAGE.as_bytes().to_vec()));
+        // Keep the generated module boundary and every sibling artifact.
+        // A saved-source selection draws siblings from that saved unit.
+        let unit=match options.flags.get("schema").map(PathBuf::from) {
+            None=>project.root.join("snapback/generated"),
+            Some(source) if source.is_dir()=>source.join("generated"),
+            Some(source)=>source.parent().unwrap_or(std::path::Path::new(".")).join("generated"),
+        };
+        fn collect(root:&std::path::Path,path:&std::path::Path,out:&mut Vec<(PathBuf,Vec<u8>)>)->Result<(),String>{
+            for entry in std::fs::read_dir(path).map_err(|e|e.to_string())? {
+                let entry=entry.map_err(|e|e.to_string())?;let kind=entry.file_type().map_err(|e|e.to_string())?;
+                if kind.is_symlink(){return Err("saved generated artifacts must be regular files/directories, never symlinks".into());}
+                if kind.is_dir(){collect(root,&entry.path(),out)?;}else if kind.is_file(){out.push((PathBuf::from("generated").join(entry.path().strip_prefix(root).unwrap()),std::fs::read(entry.path()).map_err(|e|e.to_string())?));}
+            }Ok(())
+        }
+        if unit.is_dir(){collect(&unit,&unit,&mut files)?;}
+        let generated=[("generated/api.ts",snapback4_lang::emit::typescript(bound)),("generated/server.ts",snapback4_lang::emit::server_typescript(bound)),("generated/package.json",crate::project::GENERATED_PACKAGE.to_owned()),("generated/security-invariants.q.draft",snapback4_lang::security::draft(bound))];
+        for(name,text)in generated {files.retain(|(path,_)|path!=std::path::Path::new(name));files.push((PathBuf::from(name),text.into_bytes()));}
         let mut saved=Self {path,files,complete:false,refresh};
         let fixture = match options.flags.get("schema").map(PathBuf::from) {
             None=>project.root.join("fixtures"),
