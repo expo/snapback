@@ -89,7 +89,7 @@ fn statements(catalog:&Catalog,p:&ProgramDecl,body:&[Stmt],env:&mut Env,guards:&
             for (negate,branch) in [(true,then_body),(false,else_body)] {
                 if let Some(required)=conditional_guards(branch,env) {for required in required {
                     let premise=if negate{Expr::Unary{op:"not".into(),value:Box::new(condition.clone()),site:site.clone()}}else{condition.clone()};
-                    guards.push(Stmt::Require{condition:Expr::Binary{op:"or".into(),left:Box::new(premise),right:Box::new(required),site:site.clone()},code:"$advice".into(),message:None,site:site.clone()});
+                    guards.push(Stmt::Require{condition:Expr::Binary{op:"or".into(),left:Box::new(premise),right:Box::new(required),site:site.clone()},code:"$advice:implication".into(),message:None,site:site.clone()});
                 }}
             }
             let assigned=branch_assignments(then_body).into_iter().chain(branch_assignments(else_body)).collect::<BTreeSet<_>>();

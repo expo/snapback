@@ -54,6 +54,7 @@ pub struct BoundProgram {
     /// Whole-domain consumers for diagnostics only; absent from IR/wire.
     pub(crate) constraint_domains: std::collections::BTreeSet<String>,
     pub(crate) sources: BTreeMap<String, (Site, String)>,
+    pub(crate) fixture_insert_sites: BTreeMap<String, Site>,
     pub(crate) receipt_sources: Vec<(Expr, Site)>,
     pub(crate) receipt_returns: Vec<(String, Site)>,
     pub(crate) implicit_write_results: Vec<Expr>,
@@ -97,6 +98,7 @@ pub struct Binder<'a> {
     view_types: BTreeMap<String, Ty>,
     constraint_domains: std::collections::BTreeSet<String>,
     sources: BTreeMap<String, (Site, String)>,
+    fixture_insert_sites: BTreeMap<String, Site>,
     page_sources: BTreeMap<String, ReadExpr>,
     canonical_sources: BTreeMap<String, String>,
     selections: BTreeMap<String, String>,
@@ -192,7 +194,7 @@ impl<'a> Binder<'a> {
         Self::bind_context(catalog,schema,module,decl,diagnostics,true,true)
     }
     fn bind_context(catalog:&'a Catalog,schema:&'a snapback4_core::schema::Schema,module:&str,decl:&ast::ProgramDecl,diagnostics:&mut Vec<Diagnostic>,record_ownership:bool,historical:bool)->Option<BoundProgram>{
-        let mut binder = Binder { historical, viewer_depth: None, maintenance_scopes: BTreeMap::new(), pure_functions: BTreeMap::new(), call_types: BTreeMap::new(), page_sources: BTreeMap::new(), canonical_sources: BTreeMap::new(), constraint_domains: Default::default(), filters: BTreeMap::new(), variants: Vec::new(), view_types: BTreeMap::new(), sources: BTreeMap::new(), selections: BTreeMap::new(), presence_sources: Vec::new(), receipt_sources: Vec::new(), receipt_returns: Vec::new(), implicit_write_results: Vec::new(), catalog, schema, name: decl.name.clone(), kind: decl.kind, caller_kind: decl.kind, call_chain: Vec::new(), job_bound_helpers: Default::default(), scopes: vec![BTreeMap::new()], focal: None, in_predicate: false, returned_data: false, shape_field: None, temps: 0, sites: 0, returns: Vec::new(), depth: 0, loops: 0, loop_transfers: Vec::new(), caller_loops: 0, in_prelude: false, total: None, record_ownership, expanding_feed: None, timeline_scans: Default::default(), notes: Vec::new(), may_have_written: false, errors: Vec::new(), pending_totals: Vec::new() };
+        let mut binder = Binder { fixture_insert_sites:Default::default(),historical, viewer_depth: None, maintenance_scopes: BTreeMap::new(), pure_functions: BTreeMap::new(), call_types: BTreeMap::new(), page_sources: BTreeMap::new(), canonical_sources: BTreeMap::new(), constraint_domains: Default::default(), filters: BTreeMap::new(), variants: Vec::new(), view_types: BTreeMap::new(), sources: BTreeMap::new(), selections: BTreeMap::new(), presence_sources: Vec::new(), receipt_sources: Vec::new(), receipt_returns: Vec::new(), implicit_write_results: Vec::new(), catalog, schema, name: decl.name.clone(), kind: decl.kind, caller_kind: decl.kind, call_chain: Vec::new(), job_bound_helpers: Default::default(), scopes: vec![BTreeMap::new()], focal: None, in_predicate: false, returned_data: false, shape_field: None, temps: 0, sites: 0, returns: Vec::new(), depth: 0, loops: 0, loop_transfers: Vec::new(), caller_loops: 0, in_prelude: false, total: None, record_ownership, expanding_feed: None, timeline_scans: Default::default(), notes: Vec::new(), may_have_written: false, errors: Vec::new(), pending_totals: Vec::new() };
         binder.call_chain.push((super::operation_name(module, &decl.name), decl.site.clone()));
         binder.declare(pure_calls::CONSTANTS, Ty::Null);
         let mut args = BTreeMap::new();
@@ -247,7 +249,7 @@ impl<'a> Binder<'a> {
                 ProgramKind::Query => (ir::ProgramKind::Query, Ty::Json),
                 _ => (ir::ProgramKind::Job, Ty::Null),
             };
-            return Some(BoundProgram { maintenance_scopes: binder.maintenance_scopes, statement_ends: Vec::new(), page_sources: binder.page_sources, canonical_sources: binder.canonical_sources, constraint_domains: binder.constraint_domains, filters: binder.filters, view_types: binder.view_types, selections: binder.selections, sources: binder.sources, receipt_sources: binder.receipt_sources, receipt_returns: binder.receipt_returns, implicit_write_results: binder.implicit_write_results, timeline_scans: binder.timeline_scans, program: Program { name: full_name, kind, args, arg_aliases, read_time_granularity_ms: None, body: Vec::new(), native: true, returned_shapes: Default::default() }, presence: None, module: module.to_owned(), args: arg_types, result, notes: binder.notes, site: decl.site.clone(), job_bound_helpers: binder.job_bound_helpers });
+            return Some(BoundProgram { fixture_insert_sites:binder.fixture_insert_sites,maintenance_scopes: binder.maintenance_scopes, statement_ends: Vec::new(), page_sources: binder.page_sources, canonical_sources: binder.canonical_sources, constraint_domains: binder.constraint_domains, filters: binder.filters, view_types: binder.view_types, selections: binder.selections, sources: binder.sources, receipt_sources: binder.receipt_sources, receipt_returns: binder.receipt_returns, implicit_write_results: binder.implicit_write_results, timeline_scans: binder.timeline_scans, program: Program { name: full_name, kind, args, arg_aliases, read_time_granularity_ms: None, body: Vec::new(), native: true, returned_shapes: Default::default() }, presence: None, module: module.to_owned(), args: arg_types, result, notes: binder.notes, site: decl.site.clone(), job_bound_helpers: binder.job_bound_helpers });
         }
         let mut body = defaults;
         let mut shape_candidates = Vec::new();
@@ -349,7 +351,7 @@ impl<'a> Binder<'a> {
         let presence = if kind == ir::ProgramKind::Mutation {
             Some(super::residency::presence_facts(schema, &program, &ownership, &binder.presence_sources))
         } else { None };
-        Some(BoundProgram { maintenance_scopes: binder.maintenance_scopes, statement_ends, page_sources: binder.page_sources, canonical_sources: binder.canonical_sources, constraint_domains: binder.constraint_domains, filters: binder.filters, view_types: binder.view_types, selections: binder.selections, sources: binder.sources, receipt_sources: binder.receipt_sources, receipt_returns: binder.receipt_returns, implicit_write_results: binder.implicit_write_results, timeline_scans: binder.timeline_scans, program, presence, module: module.to_owned(), args: arg_types, result, notes: binder.notes, site: decl.site.clone(), job_bound_helpers: binder.job_bound_helpers })
+        Some(BoundProgram { fixture_insert_sites:binder.fixture_insert_sites,maintenance_scopes: binder.maintenance_scopes, statement_ends, page_sources: binder.page_sources, canonical_sources: binder.canonical_sources, constraint_domains: binder.constraint_domains, filters: binder.filters, view_types: binder.view_types, selections: binder.selections, sources: binder.sources, receipt_sources: binder.receipt_sources, receipt_returns: binder.receipt_returns, implicit_write_results: binder.implicit_write_results, timeline_scans: binder.timeline_scans, program, presence, module: module.to_owned(), args: arg_types, result, notes: binder.notes, site: decl.site.clone(), job_bound_helpers: binder.job_bound_helpers })
     }
 
     fn site(&mut self) -> String {
@@ -1167,6 +1169,7 @@ impl<'a> Binder<'a> {
                 let (row, row_ty) = self.write_row(info, fields, None, site, out)?;
                 let row_ty = if self.schema.tables[table].column_reads.is_empty() || self.ordinary_write_lifetime(table) && self.row_independent_read_proved(table) { row_ty } else { row_ty.optional() };
                 let tmp = self.temp("inserted");
+                self.fixture_insert_sites.insert(tmp.clone(),site.clone());
                 out.push(Stmt::Const { name: tmp.clone(), value: row });
                 if *if_absent {
                     let result = self.temp("absent");

@@ -51,7 +51,7 @@ fn campaign(s:&str)->Campaign{let b=security::derived::augmented(&sources(s),&bo
     assert!(notes(&template.replace("REQUIRE","require not (reason = '') else EMPTY")).iter().any(|n|n.code=="N_BLANK_TEXT_GUARD"));
 }
 #[test]fn atomic_approval_audits_and_checked_stage_proxies_do_not_gate(){
-    assert!(!notes(include_str!("security/wave26/008.q")).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
+    assert!(!notes(include_str!("security/wave26/008.q")).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"),"{:?}",notes(include_str!("security/wave26/008.q")));
     let source="table docs:\n  approvedAt: time ?\n  status: enum('draft','approved','done') default 'draft'\n  read <- allow\n  update <- allow\n  online only\nmutation approve(doc: docs):\n  update docs[doc] {approvedAt:now,status:'approved'}\nmutation finish(doc: docs):\n  d = docs[doc] ! else NOT_FOUND\n  require d.status = 'approved' else NO_APPROVAL\n  update docs[doc] {status:'done'}\n";
     assert!(!notes(source).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
     assert!(!notes(&source.replace("approvedAt:now","approvedAt:now + 0ms").replace("  require d.status = 'approved' else NO_APPROVAL\n","")).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
@@ -333,8 +333,25 @@ fn campaign(s:&str)->Campaign{let b=security::derived::augmented(&sources(s),&bo
 #[test]fn mirrored_decision_audits_respect_broader_defaults_and_preserved_stamps(){
     let source="table roles:\n  principal: principal\n  role: enum('owner','crew')\n  unique principal\n  read <- allow\n  online only\ntable docs:\n  approvedAt: time ?\n  status: enum('draft','done') default 'draft'\n  read <- allow\n  insert <- allow\n  update <- allow\n  online only\ntable approvals:\n  doc: docs\n  read <- allow\n  insert <- exists roles[principal = viewer,role = 'owner']\n  online only\nmutation approve(doc: docs):\n  require exists roles[principal = viewer,role = 'owner'] else OWNER\n  update docs[doc] {approvedAt:now}\n  return insert approvals {doc}\nmutation finish(doc: docs):\n  d = docs[doc] ! else MISSING\n  require d.approvedAt != null else APPROVAL\n  update docs[doc] {status:'done'}\nmutation preserve(doc: docs):\n  d = docs[doc] ! else MISSING\n  update docs[doc] {approvedAt:d.approvedAt}\n";
     assert!(!notes(source).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"),"{:?}",notes(source));
+    let helper=source.replace("  update docs[doc] {approvedAt:now}","  decision(doc)")+"fn decision(doc: docs):\n  update docs[doc] {approvedAt:now}\n  return null\n";
+    assert!(!notes(&helper).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
+    let optional_helper=helper.replace("mutation approve(doc: docs):","mutation approve(doc: docs,items: [int] <=10):").replace("  decision(doc)","  for n in items:\n    decision(doc)");
+    assert!(notes(&optional_helper).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
     let conditional=source.replace("mutation approve(doc: docs):","mutation approve(doc: docs,items: [int] <=10):").replace("  update docs[doc] {approvedAt:now}","  for n in items:\n    update docs[doc] {approvedAt:now}");
     assert!(notes(&conditional).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
     let defaulted=source.replace("approvedAt: time ?","approvedAt: time ? default now")+"mutation create():\n  return insert docs {}\n";
     assert!(notes(&defaulted).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
+}
+
+#[test]fn source_paths_and_all_changed_columns_bound_scalar_enforcement(){
+    let base="table docs:\n  approved: bool default false\n  status: enum('draft','done') default 'draft'\n  phase: enum('open','closed') default 'open'\n  immutable status when .approved = true\n  read <- allow\n  update <- allow\n  online only\nmutation approve(doc: docs):\n  update docs[doc] {approved:true}\nmutation finish(doc: docs):\n  d = docs[doc] ! else MISSING\n  update docs[doc] {FIELDS}\n";
+    for fields in ["status:'done',phase:'closed'","status:d.status,phase:'closed'"]{assert!(notes(&base.replace("FIELDS",fields)).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));}
+    let pair="table docs:\n  approved: bool default false\n  read <- allow\n  update <- allow\n  online only\ntable pairs:\n  primary: docs\n  secondary: docs\n  read <- allow\n  online only\ntable effects:\n  doc: docs\n  read <- allow\n  insert <- allow\n  online only\nmutation approve(doc: docs):\n  update docs[doc] {approved:true}\nmutation work(pair: pairs):\n  p = pairs[pair] ! else MISSING\n  require p.CHECK.approved = true else APPROVAL\n  return insert effects {doc:p.primary}\n";
+    assert!(notes(&pair.replace("CHECK","secondary")).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));assert!(!notes(&pair.replace("CHECK","primary")).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
+}
+#[test]fn only_dominating_approval_loops_and_nonvacuous_conditions_count(){
+    let source="table trips:\n  status: enum('draft','done') default 'draft'\n  read <- allow\n  update <- allow\n  online only\ntable bookings:\n  trip: trips\n  approved: bool default false\n  read <- allow\n  update <- allow\n  online only\ntable waivers:\n  booking: bookings\n  read <- allow\n  insert <- allow\n  online only\nmutation approve(booking: bookings):\n  update bookings[booking] {approved:true}\nmutation waiver(booking: bookings):\n  return insert waivers {booking}\nmutation finish(trip: trips):\nLOOP  update trips[trip] {status:'done'}\n";
+    for (body,gate) in [("  for b in bookings first 10 by .id:\n    require b.approved else APPROVAL\n",false),("  if false:\n    for b in bookings first 10 by .id:\n      require b.approved else APPROVAL\n",true),("  for b in bookings first 10 by .id:\n    if false:\n      require b.approved else APPROVAL\n",true)]{assert_eq!(notes(&source.replace("LOOP",body)).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"),gate);}
+    let conditional="table docs:\n  approved: bool default false\n  status: enum('draft','done') default 'draft'\n  read <- allow\n  update <- allow\n  online only\nmutation approve(doc: docs):\n  update docs[doc] {approved:true}\nmutation work(doc: docs,restricted: bool):\n  d = docs[doc] ! else MISSING\n  if CONDITION:\n    require d.approved else APPROVAL\n  update docs[doc] {status:'done'}\n";
+    assert!(!notes(&conditional.replace("CONDITION","restricted")).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));assert!(notes(&conditional.replace("CONDITION","false")).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
 }

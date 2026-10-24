@@ -19,7 +19,7 @@ pub(super) fn parent_values<'a>(effect:&'a Write<'_>,parent:&str,bound:&Bound)->
     effect.fields.iter().filter(|field|matches!(bound.schema.tables[&effect.table].columns.get(&field.name).map(ColumnType::required),Some(ColumnType::Ref{table}) if table==parent)).filter_map(field_value).chain(effect.keys.iter().filter(|key|effect.op==WriteOp::Update&&arg(&key.value,parent,effect.p).is_some()&&bound.schema.tables[&effect.table].indexes.values().any(|index|index.unique&&index.columns().len()==1&&matches!(bound.schema.tables[&effect.table].columns.get(&index.columns()[0]).map(ColumnType::required),Some(ColumnType::Ref{table}) if table==parent)&&key.column.as_deref().is_none_or(|column|column==index.columns()[0]))).map(|key|&key.value)).collect()
 }
 fn source_probe(condition:&Expr,negated:bool,name:&str,reference:&str,parent:&str,effect:&Write<'_>,bound:&Bound)->bool{
-    let matching=|read:&ast::ReadExpr|read.table==name&&pins(read,effect.p,bound).iter().any(|(column,value)|column==reference&&parent_values(effect,parent,bound).iter().any(|target|arg(target,parent,effect.p).is_some_and(|selected|arg(value,parent,effect.p)==Some(selected))));
+    let matching=|read:&ast::ReadExpr|read.table==name&&pins(read,effect.p,bound).iter().any(|(column,value)|column==reference&&parent_values(effect,parent,bound).iter().any(|target|origin(target,effect.p,bound).is_some_and(|selected|origin(value,effect.p,bound)==Some(selected))));
     match condition{
         Expr::Unary{op,value,..} if op=="not"=>source_probe(value,!negated,name,reference,parent,effect,bound),
         Expr::Binary{op,left,right,..} if op=="and"||op=="or"=>source_probe(left,negated,name,reference,parent,effect,bound)||source_probe(right,negated,name,reference,parent,effect,bound),
@@ -41,7 +41,8 @@ fn schema_probe(rule:&RuleExpr,negated:bool,name:&str,reference:&str,parent:&str
     }),_=>false,
 }}
 fn enforced(effect:&Write<'_>,name:&str,reference:&str,parent:&str,bound:&Bound,negative:bool)->bool{
-    if conditions(&effect.context).iter().any(|condition|source_probe(condition,negative,name,reference,parent,effect,bound)){return true;}
+    let conditions=effective_conditions(&effect.context);if conditions.iter().any(|condition|matches!(condition,Expr::Literal{value:ast::Literal::Bool(false),..})){return false;}
+    if conditions.iter().any(|condition|source_probe(condition,negative,name,reference,parent,effect,bound)){return true;}
     let table=&bound.schema.tables[&effect.table];let row=if effect.op==WriteOp::Update{&table.rules.update}else{&table.rules.insert};
     if schema_probe(row,negative,name,reference,parent,effect,bound){return true;}
     effect.fields.iter().any(|field|{
@@ -56,11 +57,11 @@ fn created(value:&Expr,parent:&str)->bool{match value{
 }}
 // An attached ancestor is provenance for an audited child decision, not a
 // second independently approved resource. Keep the exact typed source row.
-pub(super) fn origin(value:&Expr,p:&ast::ProgramDecl,bound:&Bound)->Option<(String,String,String)>{match value{
+pub(super) fn origin(value:&Expr,p:&ast::ProgramDecl,bound:&Bound)->Option<(String,String,String,Vec<String>)>{match value{
     Expr::Assert{value,..}=>origin(value,p,bound),
-    Expr::Name{name,..}=>p.args.iter().find_map(|argument|if argument.name==*name&&let TypeKind::Ref{table}=&argument.type_.kind{Some((table.clone(),table.clone(),name.clone()))}else{None}),
-    Expr::Read(read) if read.keys.len()==1&&read.keys[0].column.as_deref().is_none_or(|column|column=="id")&&read.filter.is_none()&&read.range.is_none()&&read.seeks.is_empty()&&read.matching.is_none()&&read.computed.is_empty()=>arg(&read.keys[0].value,&read.table,p).map(|arg|(read.table.clone(),read.table.clone(),arg.into())),
-    Expr::Member{base,name,..}=>{let (table,root,selected)=origin(base,p,bound)?;if name=="id"{return Some((table,root,selected));}let ColumnType::Ref{table}=bound.schema.tables[&table].columns.get(name)?.required()else{return None;};Some((table.clone(),root,selected))},_=>None,
+    Expr::Name{name,..}=>p.args.iter().find_map(|argument|if argument.name==*name&&let TypeKind::Ref{table}=&argument.type_.kind{Some((table.clone(),table.clone(),name.clone(),Vec::new()))}else{None}),
+    Expr::Read(read) if read.keys.len()==1&&read.keys[0].column.as_deref().is_none_or(|column|column=="id")&&read.filter.is_none()&&read.range.is_none()&&read.seeks.is_empty()&&read.matching.is_none()&&read.computed.is_empty()=>origin(&read.keys[0].value,p,bound).filter(|(table,_,_,_)|table==&read.table),
+    Expr::Member{base,name,..}=>{let (table,root,selected,mut path)=origin(base,p,bound)?;if name=="id"{return Some((table,root,selected,path));}let ColumnType::Ref{table}=bound.schema.tables[&table].columns.get(name)?.required()else{return None;};{path.push(name.clone());Some((table.clone(),root,selected,path))}},_=>None,
 }}
 fn possible_destination(value:&Expr,column:&str,destination:&str,write:&Write<'_>)->bool{match value{
     Expr::Literal{value:ast::Literal::Str(value),..}=>value==destination,
@@ -70,7 +71,7 @@ fn possible_destination(value:&Expr,column:&str,destination:&str,write:&Write<'_
 }}
 fn coupled(creator:&Write<'_>,reference:&str,parent:&str,writes:&[Write<'_>],bound:&Bound)->bool{
     let Some(value)=creator.fields.iter().find(|field|field.name==reference).and_then(field_value)else{return false;};
-    let Some((target,root,selected))=origin(value,creator.p,bound)else{return false;};if target!=parent{return false;}
+    let Some((target,root,selected,_path))=origin(value,creator.p,bound)else{return false;};if target!=parent{return false;}
     let mut preceding=BTreeSet::new();let mut located=false;
     for statement in creator.p.prelude.iter().chain(&creator.p.body){
         let mut contains=false;let mut body=vec![statement.clone()];super::super::super::intent_walk::statements(&mut body,&mut |e|if e.site()==&creator.site{contains=true;});if contains{located=true;break;}
@@ -111,14 +112,14 @@ fn creation_audit(creator:&Write<'_>,reference:&str,parent:&str,bound:&Bound)->b
 }
 pub(super) fn coexec(guaranteed:&Write<'_>,observed:&Write<'_>)->bool{
     if guaranteed.conditional||!std::ptr::eq(guaranteed.p,observed.p){return false;}
-    let branches=|write:&Write<'_>|write.context.body.iter().filter_map(|stmt|if let Stmt::Require{condition,code,..}=stmt&&(code=="$advice"||code.starts_with("$iteration:")){Some(format!("{code}:{}",canonical(condition)))}else{None}).collect::<BTreeSet<_>>();
+    let branches=|write:&Write<'_>|write.context.body.iter().filter_map(|stmt|if let Stmt::Require{condition,code,site,..}=stmt&&(code=="$advice"||code.starts_with("$iteration:")){Some(format!("{code}:{}:{}",site,canonical(condition)))}else{None}).collect::<BTreeSet<_>>();
     branches(guaranteed).is_subset(&branches(observed))
 }
 // A manager's audit row may accompany a checked bool/time decision before OR
 // after it. Matching branch paths and the same selected row are mandatory.
 fn decision_mirror(creator:&Write<'_>,reference:&str,parent:&str,writes:&[Write<'_>],bound:&Bound)->bool{
     let Some(value)=creator.fields.iter().find(|field|field.name==reference).and_then(field_value)else{return false;};
-    let branches=|write:&Write<'_>|write.context.body.iter().filter_map(|stmt|if let Stmt::Require{condition,code,..}=stmt&&(code=="$advice"||code.starts_with("$iteration:")){Some(format!("{code}:{}",canonical(condition)))}else{None}).collect::<BTreeSet<_>>();
+    let branches=|write:&Write<'_>|write.context.body.iter().filter_map(|stmt|if let Stmt::Require{condition,code,site,..}=stmt&&(code=="$advice"||code.starts_with("$iteration:")){Some(format!("{code}:{}:{}",site,canonical(condition)))}else{None}).collect::<BTreeSet<_>>();
     let path=branches(creator);let creator_role=audience(&creator.gate);
     writes.iter().filter(|write|std::ptr::eq(write.p,creator.p)&&write.table==parent&&write.op==WriteOp::Update&&!write.conditional&&branches(write).is_subset(&path)&&coexec(write,creator)&&write.keys.len()==1&&canonical(&write.keys[0].value)==canonical(value)).any(|write|write.fields.iter().any(|field|{
         let Some(kind)=bound.schema.tables[parent].columns.get(&field.name)else{return false;};let Some(assigned)=field_value(field)else{return false;};

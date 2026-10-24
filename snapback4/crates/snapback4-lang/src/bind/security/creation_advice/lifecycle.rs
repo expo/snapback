@@ -73,10 +73,10 @@ fn scalar_rule(rule:&RuleExpr,table:&str,column:&str,root:&str,negative:bool,bou
 }
 fn schema_scalar(effect:&Write<'_>,table:&str,column:&str,bound:&Bound,negative:bool)->bool{
     let target=&bound.schema.tables[&effect.table];let row=if effect.op==WriteOp::Update{&target.rules.update}else{&target.rules.insert};
-    scalar_rule(row,table,column,&effect.table,negative,bound)||effect.fields.iter().any(|field|{
-        let lifecycle=matches!(target.columns.get(&field.name).map(ColumnType::required),Some(ColumnType::Enum{..}));
-        lifecycle&&(target.column_writes.get(&field.name).is_some_and(|rule|scalar_rule(rule,table,column,&effect.table,negative,bound))||negative&&target.frozen_columns.get(&field.name).is_some_and(|rule|scalar_rule(rule,table,column,&effect.table,false,bound)))
-    })
+    if scalar_rule(row,table,column,&effect.table,negative,bound){return true;}
+    let fields=effect.fields.iter().filter(|field|matches!(target.columns.get(&field.name).map(ColumnType::required),Some(ColumnType::Enum{..}))&&!matches!(field_value(field),Some(Expr::Member{base,name,..}) if name==&field.name&&super::super::derived::same_resource(base,&effect.table,&effect.keys,effect.p))).collect::<Vec<_>>();
+    let covers=|field:&&ast::ObjectField|target.column_writes.get(&field.name).is_some_and(|rule|scalar_rule(rule,table,column,&effect.table,negative,bound))||negative&&target.frozen_columns.get(&field.name).is_some_and(|rule|scalar_rule(rule,table,column,&effect.table,false,bound));
+    if negative{!fields.is_empty()&&fields.iter().all(covers)}else{fields.iter().any(covers)}
 }
 fn caller_approval(condition:&Expr,table:&str,column:&str,bound:&Bound)->bool{
     let Some(principal)=super::super::privilege::global_principal(bound,table)else{return false;};let mut found=false;
@@ -84,23 +84,27 @@ fn caller_approval(condition:&Expr,table:&str,column:&str,bound:&Bound)->bool{
         found|=read.keys.iter().any(|key|key.column.as_deref()==Some(column)&&matches!(&key.value,Expr::Literal{value:ast::Literal::Bool(true),..}))||read.filter.as_deref().is_some_and(|filter|super::super::derived::approval_receipts(filter).iter().any(|positive|{let mut matches=false;walk(positive,|e|if let Expr::Member{base,name,..}=e&&name==column&&matches!(base.as_ref(),Expr::Focal{..}){matches=true;});matches}));
     });}found
 }
-fn parent_loop_guard(p:&ast::ProgramDecl,table:&str,column:&str,parent:&str,bound:&Bound)->bool{
+fn parent_loop_guard(effect:&Write<'_>,table:&str,column:&str,bound:&Bound)->bool{
     fn required(body:&[Stmt],binder:&str,column:&str)->bool{body.iter().any(|stmt|match stmt{
-        Stmt::Require{condition,..}=>super::super::derived::approval_receipts(condition).iter().any(|positive|{let mut found=false;walk(positive,|e|if let Expr::Member{base,name,..}=e&&name==column&&matches!(base.as_ref(),Expr::Name{name,..} if name==binder){found=true;});found}),
-        Stmt::If{then_body,else_body,..}=>required(then_body,binder,column)||required(else_body,binder,column),Stmt::As{body,..}=>required(body,binder,column),_=>false,
+        Stmt::Require{condition,..}=>super::super::derived::approval_receipts(&simplify_boolean(condition)).iter().any(|positive|{let mut found=false;walk(positive,|e|if let Expr::Member{base,name,..}=e&&name==column&&matches!(base.as_ref(),Expr::Name{name,..} if name==binder){found=true;});found}),
+        Stmt::If{condition,then_body,else_body,..}=>match simplify_boolean(condition){Expr::Literal{value:ast::Literal::Bool(true),..}=>required(then_body,binder,column),Expr::Literal{value:ast::Literal::Bool(false),..}=>required(else_body,binder,column),_=>required(then_body,binder,column)||required(else_body,binder,column)},Stmt::As{body,..}=>required(body,binder,column),_=>false,
     })}
-    fn body(statements:&[Stmt],table:&str,column:&str)->bool{statements.iter().any(|stmt|match stmt{
-        Stmt::For{domain,name,body:inner,..} if matches!(domain,Expr::Read(read) if read.table==table)=>required(inner,name,column),
-        Stmt::If{then_body,else_body,..}=>body(then_body,table,column)||body(else_body,table,column),Stmt::As{body:inner,..}=>body(inner,table,column),_=>false,
-    })}
-    parent!=table&&bound.schema.tables[table].columns.values().any(|kind|matches!(kind.required(),ColumnType::Ref{table} if table==parent))&&body(&p.body,table,column)
+    fn contains(stmt:&Stmt,site:&Site)->bool{let mut found=false;let mut body=vec![stmt.clone()];super::super::super::intent_walk::statements(&mut body,&mut |e|if e.site()==site{found=true;});found}
+    fn prefix<'a>(body:&'a[Stmt],site:&Site,before:&mut Vec<&'a Stmt>)->bool{
+        for stmt in body{if contains(stmt,site){return match stmt{
+            Stmt::If{then_body,else_body,..}=>{let mut candidate=before.clone();if prefix(then_body,site,&mut candidate){*before=candidate;true}else{prefix(else_body,site,before)}},
+            Stmt::For{body,..}|Stmt::As{body,..}=>prefix(body,site,before),_=>true,
+        };}before.push(stmt);}false
+    }
+    let mut before=Vec::new();if !prefix(&effect.p.body,&effect.site,&mut before){return false;}
+    effect.table!=table&&bound.schema.tables[table].columns.values().any(|kind|matches!(kind.required(),ColumnType::Ref{table} if table==&effect.table))&&before.iter().any(|stmt|matches!(stmt,Stmt::For{domain,name,body,..} if matches!(domain,Expr::Read(read) if read.table==table)&&required(body,name,column)))
 }
 fn locked_approval_input(record:&Write<'_>,column:&str,writes:&[Write<'_>],bound:&Bound)->bool{
     let table=&record.table;
     bound.schema.tables[table].columns.keys().filter(|input|*input!=column&&!["status","stage","state","phase"].contains(&input.as_str())).any(|input|{
         if !scalar_enforced(record,table,input,bound,false){return false;}
         let edits=writes.iter().filter(|write|write.table==*table&&matches!(write.op,WriteOp::Update|WriteOp::Upsert)&&!std::ptr::eq(write.p,record.p)&&write.fields.iter().any(|field|field.name==*input)).collect::<Vec<_>>();
-        !edits.is_empty()&&edits.iter().all(|write|scalar_enforced(write,table,column,bound,true)||schema_scalar(write,table,column,bound,true))
+        !edits.is_empty()&&edits.iter().all(|write|scalar_enforced(write,table,column,bound,true)||schema_scalar(write,table,column,bound,true)||bound.schema.tables[table].frozen_columns.get(input).is_some_and(|rule|scalar_rule(rule,table,column,table,false,bound))||bound.schema.tables[table].column_writes.get(input).is_some_and(|rule|scalar_rule(rule,table,column,table,true,bound)))
     })
 }
 fn one_shot_decision(record:&Write<'_>,column:&str,writes:&[Write<'_>],bound:&Bound)->bool{
@@ -130,7 +134,8 @@ fn linked_decision_stamp(record:&Write<'_>,column:&str,writes:&[Write<'_>],bound
 // approval. Read audiences and another resource's validation are not enforcement.
 pub(super) fn scalar_enforced(effect:&Write<'_>,table:&str,column:&str,bound:&Bound,negative:bool)->bool{
     let targets=super::approval_records::parent_values(effect,table,bound).into_iter().filter_map(|value|super::approval_records::origin(value,effect.p,bound)).collect::<Vec<_>>();
-    conditions(&effect.context).iter().any(|condition|{
+    let conditions=effective_conditions(&effect.context);if conditions.iter().any(|condition|matches!(condition,Expr::Literal{value:ast::Literal::Bool(false),..})){return false;}
+    conditions.iter().any(|condition|{
         if !negative&&caller_approval(condition,table,column,bound){return true;}
         let condition=if negative{Expr::Unary{op:"not".into(),value:Box::new((*condition).clone()),site:condition.site().clone()}}else{(*condition).clone()};
         let mut found=false;let approval=matches!(bound.schema.tables[table].columns.get(column).map(ColumnType::required),Some(ColumnType::Bool|ColumnType::Time))&&["approv","authoriz"].iter().any(|part|column.to_lowercase().contains(part));let mut probes=if approval{super::super::derived::approval_receipts(&condition)}else{vec![condition.clone()]};
@@ -155,7 +160,7 @@ pub(super) fn notes(bound:&Bound,writes:&[Write<'_>],out:&mut Vec<Diagnostic>){
             let others=approval_effects.iter().filter(|w|!(w.table==*table&&records(w,column,kind,t))).collect::<Vec<_>>();
             let frozen=!others.is_empty()&&others.iter().all(|w|scalar_enforced(w,table,column,bound,true)||schema_scalar(w,table,column,bound,true));
             let data_use=writes.iter().filter(|record|record.table==*table&&records(record,column,kind,t)).any(|record|locked_approval_input(record,column,writes,bound)||one_shot_decision(record,column,writes,bound)||linked_decision_stamp(record,column,writes,bound));
-            let consumed=atomic||data_use||frozen||writes.iter().any(|effect|schema_scalar(effect,table,column,bound,false))||writes.iter().filter(|effect|state(effect,bound)).any(|effect|parent_loop_guard(effect.p,table,column,&effect.table,bound))||approval_effects.iter().filter(|w|!(w.table==*table&&records(w,column,kind,t))).any(|w|scalar_enforced(w,table,column,bound,false)||schema_scalar(w,table,column,bound,false)||proxies.iter().any(|proxy|scalar_enforced(w,table,proxy,bound,false)));
+            let consumed=atomic||data_use||frozen||writes.iter().any(|effect|schema_scalar(effect,table,column,bound,false))||writes.iter().filter(|effect|state(effect,bound)).any(|effect|parent_loop_guard(effect,table,column,bound))||approval_effects.iter().filter(|w|!(w.table==*table&&records(w,column,kind,t))).any(|w|scalar_enforced(w,table,column,bound,false)||schema_scalar(w,table,column,bound,false)||proxies.iter().any(|proxy|scalar_enforced(w,table,proxy,bound,false)));
             let downstream=approval_effects.iter().filter(|effect|effect.table==*table||!writes.iter().any(|writer|writer.table==*table&&records(writer,column,kind,t)&&bound.schema.tables[&effect.table].columns.iter().any(|(reference,kind)|matches!(kind.required(),ColumnType::Ref{table:parent} if parent==table)&&requires_child(writer,&effect.table,reference)))).collect::<Vec<_>>();
             if approval&&recorded&&!consumed&&!downstream.is_empty() {
                 note(out,&downstream[0].site,"N_APPROVAL_NOT_ENFORCED",format!("{table}.{column}: approval is recorded but no lifecycle effect inspects it; is this an informational record or a required approval?"),"require this approval before its governed effect; or record `check --ack-security ID --reason 'informational approval record: <spec rationale>'` for this individual decision");

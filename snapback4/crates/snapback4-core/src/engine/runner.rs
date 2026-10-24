@@ -621,6 +621,8 @@ impl<'a> Runner<'a> {
                     Flow::Next
                 }
                 Stmt::InsertIfAbsent { table, row, result } => {
+                    #[cfg(feature="sqlite")]
+                    let _fixture_insert_scope=self.context.fixture_trace.as_ref().and_then(|trace|trace.at_insert(row));
                     let row = self.expr(row)?;
                     let consumed = self.insert_uses.as_ref().is_none_or(|uses| uses.contains_key(result));
                     if consumed {
@@ -632,6 +634,8 @@ impl<'a> Runner<'a> {
                     Flow::Next
                 }
                 Stmt::Insert { table, row } => {
+                    #[cfg(feature="sqlite")]
+                    let _fixture_insert_scope=self.context.fixture_trace.as_ref().and_then(|trace|trace.at_insert(row));
                     let image = self.expr(row)?;
                     // @ref LLP 3000.007#5.4 — the compiler also creates a
                     // temporary for discarded inserts; only another use demands its result.

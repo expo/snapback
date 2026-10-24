@@ -16,6 +16,7 @@ pub struct BoundaryPredicate(pub Arc<dyn Fn(&FixtureRows,Option<&Value>,Option<&
 impl std::fmt::Debug for BoundaryPredicate {fn fmt(&self,f:&mut std::fmt::Formatter<'_>)->std::fmt::Result{f.write_str("effect prerequisite")}}
 #[derive(Clone,Debug,Default)]
 pub struct SourceFilter {
+    pub inserts_at: Option<Vec<String>>,
     /// Reissuing an approval may touch an unchanged stamp at these exact sites.
     pub unchanged_at: Vec<String>,
     /// Restrict update observations to these executed sources; inserts are independent.
@@ -53,11 +54,14 @@ pub struct Trace {
     pub(crate) intents: Arc<Vec<Intent>>,
     pub(crate) observations: Arc<Mutex<Vec<Observation>>>,
     write_sites: Arc<Mutex<Vec<String>>>,
+    insert_sites: Arc<std::collections::BTreeMap<String,String>>,
 }
 pub(super) struct WriteScope(Arc<Mutex<Vec<String>>>);
 impl Drop for WriteScope {fn drop(&mut self){self.0.lock().expect("fixture write-site lock").pop();}}
 impl Trace {
-    pub fn new(intents: Vec<Intent>) -> Self { Self { intents: Arc::new(intents), observations: Arc::default(),write_sites:Arc::default() } }
+    pub fn new(intents: Vec<Intent>) -> Self { Self { intents: Arc::new(intents), observations: Arc::default(),write_sites:Arc::default(),insert_sites:Arc::default() } }
+    pub fn with_insert_sites(mut self,sites:std::collections::BTreeMap<String,String>)->Self{self.insert_sites=Arc::new(sites);self}
+    pub(super) fn at_insert(&self,row:&crate::ir::Expr)->Option<WriteScope>{let crate::ir::Expr::Variable(name)=row else{return None;};self.insert_sites.get(name).map(|site|self.at_write(site))}
     // @ref LLP 3000.036.004.000#10-sec10-approvals-and-deterministic-exploration — exact executed write custody distinguishes reapproval from copied stamps.
     pub(super) fn at_write(&self,site:&str)->WriteScope{self.write_sites.lock().expect("fixture write-site lock").push(site.into());WriteScope(self.write_sites.clone())}
     pub fn take(&self) -> Vec<Observation> { std::mem::take(&mut *self.observations.lock().expect("fixture trace lock")) }
@@ -70,6 +74,7 @@ impl Runner<'_> {
         let Some(trace) = self.context.fixture_trace.as_ref() else { return; };
         let write_site=trace.write_sites.lock().expect("fixture write-site lock").last().cloned();
         for intent in trace.intents.iter().filter(|i| i.table == table && i.effects.contains(&effect)) {
+            if effect==Effect::Insert&&intent.source.inserts_at.as_ref().is_some_and(|sites|!write_site.as_ref().is_some_and(|site|sites.contains(site))){continue;}
             if effect==Effect::Update&&intent.source.updates_at.as_ref().is_some_and(|sites|!write_site.as_ref().is_some_and(|site|sites.contains(site))){continue;}
             if write_site.as_ref().is_some_and(|site|intent.source.except_at.contains(site)){continue;}
             if effect == Effect::Update && !write_site.as_ref().is_some_and(|site|intent.source.unchanged_at.contains(site)) && intent.column.as_ref().is_some_and(|c|old.and_then(|r|r.field(c).ok()) == next.and_then(|r|r.field(c).ok())) { continue; }

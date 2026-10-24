@@ -46,6 +46,12 @@ fn stamp_source(value:&ast::Expr)->StampSource{match value{
     _=>StampSource::Unknown,
 }}
 
+fn same_stamp_copy(value:&ast::Expr,table:&str,keys:&[ast::KeyPart],p:&ast::ProgramDecl,stamp:&str)->bool{match value{
+    ast::Expr::Assert{value,..}=>same_stamp_copy(value,table,keys,p,stamp),
+    ast::Expr::Member{base,name,..}=>name==stamp&&same_resource(base,table,keys,p),
+    ast::Expr::Binary{op,left,right,..} if matches!(op.as_str(),"+"|"-")&&matches!(right.as_ref(),ast::Expr::Literal{value:ast::Literal::Number(value),..} if value.trim_end_matches(char::is_alphabetic).parse::<i64>().ok()==Some(0))=>same_stamp_copy(left,table,keys,p,stamp),_=>false,
+}}
+
 fn plain_field(expression:&ast::Expr)->bool {
     matches!(expression,ast::Expr::Name{..})||matches!(expression,ast::Expr::Member{base,..} if plain_row(base))
 }
@@ -95,7 +101,7 @@ fn collect(sources:&[(String,String)],bound:&Bound,inputs:&mut BTreeMap<(String,
     let mut out=Vec::new();
     let mut controlled=BTreeSet::new();let mut origins=BTreeMap::new();let mut ambiguous_recordings:BTreeMap<(String,String,String),BTreeSet<String>>=BTreeMap::new();
     for (file,p) in docs.iter().flat_map(|d|d.programs.iter().map(move |p|(&d.file,p))).filter(|(_,p)|p.kind==ast::ProgramKind::Mutation){for (write,context) in authority_walk::writes(&catalog,p){
-        if let ast::Expr::Write{op,table,fields,site,..}=write{
+        if let ast::Expr::Write{op,table,fields,keys,site,..}=write{
             let Some(definition)=bound.schema.tables.get(&table)else{continue;};
             let mut checked=BTreeSet::new();for statement in &context.body{if let ast::Stmt::Require{condition,..}=statement{let mut condition=condition.clone();omit_preconditions(&mut condition,false);super::super::intent_walk::expression(&mut condition,&mut |e|if let ast::Expr::Name{name,..}=e&&p.args.iter().any(|arg|arg.name==*name){checked.insert(name.clone());});}}
             let payload=fields.iter().filter(|field|!matches!(field.name.as_str(),"status"|"stage"|"state"|"phase")&&matches!(&field.value,Some(ast::Expr::Name{name,..}) if checked.contains(name))).map(|field|field.name.clone()).collect::<BTreeSet<_>>();
@@ -105,10 +111,13 @@ fn collect(sources:&[(String,String)],bound:&Bound,inputs:&mut BTreeMap<(String,
                 if let Some(field)=fields.iter().find(|field|field.name==*stamp){let key=(super::super::operation_name(std::path::Path::new(file).file_stem().and_then(|s|s.to_str()).unwrap_or(file),&p.name),table.clone(),stamp.clone());
                     if super::creation_advice::approval_recording(kind,field.value.as_ref()){
                         let custody=if matches!(kind.required(),snapback4_core::schema::ColumnType::Time){field.value.as_ref().map(stamp_source).unwrap_or(StampSource::Unknown)}else{StampSource::Fresh};
-                        match custody{StampSource::Fresh=>{reissues.entry(key).or_default().insert(site.to_string());},StampSource::Copied=>{uncertain.entry(key).or_default().insert(site.to_string());},StampSource::Unknown=>{ambiguous_recordings.entry(key).or_default().insert(site.to_string());}}
+                        match custody{StampSource::Fresh=>{reissues.entry(key).or_default().insert(site.to_string());},StampSource::Copied=>{if same_stamp_copy(field.value.as_ref().unwrap(),&table,&keys,p,stamp){uncertain.entry(key).or_default().insert(site.to_string());}else{ambiguous_recordings.entry(key).or_default().insert(site.to_string());}},StampSource::Unknown=>{ambiguous_recordings.entry(key).or_default().insert(site.to_string());}}
 
                     }
-                    else if !matches!(field.value,Some(ast::Expr::Literal{value:ast::Literal::Bool(false)|ast::Literal::Null,..})){uncertain.entry(key).or_default().insert(site.to_string());}
+                    else if !matches!(field.value,Some(ast::Expr::Literal{value:ast::Literal::Bool(false)|ast::Literal::Null,..})){
+                        let copied=field.value.as_ref().is_some_and(|value|same_stamp_copy(value,&table,&keys,p,stamp));
+                        if copied{uncertain.entry(key).or_default().insert(site.to_string());}else{ambiguous_recordings.entry(key).or_default().insert(site.to_string());}
+                    }
                 }
             }
             for f in fields{if matches!(op,ast::WriteOp::Insert|ast::WriteOp::Upsert)&&write_advice::supplied(&f,p){controlled.insert((table.clone(),f.name));}}

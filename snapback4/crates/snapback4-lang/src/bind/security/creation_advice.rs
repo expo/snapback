@@ -13,9 +13,20 @@ fn walk(e:&Expr,mut f:impl FnMut(&Expr)){let mut e=e.clone();super::super::inten
 fn uses(e:&Expr,arg:&str)->bool{let mut found=false;walk(e,|e|if matches!(e,Expr::Name{name,..} if name==arg){found=true;});found}
 fn conjunction(e:&Expr)->Vec<&Expr>{match e{Expr::Binary{op,left,right,..} if op=="and"=>conjunction(left).into_iter().chain(conjunction(right)).collect(),_=>vec![e]}}
 fn conditions(p:&ast::ProgramDecl)->Vec<&Expr>{p.body.iter().filter_map(|s|if let Stmt::Require{condition,..}=s{Some(condition)}else{None}).collect()}
+// Keep authored conditional prerequisites, but erase statically vacuous reads.
+fn simplify_boolean(expression:&Expr)->Expr{
+    let mut expression=expression.clone();super::super::intent_walk::expression(&mut expression,&mut |e|{
+        let boolean=|e:&Expr|if let Expr::Literal{value:ast::Literal::Bool(value),..}=e{Some(*value)}else{None};
+        match e{
+            Expr::Unary{op,value,site} if op=="not"=>if let Some(value)=boolean(value){*e=Expr::Literal{value:ast::Literal::Bool(!value),site:site.clone()};},
+            Expr::Binary{op,left,right,site} if op=="and"||op=="or"=>{let decisive=op=="or";if boolean(left)==Some(decisive)||boolean(right)==Some(decisive){*e=Expr::Literal{value:ast::Literal::Bool(decisive),site:site.clone()};}else if boolean(left)==Some(!decisive){*e=*right.clone();}else if boolean(right)==Some(!decisive){*e=*left.clone();}},_=>{},
+        }
+    });expression
+}
+fn effective_conditions(p:&ast::ProgramDecl)->Vec<Expr>{conditions(p).into_iter().map(simplify_boolean).collect()}
 fn reads(e:&Expr)->BTreeSet<String>{let mut out=BTreeSet::new();walk(e,|e|match e{Expr::Read(r)|Expr::Exists{read:r,..}=>{out.insert(r.table.clone());},_=>{}});out}
 fn nonnull(p:&ast::ProgramDecl,arg:&str)->bool{nonnull_mode(p,arg,false)}
-fn nonnull_mode(p:&ast::ProgramDecl,arg:&str,branches:bool)->bool{p.body.iter().filter_map(|s|if let Stmt::Require{condition,code,..}=s&&(branches||code!="$advice"){Some(condition)}else{None}).flat_map(conjunction).any(|e|match e{
+fn nonnull_mode(p:&ast::ProgramDecl,arg:&str,branches:bool)->bool{p.body.iter().filter_map(|s|if let Stmt::Require{condition,code,..}=s&&(branches||!code.starts_with("$advice")){Some(condition)}else{None}).flat_map(conjunction).any(|e|match e{
     Expr::Binary{op,left,right,..} if op=="!="=>[(left.as_ref(),right.as_ref()),(right.as_ref(),left.as_ref())].iter().any(|(a,b)|matches!(a,Expr::Name{name,..} if name==arg)&&matches!(b,Expr::Literal{value:ast::Literal::Null,..})),_=>false,
 })}
 fn field_value<'a>(f:&'a ast::ObjectField)->Option<&'a Expr>{f.value.as_ref()}
