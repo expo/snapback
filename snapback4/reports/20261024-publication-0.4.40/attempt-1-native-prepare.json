@@ -1,0 +1,12 @@
+{
+  "step": "native-prepare",
+  "command": [
+    "python3",
+    "/Users/ccheever/sb4-pub-0440/helpers-0.4.40/native-prepare.py"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-pub-0428/snapback4",
+  "start": 1792857202.899391,
+  "end": 1792857203.621763,
+  "seconds": 0.722,
+  "exit": 0
+}

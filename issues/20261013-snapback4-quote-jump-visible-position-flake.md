@@ -79,3 +79,16 @@ commands, source equality and raw logs are archived in Integration 8's report.
 
 This is a corroborated pre-existing failure; leave the issue open. The final
 full pool remains red in this file and is not relabelled green by scoped passes.
+
+## 0.4.40 publication recurrence — 2026-10-24
+
+Linux qualification attempt 1 for 0.4.40 at `0cb3de79ee` (full 430-file client pool, Node 24, load
+40–140 on the shared Linux host) failed only this file. The failing check is a different subtest
+from the earlier ones: online "absent original says unavailable and cannot move the list"
+(line 315). The history `scrollTop` was 16 instead of 0 after clicking the unavailable text, and
+the file reported 3 failed records including parents. The same file then passed alone through the
+suite runner 6/6 (38/38 each, 46–48 s, load 54–69), and Linux attempt 2's full pool passed with
+it included. No assertion was changed. Evidence:
+`snapback4/reports/20261024-publication-0.4.40/linux/attempt-1-suite.log.gz` and
+`linux/isolated/l1/`. Same class: a scroll position that moves under pooled load. Leave the
+ticket open.
