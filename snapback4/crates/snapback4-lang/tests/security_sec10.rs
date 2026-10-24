@@ -266,6 +266,7 @@ fn campaign(s:&str)->Campaign{let b=security::derived::augmented(&sources(s),&bo
 #[test]fn filtered_and_named_key_approval_guards_are_enforcement(){
     let source="table approvals:\n  subject: principal\n  unique subject\n  approved: bool default false\n  read <- allow\n  update <- allow\n  online only\ntable effects:\n  approval: approvals\n  read <- allow\n  insert <- allow\n  online only\nmutation approve(approval: approvals):\n  update approvals[approval] {approved:true}\nmutation work(approval: approvals):\n  require exists approvals[subject = viewer] where .approved else NO_APPROVAL\n  return insert effects {approval}\n";
     assert!(!notes(source).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
+    for renamed in [source.to_string(),source.replace("approvals","permissions")]{let cs=security::derived::invariants(&sources(&renamed),&bound(&renamed));assert!(cs.iter().any(|i|i.table=="effects"&&i.site.file.contains("sibling-approval")),"{cs:?}");}
     let keyed=source.replace("approvals[subject = viewer] where .approved","approvals[subject = viewer, approved = true]");
     assert!(!notes(&keyed).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
     let nested=source.replace("approvals[subject = viewer] where .approved","effects where (exists approvals[subject = viewer] where .approved)");

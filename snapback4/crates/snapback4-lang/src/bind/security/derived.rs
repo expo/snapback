@@ -76,11 +76,11 @@ fn collect(sources:&[(String,String)],bound:&Bound,inputs:&mut BTreeMap<(String,
     for p in docs.iter().flat_map(|d|&d.programs).filter(|p|p.kind==ast::ProgramKind::Mutation){
         let plain=authority_walk::writes(&catalog,p);
         for (write,context) in &plain {
-            let ast::Expr::Write{op:ast::WriteOp::Update,table,fields,site,..}=write else{continue;};
+            let ast::Expr::Write{op:ast::WriteOp::Update|ast::WriteOp::Upsert,table,fields,site,..}=write else{continue;};
             let Some(info)=catalog.tables.get(table)else{continue;};
             let definition=&bound.schema.tables[table];
             // Guarded edits: only the additional, column-specific condition.
-            for field in fields {
+            for field in fields.iter().filter(|_|matches!(write,ast::Expr::Write{op:ast::WriteOp::Update,..})) {
                 if definition.column_writes.contains_key(&field.name)||definition.immutable_fields().any(|c|c==&field.name){continue;}
                 let specialized=authority_walk::column_writes(&catalog,p,&field.name);
                 let mut policies=Vec::new();let mut conditional=false;

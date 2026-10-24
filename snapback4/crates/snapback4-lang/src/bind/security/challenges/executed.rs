@@ -118,6 +118,13 @@ pub(super) fn trace(bound:&Bound,p:&Program,entry:&Engine)->Trace {
             });
         }
     }
+    // Record actual phase changes for inferred atomic lifecycle coupling.
+    // These private always-true observations confer no admission authority.
+    if bound.invariants.iter().any(|i|i.site.file.contains("/parent-state/")||i.site.file.contains("/child-stage/")){
+        for (table,t) in bound.schema.visible_tables(){for (column,kind) in &t.columns{if matches!(column.as_str(),"status"|"stage"|"state"|"phase")&&matches!(kind.required(),C::Enum{..}){
+            intents.push(Intent{paired:false,boundary:None,concrete:None,site:format!("$security.lifecycle-change/{table}/{column}"),table:table.clone(),column:Some(column.clone()),policy:RuleExpr::Allow,effects:vec![Effect::Update]});
+        }}}
+    }
     // A private executed-write witness exempts only the operator provisioner's
     // own roster result. It never exempts an ordinary query or a different row.
     if provisioning(p){for table in ir::write_tables(p).into_iter().map(|(table,_)|table).collect::<BTreeSet<_>>() {
@@ -127,13 +134,34 @@ pub(super) fn trace(bound:&Bound,p:&Program,entry:&Engine)->Trace {
     }}
     Trace::new(intents)
 }
+fn lifecycle_judgment(bound:&Bound,inv:&super::super::Invariant,observation:&snapback4_core::engine::fixture_trace::Observation,all:&[snapback4_core::engine::fixture_trace::Observation],after:&BTreeMap<String,Vec<Value>>,viewer:&str,now:i64)->Option<bool>{
+    let Some(predicate)=&inv.syntax else{return observation.allowed;};
+    if inv.site.file.contains("/child-stage/"){
+        let row=observation.next.as_ref()?;
+        if !after.get(&inv.table).into_iter().flatten().any(|r|r.field("id").ok()==row.field("id").ok()){return None;}
+        return super::super::concrete::evaluate(predicate,row,after,&bound.schema,viewer,&inv.table,now);
+    }
+    if observation.allowed!=Some(false)||!inv.site.file.contains("/parent-state/"){return observation.allowed;}
+    let mut references=BTreeSet::new();let mut syntax=predicate.clone();crate::bind::intent_walk::expression(&mut syntax,&mut |e|if let ast::Expr::Member{base,name,..}=e&&let ast::Expr::Member{base:root,name:reference,..}=base.as_ref()&&matches!(root.as_ref(),ast::Expr::Focal{..}){references.insert((reference.clone(),name.clone()));});
+    if references.len()!=1{return observation.allowed;}let (reference,state)=references.iter().next().unwrap();
+    let Some(C::Ref{table:parent})=bound.schema.tables[&inv.table].columns.get(reference).map(C::required)else{return observation.allowed;};
+    let old=observation.old.as_ref()?;let row=if let Some(next)=&observation.next&&next.field(reference).ok().is_some_and(|value|*value!=Value::Null&&old.field(reference).ok()!=Some(value)){next}else{old};
+    let id=row.field(reference).ok()?;
+    for change in all.iter().filter(|change|change.site==format!("$security.lifecycle-change/{parent}/{state}")&&change.table==*parent){
+        for image in change.old.iter().chain(change.next.iter()).filter(|image|image.field("id").ok()==Some(id)){
+            let mut coupled=after.clone();let rows=coupled.entry(parent.clone()).or_default();rows.retain(|row|row.field("id").ok()!=Some(id));rows.push(image.clone());
+            if super::super::concrete::evaluate(predicate,row,&coupled,&bound.schema,viewer,&inv.table,now)==Some(true){return Some(true);}
+        }
+    }observation.allowed
+}
 pub(super) fn record(bound:&Bound,p:&Program,trace:&Trace,result:&snapback4_core::WriteState,after:&BTreeMap<String,Vec<Value>>,initial:&BTreeMap<String,Vec<Value>>,viewer:&str,steps:&[histories::Step],engine:&mut Engine,out:&mut Campaign){
     let observations=trace.take();
+    let snapback4_core::WriteState::Sent{result:data,..}=result else{return;};
     let provisioned=observations.iter().filter(|o|o.site.starts_with(PROVISION_RESULT)).filter_map(|o|
         o.next.as_ref().map(|row|(o.table.as_str(),row))).collect::<Vec<_>>();
     for observation in &observations{
         let Some(inv)=bound.invariants.iter().find(|inv|inv.site.to_string()==observation.site)else{continue;};
-        match observation.allowed{
+        match lifecycle_judgment(bound,inv,observation,&observations,after,viewer,histories::history_clock(steps)){
             Some(false)=>if let Some(row)=observation.next.as_ref().or(observation.old.as_ref()){
                 if histories::violation(out,inv,steps,viewer,row,observation.old.as_ref(),initial,match observation.effect{Effect::Insert=>"insert",Effect::Update=>"update",Effect::Delete=>"delete",Effect::Read=>"read"}){
                     out.violations.last_mut().unwrap().rule_path="actual executed write boundary; independent policy false in the provisional transaction; enclosing authored mutation committed".into();
@@ -142,7 +170,6 @@ pub(super) fn record(bound:&Bound,p:&Program,trace:&Trace,result:&snapback4_core
             None=>{out.unsupported.insert(format!("{} / {}: executed policy unknown; no refutation",p.name,inv.target_label()));},_=>{},
         }
     }
-    let snapback4_core::WriteState::Sent{result:data,..}=result else{return;};
     let Some(bp)=bound.programs.iter().find(|bp|bp.program.name==p.name)else{return;};
     for inv in bound.invariants.iter().filter(|inv|inv.target=="read"){
         let Some(policy)=inv.policy.as_ref()else{continue;};
@@ -327,6 +354,57 @@ pub(super) fn write_arguments(bound:&Bound,p:&Program)->BTreeSet<String>{
         let p=&b.programs.iter().find(|p|p.program.name=="consume").unwrap().program;let trace=trace(&b,p,&engine);
         let result=engine.mutate("consume",None,Context::new("dev:clerk",BTreeMap::from([("approval".into(),Value::Id("a".into()))])).at(NOW).with_fixture_trace(trace.clone())).unwrap();assert!(matches!(result.state,snapback4_core::WriteState::Sent{..}));
         let observations=trace.take();assert!(observations.iter().any(|o|o.site.contains("sibling-approval")&&o.allowed==Some(expected)),"{observations:?}");
+    }
+}
+
+#[test]fn upsert_issued_approvals_keep_their_inspected_inputs(){
+    let source="table docs:\n  consent: bool\n  approved: bool default false\n  read <- allow\n  update <- allow\n  insert <- allow\n  online only\ntable effects:\n  doc: docs\n  read <- allow\n  insert <- allow\n  online only\nmutation approve(doc: docs):\n  d = docs[doc] ! else MISSING\n  require d.consent else NO_CONSENT\n  return upsert docs[doc] {consent:d.consent,approved:true}\nmutation finish(doc: docs):\n  d = docs[doc] ! else MISSING\n  require d.approved else NO_APPROVAL\n  return insert effects {doc}\nmutation atomic(doc: docs):\n  d = docs[doc] ! else MISSING\n  require d.consent else NO_CONSENT\n  upsert docs[doc] {consent:d.consent,approved:true}\n  update docs[doc] {approved:false}\n  return insert effects {doc}\n";
+    for (source,expected) in [(source.to_string(),true),(source.replace("{approved:false}","{approved:false,consent:false}"),false)]{
+        let sources=vec![("schema.q".into(),source)];let b=super::super::super::derived::augmented(&sources,&crate::compile(&sources));assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);assert!(b.security_approval_inputs[&("docs".into(),"approved".into())].contains("consent"));
+        let mut engine=Engine::memory(b.schema.clone(),b.programs.iter().map(|p|p.program.clone())).unwrap();let row=snapback4_core::wire::row_from_json(&b.schema.tables["docs"],&serde_json::json!({"id":"d","consent":true,"approved":false})).unwrap();engine.seed_at([("docs".into(),row)],NOW).unwrap();
+        let p=&b.programs.iter().find(|p|p.program.name=="atomic").unwrap().program;let trace=trace(&b,p,&engine);
+        let result=engine.mutate("atomic",None,Context::new("dev:clerk",BTreeMap::from([("doc".into(),Value::Id("d".into()))])).at(NOW).with_fixture_trace(trace.clone())).unwrap();assert!(matches!(result.state,snapback4_core::WriteState::Sent{..}));
+        let observations=trace.take();assert!(observations.iter().any(|o|o.site.contains("sibling-approval")&&o.allowed==Some(expected)),"{observations:?}");
+    }
+}
+fn lifecycle_source(complete:&str,advance:&str)->String{
+    format!("table roles:\n  principal: principal\n  role: enum('crew','owner')\n  unique principal\n  read <- allow\n  online only\ntable jobs:\n  status: enum('estimate','accepted','active','finished') default 'estimate'\n  data: int default 0\n  read <- allow\n  update <- allow\n  cap 10\n  online only\ntable tasks:\n  job: jobs\n  stage: enum('raw','done') default 'raw'\n  read <- allow\n  update <- allow\n  cap 10\n  online only\nmutation start(job: jobs):\n  require exists roles[principal = viewer,role = 'crew'] else DENIED\n  j = jobs[job] ! else MISSING\n  require j.status = 'accepted' else BAD_STAGE\n  update jobs[job] {{status:'active'}}\nmutation forward(task: tasks):\n  require exists roles[principal = viewer,role = 'crew'] else DENIED\n  t = tasks[task] ! else MISSING\n  require t.stage = 'raw' else BAD_STAGE\n  update tasks[task] {{stage:'done'}}\nmutation finish(job: jobs,otherTask: tasks,touch: bool):\n  require exists roles[principal = viewer,role = 'crew'] else DENIED\n  j = jobs[job] ! else MISSING\n  require j.status = 'active' else BAD_STAGE\n{complete}\nmutation advance(task: tasks,otherJob: jobs,touch: bool):\n  require exists roles[principal = viewer,role = 'crew'] else DENIED\n  t = tasks[task] ! else MISSING\n  require t.stage = 'raw' else BAD_STAGE\n{advance}\n")
+}
+fn lifecycle_observations(source:String,operation:&str,args:BTreeMap<String,Value>,a:&str,b:&str)->Vec<(String,Option<bool>)>{
+    let sources=vec![("schema.q".into(),source)];let bound=super::super::super::derived::augmented(&sources,&crate::compile(&sources));assert!(bound.diagnostics.is_empty(),"{:?}",bound.diagnostics);
+    let mut engine=Engine::memory(bound.schema.clone(),bound.programs.iter().map(|p|p.program.clone())).unwrap();
+    for (table,json) in [("roles",serde_json::json!({"id":"role","principal":"dev:crew","role":"crew"})),("jobs",serde_json::json!({"id":"a","status":a})),("jobs",serde_json::json!({"id":"b","status":b})),("tasks",serde_json::json!({"id":"t1","job":"a"})),("tasks",serde_json::json!({"id":"t2","job":"a"})),("tasks",serde_json::json!({"id":"u","job":"b"}))]{let row=snapback4_core::wire::row_from_json(&bound.schema.tables[table],&json).unwrap();engine.seed_at([(table.into(),row)],NOW).unwrap();}
+    let p=&bound.programs.iter().find(|p|p.program.name==operation).unwrap().program;let trace=trace(&bound,p,&engine);
+    let result=engine.mutate(operation,None,Context::new("dev:crew",args).at(NOW).with_fixture_trace(trace.clone())).unwrap();assert!(matches!(result.state,snapback4_core::WriteState::Sent{..}),"{result:?}");
+    let after=readback(&engine).unwrap();let observations=trace.take();
+    observations.iter().filter_map(|observation|bound.invariants.iter().find(|i|i.site.to_string()==observation.site).map(|inv|(inv.site.file.clone(),lifecycle_judgment(&bound,inv,observation,&observations,&after,"dev:crew",NOW)))).collect()
+}
+#[test]fn completion_coupling_uses_all_actual_children_not_incidental_writes(){
+    for (body,touch,expected) in [
+        ("  update jobs[job] {status:'finished'}\n  if touch:\n    update tasks[otherTask] {stage:'raw'}",false,false),
+        ("  update jobs[job] {status:'finished'}\n  if touch:\n    update tasks[otherTask] {stage:'done'}",true,false),
+        ("  update jobs[job] {status:'finished'}\n  update tasks[otherTask] {stage:'raw'}",true,false),
+        ("  update jobs[job] {status:'finished'}\n  for t in tasks where .job = job:\n    update tasks[t.id] {stage:'done'}",true,true),
+        ("  update jobs[job] {status:'finished'}\n  for t in tasks where .job = job and .id = otherTask:\n    update tasks[t.id] {stage:'done'}",true,false),
+    ]{
+        let source=lifecycle_source(body,"  update tasks[task] {stage:'done'}");
+        let args=BTreeMap::from([("job".into(),Value::Id("a".into())),("otherTask".into(),Value::Id(if body.contains(".id = otherTask"){"t1"}else{"u"}.into())),("touch".into(),Value::Bool(touch))]);
+        let observations=lifecycle_observations(source,"finish",args,"active","active");
+        assert!(observations.iter().any(|(site,allowed)|site.contains("child-stage")&&*allowed==Some(expected)),"{body}: {observations:?}");
+    }
+}
+#[test]fn parent_window_coupling_requires_the_exact_changed_parent(){
+    for (body,touch,parent,astate,bstate,expected) in [
+        ("  if touch:\n    update jobs[otherJob] {data:1}\n  update tasks[task] {stage:'done'}",false,"b","estimate","active",false),
+        ("  if touch:\n    update jobs[otherJob] {status:'finished'}\n  update tasks[task] {stage:'done'}",true,"b","estimate","active",false),
+        ("  update jobs[otherJob] {status:'finished'}\n  update tasks[task] {stage:'done'}",true,"a","finished","active",false),
+        ("  update jobs[otherJob] {status:'finished'}\n  update tasks[task] {stage:'done'}",true,"a","active","active",true),
+        ("  other = jobs[otherJob] ! else MISSING\n  require other.status = 'active' else BAD_STAGE\n  update tasks[task] {stage:'done'}",false,"b","estimate","active",false),
+    ]{
+        let source=lifecycle_source("  update jobs[job] {status:'finished'}",body);
+        let args=BTreeMap::from([("task".into(),Value::Id("t1".into())),("otherJob".into(),Value::Id(parent.into())),("touch".into(),Value::Bool(touch))]);
+        let observations=lifecycle_observations(source,"advance",args,astate,bstate);
+        assert!(observations.iter().any(|(site,allowed)|site.contains("parent-state")&&*allowed==Some(expected)),"{body}: {observations:?}");
     }
 }
 
