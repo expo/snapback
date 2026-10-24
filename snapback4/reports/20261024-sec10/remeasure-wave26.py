@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import os
 """Replay the bakeoff's independent one-line intents on automatically removed copies."""
 import argparse,concurrent.futures,hashlib,json,pathlib,shutil,subprocess,tempfile
 p=argparse.ArgumentParser();p.add_argument('--binary',required=True);p.add_argument('--out',required=True);a=p.parse_args();out=pathlib.Path(a.out);out.mkdir(parents=True,exist_ok=True)
@@ -11,9 +12,9 @@ def measure(label):
   schema=schema.replace('invariant fittings.status update only .prescriptionDate >= now - 182d','invariant fittings.orderGarment only .prescriptionDate >= now - 182d');texts=[(name,schema if name=='schema.q' else text) for name,text in texts]
  spec_line=max(i+1 for i,l in enumerate(schema.splitlines()) if l.startswith('invariant '));site=f'schema.q:{spec_line}:1'
  with tempfile.TemporaryDirectory(prefix='sb4-sec10-finding-') as tmp:
-  root=pathlib.Path(tmp);(root/'snapback').mkdir()
+  root=pathlib.Path(tmp);(root/'snapback').mkdir();(root/'native-scratch').mkdir()
   for name,text in texts:(root/'snapback'/name).write_text(text)
-  r=subprocess.run(['timeout','--kill-after=5s','600',binary,'test'],cwd=root,capture_output=True,text=True)
+  r=subprocess.run(['timeout','--kill-after=5s','600',binary,'test'],cwd=root,env={**os.environ,'TMPDIR':str(root/'native-scratch')},capture_output=True,text=True)
   witnesses=[]
   for line in r.stdout.splitlines():
    if line.startswith('security violation: '):

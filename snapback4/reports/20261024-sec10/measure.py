@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
+import os
 """Frozen source copies, fresh and post-test production attempts; no live servers."""
 import argparse, concurrent.futures, hashlib, json, pathlib, shutil, subprocess, tempfile, time
-p=argparse.ArgumentParser();p.add_argument('--binary',required=True);p.add_argument('--out',required=True);p.add_argument('--waves',default='15,16,18,19,20,21,22,23,24,25,26');p.add_argument('--filter',default='');p.add_argument('--workers',type=int,default=16);p.add_argument('--check-only',action='store_true');a=p.parse_args()
+p=argparse.ArgumentParser();p.add_argument('--binary',required=True);p.add_argument('--out',required=True);p.add_argument('--waves',default='15,16,18,19,20,21,22,23,24,25,26');p.add_argument('--filter',default='');p.add_argument('--workers',type=int,default=16);p.add_argument('--check-only',action='store_true');p.add_argument('--strip-intent',action='store_true');a=p.parse_args()
 out=pathlib.Path(a.out);out.mkdir(parents=True,exist_ok=True);home=pathlib.Path.home()/'sb4-loop'
 items=[(wave,folder) for wave in map(int,a.waves.split(',')) for folder in sorted((home/f'wave{wave}/apps').glob('*/snapback')) if list(folder.glob('*.q')) and (not a.filter or any(folder.parent.name.startswith(n+'-') for n in a.filter.split(',')))]
 def measure(item):
  wave,folder=item
  with tempfile.TemporaryDirectory(prefix='sb4-sec10-measure-') as temporary:
-  root=pathlib.Path(temporary);(root/'snapback').mkdir()
+  root=pathlib.Path(temporary);(root/'snapback').mkdir();(root/'native-scratch').mkdir()
   texts=[(q.name,q.read_text()) for q in sorted(folder.glob('*.q'))]
+  if a.strip_intent:texts=[(name,'\n'.join(line for line in text.splitlines() if not line.lstrip().startswith('invariant '))+'\n') for name,text in texts]
   for name,text in texts:(root/'snapback'/name).write_text(text)
   # Retain authored JSONL fixture data, but no generated evidence/dispositions.
   fixture=folder.parent/'fixtures'
@@ -16,7 +18,7 @@ def measure(item):
    for q in fixture.rglob('*.jsonl'):
     target=root/'fixtures'/q.relative_to(fixture);target.parent.mkdir(parents=True,exist_ok=True);shutil.copy2(q,target)
   def run(args,limit):
-   started=time.monotonic();r=subprocess.run(['timeout','--kill-after=5s',str(limit),binary,*args],cwd=root,capture_output=True,text=True)
+   started=time.monotonic();r=subprocess.run(['timeout','--kill-after=5s',str(limit),binary,*args],cwd=root,env={**os.environ,'TMPDIR':str(root/'native-scratch')},capture_output=True,text=True)
    return r,round(time.monotonic()-started,3)
   check,seconds=run(['check','--json'],120)
   try:report=json.loads(check.stdout)
@@ -45,7 +47,7 @@ def measure(item):
   return row
 with tempfile.TemporaryDirectory(prefix='sb4-sec10-binary-') as private:
  original=pathlib.Path(a.binary).resolve();snapshot=pathlib.Path(private)/'snapback4';shutil.copy2(original,snapshot);binary=str(snapshot)
- (out/'measurement.json').write_text(json.dumps(dict(binarySha256=hashlib.sha256(snapshot.read_bytes()).hexdigest(),projects=len(items),waves=a.waves,checkOnly=a.check_only),indent=2)+'\n')
+ (out/'measurement.json').write_text(json.dumps(dict(binarySha256=hashlib.sha256(snapshot.read_bytes()).hexdigest(),projects=len(items),waves=a.waves,checkOnly=a.check_only,stripIntent=a.strip_intent),indent=2)+'\n')
  results=[]
  with concurrent.futures.ThreadPoolExecutor(max_workers=a.workers) as pool:
   for f in concurrent.futures.as_completed([pool.submit(measure,item) for item in items]):
