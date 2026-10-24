@@ -19,7 +19,7 @@ fn engine_with_json(pg: bool, payload: bool) -> (Engine, String, String) {
 fn engine_with_payload(pg: bool, payload: bool, text_nul: bool) -> (Engine, String, String) {
     engine_with_message_count(pg, payload, text_nul, 3)
 }
-fn engine_with_message_count(pg: bool, payload: bool, text_nul: bool, messages: usize) -> (Engine, String, String) {
+pub(in crate::engine) fn engine_with_message_count(pg: bool, payload: bool, text_nul: bool, messages: usize) -> (Engine, String, String) {
     let source = if payload {
         source().replace(
             "  body: text <=4000",

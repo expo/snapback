@@ -18,13 +18,14 @@ mod log_schema;
 mod outbox_store;
 mod prefetch;
 mod tail;
+mod revision;
 mod group_tail;
 mod batch;
 pub mod literal;
 mod flight;
 mod pipeline;
 pub(crate) mod read_plan;
-mod read_closure;
+pub(super) mod read_closure;
 #[cfg(test)]
 mod literal_tests;
 mod through;
@@ -250,7 +251,7 @@ impl PostgresEngine {
         let data = runner.run(program)?;
         runner.charge_output(&data)?;
         let (delivery, delivery_meter) = match manifest { super::DeliveryManifest::Build => runner.delivery_manifest(&data), super::DeliveryManifest::Skip => (None, None) };
-        let outcome = QueryOutcome { decoration_expiry: runner.decoration_expiry, search_rows: runner.search_rows.take(), search_scopes: None, delivery, delivery_meter, ephemeral: None,
+        let outcome = QueryOutcome { cache_lifetime: Default::default(), decoration_expiry: runner.decoration_expiry, search_rows: runner.search_rows.take(), search_scopes: None, delivery, delivery_meter, ephemeral: None,
             unavailable: runner.query_unavailable, pending_opening: runner.pending_opening.clone(),
             complete: runner.meter.capped_at.is_none()
                 && runner.word_cut_at.is_none()
@@ -573,7 +574,7 @@ mod evolution_admission;
 mod evolution_schema;
 mod evolution_inventory;
 mod narrowed;
-mod profile;
+pub(super) mod profile;
 
 mod deployment;
 

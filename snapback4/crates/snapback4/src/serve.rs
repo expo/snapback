@@ -1178,7 +1178,7 @@ fn handle(mut request: Request, shared: &Shared) {
             let manifest = if scope == snapback4_core::identity::SessionScope::Read { snapback4_core::engine::DeliveryManifest::Skip } else { snapback4_core::engine::DeliveryManifest::Build };
             let presence_of = |engine: &Engine, name: &str| engine.schema().operations.get(name).is_some_and(|fact| fact.sites.iter().any(|site| site.kind == "presence"));
             let viewer = principal.clone();
-            let mut context = Context::new(&principal, args).at(request_now.unwrap_or_else(|| shared.now())).with_request_credential(&credential_kind);
+            let mut context = Context::new(&principal, args).at(request_now.unwrap_or_else(|| shared.now())).with_request_credential(&credential_kind).with_revision_cache(!shared.personas && !shared.staging);
             if path.starts_with("/q/") {
                 let provenance = payload.get("provenance").and_then(Json::as_bool) == Some(true);
                 if provenance { context = context.with_row_provenance(); }

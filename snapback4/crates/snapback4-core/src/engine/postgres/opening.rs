@@ -184,6 +184,7 @@ impl Handle {
 
 pub(super) fn initialize(tx: &Tx<'_>, schema: &Schema) -> Result<(), RuntimeError> {
     super::activation_schema::verify_core(tx)?;
+    super::revision::initialize(tx)?;
     // Apply the evaluator's portable key bound before accepting an existing
     // generation, as well as on each shared row/index write.
     if let Some(row) = tx.query(

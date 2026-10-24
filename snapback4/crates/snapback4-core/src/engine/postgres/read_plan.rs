@@ -73,7 +73,7 @@ impl Answers {
         })
     }
 }
-pub(crate) enum Plan { Composed(super::read_closure::Closure), Sequence(Sequence) }
+pub(crate) enum Plan { Composed(super::read_closure::Closure), Sequence(Sequence), Validation }
 impl Plan {
     pub fn new(schema:&Schema,program:&Program,context:&Context)->Option<Self> {
         // The two physical paths share the interpreter, without retaining two
@@ -82,10 +82,10 @@ impl Plan {
         Sequence::new(schema,program,context).map(Self::Sequence)
     }
     pub fn execute(self,tx:&Tx<'_>,digest:&str)->Result<crate::identity::facts::SessionFacts,RuntimeError> {
-        match self {Self::Composed(plan)=>plan.execute(tx,digest),Self::Sequence(plan)=>plan.execute(tx,digest)}
+        match self {Self::Composed(plan)=>plan.execute(tx,digest),Self::Sequence(plan)=>plan.execute(tx,digest),Self::Validation=>tx.result_validation(digest)}
     }
     pub(super) fn finish(self,tx:&Tx<'_>)->Result<(),RuntimeError> {
-        match self {Self::Sequence(plan)=>plan.finish(tx),Self::Composed(_)=>Err(RuntimeError::Store("completed composed read plan".into()))}
+        match self {Self::Sequence(plan)=>plan.finish(tx),Self::Composed(_)|Self::Validation=>Err(RuntimeError::Store("completed composed read plan".into()))}
     }
 }
 struct Root { access: Access, fields: BTreeMap<String,Value> }

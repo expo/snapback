@@ -594,4 +594,4 @@ mod oracles;
 mod session_clock;
 pub(in crate::engine) mod maintained_columns;
 
-mod read_closure;
+pub(in crate::engine) mod read_closure;

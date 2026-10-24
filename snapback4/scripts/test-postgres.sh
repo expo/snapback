@@ -68,6 +68,7 @@ cargo test --locked -p snapback4-core --features postgres --lib engine::postgres
 # including the decoder's non-Postgres malformed-payload witnesses.
 cargo test --locked -p snapback4-core --features postgres --lib engine::postgres::pipeline -- --include-ignored --nocapture || status=1
 cargo test --locked -p snapback4-core --features postgres --lib read_closure -- --include-ignored --nocapture || status=1
+cargo test --locked -p snapback4-core --features postgres --lib engine::revision_cache -- --include-ignored --nocapture --test-threads 1 || status=1
 cargo test --locked -p snapback4-core --features postgres --lib change_evidence -- --include-ignored --nocapture || status=1
 cargo test --locked -p snapback4-core --features postgres --lib engine::postgres::literal_tests -- --include-ignored --nocapture || status=1
 cargo test --locked -p snapback4-core --features postgres --lib engine::postgres::ownership::tests -- --include-ignored --nocapture || status=1

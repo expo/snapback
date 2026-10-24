@@ -58066,7 +58066,7 @@ env -u FORCE_COLOR CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_T
 
 All 862 Rust executions pass, including core disclosure 30, device disclosure
 19, device written_by 17 and language written_by 9. Pricing compile-fail
-qualification passes all 14 cases. Client tests: 1,089 passed across all eight
+qualification passes all 15 cases. Client tests: 1,089 passed across all eight
 processes (1,055 main + 34 sharded), 0 failed, 10 skipped. Postgres feature
 qualification: 3 passed, 9 explicit live-service ignores; no live service used.
 The reference audit passes with 507 LLP docs, 9,248 refs, zero errors and zero
@@ -106683,3 +106683,81 @@ committed. Private PG16 masters 2332629 and 2988427 are confirmed stopped
 recorded free space is 42.28 GiB; the 40 GiB floor never triggers. Only owned
 obsolete build artifacts are reclaimed. All commits remain local, with no push
 or Git configuration change, and no q24 files or shared PG17 processes touched.
+
+
+### 2026-10-24 — G5: complete revisions and one-flight equality validation
+
+The RCPU work is rebased onto the requested October write/PIPE stack through
+115be62c28, using the relay's `sb4-pg/main-mirror` because its `main` still points
+to August. RCPU tip 3bce649288 becomes 605a0f1422. JOURNAL entries are unioned and
+RFC Revised entries merged. Before G5, build, full core (1,170 passed / 0 failed /
+5 ignored, 49 targets) and full binary (588 passed / 0 failed / 49 ignored) pass;
+no separate rebase repair is needed. Work remains on local branch `sb4-pg/g5`.
+
+Postgres `_head.revision` now records completed members in the committer's
+existing physical transaction and head order, including receipt-only and solo
+family writes. Groups count completed members; aborted frames restore the count.
+Ownership lease traffic is the explicit exception. Cache fills borrow the ordinary
+query snapshot; hits compare immutable revision/head/identity/code to one fresh
+statement, then use the existing Rust authority resolver with a fresh clock.
+There is no promotion, footprint, install gate, retained authority or read grant.
+SQLite remains on ordinary reads because it lacks a complete durable revision
+stream. Existing PG profile exclusions remain enforced.
+
+Two-touch admission, eviction, principal/fill/entry limits, 448 MiB charged
+per-store retention and 512 MiB process retention bound the cache. Reservations
+follow fill and hit responses after eviction. Actual source metadata is charged;
+hidden delivery backing bypasses. Time/lifetimes, presence/ephemeral state,
+native work, retained search and internal structured arguments stay ineligible.
+Opening metadata binds an explicit empty native digest correctly, and both local
+adoption paths retire the old code epoch. Key canonicalization uses a copy so
+ambiguous aliases keep their ordinary authorized refusal.
+
+The 15 cache witnesses cover all member kinds and concrete fenced family writes,
+actual session lifecycle, group atomicity, interleaved fills, fresh authority and
+clock-only expiry, maintain/expiry/activation, takeover, exclusions, bounded
+retention/eviction, NUL/encoding and key identity. Five temporary negative controls
+produce runtime failures (reuse disabled, revisions suppressed, encoding guard
+bypassed, mutating alias planning, and unbound native identity). A separate named
+validation pilot fails the unchanged RT0 warm-equality assertion: its cold PREPARE
+adds a second flight on the first hit. The final typed validation uses one flight
+including first use. Both RT0 ratchets pass unchanged: PG W1/W2/W3 1/1/1,
+SQLite 5/5/132. Additional assertions cover serialized outcomes and source masks
+against SQLite as well as fresh response store identity.
+
+Qualified release C128 W1/W2/W3 rates are 17,523/10,838/10,431 reads/s versus
+17,887/10,396/5,547 before. Server CPU/read is 285/267/279 µs versus 272/430/1,053;
+PG CPU/read is 260/656/662 µs versus 242/456/835. Hit rates are approximately
+0%/95.97%/98.06%. The 3/2/1 physical-core split gives W2/W3 9,344/8,787, versus
+10,487/3,820; PG validation CPU is now the limit. The faster prepared pilot reaches
+18,219/17,673 on that split but is explicitly disqualified by first-use RT0.
+G6 is needed on the currently qualified path for 16k/16k, or an alternative
+one-flight reusable-plan mechanism must qualify separately. No delayed-link or
+matched S1 campaign claim is made.
+
+All final windows have zero request errors and retain per-window one-minute loads,
+CPU/read and hit rates in `reports/20261024-g5/REPORT.md`. One window overlapped an
+owned core launch after the gate resumed; it is excluded and repeated on the same
+warm process under an explicit hold. The initial no-fill deployment pilot and the
+128 MiB capacity/eviction pilot are retained, not selected away. Raw logs/profiles
+remain outside the repository.
+
+Final core: 1,170 passed / 0 failed / 5 ignored across 49 targets. Final binary:
+588 passed / 0 failed / 49 ignored. Both unchanged RT0 ratchets pass 2/0 and the final cache suite passes 15/0.
+The full Postgres script reports 734 passed / 2 failed across 35 Rust targets:
+the inherited evaluator 40001 and a broad `_head` fault fixture that intercepted
+the new revision update before its intended public-tail fault. The fixture now
+allows unchanged-seq updates, retains all seven tail-count assertions and adds
+revision rollback assertions; its focused rerun passes 1/0. The new solo revision
+failure witness passes as well, proving the existing pre-COMMIT flush rolls back
+data when revision advancement is suppressed. No production-code repair is needed.
+The complete script is not rerun after the test-only repair; only 40001 remains
+unresolved. Public serving passes and confirms its private PG16 cluster stopped.
+Minimal Postgres feature check passes. Root ref-check passes 567 docs / 11,901
+refs with zero errors or unchecked references.
+Private PG16 masters 3263997 and 127396 are independently confirmed stopped
+(status=3, no postmaster.pid, no process); the owned PID/start-tick audit is empty.
+Automated free-space minimum is 41.85 GiB; an earlier manual observation is about
+41.6 GiB. The 40 GiB floor never triggers, and only owned inactive target artifacts
+are reclaimed. All commits remain local with the requested author/committer; no
+push or Git configuration change, q24 file access, or shared PG17 change.

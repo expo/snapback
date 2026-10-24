@@ -33,7 +33,7 @@ CREATE INDEX IF NOT EXISTS _read_sessions_family ON _read_sessions(principal, fa
 pub(super) const VERSION: &str = "snapback4-postgres-evaluation-3";
 pub(super) const DDL: &str = "
 CREATE TABLE _backend (singleton BOOLEAN PRIMARY KEY CHECK(singleton), version TEXT NOT NULL, schema TEXT NOT NULL, programs TEXT NOT NULL);
-CREATE TABLE _head (singleton BOOLEAN PRIMARY KEY CHECK(singleton), seq BIGINT NOT NULL CHECK(seq >= 0));
+CREATE TABLE _head (singleton BOOLEAN PRIMARY KEY CHECK(singleton), seq BIGINT NOT NULL CHECK(seq >= 0), revision BIGINT NOT NULL DEFAULT 0 CHECK(revision >= 0));
 INSERT INTO _head VALUES (true, 0);
 CREATE TABLE r (t TEXT COLLATE \"C\" NOT NULL, id TEXT COLLATE \"C\" NOT NULL, data TEXT NOT NULL, PRIMARY KEY(t,id));
 CREATE TABLE i (t TEXT COLLATE \"C\" NOT NULL, ix TEXT COLLATE \"C\" NOT NULL, k BYTEA NOT NULL, id TEXT COLLATE \"C\" NOT NULL, PRIMARY KEY(t,ix,k));
@@ -146,7 +146,7 @@ impl Store {
             Some(WriteMode::Serializable) => "BEGIN ISOLATION LEVEL SERIALIZABLE READ WRITE;",
         };
         let inner = super::flight::Session { client: &mut self.client, pending: begin.into(), started: false, done: false, settings_refused: false, checks: Vec::new() };
-        let tx = Tx { read_sessions: &self.read_sessions, read_sessions_installed: Cell::new(false), unified: self.unified, commit_warning: &self.commit_warning, inner: RefCell::new(inner),
+        let tx = Tx { durable_write: mode.is_some(), revisions: Cell::new(0), read_sessions: &self.read_sessions, read_sessions_installed: Cell::new(false), unified: self.unified, commit_warning: &self.commit_warning, inner: RefCell::new(inner),
             bind_refused: Cell::new(false), program_deadline: Cell::new(deadline), read_cache: RefCell::new(super::read_plan::Answers::default()), pending_read: RefCell::new(None), receipt_cache: RefCell::new(None), placement_cache: RefCell::new(None), authority_cache: RefCell::new(None), commit_settings: Cell::new(false), literal_cache: RefCell::new(&mut self.literal_cache), cache: RefCell::new(&mut self.cache), calls: &self.calls, marked_reads: &self.marked_reads, page_reads: &self.page_reads, prefetch_rows: &self.prefetch_rows, prefetch_bytes: &self.prefetch_bytes,
             rows_cache: RefCell::new(super::prefetch::Cache::default()), prefetch_enabled: self.prefetch, head: Cell::new(None), serialized_head: Cell::new(false), tail: RefCell::new(super::tail::Tail::default()), group_head: Cell::new(None), group_tails: RefCell::new(Vec::new()), group_images: Default::default(), changes: Default::default(), savepoints: RefCell::new(Vec::new()) };
         if self.unified && mode.is_some() {
@@ -387,6 +387,8 @@ impl Tx<'_> {
 }
 
 pub struct Tx<'a> {
+    durable_write: bool,
+    pub(super) revisions: Cell<u64>,
     program_deadline: Cell<Option<std::time::Instant>>,
     pub(super) read_sessions: &'a Cell<bool>,
     pub(super) read_sessions_installed: Cell<bool>,
@@ -712,6 +714,13 @@ impl Tx<'_> {
         self.program_deadline.set(None);
         self.ensure_active()?;
         if self.inner.borrow().done { return Ok(()); }
+        // @ref LLP 3000.009.001.000.002#4.1 — solo administrative and legacy family writers join the same revision domain.
+        if self.unified && self.durable_write {
+            self.require_serialized_head_fence("commit durable revision")?;
+            if self.revisions.get() == 0 && self.group_head.get().is_none() {
+                self.defer_revision(1)?;
+            }
+        }
         self.flush_tail()?;
         let mut inner = self.inner.into_inner();
         if !self.commit_settings.get() {

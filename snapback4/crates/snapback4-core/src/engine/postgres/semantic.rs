@@ -17,7 +17,7 @@ impl Tx<'_> {
     pub(crate) fn savepoint(&self, name: &str) -> Result<(), RuntimeError> {
         validate_name(name)?;
         self.defer_control(&format!("SAVEPOINT {name}"))?;
-        self.savepoints.borrow_mut().push((name.into(), Checkpoint { head: self.head.get(), tail: self.tail.borrow().clone(), group_len: self.group_tails.borrow().len(), changes: self.changes.borrow().clone() }));
+        self.savepoints.borrow_mut().push((name.into(), Checkpoint { revisions: self.revisions.get(), head: self.head.get(), tail: self.tail.borrow().clone(), group_len: self.group_tails.borrow().len(), changes: self.changes.borrow().clone() }));
         Ok(())
     }
     pub(crate) fn release(&self, name: &str) -> Result<(), RuntimeError> {
@@ -29,6 +29,7 @@ impl Tx<'_> {
             self.group_member_complete();
             self.defer_control("RELEASE SAVEPOINT member")?;
         } else if name == "member" {
+            self.defer_revision(1)?;
             self.flush_tail_end("RELEASE SAVEPOINT member; SET LOCAL statement_timeout = 0; SET LOCAL lock_timeout = 0")?;
             self.commit_settings.set(true);
         } else { self.defer_control(&format!("RELEASE SAVEPOINT {name}"))?; }
@@ -44,6 +45,7 @@ impl Tx<'_> {
         let checkpoint = frames[index].1.clone();
         frames.truncate(index);
         self.head.set(checkpoint.head);
+        self.revisions.set(checkpoint.revisions);
         self.group_tails.borrow_mut().truncate(checkpoint.group_len);
         *self.tail.borrow_mut() = checkpoint.tail;
         *self.changes.borrow_mut() = checkpoint.changes;
@@ -102,6 +104,7 @@ impl ReceiptTransaction for Tx<'_> {
 
 #[derive(Clone)]
 pub(super) struct Checkpoint {
+    revisions: u64,
     head: Option<u64>,
     tail: super::tail::Tail,
     group_len: usize,

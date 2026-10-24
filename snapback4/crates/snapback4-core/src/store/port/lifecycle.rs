@@ -18,6 +18,15 @@ impl From<sqlite::Store> for AnyStore {
 
 
 impl AnyStore {
+    #[cfg(feature="postgres")]
+    pub(crate) fn result_validation_snapshot(&mut self,digest:&str)->Result<Option<ReadSnapshot<'_>>,RuntimeError> {
+        if digest.contains('\0') { return Ok(None); }
+        if let Self::Postgres(PostgresStore(handle))=self {
+            let (tx,facts)=handle.store.get_mut().planned_authority_transaction(digest,Some(crate::engine::postgres::read_plan::Plan::Validation))?;
+            return Ok(Some(ReadSnapshot {tx:AnyTx::Postgres(PostgresTx(tx)),authority:Some((digest.into(),facts))}));
+        }
+        Ok(None)
+    }
     pub fn memory() -> Result<Self, RuntimeError> { sqlite::Store::memory().map(|inner| Self::Sqlite(SqliteStore(inner))) }
     pub fn open(path: &Path) -> Result<Self, RuntimeError> { sqlite::Store::open(path).map(|inner| Self::Sqlite(SqliteStore(inner))) }
     pub fn open_read_only(path: &Path) -> Result<Self, RuntimeError> { sqlite::Store::open_read_only(path).map(|inner| Self::Sqlite(SqliteStore(inner))) }
@@ -143,6 +152,10 @@ impl AnyTx<'_> {
     pub(crate) fn begin_member_evidence(&self) { match self { Self::Sqlite(SqliteTx(tx)) => tx.begin_member_evidence(), #[cfg(feature = "postgres")] Self::Postgres(PostgresTx(tx)) => tx.begin_member_evidence() } }
 }
 impl ReadSnapshot<'_> {
+    #[cfg(feature="postgres")]
+    pub(crate) fn result_cache_facts(&self)->Option<&crate::identity::facts::SessionFacts> {
+        self.authority.as_ref().map(|(_,facts)|facts)
+    }
     pub(crate) fn finish_planned_reads(&self) -> Result<(),RuntimeError> {
         #[cfg(feature="postgres")]
         if let AnyTx::Postgres(PostgresTx(tx)) = &self.tx { tx.finish_planned_reads()?; }

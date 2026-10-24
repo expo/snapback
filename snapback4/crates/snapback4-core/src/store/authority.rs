@@ -70,6 +70,7 @@ fn fetch(conn: &rusqlite::Connection, digest: &str, read: bool, discovered: &std
                 return fetch(conn, digest, true, discovered);
             }
             let result = facts.get_or_insert_with(|| crate::identity::facts::SessionFacts {
+                revision: None,
                 head: 0, sessions: Vec::new(), current_generation: 0, worker_family: None,
                 worker_revision: None, family_revision: None, store_generation: None, store_id: None,
                 backend_generation: None, schema_hash: None, activation_hash: None, device_generation: None,

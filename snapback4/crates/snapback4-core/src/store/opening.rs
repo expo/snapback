@@ -7,6 +7,8 @@ pub(crate) use crate::store_port::OpeningMetadata as Metadata;
 impl Metadata {
     pub fn read(tx: &impl crate::metadata::MetadataReader) -> Result<Self, RuntimeError> {
         Ok(Self {
+            #[cfg(feature="postgres")]
+            native_digest: tx.release_native_digest()?,
             store_id: tx.store_identity()?.unwrap_or_default(),
             dev_effects: tx.release_value()?.is_none(),
         })
