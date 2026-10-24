@@ -106531,3 +106531,15 @@ This changes shared native execution and durable HTTP program admission, so
 the earlier complete and reader-only qualification remains recorded at its
 actual snapshots. The integrated write-path delta receives a fresh complete
 required qualification before delivery; no earlier result is relabelled.
+
+
+### Integration 24: batch authority regression and unchanged device
+
+After write-land merge `4dbc981bce`, the initial core library passes 754 tests
+with three declared ignores. A new differential compares serial execution
+with batch widths 2/4/12, including unauthorized column replacement, owner
+transfer, nullable creation, approval freezing, removal and thawing patches.
+Explicit sent/failed expectations and complete durable snapshots agree on
+SQLite; the private-PG counterpart joins qualification. Clean-source Wasm
+remains 737,990 gzip, budget 738,490 (exactly +500). Full merged qualification
+follows this test addition; earlier results keep their original bindings.

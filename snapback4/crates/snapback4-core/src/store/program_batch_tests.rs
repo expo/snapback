@@ -1340,3 +1340,71 @@ fn solo_authority_refusal_cannot_hide_unknown_physical_rollback() {
         "E_COMMIT_OUTCOME_UNKNOWN"
     );
 }
+
+
+// @ref LLP 3000.036.004.000#2-column-write-authority — batching retains creation, replacement and removal authority.
+fn grouped_column_security(pg: bool) {
+    let source = r#"table docs:
+  owner: principal
+  cell: text ? write <- .owner = viewer
+  approved: bool default false
+  immutable cell when .approved = true
+  public 'batch security fixture'
+  insert <- allow
+  update <- allow
+  online only
+mutation setup():
+  insert docs {id:'doc',owner:viewer,cell:'original'}
+mutation put(id: docs, owner: principal, cell: text ?):
+  return upsert docs[id] {owner,cell}
+mutation edit(id: docs, owner: principal, cell: text ?):
+  return update docs[id] {owner,cell}
+mutation approve(id: docs):
+  return update docs[id] {approved:true}
+mutation thaw(id: docs, cell: text ?):
+  return update docs[id] {approved:false,cell}
+"#;
+    let cases = [
+        ("edit", "bob", "doc", "alice", Some("forged"), false),
+        ("edit", "bob", "doc", "bob", Some("takeover"), false),
+        ("edit", "alice", "doc", "alice", Some("edited"), true),
+        ("approve", "alice", "doc", "alice", None, true),
+        ("thaw", "alice", "doc", "alice", Some("thawed"), false),
+        ("edit", "alice", "doc", "alice", None, false),
+        ("put", "alice", "doc", "alice", Some("replaced"), false),
+        ("put", "bob", "spare", "alice", None, true),
+        ("edit", "bob", "spare", "alice", Some("forged"), false),
+        ("edit", "alice", "spare", "alice", Some("authorized"), true),
+        ("approve", "alice", "spare", "alice", None, true),
+        ("thaw", "alice", "spare", "alice", None, false),
+    ];
+    let intent = |i: usize| {
+        let (name, viewer, id, owner, cell, _) = cases[i];
+        let mut args = std::collections::BTreeMap::from([("id".into(), Value::Id(id.into()))]);
+        if matches!(name, "put" | "edit") { args.insert("owner".into(), Value::Id(owner.into())); }
+        if name != "approve" { args.insert("cell".into(), cell.map(|v| Value::String(v.into())).unwrap_or(Value::Null)); }
+        Invocation::new(name, (i % 2 == 0).then(||format!("column-op-{i}")), Context::new(viewer,args).at(1000))
+    };
+    let mut serial = fixture_source(pg, source);
+    let expected: Vec<_> = (0..cases.len()).map(|i| serial.invoke_program(&mut intent(i)).unwrap().outcome).collect();
+    for (case, outcome) in cases.iter().zip(&expected) {
+        assert_eq!(matches!(outcome.state, crate::WriteState::Sent {..}), case.5, "{case:?}: {outcome:?}");
+    }
+    let expected_snapshot = snapshot(&mut serial);
+    for width in [2, 4, 12] {
+        let mut grouped = fixture_source(pg, source);
+        let mut actual = Vec::new();
+        for start in (0..cases.len()).step_by(width) {
+            let mut members: Vec<_> = (start..(start+width).min(cases.len())).map(&intent).collect();
+            actual.extend(grouped.invoke_program_batch(&mut members).into_iter().map(|r|r.unwrap().outcome));
+        }
+        assert_eq!(actual, expected, "column authority/approval at batch width {width}");
+        assert_eq!(snapshot(&mut grouped), expected_snapshot, "durable history at batch width {width}");
+    }
+}
+#[test]
+fn grouped_column_security_sqlite() { grouped_column_security(false); }
+#[cfg(feature = "postgres")]
+#[test]
+#[ignore = "private PG16; column authority and conditional immutability across grouped execution"]
+fn grouped_column_security_postgres() { grouped_column_security(true); }

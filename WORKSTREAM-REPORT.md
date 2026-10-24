@@ -83,3 +83,10 @@ The actual default public native binary is rebuilt (SHA-256 `33d84264253bcc89130
 Compiler, device, simulator, SDK and root-guide sources are unchanged. Full five-crate, client pools, survey, replay, difftest and Exact receipts retain their actual tested snapshot binding; they are not relabelled as reruns at a later HEAD. New ref-check and inventories pass. All 150 original store-file byte hashes are rechecked unchanged at the end. Detailed commands, counts, content bindings, logs and cleanup receipts are in `snapback4/reports/integration24/post-main/`.
 
 Delivery: qualified for final fetch and nonforce `sb4-loop:main` push. Full `scripts/test.sh` remains unrun as instructed; no npm publication is claimed. The real application survey/replay exceptions above remain explicit.
+
+
+## Subsequent write-land merge: delivery held for fresh qualification
+
+The final fetch advanced main through `a41c2a0d0f`, adding shared native mutation/committer, overlay/group execution and durable HTTP admission changes. Merge `4dbc981bce` preserves both journal histories. Its mutation conflict uses upstream ProgramHost/Committer::run_program_until, which already keeps physical opening inside the committer; no direct Engine transaction is restored. Earlier complete and reader-only results stay bound to their actual snapshots. A new complete qualification is required before delivery.
+
+The initial core library passes 754 tests/3 declared ignores; a new grouped-versus-serial authority/conditional-immutability history passes on SQLite at widths 2/4/12, with an ignored private-PG counterpart queued. It covers unauthorized replacement, owner-transfer attempts, nullable creation, frozen replacement/removal and clearing approval while editing. Wasm remains 737,990 gzip; budget 738,490. Preparation logs are in `snapback4/reports/integration24/write-land-prep/`.
