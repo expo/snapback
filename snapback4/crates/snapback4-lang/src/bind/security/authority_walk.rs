@@ -158,7 +158,7 @@ pub(super) fn column_writes(catalog:&Catalog,p:&ProgramDecl,column:&str)->Vec<(E
 // Expand a helper's single guaranteed value for source analysis. Requirements
 // are already exported separately; branches, effects and unknown control flow
 // cannot supply a guessed return. This never executes or rewrites a program.
-fn returned(catalog:&Catalog,value:&Expr,depth:usize)->Expr{
+pub(super) fn returned(catalog:&Catalog,value:&Expr,depth:usize)->Expr{
     if depth>=32{return value.clone();}
     fn effectful(catalog:&Catalog,value:&Expr)->bool{let mut value=value.clone();let mut effect=false;super::super::intent_walk::expression(&mut value,&mut |e|match e{Expr::Write{..}=>effect=true,Expr::Call{name,..} if catalog.functions.contains_key(name)=>effect=true,_=>{}});effect}
     let mut value=value.clone();

@@ -46,7 +46,7 @@ fn nonnull_mode(p:&ast::ProgramDecl,arg:&str,branches:bool)->bool{p.body.iter().
     Expr::Binary{op,left,right,..} if op=="!="=>[(left.as_ref(),right.as_ref()),(right.as_ref(),left.as_ref())].iter().any(|(a,b)|matches!(a,Expr::Name{name,..} if name==arg)&&matches!(b,Expr::Literal{value:ast::Literal::Null,..})),_=>false,
 })}
 fn field_value<'a>(f:&'a ast::ObjectField)->Option<&'a Expr>{f.value.as_ref()}
-struct Write<'a>{p:&'a ast::ProgramDecl,op:WriteOp,table:String,fields:Vec<ast::ObjectField>,keys:Vec<ast::KeyPart>,site:Site,context:ast::ProgramDecl,gate:RuleExpr,conditional:bool,name:String}
+struct Write<'a>{p:&'a ast::ProgramDecl,catalog:&'a Catalog,op:WriteOp,table:String,fields:Vec<ast::ObjectField>,keys:Vec<ast::KeyPart>,site:Site,context:ast::ProgramDecl,gate:RuleExpr,conditional:bool,name:String}
 fn bound_role(bound:&Bound,catalog:&Catalog,info:&super::super::catalog::TableInfo,expr:&Expr,recipient:&str)->Option<RuleExpr>{
     let Expr::Exists{read,..}=expr else{return None;};
     // Bind a positive recipient probe after substituting only its principal.
@@ -80,7 +80,7 @@ pub(super) fn notes(sources:&[(String,String)],bound:&Bound)->Vec<Diagnostic>{
                 if let Ok(rule)=super::super::schema::bind_rule(&catalog,info,&ast::RuleDecl{effect:ast::Effect::Read,bindings:Vec::new(),value,site:site.clone()}){requirements.push(rule);}
             }
             let t=&bound.schema.tables[&table];let rule=match op{WriteOp::Update=>t.update_rule_judged().into_owned(),WriteOp::Upsert=>RuleExpr::Or(vec![t.rules.insert.clone(),t.update_rule_judged().into_owned()]),_=>t.rules.insert.clone()};
-            writes.push(Write{p,name:super::super::operation_name(std::path::Path::new(&p.site.file).file_stem().and_then(|s|s.to_str()).unwrap_or(""),&p.name),op,table,fields,keys,site,context,conditional:if_absent||condition.is_some(),gate:RuleExpr::And(requirements.into_iter().chain([rule]).collect())});
+            writes.push(Write{p,catalog:&catalog,name:super::super::operation_name(std::path::Path::new(&p.site.file).file_stem().and_then(|s|s.to_str()).unwrap_or(""),&p.name),op,table,fields,keys,site,context,conditional:if_absent||condition.is_some(),gate:RuleExpr::And(requirements.into_iter().chain([rule]).collect())});
         }
     }
     // @ref LLP 3000.036.004#168-typed-upsert-key-binding — reuse checked type-directed selection.

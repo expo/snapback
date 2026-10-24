@@ -375,6 +375,11 @@ fn campaign(s:&str)->Campaign{let b=security::derived::augmented(&sources(s),&bo
     assert!(notes(&source.replace("LOOP",prefix)).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
     let phantom="  for b in bookings first 10 by .id:\n    stop = true\n    for n in [1]:\n      stop = false\n    if stop:\n      require b.approved else APPROVAL\n";
     assert!(notes(&source.replace("LOOP",phantom)).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
+    for (value,body) in [("true","    if stop:\n      continue\n    require b.approved else APPROVAL\n"),("false","    if stop:\n      require b.approved else APPROVAL\n")]{
+        let loop_body=format!("  for b in bookings first 10 by .id:\n    stop = skip()\n{body}");let source=source.replace("LOOP",&loop_body)+&format!("fn skip(): {value}\n");assert!(notes(&source).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"),"helper returns {value}");
+    }
+    let caller=source.replace("mutation finish(trip: trips):","mutation finish(trip: trips,restricted: bool):").replace("LOOP","  for b in bookings first 10 by .id:\n    stop = choose(restricted)\n    if stop:\n      require b.approved else APPROVAL\n")+"fn choose(value: bool): value\n";
+    assert!(!notes(&caller).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
     let helper=source.replace("  update trips[trip] {status:'done'}","  setDone(trip)")+"fn setDone(trip: trips):\n  update trips[trip] {status:'done'}\n  return null\n";
     assert!(!notes(&helper.replace("LOOP","  for b in bookings first 10 by .id:\n    require b.approved else APPROVAL\n")).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
     for transfer in ["continue","break","return null"]{
