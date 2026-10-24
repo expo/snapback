@@ -19,3 +19,18 @@ This is a wall-clock flake that costs a full Mac publication cycle each time.
 Fix direction: make the test independent of wall-clock (assert with a work-bounded budget, e.g. a test-only
 flag or env for the exploration deadline, or `--security-full`-style deterministic exploration for this
 fixture), or make check's budget work-based rather than time-based.
+
+## 0.4.39 recurrence — 2026-10-23
+
+Mac publication dry run 1 for 0.4.39 at `d4441c83b6` failed only this test. It ran at the lower
+parallelism that passed 0.4.38 (`SNAPBACK4_RUST_TEST_PROCESSES=3`), with empty fixtures=true,
+check at 1,706.5 ms, and `0 proved, 0 refuted, 2 unproved`, so `Some(0) != Some(1)`. The M5's
+15-minute load average reached about 100 from other sessions during cargo test.
+
+- Alone, it passed 5/5 (3.2–4.1 s). The whole `snapback4` `security_wave19` target passed 3/3
+  (62–64 s).
+- Dry runs 2 and 3, at 2 Rust test processes, passed it.
+
+So the lower-parallelism workaround does not reliably avoid it. The test still needs a work-bounded
+fix. Evidence: `snapback4/reports/20261023-publication-0.4.39/kit/isolated/dr1/` and
+`kit/iso-dr1.log`.

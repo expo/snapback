@@ -1,0 +1,17 @@
+{
+  "status": "passed",
+  "guide": "staging",
+  "recipes": "verbatim installed card",
+  "roles": {
+    "admin": 2,
+    "member": 2
+  },
+  "mode": "serve",
+  "realPasswordLogin": "passed",
+  "data": "passed",
+  "selfGrant": "refused",
+  "productionBulkSeed": "refused before mint",
+  "productionRelabel": "refused",
+  "firstAdmin": "passed",
+  "privateCredentials": "0600"
+}

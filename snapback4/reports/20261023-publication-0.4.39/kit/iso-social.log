@@ -1,0 +1,7 @@
+run 1 rc=0 34 s load={ 7.62 8.17 9.39 } -- client file ok: packages/snapback4/test/social-starter.test.mjs (33294 ms) -- client files: 1/1; failed 0; tests {"tests":17,"pass":17,"fail":0,"cancelled":0,"skipped":0,"todo":0}  left=       0
+run 2 rc=0 32 s load={ 6.73 7.90 9.25 } -- client file ok: packages/snapback4/test/social-starter.test.mjs (31944 ms) -- client files: 1/1; failed 0; tests {"tests":17,"pass":17,"fail":0,"cancelled":0,"skipped":0,"todo":0}  left=       0
+run 3 rc=0 32 s load={ 6.53 7.73 9.14 } -- client file ok: packages/snapback4/test/social-starter.test.mjs (31570 ms) -- client files: 1/1; failed 0; tests {"tests":17,"pass":17,"fail":0,"cancelled":0,"skipped":0,"todo":0}  left=       0
+run 4 rc=0 33 s load={ 8.50 8.19 9.26 } -- client file ok: packages/snapback4/test/social-starter.test.mjs (32232 ms) -- client files: 1/1; failed 0; tests {"tests":17,"pass":17,"fail":0,"cancelled":0,"skipped":0,"todo":0}  left=       0
+run 5 rc=0 31 s load={ 6.99 7.88 9.11 } -- client file ok: packages/snapback4/test/social-starter.test.mjs (31521 ms) -- client files: 1/1; failed 0; tests {"tests":17,"pass":17,"fail":0,"cancelled":0,"skipped":0,"todo":0}  left=       0
+run 6 rc=0 33 s load={ 8.46 8.07 9.12 } -- client file ok: packages/snapback4/test/social-starter.test.mjs (32165 ms) -- client files: 1/1; failed 0; tests {"tests":17,"pass":17,"fail":0,"cancelled":0,"skipped":0,"todo":0}  left=       0
+iso-done

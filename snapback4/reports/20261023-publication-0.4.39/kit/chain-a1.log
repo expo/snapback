@@ -1,0 +1,8 @@
+2026-10-23T20:48:56Z native-1 start
+2026-10-23T20:54:16Z native-1: done
+2026-10-23T20:54:18Z post-native ok
+2026-10-23T20:54:51Z prepare-1: done
+2026-10-23T20:54:52Z expo-prep-check: prepared expo files 27 qualified 27 equal True
+2026-10-23T20:54:52Z lean-1: done
+2026-10-23T21:09:35Z warm-1: done
+2026-10-23T21:09:35Z chain done

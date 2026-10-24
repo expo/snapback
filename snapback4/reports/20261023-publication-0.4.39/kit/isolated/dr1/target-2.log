@@ -1,0 +1,17 @@
+
+running 11 tests
+test all_escalation_locations_survive_the_default_five_note_cap ... ok
+test column_only_policy_change_is_in_the_combined_json_release_preview ... ok
+test password_only_ephemeral_auth_refusals_pass_the_real_security_campaign ... ok
+test a_source_edit_after_fixture_loading_cannot_publish_refutations_for_the_new_source ... ok
+test populated_seed_failures_persist_without_quadratic_snapshot_duplication ... ok
+test check_refutes_excluded_contact_roles_before_any_full_test ... ok
+test followed_fixture_symlink_target_changes_invalidate_refutations ... ok
+test check_invalidates_positive_test_evidence_when_source_or_fixture_changes ... ok
+test rule_changing_deploy_preview_demands_a_campaign_and_prints_exposure ... ok
+test strict_rule_change_refuses_preview_and_activation_with_prominent_review ... ok
+test empty_and_absent_fixture_directories_both_generate_and_record_test_refutations has been running for over 60 seconds
+test empty_and_absent_fixture_directories_both_generate_and_record_test_refutations ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 64.05s
+
