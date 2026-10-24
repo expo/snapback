@@ -104839,3 +104839,13 @@ Updated only the core dependency lists in the three independent Postgres
 harness lockfiles (evaluator, commit-path and scale seed). No package version
 changes. All three pass `cargo metadata --locked`; the public stock sweep
 can retain `--locked` with the new direct reader dependencies.
+
+## 2026-10-24 — PIPE populated measurement and fallback fault witness
+
+The initial five-second samples use three messages per room, as the closure
+oracle does. The manual load fixture now separately seeds twenty per room
+for populated W2, keeping the correctness fixture unchanged. Added a real
+failed pipelined facts-statement witness: a temporary session view raises,
+then the existing post-failure hook restores storage and revokes the
+principal before ordinary fallback. The expected result is fresh `E_AUTH`.
+Production transport and interpreter bytes are unchanged.

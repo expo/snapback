@@ -17,6 +17,9 @@ fn engine_with_json(pg: bool, payload: bool) -> (Engine, String, String) {
     engine_with_payload(pg, payload, false)
 }
 fn engine_with_payload(pg: bool, payload: bool, text_nul: bool) -> (Engine, String, String) {
+    engine_with_message_count(pg, payload, text_nul, 3)
+}
+fn engine_with_message_count(pg: bool, payload: bool, text_nul: bool, messages: usize) -> (Engine, String, String) {
     let source = if payload {
         source().replace(
             "  body: text <=4000",
@@ -57,7 +60,7 @@ fn engine_with_payload(pg: bool, payload: bool, text_nul: bool) -> (Engine, Stri
             "memberships",
             json!({"id":format!("g{n}"),"room":room,"principal":viewer,"last_read":n/2}),
         ));
-        for m in 0..3 {
+        for m in 0..messages {
             rows.push(("messages",json!({"id":format!("m{n:04}-{m}"),"room":room,"sender":"u","at":m,"body":"a\tb ' \\ 雪"})));
         }
     }
@@ -517,7 +520,7 @@ fn g4a_fix1_nul_text_remains_legal_in_composed_reads() {
 fn pipeline_measure_w2_w3_128_clients() {
     if std::env::var("SNAPBACK4_PIPELINE_MEASURE").as_deref()!=Ok("1") { return; }
     use std::{sync::{Arc,Barrier},time::{Duration,Instant}};
-    let (pg,digest,viewer)=engine(true);
+    let (pg,digest,viewer)=engine_with_message_count(true,false,false,20);
     for name in ["W2","W3"] {
         let barrier=Arc::new(Barrier::new(129));
         let mut clients=Vec::new();
@@ -543,4 +546,27 @@ fn pipeline_measure_w2_w3_128_clients() {
         times.sort_unstable();
         println!("PIPELINE_MEASUREMENT {}",json!({"op":name,"depth":std::env::var("SNAPBACK4_POSTGRES_PIPELINE_DEPTH").unwrap_or("4".into()),"clients":128,"max_connections":30,"reads":times.len(),"seconds":seconds,"reads_per_second":times.len() as f64/seconds,"p50_ms":times[times.len()/2] as f64/1e6,"p99_ms":times[times.len()*99/100] as f64/1e6}));
     }
+}
+
+#[test]
+#[ignore = "private PG16; real failed pipeline facts statement and fresh fallback"]
+fn pipeline_read_closure_sql_failure_rechecks_revoked_authority() {
+    let (mut pg, digest, viewer) = engine(true);
+    let mut detached = pg.reader().unwrap();
+    // A view over the retained session row raises inside the real composed
+    // statement. The hook repairs the fixture and revokes authority only after
+    // that implicit transaction has failed, before ordinary fallback opens.
+    pg.store_mut().test_postgres_handle_mut().store.get_mut().client.batch_execute(
+        "ALTER TABLE _sessions RENAME TO _pipe_saved_sessions; CREATE VIEW _sessions AS SELECT * FROM _pipe_saved_sessions WHERE 1 / (pg_catalog.length(token_digest)-pg_catalog.length(token_digest)) = 1"
+    ).unwrap();
+    let revoked_viewer = viewer.clone();
+    super::super::read_closure::AFTER_FAILED_STATEMENT.with(|hook| *hook.borrow_mut() = Some(Box::new(move || {
+        pg.store_mut().test_postgres_handle_mut().store.get_mut().client.batch_execute(
+            "DROP VIEW _sessions; ALTER TABLE _pipe_saved_sessions RENAME TO _sessions"
+        ).unwrap();
+        identity::revoke_principal(pg.store(), &revoked_viewer).unwrap();
+    })));
+    let out = run(&mut detached, &digest, &viewer, "W3", BTreeMap::new(), true);
+    assert_eq!(out["out"]["Err"]["code"], "E_AUTH", "failed pipeline speculation must obtain fresh authority: {out}");
+    assert!(super::super::read_closure::AFTER_FAILED_STATEMENT.with(|hook| hook.borrow().is_none()), "the real SQL error must execute the fallback hook");
 }
