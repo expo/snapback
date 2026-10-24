@@ -1,0 +1,735 @@
+{
+  "planned_cells": 260,
+  "completed_cells": 260,
+  "complete": true,
+  "groups": [
+    {
+      "state": "fresh",
+      "link": "A",
+      "variant": "full",
+      "client": "single",
+      "completed_N": [
+        1,
+        4,
+        16,
+        32,
+        64
+      ],
+      "missing_N": []
+    },
+    {
+      "state": "fresh",
+      "link": "A",
+      "variant": "full",
+      "client": "producers",
+      "completed_N": [
+        1,
+        4,
+        16,
+        32,
+        64
+      ],
+      "missing_N": []
+    },
+    {
+      "state": "fresh",
+      "link": "A",
+      "variant": "no_ops",
+      "client": "single",
+      "completed_N": [
+        1,
+        4,
+        16,
+        32,
+        64
+      ],
+      "missing_N": []
+    },
+    {
+      "state": "fresh",
+      "link": "A",
+      "variant": "no_ops",
+      "client": "producers",
+      "completed_N": [
+        1,
+        4,
+        16,
+        32,
+        64
+      ],
+      "missing_N": []
+    },
+    {
+      "state": "fresh",
+      "link": "A",
+      "variant": "batch_tail",
+      "client": "single",
+      "completed_N": [
+        1,
+        4,
+        16,
+        32,
+        64
+      ],
+      "missing_N": []
+    },
+    {
+      "state": "fresh",
+      "link": "A",
+      "variant": "batch_tail",
+      "client": "producers",
+      "completed_N": [
+        1,
+        4,
+        16,
+        32,
+        64
+      ],
+      "missing_N": []
+    },
+    {
+      "state": "fresh",
+      "link": "A",
+      "variant": "r_only",
+      "client": "single",
+      "completed_N": [
+        1,
+        4,
+        16,
+        32,
+        64
+      ],
+      "missing_N": []
+    },
+    {
+      "state": "fresh",
+      "link": "A",
+      "variant": "r_only",
+      "client": "producers",
+      "completed_N": [
+        1,
+        4,
+        16,
+        32,
+        64
+      ],
+      "missing_N": []
+    },
+    {
+      "state": "fresh",
+      "link": "B",
+      "variant": "full",
+      "client": "single",
+      "completed_N": [
+        1,
+        4,
+        16,
+        32,
+        64
+      ],
+      "missing_N": []
+    },
+    {
+      "state": "fresh",
+      "link": "B",
+      "variant": "full",
+      "client": "producers",
+      "completed_N": [
+        1,
+        4,
+        16,
+        32,
+        64
+      ],
+      "missing_N": []
+    },
+    {
+      "state": "fresh",
+      "link": "B",
+      "variant": "no_ops",
+      "client": "single",
+      "completed_N": [
+        1,
+        4,
+        16,
+        32,
+        64
+      ],
+      "missing_N": []
+    },
+    {
+      "state": "fresh",
+      "link": "B",
+      "variant": "no_ops",
+      "client": "producers",
+      "completed_N": [
+        1,
+        4,
+        16,
+        32,
+        64
+      ],
+      "missing_N": []
+    },
+    {
+      "state": "fresh",
+      "link": "B",
+      "variant": "batch_tail",
+      "client": "single",
+      "completed_N": [
+        1,
+        4,
+        16,
+        32,
+        64
+      ],
+      "missing_N": []
+    },
+    {
+      "state": "fresh",
+      "link": "B",
+      "variant": "batch_tail",
+      "client": "producers",
+      "completed_N": [
+        1,
+        4,
+        16,
+        32,
+        64
+      ],
+      "missing_N": []
+    },
+    {
+      "state": "fresh",
+      "link": "B",
+      "variant": "r_only",
+      "client": "single",
+      "completed_N": [
+        1,
+        4,
+        16,
+        32,
+        64
+      ],
+      "missing_N": []
+    },
+    {
+      "state": "fresh",
+      "link": "B",
+      "variant": "r_only",
+      "client": "producers",
+      "completed_N": [
+        1,
+        4,
+        16,
+        32,
+        64
+      ],
+      "missing_N": []
+    },
+    {
+      "state": "warm",
+      "link": "A",
+      "variant": "full",
+      "client": "single",
+      "completed_N": [
+        1,
+        4,
+        16,
+        32,
+        64
+      ],
+      "missing_N": []
+    },
+    {
+      "state": "warm",
+      "link": "A",
+      "variant": "full",
+      "client": "producers",
+      "completed_N": [
+        1,
+        4,
+        16,
+        32,
+        64
+      ],
+      "missing_N": []
+    },
+    {
+      "state": "warm",
+      "link": "A",
+      "variant": "no_ops",
+      "client": "single",
+      "completed_N": [
+        1,
+        4,
+        16,
+        32,
+        64
+      ],
+      "missing_N": []
+    },
+    {
+      "state": "warm",
+      "link": "A",
+      "variant": "no_ops",
+      "client": "producers",
+      "completed_N": [
+        1,
+        4,
+        16,
+        32,
+        64
+      ],
+      "missing_N": []
+    },
+    {
+      "state": "warm",
+      "link": "A",
+      "variant": "batch_tail",
+      "client": "single",
+      "completed_N": [
+        1,
+        4,
+        16,
+        32,
+        64
+      ],
+      "missing_N": []
+    },
+    {
+      "state": "warm",
+      "link": "A",
+      "variant": "batch_tail",
+      "client": "producers",
+      "completed_N": [
+        1,
+        4,
+        16,
+        32,
+        64
+      ],
+      "missing_N": []
+    },
+    {
+      "state": "warm",
+      "link": "A",
+      "variant": "r_only",
+      "client": "single",
+      "completed_N": [
+        1,
+        4,
+        16,
+        32,
+        64
+      ],
+      "missing_N": []
+    },
+    {
+      "state": "warm",
+      "link": "A",
+      "variant": "r_only",
+      "client": "producers",
+      "completed_N": [
+        1,
+        4,
+        16,
+        32,
+        64
+      ],
+      "missing_N": []
+    },
+    {
+      "state": "warm",
+      "link": "B",
+      "variant": "full",
+      "client": "single",
+      "completed_N": [
+        1,
+        4,
+        16,
+        32,
+        64
+      ],
+      "missing_N": []
+    },
+    {
+      "state": "warm",
+      "link": "B",
+      "variant": "full",
+      "client": "producers",
+      "completed_N": [
+        1,
+        4,
+        16,
+        32,
+        64
+      ],
+      "missing_N": []
+    },
+    {
+      "state": "warm",
+      "link": "B",
+      "variant": "no_ops",
+      "client": "single",
+      "completed_N": [
+        1,
+        4,
+        16,
+        32,
+        64
+      ],
+      "missing_N": []
+    },
+    {
+      "state": "warm",
+      "link": "B",
+      "variant": "no_ops",
+      "client": "producers",
+      "completed_N": [
+        1,
+        4,
+        16,
+        32,
+        64
+      ],
+      "missing_N": []
+    },
+    {
+      "state": "warm",
+      "link": "B",
+      "variant": "batch_tail",
+      "client": "single",
+      "completed_N": [
+        1,
+        4,
+        16,
+        32,
+        64
+      ],
+      "missing_N": []
+    },
+    {
+      "state": "warm",
+      "link": "B",
+      "variant": "batch_tail",
+      "client": "producers",
+      "completed_N": [
+        1,
+        4,
+        16,
+        32,
+        64
+      ],
+      "missing_N": []
+    },
+    {
+      "state": "warm",
+      "link": "B",
+      "variant": "r_only",
+      "client": "single",
+      "completed_N": [
+        1,
+        4,
+        16,
+        32,
+        64
+      ],
+      "missing_N": []
+    },
+    {
+      "state": "warm",
+      "link": "B",
+      "variant": "r_only",
+      "client": "producers",
+      "completed_N": [
+        1,
+        4,
+        16,
+        32,
+        64
+      ],
+      "missing_N": []
+    },
+    {
+      "state": "generic",
+      "link": "A",
+      "variant": "full",
+      "client": "single",
+      "completed_N": [
+        1,
+        4,
+        16,
+        32,
+        64
+      ],
+      "missing_N": []
+    },
+    {
+      "state": "generic",
+      "link": "A",
+      "variant": "full",
+      "client": "producers",
+      "completed_N": [
+        1,
+        4,
+        16,
+        32,
+        64
+      ],
+      "missing_N": []
+    },
+    {
+      "state": "generic",
+      "link": "A",
+      "variant": "no_ops",
+      "client": "single",
+      "completed_N": [
+        1,
+        4,
+        16,
+        32,
+        64
+      ],
+      "missing_N": []
+    },
+    {
+      "state": "generic",
+      "link": "A",
+      "variant": "no_ops",
+      "client": "producers",
+      "completed_N": [
+        1,
+        4,
+        16,
+        32,
+        64
+      ],
+      "missing_N": []
+    },
+    {
+      "state": "generic",
+      "link": "A",
+      "variant": "batch_tail",
+      "client": "single",
+      "completed_N": [
+        1,
+        4,
+        16,
+        32,
+        64
+      ],
+      "missing_N": []
+    },
+    {
+      "state": "generic",
+      "link": "A",
+      "variant": "batch_tail",
+      "client": "producers",
+      "completed_N": [
+        1,
+        4,
+        16,
+        32,
+        64
+      ],
+      "missing_N": []
+    },
+    {
+      "state": "generic",
+      "link": "A",
+      "variant": "r_only",
+      "client": "single",
+      "completed_N": [
+        1,
+        4,
+        16,
+        32,
+        64
+      ],
+      "missing_N": []
+    },
+    {
+      "state": "generic",
+      "link": "A",
+      "variant": "r_only",
+      "client": "producers",
+      "completed_N": [
+        1,
+        4,
+        16,
+        32,
+        64
+      ],
+      "missing_N": []
+    },
+    {
+      "state": "generic",
+      "link": "B",
+      "variant": "full",
+      "client": "single",
+      "completed_N": [
+        1,
+        4,
+        16,
+        32,
+        64
+      ],
+      "missing_N": []
+    },
+    {
+      "state": "generic",
+      "link": "B",
+      "variant": "full",
+      "client": "producers",
+      "completed_N": [
+        1,
+        4,
+        16,
+        32,
+        64
+      ],
+      "missing_N": []
+    },
+    {
+      "state": "generic",
+      "link": "B",
+      "variant": "no_ops",
+      "client": "single",
+      "completed_N": [
+        1,
+        4,
+        16,
+        32,
+        64
+      ],
+      "missing_N": []
+    },
+    {
+      "state": "generic",
+      "link": "B",
+      "variant": "no_ops",
+      "client": "producers",
+      "completed_N": [
+        1,
+        4,
+        16,
+        32,
+        64
+      ],
+      "missing_N": []
+    },
+    {
+      "state": "generic",
+      "link": "B",
+      "variant": "batch_tail",
+      "client": "single",
+      "completed_N": [
+        1,
+        4,
+        16,
+        32,
+        64
+      ],
+      "missing_N": []
+    },
+    {
+      "state": "generic",
+      "link": "B",
+      "variant": "batch_tail",
+      "client": "producers",
+      "completed_N": [
+        1,
+        4,
+        16,
+        32,
+        64
+      ],
+      "missing_N": []
+    },
+    {
+      "state": "generic",
+      "link": "B",
+      "variant": "r_only",
+      "client": "single",
+      "completed_N": [
+        1,
+        4,
+        16,
+        32,
+        64
+      ],
+      "missing_N": []
+    },
+    {
+      "state": "generic",
+      "link": "B",
+      "variant": "r_only",
+      "client": "producers",
+      "completed_N": [
+        1,
+        4,
+        16,
+        32,
+        64
+      ],
+      "missing_N": []
+    },
+    {
+      "state": "unanalyzed",
+      "link": "A",
+      "variant": "full",
+      "client": "single",
+      "completed_N": [
+        1,
+        4,
+        16,
+        32,
+        64
+      ],
+      "missing_N": []
+    },
+    {
+      "state": "unanalyzed",
+      "link": "B",
+      "variant": "full",
+      "client": "single",
+      "completed_N": [
+        1,
+        4,
+        16,
+        32,
+        64
+      ],
+      "missing_N": []
+    },
+    {
+      "state": "current",
+      "link": "A",
+      "variant": "full",
+      "client": "single",
+      "completed_N": [
+        1,
+        4,
+        16,
+        32,
+        64
+      ],
+      "missing_N": []
+    },
+    {
+      "state": "current",
+      "link": "B",
+      "variant": "full",
+      "client": "single",
+      "completed_N": [
+        1,
+        4,
+        16,
+        32,
+        64
+      ],
+      "missing_N": []
+    }
+  ]
+}

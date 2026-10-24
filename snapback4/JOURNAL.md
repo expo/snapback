@@ -105787,3 +105787,212 @@ source-restoration receipts and measurement JSON stay outside Git under
 `/tmp/sb4-write-land-qualify/` and `/tmp/s10d3-serve-0lm3krdw/`.
 Only tests and this journal entry are committed. No push, stash, Git
 configuration change or existing-commit rewrite occurs.
+
+## 2026-10-23 — G3b/G8 composed statements and durable tail costs (Codex)
+
+Added the experiment-only `g3b` module to `postgres-commit-path`, measuring
+one typed composed counter read and one image-write/RETURNING statement at
+N=1/4/8/16/32/64, and full/no-receipt/batch-metadata/update-only durable
+stages at N=1/4/16/32/64. Uses Engine-created storage and indexes, with
+S1a revision/footprint tables, direct loopback TCP and a private PG16.15
+cluster on expo-build-1000 (`expose-builder-pixel`). S1b durability and
+resource settings were matched: fsync/synchronous_commit/full_page_writes
+on, fdatasync, commit_delay=0, shared_buffers=8 GiB, max_connections=300;
+measured-session statement/lock timeouts remain 5 s. Release builds used
+the lane-owned target directory and `-j 8`. No product code changed.
+
+[Full results and method](./experiments/postgres-commit-path/results-20261024-g3b-gate-loopback/README.md)
+(requested directory label; actual measurements 2026-10-23 18:52:50–18:58:31
+UTC). N=32 composed read/write EXPLAIN execution costs are 3.07/5.00
+µs/member; plain statement loopback costs are 5.36/6.41 µs/member. Fitting
+batch time = fixed + marginal × N to medians of three complete repetitions
+including durable COMMIT gives fixed/marginal µs: full 375.81/15.22;
+no `_ops` 356.03/11.34; batch metadata plus no `_ops` 350.02/8.32;
+`r` only 268.77/2.15. N=32 WAL bytes/member are 1145.25/765.59/350.41/78.66,
+respectively. All median marginal fits lie below the RFC's 70–93.75 µs
+allowance on this host/path; this cannot replace the 450a/450b whole-cycle
+fit or qualify a throughput/SLO claim.
+
+The cold FK-plan effect is preserved: run-0 full/no-receipt marginal fits
+are 458.29/457.31 µs/member and miss the allowance, versus 49.21 for packed
+metadata and 2.09 for update-only. Scan counters corroborate the sequential
+`_commits` scans followed by index lookups on fresh run-1/run-2 backends.
+The preliminary diagnostic retained one backend across repetitions;
+it was interrupted, its cluster stopped, and the final matrix reran with
+S1b's fresh-backend-per-repetition lifecycle. No cold final run was removed.
+Batch metadata retains every ordered image and all footprint keys but
+changes sequence/history representation; it is a cost bound requiring
+reader/history/invalidation/retention qualification. Keyed receipts remain
+required; update-only is just a physical floor. No pipelined-command control,
+semantic executor, full cycle, or vacuum/read-cost campaign is claimed.
+
+Validation: release build, rustfmt/diff checks, the short smoke, then all
+32 cells × 3 repetitions passed. Per-apply row counts and final counter,
+head/revision/pin, log image/order, footprint and keyed-receipt witnesses
+passed. Host 1/5/15-minute load ranges were 7.26–16.83 / 11.10–15.94 /
+11.92–13.28; no run was rejected for load. Raw JSON, EXPLAIN plans, settings,
+build/runner logs, analysis scripts and PID records remain outside Git at
+`/tmp/claude-1000/-home-ccheever-projects-snapback/3d04fc0c-0698-42a7-917c-2880afdea35c/scratchpad/g3b/`.
+Governing RFC revision 3 was read in `sb4-land2` on `sb4-pg/perf-rfc`;
+its snapshot and digest are recorded with the results. Only derived
+aggregates and the report are committed.
+
+Private postmasters 1047869, 1055138 and 1086874 all stopped; independent
+`pg_ctl status` returns 3, no postmaster.pid remains, and all 226 recorded
+owned PIDs are absent. The 25 GiB `/home` guard held; final check was
+26.24 GiB free. Only build caches created by this lane were reclaimed.
+No push, stash or Git configuration change.
+
+## 2026-10-23 — M1: W1/W2/W3 composed read cost, generic versus typed shadow
+
+Lane M1 on `sb4-pg/g3b-gate`, base `e26d1ebc95`; requested result label
+`20261024`, measured 2026-10-23 20:01:46–20:03:16 UTC. Followed revision 5
+of LLP 3000.009.001.000.002 from `sb4-land2` at `306f3f041e`, digest
+`f50c6927356df8dd…`; retained its snapshot when that worktree advanced.
+No product, adapter, schema, lowerer, authority policy or publication change.
+Report, complete four-arm tables, curated aggregates and parameterized SQL:
+[results-20261024-m1-reads-loopback](./experiments/postgres-commit-path/results-20261024-m1-reads-loopback/README.md).
+
+The release experiment binary seeded the real S1 schema through
+`Engine::seed_at`: 131,072 messages, 256 users, 1,025 rooms, 8,448 memberships
+(32 read + the seed's r1024 write membership per user), 257 counters and
+256 account sessions. Typed native tables/indexes copied those generic
+images; DDL plus FK-checked copy took 2.37 s. The one-statement controls
+return complete raw account authority/identity/generation/head, membership
+and program-row facts, leaving authorization and arithmetic in Rust.
+Positive fact/result/order and negative absence witnesses passed. Current
+warm source/RT0 baseline is 6 / 6 / 136 statements, not historical
+23 / 23 / 153; W3 retains 64 room size probes and 64 room fetches after
+prefetch. Replay shares prepared SQL handles just as the adapter does.
+
+Analyzed/force-generic server / loopback wall µs, with server measured by
+`EXPLAIN (ANALYZE, TIMING OFF) EXECUTE` on those exact handles:
+
+| Shape | Generic composed | Typed composed | Today's SQL sequence |
+| --- | ---: | ---: | ---: |
+| W1 | 80.05 / 120.10 | 68.37 / 107.25 | 128.65 / 380.37 |
+| W2 | 123.58 / 173.28 | 77.57 / 131.44 | 166.93 / 438.14 |
+| W3 | 265.70 / 315.31 | 169.23 / 209.64 | 2025.95 / 6245.03 |
+
+Generic / typed / sequence binary payload bytes are W1 674 / 575 / 884,
+W2 6336 / 5173 / 7342, W3 5575 / 3687 / 12326; DataRow framing is recorded
+separately. Same-window plain pg_stat_statements server counters, timing-on
+EXPLAIN, planning, run spreads, p99 and all plan arms remain visible.
+Analyzed/auto generic W2 custom-plans every execution: 391.5 µs planning and
+564.3 µs wall; forced-generic is 5.6 / 173.3. W3 sequence analyzed/auto
+reaches 16.12 ms mean and 19.98 ms worst observed p99. No large generic
+r/i sequential scan appears; typed W3 scans the 1,025-room table.
+
+Composition is the first W3 gain; A has an additional measured read case,
+including 18.36% / 33.87% less W2/W3 payload, but still owes EV-1/EV-2 and
+recurring fenced live-table activation costs. Delayed W2's 95.85 µs
+beyond-R allowance remains tight: typed instrumented server 77.57 leaves
+18.28 µs before other work, and loopback wall is 131.44. This is not an
+RTT/pool/SLO prediction. Measure admission/plan hygiene first, then
+revision-equality G5 if the loaded residual requires it; neither need nor
+sufficiency of G5 is proved here. W3's one-statement closure is promising
+against the delayed 16,000/s 645 µs remainder; a two-flight fallback still
+misses even at zero server cost. Its delayed 22,627/s challenge remains at
+risk. No loaded capacity or product qualification follows.
+
+Canonical matrix: fresh actual load/copy versus ANALYZE, auto versus
+force_generic_plan, 36 cells × 3 repetitions; 50 warm-up + 300 measured
+plain requests and 60 exact-handle EXPLAINs per timing mode per repetition.
+No optimizer-statistics reset in that fixture. PostgreSQL 16.15, S1b's
+8 GiB/300-connection/durable settings, measured 5 s statement/lock limits,
+direct loopback only. Release builds used the owned target and `-j 8`.
+Canonical load ranges (1/5/15 min) were 9.75–16.14 / 8.91–10.53 / 6.42–7.11;
+no run was discarded. Fixture tables froze auto-analysis for the plan arms;
+cluster autovacuum stayed on. Preliminary output-packing/EXPLAIN-wrapper
+and reset-statistics diagnostics remain private, distinct from the final
+natural-load/exact-handle matrix. No raw logs or credentials committed.
+
+Validation: all cells, fact/oracle/order/absence checks, exact statement-call
+and stable-byte witnesses, release build, rustfmt, Python compile, diff
+check and ref-check (566 LLPs, 11,830 refs, zero errors). Raw custody is
+`/tmp/claude-1000/-home-ccheever-projects-snapback/3d04fc0c-0698-42a7-917c-2880afdea35c/scratchpad/m1/`.
+Postmaster 1540291 stopped; all 215 recorded owned PIDs absent;
+`pg_ctl status`=3, no postmaster.pid or socket directory. The 25 GiB guard
+held; post-stop free space was 48.97 GiB. No push, stash or Git config change.
+
+## 2026-10-24 — M-suite: matched write attribution, flight witnesses, fill and reader pipelines
+
+[Full results](./experiments/postgres-commit-path/results-20261024-msuite/README.md)
+record M0/M2/M3/M1b under Accepted LLP 3000.009.001.000.002 §§3.4, 5–6,
+10.1, 10.7 and 12. Measurements ran on expo-build-450b, with S1-PG4's private
+PG16.15/durable settings, direct TCP, physical core split and A/B delay
+proxies. Actual controller interval: 2026-10-23 21:44 through October 24
+00:21 UTC. No product change or loaded engine-capacity claim.
+
+M0 completes 260 cells/52 fit groups, three repetitions each, N=1/4/16/32/64,
+fresh tiny-ANALYZE/reused backend, mature warm/new backend and forced generic,
+one client versus max(4,2N) producers with durable per-member acknowledgements.
+Warm producer e_total medians, full/no_ops/batch_tail/r_only, are
+37.91/32.84/23.58/12.03 µs per member on A and
+39.33/31.43/26.69/17.12 on B. Corresponding full-tail server marginals are
+31.55/38.82 µs. All 160 warm/generic cells have zero ledger seq-scan/tuple
+deltas in both intervals; all 60 contaminated cells are fresh RI arms and
+remain labeled. Current main already removed the legacy FK, so these arms
+restore it for attribution; ten current no-FK controls stay clean. Warm full
+A's 125.02 ms worst transaction p99 and earlier 297/404 ms tails remain
+visible. Per-run slopes, EXPLAIN/transaction/window components, WAL and
+write/sync time are retained. Experimental packed history is only a cost bound.
+
+The separate existing S1 engine arm checks 1,650 increments and measures
+561.79 µs per mutation (median of run means) of calling-thread CPU around
+Engine::mutate. Ingress session resolution is outside that timer; caller-side
+driver/codec/meter work is inside, background I/O and SQL wait outside. It is
+a solo-path CPU proxy, not incremental overlay interpreter CPU, and never
+additional observations in the harness regression. Host captures enclose its
+three repetitions together rather than individual repetition boundaries.
+
+All 21 M2 witnesses pass: raising fence first, post-head-lock fresh generation
+and receipt snapshots, zero-row count refusal, folded-flight aborts, deferred
+COMMIT failure, loss/unknown and reconciliation. PG16.15 applies the timeout
+per statement; bounded apply failure skips COMMIT. Explicit SET LOCAL
+statement_timeout=0 permits the deliberately slow COMMIT; the no-reset
+control also survives on this build and is disclosed. Equal-encoding simple
+N32 cycles, three→two flights, are 8.639→7.653 ms on A and 9.868→8.889 ms
+on B. The separately measured bound-apply three-flight comparator is
+6.443/7.932 ms. Codec and cluster-epoch differences forbid a protocol-only
+causal comparison. Retain three flights; two-flight product adoption still
+owes the parent retry/round-trip amendments and wider unknown-outcome rule.
+
+M3's 80 closed-loop simulator cells retain intended arrivals, C=32,
+effective-N histograms, queue age and deadline failures. Saturation immediate
+dispatch alternates N≈1/N≈31 nearly 100% of the time, effective N≈16;
+250 µs collection reaches 27.44 and 1 ms reaches 32, removing alternation.
+With the measured solo CPU proxy, only B's 400/s rung passes all three model
+repetitions; A 2,262/3,200 and B 1,600 fail. Zero-incremental-CPU sensitivities
+remain separate. No policy is accepted for product 3,200/s from this model.
+
+M1b completes 16 cells × three repetitions of independent extended queries,
+one Sync/query, depth 1/4/8/16 and NODELAY on/off. Native W2 facts, result
+association, error isolation and independent snapshot witnesses pass. Split
+frames/NODELAY off reproduce ~41/42 ms p50 A/B; coalescing or NODELAY removes
+the stall locally. NODELAY-on depth-4 isolated reads imply optimistic
+30-reader ceilings of 148,487/90,869 reads/s, versus depth-1 31,340/20,087;
+this is not a loaded 30-reader/admission/SLO qualification. Depth 8/16 on all
+30 readers also exceeds 128 external clients. The fixture is M1's 131,072
+messages, not S1's 1M seed. 450a's loads 11.55 then 17.01 exclude the optional
+cross-host arm; its q24 workload remains untouched.
+
+RFC branches selected: current-layout G2/G3/bounded G3b and plan hygiene;
+fill/CPU/service attribution before any A/F write migration; bounded reader
+pipelining/admission before conditional G5/G6/D. Warm server work is below
+the ≥100 µs/member commissioning trigger. Permanent A/F cancellation still
+requires the composed product cycle and G3's real change-evidence insert/prune
+tail confirmation. No G9 win follows from harness or model headroom.
+
+The shared-host disk guard stopped epoch 1 at 29.993 GiB, with all owned PIDs
+confirmed gone; space later fell to 4.768 GiB after shutdown. Only owned
+private data/credentials/unused build cache were removed. After recovery
+above 126 GiB and a quiet boundary, a fresh byte-identically configured
+cluster completed epoch 2 (99/161 M0 cells per epoch). Thirty foreign-load
+attempts, 17 idle-boundary failures, 33 earlier SQL-timing cells and the
+closed first epoch remain in external custody. Final normal shutdown,
+independent identity/path/port audits and credential cleanup pass; no owned
+benchmark PID remains. The independent measurement audit and ref-check
+(567 LLPs, 11,862 refs, zero errors) pass. Sources/raw evidence are archived
+outside Git with hashes. No raw logs committed; no push, stash or Git config
+change.

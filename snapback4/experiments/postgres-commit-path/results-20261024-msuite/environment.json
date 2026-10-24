@@ -1,0 +1,336 @@
+{
+  "m0_primary_cells": 260,
+  "m0_epochs": {
+    "1": 99,
+    "2": 161
+  },
+  "primary_plan_contaminated": 60,
+  "primary_warm_or_generic_contaminated": 0,
+  "earlier_sql_timing_cells": 33,
+  "foreign_overlap_m0_attempts": 30,
+  "idle_boundary_failures": 17,
+  "minimum_observed_free_bytes": 5119221760,
+  "loadavg_ranges": [
+    [
+      1.09,
+      19.7
+    ],
+    [
+      2.26,
+      14.04
+    ],
+    [
+      4.43,
+      10.54
+    ]
+  ],
+  "load_range_scope": "continuous shared-host watch across both epochs, including waits and setup",
+  "guard_history": [
+    {
+      "utc": 1792795821.8951278,
+      "free_bytes": 32204251136,
+      "reason": "User stop threshold: /home <30 GiB"
+    }
+  ],
+  "epoch2": {
+    "epoch": 2,
+    "utc": 1792796989.2647882,
+    "host": {
+      "utc": 1792796989.3070214,
+      "loadavg": "1.76 4.53 6.83 4/1057 3870406",
+      "free_bytes": 135877857280,
+      "top": [
+        {
+          "pid": 3870300,
+          "ppid": 1929452,
+          "comm": "fleet",
+          "cpu_percent": 129.28079345961228
+        },
+        {
+          "pid": 3870343,
+          "ppid": 3870300,
+          "comm": "opencode",
+          "cpu_percent": 129.28079345961228
+        },
+        {
+          "pid": 3870390,
+          "ppid": 3870284,
+          "comm": "claude",
+          "cpu_percent": 96.9605950947092
+        },
+        {
+          "pid": 3870392,
+          "ppid": 3870389,
+          "comm": "python3",
+          "cpu_percent": 32.32019836490307
+        },
+        {
+          "pid": 1,
+          "ppid": 0,
+          "comm": "systemd",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 2,
+          "ppid": 0,
+          "comm": "kthreadd",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 3,
+          "ppid": 2,
+          "comm": "pool_workqueue_release",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 4,
+          "ppid": 2,
+          "comm": "kworker/R-rcu_g",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 5,
+          "ppid": 2,
+          "comm": "kworker/R-rcu_p",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 6,
+          "ppid": 2,
+          "comm": "kworker/R-slub_",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 7,
+          "ppid": 2,
+          "comm": "kworker/R-netns",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 10,
+          "ppid": 2,
+          "comm": "kworker/0:0H-events_highpri",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 12,
+          "ppid": 2,
+          "comm": "kworker/R-mm_pe",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 13,
+          "ppid": 2,
+          "comm": "rcu_tasks_kthread",
+          "cpu_percent": 0.0
+        },
+        {
+          "pid": 14,
+          "ppid": 2,
+          "comm": "rcu_tasks_rude_kthread",
+          "cpu_percent": 0.0
+        }
+      ]
+    },
+    "settings": [
+      [
+        "fsync",
+        "on",
+        ""
+      ],
+      [
+        "full_page_writes",
+        "on",
+        ""
+      ],
+      [
+        "jit",
+        "off",
+        ""
+      ],
+      [
+        "max_connections",
+        "320",
+        ""
+      ],
+      [
+        "max_wal_size",
+        "4096",
+        "MB"
+      ],
+      [
+        "min_wal_size",
+        "1024",
+        "MB"
+      ],
+      [
+        "plan_cache_mode",
+        "auto",
+        ""
+      ],
+      [
+        "server_version",
+        "16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)",
+        ""
+      ],
+      [
+        "shared_buffers",
+        "1048576",
+        "8kB"
+      ],
+      [
+        "synchronous_commit",
+        "on",
+        ""
+      ],
+      [
+        "track_io_timing",
+        "on",
+        ""
+      ],
+      [
+        "track_wal_io_timing",
+        "on",
+        ""
+      ],
+      [
+        "wal_sync_method",
+        "fdatasync",
+        ""
+      ]
+    ],
+    "configuration_byte_identical": true,
+    "epoch1_configuration_sha256": "835ac530653a432bd4f59312b1fb66450e85eda5ffaed7528c61adfbee56516c",
+    "epoch2_configuration_sha256": "835ac530653a432bd4f59312b1fb66450e85eda5ffaed7528c61adfbee56516c",
+    "rtt": {
+      "A": [
+        {
+          "n": 200,
+          "mean": 615.5087519437075,
+          "p50": 603.916123509407,
+          "p99": 979.272648692131,
+          "max": 1908.4811210632324,
+          "min": 569.0716207027435
+        },
+        {
+          "n": 200,
+          "mean": 646.7690132558346,
+          "p50": 614.8871034383774,
+          "p99": 2412.930130958557,
+          "max": 2936.90524995327,
+          "min": 581.5140902996063
+        },
+        {
+          "n": 200,
+          "mean": 605.5672001093626,
+          "p50": 603.456050157547,
+          "p99": 753.8087666034698,
+          "max": 770.5111056566238,
+          "min": 577.7664482593536
+        }
+      ],
+      "B": [
+        {
+          "n": 200,
+          "mean": 1129.316734150052,
+          "p50": 1112.053170800209,
+          "p99": 1279.3466448783875,
+          "max": 3466.283902525902,
+          "min": 1070.3559964895248
+        },
+        {
+          "n": 200,
+          "mean": 1132.3507782071829,
+          "p50": 1123.674213886261,
+          "p99": 1587.5156968832016,
+          "max": 1757.0964992046356,
+          "min": 1085.0131511688232
+        },
+        {
+          "n": 200,
+          "mean": 1134.6779111772776,
+          "p50": 1106.472685933113,
+          "p99": 1224.8661369085312,
+          "max": 4386.907443404198,
+          "min": 1071.5778917074203
+        }
+      ]
+    }
+  },
+  "affinity": {
+    "utc": "2026-10-24T00:20:40.077691+00:00",
+    "processes": [
+      {
+        "role": "postmaster.json",
+        "pid": 3848080,
+        "start": "1535641250",
+        "thread_count": 1,
+        "masks": [
+          [
+            0,
+            1,
+            2,
+            6,
+            7,
+            8
+          ]
+        ]
+      },
+      {
+        "role": "proxy-A-pid.json",
+        "pid": 3848089,
+        "start": "1535641274",
+        "thread_count": 2,
+        "masks": [
+          [
+            3,
+            4,
+            9,
+            10
+          ]
+        ]
+      },
+      {
+        "role": "proxy-B-pid.json",
+        "pid": 3848090,
+        "start": "1535641274",
+        "thread_count": 6,
+        "masks": [
+          [
+            3,
+            4,
+            9,
+            10
+          ]
+        ]
+      },
+      {
+        "role": "m2bind-B-32-1792801234",
+        "pid": 88851,
+        "start": "1536083039",
+        "thread_count": 1,
+        "masks": [
+          [
+            5,
+            11
+          ]
+        ]
+      }
+    ]
+  },
+  "cross_host": {
+    "included": false,
+    "reason": "450a load >=2 at both read-only checks",
+    "initial_loadavg": [
+      11.55,
+      8.63,
+      6.75
+    ],
+    "late_loadavg": [
+      17.01,
+      15.29,
+      11.26
+    ],
+    "initial_gate_timestamp": "not reliable in manual note; deliberately not claimed"
+  }
+}

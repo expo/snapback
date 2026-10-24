@@ -635,6 +635,8 @@ dependencies = [
  "bytes",
  "fallible-iterator 0.2.0",
  "postgres-protocol",
+ "serde_core",
+ "serde_json",
 ]
 
 [[package]]
@@ -894,6 +896,7 @@ dependencies = [
  "rusqlite",
  "serde_json",
  "snapback4-core",
+ "snapback4-lang",
  "snapback4-postgres-evaluation",
  "tokio",
  "tokio-postgres",
