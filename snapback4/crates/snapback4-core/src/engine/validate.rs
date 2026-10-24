@@ -215,7 +215,10 @@ fn validate_arguments(schema: &Schema, program: &Program, inputs: &mut BTreeMap<
             inputs.insert(name.clone(), Value::Null);
         }
         let value = inputs.get(name).ok_or_else(|| RuntimeError::Input(format!("missing argument {name}")))?;
-        validate_arg(schema, kind, value, name)?;
+        validate_arg(schema, kind, value, name).map_err(|error|match error {
+            RuntimeError::Input(message)=>RuntimeError::Input(format!("argument {name}: {message}")),
+            other=>other,
+        })?;
     }
     if let Some(extra) = inputs.keys().find(|name| !program.args.contains_key(*name)) {
         return Err(RuntimeError::Input(format!("{} takes no argument {extra}", program.name)));
@@ -262,8 +265,8 @@ pub fn validate_arg(schema: &Schema, kind: &ArgType, value: &Value, label: &str)
                     return Err(RuntimeError::Input(format!("{label} has more than {max} items")));
                 }
                 if let Some(of) = of {
-                    for item in items {
-                        validate_arg(schema, of, item, label)?;
+                    for (index,item) in items.iter().enumerate() {
+                        validate_arg(schema, of, item, &format!("{label}[{index}]"))?;
                     }
                 }
                 Ok(())
@@ -298,4 +301,14 @@ mod security_minimum_tests {
         let text=ArgType::Text {min:2,max:3,format:None};
         assert!(validate_arg(&schema,&text,&Value::String(" ab ".into()),"reason").is_err());
     }
+}
+
+#[cfg(test)] mod dx9_input_tests {
+ use super::*;
+ #[test]fn input_bounds_name_nested_argument_without_echoing_value(){
+  let schema=Schema::default();
+  let kind=ArgType::List{of:Some(Box::new(ArgType::Text{min:0,max:3,format:None})),max:2};
+  let error=validate_arg(&schema,&kind,&Value::Array(vec![Value::String("private supplied text".into())]),"evidence").unwrap_err().refusal();
+  assert_eq!(error.code,"E_INPUT");assert!(error.message.contains("evidence[0]")&&error.message.contains("3 characters"));assert!(!error.message.contains("private supplied text"));
+ }
 }
