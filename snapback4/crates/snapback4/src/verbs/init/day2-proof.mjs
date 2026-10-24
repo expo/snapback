@@ -21,6 +21,8 @@ async function assertBusiness({ url, release }) {
   // BUSINESS_ASSERTION_BEGIN: add authenticated business and refusal assertions.
   // Return [{ id:"table/id", fields:["changedField"] }, ...] for writes by the frozen v1
   // client at a rollback stage. Include derived fields expected to change on forward; other values stay checked.
+  // An intentional delete returns {id:"table/id", fields:[], deleted:true};
+  // the row must exist before this callback and remain absent after forward.
   // The default below proves storage conservation only, not business policy.
   return [];
   // BUSINESS_ASSERTION_END
@@ -29,18 +31,54 @@ async function checked(args) {
   const result = await cli(args); assert.equal(result.code, 0, result.stderr + result.stdout);
   return JSON.parse(result.stdout);
 }
-const tableIdentity = new Map();
+// A release's renames resolve simultaneously against its immutable predecessor.
+// Cache authored sources too: returning forward may register that same source anew.
+const identitiesByRelease = new Map(), identitiesBySource = new Map(), declarationsByRelease = new Map();
+let lastOrdinaryIdentity;
+function tableIdentities(status, declarations, sourceKey) {
+  if (identitiesByRelease.has(status.release)) return identitiesByRelease.get(status.release);
+  let identity;
+  if (status.live.exact === false) {
+    const target = identitiesByRelease.get(status.live.source);
+    const parent = identitiesByRelease.get(status.live.parent);
+    assert.ok(target && parent, "view must name previously measured target and parent releases");
+    const viewHeaders = new Map(declarations);
+    const parentHeaders = declarationsByRelease.get(status.live.parent);
+    const targetHeaders = declarationsByRelease.get(status.live.source);
+    const matches = (headers, name, from) => headers.has(name) && headers.get(name) === from;
+    // Complete-current views retain their parent's names, even when an old name
+    // was reused for a new table. Alpha-adapted selective views carry the
+    // predecessor headers instead; matching names alone cannot prove lineage.
+    const completeCurrent = [...parentHeaders].every(([name,from]) => matches(viewHeaders,name,from));
+    identity = new Map(declarations.map(([name,from]) => {
+      const useParent = matches(parentHeaders,name,from) && (completeCurrent || !matches(targetHeaders,name,from));
+      const origin = useParent ? parent.get(name) : matches(targetHeaders,name,from) ? target.get(name) : undefined;
+      assert.ok(origin, `${name}: generated view has no measured table lineage`);
+      return [name,origin];
+    }));
+  } else if (identitiesBySource.has(sourceKey)) identity = identitiesBySource.get(sourceKey);
+  else {
+    const predecessor = lastOrdinaryIdentity;
+    const moved = new Set(declarations.filter(([,from]) => from).map(([,from]) => from));
+    identity = new Map(declarations.map(([name,from]) => [name,
+      !predecessor ? name : from ? predecessor.get(from) ?? `${name}@${status.release}` :
+      !moved.has(name) && predecessor.has(name) ? predecessor.get(name) : `${name}@${status.release}`]));
+    identitiesBySource.set(sourceKey, identity);
+    lastOrdinaryIdentity = identity;
+  }
+  assert.equal(new Set(identity.values()).size, identity.size, "distinct retained tables must have distinct identities");
+  identitiesByRelease.set(status.release, identity);
+  declarationsByRelease.set(status.release, new Map(declarations));
+  return identity;
+}
 async function snapshotAll() {
   const status = await checked(["releases", directory, "--json"]);
   const source = join(directory, "releases", String(status.release), "snapback");
-  const files = await readdir(source); const tables = new Set();
-  for (const file of files.filter(file => file.endsWith(".q"))) {
-    const text = await readFile(join(source, file), "utf8");
-    for (const match of text.matchAll(/^table (\w+)(?: renamed from (\w+))?:/gm)) {
-      tables.add(match[1]);
-      if (match[2]) tableIdentity.set(match[1], tableIdentity.get(match[2]) ?? match[2]);
-    }
-  }
+  const files = (await readdir(source)).filter(file => file.endsWith(".q")).sort();
+  const texts = await Promise.all(files.map(async file => [file, await readFile(join(source, file), "utf8")]));
+  const declarations = texts.flatMap(([,text]) => [...text.matchAll(/^table (\w+)(?: renamed from (\w+))?:/gm)].map(match => [match[1], match[2]]));
+  const tableIdentity = tableIdentities(status, declarations, JSON.stringify(texts));
+  const tables = declarations.map(([name]) => name);
   const rows = new Map();
   for (const table of tables) {
     const count = await checked(["sql", `SELECT COUNT(*) FROM "${table}"`, "--release", directory, "--json"]);
@@ -77,20 +115,38 @@ try {
   await assertBusiness({ url: serve.url, release: "v1" });
   const oldRows = await snapshotAll();
   await deploy(directory, v2);
+  compareMoves(oldRows, await snapshotAll()); // measure adoption before a callback can repair it
   await assertBusiness({ url: serve.url, release: "v2" });
   let current = await snapshotAll();
   compareMoves(oldRows, current); // compare ids, never array order
+  const deletedByV1 = new Set(), bornInV1 = new Set();
   for (let cycle = 0; cycle < 2; cycle++) {
     await rollback(directory, 1);
+    const beforeV1Writes = await snapshotAll();
+    for (const id of deletedByV1) assert.ok(!beforeV1Writes.has(id), `${id}: a deliberate v1 delete resurrected on rollback`);
+    compareMoves(current, beforeV1Writes, { required: [...oldRows.keys(), ...bornInV1].filter(id => !deletedByV1.has(id)) });
     const writes = await assertBusiness({ url: serve.url, release: "rollback-v1" });
-    assert.ok(writes.every(write => typeof write.id === "string" && Array.isArray(write.fields) && write.fields.every(field => typeof field === "string")));
-    const changedByV1 = new Map(writes.map(write => [write.id, write.fields]));
+    assert.ok(Array.isArray(writes) && writes.every(write => typeof write.id === "string" && Array.isArray(write.fields) && write.fields.every(field => typeof field === "string") && (write.deleted === undefined || typeof write.deleted === "boolean") && (!write.deleted || write.fields.length === 0)), "return explicit field changes or deletions from the v1 callback");
+    assert.equal(new Set(writes.map(write => write.id)).size, writes.length, "one change declaration per id");
+    const changedByV1 = new Map(writes.filter(write => !write.deleted).map(write => [write.id, write.fields]));
     const older = await snapshotAll();
-    compareMoves(current, older, { required: oldRows.keys() }); // v2-native rows may lack a v1 view
+    for (const id of deletedByV1) assert.ok(!older.has(id), `${id}: a previously deleted row reappeared during the v1 callback`);
+    for (const write of writes.filter(write => write.deleted)) {
+      assert.ok(beforeV1Writes.has(write.id), `${write.id}: a declared delete must start from a visible row`);
+      assert.ok(!older.has(write.id), `${write.id}: declared delete did not remove the row`);
+      deletedByV1.add(write.id);
+    }
+    for (const id of older.keys()) if (!current.has(id)) bornInV1.add(id);
+    compareMoves(current, older, { required: [...oldRows.keys(), ...bornInV1].filter(id => !deletedByV1.has(id)) }); // v2-native rows may lack a v1 view
     await rollback(directory, "latest");
+    const beforeForwardCallback = await snapshotAll();
+    compareMoves(older, beforeForwardCallback); // includes newly inserted v1-client rows
+    compareMoves(current, beforeForwardCallback, { required: [...current.keys()].filter(id => !deletedByV1.has(id)), ignore: changedByV1, values: true });
+    for (const id of deletedByV1) assert.ok(!beforeForwardCallback.has(id), `${id}: a deliberate v1 delete resurrected on forward`);
     await assertBusiness({ url: serve.url, release: "forward-v2" });
     const forward = await snapshotAll();
-    compareMoves(current, forward, { ignore: changedByV1, values: true });
+    compareMoves(current, forward, { required: [...current.keys()].filter(id => !deletedByV1.has(id)), ignore: changedByV1, values: true });
+    for (const id of deletedByV1) assert.ok(!forward.has(id), `${id}: a deliberate v1 delete resurrected`);
     compareMoves(older, forward); // includes new v1-client rows
     current = forward;
   }

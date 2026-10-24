@@ -1,0 +1,18 @@
+{
+  "date": "2026-10-24",
+  "round": 16,
+  "models": {
+    "codex": "gpt-6.1-sol high, fresh codex exec",
+    "muse": "muse-spark-1.3-contributor high, helper Meta fallback"
+  },
+  "commands": {
+    "codex": "codex exec -m gpt-6.1-sol -c model_reasoning_effort=high --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox - < brief",
+    "muse": "~/sb4-loop/muse-exec.sh --yolo --model muse-spark-1.3-contributor --reasoning-effort high --prompt-file brief"
+  },
+  "scope": "Immutable snapshot of complete amendment and exact generated proof recipe. Responses verbatim, including quota/fallback diagnostics. Material findings repaired in subsequent rounds.",
+  "sha256": {
+    "r16-brief.md": "f8826ac1e8222d3dde1a1299a0dca1bef608f06f84d7645effd5335ea7112015",
+    "r16-codex.md": "601853784614b76529ab499cd32707300e549014e4da4b8e127a893101b7ef8a",
+    "r16-muse.md": "5248308d8c5f941a17ea4a8097f8968abda097cc9daf2545afdba3ecebb5f352"
+  }
+}
