@@ -1,0 +1,6 @@
+{
+  "source": "4ee8dd80ec",
+  "core": "../integration24-wave26/core-fixtures-restored.log",
+  "postgres": "../integration24-wave26/core-postgres.log",
+  "reason": "af58 changes host repair metadata and CLI test assertions only; core source unchanged"
+}

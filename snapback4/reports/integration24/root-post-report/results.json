@@ -1,0 +1,16 @@
+{
+  "refCheck": 0,
+  "guide": {
+    "exit": 0,
+    "passed": 22,
+    "failed": 0,
+    "skipped": 0,
+    "preconditions": 0
+  },
+  "inventories": 0,
+  "setup": [
+    "timeout 600 bun install --frozen-lockfile",
+    "timeout 60 node scripts/ensure-workspace-hoist.mjs"
+  ],
+  "priorAttempts": "Missing root node_modules, then missing workspace hoist; both unsuccessful attempts retained. No product or test source changes."
+}

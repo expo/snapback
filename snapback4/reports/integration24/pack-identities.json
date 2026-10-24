@@ -1,0 +1,20 @@
+{
+  "snapback4-0.4.40.tgz": {
+    "identical": true,
+    "hashes": {
+      "pack-wave26-final": "ff8573ede171e8025d0d4e1ad9f96554e4251bd621039694beed6ae7dd3882c4",
+      "pack-wave26-release": "ff8573ede171e8025d0d4e1ad9f96554e4251bd621039694beed6ae7dd3882c4",
+      "pack-wave26-ship": "ff8573ede171e8025d0d4e1ad9f96554e4251bd621039694beed6ae7dd3882c4",
+      "pack-wave26-r8": "ff8573ede171e8025d0d4e1ad9f96554e4251bd621039694beed6ae7dd3882c4"
+    }
+  },
+  "snapback4-expo-0.4.40.tgz": {
+    "identical": true,
+    "hashes": {
+      "pack-wave26-final": "0b431967a27670d63ccb94e537e4a9e596c3079f03480a72b7c2ce62b6c4da69",
+      "pack-wave26-release": "0b431967a27670d63ccb94e537e4a9e596c3079f03480a72b7c2ce62b6c4da69",
+      "pack-wave26-ship": "0b431967a27670d63ccb94e537e4a9e596c3079f03480a72b7c2ce62b6c4da69",
+      "pack-wave26-r8": "0b431967a27670d63ccb94e537e4a9e596c3079f03480a72b7c2ce62b6c4da69"
+    }
+  }
+}

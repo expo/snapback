@@ -1,0 +1,14 @@
+{
+  "source": "1a6b1438f902df4b8691b545814d0e0015a9a65d",
+  "artifacts": {
+    "snapback4/target/integ24-wave26-r8-bin/snapback4": "90f0160883bbdcd65f6980db04ebd46fefac18a67baae1829600913340859204",
+    "snapback4/target/debug/snapback4": "90f0160883bbdcd65f6980db04ebd46fefac18a67baae1829600913340859204",
+    "snapback4/packages/snapback4/src/wasm/snapback4_device_bg.wasm": "6da633219f10f17b3533d104750496d2e9815b5cc4b35b4432c9378b3dd6e4d4",
+    "snapback4/packages/snapback4/dist/proof.js": "98bf75afd6b61a08afe537ab9963394a48550c4efae48458ae88318d3abc34d3",
+    "snapback4/packages/snapback4/dist/proof-process.js": "83acfe7c055041de3a9268600cba7db761effa6e53f57e30052237cfbc00f038"
+  },
+  "clientSha256": "ff8573ede171e8025d0d4e1ad9f96554e4251bd621039694beed6ae7dd3882c4",
+  "expoSha256": "0b431967a27670d63ccb94e537e4a9e596c3079f03480a72b7c2ce62b6c4da69",
+  "fileGroups": 431,
+  "models": 2
+}

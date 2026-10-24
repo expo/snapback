@@ -1,0 +1,217 @@
+{
+  "source": "1a6b1438f902df4b8691b545814d0e0015a9a65d",
+  "exactOriginMainAtClone": "da8ab8746173273da7e2b5f5e489de78b4198f5a",
+  "binarySha256": "90f0160883bbdcd65f6980db04ebd46fefac18a67baae1829600913340859204",
+  "clientSha256": "ff8573ede171e8025d0d4e1ad9f96554e4251bd621039694beed6ae7dd3882c4",
+  "apps": {
+    "synced": {
+      "directory": "/home/ccheever/sb4-loop/prewave24/synced-integ24-wave26-r8/app",
+      "port": 28924,
+      "commands": [
+        {
+          "argv": [
+            "bun",
+            "install"
+          ],
+          "cwd": "/home/ccheever/sb4-loop/prewave24/synced-integ24-wave26-r8",
+          "exit": 0,
+          "log": "/home/ccheever/sb4-loop/integ24/exact-wave26-r8/exact-synced-install.log"
+        },
+        {
+          "argv": [
+            "bun",
+            "/home/ccheever/sb4-loop/prewave24/exact2-integ24-wave26/scripts/exact.mjs",
+            "new",
+            "app",
+            "--snapback",
+            "--port",
+            "28924"
+          ],
+          "cwd": "/home/ccheever/sb4-loop/prewave24/synced-integ24-wave26-r8",
+          "exit": 0,
+          "log": "/home/ccheever/sb4-loop/integ24/exact-wave26-r8/exact-synced-new.log"
+        },
+        {
+          "argv": [
+            "bun",
+            "exact.mjs",
+            "snapback"
+          ],
+          "cwd": "/home/ccheever/sb4-loop/prewave24/synced-integ24-wave26-r8/app",
+          "exit": 0,
+          "log": "/home/ccheever/sb4-loop/integ24/exact-wave26-r8/exact-synced-snapback.log"
+        },
+        {
+          "argv": [
+            "bun",
+            "exact.mjs",
+            "test",
+            "web"
+          ],
+          "cwd": "/home/ccheever/sb4-loop/prewave24/synced-integ24-wave26-r8/app",
+          "exit": 0,
+          "log": "/home/ccheever/sb4-loop/integ24/exact-wave26-r8/exact-synced-web.log"
+        }
+      ],
+      "tests": {
+        "passed": 2,
+        "failed": 0
+      },
+      "schemaSha256": "ee9861281d80fb224073b045ccbe29b43130eea8239feca0b70257ad7d3c273f",
+      "appManifest": {
+        "$schema": "../../exact2-integ24-wave26/scripts/app.schema.json",
+        "name": "App",
+        "short_name": "App",
+        "id": "com.example.app-73f35d",
+        "start_url": "/",
+        "display": "standalone",
+        "app": {
+          "id": "com.example.app-73f35d",
+          "name": "App"
+        },
+        "host": {
+          "ios": {
+            "minimumOS": "17.0",
+            "deviceFamily": [
+              "iphone",
+              "ipad"
+            ]
+          },
+          "macos": {
+            "minimumOS": "14.0",
+            "window": {
+              "width": 900,
+              "height": 700
+            }
+          },
+          "web": {}
+        },
+        "deploy": {
+          "store": {
+            "web": "0",
+            "macos": "0",
+            "ios": "0",
+            "linux": "0"
+          }
+        },
+        "typescript": {
+          "sources": {
+            "snapback4": "../../exact2-integ24-wave26/snapback4/ts",
+            "backend": "../snapback/generated"
+          }
+        }
+      }
+    },
+    "online": {
+      "directory": "/home/ccheever/sb4-loop/prewave24/online-integ24-wave26-r8/app",
+      "port": 28925,
+      "commands": [
+        {
+          "argv": [
+            "bun",
+            "install"
+          ],
+          "cwd": "/home/ccheever/sb4-loop/prewave24/online-integ24-wave26-r8",
+          "exit": 0,
+          "log": "/home/ccheever/sb4-loop/integ24/exact-wave26-r8/exact-online-install.log"
+        },
+        {
+          "argv": [
+            "bun",
+            "/home/ccheever/sb4-loop/prewave24/exact2-integ24-wave26/scripts/exact.mjs",
+            "new",
+            "app",
+            "--snapback",
+            "--port",
+            "28925",
+            "--online"
+          ],
+          "cwd": "/home/ccheever/sb4-loop/prewave24/online-integ24-wave26-r8",
+          "exit": 0,
+          "log": "/home/ccheever/sb4-loop/integ24/exact-wave26-r8/exact-online-new.log"
+        },
+        {
+          "argv": [
+            "bun",
+            "exact.mjs",
+            "snapback"
+          ],
+          "cwd": "/home/ccheever/sb4-loop/prewave24/online-integ24-wave26-r8/app",
+          "exit": 0,
+          "log": "/home/ccheever/sb4-loop/integ24/exact-wave26-r8/exact-online-snapback.log"
+        },
+        {
+          "argv": [
+            "bun",
+            "exact.mjs",
+            "test",
+            "web"
+          ],
+          "cwd": "/home/ccheever/sb4-loop/prewave24/online-integ24-wave26-r8/app",
+          "exit": 0,
+          "log": "/home/ccheever/sb4-loop/integ24/exact-wave26-r8/exact-online-web.log"
+        }
+      ],
+      "authoredBackend": "Fresh synced starter schema, replacing sync with online only before Exact new --online; no Exact product code changed.",
+      "tests": {
+        "passed": 1,
+        "failed": 0
+      },
+      "schemaSha256": "f8274b085d7320bc15d44c43ebc3fb6be0d7b929d09502857df2c1d4106dfffb",
+      "appManifest": {
+        "$schema": "../../exact2-integ24-wave26/scripts/app.schema.json",
+        "name": "App",
+        "short_name": "App",
+        "id": "com.example.app-3870af",
+        "start_url": "/",
+        "display": "standalone",
+        "app": {
+          "id": "com.example.app-3870af",
+          "name": "App"
+        },
+        "host": {
+          "ios": {
+            "minimumOS": "17.0",
+            "deviceFamily": [
+              "iphone",
+              "ipad"
+            ]
+          },
+          "macos": {
+            "minimumOS": "14.0",
+            "window": {
+              "width": 900,
+              "height": 700
+            }
+          },
+          "web": {}
+        },
+        "deploy": {
+          "store": {
+            "web": "0",
+            "macos": "0",
+            "ios": "0",
+            "linux": "0"
+          }
+        },
+        "typescript": {
+          "sources": {
+            "snapback4": "../../exact2-integ24-wave26/snapback4/online",
+            "backend": "../snapback/generated"
+          }
+        }
+      }
+    }
+  },
+  "clientInstall": {
+    "argv": [
+      "bun",
+      "install"
+    ],
+    "cwd": "/home/ccheever/sb4-loop/prewave24/exact2-integ24-wave26",
+    "exit": 0,
+    "log": "/home/ccheever/sb4-loop/integ24/exact-wave26-r8/exact-root-client-install.log"
+  },
+  "completionSource": "1a6b1438f902df4b8691b545814d0e0015a9a65d",
+  "status": "passed"
+}

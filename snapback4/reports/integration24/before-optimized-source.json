@@ -1,0 +1,9 @@
+{
+  "source": "809cdc3818",
+  "reason": "Same pre-wave26 production code as3808 debug build, optimized to finish full-test histories that exceeded900seconds in the archived debug executable. Original debug attempt remains retained.",
+  "profile": "dev opt-level2; incremental/debug/test-debug0; default features; separate target directory",
+  "binarySha256": "b02271c9475a7199a78e0b5211b5d522734d826f96c583bcb1c3bf6d63754888",
+  "binaryVersion": "snapback4 0.4.40",
+  "rustc": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+  "corpusManifestSha256": "14e89cc62933a4a6185ddde1c3d9cd32818421f8e221ce42e8893ff5fe1bb772"
+}

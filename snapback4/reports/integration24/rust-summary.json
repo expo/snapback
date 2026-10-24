@@ -1,0 +1,33 @@
+{
+  "source": "1a6b1438f902df4b8691b545814d0e0015a9a65d",
+  "exit": 0,
+  "scopes": 461,
+  "passed": 7679,
+  "failed": 0,
+  "ignored": 391,
+  "command": [
+    "timeout",
+    "15000s",
+    "cargo",
+    "test",
+    "-p",
+    "snapback4-core",
+    "-p",
+    "snapback4-lang",
+    "-p",
+    "snapback4-device",
+    "-p",
+    "snapback4-sim",
+    "-p",
+    "snapback4",
+    "--no-fail-fast"
+  ],
+  "cwd": "/home/ccheever/projects/snapback-sb4loop/snapback4",
+  "environment": {
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_PROFILE_DEV_DEBUG": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0",
+    "CARGO_BUILD_JOBS": "8",
+    "RUST_TEST_THREADS": "8"
+  }
+}

@@ -38,3 +38,17 @@ The unchanged case passed alone in 1.62 seconds. Its complete five-crate repeat 
 there is no timeout increase or assertion removal. This is the integration
 fixture, separate from the original unit-test occurrence above. The raw logs
 and complete-repeat verdict are retained with Integration 15's report.
+
+
+## 2026-10-24: Integration 24 Mac Studio repeat
+
+An earlier affected CLI-unit run at `454ba8bd25` failed
+`verbs::witness::preparation::tests::stalled_resolver_timeout_is_bounded_journalled_and_drained`
+with the same absent `descendant.pid` readiness symptom. The unchanged compiled
+case passed alone in 3.59 seconds. The complete affected CLI binary repeat at
+`1a6b1438f9`, with all eleven affected integration targets, then passed on Mac
+Studio. The final 114-file platform client pool and both full model files also
+passed. No assertion, seed or product deadline was changed. This corroborates
+the existing intermittent readiness class without establishing its cause or
+closing this issue. Exact commands, the failed run, isolation and complete-repeat
+logs are retained under `snapback4/reports/integration24/mac/` (including `prior/`).

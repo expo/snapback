@@ -1,0 +1,216 @@
+{
+  "before": {
+    "projects": 600,
+    "gated": 35,
+    "freshRefused": 43,
+    "afterTestRefused": 56,
+    "testsFailed": 62,
+    "timedOut": {
+      "check": [],
+      "freshDeploy": [],
+      "test": [],
+      "afterTestDeploy": []
+    },
+    "waves": {
+      "15": {
+        "projects": 100,
+        "gated": 1,
+        "freshRefused": 1,
+        "afterTestRefused": 1,
+        "testsFailed": 2
+      },
+      "16": {
+        "projects": 50,
+        "gated": 3,
+        "freshRefused": 3,
+        "afterTestRefused": 3,
+        "testsFailed": 4
+      },
+      "18": {
+        "projects": 50,
+        "gated": 4,
+        "freshRefused": 6,
+        "afterTestRefused": 9,
+        "testsFailed": 11
+      },
+      "19": {
+        "projects": 50,
+        "gated": 6,
+        "freshRefused": 8,
+        "afterTestRefused": 11,
+        "testsFailed": 13
+      },
+      "20": {
+        "projects": 50,
+        "gated": 3,
+        "freshRefused": 3,
+        "afterTestRefused": 4,
+        "testsFailed": 4
+      },
+      "21": {
+        "projects": 50,
+        "gated": 6,
+        "freshRefused": 6,
+        "afterTestRefused": 7,
+        "testsFailed": 7
+      },
+      "22": {
+        "projects": 50,
+        "gated": 1,
+        "freshRefused": 1,
+        "afterTestRefused": 1,
+        "testsFailed": 1
+      },
+      "23": {
+        "projects": 50,
+        "gated": 8,
+        "freshRefused": 8,
+        "afterTestRefused": 8,
+        "testsFailed": 8
+      },
+      "24": {
+        "projects": 50,
+        "gated": 0,
+        "freshRefused": 2,
+        "afterTestRefused": 3,
+        "testsFailed": 3
+      },
+      "25": {
+        "projects": 50,
+        "gated": 3,
+        "freshRefused": 5,
+        "afterTestRefused": 6,
+        "testsFailed": 6
+      },
+      "26": {
+        "projects": 50,
+        "gated": 0,
+        "freshRefused": 0,
+        "afterTestRefused": 3,
+        "testsFailed": 3
+      }
+    }
+  },
+  "after": {
+    "projects": 600,
+    "gated": 35,
+    "freshRefused": 39,
+    "afterTestRefused": 49,
+    "testsFailed": 54,
+    "timedOut": {
+      "check": [],
+      "freshDeploy": [],
+      "test": [],
+      "afterTestDeploy": []
+    },
+    "waves": {
+      "15": {
+        "projects": 100,
+        "gated": 1,
+        "freshRefused": 1,
+        "afterTestRefused": 1,
+        "testsFailed": 2
+      },
+      "16": {
+        "projects": 50,
+        "gated": 3,
+        "freshRefused": 3,
+        "afterTestRefused": 3,
+        "testsFailed": 3
+      },
+      "18": {
+        "projects": 50,
+        "gated": 4,
+        "freshRefused": 6,
+        "afterTestRefused": 9,
+        "testsFailed": 11
+      },
+      "19": {
+        "projects": 50,
+        "gated": 6,
+        "freshRefused": 8,
+        "afterTestRefused": 11,
+        "testsFailed": 13
+      },
+      "20": {
+        "projects": 50,
+        "gated": 3,
+        "freshRefused": 3,
+        "afterTestRefused": 4,
+        "testsFailed": 4
+      },
+      "21": {
+        "projects": 50,
+        "gated": 6,
+        "freshRefused": 6,
+        "afterTestRefused": 7,
+        "testsFailed": 7
+      },
+      "22": {
+        "projects": 50,
+        "gated": 1,
+        "freshRefused": 1,
+        "afterTestRefused": 1,
+        "testsFailed": 1
+      },
+      "23": {
+        "projects": 50,
+        "gated": 8,
+        "freshRefused": 8,
+        "afterTestRefused": 8,
+        "testsFailed": 8
+      },
+      "24": {
+        "projects": 50,
+        "gated": 0,
+        "freshRefused": 0,
+        "afterTestRefused": 1,
+        "testsFailed": 1
+      },
+      "25": {
+        "projects": 50,
+        "gated": 3,
+        "freshRefused": 3,
+        "afterTestRefused": 4,
+        "testsFailed": 4
+      },
+      "26": {
+        "projects": 50,
+        "gated": 0,
+        "freshRefused": 0,
+        "afterTestRefused": 0,
+        "testsFailed": 0
+      }
+    }
+  },
+  "classifications": {
+    "cleared by one-line intent": 32,
+    "real": 17
+  },
+  "falseGates": 0,
+  "falseDeployRefusals": 0,
+  "unclearedConditionalCopies": 0,
+  "sameSchemaAndFixtureHashes": true,
+  "fixedFalsePostTestRefusals": [
+    "w25-006-snapback-telescope-mirror-recoating",
+    "w25-033-snapback-pressure-washing-jobs",
+    "w26-025-snapback-lifeguard-certification-exams",
+    "w26-009-snapback-painting-conservation-treatments",
+    "w26-041-snapback-espresso-machine-repairs",
+    "w24-033-snapback-pressure-washing-jobs",
+    "w24-006-snapback-telescope-mirror-recoating"
+  ],
+  "fixedFalseFreshRefusals": [
+    "w25-006-snapback-telescope-mirror-recoating",
+    "w25-033-snapback-pressure-washing-jobs",
+    "w24-033-snapback-pressure-washing-jobs",
+    "w24-006-snapback-telescope-mirror-recoating"
+  ],
+  "scope": "Finite copied-schema campaign and per-refusal specification audit, not universal proof; conditional choices do not accept intent on original authors behalf.",
+  "sec9Fixed450": {
+    "projects": 450,
+    "gated": 32,
+    "freshRefused": 36,
+    "afterTestRefused": 44
+  }
+}

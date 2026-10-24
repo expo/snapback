@@ -104777,3 +104777,37 @@ Eight wave-26 CLI cases, six DAY4 and four individual-review cases pass; a
 416-form syntax probe has 302 valid inputs and zero broken printed assertions.
 Round 8's two fresh families are READY; all received reviews and dispositions
 are preserved. Full source/platform/packed requalification follows this revision.
+
+
+### Integration 24: final 0.4.40 qualification
+
+The final implementation is `1a6b1438f9`, following SEC9/SEC8 merge
+`59af43d907`, DX8/DX7 merge `36f1af99e3`, and the standalone version commit
+`2b926e84f6`. Both independent final review families are READY. The complete
+Linux five-crate command passes after the last fix; all 431 client file/fixture
+groups plus both complete model files pass (7,968 passes, 56 declared skips),
+with unchanged native/SDK/Wasm bytes and an empty source status after the pool.
+Mac Studio's affected Rust targets and all 114 platform files pass (2,440 passes,
+14 declared skips), plus 89 model tests. The existing resolver-readiness flake
+passed unchanged alone and in the complete affected repeat; its ticket stays open.
+Fresh packed qualification passes every lane helper and Ubuntu/Alpine consumer.
+Its consumer-only receipt deliberately does not claim npm publication, and the
+prohibited full scripts/test.sh is never run. Root guide/inventory/ref/docs-budget
+checks pass. Difftest engine 20k, devices 0–999 and real Lean 20k reproduce only
+0.4.39's 130 known Lean disagreements; all normalized reports and 42 retained
+representative findings/source bytes match. Fresh Exact2 origin/main synced and
+online apps run literal `bun exact.mjs snapback` and `bun exact.mjs test web`
+against the merged binary/client, all green.
+
+The 600 copied-project survey measures 35 gates, 39 fresh refusals and 49 after
+`test`, versus 35/43/56 before. Per-finding audit leaves zero false gates or
+production refusals; all 50 wave-26 apps pass check/test/both deploys. Conditional
+intent experiments retain six failed app tests (four stale starter case files,
+two deliberately reviewed derived-weight witnesses), never relabelled passes.
+Each 50-store wave-25 replay mode has two real v2 deploy refusals and one real
+default rollback refusal, with zero forward refusals and zero hidden v1 rows.
+This is 47 complete backward/forward cycles per mode, not zero total refusals.
+All 150 original SQLite/WAL/SHM hashes are unchanged. Wasm is 2,415,003 raw /
+737,990 gzip / 555,572 Brotli bytes; gzip budget 738,490 is measurement plus 500.
+Full commands, per-project classifications, repairs, hashes, scope limits and
+raw evidence are retained under reports/integration24 and WORKSTREAM-REPORT.md.

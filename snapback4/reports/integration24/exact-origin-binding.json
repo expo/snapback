@@ -1,0 +1,13 @@
+{
+  "originMainAtClone": "da8ab8746173273da7e2b5f5e489de78b4198f5a",
+  "currentHead": "da8ab8746173273da7e2b5f5e489de78b4198f5a",
+  "changedPaths": [
+    "Cargo.lock",
+    "bun.lock",
+    "package.json",
+    "snapback4/Cargo.lock",
+    "snapback4/Cargo.toml"
+  ],
+  "patchSha256": "676e0d195f15e1b581e503deba1e6cc0087f572ab3f114756ba6516fefc08428",
+  "scope": "Only clone-local client/Rust path bindings and resulting lockfiles; fresh synced and online apps outside this clone."
+}

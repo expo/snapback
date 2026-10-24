@@ -1,0 +1,44 @@
+{
+  "native": {
+    "projects": 50,
+    "baselineRefused": 0,
+    "deployAttempts": 50,
+    "deployRefused": [
+      "004-snapback-saddle-fitting-visits",
+      "024-snapback-stair-lift-installs"
+    ],
+    "rollbackAttempts": 48,
+    "rollbackRefused": [
+      "030-snapback-sewer-camera-inspections"
+    ],
+    "forwardAttempts": 48,
+    "forwardRefused": [],
+    "completeBackwardForwardCycles": 47,
+    "hiddenTrackedV1Rows": 0,
+    "rollbackVisibilityReports": 47,
+    "visibilityHiddenRows": 0,
+    "visibilityNewlyEmptyCells": 0,
+    "unattemptedActionsExcluded": true
+  },
+  "upgrade38": {
+    "projects": 50,
+    "baselineRefused": 0,
+    "deployAttempts": 50,
+    "deployRefused": [
+      "024-snapback-stair-lift-installs",
+      "004-snapback-saddle-fitting-visits"
+    ],
+    "rollbackAttempts": 48,
+    "rollbackRefused": [
+      "030-snapback-sewer-camera-inspections"
+    ],
+    "forwardAttempts": 48,
+    "forwardRefused": [],
+    "completeBackwardForwardCycles": 47,
+    "hiddenTrackedV1Rows": 0,
+    "rollbackVisibilityReports": 47,
+    "visibilityHiddenRows": 0,
+    "visibilityNewlyEmptyCells": 0,
+    "unattemptedActionsExcluded": true
+  }
+}

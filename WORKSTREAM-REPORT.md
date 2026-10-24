@@ -1,319 +1,49 @@
-# Integration 23 — snapback4 0.4.39
+# Integration 24 — Snapback 4 0.4.40
 
-0.4.39 qualified for nonforce landing; delivery is recorded by the integration commits.
-Worktree: `/home/ccheever/projects/snapback-sb4loop`, branch `sb4-loop`.
+Branch/worktree: sb4-loop, /home/ccheever/projects/snapback-sb4loop. Base Integration 23 d4441c83b6 (0.4.39). This report supersedes the stopped pre-wave26 qualification attempts.
 
-## Changes and commits
+## Changes
 
-- Qualified 0.4.38 landed first, through `2281138019`, after merges
-  `7b051e5f3f` and `c3f23ff2c2`; pushed `sb4-loop:main` without force.
-  Step-0 evidence records 452 five-crate scopes, 7,348 reported passes and 266
-  declared ignores, zero failures; incoming affected Core 653, CLI 520 passes/
-  nine ignores after the known stopping-admission flake passed alone, Postgres
-  364 plus public S1, clients 78/78 and root checks. These are their recorded
-  scopes, not a claim of a full rerun after each later Step-0 merge.
-- ROLL `cd20d7ebc9` merged as `2fa38c3b21`. Subsequent main merges include
-  `4df0fc0ce1`, `bacbbb29cd`, `121107c574`, `152ba573c8`, `15676078d3`,
-  `7cb3b67759`, `4aa3dea152`, `056ba3b478`, `fb93ed7753` and `e1f424691a`.
-  Both journal histories survive; lane-local report conflicts retain ours.
-- Standalone bump `8550d12b65`, `snapback4 0.4.39: visible rollback views and
-  readable deploys`, follows the ten-file 0.4.38 bump exactly. One coherent
-  guide-changes entry describes existing-app/store upgrades. LLP 3000.037 §20
-  and the retained-storage RFC §20 record visibility behavior.
-- The wave-25 regression is corrected: registration follows actual widening,
-  hiding and misrepresentation facts. Executable-only repairs are protected
-  behind unchanged data and intent. Independent invariants alone never require
-  every ordinary v2 change to preserve the complete predecessor source.
-  Truthful complete-current or current-guarded bridges retain v2 guards,
-  authority, defaults, lifetimes and independent intent. Unsupported truthful
-  representations refuse with an actionable authored-workflow step.
-- Initial blocker correction `33ab430e29` and its reviewed follow-ups retain
-  current guarded workflows and declared wire/table/field identities.
-  `1daadaf4aa` handles unchanged-program legacy layout reopening;
-  `4532c039c8` avoids an irrelevant asset-free child probe. `fe77ed9d02`
-  corrects the guide fixture to exercise a real domain widening, and
-  `4d61619f1d` records actual upgrade outcomes in LLP 3000.037 §20.8.
-- Pre-0.4.39 stores either roll back visibly or name both `rollback --to N
-  --exact` and “redeploy with 0.4.39 to register a view”. Small fixtures cover
-  rename, split, required addition, images/references, aliases and current guards.
-- Late-main PG/SQLite qualification exposed missing current named-index
-  transport. Corrections `c45653db27`, `a036153251`, `e6716e0b0c`,
-  `024f978514`, `177b225b88`, `c7c0c7afb8`, `f10a13ee5a`, `ff6e8303e2`
-  and `f6922d049f` share injective declared identities and complete compiled
-  key/policy comparison between registration, compiler preparation and CLI
-  admission. Plain key tokens alone may change spelling. Opaque components,
-  operands, provenance, Boolean structure and audiences stay exact. Every named
-  dependency remains; only unused identical plain unique duplicates are pruned.
-  A changed calendar input now registers before rows exist. Final focused
-  regressions pass 65 language, 38 security and 19 CLI cases.
-- Actual blind Muse and fresh Codex reviews, briefs, complete outputs and
-  provenance are under `llp/reviews/3000.000.000-integ23-wave25-*` and
-  `llp/reviews/3000.000.000-integ23-index-transport-*`. Findings were fixed;
-  final correction dispositions bind the reviewed content, not an unrelated HEAD.
-- Incoming concrete-store access is moved below its port (`402c955e72`,
-  `cc1c2b2e6a`), preserving policy. The await census reconciliation
-  `c4a6195c4b` preserves semantic fault scenarios after RT3b moves/retry.
-  The codec census fix `f07884e368` has a real mutation control. No production
-  census allowance, test assertion, deadline or seed was weakened.
+SEC9/SEC8 merge 59af43d907; DX8/DX7 merge 36f1af99e3; main sync 809cdc3818 (PG plan hygiene). The integration side of the lane-local report survives conflicts. Standalone bump 2b926e84f6: snapback4 0.4.40: structural write authority and day-two workflows, using the same version-file set as 0.4.39 and exactly one guide-changes entry.
 
-## Final main merge and landing checks
+Structural column write audiences and conditional immutable rules survive rollback views and guarded bridges (e29f8375db, eda6d961d9, e8192c80fd). Rename-down carries the current edited value. Deploy combines derived finite campaigns with verdict-first reporting and named repair/intent steps. Presence decisions are individual; no bulk security bypass.
 
-Evidence/report commit `b169b84115` completes the source `3cd7b7636f`
-qualification below. Final fetch finds only six incoming documentation commits;
-merge `5176be3e7d` integrates `fcc2aa96ad`. The sole additions are accepted
-performance RFC `3000.009.001.000.002` and its current-set link. There is no
-conflict and no Snapback 4 shipping file changes after the qualified source.
-The RFC is a performance plan, not a new measured performance claim.
+Wave26 corrections c05fa143f6 and 1458a7d5c3: authored column write intent permits absent/null and unchanged unapproved false initialization; structural runtime write audiences remain strict about defaults. Only service:operator's own exact executed provision image is exempt from authored roster-read intent; ordinary queries, preimages and mixed payloads remain checked. Approval freeze candidates exclude plain absence/stage preconditions, preserving positive and complex dependencies. Every gated code is review-tier. Clean no-case campaigns pass; explicit principal cases work, while existing skipped business cases still fail. Analyzer sec9-2 renews stale decisions. Two independent semantic reviews are READY in round 4; all received rounds are retained with provenance.
 
-Affected verification: `./ref-check` passes 567 LLPs/12,460 references, zero
-errors/unchecked. Diagnostics/symbol registries and guide manifest regenerate
-with no diff; the tree is clean afterward. Existing full root checks and all
-qualified native/client/store/Mac inputs remain unchanged. The final receipt
-and hashed raw logs are in
-[final landing evidence](snapback4/reports/integration23/final-landing/README.md).
-Main delivery uses the authorized nonforce `git push origin sb4-loop:main`,
-with fetch/merge/retry on a race; git records its landed commit.
+Final authoring/loop follow-ups af58ce1362,454ba8bd25,1a6b1438f9: inherited-read repair assertions use authorable parent paths and retain parent lifetime/authority; private HTTP test copies carry individual decisions through unchanged production source/analyzer validation, rejecting stale decisions with actionable logs. Eight wave26 CLI regressions, six DAY4 and four review cases pass. AST repair spelling preserves literal dollars and authored selectors, drops generated indexes, excludes lifetime bookkeeping, and retains expiring parent/child custody. Saved-source decisions match only their selected scope. Both fresh review families are READY in round 8; all received rounds and factual dispositions are retained.
 
-## Final verification after the view-once main merge
+Darwin process-group cleanup retry retains its original deadline and succeeds only on ESRCH (ec82103549). Format10/service-seat capability fixtures remain pinned to canonical program bytes (3808a073b7). Packed rollback/media fixtures retain individual presence intent and refuse hostile assets (af86a4d980). Root diagnostics/guide manifests and censuses are regenerated; authoring census contains 884 identical canonical entries. LLP3000.037 section 20.9 records actual structural-security/day-two consequences without inventing comparative ratings.
 
-Merge `fb5c6335d9` integrates `da7b5e3a1d`. Its asset host checks the actual
-response-chain abort state before admission and before committing a once view,
-and returns HTTP 410 for a duplicate view or 503 for retryable bookkeeping.
-Consumption still commits before any full-response bytes; subsequent transport
-loss conservatively consumes the view. Range probes and known pre-admission
-aborts never consume it. TCP half-close is not inferred to be cancellation.
-Core's change is documentation only; the collector verifies that fact.
+## Final qualification
 
-The sole test conflict keeps the incoming three fresh-asset HTTP cases and
-exact body comparisons. The inspected full-file diff shows only that fixture
-change; previous child-probe and pipeline checks remain. Both journal histories
-survive. No production code conflict occurs. Measurement commit `3cd7b7636f`
-records unchanged clean wasm and its existing measurement-plus-500 budget.
+Full five-crate Rust passes after the last fix: 461 scopes, 7679 reported passes, 391 declared ignores, zero failures; exact unfiltered --no-fail-fast command/environment retained. Actual node scripts/docs-budget.mjs also passes. Final implementation source: `1a6b1438f902df4b8691b545814d0e0015a9a65d`.
 
-Latest qualified source: `3cd7b7636f0f496b1e45e59d4efb97f5f13dc2e2`. Production native SHA-256:
-`8aa998f61e2a0402e276dc10e17830b2dbd0fe5dd754af367af3579b1420673c`. Client tar SHA-256:
-`1a082e7ba810831999c2401f63ec1d780fbe8fb9999cdd7cfb22b1b9fd77a103`. All 312 shipping SDK leaves and the client tar are
-byte-identical to the preceding complete client-pool qualification. Current
-command ledgers, raw logs, artifact/source bindings and cleanup receipts are in
-[view-once integration evidence](snapback4/reports/integration23/qualification-view-once/README.md).
+Linux clients: all 431 file/fixture groups in one pool plus both full model files: 7,968 passes / 56 declared skips / zero failures. Native and SDK/Wasm hashes stayed identical; git status --porcelain is empty at completion. Ledgers and the empty receipt are retained.
 
-After this incoming merge, affected verification passes:
+Mac Studio macstudio-charlie-apt101-a, only scratch ~/projects/snapback-integ24: current language library+21targets,device2,CLIbinary+11targets all pass;114platform/Darwinclientfiles2440pass14declared skips, both full models89pass0skip, zero failures. Source clean and native/SDK/Wasm hashes unchanged. Core full and PG-feature library receipts cover unchanged core code at4ee. A missing sparse-checkout benchmark fixture initially blocked the core build; restored and complete-core retry passed. The existing resolver-readiness flake failed one earlier CLIunit run, passed unchanged alone in3.59s, and passed the complete current affected repeat. No assertions, seeds or deadlines were relaxed; the existing open ticket remains open.
 
-- Linux: all 21 asset cases and four view-once cases, including a fresh private
-  Postgres ledger; standalone vendored HTTP 13, language guide 127 and rollback
-  views 19. Debug and production native builds pass. The private cluster is
-  independently stopped. PG HTTP asset schemas/blob locations remain fenced
-  (P1b); ledger evidence is not a PG HTTP asset capability claim.
-- All ten affected client files pass against both debug and production builds:
-  190 passes, zero failures/skips per pass, source status empty afterward. The
-  prior full pool remains 431 files, 7,940 passes/56 declared skips in one pass.
-  No shipping SDK input changed after that full pool.
-- Fresh `publish.mjs --prepare-client` pack and complete `qualify-linux.mjs
-  --consumer-only` pass, including security/ROLL and Ubuntu/Alpine. The receipt
-  explicitly remains publicationQualified=false; no npm publication is claimed.
-- The new production binary repeats all 21 wave-25 copies: original before
-  15 refusals/10 false, after two genuine deploy refusals (004/024), zero false
-  refusals and zero hidden v1 rows in all six ROLL controls. Lane 030's genuine
-  default rollback refusal for two unprojectable rows still names recovery.
-  Every replay store is deleted; originals are read-only.
-- All 50 published-0.4.37 upgrade/rollback/forward cycles again preserve rows:
-  48 unchanged copies plus the same two disclosed authored compatibility steps
-  (010/032). The complete 450-project/900-record/1,800-call survey again has
-  zero false refusals; 15 gated projects and all 36 original findings are
-  individually acknowledged on copies, zero unresolved.
-- All 50 original acceptance scripts again pass unchanged, with the same three
-  disclosed baseline expiry helpers and headless tsconfig adjustment.
-- Fresh Exact synced/online apps under `~/sb4-loop/prewave23/`, clean Exact2
-  origin/main clone base `14c091f205f62c32ed9d585ae75148cffc12dfa2`, pass the
-  literal `bun exact.mjs snapback` and `bun exact.mjs test web` commands (2+1
-  web tests). `exact-commands-r12.md` records cwd, environment, commands,
-  artifact hashes and ports 27418/27419; owned servers are stopped/reaped.
-- Black M5 scratch clone: asset 20 and once three pass with the private-PG
-  ledger explicitly ignored on Mac, standalone HTTP 13 and guide 127 pass,
-  current native builds, and all ten client files pass (190/0/0). All 3,314
-  source inputs and 312 SDK leaves bind exactly except one precisely verified
-  clean measurement append of the unchanged wasm. The preceding full Mac scope
-  remains 105 platform/model files, 2,357 passes/14 declared skips, plus affected
-  Core/CLI/Lean targets. No unreachable-Mac deferral is used.
-- Root docs budget, ref-check, inventories and guide pass after client runs.
-  Diagnostics/symbol registries and guide manifest regenerate with no diff;
-  authoring census remains 875, delivery census 215, production store-port
-  allowance zero. Fresh wasm is still 2,407,070 raw / 735,469 gzip / 553,849
-  Brotli bytes; budget 735,969 is exactly measurement+500 B with the recorded
-  whole-artifact reason. Strict family/absence checks pass.
+Difftest final1a6source: engine20000,devices seeds0–999,Lean20000 with the real oracle, candidate and archived0.4.39base both rerun. Every normalized report field matches apart from three timing fields. Both engine/device runs exit0; Lean raw1 reproduces exactly130known mismatches(3code/35continuation-next/67next/25prelude-code), no new signature. All42global/worker representative case objects, findings and source bytes also match exactly.
 
-Two harness corrections are preserved in raw evidence: Cargo requires testing
-vendored HTTP dev-dependencies from a standalone copy, and the initial Mac
-command selected an ignored private-PG test without a server. Corrected scopes
-pass without changing product code or assertions; the real PG ledger passes on
-Linux. The empty workspace table is added only to the Mac temporary copy.
+Fresh publish.mjs --prepare-client pack and complete qualify-linux.mjs --consumer-only pass, including every lane helper, rollback/migrations,security,staging,frontends/starters and Ubuntu/Alpine clean userspaces. Consumer receipt source1a6b1438f9 is verified, with `publicationQualified=false`; the forbidden scripts/test.sh is not invoked and the requested source command runs separately.
 
-The full five-crate run below remains the complete run after the last authored
-rollback fix. Later main merges repeat changed semantic inputs under the final
-merge clause; they are not relabeled as another complete five-crate run. Known
-baseline Lean mismatches and the three ticketed stock-PG exclusions remain
-explicit below; no new product failure is waived. No full scripts/test.sh,
-npm publication, publication worktree or target/publication is used.
+Root guide: 22 passed / zero failed / zero skipped / zero preconditions; inventories and ref-check pass. Actual docs-budget passes after the complete Rust command and completed client pool.
 
-## Verification after the Postgres and account merge
+Fresh Exact2 origin/main clone da8ab8746173273da7e2b5f5e489de78b4198f5a, fresh synced/online apps in prewave24 against final1a6native/client: literal bun exact.mjs snapback and bun exact.mjs test web both green (synced2,online1). Only clone-local client/Rust dependency bindings and resulting Cargo/bun lockfiles change; no Exact product code changes. Complete command ledgers, five-file binding patch, hashes, manifests and cleanup are retained.
 
-Complete baseline qualification is committed as `d848af3dc9`. Main then moved;
-merge `0d17e223d3` integrates `a025d67cd3` (P1-EV-2 Postgres admission/parity and
-RT3c projected authority for account/OIDC/service sessions). The only manual
-conflict is the parent RFC revision header; both histories survive, with no
-code conflict. `4e3b52f1b3` records unchanged clean wasm. The standalone release
-bump remains `8550d12b65`; the single 0.4.39 guide-changes entry remains coherent.
+## Survey and replay
 
-Latest qualified source: `4e3b52f1b3bf3c78055834d3d00decc732fc3f5c`; production native SHA-256
-`ef2f106306a07a5b5b3d9ac12ac4fb249b2fec86d4a6539a06eca93e3b9e314e`. Client pack SHA-256 `1a082e7ba810831999c2401f63ec1d780fbe8fb9999cdd7cfb22b1b9fd77a103`;
-all 312 SDK leaves are byte-identical to the complete baseline pack. Unchanged
-rollback/compiler source hashes and all new native proof bindings are recorded
-in [late-main evidence](snapback4/reports/integration23/qualification-late-main/README.md).
+All600 schemas use one immutable copied input corpus: wave15 final100 plus50each16,18–26. Every schema and fixture hash matches before/after. Controlled optimized before35gated/43fresh refusals/56post-test refusals,62failed app test commands; after35/39/49,54failed app test commands. Both complete surveys have zero timeouts. An earlier archived debug-build history exceeded900seconds twice; its isolated2400second-budget repeat passed, and the optimized baseline independently completes all 600. No product deadline is changed.
 
-As required by the final merge clause, verification repeats the semantic inputs
-that changed. The complete five-crate run above remains the full run after the
-last authored rollback fix, f6922d049f; it is not relabeled as a second full run
-at the new merge. Latest affected verification passes:
+Wave26 all 50 projects are0gates/0fresh/0post/0test failures. Seven former false post-test refusals disappear: wave24/25operator-provision006/033 and wave26009/025/041; four former fresh operator-provision refusals disappear. The original450SEC9subset(wave15+16,18–23) remains32gated/36fresh refusals,post-test44.
 
-- Full Core with Postgres: 48 reported
-  scopes, 1185 reported passes,
-  304 declared ignores, zero failures.
-- Affected CLI (including the account RT0 ratchets, serve identity/authority and
-  all 19 rollback cases): 19 reported
-  scopes, 762 reported passes, zero failures.
-- Language unit/rollback security/guide/read-through: 240
-  reported passes, zero failures. Core no-default check and all three difftest
-  campaigns repeat with the same strict no-new-signature baseline result.
-- Full client pool again, one pass: 431 files, 7940 passes,
-  56 declared skips, zero failures, source status empty after the pool.
-- Fresh prepare-client pack and complete packed consumer qualification, including
-  Ubuntu/Alpine, current security/ROLL and all lane cases: pass. The receipt
-  remains consumer-only/publicationQualified=false; npm publication is not claimed.
-- Stock private Postgres, now including all 60 EV-2 evolution cases and the public
-  EV-2 release/restore witness: pass. Its initial run stopped on the unchanged
-  40GiB disk guard. Audited cleanup removed only unused node_modules from completed
-  own qualification directories, preserved evidence and active dependency roots,
-  then the full stock runner passed without changing the guard or retry budget.
-  Both attempts' owned clusters are independently confirmed stopped.
-- Current production binary repeats all 21 wave25 copies (2 genuine deploy
-  refusals, zero false, six ROLL controls hide zero), all 50 published-0.4.37
-  cycles (48 unchanged + 2 disclosed authored compatibility cases), the complete
-  450-project survey/15 gated projects/36 individually acknowledged findings,
-  and all 50 original acceptance scripts with the same disclosed support patches.
-  The genuine lane030 default rollback refusal remains explicit. Replay stores
-  are deleted; original stores remain read-only.
-- Fresh Exact synced/online apps repeat literal snapback/web-test commands against
-  the latest production binary and client: 2+1 tests pass. Commands and cleanup
-  for ports27416/27417 are saved in exact-commands-r11.md.
-- Black M5 scratch clone repeats all affected Cargo/Lean and all
-  105 platform/affected/model files: 2357
-  passes/14 declared skips, zero failures. The new
-  source binding covers current executable inputs and all 312 SDK leaves; only
-  the explicit platform-generated test census differs, with production allowance zero.
-- Root docs budget, ref-check, inventories and guide pass after the full pool.
-  Required root dependencies are checked/restored with the frozen install and
-  named bootstrap when needed. The authoring census remains875 rows, delivery215
-  sites, and store-port production allowance zero.
+The49remaining refused projects are individually classified:32clear by per-finding intent and17real(15retained-grant questions,2authored ordinary-read privacy contradictions). All49final conditional copied repairs/decisions clear check and both fresh/post-test deploys. Zero false gates, zero false deploy refusals, zero unresolved conditional copies. Exact per-project messages, lines, IDs and commands are retained without author acceptance or original app changes. Multiple fields/findings may require multiple one-line declarations. The private HTTP copied-decision correction removes15false setup failures after acknowledgments; six copied-app tests still fail(4stale unmodified todo starter case files,2deliberately reviewed derived-weight campaign questions still reporting witnesses). They are recorded as failed app tests, not claimed passes.
 
-Wasm remains 2,407,070 B raw /735,469 B gzip /553,849 B Brotli, budget735,969 B,
-exactly measurement+500 B with the recorded whole-artifact reason. Incoming EV-2
-retains its residual dev-adoption diagnostic-text ticket and the shared active-row
-bound (no full3MiB restoration claim). Stock PG's three inherited ticketed
-exclusions remain explicit; no new product red or unreported check deferral is
-waived. No full scripts/test.sh, npm publication, publication worktree or
-target/publication access is claimed.
+Each replay mode covers50 original wave25 production-store copies: merged build directly and published0.4.38 then merged upgrade. Final1a6result both modes: zero baseline 0.4.38 refusals; two real v2 deploy refusals004/024;48default rollback attempts/1real refusal030;48forward attempts/0refusals;0hidden trackedv1rows on successful default rollback. Each mode completes47backward/forward cycles; the48th forward attempt follows the real rollback refusal and selects the already-current release. Core rollback visibility also reports0hidden rows and0newly-empty cells on all 47successful default rollbacks. Unattempted actions after a failed deploy are not refusals; raw old harness summaries that counted None are explicitly superseded by corrected ledgers.
 
-## Complete qualification of the rollback correction (baseline a34)
-
-Source `a34a9192bcd241bb98e45c3f222e0f30074e97f9`; native SHA-256 `364370f89c269d7614ed06d0e0f58aa14fe38c36066f12999b5fa6e71e1857b1`;
-client pack SHA-256 `1a082e7ba810831999c2401f63ec1d780fbe8fb9999cdd7cfb22b1b9fd77a103`. Actual command ledgers,
-logs, source/artifact bindings and harnesses are in
-[snapback4/reports/integration23/qualification-0.4.39](snapback4/reports/integration23/qualification-0.4.39/README.md).
-The earlier fully green f078 snapshot is separately and explicitly historical.
-Interrupted/superseded attempts are never counted as completed passes.
-
-- Full Linux five-crate `cargo test ... --no-fail-fast` after the final shipping
-  fix: 454 reported scopes,
-  7562 reported passes,
-  360 declared ignores, zero failures.
-  These include nested reports and are not a deduplicated test count.
-- Difftest engine 20,000 and devices seeds 0–999 pass. Lean 20,000 has no new
-  signatures versus qualified 0.4.38 `7b051e5f3f`: its known raw exit 1 is
-  baseline-proven, all oracle/coverage fields match except three timing fields,
-  and all 38 representative Quarry inputs match byte-for-byte. Of the 76
-  representative files, 52 are byte-identical; 24 query JSONs differ only by
-  S10e-2a's added `pending_opening: null` diagnostic. Strict comparison verifies
-  every other field, data, meter and canonical continuation; nonnull or other
-  differences would fail. The original stricter byte check stopped on that
-  intentional format addition; the evidence-format verification passes.
-- Full client pool, one pass: 431 files, 7940 passes,
-  56 declared skips, zero failures; `git status --porcelain` is empty
-  after the pool. The two model files run serially after the ordinary pool.
-- A fresh `publish.mjs --prepare-client` pack passes all consumer qualification,
-  including new ROLL/security cases, Linux packaged checks and Ubuntu/Alpine.
-  Mode is `--consumer-only`; receipt deliberately says publicationQualified=false.
-  Separately requested source suites run in full. No npm publication is claimed.
-- Stock private-Postgres qualification passes, including the public configured
-  PG/SQLite evolution and restore witness and strengthened comparison controls.
-  Its three inherited ticketed exclusions remain explicit in test-postgres.sh:
-  prefetch_complete_fixture_queries_mutations_and_hidden_rows,
-  unified_add_spare_capacity_meter_overlap_regression and
-  evaluator_racing_refused_operations_replay_one_receipt_without_advancing_head.
-  Original two-writer stress still runs. Owned clusters are independently stopped.
-- Docs budget, ref-check, root inventories and guide all pass after frozen root
-  installation/hoist/generated bootstrap. Generated authoring census has 875
-  rows; SDK delivery census has 215 sites. Store-port production allowance is zero.
-- Production-artifact replay of all 15 originally refused wave-25 lanes plus
-  six ROLL controls: before 15 refusals/10 false; after 2 genuine refusals
-  (004/024), zero false refusals, zero hidden v1 rows in all six ROLL lanes.
-  Legacy rollbacks pass or name both recovery steps. Lane 030 deploys, but
-  default rollback truthfully refuses two unprojectable retained rows: its
-  artifact lacks the required preimage/down. It names the bridge/down and
-  exact/redeploy steps rather than hiding them. This genuine artifact case is
-  not claimed as a successful rollback. All replay stores are deleted.
-- Published 0.4.37 release histories: all 50 upgrade/default rollback/forward
-  cycles preserve rows. This means 48 unchanged copies and two disclosed
-  authored copy-only compatibility steps (010/032), not 50 automatic migrations.
-- Schema survey: 450 projects (wave15's 100 plus seven 50-project waves
-  16/18–23), 900 original/intent-stripped records and 1,800 human/JSON calls:
-  zero false refusals. SEC7 gates 15 unique projects (30 variant records);
-  all 36 original retained-role-grant findings are individually acknowledged
-  on disposable copies, with zero unresolved findings.
-- All 50 wave-23 original acceptance scripts pass with unchanged script bytes.
-  Three disclosed copy-only expiry support helpers (007/026/029) reproduce a
-  0.4.38 baseline assumption; a headless tsconfig drops the unavailable Expo base.
-- Black M5 Mac, scratch `/Users/ccheever/projects/snapback-integ23` only:
-  affected Cargo targets, actual Lean-backed difftest, 103 platform/affected
-  client files plus two serial model files pass (2,357 passes/14 declared skips).
-  Source binding records all
-  semantic inputs; census regeneration keeps production allowance zero. A single
-  appended clean wasm measurement is separately byte-verified as nonsemantic
-  metrology, with its full provenance retained. Logs disclose
-  actual platform skips. No Mac-unreachable deferral is used.
-- Exact: clean Exact2 origin/main `14c091f205f62c32ed9d585ae75148cffc12dfa2`
-  (EX10 contract migrate), private Snapback binary/client bindings only, fresh
-  synced and online apps under `~/sb4-loop/prewave23/`. Both literal
-  `bun exact.mjs snapback` and `bun exact.mjs test web` pass; synced has two
-  tests, online one. Exact commands, setup patch and owned-server cleanup are saved.
-
-Final root inventory initially could not load TypeScript/ajv. Repeating the
-frozen root install, workspace hoist and named generated-artifact bootstrap
-restored them; final inventory, guide (22/0/0) and reference checks pass. No
-tracked shipping source changed, and all 312 SDK leaves still match the pack.
-The raw precondition failure and repair receipts are preserved.
+004needs a truthful cross-table down/bridge for defaulted visits fields moved into assessments. 024needs compatible guarded source retaining predecessor fields/inputs and current authority. 030needs a truthful bridge/down for two retained inspections, or explicit rollback --to1--exact--check selection. These genuine cases mean the zero-total-refusal target is not achieved. Original stores never opened by SQLite; copies exclude owner/token/control files. Final raw byte hashing confirms all 150SQLite/WAL/SHM files unchanged; originals are never opened by SQLite.
 
 ## Wasm and delivery
 
-Clean measured wasm: 2,407,070 B raw / 735,469 B gzip / 553,849 B Brotli.
-Budget 735,969 B = measured gzip + exactly 500 B. The reason records whole merged
-core/error layout and version stamping (+581 B gzip versus qualified 0.4.38),
-not a per-feature cost attribution or a runtime authority increase. Strict
-family/absence audits pass. A diagnostic missing-Brotli attempt is superseded
-by the complete measurement, not treated as a zero-byte result.
+Wasm: 2,415,003 B raw / 737,990 B gzip / 555,572 B Brotli; glue: 16,053 / 3,695 / 3,260 B. Gzip budget: 738,490 B = measurement + 500 B with reason (4ee8dd80ec). Fresh client preparations at4ee/af58 are byte-identical (clientff8573…/Expo0b4319…); final1a6comparison also byte-identical (clientff8573ede171e8025d0d4e1ad9f96554e4251bd621039694beed6ae7dd3882c4, Expo0b431967a27670d63ccb94e537e4a9e596c3079f03480a72b7c2ce62b6c4da69). Mac toolchain emits a different artifact within budget; canonical Linux measurement is the release budget anchor.
 
-Every shell command has a timeout. Cargo invocations inherit incremental=0,
-dev/test debug=0; Linux uses 12 build jobs/eight test threads (PG four), Mac four.
-Source/SDK dist stays stable during the final full Rust and client runs.
-No publication worktree, target/publication, original production store or other
-existing worktree is modified. The forbidden full scripts/test.sh and npm
-publication are not run. No other required scope is silently skipped.
+Delivery remains pending the required final main sync and affected-input verification. No scripts/test.sh (explicitly prohibited), no publication worktree or target/publication touched, no npm publication claimed. Packed consumer-only qualification deliberately has publicationQualified=false; the requested source suites are separately qualified. No source edits while a qualifying client pool or packed consumer run holds its source/artifact binding.
