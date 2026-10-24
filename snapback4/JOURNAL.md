@@ -106570,3 +106570,25 @@ checks, not product throughput measurements. The unchanged release server is
 built, the S1 Quarry app deployed on a private PG16, and the standard one-million
 message native seed is in progress; no read-path optimization or performance
 claim is made at this checkpoint. Raw evidence stays under `/tmp/sb4-rcpu`.
+
+### 2026-10-24 — RCPU: release baseline and bounded prepared reader code
+
+The standard one-million-message S1 fixture is seeded natively on private PG16;
+its census and VACUUM (ANALYZE) pass. Thirty held idle HTTP keep-alive sockets do
+not pin the short workers: a fresh authorized read completes beside them.
+Release pooled S1 at 128 clients gives W1/W2/W3 5,113/4,756/2,532 reads/s;
+PG CPU is 1.661/1.628/2.908 ms per read, server 0.455/0.616/1.362 ms. Loads,
+64/256-client cells, errors and attribution method are in the RCPU report.
+These are five-second loopback diagnostics, not offered-rate qualification.
+
+A bounded physical-reader cache now retains 32 typed statements (code only),
+with SQL/type identity and LRU retirement. Cold preparation is counted; every
+data statement retains its own Sync/snapshot and fresh Rust authority. Ingress,
+writer and exclusive fallback custody remain. Six transport/cache witnesses
+and five RT0/publication-cut tests pass. Warm PG W1/W2/W3 stays 1/1/1 and both
+ratchet files are unchanged. Cache-only release gives 6,320/5,513/2,923 reads/s
+at 128 clients, retaining its admission errors; PG CPU remains too high.
+Automatic prepared-plan selection is not the whole solution. Final binary,
+Postgres sweep, ref audit and cleanup are still pending at this checkpoint.
+Default core has passed 1,138 tests across 47 targets with zero failures and
+five named ignores; its feature excludes these PostgreSQL-only changes.

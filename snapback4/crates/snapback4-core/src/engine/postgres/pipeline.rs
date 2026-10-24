@@ -7,6 +7,7 @@ use postgres::{
     Row, SimpleQueryMessage, Statement,
     types::{ToSql, Type},
 };
+use std::collections::VecDeque;
 use std::sync::{
     Arc, Mutex, OnceLock,
     atomic::{AtomicUsize, Ordering},
@@ -39,6 +40,7 @@ pub(crate) struct Slot {
     // Independent statements borrow it concurrently, bounded by depth.
     custody: Arc<RwLock<()>>,
     permits: Semaphore,
+    prepared: tokio::sync::Mutex<VecDeque<(String, Statement)>>,
 }
 // Like the driver's Statement::drop, release session state without adding a
 // request wait. Exclusive custody keeps cleanup outside every read snapshot.
@@ -175,7 +177,7 @@ impl Pool {
                 if a.get::<_,&str>(3) != "UTF8" || a.get::<_,&str>(4) != "3" || a.get::<_,&str>(5) != "hex" {
                     return Err(RuntimeError::Store("Postgres reader settings were not pinned".into()));
                 }
-                Ok(Arc::new(Slot { client, custody: Arc::new(RwLock::new(())), permits: Semaphore::new(self.depth) }))
+                Ok(Arc::new(Slot { client, custody: Arc::new(RwLock::new(())), permits: Semaphore::new(self.depth), prepared: tokio::sync::Mutex::new(VecDeque::new()) }))
             })?;
             slots.push(slot.clone());
             #[cfg(any(test, feature = "test-support"))]
@@ -408,6 +410,51 @@ impl Connection {
     /// Parse+Bind+Execute+Sync in one flight. There is no BEGIN and no grouping
     /// transaction: PostgreSQL takes a new snapshot for each statement. Binary
     /// Bind output uses the same FromSql path as the ordinary driver.
+    // @ref LLP 3000.009.001.000.002#22-read-ceilings — retain code only; every Bind/Execute/Sync gets a fresh statement snapshot.
+    pub fn independent_cached(
+        &self,
+        sql: &str,
+        params: &[(&(dyn ToSql + Sync), Type)],
+        prepared_flight: impl Fn(),
+    ) -> Result<Vec<super::flight::Row>, RuntimeError> {
+        let Self::Reader { slot, lease, .. } = self else {
+            return Err(RuntimeError::Store("pipeline requires a reader".into()));
+        };
+        if lease.is_some() {
+            return Err(RuntimeError::Store("pipeline after snapshot started".into()));
+        }
+        runtime().block_on(async {
+            let _permit = slot.permits.acquire().await
+                .map_err(|_| RuntimeError::Store("Postgres pipeline stopped".into()))?;
+            let _custody = slot.custody.read().await;
+            let statement = {
+                let mut cache = slot.prepared.lock().await;
+                let hit = cache.iter().position(|(source, statement)| source == sql
+                    && statement.params().len() == params.len()
+                    && statement.params().iter().zip(params).all(|(a, (_, b))| a == b));
+                if let Some(at) = hit {
+                    let entry = cache.remove(at).unwrap();
+                    let statement = entry.1.clone();
+                    cache.push_back(entry);
+                    statement
+                } else {
+                    // The cold preparation is outside the data statement's
+                    // snapshot and counted separately. Never replay a Bind.
+                    let types: Vec<_> = params.iter().map(|(_, ty)| ty.clone()).collect();
+                    prepared_flight();
+                    let statement = slot.client.prepare_typed(sql, &types).await?;
+                    const PREPARED_STATEMENTS: usize = 32;
+                    if cache.len() == PREPARED_STATEMENTS { cache.pop_front(); }
+                    cache.push_back((sql.to_owned(), statement.clone()));
+                    statement
+                }
+            };
+            let values: Vec<_> = params.iter().map(|(value, _)| *value).collect();
+            Ok(slot.client.query(&statement, &values).await?.into_iter()
+                .map(super::flight::Row::Bind).collect())
+        })
+    }
+
     pub fn independent(
         &self,
         sql: &str,

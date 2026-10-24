@@ -528,7 +528,7 @@ impl Closure {
             })?;
             if statement.len().saturating_add(encoded) > super::flight::ENCODED_LIMIT { return tx.complete_request_facts(digest); }
             tx.calls.set(tx.calls.get()+1);
-            let result = tx.inner.borrow().client.independent(&statement,&typed);
+            let result = tx.inner.borrow().client.independent_cached(&statement,&typed, || tx.calls.set(tx.calls.get()+1));
             tx.inner.borrow_mut().pending.clear();
             tx.finish_read_flight();
             match result {
