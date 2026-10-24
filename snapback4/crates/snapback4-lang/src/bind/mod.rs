@@ -86,6 +86,8 @@ pub struct Bound {
     /// Private analysis dependencies, independent of emitted freeze candidates.
     /// Never serialized into the store, IR, client backend or protocol.
     pub(crate) security_approval_inputs: std::collections::BTreeMap<(String,String),std::collections::BTreeSet<String>>,
+    pub(crate) security_approval_reissues: std::collections::BTreeMap<(String,String,String),std::collections::BTreeSet<String>>,
+    pub(crate) security_approval_uncertain_writes: std::collections::BTreeMap<(String,String,String),std::collections::BTreeSet<String>>,
     /// Receipt member operation names, needed only by TypeScript emission.
     pub receipt_members: std::collections::BTreeMap<String, String>,
     /// Compiler-side source map; never serialized into the client backend.
@@ -429,7 +431,7 @@ pub(crate) fn bind_unverified(mut documents: Vec<Document>) -> Bound {
             diagnostics.push(crate::diag::type_error(&hide.site,"rollback hides requires a declared nullable column","name the nullable column whose null records must stay hidden").guide("deploy"));
         }
     }
-    Bound { security_approval_inputs: Default::default(), rollback_hides, invariants, receipt_members, refusal_sites, view_types, server, schema, programs, personas, diagnostics, notes }
+    Bound { security_approval_reissues:Default::default(),security_approval_uncertain_writes:Default::default(),security_approval_inputs: Default::default(), rollback_hides, invariants, receipt_members, refusal_sites, view_types, server, schema, programs, personas, diagnostics, notes }
 }
 
 /// A read-through child binds its parent's rule over hidden captures

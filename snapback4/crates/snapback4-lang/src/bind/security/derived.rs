@@ -17,7 +17,7 @@ fn same_resource(base:&ast::Expr,table:&str,keys:&[ast::KeyPart],p:&ast::Program
     ast::Expr::Read(read)=>read.table==table&&read.keys.len()==keys.len()&&read.keys.iter().zip(keys).all(|(a,b)|{let typed=|key:&ast::KeyPart|key.column.clone().or_else(||if matches!(&key.value,ast::Expr::Name{name,..} if p.args.iter().any(|a|a.name==*name&&matches!(&a.type_.kind,ast::TypeKind::Ref{table:t} if t==table))){Some("id".into())}else{None});typed(a)==typed(b)&&crate::print::expression(&a.value)==crate::print::expression(&b.value)}),_=>false,
 }}
 fn plain_field(expression:&ast::Expr)->bool {
-    matches!(expression,ast::Expr::Member{base,..} if plain_row(base))
+    matches!(expression,ast::Expr::Name{..})||matches!(expression,ast::Expr::Member{base,..} if plain_row(base))
 }
 
 fn omit_preconditions(expression:&mut ast::Expr,negated:bool){
@@ -58,14 +58,27 @@ fn add(out:&mut Vec<Invariant>,table:&str,column:&str,target:&str,policy:RuleExp
     if out.iter().any(|i|i.site==site&&i.policy.as_ref()==Some(&policy)){return;}
     out.push(Invariant{table:table.into(),column:Some(column.into()),target:target.into(),predicate:policy.quarry(),policy:Some(policy),site,operation:None,requirements:Vec::new(),syntax:None,unsupported:None});
 }
-pub fn invariants(sources:&[(String,String)],bound:&Bound)->Vec<Invariant>{collect(sources,bound,&mut BTreeMap::new())}
-fn collect(sources:&[(String,String)],bound:&Bound,inputs:&mut BTreeMap<(String,String),BTreeSet<String>>)->Vec<Invariant>{
+pub fn invariants(sources:&[(String,String)],bound:&Bound)->Vec<Invariant>{collect(sources,bound,&mut BTreeMap::new(),&mut BTreeMap::new(),&mut BTreeMap::new())}
+fn collect(sources:&[(String,String)],bound:&Bound,inputs:&mut BTreeMap<(String,String),BTreeSet<String>>,reissues:&mut BTreeMap<(String,String,String),BTreeSet<String>>,uncertain:&mut BTreeMap<(String,String,String),BTreeSet<String>>)->Vec<Invariant>{
     let docs=sources.iter().map(|(f,s)|crate::parse_document(f,s).0).collect::<Vec<_>>();
     let catalog=Catalog::build(docs.clone(),&mut Vec::new());
     let mut out=Vec::new();
-    let mut controlled=BTreeSet::new();
-    for p in docs.iter().flat_map(|d|&d.programs).filter(|p|p.kind==ast::ProgramKind::Mutation){for (write,_) in authority_walk::writes(&catalog,p){
-        if let ast::Expr::Write{op:ast::WriteOp::Insert|ast::WriteOp::Upsert,table,fields,..}=write{for f in fields{if write_advice::supplied(&f,p){controlled.insert((table.clone(),f.name));}}}
+    let mut controlled=BTreeSet::new();let mut origins=BTreeMap::new();
+    for (file,p) in docs.iter().flat_map(|d|d.programs.iter().map(move |p|(&d.file,p))).filter(|(_,p)|p.kind==ast::ProgramKind::Mutation){for (write,context) in authority_walk::writes(&catalog,p){
+        if let ast::Expr::Write{op,table,fields,site,..}=write{
+            let Some(definition)=bound.schema.tables.get(&table)else{continue;};
+            let mut checked=BTreeSet::new();for statement in &context.body{if let ast::Stmt::Require{condition,..}=statement{let mut condition=condition.clone();omit_preconditions(&mut condition,false);super::super::intent_walk::expression(&mut condition,&mut |e|if let ast::Expr::Name{name,..}=e&&p.args.iter().any(|arg|arg.name==*name){checked.insert(name.clone());});}}
+            let payload=fields.iter().filter(|field|!matches!(field.name.as_str(),"status"|"stage"|"state"|"phase")&&matches!(&field.value,Some(ast::Expr::Name{name,..}) if checked.contains(name))).map(|field|field.name.clone()).collect::<BTreeSet<_>>();
+            for (stamp,kind) in definition.columns.iter().filter(|(stamp,_)|["approv","authoriz"].iter().any(|part|stamp.to_lowercase().contains(part))){
+                let recorded=if let Some(field)=fields.iter().find(|field|field.name==*stamp){super::creation_advice::approval_recording(kind,field.value.as_ref())}else{matches!(op,ast::WriteOp::Insert|ast::WriteOp::Upsert)&&definition.defaults.get(stamp).is_some_and(|value|match (kind.required(),value.value(challenges::NOW,"$derived")){(snapback4_core::schema::ColumnType::Bool,snapback4_core::Value::Bool(true))|(snapback4_core::schema::ColumnType::Time,snapback4_core::Value::Int(_))=>true,_=>false})};
+                if recorded{inputs.entry((table.clone(),stamp.clone())).or_default().extend(payload.iter().filter(|column|*column!=stamp).cloned());origins.entry((table.clone(),stamp.clone())).or_insert_with(||site.clone());}
+                if let Some(field)=fields.iter().find(|field|field.name==*stamp){let key=(super::super::operation_name(std::path::Path::new(file).file_stem().and_then(|s|s.to_str()).unwrap_or(file),&p.name),table.clone(),stamp.clone());
+                    if super::creation_advice::approval_recording(kind,field.value.as_ref()){reissues.entry(key).or_default().insert(site.to_string());}
+                    else if !matches!(field.value,Some(ast::Expr::Literal{value:ast::Literal::Bool(false)|ast::Literal::Null,..})){uncertain.entry(key).or_default().insert(site.to_string());}
+                }
+            }
+            for f in fields{if matches!(op,ast::WriteOp::Insert|ast::WriteOp::Upsert)&&write_advice::supplied(&f,p){controlled.insert((table.clone(),f.name));}}
+        }
     }}
     for t in docs.iter().flat_map(|d|&d.tables){
         let Some(table)=bound.schema.table(&t.name)else{continue;};
@@ -108,27 +121,25 @@ fn collect(sources:&[(String,String)],bound:&Bound,inputs:&mut BTreeMap<(String,
             }}
             for approval in fields.iter().filter(|f|["approv","authoriz"].iter().any(|s|f.name.to_lowercase().contains(s))){
                 let Some(kind)=definition.columns.get(&approval.name)else{continue;};
-                let condition=match (kind.required(),approval.value.as_ref()) {
-                    (snapback4_core::schema::ColumnType::Bool,Some(ast::Expr::Literal{value:ast::Literal::Bool(true),..}))=>RuleExpr::Ne(RuleTerm::Field(approval.name.clone()),RuleTerm::Literal(snapback4_core::Value::Bool(true))),
-                    (snapback4_core::schema::ColumnType::Time,Some(value)) if super::creation_advice::approval_recording(kind,Some(value))=>RuleExpr::Eq(RuleTerm::Field(approval.name.clone()),RuleTerm::Literal(snapback4_core::Value::Null)),
-                    _=>continue,
-                };
+                if !super::creation_advice::approval_recording(kind,approval.value.as_ref()){continue;}
                 // Keep the source dependency even when existing runtime freeze
                 // authority makes emitting another edit candidate redundant.
-                inputs.entry((table.clone(),approval.name.clone())).or_default().extend(inspected.iter().filter(|column|definition.columns.contains_key(*column)&&**column!=approval.name).cloned());
-                // A derived approve/edit contract concerns approval retained
-                // across the edit. Deliberate invalidation is not a bypass.
-                let paired=match &condition {
-                    RuleExpr::Eq(RuleTerm::Field(c),v)=>RuleExpr::Or(vec![RuleExpr::Eq(RuleTerm::OldField(c.clone()),v.clone()),RuleExpr::Eq(RuleTerm::NextField(c.clone()),v.clone())]),
-                    RuleExpr::Ne(RuleTerm::Field(c),v)=>RuleExpr::Or(vec![RuleExpr::Ne(RuleTerm::OldField(c.clone()),v.clone()),RuleExpr::Ne(RuleTerm::NextField(c.clone()),v.clone())]),_=>unreachable!("generated approval condition"),
-                };
-                for (column,_kind) in &definition.columns {
-                    if !inspected.contains(column){continue;}
-                    if fields.iter().any(|f|&f.name==column)||definition.immutable_fields().any(|c|c==column)||definition.frozen_columns.contains_key(column){continue;}
-                    if !bound.programs.iter().any(|p|snapback4_core::ir::write_tables(&p.program).iter().any(|(t,e)|t==table&&matches!(*e,"update"|"upsert"))){continue;}
-                    if !write_advice::update_only(bound,table,column,&condition){add(&mut out,table,column,"update",paired.clone(),site);}
-                }
+                inputs.entry((table.clone(),approval.name.clone())).or_default().extend(inspected.iter().filter(|column|definition.columns.contains_key(*column)&&**column!=approval.name&&fields.iter().find(|field|&field.name==*column).is_none_or(|field|matches!(&field.value,Some(ast::Expr::Member{base,name,..}) if name==*column&&same_resource(base,table,match write{ast::Expr::Write{keys,..}=>keys,_=>unreachable!()},p)))).cloned());
+                origins.entry((table.clone(),approval.name.clone())).or_insert_with(||site.clone());
+
             }
+        }
+    }
+    for (key,sites) in uncertain.iter_mut(){sites.retain(|site|reissues.get(key).is_some_and(|recorded|recorded.contains(site)));}
+    for (key,sites) in reissues.iter_mut(){if let Some(ambiguous)=uncertain.get(key){sites.retain(|site|!ambiguous.contains(site));}}
+    for ((table,stamp),columns) in inputs.iter(){
+        let definition=&bound.schema.tables[table];let Some(site)=origins.get(&(table.clone(),stamp.clone()))else{continue;};
+        let condition=if matches!(definition.columns[stamp].required(),snapback4_core::schema::ColumnType::Bool){RuleExpr::Ne(RuleTerm::Field(stamp.clone()),RuleTerm::Literal(snapback4_core::Value::Bool(true)))}else{RuleExpr::Eq(RuleTerm::Field(stamp.clone()),RuleTerm::Literal(snapback4_core::Value::Null))};
+        let paired=match &condition{RuleExpr::Eq(_,v)=>RuleExpr::Or(vec![RuleExpr::Eq(RuleTerm::OldField(stamp.clone()),v.clone()),RuleExpr::Eq(RuleTerm::NextField(stamp.clone()),v.clone())]),RuleExpr::Ne(_,v)=>RuleExpr::Or(vec![RuleExpr::Ne(RuleTerm::OldField(stamp.clone()),v.clone()),RuleExpr::Ne(RuleTerm::NextField(stamp.clone()),v.clone())]),_=>unreachable!()};
+        for column in columns{
+            if definition.immutable_fields().any(|c|c==column)||definition.frozen_columns.contains_key(column){continue;}
+            if !bound.programs.iter().any(|p|snapback4_core::ir::write_tables(&p.program).iter().any(|(t,e)|t==table&&matches!(*e,"update"|"upsert"))){continue;}
+            if !write_advice::update_only(bound,table,column,&condition){add(&mut out,table,column,"update",paired.clone(),site);}
         }
     }
     workflow::invariants(&docs,&catalog,bound,&mut out);
@@ -144,7 +155,7 @@ pub fn notes(sources:&[(String,String)],bound:&Bound)->Vec<Diagnostic>{
     }).collect()
 }
 pub fn augmented(sources:&[(String,String)],bound:&Bound)->Bound{
-    let mut out=bound.clone();let mut inputs=BTreeMap::new();out.invariants.extend(collect(sources,bound,&mut inputs));for (stamp,columns) in inputs{out.security_approval_inputs.entry(stamp).or_default().extend(columns);}
+    let mut out=bound.clone();let mut inputs=BTreeMap::new();let mut reissues=BTreeMap::new();let mut uncertain=BTreeMap::new();out.invariants.extend(collect(sources,bound,&mut inputs,&mut reissues,&mut uncertain));out.security_approval_reissues.extend(reissues);out.security_approval_uncertain_writes.extend(uncertain);for (stamp,columns) in inputs{out.security_approval_inputs.entry(stamp).or_default().extend(columns);}
     // Declared write audiences are runtime contracts, not inferred spec intent.
     // Their replay failures cannot be acknowledged as deliberate asymmetry.
     let mut contracts=Vec::new();

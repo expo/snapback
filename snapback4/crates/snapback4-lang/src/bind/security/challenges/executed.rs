@@ -67,7 +67,8 @@ pub(super) fn trace(bound:&Bound,p:&Program,entry:&Engine)->Trace {
     let receipts=std::sync::Arc::new(std::sync::Mutex::new(initial));
     let mut intents=Vec::new();
     if entry.is_some(){for ((owner,stamp),columns) in inputs.iter(){let owner=owner.clone();let stamp=stamp.clone();let columns=columns.clone();let receipts=receipts.clone();let target=owner.clone();let column=stamp.clone();
-        intents.push(Intent{paired:false,concrete:None,site:"$security.approval-receipt".into(),table:target,effects:vec![Effect::Insert,Effect::Update],column:Some(column),policy:RuleExpr::Allow,
+        let sites=bound.security_approval_reissues.get(&(p.name.clone(),owner.clone(),stamp.clone())).map(|s|s.iter().cloned().collect()).unwrap_or_default();
+        intents.push(Intent{source:snapback4_core::engine::fixture_trace::SourceFilter{unchanged_at:sites,..Default::default()},paired:false,concrete:None,site:"$security.approval-receipt".into(),table:target,effects:vec![Effect::Insert,Effect::Update],column:Some(column),policy:RuleExpr::Allow,
             boundary:Some(snapback4_core::engine::fixture_trace::BoundaryPredicate(std::sync::Arc::new(move |_,_,next,_,_|{if let Some(next)=next&&let Some((key,value))=receipt(&owner,next,&stamp,&columns){receipts.lock().expect("approval receipt lock").insert(key,value);}Some(true)})))});
     }}
     for inv in bound.invariants.iter().filter(|inv|!matches!(inv.target.as_str(),"read"|"always")&&inv.operation.as_ref().is_none_or(|op|op==&p.name)) {
@@ -110,8 +111,16 @@ pub(super) fn trace(bound:&Bound,p:&Program,entry:&Engine)->Trace {
                     super::super::concrete::evaluate(&syntax,row,rows,&bound.schema,viewer,&inv.table,now)
                 }))
             })}else{None};
+            let mut source=snapback4_core::engine::fixture_trace::SourceFilter::default();
+            if super::super::derived::is_derived(inv)&&let Some(policy)=&inv.policy{
+                let mut stamps=BTreeSet::new();
+                for ((table,stamp),_) in bound.security_approval_inputs.iter().filter(|((table,_),_)|table==&inv.table){
+                    if policy.any_term(&|term|matches!(term,RuleTerm::OldField(column)|RuleTerm::NextField(column) if column==stamp)){stamps.insert((table.clone(),stamp.clone()));}
+                }
+                if stamps.len()==1{let (table,stamp)=stamps.into_iter().next().unwrap();let key=(p.name.clone(),table,stamp);source.except_at=bound.security_approval_reissues.get(&key).map(|s|s.iter().cloned().collect()).unwrap_or_default();source.unknown_at=bound.security_approval_uncertain_writes.get(&key).map(|s|s.iter().cloned().collect()).unwrap_or_default();}
+            }
             intents.push(Intent {
-                paired:super::super::derived::is_derived(inv)&&inv.policy.as_ref().is_some_and(|r|r.any_term(&|t|matches!(t,RuleTerm::OldField(_)|RuleTerm::NextField(_)))),
+                source,paired:super::super::derived::is_derived(inv)&&inv.policy.as_ref().is_some_and(|r|r.any_term(&|t|matches!(t,RuleTerm::OldField(_)|RuleTerm::NextField(_)))),
                 boundary,concrete,site:inv.site.to_string(),table:inv.table.clone(),column:inv.column.clone(),
                 policy:super::super::write_intent::policy(bound,inv,word).unwrap_or(RuleExpr::Allow),
                 effects:vec![super::super::effect(word)],
@@ -122,14 +131,14 @@ pub(super) fn trace(bound:&Bound,p:&Program,entry:&Engine)->Trace {
     // These private always-true observations confer no admission authority.
     if bound.invariants.iter().any(|i|i.site.file.contains("/parent-state/")||i.site.file.contains("/child-stage/")){
         for (table,t) in bound.schema.visible_tables(){for (column,kind) in &t.columns{if matches!(column.as_str(),"status"|"stage"|"state"|"phase")&&matches!(kind.required(),C::Enum{..}){
-            intents.push(Intent{paired:false,boundary:None,concrete:None,site:format!("$security.lifecycle-change/{table}/{column}"),table:table.clone(),column:Some(column.clone()),policy:RuleExpr::Allow,effects:vec![Effect::Update]});
+            intents.push(Intent{source:Default::default(),paired:false,boundary:None,concrete:None,site:format!("$security.lifecycle-change/{table}/{column}"),table:table.clone(),column:Some(column.clone()),policy:RuleExpr::Allow,effects:vec![Effect::Update]});
         }}}
     }
     // A private executed-write witness exempts only the operator provisioner's
     // own roster result. It never exempts an ordinary query or a different row.
     if provisioning(p){for table in ir::write_tables(p).into_iter().map(|(table,_)|table).collect::<BTreeSet<_>>() {
         if super::super::privilege::role_columns(bound,&table).is_empty(){continue;}
-        intents.push(Intent{paired:false,boundary:None,concrete:None,site:format!("{PROVISION_RESULT}{table}"),table,column:None,
+        intents.push(Intent{source:Default::default(),paired:false,boundary:None,concrete:None,site:format!("{PROVISION_RESULT}{table}"),table,column:None,
             policy:RuleExpr::Allow,effects:vec![Effect::Insert,Effect::Update]});
     }}
     Trace::new(intents)
@@ -147,6 +156,9 @@ fn lifecycle_judgment(bound:&Bound,inv:&super::super::Invariant,observation:&sna
     let Some(C::Ref{table:parent})=bound.schema.tables[&inv.table].columns.get(reference).map(C::required)else{return observation.allowed;};
     let old=observation.old.as_ref()?;let row=if let Some(next)=&observation.next&&next.field(reference).ok().is_some_and(|value|*value!=Value::Null&&old.field(reference).ok()!=Some(value)){next}else{old};
     let id=row.field(reference).ok()?;
+    // A named old-image rule is a matching explicit parent policy only if
+    // this execution kept that association. Retargeting cannot borrow it.
+    if old.field(reference).ok()==Some(id){let child=&bound.schema.tables[&inv.table];if [&child.rules.update].into_iter().chain(child.column_writes.values()).any(|rule|rule.any_term(&|term|matches!(term,RuleTerm::Reference{table,column,field,old:true} if table==parent&&column==reference&&field==state))){return Some(true);}}
     for change in all.iter().filter(|change|change.site==format!("$security.lifecycle-change/{parent}/{state}")&&change.table==*parent){
         for image in change.old.iter().chain(change.next.iter()).filter(|image|image.field("id").ok()==Some(id)){
             let mut coupled=after.clone();let rows=coupled.entry(parent.clone()).or_default();rows.retain(|row|row.field("id").ok()!=Some(id));rows.push(image.clone());
@@ -405,6 +417,42 @@ fn lifecycle_observations(source:String,operation:&str,args:BTreeMap<String,Valu
         let args=BTreeMap::from([("task".into(),Value::Id("t1".into())),("otherJob".into(),Value::Id(parent.into())),("touch".into(),Value::Bool(touch))]);
         let observations=lifecycle_observations(source,"advance",args,astate,bstate);
         assert!(observations.iter().any(|(site,allowed)|site.contains("parent-state")&&*allowed==Some(expected)),"{body}: {observations:?}");
+    }
+}
+
+#[test]fn an_old_parent_schema_gate_cannot_authorize_retargeted_work(){
+    for (old_phase,target,expected) in [("active","b",false),("finished","b",false),("finished","a",true)]{
+        let source=lifecycle_source("  update jobs[job] {status:'finished'}","  update tasks[task] {job:otherJob,stage:'done'}").replace("  stage: enum('raw','done') default 'raw'\n  read <- allow\n  update <- allow", &format!("  stage: enum('raw','done') default 'raw'\n  read <- allow\n  update (old,next) <- old.job.status = '{old_phase}'"));
+        let args=BTreeMap::from([("task".into(),Value::Id("t1".into())),("otherJob".into(),Value::Id(target.into())),("touch".into(),Value::Bool(false))]);
+        let observations=lifecycle_observations(source,"advance",args,old_phase,"estimate");
+        assert!(observations.iter().any(|(site,allowed)|site.contains("parent-state")&&*allowed==Some(expected)),"{old_phase}/{target}: {observations:?}");
+    }
+}
+
+#[test]fn creating_approvals_bind_checked_arguments_and_positive_defaults(){
+    let source="table docs:\n  consent: bool\n  mode: enum('safe','unsafe')\n  party: principal\n  approved: bool default true\n  read <- allow\n  insert <- allow\n  update <- allow\n  online only\ntable effects:\n  doc: docs\n  read <- allow\n  insert <- allow\n  online only\nmutation create(consent: bool,mode: enum('safe','unsafe'),party: principal):\n  require consent and mode = 'safe' and party = viewer else NO_CONSENT\n  return insert docs {consent,mode,party}\nmutation finish(doc: docs):\n  d = docs[doc] ! else MISSING\n  require d.approved else NO_APPROVAL\n  return insert effects {doc}\nmutation consume(doc: docs):\n  update docs[doc] {approved:false}\nCHANGES  return insert effects {doc}\n";
+    for variant in [source.to_string(),source.replace("approved: bool default true","approved: bool default false").replace("insert docs {consent,mode,party}","insert docs {consent,mode,party,approved:true}"),source.replace("approved: bool default true","approvedAt: time ? default now").replace("require d.approved else","require d.approvedAt != null else").replace("{approved:false}","{approvedAt:null}")]{
+        for changes in ["","consent:false","mode:'unsafe'","party:viewer"]{
+            let expected=changes.is_empty();let source=variant.replace("CHANGES",&if expected{String::new()}else{format!("  update docs[doc] {{{changes}}}\n")});let sources=vec![("schema.q".into(),source)];let b=super::super::super::derived::augmented(&sources,&crate::compile(&sources));assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
+            let stamp=if b.schema.tables["docs"].columns.contains_key("approved"){"approved"}else{"approvedAt"};for column in ["consent","mode","party"]{assert!(b.security_approval_inputs[&("docs".into(),stamp.into())].contains(column));}
+            let mut engine=Engine::memory(b.schema.clone(),b.programs.iter().map(|p|p.program.clone())).unwrap();let created=engine.mutate("create",None,Context::new("dev:a",BTreeMap::from([("consent".into(),Value::Bool(true)),("mode".into(),Value::String("safe".into())),("party".into(),Value::Id("dev:a".into()))])).at(NOW)).unwrap();let snapback4_core::WriteState::Sent{result:row,..}=created.state else{panic!("create refused");};let id=row.field("id").unwrap().clone();
+            let p=&b.programs.iter().find(|p|p.program.name=="consume").unwrap().program;let trace=trace(&b,p,&engine);let result=engine.mutate("consume",None,Context::new("dev:b",BTreeMap::from([("doc".into(),id)])).at(NOW).with_fixture_trace(trace.clone())).unwrap();assert!(matches!(result.state,snapback4_core::WriteState::Sent{..}));let observations=trace.take();assert!(observations.iter().any(|o|o.site.contains("sibling-approval")&&o.allowed==Some(expected)),"{stamp}/{changes}: {observations:?}");
+        }
+    }
+}
+
+#[test]fn retained_creation_approval_requires_invalidation_or_exact_reapproval(){
+    let source="table docs:\n  consent: bool\n  approved: bool default true\n  read <- allow\n  insert <- allow\n  update <- allow\n  online only\nmutation create(consent: bool):\n  require consent else NO_CONSENT\n  return insert docs {consent}\nmutation edit(doc: docs,reapprove: bool):\n  d = docs[doc] ! else MISSING\nBODY";
+    for (body,allowed) in [
+        ("  update docs[doc] {consent:false}\n",false),
+        ("  update docs[doc] {consent:false,approved:d.approved}\n",false),
+        ("  update docs[doc] {consent:false,approved:false}\n",true),
+        ("  require reapprove else NO_CONSENT\n  update docs[doc] {consent:reapprove,approved:true}\n",true),
+        ("  if reapprove:\n    require reapprove else NO_CONSENT\n    update docs[doc] {consent:reapprove,approved:true}\n  else:\n    update docs[doc] {consent:false,approved:d.approved}\n",false),
+    ]{
+        let sources=vec![("schema.q".into(),source.replace("BODY",body))];let b=super::super::super::derived::augmented(&sources,&crate::compile(&sources));assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
+        let mut engine=Engine::memory(b.schema.clone(),b.programs.iter().map(|p|p.program.clone())).unwrap();let row=snapback4_core::wire::row_from_json(&b.schema.tables["docs"],&serde_json::json!({"id":"d","consent":!(body.contains("consent:reapprove")&&!body.contains("if reapprove")),"approved":true})).unwrap();engine.seed_at([("docs".into(),row)],NOW).unwrap();
+        let p=&b.programs.iter().find(|p|p.program.name=="edit").unwrap().program;let trace=trace(&b,p,&engine);let result=engine.mutate("edit",None,Context::new("dev:a",BTreeMap::from([("doc".into(),Value::Id("d".into())),("reapprove".into(),Value::Bool(!body.contains("if reapprove")))])).at(NOW).with_fixture_trace(trace.clone())).unwrap();assert!(matches!(result.state,snapback4_core::WriteState::Sent{..}));let observations=trace.take();assert_eq!(!observations.iter().any(|o|o.site.starts_with("$derived/")&&o.allowed==Some(false)),allowed,"{body}: {observations:?}");
     }
 }
 

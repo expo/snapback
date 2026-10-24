@@ -279,3 +279,9 @@ fn campaign(s:&str)->Campaign{let b=security::derived::augmented(&sources(s),&bo
     let source="table approvals:\n  principal: principal\n  unique principal\n  approved: bool default false\n  read <- allow\n  online only\ntable effects:\n  owner: principal\n  read <- allow\n  insert <- allow\n  online only\nmutation guarded():\n  require exists approvals[principal = viewer, approved = true] else NO_APPROVAL\n  return insert effects {owner:viewer}\nmutation bypass():\n  return insert effects {owner:viewer}\n";
     let cs=security::derived::invariants(&sources(source),&bound(source));assert!(cs.iter().any(|i|i.table=="effects"&&i.site.file.contains("sibling-approval")),"{cs:?}");
 }
+
+#[test]fn idempotent_terminal_writes_do_not_create_work_windows(){
+    let mut source=include_str!("security/wave26/008.q").to_string();source.push_str("\nmutation touchFinished(job: jobs):\n  require exists roles[viewer,role='crew'] else NOT_CREW\n  j = jobs[job] ! else MISSING\n  require j.status = 'finished' else BAD_STAGE\n  update jobs[job] {status:'finished'}\n");
+    let cs=security::derived::invariants(&sources(&source),&bound(&source));assert!(cs.iter().any(|i|i.site.file.contains("child-stage")),"{cs:?}");
+    assert!(cs.iter().filter(|i|i.site.file.contains("parent-state")).all(|i|!i.predicate.contains("'finished'")),"{cs:?}");
+}

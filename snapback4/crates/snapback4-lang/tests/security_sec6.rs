@@ -38,7 +38,7 @@ fn seed(e:&mut Engine){e.seed_at([("docs".into(),Value::Row([("id".into(),Value:
  let b=bound(&format!("{TABLE}mutation edit(doc: docs):\n  update docs[doc] {{title:'changed'}}\n"));let mut base=fixture(&b);seed(&mut base);
  let mut plain=base.fork_fixture().unwrap();let mut observed=base.fork_fixture().unwrap();
  let args=std::collections::BTreeMap::from([("doc".into(),Value::Id("doc".into()))]);
- let trace=Trace::new(vec![Intent{paired:false,boundary:None,concrete:None,site:"intent".into(),table:"docs".into(),effects:vec![Effect::Update],column:None,policy:RuleExpr::Deny}]);
+ let trace=Trace::new(vec![Intent{source:Default::default(),paired:false,boundary:None,concrete:None,site:"intent".into(),table:"docs".into(),effects:vec![Effect::Update],column:None,policy:RuleExpr::Deny}]);
  let a=plain.mutate("edit",None,Context::new("dev:other",args.clone()).at(challenges::NOW)).unwrap();
  let z=observed.mutate("edit",None,Context::new("dev:other",args).at(challenges::NOW).with_fixture_trace(trace.clone())).unwrap();
  assert_eq!(serde_json::to_value(a).unwrap(),serde_json::to_value(z).unwrap());
@@ -59,7 +59,7 @@ fn seed(e:&mut Engine){e.seed_at([("docs".into(),Value::Row([("id".into(),Value:
  let source=TABLE.replace("  read <- allow","  unique title\n  read <- allow");
  let b=bound(&format!("{source}mutation insertTwice():\n  insert docs {{owner:viewer,secret:null,title:'same'}} if absent\n  insert docs {{owner:viewer,secret:null,title:'same'}} if absent\n  return null\nmutation put(doc: docs):\n  upsert docs[doc] {{owner:viewer,secret:'new',title:'put'}}\n  return null\nmutation replace(doc: docs):\n  delete docs[doc]\n  upsert docs[doc] {{owner:viewer,secret:'new',title:'put'}}\n  return null\n"));
  let mut e=fixture(&b);seed(&mut e);
- let trace=Trace::new(vec![Intent{paired:false,boundary:None,concrete:None,site:"intent".into(),table:"docs".into(),effects:vec![Effect::Insert,Effect::Update,Effect::Delete],column:None,policy:RuleExpr::Deny}]);
+ let trace=Trace::new(vec![Intent{source:Default::default(),paired:false,boundary:None,concrete:None,site:"intent".into(),table:"docs".into(),effects:vec![Effect::Insert,Effect::Update,Effect::Delete],column:None,policy:RuleExpr::Deny}]);
  let call=|e:&mut Engine,name:&str,args:std::collections::BTreeMap<String,Value>|e.mutate(name,None,Context::new("dev:other",args).at(challenges::NOW).with_fixture_trace(trace.clone())).unwrap();
  assert!(matches!(call(&mut e,"insertTwice",Default::default()).state,snapback4_core::WriteState::Sent{..}));
  assert_eq!(trace.take().iter().map(|o|o.effect).collect::<Vec<_>>(),vec![Effect::Insert]);

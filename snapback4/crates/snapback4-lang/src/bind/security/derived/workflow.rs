@@ -230,15 +230,37 @@ fn state_requirements(p:&ast::ProgramDecl,w:&Expr,context:&ast::ProgramDecl,boun
     let arg=target_arg(p,w,table)?;let args=BTreeMap::from([(arg.name.clone(),member(focal(),"id"))]);let mut parts=Vec::new();for guard in guards(context){conjuncts(guard,&mut parts);}
     Some(parts.into_iter().filter_map(|c|normalize(c,&bound.schema,table,&args)).filter(|c|{let mut c=c.clone();let mut found=false;walk(&mut c,&mut |e|if matches!(e,Expr::Member{base,name,..} if name==state&&matches!(base.as_ref(),Expr::Focal{..})){found=true;});found}).collect())
 }
+fn source_states(guards:&[Expr],bound:&Bound,table:&str,state:&str)->BTreeSet<String>{
+    fn admits(e:&Expr,state:&str,value:&str)->Option<bool>{match e{
+        Expr::Literal{value:ast::Literal::Bool(value),..}=>Some(*value),
+        Expr::Unary{op,value:e,..} if op=="not"=>admits(e,state,value).map(|value|!value),
+        Expr::Binary{op,left,right,..} if op=="and"||op=="or"=>{let a=admits(left,state,value);let b=admits(right,state,value);let decisive=op=="or";if a==Some(decisive)||b==Some(decisive){Some(decisive)}else if a.is_some()&&b.is_some(){Some(!decisive)}else{None}},
+        Expr::Binary{op,left,right,..} if op=="="||op=="!="=>[(left.as_ref(),right.as_ref()),(right.as_ref(),left.as_ref())].into_iter().find_map(|(field,literal)|if matches!(field,Expr::Member{base,name,..} if name==state&&matches!(base.as_ref(),Expr::Focal{..}))&&let Expr::Literal{value:ast::Literal::Str(expected),..}=literal{Some((value==expected)==(op=="="))}else{None}),_=>None,
+    }}
+    if guards.is_empty(){return BTreeSet::new();}
+    let Some(C::Enum{variants})=bound.schema.tables[table].columns.get(state).map(C::required)else{return BTreeSet::new();};
+    variants.iter().filter(|value|guards.iter().all(|guard|admits(guard,state,value)!=Some(false))).cloned().collect()
+}
+fn changes_from(p:&ast::ProgramDecl,write:&Expr,bound:&Bound,table:&str,state:&str,source:&str)->bool{
+    fn changes(value:&Expr,state:&str,source:&str)->bool{match value{
+        Expr::Literal{value:ast::Literal::Str(value),..}=>value!=source,
+        Expr::Member{base,name,..} if name==state&&matches!(base.as_ref(),Expr::Focal{..})=>false,
+        Expr::If{then,otherwise,..}=>changes(then,state,source)||changes(otherwise,state,source),_=>true,
+    }}
+    let Expr::Write{fields,..}=write else{return false;};let Some(value)=fields.iter().find(|field|field.name==state).and_then(|field|field.value.as_ref())else{return false;};
+    let Some(arg)=target_arg(p,write,table)else{return true;};
+    normalize(value,&bound.schema,table,&BTreeMap::from([(arg.name.clone(),member(focal(),"id"))])).is_none_or(|value|changes(&value,state,source))
+}
 fn parent_guard(p:&ast::ProgramDecl,write:&Expr,context:&ast::ProgramDecl,bound:&Bound,child:&str,reference:&str,parent:&str,state:&str)->bool{
     let definition=&bound.schema.tables[child];
-    let schema_gate=[&definition.rules.update].into_iter().chain(definition.column_writes.values()).any(|rule|rule.any_term(&|term|matches!(term,RuleTerm::Reference{table,column,field,..} if table==parent&&column==reference&&field==state)));if schema_gate{return true;}
+    let mut previous_association=true;
     let mut args=BTreeMap::new();if let Some(arg)=target_arg(p,write,child){args.insert(arg.name.clone(),member(focal(),"id"));}
     let Expr::Write{fields,keys,..}=write else{return false;};
     if let Some(value)=fields.iter().find(|field|field.name==reference).and_then(|field|field.value.as_ref()){
         let unchanged=matches!(value,Expr::Literal{value:ast::Literal::Null,..})||normalize(value,&bound.schema,child,&args).is_some_and(|e|crate::print::expression(&e)==crate::print::expression(&member(focal(),reference)));
-        if !unchanged{args.clear();if let Expr::Name{name,..}=value&&p.args.iter().any(|arg|arg.name==*name&&matches!(&arg.type_.kind,TypeKind::Ref{table} if table==parent)){args.insert(name.clone(),member(focal(),reference));}}
+        if !unchanged{previous_association=false;args.clear();if let Expr::Name{name,..}=value&&p.args.iter().any(|arg|arg.name==*name&&matches!(&arg.type_.kind,TypeKind::Ref{table} if table==parent)){args.insert(name.clone(),member(focal(),reference));}}
     }else if args.is_empty()&&keys.len()==1&&keys[0].column.as_deref()==Some(reference)&&definition.indexes.values().any(|index|index.unique&&index.columns()==vec![reference.to_string()])&&let Expr::Name{name,..}=&keys[0].value&&p.args.iter().any(|arg|arg.name==*name&&matches!(&arg.type_.kind,TypeKind::Ref{table} if table==parent)){args.insert(name.clone(),member(focal(),reference));}
+    let schema_gate=[&definition.rules.update].into_iter().chain(definition.column_writes.values()).any(|rule|rule.any_term(&|term|matches!(term,RuleTerm::Reference{table,column,field,old} if table==parent&&column==reference&&field==state&&(!old||previous_association))));if schema_gate{return true;}
     guards(context).filter_map(|condition|normalize(condition,&bound.schema,child,&args)).any(|mut condition|{let mut found=false;walk(&mut condition,&mut |e|if let Expr::Member{base,name,..}=e&&name==state&&crate::print::expression(base)==crate::print::expression(&member(focal(),reference)){found=true;});found})
 }
 fn lifecycle(writes:&[(&ast::ProgramDecl,Expr,ast::ProgramDecl)],bound:&Bound,out:&mut Vec<Invariant>){
@@ -260,11 +282,11 @@ fn lifecycle(writes:&[(&ast::ProgramDecl,Expr,ast::ProgramDecl)],bound:&Bound,ou
                 if writes.iter().any(|(p,w,c)|matches!(w,Expr::Write{op:WriteOp::Update,table:t,fields,..} if t==parent&&state_field(bound,parent,fields).is_some())&&state_requirements(p,w,c,bound,parent,&parent_state.name).is_none()){continue;}
                 let Some(destination)=parent_state.value.as_ref()else{continue;};
                 let Expr::Literal{value:ast::Literal::Str(destination),..}=destination else{continue;};
-                let sources=requirements.iter().flat_map(literals).collect::<BTreeSet<_>>();
+                let sources=source_states(&requirements,bound,parent,&parent_state.name);
                 if sources.is_empty(){continue;}
                 // Work follows a prior parent transition by this same role.
                 // Admit both its explicit source and destination states.
-                let outgoing=writes.iter().any(|(p,w,c)|roles(c,bound)==child_roles&&state_requirements(p,w,c,bound,parent,&parent_state.name).is_some_and(|guards|guards.iter().any(|c|literals(c).contains(destination))));
+                let outgoing=writes.iter().any(|(p,w,c)|roles(c,bound)==child_roles&&state_requirements(p,w,c,bound,parent,&parent_state.name).is_some_and(|guards|source_states(&guards,bound,parent,&parent_state.name).contains(destination)&&changes_from(p,w,bound,parent,&parent_state.name,destination)));
                 if outgoing&&!parent_gate {
                     // A role may work throughout its parent's intermediate
                     // phase. Adjacent edges form one window, not mutually
@@ -276,10 +298,10 @@ fn lifecycle(writes:&[(&ast::ProgramDecl,Expr,ast::ProgramDecl)],bound:&Bound,ou
                         let Some(requirements)=state_requirements(producer,write,context,bound,parent,&parent_state.name)else{continue;};
                         let Some(state)=state_field(bound,parent,fields)else{continue;};if state.name!=parent_state.name{continue;}
                         let Some(Expr::Literal{value:ast::Literal::Str(to),..})=&state.value else{continue;};
-                        let next_edge=writes.iter().any(|(p,w,c)|roles(c,bound)==child_roles&&state_requirements(p,w,c,bound,parent,&parent_state.name).is_some_and(|guards|guards.iter().any(|c|literals(c).contains(to))));
+                        let next_edge=writes.iter().any(|(p,w,c)|roles(c,bound)==child_roles&&state_requirements(p,w,c,bound,parent,&parent_state.name).is_some_and(|guards|source_states(&guards,bound,parent,&parent_state.name).contains(to)&&changes_from(p,w,bound,parent,&parent_state.name,to)));
                         if !next_edge{continue;}
                         allowed.insert(to.clone());
-                        allowed.extend(requirements.iter().flat_map(literals));
+                        allowed.extend(source_states(&requirements,bound,parent,&parent_state.name));
                     }
                     let policy=allowed.into_iter().map(|v|binary("=",member(member(focal(),reference),&parent_state.name),string(&v))).reduce(|a,b|binary("or",a,b));
                     if let Some(policy)=policy{
@@ -289,7 +311,7 @@ fn lifecycle(writes:&[(&ast::ProgramDecl,Expr,ast::ProgramDecl)],bound:&Bound,ou
                 }
                 // A terminal parent destination has no same-role outgoing
                 // transition. Infer the child's terminal only from its graph.
-                let any_outgoing=writes.iter().any(|(p,w,c)|state_requirements(p,w,c,bound,parent,&parent_state.name).is_some_and(|guards|guards.iter().any(|c|literals(c).contains(destination))));
+                let any_outgoing=writes.iter().any(|(p,w,c)|state_requirements(p,w,c,bound,parent,&parent_state.name).is_some_and(|guards|source_states(&guards,bound,parent,&parent_state.name).contains(destination)&&changes_from(p,w,bound,parent,&parent_state.name,destination)));
                 if any_outgoing{continue;}
                 // A single open/closed toggle does not establish a completion
                 // workflow across child stages. Require an authored predecessor
@@ -314,7 +336,7 @@ fn lifecycle(writes:&[(&ast::ProgramDecl,Expr,ast::ProgramDecl)],bound:&Bound,ou
                         if reset{continue;}ambiguous=true;break;
                     }
                     if let Some(value)=&state.value{assigned.extend(literals(value));}
-                    from.extend(requirements.iter().flat_map(literals));
+                    from.extend(source_states(&requirements,bound,child,&child_state.name));
                 }
                 if ambiguous{continue;}
                 if let Some(C::Enum{variants})=bound.schema.tables[child].columns.get(&child_state.name).map(C::required){assigned.retain(|value|variants.contains(value));from.retain(|value|variants.contains(value));}

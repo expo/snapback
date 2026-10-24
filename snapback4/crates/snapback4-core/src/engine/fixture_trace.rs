@@ -14,8 +14,18 @@ impl std::fmt::Debug for ConcretePredicate {fn fmt(&self,f:&mut std::fmt::Format
 #[derive(Clone)]
 pub struct BoundaryPredicate(pub Arc<dyn Fn(&FixtureRows,Option<&Value>,Option<&Value>,&str,i64)->Option<bool> + Send + Sync>);
 impl std::fmt::Debug for BoundaryPredicate {fn fmt(&self,f:&mut std::fmt::Formatter<'_>)->std::fmt::Result{f.write_str("effect prerequisite")}}
+#[derive(Clone,Debug,Default)]
+pub struct SourceFilter {
+    /// Reissuing an approval may touch an unchanged stamp at these exact sites.
+    pub unchanged_at: Vec<String>,
+    /// A source-proven reapproval write is outside an invalidation-only probe.
+    pub except_at: Vec<String>,
+    /// Shared helper sites with unresolved recording provenance stay uncovered.
+    pub unknown_at: Vec<String>,
+}
 #[derive(Clone, Debug)]
 pub struct Intent {
+    pub source: SourceFilter,
     /// Private derived contracts may compare the actual old/next pair once.
     pub paired: bool,
     pub boundary: Option<BoundaryPredicate>,
@@ -40,9 +50,14 @@ pub struct Observation {
 pub struct Trace {
     pub(crate) intents: Arc<Vec<Intent>>,
     pub(crate) observations: Arc<Mutex<Vec<Observation>>>,
+    write_sites: Arc<Mutex<Vec<String>>>,
 }
+pub(super) struct WriteScope(Arc<Mutex<Vec<String>>>);
+impl Drop for WriteScope {fn drop(&mut self){self.0.lock().expect("fixture write-site lock").pop();}}
 impl Trace {
-    pub fn new(intents: Vec<Intent>) -> Self { Self { intents: Arc::new(intents), observations: Arc::default() } }
+    pub fn new(intents: Vec<Intent>) -> Self { Self { intents: Arc::new(intents), observations: Arc::default(),write_sites:Arc::default() } }
+    // @ref LLP 3000.036.004.000#10-sec10-approvals-and-deterministic-exploration — exact executed write custody distinguishes reapproval from copied stamps.
+    pub(super) fn at_write(&self,site:&str)->WriteScope{self.write_sites.lock().expect("fixture write-site lock").push(site.into());WriteScope(self.write_sites.clone())}
     pub fn take(&self) -> Vec<Observation> { std::mem::take(&mut *self.observations.lock().expect("fixture trace lock")) }
 }
 impl Context {
@@ -51,12 +66,14 @@ impl Context {
 impl Runner<'_> {
     pub(super) fn fixture_write(&self, table: &str, effect: Effect, old: Option<&Value>, next: Option<&Value>) {
         let Some(trace) = self.context.fixture_trace.as_ref() else { return; };
+        let write_site=trace.write_sites.lock().expect("fixture write-site lock").last().cloned();
         for intent in trace.intents.iter().filter(|i| i.table == table && i.effects.contains(&effect)) {
-            if effect == Effect::Update && intent.column.as_ref().is_some_and(|c|old.and_then(|r|r.field(c).ok()) == next.and_then(|r|r.field(c).ok())) { continue; }
+            if write_site.as_ref().is_some_and(|site|intent.source.except_at.contains(site)){continue;}
+            if effect == Effect::Update && !write_site.as_ref().is_some_and(|site|intent.source.unchanged_at.contains(site)) && intent.column.as_ref().is_some_and(|c|old.and_then(|r|r.field(c).ok()) == next.and_then(|r|r.field(c).ok())) { continue; }
             let judge = |image: &Value| self.fixture_judgment(&intent.policy, old, image).ok().and_then(|v| match v {
                 rules::Verdict::Readable => Some(true), rules::Verdict::Denied => Some(false), rules::Verdict::Unknown => None,
             });
-            let allowed = if let Some(predicate)=&intent.boundary {
+            let allowed = if write_site.as_ref().is_some_and(|site|intent.source.unknown_at.contains(site)){None}else if let Some(predicate)=&intent.boundary {
                 self.fixture_snapshot().ok().and_then(|before|(predicate.0)(&before,old,next,&self.context.viewer,self.context.now.unwrap_or(0)))
             } else if let Some(predicate)=&intent.concrete {
                 // Private fixture inspection, bounded and independent of the
