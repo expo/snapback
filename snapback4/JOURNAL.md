@@ -107245,3 +107245,83 @@ incremental compilation disabled. Both private PG16 masters (**312515** and
 **789152**) are stopped and independently confirmed (status 3, no pidfile or
 process). The recorded PID/start audit finds no active process or zombie.
 No PIDs remain; no push, stash, Git config, q24 or shared PG17 change occurs.
+
+### 2026-10-24 — FF2: performance-stack fix-forward corners
+
+Lane `sb4-pg/ff2` starts at the requested c985dbc640, with the G6 environment
+and a private PG16 only. LLP 3000.009.001.000.002 §6 remains the governing
+fence and witness contract; `llp-orient` followed the affected adapter refs and
+the deployment guide before editing. No throughput measurements run.
+
+Managed-relation admission now includes this connection's TEMP restoration
+and adoption scratch tables, both immediately after creation before first use
+and in lifecycle's existing pre-COMMIT check. SQLite registry matching uses
+ASCII case folding; exact canonical installer exceptions remain restrictive.
+RCPU `/proc` inspection failure invalidates a complete family sample rather
+than omitting the member; the enclosing record explicitly marks invalidity.
+The payload guard alone computes readiness, and its four array subqueries are
+inside the ready branches. Explicit non-UTF-8 G6 clock bounds refuse startup.
+G6 follow-up items 2–4 stay open; the other three tickets move to `issues/closed/`.
+
+Failing-before runtime evidence: SQLite name case 0/1; TEMP restoration 0/1;
+TEMP pre-COMMIT admission 0/1; adoption scratch first-use admission 0/1; sampler
+0/1; actual production payload SQL's EXPLAIN aggregate loops 0/1; non-UTF-8
+startup 0/1. Two qualified TEMP restoration repetitions advance the external
+sequence probe and leave both live and dormant counts at zero. Adoption's
+probe also advances. Fixed first-use witnesses require unadvanced probes.
+Initial fixture setup errors are corrected and excluded from this evidence.
+
+The PIPE witness uses a TCP protocol relay to count complete Execute/Sync units
+forwarded to PG while the first statement remains advisory-lock blocked. It
+checks submission before release and before backend termination, independent
+snapshots, isolated statement errors and loss of all pending requests. Replacing
+the real shared custody lock with an exclusive lock fails the new barrier 0/1;
+the mutation is restored. A subprocess witness rejects the former socket-only
+TCP_NODELAY pass (0/1 before the fix); real TCP strace remains required. The PG
+runner accepts a separate explicit TCP connection for this scope and retains
+Unix sockets for production ownership. An initial relay shutdown hang is fixed
+and its interrupted run is excluded from qualification.
+
+Final FF2 qualification: complete portable core **1,214 passed / 0 failed /
+5 ignored** across 49 targets; full binary **606/0/54**; HTTP RT0 **3/0**
+(Postgres and SQLite tables unchanged, plus G6 W1/W2/W3 zero-flight hits);
+both overlay RT0 cases pass unchanged. The final focused witnesses pass
+**14/0**, the complete managed-relation suite **15/0**, the non-UTF-8 startup
+witness **1/0**, and the complete scale-controls harness **3/0**.
+
+The first TEMP catalog predicate combined namespace branches with OR. Static
+EXPLAIN on the evaluation catalog (227,631 relations at inspection) showed a
+whole-catalog pg_class sequential scan. Two generation-cap HTTP fixtures hit
+their existing three-second read timeout, including in a serial replay (62/2).
+The final selector separates the namespace arms with UNION ALL and uses
+name-typed index keys. Both arms now use pg_class_relname_nsp_index. The complete
+original-parallel HTTP boundary scope passes **64/0**, without changing its
+client timeout; the final 14/0 and 15/0 fence runs above use this indexed form.
+No throughput measurement is used to qualify this correction.
+
+The full Postgres script reports **778 passed / 3 failed** across 35 completed
+Rust scopes, plus one interrupted corpus scope. Its reds are the inherited
+evaluator `40001` and those two subsequently repaired HTTP timeouts. The old
+corpus executable, still using the superseded query, is stopped by its recorded
+PID; the exact corpus command is restarted against the final indexed code and
+passes **22/0**. Replacing the old HTTP scope with its final 64/0 result and
+including that corpus result gives **802/1 across 36 latest scoped verdicts**;
+the only unresolved red is the inherited evaluator `40001`. This is affected-
+scope reconciliation, not a claim that a second complete script ran clean.
+The final production CLI's public Postgres serving milestone passes, including
+release restoration, both-store change evidence/SDK sync, process loss/recovery,
+non-superuser serving and the unchanged small S1 application/recounts.
+
+An initial offline Cargo attempt could not resolve a locked index version and
+is excluded; normal registry access is restored. Its recorded public helper is
+interrupted through its cleanup path and its cluster independently confirmed
+stopped. Final root ref-check passes **568 LLP documents / 11,962 references /
+0 errors / 0 unchecked**. Raw logs, plans and PID receipts stay outside Git.
+
+Private PG16 masters **1153810**, **1227334** (excluded attempt) and **1497879**
+are independently stopped and confirmed: status 3, no postmaster.pid, no process.
+The main master is also reaped by its retained spawning parent. The recorded
+PID/start-tick audit and the worktree-target executable audit are both empty.
+No owned PIDs remain. Minimum recorded free space is **66.927 GiB**, above the
+40 GiB floor throughout; no target reclamation is needed. Work remains local,
+with no push, stash, Git configuration change, q24 access or shared PG17 change.
