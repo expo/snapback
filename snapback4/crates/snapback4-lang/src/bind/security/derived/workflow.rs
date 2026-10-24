@@ -116,7 +116,7 @@ pub(super) fn invariants(docs:&[ast::Document],catalog:&Catalog,bound:&Bound,out
                     if !matches!(value,Expr::Member{base,name,..} if name=="id"&&matches!(base.as_ref(),Expr::Focal{..})){continue;}
                     let guarded=guards(context).filter_map(|c|normalize(c,&bound.schema,root,&args)).any(|c|{let mut found=false;let mut c=c;walk(&mut c,&mut |e|if let Expr::Member{base,name,..}=e&&matches!(base.as_ref(),Expr::Focal{..})&&matches!(bound.schema.tables[root].columns.get(name).map(C::required),Some(C::Bool|C::Enum{..})){found=true;});found});
                     let consumed=writes.iter().any(|(other,w,_)|std::ptr::eq(*other,*p)&&matches!(w,Expr::Write{op:WriteOp::Update|WriteOp::Delete,table:t,..} if t==root));
-                    if guarded&&!consumed {
+                    if guarded&&!consumed&&guards(context).any(contains_approval) {
                         if let Some(policy)=expr(&format!(".{} = null or count({table}[{} = .{}]) <= 1",field.name,field.name,field.name)){add_syntax(out,table,None,"insert",policy,site,"repeat-create",None);}
                     }
                 }
@@ -151,6 +151,12 @@ pub(super) fn invariants(docs:&[ast::Document],catalog:&Catalog,bound:&Bound,out
                 }
 
                 if root!=table&&matches!(op,WriteOp::Insert|WriteOp::Upsert){
+                    // A related ledger insert in an atomic stage transition
+                    // records that destination; it does not make every ledger
+                    // event require the transition's approval. The exact
+                    // parent destination already supplies its own contract.
+                    let stage_effect=writes.iter().any(|(producer,effect,_)|std::ptr::eq(*producer,*p)&&target_arg(producer,effect,root).is_some_and(|selected|selected.name==arg.name)&&matches!(effect,Expr::Write{table:target,fields,..} if target==root&&state_field(bound,root,fields).is_some_and(|field|matches!(&field.value,Some(Expr::Literal{..})))));
+                    if stage_effect{continue;}
                     // The guarded resource must be the one actually placed
                     // on this effect, not another argument of the same type.
                     let mut placed=base.clone();walk(&mut placed,&mut |e|if let Expr::Member{base,name,..}=e&&matches!(base.as_ref(),Expr::Focal{..})&&let Some(value)=fields.iter().find(|f|f.name==*name).and_then(|f|f.value.as_ref()){*e=value.clone();});
@@ -252,6 +258,11 @@ fn lifecycle(writes:&[(&ast::ProgramDecl,Expr,ast::ProgramDecl)],bound:&Bound,ou
                 let any_outgoing=writes.iter().any(|(p,w,c)|state_requirements(p,w,c,bound,parent,&parent_state.name).is_some_and(|guards|guards.iter().any(|c|literals(c).contains(destination))));
                 let atomic_child=writes.iter().any(|(p,w,_)|std::ptr::eq(*p,*parent_p)&&matches!(w,Expr::Write{op:WriteOp::Update,table:t,..} if t==child));
                 if any_outgoing||atomic_child{continue;}
+                // A single open/closed toggle does not establish a completion
+                // workflow across child stages. Require an authored predecessor
+                // transition into this completion's source phase.
+                let predecessor=writes.iter().any(|(p,w,c)|matches!(w,Expr::Write{op:WriteOp::Update,table:t,fields,..} if t==parent&&state_field(bound,parent,fields).and_then(|field|field.value.as_ref()).is_some_and(|value|matches!(value,Expr::Literal{value:ast::Literal::Str(to),..} if sources.contains(to))))&&state_requirements(p,w,c,bound,parent,&parent_state.name).is_some_and(|guards|!guards.is_empty()));
+                if !predecessor{continue;}
                 let mut assigned=BTreeSet::new();let mut from=BTreeSet::new();let mut ambiguous=false;
                 for (p,w,c) in writes.iter().filter(|(_,w,_)|matches!(w,Expr::Write{op:WriteOp::Update,table:t,..} if t==child)){
                     let Expr::Write{fields,..}=w else{continue;};let Some(state)=fields.iter().find(|f|f.name==child_state.name)else{continue;};

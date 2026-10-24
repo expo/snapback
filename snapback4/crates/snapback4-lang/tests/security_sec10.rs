@@ -229,3 +229,29 @@ fn campaign(s:&str)->Campaign{let b=security::derived::augmented(&sources(s),&bo
     let candidates=security::derived::invariants(&sources(source),&bound(source));
     assert!(!candidates.iter().any(|i|i.table=="docs"&&i.column.as_deref()==Some("value")),"{candidates:?}");
 }
+
+#[test]fn atomic_stage_ledgers_do_not_require_approval_for_every_event(){
+    let source="table docs:\n  approved: bool default false\n  status: enum('draft','ready','done') default 'draft'\n  read <- allow\n  update <- allow\n  online only\ntable events:\n  doc: docs\n  action: text 1..30\n  read <- allow\n  insert <- allow\n  online only\nmutation verify(doc: docs):\n  update docs[doc] {status:'ready'}\n  insert events {doc,action:'verified'}\nmutation finish(doc: docs):\n  d = docs[doc] ! else MISSING\n  require d.approved else NO_APPROVAL\n  update docs[doc] {status:'done'}\n  insert events {doc,action:'finished'}\n";
+    let candidates=security::derived::invariants(&sources(source),&bound(source));
+    assert!(candidates.iter().any(|i|i.table=="docs"&&i.site.file.contains("sibling-approval")),"{candidates:?}");
+    assert!(!candidates.iter().any(|i|i.table=="events"&&i.site.file.contains("sibling-approval")),"{candidates:?}");
+}
+#[test]fn a_repeated_create_without_an_approval_cap_is_a_question(){
+    let source="table tours:\n  state: enum('booked','cancelled') default 'booked'\n  prior: tours ?\n  read <- allow\n  insert <- allow\n  online only\nmutation rebook(tour: tours):\n  t = tours[tour] ! else MISSING\n  require t.state = 'cancelled' else NOT_CANCELLED\n  return insert tours {prior:tour}\n";
+    assert!(notes(source).iter().any(|n|n.code=="N_GUARD_NOT_CONSUMED"));
+    assert!(!security::derived::invariants(&sources(source),&bound(source)).iter().any(|i|i.site.file.contains("repeat-create")));
+}
+#[test]fn a_single_parent_close_toggle_does_not_establish_child_completion(){
+    let source="table roles:\n  principal: principal\n  role: enum('commander')\n  unique principal\n  read <- allow\n  online only\ntable searches:\n  state: enum('open','closed') default 'open'\n  read <- allow\n  update <- allow\n  online only\ntable teams:\n  search: searches\n  state: enum('active','stood_down') default 'active'\n  read <- allow\n  update <- allow\n  online only\nmutation close(search: searches):\n  require exists roles[viewer,role='commander'] else DENIED\n  s = searches[search] ! else MISSING\n  require s.state = 'open' else CLOSED\n  update searches[search] {state:'closed'}\nmutation standDown(team: teams):\n  require exists roles[viewer,role='commander'] else DENIED\n  t = teams[team] ! else MISSING\n  require t.state = 'active' else CLOSED\n  update teams[team] {state:'stood_down'}\n";
+    assert!(!security::derived::invariants(&sources(source),&bound(source)).iter().any(|i|i.site.file.contains("child-stage")));
+}
+
+#[test]fn child_schema_write_authority_consumes_the_matching_parent_approval(){
+    let source="table docs:\n  approved: bool default false\n  read <- allow\n  update <- allow\n  online only\ntable effects:\n  doc: docs\n  read <- allow\n  insert <- .doc.approved = true\n  online only\nmutation approve(doc: docs):\n  update docs[doc] {approved:true}\nmutation work(doc: docs):\n  return insert effects {doc}\n";
+    assert!(!notes(source).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
+    assert!(notes(&source.replace("insert <- .doc.approved = true","insert <- allow")).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
+}
+#[test]fn a_secondary_key_is_not_the_approved_parent_identity(){
+    let source="table docs:\n  predecessor: docs ?\n  approved: bool default false\n  unique predecessor\n  read <- allow\n  update <- allow\n  online only\ntable effects:\n  doc: docs\n  unique doc\n  read <- allow\n  insert <- allow\n  online only\nmutation approve(prior: docs):\n  require exists effects[doc = prior] else MISSING\n  update docs[predecessor = prior] {approved:true}\nmutation work(doc: docs):\n  return insert effects {doc}\n";
+    assert!(notes(source).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
+}
