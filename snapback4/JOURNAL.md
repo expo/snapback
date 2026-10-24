@@ -105234,3 +105234,70 @@ the 40 GB stop threshold throughout recorded checks. Raw logs/JSON/PG data
 remain outside Git. No push, stash, global Git configuration change or q24
 operation occurs. Final `./ref-check` passes with zero errors and unchecked
 references.
+
+## 2026-10-24 — G3b fix round 1: suppressed writes and live retry deadlines
+
+Lane `sb4-pg/g3b-fix1` rebases the eight G3b commits from `976fc81e92`
+onto G2/G3 fix1 `366212fac0`. Conflicts were in `engine/program_batch.rs`,
+the controls RFC and this journal. The driver combines overlay apply with the
+shared retry-tail budget and retains the post-tail deadline check immediately
+before COMMIT selection. Each fallback member still uses its own deadline;
+physical uncertainty still overrides retained authority refusals. The RFC keeps
+both implementation notes, and both preceding journal entries are retained
+verbatim. The outcome driver, solo program driver and SQLite lifecycle remain
+byte-identical to G2/G3 fix1.
+
+Serial PostgreSQL and SQLite `put` now require exactly one affected row for
+updates and inserts. A suppressed update is a store error, so neither a
+buffered apply nor a solo retry can persist a receipt or history for it.
+PostgreSQL retains its existing zero-row insert-suppression Rule refusal.
+The checks inspect the existing execute result and add no SQL statement.
+
+The strengthened `overlay_apply_count_rejects_suppressed_image_and_rolls_back_history`
+and its new SQLite counterpart use eight keyed `increment`s on one synced
+counter with future 30-second deadlines. PostgreSQL's trigger returns NULL;
+SQLite's trigger uses `RAISE(IGNORE)`. With only these witnesses transplanted
+onto exact original tip `976fc81e92`, both fail: 0 passed / 2 failed. Each
+store returns eight successes, persists eight receipts and eight extra log
+images (36 to 44), and advances head 2 to 10 despite suppressing the row
+update. PostgreSQL records two attempts per member; SQLite accepts its first
+buffered attempt. On the fix, both pass: eight store errors per store, zero
+receipts, head 2, log 36 and the entire durable snapshot unchanged. Every
+member records a buffered attempt followed by a solo attempt, so deadline
+expiry cannot make the recovery witness vacuous.
+
+The G3b section of LLP 3000.009.001.000.002 now identifies the ownership/takeover
+and declared-fact-budget witnesses as regression locks only. They do not
+distinguish G3b from `b3c4aa2bba`; buffered histories, conflict reruns and flight
+ratchets carry that evidence. Qualification and owned-process cleanup follow
+below.
+
+Final qualification uses the requested line-tables-only dev/test profiles,
+this lane's target directory and four Cargo build jobs. Workspace build passes.
+Full core (Postgres compiled, ordinary local-store test environment) passes
+**1,197 / 0** across 49 top-level harnesses: 746 unit, 413 integration and
+38 doc tests, with 344 existing ignores. Full binary passes **577 / 0**,
+with 45 existing ignores. The final RT0 selection passes **5 / 0**, including
+both SQLite and PostgreSQL ratchets. Child-process self-test summaries are
+not double-counted in these totals. The private program-batch scope passes
+43 / 0 and the outcome/deadline scope 8 / 0.
+
+`bash scripts/test-postgres.sh` completes **662 passed / 1 failed**. Its only
+red is the inherited
+`evaluator_concurrent_read_modify_write_and_duplicate_ops_are_atomic_in_both_modes`
+Serializable SQLSTATE `40001`, covered by the existing
+`issues/20260916-snapback4-postgres-serializable-benchmark-failures.md` ticket.
+The three existing evaluator exclusions are unchanged. All subsequent adapter,
+ownership, evolution, batch/outcome, HTTP, five-executor corpus (22 / 0),
+differential-library (11 / 0), store-campaign (4 / 0) and public CLI scopes
+pass. Public deployment/serving confirms restoration parity, large change
+evidence, restart/takeover and the unchanged S1 Quarry journey.
+
+Private PG16 postmasters **1750066** and **1985944** are stopped and
+independently confirmed with status 3, no pidfile and no owned socket. All
+**728 recorded PIDs**, the disk guard and lane target executables are absent.
+PIDs left: **none**. Final observed /home free space is **55 G**; every
+observed/monitored sample remains above the 40 GB stop threshold. Raw logs,
+JSON and PG data stay outside Git. No push or stash occurs; q24 and the
+PG17 cluster on port 55440 are untouched. `./ref-check` passes: 567 LLP docs,
+11,848 references, zero errors and zero unchecked references.

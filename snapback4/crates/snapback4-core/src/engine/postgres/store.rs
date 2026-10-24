@@ -992,8 +992,13 @@ impl Rows for Tx<'_> {
         let sql = if old.is_some() { "UPDATE r SET data = $3 WHERE t = $1 AND id = $2" } else { "INSERT INTO r VALUES ($1,$2,$3)" };
         // Keep reserved-id admission in the existing insertion round trip (RT0).
         let sql = if self.unified && old.is_none() { "INSERT INTO r(t,id,data) SELECT $1,$2,$3 WHERE NOT EXISTS(SELECT 1 FROM _dormant_narrow_rows WHERE t=$1 AND id=$2)" } else { sql };
-        if self.execute(sql, &[&table_name, &id, &data])? == 0 && old.is_none() {
-            return Err(RuntimeError::Rule { table: table_name.into(), effect: crate::schema::Effect::Insert });
+        let affected = self.execute(sql, &[&table_name, &id, &data])?;
+        // @ref LLP 3000.009.001.000.002#3.3 — solo recovery must reject unapplied images just like bulk apply.
+        if affected != 1 {
+            if affected == 0 && old.is_none() {
+                return Err(RuntimeError::Rule { table: table_name.into(), effect: crate::schema::Effect::Insert });
+            }
+            return Err(RuntimeError::Store(format!("row write count mismatch for {table_name}: expected 1, got {affected}")));
         }
         let mut entries = 0;
         for crate::rows::IndexWrite { name, before, after } in keys {

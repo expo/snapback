@@ -32,7 +32,19 @@ mutation uniqueEdit(room: rooms):
   return update memberships[room, viewer] { last_read: 2 }
 "#;
 pub(super) fn fixture(pg: bool) -> Engine {
+    fixture_with_sync(pg, false)
+}
+fn fixture_with_sync(pg: bool, sync: bool) -> Engine {
     let source = format!("{S1}\n{EXTRA}");
+    let source = if sync {
+        // Keep increment's eligible point-update shape and record its images.
+        source.replace(
+            "  read <- .owner = viewer or (.owner = null and exists memberships[.room, viewer])\n  update <- .owner = viewer or (.owner = null and exists memberships[.room, viewer])\n  online only",
+            "  public\n  update <- allow\n  sync public",
+        )
+    } else {
+        source
+    };
     let bound = snapback4_lang::compile(&[("schema.q".into(), source)]);
     assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
     let schema: Schema =
@@ -629,42 +641,87 @@ fn overlay_preserves_intermediate_log_images_sqlite() {
 fn overlay_preserves_intermediate_log_images_postgres() {
     intermediate_log(true);
 }
+fn suppressed_update(pg: bool) {
+    let mut engine = fixture_with_sync(pg, true);
+    let before = super::tests::snapshot(&mut engine);
+    assert!(
+        before["log"].as_array().unwrap().len() > 1,
+        "synced counter images must be logged"
+    );
+    let tx = engine.store_mut().transaction().unwrap();
+    if pg {
+        #[cfg(feature = "postgres")]
+        tx.test_postgres_tx().batch("CREATE FUNCTION suppress_image() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN NULL; END $$; CREATE TRIGGER suppress_image BEFORE UPDATE ON r FOR EACH ROW EXECUTE FUNCTION suppress_image()").unwrap();
+    } else {
+        tx.test_support_conn()
+            .execute_batch(
+                "CREATE TRIGGER suppress_image BEFORE UPDATE ON r BEGIN SELECT RAISE(IGNORE); END",
+            )
+            .unwrap();
+    }
+    tx.commit().unwrap();
+    let mut batch = (0..8)
+        .map(|n| {
+            let mut invocation = Invocation::new(
+                "increment",
+                Some(format!("suppressed-{n}")),
+                Context::new("alice", [("counter".into(), Value::Id("a".into()))].into()).at(1000),
+            );
+            // Keep solo retries live after the unnamed buffered-apply abort.
+            invocation.deadline = Instant::now() + Duration::from_secs(30);
+            invocation
+        })
+        .collect::<Vec<_>>();
+    let actual = engine.invoke_program_batch(&mut batch);
+    let after = super::tests::snapshot(&mut engine);
+    eprintln!(
+        "suppressed update pg={pg}: errors={}, receipts={}, head={}, log={}, attempts={:?}",
+        actual.iter().filter(|r| r.is_err()).count(),
+        after["receipts"].as_array().unwrap().len(),
+        after["head"],
+        after["log"].as_array().unwrap().len(),
+        batch.iter().map(|i| i.attempts.len()).collect::<Vec<_>>()
+    );
+    let tx = engine.store_mut().transaction().unwrap();
+    if pg {
+        #[cfg(feature = "postgres")]
+        tx.test_postgres_tx()
+            .batch("DROP TRIGGER suppress_image ON r;DROP FUNCTION suppress_image()")
+            .unwrap();
+    } else {
+        tx.test_support_conn()
+            .execute_batch("DROP TRIGGER suppress_image")
+            .unwrap();
+    }
+    tx.commit().unwrap();
+    assert!(actual.iter().all(Result::is_err), "{actual:?}");
+    assert!(
+        actual.iter().all(|r| {
+            let why = r.as_ref().unwrap_err();
+            why.code == "E_STORE" && why.message.contains("row write count mismatch")
+        }),
+        "{actual:?}"
+    );
+    assert!(
+        batch
+            .iter()
+            .all(|i| i.attempts.len() == 2 && i.attempts[0].buffered && !i.attempts[1].buffered),
+        "the buffered apply must abort, then every member must run solo"
+    );
+    // Includes rows, receipts, commits, evidence, log, head and effects.
+    assert_eq!(after, before);
+}
 #[cfg(feature = "postgres")]
 #[test]
 #[ignore = "private PG16; real apply suppression"]
 fn overlay_apply_count_rejects_suppressed_image_and_rolls_back_history() {
-    let mut engine = fixture(true);
-    let before = super::tests::snapshot(&mut engine);
-    let tx = engine.store_mut().transaction().unwrap();
-    tx.test_postgres_tx().batch("CREATE FUNCTION suppress_image() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN NULL; END $$; CREATE TRIGGER suppress_image BEFORE UPDATE ON r FOR EACH ROW EXECUTE FUNCTION suppress_image()").unwrap();
-    tx.commit().unwrap();
-    let mut batch = (0..8)
-        .map(|n| {
-            let mut i = member(19, n);
-            i.context.viewer = "alice".into();
-            i.context
-                .args
-                .insert("counter".into(), Value::Id("a".into()));
-            i.context.args.insert("reject".into(), Value::Bool(false));
-            i.deadline = Instant::now() - Duration::from_secs(1);
-            i
-        })
-        .collect::<Vec<_>>();
-    let actual = engine.invoke_program_batch(&mut batch);
-    assert!(actual.iter().all(Result::is_err));
-    assert!(
-        actual
-            .iter()
-            .all(|r| r.as_ref().unwrap_err().message.contains("count mismatch")),
-        "{actual:?}"
-    );
-    assert_eq!(super::tests::snapshot(&mut engine), before);
-    let tx = engine.store_mut().transaction().unwrap();
-    tx.test_postgres_tx()
-        .batch("DROP TRIGGER suppress_image ON r;DROP FUNCTION suppress_image()")
-        .unwrap();
-    tx.commit().unwrap();
+    suppressed_update(true);
 }
+#[test]
+fn overlay_apply_count_rejects_suppressed_image_and_rolls_back_history_sqlite() {
+    suppressed_update(false);
+}
+
 fn counts(pg: bool) {
     let mut engine = fixture(pg);
     let session = crate::identity::open_session(engine.store(), "alice", "account", 1000).unwrap();

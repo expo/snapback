@@ -803,7 +803,11 @@ impl<'a> Tx<'a> {
         self.changes.borrow_mut().record(table_name, table, old, Some(row));
         let data = canonical_json(row);
         let sql = if old.is_some() { "UPDATE r SET data = ?3 WHERE t = ?1 AND id = ?2" } else { "INSERT INTO r(t, id, data) VALUES (?1, ?2, ?3)" };
-        self.tx.prepare_cached(sql)?.execute(params![t, id, data])?;
+        let affected = self.tx.prepare_cached(sql)?.execute(params![t, id, data])?;
+        // @ref LLP 3000.009.001.000.002#3.3 — solo recovery must reject unapplied images just like bulk apply.
+        if affected != 1 {
+            return Err(RuntimeError::Store(format!("row write count mismatch for {table_name}: expected 1, got {affected}")));
+        }
         let mut insert = self.tx.prepare_cached(insert_index)?;
         let mut entries = 0;
         for crate::rows::IndexWrite { name, before, after } in keys {
