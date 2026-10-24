@@ -1,0 +1,40 @@
+muse: workspace root: /home/ccheever/projects/sb4-b27-dx10 (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=486875a0-f98f-4b9c-b20d-b64b4cda9e33]: Subscription quota exhausted. Your usage window resets at 2026-10-26T00:00:00Z. (rate_limit_error)
+[muse-exec] plan quota exhausted; retrying with the Meta API key
+muse: workspace root: /home/ccheever/projects/sb4-b27-dx10 (cwd default)
+muse: workspace trust: trusted source=run-flag
+Review complete. I read only this worktree, made no edits, ran no builds or tests, and opened no credentials or other worktrees.
+
+## Verdict: NOT READY
+
+The §16 mechanics themselves are sound on reading. One material inconsistency blocks readiness: a source-generated contract table the amendment relies on is stale.
+
+## Material defect (must fix)
+
+**Stale generated proof API table** — [proof_api.md](/home/ccheever/projects/sb4-b27-dx10/snapback4/crates/snapback4-lang/src/guide/proof_api.md) is generated from source by [generate-proof-api.mjs](/home/ccheever/projects/sb4-b27-dx10/snapback4/scripts/generate-proof-api.mjs) ("includes every runtime and type export", per §12), but was not regenerated for DX10:
+
+- No `serveCheck`, `ServeCheckOptions`, or `ServeCheckReport` rows (the table has zero matches for those names).
+- No `ProvisionAccountsOptions` row.
+- Row 18 still shows the old `provisionAccounts(host, options: SeedAccountsOptions)` signature; the implementation now takes `ProvisionAccountsOptions` plus a host with `deploymentDir`.
+- Row 51 (`ServeHost`) omits the new required `deploymentDir` field and still types `provisionAccounts` with `SeedAccountsOptions`.
+
+A builder following the table would call `provisionAccounts` without any roster and hit a runtime `E_PRODUCTION_ROSTER` throw. Repair (from `snapback4/`): `node scripts/generate-proof-api.mjs`, then confirm `--check` passes. `serveCheck` already carries the `@throws` doc the generator requires ([proof-serve-check.ts](/home/ccheever/projects/sb4-b27-dx10/snapback4/packages/snapback4/src/proof-serve-check.ts:31)), so regeneration should succeed. This also matches the landing rule: the amendment adds [dx10-process-accounts.test.mjs](/home/ccheever/projects/sb4-b27-dx10/snapback4/packages/snapback4/test/dx10-process-accounts.test.mjs), which triggers the inventory check.
+
+## What I verified as correct (no fix needed)
+
+- **Keeper survives SIGTERM**: driver and `--keeper` both install no-op `SIGTERM`/`SIGINT` handlers ([proof-serve-driver.ts](/home/ccheever/projects/sb4-b27-dx10/snapback4/packages/snapback4/src/proof-serve-driver.ts:5)); both live in the driver's `detached:true` group, so the group-SIGTERM in [proof-serve-check.ts](/home/ccheever/projects/sb4-b27-dx10/snapback4/packages/snapback4/src/proof-serve-check.ts:85) cannot recycle the pgid during inspection. EOF-driven `kill(0, SIGKILL)` runs only in `finally`, after inspection.
+- **Inspection before cleanup**: group membership poll and the `serve --wait-stopped` lock barrier both precede `child.stdin.destroy()`; a held store lock yields a distinct `E_SERVE_LOCK_HELD` alongside `E_SERVE_CHILD_RUNNING`, exactly what the held-lock test asserts.
+- **Secrets never in reports**: stdout stays in a capped in-memory buffer (1 MiB cap, static messages only), stderr is resumed and discarded, failure strings carry no values, and the new test asserts the report never contains the planted secret.
+- **Roster safety**: credentials/mutation-ID persisted before each ambiguous write ([proof-accounts.ts](/home/ccheever/projects/sb4-b27-dx10/snapback4/packages/snapback4/src/proof-accounts.ts:69)); login-first resumption with no replacement on known-principal failure; same-ID mutation replay under server dedup; atomic temp+rename saves; exclusive per-roster `.lock` with operator-inspection semantics; plan pinning over sorted roles/provision/service; 0600 files; `lstat`-based symlink refusal. Restart and both lost-reply cases are covered by the new test.
+- **Plan compatibility**: `ProvisionAccountsOptions` extends `SeedAccountsOptions` (all new fields optional); `ServeHost.provisionAccounts` and `ServeOptions.provisionUsers` accept old shapes; existing `staging.test.mjs`/`dx4-dev.test.mjs` call sites are unaffected; prior `identity-rate.test.mjs` callers were updated with `deploymentDir`.
+
+## Minor notes (non-blocking)
+
+- [CHANGELOG.md](/home/ccheever/projects/sb4-b27-dx10/snapback4/packages/snapback4/CHANGELOG.md) stages a `0.4.41` section while `package.json` stays `0.4.40`; past release commits bump both together — reconcile at release.
+- `bin/snapback4.js` `serve-check` exposes `--up-ms`/`--timeout-ms` but no `--stop-ms` for `stopTimeoutMs`.
+- If the driver crashes before IPC, the readiness loop burns the full startup deadline before refusing (verdict still correct, just slow); the loop doesn't watch driver liveness.
+- Hardening nits: pre-existing roster dir mode not enforced, `*.tmp` survivors after SIGKILL, single-entry JSON tampering silently provisions a replacement, and `args` must be deterministic across resumption (worth one guide sentence).
+- Scope observations: the cheatsheet oldest-first-page advice is new content beyond the stated "reprioritize wording" brief, and the "another script owns serve" cold-variant prose is not among the literally executed stage scripts.
+
+Regenerate the API table and re-check; the rest needs no rework. **NOT READY.**

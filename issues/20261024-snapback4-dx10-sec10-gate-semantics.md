@@ -30,3 +30,8 @@ rejection (also 004). DX10 changes the create/edit rewrite to lead with the
 existing deliberate `invariant T.c update only P` answer and adds a regression.
 No semantic fix is claimed by that wording change. Integration must not claim
 all of #9 complete until SEC10 lands these fixes and tests. Mac skipped.
+
+Executable reproduction: `node snapback4/reports/20261024-dx10/security-repro.mjs`.
+Recorded in the adjacent security-repro.json: pure column-write helper refuses
+E_QUARRY_RULE_OPERATOR; 1..4→<=4 passes without N_PRESENCE_LOOSENING; outsider
+empty-list creation fails E_RULE. These are reproduced gaps, not passing fixes.

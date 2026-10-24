@@ -1,0 +1,43 @@
+{
+  "platform": "linux",
+  "arch": "x64",
+  "steps": [
+    {
+      "step": "stage-0.mjs",
+      "exit": 0
+    },
+    {
+      "step": "stage-1.mjs",
+      "exit": 0
+    },
+    {
+      "step": "serveCheck JS block",
+      "exit": 0,
+      "report": {
+        "ok": true,
+        "script": "prod:serve",
+        "failures": [],
+        "ready": true,
+        "upMs": 30001,
+        "lockReleased": true
+      }
+    },
+    {
+      "step": "npx guide command",
+      "exit": 0,
+      "report": {
+        "ok": true,
+        "script": "prod:serve",
+        "failures": [],
+        "ready": true,
+        "upMs": 30001,
+        "lockReleased": true
+      }
+    }
+  ],
+  "binarySha256": "b5d0d4e48df1abc88e39debad4d42c6d62508e0962e3226311dc231f869f09fa",
+  "sdkSha256": "59733353206a446806cb1c6bb6313b61f588f7fdd82890051fa4f908409bf457",
+  "nativeTarballSha256": "7582f1ca556c48a1aca2a4c7f52ec1060b6650f54c8236d28037c5bca8b1e060",
+  "ok": true,
+  "scratchRemoved": true
+}

@@ -1,0 +1,2005 @@
+{
+  "processLanes": [
+    "003",
+    "005",
+    "009",
+    "011",
+    "013",
+    "015",
+    "019",
+    "020",
+    "021",
+    "024",
+    "030",
+    "033",
+    "034",
+    "044",
+    "045",
+    "049",
+    "050"
+  ],
+  "pollutionLanes": [
+    "010",
+    "024",
+    "037",
+    "040",
+    "044",
+    "049"
+  ],
+  "results": [
+    {
+      "lane": "003-snapback-vintage-amplifier-repairs",
+      "script": "node scripts/prod-serve.mjs",
+      "attempts": [
+        {
+          "exit": 0,
+          "seconds": 38.342,
+          "report": {
+            "ok": true,
+            "script": "prod:serve",
+            "failures": [],
+            "ready": true,
+            "upMs": 30001,
+            "lockReleased": true
+          },
+          "before": {
+            "principals": 16,
+            "appRows": 64
+          },
+          "after": {
+            "principals": 16,
+            "appRows": 64
+          },
+          "growth": {
+            "principals": 0,
+            "appRows": 0
+          },
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ]
+    },
+    {
+      "lane": "005-snapback-neon-sign-commissions",
+      "script": "node scripts/prod-serve.mjs",
+      "attempts": [
+        {
+          "exit": 0,
+          "seconds": 36.251,
+          "report": {
+            "ok": true,
+            "script": "prod:serve",
+            "failures": [],
+            "ready": true,
+            "upMs": 30001,
+            "lockReleased": true
+          },
+          "before": {
+            "principals": 9,
+            "appRows": 40
+          },
+          "after": {
+            "principals": 9,
+            "appRows": 40
+          },
+          "growth": {
+            "principals": 0,
+            "appRows": 0
+          },
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ]
+    },
+    {
+      "lane": "009-snapback-painting-conservation-treatments",
+      "script": "node scripts/prod-serve.mjs",
+      "attempts": [
+        {
+          "exit": 0,
+          "seconds": 40.698,
+          "report": {
+            "ok": true,
+            "script": "prod:serve",
+            "failures": [],
+            "ready": true,
+            "upMs": 30000,
+            "lockReleased": true
+          },
+          "before": {
+            "principals": 9,
+            "appRows": 115
+          },
+          "after": {
+            "principals": 9,
+            "appRows": 115
+          },
+          "growth": {
+            "principals": 0,
+            "appRows": 0
+          },
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ]
+    },
+    {
+      "lane": "010-snapback-canyoneering-guided-trips",
+      "script": "node scripts/prod-serve.mjs",
+      "attempts": [
+        {
+          "exit": 0,
+          "seconds": 36.306,
+          "report": {
+            "ok": true,
+            "script": "prod:serve",
+            "failures": [],
+            "ready": true,
+            "upMs": 30000,
+            "lockReleased": true
+          },
+          "before": {
+            "principals": 165,
+            "appRows": 569
+          },
+          "after": {
+            "principals": 173,
+            "appRows": 585
+          },
+          "growth": {
+            "principals": 8,
+            "appRows": 16
+          },
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "exit": 0,
+          "seconds": 36.419,
+          "report": {
+            "ok": true,
+            "script": "prod:serve",
+            "failures": [],
+            "ready": true,
+            "upMs": 30001,
+            "lockReleased": true
+          },
+          "before": {
+            "principals": 173,
+            "appRows": 585
+          },
+          "after": {
+            "principals": 173,
+            "appRows": 585
+          },
+          "growth": {
+            "principals": 0,
+            "appRows": 0
+          },
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "exit": 0,
+          "seconds": 36.993,
+          "report": {
+            "ok": true,
+            "script": "prod:serve",
+            "failures": [],
+            "ready": true,
+            "upMs": 30000,
+            "lockReleased": true
+          },
+          "before": {
+            "principals": 173,
+            "appRows": 585
+          },
+          "after": {
+            "principals": 173,
+            "appRows": 585
+          },
+          "growth": {
+            "principals": 0,
+            "appRows": 0
+          },
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ]
+    },
+    {
+      "lane": "011-snapback-water-softener-installs",
+      "script": "node scripts/production-stage.ts serve",
+      "attempts": [
+        {
+          "exit": 0,
+          "seconds": 36.411,
+          "report": {
+            "ok": true,
+            "script": "prod:serve",
+            "failures": [],
+            "ready": true,
+            "upMs": 30000,
+            "lockReleased": true
+          },
+          "before": {
+            "principals": 38,
+            "appRows": 76
+          },
+          "after": {
+            "principals": 38,
+            "appRows": 76
+          },
+          "growth": {
+            "principals": 0,
+            "appRows": 0
+          },
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ]
+    },
+    {
+      "lane": "013-snapback-parachute-repack-logs",
+      "script": "tsx scripts/prod-serve.ts",
+      "attempts": [
+        {
+          "exit": 1,
+          "seconds": 0.653,
+          "report": {
+            "ok": false,
+            "script": "prod:serve",
+            "failures": [
+              {
+                "code": "E_SERVE_NO_JSON",
+                "message": "no complete JSON object line before exit/startup deadline"
+              },
+              {
+                "code": "E_SERVE_EARLY_EXIT",
+                "message": "npm serve script exited before the up interval completed"
+              }
+            ],
+            "ready": false,
+            "upMs": 0,
+            "lockReleased": true
+          },
+          "before": {
+            "principals": 7,
+            "appRows": 93
+          },
+          "after": {
+            "principals": 7,
+            "appRows": 93
+          },
+          "growth": {
+            "principals": 0,
+            "appRows": 0
+          },
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ]
+    },
+    {
+      "lane": "015-snapback-camera-lens-rentals",
+      "script": "tsx scripts/prod-stage.ts serve",
+      "attempts": [
+        {
+          "exit": 1,
+          "seconds": 0.677,
+          "report": {
+            "ok": false,
+            "script": "prod:serve",
+            "failures": [
+              {
+                "code": "E_SERVE_NO_JSON",
+                "message": "no complete JSON object line before exit/startup deadline"
+              },
+              {
+                "code": "E_SERVE_EARLY_EXIT",
+                "message": "npm serve script exited before the up interval completed"
+              }
+            ],
+            "ready": false,
+            "upMs": 0,
+            "lockReleased": true
+          },
+          "before": {
+            "principals": 42,
+            "appRows": 364
+          },
+          "after": {
+            "principals": 42,
+            "appRows": 364
+          },
+          "growth": {
+            "principals": 0,
+            "appRows": 0
+          },
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ]
+    },
+    {
+      "lane": "019-snapback-horse-transport-bookings",
+      "script": "tsx scripts/production-stage.ts serve",
+      "attempts": [
+        {
+          "exit": 1,
+          "seconds": 0.762,
+          "report": {
+            "ok": false,
+            "script": "prod:serve",
+            "failures": [
+              {
+                "code": "E_SERVE_NO_JSON",
+                "message": "no complete JSON object line before exit/startup deadline"
+              },
+              {
+                "code": "E_SERVE_EARLY_EXIT",
+                "message": "npm serve script exited before the up interval completed"
+              }
+            ],
+            "ready": false,
+            "upMs": 0,
+            "lockReleased": true
+          },
+          "before": {
+            "principals": 9,
+            "appRows": 84
+          },
+          "after": {
+            "principals": 9,
+            "appRows": 84
+          },
+          "growth": {
+            "principals": 0,
+            "appRows": 0
+          },
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ]
+    },
+    {
+      "lane": "020-snapback-llama-trekking-trips",
+      "script": "node scripts/prod-serve.mjs",
+      "attempts": [
+        {
+          "exit": 0,
+          "seconds": 42.617,
+          "report": {
+            "ok": true,
+            "script": "prod:serve",
+            "failures": [],
+            "ready": true,
+            "upMs": 30000,
+            "lockReleased": true
+          },
+          "before": {
+            "principals": 25,
+            "appRows": 161
+          },
+          "after": {
+            "principals": 25,
+            "appRows": 161
+          },
+          "growth": {
+            "principals": 0,
+            "appRows": 0
+          },
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ]
+    },
+    {
+      "lane": "021-snapback-olive-oil-press-runs",
+      "script": "node scripts/prod-serve.mjs",
+      "attempts": [
+        {
+          "exit": 0,
+          "seconds": 38.169,
+          "report": {
+            "ok": true,
+            "script": "prod:serve",
+            "failures": [],
+            "ready": true,
+            "upMs": 30001,
+            "lockReleased": true
+          },
+          "before": {
+            "principals": 9,
+            "appRows": 138
+          },
+          "after": {
+            "principals": 9,
+            "appRows": 138
+          },
+          "growth": {
+            "principals": 0,
+            "appRows": 0
+          },
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ]
+    },
+    {
+      "lane": "024-snapback-billiard-table-relocations",
+      "script": "node scripts/prod-serve.mjs",
+      "attempts": [
+        {
+          "exit": 0,
+          "seconds": 36.202,
+          "report": {
+            "ok": true,
+            "script": "prod:serve",
+            "failures": [],
+            "ready": true,
+            "upMs": 30000,
+            "lockReleased": true
+          },
+          "before": {
+            "principals": 199,
+            "appRows": 274
+          },
+          "after": {
+            "principals": 207,
+            "appRows": 282
+          },
+          "growth": {
+            "principals": 8,
+            "appRows": 8
+          },
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "exit": 0,
+          "seconds": 37.16,
+          "report": {
+            "ok": true,
+            "script": "prod:serve",
+            "failures": [],
+            "ready": true,
+            "upMs": 30001,
+            "lockReleased": true
+          },
+          "before": {
+            "principals": 207,
+            "appRows": 282
+          },
+          "after": {
+            "principals": 207,
+            "appRows": 282
+          },
+          "growth": {
+            "principals": 0,
+            "appRows": 0
+          },
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "exit": 0,
+          "seconds": 36.967,
+          "report": {
+            "ok": true,
+            "script": "prod:serve",
+            "failures": [],
+            "ready": true,
+            "upMs": 30001,
+            "lockReleased": true
+          },
+          "before": {
+            "principals": 207,
+            "appRows": 282
+          },
+          "after": {
+            "principals": 207,
+            "appRows": 282
+          },
+          "growth": {
+            "principals": 0,
+            "appRows": 0
+          },
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ]
+    },
+    {
+      "lane": "030-snapback-thermal-imaging-surveys",
+      "script": "node scripts/prod-serve.mjs",
+      "attempts": [
+        {
+          "exit": 0,
+          "seconds": 40.243,
+          "report": {
+            "ok": true,
+            "script": "prod:serve",
+            "failures": [],
+            "ready": true,
+            "upMs": 30001,
+            "lockReleased": true
+          },
+          "before": {
+            "principals": 49,
+            "appRows": 170
+          },
+          "after": {
+            "principals": 49,
+            "appRows": 170
+          },
+          "growth": {
+            "principals": 0,
+            "appRows": 0
+          },
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ]
+    },
+    {
+      "lane": "033-snapback-asphalt-sealcoating-jobs",
+      "script": "node scripts/prod-serve.mjs",
+      "attempts": [
+        {
+          "exit": 0,
+          "seconds": 36.647,
+          "report": {
+            "ok": true,
+            "script": "prod:serve",
+            "failures": [],
+            "ready": true,
+            "upMs": 30001,
+            "lockReleased": true
+          },
+          "before": {
+            "principals": 13,
+            "appRows": 146
+          },
+          "after": {
+            "principals": 13,
+            "appRows": 146
+          },
+          "growth": {
+            "principals": 0,
+            "appRows": 0
+          },
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ]
+    },
+    {
+      "lane": "034-snapback-luxury-watch-servicing",
+      "script": "node scripts/prod-serve.mjs",
+      "attempts": [
+        {
+          "exit": 0,
+          "seconds": 37.097,
+          "report": {
+            "ok": true,
+            "script": "prod:serve",
+            "failures": [],
+            "ready": true,
+            "upMs": 30001,
+            "lockReleased": true
+          },
+          "before": {
+            "principals": 15,
+            "appRows": 110
+          },
+          "after": {
+            "principals": 15,
+            "appRows": 110
+          },
+          "growth": {
+            "principals": 0,
+            "appRows": 0
+          },
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ]
+    },
+    {
+      "lane": "037-snapback-bespoke-shoe-commissions",
+      "script": "node scripts/prod-serve.mjs",
+      "attempts": [
+        {
+          "exit": 0,
+          "seconds": 41.375,
+          "report": {
+            "ok": true,
+            "script": "prod:serve",
+            "failures": [],
+            "ready": true,
+            "upMs": 30001,
+            "lockReleased": true
+          },
+          "before": {
+            "principals": 34,
+            "appRows": 100
+          },
+          "after": {
+            "principals": 34,
+            "appRows": 100
+          },
+          "growth": {
+            "principals": 0,
+            "appRows": 0
+          },
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "exit": 0,
+          "seconds": 41.404,
+          "report": {
+            "ok": true,
+            "script": "prod:serve",
+            "failures": [],
+            "ready": true,
+            "upMs": 30000,
+            "lockReleased": true
+          },
+          "before": {
+            "principals": 34,
+            "appRows": 100
+          },
+          "after": {
+            "principals": 34,
+            "appRows": 100
+          },
+          "growth": {
+            "principals": 0,
+            "appRows": 0
+          },
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "exit": 0,
+          "seconds": 42.883,
+          "report": {
+            "ok": true,
+            "script": "prod:serve",
+            "failures": [],
+            "ready": true,
+            "upMs": 30001,
+            "lockReleased": true
+          },
+          "before": {
+            "principals": 34,
+            "appRows": 100
+          },
+          "after": {
+            "principals": 34,
+            "appRows": 100
+          },
+          "growth": {
+            "principals": 0,
+            "appRows": 0
+          },
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ]
+    },
+    {
+      "lane": "040-snapback-lawn-mower-repairs",
+      "script": "node scripts/prod-serve.mjs",
+      "attempts": [
+        {
+          "exit": 0,
+          "seconds": 37.161,
+          "report": {
+            "ok": true,
+            "script": "prod:serve",
+            "failures": [],
+            "ready": true,
+            "upMs": 30001,
+            "lockReleased": true
+          },
+          "before": {
+            "principals": 708,
+            "appRows": 922
+          },
+          "after": {
+            "principals": 716,
+            "appRows": 930
+          },
+          "growth": {
+            "principals": 8,
+            "appRows": 8
+          },
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "exit": 0,
+          "seconds": 37.325,
+          "report": {
+            "ok": true,
+            "script": "prod:serve",
+            "failures": [],
+            "ready": true,
+            "upMs": 30001,
+            "lockReleased": true
+          },
+          "before": {
+            "principals": 716,
+            "appRows": 930
+          },
+          "after": {
+            "principals": 716,
+            "appRows": 930
+          },
+          "growth": {
+            "principals": 0,
+            "appRows": 0
+          },
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "exit": 0,
+          "seconds": 36.645,
+          "report": {
+            "ok": true,
+            "script": "prod:serve",
+            "failures": [],
+            "ready": true,
+            "upMs": 30001,
+            "lockReleased": true
+          },
+          "before": {
+            "principals": 716,
+            "appRows": 930
+          },
+          "after": {
+            "principals": 716,
+            "appRows": 930
+          },
+          "growth": {
+            "principals": 0,
+            "appRows": 0
+          },
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ]
+    },
+    {
+      "lane": "044-snapback-yacht-varnish-refinishing",
+      "script": "node scripts/prod-serve.mjs",
+      "attempts": [
+        {
+          "exit": 0,
+          "seconds": 37.672,
+          "report": {
+            "ok": true,
+            "script": "prod:serve",
+            "failures": [],
+            "ready": true,
+            "upMs": 30001,
+            "lockReleased": true
+          },
+          "before": {
+            "principals": 176,
+            "appRows": 315
+          },
+          "after": {
+            "principals": 184,
+            "appRows": 323
+          },
+          "growth": {
+            "principals": 8,
+            "appRows": 8
+          },
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "exit": 0,
+          "seconds": 37.532,
+          "report": {
+            "ok": true,
+            "script": "prod:serve",
+            "failures": [],
+            "ready": true,
+            "upMs": 30001,
+            "lockReleased": true
+          },
+          "before": {
+            "principals": 184,
+            "appRows": 323
+          },
+          "after": {
+            "principals": 184,
+            "appRows": 323
+          },
+          "growth": {
+            "principals": 0,
+            "appRows": 0
+          },
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "exit": 0,
+          "seconds": 39.25,
+          "report": {
+            "ok": true,
+            "script": "prod:serve",
+            "failures": [],
+            "ready": true,
+            "upMs": 30001,
+            "lockReleased": true
+          },
+          "before": {
+            "principals": 184,
+            "appRows": 323
+          },
+          "after": {
+            "principals": 184,
+            "appRows": 323
+          },
+          "growth": {
+            "principals": 0,
+            "appRows": 0
+          },
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ]
+    },
+    {
+      "lane": "045-snapback-storm-shelter-installs",
+      "script": "node ./scripts/prod-serve.mjs",
+      "attempts": [
+        {
+          "exit": 0,
+          "seconds": 47.209,
+          "report": {
+            "ok": true,
+            "script": "prod:serve",
+            "failures": [],
+            "ready": true,
+            "upMs": 30002,
+            "lockReleased": true
+          },
+          "before": {
+            "principals": 15,
+            "appRows": 115
+          },
+          "after": {
+            "principals": 15,
+            "appRows": 115
+          },
+          "growth": {
+            "principals": 0,
+            "appRows": 0
+          },
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ]
+    },
+    {
+      "lane": "049-snapback-wedding-dj-bookings",
+      "script": "node scripts/prod-serve.mjs",
+      "attempts": [
+        {
+          "exit": 0,
+          "seconds": 36.897,
+          "report": {
+            "ok": true,
+            "script": "prod:serve",
+            "failures": [],
+            "ready": true,
+            "upMs": 30001,
+            "lockReleased": true
+          },
+          "before": {
+            "principals": 185,
+            "appRows": 257
+          },
+          "after": {
+            "principals": 193,
+            "appRows": 265
+          },
+          "growth": {
+            "principals": 8,
+            "appRows": 8
+          },
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "exit": 0,
+          "seconds": 36.068,
+          "report": {
+            "ok": true,
+            "script": "prod:serve",
+            "failures": [],
+            "ready": true,
+            "upMs": 30001,
+            "lockReleased": true
+          },
+          "before": {
+            "principals": 193,
+            "appRows": 265
+          },
+          "after": {
+            "principals": 193,
+            "appRows": 265
+          },
+          "growth": {
+            "principals": 0,
+            "appRows": 0
+          },
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "exit": 0,
+          "seconds": 35.285,
+          "report": {
+            "ok": true,
+            "script": "prod:serve",
+            "failures": [],
+            "ready": true,
+            "upMs": 30001,
+            "lockReleased": true
+          },
+          "before": {
+            "principals": 193,
+            "appRows": 265
+          },
+          "after": {
+            "principals": 193,
+            "appRows": 265
+          },
+          "growth": {
+            "principals": 0,
+            "appRows": 0
+          },
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ]
+    },
+    {
+      "lane": "050-snapback-hot-tub-servicing-visits",
+      "script": "node scripts/prod-serve.mjs",
+      "attempts": [
+        {
+          "exit": 0,
+          "seconds": 37.477,
+          "report": {
+            "ok": true,
+            "script": "prod:serve",
+            "failures": [],
+            "ready": true,
+            "upMs": 30000,
+            "lockReleased": true
+          },
+          "before": {
+            "principals": 102,
+            "appRows": 184
+          },
+          "after": {
+            "principals": 102,
+            "appRows": 184
+          },
+          "growth": {
+            "principals": 0,
+            "appRows": 0
+          },
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ]
+    }
+  ],
+  "scratchRemoved": true,
+  "toolingRetry": {
+    "lanes": [
+      "013",
+      "015",
+      "019"
+    ],
+    "reason": "tsx absent from engine workspace; installed app-declared tsx 4.20.6 using a private npm cache",
+    "results": [
+      {
+        "lane": "013-snapback-parachute-repack-logs",
+        "script": "tsx scripts/prod-serve.ts",
+        "attempts": [
+          {
+            "exit": 0,
+            "seconds": 33.977,
+            "report": {
+              "ok": true,
+              "script": "prod:serve",
+              "failures": [],
+              "ready": true,
+              "upMs": 30001,
+              "lockReleased": true
+            },
+            "before": {
+              "principals": 7,
+              "appRows": 93
+            },
+            "after": {
+              "principals": 7,
+              "appRows": 93
+            },
+            "growth": {
+              "principals": 0,
+              "appRows": 0
+            },
+            "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        ]
+      },
+      {
+        "lane": "015-snapback-camera-lens-rentals",
+        "script": "tsx scripts/prod-stage.ts serve",
+        "attempts": [
+          {
+            "exit": 0,
+            "seconds": 35.221,
+            "report": {
+              "ok": true,
+              "script": "prod:serve",
+              "failures": [],
+              "ready": true,
+              "upMs": 30001,
+              "lockReleased": true
+            },
+            "before": {
+              "principals": 42,
+              "appRows": 364
+            },
+            "after": {
+              "principals": 42,
+              "appRows": 364
+            },
+            "growth": {
+              "principals": 0,
+              "appRows": 0
+            },
+            "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        ]
+      },
+      {
+        "lane": "019-snapback-horse-transport-bookings",
+        "script": "tsx scripts/production-stage.ts serve",
+        "attempts": [
+          {
+            "exit": 0,
+            "seconds": 34.848,
+            "report": {
+              "ok": true,
+              "script": "prod:serve",
+              "failures": [],
+              "ready": true,
+              "upMs": 30001,
+              "lockReleased": true
+            },
+            "before": {
+              "principals": 9,
+              "appRows": 84
+            },
+            "after": {
+              "principals": 9,
+              "appRows": 84
+            },
+            "growth": {
+              "principals": 0,
+              "appRows": 0
+            },
+            "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        ]
+      }
+    ],
+    "scratchRemoved": true
+  },
+  "finalResults": [
+    {
+      "lane": "003-snapback-vintage-amplifier-repairs",
+      "script": "node scripts/prod-serve.mjs",
+      "attempts": [
+        {
+          "exit": 0,
+          "seconds": 38.342,
+          "report": {
+            "ok": true,
+            "script": "prod:serve",
+            "failures": [],
+            "ready": true,
+            "upMs": 30001,
+            "lockReleased": true
+          },
+          "before": {
+            "principals": 16,
+            "appRows": 64
+          },
+          "after": {
+            "principals": 16,
+            "appRows": 64
+          },
+          "growth": {
+            "principals": 0,
+            "appRows": 0
+          },
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ]
+    },
+    {
+      "lane": "005-snapback-neon-sign-commissions",
+      "script": "node scripts/prod-serve.mjs",
+      "attempts": [
+        {
+          "exit": 0,
+          "seconds": 36.251,
+          "report": {
+            "ok": true,
+            "script": "prod:serve",
+            "failures": [],
+            "ready": true,
+            "upMs": 30001,
+            "lockReleased": true
+          },
+          "before": {
+            "principals": 9,
+            "appRows": 40
+          },
+          "after": {
+            "principals": 9,
+            "appRows": 40
+          },
+          "growth": {
+            "principals": 0,
+            "appRows": 0
+          },
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ]
+    },
+    {
+      "lane": "009-snapback-painting-conservation-treatments",
+      "script": "node scripts/prod-serve.mjs",
+      "attempts": [
+        {
+          "exit": 0,
+          "seconds": 40.698,
+          "report": {
+            "ok": true,
+            "script": "prod:serve",
+            "failures": [],
+            "ready": true,
+            "upMs": 30000,
+            "lockReleased": true
+          },
+          "before": {
+            "principals": 9,
+            "appRows": 115
+          },
+          "after": {
+            "principals": 9,
+            "appRows": 115
+          },
+          "growth": {
+            "principals": 0,
+            "appRows": 0
+          },
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ]
+    },
+    {
+      "lane": "010-snapback-canyoneering-guided-trips",
+      "script": "node scripts/prod-serve.mjs",
+      "attempts": [
+        {
+          "exit": 0,
+          "seconds": 36.306,
+          "report": {
+            "ok": true,
+            "script": "prod:serve",
+            "failures": [],
+            "ready": true,
+            "upMs": 30000,
+            "lockReleased": true
+          },
+          "before": {
+            "principals": 165,
+            "appRows": 569
+          },
+          "after": {
+            "principals": 173,
+            "appRows": 585
+          },
+          "growth": {
+            "principals": 8,
+            "appRows": 16
+          },
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "exit": 0,
+          "seconds": 36.419,
+          "report": {
+            "ok": true,
+            "script": "prod:serve",
+            "failures": [],
+            "ready": true,
+            "upMs": 30001,
+            "lockReleased": true
+          },
+          "before": {
+            "principals": 173,
+            "appRows": 585
+          },
+          "after": {
+            "principals": 173,
+            "appRows": 585
+          },
+          "growth": {
+            "principals": 0,
+            "appRows": 0
+          },
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "exit": 0,
+          "seconds": 36.993,
+          "report": {
+            "ok": true,
+            "script": "prod:serve",
+            "failures": [],
+            "ready": true,
+            "upMs": 30000,
+            "lockReleased": true
+          },
+          "before": {
+            "principals": 173,
+            "appRows": 585
+          },
+          "after": {
+            "principals": 173,
+            "appRows": 585
+          },
+          "growth": {
+            "principals": 0,
+            "appRows": 0
+          },
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ]
+    },
+    {
+      "lane": "011-snapback-water-softener-installs",
+      "script": "node scripts/production-stage.ts serve",
+      "attempts": [
+        {
+          "exit": 0,
+          "seconds": 36.411,
+          "report": {
+            "ok": true,
+            "script": "prod:serve",
+            "failures": [],
+            "ready": true,
+            "upMs": 30000,
+            "lockReleased": true
+          },
+          "before": {
+            "principals": 38,
+            "appRows": 76
+          },
+          "after": {
+            "principals": 38,
+            "appRows": 76
+          },
+          "growth": {
+            "principals": 0,
+            "appRows": 0
+          },
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ]
+    },
+    {
+      "lane": "013-snapback-parachute-repack-logs",
+      "script": "tsx scripts/prod-serve.ts",
+      "attempts": [
+        {
+          "exit": 0,
+          "seconds": 33.977,
+          "report": {
+            "ok": true,
+            "script": "prod:serve",
+            "failures": [],
+            "ready": true,
+            "upMs": 30001,
+            "lockReleased": true
+          },
+          "before": {
+            "principals": 7,
+            "appRows": 93
+          },
+          "after": {
+            "principals": 7,
+            "appRows": 93
+          },
+          "growth": {
+            "principals": 0,
+            "appRows": 0
+          },
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ]
+    },
+    {
+      "lane": "015-snapback-camera-lens-rentals",
+      "script": "tsx scripts/prod-stage.ts serve",
+      "attempts": [
+        {
+          "exit": 0,
+          "seconds": 35.221,
+          "report": {
+            "ok": true,
+            "script": "prod:serve",
+            "failures": [],
+            "ready": true,
+            "upMs": 30001,
+            "lockReleased": true
+          },
+          "before": {
+            "principals": 42,
+            "appRows": 364
+          },
+          "after": {
+            "principals": 42,
+            "appRows": 364
+          },
+          "growth": {
+            "principals": 0,
+            "appRows": 0
+          },
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ]
+    },
+    {
+      "lane": "019-snapback-horse-transport-bookings",
+      "script": "tsx scripts/production-stage.ts serve",
+      "attempts": [
+        {
+          "exit": 0,
+          "seconds": 34.848,
+          "report": {
+            "ok": true,
+            "script": "prod:serve",
+            "failures": [],
+            "ready": true,
+            "upMs": 30001,
+            "lockReleased": true
+          },
+          "before": {
+            "principals": 9,
+            "appRows": 84
+          },
+          "after": {
+            "principals": 9,
+            "appRows": 84
+          },
+          "growth": {
+            "principals": 0,
+            "appRows": 0
+          },
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ]
+    },
+    {
+      "lane": "020-snapback-llama-trekking-trips",
+      "script": "node scripts/prod-serve.mjs",
+      "attempts": [
+        {
+          "exit": 0,
+          "seconds": 42.617,
+          "report": {
+            "ok": true,
+            "script": "prod:serve",
+            "failures": [],
+            "ready": true,
+            "upMs": 30000,
+            "lockReleased": true
+          },
+          "before": {
+            "principals": 25,
+            "appRows": 161
+          },
+          "after": {
+            "principals": 25,
+            "appRows": 161
+          },
+          "growth": {
+            "principals": 0,
+            "appRows": 0
+          },
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ]
+    },
+    {
+      "lane": "021-snapback-olive-oil-press-runs",
+      "script": "node scripts/prod-serve.mjs",
+      "attempts": [
+        {
+          "exit": 0,
+          "seconds": 38.169,
+          "report": {
+            "ok": true,
+            "script": "prod:serve",
+            "failures": [],
+            "ready": true,
+            "upMs": 30001,
+            "lockReleased": true
+          },
+          "before": {
+            "principals": 9,
+            "appRows": 138
+          },
+          "after": {
+            "principals": 9,
+            "appRows": 138
+          },
+          "growth": {
+            "principals": 0,
+            "appRows": 0
+          },
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ]
+    },
+    {
+      "lane": "024-snapback-billiard-table-relocations",
+      "script": "node scripts/prod-serve.mjs",
+      "attempts": [
+        {
+          "exit": 0,
+          "seconds": 36.202,
+          "report": {
+            "ok": true,
+            "script": "prod:serve",
+            "failures": [],
+            "ready": true,
+            "upMs": 30000,
+            "lockReleased": true
+          },
+          "before": {
+            "principals": 199,
+            "appRows": 274
+          },
+          "after": {
+            "principals": 207,
+            "appRows": 282
+          },
+          "growth": {
+            "principals": 8,
+            "appRows": 8
+          },
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "exit": 0,
+          "seconds": 37.16,
+          "report": {
+            "ok": true,
+            "script": "prod:serve",
+            "failures": [],
+            "ready": true,
+            "upMs": 30001,
+            "lockReleased": true
+          },
+          "before": {
+            "principals": 207,
+            "appRows": 282
+          },
+          "after": {
+            "principals": 207,
+            "appRows": 282
+          },
+          "growth": {
+            "principals": 0,
+            "appRows": 0
+          },
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "exit": 0,
+          "seconds": 36.967,
+          "report": {
+            "ok": true,
+            "script": "prod:serve",
+            "failures": [],
+            "ready": true,
+            "upMs": 30001,
+            "lockReleased": true
+          },
+          "before": {
+            "principals": 207,
+            "appRows": 282
+          },
+          "after": {
+            "principals": 207,
+            "appRows": 282
+          },
+          "growth": {
+            "principals": 0,
+            "appRows": 0
+          },
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ]
+    },
+    {
+      "lane": "030-snapback-thermal-imaging-surveys",
+      "script": "node scripts/prod-serve.mjs",
+      "attempts": [
+        {
+          "exit": 0,
+          "seconds": 40.243,
+          "report": {
+            "ok": true,
+            "script": "prod:serve",
+            "failures": [],
+            "ready": true,
+            "upMs": 30001,
+            "lockReleased": true
+          },
+          "before": {
+            "principals": 49,
+            "appRows": 170
+          },
+          "after": {
+            "principals": 49,
+            "appRows": 170
+          },
+          "growth": {
+            "principals": 0,
+            "appRows": 0
+          },
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ]
+    },
+    {
+      "lane": "033-snapback-asphalt-sealcoating-jobs",
+      "script": "node scripts/prod-serve.mjs",
+      "attempts": [
+        {
+          "exit": 0,
+          "seconds": 36.647,
+          "report": {
+            "ok": true,
+            "script": "prod:serve",
+            "failures": [],
+            "ready": true,
+            "upMs": 30001,
+            "lockReleased": true
+          },
+          "before": {
+            "principals": 13,
+            "appRows": 146
+          },
+          "after": {
+            "principals": 13,
+            "appRows": 146
+          },
+          "growth": {
+            "principals": 0,
+            "appRows": 0
+          },
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ]
+    },
+    {
+      "lane": "034-snapback-luxury-watch-servicing",
+      "script": "node scripts/prod-serve.mjs",
+      "attempts": [
+        {
+          "exit": 0,
+          "seconds": 37.097,
+          "report": {
+            "ok": true,
+            "script": "prod:serve",
+            "failures": [],
+            "ready": true,
+            "upMs": 30001,
+            "lockReleased": true
+          },
+          "before": {
+            "principals": 15,
+            "appRows": 110
+          },
+          "after": {
+            "principals": 15,
+            "appRows": 110
+          },
+          "growth": {
+            "principals": 0,
+            "appRows": 0
+          },
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ]
+    },
+    {
+      "lane": "037-snapback-bespoke-shoe-commissions",
+      "script": "node scripts/prod-serve.mjs",
+      "attempts": [
+        {
+          "exit": 0,
+          "seconds": 41.375,
+          "report": {
+            "ok": true,
+            "script": "prod:serve",
+            "failures": [],
+            "ready": true,
+            "upMs": 30001,
+            "lockReleased": true
+          },
+          "before": {
+            "principals": 34,
+            "appRows": 100
+          },
+          "after": {
+            "principals": 34,
+            "appRows": 100
+          },
+          "growth": {
+            "principals": 0,
+            "appRows": 0
+          },
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "exit": 0,
+          "seconds": 41.404,
+          "report": {
+            "ok": true,
+            "script": "prod:serve",
+            "failures": [],
+            "ready": true,
+            "upMs": 30000,
+            "lockReleased": true
+          },
+          "before": {
+            "principals": 34,
+            "appRows": 100
+          },
+          "after": {
+            "principals": 34,
+            "appRows": 100
+          },
+          "growth": {
+            "principals": 0,
+            "appRows": 0
+          },
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "exit": 0,
+          "seconds": 42.883,
+          "report": {
+            "ok": true,
+            "script": "prod:serve",
+            "failures": [],
+            "ready": true,
+            "upMs": 30001,
+            "lockReleased": true
+          },
+          "before": {
+            "principals": 34,
+            "appRows": 100
+          },
+          "after": {
+            "principals": 34,
+            "appRows": 100
+          },
+          "growth": {
+            "principals": 0,
+            "appRows": 0
+          },
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ]
+    },
+    {
+      "lane": "040-snapback-lawn-mower-repairs",
+      "script": "node scripts/prod-serve.mjs",
+      "attempts": [
+        {
+          "exit": 0,
+          "seconds": 37.161,
+          "report": {
+            "ok": true,
+            "script": "prod:serve",
+            "failures": [],
+            "ready": true,
+            "upMs": 30001,
+            "lockReleased": true
+          },
+          "before": {
+            "principals": 708,
+            "appRows": 922
+          },
+          "after": {
+            "principals": 716,
+            "appRows": 930
+          },
+          "growth": {
+            "principals": 8,
+            "appRows": 8
+          },
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "exit": 0,
+          "seconds": 37.325,
+          "report": {
+            "ok": true,
+            "script": "prod:serve",
+            "failures": [],
+            "ready": true,
+            "upMs": 30001,
+            "lockReleased": true
+          },
+          "before": {
+            "principals": 716,
+            "appRows": 930
+          },
+          "after": {
+            "principals": 716,
+            "appRows": 930
+          },
+          "growth": {
+            "principals": 0,
+            "appRows": 0
+          },
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "exit": 0,
+          "seconds": 36.645,
+          "report": {
+            "ok": true,
+            "script": "prod:serve",
+            "failures": [],
+            "ready": true,
+            "upMs": 30001,
+            "lockReleased": true
+          },
+          "before": {
+            "principals": 716,
+            "appRows": 930
+          },
+          "after": {
+            "principals": 716,
+            "appRows": 930
+          },
+          "growth": {
+            "principals": 0,
+            "appRows": 0
+          },
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ]
+    },
+    {
+      "lane": "044-snapback-yacht-varnish-refinishing",
+      "script": "node scripts/prod-serve.mjs",
+      "attempts": [
+        {
+          "exit": 0,
+          "seconds": 37.672,
+          "report": {
+            "ok": true,
+            "script": "prod:serve",
+            "failures": [],
+            "ready": true,
+            "upMs": 30001,
+            "lockReleased": true
+          },
+          "before": {
+            "principals": 176,
+            "appRows": 315
+          },
+          "after": {
+            "principals": 184,
+            "appRows": 323
+          },
+          "growth": {
+            "principals": 8,
+            "appRows": 8
+          },
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "exit": 0,
+          "seconds": 37.532,
+          "report": {
+            "ok": true,
+            "script": "prod:serve",
+            "failures": [],
+            "ready": true,
+            "upMs": 30001,
+            "lockReleased": true
+          },
+          "before": {
+            "principals": 184,
+            "appRows": 323
+          },
+          "after": {
+            "principals": 184,
+            "appRows": 323
+          },
+          "growth": {
+            "principals": 0,
+            "appRows": 0
+          },
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "exit": 0,
+          "seconds": 39.25,
+          "report": {
+            "ok": true,
+            "script": "prod:serve",
+            "failures": [],
+            "ready": true,
+            "upMs": 30001,
+            "lockReleased": true
+          },
+          "before": {
+            "principals": 184,
+            "appRows": 323
+          },
+          "after": {
+            "principals": 184,
+            "appRows": 323
+          },
+          "growth": {
+            "principals": 0,
+            "appRows": 0
+          },
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ]
+    },
+    {
+      "lane": "045-snapback-storm-shelter-installs",
+      "script": "node ./scripts/prod-serve.mjs",
+      "attempts": [
+        {
+          "exit": 0,
+          "seconds": 47.209,
+          "report": {
+            "ok": true,
+            "script": "prod:serve",
+            "failures": [],
+            "ready": true,
+            "upMs": 30002,
+            "lockReleased": true
+          },
+          "before": {
+            "principals": 15,
+            "appRows": 115
+          },
+          "after": {
+            "principals": 15,
+            "appRows": 115
+          },
+          "growth": {
+            "principals": 0,
+            "appRows": 0
+          },
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ]
+    },
+    {
+      "lane": "049-snapback-wedding-dj-bookings",
+      "script": "node scripts/prod-serve.mjs",
+      "attempts": [
+        {
+          "exit": 0,
+          "seconds": 36.897,
+          "report": {
+            "ok": true,
+            "script": "prod:serve",
+            "failures": [],
+            "ready": true,
+            "upMs": 30001,
+            "lockReleased": true
+          },
+          "before": {
+            "principals": 185,
+            "appRows": 257
+          },
+          "after": {
+            "principals": 193,
+            "appRows": 265
+          },
+          "growth": {
+            "principals": 8,
+            "appRows": 8
+          },
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "exit": 0,
+          "seconds": 36.068,
+          "report": {
+            "ok": true,
+            "script": "prod:serve",
+            "failures": [],
+            "ready": true,
+            "upMs": 30001,
+            "lockReleased": true
+          },
+          "before": {
+            "principals": 193,
+            "appRows": 265
+          },
+          "after": {
+            "principals": 193,
+            "appRows": 265
+          },
+          "growth": {
+            "principals": 0,
+            "appRows": 0
+          },
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "exit": 0,
+          "seconds": 35.285,
+          "report": {
+            "ok": true,
+            "script": "prod:serve",
+            "failures": [],
+            "ready": true,
+            "upMs": 30001,
+            "lockReleased": true
+          },
+          "before": {
+            "principals": 193,
+            "appRows": 265
+          },
+          "after": {
+            "principals": 193,
+            "appRows": 265
+          },
+          "growth": {
+            "principals": 0,
+            "appRows": 0
+          },
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ]
+    },
+    {
+      "lane": "050-snapback-hot-tub-servicing-visits",
+      "script": "node scripts/prod-serve.mjs",
+      "attempts": [
+        {
+          "exit": 0,
+          "seconds": 37.477,
+          "report": {
+            "ok": true,
+            "script": "prod:serve",
+            "failures": [],
+            "ready": true,
+            "upMs": 30000,
+            "lockReleased": true
+          },
+          "before": {
+            "principals": 102,
+            "appRows": 184
+          },
+          "after": {
+            "principals": 102,
+            "appRows": 184
+          },
+          "growth": {
+            "principals": 0,
+            "appRows": 0
+          },
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ]
+    }
+  ]
+}
