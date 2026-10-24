@@ -1,0 +1,22 @@
+muse: workspace root: /tmp (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=fe5a5bbb-31c2-49a4-8a27-672fd7e4f5b2]: Subscription quota exhausted. Your usage window resets at 2026-10-26T00:00:00Z. (rate_limit_error)
+NOT READY
+
+Material correctness / implementability gaps as written:
+
+1. Security deadline correlation — alias and clock imprecision (`3000.036.004` §18, sweep detector).
+   - "same table/alias/deadline" is implementable as string-alias equality. That misses same-table/different-alias races (false negative).
+   - "comparison ... with now" vs "server-now guard must dominate" allows job-clock suppression (unsound).
+   - Precise change: replace both with: correlate after alias resolution on underlying table + deadline column; suppression requires a `server-now` comparison on that same table/deadline dominating the particular guarded write path. State alias-name equality alone is neither required nor sufficient.
+
+2. Nullable field-fact invalidation scope is ambiguous (`3000.036` §29).
+   - "writes, emits and key rebinding invalidate field facts" does not say all vs matching-key only. Matching-key-only invalidation is unsound under aliasing.
+   - Precise change: require "invalidate all field facts in the `$point` domain" on any write/emit/key-rebinding, unless the implementation proves disjointness; retain the stated branch/loop-join intersection and `as-viewer` entry/exit clearing.
+
+3. Typed empty list assignment hole (`3000.036` §29).
+   - "Appends and branch/loop joins must agree with that element type" reads as exhaustive. `let x: list<text> = [] of int`, parameter passing, and return positions would then bypass `E_QUARRY_TYPE`.
+   - Precise change: state `[] of TYPE` participates in ordinary `assignable_to` at every use, including assignment/initialization/argument/return as well as appends and branch/loop joins; mismatches refuse `E_QUARRY_TYPE`. Retain "no runtime cast/allocation change, no join relaxation."
+
+No blockers found in staging redaction/evidence handling, proof `waitForFresh`/signal reentry, or family atomicity as written.
+

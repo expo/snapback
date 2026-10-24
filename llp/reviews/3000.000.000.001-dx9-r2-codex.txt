@@ -1,0 +1,5 @@
+NOT READY
+
+- **LLP 3000.036.004 §18:** Any dominating comparison between the matching deadline and `now` currently suppresses `N_SWEEP_DEADLINE`, regardless of polarity or boundary. If a sweep transitions `pending` rows when `deadline <= now`, a mutation requiring `pending` and `deadline <= now` still admits the expired window, yet this contract suppresses the question.
+
+  Change suppression to require recognized dominating guards that exclude the sweep’s due-time window for the matching row and admitted states—for example, `deadline > now` against a sweep predicate of `deadline <= now`. Opposite polarity, overlapping equality boundaries, and unknown relationships must retain the conservative question. Require regression cases for these comparisons, including negated branch conditions.
