@@ -15,9 +15,11 @@ impl Rows for MemberTx<'_, '_> {
         <AnyTx<'_> as Rows>::walk_adoption(self.tx, table, _decode, scratch, work, visit)
     }
     fn change_footprint(&self) -> crate::revocation::Footprint {
+        if let Some(overlay) = self.overlay { return overlay.change_footprint(); }
         <AnyTx<'_> as Rows>::change_footprint(self.tx)
     }
     fn widen_change_evidence(&self) {
+        if let Some(overlay) = self.overlay { return overlay.widen_change_evidence(); }
         <AnyTx<'_> as Rows>::widen_change_evidence(self.tx)
     }
     fn sequence_value(&self, parent: &str, id: &str) -> Result<i64, RuntimeError> {
@@ -40,22 +42,28 @@ impl Rows for MemberTx<'_, '_> {
         <AnyTx<'_> as Rows>::effect_once(self.tx, effect, key)
     }
     fn has_restored_live_authority(&self,table:&str)->Result<bool,RuntimeError> {
+        if self.overlay.is_some() { return Ok(false); }
         <AnyTx<'_> as Rows>::has_restored_live_authority(self.tx, table)
     }
     fn restored_live_authority(&self,table:&str,id:&str)->Result<bool,RuntimeError> {
+        if self.overlay.is_some() { return Ok(false); }
         <AnyTx<'_> as Rows>::restored_live_authority(self.tx, table, id)
     }
     fn restored_authority_mode(&self,table:&str,id:&str)->Result<Option<u8>,RuntimeError> {
+        if self.overlay.is_some() { return Ok(None); }
         <AnyTx<'_> as Rows>::restored_authority_mode(self.tx, table, id)
     }
     fn restored_narrowed(&self,table:&str,id:&str)->Result<bool,RuntimeError> {
+        if self.overlay.is_some() { return Ok(false); }
         <AnyTx<'_> as Rows>::restored_narrowed(self.tx, table, id)
     }
     fn get(&self, table: &str, id: &str) -> Result<Option<Value>, RuntimeError> {
         self.reads.borrow_mut().get(table, id);
+        if let Some(overlay) = self.overlay { return overlay.get(table,id); }
         <AnyTx<'_> as Rows>::get(self.tx, table, id)
     }
     fn lookup(&self, table: &str, index_name: &str, index: &Index, key: &[Value]) -> Result<Option<Value>, RuntimeError> {
+        if let Some(overlay) = self.overlay { return overlay.lookup(table,index_name,index,key); }
         let row = <AnyTx<'_> as Rows>::lookup(self.tx, table, index_name, index, key)?;
         self.reads.borrow_mut().lookup(table, index_name, index, key, row.as_ref());
         Ok(row)
@@ -86,6 +94,7 @@ impl Rows for MemberTx<'_, '_> {
         <AnyTx<'_> as Rows>::count_prefix(self.tx, table, index_name, prefix, limit)
     }
     fn put(&self, table_name: &str, table: &Table, row: &Value, old: Option<&Value>) -> Result<u64, RuntimeError> {
+        if let Some(overlay) = self.overlay { return overlay.put(table_name,table,row,old); }
         <AnyTx<'_> as Rows>::put(self.tx, table_name, table, row, old)
     }
     fn delete(&self, table_name: &str, table: &Table, old: &Value) -> Result<u64, RuntimeError> {
@@ -135,7 +144,11 @@ macro_rules! methods {
     };
 }
 impl MemberTx<'_, '_> {
-    pub(crate) fn read_set(&self) -> super::reads::ReadSet { self.reads.borrow().clone() }
+    pub(crate) fn read_set(&self) -> super::reads::ReadSet {
+        let mut reads = self.reads.borrow().clone();
+        if let Some(overlay)=self.overlay { let o=overlay.reads.borrow(); reads.rows.extend(o.rows.clone()); reads.spans.extend(o.spans.clone()); reads.unsupported |= o.unsupported; }
+        reads
+    }
     pub(crate) fn replay_bound(&self, principal: &str, id: &str, name: &str, args: &serde_json::Value) -> Result<Option<String>, RuntimeError> {
         self.reads.borrow_mut().receipts.insert((principal.into(), id.into()));
         self.tx.replay_bound(principal, id, name, args)
@@ -198,6 +211,7 @@ impl MemberTx<'_, '_> {
     }
     /// Source is (program, principal, kind), matching the existing record.
     pub(crate) fn record_commit(&self, seq: u64, at: i64, source: (&str, &str, &str), touched: &[String], writes: u64) -> Result<(), RuntimeError> {
+        if let Some(overlay)=self.overlay { self.tx.overlay_evidence(&overlay.changes.borrow()); }
         self.tx.record_commit(seq, at, source.0, source.1, source.2, touched, writes)
     }
     pub(crate) fn pin_writer_time(&self, schema: &Schema, requested: i64) -> Result<i64, RuntimeError> {

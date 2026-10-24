@@ -4,6 +4,10 @@ use std::cell::{Cell, RefCell};
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(in crate::engine) enum Point {
     BeforeMember,
+    BeforeFacts,
+    AfterFacts,
+    BeforeLevel,
+    AfterLevel,
     MemberSavepoint,
     ProgramSavepoint,
     ProgramRelease,

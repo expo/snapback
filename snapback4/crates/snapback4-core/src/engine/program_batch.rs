@@ -1,4 +1,4 @@
-//! Serial programs over one fenced transaction; no speculative executor.
+//! Ordered programs over one fenced transaction, with a bounded S1 overlay.
 use super::{
     Engine,
     committer::{Committer, Kind, Member, Pending, Resolution, outcome::Failure},
@@ -26,8 +26,11 @@ impl Engine {
                 start += 1;
                 continue;
             }
+            let bounded = |i:usize| self.programs.get(&batch[i].name).and_then(|p|
+                super::committer::closure::Closure::new(&self.schema,p,&batch[i].context,self.generation)).is_some();
+            let first_bounded=bounded(start);
             let end = (start + 1..batch.len())
-                .find(|&i| !batch[i].eligible(self))
+                .find(|&i| !batch[i].eligible(self) || bounded(i)!=first_bounded)
                 .unwrap_or(batch.len());
             let mut indices: Vec<usize> = Vec::new();
             let mut aliases = Vec::new();
@@ -262,10 +265,23 @@ impl Engine {
                 return Err((Failure::rollback(tx, error, None), None));
             }
         }
+        let mut wave = if indices.len()>1 && !fallback {
+            match super::committer::wave::Wave::prepare(&tx,&host,batch,indices) {
+                Ok(wave)=>wave,
+                Err(error)=>return Err((Failure::rollback(tx,error,None),None)),
+            }
+        } else {None};
         #[cfg(any(test, feature = "test-support"))]
         drop(_attribution);
         let mut pending = Vec::new();
-        for &i in indices {
+        for (ordinal,&i) in indices.iter().enumerate() {
+            let (prepared, conflict_rerun) = wave.as_mut().map(|w|w.take(ordinal)).unwrap_or((None,false));
+            let overlay=wave.as_ref().map(|w|super::committer::overlay::Overlay::new(&w.base,&w.accepted));
+            let prepared=prepared.map(|p| {
+                let overlay=overlay.as_ref().unwrap();
+                *overlay.writes.borrow_mut()=p.writes;*overlay.reads.borrow_mut()=p.reads;*overlay.changes.borrow_mut()=p.changes;
+                p.execution
+            });
             #[cfg(test)]
             let _member = fault::enter(i);
             #[cfg(test)]
@@ -346,14 +362,14 @@ impl Engine {
             };
             let mut scope = invocation.scope.take();
             let mut transcript = super::program_transcript::Attempt::default();
+            transcript.buffered=overlay.is_some();transcript.conflict_rerun=conflict_rerun;
+            let mut prepared=prepared;
             let mut value = None;
             let mut run = || {
                 if value.is_some() {
                     return;
                 }
-                value = Some(Committer::execute_program(
-                    &tx,
-                    Member::new(Kind::Program, |member| {
+                let member=Member::new(Kind::Program, |member| {
                         if authority.is_none() {
                             super::validate::write_identity(
                                 &context.viewer,
@@ -369,12 +385,13 @@ impl Engine {
                             true,
                             &raw,
                             &mut authority,
+                            prepared.take(),
                             &mut invocation.minted,
                             &mut transcript,
                         )
                         .map(|d| d.map(|(outcome, data)| Pending::new(Ok(outcome), data)))
-                    }),
-                    |error| {
+                    });
+                let refused=|error:RuntimeError| {
                         Pending::new(
                             Err(refused
                                 .borrow_mut()
@@ -382,16 +399,21 @@ impl Engine {
                                 .unwrap_or_else(|| error.refusal())),
                             None,
                         )
-                    },
-                ));
+                    };
+                value=Some(if let Some(overlay)=&overlay {
+                    Committer::execute_buffered(&tx,overlay,&wave.as_ref().unwrap().facts[ordinal],member,refused)
+                } else {Committer::execute_program(&tx,member,refused)});
             };
             if let Some(scope) = scope.as_mut() {
                 scope(&mut run);
             } else {
                 run();
             }
+            drop(run);
             invocation.scope = scope;
             invocation.attempts.push(transcript);
+            let images=overlay.as_ref().map(|o|o.writes.borrow().values().cloned().collect::<Vec<_>>()).unwrap_or_default();
+            drop(overlay);
             drop(budget);
             match value.unwrap() {
                 Ok(disposition) => {
@@ -404,6 +426,7 @@ impl Engine {
                         host.entropy = *entropy;
                     }
                     pending.push((i, resolution));
+                    if let Some(wave)=wave.as_mut(){wave.accept(images);}
                     continue;
                 }
                 Err(error) => {
@@ -434,9 +457,12 @@ impl Engine {
             ));
         }
         let prepared: Result<(), RuntimeError> = (|| {
-            // Shared tail work uses the earliest survivor, after each member's
-            // statements have used that member's own original deadline.
+            // Shared apply/tail work uses the earliest survivor, after each
+            // member's statements used that member's own original deadline.
             let _budget = deadline.map(|d| tx.bound_program_attempt(d)).transpose()?;
+            if let Some(wave) = wave {
+                tx.apply_overlay(host.schema, wave.images.into_values().collect())?;
+            }
             tx.prepare_program_commit()
         })();
         if let Err(error) = prepared {
@@ -470,3 +496,7 @@ impl Engine {
 #[cfg(test)]
 #[path = "../store/program_batch_tests.rs"]
 pub(super) mod tests;
+
+#[cfg(test)]
+#[path = "../store/program_overlay_tests.rs"]
+mod overlay_tests;

@@ -6,6 +6,8 @@ use std::sync::{Arc, Mutex};
 pub(super) struct Attempt {
     pub at: Option<i64>,
     pub reads: super::committer::reads::ReadSet,
+    pub buffered: bool,
+    pub conflict_rerun: bool,
     pub minted: Vec<String>,
     presence: Option<Arc<Mutex<Vec<Observation>>>>,
 }

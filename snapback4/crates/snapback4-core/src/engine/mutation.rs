@@ -125,7 +125,7 @@ impl Engine {
             attempted=true;
             context.new_ids = minted.iter().cloned().chain(original.new_ids.iter().skip(minted.len()).cloned()).collect();
             let mut attempt=super::program_transcript::Attempt::default();
-            let result=program_attempt(&host, tx, name, op, context, publication_requested, &wire_args, &mut authority, &mut minted,&mut attempt)
+            let result=program_attempt(&host, tx, name, op, context, publication_requested, &wire_args, &mut authority, None, &mut minted,&mut attempt)
                 .map(|d| d.map(|(outcome, data)| Pending::new(outcome, data)));
             attempts.push(attempt);result
         })?;
@@ -159,7 +159,7 @@ type AuthorityCheck<'a> = Option<&'a mut dyn FnMut(&super::committer::MemberTx<'
 
 pub(super) fn program_attempt<'m, 's>(host: &ProgramHost<'_>, tx: super::committer::MemberTx<'m, 's>,
     name: &str, op: Option<&str>, mut context: Context, publication_requested: bool,
-    wire_args: &serde_json::Value, authority: &mut AuthorityCheck<'_>, minted: &mut Vec<String>, attempt:&mut super::program_transcript::Attempt,
+    wire_args: &serde_json::Value, authority: &mut AuthorityCheck<'_>, prepared: Option<Execution>, minted: &mut Vec<String>, attempt:&mut super::program_transcript::Attempt,
 ) -> Result<super::committer::Disposition<(MutationAcknowledgement, Option<(u64, Option<DurablePublication>)>)>, RuntimeError> {
             if let Some(check) = authority.as_mut() { check(&tx,&mut context)?; validate::write_identity(&context.viewer, op)?; }
             // @ref LLP 3000.009.001.000.001#35-each-command-keeps-its-own-place — a later command observes a receipt committed during the head-lock wait.
@@ -168,6 +168,7 @@ pub(super) fn program_attempt<'m, 's>(host: &ProgramHost<'_>, tx: super::committ
             {
                 // Applied between the check above and this transaction.
                 let outcome = MutationOutcome::from_receipt(&outcome)?;
+                attempt.reads = tx.read_set();
                 return tx.rollback((MutationAcknowledgement::unpublished(outcome), None));
             }
             if let Some(op)=op{tx.require_placement(&context.viewer,op,name,&wire_args)?;}
@@ -192,7 +193,6 @@ pub(super) fn program_attempt<'m, 's>(host: &ProgramHost<'_>, tx: super::committ
             attempt.observe(&mut context);
             context.entropy = host.entropy;
             context.minter = host.minter.clone();
-            let ceilings = host.ceilings;
             let viewer = context.viewer.clone();
             let now = context.now.unwrap_or(0);
             // An `image`/`video` argument names an upload by id; the program
@@ -222,29 +222,11 @@ pub(super) fn program_attempt<'m, 's>(host: &ProgramHost<'_>, tx: super::committ
                 }
             }
             tx.savepoint("program")?;
-            let mut runner = Runner::new(&tx, host.schema, context, Meter::new(ceilings, Cut::Abort), tx.next_seq()?);
-            #[cfg(feature = "evaluation-support")]
-            { runner.meter.used = host.evaluation_precharge; }
-            let ran = runner.run(&program).and_then(|value| {
-                runner.charge_output(&value)?;
-                Ok(value)
-            });
-            // Commit-end expiry can cascade or clear rows that an `after insert`
-            // witness names. Final obligations therefore inspect the actual
-            // provisional commit state, after every retirement action.
-            let ran = ran.and_then(|value| runner.retire_expired_births().map(|_| value))
-                .and_then(|value| runner.check_final_exists().map(|_| value));
-            let metered = runner.meter.used;
-            let tables: Vec<String> = runner.written_tables.iter().cloned().collect();
-            let events: Vec<Event> = runner.events.take();
-            let action_tables = std::mem::take(&mut runner.action_tables);
-            let outbox = std::mem::take(&mut runner.outbox);
-            let rows_written = runner.rows_written;
-            let mut read_tables = runner.read_tables.clone();
-            let entropy = runner.context.entropy;
-            *minted = runner.context.minted_ids.clone();
-            attempt.minted = runner.context.minted_ids.clone();
-            drop(runner);
+            let program_seq = tx.next_seq()?;
+            let Execution { ran, metered, tables, events, action_tables, outbox, rows_written, mut read_tables, entropy, minted: observed_ids } =
+                prepared.unwrap_or_else(|| execute_body(host, &tx, context, &program, program_seq));
+            *minted = observed_ids.clone();
+            attempt.minted = observed_ids;
             let outcome = match ran {
                 Ok(result) => {
                     tx.release("program")?;
@@ -302,4 +284,33 @@ pub(super) fn program_attempt<'m, 's>(host: &ProgramHost<'_>, tx: super::committ
             };
             attempt.reads = tx.read_set();
             tx.complete((MutationAcknowledgement::unpublished(outcome), Some((entropy, publication))))
+}
+
+pub(super) struct Execution {
+    pub ran: Result<Value, RuntimeError>,
+    pub metered: Metered,
+    pub tables: Vec<String>,
+    pub events: Vec<Event>,
+    pub action_tables: std::collections::BTreeSet<String>,
+    pub outbox: Vec<super::presence::Emission>,
+    pub rows_written: u64,
+    pub read_tables: std::collections::BTreeSet<String>,
+    pub entropy: u64,
+    pub minted: Vec<String>,
+}
+pub(super) fn execute_body(host: &ProgramHost<'_>, rows: &dyn crate::rows::Rows, context: Context, program: &Program, seq: u64) -> Execution {
+    let mut runner = Runner::new(rows, host.schema, context, Meter::new(host.ceilings, Cut::Abort), seq);
+    #[cfg(feature = "evaluation-support")]
+    { runner.meter.used = host.evaluation_precharge; }
+    let ran = runner.run(program).and_then(|value| { runner.charge_output(&value)?; Ok(value) })
+        .and_then(|value| runner.retire_expired_births().map(|_|value))
+        .and_then(|value| runner.check_final_exists().map(|_|value));
+    Execution {
+        ran, metered: runner.meter.used,
+        tables: runner.written_tables.iter().cloned().collect(),
+        events: runner.events.take(), action_tables: std::mem::take(&mut runner.action_tables),
+        outbox: std::mem::take(&mut runner.outbox), rows_written: runner.rows_written,
+        read_tables: runner.read_tables.clone(), entropy: runner.context.entropy,
+        minted: runner.context.minted_ids.clone(),
+    }
 }

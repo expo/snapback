@@ -148,7 +148,7 @@ impl Store {
         let inner = super::flight::Session { client: &mut self.client, pending: begin.into(), started: false, done: false, settings_refused: false, checks: Vec::new() };
         let tx = Tx { read_sessions: &self.read_sessions, read_sessions_installed: Cell::new(false), unified: self.unified, commit_warning: &self.commit_warning, inner: RefCell::new(inner),
             bind_refused: Cell::new(false), program_deadline: Cell::new(deadline), read_cache: RefCell::new(super::read_plan::Answers::default()), pending_read: RefCell::new(None), receipt_cache: RefCell::new(None), placement_cache: RefCell::new(None), authority_cache: RefCell::new(None), commit_settings: Cell::new(false), literal_cache: RefCell::new(&mut self.literal_cache), cache: RefCell::new(&mut self.cache), calls: &self.calls, marked_reads: &self.marked_reads, page_reads: &self.page_reads, prefetch_rows: &self.prefetch_rows, prefetch_bytes: &self.prefetch_bytes,
-            rows_cache: RefCell::new(super::prefetch::Cache::default()), prefetch_enabled: self.prefetch, head: Cell::new(None), serialized_head: Cell::new(false), tail: RefCell::new(super::tail::Tail::default()), group_head: Cell::new(None), group_tails: RefCell::new(Vec::new()), changes: Default::default(), savepoints: RefCell::new(Vec::new()) };
+            rows_cache: RefCell::new(super::prefetch::Cache::default()), prefetch_enabled: self.prefetch, head: Cell::new(None), serialized_head: Cell::new(false), tail: RefCell::new(super::tail::Tail::default()), group_head: Cell::new(None), group_tails: RefCell::new(Vec::new()), group_images: Default::default(), changes: Default::default(), savepoints: RefCell::new(Vec::new()) };
         if self.unified && mode.is_some() {
             // Bootstrap is the sole exception: an absent owner relation is
             // installed in the successful opening transaction, never by readers.
@@ -414,6 +414,7 @@ pub struct Tx<'a> {
     pub(super) serialized_head: Cell<bool>,
     pub(super) tail: RefCell<super::tail::Tail>,
     pub(super) group_head: Cell<Option<u64>>,
+    pub(crate) group_images: RefCell<Vec<crate::engine::committer::overlay::Image>>,
     pub(super) group_tails: RefCell<Vec<super::tail::Tail>>,
     pub(super) savepoints: RefCell<Vec<(String, super::semantic::Checkpoint)>>,
     pub(super) changes: RefCell<crate::revocation::Recorder>,

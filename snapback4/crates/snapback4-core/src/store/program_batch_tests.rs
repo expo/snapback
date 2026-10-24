@@ -127,7 +127,7 @@ fn intent(seed: u64, i: usize) -> Invocation {
         context,
     )
 }
-fn snapshot(engine: &mut Engine) -> serde_json::Value {
+pub(super) fn snapshot(engine: &mut Engine) -> serde_json::Value {
     let rows: Vec<_> = engine
         .schema()
         .tables

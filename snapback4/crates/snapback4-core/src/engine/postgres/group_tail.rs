@@ -6,6 +6,10 @@ use serde_json::json;
 
 pub(super) const SQL: &str = r#"WITH
 head AS (UPDATE _head SET seq=$3 WHERE singleton AND seq=$2 RETURNING seq),
+images AS (
+ UPDATE r SET data=w.data FROM jsonb_to_recordset(($1::text::jsonb)->'images') AS w(t text,id text,data text)
+ CROSS JOIN head WHERE r.t=w.t AND r.id=w.id RETURNING r.id
+),
 committed AS (
  INSERT INTO _commits(seq,at,program,principal,kind,touched,writes)
  SELECT c.seq,c.at,c.program,c.principal,c.kind,c.touched,c.writes
@@ -39,7 +43,7 @@ committed AS (
  CROSS JOIN head RETURNING id
 )
 SELECT (SELECT count(*) FROM head),(SELECT count(*) FROM committed),(SELECT count(*) FROM evidence),
- (SELECT count(*) FROM logged),(SELECT count(*) FROM effects),(SELECT count(*) FROM presence),(SELECT count(*) FROM receipts)"#;
+ (SELECT count(*) FROM logged),(SELECT count(*) FROM effects),(SELECT count(*) FROM presence),(SELECT count(*) FROM receipts),(SELECT count(*) FROM images)"#;
 
 #[derive(Clone, serde::Serialize)]
 pub(super) struct Receipt {
@@ -62,7 +66,7 @@ impl Tx<'_> {
         self.group_head.set(self.head.get());
         Ok(())
     }
-    pub(super) fn group_member_complete(&self) {
+    pub(crate) fn group_member_complete(&self) {
         let tail = std::mem::take(&mut *self.tail.borrow_mut());
         if let Some(commit) = &tail.commit {
             self.head.set(Some(commit.seq));
@@ -114,8 +118,10 @@ impl Tx<'_> {
             effects.len(),
             presence.len(),
             receipts.len(),
+            self.group_images.borrow().len(),
         ];
-        let payload = json!({"commits":commits,"log":log,"effects":effects,"presence":presence,"receipts":receipts}).to_string();
+        let images=self.group_images.borrow().iter().map(|image|json!({"t":image.table,"id":image.new.field("id").unwrap().as_str().unwrap(),"data":crate::value::canonical_json(&image.new)})).collect::<Vec<_>>();
+        let payload = json!({"commits":commits,"log":log,"effects":effects,"presence":presence,"receipts":receipts,"images":images}).to_string();
         let sets = self.flight(
             &[(SQL, &[&payload, &signed(first)?, &signed(last)?])],
             "SET LOCAL statement_timeout=0; SET LOCAL lock_timeout=0",
@@ -133,6 +139,7 @@ impl Tx<'_> {
         }
         drop(tails);
         self.group_tails.borrow_mut().clear();
+        self.group_images.borrow_mut().clear();
         self.group_head.set(Some(last));
         self.commit_settings.set(true);
         Ok(())

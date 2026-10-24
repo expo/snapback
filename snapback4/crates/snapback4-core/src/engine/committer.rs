@@ -8,6 +8,8 @@ use std::cell::Cell;
 mod member_store;
 pub(crate) mod reads;
 pub(crate) mod overlay;
+pub(crate) mod closure;
+pub(crate) mod wave;
 pub(crate) mod outcome;
 
 // @ref LLP 3000.009.001.000.000#3.2 — kinds describe durable units, including writes that publish no sequence.
@@ -73,6 +75,7 @@ pub(crate) struct MemberTx<'member, 'store> {
     tx: &'member AnyTx<'store>,
     frame: &'member Cell<Frame>,
     reads: std::cell::RefCell<reads::ReadSet>,
+    overlay: Option<&'member overlay::Overlay<'member>>,
     #[cfg(test)]
     rollback_failure: Cell<Option<RuntimeError>>,
 }
@@ -81,7 +84,7 @@ impl MemberTx<'_, '_> {
     pub(crate) fn complete<T>(self, value: T) -> MemberResult<T> {
         #[cfg(test)]
         super::program_batch::fault::current(super::program_batch::fault::Point::MemberRelease)?;
-        self.tx.release("member")?;
+        if self.overlay.is_some() { self.tx.complete_overlay_member(); } else { self.tx.release("member")?; }
         self.frame.set(Frame::Complete);
         Ok(Disposition {
             end: Frame::Complete,
@@ -111,7 +114,7 @@ impl MemberTx<'_, '_> {
             if let Some(error) = self.rollback_failure.take() {
                 return Err(error);
             }
-            self.tx.rollback_to("member")?;
+            if let Some(overlay) = self.overlay { overlay.rollback(); } else { self.tx.rollback_to("member")?; }
             self.frame.set(Frame::Abort);
         }
         Ok(())
@@ -132,7 +135,7 @@ impl MemberTx<'_, '_> {
                 super::program_batch::fault::Point::ProgramSavepoint,
             )?;
         }
-        self.tx.savepoint(Self::nested(name)?)
+        if self.overlay.is_some() { Self::nested(name)?; Ok(()) } else { self.tx.savepoint(Self::nested(name)?) }
     }
     pub(crate) fn release(&self, name: &str) -> Result<(), RuntimeError> {
         #[cfg(test)]
@@ -141,10 +144,10 @@ impl MemberTx<'_, '_> {
                 super::program_batch::fault::Point::ProgramRelease,
             )?;
         }
-        self.tx.release(Self::nested(name)?)
+        if self.overlay.is_some() { Self::nested(name)?; Ok(()) } else { self.tx.release(Self::nested(name)?) }
     }
     pub(crate) fn rollback_to(&self, name: &str) -> Result<(), RuntimeError> {
-        self.tx.rollback_to(Self::nested(name)?)
+        if let Some(overlay) = self.overlay { Self::nested(name)?; overlay.rollback(); Ok(()) } else { self.tx.rollback_to(Self::nested(name)?) }
     }
 }
 impl Drop for MemberTx<'_, '_> {
@@ -327,33 +330,44 @@ impl Committer {
         tx: &AnyTx<'_>,
         member: Member<impl FnOnce(MemberTx<'_, '_>) -> MemberResult<T>>,
     ) -> MemberResult<T> {
-        Self::execute_handled(tx, member, None::<fn(RuntimeError) -> T>)
+        Self::execute_handled(tx, member, None::<fn(RuntimeError) -> T>, None)
     }
     pub(super) fn execute_program<T>(
         tx: &AnyTx<'_>,
         member: Member<impl FnOnce(MemberTx<'_, '_>) -> MemberResult<T>>,
         refused: impl FnOnce(RuntimeError) -> T,
     ) -> MemberResult<T> {
-        Self::execute_handled(tx, member, Some(refused))
+        Self::execute_handled(tx, member, Some(refused), None)
+    }
+    pub(super) fn execute_buffered<'m, T>(
+        tx: &'m AnyTx<'_>, overlay: &'m overlay::Overlay<'m>, facts: &crate::store_port::batch::Facts,
+        member: Member<impl FnOnce(MemberTx<'_, '_>) -> MemberResult<T>>,
+        refused: impl FnOnce(RuntimeError) -> T,
+    ) -> MemberResult<T> {
+        tx.begin_member_evidence();
+        tx.install_batch_facts(facts);
+        Self::execute_handled(tx, member, Some(refused), Some(overlay))
     }
     fn execute_handled<T>(
         tx: &AnyTx<'_>,
         member: Member<impl FnOnce(MemberTx<'_, '_>) -> MemberResult<T>>,
         refused: Option<impl FnOnce(RuntimeError) -> T>,
+        overlay: Option<&overlay::Overlay<'_>>,
     ) -> MemberResult<T> {
         let Member { kind, run } = member;
         // Legacy producers enter alone; the program-only driver reuses this
         // facade serially inside its fenced group transaction.
         let _kind = kind;
-        tx.begin_member_evidence();
+        if overlay.is_none() { tx.begin_member_evidence(); }
         #[cfg(test)]
         super::program_batch::fault::current(super::program_batch::fault::Point::MemberSavepoint)?;
-        tx.savepoint("member")?;
+        if overlay.is_none() { tx.savepoint("member")?; }
         let frame = Cell::new(Frame::Active);
         let ran = run(MemberTx {
             tx,
             frame: &frame,
             reads: Default::default(),
+            overlay,
             #[cfg(test)]
             rollback_failure: Cell::new(None),
         });
