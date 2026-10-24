@@ -1,0 +1,37 @@
+// SEC10's documented repairs through installed client and native tarballs.
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,copyFileSync,rmSync} from 'node:fs';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
+import {fileURLToPath} from 'node:url';
+import {spawnSync} from 'node:child_process';
+const root=fileURLToPath(new URL('../../../',import.meta.url));
+test('packed approval decisions, nonblank guards and text minimums run as documented',{timeout:300000},t=>{
+ const dir=mkdtempSync(join(tmpdir(),'sb4-sec10-packed-'));t.after(()=>rmSync(dir,{recursive:true,force:true}));
+ const run=(command,args,cwd=dir,status=0)=>{const r=spawnSync(command,args,{cwd,encoding:'utf8',timeout:120000,env:{...process.env,SNAPBACK4_BIN:''}});assert.equal(r.status,status,`${command} ${args.join(' ')}\n${r.stdout}\n${r.stderr}`);return r.stdout;};
+ const pack=source=>join(dir,JSON.parse(run('npm',['pack','--ignore-scripts','--json','--pack-destination',dir],source))[0].filename);
+ const client=pack(join(root,'packages/snapback4'));const nativeName=`snapback4-${process.platform}-${process.arch}`;
+ const native=join(dir,'native');mkdirSync(native);copyFileSync(join(root,'packages',nativeName,'package.json'),join(native,'package.json'));
+ copyFileSync(process.env.SNAPBACK4_BIN||join(root,'target/debug/snapback4'),join(native,'snapback4'));
+ copyFileSync(join(root,'packages',nativeName,'THIRD-PARTY-NOTICES'),join(native,'THIRD-PARTY-NOTICES'));
+ const platform=pack(native);writeFileSync(join(dir,'package.json'),'{}');run('npm',['install','--ignore-scripts','--no-audit','--no-fund',client,platform]);
+ const cli=join(dir,'node_modules/snapback4/bin/snapback4.js');mkdirSync(join(dir,'snapback'));
+ const card=run(process.execPath,[cli,'guide','security','--full']);assert.match(card,/N_BLANK_TEXT_GUARD/);assert.match(card,/trim\(value\) != ''/);
+ for(const code of ['N_APPROVAL_NOT_ENFORCED','N_BLANK_TEXT_GUARD','N_TEXT_EVIDENCE','N_MEDIA_PRIVATE_FIELDS'])assert.match(run(process.execPath,[cli,'why',code]),new RegExp(code));
+ const recipe=[...card.matchAll(/```quarry\n([\s\S]*?)\n```/g)].map(m=>m[1]).find(s=>s.includes("query required(value: text 1..30)"));assert.ok(recipe,'complete installed recipe');
+ let source=recipe.replace("trim(value) != ''","value != ''").replace("  d = docs[doc] ! else NOT_FOUND\n  require d.approved else NO_APPROVAL\n",'')+'\n';
+ const write=()=>writeFileSync(join(dir,'snapback/schema.q'),source);write();
+ let checked=JSON.parse(run(process.execPath,[cli,'check','--json'],dir,1));assert.ok(checked.securityReviews.some(r=>r.code==='N_BLANK_TEXT_GUARD'&&r.gated));assert.ok(checked.securityReviews.some(r=>r.code==='N_APPROVAL_NOT_ENFORCED'&&r.gated));
+ source=source.replace("value != ''","trim(value) != ''");write();
+ checked=JSON.parse(run(process.execPath,[cli,'check','--json'],dir,1));assert.ok(!checked.securityReviews.some(r=>r.code==='N_BLANK_TEXT_GUARD'));
+ const decision=checked.securityReviews.find(r=>r.code==='N_APPROVAL_NOT_ENFORCED');assert.ok(decision);
+ run(process.execPath,[cli,'check','--ack-security',decision.id,'--reason','informational approval record: this draft may finish independently']);
+ source=recipe+'\n';write();
+ assert.equal(JSON.parse(run(process.execPath,[cli,'check','--json'])).ok,true);
+ const created=JSON.parse(run(process.execPath,[cli,'run','create','{}','--as','clerk','--json']));
+ const result=run(process.execPath,[cli,'run','approve',JSON.stringify({doc:created.result.id,value:' \t '}),'--as','clerk','--json'],dir,1);assert.match(result,/EMPTY_REASON/);
+ assert.match(run(process.execPath,[cli,'run','required',JSON.stringify({value:'\u2003 \t'}),'--as','clerk','--json'],dir,1),/E_INPUT/);
+ assert.match(run(process.execPath,[cli,'run','required',JSON.stringify({value:' a '}),'--as','clerk','--json']),/ a /);
+ assert.ok(readFileSync(join(dir,'snapback/security-reviews.json'),'utf8').includes('informational approval record'));
+});

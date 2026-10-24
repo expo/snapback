@@ -1,6 +1,7 @@
 //! Candidate contracts from authored change guards and inspected approval data.
 // @ref LLP 3000.036.004.000#5-derived-campaigns-and-production-deployment — inferred candidates require ordinary replay, never a proof claim.
 use super::*;
+mod workflow;
 
 // A complex operand may inspect positive evidence before producing null.
 // Only a plain row-field access can establish a pure absence precondition.
@@ -108,7 +109,7 @@ pub fn invariants(sources:&[(String,String)],bound:&Bound)->Vec<Invariant>{
                     RuleExpr::Ne(RuleTerm::Field(c),v)=>RuleExpr::Or(vec![RuleExpr::Ne(RuleTerm::OldField(c.clone()),v.clone()),RuleExpr::Ne(RuleTerm::NextField(c.clone()),v.clone())]),_=>unreachable!("generated approval condition"),
                 };
                 for (column,_kind) in &definition.columns {
-                    if !inspected.contains(column)||matches!(_kind.required(),snapback4_core::schema::ColumnType::Bool|snapback4_core::schema::ColumnType::Enum{..}|snapback4_core::schema::ColumnType::Principal|snapback4_core::schema::ColumnType::Ref{..}){continue;}
+                    if !inspected.contains(column){continue;}
                     if fields.iter().any(|f|&f.name==column)||definition.immutable_fields().any(|c|c==column)||definition.frozen_columns.contains_key(column){continue;}
                     if !bound.programs.iter().any(|p|snapback4_core::ir::write_tables(&p.program).iter().any(|(t,e)|t==table&&matches!(*e,"update"|"upsert"))){continue;}
                     if !write_advice::update_only(bound,table,column,&condition){add(&mut out,table,column,"update",paired.clone(),site);}
@@ -116,6 +117,7 @@ pub fn invariants(sources:&[(String,String)],bound:&Bound)->Vec<Invariant>{
             }
         }
     }
+    workflow::invariants(&docs,&catalog,bound,&mut out);
     out
 }
 pub fn notes(sources:&[(String,String)],bound:&Bound)->Vec<Diagnostic>{

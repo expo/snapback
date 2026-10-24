@@ -50,7 +50,7 @@ fn value(e:&Expr,row:&Value,rows:&Rows,schema:&Schema,viewer:&str,table:&str,now
     Expr::Array{items,..}=>Value::Array(items.iter().map(|e|value(e,row,rows,schema,viewer,table,now)).collect::<Option<_>>()?),
     Expr::Read(read)|Expr::Exists{read,..}=>{
         let t=schema.table(&read.table)?;
-        if schema.maintain_for(&read.table).is_some()||read.filter.is_some()||read.range.is_some()||!read.seeks.is_empty()||read.matching.is_some(){return None;}
+        if schema.maintain_for(&read.table).is_some()||read.range.is_some()||!read.seeks.is_empty()||read.matching.is_some(){return None;}
         let mut pins=Vec::new();
         for key in &read.keys{let column=key.column.as_ref()?;let val=value(&key.value,row,rows,schema,viewer,table,now)?;
             let kind=t.columns.get(column)?;
@@ -69,7 +69,10 @@ fn value(e:&Expr,row:&Value,rows:&Rows,schema:&Schema,viewer:&str,table:&str,now
         // above remain unsupported. No solver proof uses these samples.
         let mut selected=Vec::new();
         for r in rows.get(&read.table).into_iter().flatten() {
-            if pins.iter().all(|(c,v)|r.field(c).ok()==Some(v)) && logical_live(schema,rows,&read.table,r,now,0)? {selected.push(r.clone());}
+            if pins.iter().all(|(c,v)|r.field(c).ok()==Some(v)) && logical_live(schema,rows,&read.table,r,now,0)? {
+                if let Some(filter)=&read.filter {match boolean(value(filter,r,rows,schema,viewer,&read.table,now)){Some(true)=>{},Some(false)=>continue,None=>return None}}
+                selected.push(r.clone());
+            }
         }
         if matches!(e,Expr::Exists{..}) {Value::Bool(!selected.is_empty())}else{Value::Array(selected)}
     },
@@ -94,7 +97,7 @@ pub(super) fn limitations(expr:&Expr,schema:&Schema,table:&str)->BTreeSet<String
         Expr::Call{name,args,..} if ((name=="count"||name=="len")&&args.len()==1)||(name=="sum"&&args.len()==2)=>{},
         Expr::Read(read)|Expr::Exists{read,..}=>{
             if schema.maintain_for(&read.table).is_some(){out.insert(format!("{}: read-through/temporal/maintained population is outside the raw concrete evaluator",read.table));}
-            if read.keys.iter().any(|k|k.column.is_none())||read.filter.is_some()||read.range.is_some()||!read.seeks.is_empty()||read.matching.is_some(){out.insert(format!("{}: concrete population needs named equality keys without filter/range/search",read.table));}
+            if read.keys.iter().any(|k|k.column.is_none())||read.range.is_some()||!read.seeks.is_empty()||read.matching.is_some(){out.insert(format!("{}: concrete population needs named equality keys without range/search",read.table));}
         },_=>{out.insert("expression form is outside the concrete invariant evaluator".into());}
     });out
 }

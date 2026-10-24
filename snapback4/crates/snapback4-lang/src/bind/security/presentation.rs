@@ -26,7 +26,7 @@ pub fn questionnaire_notes(notes:&[crate::Diagnostic])->Vec<crate::Diagnostic>{
 /// One registry for blocking individual reviews and their human presentation.
 pub const GATED_NOTE_CODES: &[&str] = &[
     "N_RETAINED_ROLE_GRANT", "N_OPTIONAL_UPLOAD_CREATE", "N_CREATE_EDIT_ASYMMETRY",
-    "N_PRIVATE_CREATE_EDIT_ASYMMETRY", "N_PRESENCE_LOOSENING",
+    "N_PRIVATE_CREATE_EDIT_ASYMMETRY", "N_PRESENCE_LOOSENING", "N_APPROVAL_NOT_ENFORCED", "N_BLANK_TEXT_GUARD",
 ];
 pub fn gated_note(code: &str) -> bool { GATED_NOTE_CODES.contains(&code) }
 

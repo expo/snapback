@@ -1,0 +1,54 @@
+#!/usr/bin/env python3
+"""Frozen source copies, fresh and post-test production attempts; no live servers."""
+import argparse, concurrent.futures, hashlib, json, pathlib, shutil, subprocess, tempfile, time
+p=argparse.ArgumentParser();p.add_argument('--binary',required=True);p.add_argument('--out',required=True);p.add_argument('--waves',default='15,16,18,19,20,21,22,23,24,25,26');p.add_argument('--filter',default='');p.add_argument('--workers',type=int,default=16);p.add_argument('--check-only',action='store_true');a=p.parse_args()
+out=pathlib.Path(a.out);out.mkdir(parents=True,exist_ok=True);home=pathlib.Path.home()/'sb4-loop'
+items=[(wave,folder) for wave in map(int,a.waves.split(',')) for folder in sorted((home/f'wave{wave}/apps').glob('*/snapback')) if list(folder.glob('*.q')) and (not a.filter or any(folder.parent.name.startswith(n+'-') for n in a.filter.split(',')))]
+def measure(item):
+ wave,folder=item
+ with tempfile.TemporaryDirectory(prefix='sb4-sec10-measure-') as temporary:
+  root=pathlib.Path(temporary);(root/'snapback').mkdir()
+  texts=[(q.name,q.read_text()) for q in sorted(folder.glob('*.q'))]
+  for name,text in texts:(root/'snapback'/name).write_text(text)
+  # Retain authored JSONL fixture data, but no generated evidence/dispositions.
+  fixture=folder.parent/'fixtures'
+  if fixture.is_dir():
+   for q in fixture.rglob('*.jsonl'):
+    target=root/'fixtures'/q.relative_to(fixture);target.parent.mkdir(parents=True,exist_ok=True);shutil.copy2(q,target)
+  def run(args,limit):
+   started=time.monotonic();r=subprocess.run(['timeout','--kill-after=5s',str(limit),binary,*args],cwd=root,capture_output=True,text=True)
+   return r,round(time.monotonic()-started,3)
+  check,seconds=run(['check','--json'],120)
+  try:report=json.loads(check.stdout)
+  except ValueError:report={}
+  reviews=report.get('securityReviews',[]);security=report.get('security',{})
+  notes=security.get('notes',[])+report.get('notes',[])
+  row=dict(wave=wave,lane=folder.parent.name,sha256=hashlib.sha256(json.dumps(texts).encode()).hexdigest(),checkExit=check.returncode,checkSeconds=seconds,gates=[dict(code=d['code'],site=d['site'],id=d['id']) for d in reviews if d['gated'] and not d['acknowledged']],notes=[dict(code=n['code'],site=n['site'],message=n['message']) for n in notes],checkFixes=[dict(site=v['invariant']['site'],predicate=v['invariant']['predicate']) for v in security.get('invariants',[]) if v.get('counterexample') and v['counterexample'].get('reachability') in ['authored-fixture-trace','generated-fixture-trace']])
+  def deploy(label):
+   r,seconds=run(['deploy',str(root/label),'--json'],180)
+   text=r.stdout+'\n'+r.stderr
+   try:parsed=json.loads(r.stdout)
+   except ValueError:parsed={}
+   sec=parsed.get('security',{});sec=json.loads(sec) if isinstance(sec,str) else sec
+   return dict(exit=r.returncode,seconds=seconds,securityRefused='E_SECURITY_REVIEW' in text,summary=[line for line in text.splitlines() if any(s in line for s in ['  FIX ','E_SECURITY_REVIEW','security deploy campaign:','deploy:']) and len(line)<3000],fixes=[dict(site=v['invariant']['site'],predicate=v['invariant']['predicate'],operation=v['counterexample']['operation']) for v in sec.get('report',{}).get('invariants',[]) if v.get('counterexample') and v['counterexample'].get('reachability') in ['authored-fixture-trace','generated-fixture-trace']])
+  if not a.check_only:
+   row['fresh']=deploy('fresh')
+   test,seconds=run(['test'],600);witnesses=[]
+   for line in test.stdout.splitlines():
+    if line.startswith('security violation: '):
+     try:w=json.loads(line[len('security violation: '):])
+     except ValueError:continue
+     if w.get('reachability') in ['authored-fixture-trace','generated-fixture-trace']:witnesses.append(dict(site=w['invariant_site'],operation=w['operation'],effect=w['effect'],history=[s['operation'] for s in w.get('history',[])]))
+   row['test']=dict(exit=test.returncode,seconds=seconds,witnesses=witnesses,summary=[l for l in (test.stdout+'\n'+test.stderr).splitlines() if l.startswith(('security tests:','security histories:','security directed histories:','test:'))])
+   row['afterTest']=deploy('after-test')
+  (out/(f'w{wave}-'+folder.parent.name+'.json')).write_text(json.dumps(row,indent=2)+'\n')
+  return row
+with tempfile.TemporaryDirectory(prefix='sb4-sec10-binary-') as private:
+ original=pathlib.Path(a.binary).resolve();snapshot=pathlib.Path(private)/'snapback4';shutil.copy2(original,snapshot);binary=str(snapshot)
+ (out/'measurement.json').write_text(json.dumps(dict(binarySha256=hashlib.sha256(snapshot.read_bytes()).hexdigest(),projects=len(items),waves=a.waves,checkOnly=a.check_only),indent=2)+'\n')
+ results=[]
+ with concurrent.futures.ThreadPoolExecutor(max_workers=a.workers) as pool:
+  for f in concurrent.futures.as_completed([pool.submit(measure,item) for item in items]):
+   row=f.result();results.append(row)
+   print(json.dumps(dict(done=len(results),total=len(items),wave=row['wave'],lane=row['lane'],gates=len(row['gates']),fresh=row.get('fresh',{}).get('exit'),test=row.get('test',{}).get('exit'),after=row.get('afterTest',{}).get('exit'))),flush=True)
+ (out/'results.json').write_text(json.dumps(sorted(results,key=lambda r:(r['wave'],r['lane'])),indent=2)+'\n')

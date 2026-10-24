@@ -43,6 +43,23 @@ fn helper_guards(catalog:&Catalog,expr:&Expr,env:&Env,depth:usize)->Vec<Stmt>{
         Stmt::Return{value,..}=>{out.extend(helper_guards(catalog,value,&locals,depth+1));break;},_=>break,
     }}out
 }
+// Conditional require-only branches impose an implication after rejoining.
+// A branch with writes, returns or assignments exports no inferred requirement.
+fn conditional_guards(body:&[Stmt],env:&Env)->Option<Vec<Expr>> {
+    let mut out=Vec::new();
+    for s in body {match s {
+        Stmt::Require{condition,..}=>out.push(resolve(condition,env)),
+        Stmt::If{condition,then_body,else_body,site}=>{
+            let condition=resolve(condition,env);
+            for (negate,branch) in [(true,then_body),(false,else_body)] {
+                for required in conditional_guards(branch,env)? {
+                    let premise=if negate{Expr::Unary{op:"not".into(),value:Box::new(condition.clone()),site:site.clone()}}else{condition.clone()};
+                    out.push(Expr::Binary{op:"or".into(),left:Box::new(premise),right:Box::new(required),site:site.clone()});
+                }
+            }
+        },_=>return None,
+    }} Some(out)
+}
 fn statements(catalog:&Catalog,p:&ProgramDecl,body:&[Stmt],env:&mut Env,guards:&mut Vec<Stmt>,changes:&mut Vec<Change>,column:Option<&str>,depth:usize,out:&mut Vec<(Expr,ProgramDecl)>){
     for s in body{
         let consuming=column.is_some()&&changes::effectful(s);
@@ -69,6 +86,12 @@ fn statements(catalog:&Catalog,p:&ProgramDecl,body:&[Stmt],env:&mut Env,guards:&
             let mut else_guards=guards.clone();
             else_guards.push(Stmt::Require{condition:Expr::Unary{op:"not".into(),value:Box::new(condition.clone()),site:site.clone()},code:"$advice".into(),message:None,site:site.clone()});
             statements(catalog,p,else_body,&mut env.clone(),&mut else_guards,&mut changes.clone(),column,depth,out);
+            for (negate,branch) in [(true,then_body),(false,else_body)] {
+                if let Some(required)=conditional_guards(branch,env) {for required in required {
+                    let premise=if negate{Expr::Unary{op:"not".into(),value:Box::new(condition.clone()),site:site.clone()}}else{condition.clone()};
+                    guards.push(Stmt::Require{condition:Expr::Binary{op:"or".into(),left:Box::new(premise),right:Box::new(required),site:site.clone()},code:"$advice".into(),message:None,site:site.clone()});
+                }}
+            }
             let assigned=branch_assignments(then_body).into_iter().chain(branch_assignments(else_body)).collect::<BTreeSet<_>>();
             if column.is_some()&&assigned.is_empty(){changes.extend(changes::after(catalog,&condition,then_body,else_body,env));}
             for name in assigned{env.insert(name.clone(),Expr::Name{name:format!("$advice_unknown_{name}"),site:site.clone()});}

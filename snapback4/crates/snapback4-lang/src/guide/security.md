@@ -404,7 +404,7 @@ N_TABLE_QUESTIONNAIRE: Role-wide access and restating invariants share one table
 
 ### N_APPROVAL_NOT_ENFORCED
 
-N_APPROVAL_NOT_ENFORCED: An approval flag is written but not inspected by a lifecycle transition. Decide which transitions require approval, declare independent intent, and test both gating boolean values. This is a specification question, never a proof or a new gate.
+N_APPROVAL_NOT_ENFORCED: An approval flag, timestamp, or separately authorized parent-linked approval table is recorded but no lifecycle effect requires it. This is an individual review gate. Add the matching approval requirement before its governed effect; if the approval is an informational record, record that specification decision with `check --ack-security ID --reason '<spec rationale>'`. A query returning the approval is not a transition guard.
 
 ### N_EDIT_AFTER_APPROVAL
 
@@ -451,3 +451,90 @@ presence intent or an individual specification decision. Successful check advanc
 a local generated baseline; production compares the selected release independently.
 A fresh checkout has no invented predecessor. Deliberately optional evidence can
 state `invariant evidence always .photo = null or .photo != null`.
+
+
+### N_TEXT_EVIDENCE
+
+N_TEXT_EVIDENCE: A text column names photo, scan, sketch or image evidence.
+Use an image column and image argument for verified uploads; require presence
+at the governed boundary when the specification requires evidence. Intentional
+text references may remain text. This question is advisory.
+
+### N_MEDIA_PRIVATE_FIELDS
+
+N_MEDIA_PRIVATE_FIELDS: Media has the whole-row audience beside narrower
+private fields. Decide whether the scan carries those fields. Apply the private
+audience with image read <- P, or declare independent media read intent and test
+the broader audience. This question is advisory.
+
+### N_BLANK_TEXT_GUARD
+
+N_BLANK_TEXT_GUARD: An empty-string justification guard admits whitespace from
+a minimum-zero input. Require trim(value) != '' for the same justification,
+or use text 1..N on every supplied justification. This is an individual review
+gate; acknowledge an intentional whitespace-sensitive comparison with
+check --ack-security ID --reason '<spec rationale>'.
+
+
+### Approval contracts and text evidence
+
+An approval required on one effect derives a candidate for sibling effects and
+reference-linked continuations. Approved Bool, Enum and Principal inputs are
+included in approve/edit replay. Parent/child stage and repeat-create candidates
+retain their inferred origin. Only an actual replayed violation refuses production;
+an intentional alternative path takes one individual candidate decision. Run
+`test`, repair the named effect or record its exact `check --ack-security` ID.
+
+N_TEXT_EVIDENCE asks whether photo/scan/sketch text should instead be a verified
+`image` column and image argument. Presence remains a separate specification
+decision. N_MEDIA_PRIVATE_FIELDS asks whether media carries the private fields
+beside it; apply the corresponding column audience with `image read <- P`.
+
+`text 1..N` already counts non-whitespace characters for its minimum. Optional
+minimum-zero text permits whitespace. N_BLANK_TEXT_GUARD is a review gate for
+reason/consent/assessment empty-string checks on such inputs: require
+`trim(value) != ''` for the same justification or use positive text minimums on
+all supplied values. A deliberate whitespace-sensitive comparison can be
+individually acknowledged. Existing stores are not rewritten; these semantics
+already apply on ordinary writes and argument validation.
+
+Default `check` and production deploy explore fixed work budgets. Elapsed time
+is telemetry and cannot change a completed campaign verdict. Finite work cuts
+remain explicit coverage gaps; a passing finite campaign is never proof.
+
+
+### Enforce the recorded decision
+
+This complete example uses the same nonblank guard on a minimum-zero input,
+a positive minimum on another input, an approval requirement at the effect,
+and a media audience independent of the row's broader audience.
+
+```quarry
+use personas clerk
+table docs:
+  owner: principal
+  approved: bool default false
+  status: enum('draft','done') default 'draft'
+  reason: text <=30 ?
+  scan: image <=10000 ? read <- .owner = viewer
+  read <- allow
+  insert <- .owner = viewer
+  update <- viewer = 'dev:clerk'
+  online only
+mutation create():
+  return insert docs {owner:viewer}
+mutation approve(doc: docs,value: text <=30):
+  require trim(value) != '' else EMPTY_REASON
+  update docs[doc] {approved:true,reason:value}
+mutation finish(doc: docs):
+  d = docs[doc] ! else NOT_FOUND
+  require d.approved else NO_APPROVAL
+  update docs[doc] {status:'done'}
+query required(value: text 1..30):
+  return value
+```
+
+Run create, pass its returned id to approve with a nonblank value, then finish.
+Production role authority belongs in the table and operation policies for the
+application's real identities; this local example isolates the decision guard.
+The scan is deliberately optional and readable only by its owner.

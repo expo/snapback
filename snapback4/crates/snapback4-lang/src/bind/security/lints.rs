@@ -107,6 +107,7 @@ pub(super) fn notes(bound:&Bound,exposures:&[Exposure])->Vec<Diagnostic>{
     // Inspect original syntax for argument flow and distinct authored codes.
     // Keeping lints outside Bound.notes preserves the compiler's existing
     // diagnostic contract; check/audit expose this security advice separately.
+    notes.extend(super::super::write_affordances::global_unique_notes(&bound.schema));
     let _=exposures;
     let mut retained=BTreeSet::new();
     notes.retain(|n|n.code!="N_GRANT_OUTLIVES_ROLE"||retained.insert(n.message.split(':').next().unwrap_or("").to_string()));

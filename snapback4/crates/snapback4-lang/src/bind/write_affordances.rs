@@ -57,6 +57,17 @@ pub(super) fn notes(catalog: &Catalog, schema: &Schema) -> Vec<Diagnostic> {
     }
     out
 }
+pub(super) fn global_unique_notes(schema:&Schema)->Vec<Diagnostic>{
+    let mut out=Vec::new();
+    for (name,table) in schema.visible_tables(){
+        let owners=fields(&table.rules.read);
+        if owners.is_empty(){continue;}
+        for index in table.indexes.values().filter(|i|i.unique&&i.columns()!=vec!["id".to_string()]&&!owners.iter().any(|owner|i.columns().contains(owner))){
+            out.push(Diagnostic::new(&crate::Site::default(),"N_UNIQUE_HIDDEN",format!("{name}: global unique {} omits owner scope {}; could a private-row conflict expose that another owner already holds this value?",index.columns().join(", "),owners.join(", ")),"include the owner in uniqueness when values are owner-scoped; for intentional global claims keep hidden conflicts generic and expose only a minimal availability projection").guide("rules"));
+        }
+    }
+    out
+}
 fn body(catalog:&Catalog,schema:&Schema,program:&ProgramDecl,statements:&[Stmt], mut gate:Option<String>,out:&mut Vec<Diagnostic>) {
     let mut lookups: BTreeMap<String,(String,Vec<String>)>=BTreeMap::new();
     for statement in statements {

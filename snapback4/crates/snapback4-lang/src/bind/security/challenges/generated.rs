@@ -163,7 +163,7 @@ pub fn fixture(bound:&Bound,out:&mut Campaign)->Result<Engine,String>{
             let related_creator=p.args.values().any(|kind|matches!(kind,ir::ArgType::Ref{table} if created.contains(table)&&engine.store().rows(table).is_ok_and(|rows|!rows.is_empty())&&dependent_children.get(table).is_some_and(|children|writes.iter().any(|(child,kind)|matches!(*kind,"insert"|"upsert")&&children.contains(child)))));
             if !root_observed&&(related_creator||writes.iter().any(|(_,kind)|matches!(*kind,"update"|"upsert"|"delete"))){
                 root_observed=true;
-                if out.generated_fixture&&out.work_remaining.is_none()&&validate_fixture(bound,&mut engine).is_ok(){
+                if out.generated_fixture&&out.work_remaining.is_none_or(|work|work>=4096)&&validate_fixture(bound,&mut engine).is_ok(){
                     let first=out.violations.len();histories::lifecycle_observers_to(bound,&engine,out,1024);
                     for witness in &mut out.violations[first..]{if witness.reachability==Reachability::AuthoredFixtureTrace{witness.reachability=Reachability::GeneratedFixtureTrace;witness.scope="actual authored observation from a validated generated early setup checkpoint; initialization is not claimed application-reachable".into();}}
                 }
@@ -178,6 +178,8 @@ pub fn fixture(bound:&Bound,out:&mut Campaign)->Result<Engine,String>{
                 continue;
             }
             let mut cases=histories::fixture_cases(bound,p,&current,&creator_actors,out);
+            let clock_intent=bound.invariants.iter().filter_map(|i|i.syntax.as_ref()).any(|e|{let mut e=e.clone();let mut now=false;crate::bind::intent_walk::expression(&mut e,&mut |e|if matches!(e,ast::Expr::Name{name,..} if name=="now"){now=true;});now});
+            if clock_intent {if let Some(index)=cases.iter().position(|args|p.args.iter().any(|(name,kind)|matches!(kind,ir::ArgType::Time)&&matches!(args.get(name),Some(Value::Int(n)) if *n<NOW-183*86_400_000))){let old=cases.remove(index);cases.insert(0,old);}}
             // Do not let two actors on the first tuple consume both root
             // slots before the opposite gating boolean is tried.
             if let Some(first)=cases.first().cloned(){
@@ -212,7 +214,7 @@ pub fn fixture(bound:&Bound,out:&mut Campaign)->Result<Engine,String>{
                 let result=candidate.mutate(&p.name,None,Context::new(actor,args.clone()).at(NOW));
                 if matches!(result,Ok(r) if matches!(r.state,snapback4_core::WriteState::Sent{..})) {
                     let after=readback(&candidate)?;
-                    let loosens=if !stricter_observed&&watched_transition&&out.generated_fixture&&out.work_remaining.is_none(){
+                    let loosens=if !stricter_observed&&watched_transition&&out.generated_fixture&&out.work_remaining.is_none_or(|work|work>=4096){
                         let before=readback(&engine)?;
                         bound.invariants.iter().any(|inv|before.get(&inv.table).into_iter().flatten().any(|row|{
                             let Some(next)=after.get(&inv.table).into_iter().flatten().find(|next|next.field("id").ok()==row.field("id").ok())else{return false;};

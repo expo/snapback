@@ -44,6 +44,9 @@ pub(super) fn run(bound:&Bound,base:&Engine,initial:&BTreeMap<String,Vec<Value>>
     let mut predicate_columns=BTreeSet::new();
     for inv in bound.invariants.iter().filter(|i|goals.contains(&i.table)){if let Some(mut syntax)=inv.syntax.clone(){crate::bind::intent_walk::expression(&mut syntax,&mut |e|if let ast::Expr::Member{name,..}=e{predicate_columns.insert(name.clone());});}}
     for p in bound.programs.iter().map(|b|&b.program).filter(|p|p.kind==ProgramKind::Mutation&&!p.native&&ir::write_tables(p).iter().any(|(t,k)|goals.contains(t)&&matches!(*k,"insert"|"upsert"))){
+        let reads_approval=ir::read_sites(p).iter().any(|read|["approv","authoriz"].iter().any(|part|read.table.to_lowercase().contains(part)));
+        let retry=ir::write_tables(p).iter().any(|(table,_)|bound.invariants.iter().any(|i|i.table==*table&&i.site.file.contains("repeat-create")));
+        if reads_approval&&!retry{continue;}
         if !p.args.values().any(|k|matches!(k,ir::ArgType::Ref{table} if changed.contains(table))){continue;}
         let actors=actors_for(bound,p,&rows,base);
         let cases=histories::fixture_cases(bound,p,&rows,&actors,out);
@@ -60,7 +63,10 @@ pub(super) fn run(bound:&Bound,base:&Engine,initial:&BTreeMap<String,Vec<Value>>
             // A self-referencing retry needs the same admitted creator twice;
             // ordinary lifecycle exploration supplies its source stage. Do not
             // spend its pair budget preparing unrelated stages of that row.
-            if relatives.keys().any(|table|goals.contains(table)){continue;}
+            if p.args.values().any(|kind|matches!(kind,ir::ArgType::Ref{table} if ir::write_tables(p).iter().any(|(target,effect)|target==table&&matches!(*effect,"insert"|"upsert")))){continue;}
+            // The origin already reads the approval. Give sibling creators
+            // without that prerequisite the dependency-change pair budget.
+            if ir::read_sites(p).iter().any(|read|["approv","authoriz"].iter().any(|part|read.table.to_lowercase().contains(part))){continue;}
             for q in bound.programs.iter().map(|b|&b.program).filter(|q|q.kind==ProgramKind::Mutation&&!q.native&&ir::write_tables(q).iter().any(|(t,k)|relatives.contains_key(t)&&matches!(*k,"update"|"upsert"))&&predicate_columns.iter().any(|c|serde_json::to_string(q).unwrap().contains(&format!("\"{c}\":")))){
                 let candidates=actors_for(bound,q,&rows,base);let cases=histories::fixture_cases(bound,q,&rows,&candidates,out);
                 for mut setup in cases.into_iter().take(4){
