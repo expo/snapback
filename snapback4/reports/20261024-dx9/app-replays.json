@@ -1,0 +1,166 @@
+[
+  {
+    "lane": "010",
+    "adjustments": [
+      "local packed SDK/platform; Vite 8.3.5 where declared"
+    ],
+    "commands": [
+      {
+        "command": "npm install --no-audit --no-fund",
+        "exit": 0,
+        "seconds": 6.09,
+        "codes": [],
+        "outputSha256": "06cd25172da1ad78a113128e720302e6ed3e7bfcba5a4da6d0f0acb474c9c912"
+      },
+      {
+        "command": "snapback4 check",
+        "exit": 0,
+        "seconds": 7.54,
+        "codes": [
+          "E_RULE"
+        ],
+        "outputSha256": "f3c4af009302cca05248e3bc3d603b35705542dde2ec17f089c292c5cc0ca244"
+      },
+      {
+        "command": "npm run typecheck",
+        "exit": 0,
+        "seconds": 1.54,
+        "codes": [],
+        "outputSha256": "8dfffe1715e1cd579700e7800f36c9d0df8a44a44a0e937595294a1894cee58f"
+      },
+      {
+        "command": "npm run acceptance",
+        "exit": 0,
+        "seconds": 8.47,
+        "codes": [],
+        "outputSha256": "1c0795df88bfafd5307d71e2c54c342612532b6e199445415ab4f1c4fa22d221"
+      },
+      {
+        "command": "npm run frontend:proof",
+        "exit": 0,
+        "seconds": 5.64,
+        "codes": [],
+        "outputSha256": "30441c4ec4ec4e206e928f4d333708d73685ebc5c1a74ad61e7589f5b9d98b08"
+      }
+    ]
+  },
+  {
+    "lane": "020",
+    "adjustments": [
+      "local packed SDK/platform; Vite 8.3.5 where declared"
+    ],
+    "commands": [
+      {
+        "command": "npm install --no-audit --no-fund",
+        "exit": 0,
+        "seconds": 4.16,
+        "codes": [],
+        "outputSha256": "69529b5324f74cf8ad3f352c2194141d3b66ba80c6c645be8e898f042b77cdb8"
+      },
+      {
+        "command": "snapback4 check",
+        "exit": 0,
+        "seconds": 7.54,
+        "codes": [],
+        "outputSha256": "46cecd13a7a6a058a7ec26545e377e4cddb8103f936ab16edf78e8f3b3b457f1"
+      },
+      {
+        "command": "npm run typecheck",
+        "exit": 0,
+        "seconds": 1.35,
+        "codes": [],
+        "outputSha256": "1095047b8b4f55acbb7623dba5793b5e84590a0b5e690f011f21fb46a2c9927a"
+      },
+      {
+        "command": "npm run acceptance",
+        "exit": 0,
+        "seconds": 21.38,
+        "codes": [
+          "E_AUTH",
+          "NOT_FOUND"
+        ],
+        "outputSha256": "03d1514f79b2119fe4a79e4e7403e3f8efd70cf67f792150ae7160fdf8e3aedf"
+      },
+      {
+        "command": "npm run frontend:proof",
+        "exit": 0,
+        "seconds": 17.63,
+        "codes": [],
+        "outputSha256": "0cec73dc4cf6008e2cff7ecb4a052cadba448e3adde07e65097376b58801d00c"
+      }
+    ]
+  },
+  {
+    "lane": "024",
+    "adjustments": [
+      "local packed SDK/platform; Vite 8.3.5 where declared"
+    ],
+    "commands": [
+      {
+        "command": "npm install --no-audit --no-fund",
+        "exit": 0,
+        "seconds": 17.72,
+        "codes": [],
+        "outputSha256": "8a4bb180a28513011dc5711d818d830d2bf35b05810a90fa57e238f5fcd11d6d"
+      },
+      {
+        "command": "snapback4 check",
+        "exit": 0,
+        "seconds": 7.87,
+        "codes": [],
+        "outputSha256": "5058f9580f4fea6e3682af916417079d2fb93da552fbf91cdeefef4317a8d815"
+      },
+      {
+        "command": "npm run typecheck",
+        "exit": 0,
+        "seconds": 1.67,
+        "codes": [],
+        "outputSha256": "d686f65665e598368eef620f0cc1208955319c620651039dbddff4410307614d"
+      },
+      {
+        "command": "npm run build:web",
+        "exit": 0,
+        "seconds": 9.76,
+        "codes": [],
+        "outputSha256": "b4d78fe524f80c7d13e36ded76e334c8588317e5103c1222c97b98cf095ef86b"
+      }
+    ]
+  },
+  {
+    "lane": "048",
+    "adjustments": [
+      "local packed SDK/platform; Vite 8.3.5 where declared",
+      "PORT_LO=4400 PORT_HI=4420 required by the app-owned Vite config"
+    ],
+    "commands": [
+      {
+        "command": "npm install --no-audit --no-fund",
+        "exit": 0,
+        "seconds": 6.24,
+        "codes": [],
+        "outputSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "command": "snapback4 check",
+        "exit": 0,
+        "seconds": 8.26,
+        "codes": [],
+        "outputSha256": "e44dcb3774549766c0fd74cfb7c06e89d3d9db5830084b275ffa05fc221268af"
+      },
+      {
+        "command": "npm run typecheck",
+        "exit": 0,
+        "seconds": 1.93,
+        "codes": [],
+        "outputSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "command": "npm run build",
+        "exit": 0,
+        "seconds": 0.58,
+        "codes": [],
+        "outputSha256": "6221e05f7d4a70d5fb3034a0a3078e104d3daf172323960190e6eac08a31e0e2"
+      }
+    ]
+  }
+]
