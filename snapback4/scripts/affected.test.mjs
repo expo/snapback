@@ -253,3 +253,13 @@ for (const path of ['snapback4/crates/snapback4-lang/src/guide.rs', 'snapback4/c
     assert(ids(plan).includes('difftest:run'));
   });
 }
+
+for (const leaf of ['day2-proof.mjs', 'previous/day2-proof-0.4.40.mjs']) {
+  test(`embedded init template ${leaf} selects its binary source and consumers`, () => {
+    const plan=select([`snapback4/crates/snapback4/src/verbs/init/${leaf}`]);
+    assert.equal(plan.broad,false);
+    assert.deepEqual(plan.rustPackages,['snapback4']);
+    assert(plan.clientFiles.includes('snapback4/packages/snapback4/test/residency.test.mjs'));
+    assert(!plan.clientFiles.includes(model.packages[1].tests[0]));
+  });
+}

@@ -181,7 +181,8 @@ export function selectAffected(changedFiles, model) {
         if (!narrowRust.has(crate.name)) narrowRust.set(crate.name, new Set());
         narrowRust.get(crate.name).add(test.name);
         why(path, `integration test target ${crate.name}::${test.name}`);
-      } else if (path.startsWith(crate.dir + '/src/') && /\.(?:rs|q|json)$/.test(path)) {
+      } else if (path.startsWith(crate.dir + '/src/') && (/\.(?:rs|q|json)$/.test(path)
+        || crate.name === 'snapback4' && /^crates\/snapback4\/src\/verbs\/init\/(?:previous\/)?[^/]+\.mjs$/.test(p))) {
         sourceCrates.add(crate.name); why(path, `${crate.name} sources and reverse dependents`);
         if (['snapback4-lang', 'snapback4-core', 'snapback4-difftest'].includes(crate.name)) semantics = true;
         // Site coordinates drift even when no new diagnostic code is introduced.
