@@ -106592,3 +106592,28 @@ Automatic prepared-plan selection is not the whole solution. Final binary,
 Postgres sweep, ref audit and cleanup are still pending at this checkpoint.
 Default core has passed 1,138 tests across 47 targets with zero failures and
 five named ignores; its feature excludes these PostgreSQL-only changes.
+
+### 2026-10-24 — RCPU: read CPU, typed facts and bounded HTTP queue
+
+Reader-only generic plans remove most W2 PG planning CPU after schema-address
+constants make its partial indexes visible: the 128-client release intermediate
+is W1 16,269/s, W2 9,952/s and W3 3,758/s. Guarded typed arrays and one dependent
+JSON decode raise the next W1/W2 cells to 17,341/s and 10,125/s. Competing work
+began before W3; that window was deferred, not reported as zero or selected away.
+All measured cells and their before/after one-minute loads remain in the report.
+
+Closure compilation borrows Schema; direct Value key decoding avoids a JSON DOM.
+Online-only scope metadata avoids its redundant IR serialization when the old
+bounded walk is provably complete. Reused meter/statement strings and existing
+environment keys reduce allocation while preserving charges and refusal sites.
+Environment binding lives with its presence bookkeeping to keep runner.rs within
+1,500 lines. Short admission retains 30 executing workers, now with 258 bounded
+waiting slots and matching descriptor room, original body/intake deadlines,
+independent expiry and the existing non-draining refusal. Idle keep-alive sockets
+do not occupy those workers. No result or authority is retained across requests.
+
+The real-PG closure harness reports 12/0 (11 active witnesses and its inactive
+manual timing helper), transport/cache 6/0, both RT0 ratchets plus cut witnesses
+5/0; warm W1/W2/W3 remains 1/1/1. Root ref-check passes 567 docs / 11,867 refs /
+43,652 files, zero errors. Full final qualification follows the remaining
+request-local accounting optimization and final uninstrumented release windows.

@@ -19,6 +19,7 @@ use sha2::{Digest, Sha256};
 use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
+use std::fmt::Write;
 
 // Only this evaluator can manufacture expression-pricing authority. Store
 // rows must pass project_row before entering its environment or result values.
@@ -285,16 +286,9 @@ pub struct Runner<'a> {
 }
 
 impl<'a> Runner<'a> {
-    pub(super) fn measured_expr(&mut self, expr: &Expr) -> Result<(Value, u64), RuntimeError> {
-        let value = self.expr(expr)?;
-        let bytes = expression_heap(&value);
-        Ok((value, bytes))
-    }
-    pub(super) fn environment_value_copy_heap(&self, name: &str) -> u64 { self.env.get(name).map_or(0, |v| v.expression_copy(ExpressionAccess(()))) }
     pub(super) fn expr_input(&mut self, expr: &Expr) -> Result<crate::value::Supplied,RuntimeError> {
         Ok(self.expr(expr)?.expression_input(ExpressionAccess(())))
     }
-    pub(super) fn environment_heap(&self) -> u64 { self.env.values().map(expression_heap).sum() }
     pub(super) fn component_object(&mut self, fields: super::components::EvaluatedFields) -> Result<Value, RuntimeError> {
         let row = fields.into_value();
         self.meter.heap(expression_heap(&row))?;
@@ -500,11 +494,13 @@ impl<'a> Runner<'a> {
     pub fn metered(&self) -> crate::meter::Metered { self.meter.used }
 
     pub(super) fn statements(&mut self, statements: &[Stmt], prefix: &str) -> Result<Flow, RuntimeError> {
+        let mut site = String::new();
         for (index, statement) in statements.iter().enumerate() {
             let (previous, capped, component_return) = self.begin_component(index);
             let result = (|| {
             self.effect_presence.reads.clear();
-            let site = format!("{prefix}:{}", index + 1);
+            site.clear();
+            write!(&mut site, "{prefix}:{}", index + 1).unwrap();
             // @ref LLP 3000.013#12.3 — infallible effect-payload reads and their
             // exclusive bindings use actual-value server fees. Omitted payloads
             // can exhaust the server meter after prediction (the documented
@@ -514,7 +510,7 @@ impl<'a> Runner<'a> {
                 return Ok(Flow::Next);
             }
             if matches!(statement, Stmt::Insert { .. } | Stmt::InsertIfAbsent { .. } | Stmt::Update { .. } | Stmt::Upsert { .. } | Stmt::WriteTarget { .. } | Stmt::Delete { .. } | Stmt::DeleteTarget { .. } | Stmt::Emit { .. }) { self.refuse_condition_write()?; }
-            self.statement_site = site.clone();
+            site.clone_into(&mut self.statement_site);
             self.meter.at(&site);
             self.meter.step(1)?;
             let flow = match statement {
@@ -611,7 +607,7 @@ impl<'a> Runner<'a> {
                 }
                 Stmt::Require { condition, code, site: authored, message } => {
                     if !self.expr(condition)?.as_bool()? {
-                        return Err(RuntimeError::Require { code: code.clone(), site: authored.clone().or(Some(site)), message: message.clone() });
+                        return Err(RuntimeError::Require { code: code.clone(), site: authored.clone().or_else(|| Some(site.clone())), message: message.clone() });
                     }
                     Flow::Next
                 }
@@ -699,7 +695,7 @@ impl<'a> Runner<'a> {
                     // this return's origin when its final copy unwinds to run().
                     #[cfg(feature = "server-search")]
                     if matches!(result, Err(RuntimeError::Bound { kind: MeterKind::HeapBytes, .. })) {
-                        self.statement_site = site;
+                        site.clone_into(&mut self.statement_site);
                         return result.map(Flow::Return);
                     }
                     let value = result?;
@@ -764,13 +760,6 @@ impl<'a> Runner<'a> {
         }
         charged?;
         Ok(value)
-    }
-
-    pub(super) fn bind(&mut self, name: &str, value: Value) {
-        #[cfg(feature = "sqlite")]
-        self.clear_delivery_variable(name);
-        self.effect_presence.variables.remove(name);
-        self.env.insert(name.to_owned(), value);
     }
 
     pub(super) fn domain(&mut self, domain: &LoopDomain) -> Result<Box<dyn Iterator<Item = Value>>, RuntimeError> {

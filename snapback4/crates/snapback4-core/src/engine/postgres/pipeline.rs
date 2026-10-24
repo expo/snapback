@@ -150,7 +150,7 @@ impl Pool {
         Ok(Arc::new(Self {
             config: c,
             setup: format!(
-                "SET search_path={quoted},pg_catalog; SET statement_timeout='5s'; SET lock_timeout='5s'; SET default_transaction_read_only=on; SET client_encoding='UTF8'; SET extra_float_digits=3; SET bytea_output='hex'"
+                "SET search_path={quoted},pg_catalog; SET statement_timeout='5s'; SET lock_timeout='5s'; SET default_transaction_read_only=on; SET client_encoding='UTF8'; SET extra_float_digits=3; SET bytea_output='hex'; SET plan_cache_mode=force_generic_plan"
             ),
             slots: Mutex::new(Vec::new()),
             next: AtomicUsize::new(0),

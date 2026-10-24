@@ -90,3 +90,29 @@ now include preparation (2 flights in this witness). Four harness correctness
 checks pass, with exact arrival/histogram counts and valid responses; combining
 closed-loop and rate is rejected. Full final binary/PG/ref qualification and
 owned process cleanup remain to be completed before this lane is done.
+
+## CPU and transport intermediates
+
+No best-of selection. The array W3 window did not start: unrelated work was using
+6–10 cores; its recorded runner/server were stopped so qualification could proceed.
+
+| Arm | Shape | Clients | Reads/s | p50 / p99 ms | Server / PG / client µs | Errors | Load before / after |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| hot-plan | W1 | 128 | 14,189 | 8.61 / 17.58 | 279.9 / 310.5 / 69.6 | 23 | 14.02 / 15.70 |
+| hot-plan | W2 | 128 | 3,840 | 28.88 / 59.70 | 530.8 / 1375.1 / 130.2 | 72 | 9.39 / 11.44 |
+| hot-plan | W3 | 128 | 3,390 | 37.32 / 53.41 | 1196.3 / 1743.7 / 118.6 | 196 | 11.44 / 12.85 |
+| generic | W1 | 128 | 16,269 | 7.65 / 14.11 | 280.8 / 305.4 / 69.3 | 37 | 5.38 / 7.19 |
+| generic | W2 | 128 | 9,952 | 12.57 / 20.79 | 465.6 / 503.8 / 113.5 | 49 | 6.62 / 9.13 |
+| generic | W3 | 128 | 3,758 | 33.65 / 45.38 | 1176.8 / 1732.0 / 116.0 | 187 | 11.36 / 12.93 |
+| arrays | W1 | 128 | 17,341 | 7.16 / 13.31 | 274.3 / 272.5 / 69.7 | 37 | 5.28 / 7.74 |
+| arrays | W2 | 128 | 10,125 | 12.35 / 21.27 | 432.0 / 456.9 / 112.8 | 52 | 10.32 / 12.38 |
+
+`hot-plan` borrows the schema, decodes keys directly, encodes schema addresses
+as code constants and bypasses redundant online-only scope IR serialization.
+`generic` additionally forces generic reader plans. `arrays` additionally uses
+typed array payloads and planner barriers around dependent JSON/address work.
+The remaining candidate reuses interpreter strings/environment keys and has
+30 executing + 258 queued short permits, including socket/descriptor sizing.
+The original 30/98 population caused admission-turnover errors at 128 clients
+and substantial 503/connection churn at 256. These errors prevent treating any
+of those intermediate throughput values as S1 SLO qualification.

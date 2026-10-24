@@ -311,6 +311,8 @@ fn pipeline_cached_statements_keep_fresh_facts_and_bounded_typed_code() {
         assert_eq!((rows[0].get::<_,bool>(0),rows[0].get::<_,i64>(1),rows[0].get::<_,String>(2)),(live,head,viewer.into()));
     }
     assert_eq!(preparations.get(), 1, "fresh values must reuse only the prepared code");
+    let plans = connection.independent("SELECT generic_plans,custom_plans FROM pg_prepared_statements WHERE statement='SELECT live,head,$1::text FROM facts'", &[]).unwrap();
+    assert_eq!((plans[0].get::<_,i64>(0),plans[0].get::<_,i64>(1)),(2,0),"reader bindings must reuse plans as well as parsed code");
     for _ in 0..8 {
         let text = "viewer";
         let rows = connection.independent_cached("SELECT $1", &[(&text, Type::TEXT)], prepared).unwrap();
