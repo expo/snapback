@@ -31,3 +31,11 @@ const PASSWORD:&str="use identity password\ntable notes:\n  owner: principal\n  
  let line=text.lines().find(|line|line.contains("N_PRESENCE_LOOSENING")).expect(&text);
  assert!(!line.contains("slow")&&!line.contains("performance"),"{text}");assert!(text.contains("--ack-security"),"{text}");
 }
+
+#[test]fn deliberate_authored_read_design_names_the_exact_replacement_line(){
+ let source=PASSWORD.replace("read <- .owner = viewer","read <- allow");let app=App::new(&source);
+ let tested=app.run(&["test"]);assert_eq!(tested.status.code(),Some(1),"{tested:?}");
+ let refused=app.run(&["deploy","deployment"]);assert_eq!(refused.status.code(),Some(1));let text=format!("{}{}",String::from_utf8_lossy(&refused.stdout),String::from_utf8_lossy(&refused.stderr));
+ assert!(text.contains("invariant notes.read only allow")&&text.contains("authored specification change"),"{text}");
+ app.write("snapback/schema.q",&source.replace("invariant notes.read only .owner = viewer","invariant notes.read only allow"));app.ok(&["test"]);app.ok(&["deploy","deployment"]);
+}

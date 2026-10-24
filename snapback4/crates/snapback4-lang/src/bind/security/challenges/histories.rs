@@ -157,6 +157,23 @@ pub(super) fn typed_disclosure_image(ty:&crate::types::Ty,data:&Value,table:&str
         _=>false,
     }
 }
+// Every occurrence of this typed row identity must be the exact written
+// image: returning {before, after} must not let the after image hide before.
+pub(super) fn exact_written_payload(ty:&crate::types::Ty,data:&Value,table:&str,key:&Value,image:&Value)->bool {
+    use crate::types::Ty;
+    fn combine(values:impl Iterator<Item=Option<bool>>)->Option<bool>{
+        values.flatten().reduce(|a,b|a&&b)
+    }
+    fn judge(ty:&Ty,data:&Value,table:&str,key:&Value,image:&Value)->Option<bool>{match ty {
+        Ty::Row(t)|Ty::WriteRow(t) if t==table=>(data.field("id").ok()==Some(key)).then_some(data==image),
+        Ty::Optional(inner)|Ty::Omittable(inner)=>judge(inner,data,table,key,image),
+        Ty::Page(t,_) if t==table=>match data {Value::Array(xs)=>combine(xs.iter().map(|row|(row.field("id").ok()==Some(key)).then_some(row==image))),_=>None},
+        Ty::List(inner,_)|Ty::Collection(inner,_)=>match data {Value::Array(xs)=>combine(xs.iter().map(|row|judge(inner,row,table,key,image))),_=>None},
+        Ty::Object(fields)|Ty::RowShape(fields)|Ty::RowObject(fields)=>combine(fields.iter().map(|(name,ty)|data.field(name).ok().and_then(|v|judge(ty,v,table,key,image)))),
+        _=>None,
+    }}
+    judge(ty,data,table,key,image)==Some(true)
+}
 pub(super) fn typed_source(ty:&crate::types::Ty,table:&str)->bool{
     use crate::types::Ty;
     match ty{Ty::Row(t)|Ty::WriteRow(t)|Ty::Page(t,_)=>t==table,Ty::Optional(inner)|Ty::Omittable(inner)|Ty::List(inner,_)|Ty::Collection(inner,_)=>typed_source(inner,table),Ty::Object(fields)|Ty::RowShape(fields)|Ty::RowObject(fields)=>fields.values().any(|ty|typed_source(ty,table)),_=>false}

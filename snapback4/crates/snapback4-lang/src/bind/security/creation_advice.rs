@@ -200,7 +200,7 @@ fn required_media(bound:&Bound,table:&str,column:&str)->bool{
         pair.is_some_and(|(a,b)|[(a,b),(b,a)].iter().any(|(a,b)|matches!(a,RuleTerm::Field(c) if c==column)&&matches!(b,RuleTerm::Literal(snapback4_core::Value::Null))))
     }
     fn mandatory(kind:&ColumnType)->bool{match kind{ColumnType::Image{..}|ColumnType::File{..}|ColumnType::Video{..}=>true,ColumnType::ListRange{of,min,..}=>*min>0&&mandatory(of),_=>false}}
-    mandatory(&bound.schema.tables[table].columns[column])||mandatory(bound.schema.tables[table].columns[column].required())&&bound.invariants.iter().filter(|i|i.table==table&&matches!(i.target.as_str(),"always"|"insert"|"write")&&i.column.as_deref().is_none_or(|c|c==column)).filter_map(|i|i.policy.as_ref()).flat_map(conjuncts).any(|r|nonnull(r,column))
+    mandatory(&bound.schema.tables[table].columns[column])||mandatory(bound.schema.tables[table].columns[column].required())&&bound.invariants.iter().filter(|i|i.table==table&&matches!(i.target.as_str(),"always"|"insert"|"write")&&!(i.target=="write"&&i.column.is_some())&&i.column.as_deref().is_none_or(|c|c==column)).filter_map(|i|i.policy.as_ref()).flat_map(conjuncts).any(|r|nonnull(r,column))
 }
 fn approves(w:&Write<'_>,bound:&Bound)->bool{
     w.fields.iter().any(|f|match field_value(f){

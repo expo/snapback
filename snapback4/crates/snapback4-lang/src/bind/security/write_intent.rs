@@ -25,7 +25,7 @@ pub(super) fn policy(bound:&Bound,inv:&Invariant,effect:&str)->Option<RuleExpr> 
  #[test]fn clearing_or_initializing_a_sibling_does_not_exempt_an_edit(){
   let b=crate::compile(&[("schema.q".into(),"table docs:\n  approved: bool default false\n  reason: text ?\n  read <- allow\n  insert <- allow\n  online only\ninvariant docs.approved write only deny\ninvariant docs.reason write only deny\n".into())]);
   assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
-  let row=Value::Row(std::collections::BTreeMap::from([("approved".into(),Value::Bool(false)),("reason".into(),Value::Null)]));
+  let row=Value::Row(std::collections::BTreeMap::from([("approved".into(),Value::Bool(false)),("reason".into(),Value::Null)]).into());
   for inv in &b.invariants {assert!(empty_creation(&b,inv,None,&row));assert!(!empty_creation(&b,inv,Some(&row),&row));assert_eq!(policy(&b,inv,"update"),inv.policy);}
  }
 }

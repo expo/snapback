@@ -104739,3 +104739,14 @@ one code registry, and clean password-only finite campaigns without cases no
 longer fail for missing cases; explicit principal cases work. All six focused
 language regressions and the CLI cases pass; full requalification and the
 600-project before/after survey follow, with no push authorized before completion.
+
+The wave-26 correction passed two independent semantic reviews in round 4.
+Review found and closed returned-preimage/mixed-payload and Boolean/complex-null
+dependency gaps. Every typed occurrence must equal the actual written roster
+image for the operator provision exception; only plain absence/stage accesses
+are pruned. Column write intent alone no longer invents mandatory upload
+presence. Nine focused language regressions and five CLI regressions pass;
+structural runtime audiences, positive evidence and ordinary read disclosures
+retain negative controls. The analyzer is sec9-2. The intermediate 600-project
+copy survey has 35 gated projects, 39 fresh refusals and 49 post-test refusals;
+wave 26 is 0/0/0. Full final execution and per-refusal audit remain pending.

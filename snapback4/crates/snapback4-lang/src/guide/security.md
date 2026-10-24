@@ -68,7 +68,7 @@ reason, without increasing the search. Declaring one effect does not cover the o
 `invariant table.read only P` protects read intent; insert, update and delete
 name authority. `invariant table.column write only P` covers writes to a
 column (insert, inserted insert-if-absent, update and both upsert arms).
-A null creation or the declared `false` approval default is initialization, not an approval write; non-null/non-default creation still requires P. Tests judge each executed write in a committed mutation, including intermediate writes. `invariant table.column update only P` checks
+A null creation or the declared `false` approval default is initialization, not an approval write. Mandatory creation presence needs whole-row insert/write or always intent; non-null/non-default creation still requires P. Tests judge each executed write in a committed mutation, including intermediate writes. `invariant table.column update only P` checks
 only edits, retaining old-and-next-image semantics; use it when creation is permitted
 to a different role (for example counter staff creating a ticket price). `invariant table always P` states row integrity.
 An update policy over `.field` constrains **both old and next images**.

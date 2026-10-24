@@ -2,6 +2,38 @@
 // @ref LLP 3000.036.004.000#5-derived-campaigns-and-production-deployment — inferred candidates require ordinary replay, never a proof claim.
 use super::*;
 
+// A complex operand may inspect positive evidence before producing null.
+// Only a plain row-field access can establish a pure absence precondition.
+fn plain_row(expression:&ast::Expr)->bool {match expression {
+    ast::Expr::Name{..}|ast::Expr::Focal{..}=>true,
+    ast::Expr::Assert{value,..}=>plain_row(value),
+    ast::Expr::Read(read)=>read.computed.is_empty()&&read.seeks.is_empty()&&read.filter.is_none()&&read.range.is_none()&&read.matching.is_none()
+        &&read.keys.iter().all(|key|matches!(key.value,ast::Expr::Name{..}|ast::Expr::Literal{..})),
+    _=>false,
+}}
+fn plain_field(expression:&ast::Expr)->bool {
+    matches!(expression,ast::Expr::Member{base,..} if plain_row(base))
+}
+
+fn omit_preconditions(expression:&mut ast::Expr,negated:bool){
+    match expression {
+        ast::Expr::Unary{op,value,..} if op=="not"=>omit_preconditions(value,!negated),
+        ast::Expr::Binary{op,left,right,..} if matches!(op.as_str(),"and"|"or")=>{
+            omit_preconditions(left,negated);omit_preconditions(right,negated);
+        },
+        ast::Expr::Binary{op,left,right,site}=>{
+            let null=|e:&ast::Expr|matches!(e,ast::Expr::Literal{value:ast::Literal::Null,..});
+            let stage=|field:&ast::Expr,value:&ast::Expr|plain_field(field)&&matches!(field,ast::Expr::Member{name,..} if matches!(name.as_str(),"stage"|"status"|"phase"|"state"))&&matches!(value,ast::Expr::Literal{value:ast::Literal::Str(_),..});
+            let absence=(op=="="&&!negated||op=="!="&&negated)&&((null(left)&&plain_field(right))||(null(right)&&plain_field(left)));
+            let discriminator=matches!(op.as_str(),"="|"!="|"<"|">"|"<="|">=")&&(stage(left,right)||stage(right,left));
+            if absence||discriminator{*expression=ast::Expr::Literal{value:ast::Literal::Bool(true),site:site.clone()};}
+        },
+        // Unknown expression contexts retain every dependency. They do not
+        // justify erasing a potentially positive evidence inspection.
+        _=>{},
+    }
+}
+
 pub fn is_derived(inv:&Invariant)->bool { inv.site.file.starts_with("$derived/") }
 fn add(out:&mut Vec<Invariant>,table:&str,column:&str,target:&str,policy:RuleExpr,site:&Site){
     if target=="write" {
@@ -56,15 +88,7 @@ pub fn invariants(sources:&[(String,String)],bound:&Bound)->Vec<Invariant>{
                 let mut e=condition.clone();
                 // Absence and stage checks admit the transition; they do not
                 // assert that the current value is evidence being approved.
-                super::super::intent_walk::expression(&mut e,&mut |part| {
-                    if let ast::Expr::Binary{op,left,right,site}=part {
-                        let null=|e:&ast::Expr|matches!(e,ast::Expr::Literal{value:ast::Literal::Null,..});
-                        let stage=|field:&ast::Expr,value:&ast::Expr|matches!(field,ast::Expr::Member{name,..} if matches!(name.as_str(),"stage"|"status"|"phase"|"state"))&&matches!(value,ast::Expr::Literal{value:ast::Literal::Str(_),..});
-                        if op=="="&&(null(left)||null(right)) || matches!(op.as_str(),"="|"!="|"<"|">"|"<="|">=")&&(stage(left,right)||stage(right,left)) {
-                            *part=ast::Expr::Literal{value:ast::Literal::Bool(true),site:site.clone()};
-                        }
-                    }
-                });
+                omit_preconditions(&mut e,false);
                 super::super::intent_walk::expression(&mut e,&mut |e|if let ast::Expr::Member{base,name,..}=e {
                     let mut b=*base.clone();let mut same=false;super::super::intent_walk::expression(&mut b,&mut |x|if matches!(x,ast::Expr::Read(r) if &r.table==table){same=true;});
                     if same {inspected.insert(name.clone());}

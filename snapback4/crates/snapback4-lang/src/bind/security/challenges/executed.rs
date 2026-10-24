@@ -3,6 +3,7 @@
 use super::*;
 use snapback4_core::engine::fixture_trace::{Trace,Intent};
 fn provisioning(p:&Program)->bool {p.name.rsplit('.').next()==Some("provision")}
+// @ref LLP 3000.036.004.000#9-integration-24-wave-26-precision — exempt only an exact executed provision image, never a returned preimage.
 const PROVISION_RESULT:&str="$security.provision-result/";
 pub(super) fn trace(bound:&Bound,p:&Program)->Trace {
     let mut intents=Vec::new();
@@ -59,7 +60,7 @@ pub(super) fn record(bound:&Bound,p:&Program,trace:&Trace,result:&snapback4_core
         for row in after.get(&inv.table).into_iter().flatten(){
             let Ok(key)=row.field("id")else{continue;};
             if !histories::typed_disclosure(&bp.result,data,&inv.table,key,inv.column.as_deref(),row){continue;}
-            if viewer=="service:operator"&&provisioning(p)&&provisioned.iter().any(|(table,image)|*table==inv.table&&*image==row){
+            if viewer=="service:operator"&&provisioning(p)&&provisioned.iter().any(|(table,image)|*table==inv.table&&*image==row&&histories::exact_written_payload(&bp.result,data,&inv.table,key,image)){
                 out.unsupported.insert(format!("{}: operator provisioning result excludes only its own executed roster write from authored read intent; later queries remain checked",p.name));
                 continue;
             }

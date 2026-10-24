@@ -46,3 +46,33 @@ const ROSTER:&str="table roles:\n  principal: principal\n  role: enum('member','
     let result=engine.mutate("intakePainting",None,snapback4_core::Context::new("service:registrar",Default::default()).at(challenges::NOW)).unwrap();
     assert!(matches!(result.state,snapback4_core::WriteState::Failed{..}),"structural audiences still count defaults: {result:?}");
 }
+
+#[test]fn provision_preimage_and_mixed_before_after_results_are_not_exempt(){
+    for returned in ["previous","{before:previous,after:current}"] {
+        let body=format!("previous = roles[principal] ! else NOT_FOUND\n  current = upsert roles[principal] {{principal,role}}\n  return {returned}");
+        let source=ROSTER.replace("return upsert roles[principal] {principal,role}",&body);
+        let b=compile(&[("schema.q".into(),source)]);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
+        let mut fixture=snapback4_core::Engine::memory(b.schema.clone(),b.programs.iter().map(|p|p.program.clone())).unwrap();
+        use snapback4_core::Value;
+        let row=Value::Row(std::collections::BTreeMap::from([("id".into(),Value::Id("role-a".into())),("principal".into(),Value::Id("dev:security-a".into())),("role".into(),Value::String("member".into()))]).into());
+        fixture.seed_at([("roles".into(),row)],challenges::NOW).unwrap();
+        let mut c=Campaign::default();challenges::operations(&b,&fixture,&mut c);
+        assert!(c.violations.iter().any(|v|v.operation=="provision"&&v.effect=="mutation result"&&v.viewer=="service:operator"),"{returned}: {c:?}");
+    }
+}
+#[test]fn negated_absence_keeps_positive_evidence_and_double_negation_keeps_absence(){
+    for (condition,expected) in [("not (m.consent = null)",true),("m.consent != null",true),("not (m.consent != null)",false),("not not (m.consent = null)",false),("(null if m.consent != null else 'missing') = null",true)] {
+        let source=format!("table docs:\n  consent: text ?\n  approved: bool default false\n  read <- allow\n  insert <- allow\n  update <- allow\n  online only\nmutation approve(doc: docs):\n  m = docs[doc] ! else NOT_FOUND\n  require {condition} else NO_CONSENT\n  update docs[doc] {{approved:true}}\nmutation edit(doc: docs,consent: text ?):\n  update docs[doc] {{consent}}\n");
+        let sources=vec![("schema.q".into(),source)];let b=compile(&sources);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
+        assert_eq!(security::derived::invariants(&sources,&b).iter().any(|i|i.column.as_deref()==Some("consent")),expected,"{condition}");
+    }
+}
+
+#[test]fn nullable_column_write_intent_does_not_invent_creation_presence(){
+    let source="table docs:\n  photo: image <=10000 ?\n  read <- allow\n  insert <- allow\n  online only\nmutation create(photo: image <=10000 ?):\n  return insert docs {photo}\n";
+    for (intent,required) in [("invariant docs.photo write only .photo != null",false),("invariant docs.insert only .photo != null",true),("invariant docs always .photo != null",true),("invariant docs.write only .photo != null",true)] {
+        let sources=vec![("schema.q".into(),format!("{source}{intent}\n"))];let b=compile(&sources);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
+        let mut report=security::analyze_rules(&b);security::add_source_notes(&mut report,&sources,&b);
+        assert_eq!(report.notes.iter().any(|n|n.code=="N_OPTIONAL_UPLOAD_CREATE"),required,"{intent}: {:?}",report.notes);
+    }
+}

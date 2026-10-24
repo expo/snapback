@@ -133,6 +133,7 @@ pub(super) fn release_loop(project:&Project,bound:&Bound,sources:&[(String,Strin
                 if let Some(table)=doc.tables.iter().find(|t|t.name==v.invariant.table) {
                     if let Some(rule)=table.rules.iter().find(|r|r.effect==snapback4_lang::ast::Effect::Read) {
                         notice.push_str(&format!("  SOURCE {}: retain the current audience and enforce this declared intent with `read <- ({}) and ({})`; rerun snapback4 test\n",v.invariant.table,snapback4_lang::print::expression(&rule.value),v.invariant.predicate));
+                        notice.push_str(&format!("  INTENT {}: if every reader admitted by the current read rule is deliberately allowed, replace this assertion with `invariant {}.read only {}`; then run snapback4 test and deploy again. This is an authored specification change, not --ack-security\n",v.invariant.site,v.invariant.table,snapback4_lang::print::expression(&rule.value)));
                     }
                 }
             }
