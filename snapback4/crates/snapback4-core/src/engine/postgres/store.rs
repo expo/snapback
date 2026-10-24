@@ -377,6 +377,10 @@ impl Tx<'_> {
                 .ok_or_else(||RuntimeError::Store("program invocation's remaining deadline elapsed".into()))?;
             let ms=remaining.as_millis().clamp(1,i32::MAX as u128);
             self.defer_control(&format!("SET LOCAL statement_timeout={ms}; SET LOCAL lock_timeout={ms}"))?;
+            // @ref LLP 3000.009.001.000.002#3.1 — COMMIT remains uncancellable after every retry budget.
+            // A solo member release may already have disabled timeouts. This
+            // later budget supersedes that preparation even with an empty tail.
+            self.commit_settings.set(false);
         }
         Ok(())
     }

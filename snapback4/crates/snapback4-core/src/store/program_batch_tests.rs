@@ -1018,6 +1018,96 @@ fn named_fallback_statements_use_each_members_own_deadline() {
     assert_eq!(engine.store().count("entries").unwrap(), 1);
 }
 
+#[cfg(feature = "postgres")]
+fn fallback_commit_timeouts(named: bool) {
+    use super::fault::{self, Point};
+    let mut engine = fixture(true);
+    let before = engine.seq().unwrap();
+    // A deferred constraint trigger runs inside COMMIT, after every pending
+    // budget command. Record the actual settings without depending on timers.
+    pg_sql(
+        &mut engine,
+        "CREATE TABLE g23_commit_settings(id text, statement_timeout text, lock_timeout text);
+         CREATE FUNCTION g23_commit_settings() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN
+           INSERT INTO g23_commit_settings VALUES (NEW.id, current_setting('statement_timeout'), current_setting('lock_timeout'));
+           RETURN NEW;
+         END $$;
+         CREATE CONSTRAINT TRIGGER g23_commit_settings AFTER INSERT ON r
+         DEFERRABLE INITIALLY DEFERRED FOR EACH ROW WHEN (NEW.t='entries')
+         EXECUTE FUNCTION g23_commit_settings()",
+    );
+    let mut members: Vec<_> = (0..2)
+        .map(|i| {
+            let mut member = intent(19, i);
+            member
+                .context
+                .args
+                .insert("reject".into(), Value::Bool(false));
+            member.deadline = std::time::Instant::now() + Duration::from_secs(10);
+            member
+        })
+        .collect();
+    let (point, index) = if named {
+        (Point::BeforeMember, 1)
+    } else {
+        (Point::BeforeTail, usize::MAX)
+    };
+    let results = fault::inject(point, index, || engine.invoke_program_batch(&mut members));
+    let committed = if named { 1 } else { 2 };
+    for i in 0..committed {
+        assert!(
+            matches!(&results[i], Ok(ack) if matches!(ack.outcome.state, crate::WriteState::Sent { .. })),
+            "fallback member must receive its committed outcome: {:?}",
+            results[i]
+        );
+        assert_eq!(members[i].attempts.len(), 2, "must exercise fallback");
+    }
+    if named {
+        assert!(results[1].is_err());
+        assert_eq!(members[1].attempts.len(), 0, "fault precedes member body");
+    }
+    assert_eq!(engine.seq().unwrap(), before + committed as u64);
+    assert_eq!(engine.store().count("entries").unwrap(), committed as u64);
+    let settings: Vec<(String, String, String)> = engine
+        .store_mut()
+        .test_postgres_handle_mut()
+        .store
+        .get_mut()
+        .client
+        .query(
+            "SELECT id, statement_timeout, lock_timeout FROM g23_commit_settings ORDER BY id",
+            &[],
+        )
+        .unwrap()
+        .iter()
+        .map(|row| (row.get(0), row.get(1), row.get(2)))
+        .collect();
+    assert_eq!(
+        settings,
+        (0..committed)
+            .map(|i| (format!("row-{i}"), "0".into(), "0".into()))
+            .collect::<Vec<_>>(),
+        "COMMIT must run with both SQL timeouts disabled"
+    );
+    let cached = engine.invoke_program_batch(&mut members);
+    assert_eq!(format!("{cached:?}"), format!("{results:?}"));
+    assert_eq!(engine.seq().unwrap(), before + committed as u64);
+}
+
+#[cfg(feature = "postgres")]
+#[test]
+#[ignore = "private PG16; scripts/test-postgres.sh"]
+fn unnamed_solo_fallback_commit_timeouts_are_disabled_postgres() {
+    fallback_commit_timeouts(false);
+}
+
+#[cfg(feature = "postgres")]
+#[test]
+#[ignore = "private PG16; scripts/test-postgres.sh"]
+fn named_single_survivor_fallback_commit_timeouts_are_disabled_postgres() {
+    fallback_commit_timeouts(true);
+}
+
 fn tail_deadline(pg: bool) {
     use super::fault::{self, Point};
     let mut engine = fixture(pg);
@@ -1075,6 +1165,7 @@ fn deferred_internal_tail_readers_are_ineligible() {
         "_change_evidence",
         "_outbox",
         "_effect_presence",
+        "_ops",
     ] {
         let mut program = original.clone();
         // A nested expression is still a dependency, even on an untaken arm.

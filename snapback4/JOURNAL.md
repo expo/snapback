@@ -105135,3 +105135,46 @@ recorded owned PIDs are absent. PIDs left: none. Final /home free space is
 no push, stash or Git configuration change occurs.
 Final `./ref-check` passes: 567 LLP docs, 11,840 refs, zero errors and zero
 unchecked references; the diff whitespace check is clean.
+
+## 2026-10-24 — G2/G3 fix round 2
+
+The remaining P2 review finding reproduces against `366212fac0` with only
+the witnesses overlaid. Deferred PG16 constraint triggers capture actual
+session settings during COMMIT: the named single-survivor fallback records
+9986 ms for both SQL timeouts; unnamed solo fallbacks record 9981 ms and
+9971 ms. Both witnesses fail their zero-timeout assertion (0 passed, 2
+failed). They also check the fallback attempt counts, committed outcomes,
+durable member counts and cached delivery without another commit.
+
+Every installed Postgres retry budget now invalidates prepared COMMIT
+settings, so the physical commit path disables both timeouts after any queued
+budget commands. This covers a budget installed after solo member release
+already flushed and disabled timeouts, followed by empty-tail preparation.
+Both witnesses pass with the fix (2 passed, 0 failed), using actual COMMIT
+settings rather than timer-sensitive sleeps. The excluded internal-tail
+reader witness now includes `_ops`. The controls RFC's G2/G3 section records
+the invariant and the two fallback paths.
+
+The full core run passes 1,186 tests (735 unit, 413 integration, 38 doc),
+with zero failures and 335 named ignores. The full binary passes 577 with
+zero failures and 45 named ignores. The default CLI build and both RT0
+ratchets pass (five selected tests, no allowance changes). The complete
+Postgres script's Rust stages pass 644 and fail one: the inherited
+`evaluator_concurrent_read_modify_write_and_duplicate_ops_are_atomic_in_both_modes`
+Serializable `40001` race, also retained in the prior rounds. No clean
+full-script result is claimed. Adapter/evidence/codec/ownership/evolution
+scopes pass 232/13/19/25/60; program batches pass 25, outcome/deadline tests
+8, HTTP authority tests 62, five-executor corpus 22, and differential
+library/store campaigns 11/4. Both new COMMIT-setting witnesses pass again
+inside the full Postgres script.
+
+The default CLI rebuild and complete public witness pass, including
+restoration byte/meter parity, change evidence, bootstrap refusal/recovery,
+restart/takeover and the unchanged S1 Quarry P1-MC fixture. Postmasters
+800679 (primary) and 1187451 (public witness) are stopped and independently
+confirmed: status 3, no pidfile or socket. All 579 recorded owned PIDs are
+absent. PIDs left: none. Final /home free space is 52 G; all observed samples
+stayed above 40 GB. Only this lane's generated incremental cache was cleared
+for headroom. Raw logs and PG data remain outside Git. No push, stash or
+Git configuration change occurs. Final `./ref-check` and diff whitespace
+checks pass with zero errors and zero unchecked references.
