@@ -1,24 +1,7 @@
 # Rename a field or an enum value, end to end
 
-A spelling change keeps an identity. Use `title: text <=80 renamed from label`
-for a scalar field, or `parent: orders renamed from order on delete cascade`
-for a reference; the selected release supplies its delete policy and preserves
-the existing parent lifetime. Keep the old operation argument with `alias label`
-when it denotes the same input. An operation alias preserves a callable name;
-it does not translate a result field or an enum argument.
-
-`alias tickets.state 'done' = 'ready'` declares an injective enum spelling move.
-The old spelling is absent from the current column's enum, and the new spelling
-must be present. It lowers to ordinary named backfill/down receipts: existing
-rows move forward, newer rows get a truthful old spelling on rollback, and edits
-survive repeated cycles. It does not silently translate wire arguments. Retain
-an explicit compatibility endpoint when frozen clients send old enum inputs.
-Merging two business states needs an authored backfill and truthful `down`.
-
-Save this as `rename.mjs` beside an installed Snapback package and run
-`node rename.mjs`. It uses a fresh temporary deployment, real persisted rows,
-a service-authorized edit, and two rollback/forward cycles. It also checks a
-v2-born row. Its temporary files and owned server are removed on completion.
+A field rename preserves the same stored cell under a new name. Enum spelling
+aliases carry values through release switches with reversible migration receipts.
 
 ```js
 import assert from "node:assert/strict";
@@ -96,3 +79,23 @@ current data, repair through an authorized mutation, use a new name for new
 meaning, preview both directions, then select the destination. Pruning cannot
 reset a migration name. `rollback --check --bridge <new-dir>` writes source and
 a checklist even when exact reverse extraction refuses several candidate children.
+
+Use `title: text <=80 renamed from label`
+for a scalar field, or `parent: orders renamed from order on delete cascade`
+for a reference; the selected release supplies its delete policy and preserves
+the existing parent lifetime. Keep the old operation argument with `alias label`
+when it denotes the same input. An operation alias preserves a callable name;
+it does not translate a result field or an enum argument.
+
+`alias tickets.state 'done' = 'ready'` declares an injective enum spelling move.
+The old spelling is absent from the current column's enum, and the new spelling
+must be present. It lowers to ordinary named backfill/down receipts: existing
+rows move forward, newer rows get a truthful old spelling on rollback, and edits
+survive repeated cycles. It does not silently translate wire arguments. Retain
+an explicit compatibility endpoint when frozen clients send old enum inputs.
+Merging two business states needs an authored backfill and truthful `down`.
+
+Save the example as `rename.mjs` beside an installed Snapback package and run
+`node rename.mjs`. It uses a fresh temporary deployment, real persisted rows,
+a service-authorized edit, and two rollback/forward cycles. It also checks a
+v2-born row. Its temporary files and owned server are removed on completion.
