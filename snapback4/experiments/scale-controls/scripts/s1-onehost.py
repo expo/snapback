@@ -182,7 +182,11 @@ def make_runner(base):
         def start(self):
             disk(self.out)
             for port in (58080,58081,58082,58083):
-                with socket.socket() as s:s.bind(('127.0.0.1',port))
+                with socket.socket() as s:
+                    # Match the real HTTP listeners: TIME_WAIT from a stopped
+                    # smoke is reusable, while a live listener still refuses.
+                    s.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1)
+                    s.bind(('127.0.0.1',port))
             data=self.runtime/'pg'
             result=sp.run([str(PGBIN/'initdb'),'-D',str(data),'-U','sb4scale','--auth-local=trust','--auth-host=reject','--no-locale','--encoding=UTF8'],capture_output=True,text=True)
             (self.out/'initdb.txt').write_text(result.stdout+result.stderr)

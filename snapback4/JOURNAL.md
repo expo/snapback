@@ -107346,3 +107346,12 @@ only that local package version to 0.4.38, matching S1-PG4’s documented setup
 repair; every third-party pin remains unchanged. The shared runner also
 records native binary/helper digests and checks both pidfile and socket removal
 after private-cluster shutdown. No workload, tuning or timing change is made.
+
+### S1-C consecutive-campaign preflight — 2026-10-24
+
+All three controls and the native adapter pass their W2/link-A smokes. The
+first matrix setup then refuses a port still in TIME_WAIT after the native
+HTTP server stopped; no listener or live owned service remains. Match the
+actual HTTP listeners’ SO_REUSEADDR policy in the bind-only preflight, which
+still refuses an active listener. No timed matrix trial ran in that attempt,
+and no scheduler, native setting or qualification rule changes.
