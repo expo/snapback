@@ -1,0 +1,23 @@
+muse: workspace root: /home/ccheever/projects/sb4-b26-sec10 (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=621a9506-a0f5-4e22-afd2-182cc8f66eca]: Subscription quota exhausted. Your usage window resets at 2026-10-26T00:00:00Z. (rate_limit_error)
+[muse-exec] plan quota exhausted; retrying with the Meta API key
+muse: workspace root: /home/ccheever/projects/sb4-b26-sec10 (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY — no material semantic concern in the frozen SEC10 §10 delta.
+
+What I reviewed: the §10 amendment in [structural-write-authority.rfc.md](/home/ccheever/projects/sb4-b26-sec10/llp/3000.036.004.000-structural-write-authority.rfc.md) (Round 10 precision subsection as current, superseding rounds 3–9 consumption rules) and the frozen delta `/home/ccheever/sb4-loop/sec10-r11-delta.patch` (52 files, all reads scoped to the patch; every command ran under `timeout`; no edits, agents, or prior review artifacts).
+
+Corroborated claims:
+
+- Private receipt ledger restores only valid consumed stamps with fixed-point dependency validation; non-approval fields, exact keys, filters, conjunctions/alternatives keep concrete meaning. Consumed-A cannot excuse invalid-B; independent-B changes don't invalidate A-only receipts.
+- Exact-source write custody distinguishes explicit reapproval from stamp-copying: `except_at` exempts only the proven positive recording write (refreshing its receipt even when unchanged), copying never qualifies, and dual-use helper sites resolve to `unknown_at` (explicitly uncovered, never proof or refusal).
+- Creating/default/upsert approvals bind checked stored args and same-resource inspections, so creation isn't a dependency-free route around invalidation; actual positive writes still determine row and arm.
+- Invalidation exempts only the actual positive recording write, never sibling conditional writes; old inspections of co-written changed inputs don't approve new values.
+- Parent/child coupling judges committed rows: completion over all actual children (conditional, unrelated, partial, no-op writes can't suppress), phase coupling requires an actual changed state on the exact selected parent, and old-image schema authority can't authorize a retargeted association.
+- Enum source-phase projection uses the actual predicates (negation/Boolean alternatives), excludes no-op terminal assignments from progress edges, and retains possible phases for unknown atoms.
+- Sixteen executed-boundary controls exist in-patch (`sec10_resource_tests`, 11 receipt/retarget/upsert cases plus 5 lifecycle/creation cases), each with positive/negative variants.
+- Determinism: default check/deploy use `work_bounded(512)` / `work_bounded(8192)` with no deadline; explicit deadlines report `stopped early (time)` as incomplete; the 4096 directed-attempt ceiling is preserved via `directed_base`; analyzer `sec10-9` invalidates older receipts.
+- Scope: no parser/planner/store/wire/admission changes — only private fixture instrumentation (`fixture_trace.rs`, `write_target.rs` site scope), `bind/security/*` analysis, guide/diag/codes, verbs budgets, and tests. Text `1..N` non-whitespace semantics unchanged; text/media evidence stays advisory while approval and blank-text guards become individual review gates.
+
+Not executed (and not readiness objections per the brief): full Cargo qualification, corpus surveys, and platform/difftest runs continue under Integration 25/publication. READY here means no material false gate, refusal, or bypass found — not author acceptance or completed qualification.

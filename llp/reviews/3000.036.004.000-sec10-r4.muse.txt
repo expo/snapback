@@ -1,0 +1,26 @@
+muse: workspace root: /home/ccheever/projects/sb4-b26-sec10 (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=4720b92a-b9ca-41e9-86d6-e2b5f9dec6a1]: Subscription quota exhausted. Your usage window resets at 2026-10-26T00:00:00Z. (rate_limit_error)
+[muse-exec] plan quota exhausted; retrying with the Meta API key
+muse: workspace root: /home/ccheever/projects/sb4-b26-sec10 (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY — no material semantic concern in the frozen delta. Every focus area implements its specified control, and the controls compose without bypass or false-refusal paths I can construct from source.
+
+What I checked, against the delta text as truth and the checkout for surrounding context:
+
+- Sibling-approval consumption: [`executed.rs`](/home/ccheever/projects/sb4-b26-sec10/snapback4/crates/snapback4-lang/src/bind/security/challenges/executed.rs) requires the full prerequisite true on the same id-matched resource at operation entry, plus a positive receipt true at entry and false at the pre-effect boundary via `consumed()`. A negative entry alternative cannot satisfy it, since `approval_receipts` collects only positive approval members and `Exists` on approval tables, polarity-aware. Current-boundary approval short-circuits independently. The pinned bypass/nobypass pair behaves as specified.
+- Typed reference mapping: post-order substitution runs before read normalization, so `exists approvals[arg]` collapses to a typed id lookup and never to the unique `job` reference. Ambiguous or multi-path mappings are omitted, never guessed.
+- Local population scope: filter focals are masked to a protected name, and any captured program argument inside a filter forces omission. Approval-history conjunctions are AST-built, so parse failure drops the candidate instead of its filter.
+- Helper returns: inlining happens only for effect-, branch-, and unknown-call-free single values, after requirements are exported separately. A lookup moved into a helper stays visible, so no phantom unused-approval gate.
+- Nonblank dominance: suppression needs print-exact `trim(value) != ''`, an equivalent positive trimmed-length test with correct De Morgan polarity, or a positive row minimum on the exact payload in a dominating unconditional same-program write. Nested-trim and conditional-audit cases still gate.
+- Concrete trace admission: filtered reads evaluate per-row with unknown fail-closed; multi-target operations moved from preflight refusal to per-boundary executed tracing, with column-equality and delete/reinsert arm discipline preserved.
+- Search and determinism: default check/deploy are work-bounded with no deadline in the verdict path; all focused-tuple, actor-class, budget, and cut omissions stay explicit. Child terminality spans all roles with per-edge resource arguments.
+
+Minor observations, non-blocking, with repairs:
+
+- `recorded` in `creation_advice/lifecycle.rs:41` is update-only, while the boundary sentence can be read to cover insert-recorded approval. An insert-set, never-inspected approval on a lifecycle table gets no question. Pre-existing shape, advisory-level only. Repair: extend `recorded` to insert/upsert or document the exclusion.
+- The invalidation-candidate classifier in `derived.rs:109` accepts only literal `now`, while `recording()` accepts `now + 0ms` and other non-member times. A `now + 0ms` recording suppresses the question but derives no candidate. Only reachable via the synthetic form. Repair: share one timestamp helper between both sites.
+- `consumed()` cannot distinguish authorized invalidation-updates from delete-plus-recreate evasion; both show receipt true-to-false. Prior code punted on reinsert arms identically, so this is parity, not regression. A docs-side delete-intent follow-up could close it.
+- Landing hygiene, outside semantics: the frozen delta bundles unrelated reversions against its own base (read-path cache removal, capacity constants, closed-loop harness, RCPU report). The landing must exclude those hunks; they do not affect the SEC10 verdict.
+
+Qualification remains ongoing per the amendment and is not a readiness objection.

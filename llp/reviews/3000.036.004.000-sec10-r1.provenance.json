@@ -1,0 +1,14 @@
+{
+  "time": "2026-10-24T13:08:41.121265+00:00",
+  "deltaSha256": "41cbdbd38790b94b68a7f899f7787264574ae89dbda9e2edbe7e5db73f32612c",
+  "briefSha256": "76831a56eb0de625b31d6b880525c6a51f56ac01f451f4ddf973e5e6f46a7944",
+  "reviewers": [
+    "Muse muse-spark-1.3-contributor high via muse-exec.sh",
+    "fresh codex gpt-6.1-sol high"
+  ],
+  "deltaArtifact": "llp/reviews/3000.036.004.000-sec10-r1.delta.patch.gz",
+  "verdicts": {
+    "muse": "READY",
+    "codex": "NOT READY: typed lookup, quoted enum, atomic approval reference, nested trim"
+  }
+}

@@ -1,0 +1,20 @@
+muse: workspace root: /home/ccheever/projects/sb4-b26-sec10 (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=c82dad44-7afb-4f6d-a4c0-86477d5f569f]: Subscription quota exhausted. Your usage window resets at 2026-10-26T00:00:00Z. (rate_limit_error)
+[muse-exec] plan quota exhausted; retrying with the Meta API key
+muse: workspace root: /home/ccheever/projects/sb4-b26-sec10 (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY — no material semantic concern in the frozen SEC10 r10 delta.
+
+The receipt ledger matches the precision subsection. [Executed receipts](snapback4/crates/snapback4-lang/src/bind/security/challenges/executed.rs:22) start from positive entry stamps only (`Bool(true)` or `Int`, i.e. non-null `Time`), capture actual positive stamp writes via column-gated intents, and skip unchanged stamps through [Intent column filtering](snapback4/crates/snapback4-core/src/engine/fixture_trace.rs:55). Each receipt binds typed table, row id, stamp, and source-inspected inputs; `same_resource` scoping keeps it on the selected row.
+
+Consumption validates to a fixed point, restores only valid consumed stamps into a private snapshot, and runs the original prerequisite unchanged through [concrete evaluation](snapback4/crates/snapback4-lang/src/bind/security/concrete.rs:6). Filters, named keys, conjunctions, alternatives, and timestamps keep concrete meaning with fail-closed `None`. Deleted records return `None` (explicitly uncovered). Same-operation establish-then-consume works; ordinary edits cannot refresh.
+
+Verified by execution:
+
+- All 10 admitted-resource controls pass (`sec10_resource_tests`: retargeting, reparenting, clearing, existence, freeze, conjunction/OR, filtered, filtered-conjuncts, new-receipt, timestamp).
+- Spot checks pass: `caller_approval_contracts_do_not_need_a_resource_argument`, `filtered_and_named_key_approval_guards_are_enforcement`, `work_budget_is_independent_of_elapsed_time`, `child_creation_can_consume_the_same_resource_approval`.
+- S1 scoped focals/named keys, S2 caller/global same-effect-only with `global_ledger` ancillary carve-out, unresolved mappings omitted with no proof claim, parent/child/repeat guards, nonblank review, and 512/8192 fixed-work campaigns present in code.
+- No schema/IR/store/wire format change; text-minimum semantics unchanged; analyzer bumped to `sec10-7` to invalidate older receipts.
+
+No repairs required. Qualification remains ongoing per the LLP and is not a readiness objection.
