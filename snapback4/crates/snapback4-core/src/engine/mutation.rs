@@ -300,5 +300,6 @@ pub(super) fn program_attempt<'m, 's>(host: &ProgramHost<'_>, tx: super::committ
                 }),
                 _ => None,
             };
+            attempt.reads = tx.read_set();
             tx.complete((MutationAcknowledgement::unpublished(outcome), Some((entropy, publication))))
 }

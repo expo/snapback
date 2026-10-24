@@ -11,6 +11,7 @@ use std::collections::BTreeMap;
 
 impl Rows for MemberTx<'_, '_> {
     fn walk_adoption(&self, table:&str, _decode:u64, scratch:u64, work:[u64;3], visit:&mut dyn FnMut(Value)->Result<(),RuntimeError>) -> Result<(),RuntimeError> {
+        self.reads.borrow_mut().unsupported = true;
         <AnyTx<'_> as Rows>::walk_adoption(self.tx, table, _decode, scratch, work, visit)
     }
     fn change_footprint(&self) -> crate::revocation::Footprint {
@@ -20,18 +21,22 @@ impl Rows for MemberTx<'_, '_> {
         <AnyTx<'_> as Rows>::widen_change_evidence(self.tx)
     }
     fn sequence_value(&self, parent: &str, id: &str) -> Result<i64, RuntimeError> {
+        self.reads.borrow_mut().unsupported = true;
         <AnyTx<'_> as Rows>::sequence_value(self.tx, parent, id)
     }
     fn set_sequence(&self, parent: &str, id: &str, value: i64) -> Result<(), RuntimeError> {
         <AnyTx<'_> as Rows>::set_sequence(self.tx, parent, id, value)
     }
     fn sequence_ids(&self, parent: &str) -> Result<Vec<String>, RuntimeError> {
+        self.reads.borrow_mut().unsupported = true;
         <AnyTx<'_> as Rows>::sequence_ids(self.tx, parent)
     }
     fn rewrite_sequence_ids(&self, ids: &BTreeMap<String, BTreeMap<String, String>>) -> Result<u64, RuntimeError> {
+        self.reads.borrow_mut().unsupported = true;
         <AnyTx<'_> as Rows>::rewrite_sequence_ids(self.tx, ids)
     }
     fn effect_once(&self, effect: &str, key: &str) -> Result<bool, RuntimeError> {
+        self.reads.borrow_mut().unsupported = true;
         <AnyTx<'_> as Rows>::effect_once(self.tx, effect, key)
     }
     fn has_restored_live_authority(&self,table:&str)->Result<bool,RuntimeError> {
@@ -47,28 +52,37 @@ impl Rows for MemberTx<'_, '_> {
         <AnyTx<'_> as Rows>::restored_narrowed(self.tx, table, id)
     }
     fn get(&self, table: &str, id: &str) -> Result<Option<Value>, RuntimeError> {
+        self.reads.borrow_mut().get(table, id);
         <AnyTx<'_> as Rows>::get(self.tx, table, id)
     }
     fn lookup(&self, table: &str, index_name: &str, index: &Index, key: &[Value]) -> Result<Option<Value>, RuntimeError> {
-        <AnyTx<'_> as Rows>::lookup(self.tx, table, index_name, index, key)
+        let row = <AnyTx<'_> as Rows>::lookup(self.tx, table, index_name, index, key)?;
+        self.reads.borrow_mut().lookup(table, index_name, index, key, row.as_ref());
+        Ok(row)
     }
     fn scan(&self, table: &str, index_name: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
+        self.reads.borrow_mut().unsupported = true;
         <AnyTx<'_> as Rows>::scan(self.tx, table, index_name, prefix, bounds, dir, limit)
     }
     fn index_head(&self, table: &str, index: &str, prefix: &[Value], bounds: &Bounds, dir: Dir) -> Result<Option<Vec<Value>>, RuntimeError> {
+        self.reads.borrow_mut().unsupported = true;
         <AnyTx<'_> as Rows>::index_head(self.tx, table, index, prefix, bounds, dir)
     }
     #[cfg(feature = "server-search")]
     fn scan_selected(&self, table: &str, index: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, fields: &[String]) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
+        self.reads.borrow_mut().unsupported = true;
         <AnyTx<'_> as Rows>::scan_selected(self.tx, table, index, prefix, bounds, dir, fields)
     }
     fn scan_metered(&self, table: &str, index_name: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize, scope: &crate::engine::Authorization, meter: &mut crate::engine::InternalMeter<'_>) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
+        self.reads.borrow_mut().unsupported = true;
         <AnyTx<'_> as Rows>::scan_metered(self.tx, table, index_name, prefix, bounds, dir, limit, scope, meter)
     }
     fn cap_count(&self, table: &str, by: &[String], group: &[Value]) -> Result<u64, RuntimeError> {
+        self.reads.borrow_mut().unsupported = true;
         <AnyTx<'_> as Rows>::cap_count(self.tx, table, by, group)
     }
     fn count_prefix(&self, table: &str, index_name: &str, prefix: &[Value], limit: u64) -> Result<u64, RuntimeError> {
+        self.reads.borrow_mut().unsupported = true;
         <AnyTx<'_> as Rows>::count_prefix(self.tx, table, index_name, prefix, limit)
     }
     fn put(&self, table_name: &str, table: &Table, row: &Value, old: Option<&Value>) -> Result<u64, RuntimeError> {
@@ -89,15 +103,19 @@ impl Rows for MemberTx<'_, '_> {
         <AnyTx<'_> as Rows>::track_time_audience(self.tx, table_name, table, id, row, now, published)
     }
     fn time_audience_pending(&self, table_name: &str, id: &str) -> Result<bool, RuntimeError> {
+        self.reads.borrow_mut().unsupported = true;
         <AnyTx<'_> as Rows>::time_audience_pending(self.tx, table_name, id)
     }
     fn time_audience_published(&self, table_name: &str, id: &str) -> Result<bool, RuntimeError> {
+        self.reads.borrow_mut().unsupported = true;
         <AnyTx<'_> as Rows>::time_audience_published(self.tx, table_name, id)
     }
     fn holds_assets(&self) -> Result<bool, crate::RuntimeError> {
+        self.reads.borrow_mut().unsupported = true;
         <AnyTx<'_> as Rows>::holds_assets(self.tx)
     }
     fn asset(&self, id: &str) -> Result<Option<crate::assets::Asset>, RuntimeError> {
+        self.reads.borrow_mut().unsupported = true;
         <AnyTx<'_> as Rows>::asset(self.tx, id)
     }
     fn claim_asset(&self, id: &str, by: &str, table: &str, row_id: &str, column: &str) -> Result<crate::assets::Asset, RuntimeError> {
@@ -117,6 +135,11 @@ macro_rules! methods {
     };
 }
 impl MemberTx<'_, '_> {
+    pub(crate) fn read_set(&self) -> super::reads::ReadSet { self.reads.borrow().clone() }
+    pub(crate) fn replay_bound(&self, principal: &str, id: &str, name: &str, args: &serde_json::Value) -> Result<Option<String>, RuntimeError> {
+        self.reads.borrow_mut().receipts.insert((principal.into(), id.into()));
+        self.tx.replay_bound(principal, id, name, args)
+    }
     methods! {
         fn insert_identity_session(&self, session: &crate::identity::Session, now: i64) -> Result<(), RuntimeError>;
         fn insert_read_session(&self, session: &crate::identity::Session, now: i64, family: Option<(&str, i64)>) -> Result<(), RuntimeError>;
@@ -136,7 +159,7 @@ impl MemberTx<'_, '_> {
         fn next_seq(&self) -> Result<u64, RuntimeError>;
         fn record_applied(&self, principal: &str, id: &str, seq: u64, outcome: &str) -> Result<(), RuntimeError>;
         fn bind_applied(&self, principal: &str, id: &str, name: &str, args: &serde_json::Value, at: i64) -> Result<(), RuntimeError>;
-        fn replay_bound(&self, principal: &str, id: &str, name: &str, args: &serde_json::Value) -> Result<Option<String>, RuntimeError>;
+
         fn pin_time_audience_clock(&self, requested: i64) -> Result<i64, RuntimeError>;
         fn selected_time_audience(&self, table: &str, id: &str, now: i64) -> Result<Option<crate::store_port::TimeOpening>, RuntimeError>;
         fn due_time_audience(&self, now: i64) -> Result<Option<crate::store_port::TimeOpening>, RuntimeError>;
@@ -159,6 +182,7 @@ impl MemberTx<'_, '_> {
     }
     // @ref LLP 3000.009.001.000.001#31-authority-boundaries — Program members resolve after the physical owner fence and head lock.
     pub(crate) fn request_authority(&self, digest: &str, sample: crate::identity::ServiceSample) -> Result<crate::identity::RequestAuthority, RuntimeError> {
+        self.reads.borrow_mut().authority.insert(digest.into());
         crate::identity::request::request_authority(self.tx, digest, sample)
     }
     // @ref LLP 3000.009.001.000.001#32-one-statement-fetches-a-guest-sessions-authority-facts — typed Program/Direct member access; no raw transaction or SQL.

@@ -6,6 +6,7 @@ use crate::{
 use std::cell::Cell;
 
 mod member_store;
+pub(crate) mod reads;
 pub(crate) mod outcome;
 
 // @ref LLP 3000.009.001.000.000#3.2 — kinds describe durable units, including writes that publish no sequence.
@@ -70,6 +71,7 @@ pub(super) enum Frame {
 pub(crate) struct MemberTx<'member, 'store> {
     tx: &'member AnyTx<'store>,
     frame: &'member Cell<Frame>,
+    reads: std::cell::RefCell<reads::ReadSet>,
     #[cfg(test)]
     rollback_failure: Cell<Option<RuntimeError>>,
 }
@@ -350,6 +352,7 @@ impl Committer {
         let ran = run(MemberTx {
             tx,
             frame: &frame,
+            reads: Default::default(),
             #[cfg(test)]
             rollback_failure: Cell::new(None),
         });

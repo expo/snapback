@@ -5,6 +5,7 @@ use std::sync::{Arc, Mutex};
 #[derive(Default)]
 pub(super) struct Attempt {
     pub at: Option<i64>,
+    pub reads: super::committer::reads::ReadSet,
     pub minted: Vec<String>,
     presence: Option<Arc<Mutex<Vec<Observation>>>>,
 }
