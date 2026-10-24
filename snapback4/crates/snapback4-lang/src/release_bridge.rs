@@ -477,10 +477,26 @@ pub fn exact_write_authority(target:&[(String,String)],current:&[(String,String)
         }}
         ir_children(value).iter().any(|child|writes_column(child,table,column,effect,defaulted,constants))
     }
-    fn leading_guard(target:&[(String,String)],aligned:&snapback4_core::Schema,table:&str,operation:&str,policy:&RuleExpr)->bool {
-        let mut sources=target.to_vec();
-        let Some((_,source))=sources.first_mut()else{return false};
-        source.push_str(&format!("\ninvariant {table}.{operation} only allow\n"));
+    fn leading_guard(target:&[(String,String)],aligned:&snapback4_core::Schema,operation:&str,policy:&RuleExpr)->bool {
+        let mut candidates=Vec::new();
+        for(index,(file,text))in target.iter().enumerate() {
+            let doc=crate::parse_document(file,text).0;
+            let endpoint=doc.programs.iter().find(|p|operation_name(file,&p.name)==operation).or_else(||{
+                let target=doc.aliases.iter().find(|(alias,_,_)|operation_name(file,alias)==operation).map(|(_,target,_)|target)?;
+                doc.programs.iter().find(|p|&p.name==target)
+            });
+            let Some(endpoint)=endpoint else{continue};
+            for stmt in endpoint.prelude.iter().chain(&endpoint.body) {
+                let crate::ast::Stmt::Require{condition,..}=stmt else{break};
+                candidates.push((index,condition.clone()));
+            }
+        }
+        candidates.into_iter().any(|(index,condition)|{
+        let mut sources=target.to_vec();let mut n=0;
+        let guard=loop{let name=format!("__rel_authority_guard_{n}");if !target.iter().any(|(_,source)|source.contains(&name)){break name;}n+=1;};
+        // Each requirement is an independent sufficient condition; a later
+        // unsupported argument check cannot invalidate an earlier stable guard.
+        sources[index].1.push_str(&format!("\ntable {guard}:\n  read <- {}\n  online only\n",crate::print::expression(&condition)));
         let proof=crate::compile(&sources);if !proof.diagnostics.is_empty(){return false;}
         let comparison=PolicyComparison::new(&proof.schema,aligned);
         // @ref LLP 3000.000.000#21-wave-27-release-semantics-rel — finite control flow preserves a stable leading guard; scope changes do not.
@@ -508,10 +524,11 @@ pub fn exact_write_authority(target:&[(String,String)],current:&[(String,String)
             ||proof.schema.maintains.iter().any(|m|m.source==*name||m.target==*name)
             ||*effect=="delete"&&proof.schema.tables.values().any(|child|child.columns.iter().any(|(column,kind)|
                 matches!(kind.required(),snapback4_core::schema::ColumnType::Ref{table} if table==name)&&child.on_delete.get(column).is_some_and(|a|a.writes()))))) {return false;}
-        proof.invariants.iter().any(|inv|inv.table==table&&inv.operation.as_deref()==Some(operation)
-            &&inv.requirements.iter().any(|require|stable(require)&&implies(require,policy,&comparison)
-                &&crate::security::kernel::dependencies(require).iter().all(|dependency|proof.schema.table(dependency).is_some_and(|t|
-                    t.through.is_none()&&!t.is_expiring()&&t.recorded.is_empty())&&!writes.iter().any(|(t,_)|t==dependency))))
+        let require=&proof.schema.tables[&guard].rules.read;
+        stable(require)&&implies(require,policy,&comparison)
+            &&crate::security::kernel::dependencies(require).iter().all(|dependency|proof.schema.table(dependency).is_some_and(|t|
+                t.through.is_none()&&!t.is_expiring()&&t.recorded.is_empty())&&!writes.iter().any(|(t,_)|t==dependency))
+        })
     }
     // Deletion can write a child column without a direct update statement.
     let mut implicit_nulls=std::collections::BTreeMap::new();
@@ -550,7 +567,7 @@ pub fn exact_write_authority(target:&[(String,String)],current:&[(String,String)
                     let ir=serde_json::to_value(&program.program).unwrap();
                     if !writes_column(&ir,name,column,effect,defaulted,&constants(&ir)){continue;}
                     let safe=prior.column_writes.get(column).is_some_and(|old|policies.rule(old,policy)) || match *effect {"insert"=>implies(&prior.rules.insert,policy,&policies),"update"=>!prior.update_transition&&implies(&prior.rules.update,policy,&policies),"upsert"=>!prior.update_transition&&implies(&prior.rules.insert,policy,&policies)&&implies(&prior.rules.update,policy,&policies),_=>false};
-                    if !safe && !leading_guard(target,&aligned,name,&program.program.name,policy) {return Err(format!("{}: exact source operation {} can write {name}.{column} without current rule `write <- {}`; retain this audience in a guarded bridge before selecting the source",program.site,program.program.name,policy.quarry()));}
+                    if !safe && !leading_guard(target,&aligned,&program.program.name,policy) {return Err(format!("{}: exact source operation {} can write {name}.{column} without current rule `write <- {}`; retain this audience in a guarded bridge before selecting the source",program.site,program.program.name,policy.quarry()));}
                 }
             }
         }

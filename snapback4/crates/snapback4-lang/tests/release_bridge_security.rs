@@ -977,3 +977,15 @@ fn exact_source_insert_only_placement_cannot_violate_a_new_freeze() {
     let updating=old.to_owned()+"mutation edit(id: docs, body: text <=40):\n  return update docs[id] {body}\n";
     assert!(release_bridge::exact_write_authority(&[("schema.q".into(),updating)],&[("schema.q".into(),current)]).is_err());
 }
+
+#[test]
+fn exact_source_expands_pure_leading_role_helpers_in_the_owning_module() {
+    let schema="table roles:\n  principal: principal\n  role: enum('dispatcher','driver')\n  unique principal\n  public\n  online only\ntable docs:\n  body: text <=40\n  public\n  insert <- allow\n  online only\n";
+    let operations="fn isRole(role: enum('dispatcher','driver')): exists roles[principal = viewer, role = role]\nfn dispatch(): isRole('dispatcher')\nmutation add(body: text <=40, again: bool):\n  require dispatch() else NO\n  require length(body) > 0 else EMPTY\n  if again:\n    insert docs {body}\n  return insert docs {body}\n";
+    let before=vec![("schema.q".into(),schema.into()),("dispatch.q".into(),operations.into())];
+    let next=vec![("schema.q".into(),schema.replace("body: text <=40\n","body: text <=40 write <- exists roles[principal = viewer, role = 'dispatcher']\n")),("dispatch.q".into(),operations.into())];
+    assert!(compile(&before).diagnostics.is_empty(),"{:?}",compile(&before).diagnostics);
+    assert!(release_bridge::exact_write_authority(&before,&next).is_ok());
+    let changed=operations.replace("isRole('dispatcher')","isRole('driver')");
+    assert!(release_bridge::exact_write_authority(&[("schema.q".into(),schema.into()),("dispatch.q".into(),changed)],&next).is_err());
+}

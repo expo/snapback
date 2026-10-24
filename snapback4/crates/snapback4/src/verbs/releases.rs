@@ -483,10 +483,10 @@ pub fn deploy(options: &Options) -> i32 {
             }
             let mut n=std::fs::read_dir(&releases).map_err(|e|e.to_string())?.filter_map(Result::ok).filter_map(|e|e.file_name().to_str()?.parse::<u64>().ok()).max().unwrap_or(0);
             let staged_bound=bound_at(stage.clone())?;
-            if let Some(origin)=matched {check_change(&dir,previous,&bound,options,Some(origin))?;}
             let parent=n.checked_add(1).ok_or("release identity exhausted")?;
             let views=super::rollback_views::prepare(&dir,&stage,&staged_bound,parent)?;
             let register_views=super::rollback_views::needs_registration(&dir,matched,&views)?;
+            if let Some(origin)=matched {check_change(&dir,previous,&bound,options,Some(origin))?;}
             if let Some(previous)=previous {
                 if !register_views && matched==Some(previous) && held["release"].as_u64()==Some(previous) {
                     std::fs::remove_dir_all(&stage).map_err(|e|e.to_string())?;
