@@ -99,4 +99,12 @@ fn row(b:&Bound,table:&str,json:serde_json::Value)->Value{snapback4_core::wire::
     let _=attempt(&b,&once,p,&args,"service:registrar",&initial,&history,&mut out).expect("second retry admitted");
     assert!(!out.violations.is_empty(),"{out:?}");
 }
+#[test]fn approval_history_is_judged_on_the_actual_new_attempt(){
+    let source=include_str!(concat!(env!("CARGO_MANIFEST_DIR"),"/tests/security/wave26/025.q"));let sources=vec![("schema.q".into(),source.into())];let b=crate::compile(&sources);let b=super::super::super::derived::augmented(&sources,&b);
+    let mut engine=Engine::memory(b.schema.clone(),b.programs.iter().map(|p|p.program.clone())).unwrap();
+    let role=row(&b,"roles",serde_json::json!({"id":"role","principal":"service:registrar","role":"registrar"}));engine.seed_at([("roles".into(),role)],NOW).unwrap();
+    for (id,number) in [("older",2),("prior",1)]{let photo=engine.store_asset("service:registrar",&PNG,NOW).unwrap().column_value();let mut exam=match row(&b,"exams",serde_json::json!({"id":id,"candidate":"account:student","status":"failed","feeCents":8000,"attemptNo":number,"createdAt":NOW,"failedAt":NOW})){Value::Map(m)=>Value::Row(m.into()),v=>v};if let Value::Row(fields)=&mut exam{fields.insert("photo".into(),photo.clone());}engine.seed_at([("exams".into(),exam)],NOW).unwrap();}
+    let initial=readback(&engine).unwrap();let p=&b.programs.iter().find(|p|p.program.name=="retest").unwrap().program;let args=BTreeMap::from([("priorExam".into(),Value::Id("prior".into())),("feeCents".into(),Value::Int(4000)),("photo".into(),Value::String("$security:image".into()))]);let mut campaign=Campaign::default();let _=attempt(&b,&engine,p,&args,"service:registrar",&initial,&[],&mut campaign).expect("authored retry committed");assert!(campaign.violations.iter().any(|v|v.invariant_site.contains("approval-history")),"{:?}",campaign.unsupported);
+}
+
 }

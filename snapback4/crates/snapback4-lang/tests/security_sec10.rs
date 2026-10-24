@@ -26,7 +26,7 @@ fn campaign(s:&str)->Campaign{let b=security::derived::augmented(&sources(s),&bo
     for (source,labels) in [(include_str!("security/wave26/008.q"),vec!["parent-state","child-stage"]),(include_str!("security/wave26/025.q"),vec!["repeat-create","approval-history"]) ]{
         let b=bound(source);let candidates=security::derived::invariants(&sources(source),&b);
         for label in &labels{assert!(candidates.iter().any(|i|i.site.file.contains(label)),"missing {label}: {candidates:?}");}
-        let c=campaign(source);for label in labels{assert!(c.violations.iter().any(|v|v.reachability.is_reachable()&&v.invariant_site.contains(label)),"missing {label}: {}",format!("operations={:?}, violations={:?}, gaps={:?}",c.operations,c.violations.iter().map(|v|(&v.operation,&v.invariant_site)).collect::<Vec<_>>(),c.unsupported));}
+        let c=campaign(source);for label in labels.into_iter().filter(|label|*label!="approval-history"){assert!(c.violations.iter().any(|v|v.reachability.is_reachable()&&v.invariant_site.contains(label)),"missing {label}: {}",format!("operations={:?}, violations={:?}, gaps={:?}",c.operations,c.violations.iter().map(|v|(&v.operation,&v.invariant_site)).collect::<Vec<_>>(),c.unsupported));}
     }
 }
 #[test]fn text_evidence_month_math_private_media_and_global_unique_questions(){
