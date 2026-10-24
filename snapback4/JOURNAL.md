@@ -106646,3 +106646,40 @@ they are updated to explicit 1,442 connections / 6,280 descriptors (the other
 586 tests pass). The Postgres core fixtures pass 246/0; the evaluator reproduces
 the commissioned inherited 40001. Full qualification and the controlled
 30-versus-120-logical-worker comparison finish in the following record.
+
+### 2026-10-24 — RCPU: complete qualification and worker-population control
+
+Full default core: 1,138 passed / 0 failed / 5 ignored across 47 targets.
+Full binary rerun after the two explicit capacity expectations are repaired:
+588 passed / 0 failed / 49 ignored. The complete Postgres script reports
+658 passed / 1 failed across 32 Rust targets: only the inherited evaluator
+40001. Its public serving witness passes persistence, lease loss, revocation,
+evolution, SDK changes and maintained totals, then confirms its private PG16
+cluster stopped. Both RT0 ratchets plus boundary witnesses pass 5/0; warm PG
+W1/W2/W3 stays 1/1/1, SQLite 5/5/132, with unchanged ratchet files. The additional
+private TCP witness passes and traces TCP_NODELAY on reader and synchronous
+writer. Root ref-check passes 567 docs / 11,869 refs, zero errors/unchecked.
+
+A first worker pilot is confounded by renewed competing work (4–8 cores in
+adjacent censuses); completed cells are retained and its interrupted W3 window
+is excluded explicitly. The repeat requires 15 continuous quiet seconds before
+each window and checks interval-wide global user CPU less the owned trees,
+including reaped children. All six repeat windows stay below 0.5 other-user
+core. Actual thread samples show 30 versus 120 executing request threads, with
+the same PG family size and the same 30-reader physical cap / PIPE depth 4.
+W1/W2/W3 reads/s are 17,883/11,024/5,514 at 30 versus 17,915/10,807/5,573 at 120.
+Server CPU/read rises; W3 p99 goes 32.34→67.90 ms. Keep 30 executing workers.
+The temporary constant change is restored; no operator knob or SQLite reader
+budget change is introduced. The larger bounded queue independently removes
+128/256-client admission churn. W2/W3 still miss the campaign targets; their
+remaining useful throughput limit is CPU, not idle keep-alive worker pinning.
+
+The report contains all 49 completed capacity cells, profiled CPU attribution,
+allocation-call diagnostics (invalid independent allocation timing discarded),
+off-CPU waits, loads, checks and optimistic twelve-thread CPU ceilings. It makes
+no campaign-link/SLO, publication or promotion claim. No raw logs/profiles are
+committed. Private PG16 masters 2332629 and 2988427 are confirmed stopped
+(status=3, no postmaster.pid, no process). The owned PID audit is empty. Lowest
+recorded free space is 42.28 GiB; the 40 GiB floor never triggers. Only owned
+obsolete build artifacts are reclaimed. All commits remain local, with no push
+or Git configuration change, and no q24 files or shared PG17 processes touched.
