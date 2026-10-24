@@ -190,7 +190,9 @@ source changes are the literal encoder, borrowing the Program and the two
 codec regressions. Final-source checks and process custody are recorded below.
 
 The full core run passes **733 unit tests**, with 279 existing named ignores,
-all **45 integration targets** and **38 doctests**. The full binary passes
+**413 integration tests across 46 targets** (44 nonempty targets, two with
+only existing ignored tests; 49 existing integration ignores), and
+**38 doctests**. The full binary passes
 **577 tests**, with 45 existing named ignores; both RT0 ratchets pass
 (five cases). These full runs precede the final invalid-UTF8/oversize
 refusal-order refinement. The subsequent **21-case codec scope passes on

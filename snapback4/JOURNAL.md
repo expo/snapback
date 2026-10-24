@@ -105359,3 +105359,13 @@ profiles, database files and the two relocated public fixture trees stay in
 `/tmp/sb4-cpu/`. Only the owned target directory is built/cleaned, using
 `-j 10`; pre-existing `target-b1/` and `target-pre/` remain untouched.
 No push, stash, Git configuration change or operation on another cluster occurs.
+
+### CPU lane verification census correction — 2026-10-24
+
+The core run above enumerates **46 integration targets**, not 45: **44**
+execute tests and two contain only existing ignored tests. Its integration
+totals are **413 passed, zero failed, 49 existing ignored**, in addition to
+the 733 unit passes / 279 unit ignores and 38 doctests already recorded.
+The earlier target count was a reporting error; all target results remain
+successful. The CPU report is corrected, with the census retained outside
+Git in `/tmp/sb4-cpu/core-integration-census.json`.
