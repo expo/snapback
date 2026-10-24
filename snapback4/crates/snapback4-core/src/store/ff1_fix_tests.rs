@@ -40,7 +40,7 @@ fn interception(pg: bool) {
     let generation=e.generation();
     let relations = {
         let tx=e.store_mut().transaction().unwrap();
-        let mut names=Vec::new();
+        let mut names: Vec<String>=Vec::new();
         if pg {
             #[cfg(feature="postgres")]
             {for row in tx.test_postgres_tx().query("SELECT relname::text FROM pg_class WHERE relnamespace=current_schema()::regnamespace AND relkind='r' ORDER BY relname",&[]).unwrap() {names.push(row.get::<_,String>(0));}}
