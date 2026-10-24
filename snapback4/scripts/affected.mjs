@@ -160,7 +160,10 @@ export function selectAffected(changedFiles, model) {
       || (supportPackage && /^tests?\//.test(path.slice(supportPackage.dir.length + 1)) && !supportPackage.tests.includes(path))) {
       widen(path, 'shared fixture or test support (including documentation-shaped inputs)'); continue;
     }
-    if (/^crates\/snapback4-lang\/src\/guide(?:\/|\.rs$)/.test(p) || /^(?:guide|docs|reports)\//.test(p)
+    const guideInput = /^crates\/snapback4-lang\/src\/guide(?:\/|\.rs$)/.test(p);
+    // Guide implementation is Rust source: retain the ordinary Cargo closure.
+    if (guideInput && path.endsWith('.rs')) docs(path);
+    if ((guideInput && !path.endsWith('.rs')) || /^(?:guide|docs|reports)\//.test(p)
       || /^(?:README|JOURNAL|NOT-DOING)\.md$/.test(p) || /^packages\/[^/]+\/[^/]+\.md$/.test(p)) {
       docs(path); checks.add('ref-check');
       if (/^crates\/snapback4-lang\/src\/guide/.test(p)) {

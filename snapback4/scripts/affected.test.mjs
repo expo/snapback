@@ -244,3 +244,12 @@ test('CI attempts independent setup and retains failure after verification', () 
   for (const line of setup.split('\n').filter(line => line.includes('timeout ') && !line.includes('bindgen_version='))) assert.match(line, /\|\| setup_failed=1/, line);
   assert.match(workflow, /Verify Snapback local proof[\s\S]*Retain Snapback 4 setup failure[\s\S]*always\(\) && steps\.snapback4-tools\.outcome == 'failure'/);
 });
+
+for (const path of ['snapback4/crates/snapback4-lang/src/guide.rs', 'snapback4/crates/snapback4-lang/src/guide/codes.rs']) {
+  test(`Rust guide implementation ${path} retains reverse dependencies`, () => {
+    const plan = select([path]);
+    assert.deepEqual(plan.rustPackages, ['snapback4', 'snapback4-lang']);
+    assert(plan.checks.includes('docs-budget'));
+    assert(ids(plan).includes('difftest:run'));
+  });
+}

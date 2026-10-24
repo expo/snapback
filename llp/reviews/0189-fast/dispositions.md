@@ -54,3 +54,12 @@ independent setup commands inside the Snapback 4 preparation step, not every
 legacy workflow step. Applied that clarification without changing behavior.
 These static reviews do not establish deferred historical execution or paired
 runtime evidence. Final receipt/evidence custody is in the external FAST report.
+
+
+Final conservative source-closure delta: Rust implementation files under the
+guide owner must retain the ordinary owning-crate/reverse-dependency rule.
+They now add docs checks then fall through to Rust source classification;
+non-Rust guide cards keep their narrower compiled-guide target. Two fixtures
+cover guide.rs and guide/codes.rs. Both fresh Codex and Muse returned READY
+for the immutable patch and proposed source/tests SHA256; the applied files
+were verified byte-identical before committing. The final test count is 83.
