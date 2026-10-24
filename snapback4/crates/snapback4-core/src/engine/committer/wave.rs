@@ -81,6 +81,19 @@ impl Wave {
                 }
             }
         }
+        // @ref LLP 3000.009.001.000.002#3.3 — bounded fact collection must be admitted before decoding; exceeding this optimization budget takes the serial path.
+        const FACT_BYTES: u64 = 32 << 20;
+        let declared_bytes = |accesses: &[Access]| {
+            accesses.iter().fold(0u64, |bytes, access| {
+                bytes.saturating_add(crate::rows::disclosed::decode_reservation(
+                    &host.schema.tables[&access.table],
+                ))
+            })
+        };
+        let root_bytes = declared_bytes(&roots);
+        if root_bytes > FACT_BYTES {
+            return Ok(None);
+        }
         #[cfg(test)]
         crate::engine::program_batch::fault::check(
             crate::engine::program_batch::fault::Point::BeforeFacts,
@@ -121,6 +134,9 @@ impl Wave {
                     probes.push(access);
                 }
             }
+        }
+        if root_bytes.saturating_add(declared_bytes(&probes)) > FACT_BYTES {
+            return Ok(None);
         }
         #[cfg(test)]
         crate::engine::program_batch::fault::check(
