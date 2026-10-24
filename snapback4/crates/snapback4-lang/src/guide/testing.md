@@ -29,6 +29,11 @@ E_FIXTURE_TIME means a relative fixture time is malformed or out of range. Use `
 
 ## Refusal ladder
 
+Program `exists` is caller-filtered: a physically present private roster row
+can answer false. Table-rule probes evaluate their declared authority separately;
+`require exists` never grants table write authority. Use a readable membership
+lookup, an appropriately scoped rule probe, or an authorized service operation.
+
 Supply every valid argument when testing authorization: decode (`E_INPUT`)
 runs before the body. For a body ordered lookup → write → require, a hidden
 asserted lookup refuses `NOT_FOUND`, a readable denied table write refuses
@@ -227,12 +232,12 @@ has no content-derived accessible name, so never getByRole('status', {name}).
 Never wait for networkidle: live queries hold long polls. Wait for the control.
 
 `renderedText(page, text, { exact: true, within: container })` excludes inputs and
-textareas. Strings match the entire rendered text by default. Use
+textareas. Strings match normalized substrings by default; exact:true requires equality. Use
 `renderedText(page, "verification", {exact:false})` or
 `renderedText(page, /verification/)` for a row that contains more text.
 `within` is optional. RN-web may split one logical row across nested nodes,
-producing multiple matches: scope to its container, then use `.first()` only
-when those nodes prove the same row. A strictness error means scope is ambiguous.
+producing multiple matches: scope to its container or use exact:true.
+Ambiguous observations refuse independent matches; narrow the scope before retrying.
 Decorative glyphs contribute to accessible names: use aria-hidden for icons or
 an explicit aria-label. A wrapped select label can absorb option text; prefer
 an explicit label/for pair and selectByValue. Run frontPage before screenshots.
@@ -301,7 +306,7 @@ app.mutate. Upload-on-selection plus a synchronous Save is also useful (`guide a
 
 `waitForFresh(locator,previous,options)` returns `Promise<string>`: the fresh
 nonempty text, not a locator. Keep the locator separately for later actions.
-Strings passed to renderedText are exact by default; for composite row text use
+Strings passed to renderedText match substrings by default; use exact:true for equality. For composite row text use
 a RegExp or exact:false. If an exact string stays absent while a scoped substring
 exists, its timeout adds "a substring match exists; pass a RegExp or `exact: false`".
 This hint never weakens the assertion or suppresses ambiguity errors.
@@ -469,3 +474,6 @@ Every call carries `Authorization: Bearer TOKEN` on serve or `x-snapback-persona
 | SDK mutation at custody (`waitSeconds: 0`) | SDK, not raw HTTP | `{state:"pending", id}` is custody, never success |
 
 Read response bodies even on HTTP errors. Raw queries have no SDK `existence`; mutation failures use `why`, not top-level denied. `guide wire` covers the full protocol.
+
+E_PROOF_AMBIGUOUS means multiple rendered matches prevent a unique observation.
+Narrow within or pass exact: true; never choose the first match silently.

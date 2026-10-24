@@ -46,13 +46,15 @@ the mutation. SEC owns self-promotion diagnostics and invariant proofs.
 
 Run `npx snapback4 check` to generate the API. Save this as `staging.mjs` next to
 snapback/, then run `node staging.mjs`. Use `node staging.mjs --once` for CI setup
-and shutdown. The deployment and private credentials file remain for inspection;
+and shutdown. Set `"probe:serve": "node staging.mjs"` in package.json and run
+`npm run --silent probe:serve` for a single JSON readiness line. SIGTERM stops
+and reaps the backend and exits successfully. The deployment and private credentials file remain for inspection;
 choose fresh names for each independent run. Add both to .gitignore. PORT_LO and
 PORT_HI optionally choose a port range. The printed URL belongs to `serve`.
 
 ```js
 import { openSync, writeFileSync, closeSync } from "node:fs";
-import { deploy, startServe } from "snapback4/proof";
+import { deploy, startServe, serveUntilSignal } from "snapback4/proof";
 import { api } from "./snapback/generated/api.ts";
 
 await deploy("staging", "snapback", { args: ["--staging"] });
@@ -73,10 +75,13 @@ try {
       if ((await response.json()).state !== "sent") throw Error("staging data write refused");
     }
   }
+  // Derive supplied event times from the staging clock, including reused stores.
+  const before = await host.now();
+  const advanced = await host.advance("1h");
+  if (advanced.now < before + 3600000) throw Error("clock did not advance");
   console.log(JSON.stringify({ backendUrl: host.url, credentialsFile: "staging-users.json" }));
-  if (!process.argv.includes("--once")) await new Promise(resolve => {
-    process.once("SIGTERM", resolve); process.once("SIGINT", resolve);
-  });
+  // A pending promise alone does not keep Node alive. The helper owns shutdown.
+  if (!process.argv.includes("--once")) await serveUntilSignal([host]);
 } finally { await host.stop(); }
 ```
 
@@ -131,8 +136,11 @@ E_STAGING_SIGNUP means password signup refused or returned an invalid session.
 Inspect the underlying refusal; partial accounts/grants may exist, so inspect
 or discard the disposable deployment before retrying.
 
-E_STAGING_PROVISION means the operator mutation refused or returned an invalid
-reply. Repair its arguments and operator-only rules; partial accounts/grants
+E_STAGING_PROVISION means the operator mutation refused or returned an invalid reply.
+It names the operator mutation, supplied argument names and
+refusal code. The default arguments are `{principal, role}`: for a mutation
+using different names, provide `args(account)` mapping those names. Repair its
+arguments and operator-only rules; partial accounts/grants
 may exist, so inspect or discard the disposable deployment before retrying.
 
 ### Identity request deadline

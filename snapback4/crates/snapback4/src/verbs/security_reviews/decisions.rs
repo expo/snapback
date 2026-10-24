@@ -42,9 +42,19 @@ pub(in crate::verbs) fn render(dispositions: &[Disposition], notes: &[Diagnostic
         if d.acknowledged { writeln!(&mut output,"security reviewed {} {}: {}",d.id,d.code,d.reason.as_deref().unwrap_or("")).unwrap(); continue; }
         if d.family.is_some() { continue; }
         if crate::note_rank::tier(&n.code)!=crate::note_rank::Tier::Review { continue; }
-        let question=n.message.trim_end_matches(['.', '?']);
+        let subject=n.message.split(": ").next().unwrap_or(&n.message);
+        let concise=match n.code.as_str() {
+            "N_COLUMN_RESULT_EXPOSURE"=>format!("{subject}: should operation results/refusals expose protected or projected-out columns to every admitted caller"),
+            _=>n.message.trim_end_matches(['.', '?']).to_owned(),
+        };
+        let question=concise.trim_end_matches(['.', '?']);
         writeln!(&mut output,"decision {} at {}: {question}; is this intended?",d.code,d.site).unwrap();
-        writeln!(&mut output,"  Repair: {}",n.rewrite).unwrap();
+        let repair=match n.code.as_str() {
+            "N_COLUMN_RESULT_EXPOSURE"=>"restrict result/refusal audiences with column rules and independent intent; run snapback4 test",
+            "N_ARGUMENT_GRANT"=>"validate the recipient's current role and relationship; caller authority alone is insufficient",
+            _=>n.rewrite.as_str(),
+        };
+        writeln!(&mut output,"  Repair: {repair}").unwrap();
         writeln!(&mut output,"  Intended: snapback4 check --ack-security {} --reason '<spec rationale>'{}",d.id,if d.gated {" (required before check can pass)"}else{""}).unwrap();
     }
     output

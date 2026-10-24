@@ -324,6 +324,7 @@ const DEFINITIONS: &[(&str, &str)] = &[
     ("E_PROOF_BROWSER", "E_PROOF_BROWSER means the proof project cannot resolve playwright-core."),
     ("E_PROOF_PAGE", "E_PROOF_PAGE means a bounded traversal saw a refused, loading, malformed, repeated, capped, incomplete, partial-existence or over-limit page."),
     ("E_DEV_RESET", "E_DEV_RESET means an already-bound client observed the replacement store after /dev/reset."),
+    ("E_PROOF_AMBIGUOUS", "multiple rendered matches prevent a unique observation"),
     ("E_PROOF_USAGE", "E_PROOF_USAGE means a proof helper received the wrong argument shape."),
     ("E_PRODUCTION_ACCOUNTS", "E_PRODUCTION_ACCOUNTS means provisionAccounts did not find serve on a production deployment with password identity."),
     ("E_QUARRY_IDENTITY_DUPLICATE", "E_QUARRY_IDENTITY_DUPLICATE means `use identity` was declared more than once."),

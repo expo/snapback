@@ -71,6 +71,11 @@ mutation removeItem(item: items):
   delete items[item]
 ```
 
+Probe brackets use commas: `exists members[room, viewer, role = 'admin']`.
+Use `and` between Boolean expressions. Branches accept `elif condition:` or
+`else if condition:`; initialize nested accumulators with `seen = [] of text <=80`.
+`guide tasks` routes by task.
+
 ## Quarry
 
 Local editing uses `npx snapback4 dev`. Shared previews and `probe:serve` use

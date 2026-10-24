@@ -20,6 +20,10 @@ readable target, a false condition returns E_CONFLICT with a read-rule
 hidden row returns null. Use a write admitted by its rule; NOT_FOUND on an
 update or upsert-patch does not prove absence.
 
+Program `exists` is caller-filtered: hidden rows answer false. Refusal ladder:
+validate inputs, then execute statements in source order; a hidden lookup can
+emit NOT_FOUND before a later require. Inspect read authority first.
+
 A read denied by a table's rule answers as an empty page, not a refusal,
 and a client cannot tell it apart from an empty readable page — by design,
 so that a hidden row cannot be probed. For access UI, use a membership query
@@ -27,24 +31,19 @@ the viewer may read, such as a conversation lookup readable by its members:
 a member gets the conversation even when its message page is empty.
 An explicit `require … else CODE` still refuses with the program's code.
 
-Require decides intent; writes pass table rules. Jobs run as
-system. See: guide rule-recipes update-images. Under `dev`, `snapback4 why recent` prints each refusal and parked job:
-operation, code, request/job ID, Unix time, and the refusing clause with its
-site. Replays and uninstrumented paths say `cause not instrumented`. Records describe only
-the named request/job.
-Visibility filtering is not recorded. Inspect `snapback4 why TABLE` for rules
-and residency. Unknown empty answers are silent and unrecorded by default;
-`dev --trace-empty` records them locally without console notices.
-`snapback4 why EMPTY_READ` gives rule, coverage and horizon investigation commands.
+Require decides intent; writes pass table rules. Jobs run as system.
+See: guide rule-recipes update-images. `why recent` prints instrumented dev
+refusals and parked jobs: operation, code, request/job ID, Unix time and
+refusing clause/site. Replays say `cause not instrumented`; records cover only
+the named request/job. Visibility filtering is unrecorded. `why TABLE` shows
+rules/residency; `dev --trace-empty` records empty answers locally;
+`why EMPTY_READ` explains investigation. Console repeats use counted one-second
+windows (guide refusals).
 
-Console repeats print counted one-second windows; `guide refusals` explains.
-
-With several live instances select `why recent --instance ID` (optionally
-`--store ID`). Owner-only `.snapback4/dev-refusals/<storeId>/<instance>.json`
-retains 32 records. Stopped/mismatched streams are rejected. The asynchronous
-32-slot queue reports `dropped` on recovery; `why recent` refuses older
-snapshots while newer refusal evidence is pending or dropped.
-Query sites belong to the reader's generation; capture exhaustion points to
-`read through`. No arguments or row values are recorded, no HTTP endpoint
-exposes evidence, and production `serve` does not collect it. Caller bytes
-remain unchanged.
+Select `why recent --instance ID` (optionally `--store ID`) with multiple
+instances. Owner-only `.snapback4/dev-refusals/<storeId>/<instance>.json` keeps
+32 records. Stopped/mismatched streams refuse. The asynchronous 32-slot queue
+reports dropped records and refuses stale snapshots while evidence is pending
+or dropped. Query sites use the reader generation; capture exhaustion points
+to `read through`. No arguments/rows, HTTP endpoint or production collection;
+caller bytes remain unchanged.
